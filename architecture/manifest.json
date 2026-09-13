@@ -676,6 +676,14 @@
     {
      "artifact": "data/tier_curator_report.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/candidate_registry.json",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/candidate_discovery_status.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
@@ -2576,7 +2584,10 @@
      "slo_hours": 2
     }
    ],
-   "consumes": [],
+   "consumes": [
+    "data/candidate_registry.json",
+    "data/candidate_discovery_status.json"
+   ],
    "consumer_required": true,
    "governed_by": [],
    "curation": "complete",
@@ -3869,6 +3880,26 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "Y4 tier_curator (ADR-055, advisory): кандидаты на подъём тира и DEMOTE по удерживаемым. Читатель — findings_bridge (карточка агенту, не смена ярлыка; docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md §9)"
+  },
+  {
+   "path": "data/candidate_registry.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "com.spa.system_briefing"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "реестр кандидатов в новые протоколы — сканер adapter_sdk/discovery.py шагом дневного цикла (ADR-089 §6, вариант 1; писатель — paper_trading/discovery_step.py). Advisory: suggested_tier всегда «candidate», whitelist — только ADR/владелец. Читатели — alpha_scan/protocol_research в цикле и секция брифинга"
+  },
+  {
+   "path": "data/candidate_discovery_status.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "com.spa.system_briefing"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "исход шага поиска (ok/degraded/refused/skipped) с причиной — чтобы отказ фида был виден, а не жил в логе (инв. #17). Читатель — секция брифинга"
   }
  ],
  "designed_architectures": [

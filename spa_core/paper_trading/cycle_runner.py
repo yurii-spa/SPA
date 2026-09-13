@@ -174,6 +174,10 @@ PRODUCES = (
     "data/rebalance_trigger.json",
     # Y4 tier_curator (Step 2.1c-pre-b) — писался, но не был объявлен (замер 11.09):
     "data/tier_curator_report.json",
+    # Поиск новых протоколов шагом цикла (ADR-089 §6, вариант 1): реестр кандидатов и
+    # исход шага. Писатель — cycle_reporting._run_daily_monitors → discovery_step.
+    "data/candidate_registry.json",
+    "data/candidate_discovery_status.json",
 )
 
 # Запись есть, продуктом не является (ADR-154). Разовая копия старой кривой в момент

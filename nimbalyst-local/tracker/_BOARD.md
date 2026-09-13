@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T15:51:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T15:59:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0bd7f299f) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0b9b403f2) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1036** · ждёт владельца: **5** · занято сессиями: **14**.
 
@@ -326,6 +326,7 @@
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
+- Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
@@ -807,7 +808,6 @@
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Синк кода в прод не сериализован: 11 раз за сутки два-три процесса писали ОДИН файл резерва, один раз подрались за .git/index.lock  ·  `inbox-sink-koda-v-prod-ne-serializovan-11-raz.md` · 2026-09-06
-- Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Сканер назвал 136 файлов работы, которой никто не объявлял, в 11 деревьях — разобрать по одному дереву  ·  `inbox-skaner-nazval-136-failov-raboty-kotoroi.md` · 2026-08-21
 - Сканер НЕобъявленного не видит, что тот же файл лежит на базе под другим путём — 41% списка это переезд каталога  ·  `inbox-skaner-neobyavlennogo-ne-vidit-chto-tot.md` · 2026-08-21
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
@@ -854,6 +854,7 @@
 - Внутридневной paper-актор: ребаланс между суточными циклами (следующий шаг ADR-104)  ·  `agent-intraday-paper-actor.md` · 2026-08-21
 - Просадку вычислить не из чего — НАРАЩИВАНИЕ запрещено (решение владельца, ADR-129)  ·  `agent-nevychislimaya-prosadka-zapret-naraschivaniya.md` · 2026-08-23 · 🔒 `interactive-session-2026-08-27`
 - Паспорт агента — обязательное поле манифеста (ADR-154)  ·  `agent-passport-obyazatelen-dlya-agenta.md` · 2026-08-27 · 🔒 `interactive-session-2026-08-28`
+- Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)  ·  `agent-poisk-protokolov-shag-dnevnogo-tsikla.md` · 2026-08-20
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - ДОРОЖНАЯ КАРТА ADR-154 — контракты раньше оркестрации (все задачи, чтобы не потерять)  ·  `agent-roadmap-adr154-contracts.md` · 2026-08-27 · 🔒 `interactive-session-2026-08-27`
 - Включить redteam_rotation: 1021 строка состязательных сценариев написана и не бегает ни разу  ·  `agent-vklyuchit-redteam-rotation.md` · 2026-08-21
@@ -888,7 +889,6 @@
 - Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `agent-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-09
 - Пересмотреть все сроки годности разом — когда разгребён бэклог (ADR-158)  ·  `agent-peresmotr-srokov-godnosti-posle-backloga.md` · 2026-08-28
-- Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)  ·  `agent-poisk-protokolov-shag-dnevnogo-tsikla.md` · 2026-08-20
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08

@@ -49,7 +49,7 @@ python3 -m spa_core.monitoring.card_acceptance
 
 ## Храповик
 
-База `scripts/inbox_acceptance_baseline.json` — карточки без критерия на 13.09 (замер: 462; 461 после первой карточки с пробой).
+База `scripts/inbox_acceptance_baseline.json` — карточки без критерия на 13.09 (замер: 462; убывает по мере проб: 461 → 460).
 Может **только уменьшаться**. Дописывать файл, чтобы погасить падение, **запрещено** — тот
 же порядок, что у `frozen_date_baseline.json`, `design_status_baseline.json`,
 `site_numbers_baseline.json`.

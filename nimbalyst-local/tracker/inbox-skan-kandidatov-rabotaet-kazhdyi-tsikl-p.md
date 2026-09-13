@@ -2,8 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом"
-status: new
+status: in-progress
 created: 2026-08-18
+acceptance_probe: candidate_discovery_loop_closed
+status_trail:
+  - "2026-09-13T15:59:09.179081+00:00 new -> in-progress · queue.set_status"
 ---
 
 ## Что измерено (цикл #283, не гипотеза)

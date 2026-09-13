@@ -2,11 +2,13 @@
 trackerStatus:
   type: agent-task
 title: "Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)"
-status: backlog
+status: in-progress
 source: cycle-311-ingest
 created: 2026-08-20
 priority: medium
 tags: [adapters, discovery, daily-cycle, adr-089]
+status_trail:
+  - "2026-09-13T15:59:09.624536+00:00 backlog -> in-progress · queue.set_status"
 ---
 
 > Порождена инжестом решения владельца по карточке

@@ -686,6 +686,75 @@ def build_source_discovery_section() -> str:
                  "человека. Источник: `data/source_discovery.json` (ADR-142)._")
     return "\n".join(lines)
 
+def build_candidate_registry_section(*, now: "datetime | None" = None,
+                                     max_age_days: float = 2.0) -> str:
+    """Реестр кандидатов в новые протоколы — читатель `candidate_registry.json` и исхода шага.
+
+    Сканер вселенной (`adapter_sdk/discovery.py`) с 13.09 бежит шагом дневного цикла
+    (`paper_trading/discovery_step.py`, решение владельца 19.08). Раздел существует ради
+    ВИДИМОСТИ: без него отказ шага жил бы только в логе. Исходы различимы (инв. #17):
+    реестра нет · есть без метки · есть и свеж/протух; статус шага: ok/degraded/refused/skipped.
+    Порог 2 суток при дневном такте: один пропуск не звенит, замолчавший шаг звенит.
+    Время — вход.
+    """
+    now = now or datetime.now(timezone.utc)
+    reg = read_json("candidate_registry.json")
+    st = read_json("candidate_discovery_status.json")
+    lines = ["## 🧭 Кандидаты в новые протоколы (advisory, шаг дневного цикла)"]
+    if not isinstance(reg, dict) or not reg:
+        lines.append("- `data/candidate_registry.json` **отсутствует** — сканер ни разу не отработал в "
+                     "этом дереве. Это НЕ «кандидатов нет» (инв. #17).")
+    else:
+        gen = reg.get("generated_at")
+        age = None
+        if isinstance(gen, str):
+            try:
+                ts = datetime.fromisoformat(gen.replace("Z", "+00:00"))
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                age = (now - ts).total_seconds() / 86400.0
+            except ValueError:
+                age = None
+        if age is None:
+            lines.append("- реестр есть, но **без отметки времени** — свежесть НЕ измерена.")
+        elif age > max_age_days:
+            lines.append(f"- ⚠️ реестр **протух**: {age:.1f} сут при пороге {max_age_days:.0f} — шаг замолчал "
+                         f"или отказывает; см. статус ниже.")
+        else:
+            lines.append(f"- свежесть реестра: {age:.1f} сут (порог {max_age_days:.0f}).")
+        cands = reg.get("candidates") if isinstance(reg.get("candidates"), list) else []
+        lines.append(f"- просканировано пулов: **{reg.get('scanned_pools', '?')}** · кандидатов: **{len(cands)}** "
+                     f"· статус сканера: `{reg.get('status', '?')}`")
+        if cands:
+            lines.append("")
+            lines.append("| протокол | символ | чейн | TVL, $M | APY, % | не измерено |")
+            lines.append("|---|---|---|---:|---:|---|")
+            for c in cands[:8]:
+                if not isinstance(c, dict):
+                    continue
+                tvl = c.get("tvl_usd")
+                apy = c.get("apy_pct")
+                lines.append(f"| {c.get('protocol', '?')} | {c.get('symbol', '?')} | {c.get('chain', '?')} | "
+                             f"{(float(tvl) / 1e6):.1f} | {float(apy):.2f} | "
+                             f"{', '.join(c.get('gates_unknown') or []) or '—'} |"
+                             if isinstance(tvl, (int, float)) and isinstance(apy, (int, float)) else
+                             f"| {c.get('protocol', '?')} | {c.get('symbol', '?')} | {c.get('chain', '?')} | ? | ? | "
+                             f"{', '.join(c.get('gates_unknown') or []) or '—'} |")
+    if not isinstance(st, dict) or not st:
+        lines.append("- исход последнего шага: **не записан** (`candidate_discovery_status.json` нет).")
+    else:
+        status = st.get("status", "?")
+        reason = st.get("reason") or ""
+        mark = {"ok": "🟢", "degraded": "🟡", "refused": "🔴", "skipped": "⚪"}.get(status, "?")
+        lines.append(f"- исход последнего шага ({st.get('generated_at', '?')}): {mark} **{status}**"
+                     + (f" — {reason}" if reason else ""))
+    lines.append("")
+    lines.append("_Advisory: кандидат НЕ становится адаптером сам (`suggested_tier` всегда «candidate»); "
+                 "в whitelist — только ADR/владелец. Отказ фида ⇒ реестр не трогается, выдуманных "
+                 "кандидатов ноль. Источник: `paper_trading/discovery_step.py`._")
+    return "\n".join(lines)
+
+
 def build_tier_curator_section() -> str:
     """Тир-куратор (Y4, ADR-055) — второй читатель `tier_curator_report.json`.
 
@@ -1174,6 +1243,7 @@ def main() -> None:
         build_backlog_movement_section() + "\n",
         build_source_discovery_section() + "\n",
         build_tier_curator_section() + "\n",
+        build_candidate_registry_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
         build_sprint_section() + "\n",
