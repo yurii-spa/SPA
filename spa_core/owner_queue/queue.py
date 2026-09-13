@@ -146,7 +146,9 @@ class AcceptanceCriterionLocked(RuntimeError):
 
 
 #: Статусы ПРИЁМА: карточка ещё ничья, критерий обязан появиться при взятии в работу.
-INTAKE_STATUSES = frozenset({"new", "backlog"})
+#: `ingested` — «ответ владельца принят», не работа: у inbox-карточек он legacy (две штуки), и
+#: перевод в него работой не является (#55: test_owner_answer_carry краснел на этом отказе).
+INTAKE_STATUSES = frozenset({"new", "backlog", "ingested"})
 #: Статусы, в которых карточка «в руках» сессии — её проба заморожена.
 IN_WORK_STATUSES = frozenset({"in-progress", "blocked"})
 #: База карточек без критерия на момент введения правила (13.09). Только уменьшается.
@@ -164,8 +166,11 @@ def _inbox_acceptance_baseline() -> set[str] | None:
 
 def has_acceptance_criterion(fm: dict) -> bool:
     """Машинный критерий — `acceptance_probe:` (реестровая проба) либо `finding_key:` (карточку
-    родил мост; критерий — исчезновение находки, закрывает мост сам)."""
-    for key in ("acceptance_probe", "finding_key"):
+    родил мост; критерий — исчезновение находки, закрывает мост сам). `acceptance_exempt:` —
+    НАЗВАННОЕ освобождение (маршрутизация приёма: идея ушла в docs/ideas, неясное — карточкой
+    владельцу, задача владельца поставлена в очередь); это решение на протоколе, а не критерий,
+    и делающая сессия обязана объявить пробу до первой правки (`.claude/rules/acceptance.md`)."""
+    for key in ("acceptance_probe", "finding_key", "acceptance_exempt"):
         val = fm.get(key)
         if isinstance(val, str) and val.strip():
             return True
@@ -391,7 +396,8 @@ def list_cards(
 
 
 def set_status(path: str | Path, new_status: str,
-               closed_by: str | None = None, evidence: str | None = None) -> None:
+               closed_by: str | None = None, evidence: str | None = None,
+               acceptance_exempt: str | None = None) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
     Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
@@ -434,6 +440,17 @@ def set_status(path: str | Path, new_status: str,
     # приёма (`new`/`backlog`) только с машинным критерием. Отказ здесь, а не в отчёте
     # через сутки: мерку выбирают ДО работы, иначе «стало лучше» нечем поверить.
     _tracker_type = (_fm.get("trackerStatus") or {}).get("type") if isinstance(_fm.get("trackerStatus"), dict) else None
+    # Освобождение — НАЗВАННОЕ и записанное в саму карточку (`acceptance_exempt:`), не
+    # тихий флаг: маршрутизатор приёма двигает карточки владельца (идея → docs/ideas, неясное →
+    # карточка владельцу, задача → очередь), и это не работа сессии. Пустая причина — не
+    # освобождение (тот же порядок, что у FROZEN-DATE-OK без причины).
+    _exempt = (acceptance_exempt or "").strip()
+    if _exempt and _tracker_type == "inbox" and not has_acceptance_criterion(_fm):
+        _stamped = _stamp_frontmatter_field(text, "acceptance_exempt", _exempt)
+        if _stamped != text:
+            text = _stamped
+            fm_lines, _ = _split_frontmatter(text)
+            _fm = _parse_frontmatter(fm_lines)
     if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
             and not has_acceptance_criterion(_fm)):
         _base = _inbox_acceptance_baseline()
@@ -751,6 +768,31 @@ _CODE_FENCE_RE = re.compile(r"^\s{0,3}(?:```|~~~)")
 _BLOCKQUOTE_RE = re.compile(r"^\s{0,3}>")
 _INDENTED_CODE_RE = re.compile(r"^(?: {4,}|\t)")
 _INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+def _stamp_frontmatter_field(text: str, key: str, value: str) -> str:
+    """Вписать/заменить верхнеуровневое поле frontmatter. Возврат — новый текст (или тот же)."""
+    lines = text.splitlines(keepends=True)
+    start = end = None
+    seen = 0
+    for i, ln in enumerate(lines):
+        if ln.strip() == "---":
+            seen += 1
+            if seen == 1:
+                start = i
+            elif seen == 2:
+                end = i
+                break
+    if start is None or end is None:
+        return text
+    safe = str(value).replace("\n", " ").replace('"', "'").strip()
+    for i in range(start + 1, end):
+        if lines[i].startswith(f"{key}:") and not lines[i][:1].isspace():
+            newline = "\n" if lines[i].endswith("\n") else ""
+            lines[i] = f'{key}: "{safe}"{newline}'
+            return "".join(lines)
+    lines.insert(end, f'{key}: "{safe}"\n')
+    return "".join(lines)
 
 
 def _frontmatter_end(lines: list[str]) -> int:

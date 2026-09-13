@@ -116,7 +116,7 @@ def _run_daily_monitors(
         results["adapter_watchdog"] = f"error: {type(exc).__name__}: {exc}"
 
     # Поиск НОВЫХ протоколов — шаг цикла (решение владельца 19.08, ADR-089 §6, вариант 1).
-    # Писатель `data/candidate_registry.json`, которого у реестра не было (#283–#287):
+    # Писатель реестра кандидатов (discovery_step.REGISTRY_FILENAME), которого не было (#283–#287):
     # ниже этот реестр читают alpha_scan и protocol_research. Ежедневно, ДО них.
     # Три исхода различимы (ok/degraded/refused/skipped), отказ не роняет цикл и
     # не подставляет выдуманных кандидатов; под pytest живой фид не опрашивается.

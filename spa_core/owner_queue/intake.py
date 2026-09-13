@@ -137,7 +137,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 icon = {"DONE": "✅", "IN_PROGRESS": "🔧", "REJECTED": "🚫"}.get(verdict, "ℹ️")
                 _queue_notice(f"{icon} {html.escape(resp_h or 'нашёл совпадение в памяти — дубль не создаю')}")
                 _journal_history(dt, card, verdict, resp_h)
-                set_status(card.path, "done")
+                set_status(card.path, "done", acceptance_exempt="intake route: duplicate")
                 processed.append(card.id)
                 continue
             if verdict == "PARTIAL" and resp_h:
@@ -174,7 +174,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 ideas.mkdir(parents=True, exist_ok=True)
                 fpath = ideas / f"{dt.strftime('%Y-%m-%d')}-{_slug(card.title)}.md"
                 atomic_save_text(f"# {card.title}\n\n_Из Inbox {dt.strftime('%Y-%m-%d')} (source: {card.fields.get('source','')})._\n{partial_body}\n{body}\n", str(fpath))
-                set_status(card.path, "done")
+                set_status(card.path, "done", acceptance_exempt="intake route: idea")
                 _queue_notice(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>{partial_tg}")
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
@@ -189,7 +189,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                           f"## Как понять, что готово\nТы уточнил.\n\n## Что будет после\nОбработаю по твоему ответу."),
                     status="needs-owner", source="intake",
                 )
-                set_status(card.path, "done")
+                set_status(card.path, "done", acceptance_exempt="intake route: unclear")
                 _queue_notice(f"❓ Есть вопрос — смотри карточку: {html.escape(q)}{partial_tg}")
             else:  # task
                 # вписать критерий (полную декомпозицию делает обычный цикл), статус in-progress
@@ -200,7 +200,9 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 if append:
                     txt = card.path.read_text(encoding="utf-8").rstrip() + append
                     atomic_save_text(txt, str(card.path))
-                set_status(card.path, "in-progress")
+                # Освобождение НАЗВАНО и записано в карточку (правило приёмки): задание владельца
+                # ставится в очередь маршрутизатором, а пробу объявляет сессия, что его возьмёт.
+                set_status(card.path, "in-progress", acceptance_exempt="intake route: task")
                 _queue_notice(f"📥 Создал задачу: <b>{html.escape(card.title)}</b>{partial_tg}")
             processed.append(card.id)
         except Exception as exc:  # noqa: BLE001 — карточка остаётся new → обычный цикл

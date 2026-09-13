@@ -86,6 +86,23 @@ class TakingIntoWork(unittest.TestCase):
             q.set_status(path, "in-progress")
         self.assertIn("НЕ ИЗМЕРЕНО", err.getvalue())
 
+    def test_named_exemption_is_stamped_into_the_card_and_lets_it_move(self):
+        """Маршрутизатор приёма (#55): освобождение НАЗВАНО и видно в самой карточке."""
+        path = _card(self.tmp, "inbox-golosovoe-zadanie")
+        q.set_status(path, "in-progress", acceptance_exempt="intake route: task")
+        text = open(path, encoding="utf-8").read()
+        self.assertIn("status: in-progress", text)
+        self.assertIn('acceptance_exempt: "intake route: task"', text)
+
+    def test_empty_exemption_is_not_an_exemption(self):
+        path = _card(self.tmp, "inbox-pustaya-prichina")
+        with self.assertRaises(q.AcceptanceCriterionMissing):
+            q.set_status(path, "in-progress", acceptance_exempt="   ")
+
+    def test_ingested_is_intake_not_work(self):
+        path = _card(self.tmp, "inbox-otvet-prinyat")
+        q.set_status(path, "ingested")
+
     def test_cli_refuses_with_exit_2(self):
         path = _card(self.tmp, "inbox-cli")
         r = subprocess.run([sys.executable, _CLI, "set-status", path, "in-progress"],

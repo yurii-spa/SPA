@@ -698,12 +698,19 @@ def build_candidate_registry_section(*, now: "datetime | None" = None,
     Время — вход.
     """
     now = now or datetime.now(timezone.utc)
+    # Честность замера — у КАНОНИЧЕСКОГО читателя (adapter_sdk/candidate_registry.py):
+    # «реестра нет / нечитаем» ≠ «кандидатов ноль». Сырой документ читается только ради
+    # метки времени и счётчиков сканера.
+    try:
+        from spa_core.adapter_sdk.candidate_registry import read_candidate_registry
+        honest = read_candidate_registry(DATA_DIR)
+    except Exception as exc:  # noqa: BLE001 — читатель недоступен: не измерено, названо
+        honest = {"items": [], "measured": False, "reason": f"канонический читатель недоступен: {type(exc).__name__}"}
     reg = read_json("candidate_registry.json")
     st = read_json("candidate_discovery_status.json")
     lines = ["## 🧭 Кандидаты в новые протоколы (advisory, шаг дневного цикла)"]
-    if not isinstance(reg, dict) or not reg:
-        lines.append("- `data/candidate_registry.json` **отсутствует** — сканер ни разу не отработал в "
-                     "этом дереве. Это НЕ «кандидатов нет» (инв. #17).")
+    if not honest.get("measured"):
+        lines.append(f"- реестр кандидатов **НЕ ИЗМЕРЕН**: {honest.get('reason')}. Это НЕ «кандидатов нет» (инв. #17).")
     else:
         gen = reg.get("generated_at")
         age = None
@@ -722,8 +729,8 @@ def build_candidate_registry_section(*, now: "datetime | None" = None,
                          f"или отказывает; см. статус ниже.")
         else:
             lines.append(f"- свежесть реестра: {age:.1f} сут (порог {max_age_days:.0f}).")
-        cands = reg.get("candidates") if isinstance(reg.get("candidates"), list) else []
-        lines.append(f"- просканировано пулов: **{reg.get('scanned_pools', '?')}** · кандидатов: **{len(cands)}** "
+        cands = honest.get("items") or []
+        lines.append(f"- просканировано пулов: **{reg.get('scanned_pools', '?')}** · кандидатов (измерено): **{len(cands)}** "
                      f"· статус сканера: `{reg.get('status', '?')}`")
         if cands:
             lines.append("")

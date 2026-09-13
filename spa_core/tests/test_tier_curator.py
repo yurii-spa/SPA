@@ -441,9 +441,14 @@ def test_no_module_consumes_report_to_mutate_tiers():
     # агенту, инвариант не нарушает. Разрешён ровно один читатель — findings_bridge, и его
     # чистота проверяется ниже ПОЛОЖИТЕЛЬНЫМ контролем, а не доверием к списку.
     reader = SPA_CORE / "monitoring" / "findings_bridge.py"
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09, #55): второй читатель — исходная проба
+    # приёмки `tier_promotion_loop_closed` (card_acceptance.py, #54): она кладёт отчёт куратора
+    # в ОДНОРАЗОВОЕ дерево и меряет, родилась ли карточка. Её чистота проверяется тем же
+    # положительным контролем, что у моста, — ниже.
+    probe = SPA_CORE / "monitoring" / "card_acceptance.py"
     allowed = {SPA_CORE / "analytics" / "tier_curator.py",
                SPA_CORE / "paper_trading" / "cycle_runner.py",
-               reader}
+               reader, probe}
     offenders = []
     for py in SPA_CORE.rglob("*.py"):
         if py.parts and "tests" in py.parts:
@@ -464,6 +469,11 @@ def test_no_module_consumes_report_to_mutate_tiers():
                       "risk.policy", "adapters.registry", "protocol_risk_map",
                       "from spa_core.analytics.tier_curator import"):
         assert forbidden not in bridge, f"findings_bridge трогает тир: {forbidden!r}"
+    probe_text = probe.read_text(encoding="utf-8")
+    assert "tier_curator_report" in probe_text, "проба обязана класть именно отчёт куратора"
+    for forbidden in ("PROTOCOL_RISK_SCORES", "tier_map", "RiskConfig", "risk.policy",
+                      "protocol_risk_map", "from spa_core.analytics.tier_curator import"):
+        assert forbidden not in probe_text, f"card_acceptance трогает тир: {forbidden!r}"
     # cycle_runner: только write_report, самого файла отчёта он не читает
     runner = (SPA_CORE / "paper_trading" / "cycle_runner.py").read_text(
         encoding="utf-8")
