@@ -39,7 +39,7 @@ except Exception:  # pragma: no cover — import guard for test isolation
     _POLICY_CONFIG = None  # type: ignore[assignment]
     # Канон разбора тира недоступен ⇒ НЕ финансируем ничего из реестра
     # (fail-CLOSED): «не смогли определить тир» не имеет права означать «T2».
-    def _tier_from_registry(_raw):  # type: ignore[misc]
+    def _tier_from_registry(_raw: object) -> None:  # type: ignore[misc]
         return None
 
 log = logging.getLogger("spa.allocator")
