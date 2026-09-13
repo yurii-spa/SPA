@@ -2,20 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T13:47:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T14:54:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8ae5a4d99) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c10ca0d70) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1036** · ждёт владельца: **7** · занято сессиями: **14**.
+> Всего карточек: **1036** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
-- **Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает**  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md`
 - **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
 - **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
-- **Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?** · _normal_  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -42,10 +40,8 @@
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
-- Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md` · 2026-09-12
 - Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
 - Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
-- Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md` · 2026-09-12
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -194,6 +190,7 @@
 - Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней  ·  `owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu.md` · 2026-08-25
 - Координатор ёмкости пулов между тремя книгами: блокировать жёстко или предупреждать?  ·  `owner-decision-koordinator-emkosti-pulov-mezhdu-tremya.md` · 2026-08-30
 - Координатор ёмкости пулов: свой порог для суммы трёх книг или текущий RiskPolicy?  ·  `owner-decision-koordinator-emkosti-pulov-svoi-porog-dly.md` · 2026-08-30
+- Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md` · 2026-09-12
 - Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.digest_weekly работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest.md` · 2026-08-08
 - Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-site-f.md` · 2026-09-09
@@ -253,6 +250,7 @@
 - Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md` · 2026-08-10
 - Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить  ·  `owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens.md` · 2026-08-23
 - Сколько стоит один цикл агента — без твоего числа стоимость цеха не считается  ·  `owner-decision-skolko-stoit-odin-tsikl-agenta.md` · 2026-09-09
+- Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?  ·  `owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko.md` · 2026-09-12
 - Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего  ·  `owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l.md` · 2026-08-23
 - Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа  ·  `owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md` · 2026-08-22
 - Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро  ·  `owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k.md` · 2026-09-05

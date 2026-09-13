@@ -8,8 +8,11 @@ unittest (run with ``python3 -m unittest spa_core.tests.test_readiness_checker``
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import sys
 import tempfile
+import time
 import unittest
 from datetime import date
 from pathlib import Path
@@ -73,7 +76,7 @@ class _Harness(unittest.TestCase):
     """Base class: builds a temp SPA dir and a checker against it."""
 
     def _build(self, data: dict | None = None, root: dict | None = None,
-               today: date = TODAY_OK) -> ReadinessChecker:
+               today: date = TODAY_OK, autopush_log=None) -> ReadinessChecker:
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(self._rm, tmp)
         (tmp / "data").mkdir()
@@ -87,6 +90,18 @@ class _Harness(unittest.TestCase):
             content = payload if isinstance(payload, str) else json.dumps(payload)
             (tmp / name).write_text(content, encoding="utf-8")
 
+        # СЛЕД ПРОГОНА автопуша (ADR-366). До решения владельца 13.09 критерий C012
+        # зеленел от наличия файла `auto_push.py`, и здоровой сцене хватало его
+        # положить. Теперь критерий спрашивает о ПРОВОДКЕ, поэтому здоровая сцена
+        # обязана нести свежий след прогона — иначе она перестала бы быть здоровой,
+        # и тесты «все критерии проходят» доказывали бы не то, что обещают.
+        if autopush_log is not False:
+            (tmp / "logs").mkdir(exist_ok=True)
+            (tmp / "logs" / "auto_push.log").write_text(
+                autopush_log or ("Sun Sep 13 14:53:51 CEST 2026: auto_push complete — "
+                                 "pushed=0 skipped=0 failed=0\n"),
+                encoding="utf-8")
+
         return ReadinessChecker(spa_dir=tmp, today=today)
 
     @staticmethod
@@ -99,6 +114,14 @@ class _Harness(unittest.TestCase):
         for c in result["criteria"]:
             if c["id"] == cid:
                 return c["status"]
+        raise AssertionError(f"criterion {cid} not in result")
+
+    @staticmethod
+    def _detail(result: dict, cid: str) -> str:
+        """Текст вердикта: красный обязан НАЗЫВАТЬ причину, а не просто краснеть."""
+        for c in result["criteria"]:
+            if c["id"] == cid:
+                return c.get("detail", "")
         raise AssertionError(f"criterion {cid} not in result")
 
 
@@ -174,11 +197,31 @@ class TestReadinessChecker(_Harness):
         self.assertEqual(result["verdict"], "CONDITIONAL")
 
     def test_infrastructure_checks(self):
+        """ИЗМЕНЕНО НАМЕРЕННО (ADR-366, инв. #16) — проверка УСИЛЕНА.
+
+        Здесь стояло: удали `auto_push.py` — и C012 краснеет. Это и был дефект:
+        критерий готовности к ЖИВЫМ ДЕНЬГАМ зеленел от НАЛИЧИЯ ФАЙЛА, который к
+        автопушу отношения не имеет (расписание зовёт `scripts/auto_push.sh`, сам
+        файл помечен устаревшим ADR-032, за 2343 коммита через него не ушло ни
+        одного). Решение владельца 13.09, вариант 1: критерий спрашивает о ПРОВОДКЕ.
+
+        Поэтому сцена перевёрнута: отсутствие файла на вердикт больше НЕ ВЛИЯЕТ, а
+        краснит отсутствие СЛЕДА ПРОГОНА — которого во временном дереве и нет.
+        """
         root = _root_files()
         del root["auto_push.py"]
         result = self._build(root=root).check_all()
         self.assertEqual(self._status(result, "C011"), "PASS")
-        self.assertEqual(self._status(result, "C012"), "FAIL")
+        # Файла нет, а СЛЕД ПРОГОНА есть ⇒ критерий зелёный: именно в этом суть
+        # решения владельца — вердикт решает проводка, а не файл на диске.
+        self.assertEqual(self._status(result, "C012"), "PASS")
+        # И обратная сторона: убери след прогона — красный, с названной причиной.
+        # Без этой половины «критерий больше не смотрит на файл» осталось бы
+        # утверждением, истинным и у критерия, который не смотрит НИ НА ЧТО.
+        blind = self._build(root=root, autopush_log=False).check_all()
+        self.assertEqual(self._status(blind, "C012"), "FAIL")
+        self.assertIn("НЕ ИЗМЕРЕНО", self._detail(blind, "C012"),
+                      "красный обязан назвать, что именно не измерено")
 
     def test_adapter_checks_no_file(self):
         data = _good_data()
@@ -282,3 +325,78 @@ class TestCriteriaCatalogue(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class AutopushCriterionAsksAboutWiringNotAFile(unittest.TestCase):
+    """C012 после решения владельца 13.09 (ADR-366).
+
+    Три исхода различимы, и каждый закреплён отдельно. Проверять только красный
+    значило бы не заметить, если критерий станет красным ВСЕГДА, — а это ровно
+    такой же обман, как вечно зелёный, только в другую сторону.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="spa_c012_"))
+        (self.tmp / "logs").mkdir(parents=True)
+        self.log = self.tmp / "logs" / "auto_push.log"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _c012(self):
+        return ReadinessChecker(spa_dir=self.tmp)._autopush_alive()
+
+    def _write(self, line: str):
+        self.log.write_text(line + "\n", encoding="utf-8")
+
+    def test_a_fresh_run_with_no_failures_passes(self):
+        """`pushed=0 skipped=0` — ЧЕСТНОЕ «отправлять было нечего», не молчание."""
+        self._write("Sun Sep 13 14:53:51 CEST 2026: auto_push complete — "
+                    "pushed=0 skipped=0 failed=0")
+        r = self._c012()
+        self.assertEqual(r.status, "PASS")
+        self.assertIn("failed=0", r.detail)
+
+    def test_a_failed_push_is_red(self):
+        self._write("Sun Sep 13 14:53:51 CEST 2026: auto_push complete — "
+                    "pushed=1 skipped=0 failed=2")
+        r = self._c012()
+        self.assertEqual(r.status, "FAIL")
+        self.assertIn("failed=2", r.detail)
+
+    def test_a_stale_heartbeat_is_red_and_says_how_stale(self):
+        """Расписание 90 мин: молчание полусуток — отказ, а не «наверное, ок»."""
+        self._write("Sun Sep 13 02:00:00 CEST 2026: auto_push complete — "
+                    "pushed=0 skipped=0 failed=0")
+        os.utime(self.log, (time.time() - 12 * 3600, time.time() - 12 * 3600))
+        r = self._c012()
+        self.assertEqual(r.status, "FAIL")
+        self.assertIn("молчит", r.detail)
+
+    def test_a_missing_log_is_named_not_measured(self):
+        """Инв. #17: «следа нет» не имеет права выглядеть как «прогон прошёл»."""
+        r = self._c012()
+        self.assertEqual(r.status, "FAIL")
+        self.assertIn("НЕ ИЗМЕРЕНО", r.detail)
+
+    def test_a_log_without_a_summary_is_named_not_measured(self):
+        self._write("Sun Sep 13 14:53:51 CEST 2026: что-то пошло не так")
+        r = self._c012()
+        self.assertEqual(r.status, "FAIL")
+        self.assertIn("НЕ ИЗМЕРЕНО", r.detail)
+
+    def test_the_dead_file_no_longer_decides_anything(self):
+        """Суть решения владельца: файл на диске больше не удостоверяет проводку.
+
+        Контроль в обе стороны: с файлом и без него вердикт ОДИН И ТОТ ЖЕ, а решает
+        его след прогона. Без этой пары «переписал критерий» осталось бы заявлением.
+        """
+        self._write("Sun Sep 13 14:53:51 CEST 2026: auto_push complete — "
+                    "pushed=0 skipped=0 failed=0")
+        without = self._c012().status
+        (self.tmp / "auto_push.py").write_text("# мёртвый файл\n", encoding="utf-8")
+        with_file = self._c012().status
+        self.assertEqual((without, with_file), ("PASS", "PASS"))
+        self.log.unlink()
+        self.assertEqual(self._c012().status, "FAIL",
+                         "файл на месте, следа прогона нет — вердикт обязан быть красным")

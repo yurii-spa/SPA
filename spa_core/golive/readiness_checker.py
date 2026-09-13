@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+import re
 from pathlib import Path
 
 from spa_core.golive.criteria import CRITERIA, CRITERIA_BY_ID, WEIGHT_POINTS
@@ -138,6 +139,52 @@ class ReadinessChecker:
             return json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return None
+
+    #: Сводка обёртки автопуша: одна строка на прогон.
+    _AUTOPUSH_SUMMARY = re.compile(
+        r"auto_push complete\s*[—-]\s*pushed=(\d+)\s+skipped=(\d+)\s+failed=(\d+)")
+
+    #: Расписание автопуша — 90 минут. Допуск в шесть часов = четыре пропущенных
+    #: прогона: меньше сделало бы критерий шумным на перезагрузке, больше — слепым.
+    _AUTOPUSH_MAX_AGE_H = 6.0
+
+    def _autopush_alive(self) -> _Result:
+        """C012: агент автопуша отработал и НАЗВАЛ исход (решение владельца 13.09).
+
+        Три исхода различимы (инв. #17): отработал и без отказов · отработал и что-то
+        не отправилось · **НЕ ИЗМЕРЕНО** — журнала нет, он не читается или в нём нет
+        ни одной сводки. Третий исход НЕ выдаётся за успех: именно так прежняя
+        редакция и зеленела — от наличия файла, ничего не измерив.
+        """
+        log = self.spa_dir / "logs" / "auto_push.log"
+        if not log.is_file():
+            return self._r("C012", "FAIL",
+                           f"НЕ ИЗМЕРЕНО: {log.name} нет — агент автопуша не оставил "
+                           f"ни одного следа прогона")
+        try:
+            text = log.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            return self._r("C012", "FAIL", f"НЕ ИЗМЕРЕНО: {log.name} не читается ({exc})")
+        hits = list(self._AUTOPUSH_SUMMARY.finditer(text))
+        if not hits:
+            return self._r("C012", "FAIL",
+                           "НЕ ИЗМЕРЕНО: в журнале автопуша нет ни одной сводки прогона")
+        pushed, skipped, failed = (int(x) for x in hits[-1].groups())
+        try:
+            age_h = (datetime.now(timezone.utc).timestamp() - log.stat().st_mtime) / 3600.0
+        except OSError as exc:
+            return self._r("C012", "FAIL", f"НЕ ИЗМЕРЕНО: возраст журнала не снят ({exc})")
+        if age_h > self._AUTOPUSH_MAX_AGE_H:
+            return self._r("C012", "FAIL",
+                           f"автопуш молчит {age_h:.1f} ч при расписании 90 мин "
+                           f"(допуск {self._AUTOPUSH_MAX_AGE_H:.0f} ч)")
+        if failed:
+            return self._r("C012", "FAIL",
+                           f"последний прогон автопуша: failed={failed} "
+                           f"(pushed={pushed}, skipped={skipped})")
+        return self._r("C012", "PASS",
+                       f"автопуш отработал {age_h:.1f} ч назад: pushed={pushed} "
+                       f"skipped={skipped} failed=0")
 
     @staticmethod
     def _r(cid: str, status: str, detail: str) -> _Result:
@@ -290,11 +337,21 @@ class ReadinessChecker:
         else:
             out.append(self._r("C011", "FAIL", "push_to_github.py missing"))
 
-        # C012 — auto_push.py present.
-        if (self.spa_dir / "auto_push.py").exists():
-            out.append(self._r("C012", "PASS", "auto_push.py present"))
-        else:
-            out.append(self._r("C012", "FAIL", "auto_push.py missing"))
+        # C012 — автопуш ЖИВ: агент отработал и сказал, чем кончил (ADR-366).
+        #
+        # Здесь стояло `auto_push.py присутствует` — то есть критерий готовности к
+        # ЖИВЫМ ДЕНЬГАМ зеленел от НАЛИЧИЯ ФАЙЛА НА ДИСКЕ. Замер 12.09: этот файл к
+        # автопушу отношения не имеет — расписание `com.spa.autopush` запускает
+        # `scripts/auto_push.sh`, сам файл помечен устаревшим ещё ADR-032, и за 2343
+        # коммита через него не ушло НИ ОДНОГО. Выходило наоборот: удали мёртвый файл —
+        # и готовность к живым деньгам покраснеет. Решение владельца 13.09, вариант 1:
+        # критерий обязан спрашивать о ПРОВОДКЕ, а не о файле.
+        #
+        # Что проверяется теперь: обёртка пишет сводку каждый прогон, и эта сводка
+        # свежа и без отказов. `pushed=0 skipped=0` — ЧЕСТНЫЙ исход «отправлять было
+        # нечего», а не молчание: доставка кода идёт через `push_to_github.py`, а
+        # механизм `push_v*.sh` пуст по устройству.
+        out.append(self._autopush_alive())
 
         # C013 — KANBAN sprint_completed ≥ v3.80.
         kanban = self._read_json_root("KANBAN.json")

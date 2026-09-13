@@ -125,10 +125,12 @@ CRITERIA: list[Criterion] = [
     ),
     Criterion(
         "C012",
-        "auto_push.py present (launchd autopush)",
+        "autopush ran and named its outcome (launchd autopush)",
         "infrastructure",
         "low",
-        "auto_push.py must exist (launchd auto-push wiring).",
+        "The autopush agent must have run recently and reported its outcome without "
+        "failures. Was 'auto_push.py must exist' — a readiness criterion for REAL MONEY "
+        "that went green from a FILE LYING ON DISK (ADR-366, owner decision 13.09).",
     ),
     Criterion(
         "C013",
