@@ -2,9 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-11
+acceptance_probe: tier_promotion_loop_closed
+status_trail:
+  - "2026-09-13T13:47:00.562006+00:00 new -> in-progress · queue.set_status"
+  - "2026-09-13T13:47:01.573815+00:00 in-progress -> in-progress · queue.set_status"
+  - "2026-09-13T15:50:56.409639+00:00 in-progress -> done · queue.set_status"
 ---
 
 ## Что найдено
@@ -68,3 +73,11 @@ created: 2026-09-11
 
 `inbox-edinitsa-priemki-kontur-a-ne-modul-obyav` (храповик `CONSUMES`) — остаётся полезным
 и дешёвым, но второстепенным: одна форма, а не класс. Делать после пунктов 1–4, не вместо.
+
+## Приёмка (2026-09-13, done)
+
+Проба `tier_promotion_loop_closed` в `PROBES` с контролем в обе стороны (`test_tier_loop_probe.py`);
+храповик `test_inbox_acceptance_ratchet.py` + база 461 (только убывает); очередь отказывает переводу
+inbox-карточки в работу без критерия и замене пробы в работе; правило `.claude/rules/acceptance.md`.
+Отклонение от п. 3 карточки названо: критерий обязателен при взятии в работу, не при рождении
+(приём заданий владельца не блокируется). PR #54 смержен владельцем командой «мержи».

@@ -173,6 +173,14 @@ def test_set_status_rebuilds_the_board_of_the_cards_own_tracker(sandbox: Path) -
     """
     board = _load_builder()
     _card("inbox-k.md", "new", "карточка К", sandbox)
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09): с правилом приёмки
+    # (.claude/rules/acceptance.md) очередь отказывает переводу inbox-карточки из приёма без
+    # машинного критерия. Предмет ЭТОГО теста — пересборка доски чужого трекера, не приёмка,
+    # поэтому фикстура объявляет критерий; утверждения не ослаблены.
+    _k = sandbox / "inbox-k.md"
+    _k.write_text(_k.read_text(encoding="utf-8").replace(
+        "status: new\n", "status: new\nacceptance_probe: tier_promotion_loop_closed\n", 1),
+        encoding="utf-8")
     board.atomic_write(sandbox / "_BOARD.md",
                        board.render_board(board.collect_cards(sandbox)))
     assert board.board_status_map((sandbox / "_BOARD.md").read_text(encoding="utf-8")) \

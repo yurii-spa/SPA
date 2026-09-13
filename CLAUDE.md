@@ -13,7 +13,7 @@
 | Реакция на **деградацию** протокола УЖЕ автоматическая и без владельца/CIO: Tier-A `BLOCK` → цель обнуляется (`paper_trading/cycle_gates.py`, Step 2c-pre); stale-фид → `allocator._fundable()` `unevidenced`; TVL/APY → RiskPolicy, ADR-053. Карточку владельцу на это НЕ заводить | `grep -n "target_usd\[_p\] = 0.0" spa_core/paper_trading/cycle_gates.py` | 2026-09-11 |
 | Ярлык тира меняется ТОЛЬКО ADR-ом (T1 — владелец). Это задумано, не пробел | `docs/tier_criteria.md` §5 | 2026-09-11 |
 | **Подъём** улучшившегося протокола (T3→T2) НЕ автоматизирован нигде; `tier_curator` — советательное зеркало без читателя; критерии ADR-041 не реализованы | `grep -rn tier_curator_report --include=*.py spa_core scripts \| grep -v tests` | 2026-09-11 |
-| Приёмка меряется по ИСХОДУ, не по модулю: машинная проба карточки (`monitoring/card_acceptance.py`, ADR-208) — 5 из 1021 карточек; «модуль есть, тесты зелёные, артефакт свежий» ≠ «работает» | `grep -l acceptance_probe nimbalyst-local/tracker/*.md \| wc -l` | 2026-09-11 |
+| Приёмка меряется по ИСХОДУ, не по модулю: машинная проба карточки (`monitoring/card_acceptance.py`, ADR-208) обязательна ДО взятия inbox-карточки в работу (`.claude/rules/acceptance.md`; база без критерия 462 — только убывает); «модуль есть, тесты зелёные, артефакт свежий» ≠ «работает» | `SPA_ENV=ci python3 -m pytest spa_core/tests/test_inbox_acceptance_ratchet.py -q` | 2026-09-13 |
 | **Ловушка grep:** гейты денежного пути ИМПОРТИРУЮТ модули, а не читают `data/*.json` по имени. «Файл никто не читает» по имени файла — не доказательство | искать по `import`, потом по имени | 2026-09-11 |
 | **Ловушка merge-tree:** конфликт мерить `git merge-tree --write-tree` (код возврата); старая форма маркеры так не печатает | — | 2026-09-11 |
 | `STATE.md` — храповик **≤150 строк**; `main` уже ровно 150 ⇒ любая добавленная строка красная. Сжимать, не дописывать | `spa_core/tests/test_state_md_length_ratchet.py` | 2026-09-11 |
@@ -70,7 +70,9 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md) · [`.claude/rules/site-copy.md`](.claude/rules/site-copy.md) · [`.claude/rules/site-numbers.md`](.claude/rules/site-numbers.md) (откуда берётся каждое число сайта) · [`.claude/rules/adapters.md`](.claude/rules/adapters.md) ·
    [`.claude/rules/deployment.md`](.claude/rules/deployment.md) (любое изменение прод-дерева: acceptance до и после, каталогами
    целиком, права — часть доставки) · [`.claude/rules/design-docs.md`](.claude/rules/design-docs.md) (создание или
-   существенная правка нумерованного `docs/NN_*.md`: обязательная строка статуса L1–L5 + владелец + приёмка).
+   существенная правка нумерованного `docs/NN_*.md`: обязательная строка статуса L1–L5 + владелец + приёмка) ·
+   [`.claude/rules/acceptance.md`](.claude/rules/acceptance.md) (взять inbox-карточку в работу — только с машинной
+   пробой приёмки, зафиксированной ДО работы; делающая сессия её не правит).
 
 ## 🧭 Маршрутизация «идея ≠ инструкция»
 

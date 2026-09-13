@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T13:51:20Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T15:51:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ecfe756c1) · статусов дочитано оттуда: **1** (копия в дереве — прежняя версия того же файла) · ещё **2** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0bd7f299f) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1034** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1036** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -315,7 +315,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (520)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (522)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -447,6 +447,7 @@
 - Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
+- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Маячок бота объявляет ОДНУ способность, а решает за ДВЕ — найдено #194, не чинил  ·  `inbox-mayachok-obyavlyaet-odnu-sposobnost-gejtit-dve.md` · 2026-08-10
 - Мост доставки вечно должен пять карточек, которые origin закрыл РАНЬШЕ нас  ·  `inbox-most-dostavki-vechno-dolzhen-pyat-kartoc.md` · 2026-08-28
 - Мост находок может РОДИТЬ карточку на origin, но не может её ОБНОВИТЬ — закрытия не доезжают никогда  ·  `inbox-most-nahodok-mozhet-rodit-kartochku-na-o.md` · 2026-08-12
@@ -723,6 +724,7 @@
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Движок отказа работает каждый день, а его вывод не читает никто — оборванная проводка или мёртвая ветка  ·  `inbox-dvizhok-otkaza-rabotaet-kazhdyi-den-a-eg.md` · 2026-08-29
+- Дыра в записи о деньгах 23.08: книга потеряла  999.88 без хода в журнале  ·  `inbox-dyra-v-zapisi-o-dengah-23-08-kniga-poter.md` · 2026-09-13
 - Единица приёмки — контур, а не модуль: объявление CONSUMES и храповик «артефакт без читателя»  ·  `inbox-edinitsa-priemki-kontur-a-ne-modul-obyav.md` · 2026-09-11
 - Экономика хода на ИЗМЕРЕННОМ газе (дизайн готов, кода нет) — money-path, отдельный ADR  ·  `inbox-ekonomika-khoda-na-izmerennom-gaze-dizayn.md` · 2026-09-02
 - fetch, отказ которого ничего не прекращает: четыре мутирующих зова работают на кэше неизмеренного возраста  ·  `inbox-fetch-otkaz-kotorogo-nichego-ne-prekrasc.md` · 2026-09-12
@@ -735,6 +737,7 @@
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
 - Храповик литеральных дат снова КРАСНЫЙ на main — два ДРУГИХ файла (cio_failure_modes, decision_reproducibility)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na-2.md` · 2026-09-08
+- Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
@@ -746,7 +749,6 @@
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
-- Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09

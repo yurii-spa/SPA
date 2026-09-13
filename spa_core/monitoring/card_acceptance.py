@@ -239,11 +239,195 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
     return SATISFIED, detail
 
 
+
+#: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
+#: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
+#: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
+BRIEFING_MODULE_NAME = "_spa_briefing_under_probe"
+#: Синтетический протокол пробы. Имени нет ни в одном реестре — столкновение с живым
+#: отчётом куратора невозможно по построению.
+TIER_PROBE_PROTO = "probe_t3_candidate"
+
+
+def _briefing_module():
+    """Скрипт брифинга как модуль: один раз на процесс, дальше — из `sys.modules`."""
+    import importlib.util
+    mod = sys.modules.get(BRIEFING_MODULE_NAME)
+    if mod is not None:
+        return mod
+    path = os.path.join(REPO_ROOT, "scripts", "update_system_briefing.py")
+    spec = importlib.util.spec_from_file_location(BRIEFING_MODULE_NAME, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[BRIEFING_MODULE_NAME] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(BRIEFING_MODULE_NAME, None)
+        raise
+    return mod
+
+
+def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий: контур подъёма T3→T2 ЗАМКНУТ до решения — по ИСХОДУ, не по модулю.
+
+    Первая исходная проба реестра (карточка `inbox-mashinnaya-priemka-obyazatelna-
+    ishodnaya`, разбор `docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md`). Структурный сторож
+    отвечает «у отчёта есть читатель»; эта проба спрашивает, СЛУЧИЛОСЬ ли то, ради чего
+    читатель заведён, и делает это на настоящем коде:
+
+    1. в одноразовом дереве кладётся отчёт куратора с `PROMOTE_CANDIDATE` для
+       синтетического протокола и гоняется НАСТОЯЩИЙ `findings_bridge.run_bridge`
+       (тот же код, что у `com.spa.decision_loop`) с настоящим гистерезисом:
+       через `REQUIRED_SIGHTINGS` дневных замеров обязана родиться карточка с
+       `finding_key` РОВНО `tier_promote:<proto>` (сравнение ключа, не подстроки
+       текста) и статусом агента (`new`), не владельца;
+    2. кандидат исчезает ⇒ через `REQUIRED_ABSENCES` молчаливых замеров карточка
+       обязана закрыться сама (`done`);
+    3. настоящая секция брифинга `build_tier_curator_section()` на том же отчёте
+       обязана нести строку таблицы с этим протоколом и парой тиров — проверяются
+       ЯЧЕЙКИ строки, не вхождение имени в текст (ADR-333: приёмка подстрокой оставалась
+       зелёной при удалении ключа).
+
+    Порвись цепочка где угодно — читатель снят, карточка не рождается или не
+    закрывается, секция выпала из сборки — вердикт `not_satisfied` с названным звеном.
+    Живое `data/` и живой трекер не трогаются: дерево одноразовое, очередь — в памяти.
+    Настоящий дневной цикл здесь НЕ гоняется намеренно: он ходит в сеть, а проба обязана
+    мерить предмет, а не окружение прогона (докстринг реестра). Мерится ровно тот шаг
+    цикла, который производит названное следствие.
+
+    Время — вход (`now`), обе стороны замера (часы моста и `generated_at` отчёта)
+    идут от одного якоря: календарь пробе безразличен.
+    """
+    import shutil
+    import tempfile
+    from datetime import timedelta
+    from spa_core.monitoring import findings_bridge as fb
+
+    proto = TIER_PROBE_PROTO
+    key = f"tier_promote:{proto}"
+    t0 = now or datetime.now(timezone.utc)
+    step = timedelta(days=1)
+    root = tempfile.mkdtemp(prefix="spa_tier_probe_")
+    try:
+        data = os.path.join(root, "data")
+        tracker = os.path.join(root, "tracker")
+        os.makedirs(data)
+        os.makedirs(tracker)
+
+        def put_siblings(at):
+            # Соседние источники моста — читаемые и пустые: нечитаемый источник мост
+            # называет вслух и ничего не рождает (это верно, но здесь не предмет).
+            for name, doc in (("architecture_conformance.json", {"generated_at": at.isoformat(), "findings": []}),
+                              ("house_view_gap.json", {"gaps": []}),
+                              ("loop_retro.json", {"findings": []})):
+                with open(os.path.join(data, name), "w", encoding="utf-8") as fh:
+                    json.dump(doc, fh)
+
+        def put_curator(candidate: bool, at):
+            v = ({"current_tier": "T3", "verdict": "PROMOTE_CANDIDATE", "target_tier": "T2",
+                  "owner_gated": False, "reasons": ["проба: синтетический кандидат"],
+                  "evidence": {"tvl_usd": 31_000_000.0, "tvl_live": True, "apy_days": 21}}
+                 if candidate else
+                 {"current_tier": "T3", "verdict": "KEEP", "reasons": ["проба: кандидат исчез"],
+                  "evidence": {}})
+            doc = {"generated_at": at.isoformat(), "curator_version": "tier_curator_v1",
+                   "verdicts": {proto: v},
+                   "summary": {"total": 1, "promote_candidate": 1 if candidate else 0,
+                               "held_flagged": []}}
+            with open(os.path.join(data, "tier_curator_report.json"), "w", encoding="utf-8") as fh:
+                json.dump(doc, fh)
+
+        created: list = []
+
+        def create(_root, finding):
+            critical = finding.get("severity") == "CRITICAL"
+            kind = "owner-decision" if critical else "inbox"
+            status = "needs-owner" if critical else "new"
+            path = os.path.join(tracker, f"card-{len(created) + 1}.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(f"---\ntrackerStatus:\n  type: {kind}\nstatus: {status}\n"
+                         f"finding_key: \"{finding['key']}\"\n---\n{finding.get('message', '')}\n")
+            created.append({"key": finding["key"], "path": path, "status": status})
+            return path
+
+        def close(_root, path):
+            if not fb.card_is_untouched(path):
+                return False
+            text = open(path, encoding="utf-8").read()
+            text = text.replace("status: new", "status: done").replace("status: needs-owner", "status: done")
+            open(path, "w", encoding="utf-8").write(text)
+            return True
+
+        def noop(_root, _path):
+            return True
+
+        def run(at):
+            put_siblings(at)
+            return fb.run_bridge(root, now=at, create=create, close=close, notify=noop, retract=noop)
+
+        # 1. кандидат ⇒ карточка через REQUIRED_SIGHTINGS замеров подряд
+        n_sight = int(getattr(fb, "REQUIRED_SIGHTINGS", 2))
+        for i in range(n_sight):
+            put_curator(True, t0 + i * step)
+            run(t0 + i * step)
+        mine = [c for c in created if c["key"] == key]
+        if not mine:
+            keys = sorted(c["key"] for c in created)
+            return NOT_SATISFIED, (f"контур разомкнут: после {n_sight} замеров подряд с PROMOTE_CANDIDATE "
+                                   f"мост НЕ родил карточку с finding_key={key!r} (рождены: {keys or '—'})")
+        card = mine[0]
+        fm = parse_frontmatter(open(card["path"], encoding="utf-8").read())
+        if fm.get("finding_key") != key:
+            return NOT_SATISFIED, f"карточка родилась, но её finding_key={fm.get('finding_key')!r} ≠ {key!r}"
+        if fm.get("status") != "new":
+            return NOT_SATISFIED, (f"карточка кандидата родилась со статусом {fm.get('status')!r}, а не `new`: "
+                                   f"подъём — вопрос агенту (ADR-285), не владельцу")
+
+        # 2. кандидат исчез ⇒ закрытие через REQUIRED_ABSENCES молчаливых замеров
+        n_abs = int(getattr(fb, "REQUIRED_ABSENCES", 2))
+        t = t0 + n_sight * step
+        for i in range(n_abs):
+            put_curator(False, t + i * step)
+            run(t + i * step)
+        status_after = fb.card_status(card["path"])
+        if status_after != "done":
+            return NOT_SATISFIED, (f"кандидат исчез, прошло {n_abs} молчаливых замера, а карточка "
+                                   f"всё ещё {status_after!r} — авто-закрытие не сработало")
+
+        # 3. второй читатель — секция брифинга на том же отчёте (кандидат снова на месте)
+        put_curator(True, t0)
+        try:
+            mod = _briefing_module()
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"скрипт брифинга не загрузился: {type(exc).__name__}: {exc}"
+        saved = getattr(mod, "DATA_DIR", None)
+        try:
+            mod.DATA_DIR = data
+            section = mod.build_tier_curator_section()
+        finally:
+            mod.DATA_DIR = saved
+        row = None
+        for line in (section or "").splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
+            if cells and cells[0] == proto:
+                row = cells
+                break
+        if row is None:
+            return NOT_SATISFIED, f"секция брифинга не несёт строки таблицы для {proto!r} — второй читатель выпал"
+        if row[1:3] != ["T3", "T2"]:
+            return NOT_SATISFIED, f"строка брифинга для {proto!r} несёт тиры {row[1:3]}, ожидалось ['T3', 'T2']"
+        return SATISFIED, (f"карточка {key} родилась через {n_sight} замера, закрылась через {n_abs} "
+                           f"молчаливых; секция брифинга несёт строку {proto} T3→T2")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
+    "tier_promotion_loop_closed": _probe_tier_promotion_loop,
 }
 
 
