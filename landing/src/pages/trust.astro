@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import snap from '../data/track_snapshot.json';  // single-source the gate count (no hardcoded drift)
+import snap from '../lib/snapshot_view.js';  // single-source the gate count (no hardcoded drift)
 import { goLiveLabel } from '../lib/golive_label.js';
 const goLive = goLiveLabel(snap);  // go-live wording — the old 'before July 2026' was the gate's calendar ETA
 ---

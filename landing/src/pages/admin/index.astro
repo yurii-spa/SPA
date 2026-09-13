@@ -5,7 +5,7 @@
 // honest "coming soon" scaffolds — never faked. Access control is Phase 5 (no auth yet — do not
 // link publicly). Not in the public nav.
 import Layout from '../../layouts/Layout.astro';
-import snap from '../../data/track_snapshot.json';
+import snap from '../../lib/snapshot_view.js';
 
 const days = snap.real_track_days ?? '—';
 const apy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';

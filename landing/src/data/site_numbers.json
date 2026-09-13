@@ -13,7 +13,7 @@
   "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
   "headline": {
     "apy": {
-      "value": 5.0092,
+      "value": 5.0089,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → paper_apy_pct",
@@ -28,7 +28,7 @@
       "source": "landing/src/data/track_snapshot.json"
     },
     "nav": {
-      "value": 101256.44,
+      "value": 101256.39,
       "unit": "USD",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
@@ -46,6 +46,77 @@
       "state": "gate_passed_owner_decision_pending"
     }
   },
+  "track": {
+    "days_needed": {
+      "value": 30.0,
+      "unit": "дней",
+      "kind": "решение",
+      "source": "track_snapshot.json → days_needed (порог 30 дней, ADR-002; в снимок приходит из гейта)"
+    },
+    "end_equity": {
+      "value": 101256.39,
+      "unit": "USD",
+      "kind": "замер",
+      "source": "track_snapshot.json → end_equity"
+    },
+    "go_live_target": null,
+    "degraded": false,
+    "snapshot_generated_at": "2026-09-13T13:46:57Z"
+  },
+  "packages": {
+    "conservative": {
+      "apy": {
+        "value": 4.0,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1"
+      },
+      "drawdown": {
+        "value": 0.0,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages"
+      }
+    },
+    "balanced": {
+      "apy": {
+        "value": null,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "unavailable_reason": "ставка пакета не измерена — печатать «идёт paper-тест», не число"
+      },
+      "drawdown": {
+        "value": null,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages",
+        "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
+      }
+    },
+    "aggressive": {
+      "apy": {
+        "value": null,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages",
+        "annualised": true,
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "unavailable_reason": "ставка пакета не измерена — печатать «идёт paper-тест», не число"
+      },
+      "drawdown": {
+        "value": null,
+        "unit": "%",
+        "kind": "замер",
+        "source": "track_snapshot.json → packages",
+        "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
+      }
+    }
+  },
   "books": {
     "conservative": {
       "label": "Conservative",
@@ -57,6 +128,7 @@
         "caveat": null,
         "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
       },
+      "positions": null,
       "apy": {
         "value": 5.01,
         "unit": "%",
@@ -73,7 +145,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
       },
       "nav": {
-        "value": 101256.44,
+        "value": 101256.39,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -84,11 +156,12 @@
       "status": "paper_test_running",
       "days": 21.0,
       "evidence_split": {
-        "observed_days": null,
-        "literal_days": null,
-        "caveat": null,
-        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+        "observed_days": 4,
+        "literal_days": 17,
+        "caveat": "17 из 21 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
+        "observed_since": "2026-09-10"
       },
+      "positions": 4.0,
       "apy": {
         "value": 2.8,
         "unit": "%",
@@ -116,11 +189,12 @@
       "status": "paper_test_running",
       "days": 21.0,
       "evidence_split": {
-        "observed_days": null,
-        "literal_days": null,
-        "caveat": null,
-        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+        "observed_days": 4,
+        "literal_days": 17,
+        "caveat": "17 из 21 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
+        "observed_since": "2026-09-10"
       },
+      "positions": 2.0,
       "apy": {
         "value": 7.62,
         "unit": "%",

@@ -3,7 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import StrategyCard from '../../components/StrategyCard.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
-import snap from '../../data/track_snapshot.json';
+import snap from '../../lib/snapshot_view.js';
 // ADR-292/286: the realized rate is NEVER typed — one source, rendered from the snapshot.
 import { realizedPhrase } from '../../lib/realized_rate.js';
 const realizedEn = realizedPhrase(snap);

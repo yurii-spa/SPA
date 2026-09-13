@@ -6,7 +6,7 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
-import snapRR from '../data/track_snapshot.json';
+import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
 import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);

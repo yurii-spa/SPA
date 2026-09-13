@@ -1,9 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
-import snap from '../data/track_snapshot.json';  // single-source the gate count (no hardcoded drift)
+import snap from '../lib/snapshot_view.js';  // single-source the gate count (no hardcoded drift)
 import { goLiveLabel } from '../lib/golive_label.js';
-import snapRR from '../data/track_snapshot.json';
+import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
 import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
