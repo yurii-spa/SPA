@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -464,57 +465,56 @@ class RefusalTests(unittest.TestCase):
 
 
 class WiringTests(unittest.TestCase):
+    # ЦИКЛ #586 — почему подменяется `evaluate_window`, а не весь модуль.
+    # Правило отбора («не trivial и исход hit/miss») до #586 жило ЗДЕСЬ, копией,
+    # и эти два теста были единственным его сторожем. Копия убрана: определение
+    # знаменателя поднято в самого производителя
+    # (`shadow_trigger_eval.scored_days`), потому что второй читатель того же
+    # знаменателя появился в этом же цикле (`capital_observability_history`), и
+    # ТРЕТЬЕЙ копии правила быть не должно — спор копий был бы молчаливым.
+    # Тесты от этого НЕ ослаблены и проверка не снята (инв. #16): оба
+    # утверждения ниже сохранены дословно — и `calls`, и отсечение
+    # trivial/UNCHECKED, — но добываются они теперь ЧЕРЕЗ настоящий
+    # `scored_days`, то есть тем самым путём, которым ходит субъект. Подменять
+    # модуль целиком больше нельзя ровно потому, что заглушка не несёт нового
+    # публичного входа, и такая подмена проверяла бы форму, которой у субъекта
+    # уже нет. Само правило отсечения закреплено вторично и отдельно —
+    # `test_capital_observability_history.py::…::test_canonical_producer_keeps_only_scored_days`.
     def test_denominator_comes_from_the_canonical_producer(self):
         """Знаменатель СПРАШИВАЕТСЯ у shadow_trigger_eval, а не выписан сюда.
 
-        Проверяется ФОРМОЙ вызова: подменяется атрибут пакета, и субъект обязан
-        позвать `evaluate_window` именно этого модуля.
+        Проверяется ФОРМОЙ вызова: подменяется `evaluate_window` именно этого
+        модуля, и субъект обязан прийти к нему через канонический `scored_days`.
         """
-        # Атрибут пакета обязан существовать ДО подмены: субъект берёт модуль
-        # через `from ... import`, и если пакет его ещё не импортировал, тест
-        # был бы зелёным в одиночку и красным в наборе (или наоборот).
-        import spa_core.paper_trading as pkg
-        import spa_core.paper_trading.shadow_trigger_eval  # noqa: F401
+        # Модуль обязан быть импортирован ДО подмены: субъект берёт его через
+        # `from ... import`, и если пакет его ещё не импортировал, тест был бы
+        # зелёным в одиночку и красным в наборе (или наоборот).
+        from spa_core.paper_trading import shadow_trigger_eval as ste
 
         calls = []
 
-        class _Stub:
-            @staticmethod
-            def evaluate_window(data_dir, *, write=True):
-                calls.append((Path(data_dir), write))
-                return {"per_verdict": [
-                    {"cycle_date": "2026-08-27", "outcome": "hit", "trivial": False},
-                    {"cycle_date": "2026-08-28", "outcome": "hit", "trivial": True},
-                    {"cycle_date": "2026-08-29", "outcome": "UNCHECKED",
-                     "trivial": False},
-                ]}
+        def _window(data_dir, *, write=True, **kw):
+            calls.append((Path(data_dir), write))
+            return {"per_verdict": [
+                {"cycle_date": "2026-08-27", "outcome": "hit", "trivial": False},
+                {"cycle_date": "2026-08-28", "outcome": "hit", "trivial": True},
+                {"cycle_date": "2026-08-29", "outcome": "UNCHECKED",
+                 "trivial": False},
+            ]}
 
-        orig = pkg.shadow_trigger_eval
-        pkg.shadow_trigger_eval = _Stub
-        try:
+        with mock.patch.object(ste, "evaluate_window", _window):
             scored = mod._scored_days(Path("/nowhere"))
-        finally:
-            pkg.shadow_trigger_eval = orig
         self.assertEqual(calls, [(Path("/nowhere"), False)])
         # trivial и UNCHECKED в знаменатель НЕ входят — это определение hit_rate
         self.assertEqual(scored, {"2026-08-27"})
 
     def test_denominator_failure_is_none_not_an_empty_set(self):
         """Пустое множество читалось бы как «знаменатель пуст» — это разные вещи."""
-        import spa_core.paper_trading as pkg
-        import spa_core.paper_trading.shadow_trigger_eval  # noqa: F401
+        from spa_core.paper_trading import shadow_trigger_eval as ste
 
-        class _Broken:
-            @staticmethod
-            def evaluate_window(*a, **kw):
-                raise RuntimeError("носитель не прочитан")
-
-        orig = pkg.shadow_trigger_eval
-        pkg.shadow_trigger_eval = _Broken
-        try:
+        with mock.patch.object(ste, "evaluate_window",
+                               side_effect=RuntimeError("носитель не прочитан")):
             self.assertIsNone(mod._scored_days(Path("/nowhere")))
-        finally:
-            pkg.shadow_trigger_eval = orig
 
     def test_unmeasured_denominator_refuses_the_exposure(self):
         journal = [_journal("2026-08-27", {"b": 100.0})]

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T07:28:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T08:31:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0d5a1f72b) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (32e03c3a5) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1034** · ждёт владельца: **7** · занято сессиями: **14**.
+> Всего карточек: **1035** · ждёт владельца: **7** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -317,7 +317,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (520)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (521)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -725,6 +725,7 @@
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Движок отказа работает каждый день, а его вывод не читает никто — оборванная проводка или мёртвая ветка  ·  `inbox-dvizhok-otkaza-rabotaet-kazhdyi-den-a-eg.md` · 2026-08-29
+- Дыра в записи о деньгах 23.08: книга потеряла  999.88 без хода в журнале  ·  `inbox-dyra-v-zapisi-o-dengah-23-08-kniga-poter.md` · 2026-09-13
 - Единица приёмки — контур, а не модуль: объявление CONSUMES и храповик «артефакт без читателя»  ·  `inbox-edinitsa-priemki-kontur-a-ne-modul-obyav.md` · 2026-09-11
 - Экономика хода на ИЗМЕРЕННОМ газе (дизайн готов, кода нет) — money-path, отдельный ADR  ·  `inbox-ekonomika-khoda-na-izmerennom-gaze-dizayn.md` · 2026-09-02
 - fetch, отказ которого ничего не прекращает: четыре мутирующих зова работают на кэше неизмеренного возраста  ·  `inbox-fetch-otkaz-kotorogo-nichego-ne-prekrasc.md` · 2026-09-12

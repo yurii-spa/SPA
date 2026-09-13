@@ -13,7 +13,9 @@ All subprocess calls are mocked — no real ps/lsof dependency, deterministic.
 """
 from __future__ import annotations
 
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -367,3 +369,257 @@ class TestDurableAnnouncementIsNotShadowed(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# ЦИКЛ #587 — вторая ось: ДОСТАНЕТСЯ ли вердикт прогона хоть кому-нибудь.
+#
+# Ось отдельная от «кому нужен прогон» и не следствие её. Замер 13.09 показал,
+# что приём, живущий в репозитории с ADR-360 («lsof -d 1 дал путь, ls — No such
+# file ⇒ вердикт не прочитает никто»), НЕВЕРЕН: при умолчательном --capture=fd
+# pytest кладёт на дескриптор 1 свой буфер захвата — временный файл, отвязанный
+# сразу после создания, — а настоящий stdout сохраняет дублем на другом
+# дескрипторе. Признак истинен у ЛЮБОГО захватывающего pytest, то есть о судьбе
+# вердикта не говорит ничего, и по нему уже убивали прогоны.
+#
+# Каждая сцена ниже — положительный контроль к настоящей поломке, а не
+# украшение: первая воспроизводит ровно ту картину дескрипторов, которую дал
+# КОНТРОЛЬНЫЙ ОПЫТ на живом здоровом прогоне (fd 1 отвязан, fd 5/7 — живой
+# именованный лог).
+# ---------------------------------------------------------------------------
+
+def _fd(fd, *, mode="u", ftype="REG", path=None, inode=None):
+    return {"fd": str(fd), "mode": mode, "type": ftype, "path": path, "inode": inode}
+
+
+class TestVerdictReadability(unittest.TestCase):
+
+    def _verdict(self, recs, *, on_disk):
+        """`recs` — картина дескрипторов; `on_disk` — {путь: inode} того, что ЖИВО."""
+        def fake_stat(path):
+            if path not in on_disk:
+                raise FileNotFoundError(path)
+            return mock.Mock(st_ino=on_disk[path])
+        with mock.patch.object(ccp.os, "stat", fake_stat):
+            return ccp.verdict_readable(7, probe=lambda pid: recs)
+
+    def test_capturing_pytest_with_a_named_log_is_READABLE(self):
+        """ТА САМАЯ картина, на которой старый приём звал убивать здоровый прогон.
+
+        Снята контрольным опытом 13.09 с живого `pytest -q > /tmp/probe_named.log`:
+        fd 1 — отвязанный буфер захвата, fd 5 и 7 — живой именованный лог.
+        """
+        recs = [_fd(1, path="/T/tmpcapture", inode=111),
+                _fd(2, path="/T/tmperr", inode=222),
+                _fd(5, mode="w", path="/tmp/probe_named.log", inode=333),
+                _fd(6, path="/T/tmpcapture", inode=111),
+                _fd(7, mode="w", path="/tmp/probe_named.log", inode=333)]
+        verdict, why = self._verdict(recs, on_disk={"/tmp/probe_named.log": 333})
+        self.assertEqual(verdict, ccp.READABLE)
+        self.assertIn("/tmp/probe_named.log", why)
+
+    def test_capture_buffers_alone_are_UNREADABLE(self):
+        """Только отвязанные буферы и ничего долговечного — писать вердикту некуда."""
+        recs = [_fd(1, path="/T/tmpcapture", inode=111),
+                _fd(2, path="/T/tmperr", inode=222),
+                _fd(6, path="/T/tmpcapture", inode=111)]
+        verdict, why = self._verdict(recs, on_disk={})
+        self.assertEqual(verdict, ccp.UNREADABLE)
+        self.assertIn("ОТВЯЗАН", why)
+
+    def test_the_capture_buffer_is_NOT_counted_as_a_durable_target(self):
+        """Буфер захвата опознаётся по общему inode с fd 1/2 и в зачёт не идёт.
+
+        Без этого правила отвязанный буфер, случайно оказавшийся ЖИВЫМ файлом,
+        выдал бы READABLE — то есть починка воспроизвела бы исходный дефект
+        зеркально.
+        """
+        recs = [_fd(1, path="/T/tmpcapture", inode=111),
+                _fd(6, path="/T/tmpcapture", inode=111)]
+        verdict, _ = self._verdict(recs, on_disk={"/T/tmpcapture": 111})
+        self.assertEqual(verdict, ccp.UNMEASURED)
+
+    def test_a_path_whose_inode_moved_is_not_durable(self):
+        """Имя пережило файл — сверка ПО ИМЕНИ и есть тот дефект, что чинится."""
+        recs = [_fd(1, path="/T/tmpcapture", inode=111),
+                _fd(5, mode="w", path="/tmp/run.log", inode=333)]
+        verdict, _ = self._verdict(recs, on_disk={"/tmp/run.log": 999})
+        self.assertEqual(verdict, ccp.UNREADABLE)
+
+    def test_terminal_only_is_UNMEASURED_not_unreadable(self):
+        """Труба и терминал: читателя отсюда не видно — это третий исход."""
+        recs = [_fd(1, ftype="CHR", path="/dev/ttys003"),
+                _fd(2, ftype="PIPE", path="->0x1")]
+        verdict, why = self._verdict(recs, on_disk={})
+        self.assertEqual(verdict, ccp.UNMEASURED)
+        self.assertIn("НЕ «прочитают»", why)
+
+    def test_lsof_failure_is_UNMEASURED_not_a_clean_pass(self):
+        verdict, why = ccp.verdict_readable(7, probe=lambda pid: None)
+        self.assertEqual(verdict, ccp.UNMEASURED)
+        self.assertIn("не измерена", why)
+
+    def test_read_only_regular_files_do_not_make_a_verdict_reachable(self):
+        """Открытый на ЧТЕНИЕ файл — не цель записи; иначе годился бы любой .json."""
+        recs = [_fd(1, ftype="CHR", path="/dev/ttys003"),
+                _fd(5, mode="r", path="/tmp/data.json", inode=444)]
+        verdict, _ = self._verdict(recs, on_disk={"/tmp/data.json": 444})
+        self.assertEqual(verdict, ccp.UNMEASURED)
+
+
+class TestVerdictAxisIsIndependentOfTheOwnerAxis(unittest.TestCase):
+    """Две оси независимы В ОБЕ стороны — иначе одна печаталась бы за обе."""
+
+    def _report(self, *, orphan, verdict):
+        p = _proc(9, ppid=1, cwd="/tmp/spa_x")
+        p.orphan, p.orphan_why = orphan, "—"
+        p.verdict, p.verdict_why = verdict, "—"
+        return {"status": "clear", "target_cwd": "/tmp/spa_mine",
+                "same_cwd": [], "other_cwd": [vars(p)], "unresolved": [],
+                "orphans": [vars(p)] if orphan == ccp.ORPHAN else [],
+                "orphan_unmeasured": [vars(p)] if orphan == ccp.UNMEASURED else [],
+                "verdict_unreadable": [vars(p)] if verdict == ccp.UNREADABLE else [],
+                "verdict_unmeasured": [vars(p)] if verdict == ccp.UNMEASURED else []}
+
+    def _rc(self, report):
+        with mock.patch.object(ccp, "check", lambda cwd, self_pid=None: report):
+            return ccp.main(["--cwd", "/tmp/spa_mine"])
+
+    def test_unreadable_verdict_exits_3_even_when_the_requester_is_alive(self):
+        """Живой заказчик не спасает прогон, чей ответ никуда не ляжет."""
+        self.assertEqual(self._rc(self._report(orphan=ccp.ATTENDED,
+                                               verdict=ccp.UNREADABLE)), 3)
+
+    def test_unreadable_verdict_exits_3_when_the_requester_is_UNMEASURED(self):
+        """Ровно случай pid 11470 от 13.09: заказчик не назван, лог недостижим."""
+        self.assertEqual(self._rc(self._report(orphan=ccp.UNMEASURED,
+                                               verdict=ccp.UNREADABLE)), 3)
+
+    def test_readable_verdict_with_a_live_requester_stays_0(self):
+        """Обратный контроль: на здоровом прогоне вторая ось молчит."""
+        self.assertEqual(self._rc(self._report(orphan=ccp.ATTENDED,
+                                               verdict=ccp.READABLE)), 0)
+
+    def test_orphan_with_a_READABLE_verdict_still_exits_3(self):
+        """Первая ось не ослаблена второй: мёртвый заказчик — по-прежнему находка."""
+        self.assertEqual(self._rc(self._report(orphan=ccp.ORPHAN,
+                                               verdict=ccp.READABLE)), 3)
+
+
+class TestVerdictAxisIsActuallyWiredIntoCheck(unittest.TestCase):
+    """Проводка проверяется ПРОГОНОМ `check`, а не только формой соседних сцен.
+
+    Без этой сцены снятие строки `p.verdict, … = verdict_readable(p.pid)` из
+    `check()` проходило молча: все проверки оси выше зовут `verdict_readable`
+    напрямую либо подсовывают готовый отчёт, то есть меряют ДЕТАЛИ, а не то,
+    что деталь кто-то зовёт. Замер мутацией: 8 из 9 координат краснели, выживала
+    ровно эта — «вторая ось не считается вовсе».
+    """
+
+    def _check(self, verdicts):
+        procs = [ccp.PytestProc(pid=pid, ppid=1, lstart="Sun Sep 13 07:42:05 2026",
+                                command="python3 -m pytest spa_core/tests/")
+                 for pid in verdicts]
+        with mock.patch.object(ccp, "list_pytest_processes", lambda self_pid=None: procs), \
+             mock.patch.object(ccp, "resolve_cwd", lambda pid: "/tmp/spa_other"), \
+             mock.patch.object(ccp, "_owner_probe", lambda: None), \
+             mock.patch.object(ccp, "_announce_log", lambda owner: None), \
+             mock.patch.object(ccp, "verdict_readable",
+                               lambda pid, **kw: (verdicts[pid], "измерено сценой")):
+            return ccp.check("/tmp/spa_mine")
+
+    def test_check_fills_the_axis_for_every_process(self):
+        report = self._check({11: ccp.UNREADABLE, 12: ccp.READABLE})
+        self.assertEqual([p["pid"] for p in report["verdict_unreadable"]], [11])
+        seen = {p["pid"]: p["verdict"] for p in report["other_cwd"]}
+        self.assertEqual(seen, {11: ccp.UNREADABLE, 12: ccp.READABLE})
+
+    def test_check_reports_the_third_outcome_of_the_axis_separately(self):
+        report = self._check({13: ccp.UNMEASURED})
+        self.assertEqual([p["pid"] for p in report["verdict_unmeasured"]], [13])
+        self.assertEqual(report["verdict_unreadable"], [])
+
+    def test_the_axis_is_measured_even_for_an_attended_run(self):
+        """Вторая ось НЕ следствие первой: заказчик здесь не измерен вовсе."""
+        report = self._check({14: ccp.UNREADABLE})
+        self.assertEqual([p["pid"] for p in report["verdict_unreadable"]], [14])
+        self.assertNotEqual(report["other_cwd"][0]["orphan"], ccp.ORPHAN)
+
+
+class TestOpenFilesParsesRealLsof(unittest.TestCase):
+    """Разбор `lsof` меряется БЕЗ подмены — на настоящем процессе и настоящем `lsof`.
+
+    **Почему без `probe=`.** Все сцены оси выше подсовывают готовые записи, то
+    есть проверяют РАССУЖДЕНИЕ о режимах и inode, а не то, что режим вообще
+    добывается. Первая редакция `_open_files` звала `lsof -Ftni`, а `-F` без
+    буквы `a` режим доступа НЕ печатает (`f1`, не `f1u`): режим выходил пустым
+    у каждой записи, и ось молча вырождалась в «не измерено» при ЛЮБЫХ
+    дескрипторах — ни `READABLE`, ни `UNREADABLE` не могли возникнуть никогда.
+    Набор был зелёным, батарея мутаций — 9 из 9 красных: обе меры смотрели мимо,
+    потому что обе подменяли пробу. Нашлось живым замером на pytest, пишущем в
+    FIFO.
+
+    Тест поэтому открывает НАСТОЯЩИЙ файл на запись в СВОЁМ процессе и требует,
+    чтобы разбор увидел его с режимом записи и верным inode.
+    """
+
+    def setUp(self):
+        if ccp._run(["lsof", "-a", "-p", str(os.getpid()), "-d", "0-3", "-Ftnia"]) is None:
+            # Инструмента нет ⇒ ТРЕТИЙ ИСХОД, а не тихий зелёный: «не измерено»
+            # обязано быть отличимо от «прошло» (инв. #17).
+            self.fail("lsof недоступен — разбор НЕ ИЗМЕРЕН, и зелёным это считать нельзя")
+
+    def test_a_real_file_open_for_writing_is_parsed_with_its_mode_and_inode(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".ccp-probe", delete=False) as fh:
+            fh.write("x")
+            fh.flush()
+            path = os.path.realpath(fh.name)
+            ino = os.stat(path).st_ino
+            recs = ccp._open_files(os.getpid())
+            self.assertIsNotNone(recs, "lsof не прочитан — разбор не измерен")
+            mine = [r for r in recs
+                    if r.get("path") and os.path.realpath(r["path"]) == path]
+            self.assertTrue(mine, f"разбор не нашёл собственный открытый файл {path}")
+            rec = mine[0]
+            # Ровно то, что первая редакция теряла молча.
+            self.assertIn(rec["mode"], ("w", "u", "W"),
+                          f"режим доступа не добыт (получено {rec['mode']!r}) — "
+                          f"ось выродилась бы в «не измерено» при любых дескрипторах")
+            self.assertEqual(rec["inode"], ino)
+            self.assertEqual(rec["type"], "REG")
+        os.unlink(path)
+
+    def test_a_live_process_holding_a_written_file_reads_READABLE(self):
+        """Сквозная проверка: от настоящего `lsof` до вердикта, без подмен."""
+        with tempfile.NamedTemporaryFile("w", suffix=".ccp-probe", delete=False) as fh:
+            fh.write("x")
+            fh.flush()
+            verdict, why = ccp.verdict_readable(os.getpid())
+            self.assertEqual(verdict, ccp.READABLE, why)
+        os.unlink(fh.name)
+
+    def test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE(self):
+        """Обратная сторона, тоже БЕЗ подмен: настоящий процесс, настоящий `lsof`.
+
+        Сцена — ровно то состояние, ради которого ось существует: файл открыт на
+        запись, имени у него больше нет. Без неё набор доказывал бы только, что
+        `READABLE` достижим, а «непрочитаемо» оставалось бы утверждением о
+        подсунутых записях. Проверяется на СВОЁМ процессе: `os.getpid()` жив на
+        любой машине, и вердикт не зависит от того, кому сегодня достался номер.
+        """
+        with tempfile.NamedTemporaryFile("w", suffix=".gone", delete=False) as fh:
+            path = fh.name
+        doomed = open(path, "w")
+        os.unlink(path)                      # открыт, но имени больше нет
+        doomed.write("x")
+        doomed.flush()
+        try:
+            recs = ccp._open_files(os.getpid())
+            self.assertIsNotNone(recs, "lsof не прочитан — разбор не измерен")
+            gone = [r for r in recs
+                    if r.get("path", "").endswith(".gone") and r["mode"] in ("w", "u", "W")]
+            self.assertTrue(gone, "разбор не увидел отвязанный файл, открытый на запись")
+            self.assertFalse(ccp._alive_on_disk(gone[0]),
+                             "отвязанный файл прочитан как достижимый по своему пути")
+        finally:
+            doomed.close()
