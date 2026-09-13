@@ -385,6 +385,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                            "levers_are_not_additive",
                                            "writer_verdict_sensitivity",
                                            "what_it_does_not_prove", "findings"),
+    # `order_sensitivity` обязателен наравне с ответом: раскладка держится на
+    # ОБЪЯВЛЕННОМ порядке цены набора там, где минимальные наборы несравнимы, и
+    # доля без цены этого соглашения читается как наблюдение. `per_day` — потому
+    # что смена класса есть утверждение о КОНКРЕТНОМ дне, и доля без поимённого
+    # перечня не проверяема читателем.
+    "remedy_class_single_forward_day.json": ("status", "population", "answer",
+                                             "order_sensitivity", "per_day",
+                                             "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -653,6 +661,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unobserved_leg_remedy_class.py",
     "hit_rate_denominator_recovery.json":
         "spa_core/monitoring/hit_rate_denominator_recovery.py",
+    "remedy_class_single_forward_day.json":
+        "spa_core/monitoring/remedy_class_single_forward_day.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2179,6 +2189,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _hrdr_report,
         )
         out.extend(_hrdr_report(data))
+    elif name == "remedy_class_single_forward_day.json":
+        # Заказ #592/G9. Порядок строк — порядок вопроса: сперва СКОЛЬКО долларов
+        # сменили класс, затем ВЕРДИКТ раскладке (подтверждена или смещена), затем
+        # рычаги поимённо со сдвигом у каждого, и только потом цена соглашения о
+        # дешевизне набора. Строка про несравнимые наборы идёт ПОСЛЕ чисел, но
+        # ДО опоры намеренно: читатель, увидевший её первой, примет весь замер за
+        # спорный, а он спорен ровно на трёх днях из восьми.
+        from spa_core.monitoring.remedy_class_single_forward_day import (
+            format_report as _rcsfd_report,
+        )
+        out.extend(_rcsfd_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

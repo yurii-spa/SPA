@@ -5,8 +5,13 @@ title: Скрипт живого агента запускается тольк�
 status: ingested
 created: 2026-09-12
 priority: normal
+owner_choice: 1
+owner_answered_at: 2026-09-13T20:10:59.084615+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 status_trail:
   - "2026-09-13T13:51:20.095522+00:00 needs-owner -> ingested · queue.set_status"
+  - "2026-09-13T20:44:43.154433+00:00 ingested -> ingested · queue.set_status · cycle-48848"
 ---
 
 ## Что случилось и почему это важно
