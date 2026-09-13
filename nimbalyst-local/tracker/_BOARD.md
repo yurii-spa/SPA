@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-12T13:38:59Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T00:03:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (765811a52) · у **4** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0ee8c24d2) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1027** · ждёт владельца: **7** · занято сессиями: **14**.
+> Всего карточек: **1034** · ждёт владельца: **7** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -317,7 +317,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (514)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (520)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -711,6 +711,7 @@
 - ADR-107: 295 файлов состояния в git — разобрать по КЛАССАМ, не пачкой  ·  `inbox-adr-107-295-failov-sostoyaniya-v-git-raz.md` · 2026-08-21
 - ADR-109: витринная просадка считается по РЕАЛЬНЫМ дням — шесть путей одним помощником  ·  `inbox-adr-109-vitrinnaya-prosadka-schitaetsya.md` · 2026-08-21
 - ADR-110: личность актива в общем фиде — доставка ТОЛЬКО после показа владельцу списка потерь  ·  `inbox-adr-110-lichnost-aktiva-v-obschem-fide-d.md` · 2026-08-21
+- adr_number не видит соседние worktree и выдаёт занятый номер как свободный  ·  `inbox-adr-number-ne-vidit-sosednie-worktree-i.md` · 2026-09-13
 - scripts/agent_quarantine.py вызывается РУКАМИ по построению — объяснение для храповика несвязанных скриптов  ·  `inbox-agent-quarantine-zapuskaetsya-rukami-po-postroeniyu.md` · 2026-08-28
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
@@ -725,6 +726,7 @@
 - Движок отказа работает каждый день, а его вывод не читает никто — оборванная проводка или мёртвая ветка  ·  `inbox-dvizhok-otkaza-rabotaet-kazhdyi-den-a-eg.md` · 2026-08-29
 - Единица приёмки — контур, а не модуль: объявление CONSUMES и храповик «артефакт без читателя»  ·  `inbox-edinitsa-priemki-kontur-a-ne-modul-obyav.md` · 2026-09-11
 - Экономика хода на ИЗМЕРЕННОМ газе (дизайн готов, кода нет) — money-path, отдельный ADR  ·  `inbox-ekonomika-khoda-na-izmerennom-gaze-dizayn.md` · 2026-09-02
+- fetch, отказ которого ничего не прекращает: четыре мутирующих зова работают на кэше неизмеренного возраста  ·  `inbox-fetch-otkaz-kotorogo-nichego-ne-prekrasc.md` · 2026-09-12
 - Флот теряет 29 агентов при переустановке — plist есть, в установщике нет  ·  `inbox-flot-teryaet-29-agentov-pri-pereustanovk.md` · 2026-08-26
 - Гейт перед установкой агента КОМПИЛИРУЕТ скрипт вместо импорта — и сказал «PASSED» про агента, который умирает при каждом запуске  ·  `inbox-geit-pered-ustanovkoi-agenta-kompiliruet.md` · 2026-08-27
 - Go-live: условием перехода — разнесение подписывающих адаптеров (решение владельца, вариант 2)  ·  `inbox-go-live-usloviem-perehoda-raznesenie-pod.md` · 2026-09-07
@@ -743,6 +745,7 @@
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
+- Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Машинная приёмка обязательна: исходная проба тир-контура + запрет карточки без критерия (5 из 1021 сегодня)  ·  `inbox-mashinnaya-priemka-obyazatelna-ishodnaya.md` · 2026-09-11
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
@@ -821,6 +824,8 @@
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
+- Страж перезаписи не оставляет квитанции: его вердикт нельзя проверить ни на одном прошлом прогоне  ·  `inbox-strazh-perezapisi-ne-ostavlyaet-kvitants.md` · 2026-09-12
+- Страж перезаписи решает применимость по КЭШУ: у пушера ноль fetch, а свежая база рядом берётся по HTTP  ·  `inbox-strazh-perezapisi-reshaet-primenimost-po.md` · 2026-09-12
 - Строка Risk Gate дневного лимита убытка жила только в отключённом скрипте — в отчёт владельцу она не переехала  ·  `inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md` · 2026-08-14
 - Сверка ответа владельца берёт в популяцию МЁРТВЫЕ worktree — отказ навсегда и не сказано, что расходятся живое и труп  ·  `inbox-sverka-otveta-vladeltsa-schitaet-mertvye-derevya.md` · 2026-09-01
 - T1-протокол sky_susds не может получить деньги ничем: ADR-065 поднял его в первый тир, а адаптера у него нет (G1)  ·  `inbox-t1-protokol-sky-susds-ne-mozhet-poluchit.md` · 2026-09-08
@@ -834,12 +839,13 @@
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
+- Второй артефакт несёт литералы TVL там, где наблюдение уже есть (47 % книги)  ·  `inbox-vtoroi-artefakt-neset-literaly-tvl-tam-g.md` · 2026-09-12
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (159)
+## 🤖 Agent Tasks (что делает агент)  (160)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1002,6 +1008,7 @@
 - Сторож сторожей записывает «предупредил» о сообщении, доставку которого не измеряет — и молчит уже 16 дней  ·  `agent-watchdog-alert-delivery-unmeasured.md` · 2026-08-02
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
+- Замер G1 с хоста: какая доля капитала стоит на НАБЛЮДЁННЫХ числах (приёмка §5 диагностики CIO)  ·  `agent-zamer-g1-dolya-kapitala-na-nablyudennyh-chislah.md` · 2026-08-29
 ### · new
 - У руки демоушена (#39 CDR) нет ветки «отметка не пришла» — сегодня тёмный фид ЗАЩИЩАЕТ книгу, и это нигде не записано  ·  `agent-rnd51-stale-branch-for-demotion-arm.md` · 2026-08-14
 
