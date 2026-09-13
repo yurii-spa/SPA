@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: Отчёт тир-куратора никем не читается — дать ему читателей (брифинг + карточка на held-DEMOTE)
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-09-11
+status_trail:
+  - "2026-09-13T07:28:12.001302+00:00 new -> in-progress · queue.set_status"
 ---
 
 ## Что найдено
@@ -56,3 +58,15 @@ created: 2026-09-11
 
 Полный аудит четырёх контуров тир-жизненного цикла (поиск → присвоение → эскалатор
 T3→T2 → пере-проверка) — `docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md`, правка № 1 из шести.
+
+---
+
+## Ход работы (2026-09-13, ветка `claude/tier-promotion-loop`)
+
+Оба читателя сделаны: (1) `findings_bridge` — четвёртый источник, `PROMOTE_CANDIDATE` ⇒
+inbox-карточка агенту после 2 замеров подряд, `DEMOTE_SIGNAL` по удерживаемому ⇒ карточка о
+видимости; авто-закрытие мостом; (2) секция брифинга `build_tier_curator_section()` с тремя
+исходами. Проба по исходу — `spa_core/tests/test_tier_promotion_loop.py` (краснеет, если
+читатель порван или T1-кандидат уходит владельцу как CRITICAL — проверено мутациями 2/2).
+Проводка при рождении: `cycle_runner.PRODUCES`, манифест (produces/consumes/artifacts).
+Закрывается после мержа PR.

@@ -686,6 +686,51 @@ def build_source_discovery_section() -> str:
                  "человека. Источник: `data/source_discovery.json` (ADR-142)._")
     return "\n".join(lines)
 
+def build_tier_curator_section() -> str:
+    """Тир-куратор (Y4, ADR-055) — второй читатель `tier_curator_report.json`.
+
+    Раздел существует ради ВИДИМОСТИ: защита от отчёта не зависит (гейты Step 2c-pre /
+    `_fundable` / RiskPolicy действуют сами, docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md §9),
+    а карточки по кандидатам делает findings_bridge. Здесь — «кто кандидат на подъём,
+    кто под сигналом среди удерживаемых, сколько не измерено», одним взглядом.
+    Три исхода различимы (инв. #17): отчёта нет · есть без метки · есть и свеж/протух.
+    """
+    doc = read_json("tier_curator_report.json")
+    lines = ["## 🎚️ Тир-куратор (advisory, ADR-055)"]
+    if not isinstance(doc, dict) or not doc:
+        lines.append("- `data/tier_curator_report.json` **отсутствует** — куратор в этом дереве "
+                     "не отработал. Это НЕ «кандидатов нет» (инв. #17).")
+        return "\n".join(lines)
+    stamp = doc.get("generated_at")
+    if not stamp:
+        lines.append("- отчёт есть, но **без отметки времени** — свежесть НЕ измерена.")
+    else:
+        lines.append(f"- замер: `{stamp}`")
+    summ = doc.get("summary") or {}
+    verd = doc.get("verdicts") or {}
+    lines.append(f"- вердикты: keep **{summ.get('keep', '?')}** · demote **{summ.get('demote_signal', '?')}** · "
+                 f"promote **{summ.get('promote_candidate', '?')}** · unchecked **{summ.get('unchecked', '?')}** "
+                 f"(из {summ.get('total', '?')})")
+    promo = [(k, v) for k, v in sorted(verd.items()) if isinstance(v, dict) and v.get("verdict") == "PROMOTE_CANDIDATE"]
+    held = list(summ.get("held_flagged") or [])
+    if promo:
+        lines.append("")
+        lines.append("| кандидат на подъём | сейчас | цель | владелец? |")
+        lines.append("|---|---|---|---|")
+        for k, v in promo[:12]:
+            lines.append(f"| {k} | {v.get('current_tier', '?')} | {v.get('target_tier', '?')} | "
+                         f"{'да (T1 — только ADR владельца)' if v.get('owner_gated') else 'нет (ADR агента)'} |")
+    else:
+        lines.append("- кандидатов на подъём: **нет**.")
+    if held:
+        lines.append(f"- ⚠️ удерживаемые под DEMOTE_SIGNAL: **{', '.join(held)}** — гейты уже не дают "
+                     "свежего капитала; карточка о видимости — у findings_bridge.")
+    lines.append("")
+    lines.append("_Advisory: отчёт НЕ меняет ярлык тира (только ADR, docs/tier_criteria.md §5); "
+                 "кандидат ⇒ карточка агенту через findings_bridge после 2 замеров подряд._")
+    return "\n".join(lines)
+
+
 def _live_knowledge_graph() -> "tuple[dict, str]":
     """Граф базы знаний этого дерева — посчитанный сейчас. ({}, причина) при отказе."""
     try:
@@ -1128,6 +1173,7 @@ def main() -> None:
         build_knowledge_graph_section() + "\n",
         build_backlog_movement_section() + "\n",
         build_source_discovery_section() + "\n",
+        build_tier_curator_section() + "\n",
         build_system_health_section() + "\n",
         build_resilience_section() + "\n",
         build_sprint_section() + "\n",

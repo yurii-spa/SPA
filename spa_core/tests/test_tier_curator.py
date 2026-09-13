@@ -434,8 +434,16 @@ def test_no_module_consumes_report_to_mutate_tiers():
     """Никто в runtime-коде не ЧИТАЕТ tier_curator_report.json и не импортирует
     curate() для смены тира: упоминания допустимы только в самом модуле
     (константа) и в cycle_runner (только write_report, писатель)."""
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09). Прежняя редакция запрещала ЛЮБОГО
+    # читателя отчёта — и это был не сторож инварианта, а причина дефекта: отчёт годами
+    # писался, и ни один модуль не смел его открыть (замер 11.09: читателей 0). Инвариант
+    # модуля — «никто не читает отчёт ДЛЯ СМЕНЫ ТИРА»; читать его, чтобы завести карточку
+    # агенту, инвариант не нарушает. Разрешён ровно один читатель — findings_bridge, и его
+    # чистота проверяется ниже ПОЛОЖИТЕЛЬНЫМ контролем, а не доверием к списку.
+    reader = SPA_CORE / "monitoring" / "findings_bridge.py"
     allowed = {SPA_CORE / "analytics" / "tier_curator.py",
-               SPA_CORE / "paper_trading" / "cycle_runner.py"}
+               SPA_CORE / "paper_trading" / "cycle_runner.py",
+               reader}
     offenders = []
     for py in SPA_CORE.rglob("*.py"):
         if py.parts and "tests" in py.parts:
@@ -448,6 +456,14 @@ def test_no_module_consumes_report_to_mutate_tiers():
         if _mentions_curator_in_code(text):
             offenders.append(str(py))
     assert offenders == [], offenders
+    # Разрешённый читатель НЕ вправе трогать тир: ни канон оценок, ни реестр адаптеров,
+    # ни разрешатель имён, ни политику — он превращает вердикт в карточку, и только.
+    bridge = reader.read_text(encoding="utf-8")
+    assert "tier_curator_report" in bridge, "читатель обязан читать именно отчёт"
+    for forbidden in ("PROTOCOL_RISK_SCORES", "ADAPTER_REGISTRY", "tier_map", "RiskConfig",
+                      "risk.policy", "adapters.registry", "protocol_risk_map",
+                      "from spa_core.analytics.tier_curator import"):
+        assert forbidden not in bridge, f"findings_bridge трогает тир: {forbidden!r}"
     # cycle_runner: только write_report, самого файла отчёта он не читает
     runner = (SPA_CORE / "paper_trading" / "cycle_runner.py").read_text(
         encoding="utf-8")
