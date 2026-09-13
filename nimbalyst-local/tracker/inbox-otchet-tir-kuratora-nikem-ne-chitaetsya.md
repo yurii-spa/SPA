@@ -2,11 +2,12 @@
 trackerStatus:
   type: inbox
 title: Отчёт тир-куратора никем не читается — дать ему читателей (брифинг + карточка на held-DEMOTE)
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-09-11
 status_trail:
   - "2026-09-13T07:28:12.001302+00:00 new -> in-progress · queue.set_status"
+  - "2026-09-13T13:37:44.438023+00:00 in-progress -> done · queue.set_status"
 ---
 
 ## Что найдено
@@ -70,3 +71,10 @@ inbox-карточка агенту после 2 замеров подряд, `D
 читатель порван или T1-кандидат уходит владельцу как CRITICAL — проверено мутациями 2/2).
 Проводка при рождении: `cycle_runner.PRODUCES`, манифест (produces/consumes/artifacts).
 Закрывается после мержа PR.
+
+## Приёмка (2026-09-13, done)
+
+Условие «читателей 0 → 2» выполнено: `findings_bridge.collect_findings` (карточка по `PROMOTE_CANDIDATE`
+и по held-DEMOTE, авто-закрытие) и `build_tier_curator_section()` в брифинге. Проба по исходу —
+`spa_core/tests/test_tier_promotion_loop.py` (6 тестов, мутации 2/2 краснеют). База `main` починена
+двумя строками (#53, смержен). PR #52 смержен владельцем командой «мержи».

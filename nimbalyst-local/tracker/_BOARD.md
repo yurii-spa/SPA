@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T12:45:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-13T13:37:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (19fdad380) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (8e6c4c4ba) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1036** · ждёт владельца: **7** · занято сессиями: **14**.
 
@@ -324,7 +324,6 @@
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
-- Отчёт тир-куратора никем не читается — дать ему читателей (брифинг + карточка на held-DEMOTE)  ·  `inbox-otchet-tir-kuratora-nikem-ne-chitaetsya.md` · 2026-09-11
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -512,6 +511,7 @@
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
 - Осиротела R&D-итерация #73 ACL: скрипт и тест лежат в /private/tmp/spa_rnd73, замеров и записи реестра нет — сессия умерла ПОСРЕДИ работы  ·  `inbox-osirotela-r-d-iteratsiya-73-acl-skript-i.md` · 2026-08-23
 - Осиротевший сторож свежести кода агентов (цикл #177) — 1136 строк лежат в /tmp, не проверены  ·  `inbox-osirotevshii-storozh-svezhesti-koda-agentov.md` · 2026-08-09
+- Отчёт тир-куратора никем не читается — дать ему читателей (брифинг + карточка на held-DEMOTE)  ·  `inbox-otchet-tir-kuratora-nikem-ne-chitaetsya.md` · 2026-09-11
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
 - Ответ 1  ·  `inbox-otvet-1.md` · 2026-08-20
