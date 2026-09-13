@@ -51,6 +51,12 @@
       "label": "Conservative",
       "status": "paper_test_running",
       "days": 82.0,
+      "evidence_split": {
+        "observed_days": null,
+        "literal_days": null,
+        "caveat": null,
+        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+      },
       "apy": {
         "value": 5.01,
         "unit": "%",
@@ -77,6 +83,12 @@
       "label": "Balanced",
       "status": "paper_test_running",
       "days": 21.0,
+      "evidence_split": {
+        "observed_days": null,
+        "literal_days": null,
+        "caveat": null,
+        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+      },
       "apy": {
         "value": 2.8,
         "unit": "%",
@@ -103,6 +115,12 @@
       "label": "Aggressive",
       "status": "paper_test_running",
       "days": 21.0,
+      "evidence_split": {
+        "observed_days": null,
+        "literal_days": null,
+        "caveat": null,
+        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+      },
       "apy": {
         "value": 7.62,
         "unit": "%",

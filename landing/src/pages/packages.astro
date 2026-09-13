@@ -3,6 +3,9 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
 import snap from '../data/track_snapshot.json';
+// ВИТРИНА (ADR-365) — единственный адрес чисел. Снимок выше остаётся только для
+// полей, которые на витрину ещё не перенесены; новые числа берутся отсюда.
+import { book as shelfBook, value as shelfValue } from '../lib/site_numbers.js';
 // #7 single band source — the canonical tier name + APY/drawdown band strings live in ONE place so
 // /packages, the SiteHeader nav and the index fallback can never diverge (the old SiteHeader 6–8% vs
 // /packages 2–6% bug). Rich per-tier copy (what/caveat/status) stays inline; band/name/tone/live come
@@ -91,6 +94,23 @@ for (const t of tiers) {
     const apyPart_ru = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, на сегодня)` : '';
     t.paper_en = `Paper test running · day ${pt.days_with_positions} · ${pt.positions_count} positions${apyPart_en}`;
     t.paper_ru = `Идёт paper-тест · день ${pt.days_with_positions} · позиций: ${pt.positions_count}${apyPart_ru}`;
+
+    // ДОЛЯ ДНЕЙ, НАЧИСЛЕННЫХ ПО НЕНАБЛЮДЁННЫМ СТАВКАМ (ADR-365, обязательство ADR-357 п. 4).
+    //
+    // Владелец решил оставить публичный трек этих книг с 23 августа. Решение его; вместе с
+    // ним идёт требование инварианта #8: у Aggressive число почти целиком сложено из дней,
+    // начисленных по ставкам, которых никто не наблюдал, и без этой строки оно читается как
+    // заработанное. Текст приходит с витрины ИЗМЕРЕННЫМ (дата перехода взята из журнала
+    // рукава), а не вписан сюда числом — иначе он перестал бы быть правдой молча.
+    const split = (shelfBook(t.key) || {}).evidence_split || {};
+    if (split.caveat) {
+      t.caveat_ru = split.caveat;
+      t.caveat_en = `${split.literal_days} of ${split.literal_days + split.observed_days} days accrued on rates nobody observed (before ${split.observed_since})`;
+    } else if (split.unmeasured_reason) {
+      // Третий исход: долю НЕ ИЗМЕРИЛИ. Молчать нельзя — молчание читается как «литералов нет».
+      t.caveat_ru = 'доля дней по ненаблюдённым ставкам не измерена';
+      t.caveat_en = 'share of days accrued on unobserved rates is not measured';
+    }
   }
 }
 
@@ -139,6 +159,11 @@ const toneMap = {
               <div class="text-xs font-mono text-data-teal mb-4 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
                 <span data-ru={t.paper_ru}>{t.paper_en}</span>
+              </div>
+            )}
+            {t.caveat_en && (
+              <div class="text-xs font-mono text-amber-300/90 -mt-2 mb-4" data-ru={t.caveat_ru}>
+                ⚠ {t.caveat_en}
               </div>
             )}
             <details class="group mt-auto">
