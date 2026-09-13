@@ -122,6 +122,7 @@ PRODUCES = (
     "data/unobserved_turnover_dependence.json",
     "data/unobserved_leg_remedy_class.json",
     "data/hit_rate_denominator_recovery.json",
+    "data/remedy_class_single_forward_day.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -206,6 +207,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unobserved_turnover_dependence",
     "unobserved_leg_remedy_class",
     "hit_rate_denominator_recovery",
+    "remedy_class_single_forward_day",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -335,6 +337,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "hit_rate_denominator_recovery": {
         "module": "spa_core/monitoring/hit_rate_denominator_recovery.py",
         "artifact": "data/hit_rate_denominator_recovery.json"},
+    "remedy_class_single_forward_day": {
+        "module": "spa_core/monitoring/remedy_class_single_forward_day.py",
+        "artifact": "data/remedy_class_single_forward_day.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
