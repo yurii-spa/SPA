@@ -115,6 +115,20 @@ def _run_daily_monitors(
         log.warning("adapter_watchdog in daily monitors failed (%s) — cycle continues", exc)
         results["adapter_watchdog"] = f"error: {type(exc).__name__}: {exc}"
 
+    # Поиск НОВЫХ протоколов — шаг цикла (решение владельца 19.08, ADR-089 §6, вариант 1).
+    # Писатель реестра кандидатов (discovery_step.REGISTRY_FILENAME), которого не было (#283–#287):
+    # ниже этот реестр читают alpha_scan и protocol_research. Ежедневно, ДО них.
+    # Три исхода различимы (ok/degraded/refused/skipped), отказ не роняет цикл и
+    # не подставляет выдуманных кандидатов; под pytest живой фид не опрашивается.
+    try:
+        from spa_core.paper_trading.discovery_step import run_discovery_step as _disc
+        _d = _disc(data_dir=str(ddir))
+        results["discovery"] = (_d["status"] if _d["status"] in ("ok", "degraded")
+                                else f"{_d['status']}: {_d.get('reason')}")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("discovery_step failed (%s) — cycle continues", exc)
+        results["discovery"] = f"error: {type(exc).__name__}: {exc}"
+
     # MP-304: Alpha Agent — weekly candidate scan (Mondays only, fail-safe)
     _now_wd = datetime.now(timezone.utc).weekday()
     if _now_wd == 0:  # Monday

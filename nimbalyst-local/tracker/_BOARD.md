@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-13T15:51:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-14T15:34:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0bd7f299f) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (427be46cb) · ещё **3** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1036** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1040** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -315,7 +315,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (522)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (526)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -339,7 +339,9 @@
 - Ответы владельца не доезжают до origin сами: 09.09 отвечено семь карточек, инжест догоняет по одной  ·  `agent-sem-otvetov-vladeltsa-ne-doehali-do-origin.md` · 2026-09-09
 - Сторож занятости ОТКЛЮЧЁН на самой горячей карточке системы: прод-копия стои́т `done`, и шаг 0b объявляет любой захват недействительным  ·  `agent-storozh-zanyatosti-otklyuchen-na-samoi-goryachei-kartochke.md` · 2026-09-09
 - 166 мест, где «не измерено» подаётся как «ноль»: инвариант #17 пропал из CLAUDE.md на 16 суток  ·  `inbox-166-mest-gde-ne-izmereno-podaetsya-kak-n.md` · 2026-09-11
+- Бегун переписей не сообщает, что производитель отработал вхолостую (артефакт G7 отсутствует в проде)  ·  `inbox-begun-perepisei-ne-soobschaet-chto-proiz.md` · 2026-09-13
 - Дневной цикл запускают 892 раза вместо 81 — гейт деплоя этого НЕ объясняет (замер 11.09)  ·  `inbox-dnevnoi-tsikl-zapuskayut-892-raza-vmesto.md` · 2026-09-11
+- Хвост стоячего приказа расходится с цепочкой ADR: карточка два цикла звала закрытый гэп  ·  `inbox-hvost-stoyachego-prikaza-rashoditsya-s-t.md` · 2026-09-13
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
 - Опознание снимка в snapshot_minute_sensitivity идёт по порядку отметок и отбрасывает собственный снимок прогона  ·  `inbox-opoznanie-snimka-v-snapshot-minute-sensi.md` · 2026-09-10
 - Подключить экономику цеха: артефакт есть в коде, но стоимость цикла не измерена ни разу  ·  `inbox-podklyuchit-ekonomiku-tseha-k-agent-health.md` · 2026-09-09
@@ -575,6 +577,7 @@
 - Шаг 2 протокола заблокирован: очередь считает спором ответ, который владелец уже пересмотрел  ·  `inbox-shag-2-protokola-zablokirovan-ochered-sc.md` · 2026-08-31
 - Шесть ADR (090-095) живут на удалённой ветке, которой main не знает — номера заняты, а решения, возможно, не доставлены  ·  `inbox-shest-adr-090-095-zhivut-na-udalennoi-ve.md` · 2026-08-20
 - Шесть тестов — это 15% стены всей приёмки, и стена уходит в ядро на создание потоков  ·  `inbox-shest-testov-eto-15-steny-vsei-priemki-i.md` · 2026-08-18
+- Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Сличение имён протоколов ПОДСТРОКОЙ выросло с 8 имён до 56: ложный отказ в бонусе стал в семь раз вероятнее  ·  `inbox-slichenie-imen-protokolov-podstrokoi-vyr.md` · 2026-08-17
 - Снятая остановка живёт в git: восстановление из резерва поднимет прод уже остановленным  ·  `inbox-snyataya-ostanovka-zhivet-v-git-vosstano.md` · 2026-08-10
 - Снятый на origin код числится дрейфом вечно: 1300 пре-синк-архивов и 70 ГБ в /tmp, а статус синка пишет SYNCED после упавшего чекаута  ·  `inbox-snyatyi-na-origin-kod-chislitsya-dreifom.md` · 2026-09-04
@@ -720,7 +723,9 @@
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
+- `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
+- Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Движок отказа работает каждый день, а его вывод не читает никто — оборванная проводка или мёртвая ветка  ·  `inbox-dvizhok-otkaza-rabotaet-kazhdyi-den-a-eg.md` · 2026-08-29
@@ -807,7 +812,6 @@
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Синк кода в прод не сериализован: 11 раз за сутки два-три процесса писали ОДИН файл резерва, один раз подрались за .git/index.lock  ·  `inbox-sink-koda-v-prod-ne-serializovan-11-raz.md` · 2026-09-06
-- Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом  ·  `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p.md` · 2026-08-18
 - Сканер назвал 136 файлов работы, которой никто не объявлял, в 11 деревьях — разобрать по одному дереву  ·  `inbox-skaner-nazval-136-failov-raboty-kotoroi.md` · 2026-08-21
 - Сканер НЕобъявленного не видит, что тот же файл лежит на базе под другим путём — 41% списка это переезд каталога  ·  `inbox-skaner-neobyavlennogo-ne-vidit-chto-tot.md` · 2026-08-21
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
@@ -888,7 +892,6 @@
 - Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `agent-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-09
 - Пересмотреть все сроки годности разом — когда разгребён бэклог (ADR-158)  ·  `agent-peresmotr-srokov-godnosti-posle-backloga.md` · 2026-08-28
-- Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)  ·  `agent-poisk-protokolov-shag-dnevnogo-tsikla.md` · 2026-08-20
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Построить advisory paper-модуль под ранговое правило демоушена (вариант C владельца 2026-08-08)  ·  `agent-rank-demotion-paper-module.md` · 2026-08-08
@@ -964,6 +967,7 @@
 - У остановки должен быть ЖИВОЙ вопрос владельцу — сторож «путь вверх»  ·  `agent-ostanovka-bez-puti-vverh-storozh.md` · 2026-08-10
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
 - Два теста краснят CI на main с 2026-08-01: они проверяют календарь, а не код (S12/S13 phase-gating)  ·  `agent-phase-gating-tests-measure-the-calendar.md` · 2026-08-01
+- Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)  ·  `agent-poisk-protokolov-shag-dnevnogo-tsikla.md` · 2026-08-20
 - Пуш батча идёт по одному файлу за коммит — main краснеет на промежуточных состояниях  ·  `agent-push-batch-per-file-commits.md` · 2026-07-30
 - push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
 - Пушер печатает OK о доставке, которую не сверял — побайтовую проверку делает только дисциплина вызывающего  ·  `agent-pusher-does-not-verify-what-it-delivered.md` · 2026-08-03

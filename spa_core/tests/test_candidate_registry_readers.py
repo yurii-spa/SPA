@@ -236,6 +236,10 @@ class TestNoMuteReaderCanAppear(unittest.TestCase):
     _EXEMPT = {
         # Писатель. Он реестр СОЗДАЁТ — спрашивать его о «измерено ли» нечего.
         "spa_core/adapter_sdk/discovery.py",
+        # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09, #55): второй писатель — шаг
+        # дневного цикла, который сканер ЗАПУСКАЕТ (до 13.09 писателя не запускал никто).
+        # Он реестр пишет, не читает; отказ фида — свой третий исход (`refused`).
+        "spa_core/paper_trading/discovery_step.py",
     }
 
     def _live_modules(self) -> list[Path]:
@@ -275,6 +279,11 @@ class TestNoMuteReaderCanAppear(unittest.TestCase):
             "spa_core/agents/alpha_agent.py",               # читатель 1 (#283)
             "spa_core/agents/protocol_research_agent.py",   # читатель 2 (#288)
             "spa_core/scheduler/loop_scheduler.py",         # читатель 3 (#288)
+            # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W37, 13.09, #55): контур поиска замкнут —
+            "spa_core/paper_trading/discovery_step.py",     # писатель 2: шаг цикла (запуск сканера)
+            "spa_core/monitoring/card_acceptance.py",       # проба по исходу; читает `candidates_measured`
+            "scripts/update_system_briefing.py",            # читатель 4: секция брифинга через канон
+            "spa_core/paper_trading/cycle_runner.py",       # объявляет продукт в PRODUCES; не читает
         }
         self.assertEqual(
             touching, expected,
@@ -303,9 +312,14 @@ class TestNoMuteReaderCanAppear(unittest.TestCase):
             "«ноль» — ровно та авария, что чинилась #283 и #288",
         )
 
-    def test_the_exemption_list_is_only_the_writer(self):
-        """Исключение — привилегия, и она должна оставаться одной штукой."""
-        self.assertEqual(self._EXEMPT, {"spa_core/adapter_sdk/discovery.py"})
+    def test_the_exemption_list_is_only_the_writers(self):
+        """Исключение — привилегия ПИСАТЕЛЕЙ, и только их: сканер и шаг цикла, который его
+        запускает (ИЗМЕНЕНО ОСОЗНАННО, инв. #16, #55). Читатель сюда попасть не может."""
+        self.assertEqual(self._EXEMPT, {"spa_core/adapter_sdk/discovery.py",
+                                        "spa_core/paper_trading/discovery_step.py"})
+        for rel in self._EXEMPT:
+            text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+            self.assertNotIn("read_candidate_registry", text, f"{rel}: писатель читает реестр")
 
     def test_every_exempt_path_still_exists(self):
         """Исключение на несуществующий файл — тихо протухшее правило."""

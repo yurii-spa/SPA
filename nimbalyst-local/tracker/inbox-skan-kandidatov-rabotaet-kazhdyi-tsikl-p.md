@@ -2,8 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Скан кандидатов работает каждый цикл по реестру, которого никто не пишет: discovery не подключён ни одним агентом"
-status: new
+status: done
 created: 2026-08-18
+acceptance_probe: candidate_discovery_loop_closed
+status_trail:
+  - "2026-09-13T15:59:09.179081+00:00 new -> in-progress · queue.set_status"
+  - "2026-09-14T15:34:14.747919+00:00 in-progress -> done · queue.set_status"
 ---
 
 ## Что измерено (цикл #283, не гипотеза)
@@ -119,3 +123,10 @@ created: 2026-08-18
 
 Карточка остаётся `new`: её главное содержание (подключить писателя) — деплой, п. 6 правила
 `.claude/rules/deployment.md`.
+
+## Закрыто 2026-09-14
+
+Проба `candidate_discovery_loop_closed` зелёная на `card_acceptance` (шаг записал реестр с
+`probe-newlend`, наш и не-стейбл отсеяны; `alpha_scan` измерил кандидатов; секция брифинга
+несёт строку; отказ фида → `refused`, реестр не тронут). Доставка — PR #55, влит владельцем
+(«Сам можешь смержить #55?» → мерж по слову). Первый живой реестр — на следующем дневном цикле.

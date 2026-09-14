@@ -422,12 +422,130 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
         shutil.rmtree(root, ignore_errors=True)
 
 
+
+#: Синтетический протокол пробы поиска: имени нет ни в одном реестре — столкновение
+#: с покрытием невозможно по построению.
+DISCOVERY_PROBE_PROTO = "probe-newlend"
+
+
+def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий: поиск новых протоколов ЗАМКНУТ до читателя — по ИСХОДУ (ADR-089 §6, вариант 1).
+
+    На одноразовом дереве с инъектированным фидом (четыре пула: два новых стейбл-пула
+    чужого протокола, один уже наш, один не-стейбл) гоняется НАСТОЯЩИЙ шаг цикла
+    `discovery_step.run_discovery_step`, затем НАСТОЯЩИЙ читатель `alpha_agent.run_alpha_scan`
+    на том же дереве и НАСТОЯЩАЯ секция брифинга. Обязано случиться:
+
+    1. реестр записан, статус `ok`, среди кандидатов РОВНО чужой протокол (наш и не-стейбл
+       отсеяны) — сравнение по полю `protocol`, не по вхождению имени в текст;
+    2. `alpha_candidates.json` несёт `candidates_measured: true` и хотя бы одного кандидата
+       (до 13.09 здесь стояло «не измерено», потому что писателя не было);
+    3. секция брифинга несёт СТРОКУ ТАБЛИЦЫ с этим протоколом (ячейки, не подстрока);
+    4. отказ фида ⇒ статус `refused`, реестр побайтно не тронут, статус шага записан.
+
+    Живой `data/` не трогается; сеть не опрашивается. Время — вход (`now`).
+    """
+    import hashlib
+    import shutil
+    import tempfile
+    from spa_core.adapter_sdk import discovery as d
+    from spa_core.paper_trading import discovery_step as ds
+
+    proto = DISCOVERY_PROBE_PROTO
+    t0 = now or datetime.now(timezone.utc)
+    now_ts = t0.timestamp()
+    old = int(now_ts) - 400 * 86400
+    pools = [
+        {"pool": "probe-pool-1", "project": proto, "symbol": "USDC", "chain": "Ethereum",
+         "tvlUsd": 42_000_000.0, "apy": 6.1, "listedAt": old},
+        {"pool": "probe-pool-2", "project": proto, "symbol": "USDT", "chain": "Arbitrum",
+         "tvlUsd": 12_000_000.0, "apy": 5.2, "listedAt": old},
+        {"pool": "probe-pool-3", "project": "aave-v3", "symbol": "USDC", "chain": "Ethereum",
+         "tvlUsd": 900_000_000.0, "apy": 4.0, "listedAt": old},
+        {"pool": "probe-pool-4", "project": "probe-volatile", "symbol": "WETH", "chain": "Base",
+         "tvlUsd": 50_000_000.0, "apy": 9.0, "listedAt": old},
+    ]
+    root = tempfile.mkdtemp(prefix="spa_discovery_probe_")
+    try:
+        data = os.path.join(root, "data")
+        os.makedirs(data)
+        # 1. шаг цикла с инъектированным фидом
+        res = ds.run_discovery_step(data, fetch_fn=lambda: list(pools), now_ts=now_ts)
+        if res.get("status") != ds.OK:
+            return NOT_SATISFIED, f"шаг не дал `ok` на пригодном фиде: {res.get('status')} — {res.get('reason')}"
+        reg_path = os.path.join(data, ds.REGISTRY_FILENAME)
+        try:
+            reg = json.load(open(reg_path, encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return NOT_SATISFIED, f"реестр не записан/нечитаем после `ok`: {type(exc).__name__}"
+        got = sorted({str(c.get("protocol")) for c in (reg.get("candidates") or []) if isinstance(c, dict)})
+        if got != [proto]:
+            return NOT_SATISFIED, (f"реестр несёт протоколы {got}, ожидался ровно [{proto!r}] — "
+                                   f"покрытие или пороги сканера порваны")
+        # 2. настоящий читатель — alpha scan на том же дереве
+        from spa_core.agents import alpha_agent as aa
+        aa.run_alpha_scan(data_dir=data)
+        try:
+            alpha = json.load(open(os.path.join(data, aa.ALPHA_CANDIDATES_FILENAME), encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return NOT_SATISFIED, f"alpha_candidates.json не записан читателем: {type(exc).__name__}"
+        if alpha.get("candidates_measured") is not True:
+            return NOT_SATISFIED, (f"читатель говорит «не измерено» ({alpha.get('candidates_reason')!r}) "
+                                   f"при записанном реестре — связка писатель→читатель порвана")
+        if not (alpha.get("candidates") or []):
+            return NOT_SATISFIED, "читатель измерил реестр, но кандидатов у него ноль — оценка порвана"
+        # 3. секция брифинга — строка таблицы
+        try:
+            mod = _briefing_module()
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"скрипт брифинга не загрузился: {type(exc).__name__}: {exc}"
+        saved = getattr(mod, "DATA_DIR", None)
+        try:
+            mod.DATA_DIR = data
+            section = mod.build_candidate_registry_section(now=t0)
+        finally:
+            mod.DATA_DIR = saved
+        row = None
+        for line in (section or "").splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
+            if cells and cells[0] == proto:
+                row = cells
+                break
+        if row is None:
+            return NOT_SATISFIED, f"секция брифинга не несёт строки таблицы для {proto!r} — читатель выпал"
+        # 4. отказ фида: реестр не тронут, статус записан
+        before = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
+
+        def boom():
+            # Сторож SPAError (tests/test_spaerror_complete.py) не пускает голый RuntimeError в
+            # spa_core/: отказ фида — предмет сканера, и его собственная ошибка здесь уместнее.
+            raise d.DiscoveryError("проба: фид недоступен")
+
+        res2 = ds.run_discovery_step(data, fetch_fn=boom, now_ts=now_ts + 86400)
+        after = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
+        if res2.get("status") != ds.REFUSED:
+            return NOT_SATISFIED, f"недоступный фид дал {res2.get('status')!r}, а не `refused`"
+        if before != after:
+            return NOT_SATISFIED, "недоступный фид ПЕРЕПИСАЛ реестр — fake-fallback или затирание прошлого замера"
+        try:
+            stt = json.load(open(os.path.join(data, ds.STATUS_FILENAME), encoding="utf-8"))
+        except (OSError, ValueError):
+            return NOT_SATISFIED, "исход отказа не записан в статус шага — отказ проглочен"
+        if stt.get("status") != ds.REFUSED:
+            return NOT_SATISFIED, f"статус шага после отказа {stt.get('status')!r}, а не `refused`"
+        return SATISFIED, (f"шаг записал реестр с {proto} (наш и не-стейбл отсеяны), alpha_scan измерил "
+                           f"кандидатов, секция брифинга несёт строку; отказ фида — `refused`, реестр не тронут")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
+    "candidate_discovery_loop_closed": _probe_candidate_discovery_loop,
 }
 
 
