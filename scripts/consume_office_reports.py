@@ -401,6 +401,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "writer_universe_lever_floor.json": ("status", "population", "answer",
                                          "series_window", "per_day",
                                          "what_it_does_not_prove", "findings"),
+    # `per_protocol` обязателен: заказ #597 требует ответа ПОИМЁННО, и доля без
+    # перечня имён читателем не проверяема. `book` — потому что цена молчания
+    # спрашивается у КНИГИ, а не у списка опрашиваемых, и это разные населения.
+    # `admission_rule` — потолок: пустой класс обязан быть ИЗМЕРЕННЫМ нулём.
+    "polled_never_observed_census.json": ("status", "population", "answer",
+                                          "series_window", "per_protocol",
+                                          "book", "admission_rule",
+                                          "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -673,6 +681,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/remedy_class_single_forward_day.py",
     "writer_universe_lever_floor.json":
         "spa_core/monitoring/writer_universe_lever_floor.py",
+    "polled_never_observed_census.json":
+        "spa_core/monitoring/polled_never_observed_census.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2221,6 +2231,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _wulf_report,
         )
         out.extend(_wulf_report(data))
+    elif name == "polled_never_observed_census.json":
+        # Заказ #597/G11. Порядок строк — порядок вопроса: сперва ОТВЕТ (сколько
+        # молчащих и сколько на них денег), сразу за ним СТАТУС ЧИСЛА — вывод
+        # односторонний, и читатель, взявший «точки есть» за эвиденс, переоценит
+        # наблюдённость. Счёт исходов идёт ДО имён: он отвечает, не ушла ли часть
+        # населения в третий исход, а имена — уже на вопрос «кто именно».
+        from spa_core.monitoring.polled_never_observed_census import (
+            format_report as _pnc_report,
+        )
+        out.extend(_pnc_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
