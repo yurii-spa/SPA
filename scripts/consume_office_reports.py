@@ -415,6 +415,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "silent_leg_day_price.json": ("status", "population", "subjects", "per_leg",
                                   "answer", "sufficiency_control",
                                   "what_it_does_not_prove", "findings"),
+    # `ladder` и `repair_queue` обязательны: заказ #599 требует ответа ТРЕМЯ
+    # ступенями и поимённой очередью починок, а одна доля без них читается как
+    # план работ. `route_parity` — потому что именно он отличает сведение от
+    # арифметики по кругу.
+    "criterion_population_floor.json": ("status", "population", "ladder",
+                                        "repair_queue", "route_parity", "answer",
+                                        "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -691,6 +698,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/polled_never_observed_census.py",
     "silent_leg_day_price.json":
         "spa_core/monitoring/silent_leg_day_price.py",
+    "criterion_population_floor.json":
+        "spa_core/monitoring/criterion_population_floor.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2258,6 +2267,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _sldp_report,
         )
         out.extend(_sldp_report(data))
+    elif name == "criterion_population_floor.json":
+        # Заказ #599/G13. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ, затем
+        # ЛЕСТНИЦА из трёх знаменателей (потолок · пол по материалу · пол нашего
+        # кода), затем очередь починок ДВУМЯ числами на каждый рычаг, и только
+        # потом контроли. Ступени не сливаются намеренно: у них разные владельцы
+        # рычага, и одна доля их не различает.
+        from spa_core.monitoring.criterion_population_floor import (
+            format_report as _cpf_report,
+        )
+        out.extend(_cpf_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
