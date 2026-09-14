@@ -440,6 +440,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "run_identity_key_price.json": ("overall", "reason", "journal", "key_probe",
                                     "migration", "readers", "act_bounds",
                                     "what_it_does_not_prove"),
+    # Заказ #603/G17. `heirs` обязателен: без поимённого перечня ответ
+    # вырождается в «17 из 20», а вся находка в том, КТО именно раздувается;
+    # `whose_outcomes` — вторая половина заказа, и её отсутствие обязано читаться
+    # как «не измерено», а не как пустота.
+    "heir_all_rows_price.json": ("status", "headline", "stand", "heirs",
+                                 "heir_outcomes", "whose_outcomes",
+                                 "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -724,6 +731,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/act_day_recovery.py",
     "run_identity_key_price.json":
         "spa_core/monitoring/run_identity_key_price.py",
+    "heir_all_rows_price.json":
+        "spa_core/monitoring/heir_all_rows_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2330,6 +2339,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _rikp_report,
         )
         out.extend(_rikp_report(data))
+    elif name == "heir_all_rows_price.json":
+        # Заказ #603/G17. Порядок строк — порядок вопроса: сперва СТЕНД (на чём
+        # мерили), затем счёт исходов, затем КАЖДЫЙ наследник поимённо — «стало
+        # иначе» и «стало вернее» заказ прямо запретил сливать, и различить их
+        # можно только по имени, — и лишь потом вторая половина заказа.
+        from spa_core.monitoring.heir_all_rows_price import (
+            format_report as _harp_report,
+        )
+        out.extend(_harp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
