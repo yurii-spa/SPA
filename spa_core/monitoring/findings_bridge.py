@@ -129,6 +129,7 @@ PRODUCES = (
     "data/criterion_population_floor.json",
     "data/criterion_value_interval.json",
     "data/act_day_recovery.json",
+    "data/run_identity_key_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -220,6 +221,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "criterion_population_floor",
     "criterion_value_interval",
     "act_day_recovery",
+    "run_identity_key_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -370,6 +372,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "act_day_recovery": {
         "module": "spa_core/monitoring/act_day_recovery.py",
         "artifact": "data/act_day_recovery.json"},
+    "run_identity_key_price": {
+        "module": "spa_core/monitoring/run_identity_key_price.py",
+        "artifact": "data/run_identity_key_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1418,6 +1423,22 @@ def main(argv=None) -> int:
               f"у владельца {_bounds.get('blocked_on_owner_lever')})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "act_day_recovery", e)
+    # Заказ #602 (G16, ADR-384): во что обойдётся отмена двойного счёта — ключ
+    # прогона вместо даты — и сколько ACT-дней это вернуло бы. Вызов здесь, а не
+    # одно объявление ступени (урок ADR-376).
+    try:
+        from spa_core.monitoring import run_identity_key_price
+        _rikp = run_identity_key_price.run(root=args.root)
+        _b = _rikp.get("act_bounds") or {}
+        _r = _rikp.get("readers") or {}
+        _o = _r.get("outcomes") or {}
+        print(f"run_identity_key_price: {_rikp['overall']} "
+              f"(схлопывают день сами не менее "
+              f"{_o.get('collapses_to_last', 0) + _o.get('collapses_to_first', 0)} "
+              f"читателей из {len(_r.get('modules') or [])}; "
+              f"ACT-дней вернулось бы [{_b.get('lower')}, {_b.get('upper')}])")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "run_identity_key_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

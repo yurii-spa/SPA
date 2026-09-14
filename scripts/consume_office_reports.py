@@ -434,6 +434,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "act_day_recovery.json": ("overall", "reason", "journal", "bounds", "criterion",
                               "days", "unit_parity", "widening_control",
                               "what_it_does_not_prove"),
+    # Заказ #602/G16. `readers` и `act_bounds` обязательны: без первого ответ
+    # вырождается в «ключ переименован», а вся находка в том, что починка
+    # писателя до критерия НЕ ДОХОДИТ; без второго нет обеих границ.
+    "run_identity_key_price.json": ("overall", "reason", "journal", "key_probe",
+                                    "migration", "readers", "act_bounds",
+                                    "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -716,6 +722,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/criterion_value_interval.py",
     "act_day_recovery.json":
         "spa_core/monitoring/act_day_recovery.py",
+    "run_identity_key_price.json":
+        "spa_core/monitoring/run_identity_key_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2312,6 +2320,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _adr_report,
         )
         out.extend(_adr_report(data))
+    elif name == "run_identity_key_price.json":
+        # Заказ #602/G16. Порядок строк — порядок вопроса: ОТВЕТ, затем ключ,
+        # затем цена миграции по каждому кандидату, затем читатели (и каждый
+        # схлопывающий — ПОИМЁННО: заказ спрашивал «кто сломается», а ответ
+        # строже вопроса — они не ломаются, а молча схлопывают), и только потом
+        # обе границы ACT-дней одной строкой.
+        from spa_core.monitoring.run_identity_key_price import (
+            format_report as _rikp_report,
+        )
+        out.extend(_rikp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
