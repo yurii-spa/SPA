@@ -356,10 +356,18 @@ class TestScaleControl(_StandCase):
         self.assertTrue(doc["unit_parity"]["measured"])
         self.assertFalse(doc["unit_parity"]["passed"])
 
-    def test_same_scale_passes(self):
+    def test_same_scale_passes_and_prints_NOTHING(self):
+        """Пройденная шкала — не событие, и строки о ней быть не должно.
+
+        Утверждения `passed is True` мало: ветка отрисовки требует ОБОИХ
+        условий, и без проверки МОЛЧАНИЯ замена `and` на `or` пережила бы набор
+        (замер батареи), то есть о каждой здоровой шкале печаталось бы
+        расхождение.
+        """
         data = self.full_day(line_at=ANCHOR + timedelta(hours=2))
         doc = adr.measure(data, now=ANCHOR + timedelta(days=3))
         self.assertTrue(doc["unit_parity"]["passed"])
+        self.assertFalse(any("ШКАЛА" in line for line in adr.format_report(doc)))
 
 
 class TestItOnlyReads(_StandCase):
@@ -564,3 +572,93 @@ class TestTheWiringOfTheFlags(_StandCase):
             self.assertEqual(adr.main(["--no-write"]), 2)
         finally:
             adr.run = real
+
+
+class TestTheHonestBatteryHoles(_StandCase):
+    """Дыры, найденные ЧЕСТНЫМ прогоном батареи (14 выживших из 103).
+
+    Предыдущий прогон напечатал «0 выживших», и это было НЕВЕРНО: в наборе жил
+    тест, протекавший в общий системный tmp, — после первой же мутации он падал
+    в КАЖДОМ следующем прогоне, и любая мутация засчитывалась убитой. Тот же
+    класс, что «известный красный тест красит всех выживших», только красным
+    тест становился сам, со второго прогона. Урок: базу набора надо проверять
+    ДВАЖДЫ подряд ДО батареи, иначе батарея меряет не тесты.
+    """
+
+    def test_subsecond_erasure_delay_keeps_its_precision(self):
+        """Округление до 3 знаков: на целых секундах мутация неразличима."""
+        data = self.full_day(
+            line_at=ANCHOR + timedelta(seconds=42, milliseconds=125),
+            with_pendle_material=False, series_for_pendle=False)
+        doc = adr.measure(data, now=ANCHOR + timedelta(days=3))
+        self.assertEqual(doc["days"][0]["detail"]["line_later_than_trade_sec"], 42.125)
+
+    def test_fractional_turnover_keeps_its_cents(self):
+        stand, _ = self.stand()
+        stand.trade(ts=ANCHOR, frm={"pendle": 20000.0},
+                    to={"maple": 14736.84, "morpho_blue_base": 5263.17})
+        stand.record("2026-09-11", generated_at=_iso(ANCHOR + timedelta(hours=2)))
+        doc = adr.measure(stand.write(), now=ANCHOR + timedelta(days=3))
+        self.assertEqual(doc["days"][0]["executed_move"]["turnover_usd"], 20000.01)
+
+    def test_any_material_is_TRUE_when_one_leg_has_material(self):
+        """Обратная сторона: `any_material` обязан уметь быть истинным."""
+        data = self.full_day(line_at=ANCHOR + timedelta(hours=2),
+                             with_pendle_material=False, series_for_pendle=True)
+        doc = adr.measure(data, now=ANCHOR + timedelta(days=3))
+        self.assertTrue(doc["days"][0]["lever_detail"]["any_material"])
+
+    def test_two_marked_moves_are_reported_in_time_order(self):
+        """Порядок дней — по времени хода, а не по порядку строк в журнале."""
+        stand, _ = self.stand()
+        later = ANCHOR + timedelta(days=1)
+        stand.trade(trade_id="T035", ts=later)       # записан ПЕРВЫМ, произошёл ПОЗЖЕ
+        stand.trade(trade_id="T034", ts=ANCHOR)
+        stand.record("2026-09-11", generated_at=_iso(ANCHOR + timedelta(hours=2)))
+        stand.record("2026-09-12", generated_at=_iso(later + timedelta(hours=2)))
+        doc = adr.measure(stand.write(), now=ANCHOR + timedelta(days=5))
+        self.assertEqual([d["date"] for d in doc["days"]],
+                         ["2026-09-11", "2026-09-12"])
+
+    def test_run_writes_by_DEFAULT(self):
+        """Умолчание `write=True` не спрашивал никто — а оно решает, пишем ли в прод."""
+        data = self.full_day(line_at=ANCHOR + timedelta(hours=2))
+        adr.run(data_dir=str(data), now=ANCHOR + timedelta(days=3))
+        self.assertTrue((Path(data) / adr.ARTIFACT).exists())
+
+    def test_diverged_is_FALSE_when_the_day_survives_the_withholding(self):
+        """Обратный контроль `diverged`: не упало ⇒ не разошлось.
+
+        Забираем ногу, которой в ходе нет вовсе — оценимость обязана УСТОЯТЬ.
+        """
+        data = self.full_day(line_at=ANCHOR + timedelta(hours=2))
+        base = adr.measure(data, now=ANCHOR + timedelta(days=3))
+        self.assertTrue(base["days"][0]["scoring"]["scorable"])
+        after = adr.measure(data, now=ANCHOR + timedelta(days=3),
+                            withhold_forward=["нога-которой-нет"])
+        self.assertTrue(after["days"][0]["scoring"]["scorable"])
+
+    def test_report_renders_the_journal_and_legs_lines(self):
+        """Строки отчёта проверяются СОДЕРЖИМЫМ, а не фактом непадения."""
+        data = self.full_day(line_at=ANCHOR + timedelta(hours=2),
+                             with_pendle_material=False, series_for_pendle=False)
+        doc = adr.measure(data, now=ANCHOR + timedelta(days=3))
+        lines = adr.format_report(doc)
+        self.assertTrue(any("[ЖУРНАЛ] строк 4" in line for line in lines))
+        self.assertTrue(any("pendle-20,000" in line for line in lines))
+        self.assertTrue(any("erased_by_replacement" in line for line in lines))
+
+    def test_unmeasured_scale_does_NOT_render_the_scale_line(self):
+        """«Шкала не сверена» — не находка о шкале, и печатать её нельзя.
+
+        Ветка отрисовки требует ОБОИХ условий: замер состоялся И полоса не
+        пройдена. Без этого теста «не измерено» отрисовывалось бы как
+        расхождение шкалы — то самое смешение, против которого инв. #17.
+        """
+        stand, _ = self.stand()
+        stand.trade(ts=ANCHOR)
+        stand.record("2026-09-11", generated_at=_iso(ANCHOR + timedelta(hours=2)))
+        doc = adr.measure(stand.write(series_raw="{ не json"), now=ANCHOR)
+        self.assertFalse(doc["unit_parity"]["measured"])
+        self.assertNotIn("passed", doc["unit_parity"])
+        self.assertFalse(any("ШКАЛА" in line for line in adr.format_report(doc)))
