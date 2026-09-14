@@ -127,6 +127,7 @@ PRODUCES = (
     "data/polled_never_observed_census.json",
     "data/silent_leg_day_price.json",
     "data/criterion_population_floor.json",
+    "data/criterion_value_interval.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -216,6 +217,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "polled_never_observed_census",
     "silent_leg_day_price",
     "criterion_population_floor",
+    "criterion_value_interval",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -360,6 +362,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "criterion_population_floor": {
         "module": "spa_core/monitoring/criterion_population_floor.py",
         "artifact": "data/criterion_population_floor.json"},
+    "criterion_value_interval": {
+        "module": "spa_core/monitoring/criterion_value_interval.py",
+        "artifact": "data/criterion_value_interval.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1380,6 +1385,20 @@ def main(argv=None) -> int:
               f"unchecked={_cpf['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "criterion_population_floor", e)
+    # Заказ #600 (ADR-381, G14): ЗНАЧЕНИЕ критерия на знаменателе ступени
+    # `our_code_floor` — двумя границами. Ряд G6→G13 мерил цену починок; этот
+    # прибор меряет ОТДАЧУ, то есть меняется ли от починки решение о взводе.
+    # Объявления ступени НЕДОСТАТОЧНО: урок ADR-376 — объявленная ступень не
+    # звалась вовсе, и артефакт не рождался молча. Поэтому вызов здесь.
+    try:
+        from spa_core.monitoring import criterion_value_interval
+        _cvi = criterion_value_interval.run(root=args.root)
+        print(f"criterion_value_interval: {_cvi['overall']} "
+              f"(critical={_cvi['counts']['critical']} "
+              f"warn={_cvi['counts']['warn']} "
+              f"unchecked={_cvi['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "criterion_value_interval", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

@@ -422,6 +422,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "criterion_population_floor.json": ("status", "population", "ladder",
                                         "repair_queue", "route_parity", "answer",
                                         "what_it_does_not_prove", "findings"),
+    # `gate` и `widening_capability` обязательны: заказ #600 требует ответа ДВУМЯ
+    # границами и вердиктом порога на каждой, а нулевая ширина без контроля
+    # способности разойтись есть вакуум, а не измеренный ноль.
+    "criterion_value_interval.json": ("status", "answer", "gate", "ladder_parity",
+                                      "provenance_control", "widening_capability",
+                                      "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -700,6 +706,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/silent_leg_day_price.py",
     "criterion_population_floor.json":
         "spa_core/monitoring/criterion_population_floor.py",
+    "criterion_value_interval.json":
+        "spa_core/monitoring/criterion_value_interval.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2277,6 +2285,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _cpf_report,
         )
         out.extend(_cpf_report(data))
+    elif name == "criterion_value_interval.json":
+        # Заказ #600/G14. Порядок строк — порядок вопроса: сперва ОБЕ границы одной
+        # строкой (разнеси их — и читатель унесёт ту, что ближе к началу), затем
+        # вердикт порога на каждой из них, и только потом контроли. Середины между
+        # границами нет ни одной, и это сказано вслух отдельной строкой.
+        from spa_core.monitoring.criterion_value_interval import (
+            format_report as _cvi_report,
+        )
+        out.extend(_cvi_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
