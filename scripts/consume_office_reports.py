@@ -409,6 +409,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                           "series_window", "per_protocol",
                                           "book", "admission_rule",
                                           "what_it_does_not_prove", "findings"),
+    # `per_leg` обязателен: заказ #598 требует ответа ПОИМЁННО по держащим ногам,
+    # а число без имён читателем не проверяемо. `sufficiency_control` — потому что
+    # именно он отличает замер от правдоподобного списка держащих.
+    "silent_leg_day_price.json": ("status", "population", "subjects", "per_leg",
+                                  "answer", "sufficiency_control",
+                                  "what_it_does_not_prove", "findings"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -683,6 +689,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/writer_universe_lever_floor.py",
     "polled_never_observed_census.json":
         "spa_core/monitoring/polled_never_observed_census.py",
+    "silent_leg_day_price.json":
+        "spa_core/monitoring/silent_leg_day_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2241,6 +2249,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _pnc_report,
         )
         out.extend(_pnc_report(data))
+    elif name == "silent_leg_day_price.json":
+        # Заказ #598/G12. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ и кто
+        # субъект, затем цена ноги ТРЕМЯ числами (поднимает в одиночку · держит
+        # вторая нога · рычаг владельца), и только потом контроли. Три числа не
+        # сливаются намеренно: в первых двух работа наша, в третьем её у нас нет.
+        from spa_core.monitoring.silent_leg_day_price import (
+            format_report as _sldp_report,
+        )
+        out.extend(_sldp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

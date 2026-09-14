@@ -125,6 +125,7 @@ PRODUCES = (
     "data/remedy_class_single_forward_day.json",
     "data/writer_universe_lever_floor.json",
     "data/polled_never_observed_census.json",
+    "data/silent_leg_day_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -212,6 +213,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "remedy_class_single_forward_day",
     "writer_universe_lever_floor",
     "polled_never_observed_census",
+    "silent_leg_day_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -350,6 +352,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "polled_never_observed_census": {
         "module": "spa_core/monitoring/polled_never_observed_census.py",
         "artifact": "data/polled_never_observed_census.json"},
+    "silent_leg_day_price": {
+        "module": "spa_core/monitoring/silent_leg_day_price.py",
+        "artifact": "data/silent_leg_day_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1342,6 +1347,20 @@ def main(argv=None) -> int:
               f"unchecked={_pnc['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "polled_never_observed_census", e)
+    # Заказ #598 (ADR-379, G12): честная цена починки молчащей ноги в ДНЯХ
+    # знаменателя `hit_rate` — сколько поднимается в одиночку, сколько держит
+    # вторая нога (поимённо, с причиной) и сколько не поднимает ничто из нашего
+    # кода. Объявления ступени НЕДОСТАТОЧНО: урок ADR-376 — объявленная ступень
+    # не звалась вовсе, и артефакт не рождался молча. Поэтому вызов здесь.
+    try:
+        from spa_core.monitoring import silent_leg_day_price
+        _sldp = silent_leg_day_price.run(root=args.root)
+        print(f"silent_leg_day_price: {_sldp['overall']} "
+              f"(critical={_sldp['counts']['critical']} "
+              f"warn={_sldp['counts']['warn']} "
+              f"unchecked={_sldp['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "silent_leg_day_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по
