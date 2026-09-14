@@ -2,13 +2,14 @@
 trackerStatus:
   type: agent-task
 title: "Поиск новых протоколов — шагом внутри дневного цикла (решение владельца 19.08, вариант 1)"
-status: in-progress
+status: done
 source: cycle-311-ingest
 created: 2026-08-20
 priority: medium
 tags: [adapters, discovery, daily-cycle, adr-089]
 status_trail:
   - "2026-09-13T15:59:09.624536+00:00 backlog -> in-progress · queue.set_status"
+  - "2026-09-14T15:34:16.600523+00:00 in-progress -> done · queue.set_status"
 ---
 
 > Порождена инжестом решения владельца по карточке
@@ -51,3 +52,10 @@ status_trail:
 ## Что будет после
 
 Поиск новых протоколов начинает реально идти — а не создавать видимость работы холостым вызовом.
+
+## Закрыто 2026-09-14
+
+Шаг `spa_core/paper_trading/discovery_step.py` вызывается из `_run_daily_monitors` до читателей;
+исход в `data/candidate_discovery_status.json`; читатель — секция брифинга. Приёмка — проба
+`candidate_discovery_loop_closed` (карточка `inbox-skan-kandidatov-rabotaet-kazhdyi-tsikl-p`).
+PR #55.
