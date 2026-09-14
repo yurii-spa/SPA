@@ -128,6 +128,7 @@ PRODUCES = (
     "data/silent_leg_day_price.json",
     "data/criterion_population_floor.json",
     "data/criterion_value_interval.json",
+    "data/act_day_recovery.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -218,6 +219,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "silent_leg_day_price",
     "criterion_population_floor",
     "criterion_value_interval",
+    "act_day_recovery",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -365,6 +367,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "criterion_value_interval": {
         "module": "spa_core/monitoring/criterion_value_interval.py",
         "artifact": "data/criterion_value_interval.json"},
+    "act_day_recovery": {
+        "module": "spa_core/monitoring/act_day_recovery.py",
+        "artifact": "data/act_day_recovery.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1399,6 +1404,20 @@ def main(argv=None) -> int:
               f"unchecked={_cvi['counts']['unchecked']})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "criterion_value_interval", e)
+    # Заказ #601 (G15, ADR-383): существует ли рычаг, возвращающий ACT-день в
+    # ОЦЕНЁННЫЙ набор. Вызов здесь, а не одно объявление ступени: урок ADR-376 —
+    # объявленная ступень не звалась вовсе, и артефакт молча не рождался.
+    try:
+        from spa_core.monitoring import act_day_recovery
+        _adr = act_day_recovery.run(root=args.root)
+        _bounds = _adr.get("bounds") or {}
+        print(f"act_day_recovery: {_adr['overall']} "
+              f"(в журнал {_bounds.get('act_days_recoverable_to_journal')} ACT-дн., "
+              f"в оценённый набор [{_bounds.get('scored_act_days_lower')}, "
+              f"{_bounds.get('scored_act_days_upper')}], "
+              f"у владельца {_bounds.get('blocked_on_owner_lever')})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "act_day_recovery", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

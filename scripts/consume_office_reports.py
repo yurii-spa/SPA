@@ -428,6 +428,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "criterion_value_interval.json": ("status", "answer", "gate", "ladder_parity",
                                       "provenance_control", "widening_capability",
                                       "what_it_does_not_prove", "findings"),
+    # Заказ #601/G15. `bounds` и `widening_control` обязательны по той же причине,
+    # что и у соседа: ответ даётся ДВУМЯ границами, а нулевая ширина без контроля
+    # способности разойтись есть вакуум, а не измеренный ноль.
+    "act_day_recovery.json": ("overall", "reason", "journal", "bounds", "criterion",
+                              "days", "unit_parity", "widening_control",
+                              "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -708,6 +714,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/criterion_population_floor.py",
     "criterion_value_interval.json":
         "spa_core/monitoring/criterion_value_interval.py",
+    "act_day_recovery.json":
+        "spa_core/monitoring/act_day_recovery.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2294,6 +2302,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _cvi_report,
         )
         out.extend(_cvi_report(data))
+    elif name == "act_day_recovery.json":
+        # Заказ #601/G15. Порядок строк — порядок вопроса: сперва ОТВЕТ (есть ли
+        # рычаг и чей он), затем сколько ACT несёт журнал, затем ОБЕ границы одной
+        # строкой, и только потом дни поимённо с названной блокирующей ногой.
+        # Границы одной строкой намеренно: разнеси их — и читатель унесёт ту, что
+        # ближе к началу, а вся суть ответа в том, что они значат РАЗНОЕ.
+        from spa_core.monitoring.act_day_recovery import (
+            format_report as _adr_report,
+        )
+        out.extend(_adr_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
