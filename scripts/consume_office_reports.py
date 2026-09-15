@@ -499,6 +499,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "existence", "provenance", "counterfactual",
                                   "zero_is_absent", "findings",
                                   "what_it_does_not_prove"),
+    # Заказ #610/G23. `occurrence` перечислен ОТДЕЛЬНО от `zero_vs_absent`
+    # намеренно: перепись класса и его ЛАТЕНТНОСТЬ — разные утверждения, и
+    # свернуть второе в первое значило бы потерять «дошло до решения 0» —
+    # единственное, что отделяет найденный дефект от идущего вреда.
+    "asset_registry_gap_price.json": ("status", "headline", "journal",
+                                      "registry_divergence", "entry_paths",
+                                      "unresolved_keys", "blinded_turnover",
+                                      "judge_fields", "zero_vs_absent",
+                                      "occurrence", "findings",
+                                      "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -795,6 +805,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/move_cost_composition_price.py",
     "swap_existence_price.json":
         "spa_core/monitoring/swap_existence_price.py",
+    "asset_registry_gap_price.json":
+        "spa_core/monitoring/asset_registry_gap_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2462,6 +2474,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _sep_report,
         )
         out.extend(_sep_report(data))
+    elif name == "asset_registry_gap_price.json":
+        # Заказ #610/G23. Порядок строк — порядок вопроса: (а) сколько долларов
+        # ослеплено и ПОЧЕМУ реестры разошлись, (б) перепись полей судьи. Строка
+        # латентности идёт ПОСЛЕ переписи намеренно: без неё читатель примет
+        # двадцать координат за двадцать идущих аварий, а они латентны.
+        from spa_core.monitoring.asset_registry_gap_price import (
+            format_report as _argp_report,
+        )
+        out.extend(_argp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

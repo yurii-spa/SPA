@@ -136,6 +136,7 @@ PRODUCES = (
     "data/criterion_sign_price.json",
     "data/move_cost_composition_price.json",
     "data/swap_existence_price.json",
+    "data/asset_registry_gap_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -234,6 +235,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "criterion_sign_price",
     "move_cost_composition_price",
     "swap_existence_price",
+    "asset_registry_gap_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -405,6 +407,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "swap_existence_price": {
         "module": "spa_core/monitoring/swap_existence_price.py",
         "artifact": "data/swap_existence_price.json"},
+    "asset_registry_gap_price": {
+        "module": "spa_core/monitoring/asset_registry_gap_price.py",
+        "artifact": "data/asset_registry_gap_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1584,6 +1589,31 @@ def main(argv=None) -> int:
               f"ACT-дней возвращается {_back})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "swap_existence_price", e)
+    # Заказ #610 (G23, ADR-391): (а) сколько оборота ослеплено ключом без актива
+    # и ПОЧЕМУ два реестра разошлись — ответ структурный, у канонического реестра
+    # есть второй путь роста (условная допись за import-guard), у реестра активов
+    # его нет ни одного; (б) чем ещё судья не отличает ноль от отсутствия —
+    # перебор по КАЖДОМУ числовому полю, которое он читает, с третьим исходом
+    # «не измерено» вместо ложного «различает».
+    try:
+        from spa_core.monitoring import asset_registry_gap_price
+        _arg = asset_registry_gap_price.run(root=args.root)
+        # `or {}` здесь запрещён намеренно (инв. #17): пустой словарь вместо
+        # ненаблюдённой секции превратил бы «прибор не ответил» в «координат 0».
+        _bl = observed(_arg, "blinded_turnover", kind=dict)
+        _zc = observed(_arg, "zero_vs_absent", kind=dict)
+        _blind = ("НЕ ИЗМЕРЕНО" if _bl is None or not _bl.get("measured")
+                  else "$%s на %s ключ(ах)" % (
+                      f"{_bl.get('leg_usd_blinded'):,.2f}",
+                      _bl.get("blinded_keys_count")))
+        _conf = ("НЕ ИЗМЕРЕНО" if _zc is None or not _zc.get("measured")
+                 else "%s из %s" % (len(_zc.get("conflated") or []),
+                                    sum((_zc.get("counts") or {}).values())))
+        print(f"asset_registry_gap_price: {_arg.get('status')} "
+              f"(ослеплённый поток {_blind}; "
+              f"координат сливают ноль с отсутствием {_conf})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "asset_registry_gap_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по
