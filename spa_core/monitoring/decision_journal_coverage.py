@@ -215,7 +215,35 @@ READERS: Tuple[dict, ...] = (
     # покрытия), и выдавать нечувствительный по построению счётчик за ось нельзя.
     # Поэтому третий исход `unmeasured` с названной причиной, как у пятерых соседей.
     {"module": "spa_core.monitoring.unobserved_turnover_dependence", "probe": "run"},
+    # ── ДЕВЯТЬ потребителей, доставленных 13–15.09 и в население не вписанных ──
+    #
+    # Храповик `ReaderPopulationRatchet` покраснел на чистом origin ровно за этим:
+    # прибор отвечал бы за население, которого уже нет. У каждого своя точка входа
+    # `run(root, write=False)` — проверено разбором, а не предположено. Отказ или
+    # отсутствие счётчика покрытия у любого из них остаётся третьим исходом
+    # `unmeasured` с названной причиной, как у соседей выше (ADR-395).
+    {"module": "spa_core.monitoring.act_day_recovery", "probe": "run"},
+    {"module": "spa_core.monitoring.adapter_repair_price", "probe": "run"},
+    {"module": "spa_core.monitoring.asset_registry_gap_price", "probe": "run"},
+    {"module": "spa_core.monitoring.criterion_sign_price", "probe": "run"},
+    {"module": "spa_core.monitoring.criterion_value_interval", "probe": "run"},
+    {"module": "spa_core.monitoring.hit_rate_denominator_recovery", "probe": "run"},
+    {"module": "spa_core.monitoring.move_cost_composition_price", "probe": "run"},
+    {"module": "spa_core.monitoring.silent_leg_day_price", "probe": "run"},
+    {"module": "spa_core.monitoring.unobserved_leg_remedy_class", "probe": "run"},
 )
+
+#: НЕ читатели, хотя строка ключа в их тексте есть. Предикат храповика ищет ключ
+#: ТЕКСТОМ (и это осознанно: разбор всех форм чтения дороже пользы), поэтому в
+#: население попадает и тот, кто ключ ПИШЕТ в собственную сцену. Освобождение —
+#: только с причиной, и база может лишь уменьшаться.
+NOT_READERS: dict = {
+    "spa_core.monitoring.card_acceptance":
+        "ключ встречается ОДИН раз и в СОБСТВЕННОЙ синтетической сцене пробы "
+        "(строка 576: `\"apy_evidenced_pct\": {\"alpha\": 8.0, \"beta\": 2.0}`) — "
+        "модуль ключ ПИШЕТ, а не читает из журнала; у него нет ни `run`, ни "
+        "`measure`, то есть и звать прибору нечего (замер 15.09)",
+}
 
 
 # ──────────────────────────────────────────────────────────────────────────

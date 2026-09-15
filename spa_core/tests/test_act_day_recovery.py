@@ -13,6 +13,11 @@ FROZEN-DATE-OK: injected-clock — якорь ANCHOR порождает все �
 уходит в ``measure(now=...)`` / ``run(now=...)``; стенных часов прибор на этом
 пути не спрашивает.
 """
+# FROZEN-DATE-OK: injected-clock — якорь ANCHOR порождает ВСЕ отметки сцен
+# (`ANCHOR + timedelta(...)`), и он же уходит в прибор параметром `now=`;
+# стенных часов на этом пути нет. Пометка стояла в ДОКСТРОКЕ и потому не
+# считалась: храповик ищет её комментарием с `#` (ADR-395).
+
 from __future__ import annotations
 
 import json

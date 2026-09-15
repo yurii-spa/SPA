@@ -468,14 +468,30 @@ class ReaderPopulationRatchet(unittest.TestCase):
             self.assertTrue(out["fired"], out)
             self.assertEqual(out["outcome_after"], "miss")
 
+    def test_every_non_reader_exemption_carries_a_reason(self):
+        """Освобождение без причины — молчаливое глушение, а не решение."""
+        empty = sorted(k for k, v in djc.NOT_READERS.items() if not str(v).strip())
+        self.assertEqual(empty, [], f"освобождение без причины: {empty}")
+
+    def test_every_non_reader_exemption_is_still_real(self):
+        """База может только уменьшаться: модуль, который ключа уже не касается,
+        в освобождении не нужен — иначе список копит мусор и перестаёт читаться."""
+        touching = self._production_modules_touching_the_key()
+        stale = sorted(k for k in djc.NOT_READERS if k not in touching)
+        self.assertEqual(stale, [], f"освобождены модули, не касающиеся ключа: {stale}")
+
     def test_the_population_is_not_empty(self):
         """Пустой замер зеленил бы храповик, ничего не измерив."""
         self.assertGreater(len(self._production_modules_touching_the_key()), 1)
 
     def test_every_production_reader_is_in_the_population(self):
-        declared = {r["module"] for r in djc.READERS} | {self.WRITER,
-                                                         self.PERTURBER,
-                                                         self.BACKFILLER}
+        # ИЗМЕНЕНО 15.09 (ADR-395, инв. #16): предмет не тронут — каждый, кто
+        # ЧИТАЕТ ключ, обязан быть под замером. Добавлено освобождение
+        # `NOT_READERS`: предикат ищет ключ ТЕКСТОМ, поэтому в население попадает
+        # и тот, кто ключ ПИШЕТ в собственную сцену. Освобождение только с
+        # причиной — проверяется соседним тестом.
+        declared = ({r["module"] for r in djc.READERS} | set(djc.NOT_READERS)
+                    | {self.WRITER, self.PERTURBER, self.BACKFILLER})
         missing = sorted(self._production_modules_touching_the_key() - declared)
         self.assertEqual(
             missing, [],

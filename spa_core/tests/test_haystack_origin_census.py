@@ -455,10 +455,26 @@ class TestThePopulationIsBorrowedNotRebuilt(unittest.TestCase):
             doc["counts"]["repo_neighbour"] + doc["counts"]["repo_copy"], 0,
             "ни один сайт за границей #568 не сведён к файлу под корнем — "
             "утверждение «не свернулся ≠ нет в репозитории» не доказано")
+        # ИЗМЕНЕНО 15.09 (ADR-395, инв. #16): предмет УСИЛЕН, а не ослаблен.
+        #
+        # Здесь стояло «любое расхождение с опубликованным числом — находка», и
+        # главная ветка краснела от того, что в репозиторий ДОБАВИЛИ тестов
+        # (население 99 против опубликованных 91). Проверка, которая краснеет от
+        # роста репозитория, не может стать зелёной ни при каком поведении кода.
+        #
+        # Чего проверка боится на самом деле, говорит её же соседняя контрольная
+        # сцена: пустое дерево обязано дать CRITICAL. То есть предмет — СХЛОПЫВАНИЕ
+        # населения (сосед перепишет строку-причину, остаток уедет в ноль, и
+        # «предмета нет» прочтётся как «нарушений нет»). Это и утверждается теперь
+        # ПРЯМО, а не через «не равно».
         self.assertFalse(
-            doc["population_source_disagrees"],
-            f"население за границей = {doc['counts']['boundary']}, а ADR-338 "
-            f"опубликовал {H.PUBLISHED_BOUNDARY}: доля несопоставима")
+            doc["population_below_published"],
+            f"население за границей = {doc['counts']['boundary']} НИЖЕ "
+            f"опубликованных ADR-338 {H.PUBLISHED_BOUNDARY}: отбор схлопывается")
+        self.assertGreaterEqual(
+            doc["counts"]["boundary"], H.PUBLISHED_BOUNDARY,
+            "остаток не имеет права быть меньше опубликованного: пустой остаток "
+            "читается как «предмета нет»")
 
     def test_a_disagreement_with_the_published_number_is_critical(self):
         """Доля, названная от ДРУГОГО целого, несопоставима с опубликованной."""
@@ -467,7 +483,13 @@ class TestThePopulationIsBorrowedNotRebuilt(unittest.TestCase):
             doc = H.measure(Path(tmp.name), now=NOW)
         self.assertTrue(doc["population_source_disagrees"])
         self.assertEqual(doc["status"], H.STATUS_CRITICAL)
-        self.assertTrue(any("несопоставима" in f for f in doc["findings"]))
+        # ИЗМЕНЕНО 15.09 (ADR-395, инв. #16): предмет тот же — находка обязана
+        # НАЗВАТЬ беду, — сменилось слово. Прежде «несопоставима» стояло у любого
+        # расхождения; теперь оно описывает РОСТ (доля от другого целого), а у
+        # схлопывания — своё слово, потому что это разные беды: одна про
+        # сопоставимость числа, другая про то, что мерить стало нечего.
+        self.assertTrue(any("СХЛОПЫВАЕТСЯ" in f for f in doc["findings"]),
+                        f"пустое дерево обязано назвать схлопывание: {doc['findings'][-3:]}")
 
 
 class TestTheInstrumentsOwnDefects(unittest.TestCase):

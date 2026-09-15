@@ -9,6 +9,10 @@
 Часы инъектируются. FROZEN-DATE-OK: injected-clock — все даты происходят от
 _NOW/_ANCHOR и подаются в measure(now=)/run(now=); стенных часов в файле нет.
 """
+# FROZEN-DATE-OK: injected-clock — `_NOW` и производный от него `_ANCHOR`
+# подаются в `measure(now=...)` / `run(now=...)`; обе стороны сравнения
+# закреплены одним якорем, стенных часов в файле нет (ADR-395).
+
 from __future__ import annotations
 
 import json

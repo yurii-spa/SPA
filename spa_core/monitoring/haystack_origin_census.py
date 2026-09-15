@@ -1167,7 +1167,26 @@ def measure(root: Path, *, now=None) -> dict:
     counts["assertion_sites"] = len(every)
     repo_side = counts["repo_neighbour"] + counts["repo_copy"]
 
-    population_disagrees = len(boundary) != PUBLISHED_BOUNDARY
+    # НАПРАВЛЕНИЕ РАСХОЖДЕНИЯ РЕШАЕТ ВЕРДИКТ (ADR-395).
+    #
+    # Здесь стояло `!=`, то есть ЛЮБОЕ отличие от опубликованного числа объявлялось
+    # CRITICAL. Замер 15.09: дерево выросло, население стало 99 против 91 — и главная
+    # ветка краснела от того, что в репозиторий добавили тестов. Проверка, которая
+    # краснеет от РОСТА репозитория, не может остаться зелёной ни при каком поведении
+    # кода, а значит перестаёт быть сигналом.
+    #
+    # Чего эта проверка боится НА САМОМ ДЕЛЕ, сказано её же контрольной сценой: она
+    # строит ПУСТОЕ дерево и требует CRITICAL. То есть предмет страха — СХЛОПЫВАНИЕ
+    # населения: сосед перепишет строку-причину, отбор перестанет совпадать, остаток
+    # молча уедет в ноль, и «предмета нет» прочтётся как «нарушений нет».
+    #
+    # Поэтому: население НИЖЕ опубликованного (или пустое) — CRITICAL, как и было.
+    # Население ВЫШЕ — предупреждение с названной дельтой: доля считается от
+    # сегодняшнего целого и с опубликованной несопоставима, но это решение о
+    # перезаписи числа в ADR, а не находка прибора. Назвать, а не решить.
+    population_below = len(boundary) < PUBLISHED_BOUNDARY
+    population_above = len(boundary) > PUBLISHED_BOUNDARY
+    population_disagrees = population_below or population_above
 
     findings: List[str] = []
     findings.append(
@@ -1231,14 +1250,24 @@ def measure(root: Path, *, now=None) -> dict:
             reasons[row["reason"]] = reasons.get(row["reason"], 0) + 1
         for reason, num in sorted(reasons.items(), key=lambda kv: -kv[1]):
             findings.append(f"[НЕ ИЗМЕРЕНО] {num} сайт(ов) — {reason}")
-    if population_disagrees:
+    if population_below:
         findings.append(
             f"[CRITICAL] население за границей = {len(boundary)}, а ADR-338 "
-            f"опубликовал {PUBLISHED_BOUNDARY}: доля несопоставима с "
-            f"опубликованной, пока расхождение не разобрано")
+            f"опубликовал {PUBLISHED_BOUNDARY}: население СХЛОПЫВАЕТСЯ — отбор "
+            f"перестал совпадать с тем, что пишет сосед, и пустой остаток "
+            f"прочтётся как «предмета нет»")
+    elif population_above:
+        findings.append(
+            f"[WARNING] население за границей = {len(boundary)}, а ADR-338 "
+            f"опубликовал {PUBLISHED_BOUNDARY} (+{len(boundary) - PUBLISHED_BOUNDARY}): "
+            f"дерево выросло, доля считается от СЕГОДНЯШНЕГО целого и с "
+            f"опубликованной несопоставима. Перезапись числа в ADR — решение, "
+            f"а не находка прибора")
 
-    if population_disagrees:
+    if population_below:
         status = STATUS_CRITICAL
+    elif population_above:
+        status = STATUS_WARNING
     elif counts["unmeasured"]:
         status = STATUS_WARNING
     else:
@@ -1251,6 +1280,8 @@ def measure(root: Path, *, now=None) -> dict:
         "counts": counts,
         "published_boundary": PUBLISHED_BOUNDARY,
         "population_source_disagrees": population_disagrees,
+        "population_below_published": population_below,
+        "population_above_published": population_above,
         "split": {
             "repo_neighbour": verdicts["repo_neighbour"],
             "repo_copy": verdicts["repo_copy"],
