@@ -38,7 +38,7 @@ import os
 import subprocess
 import sys
 
-from spa_core.utils.observation import observed
+from spa_core.utils.observation import observed, observed_number
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, subject_inputs
 
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
@@ -135,6 +135,7 @@ PRODUCES = (
     "data/adapter_repair_price.json",
     "data/criterion_sign_price.json",
     "data/move_cost_composition_price.json",
+    "data/swap_existence_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -232,6 +233,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "adapter_repair_price",
     "criterion_sign_price",
     "move_cost_composition_price",
+    "swap_existence_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -400,6 +402,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "move_cost_composition_price": {
         "module": "spa_core/monitoring/move_cost_composition_price.py",
         "artifact": "data/move_cost_composition_price.json"},
+    "swap_existence_price": {
+        "module": "spa_core/monitoring/swap_existence_price.py",
+        "artifact": "data/swap_existence_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1547,6 +1552,38 @@ def main(argv=None) -> int:
               f"{(_swp.get('named') or {}).get('median')})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "move_cost_composition_price", e)
+    # Заказ #609 (G22, ADR-390): существует ли операция, которую оценивает
+    # SLIPPAGE_BPS_STABLE. Актив пула у каждой ноги — тождеством кода, а не по
+    # виду имени; доля потока, не меняющая актива; провенанс константы (на
+    # обрезанной истории — честный отказ, а не чужая дата); и сколько ACT-дней
+    # вернуло бы снятие проскальзывания с долларов, которые актива не меняли.
+    try:
+        from spa_core.monitoring import swap_existence_price
+        _sep = swap_existence_price.run(root=args.root)
+        # `or {}` здесь запрещён намеренно (инв. #17): пустой словарь вместо
+        # ненаблюдённой секции превратил бы «прибор не ответил» в «дней 0» —
+        # ровно ту подмену отсутствия благополучием, которую сторож
+        # `test_absent_observation_ratchet` и ловит.
+        _ex = observed(_sep, "existence", kind=dict)
+        _cf = observed(_sep, "counterfactual", kind=dict)
+        _tot = (observed(_ex, "totals_all_measured_days", kind=dict)
+                if _ex is not None else None)
+        _ns_min = observed_number(_tot, "no_swap_share_min") if _tot else None
+        _ns_max = observed_number(_tot, "no_swap_share_max") if _tot else None
+        _no_swap = ("НЕ ИЗМЕРЕНО" if _ns_min is None or _ns_max is None
+                    else "%.2f %%…%.2f %%" % (100 * _ns_min, 100 * _ns_max))
+        _back = ("НЕ ИЗМЕРЕНО"
+                 if _cf is None or not _cf.get("measured")
+                 else "%s…%s" % (_cf.get("act_days_returned_min"),
+                                 _cf.get("act_days_returned_max")))
+        _seen = "НЕ ИЗМЕРЕНО" if _ex is None else _ex.get("days_measured")
+        _all = "НЕ ИЗМЕРЕНО" if _ex is None else _ex.get("days_total")
+        print(f"swap_existence_price: {_sep.get('status')} "
+              f"(дней измерено {_seen} из {_all}; "
+              f"без свопа {_no_swap} потока; "
+              f"ACT-дней возвращается {_back})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "swap_existence_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

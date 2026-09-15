@@ -490,6 +490,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                          "composition", "benefit_drift",
                                          "cost_level_sweep", "findings",
                                          "what_it_does_not_prove"),
+    # Заказ #609/G22. `zero_is_absent` перечислен ОТДЕЛЬНО от контрфакта
+    # намеренно: он отвечает не на вопрос заказа, а на вопрос о САМОМ судье,
+    # и свернуть его в контрфакт значило бы потерять находку при первом же
+    # отказе контрфакта.
+    "swap_existence_price.json": ("status", "headline", "journal",
+                                  "cash_asset_source", "asset_resolution",
+                                  "existence", "provenance", "counterfactual",
+                                  "zero_is_absent", "findings",
+                                  "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -784,6 +793,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/criterion_sign_price.py",
     "move_cost_composition_price.json":
         "spa_core/monitoring/move_cost_composition_price.py",
+    "swap_existence_price.json":
+        "spa_core/monitoring/swap_existence_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2441,6 +2452,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _mcc_report,
         )
         out.extend(_mcc_report(data))
+    elif name == "swap_existence_price.json":
+        # Заказ #609/G22. Порядок строк — порядок вопроса: (а) сколько потока
+        # МЕНЯЕТ актив, (б) провенанс константы, (в) контрфакт. Строка «ноль
+        # против отсутствия» стои́т ПЕРЕД контрфактом намеренно: она объясняет,
+        # почему уровень «цена ноль» контролем быть не может, — без неё читатель
+        # решит, что прибор просто не догадался его взять.
+        from spa_core.monitoring.swap_existence_price import (
+            format_report as _sep_report,
+        )
+        out.extend(_sep_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
