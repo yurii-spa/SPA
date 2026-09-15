@@ -457,6 +457,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "judge_alone_price.json": ("status", "headline", "journal", "values",
                                "value_outcomes", "forms", "returns_today",
                                "capacity", "fix_site", "what_it_does_not_prove"),
+    # Заказ #606/G19. Ключи названы поимённо, потому что ответ состоит из ЧЕТЫРЁХ
+    # разных: `blocked_days` — население и доля КАПИТАЛА (не оборота), `protocols` —
+    # кто даёт причину поимённо, `remedy` — чем это чинится (то самое слово
+    # «адаптеров», которое заказ принял, а прибор проверяет), и ДВА числа возврата:
+    # `returns_today` (ноль) и `capacity` (десять). Схлопнуть их в один заголовок
+    # значило бы продать ёмкость за сегодняшний ноль — либо, наоборот, выдать
+    # сегодняшний ноль за приговор рычагу. `sentinel_control` обязателен: без него
+    # безразличие ответа к подставленной ставке осталось бы ЗАЯВЛЕНИЕМ.
+    "adapter_repair_price.json": ("status", "headline", "journal", "blocked_days",
+                                  "protocols", "remedy", "returns_today",
+                                  "capacity", "sentinel_control",
+                                  "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -745,6 +757,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/heir_all_rows_price.py",
     "judge_alone_price.json":
         "spa_core/monitoring/judge_alone_price.py",
+    "adapter_repair_price.json":
+        "spa_core/monitoring/adapter_repair_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2371,6 +2385,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _jap_report,
         )
         out.extend(_jap_report(data))
+    elif name == "adapter_repair_price.json":
+        # Заказ #606/G19. Порядок строк — порядок вопроса: (а) население и КАПИТАЛ,
+        # (б) протоколы с рычагом у каждого, (в) сначала СЕГОДНЯШНЕЕ чтение и лишь
+        # потом ёмкость. Сегодняшнее идёт первым намеренно: читатель, увидевший
+        # «+10 ACT-дней» раньше нуля, прочтёт ёмкость как обещание. Контроль
+        # сентинелов печатается последним, но печатается ВСЕГДА: он единственное,
+        # что отличает измеренный ответ от выдуманного.
+        from spa_core.monitoring.adapter_repair_price import (
+            format_report as _arp_report,
+        )
+        out.extend(_arp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

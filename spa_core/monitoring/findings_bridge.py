@@ -132,6 +132,7 @@ PRODUCES = (
     "data/run_identity_key_price.json",
     "data/heir_all_rows_price.json",
     "data/judge_alone_price.json",
+    "data/adapter_repair_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -226,6 +227,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "run_identity_key_price",
     "heir_all_rows_price",
     "judge_alone_price",
+    "adapter_repair_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -385,6 +387,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "judge_alone_price": {
         "module": "spa_core/monitoring/judge_alone_price.py",
         "artifact": "data/judge_alone_price.json"},
+    "adapter_repair_price": {
+        "module": "spa_core/monitoring/adapter_repair_price.py",
+        "artifact": "data/adapter_repair_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1474,6 +1479,24 @@ def main(argv=None) -> int:
               f"возвращается {_ret} ACT-дн.)")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "judge_alone_price", e)
+    # Заказ #606 (G19, ADR-387): цена починки АДАПТЕРОВ в той же валюте — ACT-дни до
+    # критерия. Вызов здесь, а не одно объявление ступени (урок ADR-376). Ёмкость
+    # мерится вместе с сегодняшним чтением: весь замер стои́т ~5 с, и разделять их
+    # значило бы оставить в цикле ТОЛЬКО сегодняшний ноль — то есть самую
+    # соблазнительную половину ответа.
+    try:
+        from spa_core.monitoring import adapter_repair_price
+        _arp = adapter_repair_price.run(root=args.root)
+        _today = (_arp.get("returns_today") or {}).get(
+            "act_days_returned_by_full_grant")
+        _cap = observed(_arp, "capacity", kind=dict) or {}
+        _cap_days = _cap.get("act_days_returned_by_full_grant", "НЕ ИЗМЕРЕНО")
+        print(f"adapter_repair_price: {_arp.get('status')} "
+              f"(дней отвергнуто {(_arp.get('blocked_days') or {}).get('count')}; "
+              f"критерию возвращается сегодня {_today} ACT-дн., "
+              f"на ёмкостном стенде {_cap_days})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "adapter_repair_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по
