@@ -539,6 +539,132 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
         shutil.rmtree(root, ignore_errors=True)
 
 
+#: Синтетический журнал пробы «бесплатный ход». Дни строятся от эпохи, а не от
+#: календарной даты: судья (`evaluate_window`) детерминирован по файлам и часов не
+#: читает вовсе, поэтому дата здесь — ключ ПОРЯДКА, а не отметка свежести, и
+#: литеральной даты в пробе нет ни одной.
+_FREE_MOVE_DAYS = 12
+_FREE_MOVE_TURNOVER_USD = 50_000.0
+
+
+def _free_move_journal(root: str, cost_usd: float | None) -> str:
+    """Записать журнал решений, у каждого дня которого ЕСТЬ материальный ход.
+
+    Контур намеренно однороден: цель платит больше текущей книги, ход существенен,
+    все гейты кроме одного открыты. От варианта к варианту меняется РОВНО цена хода —
+    поэтому расхождение счёта есть утверждение о ветке цены, а не о разнице контуров.
+    """
+    from datetime import timedelta
+    base = datetime.fromtimestamp(0, timezone.utc).date()
+    lines = []
+    for i in range(_FREE_MOVE_DAYS):
+        rec = {
+            "cycle_date": (base + timedelta(days=i)).isoformat(),
+            "decision_id": f"free-move-probe-{i}",
+            "book_id": "conservative",
+            "capital_usd": 100_000.0,
+            "turnover_usd": _FREE_MOVE_TURNOVER_USD,
+            "verdict": "HOLD",
+            "reasons": ["gain_below_band"],
+            "gates": {"has_legs": True, "gain_above_band": False,
+                      "payback_within_horizon": True, "cooldown_ok": True,
+                      "min_hold_ok": True, "move_turnover_ok": True,
+                      "move_amount_ok": True, "week_turnover_ok": True,
+                      "day_turnover_ok": True, "target_fully_evidenced": True},
+            "current_positions": {"alpha": 0.0, "beta": _FREE_MOVE_TURNOVER_USD},
+            "target_positions": {"alpha": _FREE_MOVE_TURNOVER_USD, "beta": 0.0},
+            "apy_evidenced_pct": {"alpha": 8.0, "beta": 2.0},
+            "legs": [{"protocol": "alpha", "delta_usd": _FREE_MOVE_TURNOVER_USD,
+                      "direction": "increase"},
+                     {"protocol": "beta", "delta_usd": -_FREE_MOVE_TURNOVER_USD,
+                      "direction": "decrease"}],
+        }
+        if cost_usd is not None:
+            rec["cost_usd"] = cost_usd
+        lines.append(json.dumps(rec, ensure_ascii=False))
+    os.makedirs(root, exist_ok=True)
+    path = os.path.join(root, "allocation_rationale_history.jsonl")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return path
+
+
+def _probe_free_move_priced_as_free(arg: str | None) -> tuple[str, str]:
+    """Критерий владельца (ADR-392 реш. 1): ноль в цене хода — ЦЕНА, а не её отсутствие.
+
+    Владелец назвал приёмку исходом, а не правкой: ``swap_existence_price``
+    перестаёт печатать находку ``zero_price_is_read_as_absent_price``, то есть
+    лучший счёт при НУЛЕВОЙ цене становится **не хуже**, чем при цене в один цент.
+    Проба гоняет настоящий прибор (`zero_is_absent`) на СИНТЕТИЧЕСКОМ журнале —
+    живой `data/` не трогается и в вердикт не входит: критерий про арифметику
+    судьи, а не про то, какие дни сегодня лежат в книге.
+
+    Мерятся ДВЕ стороны, и обе обязаны держаться, иначе «починка» была бы
+    разменом одного дефекта на другой:
+
+    1. **ноль — цена.** Лучший счёт при нулевой цене ≥ счёта при цене в цент
+       (дешевле нуля не бывает ни в одной честной модели цены);
+    2. **отсутствие — НЕ ноль.** Строка БЕЗ записанной цены по-прежнему берёт
+       консервативное допущение ``ASSUMED_COST_BPS_OF_TURNOVER``, а не ноль.
+       Без этой половины правка `cost_rec is not None` выглядела бы выполненной
+       и одновременно разрешала бы бесплатные ходы там, где цену просто не
+       записали, — то есть ровно инвариант #17 наизнанку.
+    """
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    from spa_core.monitoring import criterion_sign_price as csp
+    from spa_core.monitoring import swap_existence_price as sep
+    from spa_core.paper_trading import shadow_trigger_eval as ste
+
+    root = tempfile.mkdtemp(prefix="spa_free_move_probe_")
+    try:
+        _free_move_journal(root, cost_usd=100.0)
+        try:
+            zero = sep.zero_is_absent(Path(root), horizon_days=ste.DEFAULT_HORIZON_DAYS,
+                                      gates=csp._gate_names())
+        except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ критерий не выполнен
+            return UNMEASURED, f"прибор `zero_is_absent` не отработал: {type(exc).__name__}: {exc}"
+        net_zero, net_cent = zero.get("best_net_usd_zero"), zero.get("best_net_usd_one_cent")
+        if net_zero is None or net_cent is None:
+            return UNMEASURED, ("прибор не назвал один из счётов "
+                                f"(ноль={net_zero!r}, цент={net_cent!r}) — сравнивать нечего")
+        if zero.get("collides"):
+            return NOT_SATISFIED, (
+                f"ветки СЛИТЫ: лучший счёт при нулевой цене ${net_zero:,.2f}, при цене в цент "
+                f"${net_cent:,.2f} (ACT-дней {zero.get('act_days_zero')} против "
+                f"{zero.get('act_days_one_cent')}) — бесплатный ход дороже дешёвого")
+
+        # Вторая сторона: строка БЕЗ цены обязана по-прежнему платить допущение.
+        absent_root = tempfile.mkdtemp(prefix="spa_free_move_probe_absent_")
+        try:
+            _free_move_journal(absent_root, cost_usd=None)
+            history, _bad = ste.load_history(Path(absent_root))
+            if not history:
+                return UNMEASURED, "синтетический журнал без цены не прочитался судьёй"
+            row = ste._evaluate_verdict(history[0], history[1:], ste.DEFAULT_HORIZON_DAYS)
+            source = str(row.get("cost_source") or "")
+            used = row.get("cost_usd_used")
+            if not source.startswith("assumption:"):
+                return NOT_SATISFIED, (
+                    f"строка БЕЗ записанной цены получила источник {source!r} (цена ${used!r}) — "
+                    "отсутствие наблюдения снова слито с нулём, только в другую сторону (инв. #17)")
+            if not isinstance(used, (int, float)) or used <= 0.0:
+                return NOT_SATISFIED, (
+                    f"допущение при отсутствующей цене дало ${used!r} — ход без записанной цены "
+                    "оценён как бесплатный")
+        finally:
+            shutil.rmtree(absent_root, ignore_errors=True)
+
+        return SATISFIED, (
+            f"ноль — цена: лучший счёт ${net_zero:,.2f} против ${net_cent:,.2f} за цент "
+            f"(ACT-дней {zero.get('act_days_zero')} против {zero.get('act_days_one_cent')}); "
+            f"отсутствие цены по-прежнему платит допущение ${used:,.2f} ({source})")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -546,6 +672,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "candidate_discovery_loop_closed": _probe_candidate_discovery_loop,
+    "free_move_priced_as_free": _probe_free_move_priced_as_free,
 }
 
 

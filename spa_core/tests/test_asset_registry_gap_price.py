@@ -432,8 +432,20 @@ class EndToEndTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="argp_e2e_"))
 
-    def test_cost_usd_is_found_conflated_by_running_the_real_judge(self):
-        """Ветка `cost_rec > 0.0` найдена ИСХОДОМ, а не чтением кода."""
+    def test_cost_usd_is_found_distinguishing_by_running_the_real_judge(self):
+        """Починка ветки `cost_rec > 0.0` подтверждена ИСХОДОМ, а не чтением кода.
+
+        Прежняя редакция требовала здесь ``conflated`` и была верным положительным
+        контролем дефекта: судья не отличал «цена измерена и равна нулю» от «цену не
+        записали». Ветку снял ЯВНЫЙ ответ владельца 2026-09-15 (ADR-392 решение 1 →
+        ADR-393), поэтому ожидание ПЕРЕВЁРНУТО, а не ослаблено: в новой форме тест
+        краснеет ровно тогда, когда старая ветка вернётся (инв. #16 — изменение
+        намеренное, обосновано здесь и записано в журнал цикла #611).
+
+        Соседний ``test_turnover_usd_is_found_distinguishing`` остаётся вторым плечом
+        прибора: он показывает, что ``distinguishes`` прибор умеет печатать и по
+        другой координате, то есть ответ здесь не выродился в «всегда зелено».
+        """
         rows = [_day("2026-09-%02d" % i, current={"aave_v3": 100_000.0},
                      target={"aave_v3": 40_000.0, "maple": 60_000.0},
                      turnover=60_000.0, cost=120.0,
@@ -443,8 +455,8 @@ class EndToEndTests(unittest.TestCase):
         census = argp.zero_vs_absent_census(self.tmp, rows, fields,
                                             horizon_days=3)
         row = next(r for r in census["rows"] if r["coordinate"] == "cost_usd")
-        self.assertEqual(row["state"], "conflated")
-        self.assertTrue(row["zero_equals_absent"])
+        self.assertEqual(row["state"], "distinguishes")
+        self.assertFalse(row["zero_equals_absent"])
         self.assertTrue(row["sensitive"])
 
     def test_turnover_usd_is_found_distinguishing(self):

@@ -475,8 +475,18 @@ class Differential(unittest.TestCase):
             self.assertIn("how", row)
             self.assertIn("variant", row)
 
-    def test_dropping_the_recorded_cost_moves_to_the_assumption_not_to_zero(self):
-        """Ноль цены через данные НЕДОСТИЖИМ — и это свойство судьи, не прибора."""
+    def test_recorded_zero_is_a_price_and_a_dropped_record_is_not(self):
+        """Две величины — ДВА исхода, и обе стороны меряются одной сценой.
+
+        Прежняя редакция этого теста закрепляла ОБРАТНОЕ («ноль цены через данные
+        НЕДОСТИЖИМ») и была верным положительным контролем ветки
+        ``cost_rec is not None and cost_rec > 0.0``. Ветку снял ЯВНЫЙ ответ владельца
+        2026-09-15 (ADR-392 решение 1, вариант 1 → ADR-393): записанный ноль означает
+        «ход измерен и бесплатен», а допущение остаётся только для «цену не записали».
+        Тест поэтому не ослаблен, а ПЕРЕВЁРНУТ — и в новой форме он краснеет ровно при
+        возврате старой ветки, чего от него и требует порядок владельца (инв. #16:
+        изменение намеренное, обосновано здесь и записано в журнал цикла #611).
+        """
         out = C.differential(self.scene.dir,
                              horizon_days=ste.DEFAULT_HORIZON_DAYS, gates=_GATES)
         dropped = next(r for r in out["rows"] if r["variant"] == "cost: запись убрана")
@@ -484,10 +494,20 @@ class Differential(unittest.TestCase):
         try:
             days, _ = C.scorable_days(zeroed)
             self.assertEqual(len(days), 1)
+            # ПЕРВОЕ ПЛЕЧО: ноль ЗАПИСАН ⇒ он и есть цена.
+            self.assertEqual(days[0]["cost_source"], "recorded")
+            self.assertEqual(days[0]["cost_usd"], 0.0)
+        finally:
+            shutil.rmtree(zeroed, ignore_errors=True)
+        without = C._perturbed_dir(self.scene.dir, C._drop_cost)
+        try:
+            days, _ = C.scorable_days(without)
+            self.assertEqual(len(days), 1)
+            # ВТОРОЕ ПЛЕЧО: записи НЕТ ⇒ платится допущение, и оно не ноль.
             self.assertNotEqual(days[0]["cost_source"], "recorded")
             self.assertGreater(days[0]["cost_usd"], 0.0)
         finally:
-            shutil.rmtree(zeroed, ignore_errors=True)
+            shutil.rmtree(without, ignore_errors=True)
         self.assertIsNotNone(dropped["best_net_usd"])
 
     def test_sensitivity_control_does_not_bind_when_the_baseline_already_closes(self):

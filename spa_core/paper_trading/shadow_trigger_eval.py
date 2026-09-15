@@ -194,12 +194,25 @@ def _evaluate_verdict(rec: dict, forward: List[dict],
 
     # Cost: recorded by the trigger's own gas+slippage model; if absent on a
     # material move, charge the conservative assumption — never zero.
+    #
+    # "Цена измерена и равна нулю" и "цену не записали" — РАЗНЫЕ факты, и до
+    # 2026-09-15 они шли одной веткой (`cost_rec > 0.0`): записанный ноль уводил
+    # день в допущение, и бесплатный ход оценивался ДОРОЖЕ дешёвого. Замер
+    # ADR-390 (`swap_existence_price`, находка `zero_price_is_read_as_absent_price`)
+    # назвал цену этого слияния исходом: лучший счёт при нулевой цене $-183.66
+    # против $80.75 при цене в ОДИН ЦЕНТ. Это инвариант #17 CLAUDE.md —
+    # отсутствие наблюдения обязано иметь СВОЁ представление, и здесь оно у него
+    # уже есть (`None`), поэтому различать надо по нему, а не по знаку.
+    # Money-path, предмет №1 границы ADR-285: правка сделана по ЯВНОМУ ответу
+    # владельца 2026-09-15 (ADR-392 решение 1, вариант 1; ADR-393). Разрешение
+    # дано на ЭТУ ветку — соседние 19 координат того же класса (замер ADR-391)
+    # не трогаются и лежат у владельца отдельной карточкой.
     cost_rec = rec.get("cost_usd")
     try:
         cost_rec = float(cost_rec) if cost_rec is not None else None
     except (TypeError, ValueError):
         cost_rec = None
-    if cost_rec is not None and cost_rec > 0.0:
+    if cost_rec is not None:
         cost_used, cost_source = cost_rec, "recorded"
     else:
         cost_used = turnover * ASSUMED_COST_BPS_OF_TURNOVER / 10_000.0
