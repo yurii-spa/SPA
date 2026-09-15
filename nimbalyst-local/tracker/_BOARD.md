@@ -2,21 +2,19 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-15T11:48:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-15T23:53:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (dcca0beb3).
+> Сверено с `origin/main` (fe4755379) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1051** · ждёт владельца: **8** · занято сессиями: **14**.
+> Всего карточек: **1057** · ждёт владельца: **6** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
+- **Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?**  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md`
 - **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
-- **Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить**  ·  `owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes.md`
-- **Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую**  ·  `owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots.md`
 - **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
-- **Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода**  ·  `owner-decision-sudya-schitaet-besplatnyi-hod-dorozhe-de.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -38,16 +36,14 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (277)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (278)
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
+- Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md` · 2026-09-15
 - Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
-- Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить  ·  `owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes.md` · 2026-09-14
-- Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую  ·  `owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots.md` · 2026-09-14
 - Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
-- Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода  ·  `owner-decision-sudya-schitaet-besplatnyi-hod-dorozhe-de.md` · 2026-09-15
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -224,12 +220,14 @@
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-05
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
+- Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить  ·  `owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes.md` · 2026-09-14
 - Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»  ·  `owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot.md` · 2026-09-08
 - Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги  ·  `owner-decision-podpisyvayuschie-adaptery-delayut-chetyre.md` · 2026-09-07
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
 - Понижение тира при ухудшении: правило обещает «агент немедленно», исполнителя нет  ·  `owner-decision-ponizhenie-tira-pri-uhudshenii-pravilo-o.md` · 2026-09-11
 - После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
 - Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
+- Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую  ·  `owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots.md` · 2026-09-14
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)  ·  `owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za.md` · 2026-08-22
 - Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
@@ -275,6 +273,7 @@
 - Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто  ·  `owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29.md` · 2026-08-29
 - Страница трека четвёртый день прячет цифры — снять табличку честности некому  ·  `owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md` · 2026-08-14
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
+- Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода  ·  `owner-decision-sudya-schitaet-besplatnyi-hod-dorozhe-de.md` · 2026-09-15
 - Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%  ·  `owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai.md` · 2026-08-08
 - Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?  ·  `owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d.md` · 2026-08-29
 - Tier-B: ещё 82 модуля различий не показали — списать или заморозить?  ·  `owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok.md` · 2026-08-29
@@ -321,7 +320,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (534)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (539)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -531,6 +530,7 @@
 - Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu.md` · 2026-08-08
 - Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
+- Починить судью: ноль в цене хода и «цену не записали» — одна ветка (ответ владельца, вариант 1)  ·  `inbox-pochinit-sudyu-nol-v-tsene-hoda-i-tsenu.md` · 2026-09-15
 - Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
 - Подключить ТРИ сверки контрактов к сторожу архитектуры — сейчас их никто не зовёт  ·  `inbox-podklyuchit-sverku-kontraktov-k-storozhu.md` · 2026-08-28
 - Подними приоритет inbox-task-portfolio-cio-dynamic-capital-alloc на high. Шесть…  ·  `inbox-podnimi-prioritet-inbox-task-portfolio-c.md` · 2026-08-19
@@ -697,6 +697,7 @@
 - Живая копия карточки отстала от origin, а перезаписать её запрещено намеренно — вопрос владельцу остаётся без кнопок и лечить его нечем  ·  `inbox-zhivaya-kopiya-kartochki-otstala-ot-origin.md` · 2026-08-21
 - Живой вопрос владельцу существует в двух редакциях: пересмотр рекомендации до него не доехал, а звезда стоит на отменённом варианте  ·  `inbox-zhivoi-vopros-vladeltsu-suschestvuet-v-d.md` · 2026-08-31
 - Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
+- Журнал решений: чинить писателя и читателя одним заходом (ответ владельца, вариант A)  ·  `inbox-zhurnal-reshenii-chinit-pisatelya-i-chit.md` · 2026-09-15
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
@@ -726,6 +727,7 @@
 - scripts/agent_quarantine.py вызывается РУКАМИ по построению — объяснение для храповика несвязанных скриптов  ·  `inbox-agent-quarantine-zapuskaetsya-rukami-po-postroeniyu.md` · 2026-08-28
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
+- Бриф владельцу называет ПРОГОНЫ сутками: один день, переигранный трижды, печатается как «3-й день подряд»  ·  `inbox-brif-vladeltsu-nazyvaet-progony-sutkami.md` · 2026-09-15
 - Четыре теста краснеют на чистом main — измерено на двух пришпиленных sha, ни один не мой  ·  `inbox-chetyre-testa-krasneyut-na-chistom-main.md` · 2026-08-31
 - Число трека в нарративных документах некому обновлять — сторож будет краснеть примерно раз в неделю  ·  `inbox-chislo-treka-v-narrativnyh-dokumentah-ne.md` · 2026-08-24
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
@@ -799,10 +801,12 @@
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Подключить оси риска ADR-008: проверка написана, но её никто не вызывает (решение владельца — ADR-173)  ·  `inbox-podklyuchit-osi-riska-adr-008-proverka-n.md` · 2026-08-30
 - Пометить аварийную подстановку в книге и убрать числа отвергнутой аллокации (решение владельца, вариант 1)  ·  `inbox-pometit-avariinuyu-podstanovku-v-knige-i.md` · 2026-09-08
+- Порог выборки hit_rate считает ПРОГОНЫ, а сосед — ДНИ: после ADR-395 оси разошлись  ·  `inbox-porog-vyborki-hit-rate-schitaet-progony.md` · 2026-09-15
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
 - Поздний «принято» воскрешает карточку, закрытую замером — и предъявляет агенту ОТМЕНЁННУЮ разрушительную команду  ·  `inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md` · 2026-08-30
 - Правило о якорях: дописать НОМЕР СТРОКИ третьим носителем класса (замер #534)  ·  `inbox-pravilo-o-yakoryah-dopisat-nomer-stroki.md` · 2026-09-09
 - Предписанный прогон КРАСНЫЙ на чистом main: 17 падений, замер на пришпиленном af1d972eb  ·  `inbox-predpisannyi-progon-krasnyi-na-chistom-m.md` · 2026-08-29
+- Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `inbox-prikaz-vladeltsa-uskolznul-ot-storozha-n.md` · 2026-09-04
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
