@@ -133,6 +133,7 @@ PRODUCES = (
     "data/heir_all_rows_price.json",
     "data/judge_alone_price.json",
     "data/adapter_repair_price.json",
+    "data/criterion_sign_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -228,6 +229,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "heir_all_rows_price",
     "judge_alone_price",
     "adapter_repair_price",
+    "criterion_sign_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -390,6 +392,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "adapter_repair_price": {
         "module": "spa_core/monitoring/adapter_repair_price.py",
         "artifact": "data/adapter_repair_price.json"},
+    "criterion_sign_price": {
+        "module": "spa_core/monitoring/criterion_sign_price.py",
+        "artifact": "data/criterion_sign_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1497,6 +1502,26 @@ def main(argv=None) -> int:
               f"на ёмкостном стенде {_cap_days})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "adapter_repair_price", e)
+    # Заказ #607 (G20, ADR-388): закрывается ли критерий №3 ПОЛОЖИТЕЛЬНО хоть при
+    # каком-то состоянии гейтов, и если нет — какая величина держит знак. Вызов
+    # здесь, а не одно объявление ступени (урок ADR-376). Дифференциал мерится
+    # вместе с перебором: весь замер стои́т ~0.2 с, а без него ответ «ни одно
+    # состояние» остался бы без доказательства, что прибор вообще способен сказать
+    # другое.
+    try:
+        from spa_core.monitoring import criterion_sign_price
+        _csp = criterion_sign_price.run(root=args.root)
+        _sub = observed(_csp, "gate_subsets", kind=dict) or {}
+        _dif = observed(_csp, "differential", kind=dict) or {}
+        _exhausted = sorted(n for n, v in (_dif.get("by_input") or {}).items()
+                            if v.get("lever_exhausted"))
+        print(f"criterion_sign_price: {_csp.get('status')} "
+              f"(состояний гейтов {_sub.get('subsets_enumerated')}; "
+              f"достаточных {_sub.get('sufficient_subsets')}; ACT-дней до критерия "
+              f"{_sub.get('act_days_to_criterion')}; рычаг исчерпан у "
+              f"{', '.join(_exhausted) or 'ни одного входа'})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "criterion_sign_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

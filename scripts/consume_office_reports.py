@@ -469,6 +469,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "protocols", "remedy", "returns_today",
                                   "capacity", "sentinel_control",
                                   "what_it_does_not_prove"),
+    # Заказ #607/G20. Ключи названы поимённо, потому что ответ состоит из ТРЁХ
+    # разных и ни один не выводится из другого: `gate_subsets` — перебор всех
+    # состояний гейтов (а), `decomposition` — счёт на слагаемые (б),
+    # `differential` — ACT-дни под каждым входом (в). Схлопнуть их в заголовок
+    # значило бы продать «ни одно состояние не закрывает» за «дело в цене» или
+    # наоборот. `differential` несёт внутри себя контроль чувствительности: без
+    # него ноль ACT-дней был бы неотличим от неподключённого рычага.
+    "criterion_sign_price.json": ("status", "headline", "journal", "gate_subsets",
+                                  "decomposition", "differential", "findings",
+                                  "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -759,6 +769,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/judge_alone_price.py",
     "adapter_repair_price.json":
         "spa_core/monitoring/adapter_repair_price.py",
+    "criterion_sign_price.json":
+        "spa_core/monitoring/criterion_sign_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2396,6 +2408,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _arp_report,
         )
         out.extend(_arp_report(data))
+    elif name == "criterion_sign_price.json":
+        # Заказ #607/G20. Порядок строк — порядок вопроса: (а) перебор состояний
+        # гейтов, (б) разложение счёта, (в) дифференциал по каждому входу. Контроль
+        # чувствительности печатается ПОСЛЕ дифференциала и ВСЕГДА: ноль ACT-дней,
+        # не сопровождённый доказательством, что ответ вообще способен измениться,
+        # неотличим от рычага, который до судьи не доходит.
+        from spa_core.monitoring.criterion_sign_price import (
+            format_report as _csp_report,
+        )
+        out.extend(_csp_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
