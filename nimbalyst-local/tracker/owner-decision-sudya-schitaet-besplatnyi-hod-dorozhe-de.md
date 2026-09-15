@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-15
+owner_choice: 1
+owner_answered_at: 2026-09-15T14:10:32.962602+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-15T14:10:32.963022+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-15T14:36:44.173453+00:00 owner-done -> ingested · queue.set_status · cycle-67597"
 ---
 
 ## Что случилось и почему это важно
@@ -59,3 +67,11 @@ None and cost_rec > 0.0`. Полный замер — ADR-390, раздел «О
 Агент внесёт правку отдельным ADR с прогоном `pre_cutover_gate`, добавит тест,
 который краснеет при возврате старой ветки, и перемерит все числа ADR-388…390 на
 случай, если хоть одно из них от этого сдвинулось (по замеру — не должно).
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Починить сейчас
+
+_Ответ владельца получен 2026-09-15T14:10:32.962602+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

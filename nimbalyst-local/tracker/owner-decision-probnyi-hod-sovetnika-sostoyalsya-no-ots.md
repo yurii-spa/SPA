@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-14
+owner_choice: 1
+owner_answered_at: 2026-09-15T14:10:41.365916+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-15T14:10:41.366113+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-15T14:36:47.081333+00:00 owner-done -> ingested · queue.set_status · cycle-67597"
 ---
 
 ## Что случилось и почему это важно
@@ -67,3 +75,11 @@ created: 2026-09-14
 
 *Подробный разбор с числами — ADR-383. Прибор: `spa_core/monitoring/act_day_recovery.py`
 (только читает). Пороги RiskPolicy, стоп-кран и живой трек не тронуты.*
+
+---
+
+## Решение владельца
+
+**Вариант 1** — ничего не делать сейчас
+
+_Ответ владельца получен 2026-09-15T14:10:41.365916+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
