@@ -39,6 +39,7 @@ from spa_core.utils.observation import observed
 
 from spa_core.paper_trading.allocation_rationale import (
     history_filename as _history_filename,
+    run_identity as _run_identity,
 )
 from spa_core.utils.atomic import atomic_save
 
@@ -64,20 +65,40 @@ MATERIAL_TURNOVER_USD = 100.0     # below this a "move" is noise, the HOLD is tr
 
 
 def load_history(data_dir: Path, book_id: Optional[str] = None) -> Tuple[List[dict], int]:
-    """Parsed history lines sorted by cycle_date (last line wins per date).
+    """КАЖДЫЙ прогон журнала, упорядоченный по ``(cycle_date, generated_at)``.
+
+    До [ADR-395] здесь жила ВТОРАЯ КОПИЯ правила замены строки писателя
+    (``by_date[str(obj["cycle_date"])] = obj  # later line wins``), и это было
+    хуже, чем дубль кода. Замер ``run_identity_key_price`` (заказ #602/G16)
+    вынес вердикт читателям ИСХОДОМ, на стенде из настоящих строк: не менее
+    **25 читателей из 108** схлопывали день САМИ, и среди них сам критерий
+    взвода (``scripts.evaluate_shadow_trigger`` → ``collapses_to_last``).
+    Починка одного писателя вернула бы прогон в ФАЙЛ и не вернула бы его
+    КРИТЕРИЮ — а выглядела бы доставленной. Обоснование владельца, принятое
+    как правило ([ADR-392] решение 3, вариант A): *«починка одного писателя —
+    это работа, которая выглядит законченной и ничего не меняет, а такие
+    починки опаснее, чем отсутствие починки»*.
+
+    Идемпотентность файла СОХРАНЕНА и лишь сужена до своего предмета: при
+    равной идентичности прогона (:func:`allocation_rationale.run_identity`)
+    побеждает последняя строка — как и раньше. Прогон БЕЗ опознания получает
+    идентичность своего НОМЕРА СТРОКИ: две неопознанные строки одного дня суть
+    два прогона, потому что доказательства обратного нет (инв. #17).
+
+    Порядок — ключом: ``generated_at`` есть ISO-8601, и лексикографический
+    порядок на нём совпадает с хронологическим. Ключа нет ⇒ строка идёт перед
+    опознанными строками своего дня в порядке файла; порядок ПОЛНЫЙ и не
+    зависит от порядка обхода множеств (``PYTHONHASHSEED``).
 
     ``book_id`` reads that book's own ledger (:func:`allocation_rationale.
     history_filename` — the SAME routing the writer uses, so reader and writer
     can never drift apart on the filename rule). Unset / ``None`` /
-    ``"conservative"`` keeps reading the original ``HISTORY_FILENAME``,
-    unchanged from before books existed — every pre-existing caller of this
-    function is unaffected.
+    ``"conservative"`` keeps reading the original ``HISTORY_FILENAME``.
 
     Returns ``(records, unparseable_count)``. Never raises: a missing file is an
     empty history, a corrupt line is counted, not fatal.
     """
     path = Path(data_dir) / _history_filename(book_id)
-    by_date: Dict[str, dict] = {}
     bad = 0
     if not path.exists():
         return [], 0
@@ -86,7 +107,12 @@ def load_history(data_dir: Path, book_id: Optional[str] = None) -> Tuple[List[di
     except OSError as exc:
         log.warning("shadow history unreadable (%s)", exc)
         return [], 0
-    for raw in raw_lines:
+    # Ключ прогона → (порядок, запись). Побеждает последняя строка ТОГО ЖЕ
+    # прогона; позиция при этом остаётся за первой его строкой, иначе повторная
+    # запись прогона молча переставляла бы его в хвост дня.
+    by_run: Dict[Tuple[str, str, int], dict] = {}
+    first_slot: Dict[Tuple[str, str], Tuple[str, str, int]] = {}
+    for idx, raw in enumerate(raw_lines):
         if not raw.strip():
             continue
         try:
@@ -97,8 +123,48 @@ def load_history(data_dir: Path, book_id: Optional[str] = None) -> Tuple[List[di
         if not isinstance(obj, dict) or not obj.get("cycle_date"):
             bad += 1
             continue
-        by_date[str(obj["cycle_date"])] = obj  # later line wins (same-date re-run)
-    return [by_date[d] for d in sorted(by_date)], bad
+        date = str(obj["cycle_date"])
+        key = _run_identity(obj)
+        if key is None:
+            by_run[(date, "", idx)] = obj      # неопознан ⇒ свой прогон
+        else:
+            slot = first_slot.get((date, key))
+            if slot is None:
+                slot = (date, key, idx)
+                first_slot[(date, key)] = slot
+            by_run[slot] = obj                 # тот же прогон — последняя строка
+    return [by_run[k] for k in sorted(by_run)], bad
+
+
+def _forward_days(history: List[dict], index: int) -> List[dict]:
+    """Форвардные ДНИ для записи ``history[index]`` — по одной записи на ДАТУ.
+
+    Горизонт судьи объявлен в ДНЯХ (``DEFAULT_HORIZON_DAYS`` = 7), и до
+    [ADR-395] это держалось на том, что в журнале была ровно одна строка на
+    день: ``forward[:horizon_days]`` брал 7 записей и они же были 7 датами.
+    Как только день несёт несколько прогонов, та же строка означала бы
+    «7 прогонов», то есть на дне из 36 прогонов горизонт схлопнулся бы в ОДИН
+    день — молча, с понижением ``counterfactual`` до ``PARTIAL``. Это ровно тот
+    класс, что [[hysteresis-may-count-runs-not-measurements]]: счёт по прогонам
+    вместо счёта по измерениям.
+
+    Представитель даты — ПОСЛЕДНИЙ её прогон, и выбор объявлен, а не случаен:
+    от форвардного дня судья берёт ``apy_evidenced_pct``, то есть наблюдение
+    дня, а самое позднее наблюдение дня — самое полное. ``history``
+    отсортирована, поэтому «последний» здесь есть последний по ключу прогона.
+
+    Свои же более поздние прогоны того же дня форвардным днём НЕ являются
+    (``d > d0`` строго): иначе запись судилась бы ставкой, наблюдённой в её же
+    сутки, и горизонт «7 дней вперёд» включал бы сегодня.
+    """
+    d0 = str(history[index].get("cycle_date"))
+    last_of_date: Dict[str, dict] = {}
+    for rec in history[index + 1:]:
+        d = str(rec.get("cycle_date"))
+        if d <= d0:
+            continue
+        last_of_date[d] = rec
+    return [last_of_date[d] for d in sorted(last_of_date)]
 
 
 def _load_equity_daily(data_dir: Path) -> Dict[str, dict]:
@@ -481,20 +547,34 @@ def evaluate_window(
     """
     data_dir = Path(data_dir)
     history, bad_lines = load_history(data_dir)
+    # Окно объявлено в ДНЯХ, а журнал с [ADR-395] несёт по нескольку прогонов на
+    # день — резать его по ЗАПИСЯМ значило бы отвечать на другой вопрос («сколько
+    # последних решений»), и на дне из 36 прогонов окно в 30 дней схлопнулось бы
+    # в один день. Поэтому отбираются ДАТЫ, а потом все прогоны этих дат.
     if window_days is not None and window_days > 0:
-        history = history[-(window_days + horizon_days):]
+        _all_dates = sorted({str(r.get("cycle_date")) for r in history
+                             if r.get("cycle_date")})
+        _keep_dates = set(_all_dates[-(window_days + horizon_days):])
+        history = [r for r in history
+                   if str(r.get("cycle_date")) in _keep_dates]
     equity = _load_equity_daily(data_dir)
 
     per_verdict: List[dict] = []
     for i, rec in enumerate(history):
-        row = _evaluate_verdict(rec, history[i + 1:], horizon_days)
+        # Судится КАЖДЫЙ прогон (стёртый прогон дня возвращается критерию), а
+        # форвардный горизонт остаётся в ДНЯХ — см. :func:`_forward_days`.
+        row = _evaluate_verdict(rec, _forward_days(history, i), horizon_days)
         # Book-APY cross-check against the equity curve (context, not a gate).
         eq = equity.get(str(rec.get("cycle_date")))
         if eq is not None and eq.get("apy_today") is not None:
             row["book_apy_equity_pct"] = eq.get("apy_today")
         per_verdict.append(row)
     if window_days is not None and window_days > 0:
-        per_verdict = per_verdict[-window_days:]
+        _scored_dates = sorted({r.get("cycle_date") for r in per_verdict
+                                if r.get("cycle_date")})
+        _window_keep = set(_scored_dates[-window_days:])
+        per_verdict = [r for r in per_verdict
+                       if r.get("cycle_date") in _window_keep]
 
     observed_days = len({r["cycle_date"] for r in per_verdict if r.get("cycle_date")})
     acts = [r for r in per_verdict if r["verdict"] == "ACT"]

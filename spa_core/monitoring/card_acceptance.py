@@ -665,6 +665,208 @@ def _probe_free_move_priced_as_free(arg: str | None) -> tuple[str, str]:
         shutil.rmtree(root, ignore_errors=True)
 
 
+#: Проба ADR-395 строит журнал СВОИМ писателем, а не литералами: предмет критерия —
+#: поведение писателя и читателя, и подсунуть им готовый файл значило бы проверить
+#: разбор, а не правило замены. Даты идут ОТ ЭПОХИ и являются ключами порядка, а не
+#: отметками свежести — литеральной даты в пробе нет ни одной, часов она не читает.
+_RUN_KEEP_DAYS = 12
+_RUN_KEEP_TURNOVER_USD = 50_000.0
+
+
+def _run_keep_record(day_index: int, hour: int, verdict: str) -> dict:
+    """Одна строка журнала: день ``day_index``, прогон в час ``hour``, вердикт ``verdict``.
+
+    Ход существенен и оценим (обе ноги имеют наблюдённую ставку), поэтому вердикт
+    попадает в ``scored`` знаменатель критерия, а не уходит в ``trivial``.
+    """
+    from datetime import timedelta
+    base = datetime.fromtimestamp(0, timezone.utc).date()
+    day = (base + timedelta(days=day_index)).isoformat()
+    return {
+        "schema": "shadow-hist-v2",
+        "cycle_date": day,
+        "decision_id": f"adr060-shadow-{day}",
+        "generated_at": f"{day}T{hour:02d}:00:00+00:00",
+        "book_id": "conservative",
+        "capital_usd": 100_000.0,
+        "turnover_usd": _RUN_KEEP_TURNOVER_USD,
+        "cost_usd": 100.0,
+        "verdict": verdict,
+        "reasons": ["gain_below_band"],
+        "current_positions": {"alpha": 0.0, "beta": _RUN_KEEP_TURNOVER_USD},
+        "target_positions": {"alpha": _RUN_KEEP_TURNOVER_USD, "beta": 0.0},
+        # Ставка РАСТЁТ по дням намеренно: на однородном контуре звено 4
+        # неизмеримо — «семь форвардных ДНЕЙ» и «семь форвардных ЗАПИСЕЙ» дали бы
+        # один и тот же счёт, и подмена оси не проявилась бы ничем.
+        "apy_evidenced_pct": {"alpha": 8.0 + day_index, "beta": 2.0},
+        "legs": [{"protocol": "alpha", "delta_usd": _RUN_KEEP_TURNOVER_USD,
+                  "direction": "increase"},
+                 {"protocol": "beta", "delta_usd": -_RUN_KEEP_TURNOVER_USD,
+                  "direction": "decrease"}],
+    }
+
+
+def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
+    """Критерий владельца ([ADR-392] реш. 3-A): прогон дня не затирается, и ЧИТАТЕЛЬ это видит.
+
+    Владелец назвал приёмку исходом и назвал её обе половины: *«что перезаписанный
+    ход больше не затирается и что читатель отдаёт новое значение»*. Обоснование,
+    принятое как правило: *«починка одного писателя — это работа, которая выглядит
+    законченной и ничего не меняет, а такие починки опаснее, чем отсутствие
+    починки»*. Поэтому вердикт пробы не складывается из двух частей — он требует
+    ЧЕТЫРЁХ звеньев, и каждое рвётся отдельно:
+
+    1. **Писатель хранит оба прогона.** Два вызова настоящей
+       ``append_rationale_history`` с одной ``cycle_date`` и разными
+       ``generated_at`` дают ДВЕ строки. Рвётся возвратом ключа к ``cycle_date``
+       (замер ADR-383: единственный ACT за сорок дней стёрт повторным прогоном).
+    2. **Читатель отдаёт НОВОЕ значение.** ``evaluate_window`` на журнале с двумя
+       прогонами дня обязан ответить ИНАЧЕ, чем на журнале с одним поздним.
+       Это половина, которую владелец назвал опаснее отсутствия починки: замер
+       ``run_identity_key_price`` (заказ #602/G16) нашёл вторую копию правила
+       замены у ``load_history`` и вынес вердикт ИСХОДОМ — не менее 25 читателей
+       из 108 схлопывали день САМИ, среди них сам критерий взвода. Рвётся
+       возвратом строки ``by_date[...] = obj``, и при целом писателе.
+    3. **Идемпотентность цела.** Повторная запись ТОГО ЖЕ прогона (равны И дата,
+       И ``generated_at``) не даёт третьей строки. Без этого звена «починка»
+       выродилась бы в дописывание всегда, и каждый ручной повтор прогона
+       удваивался бы в знаменателе критерия — дефект был бы разменян на другой.
+    4. **Горизонт судьи остаётся в ДНЯХ.** Лишние прогоны дня не сокращают
+       форвардное окно: ``observation_days`` считается по ДАТАМ, и день с двумя
+       прогонами не уменьшает число оценённых дней. Без этого звена п.1–п.3
+       выглядели бы выполненными, а судья на дне из 36 прогонов смотрел бы
+       вперёд на ОДИН день вместо семи (``forward[:horizon_days]`` считал бы
+       прогоны вместо дат).
+
+    Живой ``data/`` не открывается и в вердикт не входит: критерий про правило
+    журнала, а не про то, какие дни лежат в книге сегодня.
+    """
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    from spa_core.paper_trading.allocation_rationale import (
+        append_rationale_history, history_filename,
+    )
+    from spa_core.paper_trading import shadow_trigger_eval as ste
+
+    collapsed = tempfile.mkdtemp(prefix="spa_run_keep_one_")
+    both = tempfile.mkdtemp(prefix="spa_run_keep_two_")
+    sibling_free = tempfile.mkdtemp(prefix="spa_run_keep_sib_")
+    try:
+        # Оба стенда одинаковы во всём, кроме ОДНОГО: на втором у дня 0 есть
+        # РАННИЙ прогон с другим вердиктом. Расхождение ответа поэтому есть
+        # утверждение о правиле замены, а не о разнице контуров.
+        try:
+            for root, early in ((collapsed, False), (both, True)):
+                if early:
+                    append_rationale_history(
+                        _run_keep_record(0, 9, "ACT"), Path(root))
+                for day in range(_RUN_KEEP_DAYS):
+                    append_rationale_history(
+                        _run_keep_record(day, 23, "HOLD"), Path(root))
+            lines_both = [ln for ln in (Path(both) / history_filename(None))
+                          .read_text(encoding="utf-8").splitlines() if ln.strip()]
+            lines_one = [ln for ln in (Path(collapsed) / history_filename(None))
+                         .read_text(encoding="utf-8").splitlines() if ln.strip()]
+            # п.3 — повтор ТОГО ЖЕ прогона поверх готового стенда
+            after_rewrite = append_rationale_history(
+                _run_keep_record(0, 9, "ACT"), Path(both))
+            # Третий стенд для звена 4: у дня 0 ТОЛЬКО ранний прогон. Если
+            # горизонт судьи считается в ДНЯХ, вердикт этого прогона обязан
+            # совпасть с его же вердиктом на стенде `both` — поздний прогон
+            # своего дня форвардным ДНЁМ не является. Если бы горизонт считался
+            # в ЗАПИСЯХ, сосед вошёл бы в окно, вытеснил седьмой день, и счёт
+            # разошёлся бы (ставка растёт по дням, поэтому разойдётся заметно).
+            append_rationale_history(
+                _run_keep_record(0, 9, "ACT"), Path(sibling_free))
+            for day in range(1, _RUN_KEEP_DAYS):
+                append_rationale_history(
+                    _run_keep_record(day, 23, "HOLD"), Path(sibling_free))
+            read_both, _bad_b = ste.load_history(Path(both))
+            read_one, _bad_o = ste.load_history(Path(collapsed))
+            eval_both = ste.evaluate_window(Path(both), write=False)
+            eval_one = ste.evaluate_window(Path(collapsed), write=False)
+            eval_sib = ste.evaluate_window(Path(sibling_free), write=False)
+        except Exception as exc:  # noqa: BLE001 — нечем мерить != критерий не выполнен
+            return UNMEASURED, (f"стенд журнала не отработал: "
+                                f"{type(exc).__name__}: {exc}")
+
+        # ── звено 1: писатель ─────────────────────────────────────────────────
+        if len(lines_both) != len(lines_one) + 1:
+            return NOT_SATISFIED, (
+                f"писатель СТЁР прогон дня: строк со вторым прогоном {len(lines_both)}, "
+                f"без него {len(lines_one)} — ожидалось ровно на одну больше "
+                f"(ключ замены снова выведен из одной `cycle_date`, ADR-383)")
+
+        # ── звено 3: идемпотентность ──────────────────────────────────────────
+        if after_rewrite != len(lines_both):
+            return NOT_SATISFIED, (
+                f"повторная запись ТОГО ЖЕ прогона дала {after_rewrite} строк(и) вместо "
+                f"{len(lines_both)} — писатель дописывает всегда, и каждый ручной повтор "
+                f"прогона удвоится в знаменателе критерия")
+
+        # ── звено 2: читатель отдаёт НОВОЕ значение ───────────────────────────
+        if len(read_both) != len(read_one) + 1:
+            return NOT_SATISFIED, (
+                f"читатель СХЛОПНУЛ день: `load_history` отдала {len(read_both)} записей "
+                f"против {len(read_one)} — вторая копия правила замены жива у читателя, и "
+                f"починка писателя до критерия взвода НЕ ДОХОДИТ (заказ #602/G16)")
+        act_both, act_one = (eval_both.get("counts") or {}).get("act"), \
+                            (eval_one.get("counts") or {}).get("act")
+        scored_both, scored_one = (eval_both.get("counts") or {}).get("scored"), \
+                                  (eval_one.get("counts") or {}).get("scored")
+        if act_both is None or act_one is None:
+            return UNMEASURED, ("судья не назвал число ACT ни на одном стенде — "
+                                "сравнивать нечего")
+        if act_both == act_one or scored_both == scored_one:
+            return NOT_SATISFIED, (
+                f"вердикт критерия НЕ ИЗМЕНИЛСЯ от возвращённого прогона: ACT "
+                f"{act_one} → {act_both}, scored {scored_one} → {scored_both}. Строка в "
+                f"файле есть, а критерий взвода её не считает — ровно то, что владелец "
+                f"назвал опаснее отсутствия починки")
+
+        # ── звено 4: горизонт в ДНЯХ, а не в прогонах ─────────────────────────
+        days_both, days_one = (eval_both.get("observation_days"),
+                               eval_one.get("observation_days"))
+        if days_both != days_one:
+            return NOT_SATISFIED, (
+                f"лишний ПРОГОН сдвинул счёт ДНЕЙ: observation_days {days_one} → "
+                f"{days_both}. Ось дней и ось прогонов слиты, и горизонт судьи "
+                f"схлопывается тем сильнее, чем чаще шёл цикл")
+
+        def _earliest_act(doc: dict) -> dict | None:
+            rows = [r for r in (doc.get("per_verdict") or [])
+                    if str(r.get("verdict")).upper() == "ACT"]
+            return rows[0] if rows else None
+
+        act_row_both, act_row_sib = _earliest_act(eval_both), _earliest_act(eval_sib)
+        if act_row_both is None or act_row_sib is None:
+            return UNMEASURED, ("стенд звена 4 не дал ACT-строки ни на одном из двух "
+                                "журналов — горизонт сравнивать не на чем")
+        fw_both = act_row_both.get("forward_days_available")
+        fw_sib = act_row_sib.get("forward_days_available")
+        net_both, net_sib = act_row_both.get("net_usd"), act_row_sib.get("net_usd")
+        if fw_both != fw_sib or net_both != net_sib:
+            return NOT_SATISFIED, (
+                f"ПОЗДНИЙ ПРОГОН ТОГО ЖЕ ДНЯ вошёл в форвардное окно: у раннего ACT "
+                f"форвардных дней {fw_sib} → {fw_both}, счёт ${net_sib} → ${net_both}. "
+                f"Горизонт считается в ЗАПИСЯХ, а объявлен в ДНЯХ — на дне из 36 "
+                f"прогонов он схлопнется в один день молча")
+
+        return SATISFIED, (
+            f"прогон дня цел у обоих: писатель {len(lines_one)} → {len(lines_both)} строк "
+            f"(повтор того же прогона оставляет {after_rewrite}), читатель "
+            f"{len(read_one)} → {len(read_both)} записей, критерий ACT {act_one} → "
+            f"{act_both} и scored {scored_one} → {scored_both} при неизменных "
+            f"{days_both} дн. наблюдения; горизонт раннего ACT {fw_both} дн. и счёт "
+            f"${net_both} не сдвинулись от позднего прогона того же дня")
+    finally:
+        shutil.rmtree(collapsed, ignore_errors=True)
+        shutil.rmtree(both, ignore_errors=True)
+        shutil.rmtree(sibling_free, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -673,6 +875,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "candidate_discovery_loop_closed": _probe_candidate_discovery_loop,
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
+    "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
 }
 
 

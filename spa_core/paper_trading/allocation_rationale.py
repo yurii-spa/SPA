@@ -66,7 +66,18 @@ SHADOW_VERSION = "shadow-v1"
 # including unparseable ones (we never destroy history we cannot read).
 HISTORY_FILENAME = "allocation_rationale_history.jsonl"
 HISTORY_SCHEMA = "shadow-hist-v2"
-HISTORY_MAX_LINES = 1000  # ~3 years of daily cycles; guards against unbounded growth
+#: Предел ДНЕЙ хранения. Единица — день намеренно: критерий взвода объявлен в днях
+#: (``shadow_trigger_eval.MIN_OBSERVATION_DAYS`` = 30), и мерить запас строками
+#: значило бы снова слить ось прогонов с осью дней ([ADR-395]).
+HISTORY_MAX_DAYS = 1000   # ~3 years of daily cycles
+#: Потолок СТРОК — страховка от неограниченного роста, а не мера запаса. До
+#: [ADR-395] строка равнялась дню, поэтому 1000 строк и означали 1000 дней. Теперь
+#: день несёт столько строк, сколько было прогонов (наблюдённый максимум — 36 за
+#: 28.08), и прежний потолок связал бы РАНЬШЕ дневного: 1000 строк при такой
+#: плотности есть 28 дн., то есть МЕНЬШЕ 30-дневного окна критерия — окно
+#: голодало бы молча. Число выведено из этой плотности: 8000 строк при 36
+#: прогонах в день дают 222 дн., то есть больше семи таких окон.
+HISTORY_MAX_LINES = 8000
 
 # ── Book scoping (three independent paper books, one shadow writer) ───────────
 # Conservative (``cycle_runner.py``) was the only caller until Balanced
@@ -221,16 +232,58 @@ def build_history_record(
     }
 
 
+def run_identity(record: dict) -> Optional[str]:
+    """Идентичность ПРОГОНА внутри дня — ``generated_at``, и третьего кандидата нет.
+
+    Публичная потому, что ей обязаны пользоваться ОБА: писатель (что заменять)
+    и читатель (что считать одним прогоном). Правило замены строки уже жило
+    ВТОРОЙ копией у читателя (``shadow_trigger_eval.load_history``), и починка
+    одного писателя до критерия взвода не доходила — [ADR-395].
+
+    Почему именно ``generated_at``, а не ``decision_id``: замер
+    ``run_identity_key_price`` (заказ #602/G16) вызвал настоящий
+    :func:`build_history_record` дважды с одной ``cycle_date`` и РАЗНЫМИ
+    остальными входами. ``decision_id`` остался равным — писатель чеканит его
+    как ``f"adr060-shadow-{cycle_date}"``, то есть это ПЕРЕИМЕНОВАНИЕ даты и
+    сталкивается ровно там же. ``generated_at`` разошёлся, и на накопленных
+    41 строках несёт ключ 41 раз из 41 при 0 столкновений: миграция задним
+    числом не требуется ни для одной строки.
+
+    Возврат ``None`` — не ошибка и не пустая строка, а ТРЕТИЙ ИСХОД: прогон
+    не опознаваем (инв. #17 CLAUDE.md). Что с ним делает писатель — сказано в
+    :func:`append_rationale_history`.
+    """
+    if not isinstance(record, dict):
+        return None
+    value = record.get("generated_at")
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def append_rationale_history(record: dict, data_dir: Path,
                               book_id: Optional[str] = None) -> int:
-    """Append *record* to the JSONL accumulator; idempotent by ``cycle_date``.
+    """Append *record* to the JSONL accumulator; idempotent by ``(cycle_date, generated_at)``.
 
-    - Same-date line is REPLACED (latest run of the day wins) — a manual re-run
-      never duplicates a day and never double-counts in the evaluator.
+    - Тот ЖЕ прогон (равны И дата, И :func:`run_identity`) ЗАМЕНЯЕТСЯ — повторная
+      запись одного прогона не двоит его и не удваивает в судье.
+    - ДРУГОЙ прогон того же дня ОСТАЁТСЯ. До [ADR-395] ключом была одна
+      ``cycle_date``, и последний прогон дня стирал все предыдущие: замер ADR-314
+      — 206 прогонов вне журнала на 17 днях, худший день 36 прогонов и одна
+      строка; замер ADR-383 — единственный ACT за сорок дней стёрт повторным
+      прогоном того же дня. Носитель теневой цели прогона был ОДИН, и замена его
+      уничтожала, поэтому вердикты стёртых прогонов не восстановимы: правило
+      действует ВПЕРЁД. Разрешение владельца — [ADR-392] решение 3, вариант A.
+    - Прогон БЕЗ опознания (``run_identity`` вернула ``None``) не удаляет НИ ОДНОЙ
+      соседней строки: строка дописывается, день остаётся при своих. Выбор
+      несимметричен намеренно — стирание необратимо, а двойная строка видна и
+      измерима. Обратная ветка («нет ключа ⇒ заменяем по дате») вернула бы ровно
+      тот дефект, против которого правило написано, и вернула бы его МОЛЧА.
     - Other lines are kept verbatim, unparseable lines included: the accumulator
       may drop nothing it did not write this call.
-    - Atomic via tmp+``os.replace`` (invariant 5); capped at HISTORY_MAX_LINES
-      (oldest lines fall off first).
+    - Атомарно через tmp+``os.replace`` (инвариант 5); обрезка ЦЕЛЫМИ ДНЯМИ
+      (:func:`_trim_whole_days`) — см. HISTORY_MAX_DAYS / HISTORY_MAX_LINES.
     - ``book_id`` routes to that book's OWN file (:func:`history_filename`) —
       Conservative's file is untouched by a Balanced/Aggressive append and
       vice versa.
@@ -239,6 +292,7 @@ def append_rationale_history(record: dict, data_dir: Path,
     """
     path = Path(data_dir) / history_filename(book_id)
     date = record.get("cycle_date")
+    run_key = run_identity(record)
     kept: List[str] = []
     if path.exists():
         for raw in path.read_text(encoding="utf-8").splitlines():
@@ -247,16 +301,72 @@ def append_rationale_history(record: dict, data_dir: Path,
             try:
                 obj = json.loads(raw)
             except ValueError:
-                kept.append(raw)  # unreadable ≠ deletable
+                kept.append(raw)  # unreadable != deletable
                 continue
             if isinstance(obj, dict) and date is not None \
-                    and obj.get("cycle_date") == date:
-                continue  # replaced by this call's record
-            kept.append(raw)
+                    and obj.get("cycle_date") == date \
+                    and run_key is not None \
+                    and run_identity(obj) == run_key:
+                continue  # ТОТ ЖЕ прогон — заменяется этой записью
+            kept.append(raw)   # другой прогон того же дня ОСТАЁТСЯ (ADR-395)
     kept.append(json.dumps(record, sort_keys=True, default=str))
-    kept = kept[-HISTORY_MAX_LINES:]
+    kept = _trim_whole_days(kept)
     atomic_save_text("\n".join(kept) + "\n", str(path))
     return len(kept)
+
+
+def _trim_whole_days(lines: List[str]) -> List[str]:
+    """Обрезать журнал ЦЕЛЫМИ ДНЯМИ — сперва по дням, потом по строкам.
+
+    Обрезка половиной дня запрещена, и это не аккуратность, а требование к
+    знаменателю: население ``hit_rate`` есть прогоны дня, и день, от которого
+    уцелела часть прогонов, дал бы критерию число, зависящее от того, ГДЕ
+    пришёлся потолок. Такой день неотличим от дня, в котором прогонов и было
+    меньше, — то есть потолок начал бы подделывать наблюдение.
+
+    Нераспознанные строки (не JSON, без ``cycle_date``) ко дню не относятся и
+    остаются: писатель не вправе удалять то, чего не писал.
+    """
+    dates: List[str] = []
+    seen: set = set()
+    for raw in lines:
+        try:
+            obj = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(obj, dict) or not obj.get("cycle_date"):
+            continue
+        d = str(obj["cycle_date"])
+        if d not in seen:
+            seen.add(d)
+            dates.append(d)
+    keep_dates = set(sorted(dates)[-HISTORY_MAX_DAYS:])
+
+    def _fits(keep: set) -> List[str]:
+        out = []
+        for raw in lines:
+            try:
+                obj = json.loads(raw)
+            except ValueError:
+                out.append(raw)
+                continue
+            if not isinstance(obj, dict) or not obj.get("cycle_date"):
+                out.append(raw)
+                continue
+            if str(obj["cycle_date"]) in keep:
+                out.append(raw)
+        return out
+
+    trimmed = _fits(keep_dates)
+    # Потолок строк — страховка. Сбрасываем СТАРЕЙШИЕ дни целиком, пока не
+    # уложимся; последний день не сбрасываем никогда (иначе запись, только что
+    # сделанная, исчезла бы, и вызов вернул бы 0 при успешной записи).
+    ordered = sorted(keep_dates)
+    while len(trimmed) > HISTORY_MAX_LINES and len(ordered) > 1:
+        ordered.pop(0)
+        keep_dates = set(ordered)
+        trimmed = _fits(keep_dates)
+    return trimmed
 
 
 def _resolve_tier_caps(protocols) -> Dict[str, float]:

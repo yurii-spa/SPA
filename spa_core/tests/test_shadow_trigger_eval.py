@@ -54,18 +54,62 @@ def _lines(path: Path) -> list[str]:
 # ═══════════════════════ accumulator ═══════════════════════
 
 
-def test_append_is_idempotent_by_date(tmp_path: Path) -> None:
-    """A manual re-run of the same day must never double-count a verdict."""
+def test_append_is_idempotent_by_run_not_by_date(tmp_path: Path) -> None:
+    """Повторная запись ТОГО ЖЕ прогона не двоит; ДРУГОЙ прогон дня остаётся.
+
+    ⚠️ **Тест изменён намеренно** (инв. #16 CLAUDE.md: не молча, с обоснованием).
+    Прежняя редакция звалась ``test_append_is_idempotent_by_date`` и требовала
+    ОДНОЙ строки на день — то есть закрепляла ровно то правило, которое владелец
+    велел снять ([ADR-392] решение 3, вариант A; исполнение — [ADR-395]).
+    Цена прежнего правила измерена: ADR-314 — 206 прогонов вне журнала на
+    17 днях (худший день: 36 прогонов и одна строка); ADR-383 — единственный ACT
+    за сорок дней стёрт повторным прогоном того же дня.
+
+    Защитная суть теста НЕ ослаблена, а сужена до своего предмета: двойной счёт
+    по-прежнему запрещён, но единицей стал ПРОГОН (``cycle_date`` +
+    ``generated_at``), а не календарный день. Обе половины проверяются здесь,
+    иначе «починка» выродилась бы в дописывание всегда.
+    """
     p = tmp_path / HISTORY_FILENAME
-    append_rationale_history(_rec("2026-08-01", verdict="HOLD"), tmp_path)
-    append_rationale_history(_rec("2026-08-01", verdict="ACT"), tmp_path)
+    early = "2026-08-01T09:00:00+00:00"
+    late = "2026-08-01T23:00:00+00:00"
+    # тот же прогон дважды ⇒ ОДНА строка, побеждает последняя запись
+    append_rationale_history(
+        _rec("2026-08-01", generated_at=early, verdict="HOLD"), tmp_path)
+    append_rationale_history(
+        _rec("2026-08-01", generated_at=early, verdict="ACT"), tmp_path)
     lines = _lines(p)
     assert len(lines) == 1
-    assert json.loads(lines[0])["verdict"] == "ACT"  # latest run of the day wins
-    append_rationale_history(_rec("2026-08-02"), tmp_path)
-    assert len(_lines(p)) == 2
+    assert json.loads(lines[0])["verdict"] == "ACT"
+    # ДРУГОЙ прогон того же дня ⇒ вторая строка, первая цела
+    append_rationale_history(
+        _rec("2026-08-01", generated_at=late, verdict="HOLD"), tmp_path)
+    lines = _lines(p)
+    assert len(lines) == 2
+    assert [json.loads(ln)["verdict"] for ln in lines] == ["ACT", "HOLD"]
+    append_rationale_history(
+        _rec("2026-08-02", generated_at="2026-08-02T23:00:00+00:00"), tmp_path)
     dates = [json.loads(ln)["cycle_date"] for ln in _lines(p)]
-    assert dates == ["2026-08-01", "2026-08-02"]  # order preserved
+    assert dates == ["2026-08-01", "2026-08-01", "2026-08-02"]  # order preserved
+
+
+def test_append_keeps_an_unidentified_run_rather_than_erasing_a_sibling(
+        tmp_path: Path) -> None:
+    """Прогон БЕЗ ``generated_at`` дописывается и не удаляет соседа по дню.
+
+    Выбор несимметричен намеренно ([ADR-395]): стирание необратимо, а двойная
+    строка видна и измерима. Обратная ветка («нет ключа ⇒ заменяем по дате»)
+    вернула бы дефект ADR-314/383, и вернула бы его МОЛЧА. Инвариант #17:
+    отсутствие наблюдения имеет своё представление, а не подставляется чужим.
+    """
+    p = tmp_path / HISTORY_FILENAME
+    append_rationale_history(
+        _rec("2026-08-01", generated_at="2026-08-01T09:00:00+00:00",
+             verdict="ACT"), tmp_path)
+    append_rationale_history(_rec("2026-08-01", verdict="HOLD"), tmp_path)
+    lines = _lines(p)
+    assert len(lines) == 2, "неопознанный прогон СТЁР опознанного соседа"
+    assert [json.loads(ln)["verdict"] for ln in lines] == ["ACT", "HOLD"]
 
 
 def test_append_preserves_corrupt_and_foreign_lines(tmp_path: Path) -> None:
