@@ -147,6 +147,72 @@ class GateSubsetEnumeration(unittest.TestCase):
         self.assertEqual(out["full_lift"]["act_days"], 2)
         self.assertLess(out["full_lift"]["net_usd"], 0.0)
 
+    def test_a_net_of_exactly_zero_does_NOT_close_the_criterion(self):
+        """Мандат владельца говорит `> 0`, а не `>= 0` — граница закреплена.
+
+        Батарея мутаций цикла #607 показала, что подмена `net > 0.0` на
+        `net >= 0.0` не краснела ни на одном тесте: ни одна сцена не ставила счёт
+        РОВНО в ноль. Ход, окупившийся копейка в копейку, критерий не закрывает.
+        """
+        days = [{"date": "d1", "refused": frozenset({"cooldown_ok"}),
+                 "net_usd": 0.0}]
+        out = C.enumerate_gate_subsets(days, _GATES)
+        self.assertFalse(out["any_subset_closes_criterion"])
+        self.assertEqual(out["act_days_to_criterion"], 0)
+        self.assertEqual(out["days_with_positive_net"], 0)
+
+    def test_a_net_between_zero_and_one_DOES_close_the_criterion(self):
+        """Второе плечо той же границы: порог — НОЛЬ, а не единица."""
+        days = [{"date": "d1", "refused": frozenset({"cooldown_ok"}),
+                 "net_usd": 0.5}]
+        out = C.enumerate_gate_subsets(days, _GATES)
+        self.assertTrue(out["any_subset_closes_criterion"])
+        self.assertEqual(out["days_with_positive_net"], 1)
+
+    def test_best_subset_is_the_BEST_by_net_and_not_the_worst(self):
+        """`best_subset_by_net` — заголовочное число ADR; сравнение закреплено.
+
+        Батарея: подмена `net > best` на `net < best` не краснела — ни одна сцена
+        не различала лучший набор и худший, и отчёт мог бы печатать самый
+        убыточный набор под словом «лучший».
+        """
+        days = [
+            {"date": "bad", "refused": frozenset({"cooldown_ok"}),
+             "net_usd": -500.0},
+            {"date": "mild", "refused": frozenset({"min_hold_ok"}),
+             "net_usd": -1.0},
+        ]
+        out = C.enumerate_gate_subsets(days, _GATES)
+        self.assertEqual(out["best_subset_by_net"]["gates_lifted"], ["min_hold_ok"])
+        self.assertEqual(out["best_subset_by_net"]["net_usd"], -1.0)
+        self.assertEqual(out["best_subset_by_net"]["dates"], ["mild"])
+
+    def test_positive_day_counter_counts_PROFIT_and_not_loss(self):
+        """`days_with_positive_net` печатается в заголовке — направление закреплено."""
+        days = [
+            {"date": "win", "refused": frozenset({"cooldown_ok"}), "net_usd": 7.0},
+            {"date": "lose1", "refused": frozenset({"min_hold_ok"}), "net_usd": -7.0},
+            {"date": "lose2", "refused": frozenset({"cooldown_ok"}), "net_usd": -8.0},
+        ]
+        out = C.enumerate_gate_subsets(days, _GATES)
+        self.assertEqual(out["days_with_positive_net"], 1)
+        self.assertEqual(out["scorable_days"], 3)
+
+    def test_full_lift_admits_even_a_day_that_refused_EVERY_gate(self):
+        """«Полное снятие» значит ВСЕ дни — включая тот, у кого отказали все гейты.
+
+        Батарея: подмена `refused <= full` на `refused < full` не краснела, потому
+        что ни в одной сцене не было дня с полным набором отказов. На таком дне
+        строгое включение молча выбросило бы его из «полного снятия».
+        """
+        days = [
+            {"date": "all", "refused": frozenset(_GATES), "net_usd": -3.0},
+            {"date": "one", "refused": frozenset({"cooldown_ok"}), "net_usd": -1.0},
+        ]
+        out = C.enumerate_gate_subsets(days, _GATES)
+        self.assertEqual(out["full_lift"]["act_days"], 2)
+        self.assertEqual(out["full_lift"]["net_usd"], -4.0)
+
     def test_full_lift_net_bps_uses_the_capital_given(self):
         days = [{"date": "d1", "refused": frozenset(), "net_usd": -100.0}]
         out = C.enumerate_gate_subsets(days, _GATES, capital_usd=100_000.0)
@@ -477,6 +543,24 @@ class Differential(unittest.TestCase):
         C._check_flip_against_sweep(flip, rows)
         self.assertTrue(flip["measured"])
         self.assertTrue(flip["monotonicity_control"]["holds"])
+
+    def test_the_flip_is_narrowed_by_the_bisection_and_not_by_the_bracket(self):
+        """Точность перелома — утверждение, и оно закреплено.
+
+        Батарея: подмена `_BISECT_STEPS = 24` на `0` не краснела — перелом
+        вырождался в середину исходной скобки, а тесты проверяли только «найден».
+        Число, которое ADR печатает с пятью знаками, обязано быть СУЖЕНО.
+        """
+        flip = C._bisect_flip(self.scene.dir, make_mutate=C._scale_cost,
+                              bracket=C.COST_BISECT_BRACKET, rising=False,
+                              horizon_days=ste.DEFAULT_HORIZON_DAYS, gates=_GATES)
+        self.assertTrue(flip["measured"])
+        width = C.COST_BISECT_BRACKET[1] - C.COST_BISECT_BRACKET[0]
+        self.assertLess(flip["resolution"], width / 1000.0,
+                        "скобка обязана сужаться делением пополам, а не оставаться "
+                        "исходной: иначе напечатанный перелом есть её середина")
+        midpoint = sum(C.COST_BISECT_BRACKET) / 2.0
+        self.assertNotAlmostEqual(flip["flip_factor"], midpoint, places=3)
 
     def test_bisection_refuses_outside_its_bracket_instead_of_naming_an_edge(self):
         out = C._bisect_flip(self.scene.dir, make_mutate=C._scale_cost,
