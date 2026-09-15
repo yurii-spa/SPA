@@ -479,6 +479,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "criterion_sign_price.json": ("status", "headline", "journal", "gate_subsets",
                                   "decomposition", "differential", "findings",
                                   "what_it_does_not_prove"),
+    # `composition` — состав цены поимённо (а); `benefit_drift` — основание дней с
+    # отрицательной выгодой (б); `cost_level_sweep` — ACT-дни под каждым уровнем
+    # цены (в). Схлопнуть их в заголовок значило бы продать «цена есть выход
+    # модели» за «цена велика» или наоборот. `cost_level_sweep` несёт внутри себя
+    # контроль чувствительности: без него ноль ACT-дней неотличим от уровня,
+    # который до судьи не доходит.
+    "move_cost_composition_price.json": ("status", "headline", "journal",
+                                         "chains_source", "observed_cost_bps",
+                                         "composition", "benefit_drift",
+                                         "cost_level_sweep", "findings",
+                                         "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -771,6 +782,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/adapter_repair_price.py",
     "criterion_sign_price.json":
         "spa_core/monitoring/criterion_sign_price.py",
+    "move_cost_composition_price.json":
+        "spa_core/monitoring/move_cost_composition_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2418,6 +2431,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _csp_report,
         )
         out.extend(_csp_report(data))
+    elif name == "move_cost_composition_price.json":
+        # Заказ #608/G21. Порядок строк — порядок вопроса: (а) воспроизведение
+        # записанной цены и её состав, (б) основание дней с отрицательной выгодой,
+        # (в) сметание уровней цены. Источник карты сетей печатается отдельной
+        # строкой и ВСЕГДА: состав цены восстановлен по СЕГОДНЯШНЕЙ карте, и
+        # читатель обязан видеть это рядом с числами, а не в шапке модуля.
+        from spa_core.monitoring.move_cost_composition_price import (
+            format_report as _mcc_report,
+        )
+        out.extend(_mcc_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ

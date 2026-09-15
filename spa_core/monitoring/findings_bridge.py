@@ -134,6 +134,7 @@ PRODUCES = (
     "data/judge_alone_price.json",
     "data/adapter_repair_price.json",
     "data/criterion_sign_price.json",
+    "data/move_cost_composition_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -230,6 +231,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "judge_alone_price",
     "adapter_repair_price",
     "criterion_sign_price",
+    "move_cost_composition_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -395,6 +397,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "criterion_sign_price": {
         "module": "spa_core/monitoring/criterion_sign_price.py",
         "artifact": "data/criterion_sign_price.json"},
+    "move_cost_composition_price": {
+        "module": "spa_core/monitoring/move_cost_composition_price.py",
+        "artifact": "data/move_cost_composition_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1522,6 +1527,26 @@ def main(argv=None) -> int:
               f"{', '.join(_exhausted) or 'ни одного входа'})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "criterion_sign_price", e)
+    # Заказ #608 (G21, ADR-389): от чего зависит ЦЕНА хода поимённо, каким
+    # основанием объясняются дни с отрицательной выгодой, и сколько ACT-дней
+    # вернула бы критерию медианная цена. Вызов здесь, а не одно объявление
+    # ступени (урок ADR-376): ступень, которую никто не зовёт, производит
+    # артефакт ровно ноль раз.
+    try:
+        from spa_core.monitoring import move_cost_composition_price
+        _mcc = move_cost_composition_price.run(root=args.root)
+        _cmp = observed(_mcc, "composition", kind=dict) or {}
+        _swp = observed(_mcc, "cost_level_sweep", kind=dict) or {}
+        _flip = (_swp.get("flip_level_bps") or {}).get("flip_bps")
+        print(f"move_cost_composition_price: {_mcc.get('status')} "
+              f"(воспроизведено {_cmp.get('days_reproduced')} дн. из "
+              f"{_cmp.get('days_total')}, расхождений {_cmp.get('days_divergent')}, "
+              f"НЕ ИЗМЕРЕНО {_cmp.get('days_unmeasured')}; перелом на "
+              f"{_flip if _flip is not None else 'НЕ НАЙДЕН'} bps оборота; "
+              f"при медианной цене ACT-дней "
+              f"{(_swp.get('named') or {}).get('median')})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "move_cost_composition_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по
