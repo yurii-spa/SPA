@@ -131,6 +131,7 @@ PRODUCES = (
     "data/act_day_recovery.json",
     "data/run_identity_key_price.json",
     "data/heir_all_rows_price.json",
+    "data/judge_alone_price.json",
     "data/intraday_rate_input_movement.json",
     "data/audit_trail_rate_input_coverage.json",
     "data/run_axis_time_stitch.json",
@@ -224,6 +225,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "act_day_recovery",
     "run_identity_key_price",
     "heir_all_rows_price",
+    "judge_alone_price",
     "intraday_rate_input_movement",
     "audit_trail_rate_input_coverage",
     "run_axis_time_stitch",
@@ -380,6 +382,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "heir_all_rows_price": {
         "module": "spa_core/monitoring/heir_all_rows_price.py",
         "artifact": "data/heir_all_rows_price.json"},
+    "judge_alone_price": {
+        "module": "spa_core/monitoring/judge_alone_price.py",
+        "artifact": "data/judge_alone_price.json"},
     "g1_verdict_recoverability": {
         "module": "spa_core/monitoring/g1_verdict_recoverability.py",
         "artifact": "data/g1_verdict_recoverability.json"},
@@ -1456,6 +1461,19 @@ def main(argv=None) -> int:
               f"вернули бы стёртое решение {_ho.get('recovers', 0)})")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "heir_all_rows_price", e)
+    # Заказ #605 (G18, ADR-386): цена починки СУДЬИ отдельно от остальных.
+    # Вызов здесь, а не одно объявление ступени (урок ADR-376).
+    try:
+        from spa_core.monitoring import judge_alone_price
+        _jap = judge_alone_price.run(root=args.root)
+        _vo = _jap.get("value_outcomes") or {}
+        _ret = (_jap.get("returns_today") or {}).get("act_days")
+        print(f"judge_alone_price: {_jap.get('status')} "
+              f"(раздуваются на ПОВТОРЕ {_vo.get('inflates', 0)} из "
+              f"{_jap.get('values_population')} величин судьи; сегодня критерию "
+              f"возвращается {_ret} ACT-дн.)")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "judge_alone_price", e)
     # Заказ #545 (ADR-305 поставил вопрос): остаётся ли расширение записи на
     # критическом пути к взводу — по ОБОИМ порядкам снятия стен. Мост находок
     # его НЕ читает по той же причине, что и соседей: единственное действие по

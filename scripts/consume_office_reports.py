@@ -447,6 +447,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "heir_all_rows_price.json": ("status", "headline", "stand", "heirs",
                                  "heir_outcomes", "whose_outcomes",
                                  "what_it_does_not_prove"),
+    # Заказ #605/G18. Обязательные ключи названы поимённо, потому что ответ
+    # состоит из ТРЁХ разных: `values`/`value_outcomes` — что раздувается,
+    # `forms` — есть ли форма (и НУЛЕВОЙ КОНТРОЛЬ среди них), `capacity` и
+    # `returns_today` — сколько ACT-дней возвращается СЕГОДНЯ и сколько при
+    # починенном писателе. Схлопнуть их в один заголовок значило бы продать
+    # ёмкость за сегодняшний ноль. `fix_site` — где правку делать, чтобы
+    # «отдельно от остальных» осталось правдой.
+    "judge_alone_price.json": ("status", "headline", "journal", "values",
+                               "value_outcomes", "forms", "returns_today",
+                               "capacity", "fix_site", "what_it_does_not_prove"),
     "hit_rate_selection_bias.json": ("status", "journal_rows", "population",
                                      "hit_rate_as_is", "hit_rate_interval",
                                      "axis_a_horizon", "axis_b_cost",
@@ -733,6 +743,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/run_identity_key_price.py",
     "heir_all_rows_price.json":
         "spa_core/monitoring/heir_all_rows_price.py",
+    "judge_alone_price.json":
+        "spa_core/monitoring/judge_alone_price.py",
     "g1_verdict_recoverability.json":
         "spa_core/monitoring/g1_verdict_recoverability.py",
     "unevidenced_leg_causes.json":
@@ -2348,6 +2360,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _harp_report,
         )
         out.extend(_harp_report(data))
+    elif name == "judge_alone_price.json":
+        # Заказ #605/G18. Порядок строк — порядок вопроса: сперва ЖУРНАЛ (на чём
+        # мерили и сколько дней вообще несут вторую строку), затем (а) величины
+        # поимённо, затем (б) формы ВМЕСТЕ с нулевым контролем, и только потом
+        # (в) два числа возврата — сегодняшнее и ёмкость. Сегодняшнее идёт ПЕРЕД
+        # ёмкостью намеренно: читатель, увидевший «15 ACT-дней» первым, прочтёт
+        # это как обещание, а сегодня возвращается ноль.
+        from spa_core.monitoring.judge_alone_price import (
+            format_report as _jap_report,
+        )
+        out.extend(_jap_report(data))
     elif name == "unevidenced_leg_causes.json":
         # Заказ #543. Порядок строк — порядок вопроса: сперва НАСЕЛЕНИЕ (сколько
         # дней потеряли вердикт именно из-за неоценённой ноги), затем КЛАССЫ
