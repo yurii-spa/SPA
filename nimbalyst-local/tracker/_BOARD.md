@@ -2,19 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-16T13:51:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-16T15:48:58Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (4e1c26bc1) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f227001f3) · у **6** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1063** · ждёт владельца: **6** · занято сессиями: **14**.
+> Всего карточек: **1063** · ждёт владельца: **2** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
-- **Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?**  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md`
-- **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
-- **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -40,10 +36,6 @@
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
-- Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md` · 2026-09-15
-- Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
-- Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -166,9 +158,11 @@
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - earn-defi: в белом списке пусто — движок не может профинансировать ничего  ·  `owner-decision-earn-defi-belyi-spisok-nichego-ne-odobreno.md` · 2026-09-09
 - earn-defi: данные взяты по бесплатной лицензии «не для коммерции»  ·  `owner-decision-earn-defi-litsenziya-na-dannye-do-deneg.md` · 2026-09-09
+- earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
 - earn-defi: таблица режимов на истории НЕ бьёт «просто держать биткоин»  ·  `owner-decision-earn-defi-tablitsa-rezhimov-ne-bet-buy-and-hold.md` · 2026-09-09
 - Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Единственная честная вневыборочная таблица реестра посчитана способом, который льстит сторожу — что делать с опубликованными числами  ·  `owner-decision-edinstvennaya-chestnaya-vnevyborochnaya.md` · 2026-09-04
+- Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md` · 2026-09-15
 - Эталонная планка исследований насильно докупает убыточные книги — менять ли конвенцию  ·  `owner-decision-etalonnaya-planka-issledovanii-nasilno-d.md` · 2026-09-02
 - Ежедневную проверку аналитики некому гонять — выбери, кто это делает  ·  `owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g.md` · 2026-08-24
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
@@ -212,6 +206,7 @@
 - Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение  ·  `owner-decision-nol-ne-izmereno-etim-instrumentom-nedost.md` · 2026-08-31
 - Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md` · 2026-09-01
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
+- Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
@@ -246,6 +241,7 @@
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat.md` · 2026-08-08
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
+- Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
 - Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности  ·  `owner-decision-schitat-li-dopisannye-zadnim-chislom-sta.md` · 2026-09-10
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
