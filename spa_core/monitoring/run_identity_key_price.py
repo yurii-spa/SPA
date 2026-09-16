@@ -142,6 +142,7 @@ import json
 import logging
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
@@ -169,6 +170,52 @@ READER_BOTH = "sees_both"
 READER_INSENSITIVE = "insensitive_stand"
 READER_UNMEASURED = "unmeasured"
 
+# ── ПРИЧИНЫ исхода ``unmeasured`` (заказ #614/G26) ───────────────────────────
+# До этой правки все они печатались ОДНИМ числом, а в теле несли одну и ту же
+# строку «нет приводимой точки входа». Замер 16.09 показал, что это НЕ один
+# класс: из 63 не измеренных 59 стояли под этой строкой, 3 — под «ответ не
+# воспроизводится», 1 — сам прибор. Инв. #17 требует, чтобы отсутствие
+# наблюдения было представлено ОТДЕЛЬНЫМ значением; одна общая строка на шесть
+# разных причин — это ноль вместо трёх исходов.
+CAUSE_IMPORT_FAILED = "import_failed"
+CAUSE_WOULD_ACT = "entry_would_act"
+CAUSE_HTTP_ROUTE = "http_route_handler"
+CAUSE_RUN_NO_WRITE_SWITCH = "run_without_write_switch"
+CAUSE_CLI_ONLY = "cli_entry_only"
+CAUSE_NO_ENTRY = "no_entry_point"
+CAUSE_ENTRY_RAISED = "entry_raised"
+CAUSE_IRREPRODUCIBLE = "answer_not_reproducible"
+CAUSE_RESTS_ON_UNSTABLE = "verdict_rests_on_unstable_coords"
+CAUSE_SELF = "the_instrument_itself"
+
+#: Точки входа под ДРУГИМ именем, прочитанность которых доказана ПОИМЁННО.
+#: Список именной, а не по образцу, и это не лень: образец «первый параметр
+#: зовётся data_dir» захватил бы ``allocation_rationale.write_shadow_rationale``
+#: (это ПИСАТЕЛЬ журнала, ``write=True`` по умолчанию) и
+#: ``cycle_runner.run_cycle`` (дневной цикл, денежный путь). Перепись,
+#: расширенная образцом, ЗАПУСТИЛА БЫ цикл — поэтому расширение fail-CLOSED:
+#: молчаливо не добавляется никто.
+_EXTRA_READ_ONLY_ENTRIES = {
+    "spa_core.paper_trading.cio_brief": "build_books_brief",
+    "spa_core.paper_trading.cio_trial": "trial_moves_spent",
+}
+
+#: Модули, которые прибор НЕ ЗОВЁТ НИКОГДА — с названной причиной у каждого.
+#: Это не «не удалось измерить», а ОТКАЗ измерять таким способом: вызов совершил
+#: бы действие. Отдельная причина нужна ровно затем, чтобы отказ не выглядел
+#: как отсутствие точки входа (памятка: «mutating away a refusal performs the
+#: refused action» — здесь тот же класс, но у прибора).
+_NEVER_CALL = {
+    "spa_core.paper_trading.cycle_runner":
+        "run_cycle — дневной цикл: write=True по умолчанию, это денежный путь",
+    "spa_core.paper_trading.allocation_rationale":
+        "write_shadow_rationale — ПИСАТЕЛЬ журнала, а не его читатель",
+    "scripts.kill_switch_drill":
+        "run_drill — учение стоп-крана; стоп-кран прибору трогать запрещено",
+    "spa_core.monitoring.owner_answer_delivery":
+        "run — доставка ответа владельцу: пушер и Телеграм наружу (необратимо)",
+}
+
 # ── дороги, которыми читатель доходит до журнала ─────────────────────────────
 ROAD_FILENAME = "filename_literal"
 ROAD_IMPORTS = "import_closure"
@@ -191,6 +238,21 @@ CLOCK_FIELDS = ("generated_at", "now", "measured_at", "timestamp", "run_at",
 #: Каталоги внутри ``data/``, не копируемые в стенды. Исключение ОДИНАКОВО на
 #: всех трёх стендах, поэтому дифференциал к нему нечувствителен по построению.
 STAND_EXCLUDE = ("backups",)
+
+#: Пауза между двумя пробами ОДНОГО стенда. Нужна затем, чтобы поля,
+#: производные от стенных часов, разошлись НАВЕРНЯКА, а не по везению. Замер
+#: 16.09 на `house_view_gap`: вызов идёт 1 мс, поля `age_s` округлены до
+#: десятых долей секунды — две пробы подряд попадали в одну корзину и
+#: «стабильность» подтверждалась ложно, через 0.25 с расходились всегда. Без
+#: паузы САМ НАБОР нестабильных координат менялся от прогона к прогону, и
+#: вердикт читателю вместе с ним.
+#:
+#: ГРАНИЦА, названная вслух: поле с шагом ГРУБЕЕ паузы (возраст в целых
+#: секундах, «часов назад») этой пробой не вскрывается и по-прежнему способно
+#: загрязнить сравнение. Цена названа, чтобы выбор между чувствительностью и
+#: стоимостью не выглядел умолчанием: пауза стоит ~27 с на 108 читателей, а
+#: ЛИШНЯЯ ПРОБА стоила 879 с против ~300 с — поэтому проб две, а не три.
+_STABILITY_PROBE_DELAY_S = 0.25
 
 #: Имена точек входа, которые прибор умеет привести, и имя первого параметра.
 _DATA_DIR_ENTRIES = ("measure", "build", "evaluate_window")
@@ -550,6 +612,11 @@ def _judge_horizon() -> Optional[int]:
         return None
 
 
+def _canon(answer) -> str:
+    """Сериализация ответа ЦЕЛИКОМ — для дешёвой проверки «совпало ли»."""
+    return json.dumps(answer, sort_keys=True, default=str)
+
+
 def _strip_clock(answer) -> str:
     """Ответ без СТЕННЫХ полей верхнего уровня — названных поимённо."""
     obj = copy.deepcopy(answer)
@@ -558,6 +625,56 @@ def _strip_clock(answer) -> str:
             obj.pop(key, None)
     return hashlib.sha256(
         json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def unstable_coords(one, two, path: str = "") -> Set[str]:
+    """Координаты, РАЗОШЕДШИЕСЯ на двух вызовах ОДНОГО И ТОГО ЖЕ стенда.
+
+    Замер, а не список имён. Координата, которая расходится при тождественном
+    входе, по построению не может быть свидетельством о входе — поэтому её
+    можно снять, ничего не ослабив. Обратное (дописать имя в ``CLOCK_FIELDS``)
+    было бы догадкой и уносило бы ВХОДНЫЕ отметки: ``feed_coverage.as_of`` —
+    это вход, а не часы, и глушить его значило бы отвечать не на тот вопрос.
+    """
+    out: Set[str] = set()
+    if type(one) is not type(two):
+        return {path}
+    if isinstance(one, dict):
+        for key in set(one) | set(two):
+            if key not in one or key not in two:
+                out.add(f"{path}.{key}")
+            else:
+                out |= unstable_coords(one[key], two[key], f"{path}.{key}")
+    elif isinstance(one, list):
+        if len(one) != len(two):
+            return {path}
+        for idx, (a, b) in enumerate(zip(one, two)):
+            out |= unstable_coords(a, b, f"{path}[{idx}]")
+    elif one != two:
+        out.add(path)
+    return out
+
+
+def _stable_leaves(obj, drop: Set[str], path: str = "") -> int:
+    """Сколько ЛИСТЬЕВ ответа уцелело после снятия нестабильных координат."""
+    if path in drop:
+        return 0
+    if isinstance(obj, dict):
+        return sum(_stable_leaves(v, drop, f"{path}.{k}") for k, v in obj.items())
+    if isinstance(obj, list):
+        return sum(_stable_leaves(v, drop, f"{path}[{i}]") for i, v in enumerate(obj))
+    return 1
+
+
+def mask_coords(obj, drop: Set[str], path: str = ""):
+    """Ответ без измеренных нестабильных координат."""
+    if path in drop:
+        return "<нестабильно на одном стенде>"
+    if isinstance(obj, dict):
+        return {k: mask_coords(v, drop, f"{path}.{k}") for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [mask_coords(v, drop, f"{path}[{i}]") for i, v in enumerate(obj)]
+    return obj
 
 
 def module_driver(mod) -> Tuple[Optional[str], Optional[Callable[[Path], object]]]:
@@ -579,38 +696,169 @@ def module_driver(mod) -> Tuple[Optional[str], Optional[Callable[[Path], object]
         sig = inspect.signature(fn)
         if "write" in sig.parameters and "root" in sig.parameters:
             return "run", (lambda stand, fn=fn: fn(root=str(stand), write=False))
+    extra = _EXTRA_READ_ONLY_ENTRIES.get(getattr(mod, "__name__", ""))
+    if extra:
+        fn = getattr(mod, extra, None)
+        if callable(fn) and inspect.isfunction(fn):
+            sig = inspect.signature(fn)
+            params = list(sig.parameters)
+            if params and params[0] in _DATA_DIR_PARAMS:
+                return extra, (lambda stand, fn=fn: fn(stand / "data"))
     return None, None
+
+
+def _http_surface(mod) -> Optional[str]:
+    """Модуль — HTTP-поверхность? Спрашиваем у ОБЪЕКТА, не у имени модуля.
+
+    Имя (``spa_core.api.routers.*``) было бы догадкой и ошибалось бы в обе
+    стороны: роутер живёт и вне каталога (``spa_core.api.server``), а каталог
+    может однажды получить модуль без роутера. Тип объекта — замер.
+    """
+    for attr, obj in vars(mod).items():
+        cls = type(obj).__name__
+        if cls in ("APIRouter", "FastAPI"):
+            return f"{cls} в атрибуте {attr}"
+    return None
+
+
+def _module_functions(mod) -> Dict[str, List[str]]:
+    """Функции УРОВНЯ МОДУЛЯ, объявленные в нём самом → их параметры."""
+    out: Dict[str, List[str]] = {}
+    name = getattr(mod, "__name__", "")
+    for fn_name, fn in vars(mod).items():
+        if fn_name.startswith("_") or not inspect.isfunction(fn):
+            continue
+        if getattr(fn, "__module__", None) != name:
+            continue
+        try:
+            out[fn_name] = list(inspect.signature(fn).parameters)
+        except (ValueError, TypeError):
+            out[fn_name] = []
+    return out
+
+
+def no_entry_cause(mod) -> Tuple[str, str]:
+    """ПОЧЕМУ точку входа привести не удалось — поимённо, а не одной строкой.
+
+    Порядок ветвей — от самой узкой претензии к самой широкой, чтобы модуль не
+    попал в общее ведро, имея названную причину.
+    """
+    http = _http_surface(mod)
+    if http:
+        return (CAUSE_HTTP_ROUTE,
+                f"обработчик HTTP-маршрута ({http}): каталог стенда ему не "
+                f"передать — он читает через модульный корень, а не через аргумент")
+    fns = _module_functions(mod)
+    run_params = fns.get("run")
+    if run_params is not None and "write" not in run_params:
+        return (CAUSE_RUN_NO_WRITE_SWITCH,
+                f"run({', '.join(run_params) or ''}) есть, но параметра write НЕТ — "
+                f"вызов писал бы туда, куда прибор не звали")
+    if "main" in fns and not any(
+            p and p[0] in _DATA_DIR_PARAMS for n, p in fns.items() if n != "main"):
+        return (CAUSE_CLI_ONLY,
+                "только main(argv) — вход командной строки, по умолчанию он "
+                "работает против ЖИВОГО каталога")
+    if not fns:
+        return (CAUSE_NO_ENTRY,
+                "приводимой точки входа нет: функций уровня модуля нет вовсе")
+    return (CAUSE_NO_ENTRY,
+            "приводимой точки входа нет: ни одна функция уровня модуля не берёт "
+            f"каталог data/ первым параметром (есть: {', '.join(sorted(fns)[:6])})")
 
 
 def classify_reader(module_name: str, stands: dict) -> dict:
     """Вердикт одному читателю — по ИСХОДУ на трёх стендах."""
     row: Dict[str, object] = {"module": module_name}
+    never = _NEVER_CALL.get(module_name)
+    if never:
+        # Отказ ЗВАТЬ — не то же, что «нечего позвать»: точка входа есть, и
+        # именно поэтому её нельзя приводить. Своя причина, а не общее ведро.
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_WOULD_ACT, reason=never)
+        return row
     try:
         mod = importlib.import_module(module_name)
     except BaseException as exc:  # noqa: BLE001 — любой отказ = «не измерено»
-        row.update(outcome=READER_UNMEASURED,
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_IMPORT_FAILED,
                    reason=f"импорт не удался: {type(exc).__name__}")
         return row
     entry, call = module_driver(mod)
     if call is None:
-        row.update(outcome=READER_UNMEASURED,
-                   reason="нет приводимой точки входа (measure/build/evaluate_window/run)")
+        cause, reason = no_entry_cause(mod)
+        row.update(outcome=READER_UNMEASURED, cause=cause, reason=reason)
         return row
     row["entry"] = entry
     try:
-        a1 = _strip_clock(call(stands["s1"]))
-        a1_again = _strip_clock(call(stands["s1"]))
-        a2 = _strip_clock(call(stands["s2"]))
-        a3 = _strip_clock(call(stands["s3"]))
+        raw1 = call(stands["s1"])
+        # Пауза НУЖНА, а третья проба — нет. Поле, бегущее на каждом зове,
+        # расходится при любом зазоре, поэтому пара «без паузы» есть
+        # ПОДМНОЖЕСТВО пары «с паузой», и объединять их было незачем. Замер
+        # 16.09: третья проба стоила лишний зов КАЖДОГО из 108 читателей и
+        # увела перепись на 879 с; пауза стоит 27 с и ловит то же.
+        time.sleep(_STABILITY_PROBE_DELAY_S)
+        raw1_again = call(stands["s1"])
+        raw2 = call(stands["s2"])
+        raw3 = call(stands["s3"])
     except BaseException as exc:  # noqa: BLE001
-        row.update(outcome=READER_UNMEASURED,
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_ENTRY_RAISED,
                    reason=f"{entry}() упал: {type(exc).__name__}")
         return row
+    # Нестабильные координаты МЕРЯЮТСЯ двумя вызовами одного стенда и снимаются
+    # у всех четырёх ответов. Раньше здесь стоял немедленный `unmeasured`, и на
+    # нём терялся ЕДИНСТВЕННЫЙ схлопывающий читатель: `house_view_gap` несёт 33
+    # поля `age_s` в десятых долях секунды, `_strip_clock` снимает только
+    # ВЕРХНИЙ уровень, поэтому вердикт был подбрасыванием монеты — вызов идёт
+    # 1 мс и подряд совпадал, а под нагрузкой переписи расходился. Замер 16.09:
+    # прогон 1 — `collapses_to_last`, прогон 2 — `unmeasured`, дерево одно.
+    # Ноль схлопывающих читался как «ADR-395 закрыл вопрос», что неправда.
+    # Объединение по ТРЁМ пробам: набор нестабильных координат сам обязан быть
+    # устойчивым, иначе вердикт читателю меняется от прогона к прогону вместе с
+    # ним (замер 16.09: `house_view_gap` давал collapses_to_last и unmeasured
+    # через прогон на ОДНОМ дереве).
+    # Быстрый путь, ТОЧНЫЙ, а не приблизительный: равная сериализация трёх
+    # проб означает, что расходящихся координат нет ни одной, и обходить дерево
+    # незачем. Большинство читателей устойчивы, а обход строит путь-строку на
+    # КАЖДЫЙ узел — на крупных ответах это и съело прогон (замер: перепись
+    # ушла с ~5 мин за 20+, пока сравнение шло обходом всегда).
+    if _canon(raw1) == _canon(raw1_again):
+        drop: Set[str] = set()
+    else:
+        drop = unstable_coords(raw1, raw1_again)
+    row["unstable_coords"] = len(drop)
+    # Ответ, в котором НЕ ОСТАЛОСЬ ни одного устойчивого листа, снятием не
+    # спасается: сравнивать после маскирования было бы нечего, и любые два
+    # стенда сошлись бы тождественно. Это ровно «не воспроизводится», и
+    # называть это надо так, а не «вердикт стоит на снятом».
+    if drop and not _stable_leaves(raw1, drop):
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_IRREPRODUCIBLE,
+                   reason="ответ не воспроизводится на ОДНОМ И ТОМ ЖЕ стенде: "
+                          f"устойчивых полей не осталось ни одного (снято {len(drop)})")
+        return row
+    _mask = (lambda obj: obj) if not drop else (lambda obj: mask_coords(obj, drop))
+    a1 = _strip_clock(_mask(raw1))
+    a1_again = _strip_clock(_mask(raw1_again))
+    a2 = _strip_clock(_mask(raw2))
+    a3 = _strip_clock(_mask(raw3))
     if a1 != a1_again:
-        row.update(outcome=READER_UNMEASURED,
-                   reason="ответ не воспроизводится на ОДНОМ И ТОМ ЖЕ стенде")
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_IRREPRODUCIBLE,
+                   reason="ответ не воспроизводится на одном стенде даже после "
+                          f"снятия {len(drop)} измеренно нестабильных координат")
         return row
     if a1 == a3:
+        # Снятие нестабильных координат не имеет права ГАСИТЬ улику. Если
+        # стенды разошлись ТОЛЬКО в снятом, «нечувствителен» — неправда, а
+        # выносить вердикт по снятому нельзя: он был бы подбрасыванием монеты
+        # (замер 16.09 на `house_view_gap` — ровно этот случай: вся разница
+        # между стендами легла в 33 поля `age_s`, производные от часов, и
+        # прежний код отвечал `collapses_to_last` или `unmeasured` через
+        # прогон). Третий исход, названный и ДЕТЕРМИНИРОВАННЫЙ.
+        raw_cross = unstable_coords(raw1, raw3)
+        if raw_cross and not (raw_cross - drop):
+            row.update(outcome=READER_UNMEASURED, cause=CAUSE_RESTS_ON_UNSTABLE,
+                       reason=(f"стенды разошлись ТОЛЬКО в {len(raw_cross)} координат(ах), "
+                               f"нестабильных на одном стенде (всего снято {len(drop)}) — "
+                               "судить о схлопывании нечем, а «нечувствителен» неправда"))
+            return row
         row.update(outcome=READER_INSENSITIVE,
                    reason="стенд не сдвинул ответ — про схлопывание НЕ ИЗМЕРЕНО ничего")
         return row
@@ -855,11 +1103,16 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         readers["what_the_counts_are"] = (
             "число схлопывающих есть НИЖНЯЯ ГРАНИЦА, а не перепись: вердикт читателю "
             "выносится на ОДНОМ дне стенда, и оконный читатель, которого этот день не "
-            "задел, честно уходит в insensitive_stand, а не в «не схлопывает»")
+            "задел, честно уходит в insensitive_stand, а не в «не схлопывает». "
+            "Вторая причина той же односторонности: нестабильные координаты СНИМАЮТСЯ, "
+            "и если разница между стендами легла ТОЛЬКО в снятую координату, читатель "
+            "прочтётся как insensitive_stand. Граница смещена в сторону НЕДОоценки — "
+            "прибор скорее промолчит о схлопывании, чем выдумает его")
         rowsout: List[dict] = []
         for name in sorted(roads):
             if name == __name__ or name.endswith(".run_identity_key_price"):
                 row = {"module": name, "outcome": READER_UNMEASURED,
+                       "cause": CAUSE_SELF,
                        "reason": ("это сам прибор: он ГОНИТ перепись, и гнать его "
                                   "внутри неё значило бы войти в неё заново")}
             else:
@@ -869,6 +1122,13 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         readers["measured"] = True
         readers["modules"] = rowsout
         readers["outcomes"] = dict(collections.Counter(str(r["outcome"]) for r in rowsout))
+        # Инв. #17: «не измерено» обязано быть представлено РАЗЛИЧИМЫМИ
+        # значениями. Пока причина была одна на всех, число 64 отвечало на
+        # вопрос «сколько прибор не умеет спросить», а читалось как «сколько
+        # читателей ни при чём».
+        readers["unmeasured_causes"] = dict(collections.Counter(
+            str(r.get("cause") or "cause_not_recorded")
+            for r in rowsout if r.get("outcome") == READER_UNMEASURED))
     finally:
         _SWEEPING = False
         if holder is not None:
@@ -953,6 +1213,27 @@ def format_report(doc: dict) -> List[str]:
         for row in readers.get("modules") or []:
             if row.get("outcome") in (READER_LAST, READER_FIRST):
                 out.append(f"       [СХЛОПЫВАЕТ] {row['module']} ({row.get('entry')})")
+        # Инв. #17: причина «не измерено» печатается ЧИСЛОМ по каждому классу.
+        # Одно суммарное число молча читается как «эти читатели ни при чём»,
+        # тогда как отвечает оно на другой вопрос — «о скольких прибор не умеет
+        # спросить». Пустая сводка при непустом `unmeasured` — тоже отчёт.
+        causes = readers.get("unmeasured_causes")
+        n_un = (readers.get("outcomes") or {}).get(READER_UNMEASURED, 0)
+        if n_un and not causes:
+            out.append("       [ПРИЧИНЫ] НЕ ИЗМЕРЕНО: причины не записаны, "
+                       f"а не измеренных {n_un} — число без причины непригодно")
+        for cause, n in sorted((causes or {}).items(), key=lambda kv: (-kv[1], kv[0])):
+            out.append(f"       [ПРИЧИНА] {cause}: {n}")
+        for row in readers.get("modules") or []:
+            if row.get("cause") == CAUSE_WOULD_ACT:
+                out.append(f"       [ОТКАЗ ЗВАТЬ] {row['module']} — {row.get('reason')}")
+        # Эти читатели и были прежним ПОДБРАСЫВАНИЕМ МОНЕТЫ: до ADR-396 они
+        # всплывали в `collapses_to_last` и пропадали из него через прогон.
+        # Число без имён вернуло бы их в безымянность — назвать обязан отчёт.
+        for row in readers.get("modules") or []:
+            if row.get("cause") == CAUSE_RESTS_ON_UNSTABLE:
+                out.append(f"       [СУДИТЬ НЕЧЕМ] {row['module']} "
+                           f"({row.get('entry')}) — {row.get('reason')}")
     else:
         out.append(f"   [ЧИТАТЕЛИ] НЕ ИЗМЕРЕНО: {readers.get('reason')}")
     bounds = doc.get("act_bounds") or {}

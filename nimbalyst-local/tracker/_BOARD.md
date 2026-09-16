@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-15T23:53:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-16T04:50:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fe4755379) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (be5e33d9b) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1057** · ждёт владельца: **6** · занято сессиями: **14**.
+> Всего карточек: **1060** · ждёт владельца: **6** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -320,7 +320,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (539)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (542)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -734,6 +734,7 @@
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
+- Девять читателей журнала: «судить нечем» — их ответ несёт поля-возрасты, а прежнее «схлопывает» было артефактом  ·  `inbox-devyat-chitatelei-zhurnala-sudit-nechem.md` · 2026-09-16
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
@@ -750,6 +751,7 @@
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
 - Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
+- Храповик инварианта #17 красен на чистом origin: база отстала на 17 членов, пять из них в adapter_repair_price.py  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom.md` · 2026-09-16
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат КРАСНЫЙ на main: test_act_day_recovery.py вошёл в закрытый класс (замер #602)  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-main.md` · 2026-09-14
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
@@ -793,6 +795,7 @@
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
+- Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06

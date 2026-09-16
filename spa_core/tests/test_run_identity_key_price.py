@@ -1134,3 +1134,304 @@ class BatteryHoleTestsRoundThree(unittest.TestCase):
         self.assertEqual(self._main_with_verdict(g16.STATUS_WARNING), 1)
         self.assertEqual(self._main_with_verdict(g16.STATUS_CRITICAL), 1)
         self.assertEqual(self._main_with_verdict(g16.STATUS_UNMEASURED), 2)
+
+
+# ── 10. G26: ПРИЧИНА «не измерено» — поимённо, и вердикт ДЕТЕРМИНИРОВАН ──────
+#
+# Заказ #614/G26 просил перемерить 64 модуля, ушедшие в `unmeasured`, потому что
+# «причина у всех одна» делала число ответом на вопрос «о скольких прибор не
+# умеет спросить», а читалось оно как «сколько читателей ни при чём». Замер
+# 16.09 показал, что причина НЕ одна, а семь, и что самая многочисленная (20 из
+# 61) — обработчики HTTP-маршрутов, то есть ровно те читатели, чей ответ видит
+# владелец. Попутно нашлась асимметрия хуже: вердикт ЕДИНСТВЕННОМУ схлопывающему
+# читателю (`house_view_gap`) был подбрасыванием монеты.
+_G26_STUBS = {
+    # Читатель схлопывает день И несёт поле, производное от стенных часов.
+    # Прежний код объявлял его `unmeasured` или `collapses_to_last` через
+    # прогон; предмет теста — что исход ОДИН И ТОТ ЖЕ на повторных замерах.
+    "clockcontent": "def measure(data_dir, **kw):\n"
+                    "    import json, time\n"
+                    "    rows=[json.loads(l) for l in (data_dir/'h.jsonl').read_text().splitlines() if l.strip()]\n"
+                    "    by={}\n"
+                    "    for r in rows: by[r['cycle_date']]=r\n"
+                    "    return {'tick': round(time.time(), 1),\n"
+                    "            'verdicts': sorted((d, v['verdict']) for d, v in by.items())}\n",
+    # Форма `house_view_gap`: ВСЯ разница между стендами лежит в поле-возрасте,
+    # то есть в координате, нестабильной и на одном стенде.
+    "ageonly": "def measure(data_dir, **kw):\n"
+               "    import json, time\n"
+               "    from datetime import datetime\n"
+               "    rows=[json.loads(l) for l in (data_dir/'h.jsonl').read_text().splitlines() if l.strip()]\n"
+               "    ts=datetime.fromisoformat(rows[-1]['generated_at']).timestamp()\n"
+               "    return {'k': 'константа', 'age_s': round(time.time()-ts, 1)}\n",
+    # Точка входа под другим именем, каталог первым параметром — но модуля нет
+    # в именном списке. Контроль fail-CLOSED: расширение не должно быть
+    # ОБРАЗЦОМ, иначе оно захватило бы писателя журнала и дневной цикл.
+    "othername": "def write_everything(data_dir, **kw):\n"
+                 "    return {'answer': 1}\n",
+    "actor": "CALLED = []\n"
+             "def measure(data_dir, **kw):\n"
+             "    CALLED.append(1)\n"
+             "    return {'answer': 1}\n",
+    # Ответ, в котором НЕТ ни одного устойчивого листа: снятие оставило бы
+    # нечего сравнивать, и любые два стенда сошлись бы тождественно.
+    "allunstable": "_N=[0]\n"
+                   "def measure(data_dir, **kw):\n"
+                   "    _N[0]+=1\n"
+                   "    return {'n': _N[0]}\n",
+    "httpish": "class APIRouter:\n"
+               "    pass\n"
+               "router = APIRouter()\n"
+               "def get_thing():\n"
+               "    return {'answer': 1}\n",
+    "runnowrite": "def run(root='.'):\n"
+                  "    return {'answer': 1}\n",
+    "clionly": "def main(argv=None):\n"
+               "    return 0\n",
+}
+
+
+class G26CauseTests(unittest.TestCase):
+    """Причина исхода `unmeasured` — предмет замера, а не одна строка на всех."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="g26_causes_")
+        self.root = Path(self._tmp.name)
+        self.pkg = self.root / "stubs"
+        self.pkg.mkdir()
+        for name, src in _G26_STUBS.items():
+            (self.pkg / f"g16g26_{name}.py").write_text(src, encoding="utf-8")
+        sys.path.insert(0, str(self.pkg))
+        self.stands = {}
+        for stand, rows in (("s1", [_row(0, verdict="HOLD", hours=9)]),
+                            ("s2", [_row(0, verdict="ACT", hours=1),
+                                    _row(0, verdict="HOLD", hours=9)]),
+                            ("s3", [_row(0, verdict="ACT", hours=1)])):
+            data = self.root / stand / "data"
+            data.mkdir(parents=True)
+            (data / "h.jsonl").write_text(
+                "\n".join(json.dumps(r, sort_keys=True) for r in rows) + "\n",
+                encoding="utf-8")
+            self.stands[stand] = self.root / stand
+
+    def tearDown(self):
+        sys.path.remove(str(self.pkg))
+        for name in list(sys.modules):
+            if name.startswith("g16g26_"):
+                del sys.modules[name]
+        self._tmp.cleanup()
+
+    def _classify(self, stub):
+        return g16.classify_reader(f"g16g26_{stub}", self.stands)
+
+    # ── причины различимы ────────────────────────────────────────────────────
+    def test_http_route_handler_is_its_own_cause_not_no_entry_point(self):
+        """20 из 61 — обработчики маршрутов, и это ровно те читатели, чей ответ
+        печатается владельцу. Слитые в «нет точки входа», они были невидимы."""
+        row = self._classify("httpish")
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_HTTP_ROUTE)
+
+    def test_run_without_a_write_switch_is_its_own_cause(self):
+        row = self._classify("runnowrite")
+        self.assertEqual(row["cause"], g16.CAUSE_RUN_NO_WRITE_SWITCH)
+
+    def test_cli_only_module_is_its_own_cause(self):
+        row = self._classify("clionly")
+        self.assertEqual(row["cause"], g16.CAUSE_CLI_ONLY)
+
+    def test_the_four_shapes_do_not_share_one_cause(self):
+        """Контроль на слипание: если причины снова свести к одной, тест
+        краснеет, а число `unmeasured` осталось бы прежним и молчало."""
+        causes = {self._classify(s)["cause"]
+                  for s in ("httpish", "runnowrite", "clionly", "othername")}
+        self.assertEqual(len(causes), 4, f"причины слиплись: {causes}")
+
+    def test_cause_survives_only_with_a_reason_naming_the_entry_point(self):
+        row = self._classify("clionly")
+        self.assertIn("main", row["reason"])
+
+    # ── отказ ЗВАТЬ — не то же, что «нечего позвать» ─────────────────────────
+    def test_a_module_on_the_never_call_list_is_not_called_at_all(self):
+        """Точка входа ЕСТЬ, и именно поэтому её нельзя приводить. Контроль
+        сильный: если прибор всё-таки позовёт, список `CALLED` это покажет."""
+        from unittest import mock
+        with mock.patch.dict(g16._NEVER_CALL,
+                             {"g16g26_actor": "измерять запрещено: вызов действует"},
+                             clear=False):
+            row = self._classify("actor")
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_WOULD_ACT)
+        self.assertNotIn("g16g26_actor", sys.modules,
+                         "прибор ИМПОРТИРОВАЛ модуль из списка «не звать»")
+
+    def test_without_the_never_call_list_the_same_module_would_be_called(self):
+        """Обратный контроль: без списка модуль зовётся. Иначе предыдущий тест
+        был бы истинным по построению — стенд мог просто не доходить до вызова."""
+        row = self._classify("actor")
+        self.assertEqual(row["outcome"], g16.READER_INSENSITIVE)
+        mod = sys.modules["g16g26_actor"]
+        self.assertTrue(mod.CALLED, "модуль не позвали и БЕЗ запрета")
+
+    def test_extending_the_driver_is_a_named_list_not_a_pattern(self):
+        """Образец «первый параметр — каталог data/» захватил бы
+        `allocation_rationale.write_shadow_rationale` и `cycle_runner.run_cycle`.
+        Расширение обязано оставаться именным."""
+        row = self._classify("othername")
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_NO_ENTRY)
+
+    def test_the_named_list_does_drive_the_module_it_names(self):
+        """Обратный контроль к предыдущему: список не декорация."""
+        from unittest import mock
+        with mock.patch.dict(g16._EXTRA_READ_ONLY_ENTRIES,
+                             {"g16g26_othername": "write_everything"}, clear=False):
+            row = self._classify("othername")
+        self.assertEqual(row["outcome"], g16.READER_INSENSITIVE)
+
+    def test_the_money_path_and_the_kill_switch_stay_on_the_never_call_list(self):
+        """Храповик намерения: убрать их из списка = прибор запустит цикл."""
+        for module in ("spa_core.paper_trading.cycle_runner",
+                       "spa_core.paper_trading.allocation_rationale",
+                       "scripts.kill_switch_drill"):
+            self.assertIn(module, g16._NEVER_CALL)
+
+    # ── вердикт ДЕТЕРМИНИРОВАН ───────────────────────────────────────────────
+    def test_a_clock_derived_field_does_not_make_the_verdict_a_coin_flip(self):
+        """Авария 16.09: `house_view_gap` несёт 33 поля `age_s` в десятых долях
+        секунды, `_strip_clock` снимает только ВЕРХНИЙ уровень — и прогон 1 дал
+        `collapses_to_last`, прогон 2 `unmeasured` на ОДНОМ дереве. Ноль
+        схлопывающих читался как «ADR-395 закрыл вопрос», что неправда."""
+        outcomes = {self._classify("clockcontent")["outcome"] for _ in range(3)}
+        self.assertEqual(len(outcomes), 1, f"вердикт непостоянен: {outcomes}")
+        self.assertEqual(outcomes.pop(), g16.READER_LAST)
+
+    def test_masking_does_not_swallow_a_real_difference(self):
+        """Обратная опасность: снять нестабильное и погасить улику. Содержимое
+        стенда обязано остаться видимым сквозь снятие."""
+        row = self._classify("clockcontent")
+        self.assertEqual(row["outcome"], g16.READER_LAST)
+        self.assertGreater(row["unstable_coords"], 0,
+                           "тест не проверяет снятие: нестабильных координат нет")
+
+    def test_a_difference_living_only_in_an_unstable_field_is_named_not_hidden(self):
+        """Форма `house_view_gap`: вся разница между стендами — в поле-возрасте.
+        «Нечувствителен» здесь неправда, а вердикт по снятому был бы монетой.
+        Третий исход, названный ПОИМЁННО."""
+        row = self._classify("ageonly")
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_RESTS_ON_UNSTABLE)
+        self.assertNotEqual(row["outcome"], g16.READER_INSENSITIVE)
+
+    def test_an_answer_with_no_stable_field_left_is_called_irreproducible(self):
+        """Ответ, у которого не осталось устойчивых листьев, снятием не
+        спасается: сравнивать было бы нечего, и любые стенды сошлись бы."""
+        row = self._classify("allunstable")
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_IRREPRODUCIBLE)
+
+    def test_the_two_probes_of_one_stand_are_separated_by_the_pause(self):
+        """Предмет — ПАУЗА, а не число проб. Поле с шагом 0.1 с (`age_s` у
+        `house_view_gap`) при вызове в 1 мс попадает в одну корзину, и
+        «стабильность» подтверждается ложно. Третья проба того же не добавляет:
+        поле, бегущее на каждом зове, расходится при любом зазоре, — а стоила
+        она лишний зов каждого из 108 читателей (879 с против ~300 с)."""
+        src = ("import time\n"
+               "STAMPS = []\n"
+               "def measure(data_dir, **kw):\n"
+               "    STAMPS.append(time.monotonic())\n"
+               "    return {'k': 'const'}\n")
+        (self.pkg / "g16g26_stamps.py").write_text(src, encoding="utf-8")
+        self._classify("stamps")
+        stamps = sys.modules["g16g26_stamps"].STAMPS
+        self.assertGreaterEqual(len(stamps), 2, "стенд s1 опрошен меньше двух раз")
+        self.assertGreaterEqual(
+            stamps[1] - stamps[0], g16._STABILITY_PROBE_DELAY_S,
+            "две пробы одного стенда идут БЕЗ паузы — поле с грубым шагом "
+            "останется незамеченным, и вердикт снова станет монетой")
+
+    # ── отчёт: число НИКОГДА не остаётся без причины ─────────────────────────
+    def test_the_report_prints_a_number_per_cause(self):
+        doc = {"overall": g16.STATUS_WARNING, "reason": "—",
+               "key_probe": {"measured": False, "reason": "—"},
+               "migration": {"measured": False, "reason": "—"},
+               "act_bounds": {"measured": False, "reason": "—"},
+               "readers": {"measured": True, "modules": [],
+                           "outcomes": {g16.READER_UNMEASURED: 3},
+                           "unmeasured_causes": {g16.CAUSE_HTTP_ROUTE: 2,
+                                                 g16.CAUSE_CLI_ONLY: 1}}}
+        lines = [ln for ln in g16.format_report(doc) if "[ПРИЧИНА]" in ln]
+        self.assertEqual(len(lines), 2, lines)
+        self.assertTrue(any(g16.CAUSE_HTTP_ROUTE in ln and "2" in ln for ln in lines))
+
+    def test_unmeasured_without_recorded_causes_is_itself_reported(self):
+        """Инв. #17: число без причины непригодно, и молчать о том нельзя."""
+        doc = {"overall": g16.STATUS_WARNING, "reason": "—",
+               "key_probe": {"measured": False, "reason": "—"},
+               "migration": {"measured": False, "reason": "—"},
+               "act_bounds": {"measured": False, "reason": "—"},
+               "readers": {"measured": True, "modules": [],
+                           "outcomes": {g16.READER_UNMEASURED: 7}}}
+        line = [ln for ln in g16.format_report(doc) if "[ПРИЧИНЫ]" in ln]
+        self.assertTrue(line, "непустой `unmeasured` без причин не назван в отчёте")
+        self.assertIn("НЕ ИЗМЕРЕНО", line[0])
+
+    def test_the_report_names_every_unjudgeable_reader_not_just_counts_them(self):
+        """Эти читатели и были прежней монетой: всплывали в `collapses_to_last`
+        и пропадали через прогон. Число без имён вернуло бы их в безымянность."""
+        doc = {"overall": g16.STATUS_WARNING, "reason": "—",
+               "key_probe": {"measured": False, "reason": "—"},
+               "migration": {"measured": False, "reason": "—"},
+               "act_bounds": {"measured": False, "reason": "—"},
+               "readers": {"measured": True, "outcomes": {},
+                           "modules": [{"module": "mod.hvg", "entry": "run",
+                                        "outcome": g16.READER_UNMEASURED,
+                                        "cause": g16.CAUSE_RESTS_ON_UNSTABLE,
+                                        "reason": "вся разница в снятых координатах"}]}}
+        lines = [ln for ln in g16.format_report(doc) if "[СУДИТЬ НЕЧЕМ]" in ln]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("mod.hvg", lines[0])
+
+    def test_the_report_names_every_module_it_refused_to_call(self):
+        doc = {"overall": g16.STATUS_WARNING, "reason": "—",
+               "key_probe": {"measured": False, "reason": "—"},
+               "migration": {"measured": False, "reason": "—"},
+               "act_bounds": {"measured": False, "reason": "—"},
+               "readers": {"measured": True, "outcomes": {},
+                           "modules": [{"module": "mod.a", "outcome": g16.READER_UNMEASURED,
+                                        "cause": g16.CAUSE_WOULD_ACT,
+                                        "reason": "вызов подвинул бы деньги"}]}}
+        lines = [ln for ln in g16.format_report(doc) if "[ОТКАЗ ЗВАТЬ]" in ln]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("mod.a", lines[0])
+
+
+class G26StabilityHelperTests(unittest.TestCase):
+    """Нестабильность МЕРЯЕТСЯ, а не угадывается по имени поля."""
+
+    def test_identical_answers_have_no_unstable_coordinates(self):
+        obj = {"a": 1, "b": [1, 2, {"c": "x"}]}
+        self.assertEqual(g16.unstable_coords(obj, json.loads(json.dumps(obj))), set())
+
+    def test_a_nested_difference_is_found_by_its_path(self):
+        """Предмет аварии: `_strip_clock` снимает только ВЕРХНИЙ уровень, а
+        `age_s` живёт на два уровня глубже."""
+        a = {"inputs": {"journal": {"age_s": 1.1}}}
+        b = {"inputs": {"journal": {"age_s": 1.2}}}
+        self.assertEqual(g16.unstable_coords(a, b), {".inputs.journal.age_s"})
+
+    def test_masking_touches_only_the_named_coordinate(self):
+        obj = {"keep": 5, "drop": 9}
+        out = g16.mask_coords(obj, {".drop"})
+        self.assertEqual(out["keep"], 5)
+        self.assertNotEqual(out["drop"], 9)
+
+    def test_an_input_timestamp_is_not_silenced_by_name(self):
+        """`feed_coverage.as_of` — это ВХОД, а не часы. Глушить его по виду
+        имени значило бы отвечать не на тот вопрос; мера — расхождение."""
+        a = {"feed_coverage": {"as_of": "день-1"}}
+        self.assertEqual(g16.unstable_coords(a, a), set())
+
+    def test_stable_leaves_counts_what_survived_the_mask(self):
+        self.assertEqual(g16._stable_leaves({"a": 1, "b": 2}, {".a"}), 1)
+        self.assertEqual(g16._stable_leaves({"a": 1}, {".a"}), 0)
