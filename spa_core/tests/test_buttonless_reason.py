@@ -136,7 +136,7 @@ def _commit(root: Path, msg="c"):
 def _beacon(tmp_path: Path, *, alive: bool = True) -> Path:
     """Маячок живого обработчика нажатий. Мёртвый — просто очень старый."""
     p = tmp_path / "beacon.json"
-    # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-399): 10 000 с было меньше нового порога
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-400): 10 000 с было меньше нового порога
     # кнопок (часы) — «бота нет» задаётся от порога модуля, а не литералом.
     stamped = NOW - timedelta(seconds=0 if alive else aa.BEACON_MAX_AGE_S + 60)
     p.write_text(json.dumps({

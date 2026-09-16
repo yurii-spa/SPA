@@ -153,7 +153,7 @@ class Router:
 
         parsed = self.parse_callback(data, chat_id)
         if parsed is None:
-            # Неизвестный `act:`-глагол (ADR-399). Раньше он проваливался в ветку по
+            # Неизвестный `act:`-глагол (ADR-400). Раньше он проваливался в ветку по
             # умолчанию `_apply_action` → «settings», и строка ниже ПЕРЕПИСЫВАЛА сообщение
             # панелью настроек — то есть стирала сам вопрос владельцу. Ровно от этого
             # ADR-069 §6 и защищался маячком, снимая кнопки на каждом перезапуске бота.
@@ -243,7 +243,7 @@ class Router:
         """Decode callback_data → (view_path, arg, page). Applies act: verbs.
 
         Returns the view to render after any state mutation, or ``None`` for an
-        ``act:`` verb this process does not know (ADR-399): the caller then leaves the
+        ``act:`` verb this process does not know (ADR-400): the caller then leaves the
         tapped message untouched instead of re-rendering it as a settings panel.
         """
         data = str(data or "")
@@ -299,4 +299,4 @@ class Router:
             prefs_store.set_pref(chat_id, "mute_until",
                                  (now + secs) if secs < 10 ** 9 else 10 ** 10)
             return "settings", "", 0
-        return None  # неизвестный глагол — НЕ переписывать сообщение (ADR-399)
+        return None  # неизвестный глагол — НЕ переписывать сообщение (ADR-400)
