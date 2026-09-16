@@ -189,6 +189,11 @@ CAUSE_ENTRY_RAISED = "entry_raised"
 CAUSE_IRREPRODUCIBLE = "answer_not_reproducible"
 CAUSE_RESTS_ON_UNSTABLE = "verdict_rests_on_unstable_coords"
 CAUSE_SELF = "the_instrument_itself"
+#: Часы прогона до читателя НЕ ДОШЛИ, потому что его точка входа их не берёт.
+#: Своя причина, а не общее ведро: «часы провести некуда» и «часы проведены, а
+#: вердикта всё равно нет» — разные утверждения, и лечатся они в разных местах
+#: (первое — правкой ЧИТАТЕЛЯ, второе — правкой прибора).
+CLOCK_NOT_ACCEPTED = "entry_takes_no_clock"
 #: Стенд до читателя НЕ ДОШЁЛ — ответ тот же и на ПУСТОМ каталоге. Своя причина,
 #: а не `insensitive_stand`: «стенд не сдвинул ответ» и «читатель вообще не
 #: открывал каталог стенда» — разные утверждения, и второе НИЧЕГО не говорит о
@@ -690,11 +695,46 @@ def mask_coords(obj, drop: Set[str], path: str = ""):
     return obj
 
 
-def module_driver(mod) -> Tuple[Optional[str], Optional[Callable[[Path], object]]]:
+def clock_kwarg(fn, now: Optional[datetime]) -> Dict[str, object]:
+    """``{"now": now}``, если точка входа берёт часы, иначе ``{}``.
+
+    Заказ G28, часть 1. Определение ОДНО и живёт здесь, потому что ответ нужен
+    в двух местах — при СВЯЗЫВАНИИ зова (``module_driver``) и при записи строки
+    отчёта (``classify_reader``). Будь их два, у переписи завелась бы вторая
+    копия правила «часы проведены» — ровно тот класс, который она ловит у
+    читателей журнала.
+
+    Спрашивается у ПОДПИСИ, но проверяется ИСХОДОМ: положительный контроль
+    ``test_injected_clock_reaches_the_reader`` сверяет не наличие параметра, а
+    то, что ответ читателя несёт ИМЕННО переданное время.
+    """
+    if now is None:
+        return {}
+    try:
+        params = inspect.signature(fn).parameters
+    except (ValueError, TypeError):
+        return {}
+    return {"now": now} if "now" in params else {}
+
+
+def module_driver(mod, *, now: Optional[datetime] = None
+                  ) -> Tuple[Optional[str], Optional[Callable[[Path], object]]]:
     """Как позвать модуль так, как его зовёт цикл. Не нашли — ``None``.
 
     ``write=False`` передаётся везде, где параметр есть: стенд — копия, но
     прибор не имеет права опираться на это и писать туда, куда его не звали.
+
+    ``now`` — ЧАСЫ ПРОГОНА, и проводятся они здесь, в единственном месте, где
+    зов связывается (заказ G28). До этой правки прибор звал читателя без часов,
+    тот брал их у машины, и его ``generated_at`` расходился между двумя пробами
+    ОДНОГО стенда просто оттого, что между зовами прошло время. Дальше работал
+    защитный ход: координата объявлялась нестабильной и СНИМАЛАСЬ, а если вся
+    разница между стендами лежала в снятом — вердикт не выносился вовсе
+    (``verdict_rests_on_unstable_coords``). Замер 16.09: так стояли **26**
+    читателей из 108, и **26 из 26 УЖЕ принимали** ``now=`` — то есть цена,
+    которую заказ собирался платить у читателя, была уплачена давно, а не
+    проводила часы ПРОВОДКА. Половина инъекции есть та же бомба, что её
+    отсутствие (``.claude/rules/deployment.md``); недостающая половина была эта.
     """
     for name in _DATA_DIR_ENTRIES:
         fn = getattr(mod, name, None)
@@ -703,12 +743,15 @@ def module_driver(mod) -> Tuple[Optional[str], Optional[Callable[[Path], object]
             params = list(sig.parameters)
             if params and params[0] in _DATA_DIR_PARAMS:
                 kwargs = {"write": False} if "write" in sig.parameters else {}
+                kwargs.update(clock_kwarg(fn, now))
                 return name, (lambda stand, fn=fn, kw=kwargs: fn(stand / "data", **kw))
     fn = getattr(mod, "run", None)
     if callable(fn) and inspect.isfunction(fn):
         sig = inspect.signature(fn)
         if "write" in sig.parameters and "root" in sig.parameters:
-            return "run", (lambda stand, fn=fn: fn(root=str(stand), write=False))
+            kwargs = clock_kwarg(fn, now)
+            return "run", (lambda stand, fn=fn, kw=kwargs:
+                           fn(root=str(stand), write=False, **kw))
     extra = _EXTRA_READ_ONLY_ENTRIES.get(getattr(mod, "__name__", ""))
     if extra:
         fn = getattr(mod, extra, None)
@@ -716,7 +759,8 @@ def module_driver(mod) -> Tuple[Optional[str], Optional[Callable[[Path], object]
             sig = inspect.signature(fn)
             params = list(sig.parameters)
             if params and params[0] in _DATA_DIR_PARAMS:
-                return extra, (lambda stand, fn=fn: fn(stand / "data"))
+                kwargs = clock_kwarg(fn, now)
+                return extra, (lambda stand, fn=fn, kw=kwargs: fn(stand / "data", **kw))
     return None, None
 
 
@@ -783,8 +827,15 @@ def no_entry_cause(mod) -> Tuple[str, str]:
             f"каталог data/ первым параметром (есть: {', '.join(sorted(fns)[:6])})")
 
 
-def classify_reader(module_name: str, stands: dict) -> dict:
-    """Вердикт одному читателю — по ИСХОДУ на трёх стендах."""
+def classify_reader(module_name: str, stands: dict, *,
+                    now: Optional[datetime] = None) -> dict:
+    """Вердикт одному читателю — по ИСХОДУ на трёх стендах.
+
+    ``now`` проводится в САМ читатель (заказ G28). Одно и то же время во всех
+    четырёх пробах означает, что расхождение между ответами может быть только о
+    СТЕНДЕ, а не о том, сколько заняли зовы. Часы, которые читатель не берёт,
+    записываются причиной ``entry_takes_no_clock`` — не измерено, а не «ноль».
+    """
     row: Dict[str, object] = {"module": module_name}
     never = _NEVER_CALL.get(module_name)
     if never:
@@ -798,12 +849,20 @@ def classify_reader(module_name: str, stands: dict) -> dict:
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_IMPORT_FAILED,
                    reason=f"импорт не удался: {type(exc).__name__}")
         return row
-    entry, call = module_driver(mod)
+    entry, call = module_driver(mod, now=now)
     if call is None:
         cause, reason = no_entry_cause(mod)
         row.update(outcome=READER_UNMEASURED, cause=cause, reason=reason)
         return row
     row["entry"] = entry
+    # Записывается ФАКТ, а не намерение: строка отчёта обязана различать
+    # «вердикт получен при проведённых часах» и «вердикт получен при стенных».
+    # Без этого поля улучшение счётчика было бы неотличимо от везения.
+    injected = bool(clock_kwarg(getattr(mod, entry), now))
+    row["clock_injected"] = injected
+    if not injected:
+        row["clock_reason"] = (CLOCK_NOT_ACCEPTED if now is not None
+                               else "часы прогона прибору не переданы")
     try:
         raw1 = call(stands["s1"])
         # Пауза НУЖНА, а третья проба — нет. Поле, бегущее на каждом зове,
@@ -1351,7 +1410,7 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
             elif name in http_probes:
                 row = classify_http_reader(name, http_probes[name])
             else:
-                row = classify_reader(name, stands)
+                row = classify_reader(name, stands, now=now)
             row["roads"] = sorted(roads[name])
             rowsout.append(row)
         readers["measured"] = True

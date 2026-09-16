@@ -1812,3 +1812,184 @@ class G27PopulationTests(unittest.TestCase):
                       g16.http_modules(["spa_core.api.server"]))
         self.assertEqual(g16.http_modules(["spa_core.monitoring.run_identity_key_price"]),
                          [])
+
+
+# ── G28 · ЧАСЫ ПРОГОНА ДОХОДЯТ ДО ЧИТАТЕЛЯ ───────────────────────────────────
+#: Три ветви связывания зова — три отдельных контроля. Одна ветвь, потерявшая
+#: часы, остальными не ловится: «половина инъекции есть та же бомба»
+#: (`.claude/rules/deployment.md`, поправка #453). Стенные часы в стабах не
+#: спрашиваются ни разу — вместо них счётчик, который РАСТЁТ на каждом зове:
+#: он воспроизводит тот же дефект (координата бежит от зова к зову)
+#: детерминированно, а не по везению планировщика.
+_G28_STUBS = {
+    # Журнала не читает, но несёт координату, производную от часов. Именно так
+    # устроены 8 из 9 читателей, стоявших в `verdict_rests_on_unstable_coords`
+    # на замере 16.09: вся разница между стендами лежала в этой координате.
+    "deafclock": "_N=[0]\n"
+                 "def measure(data_dir, now=None):\n"
+                 "    if now is None:\n"
+                 "        _N[0]+=1\n"
+                 "        age=_N[0]\n"
+                 "    else:\n"
+                 "        age=int(now.timestamp())\n"
+                 "    return {'answer': 'журнала не читаю', 'age_s': age}\n",
+    # Журнал ЧИТАЕТ и схлопывает день — и тоже несёт бегущую координату.
+    # Нужен затем, чтобы «insensitive_stand» под проведёнными часами не
+    # оказалось универсальным ответом: контроль, истинный по построению,
+    # доказывал бы только сам себя.
+    "lastclock": "_N=[0]\n"
+                 "def measure(data_dir, now=None):\n"
+                 "    import json\n"
+                 "    if now is None:\n"
+                 "        _N[0]+=1\n"
+                 "        age=_N[0]\n"
+                 "    else:\n"
+                 "        age=int(now.timestamp())\n"
+                 "    rows=[json.loads(l) for l in (data_dir/'h.jsonl').read_text().splitlines() if l.strip()]\n"
+                 "    by={}\n"
+                 "    for r in rows: by[r['cycle_date']]=r\n"
+                 "    return {'age_s': age,\n"
+                 "            'verdicts': sorted((d, v['verdict']) for d, v in by.items())}\n",
+    # Часы брать НЕКУДА: у точки входа нет такого параметра. `**kw` тоже не
+    # годится — прибор не подсовывает имени, которого callee не объявил.
+    "noclock": "def measure(data_dir, **kw):\n"
+               "    return {'answer': 'часов не беру'}\n",
+    # Вторая ветвь связывания: `run(root=..., write=...)`. По ней зовутся
+    # `house_view_gap`, `capital_evidence_coverage`, `apy_composition`.
+    "runclock": "def run(root=None, *, now=None, write=True):\n"
+                "    return {'got_now': None if now is None else now.isoformat(),\n"
+                "            'write': write, 'root': str(root)}\n",
+    # Третья ветвь: именной список `_EXTRA_READ_ONLY_ENTRIES`.
+    "extraclock": "def read_brief(data_dir, now=None):\n"
+                  "    return {'got_now': None if now is None else now.isoformat()}\n",
+}
+
+#: Часы, которые тест проводит. От якоря файла, не от календаря машины.
+_G28_NOW = _ANCHOR + timedelta(hours=3)
+
+
+class G28InjectedClockTests(unittest.TestCase):
+    """Заказ G28, часть 1: часы прогона доходят до САМОГО читателя.
+
+    Замер 16.09 до правки: **26 из 26** читателей класса
+    `verdict_rests_on_unstable_coords` УЖЕ принимали ``now=`` — цена, которую
+    заказ собирался платить у читателя, была уплачена давно. Не проводила часы
+    ПРОВОДКА переписи, и эти тесты стерегут именно её.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="g28_clock_")
+        self.root = Path(self._tmp.name)
+        self.pkg = self.root / "stubs"
+        self.pkg.mkdir()
+        for name, src in _G28_STUBS.items():
+            (self.pkg / f"g28stub_{name}.py").write_text(src, encoding="utf-8")
+        sys.path.insert(0, str(self.pkg))
+        self.stands = {}
+        for stand, rows in (("s1", [_row(0, verdict="HOLD", hours=9)]),
+                            ("s2", [_row(0, verdict="ACT", hours=1),
+                                    _row(0, verdict="HOLD", hours=9)]),
+                            ("s3", [_row(0, verdict="ACT", hours=1)])):
+            data = self.root / stand / "data"
+            data.mkdir(parents=True)
+            (data / "h.jsonl").write_text(
+                "\n".join(json.dumps(r, sort_keys=True) for r in rows) + "\n",
+                encoding="utf-8")
+            self.stands[stand] = self.root / stand
+
+    def tearDown(self):
+        sys.path.remove(str(self.pkg))
+        for name in list(sys.modules):
+            if name.startswith("g28stub_"):
+                del sys.modules[name]
+        self._tmp.cleanup()
+
+    def _mod(self, stub):
+        return importlib.import_module(f"g28stub_{stub}")
+
+    # ── ветвь 1: measure/build/evaluate_window ───────────────────────────────
+    def test_injected_clock_reaches_the_reader_by_outcome(self):
+        """Проверяется ФОРМА ЗОВА через ИСХОД, а не наличие параметра.
+
+        Читатель возвращает то время, которое получил. Уронив `clock_kwarg` из
+        `module_driver`, получим `None` — и тест покраснеет, хотя параметр у
+        точки входа как стоял, так и стоит.
+        """
+        _name, call = g16.module_driver(self._mod("runclock"), now=_G28_NOW)
+        self.assertEqual(call(self.stands["s1"])["got_now"], _G28_NOW.isoformat())
+
+    def test_without_the_clock_the_same_reader_gets_no_verdict(self):
+        """ОБРАТНАЯ сторона: без часов тот же читатель на тех же стендах
+        уходит в `verdict_rests_on_unstable_coords`. Без этого контроля
+        зелёный тест ниже был бы истинным по построению."""
+        row = g16.classify_reader("g28stub_deafclock", self.stands)
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_RESTS_ON_UNSTABLE)
+        self.assertIs(row["clock_injected"], False)
+
+    def test_with_the_clock_the_verdict_is_obtained(self):
+        """ИСХОД заказа G28: тот же читатель, те же стенды, часы проведены —
+        вердикт есть, и он честный («стенд не сдвинул ответ»)."""
+        row = g16.classify_reader("g28stub_deafclock", self.stands, now=_G28_NOW)
+        self.assertEqual(row["outcome"], g16.READER_INSENSITIVE)
+        self.assertIsNone(row.get("cause"))
+        self.assertIs(row["clock_injected"], True)
+
+    def test_injection_does_not_paint_every_reader_insensitive(self):
+        """Контроль против самого дешёвого способа «улучшить» счётчик: если бы
+        проведённые часы гасили РАЗНИЦУ, схлопывающий читатель тоже стал бы
+        `insensitive_stand`, и класс «убыл» бы враньём."""
+        row = g16.classify_reader("g28stub_lastclock", self.stands, now=_G28_NOW)
+        self.assertEqual(row["outcome"], g16.READER_LAST)
+        self.assertIs(row["clock_injected"], True)
+
+    def test_an_entry_that_takes_no_clock_says_so_rather_than_lying(self):
+        """Инв. #17: «часы провести некуда» — отдельное значение, а не False
+        без причины и не молчание. Лечится оно в ДРУГОМ месте (у читателя)."""
+        row = g16.classify_reader("g28stub_noclock", self.stands, now=_G28_NOW)
+        self.assertIs(row["clock_injected"], False)
+        self.assertEqual(row["clock_reason"], g16.CLOCK_NOT_ACCEPTED)
+
+    def test_kwargs_catchall_is_not_treated_as_accepting_the_clock(self):
+        """`**kw` НЕ считается согласием принять часы: подсунуть имя, которого
+        callee не объявил, значило бы гадать о его смысле. Fail-CLOSED."""
+        self.assertEqual(g16.clock_kwarg(self._mod("noclock").measure, _G28_NOW), {})
+
+    # ── ветвь 2: run(root=..., write=...) ────────────────────────────────────
+    def test_the_run_entry_branch_carries_the_clock_too(self):
+        """Своя ветвь связывания — свой контроль. По ней зовутся `house_view_gap`
+        и `capital_evidence_coverage`; потеряй она часы, ветвь 1 промолчала бы."""
+        _name, call = g16.module_driver(self._mod("runclock"), now=_G28_NOW)
+        answer = call(self.stands["s1"])
+        self.assertEqual(answer["got_now"], _G28_NOW.isoformat())
+        self.assertFalse(answer["write"], "write=False обязан уцелеть рядом с часами")
+
+    def test_the_run_entry_branch_without_a_clock_stays_silent(self):
+        self.assertIsNone(
+            g16.module_driver(self._mod("runclock"))[1](self.stands["s1"])["got_now"])
+
+    # ── ветвь 3: именной список read-only точек входа ────────────────────────
+    def test_the_named_extra_entry_branch_carries_the_clock_too(self):
+        from unittest import mock
+        with mock.patch.dict(g16._EXTRA_READ_ONLY_ENTRIES,
+                             {"g28stub_extraclock": "read_brief"}):
+            _name, call = g16.module_driver(self._mod("extraclock"), now=_G28_NOW)
+            self.assertEqual(call(self.stands["s1"])["got_now"], _G28_NOW.isoformat())
+
+    # ── проводка сверху: часы прогона, а не вторые часы ──────────────────────
+    def test_the_sweep_hands_its_own_clock_down_to_every_reader(self):
+        """Проверка по ФОРМЕ ЗОВА (`.claude/rules` — «check wiring by CALL FORM»),
+        и это сказано вслух: полный прогон переписи внутри unit-теста обошёлся бы
+        в обход 2151 модуля. Что зов доносит часы ДО читателя — доказано выше
+        исходом; здесь стережётся только то, что `measure` их не теряет."""
+        import ast as _ast
+        tree = _ast.parse(Path(g16.__file__).read_text(encoding="utf-8"))
+        found = []
+        for node in _ast.walk(tree):
+            if (isinstance(node, _ast.Call) and isinstance(node.func, _ast.Name)
+                    and node.func.id == "classify_reader"):
+                found.append({kw.arg for kw in node.keywords})
+        self.assertTrue(found, "вызова classify_reader в приборе нет вовсе")
+        for kwargs in found:
+            self.assertIn("now", kwargs,
+                          "перепись зовёт читателя без часов — половина инъекции")

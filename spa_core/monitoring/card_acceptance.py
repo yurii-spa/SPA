@@ -1165,6 +1165,168 @@ def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[s
                        f"{len(reached)}; причина http_route_handler с него снята")
 
 
+def _probe_journal_reader_census_verdict_under_injected_clock(
+        arg: str | None) -> tuple[str, str]:
+    """Вердикт читателю получается при ПРОВЕДЁННЫХ часах прогона (заказ G28).
+
+    Критерий карточки дословно: *«у каждого либо есть вердикт по ИСХОДУ на трёх
+    стендах при ИНЪЕКТИРОВАННЫХ часах, либо названа причина, по которой инъекция
+    невозможна; счётчик `unmeasured_causes.verdict_rests_on_unstable_coords`
+    убывает, а не переименовывается»*.
+
+    Меряется НАСТОЯЩИЙ контур переписи на одноразовых стендах — так же, как у
+    соседней пробы G27, и по той же причине: артефакт мог быть написан кодом,
+    которого в дереве уже нет. Живой ``data/`` не открывается ни одним звеном:
+    журнал стенда синтетический, обе строки строит сама проба.
+
+    Четыре звена, и каждое рвётся отдельно:
+
+    1. **Часы доходят до читателя.** Читатель возвращает полученное время;
+       сверяется ЗНАЧЕНИЕ, а не наличие параметра. Рвётся потерей часов в
+       ``module_driver`` — то есть ровно тем состоянием, что было до G28.
+    2. **Без часов вердикта НЕТ.** Тот же читатель на тех же стендах уходит в
+       ``verdict_rests_on_unstable_coords``. Без этого звена звено 3 было бы
+       истинным по построению и доказывало бы только само себя.
+    3. **С часами вердикт ЕСТЬ.** Исход, а не структура.
+    4. **Инъекция не красит всех подряд.** Схлопывающий читатель остаётся
+       схлопывающим: иначе счётчик «убыл» бы враньём — самый дешёвый способ
+       погасить класс, и он обязан краснеть.
+
+    Население (счётчик в артефакте) — РИДЕР, а не гейт, и это сказано вслух:
+    артефакт пишет дневной цикл, а не проба. Строка ``clock_injected`` в нём
+    доказывает, что артефакт написан НОВЫМ кодом; пока её нет, население
+    честно отвечает «не измерено», а вердикт пробы решают звенья 1–4.
+    """
+    import tempfile
+    from datetime import timedelta
+    from pathlib import Path as _Path
+
+    from spa_core.monitoring import run_identity_key_price as census
+
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "про класс целиком, а не про один модуль")
+
+    #: Читатель-стенд, воспроизводящий дефект ДЕТЕРМИНИРОВАННО: без часов его
+    #: координата бежит на каждом зове (счётчик, а не стенные часы — иначе
+    #: звено 2 держалось бы на везении планировщика), с часами стоит.
+    reader_src = (
+        "_N=[0]\n"
+        "def measure(data_dir, now=None):\n"
+        "    if now is None:\n"
+        "        _N[0]+=1\n"
+        "        age=_N[0]\n"
+        "    else:\n"
+        "        age=int(now.timestamp())\n"
+        "    return {'answer': 'журнала не читаю', 'age_s': age}\n")
+    collapsing_src = (
+        "_N=[0]\n"
+        "def measure(data_dir, now=None):\n"
+        "    import json\n"
+        "    if now is None:\n"
+        "        _N[0]+=1\n"
+        "        age=_N[0]\n"
+        "    else:\n"
+        "        age=int(now.timestamp())\n"
+        "    rows=[json.loads(l) for l in (data_dir/'h.jsonl').read_text().splitlines() if l.strip()]\n"
+        "    by={}\n"
+        "    for r in rows: by[r['cycle_date']]=r\n"
+        "    return {'age_s': age, 'verdicts': sorted((d, v['verdict']) for d, v in by.items())}\n")
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="spa_g28_probe_") as tmp:
+            root = _Path(tmp)
+            pkg = root / "stubs"
+            pkg.mkdir()
+            (pkg / "g28probe_deaf.py").write_text(reader_src, encoding="utf-8")
+            (pkg / "g28probe_last.py").write_text(collapsing_src, encoding="utf-8")
+            stands = {}
+            for stand, rows in (("s1", [{"cycle_date": "2026-09-11", "verdict": "HOLD"}]),
+                                ("s2", [{"cycle_date": "2026-09-11", "verdict": "ACT"},
+                                        {"cycle_date": "2026-09-11", "verdict": "HOLD"}]),
+                                ("s3", [{"cycle_date": "2026-09-11", "verdict": "ACT"}])):
+                data = root / stand / "data"
+                data.mkdir(parents=True)
+                (data / "h.jsonl").write_text(
+                    "\n".join(json.dumps(r, sort_keys=True) for r in rows) + "\n",
+                    encoding="utf-8")
+                stands[stand] = root / stand
+            now = datetime(2026, 9, 11, 15, 0, 0, tzinfo=timezone.utc) + timedelta(0)
+            sys.path.insert(0, str(pkg))
+            try:
+                import importlib
+                deaf = importlib.import_module("g28probe_deaf")
+                _entry, call = census.module_driver(deaf, now=now)
+                if call is None:
+                    return NOT_SATISFIED, "звено 1: прибор не умеет привести читателя"
+                got = call(stands["s1"]).get("age_s")
+                if got != int(now.timestamp()):
+                    return NOT_SATISFIED, (f"звено 1: часы до читателя не дошли — "
+                                           f"он ответил {got!r}, а ждали "
+                                           f"{int(now.timestamp())!r}")
+                bare = census.classify_reader("g28probe_deaf", stands)
+                if bare.get("cause") != census.CAUSE_RESTS_ON_UNSTABLE:
+                    return NOT_SATISFIED, (
+                        "звено 2: БЕЗ часов тот же читатель получил вердикт "
+                        f"{bare.get('outcome')}/{bare.get('cause')} — значит зелёное "
+                        "звено 3 ничего про инъекцию не доказывает")
+                lit = census.classify_reader("g28probe_deaf", stands, now=now)
+                if lit.get("outcome") == census.READER_UNMEASURED:
+                    return NOT_SATISFIED, (
+                        f"звено 3: с часами вердикта всё равно нет — "
+                        f"{lit.get('cause')}: {lit.get('reason')}")
+                if lit.get("clock_injected") is not True:
+                    return NOT_SATISFIED, ("звено 3: строка не признаёт, что часы "
+                                           "проведены — улучшение было бы неотличимо "
+                                           "от везения")
+                coll = census.classify_reader("g28probe_last", stands, now=now)
+                if coll.get("outcome") != census.READER_LAST:
+                    return NOT_SATISFIED, (
+                        "звено 4: схлопывающий читатель под проведёнными часами "
+                        f"стал {coll.get('outcome')} — инъекция гасит РАЗНИЦУ, а не "
+                        "шум, и класс убыл бы враньём")
+            finally:
+                sys.path.remove(str(pkg))
+                for name in list(sys.modules):
+                    if name.startswith("g28probe_"):
+                        del sys.modules[name]
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"контур не отработал: {type(exc).__name__}: {exc}"
+
+    #: Замер населения ДО работы: 2026-09-16, ПОЛНЫЙ прогон переписи (785 с) на
+    #: живом `data/` и на ЭТОМ дереве, часы стенные. Число с датой, а не
+    #: константа; меряет его сама перепись.
+    #:
+    #: Именно 13, а не 26 из вчерашнего артефакта: тот написан кодом ДО заказа
+    #: G27 (в нём `http_route_handler` = 20, у нас 2). Сравнивать с ним значило
+    #: бы сложить два разных изменения в одно число и приписать G28 чужую
+    #: заслугу. База берётся у КОНТРОЛЬНОГО прогона того же дерева.
+    baseline = 13
+    tail = ""
+    doc = None
+    try:
+        art = os.path.join(REPO_ROOT, "data", census.ARTIFACT)
+        with open(art, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except BaseException:  # noqa: BLE001 — население тут РИДЕР, а не гейт
+        doc = None
+    rows = ((doc or {}).get("readers") or {}).get("modules") or []
+    if not rows:
+        tail = " · население НЕ ИЗМЕРЕНО: артефакт переписи не прочитан"
+    elif not any("clock_injected" in r for r in rows):
+        tail = (" · население НЕ ИЗМЕРЕНО: артефакт написан ещё СТАРЫМ кодом "
+                "(строки не несут clock_injected) — счётчик обновит ближайший "
+                "прогон переписи в дневном цикле")
+    else:
+        now_n = int(((doc.get("readers") or {}).get("unmeasured_causes")
+                     or {}).get(census.CAUSE_RESTS_ON_UNSTABLE, 0))
+        tail = (f" · население: {now_n} против {baseline} на замере 16.09 "
+                f"({'убыло' if now_n < baseline else 'НЕ убыло'})")
+    return SATISFIED, ("контур переписи доказан исходом: без часов "
+                       "verdict_rests_on_unstable_coords, с часами вердикт есть, "
+                       "схлопывающий читатель схлопывающим и остался" + tail)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1178,6 +1340,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
+    "journal_reader_census_verdict_under_injected_clock":
+        _probe_journal_reader_census_verdict_under_injected_clock,
 }
 
 
