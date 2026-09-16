@@ -2,19 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-16T04:54:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-16T15:46:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (5e575db92).
+> Сверено с `origin/main` (997e76103) · у **6** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1061** · ждёт владельца: **6** · занято сессиями: **14**.
+> Всего карточек: **1063** · ждёт владельца: **2** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально**  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md`
-- **Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?**  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md`
-- **Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку**  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md`
-- **Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md`
 - **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -40,10 +36,6 @@
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
-- Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md` · 2026-09-15
-- Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
-- Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -166,9 +158,11 @@
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - earn-defi: в белом списке пусто — движок не может профинансировать ничего  ·  `owner-decision-earn-defi-belyi-spisok-nichego-ne-odobreno.md` · 2026-09-09
 - earn-defi: данные взяты по бесплатной лицензии «не для коммерции»  ·  `owner-decision-earn-defi-litsenziya-na-dannye-do-deneg.md` · 2026-09-09
+- earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
 - earn-defi: таблица режимов на истории НЕ бьёт «просто держать биткоин»  ·  `owner-decision-earn-defi-tablitsa-rezhimov-ne-bet-buy-and-hold.md` · 2026-09-09
 - Аварийный выключатель EB-02 сравнивает живой рынок с одиннадцатью числами, вписанными в код  ·  `owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi.md` · 2026-08-10
 - Единственная честная вневыборочная таблица реестра посчитана способом, который льстит сторожу — что делать с опубликованными числами  ·  `owner-decision-edinstvennaya-chestnaya-vnevyborochnaya.md` · 2026-09-04
+- Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?  ·  `owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili.md` · 2026-09-15
 - Эталонная планка исследований насильно докупает убыточные книги — менять ли конвенцию  ·  `owner-decision-etalonnaya-planka-issledovanii-nasilno-d.md` · 2026-09-02
 - Ежедневную проверку аналитики некому гонять — выбери, кто это делает  ·  `owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g.md` · 2026-08-24
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
@@ -212,6 +206,7 @@
 - Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение  ·  `owner-decision-nol-ne-izmereno-etim-instrumentom-nedost.md` · 2026-08-31
 - Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md` · 2026-09-01
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
+- Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
@@ -246,6 +241,7 @@
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat.md` · 2026-08-08
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
+- Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
 - Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций  ·  `owner-decision-sbalansirovannyi-tir-na-saite-idet-paper.md` · 2026-08-13
 - Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности  ·  `owner-decision-schitat-li-dopisannye-zadnim-chislom-sta.md` · 2026-09-10
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
@@ -320,7 +316,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (543)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (545)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -430,6 +426,7 @@
 - Гейт перед деплоем поднимает второго Telegram-бота на том же токене  ·  `inbox-geit-pered-deploem-podnimaet-vtorogo-tel.md` · 2026-08-08
 - Гэп-анализ офиса сравнивает имена протоколов с КОРТЕЖАМИ — обе ветки мертвы, реальные возможности объявлены недостижимыми  ·  `inbox-gep-analiz-ofisa-sravnivaet-imena-protok.md` · 2026-08-12
 - Храповик импортов советует затянуть себя по замеру, которого не было  ·  `inbox-hrapovik-importov-sovetuet-zatyanut-seby.md` · 2026-08-17
+- Храповик инварианта #17 красен на чистом origin: база отстала на 17 членов, пять из них в adapter_repair_price.py  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom.md` · 2026-09-16
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
 - Храповик литеральных дат снова КРАСНЫЙ на main — test_owner_order_starvation.py (приехал 26.08)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na.md` · 2026-08-27
@@ -751,7 +748,6 @@
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
 - Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
-- Храповик инварианта #17 красен на чистом origin: база отстала на 17 членов, пять из них в adapter_repair_price.py  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom.md` · 2026-09-16
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат КРАСНЫЙ на main: test_act_day_recovery.py вошёл в закрытый класс (замер #602)  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-main.md` · 2026-09-14
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
@@ -786,6 +782,7 @@
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
+- Осиротевшая работа cycle-13765: второй артефакт TVL (остаток G1) лежит в /private/tmp/spa-cio-14737, и её номер ADR уже занят  ·  `inbox-osirotevshaya-rabota-cycle-13765-vtoroi.md` · 2026-09-16
 - Осиротевшая работа cycle-74714 (05.09): наблюдение есть, но не в том артефакте, куда смотрит гейт — $14 210 снято с цели  ·  `inbox-osirotevshaya-rabota-cycle-74714-05-09-n.md` · 2026-09-05
 - Осиротевшая работа цикла #474 (ADR-222) НЕ доставлена: её сторож в настоящем вызове не срабатывает никогда — сверяет прод-дерево само с собой  ·  `inbox-osirotevshaya-rabota-tsikla-474-adr-222.md` · 2026-09-04 · 🔒 `cycle-17778`
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
@@ -858,6 +855,7 @@
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
 - Тест доставки карточек красный в ЛЮБОМ свежем worktree: он судит mtime файлов дерева, а не поведение  ·  `inbox-test-dostavki-kartochek-krasnyi-v-lyubom.md` · 2026-09-08
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
+- Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
 - Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11

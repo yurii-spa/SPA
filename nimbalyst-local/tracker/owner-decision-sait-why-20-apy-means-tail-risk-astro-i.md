@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение"
-status: needs-owner
+status: ingested
 source: orchestrator
 created: 2026-09-09
 approves: landing/src/pages/learn/why-20-apy-means-tail-risk.astro, landing/src/pages/packages.astro, landing/src/pages/system.astro
@@ -54,5 +54,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 
 ## Что будет после
 Одобришь → изменение уезжает в live /dashboard и на сайт. Отклонишь → оркестратор не трогает эту область.
+
+## Ответ владельца (сессия 2026-09-16)
+
+**Одобрено.** Разрешение записано; фактический пуш трёх файлов с трейлером
+`Owner-Approved: sait-why-20-apy-means-tail-risk-astro-i` выполняет реальный оркестратор
+(доступ к `safe_site_push.py` и продовому дереву у этой сессии отсутствует) — заберёт это
+одобрение на ближайшем цикле.
 
 <!-- owner-gate-fingerprint: 6a9e44266a3f -->
