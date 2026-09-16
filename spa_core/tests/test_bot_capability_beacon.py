@@ -156,7 +156,9 @@ class EachSenderAsksItsOwn(unittest.TestCase):
         """Послабление не воскрешает мёртвого бота: протухший маячок — отказ."""
         b = _beacon(self.dir / "stale.json",
                     [aa.CAPABILITY, aa.CAPABILITY_OWNER_DECISIONS])
-        later = FIXED_NOW + timedelta(hours=1)
+        # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-400): «час» — это окно перезапуска
+        # бота, а не его смерть; протухшим маячок считается за порогом модуля.
+        later = FIXED_NOW + timedelta(seconds=aa.BEACON_MAX_AGE_S + 1)
         self.assertFalse(aa.handler_available(
             now=later, beacon_path=b,
             capability=aa.CAPABILITY_OWNER_DECISIONS,
@@ -196,8 +198,10 @@ class DecisionButtonsSurviveTheTransition(unittest.TestCase):
         self.assertIsNotNone(prepared.keyboard)
         b = _beacon(self.dir / "b.json",
                     [aa.CAPABILITY, aa.CAPABILITY_OWNER_DECISIONS])
+        # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-400): см. выше — порог модуля.
         late = od.prepare("Кэш лежит", CARD, "own-cash",
-                          now=FIXED_NOW + timedelta(hours=1), beacon_path=b)
+                          now=FIXED_NOW + timedelta(seconds=aa.BEACON_MAX_AGE_S + 1),
+                          beacon_path=b)
         self.assertIsNone(late.keyboard)
 
 
