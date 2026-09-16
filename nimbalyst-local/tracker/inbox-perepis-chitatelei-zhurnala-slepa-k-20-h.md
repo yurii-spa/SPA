@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-09-16
+acceptance_probe: journal_reader_census_reaches_http_routes
+status_trail:
+  - "2026-09-16T15:33:59.972368+00:00 new -> in-progress · queue.set_status · cycle-33965"
 ---
 
 ## Что измерено

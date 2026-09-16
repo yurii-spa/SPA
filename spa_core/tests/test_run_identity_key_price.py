@@ -1435,3 +1435,380 @@ class G26StabilityHelperTests(unittest.TestCase):
     def test_stable_leaves_counts_what_survived_the_mask(self):
         self.assertEqual(g16._stable_leaves({"a": 1, "b": 2}, {".a"}), 1)
         self.assertEqual(g16._stable_leaves({"a": 1}, {".a"}), 0)
+
+
+# ── G27: обработчики HTTP-маршрутов ──────────────────────────────────────────
+#
+# Заказ G27 приказа владельца «Portfolio CIO», часть 2. Перепись не выносила
+# вердикта 20 модулям из 61 не измеренного, и все двадцать — обработчики
+# HTTP-маршрутов, то есть РОВНО те читатели, чей ответ владелец видит на
+# дашборде. Причина стояла: «каталог стенда ему не передать». Замер её
+# опроверг, и каждый тест ниже — положительный контроль на конкретную поломку,
+# измеренную при этой работе, а не подтверждение, что код запускается.
+
+class _FakeRoute:
+    """Маршрут, как его видит FastAPI: путь, методы, обработчик."""
+
+    def __init__(self, path, endpoint, methods=("GET",)):
+        self.path = path
+        self.endpoint = endpoint
+        self.methods = set(methods)
+
+
+class _FakeRouter:
+    """Тип объекта — то, по чему прибор узнаёт HTTP-поверхность (не по имени)."""
+
+    def __init__(self, routes):
+        self.routes = list(routes)
+
+
+_FakeRouter.__name__ = "APIRouter"
+
+
+class _FakeModule:
+    def __init__(self, name, routes):
+        self.__name__ = name
+        self.router = _FakeRouter(routes)
+
+    def __iter__(self):                       # pragma: no cover — для vars()
+        return iter(())
+
+
+def _endpoint(name, module, fn):
+    fn.__name__ = name
+    fn.__module__ = module
+    return fn
+
+
+class G27HttpPrecondTests(unittest.TestCase):
+    """ПОСЫЛКА заказа: у маршрутов ворота ЕСТЬ, и прежняя причина была догадкой."""
+
+    def test_the_router_data_dir_resolves_at_call_time_from_the_env(self):
+        """Строка «каталог стенда ему не передать — он читает через модульный
+        корень» была НЕПРАВДОЙ, и это единственное, на чём держался вывод «20
+        модулей измерить нельзя». Ворота объявлены в докстринге самого
+        `_shared`: `data_dir()` резолвит `server._DATA_DIR`, а тот берётся из
+        `SPA_DATA_DIR`. Тест краснеет, если ворота исчезнут, — и тогда правка
+        G27 обязана быть пересмотрена, а не тихо продолжать работать."""
+        from spa_core.api import _shared, server
+        with tempfile.TemporaryDirectory(prefix="g27_gate_") as tmp:
+            saved = server._DATA_DIR
+            try:
+                server._DATA_DIR = Path(tmp)
+                self.assertEqual(_shared.data_dir(), Path(tmp))
+            finally:
+                server._DATA_DIR = saved
+
+    def test_the_prober_refuses_when_the_stand_dir_was_not_pinned(self):
+        """fail-CLOSED, и он тут не придирка. Без `SPA_DATA_DIR` обработчик
+        прочитал бы ЖИВОЙ каталог, а перепись доложила бы «нечувствителен к
+        стенду» — то есть выдала бы за наблюдение то, чего стенд не касался.
+        Это fail-OPEN, и он тише красной строки."""
+        from spa_core.monitoring import _http_reader_probe as probe
+        from unittest import mock
+        with tempfile.TemporaryDirectory(prefix="g27_noenv_") as tmp:
+            mods = Path(tmp) / "m.json"
+            mods.write_text("[]", encoding="utf-8")
+            out = Path(tmp) / "o.json"
+            with mock.patch.dict("os.environ", {}, clear=False):
+                import os as _os
+                _os.environ.pop(probe.DATA_DIR_ENV, None)
+                self.assertEqual(probe.main([str(mods), str(out)]), 2)
+                self.assertFalse(out.exists())
+            # обратный контроль: с пином тот же зов проходит — иначе тест был бы
+            # истинным по построению (отказывал бы на чём угодно)
+            with mock.patch.dict("os.environ", {probe.DATA_DIR_ENV: tmp}):
+                self.assertEqual(probe.main([str(mods), str(out)]), 0)
+                self.assertTrue(out.exists())
+
+
+class G27RouteSelectionTests(unittest.TestCase):
+    """Что зовётся, а что нет — и у каждого отказа НАЗВАНА причина."""
+
+    def setUp(self):
+        from spa_core.monitoring import _http_reader_probe as probe
+        self.probe = probe
+        self.called = []
+
+        def read(): self.called.append("read"); return {"ok": 1}
+
+        def write(): self.called.append("write"); return {"ok": 2}
+
+        def needs(pool_id): self.called.append("needs"); return {"ok": 3}
+
+        # ОТДЕЛЬНАЯ функция, а не та же: `__module__` — атрибут объекта, и
+        # переиспользование одного обработчика на двух маршрутах переписало бы
+        # хозяина первому. Первая редакция теста сделала ровно это и покраснела.
+        def alien(): self.called.append("alien"); return {"ok": 4}
+
+        self.mod = _FakeModule("g27mod", [
+            _FakeRoute("/read", _endpoint("read", "g27mod", read), ("GET", "HEAD")),
+            _FakeRoute("/write", _endpoint("write", "g27mod", write), ("POST",)),
+            _FakeRoute("/needs/{pool_id}", _endpoint("needs", "g27mod", needs), ("GET",)),
+            _FakeRoute("/alien", _endpoint("alien", "neighbour", alien), ("GET",)),
+        ])
+
+    def test_only_get_routes_without_required_args_are_called(self):
+        called, refused = self.probe.callable_routes(self.mod)
+        self.assertEqual([p for p, _ in called], ["/read"])
+        self.assertIn("/write", refused)
+        self.assertIn("GET", refused["/write"])
+        self.assertIn("/needs/{pool_id}", refused)
+        self.assertIn("pool_id", refused["/needs/{pool_id}"])
+
+    def test_a_post_route_is_never_called_even_once(self):
+        """Контроль СИЛЬНЫЙ: мало не включить POST в список — важно, что его не
+        зовут. Список `called` покажет зов, даже если вердикт промолчит."""
+        self.probe.probe_modules([], None)
+        called, _ = self.probe.callable_routes(self.mod)
+        for _path, endpoint in called:
+            endpoint()
+        self.assertEqual(self.called, ["read"])
+
+    def test_a_HEAD_only_route_is_not_mistaken_for_a_read(self):
+        """Две клаузы двери отвечают на РАЗНЫЕ вопросы, и путать их нельзя:
+        `methods <= _READ_METHODS` спрашивает «не пишет ли он», а
+        `"GET" not in methods` — «отвечает ли он на GET вообще». Замер батареи:
+        снятие второй клаузы не краснило НИЧЕГО, то есть она держалась ни на
+        чём, а маршрут, отвечающий только на HEAD, зачлись бы за чтение тела."""
+        def head_only(): self.called.append("head"); return {"ok": 6}
+
+        mod = _FakeModule("g27mod3", [
+            _FakeRoute("/h", _endpoint("head_only", "g27mod3", head_only), ("HEAD",)),
+        ])
+        called, refused = self.probe.callable_routes(mod)
+        self.assertEqual(called, [])
+        self.assertIn("/h", refused)
+        self.assertIn("GET", refused["/h"])
+
+    def test_a_route_that_also_answers_a_WRITING_method_is_refused(self):
+        """Второй сторож той же двери, и он отдельный. `"GET" not in methods`
+        ловит чистый POST; `methods <= _READ_METHODS` ловит маршрут, который
+        отвечает И на GET, И на DELETE. Замер батареи: без этого теста мутация
+        `_READ_METHODS` ВЫЖИВАЛА — то есть одна из двух половин защиты не была
+        закреплена ничем."""
+        def both(): self.called.append("both"); return {"ok": 5}
+
+        mod = _FakeModule("g27mod2", [
+            _FakeRoute("/both", _endpoint("both", "g27mod2", both), ("GET", "DELETE")),
+        ])
+        called, refused = self.probe.callable_routes(mod)
+        self.assertEqual(called, [])
+        self.assertIn("/both", refused)
+        self.assertIn("DELETE", refused["/both"])
+
+    def test_a_route_owned_by_a_neighbour_module_is_not_counted_here(self):
+        """`server.app` подключает роутеры соседей. Считать их у себя значило бы
+        вынести один и тот же маршрут дважды, у двух разных хозяев."""
+        called, refused = self.probe.callable_routes(self.mod)
+        self.assertNotIn("/alien", [p for p, _ in called])
+        self.assertNotIn("/alien", refused)
+
+    def test_the_named_refusal_list_is_honoured_and_names_its_reason(self):
+        """Механизм именного отказа оставлен при ПУСТОМ сегодня списке намеренно:
+        «пусто сегодня» и «пусто всегда» — разные утверждения."""
+        never = {"g27mod:/read": "зов совершил бы действие"}
+        called, refused = self.probe.callable_routes(self.mod, never_call=never)
+        self.assertEqual(called, [])
+        self.assertIn("зов совершил бы действие", refused["/read"])
+
+    def test_the_shipped_refusal_list_is_empty_by_measurement(self):
+        """Замер 16.09: прогон всех подходящих маршрутов против копии стенда не
+        изменил в ней ни байта (1325 файлов, sha до и после). Если список
+        однажды понадобится — он понадобится С ПРИЧИНОЙ у каждой записи."""
+        for key, why in self.probe.HTTP_NEVER_CALL.items():
+            self.assertTrue(str(why).strip(), f"отказ {key} без причины")
+
+
+class G27VerdictTests(unittest.TestCase):
+    """Вердикт по маршрутам, проба пустого каталога и порядок зова."""
+
+    @staticmethod
+    def _mod(routes_by_probe, refused=None):
+        """Пять ответов партии для одного модуля: s1, s1_again, s2, s3, empty."""
+        return tuple({"routes": r, "refused": refused or {}, "elapsed_s": {}}
+                     for r in routes_by_probe)
+
+    def test_the_verdict_is_per_route_so_one_noisy_route_hides_no_neighbour(self):
+        """Измеренная поломка: на вердикте ЦЕЛОГО модуля `rates_desk` уходил в
+        «не воспроизводится» из-за ОДНОГО маршрута, пряча десять соседей, а
+        `cockpit` прятал два. Маршрут — это и есть то, что видит владелец."""
+        noisy = lambda i: {"n": i}
+        probes = self._mod([
+            {"/quiet": {"v": "one"}, "/noisy": noisy(1)},
+            {"/quiet": {"v": "one"}, "/noisy": noisy(2)},
+            {"/quiet": {"v": "one"}, "/noisy": noisy(3)},
+            {"/quiet": {"v": "two"}, "/noisy": noisy(4)},
+            {"/quiet": {"v": "empty"}, "/noisy": noisy(5)},
+        ])
+        row = g16.classify_http_reader("g27mod", probes)
+        self.assertEqual(row["outcome"], g16.READER_LAST)
+        self.assertEqual(row["routes"]["/quiet"]["outcome"], g16.READER_LAST)
+        self.assertEqual(row["routes"]["/noisy"]["outcome"], g16.READER_UNMEASURED)
+
+    def test_the_empty_stand_probe_catches_a_route_that_never_opened_the_stand(self):
+        """САМАЯ важная проверка этой правки, и она о ней самой. 19 маршрутов из
+        111 отвечают на ПУСТОМ каталоге ровно то же, что на настоящем — каталога
+        они не открывали. Без пятой пробы все девятнадцать доложились бы как
+        `insensitive_stand`, то есть перепись обменяла бы одну слепоту на
+        другую, потише."""
+        const = {"v": "константа"}
+        probes = self._mod([{"/c": const}] * 5)
+        row = g16.classify_http_reader("g27mod", probes)
+        self.assertEqual(row["routes"]["/c"]["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["routes"]["/c"]["cause"], g16.CAUSE_STAND_NOT_READ)
+
+    def test_a_route_that_does_read_the_stand_stays_insensitive_not_unmeasured(self):
+        """Обратный контроль к предыдущему: иначе проверка была бы истинной по
+        построению и красила бы `stand_not_read` вообще всё."""
+        probes = self._mod([
+            {"/r": {"v": "стенд"}}, {"/r": {"v": "стенд"}}, {"/r": {"v": "стенд"}},
+            {"/r": {"v": "стенд"}}, {"/r": {"v": "пусто"}},
+        ])
+        row = g16.classify_http_reader("g27mod", probes)
+        self.assertEqual(row["routes"]["/r"]["outcome"], g16.READER_INSENSITIVE)
+        self.assertTrue(row["routes"]["/r"]["reaches_stand"])
+
+    def test_absence_of_the_empty_probe_is_not_the_same_as_an_empty_answer(self):
+        """`None` — законный ОТВЕТ читателя. Умолчание в его виде сделало бы
+        «пробы не было» неотличимым от «проба вернула пустоту» (инв. #17)."""
+        row_no_probe = g16.verdict_from_probes({}, {"v": 1}, {"v": 1}, {"v": 1}, {"v": 1})
+        self.assertEqual(row_no_probe["outcome"], g16.READER_INSENSITIVE)
+        self.assertNotIn("reaches_stand", row_no_probe)
+        row_none = g16.verdict_from_probes({}, {"v": 1}, {"v": 1}, {"v": 1}, {"v": 1},
+                                           on_empty=None)
+        self.assertEqual(row_none["outcome"], g16.READER_INSENSITIVE)
+        self.assertTrue(row_none["reaches_stand"])
+
+    def test_the_repeat_probe_runs_LAST_so_its_window_covers_the_whole_batch(self):
+        """Измеренная монета, ради которой порядок и переставлен.
+        `/api/riskwire/proof` несёт `age_hours`, округлённый до 0.1 часа = 6 мин.
+        Две пробы ПОДРЯД попадают в одну корзину (`unstable_coords: 0`), а
+        граница корзины между `s2` и `s3` дала `collapses_to_first` в одном
+        прогоне и `insensitive_stand` в соседнем — одно дерево, одни стенды,
+        неизменный код.
+
+        Стенд здесь моделирует ровно это: координата тикает ОДИН раз, между
+        третьим и четвёртым зовом. При накрывающем окне она измеряется как
+        нестабильная; при соседних пробах — объявляется схлопыванием."""
+        ticks = iter([0, 0, 0, 1, 1])                 # тик между s2 и s3
+        base = {"body": "same"}
+
+        def runner(stand_data, names, tree_root):
+            value = next(ticks)
+            return {"g27mod": {"routes": {"/p": dict(base, age=value)},
+                               "refused": {}, "elapsed_s": {}}}, ""
+
+        stands = {"s1": "/s1", "s2": "/s2", "s3": "/s3"}
+        answers, meta = g16.http_probe_batch(stands, ["g27mod"], Path("/t"), runner=runner)
+        self.assertEqual(meta["probe_order"][-1], "s1_again",
+                         "повторная проба обязана идти ПОСЛЕДНЕЙ")
+        row = g16.classify_http_reader("g27mod", answers["g27mod"])
+        self.assertEqual(row["routes"]["/p"]["outcome"], g16.READER_UNMEASURED,
+                         "тик, попавший между стендами, выдан за схлопывание")
+
+    def test_the_same_tick_read_by_adjacent_probes_WOULD_have_been_a_collapse(self):
+        """Обратный контроль к порядку: без накрывающего окна ровно те же пять
+        ответов дают `collapses_to_first`. Без этого теста перестановка порядка
+        была бы украшением — нечем показать, что она что-то меняет."""
+        s1 = {"body": "same", "age": 0}
+        s1_again = {"body": "same", "age": 0}          # соседние пробы: тика нет
+        s2 = {"body": "same", "age": 1}
+        s3 = {"body": "same", "age": 1}
+        row = g16.verdict_from_probes({}, s1, s1_again, s2, s3)
+        self.assertEqual(row["outcome"], g16.READER_FIRST)
+
+    def test_one_failed_probe_voids_the_WHOLE_batch_with_a_named_reason(self):
+        """Трёх ответов на вердикт не хватает, а достроить четвёртый нечем.
+        Частичная партия прочиталась бы как «маршруты ни при чём»."""
+        calls = {"n": 0}
+
+        def runner(stand_data, names, tree_root):
+            calls["n"] += 1
+            if calls["n"] == 3:
+                return None, "процесс-зовущий вышел кодом 1"
+            return {"g27mod": {"routes": {"/p": {"v": calls["n"]}},
+                               "refused": {}, "elapsed_s": {}}}, ""
+
+        answers, meta = g16.http_probe_batch({"s1": "/1", "s2": "/2", "s3": "/3"},
+                                             ["g27mod"], Path("/t"), runner=runner)
+        self.assertEqual(answers, {})
+        self.assertEqual(meta["failed_probe"], g16._HTTP_PROBE_ORDER[2])
+        self.assertIn("кодом 1", meta["reason"])
+
+    def test_a_module_with_no_callable_route_keeps_a_cause_naming_the_refusals(self):
+        """Остаток обязан быть НАЗВАН, а не растворён в знаменателе: у
+        `dfb_data_api` все шесть GET требуют аргумент, у `server` — четыре."""
+        probes = self._mod([{}] * 5,
+                           refused={"/x/{id}": "обязательные аргументы id"})
+        row = g16.classify_http_reader("g27mod", probes)
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED)
+        self.assertEqual(row["cause"], g16.CAUSE_HTTP_ROUTE)
+        self.assertIn("id", row["reason"])
+
+    def test_the_http_cause_no_longer_repeats_the_refuted_claim(self):
+        """Строка «каталог стенда ему не передать» была ЗАМЕРОМ опровергнута.
+        Оставить её значило бы держать в приборе довод, который он сам же и
+        опроверг, — и следующий цикл прочитал бы его как действующий."""
+        probes = self._mod([{}] * 5, refused={"/x/{id}": "обязательные аргументы id"})
+        reason = str(g16.classify_http_reader("g27mod", probes)["reason"])
+        self.assertNotIn("каталог стенда ему не передать", reason)
+
+    def test_module_outcome_takes_the_strongest_signal_not_the_majority(self):
+        """Схлопывание хотя бы на ОДНОМ маршруте есть свойство модуля. Взять
+        большинство значило бы утопить находку в тринадцати нечувствительных."""
+        probes = self._mod([
+            {"/a": {"v": 1}, "/b": {"v": "x"}},
+            {"/a": {"v": 1}, "/b": {"v": "x"}},
+            {"/a": {"v": 1}, "/b": {"v": "x"}},
+            {"/a": {"v": 2}, "/b": {"v": "x"}},
+            {"/a": {"v": 9}, "/b": {"v": "y"}},
+        ])
+        row = g16.classify_http_reader("g27mod", probes)
+        self.assertEqual(row["outcome"], g16.READER_LAST)
+        self.assertEqual(row["routes_by_outcome"],
+                         {g16.READER_LAST: 1, g16.READER_INSENSITIVE: 1})
+
+    def test_both_reader_paths_go_through_ONE_copy_of_the_rule(self):
+        """Правило «схлопывает» обязано иметь одно определение. Второе завелось
+        бы молча и означало бы у переписи ровно тот дефект, который она ловит у
+        читателей журнала. Спрашивается ФОРМА ВЫЗОВА в AST, а не подстрока:
+        подстрока пережила бы любое расплетение."""
+        import ast as _ast
+        import inspect as _inspect
+        tree = _ast.parse(_inspect.getsource(g16))
+        callers = set()
+        for node in _ast.walk(tree):
+            if not isinstance(node, _ast.FunctionDef):
+                continue
+            for inner in _ast.walk(node):
+                if (isinstance(inner, _ast.Call)
+                        and isinstance(inner.func, _ast.Name)
+                        and inner.func.id == "verdict_from_probes"):
+                    callers.add(node.name)
+        self.assertEqual(callers, {"classify_reader", "classify_http_reader"},
+                         f"вердикт считают не те функции: {callers}")
+
+
+class G27PopulationTests(unittest.TestCase):
+    """Кого партия вообще спрашивает."""
+
+    def test_a_module_on_the_never_call_list_never_enters_the_http_batch(self):
+        """Отказ ЗВАТЬ сильнее умения позвать: у писателя журнала HTTP-поверхности
+        нет, но если она однажды появится, партия обязана его пропустить."""
+        from unittest import mock
+        with mock.patch.dict(g16._NEVER_CALL,
+                             {"spa_core.api.routers.live": "измерять запрещено"}):
+            names = g16.http_modules(["spa_core.api.routers.live"])
+        self.assertEqual(names, [])
+        # обратный контроль: без списка тот же модуль в партию ВХОДИТ
+        self.assertEqual(g16.http_modules(["spa_core.api.routers.live"]),
+                         ["spa_core.api.routers.live"])
+
+    def test_an_http_surface_is_recognised_by_the_object_not_by_the_module_name(self):
+        """Имя (`spa_core.api.routers.*`) было бы догадкой и ошибалось бы в обе
+        стороны: роутер живёт и вне каталога (`spa_core.api.server`)."""
+        self.assertIn("spa_core.api.server",
+                      g16.http_modules(["spa_core.api.server"]))
+        self.assertEqual(g16.http_modules(["spa_core.monitoring.run_identity_key_price"]),
+                         [])
