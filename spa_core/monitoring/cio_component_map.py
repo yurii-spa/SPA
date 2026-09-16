@@ -370,14 +370,26 @@ def _external_names(tree: ast.AST, modules: dict[str, ast.AST]) -> dict[str, set
 #: Таблицы происхождения строятся разбором всего модуля и переиспользуются:
 #: без кэша ``measure`` пересобирал бы их ~10 раз на каждый из ~2000 модулей
 #: (замер: 50 с на прогон против 6 с с кэшем).
-_SYMBOLS: dict[int, tuple[dict[str, set[str]], dict[str, set[str]]]] = {}
+#:
+#: Кэш живёт НА САМОМ дереве (атрибут узла), а не в словаре по ``id(tree)``.
+#: Словарь по адресу был дефектом (найдено 16.09 при доставке ADR-400): записи
+#: никогда не вытеснялись, а адрес освобождённого дерева переиспользуется
+#: следующим ``ast.parse`` — и новое дерево получало таблицы ЧУЖОГО модуля.
+#: Проявлялось как плавающее падение ``test_receiver_of_a_method_call_is_a_site``
+#: (в одиночку зелёный, в составе файла — ``read=False``), зависящее от раскладки
+#: памяти, то есть от любого соседнего изменения в дереве. Атрибут узла умирает
+#: вместе с деревом и по построению не может достаться другому.
+_SYMBOLS_ATTR = "_spa_cio_symbols"
 
 
 def _symbols_cached(tree: ast.AST) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
-    hit = _SYMBOLS.get(id(tree))
+    hit = getattr(tree, _SYMBOLS_ATTR, None)
     if hit is None:
         hit = _symbol_strings(tree)
-        _SYMBOLS[id(tree)] = hit
+        try:
+            setattr(tree, _SYMBOLS_ATTR, hit)
+        except Exception:  # noqa: BLE001 — узел без __dict__: работаем без кэша
+            pass
     return hit
 
 
@@ -601,8 +613,8 @@ def _iter_modules(root: Path) -> Iterable[tuple[str, ast.AST]]:
 
 def measure(root: Path, stages: tuple[Stage, ...] = STAGES) -> dict[str, Any]:
     """Замер: роль каждой ступени + носитель каждого стыка."""
-    _SYMBOLS.clear()   # id() переиспользуется после сборки мусора: кэш живёт
-                       # ровно один замер, иначе чужая таблица притворится своей
+    # Кэш таблиц живёт на узлах деревьев (см. `_symbols_cached`) и умирает вместе с
+    # ними; чистить по адресам больше нечего — деревья замера рождаются здесь заново.
     modules = dict(_iter_modules(root))
     ext: dict[str, dict[str, set[str]]] = {
         rel: _external_names(tree, modules) for rel, tree in modules.items()}
