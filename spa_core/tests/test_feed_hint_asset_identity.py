@@ -185,6 +185,26 @@ class TestForeignAssetIsRefused(_GenBase):
         self.assertIn("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", reason.lower())
 
 
+#: Ключи, закреплённые UUID'ом решением ADR-398 (второй артефакт перестал штамповать
+#: литерал TVL). Разрешение у них идёт ПИНОМ, и это меняет два утверждения ниже — оба
+#: НАМЕРЕННО, с обоснованием (инв. #16), и ни одно не ослабляется:
+#:
+#: 1. `pool_match == "hint"` для них было бы утверждением о механизме, которого больше
+#:    нет. Предмет теста — «ставка настоящего пула доезжает» — не менялся ни на йоту.
+#: 2. **Важнее.** Контроль «больший подставной пул не побеждает» на ЗАКРЕПЛЁННОМ ключе
+#:    становится истинным ПО ПОСТРОЕНИЮ: пин не смотрит на TVL вовсе, поэтому тест
+#:    зеленел бы и при полностью сломанном ранжировании хинта. Такой контроль —
+#:    украшение. Поэтому оба теста гоняют ОБА пути: с пином (пин обязан вести на ТОТ ЖЕ
+#:    пул — иначе он прячет расхождение) и со СНЯТЫМ пином (сторож тождества актива
+#:    обязан выбрать настоящий пул сам, как и до ADR-398).
+_PINNED_SINCE_ADR398 = ("aave_v3", "compound_v3")
+
+
+def _lookup_without(*keys: str) -> dict:
+    """Копия таблицы пинов без названных ключей — разрешение падает на хинт."""
+    return {k: v for k, v in gen._POOL_ID_LOOKUP.items() if k not in keys}
+
+
 class TestRealAssetStillResolves(_GenBase):
     """The other direction: tightening must not silence the honest pools."""
 
@@ -205,9 +225,48 @@ class TestRealAssetStillResolves(_GenBase):
         for key, apy in expected.items():
             with self.subTest(key=key):
                 row = doc["adapters"][key]
+                expect = "pinned" if key in _PINNED_SINCE_ADR398 else "hint"
+                self.assertEqual(row["pool_match"], expect)
+                self.assertAlmostEqual(row["live_apy"], apy, places=3)
+                self.assertIsNone(row["pool_match_refused"])
+
+    def test_the_pinned_keys_still_resolve_by_hint_when_the_pin_is_removed(self):
+        """ADR-398 не отменило сторожа тождества — оно встало ПЕРЕД ним.
+
+        Без этого теста пин ПРЯЧЕТ ранжирование хинта на двух ключах: сломай
+        `_CANONICAL_UNDERLYING` для них — и ни один тест файла не покраснеет.
+        Снимаем пин и требуем ровно то, что требовалось до ADR-398.
+        """
+        with patch.object(gen, "_POOL_ID_LOOKUP",
+                          _lookup_without(*_PINNED_SINCE_ADR398)):
+            doc = self._generate([
+                _AAVE_V3_REAL, _COMPOUND_REAL, _MORPHO_REAL, _SPARK_REAL, _YEARN_REAL,
+                _AAVE_V3_FOREIGN, _MORPHO_SYRUP, _SPARK_WRAPPER, _YEARN_LP,
+            ])
+        for key, apy in (("aave_v3", 3.2934), ("compound_v3", 3.2921)):
+            with self.subTest(key=key):
+                row = doc["adapters"][key]
                 self.assertEqual(row["pool_match"], "hint")
                 self.assertAlmostEqual(row["live_apy"], apy, places=3)
                 self.assertIsNone(row["pool_match_refused"])
+
+    def test_the_pin_lands_on_the_same_pool_the_hint_would_have_chosen(self):
+        """Пин обязан СОГЛАШАТЬСЯ с хинтом, а не подменять его вердикт молча.
+
+        Если бы пин вёл на другой пул, «спор артефактов» просто переехал бы внутрь
+        одного файла — и уже без единой красной строки.
+        """
+        feed = [_AAVE_V3_REAL, _COMPOUND_REAL, _AAVE_V3_FOREIGN]
+        pinned = self._generate(feed)
+        with patch.object(gen, "_POOL_ID_LOOKUP",
+                          _lookup_without(*_PINNED_SINCE_ADR398)):
+            hinted = self._generate(feed)
+        for key in _PINNED_SINCE_ADR398:
+            with self.subTest(key=key):
+                self.assertEqual(pinned["adapters"][key]["pool_match"], "pinned")
+                self.assertEqual(hinted["adapters"][key]["pool_match"], "hint")
+                self.assertEqual(pinned["adapters"][key]["pool_id"],
+                                 hinted["adapters"][key]["pool_id"])
 
     def test_lower_case_feed_addresses_still_match(self):
         """yearn-finance reports lower-case; aave-v3 reports mixed.
@@ -227,10 +286,22 @@ class TestRealAssetStillResolves(_GenBase):
         "best TVL wins" hands over 9.9%.
         """
         bigger_decoy = dict(_AAVE_V3_FOREIGN, tvlUsd=900_000_000.0, apy=9.9)
-        doc = self._generate([_AAVE_V3_REAL, bigger_decoy])
+
+        # Пин СНЯТ намеренно: с ним тест истинен по построению (пин не смотрит на TVL)
+        # и о ранжировании хинта не говорит ничего. Предмет — ранжирование, значит
+        # гонять надо тот путь, который ранжирует.
+        with patch.object(gen, "_POOL_ID_LOOKUP", _lookup_without("aave_v3")):
+            doc = self._generate([_AAVE_V3_REAL, bigger_decoy])
         row = doc["adapters"]["aave_v3"]
         self.assertAlmostEqual(row["live_apy"], 3.2934, places=3)
         self.assertEqual(row["pool_match"], "hint")
+
+        # Вторая нога: с пином подставной пул не побеждает ТЕМ БОЛЕЕ — и ведёт на тот же
+        # UUID, что выбрал хинт. Так покрыты оба пути, а не один вместо другого.
+        pinned = self._generate([_AAVE_V3_REAL, bigger_decoy])["adapters"]["aave_v3"]
+        self.assertEqual(pinned["pool_match"], "pinned")
+        self.assertEqual(pinned["pool_id"], row["pool_id"])
+        self.assertAlmostEqual(pinned["live_apy"], 3.2934, places=3)
 
 
 class TestCanonicalTableIsFailClosed(unittest.TestCase):
