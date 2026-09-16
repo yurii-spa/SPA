@@ -870,6 +870,27 @@ def _deliver_owner_answers(root: str, now: dt.datetime, run_answers=None) -> dic
                 "generated_at": now.isoformat()}
 
 
+def conflated_line(zero_vs_absent: dict | None) -> str:
+    """«N из M» координат, сливающих ноль с отсутствием, — или НЕ ИЗМЕРЕНО.
+
+    Вынесено из `main()` ради контроля: строка живёт внутри длинного переписного
+    блока, и прежняя форма `sum((_zc.get("counts") or {}).values())` печатала
+    «из 0» там, где знаменателя не наблюдали вовсе (инв. #17). Это ровно тот
+    дефект, против которого двумя строками выше стои́т комментарий «`or {}` здесь
+    запрещён намеренно»: заслон поставили на секцию и не поставили на её
+    подраздел.
+    """
+    if not isinstance(zero_vs_absent, dict) or not zero_vs_absent.get("measured"):
+        return "НЕ ИЗМЕРЕНО"
+    counts = observed(zero_vs_absent, "counts", kind=dict)
+    if counts is None:
+        return "НЕ ИЗМЕРЕНО"
+    conflated = observed(zero_vs_absent, "conflated", kind=list)
+    if conflated is None:
+        return "НЕ ИЗМЕРЕНО"
+    return "%s из %s" % (len(conflated), sum(counts.values()))
+
+
 def census_skipped(record: dict, name: str, exc: BaseException) -> None:
     """Пропуск переписи — ЗАПИСЬ в отчёт, а не только строка в /tmp-логе.
 
@@ -1606,9 +1627,7 @@ def main(argv=None) -> int:
                   else "$%s на %s ключ(ах)" % (
                       f"{_bl.get('leg_usd_blinded'):,.2f}",
                       _bl.get("blinded_keys_count")))
-        _conf = ("НЕ ИЗМЕРЕНО" if _zc is None or not _zc.get("measured")
-                 else "%s из %s" % (len(_zc.get("conflated") or []),
-                                    sum((_zc.get("counts") or {}).values())))
+        _conf = conflated_line(_zc)
         print(f"asset_registry_gap_price: {_arg.get('status')} "
               f"(ослеплённый поток {_blind}; "
               f"координат сливают ноль с отсутствием {_conf})")

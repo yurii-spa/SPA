@@ -622,3 +622,133 @@ class InstrumentClaims(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ─────────────────────────── инвариант #17 в этом приборе ──────────────────────
+#
+# Класс закрыт циклом #616: храповик `test_absent_observation_ratchet` краснел на
+# ЧИСТОМ `origin/main` десятью местами этого файла. Каждый тест ниже краснеет на
+# ОДНОЙ снятой починке, и адрес починки назван в докстринге.
+
+
+class VaryingIsAClaimAndNeedsAThirdOutcome(unittest.TestCase):
+    """«Не гуляет» — утверждение о мире; на пустом населении его делать нельзя."""
+
+    def test_no_reproducible_day_leaves_the_claim_unmeasured(self):
+        """Адрес: `compose`, было
+        `bool((by_component["slippage_usd"] or {}).get("spread"))`.
+
+        Воспроизводимых дней ноль ⇒ `_bps` вернул `None` ⇒ подстановка пустым
+        словарём давала `False`, то есть «проскальзывание в bps НЕ гуляет» —
+        утверждение, которого никто не мерил.
+        """
+        out = M.compose([], {}, {})
+        self.assertIsNone(out["slippage_bps_varies"],
+                          "ненаблюдённая компонента выдана утверждением «не "
+                          "гуляет» (инв. #17)")
+
+    def test_a_measured_zero_spread_is_still_false_not_none(self):
+        """Обратный контроль. Без него починка была бы строже правды: нулевой
+        размах — ИЗМЕРЕНИЕ, и оно обязано оставаться `False`."""
+        scene = _scene(moves=[
+            (("cooldown_ok",), 20_000.0, {"a": 4.0, "b": 9.0},
+             {"a": 4.0, "b": 9.0}, None),
+            (("gain_above_band",), 5_000.0, {"a": 4.0, "b": 9.0},
+             {"a": 4.0, "b": 9.0}, None)])
+        self.addCleanup(scene.close)
+        days, ctx, rows, _order = _days_of(scene)
+        self.assertEqual(len(days), 2, ctx)
+        chains, _src = M.chain_map(scene.dir)
+        out = M.compose(days, rows, chains)
+        self.assertEqual(out["component_bps_of_turnover"]["slippage_usd"]["spread"],
+                         0.0)
+        self.assertIs(out["slippage_bps_varies"], False)
+
+
+class ReportPrintsUnmeasuredNotNone(unittest.TestCase):
+    """Отчёт — второй производитель тех же чисел, и он тоже обязан отказывать."""
+
+    _BASE = {"status": "WARNING", "headline": "h",
+             "composition": {"days_reproduced": 0, "days_divergent": 0,
+                             "days_unmeasured": 0, "unmeasured_reasons": []}}
+
+    def test_absent_bands_are_named_not_printed_as_none(self):
+        """Адрес: `format_report`, было `(comp.get('gas_usd') or {}).get('min')`.
+
+        Пустой словарь выводил наружу `None…None` — отсутствие наблюдения в
+        виде ЗНАЧЕНИЯ, да ещё и в чужом алфавите посреди русской строки.
+        """
+        text = "\n".join(M.format_report(dict(self._BASE)))
+        self.assertNotIn("None…None", text)
+        self.assertIn("НЕ ИЗМЕРЕНЫ", text)
+
+    def test_absent_totals_are_named_not_printed_as_none(self):
+        """Адрес: `format_report`, было `parts.get("component_totals_usd") or {}`."""
+        lines = M.format_report(dict(self._BASE))
+        self.assertTrue(any("слагаемые НЕ ИЗМЕРЕНЫ" in l for l in lines))
+
+    def test_absent_shares_are_named_in_the_headline(self):
+        """Адрес: `_headline`, было `parts.get("component_shares") or {}` —
+        отсутствие долей молча роняло оговорку из заголовка."""
+        head = M._headline({"days_reproduced": 0, "days_total": 0,
+                            "days_divergent": 0, "days_unmeasured": 0},
+                           {}, {}, 1.0)
+        self.assertIn("состав НЕ ИЗМЕРЕН", head)
+
+    def test_unmeasured_varying_is_a_third_word_not_a_no(self):
+        """`slippage_bps_varies is None` печаталось как «НЕТ» — то же
+        утверждение, только этажом ниже."""
+        doc = dict(self._BASE)
+        doc["composition"] = dict(doc["composition"])
+        doc["composition"]["component_bps_of_turnover"] = {
+            "slippage_usd": {"median": 1.0, "spread": 0.0}}
+        doc["composition"]["slippage_bps_varies"] = None
+        text = "\n".join(M.format_report(doc))
+        self.assertIn("меняется: НЕ ИЗМЕРЕНО", text)
+
+    def test_a_present_table_with_an_absent_component_still_refuses(self):
+        """Адрес: `_band` / `_band_field`. ЖИВОЙ случай, а не вырожденный:
+        `compose` всегда кладёт ВСЕ три ключа, и у ненаблюдённой компоненты
+        значение `None` — то есть таблица ЕСТЬ, а полосы в ней нет. Ветка
+        «таблицы нет вовсе» (соседний тест) сюда не дотягивается, и без этого
+        стенда подстановка пустым словарём переживала бы весь набор.
+        """
+        doc = dict(self._BASE)
+        doc["composition"] = dict(doc["composition"])
+        doc["composition"].update({
+            "component_totals_usd": {"gas_usd": 1.0, "slippage_usd": 2.0,
+                                     "bridge_usd": 3.0},
+            "component_shares": None,
+            "component_bps_of_turnover": {"slippage_usd": None,
+                                          "gas_usd": None,
+                                          "bridge_usd": None},
+            "slippage_bps_varies": None,
+            "widest_bps_component": None})
+        text = "\n".join(M.format_report(doc))
+        self.assertNotIn("None…None", text)
+        self.assertNotIn("(None)", text, "доля НЕизмеренной компоненты выдана "
+                                         "значением `None`")
+        self.assertIn("газ НЕ ИЗМЕРЕНО", text)
+        self.assertIn("мост НЕ ИЗМЕРЕНО", text)
+        self.assertIn("проскальзывание НЕ ИЗМЕРЕНО", text)
+        self.assertIn("доля НЕ ИЗМЕРЕНА", text)
+
+    def test_a_full_report_says_nothing_about_unmeasured_bands(self):
+        """Обратный контроль ко всем четырём выше."""
+        doc = dict(self._BASE)
+        doc["composition"] = dict(doc["composition"])
+        doc["composition"].update({
+            "component_totals_usd": {"gas_usd": 1.0, "slippage_usd": 2.0,
+                                     "bridge_usd": 3.0},
+            "component_shares": {"gas_usd": 0.1, "slippage_usd": 0.2,
+                                 "bridge_usd": 0.7},
+            "component_bps_of_turnover": {
+                "gas_usd": {"min": 1.0, "max": 2.0},
+                "slippage_usd": {"median": 1.0, "spread": 0.0},
+                "bridge_usd": {"min": 3.0, "max": 4.0}},
+            "slippage_bps_varies": False,
+            "widest_bps_component": "gas_usd"})
+        body = [l for l in M.format_report(doc) if l.startswith("       ")]
+        self.assertTrue(body)
+        for line in body:
+            self.assertNotIn("НЕ ИЗМЕРЕН", line)

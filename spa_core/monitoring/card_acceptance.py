@@ -867,6 +867,99 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
         shutil.rmtree(sibling_free, ignore_errors=True)
 
 
+# ── проба: класс «отсутствия наблюдения» закрыт (инв. #17) ────────────────────
+#: Потолки в ЧЛЕНАХ класса. Читаются у сторожа, а не набираются здесь второй
+#: копией: два числа одного закона — ровно тот молчаливый спор, который уже
+#: стоил лестнице CIO трёх циклов (ADR-384 §«правило живёт второй копией»).
+def measure_absent_observation_class(root=None, baseline_path=None) -> dict:
+    """Члены класса инв. #17 в дереве ПРОТИВ базы. Только чтение, только AST.
+
+    Возврат: ``{"measured": bool, "reason": str, "new": [...], "over_ceiling":
+    {...}, "tree": {...}, "baseline": {...}}``. ``measured=False`` — прибора нет
+    или он не отработал; это НЕ «класс закрыт» и не «класс открыт».
+
+    ``root``/``baseline_path`` существуют ради КОНТРОЛЯ: обе двери к живому
+    дереву обязаны закрываться, иначе тест судил бы о рабочей копии, а не о
+    стенде, и вердикт зависел бы от того, что кто-то рядом правит.
+    """
+    try:
+        from spa_core.tests import _absent_observation as ao
+        from spa_core.tests import test_absent_observation_ratchet as ratchet
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False,
+                "reason": f"сторож класса не импортируется: {type(exc).__name__}: {exc}"}
+    try:
+        found = ao.scan_tree(root if root is not None else ao.REPO_ROOT)
+        raw = (ao.load_baseline() if baseline_path is None
+               else ao.load_baseline(baseline_path))
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False,
+                "reason": f"замер не состоялся: {type(exc).__name__}: {exc}"}
+
+    new: list = []
+    tree: dict = {}
+    base: dict = {}
+    over: dict = {}
+    for signal in ao.SIGNALS:
+        base_keys = ao.keys_of(ao.baseline_places(raw, signal))
+        places = ao.places_of(found, signal)
+        tree[signal] = len(places)
+        base[signal] = len(base_keys)
+        ceiling = ratchet.CEILINGS.get(signal)
+        if ceiling is not None and len(base_keys) > ceiling:
+            over[signal] = (len(base_keys), ceiling)
+        for place in places:
+            if ao.place_key(place) in base_keys:
+                continue
+            new.append(place)
+    return {"measured": True, "reason": "", "new": sorted(new),
+            "over_ceiling": over, "tree": tree, "baseline": base}
+
+
+def _probe_absent_observation_class_closed(arg: str | None) -> tuple[str, str]:
+    """Критерий: храповик инв. #17 зелен, и база при этом НЕ выросла.
+
+    Меряет ИСХОД, а не структуру: члена класса ищет сам сторож
+    (`spa_core/tests/_absent_observation.py`) в ЖИВОМ дереве, и вердикт
+    выносится по сравнению с базой. Второй копии признака здесь нет намеренно —
+    она разошлась бы с оригиналом молча.
+
+    Две половины, и обе обязаны держаться, иначе «починка» была бы разменом:
+
+    1. **новых членов НЕТ** — то, ради чего храповик и стои́т;
+    2. **база не выросла** — иначе первую половину можно было бы «выполнить»
+       дописыванием в базу, то есть ровно тем, что запрещает инв. #16.
+
+    Аргумента у пробы НЕТ, и это решение, а не упущение: «класс закрыт в моём
+    файле» при выросшем соседе есть зелёный ответ на свой вопрос, выданный за
+    ответ на нужный. Переданный аргумент отвергается вслух, а не глотается.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий — о ВСЁМ дереве, и пофайловой формы у "
+                            "него нет намеренно")
+    got = measure_absent_observation_class()
+    if not got.get("measured"):
+        return UNMEASURED, got.get("reason", "причина не названа")
+    over = got.get("over_ceiling") or {}
+    if over:
+        names = " · ".join(f"{sig}: в базе {n} при потолке {c}"
+                           for sig, (n, c) in sorted(over.items()))
+        return NOT_SATISFIED, (
+            f"база класса ВЫРОСЛА ({names}) — падение погашено дописыванием, "
+            "а не починкой писателя (инв. #16)")
+    new = got.get("new") or []
+    if new:
+        return NOT_SATISFIED, (
+            f"новых мест класса {len(new)}: {', '.join(new[:6])}"
+            + (" …" if len(new) > 6 else "")
+            + " — отсутствие наблюдения по-прежнему выходит наружу нулём "
+              "или пустотой (инв. #17)")
+    counts = " · ".join(f"{sig}: дерево {got['tree'][sig]}, база "
+                        f"{got['baseline'][sig]}" for sig in sorted(got["tree"]))
+    return SATISFIED, f"новых мест класса нет и база не выросла ({counts})"
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -876,6 +969,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "candidate_discovery_loop_closed": _probe_candidate_discovery_loop,
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
+    "absent_observation_class_closed": _probe_absent_observation_class_closed,
 }
 
 

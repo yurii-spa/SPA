@@ -617,3 +617,40 @@ class Bridge(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConflatedLineHasAThirdOutcome(unittest.TestCase):
+    """Инв. #17 в переписи моста: «из 0» ≠ «знаменателя не наблюдали».
+
+    Адрес починки (цикл #616): `main()`, было
+    `sum((_zc.get("counts") or {}).values())`. Заслон `observed()` стоял на
+    секции `zero_vs_absent` и не стоял на её подразделе `counts`, поэтому
+    прибор, ответивший без переписи, печатался как прибор, насчитавший ноль.
+    """
+
+    def test_absent_counts_are_unmeasured_not_a_zero_denominator(self):
+        self.assertEqual(
+            fb.conflated_line({"measured": True, "conflated": []}),
+            "НЕ ИЗМЕРЕНО")
+
+    def test_absent_conflated_list_is_unmeasured_too(self):
+        self.assertEqual(
+            fb.conflated_line({"measured": True, "counts": {"a": 2}}),
+            "НЕ ИЗМЕРЕНО")
+
+    def test_an_empty_census_is_a_measured_zero(self):
+        """Обратный контроль: перепись прошла и нашла ноль — это наблюдение,
+        и подменять его отказом было бы той же ошибкой в другую сторону."""
+        self.assertEqual(
+            fb.conflated_line({"measured": True, "counts": {}, "conflated": []}),
+            "0 из 0")
+
+    def test_a_real_census_is_printed_as_measured(self):
+        self.assertEqual(
+            fb.conflated_line({"measured": True, "counts": {"a": 2, "b": 3},
+                               "conflated": ["x"]}),
+            "1 из 5")
+
+    def test_no_answer_at_all_is_unmeasured(self):
+        self.assertEqual(fb.conflated_line(None), "НЕ ИЗМЕРЕНО")
+        self.assertEqual(fb.conflated_line({"measured": False}), "НЕ ИЗМЕРЕНО")

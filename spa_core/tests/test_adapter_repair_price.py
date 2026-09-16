@@ -1205,3 +1205,220 @@ class MeasureEndToEnd(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ─────────────────────────── инвариант #17 в этом приборе ──────────────────────
+#
+# Класс закрыт циклом #616: храповик `test_absent_observation_ratchet` краснел на
+# ЧИСТОМ `origin/main` шестью местами этого файла, и красный храповик не сторожит
+# ничего. Каждый тест ниже краснеет на ОДНОЙ снятой починке — адрес назван в
+# докстринге, иначе «тест зелёный» было бы утверждением о себе.
+
+
+class AbsentObservationIsNotAZeroHere(unittest.TestCase):
+    """Три исхода — измерено · измерено и равно нулю · не измерено — различимы."""
+
+    @staticmethod
+    def _blocked(rows_extra: dict) -> dict:
+        row = {"cycle_date": "2026-01-01", "verdict": "HOLD",
+               "unchecked_reason": "no_evidenced_apy_for_moved_legs",
+               "outcome": "UNCHECKED"}
+        row.update(rows_extra)
+        return row
+
+    def test_row_without_the_field_is_not_a_protocol_free_day(self):
+        """Адрес: `protocol_census`, было `row.get("unpriced_protocols") or []`.
+
+        Строка судьи БЕЗ поля переписью не считается вовсе — и это обязано быть
+        видно, иначе день, отвергнутый причиной, выглядел бы днём, в котором
+        причину не дал никто.
+        """
+        blocked = [self._blocked({}), self._blocked({"cycle_date": "2026-01-02",
+                                                     "unpriced_protocols": ["p"]})]
+        self.assertEqual([r["protocol"] for r in arp.protocol_census(blocked)],
+                         ["p"])
+        self.assertEqual(arp.days_without_named_protocols(blocked),
+                         ["2026-01-01"])
+
+    def test_empty_list_is_a_measured_zero_not_an_absence(self):
+        """Обратный контроль к предыдущему: без него «не измерено» поглотило бы
+        законный пустой список, и починка была бы строже правды."""
+        blocked = [self._blocked({"unpriced_protocols": []})]
+        self.assertEqual(arp.protocol_census(blocked), [])
+        self.assertEqual(arp.days_without_named_protocols(blocked), [],
+                         "судья ЗАПИСАЛ, что не назвал ни одной ноги, — это "
+                         "наблюдение, а не его отсутствие")
+
+    def test_wrong_kind_in_the_field_is_an_absence_not_a_name(self):
+        """Строка вместо списка — мусор в поле, а не перепись из одной ноги."""
+        blocked = [self._blocked({"unpriced_protocols": "pendle"})]
+        self.assertIsNone(arp.named_protocols(blocked[0]))
+
+    def test_day_without_observed_capital_stays_out_of_the_total(self):
+        """Адрес: `measure`, было `capital_total += cap["capital_usd"] or 0.0`.
+
+        День без наблюдённого капитала прибавлялся нулём и молча попадал в
+        знаменатель доли «целилось от капитала». Тест краснеет на возврате
+        подстановки: итог стал бы 100 000, а доля — числом.
+        """
+        report = {"observation_days": 2, "per_verdict": [
+            {"cycle_date": "2026-01-01", "verdict": "HOLD",
+             "unchecked_reason": "no_evidenced_apy_for_moved_legs",
+             "unpriced_protocols": ["p"], "outcome": "UNCHECKED"},
+            {"cycle_date": "2026-01-02", "verdict": "HOLD",
+             "unchecked_reason": "no_evidenced_apy_for_moved_legs",
+             "unpriced_protocols": ["p"], "outcome": "UNCHECKED"}]}
+        blind = _record("2026-01-02", current={"p": 10_000.0},
+                        target={"p": 30_000.0}, evidenced={})
+        blind.pop("capital_usd")
+        rows = [_record("2026-01-01", current={"p": 10_000.0}, target={},
+                        evidenced={}, capital=100_000.0), blind]
+        with TemporaryDirectory() as tmp:
+            data = _data_dir(tmp, rows)
+            orig_judge, orig_today = arp.ask_judge, arp.today_price
+            arp.ask_judge = lambda *a, **k: (report, "")
+            arp.today_price = lambda *a, **k: {
+                "measured": True, "act_days_returned_by_full_grant": 0}
+            try:
+                doc = arp.measure(data, now=_NOW, with_capacity=False)
+            finally:
+                arp.ask_judge, arp.today_price = orig_judge, orig_today
+        cap = doc["blocked_days"]["capital_on_rejecting_legs"]
+        self.assertEqual(cap["capital_usd"], 100_000.0)
+        self.assertEqual(cap["capital_days_measured"], 1)
+        self.assertEqual(cap["capital_unmeasured_days"], ["2026-01-02"])
+        self.assertIsNone(cap["targeted_pct_of_capital"],
+                          "доля посчитана от знаменателя, часть слагаемых "
+                          "которого не измерена")
+
+    def test_no_measured_day_reports_no_total_at_all(self):
+        """Сумма по ПУСТОМУ населению есть отсутствие наблюдения, а не ноль."""
+        report = {"observation_days": 1, "per_verdict": [
+            {"cycle_date": "2026-01-01", "verdict": "HOLD",
+             "unchecked_reason": "no_evidenced_apy_for_moved_legs",
+             "unpriced_protocols": ["p"], "outcome": "UNCHECKED"}]}
+        blind = _record("2026-01-01", current={"p": 1.0}, target={}, evidenced={})
+        blind.pop("capital_usd")
+        with TemporaryDirectory() as tmp:
+            data = _data_dir(tmp, [blind])
+            orig_judge, orig_today = arp.ask_judge, arp.today_price
+            arp.ask_judge = lambda *a, **k: (report, "")
+            arp.today_price = lambda *a, **k: {
+                "measured": True, "act_days_returned_by_full_grant": 0}
+            try:
+                doc = arp.measure(data, now=_NOW, with_capacity=False)
+            finally:
+                arp.ask_judge, arp.today_price = orig_judge, orig_today
+        cap = doc["blocked_days"]["capital_on_rejecting_legs"]
+        self.assertIsNone(cap["capital_usd"])
+        self.assertEqual(cap["capital_days_measured"], 0)
+
+    def test_grant_fills_a_record_that_has_no_rates_section_at_all(self):
+        """Адрес: `grant`, было `dict(clone.get("apy_evidenced_pct") or {})`.
+
+        Поведение обязано остаться прежним — тест краснеет, если рефакторинг
+        под инв. #17 его изменил.
+        """
+        rec = _record(_day(2), current={"a": 1.0}, target={"b": 1.0},
+                      evidenced={})
+        rec.pop("apy_evidenced_pct")
+        out = arp.grant([rec], ["b"], pct=3.0)
+        self.assertEqual(out[0]["apy_evidenced_pct"], {"b": 3.0})
+
+
+class ReportSaysUnmeasuredInsteadOfZeroes(unittest.TestCase):
+    """Отчёт — второй производитель тех же чисел, и он тоже обязан отказывать."""
+
+    def test_absent_capital_section_is_named_not_printed_as_zeroes(self):
+        """Адрес: `format_report`, было
+        `blocked.get("capital_on_rejecting_legs") or {}` — пустой словарь давал
+        строку «держалось $0 из $0 развёрнутых», то есть НЕизмеренное выходило
+        наружу благополучием."""
+        lines = arp.format_report({"status": "WARNING", "headline": "h",
+                                   "blocked_days": {"count": 1,
+                                                    "of_journal_days": 1}})
+        text = "\n".join(lines)
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
+        self.assertNotIn("держалось $0", text)
+
+    def test_absent_day_list_is_named_not_silence(self):
+        """Адрес: `format_report`, было `blocked.get("days") or []` — цикл по
+        пустому списку молчал, и «дней нет» было неотличимо от «список не
+        прочитан»."""
+        lines = arp.format_report({
+            "status": "WARNING", "headline": "h",
+            "blocked_days": {"count": 1, "of_journal_days": 1,
+                             "capital_on_rejecting_legs": {
+                                 "held_usd": 1.0, "deployed_usd": 2.0,
+                                 "targeted_usd": 0.0,
+                                 "held_pct_of_deployed": 50.0,
+                                 "capital_usd": 3.0,
+                                 "capital_days_measured": 1,
+                                 "capital_unmeasured_days": []}}})
+        self.assertTrue(any("списка дней в отчёте нет" in l for l in lines))
+
+    def test_days_with_unnamed_legs_are_reported_as_such(self):
+        """`—` означало «ног нет»; теперь «НЕ НАЗВАНЫ» означает «строка их не
+        несёт», и два исхода различимы в самом отчёте."""
+        lines = arp.format_report({
+            "status": "WARNING", "headline": "h",
+            "blocked_days": {"count": 1, "of_journal_days": 1,
+                             "capital_on_rejecting_legs": {
+                                 "held_usd": 1.0, "deployed_usd": 2.0,
+                                 "targeted_usd": 0.0,
+                                 "held_pct_of_deployed": 50.0,
+                                 "capital_usd": 3.0,
+                                 "capital_days_measured": 1,
+                                 "capital_unmeasured_days": []},
+                             "days": [{"day": "2026-01-01",
+                                       "rejecting_legs": [],
+                                       "rejecting_legs_unmeasured_reason": "нет поля",
+                                       "capital": {"held_usd": 1.0,
+                                                   "deployed_usd": 2.0,
+                                                   "held_pct_of_deployed": 50.0,
+                                                   "targeted_usd": 0.0}}]},
+            "protocols_unmeasured_days": ["2026-01-01"]})
+        text = "\n".join(lines)
+        self.assertIn("НЕ НАЗВАНЫ", text)
+        self.assertIn("перепись НЕПОЛНА", text)
+
+    def test_old_shaped_report_without_the_unmeasured_list_refuses(self):
+        """Отчёт БЕЗ `capital_unmeasured_days` — старого образца, и это не
+        «таких дней нет»: третий исход обязан звучать."""
+        lines = arp.format_report({
+            "status": "WARNING", "headline": "h",
+            "blocked_days": {"count": 1, "of_journal_days": 1,
+                             "capital_on_rejecting_legs": {
+                                 "held_usd": 1.0, "deployed_usd": 2.0,
+                                 "targeted_usd": 0.0,
+                                 "held_pct_of_deployed": 50.0,
+                                 "capital_usd": 3.0}}})
+        self.assertTrue(any("полон ли знаменатель" in l for l in lines))
+
+    def test_measured_report_does_not_cry_unmeasured(self):
+        """Обратный контроль: полный отчёт НЕ печатает ни одного отказа —
+        иначе предыдущие четыре теста были бы истинны по построению."""
+        lines = arp.format_report({
+            "status": "OK", "headline": "h",
+            "blocked_days": {"count": 1, "of_journal_days": 1,
+                             "capital_on_rejecting_legs": {
+                                 "held_usd": 1.0, "deployed_usd": 2.0,
+                                 "targeted_usd": 0.0,
+                                 "held_pct_of_deployed": 50.0,
+                                 "capital_usd": 3.0,
+                                 "capital_days_measured": 1,
+                                 "capital_unmeasured_days": []},
+                             "days": [{"day": "2026-01-01",
+                                       "rejecting_legs": ["p"],
+                                       "rejecting_legs_unmeasured_reason": None,
+                                       "capital": {"held_usd": 1.0,
+                                                   "deployed_usd": 2.0,
+                                                   "held_pct_of_deployed": 50.0,
+                                                   "targeted_usd": 0.0}}]},
+            "protocols_unmeasured_days": []})
+        head = [l for l in lines if l.startswith("   [а]") or
+                l.startswith("   [ПО ДНЯМ]")]
+        self.assertTrue(head)
+        for line in head:
+            self.assertNotIn("НЕ ИЗМЕРЕНО", line)
+            self.assertNotIn("НЕПОЛНА", line)

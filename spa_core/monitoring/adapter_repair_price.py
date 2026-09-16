@@ -205,7 +205,12 @@ def grant(rows: Sequence[dict], protocols: Sequence[str],
     out: List[dict] = []
     for rec in rows:
         clone = copy.deepcopy(rec)
-        rates = dict(clone.get("apy_evidenced_pct") or {})
+        # `or {}` здесь был бы членом класса инв. #17 — и не потому, что менял
+        # бы ПОВЕДЕНИЕ (дыру у записи без секции и у записи с пустой секцией
+        # заполнять надо одинаково), а потому, что склеивал бы два разных
+        # наблюдения в одно выражение. Третий исход существует и назван.
+        seen = observed(clone, "apy_evidenced_pct", kind=dict)
+        rates: Dict[str, object] = {} if seen is None else dict(seen)
         for protocol in protocols:
             if rates.get(protocol) is None:
                 rates[protocol] = pct
@@ -262,13 +267,43 @@ def capital_on_rejecting(record: dict, rejecting: Sequence[str]) -> dict:
 
 
 # ── (б) протоколы поимённо ────────────────────────────────────────────────────
+def named_protocols(row: dict) -> Optional[List[str]]:
+    """Ноги, названные судьёй в строке. ``None`` — поля НЕТ ВОВСЕ.
+
+    Пустой список и отсутствие поля — РАЗНЫЕ наблюдения (инв. #17): первое
+    говорит «судья посмотрел и не назвал ни одной», второе — «строка судьи
+    этого не несёт». Прежнее ``row.get("unpriced_protocols") or []`` сливало
+    их, и перепись докладывала «причину не даёт никто» о дне, который этой же
+    причиной и отвергнут, — то есть ровно «наблюдения нет ⇒ всё хорошо».
+    """
+    named = observed(row, "unpriced_protocols", kind=list)
+    return None if named is None else [str(p) for p in named]
+
+
+def days_without_named_protocols(blocked: Sequence[dict]) -> List[str]:
+    """Дни, отвергнутые причиной, но НЕ несущие поля ``unpriced_protocols``.
+
+    Третий исход переписи. Пустой список здесь — измеренный ноль: население
+    прочитано и таких дней не нашлось.
+    """
+    return sorted({str(row.get("cycle_date")) for row in blocked
+                   if named_protocols(row) is None})
+
+
 def protocol_census(blocked: Sequence[dict]) -> List[dict]:
-    """Кто даёт причину и сколько раз — из ``unpriced_protocols`` самого судьи."""
+    """Кто даёт причину и сколько раз — из ``unpriced_protocols`` самого судьи.
+
+    Строка БЕЗ поля в перепись не входит и молча нулём не становится: её
+    называет `days_without_named_protocols`, и отчёт печатает это отдельно.
+    """
     counts: Dict[str, List[str]] = {}
     for row in blocked:
         day = str(row.get("cycle_date"))
-        for protocol in (row.get("unpriced_protocols") or []):
-            counts.setdefault(str(protocol), []).append(day)
+        named = named_protocols(row)
+        if named is None:
+            continue
+        for protocol in named:
+            counts.setdefault(protocol, []).append(day)
     return [{"protocol": name, "days_named": len(days), "days": sorted(days)}
             for name, days in sorted(counts.items(),
                                      key=lambda kv: (-len(kv[1]), kv[0]))]
@@ -548,12 +583,20 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
     blocked = blocked_days(report, reason)
     days_out: List[dict] = []
     held_total = deployed_total = targeted_total = capital_total = 0.0
+    capital_days_measured = 0
+    capital_unmeasured_days: List[str] = []
     for row in blocked:
         day = str(row.get("cycle_date"))
         record = by_date.get(day)
-        rejecting = [str(p) for p in (row.get("unpriced_protocols") or [])]
+        named = named_protocols(row)
+        rejecting = [] if named is None else named
+        legs_unmeasured = ("строка судьи не несёт `unpriced_protocols` — ноги "
+                           "дня НЕ НАЗВАНЫ, а не отсутствуют"
+                           if named is None else None)
         if record is None:
+            capital_unmeasured_days.append(day)
             days_out.append({"day": day, "rejecting_legs": rejecting,
+                             "rejecting_legs_unmeasured_reason": legs_unmeasured,
                              "capital": None,
                              "capital_unmeasured_reason":
                                  "строки дня нет в журнале — книга не прочитана"})
@@ -562,9 +605,19 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         held_total += cap["held_usd"]
         deployed_total += cap["deployed_usd"]
         targeted_total += cap["targeted_usd"]
-        capital_total += cap["capital_usd"] or 0.0
+        # Капитал дня, которого книга НЕ НЕСЁТ, не есть капитал, равный нулю
+        # (инв. #17). Прежнее `or 0.0` клало ненаблюдённый день в знаменатель
+        # `targeted_pct_of_capital` нулём: доля считалась бы от суммы, часть
+        # слагаемых которой не измерена, и сказать об этом было бы некому.
+        day_capital = cap["capital_usd"]
+        if day_capital is None:
+            capital_unmeasured_days.append(day)
+        else:
+            capital_total += day_capital
+            capital_days_measured += 1
         days_out.append({"day": day, "verdict": row.get("verdict"),
                          "rejecting_legs": rejecting,
+                         "rejecting_legs_unmeasured_reason": legs_unmeasured,
                          "forward_days_available": row.get("forward_days_available"),
                          "capital": cap})
     doc["blocked_days"] = {
@@ -577,10 +630,18 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
             "held_pct_of_deployed": (round(100.0 * held_total / deployed_total, 2)
                                      if deployed_total else None),
             "targeted_usd": round(targeted_total, 2),
-            "capital_usd": round(capital_total, 2),
+            # Ноль ИЗМЕРЕННЫХ дней — не ноль долларов: сумма по пустому
+            # населению есть отсутствие наблюдения, а не наблюдение нуля.
+            "capital_usd": (round(capital_total, 2)
+                            if capital_days_measured else None),
+            "capital_days_measured": capital_days_measured,
+            "capital_unmeasured_days": sorted(set(capital_unmeasured_days)),
+            # Доля от НЕПОЛНОГО знаменателя — число, отвечающее не на свой
+            # вопрос. Есть хоть один день без наблюдённого капитала ⇒ доля
+            # не докладывается вовсе.
             "targeted_pct_of_capital": (
                 round(100.0 * targeted_total / capital_total, 2)
-                if capital_total else None),
+                if capital_total and not capital_unmeasured_days else None),
             "note": ("доля КАПИТАЛА книги, а не оборота: сосед #587/G6 делит ход "
                      "отвергающих ног на оборот того же дня, и это другая ось. "
                      "Итоги двух осей на сегодняшнем населении СОВПАДАЮТ до "
@@ -592,6 +653,10 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
     # ── (б) ──────────────────────────────────────────────────────────────────
     census = protocol_census(blocked)
     doc["protocols"] = census
+    # Третий исход переписи (б): дни, чья строка судьи поля НЕ НЕСЁТ. Пустой
+    # список — измеренный ноль, непустой — «перепись неполна», и это разные
+    # утверждения, которые до сих пор выглядели одинаково.
+    doc["protocols_unmeasured_days"] = days_without_named_protocols(blocked)
     protocols = [row["protocol"] for row in census]
     doc["remedy"] = remedy_by_protocol(data_dir)
 
@@ -685,17 +750,49 @@ def format_report(doc: dict) -> List[str]:
     if blocked is None:
         out.append("   [а] ⚠️ НЕ ИЗМЕРЕНО: населения отвергнутых дней в отчёте нет")
     else:
-        capital = blocked.get("capital_on_rejecting_legs") or {}
-        out.append(f"   [а] дней журнала отвергнуто причиной: {blocked.get('count')} "
-                   f"из {blocked.get('of_journal_days')}; на отвергающих ногах "
-                   f"держалось ${capital.get('held_usd', 0):,.0f} из "
-                   f"${capital.get('deployed_usd', 0):,.0f} развёрнутых = "
-                   f"{capital.get('held_pct_of_deployed')} % книги, и ещё "
-                   f"${capital.get('targeted_usd', 0):,.0f} туда ЦЕЛИЛОСЬ")
-        for day in (blocked.get("days") or []):
-            cap = day.get("capital") or {}
-            out.append(f"   [ПО ДНЯМ] {day.get('day')}: ноги "
-                       f"{', '.join(day.get('rejecting_legs') or []) or '—'} · "
+        capital = observed(blocked, "capital_on_rejecting_legs", kind=dict)
+        if capital is None:
+            out.append("   [а] ⚠️ НЕ ИЗМЕРЕНО: секции капитала на отвергающих "
+                       "ногах в отчёте нет — печатать здесь нули значило бы "
+                       "выдать непрочитанное за пустую книгу")
+        else:
+            cap_usd = capital.get("capital_usd")
+            out.append(f"   [а] дней журнала отвергнуто причиной: "
+                       f"{blocked.get('count')} из {blocked.get('of_journal_days')}; "
+                       f"на отвергающих ногах держалось "
+                       f"${capital.get('held_usd', 0):,.0f} из "
+                       f"${capital.get('deployed_usd', 0):,.0f} развёрнутых = "
+                       f"{capital.get('held_pct_of_deployed')} % книги, и ещё "
+                       f"${capital.get('targeted_usd', 0):,.0f} туда ЦЕЛИЛОСЬ")
+            # Список ненаблюдённых дней ОТСУТСТВУЕТ ⇒ отчёт старого образца, и
+            # это не «таких дней нет». Пустой список — измеренный ноль.
+            unmeasured = observed(capital, "capital_unmeasured_days", kind=list)
+            if unmeasured is None:
+                out.append("   [а] ⚠️ НЕ ИЗМЕРЕНО: отчёт не несёт списка дней без "
+                           "наблюдённого капитала — полон ли знаменатель, "
+                           "сказать нечем")
+            elif cap_usd is None or unmeasured:
+                total_s = ("НЕ ДОКЛАДЫВАЕТСЯ" if cap_usd is None
+                           else f"${cap_usd:,.0f} только по измеренным дням")
+                out.append(f"   [а] ⚠️ капитал книги НЕ ИЗМЕРЕН на "
+                           f"{len(unmeasured)} дн. ({', '.join(unmeasured) or '—'}) "
+                           f"⇒ итог по нему {total_s}, доля «целилось от "
+                           f"капитала» — тоже")
+        days = observed(blocked, "days", kind=list)
+        if days is None:
+            out.append("   [ПО ДНЯМ] ⚠️ НЕ ИЗМЕРЕНО: списка дней в отчёте нет")
+        for day in (days or []):
+            cap = observed(day, "capital", kind=dict)
+            legs = day.get("rejecting_legs")
+            legs_s = (", ".join(legs) if legs else
+                      ("НЕ НАЗВАНЫ" if day.get("rejecting_legs_unmeasured_reason")
+                       else "—"))
+            if cap is None:
+                out.append(f"   [ПО ДНЯМ] {day.get('day')}: ноги {legs_s} · "
+                           f"⚠️ капитал НЕ ИЗМЕРЕН: "
+                           f"{day.get('capital_unmeasured_reason', 'причина не названа')}")
+                continue
+            out.append(f"   [ПО ДНЯМ] {day.get('day')}: ноги {legs_s} · "
                        f"держалось ${cap.get('held_usd', 0):,.0f} "
                        f"({cap.get('held_pct_of_deployed')} % развёрнутой) · "
                        f"целилось ${cap.get('targeted_usd', 0):,.0f}")
@@ -707,6 +804,14 @@ def format_report(doc: dict) -> List[str]:
         lever = ", ".join(levers) if levers else "рычаг НЕ ИЗМЕРЕН"
         out.append(f"   [б] {row['protocol']}: назван {row['days_named']} дн. "
                    f"({', '.join(row['days'])}) · рычаг: {lever}")
+    blind = doc.get("protocols_unmeasured_days")
+    if blind is None:
+        out.append("   [б] ⚠️ НЕ ИЗМЕРЕНО: дни без названных ног не пересчитаны — "
+                   "перепись (б) может быть неполной, и сказать насколько нечем")
+    elif blind:
+        out.append(f"   [б] ⚠️ перепись НЕПОЛНА: у {len(blind)} дн. строка судьи "
+                   f"не несёт `unpriced_protocols` ({', '.join(blind)}) — это НЕ "
+                   "«причину не даёт никто»")
     if not remedy.get("measured"):
         out.append(f"   [б] ⚠️ рычаги НЕ ИЗМЕРЕНЫ: "
                    f"{remedy.get('reason', 'причина не названа')} — слово "

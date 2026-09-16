@@ -340,8 +340,14 @@ def compose(days: Sequence[dict], rows: Dict[str, dict],
         # Проскальзывание в bps ПО ПОСТРОЕНИЮ не двигается — и это проверено
         # замером, а не объявлено: нулевой размах и есть доказательство, что
         # разброс «цены в bps» держат газ и мост, а не оборот.
-        "slippage_bps_varies": bool((by_component["slippage_usd"] or {})
-                                    .get("spread")),
+        # `bool((… or {}).get("spread"))` объявлял «НЕ гуляет» и тогда, когда
+        # компоненты не было вовсе: воспроизводимых дней ноль ⇒ `_bps` вернул
+        # `None` ⇒ ответ `False`. Это ровно инв. #17 — ненаблюдённое выходило
+        # наружу утверждением о мире. `None` = не измерено, `False` = измерено
+        # и размах нулевой.
+        "slippage_bps_varies": (
+            None if by_component["slippage_usd"] is None
+            else bool(by_component["slippage_usd"].get("spread"))),
     }
 
 
@@ -731,13 +737,17 @@ def _unmeasured(now: datetime, reason: str,
 def _headline(parts: dict, drift: dict, sweep: dict, slip_bps: float) -> str:
     flip = (sweep.get("flip_level_bps") or {}) if isinstance(sweep, dict) else {}
     named = (sweep.get("named") or {}) if isinstance(sweep, dict) else {}
-    shares = parts.get("component_shares") or {}
+    # Долей НЕТ ⇒ ни одного воспроизводимого дня. Прежнее `or {}` делало это
+    # неотличимым от «доли есть, но пустые», и заголовок молча терял оговорку.
+    shares = observed(parts, "component_shares", kind=dict)
     head = (f"записанная цена ВОСПРОИЗВЕДЕНА оценщиком до цента на "
             f"{parts['days_reproduced']} дн. из {parts['days_total']} "
             f"(расхождений {parts['days_divergent']}, не измерено "
             f"{parts['days_unmeasured']}) ⇒ `cost_usd` есть ВЫХОД МОДЕЛИ, а не "
             f"наблюдение")
-    if shares:
+    if shares is None:
+        head += "; состав НЕ ИЗМЕРЕН (воспроизводимых дней нет)"
+    elif shares:
         head += (f"; состав: газ {shares.get('gas_usd')}, проскальзывание "
                  f"{shares.get('slippage_usd')}, мост {shares.get('bridge_usd')}")
     if flip.get("measured"):
@@ -850,6 +860,35 @@ def _findings(parts: dict, drift: dict, sweep: dict,
 
 
 # ──────────────────────────────────── отчёт ────────────────────────────────────
+#
+# Три помощника ниже существуют ради одного: отсутствующая секция отчёта обязана
+# печататься СЛОВОМ «НЕ ИЗМЕРЕНО», а не подставляться пустым словарём (инв. #17).
+# Прежняя форма `(comp.get("gas_usd") or {}).get("min")` выводила наружу `None`
+# — то есть представляла отсутствие наблюдения ЗНАЧЕНИЕМ, да ещё и таким, что
+# в русской строке отчёта читается как техническая опечатка, а не как отказ.
+
+
+def _share(shares: Optional[dict], name: str) -> str:
+    """Доля компоненты или НЕ ИЗМЕРЕНО. Долей нет ⇒ воспроизводимых дней нет."""
+    if shares is None:
+        return "доля НЕ ИЗМЕРЕНА"
+    return str(shares.get(name))
+
+
+def _band_field(comp: dict, name: str, field: str) -> str:
+    """Одно поле полосы компоненты в bps — или НЕ ИЗМЕРЕНО."""
+    band = observed(comp, name, kind=dict)
+    return "НЕ ИЗМЕРЕНО" if band is None else str(band.get(field))
+
+
+def _band(comp: dict, name: str) -> str:
+    """`min…max` компоненты в bps — или НЕ ИЗМЕРЕНО."""
+    band = observed(comp, name, kind=dict)
+    if band is None:
+        return "НЕ ИЗМЕРЕНО"
+    return f"{band.get('min')}…{band.get('max')}"
+
+
 def format_report(doc: dict) -> List[str]:
     if str(doc.get("status")) == STATUS_UNMEASURED:
         return [f"   цена СОСТАВА хода (заказ {ORDER}): НЕ ИЗМЕРЕНО",
@@ -858,7 +897,14 @@ def format_report(doc: dict) -> List[str]:
     out.append(f"   {doc.get('headline')}")
 
     parts = observed(doc, "composition", kind=dict) or {}
-    obs = observed(doc, "observed_cost_bps", kind=dict) or {}
+    # Найдено СОБСТВЕННЫМ тестом этой правки, а не храповиком: полосу
+    # наблюдённой цены он не ловит (вокруг `observed()` нет `.get`), а печатала
+    # она ровно то же — `None…None`. Класс один, и оставлять соседа в двух
+    # строках от починки значило бы чинить сторожа, а не писателя.
+    obs = observed(doc, "observed_cost_bps", kind=dict)
+    obs_s = ("НЕ ИЗМЕРЕНА" if obs is None else
+             f"{obs.get('min')}…{obs.get('max')} bps при медиане "
+             f"{obs.get('median')}")
     if parts.get("days_unmeasured"):
         _lump_note = (f"       неразделимость ИЗМЕРЕНА: сумму «газ + мост» объясняют "
                       f"несколько пар на {parts.get('lump_ambiguous_days')} дн. "
@@ -872,24 +918,32 @@ def format_report(doc: dict) -> List[str]:
                f"расхождений {parts.get('days_divergent')} · НЕ ИЗМЕРЕНО "
                f"{parts.get('days_unmeasured')} "
                f"({', '.join(parts.get('unmeasured_reasons') or ['—'])}); "
-               f"наблюдённая цена {obs.get('min')}…{obs.get('max')} bps при "
-               f"медиане {obs.get('median')}")
-    tot = parts.get("component_totals_usd") or {}
-    sh = parts.get("component_shares") or {}
-    out.append(f"       слагаемые (по воспроизводимым дн.): газ {tot.get('gas_usd')} $ "
-               f"({sh.get('gas_usd')}) · проскальзывание {tot.get('slippage_usd')} $ "
-               f"({sh.get('slippage_usd')}) · мост {tot.get('bridge_usd')} $ "
-               f"({sh.get('bridge_usd')})")
-    comp = parts.get("component_bps_of_turnover") or {}
-    out.append(f"       в bps оборота: проскальзывание "
-               f"{(comp.get('slippage_usd') or {}).get('median')} (размах "
-               f"{(comp.get('slippage_usd') or {}).get('spread')} ⇒ меняется: "
-               f"{'ДА' if parts.get('slippage_bps_varies') else 'НЕТ'}) · газ "
-               f"{(comp.get('gas_usd') or {}).get('min')}…"
-               f"{(comp.get('gas_usd') or {}).get('max')} · мост "
-               f"{(comp.get('bridge_usd') or {}).get('min')}…"
-               f"{(comp.get('bridge_usd') or {}).get('max')}; шире всего гуляет "
-               f"«{parts.get('widest_bps_component')}»")
+               f"наблюдённая цена {obs_s}")
+    tot = observed(parts, "component_totals_usd", kind=dict)
+    sh = observed(parts, "component_shares", kind=dict)
+    if tot is None:
+        out.append("       ⚠️ слагаемые НЕ ИЗМЕРЕНЫ: отчёт не несёт "
+                   "`component_totals_usd` — воспроизводимых дней нет")
+    else:
+        out.append(f"       слагаемые (по воспроизводимым дн.): газ "
+                   f"{tot.get('gas_usd')} $ ({_share(sh, 'gas_usd')}) · "
+                   f"проскальзывание {tot.get('slippage_usd')} $ "
+                   f"({_share(sh, 'slippage_usd')}) · мост "
+                   f"{tot.get('bridge_usd')} $ ({_share(sh, 'bridge_usd')})")
+    comp = observed(parts, "component_bps_of_turnover", kind=dict)
+    if comp is None:
+        out.append("       ⚠️ полосы в bps оборота НЕ ИЗМЕРЕНЫ: отчёт не несёт "
+                   "`component_bps_of_turnover`")
+    else:
+        varies = parts.get("slippage_bps_varies")
+        varies_s = ("НЕ ИЗМЕРЕНО" if varies is None else
+                    ("ДА" if varies else "НЕТ"))
+        out.append(f"       в bps оборота: проскальзывание "
+                   f"{_band_field(comp, 'slippage_usd', 'median')} (размах "
+                   f"{_band_field(comp, 'slippage_usd', 'spread')} ⇒ меняется: "
+                   f"{varies_s}) · газ {_band(comp, 'gas_usd')} · мост "
+                   f"{_band(comp, 'bridge_usd')}; шире всего гуляет "
+                   f"«{parts.get('widest_bps_component')}»")
     if _lump_note:
         out.append(_lump_note)
 

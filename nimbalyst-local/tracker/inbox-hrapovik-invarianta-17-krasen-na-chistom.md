@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Храповик инварианта #17 красен на чистом origin: база отстала на 17 членов, пять из них в adapter_repair_price.py"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-16
+acceptance_probe: absent_observation_class_closed
+status_trail:
+  - "2026-09-16T11:06:29.965629+00:00 new -> in-progress · queue.set_status · cycle-33260"
+  - "2026-09-16T11:11:14.641270+00:00 in-progress -> done · queue.set_status · cycle-33260"
 ---
 
 ## Что случилось
@@ -45,3 +49,33 @@ created: 2026-09-16
 
 `SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest spa_core/tests/test_absent_observation_ratchet.py -q`
 зелен на `origin/main`, и число членов в базе НЕ выросло (148 или меньше).
+
+---
+
+## Исполнено — цикл #616 (2026-09-16), ADR-397
+
+Починены **ПИСАТЕЛИ**, база не тронута ни на строку.
+
+| | было (чистый `origin/main` c765512e4) | стало |
+|---|---|---|
+| членов `or_falsy` в дереве | 165 | **148** |
+| в базе | 148 | **148** (не менялась) |
+| новых сверх базы | **17** | **0** |
+| храповик инв. #17 | 17 passed / **3 failed** | **20 passed** |
+
+Семнадцать координат разобраны поимённо, не числом: `adapter_repair_price` 6,
+`move_cost_composition_price` 10, `findings_bridge` 1. Среди них один дефект
+ДЕНЕЖНОГО числа — `capital_total += cap["capital_usd"] or 0.0` клал
+ненаблюдённый день нулём в ЗНАМЕНАТЕЛЬ доли `targeted_pct_of_capital`.
+
+**Приёмка объявлена и выполнена машинно:** `acceptance_probe:
+absent_observation_class_closed` (новая проба, написана этой же первой работой по
+карточке — `.claude/rules/acceptance.md` §3 — с контролем в обе стороны,
+`spa_core/tests/test_absent_observation_probe.py`, 11 тестов).
+
+Батарея мутаций: **18 координат, 18 краснеют СВОЙ названный тест, 0 выживших**.
+У одной координаты (`grant`) поведенческого контроля нет по построению — её
+сторожит только храповик, и это сказано вслух, а не спрятано за общим числом.
+
+Подробности: [ADR-397](../../docs/decisions/ADR-397-absent-observation-class-closed-in-the-cio-instruments.md)
+· журнал `docs/journal/2026-W38.md`, цикл #616.
