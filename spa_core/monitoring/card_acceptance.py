@@ -240,6 +240,126 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
 
 
 
+#: Имя переписи в `sys.modules`. Скрипт лежит в `scripts/` (не пакет) — грузится по пути;
+#: имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить модуль и увидеть, что
+#: проба читает ИМЕННО перепись, а не собственную копию её логики.
+CENSUS_MODULE_NAME = "_spa_capital_census_under_probe"
+#: Старше этого — книга уже не наблюдение, а снимок. Производитель переписывает
+#: `current_positions.json` каждым дневным циклом; сутки = «пропущен хотя бы один».
+#: То же число и та же причина, что у `ADAPTER_STATUS_MAX_AGE_H`: спор МЕЖДУ двумя
+#: артефактами имеет смысл, только пока свежи оба.
+CENSUS_MAX_AGE_H = 24.0
+
+
+def _census_module():
+    """Перепись наблюдаемости капитала как модуль: один раз на процесс."""
+    import importlib.util
+    mod = sys.modules.get(CENSUS_MODULE_NAME)
+    if mod is not None:
+        return mod
+    path = os.path.join(REPO_ROOT, "scripts", "capital_observability_census.py")
+    spec = importlib.util.spec_from_file_location(CENSUS_MODULE_NAME, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"{path} не загружается как модуль")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[CENSUS_MODULE_NAME] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(CENSUS_MODULE_NAME, None)
+        raise
+    return mod
+
+
+def _probe_second_artifact_tvl_agrees(arg: str | None, *,
+                                      now: "datetime | None" = None,
+                                      data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий: второй артефакт НЕ спорит с поверхностью решения по оси TVL.
+
+    Предмет — ровно тот, что у карточки `inbox-vtoroi-artefakt-neset-literaly-tvl-tam-g`:
+    про один и тот же профинансированный протокол в один и тот же цикл система держит
+    ДВА снимка, и 12.09 они расходились — `current_positions.json → feed_coverage`
+    объявлял TVL наблюдением, а `data/adapter_status.json` в ту же секунду нёс литерал
+    (`aave_v3` $12B против $206.1M, ×58.2). Гейт финансирования при этом не обманут: он
+    судит по первому. Обманут ОТЧЁТ ВЛАДЕЛЬЦУ и советательные стратегии — шесть
+    потребителей читают именно второй файл.
+
+    **Ось здесь одна намеренно.** Перепись возвращает код 1 ещё и от доли APY, от
+    расхождения суммы книги с объявленным `deployed_usd`, от нечитаемого второго
+    артефакта и от спора ВНУТРИ первого файла — это соседние предметы с другими
+    владельцами, и вердикт по ним ответил бы не на вопрос карточки (её раздел
+    «Границы»: «Задача целиком в производителе второго артефакта»). Считается спор по
+    оси TVL плюс протокол, которого во втором артефакте НЕТ ВОВСЕ: про его TVL этот
+    файл тоже не наблюдает ничего, и молчание здесь не согласие.
+
+    **Возраст — часть вопроса, а не предположение.** `data/` частично лежит в git,
+    поэтому в worktree и на CI оба файла ЕСТЬ — но это замороженный канон origin, и
+    спор двух снимков неизвестного возраста ничего не говорит о живом производителе.
+    Протухшая книга ⇒ `unmeasured`, НИКОГДА не `not_satisfied`. Время — вход (`now`),
+    а не окружение: обе стороны сравнения закрепляются в тесте.
+
+    Каталог данных — тоже ВХОД (`data_dir`), по той же причине, что и часы: иначе
+    вердикт решала бы переменная окружения `SPA_DATA_DIR`, а не предмет. Умолчание —
+    `data/` того дерева, из которого пробу позвали (шаг 0-офис ходит из прод-дерева).
+
+    Проба только ЧИТАЕТ: перепись ничего не пишет и ничего не чинит.
+    """
+    try:
+        census = _census_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не загружена: {type(exc).__name__}: {exc}"
+
+    try:
+        res = census.measure(data_dir or os.path.join(REPO_ROOT, "data"))
+    except census.NotMeasured as exc:
+        return UNMEASURED, f"перепись отказалась мерить: {exc}"
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+
+    stamp = res.get("as_of")
+    if not stamp:
+        return UNMEASURED, ("у снимка книги нет `generated_at` — возраст не измерен, "
+                            "судить о споре двух снимков нечем")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, (f"снимок книги: generated_at {stamp!r} не разобран — "
+                            f"возраст не измерен")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > CENSUS_MAX_AGE_H:
+        return UNMEASURED, (f"снимок книги протух: возраст {age_h:.1f}ч при пределе "
+                            f"{CENSUS_MAX_AGE_H:.0f}ч (замороженный канон, не наблюдение) — "
+                            f"мерить надо из дерева с живым data/")
+
+    second = res.get("second_artifact") or {}
+    if not second.get("read"):
+        return UNMEASURED, ("сверка со вторым артефактом НЕ СОСТОЯЛАСЬ: "
+                            f"{second.get('reason') or 'причина не названа'}")
+
+    rows = [r for r in (second.get("disagreements") or [])
+            if r.get("axis") == "tvl" or r.get("kind") == "absent_from_second_artifact"]
+    if not rows:
+        return SATISFIED, (f"спора по оси TVL нет: развёрнуто ${res['deployed_usd']:,.2f} "
+                           f"в {res['protocols']} протокол(ах), второй артефакт согласен "
+                           f"по каждому (снимок {str(stamp)[:19]}, возраст {age_h:.1f}ч)")
+
+    details = []
+    for r in rows:
+        if r.get("kind") == "absent_from_second_artifact":
+            details.append(f"{r['protocol']} (${r['usd']:,.2f}): протокола нет во втором "
+                           f"артефакте вовсе")
+            continue
+        sv, tv = r.get("surface_value"), r.get("second_value")
+        extra = ""
+        if isinstance(sv, (int, float)) and isinstance(tv, (int, float)) and sv:
+            extra = f" — ${tv:,.0f} против ${sv:,.0f}, ×{tv / sv:,.1f}"
+        details.append(f"{r['protocol']} (${r['usd']:,.2f}): поверхность — {r['surface']}, "
+                       f"adapter_status.json — {r['second']}{extra}")
+    return NOT_SATISFIED, " · ".join(details)
+
+
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
 #: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
 #: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
@@ -970,6 +1090,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
+    "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
 }
 
 
