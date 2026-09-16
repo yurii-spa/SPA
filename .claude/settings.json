@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/session_index_lag_warning.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash git commands (git add / git commit / git push) whose diff touches only this repository's own agent-instruction files (CLAUDE.md, .claude/rules/*.md) are allowed, PROVIDED the same commit also carries a line in docs/journal/<week>.md saying what changed and why. Owner decision 2026-09-16: the permission and the journal entry are one thing, not two — an instruction file that changes without a trace is the class that already cost this project 16 days of a missing invariant (ADR-344) and 6 days of a missing deployment rule. Enforced mechanically, not by this sentence: scripts/check_rules_change_is_journalled.py + the pre-commit hook that calls it."
+    ]
+  }
+}

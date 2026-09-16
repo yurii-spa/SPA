@@ -54,9 +54,13 @@ Owner-approval bypass
   spa_core.owner_queue enforces it) AND its `approves:` scope covers the violations.
 
 Design: pure stdlib, deterministic, no LLM (# LLM_FORBIDDEN). Reads read-only; writes
-only data/owner_gate_check.json (gitignored) when --report.
+only data/owner_gate_check.json (gitignored) when --report, and/or the exact file named by
+--report-path (a per-invocation copy for the caller that needs THIS run's verdict, not
+whatever was last written to the shared file).
 
-Exit: 0 clean · 2 owner-gated violation(s) · 1 tool/IO error.
+Exit: 0 clean · 2 owner-gated violation(s) · 1 tool/IO error (INCLUDING a usage error —
+argparse's default exit code 2 is the GATED code, and a caller reading only the code took
+"unrecognized arguments" for "owner-gated change" and asked the owner to approve zero files).
 """
 from __future__ import annotations
 
@@ -771,8 +775,16 @@ def check_owner_gate(
     }
 
 
-def _write_report(report: dict[str, Any], repo: Path) -> Path:
-    dst = repo / "data" / "owner_gate_check.json"
+def _write_report(report: dict[str, Any], repo: Path, dst: Path | None = None) -> Path:
+    """Write the report atomically. ``dst=None`` ⇒ the shared ``data/owner_gate_check.json``.
+
+    The shared file is a HUMAN artifact (last verdict, for whoever looks). A caller that
+    acts on the verdict (safe_site_push) passes its own ``dst``: the shared path is written
+    by every guard run in the tree — the site-custodian deploy, the push interlock, a
+    sibling session — so its content is "whoever wrote last", not "this invocation".
+    """
+    if dst is None:
+        dst = repo / "data" / "owner_gate_check.json"
     try:
         from spa_core.utils.atomic import atomic_save
 
@@ -790,15 +802,36 @@ def _write_report(report: dict[str, Any], repo: Path) -> Path:
         return dst
 
 
+class _GuardArgParser(argparse.ArgumentParser):
+    """A usage error is a TOOL error (exit 1), never the GATED verdict (exit 2).
+
+    argparse exits 2 on an unrecognised argument — the same code `_main` uses for
+    "owner-gated change, route to the owner". A caller that reads only the code cannot tell
+    the two apart: safe_site_push took a usage error for GATED, found no violations in the
+    (stale, shared) report and opened the owner a card asking to approve NOTHING
+    (`owner-decision-sait-pravka-…`, forwarded by the owner on 16.09). Code 2 is reserved
+    for the verdict; every other failure is code 1, fail-CLOSED at the caller.
+    """
+
+    def error(self, message: str):  # noqa: D401 — argparse contract
+        self.print_usage(sys.stderr)
+        print(f"{self.prog}: error: {message}", file=sys.stderr)
+        sys.exit(1)
+
+
 def _main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Owner-gate guard (auto-ship safety).")
+    ap = _GuardArgParser(description="Owner-gate guard (auto-ship safety).")
     ap.add_argument("--diff-mode", choices=("git-range", "files", "worktree"),
                     default="worktree")
     ap.add_argument("--base")
     ap.add_argument("--head")
     ap.add_argument("--files", nargs="*")
     ap.add_argument("--commit-message", default=None)
-    ap.add_argument("--report", action="store_true")
+    ap.add_argument("--report", action="store_true",
+                    help="write the shared data/owner_gate_check.json (last verdict, for humans)")
+    ap.add_argument("--report-path", default=None,
+                    help="ALSO write this run's report to exactly this file (per-invocation "
+                         "verdict for a caller that acts on it)")
     args = ap.parse_args(argv)
 
     try:
@@ -837,6 +870,11 @@ def _main(argv: list[str] | None = None) -> int:
     if args.report:
         dst = _write_report(report, _REPO_ROOT)
         print(f"  report → {dst}")
+    if args.report_path:
+        # Written even when the shared report is not asked for: the caller's verdict must
+        # not depend on a second flag being present.
+        own = _write_report(report, _REPO_ROOT, dst=Path(args.report_path))
+        print(f"  report (this run) → {own}")
 
     if report["ok"]:
         print("  RESULT: CLEAN — no owner-gated changes; safe to auto-ship.")

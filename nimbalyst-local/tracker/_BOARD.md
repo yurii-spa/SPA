@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-16T16:32:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-16T18:18:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a7f595481) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (fa7575de3) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1064** · ждёт владельца: **2** · занято сессиями: **14**.
 
@@ -412,6 +412,7 @@
 - давай разберем задачу - Решение ADR-104 записано, но до машины не доехало: CIO…  ·  `inbox-davai-razberem-zadachu-reshenie-adr-104.md` · 2026-08-22
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
+- Девять читателей журнала: «судить нечем» — их ответ несёт поля-возрасты, а прежнее «схлопывает» было артефактом  ·  `inbox-devyat-chitatelei-zhurnala-sudit-nechem.md` · 2026-09-16
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
 - Дневной цикл пишет четыре артефакта мимо своего контракта — среди них аварийный статус  ·  `inbox-dnevnoi-tsikl-pishet-chetyre-artefakta-mimo-kontrakta.md` · 2026-08-28
@@ -735,7 +736,6 @@
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
-- Девять читателей журнала: «судить нечем» — их ответ несёт поля-возрасты, а прежнее «схлопывает» было артефактом  ·  `inbox-devyat-chitatelei-zhurnala-sudit-nechem.md` · 2026-09-16
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13

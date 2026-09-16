@@ -12,9 +12,20 @@ Flow:
      landing/ targets.
   2. CLEAN (exit 0) → set SPA_SITE_PUSH_VERIFIED=1 and delegate to push_to_github_batch.py
      (one commit). The raw push tools honour that marker and allow the push.
-  3. GATED (exit 2) → do NOT push. Open a `needs-owner` card summarising the blocked
-     change + violations, notify the owner, exit 2. The orchestrator continues other work.
-  4. Guard ERROR (exit 1) → fail CLOSED: do NOT push, exit 1.
+  3. GATED (exit 2 AND this run's report names the gated files) → do NOT push. Open a
+     `needs-owner` card summarising the blocked change + violations, notify the owner,
+     exit 2. The orchestrator continues other work.
+  4. Guard ERROR (exit 1, or exit 2 whose report names NO gated file) → fail CLOSED: do NOT
+     push, do NOT ask the owner (there is nothing to approve), exit 1.
+
+Why the verdict is read from a per-invocation report and not from the exit code alone
+(measured on the card `owner-decision-sait-pravka-…`, forwarded by the owner on 16.09):
+the card's title said «правка» instead of a file name and its `approves:` was EMPTY — so
+the owner's «Одобрить» would have authorised nothing. `approves` is built from the
+report's violations; the report used to be the SHARED `data/owner_gate_check.json`, written
+by every guard run in the tree (site-custodian deploy, push interlock, sibling session),
+and exit code 2 is ALSO what argparse returns on a usage error. Either door yields
+"code 2 + a report with no violations" = a question to the owner about nothing.
 
 Why a wrapper AND a hard interlock in the push tools: an LLM can forget to call this
 wrapper. The deterministic interlock in push_to_github*.py (active only when
@@ -41,21 +52,49 @@ _BATCH = _REPO_ROOT / "push_to_github_batch.py"
 
 
 def _run_guard(site_files: list[str], message: str) -> tuple[int, dict]:
-    """Run the guard on the given files; return (exit_code, report_dict)."""
+    """Run the guard on the given files; return (exit_code, report_dict).
+
+    The report is read from a file that ONLY this invocation names (`--report-path` into a
+    fresh temp dir), never from the shared `data/owner_gate_check.json`. The shared file is
+    still written (`--report`) as the human-visible "last verdict", but it is exactly that —
+    last, by whoever wrote it. `{}` comes back when the guard did not write our file (an
+    older guard without the flag exits 1 on it; a crash writes nothing): the caller treats
+    "no report" as "no verdict", fail-CLOSED.
+    """
+    import shutil
+    import tempfile
+
+    own_dir = tempfile.mkdtemp(prefix="owner_gate_verdict_")
+    own_report = Path(own_dir) / "owner_gate_check.json"
     cmd = [
         sys.executable, str(_GUARD),
         "--diff-mode", "files", "--files", *site_files,
         "--commit-message", message or "", "--report",
+        "--report-path", str(own_report),
     ]
-    rc = subprocess.run(cmd, cwd=str(_REPO_ROOT)).returncode
     report: dict = {}
     try:
-        report = json.loads(
-            (_REPO_ROOT / "data" / "owner_gate_check.json").read_text(encoding="utf-8")
-        )
-    except Exception:
-        pass
+        rc = subprocess.run(cmd, cwd=str(_REPO_ROOT)).returncode
+        try:
+            loaded = json.loads(own_report.read_text(encoding="utf-8"))
+            report = loaded if isinstance(loaded, dict) else {}
+        except Exception:  # noqa: BLE001 — absent/unreadable ⇒ no verdict, decided by caller
+            report = {}
+    finally:
+        shutil.rmtree(own_dir, ignore_errors=True)
     return rc, report
+
+
+def _gated_files(report: dict) -> list[str]:
+    """Repo-relative files the report's violations name — the ONLY legitimate `approves:` scope.
+
+    Empty ⇒ there is nothing an owner could approve, whatever the exit code said.
+    """
+    violations = report.get("violations") if isinstance(report, dict) else None
+    if not isinstance(violations, list):
+        return []
+    return sorted({_rel(str(v.get("file"))) for v in violations
+                   if isinstance(v, dict) and v.get("file")})
 
 
 def _violations_fingerprint(violations: list) -> str:
@@ -254,7 +293,7 @@ def _card_title(blocked: list[str]) -> str:
             f"нужно решение")
 
 
-def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> None:
+def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> bool:
     """Create a needs-owner card for the blocked change and notify (best-effort).
 
     Карточка несёт `approves:` — ТОЧНЫЙ перечень файлов, которые гейт заблокировал.
@@ -265,9 +304,21 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
     (вариант А, `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo`) — но
     генератор карточек поле не писал, и обход всё равно оставался мёртвым.
     Scope берётся из САМИХ нарушений: одобряется ровно то, что владельцу показали,
-    и ничего сверх. Нарушений нет ⇒ пустой scope ⇒ обхода нет (fail-CLOSED).
+    и ничего сверх. Нарушений нет ⇒ scope пуст ⇒ карточка НЕ создаётся (fail-CLOSED в
+    сторону владельца: вопрос «одобри ноль файлов» — это не вопрос, а шум, и его
+    «Одобрить» ничего не разрешает; замер — карточка `owner-decision-sait-pravka-…`,
+    заголовок «Сайт: правка — …» вместо имени файла). Возвращает True, если вопрос
+    владельцу существует (создан сейчас или уже открыт), False — если создавать нечего.
     """
-    violations = report.get("violations", [])
+    # Scope одобрения = ровно те файлы, по которым гейт выдал нарушения (repo-relative).
+    # Не список `--files`: там могут быть и чистые файлы, одобрять их незачем.
+    approves = _gated_files(report)
+    if not approves:
+        print("safe_site_push: the guard's report names NO gated file — nothing an owner "
+              "could approve; NOT creating an owner card (it would ask about nothing). "
+              "NOT pushing.", file=sys.stderr)
+        return False
+    violations = [v for v in report.get("violations", []) if isinstance(v, dict)]
     lines = [
         "## Что случилось и почему это важно",
         "Автономный оркестратор хотел изменить публичный сайт, но правка задевает "
@@ -319,7 +370,7 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
         print(f"safe_site_push: owner card already open for the same violations "
               f"({existing.name}) — not creating a duplicate, not notifying",
               file=sys.stderr)
-        return
+        return True
     # Персистентный дедуп ПОВЕРХ worktree-проверки выше: она видит только карточки
     # ЗАПУСКАЮЩЕГО дерева, а автономный оркестратор каждый цикл — в новом worktree,
     # где прежней карточки нет (спам владельцу, замер 21.08). Реестр в живом
@@ -329,14 +380,11 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
         print(f"safe_site_push: owner already notified about these violations at "
               f"{last_at} (< {_RENOTIFY_COOLDOWN_H:g}h ago) — not re-notifying "
               f"(fingerprint {fingerprint})", file=sys.stderr)
-        return
+        return True
     lines.append("")
     lines.append(f"<!-- owner-gate-fingerprint: {fingerprint} -->")
     body = "\n".join(lines)
 
-    # Scope одобрения = ровно те файлы, по которым гейт выдал нарушения (repo-relative).
-    # Не список `--files`: там могут быть и чистые файлы, одобрять их незачем.
-    approves = sorted({_rel(str(v.get("file", ""))) for v in violations if v.get("file")})
     try:
         from spa_core.owner_queue.queue import create_card  # type: ignore
 
@@ -351,7 +399,8 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
             # Запятая, а НЕ YAML-список: frontmatter-парсер очереди плоский и
             # `[a, b]` вернул бы строку со скобками, которая не совпадёт ни с одним
             # путём. `_parse_approves` штатно принимает форму через запятую.
-            extra_fields={"approves": ", ".join(approves)} if approves else None,
+            # `approves` здесь непуст ПО ПОСТРОЕНИЮ (отказ выше).
+            extra_fields={"approves": ", ".join(approves)},
         )
         print(f"safe_site_push: routed to owner card {card_path}", file=sys.stderr)
         try:
@@ -368,6 +417,8 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
     except Exception as exc:
         print(f"safe_site_push: FAILED to create owner card ({exc}); NOT pushing.",
               file=sys.stderr)
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -391,6 +442,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if site_files:
         rc, report = _run_guard(site_files, args.message)
+        if rc == 2 and not _gated_files(report):
+            # Код 2 без отчёта, называющего файлы, — НЕ вердикт GATED: это usage-error
+            # старого гейта, крах до записи или чужой отчёт. Одобрять нечего ⇒ владельца
+            # не спрашиваем; пуш не делаем (fail-CLOSED); код 1 = ошибка инструмента.
+            print("safe_site_push: guard exited 2 but this run's report names NO gated "
+                  "file — not a GATED verdict (usage error / unreadable report). Failing "
+                  "CLOSED: NOT pushing, NOT asking the owner (nothing to approve).",
+                  file=sys.stderr)
+            return 1
         if rc == 2:
             print("safe_site_push: GATED — owner-gated change, NOT pushing.", file=sys.stderr)
             _route_to_owner_card(site_files, report, args.message)
