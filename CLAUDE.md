@@ -1,1 +1,286 @@
-PLACEHOLDER
+# SPA — Smart Passive Aggregator · CLAUDE.md
+
+> **Источник правды — файлы в git.** Nimbalyst / Obsidian / дашборды — только окна в них.
+> Полная топология и two-agent separation: [`PROJECT_CONTROL/00_START_HERE.md`](PROJECT_CONTROL/00_START_HERE.md).
+>
+> **Снимок состояния** (git-committed `data/golive_status.json`; ЖИВЫЕ числа — `docs/SYSTEM_BRIEFING.md` /
+> `docs/STATE.md`): GoLive **27/29** · трек **13/30** evidenced (anchor **2026-06-22**) · kill-switch SOFT −5% / HARD −10%.
+
+## ⚡ Проверенные факты и ловушки (читать ПЕРВЫМ; дата проверки обязательна; НЕ перепроверять — ПОЛЬЗОВАТЬСЯ)
+
+| Факт (проверено) | Как убедиться за 10 с | Дата |
+|---|---|---|
+| Реакция на **деградацию** протокола УЖЕ автоматическая и без владельца/CIO: Tier-A `BLOCK` → цель обнуляется (`paper_trading/cycle_gates.py`, Step 2c-pre); stale-фид → `allocator._fundable()` `unevidenced`; TVL/APY → RiskPolicy, ADR-053. Карточку владельцу на это НЕ заводить | `grep -n "target_usd\[_p\] = 0.0" spa_core/paper_trading/cycle_gates.py` | 2026-09-11 |
+| Ярлык тира меняется ТОЛЬКО ADR-ом (T1 — владелец). Это задумано, не пробел | `docs/tier_criteria.md` §5 | 2026-09-11 |
+| **Подъём** улучшившегося протокола (T3→T2) НЕ автоматизирован нигде; `tier_curator` — советательное зеркало без читателя; критерии ADR-041 не реализованы | `grep -rn tier_curator_report --include=*.py spa_core scripts | grep -v tests` | 2026-09-11 |
+| Приёмка меряется по ИСХОДУ, не по модулю: машинная проба карточки (`monitoring/card_acceptance.py`, ADR-208) обязательна ДО взятия inbox-карточки в работу (`.claude/rules/acceptance.md`; база без критерия 462 — только убывает); «модуль есть, тесты зелёные, артефакт свежий» ≠ «работает» | `SPA_ENV=ci python3 -m pytest spa_core/tests/test_inbox_acceptance_ratchet.py -q` | 2026-09-13 |
+| **Ловушка grep:** гейты денежного пути ИМПОРТИРУЮТ модули, а не читают `data/*.json` по имени. «Файл никто не читает» по имени файла — не доказательство | искать по `import`, потом по имени | 2026-09-11 |
+| **Ловушка merge-tree:** конфликт мерить `git merge-tree --write-tree` (код возврата); старая форма маркеры так не печатает | — | 2026-09-11 |
+| `STATE.md` — храповик **≤150 строк**; `main` уже ровно 150 ⇒ любая добавленная строка красная. Сжимать, не дописывать | `spa_core/tests/test_state_md_length_ratchet.py` | 2026-09-11 |
+| Два реестра ADR (`docs/adr/`, `docs/decisions/`) с **5 коллизиями номеров** (029/030/048/050/053); «ADR-053» неоднозначен | `ls docs/adr docs/decisions | grep -E "^ADR-0(29|30|48|50|53)"` | 2026-09-11 |
+
+Правило блока: строка живёт, пока факт проверяем командой из второй колонки; устарел — **удалить**, не дописывать рядом.
+
+## Что это (5 строк)
+
+SPA — автономный DeFi yield-optimizer на стадии **paper trading**. Виртуальный капитал
+**$100,000 USDC**: ежедневный цикл берёт живые APY/TVL из whitelisted-протоколов, прогоняет
+через детерминированный RiskPolicy и ребалансирует виртуальный портфель. Цель — честный
+30-дневный трек → go-live. Всё, что не в live-треке (sleeves, дески, рой) — **advisory / paper,
+капитал не двигает**. Финмодель — `MASTER_PLAN_v1.md` (задачи MP-xxx).
+
+---
+
+## 🟢 Протокол сессии (ОБЯЗАТЕЛЬНО)
+
+1. **⚠️ На Маке источники §1 читать из зеркала `~/Documents/SPA_mirror`** (ADR-152).
+   Локальный индекс отстаёт от origin на сотни коммитов — это ШТАТНО (пуши идут в origin
+   через API, минуя индекс; синхронизация возит `spa_core/scripts/tests/architecture` и —
+   с ADR-214 — сами инструкции `CLAUDE.md`/`.claude/rules/`, а `docs/` и `nimbalyst-local/`
+   — никогда). Рабочее дерево **не синхронизировать**: они
+   пишутся локально, merge затёр бы незапушенное. Зеркало обновляется само раз в полчаса.
+
+1. **В начале каждой сессии** (и после сжатия контекста / в новом окне) прочитать — чтобы НЕ быть
+   «новым сотрудником без понятия что за агенты и что за dev-слой» (owner-directive 2026-07-16):
+   - **`docs/SYSTEM_MAP.md`** — живая карта ВСЕЙ системы: каждый из 58 агентов (по ролям), страницы сайта,
+     код по подсистемам, ПОЧЕМУ так устроено (+ `data/agent_registry.json` / дашборд `/admin/agents`);
+   - **`nimbalyst-local/tracker/_BOARD.md`** — ЕДИНЫЙ ОБЗОР всех карточек одним взглядом (по типу+статусу,
+     вверху «ждёт владельца»); авто-индекс, регенерится `scripts/build_tracker_board.py` + сам на каждой
+     мутации карточки. Читать ЕГО первым, не открывая 56 файлов. Сами карточки — `nimbalyst-local/tracker/*.md`:
+     `own-*`/`owner-decision-*` = Owner Decisions (ждёт владельца) · `agent-*` = Agent Tasks (что делает
+     агент: backlog/in-progress/blocked/done) · `inbox-*` = задания;
+   - **`docs/OWNER_BACKLOG_<дата>.md`** — свежие решения владельца из Q&A-сессий;
+   - **агент-архитектура (2 слоя):** `docs/ADR_004_two_layer_agents.md` (dev vs product), `docs/10_agent_architecture.md`
+     + `docs/08_ai_investment_os_architecture.md` (16 аналитиков), `docs/CMO_EDITORIAL_LAYER.md` (продвижение) —
+     СПРОЕКТИРОВАНЫ, ждут активации (AAA-таск «продуктовый слой / супер-студия»);
+   - `docs/STATE.md` — фокус, активные задачи, последние решения; `docs/decisions/INDEX.md` — реестр ADR;
+   - `docs/SYSTEM_BRIEFING.md` — живой оперативный статус (auto, 30 мин). Без него нельзя утверждать
+     «всё работает / агенты живы / portfolio в порядке».
+2. **Перед изменением risk-логики** (`spa_core/risk/`, kill-switch, gates) — прочитать
+   соответствующий ADR в `docs/decisions/` и правило [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md).
+3. **В конце цикла оркестратор ОБЯЗАН** обновить `docs/STATE.md` и дописать `docs/journal/<неделя>.md`.
+4. **Ничего «в воздухе» — фиксировать до конца сессии.** Если в ЛЮБОЙ сессии (интерактивной или
+   фоновой) с владельцем принято решение, достигнута договорённость или высказано пожелание — сессия
+   ОБЯЗАНА записать это ПЕРЕД завершением:
+   - **решение** → ADR (`docs/decisions/`) + строка в `docs/STATE.md`;
+   - **задача** → карточка Inbox (`nimbalyst-local/tracker/`, через `orchestrator_queue.py create`);
+   - **идея** → `docs/ideas/<дата-slug>.md`.
+   Устных договорённостей быть не должно. **Не записано — работа сессии НЕ считается завершённой.**
+5. **Path-специфичные правила** — читать перед работой в области:
+   [`.claude/rules/risk-engine.md`](.claude/rules/risk-engine.md) · [`.claude/rules/site-copy.md`](.claude/rules/site-copy.md) · [`.claude/rules/site-numbers.md`](.claude/rules/site-numbers.md) (откуда берётся каждое число сайта) · [`.claude/rules/adapters.md`](.claude/rules/adapters.md) ·
+   [`.claude/rules/deployment.md`](.claude/rules/deployment.md) (любое изменение прод-дерева: acceptance до и после, каталогами
+   целиком, права — часть доставки) · [`.claude/rules/design-docs.md`](.claude/rules/design-docs.md) (создание или
+   существенная правка нумерованного `docs/NN_*.md`: обязательная строка статуса L1–L5 + владелец + приёмка) ·
+   [`.claude/rules/acceptance.md`](.claude/rules/acceptance.md) (взять inbox-карточку в работу — только с машинной
+   пробой приёмки, зафиксированной ДО работы; делающая сессия её не правит).
+
+## 🧭 Маршрутизация «идея ≠ инструкция»
+
+- `docs/ideas/` (свободные идеи владельца) и `docs/rules-draft/` (черновики правил) — **агенты
+  по ним НЕ действуют.** Идея становится инструкцией только после **промоушена владельцем**
+  (пометка `#promote` в заметке или явная карточка-задание).
+- **Промоушен (§7.3):** `#promote` → оркестратор превращает заметку в правило (`.claude/rules/` /
+  `CLAUDE.md`), ADR (`docs/decisions/`) или задачу-карточку, затем метит исходник `#promoted`
+  (скан: `scripts/orchestrator_queue.py promotions`).
+- Действующие правила живут только в `CLAUDE.md` / `.claude/rules/`; решения — в
+  `docs/decisions/`; задачи — в inbox / трекерах (`nimbalyst-local/tracker/`).
+
+---
+
+## 🔒 Инварианты (нарушать нельзя)
+
+1. **Детерминированный RiskPolicy v1.0 — единственный hard-гейт исполнения.** `approved=False`
+   не переопределяется никем. Version остаётся `v1.0` весь paper-период (изменение → новый ADR).
+   Risk Scoring v2 — **только advisory**, никогда не гейт.
+2. **Refusal-first / fail-CLOSED** — при недоборе кворума, расхождении фидов или нехватке
+   истории система ОТКАЗЫВАЕТ / держит, а не угадывает.
+3. **LLM запрещён** в risk / execution / monitoring / kill компонентах.
+4. **Только stdlib** Python в runtime (исключение — FastAPI/uvicorn для API-сервера).
+5. **Атомарные записи** — `spa_core.utils.atomic.atomic_save` (tmp в той же директории +
+   `os.replace`), никогда прямой `open(..., "w")` на state-файлы.
+6. **Не импортировать `spa_core/execution/`** из read-only / paper-кода.
+7. **Никаких секретов в файлах** — PAT/токены/ключи читать из Keychain в рантайме
+   (инцидент 2026-06-10: PAT утёк в 90+ файлов). Не создавать `push_*.html`.
+8. **Никакого solicitation-языка на сайте** — продукт на paper-стадии, внешний капитал закрыт
+   до legal-clearance. Не выдавать paper/backtest за live; каждая APY-claim имеет
+   evidence-level (L0–L6, `docs/37`) + источник + risk-категория + last-verified дата.
+9. **IS_ADVISORY=True** для всех новых стратегий/sleeve'ов T2/T3 до go-live.
+10. **Sky/sUSDS — запрет СНЯТ как ИСПОЛНЕННЫЙ:** условие выполнено 2026-08-05
+    (`DSPause.delay()` = 48.00 ч, три согласных RPC), `sky_susds` WL/0 → T1,
+    [ADR-065](docs/decisions/ADR-065-sky-susds-promoted-to-t1.md). Номер 10 сохранён за
+    строкой — на него ссылаются код и тесты; гейт `is_gsm_compliant()` НЕ ослаблен.
+11. **Атомарный KANBAN** — перечитывать с диска перед записью (конкурентный писатель — цикл).
+12. **Деплой агента только через gate** — `scripts/check_agent_before_deploy.sh <name>` перед
+    `launchctl bootstrap`; bash-wrapper (не прямой `python3 -m`), логи в `/tmp/` (не `~/Documents`)
+    → иначе exit-78. Деплоить ≤3 агентов за раз.
+13. **Notion / любое приложение — НЕ источник правды.** Только файлы в git.
+14. **Агентам ЗАПРЕЩЕНО переводить карточку решения в `owner-done`.** Только владелец. Агент
+    двигает лишь `needs-owner → ingested` (после инжеста ответа).
+15. **Формат карточек владельцу (§2.4, обязателен для ВСЕХ карточек `needs-owner`):**
+    - **Язык — русский, включая НАЗВАНИЕ карточки.** Просто, по-человечески, без жаргона.
+      Технические имена (`ETHERSCAN_API_KEY`, Railway, cron) оставлять как есть, но словами
+      объяснять, что это. Плохо: «ETHERSCAN_API_KEY на прод Railway». Хорошо: «Добавить ключ
+      Etherscan на сервер — без него не работает проверка кошельков».
+    - **Четыре секции в теле, ровно эти заголовки:**
+      1. `## Что случилось и почему это важно` — 2–3 строки простым языком.
+      2. `## Что от тебя нужно` — либо пошагово (шаг 1, шаг 2…), либо, если решение за владельцем —
+         варианты + рекомендация агента и почему.
+      3. `## Как понять, что готово` — одна строка.
+      4. `## Что будет после` — что агент сделает, получив ответ.
+16. **Запрещено МОЛЧА ослаблять или отключать тесты.** Нельзя удалять/скипать/сужать проверку,
+    чтобы «покрасить CI зелёным». Намеренное изменение теста допустимо ТОЛЬКО с (а) явным
+    обоснованием в теле изменения и (б) записью в `docs/journal/<неделя>.md` (что и почему).
+    Есть сомнение, что тест устарел или мешает по делу → НЕ трогать молча, а завести карточку
+    `needs-owner`. Красный тест — сигнал, а не помеха.
+17. **Отсутствие наблюдения обязано быть представлено ОТДЕЛЬНЫМ значением** (`null` /
+    `unchecked` / ненулевой код возврата), а не нулём, пустотой или успехом. Три исхода —
+    **измерено · измерено и равно нулю · не измерено** — обязаны быть различимы у любого
+    производителя числа. (Решение владельца 2026-08-23, вариант A, ADR-129: 18.08 за один
+    день нашлось ШЕСТЬ дефектов одного класса — снятый таймлок Sky выглядел как «RPC не
+    ответил» и гейт ОТКРЫВАЛСЯ, слепой сенсор просадки был неотличим от спокойного дня.
+    Инвариант 2 про ПОВЕДЕНИЕ при нехватке данных, этот — про её ПРЕДСТАВЛЕНИЕ.)
+    Сторож класса — `spa_core/tests/test_absent_observation_ratchet.py`, база может только
+    уменьшаться; дописывать в неё, чтобы погасить падение, запрещено (см. #16).
+    Честная форма чтения короче подстановки: `spa_core/utils/observation.py`
+    (`observed(doc, key, kind=dict)` → значение либо `None` = наблюдения нет).
+
+### 🚦 Граница «решай сам» / «спроси меня» — ПО ПРЕДМЕТУ (ADR-285, решение владельца 09.09)
+
+За владельцем остаются **ровно три предмета**. Всё остальное агент решает сам и фиксирует
+**записью в журнал, а не вопросом**.
+
+| № | Предмет | Что сюда входит |
+|---|---|---|
+| 1 | **Движение реальных денег** | включение исполнения, ключи, платежи, переход с бумаги на live |
+| 2 | **Публичные числа доходности, нейминг тиров, юридические формулировки** | всё, что читает посетитель сайта как обещание; owner-gate `scripts/check_owner_gate.py` — механизм этого предмета |
+| 3 | **Необратимые действия** | удаление данных, публикация вовне, внешние обязательства |
+
+Плюс — то, что агент **физически не может** сделать сам (создать репозиторий или канал,
+переключить приложение владельца). Это не решение, а его действие.
+
+**Что это отменяет.** Прежний список из 14 owner-gated классов больше не является границей:
+классы 1–2 живут внутри предмета №2, остальные сняты. Замер, вызвавший решение: **247 карточек
+владельцу за 55 дней**, очередь `needs-owner` — 38, старейшей 33 дня, и про деньги из них четыре.
+
+**Что НЕ отменяет.** Инвариант #14 (агент не переводит карточку решения в `owner-done` и
+`owner-accepted`) остаётся: он про предметы №1 и №2. Fail-CLOSED, RiskPolicy, запрет LLM в
+risk/execution и всё остальное из списка инвариантов — тоже.
+
+**Проверка.** Карточка в очереди `needs-owner`, не принадлежащая ни одному из трёх предметов, —
+это дефект очереди, а не ожидание ответа. Разбирать её обязан агент.
+
+**Та же граница действует на git/PR, а не только на карточки (добавлено 16.09, по прямой
+просьбе владельца).** Интерактивная сессия, работающая через feature-branch + PR (харнесс
+Claude Code web), обязана доводить цикл до конца сама: закоммитить → запушить → открыть PR
+(это требование харнесса, не отменяется) → **если PR не касается ни одного из трёх предметов
+выше (money-path, публичные числа/нейминг/legal, необратимые действия) — снять черновик и
+самой смержить его**, дождаться CI на `main` и доложить результат. Оставлять для владельца
+ручной клик «Merge» в такой ситуации — тот же дефект, что и лишний вопрос `needs-owner` не по
+предмету: работа обсуждена и решена в диалоге, финальное нажатие кнопки ничего не решает и
+никого не защищает. PR, задевающий один из трёх предметов (например правку `landing/**` с
+числами или risk-логику), — по-прежнему ждёт владельца явно, с объяснением почему.
+
+### 🛑 Two-tier kill-switch (ADR-034 + ADR-048)
+
+Ответ на drawdown — одна лестница над evidenced peak-to-current drawdown
+(`spa_core/governance/kill_switch.py`):
+
+| Tier | Порог | Эффект |
+|---|---|---|
+| **SOFT_DERISK** | drawdown ∈ **[5%, 10%)** | halt new / no INCREASE (hold+reduce OK); НЕ ликвидирует |
+| **HARD_KILL** | drawdown ≥ **10%** (inclusive) | full kill → all-cash |
+
+RiskPolicy version = v1.0 (two-tier живёт в governance-слое, не в `RiskConfig`).
+
+---
+
+## ⚙️ Команды
+
+```bash
+# Дневной цикл вручную (НИКОГДА против live data/ в dev — только sandbox):
+python3 -m spa_core.paper_trading.cycle_runner --verbose
+# GoLive check:
+python3 -m spa_core.paper_trading.golive_checker
+# System health:
+python3 -m spa_core.monitoring.system_health_monitor
+# Обновить SYSTEM_BRIEFING сейчас:
+python3 scripts/update_system_briefing.py
+# Все тесты — ровно то, что гейтит CI: ЧЕТЫРЕ каталога И окружение CI.
+# Урезать до одного каталога («мой набор зелёный») — тот самый отчёт, при котором
+# восемь коммитов подряд уехали на красный main (цикл #189). Переменные — часть
+# команды: PYTHONHASHSEED фиксирует порядок обхода множеств, SPA_ENV=ci включает
+# ci-ветки; без них прогон отвечает на СВОЙ вопрос, а не на нужный (цикл #421).
+# Расхождение этой строки с воркфлоу краснит spa_core/tests/test_prescribed_run_matches_ci.py.
+# Перенос строки здесь ЗАПРЕЩЁН: разбор команды идёт по строке, и `\` обрывает список каталогов.
+SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest tests/ spa_core/tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q --tb=short -p no:randomly
+# Статус агентов:
+launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
+# Переустановить агентов:
+bash scripts/install_all_agents.sh
+# Push (ABSOLUTE пути, PAT из Keychain GITHUB_PAT_SPA).
+# ПУШЕР БЕРЁТСЯ ИЗ ТОГО ЖЕ ДЕРЕВА, которое ты собрал и протестировал:
+python3 /abs/path/<твоё-дерево>/push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
+```
+
+Python: `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда). Секреты:
+`security find-generic-password -s GITHUB_PAT_SPA -w` (и `TELEGRAM_BOT_TOKEN_SPA` /
+`TELEGRAM_CHAT_ID_SPA`).
+
+**Почему путь к пушеру абсолютный и из СВОЕГО дерева.** Хост-копия репо дрейфует от `origin`
+по построению (пуши идут прямо в origin через API), и 31.07 она отставала на 574 строки —
+без `batch_push` вовсе: относительный вызов из корня хост-репо доставлял набор **N файлов =
+N коммитов** (цикл #53 — 8 коммитов вместо одного, промежуточный `main` мог быть красным).
+Теперь пушер сам сверяет свою копию инструмента доставки (`push_to_github*.py`,
+`scripts/push_to_github.py`, `safe_site_push.py`, `check_owner_gate.py`) с копией в дереве
+отправляемых файлов и при расхождении **ОТКАЗЫВАЕТ** (fail-CLOSED, код возврата 5;
+осознанный обход — `--allow-toolchain-mismatch`). Пуш сайта — по-прежнему только
+`scripts/safe_site_push.py` из своего дерева.
+
+---
+
+## 🏗️ Структура репо (10 строк)
+
+| Путь | Назначение |
+|---|---|
+| `spa_core/adapters/` | Read-only адаптеры протоколов + DeFiLlama feed (`ADAPTER_REGISTRY`) |
+| `spa_core/paper_trading/` | cycle_runner, golive_checker, gap_monitor, cycle_gates, pre_cutover_gate |
+| `spa_core/risk/` | policy.py — детерминированный гейт (LLM FORBIDDEN) |
+| `spa_core/governance/` | kill_switch.py (two-tier drawdown ladder) |
+| `spa_core/strategy_lab/` | Pluggable sleeve harness + дески (rates_desk / rwa_backstop / swarm …) advisory |
+| `spa_core/monitoring/` | health / agent_health / RTMR sense-loop / resilience |
+| `spa_core/execution/` | **НЕ импортировать** из read-only кода |
+| `spa_core/api/` | FastAPI сервер (api.earn-defi.com:8765) |
+| `landing/` | Astro-сайт → Cloudflare Pages (earn-defi.com); canonical дашборд `/dashboard` |
+| `data/` | Все JSON-state (runtime-only в .gitignore, часть owner-gated tracked) |
+| `docs/` | STATE.md, decisions/, journal/, ideas/, rules-draft/, SYSTEM_BRIEFING.md, ADR-набор |
+| `nimbalyst-local/tracker/` | Files-first очереди (git-tracked): карточки `own-*` (Owner Decisions), `inbox-*` (задания). Рендерятся в Nimbalyst как kanban |
+| `.nimbalyst/trackers/` | Определения типов трекеров (owner-decision.yaml, inbox.yaml) |
+| `inbox/` | Быстрый захват заданий из Obsidian (заметка → `ingest-notes` → карточка). Три входа заданий: Nimbalyst · `inbox/` · Telegram `/task`/голосовое (whisper офлайн) |
+| `scripts/` · `launchd/` | LaunchAgent plists, install/verify, push_v*.sh |
+| `KANBAN.json` | Kanban (источник MP-xxx задач) |
+
+**Runtime:** Mac Mini · launchd fleet (~56 `com.spa.*` агентов, source of truth — `launchctl list`)
+· daily_cycle 08:00 local → cycle_runner · apiserver:8765 через Cloudflare Tunnel · сайт на CF Pages.
+
+---
+
+## 📌 Ключевые ADR (полный реестр — `docs/decisions/INDEX.md`)
+
+- **ADR-034 / ADR-048** — two-tier kill-switch (SOFT −5% / HARD −10% inclusive).
+- **ADR-050** — RiskPolicy → governance-слой; API auth; exec-bypass закрыт.
+- **ADR-053** — RTMR real-time monitoring sense-loop.
+- **ADR-YL-011** — Site Custodian (защита earn-defi.com от stale-чисел) + freshness monitor.
+- **ADR-YL-012** — SPA Swarm (5-слойный рой над aggressive-доменом, advisory).
+
+---
+
+## 🧪 Yield Lab / research-слой (docs-first, non-runtime)
+
+Документационный слой (`docs/00_index.md` — индекс; `docs/06_spa_core_invariants.md` — читать
+перед связанной работой) формализует уже существующий research-код
+(`spa_core/strategy_lab/{aggressive_lab,rates_desk,rwa_backstop,liquidator,underwriting}`,
+`redteam/`, `riskwire/`, `compliance/`). **Никогда не трогает** runtime-путь исполнения,
+RiskPolicy, публичный дашборд или деплой. НЕ дублировать существующий код — формализовать.
+
+**Стоп-правило:** остановиться и спросить владельца (карточкой `nimbalyst-local/tracker/own-*`) перед
+изменением runtime / RiskPolicy / дашборда / деплоя. Одна задача за итерацию, без big-bang рерайтов.
