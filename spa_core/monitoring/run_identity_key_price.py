@@ -140,7 +140,9 @@ import importlib
 import inspect
 import json
 import logging
+import os
 import shutil
+import sys
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -187,6 +189,17 @@ CAUSE_ENTRY_RAISED = "entry_raised"
 CAUSE_IRREPRODUCIBLE = "answer_not_reproducible"
 CAUSE_RESTS_ON_UNSTABLE = "verdict_rests_on_unstable_coords"
 CAUSE_SELF = "the_instrument_itself"
+#: Стенд до читателя НЕ ДОШЁЛ — ответ тот же и на ПУСТОМ каталоге. Своя причина,
+#: а не `insensitive_stand`: «стенд не сдвинул ответ» и «читатель вообще не
+#: открывал каталог стенда» — разные утверждения, и второе НИЧЕГО не говорит о
+#: схлопывании. Без этой проверки перепись доложила бы «нечувствителен» о
+#: читателе, которого она не коснулась, — fail-OPEN, и он тише красной строки.
+CAUSE_STAND_NOT_READ = "stand_not_read"
+
+#: Часовой «пробы пустого каталога не было». ``None`` тут не годится: ``None``
+#: есть законный ОТВЕТ читателя, и умолчание в его виде означало бы, что
+#: отсутствие пробы неотличимо от пробы, вернувшей пустоту (инв. #17).
+_NO_EMPTY_PROBE = object()
 
 #: Точки входа под ДРУГИМ именем, прочитанность которых доказана ПОИМЁННО.
 #: Список именной, а не по образцу, и это не лень: образец «первый параметр
@@ -746,8 +759,11 @@ def no_entry_cause(mod) -> Tuple[str, str]:
     http = _http_surface(mod)
     if http:
         return (CAUSE_HTTP_ROUTE,
-                f"обработчик HTTP-маршрута ({http}): каталог стенда ему не "
-                f"передать — он читает через модульный корень, а не через аргумент")
+                f"обработчик HTTP-маршрута ({http}), и партия зова маршрутов до "
+                "него не дошла — сам по себе он ИЗМЕРИМ (заказ G27: каталог "
+                "доходит переменной SPA_DATA_DIR до импорта, см. "
+                "`_http_reader_probe`); прежняя строка «каталог стенда ему не "
+                "передать» была догадкой и замером опровергнута")
     fns = _module_functions(mod)
     run_params = fns.get("run")
     if run_params is not None and "write" not in run_params:
@@ -803,6 +819,27 @@ def classify_reader(module_name: str, stands: dict) -> dict:
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_ENTRY_RAISED,
                    reason=f"{entry}() упал: {type(exc).__name__}")
         return row
+    return verdict_from_probes(row, raw1, raw1_again, raw2, raw3)
+
+
+def verdict_from_probes(row: dict, raw1, raw1_again, raw2, raw3,
+                        on_empty=_NO_EMPTY_PROBE) -> dict:
+    """Вердикт по ЧЕТЫРЁМ ответам: ``s1``, ``s1`` повторно, ``s2``, ``s3``.
+
+    Выделено из ``classify_reader`` заказом G27 и выделено НАМЕРЕННО, а не для
+    красоты: обработчик HTTP-маршрута зовётся отдельным процессом и пачкой (см.
+    ``_http_reader_probe``), поэтому его четыре ответа приходят готовыми. Будь
+    правило скопировано во вторую ветку, у переписи завелись бы ДВА определения
+    слова «схлопывает» — ровно тот класс, который она сама и ловит у читателей
+    журнала («правило живёт второй копией у читателя»). Копия одна, и она здесь.
+
+    ``on_empty`` — ответ того же читателя на ПУСТОМ каталоге, и он проверяет не
+    журнал, а ПРОВОДКУ: дошёл ли стенд до читателя вообще. Сравнение идёт ПОСЛЕ
+    того же маскирования, что и вердикт, — иначе одна нестабильная координата
+    выдала бы «дошёл» там, где не доходило ничего. Спрашивается только у
+    нечувствительных: у схлопывающего ответ уже сдвинулся между стендами, то
+    есть каталог он читал по построению.
+    """
     # Нестабильные координаты МЕРЯЮТСЯ двумя вызовами одного стенда и снимаются
     # у всех четырёх ответов. Раньше здесь стоял немедленный `unmeasured`, и на
     # нём терялся ЕДИНСТВЕННЫЙ схлопывающий читатель: `house_view_gap` несёт 33
@@ -811,11 +848,7 @@ def classify_reader(module_name: str, stands: dict) -> dict:
     # 1 мс и подряд совпадал, а под нагрузкой переписи расходился. Замер 16.09:
     # прогон 1 — `collapses_to_last`, прогон 2 — `unmeasured`, дерево одно.
     # Ноль схлопывающих читался как «ADR-395 закрыл вопрос», что неправда.
-    # Объединение по ТРЁМ пробам: набор нестабильных координат сам обязан быть
-    # устойчивым, иначе вердикт читателю меняется от прогона к прогону вместе с
-    # ним (замер 16.09: `house_view_gap` давал collapses_to_last и unmeasured
-    # через прогон на ОДНОМ дереве).
-    # Быстрый путь, ТОЧНЫЙ, а не приблизительный: равная сериализация трёх
+    # Быстрый путь, ТОЧНЫЙ, а не приблизительный: равная сериализация двух
     # проб означает, что расходящихся координат нет ни одной, и обходить дерево
     # незачем. Большинство читателей устойчивы, а обход строит путь-строку на
     # КАЖДЫЙ узел — на крупных ответах это и съело прогон (замер: перепись
@@ -859,6 +892,14 @@ def classify_reader(module_name: str, stands: dict) -> dict:
                                f"нестабильных на одном стенде (всего снято {len(drop)}) — "
                                "судить о схлопывании нечем, а «нечувствителен» неправда"))
             return row
+        if on_empty is not _NO_EMPTY_PROBE:
+            if _strip_clock(_mask(on_empty)) == a1:
+                row.update(outcome=READER_UNMEASURED, cause=CAUSE_STAND_NOT_READ,
+                           reason=("ответ тот же и на ПУСТОМ каталоге — каталог "
+                                   "стенда читатель не открывал; «нечувствителен "
+                                   "к стенду» было бы про него неправдой"))
+                return row
+            row["reaches_stand"] = True
         row.update(outcome=READER_INSENSITIVE,
                    reason="стенд не сдвинул ответ — про схлопывание НЕ ИЗМЕРЕНО ничего")
         return row
@@ -872,6 +913,190 @@ def classify_reader(module_name: str, stands: dict) -> dict:
     else:
         row.update(outcome=READER_BOTH,
                    reason="ответ отличается от обоих — читатель УВИДИТ вторую строку")
+    return row
+
+
+# ── читатели-обработчики HTTP-маршрутов (заказ G27, часть 2) ────────────────
+#: Сколько ждать ответа от одного стенда HTTP-переписи. Превышение — НЕ ноль и
+#: не «нечувствителен», а названный третий исход у каждого модуля партии.
+_HTTP_PROBE_TIMEOUT_S = 900
+
+#: ПОРЯДОК ЗОВА. Повторная проба ``s1`` последняя — так окно, на котором
+#: меряется нестабильность, накрывает весь прогон партии (обоснование и замер —
+#: в докстринге ``http_probe_batch``). Порядок ВЫЧИСЛЕНИЯ вердикта другой и
+#: задан отдельно: смешать их значило бы вернуть ту же монету через список.
+_HTTP_PROBE_ORDER = ("s1", "s2", "s3", "empty", "s1_again")
+_HTTP_VERDICT_ORDER = ("s1", "s1_again", "s2", "s3", "empty")
+
+
+def http_modules(names: Sequence[str]) -> List[str]:
+    """Те из населения, у кого есть HTTP-поверхность. Вопрос — ОБЪЕКТУ, не имени."""
+    out: List[str] = []
+    for name in names:
+        if name in _NEVER_CALL:
+            continue
+        try:
+            mod = importlib.import_module(name)
+        except BaseException:                                  # noqa: BLE001
+            continue
+        if _http_surface(mod):
+            out.append(name)
+    return out
+
+
+def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
+                     runner=None) -> Tuple[Dict[str, tuple], dict]:
+    """Четыре пробы ВСЕЙ партии маршрутов: ``s1``, ``s1`` повторно, ``s2``, ``s3``.
+
+    Партией, а не по модулю, и это не оптимизация ради скорости. Вердикт
+    требует ЧЕТЫРЁХ ответов одного читателя, а каждый ответ здесь — отдельный
+    процесс (иначе ``SPA_DATA_DIR`` не успевает лечь до импорта). По модулю это
+    было бы 20 × 4 = 80 процессов с FastAPI внутри каждого; партией — четыре.
+
+    **Порядок проб не произволен, и в этом вся точность.** Повторная проба ``s1``
+    идёт ПОСЛЕДНЕЙ, а не второй, чтобы окно измерения нестабильности НАКРЫВАЛО
+    весь прогон партии. Иначе пара «подряд» меряет зазор в 18 с, а стенды ``s2``
+    и ``s3`` разделены 70 с, и координата, тикнувшая между ними, объявляется
+    стабильной — вердикт становится монетой ровно так, как в ADR-396.
+
+    Замер 16.09, ради которого порядок и переставлен: ``/api/riskwire/proof``
+    несёт ``age_hours``, округлённый до **0.1 часа (6 минут)**. Две пробы подряд
+    попадают в одну корзину практически всегда (``unstable_coords: 0``), а
+    граница корзины, пришедшаяся между ``s2`` и ``s3``, дала ``collapses_to_first``
+    в одном прогоне и ``insensitive_stand`` в соседнем — на одном дереве, одних
+    стендах и неизменном коде. Паузой это не лечится: пауза меньше 6 минут.
+
+    Накрывающее окно лечит ТОЧНО, а не вероятностно: монотонная производная от
+    часов, изменившаяся между ЛЮБЫМИ двумя пробами, изменилась и между первой и
+    последней, потому что ``[s1 … s1_again] ⊇ [s2 … s3]``. Граница названа
+    вслух: поле НЕмонотонное (случайное) способно вернуться к прежнему значению
+    и этой пробой не вскрывается.
+    """
+    runner = _run_http_probe if runner is None else runner
+    meta: Dict[str, object] = {"modules_asked": len(names),
+                               "probe_order": list(_HTTP_PROBE_ORDER)}
+    if not names:
+        meta["reason"] = "модулей с HTTP-поверхностью в населении нет"
+        return {}, meta
+    by_label: Dict[str, Dict[str, dict]] = {}
+    # ПЯТАЯ проба — ПУСТОЙ каталог, и она не про журнал вовсе. Она отвечает на
+    # вопрос, которого без неё не задавал никто: ДОШЁЛ ли стенд до читателя.
+    # Маршрут, чей ответ на пустом каталоге тот же, что на настоящем, каталога
+    # не открывал — и «нечувствителен к стенду» было бы про него неправдой, а
+    # не осторожностью. Без этой пробы правка G27 обменяла бы одну слепоту на
+    # другую, потише.
+    empty_holder = tempfile.TemporaryDirectory(prefix="spa_g27_empty_")
+    empty_data = Path(empty_holder.name) / "data"
+    empty_data.mkdir(parents=True, exist_ok=True)
+    stand_paths = {"s1": Path(stands["s1"]) / "data",
+                   "s1_again": Path(stands["s1"]) / "data",
+                   "s2": Path(stands["s2"]) / "data",
+                   "s3": Path(stands["s3"]) / "data",
+                   "empty": empty_data}
+    for label in _HTTP_PROBE_ORDER:
+        answer, why = runner(stand_paths[label], names, tree_root)
+        if answer is None:
+            # Один упавший процесс обесценивает ВСЮ партию: трёх ответов на
+            # вердикт не хватает, а достроить четвёртый нечем. Молчание здесь
+            # прочиталось бы как «маршруты ни при чём».
+            meta["failed_probe"] = label
+            meta["reason"] = why
+            empty_holder.cleanup()
+            return {}, meta
+        by_label[label] = answer
+    empty_holder.cleanup()
+    meta["probes_done"] = len(by_label)
+    out: Dict[str, tuple] = {}
+    for name in names:
+        out[name] = tuple((by_label[label].get(name) or {})
+                          for label in _HTTP_VERDICT_ORDER)
+    return out, meta
+
+
+def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path):
+    """Один процесс: ``SPA_DATA_DIR`` пинится ДО импорта, ответ — файлом."""
+    import subprocess
+    with tempfile.TemporaryDirectory(prefix="spa_g27_http_") as tmp:
+        mods = Path(tmp) / "modules.json"
+        out = Path(tmp) / "answer.json"
+        mods.write_text(json.dumps(list(names)), encoding="utf-8")
+        env = dict(os.environ)
+        env["SPA_DATA_DIR"] = str(stand_data)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(tree_root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "spa_core.monitoring._http_reader_probe",
+                 str(mods), str(out)],
+                cwd=str(tree_root), env=env, capture_output=True,
+                timeout=_HTTP_PROBE_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            return None, f"зов маршрутов не уложился в {_HTTP_PROBE_TIMEOUT_S} с"
+        if proc.returncode != 0 or not out.exists():
+            tail = (proc.stderr or b"").decode("utf-8", "replace").strip()[-300:]
+            return None, f"процесс-зовущий вышел кодом {proc.returncode}: {tail}"
+        try:
+            return json.loads(out.read_text(encoding="utf-8")), ""
+        except (OSError, ValueError) as exc:
+            return None, f"ответ процесса не прочитан: {type(exc).__name__}"
+
+
+def classify_http_reader(module_name: str, probes: tuple) -> dict:
+    """Вердикт обработчику — ПО МАРШРУТАМ, и итог модуля собирается из них.
+
+    Гранулярность здесь не вкусовая. Вердикт на ЦЕЛОМ модуле меряет объединение
+    всех его ответов, и один шумный маршрут гасит соседей: замер 16.09 —
+    ``rates_desk`` целиком уходил в «не воспроизводится» из-за ОДНОГО маршрута,
+    пряча десять нечувствительных, а ``cockpit`` прятал два. Маршрут — это и
+    есть то, что владелец видит на дашборде, поэтому он и единица.
+
+    Итог модуля берётся по СИЛЬНЕЙШЕМУ сигналу: схлопывание хотя бы на одном
+    маршруте есть свойство модуля, а «не измерено» ставится, только если не
+    измерен НИ ОДИН маршрут — и тогда с причиной, преобладающей среди них, а не
+    с общей строкой про HTTP.
+    """
+    row: Dict[str, object] = {"module": module_name, "entry": "http_routes"}
+    s1, s1_again, s2, s3, empty = probes
+    if s1.get("import_failed"):
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_IMPORT_FAILED,
+                   reason=f"импорт не удался: {s1['import_failed']}")
+        return row
+    routes = s1.get("routes") or {}
+    refused = s1.get("refused") or {}
+    if not routes:
+        row.update(outcome=READER_UNMEASURED, cause=CAUSE_HTTP_ROUTE,
+                   reason=("читающего маршрута без обязательных аргументов у модуля "
+                           f"нет: отказов {len(refused)} — " +
+                           "; ".join(f"{p}: {why}" for p, why in
+                                     sorted(refused.items())[:3])))
+        row["routes_refused"] = refused
+        return row
+    per_route: Dict[str, dict] = {}
+    for path in sorted(routes):
+        sub = verdict_from_probes(
+            {"route": path}, routes[path],
+            (s1_again.get("routes") or {}).get(path),
+            (s2.get("routes") or {}).get(path),
+            (s3.get("routes") or {}).get(path),
+            on_empty=(empty.get("routes") or {}).get(path))
+        per_route[path] = sub
+    row["routes"] = per_route
+    row["routes_refused"] = refused
+    row["routes_by_outcome"] = dict(collections.Counter(
+        str(v["outcome"]) for v in per_route.values()))
+    for outcome in (READER_LAST, READER_FIRST, READER_BOTH, READER_INSENSITIVE):
+        named = [p for p, v in per_route.items() if v["outcome"] == outcome]
+        if named:
+            row["outcome"] = outcome
+            row["reason"] = (f"{len(named)} маршрут(ов) из {len(per_route)}: " +
+                             ", ".join(sorted(named)[:4]) + " — " +
+                             str(per_route[named[0]].get("reason")))
+            return row
+    causes = collections.Counter(str(v.get("cause")) for v in per_route.values())
+    cause, count = causes.most_common(1)[0]
+    row.update(outcome=READER_UNMEASURED, cause=cause,
+               reason=(f"ни один из {len(per_route)} маршрутов не измерен; "
+                       f"преобладающая причина — {cause} ({count})"))
     return row
 
 
@@ -1108,6 +1333,14 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
             "и если разница между стендами легла ТОЛЬКО в снятую координату, читатель "
             "прочтётся как insensitive_stand. Граница смещена в сторону НЕДОоценки — "
             "прибор скорее промолчит о схлопывании, чем выдумает его")
+        # Обработчики HTTP-маршрутов зовутся ПАРТИЕЙ и отдельными процессами
+        # (см. `http_probe_batch`): каталог стенда доходит до них переменной
+        # `SPA_DATA_DIR`, выставленной ДО импорта. До заказа G27 они все стояли
+        # под причиной `http_route_handler` — самой многочисленной группой не
+        # измеренных, и ровно той, чей ответ владелец видит на дашборде.
+        http_names = http_modules(sorted(roads))
+        http_probes, http_meta = http_probe_batch(stands, http_names, Path(tree_root))
+        readers["http_batch"] = http_meta
         rowsout: List[dict] = []
         for name in sorted(roads):
             if name == __name__ or name.endswith(".run_identity_key_price"):
@@ -1115,6 +1348,8 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
                        "cause": CAUSE_SELF,
                        "reason": ("это сам прибор: он ГОНИТ перепись, и гнать его "
                                   "внутри неё значило бы войти в неё заново")}
+            elif name in http_probes:
+                row = classify_http_reader(name, http_probes[name])
             else:
                 row = classify_reader(name, stands)
             row["roads"] = sorted(roads[name])

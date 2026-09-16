@@ -1080,6 +1080,91 @@ def _probe_absent_observation_class_closed(arg: str | None) -> tuple[str, str]:
     return SATISFIED, f"новых мест класса нет и база не выросла ({counts})"
 
 
+def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[str, str]:
+    """Перепись читателей журнала ДОХОДИТ до обработчиков HTTP-маршрутов (заказ G27).
+
+    Критерий карточки дословно: *«`unmeasured_causes.http_route_handler` упало ниже 20,
+    и у каждого переведённого модуля есть вердикт по ИСХОДУ на трёх стендах»*. Проба
+    меряет его НАСТОЯЩИМ контуром на одноразовых стендах, а не чтением вчерашнего
+    артефакта: артефакт мог быть написан кодом, которого в дереве уже нет.
+
+    Три звена, и каждое рвётся отдельно:
+
+    1. **Каталог стенда доходит до чужого процесса.** Партия зова возвращает ответы.
+       Рвётся снятием пина ``SPA_DATA_DIR`` — тогда процесс-зовущий отказывает
+       (fail-CLOSED), партия пуста, и проба это видит.
+    2. **Модуль получает вердикт ПО МАРШРУТАМ.** У живого роутера появляется разбор
+       ``routes`` с исходом у каждого пути — то есть он вышел из общей причины
+       ``http_route_handler``. Рвётся возвратом к вердикту на целом модуле.
+    3. **Стенд ДОКАЗАННО дошёл до обработчика.** Хотя бы один маршрут несёт
+       ``reaches_stand``, то есть его ответ на ПУСТОМ каталоге ОТЛИЧАЛСЯ. Без этого
+       звена «нечувствителен к стенду» было бы утверждением о читателе, которого
+       стенд не касался, — та же слепота, только потише.
+
+    Живой ``data/`` не открывается: журнал стенда синтетический, две строки, и обе
+    строит сама проба.
+    """
+    import json as _json
+    import tempfile
+    from pathlib import Path as _Path
+
+    from spa_core.monitoring import run_identity_key_price as census
+
+    if arg:
+        # Пофайловой формы у критерия нет намеренно: «у моего роутера чисто» при
+        # слепом соседе — зелёный ответ на свой вопрос, выданный за нужный.
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "про ВСЮ партию маршрутов, а не про один модуль")
+
+    #: Именной, а не по образцу: роутер, читающий стенд (`tier1`), и роутер,
+    #: который его не открывает (`redteam`) — второй нужен, чтобы звено 3 не
+    #: оказалось истинным по построению на любом наборе.
+    names = ["spa_core.api.routers.tier1", "spa_core.api.routers.redteam"]
+    try:
+        with tempfile.TemporaryDirectory(prefix="spa_g27_probe_") as tmp:
+            root = _Path(tmp)
+            src = root / "src" / "data"
+            src.mkdir(parents=True)
+            rows = [{"cycle_date": "2026-09-10", "verdict": "HOLD",
+                     "decision_id": "adr060-shadow-2026-09-10",
+                     "generated_at": "2026-09-10T06:00:00+00:00"},
+                    {"cycle_date": "2026-09-11", "verdict": "HOLD",
+                     "decision_id": "adr060-shadow-2026-09-11",
+                     "generated_at": "2026-09-11T06:00:00+00:00"}]
+            (src / census.HISTORY_FILENAME).write_text(
+                "\n".join(_json.dumps(r, sort_keys=True) for r in rows) + "\n",
+                encoding="utf-8")
+            # Файл, который живой роутер РЕАЛЬНО читает, с отличимым значением.
+            # Без него стенд отличается от пустого каталога только журналом,
+            # которого `tier1` не читает, — и звено 3 краснело бы на ЦЕЛОМ
+            # контуре (замер: так и было в первой редакции пробы). Значение
+            # намеренно не похоже на умолчание обработчика.
+            (src / "tier1_verdict.json").write_text(
+                _json.dumps({"probe_marker": "g27-stand-reached"}), encoding="utf-8")
+            stands, why = census.build_stands(src, root / "stands")
+            if stands is None:
+                return UNMEASURED, f"стенды не построены: {why}"
+            tree = _Path(census.__file__).resolve().parents[2]
+            answers, meta = census.http_probe_batch(stands, names, tree)
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"контур не отработал: {type(exc).__name__}: {exc}"
+
+    if not answers:
+        return NOT_SATISFIED, (f"звено 1: партия зова маршрутов пуста — "
+                               f"{meta.get('reason') or 'причина не названа'}")
+    rows_out = {n: census.classify_http_reader(n, answers[n]) for n in names if n in answers}
+    live = rows_out.get("spa_core.api.routers.tier1") or {}
+    if not (live.get("routes") or {}):
+        return NOT_SATISFIED, ("звено 2: у живого роутера нет разбора по маршрутам — "
+                               f"вердикт {live.get('outcome')} / {live.get('cause')}")
+    reached = [p for p, v in (live.get("routes") or {}).items() if v.get("reaches_stand")]
+    if not reached:
+        return NOT_SATISFIED, ("звено 3: ни один маршрут не доказал, что стенд до него "
+                               "дошёл — «нечувствителен» было бы утверждением ни о чём")
+    return SATISFIED, (f"маршрутов у tier1 {len(live['routes'])}, стенда достигли "
+                       f"{len(reached)}; причина http_route_handler с него снята")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1091,6 +1176,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
+    "journal_reader_census_reaches_http_routes":
+        _probe_journal_reader_census_reaches_http_routes,
 }
 
 
