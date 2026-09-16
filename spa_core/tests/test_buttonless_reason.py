@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from spa_core.owner_queue import origin_view
+from spa_core.telegram import alert_actions as aa
 from spa_core.telegram import buttonless_reason as br
 
 NOW = datetime(2030, 1, 1, tzinfo=timezone.utc)
@@ -135,7 +136,9 @@ def _commit(root: Path, msg="c"):
 def _beacon(tmp_path: Path, *, alive: bool = True) -> Path:
     """Маячок живого обработчика нажатий. Мёртвый — просто очень старый."""
     p = tmp_path / "beacon.json"
-    stamped = NOW - timedelta(seconds=0 if alive else 10_000)
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-399): 10 000 с было меньше нового порога
+    # кнопок (часы) — «бота нет» задаётся от порога модуля, а не литералом.
+    stamped = NOW - timedelta(seconds=0 if alive else aa.BEACON_MAX_AGE_S + 60)
     p.write_text(json.dumps({
         "schema_version": 1, "source": "telegram_bot",
         "updated_at": stamped.isoformat(), "pid": 1,

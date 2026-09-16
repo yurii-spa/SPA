@@ -27,6 +27,7 @@ from spa_core.owner_queue.owner_answer import (
     is_owner,
     record_owner_answer,
 )
+from spa_core.telegram import alert_actions as aa
 from spa_core.telegram import owner_decisions as od
 from spa_core.tests._freshness import now_utc
 
@@ -233,7 +234,8 @@ def test_pid_is_stable_across_pushes():
 def test_no_buttons_when_the_bot_beacon_is_stale(tmp_path):
     """Положительный контроль аварии 2026-08-08: бот работал со старым кодом, маячка не
     было — и кнопка, попав на такого бота, СТЁРЛА БЫ текст тревоги панелью настроек."""
-    stale = _beacon(tmp_path, age_s=10_000)
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-399): «бота нет» — за порогом модуля.
+    stale = _beacon(tmp_path, age_s=aa.BEACON_MAX_AGE_S + 60)
     prep = od.prepare("Заголовок", CARD, "own-1", now=NOW, beacon_path=stale)
     assert prep.options, "варианты обязаны разобраться — проверяем именно интерлок"
     assert prep.keyboard is None
@@ -547,7 +549,8 @@ def test_message_never_promises_a_button_that_will_not_be_there(tmp_path):
     несуществующее хуже, чем не обещать: владелец решает, что сломан бот, и перестаёт
     верить всему каналу. Текст и клавиатура обязаны говорить одно.
     """
-    stale = _beacon(tmp_path, age_s=10_000)  # обработчика нет ⇒ кнопок не будет
+    # ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-399): «бота нет» — за порогом модуля.
+    stale = _beacon(tmp_path, age_s=aa.BEACON_MAX_AGE_S + 60)  # обработчика нет ⇒ кнопок нет
     prep = od.prepare("Заголовок", CARD, "own-1", now=NOW, beacon_path=stale)
     assert prep.keyboard is None
     assert prep.options, "варианты обязаны разобраться — проверяем именно согласованность"

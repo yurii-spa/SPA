@@ -151,11 +151,38 @@ class Router:
         if data.startswith(owner_decisions.CALLBACK_PREFIX):
             return self.handle_owner_decision(data, chat_id)
 
-        path, arg, page = self.parse_callback(data, chat_id)
+        parsed = self.parse_callback(data, chat_id)
+        if parsed is None:
+            # Неизвестный `act:`-глагол (ADR-399). Раньше он проваливался в ветку по
+            # умолчанию `_apply_action` → «settings», и строка ниже ПЕРЕПИСЫВАЛА сообщение
+            # панелью настроек — то есть стирала сам вопрос владельцу. Ровно от этого
+            # ADR-069 §6 и защищался маячком, снимая кнопки на каждом перезапуске бота.
+            # Опасность закрыта здесь, у источника: сообщение не трогаем, отвечаем НОВЫМ
+            # сообщением (молчащая кнопка неотличима от сломанной), а нажатие бот с
+            # нужным кодом получит повторно — владелец нажмёт ещё раз.
+            return self.handle_unknown_action(data, chat_id)
+        path, arg, page = parsed
         lang = prefs_store.get_lang(chat_id)
         body, kb = self.render_view(path, arg, lang, page, chat_id)
         # editMessageText IN PLACE (single evolving panel — never a new bubble)
         return self.transport.edit_message_text(chat_id, message_id, body, kb)
+
+    def handle_unknown_action(self, data: str, chat_id: str) -> Optional[Dict]:
+        """Нажатие с глаголом, которого ЭТОТ процесс не знает: вопрос остаётся как есть.
+
+        Никогда не бросает и никогда не правит исходное сообщение. Сообщение владельцу —
+        одно и короткое: что нажатие не распознано, что вопрос выше цел и что делать.
+        """
+        verb = str(data or "")[4:].split(":", 1)[0] or "?"
+        body = ("⚠️ Эту кнопку я не распознал (<code>act:{}</code>) — сообщение выше "
+                "оставил как есть, ничего не записал.\n"
+                "Скорее всего, я исполняю код старше этой кнопки и перезапущусь сам "
+                "(ADR-117). Нажми её ещё раз через несколько минут или ответь РЕПЛАЕМ "
+                "номером варианта.").format(_html.escape(verb))
+        kb = {"inline_keyboard": [[{"text": "🧑‍⚖️ Мои решения",
+                                    "callback_data": "nav:decisions"}]]}
+        sent = self.transport.send_message(chat_id, body, kb)
+        return sent if isinstance(sent, dict) else None
 
     def handle_alert_action(self, data: str, chat_id: str) -> Optional[Dict]:
         """Нажатие кнопки под алертом → карточка + ответ владельцу НОВЫМ сообщением.
@@ -212,10 +239,12 @@ class Router:
         sent = self.transport.send_message(chat_id, html_safe(body), kb)
         return sent if isinstance(sent, dict) else None
 
-    def parse_callback(self, data: str, chat_id: str) -> Tuple[str, str, int]:
+    def parse_callback(self, data: str, chat_id: str) -> Optional[Tuple[str, str, int]]:
         """Decode callback_data → (view_path, arg, page). Applies act: verbs.
 
-        Returns the view to render after any state mutation.
+        Returns the view to render after any state mutation, or ``None`` for an
+        ``act:`` verb this process does not know (ADR-399): the caller then leaves the
+        tapped message untouched instead of re-rendering it as a settings panel.
         """
         data = str(data or "")
         if data.startswith("nav:"):
@@ -238,8 +267,14 @@ class Router:
         # legacy / unknown → home
         return "home", "", 0
 
-    def _apply_action(self, payload: str, chat_id: str) -> Tuple[str, str, int]:
-        """Apply an ``act:<verb>:<arg>`` mutation, return the view to re-render."""
+    def _apply_action(self, payload: str, chat_id: str) -> Optional[Tuple[str, str, int]]:
+        """Apply an ``act:<verb>:<arg>`` mutation, return the view to re-render.
+
+        ``None`` — the verb is unknown to this process. It used to fall through to
+        ``"settings"``, and the caller's in-place edit then REPLACED the tapped message
+        with the settings panel (ADR-069 §6 named this as the reason for the beacon
+        interlock). An unknown verb is a code-version mismatch, not a settings request.
+        """
         parts = payload.split(":", 1)
         verb = parts[0]
         arg = parts[1] if len(parts) > 1 else ""
@@ -264,4 +299,4 @@ class Router:
             prefs_store.set_pref(chat_id, "mute_until",
                                  (now + secs) if secs < 10 ** 9 else 10 ** 10)
             return "settings", "", 0
-        return "settings", "", 0
+        return None  # неизвестный глагол — НЕ переписывать сообщение (ADR-399)

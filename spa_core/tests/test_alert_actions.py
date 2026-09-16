@@ -159,10 +159,57 @@ class HandlerInterlock(unittest.TestCase):
                                                state_path=self.state, beacon_path=b))
 
     def test_stale_beacon_is_refused(self):
-        """Бот умер — маячок перестал обновляться; кнопки гаснут сами, без вмешательства."""
+        """Бота давно нет — маячок перестал обновляться; кнопки гаснут сами.
+
+        ИЗМЕНЕНО НАМЕРЕННО 2026-09-16 (инв. #16, ADR-399): «давно» здесь было «час», а
+        порог — 300 с, тот же, которым сторож судит, крутится ли цикл бота. Час без
+        маячка — это окно перезапуска (сентинел ADR-117 после каждой доставки, кикстарт
+        сторожей), и нажатие в это окно Telegram отдаёт боту после подъёма. Проверка не
+        ослаблена, а уточнена: порог берётся из самого модуля, отказ по-прежнему
+        обязателен сразу за ним — контроль «час всё ещё даёт кнопки» стоит рядом.
+        """
         b = _fresh_beacon(self.dir)
-        later = FIXED_NOW + timedelta(hours=1)
+        later = FIXED_NOW + timedelta(seconds=aa.BEACON_MAX_AGE_S + 1)
         self.assertFalse(aa.handler_available(now=later, beacon_path=b))
+
+    def test_a_restart_window_does_not_strip_the_buttons(self):
+        """Положительный контроль ADR-399: маячку час (бот перезапускался) — кнопки есть.
+
+        Именно так владельцу 16.09 приехал вопрос с тремя разобранными вариантами и
+        текстом «⚠️ Кнопки сейчас недоступны — бот не подтвердил…». Нажатие, сделанное
+        пока бот лежит, Telegram держит до 24 ч и отдаёт первому же `getUpdates`.
+        """
+        b = _fresh_beacon(self.dir)
+        for age in (timedelta(minutes=20), timedelta(hours=1), timedelta(hours=5)):
+            self.assertTrue(aa.handler_available(now=FIXED_NOW + age, beacon_path=b),
+                            "маячок возрастом {} снял кнопки".format(age))
+        self.assertLess(aa.BEACON_MAX_AGE_S, 24 * 3600,
+                        "порог обязан быть меньше срока хранения нажатия в Telegram")
+
+    def test_a_beacon_slightly_in_the_future_means_the_bot_is_alive(self):
+        """Класс ADR-216: бот пишет маячок каждый виток, `now` берётся ДО чтения файла.
+
+        Отметка чуть позже `now` — это живой бот, а не отсутствие бота. Далёкое будущее
+        (разошлись часы) — по-прежнему отказ.
+        """
+        b = _fresh_beacon(self.dir)
+        self.assertTrue(aa.handler_available(now=FIXED_NOW - timedelta(seconds=5),
+                                             beacon_path=b))
+        self.assertFalse(aa.handler_available(now=FIXED_NOW - timedelta(hours=1),
+                                              beacon_path=b))
+
+    def test_the_button_threshold_is_not_the_liveness_threshold(self):
+        """Два вопроса — два порога (ADR-399). Один порог на оба и был дефектом.
+
+        `telegram_health` спрашивает «крутится ли цикл» и ему нужны минуты; отправитель
+        кнопок спрашивает «знает ли код бота этот глагол» и ему нужны часы. Совпадение
+        этих двух чисел снова свяжет кнопки с каждым перезапуском бота.
+        """
+        from spa_core.monitoring import telegram_health as th
+
+        self.assertGreater(aa.BEACON_MAX_AGE_S, th.BEACON_MAX_AGE_S * 10)
+        self.assertLessEqual(th.BEACON_MAX_AGE_S, 600,
+                             "порог живости сторожа — минуты, он не менялся")
 
     def test_beacon_without_the_capability_is_refused(self):
         b = self.dir / "old.json"
