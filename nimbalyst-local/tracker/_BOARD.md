@@ -2,16 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-16T18:18:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-17T16:11:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fa7575de3) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (7df34bd25) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1064** · ждёт владельца: **2** · занято сессиями: **14**.
+> Всего карточек: **1067** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **Удалить оставшийся файл с токеном из папки проекта (одна команда)**  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md`
+- **Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего**  ·  `owner-decision-postavit-na-mak-programmu-bitcoin-core-b.md`
+- **Сегодняшний цикл трека не запускался: Мак был выключен в 08:00**  ·  `owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -32,11 +33,12 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (278)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (280)
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
+- Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего  ·  `owner-decision-postavit-na-mak-programmu-bitcoin-core-b.md` · 2026-09-17
+- Сегодняшний цикл трека не запускался: Мак был выключен в 08:00  ·  `owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya.md` · 2026-09-17
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -286,6 +288,7 @@
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md` · 2026-08-19
+- Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 - ИСПОЛНЕНО: убраны все заявки о том, что мы торговали реальными деньгами  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md` · 2026-08-29
 - Уточнение по заметке: 1  ·  `owner-decision-utochnenie-po-zametke-1.md` · 2026-08-31
 - Уточнение по заметке: ADR-070.11: честный exit digest-обёртки  ·  `owner-decision-utochnenie-po-zametke-adr-070-11-chestny-2.md` · 2026-08-31
@@ -316,11 +319,12 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (546)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (547)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
+- earn-defi: свой расчёт realized price вместо лицензии Coin Metrics (ADR-286 §6, решение 09.09 без задачи)  ·  `inbox-earn-defi-svoi-raschet-realized-price-vm.md` · 2026-09-16
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
 - Осиротевшая работа cycle-13765: второй артефакт TVL (остаток G1) лежит в /private/tmp/spa-cio-14737, и её номер ADR уже занят  ·  `inbox-osirotevshaya-rabota-cycle-13765-vtoroi.md` · 2026-09-16
