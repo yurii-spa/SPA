@@ -75,6 +75,17 @@ leaves stale constants». Отдельный процесс с ``SPA_DATA_DIR``,
 тело прочитать нельзя (потоковый), помечается ``__unread_response__`` и
 вердикта не получает — «одинаковый объект» не есть «одинаковый ответ».
 
+## Окно зова — чтобы момент выдачи узнавался ЗАМЕРОМ (заказ G30)
+
+У 18 маршрутов после закрепления часов осталась одна плывущая координата ТЕЛА
+(``_fetched_at`` ×12, ``ts`` ×6). Замер 17.09 трассировкой ``time.time``: у них
+**16 дверей в трёх модулях и ни одной общей** — каждое значение рождено прямым
+``time.time()`` в самом обработчике, так что «закрепить одну дверь», как
+``_shared.now``, нельзя. Поэтому зонд пишет окно каждого зова
+``window[path] = [начало, конец]`` по тем же стенным часам процесса, и перепись
+сама узнаёт координату, чьё значение на КАЖДОЙ пробе лежит внутри окна своего
+зова (``run_identity_key_price.call_moment_coords``).
+
 Прибор только ЧИТАЕТ. Капитал не двигается, живой трек не трогается.
 """
 # LLM_FORBIDDEN
@@ -87,8 +98,13 @@ import sys
 # `spa_core/monitoring/signal.py` затеняет стандартный `signal` — `asyncio`
 # ниже и `anyio` внутри FastAPI падали ImportError на ВСЕХ 20 модулях (замер
 # 17.09). Снимать ДО остальных импортов, а не в `__main__`: там уже поздно.
+# Сравнивать РАЗРЕШЁННЫЕ пути (заказ G30): интерпретатор кладёт в `sys.path[0]`
+# путь без ссылок, а `__file__` несёт путь, как его назвали. Дерево под `/tmp`
+# на macOS (ссылка на `/private/tmp`) при сравнении `abspath` не совпадало, и
+# все 20 модулей снова падали ImportError — замер 17.09.
 if __name__ == "__main__" and sys.path and (
-        os.path.abspath(sys.path[0]) == os.path.dirname(os.path.abspath(__file__))):
+        os.path.realpath(sys.path[0])
+        == os.path.dirname(os.path.realpath(__file__))):
     del sys.path[0]
 
 import asyncio
@@ -253,7 +269,8 @@ def probe_modules(module_names, never_call: Optional[Dict[str, str]] = None) -> 
     """Ответы всех читающих маршрутов перечисленных модулей — на ТЕКУЩЕМ стенде."""
     out: Dict[str, dict] = {}
     for name in module_names:
-        entry: Dict[str, dict] = {"routes": {}, "refused": {}, "elapsed_s": {}}
+        entry: Dict[str, dict] = {"routes": {}, "refused": {}, "elapsed_s": {},
+                                  "window": {}}
         try:
             mod = importlib.import_module(name)
         except BaseException as exc:                          # noqa: BLE001
@@ -272,7 +289,11 @@ def probe_modules(module_names, never_call: Optional[Dict[str, str]] = None) -> 
                 # падающий только на одном, о стенде как раз свидетельствует.
                 entry["routes"][path] = {"__raised__": type(exc).__name__,
                                          "__message__": str(exc)[:200]}
-            entry["elapsed_s"][path] = round(time.time() - started, 3)
+            finished = time.time()
+            entry["elapsed_s"][path] = round(finished - started, 3)
+            # Окно зова НЕ округляется: по нему судят, лежит ли отметка тела
+            # внутри зова (заказ G30), а округление сдвинуло бы границу.
+            entry["window"][path] = [started, finished]
         out[name] = entry
     return out
 

@@ -687,15 +687,77 @@ def _stable_leaves(obj, drop: Set[str], path: str = "") -> int:
     return 1
 
 
-def mask_coords(obj, drop: Set[str], path: str = ""):
+def mask_coords(obj, drop: Set[str], path: str = "",
+                label: str = "<нестабильно на одном стенде>"):
     """Ответ без измеренных нестабильных координат."""
     if path in drop:
-        return "<нестабильно на одном стенде>"
+        return label
     if isinstance(obj, dict):
-        return {k: mask_coords(v, drop, f"{path}.{k}") for k, v in obj.items()}
+        return {k: mask_coords(v, drop, f"{path}.{k}", label) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [mask_coords(v, drop, f"{path}[{i}]") for i, v in enumerate(obj)]
+        return [mask_coords(v, drop, f"{path}[{i}]", label) for i, v in enumerate(obj)]
     return obj
+
+
+#: Чем заменяется координата, измеренная как момент выдачи ответа (заказ G30).
+CALL_MOMENT_MARK = "<момент зова>"
+
+
+def _leaves(obj, path: str = ""):
+    """Пары ``(координата, лист)`` в той же записи пути, что ``unstable_coords``."""
+    if isinstance(obj, dict):
+        for key, val in obj.items():
+            yield from _leaves(val, f"{path}.{key}")
+    elif isinstance(obj, list):
+        for idx, val in enumerate(obj):
+            yield from _leaves(val, f"{path}[{idx}]")
+    else:
+        yield path, obj
+
+
+def _inside(value, window) -> bool:
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and window[0] <= value <= window[1])
+
+
+def call_moment_coords(answers: Sequence, windows: Sequence) -> Set[str]:
+    """Координаты, чьё значение — МОМЕНТ ЗОВА, установленный замером (заказ G30).
+
+    Замер 17.09: у 18 маршрутов вердикт гасила одна координата тела
+    (``_fetched_at`` ×12, ``ts`` ×6), и у неё 16 дверей ``time.time()`` в трёх
+    модулях — общей двери, которую можно закрепить, нет. Но координату, равную
+    моменту зова, можно УЗНАТЬ: её значение лежит внутри окна ``[начало, конец]``
+    того самого зова, снятого зондом по тем же часам. Значение из стенда туда
+    попасть не может — стенд собран до первой пробы, а зов маршрута каталога не
+    меняет (замер ADR-399: sha 1325 файлов до и после).
+
+    Правило fail-CLOSED, по ВСЕМ пробам, а не по одной:
+
+    * кандидат — координата, лежащая в окне на ``s1`` И на повторной ``s1``;
+      окна нет хотя бы у одной из них — кандидатов нет;
+    * координата, присутствующая на какой-либо пробе ВНЕ окна (или на пробе
+      без окна), кандидатом быть перестаёт: где-то она несёт не момент зова, а
+      значит может нести стенд (``setdefault`` у ``btc_engine`` — ровно такой
+      случай, когда отметка берётся из файла);
+    * производная от часов (возраст, округлённая отметка) в окно не попадает и
+      остаётся нестабильной — ошибка возможна только в сторону МЕНЬШЕЙ
+      определённости.
+    """
+    answers = list(answers)
+    windows = list(windows)
+    if len(answers) < 2 or not windows[0] or not windows[1]:
+        return set()
+
+    def inside(ans, win) -> Set[str]:
+        return {c for c, v in _leaves(ans) if _inside(v, win)}
+
+    cand = inside(answers[0], windows[0]) & inside(answers[1], windows[1])
+    for ans, win in zip(answers, windows):
+        if ans is None or not cand:
+            continue
+        present = {c for c, _v in _leaves(ans)}
+        cand -= present if not win else (present - inside(ans, win))
+    return cand
 
 
 def clock_kwarg(fn, now: Optional[datetime]) -> Dict[str, object]:
@@ -1178,12 +1240,19 @@ def classify_http_reader(module_name: str, probes: tuple,
                                           "прочитать нельзя (потоковый) — сравнивать "
                                           "нечего")}
             continue
-        sub = verdict_from_probes(
-            {"route": path}, routes[path],
-            (s1_again.get("routes") or {}).get(path),
-            (s2.get("routes") or {}).get(path),
-            (s3.get("routes") or {}).get(path),
-            on_empty=(empty.get("routes") or {}).get(path))
+        probes_in_order = (s1, s1_again, s2, s3, empty)
+        answers = [(p.get("routes") or {}).get(path) for p in probes_in_order]
+        # Момент выдачи узнаётся ЗАМЕРОМ по окну зова (заказ G30) и снимается у
+        # всех пяти ответов одной меткой — иначе единственная плывущая
+        # координата «когда отдано» гасила бы вердикт о стенде целиком.
+        moment = call_moment_coords(
+            answers, [(p.get("window") or {}).get(path) for p in probes_in_order])
+        head: Dict[str, object] = {"route": path}
+        if moment:
+            answers = [a if a is None else mask_coords(a, moment, label=CALL_MOMENT_MARK)
+                       for a in answers]
+            head["call_moment_coords"] = sorted(moment)
+        sub = verdict_from_probes(head, *answers[:4], on_empty=answers[4])
         per_route[path] = sub
     row["routes"] = per_route
     row["routes_refused"] = refused
