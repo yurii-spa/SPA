@@ -149,6 +149,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
+from spa_core.monitoring._http_reader_probe import UNREAD_RESPONSE
 from spa_core.utils.observation import observed
 
 log = logging.getLogger(__name__)
@@ -188,6 +189,8 @@ CAUSE_NO_ENTRY = "no_entry_point"
 CAUSE_ENTRY_RAISED = "entry_raised"
 CAUSE_IRREPRODUCIBLE = "answer_not_reproducible"
 CAUSE_RESTS_ON_UNSTABLE = "verdict_rests_on_unstable_coords"
+#: Ответ-объект без читаемого тела (потоковый) — заказ G29, ADR-404.
+CAUSE_RESPONSE_UNREAD = "response_body_unread"
 CAUSE_SELF = "the_instrument_itself"
 #: Часы прогона до читателя НЕ ДОШЛИ, потому что его точка входа их не берёт.
 #: Своя причина, а не общее ведро: «часы провести некуда» и «часы проведены, а
@@ -1004,7 +1007,8 @@ def http_modules(names: Sequence[str]) -> List[str]:
 
 
 def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
-                     runner=None) -> Tuple[Dict[str, tuple], dict]:
+                     runner=None, *, now: Optional[datetime] = None
+                     ) -> Tuple[Dict[str, tuple], dict]:
     """Четыре пробы ВСЕЙ партии маршрутов: ``s1``, ``s1`` повторно, ``s2``, ``s3``.
 
     Партией, а не по модулю, и это не оптимизация ради скорости. Вердикт
@@ -1030,6 +1034,15 @@ def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
     последней, потому что ``[s1 … s1_again] ⊇ [s2 … s3]``. Граница названа
     вслух: поле НЕмонотонное (случайное) способно вернуться к прежнему значению
     и этой пробой не вскрывается.
+
+    **Часы (заказ G29, ADR-404).** ``now`` доносится до процесса-зонда тем же
+    путём, что и каталог стенда, — окружением до импорта, и ОДНИМ И ТЕМ ЖЕ
+    моментом на все пять проб: иначе отметка верхнего уровня расходилась бы
+    между пробами одного стенда просто оттого, что между ними прошло время.
+    Проводка спрашивает подпись зовущего тем же ``clock_kwarg``, что и у
+    питоньих читателей. Дошли ли часы — судит ДВЕРЬ (``__clock__`` в ответе),
+    а не факт передачи: ``meta["clock_pinned"]`` истинно, только если на
+    ВСЕХ пробах ``_shared.now()`` вернул закреплённый момент.
     """
     runner = _run_http_probe if runner is None else runner
     meta: Dict[str, object] = {"modules_asked": len(names),
@@ -1052,8 +1065,10 @@ def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
                    "s2": Path(stands["s2"]) / "data",
                    "s3": Path(stands["s3"]) / "data",
                    "empty": empty_data}
+    clock = clock_kwarg(runner, now)
+    doors: List[object] = []
     for label in _HTTP_PROBE_ORDER:
-        answer, why = runner(stand_paths[label], names, tree_root)
+        answer, why = runner(stand_paths[label], names, tree_root, **clock)
         if answer is None:
             # Один упавший процесс обесценивает ВСЮ партию: трёх ответов на
             # вердикт не хватает, а достроить четвёртый нечем. Молчание здесь
@@ -1063,8 +1078,17 @@ def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
             empty_holder.cleanup()
             return {}, meta
         by_label[label] = answer
+        doors.append(((answer.get("__clock__") or {}) if isinstance(answer, dict)
+                      else {}).get("shared_now"))
     empty_holder.cleanup()
     meta["probes_done"] = len(by_label)
+    meta["clock_pinned"] = bool(clock) and all(
+        door == now.isoformat() for door in doors)
+    if clock and not meta["clock_pinned"]:
+        # Часы передали, а дверь ответила другим — это НЕ «закреплено». Строки
+        # не получат `clock_injected`, и это сказано вслух (инв. #17).
+        meta["clock_reason"] = ("часы переданы, но `_shared.now()` вернул иное: " +
+                                ", ".join(sorted({str(d) for d in doors}))[:200])
     out: Dict[str, tuple] = {}
     for name in names:
         out[name] = tuple((by_label[label].get(name) or {})
@@ -1072,8 +1096,14 @@ def http_probe_batch(stands: dict, names: Sequence[str], tree_root: Path,
     return out, meta
 
 
-def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path):
-    """Один процесс: ``SPA_DATA_DIR`` пинится ДО импорта, ответ — файлом."""
+#: Файл процесса-зонда. Зовётся ПО ПУТИ, а не ``-m``: ``-m`` импортирует пакет
+#: ``spa_core.monitoring`` (и десятки модулей) раньше, чем зонд закрепит часы.
+_HTTP_PROBE_SCRIPT = Path(__file__).resolve().with_name("_http_reader_probe.py")
+
+
+def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path,
+                    now: Optional[datetime] = None):
+    """Один процесс: ``SPA_DATA_DIR`` и часы пинятся ДО импорта, ответ — файлом."""
     import subprocess
     with tempfile.TemporaryDirectory(prefix="spa_g27_http_") as tmp:
         mods = Path(tmp) / "modules.json"
@@ -1081,11 +1111,15 @@ def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path):
         mods.write_text(json.dumps(list(names)), encoding="utf-8")
         env = dict(os.environ)
         env["SPA_DATA_DIR"] = str(stand_data)
+        env.pop("SPA_CENSUS_PINNED_NOW", None)
+        if now is not None:
+            env["SPA_CENSUS_PINNED_NOW"] = now.isoformat()
         env["PYTHONPATH"] = os.pathsep.join(
             [str(tree_root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "spa_core.monitoring._http_reader_probe",
+                [sys.executable,
+                 str(Path(tree_root) / "spa_core" / "monitoring" / _HTTP_PROBE_SCRIPT.name),
                  str(mods), str(out)],
                 cwd=str(tree_root), env=env, capture_output=True,
                 timeout=_HTTP_PROBE_TIMEOUT_S)
@@ -1100,7 +1134,8 @@ def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path):
             return None, f"ответ процесса не прочитан: {type(exc).__name__}"
 
 
-def classify_http_reader(module_name: str, probes: tuple) -> dict:
+def classify_http_reader(module_name: str, probes: tuple,
+                         clock_pinned: bool = False) -> dict:
     """Вердикт обработчику — ПО МАРШРУТАМ, и итог модуля собирается из них.
 
     Гранулярность здесь не вкусовая. Вердикт на ЦЕЛОМ модуле меряет объединение
@@ -1114,7 +1149,8 @@ def classify_http_reader(module_name: str, probes: tuple) -> dict:
     измерен НИ ОДИН маршрут — и тогда с причиной, преобладающей среди них, а не
     с общей строкой про HTTP.
     """
-    row: Dict[str, object] = {"module": module_name, "entry": "http_routes"}
+    row: Dict[str, object] = {"module": module_name, "entry": "http_routes",
+                              "clock_injected": bool(clock_pinned)}
     s1, s1_again, s2, s3, empty = probes
     if s1.get("import_failed"):
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_IMPORT_FAILED,
@@ -1132,6 +1168,16 @@ def classify_http_reader(module_name: str, probes: tuple) -> dict:
         return row
     per_route: Dict[str, dict] = {}
     for path in sorted(routes):
+        unread = [a for a in (routes[path], (s1_again.get("routes") or {}).get(path))
+                  if isinstance(a, dict) and UNREAD_RESPONSE in a]
+        if unread:
+            # Одинаковый ТИП ответа на всех стендах — не одинаковый ответ.
+            per_route[path] = {"route": path, "outcome": READER_UNMEASURED,
+                               "cause": CAUSE_RESPONSE_UNREAD,
+                               "reason": (f"тело ответа {unread[0][UNREAD_RESPONSE]} "
+                                          "прочитать нельзя (потоковый) — сравнивать "
+                                          "нечего")}
+            continue
         sub = verdict_from_probes(
             {"route": path}, routes[path],
             (s1_again.get("routes") or {}).get(path),
@@ -1398,7 +1444,8 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         # под причиной `http_route_handler` — самой многочисленной группой не
         # измеренных, и ровно той, чей ответ владелец видит на дашборде.
         http_names = http_modules(sorted(roads))
-        http_probes, http_meta = http_probe_batch(stands, http_names, Path(tree_root))
+        http_probes, http_meta = http_probe_batch(stands, http_names, Path(tree_root),
+                                                  now=now)
         readers["http_batch"] = http_meta
         rowsout: List[dict] = []
         for name in sorted(roads):
@@ -1408,7 +1455,9 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
                        "reason": ("это сам прибор: он ГОНИТ перепись, и гнать его "
                                   "внутри неё значило бы войти в неё заново")}
             elif name in http_probes:
-                row = classify_http_reader(name, http_probes[name])
+                row = classify_http_reader(
+                    name, http_probes[name],
+                    clock_pinned=bool(http_meta.get("clock_pinned")))
             else:
                 row = classify_reader(name, stands, now=now)
             row["roads"] = sorted(roads[name])

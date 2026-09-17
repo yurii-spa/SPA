@@ -41,17 +41,60 @@ leaves stale constants». Отдельный процесс с ``SPA_DATA_DIR``,
 (1325 файлов, sha до и после). Механизм оставлен именно потому, что «пусто
 сегодня» и «пусто всегда» — разные утверждения.
 
+## Часы процесса-зонда закреплены (заказ G29, ADR-404)
+
+Замер 17.09: у **18 маршрутов** из класса ``verdict_rests_on_unstable_coords``
+между двумя пробами ОДНОГО стенда расходилась ровно одна координата — отметка
+верхнего уровня (``generated_at`` / ``timestamp`` / ``served_at`` /
+``server_timestamp``), выставляемая стенными часами в момент зова. Вердикта не
+было не потому, что стенд до маршрута не доходил, а потому, что зов шёл без
+часов — та же «половина инъекции», что ADR-401 закрыл у питоньих читателей.
+
+Параметр ``now=`` обработчику не передать: зов идёт отдельным процессом, а у
+обработчика часов в подписи нет. Поэтому часы доносятся ТЕМ ЖЕ путём, что и
+каталог стенда, — переменной ``SPA_CENSUS_PINNED_NOW`` ДО первого импорта:
+класс ``datetime.datetime`` подменяется наследником, чьи ``now``/``utcnow``
+отдают закреплённый момент. Отсюда и запуск ПО ПУТИ к файлу, а не ``-m``:
+``-m`` импортирует пакет ``spa_core.monitoring`` (а с ним десятки модулей)
+раньше, чем ``main`` успеет что-либо закрепить.
+
+Закреплено ли — МЕРЯЕТСЯ у двери, а не предполагается: ответ несёт
+``__clock__`` с тем, что вернул ``spa_core.api._shared.now()``. ``time.time()``
+НЕ закрепляется намеренно: на нём стоят TTL кешей и сроки ожидания, и
+замёрзшие часы там превращают ожидание в вечный цикл. Производные от
+``time.time()`` по-прежнему ловит накрывающее окно проб (ADR-399).
+
+## Ответ-объект читается по ТЕЛУ (там же, ADR-404)
+
+Замер 17.09: **20 маршрутов** (``live``, ``btc_engine``, ``cockpit``,
+``tournament``) возвращают ``JSONResponse``, а зов приводил ответ через
+``json.dumps(default=str)`` — то есть сравнивал строку
+``<starlette.responses.JSONResponse object at 0x…>``: АДРЕС в памяти, а не
+тело. Все двадцать стояли в ``answer_not_reproducible``, и перепись ни разу не
+видела, что они отвечают. Теперь сравнивается тело (и код статуса); ответ, чьё
+тело прочитать нельзя (потоковый), помечается ``__unread_response__`` и
+вердикта не получает — «одинаковый объект» не есть «одинаковый ответ».
+
 Прибор только ЧИТАЕТ. Капитал не двигается, живой трек не трогается.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import os
+import sys
+
+# Запуск ПО ПУТИ кладёт каталог скрипта первым в sys.path, и сосед
+# `spa_core/monitoring/signal.py` затеняет стандартный `signal` — `asyncio`
+# ниже и `anyio` внутри FastAPI падали ImportError на ВСЕХ 20 модулях (замер
+# 17.09). Снимать ДО остальных импортов, а не в `__main__`: там уже поздно.
+if __name__ == "__main__" and sys.path and (
+        os.path.abspath(sys.path[0]) == os.path.dirname(os.path.abspath(__file__))):
+    del sys.path[0]
+
 import asyncio
 import importlib
 import inspect
 import json
-import os
-import sys
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -64,6 +107,62 @@ HTTP_NEVER_CALL: Dict[str, str] = {}
 _READ_METHODS = frozenset({"GET", "HEAD"})
 
 DATA_DIR_ENV = "SPA_DATA_DIR"
+
+#: Момент, к которому закрепляются часы процесса-зонда (ISO-8601 с поясом).
+CLOCK_ENV = "SPA_CENSUS_PINNED_NOW"
+
+#: Ключ ответа, которым помечено тело, прочитать которое нельзя.
+UNREAD_RESPONSE = "__unread_response__"
+
+
+def pin_clock(iso: str):
+    """Подменить ``datetime.datetime`` наследником с закреплёнными часами.
+
+    Возвращает закреплённый момент. Действует на модули, импортированные ПОСЛЕ
+    вызова (``from datetime import datetime`` связывает имя на импорте), —
+    поэтому зовётся до первого импорта ``spa_core``. Момент без пояса —
+    ОТКАЗ: наивное время здесь было бы догадкой о поясе (fail-CLOSED).
+    """
+    import datetime as _dt
+
+    base = _dt.datetime
+    while getattr(base, "_spa_census_pinned", False):
+        base = base.__mro__[1]
+    moment = base.fromisoformat(str(iso))
+    if moment.tzinfo is None:
+        raise ValueError(f"{CLOCK_ENV} без пояса: {iso!r}")
+    stamp = moment.timestamp()
+
+    class _PinnedDatetime(base):
+        _spa_census_pinned = True
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.fromtimestamp(stamp, tz)
+
+        @classmethod
+        def utcnow(cls):
+            return cls.fromtimestamp(stamp, _dt.timezone.utc).replace(tzinfo=None)
+
+    _dt.datetime = _PinnedDatetime
+    return moment
+
+
+def unpin_clock() -> None:
+    """Вернуть настоящий ``datetime.datetime`` (для тестов в одном процессе)."""
+    import datetime as _dt
+
+    while getattr(_dt.datetime, "_spa_census_pinned", False):
+        _dt.datetime = _dt.datetime.__mro__[1]
+
+
+def clock_at_the_door() -> Dict[str, object]:
+    """Что отвечает дверь серверных отметок — ``_shared.now()``. Замер, не вера."""
+    try:
+        from spa_core.api import _shared
+        return {"shared_now": _shared.now()}
+    except BaseException as exc:                              # noqa: BLE001
+        return {"shared_now": None, "reason": type(exc).__name__}
 
 
 def _routers(mod):
@@ -120,11 +219,33 @@ def callable_routes(mod, never_call: Optional[Dict[str, str]] = None
     return called, refused
 
 
+def _response_view(value):
+    """Ответ-объект (Starlette ``Response``) → его ТЕЛО и код статуса.
+
+    Узнаётся по поведению (``status_code`` + ``headers``), а не по имени
+    класса. Тела нет (потоковый ответ) — ``UNREAD_RESPONSE``, а не ``repr``:
+    ``repr`` несёт адрес в памяти и сравнивал бы объекты, а не ответы.
+    """
+    if not (hasattr(value, "status_code") and hasattr(value, "headers")):
+        return value
+    body = getattr(value, "body", None)
+    if not isinstance(body, (bytes, bytearray)):
+        return {UNREAD_RESPONSE: type(value).__name__,
+                "__status__": getattr(value, "status_code", None)}
+    text = bytes(body).decode("utf-8", "replace")
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        parsed = text
+    return {"__status__": value.status_code, "__body__": parsed}
+
+
 def _call(endpoint):
     """Ответ обработчика, приведённый к JSON-сравнимому виду."""
     value = endpoint()
     if inspect.isawaitable(value):
         value = asyncio.new_event_loop().run_until_complete(value)
+    value = _response_view(value)
     return json.loads(json.dumps(value, sort_keys=True, default=str))
 
 
@@ -172,9 +293,22 @@ def main(argv=None) -> int:
         sys.stderr.write(f"ОТКАЗ: {DATA_DIR_ENV} не задана — зов пошёл бы против "
                          "ЖИВОГО каталога, а ответ выдался бы за замер стенда\n")
         return 2
+    pinned_iso = str(os.environ.get(CLOCK_ENV) or "").strip()
+    pinned = None
+    if pinned_iso:
+        try:
+            pinned = pin_clock(pinned_iso)
+        except ValueError as exc:
+            sys.stderr.write(f"ОТКАЗ: часы не закреплены — {exc}\n")
+            return 2
     names = json.loads(open(argv[0], encoding="utf-8").read())
+    answer = probe_modules(names)
+    # Закреплено ли — спрашиваем у двери ПОСЛЕ зова: модуль, связавший
+    # настоящий класс раньше подмены, выдал бы себя именно здесь.
+    answer["__clock__"] = dict(clock_at_the_door(),
+                               pinned=pinned.isoformat() if pinned else None)
     with open(argv[1], "w", encoding="utf-8") as fh:
-        json.dump(probe_modules(names), fh, sort_keys=True, default=str)
+        json.dump(answer, fh, sort_keys=True, default=str)
     return 0
 
 
