@@ -94,19 +94,30 @@ class TestPreCommitGateSections(unittest.TestCase):
     def test_contains_public_api_section(self):
         self.assertIn("Public API", self.content)
 
+    # 2026-09-17: знаменатель больше не перечисляется руками. Тест знал «/4» и «/6», ADR-402
+    # добавил седьмой шаг — и main покраснел не от дефекта, а от того, что список допустимых
+    # чисел отстал от скрипта. Теперь знаменатель ЧИТАЕТСЯ из скрипта, а проверяется свойство:
+    # он один на весь скрипт, шагов не меньше четырёх, и объявлен КАЖДЫЙ шаг от 1 до N. Это
+    # строже прежнего: раньше «[4/6]» засчитывался как «последний шаг», а пропуск шага и два
+    # разных знаменателя в одном файле не ловились вовсе.
+    def _counters(self):
+        import re
+        return [(int(a), int(b)) for a, b in re.findall(r'echo "\[(\d+)/(\d+)\]', self.content)]
+
     def test_contains_gate_counter_1_of_4(self):
-        # MP-1522 v11.38 expanded to 6 gates; accept either [1/4] or [1/6]
-        self.assertTrue(
-            "[1/4]" in self.content or "[1/6]" in self.content,
-            "Expected gate counter [1/4] or [1/6] in pre-commit script"
-        )
+        counters = self._counters()
+        self.assertTrue(counters, "pre-commit script announces no gate counters at all")
+        denominators = {n for _, n in counters}
+        self.assertEqual(len(denominators), 1, f"gate counters disagree on the total: {sorted(denominators)}")
+        self.assertGreaterEqual(denominators.pop(), 4, "the gate may grow, it may not shrink below the original four")
+        self.assertIn(1, [i for i, _ in counters], "Expected the first gate counter in pre-commit script")
 
     def test_contains_gate_counter_4_of_4(self):
-        # MP-1522 v11.38 expanded to 6 gates; accept [4/4], [4/6], or [6/6]
-        self.assertTrue(
-            "[4/4]" in self.content or "[4/6]" in self.content or "[6/6]" in self.content,
-            "Expected final gate counter in pre-commit script"
-        )
+        counters = self._counters()
+        self.assertTrue(counters, "pre-commit script announces no gate counters at all")
+        total = counters[0][1]
+        self.assertEqual(sorted(i for i, _ in counters), list(range(1, total + 1)),
+                         "Expected every gate from 1 to the final one to be announced exactly once")
 
 
 class TestPreCommitApiCheck(unittest.TestCase):
