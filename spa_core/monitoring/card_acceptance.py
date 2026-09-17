@@ -1327,6 +1327,137 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
                        "схлопывающий читатель схлопывающим и остался" + tail)
 
 
+# ── earn-defi: своя реализованная цена вместо лицензии (ADR-286 §6) ──────────
+#: Порог расхождения своей серии с эталоном, %. Тот же, что у shadow-сверки движка
+#: (earn-defi DECISIONS D-23): расхождение выше — это ошибка данных, а не шум.
+OWN_REALIZED_MAX_DIFF_PCT = 3.0
+#: Сколько последних общих дней обязаны сойтись. Год — чтобы серия прошла хотя бы
+#: одну смену режима рынка, а не совпала на спокойном месяце.
+OWN_REALIZED_MIN_DAYS = 365
+#: Допуск на пропуски внутри этого окна, календарных дней сверх числа точек.
+OWN_REALIZED_MAX_HOLE_DAYS = 5
+#: Старше этого своя серия уже не «движок читает живое», а снимок.
+OWN_REALIZED_MAX_AGE_DAYS = 3
+#: Расхождение меньше этого на ВСЁМ окне — не точность, а копия эталона: независимый
+#: расчёт из блокчейна побайтно с поставщиком не совпадает никогда.
+OWN_REALIZED_COPY_EPS_PCT = 1e-9
+#: Имена в `market_data` — контракт между пробой и расчётом в earn-defi.
+OWN_REALIZED_SOURCE = "own_chain"
+OWN_REALIZED_METRIC = "RealizedPriceUSD"
+_EARN_DEFI_DEFAULT_ROOT = os.path.join(os.path.expanduser("~"), "Documents", "earn-defi")
+
+
+def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = None,
+                                        now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий ADR-286 §6: «наши числа совпадают с эталонными на истории» — и движок
+    читает СВОИ числа, а не поставщика с лицензией «не для коммерции».
+
+    Меряется ИСХОД по базе движка (`data/earn_defi.db`, только чтение), а не наличие
+    модуля: четыре звена, каждое называется по имени, когда рвётся.
+
+    1. своя серия `market_data(source=own_chain, metric=RealizedPriceUSD)` существует;
+    2. на последних 365 ОБЩИХ с эталоном днях (эталон = CapMrktCurUSD / CapMVRVCur /
+       SplyCur поставщика, как его считает сам движок) расхождение ≤ 3 % в КАЖДЫЙ день,
+       окно без дыр, и серия не является копией эталона;
+    3. серия свежая (не старше трёх суток от `now`);
+    4. последняя запись сигналов движка СОСЛАЛАСЬ на свою серию и несёт её число.
+
+    Репозитория, базы или таблиц нет ⇒ `unmeasured` с причиной (на CI earn-defi нет
+    по построению): «не измерено» не выдаётся ни за «выполнено», ни за «не выполнено».
+    """
+    import sqlite3
+    from datetime import date as _date
+
+    root = root or os.environ.get("EARN_DEFI_ROOT") or _EARN_DEFI_DEFAULT_ROOT
+    db_path = os.path.join(root, "data", "earn_defi.db")
+    if not os.path.isdir(root):
+        return UNMEASURED, f"репозитория earn-defi нет по адресу {root} — предмет не измерен"
+    if not os.path.isfile(db_path):
+        return UNMEASURED, f"базы движка нет: {db_path} — предмет не измерен"
+    now = now or datetime.now(timezone.utc)
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10.0)
+    except sqlite3.Error as exc:
+        return UNMEASURED, f"база движка не открылась: {exc}"
+    try:
+        try:
+            own = dict(conn.execute(
+                "SELECT date, value FROM market_data WHERE source=? AND metric=?",
+                (OWN_REALIZED_SOURCE, OWN_REALIZED_METRIC)).fetchall())
+            ref_parts: dict = {}
+            for d, m, v in conn.execute(
+                    "SELECT date, metric, value FROM market_data WHERE source='coinmetrics' "
+                    "AND metric IN ('CapMrktCurUSD','CapMVRVCur','SplyCur')"):
+                ref_parts.setdefault(d, {})[m] = v
+            last_signal = conn.execute(
+                "SELECT date, payload FROM signals ORDER BY id DESC LIMIT 1").fetchone()
+        except sqlite3.Error as exc:
+            return UNMEASURED, f"база движка не прочиталась (нет таблиц?): {exc}"
+    finally:
+        conn.close()
+
+    # звено 1 — серия есть
+    if not own:
+        return NOT_SATISFIED, (f"звено 1: своей серии нет — в market_data ноль строк "
+                               f"{OWN_REALIZED_SOURCE}/{OWN_REALIZED_METRIC}")
+
+    # звено 2 — сходится с эталоном
+    ref: dict = {}
+    for d, parts in ref_parts.items():
+        mc, mv, sp = parts.get("CapMrktCurUSD"), parts.get("CapMVRVCur"), parts.get("SplyCur")
+        if mc and mv and sp and mv > 0 and sp > 0:
+            ref[d] = mc / mv / sp
+    common = sorted(d for d in own if d in ref and own[d] and own[d] > 0)
+    if not ref:
+        return UNMEASURED, "эталона нет: в базе ни одного полного дня поставщика — сверять не с чем"
+    if len(common) < OWN_REALIZED_MIN_DAYS:
+        return NOT_SATISFIED, (f"звено 2: общих с эталоном дней {len(common)} "
+                               f"< {OWN_REALIZED_MIN_DAYS}")
+    window = common[-OWN_REALIZED_MIN_DAYS:]
+    span = (_date.fromisoformat(window[-1]) - _date.fromisoformat(window[0])).days + 1
+    if span - len(window) > OWN_REALIZED_MAX_HOLE_DAYS:
+        return NOT_SATISFIED, (f"звено 2: окно {window[0]}…{window[-1]} с дырами — "
+                               f"{len(window)} точек на {span} календарных дней")
+    diffs = {d: abs(own[d] / ref[d] - 1.0) * 100.0 for d in window}
+    worst_day = max(diffs, key=lambda d: diffs[d])
+    worst = diffs[worst_day]
+    if worst > OWN_REALIZED_MAX_DIFF_PCT:
+        over = sum(1 for v in diffs.values() if v > OWN_REALIZED_MAX_DIFF_PCT)
+        return NOT_SATISFIED, (f"звено 2: расхождение {worst:.2f} % > {OWN_REALIZED_MAX_DIFF_PCT} % "
+                               f"({worst_day}); дней выше порога {over} из {len(window)}")
+    if worst < OWN_REALIZED_COPY_EPS_PCT:
+        return NOT_SATISFIED, ("звено 2: серия побайтно равна эталону на всём окне — это копия "
+                               "поставщика, а не расчёт из блокчейна")
+
+    # звено 3 — свежесть
+    own_last = max(own)
+    age = (now.date() - _date.fromisoformat(own_last)).days
+    if age > OWN_REALIZED_MAX_AGE_DAYS:
+        return NOT_SATISFIED, (f"звено 3: своя серия кончается {own_last} — {age} сут. назад "
+                               f"(> {OWN_REALIZED_MAX_AGE_DAYS}); расчёт не идёт")
+
+    # звено 4 — движок читает своё
+    if last_signal is None:
+        return NOT_SATISFIED, "звено 4: у движка нет ни одной записи сигналов"
+    sig_date, payload_raw = last_signal
+    try:
+        payload = json.loads(payload_raw)
+    except (TypeError, ValueError) as exc:
+        return UNMEASURED, f"последняя запись сигналов не разобралась: {exc}"
+    src = str(((payload.get("inputs") or {}).get("source")) or "")
+    if OWN_REALIZED_SOURCE not in src.split("+"):
+        return NOT_SATISFIED, (f"звено 4: последняя запись сигналов ({sig_date}) считана из "
+                               f"{src or '—'!s} — движок всё ещё читает поставщика")
+    sig_rp = (payload.get("signals") or {}).get("realized_price_usd")
+    own_at = own.get(sig_date)
+    if sig_rp is None or own_at is None or abs(float(sig_rp) / own_at - 1.0) > 1e-6:
+        return NOT_SATISFIED, (f"звено 4: запись сигналов {sig_date} называет источник "
+                               f"{OWN_REALIZED_SOURCE}, но несёт {sig_rp} при своей серии {own_at}")
+    return SATISFIED, (f"своя серия {len(own)} дн., окно {window[0]}…{window[-1]}: макс. "
+                       f"расхождение {worst:.3f} % ({worst_day}); свежесть {age} сут.; "
+                       f"запись сигналов {sig_date} читает {src}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1338,6 +1469,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
+    "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
     "journal_reader_census_verdict_under_injected_clock":
