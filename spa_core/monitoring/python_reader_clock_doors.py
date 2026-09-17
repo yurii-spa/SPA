@@ -39,6 +39,27 @@ ADR-401 провёл часы прогона в точку входа каждо
 * Читатели, которых перепись не умеет привести (нет точки входа, импорт упал,
   вход упал) — они названы причинами, а не сосчитаны нулём.
 
+## Цена закрытия двери (заказ G32, п. 1)
+
+Сосчитать двери мало: заказ велел измерить, во что обходится закрытие КАЖДОЙ,
+и лишь потом выбирать. Цена измерима тем же дифференциальным способом, только
+вопрос другой — не «где дрожит», а **изменился ли сам ОТВЕТ читателя**.
+Сравниваются значения координат, стабильных в ОБОИХ плечах: разошлись ⇒ пин не
+снял дрожь, а переписал вердикт.
+
+Это не теория. У `decision_audit_trail` дрожь координат
+`.snapshot_id_probe.samples[0..1]` есть НЕ помеха замеру, а сам замер: читатель
+нарочно зовёт производителя дважды и по совпадению ответов судит, адресует ли
+`snapshot_id` содержимое. Под пином ответы совпадают всегда, и вердикт
+переворачивается на противоположный — то есть закрытие этой двери ПОДДЕЛЫВАЕТ
+находку. Дверей три, но закрывать можно не три.
+
+Плечей поэтому ТРИ: **A′** — точная копия A без пина. Плечи суть разные
+процессы, и координата может отличаться между ними сама по себе (номер
+процесса, путь временного стенда); приписать такую разницу пину значило бы
+выдумать находку. Что расходится уже между A и A′, то расходится не от пина.
+Контрольного плеча нет ⇒ цена **НЕ ИЗМЕРЕНА**, а не «нулевая».
+
 Коды возврата: **0** — измерено, дверей нет · **1** — измерено, двери названы ·
 **2** — НЕ ИЗМЕРЕНО (причина названа).
 
@@ -173,16 +194,66 @@ def run_arm(names: List[str], stand: Path, tree_root: Path, moment: dt.datetime,
             return None, f"ответ плеча не прочитан: {type(exc).__name__}"
 
 
-def compare(arm_a: dict, arm_b: dict) -> dict:
-    """Поимённая разность координат двух плеч.
+def answer_shift(arm_a_row: dict, arm_b_row: dict,
+                 arm_a2_row: Optional[dict]) -> dict:
+    """Изменил ли пин сам ОТВЕТ читателя — и отделён ли сдвиг от шума процессов.
+
+    Разность ИМЁН нестабильных координат отвечает только на вопрос «где дрожит».
+    Заказ G32 п. 1 требует другого: **цены** закрытия каждой двери. Цена тут
+    измерима по исходу — сравнить значения координат, стабильных в ОБОИХ плечах.
+    Разошлись ⇒ пин не снял дрожь, а переписал вердикт.
+
+    Почему нужен КОНТРОЛЬ, а не прямая разность A↔B. Плечи — разные процессы, и
+    координата может отличаться между ними сама по себе (номер процесса, путь
+    временного стенда, порядок обхода множества). Приписать такую разницу пину
+    значило бы выдумать находку. Поэтому третье плечо **A′** — точная копия A,
+    без пина: что расходится уже между A и A′, то расходится не от пина.
+
+    Три исхода, и они различимы (инв. #17):
+    ``measured`` со списками ``by_pin`` / ``process_varying``;
+    ``unmeasured`` — плечо не вернуло значений либо контрольного плеча нет:
+    цену назвать нечем, и это НЕ «цена нулевая».
+    """
+    sa = arm_a_row.get("stable")
+    sb = arm_b_row.get("stable")
+    if not isinstance(sa, dict) or not isinstance(sb, dict):
+        which = "A" if not isinstance(sa, dict) else "B"
+        return {"outcome": "unmeasured",
+                "reason": (f"плечо {which} не вернуло значений стабильных координат — "
+                           "цену закрытия двери назвать нечем")}
+    s2 = arm_a2_row.get("stable") if isinstance(arm_a2_row, dict) else None
+    if not isinstance(s2, dict):
+        return {"outcome": "unmeasured",
+                "reason": ("контрольного плеча A′ нет — отличить сдвиг ОТ ПИНА от "
+                           "разницы двух процессов нечем")}
+    noise = {c for c in (set(sa) & set(s2)) if sa[c]["digest"] != s2[c]["digest"]}
+    differ = [c for c in sorted(set(sa) & set(sb))
+              if sa[c]["digest"] != sb[c]["digest"]]
+    by_pin = [c for c in differ if c not in noise]
+    return {"outcome": "measured",
+            "by_pin": by_pin,
+            # Обе стороны названы: шум процессов не есть находка, но и молча
+            # выброшенным он быть не должен — иначе разность «A↔B минус шум»
+            # выглядела бы прямым замером, каким она не является.
+            "process_varying": sorted(noise),
+            "samples": {c: {"unpinned": sa[c]["preview"], "pinned": sb[c]["preview"]}
+                        for c in by_pin[:8]}}
+
+
+def compare(arm_a: dict, arm_b: dict, arm_a2: Optional[dict] = None) -> dict:
+    """Поимённая разность координат двух плеч плюс цена закрытия двери.
 
     Три исхода у каждого читателя, и они РАЗЛИЧИМЫ (инв. #17):
     ``import_bound`` — координаты, закрытые пином класса;
     ``other_door`` — координаты, плывущие в ОБОИХ плечах (пином не закрываются);
     ``unmeasured`` — плечо не привело читателя, причина названа.
+
+    Плюс у каждого приведённого читателя — ``answer_shift`` (см. соседа):
+    ЦЕНА пина, то есть изменил ли он вердикт читателя, а не только его дрожь.
     """
     mods_a = arm_a.get("__modules__") or {}
     mods_b = arm_b.get("__modules__") or {}
+    mods_a2 = (arm_a2 or {}).get("__modules__") or {}
     rows: Dict[str, dict] = {}
     for name in sorted(set(mods_a) | set(mods_b)):
         a, b = mods_a.get(name) or {}, mods_b.get(name) or {}
@@ -203,6 +274,7 @@ def compare(arm_a: dict, arm_b: dict) -> dict:
                # координата, ставшая нестабильной ОТ ПИНА, означала бы, что
                # мера шумит, и находку в такой паре предъявлять нельзя.
                "unstable_only_pinned": sorted(ub - ua)}
+        row["answer_shift"] = answer_shift(a, b, mods_a2.get(name))
         rows[name] = row
     return rows
 
@@ -215,11 +287,17 @@ def measure(data_dir: Path, tree_root: Path, *,
         "generated_at": moment.isoformat(),
         "generated_by": PRODUCER,
         "question": ("сколько питоньих читателей переписи держатся на дверях часов, "
-                     "связанных НА ИМПОРТЕ (заказ G31 приказа «Portfolio CIO», п. 1)"),
+                     "связанных НА ИМПОРТЕ (заказ G31 приказа «Portfolio CIO», п. 1) "
+                     "и во что обходится закрытие каждой такой двери (заказ G32, п. 1)"),
         "what_it_does_not_prove": [
             "двери на time.time(): этот класс намеренно не закрепляется (TTL и ожидания)",
             "верность ответа читателя — мерится ВОСПРОИЗВОДИМОСТЬ, не правильность",
             "читатели, которых перепись не умеет привести, названы причинами, не нулём",
+            "НУЖНА ли дверь закрытию: прибор меряет ЦЕНУ закрытия, а не пользу от него",
+            "координата ПОЗИЦИОННА (`.findings[8]`), поэтому исчезновение элемента "
+            "списка сдвигает все последующие индексы: строку «изменилось "
+            "`.findings[8].severity`» читать как вердикт ОБ ЭТОЙ находке нельзя — "
+            "это может быть та же находка под другим номером (замер #624)",
         ],
         "advisory": ("POLLED_ADAPTERS, писатель журнала, audit_trail, пороги RiskPolicy "
                      "v1.0, стоп-кран, живой трек и landing/ НЕ трогаются — прибор только "
@@ -247,6 +325,10 @@ def measure(data_dir: Path, tree_root: Path, *,
         if arm_a is None:
             doc.update(status="UNMEASURED", reason=f"плечо A: {why_a}")
             return doc
+        # Плечо A′ — точная копия A, без пина. Контроль на шум процессов: без
+        # него разность A↔B в значениях приписала бы пину всё, что отличает два
+        # процесса вообще, и цена закрытия двери была бы выдумкой.
+        arm_a2, why_a2 = run_arm(names, stands["s1"], tree_root, moment, pin=False)
         arm_b, why_b = run_arm(names, stands["s1"], tree_root, moment, pin=True)
         if arm_b is None:
             doc.update(status="UNMEASURED", reason=f"плечо B: {why_b}")
@@ -267,13 +349,48 @@ def measure(data_dir: Path, tree_root: Path, *,
                    reason="в плече A часы оказались закреплены — плечи неразличимы, "
                           "мерить нечем")
         return doc
-    rows = compare(arm_a, arm_b)
+    if arm_a2 is None:
+        # Не отказ всего замера: разность ИМЁН (двери) измерима и без контроля.
+        # Отказывает ровно тот вопрос, у которого пропала посылка, — ЦЕНА.
+        doc["control_arm"] = {"outcome": "unmeasured", "reason": f"плечо A′: {why_a2}"}
+    else:
+        doc["control_arm"] = {"outcome": "measured",
+                              "pin_observed": (arm_a2.get("__clock__") or {}).get(
+                                  "pin_observed")}
+        if (arm_a2.get("__clock__") or {}).get("pin_observed"):
+            # A′ обязано быть НЕ закреплено: закреплённый контроль объявил бы
+            # шумом ровно то, что ищет прибор, — и находка исчезла бы молча.
+            doc["control_arm"] = {"outcome": "unmeasured",
+                                  "reason": "в контрольном плече A′ часы оказались "
+                                            "закреплены — оно неотличимо от B и "
+                                            "объявило бы шумом сам сдвиг от пина"}
+            arm_a2 = None
+    rows = compare(arm_a, arm_b, arm_a2)
     doc["modules"] = rows
     measured = {n: r for n, r in rows.items() if r["outcome"] == "measured"}
     doors = {n: r["import_bound"] for n, r in measured.items() if r["import_bound"]}
     noisy = {n: r["unstable_only_pinned"] for n, r in measured.items()
              if r["unstable_only_pinned"]}
     other = {n: r["other_door"] for n, r in measured.items() if r["other_door"]}
+    # ЦЕНА закрытия каждой двери — заказ G32, п. 1. Три исхода, различимые:
+    # бесплатно · закрытие переписывает ответ читателя · цена не измерена.
+    free: Dict[str, list] = {}
+    falsifying: Dict[str, dict] = {}
+    price_unmeasured: Dict[str, str] = {}
+    for name in sorted(doors):
+        shift = measured[name].get("answer_shift") or {}
+        if shift.get("outcome") != "measured":
+            price_unmeasured[name] = str(shift.get("reason") or "цена не измерена")
+        elif shift.get("by_pin"):
+            # Инв. #17 и на превью: «раздела значений нет» обязано отличаться
+            # от «значения есть и их ноль», иначе отчёт назовёт координату
+            # изменившейся, не показав НИ ОДНОГО значения, и это прочтётся
+            # как «изменение пустое».
+            falsifying[name] = {"door": doors[name],
+                                "answer_changed_at": shift["by_pin"],
+                                "samples": observed(shift, "samples", kind=dict)}
+        else:
+            free[name] = doors[name]
     doc["counts"] = {
         "python_branch": len(names),
         "measured": len(measured),
@@ -281,8 +398,14 @@ def measure(data_dir: Path, tree_root: Path, *,
         "rest_on_import_bound_door": len(doors),
         "rest_on_other_door": len(other),
         "noisy_reverse": len(noisy),
+        "doors_free_to_close": len(free),
+        "doors_whose_closing_rewrites_the_answer": len(falsifying),
+        "door_price_unmeasured": len(price_unmeasured),
     }
     doc["import_bound_doors"] = doors
+    doc["doors_free_to_close"] = free
+    doc["doors_that_rewrite_the_answer"] = falsifying
+    doc["door_price_unmeasured"] = price_unmeasured
     doc["other_doors"] = other
     doc["reverse_direction"] = noisy
     doc["unmeasured_causes"] = _causes(rows)
@@ -340,6 +463,47 @@ def report(doc: dict) -> List[str]:
     for name, coords in sorted((doc.get("other_doors") or {}).items()):
         lines.append(f"   [ПИН НЕ ЗАКРЫВАЕТ] {name}: {', '.join(coords[:6])}"
                      + (f" … и ещё {len(coords) - 6}" if len(coords) > 6 else ""))
+    # ЦЕНА закрытия — раздел заказа G32 п. 1. Инв. #17: «раздела нет» обязано
+    # звучать иначе, чем «цена нулевая», иначе молчание читается как разрешение.
+    price = observed(doc, "doors_that_rewrite_the_answer", kind=dict)
+    free = observed(doc, "doors_free_to_close", kind=dict)
+    unpriced = observed(doc, "door_price_unmeasured", kind=dict)
+    if price is None or free is None or unpriced is None:
+        lines.append("   [НЕ ИЗМЕРЕНО] цены закрытия дверей в артефакте нет — какая "
+                     "дверь закрывается даром, а какая перепишет ответ читателя, "
+                     "сказать нечем")
+    else:
+        for name, row in sorted(price.items()):
+            changed = ", ".join(row.get("answer_changed_at") or [])
+            lines.append(
+                f"   [ЗАКРЫТИЕ ПЕРЕПИШЕТ ОТВЕТ] {name}: дверь "
+                f"{', '.join(row.get('door') or [])} — но тот же пин меняет ВЕРДИКТ "
+                f"читателя в {changed}; дрожь тут не шум, а измеряемое свойство, и "
+                f"закрыть дверь значит подделать находку")
+            previews = observed(row, "samples", kind=dict)
+            if previews is None:
+                lines.append("      · [НЕ ИЗМЕРЕНО] значений этих координат в "
+                             "артефакте нет — ЧТО именно изменилось, не показано")
+            elif not previews:
+                lines.append("      · значений не приложено: список изменившихся "
+                             "координат пуст либо обрезан до нуля")
+            for coord, pair in sorted((previews if previews else {}).items()):
+                lines.append(f"      · {coord}: без пина {pair.get('unpinned')} → "
+                             f"с пином {pair.get('pinned')}")
+        if free:
+            lines.append("   [ЗАКРЫТИЕ ДАРОМ] "
+                         + " · ".join(f"{n}: {', '.join(c)}" for n, c in sorted(free.items())))
+        if unpriced:
+            lines.append("   [ЦЕНА НЕ ИЗМЕРЕНА] "
+                         + " · ".join(f"{n}: {r}" for n, r in sorted(unpriced.items())))
+        if not price and not unpriced and free:
+            lines.append("   [ОПОРА] ни у одной двери закрытие не переписывает ответ "
+                         "читателя — цена измерена и нулевая у всех")
+    control = doc.get("control_arm") or {}
+    if control.get("outcome") != "measured":
+        lines.append(f"   [НЕ ИЗМЕРЕНО] контрольное плечо A′: "
+                     f"{control.get('reason', 'плеча нет')} — разницу двух процессов "
+                     f"от сдвига ОТ ПИНА отделить было нечем")
     reverse = doc.get("reverse_direction") or {}
     if reverse:
         lines.append(f"   [ОБРАТНАЯ СТОРОНА] у {len(reverse)} читател(я/ей) координата "

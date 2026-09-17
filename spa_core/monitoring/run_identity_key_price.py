@@ -683,6 +683,45 @@ def unstable_coords(one, two, path: str = "") -> Set[str]:
     return out
 
 
+def stable_leaf_digests(obj, drop: Set[str], path: str = "") -> Dict[str, dict]:
+    """ЗНАЧЕНИЯ листьев, уцелевших после снятия нестабильных координат.
+
+    Нужно затем, чтобы спросить у ответа читателя то, чего разность ИМЁН
+    координат не спрашивает никогда: **изменился ли сам ответ**. Имя координаты
+    говорит «здесь плывёт», значение — «здесь теперь другое», и это разные
+    вопросы. Пин класса часов задуман как средство СНЯТЬ дрожь; если от него
+    меняется вердикт читателя, средство лечит не ту болезнь, и цена у него
+    не нулевая (заказ G32, п. 1 — «сначала замер цены каждого варианта»).
+
+    Обход — тот же, что у соседа ``_stable_leaves``: обрезка идёт по ``drop``,
+    то есть по координатам, которые ``unstable_coords`` уже назвала. Второго
+    правила «что считать стабильным» здесь не заводится — оно одно и живёт
+    в этой же семье функций.
+
+    Сравнивается ДАЙДЖЕСТ, а не обрезанный текст: обрезка сделала бы два
+    РАЗНЫХ длинных значения неразличимыми, то есть молча погасила бы находку.
+    ``preview`` существует только для отчёта и в сравнении не участвует.
+    """
+    if path in drop:
+        return {}
+    if isinstance(obj, dict):
+        out: Dict[str, dict] = {}
+        for key, value in obj.items():
+            out.update(stable_leaf_digests(value, drop, f"{path}.{key}"))
+        return out
+    if isinstance(obj, list):
+        out = {}
+        for idx, value in enumerate(obj):
+            out.update(stable_leaf_digests(value, drop, f"{path}[{idx}]"))
+        return out
+    # ensure_ascii=False: превью читает человек, и `\u0438\u0441...` вместо слов
+    # превращает главную строку находки в шум. На сравнение это не влияет —
+    # сравнивается дайджест, и канон у него один для обеих сторон.
+    raw = json.dumps(obj, sort_keys=True, default=str, ensure_ascii=False)
+    return {path: {"digest": hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32],
+                   "preview": raw[:120]}}
+
+
 def _stable_leaves(obj, drop: Set[str], path: str = "") -> int:
     """Сколько ЛИСТЬЕВ ответа уцелело после снятия нестабильных координат."""
     if path in drop:

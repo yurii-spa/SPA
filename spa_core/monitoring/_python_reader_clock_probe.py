@@ -121,7 +121,8 @@ def probe_modules(names: List[str], stand: pathlib.Path,
     ошибка пошла бы в сторону ЗАНИЖЕНИЯ находки.
     """
     from spa_core.monitoring.run_identity_key_price import (  # локально: после пина
-        clock_kwarg, module_driver, no_entry_cause, unstable_coords,
+        clock_kwarg, module_driver, no_entry_cause, stable_leaf_digests,
+        unstable_coords,
     )
 
     out: Dict[str, dict] = {}
@@ -153,6 +154,11 @@ def probe_modules(names: List[str], stand: pathlib.Path,
         # `unstable_coords`, которым судит сама перепись. Вторая копия правила
         # была бы ровно тем классом, который перепись ловит у читателей.
         row["unstable"] = sorted(unstable_coords(first, second))
+        # Значения того, что НЕ плывёт внутри плеча. Разность имён отвечает
+        # «где дрожит», а цена закрытия двери — вопрос про ОТВЕТ: сравнив эти
+        # значения между плечами, оркестратор видит, изменил ли пин вердикт
+        # читателя, а не только его дрожь (заказ G32, п. 1).
+        row["stable"] = stable_leaf_digests(first, set(row["unstable"]))
         out[name] = row
     return out
 

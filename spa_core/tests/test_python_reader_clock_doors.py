@@ -675,3 +675,373 @@ class ReportTellsAbsenceFromZero(unittest.TestCase):
 
 if __name__ == "__main__":                                        # pragma: no cover
     unittest.main()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Заказ G32, п. 1 — ЦЕНА закрытия двери
+#
+# ADR-406 сосчитал двери и на том остановился. Заказ велел сначала измерить,
+# во что обходится закрытие КАЖДОЙ, и лишь потом выбирать. Цена измерима по
+# исходу: пин задуман как средство снять ДРОЖЬ, и если от него меняется ВЕРДИКТ
+# читателя, средство лечит не ту болезнь. Ниже — контроль на каждое звено
+# этого замера, в обе стороны.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _row(unstable, stable):
+    """Строка плеча: имена нестабильных координат + значения стабильных."""
+    return {"entry": "measure", "clock_injected": True,
+            "unstable": sorted(unstable),
+            "stable": {c: {"digest": str(v), "preview": str(v)}
+                       for c, v in stable.items()}}
+
+
+def _measure_with_arms(arm_a, arm_a2, arm_b):
+    """Боевой `measure()` с подменёнными ПЛЕЧАМИ — не копией его разбора.
+
+    Копия разбора в тесте была бы вырожденным стендом: мутация боевой ветки
+    («считать переписывающей ответ ЛЮБУЮ дверь») выжила в батарее #624 ровно
+    потому, что тест судил собственный пересказ логики, а не её саму.
+    """
+    seq = [(arm_a, ""), (arm_a2, ""), (arm_b, "")]
+    stands = {"day": "d", "donor_day": "d", "s1": Path("/x")}
+    real_run, real_build = doors.run_arm, doors.build_stands
+    doors.run_arm = lambda names, stand, root, moment, *, pin: seq.pop(0)
+    doors.build_stands = lambda d, t: (stands, "")
+    try:
+        return doors.measure(Path("/x"), _TREE_ROOT,
+                             now=dt.datetime.now(dt.timezone.utc), full=True)
+    finally:
+        doors.run_arm, doors.build_stands = real_run, real_build
+
+
+class PriceOfClosingADoorIsMeasuredNotAssumed(unittest.TestCase):
+    """Дверь, закрытие которой переписывает вердикт, — не «дверь подешевле».
+
+    Каждый тест краснеет, если порвать своё звено: подсчёт разности значений,
+    контрольное плечо, отделение шума процессов, третий исход «цена не измерена».
+    """
+
+    @staticmethod
+    def _doc(a_stable, a2_stable, b_stable, *, a_unstable=(".stamp",),
+             b_unstable=(), a2_unstable=(".stamp",), control=True):
+        arm_a = _arm({"r": _row(a_unstable, a_stable)}, pin_observed=False)
+        arm_b = _arm({"r": _row(b_unstable, b_stable)}, pin_observed=True)
+        arm_a2 = (_arm({"r": _row(a2_unstable, a2_stable)}, pin_observed=False)
+                  if control else None)
+        return _measure_with_arms(arm_a, arm_a2, arm_b)
+
+    def test_door_whose_pin_rewrites_a_verdict_is_not_free_to_close(self):
+        # `.stamp` — дверь (плывёт без пина, застывает с пином).
+        # `.verdict` стабилен в ОБОИХ плечах, но значение РАЗНОЕ: пин переписал
+        # вывод читателя. Это ровно случай `decision_audit_trail`.
+        doc = self._doc({".verdict": "false"}, {".verdict": "false"},
+                        {".stamp": "frozen", ".verdict": "true"})
+        row = doc["modules"]["r"]
+        self.assertEqual(row["import_bound"], [".stamp"])
+        self.assertEqual(row["answer_shift"]["outcome"], "measured")
+        self.assertEqual(row["answer_shift"]["by_pin"], [".verdict"])
+        self.assertIn("r", doc["doors_that_rewrite_the_answer"])
+        self.assertNotIn("r", doc["doors_free_to_close"])
+        self.assertEqual(doc["door_price_unmeasured"], {})
+        self.assertEqual(doc["counts"]["doors_whose_closing_rewrites_the_answer"], 1)
+        self.assertEqual(doc["counts"]["doors_free_to_close"], 0)
+
+    def test_door_that_changes_nothing_else_is_free_to_close(self):
+        # Обратная сторона: без неё проверка выше проходила бы и на приборе,
+        # который объявляет дорогой КАЖДУЮ дверь (мутация, выжившая в первом
+        # прогоне батареи #624 — тест судил копию разбора, а не сам разбор).
+        doc = self._doc({".verdict": "false"}, {".verdict": "false"},
+                        {".stamp": "frozen", ".verdict": "false"})
+        self.assertEqual(doc["modules"]["r"]["answer_shift"]["by_pin"], [])
+        self.assertEqual(doc["doors_free_to_close"], {"r": [".stamp"]})
+        self.assertEqual(doc["doors_that_rewrite_the_answer"], {})
+        self.assertEqual(doc["counts"]["doors_free_to_close"], 1)
+        self.assertEqual(doc["counts"]["doors_whose_closing_rewrites_the_answer"], 0)
+
+    def test_coordinate_that_differs_between_two_unpinned_arms_is_not_charged_to_the_pin(self):
+        # `.pid` отличается уже между A и A′ — двумя процессами БЕЗ пина.
+        # Приписать такую разницу пину значило бы выдумать находку.
+        doc = self._doc({".pid": "111", ".verdict": "false"},
+                        {".pid": "222", ".verdict": "false"},
+                        {".stamp": "frozen", ".pid": "333", ".verdict": "false"})
+        shift = doc["modules"]["r"]["answer_shift"]
+        self.assertEqual(shift["by_pin"], [])
+        # Шум НАЗВАН, а не выброшен молча: иначе разность выглядела бы прямым
+        # замером, каким она не является.
+        self.assertEqual(shift["process_varying"], [".pid"])
+        self.assertEqual(doc["doors_free_to_close"], {"r": [".stamp"]})
+
+    def test_the_control_only_forgives_the_coordinate_it_actually_saw_move(self):
+        # Положительный контроль на сам контроль: шум по `.pid` не обязан
+        # прощать сдвиг по `.verdict`. Иначе одно шумящее поле глушило бы
+        # находку по всему читателю.
+        doc = self._doc({".pid": "111", ".verdict": "false"},
+                        {".pid": "222", ".verdict": "false"},
+                        {".stamp": "frozen", ".pid": "333", ".verdict": "true"})
+        self.assertEqual(doc["modules"]["r"]["answer_shift"]["by_pin"], [".verdict"])
+        self.assertIn("r", doc["doors_that_rewrite_the_answer"])
+
+    def test_missing_control_arm_makes_the_price_unmeasured_not_zero(self):
+        # Без контроля «цена нулевая» было бы ДОГАДКОЙ. Инв. #17: третий исход.
+        doc = self._doc({".verdict": "false"}, None,
+                        {".stamp": "frozen", ".verdict": "true"}, control=False)
+        shift = doc["modules"]["r"]["answer_shift"]
+        self.assertEqual(shift["outcome"], "unmeasured")
+        self.assertIn("A′", shift["reason"])
+        self.assertEqual(doc["doors_free_to_close"], {})
+        self.assertEqual(doc["doors_that_rewrite_the_answer"], {})
+        self.assertIn("r", doc["door_price_unmeasured"])
+        self.assertEqual(doc["counts"]["door_price_unmeasured"], 1)
+
+    def test_arm_without_stable_values_names_the_arm(self):
+        # Старый формат ответа плеча (до этого цикла) не имеет раздела значений.
+        # Он обязан читаться как «нечем мерить», а не как «ничего не изменилось».
+        arm_a = _arm({"r": {"entry": "measure", "unstable": [".stamp"]}},
+                     pin_observed=False)
+        arm_a2 = _arm({"r": _row([".stamp"], {})}, pin_observed=False)
+        arm_b = _arm({"r": _row([], {".stamp": "frozen"})}, pin_observed=True)
+        doc = _measure_with_arms(arm_a, arm_a2, arm_b)
+        shift = doc["modules"]["r"]["answer_shift"]
+        self.assertEqual(shift["outcome"], "unmeasured")
+        self.assertIn("A", shift["reason"])
+        self.assertEqual(doc["doors_free_to_close"], {})
+        self.assertIn("r", doc["door_price_unmeasured"])
+
+
+class ProbeHandsTheValuesThePriceIsMeasuredFrom(unittest.TestCase):
+    """Проводка: без значений от ЗОНДА цена не измеряется ничем.
+
+    Мутация «зонд не возвращает `stable`» выжила в первом прогоне батареи #624:
+    все проверки цены кормились рукодельными плечами, и ни одна не спрашивала
+    настоящий зонд. Тест закрывает именно этот стык.
+    """
+
+    def test_probe_returns_values_of_the_coordinates_that_did_not_move(self):
+        name = "spa_test_fake_reader_with_stable_values"
+        mod = types.ModuleType(name)
+        import datetime as _dt
+        bound = _dt.datetime
+
+        def measure(data_dir):
+            return {"stamp": bound.now(_dt.timezone.utc).isoformat(),
+                    "verdict": False, "n": 7}
+
+        measure.__module__ = name
+        mod.measure = measure                  # type: ignore[attr-defined]
+        sys.modules[name] = mod
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                out = probe.probe_modules([name], Path(tmp),
+                                          dt.datetime.now(dt.timezone.utc), 0.01)
+        finally:
+            sys.modules.pop(name, None)
+        row = out[name]
+        self.assertEqual(row["unstable"], [".stamp"])
+        stable = row["stable"]
+        # Бегущая координата в значения НЕ попадает — иначе цена мерилась бы
+        # по той самой дрожи, ради снятия которой пин и существует.
+        self.assertNotIn(".stamp", stable)
+        self.assertEqual(sorted(stable), [".n", ".verdict"])
+        self.assertTrue(stable[".verdict"]["digest"])
+        self.assertEqual(stable[".n"]["preview"], "7")
+
+
+class ControlArmMustNotBePinnedItself(unittest.TestCase):
+    """Закреплённое плечо A′ объявило бы шумом ровно то, что ищет прибор."""
+
+    def _doc(self, a2_pin_observed):
+        a = _row([".stamp"], {".verdict": "false"})
+        b = _row([], {".stamp": "frozen", ".verdict": "true"})
+        arm_a = _arm({"r": a}, pin_observed=False)
+        arm_b = _arm({"r": b}, pin_observed=True)
+        # A′ — точная копия A: единственное, чем B отличается, это пин.
+        arm_a2 = _arm({"r": _row([".stamp"], {".verdict": "false"})},
+                      pin_observed=a2_pin_observed)
+        stands = {"day": "d", "donor_day": "d", "s1": Path("/x")}
+        # Порядок зовов в measure(): A, A′, B. Плечи подменяются целиком —
+        # предмет теста в РАЗБОРЕ их ответов, а не в запуске процессов.
+        seq = [(arm_a, ""), (arm_a2, ""), (arm_b, "")]
+
+        real_run, real_build = doors.run_arm, doors.build_stands
+        doors.run_arm = lambda names, stand, root, moment, *, pin: seq.pop(0)
+        doors.build_stands = lambda d, t: (stands, "")
+        try:
+            return doors.measure(Path("/x"), _TREE_ROOT,
+                                 now=dt.datetime.now(dt.timezone.utc), full=True)
+        finally:
+            doors.run_arm, doors.build_stands = real_run, real_build
+
+    def test_pinned_control_arm_is_refused_and_the_price_goes_unmeasured(self):
+        doc = self._doc(True)
+        self.assertEqual(doc["control_arm"]["outcome"], "unmeasured")
+        self.assertIn("r", doc["door_price_unmeasured"])
+        self.assertEqual(doc["doors_that_rewrite_the_answer"], {})
+
+    def test_unpinned_control_arm_lets_the_price_be_measured(self):
+        # Обратная сторона: иначе тест выше проходил бы и на приборе, который
+        # отказывает ВСЕГДА.
+        doc = self._doc(False)
+        self.assertEqual(doc["control_arm"]["outcome"], "measured")
+        self.assertEqual(doc["door_price_unmeasured"], {})
+        self.assertIn("r", doc["doors_that_rewrite_the_answer"])
+
+
+class ReportSeparatesAFreeDoorFromAFalsifyingOne(unittest.TestCase):
+    """Отчёт обязан РАЗЛИЧАТЬ «закрыть даром» и «закрыть = подделать»."""
+
+    @staticmethod
+    def _base(**over):
+        doc = {"status": "FINDING",
+               "counts": {"measured": 1, "python_branch": 1, "unmeasured": 0,
+                          "rest_on_import_bound_door": 1, "rest_on_other_door": 0},
+               "import_bound_doors": {"r": [".stamp"]},
+               "doors_free_to_close": {},
+               "doors_that_rewrite_the_answer": {},
+               "door_price_unmeasured": {},
+               "other_doors": {}, "reverse_direction": {},
+               "unmeasured_causes": {},
+               "control_arm": {"outcome": "measured", "pin_observed": False},
+               "advisory": "a"}
+        doc.update(over)
+        return doc
+
+    def test_falsifying_door_is_named_with_the_coordinate_that_moved(self):
+        text = "\n".join(doors.report(self._base(
+            doors_that_rewrite_the_answer={"r": {
+                "door": [".stamp"], "answer_changed_at": [".verdict"],
+                "samples": {".verdict": {"unpinned": "false", "pinned": "true"}}}})))
+        self.assertIn("ЗАКРЫТИЕ ПЕРЕПИШЕТ ОТВЕТ", text)
+        self.assertIn(".verdict", text)
+        self.assertIn("false", text)
+        self.assertIn("true", text)
+
+    def test_falsifying_door_without_previews_says_so_instead_of_showing_nothing(self):
+        # Третий исход на превью: раздела значений НЕТ. Без этой ветки отчёт
+        # назвал бы координату изменившейся и не показал ни одного значения —
+        # читается как «изменение пустое», то есть находка гасится молчанием.
+        text = "\n".join(doors.report(self._base(
+            doors_that_rewrite_the_answer={"r": {"door": [".stamp"],
+                                                 "answer_changed_at": [".verdict"]}})))
+        self.assertIn("ЗАКРЫТИЕ ПЕРЕПИШЕТ ОТВЕТ", text)
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
+        self.assertNotIn("None", text)
+
+    def test_measured_but_empty_previews_sound_different_from_absent_ones(self):
+        # Обратная сторона: пустой список — это ЗАМЕР, и звучать он обязан иначе.
+        text = "\n".join(doors.report(self._base(
+            doors_that_rewrite_the_answer={"r": {"door": [".stamp"],
+                                                 "answer_changed_at": [".verdict"],
+                                                 "samples": {}}})))
+        self.assertIn("значений не приложено", text)
+        self.assertNotIn("[НЕ ИЗМЕРЕНО] значений этих координат", text)
+
+    def test_free_door_is_named_as_free(self):
+        text = "\n".join(doors.report(self._base(
+            doors_free_to_close={"r": [".stamp"]})))
+        self.assertIn("ЗАКРЫТИЕ ДАРОМ", text)
+        self.assertIn("ОПОРА", text)
+
+    def test_absent_price_sections_never_read_as_a_free_door(self):
+        # Инв. #17 на печати: раздела НЕТ ⇒ «не измерено», а не молчание,
+        # которое читается как разрешение закрывать.
+        doc = self._base()
+        for key in ("doors_free_to_close", "doors_that_rewrite_the_answer",
+                    "door_price_unmeasured"):
+            doc.pop(key)
+        text = "\n".join(doors.report(doc))
+        self.assertIn("НЕ ИЗМЕРЕНО", text)
+        self.assertIn("цены закрытия", text)
+        self.assertNotIn("ЗАКРЫТИЕ ДАРОМ", text)
+
+    def test_unpriced_door_is_named_not_swallowed(self):
+        text = "\n".join(doors.report(self._base(
+            door_price_unmeasured={"r": "контрольного плеча A′ нет"})))
+        self.assertIn("ЦЕНА НЕ ИЗМЕРЕНА", text)
+        self.assertNotIn("ОПОРА] ни у одной двери", text)
+
+    def test_missing_control_arm_is_said_out_loud(self):
+        text = "\n".join(doors.report(self._base(
+            control_arm={"outcome": "unmeasured", "reason": "плечо A′: упало"})))
+        self.assertIn("контрольное плечо A′", text)
+
+    def test_no_none_reaches_the_printed_price_lines(self):
+        text = "\n".join(doors.report(self._base(
+            doors_that_rewrite_the_answer={"r": {"door": [".stamp"],
+                                                 "answer_changed_at": [".v"]}},
+            door_price_unmeasured={"q": "причина"})))
+        self.assertNotIn("None", text)
+
+
+class StableLeafDigestsCannotHideADifference(unittest.TestCase):
+    """Сравнение идёт по ДАЙДЖЕСТУ: обрезка текста не вправе гасить находку."""
+
+    def test_two_long_values_with_the_same_prefix_get_different_digests(self):
+        from spa_core.monitoring.run_identity_key_price import stable_leaf_digests
+        head = "x" * 300
+        one = stable_leaf_digests({"v": head + "A"}, set())
+        two = stable_leaf_digests({"v": head + "B"}, set())
+        self.assertEqual(one[".v"]["preview"], two[".v"]["preview"])   # превью совпали
+        self.assertNotEqual(one[".v"]["digest"], two[".v"]["digest"])  # находка цела
+
+    def test_equal_values_get_equal_digests(self):
+        from spa_core.monitoring.run_identity_key_price import stable_leaf_digests
+        self.assertEqual(stable_leaf_digests({"v": [1, {"k": "z"}]}, set()),
+                         stable_leaf_digests({"v": [1, {"k": "z"}]}, set()))
+
+    def test_unstable_subtree_is_pruned_whole(self):
+        from spa_core.monitoring.run_identity_key_price import stable_leaf_digests
+        got = stable_leaf_digests({"a": {"b": 1, "c": 2}, "d": 3}, {".a"})
+        self.assertEqual(sorted(got), [".d"])
+
+    def test_coordinates_match_the_names_unstable_coords_produces(self):
+        # Второго правила обхода здесь нет — имена обязаны совпадать с теми,
+        # которыми судит сама перепись, иначе множества не пересекутся никогда
+        # и цена молча оказалась бы нулевой у всех.
+        from spa_core.monitoring.run_identity_key_price import (
+            stable_leaf_digests, unstable_coords)
+        one = {"a": [{"b": 1}], "s": "x"}
+        two = {"a": [{"b": 2}], "s": "x"}
+        unstable = unstable_coords(one, two)
+        self.assertEqual(unstable, {".a[0].b"})
+        self.assertEqual(sorted(stable_leaf_digests(one, unstable)), [".s"])
+
+
+class SnapshotProbeInstabilityIsTheFindingNotTheNoise(unittest.TestCase):
+    """Живой контроль замера цикла #624 на НАСТОЯЩЕМ читателе.
+
+    `decision_audit_trail` зовёт `audit_trail._make_snapshot_id` ДВАЖДЫ нарочно
+    и объявляет `content_addressed` по тому, СОВПАЛИ ли ответы. Пин класса часов
+    делает их одинаковыми — и вердикт читателя переворачивается с «идентификатор
+    именует ПРОГОН» на «именует содержимое». Дрожь тут не помеха замеру, она и
+    есть замер; закрыть эту дверь значит подделать находку.
+    """
+
+    def test_pinning_the_clock_flips_content_addressed_on_the_real_producer(self):
+        import importlib
+        from spa_core.audit import audit_trail as at
+        from spa_core.monitoring.decision_audit_trail import probe_snapshot_id
+
+        day = "2026-01-01"          # FROZEN-DATE-OK: stand-data — вход производителя
+        real = probe_snapshot_id(at._make_snapshot_id, day)
+        self.assertTrue(real["measured"])
+        self.assertFalse(real["content_addressed"])
+
+        pin = probe._load_pin_clock()
+        moment = dt.datetime.now(dt.timezone.utc)
+        pin(moment.isoformat())
+        try:
+            importlib.reload(at)    # ← имя `datetime` связывается ПОСЛЕ пина
+            pinned = probe_snapshot_id(at._make_snapshot_id, day)
+        finally:
+            import importlib.util
+            path = Path(probe.__file__).resolve().with_name("_http_reader_probe.py")
+            spec = importlib.util.spec_from_file_location("_unpin_c624", path)
+            mod = importlib.util.module_from_spec(spec)          # type: ignore[arg-type]
+            spec.loader.exec_module(mod)                         # type: ignore[union-attr]
+            mod.unpin_clock()
+            importlib.reload(at)    # вернуть настоящий класс читателю
+        self.assertTrue(pinned["measured"])
+        self.assertTrue(pinned["content_addressed"])
+        # После снятия пина вердикт обязан вернуться — иначе тест доказывал бы
+        # не действие пина, а порчу модуля на весь прогон.
+        self.assertFalse(probe_snapshot_id(at._make_snapshot_id, day)["content_addressed"])
