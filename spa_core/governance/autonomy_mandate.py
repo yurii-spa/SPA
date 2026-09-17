@@ -93,13 +93,19 @@ class Mandate:
     ``end`` — ВКЛЮЧИТЕЛЬНО: «с 2026-08-20 по 2026-09-19» означает, что 19.09
     мандат ещё действует, а 20.09 — уже нет.
 
+    ``end is None`` — мандат БЕЗ СРОКА, до отзыва владельцем (решение владельца
+    2026-09-17, вариант 1). Умолчания у поля нет намеренно: «без срока» обязано
+    быть ОБЪЯВЛЕНО (``end=None``), а не получиться из забытого аргумента —
+    иначе опечатка молча расширила бы полномочия агента, то есть ровно то,
+    против чего модуль и заведён.
+
     ``revoked_on`` — дата отзыва владельцем, если он случился раньше срока
     (решение владельца, зафиксированное как всё остальное — файлом в git).
     """
 
     adr: str
     start: dt.date
-    end: dt.date
+    end: dt.date | None
     title: str
     #: Что мандат разрешает решать без карточки — дословно рамка решения.
     scope: str = ""
@@ -152,7 +158,46 @@ MANDATES: tuple[Mandate, ...] = (
             "цикл обязан завести карточку-вопрос о продлении."
         ),
     ),
+    Mandate(
+        adr="ADR-407",
+        start=_d("2026-09-20"),
+        end=None,
+        title="Мандат автономии №3 — БЕЗ СРОКА, до отзыва владельцем",
+        scope=_SCOPE_078,
+        never=_NEVER_078,
+        notes=(
+            "Решение владельца 2026-09-17T20:10:45Z (telegram, вариант 1), "
+            "карточка owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2. "
+            "Начало 20.09, а НЕ 17.09 (день ответа): окно ADR-101 идёт по 19.09 "
+            "включительно, и задним числом реестр не правится — это след решений "
+            "владельца, а не настройка. Зазора между мандатами нет. "
+            "Срока нет ⇒ карточки-вопроса о продлении больше не будет НИКОГДА: "
+            "будильник снят САМИМ решением, а не потерян. Единственный выход — "
+            "`revoked_on`, и ставит его только владелец. Рамки — ДОСЛОВНО "
+            "ADR-078; граница по ПРЕДМЕТУ (ADR-285, три предмета владельца) от "
+            "мандата не зависит и мандатом не ослабляется ни в одном варианте."
+        ),
+    ),
 )
+
+
+def _renewal_decided_by(m: Mandate, regs: tuple[Mandate, ...]) -> Mandate | None:
+    """Мандат-преемник, если решение о продлении УЖЕ записано в реестре.
+
+    Вопрос «продлеваем?» задаётся не по календарю, а по НЕЗНАНИЮ ответа.
+    Запись преемника и есть ответ владельца, лежащий на файле, — спрашивать при
+    нём второй раз значит держать в очереди `needs-owner` карточку, на которую
+    ответ уже дан. ADR-285 называет это прямо: такая карточка есть дефект
+    очереди, а не ожидание ответа.
+
+    Мандат без срока преемника не имеет по построению (спрашивать не о чем).
+    """
+    if m.end is None:
+        return None
+    later = [s for s in regs if s is not m and s.start > m.end]
+    if not later:
+        return None
+    return min(later, key=lambda s: s.start)
 
 
 def _as_date(now: dt.date | dt.datetime | None) -> dt.date:
@@ -178,6 +223,10 @@ def _base_protocol(reason: str, **extra) -> dict:
         "start": None,
         "end": None,
         "days_left": None,
+        # `days_left is None` значит РАЗНОЕ в разных состояниях («срока нет» vs
+        # «мандата нет»), и различать их обязан отдельный ключ, а не догадка
+        # читателя (инвариант #17: отсутствие наблюдения — своё значение).
+        "open_ended": False,
         "ask_renewal": False,
         "tasks_per_cycle": TASKS_ONE,
         "scope": "",
@@ -211,7 +260,8 @@ def mandate_status(now: dt.date | dt.datetime | None = None,
 
     # Записи, чьё окно накрывает сегодня. Противоречие (две сразу) — НЕ повод
     # выбрать «ту, что пошире»: это неизмеренное состояние, отвечаем узко.
-    covering = [m for m in regs if m.start <= today <= m.end]
+    covering = [m for m in regs
+                if m.start <= today and (m.end is None or today <= m.end)]
     if len(covering) > 1:
         names = ", ".join(m.adr for m in covering)
         return _base_protocol(
@@ -219,7 +269,7 @@ def mandate_status(now: dt.date | dt.datetime | None = None,
             f"{len(covering)} записи ({names}) — широта не измерена, работаем узко")
 
     if not covering:
-        past = [m for m in regs if m.end < today]
+        past = [m for m in regs if m.end is not None and m.end < today]
         if past:
             last = max(past, key=lambda m: m.end)
             gone = (today - last.end).days
@@ -244,14 +294,36 @@ def mandate_status(now: dt.date | dt.datetime | None = None,
             f"досрочно — базовый протокол",
             state=STATE_REVOKED, adr=m.adr, start=m.start, end=m.end, days_left=0)
 
+    if m.end is None:
+        return {
+            "state": STATE_ACTIVE,
+            "adr": m.adr,
+            "start": m.start,
+            "end": None,
+            "days_left": None,
+            "open_ended": True,
+            "ask_renewal": False,
+            "tasks_per_cycle": TASKS_MANY,
+            "scope": m.scope,
+            "never": m.never,
+            "reason": (
+                f"мандат {m.adr} действует БЕЗ СРОКА (с {m.start.isoformat()}, "
+                f"решение владельца) — вопроса о продлении не будет: спрашивать "
+                f"не о чем. Единственный выход — отзыв владельцем"
+            ),
+        }
+
     days_left = (m.end - today).days
-    ask = days_left <= RENEWAL_LEAD_DAYS
+    successor = _renewal_decided_by(m, regs)
+    due = days_left <= RENEWAL_LEAD_DAYS
+    ask = due and successor is None
     return {
         "state": STATE_ASK_RENEWAL if ask else STATE_ACTIVE,
         "adr": m.adr,
         "start": m.start,
         "end": m.end,
         "days_left": days_left,
+        "open_ended": False,
         "ask_renewal": ask,
         "tasks_per_cycle": TASKS_MANY,
         "scope": m.scope,
@@ -261,6 +333,10 @@ def mandate_status(now: dt.date | dt.datetime | None = None,
             f"осталось {days_left} дн."
             + (f" — ≤{RENEWAL_LEAD_DAYS}, ЗАВЕСТИ карточку-вопрос о продлении "
                f"(автопродления нет)" if ask else "")
+            + (f" — ≤{RENEWAL_LEAD_DAYS}, но продление УЖЕ решено владельцем: "
+               f"с {successor.start.isoformat()} действует {successor.adr}, "
+               f"второй раз не спрашиваем"
+               if due and successor is not None else "")
         ),
     }
 
@@ -285,6 +361,11 @@ def summary_lines(now: dt.date | dt.datetime | None = None,
     }[st["state"]]
     lines = [f"{head} мандат автономии: {st['state']} — {st['reason']}",
              f"   режим цикла: {tasks}"]
+    if st["open_ended"]:
+        lines.append(
+            "   ⚠️ СРОКА НЕТ (решение владельца): будильник продления снят "
+            "НАМЕРЕННО, сам мандат не кончится никогда — отзыв только кнопкой "
+            "владельца")
     if st["ask_renewal"]:
         lines.append(
             "   ⚠️ ПУНКТ РЕШЕНИЯ ВЛАДЕЛЬЦА: автопродление запрещено — завести "

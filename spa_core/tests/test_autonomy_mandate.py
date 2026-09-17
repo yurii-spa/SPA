@@ -32,6 +32,33 @@ from spa_core.governance.autonomy_mandate import (
 D = dt.date.fromisoformat
 
 
+def _registry_as_of(*adrs: str) -> tuple:
+    """Реестр таким, каким он БЫЛ в день проверяемой аварии.
+
+    Зачем (цикл #623). Контроль исторической аварии не имеет права зависеть от
+    записей, которых в тот день ещё не существовало. До ADR-407 это сходило с
+    рук: у последнего мандата преемника не было, и разницы между «реестр
+    тогдашний» и «реестр сегодняшний» не возникало. С появлением преемника
+    разница появилась — и утверждение «16.08 вопрос о продлении обязан
+    подниматься сам» стало бы ложным по причине, не имеющей к августу никакого
+    отношения. Записи берутся ИЗ настоящего реестра, а не переписываются здесь:
+    иначе тест сторожил бы свою копию (`.claude/rules/deployment.md`, «вторая
+    копия у читателя»).
+    """
+    sel = tuple(m for m in MANDATES if m.adr in adrs)
+    if len(sel) != len(adrs):
+        raise AssertionError(
+            f"в реестре нет записей {set(adrs) - {m.adr for m in sel}} — "
+            f"тест сторожит не тот реестр")
+    return sel
+
+
+#: Реестр на 16.08.2026 — один мандат ADR-078, преемника ещё нет.
+REG_078 = _registry_as_of("ADR-078")
+#: Реестр на 16.09.2026 — ADR-078 + ADR-101, ответа о продлении ещё нет.
+REG_101 = _registry_as_of("ADR-078", "ADR-101")
+
+
 class TestRealIncidentADR078(unittest.TestCase):
     """Авария №1: у мандата ADR-078 не было срока годности.
 
@@ -41,8 +68,10 @@ class TestRealIncidentADR078(unittest.TestCase):
     """
 
     def test_three_days_before_end_asks_for_renewal(self):
-        # 16.08 — ровно RENEWAL_LEAD_DAYS до конца ADR-078.
-        st = mandate_status(now=D("2026-08-16"))
+        # 16.08 — ровно RENEWAL_LEAD_DAYS до конца ADR-078. Реестр — ТОГДАШНИЙ
+        # (см. `_registry_as_of`): преемника 16.08 не существовало, и вопрос
+        # обязан был подниматься.
+        st = mandate_status(now=D("2026-08-16"), mandates=REG_078)
         self.assertEqual(st["adr"], "ADR-078")
         self.assertEqual(st["days_left"], 3)
         self.assertTrue(st["ask_renewal"],
@@ -55,7 +84,7 @@ class TestRealIncidentADR078(unittest.TestCase):
 
         Тревога, звучащая каждый день, — это не сторож, а фон (ADR-084).
         """
-        st = mandate_status(now=D("2026-08-15"))
+        st = mandate_status(now=D("2026-08-15"), mandates=REG_078)
         self.assertEqual(st["days_left"], 4)
         self.assertFalse(st["ask_renewal"])
         self.assertEqual(st["state"], STATE_ACTIVE)
@@ -63,7 +92,7 @@ class TestRealIncidentADR078(unittest.TestCase):
     def test_last_day_is_still_inside_the_mandate(self):
         """`end` включительно: 19.08 мандат ещё действовал, и это не мелочь —
         именно 19.08 владелец отвечал на вопрос о продлении."""
-        st = mandate_status(now=D("2026-08-19"))
+        st = mandate_status(now=D("2026-08-19"), mandates=REG_078)
         self.assertEqual(st["adr"], "ADR-078")
         self.assertEqual(st["days_left"], 0)
         self.assertEqual(st["tasks_per_cycle"], "many")
@@ -109,16 +138,32 @@ class TestMandateTwoIsLive(unittest.TestCase):
         self.assertEqual(st["days_left"], 30)
 
     def test_renewal_question_fires_on_16_september(self):
-        st = mandate_status(now=D("2026-09-16"))
+        # Реестр ТОГДАШНИЙ: 16.09 ответа владельца ещё не было, и карточку
+        # обязан был завести сам сторож. Он её и завёл — карточка
+        # `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2`.
+        st = mandate_status(now=D("2026-09-16"), mandates=REG_101)
         self.assertEqual(st["adr"], "ADR-101")
         self.assertTrue(st["ask_renewal"])
         self.assertEqual(st["days_left"], RENEWAL_LEAD_DAYS)
 
     def test_expires_on_20_september(self):
-        st = mandate_status(now=D("2026-09-20"))
+        """Без преемника 20.09 — базовый протокол. Это по-прежнему верно, и
+        именно поэтому решение владельца 17.09 пришлось ЗАПИСАТЬ кодом."""
+        st = mandate_status(now=D("2026-09-20"), mandates=REG_101)
         self.assertEqual(st["state"], STATE_EXPIRED)
         self.assertEqual(st["adr"], "ADR-101")
         self.assertEqual(st["tasks_per_cycle"], "one")
+
+    def test_window_of_adr_101_is_not_rewritten_by_the_renewal(self):
+        """Реестр — СЛЕД решений владельца, а не настройка.
+
+        Соблазн при продлении — растянуть `end` действующей записи. Тогда
+        история перестала бы быть историей: из реестра было бы не прочесть, что
+        мандат №2 был тридцатидневным и что владелец отвечал 17.09.
+        """
+        m = [x for x in MANDATES if x.adr == "ADR-101"][0]
+        self.assertEqual(m.end, D("2026-09-19"))
+        self.assertIsNotNone(m.end, "продление не имеет права снимать срок с ЧУЖОЙ записи")
 
 
 class TestFailClosed(unittest.TestCase):
@@ -196,11 +241,11 @@ class TestSummaryLinesAreAJudgement(unittest.TestCase):
         self.assertIn("несколько задач за цикл", lines)
 
     def test_expired_says_one_task(self):
-        lines = "\n".join(summary_lines(now=D("2026-09-25")))
+        lines = "\n".join(summary_lines(now=D("2026-09-25"), mandates=REG_101))
         self.assertIn("ОДНА безопасная задача за цикл", lines)
 
     def test_ask_renewal_names_the_owner_decision_point(self):
-        lines = "\n".join(summary_lines(now=D("2026-09-17")))
+        lines = "\n".join(summary_lines(now=D("2026-09-17"), mandates=REG_101))
         self.assertIn("автопродление запрещено", lines)
         self.assertIn("карточку-вопрос", lines)
 
@@ -281,20 +326,185 @@ class TestRegistryIsSane(unittest.TestCase):
     def test_every_mandate_has_start_before_end(self):
         for m in MANDATES:
             with self.subTest(adr=m.adr):
+                if m.end is None:
+                    continue  # мандат без срока — проверяется ниже, отдельно
                 self.assertLessEqual(m.start, m.end)
 
     def test_no_two_mandates_overlap(self):
         ordered = sorted(MANDATES, key=lambda m: m.start)
         for prev, nxt in zip(ordered, ordered[1:]):
             with self.subTest(pair=(prev.adr, nxt.adr)):
+                self.assertIsNotNone(
+                    prev.end,
+                    f"{prev.adr} без срока, а после него начинается {nxt.adr}: "
+                    f"пересечение вечное, и весь остаток времени реестр "
+                    f"противоречив ⇒ базовый протокол навсегда")
                 self.assertLess(prev.end, nxt.start,
                                 "пересекающиеся мандаты дают fail-CLOSED на всём "
                                 "пересечении — реестр обязан быть однозначным")
+
+    def test_an_open_ended_mandate_is_the_last_one(self):
+        """Обратная сторона предыдущего: запись без срока обязана быть хвостом.
+
+        Не оговорка ради красоты — иначе `covering` вернул бы две записи и
+        модуль честно ушёл бы в базовый протокол НАВСЕГДА, а выглядело бы это
+        как «мандат почему-то не действует».
+        """
+        open_ended = [m for m in MANDATES if m.end is None]
+        self.assertLessEqual(len(open_ended), 1,
+                             "двух бессрочных мандатов быть не может")
+        if open_ended:
+            last = max(MANDATES, key=lambda m: m.start)
+            self.assertEqual(open_ended[0].adr, last.adr)
 
     def test_adr_101_window_is_exactly_thirty_days(self):
         m = [x for x in MANDATES if x.adr == "ADR-101"][0]
         self.assertEqual((m.end - m.start).days, 30,
                          "решение владельца: 30 дней с 2026-08-20 по 2026-09-19")
+
+
+class TestMandateThreeIsOpenEnded(unittest.TestCase):
+    """Решение владельца 2026-09-17 20:10:45Z (вариант 1): продлить БЕЗ СРОКА.
+
+    Каждый тест — положительный контроль на то, что записано кодом, а не
+    прозой: до этой правки «без срока» было бы невыразимо — поле `end`
+    требовало даты, и любая запись создавала бы новый будильник.
+    """
+
+    def test_open_ended_mandate_is_active_and_wide(self):
+        for now in ("2026-09-20", "2026-12-31", "2030-01-01"):
+            with self.subTest(now=now):
+                st = mandate_status(now=D(now))
+                self.assertEqual(st["adr"], "ADR-407")
+                self.assertEqual(st["state"], STATE_ACTIVE)
+                self.assertEqual(st["tasks_per_cycle"], "many")
+
+    def test_open_ended_never_asks_for_renewal_again(self):
+        """Будильник снят — и снят САМИМ решением, а не потерян."""
+        for now in ("2026-09-20", "2027-06-01"):
+            with self.subTest(now=now):
+                self.assertFalse(mandate_status(now=D(now))["ask_renewal"])
+
+    def test_absent_deadline_is_its_own_value_not_a_silent_none(self):
+        """Инвариант #17: `days_left is None` значит РАЗНОЕ, и различает ключ.
+
+        В состоянии `ACTIVE` без срока и в базовом протоколе `days_left`
+        одинаково `None`. Если бы различать их было нечем, читатель имел бы два
+        разных мира под одним значением — ровно та подмена, которую инвариант
+        запрещает.
+        """
+        wide = mandate_status(now=D("2026-09-20"))
+        self.assertIsNone(wide["days_left"])
+        self.assertTrue(wide["open_ended"])
+
+        narrow = mandate_status(now=D("2026-09-20"), mandates=())
+        self.assertIsNone(narrow["days_left"])
+        self.assertFalse(narrow["open_ended"],
+                         "«мандата нет» и «у мандата нет срока» обязаны быть "
+                         "различимы у читателя, а не на глаз")
+        self.assertEqual(narrow["tasks_per_cycle"], "one")
+
+    def test_open_ended_is_still_revocable_by_the_owner(self):
+        """Единственный выход из бессрочного мандата обязан работать.
+
+        Без этого «без срока» означало бы «навсегда», а владелец выбирал
+        вариант, в котором отзыв — одна кнопка.
+        """
+        m = Mandate(adr="ADR-Q", start=D("2026-01-01"), end=None, title="q",
+                    revoked_on=D("2026-05-05"))
+        self.assertEqual(mandate_status(now=D("2026-05-04"), mandates=(m,))["state"],
+                         STATE_ACTIVE)
+        st = mandate_status(now=D("2026-05-05"), mandates=(m,))
+        self.assertEqual(st["state"], STATE_REVOKED)
+        self.assertEqual(st["tasks_per_cycle"], "one")
+        self.assertIn("ОТОЗВАН", st["reason"])
+
+    def test_no_deadline_must_be_declared_not_omitted(self):
+        """«Без срока» — объявление, а не забытый аргумент.
+
+        У `end` нет умолчания намеренно: умолчание `None` означало бы, что
+        опечатка в новой записи молча делает мандат вечным. Полномочия агента
+        расширяются только тем, что владелец сказал вслух.
+        """
+        with self.assertRaises(TypeError):
+            Mandate(adr="ADR-NOPE", start=D("2026-01-01"), title="no end given")
+
+    def test_widest_state_is_never_silent_about_being_widest(self):
+        lines = "\n".join(summary_lines(now=D("2026-09-20")))
+        self.assertIn("СРОКА НЕТ", lines)
+        self.assertIn("отзыв", lines)
+        self.assertIn("несколько задач за цикл", lines)
+
+    def test_there_is_no_gap_between_mandate_two_and_three(self):
+        """19.09 действует №2, 20.09 — №3, и базового протокола между ними нет."""
+        self.assertEqual(mandate_status(now=D("2026-09-19"))["adr"], "ADR-101")
+        self.assertEqual(mandate_status(now=D("2026-09-20"))["adr"], "ADR-407")
+        for now in ("2026-09-19", "2026-09-20"):
+            with self.subTest(now=now):
+                self.assertEqual(mandate_status(now=D(now))["tasks_per_cycle"],
+                                 "many")
+
+
+class TestTheAnsweredQuestionIsNotAskedTwice(unittest.TestCase):
+    """Записанный преемник ГАСИТ вопрос о продлении — и только вопрос.
+
+    ADR-285: карточка в очереди `needs-owner`, на которую ответ уже дан, есть
+    дефект очереди, а не ожидание. Замер, вызвавший то решение, — 247 карточек
+    за 55 дней. Сторож, звонящий после ответа, пополняет ровно этот счёт.
+    """
+
+    EARLIER = Mandate(adr="ADR-A", start=D("2026-01-01"), end=D("2026-01-31"),
+                      title="a")
+    NEXT_DAY = Mandate(adr="ADR-B", start=D("2026-02-01"), end=D("2026-03-31"),
+                       title="b")
+    AFTER_A_GAP = Mandate(adr="ADR-C", start=D("2026-06-01"), end=D("2026-07-31"),
+                          title="c")
+
+    def test_without_a_successor_the_question_is_asked(self):
+        """Положительный контроль: без записанного ответа сторож звонит."""
+        st = mandate_status(now=D("2026-01-29"), mandates=(self.EARLIER,))
+        self.assertTrue(st["ask_renewal"])
+        self.assertEqual(st["state"], STATE_ASK_RENEWAL)
+        self.assertIn("ЗАВЕСТИ карточку", st["reason"])
+
+    def test_a_recorded_successor_silences_it_and_says_why(self):
+        st = mandate_status(now=D("2026-01-29"),
+                            mandates=(self.EARLIER, self.NEXT_DAY))
+        self.assertFalse(st["ask_renewal"])
+        self.assertEqual(st["state"], STATE_ACTIVE)
+        self.assertIn("ADR-B", st["reason"],
+                      "молчание без названной причины — не ответ, а пропажа")
+        self.assertNotIn("ЗАВЕСТИ карточку", st["reason"])
+
+    def test_silencing_the_question_widens_nothing(self):
+        """Гасится ВОПРОС, а не срок: та же запись кончается в тот же день."""
+        st = mandate_status(now=D("2026-01-29"),
+                            mandates=(self.EARLIER, self.NEXT_DAY))
+        self.assertEqual(st["adr"], "ADR-A")
+        self.assertEqual(st["end"], D("2026-01-31"))
+        self.assertEqual(st["days_left"], 2)
+
+    def test_a_successor_after_a_gap_still_leaves_the_gap_narrow(self):
+        """Преемник с разрывом гасит вопрос, но НЕ закрывает разрыв.
+
+        Обратная сторона той же правки: если бы гашение вопроса заодно
+        расширяло полномочия на пустые дни, это был бы fail-OPEN — молчаливое
+        автопродление, прямо запрещённое решением владельца 2026-08-20.
+        """
+        regs = (self.EARLIER, self.AFTER_A_GAP)
+        self.assertFalse(mandate_status(now=D("2026-01-29"), mandates=regs)["ask_renewal"])
+        for now in ("2026-02-01", "2026-05-31"):
+            with self.subTest(now=now):
+                st = mandate_status(now=D(now), mandates=regs)
+                self.assertEqual(st["state"], STATE_EXPIRED)
+                self.assertEqual(st["tasks_per_cycle"], "one")
+
+    def test_an_open_ended_mandate_has_no_successor_to_look_for(self):
+        """У бессрочного вопроса о продлении нет ни по календарю, ни по поиску."""
+        never_ends = Mandate(adr="ADR-D", start=D("2026-01-01"), end=None, title="d")
+        st = mandate_status(now=D("2026-01-29"), mandates=(never_ends,))
+        self.assertFalse(st["ask_renewal"])
+        self.assertTrue(st["open_ended"])
 
 
 if __name__ == "__main__":
