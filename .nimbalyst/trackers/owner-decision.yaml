@@ -22,16 +22,25 @@ fields:
     type: select
     default: needs-owner
     options:
+      # category — родной признак Nimbalyst: фильтр Open прячет `done`-категорию (17.09: без неё
+      # `ingested` считался открытым и 217 закрытых решений стояли на доске владельца).
       - value: needs-owner
         label: Needs Owner
+        category: unstarted
       # НЕтерминальный: владелец нажал «✅ Принято — беру в работу» (ADR-124, #350).
       # Он ОТВЕТИЛ, но работа впереди; снимает статус только отчёт агента (ingested).
       - value: owner-accepted
         label: Owner Accepted (в работе)
+        category: started
       - value: owner-done
         label: Owner Done
+        category: started
       - value: ingested
         label: Ingested
+        category: done
+      - value: done
+        label: Done
+        category: done
   - name: priority
     type: select
     default: medium

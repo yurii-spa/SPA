@@ -22,14 +22,26 @@ fields:
     type: select
     default: backlog
     options:
+      # category — родной признак Nimbalyst: фильтр Open прячет `done`-категорию (17.09: без неё
+      # `ingested` считался открытым и 217 закрытых решений стояли на доске владельца).
+      - value: new
+        label: New
+        category: unstarted
       - value: backlog
         label: Backlog
+        category: unstarted
       - value: in-progress
         label: In Progress
+        category: started
       - value: blocked
         label: Blocked (ждёт владельца)
+        category: started
       - value: done
         label: Done
+        category: done
+      - value: ingested
+        label: Ingested
+        category: done
   - name: source
     type: string
     required: false
