@@ -2,11 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-17
+owner_choice: "1"
+owner_answered_at: "2026-09-17T16:00:00Z"
+owner_answer_via: "interactive"
 adr: ADR-286 §6
 blocks: inbox-earn-defi-svoi-raschet-realized-price-vm
+status_trail:
+  - "2026-09-17T16:15:05.150673+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
@@ -44,3 +49,11 @@ blocks: inbox-earn-defi-svoi-raschet-realized-price-vm
 сверяет её с эталоном за 365 дней. Сойдётся в пределах 3 % — движок переводится на свои числа,
 карточка `inbox-earn-defi-svoi-raschet-realized-price-vm` закрывается машинной пробой.
 После третьего — работа ждёт места.
+
+## Ответ владельца (2026-09-17, в диалоге интерактивной сессии, дословно)
+
+**«вариант 1 — ставь Bitcoin Core сам».** Исполнено в тот же час (earn-defi D-60): Bitcoin Core 31.1
+через Homebrew, служба `sh.brew.bitcoin`, RPC слушает только `127.0.0.1:8332`, входящие выключены.
+Одно отступление от текста карточки, в сторону осторожности: вместо ручной обрезки нода идёт с
+жёстким потолком диска `prune=60000` — упавший индексатор не сможет дать ей забить диск Мака, на
+котором живёт трек. Чтение блокчейна идёт по расписанию `com.earn-defi.realized-cap`.
