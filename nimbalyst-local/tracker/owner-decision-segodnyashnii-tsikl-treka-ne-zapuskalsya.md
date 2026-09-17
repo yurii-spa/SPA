@@ -2,7 +2,10 @@
 trackerStatus:
   type: owner-decision
 title: "Сегодняшний цикл трека не запускался: Мак был выключен в 08:00"
-status: needs-owner
+status: ingested
+owner_choice: A
+owner_answered_at: 2026-09-17
+owner_answer_via: interactive-session
 source: nimbalyst
 created: 2026-09-17
 ---
@@ -31,3 +34,15 @@ created: 2026-09-17
 ## Что будет после
 
 После шага 1 следующий цикл оркестратора сверит, что день 17.09 появился в треке, и закроет карточку. Если выберешь A, агент подготовит правку сторожа с тестами и отдаст её тебе на установку: изменение флота делается только с твоего разрешения.
+
+## Ответ владельца (интерактивная сессия 2026-09-17)
+
+Шаг 1 выполнен владельцем: `launchctl kickstart gui/$(id -u)/com.spa.daily_cycle` в 16:13Z.
+Замер после: `cycle_runner exit=0` (16:15:19Z), в `data/equity_curve_daily.json` появилась строка
+`2026-09-17` — close_equity 101302.89, daily_yield_usd 12.928, `evidenced: true`,
+`accrual_source: live`. День в треке есть. Рядом: `allocation_auditor exit=2` (нарушения, не гейт) —
+не разобрано этой сессией.
+
+Шаг 2 — дословно «вариант A»: сторож пропусков сам запускает догоняющий цикл. Работа заведена
+карточкой `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro`; ADR пишется вместе с кодом,
+установка в флот — с разрешения владельца.
