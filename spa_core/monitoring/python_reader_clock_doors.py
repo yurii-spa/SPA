@@ -59,6 +59,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.monitoring import _python_reader_clock_probe as probe
+from spa_core.utils.observation import observed
 from spa_core.monitoring.run_identity_key_price import (
     build_stands, http_modules, reader_population,
 )
@@ -299,20 +300,40 @@ def _causes(rows: Dict[str, dict]) -> Dict[str, int]:
     return dict(sorted(out.items()))
 
 
+def _num(counts: dict, key: str) -> str:
+    """Число счётчика — или НАЗВАННОЕ «не измерено», но никогда `None` в тексте.
+
+    Инвариант #17 действует и на печать: `None`, попавший в предложение отчёта,
+    читается как значение («вышло ничего»), а не как «мерить было нечем».
+    """
+    value = observed(counts, key, kind=(int, float))
+    return "НЕ ИЗМЕРЕНО" if value is None else str(value)
+
+
 def report(doc: dict) -> List[str]:
     lines = [f"двери часов, связанные на импорте, у питоньих читателей переписи "
              f"(заказ G31 п. 1): {doc.get('status')}"]
     if doc.get("status") == "UNMEASURED":
         lines.append(f"   [НЕ ИЗМЕРЕНО] {doc.get('reason')}")
         return lines
-    counts = doc.get("counts") or {}
-    lines.append(
-        f"   [ОТВЕТ] из {counts.get('measured')} приведённых читателей "
-        f"(население питоньей ветви {counts.get('python_branch')}) на дверях, "
-        f"СВЯЗАННЫХ НА ИМПОРТЕ, держатся **{counts.get('rest_on_import_bound_door')}**; "
-        f"на дверях, которые пином класса НЕ закрываются — "
-        f"{counts.get('rest_on_other_door')}; не приведено "
-        f"{counts.get('unmeasured')}")
+    counts = observed(doc, "counts", kind=dict)
+    if counts is None:
+        # Инвариант #17. Прежде здесь стояло `doc.get("counts") or {}`, и
+        # артефакт БЕЗ раздела счётчиков печатался как ответ, в котором все
+        # числа — `None`: «измерено и вышло ничего» было неотличимо от «мерить
+        # было нечем». Строка ответа — главная в отчёте, и предъявлять её
+        # пустой значит предъявлять находку, которой нет.
+        lines.append("   [НЕ ИЗМЕРЕНО] раздела `counts` в артефакте нет — чисел "
+                     "ответа назвать нечем; строки ниже описывают ЧАСТЬ, а не итог")
+    else:
+        lines.append(
+            f"   [ОТВЕТ] из {_num(counts, 'measured')} приведённых читателей "
+            f"(население питоньей ветви {_num(counts, 'python_branch')}) на дверях, "
+            f"СВЯЗАННЫХ НА ИМПОРТЕ, держатся "
+            f"**{_num(counts, 'rest_on_import_bound_door')}**; "
+            f"на дверях, которые пином класса НЕ закрываются — "
+            f"{_num(counts, 'rest_on_other_door')}; не приведено "
+            f"{_num(counts, 'unmeasured')}")
     for name, coords in sorted((doc.get("import_bound_doors") or {}).items()):
         lines.append(f"   [ПИН ЗАКРЫВАЕТ] {name}: {', '.join(coords[:6])}"
                      + (f" … и ещё {len(coords) - 6}" if len(coords) > 6 else ""))
@@ -327,10 +348,20 @@ def report(doc: dict) -> List[str]:
     else:
         lines.append("   [ОПОРА] обратной стороны нет: ни у одного читателя пин не "
                      "СОЗДАЛ нестабильной координаты — разность односторонняя")
-    causes = doc.get("unmeasured_causes") or {}
-    if causes:
+    causes = observed(doc, "unmeasured_causes", kind=dict)
+    if causes is None:
+        # Третий исход, которого здесь не было: раздела причин НЕТ в артефакте.
+        # Прежде `or {}` сливал его с пустым разбором, и обе беды молчали
+        # ОДИНАКОВО — то есть отсутствие разбора читалось как «непривёденных
+        # читателей нет», самый тихий вид fail-OPEN.
+        lines.append("   [НЕ ИЗМЕРЕНО] разбора причин в артефакте нет — у числа "
+                     "«не приведено» поимённого состава не существует")
+    elif causes:
         lines.append("   [НЕ ИЗМЕРЕНО поимённо] "
                      + " · ".join(f"{k}: {v}" for k, v in causes.items()))
+    else:
+        lines.append("   [ОПОРА] разбор причин ПУСТ: не приведённых читателей нет, "
+                     "называть нечего — это замер, а не пропажа")
     lines.append("   ADVISORY: " + str(doc.get("advisory")))
     return lines
 

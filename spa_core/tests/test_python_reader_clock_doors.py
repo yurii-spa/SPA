@@ -8,7 +8,28 @@ fail-OPEN, который тише красной строки (нулевая �
 Часы здесь НЕ закрепляются литералом: там, где нужен момент, он берётся от
 настоящих часов и передаётся внутрь, а сравнение идёт между ДВУМЯ вызовами —
 то есть тест не зависит ни от календаря, ни от хоста.
+
+FROZEN-DATE-OK: stand-data — все пять литеральных дат здесь суть СОДЕРЖИМОЕ
+СТЕНДА, а не отметка свежести: имена дней книги, `generated_at` поддельного
+артефакта переписи и значение, которое прибор обязан ЗАКРЕПИТЬ во втором плече.
+Вердикт — РАЗНОСТЬ двух плеч, снятых в ОДИН момент; ни одно плечо с календарём
+не сравнивается, и `census.get("generated_at")` прибор только переносит в
+артефакт, а по возрасту не судит (проверено чтением обоих модулей). Сдвиг
+календаря не может изменить здесь ни один вердикт — `import_time_anchor_bombs.py`
+при задержке 95 мин бомб не нашёл.
+
+Причина названа ИМЕННО эта, а не `injected-clock`, и это замер, а не вкус:
+пометку `injected-clock` цикл #623 сперва поставил — и сторож
+`test_injected_clock_claim.py` её ОПРОВЕРГ («якорей 7, ни один не передан
+аргументом ни в один вызов»). Он прав: момент доезжает до прибора переменной
+окружения, то есть через контейнер, а контейнер привязкой не является
+(`.claude/rules/deployment.md`, поправка #477). Записка не есть инъекция —
+поэтому стоит та причина, которая правда.
+
+Файл попал в класс потому, что цикл #622 доставил его БЕЗ пометки вовсе, и
+храповик замороженных дат стоял красным на чистом `origin/main`.
 """
+# FROZEN-DATE-OK: stand-data — стенд, а не свежесть (см. шапку)
 # LLM_FORBIDDEN
 from __future__ import annotations
 
@@ -531,6 +552,125 @@ class ExitCodesSeparateTheThreeOutcomes(unittest.TestCase):
                 self.assertEqual(json.loads(dest.read_text(encoding="utf-8")), doc)
         finally:
             doors.measure = orig
+
+
+
+class ReportTellsAbsenceFromZero(unittest.TestCase):
+    """Инвариант #17 в ПЕЧАТИ: три исхода обязаны звучать по-разному (цикл #623).
+
+    До правки в `report` стояли `doc.get("counts") or {}` и
+    `doc.get("unmeasured_causes") or {}`, и храповик класса
+    (`test_absent_observation_ratchet`) был КРАСЕН на чистом `origin/main` — оба
+    места пришли с доставкой прибора циклом #622.
+
+    Вред у двух мест разный, и тесты ниже ловят именно его:
+
+    * у `counts` — отчёт печатал ГЛАВНУЮ строку ответа с `None` на месте каждого
+      числа, то есть предъявлял находку, которой не измеряли;
+    * у `unmeasured_causes` — «разбора причин нет» и «не приведённых читателей
+      нет» молчали ОДИНАКОВО, и отсутствие разбора читалось как чистый результат.
+      Это самый тихий вид fail-OPEN: он не краснеет и не шумит.
+    """
+
+    MEASURED = {
+        "status": "OK",
+        "counts": {"measured": 50, "python_branch": 87,
+                   "rest_on_import_bound_door": 3, "rest_on_other_door": 2,
+                   "unmeasured": 37},
+        "import_bound_doors": {"shadow_trigger_eval": [".generated_at"]},
+        "other_doors": {},
+        "reverse_direction": {},
+        "unmeasured_causes": {"нет точки входа": 13},
+        "advisory": "прибор только читает",
+    }
+
+    @staticmethod
+    def _text(doc):
+        return "\n".join(doors.report(doc))
+
+    def _without(self, key):
+        doc = dict(self.MEASURED)
+        doc.pop(key)
+        return doc
+
+    # ---- counts -----------------------------------------------------------
+
+    def test_answer_line_is_printed_when_counts_were_measured(self):
+        """Положительный контроль: на измеренном артефакте ответ звучит."""
+        text = self._text(self.MEASURED)
+        self.assertIn("[ОТВЕТ]", text)
+        self.assertIn("из 50 приведённых", text)
+        self.assertIn("**3**", text)
+
+    def test_missing_counts_is_not_an_answer_full_of_none(self):
+        text = self._text(self._without("counts"))
+        self.assertIn("[НЕ ИЗМЕРЕНО]", text)
+        self.assertNotIn("[ОТВЕТ]", text,
+                         "строку ответа нельзя печатать, когда чисел ответа нет")
+
+    def test_a_single_missing_counter_says_so_instead_of_printing_none(self):
+        """Полумера тоже обязана называться: одна дыра в счётчиках — не ноль."""
+        doc = dict(self.MEASURED)
+        doc["counts"] = {k: v for k, v in doc["counts"].items() if k != "unmeasured"}
+        text = self._text(doc)
+        self.assertIn("[ОТВЕТ]", text)
+        self.assertIn("не приведено НЕ ИЗМЕРЕНО", text)
+
+    def test_a_measured_zero_is_still_a_number(self):
+        """Обратная сторона: измеренный НОЛЬ обязан печататься нулём.
+
+        Если бы правка отвечала «НЕ ИЗМЕРЕНО» и на ноль, она вылечила бы одну
+        подмену, заведя обратную.
+        """
+        doc = dict(self.MEASURED)
+        doc["counts"] = dict(doc["counts"], rest_on_import_bound_door=0)
+        text = self._text(doc)
+        self.assertIn("**0**", text)
+        self.assertNotIn("**НЕ ИЗМЕРЕНО**", text)
+
+    # ---- unmeasured_causes ------------------------------------------------
+
+    def test_three_outcomes_of_the_causes_section_sound_different(self):
+        """Сердцевина инварианта: ни два из трёх исходов не совпадают текстом."""
+        named = self._text(self.MEASURED)
+        empty = self._text(dict(self.MEASURED, unmeasured_causes={}))
+        absent = self._text(self._without("unmeasured_causes"))
+
+        self.assertIn("[НЕ ИЗМЕРЕНО поимённо]", named)
+        self.assertIn("нет точки входа: 13", named)
+
+        self.assertIn("[ОПОРА]", empty)
+        self.assertIn("замер, а не пропажа", empty)
+        self.assertNotIn("[НЕ ИЗМЕРЕНО поимённо]", empty)
+
+        self.assertIn("разбора причин в артефакте нет", absent)
+        self.assertNotIn("[ОПОРА] разбор причин", absent)
+
+        self.assertEqual(3, len({named, empty, absent}),
+                         "три исхода, звучащие одинаково, и есть та подмена, "
+                         "которую инвариант #17 запрещает")
+
+    def test_absent_breakdown_never_reads_as_a_clean_result(self):
+        """Ровно то, что было: отсутствие разбора молчало как «всё чисто»."""
+        absent = self._text(self._without("unmeasured_causes"))
+        self.assertIn("НЕ ИЗМЕРЕНО", absent)
+
+    # ---- общее ------------------------------------------------------------
+
+    def test_no_none_ever_reaches_the_printed_report(self):
+        """`None` в предложении отчёта читается как значение, а не как пробел."""
+        for doc in (self.MEASURED,
+                    self._without("counts"),
+                    self._without("unmeasured_causes"),
+                    dict(self.MEASURED, counts={}, unmeasured_causes={})):
+            with self.subTest(doc=sorted(doc)):
+                self.assertNotIn("None", self._text(doc))
+
+    def test_unmeasured_artifact_still_refuses_early(self):
+        """Правка не тронула прежний отказ целиком неизмеренного артефакта."""
+        text = self._text({"status": "UNMEASURED", "reason": "стенда нет"})
+        self.assertIn("[НЕ ИЗМЕРЕНО] стенда нет", text)
+        self.assertNotIn("[ОТВЕТ]", text)
 
 
 if __name__ == "__main__":                                        # pragma: no cover
