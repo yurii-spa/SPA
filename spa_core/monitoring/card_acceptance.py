@@ -1376,7 +1376,9 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
         return UNMEASURED, f"базы движка нет: {db_path} — предмет не измерен"
     now = now or datetime.now(timezone.utc)
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10.0)
+        # ЧУЖАЯ база (движок earn-defi, отдельный репозиторий), а не БД SPA: в postgres-миграцию она
+        # не входит, и открыть её надо строго на чтение — URI `mode=ro` есть только у родного sqlite3.
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10.0)  # allow-raw-sqlite-connect
     except sqlite3.Error as exc:
         return UNMEASURED, f"база движка не открылась: {exc}"
     try:
