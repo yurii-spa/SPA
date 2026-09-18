@@ -60,6 +60,7 @@ import json
 import os
 import re
 import sys
+import pathlib as _pathlib
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -84,6 +85,11 @@ _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---", re.S)
 #: критерий карточки часто называет пару, и проба на один ключ была бы зелёной ложью о
 #: втором. Форма остаётся ключевой — ни пробелов, ни путей, ни метасимволов оболочки.
 _ARG_RE = re.compile(r"^[A-Za-z0-9_.+\-]{1,128}$")
+
+#: Статусы, в которых карточка считается ЗАКРЫТОЙ. Копия списка очереди
+#: (`orchestrator_queue._TERMINAL_ON_ORIGIN`) заведена намеренно узко — проба
+#: спрашивает только «закрыта ли», и расширять её до правил очереди нельзя.
+_TERMINAL_HERE = ("ingested", "done", "owner-done-archived")
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1460,6 +1466,80 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
                        f"запись сигналов {sig_date} читает {src}")
 
 
+
+def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
+                             ref: str | None = None) -> tuple[str, str]:
+    """Критерий: у карточки `arg` НЕТ закрытия, которое существует только здесь.
+
+    ЗАЧЕМ. Карточка живёт в двух копиях — в рабочем дереве и на ``origin/main``, —
+    и закрытие, поставленное только в дереве, не есть работа сделанная. Замер
+    04.09 и он же 18.09: стоячий приказ владельца
+    ``inbox-task-portfolio-cio-dynamic-capital-alloc`` помечен в прод-дереве
+    ``done`` (след `new -> done`, 31.08), а на ``origin/main`` стоит
+    ``in-progress`` с ``priority: critical`` и блоком «УКАЗАНИЕ ВЛАДЕЛЬЦА», какого
+    в прод-копии нет вовсе. Шаг 0a-ГОЛОД читает origin и зовёт приказ голодающим;
+    любой прибор, читающий прод-копию, считает его выполненным. Два ответа об одной
+    карточке, и оба выглядят измеренными.
+
+    ПРАВИЛО НЕ КОПИРУЕТСЯ: и класс расхождения, и ПОРЯДОК отметок берутся у того
+    сторожа, который их меряет (``scripts/check_tracker_drift``), а не считаются
+    здесь вторым экземпляром — две копии одной мерки расходятся молча (ADR-220).
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ. Нет репозитория, не прочитан ``origin/main``, карточки нет
+    ни в дереве, ни среди разошедшихся ⇒ ``unmeasured`` с названной причиной, а не
+    «выполнено». Дерево и ref названы в detail отдельно: проба, запущенная из
+    worktree ОТ ``origin/main``, сравнивает копию саму с собой и зеленеет ни о чём,
+    и зелёный из worktree не должен читаться как зелёный в проде.
+    """
+    if not arg:
+        return UNMEASURED, ("пробе нужна карточка "
+                            "(acceptance_probe: card_copies_agree:<имя-карточки>)")
+    tracker = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
+    root = _repo_root_for(tracker)
+    if not _is_git_repo(root):
+        return UNMEASURED, f"в {root} нет репозитория — расхождение копий НЕ ИЗМЕРЕНО"
+    scripts_dir = os.path.join(root, "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    try:
+        import check_tracker_drift as drift
+    except ImportError as exc:                       # pragma: no cover — защита ввоза
+        return UNMEASURED, f"сторож расхождения не ввезён ({exc}) — НЕ ИЗМЕРЕНО"
+    card_id = arg[:-3] if arg.endswith(".md") else arg
+    try:
+        report = drift.analyze(_pathlib.Path(tracker), ref or drift.DEFAULT_REF)
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, f"сверка с origin не удалась ({exc}) — НЕ ИЗМЕРЕНО"
+    where = (f"дерево {root}, ref {report.ref} {(report.ref_sha or '?')[:9]}, "
+             f"в дереве {report.tree_count} / на ref {report.origin_count}")
+    if not report.origin_count:
+        return UNMEASURED, f"копия трекера на ref не прочитана — НЕ ИЗМЕРЕНО ({where})"
+    mine = [f for f in report.findings if f.card_id == card_id]
+    if not mine:
+        if not os.path.isfile(os.path.join(tracker, f"{card_id}.md")):
+            return UNMEASURED, (f"карточки {card_id} нет ни в дереве, ни среди "
+                                f"разошедшихся — предмет НЕ ИЗМЕРЕН ({where})")
+        return SATISFIED, f"копии сошлись: расхождения по {card_id} нет ({where})"
+    f = mine[0]
+    # Первый конъюнкт СЕГОДНЯ избыточен и это ИЗМЕРЕНО, а не предположено:
+    # дифференциальная батарея цикла #629 показала, что его подмена на `True`
+    # не роняет ни одной проверки — `order` по контракту сторожа заполняется
+    # ТОЛЬКО у класса `diverged`, у `stale`/`hidden`/`undelivered` второй копии
+    # нет вовсе. Оставлен намеренно как fail-CLOSED пояс на случай, если этот
+    # контракт изменится; выживший мутант назван здесь, а не закрашен тестом,
+    # который проверял бы сам себя.
+    closed_here_only = (f.kind == drift.KIND_DIVERGED
+                        and f.order == drift.ORDER_TREE_NEWER
+                        and f.tree_status in _TERMINAL_HERE
+                        and f.origin_status not in _TERMINAL_HERE)
+    detail = (f"{card_id}: здесь `{f.tree_status or '?'}`, на {report.ref} "
+              f"`{f.origin_status or '?'}`, класс {f.kind}/"
+              f"{f.order or 'порядок не мерился'} ({where})")
+    if closed_here_only:
+        return NOT_SATISFIED, "ЗАКРЫТО ТОЛЬКО ЗДЕСЬ — " + detail
+    return SATISFIED, "закрытия только здесь нет — " + detail
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1476,6 +1556,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_journal_reader_census_reaches_http_routes,
     "journal_reader_census_verdict_under_injected_clock":
         _probe_journal_reader_census_verdict_under_injected_clock,
+    "card_copies_agree": _probe_card_copies_agree,
 }
 
 

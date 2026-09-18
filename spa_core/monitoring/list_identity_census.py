@@ -57,6 +57,8 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from spa_core.monitoring import _list_identity_probe as probe  # noqa: E402
+from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
+from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
 from spa_core.monitoring.python_reader_clock_doors import (  # noqa: E402
     measurement_due, population,
 )
@@ -66,6 +68,11 @@ from spa_core.utils.observation import observed, observed_number  # noqa: E402
 
 SCHEMA = "list_identity_census.v1"
 ARTIFACT = "list_identity_census.json"
+#: Какой МОДУЛЬ собрал документ. Отвечает не на тот вопрос, что `invoked_by`
+#: (кто его позвал), и держать их рядом — единственный способ не спутать:
+#: у соседа G33 одно лишь `generated_by` и создало впечатление записанного
+#: провенанса там, где записана константа.
+PRODUCER = "spa_core/monitoring/list_identity_census.py"
 
 #: Такт переписи. Зов каждого читателя стоит секунды, всё население — минуты;
 #: ответ на вопрос «как устроены списки» меняется со скоростью кода, а не дня,
@@ -219,6 +226,12 @@ def measure(data_dir: Path, tree_root: Path, *,
     doc: dict = {
         "schema": SCHEMA,
         "generated_at": moment.isoformat(),
+        # Заказ G36 п. 1. `generated_at` — часы, а не звавший: отметка сменится
+        # одинаково, позвала ли перепись ступень моста или рука цикла, набравшая
+        # `python3 -m`. Без этого поля наблюдение 25.09 односторонне — оно может
+        # ОПРОВЕРГНУТЬ проводку ступени и не может её подтвердить.
+        "invoked_by": call_provenance(tree_root=Path(tree_root)),
+        "generated_by": PRODUCER,
         "question": ("сколько списков в ответах питоньих читателей не называют "
                      "себя полем (третий исход element_identity) и у скольких "
                      "есть годное поле-кандидат вне _IDENTITY_FIELDS"),
@@ -278,6 +291,12 @@ def report(doc: dict, *, max_rows: int = 20,
            max_fields: Optional[int] = None) -> List[str]:
     """Отчёт. Знаменатель печатается рядом с числителем — всегда."""
     out = [f"Перепись личности списков (G34 п. 1) — {doc.get('status')}"]
+    # Звавший печатается ДО раннего возврата намеренно: на документе UNMEASURED
+    # вопрос «кто это позвал» не менее интересен, чем на измеренном, — именно
+    # так выглядел бы прогон, который ступень моста завела, а стенд не построила.
+    # Запись, которую никто не читает, — это ADR-259, и заводить её второй раз,
+    # зная о классе, значило бы его воспроизвести.
+    out.append(f"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}")
     if doc.get("status") == "UNMEASURED":
         out.append(f"[НЕ ИЗМЕРЕНО] {doc.get('reason')}")
         return out

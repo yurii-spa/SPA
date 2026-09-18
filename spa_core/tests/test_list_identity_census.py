@@ -383,8 +383,15 @@ class ReportAndExitCode(unittest.TestCase):
         self.assertIn("label", body)
 
     def test_unmeasured_report_says_so_and_stops(self):
+        # Строка о ЗВАВШЕМ печатается перед этой (ADR-412) — на документе
+        # UNMEASURED вопрос «кто это позвал» не менее интересен, чем на
+        # измеренном. Проверка осталась ПОЗИЦИОННОЙ, то есть той же силы, и
+        # заодно получила недостающую половину своего же имени: «и ОСТАНАВЛИВАЕТСЯ»
+        # до сих пор не проверялось ничем.
         lines = census.report({"status": "UNMEASURED", "reason": "стенд не построен"})
-        self.assertIn("[НЕ ИЗМЕРЕНО]", lines[1])
+        self.assertIn("[ЗВАВШИЙ]", lines[1])
+        self.assertIn("[НЕ ИЗМЕРЕНО]", lines[2])
+        self.assertEqual(len(lines), 3, f"отчёт не остановился: {lines}")
 
     def test_exit_codes_separate_the_three_outcomes(self):
         real = census.measure

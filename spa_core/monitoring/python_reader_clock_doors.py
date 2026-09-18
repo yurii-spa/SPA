@@ -80,6 +80,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.monitoring import _python_reader_clock_probe as probe
+from spa_core.monitoring.call_provenance import call_provenance
 from spa_core.utils.observation import observed
 from spa_core.monitoring.run_identity_key_price import (
     build_stands, http_modules, reader_population,
@@ -385,7 +386,13 @@ def measure(data_dir: Path, tree_root: Path, *,
     moment = now or dt.datetime.now(dt.timezone.utc)
     doc: Dict[str, object] = {
         "generated_at": moment.isoformat(),
+        # `generated_by` — КОНСТАНТА с именем этого модуля: она отвечает «чем
+        # написано», и ответ у неё один при любом зове. Заказ G36 п. 1 спрашивает
+        # ДРУГОЕ — «кем позвано», и до этой строки такого поля не было ни у одного
+        # из двух сравниваемых приборов, отчего само сравнение 25.09 было
+        # неизмеримо (ADR-412).
         "generated_by": PRODUCER,
+        "invoked_by": call_provenance(tree_root=Path(tree_root)),
         "question": ("сколько питоньих читателей переписи держатся на дверях часов, "
                      "связанных НА ИМПОРТЕ (заказ G31 приказа «Portfolio CIO», п. 1) "
                      "и во что обходится закрытие каждой такой двери (заказ G32, п. 1)"),

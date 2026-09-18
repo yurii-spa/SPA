@@ -87,6 +87,10 @@ def _finding_doc() -> dict:
         "schema": census.SCHEMA,
         "generated_at": NOW.isoformat(),
         "status": "FINDING",
+        "invoked_by": {"schema": "call_provenance.v1", "measured": True,
+                       "entry": "spa_core/monitoring/findings_bridge.py",
+                       "inside_tree": True, "doors_agree": True,
+                       "read_by": "sys.modules['__main__'].__file__"},
         "reason": "списков без личности с годным полем ВНЕ списка имён: 2",
         "advisory": "прибор только ЧИТАЕТ",
         "counts": {
@@ -116,6 +120,10 @@ def _finding_doc() -> dict:
 def _unmeasured_doc() -> dict:
     return {"schema": census.SCHEMA, "generated_at": NOW.isoformat(),
             "status": "UNMEASURED", "reason": "стенд не построен: журнал пуст",
+            "invoked_by": {"schema": "call_provenance.v1", "measured": True,
+                           "entry": "spa_core/monitoring/list_identity_census.py",
+                           "inside_tree": True, "doors_agree": True,
+                           "read_by": "sys.modules['__main__'].__file__"},
             "advisory": "прибор только ЧИТАЕТ", "counts": {}}
 
 
@@ -404,6 +412,28 @@ class DeclaredSchemaIsWhatTheBranchActuallyReads(unittest.TestCase):
             if not (a or b):
                 unread.append(path)
         self.assertEqual(unread, [], f"объявлено и не читается: {unread}")
+
+    def test_removing_the_declaration_itself_silences_the_schema_alarm(self):
+        """ОБРАТНАЯ сторона соседа: сосед мерит «объявлено ⇒ читается».
+
+        Батарея цикла #628 показала, что снятие САМОГО объявления не красит
+        ничего: сосед перебирает объявленные поля, и поле, вычеркнутое из
+        объявления, просто выпадает из его цикла. Тогда объявление — то самое
+        украшение, которое сосед ищет у других, только на уровень выше.
+
+        Меряется ИСХОД: у документа убрано `invoked_by`, и тревога о форме
+        обязана НАЗВАТЬ это поле. Строка отрисовки (`[ЗВАВШИЙ] … НЕ ЗАПИСАНО`)
+        из счёта исключена намеренно — она называет то же поле и без всякого
+        объявления, то есть приняла бы мутацию за живого сторожа.
+        """
+        text = self._text(_drop(_finding_doc(), "invoked_by"))
+        named_by_the_schema_alarm = [
+            line for line in text.splitlines()
+            if "invoked_by" in line and not line.startswith("[ЗВАВШИЙ]")
+        ]
+        self.assertTrue(named_by_the_schema_alarm,
+                        "поле пропало из документа, а тревога о ФОРМЕ промолчала "
+                        f"— объявление в `_READ_SCHEMA` ничего не держит:\n{text}")
 
     def test_the_producer_writes_every_declared_field(self):
         src = (REPO / "spa_core" / "monitoring"

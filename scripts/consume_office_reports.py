@@ -665,7 +665,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # потому, что сила свидетельства здесь ДЛИНА, а не частота, и перечень
     # полей у читателя УКОРОЧЕН — порядок без длины стал бы утверждением
     # наоборот.
-    "list_identity_census.json": ("status", "reason", "counts.lists_total",
+    # `invoked_by` объявлен ЧИТАЕМЫМ (заказ G36 п. 1, ADR-412): звавшего печатает
+    # ветка отрисовки, и объявление здесь — единственное, что покраснеет, если
+    # проводку признака у производителя однажды снимут. `generated_by` рядом НЕ
+    # объявлен намеренно: это константа с именем модуля, она не наблюдение.
+    "list_identity_census.json": ("status", "reason", "invoked_by",
+                                  "counts.lists_total",
                                   "counts.outcomes", "counts.singletons",
                                   "counts.scalar_lists_multi",
                                   "counts.denominator_of_finding",
