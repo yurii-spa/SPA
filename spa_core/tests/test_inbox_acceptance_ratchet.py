@@ -22,11 +22,20 @@ inbox-карточек 511, без критерия — 462.
 Критерий в машинной форме — одно из двух полей frontmatter:
 `acceptance_probe: <имя из card_acceptance.PROBES>` либо `finding_key:` (карточку
 родил мост, и её критерий — исчезновение находки; закрывает мост сам). Карточка-НОСИТЕЛЬ
-приёма заданий (идея → `docs/ideas`, вопрос → карточка владельцу) гасится очередью с
-`carried_to=<существующий путь>` (ADR-377): это заработанное освобождение, не флаг, и в
-frontmatter оно следа не оставляет — сама карточка в `done` без критерия попадает в базу
-только если существовала на 13.09; новых таких носителей ratchet не ждёт, потому что приём
-с 14.09 задачу в работу не берёт (остаётся `new`).
+гасится с `carried_to=<существующий путь>` (ADR-377): содержимое уехало ВОТ ТУДА, и это
+заработанное освобождение, а не флаг — путь обязан СУЩЕСТВОВАТЬ, имя без файла не
+освобождает ничего.
+
+**Поправка 18.09 (цикл #632): здесь жила ВТОРАЯ КОПИЯ правила, и она разошлась.**
+Прежняя редакция этого текста утверждала, что освобождение «в frontmatter следа не
+оставляет», и потому храповик `carried_to` не читал вовсе. След оно оставляет:
+`owner_queue.queue.set_status` пишет поле прямо во frontmatter и там же проверяет
+существование пути. Разошлись копии молча и предсказуемым образом — на первой же
+карточке, погашенной НЕ приёмом заданий, а сессией (`inbox-desyat-testov-naslednikov-
+heir-all-rows.md`, дубль, закрытый циклом #625 переносом в существующую карточку):
+очередь закрытие приняла, храповик назвал его нарушением, и красным стал `main` на
+ВЕРНОМ состоянии. Класс — ADR-220. Условие существования пути перенесено сюда целиком,
+поэтому проверка не ослаблена: несуществующий путь нарушителем быть не перестаёт.
 
 Только stdlib, оффлайн.
 """
@@ -43,6 +52,8 @@ _BASELINE = _REPO / "scripts" / "inbox_acceptance_baseline.json"
 _FM = re.compile(r"\A---\n(.*?)\n---", re.S)
 _CRITERION = re.compile(r"^(acceptance_probe|finding_key):\s*\S", re.M)
 _STATUS = re.compile(r"^status:\s*(\S+)", re.M)
+#: Куда уехало содержимое носителя. Освобождение ЗАРАБОТАННОЕ: путь обязан существовать.
+_CARRIED = re.compile(r"^carried_to:\s*(\S.*?)\s*$", re.M)
 #: Статусы приёма: карточка ещё ничья, критерий обязан появиться при взятии в работу.
 INTAKE_STATUSES = frozenset({"new", "backlog"})
 
@@ -65,6 +76,26 @@ def _inbox_cards() -> set[str]:
 
 def has_criterion(name: str) -> bool:
     return bool(_CRITERION.search(_frontmatter(name)))
+
+
+def carried_home(name: str) -> "str | None":
+    """Путь, куда уехало содержимое карточки-носителя, — ТОЛЬКО если он существует.
+
+    Одно и то же условие с `owner_queue.queue.set_status`: обещание освобождения не
+    даёт. Третьего исхода здесь нет намеренно — поля нет и файла нет читаются
+    одинаково («освобождения не заработано»), и обе дороги ведут к тому же вердикту,
+    что и раньше.
+    """
+    m = _CARRIED.search(_frontmatter(name))
+    if not m:
+        return None
+    target = m.group(1).strip().strip("\"'")
+    if not target:
+        return None
+    path = Path(target)
+    if not path.is_absolute():
+        path = _REPO / target
+    return target if path.exists() else None
 
 
 def status_of(name: str) -> str:
@@ -91,7 +122,7 @@ def test_no_new_card_is_in_work_without_a_criterion() -> None:
     base = _baseline() or set()
     offenders = sorted(n for n in _inbox_cards()
                        if n not in base and status_of(n) not in INTAKE_STATUSES
-                       and not has_criterion(n))
+                       and not has_criterion(n) and not carried_home(n))
     assert not offenders, (
         "inbox-карточка взята в работу (или закрыта) без машинного критерия приёмки:\n  "
         + "\n  ".join(f"{n} (status: {status_of(n)})" for n in offenders)
@@ -117,6 +148,30 @@ def test_baseline_holds_no_ghosts() -> None:
     base = _baseline() or set()
     ghosts = sorted(n for n in base if n not in _inbox_cards())
     assert not ghosts, f"в базе карточки, которых нет на диске: {ghosts}"
+
+
+def test_a_carrier_is_freed_only_by_a_path_that_exists(tmp_path, monkeypatch) -> None:
+    """Положительный контроль освобождения — в ОБЕ стороны.
+
+    Без обратной стороны поправка #632 была бы опт-аутом: строка `carried_to:` гасила
+    бы любой вопрос о критерии, и достаточно было бы её написать. Поэтому сцена одна,
+    а карточек две — они различаются ровно существованием названного пути.
+    """
+    tracker = tmp_path / "tracker"
+    tracker.mkdir()
+    (tmp_path / "есть-такая-карточка.md").write_text("носитель уехал сюда", encoding="utf-8")
+    (tracker / "inbox-uehalo.md").write_text(
+        "---\nstatus: done\ncarried_to: есть-такая-карточка.md\n---\n", encoding="utf-8")
+    (tracker / "inbox-obeschano.md").write_text(
+        "---\nstatus: done\ncarried_to: нет-такой-карточки.md\n---\n", encoding="utf-8")
+    monkeypatch.setattr("spa_core.tests.test_inbox_acceptance_ratchet._TRACKER", tracker)
+    monkeypatch.setattr("spa_core.tests.test_inbox_acceptance_ratchet._REPO", tmp_path)
+
+    assert carried_home("inbox-uehalo.md") == "есть-такая-карточка.md"
+    assert carried_home("inbox-obeschano.md") is None, (
+        "обещанный путь освободил носителя — это опт-аут, а не заработанное освобождение")
+    assert carried_home("inbox-uehalo.md") and not has_criterion("inbox-uehalo.md"), (
+        "сцена вырождена: освобождение проверяется только у карточки БЕЗ критерия")
 
 
 def test_detector_accepts_both_criterion_forms_and_rejects_prose(tmp_path) -> None:

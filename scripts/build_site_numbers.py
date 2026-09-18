@@ -326,6 +326,42 @@ def publication_due(*, today: "str | None" = None,
     return False, f"со дня публикации {last.isoformat()} прошло {age} дн из 7"
 
 
+def run(*, published_at: "str | None" = None, if_due: bool = False,
+        write: bool = True, out: "Path | None" = None) -> dict:
+    """Один ТАКТ публикации витрины: собрать и записать, если срок пришёл.
+
+    Гейт такта живёт ЗДЕСЬ, а не в ``main`` (заказ **G40 п. 1** приказа
+    «Portfolio CIO» — единственная находка переписи гейтов такта, ADR-415).
+    Разница не косметическая: пока звавший один — рука цикла на шаге (1е), —
+    открытый производитель вреда не несёт, но ВТОРОЙ звавший (ступень моста,
+    будущий агент) обязан был бы завести свою копию правила недели, и
+    разошлись бы копии молча — класс ADR-220.
+
+    «Не публиковали» и «опубликовано» — РАЗНЫЕ исходы (инв. #17): внутри такта
+    возвращается ``{"published": False, "reason": …}``, а файл не трогается
+    вовсе. Срок решает ФАЙЛ (``publication_due``), а не расписание запуска.
+
+    ``published`` отвечает на вопрос «прошёл ли такт и собрана ли витрина», а
+    НЕ «записаны ли байты»: запись — отдельный вход ``write`` (сцена ``--check``
+    сравнивает, не публикуя). Слить их значило бы дать сравнению в CI право
+    двигать числа витрины — предмет №2 границы ADR-285.
+
+    ``build`` остаётся негейтированной НАМЕРЕННО, и это не недосмотр: она
+    ничего не пишет, это чистая проекция двух источников. Производитель здесь
+    — тот, кто кладёт байты в ``site_numbers.json``, и он ровно один.
+    """
+    target = Path(out) if out is not None else OUT
+    if if_due:
+        due, why = publication_due(today=published_at, out=target)
+        if not due:
+            return {"published": False, "reason": why, "artifact": str(target)}
+    doc = build(published_at=published_at)
+    text = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
+    if write:
+        target.write_text(text, encoding="utf-8")
+    return {"published": True, "doc": doc, "text": text, "artifact": str(target)}
+
+
 def main(argv: "list[str] | None" = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--published-at", default=None,
@@ -336,17 +372,19 @@ def main(argv: "list[str] | None" = None) -> int:
                     help="пересобрать, только если со дня публикации прошла НЕДЕЛЯ")
     args = ap.parse_args(argv)
 
-    if args.if_due:
-        due, why = publication_due(today=args.published_at)
-        if not due:
-            print(f"публикация не назначена: {why}")
-            return 0
+    # Гейт такта живёт в ОДНОМ месте (`run`) — вторая его копия здесь означала
+    # бы, что рука цикла и любой будущий звавший судят о неделе по разным
+    # правилам, а расходились бы они молча.
     try:
-        doc = build(published_at=args.published_at)
+        outcome = run(published_at=args.published_at, if_due=args.if_due,
+                      write=not args.check)
     except NotMeasured as exc:
         print(f"НЕ ИЗМЕРЕНО — {exc}")
         return 2
-    text = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
+    if not outcome["published"]:
+        print(f"публикация не назначена: {outcome['reason']}")
+        return 0
+    doc, text = outcome["doc"], outcome["text"]
     if args.check:
         cur = OUT.read_text(encoding="utf-8") if OUT.is_file() else ""
         same = cur == text
@@ -354,7 +392,6 @@ def main(argv: "list[str] | None" = None) -> int:
               "витрина РАСХОДИТСЯ с источниками — пересобрать "
               "scripts/build_site_numbers.py")
         return 0 if same else 1
-    OUT.write_text(text, encoding="utf-8")
     head = doc["headline"]["apy"]
     print(f"собрано {OUT.relative_to(ROOT)}: замер {doc['measured_at']}, "
           f"публикация {doc['published_at']}, годовая ставка "
