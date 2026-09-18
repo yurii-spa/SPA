@@ -699,6 +699,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "door_price_unmeasured",
                                        "control_arm", "reverse_direction",
                                        "unmeasured_causes", "advisory"),
+    # Заказ G39 п. 3 (ADR-415). Перепись гейтов такта. `counts` несёт корзины,
+    # `scanned` — размер входа: тождество учёта (`scanned == разобрано +
+    # unreadable`) и есть то, что не даёт молча уронить файл. `unreadable`
+    # объявлен рядом намеренно — третий исход обязан доехать до читателя, иначе
+    # «не разобрали» стало бы неотличимо от «гейта нет».
+    # `surface_outside_name_rule` — ширина слепоты правила имени: без неё
+    # «нашли одного» прочлось бы как «он один и есть».
+    "tact_gate_census.json": ("status", "invoked_by", "counts", "scanned",
+                              "rows", "unreadable", "population_rule",
+                              "surface_outside_name_rule",
+                              "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -889,6 +900,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/list_identity_census.py",
     "python_reader_clock_doors.json":
         "spa_core/monitoring/python_reader_clock_doors.py",
+    "tact_gate_census.json":
+        "spa_core/monitoring/tact_gate_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2709,6 +2722,18 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # мутации, то есть проверка накрывала бы его ложно (замер #627).
         from spa_core.monitoring.python_reader_clock_doors import format_report as _prcd_report
         out.extend(_prcd_report(data))
+    elif name == "tact_gate_census.json":
+        # Заказ G39 п. 3 (ADR-415). Без этой ветки артефакт читается ВХОЛОСТУЮ
+        # (`_HOLLOW_MARK`): файл открыт, а в контекст оркестратора не попадает
+        # ни одно число — тот же класс, что закрыт у двух соседей выше. Правило
+        # отрисовки делегируется ПРОИЗВОДИТЕЛЮ: вторая его копия здесь
+        # расходилась бы с первой молча (ADR-220) — то есть была бы ровно тем
+        # дефектом, который эта перепись и меряет.
+        # Форма ввоза ОДНОСТРОЧНАЯ намеренно: сторож достижимости
+        # (`test_declared_producer_is_reachable`) вырезает ввозы двух объявленных
+        # форм, и скобочная многострочная ни одной из них не является (замер #627).
+        from spa_core.monitoring.tact_gate_census import format_report as _tgc_report
+        out.extend(_tgc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

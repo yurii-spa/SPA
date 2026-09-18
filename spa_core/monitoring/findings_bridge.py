@@ -158,6 +158,15 @@ PRODUCES = (
     # закончен, ответ получен — плечо проводится. Такт недельный и решает его
     # ФАЙЛ (`python_reader_clock_doors.run` → `measurement_due`), SLO 192ч.
     "data/python_reader_clock_doors.json",
+    # Заказ G39 п. 3 (ADR-415). Перепись гейтов такта: у скольких производителей
+    # решение «пора ли производить» лежит ВНЕ производящей функции, так что
+    # второй звавший обязан завести свою копию правила (класс ADR-220). Такта у
+    # этой переписи НЕТ намеренно: зов есть разбор AST в одном процессе и стоит
+    # секунды (замер 5.7с, ADR-415), поэтому недельный гейт не купил бы ничего,
+    # а завёл бы ровно ту вторую копию правила, которую перепись и ищет. Отсюда
+    # и SLO: он равняется такту БЕГУНА (6ч агента), а не недельному такту
+    # соседей — 12ч.
+    "data/tact_gate_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -259,6 +268,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "haystack_origin_census",
     "list_identity_census",
     "python_reader_clock_doors",
+    "tact_gate_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -482,6 +492,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "python_reader_clock_doors": {
         "module": "spa_core/monitoring/python_reader_clock_doors.py",
         "artifact": "data/python_reader_clock_doors.json"},
+    "tact_gate_census": {
+        "module": "spa_core/monitoring/tact_gate_census.py",
+        "artifact": "data/tact_gate_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2223,6 +2236,33 @@ def main(argv=None) -> int:
                   f"{_prcd.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "python_reader_clock_doors", e)
+    # Перепись гейтов такта (G39 п. 3, ADR-415): где у производителя лежит
+    # решение «пора ли производить». Гейта такта у САМОЙ переписи нет, и это
+    # замер, а не поблажка: зов — разбор AST в одном процессе, 5.7с против
+    # минут у двух соседей выше, которые поднимают подпроцессы. Недельный гейт
+    # здесь не сэкономил бы ничего и завёл бы вторую копию правила о сроке —
+    # ровно тот класс, который перепись и меряет.
+    #
+    # «Не измерено» и «измерено» — разные исходы (инв. #17): корень не прочитан
+    # ⇒ печатается причина, а не вердикт CLEAN о населении, которого не видели.
+    try:
+        from spa_core.monitoring import tact_gate_census
+        _tgc = tact_gate_census.run(root=args.root)
+        if _tgc.get("measured"):
+            _tc = observed(_tgc["doc"], "counts", kind=dict)
+            _cli = (None if _tc is None
+                    else observed_number(_tc, "gate_at_cli_only"))
+            _two = (None if _tc is None
+                    else observed_number(_tc, "two_rules"))
+            print(f"tact_gate_census: {_tgc['doc'].get('status')} — гейт вне "
+                  f"производителя у "
+                  f"{'НЕ ИЗМЕРЕНО' if _cli is None else int(_cli)}, два правила "
+                  f"у {'НЕ ИЗМЕРЕНО' if _two is None else int(_two)}")
+        else:
+            print(f"tact_gate_census: НЕ ИЗМЕРЕНО — "
+                  f"{_tgc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "tact_gate_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
