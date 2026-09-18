@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-18T00:53:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-18T01:31:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e50f0bb8e).
+> Сверено с `origin/main` (641f0658c) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1072** · ждёт владельца: **1** · занято сессиями: **14**.
 
@@ -413,6 +413,7 @@
 - давай разберем задачу - Решение ADR-104 записано, но до машины не доехало: CIO…  ·  `inbox-davai-razberem-zadachu-reshenie-adr-104.md` · 2026-08-22
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
+- Десять тестов наследников (heir_all_rows_price) красны на чистом main — классификатор спорит со своими же контролями  ·  `inbox-desyat-testov-naslednikov-heir-all-rows.md` · 2026-09-18
 - Девять читателей журнала: «судить нечем» — их ответ несёт поля-возрасты, а прежнее «схлопывает» было артефактом  ·  `inbox-devyat-chitatelei-zhurnala-sudit-nechem.md` · 2026-09-16
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
@@ -738,7 +739,6 @@
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
-- Десять тестов наследников (heir_all_rows_price) красны на чистом main — классификатор спорит со своими же контролями  ·  `inbox-desyat-testov-naslednikov-heir-all-rows.md` · 2026-09-18
 - Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
