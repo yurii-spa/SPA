@@ -655,6 +655,81 @@ def _strip_clock(answer) -> str:
         json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
+#: Поля, которыми элемент списка вправе назвать СЕБЯ. Порядок — предпочтение
+#: при нескольких годных сразу, чтобы координата не зависела от порядка обхода
+#: словаря (инвариант: `PYTHONHASHSEED` не должен решать, как зовётся находка).
+_IDENTITY_FIELDS: Tuple[str, ...] = (
+    "code", "id", "key", "criterion", "module", "name", "protocol",
+    "coord", "route", "path", "pool", "cycle_date", "date",
+)
+
+
+def _ident_token(value) -> str:
+    """Личность элемента строкой — канонично и без зависимости от типа."""
+    return json.dumps(value, sort_keys=True, default=str, ensure_ascii=False)
+
+
+def element_identity(items) -> Optional[str]:
+    """Поле, которым элементы списка различимы ПО ЛИЧНОСТИ, а не по месту.
+
+    Заказ **G33, п. 3**. Координата вида ``.findings[8].severity`` позиционна, и
+    стоит набору сменить длину, как она заговорит о ДРУГОЙ находке, не изменив
+    ни буквы в своём имени. Замер #624 напоролся на это буквально: под пином
+    часов из набора `decision_audit_trail` исчезал элемент `INFO`, восьмым
+    становился сосед, и отчёт печатал «`.findings[8].severity` INFO → CRITICAL»
+    — фразу, которую нельзя прочесть иначе как «появилась новая критическая
+    находка», хотя критических как было шесть, так и осталось.
+
+    Личность выбирается **замером состава**, а не верой в имя поля: поле годно,
+    только если оно есть у КАЖДОГО элемента, скалярно и **уникально** по всему
+    списку. Неуникальное поле назвало бы две разные строки одной координатой —
+    это хуже позиции, потому что тихо. Годного поля нет ⇒ возвращается ``None``,
+    и обход честно остаётся позиционным: третий исход назван, а не подменён.
+
+    ``bool`` намеренно исключён: ``True``/``False`` уникальны максимум в списке
+    из двух элементов, и такая «личность» была бы совпадением, а не свойством.
+    """
+    if not isinstance(items, list) or not items:
+        return None
+    if not all(isinstance(item, dict) for item in items):
+        return None
+    for field in _IDENTITY_FIELDS:
+        values = [item.get(field) for item in items]
+        # Одна проверка, а не две. Отдельной ветки «поля нет» здесь стояла — и
+        # батарея #625 показала, что она НЕ СТОРОЖИТ НИЧЕГО: `get` отдаёт
+        # `None`, а `None` не проходит и проверку типа, то есть ветка была
+        # неотличима от своего удаления. Сторож, снятие которого ничего не
+        # меняет, — украшение; правило одно и живёт в одной строке.
+        if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool)
+                   for v in values):
+            continue
+        tokens = [_ident_token(v) for v in values]
+        if len(set(tokens)) == len(tokens):
+            return field
+    return None
+
+
+def indexed(items, field: Optional[str] = None):
+    """Пары ``(суффикс координаты, элемент)`` — ОДНО правило записи на всю семью.
+
+    Обходы ОДНОГО ответа (``stable_leaf_digests``, ``_stable_leaves``,
+    ``mask_coords``, ``_leaves``, ``leaf_values``) обязаны звать элемент списка
+    одинаково: множество ``drop`` общее, и разойдись они в записи — ни одна
+    снятая координата не нашлась бы у соседа, а «ничего не снято» читалось бы
+    как «нечего было снимать». Поэтому правило одно и живёт здесь.
+
+    ``unstable_coords`` сравнивает ДВА ответа и потому зовёт не сюда: ему мало
+    знать личность одного набора, ему нужно, чтобы её признали ОБА (иначе пар
+    нет вовсе). Но запись он производит ту же самую — контроль на совпадение
+    имён у всей семьи стои́т отдельным тестом.
+    """
+    if field is None:
+        field = element_identity(items)
+    for idx, value in enumerate(items):
+        yield (f"[{idx}]" if field is None
+               else f"[{field}={_ident_token(value[field])}]"), value
+
+
 def unstable_coords(one, two, path: str = "") -> Set[str]:
     """Координаты, РАЗОШЕДШИЕСЯ на двух вызовах ОДНОГО И ТОГО ЖЕ стенда.
 
@@ -674,8 +749,33 @@ def unstable_coords(one, two, path: str = "") -> Set[str]:
             else:
                 out |= unstable_coords(one[key], two[key], f"{path}.{key}")
     elif isinstance(one, list):
+        # Личность (заказ G33 п. 3) — только если ОБА набора называют себя ОДНИМ
+        # И ТЕМ ЖЕ полем. Разные поля значили бы, что сравнивать нечем: соединять
+        # элементы по разным ключам — та же выдумка, что по позиции.
+        field, field_two = element_identity(one), element_identity(two)
+        if field != field_two:
+            # Одна проба называет себя, другая нет (или другим полем) — пар
+            # нет. Сложить по МЕСТУ значило бы сказать «этот элемент изменился»
+            # про пару, которую никто не сопоставлял: та же позиционная ложь,
+            # только под именем личности. Fail-CLOSED: нестабилен весь список.
+            return {path}
+        if field is not None:
+            m1 = {f"{field}={_ident_token(i[field])}": i for i in one}
+            m2 = {f"{field}={_ident_token(i[field])}": i for i in two}
+            for token in sorted(set(m1) | set(m2)):
+                coord = f"{path}[{token}]"
+                if token not in m1 or token not in m2:
+                    # Элемент есть на одной пробе и отсутствует на другой — это
+                    # расхождение ИМЕННО про него, а не про весь набор. Прежняя
+                    # ветка «длины разные ⇒ весь список нестабилен» теряла и
+                    # адрес находки, и все стабильные координаты соседей.
+                    out.add(coord)
+                else:
+                    out |= unstable_coords(m1[token], m2[token], coord)
+            return out
         if len(one) != len(two):
             return {path}
+        # Личности нет НИ У ОДНОЙ стороны ⇒ пары по месту, как и прежде.
         for idx, (a, b) in enumerate(zip(one, two)):
             out |= unstable_coords(a, b, f"{path}[{idx}]")
     elif one != two:
@@ -711,8 +811,8 @@ def stable_leaf_digests(obj, drop: Set[str], path: str = "") -> Dict[str, dict]:
         return out
     if isinstance(obj, list):
         out = {}
-        for idx, value in enumerate(obj):
-            out.update(stable_leaf_digests(value, drop, f"{path}[{idx}]"))
+        for suffix, value in indexed(obj):
+            out.update(stable_leaf_digests(value, drop, f"{path}{suffix}"))
         return out
     # ensure_ascii=False: превью читает человек, и `\u0438\u0441...` вместо слов
     # превращает главную строку находки в шум. На сравнение это не влияет —
@@ -729,7 +829,7 @@ def _stable_leaves(obj, drop: Set[str], path: str = "") -> int:
     if isinstance(obj, dict):
         return sum(_stable_leaves(v, drop, f"{path}.{k}") for k, v in obj.items())
     if isinstance(obj, list):
-        return sum(_stable_leaves(v, drop, f"{path}[{i}]") for i, v in enumerate(obj))
+        return sum(_stable_leaves(v, drop, f"{path}{s}") for s, v in indexed(obj))
     return 1
 
 
@@ -741,7 +841,7 @@ def mask_coords(obj, drop: Set[str], path: str = "",
     if isinstance(obj, dict):
         return {k: mask_coords(v, drop, f"{path}.{k}", label) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [mask_coords(v, drop, f"{path}[{i}]", label) for i, v in enumerate(obj)]
+        return [mask_coords(v, drop, f"{path}{s}", label) for s, v in indexed(obj)]
     return obj
 
 
@@ -755,10 +855,36 @@ def _leaves(obj, path: str = ""):
         for key, val in obj.items():
             yield from _leaves(val, f"{path}.{key}")
     elif isinstance(obj, list):
-        for idx, val in enumerate(obj):
-            yield from _leaves(val, f"{path}[{idx}]")
+        for suffix, val in indexed(obj):
+            yield from _leaves(val, f"{path}{suffix}")
     else:
         yield path, obj
+
+
+def leaf_values(obj, coords: Set[str]) -> Dict[str, dict]:
+    """ЗНАЧЕНИЯ названных координат — или названная причина, почему их нет.
+
+    Сосед ``stable_leaf_digests`` отвечает про то, что НЕ плывёт. Заказ G33 п. 4
+    спрашивает обратное: чем именно является плывущая координата. Классифицировать
+    её по ИМЕНИ (``.stand_root`` — «наверное, временный каталог») значило бы
+    ошибаться в обе стороны; чтобы судить ЗАМЕРОМ, нужно значение.
+
+    Три исхода на координату, и они различимы (инв. #17): ``value`` — строка;
+    ``not_a_string`` — лист есть, но он другого рода (судить о пути нечем);
+    ``absent`` — координата вообще не лист этого ответа (пропала ветвь, или имя
+    указывает на целый список). Пустой словарь на месте значения читался бы как
+    «значение пустое», и это был бы ровно тот fail-OPEN, против которого пункт.
+    """
+    found = {coord: value for coord, value in _leaves(obj) if coord in coords}
+    out: Dict[str, dict] = {}
+    for coord in sorted(coords):
+        if coord not in found:
+            out[coord] = {"absent": "координата не лист этого ответа"}
+            continue
+        value = found[coord]
+        out[coord] = ({"value": value} if isinstance(value, str)
+                      else {"not_a_string": type(value).__name__})
+    return out
 
 
 def _inside(value, window) -> bool:

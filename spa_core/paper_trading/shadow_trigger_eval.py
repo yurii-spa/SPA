@@ -538,12 +538,30 @@ def evaluate_window(
     min_days: int = MIN_OBSERVATION_DAYS,
     min_hit_rate: float = MIN_HIT_RATE,
     write: bool = True,
+    now: Optional[datetime] = None,
 ) -> dict:
     """Reconcile the shadow's verdict history with what live data then showed.
 
     Deterministic given the files on disk. Data holes surface as UNCHECKED with
     a reason — never as a made-up number. ``write=False`` computes without
     touching disk (beyond reads).
+
+    ``now`` — часы прогона (заказ G33, п. 1). До этой правки единственная
+    стенная отметка ``generated_at`` бралась у машины, и параметр закрыть её не
+    мог: имя ``datetime`` связано на импорте, поэтому переписи оставалось
+    только закреплять КЛАСС извне. ADR-406 насчитал таких дверей три, ADR-408
+    измерил цену каждой — у этой она **нулевая** (значения всех прочих
+    координат ответа под пином не изменились ни на дайджест), поэтому дверь
+    закрывается здесь, у читателя, а не пином в приборе. Умолчание — настоящие
+    часы: поведение дневного пути не меняется ни на шаг.
+
+    Та же правка закрывает вторую дешёвую дверь — ``scripts.evaluate_shadow_trigger``:
+    перепись приводит его ЧЕРЕЗ ЭТУ ЖЕ функцию (она импортирована в модуль
+    обёртки и стои́т в ``_DATA_DIR_ENTRIES``), так что дверь у них общая.
+
+    Третью дверь (``decision_audit_trail``) закрывать ЗАПРЕЩЕНО: там дрожь
+    двух зовов и есть измеряемое свойство, и пин её вердикт переворачивает
+    (ADR-408).
     """
     data_dir = Path(data_dir)
     history, bad_lines = load_history(data_dir)
@@ -683,7 +701,10 @@ def evaluate_window(
     }
     # Полный ISO с временем: date-only метка читалась сторожем B2 как «полночь»
     # и рождала ложный WARN свежести каждую ночь 02:00–06:00 (2026-08-07).
-    doc["generated_at"] = datetime.now(timezone.utc).isoformat()
+    # `is not None`, а не `or`: подстановка по ложности спутала бы «часы не
+    # переданы» с любым falsy-значением и сама была бы членом класса инв. #17.
+    doc["generated_at"] = (now if now is not None
+                           else datetime.now(timezone.utc)).isoformat()
     if write:
         atomic_save(doc, str(data_dir / EVAL_FILENAME))
     return doc

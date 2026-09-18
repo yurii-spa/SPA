@@ -121,8 +121,8 @@ def probe_modules(names: List[str], stand: pathlib.Path,
     ошибка пошла бы в сторону ЗАНИЖЕНИЯ находки.
     """
     from spa_core.monitoring.run_identity_key_price import (  # локально: после пина
-        clock_kwarg, module_driver, no_entry_cause, stable_leaf_digests,
-        unstable_coords,
+        clock_kwarg, leaf_values, module_driver, no_entry_cause,
+        stable_leaf_digests, unstable_coords,
     )
 
     out: Dict[str, dict] = {}
@@ -159,6 +159,16 @@ def probe_modules(names: List[str], stand: pathlib.Path,
         # значения между плечами, оркестратор видит, изменил ли пин вердикт
         # читателя, а не только его дрожь (заказ G32, п. 1).
         row["stable"] = stable_leaf_digests(first, set(row["unstable"]))
+        # ЗНАЧЕНИЯ плывущих координат — на обеих пробах. Нужны затем, чтобы
+        # оркестратор судил о роде координаты ЗАМЕРОМ, а не по её имени (заказ
+        # G33, п. 4): «свой временный стенд, свежий на каждый зов» — это пара
+        # РАЗНЫХ путей под временным каталогом, и такое утверждение проверяемо.
+        # Правило записи не копируется: значения берутся тем же обходом, что и
+        # имена, иначе координата не нашлась бы по своему же адресу.
+        row["unstable_values"] = {
+            "first": leaf_values(first, set(row["unstable"])),
+            "second": leaf_values(second, set(row["unstable"])),
+        }
         out[name] = row
     return out
 

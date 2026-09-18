@@ -2,16 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-17T19:09:37Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-18T00:53:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fa70df167) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e50f0bb8e).
 >
-> Всего карточек: **1071** · ждёт владельца: **2** · занято сессиями: **14**.
+> Всего карточек: **1072** · ждёт владельца: **1** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **Мандат самостоятельной работы кончается 19 сентября — продлеваем?**  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -36,7 +35,6 @@
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- Мандат самостоятельной работы кончается 19 сентября — продлеваем?  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2.md` · 2026-09-17
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -196,6 +194,7 @@
 - Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.weekly_backup работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-weekly.md` · 2026-08-08
 - Кто планирует развитие проекта: судьба «Архитектора» и живой план  ·  `owner-decision-kto-planiruet-razvitie-proekta-sudba-arh.md` · 2026-09-08
+- Мандат самостоятельной работы кончается 19 сентября — продлеваем?  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2.md` · 2026-09-17
 - Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?  ·  `owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy.md` · 2026-08-19
 - Maple 15% книги: дефолт приходит без предупреждения — что делаем с кредитным каналом  ·  `owner-decision-maple-15-knigi-defolt-prihodit-bez-predu.md` · 2026-08-22
 - Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
@@ -319,7 +318,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (550)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (551)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -739,6 +738,7 @@
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
+- Десять тестов наследников (heir_all_rows_price) красны на чистом main — классификатор спорит со своими же контролями  ·  `inbox-desyat-testov-naslednikov-heir-all-rows.md` · 2026-09-18
 - Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27

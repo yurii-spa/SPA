@@ -1045,3 +1045,537 @@ class SnapshotProbeInstabilityIsTheFindingNotTheNoise(unittest.TestCase):
         # После снятия пина вердикт обязан вернуться — иначе тест доказывал бы
         # не действие пина, а порчу модуля на весь прогон.
         self.assertFalse(probe_snapshot_id(at._make_snapshot_id, day)["content_addressed"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Заказ G33 — три его пункта, каждый со своим контролем.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TwoCheapDoorsAreClosedAtTheReader(unittest.TestCase):
+    """Заказ G33, п. 1: цена измерена и нулевая ⇒ дверь закрывается у читателя.
+
+    Контроль — ПО ИСХОДУ, а не по подписи: «параметр есть» ничего не значит,
+    пока не показано, что ответ читателя несёт ИМЕННО переданное время. Ровно
+    этой разницей (`.claude/rules/deployment.md`, «половина инъекции — та же
+    бомба») жил класс, который весь ряд решений и ловит.
+    """
+
+    def _stand(self, root: Path) -> Path:
+        (root / "data").mkdir(parents=True, exist_ok=True)
+        return root / "data"
+
+    def test_answer_carries_the_passed_moment_not_the_wall_clock(self):
+        from spa_core.paper_trading import shadow_trigger_eval as ste
+
+        with tempfile.TemporaryDirectory() as tmp:
+            data = self._stand(Path(tmp))
+            # Момент берётся у НАСТОЯЩИХ часов и сдвигается — тест не зависит
+            # ни от календаря, ни от хоста, а разность всё равно однозначна.
+            moment = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=4001)
+            doc = ste.evaluate_window(data, write=False, now=moment)
+        self.assertEqual(doc["generated_at"], moment.isoformat())
+
+    def test_without_the_clock_the_answer_still_moves_positive_control(self):
+        """Обратная сторона: без часов отметка по-прежнему стенная.
+
+        Без этого контроля тест выше проходил бы и на читателе, чей
+        `generated_at` вообще не зависит от часов, — то есть доказывал бы не
+        проводку, а совпадение.
+        """
+        from spa_core.paper_trading import shadow_trigger_eval as ste
+
+        with tempfile.TemporaryDirectory() as tmp:
+            data = self._stand(Path(tmp))
+            first = ste.evaluate_window(data, write=False)["generated_at"]
+            second = ste.evaluate_window(data, write=False)["generated_at"]
+        self.assertNotEqual(first, second)
+
+    def test_the_census_actually_injects_the_clock_into_this_entry(self):
+        """Проводка, а не только подпись: перепись обязана СВЯЗАТЬ зов с часами."""
+        from spa_core.monitoring.run_identity_key_price import clock_kwarg
+        from spa_core.paper_trading import shadow_trigger_eval as ste
+
+        moment = dt.datetime.now(dt.timezone.utc)
+        self.assertEqual(clock_kwarg(ste.evaluate_window, moment), {"now": moment})
+
+    def test_the_second_cheap_door_is_the_same_function(self):
+        """`scripts.evaluate_shadow_trigger` перепись приводит ЧЕРЕЗ ту же функцию.
+
+        Замер, а не рассуждение: спрашивается `module_driver`, то есть ровно то
+        звено, которым перепись выбирает точку входа. Будь у обёртки своя дверь,
+        одна правка не закрыла бы обе, и число закрытых дверей в ADR было бы
+        выдумкой.
+        """
+        import importlib
+
+        from spa_core.monitoring.run_identity_key_price import (
+            clock_kwarg, module_driver)
+        from spa_core.paper_trading import shadow_trigger_eval as ste
+
+        wrapper = importlib.import_module("scripts.evaluate_shadow_trigger")
+        moment = dt.datetime.now(dt.timezone.utc)
+        entry, call = module_driver(wrapper, now=moment)
+        self.assertEqual(entry, "evaluate_window")
+        self.assertIsNotNone(call)
+        self.assertIs(getattr(wrapper, "evaluate_window"), ste.evaluate_window)
+        self.assertEqual(
+            clock_kwarg(getattr(wrapper, "evaluate_window"), moment), {"now": moment})
+
+    def test_the_third_door_is_left_open_on_purpose(self):
+        """Третью дверь закрывать ЗАПРЕЩЕНО — контроль на «заодно починил».
+
+        `audit_trail._make_snapshot_id` обязан по-прежнему брать часы у машины:
+        на дрожи двух его зовов стои́т находка `decision_audit_trail`, и пин её
+        переворачивает (ADR-408). Живой контроль на самом читателе — соседний
+        класс `SnapshotProbeInstabilityIsTheFindingNotTheNoise`; здесь проверяется
+        то, чего он не проверяет: что подпись производителя часов НЕ ПРИНИМАЕТ,
+        то есть закрыть эту дверь параметром никто не успел молча.
+        """
+        import inspect
+
+        from spa_core.audit import audit_trail
+
+        self.assertNotIn("now",
+                         inspect.signature(audit_trail._make_snapshot_id).parameters)
+
+
+class ListElementIsNamedByIdentityNotByPlace(unittest.TestCase):
+    """Заказ G33, п. 3: `.findings[8]` врёт, как только набор меняет длину."""
+
+    def setUp(self):
+        from spa_core.monitoring import run_identity_key_price as g16
+        self.g16 = g16
+
+    # — сам выбор личности — замер состава, а не вера в имя поля —
+
+    def test_unique_scalar_field_present_everywhere_is_the_identity(self):
+        self.assertEqual(
+            self.g16.element_identity([{"code": "a"}, {"code": "b"}]), "code")
+
+    def test_non_unique_field_is_refused(self):
+        """Неуникальное поле хуже позиции: две строки получили бы ОДНО имя."""
+        self.assertIsNone(
+            self.g16.element_identity([{"code": "a"}, {"code": "a"}]))
+
+    def test_field_missing_in_one_element_is_refused(self):
+        self.assertIsNone(
+            self.g16.element_identity([{"code": "a"}, {"other": "b"}]))
+
+    def test_bool_is_not_an_identity(self):
+        """`True`/`False` уникальны максимум вдвоём — это совпадение, не свойство."""
+        self.assertIsNone(
+            self.g16.element_identity([{"id": True}, {"id": False}]))
+
+    def test_a_list_of_non_dicts_has_no_identity(self):
+        self.assertIsNone(self.g16.element_identity([1, 2, 3]))
+        self.assertIsNone(self.g16.element_identity([]))
+
+    def test_identity_field_order_is_the_declared_one(self):
+        """Побеждает ОБЪЯВЛЕННЫЙ порядок — не обход словаря и не алфавит.
+
+        Пара выбрана так, чтобы три правила расходились: `id` объявлен РАНЬШЕ
+        `criterion`, но алфавитно позже. Прежняя редакция брала `code`/`id`, где
+        объявленный порядок и алфавит совпадают, — и батарея #625 убила её же
+        контроль: подмена «объявленный порядок → алфавитный» проходила
+        незамеченной, то есть тест не мерил того, что называл.
+        """
+        self.assertLess(self.g16._IDENTITY_FIELDS.index("id"),
+                        self.g16._IDENTITY_FIELDS.index("criterion"))
+        self.assertGreater("id", "criterion")          # алфавит спорит с порядком
+        items = [{"id": "x", "criterion": "a"}, {"id": "y", "criterion": "b"}]
+        self.assertEqual(self.g16.element_identity(items), "id")
+        self.assertEqual(self.g16.element_identity(
+            [dict(reversed(list(i.items()))) for i in items]), "id")
+
+    # — сама находка #624 и её положительный контроль —
+
+    def test_vanished_element_does_not_rename_its_neighbours_verdict(self):
+        """Сцена #624 дословно: под пином пропадает INFO-находка.
+
+        До этой правки уходил бы сдвиг индексов, и отчёт печатал бы
+        «`.findings[1].severity` INFO → CRITICAL» — фразу, которую нельзя
+        прочесть иначе как «появилась новая критическая находка».
+        """
+        one = {"findings": [{"code": "snapshot_id_is_a_run_id", "severity": "INFO"},
+                            {"code": "market_snapshot", "severity": "CRITICAL"}]}
+        two = {"findings": [{"code": "market_snapshot", "severity": "CRITICAL"}]}
+        got = self.g16.unstable_coords(one, two)
+        self.assertEqual(got, {'.findings[code="snapshot_id_is_a_run_id"]'})
+        self.assertNotIn('.findings[code="market_snapshot"].severity', got)
+
+    def test_positional_naming_is_what_produced_the_lie_positive_control(self):
+        """Тот же сдвиг на списке БЕЗ личности: строка соседа врёт, как и врала.
+
+        Контроль на механизм, а не на редакцию: он краснеет, если личность
+        начнут выдавать списку, который себя не называет, — то есть если
+        уникальность перестанут мерить.
+        """
+        one = {"findings": [{"severity": "INFO"}, {"severity": "CRITICAL"}]}
+        two = {"findings": [{"severity": "CRITICAL"}]}
+        self.assertIsNone(self.g16.element_identity(one["findings"]))
+        # Длины разные и личности нет ⇒ честный отказ: нестабилен ВЕСЬ список.
+        # Это не ложь про соседа, но и не адрес находки — ровно та бедность,
+        # ради которой пункт 3 и заказан.
+        self.assertEqual(self.g16.unstable_coords(one, two), {".findings"})
+
+    def test_both_sides_must_agree_on_the_identity_field(self):
+        """Разные поля ⇒ соединять нечем; падаем в позиционный обход, не в выдумку."""
+        one = {"rows": [{"code": "a"}, {"code": "b"}]}
+        two = {"rows": [{"id": "a"}, {"id": "b"}]}
+        self.assertEqual(self.g16.unstable_coords(one, two), {".rows"})
+
+    # — семья обходов обязана звать элемент ОДИНАКОВО —
+
+    def test_every_walker_of_the_family_uses_the_same_element_name(self):
+        """`drop` — множество общее: разойдись записи, снятое не нашлось бы.
+
+        Это и есть самый тихий вид поломки: «ничего не снято» читалось бы как
+        «нечего было снимать», и цена у всех дверей вышла бы нулевой.
+        """
+        answer = {"rows": [{"code": "a", "v": 1}, {"code": "b", "v": 2}], "s": "x"}
+        other = {"rows": [{"code": "a", "v": 9}, {"code": "b", "v": 2}], "s": "x"}
+        drop = self.g16.unstable_coords(answer, other)
+        self.assertEqual(drop, {'.rows[code="a"].v'})
+        self.assertEqual(sorted(self.g16.stable_leaf_digests(answer, drop)),
+                         ['.rows[code="a"].code', '.rows[code="b"].code',
+                          '.rows[code="b"].v', ".s"])
+        self.assertEqual(self.g16._stable_leaves(answer, drop), 4)
+        self.assertEqual(
+            self.g16.mask_coords(answer, drop, "", "<X>")["rows"][0]["v"], "<X>")
+        self.assertIn('.rows[code="a"].v', dict(self.g16._leaves(answer)))
+        self.assertIn('.rows[code="a"].v',
+                      self.g16.leaf_values(answer, drop))
+
+    def test_identity_token_separates_the_string_one_from_the_number_one(self):
+        """`"1"` и `1` — разные личности; склей их, и два элемента слились бы."""
+        self.assertEqual(self.g16.element_identity([{"id": 1}, {"id": "1"}]), "id")
+        names = [s for s, _ in self.g16.indexed([{"id": 1}, {"id": "1"}])]
+        self.assertEqual(len(set(names)), 2)
+
+
+class TempStandIsAnOutcomeOfItsOwnMeasuredNotNamed(unittest.TestCase):
+    """Заказ G33, п. 4: `.stand_root` — провенанс прогона, а не дверь."""
+
+    @staticmethod
+    def _row(first_value, second_value, coord=".stand_root"):
+        def side(value):
+            if value is None:
+                return {}
+            if not isinstance(value, str):
+                return {coord: {"not_a_string": type(value).__name__}}
+            return {coord: {"value": value}}
+        return {"unstable": [coord],
+                "unstable_values": {"first": side(first_value),
+                                    "second": side(second_value)}}
+
+    def test_two_different_fresh_temp_paths_are_measured_as_a_stand(self):
+        tmp = tempfile.gettempdir()
+        row = self._row(f"{tmp}/g17_aaa", f"{tmp}/g17_bbb")
+        self.assertIs(doors.own_temp_stand(row, ".stand_root"), True)
+
+    def test_the_same_path_twice_is_not_a_fresh_stand(self):
+        tmp = tempfile.gettempdir()
+        row = self._row(f"{tmp}/g17_aaa", f"{tmp}/g17_aaa")
+        self.assertIs(doors.own_temp_stand(row, ".stand_root"), False)
+
+    def test_paths_outside_the_temp_dir_are_not_a_stand(self):
+        row = self._row("/etc/one", "/etc/two")
+        self.assertIs(doors.own_temp_stand(row, ".stand_root"), False)
+
+    def test_relative_strings_are_not_a_stand(self):
+        """И НЕ ПОТОМУ, что прогон случайно шёл из чужого каталога.
+
+        Батарея #625 убила прежнюю редакцию: она звала зонд из корня дерева, и
+        относительный путь разрешался ВНЕ временного каталога сам собой — то
+        есть снятие проверки `isabs` тест не замечал. Теперь рабочий каталог
+        НАРОЧНО внутри временного: без `isabs` относительный путь разрешился бы
+        в стенд, и мера соврала бы.
+        """
+        import os
+
+        row = self._row("a/one", "a/two")
+        here = os.getcwd()
+        with tempfile.TemporaryDirectory(dir=tempfile.gettempdir()) as inside:
+            os.chdir(inside)
+            try:
+                self.assertTrue(doors._under_tmp(os.path.realpath("a/one")))
+                self.assertIs(doors.own_temp_stand(row, ".stand_root"), False)
+            finally:
+                os.chdir(here)
+
+    def test_a_non_string_leaf_is_measured_as_not_a_stand(self):
+        row = self._row(17, 18)
+        self.assertIs(doors.own_temp_stand(row, ".stand_root"), False)
+
+    def test_absent_values_are_NOT_MEASURED_never_a_verdict(self):
+        """Третий исход. Ноль здесь читался бы как «проверено — это дверь».
+
+        Три ВХОДА, а не один, и это замер, а не полнота ради полноты: батарея
+        #625 показала, что прежняя редакция доходила только до первой развилки
+        («раздела значений нет»), и подмена на второй — «координата не лист ⇒
+        считать, что это дверь» — выживала незамеченной.
+        """
+        # (а) раздела значений нет вовсе
+        self.assertIsNone(doors.own_temp_stand({"unstable": [".stand_root"]},
+                                               ".stand_root"))
+        # (б) раздел есть, координаты в нём нет
+        self.assertIsNone(doors.own_temp_stand(self._row(None, None), ".stand_root"))
+        # (в) координата есть и НАЗВАНА не листом — та самая вторая развилка
+        marked_absent = {"unstable": [".stand_root"],
+                         "unstable_values": {
+                             "first": {".stand_root": {"absent": "не лист"}},
+                             "second": {".stand_root": {"absent": "не лист"}}}}
+        self.assertIsNone(doors.own_temp_stand(marked_absent, ".stand_root"))
+
+    def test_classification_is_by_measurement_not_by_the_coordinate_name(self):
+        """Оба направления сразу — ровно то, чего требует пункт 4.
+
+        Имя `.stand_root` с чужими значениями остаётся ДВЕРЬЮ, а координата с
+        каким угодно именем, несущая свежие временные пути, — провенансом.
+        Классификация по имени ошибалась бы в обе стороны, и тест краснеет на
+        каждой из них.
+        """
+        tmp = tempfile.gettempdir()
+        named_but_not_a_stand = self._row("/etc/one", "/etc/two", ".stand_root")
+        unnamed_but_a_stand = self._row(f"{tmp}/x1", f"{tmp}/x2", ".whatever")
+        self.assertIs(doors.own_temp_stand(named_but_not_a_stand, ".stand_root"),
+                      False)
+        self.assertIs(doors.own_temp_stand(unnamed_but_a_stand, ".whatever"), True)
+
+    def test_compare_moves_the_stand_out_of_the_doors_bucket(self):
+        tmp = tempfile.gettempdir()
+        row = self._row(f"{tmp}/g17_a", f"{tmp}/g17_b")
+        rows = doors.compare(_arm({"m": row}, pin_observed=False),
+                             _arm({"m": {"unstable": [".stand_root"]}},
+                                  pin_observed=True))
+        self.assertEqual(rows["m"]["run_provenance"], [".stand_root"])
+        self.assertEqual(rows["m"]["other_door"], [])
+        self.assertEqual(rows["m"]["provenance_unmeasured"], {})
+
+    def test_unmeasured_stays_a_door_and_is_named_out_loud(self):
+        """Не измерено НЕ вынимает координату из дверей — это было бы fail-OPEN.
+
+        «Пин её не закрывает» измерено и остаётся верным; не измерено лишь
+        более сильное утверждение. Опустоши мы ведро — старый ответ исчез бы
+        молча, а молчание прочлось бы как «дверей нет».
+        """
+        rows = doors.compare(
+            _arm({"m": {"unstable": [".t"]}}, pin_observed=False),
+            _arm({"m": {"unstable": [".t"]}}, pin_observed=True))
+        self.assertEqual(rows["m"]["other_door"], [".t"])
+        self.assertIn(".t", rows["m"]["provenance_unmeasured"])
+
+    def test_report_prints_the_provenance_class_and_the_unmeasured_one(self):
+        doc = {"status": "FINDING",
+               "counts": {"measured": 1, "python_branch": 1, "unmeasured": 0,
+                          "rest_on_import_bound_door": 0, "rest_on_other_door": 1},
+               "import_bound_doors": {}, "other_doors": {"m": [".t"]},
+               "run_provenance": {"m": [".stand_root"]},
+               "provenance_unmeasured": {"m": {".t": "нечем"}},
+               "doors_free_to_close": {}, "doors_that_rewrite_the_answer": {},
+               "door_price_unmeasured": {},
+               "control_arm": {"outcome": "measured"},
+               "reverse_direction": {}, "unmeasured_causes": {}}
+        text = "\n".join(doors.report(doc))
+        self.assertIn("[НЕ ДВЕРЬ, А ПРОВЕНАНС ПРОГОНА]", text)
+        self.assertIn("[НЕ ИЗМЕРЕНО: дверь или свой стенд]", text)
+
+    def test_report_says_NOT_MEASURED_when_the_section_is_missing(self):
+        """Инв. #17 на печати: «разбора нет» обязано звучать иначе, чем «нет дверей»."""
+        doc = {"status": "FINDING",
+               "counts": {"measured": 1, "python_branch": 1, "unmeasured": 0,
+                          "rest_on_import_bound_door": 0, "rest_on_other_door": 1},
+               "import_bound_doors": {}, "other_doors": {"m": [".t"]},
+               "doors_free_to_close": {}, "doors_that_rewrite_the_answer": {},
+               "door_price_unmeasured": {},
+               "control_arm": {"outcome": "measured"},
+               "reverse_direction": {}, "unmeasured_causes": {}}
+        text = "\n".join(doors.report(doc))
+        self.assertIn("разбора «дверь или провенанс прогона» в артефакте нет", text)
+
+
+class ProbeRecordsTheValuesOfWhatFloats(unittest.TestCase):
+    """Без значений пункт 4 неизмерим — проверяется НАСТОЯЩИЙ зонд, не копия."""
+
+    def test_probe_returns_values_for_every_unstable_coordinate(self):
+        stand = Path(tempfile.mkdtemp(prefix="spa_g33_"))
+        (stand / "data").mkdir(parents=True, exist_ok=True)
+        fake = types.ModuleType("spa_fake_reader_g33")
+        counter = {"n": 0}
+
+        def measure(data_dir, write=True):
+            counter["n"] += 1
+            return {"stand_root": f"{tempfile.gettempdir()}/g33_{counter['n']}",
+                    "steady": 1}
+
+        fake.measure = measure
+        sys.modules["spa_fake_reader_g33"] = fake
+        try:
+            out = probe.probe_modules(["spa_fake_reader_g33"], stand,
+                                      dt.datetime.now(dt.timezone.utc), 0.0)
+        finally:
+            del sys.modules["spa_fake_reader_g33"]
+        row = out["spa_fake_reader_g33"]
+        self.assertEqual(row["unstable"], [".stand_root"])
+        values = row["unstable_values"]
+        self.assertIn(".stand_root", values["first"])
+        self.assertIn("value", values["first"][".stand_root"])
+        self.assertNotEqual(values["first"][".stand_root"]["value"],
+                            values["second"][".stand_root"]["value"])
+        # И весь путь целиком: зонд → замер → вердикт «не дверь».
+        self.assertIs(doors.own_temp_stand(row, ".stand_root"), True)
+
+
+class TheNumberReachesTheProdPathOnATact(unittest.TestCase):
+    """Заказ G33, п. 2: артефакта на прод-пути не было ВОВСЕ — ступень с тактом.
+
+    Часы здесь ВХОД (`now=`), а отметки строятся ОТ него: тест не зависит ни от
+    календаря, ни от хоста — обе стороны закреплены (`.claude/rules/deployment.md`,
+    приём №1).
+    """
+
+    def test_missing_artifact_is_due_first_measurement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            due, why = doors.measurement_due(Path(tmp) / "nope.json")
+        self.assertTrue(due)
+        self.assertIn("артефакта нет", why)
+
+    def test_fresh_artifact_is_not_due_and_that_is_a_measurement(self):
+        now = dt.datetime.now(dt.timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "a.json"
+            path.write_text(json.dumps(
+                {"generated_at": (now - dt.timedelta(days=2)).isoformat()}),
+                encoding="utf-8")
+            due, why = doors.measurement_due(path, now=now)
+        self.assertFalse(due)
+        self.assertIn("из 7", why)
+
+    def test_artifact_older_than_the_tact_is_due(self):
+        now = dt.datetime.now(dt.timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "a.json"
+            path.write_text(json.dumps(
+                {"generated_at": (now - dt.timedelta(days=9)).isoformat()}),
+                encoding="utf-8")
+            due, why = doors.measurement_due(path, now=now)
+        self.assertTrue(due)
+        self.assertIn("такт 7", why)
+
+    def test_unparsable_stamp_is_due_never_treated_as_recent(self):
+        """«Не смогли прочитать, когда мерили» ≠ «мерили недавно» (инв. #17)."""
+        now = dt.datetime.now(dt.timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            for body in ("{not json", json.dumps({"generated_at": "вчера"}),
+                         json.dumps({})):
+                path = Path(tmp) / "a.json"
+                path.write_text(body, encoding="utf-8")
+                due, why = doors.measurement_due(path, now=now)
+                self.assertTrue(due, body)
+                self.assertIn("мерим", why)
+
+    def test_naive_stamp_is_due_not_compared_against_an_aware_clock(self):
+        """Отметка без пояса — не «свежая»: сравнение с ней подняло бы TypeError."""
+        now = dt.datetime.now(dt.timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "a.json"
+            path.write_text(json.dumps({"generated_at": "2026-09-17T10:00:00"}),
+                            encoding="utf-8")
+            due, why = doors.measurement_due(path, now=now)
+        self.assertTrue(due)
+        self.assertIn("без пояса", why)
+
+    def test_if_due_inside_the_tact_measures_nothing_and_exits_zero(self):
+        """Контроль на ступень: внутри такта прибор не имеет права ГНАТЬ замер.
+
+        Проверяется ИСХОД, а не флаг: `measure` подменяется падающей заглушкой,
+        и если ступень её позовёт — тест краснеет. Без этого «--if-due» мог бы
+        мерить всегда и печатать про такт.
+        """
+        now = dt.datetime.now(dt.timezone.utc)
+        called = {"n": 0}
+
+        def must_not_run(*a, **kw):                # pragma: no cover
+            called["n"] += 1
+            raise AssertionError("замер пошёл внутри такта")
+
+        real = doors.measure
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            (data / doors.ARTIFACT).write_text(json.dumps(
+                {"generated_at": (now - dt.timedelta(days=1)).isoformat()}),
+                encoding="utf-8")
+            doors.measure = must_not_run
+            try:
+                code = doors.main(["--data-dir", str(data), "--if-due"])
+            finally:
+                doors.measure = real
+        self.assertEqual(code, 0)
+        self.assertEqual(called["n"], 0)
+
+    def test_if_due_past_the_tact_does_run_and_writes_where_it_was_told(self):
+        """Обратная сторона: просроченный такт обязан МЕРИТЬ и положить ответ.
+
+        Без этой половины предыдущий тест проходил бы и на ступени, которая не
+        мерит никогда, — то есть артефакт остался бы отсутствующим молча, ровно
+        как до заказа.
+        """
+        now = dt.datetime.now(dt.timezone.utc)
+        real = doors.measure
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            (data / doors.ARTIFACT).write_text(json.dumps(
+                {"generated_at": (now - dt.timedelta(days=30)).isoformat()}),
+                encoding="utf-8")
+            doors.measure = lambda *a, **kw: {"status": "OK",
+                                             "generated_at": now.isoformat()}
+            try:
+                code = doors.main(["--data-dir", str(data), "--if-due"])
+            finally:
+                doors.measure = real
+            written = json.loads((data / doors.ARTIFACT).read_text(encoding="utf-8"))
+        self.assertEqual(code, 0)
+        self.assertEqual(written["generated_at"], now.isoformat())
+
+    def test_the_cycle_actually_runs_this_step(self):
+        """Прибор без ЗОВА в цикле оставил бы прод-путь пустым — как и было.
+
+        Сторож на проводку, а не на существование файла: «написан» и «его зовут»
+        — разные утверждения, и вся находка #623 состояла ровно в их расхождении.
+        """
+        text = (_TREE_ROOT / "scripts" / "agent_orchestrator.sh").read_text(
+            encoding="utf-8")
+        self.assertIn("spa_core.monitoring.python_reader_clock_doors", text)
+        self.assertIn("--if-due", text)
+
+
+class LeafValuesHasThreeOutcomesNotTwo(unittest.TestCase):
+    """Без этого пункт 4 неизмерим: «значения нет» ≠ «значение не строка»."""
+
+    def setUp(self):
+        from spa_core.monitoring import run_identity_key_price as g16
+        self.g16 = g16
+
+    def test_a_string_leaf_comes_back_as_a_value(self):
+        got = self.g16.leaf_values({"p": "/tmp/x"}, {".p"})
+        self.assertEqual(got, {".p": {"value": "/tmp/x"}})
+
+    def test_a_non_string_leaf_is_named_as_such_not_dropped(self):
+        got = self.g16.leaf_values({"n": 17}, {".n"})
+        self.assertEqual(got, {".n": {"not_a_string": "int"}})
+
+    def test_a_coordinate_that_is_not_a_leaf_is_named_absent(self):
+        got = self.g16.leaf_values({"rows": [{"code": "a"}]}, {".rows", ".nope"})
+        self.assertEqual(sorted(got), [".nope", ".rows"])
+        self.assertIn("absent", got[".rows"])
+        self.assertIn("absent", got[".nope"])
+
+    def test_it_walks_by_the_same_names_as_the_verdict(self):
+        answer = {"rows": [{"code": "a", "v": "x"}]}
+        coord = '.rows[code="a"].v'
+        self.assertIn(coord, dict(self.g16._leaves(answer)))
+        self.assertEqual(self.g16.leaf_values(answer, {coord}),
+                         {coord: {"value": "x"}})

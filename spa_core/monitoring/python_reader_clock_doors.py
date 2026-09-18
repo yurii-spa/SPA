@@ -94,6 +94,16 @@ ARM_TIMEOUT_S = 1800
 
 ARTIFACT = "python_reader_clock_doors.json"
 
+#: Такт переизмерения, дней. Заказ **G33, п. 2**: артефакта на прод-пути не было
+#: ВОВСЕ (замер #623), а «считать заодно внутри дневной переписи» отпало — чистый
+#: замер #625 ниже назвал цену прогона, и она в десятках минут. Такт назначен
+#: недельным по той же причине, по которой он недельный у витрины чисел сайта:
+#: предмет (двери в КОДЕ) меняется доставками, а не календарём, и переизмерять
+#: его каждый день значило бы платить десятки минут за ответ, который почти
+#: всегда тот же. Срок решает ФАЙЛ, а не расписание запуска — иначе «раз в
+#: неделю» держалось бы на том, что никто не трогал cron.
+MEASUREMENT_TACT_DAYS = 7
+
 #: Имя прибора в отчёте — чтобы находку было с кем сверить.
 PRODUCER = "spa_core/monitoring/python_reader_clock_doors.py"
 
@@ -240,6 +250,89 @@ def answer_shift(arm_a_row: dict, arm_b_row: dict,
                         for c in by_pin[:8]}}
 
 
+#: Временный каталог процесса. Плечи наследуют окружение прибора, поэтому
+#: ``TMPDIR`` у них тот же — сравнение идёт с одним и тем же корнем.
+_TMP_ROOT = os.path.realpath(tempfile.gettempdir())
+
+
+def _under_tmp(value: str) -> bool:
+    try:
+        real = os.path.realpath(value)
+    except (OSError, ValueError):                      # pragma: no cover
+        return False
+    return real == _TMP_ROOT or real.startswith(_TMP_ROOT + os.sep)
+
+
+def own_temp_stand(arm_row: dict, coord: str) -> Optional[bool]:
+    """Несёт ли плывущая координата СВОЙ временный стенд читателя — ЗАМЕРОМ.
+
+    Заказ **G33, п. 4**. `heir_all_rows_price` и `judge_alone_price` строят себе
+    стенд (`tempfile.mkdtemp`, свежий на каждый зов) и кладут его путь в ответ —
+    нарочно, как ответ на вопрос «против чего меряно». Метка «пин этого не
+    закрывает» на такой координате формально верна, но читается как «дверь, к
+    которой нужен другой ключ», а двери там нет вовсе.
+
+    Различать этот класс по ИМЕНИ координаты (`.stand_root`, `.stand.s_*`) было
+    бы догадкой и ошибалось бы в обе стороны: имя `stand_root` может однажды
+    нести настроечный путь из файла, а свой стенд может уехать в координату с
+    любым другим именем. Поэтому судит замер: **два РАЗНЫХ абсолютных пути под
+    временным каталогом на двух зовах одного стенда** — это и есть «читатель
+    завёл себе каталог заново», и никакое закрытие дверей часов на это не
+    влияет.
+
+    Три исхода, различимые (инв. #17): ``True`` — измерено, свой стенд;
+    ``False`` — измерено, не стенд; ``None`` — НЕ ИЗМЕРЕНО (значений нет, или
+    координата вообще не лист ответа). ``None`` никогда не выдаётся за ``False``:
+    иначе «мерить было нечем» слилось бы с «проверено, это дверь».
+    """
+    values = observed(arm_row, "unstable_values", kind=dict)
+    if values is None:
+        return None
+    first = observed(values, "first", kind=dict)
+    second = observed(values, "second", kind=dict)
+    if first is None or second is None:
+        return None
+    side_a, side_b = first.get(coord), second.get(coord)
+    if not isinstance(side_a, dict) or not isinstance(side_b, dict):
+        return None
+    if "not_a_string" in side_a and "not_a_string" in side_b:
+        return False                       # лист есть, он не строка — не путь
+    if "value" not in side_a or "value" not in side_b:
+        return None                        # координата не лист ⇒ не измерено
+    one, two = side_a["value"], side_b["value"]
+    if one == two or not os.path.isabs(one) or not os.path.isabs(two):
+        return False
+    return _under_tmp(one) and _under_tmp(two)
+
+
+def split_provenance(row: dict, arm_a_row: dict) -> Tuple[List[str], List[str],
+                                                          Dict[str, str]]:
+    """Плывущие-в-обоих-плечах координаты → дверь · провенанс прогона · не измерено.
+
+    Из ``other_door`` уходит только то, про что замер сказал **да**. Координата,
+    про которую замер сказать не смог, из ведра НЕ вынимается: утверждение «пин
+    её не закрывает» про неё по-прежнему верно и измерено — не измерено ЛИШЬ
+    более сильное утверждение «и это настоящая дверь, а не свой стенд». Вынести
+    её отсюда значило бы молча опустошить ответ на старый вопрос ради нового —
+    fail-OPEN тише красной строки. Поэтому она остаётся в дверях И называется
+    вслух в ``provenance_unmeasured``.
+    """
+    doors: List[str] = []
+    provenance: List[str] = []
+    unmeasured: Dict[str, str] = {}
+    for coord in row.get("other_door") or []:
+        verdict = own_temp_stand(arm_a_row, coord)
+        if verdict:
+            provenance.append(coord)
+            continue
+        doors.append(coord)
+        if verdict is None:
+            unmeasured[coord] = ("значений этой координаты плечо A не вернуло — "
+                                 "свой временный стенд от настоящей двери "
+                                 "отличить было нечем")
+    return doors, provenance, unmeasured
+
+
 def compare(arm_a: dict, arm_b: dict, arm_a2: Optional[dict] = None) -> dict:
     """Поимённая разность координат двух плеч плюс цена закрытия двери.
 
@@ -275,6 +368,13 @@ def compare(arm_a: dict, arm_b: dict, arm_a2: Optional[dict] = None) -> dict:
                # мера шумит, и находку в такой паре предъявлять нельзя.
                "unstable_only_pinned": sorted(ub - ua)}
         row["answer_shift"] = answer_shift(a, b, mods_a2.get(name))
+        # Заказ G33 п. 4: «пин не закрывает» — не один класс, а три. Отделяется
+        # ЗАМЕРОМ (см. `own_temp_stand`), и неизмеримое остаётся неизмеренным,
+        # а не спускается в «дверь».
+        doors, provenance, unmeasured = split_provenance(row, a)
+        row["other_door"] = doors
+        row["run_provenance"] = provenance
+        row["provenance_unmeasured"] = unmeasured
         rows[name] = row
     return rows
 
@@ -294,10 +394,18 @@ def measure(data_dir: Path, tree_root: Path, *,
             "верность ответа читателя — мерится ВОСПРОИЗВОДИМОСТЬ, не правильность",
             "читатели, которых перепись не умеет привести, названы причинами, не нулём",
             "НУЖНА ли дверь закрытию: прибор меряет ЦЕНУ закрытия, а не пользу от него",
-            "координата ПОЗИЦИОННА (`.findings[8]`), поэтому исчезновение элемента "
-            "списка сдвигает все последующие индексы: строку «изменилось "
-            "`.findings[8].severity`» читать как вердикт ОБ ЭТОЙ находке нельзя — "
-            "это может быть та же находка под другим номером (замер #624)",
+            "координата теперь ЛИЧНОСТНА там, где личность измерима "
+            "(`.findings[code=…]`, заказ G33 п. 3), но НЕ везде: у списка, чьи "
+            "элементы не называют себя уникальным скалярным полем, запись "
+            "остаётся позиционной — и там прежняя оговорка #624 в силе "
+            "(исчезновение элемента сдвигает индексы соседей)",
+            "«свой временный стенд» (заказ G33 п. 4) устанавливается ОДНОСТОРОННЕ: "
+            "два разных абсолютных пути под временным каталогом — это стенд, "
+            "обратное же не доказано: из `other_doors` вынимается ТОЛЬКО то, про "
+            "что замер сказал «да»; и не прошедшая признак, и неизмеримая "
+            "остаются дверьми — вторая вдобавок названа в "
+            "`provenance_unmeasured`, потому что «пин её не закрывает» измерено, "
+            "а «это настоящая дверь» — нет",
         ],
         "advisory": ("POLLED_ADAPTERS, писатель журнала, audit_trail, пороги RiskPolicy "
                      "v1.0, стоп-кран, живой трек и landing/ НЕ трогаются — прибор только "
@@ -372,6 +480,10 @@ def measure(data_dir: Path, tree_root: Path, *,
     noisy = {n: r["unstable_only_pinned"] for n, r in measured.items()
              if r["unstable_only_pinned"]}
     other = {n: r["other_door"] for n, r in measured.items() if r["other_door"]}
+    provenance = {n: r["run_provenance"] for n, r in measured.items()
+                  if r.get("run_provenance")}
+    prov_unmeasured = {n: r["provenance_unmeasured"] for n, r in measured.items()
+                       if r.get("provenance_unmeasured")}
     # ЦЕНА закрытия каждой двери — заказ G32, п. 1. Три исхода, различимые:
     # бесплатно · закрытие переписывает ответ читателя · цена не измерена.
     free: Dict[str, list] = {}
@@ -397,6 +509,8 @@ def measure(data_dir: Path, tree_root: Path, *,
         "unmeasured": len(rows) - len(measured),
         "rest_on_import_bound_door": len(doors),
         "rest_on_other_door": len(other),
+        "carry_run_provenance_not_a_door": len(provenance),
+        "provenance_unmeasured": len(prov_unmeasured),
         "noisy_reverse": len(noisy),
         "doors_free_to_close": len(free),
         "doors_whose_closing_rewrites_the_answer": len(falsifying),
@@ -407,6 +521,8 @@ def measure(data_dir: Path, tree_root: Path, *,
     doc["doors_that_rewrite_the_answer"] = falsifying
     doc["door_price_unmeasured"] = price_unmeasured
     doc["other_doors"] = other
+    doc["run_provenance"] = provenance
+    doc["provenance_unmeasured"] = prov_unmeasured
     doc["reverse_direction"] = noisy
     doc["unmeasured_causes"] = _causes(rows)
     doc["status"] = "FINDING" if doors else "OK"
@@ -463,6 +579,29 @@ def report(doc: dict) -> List[str]:
     for name, coords in sorted((doc.get("other_doors") or {}).items()):
         lines.append(f"   [ПИН НЕ ЗАКРЫВАЕТ] {name}: {', '.join(coords[:6])}"
                      + (f" … и ещё {len(coords) - 6}" if len(coords) > 6 else ""))
+    # Заказ G33 п. 4. Раздела нет ⇒ так и сказать: «двери там нет» и «мы не
+    # смотрели» — разные утверждения, и второе не имеет права молчать.
+    provenance = observed(doc, "run_provenance", kind=dict)
+    prov_unmeasured = observed(doc, "provenance_unmeasured", kind=dict)
+    if provenance is None or prov_unmeasured is None:
+        lines.append("   [НЕ ИЗМЕРЕНО] разбора «дверь или провенанс прогона» в "
+                     "артефакте нет — координаты, которые пин не закрывает, "
+                     "предъявлены одним ведром")
+    else:
+        for name, coords in sorted(provenance.items()):
+            lines.append(
+                f"   [НЕ ДВЕРЬ, А ПРОВЕНАНС ПРОГОНА] {name}: "
+                f"{', '.join(coords[:6])}"
+                + (f" … и ещё {len(coords) - 6}" if len(coords) > 6 else "")
+                + " — замером: два РАЗНЫХ абсолютных пути под временным "
+                  "каталогом на двух зовах, то есть читатель заводит себе стенд "
+                  "заново; закрывать тут нечего")
+        for name, coords in sorted(prov_unmeasured.items()):
+            lines.append(
+                f"   [НЕ ИЗМЕРЕНО: дверь или свой стенд] {name}: "
+                + " · ".join(f"{c} — {r}" for c, r in sorted(coords.items()))
+                + "; эти координаты ОСТАЛИСЬ в строке «пин не закрывает» — то "
+                  "утверждение измерено, не измерено лишь более сильное")
     # ЦЕНА закрытия — раздел заказа G32 п. 1. Инв. #17: «раздела нет» обязано
     # звучать иначе, чем «цена нулевая», иначе молчание читается как разрешение.
     price = observed(doc, "doors_that_rewrite_the_answer", kind=dict)
@@ -530,6 +669,35 @@ def report(doc: dict) -> List[str]:
     return lines
 
 
+def measurement_due(out: Path, *, now: Optional[dt.datetime] = None,
+                    tact_days: int = MEASUREMENT_TACT_DAYS) -> Tuple[bool, str]:
+    """Пора ли переизмерять — решает ФАЙЛ, а не расписание запуска.
+
+    Заказ **G33, п. 2**. Три исхода, и они различимы (инв. #17): артефакта нет
+    ⇒ **пора** (первый замер — ровно состояние, найденное #623 на прод-пути);
+    отметка не разобрана ⇒ тоже **пора**, потому что «не смогли прочитать, когда
+    мерили» не имеет права означать «мерили недавно» — это подстановка молчания
+    на место наблюдения; отметка свежее такта ⇒ **не пора**, и это ЗАМЕР, а не
+    отказ.
+    """
+    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
+    if not Path(out).is_file():
+        return True, "артефакта нет — первый замер"
+    try:
+        raw = json.loads(Path(out).read_text(encoding="utf-8")).get("generated_at")
+        last = dt.datetime.fromisoformat(str(raw))
+    except (OSError, ValueError, TypeError) as exc:
+        return True, f"отметка прошлого замера не прочитана ({type(exc).__name__}) — мерим"
+    if last.tzinfo is None:
+        return True, "отметка прошлого замера без пояса — мерим"
+    age_days = (moment - last).total_seconds() / 86400.0
+    if age_days >= tact_days:
+        return True, (f"со дня замера {last.isoformat()} прошло "
+                      f"{age_days:.1f} дн (такт {tact_days})")
+    return False, (f"со дня замера {last.isoformat()} прошло {age_days:.1f} дн "
+                   f"из {tact_days}")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description="двери часов, связанные на импорте, у питоньих читателей переписи")
@@ -544,13 +712,22 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "с нестабильными координатами (дороже на два порядка)")
     ap.add_argument("--no-write", action="store_true",
                     help="не писать артефакт — только напечатать отчёт")
+    ap.add_argument("--if-due", action="store_true",
+                    help=f"мерить, только если со дня прошлого замера прошло "
+                         f"{MEASUREMENT_TACT_DAYS} дн (прогон стоит десятки минут)")
     args = ap.parse_args(argv)
 
+    dest = (Path(args.out) if args.out
+            else Path(args.data_dir) / ARTIFACT)
+    if args.if_due:
+        due, why = measurement_due(dest)
+        if not due:
+            print(f"замер не назначен: {why}")
+            return 0
     doc = measure(Path(args.data_dir), Path(args.tree_root), full=args.full)
     for line in report(doc):
         print(line)
     if not args.no_write:
-        dest = Path(args.out) if args.out else Path(args.data_dir) / ARTIFACT
         atomic_save(doc, str(dest))
     return {"UNMEASURED": 2, "FINDING": 1}.get(str(doc.get("status")), 0)
 
