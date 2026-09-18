@@ -710,6 +710,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                               "rows", "unreadable", "population_rule",
                               "surface_outside_name_rule",
                               "what_it_does_not_prove"),
+    # Заказ G41 п. 1 (ADR-417). `classified` объявлено рядом со `scanned` не для
+    # красоты: тождество `scanned == classified + unreadable` и есть обещание,
+    # что вход нельзя уронить молча, и читатель обязан видеть обе половины.
+    # `renamed_copy_surface` — доказанный МИНИМУМ переименованных копий: без
+    # него «нашли 14» прочлось бы как «их четырнадцать».
+    "rule_second_copy_census.json": ("status", "invoked_by", "counts", "scanned",
+                                     "classified", "guards", "executors", "rows",
+                                     "unreadable", "population_rule",
+                                     "renamed_copy_surface",
+                                     "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -902,6 +912,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/python_reader_clock_doors.py",
     "tact_gate_census.json":
         "spa_core/monitoring/tact_gate_census.py",
+    "rule_second_copy_census.json":
+        "spa_core/monitoring/rule_second_copy_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2734,6 +2746,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # форм, и скобочная многострочная ни одной из них не является (замер #627).
         from spa_core.monitoring.tact_gate_census import format_report as _tgc_report
         out.extend(_tgc_report(data))
+    elif name == "rule_second_copy_census.json":
+        # Заказ G41 п. 1 (ADR-417). Без этой ветки артефакт читается ВХОЛОСТУЮ:
+        # файл открыт, а в контекст оркестратора не попадает ни одно число.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ — вторая копия здесь
+        # была бы ровно тем дефектом, который эта перепись и меряет (ADR-220).
+        # Форма ввоза ОДНОСТРОЧНАЯ намеренно: сторож достижимости вырезает
+        # ввозы двух объявленных форм, скобочная многострочная — ни одна из них.
+        from spa_core.monitoring.rule_second_copy_census import format_report as _rsc_report
+        out.extend(_rsc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

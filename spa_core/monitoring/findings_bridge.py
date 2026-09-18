@@ -167,6 +167,13 @@ PRODUCES = (
     # и SLO: он равняется такту БЕГУНА (6ч агента), а не недельному такту
     # соседей — 12ч.
     "data/tact_gate_census.json",
+    # Заказ G41 п. 1 (ADR-417). Перепись «одно правило — две копии»: у скольких
+    # правил есть ИСПОЛНИТЕЛЬ (код, который отказывает) и СТОРОЖ (тест),
+    # проверяющие одно условие РАЗНЫМ кодом. Такта у переписи нет по той же
+    # причине, что у соседа выше: зов — разбор AST в одном процессе (замер 9.3с),
+    # а недельный гейт завёл бы вторую копию правила о сроке. SLO равняется
+    # такту БЕГУНА (6ч агента) — 12ч.
+    "data/rule_second_copy_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -269,6 +276,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "list_identity_census",
     "python_reader_clock_doors",
     "tact_gate_census",
+    "rule_second_copy_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -495,6 +503,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "tact_gate_census": {
         "module": "spa_core/monitoring/tact_gate_census.py",
         "artifact": "data/tact_gate_census.json"},
+    "rule_second_copy_census": {
+        "module": "spa_core/monitoring/rule_second_copy_census.py",
+        "artifact": "data/rule_second_copy_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2263,6 +2274,29 @@ def main(argv=None) -> int:
                   f"{_tgc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "tact_gate_census", e)
+    # Перепись «одно правило — две копии» (G41 п. 1, ADR-417): у скольких правил
+    # есть ИСПОЛНИТЕЛЬ и СТОРОЖ, проверяющие одно условие РАЗНЫМ кодом. Заказ
+    # родился из ADR-416, где такая пара расходилась молча и покрасила `main`
+    # при ВЕРНОМ состоянии дерева. Ступень, а не строка промпта: ADR-412 замерил,
+    # что строка промпта не даёт ни одного автоматического зова.
+    #
+    # «Не измерено» и «измерено» — разные исходы (инв. #17): корень не прочитан
+    # ⇒ печатается причина, а не вердикт CLEAN о населении, которого не видели.
+    try:
+        from spa_core.monitoring import rule_second_copy_census
+        _rsc = rule_second_copy_census.run(root=args.root)
+        if _rsc.get("measured"):
+            _rc = observed(_rsc["doc"], "counts", kind=dict)
+            _two_copies = (None if _rc is None
+                           else observed_number(_rc, "two_copies"))
+            print(f"rule_second_copy_census: {_rsc['doc'].get('status')} — правил "
+                  f"в двух копиях "
+                  f"{'НЕ ИЗМЕРЕНО' if _two_copies is None else int(_two_copies)}")
+        else:
+            print(f"rule_second_copy_census: НЕ ИЗМЕРЕНО — "
+                  f"{_rsc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "rule_second_copy_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
