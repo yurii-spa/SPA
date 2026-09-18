@@ -655,6 +655,26 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "haystack_origin_census.json": ("status", "counts", "split",
                                     "name_sign_vs_measure", "findings",
                                     "advisory"),
+    # Заказ G35 п. 5 (ADR-411). `counts.denominator_of_finding` объявлен
+    # НАМЕРЕННО рядом с числителем: знаменатель этой переписи уже вчетверо
+    # уже населения (81 из 1447), и отчёт, потерявший его, прочёлся бы как
+    # «58 из 1447» — вчетверо слабее правды, ровно та ошибка, которую автор
+    # прибора нашёл у себя ДО доставки. `counts.readers_measured` и
+    # `counts.unmeasured_causes` — по инв. #17: непозванный читатель обязан
+    # быть причиной, а не нулём. `counts.candidate_field_strength` обязателен
+    # потому, что сила свидетельства здесь ДЛИНА, а не частота, и перечень
+    # полей у читателя УКОРОЧЕН — порядок без длины стал бы утверждением
+    # наоборот.
+    "list_identity_census.json": ("status", "reason", "counts.lists_total",
+                                  "counts.outcomes", "counts.singletons",
+                                  "counts.scalar_lists_multi",
+                                  "counts.denominator_of_finding",
+                                  "counts.candidate_fields_outside",
+                                  "counts.candidate_field_strength",
+                                  "counts.finding_rows",
+                                  "counts.truncated_readers",
+                                  "counts.unmeasured_causes",
+                                  "counts.readers_measured", "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -841,6 +861,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/substring_structure_assertions.py",
     "haystack_origin_census.json":
         "spa_core/monitoring/haystack_origin_census.py",
+    "list_identity_census.json":
+        "spa_core/monitoring/list_identity_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2628,6 +2650,25 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             format_report as _hoc_report,
         )
         out.extend(_hoc_report(data))
+    elif name == "list_identity_census.json":
+        # Заказ G35 п. 5 (ADR-411). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт, даже
+        # объявленный в конституции, читается ВХОЛОСТУЮ (`_HOLLOW_MARK`) —
+        # файл открылся, ресит не пишется, и в контекст оркестратора не
+        # попадает ни одно число. Отрисовка делегируется производителю
+        # (`format_report`), а не переписывается здесь: вторая копия правила
+        # отрисовки — тот самый класс, который эта же семья ловит у читателей.
+        # Порядок строк — порядок вопроса: знаменатель ПЕРЕД числителем,
+        # непозванные читатели причиной, и только потом перечень находок
+        # (укороченный, с явной строкой об укорочении).
+        # Форма ввоза — ОДНОСТРОЧНАЯ намеренно (замер этого цикла). Сторож
+        # `test_declared_producer_is_reachable::test_it_subsumes_the_hand_written_list`
+        # мерит достижимость производителей, ВЫРЕЗАЯ ввозы двух объявленных форм;
+        # многострочный ввоз в скобках ни одной из них не является, и мой
+        # производитель оставался «импортированным» после мутации — то есть
+        # проверка накрывала его ложно. Скобочная форма у соседей — их дело,
+        # а здесь она сделала бы сторожа слепым ровно к этому артефакту.
+        from spa_core.monitoring.list_identity_census import format_report
+        out.extend(format_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

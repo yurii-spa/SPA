@@ -145,6 +145,12 @@ PRODUCES = (
     "data/subject_population_census.json",
     "data/substring_structure_assertions.json",
     "data/haystack_origin_census.json",
+    # Заказ G35 п. 5 (ADR-411). Перепись доставлена #626 с записью на прод-пути
+    # и БЕЗ читателя: три реестра шага 0-офис о ней не знали, объявления здесь
+    # не было, а производящего вызова не существовало вовсе — число лежало
+    # файлом, который никто не открывает. Такт недельный и решает его ФАЙЛ
+    # (`list_identity_census.run` → `measurement_due`), поэтому SLO 192ч.
+    "data/list_identity_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -244,6 +250,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "subject_population_census",
     "substring_structure_assertions",
     "haystack_origin_census",
+    "list_identity_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -461,6 +468,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "haystack_origin_census": {
         "module": "spa_core/monitoring/haystack_origin_census.py",
         "artifact": "data/haystack_origin_census.json"},
+    "list_identity_census": {
+        "module": "spa_core/monitoring/list_identity_census.py",
+        "artifact": "data/list_identity_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2136,6 +2146,38 @@ def main(argv=None) -> int:
         print(f"outcomes: {'записан ' + oc['date'] if oc['appended'] else oc['reason']}")
     except Exception as e:  # noqa: BLE001 — архив исходов не смеет валить мост
         census_skipped(_skipped, "outcomes", e)
+    # Перепись личности списков (G34 п. 1, ADR-410) — НЕДЕЛЬНЫМ тактом, и срок
+    # решает ФАЙЛ (`measurement_due` по отметке артефакта), а не расписание
+    # бегуна: иначе «раз в неделю» держалось бы на том, что никто не менял такт
+    # агента. Внутри такта вызов ничего не считает и ничего не пишет.
+    #
+    # Почему ступень моста, а не строка обязательного промпта. Соседняя перепись
+    # (G33, `python_reader_clock_doors`) подключена шагом (1ж) промпта — и замер
+    # 18.09 показал, что автоматического зова не наблюдалось НИ ОДНОГО: строка в
+    # промпте не есть вызов, отметку артефакта каждый раз ставила рука цикла.
+    # Здесь зовёт агент `com.spa.decision_loop`, а состав ступени сверяется с
+    # ЭТИМ телом разбором AST — перепись, добавленная мимо, краснеет.
+    #
+    # «Не мерили» и «измерено» — разные исходы (инв. #17): внутри такта печатается
+    # причина, а не вердикт о населении, которого никто не смотрел.
+    try:
+        from spa_core.monitoring import list_identity_census
+        _lic = list_identity_census.run(root=args.root)
+        if _lic.get("measured"):
+            # Знаменатель читается ЧЕСТНОЙ формой: отсутствие счётчика — не ноль
+            # (инв. #17), иначе строка «знаменатель 0» была бы утверждением о
+            # населении, которого прибор не измерял.
+            _lc = observed(_lic["doc"], "counts", kind=dict)
+            _den = (None if _lc is None
+                    else observed_number(_lc, "denominator_of_finding"))
+            print(f"list_identity_census: {_lic['doc'].get('status')} — "
+                  f"{_lic['doc'].get('reason')} (знаменатель "
+                  f"{'НЕ ИЗМЕРЕНО' if _den is None else int(_den)})")
+        else:
+            print(f"list_identity_census: внутри такта, НЕ мерили — "
+                  f"{_lic.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "list_identity_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

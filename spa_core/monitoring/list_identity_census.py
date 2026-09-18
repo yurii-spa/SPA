@@ -62,6 +62,7 @@ from spa_core.monitoring.python_reader_clock_doors import (  # noqa: E402
 )
 from spa_core.monitoring.run_identity_key_price import build_stands  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
+from spa_core.utils.observation import observed, observed_number  # noqa: E402
 
 SCHEMA = "list_identity_census.v1"
 ARTIFACT = "list_identity_census.json"
@@ -273,13 +274,24 @@ def measure(data_dir: Path, tree_root: Path, *,
     return doc
 
 
-def report(doc: dict) -> List[str]:
+def report(doc: dict, *, max_rows: int = 20,
+           max_fields: Optional[int] = None) -> List[str]:
     """Отчёт. Знаменатель печатается рядом с числителем — всегда."""
     out = [f"Перепись личности списков (G34 п. 1) — {doc.get('status')}"]
     if doc.get("status") == "UNMEASURED":
         out.append(f"[НЕ ИЗМЕРЕНО] {doc.get('reason')}")
         return out
-    c = doc.get("counts") or {}
+    # Счётчиков нет ВООБЩЕ — документ не является замером, и подставлять
+    # пустой словарь значит печатать нули там, где не мерили (инв. #17).
+    # Найдено храповиком `test_absent_observation_ratchet` на этом самом файле:
+    # он приехал на origin вчера (#626) уже красным — база класса этих двух мест
+    # не знает. Погашено ЧИНКОЙ чтения, а не дописью в базу (база только
+    # уменьшается, `.claude/rules/deployment.md`).
+    c = observed(doc, "counts", kind=dict)
+    if c is None:
+        out.append("[НЕ ИЗМЕРЕНО] у документа нет счётчиков вовсе — это не "
+                   "«ноль находок», а отсутствие замера")
+        return out
     named = int((c.get("outcomes") or {}).get("named") or 0)
     out.append(f"[ОТВЕТ] списков в ответах: {c.get('lists_total')} · "
                f"называют себя полем: {named} · "
@@ -292,23 +304,58 @@ def report(doc: dict) -> List[str]:
                f"{c.get('scalar_lists_multi')} — полем себя не называют по "
                f"построению, но обходятся позиционно, а элемент в них назван "
                f"своим значением; это соседний вопрос, не этот")
+    called = c.get("readers_measured")
+    out.append(f"[ПОЗВАНО] читателей ответило: "
+               f"{called if called is not None else 'НЕ ИЗМЕРЕНО'} — "
+               f"неотвечавшие названы ниже ПРИЧИНОЙ, а не нулём (инв. #17)")
     for key in sorted(c.get("outcomes") or {}):
         out.append(f"[ПО ИСХОДАМ] {key}: {(c.get('outcomes') or {})[key]}")
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
+        # Порядок — по ДЛИНЕ, а не по частоте (ADR-410): уникальность на двух
+        # элементах почти неизбежна, поэтому частотный чемпион в укороченном
+        # перечне возглавил бы список, свидетельствуя слабее любого из
+        # отброшенных. Пока перечень печатался ЦЕЛИКОМ, порядок был косметикой;
+        # как только у него появился читатель с укорочением (`max_fields`,
+        # заказ G35 п. 5), порядок стал утверждением — и он обязан совпадать с
+        # тем, что сам же прибор говорит про силу свидетельства.
+        def _rank(item):
+            field, freq = item
+            length = observed_number(strength, field)
+            # НЕИЗМЕРЕННАЯ длина — не нулевая (инв. #17): такое поле уходит в
+            # хвост ОТДЕЛЬНОЙ группой, а не притворяется слабейшим из
+            # измеренных, иначе «силы нет» и «сила мала» слились бы в одно.
+            return (0 if length is not None else 1,
+                    -length if length is not None else 0, -freq, field)
+
+        ranked = sorted(fields.items(), key=_rank)
+        shown = ranked if max_fields is None else ranked[:max_fields]
         named_fields = ", ".join(
-            f"{k}×{v} (макс. длина {strength.get(k, '?')})" for k, v in
-            sorted(fields.items(), key=lambda kv: (-kv[1], kv[0])))
-        out.append(f"[НАХОДКА] годные поля ВНЕ _IDENTITY_FIELDS: {named_fields}")
+            f"{k}×{v} (макс. длина {strength.get(k, '?')})" for k, v in shown)
+        tail = ("" if len(shown) == len(ranked) else
+                f"; … ещё {len(ranked) - len(shown)} пол(я) — полный перечень "
+                f"в {ARTIFACT}")
+        out.append(f"[НАХОДКА] годные поля ВНЕ _IDENTITY_FIELDS "
+                   f"(по убыванию ДЛИНЫ подпирающего списка): "
+                   f"{named_fields}{tail}")
         out.append("[СИЛА СВИДЕТЕЛЬСТВА] «макс. длина» — длиннейший список, на "
                    "котором поле оказалось уникальным. На двух элементах "
                    "уникальность почти неизбежна и свидетельствует слабо; "
                    "дописывать имя в список по строке с длиной 2 значило бы "
                    "вернуть ту самую догадку")
-        for row in (c.get("finding_rows") or [])[:20]:
+        rows = observed(c, "finding_rows", kind=list)
+        if rows is None:
+            out.append("[НЕ ИЗМЕРЕНО] перечня строк-находок у документа нет "
+                       "вовсе, а поля-кандидаты есть — документ неполон, и "
+                       "пустой перечень тут читался бы как «находок нет»")
+            rows = []
+        for row in rows[:max_rows]:
             out.append(f"   {row.get('module')} {row.get('coord')} "
                        f"(элементов {row.get('n')}): {', '.join(row.get('candidates') or [])}")
+        if len(rows) > max_rows:
+            out.append(f"   … ещё {len(rows) - max_rows} строк(и) — полный "
+                       f"перечень в {ARTIFACT}")
     else:
         out.append("[ОПОРА] годных полей вне списка имён не нашлось — нынешний "
                    "список имён не занижает личность ни у одного списка населения")
@@ -316,10 +363,71 @@ def report(doc: dict) -> List[str]:
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "
                    f"находки не включены")
-    for cause, num in sorted((c.get("unmeasured_causes") or {}).items()):
-        out.append(f"[НЕ ИЗМЕРЕНО] {cause}: {num} читател(ей)")
+    causes = observed(c, "unmeasured_causes", kind=dict)
+    if causes is None:
+        out.append("[НЕ ИЗМЕРЕНО] перечня причин у непозванных читателей в "
+                   "документе нет — их отсутствие не есть «позваны все»")
+    else:
+        for cause, num in sorted(causes.items()):
+            out.append(f"[НЕ ИЗМЕРЕНО] {cause}: {num} читател(ей)")
     out.append(f"ADVISORY: {doc.get('advisory')}")
     return out
+
+
+def format_report(doc: dict, *, max_rows: int = 5,
+                  max_fields: int = 8) -> List[str]:
+    """Строки для ЧИТАТЕЛЯ переписи — обязательного шага 0-офис (заказ G35 п. 5).
+
+    Второй копии правила отрисовки здесь НЕТ намеренно: ветка шага 0-офис
+    делегирует сюда, а эта функция — в ``report``, поэтому расхождение «в
+    консоли одно, в отчёте другое» невозможно по построению. Отличий ровно два,
+    и оба — про читателя, а не про предмет: находка помечается знаком, на
+    который у офиса заведено правило «красные строки = действовать», и перечни
+    укорачиваются (строк-находок и полей-кандидатов; полный перечень лежит в
+    артефакте, и строка об укорочении это говорит). Укорочение — единственная
+    причина, по которой ПОРЯДОК полей стал утверждением, а не косметикой:
+    режется хвост, значит голова обязана быть сильнейшим свидетельством, то
+    есть самым ДЛИННЫМ списком, а не самым частым именем.
+    """
+    lines = report(doc, max_rows=max_rows, max_fields=max_fields)
+    if str(doc.get("status")) == "FINDING":
+        lines[0] = f"⚠️ {lines[0]}"
+    return lines
+
+
+def run(root: str | Path = _ROOT, *, data_dir: Optional[Path] = None,
+        dest: Optional[Path] = None, write: bool = True, if_due: bool = True,
+        now: Optional[dt.datetime] = None,
+        tact_days: int = MEASUREMENT_TACT_DAYS) -> dict:
+    """Один ТАКТ переписи для ступени моста: мерить, только если срок пришёл.
+
+    Зачем эта обёртка, если есть ``measure``. У ступени переписей
+    (``findings_bridge.CENSUS_STAGE``) объявленная форма вызова — ``<модуль>.run(
+    root=args.root)``, и она не прихоть: ровно по этой форме сторожа
+    (`test_cio_acceptance_guards_are_wired`, `_orphan_producer`) отвечают на
+    вопрос «а есть ли на свете вызов, который этот артефакт пишет». Заказ G35
+    п. 5 — про то, что у числа не было ни ЧИТАТЕЛЯ, ни автоматического
+    производителя: ступень (1ж) соседа живёт СТРОКОЙ В ПРОМПТЕ, а строка не
+    есть вызов (замер 18.09: автоматического зова не наблюдалось ни одного).
+
+    **«Не мерили» и «измерено» — РАЗНЫЕ исходы** (инв. #17), поэтому внутри
+    такта возвращается ``{"measured": False, "reason": …}`` и НЕ выдумывается
+    вердикт переписи: ``CLEAN`` в этой ветке был бы утверждением о населении,
+    которого никто не смотрел. Срок решает ФАЙЛ (``measurement_due``), а не
+    расписание бегуна: иначе «раз в неделю» держалось бы на том, что никто не
+    менял такт агента.
+    """
+    root = Path(root)
+    source = Path(data_dir) if data_dir is not None else root / "data"
+    target = Path(dest) if dest is not None else source / ARTIFACT
+    if if_due:
+        due, why = measurement_due(target, now=now, tact_days=tact_days)
+        if not due:
+            return {"measured": False, "reason": why, "artifact": str(target)}
+    doc = measure(source, root, now=now)
+    if write:
+        atomic_save(doc, str(target))
+    return {"measured": True, "doc": doc, "artifact": str(target)}
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -336,16 +444,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = ap.parse_args(argv)
 
     dest = Path(args.out) if args.out else Path(args.data_dir) / ARTIFACT
-    if args.if_due:
-        due, why = measurement_due(dest, tact_days=MEASUREMENT_TACT_DAYS)
-        if not due:
-            print(f"замер не назначен: {why}")
-            return 0
-    doc = measure(Path(args.data_dir), Path(args.tree_root))
+    # Гейт такта живёт в ОДНОМ месте (`run`) — вторая его копия здесь означала
+    # бы, что ступень моста и рука владельца судят о сроке по разным правилам.
+    outcome = run(Path(args.tree_root), data_dir=Path(args.data_dir), dest=dest,
+                  write=not args.no_write, if_due=args.if_due)
+    if not outcome["measured"]:
+        print(f"замер не назначен: {outcome['reason']}")
+        return 0
+    doc = outcome["doc"]
     for line in report(doc):
         print(line)
-    if not args.no_write:
-        atomic_save(doc, str(dest))
     return {"UNMEASURED": 2, "FINDING": 1}.get(str(doc.get("status")), 0)
 
 
