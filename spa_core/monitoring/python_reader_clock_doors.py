@@ -81,6 +81,7 @@ from typing import Dict, List, Optional, Tuple
 
 from spa_core.monitoring import _python_reader_clock_probe as probe
 from spa_core.monitoring.call_provenance import call_provenance
+from spa_core.monitoring.call_provenance import describe as provenance_line
 from spa_core.utils.observation import observed
 from spa_core.monitoring.run_identity_key_price import (
     build_stands, http_modules, reader_population,
@@ -559,6 +560,17 @@ def _num(counts: dict, key: str) -> str:
 def report(doc: dict) -> List[str]:
     lines = [f"двери часов, связанные на импорте, у питоньих читателей переписи "
              f"(заказ G31 п. 1): {doc.get('status')}"]
+    # Звавший печатается ДО раннего возврата — ровно по доводу соседа (ADR-412):
+    # на документе UNMEASURED вопрос «кто это позвал» не менее интересен, потому
+    # что так выглядел бы прогон, который ступень моста завела, а стенд не
+    # построила.
+    #
+    # ЗАЧЕМ ЭТА СТРОКА ВООБЩЕ. `measure` пишет `invoked_by` с #628 (ADR-412), но
+    # НИ ОДНА строка отчёта его не читала: признак записывался и умирал в файле.
+    # Наблюдение 25.09 (заказ G37 п. 1) идёт ИМЕННО по `invoked_by.entry` — без
+    # этой строки у него не было бы читателя вовсе, то есть ADR-259 во второй
+    # раз, на приборе, который сам же и меряет непрочитанные записи.
+    lines.append(f"   [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}")
     if doc.get("status") == "UNMEASURED":
         lines.append(f"   [НЕ ИЗМЕРЕНО] {doc.get('reason')}")
         return lines
@@ -676,6 +688,58 @@ def report(doc: dict) -> List[str]:
     return lines
 
 
+def format_report(doc: dict) -> List[str]:
+    """Строки для ЧИТАТЕЛЯ — обязательного шага 0-офис (заказ G37 п. 2).
+
+    Второй копии правила отрисовки здесь НЕТ намеренно: ветка шага 0-офис
+    делегирует сюда, а эта функция — в ``report``, поэтому расхождение «в
+    консоли одно, в отчёте другое» невозможно по построению. Отличие ровно
+    одно и оно про читателя, а не про предмет: находка помечается знаком, на
+    который у офиса заведено правило «красные строки = действовать».
+    """
+    lines = report(doc)
+    if str(doc.get("status")) == "FINDING":
+        lines[0] = f"⚠️ {lines[0]}"
+    return lines
+
+
+def run(root: str | Path = _ROOT, *, data_dir: Optional[Path] = None,
+        dest: Optional[Path] = None, write: bool = True, if_due: bool = True,
+        full: bool = False, now: Optional[dt.datetime] = None,
+        tact_days: int = MEASUREMENT_TACT_DAYS) -> dict:
+    """Один ТАКТ замера для ступени моста: мерить, только если срок пришёл.
+
+    Заказ **G37 п. 2** (он же п. 2 заказа G36). Зачем обёртка, если есть
+    ``measure``: у ступени переписей (``findings_bridge.CENSUS_STAGE``)
+    объявленная форма вызова — ``<модуль>.run(root=args.root)``, и сторожа
+    (`_orphan_producer`, `test_cio_acceptance_guards_are_wired`) отвечают ровно
+    по ней на вопрос «есть ли на свете вызов, который этот артефакт пишет».
+
+    **Почему этого не было до сих пор и почему теперь можно.** Прибор жил
+    СТРОКОЙ В ПРОМПТЕ (шаг (1ж)), а строка не есть вызов: замер 18.09 не
+    наблюдал ни одного автоматического зова — отметку каждый раз ставила рука
+    цикла. Взять этот пункт РАНЬШЕ правки ADR-412 значило бы молча уничтожить
+    собственный эксперимент: оба плеча стали бы ступенями и контроль исчез бы
+    незаметно. Теперь плечи различает ``invoked_by``, и проведение безопасно.
+
+    **«Не мерили» и «измерено» — РАЗНЫЕ исходы** (инв. #17): внутри такта
+    возвращается ``{"measured": False, "reason": …}``, а не выдуманный вердикт
+    — ``CLEAN`` в этой ветке был бы утверждением о населении, которого никто не
+    смотрел. Срок решает ФАЙЛ (``measurement_due``), а не расписание бегуна.
+    """
+    root = Path(root)
+    source = Path(data_dir) if data_dir is not None else root / "data"
+    target = Path(dest) if dest is not None else source / ARTIFACT
+    if if_due:
+        due, why = measurement_due(target, now=now, tact_days=tact_days)
+        if not due:
+            return {"measured": False, "reason": why, "artifact": str(target)}
+    doc = measure(source, root, now=now, full=full)
+    if write:
+        atomic_save(doc, str(target))
+    return {"measured": True, "doc": doc, "artifact": str(target)}
+
+
 def measurement_due(out: Path, *, now: Optional[dt.datetime] = None,
                     tact_days: int = MEASUREMENT_TACT_DAYS) -> Tuple[bool, str]:
     """Пора ли переизмерять — решает ФАЙЛ, а не расписание запуска.
@@ -726,16 +790,17 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     dest = (Path(args.out) if args.out
             else Path(args.data_dir) / ARTIFACT)
-    if args.if_due:
-        due, why = measurement_due(dest)
-        if not due:
-            print(f"замер не назначен: {why}")
-            return 0
-    doc = measure(Path(args.data_dir), Path(args.tree_root), full=args.full)
+    # Гейт такта живёт в ОДНОМ месте (`run`) — вторая его копия здесь означала
+    # бы, что ступень моста и рука владельца судят о сроке по разным правилам,
+    # и расходились бы они молча.
+    outcome = run(Path(args.tree_root), data_dir=Path(args.data_dir), dest=dest,
+                  write=not args.no_write, if_due=args.if_due, full=args.full)
+    if not outcome["measured"]:
+        print(f"замер не назначен: {outcome['reason']}")
+        return 0
+    doc = outcome["doc"]
     for line in report(doc):
         print(line)
-    if not args.no_write:
-        atomic_save(doc, str(dest))
     return {"UNMEASURED": 2, "FINDING": 1}.get(str(doc.get("status")), 0)
 
 

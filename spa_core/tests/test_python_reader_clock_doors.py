@@ -33,6 +33,7 @@ FROZEN-DATE-OK: stand-data — все пять литеральных дат з�
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import sys
@@ -1545,11 +1546,41 @@ class TheNumberReachesTheProdPathOnATact(unittest.TestCase):
 
         Сторож на проводку, а не на существование файла: «написан» и «его зовут»
         — разные утверждения, и вся находка #623 состояла ровно в их расхождении.
+
+        ПЕРЕНАЦЕЛЕН циклом #630 (ADR-414), НАМЕРЕННО и без ослабления (инв. #16;
+        запись в `docs/journal/2026-W38.md`). Утверждение сторожа то же самое —
+        «зов существует», — сменился ЗОВУЩИЙ, и сменился потому, что прежний
+        зовущий был измерен и оказался не зовущим: строка в промпте не есть
+        вызов, и замер 18.09 (ADR-412) не наблюдал НИ ОДНОГО автоматического
+        зова за всё время жизни шага (1ж). Проверять наличие той строки дальше
+        значило бы держать зелёным сторожа, чей предмет измерен как
+        несуществующий.
+
+        Сила ПОВЫШЕНА, а не понижена, и в двух местах:
+        * мерится ФОРМА ВЫЗОВА в теле `findings_bridge.main` разбором AST, а не
+          вхождение имени в текст — упоминание имени вызовом не является;
+        * добавлена вторая половина, которой у прежней редакции не было вовсе:
+          рука НЕ должна звать прибор. Обе стороны борются за один недельный
+          такт, циклы идут примерно раз в час против шести часов у агента, и
+          ручной зов забирал бы такт у ступени — наблюдение «кто позвал»
+          прочло бы руку и объявило исправную проводку молчащей.
         """
-        text = (_TREE_ROOT / "scripts" / "agent_orchestrator.sh").read_text(
+        src = (_TREE_ROOT / "spa_core" / "monitoring"
+               / "findings_bridge.py").read_text(encoding="utf-8")
+        main = next(n for n in ast.parse(src).body
+                    if isinstance(n, ast.FunctionDef) and n.name == "main")
+        called = {n.func.value.id for n in ast.walk(main)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr == "run" and isinstance(n.func.value, ast.Name)}
+        self.assertIn("python_reader_clock_doors", called,
+                      "ступени моста нет — артефакт снова будет писать только рука")
+
+        prompt = (_TREE_ROOT / "scripts" / "agent_orchestrator.sh").read_text(
             encoding="utf-8")
-        self.assertIn("spa_core.monitoring.python_reader_clock_doors", text)
-        self.assertIn("--if-due", text)
+        self.assertNotIn("python3 -m spa_core.monitoring.python_reader_clock_doors",
+                         prompt,
+                         "ручной зов вернулся в промпт — он заберёт недельный "
+                         "такт у ступени, и обе стороны будут выглядеть исправно")
 
 
 class LeafValuesHasThreeOutcomesNotTwo(unittest.TestCase):

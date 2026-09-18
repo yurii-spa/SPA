@@ -680,6 +680,25 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "counts.truncated_readers",
                                   "counts.unmeasured_causes",
                                   "counts.readers_measured", "advisory"),
+    # Заказ G37 п. 2 (ADR-414). `invoked_by` объявлен ЧИТАЕМЫМ по тому же
+    # доводу, что у соседа: наблюдение 25.09 идёт ИМЕННО по `entry`, и это
+    # объявление — единственное, что покраснеет, если проводку признака у
+    # производителя однажды снимут. `counts` обязателен целиком: у ответа
+    # числитель (`rest_on_import_bound_door`) без знаменателя (`python_branch`)
+    # и без «не приведено» (`unmeasured`, инв. #17) читался бы как доля, тогда
+    # как это три разных наблюдения. `unmeasured_causes` — потому что
+    # непозванный читатель обязан быть ПРИЧИНОЙ, а не нулём.
+    # `doors_that_rewrite_the_answer` объявлен рядом с `doors_free_to_close`
+    # намеренно: цена закрытия двери и её отсутствие — разные утверждения, и
+    # артефакт, несущий только второе, прочёлся бы как «закрывать всё даром».
+    "python_reader_clock_doors.json": ("status", "invoked_by", "counts",
+                                       "import_bound_doors", "other_doors",
+                                       "run_provenance", "provenance_unmeasured",
+                                       "doors_that_rewrite_the_answer",
+                                       "doors_free_to_close",
+                                       "door_price_unmeasured",
+                                       "control_arm", "reverse_direction",
+                                       "unmeasured_causes", "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -868,6 +887,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/haystack_origin_census.py",
     "list_identity_census.json":
         "spa_core/monitoring/list_identity_census.py",
+    "python_reader_clock_doors.json":
+        "spa_core/monitoring/python_reader_clock_doors.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2674,6 +2695,20 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # а здесь она сделала бы сторожа слепым ровно к этому артефакту.
         from spa_core.monitoring.list_identity_census import format_report
         out.extend(format_report(data))
+    elif name == "python_reader_clock_doors.json":
+        # Заказ G37 п. 2 (ADR-414). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
+        # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, ресит не пишется, и в
+        # контекст оркестратора не попадает ни одно число. Тот же класс, что
+        # закрыт у соседа заказом G35 п. 5, и тот же довод: отрисовка
+        # делегируется ПРОИЗВОДИТЕЛЮ, а не переписывается здесь — вторая копия
+        # правила отрисовки расходится с первой молча.
+        # Форма ввоза ОДНОСТРОЧНАЯ намеренно: сторож достижимости
+        # (`test_declared_producer_is_reachable`) вырезает ввозы двух
+        # объявленных форм, и скобочная многострочная ни одной из них не
+        # является — мой производитель остался бы «импортированным» после
+        # мутации, то есть проверка накрывала бы его ложно (замер #627).
+        from spa_core.monitoring.python_reader_clock_doors import format_report as _prcd_report
+        out.extend(_prcd_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

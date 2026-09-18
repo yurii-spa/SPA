@@ -151,6 +151,13 @@ PRODUCES = (
     # файлом, который никто не открывает. Такт недельный и решает его ФАЙЛ
     # (`list_identity_census.run` → `measurement_due`), поэтому SLO 192ч.
     "data/list_identity_census.json",
+    # Заказ G37 п. 2 (он же п. 2 заказа G36). ВТОРОЕ ПЛЕЧО того же опыта: сосед
+    # выше жил ступенью, а этот прибор — строкой в промпте (шаг (1ж)), и замер
+    # 18.09 показал, что строка не есть вызов: автоматического зова не
+    # наблюдалось НИ ОДНОГО, отметку каждый раз ставила рука цикла. Опыт
+    # закончен, ответ получен — плечо проводится. Такт недельный и решает его
+    # ФАЙЛ (`python_reader_clock_doors.run` → `measurement_due`), SLO 192ч.
+    "data/python_reader_clock_doors.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -251,6 +258,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "substring_structure_assertions",
     "haystack_origin_census",
     "list_identity_census",
+    "python_reader_clock_doors",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -471,6 +479,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "list_identity_census": {
         "module": "spa_core/monitoring/list_identity_census.py",
         "artifact": "data/list_identity_census.json"},
+    "python_reader_clock_doors": {
+        "module": "spa_core/monitoring/python_reader_clock_doors.py",
+        "artifact": "data/python_reader_clock_doors.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2178,6 +2189,40 @@ def main(argv=None) -> int:
                   f"{_lic.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "list_identity_census", e)
+    # (G37 п. 2 = п. 2 заказа G36, `python_reader_clock_doors`) ВТОРОЕ ПЛЕЧО
+    # того же опыта. Сосед выше был проведён ступенью, этот прибор оставался
+    # строкой в промпте (шаг (1ж)) — и замер 18.09 ответил: строка не есть
+    # вызов, автоматического зова не наблюдалось ни одного. Опыт закончен,
+    # ответ получен; плечо проводится, а `invoked_by` продолжает различать, чья
+    # это была рука, независимо от проводки (ADR-412).
+    #
+    # ЦЕНА ЗОВА НАЗВАНА, а не умолчана: замер этого цикла — см. ADR-414. Такт
+    # НЕДЕЛЬНЫЙ и решает его ФАЙЛ, поэтому в 167 прогонах агента из 168 ступень
+    # стоит одного чтения отметки; дорогим оказывается один прогон в неделю.
+    #
+    # «Не мерили» и «измерено» — разные исходы (инв. #17): внутри такта
+    # печатается причина, а не вердикт о населении, которого никто не смотрел.
+    try:
+        from spa_core.monitoring import python_reader_clock_doors
+        _prcd = python_reader_clock_doors.run(root=args.root)
+        if _prcd.get("measured"):
+            # Знаменатель — ЧЕСТНОЙ формой: отсутствие счётчика не ноль
+            # (инв. #17), иначе «население 0» стало бы утверждением о том,
+            # чего прибор не мерил.
+            _pc = observed(_prcd["doc"], "counts", kind=dict)
+            _pop = (None if _pc is None
+                    else observed_number(_pc, "python_branch"))
+            _rest = (None if _pc is None
+                     else observed_number(_pc, "rest_on_import_bound_door"))
+            print(f"python_reader_clock_doors: {_prcd['doc'].get('status')} — "
+                  f"на дверях, связанных на импорте, держатся "
+                  f"{'НЕ ИЗМЕРЕНО' if _rest is None else int(_rest)} из "
+                  f"{'НЕ ИЗМЕРЕНО' if _pop is None else int(_pop)}")
+        else:
+            print(f"python_reader_clock_doors: внутри такта, НЕ мерили — "
+                  f"{_prcd.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "python_reader_clock_doors", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
