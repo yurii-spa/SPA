@@ -366,14 +366,31 @@ def test_every_delegating_wrapper_in_this_repo_resolves_a_target():
     так, что разбор её не поймёт, — слепота появится молча. Здесь она краснеет.
     """
     repo = Path(__file__).resolve().parents[2]
+    # Замер 19.09 (цикл #642, заказ G47 п. 1): в `scripts/` на `origin/main`
+    # 89 обёрток `agent_*.sh`. Их отсутствие означает не «обёрток нет», а
+    # поломанное дерево — а зелёный при нуле осмотренных обёрток и есть та
+    # слепота, ради которой этот тест написан (поймано `absent_path_probe`).
+    assert (repo / "scripts").is_dir(), (
+        f"каталога {repo / 'scripts'} нет — проверка НЕ ВЫПОЛНЕНА, а не пройдена")
+    assert any((repo / "scripts").glob("agent_*.sh")), (
+        f"в {repo / 'scripts'} нет ни одной обёртки agent_*.sh — осматривать "
+        f"нечего, и это состояние дерева, а не чистый результат")
     unresolved = []
+    examined = 0
+    # Обход оставлен ЛИТЕРАЛЬНЫМ выражением намеренно: вынеси его в помощника —
+    # и строка исчезнет из переписи входов, то есть сторож станет не
+    # починенным, а НЕизмеримым (замерено циклом #642 на первой редакции).
     for w in sorted((repo / "scripts").glob("agent_*.sh")):
         if w.name == "agent_template.sh":
             continue
         src = w.read_text(encoding="utf-8", errors="replace")
         if not invokes_template(src):
             continue          # собственный сценарий или инструмент — не обёртка агента
+        examined += 1
         info = resolve_wrapper_target(str(w), default_repo_root=str(repo))
         if not info["kind"]:
             unresolved.append((w.name, info["reason"]))
+    assert examined, (
+        "ни одна обёртка не делегирует шаблону — осмотрено НОЛЬ, и зелёным "
+        "это не является (инв. #17)")
     assert not unresolved, "обёртки делегируют шаблону, но цель не разобрана: {}".format(unresolved)

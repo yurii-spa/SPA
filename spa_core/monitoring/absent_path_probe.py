@@ -123,8 +123,23 @@ VERDICT_REFUSES = "refuses_absent"
 VERDICT_ANNOUNCES = "announces_absence"
 VERDICT_SCENE = "scene_destroyed"
 VERDICT_UNMEASURED = "unmeasured"
+#: Тест СТРОКИ не бежит в этом дереве вовсе — его пропустил `skipif` ещё ДО
+#: опыта. Слепотой это не является и вердиктом о двери тоже: сторож ничего не
+#: сказал потому, что его не звали. Исход заведён замером (цикл #642): счёт
+#: `passed` у пропущенного теста не меняется ни до уноса, ни после, поэтому
+#: пропуск был НЕОТЛИЧИМ от вырожденного прохода — и четыре строки из девяти
+#: находок ADR-424 оказались именно им.
+VERDICT_ALREADY_SKIPPED = "already_skipped"
 VERDICTS = (VERDICT_VACUOUS, VERDICT_REFUSES, VERDICT_ANNOUNCES,
-            VERDICT_SCENE, VERDICT_UNMEASURED)
+            VERDICT_SCENE, VERDICT_UNMEASURED, VERDICT_ALREADY_SKIPPED)
+
+#: Состояния СОБСТВЕННОГО теста строки в целом дереве (вопрос задаётся только
+#: когда исход опыта — `vacuous_pass`, потому что маскироваться пропуск может
+#: лишь под него: у всех прочих исходов тест заведомо бежал).
+OWN_RAN = "ran"
+OWN_SKIPPED = "skipped"
+OWN_NOT_ADDRESSABLE = "not_addressable"
+OWN_UNKNOWN = "unknown"
 
 #: Вердикты, при которых сторож при отсутствующем входе остаётся ЗЕЛЁНЫМ и об
 #: этом не говорит ничего. Это и есть находка зонда.
@@ -330,7 +345,59 @@ def probe_row(tree: Path, row: dict, *,
 
     entry["absent_code"] = code
     entry["absent_passed"] = vgp.passed_count(out)
-    return _verdict(entry, code, out, base_passed)
+    entry = _verdict(entry, code, out, base_passed)
+    if entry.get("verdict") == VERDICT_VACUOUS:
+        # Путь к этому моменту УЖЕ возвращён (блок `finally` выше), поэтому
+        # вопрос задаётся о ЦЕЛОМ дереве — что и значит «пропущен здесь».
+        state = own_test_state(tree, guard_rel, str(row.get("scope") or ""))
+        entry["own_test"] = state
+        if state == OWN_SKIPPED:
+            entry["verdict"] = VERDICT_ALREADY_SKIPPED
+            entry["evidence"] = (
+                f"собственный тест строки `{row.get('scope')}` ПРОПУЩЕН в этом "
+                f"дереве ещё до опыта — сторож молчал не от слепоты, а потому "
+                f"что его не звали; счёт passed у пропущенного теста не "
+                f"меняется ни до уноса, ни после")
+    return entry
+
+
+def own_test_state(tree: Path, guard_rel: str, scope: str) -> str:
+    """Бежит ли в ЭТОМ дереве собственный тест строки — или он пропущен.
+
+    Вопрос отдельный от прогона сторожа, и он ОБЯЗАН быть отдельным: прогон
+    считает `passed` по ВСЕМУ файлу, а пропущенный `skipif`-ом тест не
+    прибавляет к этому счёту ни до уноса пути, ни после. Два разных состояния
+    («осмотрел ноль и промолчал» и «не звали вовсе») давали один и тот же
+    признак, и различить их файловым счётом нельзя в принципе.
+
+    ``scope`` у строки — имя объемлющей функции, и тестом оно бывает не
+    всегда (помощник, метод класса). Неадресуемый ``scope`` — третий исход
+    (`not_addressable`), а не «бежал»: выдуманное «бежал» вернуло бы ровно ту
+    слепоту, ради которой вопрос и задан.
+    """
+    if not scope:
+        return OWN_NOT_ADDRESSABLE
+    code, out = base._run(
+        [sys.executable, "-m", "pytest", f"{guard_rel}::{scope}",
+         "-q", "--tb=no", "-p", "no:randomly"],
+        cwd=tree, timeout=RUN_TIMEOUT_S)
+    # Коды pytest на селектор `файл::имя`: 5 — собрано ноль, 4 — «не найдено»
+    # (ЗАМЕР: `(no match in any of [<Module t.py>])`, код 4). Оба отвечают на
+    # НАШ вопрос — имя тестом в этом файле не является; звать это «не
+    # измерено» значило бы прятать ответ. Свою ошибку употребления флагов этот
+    # разбор не замаскирует: она была бы у КАЖДОЙ строки, включая ту, где тест
+    # заведомо есть, и обратная проверка контроля на неё краснеет.
+    if code in (4, 5):
+        return OWN_NOT_ADDRESSABLE
+    if code < 0 or code in vgp._NO_VERDICT_CODES:
+        return OWN_UNKNOWN
+    passed = vgp.summary_count(out, "passed")
+    skipped = vgp.summary_count(out, "skipped")
+    if passed is None or skipped is None:
+        return OWN_UNKNOWN   # сводка не разобрана — молчать честнее, чем гадать
+    if passed:
+        return OWN_RAN
+    return OWN_SKIPPED if skipped else OWN_NOT_ADDRESSABLE
 
 
 def _verdict(entry: dict, code: int, out: str, base_passed: int) -> dict:
@@ -399,7 +466,8 @@ def agreement(entry: dict) -> Optional[bool]:
     которого никто не наблюдал.
     """
     verdict = entry.get("verdict")
-    if verdict in (VERDICT_UNMEASURED, VERDICT_SCENE):
+    if verdict in (VERDICT_UNMEASURED, VERDICT_SCENE,
+                   VERDICT_ALREADY_SKIPPED):
         return None
     expects_refusal = entry.get("static_door") in _DOOR_EXPECTS_REFUSAL
     observed_refusal = verdict in (VERDICT_REFUSES, VERDICT_ANNOUNCES)

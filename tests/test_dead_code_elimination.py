@@ -157,9 +157,19 @@ def test_no_bare_exceptions_in_utils() -> None:
 
 
 def test_no_bare_exceptions_in_safety() -> None:
+    # Путь был ОТНОСИТЕЛЬНЫМ, то есть зависел от cwd, и при любом другом cwd
+    # обход давал пусто, а проверка — зелёный без единого осмотренного файла
+    # (поймано зондом `absent_path_probe`, заказ G47 п. 1). Замер 19.09: в
+    # `spa_core/safety/` на `origin/main` пять отслеживаемых `*.py` — каталог
+    # есть в любом checkout-е, и его отсутствие есть поломка дерева.
+    safety = Path(__file__).resolve().parents[1] / "spa_core" / "safety"
+    assert safety.is_dir(), (
+        f"каталога {safety} нет — проверка НЕ ВЫПОЛНЕНА, а не пройдена")
+    sources = [p for p in safety.rglob("*.py") if "__pycache__" not in str(p)]
+    assert sources, f"в {safety} нет ни одного *.py — осматривать нечего"
     bare_exc_pattern = re.compile(r"raise\s+(Exception|RuntimeError)\s*\(")
     violations = []
-    for py in Path("spa_core/safety").rglob("*.py"):
+    for py in sources:
         if "__pycache__" in str(py):
             continue
         text = py.read_text(encoding="utf-8", errors="replace")

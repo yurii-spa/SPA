@@ -233,6 +233,28 @@ def test_walks():
 '''
 
 
+#: Сторож, чей СОБСТВЕННЫЙ тест пропущен ещё до опыта. Условие пропуска
+#: указывает на ДРУГОЙ путь (гитигнореный, отсутствующий), а не на тот,
+#: который уносит зонд, — ровно так устроены настоящие случаи
+#: (`skipif(not (ROOT / "data" / "aggressive_lab").exists())`). Второй тест в
+#: файле нужен, чтобы база была зелёной и непустой: строку с нулём прошедших
+#: зонд отказывается мерить раньше.
+SKIPPED = '''
+import pytest
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_skipped"
+
+def test_unrelated_and_always_green():
+    assert True
+
+@pytest.mark.skipif(not (ROOT / "nightly_artefacts").exists(),
+                    reason="ночные артефакты гитигнорены и здесь отсутствуют")
+def test_walks():
+    for item in AREA.rglob("*.txt"):
+        assert item.name
+'''
+
 class ARealContour(unittest.TestCase):
     """Настоящий контур: git-репозиторий, три сторожа, живой pytest."""
 
@@ -245,9 +267,11 @@ class ARealContour(unittest.TestCase):
         tests = cls.root / "spa_core" / "tests"
         for name, body in (("test_blind_guard.py", BLIND),
                            ("test_loud_guard.py", LOUD),
-                           ("test_rebuilding_guard.py", REBUILDS)):
+                           ("test_rebuilding_guard.py", REBUILDS),
+                           ("test_skipped_guard.py", SKIPPED)):
             (tests / name).write_text(body, encoding="utf-8")
-        for area in ("area_blind", "area_loud", "area_rebuilt"):
+        for area in ("area_blind", "area_loud", "area_rebuilt",
+                     "area_skipped"):
             (cls.root / area).mkdir()
             (cls.root / area / "a.txt").write_text("исходное", encoding="utf-8")
         _git(cls.root, "init", "-q")
@@ -256,7 +280,8 @@ class ARealContour(unittest.TestCase):
              "commit", "-q", "-m", "scene")
         cls.before = {
             name: probe.fingerprint(cls.root / name)
-            for name in ("area_blind", "area_loud", "area_rebuilt")}
+            for name in ("area_blind", "area_loud", "area_rebuilt",
+                         "area_skipped")}
         cls.guard_shas = {
             path.name: probe.fingerprint(path) for path in tests.glob("*.py")}
         cls.doc = probe.measure(cls.root)
@@ -270,7 +295,7 @@ class ARealContour(unittest.TestCase):
     def test_the_measurement_did_not_abort(self):
         self.assertEqual(self.doc["status"], "MEASURED",
                          self.doc.get("aborted_reason") or "")
-        self.assertEqual(len(self.doc["entries"]), 3)
+        self.assertEqual(len(self.doc["entries"]), 4)
 
     def test_the_blind_guard_stays_green_and_says_nothing(self):
         entry = self.by_guard["test_blind_guard.py"]
@@ -295,6 +320,59 @@ class ARealContour(unittest.TestCase):
         self.assertTrue(entry["path_recreated_by_run"],
                         "сторож создал свой вход — это наблюдение, а не помеха")
         self.assertEqual(entry["verdict"], probe.VERDICT_VACUOUS, entry["evidence"])
+
+    def test_a_guard_whose_own_test_is_SKIPPED_is_not_called_blind(self):
+        """Обе стороны одного различия, и в этом весь смысл проверки.
+
+        Пропущенный тест и вырожденный проход дают ОДИН И ТОТ ЖЕ признак:
+        счёт `passed` по файлу не меняется ни до уноса пути, ни после. До
+        цикла #642 зонд звал слепыми обоих — и четыре строки из девяти находок
+        ADR-424 оказались пропущенными тестами, а не слепыми сторожами.
+        """
+        skipped = self.by_guard["test_skipped_guard.py"]
+        self.assertEqual(skipped["verdict"], probe.VERDICT_ALREADY_SKIPPED,
+                         skipped["evidence"])
+        self.assertEqual(skipped["own_test"], probe.OWN_SKIPPED)
+        self.assertEqual(skipped["baseline_passed"], skipped["absent_passed"],
+                         "признак у пропуска и у слепоты ОДИН — на нём и "
+                         "ловились четыре строки")
+        self.assertIn("ПРОПУЩЕН", skipped["evidence"])
+
+        blind = self.by_guard["test_blind_guard.py"]
+        self.assertEqual(blind["verdict"], probe.VERDICT_VACUOUS,
+                         "обратная сторона: настоящая слепота обязана остаться "
+                         "находкой, иначе новый исход проглотил бы весь класс")
+        self.assertEqual(blind["own_test"], probe.OWN_RAN)
+
+    def test_a_row_whose_verdict_never_ran_is_not_compared_with_the_static_door(self):
+        """«Тест не звали» — не наблюдение о двери, и согласием считаться не может."""
+        self.assertIsNone(probe.agreement(
+            {"verdict": probe.VERDICT_ALREADY_SKIPPED, "static_door": "no_door"}))
+        self.assertIsNotNone(probe.agreement(
+            {"verdict": probe.VERDICT_VACUOUS, "static_door": "no_door"}))
+
+    def test_the_census_does_not_carry_already_skipped_as_a_blindness_verdict(self):
+        overlay = csi.behaviour_of(
+            {"key": "k", "guard_sha": "s"},
+            {"k": {"key": "k", "guard_sha": "s",
+                   "verdict": probe.VERDICT_ALREADY_SKIPPED,
+                   "evidence": "пропущен"}}, None)
+        self.assertIsNone(overlay["behaviour"],
+                          "«тест не звали» вердиктом о слепоте не является")
+
+    def test_a_scope_that_is_not_a_test_is_a_third_outcome_not_a_run(self):
+        """Неадресуемое имя обязано называться, а не выдаваться за «бежал»."""
+        self.assertEqual(
+            probe.own_test_state(self.root, "spa_core/tests/test_blind_guard.py",
+                                 "_helper_that_is_not_a_test"),
+            probe.OWN_NOT_ADDRESSABLE)
+        self.assertEqual(
+            probe.own_test_state(self.root, "spa_core/tests/test_blind_guard.py", ""),
+            probe.OWN_NOT_ADDRESSABLE)
+        self.assertEqual(
+            probe.own_test_state(self.root, "spa_core/tests/test_blind_guard.py",
+                                 "test_walks"),
+            probe.OWN_RAN)
 
     def test_every_carried_path_came_back_byte_for_byte(self):
         for name, before in self.before.items():

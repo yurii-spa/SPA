@@ -204,9 +204,36 @@ def test_keychain_uses_security_command():
 
 # ── 4. Data files ─────────────────────────────────────────────────────────────
 
+def _require_state_dir(data_dir) -> None:
+    """Отсутствие каталога — ОТКАЗ, а не пустой набор.
+
+    Замер 2026-09-19 (цикл #642, заказ G47 п. 1): в `data/` на `origin/main`
+    лежит 298 отслеживаемых git-ом файлов `*.json`, то есть каталог есть в
+    ЛЮБОМ checkout-е и в любом worktree. Его отсутствие означает не «нечего
+    смотреть», а поломанное дерево — и проверка секретов, осмотревшая ноль
+    файлов, обязана КРАСНЕТЬ, а не выходить зелёной молча. Поведенческий зонд
+    `absent_path_probe` унёс каталог и поймал оба теста ниже зелёными
+    (`vacuous_pass`).
+
+    Помощник ТОЛЬКО проверяет и ничего не возвращает — намеренно. Первая
+    редакция починки отдавала отсюда список файлов, и обход у обоих тестов
+    становился `for f in _state_json_files()`: путь переставал вычисляться из
+    литерала, строка ИСЧЕЗАЛА из переписи целиком, и сторож делался не
+    починенным, а НЕизмеримым. Замерено на той же переписи: было 2 строки,
+    стало 0.
+    """
+    assert data_dir.is_dir(), (
+        f"каталога {data_dir} нет — проверка секретов НЕ ВЫПОЛНЕНА, а не "
+        f"пройдена: ноль осмотренных файлов зелёным не является (инв. #17)")
+    assert any(data_dir.glob("*.json")), (
+        f"в {data_dir} нет ни одного *.json — осматривать нечего, и это "
+        f"состояние дерева, а не чистый результат")
+
+
 def test_no_secrets_in_state_json_files():
     """data/*.json state files must not contain 'password', 'secret', 'token' keys."""
     data_dir = REPO_ROOT / "data"
+    _require_state_dir(data_dir)
     suspicious_keys = {"password", "secret", "api_key", "private_key", "seed_phrase"}
     for json_file in data_dir.glob("*.json"):
         try:
@@ -225,6 +252,7 @@ def test_no_bearer_tokens_in_data():
     """data/*.json must not contain Bearer token strings."""
     bearer_pattern = re.compile(r'Bearer\s+[A-Za-z0-9._\-]{20,}')
     data_dir = REPO_ROOT / "data"
+    _require_state_dir(data_dir)
     for json_file in data_dir.glob("*.json"):
         try:
             content = json_file.read_text(encoding="utf-8", errors="ignore")
