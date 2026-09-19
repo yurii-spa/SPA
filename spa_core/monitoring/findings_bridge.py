@@ -182,6 +182,12 @@ PRODUCES = (
     # намеренно: один его прогон стои́т сотен прогонов pytest, и место ему —
     # рука, а не шестичасовой агент.
     "data/vacuous_guard_census.json",
+    # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
+    # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
+    # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
+    # не нужно вовсе — каталога нет, перечень пуст. Ступень статическая, зов
+    # есть разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
+    "data/call_sourced_input_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -286,6 +292,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "tact_gate_census",
     "rule_second_copy_census",
     "vacuous_guard_census",
+    "call_sourced_input_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -518,6 +525,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "vacuous_guard_census": {
         "module": "spa_core/monitoring/vacuous_guard_census.py",
         "artifact": "data/vacuous_guard_census.json"},
+    "call_sourced_input_census": {
+        "module": "spa_core/monitoring/call_sourced_input_census.py",
+        "artifact": "data/call_sourced_input_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2330,6 +2340,24 @@ def main(argv=None) -> int:
                   f"{_vgc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "vacuous_guard_census", e)
+    # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
+    # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
+    # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него
+    # достижима без единой правки исходника — свежий worktree без `data/` есть
+    # штатное, протоколом предписанное дерево.
+    try:
+        from spa_core.monitoring import call_sourced_input_census
+        _csi = call_sourced_input_census.run(root=args.root)
+        if _csi.get("measured"):
+            _cf = observed_number(_csi["doc"], "findings")
+            print(f"call_sourced_input_census: {_csi['doc'].get('status')} — "
+                  f"входов-перечней из вызова с зелёной дверью, "
+                  f"{'НЕ ИЗМЕРЕНО' if _cf is None else int(_cf)}")
+        else:
+            print(f"call_sourced_input_census: НЕ ИЗМЕРЕНО — "
+                  f"{_csi['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "call_sourced_input_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
