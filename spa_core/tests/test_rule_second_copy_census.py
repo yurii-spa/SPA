@@ -40,6 +40,12 @@ _REPO = Path(__file__).resolve().parents[2]
 _NOW = dt.datetime(2000, 1, 1, tzinfo=dt.timezone.utc)
 
 
+#: Минимальные «пороги RiskPolicy» для синтетической сцены. Число 0.07 выбрано
+#: так, чтобы НЕ совпасть ни с одним значением сцен: иначе всякая находка
+#: уезжала бы владельцем, и сцена мерила бы не то, ради чего написана.
+_POLICY = "MAX_DRAWDOWN = 0.07\n"
+
+
 def _tree(base: Path, *, executor: str = "", guard: str = "",
           extra: dict | None = None) -> Path:
     """Минимальное дерево: исполнитель, сторож и обязательные каталоги.
@@ -50,6 +56,13 @@ def _tree(base: Path, *, executor: str = "", guard: str = "",
     (base / "spa_core" / "tests").mkdir(parents=True)
     (base / "scripts").mkdir(parents=True)
     (base / "scripts" / "__init__.py").write_text("", encoding="utf-8")
+    # Пороги RiskPolicy — предпосылка КАЖДОЙ сцены: без них прибор отвечает
+    # `UNMEASURED` (право чинить спрашивается до переписи). Сцена, забывшая их,
+    # мерила бы отказ, а не свой предмет.
+    (base / "spa_core" / "risk").mkdir(parents=True, exist_ok=True)
+    (base / "spa_core" / "risk" / "policy.py").write_text(
+        _POLICY if extra is None or "spa_core/risk/policy.py" not in extra else "",
+        encoding="utf-8")
     if executor:
         (base / "spa_core" / "e.py").write_text(executor, encoding="utf-8")
     if guard:
@@ -412,6 +425,212 @@ class TheMeasurementIsDeterministic(unittest.TestCase):
         for doc in (first, second):
             doc.pop("invoked_by", None)
         self.assertEqual(first, second)
+
+
+class RiskPolicyThresholdsAreReadOrTheRunRefuses(unittest.TestCase):
+    """Право чинить спрашивается ПЕРВЫМ — и «не прочитано» не есть «нет совпадений»."""
+
+    def test_field_defaults_of_a_dataclass_are_thresholds_too(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), extra={
+                "spa_core/risk/policy.py": (
+                    "from dataclasses import dataclass\n"
+                    "TOP = 0.40\n"
+                    "@dataclass\n"
+                    "class RiskConfig:\n"
+                    "    min_cash_pct: float = 0.05\n"
+                    "    label: str = 'v1.0'\n"
+                    "    flag: bool = True\n"
+                )})
+            got = rsc.risk_policy_thresholds(base)
+        self.assertEqual(got.get("0.05"), ["min_cash_pct"],
+                         "умолчание поля датакласса — тоже порог")
+        self.assertEqual(got.get("0.4"), ["TOP"])
+        self.assertNotIn("'v1.0'", got, "строка порогом не является")
+        self.assertNotIn("True", got, "флаг порогом не является")
+
+    def test_one_number_declared_twice_names_BOTH(self):
+        """Обратная сторона: назвать первое имя значило бы приписать чужой смысл."""
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), extra={
+                "spa_core/risk/policy.py": "A = 0.05\nB = 0.05\n"})
+            got = rsc.risk_policy_thresholds(base)
+        self.assertEqual(got["0.05"], ["A", "B"])
+
+    def test_unreadable_policy_is_the_third_outcome_not_an_empty_set(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "spa_core" / "tests").mkdir(parents=True)
+            (base / "scripts").mkdir(parents=True)
+            with self.assertRaises(rsc.NotMeasured):
+                rsc.risk_policy_thresholds(base)
+
+    def test_a_whole_run_without_policy_reports_UNMEASURED(self):
+        """Население ЧИТАЕТСЯ целиком, нет только порогов — отказ обязан назвать ИХ.
+
+        Сцена собирается руками, а не ``_tree``: та пороги кладёт всегда, и
+        отказ, который здесь меряется, был бы недостижим.
+        """
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "spa_core" / "tests").mkdir(parents=True)
+            (base / "scripts").mkdir(parents=True)
+            (base / "spa_core" / "e.py").write_text("X = 1\n", encoding="utf-8")
+            (base / "spa_core" / "tests" / "test_g.py").write_text("X = 1\n",
+                                                                   encoding="utf-8")
+            out = rsc.run(base, dest=base / "out.json", write=False, now=_NOW)
+        self.assertEqual(out["doc"]["status"], "UNMEASURED")
+        self.assertIn("RiskPolicy", out["doc"]["reason"])
+
+    def test_the_population_root_refusal_still_comes_FIRST(self):
+        """Обратная сторона порядка: нет корня населения ⇒ отказ называет ЕГО."""
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "spa_core" / "tests").mkdir(parents=True)
+            (base / "spa_core" / "tests" / "test_g.py").write_text("X = 1\n",
+                                                                   encoding="utf-8")
+            out = rsc.run(base, dest=base / "out.json", write=False, now=_NOW)
+        self.assertEqual(out["doc"]["status"], "UNMEASURED")
+        self.assertNotIn("RiskPolicy", out["doc"]["reason"])
+
+
+class WitnessOfASharedSubject(unittest.TestCase):
+    """Свидетель односторонний, и граница слова обязана быть."""
+
+    def test_dotted_tail_of_two_links_is_a_witness(self):
+        self.assertEqual(
+            rsc.subject_witness("см. `owner_queue.queue.set_status` — отказывает там",
+                                "spa_core/owner_queue/queue.py"),
+            "owner_queue.queue")
+
+    def test_file_name_is_a_witness(self):
+        self.assertEqual(
+            rsc.subject_witness("# must match baseanalytics_migration_summary.py",
+                                "scripts/baseanalytics_migration_summary.py"),
+            "baseanalytics_migration_summary.py")
+
+    def test_a_NEIGHBOUR_is_not_a_witness(self):
+        """`orchestrator_queue.py` назван — значит назван СОСЕД, а не `queue.py`."""
+        self.assertIsNone(
+            rsc.subject_witness("python3 scripts/orchestrator_queue.py probe",
+                                "spa_core/owner_queue/queue.py"))
+
+    def test_a_longer_name_is_not_a_witness_either(self):
+        self.assertIsNone(rsc.subject_witness("queue.python", "x/queue.py"))
+
+    def test_silence_is_not_a_witness(self):
+        self.assertIsNone(rsc.subject_witness("random.Random(SEED)",
+                                              "spa_core/backtesting/tier1/monte_carlo.py"))
+
+
+class RemedyFormIsMeasured(unittest.TestCase):
+    """Три формы + третий исход, и порядок ветвей проверен отдельно."""
+
+    ROW = {"verdict": rsc.CLASS_TWO_COPIES, "guard": "tests/test_g.py",
+           "executor": "spa_core/e.py", "name": "N", "value": "0.05"}
+
+    def test_witness_at_the_guard_gives_import(self):
+        got = rsc.classify_remedy(dict(self.ROW), guard_text="про spa_core.e рядом",
+                                  executor_text="", thresholds={})
+        self.assertEqual(got["remedy"], rsc.REMEDY_IMPORT)
+        self.assertEqual(got["witness_side"], "guard")
+
+    def test_witness_at_the_executor_counts_too(self):
+        got = rsc.classify_remedy(dict(self.ROW), guard_text="",
+                                  executor_text="сверено с tests/test_g.py",
+                                  thresholds={})
+        self.assertEqual(got["remedy"], rsc.REMEDY_IMPORT)
+        self.assertEqual(got["witness_side"], "executor")
+
+    def test_no_witness_is_UNPROVEN_not_coincidence(self):
+        got = rsc.classify_remedy(dict(self.ROW), guard_text="", executor_text="",
+                                  thresholds={})
+        self.assertEqual(got["remedy"], rsc.REMEDY_UNPROVEN)
+        self.assertIn("НЕ ДОКАЗАН", got["remedy_evidence"])
+
+    def test_owner_subject_wins_EVEN_WHEN_a_witness_exists(self):
+        """Порядок ветвей и есть предмет теста: право чинить раньше способа."""
+        got = rsc.classify_remedy(dict(self.ROW), guard_text="про spa_core.e рядом",
+                                  executor_text="", thresholds={"0.05": ["min_cash_pct"]})
+        self.assertEqual(got["remedy"], rsc.REMEDY_OWNER)
+        self.assertEqual(got["owner_threshold_names"], ["min_cash_pct"])
+
+    def test_every_colliding_threshold_is_named(self):
+        got = rsc.classify_remedy(dict(self.ROW), guard_text="", executor_text="",
+                                  thresholds={"0.05": ["a", "b", "c"]})
+        for name in ("a", "b", "c"):
+            self.assertIn(f"`{name}`", got["remedy_evidence"])
+
+    def test_unreadable_side_is_its_own_outcome(self):
+        got = rsc.classify_remedy(dict(self.ROW), guard_text=None, executor_text="",
+                                  thresholds={})
+        self.assertEqual(got["remedy"], rsc.REMEDY_UNREADABLE)
+        self.assertIn("guard", got["remedy_evidence"])
+
+
+class RemedyCountsAreAccountedFor(unittest.TestCase):
+    """Каждая находка несёт форму, и сумма форм равна числу находок."""
+
+    def test_findings_carry_a_remedy_and_the_sums_agree(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp),
+                         executor="import os\nSEED = 42\n",
+                         guard="SEED = 42\n")
+            doc = _measure(base)
+        findings = [r for r in doc["rows"] if r["verdict"] == rsc.CLASS_TWO_COPIES]
+        self.assertTrue(findings)
+        for row in findings:
+            self.assertIn(row["remedy"], rsc._REMEDY_CLASSES)
+            self.assertTrue(row["remedy_evidence"])
+        self.assertEqual(sum(doc["remedy_counts"].values()), len(findings))
+
+    def test_a_named_executor_moves_the_pair_out_of_unproven(self):
+        """Обратная сторона той же сцены: одно упоминание меняет вердикт формы."""
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp),
+                         executor="import os\nSEED = 42\n",
+                         # Свидетель ИМЕНЕМ ФАЙЛА: точечный хвост `spa_core.e`
+                         # у двузвенного пути есть сама дверь, и пара ушла бы
+                         # из находок ещё до разбора форм.
+                         guard="# сверено с e.py\nSEED = 42\n")
+            doc = _measure(base)
+        row = [r for r in doc["rows"] if r["verdict"] == rsc.CLASS_TWO_COPIES][0]
+        self.assertEqual(row["remedy"], rsc.REMEDY_IMPORT)
+
+    def test_report_prints_the_remedy_and_says_so_when_it_is_absent(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp),
+                         executor="import os\nSEED = 42\n",
+                         guard="SEED = 42\n")
+            doc = _measure(base)
+        text = "\n".join(rsc.report(doc))
+        self.assertIn("[ФОРМА ПОЧИНКИ]", text)
+        self.assertIn(rsc.REMEDY_UNPROVEN, text)
+        doc.pop("remedy_counts")
+        self.assertIn("НЕ ИЗМЕРЕНА", "\n".join(rsc.report(doc)))
+
+
+class TheTwoGuardsFixedByThisOrderHoldNoCopy(unittest.TestCase):
+    """Исход заказа G42 п. 1 — у починенных сторожей имя ОДНО, а не равное.
+
+    Проверяется тождество объекта, а не равенство значений: равные копии
+    выглядят точно так же и разойдутся при первой же правке одной из сторон.
+    """
+
+    def test_acceptance_ratchet_uses_the_queue_own_statuses(self):
+        from spa_core.owner_queue import queue as q
+        from spa_core.tests import test_inbox_acceptance_ratchet as ratchet
+        self.assertIs(ratchet.INTAKE_STATUSES, q.INTAKE_STATUSES)
+
+    def test_baseanalytics_guard_asks_the_executor_for_the_phases(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_bac_guard", _REPO / "tests" / "test_baseanalytics_complete.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertIs(mod.PHASE_1, mod._summary.PHASE_1)
+        self.assertIs(mod.PHASE_2, mod._summary.PHASE_2)
+        self.assertIs(mod.PHASE_3, mod._summary.PHASE_3)
 
 
 class LiveControlOnTheRealTree(unittest.TestCase):

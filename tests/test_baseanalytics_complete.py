@@ -9,6 +9,7 @@ Sprint v10.54
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 import sys
 import unittest
@@ -20,54 +21,30 @@ if _REPO_ROOT not in sys.path:
 
 from spa_core.base import BaseAnalytics
 
-# ── Phase registries (must match baseanalytics_migration_summary.py) ──────────
+# ── Phase registries: СПРАШИВАЮТСЯ у исполнителя, а не повторяются здесь ─────
+#
+# Заказ G42 п. 1 (ADR-418). Прежняя редакция держала три списка дословно и
+# честно писала рядом «must match baseanalytics_migration_summary.py» — знание
+# о второй копии копией быть не перестаёт: модуль, добавленный исполнителю,
+# молча не попадал бы под проверку, и ни одна сторона бы не покраснела.
+#
+# Загрузка по ПУТИ, потому что `scripts/` пакетом не является. Не прочитан ⇒
+# падать ГРОМКО: подстановка своего списка вернула бы ровно вторую копию, а
+# skip сделал бы «не измерено» неотличимым от «прошло».
+#: Путь пишется ОДНИМ литералом от корня репозитория: дверь опознаётся по
+#: тому, что исполнитель НАЗВАН (`rule_second_copy_census.reaches`), а
+#: `os.path.join(..., "scripts", "имя.py")` имени файла-исполнителя не
+#: образует — проводка была бы настоящей, а перепись звала бы её копией.
+_SUMMARY = os.path.join(_REPO_ROOT, "scripts/baseanalytics_migration_summary.py")
+_spec = importlib.util.spec_from_file_location("_baseanalytics_migration_summary", _SUMMARY)
+if _spec is None or _spec.loader is None:      # pragma: no cover — предпосылка теста
+    raise RuntimeError(f"перечень фаз не прочитан: {_SUMMARY}")
+_summary = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_summary)
 
-PHASE_1 = [
-    "apy_tracker",
-    "protocol_risk_scorer",
-    "liquidity_stress_simulator",
-    "apy_milestone_tracker",
-    "rebalance_trigger_engine",
-]
-
-PHASE_2 = [
-    "apy_anomaly_detector",
-    "capital_efficiency_tracker",
-    "daily_operations_report",
-    "defi_protocol_interest_rate_sensitivity_analyzer",
-    "defi_protocol_lending_utilization_cliff_detector",
-    "defi_protocol_wrapped_asset_peg_deviation_analyzer",
-    "defillama_feed_monitor",
-    "evidence_auto_calculator",
-    "golive_readiness_report",
-    "investment_memo_generator",
-    "liquidation_risk_heatmap",
-    "paper_backtest_drift_v2",
-    "paper_evidence_tracker_v2",
-    "portfolio_heat_map",
-    "protocol_data_audit",
-    "protocol_defi_liquidity_depth_impact_analyzer",
-    "protocol_defi_lp_fee_vs_il_breakeven_analyzer",
-    "protocol_defi_smart_contract_upgrade_risk_analyzer",
-    "protocol_liquidity_depth_analyzer",
-    "protocol_tvl_filter",
-]
-
-PHASE_3 = [
-    "regime_adjusted_allocator",
-    "rs001_stress_engine",
-    "research_summary_report",
-    "rs001_live_apy_engine",
-    "rs002_live_apy_engine",
-    "rs002_position_tracker",
-    "source_acquisition_tracker",
-    "stablecoin_yield_optimizer",
-    "t1_data_verifier",
-    # Batch C — MP-1437/1438
-    "rebalance_cost_estimator",
-    "yield_compressor_score",
-    "yield_forecast_engine",
-]
+PHASE_1 = _summary.PHASE_1
+PHASE_2 = _summary.PHASE_2
+PHASE_3 = _summary.PHASE_3
 
 ALL_MODULES = PHASE_1 + PHASE_2 + PHASE_3
 

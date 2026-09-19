@@ -92,6 +92,47 @@ ADR-416 закрыл ОДИН экземпляр класса: храповик 
 * **Что сторож из `delegates` не держит ВТОРОЙ копии рядом.** Дверь к
   исполнителю найдена — значит копия достижима; пользуется ли сторож ею у
   КАЖДОГО условия, прибор не спрашивает.
+* **Что у пары `subject_unproven` предмет РАЗНЫЙ.** Свидетель односторонний
+  (ниже); «не доказан» — третий исход, а не «совпадение».
+
+## Форма починки — замер, а не глаз (заказ **G42, п. 1**)
+
+Заказ приказал разделить находки по двум формам починки ЗАМЕРОМ и чинить
+формами, а не по одной. Разделение стоит на двух вопросах, и порядок их
+важен, потому что первый — про границу владельца, а не про удобство.
+
+**1. Не лежит ли величина у порога RiskPolicy?** Значение находки сверяется с
+ЧИСЛОВЫМИ порогами, объявленными в `spa_core/risk/policy.py` (верхний уровень
+и умолчания полей). Совпало ⇒ `owner_subject`: предмет №1 границы
+[ADR-285](../../docs/decisions/ADR-285-owner-boundary-by-subject.md), агент
+такую пару НЕ чинит. Замер 19.09 нашёл ровно её: `MIN_CASH = 0.05`
+(`spa_core/backtesting/tier1/limits.py`) стои́т рядом с `min_cash_pct = 0.05`
+у RiskPolicy — одна ли это величина или две одинаковых, решает владелец.
+Сверка одностороння НАМЕРЕННО: равенство числа не доказывает общего
+происхождения, но ошибается в сторону «спросить», а не «починить молча».
+Пороги не прочитаны ⇒ `UNMEASURED`, а не «совпадений нет».
+
+**2. Назвал ли один сторону другую?** Свидетель общего предмета — ТЕКСТ:
+сторож (или исполнитель) упоминает файл другой стороны по имени модуля
+(`owner_queue.queue`) или по имени файла (`baseanalytics_migration_summary.py`)
+где угодно, включая комментарий и докстринг. Это слабее двери из `reaches`
+(упоминание исполнителем НЕ является) и ровно поэтому годится в свидетели:
+сторож, который ЗНАЕТ про чужую копию и всё равно держит свою, копией правила
+владеет заведомо. Назвал ⇒ `single_copy_by_import`: копий становится одна
+ввозом, правка на строку.
+
+**Не назвал ⇒ `subject_unproven`, и это третий исход, а не «совпадение».**
+Замер 19.09: `tests/test_preflight.py` дословно повторяет константы
+`scripts/preflight_day1.py` (`EXPECTED_START_DATE`, `MIN_ADAPTERS`) и нигде
+его не называет — свидетеля нет, и объявить пару совпадением было бы неправдой
+той же природы, что объявить её копией. Такая пара НЕ чинится и стои́т в
+отчёте поимённо.
+
+**Заказ ждал ДВУХ форм починки, замер даёт ОДНУ.** Разделение «сторож ввозит
+константу» против «сторож спрашивает перечень у исполнителя» на доказанном
+населении не даёт разных правок: перечень модулей `PHASE_1/2/3` спрашивается
+у исполнителя тем же ввозом, каким берётся `INTAKE_STATUSES`. Формой здесь
+оказалась не разница в починке, а разница в ПРАВЕ чинить (п. 1 выше).
 """
 
 from __future__ import annotations
@@ -99,6 +140,7 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime as dt
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -137,6 +179,18 @@ CLASS_VALUE_DIFFERS = "value_differs"
 CLASS_NOT_CONSTANT = "not_constant"
 CLASS_AMBIGUOUS = "ambiguous_executor"
 _FINDING_CLASSES = (CLASS_TWO_COPIES,)
+
+#: Модуль, объявляющий пороги RiskPolicy v1.0. Величина, равная одному из них,
+#: есть предмет №1 границы ADR-285 и агентом не чинится.
+RISK_POLICY_MODULE = "spa_core/risk/policy.py"
+
+#: Форма починки находки (заказ G42 п. 1). Порядок объявления — порядок
+#: разбора: право чинить спрашивается ПЕРВЫМ.
+REMEDY_OWNER = "owner_subject"
+REMEDY_IMPORT = "single_copy_by_import"
+REMEDY_UNPROVEN = "subject_unproven"
+REMEDY_UNREADABLE = "remedy_unreadable"
+_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_IMPORT, REMEDY_UNPROVEN, REMEDY_UNREADABLE)
 
 #: След состояния репозитория в тексте сторожа. Нужен только для ПОВЕРХНОСТИ
 #: слепоты: сторож, который ничего из репозитория не читает, своей копии
@@ -245,6 +299,117 @@ def reaches(source: str, imported: set, module_rel: str) -> bool:
     return dotted in source or module_rel in source
 
 
+def risk_policy_thresholds(root: Path) -> Dict[str, List[str]]:
+    """Числовой порог RiskPolicy -> ВСЕ имена, под которыми он объявлен.
+
+    Имён у одного числа бывает несколько, и называть первое попавшееся нельзя:
+    замер 19.09 дал у ``0.05`` сразу три порога — `max_drawdown_stop`,
+    `max_var_pct`, `min_cash_pct`. Первая редакция этой функции хранила одно
+    имя и приписала бы `MIN_CASH` соседство со стоп-краном вместо буфера кэша,
+    то есть соврала бы ровно тем способом, против которого написан весь прибор:
+    равенство величины НЕ есть тождество смысла.
+
+    Берутся и константы верхнего уровня, и умолчания полей (пороги живут
+    полями датакласса `RiskConfig`, поэтому обходится ВЕСЬ модуль, а не
+    `tree.body`). Только числа: порог есть величина, и строковая версия
+    политики порогом не является — сверка по ней объявила бы предметом
+    владельца каждую пару со значением ``'v1.0'``.
+
+    Модуль не прочитан ⇒ ``NotMeasured``: молча решить, что совпадений с
+    порогами нет, значило бы выдать «не измерено» за «чисто» и дать агенту
+    право чинить то, что он чинить не вправе.
+    """
+    path = Path(root) / RISK_POLICY_MODULE
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise NotMeasured(
+            f"пороги RiskPolicy не прочитаны ({RISK_POLICY_MODULE}): "
+            f"{type(exc).__name__}: {exc}") from exc
+    out: Dict[str, str] = {}
+    for node in ast.walk(tree):
+        pairs: List[Tuple[str, ast.AST]] = []
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
+                and node.value is not None:
+            pairs.append((node.target.id, node.value))
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    pairs.append((target.id, node.value))
+        for name, value_node in pairs:
+            if name.startswith("_"):
+                continue
+            if not (isinstance(value_node, ast.Constant)
+                    and isinstance(value_node.value, (int, float))
+                    and not isinstance(value_node.value, bool)):
+                continue
+            text = const_value(value_node)
+            if text is not None and name not in out.setdefault(text, []):
+                out[text].append(name)
+    return {value: sorted(names) for value, names in out.items()}
+
+
+def subject_witness(text: str, module_rel: str) -> Optional[str]:
+    """Называет ли ТЕКСТ файл `module_rel` — по имени модуля или по имени файла.
+
+    Свидетель ОДНОСТОРОННИЙ и слабее двери из :func:`reaches`: упоминание
+    исполнителя дверью к нему не является (ADR-417), но доказывает, что о
+    чужой копии ЗНАЮТ. Ищется точечный хвост длиной от двух звеньев
+    (``owner_queue.queue``) и имя файла (``baseanalytics_migration_summary.py``).
+
+    Граница слева и справа обязательна: голое ``queue.py`` совпало бы внутри
+    ``orchestrator_queue.py`` и выдумало бы свидетеля там, где назван СОСЕД.
+
+    **У исполнителя из двух звеньев пути свидетель-хвост СОВПАДАЕТ с дверью**
+    (``spa_core/e.py`` → ``spa_core.e``), и такая пара находкой быть перестаёт
+    ещё в :func:`reaches` — до разбора форм. Свидетелем там остаётся только имя
+    файла. Это не изъян: совпадение означает, что проводка уже есть.
+    """
+    if not module_rel.endswith(".py"):
+        return None
+    parts = module_rel[:-3].split("/")
+    candidates = [f"{parts[-1]}.py"]
+    candidates += [".".join(parts[-n:]) for n in range(2, len(parts) + 1)]
+    for cand in candidates:
+        if re.search(r"(?<![\w.])" + re.escape(cand) + r"(?![\w])", text):
+            return cand
+    return None
+
+
+def classify_remedy(row: dict, *, guard_text: Optional[str],
+                    executor_text: Optional[str],
+                    thresholds: Dict[str, List[str]]) -> dict:
+    """Форма починки одной находки (заказ G42 п. 1). Возвращает поля строки.
+
+    Порядок ветвей — не стилистика: право чинить спрашивается раньше способа
+    чинить. Пара, чья величина совпала с порогом RiskPolicy, уходит владельцу
+    ДО того, как прибор вообще посмотрит на свидетеля.
+    """
+    owner_names = thresholds.get(row.get("value")) or []
+    if owner_names:
+        named = ", ".join(f"`{n}`" for n in owner_names)
+        return {"remedy": REMEDY_OWNER, "owner_threshold_names": list(owner_names),
+                "remedy_evidence": (
+                    f"значение равно порог{'ам' if len(owner_names) > 1 else 'у'} "
+                    f"RiskPolicy {named} ({RISK_POLICY_MODULE}) — предмет №1 "
+                    f"границы ADR-285; какой из них ТОТ САМЫЙ, прибор не решает")}
+    if guard_text is None or executor_text is None:
+        side = "guard" if guard_text is None else "executor"
+        return {"remedy": REMEDY_UNREADABLE,
+                "remedy_evidence": f"текст стороны `{side}` не прочитан повторно"}
+    witness = subject_witness(guard_text, row["executor"])
+    if witness is not None:
+        return {"remedy": REMEDY_IMPORT, "witness_side": "guard",
+                "remedy_evidence": f"сторож называет исполнителя: `{witness}`"}
+    witness = subject_witness(executor_text, row["guard"])
+    if witness is not None:
+        return {"remedy": REMEDY_IMPORT, "witness_side": "executor",
+                "remedy_evidence": f"исполнитель называет сторожа: `{witness}`"}
+    return {"remedy": REMEDY_UNPROVEN,
+            "remedy_evidence": ("ни одна сторона не называет другую — общий предмет "
+                                "НЕ ДОКАЗАН (это не «совпадение»)")}
+
+
 def _guard_files(root: Path) -> List[Path]:
     seen: set = set()
     out: List[Path] = []
@@ -312,6 +477,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
               CLASS_NOT_CONSTANT: 0, CLASS_AMBIGUOUS: 0}
     surface: List[str] = []
     guard_files = _guard_files(root)
+    # Пороги спрашиваются ПОСЛЕ корней населения и ДО разбора форм. Порядок
+    # обоих отказов измерен тестами: «корень не прочитан» остаётся первым
+    # (он отменяет перепись целиком), а «пороги не прочитаны» отменяет право
+    # чинить — и ни один из них не выдаётся за пустой результат.
+    thresholds = risk_policy_thresholds(root)
     for path in guard_files:
         rel = path.relative_to(root).as_posix()
         try:
@@ -363,6 +533,27 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
             surface.append(rel)
 
     rows.sort(key=lambda r: (r["guard"], r["name"]))
+
+    # --- форма починки у каждой находки (заказ G42 п. 1) --------------------
+    remedy_counts = {cls: 0 for cls in _REMEDY_CLASSES}
+    text_cache: Dict[str, Optional[str]] = {}
+
+    def _text(rel: str) -> Optional[str]:
+        if rel not in text_cache:
+            try:
+                text_cache[rel] = (root / rel).read_text(encoding="utf-8")
+            except OSError:
+                text_cache[rel] = None
+        return text_cache[rel]
+
+    for row in rows:
+        if row["verdict"] not in _FINDING_CLASSES:
+            continue
+        row.update(classify_remedy(row, guard_text=_text(row["guard"]),
+                                   executor_text=_text(row["executor"]),
+                                   thresholds=thresholds))
+        remedy_counts[row["remedy"]] += 1
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -382,6 +573,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
         "guards": len(guard_files),
         "executors": len(executor_files),
         "counts": dict(counts, unreadable=len(unreadable)),
+        "remedy_counts": remedy_counts,
+        "risk_policy_thresholds": len(thresholds),
         "classified": classified,
         "rows": rows,
         "unreadable": unreadable,
@@ -394,6 +587,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
             "что совпавшее значение имеет общее происхождение (SEED = 42 может быть совпадением)",
             "что население полно — переименованная копия невидима; renamed_copy_surface есть доказанный МИНИМУМ, а не потолок",
             "что сторож из delegates не держит второй копии рядом — дверь найдена, пользование ею не спрошено",
+            "что пара subject_unproven есть СОВПАДЕНИЕ — свидетель общего предмета односторонний, «не доказан» третий исход",
+            "что пара owner_subject есть ОДНА величина — равенство с порогом RiskPolicy отправляет её владельцу, а не выносит приговор",
         ],
     }
 
@@ -426,11 +621,23 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         f"+ не разобрано {counts.get('unreadable')} "
         f"(сторожей {doc.get('guards')}, исполнителей {doc.get('executors')})",
     ]
+    remedy = observed(doc, "remedy_counts", kind=dict)
+    if remedy is None:
+        out.append("[ФОРМА ПОЧИНКИ] НЕ ИЗМЕРЕНА — перепись собрана без разбора форм")
+    else:
+        out.append(
+            f"[ФОРМА ПОЧИНКИ] ввозом {remedy.get(REMEDY_IMPORT)} · "
+            f"предмет владельца {remedy.get(REMEDY_OWNER)} · "
+            f"предмет НЕ доказан {remedy.get(REMEDY_UNPROVEN)} · "
+            f"не разобрано {remedy.get(REMEDY_UNREADABLE)}")
     findings = [r for r in (doc.get("rows") or []) if r["verdict"] in _FINDING_CLASSES]
     for row in findings[:max_rows]:
+        tail = ""
+        if row.get("remedy"):
+            tail = f" · {row['remedy']}: {row.get('remedy_evidence', 'основание не записано')}"
         out.append(
             f"[НАХОДКА] {row['name']} = {row['value']} — сторож {row['guard']} "
-            f"против исполнителя {row['executor']}")
+            f"против исполнителя {row['executor']}{tail}")
     if len(findings) > max_rows:
         # Умолчание об укорочении и есть способ соврать усечением.
         out.append(f"[…] показаны {max_rows} находки из {len(findings)}; "
@@ -442,7 +649,8 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         f"ПО ПОСТРОЕНИЮ; это доказанный МИНИМУМ переименованных копий, не потолок"
         + (f"; напр. {', '.join(surface[:3])}" if surface else ""))
     out.append("НЕ ДОКЛАДЫВАЕТ: вредит ли найденная копия сегодня; общее ли "
-               "происхождение у совпавшего значения")
+               "происхождение у совпавшего значения; является ли "
+               "`subject_unproven` совпадением — свидетель односторонний")
     return out
 
 
