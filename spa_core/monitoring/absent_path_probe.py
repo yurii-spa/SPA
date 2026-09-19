@@ -90,6 +90,7 @@ import argparse  # noqa: E402
 import datetime as dt  # noqa: E402
 import hashlib  # noqa: E402
 import random  # noqa: E402
+import re  # noqa: E402
 import shutil  # noqa: E402
 import tempfile  # noqa: E402
 from pathlib import Path  # noqa: E402
@@ -133,13 +134,24 @@ VERDICT_ALREADY_SKIPPED = "already_skipped"
 VERDICTS = (VERDICT_VACUOUS, VERDICT_REFUSES, VERDICT_ANNOUNCES,
             VERDICT_SCENE, VERDICT_UNMEASURED, VERDICT_ALREADY_SKIPPED)
 
-#: Состояния СОБСТВЕННОГО теста строки в целом дереве (вопрос задаётся только
-#: когда исход опыта — `vacuous_pass`, потому что маскироваться пропуск может
-#: лишь под него: у всех прочих исходов тест заведомо бежал).
+#: Состояния СОБСТВЕННОГО теста строки в целом дереве. Вопрос задаётся ВСЕМУ
+#: населению (заказ G48 п. 2), а не только строкам с исходом `vacuous_pass`.
+#: Прежняя редакция спрашивала лениво и обосновывала это рассуждением
+#: («маскироваться пропуск может лишь под вырожденный проход: у прочих исходов
+#: тест заведомо бежал»). Рассуждение верно ровно наполовину: под `vacuous_pass`
+#: пропуск действительно МАСКИРУЕТСЯ, но у соседних исходов он значит другое и
+#: не менее существенное — строка, чей тест не звали, получает вердикт,
+#: произведённый СОСЕДОМ по файлу. Догадку сменяет число.
 OWN_RAN = "ran"
 OWN_SKIPPED = "skipped"
 OWN_NOT_ADDRESSABLE = "not_addressable"
 OWN_UNKNOWN = "unknown"
+#: Вопрос не задавался вовсе. Это НЕ «неизвестно»: «спросили и не разобрали
+#: ответ» и «не спрашивали» — разные состояния, и слить их значило бы вернуть
+#: ровно ту слепоту, против которой заведён сам вопрос (инв. #17).
+OWN_NOT_ASKED = "not_asked"
+OWN_STATES = (OWN_RAN, OWN_SKIPPED, OWN_NOT_ADDRESSABLE, OWN_UNKNOWN,
+              OWN_NOT_ASKED)
 
 #: Вердикты, при которых сторож при отсутствующем входе остаётся ЗЕЛЁНЫМ и об
 #: этом не говорит ничего. Это и есть находка зонда.
@@ -154,6 +166,11 @@ RUN_TIMEOUT_S = 420
 #: экономией.
 SAMPLE_SEED = 20260919
 DEFAULT_SAMPLE = None
+
+#: Сколько знаков вывода сбора тестов сохраняется. Умолчание проводки (2000)
+#: здесь мало: сбор одного параметризованного теста даёт 81 строку, и
+#: обрезание превращало бы «тест есть» в «теста нет» молча.
+_COLLECT_KEEP_CHARS = 400_000
 
 #: Хвост имени, под которым путь уносится. Длинный и свой: короткое имя могло
 #: бы совпасть с настоящим соседом, и тогда унос был бы перезаписью.
@@ -256,7 +273,47 @@ def _blocking_reason(tree: Path, row: dict) -> Optional[str]:
 
 
 def probe_row(tree: Path, row: dict, *,
-              baselines: Dict[str, Tuple[int, str]]) -> dict:
+              baselines: Dict[str, Tuple[int, str]],
+              id_cache: Optional[Dict[str, Optional[List[str]]]] = None) -> dict:
+    """Один опыт + вопрос о собственном тесте строки — ВСЕГДА, любому исходу.
+
+    Два вопроса разведены намеренно и задаются в этом порядке: сначала опыт
+    (что сторож ДЕЛАЕТ без входа), затем — бежал ли вообще тест ЭТОЙ строки.
+    Обратный порядок был бы дешевле, но он же и молчаливее: строку с
+    пропущенным тестом он снял бы с опыта, и «сторож слеп» стало бы
+    неотличимо от «сторожа не звали» у тех исходов, где пропуск ничего не
+    маскирует, зато меняет АВТОРА вердикта.
+    """
+    entry = _experiment(tree, row, baselines=baselines)
+    return _ask_own_test(tree, entry, row, id_cache=id_cache)
+
+
+def _ask_own_test(tree: Path, entry: dict, row: dict, *,
+                  id_cache: Optional[Dict[str, Optional[List[str]]]] = None) -> dict:
+    """Записать состояние собственного теста строки и, где надо, сменить вердикт.
+
+    Смена вердикта на `already_skipped` остаётся ТОЛЬКО у `vacuous_pass`, и
+    теперь это замер, а не умолчание: у прочих исходов пропуск собственного
+    теста наблюдается и НАЗЫВАЕТСЯ отдельным полем, но исход опыта он не
+    объясняет — краснота или объявление пришли от соседа по файлу, то есть
+    наблюдение о стороже состоялось, просто произвёл его не этот тест.
+    """
+    entry["own_test"] = own_test_state(
+        tree, str(entry.get("guard") or ""), str(row.get("scope") or ""),
+        cache=id_cache)
+    if (entry.get("verdict") == VERDICT_VACUOUS
+            and entry["own_test"] == OWN_SKIPPED):
+        entry["verdict"] = VERDICT_ALREADY_SKIPPED
+        entry["evidence"] = (
+            f"собственный тест строки `{row.get('scope')}` ПРОПУЩЕН в этом "
+            f"дереве ещё до опыта — сторож молчал не от слепоты, а потому "
+            f"что его не звали; счёт passed у пропущенного теста не "
+            f"меняется ни до уноса, ни после")
+    return entry
+
+
+def _experiment(tree: Path, row: dict, *,
+                baselines: Dict[str, Tuple[int, str]]) -> dict:
     """Один опыт: до двух прогонов сторожа в ОДНОРАЗОВОМ дереве."""
     guard_rel = str(row.get("guard") or "")
     entry = {
@@ -345,23 +402,91 @@ def probe_row(tree: Path, row: dict, *,
 
     entry["absent_code"] = code
     entry["absent_passed"] = vgp.passed_count(out)
-    entry = _verdict(entry, code, out, base_passed)
-    if entry.get("verdict") == VERDICT_VACUOUS:
-        # Путь к этому моменту УЖЕ возвращён (блок `finally` выше), поэтому
-        # вопрос задаётся о ЦЕЛОМ дереве — что и значит «пропущен здесь».
-        state = own_test_state(tree, guard_rel, str(row.get("scope") or ""))
-        entry["own_test"] = state
-        if state == OWN_SKIPPED:
-            entry["verdict"] = VERDICT_ALREADY_SKIPPED
-            entry["evidence"] = (
-                f"собственный тест строки `{row.get('scope')}` ПРОПУЩЕН в этом "
-                f"дереве ещё до опыта — сторож молчал не от слепоты, а потому "
-                f"что его не звали; счёт passed у пропущенного теста не "
-                f"меняется ни до уноса, ни после")
-    return entry
+    # Вопрос о собственном тесте задаёт зовущий (`_ask_own_test`) — и задаёт
+    # его ПОСЛЕ возврата пути (блок `finally` выше), то есть о ЦЕЛОМ дереве.
+    return _verdict(entry, code, out, base_passed)
 
 
-def own_test_state(tree: Path, guard_rel: str, scope: str) -> str:
+def own_test_ids(tree: Path, guard_rel: str, scope: str, *,
+                 cache: Optional[Dict[str, Optional[List[str]]]] = None
+                 ) -> Optional[List[str]]:
+    """Адреса теста ``scope`` в файле — СПРОШЕНЫ У pytest, а не собраны нами.
+
+    ``None`` — сбор не ответил (третий исход). Пустой список — pytest собрал
+    файл и такого теста в нём НЕТ; это ответ, а не молчание.
+
+    Почему не селектор `файл::имя` (замер #643, он же находка этого цикла).
+    Метод внутри класса им НЕ адресуется: `pytest f.py::test_x` для
+    `class C: def test_x` печатает «no tests ran» и выходит КОДОМ 0, и прежняя
+    редакция читала это как «имя тестом не является». На живом населении так
+    были помечены **29 строк из 47** — среди них
+    `test_does_not_use_bsd_unsafe_newermt_epoch`, который в тот же час падал
+    в прогоне сторожа под именем
+    `TestGateExistsAndParses::test_does_not_use_bsd_unsafe_newermt_epoch`.
+    То есть «не тест» выдавалось за ответ там, где тест есть, и весь исход
+    `already_skipped` для классовых тестов был недостижим ПО ПОСТРОЕНИЮ.
+
+    Правило адресации при этом не переписывается здесь второй копией
+    (ADR-417/418): имена спрашиваются у самого pytest сбором, а наше дело —
+    выбрать среди них те, чей ПОСЛЕДНИЙ сегмент равен ``scope`` (или
+    начинается с `scope[` — параметризация). Сравнение сегментом, а не
+    подстрокой: `test_x` и `test_x_and_more` подстрокой неразличимы.
+    """
+    key = f"{guard_rel}::{scope}"
+    if cache is not None and key in cache:
+        collected = cache[key]
+    else:
+        # `-k` СУЖАЕТ вывод, но ответом не является: подстрокой `test_walks`
+        # выбирает и `test_walks_and_more`. Точность даёт сверка СЕГМЕНТА
+        # ниже, а `-k` лишь бережёт вывод от обрезания.
+        code, out = base._run(
+            [sys.executable, "-m", "pytest", guard_rel, "--collect-only",
+             "-q", "-p", "no:randomly", "-k", scope],
+            cwd=tree, timeout=RUN_TIMEOUT_S, keep=_COLLECT_KEEP_CHARS)
+        collected = _collected_ids(out, guard_rel) if code >= 0 else None
+        if cache is not None:
+            cache[key] = collected
+    if collected is None:
+        return None
+    return [nid for nid in collected
+            if nid.split("::")[-1] == scope
+            or nid.split("::")[-1].startswith(scope + "[")]
+
+
+def _collected_ids(out: str, guard_rel: str) -> Optional[List[str]]:
+    """Адреса из вывода `--collect-only -q`; ``None`` — вывод не подтверждён.
+
+    Число собранного pytest ОБЪЯВЛЯЕТ сам (`3/160 tests collected`,
+    `no tests collected`), и разобранный перечень обязан с этим числом
+    сойтись. Не сошёлся — вывод обрезан или не разобран, и это третий исход:
+    короткий перечень читался бы как «такого теста нет», то есть «не
+    измерено» пришло бы под видом ответа (инв. #17).
+    """
+    # Сбор, умерший ошибкой, печатает ТУ ЖЕ сводку «no tests collected» —
+    # с припиской «, 1 error». Прочесть её как «такого теста нет» значило бы
+    # снять строку с учёта поломкой файла. Разбор сводки ВВОЗИТСЯ у соседа:
+    # второй копии правила «где живёт сводка» быть не должно (ADR-417).
+    if vgp.summary_count(out, "error"):
+        return None
+    declared = None
+    for line in reversed((out or "").splitlines()):
+        stripped = line.strip()
+        if "tests collected" in stripped or "test collected" in stripped:
+            if stripped.startswith("no tests collected"):
+                declared = 0
+            else:
+                match = re.match(r"(\d+)(?:/\d+)? tests? collected", stripped)
+                declared = int(match.group(1)) if match else None
+            break
+    if declared is None:
+        return None
+    ids = [line.strip() for line in (out or "").splitlines()
+           if "::" in line and line.strip().startswith(guard_rel + "::")]
+    return ids if len(ids) == declared else None
+
+
+def own_test_state(tree: Path, guard_rel: str, scope: str, *,
+                   cache: Optional[Dict[str, Optional[List[str]]]] = None) -> str:
     """Бежит ли в ЭТОМ дереве собственный тест строки — или он пропущен.
 
     Вопрос отдельный от прогона сторожа, и он ОБЯЗАН быть отдельным: прогон
@@ -371,33 +496,54 @@ def own_test_state(tree: Path, guard_rel: str, scope: str) -> str:
     признак, и различить их файловым счётом нельзя в принципе.
 
     ``scope`` у строки — имя объемлющей функции, и тестом оно бывает не
-    всегда (помощник, метод класса). Неадресуемый ``scope`` — третий исход
+    всегда (помощник, фикстура). Неадресуемый ``scope`` — третий исход
     (`not_addressable`), а не «бежал»: выдуманное «бежал» вернуло бы ровно ту
-    слепоту, ради которой вопрос и задан.
+    слепоту, ради которой вопрос и задан. Но и «не тест» обязано быть
+    ИЗМЕРЕНО, а не выведено из формы селектора — см. `own_test_ids`.
     """
     if not scope:
         return OWN_NOT_ADDRESSABLE
-    code, out = base._run(
-        [sys.executable, "-m", "pytest", f"{guard_rel}::{scope}",
-         "-q", "--tb=no", "-p", "no:randomly"],
-        cwd=tree, timeout=RUN_TIMEOUT_S)
-    # Коды pytest на селектор `файл::имя`: 5 — собрано ноль, 4 — «не найдено»
-    # (ЗАМЕР: `(no match in any of [<Module t.py>])`, код 4). Оба отвечают на
-    # НАШ вопрос — имя тестом в этом файле не является; звать это «не
-    # измерено» значило бы прятать ответ. Свою ошибку употребления флагов этот
-    # разбор не замаскирует: она была бы у КАЖДОЙ строки, включая ту, где тест
-    # заведомо есть, и обратная проверка контроля на неё краснеет.
-    if code in (4, 5):
+    ids = own_test_ids(tree, guard_rel, scope, cache=cache)
+    if ids is None:
+        return OWN_UNKNOWN   # сбор не ответил — молчать честнее, чем гадать
+    if not ids:
         return OWN_NOT_ADDRESSABLE
+    code, out = base._run(
+        [sys.executable, "-m", "pytest", *ids, "-q", "--tb=no",
+         "-p", "no:randomly"],
+        cwd=tree, timeout=RUN_TIMEOUT_S)
     if code < 0 or code in vgp._NO_VERDICT_CODES:
         return OWN_UNKNOWN
     passed = vgp.summary_count(out, "passed")
     skipped = vgp.summary_count(out, "skipped")
+    failed = vgp.summary_count(out, "failed")
     if passed is None or skipped is None:
         return OWN_UNKNOWN   # сводка не разобрана — молчать честнее, чем гадать
-    if passed:
+    if passed or failed:
         return OWN_RAN
     return OWN_SKIPPED if skipped else OWN_NOT_ADDRESSABLE
+
+
+def own_test_tally(entries: List[dict]) -> Tuple[Dict[str, int], Dict[str, int]]:
+    """Второе число заказа G48 п. 2: состояние собственного теста у ВСЕГО населения.
+
+    Функция отдельная, потому что её и надо уметь спросить без прогона: в
+    замере на настоящем контуре поле есть у каждой строки, и подстановка
+    удобного умолчания внутри цикла осталась бы НЕизмеримой (батарея #643,
+    мутация 3 выжила именно так). Строка без поля считается ``not_asked``, а
+    не «бежал»: удобное умолчание и есть подмена «не измерено» успехом
+    (инв. #17). Незнакомое значение — ``unknown``, а не тихо отброшенное.
+    """
+    own_counts = {st: 0 for st in OWN_STATES}
+    by_verdict = {v: 0 for v in VERDICTS}
+    for entry in entries:
+        state = entry.get("own_test") or OWN_NOT_ASKED
+        if state not in own_counts:
+            state = OWN_UNKNOWN
+        own_counts[state] += 1
+        if state == OWN_SKIPPED:
+            by_verdict[entry.get("verdict", VERDICT_UNMEASURED)] += 1
+    return own_counts, by_verdict
 
 
 def _verdict(entry: dict, code: int, out: str, base_passed: int) -> dict:
@@ -520,17 +666,26 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             raise NotMeasured(f"pytest недоступен в одноразовом дереве: {version}")
 
         baselines: Dict[str, Tuple[int, str]] = {}
+        # Сбор тестов файла спрашивается РАЗ на сторожа: строк у одного файла
+        # бывает несколько, а состав его тестов от уноса чужого пути не зависит.
+        id_cache: Dict[str, Optional[List[str]]] = {}
         for row in chosen:
             if base._dirty(root, str(row.get("guard") or "")):
                 entries.append({
                     "key": row.get("key"), "guard": row.get("guard"),
                     "path": row.get("path"), "static_door": row.get("door"),
                     "verdict": VERDICT_UNMEASURED,
+                    # Вопрос о собственном тесте здесь НЕ задаётся, и это
+                    # сказано значением: одноразовое дерево несёт HEAD, а
+                    # сторож в рабочем дереве другой — ответ был бы о чужом
+                    # файле. «Не спрашивали» ≠ «спросили и не поняли».
+                    "own_test": OWN_NOT_ASKED,
                     "evidence": ("сторож изменён в рабочем дереве — одноразовое "
                                  "дерево несёт HEAD, то есть НЕ его")})
                 continue
             try:
-                entries.append(probe_row(tmp, row, baselines=baselines))
+                entries.append(probe_row(tmp, row, baselines=baselines,
+                                         id_cache=id_cache))
             except NotMeasured as exc:
                 # Невозвращённый путь обрывает ВЕСЬ замер: в таком дереве
                 # недостоверны и уже снятые строки, и будущие. Обрыв называется
@@ -545,6 +700,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     for entry in entries:
         entry["static_agrees"] = agreement(entry)
         counts[entry.get("verdict", VERDICT_UNMEASURED)] += 1
+    own_counts, own_skipped_by_verdict = own_test_tally(entries)
+    # Строка, чей тест не звали, но чей сторож при уносе пути ЗАГОВОРИЛ:
+    # наблюдение состоялось, произвёл его СОСЕД по файлу. Вердикт строки от
+    # этого не становится ложным — он перестаёт быть ЕЁ вердиктом, и в дереве,
+    # где условие пропуска ложно, отвечать на тот же вопрос будет некому.
+    neighbour_credited = [
+        e for e in entries
+        if (e.get("own_test") == OWN_SKIPPED
+            and e.get("verdict") in (VERDICT_REFUSES, VERDICT_ANNOUNCES))]
     compared = [e for e in entries if e.get("static_agrees") is not None]
     disagree = [e for e in compared if e["static_agrees"] is False]
     # Род входа — ось, по которой расхождение статики с прогоном и распалось:
@@ -572,6 +736,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "population": len(population(rows)),
         "probed": len(entries),
         "counts": counts,
+        "own_test_counts": own_counts,
+        "own_skipped_by_verdict": own_skipped_by_verdict,
+        "refusal_credited_to_neighbour": [
+            {"key": e.get("key"), "guard": e.get("guard"),
+             "line": e.get("line"), "scope": e.get("scope"),
+             "verdict": e.get("verdict")} for e in neighbour_credited],
         "findings": counts[VERDICT_VACUOUS],
         "static_compared": len(compared),
         "static_disagrees": len(disagree),
@@ -586,6 +756,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что строка, до которой зонд не дошёл, исправна — `unmeasured` есть третий исход и строку на учёт ВОЗВРАЩАЕТ",
             "что совпадение статики с прогоном делает статику верной вообще: замерено совпадение на ЭТОМ населении и в ЭТОМ дереве",
             "что унос одного пути равен его отсутствию в чужом дереве: соседние пути на месте, и сторож, читающий два входа, увидит здесь только один пробел",
+        "что строка с пропущенным собственным тестом и вердиктом `refuses_absent`/`announces_absence` неисправна: наблюдение состоялось, но произвёл его сосед по файлу — о САМОЙ строке в этом дереве не сказано ничего",
+        "что `own_test` есть свойство строки вообще: это свойство ЭТОГО дерева; в дереве, где условие `skipif` ложно, ответ будет другим",
             "что `path_recreated_by_run` безвреден: созданный прогоном путь прибор убирает в СВОЁМ одноразовом дереве, а что этот сторож делает в живом дереве — вопрос не к зонду",
         ],
     }
@@ -614,6 +786,32 @@ def report(doc: dict, *, max_rows: int = 25) -> List[str]:
         f"[СОЗДАЛ СВОЙ ВХОД] сторожей, заведших унесённый путь заново: "
         f"{doc.get('path_recreated_by_run')}",
     ]
+    own = observed(doc, "own_test_counts", kind=dict)
+    if own is None:
+        out.append("[СВОЙ ТЕСТ] НЕ ИЗМЕРЕНО — журнал не несёт поля "
+                   "`own_test_counts`; вопрос всему населению не задавался")
+    else:
+        by_verdict = observed(doc, "own_skipped_by_verdict", kind=dict) or {}
+        other = sum(n for v, n in by_verdict.items()
+                    if v != VERDICT_ALREADY_SKIPPED)
+        out.append(
+            f"[СВОЙ ТЕСТ] (заказ G48 п. 2, спрошено у ВСЕГО населения) бежал "
+            f"{own.get(OWN_RAN)} · ПРОПУЩЕН {own.get(OWN_SKIPPED)} · не тест "
+            f"{own.get(OWN_NOT_ADDRESSABLE)} · ответ не разобран "
+            f"{own.get(OWN_UNKNOWN)} · не спрашивали {own.get(OWN_NOT_ASKED)}")
+        out.append(
+            f"[ПРОПУЩЕН ПРИ ДРУГОМ ИСХОДЕ] {other} строк(и): "
+            + (" · ".join(f"{v}: {n}" for v, n in sorted(by_verdict.items())
+                          if n and v != VERDICT_ALREADY_SKIPPED)
+               or "ни одной — прежнее ленивое правило совпало с замером"))
+    credited = doc.get("refusal_credited_to_neighbour")
+    if credited:
+        out.append(
+            f"[ВЕРДИКТ ПРОИЗВЁЛ СОСЕД] у {len(credited)} строк(и) собственный "
+            f"тест ПРОПУЩЕН, а сторож при уносе заговорил — наблюдение есть, "
+            f"но о строке оно ничего не говорит: "
+            + " · ".join(f"{c.get('guard')}:{c.get('line')} ({c.get('scope')})"
+                         for c in credited[:max_rows]))
     if doc.get("aborted_reason"):
         out.append(f"[ОБРЫВ] {doc.get('aborted_reason')}")
     if doc.get("stale_disposable_trees"):

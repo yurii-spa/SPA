@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T13:35:20.270485+00:00",
+  "generated_at": "2026-09-19T20:12:34.444447+00:00",
   "generated_by": "spa_core/monitoring/absent_path_probe.py",
   "invoked_by": {
     "schema": "call_provenance.v1",
@@ -13,28 +13,45 @@
   "aborted_reason": null,
   "question": "\u0447\u0442\u043e \u0441\u0442\u043e\u0440\u043e\u0436 \u0414\u0415\u041b\u0410\u0415\u0422, \u043a\u043e\u0433\u0434\u0430 \u0435\u0433\u043e \u0432\u0445\u043e\u0434\u0430-\u043f\u0443\u0442\u0438 \u0432 \u0434\u0435\u0440\u0435\u0432\u0435 \u043d\u0435\u0442 (\u041f\u0420\u041e\u0413\u041e\u041d\u041e\u041c, \u0431\u0435\u0437 \u043f\u0440\u0430\u0432\u043a\u0438 \u0438\u0441\u0445\u043e\u0434\u043d\u0438\u043a\u0430)",
   "order": "G46 \u043f. 1 (\u0445\u0432\u043e\u0441\u0442 ADR-421)",
-  "tree_sha": "4e36179554074582853d88084f8bd578107b86bf",
-  "tree": "/private/tmp/spa_c641",
-  "population": 46,
-  "probed": 46,
+  "tree_sha": "968adf0e3c198a6ad9e3761dad3e65d99cad18e1",
+  "tree": "/private/tmp/spa_c643",
+  "population": 47,
+  "probed": 47,
   "counts": {
-    "vacuous_pass": 9,
-    "refuses_absent": 15,
+    "vacuous_pass": 1,
+    "refuses_absent": 20,
     "announces_absence": 3,
     "scene_destroyed": 5,
-    "unmeasured": 14
+    "unmeasured": 14,
+    "already_skipped": 4
   },
-  "findings": 9,
-  "static_compared": 27,
-  "static_disagrees": 10,
+  "own_test_counts": {
+    "ran": 30,
+    "skipped": 4,
+    "not_addressable": 13,
+    "unknown": 0,
+    "not_asked": 0
+  },
+  "own_skipped_by_verdict": {
+    "vacuous_pass": 0,
+    "refuses_absent": 0,
+    "announces_absence": 0,
+    "scene_destroyed": 0,
+    "unmeasured": 0,
+    "already_skipped": 4
+  },
+  "refusal_credited_to_neighbour": [],
+  "findings": 1,
+  "static_compared": 24,
+  "static_disagrees": 15,
   "static_by_kind": {
     "file_read": {
-      "compared": 6,
-      "disagrees": 6
+      "compared": 7,
+      "disagrees": 7
     },
     "tree_scan": {
-      "compared": 21,
-      "disagrees": 4
+      "compared": 17,
+      "disagrees": 8
     }
   },
   "path_recreated_by_run": 5,
@@ -63,6 +80,7 @@
       "absent_code": 1,
       "absent_passed": 5,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -83,6 +101,7 @@
       "path_recreated_by_run": false,
       "absent_code": 0,
       "absent_passed": 11,
+      "own_test": "ran",
       "static_agrees": true
     },
     {
@@ -98,6 +117,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c \u0435\u0441\u0442\u044c \u041a\u041e\u0420\u0415\u041d\u042c \u0434\u0435\u0440\u0435\u0432\u0430 \u2014 \u0443\u043d\u0435\u0441\u0442\u0438 \u0435\u0433\u043e \u043d\u0435\u0447\u0435\u043c, \u0438 \u043e\u043f\u044b\u0442 \u043d\u0430\u0434 \u043d\u0438\u043c \u0431\u044b\u043b \u0431\u044b \u043e\u043f\u044b\u0442\u043e\u043c \u043d\u0430\u0434 \u0441\u0430\u043c\u0438\u043c \u043f\u0440\u043e\u0433\u043e\u043d\u043e\u043c",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -118,6 +138,7 @@
       "path_recreated_by_run": false,
       "absent_code": 2,
       "absent_passed": 0,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -141,6 +162,7 @@
       "absent_code": 1,
       "absent_passed": 1,
       "consumer_is_red": false,
+      "own_test": "not_addressable",
       "static_agrees": true
     },
     {
@@ -167,6 +189,7 @@
       "absent_code": 1,
       "absent_passed": 9,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -178,15 +201,16 @@
       "path": "data",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "bee3b26b91a7757a7019dee30b185beb2e1c756ab89c61db99173881ce260b35",
+      "guard_sha": "5764c466fd6d240dde92c144c04bf1ca93833a9116c5e6b55bfe56e8f361394f",
       "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (159) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (160) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
       "failed_tests": [],
       "baseline_code": 0,
-      "baseline_passed": 159,
+      "baseline_passed": 160,
       "path_recreated_by_run": true,
       "absent_code": 0,
-      "absent_passed": 159,
+      "absent_passed": 160,
+      "own_test": "ran",
       "static_agrees": true
     },
     {
@@ -202,6 +226,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_cycle_health_artifact_integrity.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -217,6 +242,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_data_dir_env_ratchet.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -232,6 +258,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c \u0435\u0441\u0442\u044c \u041a\u041e\u0420\u0415\u041d\u042c \u0434\u0435\u0440\u0435\u0432\u0430 \u2014 \u0443\u043d\u0435\u0441\u0442\u0438 \u0435\u0433\u043e \u043d\u0435\u0447\u0435\u043c, \u0438 \u043e\u043f\u044b\u0442 \u043d\u0430\u0434 \u043d\u0438\u043c \u0431\u044b\u043b \u0431\u044b \u043e\u043f\u044b\u0442\u043e\u043c \u043d\u0430\u0434 \u0441\u0430\u043c\u0438\u043c \u043f\u0440\u043e\u0433\u043e\u043d\u043e\u043c",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -255,6 +282,7 @@
       "absent_code": 1,
       "absent_passed": 6,
       "consumer_is_red": false,
+      "own_test": "not_addressable",
       "static_agrees": true
     },
     {
@@ -278,6 +306,7 @@
       "absent_code": 1,
       "absent_passed": 21,
       "consumer_is_red": false,
+      "own_test": "not_addressable",
       "static_agrees": true
     },
     {
@@ -295,6 +324,7 @@
       "failed_tests": [],
       "baseline_code": 1,
       "baseline_passed": 21,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -315,6 +345,7 @@
       "path_recreated_by_run": false,
       "absent_code": 2,
       "absent_passed": 0,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -327,15 +358,16 @@
       "kind": "tree_scan",
       "static_door": "no_door",
       "guard_sha": "446908bc59d258f62190427598dac9ecd694781c4ddb09f716174de5e7bb1175",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (15) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+      "verdict": "already_skipped",
+      "evidence": "\u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438 `test_real_panel_ladder_runs_and_leaves_no_files_behind` \u041f\u0420\u041e\u041f\u0423\u0429\u0415\u041d \u0432 \u044d\u0442\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u0435\u0449\u0451 \u0434\u043e \u043e\u043f\u044b\u0442\u0430 \u2014 \u0441\u0442\u043e\u0440\u043e\u0436 \u043c\u043e\u043b\u0447\u0430\u043b \u043d\u0435 \u043e\u0442 \u0441\u043b\u0435\u043f\u043e\u0442\u044b, \u0430 \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0435\u0433\u043e \u043d\u0435 \u0437\u0432\u0430\u043b\u0438; \u0441\u0447\u0451\u0442 passed \u0443 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u043e\u0433\u043e \u0442\u0435\u0441\u0442\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u043d\u0438 \u0434\u043e \u0443\u043d\u043e\u0441\u0430, \u043d\u0438 \u043f\u043e\u0441\u043b\u0435",
       "failed_tests": [],
       "baseline_code": 0,
       "baseline_passed": 15,
       "path_recreated_by_run": true,
       "absent_code": 0,
       "absent_passed": 15,
-      "static_agrees": true
+      "own_test": "skipped",
+      "static_agrees": null
     },
     {
       "key": "spa_core/tests/test_edge_redundancy_demotion.py::233::ROOT / 'data'",
@@ -347,15 +379,16 @@
       "kind": "tree_scan",
       "static_door": "no_door",
       "guard_sha": "446908bc59d258f62190427598dac9ecd694781c4ddb09f716174de5e7bb1175",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (15) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+      "verdict": "already_skipped",
+      "evidence": "\u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438 `test_real_panel_ladder_runs_and_leaves_no_files_behind` \u041f\u0420\u041e\u041f\u0423\u0429\u0415\u041d \u0432 \u044d\u0442\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u0435\u0449\u0451 \u0434\u043e \u043e\u043f\u044b\u0442\u0430 \u2014 \u0441\u0442\u043e\u0440\u043e\u0436 \u043c\u043e\u043b\u0447\u0430\u043b \u043d\u0435 \u043e\u0442 \u0441\u043b\u0435\u043f\u043e\u0442\u044b, \u0430 \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0435\u0433\u043e \u043d\u0435 \u0437\u0432\u0430\u043b\u0438; \u0441\u0447\u0451\u0442 passed \u0443 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u043e\u0433\u043e \u0442\u0435\u0441\u0442\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u043d\u0438 \u0434\u043e \u0443\u043d\u043e\u0441\u0430, \u043d\u0438 \u043f\u043e\u0441\u043b\u0435",
       "failed_tests": [],
       "baseline_code": 0,
       "baseline_passed": 15,
       "path_recreated_by_run": true,
       "absent_code": 0,
       "absent_passed": 15,
-      "static_agrees": true
+      "own_test": "skipped",
+      "static_agrees": null
     },
     {
       "key": "spa_core/tests/test_edge_signal_latency.py::355::ROOT / 'data'",
@@ -367,15 +400,16 @@
       "kind": "tree_scan",
       "static_door": "no_door",
       "guard_sha": "f3d031e2b8e27ee162037f4b5f687a49353a478a56e2007433481afc78fcc4c4",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (25) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+      "verdict": "already_skipped",
+      "evidence": "\u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438 `test_real_panel_latency_pass_is_read_only_and_keeps_the_persistence_ladder` \u041f\u0420\u041e\u041f\u0423\u0429\u0415\u041d \u0432 \u044d\u0442\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u0435\u0449\u0451 \u0434\u043e \u043e\u043f\u044b\u0442\u0430 \u2014 \u0441\u0442\u043e\u0440\u043e\u0436 \u043c\u043e\u043b\u0447\u0430\u043b \u043d\u0435 \u043e\u0442 \u0441\u043b\u0435\u043f\u043e\u0442\u044b, \u0430 \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0435\u0433\u043e \u043d\u0435 \u0437\u0432\u0430\u043b\u0438; \u0441\u0447\u0451\u0442 passed \u0443 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u043e\u0433\u043e \u0442\u0435\u0441\u0442\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u043d\u0438 \u0434\u043e \u0443\u043d\u043e\u0441\u0430, \u043d\u0438 \u043f\u043e\u0441\u043b\u0435",
       "failed_tests": [],
       "baseline_code": 0,
       "baseline_passed": 25,
       "path_recreated_by_run": true,
       "absent_code": 0,
       "absent_passed": 25,
-      "static_agrees": true
+      "own_test": "skipped",
+      "static_agrees": null
     },
     {
       "key": "spa_core/tests/test_edge_signal_latency.py::366::ROOT / 'data'",
@@ -387,15 +421,16 @@
       "kind": "tree_scan",
       "static_door": "no_door",
       "guard_sha": "f3d031e2b8e27ee162037f4b5f687a49353a478a56e2007433481afc78fcc4c4",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (25) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+      "verdict": "already_skipped",
+      "evidence": "\u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0441\u0442\u0440\u043e\u043a\u0438 `test_real_panel_latency_pass_is_read_only_and_keeps_the_persistence_ladder` \u041f\u0420\u041e\u041f\u0423\u0429\u0415\u041d \u0432 \u044d\u0442\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u0435\u0449\u0451 \u0434\u043e \u043e\u043f\u044b\u0442\u0430 \u2014 \u0441\u0442\u043e\u0440\u043e\u0436 \u043c\u043e\u043b\u0447\u0430\u043b \u043d\u0435 \u043e\u0442 \u0441\u043b\u0435\u043f\u043e\u0442\u044b, \u0430 \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0435\u0433\u043e \u043d\u0435 \u0437\u0432\u0430\u043b\u0438; \u0441\u0447\u0451\u0442 passed \u0443 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u043e\u0433\u043e \u0442\u0435\u0441\u0442\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u043d\u0438 \u0434\u043e \u0443\u043d\u043e\u0441\u0430, \u043d\u0438 \u043f\u043e\u0441\u043b\u0435",
       "failed_tests": [],
       "baseline_code": 0,
       "baseline_passed": 25,
       "path_recreated_by_run": true,
       "absent_code": 0,
       "absent_passed": 25,
-      "static_agrees": true
+      "own_test": "skipped",
+      "static_agrees": null
     },
     {
       "key": "spa_core/tests/test_edge_split_protocol_diagnostic.py::200::scripts",
@@ -415,27 +450,32 @@
       "path_recreated_by_run": false,
       "absent_code": 2,
       "absent_passed": 0,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
-      "key": "spa_core/tests/test_entrypoint_import_probe.py::370::repo / 'scripts'",
+      "key": "spa_core/tests/test_entrypoint_import_probe.py::383::repo / 'scripts'",
       "guard": "spa_core/tests/test_entrypoint_import_probe.py",
-      "line": 370,
+      "line": 383,
       "scope": "test_every_delegating_wrapper_in_this_repo_resolves_a_target",
       "anchor": "repo / 'scripts'",
       "path": "scripts",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "dcfe4d25fabf3430d0327c1ef8f450bc7b88e764cccedd190d9e327a1f7ea732",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `scripts` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (19) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
-      "failed_tests": [],
+      "guard_sha": "818a8a8d53d7395f2efbe00f4b2c9aa04f937d46323e332d8d333d40bfca00cc",
+      "verdict": "refuses_absent",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u041a\u0420\u0410\u0421\u041d\u0415\u0415\u0422 \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `scripts` (\u043a\u043e\u0434 1); \u0443\u043f\u0430\u043b\u0438 spa_core/tests/test_entrypoint_import_probe.py::test_every_delegating_wrapper_in_this_repo_resolves_a_target",
+      "failed_tests": [
+        "spa_core/tests/test_entrypoint_import_probe.py::test_every_delegating_wrapper_in_this_repo_resolves_a_target"
+      ],
       "baseline_code": 0,
       "baseline_passed": 19,
       "path_recreated_by_run": false,
-      "absent_code": 0,
-      "absent_passed": 19,
-      "static_agrees": true
+      "absent_code": 1,
+      "absent_passed": 18,
+      "consumer_is_red": true,
+      "own_test": "ran",
+      "static_agrees": false
     },
     {
       "key": "spa_core/tests/test_evidence_level_claims.py::92::_ROOT / 'spa_core'",
@@ -450,6 +490,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_evidence_level_claims.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -470,6 +511,7 @@
       "path_recreated_by_run": false,
       "absent_code": 2,
       "absent_passed": 0,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -485,6 +527,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core/tests` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_frozen_date_ratchet.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -500,6 +543,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core/tests` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_frozen_date_ratchet.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -523,6 +567,7 @@
       "absent_code": 1,
       "absent_passed": 6,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -546,6 +591,7 @@
       "absent_code": 1,
       "absent_passed": 5,
       "consumer_is_red": false,
+      "own_test": "not_addressable",
       "static_agrees": true
     },
     {
@@ -561,6 +607,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core/tests` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_injected_clock_claim.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -576,6 +623,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core/tests` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_injected_clock_claim.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -591,6 +639,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core/tests` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_no_template_skip_reasons.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -611,6 +660,7 @@
       "path_recreated_by_run": false,
       "absent_code": 0,
       "absent_passed": 35,
+      "own_test": "ran",
       "static_agrees": true
     },
     {
@@ -631,6 +681,7 @@
       "path_recreated_by_run": false,
       "absent_code": 0,
       "absent_passed": 15,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -646,6 +697,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_retry_backoff_deterministic.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
     },
     {
@@ -673,6 +725,7 @@
       "absent_code": 1,
       "absent_passed": 15,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -696,6 +749,7 @@
       "absent_code": 1,
       "absent_passed": 22,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -725,6 +779,7 @@
       "absent_code": 1,
       "absent_passed": 3,
       "consumer_is_red": true,
+      "own_test": "not_addressable",
       "static_agrees": false
     },
     {
@@ -752,6 +807,7 @@
       "absent_code": 1,
       "absent_passed": 13,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -767,6 +823,7 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_telegram_single_authority.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "not_addressable",
       "static_agrees": null
     },
     {
@@ -782,7 +839,35 @@
       "verdict": "unmeasured",
       "evidence": "\u043f\u0443\u0442\u044c `spa_core` \u0421\u041e\u0414\u0415\u0420\u0416\u0418\u0422 \u0441\u0430\u043c\u043e\u0433\u043e \u0441\u0442\u043e\u0440\u043e\u0436\u0430 `spa_core/tests/test_tier_curator.py` \u2014 \u0443\u043d\u043e\u0441 \u0443\u0431\u0440\u0430\u043b \u0431\u044b \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0445\u043e\u0434\u043e\u043c \u0438 \u0441\u0446\u0435\u043d\u0443, \u0438 \u043a\u0440\u0430\u0441\u043d\u043e\u0442\u0430 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043b\u0430 \u0431\u044b \u043e \u0441\u043b\u0435\u043f\u043e\u0442\u0435",
       "failed_tests": [],
+      "own_test": "ran",
       "static_agrees": null
+    },
+    {
+      "key": "spa_core/tests/test_unresolved_path_census_wiring.py::110::OFFICE",
+      "guard": "spa_core/tests/test_unresolved_path_census_wiring.py",
+      "line": 110,
+      "scope": "test_import_form_is_single_line",
+      "anchor": "OFFICE",
+      "path": "scripts/consume_office_reports.py",
+      "kind": "file_read",
+      "static_door": "no_door",
+      "guard_sha": "f98aee56580aedd38e6290512d1c2a1293f1f5f006e06fb40d05d470a3ad4c43",
+      "verdict": "refuses_absent",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u041a\u0420\u0410\u0421\u041d\u0415\u0415\u0422 \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `scripts/consume_office_reports.py` (\u043a\u043e\u0434 1); \u0443\u043f\u0430\u043b\u0438 spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_import_form_is_single_line, spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_producer_registry_names_the_module, spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_read_schema_names_the_fields_the_answer_stands_on, spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_rendering_branch_exists_and_delegates_to_the_producer",
+      "failed_tests": [
+        "spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_import_form_is_single_line",
+        "spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_producer_registry_names_the_module",
+        "spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_read_schema_names_the_fields_the_answer_stands_on",
+        "spa_core/tests/test_unresolved_path_census_wiring.py::OfficeReadsTheArtifact::test_rendering_branch_exists_and_delegates_to_the_producer"
+      ],
+      "baseline_code": 0,
+      "baseline_passed": 16,
+      "path_recreated_by_run": false,
+      "absent_code": 1,
+      "absent_passed": 12,
+      "consumer_is_red": true,
+      "own_test": "ran",
+      "static_agrees": false
     },
     {
       "key": "spa_core/tests/test_vacuous_guard_census_wiring.py::144::OFFICE",
@@ -809,6 +894,7 @@
       "absent_code": 1,
       "absent_passed": 15,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
@@ -840,6 +926,7 @@
       "absent_code": 1,
       "absent_passed": 10,
       "consumer_is_red": false,
+      "own_test": "not_addressable",
       "static_agrees": true
     },
     {
@@ -851,7 +938,7 @@
       "path": "spa_core/utils",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "3bacc498a853f2ea47725dffbe6abfbc8f63eb1724c0b3554c70cab8139d3b96",
+      "guard_sha": "af323ffe68345ae8e5e656320ee3a9593ac2b0139db1b4a3909344a42ca4637f",
       "verdict": "scene_destroyed",
       "evidence": "\u043e\u0448\u0438\u0431\u043a\u0430 \u0443\u043f\u043e\u0442\u0440\u0435\u0431\u043b\u0435\u043d\u0438\u044f pytest \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `spa_core/utils` \u2014 \u0443\u043d\u043e\u0441 \u0441\u043b\u043e\u043c\u0430\u043b \u0421\u0426\u0415\u041d\u0423, \u0430 \u043d\u0435 \u043e\u0441\u043b\u0435\u043f\u0438\u043b \u0441\u0442\u043e\u0440\u043e\u0436\u0430",
       "failed_tests": [],
@@ -860,27 +947,32 @@
       "path_recreated_by_run": false,
       "absent_code": 4,
       "absent_passed": null,
+      "own_test": "ran",
       "static_agrees": null
     },
     {
-      "key": "tests/test_dead_code_elimination.py::162::Path('spa_core/safety')",
+      "key": "tests/test_dead_code_elimination.py::168::safety",
       "guard": "tests/test_dead_code_elimination.py",
-      "line": 162,
+      "line": 168,
       "scope": "test_no_bare_exceptions_in_safety",
-      "anchor": "Path('spa_core/safety')",
+      "anchor": "safety",
       "path": "spa_core/safety",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "3bacc498a853f2ea47725dffbe6abfbc8f63eb1724c0b3554c70cab8139d3b96",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `spa_core/safety` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (20) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
-      "failed_tests": [],
+      "guard_sha": "af323ffe68345ae8e5e656320ee3a9593ac2b0139db1b4a3909344a42ca4637f",
+      "verdict": "refuses_absent",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u041a\u0420\u0410\u0421\u041d\u0415\u0415\u0422 \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `spa_core/safety` (\u043a\u043e\u0434 1); \u0443\u043f\u0430\u043b\u0438 tests/test_dead_code_elimination.py::test_no_bare_exceptions_in_safety",
+      "failed_tests": [
+        "tests/test_dead_code_elimination.py::test_no_bare_exceptions_in_safety"
+      ],
       "baseline_code": 0,
       "baseline_passed": 20,
       "path_recreated_by_run": false,
-      "absent_code": 0,
-      "absent_passed": 20,
-      "static_agrees": true
+      "absent_code": 1,
+      "absent_passed": 19,
+      "consumer_is_red": true,
+      "own_test": "ran",
+      "static_agrees": false
     },
     {
       "key": "tests/test_documentation_completeness.py::177::ADR_DIR",
@@ -905,6 +997,7 @@
       "absent_code": 1,
       "absent_passed": 17,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": true
     },
     {
@@ -930,47 +1023,58 @@
       "absent_code": 1,
       "absent_passed": 17,
       "consumer_is_red": true,
+      "own_test": "ran",
       "static_agrees": false
     },
     {
-      "key": "tests/test_security_audit.py::211::data_dir",
+      "key": "tests/test_security_audit.py::238::data_dir",
       "guard": "tests/test_security_audit.py",
-      "line": 211,
+      "line": 238,
       "scope": "test_no_secrets_in_state_json_files",
       "anchor": "data_dir",
       "path": "data",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "a1541879f195f581a35206f363a167a57bab623787c83f757a62f840683a633c",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (18) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
-      "failed_tests": [],
+      "guard_sha": "335f2d7755deedaa3b251e7dd6cd8e58bb38179339e49b5b18db91bfd6df7e53",
+      "verdict": "refuses_absent",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u041a\u0420\u0410\u0421\u041d\u0415\u0415\u0422 \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` (\u043a\u043e\u0434 1); \u0443\u043f\u0430\u043b\u0438 tests/test_security_audit.py::test_no_secrets_in_state_json_files, tests/test_security_audit.py::test_no_bearer_tokens_in_data",
+      "failed_tests": [
+        "tests/test_security_audit.py::test_no_secrets_in_state_json_files",
+        "tests/test_security_audit.py::test_no_bearer_tokens_in_data"
+      ],
       "baseline_code": 0,
       "baseline_passed": 18,
       "path_recreated_by_run": false,
-      "absent_code": 0,
-      "absent_passed": 18,
-      "static_agrees": true
+      "absent_code": 1,
+      "absent_passed": 16,
+      "consumer_is_red": true,
+      "own_test": "ran",
+      "static_agrees": false
     },
     {
-      "key": "tests/test_security_audit.py::228::data_dir",
+      "key": "tests/test_security_audit.py::256::data_dir",
       "guard": "tests/test_security_audit.py",
-      "line": 228,
+      "line": 256,
       "scope": "test_no_bearer_tokens_in_data",
       "anchor": "data_dir",
       "path": "data",
       "kind": "tree_scan",
       "static_door": "no_door",
-      "guard_sha": "a1541879f195f581a35206f363a167a57bab623787c83f757a62f840683a633c",
-      "verdict": "vacuous_pass",
-      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u0417\u0415\u041b\u0401\u041d \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` \u0438 \u043f\u0440\u043e\u0448\u043b\u043e \u0441\u0442\u043e\u043b\u044c\u043a\u043e \u0436\u0435 \u0442\u0435\u0441\u0442\u043e\u0432 (18) \u2014 \u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e \u043d\u043e\u043b\u044c, \u0438 \u043e\u0431 \u044d\u0442\u043e\u043c \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
-      "failed_tests": [],
+      "guard_sha": "335f2d7755deedaa3b251e7dd6cd8e58bb38179339e49b5b18db91bfd6df7e53",
+      "verdict": "refuses_absent",
+      "evidence": "\u0441\u0442\u043e\u0440\u043e\u0436 \u041a\u0420\u0410\u0421\u041d\u0415\u0415\u0422 \u0431\u0435\u0437 \u043f\u0443\u0442\u0438 `data` (\u043a\u043e\u0434 1); \u0443\u043f\u0430\u043b\u0438 tests/test_security_audit.py::test_no_secrets_in_state_json_files, tests/test_security_audit.py::test_no_bearer_tokens_in_data",
+      "failed_tests": [
+        "tests/test_security_audit.py::test_no_secrets_in_state_json_files",
+        "tests/test_security_audit.py::test_no_bearer_tokens_in_data"
+      ],
       "baseline_code": 0,
       "baseline_passed": 18,
       "path_recreated_by_run": false,
-      "absent_code": 0,
-      "absent_passed": 18,
-      "static_agrees": true
+      "absent_code": 1,
+      "absent_passed": 16,
+      "consumer_is_red": true,
+      "own_test": "ran",
+      "static_agrees": false
     }
   ],
   "what_it_does_not_prove": [
@@ -980,6 +1084,8 @@
     "\u0447\u0442\u043e \u0441\u0442\u0440\u043e\u043a\u0430, \u0434\u043e \u043a\u043e\u0442\u043e\u0440\u043e\u0439 \u0437\u043e\u043d\u0434 \u043d\u0435 \u0434\u043e\u0448\u0451\u043b, \u0438\u0441\u043f\u0440\u0430\u0432\u043d\u0430 \u2014 `unmeasured` \u0435\u0441\u0442\u044c \u0442\u0440\u0435\u0442\u0438\u0439 \u0438\u0441\u0445\u043e\u0434 \u0438 \u0441\u0442\u0440\u043e\u043a\u0443 \u043d\u0430 \u0443\u0447\u0451\u0442 \u0412\u041e\u0417\u0412\u0420\u0410\u0429\u0410\u0415\u0422",
     "\u0447\u0442\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435 \u0441\u0442\u0430\u0442\u0438\u043a\u0438 \u0441 \u043f\u0440\u043e\u0433\u043e\u043d\u043e\u043c \u0434\u0435\u043b\u0430\u0435\u0442 \u0441\u0442\u0430\u0442\u0438\u043a\u0443 \u0432\u0435\u0440\u043d\u043e\u0439 \u0432\u043e\u043e\u0431\u0449\u0435: \u0437\u0430\u043c\u0435\u0440\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435 \u043d\u0430 \u042d\u0422\u041e\u041c \u043d\u0430\u0441\u0435\u043b\u0435\u043d\u0438\u0438 \u0438 \u0432 \u042d\u0422\u041e\u041c \u0434\u0435\u0440\u0435\u0432\u0435",
     "\u0447\u0442\u043e \u0443\u043d\u043e\u0441 \u043e\u0434\u043d\u043e\u0433\u043e \u043f\u0443\u0442\u0438 \u0440\u0430\u0432\u0435\u043d \u0435\u0433\u043e \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044e \u0432 \u0447\u0443\u0436\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435: \u0441\u043e\u0441\u0435\u0434\u043d\u0438\u0435 \u043f\u0443\u0442\u0438 \u043d\u0430 \u043c\u0435\u0441\u0442\u0435, \u0438 \u0441\u0442\u043e\u0440\u043e\u0436, \u0447\u0438\u0442\u0430\u044e\u0449\u0438\u0439 \u0434\u0432\u0430 \u0432\u0445\u043e\u0434\u0430, \u0443\u0432\u0438\u0434\u0438\u0442 \u0437\u0434\u0435\u0441\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u043e\u0434\u0438\u043d \u043f\u0440\u043e\u0431\u0435\u043b",
+    "\u0447\u0442\u043e \u0441\u0442\u0440\u043e\u043a\u0430 \u0441 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u044b\u043c \u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u044b\u043c \u0442\u0435\u0441\u0442\u043e\u043c \u0438 \u0432\u0435\u0440\u0434\u0438\u043a\u0442\u043e\u043c `refuses_absent`/`announces_absence` \u043d\u0435\u0438\u0441\u043f\u0440\u0430\u0432\u043d\u0430: \u043d\u0430\u0431\u043b\u044e\u0434\u0435\u043d\u0438\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043b\u043e\u0441\u044c, \u043d\u043e \u043f\u0440\u043e\u0438\u0437\u0432\u0451\u043b \u0435\u0433\u043e \u0441\u043e\u0441\u0435\u0434 \u043f\u043e \u0444\u0430\u0439\u043b\u0443 \u2014 \u043e \u0421\u0410\u041c\u041e\u0419 \u0441\u0442\u0440\u043e\u043a\u0435 \u0432 \u044d\u0442\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u043d\u0435 \u0441\u043a\u0430\u0437\u0430\u043d\u043e \u043d\u0438\u0447\u0435\u0433\u043e",
+    "\u0447\u0442\u043e `own_test` \u0435\u0441\u0442\u044c \u0441\u0432\u043e\u0439\u0441\u0442\u0432\u043e \u0441\u0442\u0440\u043e\u043a\u0438 \u0432\u043e\u043e\u0431\u0449\u0435: \u044d\u0442\u043e \u0441\u0432\u043e\u0439\u0441\u0442\u0432\u043e \u042d\u0422\u041e\u0413\u041e \u0434\u0435\u0440\u0435\u0432\u0430; \u0432 \u0434\u0435\u0440\u0435\u0432\u0435, \u0433\u0434\u0435 \u0443\u0441\u043b\u043e\u0432\u0438\u0435 `skipif` \u043b\u043e\u0436\u043d\u043e, \u043e\u0442\u0432\u0435\u0442 \u0431\u0443\u0434\u0435\u0442 \u0434\u0440\u0443\u0433\u0438\u043c",
     "\u0447\u0442\u043e `path_recreated_by_run` \u0431\u0435\u0437\u0432\u0440\u0435\u0434\u0435\u043d: \u0441\u043e\u0437\u0434\u0430\u043d\u043d\u044b\u0439 \u043f\u0440\u043e\u0433\u043e\u043d\u043e\u043c \u043f\u0443\u0442\u044c \u043f\u0440\u0438\u0431\u043e\u0440 \u0443\u0431\u0438\u0440\u0430\u0435\u0442 \u0432 \u0421\u0412\u041e\u0401\u041c \u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435, \u0430 \u0447\u0442\u043e \u044d\u0442\u043e\u0442 \u0441\u0442\u043e\u0440\u043e\u0436 \u0434\u0435\u043b\u0430\u0435\u0442 \u0432 \u0436\u0438\u0432\u043e\u043c \u0434\u0435\u0440\u0435\u0432\u0435 \u2014 \u0432\u043e\u043f\u0440\u043e\u0441 \u043d\u0435 \u043a \u0437\u043e\u043d\u0434\u0443"
   ]
 }

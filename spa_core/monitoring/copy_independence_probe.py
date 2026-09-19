@@ -226,7 +226,17 @@ def replace_constant(source: str, name: str, replacement: str) -> str:
     return head + replacement.rstrip("\n") + "\n" + tail
 
 
-def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S) -> Tuple[int, str]:
+#: Сколько знаков вывода прогона сохраняется. Хвост, а не начало: сводка
+#: pytest живёт в конце. Значение — умолчание, а не закон: зовущему, который
+#: читает ПЕРЕЧЕНЬ (а не сводку), двух тысяч знаков не хватает, и молчаливое
+#: обрезание там читалось бы как «строк нет» (замер #643: сбор одного файла
+#: с параметризацией — 81 строка, обрезание оставляло 20 и «теста нет»
+#: выдавалось за ответ).
+KEEP_OUTPUT_CHARS = 2000
+
+
+def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S,
+         keep: int = KEEP_OUTPUT_CHARS) -> Tuple[int, str]:
     env = dict(os.environ, SPA_ENV="ci", PYTHONHASHSEED="0", SPA_PROBE="1")
     env.pop("PYTEST_CURRENT_TEST", None)
     try:
@@ -234,7 +244,7 @@ def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S) -> Tuple[in
                               text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return -1, f"прогон не уложился в {timeout} с"
-    return proc.returncode, (proc.stdout or "")[-2000:] + (proc.stderr or "")[-2000:]
+    return proc.returncode, (proc.stdout or "")[-keep:] + (proc.stderr or "")[-keep:]
 
 
 def pytest_available(tree: Path) -> Tuple[bool, str]:

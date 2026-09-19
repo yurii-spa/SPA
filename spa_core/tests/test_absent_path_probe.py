@@ -29,6 +29,232 @@ def _git(root: Path, *args: str) -> None:
                    capture_output=True, text=True, timeout=180)
 
 
+class ARowWhoseGuardChangedInTheWorkingTree(unittest.TestCase):
+    """«Не спрашивали» обязано быть ЗАПИСАНО, а не выведено из пустоты.
+
+    Одноразовое дерево несёт HEAD, поэтому у сторожа, правленого в рабочем
+    дереве, спрашивать нечего: ответ был бы о другом файле. Прежняя редакция
+    оставляла такую строку вовсе без поля, и «не спрашивали» читалось так же,
+    как «спросили и не разобрали».
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls._tmp.name) / "repo"
+        for rel in csi.GUARD_DIRS:
+            (cls.root / rel).mkdir(parents=True, exist_ok=True)
+        guard = cls.root / "spa_core" / "tests" / "test_blind_guard.py"
+        guard.write_text(BLIND, encoding="utf-8")
+        (cls.root / "area_blind").mkdir()
+        (cls.root / "area_blind" / "a.txt").write_text("x", encoding="utf-8")
+        _git(cls.root, "init", "-q")
+        _git(cls.root, "add", "-A")
+        _git(cls.root, "-c", "user.email=probe@spa", "-c", "user.name=probe",
+             "commit", "-q", "-m", "scene")
+        # правка ПОСЛЕ коммита — ровно то состояние, из-за которого строка и
+        # снимается с опыта
+        guard.write_text(BLIND + "\n# правка рабочего дерева\n", encoding="utf-8")
+        cls.doc = probe.measure(cls.root)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def test_the_row_is_unmeasured_and_its_own_test_is_NOT_ASKED(self):
+        self.assertEqual(len(self.doc["entries"]), 1, self.doc["entries"])
+        entry = self.doc["entries"][0]
+        self.assertEqual(entry["verdict"], probe.VERDICT_UNMEASURED)
+        self.assertEqual(entry["own_test"], probe.OWN_NOT_ASKED,
+                         "вопрос не задавался — и это записано значением, а "
+                         "не отсутствием поля")
+        self.assertEqual(self.doc["own_test_counts"][probe.OWN_NOT_ASKED], 1)
+        self.assertEqual(self.doc["own_test_counts"][probe.OWN_RAN], 0,
+                         "удобное умолчание «бежал» и есть подмена «не "
+                         "измерено» успехом")
+
+
+MANY_CASES = '''
+import pytest
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_many"
+
+@pytest.mark.parametrize("case", [f"случай-{i:03d}-с-достаточно-длинным-именем"
+                                  for i in range(120)])
+def test_walks(case):
+    for item in AREA.rglob("*.txt"):
+        assert item.name and case
+'''
+
+
+class ACollectionTooLongForTheDefaultBudget(unittest.TestCase):
+    """Обрезанный вывод — НЕ ответ «такого теста нет» (находка #643).
+
+    Общая проводка прогонов хранит хвост в 2000 знаков. Сбор одного
+    параметризованного теста даёт ВОСЕМЬДЕСЯТ ОДНУ строку, и на живом
+    населении так пропал `test_declared_schema_matches_the_live_producer`:
+    перечень обрезался, совпадений не находилось, и зонд отвечал «не тест»
+    про тест, который в ту же минуту исправно бежал.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "spa_core" / "tests").mkdir(parents=True)
+        (self.root / "area_many").mkdir()
+        (self.root / "area_many" / "a.txt").write_text("x", encoding="utf-8")
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_all_of_a_long_collection_is_read_not_its_tail(self):
+        rel = "spa_core/tests/test_many_cases.py"
+        (self.root / rel).write_text(MANY_CASES, encoding="utf-8")
+        ids = probe.own_test_ids(self.root, rel, "test_walks")
+        self.assertIsNotNone(ids, "сбор ответил — перечень обязан быть прочитан")
+        self.assertEqual(len(ids), 120,
+                         "перечень прочитан целиком, а не хвостом бюджета")
+        self.assertGreater(sum(len(i) for i in ids), 2000,
+                           "сцена обязана ПРЕВОСХОДИТЬ умолчание проводки, "
+                           "иначе проверка верна по построению")
+        self.assertEqual(probe.own_test_state(self.root, rel, "test_walks"),
+                         probe.OWN_RAN)
+
+
+class TheDeclaredCountGuardsTheParsedList(unittest.TestCase):
+    """Число собранного объявляет сам pytest, и перечень обязан с ним сойтись."""
+
+    def test_a_short_list_against_a_bigger_declared_count_is_unknown(self):
+        out = ("g.py::test_a\n"
+               "g.py::test_b\n"
+               "\n5/9 tests collected (4 deselected) in 0.10s\n")
+        self.assertIsNone(probe._collected_ids(out, "g.py"),
+                          "перечень короче объявленного — вывод обрезан")
+
+    def test_a_matching_list_is_returned(self):
+        out = ("g.py::test_a\n"
+               "g.py::test_b\n"
+               "\n2/9 tests collected (7 deselected) in 0.10s\n")
+        self.assertEqual(probe._collected_ids(out, "g.py"),
+                         ["g.py::test_a", "g.py::test_b"])
+
+    def test_no_tests_collected_is_an_empty_list_not_unknown(self):
+        out = "\nno tests collected (9 deselected) in 0.10s\n"
+        self.assertEqual(probe._collected_ids(out, "g.py"), [],
+                         "«ничего не подошло» — ответ сбора, а не молчание")
+
+    def test_an_output_without_the_summary_is_unknown(self):
+        self.assertIsNone(probe._collected_ids("g.py::test_a\n", "g.py"),
+                          "сводки нет ⇒ сверять не с чем ⇒ не измерено")
+
+    def test_the_SAME_summary_with_an_error_is_unknown_not_empty(self):
+        """Сбор, умерший ошибкой, печатает ту же сводку «no tests collected».
+
+        Различает их только приписка «, 1 error» — и без неё поломка файла
+        снимала бы строку с учёта под видом ответа «такого теста нет».
+        """
+        self.assertEqual(
+            probe._collected_ids("\nno tests collected (9 deselected) in 0.1s\n",
+                                 "g.py"), [])
+        self.assertIsNone(
+            probe._collected_ids("\nno tests collected, 1 error in 0.04s\n",
+                                 "g.py"))
+
+
+class AFileWhoseCollectionFAILS(unittest.TestCase):
+    """Сбор не ответил — это третий исход, а не «такого теста нет» (инв. #17).
+
+    Разница существенная: «нет такого теста» снимает строку с учёта
+    (`not_addressable`), а «сбор упал» обязан оставить её НА учёте
+    (`unknown`). Слить их значило бы гасить вопрос поломкой файла.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "spa_core" / "tests").mkdir(parents=True)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_a_collection_error_is_unknown_not_not_addressable(self):
+        rel = "spa_core/tests/test_broken_collect.py"
+        (self.root / rel).write_text(
+            "import a_module_that_certainly_does_not_exist_here\n"
+            "def test_walks():\n    assert True\n", encoding="utf-8")
+        self.assertIsNone(probe.own_test_ids(self.root, rel, "test_walks"),
+                          "сбор не ответил — перечня адресов НЕТ, и пустым "
+                          "списком это не притворяется")
+        self.assertEqual(probe.own_test_state(self.root, rel, "test_walks"),
+                         probe.OWN_UNKNOWN)
+
+    def test_the_same_file_without_the_broken_import_answers(self):
+        """Обратная сторона: дело в поломке сбора, а не в самой сцене."""
+        rel = "spa_core/tests/test_ok_collect.py"
+        (self.root / rel).write_text(
+            "def test_walks():\n    assert True\n", encoding="utf-8")
+        self.assertEqual(probe.own_test_ids(self.root, rel, "test_walks"),
+                         [f"{rel}::test_walks"])
+        self.assertEqual(probe.own_test_state(self.root, rel, "test_walks"),
+                         probe.OWN_RAN)
+
+
+class TheTallyOfTheOwnTestQuestion(unittest.TestCase):
+    """Счёт состояний спрашивается без прогона — иначе умолчание неизмеримо."""
+
+    def test_a_row_WITHOUT_the_field_counts_as_not_asked_not_as_ran(self):
+        own, _ = probe.own_test_tally([{"verdict": probe.VERDICT_UNMEASURED}])
+        self.assertEqual(own[probe.OWN_NOT_ASKED], 1)
+        self.assertEqual(own[probe.OWN_RAN], 0,
+                         "удобное умолчание «бежал» и есть подмена «не "
+                         "измерено» успехом")
+
+    def test_an_unknown_value_is_counted_as_unknown_not_dropped(self):
+        own, _ = probe.own_test_tally([{"own_test": "выдумка"}])
+        self.assertEqual(own[probe.OWN_UNKNOWN], 1)
+        self.assertEqual(sum(own.values()), 1, "строка не теряется молча")
+
+    def test_the_cut_by_verdict_counts_only_the_skipped(self):
+        _, by_verdict = probe.own_test_tally([
+            {"own_test": probe.OWN_SKIPPED, "verdict": probe.VERDICT_REFUSES},
+            {"own_test": probe.OWN_RAN, "verdict": probe.VERDICT_REFUSES},
+        ])
+        self.assertEqual(by_verdict[probe.VERDICT_REFUSES], 1)
+
+
+class TheReportOfTheOwnTestQuestion(unittest.TestCase):
+    """Отсутствие числа обязано читаться как отсутствие, а не как ноль."""
+
+    def test_a_ledger_without_the_counts_says_NOT_MEASURED(self):
+        lines = probe.report({"status": "MEASURED", "counts": {}, "entries": []})
+        joined = "\n".join(lines)
+        self.assertIn("[СВОЙ ТЕСТ] НЕ ИЗМЕРЕНО", joined)
+        self.assertNotIn("[ПРОПУЩЕН ПРИ ДРУГОМ ИСХОДЕ]", joined)
+
+    def test_a_ledger_with_the_counts_names_them(self):
+        lines = probe.report({
+            "status": "MEASURED", "counts": {}, "entries": [],
+            "own_test_counts": {probe.OWN_RAN: 3, probe.OWN_SKIPPED: 2,
+                                probe.OWN_NOT_ADDRESSABLE: 1,
+                                probe.OWN_UNKNOWN: 0, probe.OWN_NOT_ASKED: 4},
+            "own_skipped_by_verdict": {probe.VERDICT_REFUSES: 2}})
+        joined = "\n".join(lines)
+        self.assertIn("не спрашивали 4", joined)
+        self.assertIn("[ПРОПУЩЕН ПРИ ДРУГОМ ИСХОДЕ] 2 строк(и)", joined)
+
+    def test_zero_skipped_elsewhere_is_said_out_loud_not_omitted(self):
+        """Ноль — ответ, и он обязан быть напечатан: молчание читалось бы как «не мерили»."""
+        lines = probe.report({
+            "status": "MEASURED", "counts": {}, "entries": [],
+            "own_test_counts": {st: 0 for st in probe.OWN_STATES},
+            "own_skipped_by_verdict": {probe.VERDICT_ALREADY_SKIPPED: 5}})
+        joined = "\n".join(lines)
+        self.assertIn("[ПРОПУЩЕН ПРИ ДРУГОМ ИСХОДЕ] 0 строк(и)", joined)
+        self.assertIn("ленивое правило совпало с замером", joined)
+
+    def test_not_asked_is_a_separate_state_from_unknown(self):
+        """«Не спрашивали» и «спросили, ответа не разобрали» — разные состояния (инв. #17)."""
+        self.assertNotEqual(probe.OWN_NOT_ASKED, probe.OWN_UNKNOWN)
+        self.assertIn(probe.OWN_NOT_ASKED, probe.OWN_STATES)
+
+
 class Fingerprint(unittest.TestCase):
     """Отпечаток обязан замечать СОСТАВ каталога, а не только байты файла."""
 
@@ -255,6 +481,53 @@ def test_walks():
         assert item.name
 '''
 
+#: Сторож, чей СОБСТВЕННЫЙ тест пропущен, а СОСЕД по файлу при уносе пути
+#: краснеет. До заказа G48 п. 2 вопрос «бежал ли тест этой строки» такой
+#: строке не задавался ВОВСЕ: исход опыта — `refuses_absent`, а он «заведомо
+#: означает, что тест бежал». Означает он другое — что заговорил кто-то в этом
+#: файле. Строка получает чужой вердикт, и в дереве, где условие пропуска
+#: ложно, отвечать за неё будет некому.
+LOUD_BUT_SKIPPED = '''
+import pytest
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_loud_skipped"
+
+def test_neighbour_refuses():
+    assert AREA.is_dir(), "входа нет — краснеет СОСЕД, а не сама строка"
+
+@pytest.mark.skipif(not (ROOT / "nightly_artefacts").exists(),
+                    reason="ночные артефакты гитигнорены и здесь отсутствуют")
+def test_walks():
+    for item in AREA.rglob("*.txt"):
+        assert item.name
+'''
+
+
+#: Сторож, чей тест — МЕТОД ВНУТРИ КЛАССА и притом пропущен. До цикла #643
+#: вопрос задавался селектором `файл::имя`, которым метод класса НЕ
+#: адресуется: pytest печатает «no tests ran» и выходит КОДОМ 0, а зонд читал
+#: это как «имя тестом не является». На живом населении так было помечено
+#: 29 строк из 47, и исход `already_skipped` для классовых тестов был
+#: недостижим по построению.
+CLASS_SKIPPED = '''
+import unittest
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_class_skipped"
+
+class TestInAClass(unittest.TestCase):
+    def test_unrelated_and_always_green(self):
+        self.assertTrue(True)
+
+    @unittest.skipIf(not (ROOT / "nightly_artefacts").exists(),
+                     "ночные артефакты гитигнорены и здесь отсутствуют")
+    def test_walks(self):
+        for item in AREA.rglob("*.txt"):
+            self.assertTrue(item.name)
+'''
+
+
 class ARealContour(unittest.TestCase):
     """Настоящий контур: git-репозиторий, три сторожа, живой pytest."""
 
@@ -268,10 +541,12 @@ class ARealContour(unittest.TestCase):
         for name, body in (("test_blind_guard.py", BLIND),
                            ("test_loud_guard.py", LOUD),
                            ("test_rebuilding_guard.py", REBUILDS),
-                           ("test_skipped_guard.py", SKIPPED)):
+                           ("test_skipped_guard.py", SKIPPED),
+                           ("test_loud_but_skipped_guard.py", LOUD_BUT_SKIPPED),
+                           ("test_class_skipped_guard.py", CLASS_SKIPPED)):
             (tests / name).write_text(body, encoding="utf-8")
         for area in ("area_blind", "area_loud", "area_rebuilt",
-                     "area_skipped"):
+                     "area_skipped", "area_loud_skipped", "area_class_skipped"):
             (cls.root / area).mkdir()
             (cls.root / area / "a.txt").write_text("исходное", encoding="utf-8")
         _git(cls.root, "init", "-q")
@@ -281,7 +556,8 @@ class ARealContour(unittest.TestCase):
         cls.before = {
             name: probe.fingerprint(cls.root / name)
             for name in ("area_blind", "area_loud", "area_rebuilt",
-                         "area_skipped")}
+                         "area_skipped", "area_loud_skipped",
+                         "area_class_skipped")}
         cls.guard_shas = {
             path.name: probe.fingerprint(path) for path in tests.glob("*.py")}
         cls.doc = probe.measure(cls.root)
@@ -295,7 +571,7 @@ class ARealContour(unittest.TestCase):
     def test_the_measurement_did_not_abort(self):
         self.assertEqual(self.doc["status"], "MEASURED",
                          self.doc.get("aborted_reason") or "")
-        self.assertEqual(len(self.doc["entries"]), 4)
+        self.assertEqual(len(self.doc["entries"]), 6)
 
     def test_the_blind_guard_stays_green_and_says_nothing(self):
         entry = self.by_guard["test_blind_guard.py"]
@@ -344,6 +620,53 @@ class ARealContour(unittest.TestCase):
                          "находкой, иначе новый исход проглотил бы весь класс")
         self.assertEqual(blind["own_test"], probe.OWN_RAN)
 
+    def test_a_test_that_is_a_METHOD_of_a_class_is_addressed_not_disowned(self):
+        """Находка цикла #643, и обе её стороны.
+
+        Прежний селектор `файл::имя` метод класса не адресует: pytest выходит
+        КОДОМ 0 со словами «no tests ran», и зонд читал это как «имя тестом не
+        является». Тогда ответ «не тест» выдавался там, где тест есть, а весь
+        исход `already_skipped` для классовых тестов был недостижим.
+        """
+        entry = self.by_guard["test_class_skipped_guard.py"]
+        self.assertEqual(entry["own_test"], probe.OWN_SKIPPED, entry["evidence"])
+        self.assertEqual(entry["verdict"], probe.VERDICT_ALREADY_SKIPPED,
+                         entry["evidence"])
+
+        guard = "spa_core/tests/test_class_skipped_guard.py"
+        self.assertEqual(
+            probe.own_test_ids(self.root, guard, "test_walks"),
+            [f"{guard}::TestInAClass::test_walks"],
+            "адрес СПРОШЕН у pytest, а не собран второй копией правила")
+        self.assertEqual(
+            probe.own_test_ids(self.root, guard, "test_that_does_not_exist"), [],
+            "обратная сторона: «такого теста нет» — ответ сбора, а не молчание")
+
+    def test_the_name_is_matched_as_a_SEGMENT_not_as_a_substring(self):
+        """`test_walks` и `test_unrelated_and_always_green` живут в одном файле."""
+        guard = "spa_core/tests/test_class_skipped_guard.py"
+        ids = probe.own_test_ids(self.root, guard, "test_unrelated")
+        self.assertEqual(ids, [], "подстрока адресом не является")
+
+    def test_the_collection_is_cached_per_guard_AND_per_name(self):
+        """Кеш — не украшение: строк у одного файла бывает несколько.
+
+        Ключ — ПАРА (сторож, имя), а не один сторож: вывод сбора сужен по
+        имени, и общий на файл ключ отдал бы второй строке чужой перечень.
+        """
+        cache: dict = {}
+        guard = "spa_core/tests/test_class_skipped_guard.py"
+        first = probe.own_test_ids(self.root, guard, "test_walks", cache=cache)
+        self.assertIn(f"{guard}::test_walks", cache)
+        self.assertNotIn(guard, cache, "ключом файла перечень не адресуется")
+        cache[f"{guard}::test_walks"] = []          # подменяем ответ сбора
+        second = probe.own_test_ids(self.root, guard, "test_walks", cache=cache)
+        self.assertTrue(first)
+        self.assertEqual(second, [], "второй раз сбор не звался — взят кеш")
+        other = probe.own_test_ids(self.root, guard,
+                                   "test_unrelated_and_always_green", cache=cache)
+        self.assertTrue(other, "чужое имя чужим кешем не отвечает")
+
     def test_a_row_whose_verdict_never_ran_is_not_compared_with_the_static_door(self):
         """«Тест не звали» — не наблюдение о двери, и согласием считаться не может."""
         self.assertIsNone(probe.agreement(
@@ -373,6 +696,68 @@ class ARealContour(unittest.TestCase):
             probe.own_test_state(self.root, "spa_core/tests/test_blind_guard.py",
                                  "test_walks"),
             probe.OWN_RAN)
+
+    def test_the_question_is_put_to_EVERY_row_not_only_to_the_vacuous_ones(self):
+        """Заказ G48 п. 2: ленивый вопрос заменён замером по всему населению.
+
+        Обратная сторона проверки — не «поле есть у пяти строк», а «поле есть
+        у строк С РАЗНЫМИ исходами»: прежняя редакция тоже дала бы поле, но
+        ровно у одного исхода, и число «сколько ещё строк пропущено» не
+        существовало бы вовсе.
+        """
+        states = {Path(str(e.get("guard"))).name: e.get("own_test")
+                  for e in self.doc["entries"]}
+        self.assertNotIn(None, states.values(), states)
+        verdicts_asked = {
+            e.get("verdict") for e in self.doc["entries"]
+            if e.get("own_test") != probe.OWN_NOT_ASKED}
+        self.assertGreater(len(verdicts_asked), 1, verdicts_asked)
+        self.assertIn(probe.VERDICT_REFUSES, verdicts_asked,
+                      "у красневшего сторожа вопрос прежде не задавался вовсе")
+        counts = self.doc["own_test_counts"]
+        self.assertEqual(sum(counts.values()), len(self.doc["entries"]),
+                         "перепись состояний обязана покрывать всё население")
+        self.assertEqual(set(counts), set(probe.OWN_STATES))
+
+    def test_a_refusal_produced_by_a_NEIGHBOUR_is_named_and_a_real_one_is_not(self):
+        """Обе стороны: чужой вердикт назван, свой — нет."""
+        borrowed = self.by_guard["test_loud_but_skipped_guard.py"]
+        self.assertEqual(borrowed["verdict"], probe.VERDICT_REFUSES,
+                         borrowed["evidence"])
+        self.assertEqual(borrowed["own_test"], probe.OWN_SKIPPED,
+                         "тест самой строки пропущен — краснел сосед по файлу")
+        self.assertFalse(borrowed["consumer_is_red"])
+
+        own = self.by_guard["test_loud_guard.py"]
+        self.assertEqual(own["own_test"], probe.OWN_RAN)
+        self.assertTrue(own["consumer_is_red"])
+
+        named = {c["guard"] for c in self.doc["refusal_credited_to_neighbour"]}
+        self.assertTrue(any("loud_but_skipped" in g for g in named), named)
+        self.assertFalse(any(g.endswith("test_loud_guard.py") for g in named),
+                         "сторож, чей СОБСТВЕННЫЙ тест покраснел, чужим "
+                         "вердиктом не живёт — иначе находка проглотила бы класс")
+        self.assertIsNotNone(
+            borrowed["static_agrees"],
+            "чужой вердикт остаётся ВЕРДИКТОМ: снять такую строку со сравнения "
+            "со статикой значило бы уменьшить население молча — ровно тот "
+            "класс, который заказ G48 п. 3 велит мерить, а не заводить")
+        self.assertFalse(any(g.endswith("test_skipped_guard.py") for g in named),
+                         "строка, у которой сторож ПРОМОЛЧАЛ, чужого вердикта "
+                         "не получала — ей вердикта не произвёл никто, и это "
+                         "уже сказано исходом `already_skipped`")
+
+    def test_the_number_asked_by_the_order_is_counted_per_verdict(self):
+        """«Сколько строк с ДРУГИМ исходом тоже пропущены» — это число, не проза."""
+        by_verdict = self.doc["own_skipped_by_verdict"]
+        self.assertEqual(by_verdict[probe.VERDICT_ALREADY_SKIPPED], 2,
+                         "вырожденный проход с пропуском переименован в исход — "
+                         "и у теста-ФУНКЦИИ, и у теста-МЕТОДА класса")
+        self.assertEqual(by_verdict[probe.VERDICT_REFUSES], 1,
+                         "а вот ЭТУ строку прежнее правило не спрашивало")
+        self.assertEqual(by_verdict[probe.VERDICT_VACUOUS], 0,
+                         "после переименования в `already_skipped` под "
+                         "вырожденным проходом пропусков не остаётся")
 
     def test_every_carried_path_came_back_byte_for_byte(self):
         for name, before in self.before.items():
