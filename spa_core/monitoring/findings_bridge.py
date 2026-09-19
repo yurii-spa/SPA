@@ -174,6 +174,14 @@ PRODUCES = (
     # а недельный гейт завёл бы вторую копию правила о сроке. SLO равняется
     # такту БЕГУНА (6ч агента) — 12ч.
     "data/rule_second_copy_census.json",
+    # Заказ G44 п. 1 (ADR-420). Перепись сторожей, зеленеющих на ОПУСТОШЁННОМ
+    # входе-перечне: «нарушений нет» и «никуда не смотрели» обязаны быть
+    # различимы (инв. #17, но про сторожей). Такта нет по той же причине, что у
+    # двух соседей выше — зов есть разбор AST в одном процессе; SLO равняется
+    # такту БЕГУНА (6ч агента) — 12ч. Поведенческий зонд сюда НЕ подключён
+    # намеренно: один его прогон стои́т сотен прогонов pytest, и место ему —
+    # рука, а не шестичасовой агент.
+    "data/vacuous_guard_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -277,6 +285,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "python_reader_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
+    "vacuous_guard_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -506,6 +515,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "rule_second_copy_census": {
         "module": "spa_core/monitoring/rule_second_copy_census.py",
         "artifact": "data/rule_second_copy_census.json"},
+    "vacuous_guard_census": {
+        "module": "spa_core/monitoring/vacuous_guard_census.py",
+        "artifact": "data/vacuous_guard_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2297,6 +2309,27 @@ def main(argv=None) -> int:
                   f"{_rsc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "rule_second_copy_census", e)
+    # Перепись вырожденных сторожей (G44 п. 1, ADR-420): сколько сторожей
+    # остаются ЗЕЛЁНЫМИ с опустошённым входом-перечнем. Заказ родился из
+    # побочной находки ADR-419 (`tests/test_no_utcnow.py` проходит при пустом
+    # `SCAN_DIRS`): зелёный сторож, осмотревший ноль, тише красного и потому
+    # опаснее. Ступень статическая; поведенческие вердикты берутся из журнала
+    # зонда, который перепись только ЧИТАЕТ.
+    try:
+        from spa_core.monitoring import vacuous_guard_census
+        _vgc = vacuous_guard_census.run(root=args.root)
+        if _vgc.get("measured"):
+            _vc = observed(_vgc["doc"], "counts", kind=dict)
+            _vac = (None if _vc is None
+                    else observed_number(_vc, vacuous_guard_census.VERDICT_VACUOUS))
+            print(f"vacuous_guard_census: {_vgc['doc'].get('status')} — сторожей, "
+                  f"зелёных на пустом входе, "
+                  f"{'НЕ ИЗМЕРЕНО' if _vac is None else int(_vac)}")
+        else:
+            print(f"vacuous_guard_census: НЕ ИЗМЕРЕНО — "
+                  f"{_vgc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "vacuous_guard_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

@@ -727,6 +727,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "renamed_copy_surface", "remedy_counts",
                                      "findings_on_books", "probe",
                                      "what_it_does_not_prove"),
+    # Заказ G44 п. 1 (ADR-420). `roles` в схеме обязателен: без него «входов
+    # 432» прочлось бы как «столько перечней осмотрено», тогда как в население
+    # входят только две роли из четырёх. `empty_reachable_without_edit` — та же
+    # причина, что у `renamed_copy_surface` у соседа: он отделяет «пустота
+    # достижима из дерева без каталога» от «пустоту надо вписать руками».
+    "vacuous_guard_census.json": ("status", "invoked_by", "counts", "roles",
+                                  "rows", "guards", "inputs", "unreadable",
+                                  "empty_reachable_without_edit",
+                                  "door_inside_consumer_loop",
+                                  "vacuous_and_reachable", "probe_ledger",
+                                  "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -921,6 +932,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/tact_gate_census.py",
     "rule_second_copy_census.json":
         "spa_core/monitoring/rule_second_copy_census.py",
+    "vacuous_guard_census.json":
+        "spa_core/monitoring/vacuous_guard_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2762,6 +2775,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ввозы двух объявленных форм, скобочная многострочная — ни одна из них.
         from spa_core.monitoring.rule_second_copy_census import format_report as _rsc_report
         out.extend(_rsc_report(data))
+    elif name == "vacuous_guard_census.json":
+        # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст
+        # не попадает ни одно число. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы
+        # двух объявленных форм, скобочная многострочная — ни одна из них).
+        from spa_core.monitoring.vacuous_guard_census import format_report as _vgc_report
+        out.extend(_vgc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

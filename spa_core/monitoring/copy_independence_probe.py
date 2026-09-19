@@ -377,18 +377,23 @@ def _side_changes_verdict(path: Path, original: str, name: str, value: str,
     return False, codes
 
 
-def stale_disposable_trees(root: Path) -> List[str]:
+def stale_disposable_trees(root: Path, *, prefix: str = TREE_PREFIX) -> List[str]:
     """Одноразовые деревья прошлых опытов, оставшиеся висеть.
 
     Снимать их прибор НЕ вправе: с тем же префиксом может идти соседний живой
     опыт, и «прибрался» означало бы «убил чужой замер». Поэтому он называет —
     ровно как сторож, который не чинит.
+
+    ``prefix`` — СВОЙ префикс зовущего зонда, а не общий: соседний зонд
+    (`vacuous_guard_probe`, ADR-420) заводит деревья под своим именем, и
+    умолчание здесь назвало бы ему чужие деревья, а свои — никогда. Вторую
+    копию этой функции заводить нельзя (ADR-417/418), поэтому у неё параметр.
     """
     code, out = _run(["git", "worktree", "list", "--porcelain"], cwd=root, timeout=120)
     if code != 0:
         return []
     return [line.split(" ", 1)[1].strip() for line in out.splitlines()
-            if line.startswith("worktree ") and TREE_PREFIX in line]
+            if line.startswith("worktree ") and prefix in line]
 
 
 def _dirty(root: Path, rel: str) -> bool:
