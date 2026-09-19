@@ -194,8 +194,16 @@ scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) �
 # Headless: не может отвечать на интерактивные запросы разрешений → bypass (машина владельца,
 # гардрейлы в промпте + стоп-правила протокола + инвариант #16). Выключение = снять
 # SPA_ORCHESTRATOR_ARMED из plist (launchctl bootout com.spa.orchestrator).
-echo "[$(ts)] ARMED: invoking headless Claude (governed autonomy, skip-permissions)" >> "$LOG"
-"$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions >> "$LOG" 2>&1
+# Срок запуска и ВЛАДЕНИЕ его потомками держит общий прибор (ARB decision 18.09).
+# `timeout`/`gtimeout` на машине НЕТ — прямой вызов дал бы 127 и выключил бы агента.
+# Потомки claude отделяются в СВОЮ сессию, поэтому граница владения — доказанная
+# принадлежность RUN_ID, а не группа. 124 = владение закрыто, 125 = не закрыто/не измерено.
+echo "[$(ts)] ARMED: invoking headless Claude (governed autonomy, skip-permissions; срок ${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}s)" >> "$LOG"
+"$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
+    --timeout-s "${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}" \
+    --grace-s "${SPA_ORCHESTRATOR_KILL_GRACE_S:-120}" \
+    --log "$LOG" --label orchestrator \
+    -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 echo "[$(ts)] === orchestrator cycle END (claude exit $RC) ===" >> "$LOG"
 exit $RC

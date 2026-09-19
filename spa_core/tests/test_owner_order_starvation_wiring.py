@@ -50,6 +50,15 @@ def _sandbox(tmp_path: Path, guard_body: str | None) -> tuple[Path, Path]:
     shutil.copy2(_REPO / "scripts" / "lib" / "starvation_verdict.sh",
                  root / "scripts" / "lib" / "starvation_verdict.sh")
 
+    # Прибор срока — ВТОРАЯ настоящая зависимость обёртки (ARB 18.09): с этого дня она
+    # зовёт Claude не напрямую, а через `scripts/claude_run_with_timeout.py`. Песочница
+    # обязана отражать зависимости обёртки, иначе она проверяет обёртку, которой нет.
+    # Обоснование правки теста (инв. #16): проверяемое поведение НЕ ослаблено — наоборот,
+    # сюда добавлен реальный участник пути. Без этой строки все пять тестов, доходящих до
+    # Claude, падают с `rc=2` и «can't open file … claude_run_with_timeout.py».
+    shutil.copy2(_REPO / "scripts" / "claude_run_with_timeout.py",
+                 root / "scripts" / "claude_run_with_timeout.py")
+
     fake_claude = tmp_path / "fake_claude.sh"
     fake_claude.write_text(
         "#!/bin/bash\n"
