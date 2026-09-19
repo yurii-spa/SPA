@@ -88,6 +88,11 @@ from spa_core.utils.atomic import atomic_save  # noqa: E402
 ARTIFACT = "call_sourced_input_census.json"
 PRODUCER = "spa_core/monitoring/call_sourced_input_census.py"
 
+#: Журнал ПОВЕДЕНЧЕСКОГО зонда (`absent_path_probe`, заказ G46 п. 1). Перепись
+#: зонд не зовёт — она только ЧИТАЕТ его журнал, ровно как ADR-419/420. Имя
+#: живёт ЗДЕСЬ, а зонд его ввозит: одно правило — одна копия (ADR-418).
+BEHAVIOUR_LEDGER = "spa_core/monitoring/absent_path_ledger.json"
+
 #: Каталоги сторожей ВВОЗЯТСЯ у переписи ADR-417 — одно правило, одна копия
 #: (ADR-418, форма починки `single_copy_by_import`).
 GUARD_DIRS = census.GUARD_DIRS
@@ -134,6 +139,9 @@ DOORS = (DOOR_REFUSES, DOOR_SUBSTITUTES, DOOR_EMPTY, DOOR_ELSEWHERE,
          DOOR_NONE, DOOR_UNMEASURED)
 #: Двери, при которых пустой вход даёт ЗЕЛЁНЫЙ тест и об этом не сказано ничем.
 GREEN_DOORS = (DOOR_SUBSTITUTES, DOOR_EMPTY, DOOR_NONE)
+#: Двери, от которых ЖДЁТСЯ отказ в прогоне. Правило объявлено здесь, потому
+#: что двери — предмет переписи; зонд его ввозит, а не переписывает.
+DOORS_EXPECTING_REFUSAL = (DOOR_REFUSES, DOOR_ELSEWHERE)
 
 #: Утверждения unittest, отказывающие на пустоте. `assert`-оператор здесь НЕ
 #: годится один: замер 19.09 показал, что контроль на вхолостую в нашем наборе
@@ -145,6 +153,12 @@ _NONEMPTY_ASSERTS = frozenset({"assertTrue", "assertGreater",
 
 PRESENT_YES = "present"
 PRESENT_NO = "absent"
+
+#: Вердикт зонда, означающий слепоту: зелен, и прошло столько же тестов.
+BEHAVIOUR_VACUOUS = "vacuous_pass"
+#: Вердикты зонда, которые вердиктом о слепоте НЕ являются: «не измерено» и
+#: «унос сломал сцену». Слить их с отсутствием записи нельзя — причина разная.
+BEHAVIOUR_NO_VERDICT = ("unmeasured", "scene_destroyed")
 
 #: Имена фикстур pytest/unittest, дающих одноразовый каталог.
 _FIXTURE_NAMES = frozenset({"tmp_path", "tmpdir", "tmp", "tmp_dir", "td",
@@ -771,6 +785,40 @@ def _assignments_toplevel(tree: ast.Module) -> Dict[str, ast.AST]:
 # 5. Замер
 # ══════════════════════════════════════════════════════════════════════════════
 
+def behaviour_of(row: dict, ledger: Dict[str, dict],
+                 reason: Optional[str]) -> dict:
+    """Вердикт ПРОГОНА для строки — из журнала зонда `absent_path_probe`.
+
+    Журнал устаревает САМ и в безопасную сторону: запись годится, только если
+    совпал sha сторожа. Любая правка сторожа отменяет вердикт зонда, и строка
+    возвращается к статическому приближению — то есть НА учёт, а не с учёта.
+    Расписания зонду поэтому не нужно: протухший журнал не молчит, он
+    перестаёт отвечать.
+
+    `scene_destroyed` и `unmeasured` вердиктом о слепоте НЕ являются и здесь
+    отделены от отсутствия записи: «опыт поставлен и ничего не сказал» и
+    «опыта не было» — два разных состояния (инв. #17).
+    """
+    entry = ledger.get(str(row.get("key")))
+    if entry is None:
+        return {"behaviour": None, "behaviour_disagrees": False,
+                "behaviour_evidence": reason or "прогона по этой строке нет"}
+    if entry.get("guard_sha") != row.get("guard_sha"):
+        return {"behaviour": None, "behaviour_disagrees": False,
+                "behaviour_evidence": ("запись прогона снята с ДРУГОЙ редакции "
+                                       "сторожа — вердикт отменён")}
+    verdict = entry.get("verdict")
+    if not isinstance(verdict, str) or verdict in BEHAVIOUR_NO_VERDICT:
+        return {"behaviour": None, "behaviour_disagrees": False,
+                "behaviour_evidence": str(entry.get("evidence") or "")}
+    return {"behaviour": verdict,
+            # Согласие статики с прогоном считает ЗОНД и кладёт в журнал.
+            # Считать его здесь второй раз значило бы завести вторую копию
+            # правила «от какой двери ждётся отказ» (ADR-417).
+            "behaviour_disagrees": entry.get("static_agrees") is False,
+            "behaviour_evidence": str(entry.get("evidence") or "")}
+
+
 def is_finding(row: dict) -> bool:
     """Строка-находка.
 
@@ -789,6 +837,13 @@ def is_finding(row: dict) -> bool:
     остаётся `latent` и в находки не идёт — иначе перепись объявляла бы
     находкой всякий обход каталога.
     """
+    behaviour = row.get("behaviour")
+    if behaviour:
+        # Право на вердикт даёт ПРОГОН. Статика остаётся дешёвым приближением,
+        # и замер 19.09 показал, чего она стои́т: у входа рода `file_read`
+        # отсутствие пути не даёт пустого перечня — оно ПОДНИМАЕТ ИСКЛЮЧЕНИЕ,
+        # и сторож, названный статикой слепым, краснеет громко.
+        return behaviour == BEHAVIOUR_VACUOUS
     if row.get("door") in (DOOR_SUBSTITUTES, DOOR_EMPTY):
         return True
     return row.get("door") == DOOR_NONE and row.get("present_here") == PRESENT_NO
@@ -807,9 +862,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
         # Отказ ввезённого читателя населения обязан быть исходом ЭТОГО
         # прибора, а не трассировкой чужого класса.
         raise NotMeasured(str(exc)) from exc
+    ledger, ledger_reason = census.load_probe_ledger(root / BEHAVIOUR_LEDGER)
     doors = {d: 0 for d in DOORS}
     for row in rows:
         doors[row["door"]] = doors.get(row["door"], 0) + 1
+        row.update(behaviour_of(row, ledger, ledger_reason))
         row["finding"] = is_finding(row)
     findings = [r for r in rows if r["finding"]]
     absent = [r for r in rows if r["present_here"] == PRESENT_NO]
@@ -817,6 +874,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
               if r["door"] in GREEN_DOORS and r["present_here"] == PRESENT_YES
               and not r["finding"]]
     guards = sorted({r["guard"] for r in rows})
+    behaviour_measured = [r for r in rows if r.get("behaviour")]
+    behaviour_disagrees = [r for r in rows if r.get("behaviour_disagrees")]
     resolved_total = places[PLACE_REPO] + places[PLACE_FIXTURE] + places[PLACE_OUTSIDE]
     seen_total = resolved_total + places[PLACE_UNRESOLVED]
     return {
@@ -839,6 +898,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
         "findings": len(findings),
         "absent_here": len(absent),
         "latent": len(latent),
+        "behaviour_ledger": BEHAVIOUR_LEDGER,
+        "behaviour_ledger_reason": ledger_reason or "",
+        "behaviour_measured": len(behaviour_measured),
+        "behaviour_disagrees": len(behaviour_disagrees),
         "unreadable": unreadable,
         "what_it_does_not_prove": [
             "что перепись полна: доля невычисленных путей (`unresolved`) печатается рядом с ответом и в население НЕ входит — это третий исход, а не ноль",
@@ -847,7 +910,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
             "что `latent` безопасен — путь есть СЕГОДНЯ и в ЭТОМ дереве; в свежем worktree каталоги из `.gitignore` отсутствуют по построению",
             "что дверь разобрана верно в каждой строке: последствие ветки читается статикой, и ветка, отказывающая окольно (флаг + `assert` после цикла), будет прочтена как `no_door`",
             "что пустой перечень слепит КАЖДОГО потребителя: у одного теста он гасит находки, у соседнего (`n not in _collect()`) наоборот КРАСНИТ — координата переписи есть место сбора перечня, а не исход у потребителя; исход мерит прогон, а не эта статика",
-            "поведение: вердикт «зелен ли сторож при пустом входе» здесь НЕ прогоняется — он выведен из двери, а не измерен прогоном",
+            "что строка БЕЗ записи прогона исправна — запись зонда отменяется любой правкой сторожа (сверка по sha), и строка возвращается на учёт, а не уходит с него",
             "что `fixture_tree` безвреден — он лишь не есть ВХОД сторожа: каталог построен тем же тестом",
         ],
     }
@@ -877,6 +940,10 @@ def report(doc: dict, *, max_rows: int = 25) -> List[str]:
         + (f" = {share:.1%} осмотренного" if isinstance(share, float) else ""),
         f"[СЕГОДНЯ] входов, которых в ЭТОМ дереве НЕТ: {doc.get('absent_here')}; "
         f"зелёных при живом пути (латентных) {doc.get('latent')}",
+        f"[ПРОГОНОМ] вердикт зонда есть у {doc.get('behaviour_measured')} строк(и); "
+        f"статика РАЗОШЛАСЬ с прогоном у {doc.get('behaviour_disagrees')}"
+        + (f" · журнала нет: {doc.get('behaviour_ledger_reason')}"
+           if doc.get("behaviour_ledger_reason") else ""),
     ]
     if doc.get("unreadable"):
         out.append(f"[НЕ ИЗМЕРЕНО] файлов сторожей не разобрано: "
@@ -885,15 +952,22 @@ def report(doc: dict, *, max_rows: int = 25) -> List[str]:
     for row in shown[:max_rows]:
         declared = (f" · объявлено прозой: «{row.get('declared_in_docstring')}»"
                     if row.get("declared_in_docstring") else "")
-        out.append(f"[{row.get('door')}] {row.get('guard')}:{row.get('line')} "
+        # Кто вынес вердикт, обязано быть видно в самой строке: «зелен по
+        # разбору» и «зелен в прогоне» — разной силы утверждения, и слить их
+        # значило бы выдать приближение за замер.
+        label = (f"ПРОГОН:{row.get('behaviour')}" if row.get("behaviour")
+                 else row.get("door"))
+        why = (row.get("behaviour_evidence") if row.get("behaviour")
+               else row.get("door_evidence")) or "—"
+        out.append(f"[{label}] {row.get('guard')}:{row.get('line')} "
                    f"({row.get('scope')}) · {row.get('kind')} по «{row.get('path')}» "
-                   f"({row.get('present_here')}): {row.get('door_evidence') or '—'}"
-                   f"{declared}")
+                   f"({row.get('present_here')}): {why}{declared}")
     if len(shown) > max_rows:
         out.append(f"… ещё {len(shown) - max_rows} находок(и) — полный перечень в артефакте")
-    out.append("НЕ ДОКЛАДЫВАЕТ: зелен ли сторож при пустом входе ПРОГОНОМ "
-               "(дверь разобрана статикой) · верность самого правила сторожа · "
-               "входы, чей путь не вычислен — они НЕ ноль, а третий исход")
+    out.append("НЕ ДОКЛАДЫВАЕТ: верность самого правила сторожа · строки БЕЗ "
+               "записи зонда — их дверь разобрана статикой и прогоном не "
+               "проверена · входы, чей путь не вычислен — они НЕ ноль, а "
+               "третий исход")
     return out
 
 

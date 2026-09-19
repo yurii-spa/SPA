@@ -1,0 +1,433 @@
+"""Поведенческий зонд отсутствующего входа (заказ G46 п. 1, ADR-424).
+
+Контроль в обе стороны у каждой проверки, а положительный контроль — на
+НАСТОЯЩЕМ контуре: git-репозиторий, три сторожа разного поведения, живой
+pytest в одноразовом дереве. Сторож, который не краснеет ни на одной поломке,
+украшение (`positive-control-can-be-an-ornament`).
+
+Литеральных дат нет. Живое `data/` не читается и не пишется ни одной
+проверкой: все сцены — в одноразовом каталоге.
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+from spa_core.monitoring import absent_path_probe as probe
+from spa_core.monitoring import call_sourced_input_census as csi
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(root), check=True,
+                   capture_output=True, text=True, timeout=180)
+
+
+class Fingerprint(unittest.TestCase):
+    """Отпечаток обязан замечать СОСТАВ каталога, а не только байты файла."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_a_missing_path_has_no_fingerprint_and_an_empty_dir_has_one(self):
+        """«Каталога нет» и «каталог есть и пуст» — разные состояния (инв. #17)."""
+        empty = self.root / "empty"
+        empty.mkdir()
+        self.assertIsNone(probe.fingerprint(self.root / "нет"))
+        self.assertIsNotNone(probe.fingerprint(empty))
+
+    def test_a_changed_file_changes_the_fingerprint(self):
+        item = self.root / "a.txt"
+        item.write_text("один", encoding="utf-8")
+        before = probe.fingerprint(item)
+        item.write_text("другой", encoding="utf-8")
+        self.assertNotEqual(before, probe.fingerprint(item))
+
+    def test_a_removed_or_renamed_neighbour_changes_a_directory_fingerprint(self):
+        area = self.root / "area"
+        area.mkdir()
+        (area / "a.txt").write_text("x", encoding="utf-8")
+        (area / "b.txt").write_text("y", encoding="utf-8")
+        before = probe.fingerprint(area)
+        (area / "b.txt").rename(area / "c.txt")
+        self.assertNotEqual(before, probe.fingerprint(area),
+                            "переименование соседа обязано быть видно")
+        (area / "c.txt").unlink()
+        self.assertNotEqual(before, probe.fingerprint(area))
+
+    def test_the_same_content_gives_the_same_fingerprint(self):
+        for name in ("one", "two"):
+            area = self.root / name
+            area.mkdir()
+            (area / "a.txt").write_text("x", encoding="utf-8")
+        self.assertEqual(probe.fingerprint(self.root / "one"),
+                         probe.fingerprint(self.root / "two"))
+
+
+class BlockingReasons(unittest.TestCase):
+    """Почему путь унести нельзя — и это РАЗНЫЕ причины, а не одна."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tree = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.tree / "spa_core" / "tests").mkdir(parents=True)
+        (self.tree / "spa_core" / "tests" / "test_g.py").write_text("x = 1\n",
+                                                                    encoding="utf-8")
+        (self.tree / "area").mkdir()
+
+    def _row(self, path: str) -> dict:
+        return {"path": path, "guard": "spa_core/tests/test_g.py"}
+
+    def test_the_tree_root_cannot_be_carried_away(self):
+        self.assertIn("КОРЕНЬ", probe._blocking_reason(self.tree, self._row(".")))
+
+    def test_a_path_containing_the_guard_cannot_be_carried_away(self):
+        self.assertIn("СОДЕРЖИТ", probe._blocking_reason(self.tree, self._row("spa_core")))
+
+    def test_an_absent_path_has_nothing_to_carry(self):
+        self.assertIn("нет в одноразовом дереве",
+                      probe._blocking_reason(self.tree, self._row("нет-такого")))
+
+    def test_an_occupied_destination_is_refused(self):
+        (self.tree / ("area" + probe.MOVED_SUFFIX)).mkdir()
+        self.assertIn("занято", probe._blocking_reason(self.tree, self._row("area")))
+
+    def test_a_clean_case_is_not_blocked(self):
+        self.assertIsNone(probe._blocking_reason(self.tree, self._row("area")),
+                          "иначе все причины были бы истинны по построению")
+
+
+class VerdictFromTheRun(unittest.TestCase):
+    """Исход прогона → вердикт. Порядок вопросов существен."""
+
+    def _entry(self, **extra) -> dict:
+        row = {"path": "area", "scope": "test_walks", "absent_passed": None}
+        row.update(extra)
+        return row
+
+    def test_green_with_the_same_count_is_blindness(self):
+        entry = probe._verdict(self._entry(absent_passed=3), 0, "3 passed in 0.1s", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_VACUOUS)
+
+    def test_green_with_fewer_passed_is_an_announcement(self):
+        entry = probe._verdict(self._entry(absent_passed=0),
+                               0, "3 skipped in 0.1s", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_ANNOUNCES)
+
+    def test_red_is_a_refusal_and_the_failing_names_are_kept(self):
+        out = ("FAILED spa_core/tests/test_g.py::T::test_walks - нет каталога\n"
+               "1 failed in 0.1s")
+        entry = probe._verdict(self._entry(absent_passed=0), 1, out, 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_REFUSES)
+        self.assertEqual(entry["failed_tests"],
+                         ["spa_core/tests/test_g.py::T::test_walks"])
+        self.assertTrue(entry["consumer_is_red"])
+
+    def test_a_neighbour_going_red_is_recorded_as_such(self):
+        out = ("FAILED spa_core/tests/test_g.py::T::test_other - что-то\n"
+               "1 failed in 0.1s")
+        entry = probe._verdict(self._entry(absent_passed=0), 1, out, 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_REFUSES)
+        self.assertFalse(entry["consumer_is_red"],
+                         "покраснел сосед, а не потребитель входа")
+
+    def test_a_broken_collection_is_NOT_a_refusal(self):
+        """Унос сломал сцену — вердикта о слепоте нет.
+
+        Обратный порядок вопросов записал бы поломку сбора тестов в «сторож
+        заметил отсутствие», то есть выдумал бы исправность.
+        """
+        entry = probe._verdict(self._entry(absent_passed=0),
+                               1, "1 error in 0.1s", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_SCENE)
+
+    def test_pytest_collecting_nothing_is_not_a_verdict_either(self):
+        entry = probe._verdict(self._entry(), 5, "no tests ran in 0.01s", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_SCENE)
+
+    def test_a_timeout_is_not_measured_and_not_green(self):
+        entry = probe._verdict(self._entry(), -1, "не уложился", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_UNMEASURED)
+
+    def test_an_unparsed_summary_is_not_measured(self):
+        entry = probe._verdict(self._entry(absent_passed=None),
+                               0, "совсем другое", 3)
+        self.assertEqual(entry["verdict"], probe.VERDICT_UNMEASURED)
+
+
+class StaticAgreement(unittest.TestCase):
+
+    def test_a_door_expecting_refusal_agrees_with_a_refusal(self):
+        self.assertTrue(probe.agreement(
+            {"static_door": csi.DOOR_REFUSES, "verdict": probe.VERDICT_REFUSES}))
+
+    def test_no_door_disagrees_with_a_refusal(self):
+        self.assertFalse(probe.agreement(
+            {"static_door": csi.DOOR_NONE, "verdict": probe.VERDICT_REFUSES}))
+
+    def test_a_broken_scene_is_not_compared_at_all(self):
+        for verdict in (probe.VERDICT_SCENE, probe.VERDICT_UNMEASURED):
+            self.assertIsNone(probe.agreement(
+                {"static_door": csi.DOOR_NONE, "verdict": verdict}),
+                "засчитать статике ненаблюдённый вердикт нельзя")
+
+
+class PopulationAndSample(unittest.TestCase):
+
+    ROWS = [{"key": f"k{i}", "present_here": csi.PRESENT_YES} for i in range(5)] + \
+           [{"key": "gone", "present_here": csi.PRESENT_NO}]
+
+    def test_only_live_paths_enter_the_population(self):
+        self.assertEqual(len(probe.population(self.ROWS)), 5)
+
+    def test_the_sample_is_reproducible_by_its_named_seed(self):
+        first = [r["key"] for r in probe.select(self.ROWS, sample=3)]
+        second = [r["key"] for r in probe.select(self.ROWS, sample=3)]
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 3)
+
+    def test_without_a_sample_the_whole_population_is_taken(self):
+        self.assertEqual(len(probe.select(self.ROWS, sample=None)), 5)
+
+
+BLIND = '''
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_blind"
+
+def test_walks():
+    for item in AREA.rglob("*.txt"):
+        assert item.name
+'''
+
+LOUD = '''
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_loud"
+
+def test_walks():
+    assert AREA.is_dir(), "входа нет — сторож отказывается"
+    for item in AREA.rglob("*.txt"):
+        assert item.name
+'''
+
+REBUILDS = '''
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+AREA = ROOT / "area_rebuilt"
+
+def test_walks():
+    AREA.mkdir(exist_ok=True)
+    (AREA / "made.txt").write_text("сделано прогоном", encoding="utf-8")
+    for item in AREA.rglob("*.txt"):
+        assert item.name
+'''
+
+
+class ARealContour(unittest.TestCase):
+    """Настоящий контур: git-репозиторий, три сторожа, живой pytest."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls._tmp.name) / "repo"
+        for rel in csi.GUARD_DIRS:
+            (cls.root / rel).mkdir(parents=True, exist_ok=True)
+        tests = cls.root / "spa_core" / "tests"
+        for name, body in (("test_blind_guard.py", BLIND),
+                           ("test_loud_guard.py", LOUD),
+                           ("test_rebuilding_guard.py", REBUILDS)):
+            (tests / name).write_text(body, encoding="utf-8")
+        for area in ("area_blind", "area_loud", "area_rebuilt"):
+            (cls.root / area).mkdir()
+            (cls.root / area / "a.txt").write_text("исходное", encoding="utf-8")
+        _git(cls.root, "init", "-q")
+        _git(cls.root, "add", "-A")
+        _git(cls.root, "-c", "user.email=probe@spa", "-c", "user.name=probe",
+             "commit", "-q", "-m", "scene")
+        cls.before = {
+            name: probe.fingerprint(cls.root / name)
+            for name in ("area_blind", "area_loud", "area_rebuilt")}
+        cls.guard_shas = {
+            path.name: probe.fingerprint(path) for path in tests.glob("*.py")}
+        cls.doc = probe.measure(cls.root)
+        cls.by_guard = {Path(str(e.get("guard"))).name: e
+                        for e in cls.doc["entries"]}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def test_the_measurement_did_not_abort(self):
+        self.assertEqual(self.doc["status"], "MEASURED",
+                         self.doc.get("aborted_reason") or "")
+        self.assertEqual(len(self.doc["entries"]), 3)
+
+    def test_the_blind_guard_stays_green_and_says_nothing(self):
+        entry = self.by_guard["test_blind_guard.py"]
+        self.assertEqual(entry["verdict"], probe.VERDICT_VACUOUS, entry["evidence"])
+        self.assertEqual(entry["baseline_passed"], 1)
+        self.assertEqual(entry["absent_passed"], 1)
+
+    def test_the_loud_guard_goes_red_and_its_own_test_is_named(self):
+        entry = self.by_guard["test_loud_guard.py"]
+        self.assertEqual(entry["verdict"], probe.VERDICT_REFUSES, entry["evidence"])
+        self.assertTrue(entry["failed_tests"])
+        self.assertTrue(entry["consumer_is_red"])
+
+    def test_a_guard_that_REBUILDS_its_input_is_recorded_and_the_tree_survives(self):
+        """Положительный контроль на аварию 19.09.
+
+        Сторож завёл унесённый каталог заново И ПОЛОЖИЛ В НЕГО ФАЙЛ. Возврат
+        `rename` поверх непустого каталога падает, и первая редакция зонда на
+        этом оборвала весь замер. Сцена воспроизводит аварию буквально.
+        """
+        entry = self.by_guard["test_rebuilding_guard.py"]
+        self.assertTrue(entry["path_recreated_by_run"],
+                        "сторож создал свой вход — это наблюдение, а не помеха")
+        self.assertEqual(entry["verdict"], probe.VERDICT_VACUOUS, entry["evidence"])
+
+    def test_every_carried_path_came_back_byte_for_byte(self):
+        for name, before in self.before.items():
+            self.assertEqual(probe.fingerprint(self.root / name), before,
+                             f"путь `{name}` вернулся не тем, чем был")
+
+    def test_the_probe_never_edits_the_guard_source(self):
+        """Главное отличие от соседнего зонда — и оно ИЗМЕРЯЕТСЯ."""
+        tests = self.root / "spa_core" / "tests"
+        for path in tests.glob("*.py"):
+            self.assertEqual(probe.fingerprint(path), self.guard_shas[path.name])
+
+    def test_the_static_door_is_compared_with_the_run(self):
+        compared = [e for e in self.doc["entries"] if e["static_agrees"] is not None]
+        self.assertTrue(compared, "сравнения не было — контроль вхолостую")
+        self.assertEqual(self.doc["static_compared"], len(compared))
+
+    def test_the_report_is_not_vacuous_on_a_real_document(self):
+        lines = probe.report(self.doc)
+        self.assertGreaterEqual(len(lines), 5)
+        self.assertTrue(any("СОЗДАЛ СВОЙ ВХОД" in line for line in lines))
+
+    def test_run_writes_the_ledger_and_names_its_producer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "ledger.json"
+            outcome = probe.run(self.root, dest=dest, limit=1)
+            self.assertTrue(outcome["measured"])
+            doc = json.loads(dest.read_text(encoding="utf-8"))
+            self.assertEqual(doc["generated_by"], probe.PRODUCER)
+
+    def test_the_ledger_verdict_overrides_the_static_door_in_the_census(self):
+        """Право на вердикт даёт ПРОГОН — и перепись обязана это читать."""
+        rows = csi.measure(self.root)["rows"]
+        blind = next(r for r in rows if r["guard"].endswith("test_blind_guard.py"))
+        ledger = {e["key"]: e for e in self.doc["entries"]}
+        overlay = csi.behaviour_of(blind, ledger, None)
+        self.assertEqual(overlay["behaviour"], probe.VERDICT_VACUOUS)
+        self.assertTrue(csi.is_finding(dict(blind, **overlay)))
+
+    def test_a_ledger_taken_from_another_edition_of_the_guard_is_DROPPED(self):
+        rows = csi.measure(self.root)["rows"]
+        blind = next(r for r in rows if r["guard"].endswith("test_blind_guard.py"))
+        ledger = {e["key"]: dict(e, guard_sha="другая-редакция")
+                  for e in self.doc["entries"]}
+        overlay = csi.behaviour_of(blind, ledger, None)
+        self.assertIsNone(overlay["behaviour"])
+        self.assertIn("ДРУГОЙ редакции", overlay["behaviour_evidence"])
+
+    def test_scene_destroyed_is_not_carried_into_the_census_as_a_verdict(self):
+        overlay = csi.behaviour_of(
+            {"key": "k", "guard_sha": "s"},
+            {"k": {"key": "k", "guard_sha": "s", "verdict": probe.VERDICT_SCENE,
+                   "evidence": "сцена"}}, None)
+        self.assertIsNone(overlay["behaviour"],
+                          "«унос сломал сцену» вердиктом о слепоте не является")
+
+
+class TheInstrumentRunsFromTheCommandLine(unittest.TestCase):
+
+    def test_exit_code_two_when_the_tree_is_not_a_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = subprocess.run(
+                [sys.executable, "-m", "spa_core.monitoring.absent_path_probe",
+                 "--root", tmp, "--no-write"],
+                cwd=str(REPO), capture_output=True, text=True, timeout=300)
+            self.assertEqual(proc.returncode, 2,
+                             "«не измерено» обязано выходить своим кодом, а не нулём")
+            self.assertIn("НЕ ИЗМЕРЕНО", proc.stdout)
+
+
+class TheExitCodeKeepsTheThreeOutcomesApart(unittest.TestCase):
+    """Код возврата — то место, где различие читает ЗОВУЩИЙ скрипт (инв. #17).
+
+    Прежняя редакция `main()` читала `(doc.get("counts") or {}).get(...)`:
+    журнал без поля давал пусто, пусто — ложь, ложь — код 0. «Поля нет» и
+    «находок ноль» выходили одним и тем же успехом. Контроль здесь в обе
+    стороны: полный журнал с нулём обязан дать 0, урезанный — 2.
+    """
+
+    def _main_with(self, doc: dict) -> tuple[int, str]:
+        import contextlib
+        import io
+        original = probe.run
+        probe.run = lambda *a, **k: {"doc": doc, "path": None}   # noqa: ARG005
+        self.addCleanup(lambda: setattr(probe, "run", original))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = probe.main(["--no-write"])
+        return code, buf.getvalue()
+
+    def _measured(self, **over) -> dict:
+        doc = {"status": "MEASURED", "question": "q", "order": "G46",
+               "population": 0, "probed": 0, "findings": 0,
+               "counts": {probe.VERDICT_VACUOUS: 0, probe.VERDICT_UNMEASURED: 0},
+               "static_compared": 0, "static_disagrees": 0, "static_by_kind": {},
+               "path_recreated_by_run": [], "stale_disposable_trees": [],
+               "entries": [], "what_it_does_not_prove": []}
+        doc.update(over)
+        return doc
+
+    def test_a_complete_journal_with_zero_findings_exits_clean(self):
+        code, _ = self._main_with(self._measured())
+        self.assertEqual(code, 0, "измеренный ноль обязан выходить нулём")
+
+    def test_a_journal_without_counts_is_not_measured_and_never_exits_clean(self):
+        doc = self._measured()
+        del doc["counts"]
+        code, out = self._main_with(doc)
+        self.assertEqual(code, 2, "отсутствие наблюдения кодом 0 не выдаётся")
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+        self.assertIn("counts", out, "пропавшее поле обязано быть НАЗВАНО")
+
+    def test_a_journal_without_findings_is_not_measured_either(self):
+        doc = self._measured()
+        del doc["findings"]
+        code, out = self._main_with(doc)
+        self.assertEqual(code, 2)
+        self.assertIn("findings", out)
+
+    def test_a_findings_field_of_the_wrong_kind_is_absence_not_a_number(self):
+        code, out = self._main_with(self._measured(findings="девять"))
+        self.assertEqual(code, 2, "мусор в поле замером не является")
+        self.assertIn("findings", out)
+
+    def test_findings_above_zero_still_exits_one(self):
+        code, _ = self._main_with(self._measured(findings=9))
+        self.assertEqual(code, 1, "находки обязаны выходить кодом 1")
+
+    def test_unmeasured_rows_alone_also_exit_one(self):
+        code, _ = self._main_with(self._measured(
+            counts={probe.VERDICT_VACUOUS: 0, probe.VERDICT_UNMEASURED: 3}))
+        self.assertEqual(code, 1, "непомеренные строки — не благополучие")
+
+
+if __name__ == "__main__":
+    unittest.main()

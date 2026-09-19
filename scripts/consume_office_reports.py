@@ -749,6 +749,20 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "sites_seen", "unresolved_share",
                                        "unreadable", "tree",
                                        "what_it_does_not_prove"),
+    # Заказ G46 п. 2 (ADR-424). `by_reason` в схеме обязателен: без него
+    # «остаток 148» прочлось бы как однородная куча, тогда как причин восемь и
+    # они РАЗНОЙ природы — параметр решает зовущий (межпроцедурный разбор),
+    # имя ввезено (значение в другом модуле), форма выражения. `by_place`
+    # обязателен по той же причине: вычисленный путь, легший в ФИКСТУРУ,
+    # входом сторожа не является и население переписи не поднимает.
+    "unresolved_path_census.json": ("status", "invoked_by", "unresolved",
+                                    "resolved_by_tightening", "still_unresolved",
+                                    "by_extension", "by_place", "by_reason",
+                                    "marginal_contribution",
+                                    "ornament_extensions",
+                                    "new_repo_population", "rows", "sites_seen",
+                                    "unreadable", "tree",
+                                    "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -947,6 +961,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/vacuous_guard_census.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
+    "unresolved_path_census.json":
+        "spa_core/monitoring/unresolved_path_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2802,6 +2818,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.call_sourced_input_census import format_report as _csi_report
         out.extend(_csi_report(data))
+    elif name == "unresolved_path_census.json":
+        # Заказ G46 п. 2 (ADR-424). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.unresolved_path_census import format_report as _upc_report
+        out.extend(_upc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

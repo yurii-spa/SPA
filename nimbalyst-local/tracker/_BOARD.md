@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-19T11:48:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-19T15:06:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (27da44f94).
+> Сверено с `origin/main` (8bd049d43) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1079** · ждёт владельца: **2** · занято сессиями: **14**.
+> Всего карточек: **1080** · ждёт владельца: **2** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -320,7 +320,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (557)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (558)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -743,6 +743,7 @@
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
+- Девять сторожей зелены без своего входа — чинить по одному  ·  `inbox-devyat-storozhei-zeleny-bez-svoego-vhoda.md` · 2026-09-19
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17

@@ -188,6 +188,11 @@ PRODUCES = (
     # не нужно вовсе — каталога нет, перечень пуст. Ступень статическая, зов
     # есть разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
     "data/call_sourced_input_census.json",
+    # Заказ G46 п. 2 (ADR-424) — ответ на дыру ПРЕДЫДУЩЕЙ ступени: 195 её
+    # осмотренных мест остались с НЕВЫЧИСЛЕННЫМ путём, то есть её ответ был
+    # нижней границей неизвестного размера. Ступень статическая, зов есть
+    # разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
+    "data/unresolved_path_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -293,6 +298,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "rule_second_copy_census",
     "vacuous_guard_census",
     "call_sourced_input_census",
+    "unresolved_path_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -528,6 +534,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
+    "unresolved_path_census": {
+        "module": "spa_core/monitoring/unresolved_path_census.py",
+        "artifact": "data/unresolved_path_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2358,6 +2367,23 @@ def main(argv=None) -> int:
                   f"{_csi['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "call_sourced_input_census", e)
+
+    # Ступень G46 п. 2 (ADR-424): сколько невычисленных путей соседней переписи
+    # разрешимо УЖЕСТОЧЕНИЕМ вычислителя. Без неё её собственный ответ —
+    # нижняя граница, о размере которой не сказано ничего.
+    try:
+        from spa_core.monitoring import unresolved_path_census
+        _upc = unresolved_path_census.run(root=args.root)
+        if _upc.get("measured"):
+            _ur = observed_number(_upc["doc"], "resolved_by_tightening")
+            print(f"unresolved_path_census: {_upc['doc'].get('status')} — "
+                  f"невычисленных путей разрешимо ужесточением "
+                  f"{'НЕ ИЗМЕРЕНО' if _ur is None else int(_ur)}")
+        else:
+            print(f"unresolved_path_census: НЕ ИЗМЕРЕНО — "
+                  f"{_upc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "unresolved_path_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
