@@ -46,6 +46,24 @@ _NOW = dt.datetime(2000, 1, 1, tzinfo=dt.timezone.utc)
 _POLICY = "MAX_DRAWDOWN = 0.07\n"
 
 
+def _guard_reads_its_own_rule(guard: str) -> str:
+    """Дописать сцене ЧТЕНИЕ её констант, если она их не читает.
+
+    С заказа G43 перепись снимает пару с учёта по статическому факту «имя у
+    сторожа не читается ни разу» — и сцена, объявившая `RULE = 10` и ни разу
+    его не прочитавшая, мерила бы ИМЕННО этот класс, а не тот, ради которого
+    написана. Дописка минимальна и видна: одно присваивание в конце.
+    """
+    tree = ast.parse(guard)
+    names = [t.id for node in tree.body if isinstance(node, ast.Assign)
+             for t in node.targets
+             if isinstance(t, ast.Name) and not t.id.startswith("_")]
+    unread = [n for n in names if not rsc.constant_is_loaded(tree, n)]
+    if not unread:
+        return guard
+    return guard + "_read = (" + ", ".join(unread) + ",)\n"
+
+
 def _tree(base: Path, *, executor: str = "", guard: str = "",
           extra: dict | None = None) -> Path:
     """Минимальное дерево: исполнитель, сторож и обязательные каталоги.
@@ -66,7 +84,8 @@ def _tree(base: Path, *, executor: str = "", guard: str = "",
     if executor:
         (base / "spa_core" / "e.py").write_text(executor, encoding="utf-8")
     if guard:
-        (base / "spa_core" / "tests" / "test_g.py").write_text(guard, encoding="utf-8")
+        (base / "spa_core" / "tests" / "test_g.py").write_text(
+            _guard_reads_its_own_rule(guard), encoding="utf-8")
     for rel, text in (extra or {}).items():
         path = base / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -666,6 +685,270 @@ class LiveControlOnTheRealTree(unittest.TestCase):
             self.assertFalse(
                 rsc.reaches(guard, rsc.imported_modules(ast.parse(guard)), row["executor"]),
                 f"{row['guard']} достаёт {row['executor']} — это не находка")
+
+
+# ===========================================================================
+# Заказ G43 п. 1 — ВТОРОЙ свидетель, поведенческий
+# ===========================================================================
+
+_ART = "data/paper_evidence.json"
+
+
+class ArtifactLiteralsAreBasenames(unittest.TestCase):
+    """Артефакт узнаётся по имени файла, а не по пути, которым его собрали."""
+
+    def test_path_and_join_forms_give_the_same_name(self):
+        joined = rsc.artifact_literals(ast.parse(
+            'P = os.path.join(ROOT, "data", "paper_evidence.json")\n'))
+        whole = rsc.artifact_literals(ast.parse('P = "data/paper_evidence.json"\n'))
+        self.assertEqual(joined, {"paper_evidence.json"})
+        self.assertEqual(joined, whole)
+
+    def test_a_bare_suffix_is_not_an_artifact(self):
+        """ОБРАТНАЯ СТОРОНА: иначе предметом стала бы буква, а не файл."""
+        self.assertEqual(rsc.artifact_literals(ast.parse('S = ".json"\n')), set())
+
+    def test_a_string_without_a_data_suffix_is_not_an_artifact(self):
+        self.assertEqual(rsc.artifact_literals(ast.parse('S = "paper_evidence"\n')),
+                         set())
+
+
+class KeyLiteralsAreUsesNotMentions(unittest.TestCase):
+    """Ключ — это ОБРАЩЕНИЕ к отображению, а не строка где попало."""
+
+    def test_three_forms_of_a_key_are_all_seen(self):
+        keys = rsc.key_literals(ast.parse(
+            'a = d["one"]\n'
+            'b = d.get("two")\n'
+            'c = "three" in d\n'))
+        self.assertEqual(keys, {"one", "two", "three"})
+
+    def test_a_literal_in_a_message_is_not_a_key(self):
+        """ОБРАТНАЯ СТОРОНА: иначе свидетель выродился бы в правило имени."""
+        keys = rsc.key_literals(ast.parse('raise ValueError("start_date")\n'))
+        self.assertEqual(keys, set())
+
+    def test_a_nonstring_subscript_is_not_a_key(self):
+        self.assertEqual(rsc.key_literals(ast.parse('a = d[0]\n')), set())
+
+
+class BehaviourWitnessNeedsBothAxes(unittest.TestCase):
+    """Общий артефакт И общий ключ. Одной оси мало — это замер (0,8 % против 16,4 %)."""
+
+    @staticmethod
+    def _scene(guard: str, executor: str) -> dict:
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), executor=executor, guard=guard)
+            return _measure(base)
+
+    def test_shared_artifact_and_key_prove_the_subject(self):
+        doc = self._scene(
+            guard=f'RULE = 10\nv = load("{_ART}").get("start_date")\n',
+            executor=f'RULE = 10\nw = read("{_ART}")["start_date"]\n')
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_BEHAVIOUR)
+        self.assertEqual(row["behaviour_witness"]["artifact"], "paper_evidence.json")
+        self.assertEqual(row["behaviour_witness"]["key"], "start_date")
+
+    def test_a_shared_artifact_without_a_shared_key_proves_nothing(self):
+        """ОБРАТНАЯ СТОРОНА №1: один артефакт читают сотни файлов."""
+        doc = self._scene(
+            guard=f'RULE = 10\nv = load("{_ART}").get("start_date")\n',
+            executor=f'RULE = 10\nw = read("{_ART}")["other_key"]\n')
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+
+    def test_a_shared_key_without_a_shared_artifact_proves_nothing(self):
+        """ОБРАТНАЯ СТОРОНА №2: замер дал 16,4 % совпадений по одному ключу."""
+        doc = self._scene(
+            guard='RULE = 10\nv = load("data/a.json").get("start_date")\n',
+            executor='RULE = 10\nw = read("data/b.json")["start_date"]\n')
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+
+    def test_unproven_stays_reachable_with_neither_axis(self):
+        doc = self._scene(guard="RULE = 10\n", executor="RULE = 10\n")
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+        self.assertIn("НЕ ДОКАЗАН", row["remedy_evidence"])
+
+    def test_an_unparsable_side_is_unmeasured_not_absent(self):
+        """Третий исход (инв. #17): «не разобрано» не выдаётся за «свидетеля нет»."""
+        witness, reason = rsc.behaviour_witness("def (\n", "RULE = 1\n")
+        self.assertIsNone(witness)
+        self.assertIsNotNone(reason)
+        self.assertIn("не разобрана", str(reason))
+
+
+class WitnessOrderIsRightToFixThenWayToFix(unittest.TestCase):
+    """Порядок ветвей — предмет, а не стиль."""
+
+    def test_owner_subject_wins_over_a_behaviour_witness(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(
+                Path(tmp),
+                executor=f'RULE = 0.07\nw = read("{_ART}")["start_date"]\n',
+                guard=f'RULE = 0.07\nv = load("{_ART}").get("start_date")\n')
+            doc = _measure(base)
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_OWNER)
+
+    def test_a_text_witness_wins_over_a_behaviour_witness(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(
+                Path(tmp),
+                executor=f'RULE = 10\nw = read("{_ART}")["start_date"]\n',
+                guard=f'# правило живёт в e.py\nRULE = 10\n'
+                      f'v = load("{_ART}").get("start_date")\n')
+            doc = _measure(base)
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_IMPORT)
+
+
+# ===========================================================================
+# Заказ G43 п. 2 — чтение журнала зонда
+# ===========================================================================
+
+
+def _with_ledger(entry_patch, *, guard="RULE = 10\n", executor="RULE = 10\n"):
+    """Сцена с журналом зонда, ключи и sha которого сняты с САМОЙ сцены."""
+    import hashlib
+    import json
+    with TemporaryDirectory() as tmp:
+        base = _tree(Path(tmp), executor=executor, guard=guard)
+        first = _measure(base)
+        (row,) = _rows(first)
+
+        def _sha(rel):
+            return hashlib.sha256((base / rel).read_bytes()).hexdigest()
+
+        entry = {"key": rsc.probe_key(row), "value": row["value"],
+                 "guard_sha": _sha(row["guard"]), "executor_sha": _sha(row["executor"]),
+                 "verdict": rsc.PROBE_DRIFT_SILENT, "evidence": "сцена"}
+        entry.update(entry_patch)
+        ledger = base / rsc.PROBE_LEDGER
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        ledger.write_text(json.dumps({"entries": [entry]}), encoding="utf-8")
+        return _measure(base)
+
+
+class AnUnreadNameIsTheOnlyHonestRemoval(unittest.TestCase):
+    """С учёта снимает СТАТИЧЕСКИЙ факт, а не прогон (поправка замера 19.09)."""
+
+    def test_a_guard_that_never_loads_the_name_is_taken_off_the_books(self):
+        with TemporaryDirectory() as tmp:
+            # ВАЖНО: файл кладётся через `extra`, минуя дописку `_tree` — иначе
+            # сцена прочитала бы своё правило и мерила бы другой класс.
+            base = _tree(Path(tmp), executor="RULE = 10\n",
+                         extra={"spa_core/tests/test_g.py": "RULE = 10\n"})
+            doc = _measure(base)
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNUSED)
+        self.assertIn("НЕ ЧИТАЕТСЯ", row["remedy_evidence"])
+        self.assertEqual(doc["findings_on_books"], 0)
+        self.assertEqual(doc["counts"][rsc.CLASS_TWO_COPIES], 1,
+                         "снятая с учёта пара из НАСЕЛЕНИЯ не исчезает")
+
+    def test_a_guard_that_loads_the_name_stays_on_the_books(self):
+        """ОБРАТНАЯ СТОРОНА: ровно тот класс, который зонд ошибочно снял бы."""
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), executor="RULE = 10\n",
+                         extra={"spa_core/tests/test_g.py":
+                                "import random\nRULE = 10\nr = random.Random(RULE)\n"})
+            doc = _measure(base)
+        (row,) = _rows(doc)
+        self.assertNotEqual(row["remedy"], rsc.REMEDY_UNUSED)
+        self.assertEqual(doc["findings_on_books"], 1)
+
+    def test_owner_subject_wins_even_over_an_unread_name(self):
+        """ПРАВО чинить спрашивается раньше ВСЕГО, включая право снять с учёта.
+
+        Иначе пара у порога RiskPolicy уходила бы из очереди владельца молча —
+        по основанию, которое к предмету №1 границы отношения не имеет.
+        """
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), executor="RULE = 0.07\n",
+                         extra={"spa_core/tests/test_g.py": "RULE = 0.07\n"})
+            doc = _measure(base)
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_OWNER)
+
+    def test_loading_is_read_not_assignment(self):
+        self.assertFalse(rsc.constant_is_loaded(ast.parse("RULE = 10\n"), "RULE"))
+        self.assertTrue(rsc.constant_is_loaded(ast.parse("RULE = 10\nx = RULE\n"),
+                                               "RULE"))
+
+
+class ProbeLedgerIsReadAndSelfStaling(unittest.TestCase):
+    """Запись зонда годна, пока совпали значение и sha ОБЕИХ сторон."""
+
+    def test_an_insensitive_verdict_is_a_field_and_takes_nothing_off(self):
+        """ПОПРАВКА 19.09: «вердикт не дрогнул» ≠ «константа не читается»."""
+        doc = _with_ledger({"verdict": rsc.PROBE_INSENSITIVE})
+        (row,) = _rows(doc)
+        self.assertEqual(row["verdict_teeth"], "none")
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+        self.assertEqual(doc["findings_on_books"], 1)
+
+    def test_silent_drift_is_a_field_and_does_not_take_the_pair_off(self):
+        """Поправка к заказу: «вердикт не изменился» описывает ВРЕД."""
+        doc = _with_ledger({"verdict": rsc.PROBE_DRIFT_SILENT})
+        (row,) = _rows(doc)
+        self.assertEqual(row["drift"], rsc.PROBE_DRIFT_SILENT)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+        self.assertEqual(doc["findings_on_books"], 1)
+
+    def test_loud_drift_is_also_only_a_field(self):
+        doc = _with_ledger({"verdict": rsc.PROBE_DRIFT_LOUD})
+        (row,) = _rows(doc)
+        self.assertEqual(row["drift"], rsc.PROBE_DRIFT_LOUD)
+        self.assertEqual(doc["findings_on_books"], 1)
+
+    def test_a_changed_value_makes_the_entry_stale(self):
+        doc = _with_ledger({"verdict": rsc.PROBE_DRIFT_SILENT, "value": "999"})
+        (row,) = _rows(doc)
+        self.assertIsNone(row.get("drift"))
+        self.assertEqual(doc["probe"]["stale"], 1)
+
+    def test_a_changed_side_makes_the_entry_stale(self):
+        doc = _with_ledger({"verdict": rsc.PROBE_DRIFT_SILENT, "guard_sha": "0" * 64})
+        (row,) = _rows(doc)
+        self.assertIsNone(row.get("drift"))
+        self.assertEqual(doc["probe"]["stale"], 1)
+
+    def test_an_unmeasured_entry_is_not_a_verdict(self):
+        """Третий исход зонда вердиктом не притворяется."""
+        doc = _with_ledger({"verdict": "unmeasured"})
+        (row,) = _rows(doc)
+        self.assertEqual(row["remedy"], rsc.REMEDY_UNPROVEN)
+        self.assertIsNone(row.get("drift"))
+        self.assertEqual(doc["probe"]["missing"], 1)
+
+    def test_an_absent_ledger_is_named_not_silent(self):
+        with TemporaryDirectory() as tmp:
+            base = _tree(Path(tmp), executor="RULE = 10\n", guard="RULE = 10\n")
+            doc = _measure(base)
+        self.assertIsNotNone(doc["probe"]["ledger_absent"])
+        self.assertIn("[ЗОНД]", "\n".join(rsc.report(doc)))
+        self.assertIn("журнала зонда нет", "\n".join(rsc.report(doc)))
+
+
+class ReportNamesTheNewNumbers(unittest.TestCase):
+    """Число, которого нет в отчёте, читателю шага 0-офис не существует."""
+
+    def test_report_names_remedy_drift_and_on_books(self):
+        doc = _with_ledger({"verdict": rsc.PROBE_DRIFT_SILENT})
+        text = "\n".join(rsc.report(doc))
+        self.assertIn("[ФОРМА ПОЧИНКИ]", text)
+        self.assertIn("[НА УЧЁТЕ]", text)
+        self.assertIn("[СНОС ВРОЗЬ]", text)
+        self.assertIn("имя у сторожа не читается", text)
+
+    def test_a_document_without_the_probe_says_unmeasured(self):
+        """ОБРАТНАЯ СТОРОНА: старый артефакт не выдаётся за измеренный."""
+        text = "\n".join(rsc.report({"status": "CLEAN", "counts": {}, "rows": [],
+                                     "scanned": 0, "classified": 0}))
+        self.assertIn("[ЗОНД] НЕ ИЗМЕРЕН", text)
 
 
 if __name__ == "__main__":

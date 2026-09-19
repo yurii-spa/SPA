@@ -715,10 +715,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # что вход нельзя уронить молча, и читатель обязан видеть обе половины.
     # `renamed_copy_surface` — доказанный МИНИМУМ переименованных копий: без
     # него «нашли 14» прочлось бы как «их четырнадцать».
+    # Заказ G43 (ADR-419) дописал сюда три поля, и каждое отрисовывается:
+    # `remedy_counts` — формы починки (их читает строка [ФОРМА ПОЧИНКИ],
+    # заведена #635 и в схему тогда НЕ внесена — дрейф был бы молчаливым);
+    # `findings_on_books` — сколько пар осталось на учёте, без него «стало
+    # меньше» прочлось бы как «нашлось меньше»; `probe` — покрытие журнала
+    # зонда, где протухшая запись возвращает пару НА учёт.
     "rule_second_copy_census.json": ("status", "invoked_by", "counts", "scanned",
                                      "classified", "guards", "executors", "rows",
                                      "unreadable", "population_rule",
-                                     "renamed_copy_surface",
+                                     "renamed_copy_surface", "remedy_counts",
+                                     "findings_on_books", "probe",
                                      "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",

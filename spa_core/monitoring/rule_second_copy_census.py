@@ -133,6 +133,52 @@ ADR-416 закрыл ОДИН экземпляр класса: храповик 
 населении не даёт разных правок: перечень модулей `PHASE_1/2/3` спрашивается
 у исполнителя тем же ввозом, каким берётся `INTAKE_STATUSES`. Формой здесь
 оказалась не разница в починке, а разница в ПРАВЕ чинить (п. 1 выше).
+
+## Второй свидетель — ПОВЕДЕНЧЕСКИЙ (заказ **G43, п. 1**)
+
+Текстовый свидетель молчит о паре, где обе стороны честно работают с одним
+предметом и просто не знают друг о друге. Заказ назвал образец:
+`tests/test_preflight.py` × `scripts/preflight_day1.py` — обе стороны читают
+`data/paper_evidence.json` и обе спрашивают у него ключ `start_date`, ни разу
+друг друга не называя.
+
+Свидетельством считается пересечение СРАЗУ ПО ДВУМ осям — общий артефакт И
+общий ключ (:func:`behaviour_witness`). Одной оси мало, и это замер, а не
+осторожность: `data/` стои́т у сотен файлов. Обратная сторона названа:
+пересечение НЕ доказывает, что ключ читается ИМЕННО из этого артефакта;
+свидетель односторонний, и `subject_unproven` остаётся достижимым исходом.
+
+## Зонд (заказ **G43, п. 2**) — и поправка к заказу, снятая замером
+
+Заказ приказал снять гипотезу «совпадение» ЗАМЕРОМ и назвал способ: подменить
+значение у ИСПОЛНИТЕЛЯ, посмотреть на вердикт сторожа, «не изменился ⇒ копии
+независимы». Замер способ ОПРОВЕРГ (`copy_independence_probe`, замер 19.09:
+вердикт не сдвинулся НИ У ОДНОЙ пары):
+
+* пара становится находкой ИМЕННО ТОГДА, когда сторож не достаёт исполнителя
+  ни одной из четырёх дверей ⇒ «не изменился» истинно здесь по построению и
+  не различает ничего;
+* «не изменился» есть описание ВРЕДА, а не невинности: это и значит, что
+  копии могут разойтись молча. Пара `tests/test_preflight.py` ×
+  `scripts/preflight_day1.py` получила бы по этому правилу ярлык
+  «независимы» — та самая пара, которую тот же заказ п. 1 приводит как
+  ОБРАЗЕЦ общего предмета. Один заказ, два противоположных вердикта об одной
+  паре; разрешено это замером, а не выбором.
+
+Поэтому вклад зонда РАЗДЕЛЁН на два и смешивать их запрещено:
+
+* `guard_constant_unused` — подмена СОБСТВЕННОЙ константы сторожа не меняет
+  его вердикт ⇒ сторож её не читает, правила на этой стороне нет, и пара
+  снимается с учёта. Это единственный честный способ её снять;
+* `drift` (`drift_silent` / `drift_loud`) — отдельное ПОЛЕ строки, а не форма
+  починки: оно отвечает на вопрос о вреде («покраснеет ли сторож, если
+  исполнителя правят»), а не о предмете.
+
+Перепись зонд НЕ ЗОВЁТ — только читает его журнал, и читает его
+самопротухающим: запись годна, лишь пока совпадают значение находки и sha
+ОБЕИХ сторон. Любая правка любой стороны возвращает пару в
+`subject_unproven`, то есть НА учёт. Поэтому расписания зонду не нужно:
+протухший журнал не молчит, он перестаёт отвечать.
 """
 
 from __future__ import annotations
@@ -179,6 +225,9 @@ CLASS_VALUE_DIFFERS = "value_differs"
 CLASS_NOT_CONSTANT = "not_constant"
 CLASS_AMBIGUOUS = "ambiguous_executor"
 _FINDING_CLASSES = (CLASS_TWO_COPIES,)
+#: Публичное имя того же набора: зонд независимости спрашивает его у переписи,
+#: а не заводит свою копию правила «что считается находкой» (ADR-417).
+FINDING_CLASSES = _FINDING_CLASSES
 
 #: Модуль, объявляющий пороги RiskPolicy v1.0. Величина, равная одному из них,
 #: есть предмет №1 границы ADR-285 и агентом не чинится.
@@ -188,9 +237,42 @@ RISK_POLICY_MODULE = "spa_core/risk/policy.py"
 #: разбора: право чинить спрашивается ПЕРВЫМ.
 REMEDY_OWNER = "owner_subject"
 REMEDY_IMPORT = "single_copy_by_import"
+REMEDY_BEHAVIOUR = "subject_proven_by_behaviour"
+REMEDY_UNUSED = "guard_constant_unused"
 REMEDY_UNPROVEN = "subject_unproven"
 REMEDY_UNREADABLE = "remedy_unreadable"
-_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_IMPORT, REMEDY_UNPROVEN, REMEDY_UNREADABLE)
+_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_IMPORT, REMEDY_BEHAVIOUR,
+                   REMEDY_UNUSED, REMEDY_UNPROVEN, REMEDY_UNREADABLE)
+
+#: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
+#: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
+#: который называет КОД.
+_ARTIFACT_SUFFIXES = (".json", ".jsonl", ".yaml", ".yml", ".csv", ".md")
+
+#: Методы отображения, чей ПЕРВЫЙ строковый аргумент есть ключ.
+_KEY_METHODS = frozenset({"get", "setdefault", "pop"})
+
+#: Журнал зонда (`spa_core/monitoring/copy_independence_probe.py`), путь от
+#: корня дерева. Перепись его только ЧИТАЕТ и сама не зовёт: зов стои́т прогонов
+#: pytest, а перепись есть разбор AST в одном процессе.
+#:
+#: Живёт он РЯДОМ С КОДОМ, а не в `data/`, и это решение: журнал есть ЗАМЕР
+#: ИСХОДНИКОВ этого дерева, годный ровно для sha своих сторон, — та же природа,
+#: что у `scripts/inbox_acceptance_baseline.json` и `frozen_date_baseline.json`,
+#: и та же форма жизни (под git, правится вместе с кодом). Артефакт `data/`
+#: требовал бы производителя с тактом; такта у зонда нет и быть не должно —
+#: годность записи решает sha, а не календарь.
+PROBE_LEDGER = "spa_core/monitoring/copy_independence_ledger.json"
+#: Вердикты зонда. НИ ОДИН из них не снимает пару с учёта, и это ПОПРАВКА,
+#: найденная замером 19.09: первая редакция называла нечувствительность
+#: вердикта «константа не читается» и сняла бы пять пар — а перечитывание
+#: сторожей показало, что ВСЕ ПЯТЬ константу читают (`random.Random(SEED)`,
+#: `for d in SCAN_DIRS`). Зонд меряет ЧУВСТВИТЕЛЬНОСТЬ ВЕРДИКТА, а «не читает»
+#: есть вопрос статический — на него отвечает `constant_is_loaded` ниже.
+PROBE_INSENSITIVE = "verdict_insensitive"
+PROBE_DRIFT_SILENT = "drift_silent"
+PROBE_DRIFT_LOUD = "drift_loud"
+_PROBE_VERDICTS = (PROBE_INSENSITIVE, PROBE_DRIFT_SILENT, PROBE_DRIFT_LOUD)
 
 #: След состояния репозитория в тексте сторожа. Нужен только для ПОВЕРХНОСТИ
 #: слепоты: сторож, который ничего из репозитория не читает, своей копии
@@ -326,7 +408,7 @@ def risk_policy_thresholds(root: Path) -> Dict[str, List[str]]:
         raise NotMeasured(
             f"пороги RiskPolicy не прочитаны ({RISK_POLICY_MODULE}): "
             f"{type(exc).__name__}: {exc}") from exc
-    out: Dict[str, str] = {}
+    out: Dict[str, List[str]] = {}
     for node in ast.walk(tree):
         pairs: List[Tuple[str, ast.AST]] = []
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
@@ -376,16 +458,179 @@ def subject_witness(text: str, module_rel: str) -> Optional[str]:
     return None
 
 
+def artifact_literals(tree: ast.Module) -> set:
+    """Имена файлов-артефактов, названные в файле строковым литералом.
+
+    Берётся БАЗОВОЕ имя, а не путь: одна сторона пишет
+    ``os.path.join(ROOT, "data", "paper_evidence.json")``, другая —
+    ``"data/paper_evidence.json"``, и сравнение путей объявило бы их разными
+    предметами там, где предмет один. Голый хвост (``".json"``) артефактом
+    не является и отбрасывается — иначе предметом стала бы буква.
+    """
+    out: set = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        value = node.value
+        if not value.lower().endswith(_ARTIFACT_SUFFIXES):
+            continue
+        name = value.replace("\\", "/").rsplit("/", 1)[-1]
+        if name.startswith("."):        # сам хвост, имени файла нет
+            continue
+        out.add(name)
+    return out
+
+
+def key_literals(tree: ast.Module) -> set:
+    """Строковые литералы, использованные как КЛЮЧ отображения.
+
+    Три формы, и третья существенна: ``assert "adapters" in data`` есть
+    обращение к ключу ровно в той же мере, что ``data["adapters"]``, и
+    пропустить её значило бы не увидеть половину сторожей этого репозитория.
+
+    Литерал, стоящий где попало (в сообщении об ошибке, в докстринге), ключом
+    НЕ считается: свидетель обязан быть поведенческим, а не текстовым, иначе
+    он вырождается в правило имени, уже измеренное как негодное (ADR-417).
+    """
+    out: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant) \
+                and isinstance(node.slice.value, str):
+            out.add(node.slice.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and node.func.attr in _KEY_METHODS and node.args \
+                and isinstance(node.args[0], ast.Constant) \
+                and isinstance(node.args[0].value, str):
+            out.add(node.args[0].value)
+        elif isinstance(node, ast.Compare) and len(node.ops) == 1 \
+                and isinstance(node.ops[0], (ast.In, ast.NotIn)) \
+                and isinstance(node.left, ast.Constant) \
+                and isinstance(node.left.value, str):
+            out.add(node.left.value)
+    return out
+
+
+def behaviour_witness(guard_text: str, executor_text: str) -> Tuple[Optional[dict],
+                                                                    Optional[str]]:
+    """ВТОРОЙ свидетель общего предмета — поведенческий (заказ G43, п. 1).
+
+    Возвращает ``(свидетель | None, причина-не-измерено | None)``.
+
+    Первый свидетель (:func:`subject_witness`) — ТЕКСТОВЫЙ: одна сторона
+    называет другую. Он молчит о паре, где обе стороны честно работают с одним
+    предметом и просто не знают друг о друге, — а это ровно случай
+    ``tests/test_preflight.py`` × ``scripts/preflight_day1.py``: обе читают
+    ``data/paper_evidence.json`` и обе спрашивают у него ключ ``start_date``.
+    Заказ G43 потребовал поднять такие пары из «не измерено».
+
+    Свидетельством считается пересечение СРАЗУ ПО ДВУМ осям: общий артефакт И
+    общий ключ. Одной оси мало и это не осторожность, а замер: имя ``data/``
+    стои́т у сотен файлов, и свидетель по одному артефакту объявил бы общим
+    предметом любую пару, читающую репозиторий. Две оси оставляют предмет,
+    у которого есть и носитель, и поле в нём.
+
+    **Обратная сторона названа.** Пересечение НЕ доказывает, что ключ читается
+    ИМЕННО из этого артефакта: статически связать их нечем, и прибор такой
+    связи не выдумывает. Свидетель, как и первый, ОДНОСТОРОННИЙ — его наличие
+    доказывает общий предмет, его отсутствие не доказывает ничего, и
+    ``subject_unproven`` остаётся достижимым исходом (замер: из восьми пар
+    свидетель нашёлся у двух).
+    """
+    try:
+        guard_tree = ast.parse(guard_text)
+        executor_tree = ast.parse(executor_text)
+    except SyntaxError as exc:
+        return None, f"сторона не разобрана: {type(exc).__name__}: {exc}"
+    artifacts = sorted(artifact_literals(guard_tree) & artifact_literals(executor_tree))
+    keys = sorted(key_literals(guard_tree) & key_literals(executor_tree))
+    if not artifacts or not keys:
+        return None, None
+    return {"artifacts": artifacts, "keys": keys,
+            "artifact": artifacts[0], "key": keys[0]}, None
+
+
+def constant_is_loaded(tree: ast.Module, name: str) -> bool:
+    """Читается ли имя хоть где-нибудь в файле (загрузка, не присваивание).
+
+    Вопрос СТАТИЧЕСКИЙ, и отвечать на него прогоном нельзя: нечувствительность
+    вердикта к значению — другое утверждение. Замер 19.09 разделил их ценой
+    одной ошибки: пять пар были названы «константа не читается» по прогону, а
+    читаются все пять (`random.Random(SEED)`, `for d in SCAN_DIRS`).
+
+    Имя, которое НЕ читается, правилом на стороне сторожа не является вовсе —
+    и это единственный честный способ снять пару с учёта.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == name \
+                and isinstance(node.ctx, ast.Load):
+            return True
+    return False
+
+
+def probe_key(row: dict) -> str:
+    """Координата пары в журнале зонда. Значение входит в ключ НАМЕРЕННО."""
+    return f"{row['guard']}|{row['executor']}|{row['name']}"
+
+
+def load_probe_ledger(path: Path) -> Tuple[Dict[str, dict], Optional[str]]:
+    """Журнал зонда независимости: ``(записи по координате, причина-нет | None)``.
+
+    Перепись зонд не зовёт. Журнал устаревает САМ и устаревает в безопасную
+    сторону: запись годится, только если совпали и значение находки, и sha
+    ОБЕИХ сторон (проверяет :func:`_probe_verdict`). Любая правка любой из
+    сторон отменяет вердикт зонда, и пара возвращается в ``subject_unproven``
+    — то есть на учёт, а не с учёта. Расписания зонду поэтому не нужно:
+    протухший журнал не молчит, он перестаёт отвечать.
+    """
+    try:
+        import json
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError:
+        return {}, f"журнала зонда нет ({path.name})"
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"журнал зонда не прочитан: {type(exc).__name__}: {exc}"
+    entries = doc.get("entries")
+    if not isinstance(entries, list):
+        return {}, "журнал зонда без перечня записей"
+    out: Dict[str, dict] = {}
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("key"), str):
+            out[entry["key"]] = entry
+    return out, None
+
+
+def _sha256(path: Path) -> Optional[str]:
+    import hashlib
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
 def classify_remedy(row: dict, *, guard_text: Optional[str],
                     executor_text: Optional[str],
-                    thresholds: Dict[str, List[str]]) -> dict:
-    """Форма починки одной находки (заказ G42 п. 1). Возвращает поля строки.
+                    thresholds: Dict[str, List[str]],
+                    probe: Optional[dict] = None,
+                    guard_loads: Optional[bool] = None) -> dict:
+    """Форма починки одной находки (заказы G42 п. 1 и G43). Поля строки.
 
     Порядок ветвей — не стилистика: право чинить спрашивается раньше способа
     чинить. Пара, чья величина совпала с порогом RiskPolicy, уходит владельцу
     ДО того, как прибор вообще посмотрит на свидетеля.
+
+    Дальше порядок такой: **имя не читается · текстовый свидетель ·
+    поведенческий свидетель · не доказан**. Первым идёт статический факт «имя
+    у сторожа не читается ни разу», потому что он ОДИН снимает пару с учёта:
+    правила на стороне сторожа нет вовсе, и спрашивать о свидетелях общего
+    предмета уже не о чем.
+
+    **Вердикты зонда в этом порядке НЕ участвуют** и кладутся полями (`drift`,
+    `verdict_teeth`). Причина — замер, а не вкус: зонд отвечает на вопрос о
+    ВРЕДЕ («поймают ли расхождение»), а не о предмете, и попытка прочесть его
+    как ответ о предмете уже один раз сняла бы с учёта пять живых пар
+    (ADR-419).
     """
-    owner_names = thresholds.get(row.get("value")) or []
+    owner_names = thresholds.get(str(row.get("value"))) or []
     if owner_names:
         named = ", ".join(f"`{n}`" for n in owner_names)
         return {"remedy": REMEDY_OWNER, "owner_threshold_names": list(owner_names),
@@ -397,17 +642,60 @@ def classify_remedy(row: dict, *, guard_text: Optional[str],
         side = "guard" if guard_text is None else "executor"
         return {"remedy": REMEDY_UNREADABLE,
                 "remedy_evidence": f"текст стороны `{side}` не прочитан повторно"}
-    witness = subject_witness(guard_text, row["executor"])
-    if witness is not None:
-        return {"remedy": REMEDY_IMPORT, "witness_side": "guard",
-                "remedy_evidence": f"сторож называет исполнителя: `{witness}`"}
-    witness = subject_witness(executor_text, row["guard"])
-    if witness is not None:
-        return {"remedy": REMEDY_IMPORT, "witness_side": "executor",
-                "remedy_evidence": f"исполнитель называет сторожа: `{witness}`"}
-    return {"remedy": REMEDY_UNPROVEN,
-            "remedy_evidence": ("ни одна сторона не называет другую — общий предмет "
-                                "НЕ ДОКАЗАН (это не «совпадение»)")}
+
+    text_witness = subject_witness(guard_text, row["executor"])
+    text_side = "guard"
+    if text_witness is None:
+        text_witness = subject_witness(executor_text, row["guard"])
+        text_side = "executor"
+    behaviour, behaviour_unmeasured = behaviour_witness(guard_text, executor_text)
+
+    # Зонд НЕ снимает пару с учёта — ни одним своим вердиктом, и это поправка,
+    # снятая замером. Заказ G43 предлагал считать «вердикт не изменился»
+    # независимостью; замер показал, что так выглядит ВРЕД (расхождение не
+    # будет поймано), а первая редакция этого прибора назвала тем же именем
+    # нечувствительность вердикта и сняла бы с учёта пять пар, у которых
+    # константа читается. Поэтому вклад зонда — ПОЛЕ строки (`drift`,
+    # `verdict_teeth`), а снимает пару СТАТИЧЕСКИЙ факт: имя не читается.
+    extra: Dict[str, object] = {}
+    if probe is not None:
+        verdict = probe.get("verdict")
+        detail = probe.get("evidence") or "основание зонда не записано"
+        if verdict in (PROBE_DRIFT_SILENT, PROBE_DRIFT_LOUD):
+            extra = {"drift": verdict, "drift_evidence": detail}
+        elif verdict == PROBE_INSENSITIVE:
+            extra = {"verdict_teeth": "none", "drift_evidence": detail}
+
+    if guard_loads is False:
+        return {"remedy": REMEDY_UNUSED,
+                "remedy_evidence": (
+                    f"имя `{row['name']}` в стороже НЕ ЧИТАЕТСЯ ни разу "
+                    f"(статический разбор) ⇒ правила на его стороне нет, и двух "
+                    f"копий одного правила тоже нет"), **extra}
+
+    if text_witness is not None:
+        who = "сторож называет исполнителя" if text_side == "guard" \
+            else "исполнитель называет сторожа"
+        return {"remedy": REMEDY_IMPORT, "witness_side": text_side,
+                "remedy_evidence": f"{who}: `{text_witness}`", **extra}
+    if behaviour is not None:
+        # Представитель НЕ единственный: общих артефактов и ключей бывает
+        # много, и называть один, умолчав о числе, значило бы выдать пример
+        # за весь свидетельский состав.
+        return {"remedy": REMEDY_BEHAVIOUR, "witness_side": "behaviour",
+                "behaviour_witness": behaviour,
+                "remedy_evidence": (
+                    f"обе стороны читают {len(behaviour['artifacts'])} общих "
+                    f"артефакт(ов) и спрашивают {len(behaviour['keys'])} общих "
+                    f"ключ(ей) — напр. `{behaviour['artifact']}` + "
+                    f"`{behaviour['key']}`; общий предмет ДОКАЗАН поведением, "
+                    f"дверь к исполнителю не проложена"), **extra}
+    evidence = ("ни одна сторона не называет другую и общего артефакта с общим "
+                "ключом у них нет — общий предмет НЕ ДОКАЗАН (это не «совпадение»)")
+    if behaviour_unmeasured is not None:
+        evidence = (f"текстового свидетеля нет; поведенческий НЕ ИЗМЕРЕН "
+                    f"({behaviour_unmeasured})")
+    return {"remedy": REMEDY_UNPROVEN, "remedy_evidence": evidence, **extra}
 
 
 def _guard_files(root: Path) -> List[Path]:
@@ -447,7 +735,38 @@ def _executor_files(root: Path) -> List[Path]:
     return out
 
 
-def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
+def _probe_verdict(root: Path, row: dict, ledger: Dict[str, dict],
+                   stats: dict) -> Optional[dict]:
+    """Запись зонда для пары — ТОЛЬКО если она описывает СЕГОДНЯШНИЕ стороны.
+
+    Годность проверяется тремя равенствами: значение находки и sha обоих
+    файлов. Ошибиться эта проверка может лишь в одну сторону — объявить
+    годную запись протухшей, — и пара тогда возвращается на учёт как
+    ``subject_unproven``. Обратная ошибка (принять запись о ДРУГОМ дереве за
+    ответ о сегодняшнем) закрыта: sha меняется от любой правки.
+    """
+    entry = ledger.get(probe_key(row))
+    if entry is None:
+        stats["missing"] += 1
+        return None
+    if entry.get("value") != row.get("value"):
+        stats["stale"] += 1
+        return None
+    for side in ("guard", "executor"):
+        if entry.get(f"{side}_sha") != _sha256(root / row[side]):
+            stats["stale"] += 1
+            return None
+    if entry.get("verdict") not in _PROBE_VERDICTS:
+        # Зонд честно не измерил пару — это НЕ вердикт и подставлять его
+        # вместо вердикта нельзя.
+        stats["missing"] += 1
+        return None
+    stats["fresh"] += 1
+    return entry
+
+
+def measure(root: Path, *, now: Optional[dt.datetime] = None,
+            probe_ledger: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
     root = Path(root)
     if not root.is_dir():
@@ -546,12 +865,26 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                 text_cache[rel] = None
         return text_cache[rel]
 
+    ledger, ledger_absent = load_probe_ledger(
+        Path(probe_ledger) if probe_ledger is not None else root / PROBE_LEDGER)
+    probe_stats = {"fresh": 0, "stale": 0, "missing": 0,
+                   "ledger_absent": ledger_absent}
+
     for row in rows:
         if row["verdict"] not in _FINDING_CLASSES:
             continue
-        row.update(classify_remedy(row, guard_text=_text(row["guard"]),
+        probe = _probe_verdict(root, row, ledger, probe_stats)
+        guard_text = _text(row["guard"])
+        guard_loads: Optional[bool] = None
+        if guard_text is not None:
+            try:
+                guard_loads = constant_is_loaded(ast.parse(guard_text), row["name"])
+            except SyntaxError:
+                guard_loads = None       # не разобрано ⇒ НЕ «не читается»
+        row.update(classify_remedy(row, guard_text=guard_text,
                                    executor_text=_text(row["executor"]),
-                                   thresholds=thresholds))
+                                   thresholds=thresholds, probe=probe,
+                                   guard_loads=guard_loads))
         remedy_counts[row["remedy"]] += 1
 
     scanned = len(guard_files) + len(executor_files)
@@ -574,6 +907,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
         "executors": len(executor_files),
         "counts": dict(counts, unreadable=len(unreadable)),
         "remedy_counts": remedy_counts,
+        # Пара, у которой имя сторожа не читается, из населения не исчезает:
+        # строка остаётся, меняется её форма. Число «на учёте» считается здесь,
+        # чтобы «стало меньше» нельзя было выдать за «нашлось меньше».
+        "findings_on_books": len(
+            [r for r in rows if r["verdict"] in _FINDING_CLASSES
+             and r.get("remedy") != REMEDY_UNUSED]),
+        "probe": probe_stats,
         "risk_policy_thresholds": len(thresholds),
         "classified": classified,
         "rows": rows,
@@ -587,8 +927,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
             "что совпавшее значение имеет общее происхождение (SEED = 42 может быть совпадением)",
             "что население полно — переименованная копия невидима; renamed_copy_surface есть доказанный МИНИМУМ, а не потолок",
             "что сторож из delegates не держит второй копии рядом — дверь найдена, пользование ею не спрошено",
-            "что пара subject_unproven есть СОВПАДЕНИЕ — свидетель общего предмета односторонний, «не доказан» третий исход",
+            "что пара subject_unproven есть СОВПАДЕНИЕ — свидетели общего предмета односторонние, «не доказан» третий исход",
             "что пара owner_subject есть ОДНА величина — равенство с порогом RiskPolicy отправляет её владельцу, а не выносит приговор",
+            "что у пары subject_proven_by_behaviour общий ключ читается ИМЕННО из общего артефакта — статически связать их нечем, и прибор связи не выдумывает",
+            "что пара independent_by_probe не имеет общего предмета — зонд мерит ЗАВИСИМОСТЬ ВЕРДИКТА от значения, а не происхождение числа; несогласие со свидетелем называется в строке",
         ],
     }
 
@@ -628,8 +970,37 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         out.append(
             f"[ФОРМА ПОЧИНКИ] ввозом {remedy.get(REMEDY_IMPORT)} · "
             f"предмет владельца {remedy.get(REMEDY_OWNER)} · "
+            f"предмет доказан поведением {remedy.get(REMEDY_BEHAVIOUR)} · "
+            f"имя у сторожа не читается {remedy.get(REMEDY_UNUSED)} · "
             f"предмет НЕ доказан {remedy.get(REMEDY_UNPROVEN)} · "
             f"не разобрано {remedy.get(REMEDY_UNREADABLE)}")
+        on_books = observed(doc, "findings_on_books", kind=int)
+        out.append(
+            f"[НА УЧЁТЕ] {on_books if on_books is not None else 'НЕ ИЗМЕРЕНО'} "
+            f"из {counts.get(CLASS_TWO_COPIES)} пар — с учёта снимает ровно одно "
+            f"основание (имя у сторожа не читается), и снятая пара из НАСЕЛЕНИЯ "
+            f"не исчезает")
+    probe = observed(doc, "probe", kind=dict)
+    if probe is None:
+        out.append("[ЗОНД] НЕ ИЗМЕРЕН — перепись собрана без чтения журнала зонда")
+    else:
+        absent = probe.get("ledger_absent")
+        drift = {}
+        for row in (doc.get("rows") or []):
+            if row.get("drift"):
+                drift[row["drift"]] = drift.get(row["drift"], 0) + 1
+        out.append(
+            f"[ЗОНД] годных записей {probe.get('fresh')} · протухших "
+            f"{probe.get('stale')} · нет записи {probe.get('missing')}"
+            + (f" · {absent}" if absent else "")
+            + " — протухшая запись возвращает пару НА учёт, а не снимает с него")
+        toothless = len([r for r in (doc.get("rows") or [])
+                         if r.get("verdict_teeth") == "none"])
+        out.append(
+            f"[СНОС ВРОЗЬ] молча {drift.get(PROBE_DRIFT_SILENT, 0)} · с краснотой "
+            f"{drift.get(PROBE_DRIFT_LOUD, 0)} · вердикт сторожа без зубов "
+            f"{toothless} — это про ВРЕД, а не про предмет: ни один из трёх пару "
+            f"с учёта НЕ снимает; снимает только СТАТИЧЕСКОЕ «имя не читается»")
     findings = [r for r in (doc.get("rows") or []) if r["verdict"] in _FINDING_CLASSES]
     for row in findings[:max_rows]:
         tail = ""
@@ -677,7 +1048,9 @@ def run(root: str | Path = _ROOT, *, dest: Optional[Path] = None,
     target = (Path(dest) if dest is not None
               else (Path(data_dir) if data_dir is not None else root / "data") / ARTIFACT)
     try:
-        doc = measure(root, now=now)
+        # Журнал зонда лежит В ДЕРЕВЕ (рядом с кодом), а не в `data/`: он
+        # есть замер исходников, и `data_dir` его не касается.
+        doc = measure(root, now=now, probe_ledger=root / PROBE_LEDGER)
     except NotMeasured as exc:
         doc = {
             "generated_at": (now or _utcnow()).isoformat(),
