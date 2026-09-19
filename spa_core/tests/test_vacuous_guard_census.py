@@ -524,3 +524,49 @@ class BatterySurvivorsOfCycle638(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             doc = vgc.measure(self._stand(tmp, door="is_symlink"), now=_NOW)
         self.assertEqual(doc["empty_reachable_without_edit"], 0)
+
+
+class TheExitCodeKeepsTheThreeOutcomesApart(unittest.TestCase):
+    """Код возврата — то место, где различие читает ЗОВУЩИЙ скрипт (инв. #17).
+
+    До цикла #642 `main()` читал `doc.get("counts") or {}`: поля нет ⇒ пусто ⇒
+    ложь ⇒ код 0. «Поля нет» и «находок ноль» выходили одним и тем же успехом, и
+    зовущему различить их было нечем. Контроль здесь в ОБЕ стороны: полный
+    артефакт с нулём обязан дать 0, урезанный — 2 с названным полем.
+    """
+
+    def _main_with(self, doc: dict):
+        import contextlib
+        import io
+        for name, stub in (("run", lambda *a, **k: {"doc": doc, "path": None}),
+                           ("report", lambda *a, **k: [])):
+            original = getattr(vgc, name)
+            setattr(vgc, name, stub)
+            self.addCleanup(lambda n=name, o=original: setattr(vgc, n, o))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = vgc.main(["--no-write"])
+        return code, buf.getvalue()
+
+    def test_a_complete_artifact_with_zero_findings_exits_clean(self):
+        code, _ = self._main_with({"status": "MEASURED", "counts": {v: 0 for v in vgc.FINDING_VERDICTS} | {vgc.VERDICT_UNMEASURED: 0}})
+        self.assertEqual(code, 0, "измеренный ноль обязан выходить нулём")
+
+    def test_an_artifact_without_counts_is_not_measured_and_never_exits_clean(self):
+        code, out = self._main_with({"status": "MEASURED"})
+        self.assertEqual(code, 2, "отсутствие наблюдения кодом 0 не выдаётся")
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+        self.assertIn("counts", out, "пропавшее поле обязано быть НАЗВАНО")
+
+    def test_counts_of_the_wrong_kind_is_absence_not_an_empty_tally(self):
+        code, out = self._main_with({"status": "MEASURED", "counts": "ноль"})
+        self.assertEqual(code, 2, "мусор в поле замером не является")
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+
+    def test_a_finding_still_exits_one(self):
+        code, _ = self._main_with({"status": "MEASURED", "counts": {v: 0 for v in vgc.FINDING_VERDICTS} | {vgc.VERDICT_UNMEASURED: 4}})
+        self.assertEqual(code, 1, "находки обязаны выходить кодом 1")
+
+    def test_unmeasured_status_still_wins_over_the_tally(self):
+        code, _ = self._main_with({"status": "UNMEASURED", "counts": {v: 0 for v in vgc.FINDING_VERDICTS} | {vgc.VERDICT_UNMEASURED: 0}})
+        self.assertEqual(code, 2, "«не измерено» у всего замера кодом 0 не выдаётся")

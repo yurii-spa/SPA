@@ -665,7 +665,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(line)
     if str(doc.get("status")) == "UNMEASURED":
         return 2
-    counts = doc.get("counts") or {}
+    # Инвариант #17 у САМОГО кода возврата: `doc.get("counts") or {}` делал
+    # «поля нет» и «находок ноль» ОДНИМ И ТЕМ ЖЕ успехом — пусто давало
+    # ложь, ложь давала код 0, и зовущему скрипту различить два исхода
+    # было нечем. Три исхода (измерено · измерено и равно нулю · не
+    # измерено) обязаны быть различимы там, где их читают, а читают их
+    # по коду возврата. Найдено храповиком `test_absent_observation_ratchet`,
+    # красневшим на чистом `origin/main` тремя тестами (цикл #642).
+    counts = observed(doc, "counts", kind=dict)
+    if counts is None:
+        print("НЕ ИЗМЕРЕНО — в артефакте нет поля `counts`: "
+              "отсутствие наблюдения кодом 0 не выдаётся")
+        return 2
     return 1 if any(counts.get(v) for v in FINDING_VERDICTS) \
         or counts.get(VERDICT_UNMEASURED) else 0
 

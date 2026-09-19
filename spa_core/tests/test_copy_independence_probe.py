@@ -361,5 +361,52 @@ class RefusalsAreNamedNotSilent(unittest.TestCase):
         self.assertIn("pytest", version.lower())
 
 
+class TheExitCodeKeepsTheThreeOutcomesApart(unittest.TestCase):
+    """Код возврата — то место, где различие читает ЗОВУЩИЙ скрипт (инв. #17).
+
+    До цикла #642 `main()` читал `doc.get("counts") or {}`: поля нет ⇒ пусто ⇒
+    ложь ⇒ код 0. «Поля нет» и «находок ноль» выходили одним и тем же успехом, и
+    зовущему различить их было нечем. Контроль здесь в ОБЕ стороны: полный
+    артефакт с нулём обязан дать 0, урезанный — 2 с названным полем.
+    """
+
+    def _main_with(self, doc: dict):
+        import contextlib
+        import io
+        for name, stub in (("run", lambda *a, **k: {"doc": doc, "path": None}),
+                           ("report", lambda *a, **k: [])):
+            original = getattr(probe, name)
+            setattr(probe, name, stub)
+            self.addCleanup(lambda n=name, o=original: setattr(probe, n, o))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = probe.main(["--no-write"])
+        return code, buf.getvalue()
+
+    def test_a_complete_artifact_with_zero_findings_exits_clean(self):
+        code, _ = self._main_with({"status": "MEASURED", "counts": {probe.VERDICT_UNMEASURED: 0, probe.VERDICT_DRIFT_SILENT: 0}})
+        self.assertEqual(code, 0, "измеренный ноль обязан выходить нулём")
+
+    def test_an_artifact_without_counts_is_not_measured_and_never_exits_clean(self):
+        code, out = self._main_with({"status": "MEASURED"})
+        self.assertEqual(code, 2, "отсутствие наблюдения кодом 0 не выдаётся")
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+        self.assertIn("counts", out, "пропавшее поле обязано быть НАЗВАНО")
+
+    def test_counts_of_the_wrong_kind_is_absence_not_an_empty_tally(self):
+        code, out = self._main_with({"status": "MEASURED", "counts": "ноль"})
+        self.assertEqual(code, 2, "мусор в поле замером не является")
+        self.assertIn("НЕ ИЗМЕРЕНО", out)
+
+    def test_a_finding_still_exits_one(self):
+        code, _ = self._main_with({"status": "MEASURED", "counts": {probe.VERDICT_UNMEASURED: 0, probe.VERDICT_DRIFT_SILENT: 2}})
+        self.assertEqual(code, 1, "находки обязаны выходить кодом 1")
+
+    def test_unmeasured_status_still_wins_over_the_tally(self):
+        code, _ = self._main_with({"status": "UNMEASURED", "counts": {probe.VERDICT_UNMEASURED: 0, probe.VERDICT_DRIFT_SILENT: 0}})
+        self.assertEqual(code, 2, "«не измерено» у всего замера кодом 0 не выдаётся")
+
+
+
 if __name__ == "__main__":
     unittest.main()
