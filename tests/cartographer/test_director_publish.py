@@ -17,6 +17,54 @@ sys.path.insert(0, str(ROOT))
 from scripts.cartographer import director_publish as dp  # noqa: E402
 
 
+class TheExitCodeBelongsToLaunchdNotToTheVerdict(unittest.TestCase):
+    """Находка канонического гейта: вердикт кодом возврата ломает расписанный агент.
+
+    Гейт ждёт 0, а первый прогон честно отвечает «сравнивать не с чем». Но дефект
+    глубже гейта: для launchd и сторожей здоровья любой ненулевой код — поломка, и шаг,
+    выходящий 3 каждый час при «менять нечего», выглядел бы вечно сломанным. Настоящая
+    поломка утонула бы в этом шуме.
+    """
+
+    def _run(self, tmp, extra=()):
+        src = Path(tmp) / 'snap'
+        src.mkdir(exist_ok=True)
+        (src / 'investment_snapshot.json').write_text('{"real_capital_proven": false}')
+        import io
+        import contextlib
+        buf = io.StringIO()
+        argv = ['--bundle', str(src), '--output', str(Path(tmp) / f'out{len(extra)}'),
+                *extra]
+        with contextlib.redirect_stdout(buf):
+            code = dp.main(argv)
+        return code, buf.getvalue()
+
+    def test_a_not_measured_run_still_exits_zero_by_default(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out = self._run(tmp)
+            self.assertEqual(code, 0)
+            self.assertIn('NOT_MEASURED', out)   # вердикт виден, но не в коде
+
+    def test_the_verdict_is_readable_in_the_output(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            _code, out = self._run(tmp)
+            self.assertIn('ВЕРДИКТ ВЫКЛАДКИ', out)
+
+    def test_the_flag_restores_verdict_codes_for_humans(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            code, _out = self._run(tmp, extra=('--verdict-exit-code',))
+            self.assertEqual(code, 2)
+
+    def test_the_wrapper_does_not_ask_for_verdict_codes(self):
+        """Обёртка launchd обязана НЕ просить вердикт кодом."""
+        wrapper = (ROOT / 'scripts/agent_director_build.sh')
+        if wrapper.exists():
+            self.assertNotIn('--verdict-exit-code', wrapper.read_text())
+
+
 class TheVerdictHasThreeOutcomes(unittest.TestCase):
 
     def test_a_changed_digest_says_publish(self):
