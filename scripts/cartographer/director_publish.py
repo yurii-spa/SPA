@@ -404,6 +404,20 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
         for name in names:
             os.chmod(d / name, 0o600)
     os.rename(staging, out)
+
+    # Состояние свежести обязано лечь ТУДА, ОТКУДА его прочтёт следующий прогон.
+    # Первая редакция писала его только в evidence/ каждого комплекта, а читала по
+    # --state — файла там не было никогда, поэтому каждый прогон считал дайджест новым
+    # и «последнее изменение смысла» двигалось бы ежечасно. Ровно тот ложный сдвиг,
+    # против которого поле и существует.
+    if state_path:
+        target = refuse_inside_repository(state_path, 'состояние свежести')
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        tmp = target.with_name(target.name + '.tmp')
+        tmp.write_text(json.dumps({**state, 'policy': FRESHNESS},
+                                  ensure_ascii=False, indent=1), encoding='utf-8')
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, target)      # одна операция: состояние либо старое, либо новое
     return projection, page, state
 
 

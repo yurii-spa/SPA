@@ -530,9 +530,36 @@ def build_projection(*, investments=None, reliability=None, work=None, governanc
     return projection
 
 
+#: Листья, зависящие от ЧАСОВ, а не от наблюдаемого факта. Исключаются на ЛЮБОЙ
+#: глубине, и это измеренная необходимость, а не осторожность: два прогона подряд,
+#: между которыми в системе не изменилось ничего, давали РАЗНЫЕ дайджесты — 458
+#: различающихся листьев, и все до единого `as_of`/`last_seen` внутри находок
+#: надёжности. На таком дайджесте замысел «публиковать по смене смысла» не держится:
+#: он публиковал бы каждый час.
+#:
+#: Граница проста: момент НАБЛЮДЕНИЯ — не факт. Если у находки изменился только
+#: `last_seen`, в системе не изменилось ничего, кроме времени взгляда на неё.
+VOLATILE_LEAF_KEYS = frozenset({
+    'generated_at', 'observed_at', 'as_of', 'first_seen', 'last_seen',
+    'checked_at', 'built_at', 'last_check', 'last_successful_build',
+    'age_hours', 'source_age_hours', 'run_started_at', 'page_generated_at',
+})
+
+
+def _strip_volatile(value):
+    """Дерево без листьев-часов. Структура сохраняется: пропажа поля — тоже смысл."""
+    if isinstance(value, dict):
+        return {k: _strip_volatile(v) for k, v in value.items()
+                if k not in VOLATILE_LEAF_KEYS}
+    if isinstance(value, list):
+        return [_strip_volatile(v) for v in value]
+    return value
+
+
 def semantic_view(projection):
-    return {k: v for k, v in projection.items()
-            if k not in ('generated_at', 'semantic_digest')}
+    """Смысловой срез: без собственных часов И без часов на любой глубине."""
+    return _strip_volatile({k: v for k, v in projection.items()
+                            if k not in ('generated_at', 'semantic_digest')})
 
 
 def semantic_digest(projection):

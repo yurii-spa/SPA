@@ -471,3 +471,120 @@ class TheFullCycleRebuildsEvidenceFromCanonicalSources(unittest.TestCase):
                          {'reliability_snapshot.json', 'work_snapshot.json',
                           'investment_snapshot.json', 'governance_snapshot.json',
                           'action_authority_audit.json', 'director_center.json'})
+
+
+class TheDigestIgnoresTheClockAtEveryDepth(unittest.TestCase):
+    """Замер 20.09: два прогона подряд давали РАЗНЫЕ дайджесты — 458 различий, и все
+    до единого `as_of`/`last_seen` внутри находок надёжности.
+
+    На таком дайджесте замысел «публиковать по смене смысла» не держится: он публиковал
+    бы каждый час. Момент НАБЛЮДЕНИЯ — не факт.
+    """
+
+    def _doc(self, **kw):
+        from scripts.cartographer import web_projection as wp
+        base = {'schema_version': wp.SCHEMA, 'layers': {'STUDIO': {'reliability': {
+            'findings': [{'title': 'x', 'severity': 'WARNING',
+                          'as_of': '2026-09-20T22:05:06Z',
+                          'last_seen': '2026-09-20T22:05:06Z'}]}}}}
+        base.update(kw)
+        return base
+
+    def test_a_changed_observation_stamp_does_not_move_the_digest(self):
+        from scripts.cartographer import web_projection as wp
+        a = self._doc()
+        b = json.loads(json.dumps(a))
+        f = b['layers']['STUDIO']['reliability']['findings'][0]
+        f['as_of'] = '2026-09-20T23:59:59Z'
+        f['last_seen'] = '2026-09-20T23:59:59Z'
+        self.assertEqual(wp.semantic_digest(a), wp.semantic_digest(b))
+
+    def test_a_changed_FACT_does_move_the_digest(self):
+        """Обратный контроль: дайджест, который не двигается, ничего не охраняет."""
+        from scripts.cartographer import web_projection as wp
+        a = self._doc()
+        b = json.loads(json.dumps(a))
+        b['layers']['STUDIO']['reliability']['findings'][0]['severity'] = 'CRITICAL'
+        self.assertNotEqual(wp.semantic_digest(a), wp.semantic_digest(b))
+
+    def test_a_new_finding_moves_the_digest(self):
+        from scripts.cartographer import web_projection as wp
+        a = self._doc()
+        b = json.loads(json.dumps(a))
+        b['layers']['STUDIO']['reliability']['findings'].append({'title': 'новая'})
+        self.assertNotEqual(wp.semantic_digest(a), wp.semantic_digest(b))
+
+    def test_volatile_keys_are_declared_not_guessed(self):
+        from scripts.cartographer import web_projection as wp
+        for key in ('as_of', 'last_seen', 'observed_at', 'generated_at', 'age_hours'):
+            self.assertIn(key, wp.VOLATILE_LEAF_KEYS)
+
+    def test_stripping_keeps_the_structure(self):
+        """Пропажа самого ПОЛЯ — тоже смысл, и её прятать нельзя."""
+        from scripts.cartographer import web_projection as wp
+        a = {'x': {'as_of': '1', 'severity': 'WARNING'}}
+        b = {'x': {'severity': 'WARNING'}}
+        self.assertEqual(wp._strip_volatile(a), wp._strip_volatile(b))
+        c = {'x': {'severity': 'WARNING', 'extra': 1}}
+        self.assertNotEqual(wp._strip_volatile(a), wp._strip_volatile(c))
+
+
+class TheFreshnessStateIsWrittenWhereItIsRead(unittest.TestCase):
+    """Первая редакция писала состояние только в evidence/, а читала по --state.
+
+    Файла там не было никогда ⇒ каждый прогон считал дайджест новым ⇒ «последнее
+    изменение смысла» двигалось бы ежечасно. Ровно тот ложный сдвиг, против которого
+    поле и существует.
+    """
+
+    def _bundle(self, tmp):
+        src = Path(tmp) / 'snap'
+        src.mkdir(exist_ok=True)
+        (src / 'investment_snapshot.json').write_text('{"real_capital_proven": false}')
+        return src
+
+    def test_the_state_file_appears_at_the_declared_path(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._bundle(tmp)
+            state = Path(tmp) / 'state' / 'freshness_state.json'
+            dp.build_bundle(bundle=src, output=Path(tmp) / 'o1', state_path=state)
+            self.assertTrue(state.exists())
+            self.assertEqual(state.stat().st_mode & 0o777, 0o600)
+
+    def test_a_second_unchanged_run_does_not_move_the_semantic_change_time(self):
+        """Главная проверка ARB: неизменный смысл не смеет двигать отметку."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._bundle(tmp)
+            state = Path(tmp) / 'state' / 'freshness_state.json'
+            _p1, _g1, s1 = dp.build_bundle(bundle=src, output=Path(tmp) / 'o1',
+                                           state_path=state, now='2026-09-20T10:00:00Z')
+            _p2, _g2, s2 = dp.build_bundle(bundle=src, output=Path(tmp) / 'o2',
+                                           state_path=state, now='2026-09-20T11:00:00Z')
+            self.assertEqual(s1['semantic_digest'], s2['semantic_digest'])
+            self.assertEqual(s2['last_semantic_change'], s1['last_semantic_change'])
+            self.assertNotEqual(s2['last_check'], s1['last_check'])
+            self.assertNotEqual(s2['last_successful_build'], s1['last_successful_build'])
+
+    def test_a_changed_meaning_DOES_move_the_semantic_change_time(self):
+        """Обратный контроль: отметка, которая не двигается, бесполезна."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._bundle(tmp)
+            state = Path(tmp) / 'state' / 'freshness_state.json'
+            dp.build_bundle(bundle=src, output=Path(tmp) / 'o1', state_path=state,
+                            now='2026-09-20T10:00:00Z')
+            (src / 'investment_snapshot.json').write_text(
+                '{"real_capital_proven": false, "counts": {"objects": 7}}')
+            _p, _g, s2 = dp.build_bundle(bundle=src, output=Path(tmp) / 'o2',
+                                         state_path=state, now='2026-09-20T11:00:00Z')
+            self.assertEqual(s2['last_semantic_change'], '2026-09-20T11:00:00Z')
+
+    def test_the_state_path_may_not_be_inside_the_repository(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._bundle(tmp)
+            with self.assertRaises(dp.PublishError):
+                dp.build_bundle(bundle=src, output=Path(tmp) / 'o',
+                                state_path=ROOT / 'freshness_state.json')
