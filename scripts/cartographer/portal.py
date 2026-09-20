@@ -237,6 +237,28 @@ def run(args):
                        'detail': work['schema_version']})
         work_source = path
 
+    director = None
+    director_source = None
+    if getattr(args, 'director', None):
+        import director as director_mod
+        given = Path(args.director)
+        path = given if given.is_file() else given / 'director_center.json'
+        if not path.is_file():
+            raise diff_mod.IncompatibleInput(f'no director_center.json at {given}')
+        try:
+            director = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise diff_mod.IncompatibleInput(
+                f'director_center.json at {given} could not be read '
+                f'({type(exc).__name__})') from None
+        try:
+            director_mod.validate_director_center(director, str(path))
+        except director_mod.DirectorInputError as exc:
+            raise diff_mod.IncompatibleInput(str(exc)) from None
+        checks.append({'check': 'director_center_contract', 'result': 'PASS',
+                       'detail': director['schema_version']})
+        director_source = path
+
     design = design_reference(args.production)
     portal['page_generated_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
     portal['design_reference'] = design
@@ -257,6 +279,8 @@ def run(args):
         protected.append(Path(args.reliability))
     if getattr(args, 'work', None):
         protected.append(Path(args.work))
+    if getattr(args, 'director', None):
+        protected.append(Path(args.director))
     snapshot_json = None
     if args.cartographer:
         candidate = Path(args.cartographer) / 'snapshot.json'
@@ -287,12 +311,15 @@ def run(args):
         available.append('reliability_snapshot.json')
     if work is not None:
         available.append('work_snapshot.json')
+    if director is not None:
+        available.append('director_center.json')
     if args.cartographer and (Path(args.cartographer) / 'system_map.md').is_file():
         available.append('system_map.md')
     files = [('portal_snapshot.json', json.dumps(portal, indent=2, ensure_ascii=False)),
              ('index.html', render_mod.html(portal, brief, design, available,
                                              authority=authority,
-                                             reliability=reliability, work=work)),
+                                             reliability=reliability, work=work,
+                                             director=director)),
              ('owner_summary.md', render_mod.owner_summary(portal, brief, design))]
     for name, content in files:
         p = staging / name
@@ -302,6 +329,11 @@ def run(args):
 
     copied = []
     for name in available:
+        if name == 'director_center.json':
+            shutil.copyfile(director_source, staging / name)
+            (staging / name).chmod(0o600)
+            copied.append(name)
+            continue
         if name == 'work_snapshot.json':
             shutil.copyfile(work_source, staging / name)
             (staging / name).chmod(0o600)
@@ -376,6 +408,12 @@ def run(args):
                            'assigns_work': work['assigns_work'],
                            'digest': work.get('semantic_digest')}
                           if work else None),
+        'director_center': ({'schema': director['schema_version'],
+                             'system_state': director['system_state'],
+                             'has_health_score': director['has_health_score'],
+                             'computes_new_truth': director['computes_new_truth'],
+                             'digest': director.get('semantic_digest')}
+                            if director else None),
         'checks': checks,
         'digests': {'portal_snapshot': portal['semantic_digest']},
         'counts': portal['counts'],
@@ -459,6 +497,8 @@ def main(argv=None):
                          'reliability_snapshot.json')
     ap.add_argument('--work', type=Path,
                     help='снимок работы (Phase 5): каталог или work_snapshot.json')
+    ap.add_argument('--director', type=Path,
+                    help='центр директора (Phase 6): каталог или director_center.json')
     ap.add_argument('--from-portal-snapshot', type=Path,
                     help='OFFLINE rebuild: a stored portal_snapshot.json or its directory')
     ap.add_argument('--output', type=Path, required=True, help='new directory for the run')

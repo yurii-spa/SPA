@@ -1221,12 +1221,134 @@ def _work_view(work, available):
     return ''.join(out)
 
 
+_DIRECTOR_BLOCK_TITLES = {
+    'owner_decisions': 'Нужно моё решение',
+    'attention_now': 'Требует внимания сейчас',
+    'current_work': 'Сейчас строится',
+    'blocked': 'Заблокировано',
+    'acceptance_attention': 'Приёмка требует внимания',
+    'acceptance_not_measured': 'Статус приёмки не измерен',
+    'system_drift': 'Системные расхождения',
+    'unverified_state': 'Состояние не подтверждено',
+}
+
+_DIRECTOR_ORDER = ('owner_decisions', 'attention_now', 'current_work', 'blocked',
+                   'acceptance_attention', 'acceptance_not_measured', 'system_drift',
+                   'unverified_state')
+
+
+def _director_item(it):
+    ev = ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 260))}</li>'
+                 for x in (it.get('evidence') or [])[:3])
+    return (f'<div class="row">'
+            f'<div class="rowhead"><span class="rowtitle">'
+            f'{_e(_cut(it["title"], 120))}</span></div>'
+            + (f'<div class="evi mono">{_e(_cut(it["entity"], 110))}</div>'
+               if it.get('entity') else '')
+            + f'<div class="note">{_e(_cut(it.get("detail") or "", 300))}</div>'
+            f'<details><summary>чем доказано</summary>'
+            f'<ul>{ev}</ul>'
+            f'<p class="evi">слой: <span class="mono">{_e(it["source_layer"])}</span></p>'
+            '</details></div>')
+
+
+def _director(center):
+    """Раздел 0: что владельцу нужно знать и решить сейчас.
+
+    Собственной логики истины здесь нет: каждая строка приехала из нижнего слоя вместе со
+    своей уликой и ссылкой на раздел, где она живёт целиком. Кнопок Approve, Reject,
+    Start, Stop, Retry, Repair, Assign, Deploy и Create Task нет — только чтение и
+    переходы. Общего балла здоровья нет намеренно.
+    """
+    if not center:
+        return ('<h2 id="director">0. Центр директора</h2>'
+                '<div class="empty">Центр не приложен к этому комплекту. Это НЕ значит, '
+                'что решать нечего.</div>')
+    state = center['system_state']
+    cls = {'НОРМАЛЬНО': 'b-ok', 'ТРЕБУЕТ ВНИМАНИЯ': 'b-warn'}.get(state, 'b-unk')
+    b = center['blocks']
+    a = center['acceptance_summary']
+    d = center['system_drift_summary']
+    out = ['<h2 id="director">0. Центр директора</h2>',
+           '<p class="note">Что нужно знать и решить сейчас. Экран ничего не запускает, '
+           'не назначает и не принимает — он только показывает уже доказанное нижними '
+           'слоями и ведёт туда, где это лежит целиком.</p>',
+           '<div class="card"><dl class="kv">',
+           f'<dt>Состояние системы</dt><dd><span class="badge {cls}">{_e(state)}</span>'
+           f'<div class="evi">{_e(center["system_state_reason"])}</div></dd>',
+           f'<dt>Нужно моё решение</dt><dd class="big">'
+           f'{b["owner_decisions"]["count"]}</dd>',
+           f'<dt>Требует внимания сейчас</dt><dd class="big">'
+           f'{b["attention_now"]["count"]}</dd>',
+           f'<dt>Сейчас строится</dt><dd class="big">{b["current_work"]["count"]}</dd>',
+           f'<dt>Заблокировано</dt><dd class="big">{b["blocked"]["count"]}</dd>',
+           '</dl>',
+           f'<p class="note">{_e(center["health_score_note"])}</p></div>']
+
+    for name in _DIRECTOR_ORDER:
+        block = b[name]
+        out.append(f'<h3>{_e(_DIRECTOR_BLOCK_TITLES[name])} ({block["count"]})</h3>')
+        if name == 'acceptance_attention':
+            out.append('<div class="card"><dl class="kv">'
+                       f'<dt>приёмка применима, но НЕ подтверждена</dt>'
+                       f'<dd class="big">{a["unconfirmed"]}</dd>'
+                       f'<dt>расхождение: приёмка есть, состояние не закрыто</dt>'
+                       f'<dd class="big">{a["conflict"]}</dd></dl>'
+                       '<p class="note">Только это и есть вопросы к приёмке. Работы, к '
+                       'которым правило приёмки не относится вовсе '
+                       f'({a["not_applicable"]}), проблемой не считаются и сюда не '
+                       'входят.</p></div>')
+        if name == 'acceptance_not_measured':
+            out.append('<div class="card"><p class="note">Показатель информационный: '
+                       'ни одно правило приёмки не покрывает этот род работ, поэтому '
+                       'её статус НЕ измерен. Это не долг и не нарушение — это '
+                       'отсутствие правила, которое бы сюда смотрело.</p></div>')
+        if name == 'unverified_state':
+            u = center.get('unverified_summary') or {}
+            out.append('<div class="card"><dl class="kv">'
+                       f'<dt>записей без подтверждения</dt><dd class="big">'
+                       f'{_n(u.get("count"))}</dd></dl>'
+                       f'<p class="note">{_e(u.get("is_not_drift") or "")}</p></div>')
+        if name == 'system_drift':
+            out.append('<div class="card"><dl class="kv">'
+                       f'<dt>расхождение доставки</dt><dd class="big">'
+                       f'{_n(d.get("production_drift"))}</dd>'
+                       f'<dt>каноничность не объявлена</dt><dd class="big">'
+                       f'{_n(d.get("authority_undefined"))}</dd>'
+                       '</dl><p class="note">'
+                       + _e(d.get('excludes') or '') + '</p>'
+                       + (f'<p class="evi">авторитетный коммит: '
+                          f'<span class="mono">{_e(d.get("authoritative_commit"))}</span>'
+                          f'</p>' if d.get('authoritative_commit') else '')
+                       + '</div>')
+        if block['items']:
+            out += [_director_item(it) for it in block['items']]
+        else:
+            out.append(f'<div class="empty">{_e(block["empty_means"])}</div>')
+        out.append(f'<p class="note">порядок: {_e(block["ordered_by"])} · '
+                   f'<a href="{_e(block["show_all_anchor"])}">Показать все — '
+                   f'{_e(block["show_all_label"])}</a></p>')
+
+    out.append('<details><summary>Из каких слоёв собран этот экран</summary>'
+               '<table><thead><tr><th>слой</th><th>состояние</th><th>снят</th>'
+               '<th>digest</th></tr></thead><tbody>'
+               + ''.join(
+                   f'<tr><td class="mono">{_e(x["layer"])}</td>'
+                   f'<td><span class="badge b-unk">{_e(x["status"])}</span>'
+                   f'<div class="evi">{_e(x.get("note") or "")}</div></td>'
+                   f'<td class="mono">{_e(x.get("generated_at") or "—")}</td>'
+                   f'<td class="mono">{_e(x.get("digest") or "—")}</td></tr>'
+                   for x in center['layers'])
+               + '</tbody></table></details>')
+    return ''.join(out)
+
+
 def html(portal, brief, design_reference, available_evidence=(), authority=None,
-         reliability=None, work=None):
+         reliability=None, work=None, director=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
-        ('overview', '1. Обзор'), ('tasks', '2. Задачи'), ('agents', '3. Агенты и роли'),
+        ('director', '0. Центр'), ('overview', '1. Обзор'), ('tasks', '2. Задачи'), ('agents', '3. Агенты и роли'),
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
         ('authority', '6. Источник правды'),
         ('reliability', '7. Надёжность'), ('work', '8. Работа')))
@@ -1248,6 +1370,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         'не закрывает: в этой фазе он только показывает уже существующие записи и '
         'наблюдения, с путём к источнику у каждого объекта. Кнопок действий здесь нет '
         'намеренно — неработающая кнопка хуже отсутствующей.</span></div>',
+        _director(director),
         _overview(brief, available), _tasks(portal), _agents(portal),
         _decisions(portal, brief), _sources(portal, brief, available),
         _authority(authority, available),
