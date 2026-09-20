@@ -626,3 +626,56 @@ class TheVerdictComparesAgainstWhatIsActuallyServed(unittest.TestCase):
             pub = Path(tmp) / 'p.json'
             pub.write_text(json.dumps({'semantic_digest': 'f' * 24}))
             self.assertEqual(dp.read_published_digest(pub), 'f' * 24)
+
+
+class EveryPrivateDirectoryIsCreated0700IncludingParents(unittest.TestCase):
+    """Замер 20.09: девять рабочих каталогов оказались 0755.
+
+    `Path.mkdir(parents=True, mode=0o700)` применяет режим только к ПОСЛЕДНЕМУ каталогу;
+    промежуточные создаются по умолчанию. Внутри них лежит полная проекция владельца, то
+    есть они читались бы любым пользователем машины. Тот же класс, что и с корнем раздачи.
+    """
+
+    def test_intermediate_directories_get_0700_too(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            deep = Path(tmp) / 'a' / 'b' / 'c'
+            dp._private_mkdir(deep, parents=True)
+            for d in (deep, deep.parent, deep.parent.parent):
+                self.assertEqual(d.stat().st_mode & 0o777, 0o700, str(d))
+
+    def test_an_existing_loose_directory_is_tightened(self):
+        import tempfile
+        import os as _os
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / 'loose'
+            d.mkdir()
+            _os.chmod(d, 0o755)
+            dp._private_mkdir(d)
+            self.assertEqual(d.stat().st_mode & 0o777, 0o700)
+
+    def test_a_built_bundle_has_no_loose_directory_anywhere(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / 'snap'
+            src.mkdir()
+            (src / 'investment_snapshot.json').write_text('{"real_capital_proven": false}')
+            out = Path(tmp) / 'deep' / 'work' / 'bundle-x'
+            dp.build_bundle(bundle=src, output=out)
+            loose = [str(d) for d in out.rglob('*') if d.is_dir()
+                     and (d.stat().st_mode & 0o777) != 0o700]
+            self.assertEqual(loose, [])
+            self.assertEqual(out.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(out.parent.stat().st_mode & 0o777, 0o700)
+
+    def test_an_activated_bundle_has_no_loose_directory(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / 'publish'
+            src.mkdir()
+            for name in dp.PUBLISHED_FILES:
+                (src / name).write_text('x')
+            root = Path(tmp) / 'studio-os-serve' / 'director'
+            target = dp.activate(root, src, digest='a' * 24)
+            for d in (root, root.parent, target):
+                self.assertEqual(d.stat().st_mode & 0o777, 0o700, str(d))

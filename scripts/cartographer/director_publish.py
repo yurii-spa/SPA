@@ -162,8 +162,8 @@ def activate(serve_root, publish_dir, *, digest, now=None):
     # umask по умолчанию даёт 0755, и корень раздачи приватных данных оказался бы
     # читаемым любому пользователю машины. Найдено замером ARB 20.09 — прежний отчёт
     # называл 0600, но это были ФАЙЛЫ, а каталоги никто не мерил.
-    root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    for d in (root, *[a for a in root.parents if _is_serve_parent(a)]):
+    _private_mkdir(root, parents=True)
+    for d in [a for a in root.parents if _is_serve_parent(a)]:
         if (d.stat().st_mode & 0o777) != 0o700:
             os.chmod(d, 0o700)
     stamp = (now or _utcnow()).replace(':', '').replace('-', '')[:15]
@@ -173,7 +173,7 @@ def activate(serve_root, publish_dir, *, digest, now=None):
     staging = root / (target.name + '.incomplete')
     if staging.exists():
         raise PublishError(f'{staging} остался от прерванной активации; отодвиньте его')
-    staging.mkdir(mode=0o700)
+    _private_mkdir(staging)
     for name in PUBLISHED_FILES:
         f = src / name
         if not f.is_file():
@@ -194,6 +194,25 @@ def activate(serve_root, publish_dir, *, digest, now=None):
 
 #: Корень репозитория: `scripts/cartographer/x.py` → на три уровня вверх.
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _private_mkdir(path, *, parents=False):
+    """Каталог приватных данных с режимом 0700 — включая ПРОМЕЖУТОЧНЫЕ.
+
+    `Path.mkdir(parents=True, mode=0o700)` применяет режим только к ПОСЛЕДНЕМУ каталогу;
+    промежуточные создаются по умолчанию, то есть 0755. Замер 20.09: девять рабочих
+    каталогов оказались читаемы любому пользователю машины, а внутри них лежит полная
+    проекция владельца. Тот же класс, что и с корнем раздачи.
+    """
+    path = Path(path)
+    if parents:
+        chain = [a for a in reversed(path.parents) if not a.exists()]
+        for parent in chain:
+            parent.mkdir(mode=0o700)
+            os.chmod(parent, 0o700)
+    path.mkdir(mode=0o700, exist_ok=True)
+    os.chmod(path, 0o700)
+    return path
 
 
 def _is_serve_parent(path):
@@ -279,7 +298,7 @@ def rebuild_evidence(production, work_root, *, now=None):
 
     stamp = (now or _utcnow()).replace(':', '').replace('-', '')[:15]
     root = refuse_inside_repository(Path(work_root) / f'evidence-{stamp}', 'улики')
-    root.mkdir(parents=True, mode=0o700)
+    _private_mkdir(root, parents=True)
     slots = {'prod': str(production)}
     for key in ('snap', 'auth', 'rel', 'work', 'inv', 'gov', 'act', 'dir'):
         slots[key] = str(root / key)
@@ -299,8 +318,7 @@ def rebuild_evidence(production, work_root, *, now=None):
         done.append(name)
 
     # Сборка комплекта ждёт все улики в ОДНОМ каталоге под каноническими именами.
-    bundle = root / 'bundle'
-    bundle.mkdir(mode=0o700)
+    bundle = _private_mkdir(root / 'bundle')
     missing = []
     for key, filename in REBUILD_ARTIFACTS.items():
         src = Path(slots[key]) / filename
@@ -401,10 +419,10 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
     staging = out.with_name(out.name + '.incomplete')
     if staging.exists():
         raise PublishError(f'{staging} остался от прерванного прогона; отодвиньте его')
-    pub = staging / PUBLISH_DIR
-    ev = staging / EVIDENCE_DIR
-    pub.mkdir(parents=True, mode=0o700)
-    ev.mkdir(parents=True, mode=0o700)
+    # staging создаётся ЯВНО: как родитель он получил бы режим по умолчанию.
+    _private_mkdir(staging, parents=True)
+    pub = _private_mkdir(staging / PUBLISH_DIR)
+    ev = _private_mkdir(staging / EVIDENCE_DIR)
 
     (pub / shell_mod.SHELL_FILE).write_text(page, encoding='utf-8')
     (pub / shell_mod.MANIFEST_FILE).write_text(
@@ -433,7 +451,7 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
     # против которого поле и существует.
     if state_path:
         target = refuse_inside_repository(state_path, 'состояние свежести')
-        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _private_mkdir(target.parent, parents=True)
         tmp = target.with_name(target.name + '.tmp')
         tmp.write_text(json.dumps({**state, 'policy': FRESHNESS},
                                   ensure_ascii=False, indent=1), encoding='utf-8')
