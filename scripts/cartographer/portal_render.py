@@ -131,7 +131,8 @@ function spaSort(scope){
   rows.sort(function(a,b){
     var x=a.getAttribute('data-'+key)||'', y=b.getAttribute('data-'+key)||'';
     if(x===y) return (a.getAttribute('data-id')||'').localeCompare(b.getAttribute('data-id')||'');
-    return key==='updated' ? y.localeCompare(x) : x.localeCompare(y);
+    var desc = (key==='updated'||key==='rlast'||key==='rcount');
+    return desc ? y.localeCompare(x) : x.localeCompare(y);
   });
   for(var i=0;i<rows.length;i++) list.appendChild(rows[i]);
 }
@@ -665,13 +666,268 @@ def _authority(auth, available):
     return ''.join(out)
 
 
-def html(portal, brief, design_reference, available_evidence=(), authority=None):
+def _n(value, unit=''):
+    """Число или честное «не измерено». Ноль и пустота — разные ответы (инв. #17)."""
+    if value is None or value == '':
+        return '<span class="note">не измерено</span>'
+    return f'{_e(value)}{_e(unit)}'
+
+
+def _rel_card(f):
+    """Карточка находки: восемь вопросов владельца, и ни одного придуманного ответа."""
+    tasks = f.get('linked_tasks') or []
+    explicit = [t for t in tasks if t.get('relation') == 'EXPLICIT_LINK']
+    mentions = [t for t in tasks if t.get('relation') == 'MENTION_MATCH']
+    rows = lambda items: '<ul>' + ''.join(  # noqa: E731
+        f'<li class="mono">{_e(t["task"])}<div class="evi">{_e(t["basis"])}</div></li>'
+        for t in items) + '</ul>'
+    task_html = ''
+    if explicit:
+        task_html += rows(explicit)
+    if mentions:
+        task_html += ('<div class="note">Возможная связанная задача (совпадение по '
+                      'упоминанию)</div>' + rows(mentions))
+    if not tasks:
+        task_html = ('<span class="note">Нет связанной задачи</span>'
+                     '<div class="evi">карточка не заводится этим разделом</div>')
+    elif not explicit:
+        task_html = ('<span class="note">Объявленной связи нет — только совпадение по '
+                     'упоминанию</span>' + task_html)
+    age = f.get('source_age_hours')
+    age_html = ('<span class="note">не измерено</span>' if age is None
+                else (f'{age / 24:.1f} сут назад' if age > 48 else f'{age:.1f} ч назад'))
+    freshness = f.get('freshness')
+    silent = freshness in ('STALE', 'UNKNOWN')
+    badge = {'STALE': 'источник просрочен',
+             'UNKNOWN': 'свежесть не измерена'}.get(freshness, '')
+    ev = ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 300))}'
+                 + (f'<div class="evi mono">{_e(x.get("where"))}</div>'
+                    if x.get('where') else '') + '</li>'
+                 for x in f.get('evidence') or [])
+    hay = ' '.join(str(x).lower() for x in
+                   (f['finding_id'], f['affected_entity'], f['title'], f['severity'],
+                    f['classification'], f['category'], f['status'], str(freshness),
+                    ' '.join(f.get('sources') or [])))
+    count = f.get('occurrence_count')
+    rcount = f'{count:06d}' if isinstance(count, int) else ''
+    return (
+        f'<div class="row" data-id="{_e(f["finding_id"])}" data-hay="{_e(hay)}" '
+        f'data-rsev="{_e(f["severity"])}" data-rclass="{_e(f["classification"])}" '
+        f'data-rcat="{_e(f["category"])}" data-rstatus="{_e(f["status"])}" '
+        f'data-rentity="{_e(f["affected_entity"].lower())}" '
+        f'data-rfresh="{_e(freshness)}" '
+        f'data-rlast="{_e(f.get("last_seen") or "")}" data-rcount="{rcount}">'
+        f'<div class="rowhead">{_sev_badge(f["severity"])}'
+        f'<span class="badge b-unk">{_e(f["classification"])}</span>'
+        + (f'<span class="badge b-warn">{_e(badge)}</span>' if silent else '')
+        + f'<span class="rowtitle">{_e(_cut(f["title"], 140))}</span></div>'
+        f'<details><summary>что, где, сейчас, почему мы так считаем</summary>'
+        f'<dl class="kv">'
+        f'<dt>ЧТО</dt><dd>{_e(f["title"])}</dd>'
+        f'<dt>ГДЕ</dt><dd class="mono">{_e(f["affected_entity"])}</dd>'
+        f'<dt>СЕЙЧАС</dt><dd>{_e(f["status"])} · {_e(f["severity"])}'
+        + ('<div class="evi">источник в последний раз говорил ' + age_html
+           + ' — «активно» означает «источник не отзывал», а не «проверено сию минуту»'
+             '</div>' if silent else '') + '</dd>'
+        + f'<dt>свежесть источника</dt><dd>{_e(freshness)}'
+        f'<div class="evi">{_e(f.get("freshness_rule") or "")}</div></dd>'
+        + (f'<dt>авторитет по этому предмету</dt><dd class="mono">'
+           f'{_e(f["authoritative_source"])}</dd>'
+           if f.get('authoritative_source') else '')
+        + f'<dt>ПОЧЕМУ МЫ ТАК СЧИТАЕМ</dt><dd class="note">'
+        f'{_e(f["classification_reason"])}</dd>'
+        f'<dt>КОГДА ПОСЛЕДНИЙ РАЗ ВИДЕЛИ</dt><dd class="mono">'
+        f'{_n(f.get("last_seen"))}</dd>'
+        f'<dt>впервые</dt><dd class="mono">{_n(f.get("first_seen"))}</dd>'
+        f'<dt>СКОЛЬКО РАЗ</dt><dd>{_n(count)}'
+        + (f'<div class="evi">{_e(f["occurrence_basis"])}</div>'
+           if f.get('occurrence_basis') else
+           '<div class="evi">ни один доступный источник не считает повторения по этому '
+           'предмету — это «не считали», а не «повторений нет»</div>') + '</dd>'
+        f'<dt>ИСТОЧНИК</dt><dd class="mono">{_e(", ".join(f.get("sources") or []))}'
+        + (f'<div class="evi">подтверждено также: '
+           f'{_e(", ".join(f["corroborated_by"]))} — подтверждение не является '
+           f'повторением</div>' if f.get('corroborated_by') else '') + '</dd>'
+        f'<dt>СВЯЗАННАЯ ЗАДАЧА</dt><dd>{task_html}</dd>'
+        f'<dt>тип находки</dt><dd class="mono">{_e(f["finding_type"])}</dd>'
+        f'</dl><h3>Evidence</h3><ul>{ev}</ul></details></div>')
+
+
+def _rel_group(title, findings, empty):
+    if not findings:
+        return f'<h3>{_e(title)}</h3><div class="empty">{_e(empty)}</div>'
+    return (f'<h3>{_e(title)} ({len(findings)})</h3>'
+            + ''.join(_rel_card(f) for f in findings))
+
+
+def _reliability(rel, available):
+    """Раздел 7: что сломано, что деградирует, что повторяется — и чем доказано.
+
+    Кнопок Fix, Repair, Restart, Delete, Sync, Deploy, Retry, Resolve, Acknowledge и
+    Create Task здесь нет и не подразумевается: раздел только читает. Задача не заводится
+    даже там, где связи с карточкой не нашлось — «нет связанной задачи» это факт, а не
+    приглашение.
+    """
+    if not rel:
+        return ('<h2 id="reliability">7. Надёжность и проблемы</h2>'
+                '<div class="empty">Снимок надёжности не приложен к этому комплекту. '
+                'Это НЕ значит, что всё исправно.</div>')
+    c = rel['counts']
+    f = rel['findings']
+    confirmed = [x for x in f if x['status'] == 'ACTIVE_CONFIRMED']
+    unverified = [x for x in f if x['status'] == 'ACTIVE_UNVERIFIED']
+    # «Требует внимания сейчас» — ТОЛЬКО подтверждённое свежим источником. Запись,
+    # которая держится лишь на том, что источник её не отзывал, живёт ниже отдельным
+    # блоком: она не скрыта, но и не выдана за проверенную.
+    attention = sorted((x for x in confirmed if x['severity'] in ('CRITICAL', 'WARNING')),
+                       key=lambda x: ({'CRITICAL': 0, 'WARNING': 1}[x['severity']],
+                                      x['finding_id']))
+    overdue = sorted((x for x in unverified if x['freshness'] == 'STALE'),
+                     key=lambda x: x['finding_id'])
+    unmeasured = sorted((x for x in unverified if x['freshness'] != 'STALE'),
+                        key=lambda x: x['finding_id'])
+    problems = sorted((x for x in f if x['classification'] == 'PROBLEM_CANDIDATE'),
+                      key=lambda x: (-(x['occurrence_count'] or 0), x['finding_id']))
+    incidents = sorted((x for x in f if x['classification'] == 'INCIDENT'
+                        and x['status'] == 'ACTIVE_CONFIRMED'),
+                       key=lambda x: (x.get('last_seen') or '', x['finding_id']),
+                       reverse=True)
+    conditions = [x for x in f if x['classification'] == 'CONDITION']
+    stale = [x for x in f if x['finding_type'] == 'stale_artifact']
+    unknown = [x for x in f if x['classification'] == 'UNKNOWN'
+               or x['status'] == 'UNKNOWN']
+    by_class = c['by_classification']
+
+    out = ['<h2 id="reliability">7. Надёжность и проблемы</h2>',
+           '<p class="note">Что сломано, что деградирует, что устарело, что повторяется и '
+           'где расхождение — по уже существующим наблюдениям. Раздел ничего не чинит, '
+           'не перезапускает, не синхронизирует и не заводит задач: кнопок действий здесь '
+           'нет намеренно. Причина (root cause) не устанавливается нигде.</p>',
+           '<div class="card"><dl class="kv">',
+           f'<dt>CRITICAL подтверждённых сейчас</dt><dd class="big">'
+           f'{c["critical_confirmed_now"]}</dd>',
+           f'<dt>CRITICAL без подтверждения</dt><dd class="big">'
+           f'{c["critical_unverified"]}</dd>',
+           f'<dt>WARNING подтверждённых сейчас</dt><dd class="big">'
+           f'{c["warning_confirmed_now"]}</dd>',
+           f'<dt>INCIDENTS</dt><dd class="big">{by_class.get("INCIDENT", 0)}</dd>',
+           f'<dt>PROBLEM CANDIDATES</dt><dd class="big">'
+           f'{by_class.get("PROBLEM_CANDIDATE", 0)}</dd>',
+           f'<dt>STALE</dt><dd class="big">{len(stale)}</dd>',
+           f'<dt>UNKNOWN</dt><dd class="big">{len(unknown)}</dd>',
+           f'<dt>Severity не объявлена источником</dt><dd class="big">'
+           f'{c["unknown_severity"]}</dd>',
+           f'<dt>Требует перепроверки (источник не подтверждает)</dt><dd class="big">'
+           f'{c["active_unverified"]}</dd>',
+           '</dl>',
+           f'<p class="note">Источников прочитано {c["sources_read"]}, недоступно '
+           f'{c["sources_unavailable"]}; собственный срок годности объявлен у '
+           f'{c["sources_with_declared_slo"]}, у {c["sources_freshness_unknown"]} свежесть '
+           f'НЕ измерена. Объявленная связь с задачей: {c["explicit_task_links"]}, только '
+           f'совпадение по упоминанию: {c["mention_only_matches"]}, без связи: '
+           f'{c["no_task_relation"]} — задачи этим разделом НЕ создаются.</p>',
+           f'<p class="note">Срок годности берётся из '
+           f'<span class="mono">{_e(rel["freshness_rule_source"])}</span></p>',
+           f'<p class="evi">снимок: '
+           f'{_link("reliability_snapshot.json", available)}</p></div>']
+
+    out.append(_rel_group('Требует внимания сейчас', attention,
+                          'подтверждённых свежим источником записей с объявленной severity '
+                          'нет. Это НЕ «всё исправно»: ниже лежат записи, которые источник '
+                          'не отзывал, но и не подтверждает.'))
+    out.append('<h3>Источник давно не обновлялся — состояние требует перепроверки '
+               f'({len(overdue) + len(unmeasured)})</h3>'
+               '<p class="note">Эти записи никуда не делись и не закрыты. Их единственное '
+               'основание — «источник ещё не отозвал»; подтвердить их «сейчас» нечем. '
+               'Молчание источника не означает, что состояние ушло.</p>')
+    out.append(_rel_group('Источник просрочил собственный объявленный срок', overdue,
+                          'просроченных источников нет.'))
+    out.append(_rel_group('Срок годности источника не объявлен — свежесть НЕ измерена',
+                          unmeasured,
+                          'источников без объявленного срока нет.'))
+    out.append(_rel_group('Повторяющиеся и устойчивые', problems,
+                          'ни по одному предмету повторяемость или длительность не '
+                          'ИЗМЕРЕНЫ. Это «не считали», а не «не повторяется».'))
+    out.append(_rel_group('Недавние incidents', incidents[:12],
+                          'активных единичных сбоев с отметкой времени не найдено.'))
+
+    out.append(f'<h3>Архитектурные условия ({len(conditions)})</h3>')
+    groups = {}
+    for x in conditions:
+        groups.setdefault(x['finding_type'], []).append(x)
+    out.append('<table><thead><tr><th>условие</th><th>сколько</th>'
+               '<th>что это значит</th></tr></thead><tbody>')
+    meaning = {
+        'retired_code_in_production': 'origin файл удалил, а checkout удалить не может — '
+                                      'он остаётся в проде и назван синхронизацией',
+        'local_only_code': 'файл есть только здесь и не отслеживается git',
+        'code_drift': 'дерево, из которого работает флот, расходится с авторитетом',
+        'authority_undefined': 'правило каноничности для объекта не объявлено',
+        'declared_not_observed': 'объявлено, но в живой системе не наблюдается',
+        'observed_not_declared': 'наблюдается, но ни одним реестром не объявлено',
+        'stale_artifact': 'артефакт старше собственного порога свежести',
+        'unknown_observation': 'наблюдение не удалось классифицировать',
+        'fleet_parity': 'состав флота расходится с объявленным',
+    }
+    for kind, items in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        out.append(f'<tr><td class="mono">{_e(kind)}</td><td class="big">{len(items)}</td>'
+                   f'<td class="note">{_e(meaning.get(kind, "—"))}</td></tr>')
+    out.append('</tbody></table>')
+
+    sevs = sorted({x['severity'] for x in f})
+    classes = sorted({x['classification'] for x in f})
+    cats = sorted({x['category'] for x in f})
+    states = sorted({x['status'] for x in f})
+    freshes = sorted({x['freshness'] for x in f})
+    out += [f'<h3>Все находки ({len(f)})</h3>',
+            '<div id="reliability-scope">',
+            _controls('reliability-scope',
+                      [('rsev', 'Severity', sevs), ('rclass', 'Классификация', classes),
+                       ('rcat', 'Категория', cats), ('rstatus', 'Состояние', states),
+                       ('rfresh', 'Свежесть источника', freshes)],
+                      [('rsev', 'по severity'), ('rlast', 'по последнему наблюдению'),
+                       ('rcount', 'по числу наблюдений'), ('rentity', 'по объекту')]),
+            '<div data-role="list">']
+    out += [_rel_card(x) for x in f]
+    out.append('</div></div>')
+
+    out.append('<details><summary>Источники надёжности и что каждый из них меряет'
+               '</summary><table><thead><tr><th>источник</th><th>что меряет</th>'
+               '<th>род</th><th>свежесть</th><th>severity</th><th>время</th>'
+               '<th>устойчивый id</th><th>считает повторы</th><th>состояние</th>'
+               '</tr></thead><tbody>')
+    for s in rel['sources']:
+        yes = lambda v: ('да' if v else ('нет' if v is False else '—'))  # noqa: E731
+        out.append(f'<tr><td class="mono">{_e(s["source"])}</td>'
+                   f'<td class="note">{_e(s.get("measures") or "—")}</td>'
+                   f'<td>{_e(s.get("basis") or "—")}'
+                   + ('<div class="evi">пересобираемый производный артефакт: источником '
+                      'правды не является</div>' if s.get('rebuildable_artifact') else '')
+                   + '</td>'
+                   f'<td>{_e(s.get("freshness"))}'
+                   f'<div class="evi">{_e(_cut(s.get("freshness_rule") or "", 160))}</div>'
+                   f'</td>'
+                   f'<td>{yes(s.get("has_severity"))}</td>'
+                   f'<td>{yes(s.get("has_timestamps"))}</td>'
+                   f'<td>{yes(s.get("has_stable_id"))}</td>'
+                   f'<td>{yes(s.get("counts_occurrences"))}</td>'
+                   f'<td><span class="badge b-unk">{_e(s["status"])}</span>'
+                   f'<div class="evi">{_e(s.get("limit") or "")}</div></td></tr>')
+    out.append('</tbody></table></details>')
+    out.append('<h3>Границы этого раздела</h3><ul>'
+               + ''.join(f'<li>{_e(x)}</li>' for x in rel['limits']) + '</ul>')
+    return ''.join(out)
+
+
+def html(portal, brief, design_reference, available_evidence=(), authority=None,
+         reliability=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
         ('overview', '1. Обзор'), ('tasks', '2. Задачи'), ('agents', '3. Агенты и роли'),
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
-        ('authority', '6. Источник правды')))
+        ('authority', '6. Источник правды'),
+        ('reliability', '7. Надёжность')))
     design_note = (f'<p class="note">Дизайн-референс: '
                    f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
                    f'{_e(design_reference["note"])}</p>')
@@ -693,6 +949,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None)
         _overview(brief, available), _tasks(portal), _agents(portal),
         _decisions(portal, brief), _sources(portal, brief, available),
         _authority(authority, available),
+        _reliability(reliability, available),
         '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
 
 

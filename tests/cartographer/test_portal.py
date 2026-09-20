@@ -911,3 +911,96 @@ class LongIdentifiersDoNotBreakTheNarrowLayout(unittest.TestCase):
         # the long value sits inside the card, whose children may break anywhere
         self.assertIn('<div class="card">', page)
         self.assertIn('.card strong,.card div{overflow-wrap:anywhere}', page)
+
+
+class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
+    """Phase 4 живёт в портале на тех же правах, что и карта авторитетности."""
+
+    def _snapshot(self, td, **over):
+        rel = _load('reliability')
+        root = Path(td) / 'relprod'
+        (root / 'data').mkdir(parents=True, exist_ok=True)
+        (root / 'data/agent_health.json').write_text(json.dumps({
+            'timestamp': '2026-09-20T10:00:00+00:00',
+            'agents': [{'label': 'com.spa.broken', 'status': 'CRITICAL', 'last_exit': 78,
+                        'log_age_min': 10, 'issue': 'агент не стартует'}],
+            'system_issues': []}))
+        snap = rel.build_reliability_snapshot(root, None, None)
+        snap.update(over)
+        out = Path(td) / 'relset'
+        out.mkdir(exist_ok=True)
+        (out / 'reliability_snapshot.json').write_text(
+            json.dumps(snap, ensure_ascii=False), encoding='utf-8')
+        return out, snap
+
+    def _args(self, td, relset, **over):
+        portal, root, carto, brief = _extract(td)
+        base = dict(production=root, cartographer=carto, briefing=brief,
+                    from_portal_snapshot=None, reliability=relset,
+                    output=Path(td) / 'out')
+        base.update(over)
+        return types.SimpleNamespace(**base)
+
+    def test_the_snapshot_is_copied_next_to_the_page_and_linked(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            relset, snap = self._snapshot(td)
+            final, _, manifest = portal_cli.run(self._args(td, relset))
+            produced = {p.name for p in final.iterdir()}
+            page = (final / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('reliability_snapshot.json', produced)
+            self.assertIn('href="reliability_snapshot.json"', page)
+            self.assertIn('id="reliability"', page)
+            self.assertEqual(manifest['reliability_snapshot']['digest'],
+                             snap['semantic_digest'])
+            self.assertIs(manifest['reliability_snapshot']['creates_tasks'], False)
+            self.assertIs(manifest['reliability_snapshot']['performs_repair'], False)
+            self.assertIn({'check': 'reliability_snapshot_contract', 'result': 'PASS',
+                           'detail': snap['schema_version']}, manifest['checks'])
+
+    def test_a_page_without_the_snapshot_says_so_instead_of_all_clear(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            final, _, manifest = portal_cli.run(self._args(td, None, reliability=None))
+            page = (final / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('id="reliability"', page)
+            self.assertIn('НЕ значит, что всё исправно', page)
+            self.assertNotIn('href="reliability_snapshot.json"', page)
+            self.assertIsNone(manifest['reliability_snapshot'])
+
+    def test_a_snapshot_that_breaks_its_contract_is_refused(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            relset, snap = self._snapshot(td)
+            broken = json.loads((relset / 'reliability_snapshot.json').read_text())
+            broken['findings'][0]['classification'] = 'PROBABLY_BAD'
+            (relset / 'reliability_snapshot.json').write_text(json.dumps(broken))
+            with self.assertRaises(portal_cli.diff_mod.IncompatibleInput):
+                portal_cli.run(self._args(td, relset))
+
+    def test_an_offline_rebuild_with_the_evidence_reproduces_the_section(self):
+        portal_cli = _load('portal')
+
+        def boom(*a, **k):
+            raise AssertionError('the offline rebuild reached a live source')
+
+        with tempfile.TemporaryDirectory() as td:
+            relset, _ = self._snapshot(td)
+            final, built, _ = portal_cli.run(self._args(td, relset))
+            first = (final / 'index.html').read_text(encoding='utf-8')
+            stored = Path(td) / 'stored'
+            stored.mkdir()
+            (stored / 'portal_snapshot.json').write_text(
+                json.dumps(built), encoding='utf-8')
+            with patch.object(subprocess, 'run', boom), \
+                 patch.object(socket, 'socket', boom), \
+                 patch.object(socket, 'create_connection', boom):
+                again, _, manifest = portal_cli.run(types.SimpleNamespace(
+                    production=Path('/nonexistent'), cartographer=None, briefing=None,
+                    from_portal_snapshot=stored, reliability=final,
+                    output=Path(td) / 'out2'))
+            second = (again / 'index.html').read_text(encoding='utf-8')
+        cut = lambda t: t[t.index('id="reliability"'):]  # noqa: E731
+        self.assertEqual(cut(first), cut(second),
+                         'раздел обязан воспроизводиться побайтово из тех же улик')
+        self.assertEqual(manifest['mode'], 'offline_rebuild')

@@ -193,6 +193,28 @@ def run(args):
                        'detail': authority['schema_version']})
         authority_source = path
 
+    reliability = None
+    reliability_source = None
+    if getattr(args, 'reliability', None):
+        import reliability as reliability_mod
+        given = Path(args.reliability)
+        path = given if given.is_file() else given / 'reliability_snapshot.json'
+        if not path.is_file():
+            raise diff_mod.IncompatibleInput(f'no reliability_snapshot.json at {given}')
+        try:
+            reliability = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise diff_mod.IncompatibleInput(
+                f'reliability_snapshot.json at {given} could not be read '
+                f'({type(exc).__name__})') from None
+        try:
+            reliability_mod.validate_reliability_snapshot(reliability, str(path))
+        except reliability_mod.ReliabilityInputError as exc:
+            raise diff_mod.IncompatibleInput(str(exc)) from None
+        checks.append({'check': 'reliability_snapshot_contract', 'result': 'PASS',
+                       'detail': reliability['schema_version']})
+        reliability_source = path
+
     design = design_reference(args.production)
     portal['page_generated_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
     portal['design_reference'] = design
@@ -209,6 +231,8 @@ def run(args):
         protected.append(briefing_dir)
     if args.from_portal_snapshot:
         protected.append(Path(args.from_portal_snapshot))
+    if getattr(args, 'reliability', None):
+        protected.append(Path(args.reliability))
     snapshot_json = None
     if args.cartographer:
         candidate = Path(args.cartographer) / 'snapshot.json'
@@ -235,11 +259,14 @@ def run(args):
                  if briefing_dir and (briefing_dir / name).is_file()]
     if authority is not None:
         available.append('authority_map.json')
+    if reliability is not None:
+        available.append('reliability_snapshot.json')
     if args.cartographer and (Path(args.cartographer) / 'system_map.md').is_file():
         available.append('system_map.md')
     files = [('portal_snapshot.json', json.dumps(portal, indent=2, ensure_ascii=False)),
              ('index.html', render_mod.html(portal, brief, design, available,
-                                             authority=authority)),
+                                             authority=authority,
+                                             reliability=reliability)),
              ('owner_summary.md', render_mod.owner_summary(portal, brief, design))]
     for name, content in files:
         p = staging / name
@@ -249,6 +276,11 @@ def run(args):
 
     copied = []
     for name in available:
+        if name == 'reliability_snapshot.json':
+            shutil.copyfile(reliability_source, staging / name)
+            (staging / name).chmod(0o600)
+            copied.append(name)
+            continue
         if name == 'authority_map.json':
             shutil.copyfile(authority_source, staging / name)
             (staging / name).chmod(0o600)
@@ -300,6 +332,12 @@ def run(args):
                            'counts': authority['counts'],
                            'digest': authority.get('semantic_digest')}
                           if authority else None),
+        'reliability_snapshot': ({'schema': reliability['schema_version'],
+                                  'counts': reliability['counts'],
+                                  'creates_tasks': reliability['creates_tasks'],
+                                  'performs_repair': reliability['performs_repair'],
+                                  'digest': reliability.get('semantic_digest')}
+                                 if reliability else None),
         'checks': checks,
         'digests': {'portal_snapshot': portal['semantic_digest']},
         'counts': portal['counts'],
@@ -378,6 +416,9 @@ def main(argv=None):
                     help='accepted Owner Briefing set (Phase 1)')
     ap.add_argument('--authority', type=Path,
                     help='комплект Authority Map (Phase 3): каталог или authority_map.json')
+    ap.add_argument('--reliability', type=Path,
+                    help='снимок надёжности (Phase 4): каталог или '
+                         'reliability_snapshot.json')
     ap.add_argument('--from-portal-snapshot', type=Path,
                     help='OFFLINE rebuild: a stored portal_snapshot.json or its directory')
     ap.add_argument('--output', type=Path, required=True, help='new directory for the run')
