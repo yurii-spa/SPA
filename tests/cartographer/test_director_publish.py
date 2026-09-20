@@ -59,10 +59,20 @@ class TheExitCodeBelongsToLaunchdNotToTheVerdict(unittest.TestCase):
             self.assertEqual(code, 2)
 
     def test_the_wrapper_does_not_ask_for_verdict_codes(self):
-        """Обёртка launchd обязана НЕ просить вердикт кодом."""
-        wrapper = (ROOT / 'scripts/agent_director_build.sh')
-        if wrapper.exists():
-            self.assertNotIn('--verdict-exit-code', wrapper.read_text())
+        """Обёртка launchd обязана НЕ просить вердикт кодом.
+
+        Предмет — ИСПОЛНЯЕМАЯ часть, а не объяснение. Первая редакция искала флаг во
+        всём тексте и краснела на комментарии «этого флага здесь нет намеренно» —
+        четвёртый за смену случай одного класса: проверка, чей корпус включает её
+        собственное объяснение, отравлена.
+        """
+        wrapper = ROOT / 'scripts/agent_director_build.sh'
+        if not wrapper.exists():
+            self.skipTest('обёртка вне этого дерева')
+        runnable = [ln for ln in wrapper.read_text().splitlines()
+                    if ln.strip() and not ln.lstrip().startswith('#')]
+        self.assertTrue(runnable, 'исполняемых строк нет — проверять нечего')
+        self.assertNotIn('--verdict-exit-code', '\n'.join(runnable))
 
 
 class TheVerdictHasThreeOutcomes(unittest.TestCase):
