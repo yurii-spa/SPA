@@ -172,11 +172,18 @@ class TheFirstScreenStaysSmall(unittest.TestCase):
         self.assertEqual(c['blocks']['current_work']['shown'], 5)
 
     def test_every_block_links_to_an_existing_portal_section(self):
+        """После разделения на страницы ссылка ведёт в ФАЙЛ с якорем, а не в голый якорь.
+
+        Голый `#work` на index.html вёл бы в никуда: раздел живёт на соседней странице.
+        """
         c = _center()
         page = pr._director(c)
         for block in c['blocks'].values():
-            self.assertTrue(block['show_all_anchor'].startswith('#'))
-            self.assertIn(f'href="{block["show_all_anchor"]}"', page)
+            anchor = block['show_all_anchor'].lstrip('#')
+            href = pr.section_href(anchor)
+            self.assertIn('.html#', href)
+            self.assertIn(f'href="{href}"', page)
+            self.assertIn(href.split('#')[0], pr.PAGE_FILES)
 
     def test_the_contract_refuses_an_overfull_block(self):
         c = copy.deepcopy(_center())

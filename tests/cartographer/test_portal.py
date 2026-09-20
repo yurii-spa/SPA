@@ -947,7 +947,7 @@ class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
             relset, snap = self._snapshot(td)
             final, _, manifest = portal_cli.run(self._args(td, relset))
             produced = {p.name for p in final.iterdir()}
-            page = (final / 'index.html').read_text(encoding='utf-8')
+            page = (final / 'reliability.html').read_text(encoding='utf-8')
             self.assertIn('reliability_snapshot.json', produced)
             self.assertIn('href="reliability_snapshot.json"', page)
             self.assertIn('id="reliability"', page)
@@ -962,7 +962,7 @@ class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
         portal_cli = _load('portal')
         with tempfile.TemporaryDirectory() as td:
             final, _, manifest = portal_cli.run(self._args(td, None, reliability=None))
-            page = (final / 'index.html').read_text(encoding='utf-8')
+            page = (final / 'reliability.html').read_text(encoding='utf-8')
             self.assertIn('id="reliability"', page)
             self.assertIn('НЕ значит, что всё исправно', page)
             self.assertNotIn('href="reliability_snapshot.json"', page)
@@ -987,7 +987,7 @@ class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             relset, _ = self._snapshot(td)
             final, built, _ = portal_cli.run(self._args(td, relset))
-            first = (final / 'index.html').read_text(encoding='utf-8')
+            first = (final / 'reliability.html').read_text(encoding='utf-8')
             stored = Path(td) / 'stored'
             stored.mkdir()
             (stored / 'portal_snapshot.json').write_text(
@@ -999,7 +999,7 @@ class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
                     production=Path('/nonexistent'), cartographer=None, briefing=None,
                     from_portal_snapshot=stored, reliability=final,
                     output=Path(td) / 'out2'))
-            second = (again / 'index.html').read_text(encoding='utf-8')
+            second = (again / 'reliability.html').read_text(encoding='utf-8')
         cut = lambda t: t[t.index('id="reliability"'):]  # noqa: E731
         self.assertEqual(cut(first), cut(second),
                          'раздел обязан воспроизводиться побайтово из тех же улик')
@@ -1040,7 +1040,7 @@ class TheWorkSectionTravelsWithItsEvidence(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             wkset, snap = self._snapshot(td)
             final, _, manifest = portal_cli.run(self._args(td, wkset))
-            page = (final / 'index.html').read_text(encoding='utf-8')
+            page = (final / 'work.html').read_text(encoding='utf-8')
             self.assertIn('work_snapshot.json', {p.name for p in final.iterdir()})
             self.assertIn('href="work_snapshot.json"', page)
             self.assertIn('id="work"', page)
@@ -1053,7 +1053,7 @@ class TheWorkSectionTravelsWithItsEvidence(unittest.TestCase):
         portal_cli = _load('portal')
         with tempfile.TemporaryDirectory() as td:
             final, _, manifest = portal_cli.run(self._args(td, None, work=None))
-            page = (final / 'index.html').read_text(encoding='utf-8')
+            page = (final / 'work.html').read_text(encoding='utf-8')
             self.assertIn('id="work"', page)
             self.assertIn('НЕ значит, что работы нет', page)
             self.assertIsNone(manifest['work_snapshot'])
@@ -1077,7 +1077,7 @@ class TheWorkSectionTravelsWithItsEvidence(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             wkset, _ = self._snapshot(td)
             final, built, _ = portal_cli.run(self._args(td, wkset))
-            first = (final / 'index.html').read_text(encoding='utf-8')
+            first = (final / 'work.html').read_text(encoding='utf-8')
             stored = Path(td) / 'stored'
             stored.mkdir()
             (stored / 'portal_snapshot.json').write_text(json.dumps(built),
@@ -1087,7 +1087,50 @@ class TheWorkSectionTravelsWithItsEvidence(unittest.TestCase):
                 again, _, manifest = portal_cli.run(types.SimpleNamespace(
                     production=Path('/nonexistent'), cartographer=None, briefing=None,
                     from_portal_snapshot=stored, work=final, output=Path(td) / 'out2'))
-            second = (again / 'index.html').read_text(encoding='utf-8')
+            second = (again / 'work.html').read_text(encoding='utf-8')
         cut = lambda t: t[t.index('id="work"'):]  # noqa: E731
         self.assertEqual(cut(first), cut(second))
         self.assertEqual(manifest['mode'], 'offline_rebuild')
+
+
+class TheRunPublishesEveryStaticPage(unittest.TestCase):
+    def test_all_six_pages_are_written_and_linked(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            portal, root, carto, brief = _extract(td)
+            final, _, manifest = portal_cli.run(types.SimpleNamespace(
+                production=root, cartographer=carto, briefing=brief,
+                from_portal_snapshot=None, output=Path(td) / 'out'))
+            produced = {p.name for p in final.iterdir()}
+            render = _load('portal_render')
+            for name in render.PAGE_FILES:
+                self.assertIn(name, produced, name)
+            index = (final / 'index.html').read_text(encoding='utf-8')
+            for name in render.PAGE_FILES:
+                self.assertIn(f'href="{name}"', index, name)
+            self.assertIn({'file': 'index.html'},
+                          [{'file': o['file']} for o in manifest['outputs']])
+
+    def test_the_index_is_much_smaller_than_the_detail_pages(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            portal, root, carto, brief = _extract(td)
+            final, _, _ = portal_cli.run(types.SimpleNamespace(
+                production=root, cartographer=carto, briefing=brief,
+                from_portal_snapshot=None, output=Path(td) / 'out'))
+            sizes = {p.name: p.stat().st_size for p in final.iterdir()
+                     if p.suffix == '.html'}
+            self.assertLessEqual(sizes['index.html'], max(sizes.values()))
+
+    def test_every_page_has_the_same_navigation(self):
+        portal_cli = _load('portal')
+        render = _load('portal_render')
+        with tempfile.TemporaryDirectory() as td:
+            portal, root, carto, brief = _extract(td)
+            final, _, _ = portal_cli.run(types.SimpleNamespace(
+                production=root, cartographer=carto, briefing=brief,
+                from_portal_snapshot=None, output=Path(td) / 'out'))
+            for name in render.PAGE_FILES:
+                html = (final / name).read_text(encoding='utf-8')
+                for other in render.PAGE_FILES:
+                    self.assertIn(f'href="{other}"', html, f'{name} → {other}')

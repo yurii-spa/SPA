@@ -1326,7 +1326,8 @@ def _director(center):
         else:
             out.append(f'<div class="empty">{_e(block["empty_means"])}</div>')
         out.append(f'<p class="note">порядок: {_e(block["ordered_by"])} · '
-                   f'<a href="{_e(block["show_all_anchor"])}">Показать все — '
+                   f'<a href="{_e(section_href(block["show_all_anchor"].lstrip("#")))}">'
+                   f'Показать все — '
                    f'{_e(block["show_all_label"])}</a></p>')
 
     out.append('<details><summary>Из каких слоёв собран этот экран</summary>'
@@ -1745,9 +1746,165 @@ def _governance(gov, available):
     return ''.join(out)
 
 
+def _actions(audit, available):
+    """Раздел 11: что Director OS вправе дать нажать — и почему пока ничего.
+
+    Кнопок здесь нет по результату измерения, а не по умолчанию: ни одно существующее
+    действие не имеет всех обязательных свойств. Раздел показывает, чего именно не
+    хватает, и перечисляет красную зону списком.
+    """
+    if not audit:
+        return ('<h2 id="actions">11. Действия и границы</h2>'
+                '<div class="empty">Аудит действий не приложен к этому комплекту. Это НЕ '
+                'значит, что действия разрешены.</div>')
+    c = audit['counts']
+    ready = [a for a in audit['actions'] if a['verdict'] == 'READY_FOR_UI']
+    notready = [a for a in audit['actions'] if a['verdict'] == 'NOT_READY_FOR_UI']
+    red = [a for a in audit['actions'] if a['verdict'] == 'RED_ZONE']
+    out = ['<h2 id="actions">11. Действия и границы</h2>',
+           '<p class="note">Director OS не заводит собственный исполнитель. Действие '
+           'попадает сюда только если у существующего контура есть ВСЕ обязательные '
+           'свойства: канонический исполнитель, зона разрешения, проверка входа, запись в '
+           'аудит, поведение при отказе, идемпотентность и откат.</p>',
+           '<div class="card"><dl class="kv">',
+           f'<dt>ГОТОВЫ для кнопки</dt><dd class="big">{c["ready_for_ui"]}</dd>',
+           f'<dt>Не готовы</dt><dd class="big">{c["not_ready"]}</dd>',
+           f'<dt>Красная зона</dt><dd class="big">{c["red_zone"]}</dd>',
+           '</dl>',
+           ('<p class="note"><b>Готовых действий ноль — и это измеренный результат, а не '
+            'умолчание.</b> Director OS v1 выходит полностью read-only: ни одной кнопки '
+            'действия на портале нет.</p>' if not ready else
+            '<p class="note">Каждая кнопка вызывает существующий канонический исполнитель '
+            'и перечитывает состояние после выполнения.</p>'),
+           f'<p class="evi">аудит: {_link("action_authority_audit.json", available)}</p>'
+           '</div>']
+
+    out.append(f'<h3>Чего не хватает кандидатам ({len(notready)})</h3>'
+               '<table><thead><tr><th>действие</th><th>канонический исполнитель</th>'
+               '<th>не хватает</th><th>кем используется</th></tr></thead><tbody>')
+    for a in notready:
+        out.append(f'<tr><td>{_e(a["title"])}<div class="evi mono">{_e(a["action"])}</div>'
+                   f'</td>'
+                   f'<td class="mono">{_e(a["canonical_executor"] or "—")}</td>'
+                   f'<td class="note">{_e(", ".join(a["missing_properties"]))}</td>'
+                   f'<td class="note">{_e(a["currently_used_by"] or "—")}</td></tr>')
+    out.append('</tbody></table>')
+    out.append('<table><thead><tr><th>свойство</th><th>что это значит</th>'
+               '<th>скольким кандидатам не хватает</th></tr></thead><tbody>'
+               + ''.join(f'<tr><td class="mono">{_e(k)}</td>'
+                         f'<td class="note">{_e(v)}</td>'
+                         f'<td class="big">{c["by_missing_property"].get(k, 0)}</td></tr>'
+                         for k, v in audit['property_definitions'].items())
+               + '</tbody></table>')
+
+    out.append(f'<h3>Красная зона v1 ({len(red)})</h3>'
+               '<p class="note">Эти действия не попадают в интерфейс ни при каких '
+               'свойствах. Отдельная будущая архитектура — отдельное решение '
+               'владельца.</p><ul>'
+               + ''.join(f'<li>{_e(a["title"])} <span class="mono evi">{_e(a["action"])}'
+                         f'</span></li>' for a in red) + '</ul>')
+    out.append('<h3>Границы этого раздела</h3><ul>'
+               + ''.join(f'<li>{_e(x)}</li>' for x in audit['limits']) + '</ul>')
+    return ''.join(out)
+
+
+# ── многостраничная статика: те же снимки, шесть лёгких страниц ──────────────
+#
+# Монолит на 8,84 МБ и 143 тысячи узлов открывался с телефона плохо, и это было
+# ИЗМЕРЕНО, а не предположено. Разделы не переписаны и не урезаны: они те же функции,
+# просто разложены по страницам, которые лежат в одном каталоге рядом с уликами.
+# Ни SPA, ни сервера, ни базы: шесть обычных файлов, открываются и с file://,
+# и с localhost.
+
+PAGES = (
+    ('index.html', 'Центр директора', ('director',)),
+    ('system.html', 'Система', ('overview', 'agents', 'sources', 'authority')),
+    ('reliability.html', 'Надёжность', ('reliability',)),
+    ('work.html', 'Работа', ('tasks', 'decisions', 'work')),
+    ('investments.html', 'Инвестиции', ('investments',)),
+    ('governance.html', 'Управление', ('governance', 'actions')),
+)
+
+PAGE_FILES = tuple(name for name, _, _ in PAGES)
+
+_SECTION_PAGE = {section: name for name, _, sections in PAGES for section in sections}
+
+
+def section_href(anchor):
+    """Ссылка на раздел с ЛЮБОЙ страницы: файл рядом плюс якорь.
+
+    Полная форма `work.html#work` работает и внутри той же страницы, и с соседней, и при
+    открытии по file://. Голый `#work` работал бы только на одной странице — и именно так
+    ссылки «показать все» молча ломались бы после разделения.
+    """
+    page = _SECTION_PAGE.get(anchor)
+    return f'{page}#{anchor}' if page else f'#{anchor}'
+
+
+def _page_nav(current):
+    return ''.join(
+        (f'<a href="{_e(name)}" aria-current="page"><b>{_e(title)}</b></a>'
+         if name == current else f'<a href="{_e(name)}">{_e(title)}</a>')
+        for name, title, _ in PAGES)
+
+
+def _shell(title, current, design_reference, body):
+    design_note = (f'<p class="note">Дизайн-референс: '
+                   f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
+                   f'{_e(design_reference["note"])}</p>')
+    return '\n'.join([
+        '<!DOCTYPE html>', '<html lang="ru">', '<head>', '<meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        '<meta name="referrer" content="no-referrer">',
+        f'<title>{_e(title)} — Earn DeFi Studio OS</title>',
+        f'<style>{_CSS}</style>', '</head>', '<body>',
+        f'<nav aria-label="страницы портала">{_page_nav(current)}</nav>',
+        '<div class="wrap">', f'<h1>{_e(title)}</h1>',
+        '<p class="sub">Earn DeFi Studio OS · READ-ONLY · собрано '
+        f'{_e(_PAGE_STAMP[0])}</p>', design_note,
+        '<div class="card"><span class="note">Портал ничего не запускает, не назначает и '
+        'не закрывает: он только показывает уже существующие записи и наблюдения, с путём '
+        'к источнику у каждого объекта. Кнопок действий здесь нет намеренно — '
+        'неработающая кнопка хуже отсутствующей.</span></div>',
+        body, '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
+
+
+#: момент сборки страницы. Объявлен волатильным в run_manifest и нигде больше не влияет.
+_PAGE_STAMP = ['']
+
+
+def pages(portal, brief, design_reference, available_evidence=(), authority=None,
+          reliability=None, work=None, director=None, investments=None,
+          governance=None, actions=None):
+    """{имя файла: html}. Логика извлечения не дублируется: разделы те же функции."""
+    available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
+                                           'owner_summary.md'}
+    available |= set(PAGE_FILES)
+    _PAGE_STAMP[0] = portal.get('page_generated_at') or ''
+    builders = {
+        'director': lambda: _director(director),
+        'overview': lambda: _overview(brief, available),
+        'tasks': lambda: _tasks(portal),
+        'agents': lambda: _agents(portal),
+        'decisions': lambda: _decisions(portal, brief),
+        'sources': lambda: _sources(portal, brief, available),
+        'authority': lambda: _authority(authority, available),
+        'reliability': lambda: _reliability(reliability, available),
+        'work': lambda: _work_view(work, available),
+        'investments': lambda: _investments(investments, available),
+        'governance': lambda: _governance(governance, available),
+        'actions': lambda: _actions(actions, available),
+    }
+    out = {}
+    for name, title, sections in PAGES:
+        body = ''.join(builders[section]() for section in sections)
+        out[name] = _shell(title, name, design_reference, body)
+    return out
+
+
 def html(portal, brief, design_reference, available_evidence=(), authority=None,
          reliability=None, work=None, director=None, investments=None,
-         governance=None):
+         governance=None, actions=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
@@ -1755,7 +1912,8 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
         ('authority', '6. Источник правды'),
         ('reliability', '7. Надёжность'), ('work', '8. Работа'),
-        ('investments', '9. Инвестиции'), ('governance', '10. Управление')))
+        ('investments', '9. Инвестиции'), ('governance', '10. Управление'),
+        ('actions', '11. Действия')))
     design_note = (f'<p class="note">Дизайн-референс: '
                    f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
                    f'{_e(design_reference["note"])}</p>')
@@ -1782,6 +1940,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         _work_view(work, available),
         _investments(investments, available),
         _governance(governance, available),
+        _actions(actions, available),
         '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
 
 

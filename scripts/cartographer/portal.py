@@ -303,6 +303,28 @@ def run(args):
                        'detail': governance['schema_version']})
         governance_source = path
 
+    actions_audit = None
+    actions_source = None
+    if getattr(args, 'actions', None):
+        import actions as actions_mod
+        given = Path(args.actions)
+        path = given if given.is_file() else given / 'action_authority_audit.json'
+        if not path.is_file():
+            raise diff_mod.IncompatibleInput(f'no action_authority_audit.json at {given}')
+        try:
+            actions_audit = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise diff_mod.IncompatibleInput(
+                f'action_authority_audit.json at {given} could not be read '
+                f'({type(exc).__name__})') from None
+        try:
+            actions_mod.validate_action_audit(actions_audit, str(path))
+        except actions_mod.ActionAuditError as exc:
+            raise diff_mod.IncompatibleInput(str(exc)) from None
+        checks.append({'check': 'action_authority_audit_contract', 'result': 'PASS',
+                       'detail': actions_audit['schema_version']})
+        actions_source = path
+
     design = design_reference(args.production)
     portal['page_generated_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
     portal['design_reference'] = design
@@ -329,6 +351,8 @@ def run(args):
         protected.append(Path(args.investments))
     if getattr(args, 'governance', None):
         protected.append(Path(args.governance))
+    if getattr(args, 'actions', None):
+        protected.append(Path(args.actions))
     snapshot_json = None
     if args.cartographer:
         candidate = Path(args.cartographer) / 'snapshot.json'
@@ -365,16 +389,21 @@ def run(args):
         available.append('investment_snapshot.json')
     if governance is not None:
         available.append('governance_snapshot.json')
+    if actions_audit is not None:
+        available.append('action_authority_audit.json')
     if args.cartographer and (Path(args.cartographer) / 'system_map.md').is_file():
         available.append('system_map.md')
+    # Шесть лёгких страниц вместо одного монолита: те же снимки, та же логика разделов.
+    # Замер, вызвавший разделение: 8,84 МБ и 143 тысячи узлов в одном файле — с телефона
+    # это открывалось плохо, и один тяжёлый скрипт в мобильном вьюпорте не уложился в
+    # таймаут замера. Ни SPA, ни сервера здесь не появилось.
+    rendered = render_mod.pages(portal, brief, design, available,
+                                authority=authority, reliability=reliability, work=work,
+                                director=director, investments=investments,
+                                governance=governance, actions=actions_audit)
     files = [('portal_snapshot.json', json.dumps(portal, indent=2, ensure_ascii=False)),
-             ('index.html', render_mod.html(portal, brief, design, available,
-                                             authority=authority,
-                                             reliability=reliability, work=work,
-                                             director=director,
-                                             investments=investments,
-                                             governance=governance)),
              ('owner_summary.md', render_mod.owner_summary(portal, brief, design))]
+    files += [(name, html) for name, html in rendered.items()]
     for name, content in files:
         p = staging / name
         with p.open('x', encoding='utf-8') as handle:
@@ -383,6 +412,11 @@ def run(args):
 
     copied = []
     for name in available:
+        if name == 'action_authority_audit.json':
+            shutil.copyfile(actions_source, staging / name)
+            (staging / name).chmod(0o600)
+            copied.append(name)
+            continue
         if name == 'governance_snapshot.json':
             shutil.copyfile(governance_source, staging / name)
             (staging / name).chmod(0o600)
@@ -496,6 +530,12 @@ def run(args):
                                  'executes_recovery': governance['executes_recovery'],
                                  'digest': governance.get('semantic_digest')}
                                 if governance else None),
+        'action_authority_audit': ({'schema': actions_audit['schema_version'],
+                                    'counts': actions_audit['counts'],
+                                    'ui_exposes_actions':
+                                        actions_audit['ui_exposes_actions'],
+                                    'digest': actions_audit.get('semantic_digest')}
+                                   if actions_audit else None),
         'checks': checks,
         'digests': {'portal_snapshot': portal['semantic_digest']},
         'counts': portal['counts'],
@@ -587,6 +627,9 @@ def main(argv=None):
     ap.add_argument('--governance', type=Path,
                     help='снимок управления (Phase 8): каталог или '
                          'governance_snapshot.json')
+    ap.add_argument('--actions', type=Path,
+                    help='аудит действий (Phase 9): каталог или '
+                         'action_authority_audit.json')
     ap.add_argument('--from-portal-snapshot', type=Path,
                     help='OFFLINE rebuild: a stored portal_snapshot.json or its directory')
     ap.add_argument('--output', type=Path, required=True, help='new directory for the run')
