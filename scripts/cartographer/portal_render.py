@@ -1343,15 +1343,246 @@ def _director(center):
     return ''.join(out)
 
 
+_MODE_BADGE = {'REAL': 'b-warn', 'PAPER': 'b-ok', 'SHADOW': 'b-unk', 'FORECAST': 'b-unk',
+               'RND': 'b-unk', 'UNKNOWN': 'b-unk'}
+
+
+def _mode(mode):
+    """Режим виден всегда и подписан словами: бумага не выдаётся за реальные деньги."""
+    words = {'REAL': 'РЕАЛЬНЫЕ ДЕНЬГИ', 'PAPER': 'БУМАГА', 'SHADOW': 'ТЕНЬ',
+             'FORECAST': 'ПРОГНОЗ', 'RND': 'R&D', 'UNKNOWN': 'РЕЖИМ НЕ ИЗМЕРЕН'}
+    return (f'<span class="badge {_MODE_BADGE.get(mode, "b-unk")}">'
+            f'{_e(words.get(mode, mode))}</span>')
+
+
+def _inv_card(o):
+    metrics = ''.join(f'<li class="mono">{_e(m.get("name"))}: {_e(m.get("value"))}'
+                      f'<div class="evi">{_e(m.get("source"))}</div></li>'
+                      for m in (o.get('performance_metrics') or [])[:6])
+    limits = ''.join(f'<li>{_e(x.get("name"))}: {_e(_cut(str(x.get("detail")), 160))}'
+                     f' — {_e(x.get("pass"))}</li>'
+                     for x in (o.get('risk_limits') or [])[:6])
+    ev = ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 300))}</li>'
+                 for x in (o.get('evidence') or [])[:4])
+    # НАБОР источников, а не первый из них: после слияния по общему идентификатору у
+    # записи их бывает два, и фильтр «по источнику» обязан это показывать честно —
+    # иначе объединённые записи молча выпадали бы из среза (замер: 6 вместо 16)
+    sources = ', '.join(sorted(o.get('sources') or [o['source']]))
+    hay = ' '.join(str(x).lower() for x in
+                   (o['strategy_id'], o['strategy_name'], o['mode'],
+                    str(o['lifecycle_state']), str(o.get('promotion_status')),
+                    str(o.get('rnd_status')), sources))
+    return (
+        f'<div class="row" data-id="{_e(o["strategy_id"])}" data-hay="{_e(hay)}" '
+        f'data-imode="{_e(o["mode"])}" data-ilife="{_e(str(o["lifecycle_state"]))}" '
+        f'data-ipromo="{_e(str(o.get("promotion_status") or "нет"))}" '
+        f'data-isource="{_e(sources)}" '
+        f'data-iapproval="{_e(o["owner_approval_status"])}">'
+        f'<div class="rowhead">{_mode(o["mode"])}'
+        f'<span class="badge b-unk">{_e(str(o["lifecycle_state"]))}</span>'
+        f'<span class="rowtitle">{_e(_cut(o["strategy_name"], 110))}</span></div>'
+        f'<details><summary>режим, метрики, риск, улики</summary><dl class="kv">'
+        f'<dt>РЕЖИМ</dt><dd>{_mode(o["mode"])}'
+        + (f'<div class="evi">{_e(o["mode_evidence"].get("detail"))}</div>'
+           if o.get('mode_evidence') else '') + '</dd>'
+        + f'<dt>капитал</dt><dd>{_n(o.get("capital_value"))} '
+          f'{_e(o.get("capital_currency") or "")}</dd>'
+        + f'<dt>метрики</dt><dd>'
+        + (f'<ul>{metrics}</ul>' if metrics else '<span class="note">не измерено</span>')
+        + '</dd>'
+        + f'<dt>риск</dt><dd>{_n(o.get("risk_classification"))}'
+        + (f'<ul>{limits}</ul>' if limits else '') + '</dd>'
+        + f'<dt>R&amp;D</dt><dd>{_n(o.get("rnd_status"))} · бэктест '
+          f'{_n(o.get("backtest_status"))} · canary {_n(o.get("canary_status"))}</dd>'
+        + f'<dt>продвижение</dt><dd>{_n(o.get("promotion_status"))}</dd>'
+        + f'<dt>одобрение владельца</dt><dd>{_e(o["owner_approval_status"])}</dd>'
+        + (f'<dt>расхождение источников</dt><dd><ul>'
+           + ''.join(f'<li>{_e(cf["field"])}: {_e(", ".join(cf["values"]))}'
+                     f'<div class="evi">{_e(cf["note"])}</div></li>'
+                     for cf in o['conflicting_facts']) + '</ul></dd>'
+           if o.get('conflicting_facts') else '')
+        + (f'<dt>факты по источникам</dt><dd class="mono">'
+           f'{_e(", ".join(sorted(o["facts_by_source"])))}</dd>'
+           if o.get('facts_by_source') and len(o.get('sources') or []) > 1 else '')
+        + f'<dt>источник</dt><dd class="mono">{_e(", ".join(o.get("sources") or [o["source"]]))}'
+          f'<div class="evi">наблюдение: {_e(o.get("observed_at") or "не измерено")}'
+          f'</div></dd>'
+        + f'</dl><h3>Evidence</h3><ul>{ev}</ul></details></div>')
+
+
+def _investments(inv, available):
+    """Раздел 9: инвестиции и R&D — только чтение существующих улик.
+
+    Director OS не становится инвестиционным движком. Кнопок Approve investment, Promote,
+    Allocate, Rebalance, Execute, Change risk и Change rate здесь нет и не подразумевается.
+    Режимы REAL / PAPER / SHADOW / FORECAST / R&D никогда не складываются.
+    """
+    if not inv:
+        return ('<h2 id="investments">9. Инвестиции и R&amp;D</h2>'
+                '<div class="empty">Снимок инвестиций не приложен к этому комплекту. '
+                'Это НЕ значит, что инвестиций нет.</div>')
+    c = inv['counts']
+    cap = inv['capital_by_mode']
+    out = ['<h2 id="investments">9. Инвестиции и R&amp;D</h2>',
+           '<p class="note">Раздел только читает существующие источники SPA. Стратегии, '
+           'доходность, риск и распределение капитала остаются за ними. Ничего не '
+           'вычисляется, ничего не запускается, кнопок действий нет.</p>',
+           '<div class="card"><h3>Величины по режимам и типам</h3>',
+           '<p class="note">Слово «капитал» одним словом здесь не употребляется: '
+           'объявленный стартовый капитал, текущая equity, размещённое и кэш — РАЗНЫЕ '
+           'величины, и складывать их нельзя.</p>',
+           '<table><thead><tr><th>режим</th><th>величина</th><th>значение</th>'
+           '<th>валюта</th><th>поле источника</th><th>снято</th></tr></thead><tbody>']
+    for m in inv.get('capital_metrics') or []:
+        out.append(f'<tr><td>{_mode(m["mode"])}</td>'
+                   f'<td class="mono">{_e(m["metric_type"])}'
+                   f'<div class="evi">{_e(m.get("note") or "")}</div></td>'
+                   f'<td class="big">{_n(m["value"])}</td>'
+                   f'<td>{_n(m.get("currency"))}'
+                   f'<div class="evi">{_e(m.get("currency_basis") or "")}</div></td>'
+                   f'<td class="mono">{_e(m["source"])}.{_e(m["source_field"])}</td>'
+                   f'<td class="mono">{_e(m.get("observed_at") or "не измерено")}</td>'
+                   f'</tr>')
+    if not (inv.get('capital_metrics') or []):
+        out.append('<tr><td colspan="6" class="note">ни одна величина не прочитана</td>'
+                   '</tr>')
+    out += ['</tbody></table>',
+            '<h3>Сводка по режимам</h3><dl class="kv">']
+    for mode in inv['mode_vocabulary']:
+        value = cap.get(mode)
+        out.append(f'<dt>{_mode(mode)}</dt><dd class="big">{_n(value)}</dd>')
+    out += ['</dl>',
+            f'<p class="note"><b>{_e(inv["real_capital_note"])}</b></p>',
+            '<ul>' + ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 300))}'
+                             f'</li>' for x in inv['capital_evidence']) + '</ul>',
+            '<p class="note">Режимы не складываются: бумажный капитал — не реальный, '
+            'прогнозная доходность — не заработанная.</p>',
+            f'<p class="evi">снимок: {_link("investment_snapshot.json", available)}</p>'
+            '</div>']
+
+    g, k = inv['golive'], inv['kill_switch']
+    out += ['<h3>Риск и стоп-кран — только чтение</h3><div class="card"><dl class="kv">',
+            f'<dt>стоп-кран сработал</dt><dd>{_n(k.get("triggered"))}'
+            f'<div class="evi">{_e(k.get("reason") or "")} · '
+            f'{_e(k.get("observed_at") or "не измерено")}</div></dd>',
+            f'<dt>гейты go-live</dt><dd class="big">{_n(g.get("passed"))} из '
+            f'{_n(g.get("total"))}</dd>',
+            f'<dt>готовность объявлена</dt><dd>{_n(g.get("ready"))}'
+            f'<div class="evi">{_e(g.get("note") or "")}</div></dd>',
+            '</dl>']
+    limits = (inv.get('risk_limits') or {}).get('allocation_limits') or {}
+    params = (inv.get('risk_limits') or {}).get('risk_parameters') or {}
+    if limits or params:
+        out.append('<table><thead><tr><th>ограничение</th><th>значение</th></tr></thead>'
+                   '<tbody>'
+                   + ''.join(f'<tr><td class="mono">{_e(kk)}</td><td>{_e(vv)}</td></tr>'
+                             for kk, vv in list(limits.items()) + list(params.items()))
+                   + '</tbody></table>')
+    out.append('<p class="note">Значения показаны как объявлены источником; этот раздел '
+               'их не меняет и не может.</p></div>')
+
+    pipeline = inv.get('rnd_pipeline')
+    out += ['<h3>R&amp;D: конвейер источника</h3><div class="card">',
+            f'<p class="mono">{_e(pipeline or "конвейер не объявлен")}</p>',
+            f'<p class="note">Стадии взяты у источника ({_e(inv["lifecycle_source"])}); '
+            'собственных стадий этот раздел не придумывает. Прямо распределять капитал '
+            'R&amp;D не может, кнопки продвижения здесь нет.</p>',
+            '<dl class="kv">'
+            + ''.join(f'<dt>{_e(kk)}</dt><dd class="big">{_e(vv)}</dd>'
+                      for kk, vv in (inv.get('rnd_stage_counts') or {}).items())
+            + '</dl></div>']
+
+    proposals = [o for o in inv['objects'] if o.get('promotion_status')
+                 and o['promotion_status'] != 'None']
+    out.append(f'<h3>Продвижение: предложения источников ({len(proposals)})</h3>')
+    if proposals:
+        out.append('<p class="note">Это записи движка продвижения, а НЕ совет Director OS '
+                   'и не решение владельца.</p>')
+        out += [_inv_card(o) for o in proposals[:10]]
+    else:
+        out.append('<div class="empty">записей о продвижении нет</div>')
+
+    waiting = [o for o in inv['objects'] if o['owner_approval_status'] == 'WAITING']
+    out.append(f'<h3>Ждёт инвестиционного решения ({len(waiting)})</h3>')
+    out.append('<div class="empty">явных записей об ожидании инвестиционного решения в '
+               'источниках нет; по тексту такие решения не угадываются</div>'
+               if not waiting else ''.join(_inv_card(o) for o in waiting[:10]))
+
+    modes = sorted({o['mode'] for o in inv['objects']})
+    lifes = sorted({str(o['lifecycle_state']) for o in inv['objects']})
+    promos = sorted({str(o.get('promotion_status') or 'нет') for o in inv['objects']})
+    srcs = sorted({', '.join(sorted(o.get('sources') or [o['source']]))
+                   for o in inv['objects']})
+    appr = sorted({o['owner_approval_status'] for o in inv['objects']})
+    idn = inv.get('strategy_identity') or {}
+    out += ['<h3>Тождество стратегий — измерено</h3><div class="card">',
+            f'<p class="note"><b>Записей о стратегиях: '
+            f'{_e(str(idn.get("strategy_source_records")))}</b>; доказанных уникальных '
+            f'идентификаторов: {_e(str(idn.get("proven_unique_strategy_ids")))}. '
+            f'Объединено по общему устойчивому идентификатору: '
+            f'{_e(str(idn.get("cross_source_exact_id_matches")))}; совпадений только по '
+            f'имени: {_e(str(idn.get("name_only_matches")))} — '
+            f'{_e(idn.get("name_only_basis") or "")}</p>',
+            f'<p class="note">{_e(idn.get("namespace_note") or "")}</p>',
+            f'<p class="note">Авторитет между источниками: '
+            f'<span class="mono">{_e(idn.get("authority_between_sources"))}</span> — '
+            f'{_e(idn.get("authority_note") or "")}</p>',
+            '<table><thead><tr><th>источник</th><th>записей</th><th>поле id</th>'
+            '<th>уникальных</th><th>дублей</th></tr></thead><tbody>'
+            + ''.join(f'<tr><td class="mono">{_e(k)}</td><td class="big">'
+                      f'{v["source_record_count"]}</td>'
+                      f'<td class="mono">{_e(v["stable_id_field"])}</td>'
+                      f'<td>{v["unique_ids"]}</td><td>{v["duplicate_ids"]}</td></tr>'
+                      for k, v in (idn.get('per_source') or {}).items())
+            + '</tbody></table></div>',
+            f'<h3>Записи о стратегиях ({len(inv["objects"])})</h3>',
+            '<div id="investments-scope">',
+            _controls('investments-scope',
+                      [('imode', 'Режим', modes), ('ilife', 'Состояние', lifes),
+                       ('ipromo', 'Продвижение', promos), ('isource', 'Источник', srcs),
+                       ('iapproval', 'Одобрение владельца', appr)],
+                      [('imode', 'по режиму'), ('ilife', 'по состоянию'),
+                       ('isource', 'по источнику')]),
+            '<div data-role="list">']
+    out += [_inv_card(o) for o in inv['objects']]
+    out.append('</div></div>')
+
+    out.append('<details><summary>Источники инвестиций и что каждый может доказать'
+               '</summary><table><thead><tr><th>источник</th><th>что представляет</th>'
+               '<th>род</th><th>режим</th><th>капитал</th><th>доходность</th><th>риск</th>'
+               '<th>продвижение</th><th>одобрение</th><th>снят</th></tr></thead><tbody>')
+    yes = lambda v: ('да' if v else ('нет' if v is False else '—'))  # noqa: E731
+    for s in inv['sources']:
+        out.append(f'<tr><td class="mono">{_e(s["source"])}</td>'
+                   f'<td class="note">{_e(s.get("represents") or "—")}</td>'
+                   f'<td>{_e(s.get("basis") or "—")}</td>'
+                   f'<td>{_mode(s.get("mode"))}'
+                   f'<div class="evi">{_e((s.get("mode_evidence") or {}).get("detail")
+                                          or "поля режима нет")}</div></td>'
+                   f'<td>{yes(s.get("can_prove_capital"))}</td>'
+                   f'<td>{yes(s.get("can_prove_performance"))}</td>'
+                   f'<td>{yes(s.get("can_prove_risk"))}</td>'
+                   f'<td>{yes(s.get("can_prove_promotion"))}</td>'
+                   f'<td>{yes(s.get("can_prove_owner_approval"))}</td>'
+                   f'<td class="mono">{_e(s.get("observed_at") or "—")}'
+                   f'<div class="evi">{_e(_cut(s.get("limit") or "", 130))}</div></td>'
+                   f'</tr>')
+    out.append('</tbody></table></details>')
+    out.append('<h3>Границы этого раздела</h3><ul>'
+               + ''.join(f'<li>{_e(x)}</li>' for x in inv['limits']) + '</ul>')
+    return ''.join(out)
+
+
 def html(portal, brief, design_reference, available_evidence=(), authority=None,
-         reliability=None, work=None, director=None):
+         reliability=None, work=None, director=None, investments=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
         ('director', '0. Центр'), ('overview', '1. Обзор'), ('tasks', '2. Задачи'), ('agents', '3. Агенты и роли'),
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
         ('authority', '6. Источник правды'),
-        ('reliability', '7. Надёжность'), ('work', '8. Работа')))
+        ('reliability', '7. Надёжность'), ('work', '8. Работа'),
+        ('investments', '9. Инвестиции')))
     design_note = (f'<p class="note">Дизайн-референс: '
                    f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
                    f'{_e(design_reference["note"])}</p>')
@@ -1376,6 +1607,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         _authority(authority, available),
         _reliability(reliability, available),
         _work_view(work, available),
+        _investments(investments, available),
         '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
 
 
