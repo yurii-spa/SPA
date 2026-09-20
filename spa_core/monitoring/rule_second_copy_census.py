@@ -225,7 +225,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакетом
@@ -459,6 +459,29 @@ ASKED_SURFACES = (RISK_POLICY_MODULE, CONSTITUTION_FILE)
 #: Относительный хвост (`lib/constitution.json`) разрешается по дереву.
 _DECLARED_PATH_RE = re.compile(
     r"(?<![\w/.])((?:[\w.\-]+/)+[\w.\-]+\.(?:py|json))(?![\w])")
+
+#: Объявление ИМЕНЕМ — обратная сторона :data:`_DECLARED_PATH_RE` (заказ
+#: **G56 п. 2**). Правило пишет ``Не менять `RiskConfig` пороги без ADR`` и
+#: файла не называет; мера по пути такого объявления не видит ПО ПОСТРОЕНИЮ,
+#: и ровно так из населения G55 выпала старшая поверхность решения системы.
+#: Берётся ТОЛЬКО содержимое обратных кавычек целиком: `observed(doc, key)`
+#: именем не является — это вызов, а не объявление.
+_DECLARED_NAME_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)`")
+
+#: Исход разрешения имени по дереву. Три, а не два: «имени нет» и «имя у
+#: многих» — разные ответы, и слить их значило бы выдать неоднозначность за
+#: отсутствие (инв. #17).
+NAME_RESOLVED = "resolved_single"
+NAME_AMBIGUOUS = "ambiguous_several_files"
+NAME_ABSENT = "absent_from_tree"
+_NAME_OUTCOMES = (NAME_RESOLVED, NAME_AMBIGUOUS, NAME_ABSENT)
+
+#: Вердикт канала имени. «Имён не нашлось» и «нашлись, но ничего не сдвигают»
+#: — разные ответы, и первый не есть чистота.
+NAME_CHANNEL_SHIFT = "NAME_CHANNEL_SHIFT"
+NAME_CHANNEL_NO_SHIFT = "NAME_CHANNEL_NO_SHIFT"
+NAME_CHANNEL_NOTHING_NAMED = "NAME_CHANNEL_NOTHING_NAMED"
+NAME_CHANNEL_UNMEASURED = "NAME_CHANNEL_UNMEASURED"
 
 #: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
 #: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
@@ -1583,11 +1606,19 @@ def decision_surfaces(root: Path, rows: List[dict], *,
 
     **Спрашиваемые сегодня поверхности проверяются на объявленность.** Замер
     20.09: витрина порогов объявлена правилом `.claude/rules/site-numbers.md`
-    прямой строкой, а `spa_core/risk/policy.py` — НЕ объявлен ни одним
-    правилом: этого пути нет в текстах правил вовсе. Старшая поверхность
-    решения всей системы живёт в константе прибора, и держится она на знании
-    автора — то самое, что заказ и подозревал. Чинить это молча (дописав путь
-    в правило) нельзя: правило — предмет владельца в той же мере, что и число.
+    прямой строкой, а `spa_core/risk/policy.py` этим каналом не объявлен:
+    ПУТИ его в текстах правил нет вовсе.
+
+    **Поправка замера 20.09 (заказ G56 п. 2), и она существенна.** Отсюда
+    раньше следовал вывод «старшая поверхность решения не объявлена НИКЕМ и
+    держится на знании автора прибора». Вывод был о КАНАЛЕ, а прочитывался как
+    вывод о репозитории. Канал имени (:func:`name_channel`) нашёл объявление:
+    ``Не менять `RiskConfig` пороги без ADR`` — `.claude/rules/risk-engine.md`,
+    и `RiskConfig` разрешается в `spa_core/risk/policy.py` единственным
+    определением верхнего уровня во всём дереве. Правила эту поверхность
+    объявляют; их не видела мера. Чинить правило по-прежнему нельзя молча —
+    оно предмет владельца в той же мере, что и число, — но утверждение
+    «не объявлена никем» снято замером, а не мнением.
     """
     candidates, unreadable_texts, skipped, texts_read = declared_surfaces(root)
     channel = adr_channel(root)
@@ -1687,9 +1718,11 @@ def decision_surfaces(root: Path, rows: List[dict], *,
         "blind": [
             "поверхность, не названную ни одним правилом, перепись не видит — "
             "число есть доказанный МИНИМУМ населения, а не потолок",
-            "поверхность, объявленную ИМЕНЕМ КЛАССА, а не путём файла, мера не "
-            "видит по построению: ровно так объявлен `RiskConfig`, и ровно "
-            "поэтому старшая поверхность системы в населении отсутствует",
+            "поверхность, объявленную ИМЕНЕМ КЛАССА, а не путём файла, ЭТА "
+            "мера не видит по построению: ровно так объявлен `RiskConfig`, и "
+            "ровно поэтому старшая поверхность системы в ЕЁ населении "
+            "отсутствует; зазор измерен отдельной координатой `name_channel` "
+            "(заказ G56 п. 2) и нулём не оказался",
             "совпадение величины не есть тождество смысла — `would_move` "
             "считает поводы СПРОСИТЬ, а не доказанные копии одного решения",
         ],
@@ -1716,6 +1749,326 @@ def _mentions_in_rules(root: Path, rel: str) -> int:
             continue
         total += len(re.findall(r"(?<![\w/.])" + re.escape(rel) + r"(?![\w])", body))
     return total
+
+
+def toplevel_definitions(root: Path) -> Tuple[Dict[str, List[str]], int, List[dict]]:
+    """Имя верхнего уровня -> файлы дерева, которые его определяют.
+
+    Население файлов — ровно те два дерева рабочего кода и пять каталогов
+    сторожей, которыми прибор уже пользуется (:data:`EXECUTOR_DIRS`,
+    :data:`GUARD_DIRS`). Оно ОБЪЯВЛЕНО репозиторием, а не выбрано здесь, и это
+    существенно: обход всего дерева подряд втянул бы вложенные рабочие копии
+    (`.claude/worktrees/`, `attic/`), и тогда КАЖДОЕ имя оказалось бы
+    неоднозначным — мера ответила бы о числе чужих чекаутов на диске вместо
+    репозитория.
+
+    Возвращает ``(индекс, прочитано_файлов, нечитаемые)``. Последнее — не
+    украшение: «в дереве нет ни одного определения» и «ни один файл не
+    разобран» суть разные ответы, и второй есть отсутствие наблюдения.
+    """
+    index: Dict[str, List[str]] = {}
+    unreadable: List[dict] = []
+    read = 0
+    seen: set = set()
+    for sub in EXECUTOR_DIRS + GUARD_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if rel in seen:
+                continue
+            seen.add(rel)
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                unreadable.append({"path": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            read += 1
+            for node in tree.body:
+                names: List[str] = []
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef,
+                                     ast.AsyncFunctionDef)):
+                    names.append(node.name)
+                elif isinstance(node, ast.Assign):
+                    names.extend(t.id for t in node.targets
+                                 if isinstance(t, ast.Name))
+                elif isinstance(node, ast.AnnAssign) and isinstance(node.target,
+                                                                   ast.Name):
+                    names.append(node.target.id)
+                for name in names:
+                    bucket = index.setdefault(name, [])
+                    if rel not in bucket:
+                        bucket.append(rel)
+    for bucket in index.values():
+        bucket.sort()
+    return index, read, unreadable
+
+
+def resolve_declared_name(raw: str,
+                          index: Dict[str, List[str]]) -> Tuple[Optional[str],
+                                                                str, str]:
+    """Имя из текста правила -> путь дерева (или причина, почему не вышло).
+
+    Зеркало :func:`resolve_declared_path` и отвечает по той же строгости: путь
+    возвращается ТОЛЬКО при единственном определении. Имя, определённое
+    многими файлами (`main`, `run`), поверхность не называет — оно называет
+    привычку, и догадываться, какой файл имели в виду, прибор не вправе.
+    """
+    where = index.get(raw) or []
+    if not where:
+        return None, NAME_ABSENT, "имени нет среди определений верхнего уровня дерева"
+    if len(where) > 1:
+        return None, NAME_AMBIGUOUS, f"имя определяют {len(where)} файл(ов) дерева"
+    return where[0], NAME_RESOLVED, f"единственное определение ({where[0]})"
+
+
+def declared_by_name(root: Path,
+                     index: Dict[str, List[str]]) -> dict:
+    """Объявления правил, в которых ПУТИ НЕТ (заказ **G56 п. 2**).
+
+    Заказ дословно: «замерить, сколько объявлений правил вообще НЕ содержат
+    пути: пока это число неизвестно, „объявлено семь“ есть нижняя граница с
+    неизвестным зазором, а не население».
+
+    Считаются числа, и они разные: сколько абзацев правил вообще несут язык
+    права изменения, сколько из них мера пути ОТБРОСИЛА как широкие, у
+    скольких путь есть, у скольких его нет. Вместе они и есть зазор.
+
+    **Широкий абзац здесь НЕ отбрасывается, и это не ослабление предела, а
+    другая улика.** Предел :data:`MAX_DECLARING_PARAGRAPH` защищает от «путь
+    рядом с фразой»: в длинном нарративе такое соседство ничего не значит.
+    Имя связывается с файлом иначе — оно обязано разрешиться в РОВНО ОДНО
+    определение верхнего уровня во всём дереве, и эта связь не слабеет от
+    длины абзаца. Поэтому широкие абзацы входят в население канала имени, но
+    помечены (``paragraph_wide``) и посчитаны отдельно: смешать их значило бы
+    потерять ровно тот ответ, ради которого заказ и поставлен.
+    """
+    texts: List[Path] = []
+    rule_text = root / RULE_TEXT
+    if rule_text.is_file():
+        texts.append(rule_text)
+    rules_dir = root / RULE_DIR
+    if rules_dir.is_dir():
+        texts.extend(sorted(rules_dir.glob("*.md")))
+    candidates: Dict[str, List[dict]] = {}
+    unresolved: List[dict] = []
+    by_outcome: Dict[str, int] = {outcome: 0 for outcome in _NAME_OUTCOMES}
+    unreadable: List[dict] = []
+    read = 0
+    counts = {
+        "paragraphs_authority": 0,
+        "paragraphs_wide_total": 0,
+        "paragraphs_wide_with_authority": 0,
+        "paragraphs_with_path": 0,
+        "paragraphs_without_path": 0,
+        "names_in_paragraphs_with_path": 0,
+        "control_paragraphs": 0,
+        "control_names": 0,
+        "control_resolved_single": 0,
+    }
+    for path in texts:
+        rel_text = path.relative_to(root).as_posix()
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            unreadable.append({"text": rel_text,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        read += 1
+        for block in declaring_paragraphs(body):
+            wide = not _paragraph_admissible(block)
+            if wide:
+                counts["paragraphs_wide_total"] += 1
+            joined = "\n".join(line for _, line in block).lower()
+            if not any(mark in joined for mark in AUTHORITY_MARKS):
+                # Контроль базовой частоты: тот же разбор на абзацах БЕЗ языка
+                # права изменения. Без него «канал имени нашёл пять» не
+                # отличить от «обратные кавычки разрешаются с такой частотой
+                # везде» — у подтверждающего прибора обязана быть своя частота
+                # ошибки, иначе он подтверждает сам себя.
+                counts["control_paragraphs"] += 1
+                for _lineno, line in block:
+                    for match in _DECLARED_NAME_RE.finditer(line):
+                        _r, outcome, _w = resolve_declared_name(match.group(1),
+                                                                index)
+                        counts["control_names"] += 1
+                        if outcome == NAME_RESOLVED:
+                            counts["control_resolved_single"] += 1
+                continue
+            counts["paragraphs_authority"] += 1
+            if wide:
+                counts["paragraphs_wide_with_authority"] += 1
+            has_path = any(_DECLARED_PATH_RE.search(line) for _, line in block)
+            if has_path:
+                counts["paragraphs_with_path"] += 1
+                counts["names_in_paragraphs_with_path"] += sum(
+                    len(_DECLARED_NAME_RE.findall(line)) for _, line in block)
+            else:
+                counts["paragraphs_without_path"] += 1
+            for lineno, line in block:
+                for match in _DECLARED_NAME_RE.finditer(line):
+                    raw = match.group(1)
+                    resolved, outcome, why = resolve_declared_name(raw, index)
+                    by_outcome[outcome] = by_outcome.get(outcome, 0) + 1
+                    evidence = {
+                        "text": rel_text,
+                        "line": lineno,
+                        "quote": line.strip()[:160],
+                        "named_as": raw,
+                        "resolution": why,
+                        "outcome": outcome,
+                        "paragraph_wide": wide,
+                        "paragraph_has_path": has_path,
+                    }
+                    if resolved is None:
+                        if evidence not in unresolved:
+                            unresolved.append(evidence)
+                        continue
+                    if evidence not in candidates.setdefault(resolved, []):
+                        candidates[resolved].append(evidence)
+    out = {
+        "texts_read": read,
+        "texts_unreadable": unreadable,
+        "by_outcome": by_outcome,
+        "candidates": candidates,
+        "unresolved": unresolved,
+    }
+    out.update(counts)
+    return out
+
+
+def name_channel(root: Path, rows: List[dict], *,
+                 path_candidates: Iterable[str],
+                 asked: Tuple[str, ...] = ASKED_SURFACES) -> dict:
+    """Сколько поверхностей решения объявлено ИМЕНЕМ, а не путём (**G56 п. 2**).
+
+    Мера G55 отвечала на вопрос «какие файлы объявлены правилами» обходом
+    ПУТЕЙ, и сама назвала свою слепоту вслух: объявление бывает именем класса.
+    Здесь у слепоты появляется ЧИСЛО — и зазор между «объявлено семь» и
+    населением перестаёт быть неизвестным.
+
+    **Два числа считаются отдельно, и смешивать их нельзя.** ``gap`` — сколько
+    поверхностей канал имени добавляет к населению пути; ``matches``/
+    ``would_move`` — кусается ли добавленное, ровно в том же смысле, что у
+    :func:`decision_surfaces`. У поверхности, которую УЖЕ спрашивают,
+    ``would_move`` нулевой ПО ПОСТРОЕНИЮ, а ``matches`` — нет.
+
+    Третий исход обязателен и здесь: ни один текст правил не прочитан ИЛИ ни
+    один файл дерева не разобран ⇒ :data:`NAME_CHANNEL_UNMEASURED`. Пустой
+    индекс имён и «имён в правилах нет» — разные ответы.
+    """
+    index, files_read, files_unreadable = toplevel_definitions(root)
+    named = declared_by_name(root, index)
+    if named["texts_read"] == 0 or files_read == 0:
+        reason = ("ни один текст правил не прочитан"
+                  if named["texts_read"] == 0
+                  else "ни один файл дерева не разобран — разрешать имена нечем")
+        return {
+            "verdict": NAME_CHANNEL_UNMEASURED,
+            "reason": f"{reason}: канал имени НЕ ИЗМЕРЕН",
+            "texts_read": named["texts_read"],
+            "texts_unreadable": named["texts_unreadable"],
+            "files_read": files_read,
+            "files_unreadable": files_unreadable,
+            "surfaces": [],
+            "gap": 0,
+        }
+    known = set(path_candidates)
+    numeric_rows = [r for r in rows if is_numeric_value(r.get("value"))]
+    right_forms = (REMEDY_OWNER, REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED)
+    surfaces: List[dict] = []
+    already: List[str] = []
+    for rel in sorted(named["candidates"]):
+        if rel in known:
+            already.append(rel)
+            continue
+        values, kind, reason = surface_numbers(root, rel)
+        row: dict = {
+            "path": rel,
+            "kind": kind,
+            "declared_by": named["candidates"][rel],
+            "asked_today": rel in asked,
+        }
+        if values is None:
+            row["reason"] = reason
+            surfaces.append(row)
+            continue
+        matched = [r for r in numeric_rows
+                   if value_key(r.get("value")) in values]
+        moved = [r for r in matched if r.get("remedy") not in right_forms]
+        row.update({
+            "numbers": len(values),
+            "matches": len(matched),
+            "would_move": len(moved),
+            "would_move_names": sorted({f"{r['name']} = {r['value']}"
+                                        for r in moved}),
+        })
+        surfaces.append(row)
+    shelves = [s for s in surfaces if s["kind"] == SURFACE_SHELF]
+    unasked_moving = [s for s in shelves
+                      if not s["asked_today"] and s.get("would_move")]
+    biting = [s for s in shelves if s.get("matches")]
+    if not surfaces:
+        verdict = NAME_CHANNEL_NOTHING_NAMED
+        reason = (f"из {named['paragraphs_authority']} абзац(ев) с языком права "
+                  f"изменения ни один не назвал имени, которое дерево определяет "
+                  f"единственным файлом и которого не знал канал пути")
+    elif unasked_moving:
+        verdict = NAME_CHANNEL_SHIFT
+        reason = (f"{len(unasked_moving)} поверхност(ь/ей), объявленн(ая/ых) "
+                  f"ИМЕНЕМ и не спрашиваем(ая/ых), дают агенту право чинить "
+                  f"{sum(s['would_move'] for s in unasked_moving)} пар(ы)")
+    elif biting:
+        verdict = NAME_CHANNEL_NO_SHIFT
+        reason = (f"канал имени добавил {len(surfaces)} поверхност(ь/ей) к "
+                  f"населению пути, из них шкафов чисел {len(shelves)}; ни один "
+                  f"НЕспрашиваемый не даёт права чинить, и мера при этом "
+                  f"кусается — добавленные называют "
+                  f"{sum(s['matches'] for s in biting)} строк(и)")
+    else:
+        verdict = NAME_CHANNEL_NO_SHIFT
+        reason = (f"канал имени добавил {len(surfaces)} поверхност(ь/ей), но ни "
+                  f"одна не называет ни одной находки — ноль ИЗМЕРЕН, укуса "
+                  f"этой мерой сегодня не предъявлено")
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "question": ("сколько объявлений правил вообще НЕ содержат пути и "
+                     "сколько поверхностей решения объявлено ИМЕНЕМ"),
+        "texts_read": named["texts_read"],
+        "texts_unreadable": named["texts_unreadable"],
+        "files_read": files_read,
+        "files_unreadable": files_unreadable,
+        "paragraphs_authority": named["paragraphs_authority"],
+        "paragraphs_with_path": named["paragraphs_with_path"],
+        "paragraphs_without_path": named["paragraphs_without_path"],
+        "paragraphs_wide_total": named["paragraphs_wide_total"],
+        "paragraphs_wide_with_authority": named["paragraphs_wide_with_authority"],
+        "names_in_paragraphs_with_path": named["names_in_paragraphs_with_path"],
+        "control_paragraphs": named["control_paragraphs"],
+        "control_names": named["control_names"],
+        "control_resolved_single": named["control_resolved_single"],
+        "by_outcome": named["by_outcome"],
+        "gap": len(surfaces),
+        "already_declared_by_path": sorted(already),
+        "shelves": len(shelves),
+        "would_move_total": sum(s["would_move"] for s in unasked_moving),
+        "surfaces": surfaces,
+        "unresolved": named["unresolved"][:40],
+        "blind": [
+            "имена ищутся ТОЛЬКО в абзацах без пути — это сужение по заказу, и "
+            "цена его названа числом (names_in_paragraphs_with_path), а не "
+            "умолчанием",
+            "имя, определённое несколькими файлами дерева, поверхности не "
+            "называет: догадка о том, какой файл имели в виду, прибором не "
+            "делается — такое имя уходит в свой исход, а не в ноль",
+            "объявление ИМЕНЕМ МОДУЛЯ (`spa_core.risk.policy`) каналом не "
+            "ловится: обратные кавычки с точками именем верхнего уровня не "
+            "являются, и это остаток слепоты, а не её отсутствие",
+        ],
+    }
 
 
 def axes_intersection(rows: List[dict], peer_rows: List[dict],
@@ -2150,6 +2503,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         + [r for r in triple_rows if r["verdict"] == CLASS_TRIPLE])
     surfaces = decision_surfaces(root, surface_population)
 
+    # --- канал ОБЪЯВЛЕНИЯ ИМЕНЕМ (заказ G56 п. 2) -------------------------
+    # Мера выше ходит по ПУТЯМ и сама называет свою слепоту: объявление бывает
+    # именем класса. Здесь у слепоты появляется число — население пути
+    # перестаёт быть нижней границей с неизвестным зазором.
+    names = name_channel(
+        root, surface_population,
+        path_candidates=[s["path"] for s in (surfaces.get("surfaces") or [])])
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -2220,6 +2581,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # `status` не влияет по той же причине, что вторая и третья оси: это
         # число о поверхности, а не приговор строке.
         "decision_surfaces": surfaces,
+        # Канал объявления ИМЕНЕМ (заказ G56 п. 2). Отдельной координатой, а не
+        # доливкой в `decision_surfaces`: там число есть ответ на вопрос «что
+        # объявлено ПУТЁМ», и подмешать туда имена значило бы стереть разницу
+        # между двумя каналами вместо того, чтобы её измерить.
+        "name_channel": names,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -2246,6 +2612,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что объявленная поверхность решения ДЕЙСТВИТЕЛЬНО им является — объявлением считается абзац правила с языком права изменения, и ошибка отбора направлена в сторону «спросить», а не «чинить молча»",
             "что пара `constitution_subject` держит ТО ЖЕ число, что и витрина, — равенство величины не есть тождество смысла ровно так же, как у порога RiskPolicy; потому пара и уходит владельцу, а не чинится",
             "что нулевой сдвиг на первой оси есть свойство ДЕРЕВА — знаменатель там 5 сравнимых пар из 9, и это сказано числом, а не словом",
+            "что население поверхностей решения ПОЛНО и после канала имени — объявление модулем через точку (`spa_core.risk.policy`) не ловится ни одним из двух каналов, и зазор остаётся, только теперь он МЕНЬШЕ и назван",
+            "что имя, разрешённое единственным файлом, объявлено правилом ИМЕННО как поверхность решения — канал имени, как и канал пути, ошибается в сторону «спросить», а не «починить молча»",
         ],
     }
 
@@ -2483,10 +2851,12 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                            f"{where.get('text')}:{where.get('line')}")
             else:
                 out.append(
-                    f"[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН] {row['path']} — правила не "
-                    f"называют этого пути ни разу (упоминаний "
-                    f"{row.get('mentions_in_rules')}): право чинить на этой "
-                    f"стороне держится КОНСТАНТОЙ прибора, а не объявлением")
+                    f"[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН ПУТЁМ] {row['path']} — "
+                    f"правила не называют этого ПУТИ ни разу (упоминаний "
+                    f"{row.get('mentions_in_rules')}). Про объявление ИМЕНЕМ "
+                    f"эта строка не говорит ничего — его мерит координата "
+                    f"`name_channel` ниже, и на 20.09 оно там НАШЛОСЬ "
+                    f"(заказ G56 п. 2, ADR-434)")
         adr = surfaces.get("adr_channel") or {}
         out.append(
             f"[КАНАЛ ADR ОТВЕРГНУТ] в {adr.get('files')} ADR абзацы с языком "
@@ -2497,6 +2867,70 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             f"строк длиннее {MAX_DECLARING_LINE} символов — построчная мера там "
             f"совпадает со всем подряд")
         for blind in (surfaces.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    names = observed(doc, "name_channel", kind=dict)
+    if names is None:
+        out.append("[КАНАЛ ИМЕНИ] НЕ ИЗМЕРЕН — перепись собрана без координаты "
+                   "объявления именем (заказ G56 п. 2)")
+    elif names.get("verdict") == NAME_CHANNEL_UNMEASURED:
+        out.append(f"[КАНАЛ ИМЕНИ] {NAME_CHANNEL_UNMEASURED}: {names.get('reason')}")
+    else:
+        out.append(
+            f"[КАНАЛ ИМЕНИ] {names.get('verdict')} · абзацев с языком права "
+            f"изменения {names.get('paragraphs_authority')} · из них БЕЗ ПУТИ "
+            f"{names.get('paragraphs_without_path')} · зазор к населению пути "
+            f"{names.get('gap')} поверхност(ь/ей) · сменили бы форму "
+            f"{names.get('would_move_total')} пар(ы); {names.get('reason')}")
+        outcomes = names.get("by_outcome") or {}
+        out.append(
+            f"[ИМЕНА] разрешено единственным файлом {outcomes.get(NAME_RESOLVED)} · "
+            f"имя у многих {outcomes.get(NAME_AMBIGUOUS)} · имени в дереве нет "
+            f"{outcomes.get(NAME_ABSENT)}; разобрано файлов дерева "
+            f"{names.get('files_read')}, нечитаемых "
+            f"{len(names.get('files_unreadable') or [])}")
+        out.append(
+            f"[ШИРОКИЕ АБЗАЦЫ] мера пути отбросила как широкие "
+            f"{names.get('paragraphs_wide_with_authority')} из "
+            f"{names.get('paragraphs_authority')} абзац(ев) с языком права "
+            f"изменения — это и есть вторая половина зазора: не «имя вместо "
+            f"пути», а абзац, до содержимого которого мера пути не доходит")
+        ctl_p = names.get("control_paragraphs") or 0
+        ctl_r = names.get("control_resolved_single") or 0
+        auth_p = names.get("paragraphs_authority") or 0
+        auth_r = outcomes.get(NAME_RESOLVED) or 0
+        if ctl_p and auth_p:
+            out.append(
+                f"[ЧАСТОТА ОШИБКИ] контроль на абзацах БЕЗ языка права "
+                f"изменения: {ctl_r} разрешённых имён на {ctl_p} абзац(ев) = "
+                f"{ctl_r / ctl_p:.3f}/абзац против {auth_r / auth_p:.3f}/абзац "
+                f"у отобранных — отбор обогащает в "
+                f"{(auth_r / auth_p) / (ctl_r / ctl_p):.1f} раз(а), и пять "
+                f"находок не есть базовая частота обратных кавычек")
+        else:
+            out.append(
+                "[ЧАСТОТА ОШИБКИ] НЕ ИЗМЕРЕНА: контрольных абзацев нет, и "
+                "обогащение отбора подтвердить нечем")
+        for row in (names.get("surfaces") or []):
+            where = (row.get("declared_by") or [{}])[0]
+            if row.get("kind") != SURFACE_SHELF:
+                out.append(f"[ИМЕНЕМ · НЕ ШКАФ] {row['path']} — {row.get('kind')}: "
+                           f"{row.get('reason', 'причина не записана')}")
+                continue
+            out.append(
+                f"[ИМЕНЕМ · ШКАФ] {row['path']} — объявлен как "
+                f"`{where.get('named_as')}` в {where.get('text')}:"
+                f"{where.get('line')} · чисел {row.get('numbers')} · называет "
+                f"находок {row.get('matches')} · сменили бы форму "
+                f"{row.get('would_move')} · спрашивается сегодня: "
+                f"{'да' if row.get('asked_today') else 'НЕТ'}")
+            if row.get("would_move_names"):
+                out.append(f"[ИМЕНЕМ · имена] "
+                           f"{', '.join(row['would_move_names'][:8])}")
+        if names.get("already_declared_by_path"):
+            out.append(f"[ИМЕНЕМ, УЖЕ ИЗВЕСТНО ПО ПУТИ] "
+                       f"{', '.join(names['already_declared_by_path'][:6])} — "
+                       f"к зазору не относятся")
+        for blind in (names.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(

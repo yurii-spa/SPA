@@ -452,13 +452,26 @@ class TheReportSaysAllOfIt(unittest.TestCase):
                             for l in lines))
 
     def test_an_asked_but_undeclared_surface_gets_its_own_line(self):
+        """Инв. #16 — ярлык строки изменён НАМЕРЕННО (цикл #652, ADR-434).
+
+        Было `[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН]`. Этот ярлык утверждал больше,
+        чем прибор мерил: канал пути отвечает «путь не назван», а объявление
+        бывает ИМЕНЕМ — и на живом дереве 20.09 оно там нашлось
+        (`RiskConfig` ⇒ `spa_core/risk/policy.py`). Прежняя строка была
+        ВТОРОЙ копией опровергнутого вывода ADR-433 и продолжала бы его
+        произносить после поправки. Утверждение теста не ослаблено: строка
+        по-прежнему обязана быть и обязана называть путь; проверяется ещё и
+        то, что ярлык говорит о канале, а не о репозитории.
+        """
         with TemporaryDirectory() as tmp:
             root = _scene(Path(tmp), rules={"s.md": _DECLARING.format(
                 path=rsc.CONSTITUTION_FILE)})
             doc = rsc.measure(root, now=_NOW)
         lines = self._lines(doc)
-        self.assertTrue(any("[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН]" in l
+        self.assertTrue(any("[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН ПУТЁМ]" in l
                             and rsc.RISK_POLICY_MODULE in l for l in lines))
+        self.assertFalse(any("держится КОНСТАНТОЙ прибора" in l for l in lines),
+                         "опровергнутый вывод ADR-433 остался в отчёте")
 
     def test_a_document_without_the_coordinate_says_not_measured(self):
         """Инв. #17 внутри отчёта: отсутствие координаты ≠ «поверхностей нет»."""
