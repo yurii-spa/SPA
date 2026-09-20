@@ -215,6 +215,28 @@ def run(args):
                        'detail': reliability['schema_version']})
         reliability_source = path
 
+    work = None
+    work_source = None
+    if getattr(args, 'work', None):
+        import work as work_mod
+        given = Path(args.work)
+        path = given if given.is_file() else given / 'work_snapshot.json'
+        if not path.is_file():
+            raise diff_mod.IncompatibleInput(f'no work_snapshot.json at {given}')
+        try:
+            work = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise diff_mod.IncompatibleInput(
+                f'work_snapshot.json at {given} could not be read '
+                f'({type(exc).__name__})') from None
+        try:
+            work_mod.validate_work_snapshot(work, str(path))
+        except work_mod.WorkInputError as exc:
+            raise diff_mod.IncompatibleInput(str(exc)) from None
+        checks.append({'check': 'work_snapshot_contract', 'result': 'PASS',
+                       'detail': work['schema_version']})
+        work_source = path
+
     design = design_reference(args.production)
     portal['page_generated_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
     portal['design_reference'] = design
@@ -233,6 +255,8 @@ def run(args):
         protected.append(Path(args.from_portal_snapshot))
     if getattr(args, 'reliability', None):
         protected.append(Path(args.reliability))
+    if getattr(args, 'work', None):
+        protected.append(Path(args.work))
     snapshot_json = None
     if args.cartographer:
         candidate = Path(args.cartographer) / 'snapshot.json'
@@ -261,12 +285,14 @@ def run(args):
         available.append('authority_map.json')
     if reliability is not None:
         available.append('reliability_snapshot.json')
+    if work is not None:
+        available.append('work_snapshot.json')
     if args.cartographer and (Path(args.cartographer) / 'system_map.md').is_file():
         available.append('system_map.md')
     files = [('portal_snapshot.json', json.dumps(portal, indent=2, ensure_ascii=False)),
              ('index.html', render_mod.html(portal, brief, design, available,
                                              authority=authority,
-                                             reliability=reliability)),
+                                             reliability=reliability, work=work)),
              ('owner_summary.md', render_mod.owner_summary(portal, brief, design))]
     for name, content in files:
         p = staging / name
@@ -276,6 +302,11 @@ def run(args):
 
     copied = []
     for name in available:
+        if name == 'work_snapshot.json':
+            shutil.copyfile(work_source, staging / name)
+            (staging / name).chmod(0o600)
+            copied.append(name)
+            continue
         if name == 'reliability_snapshot.json':
             shutil.copyfile(reliability_source, staging / name)
             (staging / name).chmod(0o600)
@@ -338,6 +369,13 @@ def run(args):
                                   'performs_repair': reliability['performs_repair'],
                                   'digest': reliability.get('semantic_digest')}
                                  if reliability else None),
+        'work_snapshot': ({'schema': work['schema_version'],
+                           'counts': work['counts'],
+                           'creates_tasks': work['creates_tasks'],
+                           'modifies_tracker': work['modifies_tracker'],
+                           'assigns_work': work['assigns_work'],
+                           'digest': work.get('semantic_digest')}
+                          if work else None),
         'checks': checks,
         'digests': {'portal_snapshot': portal['semantic_digest']},
         'counts': portal['counts'],
@@ -419,6 +457,8 @@ def main(argv=None):
     ap.add_argument('--reliability', type=Path,
                     help='снимок надёжности (Phase 4): каталог или '
                          'reliability_snapshot.json')
+    ap.add_argument('--work', type=Path,
+                    help='снимок работы (Phase 5): каталог или work_snapshot.json')
     ap.add_argument('--from-portal-snapshot', type=Path,
                     help='OFFLINE rebuild: a stored portal_snapshot.json or its directory')
     ap.add_argument('--output', type=Path, required=True, help='new directory for the run')

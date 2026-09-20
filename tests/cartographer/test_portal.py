@@ -1004,3 +1004,90 @@ class TheReliabilitySectionTravelsWithItsEvidence(unittest.TestCase):
         self.assertEqual(cut(first), cut(second),
                          'раздел обязан воспроизводиться побайтово из тех же улик')
         self.assertEqual(manifest['mode'], 'offline_rebuild')
+
+
+class TheWorkSectionTravelsWithItsEvidence(unittest.TestCase):
+    """Phase 5 живёт в портале на тех же правах, что надёжность и карта авторитетности."""
+
+    def _snapshot(self, td):
+        wk = _load('work')
+        root = Path(td) / 'wkprod'
+        (root / '.nimbalyst/trackers').mkdir(parents=True, exist_ok=True)
+        (root / 'nimbalyst-local/tracker').mkdir(parents=True, exist_ok=True)
+        (root / '.nimbalyst/trackers/inbox.yaml').write_text(
+            'type: inbox\nidPrefix: inbox\nfields:\n  - name: status\n'
+            '    type: select\n    options:\n'
+            '      - value: in-progress\n        label: In Progress\n'
+            '        category: started\n')
+        (root / 'nimbalyst-local/tracker/inbox-a.md').write_text(
+            '---\ntitle: работа\nstatus: in-progress\ncreated: 2026-09-01\n---\n## тело\n')
+        snap = wk.build_work_snapshot(root, None, None)
+        out = Path(td) / 'wkset'
+        out.mkdir(exist_ok=True)
+        (out / 'work_snapshot.json').write_text(json.dumps(snap, ensure_ascii=False),
+                                                encoding='utf-8')
+        return out, snap
+
+    def _args(self, td, wkset, **over):
+        portal, root, carto, brief = _extract(td)
+        base = dict(production=root, cartographer=carto, briefing=brief,
+                    from_portal_snapshot=None, work=wkset, output=Path(td) / 'out')
+        base.update(over)
+        return types.SimpleNamespace(**base)
+
+    def test_the_snapshot_is_copied_next_to_the_page_and_linked(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            wkset, snap = self._snapshot(td)
+            final, _, manifest = portal_cli.run(self._args(td, wkset))
+            page = (final / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('work_snapshot.json', {p.name for p in final.iterdir()})
+            self.assertIn('href="work_snapshot.json"', page)
+            self.assertIn('id="work"', page)
+            self.assertEqual(manifest['work_snapshot']['digest'], snap['semantic_digest'])
+            self.assertIs(manifest['work_snapshot']['creates_tasks'], False)
+            self.assertIs(manifest['work_snapshot']['modifies_tracker'], False)
+            self.assertIs(manifest['work_snapshot']['assigns_work'], False)
+
+    def test_a_page_without_the_snapshot_says_so_instead_of_no_work(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            final, _, manifest = portal_cli.run(self._args(td, None, work=None))
+            page = (final / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('id="work"', page)
+            self.assertIn('НЕ значит, что работы нет', page)
+            self.assertIsNone(manifest['work_snapshot'])
+
+    def test_a_snapshot_that_breaks_its_contract_is_refused(self):
+        portal_cli = _load('portal')
+        with tempfile.TemporaryDirectory() as td:
+            wkset, _ = self._snapshot(td)
+            broken = json.loads((wkset / 'work_snapshot.json').read_text())
+            broken['work'][0]['owner_view_state'] = 'ПОЧТИ_ГОТОВО'
+            (wkset / 'work_snapshot.json').write_text(json.dumps(broken))
+            with self.assertRaises(portal_cli.diff_mod.IncompatibleInput):
+                portal_cli.run(self._args(td, wkset))
+
+    def test_an_offline_rebuild_reproduces_the_section(self):
+        portal_cli = _load('portal')
+
+        def boom(*a, **k):
+            raise AssertionError('the offline rebuild reached a live source')
+
+        with tempfile.TemporaryDirectory() as td:
+            wkset, _ = self._snapshot(td)
+            final, built, _ = portal_cli.run(self._args(td, wkset))
+            first = (final / 'index.html').read_text(encoding='utf-8')
+            stored = Path(td) / 'stored'
+            stored.mkdir()
+            (stored / 'portal_snapshot.json').write_text(json.dumps(built),
+                                                         encoding='utf-8')
+            with patch.object(subprocess, 'run', boom), \
+                 patch.object(socket, 'socket', boom):
+                again, _, manifest = portal_cli.run(types.SimpleNamespace(
+                    production=Path('/nonexistent'), cartographer=None, briefing=None,
+                    from_portal_snapshot=stored, work=final, output=Path(td) / 'out2'))
+            second = (again / 'index.html').read_text(encoding='utf-8')
+        cut = lambda t: t[t.index('id="work"'):]  # noqa: E731
+        self.assertEqual(cut(first), cut(second))
+        self.assertEqual(manifest['mode'], 'offline_rebuild')

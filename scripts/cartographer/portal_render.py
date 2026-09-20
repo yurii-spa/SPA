@@ -919,15 +919,317 @@ def _reliability(rel, available):
     return ''.join(out)
 
 
+_WORK_STATE_LABELS = {
+    'NOT_STARTED': 'не начато', 'IN_PROGRESS': 'в работе', 'BLOCKED': 'заблокировано',
+    'WAITING_OWNER': 'ждёт владельца',
+    'DONE_ACCEPTANCE_UNCONFIRMED': 'завершено, приёмка не подтверждена',
+    'DONE_ACCEPTANCE_UNKNOWN': 'завершено, статус приёмки не измерен',
+    'DONE_ACCEPTANCE_NOT_APPLICABLE': 'завершено, отдельная приёмка не требуется',
+    'ACCEPTED': 'принято', 'UNKNOWN': 'статус неизвестен',
+}
+_ACCEPT_LABELS = {
+    'CONFIRMED': 'подтверждена', 'NOT_CONFIRMED': 'НЕ подтверждена',
+    'NOT_APPLICABLE': 'правило не относится', 'UNKNOWN': 'не измерено',
+}
+
+
+def _who(w):
+    """Кто исполняет — ровно по улике. Заявка цикла или сессии агентом НЕ называется."""
+    if not w.get('claimed_by'):
+        return '<span class="note">не измерено</span>'
+    kind = w.get('claim_kind')
+    label = {'CYCLE': 'цикл', 'SESSION': 'сессия', 'PID': 'процесс',
+             'AGENT_LABEL': 'агент (подтверждён)',
+             'UNVERIFIED_LABEL': 'похоже на ярлык агента, НЕ подтверждён'}.get(kind, kind)
+    return (f'<span class="mono">{_e(w["claimed_by"])}</span> '
+            f'<span class="badge b-unk">{_e(label)}</span>'
+            f'<div class="evi">{_e(w.get("claim_reason") or "")}</div>')
+
+
+def _work_card(w, brief=False):
+    """Карточка работы: одиннадцать вопросов владельца, и ни одного придуманного ответа.
+
+    ``brief`` — та же строка в краткой форме, для завершённых работ в общем списке. Она
+    несёт ВСЕ признаки фильтрации и по-прежнему раскрывается, но показывает четыре поля
+    вместо одиннадцати. Причина измеренная, а не вкусовая: работ 1577, из них больше
+    девяти сотен — закрытые записи KANBAN трёхмесячной давности, и полная форма у каждой
+    давала страницу в 7,8 МБ. Полная карточка живой работы никуда не девается: она в
+    блоках выше, где владелец её и ищет.
+    """
+    ev = lambda items: ''.join(  # noqa: E731
+        f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 260))}</li>'
+        for x in (items or [])[:6])
+    explicit = [r for r in w.get('related_findings') or []
+                if r['relation'] == 'EXPLICIT_LINK']
+    mention = [r for r in w.get('related_findings') or []
+               if r['relation'] == 'MENTION_MATCH']
+    hay = ' '.join(str(x).lower() for x in
+                   (w['work_id'], w['title'], str(w['source_state']),
+                    w['owner_view_state'], w['work_type'], w['acceptance_status'],
+                    str(w.get('claimed_by') or ''), str(w.get('owner_role') or '')))
+    head = (
+        f'<div class="row" data-id="{_e(w["work_id"])}" data-hay="{_e(hay)}" '
+        f'data-wview="{_e(w["owner_view_state"])}" '
+        f'data-wsource="{_e(str(w["source_state"]))}" '
+        f'data-wtype="{_e(w["work_type"])}" '
+        f'data-wowner="{_e(w.get("owner_role") or "не измерено")}" '
+        f'data-waccept="{_e(w["acceptance_status"])}" '
+        f'data-wapplic="{_e(w.get("acceptance_applicability") or "UNKNOWN")}" '
+        f'data-wblock="{_e(w["blocker_status"])}" '
+        f'data-wdecision="{"да" if w.get("owner_decision_needed") else "нет"}" '
+        f'data-wfinding="{"объявленная" if explicit else ("упоминание" if mention else "нет")}" '
+        f'data-wlast="{_e(w.get("last_activity_at") or "")}" '
+        f'data-wstarted="{_e(w.get("started_at") or "")}">'
+        f'<div class="rowhead">'
+        f'<span class="badge b-unk">{_e(_WORK_STATE_LABELS[w["owner_view_state"]])}</span>'
+        + (f'<span class="badge b-warn">приёмка '
+           f'{_e(_ACCEPT_LABELS[w["acceptance_status"]])}</span>'
+           if w['acceptance_status'] == 'NOT_CONFIRMED' else '')
+        + ('<span class="badge b-warn">приёмка есть, состояние не закрыто</span>'
+           if w.get('acceptance_state_conflict') else '')
+        + f'<span class="rowtitle">{_e(_cut(w["title"], 130))}</span></div>')
+
+    if brief:
+        return (head
+                + '<details><summary>статус, приёмка, источник</summary><dl class="kv">'
+                + f'<dt>СТАТУС</dt><dd>{_e(_WORK_STATE_LABELS[w["owner_view_state"]])}'
+                  f'<div class="evi">исходное состояние: <span class="mono">'
+                  f'{_e(str(w["source_state"]))}</span> · {_e(w["mapping_reason"])}</div>'
+                  '</dd>'
+                + f'<dt>ПРИЁМКА</dt><dd>{_e(_ACCEPT_LABELS[w["acceptance_status"]])}'
+                  f'<div class="evi">применимость: '
+                  f'{_e(w.get("acceptance_applicability"))}</div>'
+                  f'<ul>{ev(w["acceptance_evidence"])}</ul></dd>'
+                + f'<dt>КОГДА БЫЛА АКТИВНОСТЬ</dt><dd class="mono">'
+                  f'{_n(w.get("last_activity_at"))}</dd>'
+                + f'<dt>ИСТОЧНИК</dt><dd class="mono">{_e(w["source"])}'
+                  f'<div class="evi">{_e(w["work_id"])}</div></dd>'
+                + '</dl></details></div>')
+
+    outputs = ''.join(f'<li class="mono">{_e(o["path"])}'
+                      f'<div class="evi">{_e(o["basis"])}</div></li>'
+                      for o in (w.get('output_refs') or [])[:8])
+    problems = ''
+    if explicit:
+        problems += '<ul>' + ''.join(f'<li class="mono">{_e(r["finding"])}'
+                                     f'<div class="evi">{_e(r["basis"])}</div></li>'
+                                     for r in explicit) + '</ul>'
+    if mention:
+        problems += ('<div class="note">Возможная связь (совпадение по упоминанию)</div>'
+                     '<ul>' + ''.join(f'<li class="mono">{_e(r["finding"])}</li>'
+                                      for r in mention[:4]) + '</ul>')
+    if not problems:
+        problems = '<span class="note">не измерено</span>'
+    return (
+        head
+        + '<details><summary>что делаем, кто, что мешает, приёмка</summary><dl class="kv">'
+        + f'<dt>ЧТО ДЕЛАЕМ</dt><dd>{_e(w["title"])}</dd>'
+        + f'<dt>СТАТУС</dt><dd>{_e(_WORK_STATE_LABELS[w["owner_view_state"]])}'
+          f'<div class="evi">исходное состояние: <span class="mono">'
+          f'{_e(str(w["source_state"]))}</span> · {_e(w["mapping_reason"])}</div></dd>'
+        + f'<dt>КТО ОТВЕЧАЕТ</dt><dd>{_n(w.get("owner_role"))}'
+        + (f'<div class="evi">{_e(w["owner_evidence"][0]["detail"])}</div>'
+           if w.get('owner_evidence') else '') + '</dd>'
+        + f'<dt>КТО СЕЙЧАС ИСПОЛНЯЕТ</dt><dd>{_who(w)}</dd>'
+        + f'<dt>КОГДА БЫЛА АКТИВНОСТЬ</dt><dd class="mono">'
+          f'{_n(w.get("last_activity_at"))}</dd>'
+        + f'<dt>ЧТО МЕШАЕТ</dt><dd>{_e(w["blocker_status"])}'
+        + (f'<ul>{ev(w["blocker_evidence"])}</ul>' if w.get('blocker_evidence')
+           else '<div class="evi">улик блокера нет; «давно не менялось» блокером здесь '
+                'не считается</div>') + '</dd>'
+        + '<dt>ЧТО ПОЛУЧЕНО</dt><dd>'
+        + (f'<ul>{outputs}</ul>' if outputs else '<span class="note">не измерено</span>')
+        + '</dd>'
+        + f'<dt>ПРИЁМКА</dt><dd>{_e(_ACCEPT_LABELS[w["acceptance_status"]])}'
+          f'<div class="evi">применимость: '
+          f'{_e(w.get("acceptance_applicability"))}</div>'
+          f'<ul>{ev(w["acceptance_evidence"])}</ul></dd>'
+        + '<dt>КАКОЕ РЕШЕНИЕ НУЖНО ОТ ВЛАДЕЛЬЦА</dt><dd>'
+        + (_e(_cut(w["owner_decision_needed"], 400)) if w.get('owner_decision_needed')
+           else '<span class="note">не требуется по состоянию карточки</span>') + '</dd>'
+        + f'<dt>СВЯЗАННЫЕ ПРОБЛЕМЫ</dt><dd>{problems}</dd>'
+        + f'<dt>ИСТОЧНИК</dt><dd class="mono">{_e(w["source"])}'
+          f'<div class="evi">{_e(w["work_id"])}</div></dd>'
+        + (f'<dt>решения</dt><dd class="mono">{_e(", ".join(w["related_decisions"]))}</dd>'
+           if w.get('related_decisions') else '')
+        + '</dl></details></div>')
+
+
+def _work_group(title, items, empty, limit=None):
+    shown = items if limit is None else items[:limit]
+    if not items:
+        return f'<h3>{_e(title)}</h3><div class="empty">{_e(empty)}</div>'
+    tail = ('' if limit is None or len(items) <= limit else
+            f'<p class="note">показаны первые {limit} из {len(items)}; остальные — в '
+            'полном списке ниже с теми же фильтрами</p>')
+    return (f'<h3>{_e(title)} ({len(items)})</h3>'
+            + ''.join(_work_card(w) for w in shown) + tail)
+
+
+def _work_view(work, available):
+    """Раздел 8: что строится, кем, где застряло, что ждёт владельца.
+
+    Кнопок Start, Stop, Assign, Reassign, Approve, Reject, Retry, Pause, Resume, Create
+    task, Resolve и Deploy здесь нет и не подразумевается: раздел только читает. Ни одна
+    карточка не создаётся и не двигается.
+    """
+    if not work:
+        return ('<h2 id="work">8. Разработка и работа</h2>'
+                '<div class="empty">Снимок работы не приложен к этому комплекту. Это НЕ '
+                'значит, что работы нет.</div>')
+    c = work['counts']
+    idn = work['identity']
+    items = work['work']
+    by_view = lambda name: [w for w in items if w['owner_view_state'] == name]  # noqa: E731
+    recent = lambda seq: sorted(  # noqa: E731
+        seq, key=lambda w: (w.get('last_activity_at') or '', w['work_id']), reverse=True)
+
+    out = ['<h2 id="work">8. Разработка и работа</h2>',
+           '<p class="note">Что сейчас строится, кем, где застряло, что уже закончено и '
+           'что ждёт решения владельца. Раздел ничего не запускает, не назначает, не '
+           'принимает и не заводит задач: кнопок действий здесь нет намеренно. Состояния '
+           'взяты из определений трекеров, а не придуманы.</p>',
+           '<div class="card"><dl class="kv">',
+           f'<dt>В работе</dt><dd class="big">{c["in_progress"]}</dd>',
+           f'<dt>Заблокировано</dt><dd class="big">{c["blocked"]}</dd>',
+           f'<dt>Ждёт владельца</dt><dd class="big">{c["waiting_owner"]}</dd>',
+           f'<dt>Принято</dt><dd class="big">{c["accepted"]}</dd>',
+           f'<dt>Завершено, приёмка не подтверждена</dt><dd class="big">'
+           f'{c["done_acceptance_unconfirmed"]}</dd>',
+           f'<dt>Завершено, статус приёмки не измерен</dt><dd class="big">'
+           f'{c["done_acceptance_unknown"]}</dd>',
+           f'<dt>Завершено, отдельная приёмка не требуется</dt><dd class="big">'
+           f'{c["done_acceptance_not_applicable"]}</dd>',
+           f'<dt>Статус неизвестен</dt><dd class="big">{c["unknown_state"]}</dd>',
+           '</dl>',
+           f'<p class="note"><b>Записей в этом снимке {c["source_records"]}</b>: '
+           f'{_e(str(idn["tracker"]["source_record_count"]))} записей трекера и '
+           f'{_e(str(idn["kanban"]["unique_identifier_count"]))} идентификаторов KANBAN '
+           f'(сырых записей там {_e(str(idn["kanban"]["source_record_count"]))}, '
+           f'{_e(str(idn["kanban"]["duplicate_identifiers"]))} повторов одного id). '
+           f'<b>Уникальное число работ НЕ ИЗМЕРЕНО</b>: {_e(idn["proven_unique_reason"])} '
+           f'Перекрёстных ссылок без доказанного тождества: '
+           f'{_e(str(idn["unresolved_identity_records"]))}; совпадений заголовков '
+           f'{_e(str(idn["cross_source"]["title_only_matches"]))}, и тождеством они не '
+           f'считаются ни при каком числе. Авторитет между реестрами: '
+           f'{_e(idn["cross_source"]["authority_between_registries"])}.</p>',
+           f'<p class="note">Источников прочитано {c["sources_read"]}, недоступно '
+           f'{c["sources_unavailable"]}. Исполнительских заявок '
+           f'{c["execution_claim_known"]}, из них НЕ агент {c["claim_not_an_agent"]}, '
+           f'подтверждённых агентов {c["claim_is_a_verified_agent"]}. Расхождений '
+           f'«приёмка подтверждена, а состояние не закрыто»: '
+           f'{c["acceptance_state_conflicts"]}.</p>',
+           f'<p class="evi">снимок: {_link("work_snapshot.json", available)}</p></div>']
+
+    out.append(_work_group('Сейчас строится', recent(by_view('IN_PROGRESS')),
+                           'ни одна работа не помечена как идущая.', limit=10))
+    out.append(_work_group('Застряло и заблокировано', by_view('BLOCKED'),
+                           'заблокированных работ по улике нет. «Давно не менялось» '
+                           'блокером здесь не считается.'))
+    out.append(_work_group('Ждёт моего решения', by_view('WAITING_OWNER'),
+                           'карточек, чьё состояние прямо говорит «ждёт владельца», нет.'))
+    conflicts = [w for w in items if w.get('acceptance_state_conflict')]
+    out.append(_work_group('Завершено, приёмка НЕ подтверждена',
+                           recent(by_view('DONE_ACCEPTANCE_UNCONFIRMED')),
+                           'таких работ нет.', limit=10))
+    out.append(_work_group('Завершено, статус приёмки не измерен',
+                           recent(by_view('DONE_ACCEPTANCE_UNKNOWN')),
+                           'таких работ нет.', limit=5))
+    out.append(_work_group('Приёмка подтверждена, а состояние не закрыто', conflicts,
+                           'расхождений между приёмкой и состоянием нет.', limit=10))
+    out.append(_work_group('Недавно принято', recent(by_view('ACCEPTED')),
+                           'подтверждённых приёмок нет.', limit=10))
+
+    out.append('<h3>Кто чем занят</h3>'
+               '<p class="note">Только по доказанной улике. Номер цикла, идентификатор '
+               'сессии и pid — это НЕ агент, и здесь они так и подписаны.</p>'
+               '<table><thead><tr><th>заявка</th><th>род</th><th>работ</th>'
+               '<th>что это значит</th></tr></thead><tbody>')
+    claims = {}
+    for w in items:
+        if w.get('claimed_by'):
+            claims.setdefault((w['claimed_by'], w['claim_kind']), []).append(w)
+    if not claims:
+        out.append('<tr><td colspan="4" class="note">исполнительских заявок не найдено — '
+                   'это «не измерено», а не «никто не работает»</td></tr>')
+    for (who, kind), group in sorted(claims.items(), key=lambda kv: -len(kv[1]))[:20]:
+        out.append(f'<tr><td class="mono">{_e(who)}</td>'
+                   f'<td><span class="badge b-unk">{_e(kind)}</span></td>'
+                   f'<td class="big">{len(group)}</td>'
+                   f'<td class="note">'
+                   f'{_e(work["claim_kind_definitions"].get(kind, ""))}</td></tr>')
+    out.append('</tbody></table>')
+
+    views = sorted({w['owner_view_state'] for w in items})
+    sources_ = sorted({str(w['source_state']) for w in items})
+    types = sorted({w['work_type'] for w in items})
+    owners = sorted({w.get('owner_role') or 'не измерено' for w in items})
+    accepts = sorted({w['acceptance_status'] for w in items})
+    applic = sorted({w['acceptance_applicability'] for w in items})
+    blocks = sorted({w['blocker_status'] for w in items})
+    out += [f'<h3>Все работы ({len(items)})</h3>',
+            '<div id="work-scope">',
+            _controls('work-scope',
+                      [('wview', 'Статус для владельца', views),
+                       ('wsource', 'Исходное состояние', sources_),
+                       ('wtype', 'Род работы', types),
+                       ('wowner', 'Ответственный', owners),
+                       ('waccept', 'Приёмка', accepts),
+                       ('wapplic', 'Применимость приёмки', applic),
+                       ('wblock', 'Блокер', blocks),
+                       ('wdecision', 'Нужно решение владельца', ['да', 'нет']),
+                       ('wfinding', 'Связь с надёжностью',
+                        ['объявленная', 'упоминание', 'нет'])],
+                      [('wlast', 'по последней активности'),
+                       ('wstarted', 'по началу работы'),
+                       ('wview', 'по статусу'), ('wowner', 'по ответственному')]),
+            '<div data-role="list">']
+    terminal = ('DONE_NOT_ACCEPTED', 'ACCEPTED')
+    out += [_work_card(w, brief=w['owner_view_state'] in terminal)
+            for w in items]
+    out.append('</div></div>')
+
+    out.append('<details><summary>Источники работы и что каждый из них может доказать'
+               '</summary><table><thead><tr><th>источник</th><th>что представляет</th>'
+               '<th>авторитет</th><th>род</th><th>владелец</th><th>состояние</th><th>завершение</th>'
+               '<th>приёмка</th><th>блокер</th><th>результат</th><th>состояние чтения</th>'
+               '</tr></thead><tbody>')
+    yes = lambda v: ('да' if v else ('нет' if v is False else '—'))  # noqa: E731
+    for s in work['sources']:
+        out.append(f'<tr><td class="mono">{_e(s["source"])}</td>'
+                   f'<td class="note">{_e(s.get("represents") or "—")}</td>'
+                   f'<td><span class="badge b-unk">'
+                   f'{_e(s.get("authority_status") or "—")}</span>'
+                   f'<div class="evi">'
+                   f'{_e(_cut(s.get("authority_quote") or "", 200))}</div></td>'
+                   f'<td>{_e(s.get("basis") or "—")}'
+                   + ('<div class="evi">пересобираемый производный артефакт</div>'
+                      if s.get('rebuildable_artifact') else '')
+                   + '</td>'
+                   f'<td>{yes(s.get("can_prove_owner"))}</td>'
+                   f'<td>{yes(s.get("can_prove_current_state"))}</td>'
+                   f'<td>{yes(s.get("can_prove_completion"))}</td>'
+                   f'<td>{yes(s.get("can_prove_acceptance"))}</td>'
+                   f'<td>{yes(s.get("can_prove_blocker"))}</td>'
+                   f'<td>{yes(s.get("can_prove_output"))}</td>'
+                   f'<td><span class="badge b-unk">{_e(s["status"])}</span>'
+                   f'<div class="evi">{_e(_cut(s.get("limit") or "", 140))}</div></td>'
+                   f'</tr>')
+    out.append('</tbody></table></details>')
+    out.append('<h3>Границы этого раздела</h3><ul>'
+               + ''.join(f'<li>{_e(x)}</li>' for x in work['limits']) + '</ul>')
+    return ''.join(out)
+
+
 def html(portal, brief, design_reference, available_evidence=(), authority=None,
-         reliability=None):
+         reliability=None, work=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
         ('overview', '1. Обзор'), ('tasks', '2. Задачи'), ('agents', '3. Агенты и роли'),
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
         ('authority', '6. Источник правды'),
-        ('reliability', '7. Надёжность')))
+        ('reliability', '7. Надёжность'), ('work', '8. Работа')))
     design_note = (f'<p class="note">Дизайн-референс: '
                    f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
                    f'{_e(design_reference["note"])}</p>')
@@ -950,6 +1252,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         _decisions(portal, brief), _sources(portal, brief, available),
         _authority(authority, available),
         _reliability(reliability, available),
+        _work_view(work, available),
         '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
 
 
