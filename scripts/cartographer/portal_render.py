@@ -1573,8 +1573,181 @@ def _investments(inv, available):
     return ''.join(out)
 
 
+_GOV_BLOCKS = (
+    ('decision', 'Решения владельца и ADR'),
+    ('permission', 'Разрешения и границы'),
+    ('invariant', 'Инварианты'),
+    ('rule', 'Действующие правила'),
+    ('recovery', 'Восстановление: описано и проверено'),
+    ('backup', 'Резервные копии'),
+    ('deployment', 'Доставка и откат'),
+    ('security', 'Безопасность и секреты'),
+    ('gap', 'Пробелы управления'),
+)
+
+_RECOVERY_LABELS = {
+    'TESTED': 'ПРОВЕРЕНО пробой',
+    'DOCUMENTED_UNTESTED': 'описано, пробы НЕТ',
+    'MISSING': 'процедуры нет',
+    'NOT_APPLICABLE': 'не относится',
+    'UNKNOWN': 'не измерено',
+}
+
+_ZONE_SCOPE_LABELS = {
+    'ZONE_REQUIRED': 'зона требуется правилом',
+    'ZONE_NOT_APPLICABLE': 'зона не требуется: это не действие',
+    'ZONE_SCOPE_UNKNOWN': 'область зонирования не установлена',
+}
+
+
+def _gov_card(it):
+    ev = ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 320))}'
+                 + (f'<div class="evi mono">{_e(x.get("where"))}</div>'
+                    if x.get('where') else '') + '</li>'
+                 for x in (it.get('evidence') or [])[:4])
+    rec = ''.join(f'<li>{_e(x.get("kind"))}: {_e(_cut(x.get("detail"), 320))}</li>'
+                  for x in (it.get('recovery_evidence') or [])[:4])
+    hay = ' '.join(str(x).lower() for x in
+                   (it['governance_id'], it['title'], it['category'], it['status'],
+                    it['permission_zone'], it['recovery_status'], str(it['owner'])))
+    return (
+        f'<div class="row" data-id="{_e(it["governance_id"])}" data-hay="{_e(hay)}" '
+        f'data-gcat="{_e(it["category"])}" data-gzone="{_e(it["permission_zone"])}" '
+        f'data-grec="{_e(it["recovery_status"])}" data-gauth="{_e(it["authority_source"])}" '
+        f'data-gowner="{_e(str(it["owner"]))}" data-gappr="{_e(it["approval_required"])}" '
+        f'data-gclass="{_e(it.get("permission_class") or "UNKNOWN")}" '
+        f'data-gscope="{_e(it.get("zone_scope") or "ZONE_SCOPE_UNKNOWN")}">'
+        f'<div class="rowhead">'
+        f'<span class="badge b-unk">{_e(it["category"])}</span>'
+        + ('<span class="badge b-warn">нужно одобрение владельца</span>'
+           if it['approval_required'] == 'REQUIRED' else '')
+        + (f'<span class="badge b-warn">'
+           f'{_e(_RECOVERY_LABELS[it["recovery_status"]])}</span>'
+           if it['recovery_status'] == 'DOCUMENTED_UNTESTED' else '')
+        + f'<span class="rowtitle">{_e(_cut(it["title"], 130))}</span></div>'
+        f'<details><summary>чем управляет, чем доказано</summary><dl class="kv">'
+        f'<dt>статус</dt><dd>{_e(it["status"])}</dd>'
+        f'<dt>авторитет</dt><dd>{_e(it["authority_source"])}</dd>'
+        f'<dt>владелец</dt><dd>{_n(it["owner"] if it["owner"] != "UNKNOWN" else None)}</dd>'
+        f'<dt>зона разрешения</dt><dd>{_e(it["permission_zone"])}'
+        f'<div class="evi">{_e(_ZONE_SCOPE_LABELS.get(it.get("zone_scope"), ""))}</div>'
+        '</dd>'
+        f'<dt>род правила</dt><dd>{_e(it.get("permission_class"))}</dd>'
+        f'<dt>нужно одобрение</dt><dd>{_e(it["approval_required"])}</dd>'
+        f'<dt>восстановление</dt><dd>{_e(_RECOVERY_LABELS[it["recovery_status"]])}'
+        + (f'<ul>{rec}</ul>' if rec else '') + '</dd>'
+        + f'<dt>безопасность</dt><dd>{_e(it["security_status"])}</dd>'
+        + f'<dt>проверено</dt><dd class="mono">{_n(it.get("last_verified_at"))}</dd>'
+        + (f'<dt>решение</dt><dd class="mono">{_e(it["decision_ref"])}</dd>'
+           if it.get('decision_ref') else '')
+        + f'</dl><h3>Evidence</h3><ul>{ev}</ul></details></div>')
+
+
+def _governance(gov, available):
+    """Раздел 10: чем система управляется и можем ли мы её восстановить.
+
+    Кнопок Approve, Rollback, Restore, Rotate secret, Change permission, Change
+    RiskPolicy, Trigger kill-switch, Deploy, Delete и Repair здесь нет и не
+    подразумевается. Общего балла управления нет намеренно.
+    """
+    if not gov:
+        return ('<h2 id="governance">10. Управление и восстановление</h2>'
+                '<div class="empty">Снимок управления не приложен к этому комплекту. '
+                'Это НЕ значит, что управление в порядке.</div>')
+    c = gov['counts']
+    items = gov['items']
+    out = ['<h2 id="governance">10. Управление и восстановление</h2>',
+           '<p class="note">Какие решения, правила и разрешения управляют системой и чем '
+           'доказана наша способность её восстановить. Раздел только читает: ничего не '
+           'одобряет, не откатывает, не восстанавливает и не меняет разрешений.</p>',
+           '<div class="card"><dl class="kv">',
+           f'<dt>Решений (ADR)</dt><dd class="big">{c["decisions"]}</dd>',
+           f'<dt>из них с коллизией номера</dt><dd class="big">'
+           f'{c["adr_number_collisions"]}</dd>',
+           f'<dt>Действующих правил</dt><dd class="big">{c["rules"]}</dd>',
+           f'<dt>Инвариантов</dt><dd class="big">{c["invariants"]}</dd>',
+           f'<dt>Правил разрешений</dt><dd class="big">{c["permissions"]}</dd>',
+           f'<dt>из них ВОРОТ одобрения владельца</dt><dd class="big">'
+           f'{c["approval_required"]}</dd>',
+           f'<dt>автономных · аварийных</dt><dd class="big">'
+           f'{c["autonomous_rules"]} · {c["emergency_rules"]}</dd>',
+           f'<dt>Восстановление ПРОВЕРЕНО пробой</dt><dd class="big">'
+           f'{c["recovery_tested"]}</dd>',
+           f'<dt>описано, но пробы НЕТ</dt><dd class="big">'
+           f'{c["recovery_documented_untested"]}</dd>',
+           f'<dt>Зона требуется · объявлена · НЕ объявлена</dt><dd class="big">'
+           f'{c["zone_required"]} · {c["zone_defined"]} · '
+           f'{c["zone_required_but_missing"]}</dd>',
+           f'<dt>Пробелов управления</dt><dd class="big">{c["gaps"]}</dd>',
+           '</dl>',
+           f'<p class="note">{_e(gov["governance_score_note"])}</p>',
+           '<p class="note"><b>Наличие резервной копии не является доказательством '
+           'восстановления, а описанная процедура отката — проверенной.</b> Это разные '
+           'улики, и вторая из первой здесь не выводится.</p>',
+           f'<p class="note">Зона разрешения требуется не всем: {_e(gov["zone_scope_basis"])}'
+           f' Поэтому записей вне области ({c["zone_not_applicable"]}) пробелом не '
+           'считаем.</p>',
+           f'<p class="evi">снимок: {_link("governance_snapshot.json", available)}</p>'
+           '</div>']
+
+    for category, title in _GOV_BLOCKS:
+        rows = [i for i in items if i['category'] == category]
+        out.append(f'<h3>{_e(title)} ({len(rows)})</h3>')
+        if not rows:
+            out.append('<div class="empty">записей нет</div>')
+            continue
+        out += [_gov_card(i) for i in rows[:8]]
+        if len(rows) > 8:
+            out.append(f'<p class="note">показаны первые 8 из {len(rows)}; остальные — '
+                       'в полном списке ниже с теми же фильтрами</p>')
+
+    cats = sorted({i['category'] for i in items})
+    zones = sorted({i['permission_zone'] for i in items})
+    recs = sorted({i['recovery_status'] for i in items})
+    auths = sorted({i['authority_source'] for i in items})
+    owners = sorted({str(i['owner']) for i in items})
+    apprs = sorted({i['approval_required'] for i in items})
+    classes = sorted({i.get('permission_class') or 'UNKNOWN' for i in items})
+    scopes = sorted({i.get('zone_scope') or 'ZONE_SCOPE_UNKNOWN' for i in items})
+    out += [f'<h3>Все записи управления ({len(items)})</h3>',
+            '<div id="governance-scope">',
+            _controls('governance-scope',
+                      [('gcat', 'Категория', cats), ('gzone', 'Зона разрешения', zones),
+                       ('gclass', 'Род правила', classes),
+                       ('gscope', 'Область зонирования', scopes),
+                       ('grec', 'Восстановление', recs), ('gauth', 'Авторитет', auths),
+                       ('gowner', 'Владелец', owners),
+                       ('gappr', 'Нужно одобрение', apprs)],
+                      [('gcat', 'по категории'), ('grec', 'по восстановлению'),
+                       ('gzone', 'по зоне')]),
+            '<div data-role="list">']
+    out += [_gov_card(i) for i in items]
+    out.append('</div></div>')
+
+    out.append('<details><summary>Источники управления и что каждый из них решает'
+               '</summary><table><thead><tr><th>источник</th><th>чем управляет</th>'
+               '<th>род</th><th>авторитет</th><th>владелец</th><th>есть процедура '
+               'восстановления</th><th>обновлён</th></tr></thead><tbody>')
+    yes = lambda v: ('да' if v else ('нет' if v is False else '—'))  # noqa: E731
+    for s in gov['sources']:
+        out.append(f'<tr><td class="mono">{_e(s["source"])}</td>'
+                   f'<td class="note">{_e(s.get("governs") or "—")}</td>'
+                   f'<td>{_e(s.get("basis") or "—")}</td>'
+                   f'<td><span class="badge b-unk">{_e(s.get("authority_status"))}</span>'
+                   f'<div class="evi">'
+                   f'{_e(_cut(s.get("authority_quote") or "", 220))}</div></td>'
+                   f'<td>{_e(s.get("owner"))}</td>'
+                   f'<td>{yes(s.get("has_recovery_procedure"))}</td>'
+                   f'<td class="mono">{_e(s.get("last_updated") or "—")}</td></tr>')
+    out.append('</tbody></table></details>')
+    out.append('<h3>Границы этого раздела</h3><ul>'
+               + ''.join(f'<li>{_e(x)}</li>' for x in gov['limits']) + '</ul>')
+    return ''.join(out)
+
+
 def html(portal, brief, design_reference, available_evidence=(), authority=None,
-         reliability=None, work=None, director=None, investments=None):
+         reliability=None, work=None, director=None, investments=None,
+         governance=None):
     available = set(available_evidence) | {'portal_snapshot.json', 'run_manifest.json',
                                            'owner_summary.md', 'index.html'}
     nav = ''.join(f'<a href="#{anchor}">{_e(label)}</a>' for anchor, label in (
@@ -1582,7 +1755,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         ('decisions', '4. Решения'), ('sources', '5. Источники'),
         ('authority', '6. Источник правды'),
         ('reliability', '7. Надёжность'), ('work', '8. Работа'),
-        ('investments', '9. Инвестиции')))
+        ('investments', '9. Инвестиции'), ('governance', '10. Управление')))
     design_note = (f'<p class="note">Дизайн-референс: '
                    f'<span class="badge b-unk">{_e(design_reference["state"])}</span> '
                    f'{_e(design_reference["note"])}</p>')
@@ -1608,6 +1781,7 @@ def html(portal, brief, design_reference, available_evidence=(), authority=None,
         _reliability(reliability, available),
         _work_view(work, available),
         _investments(investments, available),
+        _governance(governance, available),
         '</div>', f'<script>{_JS}</script>', '</body>', '</html>'])
 
 

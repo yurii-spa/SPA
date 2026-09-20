@@ -281,6 +281,28 @@ def run(args):
                        'detail': investments['schema_version']})
         investments_source = path
 
+    governance = None
+    governance_source = None
+    if getattr(args, 'governance', None):
+        import governance as governance_mod
+        given = Path(args.governance)
+        path = given if given.is_file() else given / 'governance_snapshot.json'
+        if not path.is_file():
+            raise diff_mod.IncompatibleInput(f'no governance_snapshot.json at {given}')
+        try:
+            governance = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise diff_mod.IncompatibleInput(
+                f'governance_snapshot.json at {given} could not be read '
+                f'({type(exc).__name__})') from None
+        try:
+            governance_mod.validate_governance_snapshot(governance, str(path))
+        except governance_mod.GovernanceInputError as exc:
+            raise diff_mod.IncompatibleInput(str(exc)) from None
+        checks.append({'check': 'governance_snapshot_contract', 'result': 'PASS',
+                       'detail': governance['schema_version']})
+        governance_source = path
+
     design = design_reference(args.production)
     portal['page_generated_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
     portal['design_reference'] = design
@@ -305,6 +327,8 @@ def run(args):
         protected.append(Path(args.director))
     if getattr(args, 'investments', None):
         protected.append(Path(args.investments))
+    if getattr(args, 'governance', None):
+        protected.append(Path(args.governance))
     snapshot_json = None
     if args.cartographer:
         candidate = Path(args.cartographer) / 'snapshot.json'
@@ -339,6 +363,8 @@ def run(args):
         available.append('director_center.json')
     if investments is not None:
         available.append('investment_snapshot.json')
+    if governance is not None:
+        available.append('governance_snapshot.json')
     if args.cartographer and (Path(args.cartographer) / 'system_map.md').is_file():
         available.append('system_map.md')
     files = [('portal_snapshot.json', json.dumps(portal, indent=2, ensure_ascii=False)),
@@ -346,7 +372,8 @@ def run(args):
                                              authority=authority,
                                              reliability=reliability, work=work,
                                              director=director,
-                                             investments=investments)),
+                                             investments=investments,
+                                             governance=governance)),
              ('owner_summary.md', render_mod.owner_summary(portal, brief, design))]
     for name, content in files:
         p = staging / name
@@ -356,6 +383,11 @@ def run(args):
 
     copied = []
     for name in available:
+        if name == 'governance_snapshot.json':
+            shutil.copyfile(governance_source, staging / name)
+            (staging / name).chmod(0o600)
+            copied.append(name)
+            continue
         if name == 'investment_snapshot.json':
             shutil.copyfile(investments_source, staging / name)
             (staging / name).chmod(0o600)
@@ -455,6 +487,15 @@ def run(args):
                                  'writes_capital': investments['writes_capital'],
                                  'digest': investments.get('semantic_digest')}
                                 if investments else None),
+        'governance_snapshot': ({'schema': governance['schema_version'],
+                                 'counts': governance['counts'],
+                                 'builds_new_governance':
+                                     governance['builds_new_governance'],
+                                 'changes_permissions':
+                                     governance['changes_permissions'],
+                                 'executes_recovery': governance['executes_recovery'],
+                                 'digest': governance.get('semantic_digest')}
+                                if governance else None),
         'checks': checks,
         'digests': {'portal_snapshot': portal['semantic_digest']},
         'counts': portal['counts'],
@@ -543,6 +584,9 @@ def main(argv=None):
     ap.add_argument('--investments', type=Path,
                     help='снимок инвестиций (Phase 7): каталог или '
                          'investment_snapshot.json')
+    ap.add_argument('--governance', type=Path,
+                    help='снимок управления (Phase 8): каталог или '
+                         'governance_snapshot.json')
     ap.add_argument('--from-portal-snapshot', type=Path,
                     help='OFFLINE rebuild: a stored portal_snapshot.json or its directory')
     ap.add_argument('--output', type=Path, required=True, help='new directory for the run')
