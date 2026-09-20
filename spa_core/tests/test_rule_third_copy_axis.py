@@ -64,9 +64,9 @@ def _triples(doc: dict) -> list:
     return [r for r in doc["triple_rows"] if r["verdict"] == rsc.CLASS_TRIPLE]
 
 
-def _measure(files: dict) -> dict:
+def _measure(files: dict, **tree_kwargs) -> dict:
     with TemporaryDirectory() as tmp:
-        return rsc.measure(_tree(Path(tmp), **files), now=_NOW)
+        return rsc.measure(_tree(Path(tmp), **tree_kwargs, **files), now=_NOW)
 
 
 class TheIntersectionIsEmptyByConstruction(unittest.TestCase):
@@ -347,8 +347,16 @@ class TheRightToFixIsAskedFirstAndAtTwoSurfaces(unittest.TestCase):
         self.assertIn("не доказывает", row["remedy_evidence"])
 
     def test_a_tree_without_a_shelf_never_grants_the_right_to_fix(self):
-        """Сквозной контроль: витрины в дереве нет ⇒ право НЕ ИЗМЕРЕНО."""
-        doc = _measure(_THREE_COPIES)
+        """Сквозной контроль: витрины в дереве нет ⇒ право НЕ ИЗМЕРЕНО.
+
+        Отсутствие витрины ОБЪЯВЛЕНО сценой (`shelf=None`), а не унаследовано
+        от того, что общий помощник её не кладёт. Заказ G54 п. 1 начал
+        спрашивать витрину у всех трёх осей и положил её в помощник по
+        умолчанию — предпосылка этого контроля молча исчезла бы, а сам он
+        покраснел бы по причине, к предмету отношения не имеющей (инв. #16:
+        правка намеренная, утверждения дословно на месте).
+        """
+        doc = _measure(_THREE_COPIES, shelf=None)
         self.assertIsNotNone(doc["constitution_unread"])
         self.assertEqual(doc["triple_remedy_counts"][rsc.REMEDY_RIGHT_UNMEASURED], 1)
         self.assertEqual(doc["triple_remedy_counts"][rsc.REMEDY_UNPROVEN], 0)

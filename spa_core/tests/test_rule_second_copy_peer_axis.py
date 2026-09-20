@@ -31,7 +31,8 @@ _NOW = dt.datetime(2000, 1, 1, tzinfo=dt.timezone.utc)
 _POLICY = "MAX_DRAWDOWN = 0.07\n"
 
 
-def _tree(base: Path, **files: str) -> Path:
+def _tree(base: Path, *, shelf: str | None = '{"tvl_floor_usd": 1234567.0}',
+          **files: str) -> Path:
     """Дерево из двух обязательных каталогов, порогов и названных модулей.
 
     Каталоги `spa_core/` и `scripts/` создаются ОБА: отсутствие любого из них —
@@ -42,6 +43,24 @@ def _tree(base: Path, **files: str) -> Path:
     (base / "scripts").mkdir(parents=True)
     (base / "spa_core" / "risk").mkdir(parents=True, exist_ok=True)
     (base / "spa_core" / "risk" / "policy.py").write_text(_POLICY, encoding="utf-8")
+    # Витрина порогов сайта — предпосылка сцены ровно так же, как пороги
+    # RiskPolicy (заказ G54 п. 1): с этого заказа право чинить спрашивается у
+    # ДВУХ поверхностей решения, и дерево без витрины отвечает
+    # `right_to_fix_unmeasured` — честный третий исход, но НЕ предмет этой оси.
+    # Значение по умолчанию выбрано так, чтобы не совпасть ни с одной сценой:
+    # иначе сцена мерила бы витрину вместо своего правила.
+    #
+    # `shelf=None` ОБЯЗАН остаться выразимым, и это не удобство вызывающего.
+    # Помощник общий (его импортирует `test_rule_third_copy_axis`), а там
+    # живёт положительный контроль инв. #17: «витрины в дереве нет ⇒ право НЕ
+    # ИЗМЕРЕНО». Витрина, положенная в КАЖДУЮ сцену безусловно, отняла бы у
+    # того контроля саму его предпосылку — сцену «витрины нет» стало бы
+    # невозможно построить, и сторож замолчал бы не потому, что стало не о чем
+    # говорить.
+    if shelf is not None:
+        (base / "landing" / "src" / "lib").mkdir(parents=True, exist_ok=True)
+        (base / "landing" / "src" / "lib" / "constitution.json").write_text(
+            shelf, encoding="utf-8")
     # Сторож в дереве обязан быть: без единого `test_*.py` прибор отвечает
     # `UNMEASURED`, и это не предмет этой оси.
     (base / "spa_core" / "tests" / "test_nothing.py").write_text(
@@ -232,7 +251,7 @@ class TheUnreadableSideIsAThirdOutcome(unittest.TestCase):
             {"RULE": [("spa_core/a.py", "10"), ("spa_core/b.py", "10")]},
             source_of=lambda rel: None if rel.endswith("b.py") else "RULE = 10\n",
             imports_of=lambda rel: set(),
-            thresholds={})
+            thresholds={}, constitution={}, constitution_unread=None)
         self.assertEqual(counts[rsc.CLASS_PEER_TWO_COPIES], 0)
         self.assertEqual(counts[rsc.CLASS_PEER_UNMEASURED], 1)
         self.assertEqual(rows[0]["verdict"], rsc.CLASS_PEER_UNMEASURED)
@@ -243,7 +262,7 @@ class TheUnreadableSideIsAThirdOutcome(unittest.TestCase):
             {"RULE": [("spa_core/a.py", "10"), ("spa_core/b.py", "10")]},
             source_of=lambda rel: "RULE = 10\n",
             imports_of=lambda rel: set(),
-            thresholds={})
+            thresholds={}, constitution={}, constitution_unread=None)
         self.assertEqual(counts[rsc.CLASS_PEER_UNMEASURED], 0)
         self.assertEqual(counts[rsc.CLASS_PEER_TWO_COPIES], 1)
 
@@ -363,7 +382,14 @@ class LiveControlOnTheRealTree(unittest.TestCase):
                            "перепись без единой пары на живом дереве была бы холостой")
         for row in pairs:
             self.assertNotEqual(row["left"], row["right"])
-            self.assertIn(row["remedy"], (rsc.REMEDY_OWNER, rsc.REMEDY_UNPROVEN))
+            self.assertIn(row["remedy"], (rsc.REMEDY_OWNER,
+                                          rsc.REMEDY_CONSTITUTION,
+                                          rsc.REMEDY_UNPROVEN))
+        # Витрина порогов в этом дереве ЕСТЬ и читается, поэтому третий исход
+        # права чинить обязан быть ПУСТ: непустой означал бы, что живое дерево
+        # отвечает «не измерено» там, где измерить было чем (заказ G54 п. 1).
+        self.assertEqual(doc["peer_remedy_counts"][rsc.REMEDY_RIGHT_UNMEASURED], 0)
+        self.assertIsNone(doc["constitution_unread"])
         self.assertEqual(len(pairs), doc["peer_counts"][rsc.CLASS_PEER_TWO_COPIES])
 
 

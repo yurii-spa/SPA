@@ -277,8 +277,9 @@ REMEDY_BEHAVIOUR = "subject_proven_by_behaviour"
 REMEDY_UNUSED = "guard_constant_unused"
 REMEDY_UNPROVEN = "subject_unproven"
 REMEDY_UNREADABLE = "remedy_unreadable"
-_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_IMPORT, REMEDY_BEHAVIOUR,
-                   REMEDY_UNUSED, REMEDY_UNPROVEN, REMEDY_UNREADABLE)
+#: Сам набор объявлен НИЖЕ — после классов витрины порогов: с заказа G54 п. 1
+#: право чинить спрашивается у ДВУХ поверхностей решения на всех трёх осях, и
+#: обе формы отказа входят в состав форм починки первой оси.
 
 #: --- вторая ось: копия между двумя ИСПОЛНИТЕЛЯМИ (заказ G52 п. 1) ----------
 #:
@@ -364,6 +365,24 @@ REMEDY_CONSTITUTION = "constitution_subject"
 REMEDY_RIGHT_UNMEASURED = "right_to_fix_unmeasured"
 _TRIPLE_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_CONSTITUTION,
                           REMEDY_RIGHT_UNMEASURED, REMEDY_UNPROVEN)
+
+#: Формы починки первой оси. Две последние пришли с заказом G54 п. 1: до него
+#: право чинить спрашивалось здесь у ОДНОЙ поверхности решения, и пара, чья
+#: величина объявлена витриной порогов сайта, уходила в `subject_unproven` —
+#: то есть агенту НЕ возражал никто. Молчание о второй поверхности и есть то
+#: самое «не измерено, выданное за чисто».
+_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED,
+                   REMEDY_IMPORT, REMEDY_BEHAVIOUR, REMEDY_UNUSED,
+                   REMEDY_UNPROVEN, REMEDY_UNREADABLE)
+
+#: Формы, которые может дать ТОЛЬКО вопрос к витрине порогов. Ими и мерится
+#: сдвиг: форма владельца по порогу RiskPolicy была у пары и до заказа G54.
+_SHELF_REMEDIES = (REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED)
+
+#: Формы починки второй оси (пара исполнителей). Способа чинить эта ось не
+#: разбирает вовсе — у неё есть только право чинить и «не доказан».
+_PEER_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_CONSTITUTION,
+                        REMEDY_RIGHT_UNMEASURED, REMEDY_UNPROVEN)
 
 #: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
 #: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
@@ -728,16 +747,107 @@ def _sha256(path: Path) -> Optional[str]:
         return None
 
 
+def right_to_fix(value: object, *, thresholds: Dict[str, List[str]],
+                 constitution: Dict[str, List[str]],
+                 constitution_unread: Optional[str]) -> Tuple[
+                     Optional[str], Optional[str], Dict[str, object]]:
+    """ПРАВО чинить величину — одно правило на все три оси (заказ G54 п. 1).
+
+    Возвращает ``(форма, основание, поля)``; ``(None, None, {})`` означает
+    «ни одна объявленная поверхность решения этой величины не объявляла» —
+    и только тогда ось вправе спрашивать о СПОСОБЕ починки.
+
+    **Почему функция, а не ветка на месте.** До заказа G54 это правило жило
+    в ДВУХ видах: первая и вторая оси знали одну поверхность решения (пороги
+    `spa_core/risk/policy.py`), третья — две (плюс витрину порогов сайта).
+    Прибор, который меряет вторые копии правил, держал вторую копию
+    собственного правила — и ровно на ней публиковал «агенту никто не
+    возражает» у 14 пар, чья величина объявлена витриной. Свести копии в одну
+    здесь можно и должно: обе стороны — этот же модуль, право на правку у
+    агента, и `single_copy_by_import` есть та самая форма починки, которую
+    прибор прописывает другим.
+
+    **Порядок ветвей существен.** Сначала пороги RiskPolicy: они остаются
+    предметом №1 границы ADR-285 и старше витрины. Совпадение с ОБЕИМИ
+    поверхностями не теряется — витрина называется полем
+    ``also_constitution_fields``, потому что «число объявлено дважды» есть
+    отдельный факт, а не оттенок первого.
+
+    Витрина НЕ прочитана ⇒ :data:`REMEDY_RIGHT_UNMEASURED`, а не «совпадений
+    нет» (инв. #17). Исключение ровно одно и оно не подмена: у величины,
+    равной порогу RiskPolicy, право чинить УЖЕ установлено — вторая
+    поверхность могла бы добавить причину, но отнять право не может.
+    """
+    key = str(value)
+    owner_names = thresholds.get(key) or []
+    shelf_names = constitution.get(key) or []
+    if owner_names:
+        named = ", ".join(f"`{n}`" for n in owner_names)
+        evidence = (
+            f"значение равно порог{'ам' if len(owner_names) > 1 else 'у'} "
+            f"RiskPolicy {named} ({RISK_POLICY_MODULE}) — предмет №1 границы "
+            f"ADR-285; какой из них ТОТ САМЫЙ, прибор не решает")
+        extra: Dict[str, object] = {"owner_threshold_names": list(owner_names)}
+        if shelf_names:
+            extra["also_constitution_fields"] = list(shelf_names)
+            evidence += (
+                "; то же число объявлено и витриной порогов сайта пол"
+                + ("ями " if len(shelf_names) > 1 else "ем ")
+                + ", ".join(f"`{n}`" for n in shelf_names)
+                + " — поверхностей решения ДВЕ, и умолчать о второй значило бы "
+                  "выдать первую за полный ответ")
+        elif constitution_unread is not None:
+            extra["constitution_unread"] = constitution_unread
+        return REMEDY_OWNER, evidence, extra
+    if constitution_unread is not None:
+        return REMEDY_RIGHT_UNMEASURED, constitution_unread, {}
+    if shelf_names:
+        return (REMEDY_CONSTITUTION,
+                "то же число объявлено витриной порогов сайта пол"
+                + ("ями " if len(shelf_names) > 1 else "ем ")
+                + ", ".join(f"`{n}`" for n in shelf_names)
+                + f" ({CONSTITUTION_FILE}) — род «решение», меняется только "
+                  "ADR-ом; сводить копии ввозом агент не вправе",
+                {"constitution_fields": list(shelf_names)})
+    return None, None, {}
+
+
+def is_numeric_value(value: object) -> bool:
+    """Может ли витрина порогов вообще говорить об этой величине.
+
+    Витрина и пороги RiskPolicy держат ТОЛЬКО числа — обе по одной причине:
+    порог есть величина, и сверка по строке объявила бы предметом владельца
+    каждую пару со значением ``'v1.0'``. Значит у пары со строковым значением
+    ответ витрины пуст ПО ПОСТРОЕНИЮ, и складывать такие пары в знаменатель
+    сдвига значило бы разбавлять замер вопросом, который никому не задавался.
+    """
+    try:
+        float(str(value))
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def classify_remedy(row: dict, *, guard_text: Optional[str],
                     executor_text: Optional[str],
                     thresholds: Dict[str, List[str]],
+                    constitution: Dict[str, List[str]],
+                    constitution_unread: Optional[str],
                     probe: Optional[dict] = None,
                     guard_loads: Optional[bool] = None) -> dict:
     """Форма починки одной находки (заказы G42 п. 1 и G43). Поля строки.
 
     Порядок ветвей — не стилистика: право чинить спрашивается раньше способа
-    чинить. Пара, чья величина совпала с порогом RiskPolicy, уходит владельцу
+    чинить. Пара, чью величину объявила поверхность решения, уходит владельцу
     ДО того, как прибор вообще посмотрит на свидетеля.
+
+    **Поверхностей решения ДВЕ** (с заказа G54 п. 1): пороги RiskPolicy и
+    витрина порогов сайта. Правило одно на три оси — :func:`right_to_fix`; до
+    этого заказа здесь спрашивалась только первая, и разница была не
+    умозрительной: на соседней оси 14 пар публиковались как «никто не
+    возражает». Способ починки считается В ЛЮБОМ случае, и когда право
+    перебивает способ, прежняя форма остаётся в строке полем
+    ``remedy_without_shelf`` — сдвиг обязан быть виден, а не получен даром.
 
     Дальше порядок такой: **имя не читается · текстовый свидетель ·
     поведенческий свидетель · не доказан**. Первым идёт статический факт «имя
@@ -751,14 +861,42 @@ def classify_remedy(row: dict, *, guard_text: Optional[str],
     как ответ о предмете уже один раз сняла бы с учёта пять живых пар
     (ADR-419).
     """
-    owner_names = thresholds.get(str(row.get("value"))) or []
-    if owner_names:
-        named = ", ".join(f"`{n}`" for n in owner_names)
-        return {"remedy": REMEDY_OWNER, "owner_threshold_names": list(owner_names),
-                "remedy_evidence": (
-                    f"значение равно порог{'ам' if len(owner_names) > 1 else 'у'} "
-                    f"RiskPolicy {named} ({RISK_POLICY_MODULE}) — предмет №1 "
-                    f"границы ADR-285; какой из них ТОТ САМЫЙ, прибор не решает")}
+    right, right_evidence, right_extra = right_to_fix(
+        row.get("value"), thresholds=thresholds, constitution=constitution,
+        constitution_unread=constitution_unread)
+    method = _remedy_method(row, guard_text=guard_text,
+                            executor_text=executor_text, probe=probe,
+                            guard_loads=guard_loads)
+    if right is None:
+        return method
+    out = {"remedy": right, "remedy_evidence": right_evidence, **right_extra}
+    # Поля зонда — про ВРЕД, а не про предмет, и правом чинить не отменяются:
+    # потерять `drift` при переходе к форме владельца значило бы погасить
+    # наблюдение решением о том, кто вправе править.
+    for key in ("drift", "drift_evidence", "verdict_teeth"):
+        if key in method:
+            out[key] = method[key]
+    if right in _SHELF_REMEDIES and method["remedy"] != right:
+        # СДВИГ формы починки, снятый строкой, а не пересказом (заказ G54 п. 1):
+        # чем эта пара была, пока витрину не спрашивали. Сравнение идёт со
+        # СТАРЫМ правилом, а не с «способом»: пара, равная порогу RiskPolicy,
+        # была формой владельца и до заказа, и записывать ей сдвиг значило бы
+        # приписать витрине чужую работу.
+        out["remedy_without_shelf"] = method["remedy"]
+    return out
+
+
+def _remedy_method(row: dict, *, guard_text: Optional[str],
+                   executor_text: Optional[str],
+                   probe: Optional[dict] = None,
+                   guard_loads: Optional[bool] = None) -> dict:
+    """СПОСОБ починки — отдельно от ПРАВА (заказ G54 п. 1).
+
+    Разделены они не ради опрятности: способ считается ВСЕГДА, в том числе у
+    пары, которую право чинить уже отправило владельцу, — иначе сдвиг формы
+    («чем пара была до вопроса витрине») пришлось бы домысливать, а заказ
+    требовал его ИЗМЕРИТЬ.
+    """
     if guard_text is None or executor_text is None:
         side = "guard" if guard_text is None else "executor"
         return {"remedy": REMEDY_UNREADABLE,
@@ -888,7 +1026,9 @@ def _probe_verdict(root: Path, row: dict, ledger: Dict[str, dict],
 
 def peer_pairs(declared: Dict[str, List[Tuple[str, Optional[str]]]], *,
                source_of, imports_of,
-               thresholds: Dict[str, List[str]]) -> Tuple[List[dict], dict]:
+               thresholds: Dict[str, List[str]],
+               constitution: Dict[str, List[str]],
+               constitution_unread: Optional[str]) -> Tuple[List[dict], dict]:
     """Копия правила между двумя ИСПОЛНИТЕЛЯМИ (заказ G52 п. 1).
 
     ## Почему сужения ровно эти — это замер, а не вкус
@@ -964,24 +1104,29 @@ def peer_pairs(declared: Dict[str, List[Tuple[str, Optional[str]]]], *,
             counts[CLASS_PEER_DELEGATES] += 1
             continue
         counts[CLASS_PEER_TWO_COPIES] += 1
-        owner_names = thresholds.get(str(val_a)) or []
-        rows.append({
+        # Способ починки эта ось не разбирает вовсе, поэтому её «до витрины»
+        # есть ровно одна форма — `subject_unproven`. Право чинить
+        # спрашивается ТОЙ ЖЕ функцией, что и на двух других осях (G54 п. 1).
+        right, right_evidence, right_extra = right_to_fix(
+            val_a, thresholds=thresholds, constitution=constitution,
+            constitution_unread=constitution_unread)
+        method_evidence = (
+            "ни одна сторона не достаёт другую — копия своя у обеих; "
+            "общего происхождения значения прибор не доказывает")
+        row = {
             "verdict": CLASS_PEER_TWO_COPIES,
             "name": name,
             "value": val_a,
             "left": rel_a,
             "right": rel_b,
             "private_name": name.startswith("_"),
-            "remedy": REMEDY_OWNER if owner_names else REMEDY_UNPROVEN,
-            "remedy_evidence": (
-                "значение равно порогам RiskPolicy "
-                + ", ".join(f"`{n}`" for n in owner_names)
-                + f" ({RISK_POLICY_MODULE}) — предмет №1 границы ADR-285; "
-                  "какой из них ТОТ САМЫЙ, прибор не решает"
-                if owner_names else
-                "ни одна сторона не достаёт другую — копия своя у обеих; "
-                "общего происхождения значения прибор не доказывает"),
-        })
+            "remedy": right or REMEDY_UNPROVEN,
+            "remedy_evidence": right_evidence or method_evidence,
+            **right_extra,
+        }
+        if right in _SHELF_REMEDIES:
+            row["remedy_without_shelf"] = REMEDY_UNPROVEN
+        rows.append(row)
     rows.sort(key=lambda r: (r["left"], r["right"], r["name"]))
     return rows, counts
 
@@ -1185,27 +1330,14 @@ def triple_copies(peer_rows: List[dict],
                 counts[CLASS_TRIPLE_DOOR_ONE] += 1
                 continue
             counts[CLASS_TRIPLE] += 1
-            owner_names = thresholds.get(str(guard_value)) or []
-            const_names = constitution.get(str(guard_value)) or []
-            if owner_names:
-                remedy = REMEDY_OWNER
-                evidence = (
-                    "значение равно порог"
-                    + ("ам " if len(owner_names) > 1 else "у ")
-                    + ", ".join(f"`{n}`" for n in owner_names)
-                    + f" ({RISK_POLICY_MODULE}) — предмет №1 границы ADR-285")
-            elif constitution_unread is not None:
-                remedy = REMEDY_RIGHT_UNMEASURED
-                evidence = constitution_unread
-            elif const_names:
-                remedy = REMEDY_CONSTITUTION
-                evidence = (
-                    "то же число объявлено витриной порогов сайта пол"
-                    + ("ями " if len(const_names) > 1 else "ем ")
-                    + ", ".join(f"`{n}`" for n in const_names)
-                    + f" ({CONSTITUTION_FILE}) — род «решение», меняется только "
-                      "ADR-ом; сводить копии ввозом агент не вправе")
-            else:
+            # Право чинить спрашивается ОБЩЕЙ функцией (G54 п. 1). До неё это
+            # правило жило здесь своей копией — в приборе, который меряет
+            # вторые копии правил; ровно ту форму починки
+            # (`single_copy_by_import`) он и прописывает другим.
+            remedy, evidence, extra = right_to_fix(
+                guard_value, thresholds=thresholds, constitution=constitution,
+                constitution_unread=constitution_unread)
+            if remedy is None:
                 remedy = REMEDY_UNPROVEN
                 evidence = (
                     "сторож не достаёт ни одного исполнителя, исполнители не "
@@ -1220,9 +1352,80 @@ def triple_copies(peer_rows: List[dict],
                 "right": peer["right"],
                 "remedy": remedy,
                 "remedy_evidence": evidence,
+                **extra,
             })
     rows.sort(key=lambda r: (r["name"], r["guard"], r["left"], r["right"]))
     return rows, counts
+
+
+#: Вердикт сдвига формы починки (заказ G54 п. 1). Четыре исхода, и четвёртый
+#: существует затем, чтобы ноль нельзя было выдать за ответ: величина, не
+#: являющаяся числом, витрине не предъявляется ПО ПОСТРОЕНИЮ, и ось, где таких
+#: величин все до одной, отвечает «сравнивать было нечего», а не «сдвига нет».
+SHIFT_MEASURED = "SHIFTED"
+SHIFT_NONE_MEASURED = "NO_SHIFT_MEASURED"
+SHIFT_NOTHING_COMPARABLE = "NOTHING_COMPARABLE"
+SHIFT_UNMEASURED = "RIGHT_TO_FIX_UNMEASURED"
+
+
+def constitution_shift(rows: List[dict], *, finding_classes: Tuple[str, ...],
+                       constitution_unread: Optional[str]) -> dict:
+    """Что купил оси вопрос к витрине порогов (заказ **G54, п. 1**).
+
+    Заказ поставлен был так: «замерить, сколько из 9 и 189 пар сменили бы форму
+    починки, если бы витрину спросили и у них». Замер сделан — и раз он вышел
+    ненулевым, вопрос задан всем трём осям, а не оставлен третьей. Поэтому
+    координата мерит не гипотезу, а СДВИГ, уже произошедший в строках:
+    ``remedy_without_shelf`` хранит форму, которая была у пары, пока право
+    чинить спрашивалось у одной поверхности решения.
+
+    **Знаменатель сужен намеренно и это сказано числом.** Витрина держит
+    только ЧИСЛА (:func:`is_numeric_value`), поэтому пара со строковым
+    значением сменить форму не могла ни при каком дереве. Сложить её в
+    знаменатель значило бы разбавить замер вопросом, который ей не задавался,
+    — тот же дефект, что и «ноль по построению, объявленный чистотой»
+    (ADR-431).
+
+    **Витрина не прочитана ⇒ :data:`SHIFT_UNMEASURED`**, и это не «сдвига
+    нет»: при нечитаемой витрине каждая пара без порога RiskPolicy получает
+    `right_to_fix_unmeasured`, то есть сдвиг как раз МАКСИМАЛЕН.
+    """
+    population = [r for r in rows if r.get("verdict") in finding_classes]
+    owner = [r for r in population if r.get("remedy") == REMEDY_OWNER]
+    rest = [r for r in population if r.get("remedy") != REMEDY_OWNER]
+    comparable = [r for r in rest if is_numeric_value(r.get("value"))]
+    silent = [r for r in rest if not is_numeric_value(r.get("value"))]
+    moved = [r for r in population if r.get("remedy_without_shelf")]
+    transitions: Dict[str, int] = {}
+    for row in moved:
+        key = f"{row['remedy_without_shelf']} → {row['remedy']}"
+        transitions[key] = transitions.get(key, 0) + 1
+    if constitution_unread is not None:
+        verdict = SHIFT_UNMEASURED
+        reason = constitution_unread
+    elif moved:
+        verdict = SHIFT_MEASURED
+        reason = (f"{len(moved)} из {len(comparable)} сравнимых пар сменили "
+                  f"форму починки — право чинить у них было НЕ спрошено до конца")
+    elif comparable:
+        verdict = SHIFT_NONE_MEASURED
+        reason = (f"витрину спросили у {len(comparable)} сравнимых пар, ни одно "
+                  f"значение ей не объявлено — ноль ИЗМЕРЕН, а не структурен")
+    else:
+        verdict = SHIFT_NOTHING_COMPARABLE
+        reason = ("сравнимых пар нет вовсе: у всех значение не число, и витрина "
+                  "о них молчит ПО ПОСТРОЕНИЮ — это не «сдвига нет»")
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "population": len(population),
+        "owner_by_threshold": len(owner),
+        "comparable": len(comparable),
+        "silent_by_construction": len(silent),
+        "moved": len(moved),
+        "transitions": transitions,
+        "moved_names": sorted({f"{r['name']} = {r['value']}" for r in moved}),
+    }
 
 
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
@@ -1329,6 +1532,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     rows.sort(key=lambda r: (r["guard"], r["name"]))
 
     # --- форма починки у каждой находки (заказ G42 п. 1) --------------------
+    # Витрина порогов читается ДО разбора форм: с заказа G54 п. 1 её
+    # спрашивают ВСЕ ТРИ оси, а не одна лишь третья.
+    constitution, constitution_unread = constitution_values(root)
     remedy_counts = {cls: 0 for cls in _REMEDY_CLASSES}
     text_cache: Dict[str, Optional[str]] = {}
 
@@ -1358,8 +1564,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
                 guard_loads = None       # не разобрано ⇒ НЕ «не читается»
         row.update(classify_remedy(row, guard_text=guard_text,
                                    executor_text=_text(row["executor"]),
-                                   thresholds=thresholds, probe=probe,
-                                   guard_loads=guard_loads))
+                                   thresholds=thresholds,
+                                   constitution=constitution,
+                                   constitution_unread=constitution_unread,
+                                   probe=probe, guard_loads=guard_loads))
         remedy_counts[row["remedy"]] += 1
 
     # --- вторая ось: копия между двумя исполнителями (заказ G52 п. 1) ------
@@ -1370,10 +1578,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         declared,
         source_of=_text,
         imports_of=lambda rel: exec_imports.get(rel, set()),
-        thresholds=thresholds)
+        thresholds=thresholds,
+        constitution=constitution,
+        constitution_unread=constitution_unread)
 
     # --- третья ось: ТРИ копии одного правила (заказ G53 п. 1) -------------
-    constitution, constitution_unread = constitution_values(root)
     triple_rows, triple_counts = triple_copies(
         peer_rows, guard_declared,
         source_of=_text,
@@ -1419,6 +1628,22 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "peer_rows": peer_rows,
         "peer_owner_subject": len([r for r in peer_rows
                                    if r.get("remedy") == REMEDY_OWNER]),
+        "peer_remedy_counts": {
+            cls: len([r for r in peer_rows
+                      if r.get("verdict") == CLASS_PEER_TWO_COPIES
+                      and r.get("remedy") == cls])
+            for cls in _PEER_REMEDY_CLASSES},
+        # Сдвиг формы починки от вопроса к ВТОРОЙ поверхности решения
+        # (заказ G54 п. 1) — по каждой соседней оси отдельно: числа разные,
+        # и одно из них ноль, который обязан быть ИЗМЕРЕННЫМ, а не структурным.
+        "constitution_shift": {
+            "first_axis": constitution_shift(
+                rows, finding_classes=_FINDING_CLASSES,
+                constitution_unread=constitution_unread),
+            "peer_axis": constitution_shift(
+                peer_rows, finding_classes=(CLASS_PEER_TWO_COPIES,),
+                constitution_unread=constitution_unread),
+        },
         "peer_private_names": len([r for r in peer_rows
                                    if r.get("private_name")]),
         "risk_policy_thresholds": len(thresholds),
@@ -1455,7 +1680,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что 189 у оси исполнителей есть потолок класса — переименованная копия невидима ей так же, как и первой оси, и ровно по той же причине",
             "что пустое пересечение осей означает отсутствие правил с ТРЕМЯ копиями — оно пусто ПО ПОСТРОЕНИЮ (1 исполнитель против 2), и на вопрос отвечает отдельная координата triple_copies",
             "что у находки третьей оси копия вредна СЕГОДНЯ — ось мерит поверхность; зонд независимости её строк не трогает так же, как и строк второй оси",
-            "что право чинить спрошено у ВСЕХ поверхностей решения — витрина порогов сайта спрашивается ПОКА только на третьей оси, и асимметрия названа, а не умолчана",
+            "что право чинить спрошено у ВСЕХ поверхностей решения — с G54 п. 1 их спрашивают ДВЕ (пороги RiskPolicy и витрина сайта) на ВСЕХ трёх осях, но объявленных поверхностей в репозитории может быть больше, и число их прибор не знает",
+            "что пара `constitution_subject` держит ТО ЖЕ число, что и витрина, — равенство величины не есть тождество смысла ровно так же, как у порога RiskPolicy; потому пара и уходит владельцу, а не чинится",
+            "что нулевой сдвиг на первой оси есть свойство ДЕРЕВА — знаменатель там 5 сравнимых пар из 9, и это сказано числом, а не словом",
         ],
     }
 
@@ -1495,6 +1722,8 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         out.append(
             f"[ФОРМА ПОЧИНКИ] ввозом {remedy.get(REMEDY_IMPORT)} · "
             f"предмет владельца {remedy.get(REMEDY_OWNER)} · "
+            f"предмет витрины порогов {remedy.get(REMEDY_CONSTITUTION)} · "
+            f"право чинить НЕ ИЗМЕРЕНО {remedy.get(REMEDY_RIGHT_UNMEASURED)} · "
             f"предмет доказан поведением {remedy.get(REMEDY_BEHAVIOUR)} · "
             f"имя у сторожа не читается {remedy.get(REMEDY_UNUSED)} · "
             f"предмет НЕ доказан {remedy.get(REMEDY_UNPROVEN)} · "
@@ -1552,11 +1781,15 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             f"{peer.get(CLASS_PEER_NOT_CONSTANT)} · имя у многих исполнителей "
             f"{peer.get(CLASS_PEER_MANY)} · дверь НЕ ИЗМЕРЕНА "
             f"{peer.get(CLASS_PEER_UNMEASURED)}")
+        peer_remedy = observed(doc, "peer_remedy_counts", kind=dict) or {}
         out.append(
             f"[ПРАВО ЧИНИТЬ] из них величина равна порогу RiskPolicy у "
-            f"{owner if owner is not None else 'НЕ ИЗМЕРЕНО'} — предмет №1 "
-            f"границы ADR-285, агент их НЕ чинит; равенство числа не есть "
-            f"тождество смысла, и сверка ошибается в сторону «спросить»")
+            f"{owner if owner is not None else 'НЕ ИЗМЕРЕНО'} · объявлена "
+            f"витриной порогов сайта у {peer_remedy.get(REMEDY_CONSTITUTION)} · "
+            f"НЕ ИЗМЕРЕНО {peer_remedy.get(REMEDY_RIGHT_UNMEASURED)} · "
+            f"не возражает никто {peer_remedy.get(REMEDY_UNPROVEN)} — первые "
+            f"две формы агент НЕ чинит; равенство числа не есть тождество "
+            f"смысла, и сверка ошибается в сторону «спросить»")
         out.append(
             f"[ИМЯ] приватных {priv if priv is not None else 'НЕ ИЗМЕРЕНО'} из "
             f"{two} — на этой оси приватное имя из населения НЕ выбрасывается: "
@@ -1576,6 +1809,28 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             "свидетельством: в сцене с ВОССТАНОВЛЕННОЙ второй копией её вердикт "
             "оставался побуквенно тем же (ADR-430). Ось не влияет на `status` — "
             "она мерит поверхность числом, а не выносит приговор каждой паре")
+    shift = observed(doc, "constitution_shift", kind=dict)
+    if shift is None:
+        out.append("[ВТОРАЯ ПОВЕРХНОСТЬ] НЕ ИЗМЕРЕНА — перепись собрана без вопроса G54 п. 1")
+    else:
+        for key, label in (("first_axis", "сторож × исполнитель"),
+                           ("peer_axis", "исполнитель × исполнитель")):
+            ax = shift.get(key) or {}
+            out.append(
+                f"[ВТОРАЯ ПОВЕРХНОСТЬ · {label}] {ax.get('verdict')} · "
+                f"сменили форму починки {ax.get('moved')} из "
+                f"{ax.get('comparable')} сравнимых "
+                f"(население {ax.get('population')} = порог RiskPolicy "
+                f"{ax.get('owner_by_threshold')} + сравнимых "
+                f"{ax.get('comparable')} + витрина молчит по построению "
+                f"{ax.get('silent_by_construction')}); {ax.get('reason')}")
+            for move, n in sorted((ax.get("transitions") or {}).items()):
+                out.append(f"[СДВИГ] {move}: {n}")
+            names = ax.get("moved_names") or []
+            if names:
+                out.append(f"[СДВИГ · имена] {', '.join(names[:max_rows])}"
+                           + (f" … ещё {len(names) - max_rows}"
+                              if len(names) > max_rows else ""))
     inter = observed(doc, "axes_intersection", kind=dict)
     if inter is None:
         out.append("[ПЕРЕСЕЧЕНИЕ ОСЕЙ] НЕ ИЗМЕРЕНО — перепись собрана без вопроса G53 п. 1")

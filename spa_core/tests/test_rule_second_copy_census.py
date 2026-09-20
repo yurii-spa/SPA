@@ -81,6 +81,15 @@ def _tree(base: Path, *, executor: str = "", guard: str = "",
     (base / "spa_core" / "risk" / "policy.py").write_text(
         _POLICY if extra is None or "spa_core/risk/policy.py" not in extra else "",
         encoding="utf-8")
+    # Витрина порогов сайта — предпосылка КАЖДОЙ сцены ровно так же, как
+    # пороги RiskPolicy (заказ G54 п. 1): с этого заказа право чинить
+    # спрашивается у ДВУХ поверхностей решения, и дерево без витрины отвечает
+    # `right_to_fix_unmeasured` — честный третий исход, но НЕ предмет сцены.
+    # Значение выбрано так, чтобы не совпасть ни с одной сценой: иначе сцена
+    # мерила бы витрину вместо своего правила.
+    (base / "landing" / "src" / "lib").mkdir(parents=True, exist_ok=True)
+    (base / "landing" / "src" / "lib" / "constitution.json").write_text(
+        '{"tvl_floor_usd": 1234567.0}', encoding="utf-8")
     if executor:
         (base / "spa_core" / "e.py").write_text(executor, encoding="utf-8")
     if guard:
@@ -542,6 +551,13 @@ class WitnessOfASharedSubject(unittest.TestCase):
                                               "spa_core/backtesting/tier1/monte_carlo.py"))
 
 
+#: Витрина порогов ПРОЧИТАНА и пуста — предпосылка прямых вызовов
+#: :func:`classify_remedy`. Пустой словарь БЕЗ причины означает именно
+#: «спросили, совпадений нет»; словарь с причиной означал бы «спросить было
+#: некого», и сцена мерила бы право чинить вместо способа (заказ G54 п. 1).
+_SHELF_READ = {"constitution": {}, "constitution_unread": None}
+
+
 class RemedyFormIsMeasured(unittest.TestCase):
     """Три формы + третий исход, и порядок ветвей проверен отдельно."""
 
@@ -550,39 +566,41 @@ class RemedyFormIsMeasured(unittest.TestCase):
 
     def test_witness_at_the_guard_gives_import(self):
         got = rsc.classify_remedy(dict(self.ROW), guard_text="про spa_core.e рядом",
-                                  executor_text="", thresholds={})
+                                  executor_text="", thresholds={}, **_SHELF_READ)
         self.assertEqual(got["remedy"], rsc.REMEDY_IMPORT)
         self.assertEqual(got["witness_side"], "guard")
 
     def test_witness_at_the_executor_counts_too(self):
         got = rsc.classify_remedy(dict(self.ROW), guard_text="",
                                   executor_text="сверено с tests/test_g.py",
-                                  thresholds={})
+                                  thresholds={}, **_SHELF_READ)
         self.assertEqual(got["remedy"], rsc.REMEDY_IMPORT)
         self.assertEqual(got["witness_side"], "executor")
 
     def test_no_witness_is_UNPROVEN_not_coincidence(self):
         got = rsc.classify_remedy(dict(self.ROW), guard_text="", executor_text="",
-                                  thresholds={})
+                                  thresholds={}, **_SHELF_READ)
         self.assertEqual(got["remedy"], rsc.REMEDY_UNPROVEN)
         self.assertIn("НЕ ДОКАЗАН", got["remedy_evidence"])
 
     def test_owner_subject_wins_EVEN_WHEN_a_witness_exists(self):
         """Порядок ветвей и есть предмет теста: право чинить раньше способа."""
         got = rsc.classify_remedy(dict(self.ROW), guard_text="про spa_core.e рядом",
-                                  executor_text="", thresholds={"0.05": ["min_cash_pct"]})
+                                  executor_text="", thresholds={"0.05": ["min_cash_pct"]},
+                                  **_SHELF_READ)
         self.assertEqual(got["remedy"], rsc.REMEDY_OWNER)
         self.assertEqual(got["owner_threshold_names"], ["min_cash_pct"])
 
     def test_every_colliding_threshold_is_named(self):
         got = rsc.classify_remedy(dict(self.ROW), guard_text="", executor_text="",
-                                  thresholds={"0.05": ["a", "b", "c"]})
+                                  thresholds={"0.05": ["a", "b", "c"]},
+                                  **_SHELF_READ)
         for name in ("a", "b", "c"):
             self.assertIn(f"`{name}`", got["remedy_evidence"])
 
     def test_unreadable_side_is_its_own_outcome(self):
         got = rsc.classify_remedy(dict(self.ROW), guard_text=None, executor_text="",
-                                  thresholds={})
+                                  thresholds={}, **_SHELF_READ)
         self.assertEqual(got["remedy"], rsc.REMEDY_UNREADABLE)
         self.assertIn("guard", got["remedy_evidence"])
 
