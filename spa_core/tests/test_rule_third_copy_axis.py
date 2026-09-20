@@ -395,11 +395,33 @@ class TheShelfIsReadHonestly(unittest.TestCase):
         values, _ = self._values(json.dumps({"enabled": True}))
         self.assertEqual(values, {})
 
-    def test_both_spellings_of_a_whole_number_are_keyed(self):
-        """`CAPITAL = 100000` и `100000.0` — одна величина, и обе записи ищутся."""
+    def test_any_spelling_of_a_whole_number_finds_the_field(self):
+        """`100000`, `100000.0`, `100_000`, `1e5` — одна величина, один ответ.
+
+        **Намеренная правка цикла #651, инв. #16.** Прежняя редакция требовала
+        ДВУХ КЛЮЧЕЙ у одного числа (`'100000'` и `'100000.0'`) — то есть
+        закрывала ровно один способ записи разойтись и молчала обо всех
+        прочих. Замер 20.09 показал цену молчания: `min_tvl_usd = 5_000_000`
+        у RiskPolicy против `MIN_ELIGIBLE_TVL = 5000000.0` у находки —
+        одна величина, разные тексты, и право чинить уходило МЛАДШЕЙ
+        поверхности; а `kill_switch.hard_kill_pct = 10.0` против
+        `MIN_ADAPTERS = 10` не возражало агенту вовсе.
+
+        Утверждение не ослаблено, а усилено: спрашивается ИСХОД (поле
+        находится по ЛЮБОЙ записи величины), а не форма хранения ключей.
+        Обратная сторона — соседний тест: нечисловое значение остаётся
+        собой и по числу не ищется.
+        """
         values, _ = self._values(json.dumps({"start_capital_usd": 100000}))
-        self.assertIn("start_capital_usd", values.get("100000", []))
-        self.assertIn("start_capital_usd", values.get("100000.0", []))
+        for spelling in ("100000", "100000.0", "100_000", "1e5"):
+            self.assertEqual(rsc.declared_names(values, spelling),
+                             ["start_capital_usd"], spelling)
+
+    def test_a_non_numeric_value_is_not_matched_by_number(self):
+        """Обратная сторона канонического ключа: строка остаётся строкой."""
+        values, _ = self._values(json.dumps({"start_capital_usd": 100000}))
+        self.assertEqual(rsc.declared_names(values, "'100000'"), [])
+        self.assertEqual(rsc.declared_names(values, "v1.0"), [])
 
     def test_a_missing_shelf_gives_a_reason_not_an_empty_dict(self):
         values, unread = self._values(None)

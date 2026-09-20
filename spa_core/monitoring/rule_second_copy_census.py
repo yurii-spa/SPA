@@ -384,6 +384,82 @@ _SHELF_REMEDIES = (REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED)
 _PEER_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_CONSTITUTION,
                         REMEDY_RIGHT_UNMEASURED, REMEDY_UNPROVEN)
 
+#: --- ПОВЕРХНОСТИ РЕШЕНИЯ: население ОБЪЯВЛЕНО, а не известно автору (G55 п. 1)
+#:
+#: Заказ G55 п. 1 назвал изъян прямо: «витрина порогов найдена потому, что о ней
+#: знал автор третьей оси, а не потому, что прибор их перечисляет». Пока
+#: население не названо, «право чинить спрошено» есть утверждение об ИЗВЕСТНЫХ
+#: поверхностях, а не обо всех.
+#:
+#: Объявлением считается ПРАВИЛО этого репозитория — `CLAUDE.md` и
+#: `.claude/rules/*.md`. Так сказано в самом `CLAUDE.md` («действующие правила
+#: живут только в `CLAUDE.md` / `.claude/rules/`»), и это делает население
+#: ОБЪЯВЛЕННЫМ, а не выведенным: прибор перечисляет то, что репозиторий сказал
+#: о себе сам.
+RULE_TEXT = "CLAUDE.md"
+RULE_DIR = ".claude/rules"
+#: Реестры и нарративы ADR каналом объявления НЕ являются, и это ЗАМЕР, а не
+#: вкус: в абзацах ADR с языком права изменения названы 223 пути, и подавляющее
+#: большинство — артефакты `data/`, то есть ЗАМЕРЫ, помянутые рядом с фразой
+#: про владельца. Упоминание пути в рассказе об аварии поверхностью решения его
+#: не делает. Отдельно — `docs/decisions/INDEX.md`: там одна строка на ADR
+#: (замер 20.09: 364 из 401 строк длиннее 400 символов), поэтому построчная
+#: мера совпадает там со ВСЕМ, что в строке названо (тот же дефект, что у
+#: однострочного файла-промпта). Число канала считается и печатается — молчать
+#: о принятом решении значило бы выдать выбор за отсутствие выбора.
+ADR_DIRS = ("docs/decisions", "docs/adr")
+ADR_REGISTRY = "docs/decisions/INDEX.md"
+
+#: Язык ПРАВА ИЗМЕНЕНИЯ. Маркеры намеренно про то, КТО вправе менять число, а
+#: не про то, что число — порог: слово «порог» стои́т в сотнях абзацев рядом с
+#: именами артефактов, и по нему поверхностью решения стал бы каждый файл,
+#: который кто-нибудь помянул. Ошибка отбора направлена в сторону «спросить».
+AUTHORITY_MARKS = (
+    "меняется только adr", "меняются только adr", "только новым adr",
+    "только adr-ом", "без adr", "owner-gated", "owner-gate",
+    "предмет владельца", "предмет №1", "предмет №2", "решает владелец",
+    "не менять", "править руками", "нарушать нельзя", "инвариант",
+)
+#: Абзац шире или длиннее этого — строка реестра или нарратив, а не объявление:
+#: связь «путь рядом с фразой» там не улика. Пределы declared числами, потому
+#: что оба взяты из замера (`INDEX.md` — 364 строки длиннее 400 символов).
+MAX_DECLARING_LINE = 400
+MAX_DECLARING_PARAGRAPH = 14
+
+#: Штамп свежести в документе — СОБСТВЕННОЕ свидетельство о том, что число там
+#: ЗАМЕР, а не решение: замер устаревает за такт, решение не устаревает вовсе
+#: (`.claude/rules/site-numbers.md`, род числа). Поэтому такой файл в
+#: поверхности решения не попадает даже будучи объявленным.
+FRESHNESS_STAMPS = ("generated_at", "measured_at", "published_at", "timestamp",
+                    "as_of", "updated_at", "last_updated")
+
+#: Род объявленного кандидата. Три из пяти — исходы «не измерено» в разных
+#: смыслах, и слить их значило бы нарушить инв. #17 внутри самого прибора.
+SURFACE_SHELF = "shelf"
+SURFACE_MEASUREMENT = "measurement_by_own_stamp"
+SURFACE_GUARD = "guard_not_authority"
+SURFACE_ABSENT = "declared_absent"
+SURFACE_UNREADABLE = "declared_unreadable"
+_SURFACE_KINDS = (SURFACE_SHELF, SURFACE_MEASUREMENT, SURFACE_GUARD,
+                  SURFACE_ABSENT, SURFACE_UNREADABLE)
+
+#: Вердикт переписи поверхностей. «Пусто» и «пусто, но прибор кусается» —
+#: разные ответы, и второй обязан предъявить основание числом.
+SURFACES_SHIFT = "SURFACES_SHIFT"
+SURFACES_NO_SHIFT = "SURFACES_NO_SHIFT"
+SURFACES_NOTHING_COMPARABLE = "SURFACES_NOTHING_COMPARABLE"
+SURFACES_UNMEASURED = "SURFACES_UNMEASURED"
+
+#: Поверхности, которые прибор спрашивает СЕГОДНЯ. Перепись обязана найти их в
+#: объявленном населении — иначе она меряет не то, и это сказано вслух, а не
+#: починено молча: замер 20.09 нашёл ровно такой случай (ниже, `asked`).
+ASKED_SURFACES = (RISK_POLICY_MODULE, CONSTITUTION_FILE)
+
+#: Путь-упоминание в тексте правила: два звена и расширение кода или шкафа.
+#: Относительный хвост (`lib/constitution.json`) разрешается по дереву.
+_DECLARED_PATH_RE = re.compile(
+    r"(?<![\w/.])((?:[\w.\-]+/)+[\w.\-]+\.(?:py|json))(?![\w])")
+
 #: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
 #: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
 #: который называет КОД.
@@ -521,6 +597,44 @@ def reaches(source: str, imported: set, module_rel: str) -> bool:
     return dotted in source or module_rel in source
 
 
+def value_key(value: object) -> str:
+    """Канонический ключ величины: у ЧИСЛА — его значение, у прочего — текст.
+
+    Заведена замером цикла #651 (заказ G55 п. 1). До неё обе поверхности
+    решения сверялись с находкой ТЕКСТОМ, и ответ на вопрос «кому принадлежит
+    это число» зависел от того, как литерал НАПИСАН, а не сколько он равен:
+
+    * `min_tvl_usd: float = 5_000_000` у RiskPolicy против `MIN_ELIGIBLE_TVL =
+      5000000.0` у находки — одна величина, разные тексты (`'5000000'` против
+      `'5000000.0'`), право чинить уходило МЛАДШЕЙ поверхности;
+    * `kill_switch.hard_kill_pct: 10.0` у витрины против `MIN_ADAPTERS = 10` у
+      находки — десятичная точка автора JSON решала, возразит ли владельцу
+      кто-нибудь вообще.
+
+    Замер 20.09 на живом дереве: девять пар меняют ответ (4 + 5). Ровно тот
+    же класс, что ADR-431: свойство ПРИБОРА, выданное за свойство дерева.
+
+    Нечисловая величина остаётся собой: сверка по строке объявила бы предметом
+    владельца каждую пару со значением ``'v1.0'``, и обе поверхности держат
+    только числа (:func:`is_numeric_value`).
+    """
+    text = str(value)
+    try:
+        return repr(float(text))
+    except (TypeError, ValueError):
+        return text
+
+
+def declared_names(mapping: Dict[str, List[str]], value: object) -> List[str]:
+    """Имена, под которыми поверхность решения объявила величину.
+
+    Спрашивается СНАЧАЛА канонический ключ, потом сырой текст: второй нужен
+    сцене, которая подаёт словарь руками, и величине, у которой числа нет
+    вовсе. Объединять ответы нельзя — имя пришло бы дважды.
+    """
+    return mapping.get(value_key(value)) or mapping.get(str(value)) or []
+
+
 def risk_policy_thresholds(root: Path) -> Dict[str, List[str]]:
     """Числовой порог RiskPolicy -> ВСЕ имена, под которыми он объявлен.
 
@@ -566,8 +680,11 @@ def risk_policy_thresholds(root: Path) -> Dict[str, List[str]]:
                     and not isinstance(value_node.value, bool)):
                 continue
             text = const_value(value_node)
-            if text is not None and name not in out.setdefault(text, []):
-                out[text].append(name)
+            if text is None:
+                continue
+            key = value_key(text)   # `5_000_000` и `5000000.0` — одно число
+            if name not in out.setdefault(key, []):
+                out[key].append(name)
     return {value: sorted(names) for value, names in out.items()}
 
 
@@ -778,9 +895,8 @@ def right_to_fix(value: object, *, thresholds: Dict[str, List[str]],
     равной порогу RiskPolicy, право чинить УЖЕ установлено — вторая
     поверхность могла бы добавить причину, но отнять право не может.
     """
-    key = str(value)
-    owner_names = thresholds.get(key) or []
-    shelf_names = constitution.get(key) or []
+    owner_names = declared_names(thresholds, value)
+    shelf_names = declared_names(constitution, value)
     if owner_names:
         named = ", ".join(f"`{n}`" for n in owner_names)
         evidence = (
@@ -1162,12 +1278,444 @@ def constitution_values(root: Path) -> Tuple[Dict[str, List[str]], Optional[str]
                 walk(value, path_parts + (f"[{i}]",))
         elif isinstance(node, (int, float)) and not isinstance(node, bool):
             field = ".".join(path_parts)
-            for text in {repr(float(node)), repr(node)}:
-                if field not in out.setdefault(text, []):
-                    out[text].append(field)
+            key = value_key(node)   # `10` и `10.0` — одно число, а не два
+            if field not in out.setdefault(key, []):
+                out[key].append(field)
 
     walk(doc, ())
     return {value: sorted(names) for value, names in out.items()}, None
+
+
+
+def declaring_paragraphs(text: str) -> List[List[Tuple[int, str]]]:
+    """Абзацы правила, годные быть ОБЪЯВЛЕНИЕМ.
+
+    Абзац — подряд идущие непустые строки. Слишком широкий или слишком длинный
+    отбрасывается: строка реестра ADR несёт пересказ чужого документа и
+    называет в себе всё подряд, поэтому связь «путь рядом с фразой» там не
+    улика (:data:`MAX_DECLARING_LINE`, :data:`MAX_DECLARING_PARAGRAPH`).
+    Отброшенные считаются и печатаются — иначе «не смотрели» стало бы
+    неотличимо от «не нашли».
+    """
+    out: List[List[Tuple[int, str]]] = []
+    current: List[Tuple[int, str]] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if line.strip():
+            current.append((lineno, line))
+            continue
+        if current:
+            out.append(current)
+            current = []
+    if current:
+        out.append(current)
+    return out
+
+
+def _paragraph_admissible(block: List[Tuple[int, str]]) -> bool:
+    return (len(block) <= MAX_DECLARING_PARAGRAPH
+            and max(len(line) for _, line in block) <= MAX_DECLARING_LINE)
+
+
+def _tree_paths(root: Path) -> List[str]:
+    """Пути дерева, которыми разрешаются ОТНОСИТЕЛЬНЫЕ упоминания правил.
+
+    Правило пишет `lib/constitution.json` и `governance/kill_switch.py` —
+    хвост, а не путь от корня. Считать такое упоминание отсутствующим значило
+    бы потерять объявление там, где оно есть; поэтому хвост разрешается по
+    дереву и только при ЕДИНСТВЕННОМ совпадении. Неоднозначный хвост — свой
+    исход, а не догадка о том, какой файл имели в виду.
+    """
+    out: List[str] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix not in (".py", ".json"):
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel.startswith((".git/", "node_modules/", "landing/node_modules/")):
+            continue
+        out.append(rel)
+    return out
+
+
+def resolve_declared_path(raw: str, tree_paths: List[str],
+                          root: Path) -> Tuple[Optional[str], str]:
+    """Упоминание правила -> путь дерева (или причина, почему не вышло)."""
+    if (root / raw).is_file():
+        return raw, "прямой путь"
+    tail = [rel for rel in tree_paths if rel.endswith("/" + raw)]
+    if len(tail) == 1:
+        return tail[0], f"хвост разрешён единственным совпадением ({tail[0]})"
+    if not tail:
+        return None, "названного файла в дереве нет"
+    return None, f"хвост неоднозначен: {len(tail)} файл(ов) дерева"
+
+
+def declared_surfaces(root: Path) -> Tuple[Dict[str, List[dict]], List[dict],
+                                           int, int]:
+    """Поверхности решения, ОБЪЯВЛЕННЫЕ правилами репозитория (заказ G55 п. 1).
+
+    Возвращает ``(кандидаты, нечитаемые_тексты, отброшенных_абзацев,
+    прочитанных_текстов)``. Последнее число — не украшение: «правил не
+    прочитано ни одного» и «правила прочитаны, поверхностей не объявлено» —
+    разные ответы, и выдать первый за второй значило бы объявить чистотой
+    отсутствие наблюдения (инв. #17).
+    Кандидат — путь, названный в абзаце правила вместе с языком ПРАВА
+    ИЗМЕНЕНИЯ (:data:`AUTHORITY_MARKS`); у каждого хранится основание:
+    файл правила, строка и сама цитата. Основание — часть находки, а не
+    украшение: «прибор перечисляет» отличается от «автор знал» ровно тем, что
+    на каждую строку населения можно посмотреть.
+
+    Ни один текст правил не прочитан ⇒ пустой словарь И список причин; вердикт
+    :data:`SURFACES_UNMEASURED` ставит уже :func:`decision_surfaces`.
+    """
+    texts: List[Path] = []
+    rule_text = root / RULE_TEXT
+    if rule_text.is_file():
+        texts.append(rule_text)
+    rules_dir = root / RULE_DIR
+    if rules_dir.is_dir():
+        texts.extend(sorted(rules_dir.glob("*.md")))
+    tree_paths = _tree_paths(root)
+    candidates: Dict[str, List[dict]] = {}
+    unreadable: List[dict] = []
+    skipped = 0
+    read = 0
+    for path in texts:
+        rel_text = path.relative_to(root).as_posix()
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            unreadable.append({"text": rel_text,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        read += 1
+        for block in declaring_paragraphs(body):
+            if not _paragraph_admissible(block):
+                skipped += 1
+                continue
+            joined = "\n".join(line for _, line in block).lower()
+            if not any(mark in joined for mark in AUTHORITY_MARKS):
+                continue
+            for lineno, line in block:
+                for match in _DECLARED_PATH_RE.finditer(line):
+                    raw = match.group(1)
+                    resolved, why = resolve_declared_path(raw, tree_paths, root)
+                    key = resolved or raw
+                    evidence = {
+                        "text": rel_text,
+                        "line": lineno,
+                        "quote": line.strip()[:160],
+                        "named_as": raw,
+                        "resolution": why,
+                        "resolved": resolved is not None,
+                    }
+                    if evidence not in candidates.setdefault(key, []):
+                        candidates[key].append(evidence)
+    return candidates, unreadable, skipped, read
+
+
+def surface_numbers(root: Path, rel: str) -> Tuple[Optional[Dict[str, List[str]]],
+                                                   str, Optional[str]]:
+    """Числа объявленного кандидата: ``(значения, род, причина)``.
+
+    Род решается ЗАМЕРОМ, а не расширением файла:
+
+    * документ со штампом свежести — :data:`SURFACE_MEASUREMENT`: он сам
+      свидетельствует, что его числа пересчитывает такт;
+    * файл из каталогов предписанного прогона — :data:`SURFACE_GUARD`: сторож
+      есть сторона, которую перепись СУДИТ, и власти над ней у него нет;
+    * прочитанный шкаф чисел — :data:`SURFACE_SHELF`;
+    * не разобран или отсутствует — два РАЗНЫХ исхода «не измерено».
+
+    Ключи значений канонические (:func:`value_key`): иначе ответ поверхности
+    зависел бы от того, поставил автор десятичную точку или нет.
+    """
+    if rel.startswith(tuple(d + "/" for d in GUARD_DIRS)):
+        return None, SURFACE_GUARD, (
+            "файл собирается предписанным прогоном как сторож — он сторона, "
+            "которую перепись судит, а не поверхность решения")
+    path = root / rel
+    if not path.is_file():
+        return None, SURFACE_ABSENT, "названного файла в дереве нет"
+    try:
+        body = path.read_text(encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        return None, SURFACE_UNREADABLE, f"{type(exc).__name__}: {exc}"
+    out: Dict[str, List[str]] = {}
+    if rel.endswith(".json"):
+        try:
+            doc = json.loads(body)
+        except Exception as exc:  # noqa: BLE001
+            return None, SURFACE_UNREADABLE, f"{type(exc).__name__}: {exc}"
+        if isinstance(doc, dict):
+            stamped = [s for s in FRESHNESS_STAMPS if s in doc]
+            if stamped:
+                return None, SURFACE_MEASUREMENT, (
+                    "документ сам свидетельствует о такте пол"
+                    + ("ями " if len(stamped) > 1 else "ем ")
+                    + ", ".join(f"`{s}`" for s in stamped)
+                    + " — числа рода ЗАМЕР, а не решение")
+
+        def walk(node: object, parts: Tuple[str, ...]) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    walk(value, parts + (str(key),))
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, parts + (f"[{index}]",))
+            elif isinstance(node, (int, float)) and not isinstance(node, bool):
+                field = ".".join(parts)
+                key = value_key(node)
+                if field not in out.setdefault(key, []):
+                    out[key].append(field)
+
+        walk(doc, ())
+        return {k: sorted(v) for k, v in out.items()}, SURFACE_SHELF, None
+    try:
+        tree = ast.parse(body)
+    except Exception as exc:  # noqa: BLE001
+        return None, SURFACE_UNREADABLE, f"{type(exc).__name__}: {exc}"
+    for node in ast.walk(tree):
+        pairs: List[Tuple[str, ast.AST]] = []
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
+                and node.value is not None:
+            pairs.append((node.target.id, node.value))
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    pairs.append((target.id, node.value))
+        for name, value_node in pairs:
+            if name.startswith("_"):
+                continue
+            if not (isinstance(value_node, ast.Constant)
+                    and isinstance(value_node.value, (int, float))
+                    and not isinstance(value_node.value, bool)):
+                continue
+            key = value_key(value_node.value)
+            if name not in out.setdefault(key, []):
+                out[key].append(name)
+    return {k: sorted(v) for k, v in out.items()}, SURFACE_SHELF, None
+
+
+def adr_channel(root: Path) -> dict:
+    """ПОЧЕМУ нарратив ADR не считается объявлением — числом, а не словом.
+
+    Заказ назвал «пороги в ADR» кандидатом в поверхности. Ответ замера: в
+    абзацах ADR с языком права изменения путей много, и это пути ЗАМЕРОВ,
+    помянутые рядом с фразой о владельце. Порог, объявленный ПРОЗОЙ, поля не
+    имеет и сверять его не с чем; механизм самого репозитория для превращения
+    решений ADR в читаемый шкаф — `scripts/build_site_constitution.py` →
+    витрина порогов, которая в населении УЖЕ есть.
+
+    Реестр `docs/decisions/INDEX.md` исключён отдельно и по измеренной
+    причине: строка на ADR (поле `registry_long_lines`).
+    """
+    named: Dict[str, int] = {}
+    files = 0
+    for directory in ADR_DIRS:
+        base = root / directory
+        if not base.is_dir():
+            continue
+        for path in sorted(base.glob("*.md")):
+            if path.relative_to(root).as_posix() == ADR_REGISTRY:
+                continue
+            try:
+                body = path.read_text(encoding="utf-8")
+            except Exception:  # noqa: BLE001
+                continue
+            files += 1
+            for block in declaring_paragraphs(body):
+                if not _paragraph_admissible(block):
+                    continue
+                joined = "\n".join(line for _, line in block).lower()
+                if not any(mark in joined for mark in AUTHORITY_MARKS):
+                    continue
+                for _lineno, line in block:
+                    for match in _DECLARED_PATH_RE.finditer(line):
+                        raw = match.group(1)
+                        named[raw] = named.get(raw, 0) + 1
+    registry = root / ADR_REGISTRY
+    long_lines = unreadable = None
+    registry_lines = None
+    if registry.is_file():
+        try:
+            rows = registry.read_text(encoding="utf-8").splitlines()
+            registry_lines = len(rows)
+            long_lines = len([r for r in rows if len(r) > MAX_DECLARING_LINE])
+        except Exception as exc:  # noqa: BLE001
+            unreadable = f"{type(exc).__name__}: {exc}"
+    else:
+        unreadable = "реестра нет в дереве"
+    artifacts = len([p for p in named if p.startswith("data/")])
+    return {
+        "files": files,
+        "named_paths": len(named),
+        "artifact_paths": artifacts,
+        "registry": ADR_REGISTRY,
+        "registry_lines": registry_lines,
+        "registry_long_lines": long_lines,
+        "registry_unreadable": unreadable,
+        "why_not_a_channel": (
+            "нарратив называет путь РЯДОМ с фразой о праве владельца, а не "
+            "объявляет его поверхностью; большинство названного — артефакты "
+            "`data/`, то есть замеры. Порог в прозе ADR поля не имеет, и "
+            "механизм репозитория для превращения решений в шкаф — витрина "
+            "порогов, которая в населении уже есть"),
+    }
+
+
+def decision_surfaces(root: Path, rows: List[dict], *,
+                      asked: Tuple[str, ...] = ASKED_SURFACES) -> dict:
+    """Население поверхностей решения и СДВИГ у каждой (заказ **G55, п. 1**).
+
+    Вопрос заказа дословно: «какие ещё файлы объявляют числа рода «решение» и
+    сколько пар сменили бы форму у КАЖДОГО из них». Ответ — перепись, у
+    которой каждая строка несёт основание (какое правило, какая строка, какая
+    цитата), и число совпадений с находками всех трёх осей.
+
+    **Две величины считаются отдельно, и смешивать их нельзя.**
+    ``matches`` — сколько находок поверхность вообще называет; ``would_move``
+    — сколько из них СЕГОДНЯ не имеют формы права чинить, то есть сколько
+    агенту никто не возражает лишь потому, что эту поверхность не спрашивают.
+    У поверхности, которую УЖЕ спрашивают, ``would_move`` равен нулю ПО
+    ПОСТРОЕНИЮ, а ``matches`` — нет: он и есть доказательство, что мера
+    кусается, а не молчит впустую (ровно тот вопрос, которым ADR-431 снял
+    структурный ноль).
+
+    **Спрашиваемые сегодня поверхности проверяются на объявленность.** Замер
+    20.09: витрина порогов объявлена правилом `.claude/rules/site-numbers.md`
+    прямой строкой, а `spa_core/risk/policy.py` — НЕ объявлен ни одним
+    правилом: этого пути нет в текстах правил вовсе. Старшая поверхность
+    решения всей системы живёт в константе прибора, и держится она на знании
+    автора — то самое, что заказ и подозревал. Чинить это молча (дописав путь
+    в правило) нельзя: правило — предмет владельца в той же мере, что и число.
+    """
+    candidates, unreadable_texts, skipped, texts_read = declared_surfaces(root)
+    channel = adr_channel(root)
+    if texts_read == 0:
+        # Ни одного текста правил: ни прочитанного, ни существующего. Это НЕ
+        # «поверхностей не объявлено» — объявлять было негде, и разница здесь
+        # ровно та, ради которой написан инв. #17.
+        return {
+            "verdict": SURFACES_UNMEASURED,
+            "reason": ("ни один текст правил не прочитан — объявлять поверхности "
+                       "было негде, и население НЕ ИЗМЕРЕНО"),
+            "texts_read": 0,
+            "texts_unreadable": unreadable_texts,
+            "candidates": 0,
+            "surfaces": [],
+            "asked": [],
+            "adr_channel": channel,
+        }
+    numeric_rows = [r for r in rows if is_numeric_value(r.get("value"))]
+    right_forms = (REMEDY_OWNER, REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED)
+    surfaces: List[dict] = []
+    by_kind: Dict[str, int] = {kind: 0 for kind in _SURFACE_KINDS}
+    for rel in sorted(candidates):
+        values, kind, reason = surface_numbers(root, rel)
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+        row: dict = {
+            "path": rel,
+            "kind": kind,
+            "declared_by": candidates[rel],
+            "asked_today": rel in asked,
+        }
+        if values is None:
+            row["reason"] = reason
+            surfaces.append(row)
+            continue
+        matched = [r for r in numeric_rows
+                   if value_key(r.get("value")) in values]
+        moved = [r for r in matched if r.get("remedy") not in right_forms]
+        row.update({
+            "numbers": len(values),
+            "matches": len(matched),
+            "would_move": len(moved),
+            "would_move_names": sorted({f"{r['name']} = {r['value']}"
+                                        for r in moved}),
+        })
+        surfaces.append(row)
+    shelves = [s for s in surfaces if s["kind"] == SURFACE_SHELF]
+    unasked_moving = [s for s in shelves
+                      if not s["asked_today"] and s.get("would_move")]
+    biting = [s for s in shelves if s.get("matches")]
+    if not numeric_rows:
+        verdict = SURFACES_NOTHING_COMPARABLE
+        reason = ("числовых находок нет вовсе — поверхностям нечего называть, "
+                  "и это не «сдвига нет»")
+    elif unasked_moving:
+        verdict = SURFACES_SHIFT
+        reason = (f"{len(unasked_moving)} объявленн(ая/ых) поверхност(ь/ей) "
+                  f"решения не спрашивается, и её молчание даёт агенту право "
+                  f"чинить {sum(s['would_move'] for s in unasked_moving)} пар(ы)")
+    elif biting:
+        verdict = SURFACES_NO_SHIFT
+        reason = (f"из {len(shelves)} объявленных шкафов чисел ни один "
+                  f"НЕспрашиваемый не называет ни одной находки; мера при этом "
+                  f"кусается — спрашиваемые называют "
+                  f"{sum(s['matches'] for s in biting)} строк(и)")
+    else:
+        verdict = SURFACES_NO_SHIFT
+        reason = ("ни один объявленный шкаф не называет ни одной находки — "
+                  "ноль ИЗМЕРЕН, но подтвердить укус этой мерой сегодня нечем")
+    asked_rows = []
+    for rel in asked:
+        declared = candidates.get(rel)
+        asked_rows.append({
+            "path": rel,
+            "declared_by_rules": bool(declared),
+            "evidence": declared or [],
+            "mentions_in_rules": _mentions_in_rules(root, rel),
+        })
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "question": ("сколько в репозитории ОБЪЯВЛЕННЫХ поверхностей решения и "
+                     "сколько пар сменили бы форму починки у каждой"),
+        "channel": f"{RULE_TEXT} + {RULE_DIR}/*.md",
+        "candidates": len(candidates),
+        "by_kind": by_kind,
+        "shelves": len(shelves),
+        "numeric_rows": len(numeric_rows),
+        "rows_total": len(rows),
+        "would_move_total": sum(s["would_move"] for s in unasked_moving),
+        "texts_read": texts_read,
+        "paragraphs_skipped_wide": skipped,
+        "texts_unreadable": unreadable_texts,
+        "asked": asked_rows,
+        "surfaces": surfaces,
+        "adr_channel": channel,
+        "blind": [
+            "поверхность, не названную ни одним правилом, перепись не видит — "
+            "число есть доказанный МИНИМУМ населения, а не потолок",
+            "поверхность, объявленную ИМЕНЕМ КЛАССА, а не путём файла, мера не "
+            "видит по построению: ровно так объявлен `RiskConfig`, и ровно "
+            "поэтому старшая поверхность системы в населении отсутствует",
+            "совпадение величины не есть тождество смысла — `would_move` "
+            "считает поводы СПРОСИТЬ, а не доказанные копии одного решения",
+        ],
+    }
+
+
+def _mentions_in_rules(root: Path, rel: str) -> int:
+    """Сколько раз путь вообще назван правилами — с маркером или без.
+
+    Нужен ровно одному вопросу: объявление отсутствует потому, что в абзаце не
+    было языка права изменения, или потому, что пути нет в правилах ВООБЩЕ?
+    Это разные ответы, и второй сильнее.
+    """
+    total = 0
+    texts = []
+    if (root / RULE_TEXT).is_file():
+        texts.append(root / RULE_TEXT)
+    if (root / RULE_DIR).is_dir():
+        texts.extend(sorted((root / RULE_DIR).glob("*.md")))
+    for path in texts:
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            continue
+        total += len(re.findall(r"(?<![\w/.])" + re.escape(rel) + r"(?![\w])", body))
+    return total
 
 
 def axes_intersection(rows: List[dict], peer_rows: List[dict],
@@ -1592,6 +2140,16 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         constitution_unread=constitution_unread)
     intersection = axes_intersection(rows, peer_rows, declared)
 
+    # --- население ПОВЕРХНОСТЕЙ РЕШЕНИЯ (заказ G55 п. 1) -------------------
+    # Спрашивается у находок ВСЕХ ТРЁХ осей разом: поверхность решения не
+    # знает, какая ось нашла пару, и делить население по осям значило бы
+    # ответить на вопрос об устройстве прибора вместо вопроса о репозитории.
+    surface_population = (
+        [r for r in rows if r["verdict"] in _FINDING_CLASSES]
+        + [r for r in peer_rows if r["verdict"] == CLASS_PEER_TWO_COPIES]
+        + [r for r in triple_rows if r["verdict"] == CLASS_TRIPLE])
+    surfaces = decision_surfaces(root, surface_population)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -1658,6 +2216,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "triple_remedy_counts": {
             cls: len([r for r in triple_rows if r.get("remedy") == cls])
             for cls in _TRIPLE_REMEDY_CLASSES},
+        # Население ОБЪЯВЛЕННЫХ поверхностей решения (заказ G55 п. 1). На
+        # `status` не влияет по той же причине, что вторая и третья оси: это
+        # число о поверхности, а не приговор строке.
+        "decision_surfaces": surfaces,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -1680,7 +2242,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что 189 у оси исполнителей есть потолок класса — переименованная копия невидима ей так же, как и первой оси, и ровно по той же причине",
             "что пустое пересечение осей означает отсутствие правил с ТРЕМЯ копиями — оно пусто ПО ПОСТРОЕНИЮ (1 исполнитель против 2), и на вопрос отвечает отдельная координата triple_copies",
             "что у находки третьей оси копия вредна СЕГОДНЯ — ось мерит поверхность; зонд независимости её строк не трогает так же, как и строк второй оси",
-            "что право чинить спрошено у ВСЕХ поверхностей решения — с G54 п. 1 их спрашивают ДВЕ (пороги RiskPolicy и витрина сайта) на ВСЕХ трёх осях, но объявленных поверхностей в репозитории может быть больше, и число их прибор не знает",
+            "что право чинить спрошено у ВСЕХ поверхностей решения — население ОБЪЯВЛЕННЫХ правилами измерено (decision_surfaces) и есть доказанный минимум: поверхность, не названную ни одним правилом, мера не видит",
+            "что объявленная поверхность решения ДЕЙСТВИТЕЛЬНО им является — объявлением считается абзац правила с языком права изменения, и ошибка отбора направлена в сторону «спросить», а не «чинить молча»",
             "что пара `constitution_subject` держит ТО ЖЕ число, что и витрина, — равенство величины не есть тождество смысла ровно так же, как у порога RiskPolicy; потому пара и уходит владельцу, а не чинится",
             "что нулевой сдвиг на первой оси есть свойство ДЕРЕВА — знаменатель там 5 сравнимых пар из 9, и это сказано числом, а не словом",
         ],
@@ -1886,6 +2449,55 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             "[ПОЧЕМУ ОСЬ ЕСТЬ] пересечение двух прежних осей пусто ПО "
             "ПОСТРОЕНИЮ и о трёх копиях не говорит ничего; храповика у этого "
             "числа сегодня НЕТ, рост виден только в этой строке (остаток G52 п. 2)")
+    surfaces = observed(doc, "decision_surfaces", kind=dict)
+    if surfaces is None:
+        out.append("[ПОВЕРХНОСТИ РЕШЕНИЯ] НЕ ИЗМЕРЕНЫ — перепись собрана без "
+                   "координаты населения (заказ G55 п. 1)")
+    else:
+        out.append(
+            f"[ПОВЕРХНОСТИ РЕШЕНИЯ] {surfaces.get('verdict')} · объявлено "
+            f"правилами {surfaces.get('candidates')} · из них шкафов чисел "
+            f"{surfaces.get('shelves')} · сменили бы форму "
+            f"{surfaces.get('would_move_total')} пар(ы); {surfaces.get('reason')}")
+        for row in (surfaces.get("surfaces") or []):
+            if row.get("kind") != SURFACE_SHELF:
+                continue
+            where = (row.get("declared_by") or [{}])[0]
+            out.append(
+                f"[ШКАФ] {row['path']} — чисел {row.get('numbers')} · называет "
+                f"находок {row.get('matches')} · сменили бы форму "
+                f"{row.get('would_move')} · спрашивается сегодня: "
+                f"{'да' if row.get('asked_today') else 'НЕТ'} · объявлен "
+                f"{where.get('text')}:{where.get('line')}")
+            if row.get("would_move_names"):
+                out.append(f"[ШКАФ · имена] {', '.join(row['would_move_names'][:8])}")
+        for row in (surfaces.get("surfaces") or []):
+            if row.get("kind") == SURFACE_SHELF:
+                continue
+            out.append(f"[НЕ ШКАФ] {row['path']} — {row.get('kind')}: "
+                       f"{row.get('reason', 'причина не записана')}")
+        for row in (surfaces.get("asked") or []):
+            if row.get("declared_by_rules"):
+                where = (row.get("evidence") or [{}])[0]
+                out.append(f"[СПРАШИВАЕТСЯ] {row['path']} — объявлен правилом "
+                           f"{where.get('text')}:{where.get('line')}")
+            else:
+                out.append(
+                    f"[СПРАШИВАЕТСЯ, НО НЕ ОБЪЯВЛЕН] {row['path']} — правила не "
+                    f"называют этого пути ни разу (упоминаний "
+                    f"{row.get('mentions_in_rules')}): право чинить на этой "
+                    f"стороне держится КОНСТАНТОЙ прибора, а не объявлением")
+        adr = surfaces.get("adr_channel") or {}
+        out.append(
+            f"[КАНАЛ ADR ОТВЕРГНУТ] в {adr.get('files')} ADR абзацы с языком "
+            f"права изменения называют {adr.get('named_paths')} путь(ей), из них "
+            f"артефактов data/ {adr.get('artifact_paths')}; реестр "
+            f"{adr.get('registry')} исключён по замеру: "
+            f"{adr.get('registry_long_lines')} из {adr.get('registry_lines')} "
+            f"строк длиннее {MAX_DECLARING_LINE} символов — построчная мера там "
+            f"совпадает со всем подряд")
+        for blind in (surfaces.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "

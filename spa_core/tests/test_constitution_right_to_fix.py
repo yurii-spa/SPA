@@ -407,13 +407,32 @@ class LiveControlOnTheRealTree(unittest.TestCase):
             self.assertEqual(row["remedy"], rsc.REMEDY_CONSTITUTION)
             self.assertTrue(row["constitution_fields"])
 
-    def test_the_zero_of_the_first_axis_is_measured_not_structural(self):
-        """Ноль здесь — ответ, и он обязан опираться на непустой знаменатель."""
+    def test_the_first_axis_shift_rests_on_a_named_pair(self):
+        """Сдвиг первой оси — ЗАМЕР, и каждая сдвинутая пара названа строкой.
+
+        **Намеренная правка цикла #651, инв. #16.** Прежняя редакция пинила
+        здесь `NO_SHIFT_MEASURED`, и ноль был верен ровно до тех пор, пока
+        сверка величины шла ТЕКСТОМ: `MIN_ADAPTERS = 10` не совпадало с
+        `kill_switch.hard_kill_pct = 10.0`, хотя это одно число. С
+        каноническим ключом (:func:`rsc.value_key`) пара нашлась, и ноль
+        здесь стал бы уже неправдой.
+
+        Проверяется ТО ЖЕ, что и прежде — что вердикт опирается на непустой
+        знаменатель и не берётся из воздуха, — плюс то, чего прежняя
+        редакция проверить не могла: каждая сдвинутая пара обязана иметь
+        строку с прежней формой. Ветка `NO_SHIFT_MEASURED` контроля не
+        теряет: она проверяется сценами выше (обе стороны).
+        """
         shift = self.doc["constitution_shift"]["first_axis"]
-        self.assertEqual(shift["verdict"], rsc.SHIFT_NONE_MEASURED)
-        self.assertEqual(shift["moved"], 0)
+        self.assertEqual(shift["verdict"], rsc.SHIFT_MEASURED)
         self.assertGreater(shift["comparable"], 0,
-                           "ноль при пустом знаменателе был бы не ответом")
+                           "вердикт при пустом знаменателе был бы не ответом")
+        moved = [r for r in _findings(self.doc) if r.get("remedy_without_shelf")]
+        self.assertEqual(len(moved), shift["moved"])
+        self.assertGreater(shift["moved"], 0)
+        for row in moved:
+            self.assertEqual(row["remedy"], rsc.REMEDY_CONSTITUTION)
+            self.assertTrue(row["constitution_fields"])
 
     def test_every_form_of_every_pair_is_a_declared_class(self):
         for row in _pairs(self.doc):
