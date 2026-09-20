@@ -244,6 +244,32 @@ REMEDY_UNREADABLE = "remedy_unreadable"
 _REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_IMPORT, REMEDY_BEHAVIOUR,
                    REMEDY_UNUSED, REMEDY_UNPROVEN, REMEDY_UNREADABLE)
 
+#: --- вторая ось: копия между двумя ИСПОЛНИТЕЛЯМИ (заказ G52 п. 1) ----------
+#:
+#: Ось заведена ЗАМЕРОМ, а не из осторожности. Заказ G52 п. 1 приказал
+#: спросить эту перепись о паре, которую свёл к ввозу цикл #646 (правило
+#: происхождения переехало из `hand_truncation_census` в
+#: `truncated_input_census`), и ответом было молчание. Молчание проверено
+#: положительным контролем: в сцене, где вторая копия ВОССТАНОВЛЕНА
+#: (`SPLITTERS`/`LOADERS` объявлены обоими модулями с равным значением),
+#: вердикт переписи остался ПОБУКВЕННО тем же — 9 пар, осмотрено 4448, ни один
+#: счётчик не шевельнулся. Пара не попадала даже в корзину `ambiguous`: ось
+#: «сторож × исполнитель» её не видит ПО ПОСТРОЕНИЮ, потому что сторожем у неё
+#: обязан быть собираемый pytest файл, а здесь обе стороны — рабочий код.
+#:
+#: Поэтому «одна копия» у такой пары было НЕ свидетельством: прибор отвечал бы
+#: то же самое и при двух. Ось существует затем, чтобы у этого класса было
+#: ЧИСЛО.
+CLASS_PEER_TWO_COPIES = "peer_two_copies"
+CLASS_PEER_DELEGATES = "peer_delegates"
+CLASS_PEER_VALUE_DIFFERS = "peer_value_differs"
+CLASS_PEER_NOT_CONSTANT = "peer_not_constant"
+CLASS_PEER_MANY = "peer_many_executors"
+CLASS_PEER_UNMEASURED = "peer_door_unmeasured"
+_PEER_CLASSES = (CLASS_PEER_TWO_COPIES, CLASS_PEER_DELEGATES,
+                 CLASS_PEER_VALUE_DIFFERS, CLASS_PEER_NOT_CONSTANT,
+                 CLASS_PEER_MANY, CLASS_PEER_UNMEASURED)
+
 #: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
 #: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
 #: который называет КОД.
@@ -765,6 +791,106 @@ def _probe_verdict(root: Path, row: dict, ledger: Dict[str, dict],
     return entry
 
 
+def peer_pairs(declared: Dict[str, List[Tuple[str, Optional[str]]]], *,
+               source_of, imports_of,
+               thresholds: Dict[str, List[str]]) -> Tuple[List[dict], dict]:
+    """Копия правила между двумя ИСПОЛНИТЕЛЯМИ (заказ G52 п. 1).
+
+    ## Почему сужения ровно эти — это замер, а не вкус
+
+    Перенести сюда правило соседней оси дословно нельзя: там пару удерживает
+    АСИММЕТРИЯ сторон (сторож утверждает правило, исполнитель его применяет), а
+    здесь стороны однородны, и одного имени с равным значением мало настолько
+    же, насколько мало было его там. Замер на дереве ``072c418d3``:
+
+    | сужение | пар |
+    |---|---|
+    | одно имя у двух исполнителей | **263 191** |
+    | + имя объявлено РОВНО ДВУМЯ исполнителями | 615 имён |
+    | + значение константно и равно | 225 |
+    | + ни один не достаёт другого ни одной из четырёх дверей | **189** |
+
+    Первая строка и есть соглашение об именовании: ``LOG_CAP`` объявлен
+    столькими модулями, что пар по нему одному 14 028. Отсюда сужение №1 —
+    ТОЧНЫЙ аналог правила «исполнитель у имени ровно один» соседней оси: имя,
+    объявленное тремя и более исполнителями, одного правила не называет, и это
+    своя корзина (``peer_many_executors``), а не находка и не «сошлось».
+
+    ## Приватное имя здесь В НАСЕЛЕНИИ, и асимметрия названа
+
+    Соседняя ось выбрасывает ``_`` -имена с основанием «приватное имя правилом
+    наружу не является»: сторож чужое ``_X`` прочитать не может, значит парой
+    одного правила они быть не могут. **Сюда это основание не переносится.**
+    Два исполнителя, каждый со своим ``_T1_CAP = 0.4``, держат ровно две копии
+    одного порога — невозможность прочитать чужое имя делает копию НЕИЗБЕЖНОЙ,
+    а не мнимой. Меняется только форма починки: свести к ввозу без
+    переименования нельзя. Числа поэтому печатаются врозь (замер: 46 приватных
+    и 143 публичных), чтобы разницу правил было видно, а не выводить.
+
+    ## Право чинить спрашивается первым
+
+    Тот же порядок, что у соседней оси (заказ G42 п. 1): величина, равная
+    ЧИСЛОВОМУ порогу RiskPolicy, есть предмет №1 границы ADR-285, и агент такую
+    пару не чинит. Замер: **23** из 189, среди них ``MIN_ELIGIBLE_APY = 1.0`` и
+    ``MAX_ELIGIBLE_APY = 30.0`` у двух модулей money-path. Сверка одностороння
+    НАМЕРЕННО и ошибается в сторону «спросить»: равенство числа не есть
+    тождество смысла (``SENTINEL = 0.0`` рядом с ``days_held`` — совпадение).
+
+    ## Третий исход различим
+
+    Исходник стороны не перечитан ⇒ вопрос о двери НЕ ИЗМЕРЕН
+    (``peer_door_unmeasured``), а не «двери нет»: молчаливое «дверь закрыта»
+    превратило бы нечитаемый файл в находку.
+    """
+    counts = {cls: 0 for cls in _PEER_CLASSES}
+    rows: List[dict] = []
+    for name, sides in declared.items():
+        if len(sides) < 2:
+            continue
+        if len(sides) > 2:
+            counts[CLASS_PEER_MANY] += 1
+            continue
+        (rel_a, val_a), (rel_b, val_b) = sides
+        if val_a is None or val_b is None:
+            counts[CLASS_PEER_NOT_CONSTANT] += 1
+            continue
+        if val_a != val_b:
+            counts[CLASS_PEER_VALUE_DIFFERS] += 1
+            continue
+        src_a, src_b = source_of(rel_a), source_of(rel_b)
+        if src_a is None or src_b is None:
+            counts[CLASS_PEER_UNMEASURED] += 1
+            rows.append({"verdict": CLASS_PEER_UNMEASURED, "name": name,
+                         "value": val_a, "left": rel_a, "right": rel_b,
+                         "reason": "исходник стороны не перечитан — вопрос о двери не измерен"})
+            continue
+        if (reaches(src_a, imports_of(rel_a), rel_b)
+                or reaches(src_b, imports_of(rel_b), rel_a)):
+            counts[CLASS_PEER_DELEGATES] += 1
+            continue
+        counts[CLASS_PEER_TWO_COPIES] += 1
+        owner_names = thresholds.get(str(val_a)) or []
+        rows.append({
+            "verdict": CLASS_PEER_TWO_COPIES,
+            "name": name,
+            "value": val_a,
+            "left": rel_a,
+            "right": rel_b,
+            "private_name": name.startswith("_"),
+            "remedy": REMEDY_OWNER if owner_names else REMEDY_UNPROVEN,
+            "remedy_evidence": (
+                "значение равно порогам RiskPolicy "
+                + ", ".join(f"`{n}`" for n in owner_names)
+                + f" ({RISK_POLICY_MODULE}) — предмет №1 границы ADR-285; "
+                  "какой из них ТОТ САМЫЙ, прибор не решает"
+                if owner_names else
+                "ни одна сторона не достаёт другую — копия своя у обеих; "
+                "общего происхождения значения прибор не доказывает"),
+        })
+    rows.sort(key=lambda r: (r["left"], r["right"], r["name"]))
+    return rows, counts
+
+
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
@@ -776,6 +902,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
 
     # --- сторона исполнителя: имя -> [(модуль, значение)] --------------------
     executors: Dict[str, List[Tuple[str, Optional[str]]]] = {}
+    # Второе население — ВСЕ имена верхнего уровня, включая приватные: ось
+    # «исполнитель × исполнитель» (заказ G52 п. 1) считает их копиями, и
+    # основание этой разницы названо в докстринге `peer_pairs`.
+    declared: Dict[str, List[Tuple[str, Optional[str]]]] = {}
+    exec_imports: Dict[str, set] = {}
     executor_files = _executor_files(root)
     for path in executor_files:
         rel = path.relative_to(root).as_posix()
@@ -785,7 +916,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             unreadable.append({"file": rel, "side": "executor",
                                "reason": f"{type(exc).__name__}: {exc}"})
             continue
+        exec_imports[rel] = imported_modules(tree)
         for name, value in toplevel_constants(tree).items():
+            declared.setdefault(name, []).append((rel, value))
             if name.startswith("_"):
                 continue        # приватное имя правилом наружу не является
             executors.setdefault(name, []).append((rel, value))
@@ -887,6 +1020,16 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
                                    guard_loads=guard_loads))
         remedy_counts[row["remedy"]] += 1
 
+    # --- вторая ось: копия между двумя исполнителями (заказ G52 п. 1) ------
+    # Текст стороны перечитывается лениво и только у кандидатов: держать в
+    # памяти исходники всех исполнителей ради вопроса, который задаётся
+    # шестистам именам, — цена без покупателя.
+    peer_rows, peer_counts = peer_pairs(
+        declared,
+        source_of=_text,
+        imports_of=lambda rel: exec_imports.get(rel, set()),
+        thresholds=thresholds)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -914,6 +1057,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             [r for r in rows if r["verdict"] in _FINDING_CLASSES
              and r.get("remedy") != REMEDY_UNUSED]),
         "probe": probe_stats,
+        # Вторая ось — ЧИСЛО поверхности, а не перечень приговоров, и на
+        # `status` она НАМЕРЕННО не влияет: 189 строк, влитые в находки,
+        # утопили бы девять пар первой оси, а заказ просил числа. Читателем
+        # числа служит строка отчёта шага 0-офис, печатаемая каждый прогон;
+        # храповика у него сегодня нет, и это сказано вслух, а не подразумевается.
+        "peer_counts": peer_counts,
+        "peer_rows": peer_rows,
+        "peer_owner_subject": len([r for r in peer_rows
+                                   if r.get("remedy") == REMEDY_OWNER]),
+        "peer_private_names": len([r for r in peer_rows
+                                   if r.get("private_name")]),
         "risk_policy_thresholds": len(thresholds),
         "classified": classified,
         "rows": rows,
@@ -931,6 +1085,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что пара owner_subject есть ОДНА величина — равенство с порогом RiskPolicy отправляет её владельцу, а не выносит приговор",
             "что у пары subject_proven_by_behaviour общий ключ читается ИМЕННО из общего артефакта — статически связать их нечем, и прибор связи не выдумывает",
             "что пара independent_by_probe не имеет общего предмета — зонд мерит ЗАВИСИМОСТЬ ВЕРДИКТА от значения, а не происхождение числа; несогласие со свидетелем называется в строке",
+            "что у пары ОСИ ИСПОЛНИТЕЛЕЙ (peer_*) копия вредна — ось мерит ПОВЕРХНОСТЬ числом; вреда у неё не спрашивали, и зонд независимости её пар не трогает",
+            "что 189 у оси исполнителей есть потолок класса — переименованная копия невидима ей так же, как и первой оси, и ровно по той же причине",
         ],
     }
 
@@ -1013,6 +1169,44 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         # Умолчание об укорочении и есть способ соврать усечением.
         out.append(f"[…] показаны {max_rows} находки из {len(findings)}; "
                    f"полный перечень — в артефакте")
+    peer = observed(doc, "peer_counts", kind=dict)
+    if peer is None:
+        out.append("[ПАРА ИСПОЛНИТЕЛЕЙ] НЕ ИЗМЕРЕНА — перепись собрана без второй оси")
+    else:
+        owner = observed(doc, "peer_owner_subject", kind=int)
+        priv = observed(doc, "peer_private_names", kind=int)
+        two = peer.get(CLASS_PEER_TWO_COPIES)
+        out.append(
+            f"[ПАРА ИСПОЛНИТЕЛЕЙ] копия между двумя исполнителями {two} · "
+            f"дверь открыта {peer.get(CLASS_PEER_DELEGATES)} · значения разные "
+            f"{peer.get(CLASS_PEER_VALUE_DIFFERS)} · сравнить нечем "
+            f"{peer.get(CLASS_PEER_NOT_CONSTANT)} · имя у многих исполнителей "
+            f"{peer.get(CLASS_PEER_MANY)} · дверь НЕ ИЗМЕРЕНА "
+            f"{peer.get(CLASS_PEER_UNMEASURED)}")
+        out.append(
+            f"[ПРАВО ЧИНИТЬ] из них величина равна порогу RiskPolicy у "
+            f"{owner if owner is not None else 'НЕ ИЗМЕРЕНО'} — предмет №1 "
+            f"границы ADR-285, агент их НЕ чинит; равенство числа не есть "
+            f"тождество смысла, и сверка ошибается в сторону «спросить»")
+        out.append(
+            f"[ИМЯ] приватных {priv if priv is not None else 'НЕ ИЗМЕРЕНО'} из "
+            f"{two} — на этой оси приватное имя из населения НЕ выбрасывается: "
+            f"прочитать чужое `_X` нельзя, и копия от этого не мнимая, а "
+            f"неизбежная; меняется лишь форма починки")
+        peer_rows = [r for r in (doc.get("peer_rows") or [])
+                     if r.get("verdict") == CLASS_PEER_TWO_COPIES]
+        for row in peer_rows[:max_rows]:
+            out.append(
+                f"[ПАРА] {row['name']} = {row['value']} — {row['left']} × "
+                f"{row['right']} · {row.get('remedy')}")
+        if len(peer_rows) > max_rows:
+            out.append(f"[…] показаны {max_rows} пар(ы) из {len(peer_rows)}; "
+                       f"полный перечень — в артефакте")
+        out.append(
+            "[ПОЧЕМУ ОСЬ ЕСТЬ] молчание первой оси об этой паре было НЕ "
+            "свидетельством: в сцене с ВОССТАНОВЛЕННОЙ второй копией её вердикт "
+            "оставался побуквенно тем же (ADR-430). Ось не влияет на `status` — "
+            "она мерит поверхность числом, а не выносит приговор каждой паре")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "
