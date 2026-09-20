@@ -229,6 +229,91 @@ class PublishError(Exception):
     pass
 
 
+#: Порядок пересборки улик Cartographer и зависимости между ними.
+#: Каждый шаг — УЖЕ существующий сборщик со своим контрактом; здесь только проводка.
+#: Список объявлен данными, а не последовательностью вызовов: пропущенный шаг тогда
+#: виден глазами, а не прячется в середине функции.
+REBUILD_STEPS = (
+    ('snapshot',      ('--production', '{prod}', '--output', '{snap}')),
+    ('authority_map', ('--production', '{prod}', '--cartographer', '{snap}',
+                       '--output', '{auth}')),
+    ('reliability',   ('--production', '{prod}', '--cartographer', '{snap}',
+                       '--authority', '{auth}', '--output', '{rel}')),
+    ('work',          ('--production', '{prod}', '--cartographer', '{snap}',
+                       '--reliability', '{rel}', '--output', '{work}')),
+    ('investments',   ('--production', '{prod}', '--output', '{inv}')),
+    ('governance',    ('--production', '{prod}', '--output', '{gov}')),
+    ('actions',       ('--production', '{prod}', '--governance', '{gov}',
+                       '--output', '{act}')),
+    ('director',      ('--work', '{work}', '--reliability', '{rel}',
+                       '--authority', '{auth}', '--output', '{dir}')),
+)
+
+#: Что каждый шаг кладёт и под каким именем это ждёт сборка комплекта.
+REBUILD_ARTIFACTS = {
+    'rel': 'reliability_snapshot.json',
+    'work': 'work_snapshot.json',
+    'inv': 'investment_snapshot.json',
+    'gov': 'governance_snapshot.json',
+    'act': 'action_authority_audit.json',
+    'dir': 'director_center.json',
+}
+
+
+class RebuildError(PublishError):
+    pass
+
+
+def rebuild_evidence(production, work_root, *, now=None):
+    """Пересобирает улики Cartographer из канонических источников.
+
+    Сборщики зовутся ВНУТРИ процесса (`main(argv)`), а не через оболочку: модуль обязан
+    оставаться офлайн по построению, а `subprocess` — это дверь наружу, которую тесты
+    запрещают. Каждый сборщик несёт свой контракт и отказывает сам; здесь только проводка
+    и сбор результатов в один каталог.
+
+    Отказ любого шага — отказ всего цикла с НАЗВАННЫМ шагом. Частично собранный комплект
+    не собирается: половина улик выглядела бы как целая.
+    """
+    import importlib
+
+    stamp = (now or _utcnow()).replace(':', '').replace('-', '')[:15]
+    root = refuse_inside_repository(Path(work_root) / f'evidence-{stamp}', 'улики')
+    root.mkdir(parents=True, mode=0o700)
+    slots = {'prod': str(production)}
+    for key in ('snap', 'auth', 'rel', 'work', 'inv', 'gov', 'act', 'dir'):
+        slots[key] = str(root / key)
+
+    done = []
+    for name, template in REBUILD_STEPS:
+        module = importlib.import_module(f'scripts.cartographer.{name}')
+        argv = [part.format(**slots) for part in template]
+        try:
+            code = module.main(argv)
+        except SystemExit as exc:          # сборщики отказывают через SystemExit
+            code = exc.code if isinstance(exc.code, int) else 1
+        except Exception as exc:           # noqa: BLE001 — шаг обязан быть НАЗВАН
+            raise RebuildError(f'шаг «{name}» упал: {exc!r}') from exc
+        if code not in (0, None):
+            raise RebuildError(f'шаг «{name}» отказал с кодом {code}')
+        done.append(name)
+
+    # Сборка комплекта ждёт все улики в ОДНОМ каталоге под каноническими именами.
+    bundle = root / 'bundle'
+    bundle.mkdir(mode=0o700)
+    missing = []
+    for key, filename in REBUILD_ARTIFACTS.items():
+        src = Path(slots[key]) / filename
+        if not src.is_file():
+            missing.append(f'{key}:{filename}')
+            continue
+        (bundle / filename).write_bytes(src.read_bytes())
+        os.chmod(bundle / filename, 0o600)
+    if missing:
+        raise RebuildError('шаги отработали, но улик нет: ' + ', '.join(missing))
+    return bundle, done
+
+
 def publish_verdict(new_digest, published_digest):
     """Три исхода, и они различимы.
 
@@ -325,7 +410,10 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--bundle', required=True, help='каталог принятых снимков Director OS')
+    ap.add_argument('--bundle', help='каталог уже принятых снимков Director OS')
+    ap.add_argument('--rebuild-from', help='корень прод-дерева: пересобрать улики '
+                                           'Cartographer из канонических источников')
+    ap.add_argument('--work-root', help='куда класть пересобранные улики (вне репозитория)')
     ap.add_argument('--output', required=True, help='новый каталог комплекта')
     ap.add_argument('--published', help='уже опубликованный director_web_projection.json '
                                         '— для сравнения дайджестов')
@@ -339,9 +427,22 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     load = lambda raw: (json.loads(raw) if raw else None)  # noqa: E731
+    bundle = args.bundle
+    rebuilt = []
+    if args.rebuild_from:
+        if not args.work_root:
+            raise SystemExit('--rebuild-from требует --work-root: улики кладутся ВНЕ '
+                             'репозитория, и каталог обязан быть назван явно')
+        try:
+            path, rebuilt = rebuild_evidence(args.rebuild_from, args.work_root)
+            bundle = str(path)
+        except (RebuildError, PublishError) as exc:
+            raise SystemExit(f'ПЕРЕСБОРКА НЕ ВЫПОЛНЕНА: {exc}\nКомплект не собран.')
+    if not bundle:
+        raise SystemExit('нужен либо --bundle, либо --rebuild-from')
     try:
         projection, page, state = build_bundle(
-            bundle=args.bundle, output=args.output, bridge=load(args.bridge),
+            bundle=bundle, output=args.output, bridge=load(args.bridge),
             intake=load(args.intake), architect=load(args.architect), cio=load(args.cio),
             state_path=args.state, published=args.published)
     except (PublishError, projection_mod.WebProjectionError,
@@ -361,6 +462,8 @@ def main(argv=None):
             raise SystemExit(f'АКТИВАЦИЯ НЕ ВЫПОЛНЕНА: {exc}\nКомплект собран, '
                              'но в раздачу не поставлен — указатель не тронут.')
 
+    if rebuilt:
+        print(f'  улики пересобраны: {len(rebuilt)} шагов — ' + ' · '.join(rebuilt))
     print(f'Комплект → {out}')
     print(f'  {PUBLISH_DIR}/ (уезжает): ' + ' · '.join(PUBLISHED_FILES))
     print(f'  {EVIDENCE_DIR}/ (остаётся): ' + ' · '.join(LOCAL_ONLY_FILES))

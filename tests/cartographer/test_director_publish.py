@@ -340,3 +340,76 @@ class TheServeRootIsNotReadableByOtherUsers(unittest.TestCase):
         for name in dp.PUBLISHED_FILES:
             (src / name).write_text('x')
         return src
+
+
+class TheFullCycleRebuildsEvidenceFromCanonicalSources(unittest.TestCase):
+    """Режим полного цикла: канонические источники → улики → проекция → оболочка.
+
+    Без него расписанный шаг не делал бы того, что объявлено: `director_publish` умел
+    собирать комплект лишь из УЖЕ принятых снимков, то есть свежесть держалась бы на
+    том, что кто-то руками пересобрал улики. Канонический гейт это и поймал — обёртка
+    без аргументов отказала кодом 2 (argparse).
+    """
+
+    def test_all_eight_builders_are_wired_in_dependency_order(self):
+        names = [n for n, _ in dp.REBUILD_STEPS]
+        self.assertEqual(len(names), 8)
+        # Зависимость обязана идти ПОСЛЕ того, что она читает.
+        self.assertLess(names.index('snapshot'), names.index('authority_map'))
+        self.assertLess(names.index('authority_map'), names.index('reliability'))
+        self.assertLess(names.index('reliability'), names.index('work'))
+        self.assertLess(names.index('governance'), names.index('actions'))
+        self.assertLess(names.index('work'), names.index('director'))
+
+    def test_every_step_names_an_existing_builder(self):
+        import importlib
+        for name, _template in dp.REBUILD_STEPS:
+            module = importlib.import_module(f'scripts.cartographer.{name}')
+            self.assertTrue(hasattr(module, 'main'), name)
+
+    def test_the_rebuild_imports_no_subprocess(self):
+        """Сборщики зовутся ВНУТРИ процесса: `subprocess` — дверь наружу."""
+        import ast
+        tree = ast.parse((ROOT / 'scripts/cartographer/director_publish.py').read_text())
+        found = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                found += [a.name.split('.')[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                found.append(node.module.split('.')[0])
+        self.assertNotIn('subprocess', found)
+
+    def test_a_failing_step_names_itself_and_stops_the_cycle(self):
+        """Половина улик выглядела бы как целая — поэтому отказ шага рушит весь цикл."""
+        import tempfile
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as tmp:
+            broken = unittest.mock.Mock()
+            broken.main.side_effect = SystemExit(2)
+            with unittest.mock.patch('importlib.import_module', return_value=broken):
+                with self.assertRaises(dp.RebuildError) as caught:
+                    dp.rebuild_evidence(ROOT, Path(tmp))
+            self.assertIn('snapshot', str(caught.exception))
+            self.assertIn('кодом 2', str(caught.exception))
+
+    def test_missing_artifacts_after_green_steps_are_refused(self):
+        """Шаг может выйти нулём и не положить улику — это тоже отказ, а не успех."""
+        import tempfile
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as tmp:
+            silent = unittest.mock.Mock()
+            silent.main.return_value = 0
+            with unittest.mock.patch('importlib.import_module', return_value=silent):
+                with self.assertRaises(dp.RebuildError) as caught:
+                    dp.rebuild_evidence(ROOT, Path(tmp))
+            self.assertIn('улик нет', str(caught.exception))
+
+    def test_the_work_root_may_not_be_inside_the_repository(self):
+        with self.assertRaises(dp.PublishError):
+            dp.rebuild_evidence(ROOT, ROOT / 'work')
+
+    def test_the_expected_artifacts_are_the_six_the_bundle_needs(self):
+        self.assertEqual(set(dp.REBUILD_ARTIFACTS.values()),
+                         {'reliability_snapshot.json', 'work_snapshot.json',
+                          'investment_snapshot.json', 'governance_snapshot.json',
+                          'action_authority_audit.json', 'director_center.json'})
