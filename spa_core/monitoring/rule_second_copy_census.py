@@ -2428,6 +2428,263 @@ def wide_paragraph_channel(root: Path, rows: List[dict], *,
         out[f"{key}_paragraphs"] = named[f"{key}_paragraphs"]
         out[f"{key}_mentions"] = named[f"{key}_mentions"]
     return out
+# ── ФОРМА «ТАБЛИЦА С ДЛИННЫМИ СТРОКАМИ» (заказ G58 п. 1) ────────────────────
+#: Каналы, по которым форма меряется. Разделены НАМЕРЕННО и слиянию не
+#: подлежат: `rules_declared` — то самое население, на котором заказ G57 нашёл
+#: свои тринадцать пар (выборка), остальные два — КОНТРОЛЬ ширины. Контроль
+#: каналом объявления не становится и в `decision_surfaces` не доливает ни
+#: строки: вопрос здесь «редка ли форма», а не «что ещё объявлено».
+TABLE_CHANNEL_RULES = "rules_declared"
+TABLE_CHANNEL_DOCS = "docs_control"
+TABLE_CHANNEL_ADR = "adr_control"
+_TABLE_CHANNELS = (TABLE_CHANNEL_RULES, TABLE_CHANNEL_DOCS, TABLE_CHANNEL_ADR)
+
+#: Вердикт формы. «Форма живёт только в выборке» и «форма живёт по всему
+#: репозиторию» — РАЗНЫЕ ответы заказу, и от них зависит форма починки: в
+#: первом случае чинится один абзац, во втором чинить один абзац значит
+#: оставить класс на месте.
+TABLE_FORM_SAMPLE_BOUND = "TABLE_FORM_SAMPLE_BOUND"
+TABLE_FORM_REPO_WIDE = "TABLE_FORM_REPO_WIDE"
+TABLE_FORM_NOTHING_FOUND = "TABLE_FORM_NOTHING_FOUND"
+TABLE_FORM_UNMEASURED = "TABLE_FORM_UNMEASURED"
+
+#: Разделительная строка markdown-таблицы: `|---|---|`, `| :--- | ---: |`.
+#: Признак взят ИМЕННО такой, а не «строка начинается с трубы»: строка с трубой
+#: бывает в коде, в цитате и в перечне, и считать её таблицей значило бы
+#: посчитать формой то, чего в тексте нет.
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|(?:\s*:?-{2,}:?\s*\|)+\s*$")
+#: Сколько строк с трубой обязана иметь таблица помимо разделителя: шапка и
+#: хотя бы одна строка тела. Меньше — не таблица, а обрывок.
+MIN_TABLE_PIPE_LINES = 2
+
+
+def is_markdown_table(block: List[Tuple[int, str]]) -> bool:
+    """Абзац — markdown-таблица (разделитель + шапка + хотя бы одна строка).
+
+    Отдельной функцией, а не выражением внутри переписи, потому что именно
+    ЭТОТ признак заказ G58 называет формой; признак, который нельзя позвать
+    отдельно, нельзя и проверить отдельно.
+    """
+    pipes = sum(1 for _, line in block if line.lstrip().startswith("|"))
+    separators = sum(1 for _, line in block if _TABLE_SEPARATOR_RE.match(line))
+    # Разделитель сам начинается с трубы, поэтому из счёта он вычитается:
+    # требование — шапка и хотя бы одна строка тела ПОМИМО него. Без вычитания
+    # «таблицей» стал бы разделитель с одной соседней строкой, то есть обрывок.
+    return separators >= 1 and pipes - separators >= MIN_TABLE_PIPE_LINES
+
+
+def _table_channel_texts(root: Path, channel: str) -> List[Path]:
+    """Файлы канала. Пустой список — НЕ ошибка: его называет третий исход."""
+    if channel == TABLE_CHANNEL_RULES:
+        out: List[Path] = []
+        rule_text = root / RULE_TEXT
+        if rule_text.is_file():
+            out.append(rule_text)
+        rules_dir = root / RULE_DIR
+        if rules_dir.is_dir():
+            out.extend(sorted(rules_dir.glob("*.md")))
+        return out
+    if channel == TABLE_CHANNEL_ADR:
+        out = []
+        for name in ADR_DIRS:
+            directory = root / name
+            if directory.is_dir():
+                out.extend(sorted(directory.glob("*.md")))
+        return out
+    docs = root / "docs"
+    if not docs.is_dir():
+        return []
+    skip = tuple(f"{name}/" for name in ADR_DIRS) + ("docs/journal/",)
+    return [p for p in sorted(docs.rglob("*.md"))
+            if not p.relative_to(root).as_posix().startswith(skip)]
+
+
+def table_form_population(root: Path, channel: str) -> dict:
+    """Перепись формы в ОДНОМ канале.
+
+    Считаются четыре числа, и последние два существуют затем, чтобы «девять
+    таблиц в docs/» нельзя было прочесть как «в docs/ форма чаще»: в docs/
+    файлов в сорок раз больше, и голое число сказало бы о РАЗМЕРЕ канала, а не
+    о его свойстве. Доля таблиц среди широких абзацев с языком права изменения
+    отвечает на вопрос заказа, а счёт — нет.
+
+    **Предел строки и предел абзаца разделены.** Заказ дословно говорит
+    «таблица с ДЛИННЫМИ СТРОКАМИ», и таблица, отброшенная за ЧИСЛО строк, той
+    же формой не является: от длинной строки защищает один предел, от длинного
+    абзаца — другой. Сложить их в одно число значило бы ответить не на тот
+    вопрос (тот же довод, что у `wide_by_reason` в канале G57).
+
+    Нечитаемый файл — ТРЕТИЙ ИСХОД с причиной (инв. #17), а не ноль: «не
+    прочитали» и «формы нет» здесь неотличимы только для того, кто их слил.
+    """
+    texts = _table_channel_texts(root, channel)
+    counts = {reason: 0 for reason in _WIDE_REASONS}
+    hits: List[dict] = []
+    unreadable: List[dict] = []
+    read = 0
+    paragraphs = tables = wide = wide_authority = 0
+    for path in texts:
+        rel = path.relative_to(root).as_posix()
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            unreadable.append({"text": rel,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        read += 1
+        for block in declaring_paragraphs(body):
+            paragraphs += 1
+            table = is_markdown_table(block)
+            if table:
+                tables += 1
+            if _paragraph_admissible(block):
+                continue
+            wide += 1
+            joined = "\n".join(line for _, line in block).lower()
+            if not any(mark in joined for mark in AUTHORITY_MARKS):
+                continue
+            wide_authority += 1
+            if not table:
+                continue
+            reason = _wide_reason(block)
+            counts[reason] += 1
+            hits.append({
+                "text": rel,
+                "line": block[0][0],
+                "lines": len(block),
+                "longest_line": max(len(line) for _, line in block),
+                "wide_because": reason,
+                "quote": block[0][1].strip()[:120],
+                # Реестр ADR объявлен НЕ каналом (см. `ADR_REGISTRY`), и его
+                # единственная «таблица» — весь файл одной строкой на ADR.
+                # Посчитать его молча значило бы подпереть утверждение о
+                # репозитории тем, что репозиторий уже объявил исключением.
+                "declared_registry": rel == ADR_REGISTRY,
+            })
+    long_line_hits = [h for h in hits if h["wide_because"] in
+                      (WIDE_BY_LINE_LENGTH, WIDE_BY_BOTH)
+                      and not h["declared_registry"]]
+    return {
+        "channel": channel,
+        "texts_total": len(texts),
+        "texts_read": read,
+        "texts_unreadable": unreadable,
+        "paragraphs": paragraphs,
+        "tables": tables,
+        "wide_paragraphs": wide,
+        "wide_authority_paragraphs": wide_authority,
+        # Широкая форма ЛЮБОЙ причины — знаменатель доли ниже.
+        "form_any_reason": len(hits),
+        # Форма ЗАКАЗА: таблица, отброшенная ДЛИНОЙ СТРОКИ, без объявленного
+        # реестра. Это то число, о котором заказ спрашивает.
+        "form_long_line": len(long_line_hits),
+        "form_by_reason": counts,
+        "registry_hits": len([h for h in hits if h["declared_registry"]]),
+        "hits": hits,
+        "long_line_hits": long_line_hits,
+    }
+
+
+def table_form_census(root: Path) -> dict:
+    """Редка ли форма «таблица с длинными строками + язык права изменения».
+
+    Заказ **G58 п. 1** дословно: «замерить, СКОЛЬКО правил репозитория имеют
+    ту же форму… сегодня это число неизвестно, и „одна таблица“ может
+    оказаться свойством выборки, а не репозитория».
+
+    Вопрос поставлен о ВЫБОРКЕ, поэтому и меряется он двумя населениями:
+    объявленным каналом правил (та самая выборка G57) и контролем — `docs/` и
+    каналом ADR. Контроль объявлением НЕ становится: он отвечает на вопрос
+    «редка ли форма», а не «что ещё объявлено», и в население поверхностей
+    решения не попадает ни одной строкой. Смешать их значило бы тихо
+    расширить канал объявления — ровно то, чего предел `MAX_DECLARING_LINE`
+    и не даёт сделать.
+
+    Вердикт различает два ответа, потому что от них зависит форма починки:
+    форма, живущая ТОЛЬКО в выборке, чинится одним абзацем; форма, живущая по
+    репозиторию, одним абзацем не чинится вовсе — чинить придётся правило.
+    """
+    channels = {name: table_form_population(root, name)
+                for name in _TABLE_CHANNELS}
+    read_total = sum(c["texts_read"] for c in channels.values())
+    unreadable = [u for c in channels.values() for u in c["texts_unreadable"]]
+    sample = channels[TABLE_CHANNEL_RULES]
+    controls = [channels[TABLE_CHANNEL_DOCS], channels[TABLE_CHANNEL_ADR]]
+    control_form = sum(c["form_long_line"] for c in controls)
+
+    if not read_total:
+        verdict = TABLE_FORM_UNMEASURED
+        reason = ("не прочитано ни одного текста ни в одном канале — «формы "
+                  "нет» о репозитории НЕ сказано")
+    elif not sample["texts_read"]:
+        verdict = TABLE_FORM_UNMEASURED
+        reason = ("объявленный канал правил не прочитан — выборка, о которой "
+                  "спрашивает заказ, не измерена, и контроль за неё не отвечает")
+    elif not sample["form_long_line"] and not control_form:
+        verdict = TABLE_FORM_NOTHING_FOUND
+        reason = ("формы нет ни в выборке, ни в контроле: широких таблиц с "
+                  f"языком права изменения, отброшенных ДЛИНОЙ СТРОКИ, — 0 "
+                  f"при {sample['wide_authority_paragraphs']} широк(ом/их) "
+                  f"абзац(е/ах) с этим языком в выборке")
+    elif control_form:
+        verdict = TABLE_FORM_REPO_WIDE
+        reason = (f"форма живёт и ВНЕ объявленного канала: в выборке "
+                  f"{sample['form_long_line']}, в контроле {control_form} "
+                  f"(docs/ {controls[0]['form_long_line']}, ADR "
+                  f"{controls[1]['form_long_line']}). «Одна таблица» есть "
+                  f"свойство ВЫБОРКИ — чинить один абзац значит оставить "
+                  f"класс на месте")
+    else:
+        verdict = TABLE_FORM_SAMPLE_BOUND
+        reason = (f"форма найдена только в объявленном канале "
+                  f"({sample['form_long_line']}), контроль "
+                  f"({controls[0]['texts_read'] + controls[1]['texts_read']} "
+                  f"текст(ов)) не дал ни одной — починка одного абзаца "
+                  f"закрывает класс целиком")
+
+    # Доля таблиц среди широких абзацев с языком права изменения — по каналам.
+    # Без неё счёт отвечает о РАЗМЕРЕ канала: в docs/ текстов в сорок раз
+    # больше, и большее число там не значит ничего само по себе.
+    shares = {}
+    for name, data in channels.items():
+        denominator = data["wide_authority_paragraphs"]
+        shares[name] = {
+            "form_any_reason": data["form_any_reason"],
+            "wide_authority_paragraphs": denominator,
+            "share": (data["form_any_reason"] / denominator
+                      if denominator else None),
+            "share_reason": ("измерено" if denominator else
+                             "широких абзацев с языком права изменения в "
+                             "канале нет — доля НЕ ИЗМЕРЕНА, а не равна нулю"),
+        }
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "question": ("сколько правил репозитория имеют форму «таблица с "
+                     "длинными строками, несущая язык права изменения» — и "
+                     "есть ли это свойство ВЫБОРКИ или репозитория"),
+        "texts_read": read_total,
+        "texts_unreadable": unreadable,
+        "sample_form_long_line": sample["form_long_line"],
+        "control_form_long_line": control_form,
+        "channels": channels,
+        "table_share_of_wide_authority": shares,
+        "blind": [
+            "контроль (`docs/`, ADR) каналом ОБЪЯВЛЕНИЯ не становится и в "
+            "`decision_surfaces` не доливает ни строки: он отвечает на вопрос "
+            "«редка ли форма», а не «что ещё объявлено»",
+            "таблица, отброшенная ЧИСЛОМ строк, формой заказа не является и "
+            "в `form_long_line` не входит — пределы защищают от разного, и "
+            "одно число на оба ответило бы не на тот вопрос",
+            "`docs/decisions/INDEX.md` объявлен реестром, а не каналом "
+            "(`ADR_REGISTRY`); его попадание считается отдельно "
+            "(`registry_hits`) и в утверждение о репозитории не входит",
+            "форма мерит ВИД абзаца, а не вред: таблица с длинной строкой "
+            "вредна ровно тем, что мера пути её не читает, — вред этой "
+            "координатой не измеряется и владельцу не адресуется",
+        ],
+    }
+
 
 
 def axes_intersection(rows: List[dict], peer_rows: List[dict],
@@ -2881,6 +3138,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         name_candidates=[s["path"] for s in (names.get("surfaces") or [])]
         + list(names.get("already_declared_by_path") or []))
 
+    # --- ФОРМА ШИРОКОЙ ТАБЛИЦЫ (заказ G58 п. 1) ---------------------------
+    # Канал выше назвал ЦЕНУ широкого абзаца; заказ спрашивает, редка ли его
+    # ФОРМА. Вопрос о выборке, поэтому меряется он и контролем — но контроль
+    # каналом объявления не становится и в население поверхностей не входит.
+    table_form = table_form_census(root)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -2961,6 +3224,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # поверхностей и ПОТОЛОК зазора — разные числа, и предел
         # `MAX_DECLARING_PARAGRAPH` этой координатой не ослабляется.
         "wide_paragraph_channel": wide,
+        # Четвёртая координата того же вопроса (заказ G58 п. 1). Отдельным
+        # ключом по той же причине, что и три прежних: «сколько правил имеют
+        # эту форму» и «что объявлено» — разные вопросы, и контроль здесь
+        # объявлением не является.
+        "table_form_census": table_form,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -3411,6 +3679,62 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{row['known_by']}; называет находок {row.get('matches')} — "
                 f"к зазору не относится, но укус мерит")
         for blind in (wide.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    form = observed(doc, "table_form_census", kind=dict)
+    if form is None:
+        out.append("[ФОРМА ТАБЛИЦЫ] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "координаты формы (заказ G58 п. 1)")
+    elif form.get("verdict") == TABLE_FORM_UNMEASURED:
+        out.append(f"[ФОРМА ТАБЛИЦЫ] {TABLE_FORM_UNMEASURED}: "
+                   f"{form.get('reason')}")
+    else:
+        out.append(
+            f"[ФОРМА ТАБЛИЦЫ] {form.get('verdict')} · в объявленном канале "
+            f"{form.get('sample_form_long_line')} · в контроле "
+            f"{form.get('control_form_long_line')}; {form.get('reason')}")
+        # `or {}` здесь был бы ровно тем, что запрещает инв. #17: отсутствие
+        # ключа стало бы пустой долей, цикл не напечатал бы ни строки, и
+        # «не измерено» сделалось бы неотличимо от «нечего показать».
+        shares = observed(form, "table_share_of_wide_authority", kind=dict)
+        if shares is None:
+            out.append("[ФОРМА · ДОЛЯ] НЕ ИЗМЕРЕНА — координата собрана без "
+                       "долей по каналам")
+            shares = {}
+        for name in _TABLE_CHANNELS:
+            cell = observed(shares, name, kind=dict)
+            if cell is None:
+                out.append(f"[ФОРМА · ДОЛЯ] {name}: НЕ ИЗМЕРЕНА — канал в "
+                           f"координате не назван")
+                continue
+            share = cell.get("share")
+            printed = ("НЕ ИЗМЕРЕНА" if share is None
+                       else f"{share * 100:.1f} %")
+            out.append(
+                f"[ФОРМА · ДОЛЯ] {name}: таблиц среди широких абзацев с "
+                f"языком права изменения {cell.get('form_any_reason')} из "
+                f"{cell.get('wide_authority_paragraphs')} = {printed}"
+                + ("" if share is not None
+                   else f" ({cell.get('share_reason')})"))
+        channels = observed(form, "channels", kind=dict)
+        if channels is None:
+            out.append("[ФОРМА · ГДЕ] НЕ ИЗМЕРЕНО — координата собрана без "
+                       "разбивки по каналам")
+            channels = {}
+        for name in _TABLE_CHANNELS:
+            channel = observed(channels, name, kind=dict)
+            if channel is None:
+                continue
+            for hit in (channel.get("long_line_hits") or [])[:6]:
+                out.append(
+                    f"[ФОРМА · ГДЕ] {name}: {hit.get('text')}:"
+                    f"{hit.get('line')} — строк {hit.get('lines')}, "
+                    f"длиннейшая {hit.get('longest_line')}")
+            if channel.get("registry_hits"):
+                out.append(
+                    f"[ФОРМА · РЕЕСТР] {name}: {channel['registry_hits']} "
+                    f"попадан(ие/ий) в объявленный реестр — считается "
+                    f"отдельно и в утверждение о репозитории не входит")
+        for blind in (form.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
