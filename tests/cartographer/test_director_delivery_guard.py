@@ -193,12 +193,26 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
         import os
         home_prefix = str(Path(os.path.expanduser('~')))
         wrapper_files = ('scripts/agent_director_build.sh',
-                         'launchd/com.spa.director_build.plist')
+                         'scripts/agent_director_server.sh',
+                         'launchd/com.spa.director_build.plist',
+                         'launchd/com.spa.director_server.plist')
+        # ТРИ законных корня, и каждый объявлен по своей причине:
+        #   · прод-дерево — launchd зовёт цель по абсолютному пути;
+        #   · корень раздачи — сгенерированные данные обязаны лежать ВНЕ дерева кода,
+        #     потому что репозиторий публичный;
+        #   · интерпретатор — предписан CLAUDE.md дословно («всегда»), и launchd не
+        #     может exec'нуть miniconda-python иначе как по полному пути (exit 78).
+        # Первая редакция знала только первый корень и краснела на двух остальных, то
+        # есть требовала нарушить архитектуру, чтобы пройти проверку.
+        allowed_roots = ('/Documents/SPA_Claude', '/studio-os-serve',
+                         '/miniconda3/bin/python3')
         for name, body in self._bodies():
             if name in wrapper_files:
                 for line in body.splitlines():
                     if '/Users/' in line:
-                        self.assertIn('/Documents/SPA_Claude', line, f'{name}: {line[:70]}')
+                        self.assertTrue(
+                            any(root in line for root in allowed_roots),
+                            f'{name}: путь вне объявленных корней — {line[:70]}')
                 continue
             self.assertNotIn(home_prefix, body, name)
 
