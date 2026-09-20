@@ -121,19 +121,172 @@ class DoorHasTwoFormsAndBothCount(unittest.TestCase):
         body = ast.parse("def f(out):\n"
                          "    if base.output_truncated(out):\n"
                          "        return None\n")
-        self.assertEqual(census.has_door(body), census.DOOR_NAMED)
+        self.assertEqual(census.has_door(body, {"out"}), census.DOOR_NAMED)
 
     def test_the_count_crosscheck_is_a_door_too(self):
         """Арифметика `_collected_ids` СТАРШЕ метки и засчитывается наравне."""
         body = ast.parse("def f(out, declared):\n"
                          "    ids = [l for l in out.splitlines()]\n"
                          "    return ids if len(ids) == declared else None\n")
-        self.assertEqual(census.has_door(body), census.DOOR_COUNT)
+        self.assertEqual(census.has_door(body, {"out"}), census.DOOR_COUNT)
 
     def test_a_body_without_either_has_no_door(self):
         body = ast.parse("def f(out):\n"
                          "    return [l for l in out.splitlines()]\n")
-        self.assertIsNone(census.has_door(body))
+        self.assertIsNone(census.has_door(body, {"out"}))
+
+
+# ------------------------------------------- дверь считает ТОЛЬКО свой перечень
+
+class DoorCountRequiresProvenance(unittest.TestCase):
+    """Заказ G51 п. 3: сверяемое ``len(X)`` обязано ПРОИСХОДИТЬ от вывода.
+
+    Каждая проверка здесь — положительный контроль на дефект, названный
+    ADR-428 («чего решение не доказывает», п. 4): прежнее правило засчитывало
+    дверью ЛЮБУЮ сверку ``len(...)`` в теле, включая длину КОМАНДЫ, и
+    ошибалось в сторону молчания — ложная дверь превращает находку в
+    ``guarded``, то есть гасит её, ничего не починив.
+    """
+
+    def test_the_length_of_the_command_is_not_a_door(self):
+        """Тот самый промах: сверяется длина команды, а не перечня."""
+        body = ast.parse("def f(out, cmd):\n"
+                         "    rows = [l for l in out.splitlines()]\n"
+                         "    if len(cmd) != 3:\n"
+                         "        return None\n"
+                         "    return rows\n")
+        self.assertIsNone(census.has_door(body, {"out"}))
+
+    def test_the_same_body_under_the_old_rule_would_have_claimed_a_door(self):
+        """Обратная сторона: сузилось ПРАВИЛО, а не сцена.
+
+        Сцена выше содержит сверку `len(...)` внутри `Compare` — ровно то, на
+        что откликалось прежнее правило. Здесь это проверяется признаком
+        сцены, а не памятью о старом коде: иначе проверка утверждала бы, что
+        сужение сработало, не показав, было ли на чём срабатывать.
+        """
+        body = ast.parse("def f(out, cmd):\n"
+                         "    rows = [l for l in out.splitlines()]\n"
+                         "    if len(cmd) != 3:\n"
+                         "        return None\n"
+                         "    return rows\n")
+        lens = [n for n in ast.walk(body)
+                if isinstance(n, ast.Compare)
+                for side in [n.left, *n.comparators]
+                if isinstance(side, ast.Call)
+                and isinstance(side.func, ast.Name) and side.func.id == "len"]
+        self.assertTrue(lens, "сцена обязана нести сверку len(...) внутри Compare")
+
+    def test_the_real_door_survives_the_narrowing(self):
+        """Живая дверь `_collected_ids` обязана УСТОЯТЬ — иначе сузили лишнее."""
+        body = ast.parse("def f(out, guard_rel):\n"
+                         "    declared = 0\n"
+                         "    ids = [l.strip() for l in (out or '').splitlines()\n"
+                         "           if '::' in l]\n"
+                         "    return ids if len(ids) == declared else None\n")
+        self.assertEqual(census.has_door(body, {"out"}), census.DOOR_COUNT)
+
+    def test_the_declined_crosscheck_is_named_not_swallowed(self):
+        """Сужение, которое нельзя перемерить, — та же ложная дверь наизнанку."""
+        body = ast.parse("def f(out, cmd):\n"
+                         "    rows = [l for l in out.splitlines()]\n"
+                         "    if len(cmd) != 3:\n"
+                         "        return None\n"
+                         "    return rows\n")
+        door, declined = census.door_evidence(body, {"out"})
+        self.assertIsNone(door)
+        self.assertEqual(len(declined), 1)
+        self.assertEqual(declined[0]["measured"], "cmd")
+        self.assertIn("не происходит", declined[0]["reason"])
+
+    def test_an_unnamed_anchor_is_a_different_reason(self):
+        """«Якорь не назван» и «сверяется чужое» — два разных ответа (инв. #17)."""
+        body = ast.parse("def f(out, cmd):\n"
+                         "    if len(cmd) != 3:\n"
+                         "        return None\n")
+        _, declined = census.door_evidence(body, set())
+        self.assertEqual(len(declined), 1)
+        self.assertIn("якорь вывода", declined[0]["reason"])
+        _, other = census.door_evidence(body, {"out"})
+        self.assertNotEqual(declined[0]["reason"], other[0]["reason"])
+
+    def test_the_named_door_does_not_need_provenance(self):
+        """Метку ставит САМА проводка: у неё вопрос о происхождении не стои́т."""
+        body = ast.parse("def f(text):\n"
+                         "    if base.output_truncated(text):\n"
+                         "        return None\n")
+        self.assertEqual(census.has_door(body, set()), census.DOOR_NAMED)
+
+    def test_a_container_is_not_a_derivation(self):
+        """`.claude/rules/deployment.md`: `doc = {...}` выводом не делает."""
+        expr = ast.parse("{'out': text}", mode="eval").body
+        self.assertFalse(census.derives_from(expr, {"text"}))
+        self.assertTrue(census.derives_from(
+            ast.parse("text.splitlines()", mode="eval").body, {"text"}))
+
+    def test_derivation_reaches_a_fixed_point(self):
+        """Цепочка идёт ПРОТИВ порядка строк — иначе сцена верна по построению.
+
+        Батарея поймала первую редакцию: там связывания стояли по порядку, и
+        ОДНОГО прохода хватало, потому что `ast.walk` идёт сверху вниз. Такая
+        сцена не проверяет неподвижную точку — она её обходит.
+        """
+        body = ast.parse("def f(out):\n"
+                         "    c = [x for x in b]\n"
+                         "    b = a[:2]\n"
+                         "    a = out.splitlines()\n")
+        self.assertEqual(census.derived_names(body, "out"),
+                         {"out", "a", "b", "c"})
+
+    def test_a_binding_cycle_terminates(self):
+        """Предел обхода — про завершимость, а не про скорость."""
+        body = ast.parse("def f(out):\n"
+                         "    a = out\n"
+                         "    b = a\n"
+                         "    a = b\n")
+        self.assertEqual(census.derived_names(body, "out"), {"out", "a", "b"})
+
+    def test_no_anchor_means_no_names(self):
+        body = ast.parse("def f(out):\n    a = out\n")
+        self.assertEqual(census.derived_names(body), set())
+
+
+class TheAnchorInsideTheReaderIsNamed(unittest.TestCase):
+    """Вывод входит в вынесенного читателя ПАРАМЕТРОМ — его и надо назвать."""
+
+    def _body(self, src: str) -> ast.AST:
+        return ast.parse(src).body[0]
+
+    def test_a_positional_argument_maps_to_its_parameter(self):
+        body = self._body("def r(out, rel):\n    return out\n")
+        self.assertEqual(census.anchor_in_reader(body, 0), "out")
+        self.assertEqual(census.anchor_in_reader(body, 1), "rel")
+
+    def test_a_keyword_argument_maps_by_name(self):
+        body = self._body("def r(rel, *, out=None):\n    return out\n")
+        self.assertEqual(census.anchor_in_reader(body, "out"), "out")
+
+    def test_an_unmappable_place_is_not_guessed(self):
+        """Третий исход: сопоставить не удалось ≠ «двери нет».
+
+        Сцена НАРОЧНО несёт параметры: батарея поймала первую редакцию, где
+        читатель был `def r(*args)` — при пустом перечне параметров подмена
+        «взять первый» неотличима от отказа, то есть сцена была украшением.
+        """
+        body = self._body("def r(rel, flag):\n    return rel\n")
+        self.assertIsNone(census.anchor_in_reader(body, 5))
+        self.assertIsNone(census.anchor_in_reader(body, "out"))
+        starred = self._body("def r(*args):\n    return args\n")
+        self.assertIsNone(census.anchor_in_reader(starred, 0))
+
+    def test_readers_of_carries_the_place(self):
+        scope = ast.parse("def f():\n"
+                          "    code, text = base._run(cmd)\n"
+                          "    a = parse(text)\n"
+                          "    b = other(rel, out=text)\n").body[0]
+        found, _ = census.readers_of("text", scope)
+        self.assertIn((None, "parse", 0), found)
+        self.assertIn((None, "other", "out"), found)
 
 
 # -------------------------------------------------------------- классификация
@@ -166,6 +319,85 @@ class VerdictsOnRealSources(unittest.TestCase):
         row, = _rows(doc, "scripts/a.py")
         self.assertEqual(row["verdict"], census.CLASS_GUARDED)
         self.assertEqual(doc["status"], "CLEAN")
+
+    def test_a_crosscheck_of_the_command_no_longer_buys_a_door(self):
+        """Заказ G51 п. 3 на НАСТОЯЩЕМ исходнике, а не на разобранном теле.
+
+        Сверяется длина КОМАНДЫ — перечню она ничего не обещает. Прежнее
+        правило вернуло бы `guarded` и погасило находку; теперь строка
+        остаётся находкой, а отклонённая сверка НАЗВАНА.
+        """
+        doc = self._measure({"scripts/a.py": _IMPORT + (
+            "def go(root, cmd):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    if len(cmd) != 3:\n"
+            "        return None\n"
+            "    return [l for l in out.splitlines() if l]\n")})
+        row, = _rows(doc, "scripts/a.py")
+        self.assertEqual(row["verdict"], census.CLASS_SILENT)
+        self.assertEqual(row["door"], "")
+        self.assertEqual([d["measured"] for d in row["door_declined"]], ["cmd"])
+        self.assertEqual(doc["counts"]["door_declined"], 1)
+
+    def test_a_crosscheck_of_the_output_still_buys_a_door(self):
+        """Обратная сторона той же сцены: сузилось правило, а не класс дверей."""
+        doc = self._measure({"scripts/a.py": _IMPORT + (
+            "def go(root, cmd, declared):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    rows = [l for l in out.splitlines() if l]\n"
+            "    if len(rows) != declared:\n"
+            "        return None\n"
+            "    return rows\n")})
+        row, = _rows(doc, "scripts/a.py")
+        self.assertEqual(row["verdict"], census.CLASS_GUARDED)
+        self.assertEqual(row["door"], census.DOOR_COUNT)
+        self.assertEqual(row["door_declined"], [])
+        self.assertEqual(doc["counts"]["door_declined"], 0)
+
+    def test_the_door_of_an_external_reader_is_read_at_its_own_parameter(self):
+        """Читатель вынесен — якорь у него СВОЙ, и он обязан быть сопоставлен."""
+        doc = self._measure({"scripts/a.py": _IMPORT + (
+            "def parse(text, declared):\n"
+            "    ids = [l for l in text.splitlines() if l]\n"
+            "    return ids if len(ids) == declared else None\n\n\n"
+            "def go(root, cmd):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    return parse(out, 3)\n")})
+        row, = _rows(doc, "scripts/a.py")
+        self.assertEqual(row["verdict"], census.CLASS_GUARDED)
+        self.assertEqual(row["door"], census.DOOR_COUNT)
+
+    def test_an_external_reader_that_counts_something_else_is_a_finding(self):
+        """Та же форма, но считается ЧУЖОЙ перечень — двери нет."""
+        doc = self._measure({"scripts/a.py": _IMPORT + (
+            "def parse(text, declared):\n"
+            "    ids = [l for l in text.splitlines() if l]\n"
+            "    return ids if len(declared) == 3 else None\n\n\n"
+            "def go(root, cmd):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    return parse(out, cmd)\n")})
+        row, = _rows(doc, "scripts/a.py")
+        self.assertEqual(row["verdict"], census.CLASS_SILENT)
+        self.assertEqual([d["measured"] for d in row["door_declined"]],
+                         ["declared"])
+
+    def test_the_declined_count_in_the_summary_equals_the_rows(self):
+        """Сводка и строки — один замер: разойтись им нельзя ни на единицу."""
+        doc = self._measure({"scripts/a.py": _IMPORT + (
+            "def go(root, cmd):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    if len(cmd) != 3:\n"
+            "        return None\n"
+            "    return [l for l in out.splitlines() if l]\n"), "scripts/b.py": _IMPORT + (
+            "def go(root, cmd):\n"
+            "    code, out = base._run(cmd, cwd=root)\n"
+            "    if len(cmd) > 1 and len(root) > 1:\n"
+            "        return None\n"
+            "    return [l for l in out.splitlines() if l]\n")})
+        self.assertEqual(
+            doc["counts"]["door_declined"],
+            sum(len(r["door_declined"]) for r in doc["rows"]))
+        self.assertEqual(doc["counts"]["door_declined"], 3)
 
     def test_a_tail_reader_is_safe_by_construction(self):
         doc = self._measure({"scripts/a.py": _IMPORT + (
@@ -391,6 +623,36 @@ class ReportLeadsWithFindingsAndAdmitsItsOwnCut(unittest.TestCase):
         lines = census.report(doc, max_rows=2)
         self.assertTrue(any(line.startswith("[…] показаны 2 находки из 4")
                             for line in lines), lines)
+
+    def test_the_report_names_the_crosscheck_it_declined(self):
+        """Сужение, о котором отчёт молчит, проверить нечем — и поверить тоже."""
+        with TemporaryDirectory() as tmp:
+            doc = census.measure(_tree(Path(tmp), {"scripts/a.py": _IMPORT + (
+                "def go(root, cmd):\n"
+                "    code, out = base._run(cmd, cwd=root)\n"
+                "    if len(cmd) != 3:\n"
+                "        return None\n"
+                "    return [l for l in out.splitlines()]\n")}), now=_NOW)
+        lines = census.report(doc)
+        self.assertIn("сверок отклонено 1", lines[0])
+        named = [l for l in lines if l.startswith("[СВЕРКА НЕ ДВЕРЬ]")]
+        self.assertEqual(len(named), 1, lines)
+        self.assertIn("len(cmd)", named[0])
+
+    def test_a_clean_tree_says_zero_declined_rather_than_nothing(self):
+        """Обратная сторона: ноль обязан быть НАПЕЧАТАН, а не подразумеваться.
+
+        Молчание о нуле и «не мерили» с виду одно и то же (инв. #17), а вопрос
+        здесь ровно тот, из-за которого заказ и написан.
+        """
+        with TemporaryDirectory() as tmp:
+            doc = census.measure(_tree(Path(tmp), {"scripts/a.py": _IMPORT + (
+                "def go(root):\n"
+                "    code, out = base._run(['git'], cwd=root)\n"
+                "    return out.strip().splitlines()[-1]\n")}), now=_NOW)
+        lines = census.report(doc)
+        self.assertIn("сверок отклонено 0", lines[0])
+        self.assertFalse([l for l in lines if l.startswith("[СВЕРКА НЕ ДВЕРЬ]")])
 
     def test_the_office_rendering_delegates_and_marks_a_finding(self):
         with TemporaryDirectory() as tmp:

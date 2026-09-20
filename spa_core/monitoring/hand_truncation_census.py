@@ -118,12 +118,19 @@ if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакет
 
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
 from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
-# Правило двери и правило «обход строк» — ВВОЗОМ, не копией (ADR-418).
+# Правило двери, правило «обход строк» и правило ПРОИСХОЖДЕНИЯ значения —
+# ВВОЗОМ, не копией (ADR-418). Происхождение переехало к соседу заказом G51:
+# правило двери спрашивает его же, и две копии разошлись бы молча.
 from spa_core.monitoring.truncated_input_census import (  # noqa: E402
     DOOR_COUNT,
     DOOR_NAMED,
+    LOADERS as _LOADERS,
+    SPLITTERS as _SPLITTERS,
+    derived_names,
+    derives_from as _derives_from,
     has_door,
     iterates_lines,
+    target_names as _target_names,
 )
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
@@ -171,11 +178,6 @@ _PROSE_SINKS = frozenset({
     "join", "print", "format", "str", "repr", "warning", "error", "info",
     "debug", "exception", "critical", "log", "write", "fail", "_fail",
 })
-
-#: Имена, чей вызов превращает текст в КОЛЛЕКЦИЮ.
-_SPLITTERS = frozenset({"splitlines", "split", "rsplit", "readlines"})
-_LOADERS = frozenset({"loads", "load"})
-
 
 class NotMeasured(RuntimeError):
     """Корень населения или каталог не прочитан — третий исход."""
@@ -250,71 +252,6 @@ def command_cut(node: ast.Call) -> bool:
 
 
 # ------------------------------------------------- происхождение от захвата
-
-def _derives_from(expr: ast.AST, known: Set[str]) -> bool:
-    """Происходит ли ЗНАЧЕНИЕ выражения от захваченного вывода.
-
-    Контейнер производной НЕ является: ``{"out": proc.stdout}`` не делает
-    значение выводом (`.claude/rules/deployment.md`, авария 2026-08-04). Иначе
-    «RHS содержит якорь» оправдало бы ровно ту бомбу, против которой правило.
-    """
-    if isinstance(expr, ast.Name):
-        return expr.id in known
-    if isinstance(expr, ast.Attribute):
-        return _derives_from(expr.value, known)
-    if isinstance(expr, ast.Subscript):
-        return _derives_from(expr.value, known)
-    if isinstance(expr, ast.Await):
-        return _derives_from(expr.value, known)
-    if isinstance(expr, ast.BoolOp):
-        return any(_derives_from(v, known) for v in expr.values)
-    if isinstance(expr, ast.BinOp):
-        return _derives_from(expr.left, known) or _derives_from(expr.right, known)
-    if isinstance(expr, ast.Call):
-        func = expr.func
-        if isinstance(func, ast.Attribute) and _derives_from(func.value, known):
-            return True
-        _, fname = _call_target(expr)
-        if fname in _LOADERS or fname in _SPLITTERS:
-            return any(_derives_from(a, known) for a in expr.args)
-        return False
-    if isinstance(expr, (ast.ListComp, ast.GeneratorExp, ast.SetComp)):
-        return any(_derives_from(gen.iter, known) for gen in expr.generators)
-    return False
-
-
-def derived_names(func: ast.AST, anchor: str) -> Set[str]:
-    """Имена, чьё значение происходит от якоря — до неподвижной точки."""
-    known = {anchor}
-    for _ in range(12):  # предел обхода; ниже проверяется сходимость
-        grew = False
-        for node in ast.walk(func):
-            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-                continue
-            value = node.value
-            if value is None or not _derives_from(value, known):
-                continue
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            for target in targets:
-                for name in _target_names(target):
-                    if name not in known:
-                        known.add(name)
-                        grew = True
-        if not grew:
-            break
-    return known
-
-
-def _target_names(target: ast.AST) -> List[str]:
-    if isinstance(target, ast.Name):
-        return [target.id]
-    if isinstance(target, (ast.Tuple, ast.List)):
-        out: List[str] = []
-        for elt in target.elts:
-            out.extend(_target_names(elt))
-        return out
-    return []
-
 
 def anchor_of(stmt: ast.Assign) -> Optional[str]:
     """Имя, которому связан РЕЗУЛЬТАТ прогона.
@@ -705,7 +642,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                     # перечень всё равно неполон.
                     consumption = (READ_LIST if iterates_lines(func)
                                    else READ_PROSE)
-                    door = has_door(func)
+                    door = has_door(func, known)
                     rows.append({
                         "module": rel, "enclosing": enclosing,
                         "line": call.lineno, "call": (f"{qual}.{fname}" if qual else fname),
@@ -736,7 +673,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                 worst = None
                 for node, side, unit in cuts:
                     consumption, reason = consumption_of(node, func, parents, unit)
-                    door = has_door(func) if consumption == READ_LIST else None
+                    door = has_door(func, known) if consumption == READ_LIST else None
                     verdict = classify_site(True, consumption, door, False)
                     rank = {CLASS_SILENT: 0, CLASS_UNMEASURED: 1,
                             CLASS_GUARDED: 2, CLASS_PROSE: 3}.get(verdict, 4)

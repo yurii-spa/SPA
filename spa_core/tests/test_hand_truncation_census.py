@@ -277,6 +277,23 @@ class DoorMakesTheCutHonest(unittest.TestCase):
         self.assertIs(census.DOOR_NAMED, neighbour.DOOR_NAMED)
         self.assertIs(census.has_door, neighbour.has_door)
 
+    def test_the_provenance_rule_is_imported_and_not_copied(self):
+        """Заказ G51 п. 3: правило двери спрашивает происхождение ⇒ копия одна.
+
+        Держи их порознь — и сужение у соседа обошло бы эту перепись молча,
+        а разошлись бы они ровно в ту сторону, в какую ошибается непочиненная
+        копия.
+        """
+        tree = ast.parse(Path(census.__file__).read_text(encoding="utf-8"))
+        defined = {node.name for node in ast.walk(tree)
+                   if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        self.assertNotIn("_derives_from", defined)
+        self.assertNotIn("derived_names", defined)
+        self.assertNotIn("_target_names", defined)
+        self.assertIs(census._derives_from, neighbour.derives_from)
+        self.assertIs(census.derived_names, neighbour.derived_names)
+        self.assertIs(census._SPLITTERS, neighbour.SPLITTERS)
+
 
 # ----------------------------------------------- происхождение, а не совпадение
 

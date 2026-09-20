@@ -51,6 +51,11 @@
 * ``door_count`` — сверка ``len(перечень)`` с числом, объявленным в самом
   выводе (так устроен ``_collected_ids`` после ADR-426: pytest объявляет
   «N tests collected», и разобранный перечень обязан с этим числом сойтись).
+  Сверяемое обязано ПРОИСХОДИТЬ от вывода (заказ G51 п. 3): прежнее правило
+  засчитывало любую сверку ``len(...)`` в теле, включая длину КОМАНДЫ, и
+  ошибалось в сторону молчания — ложная дверь превращает находку в
+  ``guarded``. Отклонённые сверки не исчезают: каждая названа в строке
+  (``door_declined``), а их число стоит в сводке.
 
 Вторая форма СТАРШЕ первой и на своём участке сильнее — поэтому она
 засчитывается, а не переписывается под общий шаблон. Дверь, которая не может
@@ -172,6 +177,97 @@ def _call_target(node: ast.Call) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
+# ------------------------------------------------- происхождение ЗНАЧЕНИЯ
+#
+# Правило живёт ЗДЕСЬ в единственном экземпляре, потому что здесь же живёт
+# правило двери, которое его спрашивает. Сосед (`hand_truncation_census`)
+# ВВОЗИТ обе функции: две копии одного правила разошлись бы молча, и та из
+# них, что ошибается в сторону молчания, молчанием бы и осталась (ADR-418).
+
+#: Имена, чей вызов превращает текст в КОЛЛЕКЦИЮ.
+SPLITTERS = frozenset({"splitlines", "split", "rsplit", "readlines"})
+LOADERS = frozenset({"loads", "load"})
+
+
+def derives_from(expr: ast.AST, known: Set[str]) -> bool:
+    """Происходит ли ЗНАЧЕНИЕ выражения от одного из имён ``known``.
+
+    Контейнер производной НЕ является: ``{"out": proc.stdout}`` не делает
+    значение выводом (`.claude/rules/deployment.md`, авария 2026-08-04). Иначе
+    «RHS содержит якорь» оправдало бы ровно ту бомбу, против которой правило.
+
+    Вызов ЧУЖОЙ функции с производным аргументом (``parse(out)``) производной
+    тоже не считается — кроме поимённых разделителей и загрузчиков выше.
+    Ошибка здесь односторонняя: непризнанное происхождение отнимает дверь и
+    делает строку НАХОДКОЙ, то есть ошибается в сторону разговора, а не
+    молчания.
+    """
+    if isinstance(expr, ast.Name):
+        return expr.id in known
+    if isinstance(expr, ast.Attribute):
+        return derives_from(expr.value, known)
+    if isinstance(expr, ast.Subscript):
+        return derives_from(expr.value, known)
+    if isinstance(expr, ast.Await):
+        return derives_from(expr.value, known)
+    if isinstance(expr, ast.BoolOp):
+        return any(derives_from(v, known) for v in expr.values)
+    if isinstance(expr, ast.BinOp):
+        return derives_from(expr.left, known) or derives_from(expr.right, known)
+    if isinstance(expr, ast.Call):
+        func = expr.func
+        if isinstance(func, ast.Attribute) and derives_from(func.value, known):
+            return True
+        _, fname = _call_target(expr)
+        if fname in LOADERS or fname in SPLITTERS:
+            return any(derives_from(a, known) for a in expr.args)
+        return False
+    if isinstance(expr, (ast.ListComp, ast.GeneratorExp, ast.SetComp)):
+        return any(derives_from(gen.iter, known) for gen in expr.generators)
+    return False
+
+
+def target_names(target: ast.AST) -> List[str]:
+    """Имена, которым присваивает цель: ``a``, ``a, b`` — но не ``d["k"]``."""
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, (ast.Tuple, ast.List)):
+        out: List[str] = []
+        for elt in target.elts:
+            out.extend(target_names(elt))
+        return out
+    return []
+
+
+def derived_names(func: ast.AST, *anchors: str) -> Set[str]:
+    """Имена, чьё значение происходит от якорей — до неподвижной точки.
+
+    Обход ограничен сверху не ради скорости, а ради завершимости: цикл
+    связываний (``a = b`` / ``b = a``) иначе крутился бы вечно. Предел взят с
+    запасом, и сходимость проверяется отдельным условием, а не надеждой.
+    """
+    known: Set[str] = {a for a in anchors if a}
+    if not known:
+        return known
+    for _ in range(12):
+        grew = False
+        for node in ast.walk(func):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                continue
+            value = node.value
+            if value is None or not derives_from(value, known):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                for name in target_names(target):
+                    if name not in known:
+                        known.add(name)
+                        grew = True
+        if not grew:
+            break
+    return known
+
+
 # -------------------------------------------------------------------- бюджет
 
 def _module_int_consts(tree: ast.AST) -> Dict[str, Optional[int]]:
@@ -260,19 +356,49 @@ DOOR_NAMED = "door_named"
 DOOR_COUNT = "door_count"
 
 
-def has_door(body: ast.AST) -> Optional[str]:
-    """Есть ли у тела дверь, различающая «кончилось» и «обрезали»."""
+def door_evidence(body: ast.AST, origin: Set[str]) -> Tuple[Optional[str], List[dict]]:
+    """Дверь тела — и ОТКЛОНЁННЫЕ сверки, каждая с причиной.
+
+    Требование к ``door_count`` сужено заказом G51 (ADR-428, «чего решение не
+    доказывает», п. 4): сверяемое ``len(X)`` обязано читать длину того, что
+    ПРОИСХОДИТ от вывода. Прежнее правило засчитывало ЛЮБУЮ сверку ``len(...)``
+    в теле — в том числе длины КОМАНДЫ, к перечню отношения не имеющей, — и
+    ошибалось в сторону молчания: ложная дверь превращает находку в `guarded`.
+
+    Отклонённая сверка не исчезает: она возвращается перечнем и попадает в
+    строку переписи. Сужение, которое нельзя перемерить, есть та же ложная
+    дверь, только с другой стороны.
+    """
     for sub in ast.walk(body):
         if isinstance(sub, ast.Call) and _call_target(sub)[1] == TRUNCATION_DOOR:
-            return DOOR_NAMED
+            return DOOR_NAMED, []
+    known = derived_names(body, *sorted(origin))
+    declined: List[dict] = []
     for sub in ast.walk(body):
         if not isinstance(sub, ast.Compare):
             continue
         for side in [sub.left, *sub.comparators]:
-            if isinstance(side, ast.Call) and isinstance(side.func, ast.Name) \
-                    and side.func.id == "len":
-                return DOOR_COUNT
-    return None
+            if not (isinstance(side, ast.Call)
+                    and isinstance(side.func, ast.Name)
+                    and side.func.id == "len"
+                    and side.args):
+                continue
+            if derives_from(side.args[0], known):
+                return DOOR_COUNT, []
+            declined.append({
+                "line": side.lineno,
+                "measured": ast.unparse(side.args[0]),
+                "reason": ("сверяется длина того, что от вывода не происходит"
+                           if origin else
+                           "якорь вывода в этом теле не назван: сопоставить "
+                           "аргумент с параметром читателя не удалось"),
+            })
+    return None, declined
+
+
+def has_door(body: ast.AST, origin: Set[str]) -> Optional[str]:
+    """Есть ли у тела дверь, различающая «кончилось» и «обрезали»."""
+    return door_evidence(body, origin)[0]
 
 
 # ------------------------------------------------------------------ население
@@ -329,18 +455,30 @@ def bound_text_name(stmt: ast.AST) -> Optional[str]:
     return None
 
 
-def readers_of(name: str, scope: ast.AST) -> Tuple[List[Tuple[Optional[str], str]], bool]:
-    """Куда уходит имя текста: читатели ``[(квалификатор, функция)]`` и
-    признак «обход прямо здесь»."""
-    readers: List[Tuple[Optional[str], str]] = []
+def readers_of(name: str, scope: ast.AST) -> Tuple[List[Tuple[Optional[str], str, object]], bool]:
+    """Куда уходит имя текста: читатели ``[(квалификатор, функция, место)]`` и
+    признак «обход прямо здесь».
+
+    Третий член — МЕСТО, на котором вывод вошёл в читателя: номер позиции либо
+    имя ключевого слова. Без него якорь внутри тела читателя назвать нечем, а
+    безымянный якорь обнулил бы правило двери у всех вынесенных читателей
+    сразу (заказ G51).
+    """
+    readers: List[Tuple[Optional[str], str, object]] = []
     inline = False
     for node in ast.walk(scope):
         if isinstance(node, ast.Call):
-            for arg in node.args:
+            for pos, arg in enumerate(node.args):
                 if isinstance(arg, ast.Name) and arg.id == name:
                     qual, fname = _call_target(node)
                     if fname:
-                        readers.append((qual, fname))
+                        readers.append((qual, fname, pos))
+            for kw in node.keywords:
+                if kw.arg and isinstance(kw.value, ast.Name) \
+                        and kw.value.id == name:
+                    qual, fname = _call_target(node)
+                    if fname:
+                        readers.append((qual, fname, kw.arg))
         if isinstance(node, (ast.ListComp, ast.GeneratorExp, ast.SetComp, ast.For)):
             if iterates_lines(node) and any(
                     isinstance(sub, ast.Name) and sub.id == name
@@ -436,6 +574,28 @@ def _resolve_body(qual: Optional[str], fname: str, index: ModuleIndex,
     return body, ""
 
 
+def anchor_in_reader(body: ast.AST, place: object) -> Optional[str]:
+    """Имя параметра, которым вывод вошёл в тело читателя.
+
+    ``None`` — сопоставить не удалось (``*args``, звёздочка, чужая форма). Это
+    НЕ «двери нет»: это «якорь не назван», и отличать одно от другого
+    обязательно, иначе неизмеренное уехало бы под видом самого спокойного
+    ответа (инв. #17). Причина доезжает до строки переписи.
+    """
+    args = getattr(body, "args", None)
+    if args is None:
+        return None
+    if isinstance(place, str):
+        for arg in [*args.args, *args.kwonlyargs, *getattr(args, "posonlyargs", [])]:
+            if arg.arg == place:
+                return place
+        return None
+    positional = [*getattr(args, "posonlyargs", []), *args.args]
+    if isinstance(place, int) and 0 <= place < len(positional):
+        return positional[place].arg
+    return None
+
+
 def classify_site(budget, consumption: str, door: Optional[str]) -> str:
     """Вердикт одного вызова.
 
@@ -524,9 +684,18 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                 found, inline = readers_of(text, func)
                 consumption = READ_LIST if inline else READ_NONE
                 reason = ""
-                door = has_door(func) if inline else None
+                # Якорь ЗДЕСЬ — имя, которому связан текст прогона; дверь
+                # засчитывается только той сверке, что читает длину его
+                # производной (заказ G51 п. 3).
+                here = {text}
+                declined: List[dict] = []
+                if inline:
+                    door, refused = door_evidence(func, here)
+                    declined.extend(refused)
+                else:
+                    door = None
                 reader_names: List[str] = []
-                for rqual, rname in found:
+                for rqual, rname, place in found:
                     reader_names.append(f"{rqual}.{rname}" if rqual else rname)
                     body, why = _resolve_body(rqual, rname, index, indexes, aliases)
                     if body is None:
@@ -539,7 +708,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                     kind = reading_kind(body)
                     if kind == READ_LIST:
                         consumption = READ_LIST
-                        door = door or has_door(body) or has_door(func)
+                        if door:
+                            continue
+                        param = anchor_in_reader(body, place)
+                        inside, refused = door_evidence(
+                            body, {param} if param else set())
+                        declined.extend(refused)
+                        door = inside
+                        if not door:
+                            outside, refused = door_evidence(func, here)
+                            declined.extend(refused)
+                            door = outside
                     elif consumption == READ_NONE:
                         consumption = READ_TAIL
 
@@ -547,6 +726,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
                     "module": rel, "enclosing": enclosing, "line": call.lineno,
                     "via_wrapper": via, "budget": budget,
                     "consumption": consumption, "door": door or "",
+                    "door_declined": [] if door else declined,
                     "verdict": classify_site(budget, consumption, door),
                     "reason": reason, "readers": sorted(set(reader_names))})
 
@@ -569,6 +749,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
               for cls in (CLASS_SILENT, CLASS_GUARDED, CLASS_TAIL_SAFE,
                           CLASS_UNBOUNDED, CLASS_UNMEASURED)}
     counts["unreadable"] = len(unreadable)
+    # Цена сужения правила двери — число, а не обещание: сверки `len(...)`,
+    # которые ПРЕЖНЕЕ правило засчитало бы дверью, а это — нет.
+    counts["door_declined"] = sum(len(r.get("door_declined") or []) for r in rows)
     findings = [r for r in rows if r["verdict"] in FINDING_CLASSES]
     return {
         "generated_at": (now or _utcnow()).isoformat(),
@@ -584,7 +767,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
         ),
         "runner": {"module": RUNNER_MODULE, "func": RUNNER_FUNC,
                    "default_budget": default_budget,
-                   "doors": [DOOR_NAMED, DOOR_COUNT]},
+                   "doors": [DOOR_NAMED, DOOR_COUNT],
+                   "door_count_rule": (
+                       "сверяемое len(X) засчитывается дверью, только если X "
+                       "ПРОИСХОДИТ от вывода (заказ G51 п. 3): длина команды "
+                       "или чужого перечня дверью не является. Отклонённые "
+                       "сверки названы построчно в door_declined")},
         "scanned": len(files),
         "call_sites": len(rows),
         "counts": counts,
@@ -596,6 +784,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
             "что обрезание произошло СЕГОДНЯ: длина вывода — свойство машины, "
             "а не дерева; прибор читает, может ли потеря случиться молча",
             "что tail_safe читает свой хвост ВЕРНО — род чтения не есть верность разбора",
+            "что отклонённая сверка НЕ была дверью по сути: правило "
+            "происхождения не признаёт вызов чужой функции с производным "
+            "аргументом, и ошибается оно в сторону находки, а не молчания",
             "что население полно: глубина обёрток одна, ширина названа "
             "wrapper_depth_exceeded",
             "что у silent_truncation уже есть вред: вред требует, чтобы вывод "
@@ -620,7 +811,8 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         f"вызовов {doc.get('call_sites')} · ОБРЕЗАЕТСЯ МОЛЧА "
         f"{counts.get(CLASS_SILENT)} · с дверью {counts.get(CLASS_GUARDED)} · "
         f"хвост {counts.get(CLASS_TAIL_SAFE)} · без бюджета "
-        f"{counts.get(CLASS_UNBOUNDED)} · не измерено {counts.get(CLASS_UNMEASURED)}",
+        f"{counts.get(CLASS_UNBOUNDED)} · не измерено {counts.get(CLASS_UNMEASURED)}"
+        f" · сверок отклонено {counts.get('door_declined')}",
         f"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}",
         f"[ПРОВОДКА] {runner.get('module')}::{runner.get('func')} · умолчание "
         f"бюджета {runner.get('default_budget')} знак(ов) · режется ГОЛОВА",
@@ -645,11 +837,21 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
     for row in unmeasured[:5]:
         out.append(f"[НЕ ИЗМЕРЕНО] {row['module']}:{row['line']} "
                    f"`{row['enclosing']}` — {row.get('reason') or 'причина не записана'}")
+    # Цена сужения правила двери — поимённо, а не только числом: сверка,
+    # которую ПРЕЖНЕЕ правило засчитало бы дверью, обязана быть названа, иначе
+    # сужение проверить нечем.
+    for row in (doc.get("rows") or []):
+        for item in (row.get("door_declined") or [])[:2]:
+            out.append(f"[СВЕРКА НЕ ДВЕРЬ] {row['module']}:{item['line']} "
+                       f"`{row['enclosing']}` — len({item['measured']}): "
+                       f"{item['reason']}")
     deep = doc.get("wrapper_depth_exceeded") or []
     out.append(f"[ГРАНИЦА ПРАВИЛА ГЛУБИНЫ] обёрток над обёрткой: {len(deep)}"
                + (f" — {', '.join(deep[:5])}" if deep else ""))
     out.append("НЕ ДОКЛАДЫВАЕТ: произошло ли обрезание сегодня (длина вывода — "
-               "свойство машины); верно ли tail_safe читает свой хвост")
+               "свойство машины); верно ли tail_safe читает свой хвост; была "
+               "ли отклонённая сверка дверью ПО СУТИ — правило происхождения "
+               "ошибается в сторону находки, а не молчания")
     return out
 
 
