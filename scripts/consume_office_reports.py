@@ -749,6 +749,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                        "sites_seen", "unresolved_share",
                                        "unreadable", "tree",
                                        "what_it_does_not_prove"),
+    # Заказ G49 п. 2 (ADR-427). `runner` в схеме обязателен: без него «вызовов
+    # 17» прочлось бы как свойство дерева, тогда как это свойство ОДНОЙ
+    # проводки, и её умолчание бюджета решает, у кого перечень режется.
+    # `wrapper_depth_exceeded` — по той же причине, что `places` у соседа: он
+    # называет ширину слепоты правила глубины, чтобы «не нашли» не читалось
+    # как «нет».
+    "truncated_input_census.json": ("status", "invoked_by", "runner", "counts",
+                                    "rows", "scanned", "call_sites",
+                                    "unreadable", "wrapper_depth_exceeded",
+                                    "population_rule",
+                                    "what_it_does_not_prove"),
     # Заказ G46 п. 2 (ADR-424). `by_reason` в схеме обязателен: без него
     # «остаток 148» прочлось бы как однородная куча, тогда как причин восемь и
     # они РАЗНОЙ природы — параметр решает зовущий (межпроцедурный разбор),
@@ -961,6 +972,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/vacuous_guard_census.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
+    "truncated_input_census.json":
+        "spa_core/monitoring/truncated_input_census.py",
     "unresolved_path_census.json":
         "spa_core/monitoring/unresolved_path_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
@@ -2818,6 +2831,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.call_sourced_input_census import format_report as _csi_report
         out.extend(_csi_report(data))
+    elif name == "truncated_input_census.json":
+        # Заказ G49 п. 2 (ADR-427). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.truncated_input_census import format_report as _tic_report
+        out.extend(_tic_report(data))
     elif name == "unresolved_path_census.json":
         # Заказ G46 п. 2 (ADR-424). Без этой ветки артефакт читается ВХОЛОСТУЮ.
         # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ

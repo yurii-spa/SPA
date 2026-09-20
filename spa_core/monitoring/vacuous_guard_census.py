@@ -111,6 +111,10 @@ FINDING_VERDICTS = (VERDICT_VACUOUS, VERDICT_ELSEWHERE)
 ATTRIBUTION_DIRECT = "consumer_failed"
 ATTRIBUTION_HELPER = "via_helper"
 ATTRIBUTION_NONE = "consumer_green"
+#: Имена упавших не дошли: проводка отрезала голову вывода (ADR-427). Это НЕ
+#: «потребитель зелен» — это отсутствие наблюдения, и смешать их значило бы
+#: выдать обрезание за находку «краснеет не тот тест».
+ATTRIBUTION_TRUNCATED = "names_truncated"
 
 EMPTY_REACHABLE = "reachable_absent_path"
 EMPTY_EDIT = "edit_required"
@@ -444,6 +448,16 @@ def _attribute(row: dict, entry: dict) -> Tuple[str, str]:
     """
     failed = entry.get("failed_tests")
     consumers = set(row.get("consumer_tests") or [])
+    # Порядок ветвей существен: «вход обрезан» спрашивается РАНЬШЕ всего, иначе
+    # укороченный перечень дошёл бы до сравнения с потребителями и перевернул
+    # вердикт в `refuses_elsewhere` — выдуманную находку (ADR-427).
+    #
+    # Спрашивается ПРИСУТСТВИЕ поля, а не истинность `.get()`: запись зонда,
+    # сделанная до ADR-427, поля не несёт вовсе, и это «имён не разобрали»
+    # (via_helper), а не «имена обрезали». Слить их значило бы завести ровно
+    # ту подмену неизмеренного, против которой написан сам класс.
+    if "failed_tests" in entry and entry["failed_tests"] is None:
+        return VERDICT_REFUSES, ATTRIBUTION_TRUNCATED
     if not isinstance(failed, list) or not failed:
         return VERDICT_REFUSES, ATTRIBUTION_HELPER
     failed_names = {str(f).rsplit("::", 1)[-1].split("[", 1)[0] for f in failed}

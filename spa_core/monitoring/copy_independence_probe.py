@@ -234,9 +234,41 @@ def replace_constant(source: str, name: str, replacement: str) -> str:
 #: выдавалось за ответ).
 KEEP_OUTPUT_CHARS = 2000
 
+#: Метка разреза. Ставится В ГОЛОВУ, потому что режется именно голова: читатель
+#: перечня иначе получает короткий перечень, неотличимый от короткого ответа.
+#: Форма выбрана так, чтобы её не подобрал ни один существующий разбор: строка
+#: не начинается с `FAILED `, не содержит `::` и не совпадает со сводкой pytest.
+TRUNCATION_MARK = "…ВЫВОД ОБРЕЗАН ПРОВОДКОЙ"
+
+
+def truncate(text: str, keep: Optional[int]) -> str:
+    """Хвост длиной ``keep`` — С МЕТКОЙ разреза. ``keep=None`` — не резать.
+
+    Молчаливое обрезание и есть предмет ADR-427: потеря головы односторонняя
+    (элементы перечня может только УБРАТЬ), а потому всякий вывод из
+    укороченного перечня смещён в сторону молчания. Метка превращает «не
+    измерено» из невидимого в спрашиваемое (инв. #17).
+    """
+    text = text or ""
+    if keep is None or len(text) <= keep:
+        return text
+    dropped = len(text) - keep
+    return f"{TRUNCATION_MARK}: отброшено {dropped} знак(ов)\n" + text[-keep:]
+
+
+def output_truncated(text: str) -> bool:
+    """Была ли у ЭТОГО вывода отрезана голова — дверь для читателя перечня.
+
+    Читателю ХВОСТА (сводка pytest, последняя строка `git rev-parse`) дверь не
+    нужна по построению: его ответ живёт в хвосте, и разрез до него не
+    добирается никогда. Поэтому дверь спрашивают не все, и перепись
+    `truncated_input_census` считает именно тех, кому она нужна.
+    """
+    return TRUNCATION_MARK in (text or "")
+
 
 def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S,
-         keep: int = KEEP_OUTPUT_CHARS) -> Tuple[int, str]:
+         keep: Optional[int] = KEEP_OUTPUT_CHARS) -> Tuple[int, str]:
     env = dict(os.environ, SPA_ENV="ci", PYTHONHASHSEED="0", SPA_PROBE="1")
     env.pop("PYTEST_CURRENT_TEST", None)
     try:
@@ -244,7 +276,8 @@ def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S,
                               text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return -1, f"прогон не уложился в {timeout} с"
-    return proc.returncode, (proc.stdout or "")[-keep:] + (proc.stderr or "")[-keep:]
+    return proc.returncode, (truncate(proc.stdout or "", keep)
+                             + truncate(proc.stderr or "", keep))
 
 
 def pytest_available(tree: Path) -> Tuple[bool, str]:
@@ -399,7 +432,14 @@ def stale_disposable_trees(root: Path, *, prefix: str = TREE_PREFIX) -> List[str
     умолчание здесь назвало бы ему чужие деревья, а свои — никогда. Вторую
     копию этой функции заводить нельзя (ADR-417/418), поэтому у неё параметр.
     """
-    code, out = _run(["git", "worktree", "list", "--porcelain"], cwd=root, timeout=120)
+    # Бюджета здесь НЕТ, и это замер, а не поблажка. Ответом служит ВЕСЬ
+    # перечень, а режется голова — то есть ровно те деревья, что заведены
+    # раньше прочих, а «раньше прочих» и есть признак осиротевшего. Замер
+    # 20.09 на рабочем Mac: вывод 6506 знаков / 51 дерево, через умолчание
+    # 2000 до читателя доходило 11 из 51. Уборщик молча считал бы остальные
+    # 40 несуществующими.
+    code, out = _run(["git", "worktree", "list", "--porcelain"], cwd=root,
+                     timeout=120, keep=None)
     if code != 0:
         return []
     return [line.split(" ", 1)[1].strip() for line in out.splitlines()

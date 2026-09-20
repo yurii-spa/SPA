@@ -148,13 +148,23 @@ def run_guard(tree: Path, guard_rel: str) -> Tuple[int, str]:
         cwd=tree, timeout=RUN_TIMEOUT_S)
 
 
-def failed_tests(output: str) -> List[str]:
-    """Имена упавших тестов из короткой сводки pytest.
+def failed_tests(output: str) -> Optional[List[str]]:
+    """Имена упавших тестов из короткой сводки pytest; ``None`` — вход обрезан.
 
     Форма строки: ``FAILED path::test_name - сообщение``. Разбор намеренно
     буквальный: выдуманное имя хуже отсутствующего, поэтому всё, что не
     начинается с ``FAILED ``, не читается вовсе.
+
+    **Третий исход обязателен, и он не косметика (ADR-427).** Перечень
+    ``FAILED`` живёт ПЕРЕД итоговой сводкой, а проводка режет голову — значит
+    у многословного сторожа часть имён не доходит. Укороченный перечень
+    ошибается ровно в одну сторону: имя потребителя из него ВЫПАДАЕТ, и
+    приписывание переворачивается с «покраснел потребитель» на «покраснел не
+    тот тест», то есть выдумывает находку. Поэтому обрезанный вход отвечает
+    ``None``, а не коротким списком.
     """
+    if base.output_truncated(output):
+        return None
     out: List[str] = []
     for line in (output or "").splitlines():
         line = line.strip()
@@ -306,10 +316,12 @@ def probe_row(tree: Path, row: dict, *,
         entry["evidence"] = out.strip()[-200:] or f"прогон не уложился в {RUN_TIMEOUT_S} с"
         return entry
     entry["verdict"] = VERDICT_REFUSES
-    entry["failed_tests"] = failed_tests(out)
+    names = failed_tests(out)
+    entry["failed_tests"] = names
     entry["evidence"] = (
         f"сторож краснеет с пустым `{name}` (код {code}); упали "
-        f"{entry['failed_tests'] or '— имена не разобраны'}")
+        + ("— перечень имён ОБРЕЗАН проводкой, приписывать нечему"
+           if names is None else f"{names or '— имена не разобраны'}"))
     return entry
 
 

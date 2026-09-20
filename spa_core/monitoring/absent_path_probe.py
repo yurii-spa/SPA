@@ -575,13 +575,19 @@ def _verdict(entry: dict, code: int, out: str, base_passed: int) -> dict:
         return entry
     if code != 0:
         entry["verdict"] = VERDICT_REFUSES
-        entry["failed_tests"] = vgp.failed_tests(out)
+        names = vgp.failed_tests(out)
+        entry["failed_tests"] = names
         scope = str(entry.get("scope") or "")
-        entry["consumer_is_red"] = any(
-            scope and scope in name for name in entry["failed_tests"])
+        # Обрезанный перечень имён (ADR-427) уносит имя потребителя МОЛЧА, и
+        # «потребитель зелен» стало бы выводом из неизмеренного. Третий исход
+        # здесь `None`, а не `False`.
+        entry["consumer_is_red"] = None if names is None else any(
+            scope and scope in name for name in names)
         entry["evidence"] = (
             f"сторож КРАСНЕЕТ без пути `{entry['path']}` (код {code}); упали "
-            f"{', '.join(entry['failed_tests']) or '— имена не разобраны'}")
+            + ("— перечень имён ОБРЕЗАН проводкой, приписывать нечему"
+               if names is None else
+               f"{', '.join(names) or '— имена не разобраны'}"))
         return entry
     passed = entry.get("absent_passed")
     if passed is None:

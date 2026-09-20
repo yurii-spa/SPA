@@ -188,6 +188,13 @@ PRODUCES = (
     # не нужно вовсе — каталога нет, перечень пуст. Ступень статическая, зов
     # есть разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
     "data/call_sourced_input_census.json",
+    # Заказ G49 п. 2 (ADR-427) — перепись зовущих ОБЩЕЙ ПРОВОДКИ прогонов:
+    # у кого из них вход обрезается МОЛЧА. Координата соседняя, не та же:
+    # ADR-420/421 мерили ВХОД сторожа (перечень, который он обходит), здесь
+    # мерится ВЫВОД подпроцесса, у которого проводка отрезает голову. Ступень
+    # статическая, зов есть разбор AST в одном процессе; SLO равняется такту
+    # БЕГУНА (6ч агента) — 12ч.
+    "data/truncated_input_census.json",
     # Заказ G46 п. 2 (ADR-424) — ответ на дыру ПРЕДЫДУЩЕЙ ступени: 195 её
     # осмотренных мест остались с НЕВЫЧИСЛЕННЫМ путём, то есть её ответ был
     # нижней границей неизвестного размера. Ступень статическая, зов есть
@@ -298,6 +305,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "rule_second_copy_census",
     "vacuous_guard_census",
     "call_sourced_input_census",
+    "truncated_input_census",
     "unresolved_path_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -534,6 +542,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
+    "truncated_input_census": {
+        "module": "spa_core/monitoring/truncated_input_census.py",
+        "artifact": "data/truncated_input_census.json"},
     "unresolved_path_census": {
         "module": "spa_core/monitoring/unresolved_path_census.py",
         "artifact": "data/unresolved_path_census.json"},
@@ -2367,6 +2378,28 @@ def main(argv=None) -> int:
                   f"{_csi['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "call_sourced_input_census", e)
+
+    # Ступень G49 п. 2 (ADR-427): у кого из зовущих ОБЩЕЙ ПРОВОДКИ прогонов
+    # вход обрезается молча. Проводка возвращает ХВОСТ вывода, а перечень
+    # (имена упавших тестов, строки `git worktree list`) живёт по всему выводу
+    # — обрезание уносит его голову и не говорит об этом ничего. Замер #643
+    # нашёл ОДИН такой случай руками; ступень задаёт тот же вопрос всему
+    # населению зовущих каждый прогон.
+    try:
+        from spa_core.monitoring import truncated_input_census
+        _tic = truncated_input_census.run(root=args.root)
+        if _tic.get("measured"):
+            _tc = observed(_tic["doc"], "counts", kind=dict)
+            _ts = (None if _tc is None
+                   else observed_number(_tc, truncated_input_census.CLASS_SILENT))
+            print(f"truncated_input_census: {_tic['doc'].get('status')} — "
+                  f"зовущих, чей перечень режется молча, "
+                  f"{'НЕ ИЗМЕРЕНО' if _ts is None else int(_ts)}")
+        else:
+            print(f"truncated_input_census: НЕ ИЗМЕРЕНО — "
+                  f"{_tic['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "truncated_input_census", e)
 
     # Ступень G46 п. 2 (ADR-424): сколько невычисленных путей соседней переписи
     # разрешимо УЖЕСТОЧЕНИЕМ вычислителя. Без неё её собственный ответ —
