@@ -116,8 +116,47 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
         'tests/cartographer/test_director_delivery_guard.py',
     )
 
+    #: Пути ВНЕ CODE_PATHS: в прод-дереве их законно нет (замер:
+    #: `CODE_PATHS=(spa_core scripts tests architecture push_to_github*.py CLAUDE.md
+    #: .claude/rules)` — каталога `launchd` там нет). Их отсутствие — объявленный исход,
+    #: а не поломка доставки. Отсутствие ОСТАЛЬНЫХ — именно поломка, и тест падает.
+    OUTSIDE_CODE_PATHS = (
+        'launchd/com.spa.director_build.plist',
+        'launchd/com.spa.director_server.plist',
+    )
+
     def _text(self, name):
-        return (ROOT / name).read_text(encoding='utf-8')
+        """Текст файла либо ``None``, если его законно нет в этом дереве.
+
+        Третий исход назван намеренно: `read_text` на отсутствующем файле рушил набор
+        в прод-дереве, а молчаливый `skip` превратил бы проверку в fail-OPEN — «не
+        измерено» стало бы неотличимо от «прошло».
+        """
+        path = ROOT / name
+        if path.exists():
+            return path.read_text(encoding='utf-8')
+        if name in self.OUTSIDE_CODE_PATHS:
+            return None
+        raise AssertionError(
+            f'{name} отсутствует, хотя путь входит в CODE_PATHS — это поломка доставки, '
+            'а не законное отсутствие')
+
+    def _bodies(self):
+        """Пары (имя, текст) только для тех файлов, что есть в этом дереве."""
+        out = []
+        for name in self.FILES:
+            body = self._text(name)
+            if body is not None:
+                out.append((name, body))
+        return out
+
+    def test_at_least_the_code_and_tests_are_present_in_any_tree(self):
+        """Контроль на сам приём: пустой перечень означал бы, что проверять нечего."""
+        names = [n for n, _b in self._bodies()]
+        self.assertGreaterEqual(len(names), len(self.FILES) - len(self.OUTSIDE_CODE_PATHS))
+        for name in self.FILES:
+            if name not in self.OUTSIDE_CODE_PATHS:
+                self.assertIn(name, names)
 
     def test_no_secret_value_of_any_known_shape(self):
         import re
@@ -125,15 +164,13 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
                   r'[0-9]{9,10}:AA[A-Za-z0-9_-]{30,}',
                   r'-----BEGIN [A-Z ]*PRIVATE KEY',
                   r'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}')
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             for shape in shapes:
                 self.assertEqual(re.findall(shape, body), [], f'{name}: {shape}')
 
     def test_no_cloudflare_or_tunnel_token(self):
         import re
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             # Имя переменной — не секрет; ЗНАЧЕНИЕ длиной от 40 знаков рядом с ним — да.
             for m in re.finditer(r'(?i)(cloudflare|tunnel|cf)[_-]?(api)?[_-]?token', body):
                 tail = body[m.end():m.end() + 80]
@@ -157,8 +194,7 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
         home_prefix = str(Path(os.path.expanduser('~')))
         wrapper_files = ('scripts/agent_director_build.sh',
                          'launchd/com.spa.director_build.plist')
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             if name in wrapper_files:
                 for line in body.splitlines():
                     if '/Users/' in line:
@@ -168,8 +204,7 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
 
     def test_no_owner_email_or_telegram_id(self):
         import re
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             for m in re.finditer(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}', body):
                 self.assertIn(m.group(0).split('@')[1], ('example.invalid', 'example.com'),
                               f'{name}: живой адрес {m.group(0)}')
@@ -186,15 +221,13 @@ class TheSourceCodeItselfCarriesNoPrivateValues(unittest.TestCase):
         """
         markers = ('REAL CAPITAL: NOT ' + 'PROVEN</h2>',
                    '"semantic_' + 'digest": "')
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             for marker in markers:
                 self.assertNotIn(marker, body, f'{name}: {marker[:24]}')
 
     def test_no_wallet_or_account_identifier(self):
         import re
-        for name in self.FILES:
-            body = self._text(name)
+        for name, body in self._bodies():
             # В тестах адреса СИНТЕТИЧЕСКИЕ (0xaaaa… / 0x' + 'a'*40) — они собираются
             # в коде, а не записаны литералом, поэтому литерального адреса быть не должно.
             for m in re.finditer(r'\b0x[a-fA-F0-9]{40}\b', body):
