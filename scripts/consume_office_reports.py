@@ -760,6 +760,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "unreadable", "wrapper_depth_exceeded",
                                     "population_rule",
                                     "what_it_does_not_prove"),
+    # Заказ G50 п. 2 (ADR-428). `cut_sides` в схеме обязателен: у своей руки
+    # сторона разреза — ПОЛЕ вызова, и без неё «срезов 35» прочлось бы как
+    # свойство одной проводки. `popen_sites` и `parse_slices` — по той же
+    # причине, что `wrapper_depth_exceeded` у соседа: они называют ширину
+    # объявленной слепоты, чтобы «не нашли» не читалось как «нет».
+    "hand_truncation_census.json": ("status", "invoked_by", "runner", "counts",
+                                    "cut_sides", "rows", "scanned",
+                                    "call_sites", "unreadable", "popen_sites",
+                                    "parse_slices", "uncaptured_sites",
+                                    "population_rule",
+                                    "what_it_does_not_prove"),
     # Заказ G46 п. 2 (ADR-424). `by_reason` в схеме обязателен: без него
     # «остаток 148» прочлось бы как однородная куча, тогда как причин восемь и
     # они РАЗНОЙ природы — параметр решает зовущий (межпроцедурный разбор),
@@ -974,6 +985,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
         "spa_core/monitoring/truncated_input_census.py",
+    "hand_truncation_census.json":
+        "spa_core/monitoring/hand_truncation_census.py",
     "unresolved_path_census.json":
         "spa_core/monitoring/unresolved_path_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
@@ -2837,6 +2850,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.truncated_input_census import format_report as _tic_report
         out.extend(_tic_report(data))
+    elif name == "hand_truncation_census.json":
+        # Заказ G50 п. 2 (ADR-428). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.hand_truncation_census import format_report as _htc_report
+        out.extend(_htc_report(data))
     elif name == "unresolved_path_census.json":
         # Заказ G46 п. 2 (ADR-424). Без этой ветки артефакт читается ВХОЛОСТУЮ.
         # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ

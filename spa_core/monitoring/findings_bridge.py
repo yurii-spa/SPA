@@ -195,6 +195,12 @@ PRODUCES = (
     # статическая, зов есть разбор AST в одном процессе; SLO равняется такту
     # БЕГУНА (6ч агента) — 12ч.
     "data/truncated_input_census.json",
+    # Заказ G50 п. 2 (ADR-428) — та же пара вопросов ВТОРОЙ проводке
+    # подпроцессов: `subprocess.run(..., capture_output=True)` зовётся своими
+    # руками из многих мест, и срез там ставит САМ зовущий — в обе стороны, а
+    # не только с головы. Ступень статическая, зов есть разбор AST в одном
+    # процессе; SLO равняется такту БЕГУНА (6ч агента) — 12ч.
+    "data/hand_truncation_census.json",
     # Заказ G46 п. 2 (ADR-424) — ответ на дыру ПРЕДЫДУЩЕЙ ступени: 195 её
     # осмотренных мест остались с НЕВЫЧИСЛЕННЫМ путём, то есть её ответ был
     # нижней границей неизвестного размера. Ступень статическая, зов есть
@@ -306,6 +312,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "vacuous_guard_census",
     "call_sourced_input_census",
     "truncated_input_census",
+    "hand_truncation_census",
     "unresolved_path_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -545,6 +552,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "truncated_input_census": {
         "module": "spa_core/monitoring/truncated_input_census.py",
         "artifact": "data/truncated_input_census.json"},
+    "hand_truncation_census": {
+        "module": "spa_core/monitoring/hand_truncation_census.py",
+        "artifact": "data/hand_truncation_census.json"},
     "unresolved_path_census": {
         "module": "spa_core/monitoring/unresolved_path_census.py",
         "artifact": "data/unresolved_path_census.json"},
@@ -2400,6 +2410,28 @@ def main(argv=None) -> int:
                   f"{_tic['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "truncated_input_census", e)
+
+    # Ступень G50 п. 2 (ADR-428): кто режет вывод подпроцесса СВОЕЙ РУКОЙ и
+    # читает ли при этом перечень. У общей проводки сторона разреза одна и
+    # задана её кодом; у своей руки она ПОЛЕ вызова — `[:N]` уносит хвост со
+    # сводкой там, где `[-N:]` унесло бы голову с перечнем. Предполагать
+    # сторону по соседу значило бы завести вторую копию правила с неверной
+    # посылкой.
+    try:
+        from spa_core.monitoring import hand_truncation_census
+        _htc = hand_truncation_census.run(root=args.root)
+        if _htc.get("measured"):
+            _hc = observed(_htc["doc"], "counts", kind=dict)
+            _hs = (None if _hc is None
+                   else observed_number(_hc, hand_truncation_census.CLASS_SILENT))
+            print(f"hand_truncation_census: {_htc['doc'].get('status')} — "
+                  f"зовущих, чей ПЕРЕЧЕНЬ режется своей рукой молча, "
+                  f"{'НЕ ИЗМЕРЕНО' if _hs is None else int(_hs)}")
+        else:
+            print(f"hand_truncation_census: НЕ ИЗМЕРЕНО — "
+                  f"{_htc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "hand_truncation_census", e)
 
     # Ступень G46 п. 2 (ADR-424): сколько невычисленных путей соседней переписи
     # разрешимо УЖЕСТОЧЕНИЕМ вычислителя. Без неё её собственный ответ —

@@ -132,3 +132,27 @@ skipped** (2 ч 14 мин).
 не имеет, а тихая правка чужого красного теста — ровно тот путь, которым сторожа становятся
 декорацией. Одно из них уже несёт свою карточку
 (`inbox-test-tozhdestva-kapitala-krasen-na-chist`, 16.09).
+
+---
+
+## Перезамер 2026-09-20 (цикл #645), пришпилен `origin/main` 6916ba90
+
+Карточка жива. Замер сделан не полным набором, а ВЫБОРКОЙ
+(`spa_core/tests/ -k "bridge or office or manifest or architecture or ratchet or census or probe"`,
+3763 теста) — то есть это **нижняя граница**, а не новый полный перечень:
+
+    2 failed, 3761 passed, 9 skipped (15:08)
+
+Оба красных воспроизведены на ЧИСТОМ пришпиленном дереве (`/tmp/spa_c645_ctl`,
+тот же sha, без единой правки) — то есть это состояние `main`, а не чьей-то работы:
+
+| тест | что говорит |
+|---|---|
+| `test_edge_boundary_dataflow_census.py::…::test_the_census_screens_the_population_100_published` | `36 != 35` — население выросло на модуль, число в тесте не перевыведено |
+| `test_python_git_ref_provenance.py::TestRatchet::test_real_tree_matches_the_frozen_baseline` | `предмет ВЫРОС на 2 — scripts/check_owner_gate.py:242, 248` |
+
+Второй — храповик, и он говорит ровно то, ради чего написан: в `check_owner_gate.py`
+появились два новых чтения git-ref, которых нет в базе. **Дописывать базу запрещено**
+(инв. #16), чинить надо читателей либо обосновать рост записью в журнал.
+
+`scripts/tests/` в том же дереве — **447 passed, зелено целиком**.
