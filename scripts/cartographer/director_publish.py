@@ -341,8 +341,28 @@ def read_published_digest(path):
         return None
 
 
+def read_serving_digest(serve_root):
+    """Что РАЗДАЁТСЯ прямо сейчас — по указателю корня раздачи.
+
+    При туннельной архитектуре «опубликовано» означает «лежит в активном каталоге», а
+    не «записано в отдельный файл». Без этого вердикт сравнивал бы не с тем, и задание
+    переподставляло бы комплект каждый час даже когда менять нечего: `SKIP` не
+    наступал бы никогда, а «ничего не делать при неизменном смысле» осталось бы словами.
+    """
+    if not serve_root:
+        return None
+    pointer = Path(serve_root) / 'current.json'
+    if not pointer.exists():
+        return None
+    try:
+        return json.loads(pointer.read_text(encoding='utf-8')).get('semantic_digest')
+    except (ValueError, OSError):
+        return None
+
+
 def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, cio=None,
-                 state_path=None, published=None, now=None):
+                 state_path=None, published=None, now=None,
+                 published_digest_override=None):
     """Собирает комплект в ``output``: ``publish/`` (уезжает) и ``evidence/`` (остаётся).
 
     Разделение каталогом, а не дисциплиной: выложить лишнее можно только указав другой
@@ -368,7 +388,8 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
     projection_mod.validate_projection(projection, 'director_publish')
 
     digest = projection['semantic_digest']
-    published_digest = read_published_digest(published) if published else None
+    published_digest = (published_digest_override if published_digest_override is not None
+                        else (read_published_digest(published) if published else None))
     state = next_freshness_state(read_freshness_state(state_path), digest=digest,
                                  now=stamp, published_digest=published_digest)
 
@@ -459,6 +480,9 @@ def main(argv=None):
         raise SystemExit('нужен либо --bundle, либо --rebuild-from')
     try:
         projection, page, state = build_bundle(
+            published_digest_override=(read_published_digest(args.published)
+                                       if args.published
+                                       else read_serving_digest(args.activate_root)),
             bundle=bundle, output=args.output, bridge=load(args.bridge),
             intake=load(args.intake), architect=load(args.architect), cio=load(args.cio),
             state_path=args.state, published=args.published)
@@ -467,8 +491,10 @@ def main(argv=None):
         raise SystemExit(f'INCOMPATIBLE INPUT: {exc}\nКомплект не собран.')
 
     digest = projection['semantic_digest']
-    verdict, reason = publish_verdict(digest, read_published_digest(args.published)
-                                      if args.published else None)
+    # Что считать «опубликованным»: явный файл, если назван, иначе — то, что РАЗДАЁТСЯ.
+    published_digest = (read_published_digest(args.published) if args.published
+                        else read_serving_digest(args.activate_root))
+    verdict, reason = publish_verdict(digest, published_digest)
     out = Path(args.output)
     stats = projection['redaction_stats']
     activated = None

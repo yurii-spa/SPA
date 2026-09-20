@@ -588,3 +588,41 @@ class TheFreshnessStateIsWrittenWhereItIsRead(unittest.TestCase):
             with self.assertRaises(dp.PublishError):
                 dp.build_bundle(bundle=src, output=Path(tmp) / 'o',
                                 state_path=ROOT / 'freshness_state.json')
+
+
+class TheVerdictComparesAgainstWhatIsActuallyServed(unittest.TestCase):
+    """При туннеле «опубликовано» = «лежит в активном каталоге», а не «в отдельном файле».
+
+    Без этого SKIP не наступал бы никогда: задание переподставляло бы комплект каждый
+    час, и обещание «ничего не делать при неизменном смысле» осталось бы словами.
+    """
+
+    def test_an_empty_serve_root_reads_as_not_measured(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(dp.read_serving_digest(tmp))
+            self.assertIsNone(dp.read_serving_digest(None))
+
+    def test_the_pointer_digest_is_read(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'current.json').write_text(
+                json.dumps({'directory': 'b', 'semantic_digest': 'd' * 24}))
+            self.assertEqual(dp.read_serving_digest(tmp), 'd' * 24)
+
+    def test_a_corrupt_pointer_reads_as_not_measured(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'current.json').write_text('{сломано')
+            self.assertIsNone(dp.read_serving_digest(tmp))
+
+    def test_serving_the_same_digest_yields_SKIP(self):
+        self.assertEqual(dp.publish_verdict('e' * 24, 'e' * 24)[0], 'SKIP')
+
+    def test_an_explicit_published_file_still_wins_over_the_serve_root(self):
+        """Явно названный файл — сильнее умолчания: так проверяют чужую выкладку."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            pub = Path(tmp) / 'p.json'
+            pub.write_text(json.dumps({'semantic_digest': 'f' * 24}))
+            self.assertEqual(dp.read_published_digest(pub), 'f' * 24)
