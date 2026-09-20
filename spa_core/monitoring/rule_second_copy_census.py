@@ -1725,6 +1725,10 @@ def decision_surfaces(root: Path, rows: List[dict], *,
             "(заказ G56 п. 2) и нулём не оказался",
             "совпадение величины не есть тождество смысла — `would_move` "
             "считает поводы СПРОСИТЬ, а не доказанные копии одного решения",
+            "абзац, отброшенный как широкий (`paragraphs_skipped_wide`), эта "
+            "мера не читает ПО ПОСТРОЕНИЮ; потолок того, что дало бы его "
+            "чтение, измерен отдельной координатой `wide_paragraph_channel` "
+            "(заказ G57 п. 1) и нулём не оказался — но и вердикта не двинул",
         ],
     }
 
@@ -2069,6 +2073,361 @@ def name_channel(root: Path, rows: List[dict], *,
             "являются, и это остаток слепоты, а не её отсутствие",
         ],
     }
+
+
+
+#: Почему абзац отброшен мерой пути. Две причины, и слить их нельзя: предел
+#: строки защищает от реестра ADR (364 строки длиннее 400 символов), предел
+#: абзаца — от нарратива. Заказ G57 п. 1 спрашивает про ВТОРОЙ, и ответ «шесть»
+#: без разделения был бы числом о сумме двух разных решений.
+WIDE_BY_LINES = "too_many_lines"
+WIDE_BY_LINE_LENGTH = "line_too_long"
+WIDE_BY_BOTH = "both_limits"
+_WIDE_REASONS = (WIDE_BY_LINES, WIDE_BY_LINE_LENGTH, WIDE_BY_BOTH)
+
+#: Вердикт канала широкого абзаца (заказ **G57 п. 1**). «Путей внутри нет» и
+#: «пути есть, но вердикта не двигают» — разные ответы, и первый не есть
+#: чистота.
+WIDE_CHANNEL_SHIFT = "WIDE_PARAGRAPH_SHIFT"
+WIDE_CHANNEL_NO_SHIFT = "WIDE_PARAGRAPH_NO_SHIFT"
+WIDE_CHANNEL_NOTHING_NAMED = "WIDE_PARAGRAPH_NOTHING_NAMED"
+WIDE_CHANNEL_UNMEASURED = "WIDE_PARAGRAPH_UNMEASURED"
+
+
+def _wide_reason(block: List[Tuple[int, str]]) -> str:
+    by_lines = len(block) > MAX_DECLARING_PARAGRAPH
+    by_length = max(len(line) for _, line in block) > MAX_DECLARING_LINE
+    if by_lines and by_length:
+        return WIDE_BY_BOTH
+    return WIDE_BY_LINES if by_lines else WIDE_BY_LINE_LENGTH
+
+
+def paths_in_wide_paragraphs(root: Path) -> dict:
+    """Пути, названные внутри ШИРОКИХ абзацев с языком права изменения (**G57 п. 1**).
+
+    Заказ дословно: «замерить, сколько ПУТЕЙ названо внутри этих шести абзацев
+    и сколько из них дали бы новую поверхность: пока это неизвестно,
+    „объявлено семь“ остаётся нижней границей».
+
+    **Это НЕ ослабление предела** :data:`MAX_DECLARING_PARAGRAPH`, и разница
+    существенна. Мера пути (:func:`declared_surfaces`) широкий абзац не читает
+    и читать не начинает; здесь считается ПОТОЛОК того, что расширение предела
+    добавило бы, — и считается он отдельной координатой, которая в население
+    объявленных поверхностей ничего не доливает. Население и потолок зазора —
+    два разных числа; слить их значило бы выдать «путь рядом с фразой» за
+    объявление, то есть ровно за тот дефект, от которого предел и написан.
+
+    Вместе с потолком считается его ЧАСТОТА ОШИБКИ, и считается она таблицей
+    2×2 (узкий/широкий × с языком права/без). Без второй строки таблицы
+    «двенадцать упоминаний» неотличимо от того, что широкий абзац называет
+    пути и так: обогащение отбором есть свойство ОТБОРА, а не населения.
+    """
+    texts: List[Path] = []
+    rule_text = root / RULE_TEXT
+    if rule_text.is_file():
+        texts.append(rule_text)
+    rules_dir = root / RULE_DIR
+    if rules_dir.is_dir():
+        texts.extend(sorted(rules_dir.glob("*.md")))
+    tree_paths = _tree_paths(root)
+    candidates: Dict[str, List[dict]] = {}
+    control_candidates: set = set()
+    unresolved: List[dict] = []
+    unreadable: List[dict] = []
+    read = 0
+    cells = {
+        "wide_authority": [0, 0],
+        "wide_control": [0, 0],
+        "narrow_authority": [0, 0],
+        "narrow_control": [0, 0],
+    }
+    by_reason: Dict[str, int] = {reason: 0 for reason in _WIDE_REASONS}
+    for path in texts:
+        rel_text = path.relative_to(root).as_posix()
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            unreadable.append({"text": rel_text,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        read += 1
+        for block in declaring_paragraphs(body):
+            wide = not _paragraph_admissible(block)
+            joined = "\n".join(line for _, line in block).lower()
+            authority = any(mark in joined for mark in AUTHORITY_MARKS)
+            mentions = sum(len(_DECLARED_PATH_RE.findall(line))
+                           for _, line in block)
+            cell = cells[("wide" if wide else "narrow")
+                         + ("_authority" if authority else "_control")]
+            cell[0] += 1
+            cell[1] += mentions
+            if wide and not authority:
+                # Контроль на ТОЙ ЖЕ ширине, но без отбора. Нужен не для
+                # украшения: обогащение по УПОМИНАНИЯМ и обогащение по
+                # ПОСЛЕДСТВИЮ — два разных вопроса, и на этом дереве они
+                # отвечают по-разному (ADR G57 п. 1).
+                for _lineno, line in block:
+                    for match in _DECLARED_PATH_RE.finditer(line):
+                        resolved, _why = resolve_declared_path(
+                            match.group(1), tree_paths, root)
+                        if resolved is not None:
+                            control_candidates.add(resolved)
+                continue
+            if not (wide and authority):
+                continue
+            by_reason[_wide_reason(block)] += 1
+            for lineno, line in block:
+                for match in _DECLARED_PATH_RE.finditer(line):
+                    raw = match.group(1)
+                    resolved, why = resolve_declared_path(raw, tree_paths, root)
+                    evidence = {
+                        "text": rel_text,
+                        "line": lineno,
+                        "quote": line.strip()[:160],
+                        "named_as": raw,
+                        "resolution": why,
+                        "paragraph_lines": len(block),
+                        "wide_because": _wide_reason(block),
+                    }
+                    if resolved is None:
+                        if evidence not in unresolved:
+                            unresolved.append(evidence)
+                        continue
+                    if evidence not in candidates.setdefault(resolved, []):
+                        candidates[resolved].append(evidence)
+    out = {
+        "texts_read": read,
+        "texts_unreadable": unreadable,
+        "candidates": candidates,
+        "control_candidates": sorted(control_candidates),
+        "unresolved": unresolved,
+        "wide_by_reason": by_reason,
+    }
+    for name, (paragraphs, mentions) in cells.items():
+        out[f"{name}_paragraphs"] = paragraphs
+        out[f"{name}_mentions"] = mentions
+    return out
+
+
+def _enrichment(selected: Tuple[int, int],
+                control: Tuple[int, int]) -> Tuple[Optional[float], str]:
+    """Во сколько раз отбор «язык права изменения» сгущает упоминания пути.
+
+    Третий исход обязателен: контрольных абзацев нет ИЛИ контроль не назвал
+    ни одного пути ⇒ ``None`` с причиной. Деление на ноль здесь молча дало бы
+    «обогащение бесконечно», то есть выдало бы отсутствие наблюдения за
+    сильнейшим возможным результатом.
+    """
+    sel_paragraphs, sel_mentions = selected
+    ctl_paragraphs, ctl_mentions = control
+    if not sel_paragraphs:
+        return None, "отобранных абзацев нет — сгущать нечего"
+    if not ctl_paragraphs:
+        return None, "контрольных абзацев нет — частота ошибки НЕ ИЗМЕРЕНА"
+    if not ctl_mentions:
+        return None, ("контроль не назвал ни одного пути — знаменателя нет, и "
+                      "«обогащение бесконечно» было бы не измерением")
+    return ((sel_mentions / sel_paragraphs) / (ctl_mentions / ctl_paragraphs),
+            "измерено")
+
+
+def wide_paragraph_channel(root: Path, rows: List[dict], *,
+                           path_candidates: Iterable[str],
+                           name_candidates: Iterable[str],
+                           asked: Tuple[str, ...] = ASKED_SURFACES) -> dict:
+    """Цена слепоты ШИРОКОГО абзаца — оба числа заказа **G57 п. 1**.
+
+    Первое число — НАСЕЛЕНИЕ: сколько путей названо внутри широких абзацев с
+    языком права изменения и сколько из них не знает ни канал пути, ни канал
+    имени. Второе — ВЕРДИКТ: сколько пар сменили бы форму права чинить, если
+    бы эти поверхности спрашивались. Смешивать их нельзя ровно по той же
+    причине, что и в :func:`decision_surfaces`: «поверхность добавилась» и
+    «добавленное кусается» — разные утверждения.
+
+    **Зазор считается против ОБОИХ прежних каналов сразу.** Путь, который уже
+    нашёл канал имени (:func:`name_channel`), новой поверхностью не является,
+    и зачесть его сюда значило бы посчитать одну находку дважды. Замер 20.09:
+    ровно один из десяти (`spa_core/governance/kill_switch.py`) уже объявлен
+    именем — и он же единственный, кто называет хоть одну находку.
+
+    Третий исход обязателен: ни один текст правил не прочитан ⇒
+    :data:`WIDE_CHANNEL_UNMEASURED`. «Правил не прочитано» и «в правилах
+    широких абзацев нет» — разные ответы.
+    """
+    named = paths_in_wide_paragraphs(root)
+    if named["texts_read"] == 0:
+        return {
+            "verdict": WIDE_CHANNEL_UNMEASURED,
+            "reason": ("ни один текст правил не прочитан — широких абзацев не "
+                       "из чего собрать, и потолок зазора НЕ ИЗМЕРЕН"),
+            "texts_read": 0,
+            "texts_unreadable": named["texts_unreadable"],
+            "surfaces": [],
+            "gap": 0,
+        }
+    known_by_path = set(path_candidates)
+    known_by_name = set(name_candidates)
+    numeric_rows = [r for r in rows if is_numeric_value(r.get("value"))]
+    right_forms = (REMEDY_OWNER, REMEDY_CONSTITUTION, REMEDY_RIGHT_UNMEASURED)
+
+    def _row(rel: str) -> dict:
+        values, kind, reason = surface_numbers(root, rel)
+        row: dict = {
+            "path": rel,
+            "kind": kind,
+            "declared_by": named["candidates"][rel],
+            "asked_today": rel in asked,
+        }
+        if values is None:
+            row["reason"] = reason
+            return row
+        matched = [r for r in numeric_rows
+                   if value_key(r.get("value")) in values]
+        moved = [r for r in matched if r.get("remedy") not in right_forms]
+        row.update({
+            "numbers": len(values),
+            "matches": len(matched),
+            "would_move": len(moved),
+            "would_move_names": sorted({f"{r['name']} = {r['value']}"
+                                        for r in moved}),
+        })
+        return row
+
+    surfaces: List[dict] = []
+    already: List[dict] = []
+    for rel in sorted(named["candidates"]):
+        row = _row(rel)
+        if rel in known_by_path or rel in known_by_name:
+            row["known_by"] = ("path" if rel in known_by_path else "name")
+            already.append(row)
+            continue
+        surfaces.append(row)
+    # Контроль ПО ПОСЛЕДСТВИЮ: те же широкие абзацы, но без языка права
+    # изменения. Вопрос «обогащает ли отбор» имеет ДВЕ оси, и на этом дереве
+    # они отвечают по-разному: по упоминаниям отбор почти не сгущает, по
+    # сменившим бы форму парам — сгущает решительно. Мерить обогащение
+    # упоминаниями и объявлять этим ответ о последствии значило бы посчитать
+    # не то население.
+    control_rows: List[dict] = []
+    for rel in named["control_candidates"]:
+        values, kind, _reason = surface_numbers(root, rel)
+        if kind != SURFACE_SHELF or values is None:
+            continue
+        matched = [r for r in numeric_rows
+                   if value_key(r.get("value")) in values]
+        moved = [r for r in matched if r.get("remedy") not in right_forms]
+        control_rows.append({"path": rel, "matches": len(matched),
+                             "would_move": len(moved),
+                             "asked_today": rel in asked})
+    control_move = sum(r["would_move"] for r in control_rows
+                       if not r["asked_today"])
+
+    shelves = [s for s in surfaces if s["kind"] == SURFACE_SHELF]
+    guards = [s for s in surfaces if s["kind"] == SURFACE_GUARD]
+    unasked_moving = [s for s in shelves
+                      if not s["asked_today"] and s.get("would_move")]
+    biting = [s for s in shelves if s.get("matches")]
+    biting_already = [s for s in already if s.get("matches")]
+    wide_authority = named["wide_authority_paragraphs"]
+    if not named["candidates"]:
+        verdict = WIDE_CHANNEL_NOTHING_NAMED
+        reason = (f"в {wide_authority} широк(ом/их) абзац(е/ах) с языком права "
+                  f"изменения не названо ни одного пути — расширять предел "
+                  f"было бы не за чем")
+    elif unasked_moving:
+        verdict = WIDE_CHANNEL_SHIFT
+        reason = (f"{len(unasked_moving)} поверхност(ь/ей) из широкого абзаца "
+                  f"не спрашивается, и её молчание даёт агенту право чинить "
+                  f"{sum(s['would_move'] for s in unasked_moving)} пар(ы)")
+    elif biting:
+        verdict = WIDE_CHANNEL_NO_SHIFT
+        reason = (f"широкий абзац добавляет {len(surfaces)} поверхност(ь/ей) к "
+                  f"населению двух прежних каналов, шкафов чисел из них "
+                  f"{len(shelves)}; права чинить не даёт ни одна, и мера при "
+                  f"этом кусается — добавленные называют "
+                  f"{sum(s['matches'] for s in biting)} строк(и)")
+    else:
+        verdict = WIDE_CHANNEL_NO_SHIFT
+        reason = (f"широкий абзац добавляет {len(surfaces)} поверхност(ь/ей), "
+                  f"но ни одна не называет ни одной находки — ноль ИЗМЕРЕН, "
+                  f"и цена слепоты по ВЕРДИКТУ сегодня нулевая"
+                  + (f"; укус предъявлен на {len(biting_already)} пут(и/ях), "
+                     f"которые прежние каналы уже знают"
+                     if biting_already else ""))
+    # Какой ИМЕННО предел держит цену. Заказ G57 п. 1 назвал
+    # `MAX_DECLARING_PARAGRAPH`; посылку надо проверить, а не повторить:
+    # «широкий» есть ДИЗЪЮНКЦИЯ двух пределов, и приписать сумму одному из них
+    # значило бы ответить не на тот вопрос.
+    move_by_reason: Dict[str, int] = {reason: 0 for reason in _WIDE_REASONS}
+    surfaces_by_reason: Dict[str, int] = {reason: 0 for reason in _WIDE_REASONS}
+    for row in surfaces:
+        why = (row.get("declared_by") or [{}])[0].get("wide_because")
+        if why not in move_by_reason:
+            continue
+        surfaces_by_reason[why] += 1
+        move_by_reason[why] += row.get("would_move") or 0
+
+    wide_ratio, wide_why = _enrichment(
+        (named["wide_authority_paragraphs"], named["wide_authority_mentions"]),
+        (named["wide_control_paragraphs"], named["wide_control_mentions"]))
+    narrow_ratio, narrow_why = _enrichment(
+        (named["narrow_authority_paragraphs"], named["narrow_authority_mentions"]),
+        (named["narrow_control_paragraphs"], named["narrow_control_mentions"]))
+    out = {
+        "verdict": verdict,
+        "reason": reason,
+        "question": ("сколько ПУТЕЙ названо внутри широких абзацев с языком "
+                     "права изменения и сколько из них дали бы НОВУЮ "
+                     "поверхность решения"),
+        "texts_read": named["texts_read"],
+        "texts_unreadable": named["texts_unreadable"],
+        "mentions": named["wide_authority_mentions"],
+        "distinct_paths": len(named["candidates"]) + len(
+            {e["named_as"] for e in named["unresolved"]}),
+        "resolved_paths": len(named["candidates"]),
+        "unresolved": named["unresolved"][:40],
+        # Знаменатель утверждения «сменили бы форму N пар». Публикуется
+        # потому, что без него число N не с чем сравнить, а фильтр
+        # `is_numeric_value` остался бы ненаблюдаемым: сторож, чьё действие
+        # наружу не видно, не проверяется ничем.
+        "population_total": len(rows),
+        "population_numeric": len(numeric_rows),
+        "gap": len(surfaces),
+        "shelves": len(shelves),
+        "guards": len(guards),
+        "would_move_total": sum(s["would_move"] for s in unasked_moving),
+        "already_known": [{"path": s["path"], "known_by": s["known_by"],
+                           "matches": s.get("matches")} for s in already],
+        "surfaces": surfaces,
+        "wide_by_reason": named["wide_by_reason"],
+        "would_move_by_wide_reason": move_by_reason,
+        "surfaces_by_wide_reason": surfaces_by_reason,
+        "control_shelves": len(control_rows),
+        "control_matches": sum(r["matches"] for r in control_rows),
+        "control_would_move": control_move,
+        "control_rows": control_rows,
+        "enrichment_wide": wide_ratio,
+        "enrichment_wide_reason": wide_why,
+        "enrichment_narrow": narrow_ratio,
+        "enrichment_narrow_reason": narrow_why,
+        "blind": [
+            "число есть ПОТОЛОК того, что дало бы расширение предела, а не "
+            "население объявленных поверхностей: внутри широкого абзаца связь "
+            "«путь рядом с фразой» слаба ПО ПОСТРОЕНИЮ, и мера пути его не "
+            "читает по-прежнему",
+            "обогащение отбором — свойство ОТБОРА, а не репозитория: узкий "
+            "абзац и широкий меряются отдельными строками таблицы именно "
+            "потому, что одно число на оба ответило бы не на тот вопрос",
+            "путь, названный внутри широкого абзаца ЧУЖОГО правила (цитата, "
+            "пересказ, ссылка на соседний документ), отличить от объявления "
+            "эта мера не умеет — ошибка отбора направлена в сторону «спросить»",
+        ],
+    }
+    for key in ("wide_authority", "wide_control", "narrow_authority",
+                "narrow_control"):
+        out[f"{key}_paragraphs"] = named[f"{key}_paragraphs"]
+        out[f"{key}_mentions"] = named[f"{key}_mentions"]
+    return out
 
 
 def axes_intersection(rows: List[dict], peer_rows: List[dict],
@@ -2511,6 +2870,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         root, surface_population,
         path_candidates=[s["path"] for s in (surfaces.get("surfaces") or [])])
 
+    # --- канал ШИРОКОГО АБЗАЦА (заказ G57 п. 1) ---------------------------
+    # Оба прежних канала молчат об абзаце, который мера пути отбрасывает как
+    # широкий: канал пути его не читает, канал имени видит в нём только имена.
+    # Здесь считается ПОТОЛОК зазора — и считается отдельной координатой,
+    # которая в население объявленных поверхностей ничего не доливает.
+    wide = wide_paragraph_channel(
+        root, surface_population,
+        path_candidates=[s["path"] for s in (surfaces.get("surfaces") or [])],
+        name_candidates=[s["path"] for s in (names.get("surfaces") or [])]
+        + list(names.get("already_declared_by_path") or []))
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -2586,6 +2956,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # объявлено ПУТЁМ», и подмешать туда имена значило бы стереть разницу
         # между двумя каналами вместо того, чтобы её измерить.
         "name_channel": names,
+        # Третья координата того же вопроса (заказ G57 п. 1). Отдельным
+        # ключом, а не доливкой в две прежних: население объявленных
+        # поверхностей и ПОТОЛОК зазора — разные числа, и предел
+        # `MAX_DECLARING_PARAGRAPH` этой координатой не ослабляется.
+        "wide_paragraph_channel": wide,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -2931,6 +3306,111 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                        f"{', '.join(names['already_declared_by_path'][:6])} — "
                        f"к зазору не относятся")
         for blind in (names.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    wide = observed(doc, "wide_paragraph_channel", kind=dict)
+    if wide is None:
+        out.append("[ШИРОКИЙ АБЗАЦ] НЕ ИЗМЕРЕН — перепись собрана без "
+                   "координаты потолка зазора (заказ G57 п. 1)")
+    elif wide.get("verdict") == WIDE_CHANNEL_UNMEASURED:
+        out.append(f"[ШИРОКИЙ АБЗАЦ] {WIDE_CHANNEL_UNMEASURED}: "
+                   f"{wide.get('reason')}")
+    else:
+        out.append(
+            f"[ШИРОКИЙ АБЗАЦ] {wide.get('verdict')} · абзацев "
+            f"{wide.get('wide_authority_paragraphs')} · упоминаний пути "
+            f"{wide.get('mentions')} · различных путей "
+            f"{wide.get('distinct_paths')} (разрешилось "
+            f"{wide.get('resolved_paths')}) · НОВЫХ к обоим прежним каналам "
+            f"{wide.get('gap')} (шкафов {wide.get('shelves')}, сторожей "
+            f"{wide.get('guards')}) · сменили бы форму "
+            f"{wide.get('would_move_total')} пар(ы); {wide.get('reason')}")
+        reasons = wide.get("wide_by_reason") or {}
+        out.append(
+            f"[ШИРОКИЙ ПОЧЕМУ] абзац длиннее предела "
+            f"{reasons.get(WIDE_BY_LINES)} · строка длиннее предела "
+            f"{reasons.get(WIDE_BY_LINE_LENGTH)} · оба "
+            f"{reasons.get(WIDE_BY_BOTH)} — предел строки и предел абзаца "
+            f"защищают от РАЗНОГО, и одно число о сумме ответило бы не на тот "
+            f"вопрос")
+        by_reason_move = wide.get("would_move_by_wide_reason") or {}
+        by_reason_surf = wide.get("surfaces_by_wide_reason") or {}
+        out.append(
+            f"[КАКОЙ ПРЕДЕЛ ДЕРЖИТ ЦЕНУ] сменили бы форму: предел АБЗАЦА "
+            f"{by_reason_move.get(WIDE_BY_LINES)} пар(ы) при "
+            f"{by_reason_surf.get(WIDE_BY_LINES)} поверхност(и/ях) · предел "
+            f"СТРОКИ {by_reason_move.get(WIDE_BY_LINE_LENGTH)} при "
+            f"{by_reason_surf.get(WIDE_BY_LINE_LENGTH)} · оба "
+            f"{by_reason_move.get(WIDE_BY_BOTH)} при "
+            f"{by_reason_surf.get(WIDE_BY_BOTH)}. Заказ назвал "
+            f"MAX_DECLARING_PARAGRAPH — посылка проверена, а не повторена")
+        ratio = wide.get("enrichment_wide")
+        narrow = wide.get("enrichment_narrow")
+        if ratio is None:
+            out.append(f"[ЧАСТОТА ОШИБКИ · ШИРОКИЙ] НЕ ИЗМЕРЕНА: "
+                       f"{wide.get('enrichment_wide_reason')}")
+        else:
+            out.append(
+                f"[ЧАСТОТА ОШИБКИ · ШИРОКИЙ] отбор «язык права изменения» "
+                f"сгущает упоминания пути в {ratio:.1f} раз(а): "
+                f"{wide.get('wide_authority_mentions')} на "
+                f"{wide.get('wide_authority_paragraphs')} абзац(ев) против "
+                f"{wide.get('wide_control_mentions')} на "
+                f"{wide.get('wide_control_paragraphs')} контрольных")
+        if narrow is None:
+            out.append(f"[ЧАСТОТА ОШИБКИ · УЗКИЙ] НЕ ИЗМЕРЕНА: "
+                       f"{wide.get('enrichment_narrow_reason')}")
+        else:
+            out.append(
+                f"[ЧАСТОТА ОШИБКИ · УЗКИЙ] тот же отбор на абзацах, которые "
+                f"мера пути ЧИТАЕТ, сгущает в {narrow:.1f} раз(а): "
+                f"{wide.get('narrow_authority_mentions')} на "
+                f"{wide.get('narrow_authority_paragraphs')} против "
+                f"{wide.get('narrow_control_mentions')} на "
+                f"{wide.get('narrow_control_paragraphs')} контрольных")
+        out.append(
+            f"[ЧАСТОТА ОШИБКИ · ПОСЛЕДСТВИЕ] контроль на ТОЙ ЖЕ ширине без "
+            f"языка права изменения: шкафов {wide.get('control_shelves')} · "
+            f"называют находок {wide.get('control_matches')} · сменили бы "
+            f"форму {wide.get('control_would_move')} пар(ы) — против "
+            f"{wide.get('would_move_total')} у отобранных")
+        if ratio is not None:
+            out.append(
+                f"[ДВЕ ОСИ ОБОГАЩЕНИЯ, И ОНИ СПОРЯТ] по УПОМИНАНИЯМ отбор "
+                f"сгущает в {ratio:.1f} раз(а) — сигнала почти нет; по "
+                f"ПОСЛЕДСТВИЮ — {wide.get('would_move_total')} против "
+                f"{wide.get('control_would_move')}. Вопрос заказа о "
+                f"ПОСЛЕДСТВИИ, и ответ на него нельзя брать с первой оси: "
+                f"широкий абзац называет пути и так, но шкафы, которые кусают, "
+                f"стоят именно у языка права изменения")
+        if ratio is not None and narrow is not None:
+            out.append(
+                f"[ПРЕДЕЛ НЕ ОСЛАБЛЕН] MAX_DECLARING_PARAGRAPH остаётся "
+                f"{MAX_DECLARING_PARAGRAPH}: по упоминаниям широкий абзац "
+                f"обогащается в {ratio:.1f} раз(а) против {narrow:.1f} у "
+                f"узкого, то есть «путь рядом с фразой» там и правда не улика. "
+                f"Эта координата не доливает найденное в население "
+                f"объявленных поверхностей — она называет ПОТОЛОК зазора и "
+                f"его цену в парах")
+        for row in (wide.get("surfaces") or []):
+            where = (row.get("declared_by") or [{}])[0]
+            if row.get("kind") != SURFACE_SHELF:
+                out.append(f"[ШИРОКИЙ · НЕ ШКАФ] {row['path']} — "
+                           f"{row.get('kind')}: "
+                           f"{row.get('reason', 'причина не записана')}")
+                continue
+            out.append(
+                f"[ШИРОКИЙ · ШКАФ] {row['path']} — назван в "
+                f"{where.get('text')}:{where.get('line')} (абзац "
+                f"{where.get('paragraph_lines')} строк) · чисел "
+                f"{row.get('numbers')} · называет находок "
+                f"{row.get('matches')} · сменили бы форму "
+                f"{row.get('would_move')}")
+        for row in (wide.get("already_known") or []):
+            out.append(
+                f"[ШИРОКИЙ, УЖЕ ИЗВЕСТЕН] {row['path']} — знает канал "
+                f"{row['known_by']}; называет находок {row.get('matches')} — "
+                f"к зазору не относится, но укус мерит")
+        for blind in (wide.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
