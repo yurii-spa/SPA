@@ -179,6 +179,41 @@ ADR-416 закрыл ОДИН экземпляр класса: храповик 
 ОБЕИХ сторон. Любая правка любой стороны возвращает пару в
 `subject_unproven`, то есть НА учёт. Поэтому расписания зонду не нужно:
 протухший журнал не молчит, он перестаёт отвечать.
+
+## Обе оси об ОДНОМ имени, и ТРЕТЬЯ копия (заказ **G53, п. 1**)
+
+Заказ спросил числом, у скольких имён обе оси говорят одновременно: если
+такое имя есть, копий у правила три, а не две. **Замер 20.09 даёт НОЛЬ — и
+ноль этот не ответ, а структура.** Находкой первой оси имя становится, когда
+исполнитель у него РОВНО ОДИН; находкой второй — когда исполнителей РОВНО ДВА.
+Условия несовместимы, поэтому пересечение пусто при ЛЮБОМ дереве, включая
+дерево, где три копии есть. Основание печатается числами, а не словом:
+гистограммы числа исполнителей — у имён первой оси ``{1: 5}``, у имён второй
+``{2: 189}``, ключи не пересекаются (:func:`axes_intersection`, три различимых
+исхода). Ровно эту форму («прибор молчит о том, чего не видит по построению»)
+разобрал ADR-430 на соседней паре; повторить её вторым разом значило бы
+отчитаться молчанием.
+
+Поэтому у вопроса заведена СВОЯ координата (:func:`triple_copies`): имя,
+объявленное сторожем И ровно двумя исполнителями, значение равно у всех трёх
+сторон, и сторож не достаёт НИ ОДНОГО исполнителя ни одной из четырёх дверей.
+Сторож, достающий одного из двух, третьей копии не держит — своя корзина
+(``triple_door_to_one``), а не находка: смешать их значило бы посчитать копией
+ввоз.
+
+**Замер 20.09: 18 пар на ОДНОМ имени — ``CAPITAL = 100000.0``** (18 сторожей ×
+2 исполнителя, итого двадцать объявлений одной величины). Равное имя при
+РАЗНОМ значении находкой не считается и стои́т в своей корзине: единственный
+такой случай — ``SILENT`` (``'pendle'`` у сторожа против литерала ``'SILENT'``
+у исполнителей) есть соглашение об именовании, а не разошедшиеся копии.
+
+**Право чинить спрашивается у ДВУХ поверхностей решения.** Кроме порогов
+RiskPolicy, третья ось спрашивает витрину порогов сайта
+(``landing/src/lib/constitution.json``): ``100000.0`` объявлено там полем
+``start_capital_usd``, то есть это РЕШЕНИЕ, меняемое только ADR-ом
+(`.claude/rules/site-numbers.md`, род «решение»). Все 18 находок — предмет
+владельца, и ни одна не чинится. Соседние две оси эту поверхность пока НЕ
+спрашивают; асимметрия названа вслух и вынесена в заказ, а не умолчана.
 """
 
 from __future__ import annotations
@@ -186,6 +221,7 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime as dt
+import json
 import re
 import sys
 from pathlib import Path
@@ -269,6 +305,65 @@ CLASS_PEER_UNMEASURED = "peer_door_unmeasured"
 _PEER_CLASSES = (CLASS_PEER_TWO_COPIES, CLASS_PEER_DELEGATES,
                  CLASS_PEER_VALUE_DIFFERS, CLASS_PEER_NOT_CONSTANT,
                  CLASS_PEER_MANY, CLASS_PEER_UNMEASURED)
+
+#: --- третья ось: ТРИ копии одного правила (заказ G53 п. 1) ---------------
+#:
+#: Заказ приказал спросить обе оси об ОДНОМ имени: пара «сторож × исполнитель»
+#: и пара «исполнитель × исполнитель» могут описывать одно правило, и тогда
+#: копий у него ТРИ, а не две. Пересечение населений измерено
+#: (:func:`axes_intersection`) и равно НУЛЮ — но ноль этот СТРУКТУРНЫЙ, а не
+#: свидетельство: находкой первой оси имя становится, когда исполнитель у него
+#: РОВНО ОДИН, а находкой второй — когда исполнителей РОВНО ДВА. Условия
+#: несовместимы, поэтому пересечение пусто при ЛЮБОМ дереве, в том числе при
+#: дереве, где три копии есть. Ровно эта форма ответа («прибор молчит о том,
+#: чего не видит по построению») разобрана в ADR-430, и повторять её вторым
+#: разом было бы не ответом.
+#:
+#: Поэтому у вопроса заводится СВОЯ координата: имя, объявленное сторожем И
+#: ровно двумя исполнителями, с равным значением у всех трёх сторон, где
+#: сторож не достаёт НИ ОДНОГО из исполнителей ни одной из четырёх дверей.
+CLASS_TRIPLE = "triple_copies"
+CLASS_TRIPLE_VALUE_DIFFERS = "triple_value_differs"
+CLASS_TRIPLE_NOT_CONSTANT = "triple_not_constant"
+CLASS_TRIPLE_DOOR_ONE = "triple_door_to_one"
+CLASS_TRIPLE_DOOR_BOTH = "triple_door_to_both"
+#: Текст сторожа не перечитан ⇒ вопрос о двери НЕ ИЗМЕРЕН. Своя корзина, а не
+#: `triple_not_constant`: «сравнить было нечем» и «спросить было некого» —
+#: разные исходы, и слить их значило бы нарушить инв. #17 внутри самого прибора.
+CLASS_TRIPLE_UNMEASURED = "triple_door_unmeasured"
+_TRIPLE_CLASSES = (CLASS_TRIPLE, CLASS_TRIPLE_VALUE_DIFFERS,
+                   CLASS_TRIPLE_NOT_CONSTANT, CLASS_TRIPLE_DOOR_ONE,
+                   CLASS_TRIPLE_DOOR_BOTH, CLASS_TRIPLE_UNMEASURED)
+
+#: Вердикт пересечения осей. Три исхода различимы намеренно: «пусто» и «пусто
+#: ПО ПОСТРОЕНИЮ» — разные ответы, и выдавать второй за первый значило бы
+#: объявить структурную слепоту чистотой.
+INTERSECTION_NON_EMPTY = "NON_EMPTY"
+INTERSECTION_EMPTY_BY_CONSTRUCTION = "EMPTY_BY_CONSTRUCTION"
+INTERSECTION_EMPTY_MEASURED = "EMPTY_MEASURED"
+#: Одна из осей сегодня пуста ⇒ пересекать было НЕЧЕГО. Своя причина, а не
+#: «структурно»: первая редакция этой функции объявляла структурным ноль,
+#: полученный от пустой стороны, — то есть приписывала бы устройству прибора
+#: то, что было свойством дерева. Найдено собственным тестом 20.09.
+INTERSECTION_EMPTY_NOTHING_TO_INTERSECT = "EMPTY_NOTHING_TO_INTERSECT"
+
+#: Вторая объявленная ПОВЕРХНОСТЬ РЕШЕНИЯ этого репозитория: витрина порогов
+#: сайта. Число оттуда меняется только ADR-ом (`.claude/rules/site-numbers.md`,
+#: род «решение»), поэтому величина, равная ему, — предмет владельца ровно так
+#: же, как порог RiskPolicy, и агент её не чинит.
+#:
+#: Вопрос задаётся ПОКА ТОЛЬКО на третьей оси, и асимметрия названа вслух, а не
+#: умолчана: соседние две оси спрашивают право чинить у одного лишь
+#: `spa_core/risk/policy.py`. Расширить их — отдельный замер (заказ G54 п. 1),
+#: потому что он сдвинул бы уже опубликованные числа `remedy_counts`.
+CONSTITUTION_FILE = "landing/src/lib/constitution.json"
+REMEDY_CONSTITUTION = "constitution_subject"
+#: Право чинить НЕ ИЗМЕРЕНО (витрина не прочитана) — третий исход, а не
+#: «совпадений нет»: молчаливое «чинить можно» и есть та подмена, против
+#: которой написан инв. #17.
+REMEDY_RIGHT_UNMEASURED = "right_to_fix_unmeasured"
+_TRIPLE_REMEDY_CLASSES = (REMEDY_OWNER, REMEDY_CONSTITUTION,
+                          REMEDY_RIGHT_UNMEASURED, REMEDY_UNPROVEN)
 
 #: Хвосты имён файлов-артефактов. Строковый литерал с таким хвостом называет
 #: ПРЕДМЕТ, который сторона читает или пишет, — в отличие от имени модуля,
@@ -891,6 +986,245 @@ def peer_pairs(declared: Dict[str, List[Tuple[str, Optional[str]]]], *,
     return rows, counts
 
 
+def constitution_values(root: Path) -> Tuple[Dict[str, List[str]], Optional[str]]:
+    """Числа витрины порогов сайта -> ВСЕ поля, под которыми число объявлено.
+
+    Возвращает ``(значения, причина_не_прочитано)``. Витрина отсутствует ⇒
+    ПРИЧИНА, а не пустой словарь: пустой словарь сказал бы «совпадений нет», то
+    есть выдал бы «не измерено» за «чинить можно». Отказом всей переписи это
+    НЕ является намеренно — витрина лежит под ``landing/`` и в синтетическом
+    дереве её может не быть по построению, в отличие от `spa_core/risk/policy.py`,
+    без которого не измеряется само население.
+
+    Берутся только ЧИСЛА (как и у порогов RiskPolicy): строковая метка витрины
+    порогом не является, и сверка по ней объявила бы предметом владельца каждую
+    пару со значением ``'v1.0'``.
+    """
+    path = Path(root) / CONSTITUTION_FILE
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {}, (f"витрина порогов не прочитана ({CONSTITUTION_FILE}): "
+                    f"{type(exc).__name__}: {exc}")
+    out: Dict[str, List[str]] = {}
+
+    def walk(node, path_parts: Tuple[str, ...]) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                walk(value, path_parts + (str(key),))
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                walk(value, path_parts + (f"[{i}]",))
+        elif isinstance(node, (int, float)) and not isinstance(node, bool):
+            field = ".".join(path_parts)
+            for text in {repr(float(node)), repr(node)}:
+                if field not in out.setdefault(text, []):
+                    out[text].append(field)
+
+    walk(doc, ())
+    return {value: sorted(names) for value, names in out.items()}, None
+
+
+def axes_intersection(rows: List[dict], peer_rows: List[dict],
+                      declared: Dict[str, List[Tuple[str, Optional[str]]]]) -> dict:
+    """Пересечение населений двух осей ПО ИМЕНИ (заказ **G53, п. 1**).
+
+    Заказ спросил ЧИСЛОМ, у скольких имён обе оси говорят одновременно: если
+    такое имя есть, копий у правила три, а не две. Число здесь ИЗМЕРЯЕТСЯ, а
+    затем отдельно измеряется, ПОЧЕМУ оно такое — и это разные вопросы.
+
+    **Ноль сам по себе ответом не является.** Находка первой оси требует у
+    имени РОВНО ОДНОГО исполнителя, находка второй — РОВНО ДВУХ. Условия
+    несовместимы, поэтому пересечение пусто при любом дереве, включая дерево, в
+    котором три копии есть на самом деле. Чтобы «пусто» нельзя было прочесть
+    как «таких правил нет», вердикт различает три исхода, а основание
+    печатается ЧИСЛАМИ: гистограммы числа исполнителей у имён обеих осей.
+    Ключи гистограмм не пересекаются ⇒ ``EMPTY_BY_CONSTRUCTION``; пересекаются,
+    а имён общих всё равно нет ⇒ ``EMPTY_MEASURED`` (тогда ноль — свидетельство).
+
+    **Четвёртый исход найден собственным тестом 20.09** и первой редакции этой
+    функции стоил бы неправды: если одна из осей пуста, пересекать НЕЧЕГО, и
+    гистограммы «не пересекаются» тривиально. Первая редакция объявила бы такой
+    ноль структурным, то есть приписала бы устройству прибора свойство дерева.
+    Отсюда ``EMPTY_NOTHING_TO_INTERSECT`` с обоими числами в основании.
+
+    Ровно эту форму ответа («прибор молчит о том, чего не видит по построению»)
+    разобрал ADR-430 на соседней паре; повторять её молча было бы не ответом, а
+    вторым экземпляром той же ошибки.
+    """
+    axis_one = sorted({r["name"] for r in rows
+                       if r.get("verdict") in _FINDING_CLASSES})
+    axis_two = sorted({r["name"] for r in peer_rows
+                       if r.get("verdict") == CLASS_PEER_TWO_COPIES})
+
+    def histogram(names: List[str]) -> Dict[str, int]:
+        out: Dict[str, int] = {}
+        for name in names:
+            key = str(len(declared.get(name) or []))
+            out[key] = out.get(key, 0) + 1
+        return out
+
+    hist_one, hist_two = histogram(axis_one), histogram(axis_two)
+    shared = sorted(set(axis_one) & set(axis_two))
+    if shared:
+        verdict = INTERSECTION_NON_EMPTY
+    elif not axis_one or not axis_two:
+        # Пустая сторона делает пересечение пустым сама по себе, и объявить
+        # этот ноль структурным значило бы приписать устройству прибора то,
+        # что есть свойство ДЕРЕВА.
+        verdict = INTERSECTION_EMPTY_NOTHING_TO_INTERSECT
+    elif set(hist_one) & set(hist_two):
+        verdict = INTERSECTION_EMPTY_MEASURED
+    else:
+        verdict = INTERSECTION_EMPTY_BY_CONSTRUCTION
+    return {
+        "verdict": verdict,
+        "names": shared,
+        "count": len(shared),
+        "axis_one_names": len(axis_one),
+        "axis_two_names": len(axis_two),
+        "executors_per_name": {"axis_one": hist_one, "axis_two": hist_two},
+        "reason": (
+            "находка первой оси требует РОВНО ОДНОГО исполнителя, второй — "
+            "РОВНО ДВУХ; гистограммы числа исполнителей не пересекаются, "
+            "значит ноль здесь СТРУКТУРНЫЙ и свидетельством не является"
+            if verdict == INTERSECTION_EMPTY_BY_CONSTRUCTION else
+            f"пересекать было НЕЧЕГО: находок у первой оси {len(axis_one)}, у "
+            f"второй {len(axis_two)} — ноль пришёл от пустой стороны, а не от "
+            f"устройства осей"
+            if verdict == INTERSECTION_EMPTY_NOTHING_TO_INTERSECT else
+            "число исполнителей у имён обеих осей совпадает хотя бы на одном "
+            "значении — пустое пересечение здесь ИЗМЕРЕНО, а не предрешено"
+            if verdict == INTERSECTION_EMPTY_MEASURED else
+            "имена, о которых говорят ОБЕ оси: у правила три копии, а не две"),
+    }
+
+
+def triple_name_count(rows: List[dict]) -> int:
+    """Сколько ИМЁН у находок третьей оси.
+
+    Отдельная функция, а не выражение на месте: строка «N пар на M имён» —
+    главное число оси, а строка `triple_door_unmeasured` именем НАХОДКИ не
+    является. Правило «что здесь считается именем» обязано быть одно и
+    проверяемое тестом: замер 20.09 дал 18 пар на ОДНОМ имени, и спутать их
+    значило бы соврать масштабом в восемнадцать раз.
+    """
+    return len({r["name"] for r in rows if r.get("verdict") == CLASS_TRIPLE})
+
+
+def triple_copies(peer_rows: List[dict],
+                  guard_declared: Dict[str, List[Tuple[str, Optional[str]]]],
+                  *, source_of, imports_of,
+                  thresholds: Dict[str, List[str]],
+                  constitution: Dict[str, List[str]],
+                  constitution_unread: Optional[str]) -> Tuple[List[dict], dict]:
+    """ТРИ копии одного правила: сторож × два исполнителя (заказ **G53, п. 1**).
+
+    Координата, которой у пересечения осей нет и быть не может (см.
+    :func:`axes_intersection`): имя, объявленное сторожем И ровно двумя
+    исполнителями, значение у всех трёх сторон равно, а сторож не достаёт НИ
+    ОДНОГО из исполнителей ни одной из четырёх дверей.
+
+    ## Почему сторону-сторожа мало просто «добавить» к паре исполнителей
+
+    Сторож, который достаёт ОДНОГО из двух исполнителей, третьей копии не
+    держит — у него копия одна, чужая, и правка доедет. Такой случай кладётся в
+    свою корзину (``triple_door_to_one``), а не в находку: смешать его с
+    находкой значило бы посчитать копией ввоз.
+
+    ## Равное имя при РАЗНОМ значении находкой не является
+
+    Замер 20.09 даёт такую пару ровно одну: ``SILENT`` у сторожа значит
+    ``'pendle'``, а у двух исполнителей — литерал ``'SILENT'``. Это соглашение
+    об именовании, а не разошедшиеся копии, и объявить его расхождением было бы
+    выдумкой той же природы, что объявить совпадение копией. Корзина своя
+    (``triple_value_differs``), находкой не считается.
+
+    ## Право чинить спрашивается ПЕРВЫМ и у ДВУХ поверхностей решения
+
+    Порядок тот же, что у соседних осей (заказ G42 п. 1), но поверхностей здесь
+    две: пороги RiskPolicy и витрина порогов сайта (``CONSTITUTION_FILE``).
+    Вторая добавлена замером, а не для полноты: единственная находка этой оси —
+    ``CAPITAL = 100000.0``, и то же число объявлено витриной полем
+    ``start_capital_usd``, то есть это РЕШЕНИЕ, меняемое ADR-ом
+    (`.claude/rules/site-numbers.md`). Починить его «ввозом» агент не вправе.
+
+    Витрина не прочитана ⇒ ``REMEDY_RIGHT_UNMEASURED``, а не «совпадений нет».
+    """
+    counts = {cls: 0 for cls in _TRIPLE_CLASSES}
+    rows: List[dict] = []
+    for peer in peer_rows:
+        if peer.get("verdict") != CLASS_PEER_TWO_COPIES:
+            continue
+        name = peer["name"]
+        for guard_rel, guard_value in guard_declared.get(name, []):
+            if guard_value is None:
+                counts[CLASS_TRIPLE_NOT_CONSTANT] += 1
+                continue
+            if guard_value != peer["value"]:
+                counts[CLASS_TRIPLE_VALUE_DIFFERS] += 1
+                continue
+            source = source_of(guard_rel)
+            if source is None:
+                # Молчаливое «дверь закрыта» превратило бы нечитаемый файл в
+                # находку — та же подмена, что у соседней оси.
+                counts[CLASS_TRIPLE_UNMEASURED] += 1
+                rows.append({
+                    "verdict": CLASS_TRIPLE_UNMEASURED, "name": name,
+                    "value": guard_value, "guard": guard_rel,
+                    "left": peer["left"], "right": peer["right"],
+                    "reason": "текст сторожа не перечитан — вопрос о двери не измерен"})
+                continue
+            imports = imports_of(guard_rel)
+            doors = [reaches(source, imports, peer["left"]),
+                     reaches(source, imports, peer["right"])]
+            if all(doors):
+                counts[CLASS_TRIPLE_DOOR_BOTH] += 1
+                continue
+            if any(doors):
+                counts[CLASS_TRIPLE_DOOR_ONE] += 1
+                continue
+            counts[CLASS_TRIPLE] += 1
+            owner_names = thresholds.get(str(guard_value)) or []
+            const_names = constitution.get(str(guard_value)) or []
+            if owner_names:
+                remedy = REMEDY_OWNER
+                evidence = (
+                    "значение равно порог"
+                    + ("ам " if len(owner_names) > 1 else "у ")
+                    + ", ".join(f"`{n}`" for n in owner_names)
+                    + f" ({RISK_POLICY_MODULE}) — предмет №1 границы ADR-285")
+            elif constitution_unread is not None:
+                remedy = REMEDY_RIGHT_UNMEASURED
+                evidence = constitution_unread
+            elif const_names:
+                remedy = REMEDY_CONSTITUTION
+                evidence = (
+                    "то же число объявлено витриной порогов сайта пол"
+                    + ("ями " if len(const_names) > 1 else "ем ")
+                    + ", ".join(f"`{n}`" for n in const_names)
+                    + f" ({CONSTITUTION_FILE}) — род «решение», меняется только "
+                      "ADR-ом; сводить копии ввозом агент не вправе")
+            else:
+                remedy = REMEDY_UNPROVEN
+                evidence = (
+                    "сторож не достаёт ни одного исполнителя, исполнители не "
+                    "достают друг друга — копия своя у всех трёх; общего "
+                    "происхождения значения прибор не доказывает")
+            rows.append({
+                "verdict": CLASS_TRIPLE,
+                "name": name,
+                "value": guard_value,
+                "guard": guard_rel,
+                "left": peer["left"],
+                "right": peer["right"],
+                "remedy": remedy,
+                "remedy_evidence": evidence,
+            })
+    rows.sort(key=lambda r: (r["name"], r["guard"], r["left"], r["right"]))
+    return rows, counts
+
+
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
@@ -928,6 +1262,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     counts = {CLASS_TWO_COPIES: 0, CLASS_DELEGATES: 0, CLASS_VALUE_DIFFERS: 0,
               CLASS_NOT_CONSTANT: 0, CLASS_AMBIGUOUS: 0}
     surface: List[str] = []
+    # Третья ось (заказ G53 п. 1) спрашивает сторожей о тех же именах, что и
+    # ось исполнителей. Держатся ИМЯ и ЗНАЧЕНИЕ (дёшево), а текст сторожа
+    # перечитывается лениво и только у кандидатов — тем же `_text`, что и у
+    # соседней оси: вторая копия правила «как читать файл» здесь не заводится.
+    guard_declared: Dict[str, List[Tuple[str, Optional[str]]]] = {}
+    guard_imports_by_rel: Dict[str, set] = {}
     guard_files = _guard_files(root)
     # Пороги спрашиваются ПОСЛЕ корней населения и ДО разбора форм. Порядок
     # обоих отказов измерен тестами: «корень не прочитан» остаётся первым
@@ -945,11 +1285,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             continue
 
         guard_imports = imported_modules(tree)
+        guard_imports_by_rel[rel] = guard_imports
         touches_state = any(mark in source for mark in _REPO_STATE_MARKS)
 
         for name, guard_value in toplevel_constants(tree).items():
             if name.startswith("_") or name.startswith("test_"):
                 continue
+            guard_declared.setdefault(name, []).append((rel, guard_value))
             side = executors.get(name)
             if not side:
                 continue
@@ -1030,6 +1372,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         imports_of=lambda rel: exec_imports.get(rel, set()),
         thresholds=thresholds)
 
+    # --- третья ось: ТРИ копии одного правила (заказ G53 п. 1) -------------
+    constitution, constitution_unread = constitution_values(root)
+    triple_rows, triple_counts = triple_copies(
+        peer_rows, guard_declared,
+        source_of=_text,
+        imports_of=lambda rel: guard_imports_by_rel.get(rel, set()),
+        thresholds=thresholds,
+        constitution=constitution,
+        constitution_unread=constitution_unread)
+    intersection = axes_intersection(rows, peer_rows, declared)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -1069,6 +1422,19 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "peer_private_names": len([r for r in peer_rows
                                    if r.get("private_name")]),
         "risk_policy_thresholds": len(thresholds),
+        # Пересечение осей ПО ИМЕНИ (заказ G53 п. 1) и — отдельным вопросом —
+        # ПОЧЕМУ оно такое. Ноль без второго поля был бы не ответом.
+        "axes_intersection": intersection,
+        # Третья ось. На `status` не влияет по той же причине, что и вторая:
+        # она мерит ПОВЕРХНОСТЬ числом, а не выносит приговор каждой строке.
+        "triple_counts": triple_counts,
+        "triple_rows": triple_rows,
+        "triple_names": triple_name_count(triple_rows),
+        "triple_remedy_counts": {
+            cls: len([r for r in triple_rows if r.get("remedy") == cls])
+            for cls in _TRIPLE_REMEDY_CLASSES},
+        "constitution_values": len(constitution),
+        "constitution_unread": constitution_unread,
         "classified": classified,
         "rows": rows,
         "unreadable": unreadable,
@@ -1087,6 +1453,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что пара independent_by_probe не имеет общего предмета — зонд мерит ЗАВИСИМОСТЬ ВЕРДИКТА от значения, а не происхождение числа; несогласие со свидетелем называется в строке",
             "что у пары ОСИ ИСПОЛНИТЕЛЕЙ (peer_*) копия вредна — ось мерит ПОВЕРХНОСТЬ числом; вреда у неё не спрашивали, и зонд независимости её пар не трогает",
             "что 189 у оси исполнителей есть потолок класса — переименованная копия невидима ей так же, как и первой оси, и ровно по той же причине",
+            "что пустое пересечение осей означает отсутствие правил с ТРЕМЯ копиями — оно пусто ПО ПОСТРОЕНИЮ (1 исполнитель против 2), и на вопрос отвечает отдельная координата triple_copies",
+            "что у находки третьей оси копия вредна СЕГОДНЯ — ось мерит поверхность; зонд независимости её строк не трогает так же, как и строк второй оси",
+            "что право чинить спрошено у ВСЕХ поверхностей решения — витрина порогов сайта спрашивается ПОКА только на третьей оси, и асимметрия названа, а не умолчана",
         ],
     }
 
@@ -1207,6 +1576,61 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             "свидетельством: в сцене с ВОССТАНОВЛЕННОЙ второй копией её вердикт "
             "оставался побуквенно тем же (ADR-430). Ось не влияет на `status` — "
             "она мерит поверхность числом, а не выносит приговор каждой паре")
+    inter = observed(doc, "axes_intersection", kind=dict)
+    if inter is None:
+        out.append("[ПЕРЕСЕЧЕНИЕ ОСЕЙ] НЕ ИЗМЕРЕНО — перепись собрана без вопроса G53 п. 1")
+    else:
+        hist = inter.get("executors_per_name") or {}
+        out.append(
+            f"[ПЕРЕСЕЧЕНИЕ ОСЕЙ] имён, о которых говорят ОБЕ оси: "
+            f"{inter.get('count')} — {inter.get('verdict')}; "
+            f"{inter.get('reason')}")
+        out.append(
+            f"[ОСНОВАНИЕ] исполнителей у имён первой оси {hist.get('axis_one')} · "
+            f"у имён второй {hist.get('axis_two')} — ноль читается по этим "
+            f"числам, а не по слову «нет»")
+    triple = observed(doc, "triple_counts", kind=dict)
+    if triple is None:
+        out.append("[ТРИ КОПИИ] НЕ ИЗМЕРЕНЫ — перепись собрана без третьей оси")
+    else:
+        names = observed(doc, "triple_names", kind=int)
+        remedy3 = observed(doc, "triple_remedy_counts", kind=dict) or {}
+        out.append(
+            f"[ТРИ КОПИИ] сторож × два исполнителя {triple.get(CLASS_TRIPLE)} "
+            f"пар(ы) на {names if names is not None else 'НЕ ИЗМЕРЕНО'} имён(и) · "
+            f"дверь к одному {triple.get(CLASS_TRIPLE_DOOR_ONE)} · дверь к обоим "
+            f"{triple.get(CLASS_TRIPLE_DOOR_BOTH)} · значения разные "
+            f"{triple.get(CLASS_TRIPLE_VALUE_DIFFERS)} · сравнить нечем "
+            f"{triple.get(CLASS_TRIPLE_NOT_CONSTANT)} · дверь НЕ ИЗМЕРЕНА "
+            f"{triple.get(CLASS_TRIPLE_UNMEASURED)}")
+        unread = doc.get("constitution_unread")
+        out.append(
+            f"[ПРАВО ЧИНИТЬ · 2 ПОВЕРХНОСТИ] предмет RiskPolicy "
+            f"{remedy3.get(REMEDY_OWNER)} · предмет витрины порогов "
+            f"{remedy3.get(REMEDY_CONSTITUTION)} · право НЕ ИЗМЕРЕНО "
+            f"{remedy3.get(REMEDY_RIGHT_UNMEASURED)} · предмет не доказан "
+            f"{remedy3.get(REMEDY_UNPROVEN)}"
+            + (f" — {unread}" if unread else ""))
+        triple_rows = [r for r in (doc.get("triple_rows") or [])
+                       if r.get("verdict") == CLASS_TRIPLE]
+        for row in triple_rows[:max_rows]:
+            out.append(
+                f"[ТРОЙКА] {row['name']} = {row['value']} — сторож "
+                f"{row['guard']} против {row['left']} × {row['right']} · "
+                f"{row.get('remedy')}: {row.get('remedy_evidence', 'основание не записано')}")
+        if len(triple_rows) > max_rows:
+            # Умолчание об укорочении и есть способ соврать усечением.
+            out.append(f"[…] показаны {max_rows} тройки из {len(triple_rows)}; "
+                       f"полный перечень — в артефакте")
+        unmeasured = [r for r in (doc.get("triple_rows") or [])
+                      if r.get("verdict") == CLASS_TRIPLE_UNMEASURED]
+        for row in unmeasured[:max_rows]:
+            out.append(f"[НЕ ИЗМЕРЕНО] {row['name']} — сторож {row['guard']}: "
+                       f"{row.get('reason', 'причина не записана')}")
+        out.append(
+            "[ПОЧЕМУ ОСЬ ЕСТЬ] пересечение двух прежних осей пусто ПО "
+            "ПОСТРОЕНИЮ и о трёх копиях не говорит ничего; храповика у этого "
+            "числа сегодня НЕТ, рост виден только в этой строке (остаток G52 п. 2)")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "
