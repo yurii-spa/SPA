@@ -1554,12 +1554,17 @@ def _investments(inv, available):
                '<th>продвижение</th><th>одобрение</th><th>снят</th></tr></thead><tbody>')
     yes = lambda v: ('да' if v else ('нет' if v is False else '—'))  # noqa: E731
     for s in inv['sources']:
+        # Выражение поднято из f-строки НАМЕРЕННО: перенос строки внутри `{...}`
+        # разрешён только с Python 3.12 (PEP 701), а CI гоняет матрицу 3.11+3.12
+        # и job 3.11 умирал на СБОРЕ — то есть красная галочка «SPA Tests»
+        # означала «не мерили», а не «тесты упали» (цикл #660).
+        mode_detail = ((s.get("mode_evidence") or {}).get("detail")
+                       or "поля режима нет")
         out.append(f'<tr><td class="mono">{_e(s["source"])}</td>'
                    f'<td class="note">{_e(s.get("represents") or "—")}</td>'
                    f'<td>{_e(s.get("basis") or "—")}</td>'
                    f'<td>{_mode(s.get("mode"))}'
-                   f'<div class="evi">{_e((s.get("mode_evidence") or {}).get("detail")
-                                          or "поля режима нет")}</div></td>'
+                   f'<div class="evi">{_e(mode_detail)}</div></td>'
                    f'<td>{yes(s.get("can_prove_capital"))}</td>'
                    f'<td>{yes(s.get("can_prove_performance"))}</td>'
                    f'<td>{yes(s.get("can_prove_risk"))}</td>'
