@@ -3814,6 +3814,40 @@ def declaring_items(block: List[Tuple[int, str]]) -> List[Tuple[int, str]]:
     return [(lineno, "\n".join(lines)) for lineno, lines in items]
 
 
+def paragraph_at(root: Path, rel: str, block_start: object,
+                 cache: Dict[str, Dict[int, List[Tuple[int, str]]]]
+                 ) -> Tuple[Optional[List[Tuple[int, str]]], Optional[str]]:
+    """Абзац населения по координате «файл + строка начала» — ОДНА копия.
+
+    Координату населения разрешают ДВЕ координаты переписи (разметка канала
+    имени — **G61 п. 1** — и цена свидетелей абзаца — **G63 п. 1**), и вторая
+    копия этого разрешения внутри переписи «одно правило — две копии» была бы
+    ровно тем предметом, который перепись ищет у чужого кода (ADR-417).
+
+    Возвращает ``(абзац, причина)``: ровно один из двух не ``None``. Отказ
+    чтения и отсутствие абзаца по координате — РАЗНЫЕ причины и чинятся в
+    разных местах, поэтому сливать их в одно «не разрешилось» нельзя (инв. #17).
+    """
+    if not isinstance(block_start, int) or isinstance(block_start, bool):
+        return None, (f"координата абзаца записана как "
+                      f"{type(block_start).__name__}, а не номером строки — "
+                      f"разрешать нечего")
+    blocks = cache.get(rel)
+    if blocks is None:
+        try:
+            body = (root / rel).read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            cache[rel] = {}
+            return None, f"{type(exc).__name__}: {exc}"
+        blocks = {block[0][0]: block for block in declaring_paragraphs(body)}
+        cache[rel] = blocks
+    block = blocks.get(block_start)
+    if block is None:
+        return None, (f"абзаца, начинающегося строкой {block_start}, в тексте "
+                      f"нет — координата населения не разрешается")
+    return block, None
+
+
 def _module_named(raw_low: str, where: str) -> bool:
     """Назван ли в самом абзаце РАЗРЕШЁННЫЙ модуль — свидетель вне токенов.
 
@@ -3872,25 +3906,11 @@ def bilingual_name_precision(root: Path, channel: Optional[dict],
     unresolved: List[dict] = []
     for hit in hits:
         rel = str(hit.get("text") or "")
-        blocks = blocks_cache.get(rel)
-        if blocks is None:
-            try:
-                body = (root / rel).read_text(encoding="utf-8")
-            except Exception as exc:  # noqa: BLE001
-                blocks = {}
-                blocks_cache[rel] = blocks
-                unresolved.append({"text": rel, "named_as": hit.get("named_as"),
-                                   "reason": f"{type(exc).__name__}: {exc}"})
-                continue
-            blocks = {block[0][0]: block for block in declaring_paragraphs(body)}
-            blocks_cache[rel] = blocks
-        block = blocks.get(hit.get("block_start"))
+        block, why = paragraph_at(root, rel, hit.get("block_start"),
+                                  blocks_cache)
         if block is None:
-            unresolved.append({
-                "text": rel, "named_as": hit.get("named_as"),
-                "reason": (f"абзаца, начинающегося строкой "
-                           f"{hit.get('block_start')}, в тексте нет — "
-                           f"координата населения не разрешается")})
+            unresolved.append({"text": rel, "named_as": hit.get("named_as"),
+                               "reason": why})
             continue
         tokens = _name_tokens(str(hit.get("named_as") or ""))
         raw = "\n".join(line for _, line in block)
@@ -4023,6 +4043,48 @@ TOKEN_DEPTH_UNMEASURED = "TOKEN_DEPTH_UNMEASURED"
 DEPTH_NAME_ONLY = "VERDICT_FROM_NAME_ALONE"
 DEPTH_READS_TEXT = "VERDICT_VARIES_WITH_TEXT"
 DEPTH_INDEPENDENCE_UNMEASURED = "INDEPENDENCE_UNMEASURED"
+
+
+def independence_verdict(groups: Dict[str, List[dict]], verdict_of) -> dict:
+    """Меняется ли вердикт кандидата вместе с АБЗАЦЕМ при том же имени.
+
+    Спрашивают это ДВЕ координаты — цена глубины токенов (**G62 п. 1**) и цена
+    свидетелей абзаца (**G63 п. 1**), — и меняется у них лишь то, ЧЕМ судит
+    кандидат; сама проверка одна. Вторая её копия была бы ровно тем предметом,
+    который перепись ищет у чужого кода (ADR-417).
+
+    Вырождение отдельным значением (инв. #17): ни одно имя не встретилось в
+    двух разных абзацах ⇒ ``INDEPENDENCE_UNMEASURED``, а НЕ «независимости
+    нет». Зелёный ответ на не заданный вопрос и есть предмет всей переписи.
+    """
+    multi = {name: rs for name, rs in groups.items()
+             if len({(r.get("text"), r.get("block_start")) for r in rs}) > 1}
+    if not multi:
+        return {
+            "verdict": DEPTH_INDEPENDENCE_UNMEASURED,
+            "names_in_two_paragraphs": 0,
+            "reason": ("проверка ВЫРОЖДЕНА: ни одно имя не встретилось в двух "
+                       "разных абзацах, поэтому спросить «меняется ли вердикт "
+                       "кандидата вместе с текстом» не на чем; зелёным этот "
+                       "ответ быть не вправе"),
+        }
+    varying = sorted(name for name, rs in multi.items()
+                     if len({verdict_of(row) for row in rs}) > 1)
+    return {
+        "verdict": DEPTH_READS_TEXT if varying else DEPTH_NAME_ONLY,
+        "names_in_two_paragraphs": len(multi),
+        "names_whose_verdict_varies": len(varying),
+        "examples": sorted(multi)[:5],
+        "varying_examples": varying[:5],
+        "reason": ("вердикт кандидата у каждого из "
+                   f"{len(multi)} имён, встреченных в двух и более разных "
+                   "абзацах, один и тот же: кандидат читает ИМЯ и не "
+                   "читает абзац, поэтому третьим свидетелем — независимым "
+                   "и от токенов, и от величины — он не является"
+                   if not varying else
+                   "у части имён вердикт кандидата меняется вместе с "
+                   "абзацем — кандидат читает не только имя"),
+    }
 
 
 def _depth_tally() -> dict:
@@ -4186,36 +4248,8 @@ def token_depth_price(precision: Optional[dict],
             },
         }
 
-    multi = {name: rs for name, rs in groups.items()
-             if len({(r.get("text"), r.get("block_start")) for r in rs}) > 1}
-    if not multi:
-        independence = {
-            "verdict": DEPTH_INDEPENDENCE_UNMEASURED,
-            "names_in_two_paragraphs": 0,
-            "reason": ("проверка ВЫРОЖДЕНА: ни одно имя не встретилось в двух "
-                       "разных абзацах, поэтому спросить «меняется ли вердикт "
-                       "кандидата вместе с текстом» не на чем; зелёным этот "
-                       "ответ быть не вправе"),
-        }
-    else:
-        varying = sorted(
-            name for name, rs in multi.items()
-            if len({r.get("token_count") for r in rs}) > 1)
-        independence = {
-            "verdict": DEPTH_READS_TEXT if varying else DEPTH_NAME_ONLY,
-            "names_in_two_paragraphs": len(multi),
-            "names_whose_verdict_varies": len(varying),
-            "examples": sorted(multi)[:5],
-            "varying_examples": varying[:5],
-            "reason": ("вердикт кандидата у каждого из "
-                       f"{len(multi)} имён, встреченных в двух и более разных "
-                       "абзацах, один и тот же: кандидат читает ИМЯ и не "
-                       "читает абзац, поэтому третьим свидетелем — независимым "
-                       "и от токенов, и от величины — он не является"
-                       if not varying else
-                       "у части имён вердикт кандидата меняется вместе с "
-                       "абзацем — кандидат читает не только имя"),
-        }
+    independence = independence_verdict(
+        groups, lambda row: row.get("token_count"))
 
     pairs = channel.get("pairs") if isinstance(channel, dict) else None
     if not isinstance(pairs, list) or not pairs:
@@ -4287,6 +4321,424 @@ def token_depth_price(precision: Optional[dict],
             "потеря пары НЕ означает, что пара настоящая: `GENUINE` остаётся "
             "верхней границей истины (ADR-439). Цена считается в том, что "
             "канал доносит до книг, а не в доказанных копиях",
+        ],
+    }
+
+
+#: Правило заказа **G63 п. 1**, записанное ДО разметки кандидатов и не
+#: менявшееся после первого прогона. Свободных параметров, подогнанных по
+#: увиденному исходу, у него нет: кандидаты, население и обе меры названы
+#: заранее, а порога на саму частоту ошибки правило не вводит вовсе.
+WITNESS_RULE = (
+    "третий свидетель обязан читать АБЗАЦ и не читать ИМЯ (ADR-440): кандидат, "
+    "чей вердикт есть функция одного имени, не способен развести два абзаца, "
+    "называющие этим именем разные пороги. Кандидаты объявлены ДО разметки, и "
+    "у КАЖДОГО меряются два числа: сколько `UNDECIDED` стороны объявлений он "
+    "решает и какова его частота ошибки на КОНТРОЛЕ — абзац без языка права "
+    "изменения объявлением не является, поэтому срабатывание там ложно по "
+    "построению. Население вопроса — срабатывания, пережившие W1 (`GENUINE` и "
+    "`UNDECIDED`): у `ARTEFACT` свидетеля не спрашивают, его снял уже W1. "
+    "Действующие свидетели W2 и W3 размечаются ТЕМ ЖЕ мерилом и по той же "
+    "причине: частоты ошибки у них не мерил никто. Кандидат без ИЗМЕРЕННОЙ "
+    "частоты ошибки в правило не входит; порога на саму частоту правило НЕ "
+    "вводит — он был бы выбран после того, как его исход увиден (запрет G62)"
+)
+
+PARAGRAPH_WITNESS_UNMEASURED = "PARAGRAPH_WITNESS_UNMEASURED"
+
+WITNESS_ADR = "adr_cited"
+WITNESS_DIR = "executor_dir_named"
+WITNESS_UNIT = "unit_named"
+WITNESS_SUBJECT = "w2_subject_named"
+WITNESS_VALUE = "w3_value_named"
+
+#: Ссылка на решение: `ADR-053`, `ADR-YL-011`, `ADR-OWN-2026-07-autoship`.
+_ADR_CITED_RE = re.compile(
+    r"(?<![a-z0-9_])adr[-\s]?(?:[a-z0-9]{1,4}-)*\d{2,4}(?![0-9])")
+
+#: Единицы величины, объявленные ДО замера — ФРАГМЕНТАМИ поиска, а не словами.
+#: Русская единица склоняется («5 дней», «5 дня»), а латинская обязана
+#: кончаться границей слова, иначе `m` совпало бы внутри `more`. Порядок
+#: существен: длинная единица стои́т раньше своей же приставки.
+_UNIT_SUFFIX_PARTS = (
+    r"bps", r"usd", r"hours?", r"days?", r"млрд", r"млн", r"мин[а-яё]*",
+    r"сек[а-яё]*", r"дн[а-яё]*", r"%", r"ч(?![a-zа-яё])", r"с(?![a-zа-яё])",
+    r"h(?![a-zа-яё])", r"m(?![a-zа-яё])", r"k(?![a-zа-яё])",
+)
+_UNIT_PREFIX_PARTS = (r"\$", r"€")
+_UNIT_SUFFIX_RE = re.compile(r"\d\s?(?:" + "|".join(_UNIT_SUFFIX_PARTS) + r")")
+_UNIT_PREFIX_RE = re.compile(r"(?:" + "|".join(_UNIT_PREFIX_PARTS) + r")\s?\d")
+
+
+def _witness_adr_cited(raw_low: str, row: dict
+                       ) -> Tuple[Optional[bool], Optional[str]]:
+    """Называет ли абзац решение, которым порог и объявляется."""
+    return bool(_ADR_CITED_RE.search(raw_low)), None
+
+
+def _witness_executor_dir(raw_low: str, row: dict
+                          ) -> Tuple[Optional[bool], Optional[str]]:
+    """Называет ли абзац КАТАЛОГ исполнителя — не основу файла (это W2).
+
+    Два отсутствия разведены: исполнителя не записали вовсе и у исполнителя
+    нет каталога — это разные состояния и чинятся они в разных местах.
+    """
+    where = str(row.get("resolved") or "")
+    if not where:
+        return None, ("исполнитель у срабатывания не записан — каталог "
+                      "спросить не у чего")
+    parts = [part for part in where.split("/")[:-1] if part]
+    if not parts:
+        return None, (f"у исполнителя `{where}` нет каталога: путь состоит из "
+                      f"одного имени файла, и вопрос к нему неприменим")
+    for part in parts:
+        if re.search(r"(?<![a-z0-9_])" + re.escape(part.lower())
+                     + r"(?![a-z0-9_])", raw_low):
+            return True, None
+    return False, None
+
+
+def _witness_unit(raw_low: str, row: dict
+                  ) -> Tuple[Optional[bool], Optional[str]]:
+    """Несёт ли абзац величину С ЕДИНИЦЕЙ — не просто число."""
+    return bool(_UNIT_SUFFIX_RE.search(raw_low)
+                or _UNIT_PREFIX_RE.search(raw_low)), None
+
+
+def _witness_subject(raw_low: str, row: dict
+                     ) -> Tuple[Optional[bool], Optional[str]]:
+    """Действующий W2: абзац называет разрешённый модуль по основе файла."""
+    where = str(row.get("resolved") or "")
+    if not where:
+        return None, ("исполнитель у срабатывания не записан — основу файла "
+                      "спросить не у чего")
+    return _module_named(raw_low, where), None
+
+
+def _witness_value(raw_low: str, row: dict
+                   ) -> Tuple[Optional[bool], Optional[str]]:
+    """Действующий W3: абзац несёт величину имени в любом из двух прочтений.
+
+    Величина спрашивается у самого абзаца тем же помощником, каким её
+    спрашивает разметка (:func:`_paragraph_values`), — вторая копия правила
+    двух прочтений была бы ровно тем предметом, который перепись ищет.
+    """
+    value = row.get("value")
+    if value is None:
+        return None, ("у срабатывания не записана величина — назвать её "
+                      "абзац не может ни назвать, ни не назвать")
+    return value_key(str(value)) in _paragraph_values(raw_low), None
+
+
+#: Кандидаты заказа **G63 п. 1**, объявленные ДО разметки. Первые три — из
+#: самого заказа; последние два действуют в правиле уже сегодня и внесены
+#: сюда потому, что заказ назвал их тем же именем: свидетель без измеренной
+#: частоты ошибки. Поле ``reads`` — не украшение: оно и есть ответ на вопрос
+#: «читает ли кандидат абзац», и вердикт независимости его проверяет.
+PARAGRAPH_WITNESSES = (
+    {"key": WITNESS_ADR, "incumbent": False, "reads": "абзац",
+     "declared": "абзац называет решение (ADR), которым порог объявляется",
+     "probe": _witness_adr_cited},
+    {"key": WITNESS_DIR, "incumbent": False, "reads": "абзац + путь исполнителя",
+     "declared": ("абзац называет КАТАЛОГ исполнителя, а не основу его файла "
+                  "(основа — это уже действующий W2)"),
+     "probe": _witness_executor_dir},
+    {"key": WITNESS_UNIT, "incumbent": False, "reads": "абзац",
+     "declared": "абзац несёт величину с ЕДИНИЦЕЙ, а не голое число",
+     "probe": _witness_unit},
+    {"key": WITNESS_SUBJECT, "incumbent": True, "reads": "абзац + путь исполнителя",
+     "declared": "ДЕЙСТВУЮЩИЙ W2: абзац называет модуль по основе файла",
+     "probe": _witness_subject},
+    {"key": WITNESS_VALUE, "incumbent": True, "reads": "абзац + величина имени",
+     "declared": "ДЕЙСТВУЮЩИЙ W3: абзац несёт величину имени",
+     "probe": _witness_value},
+)
+
+#: Ноль решённых `UNDECIDED` у действующего свидетеля — свойство ОПРЕДЕЛЕНИЯ
+#: разметки, а не замер: `UNDECIDED` и означает «W1 без W2 и W3».
+_STRUCTURAL_ZERO = (
+    "`UNDECIDED` по определению разметки есть W1 без W2 и W3, поэтому ноль "
+    "решённых у действующего свидетеля — свойство ОПРЕДЕЛЕНИЯ, а не измерение; "
+    "число печатается рядом с измеренными, чтобы «ноль по построению» и "
+    "«измерено и равно нулю» нельзя было прочесть одинаково (инв. #17)"
+)
+
+
+def _independence_reading(verdict: str, reads: str, reach: dict) -> str:
+    """Что вердикт независимости ПОЗВОЛЯЕТ заключить у ЭТОГО кандидата.
+
+    ADR-440 прочитал «вердикт не меняется вместе с абзацем» как «кандидат
+    читает ИМЯ», и для ТОГО кандидата вывод был верен: его вход — одно имя.
+    В общем случае вывод неверен, и это не осторожность, а замер: действующий
+    W2 получает на вход абзац, имени не видит вовсе и всё равно даёт тот же
+    вердикт у всех повторов — потому что почти всегда МОЛЧИТ. Постоянный
+    ответ и отсутствие различительной силы выглядят одинаково, и различает их
+    охват, а не вердикт.
+    """
+    if verdict == DEPTH_READS_TEXT:
+        return "вердикт меняется вместе с абзацем — кандидат различает абзацы"
+    if verdict == DEPTH_INDEPENDENCE_UNMEASURED:
+        return ("вырождено: повторов имени нет, и спрашивать различительную "
+                "силу не на чем")
+    fired = sum(int(cell.get("fired", 0)) for cell in reach.values())
+    silent = sum(int(cell.get("silent", 0)) for cell in reach.values())
+    if not fired or not silent:
+        return (f"вердикт постоянен ПОТОМУ, что постоянен сам ответ "
+                f"(сработал {fired} раз из {fired + silent}): это отсутствие "
+                f"различительной силы, а НЕ чтение имени — на вход кандидат "
+                f"получает {reads} и имени не видит")
+    return (f"вердикт не меняется вместе с абзацем, хотя на вход кандидат "
+            f"получает {reads}: на ЭТОМ населении различительной силы нет, и "
+            f"вывести отсюда «читает имя» нельзя")
+
+
+def _witness_rate(fired: int, askable: int, unaskable: int,
+                  *, paragraphs: int, empty_reason: str) -> dict:
+    """Доля со ЗНАМЕНАТЕЛЕМ; пустой знаменатель — третий исход, не ноль.
+
+    Рядом с числом срабатываний идёт число РАЗНЫХ абзацев, в которых они
+    случились, и это не украшение: ADR-436 уже показал, как свойство выборки
+    выдаётся за свойство дерева, а ADR-440 — что весь прибыток второго
+    прочтения пришёл из одного абзаца. «Решает 33» при одном абзаце и при
+    двадцати — разные утверждения.
+    """
+    if not askable:
+        return {"status": PARAGRAPH_WITNESS_UNMEASURED, "fired": fired,
+                "askable": 0, "unaskable": unaskable, "share": None,
+                "paragraphs": paragraphs, "reason": empty_reason}
+    return {"status": "MEASURED", "fired": fired, "askable": askable,
+            "unaskable": unaskable, "share": fired / askable,
+            "paragraphs": paragraphs}
+
+
+def paragraph_witness_price(root: Path, precision: Optional[dict]) -> dict:
+    """Кандидаты в третьи свидетели, читающие АБЗАЦ (**заказ G63 п. 1**).
+
+    ADR-440 доказал, что кандидат прежнего заказа — глубина имени в токенах —
+    третьим свидетелем не является: его вердикт есть функция ИМЕНИ, и у всех
+    23 имён, встреченных в двух и более разных абзацах, он один и тот же.
+    Форма искомого свидетеля этим названа, сам свидетель — нет. Здесь
+    объявляются кандидаты :data:`PARAGRAPH_WITNESSES` и у каждого меряются
+    ровно два числа, которых заказ и потребовал: решённые `UNDECIDED` и
+    частота ошибки на контроле.
+
+    Действующие W2 и W3 размечаются тем же мерилом не для симметрии: заказ
+    прямо назвал их кандидатами без измеренной частоты ошибки, и пока она не
+    измерена, «правило ошибается в N %» есть утверждение, которое нечем
+    поверить. Ноль решённых `UNDECIDED` у них — :data:`_STRUCTURAL_ZERO`, и
+    несовпадение с этим ожиданием печатается как ПРОТИВОРЕЧИЕ, а не молчит.
+
+    Порог на частоту ошибки НЕ вводится и ни один вердикт переписи эта
+    координата не меняет (``applied`` — часть ответа, а не украшение).
+    """
+    head = {
+        "rule": WITNESS_RULE,
+        "applied": False,
+        "question": ("сколько `UNDECIDED` решает каждый кандидат-свидетель "
+                     "абзаца и какова его частота ошибки на контроле "
+                     "(заказ G63 п. 1)"),
+        "declared": [{"key": cand["key"], "incumbent": cand["incumbent"],
+                      "reads": cand["reads"], "declared": cand["declared"]}
+                     for cand in PARAGRAPH_WITNESSES],
+    }
+    # Пять отсутствий разведены отдельными значениями по той же причине, что
+    # у соседней координаты: «координаты не было» и «координата отказала»
+    # чинятся в разных местах, а «население не записано», «население не
+    # перечень» и «население пусто» — три разных утверждения о канале.
+    if not isinstance(precision, dict):
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": ("разметки канала имени нет вовсе — перепись собрана "
+                           "без соседней координаты, спрашивать свидетелей "
+                           "не у чего")}
+    if precision.get("status") != "MEASURED":
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": ("точность канала имени ОТКАЗАЛА "
+                           f"({precision.get('status')}) — населения "
+                           "`UNDECIDED` не существует")}
+    rows = precision.get("rows")
+    if rows is None:
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": ("разметка не выдала населения: срабатывания "
+                           "размечены и не записаны — спрашивать нечего")}
+    if not isinstance(rows, list):
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": (f"население разметки имеет форму "
+                           f"{type(rows).__name__}, а не перечень — прочитать "
+                           "его построчно нельзя")}
+    if not rows:
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": ("население разметки пусто: это НЕ «ошибок ноль», а "
+                           "отсутствие предмета измерения")}
+
+    cache: Dict[str, Dict[int, List[Tuple[int, str]]]] = {}
+    unreadable: List[dict] = []
+    unresolved: List[dict] = []
+    # Счёт ведётся по сторонам и по кандидатам; `artefact` считается отдельно
+    # и не молчит: у него свидетеля не спрашивают по правилу, а не по недосмотру.
+    population: Dict[str, int] = {}
+    artefact_skipped: Dict[str, int] = {}
+    undecided_total = 0
+    tally: Dict[str, Dict[str, Dict[str, int]]] = {
+        cand["key"]: {} for cand in PARAGRAPH_WITNESSES}
+    resolves: Dict[str, Dict[str, int]] = {
+        cand["key"]: {"fired": 0, "askable": 0, "unaskable": 0}
+        for cand in PARAGRAPH_WITNESSES}
+    groups: Dict[str, Dict[str, List[dict]]] = {
+        cand["key"]: {} for cand in PARAGRAPH_WITNESSES}
+    why_unaskable: Dict[str, Dict[str, int]] = {
+        cand["key"]: {} for cand in PARAGRAPH_WITNESSES}
+    examples: Dict[str, List[dict]] = {cand["key"]: []
+                                       for cand in PARAGRAPH_WITNESSES}
+    # Абзацы, а не только срабатывания: «решает 33» при одном абзаце и при
+    # двадцати — разные утверждения (ADR-436, ADR-440).
+    fired_paragraphs: Dict[str, Dict[str, set]] = {
+        cand["key"]: {"undecided": set(), "control": set()}
+        for cand in PARAGRAPH_WITNESSES}
+    undecided_paragraphs: set = set()
+    control_paragraphs: set = set()
+    contradictions: Dict[str, List[dict]] = {cand["key"]: []
+                                             for cand in PARAGRAPH_WITNESSES}
+
+    for row in rows:
+        label = row.get("label")
+        side = str(row.get("side") or "")
+        if label not in (LABEL_GENUINE, LABEL_ARTEFACT, LABEL_UNDECIDED):
+            unreadable.append({
+                "text": row.get("text"), "named_as": row.get("named_as"),
+                "reason": f"метка {label!r} не из объявленных трёх"})
+            continue
+        if label == LABEL_ARTEFACT:
+            artefact_skipped[side] = artefact_skipped.get(side, 0) + 1
+            continue
+        rel = str(row.get("text") or "")
+        block, why = paragraph_at(root, rel, row.get("block_start"), cache)
+        if block is None:
+            unresolved.append({"text": rel, "named_as": row.get("named_as"),
+                               "reason": why})
+            continue
+        raw_low = "\n".join(line for _, line in block).lower()
+        population[side] = population.get(side, 0) + 1
+        undecided = (label == LABEL_UNDECIDED and side == "authority")
+        undecided_total += 1 if undecided else 0
+        where = (rel, row.get("block_start"))
+        if undecided:
+            undecided_paragraphs.add(where)
+        if side == "control":
+            control_paragraphs.add(where)
+        for cand in PARAGRAPH_WITNESSES:
+            key = cand["key"]
+            verdict, reason = cand["probe"](raw_low, row)
+            cell = tally[key].setdefault(
+                side, {"fired": 0, "silent": 0, "unaskable": 0})
+            if verdict is None:
+                cell["unaskable"] += 1
+                bucket = why_unaskable[key]
+                bucket[str(reason)] = bucket.get(str(reason), 0) + 1
+                if undecided:
+                    resolves[key]["unaskable"] += 1
+                continue
+            cell["fired" if verdict else "silent"] += 1
+            if verdict and side == "control":
+                fired_paragraphs[key]["control"].add(where)
+            groups[key].setdefault(str(row.get("named_as")), []).append(
+                {"text": rel, "block_start": row.get("block_start"),
+                 "verdict": verdict})
+            if undecided:
+                resolves[key]["askable"] += 1
+                if verdict:
+                    resolves[key]["fired"] += 1
+                    fired_paragraphs[key]["undecided"].add(where)
+                    item = {"text": rel, "block_start": row.get("block_start"),
+                            "named_as": row.get("named_as"),
+                            "resolved": row.get("resolved"),
+                            "value": row.get("value")}
+                    if len(examples[key]) < 5:
+                        examples[key].append(item)
+                    if cand["incumbent"]:
+                        contradictions[key].append(item)
+
+    if not population:
+        return {**head, "status": PARAGRAPH_WITNESS_UNMEASURED,
+                "reason": ("ни одно срабатывание не дошло до свидетелей: у "
+                           "всех либо метка вне объявленных трёх, либо "
+                           "`ARTEFACT`, либо абзац не разрешается"),
+                "unreadable": unreadable, "unresolved": unresolved,
+                "artefact_skipped": artefact_skipped}
+
+    candidates: Dict[str, dict] = {}
+    for cand in PARAGRAPH_WITNESSES:
+        key = cand["key"]
+        got = resolves[key]
+        control = tally[key].get("control") or {"fired": 0, "silent": 0,
+                                                "unaskable": 0}
+        resolved_doc = _witness_rate(
+            got["fired"], got["askable"], got["unaskable"],
+            paragraphs=len(fired_paragraphs[key]["undecided"]),
+            empty_reason=("неразрешённых срабатываний, у которых свидетеля "
+                          "можно спросить, нет — «решает ноль» здесь было бы "
+                          "ответом не на тот вопрос"))
+        error_doc = _witness_rate(
+            control["fired"], control["fired"] + control["silent"],
+            control["unaskable"],
+            paragraphs=len(fired_paragraphs[key]["control"]),
+            empty_reason=("контрольных срабатываний, у которых свидетеля можно "
+                          "спросить, нет: частоту ошибки сравнивать не с чем, "
+                          "и это НЕ «ошибок ноль»"))
+        admissible = error_doc["status"] == "MEASURED"
+        reach = {side: dict(cell) for side, cell in tally[key].items()}
+        independence = independence_verdict(
+            groups[key], lambda row: row["verdict"])
+        candidates[key] = {
+            "declared": cand["declared"],
+            "reads": cand["reads"],
+            "incumbent": cand["incumbent"],
+            "resolves_undecided": resolved_doc,
+            "error_rate_on_control": error_doc,
+            "reach": reach,
+            "admissible_to_rule": admissible,
+            "admissibility": (
+                "частота ошибки ИЗМЕРЕНА — кандидат допустим к обсуждению "
+                "правила; допустим не значит принят, порог на саму частоту "
+                "этим решением не вводится"
+                if admissible else
+                "частота ошибки НЕ измерена — в правило кандидат не входит"),
+            "structural_zero": _STRUCTURAL_ZERO if cand["incumbent"] else None,
+            "contradictions": contradictions[key],
+            "unaskable_reasons": dict(sorted(why_unaskable[key].items())),
+            "examples": examples[key],
+            "independence": independence,
+            "independence_reading": _independence_reading(
+                str(independence.get("verdict")), cand["reads"], reach),
+        }
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "undecided_population": undecided_total,
+        "undecided_paragraphs": len(undecided_paragraphs),
+        "control_population": population.get("control", 0),
+        "control_paragraphs": len(control_paragraphs),
+        "population": population,
+        "artefact_skipped": artefact_skipped,
+        "candidates": candidates,
+        "unreadable": unreadable,
+        "unresolved": unresolved,
+        "blind": [
+            "частота ошибки на контроле есть частота ошибки КАНДИДАТА в том "
+            "же смысле, в каком доля `GENUINE` на контроле есть частота ошибки "
+            "правила разметки (ADR-439): абзац без языка права изменения "
+            "объявлением не является, поэтому срабатывание там ложно по "
+            "построению — а не потому, что кто-то его проверил",
+            "решённый `UNDECIDED` НЕ означает доказанной копии: `GENUINE` "
+            "остаётся ВЕРХНЕЙ границей истины (ADR-439), и свидетель двигает "
+            "именно её",
+            "порог на частоту ошибки НЕ введён: `applied` ложно, ни один "
+            "вердикт переписи этой координатой не меняется. Ввести его, увидев "
+            "исход, значило бы выбрать правило после его результата — прямой "
+            "запрет заказа G62",
+            "вердикт независимости отвечает на «меняется ли ответ вместе с "
+            "абзацем», а НЕ на «верен ли ответ»: кандидат, читающий абзац и "
+            "читающий его неверно, останется здесь `VERDICT_VARIES_WITH_TEXT`",
         ],
     }
 
@@ -4594,6 +5046,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # вводится, поэтому координата ничего не гейтит и ни во что не входит.
     depth_price = token_depth_price(name_precision, name_channel_doc)
 
+    # --- КАНДИДАТЫ В ТРЕТЬИ СВИДЕТЕЛИ (заказ G63 п. 1) --------------------
+    # Координата выше доказала, что кандидат прежнего заказа читает ИМЯ и
+    # потому свидетелем не является. Форма искомого названа — читать АБЗАЦ, —
+    # и здесь кандидаты этой формы объявляются ДО разметки и меряются двумя
+    # числами: решённые `UNDECIDED` и частота ошибки на контроле. Ни один
+    # вердикт переписи эта координата не меняет.
+    witness_price = paragraph_witness_price(root, name_precision)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -4690,6 +5150,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "bilingual_reach": bilingual,
         "bilingual_name_precision": name_precision,
         "token_depth_price": depth_price,
+        "paragraph_witness_price": witness_price,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -5479,6 +5940,83 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ЦЕНА ДВУХ ТОКЕНОВ · НЕ РАЗОБРАНО] {row.get('text')} "
                        f"`{row.get('named_as')}`: {row.get('reason')}")
         for blind in (depth.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция — на уровне тела функции, а не внутри `else` соседней координаты:
+    # вложенная туда, она молчала бы у каждого дерева, где разметка не
+    # измерена, то есть ровно там, где о кандидатах и надо сказать громко.
+    wit = observed(doc, "paragraph_witness_price", kind=dict)
+    if wit is None:
+        out.append("[СВИДЕТЕЛИ АБЗАЦА] НЕ ИЗМЕРЕНЫ — перепись собрана без "
+                   "координаты (заказ G63 п. 1)")
+    elif wit.get("status") != "MEASURED":
+        out.append(f"[СВИДЕТЕЛИ АБЗАЦА] НЕ ИЗМЕРЕНЫ: {wit.get('reason')}")
+    else:
+        out.append(
+            f"[СВИДЕТЕЛИ АБЗАЦА · ПРАВИЛО] кандидатов "
+            f"{len(wit.get('declared') or [])} · порог на частоту ошибки "
+            f"введён: {'да' if wit.get('applied') else 'НЕТ'} · "
+            f"{wit.get('rule')}")
+        out.append(
+            f"[СВИДЕТЕЛИ АБЗАЦА · НАСЕЛЕНИЕ] неразрешённых у стороны "
+            f"объявлений {wit.get('undecided_population')} в "
+            f"{wit.get('undecided_paragraphs')} разных абзац(ах) · "
+            f"контрольных срабатываний с W1 {wit.get('control_population')} в "
+            f"{wit.get('control_paragraphs')} абзац(ах) · `ARTEFACT` "
+            f"не спрашивается: "
+            + str(observed(wit, "artefact_skipped", kind=dict) or {}))
+        cands = observed(wit, "candidates", kind=dict) or {}
+        for key, cand in cands.items():
+            got = observed(cand, "resolves_undecided", kind=dict) or {}
+            err = observed(cand, "error_rate_on_control", kind=dict) or {}
+            share = observed(got, "share", kind=float)
+            rate = observed(err, "share", kind=float)
+            out.append(
+                f"[СВИДЕТЕЛЬ · {key}] "
+                + ("ДЕЙСТВУЮЩИЙ" if cand.get("incumbent") else "кандидат")
+                + f" · читает: {cand.get('reads')} · решает `UNDECIDED` "
+                + ("НЕ ИЗМЕРЕНО" if share is None
+                   else f"{got.get('fired')} из {got.get('askable')} "
+                        f"({share:.0%}) в {got.get('paragraphs')} абзац(ах)")
+                + " · частота ошибки на контроле "
+                + ("НЕ ИЗМЕРЕНА" if rate is None
+                   else f"{err.get('fired')} из {err.get('askable')} "
+                        f"({rate:.0%}) в {err.get('paragraphs')} абзац(ах)")
+                + " · в правило допустим: "
+                + ("да" if cand.get("admissible_to_rule") else "НЕТ"))
+            if got.get("unaskable") or err.get("unaskable"):
+                out.append(
+                    f"[СВИДЕТЕЛЬ · {key} · НЕ СПРОШЕН] неразрешённых "
+                    f"{got.get('unaskable')}, контрольных "
+                    f"{err.get('unaskable')} — причины: "
+                    + "; ".join(f"{why} ×{n}" for why, n in
+                                (cand.get("unaskable_reasons") or {}).items()))
+            if cand.get("structural_zero"):
+                out.append(f"[СВИДЕТЕЛЬ · {key} · НОЛЬ ПО ПОСТРОЕНИЮ] "
+                           f"{cand.get('structural_zero')}")
+            for row in (cand.get("contradictions") or []):
+                out.append(
+                    f"[СВИДЕТЕЛЬ · {key} · ПРОТИВОРЕЧИЕ] действующий свидетель "
+                    f"сработал на `UNDECIDED` {row.get('text')} "
+                    f"`{row.get('named_as')}` — разметка и эта мера спорят, и "
+                    f"спор обязан быть разобран, а не усреднён")
+            ind = observed(cand, "independence", kind=dict) or {}
+            out.append(
+                f"[СВИДЕТЕЛЬ · {key} · ЧИТАЕТ ЛИ АБЗАЦ] {ind.get('verdict')} — "
+                f"{cand.get('independence_reading')}; охват "
+                + str(cand.get("reach") or {}))
+            for row in (cand.get("examples") or []):
+                out.append(
+                    f"[СВИДЕТЕЛЬ · {key} · РЕШЁННОЕ] {row.get('text')}:"
+                    f"{row.get('block_start')} -> {row.get('resolved')} "
+                    f"`{row.get('named_as')}` = {row.get('value')}")
+        for row in (wit.get("unreadable") or []):
+            out.append(f"[СВИДЕТЕЛИ АБЗАЦА · НЕ РАЗОБРАНО] {row.get('text')} "
+                       f"`{row.get('named_as')}`: {row.get('reason')}")
+        for row in (wit.get("unresolved") or []):
+            out.append(f"[СВИДЕТЕЛИ АБЗАЦА · АБЗАЦ НЕ РАЗРЕШЁН] "
+                       f"{row.get('text')} `{row.get('named_as')}`: "
+                       f"{row.get('reason')}")
+        for blind in (wit.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
