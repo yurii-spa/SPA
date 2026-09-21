@@ -4743,6 +4743,334 @@ def paragraph_witness_price(root: Path, precision: Optional[dict]) -> dict:
     }
 
 
+
+#: Правило заказа **G64 п. 1**, записанное ДО замера и не менявшееся после
+#: первого прогона. Свободных параметров, подогнанных по увиденному исходу, у
+#: него нет: валюта, население и обе границы интервала названы заранее, а
+#: порога на частоту ошибки правило не вводит вовсе.
+ADMISSION_RULE = (
+    "цена ДОПУСКА кандидата в правило считается в валюте КНИГ — в парах, а не "
+    "в срабатываниях разметки (ADR-440: срабатывание книг не достигает, пара "
+    "достигает). Допуск читается как ТРЕТИЙ СВИДЕТЕЛЬ: "
+    "GENUINE = W1 и (W2 или W3 или Wк), население на месте, убывает "
+    "`UNDECIDED`. У цены ДВЕ стороны, и складывать их нельзя: на стороне "
+    "объявлений прибывшая пара может оказаться настоящей, на КОНТРОЛЕ она "
+    "ложна ПО ПОСТРОЕНИЮ — абзац без языка права изменения объявлением не "
+    "является. Интервал истины двигается ОБЕИМИ границами или ни одной, и "
+    "какая из них тронулась — замер, а не ожидание. Порог НЕ вводится: мера "
+    "судит уже сделанный замер и не меняет ни одного вердикта переписи"
+)
+
+WITNESS_ADMISSION_UNMEASURED = "WITNESS_ADMISSION_UNMEASURED"
+
+#: Почему верхняя граница интервала не может тронуться от ДОПУСКА свидетеля.
+#: Утверждение печатается рядом с ЗАМЕРОМ обеих границ, а не вместо него:
+#: заказ потребовал обе, и «по построению не двигается» без числа было бы
+#: ровно тем зелёным ответом на не заданный вопрос, который ищет вся перепись.
+_ADMISSION_UPPER_INVARIANT = (
+    "верхняя граница есть (GENUINE + UNDECIDED) / labelled, а допуск свидетеля "
+    "переносит срабатывание ИЗ `UNDECIDED` В `GENUINE`, не трогая знаменателя: "
+    "сумма в числителе сохраняется, и верхняя граница обязана остаться на "
+    "месте. Это свойство ОПРЕДЕЛЕНИЯ, а не измерение, — но замер печатается "
+    "рядом, и расхождение с ожиданием объявляется ПРОТИВОРЕЧИЕМ, а не молчит"
+)
+
+#: Ноль прибывших пар у ДЕЙСТВУЮЩЕГО свидетеля — свойство определения
+#: разметки (`UNDECIDED` и означает «W1 без W2 и W3»), а не замер цены.
+_ADMISSION_STRUCTURAL_ZERO = (
+    "у ДЕЙСТВУЮЩЕГО свидетеля прибыток пар равен нулю ПО ОПРЕДЕЛЕНИЮ разметки: "
+    "`UNDECIDED` есть W1 без W2 и W3, поэтому допускать в правило уже стоящего "
+    "в нём нечего. Число печатается рядом с измеренными, чтобы «ноль по "
+    "построению» и «измерено и равно нулю» нельзя было прочесть одинаково "
+    "(инв. #17)"
+)
+
+
+def _pair_key(item: dict, *, line_field: str) -> Tuple:
+    """Координата пары: текст, начало абзаца, имя, исполнитель.
+
+    Поле начала абзаца у пары канала зовётся ``line``, у строки разметки —
+    ``block_start``, и это ОДНО и то же число (``block[0][0]``). Разные имена
+    сводятся здесь один раз: вторая копия этого знания была бы ровно тем
+    предметом, который перепись ищет у чужого кода (ADR-417).
+    """
+    return (item.get("text"), item.get(line_field), item.get("named_as"),
+            item.get("resolved"))
+
+
+def _admission_side(genuine: int, undecided: int, artefact: int,
+                    added: int) -> dict:
+    """Одна сторона цены: до, после и ОБЕ границы интервала у каждой."""
+    labelled = genuine + undecided + artefact
+    before = truth_interval(genuine, undecided, labelled)
+    after = truth_interval(genuine + added, undecided - added, labelled)
+    moved_lower = (before is not None and after is not None
+                   and before["lower"] != after["lower"])
+    moved_upper = (before is not None and after is not None
+                   and before["upper"] != after["upper"])
+    return {
+        "genuine_before": genuine,
+        "genuine_after": genuine + added,
+        "undecided_before": undecided,
+        "undecided_after": undecided - added,
+        "artefact": artefact,
+        "labelled": labelled,
+        "added": added,
+        "interval_before": before,
+        "interval_after": after,
+        "lower_bound_moved": moved_lower,
+        "upper_bound_moved": moved_upper,
+        "upper_bound_note": _ADMISSION_UPPER_INVARIANT,
+    }
+
+
+def witness_admission_price(root: Path, precision: Optional[dict],
+                            channel: Optional[dict] = None) -> dict:
+    """Цена ДОПУСКА кандидата-свидетеля в правило, в валюте пар (**G64 п. 1**).
+
+    ADR-441 измерил у кандидата ``adr_cited`` два числа — решённые `UNDECIDED`
+    и частоту ошибки на контроле — и прямо сказал, чего НЕ доказал: что
+    кандидата стои́т ввести. Цена введения в валюте книг не измерена вовсе, и
+    заказ **G64 п. 1** требует именно её: сколько ПАР прибавляет правило
+    ``GENUINE = W1 и (W2 или W3 или Wк)``, сколько из них приходит из абзацев,
+    уже давших пару, и как двигается интервал истины — ОБЕ границы.
+
+    Вопрос про «уже давший пару абзац» не украшение, а мера ПРИБЫТКА: пара из
+    абзаца, о котором книги уже говорят, доносит до читателя меньше, чем пара
+    из абзаца, молчавшего до сих пор. ADR-440 нашёл ровно эту форму — весь
+    прибыток второго прочтения пришёл из ОДНОГО абзаца.
+
+    Мера ничего не пересчитывает заново: вердикты кандидатов спрашиваются у
+    тех же проб :data:`PARAGRAPH_WITNESSES`, интервал — у той же
+    :func:`truth_interval`, абзац — у той же :func:`paragraph_at`. Вызвать
+    объявленное один раз правило дважды не значит завести его вторую копию.
+
+    Третий исход везде отдельным значением (инв. #17): разметки нет, разметка
+    отказала, население не записано / не перечень / пусто — каждое со своей
+    причиной; пары канала недоступны ⇒ подвопрос про абзацы отвечает
+    ``UNMEASURED``, а прибыток пар при этом остаётся измеренным. Пустое
+    население НЕ есть «цена нулевая».
+    """
+    head = {
+        "rule": ADMISSION_RULE,
+        "applied": False,
+        "question": ("какова ЦЕНА допуска кандидата в правило в валюте ПАР и "
+                     "как двигаются ОБЕ границы интервала истины "
+                     "(заказ G64 п. 1)"),
+        "declared": [{"key": cand["key"], "incumbent": cand["incumbent"],
+                      "reads": cand["reads"]}
+                     for cand in PARAGRAPH_WITNESSES],
+    }
+    if not isinstance(precision, dict):
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": ("разметки канала имени нет вовсе — перепись собрана "
+                           "без соседней координаты, цену допуска считать не "
+                           "от чего")}
+    if precision.get("status") != "MEASURED":
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": ("точность канала имени ОТКАЗАЛА "
+                           f"({precision.get('status')}) — населения "
+                           "`UNDECIDED` не существует")}
+    rows = precision.get("rows")
+    if rows is None:
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": ("разметка не выдала населения: срабатывания "
+                           "размечены и не записаны — цену считать нечем")}
+    if not isinstance(rows, list):
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": (f"население разметки имеет форму "
+                           f"{type(rows).__name__}, а не перечень — прочитать "
+                           "его построчно нельзя")}
+    if not rows:
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": ("население разметки пусто: это НЕ «цена нулевая», а "
+                           "отсутствие предмета измерения")}
+
+    # Пары канала — то, что доходит до книг СЕГОДНЯ. Их отсутствие закрывает
+    # ровно один подвопрос заказа и не отменяет остальных, поэтому отказ здесь
+    # локальный, а не общий на всю координату.
+    pairs = channel.get("pairs") if isinstance(channel, dict) else None
+    if not isinstance(pairs, list):
+        paying: Optional[set] = None
+        pairs_today: dict = {
+            "status": WITNESS_ADMISSION_UNMEASURED,
+            "reason": ("канал не выдал перечня пар — какие абзацы уже платят "
+                       "книгам, спросить не у чего; это НЕ «не платит ни один»"),
+        }
+    else:
+        paying = {(p.get("text"), p.get("line")) for p in pairs}
+        pairs_today = {"status": "MEASURED", "pairs": len(pairs),
+                       "paragraphs": len(paying)}
+
+    cache: Dict[str, Dict[int, List[Tuple[int, str]]]] = {}
+    unreadable: List[dict] = []
+    unresolved: List[dict] = []
+    counts: Dict[str, Dict[str, int]] = {}
+    # Прибывшие строки собираются ЦЕЛИКОМ: без них «прибыло 33» осталось бы
+    # числом без предметов, и ни абзац, ни пересечение с парами спросить было
+    # бы не у чего.
+    arrivals: Dict[str, Dict[str, List[dict]]] = {
+        cand["key"]: {"authority": [], "control": []}
+        for cand in PARAGRAPH_WITNESSES}
+    unaskable: Dict[str, Dict[str, int]] = {
+        cand["key"]: {"authority": 0, "control": 0}
+        for cand in PARAGRAPH_WITNESSES}
+    genuine_rows: Dict[str, set] = {"authority": set(), "control": set()}
+
+    for row in rows:
+        label = row.get("label")
+        side = str(row.get("side") or "")
+        if label not in (LABEL_GENUINE, LABEL_ARTEFACT, LABEL_UNDECIDED):
+            unreadable.append({
+                "text": row.get("text"), "named_as": row.get("named_as"),
+                "reason": f"метка {label!r} не из объявленных трёх"})
+            continue
+        tally = counts.setdefault(side, {LABEL_GENUINE: 0, LABEL_ARTEFACT: 0,
+                                         LABEL_UNDECIDED: 0})
+        tally[label] += 1
+        if label == LABEL_GENUINE and side in genuine_rows:
+            genuine_rows[side].add(_pair_key(row, line_field="block_start"))
+        if label != LABEL_UNDECIDED:
+            continue
+        rel = str(row.get("text") or "")
+        block, why = paragraph_at(root, rel, row.get("block_start"), cache)
+        if block is None:
+            unresolved.append({"text": rel, "named_as": row.get("named_as"),
+                               "reason": why})
+            # Неразрешённый абзац остаётся в знаменателе разметки и НЕ
+            # переходит ни к одному кандидату: спросить свидетеля не у чего.
+            for cand in PARAGRAPH_WITNESSES:
+                if side in unaskable[cand["key"]]:
+                    unaskable[cand["key"]][side] += 1
+            continue
+        raw_low = "\n".join(line for _, line in block).lower()
+        for cand in PARAGRAPH_WITNESSES:
+            key = cand["key"]
+            verdict, _reason = cand["probe"](raw_low, row)
+            if verdict is None:
+                if side in unaskable[key]:
+                    unaskable[key][side] += 1
+                continue
+            if verdict and side in arrivals[key]:
+                arrivals[key][side].append({
+                    "text": rel, "block_start": row.get("block_start"),
+                    "named_as": row.get("named_as"),
+                    "resolved": row.get("resolved"), "value": row.get("value"),
+                })
+
+    if not counts:
+        return {**head, "status": WITNESS_ADMISSION_UNMEASURED,
+                "reason": ("ни одно срабатывание не разобрано: ни у одного нет "
+                           "метки из объявленных трёх"),
+                "unreadable": unreadable, "unresolved": unresolved}
+
+    # Пересечение пар канала с меткой `GENUINE` — ЗАМЕР, а не допущение. Два
+    # критерия («величина подтвердила» и «W1 и (W2 или W3)») сегодня дают
+    # одно число, и совпадение чисел тождеством множеств не является.
+    if paying is not None and isinstance(pairs, list):
+        pair_keys = {_pair_key(p, line_field="line") for p in pairs}
+        pairs_today["genuine_overlap"] = len(pair_keys & genuine_rows["authority"])
+        pairs_today["pairs_not_genuine"] = sorted(
+            str(k) for k in (pair_keys - genuine_rows["authority"]))
+        pairs_today["genuine_not_pairs"] = sorted(
+            str(k) for k in (genuine_rows["authority"] - pair_keys))
+
+    candidates: Dict[str, dict] = {}
+    for cand in PARAGRAPH_WITNESSES:
+        key = cand["key"]
+        per_side: Dict[str, dict] = {}
+        for side, tally in sorted(counts.items()):
+            # Сторона вне объявленных двух — ТРЕТИЙ ИСХОД, а не ноль: прибыток
+            # у неё не считался вовсе, и выдать «прибыло 0» значило бы ответить
+            # числом на не заданный вопрос (инв. #17).
+            if side not in arrivals[key]:
+                per_side[side] = {
+                    "status": WITNESS_ADMISSION_UNMEASURED,
+                    "labelled": sum(tally.values()),
+                    "reason": (f"сторона {side!r} не из объявленных двух "
+                               f"(`authority`, `control`) — свидетеля у неё не "
+                               f"спрашивали, и прибыток не измерен"),
+                }
+                continue
+            added = len(arrivals[key][side])
+            per_side[side] = {
+                "status": "MEASURED",
+                **_admission_side(tally[LABEL_GENUINE], tally[LABEL_UNDECIDED],
+                                  tally[LABEL_ARTEFACT], added),
+                "unaskable": unaskable[key].get(side, 0),
+            }
+        got = arrivals[key]["authority"]
+        if paying is None:
+            provenance = {
+                "status": WITNESS_ADMISSION_UNMEASURED,
+                "added": len(got),
+                "reason": ("перечня пар у канала нет — из каких абзацев "
+                           "прибыли новые пары, сказать нечем; это НЕ «не "
+                           "платит ни один»"),
+            }
+        else:
+            already = [item for item in got
+                       if (item["text"], item["block_start"]) in paying]
+            fresh_paragraphs = {(item["text"], item["block_start"])
+                                for item in got
+                                if (item["text"], item["block_start"])
+                                not in paying}
+            provenance = {
+                "status": "MEASURED",
+                "added": len(got),
+                "from_paragraph_already_paying": len(already),
+                "from_paragraph_silent_until_now": len(got) - len(already),
+                "paragraphs_added": len({(item["text"], item["block_start"])
+                                         for item in got}),
+                "paragraphs_new_to_books": len(fresh_paragraphs),
+            }
+        # Прибывшая пара, уже стоя́щая в парах канала, есть ПРОТИВОРЕЧИЕ:
+        # `UNDECIDED` означает «без W3», а пара канала — «величина подтвердила»,
+        # то есть ровно W3. Пересечение обязано быть пустым, и оно МЕРЯЕТСЯ.
+        contradiction = ([] if paying is None else
+                         [item for item in got
+                          if _pair_key(item, line_field="block_start")
+                          in {_pair_key(p, line_field="line") for p in pairs}])
+        candidates[key] = {
+            "incumbent": cand["incumbent"],
+            "reads": cand["reads"],
+            "admitted_rule": (f"GENUINE = W1 и (W2 или W3 или `{key}`)"),
+            "sides": per_side,
+            "pair_provenance": provenance,
+            "structural_zero": (_ADMISSION_STRUCTURAL_ZERO
+                                if cand["incumbent"] else None),
+            # Ноль по построению — ОЖИДАНИЕ, и расхождение с ним обязано
+            # кричать, а не тонуть рядом с запиской о том, что ноль неизбежен.
+            # Сработавший на `UNDECIDED` действующий свидетель означает, что
+            # разметка и эта мера спорят о ТОЙ ЖЕ строке.
+            "contradicts_marking": (got if cand["incumbent"] else []),
+            "already_a_pair": contradiction,
+            "examples": got[:5],
+        }
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "pairs_today": pairs_today,
+        "candidates": candidates,
+        "unreadable": unreadable,
+        "unresolved": unresolved,
+        "blind": [
+            "цена названа, порог НЕ введён: `applied` ложно, и ни один вердикт "
+            "переписи этой координатой не меняется — ввести его, увидев исход, "
+            "значило бы выбрать правило после его результата (запрет G62)",
+            "прибывшая пара НЕ есть доказанная копия: `GENUINE` остаётся "
+            "ВЕРХНЕЙ границей истины (ADR-439), и допуск свидетеля двигает "
+            "именно её нижнюю сторону, а не саму истину",
+            "две стороны цены НЕ складываются и не усредняются: знаменатели у "
+            "них разные, а прибыток на КОНТРОЛЕ ложен по построению, тогда как "
+            "на стороне объявлений он может быть и верным, и нет",
+            "«абзац уже платит книгам» меряет ПРИБЫТОК читателю, а не истину: "
+            "вторая пара из того же абзаца может быть настоящей и всё равно "
+            "не сказать книгам ничего нового",
+        ],
+    }
+
 def bilingual_reach(root: Path, rows: List[dict],
                     index: Dict[str, List[str]],
                     synonyms: Optional[dict] = None) -> dict:
@@ -5054,6 +5382,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # вердикт переписи эта координата не меняет.
     witness_price = paragraph_witness_price(root, name_precision)
 
+    # --- ЦЕНА ДОПУСКА СВИДЕТЕЛЯ В ПРАВИЛО (заказ G64 п. 1) ---------------
+    # Координата выше измерила у кандидатов два числа и прямо сказала, чего
+    # не доказала: что кандидата стои́т ВВЕСТИ. Цена введения платится в
+    # валюте книг — в парах, — и здесь считается именно она, вместе с обеими
+    # границами интервала истины. Порог по-прежнему не вводится.
+    admission_price = witness_admission_price(root, name_precision,
+                                              name_channel_doc)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -5151,6 +5487,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "bilingual_name_precision": name_precision,
         "token_depth_price": depth_price,
         "paragraph_witness_price": witness_price,
+        "witness_admission_price": admission_price,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -6017,6 +6354,103 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                        f"{row.get('text')} `{row.get('named_as')}`: "
                        f"{row.get('reason')}")
         for blind in (wit.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция — на уровне тела функции по той же причине, что и соседняя:
+    # вложенная в `else` чужой координаты, она молчала бы ровно там, где о
+    # цене и надо сказать громко.
+    adm = observed(doc, "witness_admission_price", kind=dict)
+    if adm is None:
+        out.append("[ЦЕНА ДОПУСКА] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "координаты (заказ G64 п. 1)")
+    elif adm.get("status") != "MEASURED":
+        out.append(f"[ЦЕНА ДОПУСКА] НЕ ИЗМЕРЕНА: {adm.get('reason')}")
+    else:
+        out.append(
+            f"[ЦЕНА ДОПУСКА · ПРАВИЛО] порог введён: "
+            f"{'да' if adm.get('applied') else 'НЕТ'} · {adm.get('rule')}")
+        today = observed(adm, "pairs_today", kind=dict) or {}
+        if today.get("status") != "MEASURED":
+            out.append(f"[ЦЕНА ДОПУСКА · КНИГИ СЕГОДНЯ] НЕ ИЗМЕРЕНО: "
+                       f"{today.get('reason')}")
+        else:
+            out.append(
+                f"[ЦЕНА ДОПУСКА · КНИГИ СЕГОДНЯ] пар {today.get('pairs')} из "
+                f"{today.get('paragraphs')} абзац(ев) · с меткой `GENUINE` "
+                f"совпадают {today.get('genuine_overlap')} — совпадение ЧИСЕЛ "
+                f"тождеством множеств не является, поэтому меряется "
+                f"пересечение"
+                + (f" · пара без `GENUINE`: {len(today.get('pairs_not_genuine') or [])}"
+                   f" · `GENUINE` без пары: {len(today.get('genuine_not_pairs') or [])}"))
+        for key, cand in (observed(adm, "candidates", kind=dict) or {}).items():
+            prov = observed(cand, "pair_provenance", kind=dict) or {}
+            sides = observed(cand, "sides", kind=dict) or {}
+            auth = observed(sides, "authority", kind=dict) or {}
+            ctl = observed(sides, "control", kind=dict) or {}
+            out.append(
+                f"[ЦЕНА ДОПУСКА · {key}] "
+                + ("ДЕЙСТВУЮЩИЙ" if cand.get("incumbent") else "кандидат")
+                + f" · {cand.get('admitted_rule')} · пар прибывает "
+                + ("НЕ ИЗМЕРЕНО" if prov.get("status") != "MEASURED"
+                   else f"{prov.get('added')} "
+                        f"из {prov.get('paragraphs_added')} абзац(ев); из "
+                        f"абзацев, уже плативших книгам: "
+                        f"{prov.get('from_paragraph_already_paying')}; "
+                        f"молчавших до сих пор: "
+                        f"{prov.get('from_paragraph_silent_until_now')} в "
+                        f"{prov.get('paragraphs_new_to_books')} абзац(ах))")
+                + f" · на КОНТРОЛЕ прибывает {ctl.get('added')} — ложных ПО "
+                  f"ПОСТРОЕНИЮ")
+            for side_name, side in (("объявления", auth), ("контроль", ctl)):
+                before = observed(side, "interval_before", kind=dict)
+                after = observed(side, "interval_after", kind=dict)
+                if side.get("status") != "MEASURED":
+                    out.append(
+                        f"[ЦЕНА ДОПУСКА · {key} · ИНТЕРВАЛ {side_name}] НЕ "
+                        f"ИЗМЕРЕН: {side.get('reason') or 'стороны нет в разметке'}")
+                    continue
+                if before is None or after is None:
+                    out.append(
+                        f"[ЦЕНА ДОПУСКА · {key} · ИНТЕРВАЛ {side_name}] НЕ "
+                        f"ИЗМЕРЕН: размеченного населения этой стороны нет")
+                    continue
+                out.append(
+                    f"[ЦЕНА ДОПУСКА · {key} · ИНТЕРВАЛ {side_name}] "
+                    f"[{before['lower']:.1%}, {before['upper']:.1%}] -> "
+                    f"[{after['lower']:.1%}, {after['upper']:.1%}] при "
+                    f"знаменателе {before['denominator']} · нижняя тронулась: "
+                    + ("да" if side.get("lower_bound_moved") else "НЕТ")
+                    + " · верхняя тронулась: "
+                    + ("ДА — ПРОТИВОРЕЧИЕ ОПРЕДЕЛЕНИЮ"
+                       if side.get("upper_bound_moved") else "нет"))
+            if cand.get("structural_zero"):
+                out.append(f"[ЦЕНА ДОПУСКА · {key} · НОЛЬ ПО ПОСТРОЕНИЮ] "
+                           f"{cand.get('structural_zero')}")
+            for item in (cand.get("contradicts_marking") or []):
+                out.append(
+                    f"[ЦЕНА ДОПУСКА · {key} · ПРОТИВОРЕЧИЕ] ДЕЙСТВУЮЩИЙ "
+                    f"свидетель сработал на `UNDECIDED` {item.get('text')}:"
+                    f"{item.get('block_start')} `{item.get('named_as')}` — "
+                    f"ноль по построению ОПРОВЕРГНУТ замером, и спор обязан "
+                    f"быть разобран, а не усреднён")
+            for item in (cand.get("already_a_pair") or []):
+                out.append(
+                    f"[ЦЕНА ДОПУСКА · {key} · ПРОТИВОРЕЧИЕ] прибывшая пара "
+                    f"{item.get('text')}:{item.get('block_start')} "
+                    f"`{item.get('named_as')}` УЖЕ стои́т в парах канала — "
+                    f"`UNDECIDED` означает «без W3», и спор обязан быть "
+                    f"разобран, а не усреднён")
+            for item in (cand.get("examples") or []):
+                out.append(
+                    f"[ЦЕНА ДОПУСКА · {key} · ПРИБЫЛО] {item.get('text')}:"
+                    f"{item.get('block_start')} -> {item.get('resolved')} "
+                    f"`{item.get('named_as')}` = {item.get('value')}")
+        for item in (adm.get("unreadable") or []):
+            out.append(f"[ЦЕНА ДОПУСКА · НЕ РАЗОБРАНО] {item.get('text')} "
+                       f"`{item.get('named_as')}`: {item.get('reason')}")
+        for item in (adm.get("unresolved") or []):
+            out.append(f"[ЦЕНА ДОПУСКА · АБЗАЦ НЕ РАЗРЕШЁН] {item.get('text')} "
+                       f"`{item.get('named_as')}`: {item.get('reason')}")
+        for blind in (adm.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
