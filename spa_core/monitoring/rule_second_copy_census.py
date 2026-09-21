@@ -3766,6 +3766,24 @@ PRECISION_RULE = (
     "GENUINE = W1 и (W2 или W3) · ARTEFACT = не W1 · UNDECIDED = W1 без W2 и W3"
 )
 
+def truth_interval(genuine: int, undecided: int,
+                   labelled: int) -> Optional[dict]:
+    """Интервал истины канала: нижняя граница — `GENUINE`, верхняя — с `UNDECIDED`.
+
+    Формула объявлена ОДИН раз намеренно: её спрашивают и разметка
+    (**G61 п. 1**), и цена сужения (**G62 п. 1**), а вторая её копия была бы
+    ровно тем предметом, который эта перепись ищет у чужого кода (ADR-417).
+
+    Пустое население ⇒ ``None``, а не интервал ``[0, 0]``: «не измерено» и
+    «измерено и равно нулю» обязаны быть различимы (инв. #17).
+    """
+    if not labelled:
+        return None
+    return {"lower": genuine / labelled,
+            "upper": (genuine + undecided) / labelled,
+            "denominator": labelled}
+
+
 PRECISION_UNMEASURED = "BILINGUAL_PRECISION_UNMEASURED"
 LABEL_GENUINE = "GENUINE"
 LABEL_ARTEFACT = "ARTEFACT"
@@ -3949,15 +3967,9 @@ def bilingual_name_precision(root: Path, channel: Optional[dict],
     per_hit, per_hit_why = _rate_enrichment(
         authority.get(LABEL_GENUINE, 0), authority.get("labelled", 0),
         control.get(LABEL_GENUINE, 0), control.get("labelled", 0))
-    total = authority.get("labelled", 0)
-    interval = None
-    if total:
-        interval = {
-            "lower": authority.get(LABEL_GENUINE, 0) / total,
-            "upper": (authority.get(LABEL_GENUINE, 0)
-                      + authority.get(LABEL_UNDECIDED, 0)) / total,
-            "denominator": total,
-        }
+    interval = truth_interval(authority.get(LABEL_GENUINE, 0),
+                              authority.get(LABEL_UNDECIDED, 0),
+                              authority.get("labelled", 0))
     return {
         "status": "MEASURED",
         "enrichment": {
@@ -3987,6 +3999,294 @@ def bilingual_name_precision(root: Path, channel: Optional[dict],
             "рядом, иначе третий исход растворился бы в одном из двух",
             "доля `GENUINE` на КОНТРОЛЕ есть частота ошибки самого правила "
             "разметки, а не находка о дереве",
+        ],
+    }
+
+
+#: Правило меры заказа **G62 п. 1**, записанное ДО замера и не менявшееся
+#: после него. Свободных параметров, подогнанных по увиденному исходу, у него
+#: нет: глубина приходит аргументом, обе валюты цены названы заранее.
+DEPTH_RULE = (
+    "кандидат заказа — «имя обязано нести не меньше N различающих токенов» — "
+    "прочитан ДВУМЯ способами, потому что это два разных вопроса: как СУЖЕНИЕ "
+    "свидетеля W1 (срабатывание с меньшим числом токенов не происходит вовсе, "
+    "население УБЫВАЕТ) и как ТРЕТИЙ СВИДЕТЕЛЬ W4 (число токенов само есть "
+    "улика: GENUINE = W1 и (W2 или W3 или W4), население на месте, убывает "
+    "`UNDECIDED`). Цена называется в ДВУХ валютах: срабатывания разметки и "
+    "пары, подтверждённые величиной, — вторые и есть то, что канал доносит до "
+    "книг. Порог НЕ вводится: мера судит уже сделанный замер и не меняет ни "
+    "одного вердикта переписи"
+)
+
+TOKEN_DEPTH_UNMEASURED = "TOKEN_DEPTH_UNMEASURED"
+#: Вердикт независимости кандидата: читает он ТОЛЬКО имя или ещё и текст.
+DEPTH_NAME_ONLY = "VERDICT_FROM_NAME_ALONE"
+DEPTH_READS_TEXT = "VERDICT_VARIES_WITH_TEXT"
+DEPTH_INDEPENDENCE_UNMEASURED = "INDEPENDENCE_UNMEASURED"
+
+
+def _depth_tally() -> dict:
+    return {LABEL_GENUINE: 0, LABEL_ARTEFACT: 0, LABEL_UNDECIDED: 0}
+
+
+def _depth_side(tally: dict) -> dict:
+    """Сводка одной стороны: размечено, доля ложных, интервал истины."""
+    labelled = (tally[LABEL_GENUINE] + tally[LABEL_ARTEFACT]
+                + tally[LABEL_UNDECIDED])
+    return {
+        **tally,
+        "labelled": labelled,
+        "false_share": (tally[LABEL_ARTEFACT] / labelled) if labelled else None,
+        "interval": truth_interval(tally[LABEL_GENUINE],
+                                   tally[LABEL_UNDECIDED], labelled),
+    }
+
+
+def token_depth_price(precision: Optional[dict],
+                      channel: Optional[dict] = None,
+                      *, depth: int = 2) -> dict:
+    """Цена требования N различающих токенов (**заказ G62 п. 1**).
+
+    Заказ назвал кандидата замером: у 48 из 50 неразрешённых имя несёт ровно
+    ОДИН различающий токен, то есть канал спрашивает у текста одно слово. И
+    заказ же запретил вводить порог, пока цена не названа числом, — иначе
+    порог стал бы вторым правилом, выбранным после того, как его исход увиден.
+    Поэтому здесь считается ЦЕНА и только она: ни один вердикт переписи эта
+    координата не меняет и ни в один гейт не входит (``applied`` — часть
+    ответа, а не украшение).
+
+    Вопрос заказа был «существует ли третий свидетель, независимый И от
+    токенов, И от величины», и ответ про кандидата мера даёт САМА, а не прозой:
+    вердикт, зависящий только от ИМЕНИ, не может развести два абзаца, которые
+    этим именем называют один порог, — и такие абзацы в дереве есть. Проверка
+    вырождена, если ни одно имя не встретилось дважды, и тогда она обязана
+    сказать ``UNMEASURED``, а не «независимости нет».
+
+    Третий исход везде отдельным значением (инв. #17): разметка не измерена,
+    население пусто, число токенов у срабатывания не записано, пар нет,
+    требование не строже действующего — каждое со своей причиной. Пустое
+    население НЕ есть «цена нулевая».
+    """
+    head = {
+        "rule": DEPTH_RULE,
+        "depth": depth,
+        "applied": False,
+        "question": ("какова ЦЕНА требования N различающих токенов и является "
+                     "ли кандидат третьим свидетелем (заказ G62 п. 1)"),
+    }
+    # Отдельной ветки «глубина — `bool`» здесь НЕТ, и это замер, а не
+    # недосмотр: `bool` есть подкласс `int`, оба его значения равны 0 и 1,
+    # и порог ниже двух отказывает им обоим. Батарея мутаций #659
+    # оставила такую ветку в живых — это её приговор, а не оправдание.
+    if not isinstance(depth, int) or depth < 2:
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("требование не строже действующего: у каждого "
+                           "срабатывания канала различающий токен есть хотя бы "
+                           "один по построению, поэтому ноль здесь был бы "
+                           "ответом не на тот вопрос")}
+    # Четыре отсутствия РАЗВЕДЕНЫ, и это не педантизм: «координаты не было»
+    # и «координата отказала» чинятся в разных местах, а «население не
+    # записано» и «население пусто» — разные утверждения о канале. Слить их
+    # значило бы отдать читателю одно «не измерено» вместо четырёх причин;
+    # сосед (ADR-439) эту же развилку уже держит у `raw_hits`.
+    if not isinstance(precision, dict):
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("разметки канала имени нет вовсе — перепись собрана "
+                           "без соседней координаты, цену считать не от чего")}
+    if precision.get("status") != "MEASURED":
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("точность канала имени ОТКАЗАЛА "
+                           f"({precision.get('status')}) — цену сужения "
+                           "считать не от чего")}
+    rows = precision.get("rows")
+    if rows is None:
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("разметка не выдала населения: срабатывания "
+                           "размечены и не записаны — считать цену нечем")}
+    if not isinstance(rows, list):
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": (f"население разметки имеет форму "
+                           f"{type(rows).__name__}, а не перечень — прочитать "
+                           "его построчно нельзя")}
+    if not rows:
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("население разметки пусто: это НЕ «цена нулевая», а "
+                           "отсутствие предмета измерения")}
+
+    before: Dict[str, dict] = {}
+    kept: Dict[str, dict] = {}
+    dropped: Dict[str, dict] = {}
+    witness: Dict[str, dict] = {}
+    resolved: Dict[str, int] = {}
+    lost_rows: List[dict] = []
+    moved_rows: List[dict] = []
+    unreadable: List[dict] = []
+    groups: Dict[str, List[dict]] = {}
+    for row in rows:
+        label = row.get("label")
+        count = row.get("token_count")
+        side = str(row.get("side") or "")
+        if label not in (LABEL_GENUINE, LABEL_ARTEFACT, LABEL_UNDECIDED):
+            unreadable.append({
+                "text": row.get("text"), "named_as": row.get("named_as"),
+                "reason": f"метка {label!r} не из объявленных трёх"})
+            continue
+        if isinstance(count, bool) or not isinstance(count, int):
+            unreadable.append({
+                "text": row.get("text"), "named_as": row.get("named_as"),
+                "reason": ("у срабатывания не записано число различающих "
+                           "токенов — глубину спросить не у чего")})
+            continue
+        groups.setdefault(str(row.get("named_as")), []).append(row)
+        before.setdefault(side, _depth_tally())[label] += 1
+        survives = count >= depth
+        (kept if survives else dropped).setdefault(side, _depth_tally())[label] += 1
+        if not survives:
+            lost_rows.append({
+                "side": side, "text": row.get("text"),
+                "block_start": row.get("block_start"),
+                "named_as": row.get("named_as"),
+                "resolved": row.get("resolved"), "value": row.get("value"),
+                "label": label, "token_count": count,
+                "tokens": row.get("tokens"),
+            })
+        new_label = (LABEL_GENUINE
+                     if label == LABEL_UNDECIDED and survives else label)
+        witness.setdefault(side, _depth_tally())[new_label] += 1
+        if new_label != label:
+            resolved[side] = resolved.get(side, 0) + 1
+            moved_rows.append({
+                "side": side, "text": row.get("text"),
+                "block_start": row.get("block_start"),
+                "named_as": row.get("named_as"),
+                "resolved": row.get("resolved"), "value": row.get("value"),
+                "from": label, "to": new_label, "token_count": count,
+            })
+
+    if not before:
+        return {**head, "status": TOKEN_DEPTH_UNMEASURED,
+                "reason": ("ни одно срабатывание не разобрано: ни у одного нет "
+                           "метки и числа токенов сразу"),
+                "unreadable": unreadable}
+
+    sides: Dict[str, dict] = {}
+    for side, tally in before.items():
+        sides[side] = {
+            "before": _depth_side(tally),
+            "as_filter": {
+                "survive": _depth_side(kept.get(side, _depth_tally())),
+                "lost": dict(dropped.get(side, _depth_tally())),
+                # Сужение НИ ОДНОГО `UNDECIDED` не решает — оно их удаляет.
+                # Число печатается всегда: им и отличается свидетель от фильтра.
+                "resolved_undecided": 0,
+            },
+            "as_witness": {
+                **_depth_side(witness.get(side, _depth_tally())),
+                "resolved_undecided": resolved.get(side, 0),
+            },
+        }
+
+    multi = {name: rs for name, rs in groups.items()
+             if len({(r.get("text"), r.get("block_start")) for r in rs}) > 1}
+    if not multi:
+        independence = {
+            "verdict": DEPTH_INDEPENDENCE_UNMEASURED,
+            "names_in_two_paragraphs": 0,
+            "reason": ("проверка ВЫРОЖДЕНА: ни одно имя не встретилось в двух "
+                       "разных абзацах, поэтому спросить «меняется ли вердикт "
+                       "кандидата вместе с текстом» не на чем; зелёным этот "
+                       "ответ быть не вправе"),
+        }
+    else:
+        varying = sorted(
+            name for name, rs in multi.items()
+            if len({r.get("token_count") for r in rs}) > 1)
+        independence = {
+            "verdict": DEPTH_READS_TEXT if varying else DEPTH_NAME_ONLY,
+            "names_in_two_paragraphs": len(multi),
+            "names_whose_verdict_varies": len(varying),
+            "examples": sorted(multi)[:5],
+            "varying_examples": varying[:5],
+            "reason": ("вердикт кандидата у каждого из "
+                       f"{len(multi)} имён, встреченных в двух и более разных "
+                       "абзацах, один и тот же: кандидат читает ИМЯ и не "
+                       "читает абзац, поэтому третьим свидетелем — независимым "
+                       "и от токенов, и от величины — он не является"
+                       if not varying else
+                       "у части имён вердикт кандидата меняется вместе с "
+                       "абзацем — кандидат читает не только имя"),
+        }
+
+    pairs = channel.get("pairs") if isinstance(channel, dict) else None
+    if not isinstance(pairs, list) or not pairs:
+        price_in_pairs = {
+            "status": TOKEN_DEPTH_UNMEASURED,
+            "reason": ("канал не выдал пар, подтверждённых величиной, — цену в "
+                       "валюте книг считать не на чем"),
+        }
+    else:
+        # Глубина у пары спрашивается у РАЗМЕТКИ, а не считается заново: вторая
+        # копия правила токенов здесь была бы ровно тем, что перепись ищет.
+        index: Dict[Tuple, set] = {}
+        for row in rows:
+            count = row.get("token_count")
+            if isinstance(count, bool) or not isinstance(count, int):
+                continue
+            key = (row.get("text"), row.get("named_as"), row.get("resolved"))
+            index.setdefault(key, set()).add(count)
+        pair_kept: List[dict] = []
+        pair_lost: List[dict] = []
+        pair_unmatched: List[dict] = []
+        for pair in pairs:
+            key = (pair.get("text"), pair.get("named_as"), pair.get("resolved"))
+            counts = index.get(key)
+            item = {"text": pair.get("text"), "named_as": pair.get("named_as"),
+                    "resolved": pair.get("resolved"), "value": pair.get("value")}
+            if not counts:
+                pair_unmatched.append({
+                    **item,
+                    "reason": ("пары нет в населении разметки — число её "
+                               "различающих токенов не записано никем")})
+                continue
+            if len(counts) > 1:
+                pair_unmatched.append({
+                    **item, "token_counts": sorted(counts),
+                    "reason": ("у пары в разметке два разных числа токенов — "
+                               "вердикт кандидата неоднозначен")})
+                continue
+            count = next(iter(counts))
+            (pair_kept if count >= depth else pair_lost).append(
+                {**item, "token_count": count})
+        price_in_pairs = {
+            "status": "MEASURED",
+            "corroborated": len(pairs),
+            "kept": pair_kept,
+            "lost": pair_lost,
+            "unmatched": pair_unmatched,
+        }
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "sides": sides,
+        "independence": independence,
+        "price_in_pairs": price_in_pairs,
+        "lost_rows": lost_rows,
+        "moved_rows": moved_rows,
+        "unreadable": unreadable,
+        "blind": [
+            "цена названа, порог НЕ введён: `applied` ложно, и ни один вердикт "
+            "переписи этой координатой не меняется — иначе порог оказался бы "
+            "выбран после того, как его исход увиден (прямой запрет заказа)",
+            "сужение делает интервал УЖЕ, и это ловушка, а не улучшение: узость "
+            "берётся из убыли знаменателя, а не из решённых `UNDECIDED`, "
+            "которых сужение не решает ни одного",
+            "`as_witness` — не предложение ввести W4: число токенов есть "
+            "свойство ИМЕНИ, а не независимая улика, и мера показывает лишь, "
+            "сколько `UNDECIDED` кандидат тронул бы в этом прочтении",
+            "потеря пары НЕ означает, что пара настоящая: `GENUINE` остаётся "
+            "верхней границей истины (ADR-439). Цена считается в том, что "
+            "канал доносит до книг, а не в доказанных копиях",
         ],
     }
 
@@ -4284,8 +4584,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # размера четыре. Здесь размечается ВСЁ население канала правилом,
     # записанным до разметки; в население объявленных поверхностей эта
     # координата ничего не доливает — она судит уже сделанный замер.
-    name_precision = bilingual_name_precision(
-        root, (bilingual.get("witnesses") or {}).get(WITNESS_NAME_CHANNEL))
+    name_channel_doc = (bilingual.get("witnesses") or {}).get(WITNESS_NAME_CHANNEL)
+    name_precision = bilingual_name_precision(root, name_channel_doc)
+
+    # --- ЦЕНА ТРЕБОВАНИЯ ДВУХ ТОКЕНОВ (заказ G62 п. 1) --------------------
+    # Ширину интервала выше держит `UNDECIDED`, и заказ назвал кандидата:
+    # потребовать у имени не один различающий токен, а два. Здесь считается
+    # ЦЕНА кандидата в двух валютах и его независимость — сам порог не
+    # вводится, поэтому координата ничего не гейтит и ни во что не входит.
+    depth_price = token_depth_price(name_precision, name_channel_doc)
 
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
@@ -4382,6 +4689,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # первому.
         "bilingual_reach": bilingual,
         "bilingual_name_precision": name_precision,
+        "token_depth_price": depth_price,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -5081,6 +5389,96 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ТОЧНОСТЬ ИМЕНИ · НЕ РАЗМЕЧЕНО] {row.get('text')} "
                        f"`{row.get('named_as')}`: {row.get('reason')}")
         for blind in (precision.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция стои́т на уровне тела функции, а не внутри `else` соседней
+    # координаты: вложенная туда, она молчала бы у каждого дерева, где
+    # разметка не измерена, — то есть там, где цена сужения и так неизвестна,
+    # но сказать об этом надо громко. Та же ошибка размещения найдена у #655.
+    depth = observed(doc, "token_depth_price", kind=dict)
+    if depth is None:
+        out.append("[ЦЕНА ДВУХ ТОКЕНОВ] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "координаты (заказ G62 п. 1)")
+    elif depth.get("status") != "MEASURED":
+        out.append(f"[ЦЕНА ДВУХ ТОКЕНОВ] НЕ ИЗМЕРЕНА: {depth.get('reason')}")
+    else:
+        out.append(
+            f"[ЦЕНА ДВУХ ТОКЕНОВ · ПРАВИЛО] глубина {depth.get('depth')} · "
+            f"порог введён: {'да' if depth.get('applied') else 'НЕТ'} · "
+            f"{depth.get('rule')}")
+        depth_sides = observed(depth, "sides", kind=dict) or {}
+        for side in ("authority", "control"):
+            tally = observed(depth_sides, side, kind=dict)
+            if tally is None:
+                out.append(f"[ЦЕНА ДВУХ ТОКЕНОВ · {side}] НЕ ИЗМЕРЕНО — "
+                           f"срабатываний этой стороны в разметке нет")
+                continue
+            was = observed(tally, "before", kind=dict) or {}
+            flt = observed(tally, "as_filter", kind=dict) or {}
+            survive = observed(flt, "survive", kind=dict) or {}
+            lost = observed(flt, "lost", kind=dict) or {}
+            lost_total = sum(lost.get(key, 0) for key in
+                             (LABEL_GENUINE, LABEL_ARTEFACT, LABEL_UNDECIDED))
+            out.append(
+                f"[ЦЕНА ДВУХ ТОКЕНОВ · {side} · СУЖЕНИЕ] было "
+                f"{was.get('labelled')} срабатываний, исчезает {lost_total}, "
+                f"остаётся {survive.get('labelled')}; ПОТЕРЯНО настоящих "
+                f"{lost.get(LABEL_GENUINE)} из {was.get(LABEL_GENUINE)} · "
+                f"ложных снято {lost.get(LABEL_ARTEFACT)} из "
+                f"{was.get(LABEL_ARTEFACT)} · не решённых удалено "
+                f"{lost.get(LABEL_UNDECIDED)}, РЕШЕНО "
+                f"{flt.get('resolved_undecided')}")
+            for key, what in (("before", "до"), ("as_filter", "после сужения")):
+                cell = (survive if key == "as_filter"
+                        else observed(tally, key, kind=dict) or {})
+                share = observed(cell, "false_share", kind=float)
+                span = observed(cell, "interval", kind=dict)
+                out.append(
+                    f"[ЦЕНА ДВУХ ТОКЕНОВ · {side} · {what}] доля ложных "
+                    + ("НЕ ИЗМЕРЕНА" if share is None else f"{share:.0%}")
+                    + " · интервал "
+                    + ("НЕ ИЗМЕРЕН" if span is None
+                       else f"[{span['lower']:.1%}, {span['upper']:.1%}] при "
+                            f"знаменателе {span['denominator']}"))
+            wit = observed(tally, "as_witness", kind=dict) or {}
+            out.append(
+                f"[ЦЕНА ДВУХ ТОКЕНОВ · {side} · КАК СВИДЕТЕЛЬ] решено "
+                f"`UNDECIDED` {wit.get('resolved_undecided')} из "
+                f"{was.get(LABEL_UNDECIDED)}; настоящих стало "
+                f"{wit.get(LABEL_GENUINE)}, население не убывает")
+        price = observed(depth, "price_in_pairs", kind=dict)
+        if price is None or price.get("status") != "MEASURED":
+            out.append("[ЦЕНА ДВУХ ТОКЕНОВ · В ПАРАХ] НЕ ИЗМЕРЕНА: "
+                       + str((price or {}).get("reason")))
+        else:
+            lost_pairs = price.get("lost") or []
+            out.append(
+                f"[ЦЕНА ДВУХ ТОКЕНОВ · В ПАРАХ] подтверждённых величиной "
+                f"{price.get('corroborated')} · ТЕРЯЕТСЯ {len(lost_pairs)} · "
+                f"остаётся {len(price.get('kept') or [])} · вердикт неоднозначен "
+                f"у {len(price.get('unmatched') or [])}")
+            for pair in lost_pairs:
+                out.append(
+                    f"[ЦЕНА ДВУХ ТОКЕНОВ · ПОТЕРЯННАЯ ПАРА] {pair.get('text')} "
+                    f"-> {pair.get('resolved')} `{pair.get('named_as')}` = "
+                    f"{pair.get('value')} (различающих токенов "
+                    f"{pair.get('token_count')})")
+            for pair in (price.get("unmatched") or []):
+                out.append(
+                    f"[ЦЕНА ДВУХ ТОКЕНОВ · ПАРА НЕ РАЗОБРАНА] "
+                    f"{pair.get('text')} `{pair.get('named_as')}`: "
+                    f"{pair.get('reason')}")
+        ind = observed(depth, "independence", kind=dict) or {}
+        out.append(
+            f"[ЦЕНА ДВУХ ТОКЕНОВ · ТРЕТИЙ СВИДЕТЕЛЬ] {ind.get('verdict')} — "
+            f"{ind.get('reason')}"
+            + (f"; имён в двух и более абзацах "
+               f"{ind.get('names_in_two_paragraphs')}, из них вердикт меняется "
+               f"у {ind.get('names_whose_verdict_varies')}"
+               if ind.get("verdict") != DEPTH_INDEPENDENCE_UNMEASURED else ""))
+        for row in (depth.get("unreadable") or []):
+            out.append(f"[ЦЕНА ДВУХ ТОКЕНОВ · НЕ РАЗОБРАНО] {row.get('text')} "
+                       f"`{row.get('named_as')}`: {row.get('reason')}")
+        for blind in (depth.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
