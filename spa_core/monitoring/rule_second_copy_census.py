@@ -5071,6 +5071,455 @@ def witness_admission_price(root: Path, precision: Optional[dict],
         ],
     }
 
+#: --- КАКУЮ БАЗУ БЕРЁТ ЧИТАТЕЛЬ ПЕРЕПИСИ (заказ G65 п. 1) ------------------
+#:
+#: ADR-442 измерил расхождение у САМОЙ базы: пары, доходящие до книг, и строки
+#: с меткой ``GENUINE`` — РАЗНЫЕ множества (4 и 4, пересечение 3). Он не
+#: ответил, КТО из читателей переписи какую базу берёт, и заказ G65 п. 1
+#: требует спросить поимённо: секция отчёта, мост находок, шаг 0-офис.
+#:
+#: Читатель, берущий одну базу и называющий её именем другой, и есть вторая
+#: копия правила — только снаружи прибора, в словаре.
+
+#: База — множество КООРДИНАТ документа, которые суть одно население. Токены
+#: объявлены, СМЕЖНОСТЬ измерена: многозначность токена выводится из замера
+#: (один токен встал рядом с двумя базами), а не из этой таблицы.
+BASE_BOOKS_PAIRS = "books_pairs"
+BASE_GENUINE = "genuine_label"
+BASE_GUARD_EXECUTOR = "guard_executor_pairs"
+
+CENSUS_BASES = (
+    {"key": BASE_BOOKS_PAIRS,
+     "what": "пары канала имени, дошедшие до книг (`channel.pairs`)",
+     "coordinates": ("pairs",),
+     "tokens": ("пар",)},
+    {"key": BASE_GENUINE,
+     "what": "строки разметки с меткой `GENUINE`",
+     "coordinates": (LABEL_GENUINE,),
+     "tokens": ("genuine", "настоящ")},
+    {"key": BASE_GUARD_EXECUTOR,
+     "what": "пары «сторож × исполнитель» — население самой переписи",
+     "coordinates": (CLASS_TWO_COPIES, "findings_on_books"),
+     "tokens": ("пар", "двух копи", "две копии", "учёте")},
+)
+
+#: Потребители, названные заказом ПОИМЁННО. Реестр литеральный: «кого
+#: спрашивали» обязано быть видно, а не выведено обходом дерева, иначе
+#: молчание о потребителе неотличимо от его отсутствия.
+CONSUMER_REPORT = "report_section"
+CONSUMER_BRIDGE = "findings_bridge"
+CONSUMER_OFFICE = "office_step"
+
+CENSUS_CONSUMERS = (
+    {"key": CONSUMER_REPORT, "path": PRODUCER,
+     "scope": ("report", "format_report"),
+     "what": "секция отчёта — единственное место, где перепись становится текстом"},
+    {"key": CONSUMER_BRIDGE, "path": "spa_core/monitoring/findings_bridge.py",
+     "scope": None,
+     "what": "мост находок — ступень, зовущая перепись и печатающая её число"},
+    {"key": CONSUMER_OFFICE, "path": "scripts/consume_office_reports.py",
+     "scope": None,
+     "what": "шаг 0-офис — то, что доносит перепись до оркестратора"},
+)
+
+#: Предел вложенности тернарников при поиске координаты. Не украшение:
+#: разбор идёт вглубь по `IfExp`, и достаточно глубокая запись сорвала бы
+#: рекурсию `RecursionError` — то есть заменила бы третий исход падением.
+_TERNARY_NESTING_LIMIT = 24
+
+#: Имена, через которые читатель достаёт значение из документа переписи.
+_DOC_READERS = ("observed", "observed_number")
+#: Имена отрисовщиков производителя: делегирование опознаётся по ВВОЗУ одного
+#: из них, а не по совпадению слов.
+_PRODUCER_RENDERERS = ("report", "format_report")
+#: Имя модуля-производителя без пути — так его зовёт мост.
+_PRODUCER_MODULE_NAME = "rule_second_copy_census"
+
+#: Исходы потребителя. «Делегирует» — НЕ ноль: читатель без своей базы
+#: доносит до глаз чужую, вместе со всею её многозначностью.
+CONSUMER_READS = "READS"
+CONSUMER_DELEGATES = "DELEGATES"
+CONSUMER_NO_READ = "NO_READ"
+CONSUMER_UNMEASURED = "UNMEASURED"
+
+#: Исходы одного НАЗВАННОГО числа.
+NAMING_SINGLE = "SINGLE"
+NAMING_CROSS = "CROSS_NAMED"
+NAMING_AMBIGUOUS = "AMBIGUOUS"
+NAMING_UNNAMED = "UNNAMED"
+
+
+def _module_string_consts(tree: ast.AST) -> Dict[str, str]:
+    """Модульные имена со строковым КОНСТАНТНЫМ значением.
+
+    Ключ координаты у читателя стои́т то литералом (``doc.get("counts")``), то
+    именем (``counts.get(CLASS_TWO_COPIES)``). Считать вторую форму
+    неразрешимой значило бы объявить слепым прибор ровно там, где читатель
+    аккуратнее всего.
+    """
+    out: Dict[str, str] = {}
+    for node in getattr(tree, "body", []):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not (isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                out[target.id] = node.value.value
+    return out
+
+
+def _literal_key(node: ast.AST, consts: Dict[str, str]) -> Optional[str]:
+    """Строковый ключ подстрочника — литералом или через модульную константу."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name) and node.id in consts:
+        return consts[node.id]
+    return None
+
+
+def _terminal_coordinate(expr: ast.AST, consts: Dict[str, str],
+                         binding: Dict[str, str],
+                         depth: int = 0) -> Optional[str]:
+    """Координата, которой значение ЯВЛЯЕТСЯ — ПОСЛЕДНЯЯ применённая.
+
+    Не объединение всех ключей цепи, и это замер, а не педантизм: у
+    ``row["name"]``, где ``row`` пробегает ``channel["pairs"]``, объединение
+    дало бы координату ``pairs`` каждому полю каждой пары — то есть приписало
+    бы базе книг все её элементы. Ровно эта форма («контейнер привязкой не
+    является») уже стоила нам бомбы в `.claude/rules/deployment.md`.
+
+    Обёртки, прозрачные для значения (``int``, ``len``, ``str``, ``or``,
+    тернарник), проходятся насквозь: имя числа от них не меняется.
+    """
+    if depth > _TERNARY_NESTING_LIMIT:  # предел вложенности — третий исход, не срыв
+        return None
+    node = expr
+    while True:
+        if isinstance(node, ast.Call):
+            func = node.func
+            if (isinstance(func, ast.Attribute) and func.attr == "get"
+                    and node.args):
+                key = _literal_key(node.args[0], consts)
+                if key is not None:
+                    return key
+                node = func.value
+                continue
+            if (isinstance(func, ast.Name) and func.id in _DOC_READERS
+                    and len(node.args) >= 2):
+                key = _literal_key(node.args[1], consts)
+                if key is not None:
+                    return key
+            if node.args:
+                node = node.args[0]
+                continue
+            return None
+        if isinstance(node, ast.Subscript):
+            key = _literal_key(node.slice, consts)
+            if key is not None:
+                return key
+            node = node.value
+            continue
+        if isinstance(node, ast.BoolOp) and node.values:
+            node = node.values[0]
+            continue
+        if isinstance(node, ast.IfExp):
+            got = _terminal_coordinate(node.body, consts, binding, depth + 1)
+            if got is not None:
+                return got
+            node = node.orelse
+            continue
+        if isinstance(node, ast.Name):
+            return binding.get(node.id)
+        return None
+
+
+def _derives_from_census(node: ast.AST, anchors: set) -> bool:
+    """Происходит ли выражение из документа ЭТОЙ переписи.
+
+    Без этого вопроса соседский ``pairs`` (у моста их читает другая перепись)
+    попал бы в замер как наш — то есть прибор выдумал бы находку ровно того
+    класса, который ищет.
+    """
+    for inner in ast.walk(node):
+        if isinstance(inner, ast.Name) and inner.id in anchors:
+            return True
+        if isinstance(inner, ast.Call):
+            func = inner.func
+            if (isinstance(func, ast.Attribute)
+                    and func.attr in ("run", "measure")
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == _PRODUCER_MODULE_NAME):
+                return True
+    return False
+
+
+#: Окно имени: сколько символов текста ВПЛОТНУЮ к числу считается его именем.
+#: Величина объявлена, а не выведена, и это сказано вслух — но она не
+#: произвольна: брать текстовый прогон между числами ЦЕЛИКОМ значило бы
+#: считать именем каждое слово абзаца, и при семи числах в одной строке все
+#: семь вышли бы многозначными разом. Обе стороны закреплены сторожем: токен
+#: внутри окна называет число, он же за окном — нет.
+NAME_WINDOW_CHARS = 40
+
+
+def _adjacent_text(values: List[ast.AST], index: int) -> Tuple[str, str]:
+    """Литеральный текст СЛЕВА и СПРАВА от значения в той же f-строке.
+
+    Имя числа для читателя есть то, что стои́т рядом с ним, в пределах
+    объявленного окна :data:`NAME_WINDOW_CHARS`.
+    """
+    before = ""
+    after = ""
+    if index > 0 and isinstance(values[index - 1], ast.Constant):
+        raw = values[index - 1].value
+        before = raw[-NAME_WINDOW_CHARS:] if isinstance(raw, str) else ""
+    if index + 1 < len(values) and isinstance(values[index + 1], ast.Constant):
+        raw = values[index + 1].value
+        after = raw[:NAME_WINDOW_CHARS] if isinstance(raw, str) else ""
+    return before, after
+
+
+def _consumer_scope(tree: ast.AST, scope: Optional[Tuple[str, ...]]) -> List[ast.AST]:
+    """Узлы, внутри которых читатель разбирается."""
+    if not scope:
+        return [tree]
+    return [node for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in scope]
+
+
+def _read_consumer(root: Path, spec: dict) -> dict:
+    """Разбор ОДНОГО потребителя: какие базы читает и как их зовёт."""
+    path = root / spec["path"]
+    head = {"key": spec["key"], "path": spec["path"], "what": spec["what"]}
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {**head, "status": CONSUMER_UNMEASURED,
+                "reason": f"файл потребителя не прочитан: {exc}"}
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as exc:
+        return {**head, "status": CONSUMER_UNMEASURED,
+                "reason": f"файл потребителя не разобран: {exc}"}
+
+    consts = _module_string_consts(tree)
+    nodes = _consumer_scope(tree, spec.get("scope"))
+    if spec.get("scope") and not nodes:
+        return {**head, "status": CONSUMER_UNMEASURED,
+                "reason": ("объявленной области "
+                           f"{list(spec['scope'])} в файле нет — читать нечего")}
+
+    # Якорь: документ переписи. У производителя это первый параметр
+    # отрисовщика, у чужого модуля — возврат `run`/`measure` производителя.
+    anchors: set = set()
+    if spec["path"] == PRODUCER:
+        for node in nodes:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                    and node.args.args:
+                anchors.add(node.args.args[0].arg)
+    binding: Dict[str, str] = {}
+    for _ in range(16):                 # до неподвижной точки, не «на глазок»
+        before = (len(anchors), len(binding))
+        for scope_node in nodes:
+            for node in ast.walk(scope_node):
+                target = source_expr = None
+                if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                        and isinstance(node.targets[0], ast.Name)):
+                    target, source_expr = node.targets[0].id, node.value
+                elif isinstance(node, ast.For) and isinstance(node.target, ast.Name):
+                    target, source_expr = node.target.id, node.iter
+                if target is None:
+                    continue
+                if not _derives_from_census(source_expr, anchors):
+                    continue
+                anchors.add(target)
+                if isinstance(node, ast.Assign) and target not in binding:
+                    coord = _terminal_coordinate(source_expr, consts, binding)
+                    if coord is not None:
+                        binding[target] = coord
+        if before == (len(anchors), len(binding)):
+            break
+
+    delegates = sorted({
+        alias.asname or alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module
+        and node.module.split(".")[-1] == _PRODUCER_MODULE_NAME
+        for alias in node.names if alias.name in _PRODUCER_RENDERERS})
+
+    coord_to_base: Dict[str, set] = {}
+    for base in CENSUS_BASES:
+        for coord in base["coordinates"]:
+            coord_to_base.setdefault(coord, set()).add(base["key"])
+
+    numbers: List[dict] = []
+    outside_fstring = 0
+    for scope_node in nodes:
+        for node in ast.walk(scope_node):
+            if not isinstance(node, ast.JoinedStr):
+                continue
+            for index, value in enumerate(node.values):
+                if not isinstance(value, ast.FormattedValue):
+                    continue
+                if not _derives_from_census(value.value, anchors):
+                    continue
+                coord = _terminal_coordinate(value.value, consts, binding)
+                bases = coord_to_base.get(coord or "", set())
+                if len(bases) != 1:
+                    continue
+                base_key = next(iter(bases))
+                before, after = _adjacent_text(node.values, index)
+                near = f"{before} {after}".lower()
+                tokens = sorted({token for base in CENSUS_BASES
+                                 for token in base["tokens"] if token in near})
+                numbers.append({
+                    "line": node.lineno, "base": base_key, "coordinate": coord,
+                    "tokens": tokens, "before": before, "after": after})
+    # Чтение ВНЕ f-строки прибор не разбирает — и говорит это числом, а не
+    # молчанием: `%`, `.format` и склейка остаются слепым пятном.
+    for scope_node in nodes:
+        for node in ast.walk(scope_node):
+            if not isinstance(node, ast.Call):
+                continue
+            for arg in node.args:
+                if isinstance(arg, ast.JoinedStr):
+                    continue
+                if not _derives_from_census(arg, anchors):
+                    continue
+                coord = _terminal_coordinate(arg, consts, binding)
+                if coord and coord in coord_to_base:
+                    outside_fstring += 1
+
+    if numbers:
+        status = CONSUMER_READS
+    elif delegates:
+        status = CONSUMER_DELEGATES
+    else:
+        status = CONSUMER_NO_READ
+    return {**head, "status": status, "numbers": numbers,
+            "delegates_via": delegates,
+            "bases_read": sorted({item["base"] for item in numbers}),
+            "reads_outside_fstring": outside_fstring}
+
+
+def consumer_base_naming(root: Path) -> dict:
+    """Какую БАЗУ берёт каждый названный потребитель и каким ИМЕНЕМ зовёт (**G65 п. 1**).
+
+    ADR-442 нашёл расхождение у самой базы: пары книг и строки ``GENUINE`` —
+    разные множества. Заказ G65 п. 1 спрашивает следующий вопрос: **кто из
+    читателей какую базу берёт**, и не зовёт ли он её именем другой.
+
+    Мера устроена из двух половин, и вторая — ЗАМЕР:
+
+    * **объявлено** — какие координаты документа суть одна база и какими
+      токенами базу зовут (:data:`CENSUS_BASES`);
+    * **измерено** — рядом с какими базами токен ФАКТИЧЕСКИ встал в коде
+      читателей. Токен, оказавшийся смежным ДВУМ базам, многозначен по
+      ЗАМЕРУ, а не по объявлению; именно это отличает находку от таблицы.
+
+    Именем числа считается литеральный текст, стоящий вплотную слева и справа
+    от него в той же f-строке: читатель видит имя рядом с числом, а не абзац
+    целиком.
+
+    Третий исход назван везде (инв. #17): файла нет / не разобран / области
+    нет ⇒ ``UNMEASURED`` с причиной; читатель без своей базы, но зовущий
+    отрисовщик производителя, ⇒ ``DELEGATES`` — это НЕ ноль, он доносит чужую
+    базу вместе с её многозначностью; читатель, не делающий ни того, ни
+    другого, ⇒ ``NO_READ``, и это находка о реестре, а не тишина. Чтения вне
+    f-строки прибор не разбирает и говорит об этом числом
+    (``reads_outside_fstring``), а не молчанием.
+    """
+    head = {
+        "question": ("какую БАЗУ берёт каждый названный потребитель переписи "
+                     "и каким ИМЕНЕМ её зовёт (заказ G65 п. 1)"),
+        "declared_bases": [{"key": base["key"], "what": base["what"],
+                            "coordinates": list(base["coordinates"]),
+                            "tokens": list(base["tokens"])}
+                           for base in CENSUS_BASES],
+        "declared_consumers": [spec["key"] for spec in CENSUS_CONSUMERS],
+    }
+    if not CENSUS_BASES or not CENSUS_CONSUMERS:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("реестр баз или потребителей пуст — спрашивать "
+                           "некого и не о чем; это НЕ «расхождений нет»")}
+
+    consumers = [_read_consumer(root, spec) for spec in CENSUS_CONSUMERS]
+
+    # СМЕЖНОСТЬ токена с базами — по всему населению читателей сразу. Токен,
+    # вставший рядом с двумя базами, читателю их не различает ничем.
+    token_bases: Dict[str, set] = {}
+    for consumer in consumers:
+        for item in consumer.get("numbers") or []:
+            for token in item["tokens"]:
+                token_bases.setdefault(token, set()).add(item["base"])
+    ambiguous_tokens = sorted(token for token, bases in token_bases.items()
+                              if len(bases) > 1)
+
+    declared_token_bases: Dict[str, set] = {}
+    for base in CENSUS_BASES:
+        for token in base["tokens"]:
+            declared_token_bases.setdefault(token, set()).add(base["key"])
+
+    findings: List[dict] = []
+    tally = {NAMING_SINGLE: 0, NAMING_CROSS: 0,
+             NAMING_AMBIGUOUS: 0, NAMING_UNNAMED: 0}
+    for consumer in consumers:
+        for item in consumer.get("numbers") or []:
+            if not item["tokens"]:
+                verdict = NAMING_UNNAMED
+            elif any(token in ambiguous_tokens for token in item["tokens"]):
+                verdict = NAMING_AMBIGUOUS
+            elif all(item["base"] not in declared_token_bases.get(token, set())
+                     for token in item["tokens"]):
+                verdict = NAMING_CROSS
+            else:
+                verdict = NAMING_SINGLE
+            item["verdict"] = verdict
+            tally[verdict] += 1
+            if verdict in (NAMING_CROSS, NAMING_AMBIGUOUS):
+                findings.append({"consumer": consumer["key"], **item})
+
+    # Делегирующий читатель несёт ровно те имена, что печатает отрисовщик
+    # производителя: своих у него нет. Поэтому спрашивается СЕКЦИЯ ОТЧЁТА, а
+    # не сам делегат — у делегата чисел ноль ПО ПОСТРОЕНИЮ.
+    renderer_ambiguous = any(
+        item.get("verdict") in (NAMING_CROSS, NAMING_AMBIGUOUS)
+        for consumer in consumers if consumer["path"] == PRODUCER
+        for item in (consumer.get("numbers") or []))
+    carriers = sorted({consumer["key"] for consumer in consumers
+                       if consumer.get("status") == CONSUMER_DELEGATES
+                       and renderer_ambiguous})
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "consumers": consumers,
+        "token_adjacency": {token: sorted(bases)
+                            for token, bases in sorted(token_bases.items())},
+        "ambiguous_tokens": ambiguous_tokens,
+        "naming": tally,
+        "findings": findings,
+        # Делегирующий читатель своей базы не имеет — и потому доносит до глаз
+        # ЧУЖУЮ, вместе со всею её многозначностью. Ноль здесь был бы ответом
+        # не на тот вопрос.
+        "carries_ambiguity_by_delegation": carriers,
+        "blind": [
+            "чтения вне f-строки (`%`, `.format`, склейка) не разбираются — "
+            "их число названо полем `reads_outside_fstring` у каждого читателя",
+            "таблица токенов ОБЪЯВЛЕНА; многозначность выведена из ЗАМЕРА "
+            "смежности, но токен, не объявленный ни одной базе, прибору невидим",
+            "«назвал верно» не означает, что число верно: мера про ИМЯ у "
+            "числа, а не про его происхождение",
+            f"именем считается текст в окне {NAME_WINDOW_CHARS} символов "
+            "вплотную к числу: слово из другого конца длинного прогона именем "
+            "не признаётся, и это ОБЪЯВЛЕННЫЙ выбор, а не замер",
+        ],
+    }
+
+
 def bilingual_reach(root: Path, rows: List[dict],
                     index: Dict[str, List[str]],
                     synonyms: Optional[dict] = None) -> dict:
@@ -5390,6 +5839,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     admission_price = witness_admission_price(root, name_precision,
                                               name_channel_doc)
 
+    # --- КАКУЮ БАЗУ БЕРЁТ ЧИТАТЕЛЬ (заказ G65 п. 1) ----------------------
+    # Координата выше нашла расхождение у САМОЙ базы (пары книг ≠ `GENUINE`)
+    # и честно сказала, чего не спрашивала: КТО из читателей какую базу берёт.
+    # Здесь спрошены все три названных заказом читателя поимённо. Ни один
+    # вердикт переписи эта координата не меняет — она мерит СЛОВАРЬ.
+    base_naming = consumer_base_naming(root)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -5488,6 +5944,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "token_depth_price": depth_price,
         "paragraph_witness_price": witness_price,
         "witness_admission_price": admission_price,
+        # Седьмая координата того же вопроса (заказ G65 п. 1). Отдельным
+        # ключом: «разошлись ли базы» и «какую из них берёт читатель» —
+        # разные вопросы, и ответ второго не является поправкой к первому.
+        "consumer_base_naming": base_naming,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -5519,6 +5979,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что пара, найденная ДВУЯЗЫЧНЫМ каналом имени, есть вторая копия того же порога — совпадение величины в абзаце фильтрует пары для обозримости, а тождество смысла проверяет человек",
             "что нулевой сдвиг у свидетеля предмета есть свойство ДЕРЕВА — он ровно настолько свойство КАРТЫ, насколько мал `askable`, и это число едет рядом с нулём",
             "что карта синонимов ПОЛНА — её полнота измерена только по порогам, уже известным переписи, и число незакрытых токенов названо",
+            "что читатель, назвавший базу ВЕРНО, печатает верное ЧИСЛО — мера про имя у числа, а не про его происхождение",
+            "что население читателей полно — реестр `CENSUS_CONSUMERS` литерален по замыслу, и читатель, в нём не названный, прибору невидим",
+            "что чтение вне f-строки отсутствует — оно НЕ разбирается, и его число едет отдельным полем у каждого читателя",
         ],
     }
 
@@ -6451,6 +6914,64 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ЦЕНА ДОПУСКА · АБЗАЦ НЕ РАЗРЕШЁН] {item.get('text')} "
                        f"`{item.get('named_as')}`: {item.get('reason')}")
         for blind in (adm.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- БАЗА ЧИТАТЕЛЯ (заказ G65 п. 1) ---------------------------------
+    naming = observed(doc, "consumer_base_naming", kind=dict)
+    if naming is None:
+        out.append("[БАЗА ЧИТАТЕЛЯ] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "разбора читателей")
+    elif naming.get("status") != "MEASURED":
+        out.append(f"[БАЗА ЧИТАТЕЛЯ] НЕ ИЗМЕРЕНА: {naming.get('reason')}")
+    else:
+        tally = naming.get("naming") or {}
+        out.append(
+            f"[БАЗА ЧИТАТЕЛЯ] читателей {len(naming.get('consumers') or [])} · "
+            f"названо верно {tally.get(NAMING_SINGLE)} · "
+            f"именем ДРУГОЙ базы {tally.get(NAMING_CROSS)} · "
+            f"МНОГОЗНАЧНЫМ именем {tally.get(NAMING_AMBIGUOUS)} · "
+            f"без имени {tally.get(NAMING_UNNAMED)}")
+        for consumer in (naming.get("consumers") or []):
+            if consumer.get("status") == CONSUMER_UNMEASURED:
+                out.append(f"[БАЗА ЧИТАТЕЛЯ · {consumer.get('key')}] НЕ "
+                           f"ИЗМЕРЕНО: {consumer.get('reason')}")
+                continue
+            if consumer.get("status") == CONSUMER_DELEGATES:
+                out.append(
+                    f"[БАЗА ЧИТАТЕЛЯ · {consumer.get('key')}] ДЕЛЕГИРУЕТ "
+                    f"отрисовку производителю "
+                    f"({', '.join(consumer.get('delegates_via') or [])}) — "
+                    f"своей базы НЕТ, и это не ноль: он доносит до глаз чужую")
+                continue
+            if consumer.get("status") == CONSUMER_NO_READ:
+                out.append(
+                    f"[БАЗА ЧИТАТЕЛЯ · {consumer.get('key')}] НИ ОДНОЙ "
+                    f"объявленной базы не читает и отрисовщик производителя не "
+                    f"зовёт — объявлен читателем, а читает своё третье")
+                continue
+            out.append(
+                f"[БАЗА ЧИТАТЕЛЯ · {consumer.get('key')}] базы "
+                f"{', '.join(consumer.get('bases_read') or []) or '—'} · "
+                f"чисел {len(consumer.get('numbers') or [])} · вне f-строки "
+                f"{consumer.get('reads_outside_fstring')} (не разбирается)")
+        for token, bases in sorted((naming.get("token_adjacency") or {}).items()):
+            if len(bases) > 1:
+                out.append(
+                    f"[БАЗА ЧИТАТЕЛЯ · МНОГОЗНАЧНО] токен `{token}` стои́т "
+                    f"рядом с {len(bases)} РАЗНЫМИ базами ({', '.join(bases)}) "
+                    f"— читателю они этим словом не различаются ничем")
+        for item in (naming.get("findings") or []):
+            out.append(
+                f"[БАЗА ЧИТАТЕЛЯ · {item.get('verdict')}] "
+                f"{item.get('consumer')}:{item.get('line')} база "
+                f"`{item.get('base')}` (координата `{item.get('coordinate')}`) "
+                f"названа {item.get('tokens')}")
+        carriers = naming.get("carries_ambiguity_by_delegation") or []
+        if carriers:
+            out.append(
+                f"[БАЗА ЧИТАТЕЛЯ · ДОНОСИТ] {', '.join(carriers)} — своей базы "
+                f"не имеет и потому несёт ЧУЖОЕ многозначное имя дальше: до "
+                f"оркестратора доезжает именно эта строка")
+        for blind in (naming.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
