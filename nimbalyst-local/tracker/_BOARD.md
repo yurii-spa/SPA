@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-21T13:39:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-21T21:09:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (4f0e91889).
+> Сверено с `origin/main` (71c672bba) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1089** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1092** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -326,7 +326,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (564)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (567)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -744,6 +744,7 @@
 - Бриф владельцу называет ПРОГОНЫ сутками: один день, переигранный трижды, печатается как «3-й день подряд»  ·  `inbox-brif-vladeltsu-nazyvaet-progony-sutkami.md` · 2026-09-15
 - Четыре теста краснеют на чистом main — измерено на двух пришпиленных sha, ни один не мой  ·  `inbox-chetyre-testa-krasneyut-na-chistom-main.md` · 2026-08-31
 - Число трека в нарративных документах некому обновлять — сторож будет краснеть примерно раз в неделю  ·  `inbox-chislo-treka-v-narrativnyh-dokumentah-ne.md` · 2026-08-24
+- Чужой полный прогон в том же дереве невидим: пробы «дерево занято прогоном» нет ни у кого  ·  `inbox-chuzhoi-polnyi-progon-v-tom-zhe-dereve-n.md` · 2026-09-21
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
 - CI на main ничего не мерил: job Python 3.11 умирал на сборе, а красная галочка читалась как «тесты упали»  ·  `inbox-ci-na-main-nichego-ne-meril-job-python-3.md` · 2026-09-21
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
@@ -796,6 +797,8 @@
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
+- Находка петли: манифест ↔ факты: com.spa.director_server: агент есть в фактах, нет в  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-dir-2.md` · 2026-09-21
+- Находка петли: манифест ↔ факты: com.spa.director_build: агент есть в фактах, нет в м  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-dir.md` · 2026-09-21
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat-2.md` · 2026-09-17
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10

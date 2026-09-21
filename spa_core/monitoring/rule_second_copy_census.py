@@ -221,6 +221,7 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime as dt
+import importlib
 import json
 import re
 import sys
@@ -5135,6 +5136,17 @@ _PRODUCER_RENDERERS = ("report", "format_report")
 #: Имя модуля-производителя без пути — так его зовёт мост.
 _PRODUCER_MODULE_NAME = "rule_second_copy_census"
 
+#: Откуда у читателя берётся документ переписи. ОБЪЯВЛЯЕТСЯ спецификацией:
+#: вывести это из пути нельзя, потому что внутри одного файла-производителя
+#: живут области с РАЗНЫМИ якорями (отрисовщик принимает документ первым
+#: параметром, а `main` — аргументы командной строки).
+ANCHOR_FIRST_PARAM = "first_param"
+ANCHOR_PRODUCER_CALL = "producer_call"
+ANCHOR_LOCAL_RUN = "local_run"
+
+#: Имена, рождающие документ ВНУТРИ производителя (голым зовом, без точки).
+_LOCAL_DOC_MAKERS = ("run", "measure")
+
 #: Исходы потребителя. «Делегирует» — НЕ ноль: читатель без своей базы
 #: доносит до глаз чужую, вместе со всею её многозначностью.
 CONSUMER_READS = "READS"
@@ -5235,13 +5247,28 @@ def _terminal_coordinate(expr: ast.AST, consts: Dict[str, str],
         return None
 
 
-def _derives_from_census(node: ast.AST, anchors: set) -> bool:
+def _derives_from_census(node: ast.AST, anchors: set,
+                        local_makers: frozenset = frozenset(),
+                        producer_aliases: Optional[frozenset] = None) -> bool:
     """Происходит ли выражение из документа ЭТОЙ переписи.
 
     Без этого вопроса соседский ``pairs`` (у моста их читает другая перепись)
     попал бы в замер как наш — то есть прибор выдумал бы находку ровно того
     класса, который ищет.
+
+    ``local_makers`` — имена, которые ВНУТРИ производителя рождают его же
+    документ (``run``, ``measure``): там зов стои́т голым именем и формы
+    ``rule_second_copy_census.run(...)`` не имеет ПО ПОСТРОЕНИЮ. Умолчание
+    пусто, поэтому у всех прежних читателей правило то же, что и было.
+
+    ``producer_aliases`` — под каким именем производитель виден У ЭТОГО
+    читателя. Умолчание — его собственное имя модуля; но ввоз
+    ``import … as census`` связывает документ с именем `census`, и правило,
+    знающее только одно написание, объявило бы НЕ ЧИТАЮЩИМ читателя, который
+    зовёт ``census.measure(root)`` прямо.
     """
+    names = (frozenset({_PRODUCER_MODULE_NAME}) if producer_aliases is None
+             else producer_aliases)
     for inner in ast.walk(node):
         if isinstance(inner, ast.Name) and inner.id in anchors:
             return True
@@ -5250,7 +5277,9 @@ def _derives_from_census(node: ast.AST, anchors: set) -> bool:
             if (isinstance(func, ast.Attribute)
                     and func.attr in ("run", "measure")
                     and isinstance(func.value, ast.Name)
-                    and func.value.id == _PRODUCER_MODULE_NAME):
+                    and func.value.id in names):
+                return True
+            if isinstance(func, ast.Name) and func.id in local_makers:
                 return True
     return False
 
@@ -5290,6 +5319,41 @@ def _consumer_scope(tree: ast.AST, scope: Optional[Tuple[str, ...]]) -> List[ast
             and node.name in scope]
 
 
+def _binding_regions(nodes: List[ast.AST]) -> List[List[ast.AST]]:
+    """Области СВЯЗЫВАНИЯ имени: функция — своя, модуль — своя.
+
+    Не украшение, а исправление собственной ошибки замера 21.09: якорь есть
+    ИМЯ, и имя, связанное с документом переписи в одной функции, в соседней
+    не связано ничем. Обход всего файла разом объявил бы `doc` из чужой
+    функции нашим документом — и прибор выдумал бы находку ровно того класса,
+    который ищет («контейнер привязкой не является», `.claude/rules/`).
+
+    Вложенная функция остаётся ВНУТРИ области родителя: замыкание читает его
+    имена по-настоящему, и делить их значило бы потерять верное чтение.
+    """
+    regions: List[List[ast.AST]] = []
+
+    def _split(container: ast.AST) -> List[ast.AST]:
+        rest: List[ast.AST] = []
+        for stmt in getattr(container, "body", []):
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                regions.append([stmt])
+            elif isinstance(stmt, ast.ClassDef):
+                rest.extend(_split(stmt))
+            else:
+                rest.append(stmt)
+        return rest
+
+    for node in nodes:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            regions.append([node])
+            continue
+        outer = _split(node)
+        if outer:
+            regions.append(outer)
+    return regions
+
+
 def _read_consumer(root: Path, spec: dict) -> dict:
     """Разбор ОДНОГО потребителя: какие базы читает и как их зовёт."""
     path = root / spec["path"]
@@ -5314,34 +5378,54 @@ def _read_consumer(root: Path, spec: dict) -> dict:
 
     # Якорь: документ переписи. У производителя это первый параметр
     # отрисовщика, у чужого модуля — возврат `run`/`measure` производителя.
-    anchors: set = set()
-    if spec["path"] == PRODUCER:
-        for node in nodes:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
-                    and node.args.args:
-                anchors.add(node.args.args[0].arg)
-    binding: Dict[str, str] = {}
-    for _ in range(16):                 # до неподвижной точки, не «на глазок»
-        before = (len(anchors), len(binding))
-        for scope_node in nodes:
-            for node in ast.walk(scope_node):
-                target = source_expr = None
-                if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                        and isinstance(node.targets[0], ast.Name)):
-                    target, source_expr = node.targets[0].id, node.value
-                elif isinstance(node, ast.For) and isinstance(node.target, ast.Name):
-                    target, source_expr = node.target.id, node.iter
-                if target is None:
-                    continue
-                if not _derives_from_census(source_expr, anchors):
-                    continue
-                anchors.add(target)
-                if isinstance(node, ast.Assign) and target not in binding:
-                    coord = _terminal_coordinate(source_expr, consts, binding)
-                    if coord is not None:
-                        binding[target] = coord
-        if before == (len(anchors), len(binding)):
-            break
+    #
+    # Режим ОБЪЯВЛЯЕТСЯ спецификацией, а не выводится из пути, и разница не
+    # педантизм: у `main` производителя первый параметр — `argv`, а вовсе не
+    # документ, и правило «первый параметр» приписало бы якорь строке разбора
+    # аргументов. Умолчание повторяет прежнее поведение буква в букву.
+    mode = spec.get("anchor") or (ANCHOR_FIRST_PARAM if spec["path"] == PRODUCER
+                                  else ANCHOR_PRODUCER_CALL)
+    local_makers = (frozenset(_LOCAL_DOC_MAKERS) if mode == ANCHOR_LOCAL_RUN
+                    else frozenset())
+    # Местное имя производителя. Объявляется спецификацией: у моста это
+    # `rule_second_copy_census`, у соседних переписей — `census`/`rules`.
+    aliases = frozenset(spec.get("aliases")
+                        or (_PRODUCER_MODULE_NAME,))
+    regions = _binding_regions(nodes)
+    region_state: List[Tuple[List[ast.AST], set, Dict[str, str]]] = []
+    for region in regions:
+        anchors: set = set()
+        if mode == ANCHOR_FIRST_PARAM:
+            for node in region:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                        and node.args.args:
+                    anchors.add(node.args.args[0].arg)
+        binding: Dict[str, str] = {}
+        for _ in range(16):             # до неподвижной точки, не «на глазок»
+            before = (len(anchors), len(binding))
+            for scope_node in region:
+                for node in ast.walk(scope_node):
+                    target = source_expr = None
+                    if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                            and isinstance(node.targets[0], ast.Name)):
+                        target, source_expr = node.targets[0].id, node.value
+                    elif (isinstance(node, ast.For)
+                          and isinstance(node.target, ast.Name)):
+                        target, source_expr = node.target.id, node.iter
+                    if target is None:
+                        continue
+                    if not _derives_from_census(source_expr, anchors,
+                                                local_makers, aliases):
+                        continue
+                    anchors.add(target)
+                    if isinstance(node, ast.Assign) and target not in binding:
+                        coord = _terminal_coordinate(source_expr, consts,
+                                                     binding)
+                        if coord is not None:
+                            binding[target] = coord
+            if before == (len(anchors), len(binding)):
+                break
+        region_state.append((region, anchors, binding))
 
     delegates = sorted({
         alias.asname or alias.name
@@ -5349,6 +5433,18 @@ def _read_consumer(root: Path, spec: dict) -> dict:
         if isinstance(node, ast.ImportFrom) and node.module
         and node.module.split(".")[-1] == _PRODUCER_MODULE_NAME
         for alias in node.names if alias.name in _PRODUCER_RENDERERS})
+    if mode == ANCHOR_LOCAL_RUN:
+        # Внутри производителя отрисовщик ввозить неоткуда: он зовётся голым
+        # именем. Искать здесь ТОЛЬКО ввоз значило бы объявить `main`, который
+        # печатает `report(doc)`, ничего не читающим.
+        local_calls = set()
+        for scope_node in nodes:
+            for node in ast.walk(scope_node):
+                if (isinstance(node, ast.Call)
+                        and isinstance(node.func, ast.Name)
+                        and node.func.id in _PRODUCER_RENDERERS):
+                    local_calls.add(node.func.id)
+        delegates = sorted(set(delegates) | local_calls)
 
     coord_to_base: Dict[str, set] = {}
     for base in CENSUS_BASES:
@@ -5357,41 +5453,47 @@ def _read_consumer(root: Path, spec: dict) -> dict:
 
     numbers: List[dict] = []
     outside_fstring = 0
-    for scope_node in nodes:
-        for node in ast.walk(scope_node):
-            if not isinstance(node, ast.JoinedStr):
-                continue
-            for index, value in enumerate(node.values):
-                if not isinstance(value, ast.FormattedValue):
+    for region, anchors, binding in region_state:
+        for scope_node in region:
+            for node in ast.walk(scope_node):
+                if not isinstance(node, ast.JoinedStr):
                     continue
-                if not _derives_from_census(value.value, anchors):
-                    continue
-                coord = _terminal_coordinate(value.value, consts, binding)
-                bases = coord_to_base.get(coord or "", set())
-                if len(bases) != 1:
-                    continue
-                base_key = next(iter(bases))
-                before, after = _adjacent_text(node.values, index)
-                near = f"{before} {after}".lower()
-                tokens = sorted({token for base in CENSUS_BASES
-                                 for token in base["tokens"] if token in near})
-                numbers.append({
-                    "line": node.lineno, "base": base_key, "coordinate": coord,
-                    "tokens": tokens, "before": before, "after": after})
+                for index, value in enumerate(node.values):
+                    if not isinstance(value, ast.FormattedValue):
+                        continue
+                    if not _derives_from_census(value.value, anchors,
+                                                local_makers, aliases):
+                        continue
+                    coord = _terminal_coordinate(value.value, consts, binding)
+                    bases = coord_to_base.get(coord or "", set())
+                    if len(bases) != 1:
+                        continue
+                    base_key = next(iter(bases))
+                    before, after = _adjacent_text(node.values, index)
+                    near = f"{before} {after}".lower()
+                    tokens = sorted({token for base in CENSUS_BASES
+                                     for token in base["tokens"]
+                                     if token in near})
+                    numbers.append({
+                        "line": node.lineno, "base": base_key,
+                        "coordinate": coord, "tokens": tokens,
+                        "before": before, "after": after})
     # Чтение ВНЕ f-строки прибор не разбирает — и говорит это числом, а не
     # молчанием: `%`, `.format` и склейка остаются слепым пятном.
-    for scope_node in nodes:
-        for node in ast.walk(scope_node):
-            if not isinstance(node, ast.Call):
-                continue
-            for arg in node.args:
-                if isinstance(arg, ast.JoinedStr):
+    for region, anchors, binding in region_state:
+        for scope_node in region:
+            for node in ast.walk(scope_node):
+                if not isinstance(node, ast.Call):
                     continue
-                if not _derives_from_census(arg, anchors):
-                    continue
-                coord = _terminal_coordinate(arg, consts, binding)
-                if coord and coord in coord_to_base:
-                    outside_fstring += 1
+                for arg in node.args:
+                    if isinstance(arg, ast.JoinedStr):
+                        continue
+                    if not _derives_from_census(arg, anchors, local_makers,
+                                                aliases):
+                        continue
+                    coord = _terminal_coordinate(arg, consts, binding)
+                    if coord and coord in coord_to_base:
+                        outside_fstring += 1
 
     if numbers:
         status = CONSUMER_READS
@@ -5516,6 +5618,434 @@ def consumer_base_naming(root: Path) -> dict:
             f"именем считается текст в окне {NAME_WINDOW_CHARS} символов "
             "вплотную к числу: слово из другого конца длинного прогона именем "
             "не признаётся, и это ОБЪЯВЛЕННЫЙ выбор, а не замер",
+        ],
+    }
+
+
+#: --- РЕЕСТР ЧИТАТЕЛЕЙ ПРОТИВ ЗАМЕРА ЗОВУЩИХ (заказ G66 п. 1) -------------
+#:
+#: ADR-443 измерил, какую базу берёт каждый НАЗВАННЫЙ читатель, и сказал
+#: вслух, чего не спрашивал: реестр :data:`CENSUS_CONSUMERS` литерален, и
+#: читатель, в нём не названный, прибору невидим. Заказ G66 п. 1 требует
+#: свести два населения — объявленное реестром и ИЗМЕРЕННОЕ — и спросить,
+#: есть ли среди неназванных печатающий числа переписи.
+
+#: Сосед, у которого спрашивается измеренное население зовущих. Своего обхода
+#: здесь нет намеренно: второй экземпляр того же правила и есть предмет, за
+#: которым вся перепись и написана.
+NEIGHBOUR_CENSUS = "spa_core.monitoring.census_consumer_census"
+
+#: Что у соседа обязано быть, чтобы вопрос был задан. Отсутствие — третий
+#: исход с названной причиной, а не ноль зовущих.
+_NEIGHBOUR_API = ("find_callees", "find_by_name_consumers",
+                  "find_cli_consumers", "find_dynamic_consumers",
+                  "find_fleet_consumers", "_CODE_DIRS")
+
+#: Область производителя, в которой живёт его собственный CLI. ОБЪЯВЛЕНА:
+#: сосед называет класс `cli` ФАЙЛОМ, реестр читателей — ОБЛАСТЬЮ, и свести
+#: их по одному файлу значило бы объявить названным то, чего реестр не читает.
+CLI_SCOPE = "main"
+
+#: Происхождение места-потребителя. Разделено, потому что вопросы разные:
+#: сосед спрашивает «кто ЗОВЁТ `run`», поверхность ввоза — «кто вообще берёт
+#: этот модуль в руки». Второе шире первого ровно на тех, кто ввозит
+#: отрисовщик; именно они соседу невидимы по построению.
+ORIGIN_BY_NAME = "neighbour:by_name"
+ORIGIN_CLI = "neighbour:cli"
+ORIGIN_DYNAMIC = "neighbour:dynamic"
+ORIGIN_FLEET = "neighbour:fleet"
+ORIGIN_IMPORT = "import_surface"
+
+SITE_NAMED = "NAMED"
+SITE_UNNAMED = "UNNAMED"
+
+#: Почему объявленный реестром читатель не встретился в измеренном населении.
+#: Три исхода, и первые два — НЕ дефект реестра: они про РАЗНИЦУ ВОПРОСОВ.
+UNSEEN_INSIDE_PRODUCER = "inside_producer"
+UNSEEN_RENDERER_IMPORT = "renderer_import"
+UNSEEN_NO_LINK = "no_link_found"
+
+#: Канал места. Печать теста до оркестратора не доезжает, и складывать её с
+#: печатью кода значило бы ответить не на тот вопрос. Разделение ОБЪЯВЛЕНО
+#: здесь, до замера, а не выбрано по его исходу (запрет G62).
+CHANNEL_CODE = "code"
+CHANNEL_TEST = "test"
+
+#: Что именно читатель берёт из производителя — от этого зависит, способен ли
+#: он вообще напечатать его числа.
+IMPORT_MODULE = "module"
+IMPORT_RENDERER = "renderer"
+IMPORT_SYMBOLS = "symbols_only"
+
+
+def _enclosing_scope(tree: ast.AST, lineno: int) -> Optional[str]:
+    """Имя САМОЙ ВНУТРЕННЕЙ функции, накрывающей строку; ``None`` — модуль.
+
+    Нужна потому, что сосед называет место ФАЙЛОМ и СТРОКОЙ, а реестр
+    читателей — ОБЛАСТЬЮ. Без приведения к общей координате сведение двух
+    населений было бы сведением по разным осям.
+    """
+    best: Optional[Tuple[int, str]] = None
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        end = getattr(node, "end_lineno", None)
+        if end is None or not (node.lineno <= lineno <= end):
+            continue
+        if best is None or node.lineno > best[0]:
+            best = (node.lineno, node.name)
+    return best[1] if best else None
+
+
+def _channel_of(rel: str) -> str:
+    """Канал места: печать теста до оркестратора не доезжает."""
+    name = rel.replace("\\", "/").split("/")[-1]
+    return CHANNEL_TEST if name.startswith("test_") else CHANNEL_CODE
+
+
+def producer_import_surface(root: Path,
+                            code_dirs: Iterable[str]) -> List[dict]:
+    """Кто ВВОЗИТ производителя — в любой из трёх форм ввоза.
+
+    Разбор идёт AST, а не текстом, и это замер, а не педантизм: форма
+    ``from spa_core.monitoring import rule_second_copy_census`` полного имени
+    в тексте не оставляет вовсе, а по ней перепись зовёт мост. Текстовое
+    правило потеряло бы ровно того потребителя, который до оркестратора и
+    доезжает.
+
+    ``code_dirs`` — ЧУЖОЙ параметр: каталоги берутся у соседа, чьё население
+    мы и сводим. Объявить их здесь своей константой значило бы завести вторую
+    копию определения населения — ровно тот класс, который перепись и ищет; и
+    расхождение двух копий читалось бы как расхождение двух ПРИБОРОВ.
+    """
+    out: List[dict] = []
+    for sub in code_dirs:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = str(path.relative_to(root))
+            if rel == PRODUCER:          # производитель себя не ввозит
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                out.append({"file": rel, "line": 0, "kind": None,
+                            "names": [], "unreadable": str(exc)})
+                continue
+            for node in ast.walk(tree):
+                names: List[str] = []
+                kind: Optional[str] = None
+                aliases: List[str] = []
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    tail = node.module.split(".")[-1]
+                    if tail == _PRODUCER_MODULE_NAME:
+                        names = [alias.name for alias in node.names]
+                        kind = (IMPORT_RENDERER
+                                if any(n in _PRODUCER_RENDERERS for n in names)
+                                else IMPORT_SYMBOLS)
+                    else:
+                        for alias in node.names:
+                            if alias.name == _PRODUCER_MODULE_NAME:
+                                names = [_PRODUCER_MODULE_NAME]
+                                kind = IMPORT_MODULE
+                                aliases.append(alias.asname or alias.name)
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.split(".")[-1] == _PRODUCER_MODULE_NAME:
+                            names = [alias.name]
+                            kind = IMPORT_MODULE
+                            aliases.append(alias.asname or alias.name)
+                if kind is None:
+                    continue
+                out.append({"file": rel, "line": node.lineno, "kind": kind,
+                            "names": sorted(names), "aliases": sorted(aliases),
+                            "scope": _enclosing_scope(tree, node.lineno)})
+    return out
+
+
+def _site_registry_key(site: dict) -> Optional[str]:
+    """Какой записью реестра место НАЗВАНО; ``None`` — не названо ни одной.
+
+    Область существенна: запись с объявленной областью не называет место вне
+    неё, даже если файл тот же. Иначе `main` производителя оказался бы
+    «названным» записью, которая читает только отрисовщик.
+    """
+    for spec in CENSUS_CONSUMERS:
+        if spec["path"] != site["file"]:
+            continue
+        scope = spec.get("scope")
+        if not scope:
+            return spec["key"]
+        if site.get("scope") in scope:
+            return spec["key"]
+    return None
+
+
+def consumer_registry_completeness(root: Path) -> dict:
+    """Реестр читателей против ИЗМЕРЕННОГО населения зовущих (**G66 п. 1**).
+
+    Два населения сводятся по общей координате «файл + область»:
+
+    * **объявлено** — литеральный реестр :data:`CENSUS_CONSUMERS`;
+    * **измерено** — (а) четыре класса соседа
+      :data:`NEIGHBOUR_CENSUS` (он мерит, кто зовёт ``run``) и (б) поверхность
+      ВВОЗА производителя, измеряемая здесь.
+
+    Две половины измеренного населения разные ПО ВОПРОСУ, и это главное:
+    соседний вопрос («кто зовёт ``run``») не выражает потребителя, который
+    ввозит ОТРИСОВЩИК. Такой потребитель соседу невидим по построению, и ноль
+    в его классах про него ничего не говорит.
+
+    Третий исход назван везде (инв. #17): соседа нет / у него нет нужного
+    имени / он не числит эту перепись переписью ⇒ ``UNMEASURED`` с причиной,
+    а не «зовущих нет». Неразрешимый статикой зов соседа едет отдельным
+    ЧИСЛОМ, а не тонет в нуле.
+
+    Порог не вводится: ни один вердикт переписи этой координатой не меняется
+    (``applied`` ложно). Выбирать правило, увидев его исход, — запрет G62.
+    """
+    head = {
+        "question": ("сколько зовущих эту перепись НЕ названо реестром имён "
+                     "и есть ли среди них печатающий её числа (заказ G66 п. 1)"),
+        "neighbour": NEIGHBOUR_CENSUS,
+        "declared_consumers": [
+            {"key": spec["key"], "path": spec["path"],
+             "scope": list(spec["scope"]) if spec.get("scope") else None}
+            for spec in CENSUS_CONSUMERS],
+        "applied": False,
+    }
+    if not CENSUS_CONSUMERS:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("реестр читателей пуст — сводить не с чем; это НЕ "
+                           "«неназванных нет»")}
+    try:
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    except Exception as exc:                        # noqa: BLE001 — причина важнее класса
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"соседняя координата {NEIGHBOUR_CENSUS} не ввезена "
+                           f"({type(exc).__name__}: {exc}) — измеренного "
+                           f"населения зовущих нет, и это не ноль зовущих")}
+    missing = [name for name in _NEIGHBOUR_API if not hasattr(neighbour, name)]
+    if missing:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"у соседа нет имён {missing} — спросить население "
+                           f"нечем; сведение не выполнено")}
+    try:
+        callees = neighbour.find_callees(root)
+    except Exception as exc:                        # noqa: BLE001
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"сосед не смог перечислить переписи "
+                           f"({type(exc).__name__}: {exc})")}
+    if _PRODUCER_MODULE_NAME not in callees:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("сосед не числит эту перепись переписью (контракт "
+                           "`run(root=…)` у неё им не найден) — его население "
+                           "зовущих про неё молчит ПО ПОСТРОЕНИЮ")}
+
+    sites: List[dict] = []
+    trees: Dict[str, Optional[ast.AST]] = {}
+
+    def _tree(rel: str) -> Optional[ast.AST]:
+        if rel not in trees:
+            try:
+                trees[rel] = ast.parse((root / rel).read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError):
+                trees[rel] = None
+        return trees[rel]
+
+    for item in neighbour.find_by_name_consumers(root, callees):
+        if item.get("callee") != _PRODUCER_MODULE_NAME:
+            continue
+        tree = _tree(item["file"])
+        sites.append({
+            "origin": ORIGIN_BY_NAME, "file": item["file"],
+            "line": item["line"],
+            "scope": _enclosing_scope(tree, item["line"]) if tree else None,
+            "whole_file": False,
+            "channel": _channel_of(item["file"]),
+            "detail": f"root_argument={item.get('root_argument')}"})
+    for item in neighbour.find_cli_consumers(root, callees):
+        if item.get("callee") != _PRODUCER_MODULE_NAME:
+            continue
+        if not item.get("has_main"):
+            continue
+        tree = _tree(item["file"])
+        line = 0
+        if tree is not None:
+            for node in ast.walk(tree):
+                if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and node.name == CLI_SCOPE):
+                    line = node.lineno
+        sites.append({
+            "origin": ORIGIN_CLI, "file": item["file"], "line": line,
+            "scope": CLI_SCOPE, "whole_file": False,
+            "channel": _channel_of(item["file"]),
+            "detail": f"run_root_default={item.get('run_root_default')}"})
+    dynamic = neighbour.find_dynamic_consumers(root, callees)
+    for item in (dynamic.get("resolved") or []):
+        if item.get("callee") != _PRODUCER_MODULE_NAME:
+            continue
+        tree = _tree(item["file"])
+        sites.append({
+            "origin": ORIGIN_DYNAMIC, "file": item["file"],
+            "line": item.get("line", 0),
+            "scope": (_enclosing_scope(tree, item.get("line", 0))
+                      if tree else None),
+            "whole_file": False,
+            "channel": _channel_of(item["file"]), "detail": "importlib"})
+    for item in neighbour.find_fleet_consumers(root, callees):
+        if item.get("callee") != _PRODUCER_MODULE_NAME:
+            continue
+        sites.append({
+            "origin": ORIGIN_FLEET, "file": item.get("file", ""),
+            "line": item.get("line", 0), "scope": None, "whole_file": True,
+            "channel": _channel_of(item.get("file", "")),
+            "detail": "обёртка флота"})
+
+    imports = producer_import_surface(root, neighbour._CODE_DIRS)
+    import_unreadable = [item for item in imports if item.get("unreadable")]
+    by_file: Dict[str, dict] = {}
+    for item in imports:
+        if item.get("unreadable"):
+            continue
+        # Единицей ввоза является ФАЙЛ, а не строка: ввезённое имя живёт во
+        # всём модуле, и приписывать потребителя области импорта значило бы
+        # спросить о чтении там, где его заведомо нет.
+        kept = by_file.get(item["file"])
+        rank = {IMPORT_RENDERER: 2, IMPORT_MODULE: 2, IMPORT_SYMBOLS: 1}
+        if kept is None:
+            by_file[item["file"]] = dict(item)
+            continue
+        # Псевдонимы СКЛАДЫВАЮТСЯ: файл, ввёзший производителя дважды под
+        # разными именами, читает его под обоими, и потерять одно значило бы
+        # объявить не читающим то, что читается.
+        kept["aliases"] = sorted(set(kept.get("aliases") or [])
+                                 | set(item.get("aliases") or []))
+        if rank[item["kind"]] > rank[kept["kind"]]:
+            merged = dict(item)
+            merged["aliases"] = kept["aliases"]
+            by_file[item["file"]] = merged
+    for rel, item in sorted(by_file.items()):
+        sites.append({
+            "origin": ORIGIN_IMPORT, "file": rel, "line": item["line"],
+            "scope": None, "whole_file": True, "channel": _channel_of(rel),
+            "import_kind": item["kind"], "imports": item["names"],
+            "aliases": item.get("aliases") or [],
+            "detail": f"ввоз {item['kind']}"})
+
+    seen_keys: set = set()
+    seen_by_neighbour: set = set()
+    for site in sites:
+        key = _site_registry_key(site)
+        site["registry"] = key
+        site["verdict"] = SITE_NAMED if key else SITE_UNNAMED
+        if key:
+            seen_keys.add(key)
+            if site["origin"] != ORIGIN_IMPORT:
+                seen_by_neighbour.add(key)
+
+    for site in sites:
+        if site["verdict"] != SITE_UNNAMED:
+            continue
+        spec = {
+            "key": f"{site['file']}:{site.get('scope') or '<модуль>'}",
+            "path": site["file"],
+            "scope": None if site["whole_file"] else (site["scope"],),
+            "anchor": (ANCHOR_LOCAL_RUN if site["file"] == PRODUCER
+                       else ANCHOR_PRODUCER_CALL),
+            "aliases": tuple(site.get("aliases")
+                             or (_PRODUCER_MODULE_NAME,)),
+            "what": "место, измеренное как потребитель и не названное реестром",
+        }
+        if not site["whole_file"] and not site.get("scope"):
+            site["read"] = {"status": CONSUMER_UNMEASURED,
+                            "reason": ("место вне функции, и областью его "
+                                       "назвать нечем")}
+            continue
+        site["read"] = _read_consumer(root, spec)
+
+    declared_unseen: List[dict] = []
+    for spec in CENSUS_CONSUMERS:
+        if spec["key"] in seen_by_neighbour:
+            continue
+        seen_elsewhere = spec["key"] in seen_keys
+        if spec["path"] == PRODUCER:
+            reason = UNSEEN_INSIDE_PRODUCER
+        elif seen_elsewhere:
+            reason = UNSEEN_RENDERER_IMPORT
+        else:
+            reason = UNSEEN_NO_LINK
+        declared_unseen.append({
+            "key": spec["key"], "path": spec["path"], "reason": reason,
+            "seen_by_import_surface": seen_elsewhere})
+
+    unnamed = [site for site in sites if site["verdict"] == SITE_UNNAMED]
+    unnamed_reading = [site for site in unnamed
+                       if (site.get("read") or {}).get("status") == CONSUMER_READS]
+    findings: List[dict] = []
+    for site in unnamed_reading:
+        findings.append({
+            "kind": "unnamed_reader_prints_numbers",
+            "file": site["file"], "line": site["line"],
+            "scope": site.get("scope"), "channel": site["channel"],
+            "numbers": len((site.get("read") or {}).get("numbers") or []),
+            "why": ("место печатает числа переписи, а реестр читателей о нём "
+                    "молчит — его имена не мерил никто")})
+    for item in declared_unseen:
+        if item["reason"] != UNSEEN_RENDERER_IMPORT:
+            continue
+        findings.append({
+            "kind": "declared_consumer_invisible_to_neighbour",
+            "file": item["path"], "line": 0, "scope": None,
+            "channel": _channel_of(item["path"]), "numbers": 0,
+            "why": ("объявленный читатель ВВОЗИТ отрисовщик и `run` не зовёт — "
+                    "соседний вопрос «кто зовёт run» его не выражает вовсе, и "
+                    "ноль в его классах про этого читателя не говорит ничего")})
+
+    counts = {
+        "declared": len(CENSUS_CONSUMERS),
+        "sites": len(sites),
+        "named": len(sites) - len(unnamed),
+        "unnamed": len(unnamed),
+        "unnamed_reading": len(unnamed_reading),
+        "unnamed_code": len([s for s in unnamed if s["channel"] == CHANNEL_CODE]),
+        "unnamed_test": len([s for s in unnamed if s["channel"] == CHANNEL_TEST]),
+        "seen_by_neighbour": len(seen_by_neighbour),
+        "declared_unseen_by_neighbour": len(declared_unseen),
+        "import_surface": len(by_file),
+        # Неразрешимый статикой зов — ЧИСЛО, а не ноль: «мы не смогли
+        # посмотреть» и «там никого нет» разные утверждения (ADR-326).
+        "neighbour_dynamic_unresolved": len(dynamic.get("unresolved") or []),
+        "import_files_unreadable": len(import_unreadable),
+    }
+    by_origin: Dict[str, int] = {}
+    for site in sites:
+        by_origin[site["origin"]] = by_origin.get(site["origin"], 0) + 1
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "counts": counts,
+        "by_origin": by_origin,
+        "sites": sites,
+        "declared_unseen": declared_unseen,
+        "unreadable": import_unreadable,
+        "findings": findings,
+        "blind": [
+            "население зовущих у соседа ограничено четырьмя классами: зов "
+            "через отрисовщик ему невидим ПО ПОСТРОЕНИЮ, и поверхность ввоза "
+            "здесь — НАША добавка к его вопросу, а не его ответ",
+            f"зовов, не разрешимых статикой, у соседа "
+            f"{counts['neighbour_dynamic_unresolved']} — среди них может быть "
+            f"и наш, и это число, а не ноль",
+            "ввоз не есть ЧТЕНИЕ: файл, ввёзший имя и ни разу его не "
+            "позвавший, попадает в население и честно получает NO_READ",
+            "канал теста считается ОТДЕЛЬНО и ОБЪЯВЛЕН заранее: печать теста "
+            "до оркестратора не доезжает, но потребителем контракта он быть "
+            "не перестаёт",
+            "порог не введён: ни один вердикт переписи эта координата не "
+            "меняет (`applied` ложно)",
         ],
     }
 
@@ -5846,6 +6376,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # вердикт переписи эта координата не меняет — она мерит СЛОВАРЬ.
     base_naming = consumer_base_naming(root)
 
+    # --- РЕЕСТР ЧИТАТЕЛЕЙ ПРОТИВ ЗАМЕРА ЗОВУЩИХ (заказ G66 п. 1) ---------
+    # Координата выше мерила ИМЕНА у чисел трёх НАЗВАННЫХ читателей и честно
+    # сказала, чего не спрашивала: полно ли само население читателей. Здесь
+    # объявленное сводится с измеренным — и ни один вердикт переписи этой
+    # координатой не меняется.
+    registry_completeness = consumer_registry_completeness(root)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -5948,6 +6485,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ключом: «разошлись ли базы» и «какую из них берёт читатель» —
         # разные вопросы, и ответ второго не является поправкой к первому.
         "consumer_base_naming": base_naming,
+        # Восьмая координата того же вопроса (заказ G66 п. 1). Отдельным
+        # ключом: «как читатель зовёт базу» и «все ли читатели названы» —
+        # разные вопросы, и ответ второго не является поправкой к первому.
+        "consumer_registry_completeness": registry_completeness,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -5982,6 +6523,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что читатель, назвавший базу ВЕРНО, печатает верное ЧИСЛО — мера про имя у числа, а не про его происхождение",
             "что население читателей полно — реестр `CENSUS_CONSUMERS` литерален по замыслу, и читатель, в нём не названный, прибору невидим",
             "что чтение вне f-строки отсутствует — оно НЕ разбирается, и его число едет отдельным полем у каждого читателя",
+            "что население зовущих ПОЛНО и после сведения с соседом — у соседа четыре класса зова, и зов, не разрешимый статикой, едет у него ЧИСЛОМ; поверхность ввоза добавляет ввозящих, а не исчерпывает зовущих",
+            "что неназванный читатель БЕЗВРЕДЕН — измерено «печатает ли он числа переписи», а не «верно ли он их понимает»",
         ],
     }
 
@@ -6972,6 +7515,42 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"не имеет и потому несёт ЧУЖОЕ многозначное имя дальше: до "
                 f"оркестратора доезжает именно эта строка")
         for blind in (naming.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- РЕЕСТР ЧИТАТЕЛЕЙ (заказ G66 п. 1) ------------------------------
+    completeness = observed(doc, "consumer_registry_completeness", kind=dict)
+    if completeness is None:
+        out.append("[РЕЕСТР ЧИТАТЕЛЕЙ] НЕ ИЗМЕРЕН — перепись собрана без "
+                   "сведения двух населений")
+    elif completeness.get("status") != "MEASURED":
+        out.append(f"[РЕЕСТР ЧИТАТЕЛЕЙ] НЕ ИЗМЕРЕН: {completeness.get('reason')}")
+    else:
+        cnt = completeness.get("counts") or {}
+        out.append(
+            f"[РЕЕСТР ЧИТАТЕЛЕЙ] объявлено {cnt.get('declared')} · мест "
+            f"измерено {cnt.get('sites')} · названо {cnt.get('named')} · НЕ "
+            f"названо {cnt.get('unnamed')} (кода {cnt.get('unnamed_code')}, "
+            f"тестов {cnt.get('unnamed_test')}) · из них ПЕЧАТАЕТ числа "
+            f"{cnt.get('unnamed_reading')}")
+        out.append(
+            f"[РЕЕСТР ЧИТАТЕЛЕЙ · СЛЕПОТА СОСЕДА] зовов, не разрешимых "
+            f"статикой, у соседа {cnt.get('neighbour_dynamic_unresolved')}; "
+            f"файлов ввоза не прочитано {cnt.get('import_files_unreadable')} "
+            f"— это ЧИСЛА, а не ноль зовущих")
+        for item in (completeness.get("declared_unseen") or []):
+            out.append(
+                f"[РЕЕСТР ЧИТАТЕЛЕЙ · СОСЕД НЕ ВИДИТ] `{item.get('key')}` "
+                f"({item.get('path')}): {item.get('reason')} · поверхностью "
+                f"ввоза виден: {item.get('seen_by_import_surface')}")
+        for item in (completeness.get("findings") or [])[:max_rows]:
+            out.append(
+                f"[РЕЕСТР ЧИТАТЕЛЕЙ · НАХОДКА {item.get('kind')}] "
+                f"{item.get('file')}:{item.get('line')} "
+                f"(область {item.get('scope')}, канал {item.get('channel')}, "
+                f"чисел {item.get('numbers')}) — {item.get('why')}")
+        for item in (completeness.get("unreadable") or [])[:max_rows]:
+            out.append(f"[РЕЕСТР ЧИТАТЕЛЕЙ · НЕ ПРОЧИТАНО] {item.get('file')}: "
+                       f"{item.get('unreadable')}")
+        for blind in (completeness.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
