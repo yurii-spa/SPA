@@ -3655,6 +3655,7 @@ def bilingual_name_reach(root: Path, index: Dict[str, List[str]],
               "authority_numeric": 0, "control_numeric": 0,
               "authority_corroborated": 0, "control_corroborated": 0}
     pairs: List[dict] = []
+    raw_hits: List[dict] = []
     unreadable: List[dict] = []
     constants: Dict[str, Dict[str, float]] = {}
     read = 0
@@ -3684,6 +3685,19 @@ def bilingual_name_reach(root: Path, index: Dict[str, List[str]],
                     continue
                 counts[f"{side}_raw"] += 1
                 value = _module_constants(root, where, constants).get(name)
+                # Население канала ЗАПИСЫВАЕТСЯ целиком, а не только та его
+                # часть, которую подтвердила величина: заказ **G61 п. 1**
+                # спрашивает точность канала, а посчитанное и не записанное
+                # срабатывание разметить нечем — «59 названных» осталось бы
+                # числом без предметов.
+                raw_hits.append({
+                    "side": side,
+                    "text": rel_text,
+                    "block_start": block[0][0],
+                    "named_as": name,
+                    "resolved": where,
+                    "value": value,
+                })
                 if value is None:
                     continue
                 counts[f"{side}_numeric"] += 1
@@ -3713,6 +3727,7 @@ def bilingual_name_reach(root: Path, index: Dict[str, List[str]],
         "unreadable": unreadable,
         "candidates": len(candidates),
         "pairs": pairs,
+        "raw_hits": raw_hits,
         "enrichment": enrichment,
         "enrichment_reason": enrichment_reason,
         **counts,
@@ -3736,6 +3751,244 @@ def _rate_enrichment(hits: int, population: int,
         return None, ("контроль не сработал ни разу: отношение к нулю есть "
                       "бесконечность, а не «канал безупречен»")
     return ((hits / population) / (control_hits / control_population)), None
+
+
+#: Правило разметки заказа **G61 п. 1**, записанное ДО разметки и не менявшееся
+#: после первого прогона. Свободных параметров, подогнанных по данным, у него
+#: нет: три свидетеля и таблица истинности — весь состав.
+PRECISION_RULE = (
+    "население — ВСЕ срабатывания канала имени (`raw_hits`), а не только "
+    "подтверждённые величиной; свидетели: W1 — все токены имени стои́т в ОДНОМ "
+    "пункте абзаца (тот же `_token_evidence`, более узкая область), W2 — абзац "
+    "называет разрешённый модуль дословно по основе файла — полный путь её "
+    "содержит и потому отдельной ветки не требует, — W3 — абзац "
+    "несёт величину имени в любом из двух прочтений; "
+    "GENUINE = W1 и (W2 или W3) · ARTEFACT = не W1 · UNDECIDED = W1 без W2 и W3"
+)
+
+PRECISION_UNMEASURED = "BILINGUAL_PRECISION_UNMEASURED"
+LABEL_GENUINE = "GENUINE"
+LABEL_ARTEFACT = "ARTEFACT"
+LABEL_UNDECIDED = "UNDECIDED"
+
+#: Начало ПУНКТА внутри абзаца: маркер списка, строка таблицы, заголовок.
+_ITEM_START_RE = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|\||#{1,6}\s)")
+
+
+def declaring_items(block: List[Tuple[int, str]]) -> List[Tuple[int, str]]:
+    """Абзац, разбитый на ПУНКТЫ; перенос строки пункт НЕ разрывает.
+
+    Область совпадения токенов у канала имени — абзац целиком, и это его
+    измеряемое свойство: чем шире абзац, тем больше в нём чужих слов. Узкая
+    область нужна, чтобы спросить «а переживёт ли срабатывание сужение», но
+    физическая СТРОКА для этого слишком узка: авторский перенос внутри одного
+    маркера списка разорвал бы настоящее объявление и записал бы его в ложные.
+    Поэтому область — пункт: строка-маркер вместе со своими продолжениями.
+    Цена этого выбора не скрыта, а измерена — :func:`bilingual_name_precision`
+    считает и совпадения по строке, и разницу между двумя областями.
+    """
+    items: List[Tuple[int, List[str]]] = []
+    for lineno, line in block:
+        if not items or _ITEM_START_RE.match(line):
+            items.append((lineno, [line]))
+        else:
+            items[-1][1].append(line)
+    return [(lineno, "\n".join(lines)) for lineno, lines in items]
+
+
+def _module_named(raw_low: str, where: str) -> bool:
+    """Назван ли в самом абзаце РАЗРЕШЁННЫЙ модуль — свидетель вне токенов.
+
+    Свидетель независим от канала, который проверяется: путь и основа файла
+    пишутся латиницей и в карте синонимов не участвуют. Основа спрашивается по
+    границам слова — иначе `policy` совпало бы внутри `risk_policy_v2`.
+
+    Отдельной ветки «назван полный путь» здесь НЕТ, и это замер, а не
+    недосмотр: внутри собственного пути основа всегда обрамлена `/` и `.`, ни
+    один из которых не входит в `[a-z0-9_]`, — поэтому проверка по границам
+    слова срабатывает везде, где сработала бы проверка по пути. Батарея мутаций
+    #658 оставила такую ветку в живых, и это её приговор, а не её оправдание.
+    """
+    if not where:
+        return False
+    stem = where.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower()
+    return bool(stem) and bool(re.search(
+        r"(?<![a-z0-9_])" + re.escape(stem) + r"(?![a-z0-9_])", raw_low))
+
+
+def bilingual_name_precision(root: Path, channel: Optional[dict],
+                             synonyms: Optional[dict] = None) -> dict:
+    """Точность двуязычного канала имени на ОБЪЯВЛЕННОЙ выборке (**G61 п. 1**).
+
+    ADR-438 назвал «2 из 4» — замер выборки размера четыре, у которого нет
+    доверительного интервала никакого, и сделан он одной парой глаз. Здесь
+    размечается ВСЁ население канала по правилу :data:`PRECISION_RULE`,
+    записанному ДО разметки, и доля ложных называется со знаменателем.
+
+    Контроль размечается ТЕМ ЖЕ правилом и не для симметрии: абзац без языка
+    права изменения объявлением не является, поэтому доля `GENUINE` на
+    контроле есть частота ошибки САМОГО правила разметки. Без неё «правило
+    назвало N ложных» было бы утверждением, которое нечем поверить, —
+    подтверждающий прибор подтверждал бы сам себя.
+
+    Канал не измерен, населения нет или ни один абзац не найден по координате
+    ⇒ ``UNMEASURED`` с причиной. Пустое население НЕ есть «ложных ноль».
+    """
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
+    if not isinstance(channel, dict) or channel.get("status") != "MEASURED":
+        return {"status": PRECISION_UNMEASURED, "rule": PRECISION_RULE,
+                "reason": "канал имени не измерен — размечать нечего"}
+    hits = channel.get("raw_hits")
+    if hits is None:
+        return {"status": PRECISION_UNMEASURED, "rule": PRECISION_RULE,
+                "reason": ("канал имени не выдал населения: срабатывания "
+                           "посчитаны и не записаны — размечать нечем")}
+    if not hits:
+        return {"status": PRECISION_UNMEASURED, "rule": PRECISION_RULE,
+                "reason": ("канал не сработал ни разу: населения нет — это НЕ "
+                           "«ложных ноль», а отсутствие предмета разметки")}
+
+    blocks_cache: Dict[str, Dict[int, List[Tuple[int, str]]]] = {}
+    sides: Dict[str, dict] = {}
+    rows: List[dict] = []
+    unresolved: List[dict] = []
+    for hit in hits:
+        rel = str(hit.get("text") or "")
+        blocks = blocks_cache.get(rel)
+        if blocks is None:
+            try:
+                body = (root / rel).read_text(encoding="utf-8")
+            except Exception as exc:  # noqa: BLE001
+                blocks = {}
+                blocks_cache[rel] = blocks
+                unresolved.append({"text": rel, "named_as": hit.get("named_as"),
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            blocks = {block[0][0]: block for block in declaring_paragraphs(body)}
+            blocks_cache[rel] = blocks
+        block = blocks.get(hit.get("block_start"))
+        if block is None:
+            unresolved.append({
+                "text": rel, "named_as": hit.get("named_as"),
+                "reason": (f"абзаца, начинающегося строкой "
+                           f"{hit.get('block_start')}, в тексте нет — "
+                           f"координата населения не разрешается")})
+            continue
+        tokens = _name_tokens(str(hit.get("named_as") or ""))
+        raw = "\n".join(line for _, line in block)
+        raw_low = raw.lower()
+        item_line = next(
+            (lineno for lineno, item in declaring_items(block)
+             if _token_evidence(item.lower(), tokens, table) is not None), None)
+        line_hit = any(_token_evidence(line.lower(), tokens, table) is not None
+                       for _, line in block)
+        subject = _module_named(raw_low, str(hit.get("resolved") or ""))
+        value = hit.get("value")
+        named_value = (value is not None
+                       and value_key(str(value)) in _paragraph_values(raw))
+        if item_line is None:
+            label = LABEL_ARTEFACT
+        elif subject or named_value:
+            label = LABEL_GENUINE
+        else:
+            label = LABEL_UNDECIDED
+        side = str(hit.get("side") or "")
+        tally = sides.setdefault(side, {LABEL_GENUINE: 0, LABEL_ARTEFACT: 0,
+                                        LABEL_UNDECIDED: 0,
+                                        "colocated_line": 0,
+                                        "colocated_item": 0})
+        tally[label] += 1
+        tally["colocated_line"] += 1 if line_hit else 0
+        tally["colocated_item"] += 1 if item_line is not None else 0
+        # Размер набора токенов — НЕ вход правила, а объяснение его исхода:
+        # имя из ОДНОГО различающего токена спрашивает у текста одно русское
+        # слово, и «назвал» там значит «слово встретилось». Правило объявлено
+        # до разметки и этим числом не правится; оно печатается, чтобы
+        # причина доли была названа, а не угадана по примерам.
+        by_size = tally.setdefault("by_token_count", {})
+        cell = by_size.setdefault(str(len(tokens)), {LABEL_GENUINE: 0,
+                                                     LABEL_ARTEFACT: 0,
+                                                     LABEL_UNDECIDED: 0})
+        cell[label] += 1
+        rows.append({
+            "side": side, "text": rel, "block_start": hit.get("block_start"),
+            "named_as": hit.get("named_as"), "resolved": hit.get("resolved"),
+            "value": value, "label": label,
+            "tokens": sorted(tokens), "token_count": len(tokens),
+            "w1_colocated_item_line": item_line,
+            "w2_subject_named": subject, "w3_value_named": named_value,
+            "colocated_single_line": line_hit,
+        })
+
+    labelled = sum(row["label"] in (LABEL_GENUINE, LABEL_ARTEFACT,
+                                    LABEL_UNDECIDED) for row in rows)
+    if not labelled:
+        return {"status": PRECISION_UNMEASURED, "rule": PRECISION_RULE,
+                "reason": ("ни одно срабатывание не размечено: абзацы "
+                           "населения не разрешаются по координате"),
+                "unresolved": unresolved}
+    for tally in sides.values():
+        total = (tally[LABEL_GENUINE] + tally[LABEL_ARTEFACT]
+                 + tally[LABEL_UNDECIDED])
+        tally["labelled"] = total
+        tally["false_share"] = tally[LABEL_ARTEFACT] / total if total else None
+        # Цена выбора области: сколько срабатываний держится ТОЛЬКО на том,
+        # что пункт шире физической строки. Число печатается всегда — иначе
+        # выбор области остался бы вкусом автора, а не измеренным решением.
+        tally["wrap_cost"] = tally["colocated_item"] - tally["colocated_line"]
+    # Обогащение читается ДВАЖДЫ, и знаменатели названы оба. На абзац —
+    # держится ли сигнал за стороной объявления; на срабатывание — отделяет
+    # ли стороны сама РАЗМЕТКА. Одно число с двумя знаменателями есть
+    # ровно тот дефект, который перепись ищет у чужого кода (ADR-418), и
+    # выбрать один знаменатель молча значило бы его здесь и совершить.
+    authority = sides.get("authority") or {}
+    control = sides.get("control") or {}
+    per_paragraph, per_paragraph_why = _rate_enrichment(
+        authority.get(LABEL_GENUINE, 0), int(channel.get("authority_paragraphs") or 0),
+        control.get(LABEL_GENUINE, 0), int(channel.get("control_paragraphs") or 0))
+    per_hit, per_hit_why = _rate_enrichment(
+        authority.get(LABEL_GENUINE, 0), authority.get("labelled", 0),
+        control.get(LABEL_GENUINE, 0), control.get("labelled", 0))
+    total = authority.get("labelled", 0)
+    interval = None
+    if total:
+        interval = {
+            "lower": authority.get(LABEL_GENUINE, 0) / total,
+            "upper": (authority.get(LABEL_GENUINE, 0)
+                      + authority.get(LABEL_UNDECIDED, 0)) / total,
+            "denominator": total,
+        }
+    return {
+        "status": "MEASURED",
+        "enrichment": {
+            "per_paragraph": per_paragraph, "per_paragraph_reason": per_paragraph_why,
+            "per_hit": per_hit, "per_hit_reason": per_hit_why,
+        },
+        "truth_interval": interval,
+        "rule": PRECISION_RULE,
+        "question": ("какова доля ложных у двуязычного канала имени на ВСЁМ "
+                     "объявленном населении (заказ G61 п. 1)"),
+        "raw_hits": len(hits),
+        "labelled": labelled,
+        "unresolved": unresolved,
+        "sides": sides,
+        "rows": rows,
+        "blind": [
+            "`ARTEFACT` доказывает свойство УЛИКИ, а не текста: срабатывание не "
+            "переживает сужения области до пункта. Что абзац не имеет к имени "
+            "отношения, отсюда не следует — следует, что канал назвал его "
+            "шириной абзаца, и точность канала есть именно это",
+            "`GENUINE` тождества смысла НЕ доказывает: равная величина называет "
+            "несколько порогов (ADR-418), а названный в том же абзаце модуль не "
+            "есть доказательство, что абзац про ЭТУ его константу. GENUINE — "
+            "верхняя граница истины, ARTEFACT — нижняя граница лжи",
+            "`UNDECIDED` не сложен ни с той, ни с другой стороной намеренно: "
+            "доля ложных со знаменателем `labelled` и этот остаток печатаются "
+            "рядом, иначе третий исход растворился бы в одном из двух",
+            "доля `GENUINE` на КОНТРОЛЕ есть частота ошибки самого правила "
+            "разметки, а не находка о дереве",
+        ],
+    }
 
 
 def bilingual_reach(root: Path, rows: List[dict],
@@ -4025,6 +4278,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     bilingual = bilingual_reach(root, rows + peer_rows + triple_rows,
                                 definitions[0])
 
+    # --- ТОЧНОСТЬ КАНАЛА ИМЕНИ (заказ G61 п. 1) ---------------------------
+    # Координата выше сказала, что двуязычие ПРИБАВЛЯЕТ пары. Сколько из них
+    # настоящие — она не спрашивает, и «2 из 4» ADR-438 есть замер выборки
+    # размера четыре. Здесь размечается ВСЁ население канала правилом,
+    # записанным до разметки; в население объявленных поверхностей эта
+    # координата ничего не доливает — она судит уже сделанный замер.
+    name_precision = bilingual_name_precision(
+        root, (bilingual.get("witnesses") or {}).get(WITNESS_NAME_CHANNEL))
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -4119,6 +4381,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # имени» — разные вопросы, и ответ второго не является поправкой к
         # первому.
         "bilingual_reach": bilingual,
+        "bilingual_name_precision": name_precision,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -4751,6 +5014,73 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{coverage.get('tokens')}: "
                 + ", ".join((coverage.get("missing_tokens") or [])[:12]))
         for blind in (reach.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция стои́т ЗА блоком двуязычия на уровне тела функции, а не внутри
+    # его `else`: вложенная туда, она молчала бы у каждого дерева, где карта
+    # синонимов пуста, — то есть ровно там, где о точности спрашивать важнее
+    # всего. Ошибка размещения найдена у #655 и закреплена тестом.
+    precision = observed(doc, "bilingual_name_precision", kind=dict)
+    if precision is None:
+        out.append("[ТОЧНОСТЬ ИМЕНИ] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "координаты (заказ G61 п. 1)")
+    elif precision.get("status") != "MEASURED":
+        out.append(f"[ТОЧНОСТЬ ИМЕНИ] НЕ ИЗМЕРЕНА: {precision.get('reason')}")
+    else:
+        out.append(f"[ТОЧНОСТЬ ИМЕНИ · ПРАВИЛО] {precision.get('rule')}")
+        sides = observed(precision, "sides", kind=dict) or {}
+        for side in ("authority", "control"):
+            tally = observed(sides, side, kind=dict)
+            if tally is None:
+                out.append(f"[ТОЧНОСТЬ ИМЕНИ · {side}] НЕ ИЗМЕРЕНО — "
+                           f"срабатываний этой стороны в населении нет")
+                continue
+            share = observed(tally, "false_share", kind=float)
+            out.append(
+                f"[ТОЧНОСТЬ ИМЕНИ · {side}] размечено {tally.get('labelled')} · "
+                f"настоящих {tally.get(LABEL_GENUINE)} · ложных "
+                f"{tally.get(LABEL_ARTEFACT)} · не решено "
+                f"{tally.get(LABEL_UNDECIDED)} · доля ложных "
+                + ("НЕ ИЗМЕРЕНА" if share is None else f"{share:.0%}")
+                + f"; цена области (пункт против строки) {tally.get('wrap_cost')}")
+            sizes = observed(tally, "by_token_count", kind=dict) or {}
+            out.append(
+                f"[ТОЧНОСТЬ ИМЕНИ · {side} · ТОКЕНОВ В ИМЕНИ] "
+                + " · ".join(
+                    f"{size}: настоящих {cell.get(LABEL_GENUINE)}, ложных "
+                    f"{cell.get(LABEL_ARTEFACT)}, не решено {cell.get(LABEL_UNDECIDED)}"
+                    for size, cell in sorted(sizes.items())))
+        interval = observed(precision, "truth_interval", kind=dict)
+        if interval is None:
+            out.append("[ТОЧНОСТЬ ИМЕНИ · ИНТЕРВАЛ] НЕ ИЗМЕРЕН — размеченного "
+                       "населения стороны объявления нет")
+        else:
+            out.append(
+                f"[ТОЧНОСТЬ ИМЕНИ · ИНТЕРВАЛ] точность канала лежит в "
+                f"[{interval['lower']:.1%}, {interval['upper']:.1%}] при "
+                f"знаменателе {interval['denominator']} — ширину держит "
+                f"`UNDECIDED`, и это ОТВЕТ заказа, а не его отсутствие: "
+                f"независимого свидетеля хватило не на всех")
+        enrich = observed(precision, "enrichment", kind=dict) or {}
+        for key, what in (("per_paragraph", "на абзац объявления"),
+                          ("per_hit", "на срабатывание канала")):
+            rate = observed(enrich, key, kind=float)
+            out.append(
+                f"[ТОЧНОСТЬ ИМЕНИ · ОБОГАЩЕНИЕ {what}] "
+                + (f"x{rate:.2f}" if rate is not None
+                   else f"НЕ ИЗМЕРЕНО — {enrich.get(key + '_reason')}"))
+        for row in (precision.get("rows") or []):
+            if row.get("side") != "authority" or row.get("label") != LABEL_GENUINE:
+                continue
+            out.append(
+                f"[ТОЧНОСТЬ ИМЕНИ · НАСТОЯЩАЯ] {row.get('text')}:"
+                f"{row.get('w1_colocated_item_line')} -> {row.get('resolved')} "
+                f"`{row.get('named_as')}` = {row.get('value')} "
+                f"(модуль назван: {row.get('w2_subject_named')}, величина: "
+                f"{row.get('w3_value_named')})")
+        for row in (precision.get("unresolved") or []):
+            out.append(f"[ТОЧНОСТЬ ИМЕНИ · НЕ РАЗМЕЧЕНО] {row.get('text')} "
+                       f"`{row.get('named_as')}`: {row.get('reason')}")
+        for blind in (precision.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
