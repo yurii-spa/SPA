@@ -2687,6 +2687,382 @@ def table_form_census(root: Path) -> dict:
 
 
 
+# --- ЧИСЛА ВНЕ КАНАЛА ОБЪЯВЛЕНИЯ (заказ G59 п. 2) -------------------------
+#
+# Координата выше нашла СЕМЬ мест той же формы в `docs/**`. Заказ дословно:
+# «замерить, сколько ЧИСЕЛ стоит в этих семи таблицах и сколько из них
+# совпадает с порогом, уже известным переписи: если совпадений нет — канал
+# верно узок; если есть — молчит не предел, а граница канала».
+#
+# Вопрос требует различать РАВЕНСТВО ЦИФРЫ и ТОЖДЕСТВО ВЕЛИЧИНЫ, и это не
+# придирка: замер 21.09 дал 136 совпадений по голой величине на 365 чисел —
+# порог `var_horizon_days = 7` совпадал с номером строки таблицы, с числом
+# недель и с «≥4 из 7 дней». Прибор, докладывающий 136, отвечает на вопрос
+# «встречается ли такая цифра», а заказ спросил про ПОРОГ.
+
+#: Свидетельства тождества, от сильного к слабому. Порядок существен: пара
+#: попадает в ОДИН канал — сильнейший из сработавших, иначе одна и та же пара
+#: считалась бы несколько раз и доля «названо» выросла бы сама собой.
+EV_NAME_VERBATIM = "name_verbatim"
+EV_NAME_TOKEN = "name_token"
+EV_NAME_BILINGUAL = "name_token_bilingual"
+EV_NAME_NO_UNIT = "name_without_unit"
+EV_UNIT = "unit_only"
+EV_VALUE = "value_only"
+
+#: Достаточное свидетельство — ИМЯ **и** ЕДИНИЦА вместе, и ни одно из двух по
+#: отдельности. Оба ограничения измерены на живом дереве 21.09, и каждое сняло
+#: свою ложь:
+#:
+#: * одна единица без имени — «peg 3 % + vol 5 %» у красной команды несёт
+#:   проценты и порогом книги не является;
+#: * одно имя без единицы — у `min_paper_days_before_live` различающий токен
+#:   ровно один (`paper`), и первая редакция объявила «названными» пять голых
+#:   чисел `30` из строк про бумажный трек, включая обломки ISO-дат.
+#:
+#: Пара «имя есть, единицы нет» не выбрасывается, а уходит в СВОЙ канал
+#: (:data:`EV_NAME_NO_UNIT`): вердикта она не решает, но остаётся видимой —
+#: иначе нижняя граница ответа пропала бы молча.
+_EV_NAMED = (EV_NAME_VERBATIM, EV_NAME_TOKEN, EV_NAME_BILINGUAL)
+_EV_ALL = _EV_NAMED + (EV_NAME_NO_UNIT, EV_UNIT, EV_VALUE)
+
+#: Обломок ISO-даты числом не является: `2026-07-11` дало бы три «числа» и
+#: подняло бы знаменатель ответа на пустом месте.
+_ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+OUT_CHANNEL_SILENT = "OUT_OF_CHANNEL_SILENT"
+OUT_CHANNEL_NARROW = "OUT_OF_CHANNEL_NARROW"
+OUT_CHANNEL_NOTHING = "OUT_OF_CHANNEL_NOTHING_TO_COMPARE"
+OUT_CHANNEL_UNMEASURED = "OUT_OF_CHANNEL_UNMEASURED"
+
+#: Вопрос заказа дословно — одной константой, потому что его печатают и
+#: отчёт, и артефакт: вторая формулировка рядом была бы ровно той копией
+#: правила, которую эта перепись и ищет.
+_OUT_CHANNEL_QUESTION = (
+    "сколько ЧИСЕЛ стоит в таблицах вне канала объявления и сколько из них "
+    "совпадает с порогом, уже известным переписи — и молчит ли предел строки "
+    "или граница самого канала"
+)
+
+#: Прочтение числа. Обе стороны держат ОДИН порог в РАЗНЫХ единицах:
+#: `BASE_CHAIN_CAP = 0.20` у RiskPolicy против `base_chain_pct: 20.0` у
+#: витрины. Документ пишет «20 %». Сверка по одной лишь величине связала бы
+#: документ с витриной и НЕ связала бы его с RiskPolicy — то есть ответ о
+#: том, чей это порог, решала бы единица автора, а не смысл.
+READ_AS_WRITTEN = "as_written"
+READ_AS_FRACTION = "as_fraction"
+
+#: Имена, ничего не говорящие о ВЕЛИЧИНЕ: они есть почти у каждого порога и
+#: совпадают в любом тексте про риск. Оставить их значило бы объявить
+#: «названным» всякий абзац со словом «max».
+_GENERIC_NAME_TOKENS = frozenset({
+    "min", "max", "total", "pct", "usd", "days", "cap", "caps", "per",
+    "allocation", "single", "stop", "floor", "ceiling", "for", "new",
+    "position", "buffer", "before", "live", "v", "value", "limit",
+})
+
+#: Русские соответствия различающих токенов. Карта ОБЪЯВЛЕНА, а не выведена:
+#: репозиторий двуязычен по построению (инструкции и `docs/` — по-русски,
+#: код — по-английски), и канал имени, умеющий только латиницу, отвечает
+#: «никто не называет» о СЕБЕ, а не о дереве. Ровно этим замер 21.09 и
+#: закончился: `docs/allocation_logic_explicit.md` держит `BASE_CHAIN_CAP`
+#: строкой «Base-цепочка | до 20 % … ADR-025», и латинский канал её не видел.
+#: Русская сторона ищется ПОДСТРОКОЙ (язык склоняет: «цепочка/цепочке»), и
+#: это объявленное послабление, а не недосмотр.
+_TOKEN_SYNONYMS = {
+    "chain": ("цепочк", "цепи", "цепь"),
+    "cash": ("кэш", "наличн"),
+    "drawdown": ("просадк",),
+    "protocol": ("протокол",),
+    "protocols": ("протокол",),
+    "concentration": ("концентрац",),
+    "capital": ("капитал",),
+    "paper": ("бумаг",),
+    "kill": ("стоп-кран", "килл"),
+    "switch": ("кран",),
+    "held": ("удержан",),
+    "horizon": ("горизонт",),
+    "confidence": ("доверит",),
+    "tvl": ("tvl",),
+    "apy": ("apy", "ставк"),
+}
+
+#: Число с необязательной единицей. Доллар стоит СЛЕВА и потому спрашивается
+#: отдельно; `_` и `,` внутри числа — разделители разрядов автора.
+_NUMBER_RE = re.compile(r"(?<![\w.])(\d[\d_]*(?:\.\d+)?)\s*(%|дн|дней|days|ч)?")
+
+
+def _name_tokens(name: str) -> set:
+    """Различающие токены объявленного имени порога."""
+    return {t for t in re.split(r"[._]+", name.lower())
+            if t and t not in _GENERIC_NAME_TOKENS}
+
+
+def _name_evidence(line_low: str, declared_name: str) -> Optional[str]:
+    """Сильнейший канал имени, которым СТРОКА называет порог, либо ``None``.
+
+    Каналов три и они не складываются: пара уходит в сильнейший сработавший.
+    Латинский токен требуется ЦЕЛИКОМ (границы слова) — иначе `t1` совпало бы
+    внутри `t10`; русское соответствие ищется подстрокой из-за склонения.
+    """
+    short = declared_name.split(":", 1)[-1]
+    tail = short.split(".")[-1]
+    for cand in (short, tail):
+        if re.search(r"(?<![\w])" + re.escape(cand) + r"(?![\w])", line_low):
+            return EV_NAME_VERBATIM
+    tokens = _name_tokens(short)
+    if not tokens:
+        return None
+    bilingual = False
+    for token in tokens:
+        if re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])",
+                     line_low):
+            continue
+        if any(syn in line_low for syn in _TOKEN_SYNONYMS.get(token, ())):
+            bilingual = True
+            continue
+        return None
+    return EV_NAME_BILINGUAL if bilingual else EV_NAME_TOKEN
+
+
+def known_thresholds(root: Path) -> Tuple[Dict[str, List[str]], List[str]]:
+    """Пороги, УЖЕ известные переписи: обе объявленные поверхности решения.
+
+    Имя несёт сторону (``RiskPolicy:`` / ``shelf:``), потому что у одной
+    величины имён бывает несколько И с разных поверхностей: `0.05` у
+    RiskPolicy — сразу `max_drawdown_stop`, `max_var_pct`, `min_cash_pct`.
+    Назвать первое попавшееся значило бы соврать тем же способом, против
+    которого написан весь прибор (ADR-418).
+
+    RiskPolicy не прочитан ⇒ :class:`NotMeasured`: «совпадений нет» и «не с
+    чем сравнивать» — разные ответы заказу, и слить их значило бы выдать
+    «не измерено» за «канал верно узок» (инв. #17).
+    """
+    known: Dict[str, List[str]] = {}
+    for key, names in risk_policy_thresholds(root).items():
+        known.setdefault(key, []).extend(f"RiskPolicy:{n}" for n in names)
+    shelf, shelf_reason = constitution_values(root)
+    blind: List[str] = []
+    # Спрашивается ПРИЧИНА, а не пустота: `constitution_values` возвращает
+    # `({}, причина)`, и ветка «витрина is None» не исполнилась бы никогда —
+    # слепота объявлялась бы, а сторожа у неё не было. Пустая витрина без
+    # причины — законный ответ (в ней просто нет чисел), и молчать о ней верно.
+    if shelf_reason is not None:
+        blind.append(
+            "витрина порогов сайта НЕ прочитана "
+            f"({CONSTITUTION_FILE}): {shelf_reason} — вторая поверхность "
+            "решения в сверку не вошла, и ответ есть НИЖНЯЯ граница")
+    else:
+        for key, names in shelf.items():
+            known.setdefault(key, []).extend(f"shelf:{n}" for n in names)
+    return {k: sorted(v) for k, v in known.items()}, blind
+
+
+def _readings(raw: str, unit: Optional[str]) -> List[Tuple[str, str]]:
+    """Прочтения числа как ``(ключ величины, имя прочтения)``.
+
+    Процент читается ДВАЖДЫ — как написан и как доля, — потому что обе
+    поверхности держат один порог в разных единицах. Второе прочтение НЕ
+    подменяет первое: имя прочтения едет с парой, и «20 % = 0.20» никогда не
+    выдаётся за «в документе стоит 0.20».
+    """
+    text = raw.replace("_", "")
+    out = [(value_key(text), READ_AS_WRITTEN)]
+    if unit == "%":
+        try:
+            out.append((value_key(str(float(text) / 100)), READ_AS_FRACTION))
+        except (TypeError, ValueError):       # не число — прочтения нет
+            pass
+    return out
+
+
+def out_of_channel_numbers(root: Path, hits: List[dict]) -> dict:
+    """Сколько чисел стои́т вне канала объявления и сколько из них — ПОРОГИ.
+
+    Заказ **G59 п. 2**. Отвечает тремя числами, а не одним, и каждое отвечает
+    на свой вопрос:
+
+    * ``numbers_total`` — сколько чисел вообще стои́т в этих таблицах;
+    * ``by_evidence[value_only]`` — сколько РАВНО известному порогу и ничем
+      больше не подтверждено. Это шум прибора, а не находка: у порога
+      ``var_horizon_days = 7`` таким совпадением оказывается номер строки;
+    * ``by_evidence`` по трём каналам ИМЕНИ — сколько чисел строка НАЗЫВАЕТ
+      порогом. Только это свидетельство достаточно, и только по нему решается
+      вердикт.
+
+    **Вердикт отвечает ровно на вопрос заказа.** Есть хоть одна названная
+    пара ⇒ :data:`OUT_CHANNEL_SILENT`: молчит граница канала, и починка
+    предела класс на месте оставит. Нет ни одной ⇒
+    :data:`OUT_CHANNEL_NARROW`.
+
+    **Своя частота ошибки измеряется, а не предполагается** (``enrichment``):
+    доля названных среди совпавших по величине делится на долю названных
+    среди ВСЕХ чисел. Единица означала бы, что имя не различает ничего и
+    работает одна величина.
+
+    Текст не прочитан ⇒ третий исход с причиной (``unreadable``), а не ноль.
+    """
+    try:
+        known, blind = known_thresholds(root)
+    except NotMeasured as exc:
+        return {
+            "verdict": OUT_CHANNEL_UNMEASURED,
+            "reason": str(exc),
+            "question": _OUT_CHANNEL_QUESTION,
+            "tables": len(hits),
+            "numbers_total": None,
+            "by_evidence": None,
+            "by_reading": None,
+            "enrichment": None,
+            "pairs": [],
+            "unreadable": [],
+            "blind": [],
+        }
+
+    numbers_total = 0
+    named_rows = 0
+    pairs: List[dict] = []
+    unreadable: List[dict] = []
+    by_evidence = {name: 0 for name in _EV_ALL}
+    by_reading = {READ_AS_WRITTEN: 0, READ_AS_FRACTION: 0}
+    tables_read = 0
+    cache: Dict[str, Optional[List[str]]] = {}
+
+    for hit in hits:
+        rel = hit.get("text")
+        if rel not in cache:
+            try:
+                cache[rel] = (root / rel).read_text(
+                    encoding="utf-8").splitlines()
+            except Exception as exc:  # noqa: BLE001
+                cache[rel] = None
+                unreadable.append({"text": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+        lines = cache[rel]
+        if lines is None:
+            continue
+        tables_read += 1
+        start = int(hit.get("line", 1)) - 1
+        block = lines[start:start + int(hit.get("lines", 0))]
+        for offset, line in enumerate(block):
+            line_low = line.lower()
+            # Названо ли в ЭТОЙ строке хоть одно известное имя — знаменатель
+            # частоты ошибки: без него «названных мало» было бы свойством
+            # текста, а не прибора.
+            row_names_any = any(
+                _name_evidence(line_low, name) is not None
+                for names in known.values() for name in names)
+            if row_names_any:
+                named_rows += 1
+            date_spans = [m.span() for m in _ISO_DATE_RE.finditer(line)]
+            for match in _NUMBER_RE.finditer(line):
+                if any(lo <= match.start() < hi for lo, hi in date_spans):
+                    continue        # обломок ISO-даты числом не является
+                numbers_total += 1
+                raw, unit = match.group(1), match.group(2)
+                dollar = line[max(0, match.start() - 1):match.start()] == "$"
+                best: Optional[Tuple[str, str, str]] = None
+                bears_unit = bool(unit or dollar)
+                for key, reading in _readings(raw, unit):
+                    for name in known.get(key, ()):
+                        channel = _name_evidence(line_low, name)
+                        if channel is None:
+                            channel = EV_UNIT if bears_unit else EV_VALUE
+                        elif not bears_unit:
+                            # Имя без единицы вердикта не решает: величина без
+                            # единицы не предъявлена как ТА ЖЕ величина.
+                            channel = EV_NAME_NO_UNIT
+                        rank = _EV_ALL.index(channel)
+                        if best is None or rank < _EV_ALL.index(best[0]):
+                            best = (channel, name, reading)
+                if best is None:
+                    continue
+                channel, name, reading = best
+                by_evidence[channel] += 1
+                by_reading[reading] += 1
+                pairs.append({
+                    "text": rel,
+                    "line": int(hit.get("line", 1)) + offset,
+                    "number": raw + (unit or ""),
+                    "dollar": dollar,
+                    "threshold": name,
+                    "evidence": channel,
+                    "reading": reading,
+                    "quote": line.strip()[:160],
+                })
+
+    named = sum(by_evidence[name] for name in _EV_NAMED)
+    matched = sum(by_evidence.values())
+    # Обогащение: доля названных среди СОВПАВШИХ против доли строк, называющих
+    # хоть один порог, среди всех. Знаменатель нулевой ⇒ не измерено, а не 1.0.
+    enrichment: Optional[float] = None
+    enrichment_reason: Optional[str] = None
+    rows_total = sum(int(h.get("lines", 0)) for h in hits)
+    if matched and rows_total:
+        base_rate = named_rows / rows_total
+        if base_rate > 0:
+            enrichment = (named / matched) / base_rate
+        else:
+            enrichment_reason = ("ни одна строка не называет ни одного порога "
+                                 "— знаменатель нулевой")
+    else:
+        enrichment_reason = ("сравнивать нечего: совпадений по величине или "
+                             "строк в таблицах ноль")
+
+    if not tables_read and hits:
+        verdict = OUT_CHANNEL_UNMEASURED
+        reason = ("ни одна из названных таблиц не прочитана — "
+                  "«совпадений нет» здесь было бы выдачей «не измерено» за "
+                  "«чисто»")
+    elif not hits:
+        verdict = OUT_CHANNEL_NOTHING
+        reason = ("координата формы не назвала ни одного места вне канала — "
+                  "сверять нечего")
+    elif named:
+        verdict = OUT_CHANNEL_SILENT
+        reason = (f"{named} из {numbers_total} чисел строка НАЗЫВАЕТ порогом, "
+                  f"уже известным переписи: вне объявленного канала стои́т "
+                  f"копия порога, и правит её предел строки, а не граница "
+                  f"канала")
+    else:
+        verdict = OUT_CHANNEL_NARROW
+        reason = (f"ни одно из {numbers_total} чисел строка порогом не "
+                  f"называет; {by_evidence[EV_VALUE]} совпадений — равенство "
+                  f"ЦИФРЫ, а не величины")
+
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "question": _OUT_CHANNEL_QUESTION,
+        "tables": len(hits),
+        "tables_read": tables_read,
+        "rows_total": rows_total,
+        "numbers_total": numbers_total,
+        "matched_value": matched,
+        "named": named,
+        "named_rows": named_rows,
+        "by_evidence": by_evidence,
+        "by_reading": by_reading,
+        "enrichment": enrichment,
+        "enrichment_reason": enrichment_reason,
+        "pairs": pairs,
+        "unreadable": unreadable,
+        "blind": blind + [
+            "канал имени двуязычен ТОЛЬКО по объявленной карте "
+            "`_TOKEN_SYNONYMS`: порог, названный прозой без её слов, этой "
+            "мерой не находится, и `named` есть НИЖНЯЯ граница",
+            "единица необходима, но не достаточна: «peg 3 % + vol 5 %» у "
+            "красной команды несёт проценты и порогом книги не является — "
+            "поэтому `unit_only` вердикта не решает",
+            "координата НЕ докладывает, вредит ли найденная копия: она "
+            "называет, что порог стои́т вне канала, а не что он разошёлся",
+            "правка найденного числа в `docs/**` предметом этой координаты "
+            "НЕ является: величина по соседству с порогом RiskPolicy есть "
+            "предмет №1 границы ADR-285 и уезжает карточкой владельцу",
+        ],
+    }
+
+
 def axes_intersection(rows: List[dict], peer_rows: List[dict],
                       declared: Dict[str, List[Tuple[str, Optional[str]]]]) -> dict:
     """Пересечение населений двух осей ПО ИМЕНИ (заказ **G53, п. 1**).
@@ -3144,6 +3520,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # каналом объявления не становится и в население поверхностей не входит.
     table_form = table_form_census(root)
 
+    # --- ЧИСЛА ВНЕ КАНАЛА (заказ G59 п. 2) --------------------------------
+    # Координата выше НАЗЫВАЕТ семь мест той же формы в `docs/**`; права
+    # чинить у их чисел не спрашивает никто. Здесь спрашивается, пороги ли
+    # это: если да — узка не форма, а ГРАНИЦА канала объявления.
+    out_channel = out_of_channel_numbers(
+        root, (table_form.get("channels", {})
+               .get(TABLE_CHANNEL_DOCS, {})
+               .get("long_line_hits") or []))
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -3229,6 +3614,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # эту форму» и «что объявлено» — разные вопросы, и контроль здесь
         # объявлением не является.
         "table_form_census": table_form,
+        # Пятая координата того же вопроса (заказ G59 п. 2). Отдельным
+        # ключом: «какой формы абзац» и «порог ли стоящее в нём число» —
+        # разные вопросы, и общий ключ слил бы их ответы.
+        "out_of_channel_numbers": out_channel,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -3735,6 +4124,65 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                     f"попадан(ие/ий) в объявленный реестр — считается "
                     f"отдельно и в утверждение о репозитории не входит")
         for blind in (form.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция вынесена ЗА блок формы намеренно: вложенная внутрь `else`, она
+    # молчала бы у любого дерева, где координата формы не измерена, — ровно
+    # та ошибка размещения, которую соседний сторож поймал у #655.
+    channel = observed(doc, "out_of_channel_numbers", kind=dict)
+    if channel is None:
+        out.append("[ЧИСЛА ВНЕ КАНАЛА] НЕ ИЗМЕРЕНЫ — перепись собрана без "
+                   "координаты (заказ G59 п. 2)")
+    elif channel.get("verdict") == OUT_CHANNEL_UNMEASURED:
+        out.append(f"[ЧИСЛА ВНЕ КАНАЛА] {OUT_CHANNEL_UNMEASURED}: "
+                   f"{channel.get('reason')}")
+    else:
+        total = observed(channel, "numbers_total", kind=int)
+        out.append(
+            f"[ЧИСЛА ВНЕ КАНАЛА] {channel.get('verdict')} · таблиц "
+            f"{channel.get('tables_read')} из {channel.get('tables')} · чисел "
+            + ("НЕ ИЗМЕРЕНО" if total is None else str(total))
+            + f" · совпало по величине {channel.get('matched_value')} · "
+            f"НАЗВАНО порогом {channel.get('named')}; {channel.get('reason')}")
+        evidence = observed(channel, "by_evidence", kind=dict)
+        if evidence is None:
+            out.append("[ЧИСЛА · СВИДЕТЕЛЬСТВО] НЕ ИЗМЕРЕНО — координата "
+                       "собрана без разбивки по каналам")
+        else:
+            for name in _EV_ALL:
+                cell = observed(evidence, name, kind=int)
+                out.append(
+                    f"[ЧИСЛА · СВИДЕТЕЛЬСТВО] {name}: "
+                    + ("НЕ ИЗМЕРЕНО — канал в координате не назван"
+                       if cell is None else str(cell)))
+        reading = observed(channel, "by_reading", kind=dict)
+        if reading is None:
+            out.append("[ЧИСЛА · ПРОЧТЕНИЕ] НЕ ИЗМЕРЕНО — координата собрана "
+                       "без прочтений")
+        else:
+            fraction = observed(reading, READ_AS_FRACTION, kind=int)
+            out.append(
+                f"[ЧИСЛА · ПРОЧТЕНИЕ] как написано "
+                f"{observed(reading, READ_AS_WRITTEN, kind=int)} · как доля "
+                + ("НЕ ИЗМЕРЕНО" if fraction is None else str(fraction))
+                + " — второе прочтение существует потому, что один порог "
+                "живёт у двух поверхностей в РАЗНЫХ единицах")
+        rate = observed(channel, "enrichment", kind=float)
+        out.append(
+            "[ЧИСЛА · ЧАСТОТА ОШИБКИ] обогащение имени над голой величиной: "
+            + (f"x{rate:.2f}" if rate is not None
+               else f"НЕ ИЗМЕРЕНО — {channel.get('enrichment_reason')}"))
+        for pair in (channel.get("pairs") or []):
+            if pair.get("evidence") not in _EV_NAMED:
+                continue
+            out.append(
+                f"[ЧИСЛА · НАЗВАНО] {pair.get('text')}:{pair.get('line')} "
+                f"[{pair.get('number')}] -> {pair.get('threshold')} "
+                f"({pair.get('evidence')}, {pair.get('reading')}) — "
+                f"{pair.get('quote')}")
+        for row in (channel.get("unreadable") or []):
+            out.append(f"[ЧИСЛА · НЕ ПРОЧИТАНО] {row.get('text')}: "
+                       f"{row.get('reason')}")
+        for blind in (channel.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
