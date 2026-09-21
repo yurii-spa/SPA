@@ -1945,7 +1945,9 @@ def declared_by_name(root: Path,
 
 def name_channel(root: Path, rows: List[dict], *,
                  path_candidates: Iterable[str],
-                 asked: Tuple[str, ...] = ASKED_SURFACES) -> dict:
+                 asked: Tuple[str, ...] = ASKED_SURFACES,
+                 definitions: Optional[Tuple[Dict[str, List[str]], int,
+                                             List[dict]]] = None) -> dict:
     """Сколько поверхностей решения объявлено ИМЕНЕМ, а не путём (**G56 п. 2**).
 
     Мера G55 отвечала на вопрос «какие файлы объявлены правилами» обходом
@@ -1963,7 +1965,12 @@ def name_channel(root: Path, rows: List[dict], *,
     один файл дерева не разобран ⇒ :data:`NAME_CHANNEL_UNMEASURED`. Пустой
     индекс имён и «имён в правилах нет» — разные ответы.
     """
-    index, files_read, files_unreadable = toplevel_definitions(root)
+    # Индекс берётся аргументом, когда зовущий уже его построил: обход дерева
+    # стоит секунд, а соседняя координата (заказ G60) спрашивает ТОТ ЖЕ индекс.
+    # Второй обход дал бы то же число другой ценой — и, что хуже, два
+    # населения, способных разойтись между собой внутри одного прогона.
+    index, files_read, files_unreadable = (
+        definitions if definitions is not None else toplevel_definitions(root))
     named = declared_by_name(root, index)
     if named["texts_read"] == 0 or files_read == 0:
         reason = ("ни один текст правил не прочитан"
@@ -2810,15 +2817,35 @@ def _name_evidence(line_low: str, declared_name: str) -> Optional[str]:
     for cand in (short, tail):
         if re.search(r"(?<![\w])" + re.escape(cand) + r"(?![\w])", line_low):
             return EV_NAME_VERBATIM
-    tokens = _name_tokens(short)
+    return _token_evidence(line_low, _name_tokens(short))
+
+
+def _token_evidence(line_low: str, tokens: set,
+                    synonyms: Optional[dict] = None) -> Optional[str]:
+    """Называет ли строка предмет НАБОРОМ различающих токенов, и как именно.
+
+    Вынесено из :func:`_name_evidence` не ради опрятности: правило «каждый
+    токен либо латиницей по границам слова, либо русским словом объявленной
+    карты» с заказа **G60** спрашивают ДВА разных свидетеля, и вторая копия
+    этого правила внутри переписи «одно правило — две копии» была бы ровно тем
+    предметом, который перепись и ищет.
+
+    Карта берётся аргументом с умолчанием-`None`, а не читается жёстко: так
+    контроль «карта пуста» есть ВХОД меры, а не подмена глобального имени, —
+    и одноязычный прогон остаётся измеримым в том же процессе.
+
+    Возвращает :data:`EV_NAME_BILINGUAL` (без русского слова совпадения не
+    было бы), :data:`EV_NAME_TOKEN` (хватило одной латиницы) или ``None``.
+    """
     if not tokens:
         return None
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
     bilingual = False
     for token in tokens:
         if re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])",
                      line_low):
             continue
-        if any(syn in line_low for syn in _TOKEN_SYNONYMS.get(token, ())):
+        if any(syn in line_low for syn in table.get(token, ())):
             bilingual = True
             continue
         return None
@@ -3321,6 +3348,466 @@ def constitution_shift(rows: List[dict], *, finding_classes: Tuple[str, ...],
     }
 
 
+# ─── координата: ДОСЯГАЕМОСТЬ ДВУЯЗЫЧИЯ (заказ G60 пп. 1–2) ─────────────────
+#
+# ADR-437 нашёл, что канал имени был ОДНОЯЗЫЧНЫМ: латинский прибор в двуязычном
+# репозитории отвечает «никто не называет» О СЕБЕ. Заказ G60 п. 1 ставит вопрос
+# шире и не даёт ответа заранее: одноязычие — свойство ОДНОЙ координаты или
+# ВСЕХ свидетелей имени? Здесь у вопроса появляется число, и у каждого нуля —
+# свой знаменатель.
+
+#: Вердикт координаты. Четыре, и три последних НЕ являются «чисто»: «карта
+#: спрошена и ничего не сдвинула», «спрашивать нечем» и «не измерено» суть
+#: разные ответы заказу (инв. #17).
+BILINGUAL_SHIFT = "BILINGUAL_REACH_SHIFT"
+BILINGUAL_INERT = "BILINGUAL_REACH_INERT"
+BILINGUAL_NOTHING_TO_ASK = "BILINGUAL_REACH_NOTHING_TO_ASK"
+BILINGUAL_UNMEASURED = "BILINGUAL_REACH_UNMEASURED"
+
+#: Имена свидетелей, у которых заказ спрашивает одноязычие.
+WITNESS_SUBJECT = "subject_witness"
+WITNESS_NAME_CHANNEL = "declared_by_name"
+
+#: Кириллица в тексте. Нужна ровно для одного вопроса: не вырожден ли ноль ПО
+#: ЯЗЫКУ — если ни одна сторона населения по-русски не написана, спрашивать
+#: двуязычие не о чем, и ноль был бы свойством выборки, а не карты.
+_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
+
+
+def _module_tokens(module_rel: str) -> set:
+    """Различающие токены ИМЕНИ ФАЙЛА исполнителя (без каталогов).
+
+    Каталог в токены не берётся намеренно: `spa_core`/`monitoring` стоят у
+    половины дерева и различающими не являются — карта, спрошенная о них,
+    отвечала бы о частоте каталога, а не о предмете.
+    """
+    if not module_rel.endswith(".py"):
+        return set()
+    return _name_tokens(module_rel[:-3].split("/")[-1])
+
+
+def _module_named_bilingually(text: str, module_rel: str,
+                              synonyms: Optional[dict] = None) -> Optional[str]:
+    """Называет ли ТЕКСТ модуль `module_rel` ТОЛЬКО через русское слово карты.
+
+    Зеркало :func:`subject_witness` для двуязычного канала и строго слабее
+    его: латинский свидетель спрашивается ПЕРВЫМ, и сработавший снимает
+    вопрос. Иначе число «сколько добавило двуязычие» включало бы пары, у
+    которых свидетель и так есть, — то есть отвечало бы о населении, а не о
+    прибавке.
+    """
+    if subject_witness(text, module_rel) is not None:
+        return None
+    tokens = _module_tokens(module_rel)
+    if _token_evidence(text.lower(), tokens, synonyms) != EV_NAME_BILINGUAL:
+        return None
+    return module_rel[:-3].split("/")[-1]
+
+
+def _row_sides(row: dict) -> List[Tuple[str, str]]:
+    """Стороны строки переписи, какой бы осью она ни была найдена.
+
+    Оси три и формы строк у них разные (`guard`/`executor`, `left`/`right`,
+    тройка). Свести их здесь обязательно: спросить двуязычие у одной оси
+    значило бы измерить ось, а не репозиторий, — той же ошибкой, что ADR-436
+    назвал свойством ВЫБОРКИ.
+    """
+    sides: List[Tuple[str, str]] = []
+    left, right = row.get("left"), row.get("right")
+    guard, executor = row.get("guard"), row.get("executor")
+    if left and right:
+        sides.append((left, right))
+        if guard:
+            sides.append((guard, left))
+            sides.append((guard, right))
+    elif guard and executor:
+        sides.append((guard, executor))
+    return sides
+
+
+def synonym_map_coverage(root: Path,
+                         synonyms: Optional[dict] = None) -> dict:
+    """Полнота карты синонимов по порогам, УЖЕ известным переписи (**G60 п. 2**).
+
+    Заказ дословно: «взять различающие токены ВСЕХ известных переписи порогов
+    и посчитать, у скольких из них русского соответствия в карте нет вовсе.
+    Пока это число неизвестно, „нижняя граница“ — слово, а не величина».
+
+    Карта построена руками, и полнота её меряется ТОЛЬКО по порогам, которые
+    перепись уже знает: порог, не объявленный ни одной поверхностью решения,
+    этой мере не виден, и сказано это вслух, а не подразумевается.
+
+    Пороги не прочитаны ⇒ ``status = UNMEASURED`` с причиной: «карта полна» и
+    «сравнивать не с чем» — разные ответы.
+    """
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
+    try:
+        known, blind = known_thresholds(root)
+    except NotMeasured as exc:
+        return {"status": BILINGUAL_UNMEASURED,
+                "reason": f"пороги переписи не прочитаны: {exc}"}
+    names = sorted({n for group in known.values() for n in group})
+    if not names:
+        return {"status": BILINGUAL_UNMEASURED,
+                "reason": ("переписи не известен НИ ОДИН порог — полноту "
+                           "карты мерить не на чем")}
+    tokens_all: set = set()
+    missing: set = set()
+    full = partly = uncovered = nameless = 0
+    for name in names:
+        tokens = _name_tokens(name.split(":", 1)[-1].split(".")[-1])
+        if not tokens:
+            nameless += 1
+            continue
+        tokens_all |= tokens
+        absent = {t for t in tokens if t not in table}
+        missing |= absent
+        if not absent:
+            full += 1
+        elif len(absent) < len(tokens):
+            partly += 1
+        else:
+            uncovered += 1
+    return {
+        "status": "MEASURED",
+        "map_entries": len(table),
+        "thresholds": len(names),
+        "fully_covered": full,
+        "partly_covered": partly,
+        "not_covered": uncovered,
+        "without_distinguishing_tokens": nameless,
+        "tokens": len(tokens_all),
+        "tokens_without_russian": len(missing),
+        "missing_tokens": sorted(missing),
+        "blind": list(blind),
+    }
+
+
+def bilingual_subject_reach(root: Path, rows: List[dict],
+                            synonyms: Optional[dict] = None) -> dict:
+    """Меняется ли вердикт :func:`subject_witness` от карты синонимов (**G60 п. 1**).
+
+    Свидетель спрашивает у текста ИМЯ МОДУЛЯ. Заказ предполагает, что он
+    одноязычен так же, как был одноязычен канал порога; проверяется это
+    замером, а не согласием.
+
+    **Ноль здесь обязан ехать со своим знаменателем.** «Карта ничего не
+    сдвинула» и «карту ни разу не спросили» — разные ответы, и различает их
+    ``askable``: сколько модулей населения вообще МОГЛИ быть названы по-русски
+    (все различающие токены имени файла есть в карте). Отдельно считается
+    ``cyrillic_sides`` — не вырожден ли вопрос по языку самих сторон.
+
+    Ни один текст населения не прочитан ⇒ ``status = UNMEASURED``.
+    """
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
+    cache: Dict[str, Optional[str]] = {}
+
+    def text(rel: str) -> Optional[str]:
+        if rel not in cache:
+            try:
+                cache[rel] = (root / rel).read_text(encoding="utf-8")
+            except Exception:  # noqa: BLE001
+                cache[rel] = None
+        return cache[rel]
+
+    modules: set = set()
+    changed: List[dict] = []
+    pairs_read = 0
+    for row in rows:
+        sides = _row_sides(row)
+        if not sides:
+            continue
+        latin = False
+        gained: List[Tuple[str, str]] = []
+        read_any = False
+        for near, far in sides:
+            modules.add(near)
+            modules.add(far)
+            near_text, far_text = text(near), text(far)
+            if near_text is None or far_text is None:
+                continue
+            read_any = True
+            if subject_witness(near_text, far) or subject_witness(far_text, near):
+                latin = True
+            for source, target in ((near_text, far), (far_text, near)):
+                witness = _module_named_bilingually(source, target, table)
+                if witness is not None:
+                    gained.append((target, witness))
+        if read_any:
+            pairs_read += 1
+        if not latin and gained:
+            changed.append({
+                "name": row.get("name"),
+                "value": row.get("value"),
+                "remedy": row.get("remedy"),
+                "sides": [f"{a} × {b}" for a, b in sides],
+                "witness": sorted({f"{t} -> {w}" for t, w in gained}),
+            })
+    if not pairs_read:
+        return {"status": BILINGUAL_UNMEASURED,
+                "reason": ("ни одна сторона населения не прочитана — вердикт "
+                           "свидетеля предмета НЕ ИЗМЕРЕН"),
+                "population": len(rows)}
+    askable = sorted(m for m in modules
+                     if _module_tokens(m) and _module_tokens(m) <= set(table))
+    asked = sorted(m for m in modules if _module_tokens(m) & set(table))
+    cyrillic = sorted(m for m in modules
+                      if (text(m) or "") and _CYRILLIC_RE.search(text(m) or ""))
+    return {
+        "status": "MEASURED",
+        "population": len(rows),
+        "pairs_read": pairs_read,
+        "modules": len(modules),
+        "askable": len(askable),
+        "askable_sample": askable[:5],
+        "token_overlap": len(asked),
+        "cyrillic_sides": len(cyrillic),
+        "changed": len(changed),
+        "changed_rows": changed,
+    }
+
+
+def _module_constants(root: Path, rel: str,
+                      cache: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    """Числовые имена верхнего уровня одного файла. Кэш — аргумент, не глобаль."""
+    if rel in cache:
+        return cache[rel]
+    found: Dict[str, float] = {}
+    try:
+        tree = ast.parse((root / rel).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        cache[rel] = found
+        return found
+    for node in ast.walk(tree):
+        pairs: List[Tuple[str, ast.AST]] = []
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
+                and node.value is not None:
+            pairs.append((node.target.id, node.value))
+        elif isinstance(node, ast.Assign):
+            pairs += [(t.id, node.value) for t in node.targets
+                      if isinstance(t, ast.Name)]
+        for name, value in pairs:
+            if isinstance(value, ast.Constant) \
+                    and isinstance(value.value, (int, float)) \
+                    and not isinstance(value.value, bool):
+                found.setdefault(name, float(value.value))
+    cache[rel] = found
+    return found
+
+
+def _paragraph_values(raw: str) -> set:
+    """Величины, названные абзацем, В ОБОИХ ПРОЧТЕНИЯХ.
+
+    Причина та же, что у ADR-437: один порог живёт у двух поверхностей в
+    РАЗНЫХ единицах (`0.05` у RiskPolicy, `5.0` у витрины, «5 %» в тексте).
+    Сверка по одной написанной величине связала бы абзац с одной стороной и
+    НЕ связала бы с другой — ответ решала бы единица автора.
+    """
+    values: set = set()
+    for match in _NUMBER_RE.finditer(raw):
+        try:
+            number = float(match.group(1).replace("_", ""))
+        except ValueError:
+            continue
+        values.add(value_key(str(number)))
+        values.add(value_key(str(number / 100)))
+    return values
+
+
+def bilingual_name_reach(root: Path, index: Dict[str, List[str]],
+                         synonyms: Optional[dict] = None) -> dict:
+    """Что даёт карта синонимов каналу ОБЪЯВЛЕНИЯ ИМЕНЕМ (**G60 п. 1**).
+
+    Канал имени (:func:`declared_by_name`) спрашивает у правила ДОСЛОВНЫЙ
+    идентификатор в обратных кавычках. Двуязычная его версия спрашивает
+    предмет НАБОРОМ токенов — и это не «тот же канал по-русски», а строго
+    более слабый канал. Поэтому здесь меряются три числа, и смешивать их
+    нельзя:
+
+    * ``raw`` — сколько имён абзац называет токенами через русское слово;
+    * ``corroborated`` — у скольких из них величина имени СТОИ́Т В ТОМ ЖЕ
+      абзаце (фильтр обозримости, а не доказательство: равное число называет
+      несколько порогов, ADR-418);
+    * те же два числа на КОНТРОЛЕ — абзацах БЕЗ языка права изменения. Без
+      контроля «канал нашёл 59» неотличимо от «токены разрешаются с такой
+      частотой везде», и подтверждающий прибор подтверждал бы сам себя.
+
+    Ни один текст правил не прочитан ИЛИ индекс дерева пуст ⇒ ``UNMEASURED``.
+    """
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
+    texts: List[Path] = []
+    rule_text = root / RULE_TEXT
+    if rule_text.is_file():
+        texts.append(rule_text)
+    rules_dir = root / RULE_DIR
+    if rules_dir.is_dir():
+        texts.extend(sorted(rules_dir.glob("*.md")))
+    if not texts or not index:
+        return {"status": BILINGUAL_UNMEASURED,
+                "reason": ("текстов правил нет" if not texts
+                           else "индекс определений дерева пуст — "
+                                "разрешать имена нечем")}
+    candidates = {name: where[0] for name, where in index.items()
+                  if len(where) == 1 and _name_tokens(name)
+                  and _name_tokens(name) <= set(table)}
+    counts = {"authority_paragraphs": 0, "control_paragraphs": 0,
+              "authority_raw": 0, "control_raw": 0,
+              "authority_numeric": 0, "control_numeric": 0,
+              "authority_corroborated": 0, "control_corroborated": 0}
+    pairs: List[dict] = []
+    unreadable: List[dict] = []
+    constants: Dict[str, Dict[str, float]] = {}
+    read = 0
+    for path in texts:
+        rel_text = path.relative_to(root).as_posix()
+        try:
+            body = path.read_text(encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            unreadable.append({"text": rel_text,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        read += 1
+        for block in declaring_paragraphs(body):
+            raw = "\n".join(line for _, line in block)
+            low = raw.lower()
+            side = ("authority"
+                    if any(mark in low for mark in AUTHORITY_MARKS)
+                    else "control")
+            counts[f"{side}_paragraphs"] += 1
+            verbatim = set(_DECLARED_NAME_RE.findall(raw))
+            values = _paragraph_values(raw)
+            for name, where in candidates.items():
+                if name in verbatim:
+                    continue
+                if _token_evidence(low, _name_tokens(name),
+                                   table) != EV_NAME_BILINGUAL:
+                    continue
+                counts[f"{side}_raw"] += 1
+                value = _module_constants(root, where, constants).get(name)
+                if value is None:
+                    continue
+                counts[f"{side}_numeric"] += 1
+                if value_key(str(value)) not in values:
+                    continue
+                counts[f"{side}_corroborated"] += 1
+                if side != "authority":
+                    continue
+                pairs.append({
+                    "text": rel_text,
+                    "line": block[0][0],
+                    "named_as": name,
+                    "resolved": where,
+                    "value": value,
+                    "quote": raw.strip().splitlines()[0][:160],
+                })
+    if not read:
+        return {"status": BILINGUAL_UNMEASURED,
+                "reason": "ни один текст правил не прочитан",
+                "unreadable": unreadable}
+    enrichment, enrichment_reason = _rate_enrichment(
+        counts["authority_raw"], counts["authority_paragraphs"],
+        counts["control_raw"], counts["control_paragraphs"])
+    return {
+        "status": "MEASURED",
+        "texts_read": read,
+        "unreadable": unreadable,
+        "candidates": len(candidates),
+        "pairs": pairs,
+        "enrichment": enrichment,
+        "enrichment_reason": enrichment_reason,
+        **counts,
+    }
+
+
+def _rate_enrichment(hits: int, population: int,
+                     control_hits: int,
+                     control_population: int) -> Tuple[Optional[float],
+                                                       Optional[str]]:
+    """Во сколько раз канал чаще срабатывает на объявлении, чем на контроле.
+
+    Ноль в знаменателе — ТРЕТИЙ ИСХОД с причиной, а не подставленная единица:
+    сочинённое число вместо «не измерено» есть ровно тот дефект, который
+    батарея мутаций ADR-437 нашла у первой редакции соседней координаты.
+    """
+    if not population or not control_population:
+        return None, ("населения объявлений нет" if not population
+                      else "контрольных абзацев нет — сравнивать частоту не с чем")
+    if not control_hits:
+        return None, ("контроль не сработал ни разу: отношение к нулю есть "
+                      "бесконечность, а не «канал безупречен»")
+    return ((hits / population) / (control_hits / control_population)), None
+
+
+def bilingual_reach(root: Path, rows: List[dict],
+                    index: Dict[str, List[str]],
+                    synonyms: Optional[dict] = None) -> dict:
+    """Свод заказа **G60**: одноязычие — свойство ОДНОГО свидетеля или ВСЕХ.
+
+    Сводится здесь, а не доливается в соседние координаты, по той же причине,
+    по которой отдельны все пять прежних: «сколько объявлено» и «что прибавило
+    бы двуязычие» суть разные вопросы, и общий ключ слил бы их ответы.
+    """
+    table = _TOKEN_SYNONYMS if synonyms is None else synonyms
+    if not table:
+        return {
+            "verdict": BILINGUAL_NOTHING_TO_ASK,
+            "reason": ("карта синонимов пуста — спрашивать двуязычие нечем; "
+                       "это НЕ «одноязычие безвредно»"),
+            "witnesses": {},
+        }
+    subject = bilingual_subject_reach(root, rows, table)
+    names = bilingual_name_reach(root, index, table)
+    coverage = synonym_map_coverage(root, table)
+    witnesses = {WITNESS_SUBJECT: subject, WITNESS_NAME_CHANNEL: names}
+    unmeasured = [who for who, what in witnesses.items()
+                  if what.get("status") == BILINGUAL_UNMEASURED]
+    if unmeasured:
+        return {
+            "verdict": BILINGUAL_UNMEASURED,
+            "reason": "; ".join(
+                f"{who}: {witnesses[who].get('reason')}" for who in unmeasured),
+            "witnesses": witnesses,
+            "map_coverage": coverage,
+        }
+    gained = subject["changed"] + names["authority_corroborated"]
+    if gained:
+        verdict = BILINGUAL_SHIFT
+        reason = (
+            f"двуязычие прибавляет свидетеля: у `{WITNESS_SUBJECT}` "
+            f"{subject['changed']} пар(ы) из {subject['pairs_read']}, у канала "
+            f"имени {names['authority_corroborated']} пар(ы) с подтверждающей "
+            f"величиной из {names['authority_raw']} названных — одноязычие "
+            f"свойство НЕ одной координаты")
+    else:
+        verdict = BILINGUAL_INERT
+        reason = (
+            f"карта спрошена и не сдвинула ни одного вердикта: у "
+            f"`{WITNESS_SUBJECT}` карта применима к {subject['askable']} из "
+            f"{subject['modules']} модулей населения, у канала имени "
+            f"{names['candidates']} разрешимых имён — ноль ИЗМЕРЕН")
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "question": ("одноязычие — свойство ОДНОЙ координаты или ВСЕХ "
+                     "свидетелей имени (заказ G60 пп. 1–2)"),
+        "witnesses": witnesses,
+        "map_coverage": coverage,
+        "blind": [
+            "подтверждение ВЕЛИЧИНОЙ есть фильтр обозримости, а НЕ доказательство "
+            "тождества смысла: одно число называет несколько порогов (ADR-418), и "
+            "названные пары проверяет человек, а не эта координата",
+            "ноль у свидетеля предмета есть свойство КАРТЫ, а не дерева, ровно "
+            "настолько, насколько мал `askable`: карту спросили не у всего населения",
+            "полнота карты измерена ТОЛЬКО по порогам, уже известным переписи; "
+            "порог, не объявленный ни одной поверхностью решения, этой мере не виден",
+            "контроль мерит ЧАСТОТУ канала на абзацах без языка права изменения, а "
+            "не верность найденной пары — это разные вопросы",
+            "канал имени по ТОКЕНАМ строго слабее дословного: двуязычие его не "
+            "усиливает, а расширяет население, и цена расширения названа числом",
+        ],
+    }
+
+
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
@@ -3499,9 +3986,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # Мера выше ходит по ПУТЯМ и сама называет свою слепоту: объявление бывает
     # именем класса. Здесь у слепоты появляется число — население пути
     # перестаёт быть нижней границей с неизвестным зазором.
+    definitions = toplevel_definitions(root)
     names = name_channel(
         root, surface_population,
-        path_candidates=[s["path"] for s in (surfaces.get("surfaces") or [])])
+        path_candidates=[s["path"] for s in (surfaces.get("surfaces") or [])],
+        definitions=definitions)
 
     # --- канал ШИРОКОГО АБЗАЦА (заказ G57 п. 1) ---------------------------
     # Оба прежних канала молчат об абзаце, который мера пути отбрасывает как
@@ -3528,6 +4017,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         root, (table_form.get("channels", {})
                .get(TABLE_CHANNEL_DOCS, {})
                .get("long_line_hits") or []))
+
+    # --- ДОСЯГАЕМОСТЬ ДВУЯЗЫЧИЯ (заказ G60 пп. 1–2) -----------------------
+    # Координата выше нашла одноязычие У СЕБЯ и починила его картой. Здесь
+    # спрашивается, класс это или единичный случай: населением служат ВСЕ три
+    # оси переписи, а не та выборка, на которой одноязычие нашлось.
+    bilingual = bilingual_reach(root, rows + peer_rows + triple_rows,
+                                definitions[0])
 
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
@@ -3618,6 +4114,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ключом: «какой формы абзац» и «порог ли стоящее в нём число» —
         # разные вопросы, и общий ключ слил бы их ответы.
         "out_of_channel_numbers": out_channel,
+        # Шестая координата того же вопроса (заказ G60 пп. 1–2). Отдельным
+        # ключом: «одноязычен ли ЭТОТ канал» и «одноязычны ли ВСЕ свидетели
+        # имени» — разные вопросы, и ответ второго не является поправкой к
+        # первому.
+        "bilingual_reach": bilingual,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -3646,6 +4147,9 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что нулевой сдвиг на первой оси есть свойство ДЕРЕВА — знаменатель там 5 сравнимых пар из 9, и это сказано числом, а не словом",
             "что население поверхностей решения ПОЛНО и после канала имени — объявление модулем через точку (`spa_core.risk.policy`) не ловится ни одним из двух каналов, и зазор остаётся, только теперь он МЕНЬШЕ и назван",
             "что имя, разрешённое единственным файлом, объявлено правилом ИМЕННО как поверхность решения — канал имени, как и канал пути, ошибается в сторону «спросить», а не «починить молча»",
+            "что пара, найденная ДВУЯЗЫЧНЫМ каналом имени, есть вторая копия того же порога — совпадение величины в абзаце фильтрует пары для обозримости, а тождество смысла проверяет человек",
+            "что нулевой сдвиг у свидетеля предмета есть свойство ДЕРЕВА — он ровно настолько свойство КАРТЫ, насколько мал `askable`, и это число едет рядом с нулём",
+            "что карта синонимов ПОЛНА — её полнота измерена только по порогам, уже известным переписи, и число незакрытых токенов названо",
         ],
     }
 
@@ -4183,6 +4687,70 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ЧИСЛА · НЕ ПРОЧИТАНО] {row.get('text')}: "
                        f"{row.get('reason')}")
         for blind in (channel.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # Секция вынесена ЗА блок чисел вне канала намеренно и закреплена тестом:
+    # вложенная внутрь его `else`, она молчала бы у каждого дерева, где та
+    # координата не измерена, — ошибка размещения, найденная у #655.
+    reach = observed(doc, "bilingual_reach", kind=dict)
+    if reach is None:
+        out.append("[ДВУЯЗЫЧИЕ] НЕ ИЗМЕРЕНО — перепись собрана без координаты "
+                   "(заказ G60 пп. 1–2)")
+    elif reach.get("verdict") in (BILINGUAL_UNMEASURED, BILINGUAL_NOTHING_TO_ASK):
+        out.append(f"[ДВУЯЗЫЧИЕ] {reach.get('verdict')}: {reach.get('reason')}")
+    else:
+        out.append(f"[ДВУЯЗЫЧИЕ] {reach.get('verdict')} · {reach.get('reason')}")
+        witnesses = observed(reach, "witnesses", kind=dict) or {}
+        subject = observed(witnesses, WITNESS_SUBJECT, kind=dict)
+        if subject is None:
+            out.append("[ДВУЯЗЫЧИЕ · ПРЕДМЕТ] НЕ ИЗМЕРЕНО — свидетель в "
+                       "координате не назван")
+        else:
+            out.append(
+                f"[ДВУЯЗЫЧИЕ · ПРЕДМЕТ] пар прочитано {subject.get('pairs_read')} "
+                f"· сменили вердикт {subject.get('changed')} · карта применима к "
+                f"{subject.get('askable')} из {subject.get('modules')} модулей "
+                f"(задета у {subject.get('token_overlap')}) · по-русски написаны "
+                f"{subject.get('cyrillic_sides')} — ноль без этих знаменателей "
+                f"был бы утверждением о приборе")
+            for row in (subject.get("changed_rows") or [])[:max_rows]:
+                out.append(f"[ДВУЯЗЫЧИЕ · ПРЕДМЕТ · СДВИГ] {row.get('name')} = "
+                           f"{row.get('value')} — {'; '.join(row.get('witness') or [])}")
+        channel = observed(witnesses, WITNESS_NAME_CHANNEL, kind=dict)
+        if channel is None:
+            out.append("[ДВУЯЗЫЧИЕ · ИМЯ] НЕ ИЗМЕРЕНО — канал в координате не назван")
+        else:
+            rate = observed(channel, "enrichment", kind=float)
+            out.append(
+                f"[ДВУЯЗЫЧИЕ · ИМЯ] разрешимых имён {channel.get('candidates')} · "
+                f"названо токенами {channel.get('authority_raw')} на "
+                f"{channel.get('authority_paragraphs')} объявлениях · величиной "
+                f"подтверждено {channel.get('authority_corroborated')}; контроль "
+                f"{channel.get('control_raw')} на {channel.get('control_paragraphs')} "
+                f"абзацах (подтверждено {channel.get('control_corroborated')}) · "
+                f"обогащение "
+                + (f"x{rate:.2f}" if rate is not None
+                   else f"НЕ ИЗМЕРЕНО — {channel.get('enrichment_reason')}"))
+            for pair in (channel.get("pairs") or []):
+                out.append(
+                    f"[ДВУЯЗЫЧИЕ · ИМЯ · НАЗВАНО] {pair.get('text')}:"
+                    f"{pair.get('line')} -> {pair.get('resolved')} "
+                    f"`{pair.get('named_as')}` = {pair.get('value')} — "
+                    f"{pair.get('quote')}")
+        coverage = observed(reach, "map_coverage", kind=dict)
+        if coverage is None or coverage.get("status") != "MEASURED":
+            out.append("[ДВУЯЗЫЧИЕ · КАРТА] НЕ ИЗМЕРЕНА — "
+                       + str((coverage or {}).get("reason")
+                             or "полнота карты в координате не названа"))
+        else:
+            out.append(
+                f"[ДВУЯЗЫЧИЕ · КАРТА] порогов переписи {coverage.get('thresholds')} "
+                f"· закрыты целиком {coverage.get('fully_covered')} · частично "
+                f"{coverage.get('partly_covered')} · не закрыты вовсе "
+                f"{coverage.get('not_covered')}; различающих токенов без русского "
+                f"соответствия {coverage.get('tokens_without_russian')} из "
+                f"{coverage.get('tokens')}: "
+                + ", ".join((coverage.get("missing_tokens") or [])[:12]))
+        for blind in (reach.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
