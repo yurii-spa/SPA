@@ -7523,8 +7523,19 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                    "сведения двух населений")
     elif completeness.get("status") != "MEASURED":
         out.append(f"[РЕЕСТР ЧИТАТЕЛЕЙ] НЕ ИЗМЕРЕН: {completeness.get('reason')}")
+    elif observed(completeness, "counts", kind=dict) is None:
+        # Отсутствие счётчиков — ОТДЕЛЬНОЕ значение, а не пустой словарь
+        # (инв. #17). Прежняя редакция писала `completeness.get("counts") or
+        # {}`, и тогда «ключа нет» печаталось теми же `None`, что и «счётчик
+        # равен None»: документ, объявивший себя измеренным без счётчиков,
+        # выглядел бы измеренным с пустыми. Храповик
+        # `test_absent_observation_ratchet` назвал эту строку новым членом
+        # класса на предписанном прогоне — верно назвал.
+        out.append("[РЕЕСТР ЧИТАТЕЛЕЙ] НЕ ИЗМЕРЕН: документ объявлен "
+                   "MEASURED, но счётчиков в нём нет — это НЕ нулевые "
+                   "счётчики и не пустое сведение")
     else:
-        cnt = completeness.get("counts") or {}
+        cnt = observed(completeness, "counts", kind=dict)
         out.append(
             f"[РЕЕСТР ЧИТАТЕЛЕЙ] объявлено {cnt.get('declared')} · мест "
             f"измерено {cnt.get('sites')} · названо {cnt.get('named')} · НЕ "
