@@ -6050,6 +6050,405 @@ def consumer_registry_completeness(root: Path) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# ЗАКАЗ G67 п. 1 — масштаб класса «невидимый потребитель» у ВСЕХ переписей
+# ---------------------------------------------------------------------------
+
+#: Единственный читатель, доносящий переписи до оркестратора (ADR-444).
+#: ОБЪЯВЛЕН, а не выведен: это шаг 0-офис, и его особое положение установлено
+#: прежним решением, а не исходом этого замера (запрет G62).
+ORCHESTRATOR_READER = "scripts/consume_office_reports.py"
+
+#: Имена, которые перепись зовёт вместо отрисовки документа. Исключаются из
+#: кандидатов в отрисовщики: зов ``run``/``measure`` сосед видит и так, и
+#: считать их «ввозом отрисовщика» значило бы посчитать класс дважды.
+_NOT_A_RENDERER = ("run", "main", "measure")
+
+#: Исход разрешения отрисовщика у переписи. Третий исход существует ОТДЕЛЬНО
+#: (инв. #17): перепись, у которой отрисовщик не разрешён, НЕ есть перепись
+#: без невидимых потребителей — о ней не сказано ничего.
+RENDERER_RESOLVED = "resolved"
+RENDERER_UNRESOLVED = "unresolved"
+
+#: Формы аннотации возврата, означающие ТЕКСТ. Нужны не для отбора
+#: отрисовщика (его решает печать), а для РАЗДЕЛЕНИЯ третьего исхода: модуль
+#: без единой текстовой функции не может отдать отрисовщик никому, и это не
+#: то же самое, что модуль, чей отрисовщик печатает не он сам.
+_TEXT_RETURNS = ("str", "List[str]", "list[str]", "Sequence[str]",
+                 "Iterable[str]", "Tuple[str, ...]", "tuple[str, ...]")
+
+#: Два рода нерешённости отрисовщика. Слить их значило бы выдать «класс сюда
+#: не применим по построению» за «мы не смогли посмотреть».
+RENDERER_NONE_EXISTS = "no_text_function_at_all"
+RENDERER_NOT_PRINTED = "text_function_never_printed_by_producer"
+
+#: Словарь имён отрисовщика, ОБЪЯВЛЕННЫЙ ADR-444 для одного производителя.
+#: Здесь он НЕ линейка, а предмет сверки: замер выводит имена сам, и
+#: расхождение с этим словарём есть та самая «вторая копия правила в
+#: СЛОВАРЕ», которую ADR-443 нашёл у читателей.
+_ADR444_RENDERER_VOCABULARY = ("report", "format_report")
+
+
+def printed_by_producer(tree: ast.AST) -> List[str]:
+    """Функции модуля, чей результат САМ модуль отдаёт в печать.
+
+    Это определение отрисовщика ИЗМЕРЕНО, а не объявлено, и разница
+    существенна. ADR-444 назвал отрисовщики одного производителя словарём
+    ``("report", "format_report")``. Перенести словарь на 85 переписей
+    значило бы завести вторую копию правила в СЛОВАРЕ — ровно тот класс,
+    который перепись ищет у других (ADR-443). Поэтому правило спрашивает у
+    самого модуля: отрисовщик — та его функция, чей возврат он печатает.
+
+    Разбор AST, а не текстом: форма ``print("\\n".join(f(doc)))`` и форма
+    ``for line in f(doc): print(line)`` текстом не сводятся к одному правилу,
+    а вопрос у них один.
+
+    Возврат — отсортированный список; пустой означает «названной функции
+    печати не нашлось», и вызывающий обязан обратить это в ТРЕТИЙ исход, а
+    не в «отрисовщика нет».
+    """
+    top = {node.name for node in getattr(tree, "body", [])
+           if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    found: set = set()
+    for node in ast.walk(tree):
+        expressions: List[ast.AST] = []
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "print"):
+            expressions = list(node.args)
+        elif isinstance(node, ast.For):
+            # `for line in f(doc): print(line)` — печать в ТЕЛЕ, а не в шапке;
+            # без проверки тела сюда попал бы любой обход.
+            prints = any(isinstance(inner, ast.Call)
+                         and isinstance(inner.func, ast.Name)
+                         and inner.func.id == "print"
+                         for inner in ast.walk(node))
+            if prints:
+                expressions = [node.iter]
+        for expression in expressions:
+            for sub in ast.walk(expression):
+                if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name)
+                        and sub.func.id in top
+                        and sub.func.id not in _NOT_A_RENDERER):
+                    found.add(sub.func.id)
+    return sorted(found)
+
+
+def _census_imports(tree: ast.AST,
+                    callees: Dict[str, str]) -> Dict[str, Dict[str, set]]:
+    """Что файл ВВОЗИТ у каждой переписи: местные имена модуля и имена символов.
+
+    Три формы ввоза разбираются одним правилом, потому что вопрос у них один.
+    Пакетная форма ``from spa_core.monitoring import X`` полного имени в
+    тексте не оставляет вовсе — по ней перепись зовёт мост (замер ADR-444),
+    и текстовое правило потеряло бы именно её.
+    """
+    out: Dict[str, Dict[str, set]] = {}
+
+    def slot(name: str) -> Dict[str, set]:
+        return out.setdefault(name, {"aliases": set(), "symbols": set()})
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            tail = node.module.split(".")[-1]
+            if tail in callees:
+                for alias in node.names:
+                    slot(tail)["symbols"].add(alias.name)
+            else:
+                for alias in node.names:
+                    if alias.name in callees:
+                        slot(alias.name)["aliases"].add(
+                            alias.asname or alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                tail = alias.name.split(".")[-1]
+                if tail in callees:
+                    slot(tail)["aliases"].add(
+                        alias.asname or alias.name.split(".")[-1])
+    return out
+
+
+def _calls_producer_run(tree: ast.AST, aliases: set, symbols: set) -> bool:
+    """Зовёт ли файл ``run``/``measure`` ИМЕННО этой переписи.
+
+    Обе дороги закрыты нарочно: зов через местное имя модуля
+    (``X.run(...)``) и зов ввезённого напрямую ``run``. Спросить только
+    первую значило бы повторить слепоту соседа на соседней оси.
+    """
+    direct = bool({"run", "measure"} & symbols)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if (isinstance(func, ast.Attribute) and func.attr in ("run", "measure")
+                and isinstance(func.value, ast.Name)
+                and func.value.id in aliases):
+            return True
+        if (direct and isinstance(func, ast.Name)
+                and func.id in ("run", "measure")):
+            return True
+    return False
+
+
+def _renderer_touched(tree: ast.AST, aliases: set, symbols: set,
+                      renderers: List[str]) -> List[str]:
+    """Какие отрисовщики переписи файл берёт в руки — обеими формами ввоза."""
+    taken = set(symbols) & set(renderers)
+    if aliases:
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Attribute)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id in aliases
+                    and node.attr in renderers):
+                taken.add(node.attr)
+    return sorted(taken)
+
+
+def invisible_consumer_scale(root: Path) -> dict:
+    """Масштаб класса ADR-444 у ВСЕХ переписей ступени (**заказ G67 п. 1**).
+
+    ADR-444 нашёл у ОДНОЙ переписи потребителя, невидимого соседу
+    ``census_consumer_census`` по форме вопроса: тот спрашивает «кто зовёт
+    ``run``», а шаг 0-офис ``run`` не зовёт — он ВВОЗИТ отрисовщик. Заказ
+    ставит вопрос прямо:
+
+    > Сосед числит переписями 85 модулей, и вопрос «кто зовёт ``run``» задан
+    > им всем одинаково. Спросить числом: у скольких из 85 есть потребитель,
+    > ВВОЗЯЩИЙ отрисовщик и не зовущий ``run`` ни разу. Класс, найденный у
+    > одной, но не померенный у остальных, есть догадка о масштабе, а не
+    > замер.
+
+    **Население берётся у соседа его же кодом** (``find_callees``), а не
+    объявляется здесь: своя копия определения переписи и была бы той самой
+    второй копией, которую перепись ищет у других.
+
+    **Три исхода разведены.** Перепись, у которой отрисовщик не разрешён
+    (модуль не печатает свой документ названной функцией), уходит в
+    ``renderer_unresolved`` и НИКОГДА не складывается с «невидимых
+    потребителей нет»: о ней не сказано ничего (инв. #17).
+
+    **Обратная сторона измерена и названа.** Занижено ли население до НУЛЯ —
+    отдельный вопрос, и ответ на него здесь же: перепись, у которой сосед
+    видит ноль зовущих при живом невидимом потребителе, была бы тяжелее
+    просто заниженной.
+
+    ADVISORY: ни один вердикт переписи не меняется, порог не вводится.
+    """
+    head = {
+        "question": ("у скольких переписей население зовущих занижено ФОРМОЙ "
+                     "вопроса: потребитель ввозит отрисовщик и `run` не зовёт"),
+        "order": "G67.1",
+        "orchestrator_reader": ORCHESTRATOR_READER,
+        "renderer_rule": ("отрисовщик ИЗМЕРЕН: функция переписи, чей результат "
+                          "сама перепись отдаёт в печать"),
+        "applied": False,
+    }
+    try:
+        # Имя соседа берётся у :data:`NEIGHBOUR_CENSUS`, а не пишется здесь
+        # заново: вторая копия имени в файле, который вторые копии и ищет,
+        # была бы собственным экземпляром класса.
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    except ImportError as exc:                       # pragma: no cover
+        return {**head, "status": "UNMEASURED",
+                "reason": f"сосед {NEIGHBOUR_CENSUS} не ввозится: {exc}"}
+
+    callees = neighbour.find_callees(root)
+    if not callees:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("сосед не нашёл ни одной переписи — население "
+                           "пусто, и это НЕ «невидимых потребителей нет»")}
+
+    trees: Dict[str, ast.AST] = {}
+    unreadable: List[dict] = []
+    for sub in neighbour._CODE_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = str(path.relative_to(root))
+            try:
+                trees[rel] = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel, "unreadable": str(exc)})
+
+    # 1. отрисовщики КАЖДОЙ переписи — замером, не словарём
+    renderers: Dict[str, List[str]] = {}
+    unresolved: List[dict] = []
+    for name, rel in sorted(callees.items()):
+        tree = trees.get(rel)
+        if tree is None:
+            unresolved.append({"census": name, "path": rel,
+                               "reason": "файл переписи не прочитан"})
+            renderers[name] = []
+            continue
+        named = printed_by_producer(tree)
+        renderers[name] = named
+        if named:
+            continue
+        # Третий исход разделён на ДВА: «отдавать нечего» и «не смогли
+        # посмотреть». Первое — свойство модуля, второе — граница правила.
+        candidates = sorted({
+            node.name for node in getattr(tree, "body", [])
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name not in _NOT_A_RENDERER
+            and node.returns is not None
+            and ast.unparse(node.returns) in _TEXT_RETURNS})
+        unresolved.append({
+            "census": name, "path": rel,
+            "kind": RENDERER_NOT_PRINTED if candidates else RENDERER_NONE_EXISTS,
+            "candidates": candidates,
+            "reason": (
+                ("модуль печатает свой документ ВСТРОЕННО, но текстовые "
+                 f"функции у него есть ({', '.join(candidates)}) — какая из "
+                 "них отрисовщик, печатью не решается: это ГРАНИЦА ПРАВИЛА, "
+                 "а не «невидимых потребителей нет»")
+                if candidates else
+                ("у модуля нет НИ ОДНОЙ текстовой функции верхнего уровня — "
+                 "отдать потребителю нечего, и класс сюда не применим ПО "
+                 "ПОСТРОЕНИЮ; это не «не измерено»"))})
+
+    # 2. места ввоза, не зовущие `run`
+    sites: List[dict] = []
+    for rel, tree in sorted(trees.items()):
+        imported = _census_imports(tree, callees)
+        for census, what in sorted(imported.items()):
+            if callees[census] == rel:          # перепись сама себя не ввозит
+                continue
+            if not renderers.get(census):
+                continue
+            taken = _renderer_touched(tree, what["aliases"], what["symbols"],
+                                      renderers[census])
+            if not taken:
+                continue
+            if _calls_producer_run(tree, what["aliases"], what["symbols"]):
+                continue
+            sites.append({
+                "census": census,
+                "file": rel,
+                "channel": _channel_of(rel),
+                "renderers": taken,
+                "reaches_orchestrator": rel == ORCHESTRATOR_READER,
+            })
+
+    understated = sorted({site["census"] for site in sites})
+    resolved = [name for name in sorted(callees) if renderers.get(name)]
+
+    # ВЕРХНЯЯ граница того же числа. `understated` опирается на отрисовщик,
+    # РАЗРЕШЁННЫЙ печатью; у 17 переписей печать его не решает, а текстовые
+    # функции есть. Сколько из них отдаёт текстовую функцию потребителю, не
+    # зовущему `run`, — это цена правила печати, и она обязана быть ЧИСЛОМ, а
+    # не оговоркой: иначе «43» читалось бы как точный ответ, а он интервал.
+    boundary = {item["census"]: item["candidates"] for item in unresolved
+                if item["kind"] == RENDERER_NOT_PRINTED and item["candidates"]}
+    boundary_hits: List[dict] = []
+    for rel, tree in sorted(trees.items()):
+        for census, what in sorted(_census_imports(tree, callees).items()):
+            if census not in boundary or callees[census] == rel:
+                continue
+            taken = _renderer_touched(tree, what["aliases"], what["symbols"],
+                                      boundary[census])
+            if taken and not _calls_producer_run(tree, what["aliases"],
+                                                 what["symbols"]):
+                boundary_hits.append({"census": census, "file": rel,
+                                      "candidates": taken})
+    upper = sorted(set(understated) | {hit["census"] for hit in boundary_hits})
+
+    # 3. ОБРАТНАЯ сторона: занижено ли население до НУЛЯ
+    seen: Dict[str, int] = {}
+    for site in neighbour.find_by_name_consumers(root, callees):
+        seen[site["callee"]] = seen.get(site["callee"], 0) + 1
+    dynamic = neighbour.find_dynamic_consumers(root, callees)
+    for site in dynamic.get("resolved") or []:
+        seen[site["callee"]] = seen.get(site["callee"], 0) + 1
+    for wrapper in neighbour.find_fleet_consumers(root, callees):
+        for census in wrapper.get("callees") or []:
+            seen[census] = seen.get(census, 0) + 1
+    blanked = [name for name in understated if not seen.get(name)]
+
+    # 4. СВОЙ словарь против словаря ADR-444 — расхождение есть находка
+    vocabulary_missed = [
+        {"census": name, "renderers": renderers[name]}
+        for name in resolved
+        if not set(renderers[name]) & set(_ADR444_RENDERER_VOCABULARY)]
+
+    name_tally: Dict[str, int] = {}
+    for name in resolved:
+        for renderer in renderers[name]:
+            name_tally[renderer] = name_tally.get(renderer, 0) + 1
+
+    findings: List[dict] = []
+    for census in understated:
+        rows = [site for site in sites if site["census"] == census]
+        findings.append({
+            "kind": "caller_population_understated_by_question_form",
+            "census": census,
+            "consumers": [row["file"] for row in rows],
+            "reaches_orchestrator": any(row["reaches_orchestrator"]
+                                        for row in rows),
+            "why": ("потребитель ввозит отрисовщик и `run` не зовёт ни разу — "
+                    "четыре класса соседа его не выражают, и ноль в них про "
+                    "него не говорит ничего")})
+
+    counts = {
+        "censuses": len(callees),
+        "renderer_resolved": len(resolved),
+        "renderer_unresolved": len(unresolved),
+        "renderer_none_exists": len(
+            [item for item in unresolved
+             if item["kind"] == RENDERER_NONE_EXISTS]),
+        "renderer_not_printed": len(
+            [item for item in unresolved
+             if item["kind"] == RENDERER_NOT_PRINTED]),
+        "understated": len(understated),
+        "understated_upper_bound": len(upper),
+        "understated_share_of_resolved": (
+            round(100.0 * len(understated) / len(resolved), 1)
+            if resolved else None),
+        "sites": len(sites),
+        "sites_code": len([s for s in sites if s["channel"] == CHANNEL_CODE]),
+        "sites_test": len([s for s in sites if s["channel"] == CHANNEL_TEST]),
+        "censuses_invisible_to_orchestrator_reader": len(
+            {s["census"] for s in sites if s["reaches_orchestrator"]}),
+        "blanked_to_zero": len(blanked),
+        "vocabulary_missed": len(vocabulary_missed),
+        "neighbour_dynamic_unresolved": len(dynamic.get("unresolved") or []),
+        "files_unreadable": len(unreadable),
+    }
+    return {
+        **head,
+        "status": "CRITICAL" if understated else "OK",
+        "counts": counts,
+        "renderer_names": dict(sorted(name_tally.items())),
+        "understated": understated,
+        "blanked_to_zero": blanked,
+        "renderer_unresolved": unresolved,
+        "understated_interval": [len(understated), len(upper)],
+        "boundary_hits": boundary_hits,
+        "vocabulary_missed": vocabulary_missed,
+        "sites": sites,
+        "unreadable": unreadable,
+        "findings": findings,
+        "blind": [
+            "отрисовщик разрешается ПЕЧАТЬЮ у самого производителя: перепись, "
+            "печатающая документ без названной функции, уходит в третий исход "
+            "и о её потребителях не сказано НИЧЕГО — цена этого правила едет "
+            "рядом ЧИСЛОМ (`understated_interval`), а не оговоркой",
+            "у переписи из рода `no_text_function_at_all` класс не применим "
+            "ПО ПОСТРОЕНИЮ (отдавать нечего), и складывать её с «не измерено» "
+            "значило бы завысить слепоту",
+            "ввоз не есть ПЕЧАТЬ: место берёт отрисовщик в руки, а печатает "
+            "ли оно числа переписи, здесь не спрашивается — на это отвечает "
+            "координата consumer_registry_completeness у одного производителя",
+            f"зовов, не разрешимых статикой, у соседа "
+            f"{counts['neighbour_dynamic_unresolved']} — среди них может быть "
+            f"и зов отрисовщика, и это ЧИСЛО, а не ноль",
+            "канал теста считается ОТДЕЛЬНО и объявлен до замера: печать "
+            "теста до оркестратора не доезжает (запрет G62)",
+            "порог не введён: ни один вердикт переписи эта координата не "
+            "меняет (`applied` ложно)",
+        ],
+    }
+
+
 def bilingual_reach(root: Path, rows: List[dict],
                     index: Dict[str, List[str]],
                     synonyms: Optional[dict] = None) -> dict:
@@ -6383,6 +6782,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # координатой не меняется.
     registry_completeness = consumer_registry_completeness(root)
 
+    # --- МАСШТАБ КЛАССА У ВСЕХ ПЕРЕПИСЕЙ (заказ G67 п. 1) ---------------
+    # Координата выше нашла невидимого потребителя у ОДНОЙ переписи и честно
+    # сказала, чего не спрашивала: у скольких ЕЩЁ население зовущих занижено
+    # той же формой вопроса. Класс, найденный у одной и не померенный у
+    # остальных, есть догадка о масштабе, а не замер.
+    invisible_scale = invisible_consumer_scale(root)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -6489,6 +6895,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ключом: «как читатель зовёт базу» и «все ли читатели названы» —
         # разные вопросы, и ответ второго не является поправкой к первому.
         "consumer_registry_completeness": registry_completeness,
+        # Девятая координата того же вопроса (заказ G67 п. 1). Отдельным
+        # ключом: «все ли читатели ОДНОЙ переписи названы» и «у скольких
+        # переписей класс вообще есть» — разные вопросы, и ответ второго не
+        # является поправкой к первому.
+        "invisible_consumer_scale": invisible_scale,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -6525,6 +6936,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что чтение вне f-строки отсутствует — оно НЕ разбирается, и его число едет отдельным полем у каждого читателя",
             "что население зовущих ПОЛНО и после сведения с соседом — у соседа четыре класса зова, и зов, не разрешимый статикой, едет у него ЧИСЛОМ; поверхность ввоза добавляет ввозящих, а не исчерпывает зовущих",
             "что неназванный читатель БЕЗВРЕДЕН — измерено «печатает ли он числа переписи», а не «верно ли он их понимает»",
+            "что у переписи без разрешённого отрисовщика невидимых потребителей НЕТ — отрисовщик разрешается печатью у самого производителя, и 28 из 85 уходят в ТРЕТИЙ исход, о котором не сказано ничего",
+            "что невидимый потребитель ЧИТАЕТ числа своей переписи — измерен ВВОЗ отрисовщика при отсутствии зова `run`, а не печать",
         ],
     }
 
@@ -7562,6 +7975,76 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[РЕЕСТР ЧИТАТЕЛЕЙ · НЕ ПРОЧИТАНО] {item.get('file')}: "
                        f"{item.get('unreadable')}")
         for blind in (completeness.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- МАСШТАБ НЕВИДИМОСТИ (заказ G67 п. 1) ---------------------------
+    scale = observed(doc, "invisible_consumer_scale", kind=dict)
+    if scale is None:
+        out.append("[МАСШТАБ НЕВИДИМОСТИ] НЕ ИЗМЕРЕН — перепись собрана без "
+                   "обхода населения переписей")
+    elif scale.get("status") == "UNMEASURED":
+        out.append(f"[МАСШТАБ НЕВИДИМОСТИ] НЕ ИЗМЕРЕН: {scale.get('reason')}")
+    elif observed(scale, "counts", kind=dict) is None:
+        # Инв. #17: «счётчиков нет» и «счётчики нулевые» — разные утверждения,
+        # и второе, напечатанное вместо первого, есть ровно тот fail-OPEN,
+        # который перепись ищет у других (регрессия #664 на соседней ветке).
+        out.append("[МАСШТАБ НЕВИДИМОСТИ] НЕ ИЗМЕРЕН: документ объявлен "
+                   "измеренным, но счётчиков в нём нет — это НЕ нулевые "
+                   "счётчики")
+    else:
+        cnt = observed(scale, "counts", kind=dict)
+        out.append(
+            f"[МАСШТАБ НЕВИДИМОСТИ] переписей {cnt.get('censuses')} · "
+            f"отрисовщик разрешён {cnt.get('renderer_resolved')} · население "
+            f"зовущих ЗАНИЖЕНО у {cnt.get('understated')} "
+            f"({cnt.get('understated_share_of_resolved')} % разрешённых) · "
+            f"мест {cnt.get('sites')} (кода {cnt.get('sites_code')}, тестов "
+            f"{cnt.get('sites_test')})")
+        out.append(
+            f"[МАСШТАБ НЕВИДИМОСТИ · ИНТЕРВАЛ] занижено от "
+            f"{cnt.get('understated')} до {cnt.get('understated_upper_bound')} "
+            f"переписей: нижняя граница опирается на отрисовщик, РАЗРЕШЁННЫЙ "
+            f"печатью, верхняя добавляет тех, у кого печать его не решает — "
+            f"это цена правила печати, а не оговорка")
+        out.append(
+            f"[МАСШТАБ НЕВИДИМОСТИ · ТРЕТИЙ ИСХОД] отрисовщик не разрешён у "
+            f"{cnt.get('renderer_unresolved')}: отдавать нечего "
+            f"{cnt.get('renderer_none_exists')} (класс не применим ПО "
+            f"ПОСТРОЕНИЮ) · граница правила {cnt.get('renderer_not_printed')} "
+            f"(текстовые функции есть, печать их не решает)")
+        out.append(
+            f"[МАСШТАБ НЕВИДИМОСТИ · ДО ОРКЕСТРАТОРА] читатель "
+            f"`{scale.get('orchestrator_reader')}` невидим соседу у "
+            f"{cnt.get('censuses_invisible_to_orchestrator_reader')} "
+            f"переписей — это тот самый единственный, кто доносит их числа "
+            f"до оркестратора")
+        out.append(
+            f"[МАСШТАБ НЕВИДИМОСТИ · ОБРАТНАЯ СТОРОНА] занижено ДО НУЛЯ у "
+            f"{cnt.get('blanked_to_zero')} переписей: класс есть занижение "
+            f"населения, а не его обнуление, и это измерено, а не "
+            f"предположено")
+        if cnt.get("vocabulary_missed"):
+            out.append(
+                f"[МАСШТАБ НЕВИДИМОСТИ · СЛОВАРЬ] отрисовщик ИЗМЕРЕН, а не "
+                f"взят словарём ADR-444: имена "
+                f"{scale.get('renderer_names')}; словарь "
+                f"{list(_ADR444_RENDERER_VOCABULARY)} не назвал бы "
+                f"{cnt.get('vocabulary_missed')} перепис(и) — "
+                + ", ".join(f"{item.get('census')} ({','.join(item.get('renderers') or [])})"
+                            for item in (scale.get("vocabulary_missed") or [])))
+        for item in (scale.get("findings") or [])[:max_rows]:
+            out.append(
+                f"[МАСШТАБ НЕВИДИМОСТИ · НАХОДКА] `{item.get('census')}`: "
+                f"{', '.join(item.get('consumers') or [])} — "
+                f"{item.get('why')}"
+                + (" · доносит до оркестратора"
+                   if item.get("reaches_orchestrator") else ""))
+        for item in (scale.get("renderer_unresolved") or [])[:max_rows]:
+            out.append(f"[МАСШТАБ НЕВИДИМОСТИ · ОТРИСОВЩИК НЕ РАЗРЕШЁН] "
+                       f"{item.get('census')}: {item.get('reason')}")
+        for item in (scale.get("unreadable") or [])[:max_rows]:
+            out.append(f"[МАСШТАБ НЕВИДИМОСТИ · НЕ ПРОЧИТАНО] "
+                       f"{item.get('file')}: {item.get('unreadable')}")
+        for blind in (scale.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
