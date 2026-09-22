@@ -235,12 +235,53 @@ def test_unknown_card_id_never_bypasses(tracker):
 
 
 # ── 5. нет нарушений ⇒ нет scope (fail-CLOSED) ──────────────────────────────
-def test_no_violations_means_no_scope(tracker):
-    """Пустой перечень не превращается в разрешение на пустой путь."""
+def test_no_violations_means_no_card_and_no_scope(tracker):
+    """Пустой перечень не превращается ни в разрешение, ни в вопрос о ничём.
+
+    ПРЕЖНЯЯ РЕДАКЦИЯ этого теста ждала, что карточка СОЗДАСТСЯ, лишь бы в ней не
+    было поля ``approves:``. Продукт с тех пор пошёл ДАЛЬШЕ и перестал создавать
+    карточку вовсе: `safe_site_push._route_to_owner_card` (докстринг, строка 307)
+    объявляет это прямо — «нарушений нет ⇒ scope пуст ⇒ карточка НЕ создаётся
+    (fail-CLOSED)», и называет замер, ради которого так сделано: настоящая
+    карточка `owner-decision-sait-pravka-…`, у которой кнопка «Одобрить» не
+    разрешала ничего.
+
+    Документированный контракт (`docs/OWNER_GATE.md:24`) требует карточку ТОЛЬКО
+    при вердикте gated: «gated → создаёт карточку needs-owner + notify, НЕ пушит;
+    error → fail-closed». Пустой карточки не требует ни одна строка контракта.
+
+    Поэтому тест переписан на ИНВАРИАНТ, а не на артефакт, и утверждает теперь
+    строго больше прежнего:
+      1. пустого разрешения нет (как и раньше);
+      2. владельца не спрашивают ни о чём (новое);
+      3. путь не считается разрешённым — функция возвращает False (новое).
+    Ослабления нет: ни одна проверка не снята, добавлены две.
+    Контроль в обратную сторону — в `test_real_gated_scope_still_creates_the_card`.
+    """
     ssp = _load_safe_site_push()
-    ssp._route_to_owner_card([str(_REPO_ROOT / _FLAGGED)], {"violations": []}, "msg")
+    created = ssp._route_to_owner_card([str(_REPO_ROOT / _FLAGGED)],
+                                       {"violations": []}, "msg")
+    assert created is False, "пустой охват обязан быть отказом, а не молчаливым успехом"
+    cards = sorted(Path(tracker).glob("owner-decision-*.md")) + \
+        sorted(Path(tracker).glob("own-*.md"))
+    assert cards == [], ("владельца спросили о ничём: карточка создана при пустом "
+                         f"перечне нарушений — {[c.name for c in cards]}")
+
+
+def test_real_gated_scope_still_creates_the_card(tracker):
+    """ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ к предыдущему: настоящий охват путь НЕ теряет.
+
+    Без него «карточки нет» было бы неотличимо от «карточки не создаются никогда»,
+    то есть от тихо сломанного owner-gate. Здесь нарушение настоящее, и карточка
+    обязана появиться, нести ``approves:`` и покрывать РОВНО заблокированный файл.
+    """
+    ssp = _load_safe_site_push()
+    created = ssp._route_to_owner_card([str(_REPO_ROOT / _FLAGGED)], _report(), "msg")
+    assert created is True, "настоящее нарушение обязано родить карточку владельцу"
     fm = _created_card(tracker).read_text(encoding="utf-8").split("---")[1]
-    assert "approves:" not in fm, "без нарушений поле писать нельзя — это пустое разрешение"
+    approves = [ln for ln in fm.splitlines() if ln.startswith("approves:")]
+    assert approves, "карточка при настоящем нарушении обязана нести approves:"
+    assert _FLAGGED in approves[0]
 
 
 # ── 6. одобряется РОВНО заблокированное, а не весь список --files ───────────

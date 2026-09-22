@@ -1178,6 +1178,52 @@
    }
   },
   {
+   "label": "com.spa.director_build",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_director_build.sh",
+   "layer": "product",
+   "role": "unknown",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "none",
+   "notes": "",
+   "passport": {
+    "goal": "ОДИН детерминированный шаг: канонические источники → улики Cartographer → web-safe проекция → оболочка → сравнение дайджеста → атомарная подстановка комплекта в локальную раздачу.",
+    "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
+    "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
+    "rights": "",
+    "limits": ""
+   }
+  },
+  {
+   "label": "com.spa.director_server",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_director_server.sh",
+   "layer": "product",
+   "role": "unknown",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "none",
+   "notes": "",
+   "passport": {
+    "goal": "ЧТО ЭТО.",
+    "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
+    "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
+    "rights": "",
+    "limits": ""
+   }
+  },
+  {
    "label": "com.spa.familyfund",
    "plist_source": "launch_agents",
    "reboot_safe": true,

@@ -329,6 +329,12 @@ class RedFlagMonitor:
         self.historical_apy_file = Path(historical_apy_file)
         self._fallback_used: bool = False
         self._sources_used: list[str] = []
+        #: Per-category provenance measured by scan_all (ADDITIVE, observability
+        #: only). ``{category: "live" | "bootstrap"}``. The document-level
+        #: ``fallback_used`` is the OR over these four answers, so on its own it
+        #: cannot say WHICH category degraded — a live TVL/governance answer and
+        #: a bootstrap APY/unlock answer produce the same single ``true``.
+        self._category_provenance: dict[str, str] = {}
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -339,6 +345,7 @@ class RedFlagMonitor:
         """
         sources: list[str] = []
         fallback = False
+        provenance: dict[str, str] = {}
         flags: list[RedFlag] = []
 
         grades = self._load_risk_grades()
@@ -351,6 +358,7 @@ class RedFlagMonitor:
             tvl_records, src_tvl, fb_tvl = list(BOOTSTRAP_TVL_DROPS), "bootstrap", True
         sources.append(src_tvl)
         fallback = fallback or fb_tvl
+        provenance["tvl_drop"] = "bootstrap" if fb_tvl else "live"
         flags.extend(self._classify_tvl_drops(tvl_records, grades))
 
         # 2. APY spikes -------------------------------------------------
@@ -361,6 +369,7 @@ class RedFlagMonitor:
             apy_records, src_apy, fb_apy = list(BOOTSTRAP_APY_SPIKES), "bootstrap", True
         sources.append(src_apy)
         fallback = fallback or fb_apy
+        provenance["apy_spike"] = "bootstrap" if fb_apy else "live"
         flags.extend(self._classify_apy_spikes(apy_records, grades))
 
         # 3. Governance proposals --------------------------------------
@@ -371,6 +380,7 @@ class RedFlagMonitor:
             gov_records, src_gov, fb_gov = list(BOOTSTRAP_GOVERNANCE_PROPOSALS), "bootstrap", True
         sources.append(src_gov)
         fallback = fallback or fb_gov
+        provenance["governance_proposal"] = "bootstrap" if fb_gov else "live"
         flags.extend(self._classify_governance(gov_records, grades))
 
         # 4. Token unlocks ----------------------------------------------
@@ -381,6 +391,7 @@ class RedFlagMonitor:
             unlock_records, src_unl, fb_unl = list(BOOTSTRAP_TOKEN_UNLOCKS), "bootstrap", True
         sources.append(src_unl)
         fallback = fallback or fb_unl
+        provenance["token_unlock"] = "bootstrap" if fb_unl else "live"
         flags.extend(self._classify_unlocks(unlock_records, grades))
 
         # Filter to whitelist & de-duplicate by (protocol, category).
@@ -393,6 +404,7 @@ class RedFlagMonitor:
                 deduped.append(s)
         self._sources_used = deduped
         self._fallback_used = fallback
+        self._category_provenance = provenance
 
         return flags
 
@@ -409,6 +421,10 @@ class RedFlagMonitor:
             flags = []
             self._fallback_used = True
             self._sources_used = ["bootstrap"]
+            # NOT MEASURED — the scan never completed, so no category has an
+            # answer. An empty map is NOT "all live": consumers that read
+            # provenance must treat a missing category as unmeasured.
+            self._category_provenance = {}
 
         snapshot = self._build_snapshot(flags)
 
@@ -1008,6 +1024,32 @@ class RedFlagMonitor:
             "sources": list(self._sources_used) if self._sources_used
                 else ["bootstrap"],
             "fallback_used": bool(self._fallback_used),
+            # ADDITIVE (observability only, no consumer reads this key yet).
+            # ``fallback_used`` is the OR over four independent fetchers, so it
+            # says "at least one category degraded" and NOT "the document is
+            # fallback". Three outcomes per category, per invariant #17:
+            #   "live"       — the real source answered
+            #   "bootstrap"  — the fetcher degraded to the curated fixture
+            #   absent key   — NOT MEASURED (the scan did not complete)
+            "provenance": {
+                "by_category": {
+                    c: self._category_provenance[c]
+                    for c in CATEGORIES
+                    if c in self._category_provenance
+                },
+                "live_categories": sorted(
+                    c for c in CATEGORIES
+                    if self._category_provenance.get(c) == "live"
+                ),
+                "bootstrap_categories": sorted(
+                    c for c in CATEGORIES
+                    if self._category_provenance.get(c) == "bootstrap"
+                ),
+                "unmeasured_categories": sorted(
+                    c for c in CATEGORIES
+                    if c not in self._category_provenance
+                ),
+            },
             "red_flags": [f.to_dict() for f in flags],
             "summary": {
                 "total_flags":     len(flags),

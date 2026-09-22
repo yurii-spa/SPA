@@ -1,0 +1,273 @@
+{
+ "schema": "health_contracts/1",
+ "note": "Первый ПРОДУКТОВЫЙ набор: девять названных семейств. Остальные сущности остаются НЕ ИЗМЕРЕННЫМИ, и это не то же, что здоровыми. Единого числа здоровья нет намеренно.",
+ "declaration_note": "Каждый контракт проверяет НАЗНАЧЕНИЕ компонента. Существование процесса успехом не считается: замер показал живой процесс, свежий маячок и нулевой код возврата у компонента, который трое суток не делал своего дела.",
+ "contracts": [
+  {
+   "label": "com.spa.daily_cycle",
+   "tier": "C1",
+   "purpose": "провести дневной цикл: взять живые APY/TVL, прогнать через RiskPolicy, обновить трек",
+   "success": {
+    "log": "spa_daily_cycle.log",
+    "ok_values": [
+     0
+    ],
+    "by_design_values": [
+     3
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/equity_curve_daily.json",
+    "max_age_hours": 30.0,
+    "why": "цикл существует ради дописывания трека; свежий трек и есть его дело"
+   },
+   "output_absence_means": "FAILURE",
+   "failure_signal": "код выхода вне объявленного словаря либо трек не дописан за сутки",
+   "owner": null
+  },
+  {
+   "label": "com.spa.telegram_bot",
+   "tier": "C1",
+   "purpose": "принимать команды владельца и отдавать кнопки под тревогой",
+   "success": {
+    "log": "spa_telegram_bot.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/telegram_bot_capabilities.json",
+    "max_age_hours": 0.0833,
+    "warn_age_hours": 0.0167,
+    "why": "маячок пишется В ТОМ ЖЕ цикле, что и getUpdates (bot.py:1741 и 1748 подряд внутри одного while True), поэтому его свежесть ДОКАЗЫВАЕТ, что опрос Telegram возвращается. Замер такта: ровно 30 с — это getUpdates с timeout=30, успешно вернувший пустой список. При отказе сети такт был бы 60 с И лог рос бы каждый виток",
+    "expected_cadence_seconds": 30
+   },
+   "output_absence_means": "FAILURE",
+   "failure_signal": "маячок старше пяти минут при живом процессе",
+   "owner": null,
+   "rejected_purpose_signal": {
+    "path": "data/tg_bot_v2_offset.json",
+    "why_rejected": "файл смещения пишется ТОЛЬКО под `if updates:` (bot.py:538), то есть при ВХОДЯЩЕМ сообщении. Его возраст — мера активности ВЛАДЕЛЬЦА, а не здоровья бота. Я объявил его признаком назначения и получил UNHEALTHY у исправного компонента: 83 часа означали, что владелец трое суток ничего не нажимал"
+   },
+   "liveness": {
+    "expected": "DAEMON"
+   },
+   "watchdog_note": "у бота есть свой сторож залипания: он делает os._exit(1) при отсутствии биения дольше 240 с, и launchd поднимает свежего. Предел в 5 минут выбран НЕ МЕНЬШЕ этого порога, иначе контракт краснел бы раньше, чем сработает починка"
+  },
+  {
+   "label": "com.spa.threat_reactor",
+   "tier": "C1",
+   "purpose": "включить стоп-кран при угрозе",
+   "success": {
+    "log": "spa_threat_reactor.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/kill_switch_active.json",
+    "max_age_hours": 3.0
+   },
+   "output_absence_means": "HEALTHY_WHEN_ABSENT",
+   "absence_basis": "объявленный выход — файл ВКЛЮЧЁННОГО стоп-крана. Пока его нет, защита не срабатывала, и это здоровье. Объявленный срок годности выполним только в аварии.",
+   "failure_signal": "стоп-кран включён и файл протух",
+   "owner": null
+  },
+  {
+   "label": "com.spa.red_flag_monitor",
+   "tier": "C1",
+   "purpose": "находить тревожные признаки протоколов",
+   "success": {
+    "log": "spa_red_flag_monitor.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/red_flags.json",
+    "max_age_hours": 6.0
+   },
+   "output_absence_means": "FAILURE",
+   "blind_values": [
+    {
+     "path": "data/red_flags.json",
+     "field": "fallback_used",
+     "blind_when": true,
+     "why": "монитор объявляет, что работал на запасном источнике. Замер уточнил ПРИЧИНУ: все четыре флага — дословные копии фикстур BOOTSTRAP от 2026-05-28 (116 дней), потому что data/historical_apy.json не существует нигде в дереве, а api.llama.fi/unlocks отвечает HTTP 404. Это постоянная конфигурация, не транзиент. Доверять таким флагам нельзя — но это НЕ значит, что их никто не читает"
+    }
+   ],
+   "failure_signal": "флаги протухли или монитор упал",
+   "owner": null,
+   "blind_reason_corrected": "Прежняя формулировка контракта гласила, что читатель исполняет ветку только при fallback_used == false и потому «не исполняет её вовсе», а флаги производятся ни для кого. Замер это ОПРОВЕРГ: артефакт читают восемь потребителей, пять из них без всякого условия (дайджест владельцу, кабинет, команда бота). Условие стоит только у двух money-path-потребителей, и это принятое решение безопасности: их докстринг прямо говорит, что книга не должна закрываться от фикстур. Монитор НЕ слеп; он производит фикстуры, и отказ money-path им верить — верен.",
+   "real_defect_found": "fallback_used — это OR по ЧЕТЫРЁМ независимым категориям, и две из них деградированы постоянно. Следствие, измеренное а не предположенное: живой CRITICAL tvl_drop на УДЕРЖИВАЕМОМ протоколе (например compound_v3, 40 % книги) сегодня был бы записан в артефакт и молча отброшен обоими money-path-потребителями — из-за деградации ЧУЖОЙ категории.",
+   "correction_class": "OBSERVABILITY",
+   "correction_note": "Исправление наблюдаемости — покатегорийный провенанс, аддитивный ключ, ни один из восьми потребителей его не читает. Поведенческие правки (перевод потребителей на покатегорийное чтение, починка самих источников) требуют ARB: они снимают гейт с денежного пути."
+  },
+  {
+   "label": "com.spa.director_build",
+   "tier": "C2",
+   "purpose": "пересобрать кокпит владельца и переставить комплект атомарно",
+   "success": {
+    "log": "spa_director_build.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/golive_status.json",
+    "max_age_hours": 30.0,
+    "why": "у сборки кокпита признак назначения лежит ВНЕ репозитория, поэтому здесь проверяется свежесть канонического входа, а не выхода — и это оговорено, а не скрыто"
+   },
+   "output_absence_means": "NOT_MEASURED",
+   "absence_basis": "выход сборки лежит вне прод-дерева; контракт объявлен ЧАСТИЧНО и честно говорит об этом",
+   "failure_signal": "сборка упала",
+   "owner": null
+  },
+  {
+   "label": "com.spa.apiserver",
+   "tier": "C2",
+   "purpose": "отдавать API дашборда",
+   "success": {
+    "log": "spa_apiserver.log",
+    "ok_values": [
+     0
+    ],
+    "by_design_values": [
+     -15
+    ]
+   },
+   "output_absence_means": "ZERO_EVENTS",
+   "absence_basis": "приёмник событий при нуле событий молчит законно; код -15 — прошлый штатный останов, а не нынешняя поломка",
+   "failure_signal": "резидент объявлен и процесса нет",
+   "owner": null
+  },
+  {
+   "label": "com.spa.director_server",
+   "tier": "C2",
+   "family": "Director server",
+   "purpose": "раздавать кокпит владельца по петле",
+   "success": {
+    "log": "spa_director_server.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "liveness": {
+    "expected": "DAEMON"
+   },
+   "output_absence_means": "NOT_MEASURED",
+   "absence_basis": "комплект раздачи лежит вне прод-дерева; контракт объявлен ЧАСТИЧНО и говорит об этом",
+   "failure_signal": "резидент объявлен и процесса нет",
+   "owner": null
+  },
+  {
+   "label": "com.spa.code_sync",
+   "tier": "C1",
+   "family": "code_sync",
+   "purpose": "привести прод-дерево к origin, не потеряв незапушенного",
+   "success": {
+    "log": "spa_code_sync.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "purpose_signal": {
+    "path": "data/code_sync_status.json",
+    "max_age_hours": 6.0,
+    "warn_age_hours": 3.0,
+    "why": "состояние синхронизации объявляет СВОЙ словарь исходов (IN_SYNC/SYNCED/FETCH_FAILED/…), и свежесть этого файла есть признак того, что шаг вообще исполнялся"
+   },
+   "output_absence_means": "FAILURE",
+   "label_note": "ЯРЛЫКА С ЭТИМ ИМЕНЕМ НЕ СУЩЕСТВУЕТ: шаг исполняется внутри другого агента. Контракт объявлен на АРТЕФАКТ, а не на ярлык, и это сказано вслух",
+   "failure_signal": "состояние синхронизации не обновлялось либо объявляет отказ",
+   "owner": null
+  },
+  {
+   "label": "com.spa.daily_backup",
+   "tier": "C1",
+   "family": "backup/recovery",
+   "purpose": "собрать дневной архив состояния, объявив обязательные файлы",
+   "success": {
+    "log": "spa_daily_backup.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "liveness": {
+    "expected": "SCHEDULED"
+   },
+   "purpose_signal": {
+    "path": "data/backups",
+    "max_age_hours": 30.0,
+    "warn_age_hours": 26.0,
+    "why": "каталог архивов меняется ровно тогда, когда архив создан; имя скрипта этого не доказывает"
+   },
+   "output_absence_means": "FAILURE",
+   "failure_signal": "за сутки не появилось нового архива",
+   "owner": null
+  },
+  {
+   "label": "com.spa.resilience",
+   "tier": "C1",
+   "family": "backup/recovery",
+   "purpose": "провести учения восстановления в изолированной песочнице",
+   "success": {
+    "log": "spa_resilience.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "liveness": {
+    "expected": "SCHEDULED"
+   },
+   "purpose_signal": {
+    "path": "data/restore_drill_status.json",
+    "max_age_hours": 8.0,
+    "warn_age_hours": 7.0,
+    "why": "учения объявляют свой исход полем all_ok; свежесть файла есть признак того, что учения шли"
+   },
+   "output_absence_means": "FAILURE",
+   "blind_values": [
+    {
+     "path": "data/restore_drill_status.json",
+     "field": "all_ok",
+     "blind_when": false,
+     "why": "учения прошли и объявили себя неудачными: наблюдение есть, и доверять его зелёному виду нельзя"
+    }
+   ],
+   "failure_signal": "учения не проводились в объявленный такт",
+   "owner": null
+  },
+  {
+   "label": "com.studiobridge.coordinator",
+   "tier": "C3",
+   "family": "Bridge coordinator",
+   "purpose": "вести прогоны моста и записывать их состояние",
+   "success": {
+    "log": "studiobridge_coordinator.log",
+    "ok_values": [
+     0
+    ]
+   },
+   "liveness": {
+    "expected": "DAEMON"
+   },
+   "output_absence_means": "FAILURE",
+   "domain_note": "ярлык живёт в ДРУГОМ пространстве имён (com.studiobridge.*) и в население 103 не входит по построению — область флота выведена из объявленных префиксов",
+   "failure_signal": "резидент жив, а состояние прогонов не двигается",
+   "owner": null,
+   "purpose_signal": {
+    "root": "~/Documents/studio_bridge",
+    "path": "state/coordinator.json",
+    "max_age_hours": 0.0833,
+    "warn_age_hours": 0.0278,
+    "expected_cadence_seconds": 30,
+    "why": "пульс пишется co.heartbeat() внутри while True с POLL_SEC=30 (coordinator_daemon.py:158). Замер: возраст 36 с — тикает"
+   },
+   "rejected_purpose_signal": {
+    "path": "state/runtime_coordinator.json",
+    "why_rejected": "файл содержит started_at и пишется ОДИН раз при старте — его время изменения есть ВРЕМЯ ЗАПУСКА. 88 часов значили, что резидент не перезапускался, то есть именно то, чего от него и хотят"
+   }
+  }
+ ]
+}

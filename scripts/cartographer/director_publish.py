@@ -268,6 +268,20 @@ REBUILD_STEPS = (
                        '--authority', '{auth}', '--output', '{dir}')),
 )
 
+#: Канонические источники, которые слой читает НАПРЯМУЮ: у них нет своего сборщика,
+#: но они уже канонические и уже свежие. Читаются только по объявленному списку —
+#: «прочитать всё из data/» было бы вторым источником правды.
+DIRECT_SOURCES = {
+    'equity': 'data/equity_curve_daily.json',
+    'metrics_history': 'data/dashboard_metrics_history.json',
+    'positions': 'data/current_positions.json',
+    'risk_config': 'data/capital_config.json',
+    'red_flags': 'data/red_flags.json',
+    'golive': 'data/golive_status.json',
+    'promotion': 'data/promotion_report.json',
+}
+
+
 #: Что каждый шаг кладёт и под каким именем это ждёт сборка комплекта.
 REBUILD_ARTIFACTS = {
     'rel': 'reliability_snapshot.json',
@@ -378,9 +392,43 @@ def read_serving_digest(serve_root):
         return None
 
 
+def read_raw(path):
+    """Снимок как есть, либо ``None``. Отсутствие — не ошибка и не пустота."""
+    doc, _state = projection_mod.reliability_mod._read_json(Path(path))
+    return doc
+
+
+def read_direct_sources(production_root):
+    """Канонические ряды, у которых нет своего сборщика.
+
+    Режим капитала берётся из САМОГО источника (`execution_mode`), а не выводится из
+    `is_demo`: принятая граница запрещает читать `is_demo: false` как REAL.
+    """
+    if not production_root:
+        return {k: None for k in ('capital_history', 'positions', 'risk_config',
+                                  'red_flags', 'golive', 'promotion')}
+    root = Path(production_root)
+    docs = {k: read_raw(root / v) for k, v in DIRECT_SOURCES.items()}
+    equity = docs['equity'] or {}
+    mode = equity.get('execution_mode')
+    history = {
+        'daily': equity.get('daily') or [],
+        'summary': equity.get('summary') or {},
+        'metrics_history': (docs['metrics_history'] or {}).get('history') or [],
+        'mode': mode,
+        'mode_basis': ('режим объявлен самим источником полем execution_mode; '
+                       'is_demo как признак REAL не читается'),
+    } if equity else None
+    return {'capital_history': history, 'positions': docs['positions'],
+            'risk_config': docs['risk_config'], 'red_flags': docs['red_flags'],
+            'golive': docs['golive'], 'promotion': docs['promotion']}
+
+
 def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, cio=None,
                  state_path=None, published=None, now=None,
-                 published_digest_override=None):
+                 published_digest_override=None, production_root=None,
+                 pipeline=None, memory=None, v13=False, bridge_root=None,
+                 repositories=(), ledger_path=None, health_contracts=None):
     """Собирает комплект в ``output``: ``publish/`` (уезжает) и ``evidence/`` (остаётся).
 
     Разделение каталогом, а не дисциплиной: выложить лишнее можно только указав другой
@@ -395,7 +443,28 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
         doc, _ = projection_mod.reliability_mod._read_json(Path(bundle) / name)
         return doc
 
+    direct = read_direct_sources(production_root)
+    # ── v1.3: состояние собирается из УЛИК, а не подаётся параметрами. Мост,
+    #    конвейер и решения владельца перестают быть числами, набранными руками.
+    v13_block = None
+    if v13:
+        import director_v13 as v13_mod
+        v13_block = v13_mod.build(production_root=production_root,
+                                  bridge_root=bridge_root,
+                                  repositories=repositories, now=stamp,
+                                  ledger_path=ledger_path,
+                                  health_contracts=health_contracts,
+                                  reliability_snapshot=(
+                                      str(Path(bundle) / 'reliability_snapshot.json')
+                                      if bundle else None))
+
     projection = projection_mod.build_projection(
+        services=read_raw(Path(bundle).parent / 'snap' / 'snapshot.json'),
+        drift=read_raw(Path(bundle).parent / 'auth' / 'authority_map.json'),
+        capital_history=direct['capital_history'],
+        positions=direct['positions'], risk_config=direct['risk_config'],
+        red_flags=direct['red_flags'], golive=direct['golive'],
+        promotion=direct['promotion'], pipeline=pipeline, memory=memory,
         investments=read('investment_snapshot.json'),
         reliability=read('reliability_snapshot.json'),
         work=read('work_snapshot.json'),
@@ -404,6 +473,39 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
         actions=read('action_authority_audit.json'),
         bridge=bridge, intake=intake)
     projection_mod.validate_projection(projection, 'director_publish')
+    # Провенанс ВНЕШНИХ канонических входов. Идентичность кода не опознаёт владельческое
+    # состояние: manifest.json генерируется из живой машины и меняет вывод при том же
+    # коде (замер 22.09, v1.3.1). Комплект обязан связываться с его идентичностью.
+    import external_provenance as prov_mod
+    # ``stamp`` здесь СТРОКА (ISO), а провенансу нужны часы: возраст входа считается
+    # вычитанием. Подать строку значило бы уронить сборку на первом же вызове — поэтому
+    # часы берутся у самого модуля, а не переподставляются из строки.
+    # ``production_root`` может быть None (сборка из готового комплекта улик, без
+    # --rebuild-from): тогда внешних входов не наблюдали вовсе, и это ТРЕТИЙ ИСХОД,
+    # а не пустой провенанс, выданный за наблюдение.
+    if production_root:
+        projection['external_provenance'] = prov_mod.build_provenance(production_root)
+    else:
+        projection['external_provenance'] = {
+            'schema': prov_mod.SCHEMA, 'inputs': [], 'provenance_digest': None,
+            'unmeasured': [spec['path'] for spec in prov_mod.DECLARED_INPUTS],
+            'required_missing': [spec['path'] for spec in prov_mod.DECLARED_INPUTS
+                                 if spec['required']],
+            'verdict': 'NOT_MEASURED',
+            'reason': 'корень прод-дерева не подан (--rebuild-from/--production-root)'}
+    if v13_block is not None:
+        projection['v13'] = v13_block
+        # Отпечаток комплекта — отпечаток СМЫСЛА фактов. Прежний считался по дереву
+        # проекции, и потому его двигали отметки наблюдения: четыре поля `detected_at`
+        # у красных флагов переподставляли бы комплект каждый час.
+        projection['semantic_digest'] = v13_block['fact_digest']
+        projection['semantic_digest_basis'] = v13_block['digest_design']
+        # ТРЕБУЕМЫЙ ИНВАРИАНТ (ARB A3): тот же код + другие байты манифеста ⇒ ДРУГАЯ
+        # идентичность провенанса комплекта. Смысловой дайджест намеренно НЕ смешивается
+        # с провенансом — это два разных вопроса («изменился ли смысл фактов» и «те же ли
+        # внешние входы»), и слить их значило бы потерять оба.
+        projection['bundle_provenance_identity'] = (
+            projection['external_provenance']['provenance_digest'])
 
     digest = projection['semantic_digest']
     published_digest = (published_digest_override if published_digest_override is not None
@@ -411,9 +513,18 @@ def build_bundle(*, bundle, output, bridge=None, intake=None, architect=None, ci
     state = next_freshness_state(read_freshness_state(state_path), digest=digest,
                                  now=stamp, published_digest=published_digest)
 
-    page = shell_mod.shell_html(projection, architect=architect, cio=cio, bridge=bridge,
-                                freshness=state)
-    shell_mod.validate_shell(page, 'director_publish')
+    if v13_block is not None:
+        import director_shell as v13_shell
+        import director_v13 as v13_mod
+        page = v13_shell.shell_html(projection, freshness=state)
+        v13_shell.validate_shell(page, 'director_publish')
+        # Последний рубеж безопасности стоит ЗДЕСЬ, до записи файла: страница, не
+        # прошедшая проверку форм, не должна существовать на диске даже мгновение.
+        v13_mod.assert_page_is_clean(page, 'director_publish')
+    else:
+        page = shell_mod.shell_html(projection, architect=architect, cio=cio,
+                                    bridge=bridge, freshness=state)
+        shell_mod.validate_shell(page, 'director_publish')
 
     diff_mod.validate_output(out, [Path(bundle)])
     staging = out.with_name(out.name + '.incomplete')
@@ -475,6 +586,18 @@ def main(argv=None):
     ap.add_argument('--architect', help='JSON: состояние Архитектора')
     ap.add_argument('--cio', help='JSON: состояние CIO')
     ap.add_argument('--state', help='freshness_state.json прошлого прогона')
+    ap.add_argument('--production-root', help='корень прод-дерева для прямых источников '
+                                              '(если не пересобираем улики)')
+    ap.add_argument('--pipeline', help='JSON: наблюдённые стадии конвейера разработки')
+    ap.add_argument('--memory', help='JSON: наблюдённые системы памяти')
+    ap.add_argument('--v13', action='store_true',
+                    help='собрать слой v1.3: мост, конвейер, здоровье служб и очередь '
+                         'решений выводятся ИЗ УЛИК, а не подаются параметрами')
+    ap.add_argument('--bridge-root', help='корень Studio Bridge (только чтение, на копии)')
+    ap.add_argument('--repository', action='append', default=[],
+                    help='репозиторий для сверки коммитов доставки (только чтение)')
+    ap.add_argument('--ledger', help='журнал закрытых дней истории (вне репозитория)')
+    ap.add_argument('--health-contracts', help='объявленные контракты здоровья')
     ap.add_argument('--verdict-exit-code', action='store_true',
                     help='вернуть вердикт кодом возврата (0/3/2). НЕ для launchd: там '
                          'любой ненулевой код читается как поломка агента')
@@ -498,12 +621,17 @@ def main(argv=None):
         raise SystemExit('нужен либо --bundle, либо --rebuild-from')
     try:
         projection, page, state = build_bundle(
+            production_root=args.rebuild_from or args.production_root,
+            pipeline=load(args.pipeline), memory=load(args.memory),
             published_digest_override=(read_published_digest(args.published)
                                        if args.published
                                        else read_serving_digest(args.activate_root)),
             bundle=bundle, output=args.output, bridge=load(args.bridge),
             intake=load(args.intake), architect=load(args.architect), cio=load(args.cio),
-            state_path=args.state, published=args.published)
+            state_path=args.state, published=args.published,
+            v13=args.v13, bridge_root=args.bridge_root,
+            repositories=tuple(args.repository),
+            ledger_path=args.ledger, health_contracts=args.health_contracts)
     except (PublishError, projection_mod.WebProjectionError,
             shell_mod.ShellError, ValueError) as exc:
         raise SystemExit(f'INCOMPATIBLE INPUT: {exc}\nКомплект не собран.')

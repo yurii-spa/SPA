@@ -26,6 +26,18 @@
 # Вердикт читается в логе и в freshness_state.json. Флага --verdict-exit-code здесь нет
 # намеренно.
 #
+# ПОЧЕМУ ЗДЕСЬ ЕСТЬ --v13 (добавлено 22.09, v1.3.1). Слой v1.3 строится ТОЛЬКО по этому
+# флагу (`director_publish.build(..., v13=False)` по умолчанию), а без него страница рисуется
+# оболочкой v1.2 и НИ ОДИН модуль v1.3 не исполняется. Замер 22.09: код v1.3 был доставлен в
+# прод-дерево целиком, приёмка была зелёной, `/health` отвечал ok — и при этом владелец видел
+# путь v1.2, потому что решает не наличие кода, а ЭТА строка. Поэтому обёртка входит в
+# население выпуска: она выбирает исполняемый путь, значит она часть выпуска, а не окружения.
+#
+# ЧЕГО ЗДЕСЬ НЕТ НАМЕРЕННО: --health-contracts. Контракты здоровья не проведены (NOT_WIRED),
+# и отсутствие файла даёт `declared_contracts: 0` с названной причиной, а не выдуманный
+# вердикт здоровья. Включать функцию молча, чтобы «было богаче», запрещено: живым
+# представляется только проведённое.
+#
 # Лог: /tmp/spa_director_build.log
 RUN_SCRIPT="/Users/yuriikulieshov/Documents/SPA_Claude/scripts/cartographer/director_publish.py"
 PRODUCTION="/Users/yuriikulieshov/Documents/SPA_Claude"
@@ -41,4 +53,5 @@ exec /Users/yuriikulieshov/miniconda3/bin/python3 \
     --output "$WORK_ROOT/bundle-$STAMP" \
     --activate-root "$SERVE_ROOT" \
     --state "$STATE" \
+    --v13 \
     >> /tmp/spa_director_build.log 2>&1

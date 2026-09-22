@@ -1082,11 +1082,86 @@ def census(root: Path) -> dict:
             "rows": rows, "outer": outer, "unread": unread}
 
 
+#: Версия схемы базы храповика. Личность находки сменилась с АДРЕСА СТРОКИ на
+#: СЕМАНТИЧЕСКУЮ, и сравнивать их между собой нельзя: это разные оси. Поэтому
+#: версия проверяется, а несовпадение даёт НЕ ИЗМЕРЕНО, а не «чисто».
+BASELINE_SCHEMA = "python-git-ref-provenance-baseline/2"
+
+_SUBJECT_VERDICTS = ("asked_not_gated", "cache_only", "unmeasured")
+
+
+def semantic_key(r) -> str:
+    """Личность находки, ПЕРЕЖИВАЮЩАЯ посторонний сдвиг строк.
+
+    Форма: ``файл::функция::подкоманда:ссылка``.
+
+    ПОЧЕМУ НЕ НОМЕР СТРОКИ. Прежняя личность была ``файл:строка``, и замер
+    2026-09-21 показал её дефект прямо: база несла
+    ``check_owner_gate.py:238`` и ``:244``, прибор нашёл ``:242`` и ``:248``, и
+    храповик объявил РОСТ предмета на два зова. Новых зовов не появилось —
+    правка ВЫШЕ по файлу сдвинула оба на +4. Доказательство не в догадке, а в
+    популяции: у этого файла зовов предмета было 2 и осталось 2, и это
+    единственный файл репозитория, чья популяция изменилась вовсе
+    (``snapshot.py``: 0 → 4). То есть прежняя мерка отвечала на вопрос «сдвинулись
+    ли строки», а заказ #583 спрашивает «появился ли новый зов, читающий ссылку
+    без доказанной свежести».
+
+    Четыре требования к личности выполняются формой выше:
+      · тот же зов, сдвинутый строками → ТА ЖЕ личность (номер не входит);
+      · новый зов → НОВАЯ личность (иная функция, подкоманда или ссылка);
+      · удалённый зов → исчезает;
+      · изменилось НАЗНАЧЕНИЕ зова → изменилась личность (``diff`` ≠ ``show``).
+    """
+    return (f"{r['file']}::{r.get('func') or '<module>'}"
+            f"::{r.get('sub')}:{r.get('ref')}")
+
+
+def _resolved(r) -> bool:
+    """Разобран ли зов до конца: известны И подкоманда, И ссылка."""
+    return r.get("sub") is not None and r.get("ref") is not None
+
+
 def subject_keys(rows) -> list:
-    """Предмет ЭТОГО прибора — ось СВЕЖЕСТИ, и только она (как в ADR-361)."""
-    return sorted({f"{r['file']}:{r['line']}" for r in rows
-                   if r["verdict"] in ("asked_not_gated", "cache_only",
-                                       "unmeasured")})
+    """Предмет ЭТОГО прибора — ось СВЕЖЕСТИ, и только она (как в ADR-361).
+
+    Возвращаются личности зовов, РАЗОБРАННЫХ до конца. Неразобранные уходят в
+    :func:`unresolved_keys` отдельным исходом: смешивать «прочитан кэш» и «зов не
+    разобран» значило бы выдать НЕ ИЗМЕРЕНО за измерение (инв. #17).
+    """
+    return sorted({semantic_key(r) for r in rows
+                   if r["verdict"] in _SUBJECT_VERDICTS and _resolved(r)})
+
+
+def unresolved_keys(rows) -> list:
+    """Зовы, которые статический разбор НЕ довёл до подкоманды и ссылки.
+
+    Это ТРЕТИЙ исход, а не подвид предмета. Они не объявляются безопасными и не
+    объявляются читающими кэш: про них не измерено ничего, кроме того, что они
+    ходят к git через дверь. Раздел сторожится теми же правилами, что предмет:
+    его рост — тоже красный, иначе «ослепить разборщик» стало бы способом спрятать
+    зов.
+    """
+    return sorted({f"{semantic_key(r)}#{n}"
+                   for n, r in _numbered(rows)})
+
+
+def _numbered(rows):
+    """(порядковый номер в группе, строка) для неразобранных зовов.
+
+    Номер нужен потому, что у неразобранного зова подкоманда и ссылка неизвестны,
+    и три соседних зова в одной функции дали бы одну личность на троих — потеря,
+    которую храповик обязан видеть. Номер устойчив к посторонним сдвигам: он
+    считается в порядке строк ВНУТРИ группы, а не от начала файла.
+    """
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for r in sorted((x for x in rows
+                     if x["verdict"] in _SUBJECT_VERDICTS and not _resolved(x)),
+                    key=lambda x: (x["file"], x["line"])):
+        groups[semantic_key(r)].append(r)
+    for key, rs in groups.items():
+        for i, r in enumerate(rs, 1):
+            yield i, r
 
 
 ORDER = ["asked_and_gated", "asked_not_gated", "cache_only", "unmeasured"]
@@ -1123,6 +1198,7 @@ def main(argv=None) -> int:
 
     rows = rep["rows"]
     subject = subject_keys(rows)
+    unresolved = unresolved_keys(rows)
     groups = {}
     for r in rows:
         groups.setdefault(r["verdict"], []).append(r)
@@ -1138,7 +1214,41 @@ def main(argv=None) -> int:
             ratchet_err = f"базы храповика нет: {args.baseline!r}"
         else:
             try:
-                frozen = sorted(set(json.loads(bp.read_text("utf-8"))["subject"]))
+                _b = json.loads(bp.read_text("utf-8"))
+                if _b.get("schema") != BASELINE_SCHEMA:
+                    # Личность находки сменилась с адреса строки на семантическую.
+                    # Сравнить старую базу с новым предметом значило бы сравнить
+                    # ДВЕ РАЗНЫЕ ОСИ и получить ложный рост (или ложную чистоту).
+                    ratchet_err = (
+                        f"схема базы {_b.get('schema')!r} не {BASELINE_SCHEMA!r}: "
+                        "личность находки сменилась с адреса строки на семантическую, "
+                        "и сравнение по разным осям невыразимо — база обязана быть "
+                        "перенесена явно")
+                    frozen = None
+                else:
+                    # Разделы С ПРИЧИНОЙ: запись без названной непустой причины НЕ
+                    # считается принятой. Замер 2026-09-21 (проверка реестра 2б):
+                    # прибор читал только КЛЮЧИ этих словарей, поэтому запись с
+                    # пустой причиной принималась МОЛЧА — то есть
+                    # `admitted_after_migration` работал как автоматический слив
+                    # для любой новой находки, чем он быть не должен. Причина не
+                    # достраивается и не выводится: пустая причина неотличима от
+                    # недосмотра, и исход тут — НЕ ИЗМЕРЕНО, а не вердикт.
+                    reasoned, unreasoned = set(), []
+                    for _sect in ("admitted_after_migration", "unresolved"):
+                        for _key, _why in (_b.get(_sect) or {}).items():
+                            if isinstance(_why, str) and _why.strip():
+                                reasoned.add(_key)
+                            else:
+                                unreasoned.append(f"{_sect}:{_key}")
+                    if unreasoned:
+                        ratchet_err = (
+                            f"{len(unreasoned)} запис(ей) без названной причины: "
+                            + ", ".join(sorted(unreasoned)[:5])
+                            + " — раздел с причиной не есть слив")
+                        frozen = None
+                    else:
+                        frozen = sorted(set(_b["subject"]) | reasoned)
             except Exception as exc:                      # noqa: BLE001
                 ratchet_err = f"база храповика не разобрана ({exc})"
 
@@ -1158,7 +1268,8 @@ def main(argv=None) -> int:
             "mutating": sum(1 for r in rows if r["mutating"] is True),
             "mutating_unmeasured": sum(1 for r in rows if r["mutating"] is None),
             "proven_both_axes": proven_both,
-            "subject": subject, "unread": rep["unread"],
+            "subject": subject, "unresolved": unresolved,
+            "unread": rep["unread"],
         }, ensure_ascii=False, indent=2))
     else:
         print(f"origin/main ИЗ PYTHON: кэш или вопрос к серверу — мерено из "
@@ -1196,11 +1307,14 @@ def main(argv=None) -> int:
         return 2
 
     if frozen is not None:
-        new = [k for k in subject if k not in frozen]
+        # Обе оси сторожатся ВМЕСТЕ: иначе перенос зова из «разобран» в
+        # «не разобран» стал бы способом спрятать его от храповика.
+        current = sorted(set(subject) | set(unresolved))
+        new = [k for k in current if k not in frozen]
         if new:
             say(f"\n🔴 ХРАПОВИК: предмет ВЫРОС на {len(new)} — " + ", ".join(new))
             return 3
-        gone = [k for k in frozen if k not in subject]
+        gone = [k for k in frozen if k not in current]
         if gone:
             say(f"\n🟢 предмет сократился на {len(gone)}: " + ", ".join(gone)
                 + " — обнови базу")

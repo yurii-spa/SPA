@@ -68,6 +68,11 @@ def _now():
     return dt.datetime.now(dt.timezone.utc)
 
 
+#: Обёртки launchd, входящие в население выпуска Director. Решают, КАКОЙ путь кода
+#: исполняется, поэтому идентичность выпуска без них неполна (замер 22.09).
+WRAPPERS = ('scripts/agent_director_build.sh', 'scripts/agent_director_server.sh')
+
+
 def _sha256(path):
     h = hashlib.sha256()
     with open(path, 'rb') as handle:
@@ -92,6 +97,27 @@ def build_release_manifest(production, bundle, base_sha, *, tests=None,
     for p in sorted(troot.glob('*.py')) if troot.is_dir() else []:
         files.append({'path': f'tests/cartographer/{p.name}',
                       'sha256': _sha256(p), 'size_bytes': p.stat().st_size})
+    # Обёртки launchd — ЧАСТЬ ВЫПУСКА, а не окружения: они выбирают исполняемый путь.
+    # Замер 22.09 (v1.3.1): весь код v1.3 лежал в прод-дереве, приёмка была зелёной,
+    # /health отвечал ok — и владелец видел путь v1.2, потому что обёртка сборки не
+    # передавала --v13. Идентичность выпуска, не включающая обёртку, не различает
+    # «v1.3 исполняется» и «v1.3 лежит рядом». Режим файла включён по той же причине,
+    # по которой он часть доставки: 100644 у обёртки launchd = мёртвый агент.
+    wrappers_missing = []
+    for name in WRAPPERS:
+        w = production / name
+        if w.exists():
+            files.append({'path': name, 'sha256': _sha256(w),
+                          'size_bytes': w.stat().st_size,
+                          'mode': oct(w.stat().st_mode & 0o777),
+                          'role': 'launchd_wrapper_selects_runtime_path'})
+        else:
+            # Третий исход живёт СВОИМ полем, а не строкой в ``files``. Контракт
+            # ``files`` тотален: каждая перечисленная строка несёт настоящий sha256
+            # (``test_the_manifest_lists_the_files_it_claims``). Положить туда None
+            # значило бы сломать контракт, чтобы отчитаться об отсутствии — то есть
+            # починить одно, сломав другое. Отсутствие НАЗВАНО, но не подделано.
+            wrappers_missing.append(name)
 
     layers, limitations, gaps, conditions = [], [], [], []
     prohibited, ready_actions = [], []
@@ -152,6 +178,10 @@ def build_release_manifest(production, bundle, base_sha, *, tests=None,
                    for ph, title, mods in PHASES],
         'files': files,
         'file_count': len(files),
+        # Объявленное население выпуска, которого в дереве НЕ НАШЛОСЬ. Пустой список =
+        # измерено и равно нулю; непустой = выпуск неполон и это видно, а не утоплено
+        # в общем числе файлов (инв. #17).
+        'release_population_missing': wrappers_missing,
         'layers': layers,
         'pages': list(pages or ()),
         'page_count': len(pages or ()),

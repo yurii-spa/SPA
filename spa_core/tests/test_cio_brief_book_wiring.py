@@ -299,19 +299,52 @@ class TestLpCycleWritesItsOwnLedger:
         brief = build_books_brief(tmp_path)
         assert brief["aggressive"]["available"] is True
 
-    def test_same_day_rerun_is_idempotent_and_shows_no_move(self, lp, tmp_path):
-        """Re-running the same calendar date must replace (not duplicate) the
-        ledger line, and since no NEW rebalance decision was made, current
-        must equal target — an honest HOLD, not a repeated ACT."""
+    def test_same_day_rerun_keeps_both_runs_and_shows_no_move(self, lp, tmp_path):
+        """Второй прогон того же дня ОСТАЁТСЯ строкой — это контракт ADR-395.
+
+        ПРЕЖНЯЯ РЕДАКЦИЯ ждала ровно одной строки («replace, not duplicate»).
+        Это контракт ДО ADR-395, и он был отменён по измеренному ущербу, который
+        сам писатель называет в докстринге `append_rationale_history`:
+
+          · ключом была одна ``cycle_date``, поэтому последний прогон дня стирал
+            все предыдущие;
+          · замер ADR-314 — **206 прогонов вне журнала на 17 днях**, худший день
+            36 прогонов и ОДНА строка;
+          · замер ADR-383 — единственный ACT за сорок дней стёрт повторным
+            прогоном того же дня;
+          · носитель теневой цели прогона был один, поэтому стёртые вердикты не
+            восстановимы: правило действует ВПЕРЁД;
+          · разрешение владельца — ADR-392, решение 3, вариант A.
+
+        Действующий контракт: идемпотентность по ПАРЕ ``(cycle_date,
+        run_identity)``. Тот же прогон заменяется, ДРУГОЙ прогон того же дня
+        сохраняется. Ослабления здесь нет: проверок стало больше — добавлена
+        идемпотентность по тому же прогону, которой в прежней редакции не было.
+        """
         _write_ranking(tmp_path, ("aerodrome", 11.0), ("aave", 9.0))
         lp.run_lp_cycle(dry_run=False)
-        lp.run_lp_cycle(dry_run=False)   # same day
+        lp.run_lp_cycle(dry_run=False)   # ДРУГОЙ прогон того же дня
 
         ledger = tmp_path / "allocation_rationale_history_aggressive.jsonl"
         lines = [ln for ln in ledger.read_text().splitlines() if ln.strip()]
-        assert len(lines) == 1
-        rec = json.loads(lines[0])
-        assert rec["current_positions"] == rec["target_positions"]
+        assert len(lines) == 2, (
+            "второй прогон дня стёрт — это контракт до ADR-395, вернувший бы "
+            "дефект, на котором потерялись 206 прогонов")
+        dates = {json.loads(ln)["cycle_date"] for ln in lines}
+        assert len(dates) == 1, "прогоны обязаны относиться к одному дню"
+
+        # Идемпотентность по ТОМУ ЖЕ прогону: повторная запись той же строки
+        # не имеет права удвоить её. Без этой проверки «две строки» было бы
+        # неотличимо от «писатель вообще не дедуплицирует».
+        from spa_core.paper_trading.allocation_rationale import append_rationale_history
+        same = json.loads(lines[-1])
+        n = append_rationale_history(same, tmp_path, book_id="aggressive")
+        assert n == 2, f"тот же прогон записан второй раз и удвоился: строк {n}"
+
+        rec = json.loads(lines[-1])
+        assert rec["current_positions"] == rec["target_positions"], (
+            "нового решения о ребалансе не принималось — это честный HOLD, "
+            "а не повторный ACT")
 
 
 def test_hy_and_lp_ledgers_never_collide_when_run_together(monkeypatch, tmp_path):

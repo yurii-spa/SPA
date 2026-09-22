@@ -29,8 +29,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from python_git_ref_provenance import (          # noqa: E402
-    census, subject_keys, main, ref_candidates, remote_ref, subcommand, DYN,
-)
+    census, subject_keys, main, ref_candidates, remote_ref, subcommand, DYN, unresolved_keys)
 
 BASELINE = REPO / "scripts" / "python_git_ref_provenance_baseline.json"
 
@@ -422,7 +421,11 @@ class TestRatchet(unittest.TestCase):
 
     def test_empty_baseline_names_every_subject_call(self):
         empty = self.tmp / "empty.json"
-        empty.write_text(json.dumps({"subject": []}), encoding="utf-8")
+        # Схема ОБЯЗАТЕЛЬНА (v2): без неё прибор верно отвечает НЕ ИЗМЕРЕНО, а не
+        # «храповик вырос» — сравнение по разным осям личности невыразимо.
+        import python_git_ref_provenance as P
+        empty.write_text(json.dumps({"schema": P.BASELINE_SCHEMA, "subject": []}),
+                         encoding="utf-8")
         rc, out, err = self.run_main(["--root", str(REPO), "--json",
                                       "--baseline", str(empty)])
         self.assertEqual(3, rc)
@@ -459,12 +462,69 @@ class TestRatchet(unittest.TestCase):
         json.loads(out.getvalue())          # упадёт, если документов два
 
     def test_subject_is_the_freshness_axis_only(self):
-        """Ось ЛИЧНОСТИ в предмет храповика НЕ входит — как в ADR-361."""
-        rows = [{"file": "a.py", "line": 1, "verdict": "asked_and_gated",
+        """Ось ЛИЧНОСТИ в предмет храповика НЕ входит — как в ADR-361.
+
+        Личность находки с 21.09 семантическая (`файл::функция::подкоманда:ссылка`),
+        поэтому ожидание записано в ней; ось `basis` по-прежнему не участвует.
+        """
+        rows = [{"file": "a.py", "line": 1, "func": "f", "sub": "diff",
+                 "ref": "origin/main", "verdict": "asked_and_gated",
                  "basis": "by_config"},
-                {"file": "b.py", "line": 2, "verdict": "cache_only",
+                {"file": "b.py", "line": 2, "func": "g", "sub": "show",
+                 "ref": "origin/main", "verdict": "cache_only",
                  "basis": "by_url"}]
-        self.assertEqual(["b.py:2"], subject_keys(rows))
+        self.assertEqual(["b.py::g::show:origin/main"], subject_keys(rows))
+
+    # ── четыре требования к семантической личности (решение ARB §1B) ──────────
+    def _row(self, line, func="_acquire", sub="diff", ref="origin/main",
+             verdict="cache_only", file="scripts/check_owner_gate.py"):
+        return {"file": file, "line": line, "func": func, "sub": sub,
+                "ref": ref, "verdict": verdict, "basis": "by_config"}
+
+    def test_the_same_call_moved_by_lines_keeps_its_identity(self):
+        """Главный контроль миграции: посторонний сдвиг строк НЕ рождает находку.
+
+        Воспроизводит настоящую аварию 21.09: база несла :238 и :244, прибор нашёл
+        :242 и :248, и прежний храповик объявил рост предмета на два зова, хотя
+        новых зовов не появилось.
+        """
+        before = subject_keys([self._row(238), self._row(244, sub="show")])
+        after = subject_keys([self._row(242), self._row(248, sub="show")])
+        self.assertEqual(before, after, "сдвиг строк изменил личность находки")
+
+    def test_a_new_semantic_call_gets_a_new_identity(self):
+        old = subject_keys([self._row(242)])
+        new = subject_keys([self._row(242), self._row(300, func="_other")])
+        self.assertEqual(len(new) - len(old), 1)
+        self.assertNotIn("scripts/check_owner_gate.py::_other::diff:origin/main", old)
+
+    def test_a_deleted_call_disappears(self):
+        self.assertEqual([], subject_keys([]))
+
+    def test_changed_call_purpose_changes_the_identity(self):
+        """`diff` и `show` — разные назначения, значит разные личности."""
+        a = subject_keys([self._row(242, sub="diff")])
+        b = subject_keys([self._row(242, sub="show")])
+        self.assertNotEqual(a, b)
+
+    def test_unresolved_calls_are_a_third_outcome_not_the_subject(self):
+        """Неразобранный зов не «безопасен» и не «читает кэш» — он НЕ ИЗМЕРЕН."""
+        rows = [self._row(192, func="drift", sub=None, ref=None,
+                          verdict="unmeasured", file="s.py"),
+                self._row(193, func="drift", sub=None, ref=None,
+                          verdict="unmeasured", file="s.py")]
+        self.assertEqual([], subject_keys(rows), "неразобранное попало в предмет")
+        self.assertEqual(2, len(unresolved_keys(rows)),
+                         "три соседних зова слиплись бы в одну личность без номера")
+
+    def test_a_baseline_without_the_schema_is_unmeasured_not_clean(self):
+        """Старая база (адреса строк) обязана давать НЕ ИЗМЕРЕНО, а не вердикт."""
+        old = self.tmp / "v1.json"
+        old.write_text(json.dumps({"subject": ["scripts/x.py:1"]}), encoding="utf-8")
+        rc, out, err = self.run_main(["--root", str(REPO), "--json",
+                                      "--baseline", str(old)])
+        self.assertEqual(2, rc)
+        self.assertIn("НЕ ИЗМЕРЕНО", out + err)
 
     def test_prescreen_does_not_change_the_answer(self):
         """Отбор модулей — ради времени, а не ради сокрытия.
@@ -483,3 +543,117 @@ class TestRatchet(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class RegistryGovernance(unittest.TestCase):
+    """Разделы базы С ПРИЧИНОЙ не являются автоматическим сливом.
+
+    Замер 2026-09-21 (проверка реестра ARB §2б): прибор читал только КЛЮЧИ
+    словарей `admitted_after_migration` и `unresolved` и принимал запись с ПУСТОЙ
+    причиной молча — то есть любую новую находку можно было «принять», ничего не
+    объяснив. Причина не достраивается и не выводится: пустая причина неотличима
+    от недосмотра, поэтому исход — НЕ ИЗМЕРЕНО (код 2), а не вердикт.
+    """
+
+    def setUp(self):
+        import python_git_ref_provenance as P
+        self.P = P
+        self.tmp = Path(tempfile.mkdtemp(prefix="reg-gov-"))
+        self.real = json.loads(BASELINE.read_text(encoding="utf-8"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run(self, doc):
+        b = self.tmp / "b.json"
+        b.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            rc = self.P.main(["--root", str(REPO), "--json", "--baseline", str(b)])
+        return rc, buf.getvalue()
+
+    def test_an_intact_baseline_passes(self):
+        """Положительный контроль: без него все отказы ниже истинны по построению."""
+        rc, _ = self._run(self.real)
+        self.assertEqual(0, rc)
+
+    def test_an_empty_admitted_reason_is_unmeasured_not_pass(self):
+        doc = json.loads(json.dumps(self.real))
+        doc["admitted_after_migration"]["scripts/fake.py::f::diff:origin/main"] = ""
+        rc, out = self._run(doc)
+        self.assertEqual(2, rc, "пустая причина принята как вердикт")
+        self.assertIn("без названной причины", out)
+        self.assertIn("scripts/fake.py::f::diff:origin/main", out)
+
+    def test_an_empty_unresolved_reason_is_unmeasured_not_pass(self):
+        doc = json.loads(json.dumps(self.real))
+        doc["unresolved"]["scripts/fake.py::g::show:origin/main"] = "   "
+        rc, out = self._run(doc)
+        self.assertEqual(2, rc, "причина из пробелов принята как вердикт")
+        self.assertIn("без названной причины", out)
+
+    def test_a_non_string_reason_is_unmeasured_not_pass(self):
+        doc = json.loads(json.dumps(self.real))
+        doc["unresolved"]["scripts/fake.py::h::show:origin/main"] = None
+        rc, _ = self._run(doc)
+        self.assertEqual(2, rc)
+
+    def test_the_instrument_never_writes_the_baseline(self):
+        """Слива нет ПО ПОСТРОЕНИЮ: прибор базу только читает."""
+        src = (REPO / "scripts" / "python_git_ref_provenance.py").read_text(encoding="utf-8")
+        self.assertNotIn("--write", src)
+        for bad in ("baseline.write_text", "bp.write_text"):
+            self.assertNotIn(bad, src)
+
+
+class RegistryReactsToTheCensus(unittest.TestCase):
+    """Реагирует ли РЕЕСТР на новую личность — независимо от полноты цензуса.
+
+    Вопрос узкий и потому отвечаемый: если цензус выдал новую НЕРАЗОБРАННУЮ
+    личность, краснеет ли храповик и названа ли она. Цензус подменяется, потому
+    что его полнота — отдельный предмет (см. запись о слепом пятне динамического
+    argv), и проверять реестр через неё значило бы мерить два свойства одной
+    пробой.
+    """
+
+    def setUp(self):
+        import python_git_ref_provenance as P
+        self.P = P
+        self.real_census = P.census
+
+    def tearDown(self):
+        self.P.census = self.real_census
+
+    def _run_with(self, extra=(), drop=()):
+        real = self.real_census
+        def fake(root):
+            rep = real(root)
+            rows = [r for r in rep["rows"] if self.P.semantic_key(r) not in drop]
+            rep = dict(rep)
+            rep["rows"] = rows + list(extra)
+            return rep
+        self.P.census = fake
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            rc = self.P.main(["--root", str(REPO), "--json", "--baseline", str(BASELINE)])
+        return rc, buf.getvalue()
+
+    _NEW = {"file": "scripts/synthetic_probe.py", "line": 1, "func": "reader",
+            "sub": None, "ref": None, "verdict": "unmeasured", "basis": "by_var",
+            "mutating": False, "why": "синтетическая строка цензуса"}
+
+    def test_a_new_unresolved_identity_turns_the_ratchet_red_and_is_named(self):
+        rc, out = self._run_with(extra=[self._NEW])
+        self.assertEqual(3, rc, "новая неразобранная личность не покраснила храповик")
+        self.assertIn("scripts/synthetic_probe.py::reader::None:None#1", out)
+
+    def test_removing_an_unresolved_identity_reduces_the_debt(self):
+        frozen = json.loads(BASELINE.read_text(encoding="utf-8"))
+        first = sorted(frozen.get("unresolved") or {})[0].rsplit("#", 1)[0]
+        rc, out = self._run_with(drop={first})
+        self.assertEqual(0, rc)
+        self.assertIn("сократил", out, "сокращение долга не объявлено")
+
+    def test_the_unchanged_census_is_green(self):
+        """Контроль: обе сцены выше меняют вердикт, а не воспроизводят общий фон."""
+        rc, _ = self._run_with()
+        self.assertEqual(0, rc)

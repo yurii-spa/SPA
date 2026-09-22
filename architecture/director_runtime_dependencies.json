@@ -1,0 +1,391 @@
+{
+ "schema": "director-runtime-dependency-inventory/1",
+ "measured_at": "2026-09-22",
+ "note": "замер по КОДУ: строковые пути извлечены AST/регекспом из модулей кокпита, флаги — из argparse публикатора, переданные — из текста обёртки. Классы назначены с уликой у каждого входа.",
+ "build_wrapper": {
+  "path": "scripts/agent_director_build.sh",
+  "class": "CODE",
+  "consumer": "launchd com.spa.director_build",
+  "required": true,
+  "owner_visible_effect": "РЕШАЮЩИЙ: выбирает путь кода. Без --v13 слой v13 не строится и страница рисуется оболочкой v1.2 — ни один модуль v1.3 не исполняется",
+  "freshness_semantics": "нет (код)",
+  "content_identity_semantics": "байты+режим",
+  "release_population_member": true,
+  "rollback_population_member": true,
+  "cli_flags_available": [
+   "--activate-root",
+   "--architect",
+   "--bridge",
+   "--bridge-root",
+   "--bundle",
+   "--cio",
+   "--health-contracts",
+   "--intake",
+   "--ledger",
+   "--memory",
+   "--output",
+   "--pipeline",
+   "--production-root",
+   "--published",
+   "--rebuild-from",
+   "--repository",
+   "--state",
+   "--v13",
+   "--verdict-exit-code",
+   "--work-root"
+  ],
+  "cli_flags_passed": [
+   "--activate-root",
+   "--output",
+   "--rebuild-from",
+   "--state",
+   "--verdict-exit-code",
+   "--work-root"
+  ],
+  "cli_flags_not_passed": [
+   "--architect",
+   "--bridge",
+   "--bridge-root",
+   "--bundle",
+   "--cio",
+   "--health-contracts",
+   "--intake",
+   "--ledger",
+   "--memory",
+   "--pipeline",
+   "--production-root",
+   "--published",
+   "--repository",
+   "--v13"
+  ]
+ },
+ "server_wrapper": {
+  "path": "scripts/agent_director_server.sh",
+  "class": "CODE",
+  "consumer": "launchd com.spa.director_server",
+  "required": true,
+  "owner_visible_effect": "задаёт корень раздачи и порт; содержимое страницы не меняет",
+  "freshness_semantics": "нет (код)",
+  "content_identity_semantics": "байты+режим",
+  "release_population_member": true,
+  "rollback_population_member": true
+ },
+ "code_population": {
+  "paths": [
+   "scripts/cartographer/*.py",
+   "tests/cartographer/*.py"
+  ],
+  "class": "CODE",
+  "required": true,
+  "declared_by": "release.build_release_manifest (release.py:87-94)",
+  "release_population_member": true,
+  "rollback_population_member": true
+ },
+ "external_inputs": [
+  {
+   "path": "architecture/manifest.json",
+   "class": "CANONICAL_EXTERNAL_INPUT",
+   "consumers": [
+    "authority_map.py",
+    "bridge_evidence.py",
+    "brief.py",
+    "build_stages.py",
+    "diff.py",
+    "director_server.py",
+    "director_v13.py",
+    "director_verify.py",
+    "owner_briefing.py",
+    "portal.py",
+    "portal_extract.py",
+    "portal_render.py",
+    "release.py",
+    "reliability.py",
+    "render.py",
+    "snapshot.py",
+    "source_of_truth.py",
+    "system_map.py"
+   ],
+   "required": true,
+   "owner_visible_effect": "объявленные производители и agents[].produces[].slo_hours ⇒ свежесть по SLO, разделы «Службы» и «Источник правды и расхождения», метрика entities_with_declared_slo",
+   "freshness_semantics": "генерируется из ЖИВОЙ машины (launchctl/plists); устаревает",
+   "content_identity_semantics": "sha256 байт + возраст; НЕ код",
+   "release_population_member": false,
+   "rollback_population_member": false,
+   "decision": "ВАРИАНТ 2 — провенанс комплекта связывает выпуск с его идентичностью",
+   "consumers_by_literal_path": [
+    "authority_map.py",
+    "portal_extract.py",
+    "reliability.py",
+    "snapshot.py",
+    "source_of_truth.py"
+   ],
+   "consumers_by_name_mention": [
+    "authority_map.py",
+    "bridge_evidence.py",
+    "brief.py",
+    "build_stages.py",
+    "diff.py",
+    "director_server.py",
+    "director_v13.py",
+    "director_verify.py",
+    "owner_briefing.py",
+    "portal.py",
+    "portal_extract.py",
+    "portal_render.py",
+    "release.py",
+    "reliability.py",
+    "render.py",
+    "snapshot.py",
+    "source_of_truth.py",
+    "system_map.py"
+   ],
+   "measurement_limit": "ДВА КАНАЛА, и они дают разные числа: литеральный путь в тексте модуля — 5, упоминание имени файла — 18. Разница суть чтения через переменную или join. ТРАНЗИТИВНОЕ население (модуль, импортирующий читателя) шире обоих и здесь НЕ ИЗМЕРЕНО. Меньшее число не выдаётся за ответ."
+  },
+  {
+   "path": "architecture/health_contracts.json",
+   "class": "OPTIONAL_EXTERNAL_INPUT",
+   "consumers": [
+    "director_v13.py",
+    "health_contract.py"
+   ],
+   "required": false,
+   "owner_visible_effect": "сегодня НЕТ: флаг --health-contracts обёрткой не передаётся. При отсутствии — declared_contracts=0 с названной причиной, выдуманного вердикта здоровья не возникает",
+   "freshness_semantics": "объявление, меняется решением",
+   "content_identity_semantics": "sha256 байт, если подан",
+   "release_population_member": false,
+   "rollback_population_member": false,
+   "state": "NOT_WIRED"
+  }
+ ],
+ "runtime_only": [
+  {
+   "path": "~/studio-os-serve/director/",
+   "class": "RUNTIME_ONLY",
+   "note": "каталог раздачи и current.json; ВНЕ дерева репозитория ⇒ генерируемые данные в git не уходят"
+  },
+  {
+   "path": "~/studio-os-serve/work/",
+   "class": "RUNTIME_ONLY",
+   "note": "рабочий корень сборки"
+  },
+  {
+   "path": "~/studio-os-serve/freshness_state.json",
+   "class": "RUNTIME_ONLY",
+   "note": "состояние свежести между прогонами сборки"
+  }
+ ],
+ "generated_artifacts_in_bundle": [
+  {
+   "path": "index.html",
+   "class": "GENERATED_ARTIFACT",
+   "note": "страница; уезжает в publish/"
+  },
+  {
+   "path": "director_web_projection.json",
+   "class": "GENERATED_ARTIFACT",
+   "note": "улика; ОСТАЁТСЯ в evidence/, сервером не раздаётся (FORBIDDEN_NAMES)"
+  }
+ ],
+ "all_string_paths_referenced_by_cockpit_modules": {
+  "data/agent_registry.json": [
+   "authority_map.py",
+   "portal_extract.py",
+   "snapshot.py",
+   "source_of_truth.py"
+  ],
+  "data/allocation_rationale.json": [
+   "director_facts.py"
+  ],
+  "data/backups": [
+   "governance.py"
+  ],
+  "data/capital_config.json": [
+   "capital_truth.py",
+   "director_facts.py",
+   "director_publish.py"
+  ],
+  "data/code_sync_status.json": [
+   "authority_map.py",
+   "governance.py",
+   "snapshot.py",
+   "source_of_truth.py"
+  ],
+  "data/current_positions.json": [
+   "capital_truth.py",
+   "director_facts.py",
+   "director_publish.py"
+  ],
+  "data/dashboard_metrics_history.json": [
+   "director_publish.py"
+  ],
+  "data/deployment_acceptance.json": [
+   "governance.py"
+  ],
+  "data/dr_offsite_status.json": [
+   "governance.py"
+  ],
+  "data/equity_curve_daily.json": [
+   "director_facts.py",
+   "director_publish.py",
+   "history_durability.py"
+  ],
+  "data/gate_status.json": [
+   "owner_decisions.py"
+  ],
+  "data/golive_status.json": [
+   "director_publish.py"
+  ],
+  "data/investment_os/chief_investment.json": [
+   "role_lifecycle.py"
+  ],
+  "data/kill_switch_status.json": [
+   "governance.py"
+  ],
+  "data/live_trading_gate.json": [
+   "owner_decisions.py"
+  ],
+  "data/owner_blockers.json": [
+   "owner_decisions.py"
+  ],
+  "data/promotion_report.json": [
+   "director_publish.py"
+  ],
+  "data/red_flags.json": [
+   "director_publish.py"
+  ],
+  "data/restore_drill_status.json": [
+   "governance.py"
+  ],
+  "data/security_alerts.json": [
+   "governance.py"
+  ],
+  "data/session_changes.jsonl": [
+   "work.py"
+  ],
+  "data/system_health.json": [
+   "history_durability.py"
+  ],
+  "docs/08_ai_investment_os_architecture.md": [
+   "build_stages.py",
+   "role_lifecycle.py"
+  ],
+  "docs/10_agent_architecture.md": [
+   "build_stages.py",
+   "role_lifecycle.py"
+  ],
+  "docs/ADR_004_two_layer_agents.md": [
+   "build_stages.py",
+   "role_lifecycle.py"
+  ],
+  "docs/DASHBOARD_UX.md": [
+   "portal.py"
+  ],
+  "docs/DEPLOYMENT_RUNBOOK.md": [
+   "governance.py"
+  ],
+  "docs/DISASTER_RECOVERY.md": [
+   "governance.py"
+  ],
+  "docs/INCIDENT_RESPONSE.md": [
+   "governance.py"
+  ],
+  "docs/LIVE_LAUNCH_RUNBOOK.md": [
+   "governance.py"
+  ],
+  "docs/RUNBOOK.md": [
+   "governance.py"
+  ],
+  "docs/SITE_DESIGN_SYSTEM.md": [
+   "portal.py"
+  ],
+  "docs/STATE.md": [
+   "snapshot.py"
+  ],
+  "docs/SYSTEM_MAP.md": [
+   "snapshot.py",
+   "source_of_truth.py"
+  ],
+  "docs/TOKEN_ROTATION_RUNBOOK.md": [
+   "governance.py"
+  ],
+  "docs/adr": [
+   "governance.py"
+  ],
+  "docs/adr/*.md": [
+   "governance.py"
+  ],
+  "docs/decisions": [
+   "governance.py"
+  ],
+  "docs/decisions/*.md": [
+   "governance.py"
+  ],
+  "docs/decisions/INDEX.md": [
+   "governance.py",
+   "snapshot.py"
+  ],
+  "docs/ideas": [
+   "portal.py"
+  ],
+  "docs/operator_runbook.md": [
+   "governance.py"
+  ],
+  "docs/rules-draft": [
+   "portal.py"
+  ],
+  "landing/src/pages": [
+   "portal.py"
+  ],
+  "nimbalyst-local/tracker": [
+   "portal_extract.py",
+   "reliability.py",
+   "work.py"
+  ],
+  "nimbalyst-local/tracker/*.md": [
+   "reliability.py",
+   "work.py"
+  ],
+  "nimbalyst-local/tracker/_BOARD.md": [
+   "work.py"
+  ],
+  "scripts/cartographer": [
+   "release.py"
+  ],
+  "scripts/code_sync_from_origin.sh": [
+   "authority_map.py",
+   "governance.py",
+   "snapshot.py",
+   "source_of_truth.py"
+  ],
+  "scripts/inbox_acceptance_baseline.json": [
+   "work.py"
+  ],
+  "spa_core/investment_os/agents/chief_investment.py": [
+   "role_lifecycle.py"
+  ],
+  "spa_core/paper_trading": [
+   "role_lifecycle.py"
+  ],
+  "spa_core/paper_trading/_cycle_io.py": [
+   "history_durability.py"
+  ],
+  "spa_core/paper_trading/cycle_exit.py": [
+   "snapshot.py"
+  ],
+  "spa_core/strategy_lab": [
+   "role_lifecycle.py"
+  ],
+  "tests/cartographer": [
+   "release.py"
+  ]
+ },
+ "counts": {
+  "modules_scanned": 39,
+  "distinct_paths_referenced": 57,
+  "cli_flags_available": 20,
+  "cli_flags_passed": 6,
+  "cli_flags_not_passed": 14,
+  "manifest_consumers_by_literal": 5,
+  "manifest_consumers_by_mention": 18
+ }
+}

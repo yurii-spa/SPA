@@ -14,13 +14,50 @@ import pytest
 # Reset module-level logger state between tests
 @pytest.fixture(autouse=True)
 def reset_logging():
-    """Clear all spa.* loggers before each test."""
+    """Изолировать логгеры ``spa.*`` на время теста — И ВЕРНУТЬ ИХ КАК БЫЛО.
+
+    Прежняя редакция снимала обработчики и ставила ``propagate = False``, но
+    teardown'а не имела вовсе. Состояние логирования — ГЛОБАЛЬНОЕ и живёт в
+    процессе, поэтому после этого файла у каждого логгера ``spa.*`` оставалось
+    выключено распространение. ``caplog`` работает именно через распространение
+    к корневому логгеру, и всякий более поздний тест, утверждавший о записях,
+    видел пустоту.
+
+    Замер 2026-09-21 (полный предписанный прогон): так падали **18 тестов**, из
+    них шесть — из класса, обязательного для промоушена
+    (``test_owner_gate_bypass_key``, пять ``test_capital_mode_thresholds``).
+    Ни один из них не был сломан: у них отняли наблюдаемость. Дифференциальное
+    доказательство: тест сам по себе — зелёный, с этим файлом впереди — красный.
+
+    Поведение НА ВРЕМЯ теста сохранено (изоляция нужна: свой обработчик должен
+    быть единственным приёмником). Добавлен только возврат состояния.
+    """
+    saved = {}
     for name in list(logging.Logger.manager.loggerDict.keys()):
         if name.startswith("spa."):
             lgr = logging.getLogger(name)
+            saved[name] = (list(lgr.handlers), lgr.propagate, lgr.level, lgr.disabled)
             lgr.handlers.clear()
             lgr.propagate = False
-    yield
+    try:
+        yield
+    finally:
+        # 1. существовавшие до теста — вернуть ДОСЛОВНО.
+        for name, (handlers, propagate, level, disabled) in saved.items():
+            lgr = logging.getLogger(name)
+            lgr.handlers[:] = handlers
+            lgr.propagate = propagate
+            lgr.level = level
+            lgr.disabled = disabled
+        # 2. созданные ВНУТРИ теста — привести к состоянию по умолчанию, иначе
+        #    утечка просто переезжает на новые имена (`spa.*.cap` и подобные).
+        for name in list(logging.Logger.manager.loggerDict.keys()):
+            if name.startswith("spa.") and name not in saved:
+                lgr = logging.getLogger(name)
+                lgr.handlers.clear()
+                lgr.propagate = True          # умолчание logging
+                lgr.level = logging.NOTSET
+                lgr.disabled = False
 
 
 from spa_core.utils.logging import SPALogger, get_logger

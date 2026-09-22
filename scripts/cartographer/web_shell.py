@@ -115,12 +115,116 @@ def _card(title, body, note=None, tone=''):
     return (f'<section class="card {tone}"><h2>{e(title)}</h2>{note_html}{body}</section>')
 
 
+
+# ── Графики: только инлайн-SVG и только там, где ряд ДЕЙСТВИТЕЛЬНО ряд ────────
+#
+# Внешних библиотек нет по построению: страница обязана работать без сети. Одна точка
+# графиком не становится — из снимка «историю» не делают, и это проверяется числом.
+
+CHART_MIN_POINTS = 2
+
+
+def _sparkline(values, *, width=320, height=64, zero_line=False, label=''):
+    """Линия по ряду чисел. Меньше двух точек — честный отказ, а не пустая рамка."""
+    pts = [v for v in values if isinstance(v, (int, float))]
+    if len(pts) < CHART_MIN_POINTS:
+        return (f'<p class="muted">график не строится: точек {len(pts)}, нужно от '
+                f'{CHART_MIN_POINTS}. Один снимок историей не является</p>')
+    lo, hi = min(pts), max(pts)
+    span = (hi - lo) or 1.0
+    step = width / (len(pts) - 1)
+    coords = ' '.join(
+        f'{i * step:.1f},{height - (v - lo) / span * (height - 6) - 3:.1f}'
+        for i, v in enumerate(pts))
+    base = ''
+    if zero_line and lo <= 0 <= hi:
+        y = height - (0 - lo) / span * (height - 6) - 3
+        base = f'<line x1="0" y1="{y:.1f}" x2="{width}" y2="{y:.1f}" class="zero"/>'
+    area = f'0,{height} {coords} {width},{height}'
+    return (f'<svg class="spark" viewBox="0 0 {width} {height}" role="img" '
+            f'aria-label="{e(label)}" preserveAspectRatio="none">'
+            f'<polygon class="fill" points="{area}"/>{base}'
+            f'<polyline class="line" points="{coords}"/></svg>')
+
+
+def _bars(mapping, *, limit=8, label=''):
+    """Столбики по словарю-счётчику. Ноль и «не измерено» — разные вещи."""
+    items = [(k, v) for k, v in (mapping or {}).items() if isinstance(v, (int, float))]
+    if not items:
+        return '<p class="muted">не измерено</p>'
+    items.sort(key=lambda kv: -kv[1])
+    items = items[:limit]
+    top = max(v for _k, v in items) or 1
+    rows = ''.join(
+        f'<div class="bar"><span class="barname">{e(k)}</span>'
+        f'<span class="bartrack"><span class="barfill" style="width:{v / top * 100:.1f}%">'
+        f'</span></span><span class="barval">{e(_num(v))}</span></div>'
+        for k, v in items)
+    return f'<div class="bars" role="img" aria-label="{e(label)}">{rows}</div>'
+
+
+def _stat(value, caption, *, tone=''):
+    return (f'<div class="stat {tone}"><span class="statv">{e(_num(value))}</span>'
+            f'<span class="statc">{e(caption)}</span></div>')
+
+
+def _stats(items):
+    return '<div class="stats">' + ''.join(_stat(v, c, tone=t) for v, c, t in items) + '</div>'
+
+
+def _details(summary, body, *, note=None):
+    """Подробности прячутся по умолчанию: экран владельца — не выгрузка."""
+    note_html = f'<p class="note">{e(note)}</p>' if note else ''
+    return (f'<details class="drill"><summary>{e(summary)}</summary>'
+            f'{note_html}{body}</details>')
+
+
+def _pct(value, digits=2):
+    if value is None:
+        return 'не измерено'
+    try:
+        return f'{float(value):+.{digits}f} %'
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _money(value, currency=None):
+    if value is None:
+        return 'не измерено'
+    try:
+        body = f'{float(value):,.2f}'.replace(',', ' ')
+    except (TypeError, ValueError):
+        return str(value)
+    return f'{body} {currency}' if currency else body
+
+
 # ── CAPITAL ───────────────────────────────────────────────────────────────────
 def render_capital(layer):
     if layer.get('state') == 'NOT_READ':
         return _card('Капитал', f'<p class="muted">{e(layer.get("note"))}</p>', tone='unknown')
 
     out = []
+    hist = layer.get('history') or {}
+    summary = hist.get('summary') or {}
+    pos = layer.get('positions') or {}
+
+    # ── 1. ОБЗОР: первые секунды владельца ────────────────────────────────────
+    mode = hist.get('mode') or (pos.get('mode'))
+    out.append(_card(
+        'Сейчас',
+        _stats([
+            (summary.get('end_equity'), 'эквити, USDC', ''),
+            (pos.get('deployed_usd'), 'вложено', ''),
+            (pos.get('cash_usd'), 'в кэше', ''),
+            (summary.get('total_return_pct'), 'доход за всё, %',
+             'ok' if (summary.get('total_return_pct') or 0) > 0 else ''),
+            (summary.get('max_drawdown_pct'), 'макс. просадка, %', 'warn'),
+            (summary.get('evidenced_days'), 'дней подтверждено', ''),
+        ]),
+        note=(f'режим объявлен источником: {mode}. ' + (hist.get('mode_basis') or ''))
+             if mode else 'режим капитала не объявлен источником',
+        tone='ok'))
+
     if not layer.get('real_capital_proven'):
         out.append(_card(
             'REAL CAPITAL: NOT PROVEN',
@@ -132,46 +236,159 @@ def render_capital(layer):
     rows = ''.join(
         f'<div class="mode {"nil" if by_mode.get(m) is None else ""}">'
         f'<span class="k">{e(m)}</span>'
-        f'<span class="v">{e(_num(by_mode.get(m)))}</span></div>'
+        f'<span class="v">{e(_money(by_mode.get(m)))}</span></div>'
         for m in ('REAL', 'PAPER', 'SHADOW', 'FORECAST', 'RND', 'UNKNOWN')
         if m in by_mode)
     out.append(_card('Капитал по режимам', f'<div class="modes">{rows}</div>',
                      note='режимы НИКОГДА не складываются в одно число'))
 
-    metrics = layer.get('capital_metrics') or []
-    if metrics:
-        cells = ''.join(
-            f'<tr><td>{e(m.get("metric_type"))}</td><td>{e(m.get("mode"))}</td>'
-            f'<td class="num">{e(_num(m.get("value")))}</td>'
-            f'<td>{e(m.get("currency") or "не объявлена")}</td></tr>'
-            for m in metrics)
-        out.append(_card('Метрики капитала',
-                         '<table><thead><tr><th>величина</th><th>режим</th>'
-                         f'<th class="num">значение</th><th>валюта</th></tr></thead>'
-                         f'<tbody>{cells}</tbody></table>',
-                         note='«капитал» — не одно слово: настроено, эквити, позиции, кэш, '
-                              'доход и PnL это РАЗНЫЕ величины'))
+    # ── 2. ДОХОДНОСТЬ: графики только по настоящему ряду ──────────────────────
+    daily = hist.get('daily') or []
+    if hist.get('is_a_series'):
+        eq = [r.get('equity') or r.get('close_equity') for r in daily]
+        dd = [r.get('drawdown_pct') for r in daily]
+        windows = _return_windows(daily)
+        out.append(_card(
+            'Доходность',
+            _stats([(windows['d1'], 'за день, %', ''),
+                    (windows['d7'], 'за 7 дней, %', ''),
+                    (windows['d30'], 'за 30 дней, %', ''),
+                    (summary.get('total_return_pct'), 'с начала, %', '')])
+            + '<h3>Эквити</h3>' + _sparkline(eq, label='кривая эквити')
+            + f'<p class="note">{e(len(daily))} дневных точек · '
+              f'{e(summary.get("num_days"))} дней, из них подтверждено '
+              f'{e(summary.get("evidenced_days"))}</p>'
+            + '<h3>Просадка</h3>' + _sparkline(dd, zero_line=True, label='просадка')
+            + _details('Лучший и худший день', _kv([
+                ('лучший день', (summary.get('best_day') or {}).get('date')),
+                ('его доходность, %', (summary.get('best_day') or {}).get('daily_return_pct')),
+                ('худший день', (summary.get('worst_day') or {}).get('date')),
+                ('его доходность, %', (summary.get('worst_day') or {}).get('daily_return_pct')),
+                ('начальное эквити', summary.get('start_equity')),
+                ('текущее эквити', summary.get('end_equity')),
+            ])),
+            note='окна считаются по накопленной доходности ряда; дни без подтверждения '
+                 'в ряду остаются и помечены источником'))
+    else:
+        out.append(_card('Доходность',
+                         '<p class="muted">ряда нет: ' + e(hist.get('state', 'NOT_MEASURED'))
+                         + '</p>',
+                         note=e(hist.get('series_rule') or hist.get('note') or ''),
+                         tone='unknown'))
 
+    # ── 3. ПОЗИЦИИ И АЛЛОКАЦИЯ ────────────────────────────────────────────────
+    if pos.get('state') == 'READ' and pos.get('positions'):
+        rows = ''.join(
+            f'<tr><td>{e(r.get("protocol"))}</td>'
+            f'<td class="num">{e(_money(r.get("usd")))}</td>'
+            f'<td class="num">{e(_pct(r.get("apy_pct")))}</td>'
+            f'<td>{e(r.get("apy_source") or "не объявлен")}</td></tr>'
+            for r in pos['positions'])
+        alloc = {r.get('protocol'): r.get('usd') for r in pos['positions']}
+        out.append(_card(
+            'Куда вложено',
+            _bars(alloc, label='аллокация по протоколам')
+            + '<table><thead><tr><th>протокол</th><th class="num">сумма</th>'
+              '<th class="num">APY</th><th>источник APY</th></tr></thead>'
+              f'<tbody>{rows}</tbody></table>',
+            note='адресов кошельков и номеров счетов здесь нет ни одного — их не '
+                 'содержит и сам источник'))
+    else:
+        out.append(_card('Куда вложено', '<p class="muted">не измерено</p>', tone='unknown'))
+
+    # ── 4. СТРАТЕГИИ: группировкой, а не выгрузкой ───────────────────────────
+    counts = layer.get('counts') or {}
+    strategies = layer.get('strategies') or []
+    out.append(_card(
+        'Стратегии',
+        _bars(counts.get('by_lifecycle_state') or {}, label='по жизненному циклу')
+        + _kv([('объектов всего', counts.get('objects')),
+               ('доказанно уникальных id', counts.get('proven_unique_strategy_ids')),
+               ('с капиталом', counts.get('with_capital')),
+               ('противоречивых фактов', counts.get('conflicting_facts')),
+               ('режим не определён', counts.get('mode_unknown'))])
+        + _details(f'Разбор по режимам и продвижению',
+                   _bars(counts.get('by_mode') or {}, label='по режимам')
+                   + _bars(counts.get('by_promotion_status') or {}, label='по продвижению')
+                   + _bars(counts.get('by_owner_approval') or {}, label='по одобрению'),
+                   note=f'записей в снимке {len(strategies)}; полный список намеренно '
+                        'не разворачивается — это выгрузка, а не экран'),
+        note='Director OS НЕ Investment Engine: стратегии здесь только читаются'))
+
+    # ── 5. РИСК ───────────────────────────────────────────────────────────────
     ks = layer.get('kill_switch') or {}
     gl = layer.get('golive') or {}
-    out.append(_card('Стоп-кран и готовность', _kv([
+    risk = layer.get('risk_config') or {}
+    limits = risk.get('allocation_limits') or {}
+    params = risk.get('risk_parameters') or {}
+    flags = layer.get('red_flags') or {}
+    risk_body = _kv([
         ('стоп-кран сработал', ks.get('triggered')),
         ('основание', ks.get('reason')),
         ('гейты go-live', f"{_num(gl.get('passed'))} из {_num(gl.get('total'))}"),
         ('готовность объявлена', gl.get('ready')),
-    ]), note='только чтение: ни стоп-кран, ни капитал этой оболочкой не трогаются'))
+        ('дней реального трека', gl.get('real_track_days')),
+    ])
+    if limits or params:
+        risk_body += _details('Пороги, объявленные решением', _kv([
+            ('мин. буфер кэша, %', limits.get('min_cash_buffer_pct')),
+            ('потолок на протокол T1, %', limits.get('max_per_protocol_t1_pct')),
+            ('потолок на протокол T2, %', limits.get('max_per_protocol_t2_pct')),
+            ('потолок T2 всего, %', limits.get('max_t2_total_pct')),
+            ('floor TVL, USD', limits.get('tvl_floor_usd')),
+            ('стоп по просадке, %', params.get('max_drawdown_kill_pct')),
+            ('границы APY, %', f"{_num(params.get('apy_floor_pct'))} … "
+                               f"{_num(params.get('apy_ceiling_pct'))}"),
+            ('мин. дней на бумаге до живых', params.get('min_paper_days_before_live')),
+        ]), note='пороги меняются решением, а не наблюдением: это не замер, а правило')
+    out.append(_card('Риск и стоп-кран', risk_body,
+                     note='только чтение: ни стоп-кран, ни лимиты этой оболочкой '
+                          'не трогаются'))
 
+    if flags.get('state') == 'READ' and flags.get('flags'):
+        rows = ''.join(
+            f'<tr class="sev-{e(str(f.get("severity")).lower())}">'
+            f'<td>{e(f.get("severity"))}</td><td>{e(f.get("protocol"))}</td>'
+            f'<td>{e(f.get("category"))}</td><td>{e(f.get("message"))}</td></tr>'
+            for f in flags['flags'])
+        out.append(_card(
+            f'Красные флаги протоколов: {flags.get("count")}',
+            '<table><thead><tr><th>важность</th><th>протокол</th><th>вид</th>'
+            f'<th>что измерено</th></tr></thead><tbody>{rows}</tbody></table>',
+            note='это наблюдения монитора, а не решения: капитал ими не двигается',
+            tone='warn'))
+
+    # ── 6. R&D И ПРОДВИЖЕНИЕ ─────────────────────────────────────────────────
     rnd = layer.get('rnd_stage_counts') or {}
-    counts = layer.get('counts') or {}
-    out.append(_card('Стратегии и R&D', _counter_row(counts.get('by_mode') or {})
-                     + _counter_row(rnd)
-                     + _kv([('объектов', counts.get('objects')),
-                            ('доказанно уникальных id', counts.get('proven_unique_strategy_ids')),
-                            ('противоречивых фактов', counts.get('conflicting_facts'))]),
-                     note='Director OS НЕ Investment Engine: стратегии здесь только читаются'))
+    promo = layer.get('promotion') or {}
+    rnd_body = _bars(rnd, label='стадии R&D')
+    if promo.get('state') == 'READ':
+        rows = ''.join(
+            f'<tr><td>{e(d.get("strategy_id"))}</td><td>{e(d.get("action"))}</td>'
+            f'<td>{e(str(d.get("reason"))[:90])}</td></tr>'
+            for d in (promo.get('decisions') or [])[:TOP_N])
+        rnd_body += _bars(promo.get('by_action') or {}, label='решения о продвижении')
+        rnd_body += _details(
+            f'Решения о продвижении: {promo.get("count")}',
+            '<table><thead><tr><th>стратегия</th><th>решение</th><th>основание</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>',
+            note=e(promo.get('note') or ''))
+    else:
+        rnd_body += '<p class="muted">решения о продвижении не измерены</p>'
+    out.append(_card('Инвестиционный R&D', rnd_body,
+                     note='кокпит не даёт инвестиционных рекомендаций и не создаёт '
+                          'стратегий'))
 
-    # Политика реальных денег обязана быть ВИДНА, а не только лежать в проекции:
-    # правило, о котором владелец не прочитал, он не сможет и подтвердить.
+    # ── 7. ЧТО ТРЕБУЕТ ВНИМАНИЯ ──────────────────────────────────────────────
+    attention = _capital_attention(layer)
+    if attention:
+        items = ''.join(f'<li>{e(x)}</li>' for x in attention)
+        out.append(_card('Что требует моего внимания', f'<ul>{items}</ul>',
+                         note='каждая строка — следствие ИЗМЕРЕННОГО факта; '
+                              'важность не выдумывается',
+                         tone='warn'))
+
+    # ── Политика реальных денег и границы ────────────────────────────────────
     policy = layer.get('real_web_policy') or {}
     if policy:
         order = ('REAL_CAPITAL_SUMMARY', 'REAL_POSITION_DETAIL',
@@ -181,31 +398,96 @@ def render_capital(layer):
             f'<td class="{"never" if policy.get(k) == "NEVER" else "blocked"}">'
             f'{e(policy.get(k))}</td></tr>'
             for k in order if k in policy)
-        out.append(_card('Реальные деньги: что будет показано, когда появятся',
-                         '<table><thead><tr><th>класс данных</th>'
-                         f'<th>в закрытом вебе</th></tr></thead><tbody>{rows}</tbody></table>',
-                         note=e(layer.get('real_policy_note') or ''),
-                         tone='warn'))
+        out.append(_details('Реальные деньги: что будет показано, когда появятся',
+                            '<table><thead><tr><th>класс данных</th>'
+                            f'<th>в закрытом вебе</th></tr></thead><tbody>{rows}</tbody>'
+                            '</table>',
+                            note=layer.get('real_policy_note') or ''))
 
-    limits = layer.get('limits') or []
-    if limits:
-        items = ''.join(f'<li>{e(x)}</li>' for x in limits[:TOP_N])
-        more = (f'<p class="note">показано {min(len(limits), TOP_N)} из {len(limits)}</p>'
-                if len(limits) > TOP_N else '')
-        out.append(_card('Границы этого слоя', f'<ul>{items}</ul>{more}'))
+    limits_list = layer.get('limits') or []
+    if limits_list:
+        items = ''.join(f'<li>{e(x)}</li>' for x in limits_list[:TOP_N])
+        more = (f'<p class="note">показано {min(len(limits_list), TOP_N)} из '
+                f'{len(limits_list)}</p>' if len(limits_list) > TOP_N else '')
+        out.append(_details('Границы этого слоя', f'<ul>{items}</ul>{more}'))
     return ''.join(out)
+
+
+def _return_windows(daily):
+    """Доходность за 1/7/30 дней ПО РЯДУ. Нет глубины — «не измерено», не ноль."""
+    def at(n):
+        if len(daily) <= n:
+            return None
+        a = daily[-1 - n].get('cumulative_return_pct')
+        b = daily[-1].get('cumulative_return_pct')
+        if a is None or b is None:
+            return None
+        return round(b - a, 4)
+    return {'d1': at(1), 'd7': at(7), 'd30': at(30)}
+
+
+def _capital_attention(layer):
+    """Строки внимания — только из измеренного. Severity не изобретается."""
+    out = []
+    if not layer.get('real_capital_proven'):
+        out.append('Режим REAL не доказан ни одним источником — живых денег кокпит '
+                   'не видит')
+    flags = (layer.get('red_flags') or {})
+    crit = sum(1 for f in flags.get('flags') or []
+               if str(f.get('severity')).upper() == 'CRITICAL')
+    if crit:
+        out.append(f'Красных флагов уровня CRITICAL: {crit} — наблюдение монитора '
+                   'протоколов')
+    gl = layer.get('golive') or {}
+    if gl.get('blocker_count'):
+        out.append(f'Блокеров go-live: {gl["blocker_count"]}')
+    counts = layer.get('counts') or {}
+    if counts.get('conflicting_facts'):
+        out.append(f'Источники спорят о {counts["conflicting_facts"]} фактах стратегий — '
+                   'победитель не выбирается')
+    if counts.get('mode_unknown'):
+        out.append(f'Стратегий без объявленного режима: {counts["mode_unknown"]}')
+    if (layer.get('positions') or {}).get('state') != 'READ':
+        out.append('Позиции не измерены')
+    hist = layer.get('history') or {}
+    if hist.get('state') == 'READ':
+        s = hist.get('summary') or {}
+        if s.get('num_days') and s.get('evidenced_days') is not None:
+            gap = s['num_days'] - s['evidenced_days']
+            if gap > 0:
+                out.append(f'Дней в ряду без подтверждения: {gap} из {s["num_days"]}')
+    return out
 
 
 # ── STUDIO ────────────────────────────────────────────────────────────────────
 def render_studio(layer, architect=None, cio=None, bridge=None):
     out = []
+    rel = layer.get('reliability') or {}
+    rc = rel.get('counts') or {}
+    work = layer.get('work') or {}
+    wc = work.get('counts') or {}
+    gov = layer.get('governance') or {}
+    gc = gov.get('counts') or {}
+    svc = layer.get('services') or {}
+    drift = layer.get('drift') or {}
+
+    # ── 1. СВОДКА ВЛАДЕЛЬЦА ──────────────────────────────────────────────────
     state = layer.get('system_state')
     tone = {'НОРМАЛЬНО': 'ok', 'ТРЕБУЕТ ВНИМАНИЯ': 'warn'}.get(state, 'unknown')
-    out.append(_card(f'Состояние системы: {state or "НЕ ИЗМЕРЕНО"}',
-                     f'<p>{e(layer.get("system_state_reason"))}</p>',
-                     note='общего балла здоровья нет намеренно: разные риски в один балл '
-                          'не сводятся',
-                     tone=tone))
+    out.append(_card(
+        f'Состояние системы: {state or "НЕ ИЗМЕРЕНО"}',
+        _stats([
+            (wc.get('waiting_owner'), 'ждёт меня', 'warn'),
+            (wc.get('in_progress'), 'строится', ''),
+            (wc.get('blocked'), 'заблокировано', 'warn'),
+            (rc.get('active_confirmed'), 'подтв. проблем', 'warn'),
+            (rc.get('critical_confirmed_now'), 'из них CRITICAL', 'warn'),
+            ((drift.get('by_drift_status') or {}).get('AUTHORITY_UNDEFINED'),
+             'без авторитета', ''),
+        ])
+        + f'<p>{e(layer.get("system_state_reason"))}</p>',
+        note='общего балла здоровья нет намеренно: разные риски в один балл не сводятся',
+        tone=tone))
 
     blocks = layer.get('blocks') or {}
     if blocks:
@@ -213,81 +495,236 @@ def render_studio(layer, architect=None, cio=None, bridge=None):
             f'<tr><td>{e(BLOCK_LABELS.get(name, name))}</td>'
             f'<td class="num">{e(_num(b.get("shown")))}</td>'
             f'<td class="num">{e(_num(b.get("count")))}</td></tr>'
-            for name, b in sorted(blocks.items(),
-                                  key=lambda kv: -(kv[1].get('count') or 0)))
+            for name, b in sorted(blocks.items(), key=lambda kv: -(kv[1].get('count') or 0)))
         out.append(_card('Что требует внимания',
                          '<table><thead><tr><th>блок</th><th class="num">показано</th>'
-                         f'<th class="num">всего</th></tr></thead><tbody>{rows}</tbody></table>',
-                         note=f'на экране не больше {TOP_N} строк в блоке — так задумано; '
-                              'полное число в правой колонке'))
+                         f'<th class="num">всего</th></tr></thead><tbody>{rows}</tbody>'
+                         '</table>',
+                         note=f'на экране не больше {TOP_N} строк в блоке; полное число '
+                              'в правой колонке'))
 
-    rel = layer.get('reliability') or {}
-    rc = rel.get('counts') or {}
-    out.append(_card('Надёжность',
-                     _counter_row(rc.get('by_classification') or {})
-                     + _counter_row(rc.get('by_severity') or {})
-                     + _kv([('подтверждено сейчас', rc.get('active_confirmed')),
-                            ('требует перепроверки', rc.get('active_unverified')),
-                            ('CRITICAL подтверждённых', rc.get('critical_confirmed_now'))]),
+    # ── 2. СЛУЖБЫ ФЛОТА ──────────────────────────────────────────────────────
+    if svc.get('state') == 'READ':
+        by_status = svc.get('by_status') or {}
+        body = (_stats([(svc.get('count'), 'служб всего', ''),
+                        (by_status.get('LIVE'), 'LIVE', 'ok'),
+                        (by_status.get('DEGRADED'), 'DEGRADED', 'warn'),
+                        (by_status.get('STALE'), 'STALE', 'warn'),
+                        (by_status.get('LEGACY'), 'LEGACY', ''),
+                        (svc.get('health_not_measured'), 'здоровье НЕ измерено', 'unknown')])
+                + '<h3>По роду</h3>' + _bars(svc.get('by_kind') or {}, label='род')
+                + '<h3>По роли</h3>' + _bars(svc.get('by_role') or {}, limit=12,
+                                             label='роль'))
+        rows = ''.join(
+            f'<tr><td>{e(s.get("name"))}</td><td>{e(s.get("status"))}</td>'
+            f'<td>{e(s.get("kind"))}</td><td>{e(s.get("role"))}</td>'
+            f'<td>{e(s.get("schedule"))}</td><td>{e(_stage_word(s.get("stages")))}</td></tr>'
+            for s in sorted(svc.get('services') or [],
+                            key=lambda x: (str(x.get('status')), str(x.get('name')))))
+        body += _details(
+            f'Все службы: {svc.get("count")}',
+            '<table><thead><tr><th>имя</th><th>состояние</th><th>род</th><th>роль</th>'
+            f'<th>расписание</th><th>стадия</th></tr></thead><tbody>{rows}</tbody></table>',
+            note=svc.get('agent_note') or '')
+        out.append(_card('Службы', body,
+                         note='«здоровье не измерено» означает отсутствие семантической '
+                              'пробы, а не плохое состояние'))
+    else:
+        out.append(_card('Службы', '<p class="muted">не измерено</p>', tone='unknown'))
+
+    # ── 3. РАСХОЖДЕНИЕ ИСТОЧНИКА ПРАВДЫ ──────────────────────────────────────
+    if drift.get('state') == 'READ':
+        out.append(_card(
+            'Источник правды и расхождения',
+            _stats([(drift.get('entities'), 'сущностей', ''),
+                    ((drift.get('by_drift_status') or {}).get('IN_SYNC'), 'в согласии', 'ok'),
+                    ((drift.get('by_drift_status') or {}).get('AUTHORITY_UNDEFINED'),
+                     'авторитет не объявлен', 'unknown')])
+            + _bars(drift.get('by_drift_status') or {}, limit=10, label='расхождения'),
+            note='«авторитет не объявлен» — это НЕ расхождение и НЕ ошибка: никто не '
+                 'сказал, какая копия главная'))
+
+    # ── 4. НАДЁЖНОСТЬ ────────────────────────────────────────────────────────
+    top = rel.get('top_findings') or {}
+    rel_body = (_bars(rc.get('by_classification') or {}, label='классификация')
+                + _bars(rc.get('by_severity') or {}, label='важность')
+                + _kv([('подтверждено сейчас', rc.get('active_confirmed')),
+                       ('требует перепроверки', rc.get('active_unverified')),
+                       ('CRITICAL подтверждённых', rc.get('critical_confirmed_now')),
+                       ('подтверждено разными источниками', rc.get('corroborated'))]))
+    if top.get('rows'):
+        rows = ''.join(
+            f'<tr class="sev-{e(str(f.get("severity")).lower())}">'
+            f'<td>{e(f.get("severity"))}</td><td>{e(f.get("classification"))}</td>'
+            f'<td>{e(str(f.get("finding_title"))[:110])}</td></tr>'
+            for f in top['rows'])
+        rel_body += _details(
+            f'Подтверждённые сейчас: показано {top.get("shown")} из '
+            f'{top.get("confirmed_total")}',
+            '<table><thead><tr><th>важность</th><th>класс</th><th>что измерено</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>',
+            note=top.get('note') or '')
+    out.append(_card('Надёжность', rel_body,
                      note='«требует перепроверки» — это НЕ расхождение и не инцидент'))
 
-    work = layer.get('work') or {}
-    wc = work.get('counts') or {}
+    # ── 5. РАБОТА ────────────────────────────────────────────────────────────
     ident = work.get('identity') or {}
-    out.append(_card('Работа',
-                     _counter_row(wc.get('by_owner_view_state') or {})
-                     + _kv([('ждёт владельца', wc.get('waiting_owner')),
-                            ('заблокировано', wc.get('blocked')),
-                            ('в работе', wc.get('in_progress')),
-                            ('уникальных работ доказано',
-                             ident.get('proven_unique_work_count'))]),
-                     note='один заголовок в двух реестрах — это НЕ доказательство, '
-                          'что работа одна'))
+    out.append(_card(
+        'Работа',
+        _bars(wc.get('by_owner_view_state') or {}, limit=10, label='состояние работ')
+        + _kv([('ждёт владельца', wc.get('waiting_owner')),
+               ('заблокировано', wc.get('blocked')),
+               ('в работе', wc.get('in_progress')),
+               ('закрыто всего', wc.get('completed_total')),
+               ('приёмка: расхождений', wc.get('acceptance_state_conflicts')),
+               ('неразрешённых идентичностей', wc.get('unresolved_identity_records')),
+               ('уникальных работ доказано', ident.get('proven_unique_work_count'))])
+        + _details('Откуда берутся работы',
+                   _bars(wc.get('by_source_state') or {}, label='по источнику')
+                   + _bars(wc.get('by_work_type') or {}, label='по виду'),
+                   note='трекер и KANBAN — РАЗНЫЕ реестры. Их числа не складываются: '
+                        'одна работа может лежать в обоих, и это не доказано ни для '
+                        'одной записи'),
+        note='один заголовок в двух реестрах — НЕ доказательство, что работа одна'))
 
-    gov = layer.get('governance') or {}
-    gc = gov.get('counts') or {}
-    out.append(_card('Управление и восстановление',
-                     _counter_row(gc.get('by_recovery_status') or gc.get('by_recovery_state') or {})
-                     + _kv([('гейтов владельца', gc.get('owner_gated')),
-                            ('автономных правил', gc.get('autonomous_rules')),
-                            ('коллизий номеров ADR', gc.get('adr_number_collisions')),
-                            ('резервов наблюдено', gc.get('backups_observed')),
-                            ('восстановление испытано', gc.get('recovery_tested'))]),
-                     note='резерв наблюдён ≠ восстановление испытано; '
-                          'runbook описан ≠ испытан'))
-
-    # Архитектор и CIO: показывать ровно то, что измерено, и ни словом больше.
-    for title, rec in (('Архитектор', architect), ('CIO', cio)):
+    # ── 6. АРХИТЕКТОР И CIO ──────────────────────────────────────────────────
+    for title, rec, would in (
+            ('Архитектор', architect,
+             'работающий агент, который читает входящее и выдаёт разбор в канонической '
+             'форме; сегодня найдены только документы'),
+            ('CIO', cio,
+             'работающий агент инвестиционного разбора с артефактом и расписанием; '
+             'сегодня найден только документ на 16 аналитиков')):
         rec = rec or {'state': 'UNKNOWN', 'note': 'состояние не подавали'}
         st = rec.get('state', 'UNKNOWN')
-        out.append(_card(f'{title}: {st}', f'<p>{e(rec.get("note"))}</p>',
+        out.append(_card(f'{title}: {st}',
+                         f'<p>{e(rec.get("note"))}</p>'
+                         + _details('Что сделало бы его LIVE', f'<p>{e(would)}</p>'),
                          note='DOCUMENTED_ONLY означает: документ есть, работающей '
                               'реализации не найдено. Изображать её работающей нельзя',
                          tone='unknown' if st != 'LIVE' else 'ok'))
 
+    # ── 7. ЁМКОСТЬ ───────────────────────────────────────────────────────────
+    out.append(_card('Ёмкость Claude и вычислений: НЕ ИЗМЕРЕНО',
+                     '<p class="muted">канонического источника ёмкости не найдено: ни '
+                     'числа сессий, ни очереди, ни лимита. Показывать здесь что-либо '
+                     'значило бы выдумать.</p>',
+                     note='пробел записан в перечень недостающего',
+                     tone='unknown'))
+
+    # ── 8. УПРАВЛЕНИЕ, ВОССТАНОВЛЕНИЕ, БЕЗОПАСНОСТЬ ─────────────────────────
+    out.append(_card(
+        'Управление и восстановление',
+        _bars(gc.get('by_recovery_status') or gc.get('by_recovery_state') or {},
+              label='восстановление')
+        + _kv([('гейтов владельца', gc.get('owner_gated')),
+               ('автономных правил', gc.get('autonomous_rules')),
+               ('аварийных правил', gc.get('emergency_rules')),
+               ('коллизий номеров ADR', gc.get('adr_number_collisions')),
+               ('резервов наблюдено', gc.get('backups_observed')),
+               ('восстановление испытано', gc.get('recovery_tested')),
+               ('зона требуется, но не объявлена', gc.get('zone_required_but_missing'))])
+        + _details('Разрешения и зоны',
+                   _bars(gc.get('by_permission_class') or {}, label='классы разрешений')
+                   + _bars(gc.get('by_zone_scope') or {}, label='область зоны')),
+        note='резерв наблюдён ≠ восстановление испытано; runbook описан ≠ испытан. '
+             'Отсутствие записей о тревогах НЕ означает «безопасно»'))
+
+    # ── 9. ПАМЯТЬ ────────────────────────────────────────────────────────────
+    mem = layer.get('memory') or {}
+    if mem.get('systems'):
+        rows = ''.join(
+            f'<tr><td>{e(m.get("name"))}</td><td>{e(m.get("state"))}</td>'
+            f'<td>{e(m.get("note"))}</td></tr>' for m in mem['systems'])
+        out.append(_card(
+            f'Память: {mem.get("state")}',
+            '<table><thead><tr><th>система</th><th>состояние</th><th>что это</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>',
+            note=mem.get('note') or ''))
+    else:
+        out.append(_card('Память', '<p class="muted">не измерено</p>', tone='unknown'))
+
+    # ── 10. РЕПОЗИТОРИИ И ВЫПУСКИ ────────────────────────────────────────────
+    out.append(_card(
+        'Выпуски: РЕЕСТРА НЕ СУЩЕСТВУЕТ',
+        '<p class="muted">общего реестра выпусков в репозитории нет — замер 20.09. '
+        'Есть одна узкая запись (пин проверяющего скрипта), журнал коммитов и файл '
+        'готовности; ни один из них реестром выпусков не является.</p>',
+        note='изобретать второй реестр во время выпуска запрещено',
+        tone='unknown'))
+
+    # ── 11. BRIDGE ───────────────────────────────────────────────────────────
     if bridge:
         d = bridge.get('daemons') or {}
-        out.append(_card(f'Bridge: {bridge.get("state", "UNKNOWN")}',
-                         _kv([('репозиторий', bridge.get('repo'))]
-                             + sorted(d.items())),
-                         note=e(bridge.get('note') or ''),
-                         tone='ok' if bridge.get('state') == 'LIVE' else 'unknown'))
+        db = bridge.get('db') or {}
+        code = bridge.get('code') or {}
+        out.append(_card(
+            f'Bridge: {bridge.get("state", "UNKNOWN")}',
+            _stats([(db.get('tasks'), 'задач', ''), (db.get('runs'), 'прогонов', ''),
+                    (db.get('turns'), 'ходов', ''), (db.get('gates'), 'гейтов', ''),
+                    (db.get('artifacts'), 'улик исполнения', 'warn')])
+            + _kv([('репозиторий', bridge.get('repo'))] + sorted(d.items())
+                  + sorted(code.items())),
+            note=bridge.get('note') or '',
+            tone='ok' if bridge.get('state') == 'LIVE' else 'unknown'))
     return ''.join(out)
 
 
+def _stage_word(stages):
+    """Самая дальняя ДОСТИГНУТАЯ стадия. ``null`` — не измерено, не «нет»."""
+    if not isinstance(stages, dict):
+        return 'не измерено'
+    order = ('DECLARED', 'REGISTERED', 'INSTALLED', 'LOADED', 'RUNNING',
+             'PRODUCING_OUTPUT', 'HEALTHY')
+    reached = [s for s in order if stages.get(s) is True]
+    if not reached:
+        return 'не измерено'
+    nxt = next((s for s in order if stages.get(s) is None), None)
+    return reached[-1] + (f' · далее не измерено' if nxt else '')
+
+
 # ── BUILD ─────────────────────────────────────────────────────────────────────
-def render_build(layer):
+def render_build(layer, *, work=None):
     out = []
-    # «+ Создать» — намеренно НЕ <button>: нечего нажать, значит нечего исполнить.
+    pipe = layer.get('pipeline') or {}
+
+    # ── 1. ГДЕ ОСТАНАВЛИВАЕТСЯ АВТОНОМИЯ — первое, что должен увидеть владелец ─
+    if pipe.get('state') == 'READ':
+        by = pipe.get('by_state') or {}
+        rows = ''.join(
+            f'<div class="stage st-{e(str(s.get("state")).lower())}">'
+            f'<span class="stname">{e(s.get("stage"))}</span>'
+            f'<span class="stbadge">{e(s.get("state"))}</span>'
+            f'<span class="stbasis">{e(s.get("basis"))}</span></div>'
+            for s in pipe.get('stages') or [])
+        stops = pipe.get('autonomy_stops_at')
+        out.append(_card(
+            'Путь от моей мысли до доставки',
+            _stats([(by.get('LIVE'), 'работает', 'ok'),
+                    (by.get('PARTIAL'), 'частично', 'warn'),
+                    (by.get('DOCUMENTED_ONLY'), 'только на бумаге', 'unknown'),
+                    (by.get('NOT_FOUND'), 'не найдено', 'unknown')])
+            + (f'<p class="lead">Автономия останавливается на: <b>{e(stops)}</b></p>'
+               if stops else '<p class="lead">Все стадии работают.</p>')
+            + f'<div class="stages">{rows}</div>',
+            note=pipe.get('note') or '',
+            tone='warn' if stops else 'ok'))
+    else:
+        out.append(_card('Путь от моей мысли до доставки',
+                         '<p class="muted">не измерено</p>',
+                         note=pipe.get('note') or '', tone='unknown'))
+
+    # ── 2. «+ Создать» — нарисован, но не элемент управления ────────────────
     out.append(
         '<section class="card disabled" aria-disabled="true">'
         '<div class="create"><span class="plus">+</span>'
         '<span class="createlabel">Создать</span>'
         '<span class="badge">ПОКА НЕ ВКЛЮЧЕНО</span></div>'
-        '<p class="note">так это будет выглядеть. В Epic 1 действий нет ни одного: '
+        '<p class="note">так это будет выглядеть. Сейчас действий нет ни одного: '
         'ни задачи, ни исполнения, ни одобрения отсюда не запускается.</p>'
         '</section>')
 
+    # ── 3. ЧЕМ УЖЕ МОЖНО ПОДАТЬ ЗАДАЧУ ──────────────────────────────────────
     intake = layer.get('owner_intake') or []
     if intake:
         rows = ''.join(
@@ -295,49 +732,66 @@ def render_build(layer):
             f'<td>{e(i.get("intake_kind"))}</td>'
             f'<td>{"есть" if i.get("available") else "НЕ НАЙДЕНО"}</td>'
             f'<td>{e(i.get("note"))}</td></tr>' for i in intake)
-        out.append(_card('Чем владелец уже может подать задачу',
+        out.append(_card('Чем я уже могу подать задачу',
                          '<table><thead><tr><th>вид</th><th>состояние</th>'
                          f'<th>как</th></tr></thead><tbody>{rows}</tbody></table>',
-                         note='это замер уже существующих каналов, а не план'))
+                         note='это замер существующих каналов, а не план'))
 
+    # ── 4. ТЕКУЩАЯ РАБОТА ПО СТАДИЯМ ────────────────────────────────────────
+    wc = ((work or {}).get('counts') or {})
+    if wc:
+        out.append(_card(
+            'Что сейчас в работе',
+            _stats([(wc.get('waiting_owner'), 'ждёт меня', 'warn'),
+                    (wc.get('in_progress'), 'делается', ''),
+                    (wc.get('blocked'), 'заблокировано', 'warn'),
+                    (wc.get('completed_total'), 'закрыто', 'ok')])
+            + _bars(wc.get('by_owner_view_state') or {}, limit=9,
+                    label='состояние работ'),
+            note='состояния берутся из карточек как есть; «закрыто» не означает '
+                 '«принято» — приёмка считается отдельно'))
+
+    # ── 5. BRIDGE КАК ОПОРА ─────────────────────────────────────────────────
     bridge = layer.get('bridge') or {}
-    if bridge:
+    if bridge and bridge.get('state') != 'NOT_MEASURED':
         db = bridge.get('db') or {}
         code = bridge.get('code') or {}
-        out.append(_card(f'Bridge: {bridge.get("state", "NOT_MEASURED")}',
-                         _kv(sorted(db.items()) + sorted(code.items())),
-                         note=e(bridge.get('note') or '')))
+        d = bridge.get('daemons') or {}
+        out.append(_card(
+            f'Bridge — опора конвейера: {bridge.get("state")}',
+            _stats([(db.get('tasks'), 'задач', ''), (db.get('runs'), 'прогонов', ''),
+                    (db.get('turns'), 'ходов', ''),
+                    (db.get('artifacts'), 'улик исполнения', 'warn')])
+            + _kv(sorted(d.items()) + sorted(code.items())),
+            note=bridge.get('note') or '',
+            tone='ok' if bridge.get('state') == 'LIVE' else 'unknown'))
 
+    # ── 6. ПОЧЕМУ КНОПОК НЕТ ────────────────────────────────────────────────
     audit = layer.get('action_audit') or {}
     ac = audit.get('counts') or {}
-    out.append(_card('Почему кнопок нет',
-                     _kv([('кандидатов', ac.get('candidates')),
-                          ('готовы для UI', ac.get('ready_for_ui')),
-                          ('не готовы', ac.get('not_ready')),
-                          ('запрещено навсегда', ac.get('red_zone'))]),
-                     note='ноль готовых действий — это ИЗМЕРЕНО, а не решено: пяти '
-                          'кандидатам не хватает записи в аудит, идемпотентности и отката',
-                     tone='warn'))
-
+    body = _stats([(ac.get('candidates'), 'кандидатов', ''),
+                   (ac.get('ready_for_ui'), 'готовы для UI', 'warn'),
+                   (ac.get('not_ready'), 'не готовы', ''),
+                   (ac.get('red_zone'), 'запрещено навсегда', 'warn')])
     actions = audit.get('actions') or []
     if actions:
         rows = ''.join(
             f'<tr><td>{e(a.get("action"))}</td><td>{e(a.get("verdict"))}</td>'
             f'<td>{e(", ".join(a.get("missing_properties") or []) or "—")}</td></tr>'
             for a in actions[:TOP_N])
-        more = (f'<p class="note">показано {min(len(actions), TOP_N)} из {len(actions)}</p>'
-                if len(actions) > TOP_N else '')
-        out.append(_card('Разобранные действия',
+        body += _details(f'Разобранные действия: {len(actions)}',
                          '<table><thead><tr><th>действие</th><th>вердикт</th>'
-                         f'<th>чего не хватает</th></tr></thead><tbody>{rows}</tbody></table>'
-                         + more))
-
+                         f'<th>чего не хватает</th></tr></thead><tbody>{rows}</tbody>'
+                         '</table>')
     red = audit.get('red_zone') or []
     if red:
         chips = ''.join(f'<span class="chip red">{e(x)}</span>' for x in red)
-        out.append(_card('Красная зона — не обсуждается',
+        body += _details('Красная зона — не обсуждается',
                          f'<div class="chips">{chips}</div>',
-                         note='эти глаголы не попадают в UI ни при каких свойствах'))
+                         note='эти глаголы не попадают в UI ни при каких свойствах')
+    out.append(_card('Почему кнопок нет', body,
+                     note='ноль готовых действий — это ИЗМЕРЕНО, а не решено',
+                     tone='warn'))
     return ''.join(out)
 
 
@@ -400,6 +854,48 @@ display:grid;place-items:center;font-size:20px;color:var(--mut)}
 .createlabel{font-size:16px;font-weight:600;color:var(--mut)}
 .badge{margin-left:auto;font-size:11px;letter-spacing:.6px;color:var(--warn);
 border:1px solid var(--warn);border-radius:6px;padding:2px 7px}
+h3{margin:14px 0 6px;font-size:13px;font-weight:600;color:var(--mut);
+letter-spacing:.3px;text-transform:uppercase}
+.lead{margin:8px 0;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;
+margin:0 0 10px}
+.stat{background:#12151b;border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+display:flex;flex-direction:column;gap:2px}
+.stat.ok{border-left:3px solid var(--ok)}
+.stat.warn{border-left:3px solid var(--warn)}
+.stat.unknown{border-left:3px solid var(--unk)}
+.statv{font-size:17px;font-variant-numeric:tabular-nums;word-break:break-word}
+.statc{font-size:11px;color:var(--mut);line-height:1.3}
+.spark{width:100%;height:64px;display:block;margin:4px 0 2px}
+.spark .line{fill:none;stroke:var(--acc);stroke-width:1.6;vector-effect:non-scaling-stroke}
+.spark .fill{fill:var(--acc);opacity:.13}
+.spark .zero{stroke:var(--unk);stroke-width:1;stroke-dasharray:3 3;
+vector-effect:non-scaling-stroke}
+.bars{display:flex;flex-direction:column;gap:4px;margin:0 0 8px}
+.bar{display:grid;grid-template-columns:minmax(72px,34%) 1fr auto;gap:8px;
+align-items:center;font-size:12px}
+.barname{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bartrack{background:#12151b;border:1px solid var(--line);border-radius:999px;height:9px;
+overflow:hidden}
+.barfill{display:block;height:100%;background:var(--acc);opacity:.75}
+.barval{font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+details.drill{margin:8px 0 0;border-top:1px dashed var(--line);padding-top:8px}
+details.drill>summary{cursor:pointer;font-size:12px;color:var(--acc);list-style:none}
+details.drill>summary::-webkit-details-marker{display:none}
+details.drill>summary::before{content:"▸ ";color:var(--mut)}
+details.drill[open]>summary::before{content:"▾ "}
+.stages{display:flex;flex-direction:column;gap:6px}
+.stage{display:grid;grid-template-columns:1fr auto;gap:4px 8px;background:#12151b;
+border:1px solid var(--line);border-left-width:3px;border-radius:10px;padding:8px 10px}
+.stage .stname{font-size:13px;font-weight:600}
+.stage .stbadge{font-size:10px;letter-spacing:.5px;color:var(--mut);align-self:center}
+.stage .stbasis{grid-column:1/-1;font-size:11px;color:var(--mut);line-height:1.4}
+.st-live{border-left-color:var(--ok)}
+.st-partial{border-left-color:var(--warn)}
+.st-documented_only{border-left-color:var(--unk)}
+.st-not_found,.st-unknown{border-left-color:var(--unk)}
+tr.sev-critical td:first-child{color:var(--red);font-weight:600}
+tr.sev-warning td:first-child,tr.sev-warn td:first-child{color:var(--warn)}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;
 grid-template-columns:repeat(3,1fr);background:rgba(18,21,27,.97);
 backdrop-filter:blur(10px);border-top:1px solid var(--line);
@@ -419,6 +915,10 @@ footer{padding:8px 16px 20px;color:var(--unk);font-size:11px}
   nav a[aria-current="page"]{background:#1b2331}
   main{max-width:1080px;margin:0 auto;padding:24px 16px}
   .modes{grid-template-columns:repeat(3,1fr)}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  .spark{height:96px}
+  .stage{grid-template-columns:220px auto 1fr}
+  .stage .stbasis{grid-column:auto}
   table{display:table}
   th,td{white-space:normal}
 }
@@ -426,7 +926,7 @@ footer{padding:8px 16px 20px;color:var(--unk);font-size:11px}
   :root{--bg:#f6f7f9;--card:#fff;--line:#e2e5ea;--fg:#14161a;--mut:#5b6472;--unk:#8b94a3}
   header{background:rgba(246,247,249,.94)}
   nav{background:rgba(255,255,255,.97)}
-  .mode,.chip{background:#f1f3f6}
+  .mode,.chip,.stat,.bartrack,.stage{background:#f1f3f6}
   nav a[aria-current="page"]{background:#e7effb}
 }
 """
@@ -519,7 +1019,8 @@ def shell_html(projection, *, architect=None, cio=None, bridge=None, generated_a
     bodies = {
         'capital': render_freshness(freshness) + render_capital(layers.get('CAPITAL') or {}),
         'studio': render_studio(layers.get('STUDIO') or {}, architect, cio, bridge),
-        'build': render_build(layers.get('BUILD') or {}),
+        'build': render_build(layers.get('BUILD') or {},
+                              work=(layers.get('STUDIO') or {}).get('work')),
     }
     views = ''.join(
         f'<div class="view" id="view-{slug}">'

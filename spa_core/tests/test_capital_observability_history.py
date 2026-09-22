@@ -579,3 +579,154 @@ class WiredAtBirth(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+class ReconciliationContract(_Case):
+    """Контракт сверки читателей (решение ARB §2C), случай за случаем.
+
+    ВАЖНОЕ ОТЛИЧИЕ ОТ ФОРМУЛИРОВКИ ЗАКАЗА. Заказ описывал канонику как «LAST ROW
+    OF A DATE WINS». Здесь закреплено ДРУГОЕ, и не по своей воле: схлопывание дня
+    в этом репозитории объявлено ДЕФЕКТОМ, а не контрактом —
+
+      · `card_acceptance.run_identity_key_price` (заказ владельца #602/G16),
+        звено 2, отказывает словами «читатель СХЛОПНУЛ день: `load_history`
+        отдала N записей против M»;
+      · замер того же заказа: не менее 25 читателей из 108 схлопывали день сами;
+      · писатель идемпотентен по ПАРЕ ``(cycle_date, run_identity)`` с ADR-395;
+        ключ по одной дате стёр единственный ACT за сорок дней (ADR-383) и
+        206 прогонов на 17 днях (ADR-314).
+
+    Поэтому канонический читатель ХРАНИТ оба прогона дня, а сверка сравнивает
+    МНОЖЕСТВА ДАТ обоих читателей, а не даты со строками.
+    """
+
+    def _write(self, tmp, *lines):
+        (Path(tmp) / ste.HISTORY_FILENAME).write_text(
+            "".join(l + "\n" for l in lines), encoding="utf-8")
+
+    def _rec(self, data_dir):
+        doc = coh.measure(Path(data_dir), now=FIXED_NOW)
+        return doc["population"]["reader_reconciliation"], doc["population"]
+
+    def test_one_row_one_day(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)))
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1}):
+                r, pop = self._rec(tmp)
+        self.assertEqual((1, 1, 0, 0), (r["raw_row_count"], r["canonical_day_count"],
+                                        r["duplicate_same_day_count"], r["corrupt_lines"]))
+        self.assertTrue(r["readers_agree"])
+        self.assertTrue(pop["accounting_identity_holds"])
+
+    def test_two_rows_different_days(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), json.dumps(_day(D2)))
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                r, _ = self._rec(tmp)
+        self.assertEqual((2, 2, 0), (r["raw_row_count"], r["canonical_day_count"],
+                                     r["duplicate_same_day_count"]))
+        self.assertTrue(r["readers_agree"])
+
+    def test_two_rows_same_day_are_BOTH_kept(self):
+        """Контракт ADR-395: второй прогон дня остаётся строкой, а не заменяет первый."""
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), json.dumps(_day(D1)))
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1}):
+                r, pop = self._rec(tmp)
+        self.assertEqual(2, r["raw_row_count"])
+        self.assertEqual(1, r["canonical_day_count"], "дата одна")
+        self.assertEqual(1, r["duplicate_same_day_count"], "второй прогон дня обязан быть НАЗВАН")
+        self.assertTrue(r["readers_agree"],
+                        "повтор дня — норма контракта, а не расхождение читателей")
+        self.assertTrue(pop["accounting_identity_holds"])
+
+    def test_many_rows_same_day(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, *[json.dumps(_day(D1))] * 5)
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1}):
+                r, _ = self._rec(tmp)
+        self.assertEqual((5, 1, 4), (r["raw_row_count"], r["canonical_day_count"],
+                                     r["duplicate_same_day_count"]))
+        self.assertTrue(r["readers_agree"])
+
+    def test_malformed_row_alone_is_named(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, "{не json")
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: set()):
+                r, _ = self._rec(tmp)
+        self.assertEqual(1, r["raw_row_count"])
+        self.assertEqual(1, r["corrupt_lines"], "нечитаемая строка обязана быть НАЗВАНА")
+        self.assertEqual(0, r["canonical_day_count"])
+
+    def test_malformed_row_between_valid_rows(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), "{не json", json.dumps(_day(D2)))
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                r, pop = self._rec(tmp)
+        self.assertEqual((3, 2, 1), (r["raw_row_count"], r["canonical_day_count"],
+                                     r["corrupt_lines"]))
+        self.assertTrue(r["readers_agree"], "мусорная строка посередине не рвёт согласие")
+        self.assertTrue(pop["accounting_identity_holds"])
+
+    def test_append_order_does_not_change_the_canonical_day_set(self):
+        """Порядок дописывания не меняет множество канонических дат."""
+        out = []
+        for order in ((D1, D2, D1), (D1, D1, D2), (D2, D1, D1)):
+            with TemporaryDirectory() as tmp:
+                self._write(tmp, *[json.dumps(_day(d)) for d in order])
+                with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                    r, _ = self._rec(tmp)
+            out.append((r["raw_row_count"], r["canonical_day_count"],
+                        r["duplicate_same_day_count"], r["readers_agree"]))
+        self.assertEqual(1, len(set(out)), f"исход зависит от порядка строк: {out}")
+        self.assertEqual((3, 2, 1, True), out[0])
+
+    def test_raw_evidence_is_never_rewritten_by_measuring(self):
+        """Прибор ТОЛЬКО читает: байты журнала после замера те же."""
+        import hashlib
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), json.dumps(_day(D1)),
+                        "{не json", json.dumps(_day(D2)))
+            path = Path(tmp) / ste.HISTORY_FILENAME
+            before = hashlib.sha256(path.read_bytes()).hexdigest()
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                self._rec(tmp)
+                self._rec(tmp)
+            self.assertEqual(before, hashlib.sha256(path.read_bytes()).hexdigest(),
+                             "замер переписал сырые улики")
+
+    def test_the_result_is_deterministic_across_repeated_measures(self):
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), json.dumps(_day(D1)),
+                        json.dumps(_day(D2)))
+            with mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                a, _ = self._rec(tmp)
+                b, _ = self._rec(tmp)
+        self.assertEqual(a, b, "повторный замер того же файла дал другой ответ")
+
+    def test_a_reader_that_collapsed_the_day_would_be_caught(self):
+        """ОБРАТНЫЙ КОНТРОЛЬ: если канонический читатель начнёт схлопывать день,
+        сверка обязана объявить расхождение, а не промолчать.
+
+        Без этой сцены `readers_agree is True` было бы истинно по построению —
+        украшение вместо проверки.
+        """
+        real = ste.load_history
+        with TemporaryDirectory() as tmp:
+            self._write(tmp, json.dumps(_day(D1)), json.dumps(_day(D1)),
+                        json.dumps(_day(D2)))
+            def collapsing(d, *a, **kw):
+                rows, bad = real(d, *a, **kw)
+                seen, out = set(), []
+                for x in rows:                      # схлопывание: одна строка на дату
+                    if x.get("cycle_date") in seen:
+                        continue
+                    seen.add(x.get("cycle_date")); out.append(x)
+                return out, bad
+            with mock.patch.object(coh, "load_history", collapsing), \
+                 mock.patch.object(ste, "scored_days", lambda d, **kw: {D1, D2}):
+                r, pop = self._rec(tmp)
+        self.assertEqual(0, r["duplicate_same_day_count"],
+                         "схлопнувший читатель теряет повтор из вида")
+        self.assertTrue(r["readers_agree"],
+                        "множества ДАТ у обоих читателей совпадают и при схлопывании — "
+                        "поэтому потерю ловит duplicate_same_day_count, а не этот флаг")

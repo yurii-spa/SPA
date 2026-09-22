@@ -299,16 +299,22 @@ class TestSafeSitePushOverwritePassthrough(unittest.TestCase):
         self.mod = _load("safe_site_push", "scripts/safe_site_push.py")
         self.calls: list[list[str]] = []
 
-    def _push(self, argv, guard_rc=0):
+    def _push(self, argv, guard_rc=0, report=None):
+        """`report` — ОТЧЁТ ЭТОГО прогона стража. Он обязателен для различения
+        двух дверей, дающих один и тот же код 2 (см. докстринг safe_site_push):
+        GATED называет файлы, usage-error стража — нет."""
         def fake_run(cmd, *a, **kw):
             self.calls.append([str(c) for c in cmd])
             return _Result(0, "", "")
 
-        with mock.patch.object(self.mod, "_run_guard", return_value=(guard_rc, {})), \
-             mock.patch.object(self.mod, "_route_to_owner_card"), \
+        with mock.patch.object(self.mod, "_run_guard",
+                               return_value=(guard_rc, report if report is not None else {})), \
+             mock.patch.object(self.mod, "_route_to_owner_card") as card, \
              mock.patch.object(self.mod.subprocess, "run", side_effect=fake_run), \
              mock.patch.object(self.mod, "write_receipt", create=True):
-            return self.mod.main(argv)
+            rc = self.mod.main(argv)
+            self.card_calls = card.call_count
+            return rc
 
     def test_flag_reaches_the_batch_pusher(self):
         self._push(["--files", "landing/src/data/track_snapshot.json",
@@ -325,11 +331,43 @@ class TestSafeSitePushOverwritePassthrough(unittest.TestCase):
 
         Owner-гейт проверяется РАНЬШЕ и отменить его этим флагом нельзя — иначе автономный
         цикл получил бы дорогу к числам доходности и legal-формулировкам в обход владельца.
+
+        ПОЧЕМУ ЗДЕСЬ КОД 1, А НЕ 2. Прежняя редакция подавала стражу код 2 с ПУСТЫМ
+        отчётом и ждала 2 на выходе, то есть читала вердикт из кода возврата. Этот
+        контракт отменён по ИЗМЕРЕННОМУ дефекту: `argparse` тоже отдаёт 2 при usage-error,
+        и «код 2 + отчёт без нарушений» рождал владельцу вопрос о ничём (замер — карточка
+        `owner-decision-sait-pravka-…`, пересланная владельцем 16.09). Документированный
+        контракт `safe_site_push` (докстринг, п. 3–4) поэтому таков:
+          · GATED   = код 2 И отчёт называет файлы  → карточка владельцу, выход 2;
+          · ERROR   = код 1, либо код 2 с отчётом без файлов → fail-CLOSED, выход 1,
+                      владельца НЕ спрашиваем (одобрять нечего).
+        Здесь отчёт пуст, значит верный выход — 1. ИНВАРИАНТ при этом тот же и проверяется
+        строже прежнего: пуша нет, отказ наблюдаем, владельца не спрашивают о ничём.
+        Настоящая дверь GATED закреплена соседним тестом — без него «выход 1» было бы
+        неотличимо от тихо потерянного owner-gate.
         """
         rc = self._push(["--files", "landing/src/pages/index.astro",
                          "--message", "m", "--allow-overwrite"], guard_rc=2)
-        self.assertEqual(rc, 2)
         self.assertEqual(self.calls, [], "owner-gated правка не имеет права уехать")
+        self.assertNotEqual(rc, 0, "отказ обязан быть наблюдаем ненулевым кодом")
+        self.assertEqual(rc, 1, "код 2 с отчётом без нарушений — ошибка стража, не вердикт")
+        self.assertEqual(self.card_calls, 0, "владельца спросили о ничём")
+
+    def test_overwrite_does_not_bypass_a_real_gated_verdict(self):
+        """ОТРИЦАТЕЛЬНЫЙ КОНТРОЛЬ: настоящий GATED сохраняет и код 2, и карточку.
+
+        Он существует затем, чтобы «выход 1» в соседнем тесте нельзя было получить
+        тихо сломанным owner-gate: при настоящем вердикте путь обязан остаться тем,
+        что описан в документе (`docs/OWNER_GATE.md:21` — «2 gated / 1 error»).
+        """
+        report = {"violations": [{"file": "landing/src/pages/index.astro",
+                                  "klass": "yield.number.changed"}]}
+        rc = self._push(["--files", "landing/src/pages/index.astro",
+                         "--message", "m", "--allow-overwrite"],
+                        guard_rc=2, report=report)
+        self.assertEqual(rc, 2, "настоящий GATED обязан сохранять документированный код 2")
+        self.assertEqual(self.calls, [], "owner-gated правка не имеет права уехать")
+        self.assertEqual(self.card_calls, 1, "настоящий вердикт обязан родить карточку")
 
 
 if __name__ == "__main__":

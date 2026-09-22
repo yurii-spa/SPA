@@ -48,6 +48,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from scripts.cartographer import diff as diff_mod  # noqa: E402
+from scripts.cartographer import investments as investments_mod  # noqa: E402
 from scripts.cartographer import reliability as reliability_mod  # noqa: E402
 
 SCHEMA = 'director_web_projection/1'
@@ -302,6 +303,37 @@ STUDIO_POLICY = Policy(
                 'by_zone_scope', 'by_source_state'),
 )
 
+#: Службы флота. Метка менеджера процессов превращается в ИМЯ службы (переименование,
+#: не сокрытие); всё остальное — состояние, роль, расписание и стадии — уходит как есть.
+SERVICE_POLICY = Policy(
+    safe=('status', 'intent', 'layer', 'role', 'schedule', 'last_exit', 'kind',
+          'stages', 'DECLARED', 'REGISTERED', 'INSTALLED', 'LOADED', 'RUNNING',
+          'PRODUCING_OUTPUT', 'HEALTHY', 'name'),
+    redacted=('id', 'health_reason', 'last_exit_basis'),
+    local_only=('evidence', 'installed_paths', 'declared_program', 'declared_plist_source',
+                'declared_plist_in_repo', 'pid', 'domains', 'enable_overrides',
+                'declared_outputs', 'declared_consumes', 'declared_governed_by',
+                'document_references'),
+)
+
+#: История капитала: числа и даты. Ни адресов, ни идентификаторов здесь нет по составу.
+HISTORY_POLICY = Policy(
+    safe=('date', 'equity', 'daily_return_pct', 'cumulative_return_pct', 'drawdown_pct',
+          'daily_yield_usd', 'apy_today', 'evidenced', 'is_warmup', 'nav', 'ts',
+          'daily_pnl', 'cycle_number', 'positions', 'open_equity', 'close_equity',
+          'high_equity', 'low_equity', 'snapshots', 'num_days', 'real_days',
+          'evidenced_days', 'num_snapshots', 'start_equity', 'end_equity',
+          'total_return_pct', 'max_drawdown_pct', 'best_day', 'worst_day',
+          'real_start_equity', 'real_end_equity', 'real_total_return_pct',
+          'usd', 'apy_pct', 'apy_source', 'protocol', 'severity', 'category',
+          'message', 'action', 'strategy_id', 'reason', 'metrics', 'sharpe_30d',
+          'calmar_30d', 'days_active', 'total_flags', 'by_category', 'by_severity',
+          'by_protocol'),
+    redacted=('source', 'note', 'as_of', 'detected_at'),
+    local_only=('evidence', 'source_file', 'wallet', 'address', 'tx_hash'),
+    count_maps=('by_category', 'by_severity', 'by_protocol', 'positions'),
+)
+
 BUILD_POLICY = Policy(
     safe=('action', 'verdict', 'destructive', 'owner_approval_required',
           'missing_properties', 'required_properties', 'red_zone', 'ready_for_ui',
@@ -336,7 +368,8 @@ def project_count_map(value, stats):
             out[term] = redact_text(count) if shape == 'REDACTED' else count
         elif isinstance(count, (int, float, bool)) or count is None:
             stats['SAFE_FOR_PRIVATE_WEB'] = stats.get('SAFE_FOR_PRIVATE_WEB', 0) + 1
-            out[term] = count
+            out[term] = investments_mod.json_safe(count) if isinstance(count, float) \
+                else count
         else:
             stats['LOCAL_ONLY'] = stats.get('LOCAL_ONLY', 0) + 1
     return out
@@ -365,6 +398,13 @@ def project_value(value, policy, key, stats):
             return True, redact_text(value)
         stats['SAFE_FOR_PRIVATE_WEB'] = stats.get('SAFE_FOR_PRIVATE_WEB', 0) + 1
         return True, value
+    if isinstance(value, float):
+        # Не-конечное число НАЗЫВАЕТСЯ, а не теряется: `promotion_report.json` содержит
+        # `-Infinity`, и такой файл перестаёт быть валидным JSON — браузер молча
+        # остаётся без раздела. Приём переиспользован из слоя инвестиций (фаза 7).
+        safe = investments_mod.json_safe(value)
+        stats['SAFE_FOR_PRIVATE_WEB'] = stats.get('SAFE_FOR_PRIVATE_WEB', 0) + 1
+        return True, safe
     if isinstance(value, dict):
         out = {}
         for k, v in value.items():
@@ -393,7 +433,8 @@ def project_record(record, policy, stats):
     return out
 
 
-def _capital(inv, stats):
+def _capital(inv, stats, *, history=None, positions=None, risk_config=None,
+             red_flags=None, golive=None, promotion=None):
     if inv is None:
         return {'state': 'NOT_READ',
                 'note': 'снимок инвестиций не прочитан — это НЕ значит, что капитала нет'}
@@ -427,10 +468,100 @@ def _capital(inv, stats):
     }
     if not layer['real_capital_proven']:
         layer['real_capital_headline'] = 'REAL CAPITAL: NOT PROVEN'
+
+    # ── История. Ряд публикуется ТОЛЬКО если он действительно ряд: одна точка
+    #    графиком не становится, и делать из снимка «историю» запрещено.
+    layer['history'] = _capital_history(history, stats)
+    layer['positions'] = _positions(positions, stats)
+    layer['risk_config'] = project_record(risk_config or {}, HISTORY_POLICY, stats) \
+        if risk_config else {'state': 'NOT_MEASURED'}
+    layer['red_flags'] = _red_flags(red_flags, stats)
+    layer['golive'] = {**(layer.get('golive') or {}),
+                       **_golive(golive, stats)} if golive else layer.get('golive')
+    layer['promotion'] = _promotion(promotion, stats)
     return layer
 
 
-def _studio(rel, work, gov, director, stats):
+def _capital_history(history, stats):
+    """Ряд эквити и доходности. Меньше двух точек — это НЕ история."""
+    if not history:
+        return {'state': 'NOT_MEASURED',
+                'note': 'источник истории не подан — это НЕ значит, что истории нет'}
+    daily = [project_record(r, HISTORY_POLICY, stats) for r in history.get('daily') or ()]
+    metrics = [project_record(r, HISTORY_POLICY, stats)
+               for r in history.get('metrics_history') or ()]
+    out = {
+        'state': 'READ',
+        'mode': history.get('mode'),
+        'mode_basis': history.get('mode_basis'),
+        'daily': daily,
+        'daily_points': len(daily),
+        'metrics_history': metrics,
+        'metrics_points': len(metrics),
+        'summary': project_record(history.get('summary') or {}, HISTORY_POLICY, stats),
+        'is_a_series': len(daily) >= 2,
+        'series_rule': ('график строится только при двух и более точках: одна точка — '
+                        'снимок, а не история'),
+    }
+    return out
+
+
+def _positions(positions, stats):
+    """Позиции по протоколам. Ни адресов, ни счетов здесь нет по составу источника."""
+    if not positions:
+        return {'state': 'NOT_MEASURED'}
+    detail = positions.get('positions_detail') or {}
+    rows = []
+    for name, rec in (detail.items() if isinstance(detail, dict) else ()):
+        row = project_record(rec if isinstance(rec, dict) else {}, HISTORY_POLICY, stats)
+        row['protocol'] = redact_text(name)
+        rows.append(row)
+    total = sum(r.get('usd') or 0 for r in rows)
+    capital = positions.get('capital_usd')
+    return {
+        'state': 'READ',
+        'mode': positions.get('execution_mode'),
+        'capital_usd': capital,
+        'deployed_usd': total or None,
+        'cash_usd': (capital - total) if (capital is not None and rows) else None,
+        'positions': sorted(rows, key=lambda r: -(r.get('usd') or 0)),
+        'count': len(rows),
+    }
+
+
+def _red_flags(red_flags, stats):
+    if not red_flags:
+        return {'state': 'NOT_MEASURED'}
+    flags = [project_record(f, HISTORY_POLICY, stats)
+             for f in red_flags.get('red_flags') or ()]
+    return {'state': 'READ', 'flags': flags, 'count': len(flags),
+            'summary': project_count_map(red_flags.get('summary') or {}, stats)}
+
+
+def _golive(golive, stats):
+    if not golive:
+        return {}
+    blockers = [redact_text(b) for b in (golive.get('blockers') or ())]
+    return {'blockers': blockers, 'blocker_count': len(blockers),
+            'real_track_days': golive.get('real_track_days')}
+
+
+def _promotion(promotion, stats):
+    """Решения о продвижении. Это НАБЛЮДЁННЫЕ решения, а не рекомендации слоя."""
+    if not promotion:
+        return {'state': 'NOT_MEASURED'}
+    rows = [project_record(d, HISTORY_POLICY, stats)
+            for d in promotion.get('decisions') or ()]
+    by_action = {}
+    for r in rows:
+        by_action[r.get('action') or 'UNKNOWN'] = by_action.get(r.get('action') or 'UNKNOWN', 0) + 1
+    return {'state': 'READ', 'decisions': rows, 'count': len(rows),
+            'by_action': by_action,
+            'note': 'это наблюдённые решения источника, а не рекомендации кокпита'}
+
+
+def _studio(rel, work, gov, director, stats, *, services=None, drift=None,
+            memory=None):
     layer = {}
     if director is not None:
         layer['system_state'] = director.get('system_state')
@@ -464,10 +595,108 @@ def _studio(rel, work, gov, director, stats):
             'recovery_vocabulary': list(gov.get('recovery_vocabulary') or ()),
             'limits': [redact_text(x) for x in gov.get('limits') or ()],
         }
+    layer['services'] = _services(services, stats)
+    layer['drift'] = _drift(drift, stats)
+    layer['memory'] = memory or {'state': 'NOT_MEASURED'}
+    if rel is not None:
+        layer['reliability']['top_findings'] = _top_findings(rel, stats)
     return layer
 
 
-def _build(actions, bridge, intake, stats):
+#: Род службы выводится из НАБЛЮДЁННОГО расписания, а не из имени. Метка launchd
+#: агентом сама по себе не является — это требование ARB и оно измеримо: `daemon`
+#: против `interval:` против `calendar:` против `manual` — разные роды, и род
+#: «AGENT» здесь не присваивается никому, потому что ни один источник его не объявляет.
+SERVICE_KIND_BY_SCHEDULE = (
+    ('daemon', 'DAEMON'),
+    ('interval:', 'SCHEDULED'),
+    ('calendar:', 'SCHEDULED'),
+    ('manual', 'MANUAL'),
+)
+
+
+def service_kind(schedule):
+    """Род службы по расписанию. Неизвестное расписание — ``UNKNOWN``, не догадка."""
+    s = str(schedule or '')
+    for prefix, kind in SERVICE_KIND_BY_SCHEDULE:
+        if s.startswith(prefix):
+            return kind
+    return 'UNKNOWN'
+
+
+def _services(services, stats):
+    """Флот: состояние, род, роль, стадии. Метка превращается в имя службы.
+
+    Слово «агент» здесь не употребляется ни к одной записи: ни один источник не
+    объявляет сущность агентом, а называть агентом метку менеджера процессов —
+    ровно та подмена, которую ARB запретил.
+    """
+    if not services:
+        return {'state': 'NOT_MEASURED'}
+    rows = []
+    for e in services.get('entities') or ():
+        row = project_record(e, SERVICE_POLICY, stats)
+        row['name'] = redact_text(e.get('id') or '')
+        row['kind'] = service_kind(e.get('schedule'))
+        rows.append(row)
+    def tally(key):
+        out = {}
+        for r in rows:
+            out[str(r.get(key))] = out.get(str(r.get(key)), 0) + 1
+        return out
+    stages_measured = sum(1 for r in rows
+                          if (r.get('stages') or {}).get('HEALTHY') is not None)
+    return {
+        'state': 'READ',
+        'count': len(rows),
+        'services': rows,
+        'by_status': tally('status'),
+        'by_kind': tally('kind'),
+        'by_role': tally('role'),
+        'by_intent': tally('intent'),
+        'health_measured': stages_measured,
+        'health_not_measured': len(rows) - stages_measured,
+        'agent_note': ('род выведен из наблюдённого расписания. Слово «агент» не '
+                       'присвоено никому: ни один источник его не объявляет, а метка '
+                       'менеджера процессов агентом не является'),
+    }
+
+
+def _drift(drift, stats):
+    """Расхождение источника правды: девять состояний, и ни одно не «ошибка»."""
+    if not drift:
+        return {'state': 'NOT_MEASURED'}
+    counts = drift.get('counts') or {}
+    return {
+        'state': 'READ',
+        'entities': counts.get('entities'),
+        'by_drift_status': project_count_map(counts.get('by_drift_status') or {}, stats),
+        'by_severity': project_count_map(counts.get('by_severity') or {}, stats),
+        'by_entity_type': project_count_map(counts.get('by_entity_type') or {}, stats),
+        'definitions': {k: redact_text(v) for k, v in
+                        (drift.get('drift_status_definitions') or {}).items()},
+    }
+
+
+#: Сколько находок показывать по существу. Полный список — 313 записей — это выгрузка,
+#: а не экран; бюджет тот же, что у центра директора.
+TOP_FINDINGS = 12
+
+
+def _top_findings(rel, stats):
+    """Подтверждённые находки по убыванию тяжести. Неподтверждённое сюда НЕ входит."""
+    order = {'CRITICAL': 0, 'WARNING': 1, 'INFO': 2, 'UNKNOWN': 3}
+    confirmed = [f for f in rel.get('findings') or ()
+                 if f.get('status') == 'ACTIVE_CONFIRMED']
+    confirmed.sort(key=lambda f: (order.get(f.get('severity'), 9),
+                                  str(f.get('finding_title') or '')))
+    rows = [project_record(f, STUDIO_POLICY, stats) for f in confirmed[:TOP_FINDINGS]]
+    return {'rows': rows, 'shown': len(rows), 'confirmed_total': len(confirmed),
+            'note': ('показаны только ПОДТВЕРЖДЁННЫЕ сейчас; неподтверждённое — '
+                     'отдельное состояние, а не более слабая находка')}
+
+
+def _build(actions, bridge, intake, stats, *, pipeline=None):
     layer = {'actions_enabled': False,
              'actions_enabled_note':
                  'Epic 1 остаётся READ-ONLY: ни одной кнопки действия не показывается'}
@@ -483,11 +712,44 @@ def _build(actions, bridge, intake, stats):
     layer['bridge'] = bridge or {'state': 'NOT_MEASURED',
                                  'note': 'состояние Bridge в эту проекцию не подавали'}
     layer['owner_intake'] = intake or []
+    layer['pipeline'] = _pipeline(pipeline, stats)
     return layer
 
 
+#: Стадии конвейера разработки. Состояние каждой — НАБЛЮДЕНИЕ, подаваемое снаружи;
+#: выдумывать «работает» по факту существования документа запрещено.
+PIPELINE_STAGE_VOCABULARY = ('LIVE', 'PARTIAL', 'DOCUMENTED_ONLY', 'NOT_FOUND', 'UNKNOWN')
+
+
+def _pipeline(pipeline, stats):
+    """Где автономия останавливается сегодня — по стадиям, а не по обещаниям."""
+    if not pipeline:
+        return {'state': 'NOT_MEASURED',
+                'note': 'состояние стадий не подавали — это НЕ значит, что их нет'}
+    rows = []
+    for s in pipeline:
+        state = s.get('state')
+        rows.append({
+            'stage': redact_text(s.get('stage') or ''),
+            'state': state if state in PIPELINE_STAGE_VOCABULARY else 'UNKNOWN',
+            'basis': redact_text(s.get('basis') or ''),
+        })
+    tally = {}
+    for r in rows:
+        tally[r['state']] = tally.get(r['state'], 0) + 1
+    first_gap = next((r['stage'] for r in rows if r['state'] != 'LIVE'), None)
+    return {'state': 'READ', 'stages': rows, 'count': len(rows), 'by_state': tally,
+            'vocabulary': list(PIPELINE_STAGE_VOCABULARY),
+            'autonomy_stops_at': first_gap,
+            'note': ('«где останавливается автономия» — это ПЕРВАЯ стадия не в LIVE '
+                     'по порядку конвейера, а не оценка зрелости')}
+
+
 def build_projection(*, investments=None, reliability=None, work=None, governance=None,
-                     director=None, actions=None, bridge=None, intake=None, now=None):
+                     director=None, actions=None, bridge=None, intake=None, now=None,
+                     services=None, drift=None, capital_history=None, positions=None,
+                     risk_config=None, red_flags=None, golive=None, promotion=None,
+                     pipeline=None, memory=None):
     """Одна проекция из уже принятых снимков. Ничего не считает заново."""
     now = now or _now()
     stats = {}
@@ -513,12 +775,19 @@ def build_projection(*, investments=None, reliability=None, work=None, governanc
             'ПЕРЕИМЕНОВАНИЕ, а не сокрытие: состав флота по-прежнему виден, и притворяться, '
             'что топология скрыта, было бы обманом',
         'layers': {
-            'CAPITAL': _capital(investments, stats),
-            'STUDIO': _studio(reliability, work, governance, director, stats),
-            'BUILD': _build(actions, bridge, intake, stats),
+            'CAPITAL': _capital(investments, stats, history=capital_history,
+                                positions=positions, risk_config=risk_config,
+                                red_flags=red_flags, golive=golive, promotion=promotion),
+            'STUDIO': _studio(reliability, work, governance, director, stats,
+                              services=services, drift=drift, memory=memory),
+            'BUILD': _build(actions, bridge, intake, stats, pipeline=pipeline),
         },
     }
-    unknown_keys = sorted(stats.pop('unknown_keys', set()))
+    # Перечень заблокированного публикуется НАМЕРЕННО: владелец должен видеть, что
+    # именно было удержано, иначе «умолчание не публиковать» непроверяемо. Но имя поля
+    # тоже бывает говорящим, поэтому список проходит то же редактирование, что и
+    # значения: имя секрета или путь в имени поля наружу не уходят.
+    unknown_keys = sorted(redact_text(k) for k in stats.pop('unknown_keys', set()))
     projection['redaction_stats'] = {
         'SAFE_FOR_PRIVATE_WEB': stats.get('SAFE_FOR_PRIVATE_WEB', 0),
         'REDACTED': stats.get('REDACTED', 0),
