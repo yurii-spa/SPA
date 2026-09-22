@@ -230,7 +230,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакетом
@@ -8311,12 +8311,19 @@ def _document_ambiguity(doc: dict) -> dict:
         "paths_depth_capped": len(capped),
         "_owners_shallow": owners_shallow,
         "_ambiguous_shallow": amb_shallow,
+        # Плоская карта отдаётся ВМЕСТЕ с хвостами (заказ G74 п. 1): значения
+        # по путям сравнивает сосед, и уплощать документ второй раз ради
+        # этого значило бы завести вторую копию правила уплощения.
+        "_flat_shallow": shallow,
     }
 
 
 def _costed_touches(readers: List[dict],
                     owners: Dict[str, List[str]],
-                    ambiguous: set) -> Tuple[List[dict], Dict[str, int]]:
+                    ambiguous: set,
+                    flat: Optional[Dict[str, str]] = None,
+                    reach_of: Optional[Callable[[str, Optional[int]], dict]]
+                    = None) -> Tuple[List[dict], Dict[str, int]]:
     """Чего многозначность хвоста стоит РЕШАЮЩИМ чтениям этого документа.
 
     Вопрос заказа — «стоит ли она читателю РЕШЕНИЯ», и ответ на него не есть
@@ -8344,11 +8351,366 @@ def _costed_touches(readers: List[dict],
                 counts[COST_PATH_RESOLVES] += 1
                 continue
             counts[COST_DECIDES_AMBIGUOUS] += 1
-            costed.append({"file": reader["file"], "line": touch.get("line"),
-                           "field": field, "paths": len(owners[field]),
-                           "sample": sorted(owners[field])[:COSTED_SAMPLE],
-                           "path_outcome": touch.get("field_path_outcome")})
+            entry = {"file": reader["file"], "line": touch.get("line"),
+                     "field": field, "paths": len(owners[field]),
+                     "sample": sorted(owners[field])[:COSTED_SAMPLE],
+                     "path_outcome": touch.get("field_path_outcome")}
+            # --- заказ G74 п. 1 -----------------------------------------
+            # Многозначность координаты и РАСХОЖДЕНИЕ значений по ней суть
+            # разные утверждения, и второе снимается здесь же: населением
+            # обоих служит ровно это чтение, и заводить ему вторую дорогу
+            # значило бы завести вторую копию правила «кто решает».
+            if flat is not None:
+                entry.update(_value_divergence(sorted(owners[field]), flat))
+            if reach_of is not None:
+                reach = reach_of(reader["file"], touch.get("line"))
+                entry["reach"] = reach["reach"]
+                entry["test"] = reach.get("test")
+                entry["reach_reason"] = reach["reason"]
+            costed.append(entry)
     return costed, counts
+
+
+#: --- заказ G74 п. 1 ---------------------------------------------------
+#: Расходятся ли ЗНАЧЕНИЯ по путям многозначного хвоста. Цикл #675 измерил,
+#: что у 38 решающих чтений координата МНОГОЗНАЧНА, и на этом остановился.
+#: Многозначность сама по себе решения не искажает: хвост `denominator`,
+#: живущий по пяти путям с ОДНИМ И ТЕМ ЖЕ значением, даёт читателю один
+#: ответ, каким бы путём он ни пошёл. Искажает РАСХОЖДЕНИЕ значений.
+#:
+#: Исходов четыре, и четвёртый — третий по смыслу (инв. #17). Сравнение
+#: идёт ДВУМЯ правилами, и второе не есть уточнение первого: `5000000` и
+#: `5000000.0` суть разный ТЕКСТ и одно ЧИСЛО, и назвать это расхождением
+#: значило бы выдать свойство печати за свойство значения.
+VALUE_AGREE = "values_agree"
+VALUE_DIFFER = "values_differ"
+VALUE_TEXT_ONLY = "values_differ_in_text_only"
+VALUE_OPAQUE = "value_not_a_literal"
+_VALUE_OUTCOMES = (VALUE_AGREE, VALUE_DIFFER, VALUE_TEXT_ONLY, VALUE_OPAQUE)
+
+#: Доходит ли ЖИВОЙ документ до вердикта того теста, который им решает.
+#: Вторая половина заказа просит подставить соседний путь и посмотреть,
+#: сменится ли вердикт. Прежде чем подставлять, надо знать, ДОСТИЖИМ ли
+#: вердикт этой подстановкой вообще: `spa_core/tests/conftest.py`
+#: autouse-фикстурой уводит `SPA_DATA_DIR` каждого теста в одноразовый
+#: каталог, и отказываются от этого только тесты с меткой `live_data`.
+#: Прогнать подстановку, не спросив об этом, значило бы получить ноль
+#: смен вердикта и объявить его свойством МНОГОЗНАЧНОСТИ, тогда как он
+#: есть свойство ФИКСТУРЫ — ровно тот класс, против которого написан инв. #17.
+REACH_LIVE = "reads_the_live_document"
+REACH_ISOLATED = "isolated_from_the_live_document_by_the_harness"
+REACH_NO_TEST = "deciding_line_outside_any_test"
+REACH_FILE_UNPARSED = "reader_file_unparsed"
+_REACH_OUTCOMES = (REACH_LIVE, REACH_ISOLATED, REACH_NO_TEST,
+                   REACH_FILE_UNPARSED)
+
+#: Метка, которой тест отказывается от изоляции каталога данных, и сторож,
+#: который эту изоляцию делает. Имя метки — ОДНО, и берётся оно отсюда,
+#: чтобы у правила не завелось второй копии у читателя.
+ISOLATION_MARKER = "live_data"
+ISOLATION_GUARD = "spa_core/tests/data_dir_guard.py::isolate"
+
+#: Вердикт заказа G74 п. 1. Четыре, и разделяет их не сила, а ПРЕДМЕТ:
+#: расхождение может быть настоящим и при этом не иметь ни одного вердикта,
+#: до которого оно способно дойти, — и это не «вреда нет», а «вред лежит у
+#: АРТЕФАКТА, а не у прогона».
+DIVERGENCE_REACHES = "divergence_reaches_a_live_verdict"
+DIVERGENCE_ARTIFACT_ONLY = "divergence_real_but_no_verdict_can_see_it"
+DIVERGENCE_NONE = "no_costing_read_diverges"
+DIVERGENCE_NOTHING_COSTED = "no_costing_read_at_all"
+
+
+def _typed_value(rendered: str) -> Tuple[bool, object]:
+    """`repr` обратно в значение. Неразбираемое — ТРЕТИЙ исход, не `None`.
+
+    `float('nan')` печатается как `nan` и литералом не является; выдать его
+    за `None` значило бы слить «значения нет» с «значение не прочитано».
+    """
+    try:
+        return True, ast.literal_eval(rendered)
+    except (ValueError, SyntaxError, MemoryError, RecursionError, TypeError):
+        return False, None
+
+
+def _value_kind(value: object) -> Tuple[str, str]:
+    """Род значения и его каноническая запись.
+
+    Род, а не `type().__name__`: `5000000` и `5000000.0` суть одно ЧИСЛО,
+    и различать их родом значило бы называть расхождением разницу печати.
+    `bool` отделён от числа намеренно — `True` и `1` решают по-разному.
+    """
+    if isinstance(value, bool):
+        return "bool", repr(value)
+    if isinstance(value, (int, float)):
+        return "number", repr(float(value))
+    if value is None:
+        return "null", "None"
+    try:
+        return (type(value).__name__,
+                json.dumps(value, sort_keys=True, default=repr))
+    except (TypeError, ValueError):
+        return type(value).__name__, repr(value)
+
+
+def _value_divergence(paths: List[str], flat: Dict[str, str]) -> dict:
+    """Расходятся ли значения по ПУТЯМ одного хвоста в живом документе."""
+    texts = {flat[p] for p in paths}
+    kinds: set = set()
+    canonical: set = set()
+    opaque: List[str] = []
+    for path in paths:
+        ok, value = _typed_value(flat[path])
+        if not ok:
+            opaque.append(path)
+            continue
+        kind, canon = _value_kind(value)
+        kinds.add(kind)
+        canonical.add((kind, canon))
+    if len(texts) == 1:
+        outcome = VALUE_AGREE
+    elif opaque:
+        outcome = VALUE_OPAQUE
+    elif len(canonical) == 1:
+        outcome = VALUE_TEXT_ONLY
+    else:
+        outcome = VALUE_DIFFER
+    return {
+        "value_outcome": outcome,
+        "distinct_text": len(texts),
+        "distinct_value": (None if opaque else len(canonical)),
+        "kinds": sorted(kinds),
+        "kinds_differ": len(kinds) > 1,
+        # Счёт хранится ВСЕГДА, образец усечён и назван своим именем: иначе
+        # «показано три» читалось бы как «нечитаемых путей три».
+        "opaque_total": len(opaque),
+        "opaque_paths": opaque[:COSTED_SAMPLE],
+    }
+
+
+def _pytest_mark_names(nodes: Iterable[ast.AST]) -> set:
+    """Имена меток `pytest.mark.X` у перечня декораторов или выражений."""
+    names: set = set()
+    for node in nodes:
+        target = node.func if isinstance(node, ast.Call) else node
+        parts: List[str] = []
+        while isinstance(target, ast.Attribute):
+            parts.append(target.attr)
+            target = target.value
+        if isinstance(target, ast.Name):
+            parts.append(target.id)
+        parts.reverse()
+        if len(parts) >= 3 and parts[0] == "pytest" and parts[1] == "mark":
+            names.add(parts[2])
+        elif len(parts) >= 2 and parts[0] == "mark":
+            names.add(parts[1])
+    return names
+
+
+def _module_marks(tree: ast.AST) -> set:
+    """Метки уровня модуля (`pytestmark = ...`).
+
+    Фикстура спрашивает ``get_closest_marker``, а он видит метку на любом из
+    трёх уровней. Прочитать только декораторы функции значило бы объявить
+    изолированным тест, который от изоляции отказался целым модулем.
+    """
+    marks: set = set()
+    for node in getattr(tree, "body", []):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = (node.targets if isinstance(node, ast.Assign)
+                   else [node.target])
+        if not any(isinstance(t, ast.Name) and t.id == "pytestmark"
+                   for t in targets):
+            continue
+        value = node.value
+        if value is None:
+            continue
+        items = (list(value.elts)
+                 if isinstance(value, (ast.List, ast.Tuple)) else [value])
+        marks |= _pytest_mark_names(items)
+    return marks
+
+
+def _locate_test(tree: ast.AST, line: int) -> Optional[dict]:
+    """Тест, внутри которого стои́т решающая строка, и его метки."""
+    module_marks = _module_marks(tree)
+
+    def _covers(fn: ast.AST) -> bool:
+        end = getattr(fn, "end_lineno", None) or fn.lineno
+        return fn.lineno <= line <= end
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for fn in node.body:
+            if (isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and fn.name.startswith("test") and _covers(fn)):
+                return {"test": f"{node.name}::{fn.name}",
+                        "marks": sorted(module_marks
+                                        | _pytest_mark_names(node.decorator_list)
+                                        | _pytest_mark_names(fn.decorator_list))}
+    for fn in getattr(tree, "body", []):
+        if (isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and fn.name.startswith("test") and _covers(fn)):
+            return {"test": fn.name,
+                    "marks": sorted(module_marks
+                                    | _pytest_mark_names(fn.decorator_list))}
+    return None
+
+
+def _reach_of(tree: Optional[ast.AST], line: Optional[int]) -> dict:
+    """Способна ли подстановка в ЖИВОЙ документ сдвинуть вердикт этого теста."""
+    if tree is None:
+        return {"reach": REACH_FILE_UNPARSED, "test": None,
+                "reason": "файл читателя не разобран — тест не найден"}
+    if line is None:
+        return {"reach": REACH_NO_TEST, "test": None,
+                "reason": "у решающего чтения не измерена строка"}
+    located = _locate_test(tree, int(line))
+    if located is None:
+        return {"reach": REACH_NO_TEST, "test": None,
+                "reason": ("решающая строка стои́т вне тела теста "
+                           "(помощник, фикстура, уровень модуля)")}
+    if ISOLATION_MARKER in located["marks"]:
+        return {"reach": REACH_LIVE, "test": located["test"],
+                "marks": located["marks"],
+                "reason": (f"тест помечен `{ISOLATION_MARKER}` и от изоляции "
+                           f"каталога данных отказался — подстановка до его "
+                           f"вердикта дойти МОЖЕТ")}
+    return {"reach": REACH_ISOLATED, "test": located["test"],
+            "marks": located["marks"],
+            "reason": (f"`{ISOLATION_GUARD}` уводит `SPA_DATA_DIR` этого "
+                       f"теста в одноразовый каталог (метки "
+                       f"`{ISOLATION_MARKER}` у него нет) — живой документ до "
+                       f"его вердикта не доходит ПО ПОСТРОЕНИЮ")}
+
+
+def tail_value_divergence(scope: Optional[dict]) -> dict:
+    """Расходятся ли значения у 38 стоящих чтений (**заказ G74 п. 1**).
+
+    Заказ ставит вопрос дословно:
+
+    > У скольких из 38 значения по путям хвоста РАЗЛИЧНЫ в живом документе и
+    > сколько из них меняют вердикт своего теста при подстановке соседнего пути.
+
+    Отвечается ДВУМЯ замерами, и второй не есть уточнение первого:
+
+    1. **Расхождение значений** — свойство живого документа, снимаемое точно
+       и без прогона. Двумя правилами: по тексту и по значению.
+    2. **Достижимость вердикта** — прежде чем подставлять соседний путь, надо
+       знать, способна ли подстановка дойти. Вердикт теста, у которого
+       `SPA_DATA_DIR` уведён autouse-фикстурой, живому документу недоступен
+       ПО ПОСТРОЕНИЮ, и ноль смен вердикта у такого теста есть свойство
+       фикстуры, а не многозначности.
+
+    Третий исход обязателен у обоих замеров. Шаг ЧИСТЫЙ: население берётся у
+    :func:`registry_ambiguity_scope`, второй дороги к читателю здесь не
+    заводится, ни одного файла не читается и ни один прогон не запускается.
+
+    ADVISORY: ничего не правится, `applied` ложно.
+    """
+    head = {
+        "question": ("у скольких из стоящих решающих чтений значения по "
+                     "путям многозначного хвоста РАЗЛИЧНЫ в живом документе "
+                     "и сколько из них способны сдвинуть вердикт своего теста"),
+        "order": "G74.1",
+        "applied": False,
+        "isolation_marker": ISOLATION_MARKER,
+        "isolation_guard": ISOLATION_GUARD,
+    }
+    if not isinstance(scope, dict):
+        return {**head, "status": "UNMEASURED",
+                "reason": ("населения нет: шаг многозначности реестра не "
+                           "отдал словаря — это НЕ «стоящих чтений нет»")}
+    if str(scope.get("status")) != "MEASURED":
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"шаг многозначности реестра сам НЕ ИЗМЕРЕН "
+                           f"({scope.get('reason') or scope.get('status')}) — "
+                           f"делить нечего")}
+    rows = observed(scope, "rows", kind=list)
+    if rows is None:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("в замере многозначности нет перечня документов — "
+                           "это НЕ «ни один документ не стоит читателю»")}
+
+    values: Dict[str, int] = {cls: 0 for cls in _VALUE_OUTCOMES}
+    reaches: Dict[str, int] = {cls: 0 for cls in _REACH_OUTCOMES}
+    diverging: List[dict] = []
+    kinds_differ = 0
+    measured_rows = 0
+    rows_without_population: List[str] = []
+    for row in rows:
+        if not row.get("costs_a_reader"):
+            continue
+        costed = observed(row, "costed_all", kind=list)
+        if costed is None:
+            # Инв. #17: строка сказала «стои́т читателю», а перечня нет.
+            # Это НЕ ноль расхождений — это непрочитанное население.
+            rows_without_population.append(str(row.get("census")))
+            continue
+        measured_rows += 1
+        for item in costed:
+            outcome = str(item.get("value_outcome"))
+            values[outcome] = values.get(outcome, 0) + 1
+            reach = str((item.get("reach_outcome") or {}).get("reach")
+                        if isinstance(item.get("reach_outcome"), dict)
+                        else item.get("reach"))
+            reaches[reach] = reaches.get(reach, 0) + 1
+            if item.get("kinds_differ"):
+                kinds_differ += 1
+            if outcome == VALUE_DIFFER:
+                diverging.append({
+                    "census": row.get("census"),
+                    "file": item.get("file"), "line": item.get("line"),
+                    "field": item.get("field"), "paths": item.get("paths"),
+                    "distinct_text": item.get("distinct_text"),
+                    "distinct_value": item.get("distinct_value"),
+                    "kinds": item.get("kinds"),
+                    "reach": reach, "test": item.get("test"),
+                })
+    if rows_without_population:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"у {len(rows_without_population)} документ(ов) "
+                           f"строка объявила цену читателю, но перечня "
+                           f"стоящих чтений в ней нет "
+                           f"({', '.join(sorted(rows_without_population)[:5])})"
+                           f" — расхождение НЕ ИЗМЕРЕНО, и это не ноль")}
+
+    costed_total = sum(values.values())
+    reaching = [d for d in diverging if d["reach"] == REACH_LIVE]
+    if not costed_total:
+        verdict = DIVERGENCE_NOTHING_COSTED
+    elif not diverging:
+        verdict = DIVERGENCE_NONE
+    elif reaching:
+        verdict = DIVERGENCE_REACHES
+    else:
+        verdict = DIVERGENCE_ARTIFACT_ONLY
+    return {
+        **head,
+        "status": "MEASURED",
+        "verdict": verdict,
+        "documents_costing": measured_rows,
+        "costed_total": costed_total,
+        "value_counts": values,
+        "reach_counts": reaches,
+        "kinds_differ": kinds_differ,
+        "diverging": len(diverging),
+        "diverging_reaching_a_verdict": len(reaching),
+        "diverging_sample": diverging[:COSTED_SAMPLE],
+        "blind": [
+            ("подстановка соседнего пути НЕ ЗАПУСКАЛАСЬ ни разу: у чтений с "
+             f"исходом `{REACH_ISOLATED}` она до вердикта не доходит по "
+             "построению, и прогон дал бы ноль, который есть свойство "
+             "autouse-фикстуры, а не многозначности"),
+            ("расхождение снято у документа В ТОМ ВИДЕ, в каком он лежит "
+             "СЕГОДНЯ: совпавшие значения завтра могут разойтись, и "
+             f"`{VALUE_AGREE}` есть замер дня, а не свойство хвоста"),
+            ("род значения не разделяет `int` и `float` намеренно — иначе "
+             "разницей значений была бы названа разница печати; `bool` от "
+             "числа отделён, потому что `True` и `1` решают по-разному"),
+        ],
+    }
 
 
 def registry_ambiguity_scope(root: Path, *,
@@ -8457,6 +8819,16 @@ def registry_ambiguity_scope(root: Path, *,
                 if rel != producer
                 and (dotted in text or artifact_name in text or name in text)]
 
+    def _reach(rel: str, line: Optional[int]) -> dict:
+        """Достижим ли вердикт этого чтения подстановкой в живой документ.
+
+        Дерево берётся из уже разобранного набора: второго обхода файлов
+        здесь не заводится, и файла, которого в наборе нет, не бывает по
+        построению — но исход на этот случай всё равно назван, потому что
+        «дерева нет» и «теста нет» суть разные утверждения.
+        """
+        return _reach_of(trees.get(rel), line)
+
     def _readers_of(rel_list: Iterable[str], dotted: str,
                     artifact_name: str, renderers: Tuple[str, ...],
                     producer: str) -> List[dict]:
@@ -8521,6 +8893,7 @@ def registry_ambiguity_scope(root: Path, *,
         measured = _document_ambiguity(doc)
         owners = measured.pop("_owners_shallow")
         ambiguous = measured.pop("_ambiguous_shallow")
+        flat = measured.pop("_flat_shallow")
         dotted = producer[:-3].replace("/", ".") if producer.endswith(".py") \
             else producer.replace("/", ".")
         artifact_name = Path(artifact).name
@@ -8528,7 +8901,8 @@ def registry_ambiguity_scope(root: Path, *,
         candidates = _candidates(name, dotted, artifact_name, producer)
         readers = _readers_of(candidates, dotted, artifact_name, renderers,
                               producer)
-        costed, cost_counts = _costed_touches(readers, owners, ambiguous)
+        costed, cost_counts = _costed_touches(readers, owners, ambiguous,
+                                              flat, _reach)
 
         if name == FILTER_CONTROL_CENSUS:
             full = _readers_of(sorted(trees), dotted, artifact_name,
@@ -8554,6 +8928,10 @@ def registry_ambiguity_scope(root: Path, *,
             "costs_a_reader": bool(costed),
             "costed_touches": len(costed),
             "costed_sample": costed[:COSTED_SAMPLE],
+            # Полный перечень, а не образец: заказ G74 п. 1 делит ЭТИ чтения
+            # по расхождению значений, и усечённое население ответило бы
+            # числом меньше настоящего, не сказав об усечении ни слова.
+            "costed_all": costed,
         })
 
     if filter_control is None:
@@ -9456,6 +9834,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # есть замер, а не догадка.
     registry_ambiguity = registry_ambiguity_scope(root, data_dir=data_dir)
 
+    # --- РАСХОЖДЕНИЕ ЗНАЧЕНИЙ У СТОЯЩИХ ЧТЕНИЙ (заказ G74 п. 1) --------
+    # Шаг выше НАЗВАЛ 38 решающих чтений, у которых координата многозначна,
+    # и на этом остановился. Многозначность решения не искажает — искажает
+    # РАСХОЖДЕНИЕ значений по путям; хвост, живущий по пяти путям с одним и
+    # тем же значением, даёт один ответ, каким бы путём читатель ни пошёл.
+    # Шаг ЧИСТЫЙ: население берётся у соседа выше, файлов он не читает и
+    # прогонов не запускает, поэтому цены такту не добавляет.
+    value_divergence = tail_value_divergence(registry_ambiguity)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -9580,6 +9967,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # свидетели и разный третий исход.
         "reader_cost_of_test_channel": test_channel_cost,
         "registry_ambiguity_scope": registry_ambiguity,
+        "tail_value_divergence": value_divergence,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -11047,6 +11435,58 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{control.get('readers_full_scan')} читателей, потеряно "
                 f"{', '.join(control.get('lost_by_filter') or []) or '—'}")
         for blind in (observed(reg, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    div = observed(doc, "tail_value_divergence", kind=dict)
+    if div is None:
+        out.append("[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «значения совпадают» и НЕ «вреда нет»")
+    elif str(div.get("status")) == "UNMEASURED":
+        out.append(f"[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ] НЕ ИЗМЕРЕНО: {div.get('reason')}")
+    else:
+        vals = observed(div, "value_counts", kind=dict)
+        out.append(
+            f"[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ] вердикт {div.get('verdict')} · стоящих "
+            f"решающих чтений {div.get('costed_total')} в "
+            f"{div.get('documents_costing')} документ(ах) "
+            + ("· учёт по исходам НЕ ИЗМЕРЕН" if vals is None else
+               f"· значения РАСХОДЯТСЯ у {vals.get(VALUE_DIFFER)}, совпадают "
+               f"у {vals.get(VALUE_AGREE)}, расходятся ТОЛЬКО текстом у "
+               f"{vals.get(VALUE_TEXT_ONLY)} (напр. `5000000` против "
+               f"`5000000.0` — разница печати, не значения), значение не "
+               f"литерал у {vals.get(VALUE_OPAQUE)}"))
+        out.append(
+            f"[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ · РОД] у {div.get('kinds_differ')} чтений "
+            f"пути несут значения РАЗНОГО рода (число против перечня и т. п.) "
+            f"— такой хвост не многозначен, а несогласован: правым не может "
+            f"быть ни один читатель")
+        reach = observed(div, "reach_counts", kind=dict)
+        if reach is None:
+            out.append("[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ · ДОСТИЖИМОСТЬ] НЕ ИЗМЕРЕНА — "
+                       "это НЕ «вердикт недостижим»")
+        else:
+            out.append(
+                f"[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ · ДОСТИЖИМОСТЬ] подстановка способна "
+                f"дойти до вердикта у {reach.get(REACH_LIVE)} чтений; у "
+                f"{reach.get(REACH_ISOLATED)} она не доходит ПО ПОСТРОЕНИЮ "
+                f"(`{div.get('isolation_guard')}` уводит `SPA_DATA_DIR` "
+                f"всякого теста без метки `{div.get('isolation_marker')}`); "
+                f"вне тела теста {reach.get(REACH_NO_TEST)}; файл не разобран "
+                f"{reach.get(REACH_FILE_UNPARSED)} — прогон подстановки дал бы "
+                f"здесь ноль, и этот ноль был бы свойством ФИКСТУРЫ")
+        sample = observed(div, "diverging_sample", kind=list)
+        if sample is None:
+            out.append("[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ · ОБРАЗЕЦ] перечня нет в "
+                       "документе — это НЕ «расхождений нет»")
+        else:
+            for item in sample[:max_rows]:
+                out.append(
+                    f"[РАСХОЖДЕНИЕ ЗНАЧЕНИЙ · ОБРАЗЕЦ] {item.get('census')}: "
+                    f"{item.get('file')}:{item.get('line')} поле "
+                    f"`{item.get('field')}` → путей {item.get('paths')}, "
+                    f"различных значений {item.get('distinct_value')}, "
+                    f"роды {'/'.join(item.get('kinds') or []) or '—'}, "
+                    f"достижимость {item.get('reach')}")
+        for blind in (observed(div, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
