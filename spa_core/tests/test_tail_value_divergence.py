@@ -732,6 +732,130 @@ class WholeContourTest(unittest.TestCase):
         self.assertGreater(div["costed_total"], C.COSTED_SAMPLE)
         self.assertEqual(div["verdict"], C.DIVERGENCE_ARTIFACT_ONLY)
 
+# ---------------------------------------------------------------------------
+# Заказ G75 п. 4: ненаблюдённая достижимость — ТРЕТИЙ исход, а не класс
+# ---------------------------------------------------------------------------
+class AbsentReachIsNotAnOutcome(unittest.TestCase):
+    """Два украшения внутри самого прибора, снятые циклом #678.
+
+    До правки достижимость читалась так::
+
+        reach = str((item.get("reach_outcome") or {}).get("reach")
+                    if isinstance(item.get("reach_outcome"), dict)
+                    else item.get("reach"))
+
+    Здесь два разных дефекта, и каждый проверяется отдельно.
+
+    **Второе имя.** Ключа ``reach_outcome`` не писал НИ ОДИН производитель
+    (замер #678: 0 из 2 живых артефактов; они несут ``reach``/``reach_reason``).
+    Второе имя одного предмета — внутри прибора, который ищет вторые копии.
+
+    **Исход с именем ``"None"``.** ``str()`` поверх отсутствующего значения
+    заводил в счётчик класс, буквально названный ``"None"``. Вред не в
+    счётчике: ``reaching`` считает только :data:`REACH_LIVE`, поэтому
+    ненаблюдённая достижимость молча становилась «до вердикта не доходит» —
+    ровно тем вердиктом, на котором стои́т весь вывод ADR-458.
+
+    Контроль обязан идти В ОБЕ СТОРОНЫ: правка, обратившая КАЖДОЕ чтение в
+    отказ, прошла бы отрицательную половину и уничтожила прибор. Поэтому
+    :meth:`test_a_known_reach_still_measures` и его сосед по вердикту —
+    такая же часть контроля, как и сами отказы.
+    """
+
+    _BASE = {"file": "spa_core/tests/test_x.py", "line": 7, "field": "f",
+             "paths": 2, "value_outcome": C.VALUE_DIFFER, "distinct_text": 2,
+             "distinct_value": 2, "kinds": ["number", "list"],
+             "kinds_differ": False}
+
+    def _run(self, **over):
+        item = dict(self._BASE)
+        item.update(over)
+        item.pop("__drop_reach", None)
+        if over.get("__drop_reach"):
+            item.pop("reach", None)
+        return C.tail_value_divergence(_scope([_row([item])]))
+
+    # --- отрицательная половина: дефект вернулся ⇒ красное ----------------
+    def test_a_read_without_reach_refuses_instead_of_counting(self):
+        out = self._run(__drop_reach=True)
+        self.assertEqual(out["status"], "UNMEASURED")
+        self.assertNotIn("verdict", out)
+        # Статуса мало: «не записано» и «записан незнакомый класс» чинятся
+        # разным, и отказ, который их сливает, — снова счётчик (замер #678:
+        # без этой строки мутация `str(item.get("reach"))` ВЫЖИВАЛА, потому
+        # что подменяла один третий исход другим, оставаясь UNMEASURED).
+        self.assertEqual(out["unmeasured_class"], C.UNMEASURED_REACH_ABSENT)
+
+    def test_the_absent_reach_never_becomes_a_class_called_none(self):
+        # Сторож ровно того выражения, что снято: класса `"None"` в счётчике
+        # не появляется, потому что счётчик до него не доходит вовсе.
+        out = self._run(__drop_reach=True)
+        self.assertNotIn("reach_counts", out)
+        self.assertNotIn("None", str(out.get("reach_counts", "")))
+
+    def test_the_refusal_names_which_read_is_unmeasured(self):
+        # Отказ без адреса — снова счётчик: нечего проверить, нечего чинить.
+        out = self._run(__drop_reach=True)
+        self.assertIn("spa_core/tests/test_x.py:7", out["reason"])
+
+    def test_an_unmeasured_reach_is_not_read_as_not_reaching(self):
+        # Сердцевина инв. #17 здесь: «не наблюдено» и «измеренно не доходит»
+        # обязаны быть РАЗНЫМИ исходами. До правки оба давали
+        # DIVERGENCE_ARTIFACT_ONLY со статусом MEASURED.
+        absent = self._run(__drop_reach=True)
+        measured_miss = self._run(reach=C.REACH_ISOLATED)
+        self.assertEqual(absent["status"], "UNMEASURED")
+        self.assertEqual(measured_miss["status"], "MEASURED")
+        self.assertEqual(measured_miss["verdict"], C.DIVERGENCE_ARTIFACT_ONLY)
+
+    def test_the_second_name_for_reach_is_gone_from_the_code(self):
+        # Ветка была мертва СЕГОДНЯ — по одному вызывающему, а не по коду.
+        # Сторож смотрит на исходник, потому что поведением мёртвую ветку
+        # не поймать: в том и был её род.
+        src = Path(C.__file__).read_text(encoding="utf-8")
+        code = "\n".join(l for l in src.splitlines()
+                          if not l.lstrip().startswith("#"))
+        self.assertNotIn("reach_outcome", code)
+
+    def test_a_reach_class_nobody_declared_refuses_too(self):
+        # Та же дыра с другой стороны: незнакомый класс не есть REACH_LIVE и
+        # молча попадал бы в «не доходит».
+        out = self._run(reach="a_class_no_one_declared")
+        self.assertEqual(out["status"], "UNMEASURED")
+        self.assertIn("a_class_no_one_declared", out["reason"])
+        self.assertEqual(out["unmeasured_class"],
+                         C.UNMEASURED_REACH_UNDECLARED)
+
+    def test_a_reach_of_the_wrong_kind_is_absence_not_a_class(self):
+        # `observed(..., kind=str)`: мусор в поле не есть замер.
+        out = self._run(reach={"reach": C.REACH_LIVE})
+        self.assertEqual(out["status"], "UNMEASURED")
+        # Род не тот ⇒ наблюдения НЕТ (доктрина `observed`), а не «чужой
+        # класс». Без этой строки снятие `kind=str` выживало: словарь просто
+        # проваливался в соседний отказ.
+        self.assertEqual(out["unmeasured_class"], C.UNMEASURED_REACH_ABSENT)
+
+    # --- положительная половина: прибор ЖИВ -------------------------------
+    def test_a_known_reach_still_measures(self):
+        out = self._run(reach=C.REACH_LIVE)
+        self.assertEqual(out["status"], "MEASURED")
+        self.assertEqual(out["reach_counts"][C.REACH_LIVE], 1)
+        self.assertEqual(out["verdict"], C.DIVERGENCE_REACHES)
+
+    def test_every_declared_class_is_still_countable(self):
+        # Без этого «отказ на всё» прошёл бы отрицательную половину целиком.
+        for cls in C._REACH_OUTCOMES:
+            with self.subTest(reach=cls):
+                out = self._run(reach=cls)
+                self.assertEqual(out["status"], "MEASURED")
+                self.assertEqual(out["reach_counts"][cls], 1)
+
+    def test_kind_conflicts_are_still_counted_with_reach_present(self):
+        # Счёт родов переехал выше проверки достижимости; сцена доказывает,
+        # что переезд ничего не потерял.
+        out = self._run(reach=C.REACH_LIVE, kinds_differ=True)
+        self.assertEqual(out["kinds_differ"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

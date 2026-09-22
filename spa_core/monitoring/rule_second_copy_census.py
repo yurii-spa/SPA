@@ -8318,6 +8318,15 @@ def _document_ambiguity(doc: dict) -> dict:
     }
 
 
+def _read_at(item: dict) -> str:
+    """«файл:строка» стоящего чтения — материал НАЗВАННОГО отказа.
+
+    Отказ, который не говорит У КОГО не измерено, снова превращает третий
+    исход в счётчик: читателю нечего проверить и нечего починить.
+    """
+    return f"{item.get('file')}:{item.get('line')}"
+
+
 def _costed_touches(readers: List[dict],
                     owners: Dict[str, List[str]],
                     ambiguous: set,
@@ -8403,6 +8412,14 @@ REACH_NO_TEST = "deciding_line_outside_any_test"
 REACH_FILE_UNPARSED = "reader_file_unparsed"
 _REACH_OUTCOMES = (REACH_LIVE, REACH_ISOLATED, REACH_NO_TEST,
                    REACH_FILE_UNPARSED)
+
+#: --- заказ G75 п. 4 ---------------------------------------------------
+#: У ОТКАЗА тоже обязано быть имя. Два непрочтения достижимости различны по
+#: предмету и чинятся разным: «производитель не записал» — дыра в письме,
+#: «записал класс вне объявленных» — расхождение словарей. Отказ, который их
+#: сливает, снова превращает третий исход в счётчик, только на уровень выше.
+UNMEASURED_REACH_ABSENT = "reach_not_observed"
+UNMEASURED_REACH_UNDECLARED = "reach_class_undeclared"
 
 #: Метка, которой тест отказывается от изоляции каталога данных, и сторож,
 #: который эту изоляцию делает. Имя метки — ОДНО, и берётся оно отсюда,
@@ -8639,6 +8656,8 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
     kinds_differ = 0
     measured_rows = 0
     rows_without_population: List[str] = []
+    reads_without_reach: List[str] = []
+    reads_with_alien_reach: List[str] = []
     for row in rows:
         if not row.get("costs_a_reader"):
             continue
@@ -8652,12 +8671,27 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
         for item in costed:
             outcome = str(item.get("value_outcome"))
             values[outcome] = values.get(outcome, 0) + 1
-            reach = str((item.get("reach_outcome") or {}).get("reach")
-                        if isinstance(item.get("reach_outcome"), dict)
-                        else item.get("reach"))
-            reaches[reach] = reaches.get(reach, 0) + 1
             if item.get("kinds_differ"):
                 kinds_differ += 1
+            # --- заказ G75 п. 4 -----------------------------------------
+            # Достижимость читается ОДНИМ именем и только ИЗВЕСТНЫМ классом.
+            # Прежде здесь стояло второе имя (`reach_outcome`), которого не
+            # писал ни один производитель — второе имя одного предмета ВНУТРИ
+            # прибора, который ищет вторые копии, — а `str()` поверх
+            # отсутствующего значения заводил в счётчик класс с именем
+            # `"None"`: инв. #17 наизнанку, НЕ ИЗМЕРЕНО под видом исхода.
+            # Хуже счётчика был ВЕРДИКТ: `reaching` считает только
+            # REACH_LIVE, поэтому ненаблюдённая достижимость молча
+            # становилась «до вердикта не доходит» — ровно тем ответом, на
+            # котором стои́т ADR-458. Оба исхода теперь отказ, и отказ НАЗВАН.
+            reach = observed(item, "reach", kind=str)
+            if reach is None:
+                reads_without_reach.append(_read_at(item))
+                continue
+            if reach not in _REACH_OUTCOMES:
+                reads_with_alien_reach.append(f"{_read_at(item)}={reach}")
+                continue
+            reaches[reach] += 1
             if outcome == VALUE_DIFFER:
                 diverging.append({
                     "census": row.get("census"),
@@ -8675,6 +8709,28 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
                            f"стоящих чтений в ней нет "
                            f"({', '.join(sorted(rows_without_population)[:5])})"
                            f" — расхождение НЕ ИЗМЕРЕНО, и это не ноль")}
+    if reads_without_reach:
+        # Заказ G75 п. 4. Ноль смен вердикта держит весь вывод ADR-458, и
+        # держит он его ТОЛЬКО пока достижимость измерена у каждого чтения.
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_ABSENT,
+                "reason": (f"у {len(reads_without_reach)} стоящ(их) чтений "
+                           f"достижимость НЕ НАБЛЮДЕНА "
+                           f"({', '.join(sorted(reads_without_reach)[:5])}) — "
+                           f"это НЕ «до вердикта не доходит»: вердикт "
+                           f"«{DIVERGENCE_ARTIFACT_ONLY}» означает измеренную "
+                           f"недостижимость, а не отсутствующую")}
+    if reads_with_alien_reach:
+        # Класс, которого прибор не знает, молча не является REACH_LIVE и
+        # потому молча же попадал бы в «не доходит». Имя без объявления —
+        # тот же исход без имени, только с другой стороны.
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_UNDECLARED,
+                "reason": (f"у {len(reads_with_alien_reach)} стоящ(их) чтений "
+                           f"достижимость названа классом вне объявленных "
+                           f"({', '.join(sorted(reads_with_alien_reach)[:5])}) "
+                           f"— сосчитать его «не доходит» значило бы принять "
+                           f"незнакомый исход за измеренный")}
 
     costed_total = sum(values.values())
     reaching = [d for d in diverging if d["reach"] == REACH_LIVE]
