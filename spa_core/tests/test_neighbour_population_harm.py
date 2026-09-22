@@ -424,8 +424,15 @@ class HarmOnAStandTests(unittest.TestCase):
             registry)
 
     def test_the_verdict_of_the_neighbour_does_not_move(self) -> None:
+        """**Намеренная правка (инв. #16), заказ G69 п. 1.** Прежде тест
+        читал `harm["status"] == "MEASURED"` как «вердикт соседа не
+        сдвинулся». Это была ПОДМЕНА координаты: статус координаты говорит о
+        решении ЧИТАТЕЛЕЙ, а не о вердикте соседа, и со второго оплаченного
+        читателя (`invisible_consumer_scale`, чьё решение на стенде как раз
+        сдвигается) стал их различать. Проверяется теперь то, о чём тест
+        всегда и был, — ОБЪЯВЛЕННЫЕ поля вердикта. Обоснование —
+        `docs/journal/2026-W39.md`."""
         harm = self._harm()
-        self.assertEqual(harm["status"], "MEASURED")
         self.assertEqual(harm["verdict_fields_moved"], [])
         self.assertIn("understatement_moves_no_verdict",
                       [f["kind"] for f in harm["findings"]])
@@ -494,23 +501,121 @@ class HarmOnAStandTests(unittest.TestCase):
                  if f["kind"] == "reader_decides_on_moved_field"]
         self.assertNotIn("spa_core/monitoring/bridge.py", named)
 
-    def test_the_unpaid_reader_is_a_THIRD_outcome_with_a_price(self) -> None:
+    def test_there_is_NO_unpaid_remainder_left(self) -> None:
+        """**Намеренная правка теста (инв. #16), заказ G69 п. 1.**
+
+        Прежняя редакция требовала, чтобы неоплаченный читатель БЫЛ ровно
+        один: она закрепляла ОСТАТОК как свойство прибора. Заказ померил
+        цену (`recompute_cost_budget`) и такт — пересчёт стои́т десятки секунд
+        при такте в шесть часов, — и остаток оплачен. Утверждение теста
+        перевёрнуто вслед за замером, а не ослаблено: обратная сторона
+        («неисполнимый читатель ВСЁ ЕЩЁ уходит в третий исход с ценой»)
+        проверяется соседним тестом ниже, на подставленной спецификации.
+        Обоснование продублировано в `docs/journal/2026-W39.md`.
+        """
         harm = self._harm()
         unpaid = [e for e in harm["executed"]
                   if e["outcome"] == DECISION_NOT_EXECUTED]
-        self.assertEqual(len(unpaid), 1)
-        self.assertEqual(unpaid[0]["key"], "invisible_consumer_scale")
-        self.assertEqual(unpaid[0]["field"], "blanked_to_zero")
-        self.assertGreater(unpaid[0]["cost_s"], 0)
-        self.assertIn("ОСТАТОК", unpaid[0]["reason"])
+        self.assertEqual(unpaid, [])
+        self.assertEqual(harm["counts"]["readers_not_executed"], 0)
 
-    def test_the_executed_reader_carries_both_projections(self) -> None:
+    def test_an_unrunnable_reader_STILL_falls_into_the_third_outcome(self) -> None:
+        """Обратная сторона предыдущего: третий исход не удалён, он опустел.
+        Читатель, которого прибор позвать не может, обязан унести с собой
+        ОБЪЯВЛЕННУЮ цену и не притворяться «решение не изменилось»."""
+        spec = {"key": "нет_такого_читателя", "cost_s_declared": 7,
+                "execute": True, "field": "х", "project": "registry",
+                "why": "стенд"}
+        real = rscc._EXECUTABLE_READERS
+        rscc._EXECUTABLE_READERS = real + (spec,)
+        try:
+            harm = self._harm()
+        finally:
+            rscc._EXECUTABLE_READERS = real
+        unpaid = [e for e in harm["executed"]
+                  if e["outcome"] == DECISION_NOT_EXECUTED]
+        self.assertEqual([e["key"] for e in unpaid], ["нет_такого_читателя"])
+        self.assertEqual(unpaid[0]["cost_s_declared"], 7)
+        self.assertIn("ОСТАТОК", unpaid[0]["reason"])
+        self.assertNotIn("cost_s_measured", unpaid[0])
+
+    def test_a_reader_whose_projection_is_UNNAMED_is_not_silently_executed(self) -> None:
+        """Проекция объявляется ИМЕНЕМ до прогона. Спецификация без имени
+        (или с неизвестным) обязана уйти в третий исход, а не сравниваться
+        чужой проекцией — сплошной `None` дал бы «решение то же» из пустоты."""
+        spec = {"key": "consumer_registry_completeness", "cost_s_declared": 1,
+                "execute": True, "field": "х", "project": "которой_нет",
+                "why": "стенд"}
+        real = rscc._EXECUTABLE_READERS
+        rscc._EXECUTABLE_READERS = (spec,)
+        try:
+            harm = self._harm()
+        finally:
+            rscc._EXECUTABLE_READERS = real
+        self.assertEqual([e["outcome"] for e in harm["executed"]],
+                         [DECISION_NOT_EXECUTED])
+
+    def test_BOTH_readers_are_recomputed_and_carry_both_projections(self) -> None:
         harm = self._harm()
         executed = [e for e in harm["executed"]
                     if e["outcome"] in (DECISION_CHANGED, DECISION_UNCHANGED)]
-        self.assertEqual(len(executed), 1)
-        self.assertIn("before", executed[0])
-        self.assertIn("after", executed[0])
+        self.assertEqual(sorted(e["key"] for e in executed),
+                         ["consumer_registry_completeness",
+                          "invisible_consumer_scale"])
+        for entry in executed:
+            self.assertIn("before", entry)
+            self.assertIn("after", entry)
+
+    def test_the_price_of_every_recompute_is_MEASURED_not_declared(self) -> None:
+        """Заказ G69 п. 1: цена перестала быть литералом таблицы. У каждого
+        исполненного читателя рядом с объявленным числом стои́т ИЗМЕРЕННОЕ,
+        и основание замера названо."""
+        harm = self._harm()
+        for entry in harm["executed"]:
+            if entry["outcome"] not in (DECISION_CHANGED, DECISION_UNCHANGED):
+                continue
+            self.assertGreaterEqual(entry["cost_s_measured"], 0.0)
+            self.assertIn(entry["cost_basis"],
+                          (rscc.COST_BASIS_BOTH, rscc.COST_BASIS_WIDENED))
+            self.assertIn(entry["runs_timed"], (1, 2))
+            self.assertIn("cost_s_declared", entry)
+
+    def test_a_clean_document_supplied_by_the_stage_is_NOT_recomputed(self) -> None:
+        """Цена обязана быть МАРЖИНАЛЬНОЙ: прогон, который ступень уже
+        оплатила для себя, прибор повторять не вправе — иначе измеренное
+        число отвечает не на тот вопрос."""
+        harm = self._harm(registry={"status": "MEASURED", "counts": {},
+                                    "findings": [], "declared_unseen": []})
+        entry = next(e for e in harm["executed"]
+                     if e["key"] == "consumer_registry_completeness")
+        self.assertEqual(entry["runs_timed"], 1)
+        self.assertEqual(entry["cost_basis"], rscc.COST_BASIS_WIDENED)
+
+    def test_an_absent_clean_document_costs_BOTH_runs_and_says_so(self) -> None:
+        """Обратная сторона: чистого документа не дали — прибор платит за оба
+        прогона, и основание цены меняется вместе с этим."""
+        harm = self._harm()
+        entry = next(e for e in harm["executed"]
+                     if e["key"] == "consumer_registry_completeness")
+        self.assertEqual(entry["runs_timed"], 2)
+        self.assertEqual(entry["cost_basis"], rscc.COST_BASIS_BOTH)
+
+    def test_a_vacuous_projection_is_UNMEASURED_not_unchanged(self) -> None:
+        """Совпадение ПУСТОТ не есть «решение то же». Без этой ветки прибор
+        объявлял бы вердикт из пустоты — ровно тот вырожденный сторож,
+        которого перепись ищет у других."""
+        real = dict(rscc._HARM_RUNNERS)
+        rscc._HARM_RUNNERS["consumer_registry_completeness"] = (
+            lambda root: {})
+        try:
+            harm = self._harm()
+        finally:
+            rscc._HARM_RUNNERS.clear()
+            rscc._HARM_RUNNERS.update(real)
+        entry = next(e for e in harm["executed"]
+                     if e["key"] == "consumer_registry_completeness")
+        self.assertEqual(entry["outcome"], rscc.DECISION_UNMEASURED)
+        self.assertIn("сравнивать нечего", entry["reason"])
 
     def test_a_widening_that_lands_on_a_declared_reader_CHANGES_the_decision(self) -> None:
         """Положительный контроль исхода: место ввоза, попадающее на
@@ -523,10 +628,9 @@ class HarmOnAStandTests(unittest.TestCase):
             "    print('\\n'.join(report(doc)))\n")
         harm = self._harm(sites=[{"census": "rule_second_copy_census",
                                   "file": OFFICE_REL}])
-        changed = [e for e in harm["executed"]
+        changed = [e["key"] for e in harm["executed"]
                    if e["outcome"] == DECISION_CHANGED]
-        self.assertEqual([e["key"] for e in changed],
-                         ["consumer_registry_completeness"])
+        self.assertIn("consumer_registry_completeness", changed)
         self.assertEqual(harm["status"], "CRITICAL")
         self.assertIn("reader_decision_changed",
                       [f["kind"] for f in harm["findings"]])
@@ -540,7 +644,16 @@ class HarmOnAStandTests(unittest.TestCase):
         self.assertEqual([e["outcome"] for e in harm["executed"]
                           if e["key"] == "consumer_registry_completeness"],
                          [DECISION_UNCHANGED])
-        self.assertEqual(harm["status"], "MEASURED")
+        # Общий статус координаты сюда больше не годится и НЕ ослаблен, а
+        # заменён на точный: он говорит о ЛЮБОМ читателе, а этот тест — про
+        # ОДНОГО (инв. #16, заказ G69 п. 1). Второй оплаченный читатель на
+        # стенде меняет решение при любом месте расширения, и статус стал бы
+        # CRITICAL независимо от «мимо объявленного читателя или нет» —
+        # то есть перестал бы различать ровно то, ради чего тест написан.
+        named = [f for f in harm["findings"]
+                 if f["kind"] == "reader_decision_changed"]
+        self.assertNotIn("consumer_registry_completeness",
+                         [name for f in named for name in f["fields"]])
 
     def test_shape_sensitivity_is_a_number_and_it_is_zero_here(self) -> None:
         harm = self._harm()
@@ -574,6 +687,63 @@ class HarmOnAStandTests(unittest.TestCase):
                          list(NEIGHBOUR_VERDICT_FIELDS))
         self.assertEqual(harm["counts"]["verdict_fields_declared"],
                          len(NEIGHBOUR_VERDICT_FIELDS))
+
+
+class PaidRecomputeIsNotInertTests(unittest.TestCase):
+    """Заказ G69 п. 1 оплатил прогон `invisible_consumer_scale`. Оплата имеет
+    смысл только если расширение ДОХОДИТ до его входа: читатель, чьё решение
+    не способно сдвинуться, дал бы «не изменилось» по построению, и это был бы
+    вердикт-украшение, а не замер.
+
+    Доходит: расширение подставляется соседской ``find_by_name_consumers``, а
+    именно её этот читатель и спрашивает про ``seen``. Стенд здесь ГОЛЫЙ
+    намеренно — зовущих `by_name` на нём нет, поэтому перепись попадает в
+    ``blanked_to_zero``, и расширение способно её оттуда убрать.
+    """
+
+    def setUp(self) -> None:
+        self.stand = Stand()
+        self.addCleanup(self.stand.close)
+        self.stand.write(
+            "scripts/office.py",
+            "from spa_core.monitoring.census_consumer_census import "
+            "format_report\n"
+            "def show(doc):\n"
+            "    print('\\n'.join(format_report(doc)))\n")
+
+    def _harm(self, census: str) -> dict:
+        return neighbour_population_harm(
+            self.stand.root,
+            _scale([{"census": census, "file": "scripts/office.py"}]), None)
+
+    def test_the_widening_MOVES_the_decision_of_the_newly_paid_reader(self) -> None:
+        entry = next(e for e in self._harm("census_consumer_census")["executed"]
+                     if e["key"] == "invisible_consumer_scale")
+        self.assertEqual(entry["outcome"], DECISION_CHANGED)
+        self.assertEqual(entry["before"]["blanked_to_zero"],
+                         ["census_consumer_census"])
+        self.assertEqual(entry["after"]["blanked_to_zero"], [])
+
+    def test_a_widening_naming_ANOTHER_census_leaves_that_decision_alone(self) -> None:
+        """Обратная сторона: то же место, та же форма, но названа ДРУГАЯ
+        перепись — и решение стои́т. Без этого контроль выше говорил бы лишь
+        «оплатили и что-то сдвинулось», а не «сдвинулось ИМЕННО от
+        расширения»."""
+        entry = next(e for e in self._harm("rule_second_copy_census")["executed"]
+                     if e["key"] == "invisible_consumer_scale")
+        self.assertEqual(entry["outcome"], DECISION_UNCHANGED)
+        self.assertEqual(entry["before"]["blanked_to_zero"],
+                         ["census_consumer_census"])
+        self.assertEqual(entry["after"]["blanked_to_zero"],
+                         ["census_consumer_census"])
+
+    def test_the_paid_reader_pays_BOTH_runs_and_says_so(self) -> None:
+        """У этого читателя чистого документа ступень не считает, поэтому
+        основание цены — оба прогона, а не маржинальный один."""
+        entry = next(e for e in self._harm("census_consumer_census")["executed"]
+                     if e["key"] == "invisible_consumer_scale")
+        self.assertEqual(entry["runs_timed"], 2)
+        self.assertEqual(entry["cost_basis"], rscc.COST_BASIS_BOTH)
 
 
 class ThirdOutcomeTests(unittest.TestCase):

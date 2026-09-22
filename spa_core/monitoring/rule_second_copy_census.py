@@ -225,6 +225,7 @@ import importlib
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -6508,23 +6509,70 @@ DECISION_NOT_EXECUTED = "not_executed"
 DECISION_UNMEASURED = "unmeasured"
 
 #: Читатели, чьё РЕШЕНИЕ прибор способен пересчитать здесь же: оба живут в
-#: этом модуле и идут дорогой `ROAD_FINDER`. Цена прогона объявлена ЧИСЛОМ;
-#: неоплаченный читатель уходит в ТРЕТИЙ исход с названной ценой и названным
-#: полем, а не в «решение не изменилось».
+#: этом модуле и идут дорогой `ROAD_FINDER`.
+#:
+#: ``cost_s_declared`` — ПРЕЖНЯЯ объявленная цена (ADR-446), оставленная здесь
+#: не как вход решения, а как ПРЕТЕНЗИЯ, которую замер обязан проверить:
+#: заказ G69 п. 1 нашёл, что число это взято одним прогоном на одном дереве и
+#: свойством читателя не является. Решение «оплачивать ли прогон» принимает
+#: ИЗМЕРЕННАЯ цена (:func:`recompute_cost_budget`), а не эта строка.
+#:
+#: ``project`` — ИМЯ проекции решения, названное ДО прогона. Общей проекции у
+#: двух читателей быть не может: документы у них разной формы, и одна проекция
+#: на оба дала бы у второго сплошной ``None`` — то есть «решение не
+#: изменилось» из ПУСТОТЫ. Пустую проекцию прибор объявляет ТРЕТЬИМ исходом,
+#: а не совпадением (:func:`_projection_is_vacuous`).
+#:
+#: ``clean_from`` — ИМЯ уже посчитанного ступенью чистого документа, если
+#: такой есть. Ступень считает `consumer_registry_completeness` для себя, и
+#: второй его прогон стоил бы двадцать секунд ни за что; документа
+#: `invisible_consumer_scale` в той же форме у неё нет, поэтому за него
+#: платятся ОБА прогона. Отсюда у цены есть ОСНОВАНИЕ
+#: (:data:`COST_BASIS_BOTH` / :data:`COST_BASIS_WIDENED`) — два числа с
+#: разным смыслом, и молча сложить их значило бы ответить не на тот вопрос.
 _EXECUTABLE_READERS = (
     {"key": "consumer_registry_completeness",
-     "cost_s": 21,
+     "cost_s_declared": 21,
      "execute": True,
      "field": "seen_by_neighbour",
+     "project": "registry",
+     "clean_from": "registry",
      "why": "его находка `declared_consumer_invisible_to_neighbour` и есть "
             "предмет заказа: она стои́т на населении соседа"},
     {"key": "invisible_consumer_scale",
-     "cost_s": 35,
-     "execute": False,
+     "cost_s_declared": 35,
+     "execute": True,
      "field": "blanked_to_zero",
-     "why": "прогон стои́т 35 с при такте ступени 6 ч; поле, стоящее на "
-            "населении соседа, названо — это ОСТАТОК замера, а не ноль"},
+     "project": "scale",
+     "clean_from": None,
+     "why": "прежде исход был `not_executed` с ценой 35 с; заказ G69 п. 1 "
+            "померил цену и такт — прогон оплачен, и остатка больше нет"},
 )
+
+#: Артефакт, чей ПРОИЗВОДИТЕЛЬ задаёт такт этой ступени. Бюджет пересчёта
+#: читается у объявителя (:data:`BUDGET_MANIFEST`), а не перепечатывается
+#: сюда числом: своя копия такта и была бы ровно той второй копией правила,
+#: которую эта перепись ищет у других.
+BUDGET_ARTIFACT = "data/rule_second_copy_census.json"
+BUDGET_MANIFEST = "architecture/manifest.json"
+
+#: Запас, при котором ответ «укладывается ли пересчёт в такт» НЕ зависит от
+#: точности самого замера цены. Объявлен ДО замера (запрет G62): иначе
+#: «уложились» читалось бы как выбор удобного запаса после результата.
+REQUIRED_COST_MARGIN = 10.0
+
+#: Допуск претензии: во сколько раз объявленная цена вправе разойтись с
+#: измеренной, оставаясь претензией, а не ошибкой. Тоже объявлен ДО замера.
+COST_CLAIM_TOLERANCE = 0.5
+
+BUDGET_FITS = "fits"
+BUDGET_DOES_NOT_FIT = "does_not_fit"
+BUDGET_TOO_CLOSE = "too_close_to_call"
+BUDGET_UNMEASURED = "unmeasured"
+
+#: Основание измеренной цены: оплачен ли прибором один прогон или оба.
+COST_BASIS_BOTH = "both_runs"
+COST_BASIS_WIDENED = "widened_run_only"
 
 
 def _flatten_doc(value: object, prefix: str = "") -> Dict[str, str]:
@@ -6881,6 +6929,307 @@ def _decision_projection(doc: dict) -> dict:
     }
 
 
+def _scale_projection(doc: dict) -> dict:
+    """Что считается решением читателя :func:`invisible_consumer_scale`.
+
+    Отдельная проекция, а не общая с :func:`_decision_projection`: документы
+    у двух читателей разной формы, и общая проекция вернула бы у этого
+    сплошной ``None`` — то есть объявила бы «решение не изменилось» из
+    ПУСТОТЫ. Пустая проекция ловится :func:`_projection_is_vacuous` и уходит
+    в ТРЕТИЙ исход.
+
+    Инв. #17 здесь тот же, что у соседней проекции: «счётчиков нет» и
+    «счётчики нулевые» — разные утверждения, и признак наблюдённости стои́т
+    рядом со значением, а не вместо него.
+    """
+    counts = observed(doc, "counts", kind=dict)
+    findings = observed(doc, "findings", kind=list)
+    understated = observed(doc, "understated", kind=list)
+    blanked = observed(doc, "blanked_to_zero", kind=list)
+    return {
+        "status": doc.get("status") if isinstance(doc, dict) else None,
+        "counts_observed": counts is not None,
+        "findings_observed": findings is not None,
+        "understated_observed": understated is not None,
+        "blanked_observed": blanked is not None,
+        "understated_count": (None if counts is None
+                              else counts.get("understated")),
+        "understated_upper_bound": (None if counts is None
+                                    else counts.get("understated_upper_bound")),
+        "blanked_to_zero_count": (None if counts is None
+                                  else counts.get("blanked_to_zero")),
+        "finding_kinds": (None if findings is None else
+                          sorted(str(item.get("kind")) for item in findings
+                                 if isinstance(item, dict))),
+        "understated": None if understated is None else sorted(
+            str(name) for name in understated),
+        "blanked_to_zero": None if blanked is None else sorted(
+            str(name) for name in blanked),
+    }
+
+
+#: Проекции решения по ИМЕНИ, объявленному в :data:`_EXECUTABLE_READERS`.
+_PROJECTORS = {"registry": _decision_projection, "scale": _scale_projection}
+
+
+def _projection_is_vacuous(projection: dict) -> bool:
+    """Сравнивать было НЕЧЕГО: в проекции не наблюдено ни одного поля.
+
+    Без этой проверки два пустых документа дают равные проекции, и прибор
+    объявил бы «решение не изменилось» — вердикт из пустоты, ровно тот
+    вырожденный сторож, которого перепись ищет у других. Наблюдённость
+    читается по признакам ``*_observed``; их отсутствие в проекции — тоже
+    вырожденность, а не «признаков не требуется».
+    """
+    flags = [value for key, value in projection.items()
+             if key.endswith("_observed")]
+    if not flags:
+        return True
+    return not any(flags) and projection.get("status") is None
+
+
+def _tact_seconds(root: Path) -> Tuple[Optional[float], str, Optional[str]]:
+    """Такт ступени в СЕКУНДАХ — прочитанный у объявителя, а не вписанный сюда.
+
+    Бюджет пересчёта есть период агента, который производит артефакт этой
+    переписи. Перепечатать «6 ч» числом значило бы завести вторую копию
+    правила — ровно то, что перепись ищет у других, и ровно то, чем прежде
+    была цена ``35 с``.
+
+    Возвращает ``(секунды, источник, причина отказа)``. Такт не прочитан ⇒
+    секунды ``None`` и причина НАЗВАНА: «не измерено» никогда не выдаётся за
+    «уложились».
+    """
+    path = root / BUDGET_MANIFEST
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return None, BUDGET_MANIFEST, f"{BUDGET_MANIFEST} не прочитан ({exc})"
+    agents = manifest.get("agents") if isinstance(manifest, dict) else None
+    if not isinstance(agents, list):
+        return None, BUDGET_MANIFEST, f"в {BUDGET_MANIFEST} нет списка агентов"
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        produces = agent.get("produces")
+        if not isinstance(produces, list):
+            continue
+        names = {item.get("artifact") for item in produces
+                 if isinstance(item, dict)}
+        if BUDGET_ARTIFACT not in names:
+            continue
+        label = str(agent.get("label"))
+        schedule = agent.get("schedule")
+        if not isinstance(schedule, str) or not schedule.startswith("interval:"):
+            return None, label, (
+                f"у производителя {label} расписание `{schedule}` — не "
+                f"интервал, и такта из него не взять")
+        digits = schedule[len("interval:"):].rstrip("s")
+        try:
+            seconds = float(digits)
+        except ValueError:
+            return None, label, (
+                f"интервал `{schedule}` у {label} не разбирается в число")
+        if seconds <= 0:
+            return None, label, (
+                f"интервал `{schedule}` у {label} не положителен")
+        return seconds, f"{label} · {schedule}", None
+    return None, BUDGET_MANIFEST, (
+        f"в {BUDGET_MANIFEST} нет агента, производящего {BUDGET_ARTIFACT} — "
+        f"такта у ступени не объявлено")
+
+
+def recompute_cost_budget(root: Path, harm: Optional[dict]) -> dict:
+    """Цена пересчёта — ИЗМЕРЕННАЯ, и укладывается ли она в такт (**заказ G69 п. 1**).
+
+    ADR-446 оставил остаток «прогон не оплачен» и назвал ему цену **35 с**.
+    Заказ ставит вопрос дословно:
+
+    > Исход ``not_executed`` объявлен ценой 35 с, и число это взято ЗАМЕРОМ
+    > ОДНОГО прогона на одном дереве, а не свойством читателя. Спросить
+    > числом: сколько стои́т пересчёт КАЖДОГО из читателей, и укладывается ли
+    > полный пересчёт в такт ступени. Если укладывается, «не оплачено»
+    > перестаёт быть остатком и становится отказом от замера, который был по
+    > карману.
+
+    Отвечается тремя величинами, и ни одна не объявляется здесь литералом:
+
+    1. **Цена** — секунды, ИЗМЕРЕННЫЕ часами вокруг настоящего пересчёта
+       (:func:`neighbour_population_harm` кладёт их в ``cost_s_measured``).
+       Прежнее объявленное число сохранено рядом как ПРЕТЕНЗИЯ
+       (``cost_s_declared``) и сверяется с замером: литерал, который никто не
+       сверял, и был предметом заказа.
+    2. **Бюджет** — такт агента-производителя, прочитанный из манифеста
+       (:func:`_tact_seconds`). Своя копия такта была бы второй копией
+       правила.
+    3. **Запас** — отношение бюджета к цене. Он объявлен ДО замера
+       (:data:`REQUIRED_COST_MARGIN`, запрет G62), потому что цена сама
+       измерена на одной машине: ответ имеет право не зависеть от её
+       точности, и запас говорит, во сколько раз.
+
+    **Цена — МАРЖИНАЛЬНАЯ, и это сказано вслух.** Чистый прогон читателя
+    ступень считает для себя и так; прибор оплачивает только расширенный.
+    Именно маржинальное число и есть ответ на вопрос «было ли по карману».
+
+    ADVISORY: порог не вводится, ни один вердикт переписи этой координатой не
+    меняется (``applied`` ложно).
+    """
+    head = {
+        "question": ("сколько стои́т пересчёт решения каждого читателя и "
+                     "укладывается ли полный пересчёт в такт ступени"),
+        "order": "G69.1",
+        "required_margin_declared": REQUIRED_COST_MARGIN,
+        "claim_tolerance_declared": COST_CLAIM_TOLERANCE,
+        "applied": False,
+    }
+    executed = observed(harm, "executed", kind=list) if harm else None
+    if executed is None:
+        return {**head, "status": "UNMEASURED", "verdict": BUDGET_UNMEASURED,
+                "reason": ("вред занижения не измерен — пересчёта, цену "
+                           "которого мерить, не было; это НЕ «уложились»")}
+    budget_s, budget_source, budget_refused = _tact_seconds(root)
+
+    costs: List[dict] = []
+    for entry in executed:
+        if not isinstance(entry, dict):
+            continue
+        measured = observed(entry, "cost_s_measured", kind=(int, float))
+        declared = observed(entry, "cost_s_declared", kind=(int, float))
+        runs = observed(entry, "runs_timed", kind=int)
+        # Объявленная цена (ADR-446) была ценой ОДНОГО прогона, а измеряется
+        # здесь весь пересчёт — один прогон или два. Сверять их напрямую
+        # значило бы сравнить числа с разными знаменателями и назвать разницу
+        # ошибкой претензии; поэтому претензия сверяется с ценой ПРОГОНА.
+        per_run = (None if measured is None or not runs
+                   else round(float(measured) / runs, 2))
+        row = {
+            "key": entry.get("key"),
+            "outcome": entry.get("outcome"),
+            "cost_s_declared": declared,
+            "cost_s_measured": (None if measured is None
+                                else round(float(measured), 2)),
+            "cost_s_per_run": per_run,
+            "cost_basis": entry.get("cost_basis"),
+            "runs_timed": runs,
+        }
+        if measured is None:
+            row["claim"] = "unmeasured"
+            row["claim_reason"] = (
+                "прогон не состоялся — цену мерить нечем; это НЕ нулевая цена")
+        elif per_run is None:
+            row["claim"] = "unmeasured"
+            row["claim_reason"] = (
+                "число прогонов не записано — цену прогона не вывести, а "
+                "сверять полную цену с ценой одного было бы сравнением "
+                "разных знаменателей")
+        elif declared is None:
+            row["claim"] = "undeclared"
+            row["claim_reason"] = (
+                "объявленной цены у читателя нет — сверять замер не с чем")
+        else:
+            error = abs(per_run - float(declared))
+            row["claim_error_s"] = round(error, 2)
+            row["claim_error_ratio"] = (
+                None if not per_run else round(error / per_run, 3))
+            row["claim"] = (
+                "confirmed" if row["claim_error_ratio"] is not None
+                and row["claim_error_ratio"] <= COST_CLAIM_TOLERANCE
+                else "refuted")
+        costs.append(row)
+
+    priced = [row for row in costs if row["cost_s_measured"] is not None]
+    unpriced = [row for row in costs if row["cost_s_measured"] is None]
+    total_cost_s = round(sum(row["cost_s_measured"] for row in priced), 2)
+
+    if budget_s is None:
+        verdict, margin = BUDGET_UNMEASURED, None
+    elif not priced:
+        verdict, margin = BUDGET_UNMEASURED, None
+        budget_refused = ("ни у одного читателя цена не измерена — делить "
+                          "бюджет не на что")
+    elif total_cost_s <= 0:
+        # Нулевая цена не бывает ответом: часы такого не мерят, а «уложились»
+        # из нуля есть вердикт из пустоты.
+        verdict, margin = BUDGET_UNMEASURED, None
+        budget_refused = ("измеренная цена не положительна — часы дали "
+                          f"{total_cost_s} с, и запаса из этого не построить")
+    else:
+        margin = round(budget_s / total_cost_s, 1)
+        if margin >= REQUIRED_COST_MARGIN:
+            verdict = BUDGET_FITS
+        elif total_cost_s > budget_s:
+            verdict = BUDGET_DOES_NOT_FIT
+        else:
+            verdict = BUDGET_TOO_CLOSE
+
+    findings: List[dict] = []
+    remainder = [row for row in costs
+                 if row["outcome"] == DECISION_NOT_EXECUTED]
+    if remainder and verdict == BUDGET_FITS:
+        findings.append({
+            "kind": "unpaid_recompute_was_affordable",
+            "file": PRODUCER, "channel": CHANNEL_CODE,
+            "fields": sorted(str(row["key"]) for row in remainder),
+            "why": ("прогон объявлен неоплаченным по цене, а полный пересчёт "
+                    f"стои́т {total_cost_s} с при такте {budget_s} с (запас "
+                    f"{margin}×): «не оплачено» здесь есть ОТКАЗ ОТ ЗАМЕРА, "
+                    "который был по карману, а не остаток")})
+    for row in costs:
+        if row.get("claim") == "refuted":
+            findings.append({
+                "kind": "declared_cost_refuted_by_measurement",
+                "file": PRODUCER, "channel": CHANNEL_CODE,
+                "fields": [str(row["key"])],
+                "why": (f"объявленная цена {row['cost_s_declared']} с "
+                        f"разошлась с измеренной ценой прогона "
+                        f"{row['cost_s_per_run']} с "
+                        f"на {row['claim_error_ratio']} доли — литерал "
+                        "свойством читателя не является")})
+
+    counts = {
+        "readers": len(costs),
+        "priced": len(priced),
+        "unpriced": len(unpriced),
+        "claims_confirmed": len([r for r in costs if r.get("claim") == "confirmed"]),
+        "claims_refuted": len([r for r in costs if r.get("claim") == "refuted"]),
+        "claims_unmeasured": len([r for r in costs
+                                  if r.get("claim") == "unmeasured"]),
+        "remainder": len(remainder),
+    }
+
+    return {
+        **head,
+        "status": ("UNMEASURED" if verdict == BUDGET_UNMEASURED
+                   else ("CRITICAL" if verdict == BUDGET_DOES_NOT_FIT
+                         else "MEASURED")),
+        "verdict": verdict,
+        "budget_s": budget_s,
+        "budget_source": budget_source,
+        "budget_refused": budget_refused,
+        "total_cost_s": total_cost_s if priced else None,
+        "margin": margin,
+        "costs": costs,
+        "counts": counts,
+        "findings": findings,
+        "blind": [
+            "цена МАРЖИНАЛЬНАЯ: чистый прогон читателя ступень считает для "
+            "себя и так, прибор оплачивает только расширенный — и именно это "
+            "число отвечает на вопрос «было ли по карману», а не цена двух "
+            "прогонов с нуля",
+            "часы меряют ЭТУ машину и ЭТО дерево; ответ имеет право не "
+            f"зависеть от их точности, и запас {margin}× говорит, во сколько "
+            f"раз замер обязан ошибиться, чтобы вердикт сменился (порог "
+            f"{REQUIRED_COST_MARGIN}× объявлен ДО замера)",
+            "читатели канала ТЕСТА, решающие по сдвинувшемуся полю, этой "
+            "координатой НЕ оценены: их пересчёт есть прогон файла тестов, а "
+            "запуск pytest изнутри ступени породил бы вложенный прогон — про "
+            "их цену здесь не сказано ничего, и это третий исход, а не ноль",
+            "такт прочитан у производителя артефакта; смена расписания агента "
+            "меняет бюджет САМА, и второй копии числа у прибора нет",
+        ],
+    }
+
+
 def neighbour_population_harm(root: Path, scale: Optional[dict],
                               registry: Optional[dict]) -> dict:
     """Меняет ли занижение населения зовущих хоть один ВЫВОД (**заказ G68 п. 1**).
@@ -7040,36 +7389,62 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
     shape_sensitive = sorted({site.get("file") for site in sites
                               if site.get("file") in scoped_paths})
 
+    # Чистые прогоны, которые ступень уже посчитала для СЕБЯ: повторять их
+    # значило бы платить дважды за один и тот же документ. Отсюда и цена
+    # получается МАРЖИНАЛЬНОЙ — ровно та, которую стои́т оплата пересчёта.
+    clean_docs = {"registry": registry}
     executed: List[dict] = []
     for spec in _EXECUTABLE_READERS:
-        entry = {"key": spec["key"], "cost_s": spec["cost_s"],
+        entry = {"key": spec["key"], "cost_s_declared": spec["cost_s_declared"],
                  "field": spec.get("field"), "why": spec["why"]}
         runner = _HARM_RUNNERS.get(spec["key"]) if spec.get("execute") else None
-        if runner is None:
+        project = _PROJECTORS.get(spec.get("project"))
+        if runner is None or project is None:
             entry.update({
                 "outcome": DECISION_NOT_EXECUTED,
-                "reason": ("прогон не оплачен этим замером — цена "
-                           f"{spec['cost_s']} с; это ОСТАТОК, а не «решение "
-                           "не изменилось»")})
+                "reason": ("прогон не оплачен этим замером — объявленная цена "
+                           f"{spec['cost_s_declared']} с; это ОСТАТОК, а не "
+                           "«решение не изменилось»")})
             executed.append(entry)
             continue
-        before = registry if isinstance(registry, dict) else None
+        before = clean_docs.get(spec.get("clean_from"))
+        reused = (isinstance(before, dict)
+                  and before.get("status") not in (None, "UNMEASURED"))
+        runs_timed = 1 if reused else 2
+        started = time.monotonic()
         try:
             neighbour.find_callees = lambda _root, _c=callees: _c
-            if before is None or before.get("status") != "MEASURED":
+            if not reused:
                 before = runner(root)
             neighbour.find_by_name_consumers = widened_by_name
             after = runner(root)
         except Exception as exc:                    # noqa: BLE001 — причина важнее класса
             entry.update({"outcome": DECISION_UNMEASURED,
+                          "cost_s_measured": round(time.monotonic() - started, 2),
                           "reason": f"{type(exc).__name__}: {exc}"})
             executed.append(entry)
             continue
         finally:
             neighbour.find_callees = real_callees
             neighbour.find_by_name_consumers = real_by_name
-        projection_before = _decision_projection(before)
-        projection_after = _decision_projection(after)
+        entry["cost_s_measured"] = round(time.monotonic() - started, 2)
+        entry["runs_timed"] = runs_timed
+        entry["cost_basis"] = (COST_BASIS_WIDENED if reused
+                               else COST_BASIS_BOTH)
+        projection_before = project(before)
+        projection_after = project(after)
+        if (_projection_is_vacuous(projection_before)
+                and _projection_is_vacuous(projection_after)):
+            # Совпадение пустот не есть «решение то же»: сравнивать было
+            # нечего, и молчаливое `unchanged` здесь и был бы вырожденный
+            # сторож, которого перепись ищет у других.
+            entry.update({
+                "outcome": DECISION_UNMEASURED,
+                "before": projection_before, "after": projection_after,
+                "reason": ("проекция решения пуста в ОБОИХ прогонах — "
+                           "сравнивать нечего; это НЕ «решение не изменилось»")})
+            executed.append(entry)
+            continue
         entry.update({
             "outcome": (DECISION_CHANGED
                         if projection_before != projection_after
@@ -7186,7 +7561,9 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
 #: :data:`_EXECUTABLE_READERS`: там объявлены цена и поле, здесь — способ
 #: зова, и слить их значило бы позвать не того читателя, чьё имя объявлено.
 _HARM_RUNNERS = {"consumer_registry_completeness":
-                 lambda root: consumer_registry_completeness(root)}
+                 lambda root: consumer_registry_completeness(root),
+                 "invisible_consumer_scale":
+                 lambda root: invisible_consumer_scale(root)}
 
 
 def bilingual_reach(root: Path, rows: List[dict],
@@ -7539,6 +7916,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     population_harm = neighbour_population_harm(root, invisible_scale,
                                                 registry_completeness)
 
+    # --- ЦЕНА ПЕРЕСЧЁТА И ТАКТ (заказ G69 п. 1) ------------------------
+    # Координата выше оставила остаток «прогон не оплачен» и назвала ему цену
+    # ЛИТЕРАЛОМ. Литерал, снятый одним прогоном на одном дереве, свойством
+    # читателя не является: цена меряется часами вокруг настоящего пересчёта,
+    # а бюджет читается у производителя артефакта.
+    cost_budget = recompute_cost_budget(root, population_harm)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -7655,6 +8039,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ВЫВОД» — разные вопросы, и ответ второго не является поправкой к
         # первому: занижение может быть повсеместным и безвредным разом.
         "neighbour_population_harm": population_harm,
+        "recompute_cost_budget": cost_budget,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -8845,7 +9230,9 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         for entry in (harm.get("executed") or []):
             out.append(
                 f"[ВРЕД ЗАНИЖЕНИЯ · ПЕРЕСЧЁТ] {entry.get('key')} "
-                f"(поле `{entry.get('field')}`, цена {entry.get('cost_s')} с): "
+                f"(поле `{entry.get('field')}`, цена измеренная "
+                f"{entry.get('cost_s_measured')} с / объявленная "
+                f"{entry.get('cost_s_declared')} с): "
                 f"{entry.get('outcome')}"
                 + (f" — {entry.get('reason')}" if entry.get("reason") else ""))
         out.append(
@@ -8865,6 +9252,48 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ВРЕД ЗАНИЖЕНИЯ · НЕ ПРОЧИТАНО] {item.get('file')}: "
                        f"{item.get('unreadable')}")
         for blind in (harm.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- ЦЕНА ПЕРЕСЧЁТА И ТАКТ (заказ G69 п. 1) ------------------------
+    budget = observed(doc, "recompute_cost_budget", kind=dict)
+    if budget is None:
+        out.append("[ЦЕНА ПЕРЕСЧЁТА] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "замера цены и такта")
+    elif budget.get("verdict") == BUDGET_UNMEASURED:
+        out.append(f"[ЦЕНА ПЕРЕСЧЁТА] НЕ ИЗМЕРЕНА: "
+                   f"{budget.get('budget_refused') or budget.get('reason')}")
+    else:
+        bcnt = observed(budget, "counts", kind=dict)
+        out.append(
+            f"[ЦЕНА ПЕРЕСЧЁТА] полный пересчёт {budget.get('total_cost_s')} с "
+            f"при такте {budget.get('budget_s')} с "
+            f"({budget.get('budget_source')}) · запас {budget.get('margin')}× "
+            f"при объявленных до замера {budget.get('required_margin_declared')}× "
+            f"⇒ {budget.get('verdict')}")
+        for row in (budget.get("costs") or [])[:max_rows]:
+            out.append(
+                f"[ЦЕНА ПЕРЕСЧЁТА · ЧИТАТЕЛЬ] {row.get('key')}: измерено "
+                f"{row.get('cost_s_measured')} с ({row.get('cost_basis')}, "
+                f"прогонов {row.get('runs_timed')}, за прогон "
+                f"{row.get('cost_s_per_run')} с) · объявлено "
+                f"{row.get('cost_s_declared')} с · претензия "
+                f"{row.get('claim')}"
+                + (f" — {row.get('claim_reason')}" if row.get("claim_reason")
+                   else ""))
+        if bcnt is not None:
+            out.append(
+                f"[ЦЕНА ПЕРЕСЧЁТА · УЧЁТ] читателей {bcnt.get('readers')} = "
+                f"с ценой {bcnt.get('priced')} + без цены "
+                f"{bcnt.get('unpriced')} · претензия подтверждена "
+                f"{bcnt.get('claims_confirmed')}, опровергнута "
+                f"{bcnt.get('claims_refuted')}, не измерена "
+                f"{bcnt.get('claims_unmeasured')} · остаток "
+                f"{bcnt.get('remainder')}")
+        for item in (budget.get("findings") or [])[:max_rows]:
+            out.append(
+                f"[ЦЕНА ПЕРЕСЧЁТА · НАХОДКА] {item.get('kind')}: "
+                f"{', '.join(item.get('fields') or []) or item.get('file')} — "
+                f"{item.get('why')}")
+        for blind in (budget.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
