@@ -5256,6 +5256,94 @@ def _terminal_coordinate(expr: ast.AST, consts: Dict[str, str],
         return None
 
 
+def _coordinate_path(expr: ast.AST, consts: Dict[str, str], anchors: set,
+                     depth: int = 0,
+                     makers: frozenset = frozenset()
+                     ) -> Tuple[Optional[str], str]:
+    """ПОЛНЫЙ путь координаты — от якоря документа до этого чтения.
+
+    Спутник :func:`_terminal_coordinate`, а не замена ему, и разница между
+    ними есть ПРЕДМЕТ заказа G71 п. 2. Терминальная координата отвечает на
+    вопрос «чем значение ЯВЛЯЕТСЯ» и намеренно берёт последний применённый
+    ключ; сверять её с полем документа — значит сверять ХВОСТ имени с именем.
+    У соседа в одном документе живут и ``callees``, и ``counts.callees``:
+    хвост у них один, поля разные, и по хвосту читатель первого неотличим от
+    читателя второго.
+
+    Возвращает пару «путь · исход». Путь ``None`` — это ТРЕТИЙ исход с
+    названной причиной, а не «поле не сдвинулось»: цепь, упирающаяся в чужое
+    имя (``row["file"]`` внутри обхода), нашим правилом не разрешается, и
+    объявить её несдвинувшейся значило бы выдать неизмеренное за измеренное.
+    """
+    if depth > _TERNARY_NESTING_LIMIT:   # предел вложенности — третий исход
+        return None, PATH_DEPTH
+    keys: List[str] = []
+    node = expr
+    while True:
+        if isinstance(node, ast.Call):
+            func = node.func
+            # Документ РОЖДАЁТСЯ этим зовом: `ccc.measure(tree)["counts"]`
+            # читается прямо с производителя, без промежуточного имени. Без
+            # этой ветки якоря под цепью нет, и путь объявлялся бы
+            # неизмеримым у формы, которая на деле разбирается полностью —
+            # то есть прибор занижал бы собственную измеримость (замер #673:
+            # таких чтений 2, оба решающие).
+            if (isinstance(func, ast.Attribute)
+                    and func.attr in ("run", "measure")
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id in makers):
+                if not keys:
+                    return None, PATH_NOT_A_READ
+                return ".".join(reversed(keys)), PATH_FROM_ANCHOR
+            if (isinstance(func, ast.Attribute) and func.attr == "get"
+                    and node.args):
+                key = _literal_key(node.args[0], consts)
+                if key is None:
+                    return None, PATH_NON_LITERAL
+                keys.append(key)
+                node = func.value
+                continue
+            if (isinstance(func, ast.Name) and func.id in _DOC_READERS
+                    and len(node.args) >= 2):
+                key = _literal_key(node.args[1], consts)
+                if key is None:
+                    return None, PATH_NON_LITERAL
+                keys.append(key)
+                node = node.args[0]
+                continue
+            if node.args:
+                node = node.args[0]      # прозрачная обёртка: len/int/str
+                continue
+            return None, PATH_UNPARSED
+        if isinstance(node, ast.Subscript):
+            key = _literal_key(node.slice, consts)
+            if key is None:
+                return None, PATH_NON_LITERAL
+            keys.append(key)
+            node = node.value
+            continue
+        if isinstance(node, ast.BoolOp) and node.values:
+            node = node.values[0]
+            continue
+        if isinstance(node, ast.IfExp):
+            for branch in (node.body, node.orelse):
+                got, why = _coordinate_path(branch, consts, anchors,
+                                            depth + 1, makers)
+                if got is not None:
+                    tail = ".".join(reversed(keys))
+                    return (f"{got}.{tail}" if tail else got), PATH_FROM_ANCHOR
+            return None, why
+        if isinstance(node, ast.Name):
+            if node.id not in anchors:
+                # Чужое имя: `row` обхода, промежуточная переменная. Путь от
+                # якоря по ЭТОМУ узлу не восстановить — и это НЕ ноль.
+                return None, PATH_BOUND_NAME
+            if not keys:
+                return None, PATH_NOT_A_READ
+            return ".".join(reversed(keys)), PATH_FROM_ANCHOR
+        return None, PATH_UNPARSED
+
+
 def _derives_from_census(node: ast.AST, anchors: set,
                         local_makers: frozenset = frozenset(),
                         producer_aliases: Optional[frozenset] = None) -> bool:
@@ -6484,6 +6572,27 @@ _FINDER_FIELD = {"find_by_name_consumers": "by_name",
                  "find_dynamic_consumers": "dynamic",
                  "find_fleet_consumers": "fleet"}
 
+#: ПОЛНЫЙ путь той же координаты — `consumers.by_name`, а не хвост `by_name`.
+#: Такое же ОБЪЯВЛЕНИЕ, как :data:`_FINDER_FIELD`, и по той же причине: связь
+#: «искатель → ключ документа» написана в `measure` соседа. Разные словари, а
+#: не один с точкой, потому что хвост нужен сверке по хвосту как есть: свести
+#: их в один и резать по точке значило бы завести здесь ТРЕТЬЮ копию правила
+#: «что считать координатой» — ровно тот класс, который перепись и ищет.
+_FINDER_FIELD_PATH = {"find_by_name_consumers": "consumers.by_name",
+                      "find_cli_consumers": "consumers.cli",
+                      "find_dynamic_consumers": "consumers.dynamic",
+                      "find_fleet_consumers": "consumers.fleet"}
+
+#: Исходы разбора ПОЛНОГО пути координаты. Третий исход здесь не украшение:
+#: путь, не разобранный до якоря, НЕ есть «поле не сдвинулось» (инв. #17).
+PATH_FROM_ANCHOR = "resolved_from_anchor"
+PATH_DECLARED = "declared_by_finder_table"
+PATH_BOUND_NAME = "bound_name"
+PATH_NON_LITERAL = "non_literal_key"
+PATH_UNPARSED = "unparsed_form"
+PATH_DEPTH = "depth_limit"
+PATH_NOT_A_READ = "not_a_document_read"
+
 #: Пять дорог, которыми читатель добирается до населения соседа. Спросить
 #: одну значило бы повторить слепоту самого соседа: его вопрос «кто зовёт
 #: `run`» не выражает ни читателя-искателя, ни читателя артефакта, ни
@@ -6906,13 +7015,17 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
             roads.add(ROAD_FINDER)
             touches.append({"road": ROAD_FINDER, "line": node.lineno,
                             "field": _FINDER_FIELD[called],
+                            "field_path": _FINDER_FIELD_PATH[called],
+                            "field_path_outcome": PATH_DECLARED,
                             "form": _decision_form(parents, node, loads)})
         elif called in renderers:
             # Ввоз отрисовщика есть дорога сам по себе: зова `run` у такого
             # читателя нет ПО ПОСТРОЕНИЮ, и именно этим он невидим соседу.
             roads.add(ROAD_RENDERER)
             touches.append({"road": ROAD_RENDERER, "line": node.lineno,
-                            "field": None, "form": TOUCH_PRINTS})
+                            "field": None, "field_path": None,
+                            "field_path_outcome": PATH_NOT_A_READ,
+                            "form": TOUCH_PRINTS})
     if set(symbols.values()) & set(renderers):
         roads.add(ROAD_RENDERER)
     if artifact:
@@ -6940,9 +7053,16 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
             field = _terminal_coordinate(node, consts, binding)
             if field is None:
                 continue
+            # Хвост и путь берутся у ОДНОГО И ТОГО ЖЕ узла и расходятся только
+            # правилом разбора: иначе разница между ними была бы разницей
+            # населений, а не разницей правил (заказ G71 п. 2).
+            path, path_outcome = _coordinate_path(
+                node, consts, anchors, makers=frozenset(aliases))
             touches.append({"road": ROAD_RUN,
                             "line": getattr(node, "lineno", 0),
                             "field": field,
+                            "field_path": path,
+                            "field_path_outcome": path_outcome,
                             "form": _decision_form(parents, node, loads)})
     return {"file": rel, "channel": _channel_of(rel),
             "roads": sorted(roads), "touches": touches}
@@ -7748,6 +7868,95 @@ def reader_cost_of_test_channel(root: Path, harm: Optional[dict],
     }
 
 
+def _coordinate_scope(flat_clean: Dict[str, str], changed: List[str],
+                      readers: List[dict]) -> dict:
+    """Насколько население читателей — свойство ПРАВИЛА, а не дерева.
+
+    Заказ G71 п. 2. Население ``decides_on_moved`` объявляется сверкой ХВОСТА
+    координаты читателя с хвостами сдвинувшихся полей документа. Хвост не есть
+    имя поля: у соседа в одном документе живут и ``callees``, и
+    ``counts.callees``. Здесь то же население считается ВТОРОЙ раз — сверкой
+    по ПОЛНОМУ пути, — и разница двух чисел есть цена правила.
+
+    Разность делится на ДВА класса, и слить их значило бы повторить дефект,
+    который прибор ищет (инв. #17):
+
+    * **доказанно лишний** — путь разобран до якоря и в разность документа НЕ
+      попал: хвост впустил читателя поля, которое не двигалось;
+    * **НЕ ИЗМЕРЕНО** — путь до якоря не разобран (чужое имя, нелитеральный
+      ключ). Про такого читателя не сказано ничего, и «не сдвинулось» про него
+      не утверждается.
+
+    Направление вложенности не постулируется, а МЕРЯЕТСЯ: у разобранного пути
+    хвост обязан быть в хвостах разности всякий раз, когда путь в разности, —
+    то есть «впущенных только путём» обязан быть ноль. Если их не ноль, неверно
+    рассуждение прибора, и число скажет об этом раньше прозы.
+    """
+    changed_set = set(changed)
+    changed_tails = {key.rsplit(".", 1)[-1] for key in changed_set}
+
+    tail_owners: Dict[str, List[str]] = {}
+    for key in flat_clean:
+        tail_owners.setdefault(key.rsplit(".", 1)[-1], []).append(key)
+    ambiguous = {tail: sorted(paths) for tail, paths in tail_owners.items()
+                 if len(paths) > 1}
+
+    by_tail: set = set()
+    by_path: set = set()
+    tail_only: List[dict] = []
+    path_only: List[dict] = []
+    unmeasured: List[dict] = []
+    unmeasured_all: List[dict] = []
+    outcomes: Dict[str, int] = {}
+    for reader in readers:
+        for touch in reader["touches"]:
+            outcome = str(touch.get("field_path_outcome"))
+            outcomes[outcome] = outcomes.get(outcome, 0) + 1
+            if touch["form"] != TOUCH_DECIDES:
+                continue
+            row = {"file": reader["file"], "line": touch.get("line"),
+                   "field": touch.get("field"),
+                   "field_path": touch.get("field_path"),
+                   "path_outcome": outcome}
+            admitted_tail = bool(touch.get("could_change"))
+            admitted_path = bool(touch.get("could_change_by_path"))
+            if admitted_tail:
+                by_tail.add(reader["file"])
+            if admitted_path:
+                by_path.add(reader["file"])
+            if touch.get("field_path") is None:
+                unmeasured_all.append(row)
+                if admitted_tail:
+                    unmeasured.append(row)
+                continue
+            if admitted_tail and not admitted_path:
+                tail_only.append(row)
+            elif admitted_path and not admitted_tail:
+                path_only.append(row)
+
+    return {
+        "question": ("сколько читателей попало бы в население при сверке по "
+                     "ПОЛНОМУ пути поля и сколько по ХВОСТУ, и совпадают ли "
+                     "множества"),
+        "order": "G71.2",
+        "doc_tails": len(tail_owners),
+        "ambiguous_tails_total": len(ambiguous),
+        "ambiguous_tails": ambiguous,
+        "ambiguous_tails_among_moved": sorted(t for t in ambiguous
+                                              if t in changed_tails),
+        "readers_by_tail": len(by_tail),
+        "readers_by_path": len(by_path),
+        "sets_coincide": by_tail == by_path,
+        "files_only_by_tail": sorted(by_tail - by_path),
+        "files_only_by_path": sorted(by_path - by_tail),
+        "touches_admitted_by_tail_only": tail_only,
+        "touches_admitted_by_path_only": path_only,
+        "deciding_admitted_by_tail_path_unmeasured": unmeasured,
+        "deciding_path_unmeasured_total": unmeasured_all,
+        "path_outcomes": outcomes,
+    }
+
+
 def neighbour_population_harm(root: Path, scale: Optional[dict],
                               registry: Optional[dict]) -> dict:
     """Меняет ли занижение населения зовущих хоть один ВЫВОД (**заказ G68 п. 1**).
@@ -7863,6 +8072,7 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
     # Совпадение по ПОСЛЕДНЕМУ применённому ключу: читатель пишет
     # `doc["consumers"]["by_name"]`, и координатой значения является `by_name`
     # (правило `_terminal_coordinate`: «контейнер привязкой не является»).
+    changed_set = set(changed)
     changed_tails = {key.rsplit(".", 1)[-1] for key in changed}
     verdict_tails = {key.rsplit(".", 1)[-1]
                      for key in NEIGHBOUR_VERDICT_FIELDS}
@@ -7894,10 +8104,21 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
                                              else field in verdict_tails)
                 touch["could_change"] = bool(touch["form"] == TOUCH_DECIDES
                                              and touch["field_moved"])
+                # То же самое, но сверкой по ПОЛНОМУ пути (заказ G71 п. 2).
+                # `None` у пути — третий исход, и он НЕ равен «не сдвинулось».
+                path = touch.get("field_path")
+                touch["field_path_moved"] = (None if path is None
+                                             else path in changed_set)
+                touch["could_change_by_path"] = bool(
+                    touch["form"] == TOUCH_DECIDES
+                    and touch["field_path_moved"])
             item["decides_on_moved"] = [t for t in item["touches"]
                                         if t["could_change"]]
+            item["decides_on_moved_by_path"] = [
+                t for t in item["touches"] if t["could_change_by_path"]]
             readers.append(item)
     could_change_readers = [r for r in readers if r["decides_on_moved"]]
+    scope = _coordinate_scope(flat_clean, changed, readers)
 
     # Форма расширения: способна ли она вообще что-то изменить. Спецификация
     # реестра с ОБЪЯВЛЕННОЙ областью разрешает место по строке, а у
@@ -7989,6 +8210,31 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             "why": ("читатель решает по полю, которое от расширения населения "
                     "сдвигается — вход у него РАЗНЫЙ, и «решение то же» "
                     "требует прогона, а не вывода")})
+    for row in scope["touches_admitted_by_tail_only"]:
+        findings.append({
+            "kind": "tail_match_admits_unmoved_field",
+            "file": row["file"], "channel": _channel_of(row["file"]),
+            "fields": [f"{row['field']} → {row['field_path']}"],
+            "why": ("сверка по ХВОСТУ координаты впустила в население "
+                    "читателя поля, которое от расширения НЕ сдвинулось: "
+                    "полный путь разобран до якоря и в разность документа не "
+                    "попал. Население — свойство правила, не дерева")})
+    for row in scope["deciding_admitted_by_tail_path_unmeasured"]:
+        findings.append({
+            "kind": "coordinate_path_unmeasured",
+            "file": row["file"], "channel": _channel_of(row["file"]),
+            "fields": [f"{row['field']} ({row['path_outcome']})"],
+            "why": ("читатель впущен в население по хвосту, а ПОЛНЫЙ путь его "
+                    "координаты до якоря не разобран — про него не сказано ни "
+                    "«лишний», ни «по делу». Это ТРЕТИЙ исход, а не ноль")})
+    for row in scope["touches_admitted_by_path_only"]:
+        findings.append({
+            "kind": "path_admits_what_tail_missed",
+            "file": row["file"], "channel": _channel_of(row["file"]),
+            "fields": [f"{row['field']} → {row['field_path']}"],
+            "why": ("сверка по ПОЛНОМУ пути впустила читателя, которого хвост "
+                    "не впустил, — при разобранном пути это невозможно, и "
+                    "значит неверно рассуждение самого прибора, а не дерево")})
     for entry in executed:
         if entry.get("outcome") == DECISION_CHANGED:
             findings.append({
@@ -8024,6 +8270,14 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             [e for e in executed if e.get("outcome") == DECISION_UNMEASURED]),
         "shape_sensitive_sites": len(shape_sensitive),
         "files_unreadable": len(unreadable),
+        "readers_deciding_on_moved_by_path": scope["readers_by_path"],
+        "coordinate_sets_coincide": scope["sets_coincide"],
+        "admitted_by_tail_only": len(scope["touches_admitted_by_tail_only"]),
+        "admitted_by_path_only": len(scope["touches_admitted_by_path_only"]),
+        "coordinate_path_unmeasured": len(
+            scope["deciding_admitted_by_tail_path_unmeasured"]),
+        "ambiguous_tails_total": scope["ambiguous_tails_total"],
+        "ambiguous_tails_among_moved": len(scope["ambiguous_tails_among_moved"]),
     }
     for reader in readers:
         for road in reader["roads"]:
@@ -8040,6 +8294,7 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
         "readers": readers,
         "executed": executed,
         "shape_sensitive_sites": shape_sensitive,
+        "coordinate_scope": scope,
         "widened_shape": SHAPE_NO_LINE,
         "unreadable": unreadable,
         "findings": findings,
@@ -8050,10 +8305,19 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             f", не оплачено {counts['readers_not_executed']} — у "
             f"неоплаченного названы цена и поле, и это ОСТАТОК, а не "
             f"«решение то же»",
-            "сдвиг поля измерен ПО ЗНАЧЕНИЮ документа, а координата читателя "
-            "сверяется по ПОСЛЕДНЕМУ применённому ключу: два разных поля с "
-            "одинаковым последним ключом прибор не различит — это сказано "
-            "вслух, а не спрятано",
+            f"сдвиг поля измерен ПО ЗНАЧЕНИЮ документа, а координата "
+            f"читателя сверяется по ПОСЛЕДНЕМУ применённому ключу. С заказа "
+            f"G71 п. 2 это НЕ проза, а число: хвостов документа "
+            f"{scope['doc_tails']}, из них многозначных "
+            f"{scope['ambiguous_tails_total']} "
+            f"({scope['ambiguous_tails_among_moved']} среди сдвинувшихся); "
+            f"население по хвосту {scope['readers_by_tail']}, по полному пути "
+            f"{scope['readers_by_path']}, множества "
+            f"{'совпадают' if scope['sets_coincide'] else 'НЕ совпадают'}. "
+            f"Доказанно лишних чтений "
+            f"{len(scope['touches_admitted_by_tail_only'])}, НЕ ИЗМЕРЕНО "
+            f"{len(scope['deciding_admitted_by_tail_path_unmeasured'])} — "
+            f"второе НЕ есть «не сдвинулось»",
             "расширение — самое ДЕШЁВОЕ из возможных (ввоз отрисовщика "
             "признаётся зовущим класса `by_name`); иная форма починки могла "
             "бы сдвинуть иные поля, и на её цену отвечает отдельный пункт "
@@ -9773,6 +10037,46 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{entry.get('cost_s_declared')} с): "
                 f"{entry.get('outcome')}"
                 + (f" — {entry.get('reason')}" if entry.get("reason") else ""))
+        scope = observed(harm, "coordinate_scope", kind=dict)
+        if scope is None:
+            out.append("[ВРЕД ЗАНИЖЕНИЯ · КООРДИНАТА] НЕ ИЗМЕРЕНА — документ "
+                       "собран без сверки «хвост против полного пути»; это НЕ "
+                       "«множества совпали»")
+        else:
+            out.append(
+                f"[ВРЕД ЗАНИЖЕНИЯ · КООРДИНАТА] население по ХВОСТУ "
+                f"{scope.get('readers_by_tail')} · по ПОЛНОМУ ПУТИ "
+                f"{scope.get('readers_by_path')} · множества "
+                + ("СОВПАДАЮТ" if scope.get("sets_coincide") else
+                   f"НЕ СОВПАДАЮТ (только по хвосту: "
+                   f"{', '.join(scope.get('files_only_by_tail') or []) or '—'}"
+                   f"; только по пути: "
+                   f"{', '.join(scope.get('files_only_by_path') or []) or '—'})")
+                + f" · многозначных хвостов у документа "
+                  f"{scope.get('ambiguous_tails_total')} из "
+                  f"{scope.get('doc_tails')}, среди сдвинувшихся "
+                  f"{len(scope.get('ambiguous_tails_among_moved') or [])}")
+            # Инв. #17: у перечня «не измерено» подстановка `or []`
+            # запрещена — «ключа нет» и «список пуст» суть разные
+            # утверждения, и второе вместо первого есть fail-OPEN ровно в
+            # том месте, которое про неизмеренное и написано.
+            surplus = observed(scope, "touches_admitted_by_tail_only",
+                               kind=list)
+            unmeasured = observed(
+                scope, "deciding_admitted_by_tail_path_unmeasured", kind=list)
+            by_path_only = observed(scope, "touches_admitted_by_path_only",
+                                    kind=list)
+            out.append(
+                "[ВРЕД ЗАНИЖЕНИЯ · КООРДИНАТА · РАЗНОСТЬ] доказанно лишних "
+                "чтений "
+                + ("НЕ ИЗМЕРЕНО" if surplus is None else str(len(surplus)))
+                + " · путь до якоря НЕ РАЗОБРАН у "
+                + ("НЕ ИЗМЕРЕНО" if unmeasured is None
+                   else str(len(unmeasured)))
+                + " (это НЕ «поле не сдвинулось») · впущенных только путём "
+                + ("НЕ ИЗМЕРЕНО" if by_path_only is None
+                   else str(len(by_path_only)))
+                + " (при разобранном пути обязан быть ноль)")
         out.append(
             f"[ВРЕД ЗАНИЖЕНИЯ · ФОРМА] мест, у которых форма синтеза "
             f"(со строкой и без) способна изменить ответ: "
