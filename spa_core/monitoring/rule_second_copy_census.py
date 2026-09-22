@@ -6758,6 +6758,108 @@ def _flatten_doc(value: object, prefix: str = "") -> Dict[str, str]:
     return out
 
 
+#: Предел глубины ВТОРОГО правила уплощения (заказ G72 п. 2). Объявлен ДО
+#: замера и числом: правило, разворачивающее списки, обязано иметь конец, а
+#: путь, упёршийся в этот конец, обязан уходить в ТРЕТИЙ исход — не в «поля
+#: нет» и не в «значение такое» (инв. #17).
+DEEP_FLATTEN_MAX_DEPTH = 40
+
+#: Чьим свойством оказалась многозначность хвостов — вердикты заказа G72 п. 2.
+#: Три, а не два: «списков в документе нет вовсе» есть ОТДЕЛЬНЫЙ исход, и
+#: выдавать его за «правило ничего не стоит» значило бы объявить пустоту по
+#: построению отсутствием расхождения.
+FLATTEN_NO_LISTS = "no_lists_in_doc"
+FLATTEN_RULE_DEPENDENT = "property_of_the_flattening_rule"
+FLATTEN_DOC_PROPERTY = "property_of_the_document"
+
+#: Индекс элемента списка именем поля не является: `findings[0]` читателю
+#: недоступен по имени, а `findings` — доступен.
+_INDEX_SUFFIX = re.compile(r"(\[\d+\])+$")
+
+#: Сколько путей многозначного хвоста показывать в документе. Полный перечень
+#: у хвоста вроде `file` есть сотни строк; счёт хранится ВСЕГДА, образец —
+#: усечение ПОКАЗА, и оно названо своим полем, а не молчанием.
+AMBIGUOUS_PATH_SAMPLE = 3
+
+
+def _name_tail(path: str) -> str:
+    """Хвост пути как ИМЯ поля.
+
+    Отличается от `path.rsplit(".", 1)[-1]` ровно одним: снимает индекс
+    элемента списка. `findings[0].file` → `file`, `findings[0]` → `findings`.
+    На путях правила :func:`_flatten_doc` (индексов там нет по построению)
+    обе формы дают одно и то же — поэтому старое правило и не переписано.
+    """
+    return _INDEX_SUFFIX.sub("", path.rsplit(".", 1)[-1])
+
+
+def _flatten_doc_deep(value: object, prefix: str = "",
+                      depth: int = 0) -> Tuple[Dict[str, str], List[str]]:
+    """Документ — в плоскую карту, разворачивая И словари, И СПИСКИ.
+
+    Спутник :func:`_flatten_doc`, а НЕ замена ему (заказ G72 п. 2). Старое
+    правило списки не разворачивает намеренно: путь внутрь элемента назвал бы
+    координатой индекс. Но у этого выбора есть цена, и до этого заказа её не
+    мерил никто: хвосты, живущие ТОЛЬКО внутри элементов списка (`file`,
+    `line`, `kind`), в счёт хвостов документа не входили вовсе — а читатель,
+    обходящий список, читает именно их.
+
+    Возвращает ПАРУ «карта, перечень упершихся в предел путей». Предел есть
+    третий исход, и растворять его в карте запрещено (инв. #17).
+    """
+    out: Dict[str, str] = {}
+    capped: List[str] = []
+    if depth > DEEP_FLATTEN_MAX_DEPTH:
+        capped.append(prefix)
+        return out, capped
+    if isinstance(value, dict):
+        if not value and prefix:
+            return {prefix: "{}"}, capped
+        for key, item in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            sub, sub_capped = _flatten_doc_deep(item, path, depth + 1)
+            out.update(sub)
+            capped.extend(sub_capped)
+        return out, capped
+    if isinstance(value, list):
+        if not value and prefix:
+            return {prefix: "[]"}, capped
+        for index, item in enumerate(value):
+            path = f"{prefix}[{index}]" if prefix else f"[{index}]"
+            sub, sub_capped = _flatten_doc_deep(item, path, depth + 1)
+            out.update(sub)
+            capped.extend(sub_capped)
+        return out, capped
+    out[prefix] = repr(value)
+    return out, capped
+
+
+def _list_census(value: object, depth: int = 0) -> Tuple[int, int]:
+    """Сколько в документе списков и сколько в них элементов.
+
+    Нужно ровно для одного: отличить «правило уплощения ничего не стоит» от
+    «разворачивать было НЕЧЕГО». Без этого числа ноль расхождения читался бы
+    как свойство документа, будучи пустотой по построению.
+    """
+    if depth > DEEP_FLATTEN_MAX_DEPTH:
+        return 0, 0
+    lists = elements = 0
+    if isinstance(value, dict):
+        for item in value.values():
+            sub_lists, sub_elements = _list_census(item, depth + 1)
+            lists += sub_lists
+            elements += sub_elements
+    elif isinstance(value, list):
+        lists += 1
+        elements += len(value)
+        for item in value:
+            sub_lists, sub_elements = _list_census(item, depth + 1)
+            lists += sub_lists
+            elements += sub_elements
+    return lists, elements
+
+
+
 def _import_line(tree: ast.AST, census: str) -> int:
     """Строка, на которой файл ВВОЗИТ перепись; 0 — ввоза не нашлось.
 
@@ -7957,6 +8059,139 @@ def _coordinate_scope(flat_clean: Dict[str, str], changed: List[str],
     }
 
 
+def _flatten_rule_scope(clean: dict, widened: dict,
+                        flat_clean: Dict[str, str], changed: List[str],
+                        readers: List[dict]) -> dict:
+    """Чьё свойство — «хвостов 115, многозначен 1»: документа или ПРАВИЛА.
+
+    Заказ G72 п. 2. Число, которым цикл #673 объяснил свой ноль, снято
+    правилом :func:`_flatten_doc`, а оно разворачивает словари и НЕ
+    разворачивает списки. Значит, всё, что живёт внутри элементов списка, в
+    счёт хвостов не вошло ВОВСЕ — и «один многозначный из 115» может быть
+    свойством уплощения, а не документа. Здесь тот же документ уплощается
+    ВТОРЫМ правилом (:func:`_flatten_doc_deep`), и разница двух счётов есть
+    цена первого.
+
+    Три вещи меряются порознь, и слить их значило бы потерять ответ:
+
+    * **население хвостов** — сколько имён видит каждое правило, и какие
+      имена видит только глубокое (`tails_only_deep`);
+    * **цена глубокого правила** — какие имена оно, наоборот, ТЕРЯЕТ
+      (`tails_only_shallow`): развернув список, оно перестаёт называть сам
+      список. Молчать об этом значило бы выдать «точнее» за «строго больше»;
+    * **вред у потребителя** — решающие чтения, которые допустило бы
+      глубокое правило и НЕ допускает нынешнее (`admitted_by_deep_only`).
+      Это и есть читатели, невидимые населению ``decides_on_moved`` сегодня.
+
+    Вердикт о происхождении многозначности имеет ТРИ исхода, а не два:
+    списков в документе может не быть вовсе, и такой ноль есть пустота по
+    построению, а не свойство документа.
+
+    ADVISORY: правило уплощения НЕ заменяется, ни одно население не
+    пересчитывается этим замером (``applied`` ложно у всего шага).
+    """
+    deep_clean, capped_clean = _flatten_doc_deep(clean)
+    deep_widened, capped_widened = _flatten_doc_deep(widened)
+    capped = sorted(set(capped_clean) | set(capped_widened))
+    lists_total, list_elements = _list_census(clean)
+
+    tails_shallow: Dict[str, List[str]] = {}
+    for key in flat_clean:
+        tails_shallow.setdefault(_name_tail(key), []).append(key)
+    tails_deep: Dict[str, List[str]] = {}
+    for key in deep_clean:
+        tails_deep.setdefault(_name_tail(key), []).append(key)
+
+    def _ambiguous(owners: Dict[str, List[str]]) -> Dict[str, dict]:
+        return {tail: {"paths": len(paths),
+                       "sample": sorted(paths)[:AMBIGUOUS_PATH_SAMPLE]}
+                for tail, paths in owners.items() if len(paths) > 1}
+
+    amb_shallow = _ambiguous(tails_shallow)
+    amb_deep = _ambiguous(tails_deep)
+
+    changed_deep = sorted(key for key in set(deep_clean) | set(deep_widened)
+                          if deep_clean.get(key) != deep_widened.get(key))
+    changed_tails_shallow = {_name_tail(key) for key in changed}
+    changed_tails_deep = {_name_tail(key) for key in changed_deep}
+
+    deep_only: List[dict] = []
+    shallow_only: List[dict] = []
+    unmeasured: List[dict] = []
+    files_deep: set = set()
+    files_shallow: set = set()
+    for reader in readers:
+        for touch in reader["touches"]:
+            if touch["form"] != TOUCH_DECIDES:
+                continue
+            field = touch.get("field")
+            row = {"file": reader["file"], "line": touch.get("line"),
+                   "field": field}
+            if field is None:
+                unmeasured.append(row)
+                continue
+            admitted_deep = field in changed_tails_deep
+            admitted_shallow = field in changed_tails_shallow
+            if admitted_deep:
+                files_deep.add(reader["file"])
+            if admitted_shallow:
+                files_shallow.add(reader["file"])
+            if admitted_deep and not admitted_shallow:
+                deep_only.append(row)
+            elif admitted_shallow and not admitted_deep:
+                shallow_only.append(row)
+
+    only_deep = sorted(set(tails_deep) - set(tails_shallow))
+    only_shallow = sorted(set(tails_shallow) - set(tails_deep))
+    amb_only_deep = sorted(set(amb_deep) - set(amb_shallow))
+
+    if lists_total == 0:
+        verdict = FLATTEN_NO_LISTS
+    elif amb_only_deep:
+        verdict = FLATTEN_RULE_DEPENDENT
+    else:
+        verdict = FLATTEN_DOC_PROPERTY
+
+    def _share(part: int, whole: int) -> Optional[float]:
+        return None if not whole else round(100.0 * part / whole, 2)
+
+    return {
+        "question": ("сколько хвостов появилось бы при развёртывании списков "
+                     "и сколько из них многозначны — и не есть ли «один из "
+                     "115» свойство правила уплощения, а не документа"),
+        "order": "G72.2",
+        "applied": False,
+        "verdict": verdict,
+        "max_depth_declared": DEEP_FLATTEN_MAX_DEPTH,
+        "lists_in_doc": lists_total,
+        "list_elements": list_elements,
+        "doc_fields_shallow": len(flat_clean),
+        "doc_fields_deep": len(deep_clean),
+        "tails_shallow": len(tails_shallow),
+        "tails_deep": len(tails_deep),
+        "tails_only_deep": only_deep,
+        "tails_only_shallow": only_shallow,
+        "ambiguous_shallow": len(amb_shallow),
+        "ambiguous_deep": len(amb_deep),
+        "ambiguous_only_deep": amb_only_deep,
+        "ambiguous_tails_deep": amb_deep,
+        "ambiguous_share_shallow_pct": _share(len(amb_shallow),
+                                              len(tails_shallow)),
+        "ambiguous_share_deep_pct": _share(len(amb_deep), len(tails_deep)),
+        "moved_fields_deep": len(changed_deep),
+        "moved_tails_only_deep": sorted(changed_tails_deep
+                                        - changed_tails_shallow),
+        "readers_admitted_by_deep": len(files_deep),
+        "readers_admitted_by_shallow": len(files_shallow),
+        "files_only_by_deep": sorted(files_deep - files_shallow),
+        "touches_admitted_by_deep_only": deep_only,
+        "touches_admitted_by_shallow_only": shallow_only,
+        "deciding_field_unmeasured": unmeasured,
+        "paths_depth_capped": capped,
+    }
+
+
+
 def neighbour_population_harm(root: Path, scale: Optional[dict],
                               registry: Optional[dict]) -> dict:
     """Меняет ли занижение населения зовущих хоть один ВЫВОД (**заказ G68 п. 1**).
@@ -8119,6 +8354,10 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             readers.append(item)
     could_change_readers = [r for r in readers if r["decides_on_moved"]]
     scope = _coordinate_scope(flat_clean, changed, readers)
+    # Заказ G72 п. 2: само ПРАВИЛО уплощения, которым снят счёт хвостов
+    # выше, списки не разворачивает — и цена этого выбора есть число.
+    flatten = _flatten_rule_scope(clean, widened_doc, flat_clean,
+                                  changed, readers)
 
     # Форма расширения: способна ли она вообще что-то изменить. Спецификация
     # реестра с ОБЪЯВЛЕННОЙ областью разрешает место по строке, а у
@@ -8244,6 +8483,29 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
                 "why": ("пересчитанное решение читателя ОТЛИЧАЕТСЯ: занижение "
                         "меняет не только число в отчёте, но и вывод")})
 
+    if flatten["verdict"] == FLATTEN_RULE_DEPENDENT:
+        findings.append({
+            "kind": "tail_ambiguity_is_a_property_of_the_flatten_rule",
+            "file": PRODUCER, "channel": CHANNEL_CODE,
+            "fields": flatten["ambiguous_only_deep"],
+            "why": (f"многозначных хвостов у документа "
+                    f"{flatten['ambiguous_shallow']} из "
+                    f"{flatten['tails_shallow']} по нынешнему правилу и "
+                    f"{flatten['ambiguous_deep']} из "
+                    f"{flatten['tails_deep']} при развёртывании списков — "
+                    f"счёт, которым объяснён ноль разности, есть свойство "
+                    f"ПРАВИЛА уплощения, а не документа")})
+    if flatten["touches_admitted_by_deep_only"]:
+        findings.append({
+            "kind": "reader_invisible_to_the_flatten_rule",
+            "file": PRODUCER, "channel": CHANNEL_CODE,
+            "fields": sorted({str(row["field"]) for row
+                              in flatten["touches_admitted_by_deep_only"]}),
+            "why": ("решающее чтение сдвинувшегося поля НЕ попадает в "
+                    "население `decides_on_moved`: его имя живёт только "
+                    "внутри элемента списка, а нынешнее правило списки не "
+                    "разворачивает")})
+
     counts = {
         "doc_fields": len(flat_clean),
         "doc_fields_moved": len(changed),
@@ -8278,6 +8540,14 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             scope["deciding_admitted_by_tail_path_unmeasured"]),
         "ambiguous_tails_total": scope["ambiguous_tails_total"],
         "ambiguous_tails_among_moved": len(scope["ambiguous_tails_among_moved"]),
+        "flatten_verdict": flatten["verdict"],
+        "tails_shallow": flatten["tails_shallow"],
+        "tails_deep": flatten["tails_deep"],
+        "ambiguous_tails_deep": flatten["ambiguous_deep"],
+        "ambiguous_tails_only_deep": len(flatten["ambiguous_only_deep"]),
+        "admitted_by_deep_only": len(
+            flatten["touches_admitted_by_deep_only"]),
+        "lists_in_doc": flatten["lists_in_doc"],
     }
     for reader in readers:
         for road in reader["roads"]:
@@ -8295,6 +8565,7 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
         "executed": executed,
         "shape_sensitive_sites": shape_sensitive,
         "coordinate_scope": scope,
+        "flatten_scope": flatten,
         "widened_shape": SHAPE_NO_LINE,
         "unreadable": unreadable,
         "findings": findings,
@@ -8318,6 +8589,18 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             f"{len(scope['touches_admitted_by_tail_only'])}, НЕ ИЗМЕРЕНО "
             f"{len(scope['deciding_admitted_by_tail_path_unmeasured'])} — "
             f"второе НЕ есть «не сдвинулось»",
+            f"счёт хвостов выше снят правилом, которое разворачивает "
+            f"словари и НЕ разворачивает списки. С заказа G72 п. 2 цена "
+            f"этого выбора есть ЧИСЛО: списков в документе "
+            f"{flatten['lists_in_doc']} ({flatten['list_elements']} "
+            f"элемент(ов)), хвостов по нынешнему правилу "
+            f"{flatten['tails_shallow']} против {flatten['tails_deep']} при "
+            f"развёртывании, многозначных {flatten['ambiguous_shallow']} "
+            f"против {flatten['ambiguous_deep']}; вердикт о происхождении "
+            f"многозначности — {flatten['verdict']}. Правило НЕ заменено: "
+            f"глубокое теряет имя самого списка у "
+            f"{len(flatten['tails_only_shallow'])} хвост(ов), и это его "
+            f"цена, а не оговорка",
             "расширение — самое ДЕШЁВОЕ из возможных (ввоз отрисовщика "
             "признаётся зовущим класса `by_name`); иная форма починки могла "
             "бы сдвинуть иные поля, и на её цену отвечает отдельный пункт "
@@ -10077,6 +10360,44 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 + ("НЕ ИЗМЕРЕНО" if by_path_only is None
                    else str(len(by_path_only)))
                 + " (при разобранном пути обязан быть ноль)")
+        flat = observed(harm, "flatten_scope", kind=dict)
+        if flat is None:
+            out.append("[ВРЕД ЗАНИЖЕНИЯ · УПЛОЩЕНИЕ] НЕ ИЗМЕРЕНО — документ "
+                       "собран без сверки двух правил уплощения; это НЕ "
+                       "«списков нет» и НЕ «разницы нет»")
+        else:
+            out.append(
+                f"[ВРЕД ЗАНИЖЕНИЯ · УПЛОЩЕНИЕ] хвостов по нынешнему правилу "
+                f"{flat.get('tails_shallow')} (многозначных "
+                f"{flat.get('ambiguous_shallow')}, "
+                f"{flat.get('ambiguous_share_shallow_pct')} %) · при "
+                f"развёртывании списков {flat.get('tails_deep')} "
+                f"(многозначных {flat.get('ambiguous_deep')}, "
+                f"{flat.get('ambiguous_share_deep_pct')} %) · списков в "
+                f"документе {flat.get('lists_in_doc')} "
+                f"({flat.get('list_elements')} элемент(ов)) · вердикт: "
+                f"{flat.get('verdict')}")
+            only_deep = observed(flat, "tails_only_deep", kind=list)
+            only_shallow = observed(flat, "tails_only_shallow", kind=list)
+            out.append(
+                "[ВРЕД ЗАНИЖЕНИЯ · УПЛОЩЕНИЕ · РАЗНОСТЬ] видны только "
+                "глубокому правилу: "
+                + ("НЕ ИЗМЕРЕНО" if only_deep is None
+                   else (", ".join(only_deep[:max_rows]) or "—"))
+                + " · ТЕРЯЮТСЯ глубоким правилом (имя самого списка): "
+                + ("НЕ ИЗМЕРЕНО" if only_shallow is None
+                   else (", ".join(only_shallow[:max_rows]) or "—")))
+            deep_only = observed(flat, "touches_admitted_by_deep_only",
+                                 kind=list)
+            capped = observed(flat, "paths_depth_capped", kind=list)
+            out.append(
+                "[ВРЕД ЗАНИЖЕНИЯ · УПЛОЩЕНИЕ · ПОТРЕБИТЕЛЬ] решающих чтений, "
+                "невидимых нынешнему населению: "
+                + ("НЕ ИЗМЕРЕНО" if deep_only is None else str(len(deep_only)))
+                + " · путей, упершихся в объявленный предел глубины "
+                + f"({flat.get('max_depth_declared')}): "
+                + ("НЕ ИЗМЕРЕНО" if capped is None else str(len(capped)))
+                + " (предел есть третий исход, а не «поля нет»)")
         out.append(
             f"[ВРЕД ЗАНИЖЕНИЯ · ФОРМА] мест, у которых форма синтеза "
             f"(со строкой и без) способна изменить ответ: "
