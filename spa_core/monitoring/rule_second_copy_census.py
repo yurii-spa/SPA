@@ -223,8 +223,11 @@ import ast
 import datetime as dt
 import importlib
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -242,6 +245,11 @@ ARTIFACT = "rule_second_copy_census.json"
 #: Какой МОДУЛЬ собрал документ (константа; на вопрос «кто позвал» отвечает
 #: `invoked_by` — ADR-412, это разные вопросы).
 PRODUCER = "spa_core/monitoring/rule_second_copy_census.py"
+
+#: Точечное имя ЭТОГО модуля. ВЫВЕДЕНО из :data:`PRODUCER`, а не набрано
+#: рядом: набранное имя было бы второй копией пути — тем самым классом,
+#: который перепись ищет у других.
+CENSUS_MODULE = PRODUCER[:-len(".py")].replace("/", ".")
 
 #: Каталоги сторожей — РОВНО те, что гейтят CI (`CLAUDE.md`, предписанный
 #: прогон). Сторож — файл, который pytest СОБИРАЕТ, то есть `test_*.py`:
@@ -6575,6 +6583,51 @@ COST_BASIS_BOTH = "both_runs"
 COST_BASIS_WIDENED = "widened_run_only"
 
 
+#: Переменная окружения, которой прибор ПОМЕЧАЕТ дочерний прогон (**заказ
+#: G70 п. 1**). :func:`measure` дописывает в названный ею файл строку при
+#: КАЖДОМ входе, поэтому «замкнулся ли дочерний прогон на собственную
+#: ступень» есть НАБЛЮДЕНИЕ, а не разбор текста: отметка ловит замыкание на
+#: любой глубине, включая ту, которую статический свидетель не видит.
+#:
+#: Она же служит стопором. При выставленной переменной прибор дочерних
+#: прогонов не заводит вовсе, и потому рекурсия ограничена ПО ПОСТРОЕНИЮ, а
+#: не обещанием: второго уровня вложенности не существует.
+REENTRY_ENV = "SPA_CENSUS_REENTRY_LOG"
+
+#: Исходы дочернего прогона файла канала ТЕСТА. Третий исход разведён с
+#: обоими рабочими: «прогон не заводился» (отказ от вложенности) и «прогон
+#: не измерен» (инструмента нет / часы дали непригодное число) — разные
+#: события, и слить их значило бы выдать неизмеренное за измеренное.
+CHILD_RAN_GREEN = "ran_green"
+CHILD_RAN_RED = "ran_red"
+CHILD_REFUSED_NESTED = "refused_nested"
+CHILD_UNMEASURED = "unmeasured"
+
+#: Исходы вопроса «замкнулся ли прогон на собственную ступень». Ноль отметок
+#: есть «не наблюдено», а не «не бывает»: прогон, который не заводился,
+#: отметок не даёт ПО ПОСТРОЕНИЮ, и такой ноль обязан читаться как третий
+#: исход.
+RECURSION_OBSERVED = "observed"
+RECURSION_NOT_OBSERVED = "not_observed"
+RECURSION_UNMEASURED = "unmeasured"
+
+#: Потолок ожидания дочернего прогона, секунды. Не украшение: прогон, повисший
+#: навсегда, остановил бы ступень моста, а ступень обязана доложить хоть
+#: что-нибудь. Истечение потолка — ТРЕТИЙ ИСХОД (:data:`CHILD_UNMEASURED`) с
+#: названной причиной, а не цена и не «уложились».
+CHILD_RUN_TIMEOUT_S = 900.0
+
+#: Глубина статического свидетеля замыкания: прямой ввоз файла плюс ОДИН
+#: уровень ввезённых им модулей дерева. Предел объявлен числом, потому что
+#: свидетель этот КОСВЕННЫЙ, и его собственная слепота обязана быть названа,
+#: а не подразумеваться. Полноту даёт не он, а отметка :data:`REENTRY_ENV`.
+STATIC_WITNESS_DEPTH = 1
+
+#: Имена ступени: вход в любое из них и есть замыкание на себя. Зов одной
+#: КООРДИНАТЫ модуля ступенью не является — координата не собирает документ.
+STEP_ENTRYPOINTS = ("measure", "run", "main")
+
+
 def _flatten_doc(value: object, prefix: str = "") -> Dict[str, str]:
     """Документ — в плоскую карту «путь через точку → repr значения».
 
@@ -7220,12 +7273,477 @@ def recompute_cost_budget(root: Path, harm: Optional[dict]) -> dict:
             f"зависеть от их точности, и запас {margin}× говорит, во сколько "
             f"раз замер обязан ошибиться, чтобы вердикт сменился (порог "
             f"{REQUIRED_COST_MARGIN}× объявлен ДО замера)",
-            "читатели канала ТЕСТА, решающие по сдвинувшемуся полю, этой "
-            "координатой НЕ оценены: их пересчёт есть прогон файла тестов, а "
-            "запуск pytest изнутри ступени породил бы вложенный прогон — про "
-            "их цену здесь не сказано ничего, и это третий исход, а не ноль",
+            "читатели канала ТЕСТА этой координатой НЕ оценены — их цену "
+            "и их замыкание на ступень меряет СОСЕДНЯЯ координата "
+            "`reader_cost_of_test_channel` (заказ G70 п. 1): прежде здесь стоял "
+            "отказ с ПРИЧИНОЙ («вложенный прогон»), и причина эта ни разу не "
+            "была померена",
             "такт прочитан у производителя артефакта; смена расписания агента "
             "меняет бюджет САМА, и второй копии числа у прибора нет",
+        ],
+    }
+
+
+def _reentry_note(where: str) -> None:
+    """Отметить вход в ступень, если прибор пометил этот процесс.
+
+    Пишется ОДНОЙ строкой в файл, названный :data:`REENTRY_ENV`, и только
+    когда переменная выставлена: в обычном прогоне ступени побочного действия
+    нет вовсе. Отметка ставится ПЕРВЫМ делом — до любой работы и до любого
+    отказа, — потому что вопрос «замкнулся ли прогон на ступень» не зависит
+    от того, довела ли ступень работу до конца.
+
+    Отказ записи проглатывается НАМЕРЕННО и это не молчание о наблюдении:
+    файл отметок держит ПРИБОР, и его недоступность прибор видит сам —
+    ноль строк при заведённом прогоне он объявляет третьим исходом
+    (:data:`RECURSION_UNMEASURED`), а не «замыкания нет». Уронить же ступень
+    из-за собственного журнала прибора значило бы поменять предмет замера.
+    """
+    path = os.environ.get(REENTRY_ENV)
+    if not path:
+        return
+    try:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(f"{where}\t{os.getpid()}\n")
+    except OSError:
+        return
+
+
+def _pytest_available() -> Tuple[Optional[bool], str]:
+    """Есть ли инструмент — ОТДЕЛЬНЫЙ вопрос, и задаётся он отдельно.
+
+    Код возврата рабочего прогона на него не отвечает: pytest выходит
+    ненулевым, когда нашёл падение, и ноль падений от «инструмента нет»
+    этим кодом не отличается. Поэтому спрашивается ``--version``.
+    """
+    try:
+        proc = subprocess.run([sys.executable, "-m", "pytest", "--version"],
+                              capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, f"инструмент не опрошен ({exc})"
+    if proc.returncode != 0:
+        return False, (f"`{sys.executable} -m pytest --version` вышел "
+                       f"{proc.returncode}")
+    spoken = ((proc.stdout or "") + (proc.stderr or "")).strip().splitlines()
+    return True, (spoken[0] if spoken else "pytest отвечает без версии")
+
+
+def _static_reaches_step(root: Path, rel: str,
+                         depth: int = STATIC_WITNESS_DEPTH) -> dict:
+    """КОСВЕННЫЙ свидетель замыкания: зовёт ли файл ступень этой переписи.
+
+    Свидетель читает текст, и полноты у него нет ПО ПОСТРОЕНИЮ: он видит
+    прямой ввоз файла плюс :data:`STATIC_WITNESS_DEPTH` уровень ввезённых им
+    модулей дерева, а замыкание через ``importlib`` или через третий модуль
+    не видит вовсе — ровно та слепота, которую ADR-446 нашёл у самого себя.
+    Полноту даёт не он, а отметка :data:`REENTRY_ENV`; здесь он нужен
+    вторым голосом, и его НЕСОГЛАСИЕ с наблюдением само есть находка.
+
+    Возвращает словарь с ``reaches`` (``True``/``False``/``None``),
+    ``why`` и перечнем разобранных модулей.
+    """
+    seen: set[str] = set()
+    examined: List[str] = []
+    unreadable: List[str] = []
+
+    def _module_path(module: str) -> Optional[Path]:
+        candidate = root / (module.replace(".", "/") + ".py")
+        return candidate if candidate.is_file() else None
+
+    def _walk(path: Path, label: str, level: int) -> Optional[bool]:
+        if label in seen:
+            return False
+        seen.add(label)
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+            unreadable.append(f"{label}: {exc}")
+            return None
+        examined.append(label)
+        aliases: set[str] = set()
+        imported_modules: List[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == CENSUS_MODULE:
+                        aliases.add(alias.asname or alias.name.split(".")[0])
+                    elif alias.name.startswith(("spa_core.", "scripts.")):
+                        imported_modules.append(alias.name)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                if node.module == CENSUS_MODULE:
+                    for alias in node.names:
+                        if alias.name in STEP_ENTRYPOINTS:
+                            return True
+                    continue
+                for alias in node.names:
+                    full = f"{node.module}.{alias.name}"
+                    if full == CENSUS_MODULE:
+                        aliases.add(alias.asname or alias.name)
+                    elif node.module.startswith(("spa_core", "scripts")):
+                        imported_modules.append(full)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Attribute):
+                continue
+            if node.attr not in STEP_ENTRYPOINTS:
+                continue
+            base = node.value
+            if isinstance(base, ast.Name) and base.id in aliases:
+                return True
+        if level >= depth:
+            return False
+        partial_unknown = False
+        for module in imported_modules:
+            target = _module_path(module)
+            if target is None:
+                continue
+            answer = _walk(target, module, level + 1)
+            if answer is True:
+                return True
+            if answer is None:
+                partial_unknown = True
+        return None if partial_unknown else False
+
+    path = root / rel
+    if not path.is_file():
+        return {"reaches": None, "examined": [], "unreadable": [],
+                "why": f"файла {rel} нет в дереве — свидетеля не опросить"}
+    verdict = _walk(path, rel, 0)
+    if verdict is None:
+        why = ("разобрать не вышло: " + "; ".join(unreadable[:3])
+               or "разбор не завершён")
+    elif verdict:
+        why = (f"файл зовёт ступень переписи ({', '.join(STEP_ENTRYPOINTS)}) "
+               f"в пределах глубины {depth}")
+    else:
+        why = (f"в пределах глубины {depth} ни одного зова ступени "
+               f"({', '.join(STEP_ENTRYPOINTS)}) не найдено; "
+               f"разобрано модулей {len(examined)}")
+    return {"reaches": verdict, "examined": examined,
+            "unreadable": unreadable, "why": why}
+
+
+def _run_test_file(root: Path, rel: str, *,
+                   timeout: float = CHILD_RUN_TIMEOUT_S) -> dict:
+    """Цена прогона ОДНОГО файла канала теста — часами вокруг прогона.
+
+    Отказ от вложенности стои́т ЗДЕСЬ и назван исходом: если ступень позвана
+    изнутри pytest (или изнутри уже помеченного дочернего прогона), второй
+    прогон был бы вложенным, и прибор его не заводит. Это ровно тот случай,
+    о котором говорила причина отказа ADR-447, — и теперь он ИЗМЕРЕН
+    (``refused_nested`` с названной причиной), а не предположен.
+
+    Дочерний прогон уводится с живого состояния НАМЕРЕННО: свой каталог
+    данных (``SPA_DATA_DIR``), закреплённый ``--rootdir`` и выключенный
+    перемешиватель. Прогон, писавший бы в живой ``data/``, отвечал бы на
+    вопрос о цене ценой порчи состояния.
+    """
+    entry = {"file": rel, "cost_s": None, "exit_code": None,
+             "reentries": None, "recursion": RECURSION_UNMEASURED}
+    if os.environ.get(REENTRY_ENV):
+        return {**entry, "outcome": CHILD_REFUSED_NESTED,
+                "why": ("прибор уже работает внутри помеченного дочернего "
+                        "прогона — второго уровня вложенности он не заводит "
+                        "ПО ПОСТРОЕНИЮ")}
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return {**entry, "outcome": CHILD_REFUSED_NESTED,
+                "why": ("ступень позвана ИЗНУТРИ pytest — дочерний прогон был "
+                        "бы вложенным; причина отказа ADR-447 верна для этого "
+                        "зова и измерена, а не предположена")}
+    target = root / rel
+    if not target.is_file():
+        return {**entry, "outcome": CHILD_UNMEASURED,
+                "why": f"файла {rel} нет в дереве — мерить нечего"}
+    available, tool_why = _pytest_available()
+    if available is not True:
+        return {**entry, "outcome": CHILD_UNMEASURED,
+                "why": f"инструмента нет или он не опрошен: {tool_why}"}
+
+    with tempfile.TemporaryDirectory(prefix="spa-census-child-") as tmp:
+        ledger = Path(tmp) / "reentry.log"
+        ledger.write_text("", encoding="utf-8")
+        env = dict(os.environ)
+        env.update({
+            REENTRY_ENV: str(ledger),
+            "SPA_ENV": "ci",
+            "PYTHONHASHSEED": "0",
+            "SPA_DATA_DIR": str(Path(tmp) / "data"),
+        })
+        (Path(tmp) / "data").mkdir(parents=True, exist_ok=True)
+        argv = [sys.executable, "-m", "pytest", rel, "-q", "--tb=no",
+                "-p", "no:randomly", f"--rootdir={root}"]
+        started = time.monotonic()
+        try:
+            proc = subprocess.run(argv, cwd=str(root), env=env,
+                                  capture_output=True, text=True,
+                                  timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return {**entry, "outcome": CHILD_UNMEASURED,
+                    "why": (f"дочерний прогон не уложился в {timeout} с — "
+                            "цена НЕ измерена, и это не «дорого»")}
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {**entry, "outcome": CHILD_UNMEASURED,
+                    "why": f"дочерний прогон не состоялся ({exc})"}
+        cost = round(time.monotonic() - started, 2)
+        try:
+            marks = [line for line in
+                     ledger.read_text(encoding="utf-8").splitlines() if line]
+            reentries: Optional[int] = len(marks)
+        except OSError as exc:
+            marks, reentries = [], None
+            entry["reentry_unreadable"] = str(exc)
+
+    if cost <= 0:
+        return {**entry, "exit_code": proc.returncode,
+                "outcome": CHILD_UNMEASURED,
+                "why": (f"часы дали {cost} с — не положительная цена ценой "
+                        "не является")}
+    if reentries is None:
+        recursion = RECURSION_UNMEASURED
+    else:
+        recursion = (RECURSION_OBSERVED if reentries
+                     else RECURSION_NOT_OBSERVED)
+    # `**entry` ПЕРВЫМ, а не вместо явных ключей: в нём лежит причина, по
+    # которой журнал отметок не прочитался (`reentry_unreadable`), и до цикла
+    # #669 она записывалась в словарь, который никто не возвращал. Третий
+    # исход обязан быть записан ТАМ, ГДЕ РЕШЕН: `recursion=unmeasured` без
+    # причины неотличим от «прибор так решил», а с причиной — измерение.
+    unreadable = entry.get("reentry_unreadable")
+    return {**entry, "file": rel, "cost_s": cost,
+            "exit_code": proc.returncode,
+            "reentries": reentries, "recursion": recursion,
+            "outcome": (CHILD_RAN_GREEN if proc.returncode == 0
+                        else CHILD_RAN_RED),
+            "why": (f"прогон завершился кодом {proc.returncode} за {cost} с; "
+                    + (f"журнал отметок НЕ ПРОЧИТАН ({unreadable}) — "
+                       "замыкание не измерено, и это не «не наблюдено»"
+                       if unreadable
+                       else f"отметок входа в ступень {reentries}"))}
+
+
+def reader_cost_of_test_channel(root: Path, harm: Optional[dict],
+                             budget: Optional[dict], *,
+                             run_file=None) -> dict:
+    """Цена читателей канала ТЕСТА и их замыкание на ступень (**заказ G70 п. 1**).
+
+    ADR-447 объявил цену этих читателей неизмеримой ПО ПРИЧИНЕ: «прогон
+    pytest изнутри ступени породил бы вложенный прогон». Заказ ставит вопрос
+    дословно:
+
+    > Это утверждение о МЕХАНИЗМЕ, и у него нет ни одного замера: ни один из
+    > двух файлов не зовёт ``measure()`` этой переписи, то есть рекурсии может
+    > не быть вовсе. Спросить числом: сколько стои́т прогон каждого из двух
+    > файлов, замкнётся ли он на собственную ступень (замер, а не догадка) и
+    > укладывается ли сумма в тот же такт. Отказ, чья причина не померена,
+    > ничем не лучше цены, которую никто не делил на бюджет.
+
+    Отвечается тремя величинами, и ни одна не объявлена здесь литералом:
+
+    1. **Население** — не список в коде, а ВЫВОД соседней координаты: файлы,
+       у которых :func:`neighbour_population_harm` нашёл решение по
+       сдвинувшемуся полю И чей канал — тест. Перечень именами был бы второй
+       копией правила о населении, ровно тем классом, который перепись ищет
+       у других.
+    2. **Цена** — секунды, измеренные часами вокруг НАСТОЯЩЕГО прогона
+       каждого файла (:func:`_run_test_file`).
+    3. **Замыкание** — ДВА свидетеля, и ни один не есть поправка к другому:
+       наблюдение (отметка :data:`REENTRY_ENV`, ловит любую глубину) и разбор
+       текста (:func:`_static_reaches_step`, глубина объявлена). Их
+       НЕСОГЛАСИЕ само объявляется находкой.
+
+    Сумма делится на ТОТ ЖЕ такт (:func:`_tact_seconds`) и на тот же
+    объявленный ДО замера запас (:data:`REQUIRED_COST_MARGIN`) — своей копии
+    ни у такта, ни у порога здесь нет.
+
+    ADVISORY: порог не вводится, ни один вердикт переписи этой координатой не
+    меняется (``applied`` ложно).
+    """
+    runner = run_file or _run_test_file
+    head = {
+        "question": ("сколько стои́т прогон читателя канала ТЕСТА, замыкается "
+                     "ли он на собственную ступень и укладывается ли сумма в "
+                     "такт ступени"),
+        "order": "G70.1",
+        "required_margin_declared": REQUIRED_COST_MARGIN,
+        "static_witness_depth": STATIC_WITNESS_DEPTH,
+        "applied": False,
+    }
+    readers = observed(harm, "readers", kind=list) if harm else None
+    if readers is None:
+        return {**head, "status": "UNMEASURED", "verdict": BUDGET_UNMEASURED,
+                "reason": ("вред занижения не измерен — населения канала "
+                           "теста здесь не из чего вывести; это НЕ «читателей "
+                           "нет»")}
+
+    population = []
+    for item in readers:
+        if not isinstance(item, dict):
+            continue
+        rel = item.get("file")
+        if not isinstance(rel, str) or not item.get("decides_on_moved"):
+            continue
+        if _channel_of(rel) != CHANNEL_TEST:
+            continue
+        population.append(rel)
+    population = sorted(set(population))
+
+    budget_s, budget_source, budget_refused = _tact_seconds(root)
+    rows: List[dict] = []
+    for rel in population:
+        row = dict(runner(root, rel))
+        row["static"] = _static_reaches_step(root, rel)
+        static_reaches = row["static"].get("reaches")
+        observed_reaches = {RECURSION_OBSERVED: True,
+                            RECURSION_NOT_OBSERVED: False}.get(
+                                row.get("recursion"))
+        if static_reaches is None or observed_reaches is None:
+            row["witnesses"] = "incomplete"
+        elif static_reaches == observed_reaches:
+            row["witnesses"] = "agree"
+        else:
+            row["witnesses"] = "disagree"
+        rows.append(row)
+
+    priced = [r for r in rows if isinstance(r.get("cost_s"), (int, float))]
+    unpriced = [r for r in rows if r not in priced]
+    total_cost_s = round(sum(r["cost_s"] for r in priced), 2) if priced else None
+
+    # Сумма, которую ступень платит В ОДИН ТАКТ: этот канал ПЛЮС уже
+    # измеренный пересчёт читателей-кода (ADR-447). Отдельное число было бы
+    # ответом не на тот вопрос: такт у них общий.
+    prior_cost = observed(budget, "total_cost_s", kind=(int, float)) if budget \
+        else None
+    if total_cost_s is None or prior_cost is None:
+        combined_cost_s = None
+    else:
+        combined_cost_s = round(total_cost_s + prior_cost, 2)
+
+    refused = [r for r in rows if r.get("outcome") == CHILD_REFUSED_NESTED]
+    if budget_s is None:
+        verdict, margin = BUDGET_UNMEASURED, None
+    elif not population:
+        verdict, margin = BUDGET_UNMEASURED, None
+        budget_refused = ("читателей канала ТЕСТА, решающих по сдвинувшемуся "
+                          "полю, сосед не назвал ни одного — делить нечего")
+    elif combined_cost_s is None:
+        verdict, margin = BUDGET_UNMEASURED, None
+        budget_refused = budget_refused or (
+            "цена канала или цена пересчёта не измерена — суммы, которую "
+            "делить на такт, не существует"
+            + (f"; прогонов не заводилось: {len(refused)}" if refused else ""))
+    elif combined_cost_s <= 0:
+        verdict, margin = BUDGET_UNMEASURED, None
+        budget_refused = (f"измеренная сумма не положительна ({combined_cost_s} "
+                          "с) — запаса из неё не построить")
+    else:
+        margin = round(budget_s / combined_cost_s, 1)
+        if margin >= REQUIRED_COST_MARGIN:
+            verdict = BUDGET_FITS
+        elif combined_cost_s > budget_s:
+            verdict = BUDGET_DOES_NOT_FIT
+        else:
+            verdict = BUDGET_TOO_CLOSE
+
+    recursion_observed = [r for r in rows
+                          if r.get("recursion") == RECURSION_OBSERVED]
+    recursion_absent = [r for r in rows
+                        if r.get("recursion") == RECURSION_NOT_OBSERVED]
+    findings: List[dict] = []
+    if (verdict == BUDGET_FITS and recursion_absent and not recursion_observed
+            and len(recursion_absent) == len(rows)):
+        findings.append({
+            "kind": "refusal_reason_refuted_by_measurement",
+            "file": PRODUCER, "channel": CHANNEL_CODE,
+            "fields": sorted(r["file"] for r in recursion_absent),
+            "why": ("цена объявлена неизмеримой ПО ПРИЧИНЕ «вложенный "
+                    f"прогон»; замер: замыкания на ступень не наблюдено ни у "
+                    f"одного из {len(rows)} файлов, а сумма с пересчётом "
+                    f"стои́т {combined_cost_s} с при такте {budget_s} с "
+                    f"(запас {margin}×) — причина отказа не подтвердилась, "
+                    "и отказ был по карману")})
+    for row in rows:
+        if row.get("witnesses") == "disagree":
+            findings.append({
+                "kind": "recursion_witnesses_disagree",
+                "file": PRODUCER, "channel": CHANNEL_CODE,
+                "fields": [str(row.get("file"))],
+                "why": (f"разбор текста говорит "
+                        f"`{row['static'].get('reaches')}`, наблюдение — "
+                        f"`{row.get('recursion')}`; свидетели косвенный и "
+                        "прямой, и расхождение есть предмет, а не шум")})
+    if recursion_observed:
+        findings.append({
+            "kind": "test_channel_closes_on_own_step",
+            "file": PRODUCER, "channel": CHANNEL_CODE,
+            "fields": sorted(r["file"] for r in recursion_observed),
+            "why": ("дочерний прогон вошёл в ступень переписи — замыкание "
+                    "НАБЛЮДЕНО, и причина отказа ADR-447 подтверждается "
+                    "замером для этих файлов")})
+    for row in rows:
+        if row.get("outcome") == CHILD_RAN_RED:
+            findings.append({
+                "kind": "test_channel_reader_is_red",
+                "file": PRODUCER, "channel": CHANNEL_TEST,
+                "fields": [str(row.get("file"))],
+                "why": (f"файл канала теста вышел кодом {row.get('exit_code')}: "
+                        "цена измерена, но читатель, о чьём решении идёт речь, "
+                        "сегодня красный")})
+
+    counts = {
+        "readers": len(rows),
+        "priced": len(priced),
+        "unpriced": len(unpriced),
+        "refused_nested": len(refused),
+        "ran_green": len([r for r in rows
+                          if r.get("outcome") == CHILD_RAN_GREEN]),
+        "ran_red": len([r for r in rows if r.get("outcome") == CHILD_RAN_RED]),
+        "unmeasured": len([r for r in rows
+                           if r.get("outcome") == CHILD_UNMEASURED]),
+        "recursion_observed": len(recursion_observed),
+        "recursion_not_observed": len(recursion_absent),
+        "recursion_unmeasured": len([r for r in rows if r.get("recursion")
+                                     == RECURSION_UNMEASURED]),
+        "witnesses_agree": len([r for r in rows
+                                if r.get("witnesses") == "agree"]),
+        "witnesses_disagree": len([r for r in rows
+                                   if r.get("witnesses") == "disagree"]),
+        "witnesses_incomplete": len([r for r in rows
+                                     if r.get("witnesses") == "incomplete"]),
+    }
+
+    return {
+        **head,
+        "status": ("UNMEASURED" if verdict == BUDGET_UNMEASURED
+                   else ("CRITICAL" if verdict == BUDGET_DOES_NOT_FIT
+                         else "MEASURED")),
+        "verdict": verdict,
+        "budget_s": budget_s,
+        "budget_source": budget_source,
+        "budget_refused": budget_refused,
+        "population": population,
+        "total_cost_s": total_cost_s,
+        "prior_cost_s": prior_cost,
+        "combined_cost_s": combined_cost_s,
+        "margin": margin,
+        "rows": rows,
+        "counts": counts,
+        "findings": findings,
+        "blind": [
+            "население взято у СОСЕДНЕЙ координаты, а не списком имён: "
+            "перечень в коде был бы второй копией правила о населении; зато "
+            "и ошибка соседа приезжает сюда целиком",
+            "отметка входа ловит ступень (" + ", ".join(STEP_ENTRYPOINTS)
+            + "), а не любой зов модуля: файл вправе звать ОДНУ координату и "
+              "ступенью это не будет",
+            f"разбор текста — свидетель КОСВЕННЫЙ глубины "
+            f"{STATIC_WITNESS_DEPTH}: замыкание через `importlib` или через "
+            "третий модуль он не видит, и полноту даёт не он, а наблюдение",
+            "цена измерена на ЭТОЙ машине и этом дереве; ответ имеет право не "
+            f"зависеть от её точности, и запас {margin}× говорит, во сколько "
+            f"раз замер обязан ошибиться, чтобы вердикт сменился (порог "
+            f"{REQUIRED_COST_MARGIN}× объявлен ДО замера)",
+            "прогон, который не заводился (отказ от вложенности), отметок не "
+            "даёт ПО ПОСТРОЕНИЮ — его ноль есть третий исход, а не "
+            "«замыкания нет»",
         ],
     }
 
@@ -7639,6 +8157,11 @@ def bilingual_reach(root: Path, rows: List[dict],
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
+    # Отметка входа в СТУПЕНЬ — первым делом и до любого отказа: вопрос
+    # «замкнулся ли дочерний прогон на ступень» (заказ G70 п. 1) не зависит
+    # от того, довела ли ступень работу до конца. В обычном прогоне, где
+    # прибор процесс не помечал, побочного действия нет вовсе.
+    _reentry_note("measure")
     root = Path(root)
     if not root.is_dir():
         raise NotMeasured(f"корень дерева не прочитан: {root}")
@@ -7923,6 +8446,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # а бюджет читается у производителя артефакта.
     cost_budget = recompute_cost_budget(root, population_harm)
 
+    # --- ЦЕНА КАНАЛА ТЕСТА И ЗАМЫКАНИЕ (заказ G70 п. 1) ----------------
+    # Координата выше оценила читателей-КОД, а читателей канала теста
+    # объявила неизмеримыми ПО ПРИЧИНЕ («вложенный прогон»). Причина эта —
+    # утверждение о механизме, и у него не было ни одного замера. Отказ, чья
+    # причина не померена, ничем не лучше цены, которую никто не делил на
+    # бюджет.
+    test_channel_cost = reader_cost_of_test_channel(root, population_harm,
+                                                 cost_budget)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -8040,6 +8572,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # первому: занижение может быть повсеместным и безвредным разом.
         "neighbour_population_harm": population_harm,
         "recompute_cost_budget": cost_budget,
+        # Двенадцатая координата того же вопроса (заказ G70 п. 1). Отдельным
+        # ключом: «сколько стои́т пересчёт читателя-КОДА» и «сколько стои́т
+        # читатель канала ТЕСТА и замыкается ли он на ступень» — разные
+        # вопросы, и ответ второго не есть поправка к первому: у них разные
+        # свидетели и разный третий исход.
+        "reader_cost_of_test_channel": test_channel_cost,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -9294,6 +9832,57 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{', '.join(item.get('fields') or []) or item.get('file')} — "
                 f"{item.get('why')}")
         for blind in (budget.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- ЦЕНА КАНАЛА ТЕСТА И ЗАМЫКАНИЕ (заказ G70 п. 1) ----------------
+    # Секция вынесена ЗА блок цены пересчёта НАМЕРЕННО: вложенная внутрь его
+    # `else`, она молчала бы ровно там, где цена пересчёта не измерена, —
+    # то есть в единственном состоянии, где отдельный вопрос о канале теста
+    # и нужен громче всего.
+    channel = observed(doc, "reader_cost_of_test_channel", kind=dict)
+    if channel is None:
+        out.append("[ЦЕНА КАНАЛА ТЕСТА] НЕ ИЗМЕРЕНА — перепись собрана без "
+                   "замера цены канала теста")
+    elif channel.get("verdict") == BUDGET_UNMEASURED:
+        out.append(f"[ЦЕНА КАНАЛА ТЕСТА] НЕ ИЗМЕРЕНА: "
+                   f"{channel.get('budget_refused') or channel.get('reason')}")
+    else:
+        ccnt = observed(channel, "counts", kind=dict)
+        out.append(
+            f"[ЦЕНА КАНАЛА ТЕСТА] канал {channel.get('total_cost_s')} с + "
+            f"пересчёт {channel.get('prior_cost_s')} с = "
+            f"{channel.get('combined_cost_s')} с при такте "
+            f"{channel.get('budget_s')} с ({channel.get('budget_source')}) · "
+            f"запас {channel.get('margin')}× при объявленных до замера "
+            f"{channel.get('required_margin_declared')}× ⇒ "
+            f"{channel.get('verdict')}")
+        for row in (channel.get("rows") or [])[:max_rows]:
+            static = row.get("static") or {}
+            out.append(
+                f"[ЦЕНА КАНАЛА ТЕСТА · ЧИТАТЕЛЬ] {row.get('file')}: "
+                f"{row.get('cost_s')} с (исход {row.get('outcome')}, код "
+                f"{row.get('exit_code')}) · замыкание {row.get('recursion')} "
+                f"(отметок {row.get('reentries')}) · разбор текста "
+                f"{static.get('reaches')} ⇒ свидетели {row.get('witnesses')}")
+        if ccnt is not None:
+            out.append(
+                f"[ЦЕНА КАНАЛА ТЕСТА · УЧЁТ] читателей {ccnt.get('readers')} = "
+                f"с ценой {ccnt.get('priced')} + без цены "
+                f"{ccnt.get('unpriced')} · зелёных {ccnt.get('ran_green')}, "
+                f"красных {ccnt.get('ran_red')}, не заводилось "
+                f"{ccnt.get('refused_nested')}, не измерено "
+                f"{ccnt.get('unmeasured')} · замыкание наблюдено "
+                f"{ccnt.get('recursion_observed')}, не наблюдено "
+                f"{ccnt.get('recursion_not_observed')}, не измерено "
+                f"{ccnt.get('recursion_unmeasured')} · свидетели согласны "
+                f"{ccnt.get('witnesses_agree')}, спорят "
+                f"{ccnt.get('witnesses_disagree')}, неполны "
+                f"{ccnt.get('witnesses_incomplete')}")
+        for item in (channel.get("findings") or [])[:max_rows]:
+            out.append(
+                f"[ЦЕНА КАНАЛА ТЕСТА · НАХОДКА] {item.get('kind')}: "
+                f"{', '.join(item.get('fields') or []) or item.get('file')} — "
+                f"{item.get('why')}")
+        for blind in (channel.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
