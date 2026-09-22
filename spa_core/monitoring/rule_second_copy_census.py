@@ -6449,6 +6449,746 @@ def invisible_consumer_scale(root: Path) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# ЗАКАЗ G68 п. 1 — ВРЕД занижения: меняет ли оно хоть один ВЫВОД
+# ---------------------------------------------------------------------------
+
+#: Поля документа соседа, которыми решают его потребители. ОБЪЯВЛЕНЫ ДО
+#: замера (запрет G62): выбрать «поля вердикта», увидев, какие из них
+#: сдвинулись, значило бы подогнать правило под исход. Список — вердикт и его
+#: счётчики, то есть в точности то, что мост печатает оркестратору
+#: (`findings_bridge`: `overall`, `counts.critical/warn/unchecked`).
+NEIGHBOUR_VERDICT_FIELDS = ("status", "overall", "counts.critical",
+                            "counts.warn", "counts.unchecked")
+
+#: Имена соседа, отдающие НАСЕЛЕНИЕ зовущих напрямую, минуя документ.
+POPULATION_FINDERS = ("find_by_name_consumers", "find_cli_consumers",
+                      "find_dynamic_consumers", "find_fleet_consumers")
+
+#: Координата документа, которой соответствует каждый искатель населения.
+#: ОБЪЯВЛЕНИЕ, а не замер, и это сказано вслух: связь «искатель → ключ
+#: документа» написана в `measure` соседа, и выводить её обратно из его текста
+#: значило бы завести вторую копию правила — тот самый класс, который перепись
+#: ищет у других.
+_FINDER_FIELD = {"find_by_name_consumers": "by_name",
+                 "find_cli_consumers": "cli",
+                 "find_dynamic_consumers": "dynamic",
+                 "find_fleet_consumers": "fleet"}
+
+#: Пять дорог, которыми читатель добирается до населения соседа. Спросить
+#: одну значило бы повторить слепоту самого соседа: его вопрос «кто зовёт
+#: `run`» не выражает ни читателя-искателя, ни читателя артефакта, ни
+#: ввозящего отрисовщик (ADR-444/445), ни достающего модуль динамически.
+ROAD_RUN = "calls_run_or_measure"
+ROAD_FINDER = "calls_population_finder"
+ROAD_ARTIFACT = "reads_artifact_file"
+ROAD_RENDERER = "imports_renderer"
+#: Пятая дорога, и без неё прибор повторял бы ровно ту слепоту, которую мерит:
+#: ЭТОТ модуль достаёт соседа `importlib.import_module(NEIGHBOUR_CENSUS)`, то
+#: есть ни одной формой `import` его не ввозит — и первый заход замера не увидел
+#: собственных двух читателей, чьё решение и есть предмет заказа.
+ROAD_DYNAMIC = "imports_module_dynamically"
+
+#: Исход ОДНОГО чтения. Третий существует отдельно (инв. #17): значение,
+#: уехавшее дальше по коду, не «не решает» — про него не сказано ничего.
+TOUCH_DECIDES = "decides"
+TOUCH_PRINTS = "prints_only"
+TOUCH_UNRESOLVED = "unresolved"
+
+#: Две формы синтеза расширенного места. Вопрос «изменился бы вывод» имеет
+#: право не зависеть от того, КАК синтезировано расширение, и потому форма —
+#: предмет отдельной пробы, а не молчаливое умолчание.
+SHAPE_NO_LINE = "site_without_line"
+SHAPE_AT_IMPORT_LINE = "site_at_import_line"
+
+#: Исходы пересчёта решения у одного читателя.
+DECISION_CHANGED = "decision_changed"
+DECISION_UNCHANGED = "decision_unchanged"
+DECISION_NOT_EXECUTED = "not_executed"
+DECISION_UNMEASURED = "unmeasured"
+
+#: Читатели, чьё РЕШЕНИЕ прибор способен пересчитать здесь же: оба живут в
+#: этом модуле и идут дорогой `ROAD_FINDER`. Цена прогона объявлена ЧИСЛОМ;
+#: неоплаченный читатель уходит в ТРЕТИЙ исход с названной ценой и названным
+#: полем, а не в «решение не изменилось».
+_EXECUTABLE_READERS = (
+    {"key": "consumer_registry_completeness",
+     "cost_s": 21,
+     "execute": True,
+     "field": "seen_by_neighbour",
+     "why": "его находка `declared_consumer_invisible_to_neighbour` и есть "
+            "предмет заказа: она стои́т на населении соседа"},
+    {"key": "invisible_consumer_scale",
+     "cost_s": 35,
+     "execute": False,
+     "field": "blanked_to_zero",
+     "why": "прогон стои́т 35 с при такте ступени 6 ч; поле, стоящее на "
+            "населении соседа, названо — это ОСТАТОК замера, а не ноль"},
+)
+
+
+def _flatten_doc(value: object, prefix: str = "") -> Dict[str, str]:
+    """Документ — в плоскую карту «путь через точку → repr значения».
+
+    ``repr`` намеренно: сравниваются ЗНАЧЕНИЯ, а не тождество объектов, и
+    перечень потребителей обязан считаться изменившимся, когда в него
+    добавили место. Словари разворачиваются, списки — нет: путь внутрь
+    элемента списка назвал бы координатой ИНДЕКС, а индекс не есть имя поля.
+    """
+    out: Dict[str, str] = {}
+    if isinstance(value, dict):
+        if not value and prefix:
+            out[prefix] = "{}"
+            return out
+        for key, item in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            out.update(_flatten_doc(item, path))
+        return out
+    out[prefix] = repr(value)
+    return out
+
+
+def _import_line(tree: ast.AST, census: str) -> int:
+    """Строка, на которой файл ВВОЗИТ перепись; 0 — ввоза не нашлось.
+
+    Нужна не для отбора, а для ВТОРОЙ формы расширения: у синтезированного
+    места строки нет, а область (`scope`) читателя разрешается именно по ней.
+    Нулевая строка сама есть выбор, и выбор обязан быть проверяемым.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module.split(".")[-1] == census:
+                return node.lineno
+            if any(alias.name == census for alias in node.names):
+                return node.lineno
+        elif isinstance(node, ast.Import):
+            if any(alias.name.split(".")[-1] == census for alias in node.names):
+                return node.lineno
+    return 0
+
+
+def _widened_population(root: Path, sites: List[dict], *,
+                        shape: str) -> List[dict]:
+    """Население соседа, расширенное ровно на ИЗМЕРЕННЫЕ невидимые места.
+
+    Расширение — самое дешёвое из возможных: место ввоза отрисовщика
+    признаётся зовущим класса ``by_name``. Потребителей оно не выдумывает:
+    перечень ``sites`` целиком приходит из :func:`invisible_consumer_scale`.
+
+    ``root_argument`` оставлен ``None`` НАМЕРЕННО: у ввозящего отрисовщик
+    аргумента `root` нет вовсе, а подставить сюда строку значило бы сдвинуть
+    ещё и согласие о значении `root` — то есть измерить вред от собственной
+    подстановки.
+    """
+    out: List[dict] = []
+    trees: Dict[str, Optional[ast.AST]] = {}
+    for site in sites:
+        rel = site.get("file") or ""
+        line = 0
+        if shape == SHAPE_AT_IMPORT_LINE:
+            if rel not in trees:
+                try:
+                    trees[rel] = ast.parse(
+                        (root / rel).read_text(encoding="utf-8"))
+                except (OSError, SyntaxError, UnicodeDecodeError):
+                    trees[rel] = None
+            tree = trees[rel]
+            line = (_import_line(tree, site.get("census") or "")
+                    if tree is not None else 0)
+        out.append({"file": rel, "line": line,
+                    "callee": site.get("census"), "root_argument": None})
+    return out
+
+
+def _parent_map(tree: ast.AST) -> Dict[int, ast.AST]:
+    """Обратные ссылки дерева: без них «куда уехало значение» не спросить."""
+    parents: Dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[id(child)] = node
+    return parents
+
+
+def _name_loads(tree: ast.AST) -> Dict[str, List[ast.AST]]:
+    """Где имя ЧИТАЕТСЯ. Цель присваивания — тоже узел ``Name``, и считать её
+    чтением значило бы сделать ветку «читателя нет» недостижимой."""
+    out: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            out.setdefault(node.id, []).append(node)
+    return out
+
+
+def _decision_form(parents: Dict[int, ast.AST], node: ast.AST,
+                   loads: Dict[str, List[ast.AST]], depth: int = 0) -> str:
+    """Доходит ли значение до РЕШЕНИЯ — или только до печати.
+
+    Решением считается позиция ПРОВЕРКИ: ``assert``, условие ``if``/``while``,
+    сравнение, охрана в переборе, аргумент ``self.assert*``. Печатью — ``print``
+    и f-строка. Всё остальное есть ТРЕТИЙ исход (:data:`TOUCH_UNRESOLVED`):
+    значение уехало дальше, и где оно решает, здесь не разобрано. Объявить
+    такое «не решает» и был бы тот fail-OPEN, который перепись ищет у других.
+
+    Одно связывание проходится насквозь: ``files = {s["file"] for s in
+    doc["consumers"]["by_name"]}`` с последующим ``assertIn(…, files)`` есть
+    ОДНО чтение с решением, и разорвать их значило бы объявить решающий тест
+    только печатающим. Глубина ограничена одним шагом НАМЕРЕННО: цепочка
+    переприсваиваний уводит от предмета, и её честное имя — третий исход.
+    """
+    current = node
+    while True:
+        parent = parents.get(id(current))
+        if parent is None:
+            return TOUCH_UNRESOLVED
+        if isinstance(parent, (ast.Assert, ast.Compare)):
+            return TOUCH_DECIDES
+        if isinstance(parent, (ast.If, ast.While, ast.IfExp)):
+            if parent.test is current:
+                return TOUCH_DECIDES
+        if isinstance(parent, ast.comprehension):
+            # Охрана перебора решает; ИСТОЧНИК перебора — нет, и остановиться
+            # на нём значило бы потерять `files = {… for s in doc[…]}` с
+            # последующим `assertIn(…, files)`: решение там ниже по связыванию.
+            if current in parent.ifs:
+                return TOUCH_DECIDES
+        if isinstance(parent, ast.Call):
+            func = parent.func
+            if (isinstance(func, ast.Attribute)
+                    and func.attr.startswith("assert")):
+                return TOUCH_DECIDES
+            if isinstance(func, ast.Name) and func.id == "print":
+                return TOUCH_PRINTS
+        if isinstance(parent, ast.JoinedStr):
+            return TOUCH_PRINTS
+        if isinstance(parent, ast.Assign):
+            if depth >= 1:
+                return TOUCH_UNRESOLVED
+            for target in parent.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                for use in loads.get(target.id, []):
+                    got = _decision_form(parents, use, loads, depth + 1)
+                    if got != TOUCH_UNRESOLVED:
+                        return got
+            return TOUCH_UNRESOLVED
+        current = parent
+
+
+def _is_doc_read(node: ast.AST) -> bool:
+    """Узел, который ЧИТАЕТ координату документа, — и только он.
+
+    Подстрочник и названные формы зова (``.get(…)``, :data:`_DOC_READERS`).
+    Считать чтением ЛЮБОЙ зов значило бы посчитать обёртку вокруг чтения
+    вторым чтением: ``print(doc["counts"]["critical"])`` даёт координату
+    `critical` и самому `print`, и тогда одно чтение ехало бы в отчёт дважды
+    — один раз как печать, другой как «не разобрано».
+    """
+    if isinstance(node, ast.Subscript):
+        return True
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Attribute) and func.attr == "get":
+        return True
+    return isinstance(func, ast.Name) and func.id in _DOC_READERS
+
+
+def _neighbour_names(tree: ast.AST, module: str,
+                    consts: Dict[str, str]) -> dict:
+    """Под какими именами читатель видит соседа — ПЯТЬЮ формами ввоза.
+
+    Четыре статические формы разбираются одним правилом, потому что вопрос у
+    них один (тот же порядок, что у :func:`_census_imports`): пакетная форма
+    ``from spa_core.monitoring import X`` полного имени в тексте не оставляет
+    вовсе, и текстовое правило потеряло бы именно её.
+
+    Пятая форма — ``importlib.import_module(…)``. Спросить только статические
+    значило бы повторить ровно ту слепоту, которую мерит эта координата: сам
+    производитель достаёт соседа именно так, и его два читателя (те, чьё
+    решение и есть предмет заказа) на первом заходе замера были невидимы.
+
+    ``symbols`` — карта «имя у читателя → имя у соседа»: ввоз
+    ``import format_report as _ccc_report`` называет отрисовщик ЧУЖИМ именем,
+    и сверка по имени читателя объявила бы ввоз отрисовщика отсутствующим.
+    """
+    tail = module.split(".")[-1]
+    out: dict = {"aliases": set(), "dynamic": set()}
+    symbols: Dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module.split(".")[-1] == tail:
+                for alias in node.names:
+                    symbols[alias.asname or alias.name] = alias.name
+            else:
+                for alias in node.names:
+                    if alias.name == tail:
+                        out["aliases"].add(alias.asname or alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[-1] == tail:
+                    out["aliases"].add(
+                        alias.asname or alias.name.split(".")[-1])
+        elif isinstance(node, ast.Call):
+            func = node.func
+            named = ((isinstance(func, ast.Attribute)
+                      and func.attr == "import_module")
+                     or (isinstance(func, ast.Name)
+                         and func.id == "import_module"))
+            if not named or not node.args:
+                continue
+            got = _literal_key(node.args[0], consts)
+            if got is None or got.split(".")[-1] != tail:
+                continue
+            out["dynamic"].add(got)
+    out["symbols"] = symbols
+    return out
+
+
+def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
+                    renderers: Tuple[str, ...]) -> dict:
+    """Дороги ОДНОГО читателя к населению соседа и форма каждого чтения."""
+    consts = _module_string_consts(tree)
+    seen = _neighbour_names(tree, module, consts)
+    symbols: Dict[str, str] = seen["symbols"]
+    parents = _parent_map(tree)
+    loads = _name_loads(tree)
+    aliases: set = set(seen["aliases"])
+    roads: set = set()
+    touches: List[dict] = []
+    anchors: set = set()
+
+    if seen["dynamic"]:
+        roads.add(ROAD_DYNAMIC)
+        # Имя, которому присвоен результат `import_module`, есть такое же имя
+        # модуля у читателя, как и ввезённое `import`: не связать их значило бы
+        # найти дорогу и потерять все чтения по ней.
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            named = ((isinstance(func, ast.Attribute)
+                      and func.attr == "import_module")
+                     or (isinstance(func, ast.Name)
+                         and func.id == "import_module"))
+            if not named or not node.args:
+                continue
+            if _literal_key(node.args[0], consts) not in seen["dynamic"]:
+                continue
+            parent = parents.get(id(node))
+            if isinstance(parent, ast.Assign):
+                for target in parent.targets:
+                    if isinstance(target, ast.Name):
+                        aliases.add(target.id)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        called: Optional[str] = None
+        if (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)
+                and func.value.id in aliases):
+            called = func.attr
+        elif isinstance(func, ast.Name) and func.id in symbols:
+            # Имя У СОСЕДА, а не у читателя: ввоз `as` переименовывает, и
+            # сверка по имени читателя потеряла бы и искатель, и отрисовщик.
+            called = symbols[func.id]
+        if called is None:
+            continue
+        if called in ("run", "measure"):
+            roads.add(ROAD_RUN)
+            parent = parents.get(id(node))
+            if isinstance(parent, ast.Assign):
+                for target in parent.targets:
+                    if isinstance(target, ast.Name):
+                        anchors.add(target.id)
+        elif called in POPULATION_FINDERS:
+            roads.add(ROAD_FINDER)
+            touches.append({"road": ROAD_FINDER, "line": node.lineno,
+                            "field": _FINDER_FIELD[called],
+                            "form": _decision_form(parents, node, loads)})
+        elif called in renderers:
+            # Ввоз отрисовщика есть дорога сам по себе: зова `run` у такого
+            # читателя нет ПО ПОСТРОЕНИЮ, и именно этим он невидим соседу.
+            roads.add(ROAD_RENDERER)
+            touches.append({"road": ROAD_RENDERER, "line": node.lineno,
+                            "field": None, "form": TOUCH_PRINTS})
+    if set(symbols.values()) & set(renderers):
+        roads.add(ROAD_RENDERER)
+    if artifact:
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and node.value == artifact):
+                roads.add(ROAD_ARTIFACT)
+                break
+
+    if anchors:
+        binding = {name: None for name in anchors}
+        for node in ast.walk(tree):
+            if not _is_doc_read(node):
+                continue
+            # Внутреннее звено цепи `doc["counts"]["critical"]` отдельным
+            # чтением НЕ является: координата значения — ПОСЛЕДНИЙ применённый
+            # ключ, и считать `counts` вторым чтением значило бы приписать
+            # читателю контейнер вместе с каждым его элементом.
+            outer = parents.get(id(node))
+            if isinstance(outer, ast.Subscript) and outer.value is node:
+                continue
+            if not _derives_from_census(node, anchors,
+                                        producer_aliases=frozenset(aliases)):
+                continue
+            field = _terminal_coordinate(node, consts, binding)
+            if field is None:
+                continue
+            touches.append({"road": ROAD_RUN,
+                            "line": getattr(node, "lineno", 0),
+                            "field": field,
+                            "form": _decision_form(parents, node, loads)})
+    return {"file": rel, "channel": _channel_of(rel),
+            "roads": sorted(roads), "touches": touches}
+
+
+def _decision_projection(doc: dict) -> dict:
+    """Что СЧИТАЕТСЯ решением читателя при сверке двух прогонов.
+
+    Проекция, а не весь документ: сверять документ целиком значило бы
+    объявлять решение изменившимся всякий раз, когда в отчёте сдвинулось
+    число мест. Решение читателя — его вердикт, счётчики вердикта и РОДА его
+    находок.
+    """
+    # Инв. #17: «счётчиков нет» и «счётчики нулевые» — разные утверждения, и
+    # второе вместо первого приравняло бы ДВА РАЗНЫХ решения. Форма
+    # `doc.get("counts") or {}` именно это и делала: документ без счётчиков
+    # становился неотличим от документа с пустыми, а сверка — зелёной.
+    counts = observed(doc, "counts", kind=dict)
+    findings = observed(doc, "findings", kind=list)
+    unseen = observed(doc, "declared_unseen", kind=list)
+    return {
+        "status": doc.get("status"),
+        "counts_observed": counts is not None,
+        "findings_observed": findings is not None,
+        "unseen_observed": unseen is not None,
+        "seen_by_neighbour": (None if counts is None
+                              else counts.get("seen_by_neighbour")),
+        "declared_unseen_by_neighbour": (
+            None if counts is None
+            else counts.get("declared_unseen_by_neighbour")),
+        "finding_kinds": (None if findings is None else
+                          sorted(str(item.get("kind")) for item in findings
+                                 if isinstance(item, dict))),
+        "unseen_reasons": (None if unseen is None else sorted(
+            f"{item.get('key')}:{item.get('reason')}" for item in unseen
+            if isinstance(item, dict))),
+    }
+
+
+def neighbour_population_harm(root: Path, scale: Optional[dict],
+                              registry: Optional[dict]) -> dict:
+    """Меняет ли занижение населения зовущих хоть один ВЫВОД (**заказ G68 п. 1**).
+
+    ADR-445 измерил ПОВЕРХНОСТЬ: у 43 переписей из 85 население зовущих
+    занижено формой вопроса соседа :data:`NEIGHBOUR_CENSUS`. Заказ ставит
+    следующий вопрос дословно:
+
+    > Занижение измерено, а ВРЕД — нет. Сколько читателей соседнего документа
+    > принимают решение по полю, куда невидимый потребитель не попал, — и у
+    > скольких из них решение при его добавлении изменилось бы. Класс,
+    > измеренный по поверхности и не спрошенный у ИСХОДА, есть та же
+    > «структура вместо исхода», против которой написано правило приёмки.
+
+    Отвечается ДВУМЯ замерами, и ни один не есть поправка к другому:
+
+    1. **Что вообще сдвигается в документе соседа.** Сосед считается ДВАЖДЫ:
+       как есть и с населением, расширенным ровно на измеренные места. Поле,
+       не попавшее в разность, решения изменить не может НИ У КОГО — вход у
+       читателя тождественно тот же. Это два прогона, а не рассуждение.
+    2. **Кто по сдвинувшемуся полю РЕШАЕТ.** Читатели ищутся ПЯТЬЮ
+       дорогами; спросить одну значило бы повторить слепоту соседа, чей
+       вопрос не выражает ни искателя, ни читателя артефакта, ни ввозящего
+       отрисовщик, ни достающего модуль ``importlib``. Пятая дорога добавлена
+       ПОСЛЕ первого захода замера, который без неё не увидел собственных двух
+       читателей — тех, чьё решение и есть предмет заказа.
+
+    **Поля вердикта объявлены ДО замера** (:data:`NEIGHBOUR_VERDICT_FIELDS`,
+    запрет G62): иначе «вердикт не сдвинулся» читалось бы как выбор удобного
+    определения вердикта.
+
+    **Форма расширения — предмет пробы, а не умолчание.** У синтезированного
+    места нет строки, а область читателя разрешается по строке; поэтому
+    прибор СЧИТАЕТ, у скольких мест форма вообще способна что-то изменить
+    (спецификация реестра с объявленной областью), и второй формы требует
+    ровно тогда, когда это число не ноль.
+
+    **Цена прогона названа числом.** Пересчитать решение можно лишь у
+    читателя, которого прибор способен позвать; у остальных исход ТРЕТИЙ, с
+    названной ценой и названным полем, а не «решение не изменилось».
+
+    ADVISORY: порог не вводится, ни один вердикт переписи этой координатой не
+    меняется (``applied`` ложно).
+    """
+    head = {
+        "question": ("меняет ли занижение населения зовущих хоть один ВЫВОД: "
+                     "кто решает по сдвинувшемуся полю и у кого решение иное"),
+        "order": "G68.1",
+        "neighbour": NEIGHBOUR_CENSUS,
+        "verdict_fields_declared": list(NEIGHBOUR_VERDICT_FIELDS),
+        "applied": False,
+    }
+    if not isinstance(scale, dict) or scale.get("status") == "UNMEASURED":
+        return {**head, "status": "UNMEASURED",
+                "reason": ("масштаб невидимости не измерен — расширять "
+                           "население нечем; это НЕ «вреда нет»")}
+    sites = scale.get("sites")
+    if not isinstance(sites, list):
+        return {**head, "status": "UNMEASURED",
+                "reason": ("у масштаба невидимости нет перечня мест — "
+                           "расширение не построить; это НЕ «вреда нет»")}
+    try:
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    except Exception as exc:                        # noqa: BLE001
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"сосед {NEIGHBOUR_CENSUS} не ввезён "
+                           f"({type(exc).__name__}: {exc})")}
+    for name in ("measure", "find_callees", "find_by_name_consumers",
+                 "OUTPUT_FILENAME", "_CODE_DIRS"):
+        if not hasattr(neighbour, name):
+            return {**head, "status": "UNMEASURED",
+                    "reason": (f"у соседа нет имени `{name}` — сверить два "
+                               f"прогона нечем")}
+
+    neighbour_stem = NEIGHBOUR_CENSUS.split(".")[-1]
+    widened = _widened_population(root, sites, shape=SHAPE_NO_LINE)
+    real_callees = neighbour.find_callees
+    real_by_name = neighbour.find_by_name_consumers
+    widened_by_name = (
+        lambda _root, _callees, _r=real_by_name, _extra=widened:
+        list(_r(_root, _callees)) + list(_extra))
+    try:
+        callees = real_callees(root)
+        # Одно и то же население переписей в ОБА прогона: разница обязана
+        # приходить от расширения, а не от повторного обхода дерева.
+        neighbour.find_callees = lambda _root, _c=callees: _c
+        clean = neighbour.measure(root)
+        neighbour.find_by_name_consumers = widened_by_name
+        widened_doc = neighbour.measure(root)
+    finally:
+        neighbour.find_callees = real_callees
+        neighbour.find_by_name_consumers = real_by_name
+
+    if neighbour_stem not in callees:
+        return {**head, "status": "UNMEASURED",
+                "reason": ("сосед не числит переписью сам себя — его "
+                           "отрисовщик не разрешить, и дорога ввоза "
+                           "неизмерима")}
+    producer_rel = callees[neighbour_stem]
+    try:
+        renderers = tuple(printed_by_producer(ast.parse(
+            (root / producer_rel).read_text(encoding="utf-8"))))
+    except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"файл соседа {producer_rel} не прочитан ({exc}) — "
+                           f"дорога ввоза отрисовщика неизмерима")}
+
+    flat_clean = _flatten_doc(clean)
+    flat_widened = _flatten_doc(widened_doc)
+    changed = sorted(key for key in set(flat_clean) | set(flat_widened)
+                     if flat_clean.get(key) != flat_widened.get(key))
+    verdict_moved = [key for key in NEIGHBOUR_VERDICT_FIELDS if key in changed]
+    # Совпадение по ПОСЛЕДНЕМУ применённому ключу: читатель пишет
+    # `doc["consumers"]["by_name"]`, и координатой значения является `by_name`
+    # (правило `_terminal_coordinate`: «контейнер привязкой не является»).
+    changed_tails = {key.rsplit(".", 1)[-1] for key in changed}
+    verdict_tails = {key.rsplit(".", 1)[-1]
+                     for key in NEIGHBOUR_VERDICT_FIELDS}
+
+    readers: List[dict] = []
+    unreadable: List[dict] = []
+    for sub in neighbour._CODE_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = str(path.relative_to(root))
+            if rel == producer_rel:
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel, "unreadable": str(exc)})
+                continue
+            item = _reader_touches(rel, tree, NEIGHBOUR_CENSUS,
+                                   neighbour.OUTPUT_FILENAME, renderers)
+            if not item["roads"]:
+                continue
+            for touch in item["touches"]:
+                field = touch.get("field")
+                touch["field_moved"] = (None if field is None
+                                        else field in changed_tails)
+                touch["field_is_verdict"] = (None if field is None
+                                             else field in verdict_tails)
+                touch["could_change"] = bool(touch["form"] == TOUCH_DECIDES
+                                             and touch["field_moved"])
+            item["decides_on_moved"] = [t for t in item["touches"]
+                                        if t["could_change"]]
+            readers.append(item)
+    could_change_readers = [r for r in readers if r["decides_on_moved"]]
+
+    # Форма расширения: способна ли она вообще что-то изменить. Спецификация
+    # реестра с ОБЪЯВЛЕННОЙ областью разрешает место по строке, а у
+    # синтезированного места строки нет.
+    scoped_paths = {spec["path"] for spec in CENSUS_CONSUMERS
+                    if spec.get("scope")}
+    shape_sensitive = sorted({site.get("file") for site in sites
+                              if site.get("file") in scoped_paths})
+
+    executed: List[dict] = []
+    for spec in _EXECUTABLE_READERS:
+        entry = {"key": spec["key"], "cost_s": spec["cost_s"],
+                 "field": spec.get("field"), "why": spec["why"]}
+        runner = _HARM_RUNNERS.get(spec["key"]) if spec.get("execute") else None
+        if runner is None:
+            entry.update({
+                "outcome": DECISION_NOT_EXECUTED,
+                "reason": ("прогон не оплачен этим замером — цена "
+                           f"{spec['cost_s']} с; это ОСТАТОК, а не «решение "
+                           "не изменилось»")})
+            executed.append(entry)
+            continue
+        before = registry if isinstance(registry, dict) else None
+        try:
+            neighbour.find_callees = lambda _root, _c=callees: _c
+            if before is None or before.get("status") != "MEASURED":
+                before = runner(root)
+            neighbour.find_by_name_consumers = widened_by_name
+            after = runner(root)
+        except Exception as exc:                    # noqa: BLE001 — причина важнее класса
+            entry.update({"outcome": DECISION_UNMEASURED,
+                          "reason": f"{type(exc).__name__}: {exc}"})
+            executed.append(entry)
+            continue
+        finally:
+            neighbour.find_callees = real_callees
+            neighbour.find_by_name_consumers = real_by_name
+        projection_before = _decision_projection(before)
+        projection_after = _decision_projection(after)
+        entry.update({
+            "outcome": (DECISION_CHANGED
+                        if projection_before != projection_after
+                        else DECISION_UNCHANGED),
+            "before": projection_before,
+            "after": projection_after})
+        executed.append(entry)
+
+    findings: List[dict] = []
+    if not verdict_moved:
+        findings.append({
+            "kind": "understatement_moves_no_verdict",
+            "file": producer_rel, "channel": CHANNEL_CODE, "fields": [],
+            "why": ("ни одно ОБЪЯВЛЕННОЕ поле вердикта соседа не сдвинулось "
+                    "от расширения населения: у читателя, решающего по "
+                    "вердикту, вход тождественно тот же, и решение измениться "
+                    "не может. Сказано ДВУМЯ прогонами, а не выводом")})
+    for reader in could_change_readers:
+        findings.append({
+            "kind": "reader_decides_on_moved_field",
+            "file": reader["file"], "channel": reader["channel"],
+            "fields": sorted({str(t["field"])
+                              for t in reader["decides_on_moved"]}),
+            "why": ("читатель решает по полю, которое от расширения населения "
+                    "сдвигается — вход у него РАЗНЫЙ, и «решение то же» "
+                    "требует прогона, а не вывода")})
+    for entry in executed:
+        if entry.get("outcome") == DECISION_CHANGED:
+            findings.append({
+                "kind": "reader_decision_changed",
+                "file": PRODUCER, "channel": CHANNEL_CODE,
+                "fields": [entry["key"]],
+                "why": ("пересчитанное решение читателя ОТЛИЧАЕТСЯ: занижение "
+                        "меняет не только число в отчёте, но и вывод")})
+
+    counts = {
+        "doc_fields": len(flat_clean),
+        "doc_fields_moved": len(changed),
+        "verdict_fields_declared": len(NEIGHBOUR_VERDICT_FIELDS),
+        "verdict_fields_moved": len(verdict_moved),
+        "widened_by": len(widened),
+        "readers": len(readers),
+        "readers_by_road": {},
+        "touches": sum(len(r["touches"]) for r in readers),
+        "touches_deciding": sum(1 for r in readers for t in r["touches"]
+                                if t["form"] == TOUCH_DECIDES),
+        "touches_printing": sum(1 for r in readers for t in r["touches"]
+                                if t["form"] == TOUCH_PRINTS),
+        "touches_unresolved": sum(1 for r in readers for t in r["touches"]
+                                  if t["form"] == TOUCH_UNRESOLVED),
+        "readers_deciding_on_moved": len(could_change_readers),
+        "readers_decision_changed": len(
+            [e for e in executed if e.get("outcome") == DECISION_CHANGED]),
+        "readers_decision_unchanged": len(
+            [e for e in executed if e.get("outcome") == DECISION_UNCHANGED]),
+        "readers_not_executed": len(
+            [e for e in executed if e.get("outcome") == DECISION_NOT_EXECUTED]),
+        "readers_execution_unmeasured": len(
+            [e for e in executed if e.get("outcome") == DECISION_UNMEASURED]),
+        "shape_sensitive_sites": len(shape_sensitive),
+        "files_unreadable": len(unreadable),
+    }
+    for reader in readers:
+        for road in reader["roads"]:
+            counts["readers_by_road"][road] = (
+                counts["readers_by_road"].get(road, 0) + 1)
+
+    return {
+        **head,
+        "status": ("CRITICAL" if counts["readers_decision_changed"]
+                   else "MEASURED"),
+        "counts": counts,
+        "moved_fields": changed,
+        "verdict_fields_moved": verdict_moved,
+        "readers": readers,
+        "executed": executed,
+        "shape_sensitive_sites": shape_sensitive,
+        "widened_shape": SHAPE_NO_LINE,
+        "unreadable": unreadable,
+        "findings": findings,
+        "blind": [
+            f"вопрос «изменилось бы решение» пересчитан только у читателей, "
+            f"которых прибор способен позвать: исполнено "
+            f"{counts['readers_decision_changed'] + counts['readers_decision_unchanged']}"
+            f", не оплачено {counts['readers_not_executed']} — у "
+            f"неоплаченного названы цена и поле, и это ОСТАТОК, а не "
+            f"«решение то же»",
+            "сдвиг поля измерен ПО ЗНАЧЕНИЮ документа, а координата читателя "
+            "сверяется по ПОСЛЕДНЕМУ применённому ключу: два разных поля с "
+            "одинаковым последним ключом прибор не различит — это сказано "
+            "вслух, а не спрятано",
+            "расширение — самое ДЕШЁВОЕ из возможных (ввоз отрисовщика "
+            "признаётся зовущим класса `by_name`); иная форма починки могла "
+            "бы сдвинуть иные поля, и на её цену отвечает отдельный пункт "
+            "заказа, а не эта координата",
+            f"форма синтеза места (со строкой и без) способна изменить ответ "
+            f"у {counts['shape_sensitive_sites']} мест — тех, что попадают на "
+            f"спецификацию реестра с объявленной областью; при нуле ответ от "
+            f"формы НЕ зависит, и это число, а не обещание",
+            "третий исход чтения назван отдельно: значение, уехавшее дальше "
+            "по коду, НЕ объявляется «не решающим» — про него не сказано "
+            "ничего (инв. #17)",
+            "дорог к населению пять, и все пять статические: читатель, "
+            "достающий соседа `import_module(<переменная>)`, невидим ПО "
+            "ПОСТРОЕНИЮ — у соседа это же место едет отдельным числом, а не "
+            "нулём",
+            "порог не введён: ни один вердикт переписи эта координата не "
+            "меняет (`applied` ложно)",
+        ],
+    }
+
+
+#: Чем зовётся читатель, чьё решение пересчитывается. Таблица ОТДЕЛЬНО от
+#: :data:`_EXECUTABLE_READERS`: там объявлены цена и поле, здесь — способ
+#: зова, и слить их значило бы позвать не того читателя, чьё имя объявлено.
+_HARM_RUNNERS = {"consumer_registry_completeness":
+                 lambda root: consumer_registry_completeness(root)}
+
+
 def bilingual_reach(root: Path, rows: List[dict],
                     index: Dict[str, List[str]],
                     synonyms: Optional[dict] = None) -> dict:
@@ -6789,6 +7529,16 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # остальных, есть догадка о масштабе, а не замер.
     invisible_scale = invisible_consumer_scale(root)
 
+    # --- ВРЕД ЗАНИЖЕНИЯ (заказ G68 п. 1) -------------------------------
+    # Координата выше измерила ПОВЕРХНОСТЬ класса и честно сказала, чего не
+    # спрашивала: меняет ли занижение хоть один ВЫВОД. Класс, измеренный по
+    # поверхности и не спрошенный у ИСХОДА, есть та же «структура вместо
+    # исхода», против которой написано правило приёмки. Чистый прогон
+    # читателя `consumer_registry_completeness` берётся УЖЕ посчитанным —
+    # второй его прогон стоил бы 21 с ни за что.
+    population_harm = neighbour_population_harm(root, invisible_scale,
+                                                registry_completeness)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -6900,6 +7650,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # переписей класс вообще есть» — разные вопросы, и ответ второго не
         # является поправкой к первому.
         "invisible_consumer_scale": invisible_scale,
+        # Десятая координата того же вопроса (заказ G68 п. 1). Отдельным
+        # ключом: «у скольких переписей класс есть» и «меняет ли он чей-нибудь
+        # ВЫВОД» — разные вопросы, и ответ второго не является поправкой к
+        # первому: занижение может быть повсеместным и безвредным разом.
+        "neighbour_population_harm": population_harm,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -6938,6 +7693,8 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что неназванный читатель БЕЗВРЕДЕН — измерено «печатает ли он числа переписи», а не «верно ли он их понимает»",
             "что у переписи без разрешённого отрисовщика невидимых потребителей НЕТ — отрисовщик разрешается печатью у самого производителя, и 28 из 85 уходят в ТРЕТИЙ исход, о котором не сказано ничего",
             "что невидимый потребитель ЧИТАЕТ числа своей переписи — измерен ВВОЗ отрисовщика при отсутствии зова `run`, а не печать",
+            "что занижение БЕЗВРЕДНО у всех читателей — решение пересчитано прогоном лишь у тех, кого прибор способен позвать; у неоплаченного названы цена и поле, и это ОСТАТОК, а не ноль",
+            "что «вердикт не сдвинулся» верно при ЛЮБОЙ форме починки — сдвиг измерен на САМОМ ДЕШЁВОМ расширении населения, и иная форма могла бы сдвинуть иные поля",
         ],
     }
 
@@ -8045,6 +8802,69 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[МАСШТАБ НЕВИДИМОСТИ · НЕ ПРОЧИТАНО] "
                        f"{item.get('file')}: {item.get('unreadable')}")
         for blind in (scale.get("blind") or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    # --- ВРЕД ЗАНИЖЕНИЯ (заказ G68 п. 1) -------------------------------
+    harm = observed(doc, "neighbour_population_harm", kind=dict)
+    if harm is None:
+        out.append("[ВРЕД ЗАНИЖЕНИЯ] НЕ ИЗМЕРЕН — перепись собрана без "
+                   "сверки двух прогонов соседа")
+    elif harm.get("status") == "UNMEASURED":
+        out.append(f"[ВРЕД ЗАНИЖЕНИЯ] НЕ ИЗМЕРЕН: {harm.get('reason')}")
+    elif observed(harm, "counts", kind=dict) is None:
+        # Инв. #17: «счётчиков нет» и «счётчики нулевые» — разные утверждения,
+        # и второе, напечатанное вместо первого, есть fail-OPEN (регрессия #664).
+        out.append("[ВРЕД ЗАНИЖЕНИЯ] НЕ ИЗМЕРЕН: документ объявлен измеренным, "
+                   "но счётчиков в нём нет — это НЕ нулевые счётчики")
+    else:
+        cnt = observed(harm, "counts", kind=dict)
+        out.append(
+            f"[ВРЕД ЗАНИЖЕНИЯ] население соседа расширено на "
+            f"{cnt.get('widened_by')} измеренных мест · полей документа "
+            f"{cnt.get('doc_fields')} · СДВИНУЛОСЬ {cnt.get('doc_fields_moved')}"
+            f" ({', '.join(harm.get('moved_fields') or []) or '—'})")
+        out.append(
+            f"[ВРЕД ЗАНИЖЕНИЯ · ВЕРДИКТ] из {cnt.get('verdict_fields_declared')}"
+            f" ОБЪЯВЛЕННЫХ до замера полей вердикта сдвинулось "
+            f"{cnt.get('verdict_fields_moved')}"
+            + (f" ({', '.join(harm.get('verdict_fields_moved') or [])})"
+               if harm.get("verdict_fields_moved") else
+               " — читатель, решающий по вердикту, получает тождественно тот "
+               "же вход, и его решение измениться НЕ МОЖЕТ"))
+        out.append(
+            f"[ВРЕД ЗАНИЖЕНИЯ · ЧИТАТЕЛИ] {cnt.get('readers')} по дорогам "
+            f"{cnt.get('readers_by_road')} · чтений {cnt.get('touches')} "
+            f"(решают {cnt.get('touches_deciding')}, печатают "
+            f"{cnt.get('touches_printing')}, НЕ РАЗОБРАНО "
+            f"{cnt.get('touches_unresolved')})")
+        out.append(
+            f"[ВРЕД ЗАНИЖЕНИЯ · ОТВЕТ] решают по СДВИНУВШЕМУСЯ полю "
+            f"{cnt.get('readers_deciding_on_moved')} читател(я/ей) · решение "
+            f"пересчитано и ИЗМЕНИЛОСЬ у {cnt.get('readers_decision_changed')}"
+            f", осталось тем же у {cnt.get('readers_decision_unchanged')}, "
+            f"прогон не оплачен у {cnt.get('readers_not_executed')}")
+        for entry in (harm.get("executed") or []):
+            out.append(
+                f"[ВРЕД ЗАНИЖЕНИЯ · ПЕРЕСЧЁТ] {entry.get('key')} "
+                f"(поле `{entry.get('field')}`, цена {entry.get('cost_s')} с): "
+                f"{entry.get('outcome')}"
+                + (f" — {entry.get('reason')}" if entry.get("reason") else ""))
+        out.append(
+            f"[ВРЕД ЗАНИЖЕНИЯ · ФОРМА] мест, у которых форма синтеза "
+            f"(со строкой и без) способна изменить ответ: "
+            f"{cnt.get('shape_sensitive_sites')}"
+            + ("" if cnt.get("shape_sensitive_sites") else
+               " — ответ от формы НЕ зависит, и это число, а не обещание"))
+        for item in (harm.get("findings") or [])[:max_rows]:
+            out.append(
+                f"[ВРЕД ЗАНИЖЕНИЯ · НАХОДКА] {item.get('kind')}: "
+                f"{item.get('file')}"
+                + (f" ({', '.join(item.get('fields') or [])})"
+                   if item.get("fields") else "")
+                + f" — {item.get('why')}")
+        for item in (harm.get("unreadable") or [])[:max_rows]:
+            out.append(f"[ВРЕД ЗАНИЖЕНИЯ · НЕ ПРОЧИТАНО] {item.get('file')}: "
+                       f"{item.get('unreadable')}")
+        for blind in (harm.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
