@@ -8192,6 +8192,451 @@ def _flatten_rule_scope(clean: dict, widened: dict,
 
 
 
+#: Реестр документов, у которых спрашивается доля многозначных хвостов
+#: (**заказ G73 п. 2**). Имя реестра и его содержимое берутся ВВОЗОМ у моста:
+#: второй копии списка переписей здесь не заводится — это ровно тот дефект,
+#: который сама перепись и ищет («одно правило — две копии»).
+REGISTRY_OWNER = "spa_core.monitoring.findings_bridge"
+REGISTRY_ATTR = "CENSUS_PRODUCT"
+
+#: Почему документ реестра НЕ измерен. Причина обязана быть НАЗВАНА, а не
+#: слита с нулём и не выдана за «многозначности нет» (инв. #17).
+DOC_ABSENT = "artifact_absent"
+DOC_NOT_JSON = "artifact_not_a_json_document"
+DOC_UNREADABLE = "artifact_unreadable"
+DOC_NOT_A_MAPPING = "artifact_not_a_mapping"
+DOC_PRODUCER_UNREADABLE = "producer_unreadable"
+
+#: Чего стоит читателю многозначность хвоста ЕГО координаты. Четыре исхода, и
+#: третий от второго отличается тем, что именно спрашивал заказ: хвост может
+#: быть многозначен у ДОКУМЕНТА и при этом ничего не стоить ЧИТАТЕЛЮ, чей
+#: полный путь разобран. Слить их значило бы назвать ценой то, что ею не
+#: является, — и завысить ответ в девять раз (замер: 344 против 38).
+COST_TAIL_UNAMBIGUOUS = "tail_unambiguous"
+COST_PATH_RESOLVES = "path_resolves_the_tail"
+COST_DECIDES_AMBIGUOUS = "ambiguous_tail_unresolved_path"
+COST_FIELD_UNMEASURED = "deciding_field_unmeasured"
+
+#: Документ, на котором пред-фильтр кандидатов проверяется ПОЛНЫМ обходом
+#: дерева. Объявлен ДО замера и по имени: контроль, выбранный по результату,
+#: есть украшение. Расхождение полного обхода с фильтрованным отменяет ВЕСЬ
+#: шаг (fail-CLOSED), а не правится молча.
+FILTER_CONTROL_CENSUS = "rule_second_copy_census"
+
+#: Сколько стоящих читателю чтений показывать у документа. Счёт хранится
+#: ВСЕГДА; усечение есть усечение ПОКАЗА и названо своим полем.
+COSTED_SAMPLE = 3
+
+REGISTRY_COSTS_READER = "ambiguity_costs_a_reader_today"
+REGISTRY_COSTS_NOBODY = "ambiguity_costs_no_reader_today"
+
+
+def _median(values: List[float]) -> Optional[float]:
+    """Медиана без внешней зависимости; пустому набору — `None`, не ноль."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return round(float(ordered[mid]), 2)
+    return round((ordered[mid - 1] + ordered[mid]) / 2.0, 2)
+
+
+def _tail_owners(flat: Dict[str, str]) -> Dict[str, List[str]]:
+    """Хвост имени → все пути документа, которые им кончаются."""
+    owners: Dict[str, List[str]] = {}
+    for key in flat:
+        owners.setdefault(_name_tail(key), []).append(key)
+    return owners
+
+
+def _artifact_path(root: Path, artifact: str,
+                   data_dir: Optional[Path]) -> Path:
+    """Куда лёг артефакт переписи.
+
+    Реестр объявляет путь ОТ КОРНЯ дерева (``data/x.json``). В рабочем дереве
+    живого ``data/`` нет по построению, поэтому каталог данных есть ВХОД: без
+    него замер ответил бы «артефакта нет» про каждый документ и выдал бы
+    свойство дерева за свойство реестра.
+    """
+    rel = Path(artifact)
+    if data_dir is None:
+        return root / rel
+    parts = rel.parts
+    if parts and parts[0] == "data":
+        return Path(data_dir).joinpath(*parts[1:])
+    return Path(data_dir) / rel
+
+
+def _document_ambiguity(doc: dict) -> dict:
+    """Хвосты одного документа по ОБОИМ правилам уплощения.
+
+    Считает ровно то, что цикл #674 посчитал у одного соседа, — и ничего
+    больше: счёт хвостов, счёт многозначных и доля, порознь по нынешнему
+    правилу (:func:`_flatten_doc`) и по глубокому (:func:`_flatten_doc_deep`).
+    Вердикт о происхождении многозначности берётся теми же тремя константами,
+    что и у соседа: второго словаря исходов здесь не заводится.
+    """
+    shallow = _flatten_doc(doc)
+    deep, capped = _flatten_doc_deep(doc)
+    lists_total, list_elements = _list_census(doc)
+    owners_shallow = _tail_owners(shallow)
+    owners_deep = _tail_owners(deep)
+    amb_shallow = {t for t, p in owners_shallow.items() if len(p) > 1}
+    amb_deep = {t for t, p in owners_deep.items() if len(p) > 1}
+    amb_only_deep = sorted(amb_deep - amb_shallow)
+
+    if lists_total == 0:
+        verdict = FLATTEN_NO_LISTS
+    elif amb_only_deep:
+        verdict = FLATTEN_RULE_DEPENDENT
+    else:
+        verdict = FLATTEN_DOC_PROPERTY
+
+    def _share(part: int, whole: int) -> Optional[float]:
+        return None if not whole else round(100.0 * part / whole, 2)
+
+    return {
+        "verdict": verdict,
+        "tails_shallow": len(owners_shallow),
+        "tails_deep": len(owners_deep),
+        "ambiguous_shallow": len(amb_shallow),
+        "ambiguous_deep": len(amb_deep),
+        "ambiguous_share_shallow_pct": _share(len(amb_shallow),
+                                              len(owners_shallow)),
+        "ambiguous_share_deep_pct": _share(len(amb_deep), len(owners_deep)),
+        "ambiguous_only_deep": len(amb_only_deep),
+        "lists_in_doc": lists_total,
+        "list_elements": list_elements,
+        "paths_depth_capped": len(capped),
+        "_owners_shallow": owners_shallow,
+        "_ambiguous_shallow": amb_shallow,
+    }
+
+
+def _costed_touches(readers: List[dict],
+                    owners: Dict[str, List[str]],
+                    ambiguous: set) -> Tuple[List[dict], Dict[str, int]]:
+    """Чего многозначность хвоста стоит РЕШАЮЩИМ чтениям этого документа.
+
+    Вопрос заказа — «стоит ли она читателю РЕШЕНИЯ», и ответ на него не есть
+    «читатель упомянул многозначный хвост». Читатель, чей полный путь разобран
+    (``field_path``), назвал координату однозначно: многозначность хвоста
+    стоит тогда ПРИБОРУ, а не ему. Стоит она ровно там, где координатой
+    решения служит хвост И путь до якоря НЕ разобран — тогда сказать, каким
+    из нескольких значений решение движется, нельзя вообще.
+    """
+    costed: List[dict] = []
+    counts = {COST_TAIL_UNAMBIGUOUS: 0, COST_PATH_RESOLVES: 0,
+              COST_DECIDES_AMBIGUOUS: 0, COST_FIELD_UNMEASURED: 0}
+    for reader in readers:
+        for touch in reader["touches"]:
+            if touch["form"] != TOUCH_DECIDES:
+                continue
+            field = touch.get("field")
+            if field is None:
+                counts[COST_FIELD_UNMEASURED] += 1
+                continue
+            if field not in ambiguous:
+                counts[COST_TAIL_UNAMBIGUOUS] += 1
+                continue
+            if touch.get("field_path") is not None:
+                counts[COST_PATH_RESOLVES] += 1
+                continue
+            counts[COST_DECIDES_AMBIGUOUS] += 1
+            costed.append({"file": reader["file"], "line": touch.get("line"),
+                           "field": field, "paths": len(owners[field]),
+                           "sample": sorted(owners[field])[:COSTED_SAMPLE],
+                           "path_outcome": touch.get("field_path_outcome")})
+    return costed, counts
+
+
+def registry_ambiguity_scope(root: Path, *,
+                             data_dir: Optional[Path] = None) -> dict:
+    """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
+
+    Цикл #674 измерил многозначность на ОДНОМ соседе и в ОДИН день — 16 хвостов
+    из 121 (13,22 %) у ``census_consumer_census``, — а правило уплощения общее
+    для всех. Заказ ставит вопрос дословно:
+
+    > Какова доля многозначных хвостов у каждого документа реестра и есть ли
+    > среди них тот, у кого она уже сегодня стоит читателю решения.
+
+    Отвечается ДВУМЯ замерами, и второй не есть уточнение первого:
+
+    1. **Доля у каждого** — по обоим правилам уплощения, с разбросом по
+       населению. Одно число, снятое у одного документа, свойством РЕЕСТРА не
+       является ровно так же, как счёт хвостов не был свойством документа.
+    2. **Цена у читателя** — есть ли документ, чья многозначность уже сегодня
+       лишает решающее чтение однозначной координаты. Читатели ищутся тем же
+       :func:`_reader_touches`, что и у соседа: второй дороги к читателю здесь
+       не заводится.
+
+    Третий исход обязателен у обоих замеров: артефакта может не быть, он может
+    оказаться не словарём и не JSON вовсе — и ни одно из этого не есть «у
+    документа нет многозначности». Каталог данных — ВХОД, потому что в рабочем
+    дереве живого ``data/`` нет по построению.
+
+    **Пред-фильтр кандидатов объявлен и ПРОВЕРЯЕТСЯ.** Читатель ищется не во
+    всём дереве, а среди файлов, чей текст вообще содержит имя переписи, её
+    модуль или её артефакт; полный обход всех документов стоил бы часы. Фильтр
+    есть НАДМНОЖЕСТВО по построению (ввоз, чтение файла и динамический ввоз по
+    литералу оставляют имя в тексте), но «по построению» — не замер: у
+    объявленного заранее документа (:data:`FILTER_CONTROL_CENSUS`) обход идёт
+    ОБОИМИ способами, и расхождение отменяет весь шаг. Остаток, которого не
+    видит и полный обход, назван вслух: имя, собранное из кусков в рантайме,
+    невидимо любому разбору AST — им пользуется сам мост.
+
+    ADVISORY: ни одно население не пересчитывается этим замером, правило
+    уплощения не заменяется, ``applied`` ложно у всего шага.
+    """
+    head = {
+        "question": ("какова доля многозначных хвостов у КАЖДОГО документа "
+                     "реестра и есть ли среди них тот, у кого она уже сегодня "
+                     "стоит читателю РЕШЕНИЯ"),
+        "order": "G73.2",
+        "applied": False,
+        "registry_owner": REGISTRY_OWNER,
+        "registry_attr": REGISTRY_ATTR,
+        "filter_control_census": FILTER_CONTROL_CENSUS,
+        "data_dir_declared": None if data_dir is None else str(data_dir),
+    }
+    try:
+        bridge = importlib.import_module(REGISTRY_OWNER)
+    except Exception as exc:                        # noqa: BLE001
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"реестр {REGISTRY_OWNER} не ввезён "
+                           f"({type(exc).__name__}: {exc})")}
+    registry = getattr(bridge, REGISTRY_ATTR, None)
+    if not isinstance(registry, dict) or not registry:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"у {REGISTRY_OWNER} нет непустого словаря "
+                           f"`{REGISTRY_ATTR}` — население не объявлено")}
+
+    # Каталоги читателей спрашиваются У СОСЕДА, а не перечисляются здесь:
+    # второй список «где живёт код» и есть та самая вторая копия правила.
+    try:
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+        code_dirs = tuple(neighbour._CODE_DIRS)
+    except Exception as exc:                        # noqa: BLE001
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"каталоги читателей не спрошены у соседа "
+                           f"{NEIGHBOUR_CENSUS} ({type(exc).__name__}: {exc}) "
+                           f"— второй копии этого списка здесь не заводится")}
+    if not code_dirs:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"сосед {NEIGHBOUR_CENSUS} объявил ПУСТОЙ "
+                           f"`_CODE_DIRS` — обходить нечего, и это НЕ "
+                           f"«читателей нет»")}
+
+    # --- дерево читателей разбирается ОДИН раз ---------------------------
+    sources: Dict[str, str] = {}
+    trees: Dict[str, ast.AST] = {}
+    unreadable: List[dict] = []
+    for sub in code_dirs:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            try:
+                text = path.read_text(encoding="utf-8")
+                trees[rel] = ast.parse(text)
+                sources[rel] = text
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+    if not trees:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"ни одного разобранного файла в {code_dirs} — "
+                           f"читателя искать не в чем; это НЕ «читателей нет»")}
+
+    def _candidates(name: str, dotted: str, artifact_name: str,
+                    producer: str) -> List[str]:
+        return [rel for rel, text in sources.items()
+                if rel != producer
+                and (dotted in text or artifact_name in text or name in text)]
+
+    def _readers_of(rel_list: Iterable[str], dotted: str,
+                    artifact_name: str, renderers: Tuple[str, ...],
+                    producer: str) -> List[dict]:
+        found: List[dict] = []
+        for rel in rel_list:
+            if rel == producer:
+                continue
+            item = _reader_touches(rel, trees[rel], dotted, artifact_name,
+                                   renderers)
+            if item["roads"]:
+                found.append(item)
+        return found
+
+    rows: List[dict] = []
+    unmeasured: List[dict] = []
+    filter_control: Optional[dict] = None
+    for name in sorted(registry):
+        spec = registry[name]
+        producer = str(spec.get("module") or "")
+        artifact = str(spec.get("artifact") or "")
+        if not producer or not artifact:
+            unmeasured.append({"census": name, "outcome": DOC_ABSENT,
+                               "reason": "реестр не объявил модуль или артефакт"})
+            continue
+        path = _artifact_path(root, artifact, data_dir)
+        if not path.is_file():
+            unmeasured.append({"census": name, "outcome": DOC_ABSENT,
+                               "artifact": str(path),
+                               "reason": f"артефакт не найден: {path}"})
+            continue
+        if path.suffix != ".json":
+            unmeasured.append({"census": name, "outcome": DOC_NOT_JSON,
+                               "artifact": str(path),
+                               "reason": (f"артефакт не JSON-документ "
+                                          f"(`{path.suffix or 'без суффикса'}`) "
+                                          f"— уплощать нечего, и это НЕ "
+                                          f"«многозначности нет»")})
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeDecodeError) as exc:
+            unmeasured.append({"census": name, "outcome": DOC_UNREADABLE,
+                               "artifact": str(path),
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        if not isinstance(doc, dict):
+            unmeasured.append({"census": name, "outcome": DOC_NOT_A_MAPPING,
+                               "artifact": str(path),
+                               "reason": (f"документ не словарь, а "
+                                          f"`{type(doc).__name__}`")})
+            continue
+        producer_tree = trees.get(producer)
+        if producer_tree is None:
+            unmeasured.append({"census": name,
+                               "outcome": DOC_PRODUCER_UNREADABLE,
+                               "artifact": str(path),
+                               "reason": (f"файл производителя {producer} не "
+                                          f"разобран — дорогу ввоза "
+                                          f"отрисовщика не построить")})
+            continue
+
+        measured = _document_ambiguity(doc)
+        owners = measured.pop("_owners_shallow")
+        ambiguous = measured.pop("_ambiguous_shallow")
+        dotted = producer[:-3].replace("/", ".") if producer.endswith(".py") \
+            else producer.replace("/", ".")
+        artifact_name = Path(artifact).name
+        renderers = tuple(printed_by_producer(producer_tree))
+        candidates = _candidates(name, dotted, artifact_name, producer)
+        readers = _readers_of(candidates, dotted, artifact_name, renderers,
+                              producer)
+        costed, cost_counts = _costed_touches(readers, owners, ambiguous)
+
+        if name == FILTER_CONTROL_CENSUS:
+            full = _readers_of(sorted(trees), dotted, artifact_name,
+                               renderers, producer)
+            lost = sorted({r["file"] for r in full}
+                          - {r["file"] for r in readers})
+            filter_control = {
+                "census": name,
+                "readers_filtered": len(readers),
+                "readers_full_scan": len(full),
+                "lost_by_filter": lost,
+                "sound": not lost,
+            }
+
+        rows.append({
+            "census": name,
+            "producer": producer,
+            "artifact": str(path),
+            **measured,
+            "readers": len(readers),
+            "candidates": len(candidates),
+            "cost_counts": cost_counts,
+            "costs_a_reader": bool(costed),
+            "costed_touches": len(costed),
+            "costed_sample": costed[:COSTED_SAMPLE],
+        })
+
+    if filter_control is None:
+        return {**head, "status": "UNMEASURED",
+                "reason": (f"объявленный контроль фильтра "
+                           f"`{FILTER_CONTROL_CENSUS}` не попал в замер — "
+                           f"надмножественность пред-фильтра НЕ ПРОВЕРЕНА, и "
+                           f"числа ниже не имеют основания")}
+    if not filter_control["sound"]:
+        return {**head, "status": "UNMEASURED",
+                "filter_control": filter_control,
+                "reason": (f"пред-фильтр кандидатов ПОТЕРЯЛ читателей у "
+                           f"`{FILTER_CONTROL_CENSUS}`: "
+                           f"{', '.join(filter_control['lost_by_filter'])} — "
+                           f"надмножеством он не является, и население "
+                           f"каждого документа занижено на неизвестную долю")}
+
+    shares_shallow = [r["ambiguous_share_shallow_pct"] for r in rows
+                      if r["ambiguous_share_shallow_pct"] is not None]
+    shares_deep = [r["ambiguous_share_deep_pct"] for r in rows
+                   if r["ambiguous_share_deep_pct"] is not None]
+    costing = [r for r in rows if r["costs_a_reader"]]
+    totals: Dict[str, int] = {COST_TAIL_UNAMBIGUOUS: 0, COST_PATH_RESOLVES: 0,
+                              COST_DECIDES_AMBIGUOUS: 0,
+                              COST_FIELD_UNMEASURED: 0}
+    for row in rows:
+        for key, value in row["cost_counts"].items():
+            totals[key] = totals.get(key, 0) + value
+
+    neighbour_stem = NEIGHBOUR_CENSUS.split(".")[-1]
+    neighbour_row = next((r for r in rows if r["census"] == neighbour_stem),
+                         None)
+    neighbour_rank = None
+    if neighbour_row is not None and shares_shallow:
+        share = neighbour_row["ambiguous_share_shallow_pct"]
+        neighbour_rank = (None if share is None else
+                          1 + sum(1 for s in shares_shallow if s > share))
+
+    return {
+        **head,
+        "status": "MEASURED",
+        "verdict": (REGISTRY_COSTS_READER if costing
+                    else REGISTRY_COSTS_NOBODY),
+        "documents_declared": len(registry),
+        "documents_measured": len(rows),
+        "documents_unmeasured": len(unmeasured),
+        "unmeasured": unmeasured,
+        "files_parsed": len(trees),
+        "files_unreadable": unreadable,
+        "filter_control": filter_control,
+        "share_shallow_min_pct": min(shares_shallow) if shares_shallow else None,
+        "share_shallow_median_pct": _median(shares_shallow),
+        "share_shallow_max_pct": max(shares_shallow) if shares_shallow else None,
+        "share_deep_min_pct": min(shares_deep) if shares_deep else None,
+        "share_deep_median_pct": _median(shares_deep),
+        "share_deep_max_pct": max(shares_deep) if shares_deep else None,
+        "neighbour_census": neighbour_stem,
+        "neighbour_share_shallow_pct": (
+            None if neighbour_row is None
+            else neighbour_row["ambiguous_share_shallow_pct"]),
+        "neighbour_rank_by_share": neighbour_rank,
+        "documents_costing_a_reader": len(costing),
+        "cost_totals": totals,
+        "rows": rows,
+        "blind": [
+            "имя переписи, собранное из кусков в рантайме, невидимо любому "
+            "разбору AST — им пользуется сам мост, и такой читатель не "
+            "попадает ни в фильтрованный обход, ни в полный. Это ОСТАТОК, а "
+            "не ноль",
+            f"класс `{COST_FIELD_UNMEASURED}` сегодня ноль ПО ПОСТРОЕНИЮ "
+            f"соседней дороги: `_reader_touches` решающее чтение без "
+            f"разобранного поля не выпускает вовсе. Ноль здесь есть свойство "
+            f"ДОРОГИ, а не документов реестра, и держится он ровно до тех "
+            f"пор, пока дорога такого чтения не выпустит — класс заведён "
+            f"затем, чтобы это было видно числом, а не молчанием (инв. #17)",
+            "доля снята у документа В ТОМ ВИДЕ, в каком он лежит сегодня: "
+            "перепись с пустым населением даёт мало хвостов не потому, что "
+            "многозначности нет, а потому, что нечего уплощать — число "
+            "`lists_in_doc` названо у каждой строки именно для этого",
+        ],
+    }
+
+
 def neighbour_population_harm(root: Path, scale: Optional[dict],
                               registry: Optional[dict]) -> dict:
     """Меняет ли занижение населения зовущих хоть один ВЫВОД (**заказ G68 п. 1**).
@@ -8702,7 +9147,8 @@ def bilingual_reach(root: Path, rows: List[dict],
 
 
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
-            probe_ledger: Optional[Path] = None) -> dict:
+            probe_ledger: Optional[Path] = None,
+            data_dir: Optional[Path] = None) -> dict:
     """Перепись пар «сторож × исполнитель × имя»."""
     # Отметка входа в СТУПЕНЬ — первым делом и до любого отказа: вопрос
     # «замкнулся ли дочерний прогон на ступень» (заказ G70 п. 1) не зависит
@@ -9002,6 +9448,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     test_channel_cost = reader_cost_of_test_channel(root, population_harm,
                                                  cost_budget)
 
+    # --- ДОЛЯ МНОГОЗНАЧНЫХ ХВОСТОВ У ВСЕГО РЕЕСТРА (заказ G73 п. 2) -----
+    # Координата выше измерила многозначность у ОДНОГО соседа и в ОДИН день,
+    # а правило уплощения ОБЩЕЕ. Число, снятое у одного документа, свойством
+    # реестра не является ровно так же, как счёт хвостов не был свойством
+    # документа — и разница между 13,22 % соседа и разбросом по населению
+    # есть замер, а не догадка.
+    registry_ambiguity = registry_ambiguity_scope(root, data_dir=data_dir)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -9125,6 +9579,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # вопросы, и ответ второго не есть поправка к первому: у них разные
         # свидетели и разный третий исход.
         "reader_cost_of_test_channel": test_channel_cost,
+        "registry_ambiguity_scope": registry_ambiguity,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -10509,6 +10964,90 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{item.get('why')}")
         for blind in (channel.get("blind") or []):
             out.append(f"[СЛЕПОТА] {blind}")
+    reg = observed(doc, "registry_ambiguity_scope", kind=dict)
+    if reg is None:
+        out.append("[МНОГОЗНАЧНОСТЬ РЕЕСТРА] НЕ ИЗМЕРЕНА — перепись собрана "
+                   "без обхода реестра; это НЕ «многозначности нет» и НЕ "
+                   "«читателю она ничего не стоит»")
+    elif str(reg.get("status")) == "UNMEASURED":
+        out.append(f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА] НЕ ИЗМЕРЕНА: "
+                   f"{reg.get('reason')}")
+    else:
+        out.append(
+            f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА] документов объявлено "
+            f"{reg.get('documents_declared')} · измерено "
+            f"{reg.get('documents_measured')} · НЕ ИЗМЕРЕНО "
+            f"{reg.get('documents_unmeasured')} (причина названа у каждого) · "
+            f"доля многозначных хвостов по нынешнему правилу: минимум "
+            f"{reg.get('share_shallow_min_pct')} %, медиана "
+            f"{reg.get('share_shallow_median_pct')} %, максимум "
+            f"{reg.get('share_shallow_max_pct')} % · при развёртывании "
+            f"списков медиана {reg.get('share_deep_median_pct')} %")
+        out.append(
+            f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА · СОСЕД] `{reg.get('neighbour_census')}`, "
+            f"на котором число снято циклом #674, даёт "
+            f"{reg.get('neighbour_share_shallow_pct')} % и стои́т "
+            f"{reg.get('neighbour_rank_by_share')}-м из "
+            f"{reg.get('documents_measured')} — одно число, снятое у одного "
+            f"документа, свойством реестра не является")
+        totals = observed(reg, "cost_totals", kind=dict)
+        out.append(
+            f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА · ОТВЕТ] вердикт "
+            f"{reg.get('verdict')} · документов, у кого многозначность СТОИТ "
+            f"решающему читателю: {reg.get('documents_costing_a_reader')} "
+            + ("· учёт решающих чтений НЕ ИЗМЕРЕН" if totals is None else
+               f"· решающих чтений: по однозначному хвосту "
+               f"{totals.get(COST_TAIL_UNAMBIGUOUS)}, по многозначному с "
+               f"РАЗОБРАННЫМ путём {totals.get(COST_PATH_RESOLVES)} (не "
+               f"стоит), по многозначному с НЕразобранным путём "
+               f"{totals.get(COST_DECIDES_AMBIGUOUS)} (СТОИТ), поле решения "
+               f"не разобрано {totals.get(COST_FIELD_UNMEASURED)}"))
+        # Инв. #17 и заказ G73 п. 3: подстановка `or []` на перечень здесь
+        # ЗАПРЕЩЕНА. «Ключа нет» и «список пуст» суть разные утверждения, и
+        # второе вместо первого молча превратило бы «строк не собрано» в
+        # «стоящих читателю документов нет».
+        all_rows = observed(reg, "rows", kind=list)
+        if all_rows is None:
+            out.append("[МНОГОЗНАЧНОСТЬ РЕЕСТРА · ЦЕНА] НЕ ИЗМЕРЕНА — строк "
+                       "по документам в отчёте нет вовсе; это НЕ «цены нет»")
+        else:
+            costing = [r for r in all_rows if r.get("costs_a_reader")]
+            for row in sorted(costing,
+                              key=lambda r: -int(r.get("costed_touches") or 0)
+                              )[:max_rows]:
+                sample = observed(row, "costed_sample", kind=list)
+                first = sample[0] if sample else {}
+                out.append(
+                    f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА · ЦЕНА] {row.get('census')}: "
+                    f"многозначных {row.get('ambiguous_shallow')} из "
+                    f"{row.get('tails_shallow')} "
+                    f"({row.get('ambiguous_share_shallow_pct')} %) · стоит "
+                    f"{row.get('costed_touches')} решающим чтениям · напр. "
+                    f"{first.get('file')}:{first.get('line')} поле "
+                    f"`{first.get('field')}` → путей {first.get('paths')}")
+        unmeasured_rows = observed(reg, "unmeasured", kind=list)
+        if unmeasured_rows is None:
+            out.append("[МНОГОЗНАЧНОСТЬ РЕЕСТРА · НЕ ИЗМЕРЕНО] перечня нет в "
+                       "документе — это НЕ «все документы измерены»")
+        else:
+            for item in unmeasured_rows[:max_rows]:
+                out.append(
+                    f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА · НЕ ИЗМЕРЕНО] "
+                    f"{item.get('census')} ({item.get('outcome')}): "
+                    f"{item.get('reason')}")
+        control = observed(reg, "filter_control", kind=dict)
+        if control is None:
+            out.append("[МНОГОЗНАЧНОСТЬ РЕЕСТРА · КОНТРОЛЬ] НЕ ИЗМЕРЕН — "
+                       "надмножественность пред-фильтра не проверена")
+        else:
+            out.append(
+                f"[МНОГОЗНАЧНОСТЬ РЕЕСТРА · КОНТРОЛЬ] пред-фильтр против "
+                f"полного обхода на `{control.get('census')}`: "
+                f"{control.get('readers_filtered')} против "
+                f"{control.get('readers_full_scan')} читателей, потеряно "
+                f"{', '.join(control.get('lost_by_filter') or []) or '—'}")
+        for blind in (observed(reg, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "
@@ -10546,7 +11085,9 @@ def run(root: str | Path = _ROOT, *, dest: Optional[Path] = None,
     try:
         # Журнал зонда лежит В ДЕРЕВЕ (рядом с кодом), а не в `data/`: он
         # есть замер исходников, и `data_dir` его не касается.
-        doc = measure(root, now=now, probe_ledger=root / PROBE_LEDGER)
+        doc = measure(root, now=now, probe_ledger=root / PROBE_LEDGER,
+                      data_dir=(Path(data_dir) if data_dir is not None
+                                else root / "data"))
     except NotMeasured as exc:
         doc = {
             "generated_at": (now or _utcnow()).isoformat(),
