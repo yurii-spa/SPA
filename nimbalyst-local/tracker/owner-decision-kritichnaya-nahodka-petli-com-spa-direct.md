@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.director_build загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_"
-status: needs-owner
+status: done
 source: nimbalyst
 created: 2026-09-21
 finding_key: "B1:unknown:com.spa.director_build"
+status_trail:
+  - "2026-09-23T06:14:41.463027+00:00 needs-owner -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
