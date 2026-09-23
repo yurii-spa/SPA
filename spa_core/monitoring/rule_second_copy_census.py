@@ -9627,6 +9627,45 @@ def _key_literal_by_unpacking(scope: ast.AST, key: ast.AST) -> Optional[str]:
     return "literal_by_unpacking" if not other_bindings else "mixed"
 
 
+WHOLE_USE_WHOLESALE = "wholesale"
+WHOLE_USE_ESCAPE = "escape"
+
+
+def _counter_whole_use(node: ast.AST,
+                       parent: Optional[ast.AST]) -> Optional[str]:
+    """Счётчик ушёл ЦЕЛИКОМ — пробегом или побегом. Одно правило — одна копия.
+
+    Выделено из :func:`_counter_reader_touches` заказом G78 п. 1 БЕЗ смены
+    поведения: тот же вопрос («счётчик ушёл целиком — куда?») задаёт и шаг
+    одного межпроцедурного разбора, а вторая копия правила внутри прибора,
+    который ищет вторые копии правил, — дефект, уже дважды случившийся в этом
+    файле (ADR-460 поймал его у подписки, ADR-461 у кортежа).
+
+    ``None`` — использование счётчиком целиком НЕ является: запись, чтение
+    подпиской или обращение к полю разбираются раньше и своими ветками.
+    """
+    if isinstance(node, ast.expr) and not isinstance(
+            getattr(node, "ctx", ast.Load()), ast.Load):
+        return None
+    if parent is None:
+        return None
+    if isinstance(parent, (ast.Subscript, ast.Attribute)):
+        return None
+    if isinstance(parent, ast.Call):
+        func = parent.func
+        if isinstance(func, ast.Name) and func.id in READER_WHOLE_BUILTINS:
+            return WHOLE_USE_WHOLESALE
+        return WHOLE_USE_ESCAPE
+    if isinstance(parent, (ast.For, ast.AsyncFor)) and parent.iter is node:
+        return WHOLE_USE_WHOLESALE
+    if isinstance(parent, ast.comprehension) and parent.iter is node:
+        return WHOLE_USE_WHOLESALE
+    if isinstance(parent, ast.Compare) and any(
+            isinstance(op, (ast.In, ast.NotIn)) for op in parent.ops):
+        return WHOLE_USE_WHOLESALE
+    return WHOLE_USE_ESCAPE
+
+
 def _counter_reader_touches(scope: ast.AST, target: ast.AST, key: ast.AST,
                             declared: Set[str]) -> dict:
     """Читатели ОДНОГО открытого счётчика внутри его области.
@@ -9712,28 +9751,10 @@ def _counter_reader_touches(scope: ast.AST, target: ast.AST, key: ast.AST,
         # --- счётчик целиком ------------------------------------------
         if ast.dump(node) != target_dump:
             continue
-        if isinstance(node, ast.expr) and not isinstance(
-                getattr(node, "ctx", ast.Load()), ast.Load):
-            continue
-        parent = parents.get(id(node))
-        if parent is None:
-            continue
-        if isinstance(parent, (ast.Subscript, ast.Attribute)):
-            continue
-        if isinstance(parent, ast.Call):
-            func = parent.func
-            if isinstance(func, ast.Name) and func.id in READER_WHOLE_BUILTINS:
-                wholesale.append(_at(node))
-            else:
-                escapes.append(_at(node))
-        elif isinstance(parent, (ast.For, ast.AsyncFor)) and parent.iter is node:
+        use = _counter_whole_use(node, parents.get(id(node)))
+        if use == WHOLE_USE_WHOLESALE:
             wholesale.append(_at(node))
-        elif isinstance(parent, ast.comprehension) and parent.iter is node:
-            wholesale.append(_at(node))
-        elif isinstance(parent, ast.Compare) and any(
-                isinstance(op, (ast.In, ast.NotIn)) for op in parent.ops):
-            wholesale.append(_at(node))
-        else:
+        elif use == WHOLE_USE_ESCAPE:
             escapes.append(_at(node))
 
     if splits:
@@ -9775,6 +9796,21 @@ def _field_read(node: ast.AST) -> Optional[str]:
 def _reader_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Открытые счётчики ОДНОГО файла вместе с вердиктом их читателя.
 
+    Тонкая обёртка над :func:`_reader_site_nodes`: строки те же, узлы
+    отброшены. Обход ОДИН, читателей у него два — сосед G77 берёт строки,
+    шаг одного межпроцедурного разбора (G78 п. 1) берёт ещё и узлы.
+    """
+    return [site for site, _t, _k, _s in _reader_site_nodes(rel, tree)]
+
+
+def _reader_site_nodes(
+        rel: str, tree: ast.AST
+) -> Iterable[Tuple[dict, Optional[ast.AST], Optional[ast.AST],
+                    Optional[ast.AST]]]:
+    """То же, что :func:`_reader_sites`, но с УЗЛАМИ счётчика: строка, цель,
+    ключ, область. Узлы нужны шагу одного межпроцедурного разбора, и добывать
+    их вторым обходом значило бы завести вторую копию правила.
+
     Население берётся у соседа (:func:`_open_counter_sites`) — второй копии
     правила «какой счётчик открыт» здесь НЕТ и быть не должно: шаг спрашивает
     про ЧИТАТЕЛЯ, а не про счётчик. Узел счётчика доискивается по той же
@@ -9786,7 +9822,7 @@ def _reader_sites(rel: str, tree: ast.AST) -> List[dict]:
                   if s["key_origin"] == KEY_ARTIFACT
                   and not s["membership_checked"]]
     if not population:
-        return []
+        return
     declared = _declared_constant_names(tree)
     owner_of = _counter_owner_scopes(tree)
     by_line: Dict[Tuple[int, str], Tuple[ast.AST, ast.AST, ast.AST]] = {}
@@ -9797,26 +9833,26 @@ def _reader_sites(rel: str, tree: ast.AST) -> List[dict]:
         line = int(getattr(node, "lineno", 0) or 0)
         by_line[(line, ast.unparse(shape[1])[:60])] = (node, shape[0], shape[1])
 
-    out: List[dict] = []
     for site in population:
         found = by_line.get((int(site["line"] or 0), site["key"]))
         if found is None:
-            out.append({**site, "verdict": READER_UNRESOLVED,
-                        "gap": READER_GAP_NO_READ,
-                        "reason": ("узел счётчика не найден по строке и ключу "
-                                   "соседа — читатель НЕ измерен"),
-                        "splits": [], "split_forms": [],
-                        "key_literal_by_unpacking": None,
-                        "wholesale_reads": 0, "dynamic_reads": 0,
-                        "escapes": 0, "ambiguous_fields": []})
+            yield ({**site, "verdict": READER_UNRESOLVED,
+                    "gap": READER_GAP_NO_READ,
+                    "reason": ("узел счётчика не найден по строке и ключу "
+                               "соседа — читатель НЕ измерен"),
+                    "splits": [], "split_forms": [],
+                    "key_literal_by_unpacking": None,
+                    "wholesale_reads": 0, "dynamic_reads": 0,
+                    "escapes": 0, "ambiguous_fields": []},
+                   None, None, None)
             continue
         node, target, key = found
         scope = owner_of.get(id(node), tree)
-        out.append({**site,
-                    "key_literal_by_unpacking": _key_literal_by_unpacking(
-                        scope, key),
-                    **_counter_reader_touches(scope, target, key, declared)})
-    return out
+        yield ({**site,
+                "key_literal_by_unpacking": _key_literal_by_unpacking(
+                    scope, key),
+                **_counter_reader_touches(scope, target, key, declared)},
+               target, key, scope)
 
 
 def _reader_harm_control() -> dict:
@@ -10025,6 +10061,699 @@ def open_counter_reader_harm(root: Path,
         ],
     }
 
+
+# ---------------------------------------------------------------------------
+# ОДИН ШАГ МЕЖПРОЦЕДУРНОГО РАЗБОРА У УБЕЖАВШЕГО СЧЁТЧИКА (заказ G78 п. 1)
+# ---------------------------------------------------------------------------
+
+#: КУДА уезжает счётчик. Маршрут — не украшение вердикта: возврат и аргумент
+#: разрешаются ОДНИМ шагом, контейнер и чужой вызов — нет, и чинятся они
+#: разным. Слить их в одно «убежал» значило бы вернуть тот самый счётчик,
+#: открытый любой строке, ради которого весь ряд ADR-459…461 и написан.
+ROUTE_RETURNED = "counter_is_returned_from_its_scope"
+ROUTE_ARGUMENT_LOCAL = "counter_is_passed_to_a_function_defined_in_this_file"
+ROUTE_ARGUMENT_FOREIGN = "counter_is_passed_to_a_callee_this_file_does_not_define"
+ROUTE_CONTAINER = "counter_is_placed_inside_a_container_first"
+#: Счётчик НЕ УЕХАЛ НИКУДА: его целиком проверили на истинность или напечатали
+#: в строку. Найдено ЗАПУСКОМ, а не перечитыванием: правило соседа перечисляет
+#: пробег поимённо (`for`, `in`, `items()`, builtins) и всякое ОСТАЛЬНОЕ
+#: использование целиком зовёт побегом — поэтому `if not counts:` и
+#: `f"{counts}"` попали в класс «убежал из области». Это завышает соседское
+#: население СВЕРХУ, и число печатается рядом с ним, а не вместо него.
+ROUTE_NOT_A_DEPARTURE = "counter_does_not_leave_the_scope_at_all"
+ROUTE_UNKNOWN = "escape_route_unrecognised"
+_ESCAPE_ROUTES = (ROUTE_RETURNED, ROUTE_ARGUMENT_LOCAL,
+                  ROUTE_ARGUMENT_FOREIGN, ROUTE_CONTAINER,
+                  ROUTE_NOT_A_DEPARTURE, ROUTE_UNKNOWN)
+
+#: Исход ОДНОГО шага. Третий исход здесь не «остаток», а ГЛАВНЫЙ ответ заказа:
+#: вопрос стоял «сколько разрешимо одним шагом», и назвать неразрешённое
+#: безвредным значило бы выдать НЕ ИЗМЕРЕНО за измеренный исход (инв. #17).
+ONE_STEP_SPLITS = "one_step_reaches_a_reader_that_splits_the_class"
+ONE_STEP_WHOLESALE = "one_step_reaches_only_wholesale_readers"
+ONE_STEP_UNRESOLVED = "one_step_does_not_reach_a_reader"
+_ONE_STEP_OUTCOMES = (ONE_STEP_SPLITS, ONE_STEP_WHOLESALE, ONE_STEP_UNRESOLVED)
+
+#: ПОЧЕМУ один шаг не дошёл. Имя у каждой причины своё — чинятся они разным:
+#: контейнеру нужен ещё один разбор (переноса полем), чужому вызову — разбор
+#: импортов, «зовущего нет в этом файле» — обход всего дерева, а
+#: `escapes_again` не чинится вовсе одним шагом: счётчик уехал ДАЛЬШЕ.
+STEP_GAP_CONTAINER = "counter_travels_by_a_field_before_it_travels_by_a_call"
+STEP_GAP_FOREIGN_CALLEE = "callee_is_not_defined_in_this_file"
+STEP_GAP_AMBIGUOUS_CALLEE = "callee_name_is_defined_more_than_once_in_this_file"
+STEP_GAP_NO_CALLER = "no_caller_of_the_scope_in_this_file"
+STEP_GAP_RESULT_UNBOUND = "returned_value_is_not_bound_to_a_name"
+STEP_GAP_ARG_UNMAPPED = "argument_does_not_map_to_a_parameter"
+STEP_GAP_ESCAPES_AGAIN = "counter_escapes_again_at_the_next_scope"
+STEP_GAP_NO_READ = "next_scope_never_reads_the_counter"
+STEP_GAP_NOT_A_DEPARTURE = "counter_is_used_whole_without_leaving_its_scope"
+STEP_GAP_ROUTE_UNKNOWN = "escape_route_unrecognised"
+STEP_GAP_SITES_DISAGREE = "escape_sites_disagree_with_the_reader_rule"
+_STEP_GAPS = (STEP_GAP_CONTAINER, STEP_GAP_FOREIGN_CALLEE,
+              STEP_GAP_AMBIGUOUS_CALLEE, STEP_GAP_NO_CALLER,
+              STEP_GAP_RESULT_UNBOUND, STEP_GAP_ARG_UNMAPPED,
+              STEP_GAP_ESCAPES_AGAIN, STEP_GAP_NO_READ,
+              STEP_GAP_NOT_A_DEPARTURE,
+              STEP_GAP_ROUTE_UNKNOWN, STEP_GAP_SITES_DISAGREE,
+              READER_GAP_DYNAMIC)
+
+#: Отказы шага. Три, и ни один не есть ноль.
+UNMEASURED_STEP_HARM = "reader_harm_is_absent_or_unmeasured"
+UNMEASURED_STEP_POPULATION = "second_walk_disagrees_with_the_escape_census"
+UNMEASURED_STEP_CONTROL = "declared_one_step_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — обе разрешимые формы побега сразу.
+#: Счётчик здесь открыт ровно так же, как у соседа (ключ из артефакта, без
+#: сверки принадлежностью), убегает из своей области — и ОДИН шаг обязан
+#: дойти до читателя, который делит класс объявленным ключом. Форм две, и
+#: правило обязано доказать ОБЕ: найдя одну, оно ответило бы на половину
+#: вопроса заказа, а число выдало бы за полный ответ.
+ONE_STEP_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+
+
+def tally(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return counts
+
+
+def verdict(rows):
+    totals = tally(rows)
+    return totals[REACH_LIVE] > 0
+
+
+def handed(rows):
+    seen = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        seen[cls] = seen.get(cls, 0) + 1
+    return judge(seen)
+
+
+def judge(counted):
+    return counted.get(REACH_LIVE, 0)
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг разрешил всё» было бы неотличимо от
+#: «шаг объявляет разрешённым что угодно». ПЯТЬ счётчиков числятся у соседа
+#: убежавшими одинаково, и шаг обязан развести их ЧЕТЫРЬМЯ разными исходами:
+#: одному довести читателя (пробег целиком — безвредно), одному отказать
+#: «уехал сперва полем», одному — «зовомого этот файл не определяет», одному —
+#: «никуда не уехал вовсе» (истинность и f-строка), а ПЯТЫЙ (`spread or {}`)
+#: уезжает по-настоящему и обязан остаться НЕРАЗОБРАННЫМ: приняв его за
+#: «никуда не уехал», правило спрятало бы настоящий побег под новым именем.
+#: Отказ, слитый с «безвредно», и есть та самая подмена третьего исхода.
+ONE_STEP_CONTROL_CLEAN = '''
+def boxed(rows):
+    tally = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        tally[cls] = tally.get(cls, 0) + 1
+    return {"tally": tally}
+
+
+def shipped(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    publish(counts)
+
+
+def printed(rows):
+    seen = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        seen[cls] = seen.get(cls, 0) + 1
+    return listed(seen)
+
+
+def listed(counted):
+    return sorted(counted.items())
+
+
+def tested(rows):
+    kinds = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        kinds[cls] = kinds.get(cls, 0) + 1
+    if not kinds:
+        return "пусто"
+    return f"классов: {kinds}"
+
+
+def defaulted(rows):
+    spread = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        spread[cls] = spread.get(cls, 0) + 1
+    return spread or {}
+'''
+
+
+def _module_function_defs(tree: ast.AST) -> Dict[str, List[ast.AST]]:
+    """Функции файла по имени — СПИСКОМ, а не одной.
+
+    Имя, определённое в файле дважды, разрешать нельзя: «какое из двух»
+    есть третий исход, а не выбор. Молчаливый выбор первого дал бы читателя,
+    которого на этом пути может не быть вовсе.
+    """
+    out: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            out.setdefault(node.name, []).append(node)
+    return out
+
+
+def _escape_sites(scope: ast.AST, target: ast.AST) -> List[ast.AST]:
+    """Узлы, которыми счётчик УБЕГАЕТ из своей области.
+
+    Правило побега здесь НЕ переписано: зовётся тот же
+    :func:`_counter_whole_use`, которым отвечает сосед. Вторая копия правила
+    внутри прибора, который ищет вторые копии правил, — дефект, уже дважды
+    случившийся в этом файле (ADR-460 у подписки, ADR-461 у кортежа), и
+    третьего раза здесь не будет.
+    """
+    target_dump = ast.dump(target)
+    written = _counter_write_nodes(scope, target_dump)
+    parents = _parent_map(scope)
+    out: List[ast.AST] = []
+    for node in ast.walk(scope):
+        if id(node) in written:
+            continue
+        if ast.dump(node) != target_dump:
+            continue
+        if _counter_whole_use(node, parents.get(id(node))) == WHOLE_USE_ESCAPE:
+            out.append(node)
+    return out
+
+
+def _callee_name(func: ast.AST) -> str:
+    try:
+        return ast.unparse(func)[:60]
+    except Exception:  # pragma: no cover — на разобранном дереве не случается
+        return "<не разобран>"
+
+
+def _escape_route(node: ast.AST, parents: Dict[int, ast.AST],
+                  defs: Dict[str, List[ast.AST]]) -> dict:
+    """Каким маршрутом счётчик покинул область. Маршрут ОБЪЯВЛЕН, не угадан."""
+    parent = parents.get(id(node))
+    if isinstance(parent, ast.Return) and parent.value is node:
+        return {"route": ROUTE_RETURNED}
+    call: Optional[ast.AST] = None
+    position: Optional[int] = None
+    keyword: Optional[str] = None
+    if isinstance(parent, ast.Call):
+        args = list(parent.args)
+        for idx, arg in enumerate(args):
+            if arg is node:
+                call, position = parent, idx
+                break
+    elif isinstance(parent, ast.keyword) and parent.value is node:
+        grand = parents.get(id(parent))
+        if isinstance(grand, ast.Call):
+            call, keyword = grand, parent.arg
+    if call is not None:
+        func = call.func
+        name = func.id if isinstance(func, ast.Name) else None
+        found = defs.get(name or "", [])
+        if name is None or not found:
+            return {"route": ROUTE_ARGUMENT_FOREIGN,
+                    "callee": _callee_name(func)}
+        if len(found) > 1:
+            return {"route": ROUTE_ARGUMENT_FOREIGN, "callee": name,
+                    "ambiguous": True}
+        return {"route": ROUTE_ARGUMENT_LOCAL, "callee": name,
+                "callee_def": found[0], "position": position,
+                "keyword": keyword}
+    if isinstance(parent, ast.FormattedValue):
+        return {"route": ROUTE_NOT_A_DEPARTURE}
+    if isinstance(parent, ast.UnaryOp) and isinstance(parent.op, ast.Not):
+        return {"route": ROUTE_NOT_A_DEPARTURE}
+    if (isinstance(parent, (ast.If, ast.While, ast.IfExp, ast.Assert))
+            and getattr(parent, "test", None) is node):
+        return {"route": ROUTE_NOT_A_DEPARTURE}
+    if isinstance(parent, (ast.Dict, ast.List, ast.Tuple, ast.Set)):
+        return {"route": ROUTE_CONTAINER}
+    if isinstance(parent, ast.Assign) and any(
+            isinstance(t, (ast.Subscript, ast.Attribute))
+            for t in parent.targets):
+        return {"route": ROUTE_CONTAINER}
+    return {"route": ROUTE_UNKNOWN}
+
+
+def _one_step_reader(scope: ast.AST, target: ast.AST,
+                     declared: Set[str]) -> dict:
+    """Читатель счётчика в СЛЕДУЮЩЕЙ области — правило УЖЕ соседского.
+
+    И это сказано вслух, а не спрятано: через границу вызова уезжает
+    СЧЁТЧИК, а выражение класса не уезжает. Поэтому формы
+    ``class_value_is_compared_with_a_declared_class`` и
+    ``class_value_is_carried_by_a_field_and_compared_there`` здесь
+    недоказуемы — их население НЕ ИЗМЕРЕНО, а не пусто, и найденный раскол
+    есть доказанный МИНИМУМ, а не замер вреда на следующем шаге.
+
+    Запись в счётчик читателем не является (:func:`_counter_write_nodes`) —
+    иначе шаг мерил бы ПИСАТЕЛЯ под именем читателя, ровно как ловил себя
+    сосед.
+    """
+    target_dump = ast.dump(target)
+    written = _counter_write_nodes(scope, target_dump)
+    parents = _parent_map(scope)
+    splits: List[dict] = []
+    wholesale: List[int] = []
+    dynamic: List[int] = []
+    escapes: List[int] = []
+
+    def _at(node: ast.AST) -> int:
+        return int(getattr(node, "lineno", 0) or 0)
+
+    for node in ast.walk(scope):
+        if id(node) in written:
+            continue
+        if (isinstance(node, ast.Subscript)
+                and ast.dump(node.value) == target_dump
+                and isinstance(node.ctx, ast.Load)):
+            if _is_declared_class(node.slice, declared):
+                splits.append({"line": _at(node),
+                               "how": ast.unparse(node)[:60]})
+            else:
+                dynamic.append(_at(node))
+            continue
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and ast.dump(node.func.value) == target_dump):
+            attr = node.func.attr
+            if attr == "get":
+                first = node.args[0] if node.args else None
+                if _is_declared_class(first, declared):
+                    splits.append({"line": _at(node),
+                                   "how": ast.unparse(node)[:60]})
+                else:
+                    dynamic.append(_at(node))
+            elif attr in READER_WHOLE_ATTRS:
+                wholesale.append(_at(node))
+            else:
+                dynamic.append(_at(node))
+            continue
+        if ast.dump(node) != target_dump:
+            continue
+        use = _counter_whole_use(node, parents.get(id(node)))
+        if use == WHOLE_USE_WHOLESALE:
+            wholesale.append(_at(node))
+        elif use == WHOLE_USE_ESCAPE:
+            escapes.append(_at(node))
+
+    if splits:
+        return {"verdict": ONE_STEP_SPLITS, "gap": None, "splits": splits}
+    if escapes:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_ESCAPES_AGAIN,
+                "splits": []}
+    if dynamic:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": READER_GAP_DYNAMIC,
+                "splits": []}
+    if wholesale:
+        return {"verdict": ONE_STEP_WHOLESALE, "gap": None, "splits": []}
+    return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_READ,
+            "splits": []}
+
+
+def _param_names(fn: ast.AST) -> List[str]:
+    args = fn.args
+    return [a.arg for a in (list(args.posonlyargs) + list(args.args))]
+
+
+def _next_scope_of_return(tree: ast.AST, parents: Dict[int, ast.AST],
+                          owner_of: Dict[int, ast.AST], scope: ast.AST,
+                          declared: Set[str]) -> dict:
+    """Читатель возвращённого счётчика — У ЗОВУЩЕГО, и зовущий ищется в ЭТОМ файле.
+
+    Зовущим считается ТОЛЬКО голый вызов по имени (``f(...)``): ``obj.f(...)``
+    здесь не разрешается, потому что совпадение имени метода не есть
+    доказательство, что зовут именно эту функцию. Строгость ошибается в
+    сторону третьего исхода, а не в сторону выдуманного читателя.
+    """
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_CALLER,
+                "splits": []}
+    callers = [node for node in ast.walk(tree)
+               if isinstance(node, ast.Call)
+               and isinstance(node.func, ast.Name)
+               and node.func.id == scope.name]
+    if not callers:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_CALLER,
+                "splits": []}
+    seen: List[dict] = []
+    bound = 0
+    for call in callers:
+        parent = parents.get(id(call))
+        name: Optional[str] = None
+        if isinstance(parent, ast.Assign) and len(parent.targets) == 1:
+            if isinstance(parent.targets[0], ast.Name):
+                name = parent.targets[0].id
+        elif isinstance(parent, ast.AnnAssign) and isinstance(parent.target,
+                                                              ast.Name):
+            name = parent.target.id
+        if name is None:
+            continue
+        bound += 1
+        next_scope = owner_of.get(id(call), tree)
+        seen.append(_one_step_reader(next_scope,
+                                     ast.Name(id=name, ctx=ast.Load()),
+                                     declared))
+    if not bound:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_RESULT_UNBOUND,
+                "splits": []}
+    return _merge_step_reads(seen)
+
+
+def _merge_step_reads(seen: List[dict]) -> dict:
+    """Свод по нескольким читателям одного побега.
+
+    Порядок НЕ произволен: раскол доказан хотя бы одним читателем ⇒ он
+    доказан (свидетель односторонний). Не доказан, но хоть один читатель НЕ
+    ИЗМЕРЕН ⇒ весь побег не измерен: объявить его безвредным по измеренной
+    половине значило бы ровно ту подмену, против которой шаг написан.
+    """
+    if not seen:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_CALLER,
+                "splits": []}
+    split = [s for s in seen if s["verdict"] == ONE_STEP_SPLITS]
+    if split:
+        return {"verdict": ONE_STEP_SPLITS, "gap": None,
+                "splits": [item for s in split for item in s["splits"]]}
+    unresolved = [s for s in seen if s["verdict"] == ONE_STEP_UNRESOLVED]
+    if unresolved:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": unresolved[0]["gap"],
+                "splits": []}
+    return {"verdict": ONE_STEP_WHOLESALE, "gap": None, "splits": []}
+
+
+def _resolve_escape(tree: ast.AST, parents: Dict[int, ast.AST],
+                    owner_of: Dict[int, ast.AST], defs: Dict[str, List[ast.AST]],
+                    declared: Set[str], scope: ast.AST,
+                    node: ast.AST) -> dict:
+    """ОДИН шаг для ОДНОГО побега: маршрут → следующая область → читатель."""
+    route = _escape_route(node, parents, defs)
+    kind = route["route"]
+    if kind == ROUTE_RETURNED:
+        out = _next_scope_of_return(tree, parents, owner_of, scope, declared)
+    elif kind == ROUTE_ARGUMENT_LOCAL:
+        callee = route["callee_def"]
+        params = _param_names(callee)
+        param: Optional[str] = None
+        if route.get("keyword") is not None:
+            kw = route["keyword"]
+            names = params + [a.arg for a in callee.args.kwonlyargs]
+            param = kw if kw in names else None
+        elif route.get("position") is not None:
+            pos = int(route["position"])
+            param = params[pos] if pos < len(params) else None
+        if param is None:
+            out = {"verdict": ONE_STEP_UNRESOLVED,
+                   "gap": STEP_GAP_ARG_UNMAPPED, "splits": []}
+        else:
+            out = _one_step_reader(callee,
+                                   ast.Name(id=param, ctx=ast.Load()),
+                                   declared)
+    elif kind == ROUTE_ARGUMENT_FOREIGN:
+        out = {"verdict": ONE_STEP_UNRESOLVED,
+               "gap": (STEP_GAP_AMBIGUOUS_CALLEE if route.get("ambiguous")
+                       else STEP_GAP_FOREIGN_CALLEE), "splits": []}
+    elif kind == ROUTE_CONTAINER:
+        out = {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_CONTAINER,
+               "splits": []}
+    elif kind == ROUTE_NOT_A_DEPARTURE:
+        out = {"verdict": ONE_STEP_UNRESOLVED,
+               "gap": STEP_GAP_NOT_A_DEPARTURE, "splits": []}
+    else:
+        out = {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_ROUTE_UNKNOWN,
+               "splits": []}
+    return {**out, "route": kind, "line": int(getattr(node, "lineno", 0) or 0),
+            "callee": route.get("callee")}
+
+
+def _one_step_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Убежавшие счётчики ОДНОГО файла вместе с исходом ОДНОГО шага.
+
+    Население НЕ пересобирается: берутся строки соседа
+    (:func:`_reader_site_nodes`) и отбираются те, у кого читатель не измерен
+    ИМЕННО побегом. Второй копии правила «какой счётчик открыт» и «что есть
+    побег» здесь нет ни одной.
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    defs: Optional[Dict[str, List[ast.AST]]] = None
+    declared: Optional[Set[str]] = None
+    for site, target, key, scope in _reader_site_nodes(rel, tree):
+        if site.get("gap") != READER_GAP_ESCAPES or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            defs = _module_function_defs(tree)
+            declared = _declared_constant_names(tree)
+        found = _escape_sites(scope, target)
+        if len(found) != int(site.get("escapes") or 0):
+            rows.append({**site, "one_step": ONE_STEP_UNRESOLVED,
+                         "step_gap": STEP_GAP_SITES_DISAGREE,
+                         "routes": [], "step_splits": [],
+                         "reason": (f"своё правило побега нашло {len(found)} "
+                                    f"мест(а), соседское — "
+                                    f"{site.get('escapes')}")})
+            continue
+        steps = [_resolve_escape(tree, parents, owner_of, defs, declared,
+                                 scope, node) for node in found]
+        merged = _merge_step_reads(steps)
+        rows.append({**site, "one_step": merged["verdict"],
+                     "step_gap": merged["gap"],
+                     "routes": sorted({s["route"] for s in steps}),
+                     "step_splits": merged["splits"],
+                     "steps": [{"route": s["route"], "line": s["line"],
+                                "verdict": s["verdict"], "gap": s["gap"],
+                                "callee": s.get("callee")} for s in steps]})
+    return rows
+
+
+def _one_step_control() -> dict:
+    """Проба объявленного правила ОДНОГО шага — до замера, обеими половинами.
+
+    Первая половина требует дойти до расколотого читателя ОБЕИМИ разрешимыми
+    формами побега (возврат и аргумент). Вторая требует ОТКАЗАТЬ там, где
+    отказать должно, и отказать РАЗНЫМИ именами — иначе «шаг разрешил N» было
+    бы неотличимо от «шаг объявляет разрешённым что угодно». Любая половина
+    не сошлась ⇒ шаг отказывает целиком: число, полученное правилом, которое
+    промахивается по известной форме, есть свойство ПРАВИЛА, а не населения.
+    """
+    try:
+        source = _one_step_sites("<control>",
+                                 ast.parse(ONE_STEP_CONTROL_SOURCE))
+        clean = _one_step_sites("<control-clean>",
+                                ast.parse(ONE_STEP_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != 2:
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} убежавш(их) "
+            f"счётчик(ов) из 2 — разрешать одним шагом нечего")}
+    split = [s for s in source if s["one_step"] == ONE_STEP_SPLITS]
+    if len(split) != 2:
+        return {"passed": False, "reason": (
+            f"один шаг довёл до расколотого читателя {len(split)} из 2 "
+            f"счётчиков: исходы {[(s['one_step'], s['step_gap']) for s in source]}")}
+    routes = sorted({r for s in split for r in s["routes"]})
+    if routes != sorted((ROUTE_ARGUMENT_LOCAL, ROUTE_RETURNED)):
+        return {"passed": False, "routes": routes, "reason": (
+            f"раскол доказан маршрутами {routes}, а сцена несёт обе "
+            f"разрешимые формы: {sorted((ROUTE_ARGUMENT_LOCAL, ROUTE_RETURNED))}"
+            f" — ненайденная форма есть слепота правила, а не отсутствие "
+            f"разрешимых побегов")}
+    if len(clean) != 5:
+        return {"passed": False, "reason": (
+            f"в отрицательной сцене правило нашло {len(clean)} убежавш(их) "
+            f"счётчик(ов) из 5")}
+    false_splits = [s for s in clean if s["one_step"] == ONE_STEP_SPLITS]
+    benign = [s for s in clean if s["one_step"] == ONE_STEP_WHOLESALE]
+    gaps = sorted({s["step_gap"] for s in clean if s["step_gap"]})
+    want = sorted((STEP_GAP_CONTAINER, STEP_GAP_FOREIGN_CALLEE,
+                   STEP_GAP_NOT_A_DEPARTURE, STEP_GAP_ROUTE_UNKNOWN))
+    if false_splits or len(benign) != 1 or gaps != want:
+        return {"passed": False, "reason": (
+            f"на отрицательной сцене ожидались ноль расколов, один "
+            f"безвредный читатель и ЧЕТЫРЕ разных отказа ({want}), "
+            f"а вышло {[(s['one_step'], s['step_gap']) for s in clean]}")}
+    return {"passed": True, "known_case_resolved": len(split),
+            "routes": routes, "clean_false_splits": 0,
+            "clean_refusal_names": gaps, "clean_benign": len(benign)}
+
+
+def escaped_counter_one_step(root: Path, harm: Optional[dict]) -> dict:
+    """Сколько убежавших счётчиков разрешает ОДИН шаг (**заказ G78 п. 1**).
+
+    ADR-461 назвал главным числом **95** — столько открытых счётчиков имеют
+    читателя, которого шаг соседа НЕ ИЗМЕРИЛ, — и разложил их: **66** убегают
+    из области возвратом или аргументом, 21 читается неразрешимым ключом, 8 не
+    читаются в своей области вовсе. Заказ ставит вопрос дословно:
+
+    > Сколько из 66 разрешимо межпроцедурным разбором ОДНОГО шага (счётчик
+    > возвращён — читатель у зовущего), и сколько остаётся третьим исходом
+    > навсегда.
+
+    Ответ обязан быть ПАРОЙ чисел, и вторая половина пары — не остаток
+    первой: «шаг не дошёл» чинится разным в зависимости от того, ПОЧЕМУ не
+    дошёл, и потому у каждой причины своё машинное имя.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика и ни одного читателя не правит,
+    ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько из убежавших счётчиков разрешает ОДИН шаг "
+                     "межпроцедурного разбора и сколько остаётся третьим "
+                     "исходом"),
+        "order": "G78.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if not isinstance(harm, dict) or str(harm.get("status")) != "MEASURED":
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_STEP_HARM,
+                "reason": ("вред у читателя не измерен — разрешать одним "
+                           "шагом нечего; это НЕ «убежавших счётчиков нет»")}
+    gaps = observed(harm, "unmeasured_reader_reasons", kind=dict)
+    declared_population = (None if gaps is None
+                           else observed(gaps, READER_GAP_ESCAPES, kind=int))
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_STEP_HARM,
+                "reason": ("сосед не назвал числа счётчиков, убежавших из "
+                           "области, — сверять свой обход не с чем")}
+    control = _one_step_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_STEP_CONTROL,
+                "reason": (f"объявленное правило одного шага не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_one_step_sites(rel, tree))
+
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_STEP_POPULATION,
+                "walked": len(rows), "census": declared_population,
+                "files_unreadable": unreadable,
+                "reason": (f"свой обход нашёл {len(rows)} убежавш(их) "
+                           f"счётчик(ов), сосед — {declared_population}: "
+                           f"замер одного шага по ДРУГОМУ населению отвечал "
+                           f"бы на другой вопрос")}
+
+    outcomes = {cls: sum(1 for r in rows if r["one_step"] == cls)
+                for cls in _ONE_STEP_OUTCOMES}
+    reasons = {gap: sum(1 for r in rows if r.get("step_gap") == gap)
+               for gap in _STEP_GAPS}
+    routes = {route: sum(1 for r in rows if route in (r.get("routes") or []))
+              for route in _ESCAPE_ROUTES}
+    resolved = outcomes[ONE_STEP_SPLITS] + outcomes[ONE_STEP_WHOLESALE]
+    split_rows = [r for r in rows if r["one_step"] == ONE_STEP_SPLITS]
+    # Сколько раз шаг ДОШЁЛ до следующей области и разобрал там читателя.
+    # Число публикуется рядом с нулём разрешённых намеренно: ноль от живой
+    # проводки и ноль от непроведённой выглядят одинаково, и различить их
+    # обязан замер, а не уверенность автора.
+    reached = sum(1 for r in rows
+                  if r["one_step"] in (ONE_STEP_SPLITS, ONE_STEP_WHOLESALE)
+                  or r.get("step_gap") in (READER_GAP_DYNAMIC,
+                                           STEP_GAP_ESCAPES_AGAIN,
+                                           STEP_GAP_NO_READ))
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "one_step_outcomes": outcomes,
+        "unresolved_reasons": reasons,
+        "routes": routes,
+        "resolved_by_one_step": resolved,
+        "next_scope_reached": reached,
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        # Завышение соседского класса СВЕРХУ, найденное запуском: счётчик,
+        # целиком проверенный на истинность или напечатанный в строку, никуда
+        # не уезжает — а правило соседа зовёт это побегом. Оба числа рядом:
+        # читатель обязан видеть потолок, а не принимать его за замер.
+        "does_not_leave_the_scope_at_all": reasons[STEP_GAP_NOT_A_DEPARTURE],
+        "departing_population_net": (len(rows)
+                                     - reasons[STEP_GAP_NOT_A_DEPARTURE]),
+        "sites_disagreed_with_the_reader_rule": reasons[STEP_GAP_SITES_DISAGREE],
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "routes": r["routes"],
+             "split": (r["step_splits"] or [{}])[0].get("how")}
+            for r in split_rows[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("step_gap"),
+             "routes": r.get("routes")}
+            for r in rows
+            if r["one_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            ("шаг ровно ОДИН: счётчик, убежавший и на следующей области "
+             f"(`{STEP_GAP_ESCAPES_AGAIN}`), остаётся НЕ ИЗМЕРЕННЫМ — это не "
+             "«вреда нет», а «нужен ещё шаг»"),
+            ("правило читателя на следующей области УЖЕ соседского: через "
+             "границу вызова уезжает счётчик, а выражение класса не уезжает, "
+             "поэтому раскол доказывается только формой «счётчик прочитан "
+             "объявленным ключом»; найденное есть доказанный МИНИМУМ"),
+            ("зовущий ищется ТОЛЬКО в том же файле и только голым вызовом по "
+             f"имени: `obj.f(...)` не разрешается (`{STEP_GAP_NO_CALLER}`), "
+             "потому что совпадение имени метода не доказывает, что зовут "
+             "именно эту функцию"),
+            ("контейнер — не маршрут одного шага: счётчик, уехавший сперва "
+             "полем (`return {'tally': tally}`), требует ВТОРОГО разбора — "
+             "переноса полем, и это отдельный вопрос, а не поправка к этому"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461: ключ, разобранный кортежем, назван артефактным) — "
+             "своего замера населения у этого шага нет по построению"),
+            ("к тому потолку этот шаг добавляет СВОЙ замер: часть населения "
+             "не уезжает из области вовсе (истинность целиком, f-строка) — "
+             "правило соседа перечисляет пробег поимённо и всякое остальное "
+             "использование целиком зовёт побегом; число названо ключом "
+             "`does_not_leave_the_scope_at_all` и вычтено рядом, а не вместо"),
+            ("`counts or {}` уезжает по-настоящему, но маршрутом, который "
+             f"правило не разбирает (`{ROUTE_UNKNOWN}`), — и принять его за "
+             "«никуда не уехал» значило бы спрятать настоящий побег под "
+             "новым именем; отрицательная половина контроля требует именно "
+             "этого различения"),
+        ],
+    }
 
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
@@ -11170,6 +11899,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # берётся у соседа и сверяется с его числом — разойдясь, шаг отказывает.
     reader_harm = open_counter_reader_harm(root, open_counters)
 
+    # --- ОДИН шаг межпроцедурного разбора (заказ G78 п. 1) -------------
+    # ADR-461 назвал главным числом 95 НЕ ИЗМЕРЕННЫХ читателей и разложил
+    # их; 66 из них убегают из области. Вопрос заказа — сколько из этих 66
+    # разрешает ОДИН шаг. Ответ обязан быть парой чисел: «разрешено» и
+    # «осталось третьим исходом», и вторая половина не есть остаток первой.
+    one_step = escaped_counter_one_step(root, reader_harm)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -11300,6 +12036,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ОТКРЫТО» и «у скольких из них незнакомый класс молча становится
         # другим ИСХОДОМ» — разные вопросы с разным третьим исходом.
         "open_counter_reader_harm": reader_harm,
+        # Отдельным ключом, а не поправкой к соседу: «у скольких читатель НЕ
+        # ИЗМЕРЕН» и «скольких из них достаёт ОДИН шаг» — разные вопросы, и
+        # ответ второго не отменяет первого.
+        "escaped_counter_one_step": one_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -12915,6 +13655,69 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}[{item.get('key')}]` → раскол "
                 f"`{item.get('split')}`")
         for blind in (observed(harm, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    step = observed(doc, "escaped_counter_one_step", kind=dict)
+    if step is None:
+        out.append("[ОДИН ШАГ] НЕ ИЗМЕРЕНО — перепись собрана без этого шага; "
+                   "это НЕ «убежавших счётчиков нет»")
+    elif str(step.get("status")) == "UNMEASURED":
+        out.append(f"[ОДИН ШАГ] НЕ ИЗМЕРЕНО "
+                   f"[{step.get('unmeasured_class')}]: {step.get('reason')}")
+    else:
+        outcomes = observed(step, "one_step_outcomes", kind=dict) or {}
+        routes = observed(step, "routes", kind=dict) or {}
+        reasons = observed(step, "unresolved_reasons", kind=dict) or {}
+        out.append(
+            f"[ОДИН ШАГ] из {step.get('population')} счётчиков, убежавших из "
+            f"области, ОДИН шаг межпроцедурного разбора доводит до "
+            f"расколотого читателя {outcomes.get(ONE_STEP_SPLITS)}, до "
+            f"безвредного — {outcomes.get(ONE_STEP_WHOLESALE)}; остаётся "
+            f"третьим исходом {step.get('still_unmeasured')}")
+        out.append(
+            f"[ОДИН ШАГ · МАРШРУТ] возвратом уходит "
+            f"{routes.get(ROUTE_RETURNED)}, аргументом в функцию ЭТОГО файла "
+            f"{routes.get(ROUTE_ARGUMENT_LOCAL)}, в чужой вызов "
+            f"{routes.get(ROUTE_ARGUMENT_FOREIGN)}, сперва в КОНТЕЙНЕР "
+            f"{routes.get(ROUTE_CONTAINER)}, не уходит вовсе "
+            f"{routes.get(ROUTE_NOT_A_DEPARTURE)} — приём «счётчик возвращён, "
+            f"читатель у зовущего» покрывает не всё население, и это замер, "
+            f"а не оценка")
+        out.append(
+            f"[ОДИН ШАГ · ПОЧЕМУ НЕ ДОШЁЛ] уехал сперва полем "
+            f"{reasons.get(STEP_GAP_CONTAINER)} · возврат никуда не связан "
+            f"{reasons.get(STEP_GAP_RESULT_UNBOUND)} · зовущий читает "
+            f"неразрешимым ключом {reasons.get(READER_GAP_DYNAMIC)} · убежал "
+            f"СНОВА {reasons.get(STEP_GAP_ESCAPES_AGAIN)} · никуда не уехал "
+            f"{reasons.get(STEP_GAP_NOT_A_DEPARTURE)} · маршрут не разобран "
+            f"{reasons.get(STEP_GAP_ROUTE_UNKNOWN)}")
+        out.append(
+            f"[ОДИН ШАГ · ПОТОЛОК СОСЕДА] население 66 завышено СВЕРХУ на "
+            f"{step.get('does_not_leave_the_scope_at_all')}: столько "
+            f"счётчиков проверены на истинность или напечатаны целиком и НЕ "
+            f"уезжают никуда — уезжающих на деле "
+            f"{step.get('departing_population_net')}")
+        out.append(
+            f"[ОДИН ШАГ · ПРОВОДКА ЖИВА] до следующей области шаг дошёл и "
+            f"разобрал там читателя у {step.get('next_scope_reached')} "
+            f"счётчик(ов): ноль разрешённых — свойство НАСЕЛЕНИЯ, а не "
+            f"непроведённого шага, и эти два нуля обязаны быть различимы")
+        control = observed(step, "control", kind=dict) or {}
+        out.append(
+            f"[ОДИН ШАГ · КОНТРОЛЬ] правило разрешило "
+            f"{control.get('known_case_resolved')} из 2 счётчиков "
+            f"положительной сцены ОБЕИМИ формами побега "
+            f"({len(control.get('routes') or [])} маршрут(а)) и дало "
+            f"{control.get('clean_false_splits')} ложных расколов на "
+            f"отрицательной, разведя её "
+            f"{len(control.get('clean_refusal_names') or [])} РАЗНЫМИ "
+            f"именами отказа")
+        for item in (observed(step, "unresolved_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ОДИН ШАГ · ОБРАЗЕЦ] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` — "
+                f"{item.get('gap')}")
+        for blind in (observed(step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
