@@ -109,33 +109,21 @@ jobs:
           print('=== All smoke imports PASSED ===')
           "
 
-      - name: Forbidden import check (risk + execution)
+      # ── Запрещённые импорты: ОДНО правило, ОДИН прибор (цикл #686) ──────────
+      # Здесь стоял свой экземпляр правила — подстрока `'import anthropic' in src`
+      # по трём каталогам. Подстрока не отличает код от ОБРАЗЦА кода, и с 07.09
+      # шаг был КРАСЕН на `spa_core/monitoring/cio_architecture_constraints.py`,
+      # который держит образец нарушения строковым литералом. Замер 23.09 по тем
+      # же каталогам: подстрока — 2 находки (одна ложная), AST — 1 настоящая
+      # (`spa_core/adapters/sky_susds_feed.py: requests`), которую инлайн-копия
+      # не видела вовсе, потому что адаптеров среди её каталогов нет.
+      # Правило УЖЕСТОЧЕНО, а не ослаблено: каталогов 5 вместо 3, библиотек 11
+      # вместо 7, плюс динамическая дверь `importlib.import_module("x")`.
+      # Обоснование и пределы — в докстроке прибора; сторож обеих сторон —
+      # scripts/tests/test_lint_forbidden_imports.py.
+      - name: Forbidden import check (risk / execution / monitoring / allocator / adapters)
         if: ${{ !cancelled() }}
-        run: |
-          echo "=== Forbidden import check ==="
-          python3 -c "
-          import os, sys
-          FORBIDDEN_LIBS = ['anthropic', 'openai', 'langchain', 'numpy', 'pandas', 'requests', 'aiohttp']
-          FORBIDDEN_DOMAINS = ['spa_core/risk', 'spa_core/execution', 'spa_core/monitoring']
-          errors = []
-          for domain in FORBIDDEN_DOMAINS:
-              for root, dirs, files in os.walk(domain):
-                  dirs[:] = [d for d in dirs if d != '__pycache__']
-                  for f in files:
-                      if not f.endswith('.py'):
-                          continue
-                      path = os.path.join(root, f)
-                      src = open(path).read()
-                      for lib in FORBIDDEN_LIBS:
-                          if f'import {lib}' in src or f'from {lib}' in src:
-                              errors.append(f'{path}: forbidden import \"{lib}\"')
-          if errors:
-              print('FORBIDDEN IMPORTS FOUND:')
-              for e in errors:
-                  print(e)
-              sys.exit(1)
-          print('Forbidden import check PASSED')
-          "
+        run: python3 scripts/lint_forbidden_imports.py
 
       - name: Strategy registry completeness check
         if: ${{ !cancelled() }}

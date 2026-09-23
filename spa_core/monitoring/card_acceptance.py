@@ -1540,6 +1540,106 @@ def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
     return SATISFIED, "закрытия только здесь нет — " + detail
 
 
+def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str, str]:
+    """Гейт запрещённых импортов ЗАМКНУТ: один прибор, он кусается, и его зовут.
+
+    Меряет ИСХОД на одноразовом дереве, а не структуру прибора: три вопроса
+    задаются самому `scripts/lint_forbidden_imports.py` через запуск, четвёртый —
+    проводке. Любое одно порванное звено даёт `not_satisfied` с ИМЕНЕМ звена:
+
+    1. **прибор МЕРЯЕТ живое дерево** — код возврата не 2 (третий исход есть, но
+       сегодня он не сработал: «не измерено» никогда не выдаётся за «чисто»);
+    2. **кусается на настоящем импорте** — во временное дерево кладётся
+       `import anthropic`, ожидается код 1. Прибор, который не краснеет ни на
+       чём, — украшение;
+    3. **не кусается на ОБРАЗЦЕ кода в строке** — воспроизводится авария 23.09:
+       `spa_core/monitoring/cio_architecture_constraints.py` держит образец
+       нарушения строковым литералом, и подстрочный прибор краснил на нём
+       `SPA CI-Lite` с 07.09;
+    4. **прибор ПОЗВАН** — шаг `ci-lite.yml` зовёт именно его и не держит своей
+       копии правила (`FORBIDDEN_LIBS`). Прибор без зовущего — отчёт без
+       читателя, ровно тот класс, ради которого написан ADR-333.
+
+    Проба НЕ подтверждает, что нарушений в дереве нет вовсе: известные и
+    названные живут в `scripts/forbidden_import_baseline.json`, и их число
+    печатается в detail, чтобы «ноль» и «один известный» не выглядели одинаково.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — гейт целиком, пофайловой формы у него нет")
+    import subprocess as _sp
+    import tempfile as _tf
+    script = os.path.join(REPO_ROOT, "scripts", "lint_forbidden_imports.py")
+    workflow = os.path.join(REPO_ROOT, ".github", "workflows", "ci-lite.yml")
+    if not os.path.isfile(script):
+        return UNMEASURED, f"прибора {script} нет в дереве — гейт НЕ ИЗМЕРЕН"
+
+    def _run(root: str):
+        try:
+            return _sp.run([sys.executable, script, "--root", root, "--json"],
+                           capture_output=True, text=True, timeout=300)
+        except (OSError, _sp.SubprocessError) as exc:      # pragma: no cover
+            return exc
+
+    live = _run(REPO_ROOT)
+    if not hasattr(live, "returncode"):
+        return UNMEASURED, f"прибор не запустился ({live}) — гейт НЕ ИЗМЕРЕН"
+    if live.returncode == 2:
+        return NOT_SATISFIED, ("прибор НЕ ИЗМЕРИЛ живое дерево (код 2): "
+                               + (live.stdout or live.stderr or "").strip()[:200])
+    try:
+        known = sum(1 for v in json.loads(live.stdout or "{}").get("violations", [])
+                    if v.get("known"))
+    except ValueError:
+        return UNMEASURED, "машинный вывод прибора не разобран — гейт НЕ ИЗМЕРЕН"
+
+    with _tf.TemporaryDirectory() as tmp:
+        try:
+            import lint_forbidden_imports as _lfi                  # noqa: F401
+            domains = _lfi.DOMAINS
+        except ImportError:
+            sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+            try:
+                import lint_forbidden_imports as _lfi
+                domains = _lfi.DOMAINS
+            except ImportError as exc:
+                return UNMEASURED, f"прибор не ввезён ({exc}) — гейт НЕ ИЗМЕРЕН"
+        for domain in domains:
+            os.makedirs(os.path.join(tmp, domain), exist_ok=True)
+            with open(os.path.join(tmp, domain, "_ok.py"), "w", encoding="utf-8") as fh:
+                fh.write("import json\n")
+        real = os.path.join(tmp, domains[0], "real.py")
+        with open(real, "w", encoding="utf-8") as fh:
+            fh.write("import anthropic\n")
+        bites = _run(tmp)
+        os.remove(real)
+        with open(os.path.join(tmp, domains[0], "sample.py"), "w", encoding="utf-8") as fh:
+            fh.write('SAMPLES = {"sdk": "import anthropic\\n"}\n')
+        on_sample = _run(tmp)
+
+    if getattr(bites, "returncode", None) != 1:
+        return NOT_SATISFIED, ("прибор НЕ КУСАЕТСЯ: на дереве с настоящим "
+                               f"`import anthropic` код {getattr(bites, 'returncode', '?')}, "
+                               "ожидался 1")
+    if getattr(on_sample, "returncode", None) != 0:
+        return NOT_SATISFIED, ("прибор краснеет на ОБРАЗЦЕ кода в строке "
+                               f"(код {getattr(on_sample, 'returncode', '?')}) — "
+                               "авария 23.09 не закрыта")
+    try:
+        with open(workflow, encoding="utf-8") as fh:
+            wf = fh.read()
+    except OSError as exc:
+        return UNMEASURED, f"{workflow} не прочитан ({exc}) — зовущий НЕ ИЗМЕРЕН"
+    if "python3 scripts/lint_forbidden_imports.py" not in wf:
+        return NOT_SATISFIED, "CI-Lite не зовёт прибор — отчёт без читателя"
+    if "FORBIDDEN_LIBS" in wf:
+        return NOT_SATISFIED, ("в ci-lite.yml вернулась своя копия правила "
+                               "(FORBIDDEN_LIBS) — правило снова в двух местах")
+    return SATISFIED, (f"гейт замкнут: прибор измерил дерево (код {live.returncode}, "
+                       f"известных нарушений в базе {known}), кусается на настоящем "
+                       "импорте, молчит на образце в строке, и зовёт его CI-Lite")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1557,6 +1657,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "journal_reader_census_verdict_under_injected_clock":
         _probe_journal_reader_census_verdict_under_injected_clock,
     "card_copies_agree": _probe_card_copies_agree,
+    "forbidden_import_gate_single_instrument":
+        _probe_forbidden_import_gate_single_instrument,
 }
 
 
