@@ -9377,6 +9377,655 @@ def open_class_counter_census(root: Path) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# ЧИТАТЕЛЬ ОТКРЫТОГО СЧЁТЧИКА — заказ G77 п. 1
+# ---------------------------------------------------------------------------
+
+#: Вердикт ЧИТАТЕЛЯ открытого счётчика. Три, и разделяет их не сила, а
+#: ПРЕДМЕТ: «незнакомый класс молча становится другим исходом» и «незнакомый
+#: класс — лишняя строка отчёта» суть разный ВРЕД при одной и той же
+#: поверхности, а «читатель не измерен» не есть ни то, ни другое.
+READER_SPLITS_DECLARED = "unknown_class_silently_becomes_another_outcome"
+READER_WHOLESALE_ONLY = "unknown_class_is_only_an_extra_line"
+READER_UNRESOLVED = "reader_of_the_counter_not_measured"
+_READER_OUTCOMES = (READER_SPLITS_DECLARED, READER_WHOLESALE_ONLY,
+                    READER_UNRESOLVED)
+
+#: Почему читатель НЕ измерен. Имя у каждой причины своё: чинятся они разным —
+#: убежавший счётчик требует межпроцедурного разбора, нечитаемый ключ —
+#: расширения правила, а «чтения нет вовсе» не требует ничего, кроме честности.
+READER_GAP_ESCAPES = "counter_leaves_its_scope_the_reader_lives_elsewhere"
+READER_GAP_DYNAMIC = "counter_is_read_by_a_key_the_rule_cannot_resolve"
+READER_GAP_NO_READ = "no_read_of_the_counter_inside_its_scope"
+_READER_GAPS = (READER_GAP_ESCAPES, READER_GAP_DYNAMIC, READER_GAP_NO_READ)
+
+#: ЧЕМ доказан раскол. Три формы, и они не равнозначны по силе доказательства:
+#: первые две видны прямо у счётчика и у класса, третья держится на ОДНОМ
+#: шаге переноса значения через поле — поэтому в отчёте они идут РАЗДЕЛЬНО, а
+#: не одним числом.
+SPLIT_AT_COUNTER = "counter_is_read_by_a_declared_key"
+SPLIT_AT_CLASS = "class_value_is_compared_with_a_declared_class"
+SPLIT_VIA_FIELD = "class_value_is_carried_by_a_field_and_compared_there"
+_SPLIT_FORMS = (SPLIT_AT_COUNTER, SPLIT_AT_CLASS, SPLIT_VIA_FIELD)
+
+#: Имена, чтение которыми есть чтение счётчика ЦЕЛИКОМ: незнакомый класс
+#: проходит такого читателя лишней строкой и ничьего исхода не меняет.
+READER_WHOLE_ATTRS = ("items", "keys", "values", "most_common", "copy")
+READER_WHOLE_BUILTINS = ("sum", "len", "sorted", "dict", "list", "set",
+                         "tuple", "any", "all", "max", "min", "reversed")
+
+#: Отказы шага. Три, и каждый — не ноль.
+UNMEASURED_READER_CENSUS = "open_counter_census_is_absent_or_unmeasured"
+UNMEASURED_READER_POPULATION = "second_walk_disagrees_with_the_census"
+UNMEASURED_READER_CONTROL = "declared_reader_rule_missed_the_known_case"
+
+#: Сцена ПОЛОЖИТЕЛЬНОГО контроля читателя — ФОРМА известного случая
+#: (`tail_value_divergence` до ADR-459). Дословной она быть НЕ МОЖЕТ по той же
+#: причине, что и сцена соседа: отставленное имя `reach_outcome` сосед-сторож
+#: в этом модуле запрещает, и возвращать его сюда ради буквальности значило бы
+#: погасить чужого сторожа своей сценой.
+#:
+#: Воспроизводится то, что составляет ВРЕД, а не поверхность: у известного
+#: случая класс `reach` ложился в открытый счётчик, уезжал полем `reach` в
+#: список находок и ТАМ сравнивался с объявленным классом — после чего
+#: незнакомая строка молча оказывалась «до вердикта не доходит». Рядом —
+#: две более простые формы того же вреда: класс сравнён прямо по имени и
+#: счётчик прочитан объявленным ключом. Правило обязано найти ВСЕ ТРИ.
+READER_HARM_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+_VALUE_OUTCOMES = ("differ", "agree")
+
+
+def scene(rows):
+    values = {cls: 0 for cls in _VALUE_OUTCOMES}
+    reaches = {}
+    diverging = []
+    for row in rows:
+        for item in observed(row, "costed_all", kind=list):
+            outcome = str(item.get("value_outcome"))
+            values[outcome] = values.get(outcome, 0) + 1
+            if outcome == "differ":
+                diverging.append({"at": item.get("at"), "reach": reach})
+            reach = str((item.get("reach_cell") or {}).get("reach"))
+            reaches[reach] = reaches.get(reach, 0) + 1
+    reaching = [d for d in diverging if d["reach"] == REACH_LIVE]
+    return {"differing": values.get("differ", 0), "reaching": len(reaching)}
+'''
+
+#: Отрицательная половина той же сцены. Без неё «правило нашло раскол у всех
+#: трёх» было бы неотличимо от «правило объявляет расколотым любой счётчик»:
+#: два счётчика здесь открыты ровно так же, но их читатель НЕ делит класса —
+#: один пробегает счётчик целиком в отчёт, второй счётчик из области УБЕГАЕТ
+#: и его читатель этим шагом не измерен (третий исход, а не «вреда нет»).
+READER_HARM_CONTROL_CLEAN = '''
+def benign(rows, report):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    for name, hits in sorted(counts.items()):
+        report.append(f"{name}: {hits}")
+    return len(counts)
+
+
+def escaping(rows):
+    tally = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        tally[cls] = tally.get(cls, 0) + 1
+    return {"tally": tally}
+'''
+
+
+def _declared_constant_names(tree: ast.AST) -> Set[str]:
+    """Имена модуля, связанные КОНСТАНТОЙ или перечнем литералов.
+
+    Плюс соглашение о ЗАГЛАВНЫХ: имя вида ``REACH_LIVE``, пришедшее импортом
+    из соседнего модуля, здесь не разрешается — и не признать его объявленным
+    классом значило бы ЗАНИЗИТЬ вред ровно на импортированных константах,
+    которыми известный случай и пользовался. Соглашение названо вслух: это
+    правило чтения имён, а не доказательство значения.
+    """
+    out: Set[str] = set()
+    body = getattr(tree, "body", []) if isinstance(tree, ast.Module) else []
+    for node in body:
+        targets: List[ast.AST] = []
+        value: Optional[ast.AST] = None
+        if isinstance(node, ast.Assign):
+            targets, value = list(node.targets), node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        if value is None:
+            continue
+        if not (isinstance(value, ast.Constant) or _literal_enumeration(value)):
+            continue
+        for tgt in targets:
+            if isinstance(tgt, ast.Name):
+                out.add(tgt.id)
+    return out
+
+
+def _is_declared_class(node: Optional[ast.AST], declared: Set[str]) -> bool:
+    """Объявленный ли это класс: литерал, имя-константа модуля или ЗАГЛАВНОЕ имя."""
+    if isinstance(node, ast.Constant):
+        return isinstance(node.value, str)
+    if isinstance(node, ast.Name):
+        return node.id in declared or (node.id.isupper() and len(node.id) > 1)
+    if isinstance(node, ast.Attribute):
+        return node.attr in declared or (node.attr.isupper()
+                                         and len(node.attr) > 1)
+    return False
+
+
+def _counter_write_nodes(scope: ast.AST, target_dump: str) -> Set[int]:
+    """Узлы, принадлежащие ЗАПИСЯМ в тот же счётчик.
+
+    Читателем запись не является, и это не мелочь: правая часть всякого
+    счётчика содержит ``X.get(k, 0)``, а соседний счётчик того же словаря
+    может писать литеральный класс (``X['total'] = X.get('total', 0) + 1``).
+    Не исключив записи, шаг объявил бы «счётчик прочитан объявленным ключом»
+    у всякого словаря, у которого есть хоть один литеральный счётчик, —
+    то есть мерил бы ПИСАТЕЛЯ под именем читателя.
+    """
+    out: Set[int] = set()
+    for node in ast.walk(scope):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        if ast.dump(shape[0]) != target_dump:
+            continue
+        for sub in ast.walk(node):
+            out.add(id(sub))
+    return out
+
+
+def _field_carriers(scope: ast.AST, key_dump: str,
+                    key_names: Set[str]) -> Tuple[Set[str], Set[str]]:
+    """Поля словарей-литералов, которыми класс УЕЗЖАЕТ из счётчика.
+
+    Один шаг переноса и не больше: ``{"reach": reach}``. Возвращает
+    ``(однозначные поля, неоднозначные поля)`` — поле, под которым в той же
+    области лежит ЕЩЁ и другое значение, объявляется неоднозначным и вреда им
+    не доказывают: связь идёт по ИМЕНИ ПОЛЯ, и на неоднозначном имени она
+    приписала бы чужому сравнению наш класс.
+    """
+    carried: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(scope):
+        if not isinstance(node, ast.Dict):
+            continue
+        for field, value in zip(node.keys, node.values):
+            if (isinstance(field, ast.Constant)
+                    and isinstance(field.value, str)):
+                carried.setdefault(field.value, []).append(value)
+    ours: Set[str] = set()
+    ambiguous: Set[str] = set()
+    for field, values in carried.items():
+        mine = [v for v in values
+                if ast.dump(v) == key_dump
+                or (isinstance(v, ast.Name) and v.id in key_names)]
+        if not mine:
+            continue
+        if len({ast.dump(v) for v in values}) > 1:
+            ambiguous.add(field)
+        else:
+            ours.add(field)
+    return ours, ambiguous
+
+
+def _key_literal_by_unpacking(scope: ast.AST, key: ast.AST) -> Optional[str]:
+    """Не ЛИТЕРАЛ ли ключ на самом деле — разобранный кортежем.
+
+    Найдено ЗАПУСКОМ, а не перечитыванием: сосед-перепись (ADR-460) связывает
+    имя, разобранное кортежем, ВСЕЙ правой частью, а не своим элементом. У
+    `bucket, why = "unmeasured", f"…{observed(doc, …)}"` ключ `bucket` есть
+    литерал, но соседняя половина кортежа читает данные — и ключ объявляется
+    пришедшим ИЗ АРТЕФАКТА. Это ровно тот класс, который ADR-460 поймал у
+    себя внутри (ключ, связанный правой частью), одним уровнем выше: там
+    правой частью была подписка, здесь — кортеж.
+
+    Шаг соседа НЕ правится (его батарея 26/26 этой правкой не переделывается):
+    класс НАЗВАН и померен, и число вреда печатается вместе с ним, чтобы
+    читатель видел, на сколько оно завышено сверху.
+
+    Возвращает ``"literal_by_unpacking"``, если ВСЕ связывания имени в области
+    суть распаковка кортежа с КОНСТАНТОЙ на месте ключа; ``"mixed"``, если
+    такие связывания есть, но не все; ``None``, если их нет вовсе.
+    """
+    if not isinstance(key, ast.Name):
+        return None
+    name = key.id
+    literal_bindings = 0
+    other_bindings = 0
+    for node in ast.walk(scope):
+        targets: List[ast.AST] = []
+        value: Optional[ast.AST] = None
+        if isinstance(node, ast.Assign):
+            targets, value = list(node.targets), node.value
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            targets, value = [node.target], node.value
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            targets, value = [node.target], node.iter
+        if value is None:
+            continue
+        for tgt in targets:
+            if isinstance(tgt, ast.Name) and tgt.id == name:
+                other_bindings += 1
+                continue
+            if not isinstance(tgt, (ast.Tuple, ast.List)):
+                continue
+            for pos, element in enumerate(tgt.elts):
+                if not (isinstance(element, ast.Name) and element.id == name):
+                    continue
+                if (isinstance(value, (ast.Tuple, ast.List))
+                        and pos < len(value.elts)
+                        and isinstance(value.elts[pos], ast.Constant)):
+                    literal_bindings += 1
+                else:
+                    other_bindings += 1
+    if not literal_bindings:
+        return None
+    return "literal_by_unpacking" if not other_bindings else "mixed"
+
+
+def _counter_reader_touches(scope: ast.AST, target: ast.AST, key: ast.AST,
+                            declared: Set[str]) -> dict:
+    """Читатели ОДНОГО открытого счётчика внутри его области.
+
+    Правило объявлено здесь, до замера, и проверяется обеими половинами
+    (:func:`_reader_harm_control`). Односторонность названа: шаг доказывает
+    РАСКОЛ, а «раскола не нашли» не есть «раскола нет» — потому и третий исход
+    отдельным вердиктом, а не тихим зачислением в безвредные.
+    """
+    target_dump = ast.dump(target)
+    key_dump = ast.dump(key)
+    key_names = {n.id for n in ast.walk(key) if isinstance(n, ast.Name)}
+    written = _counter_write_nodes(scope, target_dump)
+    parents = _parent_map(scope)
+    fields, ambiguous_fields = _field_carriers(scope, key_dump, key_names)
+
+    splits: List[dict] = []
+    wholesale: List[int] = []
+    dynamic: List[int] = []
+    escapes: List[int] = []
+
+    def _at(node: ast.AST) -> int:
+        return int(getattr(node, "lineno", 0) or 0)
+
+    def _split(form: str, node: ast.AST, how: str) -> None:
+        splits.append({"form": form, "line": _at(node), "how": how})
+
+    def _same_key(node: Optional[ast.AST]) -> bool:
+        if node is None:
+            return False
+        if ast.dump(node) == key_dump:
+            return True
+        return isinstance(node, ast.Name) and node.id in key_names
+
+    for node in ast.walk(scope):
+        if id(node) in written:
+            continue
+        # --- чтение самого счётчика -----------------------------------
+        if (isinstance(node, ast.Subscript)
+                and ast.dump(node.value) == target_dump
+                and isinstance(node.ctx, ast.Load)):
+            if _is_declared_class(node.slice, declared):
+                _split(SPLIT_AT_COUNTER, node, ast.unparse(node)[:60])
+            else:
+                dynamic.append(_at(node))
+            continue
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and ast.dump(node.func.value) == target_dump):
+            attr = node.func.attr
+            if attr == "get":
+                first = node.args[0] if node.args else None
+                if _is_declared_class(first, declared):
+                    _split(SPLIT_AT_COUNTER, node, ast.unparse(node)[:60])
+                else:
+                    dynamic.append(_at(node))
+            elif attr in READER_WHOLE_ATTRS:
+                wholesale.append(_at(node))
+            else:
+                dynamic.append(_at(node))
+            continue
+        # --- сравнение самого КЛАССА с объявленным --------------------
+        if isinstance(node, ast.Compare) and any(
+                isinstance(op, (ast.Eq, ast.NotEq)) for op in node.ops):
+            sides = [node.left] + list(node.comparators)
+            for pos, side in enumerate(sides):
+                if not _same_key(side):
+                    continue
+                others = [s for idx, s in enumerate(sides) if idx != pos]
+                if any(_is_declared_class(other, declared) for other in others):
+                    _split(SPLIT_AT_CLASS, node, ast.unparse(node)[:60])
+                    break
+            else:
+                # --- класс уехал ПОЛЕМ и сравнивается там -------------
+                for pos, side in enumerate(sides):
+                    field = _field_read(side)
+                    if field is None or field not in fields:
+                        continue
+                    others = [s for idx, s in enumerate(sides) if idx != pos]
+                    if any(_is_declared_class(o, declared) for o in others):
+                        _split(SPLIT_VIA_FIELD, node, ast.unparse(node)[:60])
+                        break
+            continue
+        # --- счётчик целиком ------------------------------------------
+        if ast.dump(node) != target_dump:
+            continue
+        if isinstance(node, ast.expr) and not isinstance(
+                getattr(node, "ctx", ast.Load()), ast.Load):
+            continue
+        parent = parents.get(id(node))
+        if parent is None:
+            continue
+        if isinstance(parent, (ast.Subscript, ast.Attribute)):
+            continue
+        if isinstance(parent, ast.Call):
+            func = parent.func
+            if isinstance(func, ast.Name) and func.id in READER_WHOLE_BUILTINS:
+                wholesale.append(_at(node))
+            else:
+                escapes.append(_at(node))
+        elif isinstance(parent, (ast.For, ast.AsyncFor)) and parent.iter is node:
+            wholesale.append(_at(node))
+        elif isinstance(parent, ast.comprehension) and parent.iter is node:
+            wholesale.append(_at(node))
+        elif isinstance(parent, ast.Compare) and any(
+                isinstance(op, (ast.In, ast.NotIn)) for op in parent.ops):
+            wholesale.append(_at(node))
+        else:
+            escapes.append(_at(node))
+
+    if splits:
+        verdict, gap = READER_SPLITS_DECLARED, None
+    elif escapes:
+        verdict, gap = READER_UNRESOLVED, READER_GAP_ESCAPES
+    elif dynamic:
+        verdict, gap = READER_UNRESOLVED, READER_GAP_DYNAMIC
+    elif wholesale:
+        verdict, gap = READER_WHOLESALE_ONLY, None
+    else:
+        verdict, gap = READER_UNRESOLVED, READER_GAP_NO_READ
+    return {
+        "verdict": verdict,
+        "gap": gap,
+        "splits": splits,
+        "split_forms": sorted({s["form"] for s in splits}),
+        "wholesale_reads": len(wholesale),
+        "dynamic_reads": len(dynamic),
+        "escapes": len(escapes),
+        "ambiguous_fields": sorted(ambiguous_fields),
+    }
+
+
+def _field_read(node: ast.AST) -> Optional[str]:
+    """Имя поля, если выражение есть чтение ``X['поле']`` или ``X.get('поле')``."""
+    if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        if isinstance(node.slice.value, str):
+            return node.slice.value
+        return None
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get" and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)):
+        return node.args[0].value
+    return None
+
+
+def _reader_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Открытые счётчики ОДНОГО файла вместе с вердиктом их читателя.
+
+    Население берётся у соседа (:func:`_open_counter_sites`) — второй копии
+    правила «какой счётчик открыт» здесь НЕТ и быть не должно: шаг спрашивает
+    про ЧИТАТЕЛЯ, а не про счётчик. Узел счётчика доискивается по той же
+    объявленной форме (:func:`_counter_target_key`) и сверяется со строкой и
+    ключом, названными соседом; не сошлось — счётчик уходит третьим исходом,
+    а не пропадает.
+    """
+    population = [s for s in _open_counter_sites(rel, tree)
+                  if s["key_origin"] == KEY_ARTIFACT
+                  and not s["membership_checked"]]
+    if not population:
+        return []
+    declared = _declared_constant_names(tree)
+    owner_of = _counter_owner_scopes(tree)
+    by_line: Dict[Tuple[int, str], Tuple[ast.AST, ast.AST, ast.AST]] = {}
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        line = int(getattr(node, "lineno", 0) or 0)
+        by_line[(line, ast.unparse(shape[1])[:60])] = (node, shape[0], shape[1])
+
+    out: List[dict] = []
+    for site in population:
+        found = by_line.get((int(site["line"] or 0), site["key"]))
+        if found is None:
+            out.append({**site, "verdict": READER_UNRESOLVED,
+                        "gap": READER_GAP_NO_READ,
+                        "reason": ("узел счётчика не найден по строке и ключу "
+                                   "соседа — читатель НЕ измерен"),
+                        "splits": [], "split_forms": [],
+                        "key_literal_by_unpacking": None,
+                        "wholesale_reads": 0, "dynamic_reads": 0,
+                        "escapes": 0, "ambiguous_fields": []})
+            continue
+        node, target, key = found
+        scope = owner_of.get(id(node), tree)
+        out.append({**site,
+                    "key_literal_by_unpacking": _key_literal_by_unpacking(
+                        scope, key),
+                    **_counter_reader_touches(scope, target, key, declared)})
+    return out
+
+
+def _reader_harm_control() -> dict:
+    """Проба объявленного правила читателя на ИЗВЕСТНОМ случае — до замера.
+
+    Половин две, и вторая не есть украшение первой. Первая требует найти вред
+    во ВСЕХ ТРЁХ формах (у счётчика, у класса, через поле). Вторая требует
+    ПРОМАХНУТЬСЯ там, где промахнуться должно: счётчик, пробегаемый целиком в
+    отчёт, вредным не объявляется, а счётчик, УБЕГАЮЩИЙ из области, не
+    объявляется ни вредным, ни безвредным — его читатель не измерен.
+
+    Любая половина не сошлась ⇒ шаг ОТКАЗЫВАЕТ целиком: число, полученное
+    правилом, которое промахивается по известному случаю, есть свойство
+    ПРАВИЛА, а не населения.
+    """
+    try:
+        harm = _reader_sites("<control>",
+                             ast.parse(READER_HARM_CONTROL_SOURCE))
+        clean = _reader_sites("<control-clean>",
+                              ast.parse(READER_HARM_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(harm) != 2:
+        return {"passed": False, "reason": (
+            f"в сцене известного случая правило нашло {len(harm)} открыт(ых) "
+            f"счётчик(ов) из 2 — читателя мерить не у чего")}
+    split = [s for s in harm if s["verdict"] == READER_SPLITS_DECLARED]
+    if len(split) != 2:
+        return {"passed": False, "reason": (
+            f"раскол доказан у {len(split)} из 2 счётчиков известного случая: "
+            f"вердикты {[s['verdict'] for s in harm]}")}
+    forms = sorted({form for s in split for form in s["split_forms"]})
+    if sorted(_SPLIT_FORMS) != forms:
+        return {"passed": False, "forms": forms, "reason": (
+            f"правило доказало раскол формами {forms}, а известный случай "
+            f"несёт все три: {sorted(_SPLIT_FORMS)} — ненайденная форма есть "
+            f"слепота правила, а не отсутствие вреда")}
+    if len(clean) != 2:
+        return {"passed": False, "reason": (
+            f"в отрицательной половине сцены правило нашло {len(clean)} "
+            f"открыт(ых) счётчик(ов) из 2")}
+    benign = [s for s in clean if s["verdict"] == READER_WHOLESALE_ONLY]
+    gone = [s for s in clean if s["gap"] == READER_GAP_ESCAPES]
+    if len(benign) != 1 or len(gone) != 1:
+        return {"passed": False, "reason": (
+            f"на отрицательной половине сцены ожидались один безвредный "
+            f"читатель и один убежавший счётчик, а вышло "
+            f"{[(s['verdict'], s['gap']) for s in clean]}")}
+    return {"passed": True, "known_case_split": len(split),
+            "split_forms": forms, "clean_false_harm": 0,
+            "clean_sites": len(clean)}
+
+
+def open_counter_reader_harm(root: Path,
+                             opened: Optional[dict]) -> dict:
+    """У скольких открытых счётчиков ЧИТАТЕЛЬ делит класс (**заказ G77 п. 1**).
+
+    ADR-460 померил ПОВЕРХНОСТЬ: 158 счётчиков открыты классу, которого никто
+    не объявлял. Вреда это не доказывает и шаг соседа говорит это вслух: у
+    известного случая (ADR-459) вред лежал не в счётчике, а у его ЧИТАТЕЛЯ —
+    ``reaching`` считал только ``REACH_LIVE``, и незнакомый класс молча
+    оказывался в другом исходе, а не лишней строкой отчёта.
+
+    Заказ ставит вопрос дословно:
+
+    > У скольких из 158 есть читатель, который делит счётчик по ОБЪЯВЛЕННЫМ
+    > классам — то есть у скольких незнакомый класс молча становится другим
+    > исходом. Ответ обязан быть замером ЧИТАТЕЛЯ, а не счётчика.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход — вторая
+    дорога к тому же населению, и разойдясь с первой, он отвечал бы на другой
+    вопрос. Разошлись ⇒ шаг ОТКАЗЫВАЕТ (``UNMEASURED``), а не выбирает себе
+    удобное число.
+
+    Третий исход обязателен и у читателя: счётчик, убежавший из области,
+    прочитанный неразрешимым ключом или не прочитанный в своей области вовсе,
+    есть **читатель НЕ ИЗМЕРЕН**, а не «вреда нет».
+
+    ADVISORY: ни одного счётчика и ни одного читателя не правит,
+    ``applied`` ложно.
+    """
+    head = {
+        "question": ("у скольких открытых счётчиков есть читатель, у которого "
+                     "незнакомый класс молча становится ДРУГИМ ИСХОДОМ, а не "
+                     "лишней строкой отчёта"),
+        "order": "G77.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if not isinstance(opened, dict) or str(opened.get("status")) != "MEASURED":
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_READER_CENSUS,
+                "reason": ("перепись открытых счётчиков не измерена — мерить "
+                           "читателя не у чего; это НЕ «вредных читателей нет»")}
+    declared_population = observed(opened, "open_to_an_unnamed_class", kind=int)
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_READER_CENSUS,
+                "reason": ("сосед не назвал числа открытых счётчиков — "
+                           "сверять свой обход не с чем")}
+    control = _reader_harm_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_READER_CONTROL,
+                "reason": (f"объявленное правило читателя не прошло контроль "
+                           f"на известном случае: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_reader_sites(rel, tree))
+
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_READER_POPULATION,
+                "walked": len(rows), "census": declared_population,
+                "files_unreadable": unreadable,
+                "reason": (f"свой обход нашёл {len(rows)} открыт(ых) "
+                           f"счётчик(ов), сосед — {declared_population}: "
+                           f"замер читателя по ДРУГОМУ населению отвечал бы "
+                           f"на другой вопрос")}
+
+    verdicts = {cls: sum(1 for r in rows if r["verdict"] == cls)
+                for cls in _READER_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("gap") == gap)
+            for gap in _READER_GAPS}
+    by_form = {form: sum(1 for r in rows if form in (r.get("split_forms") or []))
+               for form in _SPLIT_FORMS}
+    harmed = [r for r in rows if r["verdict"] == READER_SPLITS_DECLARED]
+    ambiguous = [r for r in rows if r.get("ambiguous_fields")]
+    # Завышение НАСЕЛЕНИЯ соседом, найденное запуском этого шага: ключ,
+    # разобранный кортежем, есть литерал, а сосед зовёт его артефактным.
+    # Число вреда печатается ВМЕСТЕ с ним — иначе читатель принял бы потолок
+    # за замер.
+    unpacked = [r for r in rows
+                if r.get("key_literal_by_unpacking") == "literal_by_unpacking"]
+    unpacked_harmed = [r for r in harmed
+                       if r.get("key_literal_by_unpacking")
+                       == "literal_by_unpacking"]
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "reader_verdicts": verdicts,
+        "unmeasured_reader_reasons": gaps,
+        "split_by_form": by_form,
+        "splits_only_via_field": sum(
+            1 for r in harmed if r["split_forms"] == [SPLIT_VIA_FIELD]),
+        "ambiguous_field_sites": len(ambiguous),
+        "census_key_literal_by_unpacking": len(unpacked),
+        "harm_on_a_key_that_is_a_literal": len(unpacked_harmed),
+        "harm_net_of_unpacking": len(harmed) - len(unpacked_harmed),
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "key": r["key"],
+             "forms": r["split_forms"],
+             "split": (r["splits"] or [{}])[0].get("how")}
+            for r in harmed[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("gap")}
+            for r in rows
+            if r["verdict"] == READER_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"население взято у соседа и завышено СВЕРХУ: у "
+             f"{len(unpacked)} счётчик(ов) ключ на деле ЛИТЕРАЛ, разобранный "
+             f"кортежем, — сосед связывает имя всей правой частью (ADR-460 "
+             f"поймал тот же класс у себя внутри, здесь он уровнем выше); "
+             f"из них с доказанным расколом {len(unpacked_harmed)}"),
+            ("шаг доказывает РАСКОЛ, а не его отсутствие: свидетель "
+             "односторонний, и «раскола не нашли» уходит третьим исходом, "
+             "а не в безвредные"),
+            ("читатель ищется ВНУТРИ области счётчика: счётчик, убежавший "
+             "возвратом или аргументом, уходит в "
+             f"`{READER_GAP_ESCAPES}` — межпроцедурного разбора здесь НЕТ"),
+            ("объявленным классом считается литерал, имя-константа модуля "
+             "или ЗАГЛАВНОЕ имя; имя, разрешаемое только импортом, сильнее "
+             "соглашения о заглавных здесь не разбирается"),
+            ("перенос класса ПОЛЕМ — ровно ОДИН шаг (`{'поле': класс}`), и "
+             "поле, под которым в той же области лежит ещё и другое "
+             "значение, вредом НЕ считается: связь идёт по имени поля"),
+            ("`match`/`case` над классом и сравнение через `startswith`/"
+             "регулярное выражение правилом не разбираются — их население "
+             "НЕ ИЗМЕРЕНО"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -10514,6 +11163,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # формы, промахивающейся по известному случаю, есть свойство ФОРМЫ.
     open_counters = open_class_counter_census(root)
 
+    # --- ЧИТАТЕЛЬ открытого счётчика (заказ G77 п. 1) ------------------
+    # Поверхность померена соседом выше; вред лежит не в счётчике, а у его
+    # ЧИТАТЕЛЯ, и это РАЗНЫЕ вопросы: 158 открытых не значат 158 вредящих,
+    # а «у счётчика есть читатель» не значит «читатель измерен». Население
+    # берётся у соседа и сверяется с его числом — разойдясь, шаг отказывает.
+    reader_harm = open_counter_reader_harm(root, open_counters)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -10640,6 +11296,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "registry_ambiguity_scope": registry_ambiguity,
         "tail_value_divergence": value_divergence,
         "open_class_counter_census": open_counters,
+        # Отдельным ключом, а не поправкой к соседу: «сколько счётчиков
+        # ОТКРЫТО» и «у скольких из них незнакомый класс молча становится
+        # другим ИСХОДОМ» — разные вопросы с разным третьим исходом.
+        "open_counter_reader_harm": reader_harm,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -12206,6 +12866,55 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 + (" · ключ через `str()` поверх отсутствия"
                    if item.get("str_over_absence") else ""))
         for blind in (observed(opened, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    harm = observed(doc, "open_counter_reader_harm", kind=dict)
+    if harm is None:
+        out.append("[ЧИТАТЕЛЬ СЧЁТЧИКА] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «вредящих читателей нет»")
+    elif str(harm.get("status")) == "UNMEASURED":
+        out.append(f"[ЧИТАТЕЛЬ СЧЁТЧИКА] НЕ ИЗМЕРЕНО "
+                   f"[{harm.get('unmeasured_class')}]: {harm.get('reason')}")
+    else:
+        verdicts = observed(harm, "reader_verdicts", kind=dict) or {}
+        gaps = observed(harm, "unmeasured_reader_reasons", kind=dict) or {}
+        forms = observed(harm, "split_by_form", kind=dict) or {}
+        out.append(
+            f"[ЧИТАТЕЛЬ СЧЁТЧИКА] из {harm.get('population')} открытых "
+            f"счётчиков незнакомый класс молча становится ДРУГИМ ИСХОДОМ у "
+            f"{verdicts.get(READER_SPLITS_DECLARED)}; лишней строкой отчёта — "
+            f"у {verdicts.get(READER_WHOLESALE_ONLY)}; читатель НЕ ИЗМЕРЕН у "
+            f"{verdicts.get(READER_UNRESOLVED)} "
+            f"(убежал из области {gaps.get(READER_GAP_ESCAPES)}, ключ чтения "
+            f"не разобран {gaps.get(READER_GAP_DYNAMIC)}, чтения нет вовсе "
+            f"{gaps.get(READER_GAP_NO_READ)})")
+        out.append(
+            f"[ЧИТАТЕЛЬ СЧЁТЧИКА · ЧЕМ ДОКАЗАН] счётчик прочитан объявленным "
+            f"ключом у {forms.get(SPLIT_AT_COUNTER)}, класс сравнён с "
+            f"объявленным у {forms.get(SPLIT_AT_CLASS)}, класс уехал полем и "
+            f"сравнён там у {forms.get(SPLIT_VIA_FIELD)} "
+            f"(только полем — у {harm.get('splits_only_via_field')}: это "
+            f"САМОЕ СЛАБОЕ звено доказательства, связь идёт по имени поля)")
+        out.append(
+            f"[ЧИТАТЕЛЬ СЧЁТЧИКА · ПОТОЛОК СВЕРХУ] население взято у соседа и "
+            f"завышено: у {harm.get('census_key_literal_by_unpacking')} "
+            f"счётчик(ов) ключ на деле ЛИТЕРАЛ, разобранный кортежем "
+            f"(сосед связывает имя всей правой частью); из них с доказанным "
+            f"расколом {harm.get('harm_on_a_key_that_is_a_literal')}, то есть "
+            f"вред без них — {harm.get('harm_net_of_unpacking')}")
+        control = observed(harm, "control", kind=dict) or {}
+        out.append(
+            f"[ЧИТАТЕЛЬ СЧЁТЧИКА · КОНТРОЛЬ] правило доказало раскол у "
+            f"{control.get('known_case_split')} из 2 счётчиков ИЗВЕСТНОГО "
+            f"случая всеми тремя формами и дало "
+            f"{control.get('clean_false_harm')} ложных вреда на отрицательной "
+            f"половине сцены")
+        for item in (observed(harm, "harm_sample", kind=list) or [])[:max_rows]:
+            out.append(
+                f"[ЧИТАТЕЛЬ СЧЁТЧИКА · ОБРАЗЕЦ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}[{item.get('key')}]` → раскол "
+                f"`{item.get('split')}`")
+        for blind in (observed(harm, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
