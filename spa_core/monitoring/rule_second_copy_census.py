@@ -12059,6 +12059,749 @@ def document_field_reader_in_file(root: Path, field_step: Optional[dict]
     }
 
 
+# --- ОДИН шаг по СВЯЗАННОМУ ИМЕНИ в той же области (заказ G81 п. 1) --------
+#
+# ADR-465 ответил на заказ G80 числом ТРИ и назвал ГЛАВНЫМ остатком 16:
+# читатель НАШЁЛ поле документа — объявленным читателем, подпиской или
+# `.get` — и СВЯЗАЛ прочитанное именем (`origins = observed(opened, "X",
+# kind=dict)`), после чего счётчик убежал СНОВА и раскол встал за следующей
+# границей. Граница здесь не межпроцедурная: писатель и читатель уже найдены,
+# а между связыванием имени и его чтением нет ни вызова, ни возврата — всё
+# происходит в ОДНОЙ области. Именно поэтому соседние шаги на неё не
+# отвечают: шаг вызова идёт по вызову, шаг поля — по вызову и полю, разбор по
+# имени поля — по полю, а здесь не уезжает вообще ничто.
+#
+# Вопрос заказа G81 п. 1 дословно: сколько из 16 разрешает ОДИН шаг по
+# СВЯЗАННОМУ ИМЕНИ В ТОЙ ЖЕ ОБЛАСТИ (`c = observed(doc, "X"…)` → `c[CLASS]`),
+# и сколько остаётся третьим исходом; правило объявить ДО замера, обе
+# половины контроля обязательны, а «связал и прочитал здесь» отличить от
+# «связал и отдал дальше» ИМЕНАМИ, а не одним отказом.
+
+#: Читаемое поле уехало ЦЕЛИКОМ, но имени не получило: `return audit(doc["X"])`
+#: отдаёт прочитанное прямо в вызов. Шагать не по чему — имени нет, и это НЕ
+#: «вреда нет»: раскол стои́т у зовущего, до которого этому шагу хода нет.
+#: Отдельное имя нужно потому, что чинится оно ДРУГИМ (межпроцедурным
+#: разбором), а не ещё одним шагом в этой же области.
+BOUND_GAP_UNBOUND = "read_value_is_handed_on_without_a_name"
+#: Прочитанное связано РАЗНЫМИ именами (`a = doc["X"]` и `b = doc["X"]`).
+#: «Какое из двух» есть третий исход, а не выбор: молчаливый выбор первого дал
+#: бы читателя, которого на этом пути может не быть вовсе. Строгость ошибается
+#: в сторону третьего исхода — отрицательная половина контроля несёт ровно
+#: такой счётчик с ГОТОВЫМ расколом у ОБОИХ имён, и правило обязано его НЕ
+#: засчитать.
+BOUND_GAP_MANY_NAMES = "read_value_is_bound_to_more_than_one_name"
+#: ГЛАВНОЕ ограничение односторонности этого шага, и оно объявлено ОТКАЗОМ, а
+#: не оговоркой в тексте. Имя, которому в этой области присваивают больше
+#: одного раза (или которое ещё и параметр), к моменту чтения могло держать
+#: ЧУЖОЕ значение — `c = doc["X"]` … `c = other` … `c[CLASS]`. Засчитать такой
+#: раскол нашим значило бы доказывать вред СОВПАДЕНИЕМ ИМЁН — ровно тот
+#: дефект, против которого ADR-465 завёл `field_name_is_written_by_more_than_
+#: one_scope_in_this_file` уровнем выше.
+BOUND_GAP_REBOUND = "bound_name_is_assigned_from_more_than_one_source_in_this_scope"
+#: НАЙДЕНО ЗАПУСКОМ, и ровно за этим стои́т весь живой остаток. Между честным
+#: чтением и именем чаще всего стои́т ОДИН узел — защитный хвост:
+#: ``ext = observed(doc, "by_extension", kind=dict) or {}``. Значение имя
+#: получает, просто на узел позже, и назвать это «отдано без имени» значило бы
+#: послать чинить МЕЖПРОЦЕДУРНЫЙ разбор там, где не хватает одного звена в
+#: этой же области. Имя отказа — то, чем отказ чинится (урок ADR-465: соврать
+#: в имени дороже, чем ошибиться в числе), поэтому у хвоста имя своё.
+BOUND_GAP_OR_TAIL = "read_value_is_bound_behind_a_defensive_or_tail"
+#: Тоже найдено запуском, и это ЧУЖОЙ потолок, а не наш: ``f"{doc['counts']}"``
+#: никуда не уезжает — счётчик печатают ЦЕЛИКОМ, — но правило побега соседа
+#: перечисляет пробег поимённо и всё прочее зовёт побегом. Класс назван и
+#: измерен ещё ADR-462 (заказ G79 п. 2), прибор соседа не правится (чужая
+#: батарея, п. 2 правила приёмки), и наследуется он этим шагом целиком.
+#: Отдельное имя нужно, чтобы читатель не искал вреда там, где его нет.
+BOUND_GAP_PRINTED_WHOLE = "read_value_is_interpolated_whole_into_a_string"
+#: Отказы, названные СОСЕДСКИМИ именами там, где чинятся тем же самым:
+#: связанное имя убежало СНОВА (нужен следующий шаг), прочитано ключом,
+#: который правило не разрешает, не прочитано вовсе. Заводить им вторые имена
+#: значило бы развести один класс по двум счётчикам.
+_BOUND_GAPS = (BOUND_GAP_UNBOUND, BOUND_GAP_OR_TAIL, BOUND_GAP_PRINTED_WHOLE,
+               BOUND_GAP_MANY_NAMES, BOUND_GAP_REBOUND, STEP_GAP_ESCAPES_AGAIN,
+               READER_GAP_DYNAMIC, STEP_GAP_NO_READ)
+
+#: Отказы самого шага. Три, и ни один не есть ноль.
+UNMEASURED_BOUND_NEIGHBOUR = "document_reader_census_is_absent_or_unmeasured"
+UNMEASURED_BOUND_POPULATION = "second_walk_disagrees_with_the_document_reader_census"
+UNMEASURED_BOUND_CONTROL = "declared_bound_name_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — ТРИ формы чтения поля (подписка · `.get`
+#: · объявленный читатель `observed`), и каждая обязана довести до
+#: расколотого читателя через СВЯЗАННОЕ ИМЯ. Форм именно три потому, что
+#: население этого шага целиком состоит из читателей соседа, а тот считает
+#: чтением все три: правило, знающее одну, объявило бы «связать нечего» там,
+#: где связывают другой формой, — то есть выдало бы НЕ ИЗМЕРЕНО за измеренный
+#: исход (урок ADR-465, где ровно такая слепота стоила 11 ложных имён отказа).
+#: У каждого счётчика зовущий поле НЕ читает — иначе его разрешил бы сосед, и
+#: сцена мерила бы чужое правило.
+BOUND_NAME_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+
+
+def alpha_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"alpha": counts}
+
+
+def alpha_caller(rows):
+    doc = alpha_writer(rows)
+    return len(doc)
+
+
+def alpha_reader(doc):
+    c = doc["alpha"]
+    return c[REACH_LIVE] > 0
+
+
+def beta_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"beta": counts}
+
+
+def beta_caller(rows):
+    doc = beta_writer(rows)
+    return len(doc)
+
+
+def beta_reader(doc):
+    c = doc.get("beta")
+    return c.get(REACH_LIVE, 0) > 0
+
+
+def gamma_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"gamma": counts}
+
+
+def gamma_caller(rows):
+    doc = gamma_writer(rows)
+    return len(doc)
+
+
+def gamma_reader(doc):
+    c = observed(doc, "gamma", kind=dict)
+    return c[REACH_LIVE] > 0
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг разрешил N» было бы неотличимо от
+#: «шаг объявляет разрешённым что угодно». ДЕВЯТЬ счётчиков приезжают в
+#: документ одинаково и читаются одинаково, а шаг обязан развести их ВОСЕМЬЮ
+#: разными именами отказа плюс ОДНИМ безвредным читателем: прочитанное отдано
+#: в вызов без имени · связано за защитным хвостом `or {}` · напечатано целиком
+#: в строку · связано двумя именами (и раскол готов у обоих — засчитать его
+#: значило бы доказать вред совпадением имён) · имя переприсвоено из другого
+#: источника (раскол тоже готов) · имя убежало СНОВА · имя прочитано
+#: неразрешимым ключом · имя не прочитано вовсе · имя пробежали целиком.
+#: Отказ, слитый с «безвредно», и есть подмена третьего исхода измеренным;
+#: отказ, названный ЧУЖИМ именем, посылает чинить не то.
+BOUND_NAME_CONTROL_CLEAN = '''
+REACH_LIVE = "live"
+
+
+def unb_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"unb": counts}
+
+
+def unb_caller(rows):
+    doc = unb_writer(rows)
+    return len(doc)
+
+
+def unb_reader(doc):
+    return audit(doc["unb"])
+
+
+def many_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"many": counts}
+
+
+def many_caller(rows):
+    doc = many_writer(rows)
+    return len(doc)
+
+
+def many_reader(doc):
+    a = doc["many"]
+    b = doc["many"]
+    return a[REACH_LIVE] + b[REACH_LIVE]
+
+
+def reb_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"reb": counts}
+
+
+def reb_caller(rows):
+    doc = reb_writer(rows)
+    return len(doc)
+
+
+def reb_reader(doc, other):
+    c = doc["reb"]
+    if other:
+        c = other
+    return c[REACH_LIVE] > 0
+
+
+def again_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"again": counts}
+
+
+def again_caller(rows):
+    doc = again_writer(rows)
+    return len(doc)
+
+
+def again_reader(doc):
+    c = doc["again"]
+    return c
+
+
+def dyn_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"dyn": counts}
+
+
+def dyn_caller(rows):
+    doc = dyn_writer(rows)
+    return len(doc)
+
+
+def dyn_reader(doc, key):
+    c = doc["dyn"]
+    return c[key] > 0
+
+
+def nor_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"nor": counts}
+
+
+def nor_caller(rows):
+    doc = nor_writer(rows)
+    return len(doc)
+
+
+def nor_reader(doc):
+    c = doc["nor"]
+    return 0
+
+
+def who_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"who": counts}
+
+
+def who_caller(rows):
+    doc = who_writer(rows)
+    return len(doc)
+
+
+def who_reader(doc):
+    c = doc["who"]
+    return sorted(c)
+
+
+def tail_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tail": counts}
+
+
+def tail_caller(rows):
+    doc = tail_writer(rows)
+    return len(doc)
+
+
+def tail_reader(doc):
+    c = observed(doc, "tail", kind=dict) or {}
+    return c[REACH_LIVE] > 0
+
+
+def shown_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"shown": counts}
+
+
+def shown_caller(rows):
+    doc = shown_writer(rows)
+    return len(doc)
+
+
+def shown_reader(doc):
+    return f"{doc['shown']}"
+'''
+
+
+def _assigned_name(parent: Optional[ast.AST]) -> Optional[str]:
+    """Имя, которому присвоен этот узел, — или ``None``.
+
+    Связыванием считается ТОЛЬКО присваивание голому имени (``c = …`` и
+    ``c: T = …``) — то же правило, которым отвечает
+    :func:`_callers_binding_the_result` соседа. Распаковка кортежем сюда не
+    попадает намеренно: «какая из позиций наша» есть третий исход, а не выбор
+    (урок ADR-461, где ровно на распаковке сосед завысил своё население).
+    """
+    if (isinstance(parent, ast.Assign) and len(parent.targets) == 1
+            and isinstance(parent.targets[0], ast.Name)):
+        return parent.targets[0].id
+    if (isinstance(parent, ast.AnnAssign)
+            and isinstance(parent.target, ast.Name)):
+        return parent.target.id
+    return None
+
+
+def _binding_of_read(scope: ast.AST, read: ast.AST) -> dict:
+    """Имя, которым СВЯЗАН результат чтения поля, — или почему шагать не по чему.
+
+    Правило побега здесь НЕ переписано: узлы, которыми прочитанное покидает
+    выражение, даёт :func:`_escape_sites`, то есть в конечном счёте общий
+    :func:`_counter_whole_use`. Четвёртая копия правила побега внутри прибора,
+    который ищет вторые копии правил, была бы ровно тем дефектом, что этот
+    файл уже ловил у себя трижды (ADR-460 у подписки, ADR-461 у кортежа,
+    ADR-462 у самого правила побега).
+
+    Связыванием считается ТОЛЬКО присваивание голому имени (``c = …`` и
+    ``c: T = …``) — то же правило, которым отвечает
+    :func:`_callers_binding_the_result` соседа. Связано НЕ ВСЁ, что убежало
+    (часть уехала в вызов, часть — именем) ⇒ отказ: разрешить по связанной
+    половине значило бы объявить измеренным исход, у которого вторая половина
+    не измерена.
+    """
+    escapes = _escape_sites(scope, read)
+    if not escapes:
+        return {"gap": BOUND_GAP_UNBOUND, "name": None, "escapes": 0,
+                "bound": 0, "or_tail": 0, "printed": 0}
+    parents = _parent_map(scope)
+    names: List[str] = []
+    or_tail = 0
+    printed = 0
+    for node in escapes:
+        parent = parents.get(id(node))
+        name = _assigned_name(parent)
+        if name is not None:
+            names.append(name)
+        elif (isinstance(parent, ast.BoolOp) and isinstance(parent.op, ast.Or)
+                and parent.values and parent.values[0] is node
+                and _assigned_name(parents.get(id(parent))) is not None):
+            or_tail += 1
+        elif isinstance(parent, ast.FormattedValue):
+            printed += 1
+    shape = {"escapes": len(escapes), "bound": len(names),
+             "or_tail": or_tail, "printed": printed}
+    # Порядок НЕ произволен: имя отказа обязано назвать то, чем отказ
+    # ЧИНИТСЯ, поэтому первым называется самый дорогой предел. Отдано в
+    # чужой вызов ⇒ нужен межпроцедурный разбор; напечатано целиком ⇒ чинить
+    # надо правило побега СОСЕДА (чужая батарея); защитный хвост ⇒ хватит
+    # одного звена здесь.
+    if len(names) + or_tail + printed != len(escapes):
+        return {**shape, "gap": BOUND_GAP_UNBOUND, "name": None}
+    if printed:
+        return {**shape, "gap": BOUND_GAP_PRINTED_WHOLE, "name": None}
+    if or_tail:
+        return {**shape, "gap": BOUND_GAP_OR_TAIL, "name": None}
+    distinct = sorted(set(names))
+    if len(distinct) != 1:
+        return {**shape, "gap": BOUND_GAP_MANY_NAMES, "name": None,
+                "names": distinct}
+    return {**shape, "gap": None, "name": distinct[0]}
+
+
+def _name_binding_sources(scope: ast.AST, name: str) -> int:
+    """Сколько РАЗНЫХ мест области связывают это имя.
+
+    Считается всё, что делает имя связанным: присваивание, распаковка,
+    ``for``-цель, ``with … as``, ``except … as`` — то есть всякий
+    :class:`ast.Name` в позиции записи — И параметр области. Параметр здесь
+    не формальность: ``def reader(doc, c)`` с последующим ``c = doc["X"]``
+    означает, что до присваивания имя держало чужое значение, и чтение ниже
+    могло прийти от него.
+
+    Ноль тоже возможен (имя пришло из объемлющей области) и единицей не
+    выдаётся: судит вызывающий, а ``!= 1`` есть третий исход.
+    """
+    sources = sum(1 for node in ast.walk(scope)
+                  if isinstance(node, ast.Name) and node.id == name
+                  and isinstance(node.ctx, (ast.Store, ast.Del)))
+    sources += sum(1 for node in ast.walk(scope)
+                   if isinstance(node, ast.arg) and node.arg == name)
+    return sources
+
+
+def _bound_name_site(scope: ast.AST, read: ast.AST, declared: Set[str]) -> dict:
+    """ОДИН шаг по связанному имени для ОДНОГО чтения поля.
+
+    Правило объявлено здесь, ДО замера, и состоит из трёх звеньев, у каждого
+    свой отказ:
+
+    1. прочитанное СВЯЗАНО ровно одним именем (:func:`_binding_of_read`) —
+       иначе шагать не по чему (:data:`BOUND_GAP_UNBOUND`) или непонятно по
+       чему (:data:`BOUND_GAP_MANY_NAMES`);
+    2. это имя в области связывает РОВНО ОДИН источник
+       (:func:`_name_binding_sources`) — иначе прочитанный класс мог прийти от
+       чужого значения (:data:`BOUND_GAP_REBOUND`);
+    3. читателя имени разбирает :func:`_one_step_reader` — правило читателя
+       УЖЕ соседское, второй копии его здесь нет, и найденный раскол есть
+       доказанный МИНИМУМ.
+    """
+    found = _binding_of_read(scope, read)
+    if found["gap"] is not None:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": found["gap"],
+                "splits": [], "bound": None, "sources": None}
+    name = found["name"]
+    sources = _name_binding_sources(scope, name)
+    if sources != 1:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": BOUND_GAP_REBOUND,
+                "splits": [], "bound": name, "sources": sources}
+    step = _one_step_reader(scope, ast.Name(id=name, ctx=ast.Load()), declared)
+    return {**step, "bound": name, "sources": sources}
+
+
+def _bound_name_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                     declared: Set[str], scope: ast.AST, field: str) -> dict:
+    """Шаг по связанному имени для ОДНОГО счётчика, уехавшего в документ.
+
+    Чтения поля берутся у соседа (:func:`_document_field_reads`), и вердикт
+    соседа по каждому чтению спрашивается первым: наш шаг вступает ТОЛЬКО
+    там, где сосед отказал побегом (:data:`STEP_GAP_ESCAPES_AGAIN`) — то есть
+    ровно на населении заказа. У прочих чтений вердикт соседа проходит
+    насквозь без изменений: переписать его значило бы завести вторую копию
+    правила читателя.
+
+    Свод по нескольким чтениям — :func:`_merge_step_reads` соседа: раскол
+    доказан хотя бы одним ⇒ доказан; не доказан, но хоть одно НЕ ИЗМЕРЕНО ⇒
+    не измерен весь счётчик.
+    """
+    reads = _document_field_reads(tree, owner_of, field, scope)
+    seen: List[dict] = []
+    bound: List[dict] = []
+    for reader_scope, node, _form in reads:
+        neighbour = _one_step_reader(reader_scope, node, declared)
+        if neighbour.get("gap") != STEP_GAP_ESCAPES_AGAIN:
+            seen.append(neighbour)
+            continue
+        step = _bound_name_site(reader_scope, node, declared)
+        seen.append(step)
+        bound.append(step)
+    merged = _merge_step_reads(seen)
+    return {**merged,
+            "read_forms": sorted({form for _s, _n, form in reads}),
+            "bound_names": sorted({s["bound"] for s in bound
+                                   if s.get("bound")}),
+            "stepped": sum(1 for s in bound if s.get("sources") == 1)}
+
+
+def _bound_name_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Счётчики ОДНОГО файла, у которых читатель поля СВЯЗАЛ прочитанное именем.
+
+    Население НЕ пересобирается и правило соседа НЕ копируется: обход тот же
+    (:func:`_one_step_site_nodes`), поле считает сосед (:func:`_field_step`),
+    читателя поля — сосед (:func:`_document_reader_step`), а отбираются
+    строки, которым тот отказал ИМЕННО побегом прочитанного.
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    declared: Optional[Set[str]] = None
+    for site, target, scope in _one_step_site_nodes(rel, tree):
+        if site.get("step_gap") != STEP_GAP_CONTAINER or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            declared = _declared_constant_names(tree)
+        field_out = _field_step(tree, parents, owner_of, declared, scope,
+                               target)
+        if field_out["gap"] not in (FIELD_GAP_FIELD_NEVER_READ,
+                                    STEP_GAP_RESULT_UNBOUND):
+            continue
+        doc_out = _document_reader_step(tree, owner_of, declared, scope,
+                                        list(field_out["fields"]))
+        if doc_out["gap"] != STEP_GAP_ESCAPES_AGAIN:
+            continue
+        out = _bound_name_step(tree, owner_of, declared, scope,
+                               doc_out["field"])
+        rows.append({**site, "field": doc_out["field"],
+                     "bound_step": out["verdict"], "bound_gap": out["gap"],
+                     "read_forms": out["read_forms"],
+                     "bound_names": out["bound_names"],
+                     "bound_splits": out["splits"],
+                     "stepped": out["stepped"]})
+    return rows
+
+
+def _bound_name_control() -> dict:
+    """Проба объявленного правила — до замера, обеими половинами.
+
+    Первая половина требует довести до расколотого читателя КАЖДЫЙ счётчик
+    положительной сцены и доказать это ВСЕМИ тремя формами чтения поля.
+    Вторая требует ОТКАЗАТЬ там, где отказать должно, и отказать РАЗНЫМИ
+    именами — в том числе на ДВУХ счётчиках с ГОТОВЫМ расколом (имя связано
+    дважды · имя переприсвоено), которые правило обязано НЕ засчитать. Любая
+    половина не сошлась ⇒ шаг отказывает целиком: число, полученное правилом,
+    промахивающимся по известной форме, есть свойство ПРАВИЛА, а не населения.
+    """
+    try:
+        source = _bound_name_sites("<control>",
+                                   ast.parse(BOUND_NAME_CONTROL_SOURCE))
+        clean = _bound_name_sites("<control-clean>",
+                                  ast.parse(BOUND_NAME_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != len(_DOC_READ_FORMS):
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} счётчик(ов), "
+            f"чьё поле прочитано и СВЯЗАНО именем, из "
+            f"{len(_DOC_READ_FORMS)} — шагать по связанному имени нечего")}
+    split = [s for s in source if s["bound_step"] == ONE_STEP_SPLITS]
+    if len(split) != len(source):
+        return {"passed": False, "reason": (
+            f"шаг по связанному имени довёл до расколотого читателя "
+            f"{len(split)} из {len(source)} счётчиков: исходы "
+            f"{[(s['bound_step'], s['bound_gap']) for s in source]}")}
+    forms = sorted({f for s in split for f in s["read_forms"]})
+    if forms != sorted(_DOC_READ_FORMS):
+        return {"passed": False, "forms": forms, "reason": (
+            f"раскол доказан формами чтения {forms}, а сцена несёт все "
+            f"{sorted(_DOC_READ_FORMS)} — ненайденная форма есть слепота "
+            f"правила, а не отсутствие связанных имён")}
+    if len(clean) != len(_BOUND_GAPS) + 1:
+        return {"passed": False, "reason": (
+            f"в отрицательной сцене правило нашло {len(clean)} счётчик(ов) из "
+            f"{len(_BOUND_GAPS) + 1}")}
+    false_splits = [s for s in clean if s["bound_step"] == ONE_STEP_SPLITS]
+    benign = [s for s in clean if s["bound_step"] == ONE_STEP_WHOLESALE]
+    gaps = sorted({s["bound_gap"] for s in clean if s["bound_gap"]})
+    if false_splits or len(benign) != 1 or gaps != sorted(_BOUND_GAPS):
+        return {"passed": False, "reason": (
+            f"на отрицательной сцене ожидались ноль расколов, один "
+            f"безвредный читатель и {len(_BOUND_GAPS)} разных отказ(ов) "
+            f"({sorted(_BOUND_GAPS)}), а вышло "
+            f"{[(s['bound_step'], s['bound_gap']) for s in clean]}")}
+    # Два числа живости РАЗЛИЧНЫ на этой сцене — и только поэтому мутация,
+    # подменившая одно другим, ловится (урок ADR-462 и ADR-465: на живом
+    # дереве числа могут совпасть, и тогда живой замер такую подмену не видит).
+    named = sum(1 for s in clean if s["bound_names"])
+    stepped = sum(1 for s in clean if s["stepped"])
+    if named != 5 or stepped != 4:
+        return {"passed": False, "reason": (
+            f"на отрицательной сцене связанных имён {named} (ожидалось 5) и "
+            f"дошедших до звена 3 — {stepped} (ожидалось 4): числа живости "
+            f"обязаны РАЗЛИЧАТЬСЯ, иначе подмена одного другим не ловится")}
+    return {"passed": True, "known_case_resolved": len(split),
+            "read_forms": forms, "clean_false_splits": 0,
+            "clean_refusal_names": gaps, "clean_benign": len(benign),
+            "clean_bound_named": named, "clean_stepped": stepped}
+
+
+def bound_name_read_in_this_scope(root: Path, doc_step: Optional[dict]
+                                  ) -> dict:
+    """Сколько счётчиков со СВЯЗАННЫМ именем разрешает шаг в ТОЙ ЖЕ области (**заказ G81 п. 1**).
+
+    ADR-465 ответил на заказ G80 числом ТРИ и назвал главным остатком **16**:
+    читатель нашёл поле документа и СВЯЗАЛ прочитанное именем, после чего
+    счётчик убежал СНОВА. Заказ G81 п. 1 дословно:
+
+    > Сколько из 16 разрешает ОДИН шаг по связанному имени В ТОЙ ЖЕ области
+    > (``c = observed(doc, "X"…)`` → ``c[CLASS]``), и сколько остаётся третьим
+    > исходом. Правило объявить ДО замера, обе половины контроля обязательны,
+    > и различить «связал и прочитал здесь» от «связал и отдал дальше»
+    > ИМЕНАМИ, а не одним отказом.
+
+    Требование заказа про имена исполнено ЗВЕНЬЯМИ, а не оговоркой: «связал и
+    отдал дальше» есть :data:`STEP_GAP_ESCAPES_AGAIN` (имя убежало снова),
+    «отдал, не связав» — :data:`BOUND_GAP_UNBOUND`, и это два РАЗНЫХ отказа,
+    потому что чинятся они разным: первый — ещё одним шагом в этой области,
+    второй — межпроцедурным разбором.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько из счётчиков, чьё поле прочитано и СВЯЗАНО "
+                     "именем, разрешает один шаг по этому имени в той же "
+                     "области и сколько остаётся третьим исходом"),
+        "order": "G81.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(doc_step, dict)
+            or str(doc_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_BOUND_NEIGHBOUR,
+                "reason": ("разбор по имени поля не измерен — населения "
+                           "«поле прочитано и уехало СНОВА» не существует; "
+                           "это НЕ «таких счётчиков нет»")}
+    reasons = observed(doc_step, "unresolved_reasons", kind=dict)
+    declared_population = (None if reasons is None
+                           else observed(reasons, STEP_GAP_ESCAPES_AGAIN,
+                                         kind=int))
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_BOUND_NEIGHBOUR,
+                "reason": ("сосед не назвал числа счётчиков, прочитанных и "
+                           "убежавших снова, — сверять свой обход не с чем")}
+    control = _bound_name_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_BOUND_CONTROL,
+                "reason": (f"объявленное правило шага по связанному имени не "
+                           f"прошло контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_bound_name_sites(rel, tree))
+
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_BOUND_POPULATION,
+                "walked": len(rows), "census": declared_population,
+                "files_unreadable": unreadable,
+                "reason": (f"свой обход нашёл {len(rows)} счётчик(ов) со "
+                           f"связанным именем, сосед — "
+                           f"{declared_population}: шаг по ДРУГОМУ населению "
+                           f"отвечал бы на другой вопрос")}
+
+    outcomes = {cls: sum(1 for r in rows if r["bound_step"] == cls)
+                for cls in _ONE_STEP_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("bound_gap") == gap)
+            for gap in _BOUND_GAPS}
+    read_forms = {form: sum(1 for r in rows
+                            if form in (r.get("read_forms") or []))
+                  for form in _DOC_READ_FORMS}
+    resolved = outcomes[ONE_STEP_SPLITS] + outcomes[ONE_STEP_WHOLESALE]
+    split_rows = [r for r in rows if r["bound_step"] == ONE_STEP_SPLITS]
+    # Два разных числа живости, и складывать их в одно было бы подменой
+    # (урок ADR-462): «прочитанное СВЯЗАНО ровно одним именем» и «у этого
+    # имени ровно один источник» — разные достижения. Первое доказывает, что
+    # звено 1 правила отработало, второе — что отработало и звено 2; третье
+    # видно по исходам.
+    named = sum(1 for r in rows if r.get("bound_names"))
+    stepped = sum(1 for r in rows if int(r.get("stepped") or 0) > 0)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "bound_step_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "read_forms": read_forms,
+        "resolved_by_bound_name_step": resolved,
+        "read_value_bound_to_a_name": named,
+        "bound_name_single_source": stepped,
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "bound": (r.get("bound_names") or [None])[0],
+             "split": (r["bound_splits"] or [{}])[0].get("how")}
+            for r in split_rows[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("bound_gap"),
+             "field": r.get("field"),
+             "bound": (r.get("bound_names") or [None])[0]}
+            for r in rows
+            if r["bound_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"имя — не значение: раскол засчитан только потому, что имя в "
+             f"области связывает РОВНО ОДИН источник "
+             f"(`{BOUND_GAP_REBOUND}`) — снять это звено значило бы "
+             "доказывать вред совпадением имён внутри области, ровно как "
+             "ADR-465 запретил это снаружи"),
+            (f"`{BOUND_GAP_UNBOUND}` есть предел ПРИБОРА, а не отсутствие "
+             "вреда: прочитанное, отданное прямо в вызов, читают у зовущего, "
+             "и туда этому шагу хода нет по построению"),
+            (f"`{BOUND_GAP_OR_TAIL}` — предел ОДНОГО ЗВЕНА, самый дешёвый из "
+             "трёх: значение имя получает, просто на узел позже; назвать его "
+             "«отдано без имени» значило бы послать чинить межпроцедурный "
+             "разбор вместо одной ветки в этой же области"),
+            (f"`{BOUND_GAP_PRINTED_WHOLE}` — ЧУЖОЙ потолок, названный ещё "
+             "ADR-462: счётчик, напечатанный целиком в строку, не уезжает "
+             "никуда, а правило побега соседа зовёт это побегом; прибор "
+             "соседа здесь не правится (чужая батарея)"),
+            (f"счётчик, чьё имя убежало СНОВА (`{STEP_GAP_ESCAPES_AGAIN}`), "
+             "остаётся НЕ ИЗМЕРЕННЫМ — это не «вреда нет», а «нужен ещё шаг»"),
+            ("правило читателя УЖЕ соседское: выражение класса до этой "
+             "области не доезжает, поэтому раскол доказывается только формой "
+             "«имя прочитано объявленным ключом»; найденное есть доказанный "
+             "МИНИМУМ"),
+            ("вещь, у которой читают поле, до писателя НЕ прослежена — этот "
+             "шаг наследует односторонность соседа целиком (ADR-465: связь "
+             "идёт по имени поля, а имя не есть адрес)"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461 — ключ, разобранный кортежем; ADR-462 — счётчик, не "
+             "уезжающий вовсе; ADR-463 — форма переноса; ADR-465 — форма "
+             "чтения): своего замера населения у этого шага нет по "
+             "построению"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -13224,6 +13967,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # Население берётся у шага переноса полем и сверяется с его числом.
     doc_step = document_field_reader_in_file(root, field_step)
 
+    # --- ОДИН шаг по СВЯЗАННОМУ ИМЕНИ в той же области (заказ G81 п. 1) -
+    # ADR-465 назвал главным остатком 16 из 26: читатель НАШЁЛ поле и
+    # СВЯЗАЛ прочитанное именем, после чего счётчик убежал СНОВА. Вопрос
+    # G81 — сколько из этих 16 разрешает шаг по связанному имени в ТОЙ ЖЕ
+    # области. Население берётся у разбора по имени поля и сверяется с его
+    # числом.
+    bound_step = bound_name_read_in_this_scope(root, doc_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -13367,6 +14118,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # файле» — разные вопросы с разным третьим исходом, и ответ второго
         # не отменяет первого.
         "document_field_reader_in_file": doc_step,
+        # Отдельным ключом, а не поправкой к соседу: «скольких достаёт
+        # разбор ПО ИМЕНИ ПОЛЯ» и «скольких достаёт шаг по СВЯЗАННОМУ
+        # ИМЕНИ» — разные вопросы с разным третьим исходом, и ответ
+        # второго не отменяет первого.
+        "bound_name_read_in_this_scope": bound_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -15163,6 +15919,69 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` поле `{item.get('field')}` — "
                 f"{item.get('split')}")
         for blind in (observed(doc_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    bound_step = observed(doc, "bound_name_read_in_this_scope", kind=dict)
+    if bound_step is None:
+        out.append("[ПО СВЯЗАННОМУ ИМЕНИ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «счётчиков со связанным именем нет»")
+    elif str(bound_step.get("status")) == "UNMEASURED":
+        out.append(f"[ПО СВЯЗАННОМУ ИМЕНИ] НЕ ИЗМЕРЕНО "
+                   f"[{bound_step.get('unmeasured_class')}]: "
+                   f"{bound_step.get('reason')}")
+    else:
+        outcomes = observed(bound_step, "bound_step_outcomes", kind=dict) or {}
+        why = observed(bound_step, "unresolved_reasons", kind=dict) or {}
+        forms = observed(bound_step, "read_forms", kind=dict) or {}
+        out.append(
+            f"[ПО СВЯЗАННОМУ ИМЕНИ] из {bound_step.get('population')} "
+            f"счётчиков, чьё поле прочитано и СВЯЗАНО именем, шаг по этому "
+            f"имени в ТОЙ ЖЕ области доводит до расколотого читателя "
+            f"{outcomes.get(ONE_STEP_SPLITS)}, до безвредного — "
+            f"{outcomes.get(ONE_STEP_WHOLESALE)}; остаётся третьим исходом "
+            f"{bound_step.get('still_unmeasured')}")
+        out.append(
+            f"[ПО СВЯЗАННОМУ ИМЕНИ · ПОЧЕМУ НЕ ДОШЁЛ] отдано в вызов БЕЗ "
+            f"имени {why.get(BOUND_GAP_UNBOUND)} · связано за защитным "
+            f"хвостом `or {{}}` {why.get(BOUND_GAP_OR_TAIL)} · напечатано "
+            f"целиком в строку {why.get(BOUND_GAP_PRINTED_WHOLE)} · связано "
+            f"больше чем одним "
+            f"именем {why.get(BOUND_GAP_MANY_NAMES)} · имя переприсвоено из "
+            f"другого источника {why.get(BOUND_GAP_REBOUND)} · имя убежало "
+            f"СНОВА {why.get(STEP_GAP_ESCAPES_AGAIN)} · имя прочитано "
+            f"неразрешимым ключом {why.get(READER_GAP_DYNAMIC)} · имя не "
+            f"прочитано вовсе {why.get(STEP_GAP_NO_READ)} — «связал и отдал "
+            f"дальше» и «отдал, не связав» РАЗНЫЕ отказы, потому что чинятся "
+            f"разным")
+        out.append(
+            f"[ПО СВЯЗАННОМУ ИМЕНИ · ФОРМА ЧТЕНИЯ] подписка "
+            f"{forms.get(DOC_READ_SUBSCRIPT)} · `.get` "
+            f"{forms.get(DOC_READ_GET)} · объявленный читатель "
+            f"`{DOC_READ_HELPER}` {forms.get(DOC_READ_OBSERVED)}")
+        out.append(
+            f"[ПО СВЯЗАННОМУ ИМЕНИ · ПРОВОДКА ЖИВА] прочитанное связано РОВНО "
+            f"одним именем у {bound_step.get('read_value_bound_to_a_name')} "
+            f"счётчик(ов), и у {bound_step.get('bound_name_single_source')} "
+            f"это имя связывает РОВНО ОДИН источник: два разных достижения, и "
+            f"складывать их в одно значило бы выдать половину проводки за "
+            f"целую")
+        control = observed(bound_step, "control", kind=dict) or {}
+        out.append(
+            f"[ПО СВЯЗАННОМУ ИМЕНИ · КОНТРОЛЬ] правило разрешило "
+            f"{control.get('known_case_resolved')} счётчик(ов) положительной "
+            f"сцены ВСЕМИ {len(control.get('read_forms') or [])} формами "
+            f"чтения и дало {control.get('clean_false_splits')} ложных "
+            f"расколов на отрицательной, разведя её "
+            f"{len(control.get('clean_refusal_names') or [])} РАЗНЫМИ именами "
+            f"отказа — в том числе на ДВУХ счётчиках с ГОТОВЫМ расколом, "
+            f"который правило обязано НЕ засчитать")
+        for item in (observed(bound_step, "harm_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ПО СВЯЗАННОМУ ИМЕНИ · РАСКОЛ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` поле `{item.get('field')}` → имя "
+                f"`{item.get('bound')}` — {item.get('split')}")
+        for blind in (observed(bound_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
