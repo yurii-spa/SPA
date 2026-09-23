@@ -11400,6 +11400,665 @@ def container_counter_field_step(root: Path, step: Optional[dict]) -> dict:
         ],
     }
 
+# --- Разбор ПО ИМЕНИ ПОЛЯ ЧЕРЕЗ ГРАНИЦУ ФУНКЦИИ (заказ G80 п. 1) -----------
+#
+# ADR-463 ответил на заказ G79 нулём и назвал ГЛАВНЫМ числом 26 из 53: два
+# имени отказа — `next_scope_never_reads_that_field` (16) и
+# `returned_value_is_not_bound_to_a_name` (10) — суть ОДИН класс, названный с
+# двух сторон. Счётчик кладут в ДОКУМЕНТ, документ возвращают, и поле его
+# читают НЕ У ЗОВУЩЕГО, а много позже: другой функцией, другой точкой входа,
+# из сохранённого артефакта. Шаг вызова и шаг поля не отвечают на это оба:
+# первый идёт по вызову, второй — по вызову И полю, а документ доезжает до
+# читателя БЕЗ вызова между ними.
+#
+# Вопрос заказа G80 п. 1 дословно: сколько из 26 разрешает разбор ПО ИМЕНИ
+# ПОЛЯ ЧЕРЕЗ ГРАНИЦУ ФУНКЦИИ («кто в этом файле вообще читает ключ `X` у чего
+# угодно»), и сколько остаётся третьим исходом.
+
+#: ПОЧЕМУ разбор по имени поля не дошёл. Имена новые там, где чинится новым, и
+#: СОСЕДСКИЕ там, где чинится тем же самым: «поле прочитано и уехало СНОВА» и
+#: «ключ чтения не разрешается» — ровно те же вопросы, что у соседних шагов, и
+#: заводить им вторые имена значило бы развести один класс по двум счётчикам.
+DOC_GAP_MANY_FIELDS = "counter_travels_under_more_than_one_field_name"
+#: ГЛАВНОЕ ограничение односторонности, и оно объявлено отказом, а не
+#: оговоркой в тексте. «Нашли читателя ключа `X`» НЕ есть «читают НАШ
+#: счётчик»: связь идёт по ИМЕНИ ПОЛЯ, а имя — не адрес. Если ключ `X` в этом
+#: файле пишет больше одной области, чтение `что_угодно['X']` могло прийти от
+#: ЧУЖОГО документа, и засчитать его нашим значило бы доказывать вред
+#: совпадением имён. Такой счётчик есть ТРЕТИЙ ИСХОД, а не находка.
+DOC_GAP_FIELD_WRITTEN_TWICE = "field_name_is_written_by_more_than_one_scope_in_this_file"
+#: Ключ не читает в этом файле НИКТО. Это НЕ «вреда нет»: ровно так выглядит
+#: документ, который пишут здесь, а читают в другом файле или другой точкой
+#: входа — тот самый класс, ради которого шаг и написан. Прибор видит один
+#: файл по построению, и «не вижу читателя» есть предел ПРИБОРА.
+DOC_GAP_NO_READER_IN_FILE = "no_reader_of_that_field_anywhere_in_this_file"
+_DOC_GAPS = (DOC_GAP_MANY_FIELDS, DOC_GAP_FIELD_WRITTEN_TWICE,
+             DOC_GAP_NO_READER_IN_FILE, STEP_GAP_ESCAPES_AGAIN,
+             READER_GAP_DYNAMIC, STEP_GAP_NO_READ)
+
+#: ФОРМА чтения поля. Три, и все три обязана доказать положительная половина
+#: контроля: правило, знающее одну, объявило бы «поля никто не читает» там, где
+#: его читают другой формой, — то есть выдало бы НЕ ИЗМЕРЕНО за измеренный
+#: исход. Формы разные синтаксически, а вопрос один.
+DOC_READ_SUBSCRIPT = "field_is_read_by_subscript"
+DOC_READ_GET = "field_is_read_by_get"
+#: ТРЕТЬЯ форма, найденная ЗАПУСКОМ, а не перечитыванием: в этом дереве поле
+#: документа читают ЧАЩЕ ВСЕГО не подпиской, а объявленным читателем
+#: `observed(doc, "X", kind=dict)` — той самой честной формой, которую
+#: предписывает инвариант #17 (`spa_core/utils/observation.py`). Правило,
+#: знавшее две формы, объявило «поля не читает НИКТО» у 17 счётчиков из 26 —
+#: и это было свойством ПРАВИЛА, а не населения: `key_origin_counts`, поимённо
+#: названный ADR-463 как читаемый в `report` того же модуля, попал ровно в этот
+#: отказ. Форма ограничена ИМЕНЕМ объявленного читателя: любой другой вызов с
+#: тем же ключом в аргументе чтением не считается — совпадение строки в
+#: произвольном вызове не есть чтение поля.
+DOC_READ_OBSERVED = "field_is_read_by_the_declared_observation_helper"
+DOC_READ_HELPER = "observed"
+_DOC_READ_FORMS = (DOC_READ_SUBSCRIPT, DOC_READ_GET, DOC_READ_OBSERVED)
+
+#: Отказы шага. Три, и ни один не есть ноль.
+UNMEASURED_DOC_NEIGHBOUR = "field_step_census_is_absent_or_unmeasured"
+UNMEASURED_DOC_POPULATION = "second_walk_disagrees_with_the_field_step_census"
+UNMEASURED_DOC_CONTROL = "declared_document_reader_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — ТРИ формы прибытия счётчика в документ
+#: (словарь возвращён прямо · словарь связан именем и возвращён · счётчик
+#: положен подпиской) и ВСЕ ТРИ формы чтения поля (подписка · `.get` ·
+#: объявленный читатель `observed`). У каждого
+#: счётчика зовущий поле НЕ читает — иначе его разрешил бы сосед, и сцена
+#: мерила бы чужое правило. Читатель стои́т в ТРЕТЬЕЙ области, до которой от
+#: писателя нет ни одного вызова: ровно так выглядит живой случай
+#: `open_class_counter_census` → `report`.
+DOC_READER_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+
+
+def boxed(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tally": counts}
+
+
+def caller(rows):
+    doc = boxed(rows)
+    return len(doc)
+
+
+def report(doc):
+    return doc["tally"][REACH_LIVE] > 0
+
+
+def bagged(rows):
+    seen = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        seen[cls] = seen.get(cls, 0) + 1
+    out = {"held": seen}
+    return out
+
+
+def drops(rows):
+    print(bagged(rows))
+
+
+def audit(bag):
+    return bag.get("held", {})[REACH_LIVE] > 0
+
+
+def filed(rows):
+    doc = {}
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    doc["kept"] = counts
+    return doc
+
+
+def holder(rows):
+    made = filed(rows)
+    return sorted(made)
+
+
+def summary(made):
+    return made["kept"][REACH_LIVE] > 0
+
+
+def stamped(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"noted": counts}
+
+
+def stamped_caller(rows):
+    doc = stamped(rows)
+    return len(doc)
+
+
+def stamped_reader(doc):
+    return observed(doc, "noted", kind=dict)[REACH_LIVE] > 0
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «разбор разрешил N» было бы неотличимо от
+#: «разбор объявляет разрешённым что угодно». ПЯТЬ счётчиков приезжают в
+#: документ одинаково, и шаг обязан развести их ЧЕТЫРЬМЯ разными именами
+#: отказа плюс ОДНИМ безвредным читателем: ключ пишут две области (и читатель
+#: у него есть — засчитать его нашим значило бы доказать вред совпадением
+#: имён), ключа не читает никто, читатель пробегает поле целиком, читатель
+#: связывает поле именем и счётчик убегает СНОВА, читатель берёт класс ключом,
+#: который правило не разрешает. Отказ, слитый с «безвредно», и есть подмена
+#: третьего исхода измеренным.
+DOC_READER_CONTROL_CLEAN = '''
+REACH_LIVE = "live"
+
+
+def dup_one(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"dup": counts}
+
+
+def dup_caller(rows):
+    got = dup_one(rows)
+    return len(got)
+
+
+def dup_two(rows):
+    other = {}
+    for row in rows:
+        cls = str(row.get("kind"))
+        other[cls] = other.get(cls, 0) + 1
+    return {"dup": other}
+
+
+def dup_reader(doc):
+    return doc["dup"][REACH_LIVE] > 0
+
+
+def lost(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"lost": counts}
+
+
+def lost_caller(rows):
+    doc = lost(rows)
+    return len(doc)
+
+
+def spent(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"spent": counts}
+
+
+def spent_caller(rows):
+    doc = spent(rows)
+    return len(doc)
+
+
+def spent_reader(doc):
+    return sorted(doc["spent"])
+
+
+def again(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"again": counts}
+
+
+def again_caller(rows):
+    doc = again(rows)
+    return len(doc)
+
+
+def again_reader(doc):
+    c = doc["again"]
+    return c.get(REACH_LIVE, 0)
+
+
+def dyn(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"dyn": counts}
+
+
+def dyn_caller(rows):
+    doc = dyn(rows)
+    return len(doc)
+
+
+def dyn_reader(doc, key):
+    return doc["dyn"][key] > 0
+'''
+
+
+def _is_declared_reader(func: ast.AST) -> bool:
+    """Это ли ОБЪЯВЛЕННЫЙ читатель наблюдения — ``observed(doc, "X", …)``.
+
+    Имя одно и названо константой (:data:`DOC_READ_HELPER`), потому что форма
+    опирается не на «вызов, среди аргументов которого есть наша строка» —
+    такое правило считало бы чтением `log.info("X")`, — а на ЕДИНСТВЕННУЮ
+    функцию, которой инвариант #17 предписывает читать поле документа
+    (``spa_core/utils/observation.py``). Любой другой вызов с тем же ключом
+    чтением НЕ считается: цена названа, и ошибается правило в сторону
+    третьего исхода.
+    """
+    if isinstance(func, ast.Name):
+        return func.id == DOC_READ_HELPER
+    if isinstance(func, ast.Attribute):
+        return func.attr == DOC_READ_HELPER
+    return False
+
+
+def _field_write_scopes(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                        field: str) -> List[ast.AST]:
+    """Области файла, которые КЛАДУТ что-либо под ключом ``field``.
+
+    Вопрос здесь не «какое поле несёт наш счётчик» (это :func:`_field_carriers`
+    и :func:`_subscript_field_carriers`), а «сколько в файле ПИСАТЕЛЕЙ этого
+    имени». Разница существенна: на ней держится единственное ограничение
+    односторонности этого шага. Считаются обе формы записи — ключ
+    словаря-литерала (``{"X": …}``) и присваивание в подписку
+    (``doc["X"] = …``), потому что читателю всё равно, какой из них наполнил
+    документ, а правилу — нет.
+
+    Возвращает список ОБЛАСТЕЙ (по одной на область, а не на запись): две
+    записи одного ключа внутри одной функции — это один писатель, и считать их
+    двумя значило бы отказывать себе же.
+    """
+    seen: Dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        hit = False
+        if isinstance(node, ast.Dict):
+            hit = any(isinstance(k, ast.Constant) and k.value == field
+                      for k in node.keys)
+        elif (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].slice, ast.Constant)
+                and node.targets[0].slice.value == field):
+            hit = True
+        if not hit:
+            continue
+        scope = owner_of.get(id(node), tree)
+        seen.setdefault(id(scope), scope)
+    return list(seen.values())
+
+
+def _document_field_reads(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                          field: str, writer: ast.AST
+                          ) -> List[Tuple[ast.AST, ast.AST, str]]:
+    """Места файла, где ключ ``field`` ЧИТАЮТ у чего угодно, вне области-писателя.
+
+    Держатель НЕ ограничен именем: в том и состоит шаг — документ доезжает до
+    читателя без вызова между ним и писателем, поэтому имя держателя у
+    читателя своё и связать его с писателем нечем, кроме имени ПОЛЯ. Цена
+    этой свободы названа отказом :data:`DOC_GAP_FIELD_WRITTEN_TWICE`, а не
+    оговоркой в тексте.
+
+    Форм чтения две, и обе ИЩУТСЯ, а не синтезируются: читателя разбирает
+    :func:`_one_step_reader`, который сверяет узлы по ``ast.dump``, и
+    синтетический ``d['X']`` не совпал бы ни с ``d.get('X')``, ни с
+    ``d.get('X', {})``.
+
+    Возвращает ``[(область, узел чтения, форма), …]`` по одному узлу на
+    различную форму в каждой области.
+    """
+    out: List[Tuple[ast.AST, ast.AST, str]] = []
+    seen: Set[Tuple[int, str]] = set()
+    for node in ast.walk(tree):
+        form: Optional[str] = None
+        if (isinstance(node, ast.Subscript)
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == field
+                and isinstance(node.ctx, ast.Load)):
+            form = DOC_READ_SUBSCRIPT
+        elif (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and node.args[0].value == field):
+            form = DOC_READ_GET
+        elif (isinstance(node, ast.Call)
+                and _is_declared_reader(node.func)
+                and len(node.args) >= 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value == field):
+            form = DOC_READ_OBSERVED
+        if form is None:
+            continue
+        scope = owner_of.get(id(node), tree)
+        if scope is writer:
+            continue
+        key = (id(scope), ast.dump(node))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((scope, node, form))
+    return out
+
+
+def _document_reader_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                          declared: Set[str], scope: ast.AST,
+                          fields: List[str]) -> dict:
+    """Разбор ПО ИМЕНИ ПОЛЯ для ОДНОГО счётчика, уехавшего в документ.
+
+    Правило объявлено здесь, ДО замера, и состоит из четырёх звеньев, у
+    каждого свой отказ:
+
+    1. счётчик уехал под РОВНО ОДНИМ именем поля — два имени значат, что
+       чтение нельзя приписать ни одному (:data:`DOC_GAP_MANY_FIELDS`);
+    2. это имя в файле пишет РОВНО ОДНА область
+       (:func:`_field_write_scopes`) — иначе найденное чтение могло прийти от
+       чужого документа (:data:`DOC_GAP_FIELD_WRITTEN_TWICE`);
+    3. в файле есть ЧТЕНИЕ этого ключа вне области-писателя
+       (:func:`_document_field_reads`) — иначе документ читают не здесь, и это
+       предел прибора, а не отсутствие вреда
+       (:data:`DOC_GAP_NO_READER_IN_FILE`);
+    4. читателя разбирает :func:`_one_step_reader` — правило читателя УЖЕ
+       соседское, второй копии его здесь нет, и найденный раскол есть
+       доказанный МИНИМУМ. Исходы нескольких читателей сводит
+       :func:`_merge_step_reads`.
+    """
+    if len(fields) != 1:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": DOC_GAP_MANY_FIELDS,
+                "splits": [], "field": None, "read_forms": [],
+                "writers": None, "readers": 0}
+    field = fields[0]
+    writers = _field_write_scopes(tree, owner_of, field)
+    if len(writers) != 1:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": DOC_GAP_FIELD_WRITTEN_TWICE, "splits": [],
+                "field": field, "read_forms": [], "writers": len(writers),
+                "readers": 0}
+    reads = _document_field_reads(tree, owner_of, field, scope)
+    if not reads:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": DOC_GAP_NO_READER_IN_FILE, "splits": [],
+                "field": field, "read_forms": [], "writers": len(writers),
+                "readers": 0}
+    seen = [_one_step_reader(reader_scope, node, declared)
+            for reader_scope, node, _form in reads]
+    merged = _merge_step_reads(seen)
+    return {**merged, "field": field,
+            "read_forms": sorted({form for _s, _n, form in reads}),
+            "writers": len(writers), "readers": len(reads)}
+
+
+def _document_reader_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Счётчики ОДНОГО файла, уехавшие в ДОКУМЕНТ, с исходом разбора по полю.
+
+    Население НЕ пересобирается и правило соседа НЕ копируется: обход тот же
+    (:func:`_one_step_site_nodes`), поле считает сам сосед
+    (:func:`_field_step`), а отбираются строки, которым он отказал ИМЕННО
+    двумя именами класса «документ читают не у зовущего». Своего правила
+    «какой счётчик открыт», «что есть побег», «каким маршрутом» и «под каким
+    полем» здесь нет ни одного.
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    declared: Optional[Set[str]] = None
+    for site, target, scope in _one_step_site_nodes(rel, tree):
+        if site.get("step_gap") != STEP_GAP_CONTAINER or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            declared = _declared_constant_names(tree)
+        field_out = _field_step(tree, parents, owner_of, declared, scope,
+                                target)
+        if field_out["gap"] not in (FIELD_GAP_FIELD_NEVER_READ,
+                                    STEP_GAP_RESULT_UNBOUND):
+            continue
+        out = _document_reader_step(tree, owner_of, declared, scope,
+                                    list(field_out["fields"]))
+        rows.append({**site, "field_gap": field_out["gap"],
+                     "fields": field_out["fields"],
+                     "doc_step": out["verdict"], "doc_gap": out["gap"],
+                     "field": out["field"], "read_forms": out["read_forms"],
+                     "doc_splits": out["splits"], "writers": out["writers"],
+                     "readers": out["readers"]})
+    return rows
+
+
+def _document_reader_control() -> dict:
+    """Проба объявленного правила — до замера, обеими половинами.
+
+    Первая половина требует довести до расколотого читателя КАЖДЫЙ счётчик
+    положительной сцены и доказать это ВСЕМИ объявленными формами чтения
+    поля. Вторая
+    требует ОТКАЗАТЬ там, где отказать должно, и отказать РАЗНЫМИ именами —
+    иначе «разбор разрешил N» было бы неотличимо от «разбор объявляет
+    разрешённым что угодно». Любая половина не сошлась ⇒ шаг отказывает
+    целиком: число, полученное правилом, которое промахивается по известной
+    форме, есть свойство ПРАВИЛА, а не населения.
+    """
+    try:
+        source = _document_reader_sites("<control>",
+                                        ast.parse(DOC_READER_CONTROL_SOURCE))
+        clean = _document_reader_sites("<control-clean>",
+                                       ast.parse(DOC_READER_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != len(_DOC_READ_FORMS) + 1:
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} счётчик(ов), "
+            f"уехавш(их) в документ, из {len(_DOC_READ_FORMS) + 1} — "
+            f"разрешать по имени поля нечего")}
+    split = [s for s in source if s["doc_step"] == ONE_STEP_SPLITS]
+    if len(split) != len(source):
+        return {"passed": False, "reason": (
+            f"разбор по имени поля довёл до расколотого читателя "
+            f"{len(split)} из {len(source)} счётчиков: исходы "
+            f"{[(s['doc_step'], s['doc_gap']) for s in source]}")}
+    forms = sorted({f for s in split for f in s["read_forms"]})
+    if forms != sorted(_DOC_READ_FORMS):
+        return {"passed": False, "forms": forms, "reason": (
+            f"раскол доказан формами чтения {forms}, а сцена несёт обе: "
+            f"{sorted(_DOC_READ_FORMS)} — ненайденная форма есть слепота "
+            f"правила, а не отсутствие читателей")}
+    if len(clean) != 5:
+        return {"passed": False, "reason": (
+            f"в отрицательной сцене правило нашло {len(clean)} счётчик(ов), "
+            f"уехавш(их) в документ, из 5")}
+    false_splits = [s for s in clean if s["doc_step"] == ONE_STEP_SPLITS]
+    benign = [s for s in clean if s["doc_step"] == ONE_STEP_WHOLESALE]
+    gaps = sorted({s["doc_gap"] for s in clean if s["doc_gap"]})
+    want = sorted((DOC_GAP_FIELD_WRITTEN_TWICE, DOC_GAP_NO_READER_IN_FILE,
+                   STEP_GAP_ESCAPES_AGAIN, READER_GAP_DYNAMIC))
+    if false_splits or len(benign) != 1 or gaps != want:
+        return {"passed": False, "reason": (
+            f"на отрицательной сцене ожидались ноль расколов, один "
+            f"безвредный читатель и ЧЕТЫРЕ разных отказа ({want}), а вышло "
+            f"{[(s['doc_step'], s['doc_gap']) for s in clean]}")}
+    return {"passed": True, "known_case_resolved": len(split),
+            "read_forms": forms, "clean_false_splits": 0,
+            "clean_refusal_names": gaps, "clean_benign": len(benign)}
+
+
+def document_field_reader_in_file(root: Path, field_step: Optional[dict]
+                                  ) -> dict:
+    """Сколько счётчиков, уехавших в ДОКУМЕНТ, разрешает разбор ПО ИМЕНИ ПОЛЯ (**заказ G80 п. 1**).
+
+    ADR-463 ответил на заказ G79 нулём и назвал главным числом **26 из 53**:
+    два имени отказа — «зовущий не читает ЭТО поле» (16) и «результат никуда
+    не связан» (10) — суть ОДИН класс, названный с двух сторон. Счётчик
+    кладут в документ, документ возвращают, а поле его читают не у зовущего,
+    а много позже и другой точкой входа. Заказ G80 п. 1 дословно:
+
+    > Сколько из 26 разрешает разбор ПО ИМЕНИ ПОЛЯ ЧЕРЕЗ ГРАНИЦУ ФУНКЦИИ (кто
+    > в этом файле вообще читает ключ ``X`` у чего угодно) и сколько остаётся
+    > третьим исходом; односторонность («нашли читателя ключа ``X``» не есть
+    > «это НАШ счётчик») обязана быть названа вслух и ограничена.
+
+    Ограничение односторонности — не оговорка, а ЗВЕНО правила с машинным
+    именем: ключ, который в файле пишет больше одной области, объявляется
+    третьим исходом (:data:`DOC_GAP_FIELD_WRITTEN_TWICE`), потому что
+    найденное чтение могло прийти от чужого документа. Отрицательная половина
+    контроля несёт ровно такой счётчик — с ГОТОВЫМ читателем, который правило
+    обязано НЕ засчитать.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько из счётчиков, уехавших в ДОКУМЕНТ, разрешает "
+                     "разбор по имени поля через границу функции и сколько "
+                     "остаётся третьим исходом"),
+        "order": "G80.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(field_step, dict)
+            or str(field_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_DOC_NEIGHBOUR,
+                "reason": ("шаг переноса полем не измерен — населения «уехал "
+                           "в документ» не существует; это НЕ «таких "
+                           "счётчиков нет»")}
+    reasons = observed(field_step, "unresolved_reasons", kind=dict)
+    never_read = (None if reasons is None
+                  else observed(reasons, FIELD_GAP_FIELD_NEVER_READ, kind=int))
+    unbound = (None if reasons is None
+               else observed(reasons, STEP_GAP_RESULT_UNBOUND, kind=int))
+    if never_read is None or unbound is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_DOC_NEIGHBOUR,
+                "reason": ("сосед не назвал числа счётчиков, уехавших в "
+                           "документ, — сверять свой обход не с чем")}
+    declared_population = never_read + unbound
+    control = _document_reader_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_DOC_CONTROL,
+                "reason": (f"объявленное правило разбора по имени поля не "
+                           f"прошло контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_document_reader_sites(rel, tree))
+
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_DOC_POPULATION,
+                "walked": len(rows), "census": declared_population,
+                "files_unreadable": unreadable,
+                "reason": (f"свой обход нашёл {len(rows)} счётчик(ов), "
+                           f"уехавш(их) в документ, сосед — "
+                           f"{declared_population}: разбор по имени поля по "
+                           f"ДРУГОМУ населению отвечал бы на другой вопрос")}
+
+    outcomes = {cls: sum(1 for r in rows if r["doc_step"] == cls)
+                for cls in _ONE_STEP_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("doc_gap") == gap)
+            for gap in _DOC_GAPS}
+    read_forms = {form: sum(1 for r in rows
+                            if form in (r.get("read_forms") or []))
+                  for form in _DOC_READ_FORMS}
+    resolved = outcomes[ONE_STEP_SPLITS] + outcomes[ONE_STEP_WHOLESALE]
+    split_rows = [r for r in rows if r["doc_step"] == ONE_STEP_SPLITS]
+    # Два разных числа живости, и складывать их в одно было бы подменой
+    # (урок ADR-462): «имя поля в файле однозначно» и «читатель этого имени в
+    # файле НАЙДЕН» — разные достижения. Первое доказывает, что звенья 1–2
+    # правила отработали, второе — что отработало и третье; четвёртое звено
+    # видно по исходам.
+    unique = sum(1 for r in rows
+                 if r.get("doc_gap") not in (DOC_GAP_MANY_FIELDS,
+                                             DOC_GAP_FIELD_WRITTEN_TWICE))
+    reached = sum(1 for r in rows if int(r.get("readers") or 0) > 0)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "doc_step_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "read_forms": read_forms,
+        "resolved_by_document_step": resolved,
+        "field_name_unique_in_file": unique,
+        "reader_of_that_field_found": reached,
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "readers": r.get("readers"),
+             "split": (r["doc_splits"] or [{}])[0].get("how")}
+            for r in split_rows[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("doc_gap"),
+             "field": r.get("field"), "writers": r.get("writers")}
+            for r in rows
+            if r["doc_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            ("связь идёт по ИМЕНИ ПОЛЯ, и имя не есть адрес: «в файле читают "
+             f"ключ `X`» доказывает наш счётчик только потому, что ключ здесь "
+             f"пишет РОВНО ОДНА область (`{DOC_GAP_FIELD_WRITTEN_TWICE}`) — "
+             "снять это звено значило бы доказывать вред совпадением имён"),
+            (f"файл ОДИН: `{DOC_GAP_NO_READER_IN_FILE}` есть предел прибора, "
+             "а не отсутствие вреда — документ, который пишут здесь, а читают "
+             "в другом файле, выглядит для шага ровно так же, как документ, "
+             "который не читает никто"),
+            ("читатель найден по имени поля, но ВЕЩЬ, у которой читают, не "
+             "прослежена до писателя: между ними нет вызова по построению "
+             "класса, и доказательства «это тот самый документ» у шага нет "
+             "— свидетель односторонний"),
+            ("правило читателя УЖЕ соседское: выражение класса через границу "
+             "не уезжает, поэтому раскол доказывается только формой «поле "
+             "прочитано объявленным ключом»; найденное есть доказанный "
+             "МИНИМУМ"),
+            (f"счётчик, прочитанный и убежавший СНОВА "
+             f"(`{STEP_GAP_ESCAPES_AGAIN}`), остаётся НЕ ИЗМЕРЕННЫМ — это не "
+             "«вреда нет», а «нужен ещё шаг»"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461 — ключ, разобранный кортежем; ADR-462 — счётчик, не "
+             "уезжающий вовсе; ADR-463 — форма переноса): своего замера "
+             "населения у этого шага нет по построению"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -12558,6 +13217,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # берётся у шага одного вызова и сверяется с его числом.
     field_step = container_counter_field_step(root, one_step)
 
+    # --- разбор ПО ИМЕНИ ПОЛЯ через границу функции (заказ G80 п. 1) ---
+    # ADR-463 назвал главным числом 26 из 53: счётчик кладут в ДОКУМЕНТ, а
+    # поле его читают не у зовущего, а много позже и другой точкой входа.
+    # Вопрос G80 — сколько из этих 26 разрешает разбор по имени поля.
+    # Население берётся у шага переноса полем и сверяется с его числом.
+    doc_step = document_field_reader_in_file(root, field_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -12696,6 +13362,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ВЫЗОВА» и «скольких достаёт шаг ПОЛЯ» — разные вопросы с разным
         # третьим исходом, и ответ второго не отменяет первого.
         "container_counter_field_step": field_step,
+        # Отдельным ключом, а не поправкой к соседу: «скольких достаёт шаг
+        # ПОЛЯ у зовущего» и «скольких достаёт разбор ПО ИМЕНИ ПОЛЯ во всём
+        # файле» — разные вопросы с разным третьим исходом, и ответ второго
+        # не отменяет первого.
+        "document_field_reader_in_file": doc_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -14432,6 +15103,66 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"({item.get('owner')}) `{item.get('counter')}` — "
                 f"{item.get('gap')}")
         for blind in (observed(field_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    doc_step = observed(doc, "document_field_reader_in_file", kind=dict)
+    if doc_step is None:
+        out.append("[ПО ИМЕНИ ПОЛЯ] НЕ ИЗМЕРЕНО — перепись собрана без этого "
+                   "шага; это НЕ «счётчиков, уехавших в документ, нет»")
+    elif str(doc_step.get("status")) == "UNMEASURED":
+        out.append(f"[ПО ИМЕНИ ПОЛЯ] НЕ ИЗМЕРЕНО "
+                   f"[{doc_step.get('unmeasured_class')}]: "
+                   f"{doc_step.get('reason')}")
+    else:
+        outcomes = observed(doc_step, "doc_step_outcomes", kind=dict) or {}
+        why = observed(doc_step, "unresolved_reasons", kind=dict) or {}
+        forms = observed(doc_step, "read_forms", kind=dict) or {}
+        out.append(
+            f"[ПО ИМЕНИ ПОЛЯ] из {doc_step.get('population')} счётчиков, "
+            f"уехавших в ДОКУМЕНТ, разбор по имени поля через границу функции "
+            f"доводит до расколотого читателя {outcomes.get(ONE_STEP_SPLITS)}, "
+            f"до безвредного — {outcomes.get(ONE_STEP_WHOLESALE)}; остаётся "
+            f"третьим исходом {doc_step.get('still_unmeasured')}")
+        out.append(
+            f"[ПО ИМЕНИ ПОЛЯ · ПОЧЕМУ НЕ ДОШЁЛ] имён поля больше одного "
+            f"{why.get(DOC_GAP_MANY_FIELDS)} · ключ пишет больше одной "
+            f"области {why.get(DOC_GAP_FIELD_WRITTEN_TWICE)} · ключа не "
+            f"читает в файле никто {why.get(DOC_GAP_NO_READER_IN_FILE)} · "
+            f"поле прочитано и уехало СНОВА "
+            f"{why.get(STEP_GAP_ESCAPES_AGAIN)} · ключ чтения не разрешается "
+            f"{why.get(READER_GAP_DYNAMIC)}")
+        out.append(
+            f"[ПО ИМЕНИ ПОЛЯ · ФОРМА ЧТЕНИЯ] подписка "
+            f"{forms.get(DOC_READ_SUBSCRIPT)} · `.get` "
+            f"{forms.get(DOC_READ_GET)} · объявленный читатель `"
+            f"{DOC_READ_HELPER}` {forms.get(DOC_READ_OBSERVED)} — третья "
+            f"форма найдена ЗАПУСКОМ и она здесь ГЛАВНАЯ: без неё 17 из "
+            f"{doc_step.get('population')} получили бы отказ «поля не читает "
+            f"никто», и среди них поимённо названный ADR-463 "
+            f"`key_origin_counts`")
+        out.append(
+            f"[ПО ИМЕНИ ПОЛЯ · ПРОВОДКА ЖИВА] имя поля однозначно в файле у "
+            f"{doc_step.get('field_name_unique_in_file')} счётчик(ов), и у "
+            f"{doc_step.get('reader_of_that_field_found')} читатель этого "
+            f"имени НАЙДЕН: это два разных достижения, и складывать их в одно "
+            f"значило бы выдать половину проводки за целую")
+        control = observed(doc_step, "control", kind=dict) or {}
+        out.append(
+            f"[ПО ИМЕНИ ПОЛЯ · КОНТРОЛЬ] правило разрешило "
+            f"{control.get('known_case_resolved')} счётчик(ов) положительной "
+            f"сцены ВСЕМИ {len(control.get('read_forms') or [])} формами "
+            f"чтения и дало {control.get('clean_false_splits')} ложных "
+            f"расколов на отрицательной, разведя её "
+            f"{len(control.get('clean_refusal_names') or [])} РАЗНЫМИ именами "
+            f"отказа — в том числе на счётчике с ГОТОВЫМ читателем, чьё имя "
+            f"поля пишут две области")
+        for item in (observed(doc_step, "harm_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ПО ИМЕНИ ПОЛЯ · РАСКОЛ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` поле `{item.get('field')}` — "
+                f"{item.get('split')}")
+        for blind in (observed(doc_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
