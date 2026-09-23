@@ -230,7 +230,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
+from typing import (Callable, Dict, Iterable, Iterator, List, Optional,
+                    Set, Tuple)
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакетом
@@ -10386,28 +10387,33 @@ def _param_names(fn: ast.AST) -> List[str]:
     return [a.arg for a in (list(args.posonlyargs) + list(args.args))]
 
 
-def _next_scope_of_return(tree: ast.AST, parents: Dict[int, ast.AST],
-                          owner_of: Dict[int, ast.AST], scope: ast.AST,
-                          declared: Set[str]) -> dict:
-    """Читатель возвращённого счётчика — У ЗОВУЩЕГО, и зовущий ищется в ЭТОМ файле.
+def _callers_binding_the_result(tree: ast.AST, parents: Dict[int, ast.AST],
+                                owner_of: Dict[int, ast.AST],
+                                scope: ast.AST) -> dict:
+    """Зовущие области, где результат вызова СВЯЗАН именем. Одно правило — одна копия.
+
+    Выделено из :func:`_next_scope_of_return` заказом G79 п. 1 БЕЗ смены
+    поведения: тот же вопрос («кто зовёт эту область и куда кладёт результат»)
+    задаёт и шаг переноса ПОЛЕМ, а вторая копия правила внутри прибора,
+    который ищет вторые копии правил, — дефект, уже трижды случившийся в этом
+    файле (ADR-460 у подписки, ADR-461 у кортежа, ADR-462 у правила побега).
 
     Зовущим считается ТОЛЬКО голый вызов по имени (``f(...)``): ``obj.f(...)``
     здесь не разрешается, потому что совпадение имени метода не есть
     доказательство, что зовут именно эту функцию. Строгость ошибается в
     сторону третьего исхода, а не в сторону выдуманного читателя.
+
+    Возвращает ``{"gap": <имя отказа или None>, "sites": [(область, имя), …]}``.
     """
     if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_CALLER,
-                "splits": []}
+        return {"gap": STEP_GAP_NO_CALLER, "sites": []}
     callers = [node for node in ast.walk(tree)
                if isinstance(node, ast.Call)
                and isinstance(node.func, ast.Name)
                and node.func.id == scope.name]
     if not callers:
-        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_NO_CALLER,
-                "splits": []}
-    seen: List[dict] = []
-    bound = 0
+        return {"gap": STEP_GAP_NO_CALLER, "sites": []}
+    sites: List[Tuple[ast.AST, str]] = []
     for call in callers:
         parent = parents.get(id(call))
         name: Optional[str] = None
@@ -10419,14 +10425,27 @@ def _next_scope_of_return(tree: ast.AST, parents: Dict[int, ast.AST],
             name = parent.target.id
         if name is None:
             continue
-        bound += 1
-        next_scope = owner_of.get(id(call), tree)
-        seen.append(_one_step_reader(next_scope,
-                                     ast.Name(id=name, ctx=ast.Load()),
-                                     declared))
-    if not bound:
-        return {"verdict": ONE_STEP_UNRESOLVED, "gap": STEP_GAP_RESULT_UNBOUND,
+        sites.append((owner_of.get(id(call), tree), name))
+    if not sites:
+        return {"gap": STEP_GAP_RESULT_UNBOUND, "sites": []}
+    return {"gap": None, "sites": sites}
+
+
+def _next_scope_of_return(tree: ast.AST, parents: Dict[int, ast.AST],
+                          owner_of: Dict[int, ast.AST], scope: ast.AST,
+                          declared: Set[str]) -> dict:
+    """Читатель возвращённого счётчика — У ЗОВУЩЕГО, и зовущий ищется в ЭТОМ файле.
+
+    Правило «кто зовущий и связан ли результат» здесь НЕ переписано: зовётся
+    :func:`_callers_binding_the_result`, которым отвечает и шаг переноса полем.
+    """
+    found = _callers_binding_the_result(tree, parents, owner_of, scope)
+    if found["gap"] is not None:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": found["gap"],
                 "splits": []}
+    seen = [_one_step_reader(next_scope,
+                             ast.Name(id=name, ctx=ast.Load()), declared)
+            for next_scope, name in found["sites"]]
     return _merge_step_reads(seen)
 
 
@@ -10496,15 +10515,21 @@ def _resolve_escape(tree: ast.AST, parents: Dict[int, ast.AST],
             "callee": route.get("callee")}
 
 
-def _one_step_sites(rel: str, tree: ast.AST) -> List[dict]:
-    """Убежавшие счётчики ОДНОГО файла вместе с исходом ОДНОГО шага.
+def _one_step_site_nodes(
+        rel: str, tree: ast.AST
+) -> Iterator[Tuple[dict, Optional[ast.AST], Optional[ast.AST]]]:
+    """Убежавшие счётчики ОДНОГО файла вместе с исходом ОДНОГО шага и УЗЛАМИ.
 
     Население НЕ пересобирается: берутся строки соседа
     (:func:`_reader_site_nodes`) и отбираются те, у кого читатель не измерен
     ИМЕННО побегом. Второй копии правила «какой счётчик открыт» и «что есть
     побег» здесь нет ни одной.
+
+    Отдаёт ``(строка, счётчик, его область)``. Узлы нужны шагу переноса полем
+    (заказ G79 п. 1), и второй обход населения ради них был бы второй копией
+    правила — того самого, что этот прибор и ищет. Плоский список строк —
+    :func:`_one_step_sites`.
     """
-    rows: List[dict] = []
     parents: Optional[Dict[int, ast.AST]] = None
     owner_of: Optional[Dict[int, ast.AST]] = None
     defs: Optional[Dict[str, List[ast.AST]]] = None
@@ -10519,24 +10544,29 @@ def _one_step_sites(rel: str, tree: ast.AST) -> List[dict]:
             declared = _declared_constant_names(tree)
         found = _escape_sites(scope, target)
         if len(found) != int(site.get("escapes") or 0):
-            rows.append({**site, "one_step": ONE_STEP_UNRESOLVED,
-                         "step_gap": STEP_GAP_SITES_DISAGREE,
-                         "routes": [], "step_splits": [],
-                         "reason": (f"своё правило побега нашло {len(found)} "
-                                    f"мест(а), соседское — "
-                                    f"{site.get('escapes')}")})
+            yield ({**site, "one_step": ONE_STEP_UNRESOLVED,
+                    "step_gap": STEP_GAP_SITES_DISAGREE,
+                    "routes": [], "step_splits": [],
+                    "reason": (f"своё правило побега нашло {len(found)} "
+                               f"мест(а), соседское — "
+                               f"{site.get('escapes')}")}, target, scope)
             continue
         steps = [_resolve_escape(tree, parents, owner_of, defs, declared,
                                  scope, node) for node in found]
         merged = _merge_step_reads(steps)
-        rows.append({**site, "one_step": merged["verdict"],
-                     "step_gap": merged["gap"],
-                     "routes": sorted({s["route"] for s in steps}),
-                     "step_splits": merged["splits"],
-                     "steps": [{"route": s["route"], "line": s["line"],
-                                "verdict": s["verdict"], "gap": s["gap"],
-                                "callee": s.get("callee")} for s in steps]})
-    return rows
+        yield ({**site, "one_step": merged["verdict"],
+                "step_gap": merged["gap"],
+                "routes": sorted({s["route"] for s in steps}),
+                "step_splits": merged["splits"],
+                "steps": [{"route": s["route"], "line": s["line"],
+                           "verdict": s["verdict"], "gap": s["gap"],
+                           "callee": s.get("callee")} for s in steps]},
+               target, scope)
+
+
+def _one_step_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Плоский список строк одного файла — обёртка над генератором выше."""
+    return [row for row, _target, _scope in _one_step_site_nodes(rel, tree)]
 
 
 def _one_step_control() -> dict:
@@ -10752,6 +10782,621 @@ def escaped_counter_one_step(root: Path, harm: Optional[dict]) -> dict:
              "«никуда не уехал» значило бы спрятать настоящий побег под "
              "новым именем; отрицательная половина контроля требует именно "
              "этого различения"),
+        ],
+    }
+
+
+# --- ОДИН шаг ПЕРЕНОСА ПОЛЕМ (заказ G79 п. 1) ------------------------------
+#
+# ADR-462 померил маршруты 66 убежавших счётчиков и нашёл, что премисса заказа
+# G78 была неверна: возвратом уходит 7, аргументом 0, а 53 уезжают СПЕРВА
+# КОНТЕЙНЕРОМ (`return {'tally': counts}`). Восемьдесят процентов населения
+# путешествует ПОЛЕМ, а не вызовом, и приём «счётчик возвращён — читатель у
+# зовущего» на них не отвечает. Вопрос заказа G79 п. 1 дословно: сколько из 53
+# разрешает ОДИН шаг переноса полем и сколько остаётся третьим исходом.
+
+#: ПОЧЕМУ шаг переноса полем не дошёл. Имена новые там, где чинится новым, и
+#: СОСЕДСКИЕ там, где чинится тем же самым: «зовущего нет в файле» и «результат
+#: никуда не связан» — ровно те же вопросы, что у шага одного вызова, и заводить
+#: им вторые имена значило бы развести один класс по двум счётчикам.
+FIELD_GAP_NO_FIELD_NAME = "counter_is_placed_in_a_container_without_a_field_name"
+FIELD_GAP_AMBIGUOUS_FIELD = "field_name_carries_more_than_one_value"
+FIELD_GAP_CONTAINER_NOT_RETURNED = "container_holding_the_counter_is_not_returned"
+#: Зовущий связал результат именем, но ИМЕННО ЭТОГО поля не читает. Имя своё,
+#: а не соседское `next_scope_never_reads_the_counter`: сказать «не читает
+#: счётчик» там, где зовущий читает соседнее поле того же словаря, значило бы
+#: соврать в имени отказа — а имя здесь и есть то, чем отказ чинится.
+FIELD_GAP_FIELD_NEVER_READ = "next_scope_never_reads_that_field"
+_FIELD_GAPS = (FIELD_GAP_NO_FIELD_NAME, FIELD_GAP_AMBIGUOUS_FIELD,
+               FIELD_GAP_CONTAINER_NOT_RETURNED, FIELD_GAP_FIELD_NEVER_READ,
+               STEP_GAP_NO_CALLER,
+               STEP_GAP_RESULT_UNBOUND, STEP_GAP_NO_READ,
+               STEP_GAP_ESCAPES_AGAIN, STEP_GAP_SITES_DISAGREE,
+               READER_GAP_DYNAMIC)
+
+#: ФОРМА переноса. Их две, и обе обязана доказать положительная половина
+#: контроля: найдя одну, правило ответило бы на половину вопроса, а число выдало
+#: бы за полный ответ — ровно та ошибка, которую ADR-462 сделал бы, проверь он
+#: побег одной формой.
+FIELD_FORM_DIRECT = "container_is_returned_directly"
+FIELD_FORM_BOUND = "container_is_bound_to_a_name_and_returned"
+#: Третья форма, найденная ЗАПУСКОМ, а не перечитыванием: `doc["outcomes"] =
+#: counts` кладёт счётчик под ИМЕНЕМ ПОЛЯ ровно так же, как словарь-литерал, —
+#: и это дословно та форма, о которой спрашивает заказ. Отказать ей именем
+#: «контейнер без имени поля» значило бы соврать в самом имени отказа: имя поля
+#: там есть. Приём соседа (:func:`_field_carriers`) разбирает только
+#: словари-литералы, и ПРАВИТЬ его нельзя (чужая батарея, п. 2 правила
+#: приёмки), поэтому форма разбирается своим правилом и названа отдельно.
+FIELD_FORM_SUBSCRIPT = "counter_is_stored_into_a_returned_mapping_by_subscript"
+_FIELD_FORMS = (FIELD_FORM_DIRECT, FIELD_FORM_BOUND, FIELD_FORM_SUBSCRIPT)
+
+#: Отказы шага. Три, и ни один не есть ноль.
+UNMEASURED_FIELD_NEIGHBOUR = "one_step_census_is_absent_or_unmeasured"
+UNMEASURED_FIELD_POPULATION = "second_walk_disagrees_with_the_container_census"
+UNMEASURED_FIELD_CONTROL = "declared_field_step_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — ОБЕ формы переноса полем сразу. Счётчик
+#: здесь открыт ровно так же, как у соседа (ключ из артефакта), уезжает в
+#: словарь под именем поля, словарь покидает область — и шаг обязан довести до
+#: читателя, который делит класс объявленным ключом, ОБЕИМИ формами: и когда
+#: словарь возвращён прямо, и когда он сперва связан именем.
+FIELD_STEP_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+
+
+def boxed(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tally": counts}
+
+
+def verdict(rows):
+    found = boxed(rows)
+    return found["tally"][REACH_LIVE] > 0
+
+
+def bagged(rows):
+    seen = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        seen[cls] = seen.get(cls, 0) + 1
+    out = {"seen": seen}
+    return out
+
+
+def judged(rows):
+    got = bagged(rows)
+    return got.get("seen").get(REACH_LIVE, 0)
+
+
+def filed(rows):
+    doc = {}
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    doc["kept"] = counts
+    return doc
+
+
+def ruled(rows):
+    made = filed(rows)
+    return made["kept"][REACH_LIVE] > 0
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг разрешил N» было бы неотличимо от «шаг
+#: объявляет разрешённым что угодно». ПЯТЬ счётчиков уезжают у соседа
+#: КОНТЕЙНЕРОМ одинаково, и шаг обязан развести их ЧЕТЫРЬМЯ разными именами
+#: отказа плюс ОДНИМ безвредным читателем: контейнер без имени поля (список),
+#: имя поля, несущее ещё и чужое значение, контейнер, который область не
+#: покидает, и область, которую в этом файле никто не зовёт. Отказ, слитый с
+#: «безвредно», и есть подмена третьего исхода измеренным.
+FIELD_STEP_CONTROL_CLEAN = '''
+def listed(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return [counts]
+
+
+def mixed(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    other = {"tally": len(rows)}
+    return {"tally": counts, "extra": other}
+
+
+def kept(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    bag = {"tally": counts}
+    publish(bag)
+
+
+def orphan(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tally": counts}
+
+
+def whole(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tally": counts}
+
+
+def sums(rows):
+    got = whole(rows)
+    return sorted(got["tally"].items())
+
+
+def missed(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("outcome"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"tally": counts, "n": len(rows)}
+
+
+def uses(rows):
+    made = missed(rows)
+    return made["n"]
+'''
+
+
+def _returned_container_fields(scope: ast.AST) -> Dict[str, Set[str]]:
+    """Поля словарей-литералов, которые ПОКИДАЮТ область возвратом, и КАК.
+
+    Вопрос здесь ДРУГОЙ, чем у :func:`_field_carriers` («какое поле несёт наш
+    счётчик»), поэтому это не вторая копия правила, а второе правило: тот
+    отвечает «что уехало полем», этот — «уехал ли сам контейнер». Разведены
+    они намеренно: словарь, собранный и НЕ покинувший область, читателя у
+    зовущего не имеет вовсе, и принять его за уехавший значило бы выдумать
+    читателя.
+
+    Шаг ровно ОДИН: словарь либо возвращается прямо (``return {...}``), либо
+    связан именем в той же области и возвращается этим именем. Имя, связанное
+    в области не одним значением, НЕ разрешается — «какое из двух» есть третий
+    исход, а не выбор (то же правило, что у :func:`_module_function_defs`).
+    """
+    bound: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(scope):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            bound.setdefault(node.targets[0].id, []).append(node.value)
+        elif (isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.value is not None):
+            bound.setdefault(node.target.id, []).append(node.value)
+    out: Dict[str, Set[str]] = {}
+    for node in ast.walk(scope):
+        if not isinstance(node, ast.Return) or node.value is None:
+            continue
+        pairs: List[Tuple[ast.AST, str]] = []
+        if isinstance(node.value, ast.Dict):
+            pairs.append((node.value, FIELD_FORM_DIRECT))
+        elif isinstance(node.value, ast.Name):
+            values = bound.get(node.value.id, [])
+            if len(values) == 1 and isinstance(values[0], ast.Dict):
+                pairs.append((values[0], FIELD_FORM_BOUND))
+        for container, form in pairs:
+            for field in container.keys:
+                if (isinstance(field, ast.Constant)
+                        and isinstance(field.value, str)):
+                    out.setdefault(field.value, set()).add(form)
+    return out
+
+
+def _subscript_field_carriers(scope: ast.AST, target_dump: str,
+                              target_names: Set[str]
+                              ) -> Tuple[Set[Tuple[str, str]], Set[str]]:
+    """Поля, под которые счётчик положен ПОДПИСКОЙ: ``doc["outcomes"] = counts``.
+
+    Это НЕ вторая копия :func:`_field_carriers`: тот разбирает словарь-ЛИТЕРАЛ
+    (``{"outcomes": counts}``), этот — присваивание в подписку, и формы
+    синтаксически разные. Правило соседа не правится (чужая батарея, п. 2
+    правила приёмки), а форма без своего разбора получала бы ЛОЖНОЕ имя
+    отказа — «контейнер без имени поля» там, где имя поля есть.
+
+    Возвращает ``({(имя контейнера, поле)}, {неоднозначные поля})``. Поле, под
+    которое в той же области кладут ЕЩЁ и другое значение, неоднозначно: связь
+    идёт по ИМЕНИ ПОЛЯ, и на неоднозначном имени она приписала бы чужому
+    сравнению наш класс — то же правило, что у соседа.
+    """
+    seen: Dict[Tuple[str, str], List[ast.AST]] = {}
+    for node in ast.walk(scope):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+            continue
+        tgt = node.targets[0]
+        if not (isinstance(tgt, ast.Subscript)
+                and isinstance(tgt.value, ast.Name)
+                and isinstance(tgt.slice, ast.Constant)
+                and isinstance(tgt.slice.value, str)):
+            continue
+        seen.setdefault((tgt.value.id, tgt.slice.value), []).append(node.value)
+    ours: Set[Tuple[str, str]] = set()
+    ambiguous: Set[str] = set()
+    for (holder, field), values in seen.items():
+        mine = [v for v in values
+                if ast.dump(v) == target_dump
+                or (isinstance(v, ast.Name) and v.id in target_names)]
+        if not mine:
+            continue
+        if len({ast.dump(v) for v in values}) > 1:
+            ambiguous.add(field)
+        else:
+            ours.add((holder, field))
+    return ours, ambiguous
+
+
+def _returned_names(scope: ast.AST) -> Set[str]:
+    """Имена, которые область возвращает как есть (``return doc``).
+
+    Вопрос тот же, что у :func:`_returned_container_fields` («покинул ли
+    контейнер область»), но предмет другой: там контейнер есть
+    словарь-литерал, здесь — имя, наполняемое подпиской.
+    """
+    return {node.value.id for node in ast.walk(scope)
+            if isinstance(node, ast.Return)
+            and isinstance(node.value, ast.Name)}
+
+
+def _field_read_targets(scope: ast.AST, holder: str,
+                        field: str) -> List[ast.AST]:
+    """Места, которыми зовущий читает ПОЛЕ: ``R['X']`` и ``R.get('X'…)``.
+
+    Узлы ИЩУТСЯ в области, а не синтезируются. Разница не косметическая:
+    читателя разбирает :func:`_one_step_reader`, который сверяет узлы по
+    ``ast.dump``, и синтетический ``R['X']`` не совпал бы ни с ``R.get('X')``,
+    ни с ``R.get('X', {})`` — форма чтения у каждого своя. Правило, знающее
+    ровно одну форму, объявило бы «поля никто не читает» там, где его читают
+    другой формой, — то есть выдало бы НЕ ИЗМЕРЕНО за измеренный исход.
+
+    Возвращает по ОДНОМУ узлу на различную форму: дальше каждый разбирается
+    отдельно, а исходы сводит :func:`_merge_step_reads`.
+    """
+    out: List[ast.AST] = []
+    seen: Set[str] = set()
+    for node in ast.walk(scope):
+        hit = False
+        if (isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == holder
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == field
+                and isinstance(node.ctx, ast.Load)):
+            hit = True
+        elif (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == holder
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and node.args[0].value == field):
+            hit = True
+        if not hit:
+            continue
+        dump = ast.dump(node)
+        if dump in seen:
+            continue
+        seen.add(dump)
+        out.append(node)
+    return out
+
+
+def _field_step(tree: ast.AST, parents: Dict[int, ast.AST],
+                owner_of: Dict[int, ast.AST], declared: Set[str],
+                scope: ast.AST, target: ast.AST) -> dict:
+    """ОДИН шаг переноса ПОЛЕМ для ОДНОГО счётчика, уехавшего контейнером.
+
+    Правило объявлено здесь, до замера, и состоит из трёх звеньев, у каждого
+    свой отказ:
+
+    1. счётчик лежит в словаре-литерале под ИМЕНЕМ ПОЛЯ
+       (:func:`_field_carriers` — приём соседа, взятый как есть; второй копии
+       правила «что уехало полем» в этом файле не будет);
+    2. этот словарь ПОКИДАЕТ область возвратом
+       (:func:`_returned_container_fields`);
+    3. зовущий связывает результат именем
+       (:func:`_callers_binding_the_result`) и читает ``имя['поле']``; читателя
+       разбирает :func:`_one_step_reader` — правило читателя УЖЕ соседского, и
+       найденный раскол есть доказанный МИНИМУМ.
+
+    Связь идёт ПО ИМЕНИ ПОЛЯ, и на неоднозначном имени она приписала бы чужому
+    сравнению наш класс — потому неоднозначное поле есть ОТКАЗ, а не находка.
+    """
+    target_dump = ast.dump(target)
+    names = {n.id for n in ast.walk(target) if isinstance(n, ast.Name)}
+    fields, ambiguous = _field_carriers(scope, target_dump, names)
+    stored, stored_ambiguous = _subscript_field_carriers(scope, target_dump,
+                                                         names)
+    if not fields and not stored:
+        unclear = ambiguous | stored_ambiguous
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": (FIELD_GAP_AMBIGUOUS_FIELD if unclear
+                        else FIELD_GAP_NO_FIELD_NAME),
+                "splits": [], "fields": sorted(unclear), "forms": []}
+    leaving = _returned_container_fields(scope)
+    returned = _returned_names(scope)
+    by_form: Dict[str, Set[str]] = {}
+    for field in fields & set(leaving):
+        by_form.setdefault(field, set()).update(leaving[field])
+    for holder, field in stored:
+        if holder in returned:
+            by_form.setdefault(field, set()).add(FIELD_FORM_SUBSCRIPT)
+    carried = sorted(by_form)
+    if not carried:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": FIELD_GAP_CONTAINER_NOT_RETURNED, "splits": [],
+                "fields": sorted(fields | {f for _h, f in stored}),
+                "forms": []}
+    forms = sorted({form for field in carried for form in by_form[field]})
+    found = _callers_binding_the_result(tree, parents, owner_of, scope)
+    if found["gap"] is not None:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": found["gap"],
+                "splits": [], "fields": carried, "forms": forms}
+    seen = [_one_step_reader(next_scope, node, declared)
+            for next_scope, name in found["sites"]
+            for field in carried
+            for node in _field_read_targets(next_scope, name, field)]
+    if not seen:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": FIELD_GAP_FIELD_NEVER_READ, "splits": [],
+                "fields": carried, "forms": forms}
+    merged = _merge_step_reads(seen)
+    return {**merged, "fields": carried, "forms": forms}
+
+
+def _field_step_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Счётчики ОДНОГО файла, уехавшие КОНТЕЙНЕРОМ, с исходом шага полем.
+
+    Население НЕ пересобирается: берутся строки шага одного вызова
+    (:func:`_one_step_site_nodes`) и отбираются те, кому он отказал ИМЕННО
+    «уехал сперва полем». Своего правила «какой счётчик открыт», «что есть
+    побег» и «каким маршрутом» здесь нет ни одного.
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    declared: Optional[Set[str]] = None
+    for site, target, scope in _one_step_site_nodes(rel, tree):
+        if site.get("step_gap") != STEP_GAP_CONTAINER or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            declared = _declared_constant_names(tree)
+        out = _field_step(tree, parents, owner_of, declared, scope, target)
+        rows.append({**site, "field_step": out["verdict"],
+                     "field_gap": out["gap"], "fields": out["fields"],
+                     "forms": out["forms"], "field_splits": out["splits"]})
+    return rows
+
+
+def _field_step_control() -> dict:
+    """Проба объявленного правила переноса полем — до замера, обеими половинами.
+
+    Первая половина требует дойти до расколотого читателя ОБЕИМИ формами
+    переноса (словарь возвращён прямо и словарь связан именем). Вторая требует
+    ОТКАЗАТЬ там, где отказать должно, и отказать РАЗНЫМИ именами — иначе
+    «шаг разрешил N» было бы неотличимо от «шаг объявляет разрешённым что
+    угодно». Любая половина не сошлась ⇒ шаг отказывает целиком: число,
+    полученное правилом, которое промахивается по известной форме, есть
+    свойство ПРАВИЛА, а не населения.
+    """
+    try:
+        source = _field_step_sites("<control>",
+                                   ast.parse(FIELD_STEP_CONTROL_SOURCE))
+        clean = _field_step_sites("<control-clean>",
+                                  ast.parse(FIELD_STEP_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != len(_FIELD_FORMS):
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} счётчик(ов), "
+            f"уехавш(их) контейнером, из {len(_FIELD_FORMS)} — разрешать "
+            f"переносом полем нечего")}
+    split = [s for s in source if s["field_step"] == ONE_STEP_SPLITS]
+    if len(split) != len(_FIELD_FORMS):
+        return {"passed": False, "reason": (
+            f"шаг переноса полем довёл до расколотого читателя {len(split)} "
+            f"из {len(_FIELD_FORMS)} счётчиков: исходы "
+            f"{[(s['field_step'], s['field_gap']) for s in source]}")}
+    forms = sorted({f for s in split for f in s["forms"]})
+    if forms != sorted(_FIELD_FORMS):
+        return {"passed": False, "forms": forms, "reason": (
+            f"раскол доказан формами {forms}, а сцена несёт обе: "
+            f"{sorted(_FIELD_FORMS)} — ненайденная форма есть слепота "
+            f"правила, а не отсутствие разрешимых переносов")}
+    if len(clean) != 6:
+        return {"passed": False, "reason": (
+            f"в отрицательной сцене правило нашло {len(clean)} счётчик(ов), "
+            f"уехавш(их) контейнером, из 6")}
+    false_splits = [s for s in clean if s["field_step"] == ONE_STEP_SPLITS]
+    benign = [s for s in clean if s["field_step"] == ONE_STEP_WHOLESALE]
+    gaps = sorted({s["field_gap"] for s in clean if s["field_gap"]})
+    want = sorted((FIELD_GAP_NO_FIELD_NAME, FIELD_GAP_AMBIGUOUS_FIELD,
+                   FIELD_GAP_CONTAINER_NOT_RETURNED, STEP_GAP_NO_CALLER,
+                   FIELD_GAP_FIELD_NEVER_READ))
+    if false_splits or len(benign) != 1 or gaps != want:
+        return {"passed": False, "reason": (
+            f"на отрицательной сцене ожидались ноль расколов, один "
+            f"безвредный читатель и ПЯТЬ разных отказов ({want}), а вышло "
+            f"{[(s['field_step'], s['field_gap']) for s in clean]}")}
+    return {"passed": True, "known_case_resolved": len(split),
+            "forms": forms, "clean_false_splits": 0,
+            "clean_refusal_names": gaps, "clean_benign": len(benign)}
+
+
+def container_counter_field_step(root: Path, step: Optional[dict]) -> dict:
+    """Сколько счётчиков-контейнеров разрешает перенос ПОЛЕМ (**заказ G79 п. 1**).
+
+    ADR-462 ответил на заказ G78 нулём и назвал главным содержанием замера
+    неверную премиссу: из 66 убежавших счётчиков возвратом уходит 7,
+    аргументом 0, а **53** уезжают сперва КОНТЕЙНЕРОМ. Заказ G79 п. 1 дословно:
+
+    > Сколько из 53 разрешает ОДИН шаг переноса полем (счётчик положен в
+    > словарь под именем ``X``, вызывающий читает ``результат['X']``), и
+    > сколько остаётся третьим исходом.
+
+    Ответ обязан быть ПАРОЙ чисел, и вторая половина пары не есть остаток
+    первой: «шаг не дошёл» чинится разным в зависимости от того, ПОЧЕМУ не
+    дошёл, и потому у каждой причины своё машинное имя.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика и ни одного читателя не правит,
+    ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько из счётчиков, уехавших КОНТЕЙНЕРОМ, разрешает "
+                     "ОДИН шаг переноса полем и сколько остаётся третьим "
+                     "исходом"),
+        "order": "G79.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if not isinstance(step, dict) or str(step.get("status")) != "MEASURED":
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_FIELD_NEIGHBOUR,
+                "reason": ("шаг одного вызова не измерен — населения «уехал "
+                           "полем» не существует; это НЕ «таких счётчиков "
+                           "нет»")}
+    reasons = observed(step, "unresolved_reasons", kind=dict)
+    declared_population = (None if reasons is None
+                           else observed(reasons, STEP_GAP_CONTAINER,
+                                         kind=int))
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_FIELD_NEIGHBOUR,
+                "reason": ("сосед не назвал числа счётчиков, уехавших "
+                           "контейнером, — сверять свой обход не с чем")}
+    control = _field_step_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_FIELD_CONTROL,
+                "reason": (f"объявленное правило переноса полем не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_field_step_sites(rel, tree))
+
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_FIELD_POPULATION,
+                "walked": len(rows), "census": declared_population,
+                "files_unreadable": unreadable,
+                "reason": (f"свой обход нашёл {len(rows)} счётчик(ов), "
+                           f"уехавш(их) контейнером, сосед — "
+                           f"{declared_population}: замер переноса полем по "
+                           f"ДРУГОМУ населению отвечал бы на другой вопрос")}
+
+    outcomes = {cls: sum(1 for r in rows if r["field_step"] == cls)
+                for cls in _ONE_STEP_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("field_gap") == gap)
+            for gap in _FIELD_GAPS}
+    forms = {form: sum(1 for r in rows if form in (r.get("forms") or []))
+             for form in _FIELD_FORMS}
+    resolved = outcomes[ONE_STEP_SPLITS] + outcomes[ONE_STEP_WHOLESALE]
+    split_rows = [r for r in rows if r["field_step"] == ONE_STEP_SPLITS]
+    # Два разных числа живости, и складывать их в одно было бы той же
+    # подменой: ноль разрешённых от ЖИВОЙ проводки и ноль от непроведённого
+    # шага выглядят одинаково (урок ADR-462), но «дошёл до области зовущего»
+    # и «разобрал там ЧИТАТЕЛЯ» — разные достижения. Первое доказывает, что
+    # звенья 1–3 правила отработали; второе — что отработало и четвёртое.
+    reached = sum(1 for r in rows
+                  if r["field_step"] in (ONE_STEP_SPLITS, ONE_STEP_WHOLESALE)
+                  or r.get("field_gap") in (READER_GAP_DYNAMIC,
+                                            STEP_GAP_ESCAPES_AGAIN,
+                                            STEP_GAP_NO_READ,
+                                            FIELD_GAP_FIELD_NEVER_READ))
+    parsed = sum(1 for r in rows
+                 if r["field_step"] in (ONE_STEP_SPLITS, ONE_STEP_WHOLESALE)
+                 or r.get("field_gap") in (READER_GAP_DYNAMIC,
+                                           STEP_GAP_ESCAPES_AGAIN,
+                                           STEP_GAP_NO_READ))
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "field_step_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "forms": forms,
+        "resolved_by_field_step": resolved,
+        "next_scope_reached": reached,
+        "reader_parsed_at_next_scope": parsed,
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "fields": r["fields"],
+             "forms": r["forms"],
+             "split": (r["field_splits"] or [{}])[0].get("how")}
+            for r in split_rows[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("field_gap"),
+             "fields": r.get("fields")}
+            for r in rows
+            if r["field_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            ("шаг ровно ОДИН: счётчик, уехавший полем и убежавший СНОВА у "
+             f"зовущего (`{STEP_GAP_ESCAPES_AGAIN}`), остаётся НЕ ИЗМЕРЕННЫМ "
+             "— это не «вреда нет», а «нужен ещё шаг»"),
+            ("связь идёт ПО ИМЕНИ ПОЛЯ, и это приём соседа, взятый как есть: "
+             "имя поля, несущее в области ещё и чужое значение, объявляется "
+             "ОТКАЗОМ, потому что на нём шаг приписал бы чужому сравнению "
+             "наш класс"),
+            ("правило читателя у зовущего УЖЕ соседского: через границу "
+             "вызова уезжает счётчик, а выражение класса не уезжает, поэтому "
+             "раскол доказывается только формой «поле прочитано объявленным "
+             "ключом»; найденное есть доказанный МИНИМУМ"),
+            ("зовущий ищется ТОЛЬКО в том же файле и только голым вызовом по "
+             f"имени (`{STEP_GAP_NO_CALLER}`) — правило то же, что у шага "
+             "одного вызова, и оно ошибается в сторону третьего исхода"),
+            ("контейнер, который область НЕ покидает, читателя у зовущего не "
+             "имеет вовсе: такой счётчик требует разбора того, куда контейнер "
+             "положили дальше, и это отдельный вопрос, а не поправка к этому"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461 — ключ, разобранный кортежем; ADR-462 — счётчик, не "
+             "уезжающий вовсе): своего замера населения у этого шага нет по "
+             "построению"),
         ],
     }
 
@@ -11906,6 +12551,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # «осталось третьим исходом», и вторая половина не есть остаток первой.
     one_step = escaped_counter_one_step(root, reader_harm)
 
+    # --- ОДИН шаг ПЕРЕНОСА ПОЛЕМ (заказ G79 п. 1) ---------------------
+    # ADR-462 нашёл, что премисса заказа G78 неверна: 53 из 66 убежавших
+    # счётчиков уезжают сперва КОНТЕЙНЕРОМ, а не вызовом. Вопрос G79 —
+    # сколько из этих 53 разрешает ОДИН шаг переноса полем. Население
+    # берётся у шага одного вызова и сверяется с его числом.
+    field_step = container_counter_field_step(root, one_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -12040,6 +12692,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ИЗМЕРЕН» и «скольких из них достаёт ОДИН шаг» — разные вопросы, и
         # ответ второго не отменяет первого.
         "escaped_counter_one_step": one_step,
+        # Отдельным ключом, а не поправкой к соседу: «скольких достаёт шаг
+        # ВЫЗОВА» и «скольких достаёт шаг ПОЛЯ» — разные вопросы с разным
+        # третьим исходом, и ответ второго не отменяет первого.
+        "container_counter_field_step": field_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -13718,6 +14374,64 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"({item.get('owner')}) `{item.get('counter')}` — "
                 f"{item.get('gap')}")
         for blind in (observed(step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    field_step = observed(doc, "container_counter_field_step", kind=dict)
+    if field_step is None:
+        out.append("[ПОЛЕМ] НЕ ИЗМЕРЕНО — перепись собрана без этого шага; "
+                   "это НЕ «счётчиков, уехавших контейнером, нет»")
+    elif str(field_step.get("status")) == "UNMEASURED":
+        out.append(f"[ПОЛЕМ] НЕ ИЗМЕРЕНО "
+                   f"[{field_step.get('unmeasured_class')}]: "
+                   f"{field_step.get('reason')}")
+    else:
+        outcomes = observed(field_step, "field_step_outcomes", kind=dict) or {}
+        why = observed(field_step, "unresolved_reasons", kind=dict) or {}
+        forms = observed(field_step, "forms", kind=dict) or {}
+        out.append(
+            f"[ПОЛЕМ] из {field_step.get('population')} счётчиков, уехавших "
+            f"КОНТЕЙНЕРОМ, ОДИН шаг переноса полем доводит до расколотого "
+            f"читателя {outcomes.get(ONE_STEP_SPLITS)}, до безвредного — "
+            f"{outcomes.get(ONE_STEP_WHOLESALE)}; остаётся третьим исходом "
+            f"{field_step.get('still_unmeasured')}")
+        out.append(
+            f"[ПОЛЕМ · ПОЧЕМУ НЕ ДОШЁЛ] контейнер без имени поля "
+            f"{why.get(FIELD_GAP_NO_FIELD_NAME)} · имя поля неоднозначно "
+            f"{why.get(FIELD_GAP_AMBIGUOUS_FIELD)} · контейнер не покидает "
+            f"область {why.get(FIELD_GAP_CONTAINER_NOT_RETURNED)} · зовущего "
+            f"нет в файле {why.get(STEP_GAP_NO_CALLER)} · результат никуда не "
+            f"связан {why.get(STEP_GAP_RESULT_UNBOUND)} · зовущий не читает "
+            f"ЭТО поле {why.get(FIELD_GAP_FIELD_NEVER_READ)} · поле прочитано "
+            f"и уехало СНОВА {why.get(STEP_GAP_ESCAPES_AGAIN)}")
+        out.append(
+            f"[ПОЛЕМ · ФОРМА] словарь возвращён прямо "
+            f"{forms.get(FIELD_FORM_DIRECT)} · словарь связан именем и "
+            f"возвращён {forms.get(FIELD_FORM_BOUND)} · счётчик положен "
+            f"подпиской в возвращаемое отображение "
+            f"{forms.get(FIELD_FORM_SUBSCRIPT)} — приём соседа разбирает "
+            f"только первые две, третья названа своим правилом")
+        out.append(
+            f"[ПОЛЕМ · ПРОВОДКА ЖИВА] до области зовущего шаг дошёл у "
+            f"{field_step.get('next_scope_reached')} счётчик(ов), и у "
+            f"{field_step.get('reader_parsed_at_next_scope')} разобрал там "
+            f"ЧИТАТЕЛЯ: это два разных достижения, и складывать их в одно "
+            f"значило бы выдать половину проводки за целую")
+        control = observed(field_step, "control", kind=dict) or {}
+        out.append(
+            f"[ПОЛЕМ · КОНТРОЛЬ] правило разрешило "
+            f"{control.get('known_case_resolved')} из {len(_FIELD_FORMS)} "
+            f"счётчиков положительной сцены ВСЕМИ "
+            f"{len(control.get('forms') or [])} формами переноса и дало "
+            f"{control.get('clean_false_splits')} ложных расколов на "
+            f"отрицательной, разведя её "
+            f"{len(control.get('clean_refusal_names') or [])} РАЗНЫМИ "
+            f"именами отказа")
+        for item in (observed(field_step, "unresolved_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ПОЛЕМ · ОБРАЗЕЦ] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` — "
+                f"{item.get('gap')}")
+        for blind in (observed(field_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
