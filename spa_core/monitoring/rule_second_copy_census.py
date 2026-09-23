@@ -230,7 +230,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакетом
@@ -8421,6 +8421,91 @@ _REACH_OUTCOMES = (REACH_LIVE, REACH_ISOLATED, REACH_NO_TEST,
 UNMEASURED_REACH_ABSENT = "reach_not_observed"
 UNMEASURED_REACH_UNDECLARED = "reach_class_undeclared"
 
+#: --- заказ G76 п. 1 ---------------------------------------------------
+#: Счётчик, открытый ЛЮБОЙ строке. Наследник снял класс у ОДНОГО поля одного
+#: прибора (`reaches[reach] = reaches.get(reach, 0) + 1`, ADR-459), и на этом
+#: население класса кончилось: сколько таких счётчиков ЕЩЁ, не спрашивал никто.
+#: Правило поиска объявлено ЗДЕСЬ, до замера, и проверяется на уже известном
+#: случае — иначе ноль был бы неотличим от «искали не той формой».
+OPEN_COUNTER_DIRS = ("spa_core/monitoring", "scripts")
+OPEN_COUNTER_SKIP = ("scripts/archive",)
+
+#: Происхождение КЛЮЧА. Классов четыре, и четвёртый — не «прочее»: ключ,
+#: чьё происхождение не разобрано, НЕ есть ключ безопасный.
+KEY_LITERAL = "key_is_a_literal"
+KEY_DECLARED = "key_from_a_declared_enumeration"
+KEY_ARTIFACT = "key_from_an_artifact"
+KEY_UNRESOLVED = "key_provenance_unresolved"
+_KEY_OUTCOMES = (KEY_LITERAL, KEY_DECLARED, KEY_ARTIFACT, KEY_UNRESOLVED)
+
+#: Имена, чтение которых ЕСТЬ чтение данных. Список объявлен, а не угадан:
+#: расширять его — решение, а не умолчание.
+OPEN_COUNTER_ARTIFACT_CALLS = ("observed", "load", "loads", "read_json",
+                               "json_load", "read_text")
+
+#: Вердикт шага. Разделяет их не сила, а ПРЕДМЕТ.
+OPEN_COUNTER_NONE = "no_counter_is_open_to_an_unnamed_class"
+OPEN_COUNTER_GUARDED = "open_counters_exist_but_every_key_is_checked"
+OPEN_COUNTER_FOUND = "counters_open_to_a_class_nobody_declared"
+
+#: Отказы шага. У каждого своё имя: чинятся они разным.
+UNMEASURED_CONTROL_MISSED = "declared_form_missed_the_known_case"
+UNMEASURED_NO_TREE = "no_file_parsed_in_the_declared_dirs"
+
+#: Сцена положительного контроля — ФОРМА обеих строк известного случая
+#: (`spa_core/monitoring/rule_second_copy_census.py` на 84150c7cb, до ADR-459).
+#: Дословной она быть НЕ МОЖЕТ и это не небрежность: сосед
+#: `test_tail_value_divergence.py` держит сторожа, требующего, чтобы
+#: отставленное имя `reach_outcome` в коде этого модуля не встречалось вовсе
+#: (ADR-459), — и сторож ПРАВ. Воспроизводится то, что составляет класс:
+#: `str()` поверх возможного отсутствия, ключ из артефакта, счётчик без
+#: сверки с перечнем. Отставленное имя классом не является, и возвращать его
+#: сюда ради буквальности значило бы погасить чужого сторожа своей сценой.
+#: Правило обязано найти ОБА счётчика, назвать ключ пришедшим из артефакта,
+#: сказать «сверки с перечнем нет» и увидеть `str()` поверх возможного
+#: отсутствия. Не нашло — шаг ОТКАЗЫВАЕТ целиком: ноль, полученный формой,
+#: которая промахивается по известному случаю, есть свойство формы, а не
+#: population. Предзаполнение словаря объявленным перечнем (`_VALUE_OUTCOMES`)
+#: присутствует в сцене НАМЕРЕННО: оно сторожем НЕ является, и контроль обязан
+#: это подтвердить.
+OPEN_COUNTER_CONTROL_SOURCE = '''
+_VALUE_OUTCOMES = ("differ", "agree")
+_REACH_OUTCOMES = ("live", "isolated")
+
+
+def scene(rows):
+    values = {cls: 0 for cls in _VALUE_OUTCOMES}
+    reaches = {cls: 0 for cls in _REACH_OUTCOMES}
+    for row in rows:
+        costed = observed(row, "costed_all", kind=list)
+        for item in costed:
+            outcome = str(item.get("value_outcome"))
+            values[outcome] = values.get(outcome, 0) + 1
+            reach = str((item.get("reach_cell") or {}).get("reach")
+                        if isinstance(item.get("reach_cell"), dict)
+                        else item.get("reach"))
+            reaches[reach] = reaches.get(reach, 0) + 1
+'''
+
+#: Отрицательная половина той же сцены: тот же оператор, но ключ пробегает
+#: ОБЪЯВЛЕННЫЙ перечень, а соседний — сверен принадлежностью. Без неё
+#: «контроль нашёл 2» было бы неотличимо от «правило считает открытым любой
+#: счётчик»: контроль обязан ещё и ПРОМАХНУТЬСЯ там, где промахнуться должен.
+OPEN_COUNTER_CONTROL_CLEAN = '''
+_VALUE_OUTCOMES = ("differ", "agree")
+
+
+def clean(doc):
+    counts = {}
+    for cls in _VALUE_OUTCOMES:
+        counts[cls] = counts.get(cls, 0) + 1
+    for item in doc:
+        name = item.get("verdict")
+        if name not in _VALUE_OUTCOMES:
+            continue
+        counts[name] = counts.get(name, 0) + 1
+'''
+
 #: Метка, которой тест отказывается от изоляции каталога данных, и сторож,
 #: который эту изоляцию делает. Имя метки — ОДНО, и берётся оно отсюда,
 #: чтобы у правила не завелось второй копии у читателя.
@@ -8765,6 +8850,529 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
             ("род значения не разделяет `int` и `float` намеренно — иначе "
              "разницей значений была бы названа разница печати; `bool` от "
              "числа отделён, потому что `True` и `1` решают по-разному"),
+        ],
+    }
+
+
+
+def _counter_target_key(node: ast.AST) -> Optional[Tuple[ast.AST, ast.AST, str]]:
+    """Счётчик ли это и какой формы. Форма ОБЪЯВЛЕНА, а не угадана.
+
+    Две формы, и разделяет их не удобство, а то, чем открыт счётчик:
+
+    * ``form_get`` — ``X[k] = X.get(k, D) + S``. Дословно та, которую назвал
+      заказ: ``.get`` с умолчанием заводит класс ``k``, какой бы строкой он
+      ни оказался, и объявленный перечень, которым словарь предзаполнили,
+      этому не мешает НИКАК.
+    * ``form_aug`` — ``X[k] += S``. Открыт он не всегда (на голом ``dict``
+      падает ``KeyError``), но на ``Counter``/``defaultdict`` открыт ровно так
+      же, и не спросить о нём значило бы сузить население до формы.
+
+    Третья форма — ``Counter(...)`` / ``.update(...)`` над перечнем ключей —
+    ЗДЕСЬ НЕ ИЩЕТСЯ, и это сказано вслух в ``blind`` шага: ненайденное ею
+    население не есть ноль.
+
+    Возвращает ``(цель, ключ, форма)`` либо ``None``.
+    """
+    if isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add):
+        if isinstance(node.target, ast.Subscript):
+            return node.target.value, node.target.slice, "form_aug"
+        return None
+    if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+        return None
+    target = node.targets[0]
+    if not isinstance(target, ast.Subscript):
+        return None
+    value = node.value
+    if not (isinstance(value, ast.BinOp) and isinstance(value.op, ast.Add)):
+        return None
+    call = value.left
+    if not (isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "get"
+            and len(call.args) == 2):
+        return None
+    # И цель, и ключ обязаны быть ОДНИМ И ТЕМ ЖЕ выражением слева и справа:
+    # `a[i] = b.get(j, 0) + 1` счётчиком не является.
+    if ast.dump(target.value) != ast.dump(call.func.value):
+        return None
+    if ast.dump(target.slice) != ast.dump(call.args[0]):
+        return None
+    return target.value, target.slice, "form_get"
+
+
+def _scope_bindings(fn: ast.AST) -> Dict[str, List[ast.AST]]:
+    """Все выражения, которыми в этой области связано каждое имя."""
+    binds: Dict[str, List[ast.AST]] = {}
+
+    def _bind(name: str, expr: Optional[ast.AST]) -> None:
+        if expr is not None:
+            binds.setdefault(name, []).append(expr)
+
+    def _bound_names(target: ast.AST) -> List[str]:
+        """Имена, которые оператор действительно СВЯЗЫВАЕТ.
+
+        `ast.walk` по цели тут не годится и это не мелочь: у `counts[cls] = …`
+        он вернул бы и `counts`, и `cls`, то есть объявил бы КЛЮЧ связанным
+        правой частью — а правая часть счётчика всегда читает данные
+        (`counts.get(cls, 0)`), и ключ из объявленного перечня оказался бы
+        «пришедшим из артефакта». Ровно это и поймала отрицательная половина
+        сцены контроля.
+        """
+        if isinstance(target, ast.Name):
+            return [target.id]
+        if isinstance(target, (ast.Tuple, ast.List)):
+            out: List[str] = []
+            for el in target.elts:
+                out.extend(_bound_names(el))
+            return out
+        if isinstance(target, ast.Starred):
+            return _bound_names(target.value)
+        return []
+
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                for name in _bound_names(tgt):
+                    _bind(name, node.value)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            if isinstance(node.target, ast.Name):
+                _bind(node.target.id, node.value)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            for name in _bound_names(node.target):
+                _bind(name, node.iter)
+        elif isinstance(node, ast.comprehension):
+            for name in _bound_names(node.target):
+                _bind(name, node.iter)
+        elif isinstance(node, ast.NamedExpr):
+            if isinstance(node.target, ast.Name):
+                _bind(node.target.id, node.value)
+        elif isinstance(node, ast.withitem):
+            if node.optional_vars is not None:
+                for name in _bound_names(node.optional_vars):
+                    _bind(name, node.context_expr)
+    return binds
+
+
+def _reads_data(expr: ast.AST) -> bool:
+    """Читает ли выражение ДАННЫЕ (а не объявленный перечень).
+
+    Свидетель ОДНОСТОРОННИЙ и назван вслух: ``.get``/индекс/объявленный вызов
+    чтения. Чего он не видит — ключ, собранный из кусков в рантайме, — остаётся
+    третьим исходом, а не нулём.
+    """
+    for node in ast.walk(expr):
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute) and func.attr == "get":
+                return True
+            if (isinstance(func, ast.Attribute)
+                    and func.attr in OPEN_COUNTER_ARTIFACT_CALLS):
+                return True
+            if (isinstance(func, ast.Name)
+                    and func.id in OPEN_COUNTER_ARTIFACT_CALLS):
+                return True
+        if isinstance(node, ast.Subscript):
+            return True
+    return False
+
+
+def _literal_enumeration(expr: ast.AST) -> bool:
+    """Перечень ли это ЛИТЕРАЛОВ, объявленный на месте."""
+    if isinstance(expr, (ast.Tuple, ast.List, ast.Set)):
+        return all(isinstance(el, ast.Constant) for el in expr.elts)
+    if isinstance(expr, ast.Dict):
+        return all(isinstance(k, ast.Constant) for k in expr.keys)
+    return False
+
+
+def _key_origin(expr: ast.AST, binds: Dict[str, List[ast.AST]],
+                module_binds: Dict[str, List[ast.AST]],
+                params: Set[str], seen: Set[str]) -> str:
+    """Происхождение ключа — до неподвижной точки, с ОБЪЯВЛЕННЫМ третьим исходом."""
+    if isinstance(expr, ast.Constant):
+        return KEY_LITERAL
+    if _reads_data(expr):
+        return KEY_ARTIFACT
+    names = sorted({n.id for n in ast.walk(expr) if isinstance(n, ast.Name)})
+    if not names:
+        return KEY_UNRESOLVED
+    verdicts: Set[str] = set()
+    for name in names:
+        if name in seen:
+            continue
+        if name in params:
+            verdicts.add(KEY_UNRESOLVED)
+            continue
+        sources = binds.get(name) or module_binds.get(name) or []
+        if not sources:
+            verdicts.add(KEY_UNRESOLVED)
+            continue
+        for src in sources:
+            if _literal_enumeration(src):
+                verdicts.add(KEY_DECLARED)
+                continue
+            verdicts.add(_key_origin(src, binds, module_binds, params,
+                                     seen | {name}))
+    if KEY_ARTIFACT in verdicts:
+        return KEY_ARTIFACT
+    if KEY_UNRESOLVED in verdicts or not verdicts:
+        return KEY_UNRESOLVED
+    if verdicts == {KEY_LITERAL}:
+        return KEY_LITERAL
+    return KEY_DECLARED
+
+
+def _membership_checked(fn: ast.AST, site: ast.AST, key: ast.AST) -> bool:
+    """Сверен ли ключ принадлежностью к перечню ДО этого счётчика.
+
+    Сторожем считается ТОЛЬКО проверка ``in``/``not in`` над самим ключом:
+
+    * объемлющий ``if <ключ> in <перечень>``;
+    * предшествующий в том же блоке ``if <ключ> not in <перечень>:`` с
+      ``continue`` / ``return`` / ``raise`` в теле.
+
+    **Предзаполнение словаря объявленным перечнем сторожем НЕ является** — и
+    это не придирка: ровно так был устроен известный случай
+    (``values = {cls: 0 for cls in _VALUE_OUTCOMES}`` рядом с
+    ``values.get(outcome, 0)``), и перечень не помешал классу ``'None'``
+    войти в счётчик.
+    """
+    key_dump = ast.dump(key)
+    key_names = {n.id for n in ast.walk(key) if isinstance(n, ast.Name)}
+
+    def _tests_key(test: ast.AST) -> bool:
+        for node in ast.walk(test):
+            if not isinstance(node, ast.Compare):
+                continue
+            if not any(isinstance(op, (ast.In, ast.NotIn))
+                       for op in node.ops):
+                continue
+            left = node.left
+            if ast.dump(left) == key_dump:
+                return True
+            if isinstance(left, ast.Name) and left.id in key_names:
+                return True
+        return False
+
+    # --- родители и предшествующие братья ------------------------------
+    parents: Dict[int, ast.AST] = {}
+    for node in ast.walk(fn):
+        for child in ast.iter_child_nodes(node):
+            parents[id(child)] = node
+
+    node: Optional[ast.AST] = site
+    while node is not None:
+        parent = parents.get(id(node))
+        if isinstance(parent, ast.If) and node in parent.body:
+            if _tests_key(parent.test):
+                return True
+        node = parent
+
+    for block in ast.walk(fn):
+        body = getattr(block, "body", None)
+        if not isinstance(body, list):
+            continue
+        # индекс оператора, внутри которого лежит счётчик
+        index = None
+        for pos, stmt in enumerate(body):
+            if any(sub is site for sub in ast.walk(stmt)):
+                index = pos
+                break
+        if index is None:
+            continue
+        for stmt in body[:index]:
+            if (isinstance(stmt, ast.If) and _tests_key(stmt.test)
+                    and any(isinstance(inner, (ast.Continue, ast.Return,
+                                               ast.Raise))
+                            for inner in stmt.body)):
+                return True
+    return False
+
+
+def _str_over_absence(expr: ast.AST, binds: Dict[str, List[ast.AST]],
+                      seen: Set[str]) -> bool:
+    """``str()`` ли поверх возможного отсутствия — третья половина заказа.
+
+    Именно она заводит класс, БУКВАЛЬНО названный ``'None'``: ``str(None)``
+    молча даёт строку, а строка молча становится именем исхода.
+    """
+    def _is_str_over_gap(node: ast.AST) -> bool:
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "str" and node.args):
+            return False
+        for sub in ast.walk(node.args[0]):
+            if isinstance(sub, ast.BoolOp) and isinstance(sub.op, ast.Or):
+                return True
+            if isinstance(sub, ast.Call):
+                func = sub.func
+                if isinstance(func, ast.Attribute) and func.attr == "get":
+                    return True
+                if (isinstance(func, ast.Name)
+                        and func.id in OPEN_COUNTER_ARTIFACT_CALLS):
+                    return True
+            if isinstance(sub, ast.Subscript):
+                return True
+        return False
+
+    for node in ast.walk(expr):
+        if _is_str_over_gap(node):
+            return True
+    for name in sorted({n.id for n in ast.walk(expr)
+                        if isinstance(n, ast.Name)}):
+        if name in seen:
+            continue
+        for src in binds.get(name) or []:
+            if _str_over_absence(src, binds, seen | {name}):
+                return True
+    return False
+
+
+def _counter_owner_scopes(tree: ast.AST) -> Dict[int, ast.AST]:
+    """Для каждого узла — БЛИЖАЙШАЯ объемлющая функция (или сам модуль).
+
+    Имя НЕ `_enclosing_scope`: так уже зовётся сосед по модулю (строка ~5778),
+    который отвечает на ДРУГОЙ вопрос — «как называется область на такой-то
+    строке» — и берёт два аргумента. Второе определение того же имени молча
+    победило бы первое, и сосед упал бы `TypeError` на живом дереве; так он и
+    упал, пока имя было общим. Одно имя — один объект (`.claude/rules/adapters.md`).
+
+    Обход модуля `ast.walk`-ом видит и тела функций, поэтому «разобрать
+    сначала модуль, потом функции» привязало бы всякий счётчик к области
+    МОДУЛЯ: параметры функции остались бы неизвестны, а связывания —
+    общемодульными. Область считается ОДИН раз и от ближайшего родителя.
+    """
+    owner: Dict[int, ast.AST] = {}
+
+    def _descend(node: ast.AST, scope: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            inner = (child
+                     if isinstance(child, (ast.FunctionDef,
+                                           ast.AsyncFunctionDef))
+                     else scope)
+            owner[id(child)] = inner
+            _descend(child, inner)
+
+    owner[id(tree)] = tree
+    _descend(tree, tree)
+    return owner
+
+
+def _open_counter_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Все счётчики объявленных форм в одном разобранном файле."""
+    module_binds = _scope_bindings(tree)
+    owner_of = _counter_owner_scopes(tree)
+    scope_cache: Dict[int, Tuple[Dict[str, List[ast.AST]], Set[str], str]] = {}
+
+    def _scope_of(scope: ast.AST):
+        cached = scope_cache.get(id(scope))
+        if cached is not None:
+            return cached
+        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = scope.args
+            params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                      + list(args.kwonlyargs))}
+            if args.vararg:
+                params.add(args.vararg.arg)
+            if args.kwarg:
+                params.add(args.kwarg.arg)
+            made = (_scope_bindings(scope), params, scope.name)
+        else:
+            made = (module_binds, set(), "<module>")
+        scope_cache[id(scope)] = made
+        return made
+
+    found: List[dict] = []
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        target, key, form = shape
+        scope = owner_of.get(id(node), tree)
+        binds, params, owner = _scope_of(scope)
+        found.append({
+            "file": rel,
+            "line": getattr(node, "lineno", None),
+            "owner": owner,
+            "form": form,
+            "counter": ast.unparse(target)[:60],
+            "key": ast.unparse(key)[:60],
+            "key_origin": _key_origin(key, binds, module_binds, params, set()),
+            "membership_checked": _membership_checked(scope, node, key),
+            "str_over_absence": _str_over_absence(key, binds, set()),
+        })
+    return sorted(found, key=lambda item: (item["file"], item["line"] or 0))
+
+
+def _open_counter_control() -> dict:
+    """Проба объявленного правила на УЖЕ ИЗВЕСТНОМ случае — до замера.
+
+    Две половины, и вторая не есть украшение первой: правило обязано не только
+    НАЙТИ известный счётчик, но и ПРОМАХНУТЬСЯ там, где промахнуться должно.
+    Без второй «нашло 2» было бы неотличимо от «считает открытым что угодно».
+    """
+    try:
+        hit = _open_counter_sites("<control>",
+                                  ast.parse(OPEN_COUNTER_CONTROL_SOURCE))
+        clean = _open_counter_sites("<control-clean>",
+                                    ast.parse(OPEN_COUNTER_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    open_hits = [s for s in hit
+                 if s["key_origin"] == KEY_ARTIFACT
+                 and not s["membership_checked"]]
+    if len(open_hits) != 2:
+        return {"passed": False, "found": len(hit), "open": len(open_hits),
+                "reason": (f"правило нашло {len(open_hits)} открыт(ых) "
+                           f"счётчик(ов) из 2 в ИЗВЕСТНОМ случае "
+                           f"(ADR-459) — ноль от такой формы был бы "
+                           f"свойством формы, а не населения")}
+    if not all(s["str_over_absence"] for s in open_hits):
+        return {"passed": False, "open": len(open_hits),
+                "reason": ("в известном случае оба ключа приходят через "
+                           "`str()` поверх возможного отсутствия, а правило "
+                           "этого не увидело")}
+    unchecked_clean = [s for s in clean
+                       if s["key_origin"] == KEY_ARTIFACT
+                       and not s["membership_checked"]]
+    if unchecked_clean:
+        return {"passed": False, "clean_false_positives": len(unchecked_clean),
+                "reason": ("на отрицательной половине сцены (ключ из "
+                           "объявленного перечня · ключ, сверенный "
+                           "принадлежностью) правило объявило открытыми "
+                           f"{len(unchecked_clean)} счётчик(ов)")}
+    if not any(s["key_origin"] == KEY_DECLARED for s in clean):
+        return {"passed": False,
+                "reason": ("правило не признало КЛЮЧ ИЗ ОБЪЯВЛЕННОГО "
+                           "ПЕРЕЧНЯ таковым ни разу — значит, «не открыт» "
+                           "оно говорит по другой причине")}
+    return {"passed": True, "known_case_open": len(open_hits),
+            "clean_sites": len(clean),
+            "clean_false_positives": 0}
+
+
+def open_class_counter_census(root: Path) -> dict:
+    """Сколько счётчиков открыто классу, которого никто не объявлял (**заказ G76 п. 1**).
+
+    ADR-459 снял класс с ИМЕНЕМ ``'None'`` у одного поля одного прибора:
+    ``reaches[reach] = reaches.get(reach, 0) + 1``, где ``reach`` приходил
+    через ``str()`` поверх отсутствующего ключа. Вред лежал не в счётчике —
+    ненаблюдённая достижимость молча проваливалась в «до вердикта не
+    доходит», и шаг отвечал ``MEASURED`` вердиктом, на котором стоял весь
+    вывод ADR-458. Население же класса не спросили ни разу.
+
+    Заказ ставит вопрос дословно:
+
+    > Сколько таких счётчиков в ``spa_core/monitoring`` и ``scripts``, у
+    > скольких из них предшествует проверка принадлежности, и у скольких ключ
+    > приходит через ``str()`` поверх возможного отсутствия.
+
+    **Правило поиска объявлено ДО замера** (:func:`_counter_target_key`,
+    :data:`OPEN_COUNTER_CONTROL_SOURCE`) и проверяется на уже известном
+    случае ОБЕИМИ сторонами: обязано найти его и обязано промахнуться по
+    счётчику с объявленным ключом. Контроль не прошёл ⇒ шаг ОТКАЗЫВАЕТ
+    целиком: ноль, полученный формой, которая промахивается по известному
+    случаю, есть свойство формы.
+
+    Третий исход обязателен у ключа (``key_provenance_unresolved`` — НЕ
+    «ключ безопасен») и у файла (не разобран — НЕ «счётчиков нет»).
+
+    ADVISORY: ни одного счётчика не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько счётчиков в объявленных каталогах открыто "
+                     "классу, которого не объявлял никто, у скольких из них "
+                     "ключ сверен принадлежностью и у скольких он приходит "
+                     "через `str()` поверх возможного отсутствия"),
+        "order": "G76.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+        "forms": ["form_get: X[k] = X.get(k, D) + S",
+                  "form_aug: X[k] += S"],
+    }
+    control = _open_counter_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_CONTROL_MISSED,
+                "reason": (f"объявленное правило поиска не прошло контроль на "
+                           f"известном случае: {control.get('reason')}")}
+
+    sites: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            sites.extend(_open_counter_sites(rel, tree))
+    if not scanned:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_NO_TREE,
+                "reason": (f"в {OPEN_COUNTER_DIRS} не разобран ни один файл — "
+                           f"это НЕ «счётчиков нет»")}
+
+    origins = {cls: 0 for cls in _KEY_OUTCOMES}
+    for site in sites:
+        origins[site["key_origin"]] = origins.get(site["key_origin"], 0) + 1
+    from_artifact = [s for s in sites if s["key_origin"] == KEY_ARTIFACT]
+    checked = [s for s in from_artifact if s["membership_checked"]]
+    open_now = [s for s in from_artifact if not s["membership_checked"]]
+    by_str = [s for s in open_now if s["str_over_absence"]]
+    unresolved = [s for s in sites if s["key_origin"] == KEY_UNRESOLVED]
+
+    if open_now:
+        verdict = OPEN_COUNTER_FOUND
+    elif from_artifact:
+        verdict = OPEN_COUNTER_GUARDED
+    else:
+        verdict = OPEN_COUNTER_NONE
+    return {
+        **head,
+        "status": "MEASURED",
+        "verdict": verdict,
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "counters_total": len(sites),
+        "by_form": {form: sum(1 for s in sites if s["form"] == form)
+                    for form in ("form_get", "form_aug")},
+        "key_origin_counts": origins,
+        "key_from_artifact": len(from_artifact),
+        "membership_checked": len(checked),
+        "open_to_an_unnamed_class": len(open_now),
+        "open_via_str_over_absence": len(by_str),
+        "key_unresolved": len(unresolved),
+        "open_sample": open_now[:COSTED_SAMPLE],
+        "unresolved_sample": unresolved[:COSTED_SAMPLE],
+        "blind": [
+            ("форма `Counter(...)` / `.update(...)` над перечнем ключей "
+             "ЗДЕСЬ НЕ ИЩЕТСЯ: правило объявлено двумя формами, и ненайденное "
+             "третьей не есть ноль"),
+            ("`form_aug` (`X[k] += S`) открыт не всегда — на голом `dict` он "
+             "падает `KeyError`, а на `Counter`/`defaultdict` открыт так же; "
+             "род накопителя здесь НЕ доказывается"),
+            ("`membership_checked` ищет сверку ТОЛЬКО над самим ключом; "
+             "предзаполнение словаря объявленным перечнем сторожем не "
+             "считается намеренно — в известном случае оно было и не помогло"),
+            (f"`{KEY_UNRESOLVED}` есть третий исход, а не «ключ безопасен»: "
+             "происхождение ключа, собранного в рантайме, не разбирает "
+             "никакой AST"),
+            ("шаг НЕ доказывает, что открытый счётчик вредит СЕГОДНЯ: вред "
+             "известного случая лежал не в счётчике, а у его читателя"),
         ],
     }
 
@@ -9899,6 +10507,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # прогонов не запускает, поэтому цены такту не добавляет.
     value_divergence = tail_value_divergence(registry_ambiguity)
 
+    # --- НАСЕЛЕНИЕ ОТКРЫТЫХ СЧЁТЧИКОВ (заказ G76 п. 1) -----------------
+    # ADR-459 снял класс с именем `'None'` у ОДНОГО поля одного прибора и
+    # населения класса не спросил. Правило поиска объявлено выше и
+    # проверяется на том же известном случае обеими сторонами: ноль от
+    # формы, промахивающейся по известному случаю, есть свойство ФОРМЫ.
+    open_counters = open_class_counter_census(root)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -10024,6 +10639,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         "reader_cost_of_test_channel": test_channel_cost,
         "registry_ambiguity_scope": registry_ambiguity,
         "tail_value_divergence": value_divergence,
+        "open_class_counter_census": open_counters,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -11543,6 +12159,53 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                     f"роды {'/'.join(item.get('kinds') or []) or '—'}, "
                     f"достижимость {item.get('reach')}")
         for blind in (observed(div, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    opened = observed(doc, "open_class_counter_census", kind=dict)
+    if opened is None:
+        out.append("[ОТКРЫТЫЙ СЧЁТЧИК] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «открытых счётчиков нет»")
+    elif str(opened.get("status")) == "UNMEASURED":
+        out.append(f"[ОТКРЫТЫЙ СЧЁТЧИК] НЕ ИЗМЕРЕНО "
+                   f"[{opened.get('unmeasured_class')}]: {opened.get('reason')}")
+    else:
+        origins = observed(opened, "key_origin_counts", kind=dict)
+        out.append(
+            f"[ОТКРЫТЫЙ СЧЁТЧИК] вердикт {opened.get('verdict')} · счётчиков "
+            f"{opened.get('counters_total')} в {opened.get('files_scanned')} "
+            f"файл(ах) {', '.join(opened.get('dirs') or [])} "
+            + ("· происхождение ключа НЕ ИЗМЕРЕНО" if origins is None else
+               f"· ключ из артефакта у {origins.get(KEY_ARTIFACT)}, из "
+               f"объявленного перечня у {origins.get(KEY_DECLARED)}, литерал "
+               f"у {origins.get(KEY_LITERAL)}, НЕ РАЗОБРАН у "
+               f"{origins.get(KEY_UNRESOLVED)}"))
+        out.append(
+            f"[ОТКРЫТЫЙ СЧЁТЧИК · СВЕРКА] из {opened.get('key_from_artifact')} "
+            f"счётчиков с ключом из артефакта принадлежность проверена у "
+            f"{opened.get('membership_checked')}; ОТКРЫТ ЛЮБОЙ СТРОКЕ "
+            f"{opened.get('open_to_an_unnamed_class')}, из них через `str()` "
+            f"поверх возможного отсутствия — {opened.get('open_via_str_over_absence')} "
+            f"(известный случай ADR-459 был ОДНИМ из них)")
+        out.append(
+            f"[ОТКРЫТЫЙ СЧЁТЧИК · ТРЕТИЙ ИСХОД] происхождение ключа не "
+            f"разобрано у {opened.get('key_unresolved')} счётчик(ов) — это НЕ "
+            f"«ключ безопасен»; файлов не прочитано "
+            f"{len(opened.get('files_unreadable') or [])}")
+        control = observed(opened, "control", kind=dict) or {}
+        out.append(
+            f"[ОТКРЫТЫЙ СЧЁТЧИК · КОНТРОЛЬ] объявленное правило нашло "
+            f"{control.get('known_case_open')} из 2 счётчиков ИЗВЕСТНОГО "
+            f"случая и дало {control.get('clean_false_positives')} ложных на "
+            f"отрицательной половине сцены — без обеих половин ноль был бы "
+            f"свойством формы, а не населения")
+        for item in (observed(opened, "open_sample", kind=list) or [])[:max_rows]:
+            out.append(
+                f"[ОТКРЫТЫЙ СЧЁТЧИК · ОБРАЗЕЦ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}[{item.get('key')}]` форма "
+                f"{item.get('form')}"
+                + (" · ключ через `str()` поверх отсутствия"
+                   if item.get("str_over_absence") else ""))
+        for blind in (observed(opened, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
