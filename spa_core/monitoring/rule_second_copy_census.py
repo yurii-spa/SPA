@@ -13535,6 +13535,522 @@ def defensive_tail_binding(root: Path, bound_step: Optional[dict]) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# ФОРМА ВРЕДА У ПИСАТЕЛЯ — заказ G84 п. 2
+# ---------------------------------------------------------------------------
+
+#: Что ПИСАТЕЛЬ делает с классом, которого никто не объявлял. Три исхода, и
+#: делит их не сила, а ПРЕДМЕТ: «молча посчитан» и «падает `KeyError`» суть
+#: РАЗНЫЙ вред у одной и той же поверхности (первый неотличим от правды,
+#: второй виден сразу), а «род накопителя не измерен» не есть ни то, ни другое.
+WRITER_SILENT = "unknown_class_is_counted_silently"
+WRITER_LOUD = "unknown_class_raises_keyerror_at_the_writer"
+WRITER_UNRESOLVED = "accumulator_kind_not_measured"
+_WRITER_OUTCOMES = (WRITER_SILENT, WRITER_LOUD, WRITER_UNRESOLVED)
+
+#: Почему род накопителя НЕ измерен. Имя у каждой причины своё, и это не
+#: украшение: чинятся они РАЗНЫМ — имя, связанное в другой области, требует
+#: межобластного разбора; непрозрачный вызов — расширения перечня
+#: конструкторов; расхождение связываний не требует ничего, кроме честности.
+WRITER_GAP_NO_BINDING = "accumulator_is_not_bound_in_this_scope"
+WRITER_GAP_OPAQUE = "accumulator_comes_from_a_call_of_an_unknown_kind"
+WRITER_GAP_MANY_KINDS = "accumulator_is_bound_with_more_than_one_kind"
+_WRITER_GAPS = (WRITER_GAP_NO_BINDING, WRITER_GAP_OPAQUE,
+                WRITER_GAP_MANY_KINDS)
+
+#: ЧЕМ доказан исход. Форма и род накопителя — разные доказательства одного
+#: вердикта, и смешать их значило бы выдать вывод из формы за вывод из рода.
+WRITER_BY_FORM = "the_get_default_admits_any_class"
+WRITER_BY_KIND = "the_accumulator_kind_decides"
+
+UNMEASURED_WRITER_NEIGHBOUR = "open_counter_census_is_absent_or_unmeasured"
+UNMEASURED_WRITER_POPULATION = "second_walk_disagrees_with_the_open_counter_census"
+UNMEASURED_WRITER_CONTROL = "declared_writer_kind_rule_missed_the_known_case"
+
+#: Конструкторы, у которых ОТСУТСТВУЮЩИЙ ключ не есть ошибка: `Counter` вернёт
+#: 0, `defaultdict` заведёт умолчание. Перечень ЗАКРЫТ — неизвестный
+#: конструктор есть третий исход, а не «наверное, словарь».
+_FORGIVING_CTORS = ("Counter", "defaultdict")
+#: Конструкторы голого отображения: отсутствующий ключ — `KeyError`.
+_STRICT_CTORS = ("dict", "OrderedDict", "fromkeys")
+#: Модули, из которых эти имена берутся. Точка нужна: `x.Counter(...)` чужого
+#: модуля по имени неотличим от `collections.Counter(...)`, а род накопителя —
+#: предмет доказательства, а не догадки по короткому имени.
+_CTOR_MODULES = ("collections", "dict")
+
+
+def _accumulator_kind(expr: ast.AST) -> Optional[str]:
+    """Род накопителя: ``forgiving`` · ``strict`` · ``None`` (непрозрачно).
+
+    ``None`` — ТРЕТИЙ ИСХОД, а не «наверное, словарь»: выражение, рода
+    которого правило не доказало, обязано остаться неизмеренным.
+    """
+    if isinstance(expr, (ast.Dict, ast.DictComp)):
+        return "strict"
+    if not isinstance(expr, ast.Call):
+        return None
+    fn = expr.func
+    if isinstance(fn, ast.Name):
+        name = fn.id
+    elif isinstance(fn, ast.Attribute):
+        base = fn.value
+        root_name = base.id if isinstance(base, ast.Name) else None
+        if root_name not in _CTOR_MODULES:
+            return None
+        name = fn.attr
+    else:
+        return None
+    if name in _FORGIVING_CTORS:
+        # `defaultdict()` БЕЗ фабрики ведёт себя как голый словарь и падает
+        # `KeyError` — снисходительность у него не от имени, а от аргумента.
+        if name == "defaultdict" and not expr.args and not expr.keywords:
+            return "strict"
+        return "forgiving"
+    if name in _STRICT_CTORS:
+        return "strict"
+    return None
+
+
+def _swallowed_by_a_broad_handler(scope: ast.AST, node: ast.AST) -> bool:
+    """Долетит ли `KeyError` писателя до зовущего, или его проглотят здесь.
+
+    Оговорка к «громко», измеренная ЧИСЛОМ, а не прозой: `KeyError` внутри
+    `try/except Exception` снова становится тишиной, и объявить такой счётчик
+    громким значило бы выдать оговорку за исход.
+    """
+    for parent in ast.walk(scope):
+        if not isinstance(parent, ast.Try):
+            continue
+        if not any(child is node for child in ast.walk(parent)
+                   if isinstance(child, (ast.Assign, ast.AugAssign))):
+            continue
+        # Тело, а не обработчик: счётчик, стоящий В `except`, этим `try` не
+        # защищён.
+        if not any(child is node for stmt in parent.body
+                   for child in ast.walk(stmt)):
+            continue
+        for handler in parent.handlers:
+            if handler.type is None:
+                return True
+            names = [handler.type] if not isinstance(
+                handler.type, ast.Tuple) else list(handler.type.elts)
+            for item in names:
+                label = (item.id if isinstance(item, ast.Name)
+                         else item.attr if isinstance(item, ast.Attribute)
+                         else None)
+                if label in ("Exception", "BaseException", "KeyError",
+                             "LookupError"):
+                    return True
+    return False
+
+
+#: ПОЛОЖИТЕЛЬНАЯ половина сцены контроля. Оба известных случая ряда стоят
+#: здесь дословно: строгий род — `{v: 0 for v in _VERDICTS}` + `+=` из
+#: `copy_independence_probe.measure` (его назвал заказ G83 п. 2), молчащая
+#: форма — `X[k] = X.get(k, 0) + 1` из ADR-459.
+WRITER_KIND_CONTROL_SOURCE = '''
+from collections import Counter, defaultdict
+
+_VERDICTS = ("clean", "dirty")
+
+
+def scene(rows):
+    loud = {v: 0 for v in _VERDICTS}
+    soft = Counter()
+    lazy = defaultdict(int)
+    gets = {}
+    for row in rows:
+        cls = str(row.get("verdict"))
+        loud[cls] += 1
+        soft[cls] += 1
+        lazy[cls] += 1
+        gets[cls] = gets.get(cls, 0) + 1
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «правило нашло молчание у трёх» было бы
+#: неотличимо от «правило зовёт молчащим что угодно»: контроль обязан ещё и
+#: ПРОМАХНУТЬСЯ там, где промахнуться должен, и развести отказы ИМЕНАМИ.
+#: `defaultdict()` БЕЗ фабрики — самое острое место сцены: по короткому имени
+#: он снисходителен, по значению аргумента — строг.
+WRITER_KIND_CONTROL_CLEAN = '''
+from collections import Counter, defaultdict
+
+
+def bare(rows, given):
+    naked = defaultdict()
+    opaque = build_counter()
+    for row in rows:
+        cls = str(row.get("verdict"))
+        naked[cls] += 1
+        opaque[cls] += 1
+        given[cls] += 1
+
+
+def many(rows, flag):
+    mixed = Counter()
+    if flag:
+        mixed = {}
+    for row in rows:
+        mixed[str(row.get("verdict"))] += 1
+
+
+def swallowed(rows):
+    strict = {}
+    for row in rows:
+        try:
+            strict[str(row.get("verdict"))] += 1
+        except Exception:
+            pass
+'''
+
+
+def _writer_kind_site(scope: ast.AST, node: ast.AST, target: ast.AST,
+                      form: str) -> dict:
+    """Что писатель ОДНОГО счётчика делает с классом, которого не объявляли.
+
+    Односторонность объявлена ЗАРАНЕЕ и ограничена ОДНИМ звеном: накопитель
+    обязан быть связан в ТОЙ ЖЕ области, что и запись. Имя, связанное выше по
+    дереву областей, есть третий исход, а не догадка, — иначе ответ зависел бы
+    от того, как далеко прибор решил посмотреть.
+    """
+    if form == "form_get":
+        # Доказано ФОРМОЙ, а не родом: `.get(k, D)` заводит класс `k` любым
+        # родом накопителя, и `KeyError` здесь недостижим по построению.
+        return {"writer": WRITER_SILENT, "proved_by": WRITER_BY_FORM,
+                "writer_gap": None, "accumulator": None,
+                "keyerror_reaches_the_caller": None}
+    if not isinstance(target, ast.Name):
+        return {"writer": WRITER_UNRESOLVED, "proved_by": None,
+                "writer_gap": WRITER_GAP_NO_BINDING, "accumulator": None,
+                "keyerror_reaches_the_caller": None}
+    binds = _scope_bindings(scope).get(target.id) or []
+    if not binds:
+        return {"writer": WRITER_UNRESOLVED, "proved_by": None,
+                "writer_gap": WRITER_GAP_NO_BINDING, "accumulator": None,
+                "keyerror_reaches_the_caller": None}
+    kinds = {_accumulator_kind(expr) for expr in binds}
+    if None in kinds:
+        return {"writer": WRITER_UNRESOLVED, "proved_by": None,
+                "writer_gap": WRITER_GAP_OPAQUE, "accumulator": None,
+                "keyerror_reaches_the_caller": None}
+    if len(kinds) > 1:
+        return {"writer": WRITER_UNRESOLVED, "proved_by": None,
+                "writer_gap": WRITER_GAP_MANY_KINDS, "accumulator": None,
+                "keyerror_reaches_the_caller": None}
+    kind = kinds.pop()
+    if kind == "forgiving":
+        return {"writer": WRITER_SILENT, "proved_by": WRITER_BY_KIND,
+                "writer_gap": None, "accumulator": kind,
+                "keyerror_reaches_the_caller": None}
+    return {"writer": WRITER_LOUD, "proved_by": WRITER_BY_KIND,
+            "writer_gap": None, "accumulator": kind,
+            "keyerror_reaches_the_caller":
+                not _swallowed_by_a_broad_handler(scope, node)}
+
+
+def _writer_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Форма вреда у писателя каждого ОТКРЫТОГО счётчика одного файла.
+
+    Обход и правило открытости — ДОСЛОВНО соседские (:func:`_open_counter_sites`):
+    две дороги к одному населению обязаны разойтись только правилом ШАГА, иначе
+    сверка ниже проверяет не то, что заявляет.
+    """
+    module_binds = _scope_bindings(tree)
+    owner_of = _counter_owner_scopes(tree)
+    scope_cache: Dict[int, Tuple[Dict[str, List[ast.AST]], Set[str], str]] = {}
+
+    def _scope_of(scope: ast.AST):
+        cached = scope_cache.get(id(scope))
+        if cached is not None:
+            return cached
+        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = scope.args
+            params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                      + list(args.kwonlyargs))}
+            if args.vararg:
+                params.add(args.vararg.arg)
+            if args.kwarg:
+                params.add(args.kwarg.arg)
+            made = (_scope_bindings(scope), params, scope.name)
+        else:
+            made = (module_binds, set(), "<module>")
+        scope_cache[id(scope)] = made
+        return made
+
+    found: List[dict] = []
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        target, key, form = shape
+        scope = owner_of.get(id(node), tree)
+        binds, params, owner = _scope_of(scope)
+        if _key_origin(key, binds, module_binds, params, set()) != KEY_ARTIFACT:
+            continue
+        if _membership_checked(scope, node, key):
+            continue
+        site = {
+            "file": rel,
+            "line": getattr(node, "lineno", None),
+            "owner": owner,
+            "form": form,
+            "counter": ast.unparse(target)[:60],
+            "key": ast.unparse(key)[:60],
+        }
+        site.update(_writer_kind_site(scope, node, target, form))
+        found.append(site)
+    return sorted(found, key=lambda item: (item["file"], item["line"] or 0))
+
+
+def _writer_kind_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Две половины, и вторая не украшение первой. Положительная обязана развести
+    один строгий род и три молчания, причём молчания — ДВУМЯ РАЗНЫМИ
+    доказательствами (форма и род); отрицательная обязана не объявить молчащим
+    ни одного и развести свои отказы ТРЕМЯ РАЗНЫМИ именами.
+    """
+    try:
+        hit = _writer_kind_sites("<control>",
+                                 ast.parse(WRITER_KIND_CONTROL_SOURCE))
+        clean = _writer_kind_sites("<control-clean>",
+                                   ast.parse(WRITER_KIND_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    loud = [s for s in hit if s["writer"] == WRITER_LOUD]
+    silent = [s for s in hit if s["writer"] == WRITER_SILENT]
+    if len(loud) != 1 or len(silent) != 3:
+        return {"passed": False, "loud": len(loud), "silent": len(silent),
+                "reason": (f"на известных случаях правило нашло {len(loud)} "
+                           f"строгих и {len(silent)} молчащих писателей вместо "
+                           f"1 и 3 — число от такой формы было бы свойством "
+                           f"формы, а не населения")}
+    by_form = [s for s in silent if s["proved_by"] == WRITER_BY_FORM]
+    by_kind = [s for s in silent if s["proved_by"] == WRITER_BY_KIND]
+    if len(by_form) != 1 or len(by_kind) != 2:
+        return {"passed": False, "by_form": len(by_form),
+                "by_kind": len(by_kind),
+                "reason": ("молчание доказано не теми доказательствами: "
+                           f"формой {len(by_form)} (ждали 1), родом "
+                           f"{len(by_kind)} (ждали 2) — сложить их в одно "
+                           "значило бы выдать вывод из формы за вывод из рода")}
+    claimed = [s for s in clean if s["writer"] == WRITER_SILENT]
+    if claimed:
+        return {"passed": False, "clean_false_positives": len(claimed),
+                "reason": ("на отрицательной половине сцены правило объявило "
+                           f"молчащими {len(claimed)} писател(ей) — в том "
+                           "числе там, где род строг по ЗНАЧЕНИЮ аргумента, "
+                           "а не по короткому имени")}
+    naked = [s for s in clean if s["counter"] == "naked"]
+    if len(naked) != 1 or naked[0]["writer"] != WRITER_LOUD:
+        return {"passed": False,
+                "reason": ("`defaultdict()` БЕЗ фабрики не признан строгим: "
+                           "правило судит род по имени конструктора, а не по "
+                           "его аргументу")}
+    gaps = {s["writer_gap"] for s in clean if s["writer_gap"]}
+    if len(gaps) != len(_WRITER_GAPS):
+        return {"passed": False, "gaps": sorted(gaps),
+                "reason": (f"отрицательная половина развела отказы "
+                           f"{len(gaps)} именем(ами) из {len(_WRITER_GAPS)} — "
+                           "один отказ на все причины посылает чинить не то")}
+    swallowed = [s for s in clean if s["counter"] == "strict"]
+    if len(swallowed) != 1 or swallowed[0]["keyerror_reaches_the_caller"]:
+        return {"passed": False,
+                "reason": ("`KeyError` внутри `try/except Exception` объявлен "
+                           "долетающим до зовущего — оговорка к «громко» не "
+                           "измерена, а значит выдана за исход")}
+    return {"passed": True, "loud": len(loud), "silent": len(silent),
+            "proved_by_form": len(by_form), "proved_by_kind": len(by_kind),
+            "clean_sites": len(clean), "clean_false_positives": 0,
+            "gaps": sorted(gaps)}
+
+
+def writer_harm_form(root: Path, open_step: Optional[dict]) -> dict:
+    """Что ПИСАТЕЛЬ делает с незнакомым классом (**заказ G84 п. 2**).
+
+    Весь ряд G76…G84 мерил ЧИТАТЕЛЯ: доходит ли незнакомый класс до вердикта и
+    расщепляет ли его. Форма вреда у ПИСАТЕЛЯ не измерена ни одним шагом ряда,
+    и заказ повторяет это третий раз подряд (G82 п. 2 → G83 п. 2 → G84 п. 2)
+    дословно:
+
+    > Сколько открытых счётчиков принимают незнакомый класс МОЛЧА, а сколько
+    > падают на нём ``KeyError``.
+
+    Вопрос не косметический, и сосед назвал его сам — в собственном перечне
+    слепоты :func:`open_class_counter_census`:
+
+        ``form_aug`` (``X[k] += S``) открыт не всегда — на голом ``dict`` он
+        падает ``KeyError``, а на ``Counter``/``defaultdict`` открыт так же;
+        **род накопителя здесь НЕ доказывается**.
+
+    Отсюда следствие, которого ряд не проверял ни разу: часть населения,
+    которую пять шагов подряд звали ОТКРЫТОЙ, может быть не открыта вовсе.
+    «Молча посчитан» и «падает ``KeyError``» — не оттенки одного вреда:
+    первый неотличим от правды и есть ровно та ПОДДЕЛКА доказательства,
+    которую ADR-468 нашёл у теневого гейта; второй виден в тот же миг и
+    fail-CLOSED по построению.
+
+    **Правило объявлено ДО замера** (:func:`_accumulator_kind`,
+    :data:`WRITER_KIND_CONTROL_SOURCE`) и проверяется ОБЕИМИ половинами на уже
+    известных случаях ряда: строгий род — ``{v: 0 for v in _VERDICTS}`` из
+    ``copy_independence_probe.measure`` (его назвал заказ), молчащая форма —
+    ``X[k] = X.get(k, 0) + 1`` из ADR-459.
+
+    **Односторонность объявлена заранее и ограничена ОДНИМ звеном:** накопитель
+    обязан быть связан в ТОЙ ЖЕ области, что и запись. Имя, связанное выше,
+    отвечает :data:`WRITER_GAP_NO_BINDING` — третьим исходом, а не догадкой.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числом: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько ОТКРЫТЫХ счётчиков принимают незнакомый класс "
+                     "молча, а сколько падают на нём `KeyError`"),
+        "order": "G84.2",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(open_step, dict)
+            or str(open_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_WRITER_NEIGHBOUR,
+                "reason": ("перепись открытых счётчиков не измерена — "
+                           "населения «открытый счётчик» не существует; это "
+                           "НЕ «таких счётчиков нет»")}
+    declared_population = observed(open_step, "open_to_an_unnamed_class",
+                                   kind=int)
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_WRITER_NEIGHBOUR,
+                "reason": ("сосед не назвал числа открытых счётчиков — "
+                           "сверять свой обход не с чем")}
+    control = _writer_kind_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_WRITER_CONTROL,
+                "reason": (f"объявленное правило рода накопителя не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_writer_kind_sites(rel, tree))
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_WRITER_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_WRITER_POPULATION,
+                "population": len(rows),
+                "declared_population": declared_population,
+                "reason": (f"свой обход нашёл {len(rows)} открыт(ых) "
+                           f"счётчик(ов), сосед назвал {declared_population} "
+                           f"— это ДВЕ разные дороги к одному населению, и "
+                           f"разойдясь, они отвечают на разные вопросы")}
+
+    # Форма ЗАКРЫТАЯ, и это не стиль: открытый счётчик есть ровно тот предмет,
+    # который прибор ищет, — завести его ЗДЕСЬ значило бы мерить самого себя
+    # (находка цикла #689).
+    outcomes = {cls: sum(1 for r in rows if r["writer"] == cls)
+                for cls in _WRITER_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("writer_gap") == gap)
+            for gap in _WRITER_GAPS}
+    loud_rows = [r for r in rows if r["writer"] == WRITER_LOUD]
+    # ТОЛЬКО среди молчащих, и это не мелочь: `WRITER_BY_KIND` доказывает и
+    # громкий исход тоже, поэтому счёт по всему населению носил бы имя
+    # «чем доказано МОЛЧАНИЕ», а считал бы заодно 36 падающих — число, чьё
+    # имя не описывает того, что оно считает, есть ровно тот дефект, против
+    # которого написан весь ряд.
+    silent_rows = [r for r in rows if r["writer"] == WRITER_SILENT]
+    proofs = {proof: sum(1 for r in silent_rows if r.get("proved_by") == proof)
+              for proof in (WRITER_BY_FORM, WRITER_BY_KIND)}
+    # Оговорка к «громко», измеренная ЧИСЛОМ: `KeyError` внутри
+    # `try/except Exception` снова становится тишиной, и выдать такой счётчик
+    # за громкий значило бы подменить исход оговоркой.
+    swallowed = sum(1 for r in loud_rows
+                    if r.get("keyerror_reaches_the_caller") is False)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared_population,
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "writer_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "silence_proved_by": proofs,
+        "loud_but_swallowed_here": swallowed,
+        "loud_reaching_the_caller": len(loud_rows) - swallowed,
+        "still_unmeasured": outcomes[WRITER_UNRESOLVED],
+        "silent_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "form": r["form"],
+             "proved_by": r["proved_by"], "accumulator": r["accumulator"]}
+            for r in silent_rows][:COSTED_SAMPLE],
+        "loud_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "form": r["form"],
+             "reaches_the_caller": r["keyerror_reaches_the_caller"]}
+            for r in loud_rows][:COSTED_SAMPLE],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("writer_gap")}
+            for r in rows
+            if r["writer"] == WRITER_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"`{WRITER_GAP_NO_BINDING}` — ОБЪЯВЛЕННАЯ односторонность этого "
+             "шага, а не находка: накопитель ищется ТОЛЬКО в области записи, "
+             "потому что иначе ответ зависел бы от того, как далеко прибор "
+             "решил посмотреть вверх по дереву областей"),
+            ("перечень конструкторов ЗАКРЫТ (`Counter`, `defaultdict` · "
+             "`dict`, `OrderedDict`, `fromkeys`) и сверяется с модулем-"
+             "источником: неизвестный конструктор есть третий исход, а не "
+             "«наверное, словарь»"),
+            (f"`{WRITER_LOUD}` НЕ означает «вреда нет»: он означает, что вред "
+             "ВИДЕН. Сколько раз его тут же проглатывает широкий обработчик — "
+             "измерено числом (`loud_but_swallowed_here`), но проглоченный "
+             "`KeyError` теряет и счёт, и остаток цикла, а это ТРЕТИЙ вред, "
+             "здесь не разбираемый"),
+            (f"`{WRITER_SILENT}` у формы `form_get` доказан ФОРМОЙ и потому "
+             "не зависит от рода накопителя вовсе; у `form_aug` — родом. Два "
+             "разных доказательства одного вердикта, и числа их разведены"),
+            ("шаг НЕ доказывает, что молчание вредит СЕГОДНЯ: доходит ли "
+             "незнакомый класс до вердикта — вопрос ЧИТАТЕЛЯ, и на него "
+             "отвечают шаги G77…G84 п. 1"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-459): формы `Counter(...)`/`.update(...)` над перечнем "
+             "ключей сосед не ищет, и ненайденное ими не есть ноль"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -14716,6 +15232,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # связанному имени по ДВУМ его отказам и сверяется с их суммой.
     tail_step = defensive_tail_binding(root, bound_step)
 
+    # --- ФОРМА ВРЕДА У ПИСАТЕЛЯ (заказ G84 п. 2) ---------------------------
+    # Весь ряд мерил ЧИТАТЕЛЯ. Заказ третий раз подряд (G82 п. 2 → G83 п. 2 →
+    # G84 п. 2) просит форму вреда у ПИСАТЕЛЯ: молча посчитан незнакомый класс
+    # или `KeyError`. Население — открытые счётчики соседа, сверяется числом.
+    writer_step = writer_harm_form(root, open_counters)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -14865,6 +15387,10 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # второго не отменяет первого.
         "bound_name_read_in_this_scope": bound_step,
         "defensive_tail_binding": tail_step,
+        # Отдельным ключом, а не поправкой к соседу: весь ряд выше спрашивает
+        # ЧИТАТЕЛЯ, а этот шаг — ПИСАТЕЛЯ. Разные предметы с разным третьим
+        # исходом, и ответ одного не отменяет другого.
+        "writer_harm_form": writer_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -16783,6 +17309,62 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` поле `{item.get('field')}` → имя "
                 f"`{item.get('bound')}` — {item.get('split')}")
         for blind in (observed(tail_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    writer_step = observed(doc, "writer_harm_form", kind=dict)
+    if writer_step is None:
+        out.append("[ФОРМА ВРЕДА У ПИСАТЕЛЯ] НЕ ИЗМЕРЕНО — перепись собрана "
+                   "без этого шага; это НЕ «все счётчики молчат»")
+    elif str(writer_step.get("status")) == "UNMEASURED":
+        out.append(f"[ФОРМА ВРЕДА У ПИСАТЕЛЯ] НЕ ИЗМЕРЕНО "
+                   f"[{writer_step.get('unmeasured_class')}]: "
+                   f"{writer_step.get('reason')}")
+    else:
+        outcomes = observed(writer_step, "writer_outcomes", kind=dict) or {}
+        why = observed(writer_step, "unresolved_reasons", kind=dict) or {}
+        proofs = observed(writer_step, "silence_proved_by", kind=dict) or {}
+        out.append(
+            f"[ФОРМА ВРЕДА У ПИСАТЕЛЯ] из {writer_step.get('population')} "
+            f"ОТКРЫТЫХ счётчиков незнакомый класс молча считают "
+            f"{outcomes.get(WRITER_SILENT)}, падают на нём `KeyError` "
+            f"{outcomes.get(WRITER_LOUD)}; род накопителя не измерен у "
+            f"{writer_step.get('still_unmeasured')}")
+        out.append(
+            f"[ФОРМА ВРЕДА · ЧЕМ ДОКАЗАНО] молчание доказано ФОРМОЙ "
+            f"`.get(k, D)` у {proofs.get(WRITER_BY_FORM)} счётчик(ов) и РОДОМ "
+            f"накопителя у {proofs.get(WRITER_BY_KIND)} — разные "
+            f"доказательства одного вердикта, и складывать их в одно значило "
+            f"бы выдать вывод из формы за вывод из рода")
+        out.append(
+            f"[ФОРМА ВРЕДА · ОГОВОРКА К «ГРОМКО»] из "
+            f"{outcomes.get(WRITER_LOUD)} падающих `KeyError` долетает до "
+            f"зовущего у {writer_step.get('loud_reaching_the_caller')}, а у "
+            f"{writer_step.get('loud_but_swallowed_here')} его тут же "
+            f"проглатывает широкий обработчик — там «громко» снова становится "
+            f"тишиной, и счёт теряется вместе с остатком цикла")
+        out.append(
+            f"[ФОРМА ВРЕДА · ПОЧЕМУ НЕ ИЗМЕРЕН РОД] накопитель связан не в "
+            f"этой области {why.get(WRITER_GAP_NO_BINDING)} · пришёл вызовом "
+            f"неизвестного рода {why.get(WRITER_GAP_OPAQUE)} · связан РАЗНЫМИ "
+            f"родами {why.get(WRITER_GAP_MANY_KINDS)}")
+        control = observed(writer_step, "control", kind=dict) or {}
+        out.append(
+            f"[ФОРМА ВРЕДА · КОНТРОЛЬ] на известных случаях правило развело "
+            f"{control.get('loud')} строгого и {control.get('silent')} "
+            f"молчащих писателей ДВУМЯ доказательствами "
+            f"({control.get('proved_by_form')} формой + "
+            f"{control.get('proved_by_kind')} родом), на отрицательной "
+            f"половине не объявило молчащим ни одного и развело отказы "
+            f"{len(control.get('gaps') or [])} РАЗНЫМИ именами — в том числе "
+            f"на `defaultdict()` БЕЗ фабрики, строгом по ЗНАЧЕНИЮ аргумента "
+            f"и снисходительном по короткому имени")
+        for item in (observed(writer_step, "loud_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ФОРМА ВРЕДА · ГРОМКО] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` — `KeyError` долетает до зовущего: "
+                f"{item.get('reaches_the_caller')}")
+        for blind in (observed(writer_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
