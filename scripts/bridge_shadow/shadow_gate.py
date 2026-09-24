@@ -49,18 +49,17 @@ from bridge import delivery_integrity as di          # noqa: E402
 
 SCHEMA = 'bridge_shadow/1'
 
-WOULD_ALLOW = 'WOULD_ALLOW'
-WOULD_BLOCK = 'WOULD_BLOCK'
+# Классы расхождения и вердикт живут В ОДНОЙ копии — у соседа, который не зависит от
+# прототипа и потому исполняется в CI. Здесь только проводка.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-OLD_ALLOWED = 'OLD_ALLOWED'
-OLD_BLOCKED = 'OLD_BLOCKED'
-OLD_UNKNOWN = 'OLD_UNKNOWN'
-
-#: Виды расхождения. Один из них недопустим ни в одном случае.
-AGREE = 'AGREE'
-EXPLAINED_STRICTER = 'EXPLAINED_STRICTER'      # новый строже, причина названа
-UNEXPLAINED = 'UNEXPLAINED'                    # новый строже, причины нет
-WEAKENING = 'WEAKENING'                        # новый пустил то, что старый закрыл
+import shadow_verdict as _SV                        # noqa: E402
+from shadow_verdict import (                       # noqa: E402
+    WOULD_ALLOW, WOULD_BLOCK, OLD_ALLOWED, OLD_BLOCKED, OLD_UNKNOWN,
+    UNEXPLAINED, WEAKENING, EXIT_CODE, SourceNotRead,
+    classify_mismatch, shadow_verdict,
+)
 
 
 def _utcnow():
@@ -76,7 +75,9 @@ def read_production_events(*, db_path, artifacts_root):
     work = tempfile.mkdtemp(prefix='shadow-ro-')
     src = Path(db_path)
     if not src.exists():
-        return []
+        # Пустой список означал бы «база прочитана и пуста». Это РАЗНЫЕ утверждения,
+        # и на их слиянии вердикт объявлял чистым прогон, не прочитавший ничего.
+        raise SourceNotRead(f'базы моста нет на объявленном пути: {src}')
     dst = Path(work) / src.name
     shutil.copy2(src, dst)
     for suffix in ('-wal', '-shm'):
@@ -169,23 +170,13 @@ def shadow_decide(event, *, target):
             'test_phase': None if verdict is None else verdict.phase}
 
 
-def classify_mismatch(old, shadow, why):
-    """Тип расхождения. ``WEAKENING`` недопустим ни в одном случае."""
-    if old == OLD_ALLOWED and shadow == WOULD_BLOCK:
-        return (EXPLAINED_STRICTER if why and why != ['все условия доставки выполнены']
-                else UNEXPLAINED)
-    if old == OLD_BLOCKED and shadow == WOULD_ALLOW:
-        return WEAKENING
-    if old == OLD_ALLOWED and shadow == WOULD_ALLOW:
-        return AGREE
-    if old == OLD_BLOCKED and shadow == WOULD_BLOCK:
-        return AGREE
-    return 'OLD_DECISION_NOT_RECORDED'
-
-
 def run_shadow(*, db_path, artifacts_root, target, now=None):
     now = now or _utcnow()
-    events = read_production_events(db_path=db_path, artifacts_root=artifacts_root)
+    try:
+        events = read_production_events(db_path=db_path, artifacts_root=artifacts_root)
+        source_read = True
+    except SourceNotRead as exc:
+        events, source_read, source_refusal = [], False, str(exc)
     rows, counts = [], {}
     for ev in events:
         out = shadow_decide(ev, target=target)
@@ -194,6 +185,10 @@ def run_shadow(*, db_path, artifacts_root, target, now=None):
         rows.append({**{k: ev[k] for k in ('task_id', 'run_id', 'old_decision',
                                            'task_status')},
                      **out, 'mismatch': kind})
+    verdict, why_verdict = shadow_verdict(counts, events=len(rows),
+                                         source_read=source_read)
+    if not source_read:
+        why_verdict = source_refusal
     return {
         'schema': SCHEMA,
         'mode': 'SHADOW — новый механизм ничего не решает',
@@ -205,8 +200,12 @@ def run_shadow(*, db_path, artifacts_root, target, now=None):
         'by_mismatch': counts,
         'unexplained': [r['task_id'] for r in rows if r['mismatch'] == UNEXPLAINED],
         'weakening': [r['task_id'] for r in rows if r['mismatch'] == WEAKENING],
-        'verdict': ('CLEAN' if not counts.get(UNEXPLAINED) and not counts.get(WEAKENING)
-                    else 'DIRTY'),
+        'verdict': verdict,
+        'why_verdict': why_verdict,
+        'source_read': source_read,
+        'compared': sum(counts.get(k, 0) for k in _SV.COMPARED),
+        'not_compared': sum(counts.get(k, 0) for k in _SV.NOT_COMPARED),
+        'unknown_classes': sorted(k for k in counts if k not in _SV.MISMATCH_CLASSES),
         'retrospective_caveat': (
             'у исторических улик нет вердикта тестов в решающей фазе — тогда его не '
             'снимали. Поэтому отказы здесь ожидаемы и доказывают лишь, что гейт не '
@@ -237,12 +236,16 @@ def main(argv=None):
         if r['mismatch'] in (UNEXPLAINED, WEAKENING):
             for w in r['why']:
                 print(f"{'':>48}! {w[:96]}")
-    print(f"\nВЕРДИКТ ТЕНИ: {out['verdict']} · необъяснённых "
+    print(f"\nВЕРДИКТ ТЕНИ: {out['verdict']} · сравнений {out['compared']} · "
+          f"без записанного старого решения {out['not_compared']} · необъяснённых "
           f"{len(out['unexplained'])} · ослаблений {len(out['weakening'])}")
+    print(f"  причина: {out['why_verdict']}")
     if args.json:
         Path(args.json).write_text(json.dumps(out, ensure_ascii=False, indent=1),
                                    encoding='utf-8')
-    return 0 if out['verdict'] == 'CLEAN' else 1
+    # 0 — измерено и чисто, 1 — находка, 2 — НЕ ИЗМЕРЕНО. Прежний код
+    # возврата знал только два исхода и на «не измерено» отвечал нулём.
+    return EXIT_CODE[out['verdict']]
 
 
 if __name__ == '__main__':
