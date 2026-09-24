@@ -220,7 +220,10 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
+import copy
 import datetime as dt
+import functools
 import importlib
 import json
 import os
@@ -14862,6 +14865,179 @@ def bilingual_reach(root: Path, rows: List[dict],
     }
 
 
+#: Соседские запросы, чей ответ ЗА ОДИН прогон :func:`measure` зависит только
+#: от дерева, а дерево внутри одного прогона не меняется. Список ОБЪЯВЛЕН
+#: поимённо, а не выведен по сигнатуре: запомнить молча ответ функции, которая
+#: читает что-то ЕЩЁ, значило бы подменить наблюдение догадкой — и разойтись с
+#: ним незаметно, ровно тем классом, который перепись ищет у других.
+MEMOISED_NEIGHBOUR_QUERIES = ("find_callees", "find_by_name_consumers")
+
+#: Исходы ОДНОГО зова запомненного запроса. Четвёртого нет, и третий не есть
+#: оттенок второго: зов, чью ФОРМУ ключ не выражает, считается заново и едет
+#: отдельным числом ``unkeyed``. «Не запомнено» никогда не выдаётся за
+#: «совпало» (инв. #17).
+MEMO_OUTCOMES = ("computed", "reused", "unkeyed")
+
+
+def _neighbour_query_key(name: str, args: tuple, kwargs: dict):
+    """Ключ памяти одного зова — или ``None``, если форма зова не разобрана.
+
+    ``None`` есть ТРЕТИЙ исход, а не отказ: незнакомый зов считается заново.
+    Направление ошибки выбрано осознанно — память вправе стоить ВРЕМЕНИ и не
+    вправе стоить ПРАВДЫ, поэтому неразобранная форма всегда идёт мимо неё.
+    """
+    if kwargs:
+        return None                  # именованный зов формой ключа не выражен
+    if name == "find_callees":
+        if len(args) != 1:
+            return None
+        return (name, str(args[0]))
+    if name == "find_by_name_consumers":
+        if len(args) != 2 or not isinstance(args[1], dict):
+            return None
+        try:
+            callees = tuple(sorted((str(k), str(v))
+                                   for k, v in args[1].items()))
+        except TypeError:
+            return None
+        return (name, str(args[0]), callees)
+    return None
+
+
+def _memoised_neighbour_query(name: str, fn: Callable, cache: dict,
+                              stats: dict) -> Callable:
+    """Обёртка одного соседского запроса: тот же ответ, посчитанный однажды."""
+
+    def query(*args, **kwargs):
+        key = _neighbour_query_key(name, args, kwargs)
+        if key is None:
+            stats["unkeyed"] += 1
+            return fn(*args, **kwargs)
+        if key in cache:
+            stats["reused"] += 1
+        else:
+            stats["computed"] += 1
+            cache[key] = fn(*args, **kwargs)
+        # КОПИЯ, а не сам ответ. До памяти каждый зов получал свежий объект, и
+        # правка ответа одним читателем до другого не доезжала; отдать общий
+        # объект значило бы завести между шагами связь, которой в измеряемом
+        # поведении нет, — то есть починить цену, сломав предмет.
+        return copy.deepcopy(cache[key])
+
+    query.__name__ = f"memoised_{name}"
+    query.__wrapped__ = fn
+    return query
+
+
+@contextlib.contextmanager
+def _neighbour_query_memo() -> Iterator[dict]:
+    """Память соседских запросов на время ОДНОГО прогона :func:`measure`.
+
+    **Замер 2026-09-24, ради которого память и написана.** Один прогон
+    ``measure()`` на живом дереве стои́т 313 с при пороге CI **180 с на тест**
+    (``--timeout=180`` в ``.github/workflows/test.yml``), и ``ast.parse``
+    зовётся в нём **92 116** раз. Из них соседу :data:`NEIGHBOUR_CENSUS`
+    задаётся ОДИН И ТОТ ЖЕ вопрос о НЕИЗМЕНИВШЕМСЯ дереве:
+    ``find_by_name_consumers`` — **7 раз**
+    (64,8 с, 32 263 разбора), ``find_callees`` — **3 раза** (18,3 с, 13 827
+    разборов). Половина всей работы прогона есть повторный ответ на уже
+    отвеченный вопрос.
+
+    **Почему память, а не общий разбор дерева.** Соседняя починка — держать
+    разобранные деревья — измерена и отвергнута ЧИСЛОМ, а не доводом: 4 605
+    деревьев корпуса занимают **2 932 МБ** (замер ``ru_maxrss``), то есть
+    таймаут разменивался бы на нехватку памяти. Память же хранит ОТВЕТЫ
+    (сотни строк), а не деревья.
+
+    **Приём не новый в этом модуле.** :func:`neighbour_population_harm` уже
+    подменяет те же два имени и восстанавливает их своим ``finally`` — и по
+    той же причине, названной там вслух: «разница обязана приходить от
+    расширения, а не от повторного обхода дерева». Здесь то же основание
+    распространено на весь прогон.
+
+    **Что память НЕ трогает.** Расширенный зов
+    (``find_by_name_consumers`` → ``widened_by_name``) в память не попадает:
+    подменяется ИМЯ в модуле соседа, а обёртка расширения зовёт настоящую
+    функцию сама. Поэтому разница «чистый прогон против расширенного» —
+    предмет замера ступени — остаётся ровно той же.
+
+    Свидетель отдаётся наружу и едет в документ: «память не поставлена»
+    (соседа нет / у него нет имени) есть ТРЕТИЙ исход с названной причиной, а
+    не «повторов не было».
+    """
+    witness: dict = {
+        "installed": False,
+        "queries_declared": list(MEMOISED_NEIGHBOUR_QUERIES),
+        "outcomes_declared": list(MEMO_OUTCOMES),
+        "queries": {},
+    }
+    try:
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    except Exception as exc:                        # noqa: BLE001
+        witness["reason"] = (f"сосед {NEIGHBOUR_CENSUS} не ввезён "
+                             f"({type(exc).__name__}: {exc}) — память не "
+                             f"поставлена; это НЕ «повторов не было»")
+        yield witness
+        return
+
+    absent = [name for name in MEMOISED_NEIGHBOUR_QUERIES
+              if not callable(getattr(neighbour, name, None))]
+    if absent:
+        witness["reason"] = (f"у соседа нет зовущихся имён {absent} — память "
+                             f"не поставлена; это НЕ «повторов не было»")
+        yield witness
+        return
+
+    cache: dict = {}
+    originals: Dict[str, Callable] = {}
+    for name in MEMOISED_NEIGHBOUR_QUERIES:
+        originals[name] = getattr(neighbour, name)
+        stats = {outcome: 0 for outcome in MEMO_OUTCOMES}
+        witness["queries"][name] = stats
+        setattr(neighbour, name,
+                _memoised_neighbour_query(name, originals[name], cache, stats))
+    witness["installed"] = True
+    try:
+        yield witness
+    finally:
+        # Возврат БЕЗУСЛОВЕН и идёт даже после исключения: соседний модуль
+        # общий для всего процесса, и оставленная в нём обёртка пережила бы
+        # прогон — то есть следующий читатель получил бы ответ о ЧУЖОМ дереве.
+        for name, fn in originals.items():
+            setattr(neighbour, name, fn)
+
+
+def _with_neighbour_query_memo(fn: Callable) -> Callable:
+    """Ставит :func:`_neighbour_query_memo` вокруг прогона — и НЕ трогает тело.
+
+    Форма выбрана не из вкуса. Тело :func:`measure` есть ПРЕДМЕТ семи статических
+    сторожей проводки (``test_writer_harm_form.py``, ``test_paragraph_witness_price.py``
+    и соседи): каждый разбирает исходник, находит ``FunctionDef`` по имени
+    ``measure`` и требует, чтобы зов его ступени стоял ВНУТРИ. Перенести тело в
+    функцию-помощник значило бы покрасить эти семь в красный при верном
+    состоянии дерева — то есть ослабить сторожей ради своего удобства (инв. #16).
+    Декоратор имени и тела не меняет: сторожа продолжают видеть ровно то, о чём
+    спрашивают, а память ставится снаружи.
+    """
+
+    @functools.wraps(fn)
+    def run_with_memo(*args, **kwargs):
+        # Память соседских запросов живёт РОВНО один прогон: ответ о дереве
+        # верен, пока дерево не менялось, и границей этого «пока» является сам
+        # прогон, а не процесс. Постановка памяти отказом не бывает — при
+        # отсутствии соседа свидетель говорит «не поставлена» и прогон идёт
+        # как прежде, поэтому отметка входа в ступень внутри тела по-прежнему
+        # случается до любого отказа.
+        with _neighbour_query_memo() as memo:
+            doc = fn(*args, **kwargs)
+        if isinstance(doc, dict):
+            doc["neighbour_query_memo"] = memo
+        return doc
+
+    return run_with_memo
+
+
+@_with_neighbour_query_memo
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None,
             data_dir: Optional[Path] = None) -> dict:
