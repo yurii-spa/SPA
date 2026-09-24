@@ -1640,6 +1640,164 @@ def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str
                        "импорте, молчит на образце в строке, и зовёт его CI-Lite")
 
 
+#: Рабочий процесс, чей вердикт о вершине `main` и есть приёмка. Имя файла, а не
+#: отображаемое имя: отображаемое меняют правкой одной строки, путь — нет.
+CI_WORKFLOW_FILE = "test.yml"
+
+#: Ветка, о вершине которой задаётся вопрос. Вердикт о PR-ветке на него не отвечает.
+CI_BRANCH = "main"
+
+#: Сколько последних прогонов просматривать в поисках ВЕРДИКТА. Окно нужно потому,
+#: что отменённые прогоны вердиктом не являются (см. `_ci_latest_verdict`), и подряд
+#: их бывает много: группа `concurrency` в test.yml гасит устаревшие пуш-прогоны.
+CI_VERDICT_WINDOW = 30
+
+
+def _github_slug(repo_root: str) -> str | None:
+    """`owner/repo` по адресу origin. `None` — адрес не прочитан (это НЕ «нет репозитория»)."""
+    url = _git(["remote", "get-url", "origin"], repo_root=repo_root)
+    if not url:
+        return None
+    url = url.strip()
+    for prefix in ("https://github.com/", "git@github.com:", "ssh://git@github.com/"):
+        if url.startswith(prefix):
+            slug = url[len(prefix):]
+            break
+    else:
+        return None
+    if slug.endswith(".git"):
+        slug = slug[:-4]
+    return slug.strip("/") or None
+
+
+def _github_json(url: str, *, timeout: float = 20.0):
+    """GET к API GitHub. `(данные, None)` либо `(None, причина)`.
+
+    Токен берётся из Keychain, если он там есть, и его ОТСУТСТВИЕ не есть отказ:
+    репозиторий читается и анонимно, просто с меньшим лимитом. Отличать «ответа не
+    было» от «ответ пуст» обязан вызывающий — поэтому причина возвращается строкой,
+    а не проглатывается в `None`.
+    """
+    import json as _json
+    import subprocess
+    import urllib.error
+    import urllib.request
+
+    headers = {"Accept": "application/vnd.github+json",
+               "User-Agent": "spa-card-acceptance"}
+    try:
+        tok = subprocess.run(
+            ["security", "find-generic-password", "-s", "GITHUB_PAT_SPA", "-w"],
+            capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        tok = ""
+    if tok:
+        headers["Authorization"] = f"token {tok}"
+    try:
+        with urllib.request.urlopen(
+                urllib.request.Request(url, headers=headers), timeout=timeout) as fh:
+            return _json.loads(fh.read().decode("utf-8")), None
+    except urllib.error.HTTPError as exc:
+        return None, f"HTTP {exc.code}"
+    except Exception as exc:                                   # noqa: BLE001
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def _ci_latest_verdict(slug: str, *, fetch=None) -> tuple[dict | None, str]:
+    """Последний прогон `test.yml` о `main`, который ВЫНЕС вердикт.
+
+    `cancelled` вердиктом НЕ является и пропускается со счётом: группа
+    `concurrency` в `test.yml` гасит устаревшие пуш-прогоны пачками, и принять
+    отмену за «не падало» значило бы выдать НЕ ИЗМЕРЕНО за чистоту (инвариант #17).
+    Окно, где вердикта нет вовсе, — тоже третий исход, а не зелёный.
+    """
+    url = (f"https://api.github.com/repos/{slug}/actions/workflows/"
+           f"{CI_WORKFLOW_FILE}/runs?branch={CI_BRANCH}&per_page={CI_VERDICT_WINDOW}")
+    data, why = (fetch or _github_json)(url)
+    if data is None:
+        return None, f"история прогонов не прочитана ({why})"
+    runs = data.get("workflow_runs")
+    if not isinstance(runs, list):
+        return None, "ответ API без списка прогонов"
+    if not runs:
+        return None, f"о ветке {CI_BRANCH} прогонов {CI_WORKFLOW_FILE} нет вовсе"
+    skipped = 0
+    for run in runs:
+        if run.get("status") != "completed":
+            skipped += 1
+            continue
+        if run.get("conclusion") in (None, "cancelled", "skipped"):
+            skipped += 1
+            continue
+        return run, f"пропущено без вердикта: {skipped}"
+    return None, (f"во всех {len(runs)} последних прогонах вердикта нет "
+                  f"(отменены/не завершены) — НЕ ИЗМЕРЕНО")
+
+
+def _probe_ci_main_verdict_green(arg: str | None, *, repo_root: str | None = None,
+                                 fetch=None) -> tuple[str, str]:
+    """Критерий: у ВЕРШИНЫ `main` есть вердикт `SPA Tests`, и он `success`.
+
+    ЗАЧЕМ. Замер 24.09 (цикл #692): последний зелёный `SPA Tests` о `main` —
+    **26.08**, а за 29 суток после него 627 `failure`, 82 `cancelled` и НИ ОДНОГО
+    `success`. Не заметил этого никто, и механизм незамечания назван в самой
+    карточке: каждый цикл докладывал «соседи N passed» по СВОЕМУ набору файлов, а
+    предписанный прогон четырёх каталогов — тот, что гейтит CI, — не запускал никто.
+    Зелёный ответ прибора на СВОЙ вопрос не есть ответ на нужный.
+
+    ПОЧЕМУ ПРОБА ХОДИТ НА ORIGIN, А НЕ МЕРИТ ДЕРЕВО. Критерий карточки записан
+    именно так: «завершается `success`, и это подтверждено прогоном на origin, а не
+    локальным „у меня зелено“». Локальный прогон отвечает на вопрос о ЛОКАЛЬНОЙ
+    машине; он не видит ни второй версии Python матрицы, ни замедления раннера, на
+    котором и ломается бюджет таймаута.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ, И ЧЕТВЁРТОГО НЕТ.
+      * `satisfied` — вердикт есть, он `success`, и он О ВЕРШИНЕ `main`;
+      * `not_satisfied` — вердикт есть и он не `success` (назван sha и вывод);
+      * `unmeasured` — сети/репозитория/вердикта нет, ЛИБО последний вердикт
+        относится к УСТАРЕВШЕМУ sha. Последнее — не придирка: зелёный о позавчерашнем
+        коммите ничего не говорит о вершине, а выглядит как разрешение закрыть
+        карточку. Это ровно подделка доказательства, а не слабое доказательство.
+    """
+    root = repo_root or REPO_ROOT
+    # Сеть НЕ опрашивается из тестового окружения, и это НАЗВАННЫЙ третий исход, а не
+    # молчаливая попытка: набор гоняет каждую зарегистрированную пробу без инъекции
+    # (`test_every_registered_probe_returns_a_known_verdict`), и живой вызов оттуда
+    # отвечал бы на вопрос «что сегодня на origin», а не на вопрос теста — ровно то,
+    # что запрещает `.claude/rules/adapters.md`. Предмет пробы меряется из ПРОД-дерева
+    # шагом 0-офис, где `SPA_ENV` не выставлен; с инъекцией (`fetch=`) отказа нет.
+    if fetch is None and os.environ.get("SPA_ENV") == "ci":
+        return UNMEASURED, ("сеть в тестовом окружении не опрашивается (SPA_ENV=ci) — "
+                            "вердикт CI меряется из прод-дерева шагом 0-офис")
+    get = fetch or _github_json
+    if not _is_git_repo(root):
+        return UNMEASURED, f"в {root} нет репозитория — вердикт CI НЕ ИЗМЕРЕН"
+    slug = _github_slug(root)
+    if not slug:
+        return UNMEASURED, "адрес origin не разобран как GitHub — вердикт НЕ ИЗМЕРЕН"
+    run, note = _ci_latest_verdict(slug, fetch=get)
+    if run is None:
+        return UNMEASURED, f"{note} ({slug})"
+    sha = str(run.get("head_sha") or "")
+    concl = str(run.get("conclusion"))
+    when = str(run.get("created_at") or "?")
+    where = f"{slug} {CI_WORKFLOW_FILE}@{CI_BRANCH}, прогон {sha[:9]} от {when}, {note}"
+    head, why = get(f"https://api.github.com/repos/{slug}/commits/{CI_BRANCH}")
+    if head is None:
+        return UNMEASURED, f"вершина {CI_BRANCH} не прочитана ({why}) — {where}"
+    head_sha = str(head.get("sha") or "")
+    if not head_sha:
+        return UNMEASURED, f"ответ о вершине {CI_BRANCH} без sha — {where}"
+    if concl != "success":
+        return NOT_SATISFIED, (f"вердикт `{concl}`: {where}. "
+                               f"Вершина сейчас {head_sha[:9]}")
+    if sha != head_sha:
+        return UNMEASURED, (f"последний вердикт `success`, но он о {sha[:9]}, "
+                            f"а вершина {CI_BRANCH} — {head_sha[:9]}: о ВЕРШИНЕ "
+                            f"вердикта ещё нет — НЕ ИЗМЕРЕНО ({where})")
+    return SATISFIED, f"вершина {CI_BRANCH} зелена: {where}"
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1659,6 +1817,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_copies_agree": _probe_card_copies_agree,
     "forbidden_import_gate_single_instrument":
         _probe_forbidden_import_gate_single_instrument,
+    "ci_main_verdict_green": _probe_ci_main_verdict_green,
 }
 
 
