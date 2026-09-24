@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-23T19:24:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-24T05:20:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (cc12160ed) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (034dc9215).
 >
-> Всего карточек: **1097** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1098** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -324,7 +324,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (572)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (573)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -749,6 +749,7 @@
 - Чужой полный прогон в том же дереве невидим: пробы «дерево занято прогоном» нет ни у кого  ·  `inbox-chuzhoi-polnyi-progon-v-tom-zhe-dereve-n.md` · 2026-09-21
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
 - CI на main ничего не мерил: job Python 3.11 умирал на сборе, а красная галочка читалась как «тесты упали»  ·  `inbox-ci-na-main-nichego-ne-meril-job-python-3.md` · 2026-09-21
+- CI py3.11: тест зовёт measure() целиком (312 с) и не укладывается в таймаут — это НЕ сканер мёртвого кода  ·  `inbox-ci-py3-11-test-zovet-measure-tselikom-31.md` · 2026-09-24
 - CLMM «79%»: research (часть 1 ADR-070 п.20) готов документом — остаётся часть 2 (ADR допуска с хеджем)  ·  `inbox-clmm-research-chast1-gotova-adr-070-p20.md` · 2026-08-19
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
