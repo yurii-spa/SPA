@@ -12802,6 +12802,739 @@ def bound_name_read_in_this_scope(root: Path, doc_step: Optional[dict]
     }
 
 
+# --- шаг, признающий ЗАЩИТНЫЙ ХВОСТ частью связывания (заказ G82 п. 1) ------
+#
+# ADR-466 ответил на заказ G81 числом СЕМЬ из 16 и назвал главным остатком не
+# число, а ИМЯ: восемь отказов из девяти были свалены в «отдано без имени», и
+# это имя оказалось ложным у всех восьми. Самый дешёвый из разведённых классов
+# — защитный хвост: ``ext = observed(doc, "by_extension", kind=dict) or {}``.
+# Значение имя ПОЛУЧАЕТ, просто на узел позже, и между честным чтением и шагом
+# стои́т ровно одно звено правила.
+
+#: ОДНОСТОРОННОСТЬ этого шага, названная ЗАРАНЕЕ и объявленная ОТКАЗОМ, а не
+#: оговоркой в тексте. Хвост защитен ТОЛЬКО тогда, когда наше чтение стои́т
+#: ПЕРВЫМ операндом ``or``: в ``c = other or doc["K"]`` имя при истинном
+#: ``other`` держит ЧУЖОЕ значение, и раскол, найденный у такого имени, был бы
+#: доказан совпадением имён — ровно тот дефект, против которого ADR-465 завёл
+#: `field_name_is_written_by_more_than_one_scope_in_this_file`, а ADR-466 —
+#: `bound_name_is_assigned_from_more_than_one_source_in_this_scope`.
+TAIL_GAP_RIGHT_OPERAND = "read_value_is_the_right_operand_of_the_defensive_or"
+#: ДЕВЯТЫЙ ЖИВОЙ СЛУЧАЙ, ради которого заказ требует СВОЕГО имени. Хвост есть,
+#: но его результат никуда не связывают — его пробегают на месте:
+#: ``for move, n in sorted((ax.get("transitions") or {}).items()):``. До этого
+#: шага такая строка попадала в ЧУЖОЕ имя `read_value_is_handed_on_without_a_
+#: name`, то есть посылала строить межпроцедурный разбор там, где значение
+#: вообще не покидает выражения. Имя отказа и есть указание, что чинить
+#: (урок ADR-465), поэтому хвост-без-имени получает собственное.
+TAIL_GAP_RESULT_UNBOUND = "defensive_tail_result_is_consumed_without_a_name"
+
+#: Отказы самого шага. Три, и ни один не есть ноль.
+UNMEASURED_TAIL_NEIGHBOUR = "bound_name_step_is_absent_or_unmeasured"
+UNMEASURED_TAIL_POPULATION = "second_walk_disagrees_with_the_bound_name_step"
+UNMEASURED_TAIL_CONTROL = "declared_defensive_tail_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — те же ТРИ формы чтения поля (подписка ·
+#: ``.get`` · объявленный читатель ``observed``), но КАЖДАЯ за защитным
+#: хвостом. Форм именно три по той же причине, что и у соседа: население этого
+#: шага целиком состоит из его читателей, а он считает чтением все три;
+#: правило, знающее одну, объявило бы «связывать нечего» там, где связывают
+#: другой формой, — то есть выдало бы НЕ ИЗМЕРЕНО за измеренный исход.
+TAIL_CONTROL_SOURCE = '''
+REACH_LIVE = "live"
+
+
+def alpha_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"alpha": counts}
+
+
+def alpha_caller(rows):
+    doc = alpha_writer(rows)
+    return len(doc)
+
+
+def alpha_reader(doc):
+    c = doc["alpha"] or {}
+    return c[REACH_LIVE] > 0
+
+
+def beta_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"beta": counts}
+
+
+def beta_caller(rows):
+    doc = beta_writer(rows)
+    return len(doc)
+
+
+def beta_reader(doc):
+    c = doc.get("beta") or {}
+    return c.get(REACH_LIVE, 0) > 0
+
+
+def gamma_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"gamma": counts}
+
+
+def gamma_caller(rows):
+    doc = gamma_writer(rows)
+    return len(doc)
+
+
+def gamma_reader(doc):
+    c = observed(doc, "gamma", kind=dict) or {}
+    return c[REACH_LIVE] > 0
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг разрешил N» неотличимо от «шаг
+#: объявляет разрешённым что угодно». ДЕСЯТЬ счётчиков приезжают в документ
+#: одинаково, а шаг обязан развести их ДЕВЯТЬЮ разными именами отказа плюс
+#: ОДНИМ безвредным читателем. Два отказа несут ГОТОВЫЙ раскол, который
+#: правило обязано НЕ засчитать: правый операнд ``or`` (имя могло взять
+#: значение слева) и переприсвоенное имя. Отказ, слитый с «безвредно», и есть
+#: подмена третьего исхода измеренным; отказ, названный ЧУЖИМ именем, посылает
+#: чинить не то — и ровно это ADR-466 назвал главным содержанием своего замера.
+TAIL_CONTROL_CLEAN = '''
+REACH_LIVE = "live"
+
+
+def right_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"right": counts}
+
+
+def right_caller(rows):
+    doc = right_writer(rows)
+    return len(doc)
+
+
+def right_reader(doc, other):
+    c = other or doc["right"]
+    return c[REACH_LIVE] > 0
+
+
+def whole_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"whole": counts}
+
+
+def whole_caller(rows):
+    doc = whole_writer(rows)
+    return len(doc)
+
+
+def whole_reader(doc):
+    for key, n in (doc["whole"] or {}).items():
+        report(key, n)
+
+
+def reb_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"reb": counts}
+
+
+def reb_caller(rows):
+    doc = reb_writer(rows)
+    return len(doc)
+
+
+def reb_reader(doc, other):
+    c = doc["reb"] or {}
+    if other:
+        c = other
+    return c[REACH_LIVE] > 0
+
+
+def many_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"many": counts}
+
+
+def many_caller(rows):
+    doc = many_writer(rows)
+    return len(doc)
+
+
+def many_reader(doc):
+    a = doc["many"] or {}
+    b = doc["many"] or {}
+    return a[REACH_LIVE] + b[REACH_LIVE]
+
+
+def dyn_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"dyn": counts}
+
+
+def dyn_caller(rows):
+    doc = dyn_writer(rows)
+    return len(doc)
+
+
+def dyn_reader(doc, key):
+    c = doc["dyn"] or {}
+    return c[key] > 0
+
+
+def mute_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"mute": counts}
+
+
+def mute_caller(rows):
+    doc = mute_writer(rows)
+    return len(doc)
+
+
+def mute_reader(doc):
+    c = doc["mute"] or {}
+    return len(doc)
+
+
+def again_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"again": counts}
+
+
+def again_caller(rows):
+    doc = again_writer(rows)
+    return len(doc)
+
+
+def again_reader(doc):
+    c = doc["again"] or {}
+    return c
+
+
+def unb_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"unb": counts}
+
+
+def unb_caller(rows):
+    doc = unb_writer(rows)
+    return len(doc)
+
+
+def unb_reader(doc):
+    return audit(doc["unb"])
+
+
+def prn_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"prn": counts}
+
+
+def prn_caller(rows):
+    doc = prn_writer(rows)
+    return len(doc)
+
+
+def prn_reader(doc):
+    return f"{doc['prn']}"
+
+
+def sums_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("reach"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"sums": counts}
+
+
+def sums_caller(rows):
+    doc = sums_writer(rows)
+    return len(doc)
+
+
+def sums_reader(doc):
+    c = doc["sums"] or {}
+    return sum(c.values())
+'''
+
+#: Отказы, которые этот шаг НАСЛЕДУЕТ у соседа неизменными, плюс два своих.
+#: Заводить наследуемым вторые имена значило бы развести один класс по двум
+#: счётчикам — тот самый дефект, который ADR-466 запретил прямо.
+#:
+#: :data:`BOUND_GAP_PRINTED_WHOLE` сюда НЕ входит, и это найдено контролем, а
+#: не рассуждением: счётчик, напечатанный целиком, сосед отказывает ИМЕНЕМ
+#: печати, а население этого шага берётся по двум ДРУГИМ его отказам — значит
+#: через шаг такое имя недостижимо ПО ПОСТРОЕНИЮ. Объявить имя, которого шаг
+#: выдать не может, значило бы обещать разбор, которого нет; ветка
+#: классификатора при этом остаётся (она верна, если до неё дойти) и
+#: проверяется ПРЯМЫМ вызовом помощника, а не через шаг — ровно тем порядком,
+#: которым ADR-466 закрыл свою недостижимую ветку.
+_TAIL_GAPS = (TAIL_GAP_RIGHT_OPERAND, TAIL_GAP_RESULT_UNBOUND,
+              BOUND_GAP_UNBOUND,
+              BOUND_GAP_MANY_NAMES, BOUND_GAP_REBOUND,
+              STEP_GAP_ESCAPES_AGAIN, READER_GAP_DYNAMIC, STEP_GAP_NO_READ)
+
+
+def _tail_name_of_escape(node: ast.AST,
+                         parents: Dict[int, ast.AST]) -> Tuple[Optional[str],
+                                                               Optional[str]]:
+    """Имя, которым связан ОДИН побег, — с признанием защитного хвоста.
+
+    Правило присваивания здесь НЕ переписано: имя даёт соседский
+    :func:`_assigned_name`, и «связыванием считается только присваивание
+    голому имени» остаётся его определением. Ново ровно ОДНО звено — узел
+    ``or`` между чтением и присваиванием, — и оно двустороннее: слева хвост
+    защитен, справа имя могло взять ЧУЖОЕ значение
+    (:data:`TAIL_GAP_RIGHT_OPERAND`), а хвост, результат которого не связан
+    вовсе, есть третий исход со СВОИМ именем
+    (:data:`TAIL_GAP_RESULT_UNBOUND`), а не «отдано без имени».
+    """
+    parent = parents.get(id(node))
+    direct = _assigned_name(parent)
+    if direct is not None:
+        return direct, None
+    if isinstance(parent, ast.BoolOp) and isinstance(parent.op, ast.Or):
+        if not parent.values or parent.values[0] is not node:
+            return None, TAIL_GAP_RIGHT_OPERAND
+        outer = _assigned_name(parents.get(id(parent)))
+        if outer is not None:
+            return outer, None
+        return None, TAIL_GAP_RESULT_UNBOUND
+    if isinstance(parent, ast.FormattedValue):
+        return None, BOUND_GAP_PRINTED_WHOLE
+    return None, BOUND_GAP_UNBOUND
+
+
+def _defensive_tail_binding(scope: ast.AST, read: ast.AST) -> dict:
+    """Имя, которым связано прочитанное, когда между ними стои́т хвост ``or``.
+
+    Вердикт соседа (:func:`_binding_of_read`) спрашивается ПЕРВЫМ и проходит
+    насквозь везде, кроме двух его отказов — «за защитным хвостом» и «отдано
+    без имени». Только там вступает новое звено: переписать соседа целиком
+    значило бы завести вторую копию правила связывания внутри прибора, который
+    вторые копии и ищет (ADR-460 у подписки, ADR-461 у кортежа, ADR-462 у
+    правила побега — трёх раз этому файлу хватило).
+
+    Связано НЕ ВСЁ, что убежало ⇒ отказ: разрешить по связанной половине
+    значило бы объявить измеренным исход, у которого вторая половина не
+    измерена.
+    """
+    found = _binding_of_read(scope, read)
+    if found["gap"] not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
+        return found
+    escapes = _escape_sites(scope, read)
+    if not escapes:
+        return found
+    parents = _parent_map(scope)
+    names: List[str] = []
+    gaps: List[str] = []
+    for node in escapes:
+        name, gap = _tail_name_of_escape(node, parents)
+        if gap is not None:
+            gaps.append(gap)
+        else:
+            names.append(name)
+    shape = {"escapes": len(escapes), "bound": len(names),
+             "tail_gaps": sorted(set(gaps))}
+    # Порядок НЕ произволен и повторяет соседский принцип: первым называется
+    # самый ДОРОГОЙ предел, потому что имя отказа есть указание, чем он
+    # чинится. Отдано в чужой вызов ⇒ нужен межпроцедурный разбор; правый
+    # операнд ⇒ значение могло прийти не от нас и шагу сюда хода нет в
+    # принципе; напечатано целиком ⇒ чинить правило побега СОСЕДА; хвост без
+    # имени ⇒ нужен разбор потребителя на месте.
+    for gap in (BOUND_GAP_UNBOUND, TAIL_GAP_RIGHT_OPERAND,
+                BOUND_GAP_PRINTED_WHOLE, TAIL_GAP_RESULT_UNBOUND):
+        if gap in gaps:
+            return {**shape, "gap": gap, "name": None}
+    distinct = sorted(set(names))
+    if len(distinct) != 1:
+        return {**shape, "gap": BOUND_GAP_MANY_NAMES, "name": None,
+                "names": distinct}
+    return {**shape, "gap": None, "name": distinct[0]}
+
+
+def _defensive_tail_site(scope: ast.AST, read: ast.AST,
+                         declared: Set[str]) -> dict:
+    """ОДИН шаг за защитный хвост для ОДНОГО чтения поля.
+
+    Звенья те же три, что у соседа (ADR-466), и заменено ровно первое:
+
+    1. прочитанное связано ровно одним именем, хвост ``or`` признан частью
+       связывания (:func:`_defensive_tail_binding`);
+    2. это имя в области связывает РОВНО ОДИН источник
+       (:func:`_name_binding_sources` соседа) — иначе прочитанный класс мог
+       прийти от чужого значения (:data:`BOUND_GAP_REBOUND`);
+    3. читателя имени разбирает :func:`_one_step_reader` — правило читателя
+       УЖЕ соседское, второй копии его здесь нет, и найденный раскол есть
+       доказанный МИНИМУМ.
+    """
+    found = _defensive_tail_binding(scope, read)
+    if found["gap"] is not None:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": found["gap"],
+                "splits": [], "bound": None, "sources": None}
+    name = found["name"]
+    sources = _name_binding_sources(scope, name)
+    if sources != 1:
+        return {"verdict": ONE_STEP_UNRESOLVED, "gap": BOUND_GAP_REBOUND,
+                "splits": [], "bound": name, "sources": sources}
+    step = _one_step_reader(scope, ast.Name(id=name, ctx=ast.Load()), declared)
+    return {**step, "bound": name, "sources": sources}
+
+
+def _defensive_tail_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                         declared: Set[str], scope: ast.AST,
+                         field: str) -> dict:
+    """Шаг за хвост для ОДНОГО счётчика, уехавшего в документ.
+
+    Вердикты обоих соседей спрашиваются первыми и проходят насквозь: наш шаг
+    вступает ТОЛЬКО там, где шаг по связанному имени отказал хвостом либо
+    «отдано без имени», — то есть ровно на населении заказа. Свод по
+    нескольким чтениям — :func:`_merge_step_reads` соседа.
+    """
+    reads = _document_field_reads(tree, owner_of, field, scope)
+    seen: List[dict] = []
+    tailed: List[dict] = []
+    for reader_scope, node, _form in reads:
+        neighbour = _one_step_reader(reader_scope, node, declared)
+        if neighbour.get("gap") != STEP_GAP_ESCAPES_AGAIN:
+            seen.append(neighbour)
+            continue
+        bound = _bound_name_site(reader_scope, node, declared)
+        if bound.get("gap") not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
+            seen.append(bound)
+            continue
+        step = _defensive_tail_site(reader_scope, node, declared)
+        seen.append(step)
+        tailed.append(step)
+    merged = _merge_step_reads(seen)
+    return {**merged,
+            "read_forms": sorted({form for _s, _n, form in reads}),
+            "tail_names": sorted({s["bound"] for s in tailed
+                                  if s.get("bound")}),
+            "behind_a_tail": len(tailed),
+            "stepped": sum(1 for s in tailed if s.get("sources") == 1)}
+
+
+def _defensive_tail_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Счётчики ОДНОГО файла, у которых шаг соседа отказал хвостом.
+
+    Население НЕ пересобирается и правила соседей НЕ копируются: обход тот же
+    (:func:`_one_step_site_nodes`), поле считает сосед (:func:`_field_step`),
+    читателя поля — сосед (:func:`_document_reader_step`), связывание именем —
+    сосед (:func:`_bound_name_site`), а отбираются строки, которым ПОСЛЕДНИЙ
+    отказал именно хвостом или «отдано без имени».
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    declared: Optional[Set[str]] = None
+    for site, target, scope in _one_step_site_nodes(rel, tree):
+        if site.get("step_gap") != STEP_GAP_CONTAINER or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            declared = _declared_constant_names(tree)
+        field_out = _field_step(tree, parents, owner_of, declared, scope,
+                                target)
+        if field_out["gap"] not in (FIELD_GAP_FIELD_NEVER_READ,
+                                    STEP_GAP_RESULT_UNBOUND):
+            continue
+        doc_out = _document_reader_step(tree, owner_of, declared, scope,
+                                        list(field_out["fields"]))
+        if doc_out["gap"] != STEP_GAP_ESCAPES_AGAIN:
+            continue
+        bound_out = _bound_name_step(tree, owner_of, declared, scope,
+                                     doc_out["field"])
+        if bound_out["gap"] not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
+            continue
+        out = _defensive_tail_step(tree, owner_of, declared, scope,
+                                   doc_out["field"])
+        rows.append({**site, "field": doc_out["field"],
+                     "bound_gap": bound_out["gap"],
+                     "tail_step": out["verdict"], "tail_gap": out["gap"],
+                     "read_forms": out["read_forms"],
+                     "tail_names": out["tail_names"],
+                     "tail_splits": out["splits"],
+                     "behind_a_tail": out["behind_a_tail"],
+                     "stepped": out["stepped"]})
+    return rows
+
+
+def _defensive_tail_control() -> dict:
+    """Проба объявленного правила — до замера, обеими половинами.
+
+    Первая половина требует довести до расколотого читателя КАЖДЫЙ счётчик
+    положительной сцены и доказать это ВСЕМИ тремя формами чтения поля.
+    Вторая требует ОТКАЗАТЬ там, где отказать должно, и отказать РАЗНЫМИ
+    именами — в том числе на ДВУХ счётчиках с ГОТОВЫМ расколом (правый операнд
+    ``or`` · переприсвоенное имя), которые правило обязано НЕ засчитать, и на
+    ОДНОМ безвредном читателе, которого нельзя смешать с отказом. Любая
+    половина не сошлась ⇒ шаг отказывает целиком: число, полученное правилом,
+    промахивающимся по известной форме, есть свойство ПРАВИЛА, а не населения.
+    """
+    try:
+        source = _defensive_tail_sites("<control>",
+                                       ast.parse(TAIL_CONTROL_SOURCE))
+        clean = _defensive_tail_sites("<control-clean>",
+                                      ast.parse(TAIL_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != len(_DOC_READ_FORMS):
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} счётчик(ов) "
+            f"за защитным хвостом из {len(_DOC_READ_FORMS)} — шагать за хвост "
+            f"нечего")}
+    split = [s for s in source if s["tail_step"] == ONE_STEP_SPLITS]
+    if len(split) != len(source):
+        return {"passed": False, "reason": (
+            f"шаг за защитный хвост довёл до расколотого читателя "
+            f"{len(split)} из {len(source)} счётчиков: исходы "
+            f"{sorted(s['tail_step'] for s in source)}")}
+    forms = sorted({f for s in source for f in s["read_forms"]})
+    if forms != sorted(_DOC_READ_FORMS):
+        return {"passed": False, "reason": (
+            f"положительная сцена доказала формы чтения {forms}, а их "
+            f"{sorted(_DOC_READ_FORMS)} — правило, знающее не все, объявило бы "
+            f"«связывать нечего» там, где связывают другой формой")}
+    # ГРАНИЦА НАСЕЛЕНИЯ — отдельное требование, а не следствие имён.
+    # Счётчик, напечатанный целиком, есть ЧУЖОЙ потолок (ADR-462), и шаг
+    # обязан не взять его ВОВСЕ. Проверять это перечнем имён нельзя: он
+    # молчит и тогда, когда счётчик взят, но назван чужим именем.
+    if any(s["counter"] == "prn" or s.get("field") == "prn" for s in clean):
+        return {"passed": False, "reason": (
+            "счётчик, напечатанный целиком в строку, попал в население шага: "
+            "это ЧУЖОЙ потолок (ADR-462), и разбирать его здесь значило бы "
+            "чинить прибор соседа его же населением")}
+    benign = [s for s in clean if s["tail_step"] == ONE_STEP_WHOLESALE]
+    refused = [s for s in clean if s["tail_step"] == ONE_STEP_UNRESOLVED]
+    if not benign:
+        return {"passed": False, "reason": (
+            "в отрицательной сцене ни один читатель не признан безвредным: "
+            "правило, у которого всё есть отказ, третий исход не отделяет")}
+    got = sorted({s["tail_gap"] for s in refused})
+    want = sorted(_TAIL_GAPS)
+    if got != want:
+        return {"passed": False, "reason": (
+            f"отрицательная сцена отказала именами {got}, а объявлено {want} — "
+            f"отказ под ЧУЖИМ именем посылает чинить не то (урок ADR-466)")}
+    if len(refused) != len(want):
+        return {"passed": False, "reason": (
+            f"{len(refused)} отказ(ов) на {len(want)} объявленных имён: "
+            f"два класса, слитые в одно имя, есть потеря указания на починку")}
+    return {"passed": True, "positive": len(source), "negative": len(refused),
+            "benign": len(benign), "gaps": got, "read_forms": forms}
+
+
+def defensive_tail_binding(root: Path, bound_step: Optional[dict]) -> dict:
+    """Сколько счётчиков за ЗАЩИТНЫМ ХВОСТОМ разрешает шаг (**заказ G82 п. 1**).
+
+    ADR-466 ответил на заказ G81 числом СЕМЬ из 16 и назвал остаток ИМЕНАМИ:
+    защитный хвост ``or {}`` — 5, печать целиком — 2, «отдано без имени» — 1
+    (и это имя у живого случая ложное), «убежал снова» — 1. Заказ G82 п. 1
+    дословно:
+
+    > Сколько из 5 разрешает шаг, признающий хвост частью связывания, и
+    > сколько остаётся третьим исходом. Односторонность назвать заранее и
+    > ОГРАНИЧИТЬ звеном: хвост защитен только тогда, когда наше чтение стои́т
+    > ПЕРВЫМ операндом ``or``. Обе половины контроля обязательны, и девятый
+    > живой случай обязан получить СВОЁ имя, а не попасть в чужое.
+
+    Требование про девятый случай исполнено ЗВЕНОМ, а не оговоркой: хвост,
+    результат которого не связан вовсе (``(ax.get("K") or {}).items()``),
+    отвечает :data:`TAIL_GAP_RESULT_UNBOUND`, и поэтому население этого шага
+    берётся по ДВУМ отказам соседа — иначе живой случай остался бы под чужим
+    именем ровно потому, что прибор к нему не подошёл.
+
+    Население берётся у соседа и СВЕРЯЕТСЯ с его числами: свой обход есть
+    вторая дорога к тому же населению, и разойдясь с первой, он отвечал бы на
+    другой вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько счётчиков, чьё прочитанное связано именем "
+                     "ЗА ЗАЩИТНЫМ ХВОСТОМ `or {}`, разрешает шаг, признающий "
+                     "хвост частью связывания, и сколько остаётся третьим "
+                     "исходом"),
+        "order": "G82.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(bound_step, dict)
+            or str(bound_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_TAIL_NEIGHBOUR,
+                "reason": ("шаг по связанному имени не измерен — населения "
+                           "«связано за защитным хвостом» не существует; "
+                           "это НЕ «таких счётчиков нет»")}
+    reasons = observed(bound_step, "unresolved_reasons", kind=dict)
+    behind_tail = (None if reasons is None
+                   else observed(reasons, BOUND_GAP_OR_TAIL, kind=int))
+    unnamed = (None if reasons is None
+               else observed(reasons, BOUND_GAP_UNBOUND, kind=int))
+    if behind_tail is None or unnamed is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_TAIL_NEIGHBOUR,
+                "reason": ("сосед не назвал числа счётчиков за защитным "
+                           "хвостом либо отданных без имени — сверять свой "
+                           "обход не с чем")}
+    declared_population = behind_tail + unnamed
+    control = _defensive_tail_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_TAIL_CONTROL,
+                "reason": (f"объявленное правило шага за защитный хвост не "
+                           f"прошло контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    # Обход ДОСЛОВНО соседский — каталоги, правило пропуска и обращение с
+    # неразобранным файлом. Иначе две дороги к одному населению разошлись бы
+    # не по правилу шага, а по правилу ОБХОДА, и сверка ниже проверяла бы не
+    # то, что заявляет.
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_defensive_tail_sites(rel, tree))
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_TAIL_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_TAIL_POPULATION,
+                "population": len(rows),
+                "declared_population": declared_population,
+                "reason": (f"свой обход нашёл {len(rows)} счётчик(ов), сосед "
+                           f"назвал {declared_population} ({behind_tail} за "
+                           f"хвостом + {unnamed} без имени) — это ДВЕ разные "
+                           f"дороги к одному населению, и разойдясь, они "
+                           f"отвечают на разные вопросы")}
+
+    # Форма ЗАКРЫТАЯ — та же, что у соседа, и это не стиль. Открытый счётчик
+    # (`d[k] = d.get(k, 0) + 1`) есть ровно тот предмет, который эта перепись
+    # и ищет: завести его ЗДЕСЬ значило бы дописать прибору собственное
+    # население и мерить самого себя.
+    outcomes = {cls: sum(1 for r in rows if r["tail_step"] == cls)
+                for cls in _ONE_STEP_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("tail_gap") == gap)
+            for gap in _TAIL_GAPS}
+    read_forms = {form: sum(1 for r in rows
+                            if form in (r.get("read_forms") or []))
+                  for form in _DOC_READ_FORMS}
+    resolved = outcomes[ONE_STEP_SPLITS] + outcomes[ONE_STEP_WHOLESALE]
+    split_rows = [r for r in rows if r["tail_step"] == ONE_STEP_SPLITS]
+    # Два разных числа живости, и складывать их в одно было бы подменой
+    # (урок ADR-462, повторённый ADR-466): «прочитанное связано именем ЗА
+    # ХВОСТОМ» и «у этого имени ровно один источник» — разные достижения.
+    named = sum(1 for r in rows if r.get("tail_names"))
+    stepped = sum(1 for r in rows if int(r.get("stepped") or 0) > 0)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared_population,
+        "population_behind_a_tail": behind_tail,
+        "population_unnamed_by_the_neighbour": unnamed,
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "tail_step_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "read_forms": read_forms,
+        "resolved_by_defensive_tail_step": resolved,
+        "read_value_bound_behind_a_tail": named,
+        "tail_name_single_source": stepped,
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "bound": (r.get("tail_names") or [None])[0],
+             "split": (r["tail_splits"] or [{}])[0].get("how")}
+            for r in split_rows[:COSTED_SAMPLE]],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("tail_gap"),
+             "field": r.get("field"),
+             "bound": (r.get("tail_names") or [None])[0]}
+            for r in rows
+            if r["tail_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"`{TAIL_GAP_RIGHT_OPERAND}` — ОБЪЯВЛЕННАЯ односторонность этого "
+             "шага, а не находка: хвост признан связыванием ТОЛЬКО слева, "
+             "потому что справа имя могло взять значение другого операнда, и "
+             "раскол у него был бы доказан совпадением имён"),
+            (f"`{TAIL_GAP_RESULT_UNBOUND}` — предел ПОТРЕБИТЕЛЯ, а не "
+             "отсутствие вреда: хвост есть, но его результат пробегают на "
+             "месте, и шагать по имени нечему, потому что имени нет"),
+            (f"`{BOUND_GAP_UNBOUND}` остаётся пределом ПРИБОРА: прочитанное, "
+             "отданное прямо в вызов, читают у зовущего, и туда этому шагу "
+             "хода нет по построению"),
+            (f"`{BOUND_GAP_PRINTED_WHOLE}` — ЧУЖОЙ потолок, названный ещё "
+             "ADR-462: прибор соседа здесь не правится (чужая батарея)"),
+            ("правило читателя УЖЕ соседское: выражение класса до этой "
+             "области не доезжает, поэтому найденное есть доказанный МИНИМУМ"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461, ADR-462, ADR-463, ADR-465, ADR-466): своего замера "
+             "населения у этого шага нет по построению"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -13975,6 +14708,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # числом.
     bound_step = bound_name_read_in_this_scope(root, doc_step)
 
+    # --- шаг ЗА ЗАЩИТНЫЙ ХВОСТ `or {}` (заказ G82 п. 1) ----------------
+    # ADR-466 назвал остаток не числом, а ИМЕНАМИ: из девяти НЕ ИЗМЕРЕННЫХ
+    # пять связаны за защитным хвостом, а «отдано без имени» у живого случая
+    # оказалось именем ЛОЖНЫМ. Вопрос G82 — сколько из них разрешает шаг,
+    # признающий хвост частью связывания. Население берётся у шага по
+    # связанному имени по ДВУМ его отказам и сверяется с их суммой.
+    tail_step = defensive_tail_binding(root, bound_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -14123,6 +14864,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ИМЕНИ» — разные вопросы с разным третьим исходом, и ответ
         # второго не отменяет первого.
         "bound_name_read_in_this_scope": bound_step,
+        "defensive_tail_binding": tail_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -15982,6 +16724,65 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` поле `{item.get('field')}` → имя "
                 f"`{item.get('bound')}` — {item.get('split')}")
         for blind in (observed(bound_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    tail_step = observed(doc, "defensive_tail_binding", kind=dict)
+    if tail_step is None:
+        out.append("[ЗА ЗАЩИТНЫМ ХВОСТОМ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «счётчиков за хвостом нет»")
+    elif str(tail_step.get("status")) == "UNMEASURED":
+        out.append(f"[ЗА ЗАЩИТНЫМ ХВОСТОМ] НЕ ИЗМЕРЕНО "
+                   f"[{tail_step.get('unmeasured_class')}]: "
+                   f"{tail_step.get('reason')}")
+    else:
+        outcomes = observed(tail_step, "tail_step_outcomes", kind=dict) or {}
+        why = observed(tail_step, "unresolved_reasons", kind=dict) or {}
+        out.append(
+            f"[ЗА ЗАЩИТНЫМ ХВОСТОМ] из {tail_step.get('population')} "
+            f"счётчиков ({tail_step.get('population_behind_a_tail')} за "
+            f"хвостом `or {{}}` + "
+            f"{tail_step.get('population_unnamed_by_the_neighbour')} "
+            f"названных соседом «отдано без имени») шаг, признающий хвост "
+            f"частью связывания, доводит до расколотого читателя "
+            f"{outcomes.get(ONE_STEP_SPLITS)}, до безвредного — "
+            f"{outcomes.get(ONE_STEP_WHOLESALE)}; остаётся третьим исходом "
+            f"{tail_step.get('still_unmeasured')}")
+        out.append(
+            f"[ЗА ЗАЩИТНЫМ ХВОСТОМ · ПОЧЕМУ НЕ ДОШЁЛ] хвост, результат "
+            f"которого пробегают БЕЗ имени "
+            f"{why.get(TAIL_GAP_RESULT_UNBOUND)} · наше чтение — ПРАВЫЙ "
+            f"операнд `or` {why.get(TAIL_GAP_RIGHT_OPERAND)} · отдано в "
+            f"вызов без имени {why.get(BOUND_GAP_UNBOUND)} · связано больше "
+            f"чем одним именем {why.get(BOUND_GAP_MANY_NAMES)} · имя "
+            f"переприсвоено {why.get(BOUND_GAP_REBOUND)} · имя убежало СНОВА "
+            f"{why.get(STEP_GAP_ESCAPES_AGAIN)} · имя прочитано неразрешимым "
+            f"ключом {why.get(READER_GAP_DYNAMIC)} · имя не прочитано вовсе "
+            f"{why.get(STEP_GAP_NO_READ)}")
+        out.append(
+            f"[ЗА ЗАЩИТНЫМ ХВОСТОМ · ПРОВОДКА ЖИВА] прочитанное связано "
+            f"именем ЗА ХВОСТОМ у "
+            f"{tail_step.get('read_value_bound_behind_a_tail')} счётчик(ов), "
+            f"и у {tail_step.get('tail_name_single_source')} это имя "
+            f"связывает РОВНО ОДИН источник: два разных достижения, и "
+            f"складывать их в одно значило бы выдать половину проводки за "
+            f"целую")
+        control = observed(tail_step, "control", kind=dict) or {}
+        out.append(
+            f"[ЗА ЗАЩИТНЫМ ХВОСТОМ · КОНТРОЛЬ] правило довело до раскола "
+            f"{control.get('positive')} счётчик(ов) положительной сцены "
+            f"ВСЕМИ {len(control.get('read_forms') or [])} формами чтения и "
+            f"развело отрицательную {len(control.get('gaps') or [])} РАЗНЫМИ "
+            f"именами отказа при {control.get('benign')} безвредном читателе "
+            f"— в том числе на ДВУХ счётчиках с ГОТОВЫМ расколом (правый "
+            f"операнд `or` · переприсвоенное имя), который правило обязано НЕ "
+            f"засчитать")
+        for item in (observed(tail_step, "harm_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ЗА ЗАЩИТНЫМ ХВОСТОМ · РАСКОЛ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` поле `{item.get('field')}` → имя "
+                f"`{item.get('bound')}` — {item.get('split')}")
+        for blind in (observed(tail_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
