@@ -127,20 +127,46 @@ jobs:
       # выполнялись в CI ни разу с 2026-07-17, причина исключения нигде не записана.
       # Возврат подтверждён реальным прогоном Actions (+43 passed ровно, 3.11 и 3.12).
       # Новые сужения набора тестов гейтит spa_core/tests/test_ci_test_exclusions.py.
+      # NOTE (цикл #697, 2026-09-25): 120 → 240. Граница поднята НЕ чтобы покрасить шаг
+      # зелёным, а потому, что её впервые есть чем назвать. Замер — прогон 36174140955:
+      # шаг шёл 120 мин РОВНО (18:41:49 → 20:42:01) и был снят на `[ 80%]`. Это первая
+      # точка длительности с 26.08, и она говорит одно: в прежнюю границу шаг не
+      # помещается ПО ПОСТРОЕНИЮ. Сам воркфлоу разрешал этот шаг заранее — «поднимать
+      # её, если вердикт скажет „НЕ ИЗМЕРЕНО: сессия не дошла до конца“, — законно;
+      # молча ронять до „покрасить зелёным“ — запрещено» (инв. #16), — и вердикт сказал
+      # ровно это.
+      # ПОЧЕМУ 240, А НЕ 142. Линейная экстраполяция даёт 114 / 0,8 = 142 мин, и брать
+      # её значило бы подставить ОДНО окно вместо другого — ровно то, что нашёл ADR-473.
+      # Поэтому здесь не экстраполяция, а ВЕРХНЯЯ ГРАНИЦА: даже если оставшиеся 20 %
+      # стоят столько же, сколько все первые 80 % (нарочито пессимистично), это 228 мин
+      # < 240. Остальные шаги джобы — `tests/` ~10 мин, `scripts/` ~1, pre-deploy ~5 —
+      # оставляют джобу внутри 6-часового предела Actions.
+      # ⚠️ 240 — по-прежнему ГРАНИЦА ЗАВИСАНИЯ, а не бюджет. Настоящую длительность шага
+      # измерит первый ДОШЕДШИЙ прогон, и до него она остаётся НЕ ИЗМЕРЕННОЙ.
+      # Порог `--timeout=180` на ТЕСТ не тронут: это другой вопрос (инв. #16).
+      # NOTE (цикл #697): `-p spa_core.ci.pytest_stream_record` + SPA_PYTEST_STREAM.
+      # Клин снимает сессию ДО того, как pytest напишет сводку и junit-запись, поэтому
+      # тот же прогон показал `FFF F..F....F.F..F` на 80 % — тринадцать упавших, чьих
+      # ИМЁН не существует нигде, — и шесть минут полной тишины перед топором (блокировка
+      # в C-коде, которую SIGALRM не прерывает). Потоковая запись кладёт имя теста на диск
+      # ДО того, как он побежал, поэтому «начался и не кончился» становится наблюдаемым.
+      # Вердикта она не выносит: код возврата по-прежнему берётся у junit-записи.
       - name: Run spa_core unit tests
         if: ${{ !cancelled() }}
-        timeout-minutes: 120
+        timeout-minutes: 240
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
+            -p spa_core.ci.pytest_stream_record \
             --timeout=180 --timeout-method=signal \
             --junitxml=reports/junit-spa_core.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: reports/stream-spa_core.jsonl
 
       - name: Verdict — spa_core/tests/
         if: ${{ !cancelled() }}
-        run: python3 scripts/ci_verdict.py reports/junit-spa_core.xml --label 'spa_core/tests/'
+        run: python3 scripts/ci_verdict.py reports/junit-spa_core.xml --label 'spa_core/tests/' --stream reports/stream-spa_core.jsonl
 
       # NOTE (цикл #74, 2026-08-01): каталог `scripts/tests/` добавлен в CI впервые —
       # до этого он не запускался НИ ОДНИМ workflow, то есть 191 тест (репетиция
@@ -164,15 +190,17 @@ jobs:
         timeout-minutes: 60
         run: |
           python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
-            -q --tb=short -p no:randomly --timeout=180 --timeout-method=signal \
+            -q --tb=short -p no:randomly -p spa_core.ci.pytest_stream_record \
+            --timeout=180 --timeout-method=signal \
             --junitxml=reports/junit-scripts.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: reports/stream-scripts.jsonl
 
       - name: Verdict — scripts/tests/ + colocated
         if: ${{ !cancelled() }}
-        run: python3 scripts/ci_verdict.py reports/junit-scripts.xml --label 'scripts/tests/ + colocated'
+        run: python3 scripts/ci_verdict.py reports/junit-scripts.xml --label 'scripts/tests/ + colocated' --stream reports/stream-scripts.jsonl
 
       - name: Pre-deploy checks (dry run)
         if: ${{ !cancelled() }}

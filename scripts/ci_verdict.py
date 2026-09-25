@@ -28,6 +28,21 @@
 проверку на провалы; выдать его за зелёный — тот же fail-OPEN, что «found no entrypoints
 = clean pass», закрытый в `deployment_acceptance` (`.claude/rules/deployment.md`).
 
+**Третий исход честен, но безымян — и это чинится отдельно (цикл #697).** Первый же
+вердикт ADR-474 сказал «НЕ ИЗМЕРЕНО» о шаге, который дошёл до 80 % и напечатал
+``FFF F..F....F.F..F`` — не меньше тринадцати упавших тестов, чьих ИМЁН не существует
+нигде. Плюс шесть минут полного молчания перед топором при пороге ``--timeout=180``:
+столько молчит только блокировка в C-коде, которую SIGALRM не прерывает. Поэтому у
+прибора появился ВТОРОЙ источник — потоковая запись
+(``spa_core/ci/pytest_stream_record.py``, ``--stream``), куда имя теста ложится ДО того,
+как он побежал.
+
+**Источник второй, но вердикт по-прежнему ОДИН.** Потоковая запись не может превратить
+«НЕ ИЗМЕРЕНО» в «измерено»: перечень названных событий — не итог прогона, и «успели
+80 тысяч, и все зелёные» не есть «набор зелёный». Код возврата на оборванной сессии
+остаётся **2**; запись только НАЗЫВАЕТ — какие тесты успели упасть и какой исполнялся,
+когда сессию сняли. Записи нет ⇒ так и сказано («имён нет»), а не молчание.
+
 Коды возврата: **0** — измерено, зелено · **1** — измерено, красно · **2** — НЕ ИЗМЕРЕНО.
 Скрипт ничего не чинит и ничего не перезапускает: он только НАЗЫВАЕТ исход.
 
@@ -36,6 +51,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -160,6 +176,100 @@ def read_verdict(path: Path) -> Verdict:
     return Verdict(_MEASURED_GREEN, RC_GREEN, tests, failures, errors, skipped, "")
 
 
+class StreamRead(NamedTuple):
+    """Что говорит потоковая запись. ``reason`` обязателен, когда её не прочитали."""
+
+    read: bool
+    reason: str
+    started: int
+    finished: int
+    failed: list[tuple[str, str, str]]      # (nodeid, фаза, первая строка сообщения)
+    running: list[str]                      # начаты и НЕ кончились
+    ended: bool                             # есть строка `end` ⇒ сессия дошла до конца
+    torn: int                               # строк, не разобранных как JSON
+
+
+def read_stream(path: Path | None) -> StreamRead:
+    """Разобрать JSONL потоковой записи прогона.
+
+    **Оборванная последняя строка — ожидаемое состояние, а не сбой.** Процесс убивают
+    посреди записи, поэтому хвост может оказаться недописанным; такие строки считаются
+    отдельно (``torn``) и НАЗЫВАЮТСЯ, потому что молча их выбросить значило бы снова
+    потерять имя — ровно то, против чего вся эта запись и заведена.
+    """
+    if path is None:
+        return StreamRead(False, "имена не добывались: `--stream` не передан",
+                          0, 0, [], [], False, 0)
+    if not path.exists():
+        return StreamRead(False, f"потоковой записи нет ({path})", 0, 0, [], [], False, 0)
+    started: dict[str, None] = {}
+    finished: set[str] = set()
+    failed: list[tuple[str, str, str]] = []
+    ended = False
+    torn = 0
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return StreamRead(False, f"потоковая запись не прочитана ({path}): {exc}",
+                          0, 0, [], [], False, 0)
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            torn += 1
+            continue
+        if not isinstance(event, dict):
+            torn += 1
+            continue
+        kind, node = event.get("e"), str(event.get("n") or "")
+        if kind == "start" and node:
+            started[node] = None
+        elif kind == "fail" and node:
+            failed.append((node, str(event.get("w") or "?"), str(event.get("msg") or "")))
+            if event.get("w") in ("call", "setup"):
+                finished.add(node)
+        elif kind in ("ok", "skip") and node:
+            finished.add(node)
+        elif kind == "end":
+            ended = True
+    running = [node for node in started if node not in finished]
+    return StreamRead(True, "", len(started), len(finished), failed, running, ended, torn)
+
+
+# Сколько имён печатать целиком. Перечень длиннее обрезается с НАЗВАННЫМ остатком:
+# «и ещё N» — это число, а молчаливое усечение было бы новой безымянностью.
+_NAMES_SHOWN = 20
+
+
+def format_stream(stream: StreamRead, *, measured: bool) -> str:
+    """Строки об именах. Вердикта не выносит и кода возврата не трогает."""
+    if not stream.read:
+        # Молчать здесь нельзя: отсутствие имён — самостоятельный исход, а не «упавших нет».
+        return f"   имена: {stream.reason}"
+    lines = [
+        f"   потоковая запись: начато {stream.started} · завершено {stream.finished} · "
+        f"упало {len(stream.failed)} · сессия дошла до конца: {'да' if stream.ended else 'НЕТ'}"
+    ]
+    if stream.torn:
+        lines.append(f"   строк не разобрано: {stream.torn} (хвост, оборванный на середине записи)")
+    for node, when, msg in stream.failed[:_NAMES_SHOWN]:
+        lines.append(f"   ❌ УПАЛ [{when}] {node}" + (f" — {msg}" if msg else ""))
+    if len(stream.failed) > _NAMES_SHOWN:
+        lines.append(f"   … и ещё {len(stream.failed) - _NAMES_SHOWN} упавш(их)")
+    for node in stream.running[:_NAMES_SHOWN]:
+        lines.append(
+            f"   ⏳ ИСПОЛНЯЛСЯ И НЕ КОНЧИЛСЯ: {node}"
+            + ("" if measured else " — на нём сессию и сняли")
+        )
+    if len(stream.running) > _NAMES_SHOWN:
+        lines.append(f"   … и ещё {len(stream.running) - _NAMES_SHOWN} незавершённ(ых)")
+    if not stream.failed and not stream.running:
+        lines.append("   имён называть нечего: до обрыва ни один тест не упал и не завис")
+    return "\n".join(lines)
+
+
 def format_verdict(verdict: Verdict, *, label: str) -> str:
     """Человекочитаемая строка для лога Actions. Исход — первым словом."""
     head = f"{verdict.label} — {label}"
@@ -173,6 +283,28 @@ def format_verdict(verdict: Verdict, *, label: str) -> str:
     return f"{mark} {head}\n   {counted}"
 
 
+def cross_check(verdict: Verdict, stream: StreamRead) -> str:
+    """Сверка двух источников — ВОПРОС, а не второй вердикт.
+
+    Когда junit-запись есть, население у неё и у потоковой записи обязано совпасть:
+    расхождение означает либо потерянные строки потока, либо разный счёт населения
+    (``xfail``, перезапуски). Ни то, ни другое не есть суждение о тестах, поэтому
+    код возврата отсюда не меняется — но и молчать нельзя: потоковой записи мы
+    поверим ровно тогда, когда junit-записи не будет, и проверять её надо СЕЙЧАС,
+    пока есть с чем сверить.
+    """
+    if not verdict.measured or not stream.read or verdict.tests is None:
+        return ""
+    if verdict.tests == stream.finished:
+        return ""
+    return (
+        f"   ⚠️ сверка источников: junit насчитал {verdict.tests} тест(ов), "
+        f"потоковая запись — {stream.finished} завершённ(ых). Вердикт взят у junit; "
+        f"расхождение значит, что счёт населения у источников разный либо поток "
+        f"потерял строки — это вопрос к записи, а не к набору"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Три исхода шага тестов: зелено · красно · НЕ ИЗМЕРЕНО (инв. #17).",
@@ -182,10 +314,24 @@ def main(argv: list[str] | None = None) -> int:
         "--label", default="шаг тестов",
         help="как называть шаг в выводе (например «spa_core/tests/»)",
     )
+    parser.add_argument(
+        "--stream", type=Path, default=None,
+        help="путь к потоковой записи прогона (spa_core/ci/pytest_stream_record.py); "
+             "нужна, чтобы назвать имена, когда сессию сняли до конца",
+    )
     args = parser.parse_args(argv)
 
     verdict = read_verdict(args.junit)
+    stream = read_stream(args.stream)
     print(format_verdict(verdict, label=args.label))
+    # Имена печатаются ВСЕГДА, а не только на обрыве: у измеренного красного они
+    # сверяются с junit-записью, и расхождение двух источников само есть находка.
+    print(format_stream(stream, measured=verdict.measured))
+    note = cross_check(verdict, stream)
+    if note:
+        print(note)
+    # Код возврата берётся у ОДНОГО источника. Потоковая запись его не трогает ни в
+    # какую сторону: иначе «успели 80 тысяч, все зелёные» стало бы вердиктом о наборе.
     return verdict.rc
 
 
