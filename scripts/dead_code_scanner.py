@@ -184,6 +184,82 @@ class _FileFacts:
     annotation_names: Set[str] = field(default_factory=set)
 
 
+def _child_nodes(node: ast.AST) -> List[ast.AST]:
+    """Direct children of ``node`` — the SAME nodes ``ast.iter_child_nodes`` yields.
+
+    Why a function of our own instead of the stdlib generator (cycle #694): the
+    stdlib form costs two generator frames per visited node
+    (``iter_child_nodes`` over ``iter_fields``), and at 8.69M nodes that framing
+    — not the work — was 9.6s of the scan's profile. This returns a plain list,
+    so the traversal below pays one call per node instead of one generator plus
+    one ``next()`` per child.
+
+    The selection rule is copied from ``ast.iter_child_nodes`` verbatim,
+    including ``isinstance(value, list)`` (a list SUBCLASS is still iterated)
+    and the absent-field case (``iter_fields`` swallows ``AttributeError``;
+    ``getattr(..., None)`` is the same answer, because ``None`` is not an
+    ``ast.AST``). Equivalence is not argued, it is measured: the facts of all
+    3903 modules under ``spa_core`` are identical before and after
+    (``test_child_nodes_matches_iter_child_nodes`` pins it on the corpus, and
+    the end-to-end control is a byte-identical report).
+    """
+    out: List[ast.AST] = []
+    for fieldname in node._fields:
+        value = getattr(node, fieldname, None)
+        if isinstance(value, ast.AST):
+            out.append(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, ast.AST):
+                    out.append(item)
+    return out
+
+
+# --- per-class relevance, decided once per CLASS -----------------------------
+#
+# The traversal used to ask ~8 `isinstance` questions of EVERY node (98.5M calls
+# for 8.69M nodes). The answer to all of them is a property of the node's CLASS,
+# not of the node, so it is computed once per class and remembered.
+#
+# This is a memo whose key is a class object and whose answer is a pure function
+# of the class hierarchy. That hierarchy cannot change while the process runs,
+# so — unlike a memo about the file tree (ADR-471) — living for the whole process
+# buys time and cannot cost truth.
+
+_FACT_CLASSES: Tuple[type, ...] = (
+    ast.Import, ast.ImportFrom, ast.If, ast.Name, ast.Attribute,
+    ast.Assign, ast.AugAssign, ast.AnnAssign, ast.arg,
+    ast.FunctionDef, ast.AsyncFunctionDef,
+)
+_NON_NAME_FACT_CLASSES: Tuple[type, ...] = tuple(
+    c for c in _FACT_CLASSES if c is not ast.Name
+)
+
+_TAG_INERT = 0   # no branch of the collector can fire for this class
+_TAG_NAME = 1    # plain `ast.Name` — the hot path, ~1 node in 4
+_TAG_CHAIN = 2   # relevant, and the full chain below decides which branch
+
+_CLASS_TAGS: Dict[type, int] = {}
+
+
+def _classify_node_class(cls: type) -> int:
+    """Which branches of the collector can fire for nodes of class ``cls``.
+
+    ``issubclass`` — NOT ``cls is X`` — so the answer is exactly what the old
+    per-node ``isinstance`` chain would have said. A subclass of ``ast.Name``
+    that is nothing else still takes the fast path, and a class that is relevant
+    in two groups at once falls to the chain, where the original ``if/elif``
+    order decides. `ast.parse` never produces such a class; the point is that
+    the memo does not quietly narrow the contract of a function whose parameter
+    is typed ``ast.AST``.
+    """
+    if not issubclass(cls, _FACT_CLASSES):
+        return _TAG_INERT
+    if issubclass(cls, ast.Name) and not issubclass(cls, _NON_NAME_FACT_CLASSES):
+        return _TAG_NAME
+    return _TAG_CHAIN
+
+
 def _collect_file_facts(tree: ast.AST) -> _FileFacts:
     """Gather every fact the import heuristic needs in a SINGLE tree traversal.
 
@@ -196,7 +272,30 @@ def _collect_file_facts(tree: ast.AST) -> _FileFacts:
     left ``main`` red for five cycles (card
     ``agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv``).
 
-    The traversal below is deliberately ``ast.walk``'s own algorithm — a FIFO
+    ── 2026-09-25, cycle #694 — the SAME timeout came back, and it is the same
+    ── kind of fix: cheaper per node, not fewer nodes ───────────────────────────
+    `main` was red 29 days (ADR-470). Measured on the tip `aca6f0a58`: the
+    `tests/` step dies on these very four tests, `subprocess.TimeoutExpired`
+    after 30s, while 14167 tests around them pass. The scan had grown back to
+    **12.4s on the host** (8.5s when cycle #64 left it) — not because the code
+    got slower per node but because the corpus grew to 3903 modules / 8.69M
+    nodes, and at ~640ns of Python per node that is the whole budget.
+
+    Two costs were measured and both removed, with the node count and the
+    published numbers untouched:
+
+    * the ~8 ``isinstance`` questions asked of every node are a property of the
+      node's CLASS, so they are now asked once per class (``_CLASS_TAGS``);
+    * children came from two nested stdlib generators; they now come from
+      ``_child_nodes`` as a list.
+
+    Result on the real corpus: ``_collect_file_facts`` **5.55s → 2.98s**, whole
+    scan **12.4s → 8.6s**, report byte-identical. The ``timeout=30`` in
+    ``tests/test_dead_code_resolved.py`` is NOT touched — raising it would hide
+    the cost from the guard instead of paying less of it (inv. #16), which is
+    the same call cycle #64 made.
+
+    The traversal is still deliberately ``ast.walk``'s own algorithm — a FIFO
     queue, i.e. breadth-first — so the *order* in which imports are reported is
     byte-for-byte what five separate ``ast.walk`` calls produced. Nothing is
     counted, skipped, or ranked differently: the four exclusions documented in
@@ -207,9 +306,24 @@ def _collect_file_facts(tree: ast.AST) -> _FileFacts:
     """
     facts = _FileFacts()
     todo: deque = deque([tree])
+    tags = _CLASS_TAGS
+    tag_of = tags.get
+    children = _child_nodes
     while todo:
         node = todo.popleft()
-        todo.extend(ast.iter_child_nodes(node))
+        todo.extend(children(node))
+
+        tag = tag_of(node.__class__)
+        if tag is None:
+            tag = _classify_node_class(node.__class__)
+            tags[node.__class__] = tag
+
+        if tag == _TAG_NAME:
+            # --- referenced names, hot path ----------------------------------
+            facts.used.add(node.id)
+            continue
+        if tag == _TAG_INERT:
+            continue
 
         # --- import statements + `if TYPE_CHECKING:` blocks ------------------
         if isinstance(node, ast.Import):

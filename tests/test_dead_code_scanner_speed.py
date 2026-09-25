@@ -68,8 +68,15 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import scripts.dead_code_scanner as dcs  # noqa: E402
 from scripts.dead_code_scanner import (  # noqa: E402
     DeadCodeScanner,
+    _FACT_CLASSES,
+    _TAG_CHAIN,
+    _TAG_INERT,
+    _TAG_NAME,
+    _child_nodes,
+    _classify_node_class,
     _collect_exported_names,
     _collect_file_facts,
     _collect_names_used,
@@ -374,34 +381,212 @@ def _count_visits(tree: ast.AST) -> int:
 def test_scan_makes_a_single_traversal(monkeypatch):
     """Node visits per file must be ~one traversal, not five.
 
-    Counts calls to ``ast.iter_child_nodes`` — the primitive both ``ast.walk``
-    and the single-pass collector use exactly once per visited node. The
-    pre-fix scanner walked the tree five times, so this number was ~5x the node
-    count; the budget below (1.5x) is far under that and far over one pass, so
-    it cannot go red on ordinary edits, only on a reintroduced extra walk.
+    Counts calls to ``_child_nodes`` — the primitive the collector asks for the
+    children of EXACTLY ONE node per visit. The pre-fix scanner walked the tree
+    five times, so this number was ~5x the node count; the budget below (1.5x)
+    is far under that and far over one pass, so it cannot go red on ordinary
+    edits, only on a reintroduced extra walk.
+
+    ── cycle #694: why this test now names ``_child_nodes`` and not
+    ── ``ast.iter_child_nodes`` ─────────────────────────────────────────────────
+    Until #694 the count was taken from ``ast.iter_child_nodes``, which the
+    collector then happened to call once per node. That was a PROXY for "one
+    visit", and the proxy stopped being the thing: #694 replaced the two nested
+    stdlib generators with ``_child_nodes`` (9.6s of the profile was the
+    framing, not the work), and the stdlib primitive is now reached only from
+    ``ast.walk`` inside the annotation and TYPE_CHECKING helpers — a count that
+    answers a different question.
+
+    This is a deliberate edit to a guard, and it is a STRENGTHENING, not a
+    weakening (inv. #16): the counter now watches the function the traversal
+    actually uses instead of a stdlib symbol it merely used to route through,
+    and ``test_traversal_guard_goes_red_on_a_second_walk`` below proves the
+    replacement still has teeth by reintroducing the regression it exists for.
     """
     source = textwrap.dedent(CORPUS["nested_subscript_annotation"])
     tree = ast.parse(source)
     nodes = _count_visits(tree)
 
+    calls = _count_child_node_calls(monkeypatch, lambda: _collect_file_facts(ast.parse(source)))
+
+    assert calls <= nodes * 1.5, (
+        f"{calls} node visits for {nodes} nodes — the tree is being walked "
+        f"more than once per scan (the five-walk regression)"
+    )
+    assert calls >= nodes * 0.5, (
+        f"only {calls} visits for {nodes} nodes — the traversal is not "
+        f"reaching the whole tree"
+    )
+
+
+def _count_child_node_calls(monkeypatch, run) -> int:
+    """Run ``run()`` with ``dcs._child_nodes`` counted; return the call count."""
     calls = {"n": 0}
-    real = ast.iter_child_nodes
+    real = dcs._child_nodes
 
     def counting(node):
         calls["n"] += 1
         return real(node)
 
-    monkeypatch.setattr(ast, "iter_child_nodes", counting)
-    _collect_file_facts(ast.parse(source))
+    monkeypatch.setattr(dcs, "_child_nodes", counting)
+    run()
+    return calls["n"]
 
-    assert calls["n"] <= nodes * 1.5, (
-        f"{calls['n']} node visits for {nodes} nodes — the tree is being walked "
-        f"more than once per scan (the five-walk regression)"
+
+def test_traversal_guard_goes_red_on_a_second_walk(monkeypatch):
+    """POSITIVE CONTROL for the guard above — the five-walk regression, replayed.
+
+    Without this, ``test_scan_makes_a_single_traversal`` would be a number
+    nobody has ever seen fail; a guard that has never watched the real breakage
+    is decoration (`.claude/rules/deployment.md`). Here the breakage is put back
+    on purpose: a second traversal of the same tree, exactly what creeps in when
+    a new fact gets its own ``ast.walk``. The count must leave the 1.5x budget.
+    """
+    source = textwrap.dedent(CORPUS["nested_subscript_annotation"])
+    tree = ast.parse(source)
+    nodes = _count_visits(tree)
+
+    real_collect = dcs._collect_file_facts
+
+    def twice(t):
+        real_collect(t)          # the regression: one extra full traversal
+        return real_collect(t)
+
+    monkeypatch.setattr(dcs, "_collect_file_facts", twice)
+    calls = _count_child_node_calls(monkeypatch, lambda: dcs._collect_file_facts(ast.parse(source)))
+
+    assert calls > nodes * 1.5, (
+        f"{calls} visits for {nodes} nodes — TWO traversals stayed inside the "
+        f"1.5x budget, so the guard cannot see the regression it exists for"
     )
-    assert calls["n"] >= nodes * 0.5, (
-        f"only {calls['n']} visits for {nodes} nodes — the traversal is not "
-        f"reaching the whole tree"
+
+
+# ---------------------------------------------------------------------------
+# 3b. cycle #694 — the two costs removed, each pinned to the stdlib it replaced
+# ---------------------------------------------------------------------------
+
+def _all_ast_classes() -> List[type]:
+    """Every node class the ``ast`` module exposes (incl. deprecated aliases)."""
+    return sorted(
+        (obj for obj in vars(ast).values()
+         if isinstance(obj, type) and issubclass(obj, ast.AST)),
+        key=lambda c: c.__name__,
     )
+
+
+@pytest.mark.parametrize("case", ALL_CASES)
+def test_child_nodes_matches_iter_child_nodes(case):
+    """``_child_nodes`` yields the stdlib's children, node for node, in order.
+
+    The selection rule was copied from ``ast.iter_child_nodes``; copied is not
+    the same as equal, so it is compared rather than asserted. Order matters as
+    much as membership: the FIFO queue is what keeps the reported import order
+    byte-identical to five separate ``ast.walk`` calls.
+    """
+    tree = _tree(case)
+    for node in ast.walk(tree):
+        assert _child_nodes(node) == list(ast.iter_child_nodes(node)), (
+            f"children disagree for {type(node).__name__} in case {case}"
+        )
+
+
+def test_child_nodes_iterates_a_list_subclass_like_the_stdlib():
+    """A list SUBCLASS in a field is still iterated — as ``iter_fields`` does.
+
+    ``type(value) is list`` would be the cheap-looking spelling and would drop
+    the whole body of such a node silently. The stdlib asks ``isinstance``, and
+    so must we; this is the case where the two spellings part ways.
+    """
+    class Body(list):
+        pass
+
+    tree = ast.parse(textwrap.dedent("""\
+        x = 1
+        y = 2
+    """))
+    tree.body = Body(tree.body)
+    assert _child_nodes(tree) == list(ast.iter_child_nodes(tree))
+    assert len(_child_nodes(tree)) == 2
+
+
+def test_child_nodes_survives_an_absent_field():
+    """A field that is not set at all is skipped, not crashed on.
+
+    ``ast.iter_fields`` swallows ``AttributeError``; ``getattr(..., None)`` is
+    the same answer because ``None`` is not an ``ast.AST``. Nodes built by hand
+    (as several guards in this repo do) routinely lack fields.
+
+    ── the field is DELETED, and that is the whole test ────────────────────────
+    The first draft wrote ``ast.Return()`` and trusted the constructor to leave
+    ``value`` unset. On Python 3.13 it does not — optional fields are filled
+    with ``None`` — so the scene had no absent field at all and the mutation
+    "drop the ``None`` default" SURVIVED (measured, cycle #694). That was a
+    weakness of this battery, not slack in the scanner, and it was the worst
+    shape of one: the same test would have had teeth on the 3.11 and 3.12 that
+    CI runs and none on the interpreter the author used. Deleting the attribute
+    makes the premise true on every version.
+    """
+    node = ast.Return()
+    node.__dict__.pop("value", None)   # genuinely absent on 3.11, 3.12 and 3.13
+    assert not hasattr(node, "value"), "premise not met: the field is still set"
+    assert _child_nodes(node) == list(ast.iter_child_nodes(node)) == []
+
+
+@pytest.mark.parametrize("cls", _all_ast_classes(), ids=lambda c: c.__name__)
+def test_class_tag_agrees_with_the_isinstance_chain(cls):
+    """The per-class memo answers exactly what ``isinstance`` would have.
+
+    The tag replaces ~8 ``isinstance`` questions per node with one lookup per
+    CLASS. That is only sound if the tag is the same answer — so every node
+    class the ``ast`` module has is checked against ``issubclass`` directly,
+    including the deprecated aliases (``ast.Num`` and friends ARE subclasses of
+    ``ast.Constant``, which is exactly the shape that would break a
+    ``cls is X`` spelling).
+    """
+    tag = _classify_node_class(cls)
+    relevant = issubclass(cls, _FACT_CLASSES)
+    assert (tag != _TAG_INERT) == relevant, (
+        f"{cls.__name__}: tag={tag} but issubclass(..., _FACT_CLASSES)={relevant}"
+    )
+    if tag == _TAG_NAME:
+        assert issubclass(cls, ast.Name)
+        others = tuple(c for c in _FACT_CLASSES if c is not ast.Name)
+        assert not issubclass(cls, others), (
+            f"{cls.__name__} took the Name fast path but is also relevant "
+            f"elsewhere — the fast path would skip those branches"
+        )
+
+
+def test_a_subclass_of_name_is_still_collected():
+    """A SUBCLASS of ``ast.Name`` is collected, not silently dropped.
+
+    ``_collect_file_facts`` is typed on ``ast.AST``, and ``ast.parse`` never
+    produces such a class — but a memo keyed by class must not quietly narrow
+    the contract to "whatever the parser happens to emit". This is the control
+    that keeps ``issubclass`` in ``_classify_node_class`` instead of ``is``.
+    """
+    class MyName(ast.Name):
+        pass
+
+    tree = ast.parse("value")
+    expr = tree.body[0]
+    expr.value = MyName(id="smuggled", ctx=ast.Load())
+
+    assert _classify_node_class(MyName) == _TAG_NAME
+    assert "smuggled" in _collect_file_facts(tree).used
+
+
+def test_a_class_relevant_in_two_groups_takes_the_chain_not_the_fast_path():
+    """Relevant in two groups at once ⇒ the full chain decides, as before.
+
+    The fast path exists for plain ``ast.Name`` only. A class that is a Name AND
+    something else would lose the other branches if it took it, so the tag must
+    send it to the chain. Measured here rather than trusted.
+    """
+    class NameAndArg(ast.Name, ast.arg):
+        pass
+
+    assert _classify_node_class(NameAndArg) == _TAG_CHAIN
 
 
 def test_helper_wrappers_still_answer_the_same(monkeypatch):
