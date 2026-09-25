@@ -1,0 +1,17 @@
+name: lsof-os-probe
+
+on:
+  push:
+    branches: ['probe/**']
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe live lsof
+        run: python3 scripts/lsof_unlinked_probe.py
