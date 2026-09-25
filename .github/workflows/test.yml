@@ -41,6 +41,13 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     strategy:
+      # fail-fast: false — тот же класс, что ADR-474, но на уровне МАТРИЦЫ. По умолчанию
+      # падение одной версии Python ОТМЕНЯЕТ вторую, и её вердикт становится не красным,
+      # а отсутствующим: в прогоне 36119204905 джоба 3.12 значится `cancelled`, то есть
+      # про 3.12 мы в тот день не узнали НИЧЕГО. Отмена здесь не экономит очередь —
+      # устаревшие прогоны одной ветки схлопывает `concurrency` выше, — а лишь стирает
+      # половину замера. Джоба по-прежнему падает от любого красного шага.
+      fail-fast: false
       matrix:
         python-version: ['3.11', '3.12']
 
@@ -75,23 +82,65 @@ jobs:
       #                          collection stays in stable filesystem order.
       # Do NOT remove these flags without re-proving reproducibility.
       - name: Run integration tests
-        run: python -m pytest tests/ -v --tb=short -p no:randomly
+        run: |
+          python -m pytest tests/ -v --tb=short -p no:randomly \
+            --junitxml=reports/junit-tests.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # Вердикт о ШАГЕ, а не о джобе: у Actions два состояния (success/failure), а
+      # исходов три (ADR-474). Читает СОБСТВЕННУЮ запись прогона; нет записи ⇒ сессия
+      # не дошла до конца ⇒ «НЕ ИЗМЕРЕНО» названо словом, а не спрятано в `failure`.
+      # Условие обязательно: после падения шага вердикт нужен ИМЕННО тогда. И именно
+      # `!cancelled()`, а НЕ `always()`: шаги с `always()` исполняются и при ОТМЕНЕ джобы,
+      # то есть вытесненный пуш доигрывал бы 120-минутный прогон и `cancel-in-progress`
+      # выше перестал бы разгружать очередь (та самая очередь из 166, замер 12.09).
+      # Держит spa_core/tests/test_pytest_timeout_method_reports.py.
+      # Шаг `tests/` намеренно идёт БЕЗ `--timeout`: своего порога у него никогда не
+      # было, а ставить его вслепую значит рисковать покрасить зелёный набор.
+      - name: Verdict — tests/
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci_verdict.py reports/junit-tests.xml --label 'tests/'
+
+      # NOTE (цикл #694, 2026-09-25, ADR-474): здесь стояло `--timeout-method=thread`, и
+      # ЭТОТ шаг месяц не падал, а ОБРЫВАЛСЯ. `thread` не «валит тест» — таймер печатает
+      # стек всех потоков и зовёт `os._exit(1)`, то есть убивает СЕССИЮ: сводки pytest в
+      # логе не появляется ни одной. Замер прогона 36119204905 (`f1f813226`): прогресс
+      # доехал до `[ 10%]` за 1732 с, из 106 810 собранных тестов ≈96 000 не получили
+      # никакого вердикта, а шаг доложил `failure` — «не измерено» под видом «красное»
+      # (инв. #17). `signal` (SIGALRM) поднимает исключение В ТЕСТЕ: виновник НАЗЫВАЕТСЯ,
+      # сессия доходит до конца и печатает сводку. Ровно то, что уже объявлено намерением
+      # в комментарии к `pip install` выше: «fails-fast + NAMED».
+      # Дифференциальный контроль на живом pytest — spa_core/tests/test_pytest_timeout_method_reports.py.
+      # ⚠️ `signal` не прерывает блокировку в C-коде, которая не возвращается в интерпретатор
+      # (замер #59: `_ssl__SSLSocket_read` в test_dfb_risk_overlay.py). Против ЭТОГО класса
+      # здесь стоит внешняя граница `timeout-minutes` — она бьёт по джобе, а не по тесту,
+      # и её исход тоже читается как «НЕ ИЗМЕРЕНО», а не как «красно».
+      # ⚠️ 120 мин — ГРАНИЦА ЗАВИСАНИЯ, а не бюджет работы: сколько идёт полный шаг на
+      # раннере, НЕ ИЗМЕРЕНО ни разу с 26.08 (последний известный полный замер — 1004 с,
+      # журнал W31; сегодняшние 10 % стоили 1732 с). Поднимать её, если вердикт скажет
+      # «НЕ ИЗМЕРЕНО: сессия не дошла до конца», — законно; молча ронять до «покрасить
+      # зелёным» — запрещено (инв. #16).
       # NOTE (цикл #46, 2026-07-30): отсюда убран
       # `--ignore=spa_core/tests/test_golive_checker.py` — 43 теста гейта go-live не
       # выполнялись в CI ни разу с 2026-07-17, причина исключения нигде не записана.
       # Возврат подтверждён реальным прогоном Actions (+43 passed ровно, 3.11 и 3.12).
       # Новые сужения набора тестов гейтит spa_core/tests/test_ci_test_exclusions.py.
       - name: Run spa_core unit tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 120
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
-            --timeout=180 --timeout-method=thread
+            --timeout=180 --timeout-method=signal \
+            --junitxml=reports/junit-spa_core.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+
+      - name: Verdict — spa_core/tests/
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci_verdict.py reports/junit-spa_core.xml --label 'spa_core/tests/'
 
       # NOTE (цикл #74, 2026-08-01): каталог `scripts/tests/` добавлен в CI впервые —
       # до этого он не запускался НИ ОДНИМ workflow, то есть 191 тест (репетиция
@@ -104,15 +153,29 @@ jobs:
       # Карточка: agent-ci-never-runs-scripts-tests-dir.
       # Тем же измерением нашлись ещё два невидимых каталога — оба ЗЕЛЁНЫЕ и быстрые:
       # spa_core/analytics/gross_of/ (295 тестов, 0.2с) и research/cards/ (7).
+      # NOTE (цикл #694, ADR-474): условие на трёх шагах ниже — про ту же слепоту
+      # с другой стороны. Обрыв ОДНОГО шага пропускал все следующие, поэтому «scripts/
+      # gate tests» и «Pre-deploy checks» не исполнялись неделями и их вердикт был не
+      # красным, а ОТСУТСТВУЮЩИМ. Джоба по-прежнему падает от любого красного шага —
+      # гейт не ослаблен; изменилось только то, что теперь измеряются ВСЕ шаги, а не
+      # те, что стоят до первого обрыва.
       - name: Run scripts/ gate tests + colocated suites
+        if: ${{ !cancelled() }}
+        timeout-minutes: 60
         run: |
           python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
-            -q --tb=short -p no:randomly --timeout=180 --timeout-method=thread
+            -q --tb=short -p no:randomly --timeout=180 --timeout-method=signal \
+            --junitxml=reports/junit-scripts.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      - name: Verdict — scripts/tests/ + colocated
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci_verdict.py reports/junit-scripts.xml --label 'scripts/tests/ + colocated'
+
       - name: Pre-deploy checks (dry run)
+        if: ${{ !cancelled() }}
         run: python3 scripts/pre_deploy_check.py
         env:
           SPA_ENV: ci

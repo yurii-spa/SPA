@@ -120,3 +120,7 @@ inbox/.ingested/
 
 # ENV_SETUP v3 §7.4 — Obsidian per-device vault config (not canonical, device-local)
 .obsidian/
+
+# junit-записи прогонов CI (ADR-474): их пишет pytest на раннере, читает
+# scripts/ci_verdict.py. В репо им места нет — это замер одного прогона, а не состояние.
+reports/junit-*.xml
