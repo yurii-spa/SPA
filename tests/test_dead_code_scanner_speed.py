@@ -516,20 +516,40 @@ def test_child_nodes_survives_an_absent_field():
     the same answer because ``None`` is not an ``ast.AST``. Nodes built by hand
     (as several guards in this repo do) routinely lack fields.
 
-    ── the field is DELETED, and that is the whole test ────────────────────────
-    The first draft wrote ``ast.Return()`` and trusted the constructor to leave
-    ``value`` unset. On Python 3.13 it does not — optional fields are filled
-    with ``None`` — so the scene had no absent field at all and the mutation
-    "drop the ``None`` default" SURVIVED (measured, cycle #694). That was a
-    weakness of this battery, not slack in the scanner, and it was the worst
-    shape of one: the same test would have had teeth on the 3.11 and 3.12 that
-    CI runs and none on the interpreter the author used. Deleting the attribute
-    makes the premise true on every version.
+    ── two wrong scenes before this one, and the reason is worth keeping ───────
+    Draft 1 wrote ``ast.Return()`` and trusted the constructor to leave ``value``
+    unset. Draft 2 added a pop from the instance dict plus a premise assert,
+    believing the default was an INSTANCE attribute set only by Python 3.13.
+    Both were wrong, and the measurement says so: on 3.9 AND on 3.13,
+    ``ast.Return`` carries ``value`` as a **class** attribute, so
+    ``'value' in node.__dict__`` is ``False`` while ``hasattr(node, 'value')``
+    is ``True`` — popping the instance dict cannot make the field absent on ANY
+    version. Draft 2 was therefore red everywhere, and it reached `main` because
+    the mutation battery ran without a baseline control: a test that is red on
+    its own looks exactly like a test that killed the mutation.
+
+    The scene below owes nothing to a stdlib class's defaults: a node class
+    whose ``_fields`` names something that has neither a class attribute nor an
+    instance value. Measured absent on 3.9 and 3.13.
+    """
+    class Ghost(ast.AST):
+        _fields = ("missing",)
+
+    node = Ghost()
+    assert not hasattr(node, "missing"), "premise not met: the field is still set"
+    assert _child_nodes(node) == list(ast.iter_child_nodes(node)) == []
+
+
+def test_the_stdlib_default_is_a_CLASS_attribute_not_an_instance_one():
+    """The fact that broke the two drafts above, pinned so it cannot be re-guessed.
+
+    If a future Python moves optional-field defaults onto the instance, the
+    ``Ghost`` scene stays valid but this assertion changes — and that should be
+    a red test saying so, not a docstring nobody re-measures.
     """
     node = ast.Return()
-    node.__dict__.pop("value", None)   # genuinely absent on 3.11, 3.12 and 3.13
-    assert not hasattr(node, "value"), "premise not met: the field is still set"
-    assert _child_nodes(node) == list(ast.iter_child_nodes(node)) == []
+    assert "value" not in node.__dict__, "the default moved onto the instance"
+    assert hasattr(type(node), "value"), "the class-level default is gone"
 
 
 @pytest.mark.parametrize("cls", _all_ast_classes(), ids=lambda c: c.__name__)
