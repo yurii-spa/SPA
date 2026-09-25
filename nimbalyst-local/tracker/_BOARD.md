@@ -2,15 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-24T18:18:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-25T14:04:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (67205eda0).
+> Сверено с `origin/main` (56eb66576) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1100** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1103** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
+- **Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
 
@@ -33,10 +34,11 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (285)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (286)
 
 ### · needs-owner
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
+- Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md` · 2026-09-25
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 ### · ingested
@@ -324,7 +326,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (575)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (576)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -802,6 +804,7 @@
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
+- Находка петли: манифест ↔ факты: com.spa.mission_tick: агент есть в фактах, нет в ман  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-mis.md` · 2026-09-25
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat-2.md` · 2026-09-17
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10
@@ -907,7 +910,7 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 
-## 🤖 Agent Tasks (что делает агент)  (160)
+## 🤖 Agent Tasks (что делает агент)  (161)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -949,6 +952,7 @@
 - Оживить четыре мёртвые книги исследовательской панели — починить фиды (решение владельца 19.08, вариант 1)  ·  `agent-ozhivit-chetyre-mertvye-knigi-paneli.md` · 2026-08-20
 - Довести пейпер-тест до уровня основного пакета во ВСЕХ пакетах (aggressive_lab / rates_desk / swarm / rwa_backstop / liquidator / underwriting / BTC)  ·  `agent-paper-test-parity-all-packages.md` · 2026-08-22
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `agent-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-09
+- Полнокорпусная перепись пересчитывается внутри pytest тремя классами и не помещается в сторожа зависаний — шлифовкой бюджет недостижим (замер ADR-473)  ·  `agent-perepis-ne-pomeschaetsya-v-storozha-zavisanii.md` · 2026-09-25
 - Пересмотреть все сроки годности разом — когда разгребён бэклог (ADR-158)  ·  `agent-peresmotr-srokov-godnosti-posle-backloga.md` · 2026-08-28
 - Цель аллокатора ДО гейта нигде не сохраняется — ни один вопрос «а что он просил?» не проверяем задним числом  ·  `agent-predgateovaya-tsel-ne-sohranyaetsya.md` · 2026-08-08
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
