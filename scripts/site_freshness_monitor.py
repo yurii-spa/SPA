@@ -59,6 +59,30 @@ APY_TOL_PP = 0.05          # allowed APY divergence in percentage points
 STALE_HOURS = 30           # freshness bar
 DEGRADE_STALE_HOURS = 48   # kill-rule staleness threshold
 
+#: Граница между ДВУМЯ разными бедами, до 2026-09-25 носившими одно имя
+#: `SITE_BEHIND_SNAPSHOT`: «сборка ещё не докатилась» (проходит сама за минуты) и
+#: «публикатор ВСТАЛ» (без человека у Cloudflare Pages не пройдёт никогда).
+#:
+#: Мера — ПРОПУЩЕННЫЕ ДНИ ПУБЛИКАЦИИ (дата снимка минус дата, напечатанная на живой
+#: странице), а не часы. Часы здесь врут о существе: снимок несёт ДАТУ, поэтому
+#: «сайт отстал на одну публикацию» в 23:00 даёт 47 ч, а в 09:00 — 33 ч, и один и
+#: тот же лаг переходил бы часовой порог в зависимости от времени суток. Дни считают
+#: то, что и спрашивается: сколько публикаций проехало мимо посетителя.
+#:
+#: Три дня выбраны как ТРИ пропущенных такта того, что публикует: дневной цикл
+#: коммитит снимок ~4 раза в сутки, сторож смотрит каждые 6 ч ⇒ к третьему дню мимо
+#: прошло ≥12 публикаций и ≥12 проверок. Это уже не «не докатилось».
+PUBLISH_LAG_DAYS = 3
+
+#: Отчёт предыдущего прогона годится в операнд ТОЛЬКО пока он и есть предыдущий
+#: прогон. `data/site_freshness_report.json` git-tracked, а job'а имеет
+#: `contents: read` и обратно его не коммитит — в CI на диск ложится ФОССИЛ
+#: (замер 25.09: последний коммит отчёта 2026-07-04, `stale_48h: false`).
+#: Поэтому «протухло на ДВУХ прогонах подряд» читало вторым операндом константу
+#: из 4 июля. Возраст отчёта выше этой границы ⇒ «не измерено» с названной
+#: причиной, а не тихое `false`.
+PREV_REPORT_MAX_AGE_H = 24
+
 
 # ─────────────────────────────── helpers ───────────────────────────────
 def _num(s):
@@ -78,6 +102,41 @@ def _hours_since(date_str, now):
         return None
     delta = now - datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)
     return delta.total_seconds() / 3600.0
+
+
+def _days_between(older_date, newer_date):
+    """Календарных дней от `older_date` до `newer_date` (обе — `YYYY-MM-DD`).
+
+    `None` — хотя бы одна не разобрана. Отдельная функция, потому что вопрос
+    «сколько публикаций прошло мимо посетителя» задаётся ДАТАМ, и огрублять его до
+    часов нельзя: один и тот же пропуск в 09:00 и в 23:00 давал бы разные часы
+    (см. `PUBLISH_LAG_DAYS`).
+    """
+    try:
+        a = datetime.date.fromisoformat(str(older_date)[:10])
+        b = datetime.date.fromisoformat(str(newer_date)[:10])
+    except (ValueError, TypeError):
+        return None
+    return (b - a).days
+
+
+def _hours_since_ts(ts_str, now):
+    """Часы от ПОЛНОЙ отметки времени (`2026-07-04T10:03:25Z`) до `now`. `None` — не разобрана.
+
+    Отдельно от `_hours_since`: та режет строку до даты (`[:10]`), и отчёт, снятый час
+    назад, читался бы у неё как «до суток назад». Для вопроса «это вообще предыдущий
+    прогон?» такая огрубление меняет ответ, поэтому здесь разбирается ВРЕМЯ.
+    """
+    if not ts_str:
+        return None
+    t = str(ts_str).strip().replace("Z", "+00:00")
+    try:
+        d = datetime.datetime.fromisoformat(t)
+    except ValueError:
+        return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=datetime.timezone.utc)
+    return (now - d).total_seconds() / 3600.0
 
 
 def parse_site_numbers(html):
@@ -260,6 +319,52 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     else:
         pin_leg = "measured"
 
+    # 9. ПУБЛИКАТОР ВСТАЛ — отдельная беда, до 25.09 неотличимая от лага доставки.
+    #
+    #    Замер, ради которого пункт написан: 20.09 сборка earn-defi.com перестала
+    #    публиковаться. Репозиторий при этом исправен — снимок коммитился ~4 раза в сутки
+    #    и на 25.09 нёс `as_of 2026-09-25`, а посетитель читал `as of 2026-09-20`, APY
+    #    5.0 % против живых 4.9386 %. Сторож честно краснел 17 прогонов подряд кодом
+    #    `SITE_BEHIND_SNAPSHOT` — тем же, которым он краснеет, когда сборка ещё едет и
+    #    через десять минут доедет сама. Две беды под одним именем: у первой лекарство
+    #    «дождаться», у второй — человек у Cloudflare Pages, и различить их по имени
+    #    было нельзя.
+    #
+    #    Мера СТАТЕЛЕСС: страница печатает свою `as of`, снимок несёт свою — разность
+    #    дат отвечает в ОДНОМ прогоне. Держать длительность лага в состоянии между
+    #    прогонами здесь было бы нельзя: в CI на месте «предыдущего отчёта» лежит фоссил
+    #    из репозитория (см. `PREV_REPORT_MAX_AGE_H`), и длительность считалась бы от
+    #    4 июля.
+    #
+    #    Знак разности — и есть второй операнд: виной ПУБЛИКАТОРА старое число на странице
+    #    становится только когда мы опубликовали более новое. Снимок протух сам ⇒ лаг ≤ 0,
+    #    `PUBLISHER_STUCK` молчит, и виноват производитель — это другой код
+    #    (`STALE_SNAPSHOT`). Иначе сторож называл бы вставшим публикатора, которому нечего
+    #    публиковать.
+    site_as_of = None
+    for s_ in (site_home, site_track):
+        if s_.get("as_of") and (site_as_of is None or str(s_["as_of"]) < str(site_as_of)):
+            site_as_of = s_["as_of"]          # самая СТАРАЯ из опубликованных дат
+    site_as_of_age = _hours_since(site_as_of, now)
+    publish_lag_days = _days_between(site_as_of, snap.get("as_of"))
+    snap_newer_than_site = bool(publish_lag_days is not None and publish_lag_days > 0)
+    if site_as_of is None:
+        publisher_leg = "unmeasured:no_as_of_label_on_the_live_page"
+    elif not snap.get("as_of"):
+        publisher_leg = "unmeasured:snapshot_has_no_as_of"
+    elif publish_lag_days is None:
+        publisher_leg = f"unmeasured:dates_unparseable:site={site_as_of}:snapshot={snap.get('as_of')}"
+    else:
+        publisher_leg = "measured"
+    publisher_stuck = (publisher_leg == "measured" and publish_lag_days >= PUBLISH_LAG_DAYS)
+    if publisher_stuck:
+        age = f"{site_as_of_age:.0f}ч" if site_as_of_age is not None else "не измерен"
+        fail("PUBLISHER_STUCK",
+             f"мимо посетителя прошло {publish_lag_days} публикаций (>= {PUBLISH_LAG_DAYS}): он читает "
+             f"as-of {site_as_of} (возраст {age}), а репозиторий опубликовал {snap['as_of']}. Лекарство "
+             f"вне этого репозитория — сборка Cloudflare Pages; повторный коммит снимка не поможет",
+             severity="CRITICAL")
+
     # ── kill-rule: degrade only when the SNAPSHOT ITSELF is overstated (its committed apy exceeds the live
     #    API) — that's the only case where degrading actually prevents a wrong number. A merely stale LIVE
     #    site above a CORRECT snapshot is DEPLOY LAG (the fix is to deploy the good snapshot, NOT to degrade
@@ -270,8 +375,38 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     snap_apy = _num(snap.get("paper_apy_pct"))
     snapshot_overstated = (snap_apy is not None and api_apy is not None and snap_apy > api_apy + APY_TOL_PP)
     stale_48 = (snap_age is not None and snap_age > DEGRADE_STALE_HOURS)
+    # Второй операнд «двух прогонов подряд» обязан БЫТЬ предыдущим прогоном. В CI отчёт
+    # на диске — из репозитория (job имеет `contents: read` и обратно не коммитит), то
+    # есть фоссил 2026-07-04 со `stale_48h: false`. Читать его как «на прошлом прогоне
+    # не протухло» — тихий fail-OPEN: половина стоп-крана стоит на константе.
+    # ПОВЕДЕНИЕ здесь НЕ меняется (инв. #16): ветка не срабатывала и не срабатывает.
+    # Меняется то, что теперь она об этом ГОВОРИТ, а не молчит нулём (инв. #17).
+    prev_age_h = None
+    if prev_report:
+        prev_age_h = _hours_since_ts(prev_report.get("ts"), now)
+    if not prev_report:
+        prev_run_leg = "unmeasured:no_previous_report"
+    elif prev_age_h is None:
+        prev_run_leg = "unmeasured:previous_report_ts_unparseable"
+    elif prev_age_h > PREV_REPORT_MAX_AGE_H:
+        prev_run_leg = (f"unmeasured:previous_report_is_a_fossil:"
+                        f"{prev_report.get('ts')}:{prev_age_h:.0f}h")
+    else:
+        prev_run_leg = "measured"
     prev_stale_48 = bool(prev_report and prev_report.get("stale_48h"))
     degrade = snapshot_overstated or (stale_48 and prev_stale_48)
+
+    # Может ли лекарство стоп-крана вообще ДОЕХАТЬ до посетителя. Табличка честности
+    # ставится коммитом в `landing/` и едет ТЕМ ЖЕ публикатором, который встал, — значит
+    # в режиме `PUBLISHER_STUCK` отказ-first остаётся записью в git, которой публика не
+    # видит. Молчать об этом нельзя: `degrade_triggered: false` рядом с завышенным числом
+    # читается как «стоп-кран не понадобился», а верное прочтение — «он бы не доехал».
+    if publisher_stuck:
+        degrade_reaches_public, degrade_reach_reason = False, "publisher_stuck:plaque_would_not_publish"
+    elif publisher_leg == "measured" and not snap_newer_than_site:
+        degrade_reaches_public, degrade_reach_reason = True, "site_serves_the_published_as_of"
+    else:
+        degrade_reaches_public, degrade_reach_reason = None, f"unmeasured:{publisher_leg}" if publisher_leg != "measured" else "unmeasured:lag_below_the_publisher_bound"
 
     return {
         "ts": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -281,6 +416,16 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "snapshot_age_h": round(snap_age, 2) if snap_age is not None else None,
         "api_age_h": round(api_age, 2) if api_age is not None else None,
         "stale_48h": stale_48,
+        "site_as_of": site_as_of,                    # дата, которую читает ПОСЕТИТЕЛЬ (самая старая из страниц)
+        "site_as_of_age_h": round(site_as_of_age, 2) if site_as_of_age is not None else None,
+        "publish_lag_days": publish_lag_days,        # пропущенных публикаций; None — не измерено
+        "publisher_leg": publisher_leg,              # measured | unmeasured:<причина>
+        "publisher_stuck": publisher_stuck,          # публикатор не публикует > PUBLISH_LAG_HOURS
+        "snapshot_newer_than_site": snap_newer_than_site,
+        "prev_run_leg": prev_run_leg,                # measured | unmeasured:<причина> — второй операнд «двух прогонов»
+        "prev_report_age_h": round(prev_age_h, 2) if prev_age_h is not None else None,
+        "degrade_reaches_public": degrade_reaches_public,      # True | False | None (не измерено)
+        "degrade_reaches_public_reason": degrade_reach_reason,
         "degrade_triggered": degrade,
         "degrade_reason": ("SNAPSHOT_OVERSTATED" if snapshot_overstated else
                            "STALE_48H_TWO_RUNS" if degrade else None),
@@ -491,6 +636,41 @@ def _live_journal():
         return None, f"client_unavailable: {type(exc).__name__}"
 
 
+
+def alert_lines(report):
+    """Строки тревоги владельцу. ЧИСТАЯ функция: ни сети, ни секретов, ни файлов.
+
+    Вынесена из `_alert`, чтобы у каждой строки был прямой контроль. Пока текст
+    собирался внутри доставки, проверить «сказано ли вслух про инертный стоп-кран»
+    можно было только подменой самой доставки — то есть проверкой того, что функцию
+    ПОЗВАЛИ, а не того, что она сказала (тот же класс, что разобран в `_alert`
+    замером #218).
+
+    Форма отчёта у двух звонящих РАЗНАЯ (`fails` у `evaluate`, `failures` у
+    `_deploy_snapshot`), и обе читаются здесь.
+    """
+    fails = report.get("fails")
+    if not isinstance(fails, list):
+        fails = report.get("failures") or []
+    n_fails = report.get("n_fails", len(fails))
+    ts = report.get("ts") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    lines = [f"🛡️ SITE CUSTODIAN — {n_fails} FAIL(s) @ {ts}"]
+    for f in fails[:8]:
+        lines.append(f"  [{f.get('severity', report.get('severity', 'FAIL'))}] "
+                     f"{f.get('code', '?')}: {f.get('detail', '')}")
+    if report.get("degrade_triggered"):
+        lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report.get('degrade_reason')})")
+    # Инертность стоп-крана — ОТДЕЛЬНАЯ строка. Иначе владелец читает перечень FAIL'ов и
+    # предполагает, что кустодиан прикрыл публику табличкой; а при вставшем публикаторе
+    # табличка уедет в git и НЕ уедет посетителю. Молчание здесь читается как «не
+    # понадобился», хотя верное прочтение — «не доехал бы».
+    if report.get("degrade_reaches_public") is False:
+        lines.append("  ⚠️ KILL-RULE INERT: табличка честности поедет тем же публикатором, "
+                     "который встал — публика её НЕ увидит "
+                     f"({report.get('degrade_reaches_public_reason')})")
+    return lines
+
+
 def _alert(report):
     """Тревога Site Custodian владельцу — через ЕДИНСТВЕННЫЙ заслон канала.
 
@@ -523,18 +703,7 @@ def _alert(report):
     # (публично видно завышенное число) не уходила владельцу НИ РАЗУ.
     # Тест 09.08 этого не видел: он подменял сам `_alert` и проверял, что его ПОЗВАЛИ, —
     # тот же класс «сторож отвечает не на тот вопрос», только уровнем ниже.
-    fails = report.get("fails")
-    if not isinstance(fails, list):
-        fails = report.get("failures") or []
-    n_fails = report.get("n_fails", len(fails))
-    ts = report.get("ts") or datetime.datetime.now(datetime.timezone.utc).isoformat()
-    lines = [f"🛡️ SITE CUSTODIAN — {n_fails} FAIL(s) @ {ts}"]
-    for f in fails[:8]:
-        lines.append(f"  [{f.get('severity', report.get('severity', 'FAIL'))}] "
-                     f"{f.get('code', '?')}: {f.get('detail', '')}")
-    if report.get("degrade_triggered"):
-        lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report['degrade_reason']})")
-    msg = "\n".join(lines)
+    msg = "\n".join(alert_lines(report))
     # Владельцу — простым русским (owner-задание 2026-07-20, повторено 2026-08-04).
     # Перевод чисто текстовый: нераспознанная строка проходит вербатим, технический
     # detail сохраняется, сбой перевода отдаёт исходный текст (алерт обязан дойти).
