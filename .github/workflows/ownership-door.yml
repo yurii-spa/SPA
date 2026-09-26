@@ -17,6 +17,16 @@ on:
     branches:
       # Ветка-зонд: сессия, правящая дверь к ОС, получает вердикт НА LINUX до доставки.
       - 'probe/**'
+      # И о ВЕРШИНЕ `main` — иначе «зелено на ветке» осталось бы единственным
+      # измерением, а оно не есть доставленное (тот же класс, что `pr_work_arrived_on_main`).
+      - main
+    paths:
+      - 'scripts/claude_run_with_timeout.py'
+      - 'scripts/shadow/safe_terminate.py'
+      - 'spa_core/tests/test_process_ownership_door.py'
+      - 'spa_core/tests/test_safe_terminate_ownership.py'
+      - 'spa_core/tests/test_claude_run_timeout_ownership.py'
+      - '.github/workflows/ownership-door.yml'
   pull_request:
     paths:
       - 'scripts/claude_run_with_timeout.py'

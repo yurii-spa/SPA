@@ -225,9 +225,15 @@ class Snapshot:
         refused = _ENV_OPTION_REFUSED
         if refused is None:
             try:
-                return cls._parse(_ps(PS_ARGS_WITH_ENV), DOOR_PS_WITH_ENV)
+                out = _ps(PS_ARGS_WITH_ENV)
             except PsUnavailable as exc:
                 refused = str(exc)
+            else:
+                # Разбор ВНЕ ветки выбора двери намеренно: неразобранная строка — это
+                # «таблицу не прочитали», а не «опция не поддержана». Свалить их в один
+                # `except` значило бы запомнить ЛОЖНУЮ причину и молча потерять окружение
+                # на машине, где опция как раз работает.
+                return cls._parse(out, DOOR_PS_WITH_ENV)
         try:
             out = _ps(PS_ARGS_TABLE_ONLY)
         except PsUnavailable as exc:

@@ -1901,6 +1901,99 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
                        f"(PR без добавляемых файлов)")
 
 
+#: Быстрая джоба, чей ПРЕДМЕТ — принадлежность процесса на Linux (ADR ниже).
+OWNERSHIP_DOOR_WORKFLOW = "ownership-door.yml"
+
+
+def _latest_workflow_verdict(slug: str, workflow: str, *, fetch=None):
+    """Последний прогон `workflow` (любая ветка), который ВЫНЕС вердикт.
+
+    Отдельно от `_ci_latest_verdict`: тот спрашивает о ВЕРШИНЕ `main` одного набора, и
+    сливать два вопроса в одну функцию значило бы получить один ответ на два разных.
+    `cancelled`/`skipped` вердиктом не являются и пропускаются со счётом — принять отмену
+    за «не падало» было бы выдачей НЕ ИЗМЕРЕНО за чистоту (инв. #17).
+    """
+    url = (f"https://api.github.com/repos/{slug}/actions/workflows/"
+           f"{workflow}/runs?per_page={CI_VERDICT_WINDOW}")
+    data, why = (fetch or _github_json)(url)
+    if data is None:
+        return None, f"история прогонов {workflow} не прочитана ({why})"
+    runs = data.get("workflow_runs")
+    if not isinstance(runs, list):
+        return None, f"ответ API о {workflow} без списка прогонов"
+    if not runs:
+        return None, f"прогонов {workflow} нет вовсе"
+    skipped = 0
+    for run in runs:
+        if run.get("status") != "completed":
+            skipped += 1
+            continue
+        if run.get("conclusion") in (None, "cancelled", "skipped"):
+            skipped += 1
+            continue
+        return run, (f"пропущено без вердикта: {skipped}" if skipped
+                     else "вердикт у самого свежего прогона")
+    return None, (f"в окне {len(runs)} прогонов {workflow} вердикта нет ни у одного "
+                  f"(пропущено {skipped})")
+
+
+def _probe_ownership_door_green_on_linux(arg: str | None, *, repo_root: str | None = None,
+                                         fetch=None) -> tuple[str, str]:
+    """Критерий: принадлежность процесса РАЗРЕШАЕТСЯ на Linux, и это измерено НА Linux.
+
+    ЗАЧЕМ. `ps -A -Ewww` принимает BSD `ps` (macOS) и отвергает ЦЕЛИКОМ procps-ng:
+    `error: unsupported SysV option` (замер на раннере — `ps from procps-ng 4.0.4`,
+    прогон 36265638906). Пока форма была одна, снимок процессов на Linux не снимался
+    вовсе, принадлежность была `OWNERSHIP_UNKNOWN` ВСЕГДА, и предохранитель
+    `scripts/shadow/safe_terminate.py` (ADR-452) там ничего не завершал, выглядя
+    исправным. Третий исход был честен — не существовало ответа на вопрос.
+
+    ПОЧЕМУ ПРОБА НЕ МЕРИТ ДЕРЕВО. Предмет платформенный: локальный прогон на Маке
+    отвечает о BSD `ps` и о Linux не говорит НИЧЕГО — ровно тем и прожил дефект месяц.
+    Поэтому проба спрашивает у раннера, а не у себя.
+
+    ПОЧЕМУ НЕ ХВАТАЕТ ОДНОГО `success`. Зелёное на ветке-зонде не есть доставленное:
+    тот же класс уже назван `pr_work_arrived_on_main`. Поэтому измеренный sha обязан
+    БЫТЬ В ИСТОРИИ `main`, и «зелено, но в main не пришло» — третий исход, а не успех.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ, И ЧЕТВЁРТОГО НЕТ.
+      * `satisfied` — вердикт `success`, и его sha — предок вершины `main`;
+      * `not_satisfied` — вердикт есть и он не `success` (назван sha и вывод);
+      * `unmeasured` — сети/репозитория/прогонов нет, ЛИБО sha этого дерева не знает,
+        ЛИБО зелёное измерено на ветке, которой в истории `main` нет.
+    """
+    root = repo_root or REPO_ROOT
+    # Сеть НЕ опрашивается из тестового окружения — названный третий исход, а не
+    # молчаливая попытка (та же причина, что у `_probe_ci_main_verdict_green`).
+    if fetch is None and os.environ.get("SPA_ENV") == "ci":
+        return UNMEASURED, ("сеть в тестовом окружении не опрашивается (SPA_ENV=ci) — "
+                            "дверь принадлежности меряется из прод-дерева шагом 0-офис")
+    workflow = (arg or "").strip() or OWNERSHIP_DOOR_WORKFLOW
+    if not _is_git_repo(root):
+        return UNMEASURED, f"в {root} нет репозитория — дверь НЕ ИЗМЕРЕНА"
+    slug = _github_slug(root)
+    if not slug:
+        return UNMEASURED, "адрес origin не разобран как GitHub — НЕ ИЗМЕРЕНО"
+    run, note = _latest_workflow_verdict(slug, workflow, fetch=fetch)
+    if run is None:
+        return UNMEASURED, f"{note} ({slug})"
+    sha = str(run.get("head_sha") or "")
+    concl = str(run.get("conclusion"))
+    where = (f"{slug} {workflow}, прогон {sha[:9] or '?'} "
+             f"от {run.get('created_at') or '?'}, {note}")
+    if concl != "success":
+        return NOT_SATISFIED, f"вердикт `{concl}`: {where}"
+    if not sha:
+        return UNMEASURED, f"вердикт `success` без sha — назвать измеренное нечем ({where})"
+    if _git(["cat-file", "-e", f"{sha}^{{commit}}"], repo_root=root) is None:
+        return UNMEASURED, (f"sha {sha[:9]} этому дереву неизвестен — предок ли он "
+                            f"вершины {ORIGIN_REF}, НЕ ИЗМЕРЕНО ({where})")
+    if _git(["merge-base", "--is-ancestor", sha, ORIGIN_REF], repo_root=root) is None:
+        return UNMEASURED, (f"зелёное измерено на {sha[:9]}, но в истории {ORIGIN_REF} "
+                            f"этого коммита НЕТ: измерено, но не доставлено ({where})")
+    return SATISFIED, f"дверь принадлежности разрешается на Linux: {where}"
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1922,6 +2015,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_forbidden_import_gate_single_instrument,
     "ci_main_verdict_green": _probe_ci_main_verdict_green,
     "pr_work_arrived_on_main": _probe_pr_work_arrived_on_main,
+    "ownership_door_green_on_linux": _probe_ownership_door_green_on_linux,
 }
 
 

@@ -140,6 +140,42 @@ class NoSilentFallback(_DoorScene):
         self.assertEqual(self.calls, [CRT.PS_ARGS_WITH_ENV])
 
 
+class AnUnparsableTableIsNotAnUnsupportedOption(_DoorScene):
+    """Два РАЗНЫХ отказа первой двери, и путать их нельзя.
+
+    «`ps` отверг опцию» и «таблицу не разобрали» — разные утверждения о разном. Свалить их
+    в одну ветку значило бы запомнить ложную причину и молча потерять окружение на машине,
+    где опция как раз работает.
+    """
+
+    def test_an_unparsable_first_door_does_not_become_an_option_refusal(self):
+        def fake_ps(args):
+            self.calls.append(list(args))
+            if args == CRT.PS_ARGS_WITH_ENV:
+                return "мусор\n"
+            raise AssertionError("вторая дверь не должна была понадобиться")
+
+        CRT._ps = fake_ps
+        CRT._read_environ = lambda pid: None
+        with self.assertRaises(CRT.PsUnavailable) as ctx:
+            CRT.Snapshot.take()
+        self.assertIn("пустую таблицу", str(ctx.exception))
+        self.assertEqual(self.calls, [CRT.PS_ARGS_WITH_ENV])
+
+    def test_a_broken_row_in_the_first_door_is_named_not_retried(self):
+        def fake_ps(args):
+            self.calls.append(list(args))
+            if args == CRT.PS_ARGS_WITH_ENV:
+                return f"{self.pid} 1 S НЕ-ВРЕМЯ python3\n"
+            raise AssertionError("вторая дверь не должна была понадобиться")
+
+        CRT._ps = fake_ps
+        CRT._read_environ = lambda pid: None
+        with self.assertRaises(CRT.PsUnavailable) as ctx:
+            CRT.Snapshot.take()
+        self.assertIn("не разобрать", str(ctx.exception))
+
+
 class AbsentEnvironmentIsNotAnEmptyEnvironment(_DoorScene):
 
     def test_unreadable_environ_counts_as_blind_and_adds_no_stamp(self):
