@@ -95,6 +95,37 @@ class PsUnavailable(RuntimeError):
 # Инъекция именно здесь, а не в вызывающем: замер собственного класса (#453) показал, что
 # «половина инъекции» — та же бомба, поэтому у пути к ОС не должно остаться обходных дверей.
 
+#: Форма вызова `ps`, отдающая таблицу процессов ВМЕСТЕ С ОКРУЖЕНИЕМ — опция `-E`.
+#: BSD `ps` (macOS) её принимает. procps-ng (Linux) отвергает ВСЮ команду целиком:
+#: `error: unsupported SysV option`. Это ИЗМЕРЕНО на настоящем раннере, а не выведено из
+#: чтения флагов — прогон `SPA CI` 36222500219 (джоба 108350299527, ubuntu-latest, 26.09)
+#: печатает эту строку девятнадцать раз подряд.
+PS_ARGS_WITH_ENV = ["-A", "-Ewww", "-o", "pid=,ppid=,state=,etime=,command="]
+
+#: Та же таблица БЕЗ окружения. Эту форму принимают обе реализации `ps`.
+PS_ARGS_TABLE_ONLY = ["-A", "-ww", "-o", "pid=,ppid=,state=,etime=,command="]
+
+#: Окружение процесса отдельной дверью, когда `ps` его не отдаёт (Linux).
+PROC_ENVIRON = "/proc/{pid}/environ"
+
+#: Имена дверей. Существуют затем, чтобы вердикт называл, ЧЕМ он измерен: «принадлежность
+#: не разрешилась» и «не разрешилась ЭТОЙ дверью» — разные утверждения (инв. #17).
+DOOR_PS_WITH_ENV = "ps -E (окружение внутри таблицы)"
+DOOR_PS_PLUS_PROC = "ps + /proc/<pid>/environ"
+
+#: Отказ опции `-E` — свойство ПЛАТФОРМЫ, а не момента: `ps`, отвергший её однажды, будет
+#: отвергать и через полсекунды. Кэшируется ТОЛЬКО отказ и только ради бюджета вызовов
+#: (grace 120 с при такте 0.5 дал бы 240 заведомо провальных вызовов). Успех не кэшируется
+#: вовсе: иначе исчезнувшая дверь читалась бы как живая.
+_ENV_OPTION_REFUSED: "str | None" = None
+
+
+def reset_ps_door_cache() -> None:
+    """Забыть измеренный отказ опции `-E`. Нужно тестам, подменяющим двери."""
+    global _ENV_OPTION_REFUSED
+    _ENV_OPTION_REFUSED = None
+
+
 def _ps(args: list) -> str:
     """`ps` с проверкой кода возврата. Ненулевой код — НЕ пустая таблица."""
     try:
@@ -106,6 +137,23 @@ def _ps(args: list) -> str:
             f"ps вернул {proc.returncode}: {(proc.stderr or '').strip()[:200]}"
         )
     return proc.stdout
+
+
+def _read_environ(pid: int):
+    """Окружение ОДНОГО процесса через `/proc`. `None` — НЕ прочитано.
+
+    `None` и пустая строка — РАЗНЫЕ исходы, и смешать их нельзя: пустое окружение есть
+    наблюдение, а отказ чтения (чужой uid, процесс вышел, `/proc` не смонтирован) —
+    отсутствие наблюдения. Вернуть `""` на отказе значило бы сказать «метки нет» там, где
+    верно «не смотрели» (инв. #17).
+    """
+    try:
+        with open(PROC_ENVIRON.format(pid=pid), "rb") as fh:
+            raw = fh.read()
+    except OSError:
+        return None
+    return " ".join(chunk.decode("utf-8", "replace")
+                    for chunk in raw.split(b"\0") if chunk)
 
 
 def _signal_pid(pid: int, sig: int) -> None:
@@ -149,15 +197,55 @@ class Snapshot:
     разбора.
     """
 
-    def __init__(self, rows: dict, env_readable: int, env_blind: int):
+    def __init__(self, rows: dict, env_readable: int, env_blind: int,
+                 door: str = DOOR_PS_WITH_ENV):
         # rows: pid → (ppid, state, age, command+env)
         self.rows = rows
         self.env_readable = env_readable
         self.env_blind = env_blind
+        #: ЧЕМ снят этот снимок. Прибор `run_id` читает окружение, а окружение на двух
+        #: платформах достаётся РАЗНЫМИ дверями; вердикт обязан называть свою.
+        self.door = door
 
     @classmethod
     def take(cls) -> "Snapshot":
-        out = _ps(["-A", "-Ewww", "-o", "pid=,ppid=,state=,etime=,command="])
+        """Снимок ОДНИМ моментом, дверью, которую эта ОС ПРИНЯЛА.
+
+        Порядок дверей не косметика. Пока форма была одна (`ps -A -Ewww`), на Linux
+        отказывал ВЕСЬ снимок, и принадлежность становилась `OWNERSHIP_UNKNOWN` ВСЕГДА:
+        предохранитель, не дающий убить чужой процесс, там ничего не завершал и при этом
+        выглядел исправным. Третий исход был честен (инв. #17 не нарушался), но ответа на
+        вопрос «мой ли это процесс» не существовало вовсе.
+
+        Вторая дверь — НЕ тихий обход отказа: она названа в самом снимке (`door`), и когда
+        отказывают ОБЕ, наружу идёт `PsUnavailable`, назвавший оба отказа. Тихого
+        `fail-OPEN` здесь нет ни в одной ветке.
+        """
+        global _ENV_OPTION_REFUSED
+        refused = _ENV_OPTION_REFUSED
+        if refused is None:
+            try:
+                return cls._parse(_ps(PS_ARGS_WITH_ENV), DOOR_PS_WITH_ENV)
+            except PsUnavailable as exc:
+                refused = str(exc)
+        try:
+            out = _ps(PS_ARGS_TABLE_ONLY)
+        except PsUnavailable as exc:
+            # ОБЕ двери отказали ⇒ третий исход, и оба отказа названы. Кэш при этом НЕ
+            # трогается: «ps сейчас не ответил» — не то же самое, что «эта ОС не знает
+            # опции `-E`», а запомнить первое как второе значило бы навсегда ослепить
+            # прибор `run_id` на macOS из-за одной осечки.
+            raise PsUnavailable(
+                f"обе двери к таблице процессов отказали — с окружением: "
+                f"{refused}; без окружения: {exc}"
+            ) from exc
+        # Отказ опции ДОКАЗАН дифференциально: тот же `ps`, другая форма — ответил.
+        # Только это и есть утверждение о платформе; до него запоминать нечего.
+        _ENV_OPTION_REFUSED = refused
+        return cls._parse(out, DOOR_PS_PLUS_PROC)
+
+    @classmethod
+    def _parse(cls, out: str, door: str) -> "Snapshot":
         rows = {}
         readable = blind = 0
         for line in out.splitlines():
@@ -173,14 +261,21 @@ class Snapshot:
                 # Строку не разобрали — молчать нельзя: это и есть «не измерено».
                 raise PsUnavailable(f"строку ps не разобрать: {line[:120]!r}")
             tail = fields[4] if len(fields) > 4 else ""
-            rows[pid] = (ppid, state, age, tail)
-            if "=" in tail and " PATH=" in " " + tail:
+            if door == DOOR_PS_PLUS_PROC:
+                env = _read_environ(pid)
+                if env is None:
+                    blind += 1
+                else:
+                    readable += 1
+                    tail = f"{tail} {env}" if tail else env
+            elif "=" in tail and " PATH=" in " " + tail:
                 readable += 1
             else:
                 blind += 1
+            rows[pid] = (ppid, state, age, tail)
         if not rows:
             raise PsUnavailable("ps вернул пустую таблицу процессов")
-        return cls(rows, readable, blind)
+        return cls(rows, readable, blind, door)
 
     def children_of(self, pid: int) -> list:
         return [p for p, (ppid, _, _, _) in self.rows.items() if ppid == pid]

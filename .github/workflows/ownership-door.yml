@@ -1,0 +1,72 @@
+# Дверь принадлежности процесса — быстрый вердикт НА LINUX.
+#
+# ЗАЧЕМ ОТДЕЛЬНАЯ ДЖОБА. Класс, который она держит, платформенный: `ps -A -Ewww` принимает
+# BSD `ps` (macOS) и отвергает ЦЕЛИКОМ procps-ng (Linux) — `error: unsupported SysV option`.
+# Пока формы было одна, принадлежность на Linux была `OWNERSHIP_UNKNOWN` ВСЕГДА, то есть
+# предохранитель `scripts/shadow/safe_terminate.py` (ADR-452) там ничего не завершал и при
+# этом выглядел исправным. Полный набор (`SPA Tests`) этот класс ловит, но отвечает 3 ч 19 мин
+# (замер прогона 36222500219), и именно поэтому дефект прожил месяц незамеченным: сессия,
+# правящая дверь к ОС, вердикта в своём цикле не получала вовсе. Здесь он приходит за минуты.
+#
+# Джоба НИЧЕГО не деплоит и ничего не пишет в репозиторий.
+name: Ownership door (Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      # Ветка-зонд: сессия, правящая дверь к ОС, получает вердикт НА LINUX до доставки.
+      - 'probe/**'
+  pull_request:
+    paths:
+      - 'scripts/claude_run_with_timeout.py'
+      - 'scripts/shadow/safe_terminate.py'
+      - 'spa_core/tests/test_process_ownership_door.py'
+      - 'spa_core/tests/test_safe_terminate_ownership.py'
+      - 'spa_core/tests/test_claude_run_timeout_ownership.py'
+      - '.github/workflows/ownership-door.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ownership-door:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        # Глубина клона — ВХОД набора, а не свойство хоста (ADR-479): умолчание `1`
+        # оставляет джобу без истории репозитория, и тесты, чей предмет — настоящая
+        # история доставки, честно отказывают, ничего не измерив. Правило сторожа
+        # `spa_core/tests/test_declared_git_environment.py` намеренно ГРУБОЕ:
+        # «джоба зовёт pytest ⇒ объяви глубину».
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Какую форму `ps` принимает ЭТА машина (дифференциальный замер)
+        # Замер печатается ВСЕГДА и до тестов: вердикт обязан называть, ЧЕМ он измерен.
+        # Утверждение «опция не поддержана» доказывается только тем, что тот же `ps`
+        # ответил на ДРУГУЮ форму, — иначе это «ps сейчас не ответил», другое утверждение.
+        run: |
+          echo "ps: $(ps --version 2>&1 | head -1 || true)"
+          set +e
+          ps -A -Ewww -o pid=,ppid=,state=,etime=,command= >/dev/null 2>/tmp/e1
+          echo "форма С ОКРУЖЕНИЕМ  (-A -Ewww): код $? · $(head -1 /tmp/e1)"
+          ps -A -ww -o pid=,ppid=,state=,etime=,command= >/dev/null 2>/tmp/e2
+          echo "форма БЕЗ ОКРУЖЕНИЯ (-A -ww):   код $? · $(head -1 /tmp/e2)"
+          test -r /proc/$$/environ && echo "/proc/<pid>/environ: читается" \
+                                   || echo "/proc/<pid>/environ: НЕ читается"
+          set -e
+
+      - name: Дверь и принадлежность — 63 теста
+        run: |
+          python -m pip install --quiet pytest
+          SPA_ENV=ci PYTHONHASHSEED=0 python -m pytest \
+            spa_core/tests/test_process_ownership_door.py \
+            spa_core/tests/test_safe_terminate_ownership.py \
+            spa_core/tests/test_claude_run_timeout_ownership.py \
+            -q --tb=short -p no:randomly
