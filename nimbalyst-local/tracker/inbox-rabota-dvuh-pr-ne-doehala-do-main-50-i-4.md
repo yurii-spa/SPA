@@ -19,10 +19,11 @@ acceptance_probe: pr_work_arrived_on_main
 |---|---|---|---|
 | #9 `novel-edge-daily` | **49,6 дн** | 2 | 2 |
 | #10 `claude/work-status-check-xfnbew` | **41,6 дн** | 17 | **17** |
-| #50 `claude/chat-search-saagql` | 27,9 дн | 2 | 1 → **закрыт циклом #699** |
+| #50 `claude/chat-search-saagql` | 27,9 дн | 2 | 1 → **0, перенесено циклом #699** |
 
 Содержимое PR #50 перенесено на `main` этим же циклом (§6–52 приказа владельца в якорную
-карточку + `docs/research/RS-portfolio-cio-audit-2026-08-29.md`), PR закрыт. Остаются #9 и #10.
+карточку + `docs/research/RS-portfolio-cio-audit-2026-08-29.md`), и перепись после пуша
+перемерила его: **`arrived`**. Сам PR остаётся открытым черновиком — закрыть его агент физически не может (PAT fine-grained, только `contents`; API отвечает `403` и на комментарий, и на закрытие), это действие владельца: карточка `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha`. Остаются #9 и #10.
 
 ## Что именно потеряно
 
