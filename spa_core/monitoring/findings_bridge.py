@@ -206,6 +206,12 @@ PRODUCES = (
     # нижней границей неизвестного размера. Ступень статическая, зов есть
     # разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
     "data/unresolved_path_census.json",
+    # Критерий §49 `Anti-churn` приказа владельца «Portfolio CIO» (ADR-480,
+    # цикл #701). Возвращалась ли книга в состояние, которое сама же покинула,
+    # и видел ли это гистерезис разворота. Ступень читает журнал ходов — то
+    # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
+    # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
+    "data/book_oscillation_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -314,6 +320,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "truncated_input_census",
     "hand_truncation_census",
     "unresolved_path_census",
+    "book_oscillation_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -558,6 +565,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "unresolved_path_census": {
         "module": "spa_core/monitoring/unresolved_path_census.py",
         "artifact": "data/unresolved_path_census.json"},
+    "book_oscillation_census": {
+        "module": "spa_core/monitoring/book_oscillation_census.py",
+        "artifact": "data/book_oscillation_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2449,6 +2459,24 @@ def main(argv=None) -> int:
                   f"{_upc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "unresolved_path_census", e)
+
+    # Ступень §49 `Anti-churn` приказа CIO (ADR-480): прыгала ли книга между
+    # одними и теми же opportunities. Читает журнал ходов и ничего не чинит;
+    # заголовочное число — возвраты, которые гистерезису НЕЧЕМ увидеть, потому
+    # что он сверяет ноги с ходом непосредственно предыдущим.
+    try:
+        from spa_core.monitoring import book_oscillation_census
+        _boc = book_oscillation_census.run(root=args.root)
+        if _boc.get("measured"):
+            _bi = observed_number(_boc["doc"], "invisible_by_construction")
+            print(f"book_oscillation_census: {_boc['doc'].get('status')} — "
+                  f"возвратов книги, невидимых гистерезису по построению, "
+                  f"{'НЕ ИЗМЕРЕНО' if _bi is None else int(_bi)}")
+        else:
+            print(f"book_oscillation_census: НЕ ИЗМЕРЕНО — "
+                  f"{_boc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "book_oscillation_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

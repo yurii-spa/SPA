@@ -785,6 +785,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "new_repo_population", "rows", "sites_seen",
                                     "unreadable", "tree",
                                     "what_it_does_not_prove"),
+    # Критерий §49 `Anti-churn` приказа CIO (ADR-480). `blind_spot_demonstrated`
+    # объявлен ОТДЕЛЬНО от `status` намеренно: статус говорит про НАСТОЯЩЕЕ
+    # (есть ли свежий возврат), слепота гистерезиса — про ПОСТРОЕНИЕ, и она не
+    # гаснет от того, что книга неделю стояла. Слить их значило бы позволить
+    # тишине погасить структурное утверждение.
+    "book_oscillation_census.json": ("status", "criterion", "journal", "policy",
+                                     "aliases", "alias_seams", "returns",
+                                     "counts", "blind_spot_demonstrated",
+                                     "recent", "invisible", "visible",
+                                     "turnover_usd_disjoint",
+                                     "materiality_usd", "book_scale_usd"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -989,6 +1000,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/hand_truncation_census.py",
     "unresolved_path_census.json":
         "spa_core/monitoring/unresolved_path_census.py",
+    "book_oscillation_census.json":
+        "spa_core/monitoring/book_oscillation_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2862,6 +2875,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.unresolved_path_census import format_report as _upc_report
         out.extend(_upc_report(data))
+    elif name == "book_oscillation_census.json":
+        # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает
+        # ввозы двух объявленных форм).
+        from spa_core.monitoring.book_oscillation_census import format_report as _boc_report
+        out.extend(_boc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
