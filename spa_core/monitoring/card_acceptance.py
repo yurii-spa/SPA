@@ -1798,6 +1798,109 @@ def _probe_ci_main_verdict_green(arg: str | None, *, repo_root: str | None = Non
     return SATISFIED, f"вершина {CI_BRANCH} зелена: {where}"
 
 
+PR_DELIVERY_MODULE_NAME = "_spa_pr_delivery_census"
+
+
+def _pr_delivery_module():
+    """Перепись доставки PR как модуль: один раз на процесс."""
+    import importlib.util
+    mod = sys.modules.get(PR_DELIVERY_MODULE_NAME)
+    if mod is not None:
+        return mod
+    path = os.path.join(REPO_ROOT, "scripts", "pr_delivery_census.py")
+    spec = importlib.util.spec_from_file_location(PR_DELIVERY_MODULE_NAME, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"{path} не загружается как модуль")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[PR_DELIVERY_MODULE_NAME] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(PR_DELIVERY_MODULE_NAME, None)
+        raise
+    return mod
+
+
+def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = None,
+                                   fetch=None, now: "datetime | None" = None,
+                                   exists_on_base=None) -> tuple[str, str]:
+    """Критерий: ни один долго открытый PR не держит в себе не доехавшую работу (ADR-477).
+
+    ЗАЧЕМ. Замер 25.09: приказ владельца «Portfolio CIO» состоит из 52 разделов, а на
+    `main` тело якорной карточки обрывалось на середине §5 — §6–52 и аудит
+    `RS-portfolio-cio-audit-2026-08-29.md` 28 дней жили только в ЧЕРНОВОМ PR #50.
+    Сторож `pr-ci-liveness` был по этому PR ЗЕЛЁН и был ПРАВ: прогонов у head'а три.
+    Он отвечал на свой вопрос — «а прогон БЫЛ?» — и нужный никто не задавал.
+
+    ПОЧЕМУ КРИТЕРИЙ ИМЕННО ТАКОЙ. Он выполняется ДВУМЯ законными путями, и это
+    намеренно: содержимое перенесено на `main` (пути появились) ЛИБО PR закрыт и из
+    населения вышел. Требуй критерий именно появления ИМЕННО ЭТИХ путей — и карточка
+    стала бы незакрываемой там, где верный исход иной: ADR-088/089 из PR #10 сталкиваются
+    номерами с уже существующими на `main`, то есть их содержимое обязано лечь под
+    ДРУГИМИ именами. Критерий меряет ИСХОД («работа не потеряна»), а не форму правки.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ.
+      * `satisfied`     — не доехавших нет; PR вне досягаемости прибора названы числом;
+      * `not_satisfied` — есть PR старше порога, чьи добавляемые пути на `main`
+        отсутствуют. Номера и пути названы;
+      * `unmeasured`    — сеть/репозиторий/база не прочитаны. НЕ «чисто»: молчание
+        прибора обязано отличаться от его одобрения (инв. #17).
+
+    Аргумент пробы — порог в днях (`pr_work_arrived_on_main:14`); по умолчанию берётся
+    порог самого прибора.
+    """
+    root = repo_root or REPO_ROOT
+    # Сеть НЕ опрашивается из тестового окружения — названный третий исход, а не
+    # молчаливая попытка (та же причина, что у `_probe_ci_main_verdict_green`).
+    if fetch is None and os.environ.get("SPA_ENV") == "ci":
+        return UNMEASURED, ("сеть в тестовом окружении не опрашивается (SPA_ENV=ci) — "
+                            "доставка PR меряется из прод-дерева шагом 0-офис")
+    try:
+        M = _pr_delivery_module()
+    except Exception as exc:                                   # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не загружен: {type(exc).__name__}: {exc}"
+
+    max_age = M.DEFAULT_MAX_AGE_DAYS
+    if (arg or "").strip():
+        try:
+            max_age = float(arg.strip())
+        except ValueError:
+            return UNMEASURED, f"порог {arg!r} не число — доставка НЕ ИЗМЕРЕНА"
+
+    if not _is_git_repo(root):
+        return UNMEASURED, f"в {root} нет репозитория — доставка PR НЕ ИЗМЕРЕНА"
+    slug = _github_slug(root)
+    if not slug:
+        return UNMEASURED, "адрес origin не разобран как GitHub — НЕ ИЗМЕРЕНО"
+
+    def _fetch(url):
+        data, why = (fetch or _github_json)(url)
+        if data is None:
+            raise RuntimeError(why or "ответа нет")
+        return data
+
+    door = exists_on_base or M.git_base_door(root)
+    when = now or datetime.now(timezone.utc)
+    report = M.census(slug, _fetch, door, when, max_age)
+
+    bad = [v for v in report["pulls"] if v["state"] == M.NOT_ARRIVED]
+    if bad:
+        named = "; ".join(f"PR #{v['pr']} ({v['age_days']:g} дн): "
+                          + ", ".join(v["missing"][:3])
+                          + (f" … ещё {len(v['missing']) - 3}" if len(v["missing"]) > 3 else "")
+                          for v in bad)
+        return NOT_SATISFIED, f"работа не доехала у {len(bad)} PR — {named}"
+    blind = [v for v in report["pulls"] if v["state"] == M.UNMEASURED]
+    if blind or report["state"] == M.UNMEASURED and not any(
+            v["state"] == M.UNMEASURED_SCOPE for v in report["pulls"]):
+        why = blind[0]["reason"] if blind else report.get("reason") or "причина не названа"
+        return UNMEASURED, f"{len(blind) or 1} PR не измерен(ы): {why}"
+    out_of_reach = sum(1 for v in report["pulls"] if v["state"] == M.UNMEASURED_SCOPE)
+    return SATISFIED, (f"не доехавших нет: открытых PR {len(report['pulls'])}, "
+                       f"порог {max_age:g} дн, вне досягаемости прибора {out_of_reach} "
+                       f"(PR без добавляемых файлов)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1818,6 +1921,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "forbidden_import_gate_single_instrument":
         _probe_forbidden_import_gate_single_instrument,
     "ci_main_verdict_green": _probe_ci_main_verdict_green,
+    "pr_work_arrived_on_main": _probe_pr_work_arrived_on_main,
 }
 
 
