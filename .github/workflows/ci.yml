@@ -39,7 +39,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` — ГЛУБИНА КЛОНА ЕСТЬ ВХОД НАБОРА, а не свойство раннера.
+      # Умолчание `actions/checkout` — `fetch-depth: 1`, то есть история
+      # репозитория в CI ОТСУТСТВУЕТ. Тесты, чей предмет — настоящая авария
+      # доставки (`spa_core/tests/test_delivery_name_loss.py` читает блобы и
+      # коммиты аварии 12.09), при этом честно отказывают «предпосылка теста
+      # НЕ ОБЕСПЕЧЕНА» — отказ ВЕРЕН, но означает, что в CI они месяц не мерили
+      # НИЧЕГО и держали `main` красным. Замер прогона 36222500219: 13 падений
+      # этого файла, воспроизведены 13 из 13 в клоне `--depth 1` на этой машине.
+      # Цена глубины измерена, а не предположена: репозиторий 114 МБ (GitHub API
+      # `size`), против шага тестов длиной 199 мин в том же прогоне.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -48,7 +60,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # option-A full test-dep set (runtime stays stdlib-only). pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74). mypy = the type gate that tests/test_mypy_gate.py shells out to; ОБЯЗАТЕЛЬНА, иначе гейт красный, а не пропущенный (цикл #107, инв. #2) — версия пиннится так же, как в ci-lite.yml.
+          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # option-A full test-dep set (runtime stays stdlib-only). pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74). mypy = the type gate that tests/test_mypy_gate.py shells out to; ОБЯЗАТЕЛЬНА, иначе гейт красный, а не пропущенный (цикл #107, инв. #2) — версия пиннится так же, как в ci-lite.yml. pytest-timeout ДОБАВЛЕН циклом #700: его тут не было, и `spa_core/tests/test_pytest_timeout_method_reports.py` давал в этом workflow ТРИ ошибки «НЕ ИЗМЕРЕНО: pytest-timeout отсутствует» (замер прогона 36222500219). Отказ теста ВЕРЕН — отсутствие инструмента есть третий исход, а не скип и не ноль (`.claude/rules/deployment.md`, урок pyflakes); чинить надо харнесс, который не положил вход. `--timeout` этот workflow не передаёт, поэтому длительности шагов плагин не меняет.
 
       - name: Smoke test — import spa_core
         run: |

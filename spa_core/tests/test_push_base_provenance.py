@@ -18,6 +18,13 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+
+#: Ветка ОДНОРАЗОВОГО репозитория фикстуры. Объявлена здесь и передаётся
+#: `git init -b`, потому что иначе её выбирает `init.defaultBranch` хоста.
+#: Совпадение с боевой веткой `main` (третий аргумент `guard_overwrite`
+#: ниже) — часть сцены: страж мерит базу ИМЕННО той ветки, которую ему
+#: назвали, и сцена обязана давать ему настоящую.
+FIXTURE_BRANCH = "main"
 sys.path.insert(0, str(REPO))
 
 from spa_core.monitoring.push_base_provenance import (  # noqa: E402
@@ -52,7 +59,14 @@ class _RepoFixture(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.origin = self.root / "origin"
         self.origin.mkdir()
-        _git(["init", "-q"], self.origin)
+        # Имя ветки — ВХОД фикстуры, а не свойство хоста. `git init` без `-b`
+        # берёт `init.defaultBranch`, и на этом Маке системный конфиг Apple Git
+        # (`/Library/Developer/CommandLineTools/usr/share/git-core/gitconfig`)
+        # ставит `main`, тогда как на `ubuntu-latest` git даёт `master`. Восемь
+        # тестов этого файла падали в CI на `origin/main` месяц (замер прогона
+        # 36222500219) и были зелёными здесь — тот же класс, что литеральный pid
+        # и литеральная дата: вердикт решал хост, а не код под проверкой.
+        _git(["init", "-q", "-b", FIXTURE_BRANCH], self.origin)
         _git(["config", "user.email", "t@t.t"], self.origin)
         _git(["config", "user.name", "t"], self.origin)
         self.addCleanup(self._tmp.cleanup)
@@ -71,7 +85,7 @@ class _RepoFixture(unittest.TestCase):
         return work
 
     def _remote_sha(self, work: Path) -> str:
-        return _out(["rev-parse", "origin/main:mod.py"], work)
+        return _out(["rev-parse", f"origin/{FIXTURE_BRANCH}:mod.py"], work)
 
 
 class TestTheAccident(_RepoFixture):
@@ -89,7 +103,7 @@ class TestTheAccident(_RepoFixture):
         (work / "mod.py").write_text("line1\nWIRING_A = 1\nline3\nMY_EDIT = 9\n")
         # рецепт из журнала: двигаем HEAD, пока страж не замолчит
         _git(["fetch", "-q", "origin"], work)
-        _git(["reset", "--mixed", "origin/main"], work)
+        _git(["reset", "--mixed", f"origin/{FIXTURE_BRANCH}"], work)
         return work, c1
 
     def test_head_moved_but_the_copy_did_not_follow(self):
@@ -230,7 +244,7 @@ class TestTheFileIsNotAtTheRepoRoot(_RepoFixture):
         _git(["checkout", "-q", c1, "--", "."], work)
         (work / rel).write_text("line1\nWIRING_A = 1\nline3\nMY_EDIT = 9\n")
         _git(["fetch", "-q", "origin"], work)
-        _git(["reset", "--mixed", "origin/main"], work)
+        _git(["reset", "--mixed", f"origin/{FIXTURE_BRANCH}"], work)
 
         # ИМЕННО так зовёт страж — из каталога ФАЙЛА, а не из корня репозитория
         r = base_provenance((work / rel).parent, rel, (work / rel).read_bytes())
@@ -279,7 +293,7 @@ class TestABoundedWindowIsNotAStaleBase(_RepoFixture):
         _git(["checkout", "-q", c1, "--", "."], work)
         (work / "mod.py").write_text(self._rolling(0) + "MY_EDIT\n")
         _git(["fetch", "-q", "origin"], work)
-        _git(["reset", "--mixed", "origin/main"], work)
+        _git(["reset", "--mixed", f"origin/{FIXTURE_BRANCH}"], work)
         r = base_provenance(work, "mod.py", (work / "mod.py").read_bytes())
         self.assertEqual(BASED_ON_OLDER, r["verdict"],
                          "копия СОДЕРЖИТ блоб предка и теряет чужую строку — это обвал")
@@ -296,7 +310,7 @@ class TestTheWiringItself(_RepoFixture):
         work = self._clone()
         _git(["checkout", "-q", c1, "--", "."], work)
         _git(["fetch", "-q", "origin"], work)
-        _git(["reset", "--mixed", "origin/main"], work)
+        _git(["reset", "--mixed", f"origin/{FIXTURE_BRANCH}"], work)
         pusher = _pusher()
         # ветка SAFE — и без прибора она молчала бы
         self.assertEqual(
