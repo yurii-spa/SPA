@@ -69,15 +69,40 @@ def _fossil_prev(days_ago=83):
             "stale_48h": False}
 
 
+def _shelf(asof, days=94, gates=29, next_pub=None, apy=4.9386):
+    """ВИТРИНА — то, из чего страница печатает числа (ADR-372), и потому операнд
+    вопроса «отстал ли посетитель». До ADR-478 в этой роли стоял дневной снимок, и
+    при НЕДЕЛЬНОМ такте витрины (ADR-357 п. 5) сравнение было ложным по построению.
+
+    `next_pub` по умолчанию в БУДУЩЕМ: такт витрины — отдельный вопрос со своим кодом
+    (`SHELF_OVERDUE`) и своими тестами ниже, и приклеивать его к каждой сцене значило
+    бы мерить в одном тесте две разные вещи.
+    """
+    return {"measured_at": asof, "published_at": asof, "cadence": "weekly",
+            "next_publication": next_pub if next_pub is not None else _day(-7),
+            "headline": {"apy": {"value": apy}, "evidenced_days": {"value": days},
+                         "gates": {"passed": gates, "total": gates}}}
+
+
 def _ev(*, site_asof, snap_asof, api=None, prev=None, site_apy="5.0", site_days=89,
-        home_asof=None):
+        home_asof=None, shelf_asof=None, shelf=None, shelf_days=94, shelf_next=None):
+    """`shelf_asof` по умолчанию = `snap_asof`.
+
+    Так сохранён СМЫСЛ каждой сцены ниже: в них `snap_asof` всегда играл роль «что мы
+    опубликовали посетителю», а с ADR-478 эту роль исполняет витрина. Дневной снимок
+    остаётся отдельным входом — он отвечает за свежесть САМОГО СЕБЯ (`STALE_SNAPSHOT`),
+    и там, где сцена именно про него, обе даты передаются раздельно.
+    """
+    if shelf is None:
+        shelf = _shelf(shelf_asof if shelf_asof is not None else snap_asof,
+                       days=shelf_days, next_pub=shelf_next)
     return mon.evaluate(
         snapshot=_snap(snap_asof),
         home_html=_home(home_asof if home_asof is not None else site_asof),
         track_html=_track(site_asof, days=site_days, apy=site_apy),
         api=api if api is not None else _api(),
         sitemap_statuses={"https://earn-defi.com/": 200},
-        verifier_sha=PIN, pin_sha=PIN, now=NOW, prev_report=prev)
+        verifier_sha=PIN, pin_sha=PIN, now=NOW, prev_report=prev, site_numbers=shelf)
 
 
 def _codes(report):
@@ -225,13 +250,29 @@ def test_a_page_without_an_as_of_label_is_unmeasured_not_a_verdict():
     assert r["degrade_reaches_public_reason"].startswith("unmeasured:")
 
 
-def test_a_snapshot_without_an_as_of_is_its_own_unmeasured_reason():
+def test_a_shelf_without_a_measured_at_is_its_own_unmeasured_reason():
+    """ОПЕРАНД без даты ⇒ «не измерено» с названной причиной (ADR-478 перенёс роль
+    операнда со снимка на витрину; сама проверка — та же, что была)."""
+    r = _ev(site_asof=_day(5), snap_asof=_day(0),
+            shelf={"cadence": "weekly", "headline": {"apy": {"value": 4.9386}}})
+    assert r["shelf_leg"] == "unmeasured:shelf_has_no_measured_at"
+    assert r["publisher_leg"] == "unmeasured:shelf_unreadable:unmeasured:shelf_has_no_measured_at"
+    assert r["publisher_stuck"] is False and r["publish_lag_days"] is None
+    assert "SHELF_UNREADABLE" in _codes(r)          # и НЕ тишина
+
+
+def test_a_snapshot_without_an_as_of_no_longer_decides_the_publishers_verdict():
+    """Контроль на ПОДМЕНУ ОПЕРАНДА: дневной снимок без даты — вопрос о снимке, а не
+    о публикаторе. Пока операндом стоял он, эта сцена гасила вердикт о публикаторе;
+    теперь витрина читается, вердикт ИЗМЕРЕН, и снимок краснеет своим кодом."""
     r = mon.evaluate(snapshot={"real_track_days": 94, "paper_apy_pct": 4.9386},
                      home_html=_home(_day(5)), track_html=_track(_day(5)), api=_api(),
                      sitemap_statuses={"https://earn-defi.com/": 200},
-                     verifier_sha=PIN, pin_sha=PIN, now=NOW, prev_report=None)
-    assert r["publisher_leg"] == "unmeasured:snapshot_has_no_as_of"
-    assert r["publisher_stuck"] is False and r["publish_lag_days"] is None
+                     verifier_sha=PIN, pin_sha=PIN, now=NOW, prev_report=None,
+                     site_numbers=_shelf(_day(0)))
+    assert r["publisher_leg"] == "measured"          # витрина на месте — операнд есть
+    assert r["publisher_stuck"] is True             # и публикатор ДЕЙСТВИТЕЛЬНО встал
+    assert "MISSING_ASOF" in _codes(r)              # у снимка своя находка, своё имя
 
 
 def test_an_unparseable_site_date_names_both_operands():
@@ -320,12 +361,14 @@ def test_the_same_one_day_lag_reads_the_same_at_any_hour_of_the_day():
     """Часовой порог переходил бы один и тот же лаг по времени суток — дни не переходят."""
     for hour in (1, 9, 17, 23):
         now = NOW.replace(hour=hour)
-        r = mon.evaluate(snapshot=_snap((now - datetime.timedelta(days=0)).date().isoformat()),
-                         home_html=_home((now - datetime.timedelta(days=1)).date().isoformat()),
-                         track_html=_track((now - datetime.timedelta(days=1)).date().isoformat()),
-                         api=_api(last=now.date().isoformat()),
+        today = now.date().isoformat()
+        yesterday = (now - datetime.timedelta(days=1)).date().isoformat()
+        r = mon.evaluate(snapshot=_snap(today),
+                         home_html=_home(yesterday), track_html=_track(yesterday),
+                         api=_api(last=today),
                          sitemap_statuses={"https://earn-defi.com/": 200},
-                         verifier_sha=PIN, pin_sha=PIN, now=now, prev_report=None)
+                         verifier_sha=PIN, pin_sha=PIN, now=now, prev_report=None,
+                         site_numbers=_shelf(today, next_pub=_day(-7)))
         assert r["publish_lag_days"] == 1, hour
         assert r["publisher_stuck"] is False, hour
         # часы РЯДОМ и меняются — именно поэтому вердикт строится не на них

@@ -30,6 +30,17 @@ def _api(days=12, apy=3.3, equity=100265.0, last="2026-07-03"):
     return {"evidenced_days": days, "paper_apy_pct": apy, "gates_passed": 27, "end_equity": equity, "last_bar": last}
 
 
+def _shelf(days=12, apy=3.3, gates=27, asof="2026-07-03", next_pub=None):
+    """ВИТРИНА — операнд вопроса «что читает посетитель» с ADR-478 (страница печатает
+    её, не дневной снимок; ADR-372). Срок такта по умолчанию вычисляется ОТ ЯКОРЯ `NOW`,
+    а не выписывается литералом: новых замороженных дат этот набор не заводит."""
+    return {"measured_at": asof, "published_at": asof, "cadence": "weekly",
+            "next_publication": next_pub if next_pub is not None
+            else (NOW + datetime.timedelta(days=7)).date().isoformat(),
+            "headline": {"apy": {"value": apy}, "evidenced_days": {"value": days},
+                         "gates": {"passed": gates, "total": 29}}}
+
+
 def _urls(ok=True):
     return {"https://earn-defi.com/": 200 if ok else 404, "https://earn-defi.com/verify/": 200}
 
@@ -38,8 +49,22 @@ PIN = "a" * 64
 
 def test_all_green():
     r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
-                     sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW)
+                     sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW,
+                     site_numbers=_shelf())
     assert r["ok"] is True and r["n_fails"] == 0 and r["degrade_triggered"] is False
+
+
+def test_green_requires_the_shelf_to_be_readable():
+    """Контроль в обратную сторону к `test_all_green`: без витрины «всё зелено» НЕ
+    выдаётся. Иначе исправление операнда (ADR-478) стало бы дырой — сторож молчал бы
+    именно там, где операнда у него нет (инв. #17)."""
+    r = mon.evaluate(snapshot=_snap(), home_html=_home(), track_html=_track(), api=_api(),
+                     sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW,
+                     site_numbers=None)
+    codes = {f["code"] for f in r["fails"]}
+    assert r["ok"] is False
+    assert "SHELF_UNREADABLE" in codes
+    assert r["shelf_leg"] == "unmeasured:no_shelf_file"
 
 
 def test_overstated_metric_is_critical_and_degrades():
@@ -74,11 +99,32 @@ def test_stale_snapshot():
 
 
 def test_site_behind_snapshot():
-    # site still shows 10 days / old as-of while snapshot is 12 / new -> deploy lag
+    # site still shows 10 days / old as-of while the SHELF published 12 / new -> deploy lag.
+    # ADR-478: операнд — витрина, её и рендерит страница.
     r = mon.evaluate(snapshot=_snap(days=12, asof="2026-07-03"),
                      home_html=_home(days=10, asof="2026-07-01"), track_html=_track(asof="2026-07-01"),
-                     api=_api(days=12), sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW)
+                     api=_api(days=12), sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW,
+                     site_numbers=_shelf(days=12, asof="2026-07-03"))
     assert any(f["code"] == "SITE_BEHIND_SNAPSHOT" for f in r["fails"])
+
+
+def test_a_site_matching_the_shelf_is_not_behind_even_when_the_snapshot_moved_on():
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ на аварию 20–26.09, ради которой написан ADR-478.
+
+    Витрина недельная (ADR-357 п. 5), снимок дневной. Страница, исправно печатающая
+    витрину, ОБЯЗАНА отставать от снимка — до недели. Пока операндом стоял снимок,
+    сторож краснел за это пять суток кодом CRITICAL и отправлял владельца искать
+    поломку в кабинете Cloudflare, где её не было."""
+    r = mon.evaluate(snapshot=_snap(days=18, asof="2026-07-08"),
+                     home_html=_home(days=12, asof="2026-07-03"), track_html=_track(asof="2026-07-03"),
+                     api=_api(days=18), sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN,
+                     now=NOW + datetime.timedelta(days=5),
+                     site_numbers=_shelf(days=12, asof="2026-07-03",
+                                         next_pub=(NOW + datetime.timedelta(days=7)).date().isoformat()))
+    codes = [f["code"] for f in r["fails"]]
+    assert "SITE_BEHIND_SNAPSHOT" not in codes, codes
+    assert "PUBLISHER_STUCK" not in codes, codes
+    assert r["publisher_stuck"] is False and r["publisher_leg"] == "measured"
 
 
 def test_snapshot_behind_api():

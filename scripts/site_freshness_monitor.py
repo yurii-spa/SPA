@@ -49,6 +49,12 @@ _ROOT = Path(__file__).resolve().parents[1]
 #: а не свойство того, куда сейчас показывает `_SNAP`.
 _SNAP_REL = Path("landing") / "src" / "data" / "track_snapshot.json"
 _SNAP = _ROOT / _SNAP_REL
+#: ВИТРИНА — то, из чего страница НА САМОМ ДЕЛЕ печатает свои числа с 13.09 (ADR-372,
+#: установка владельца ADR-357 п. 5: один адрес чтения, такт публикации НЕДЕЛЬНЫЙ).
+#: Снимок остаётся ЕЖЕДНЕВНЫМ производителем и операндом свежести САМОГО снимка, но
+#: операндом вопроса «что читает посетитель» он быть перестал (см. блок 9).
+_SHELF_REL = Path("landing") / "src" / "data" / "site_numbers.json"
+_SHELF = _ROOT / _SHELF_REL
 _SITEMAP = _ROOT / "landing" / "public" / "sitemap.xml"
 _REPORT = _ROOT / "data" / "site_freshness_report.json"
 
@@ -82,6 +88,13 @@ PUBLISH_LAG_DAYS = 3
 #: из 4 июля. Возраст отчёта выше этой границы ⇒ «не измерено» с названной
 #: причиной, а не тихое `false`.
 PREV_REPORT_MAX_AGE_H = 24
+
+#: Витрина обязана пересобираться в объявленный ею же срок (`next_publication`).
+#: Порог здесь СВОЙ, потому что вопрос свой: не «доехало ли до посетителя», а «собрал
+#: ли ПРОИЗВОДИТЕЛЬ то, что посетителю предстоит прочесть». Один день просрочки —
+#: цикл ещё не дошёл; три — такт сорван, и сайт замер на прошлой неделе.
+SHELF_OVERDUE_FAIL_DAYS = 1
+SHELF_OVERDUE_CRITICAL_DAYS = 3
 
 
 # ─────────────────────────────── helpers ───────────────────────────────
@@ -224,13 +237,42 @@ def api_headline(golive, facts, equity_chain):
 
 # ─────────────────────────────── the pure evaluator ───────────────────────────────
 def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier_sha, pin_sha,
-             now, prev_report=None):
-    """Pure Site-Custodian evaluation. Returns the report dict. No I/O."""
+             now, prev_report=None, site_numbers=None):
+    """Pure Site-Custodian evaluation. Returns the report dict. No I/O.
+
+    ``site_numbers`` — ВИТРИНА (`landing/src/data/site_numbers.json`). Это НЕ второй снимок
+    и не удобство: с 13.09 (ADR-372) страница печатает числа ИЗ НЕЁ, а не из дневного
+    снимка, и такт её публикации НЕДЕЛЬНЫЙ по установке владельца (ADR-357 п. 5). Сторож,
+    спрашивающий «отстал ли посетитель», обязан спрашивать это у того файла, который
+    посетитель читает; см. блок 9 и ADR-478.
+    """
     fails = []          # list of {code, detail, severity}
     def fail(code, detail, severity="FAIL"):
         fails.append({"code": code, "detail": detail, "severity": severity})
 
     snap = snapshot or {}
+    shelf = site_numbers if isinstance(site_numbers, dict) else {}
+    # Что именно витрина ОБЕЩАЕТ посетителю. Нечитаемая витрина — это ТРЕТИЙ исход
+    # (`unmeasured:` с названной причиной), а НЕ повод молча вернуться к снимку: именно
+    # такой возврат и был дефектом до ADR-478 — сторож сверял страницу с производителем,
+    # которого она не читает, и объявлял вставшим исправный публикатор.
+    shelf_as_of = shelf.get("measured_at") or None
+    _sh = (shelf.get("headline") or {}) if isinstance(shelf.get("headline"), dict) else {}
+    def _shelf_num(*path):
+        node = _sh
+        for k in path:
+            if not isinstance(node, dict):
+                return None
+            node = node.get(k)
+        return _num(node) if node is not None else None
+    shelf_days = _shelf_num("evidenced_days", "value")
+    shelf_gates = _shelf_num("gates", "passed")
+    if not shelf:
+        shelf_leg = "unmeasured:no_shelf_file"
+    elif not shelf_as_of:
+        shelf_leg = "unmeasured:shelf_has_no_measured_at"
+    else:
+        shelf_leg = "measured"
     site_home = parse_site_numbers(home_html)
     site_track = parse_site_numbers(track_html)
     apih = api or {}
@@ -247,19 +289,34 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     if apih.get("last_bar") and api_age is not None and api_age > STALE_HOURS:
         fail("STALE_API", f"API last bar {apih.get('last_bar')} is {api_age:.1f}h old (> {STALE_HOURS}h)")
 
-    # 3. site page carries an as-of label matching the snapshot
+    # 3. site page carries an as-of label matching WHAT THE PAGE READS — то есть витрину.
+    #    До ADR-478 операндом стоял дневной снимок. При НЕДЕЛЬНОМ такте витрины (ADR-357
+    #    п. 5) это сравнение ложно по построению: страница обязана отставать от снимка на
+    #    срок до недели, и сторож краснел ровно за то, что установка владельца предписывает.
+    #    Витрина нечитаема ⇒ НЕ откатываться к снимку (это и есть тот дефект), а сказать
+    #    «не измерено» отдельным кодом и вслух.
+    if shelf_leg != "measured":
+        fail("SHELF_UNREADABLE",
+             f"витрину, из которой страница печатает числа, прочесть не удалось ({shelf_leg}) — "
+             f"вопрос «отстал ли посетитель» НЕ ИЗМЕРЕН; сверять страницу с дневным снимком "
+             f"вместо витрины запрещено (ADR-478): такт витрины недельный")
     for name, s in (("home", site_home), ("track", site_track)):
         if s.get("as_of") is None:
             fail("MISSING_ASOF", f"{name} page has no as-of label")
-        elif snap.get("as_of") and s["as_of"] != snap["as_of"]:
-            fail("SITE_BEHIND_SNAPSHOT", f"{name} as-of {s['as_of']} != snapshot as_of {snap['as_of']}")
+        elif shelf_as_of and s["as_of"] != shelf_as_of:
+            fail("SITE_BEHIND_SNAPSHOT",
+                 f"{name} as-of {s['as_of']} != витрина measured_at {shelf_as_of} "
+                 f"(операнд — витрина, её и печатает страница; ADR-372/478)")
 
-    # 4. site == snapshot (deploy lag)
-    def cmp_int(label, site_v, snap_v):
-        if site_v is not None and snap_v is not None and abs(site_v - snap_v) >= 1:
-            fail("SITE_BEHIND_SNAPSHOT", f"site {label}={site_v} != snapshot {label}={snap_v}")
-    cmp_int("evidenced_days", site_home.get("evidenced_days"), _num(snap.get("real_track_days")))
-    cmp_int("gates_passed", site_home.get("gates_passed"), _num(snap.get("gates_passed")))
+    # 4. site == ВИТРИНА (deploy lag). Операнды те же и по той же причине: числа на
+    #    странице отрендерены из витрины, поэтому спрашивать их у снимка значит сверять
+    #    страницу с файлом, которого она не читает (заказ G86 п. 1 — «с КАКОЙ страницы
+    #    взят операнд»; здесь ответ глубже: с какого ИСТОЧНИКА).
+    def cmp_int(label, site_v, shelf_v):
+        if site_v is not None and shelf_v is not None and abs(site_v - shelf_v) >= 1:
+            fail("SITE_BEHIND_SNAPSHOT", f"site {label}={site_v} != витрина {label}={shelf_v}")
+    cmp_int("evidenced_days", site_home.get("evidenced_days"), shelf_days)
+    cmp_int("gates_passed", site_home.get("gates_passed"), shelf_gates)
 
     # 5. snapshot == API (snapshot regenerated after cycle?)
     #    evidenced_days: robust like-for-like staleness signal (both count the same real
@@ -341,19 +398,36 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     #    `PUBLISHER_STUCK` молчит, и виноват производитель — это другой код
     #    (`STALE_SNAPSHOT`). Иначе сторож называл бы вставшим публикатора, которому нечего
     #    публиковать.
+    #    ПОПРАВКА ADR-478 (26.09). Выше стояло «репозиторий исправен — снимок нёс as_of
+    #    2026-09-25, а посетитель читал 2026-09-20», и вывод «лекарство вне репозитория».
+    #    Обе половины неверны, и замер это показал: сборка `origin/main` на локальной
+    #    машине даёт dist с той же самой `as of 2026-09-20`, что читает посетитель, —
+    #    Cloudflare публиковал ИСПРАВНО и публиковал ровно то, что в репозитории. Страница
+    #    с 13.09 печатает витрину (ADR-372), такт витрины недельный (ADR-357 п. 5), и на
+    #    26.09 она законно несла 20.09 (`--if-due`: «прошло 6 дн из 7»). Пять суток
+    #    CRITICAL и карточка `critical` владельцу отправляли человека в кабинет Cloudflare
+    #    искать поломку, которой там нет.
+    #
+    #    Операнд исправлен: вставшим публикатор может быть назван только тогда, когда
+    #    посетитель отстал от ВИТРИНЫ — от того, что мы ему опубликовали. Отставание
+    #    витрины от снимка публикатора не касается вовсе: это вопрос ПРОИЗВОДИТЕЛЯ, и у
+    #    него теперь свой код (`SHELF_OVERDUE`) и свой порог.
     site_as_of = None
     for s_ in (site_home, site_track):
         if s_.get("as_of") and (site_as_of is None or str(s_["as_of"]) < str(site_as_of)):
             site_as_of = s_["as_of"]          # самая СТАРАЯ из опубликованных дат
     site_as_of_age = _hours_since(site_as_of, now)
-    publish_lag_days = _days_between(site_as_of, snap.get("as_of"))
-    snap_newer_than_site = bool(publish_lag_days is not None and publish_lag_days > 0)
+    publish_lag_days = _days_between(site_as_of, shelf_as_of)
+    shelf_newer_than_site = bool(publish_lag_days is not None and publish_lag_days > 0)
+    # Имя сохранено: его читают humanize/тревога/тесты. Смысл — «мы опубликовали новее,
+    # чем читает посетитель», и операндом этого «мы» всегда была витрина, а не снимок.
+    snap_newer_than_site = shelf_newer_than_site
     if site_as_of is None:
         publisher_leg = "unmeasured:no_as_of_label_on_the_live_page"
-    elif not snap.get("as_of"):
-        publisher_leg = "unmeasured:snapshot_has_no_as_of"
+    elif shelf_leg != "measured":
+        publisher_leg = f"unmeasured:shelf_unreadable:{shelf_leg}"
     elif publish_lag_days is None:
-        publisher_leg = f"unmeasured:dates_unparseable:site={site_as_of}:snapshot={snap.get('as_of')}"
+        publisher_leg = f"unmeasured:dates_unparseable:site={site_as_of}:shelf={shelf_as_of}"
     else:
         publisher_leg = "measured"
     publisher_stuck = (publisher_leg == "measured" and publish_lag_days >= PUBLISH_LAG_DAYS)
@@ -361,9 +435,38 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         age = f"{site_as_of_age:.0f}ч" if site_as_of_age is not None else "не измерен"
         fail("PUBLISHER_STUCK",
              f"мимо посетителя прошло {publish_lag_days} публикаций (>= {PUBLISH_LAG_DAYS}): он читает "
-             f"as-of {site_as_of} (возраст {age}), а репозиторий опубликовал {snap['as_of']}. Лекарство "
-             f"вне этого репозитория — сборка Cloudflare Pages; повторный коммит снимка не поможет",
+             f"as-of {site_as_of} (возраст {age}), а витрина опубликовала {shelf_as_of}. Лекарство "
+             f"вне этого репозитория — сборка Cloudflare Pages; повторный коммит витрины не поможет",
              severity="CRITICAL")
+
+    # 9b. ПРОИЗВОДИТЕЛЬ ВИТРИНЫ просрочил такт — беда, которой до ADR-478 не было имени
+    #     вовсе, и которую исправление операнда выше иначе СПРЯТАЛО БЫ. Пока страница
+    #     сверялась с дневным снимком, замершая витрина краснела (ложным) кодом; теперь
+    #     страница равна витрине по построению, и замершая витрина прошла бы молча —
+    #     сайт годами показывал бы одно и то же число, а все сверки были бы зелёными.
+    #     Поэтому вопрос задаётся отдельно и СВОИМ операндом: сроком, который витрина
+    #     объявила сама (`next_publication`). Срок решает ФАЙЛ, а не расписание запуска.
+    shelf_next = shelf.get("next_publication") or None
+    shelf_overdue_days = _days_between(shelf_next, now.strftime("%Y-%m-%d"))
+    if shelf_leg != "measured":
+        shelf_cadence_leg = shelf_leg          # уже несёт префикс `unmeasured:` и свою причину
+    elif not shelf_next:
+        shelf_cadence_leg = "unmeasured:shelf_declares_no_next_publication"
+    elif shelf_overdue_days is None:
+        shelf_cadence_leg = f"unmeasured:next_publication_unparseable:{shelf_next}"
+    else:
+        shelf_cadence_leg = "measured"
+    if shelf_cadence_leg == "measured" and shelf_overdue_days >= SHELF_OVERDUE_FAIL_DAYS:
+        crit = shelf_overdue_days >= SHELF_OVERDUE_CRITICAL_DAYS
+        fail("SHELF_OVERDUE",
+             f"витрина просрочила свой же такт на {shelf_overdue_days} дн: объявлено "
+             f"next_publication={shelf_next}, замер всё ещё {shelf_as_of}. Лекарство ВНУТРИ "
+             f"репозитория — `scripts/build_site_numbers.py`; Cloudflare тут ни при чём "
+             f"(публичные числа = предмет №2, ADR-285)",
+             severity="CRITICAL" if crit else "FAIL")
+    elif shelf_cadence_leg != "measured":
+        fail("SHELF_OVERDUE",
+             f"такт витрины НЕ ИЗМЕРЕН ({shelf_cadence_leg}) — «не измерено» не выдаётся за «в такте»")
 
     # ── kill-rule: degrade only when the SNAPSHOT ITSELF is overstated (its committed apy exceeds the live
     #    API) — that's the only case where degrading actually prevents a wrong number. A merely stale LIVE
@@ -420,6 +523,11 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "site_as_of_age_h": round(site_as_of_age, 2) if site_as_of_age is not None else None,
         "publish_lag_days": publish_lag_days,        # пропущенных публикаций; None — не измерено
         "publisher_leg": publisher_leg,              # measured | unmeasured:<причина>
+        "shelf_as_of": shelf_as_of,                  # замер, который витрина ОБЕЩАЕТ посетителю
+        "shelf_leg": shelf_leg,                      # measured | unmeasured:<причина> — витрина прочитана или нет
+        "shelf_next_publication": shelf_next,        # срок, объявленный самой витриной
+        "shelf_overdue_days": shelf_overdue_days,    # просрочка такта в днях; None — не измерено
+        "shelf_cadence_leg": shelf_cadence_leg,      # measured | unmeasured:<причина>
         "publisher_stuck": publisher_stuck,          # публикатор не публикует > PUBLISH_LAG_HOURS
         "snapshot_newer_than_site": snap_newer_than_site,
         "prev_run_leg": prev_run_leg,                # measured | unmeasured:<причина> — второй операнд «двух прогонов»
@@ -437,6 +545,12 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "site_home": site_home,
         "site_track": site_track,
         "snapshot": {k: snap.get(k) for k in ("as_of", "real_track_days", "paper_apy_pct", "gates_passed", "end_equity")},
+        # ДВА производителя рядом: снимок ежедневный, витрина недельная. Разность между
+        # ними — НОРМА по установке владельца, а не находка; находкой её читал сторож до
+        # ADR-478. Печатаются оба, чтобы это было видно глазами, а не выяснялось отладкой.
+        "shelf": {"measured_at": shelf_as_of, "published_at": shelf.get("published_at"),
+                  "cadence": shelf.get("cadence"), "next_publication": shelf_next,
+                  "evidenced_days": shelf_days, "gates_passed": shelf_gates},
         "api": apih,
     }
 
@@ -1155,6 +1269,14 @@ def run():
         except ValueError:
             prev = None
     snapshot = json.loads(_SNAP.read_text()) if _SNAP.exists() else {}
+    # Витрина читается ОТДЕЛЬНО от снимка и при отказе остаётся None, а не {}: «файла нет»
+    # и «файл нечитаем» обязаны дойти до вердикта как причина, а не как пустота (инв. #17).
+    site_numbers = None
+    if _SHELF.exists():
+        try:
+            site_numbers = json.loads(_SHELF.read_text())
+        except ValueError:
+            site_numbers = None
 
     _, home_html = _get(SITE + "/")
     _, track_html = _get(SITE + "/track-record/")
@@ -1179,7 +1301,7 @@ def run():
 
     report = evaluate(snapshot=snapshot, home_html=home_html, track_html=track_html, api=api,
                       sitemap_statuses=sitemap_statuses, verifier_sha=verifier_sha, pin_sha=pin,
-                      now=now, prev_report=prev)
+                      now=now, prev_report=prev, site_numbers=site_numbers)
     _atomic_write(_REPORT, report)
     print(json.dumps({k: report[k] for k in ("ok", "n_fails", "degrade_triggered", "snapshot_age_h")}, indent=2))
     if not report["ok"]:
