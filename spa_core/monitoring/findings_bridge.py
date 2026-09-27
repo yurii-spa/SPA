@@ -212,6 +212,13 @@ PRODUCES = (
     # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
     # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
     "data/book_oscillation_census.json",
+    # Критерий §49 `Persistence` приказа владельца «Portfolio CIO» (ADR-481,
+    # цикл #704). Пережила ли ставка, на которой решали, минимальный срок
+    # удержания. Ступень читает ЖИВОЙ `data/` (журнал решений и журнал ходов), а
+    # не дерево; артефакт обновляется в такт БЕГУНА (6ч), поэтому SLO 12ч — две
+    # его попытки. Сами журналы пишутся раз в сутки, и это другой вопрос: реже
+    # мерить нельзя, иначе свежая тяга узнаётся не в тот день.
+    "data/rate_persistence_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -321,6 +328,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hand_truncation_census",
     "unresolved_path_census",
     "book_oscillation_census",
+    "rate_persistence_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -568,6 +576,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
+    "rate_persistence_census": {
+        "module": "spa_core/monitoring/rate_persistence_census.py",
+        "artifact": "data/rate_persistence_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2477,6 +2488,23 @@ def main(argv=None) -> int:
                   f"{_boc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "book_oscillation_census", e)
+
+    # Ступень §49 `Persistence` приказа CIO (ADR-481): дожила ли ставка, на
+    # которой решали, до конца срока удержания. Читает журналы и ничего не
+    # чинит; заголовочное число — тяги цели на ставке, которая НЕ вернулась.
+    try:
+        from spa_core.monitoring import rate_persistence_census
+        _rpc = rate_persistence_census.run(root=args.root)
+        if _rpc.get("measured"):
+            _rf = observed_number(_rpc["doc"], "faded_pull_legs")
+            print(f"rate_persistence_census: {_rpc['doc'].get('status')} — "
+                  f"решений, где цель тянула на осевшей ставке, "
+                  f"{'НЕ ИЗМЕРЕНО' if _rf is None else int(_rf)}")
+        else:
+            print(f"rate_persistence_census: НЕ ИЗМЕРЕНО — "
+                  f"{_rpc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "rate_persistence_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

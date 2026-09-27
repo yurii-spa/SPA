@@ -796,6 +796,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "recent", "invisible", "visible",
                                      "turnover_usd_disjoint",
                                      "materiality_usd", "book_scale_usd"),
+    # Критерий §49 `Persistence` приказа CIO (ADR-481). `no_survival_condition_named`
+    # объявлен ОТДЕЛЬНО от `status` намеренно: статус говорит про НАСТОЯЩЕЕ (есть
+    # ли свежий вход на осевшей ставке), отсутствие ручки — про ПОСТРОЕНИЕ, и от
+    # тишины оно не гаснет. `oscillating` — четвёртый исход, и он тоже свой ключ:
+    # «выживание не определено» слить с «держалась» значило бы получить fail-OPEN.
+    "rate_persistence_census.json": ("status", "criterion", "decisions", "journal",
+                                     "policy", "panel", "aliases", "entry_axis",
+                                     "pull_axis", "faded_entries", "faded_pulls",
+                                     "fresh_faded_entries", "oscillating",
+                                     "refusal_families_on_faded_pulls",
+                                     "survival_screen",
+                                     "no_survival_condition_named",
+                                     "book_scale_usd"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -1002,6 +1015,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unresolved_path_census.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
+    "rate_persistence_census.json":
+        "spa_core/monitoring/rate_persistence_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2875,6 +2890,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.unresolved_path_census import format_report as _upc_report
         out.extend(_upc_report(data))
+    elif name == "rate_persistence_census.json":
+        # Критерий §49 `Persistence` приказа CIO (ADR-481). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает
+        # ввозы двух объявленных форм).
+        from spa_core.monitoring.rate_persistence_census import format_report as _rpc_report
+        out.extend(_rpc_report(data))
     elif name == "book_oscillation_census.json":
         # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
         # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
