@@ -5,15 +5,15 @@
     "замер": "landing/src/data/track_snapshot.json",
     "решение": "landing/src/lib/constitution.json"
   },
-  "measured_at": "2026-09-20",
-  "published_at": "2026-09-20",
+  "measured_at": "2026-09-27",
+  "published_at": "2026-09-27",
   "cadence": "weekly",
-  "next_publication": "2026-09-27",
+  "next_publication": "2026-10-04",
   "rates_are_annualised": true,
   "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
   "headline": {
     "apy": {
-      "value": 4.9637,
+      "value": 4.9232,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → paper_apy_pct",
@@ -28,13 +28,13 @@
       "source": "landing/src/data/track_snapshot.json"
     },
     "nav": {
-      "value": 101340.69,
+      "value": 101424.6,
       "unit": "USD",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
     },
     "evidenced_days": {
-      "value": 89.0,
+      "value": 96.0,
       "unit": "дней",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
@@ -54,14 +54,14 @@
       "source": "track_snapshot.json → days_needed (порог 30 дней, ADR-002; в снимок приходит из гейта)"
     },
     "end_equity": {
-      "value": 101340.69,
+      "value": 101424.6,
       "unit": "USD",
       "kind": "замер",
       "source": "track_snapshot.json → end_equity"
     },
     "go_live_target": null,
     "degraded": false,
-    "snapshot_generated_at": "2026-09-20T06:01:35Z"
+    "snapshot_generated_at": "2026-09-27T06:01:12Z"
   },
   "packages": {
     "conservative": {
@@ -121,7 +121,7 @@
     "conservative": {
       "label": "Conservative",
       "status": "paper_test_running",
-      "days": 89.0,
+      "days": 96.0,
       "evidence_split": {
         "observed_days": null,
         "literal_days": null,
@@ -130,7 +130,7 @@
       },
       "positions": null,
       "apy": {
-        "value": 4.96,
+        "value": 4.92,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
@@ -145,7 +145,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
       },
       "nav": {
-        "value": 101340.69,
+        "value": 101424.6,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -154,16 +154,16 @@
     "balanced": {
       "label": "Balanced",
       "status": "paper_test_running",
-      "days": 28.0,
+      "days": 35.0,
       "evidence_split": {
-        "observed_days": 11,
+        "observed_days": 18,
         "literal_days": 17,
-        "caveat": "17 из 28 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
+        "caveat": "17 из 35 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
         "observed_since": "2026-09-10"
       },
       "positions": 4.0,
       "apy": {
-        "value": -1.13,
+        "value": -3.44,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
@@ -172,13 +172,13 @@
         "evidence": "paper"
       },
       "drawdown": {
-        "value": -0.55,
+        "value": -0.8,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
       },
       "nav": {
-        "value": 99941.58,
+        "value": 99694.17,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -187,16 +187,16 @@
     "aggressive": {
       "label": "Aggressive",
       "status": "paper_test_running",
-      "days": 28.0,
+      "days": 35.0,
       "evidence_split": {
-        "observed_days": 11,
+        "observed_days": 18,
         "literal_days": 17,
-        "caveat": "17 из 28 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
+        "caveat": "17 из 35 дней начислены по ставкам, которых никто не наблюдал (до 2026-09-10); наблюдения идут с 2026-09-10",
         "observed_since": "2026-09-10"
       },
       "positions": 2.0,
       "apy": {
-        "value": 4.59,
+        "value": 2.83,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
@@ -205,13 +205,13 @@
         "evidence": "paper"
       },
       "drawdown": {
-        "value": -0.23,
+        "value": -0.3,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
       },
       "nav": {
-        "value": 100380.33,
+        "value": 100303.24,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
