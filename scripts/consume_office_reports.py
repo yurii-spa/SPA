@@ -785,6 +785,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "new_repo_population", "rows", "sites_seen",
                                     "unreadable", "tree",
                                     "what_it_does_not_prove"),
+    # §49 ТЗ CIO «Persistence» (цикл #701, ADR-479). `sensitivity` в схеме
+    # ОБЯЗАТЕЛЕН: число, зависящее от порога, без сетки читалось бы как свойство
+    # трека, тогда как это свойство одного объявленного параметра. `cost_model`
+    # обязателен по той же причине — сравнение «пошлина против испарившейся
+    # выгоды» держится на НИЖНЕЙ границе стоимости, и артефакт без объявления
+    # границы читался бы как полная стоимость хода. `unmeasured` отдельным полем:
+    # у 114 ног из 172 ставки в день входа нет вовсе, и смешать это с «повода не
+    # было» значило бы выдать отсутствие наблюдения за наблюдение (инв. #17).
+    "cio_apy_persistence.json": ("status", "invoked_by", "question", "window",
+                                 "population", "counts", "usd", "reverted",
+                                 "unmeasured", "rows", "sensitivity",
+                                 "cost_model", "positive_control", "findings",
+                                 "what_it_does_not_prove", "advisory"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -887,6 +900,7 @@ _PRODUCER: dict[str, str] = {
     "cio_architecture_constraints.json": "spa_core/monitoring/cio_architecture_constraints.py",
     "cio_component_map.json": "spa_core/monitoring/cio_component_map.py",
     "cio_policy_change_procedure.json": "spa_core/monitoring/cio_policy_change_procedure.py",
+    "cio_apy_persistence.json": "spa_core/monitoring/cio_apy_persistence.py",
     "cio_post_trade_verification.json": "spa_core/monitoring/cio_post_trade_verification.py",
     "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
     "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
@@ -2954,6 +2968,17 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
         out.append("   ADVISORY: ступени НЕ подаётся фактический исход этим "
                    "замером — соединение стыка это money-path и решение владельца")
+    elif name == "cio_apy_persistence.json":
+        # §49 ТЗ CIO «Persistence». Печать отдаётся САМОМУ прибору: он один
+        # знает, что дыра («ставки в день входа нет») и находка («вошли на
+        # всплеске») обязаны быть на экране ОБЕ, а не по старшинству вердикта.
+        # Повторять эту логику здесь значило бы завести вторую копию правила.
+        try:
+            from spa_core.monitoring.cio_apy_persistence import (
+                format_report as _cap_report)
+            out.extend("   " + line for line in _cap_report(data, max_rows=4))
+        except Exception as exc:  # noqa: BLE001
+            out.append(f"   [НЕ ИЗМЕРЕНО] отчёт §49 «Persistence» не собран ({exc})")
     elif name == "cio_policy_change_procedure.json":
         # §48 ТЗ CIO. Печатаются ДВА ответа порознь, потому что требование
         # владельца из двух половин: «не ослаблять молча» (что изменилось и в

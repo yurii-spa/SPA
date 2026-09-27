@@ -82,6 +82,11 @@ PRODUCES = (
     # НАКАНУНЕ, покраснел на ней на первом же прогоне: положительный контроль
     # сработал в поле через один цикл после написания.
     "data/cio_substitution_census.json",
+    # §49 ТЗ CIO, критерий «Persistence» (цикл #701, ADR-479). Объявлено ВМЕСТЕ
+    # с вызовом ниже — порядок ADR-259: строка объявления без производящего
+    # вызова и есть тот дефект, ради которого написан
+    # `test_declared_producer_is_reachable.py`.
+    "data/cio_apy_persistence.json",
     "data/evidence_staleness.json",
     "data/apy_composition.json",
     "data/findings_bridge_report.json",
@@ -262,6 +267,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_post_trade_verification",
     "cio_outcome_independence",
     "cio_substitution_census",
+    "cio_apy_persistence",
     "shadow_blockade_attribution",
     "target_stability",
     "ranking_tie_census",
@@ -402,6 +408,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "cio_substitution_census": {
         "module": "spa_core/monitoring/cio_substitution_census.py",
         "artifact": "data/cio_substitution_census.json"},
+    "cio_apy_persistence": {
+        "module": "spa_core/monitoring/cio_apy_persistence.py",
+        "artifact": "data/cio_apy_persistence.json"},
     "shadow_blockade_attribution": {
         "module": "spa_core/monitoring/shadow_blockade_attribution.py",
         "artifact": "data/shadow_blockade_attribution.json"},
@@ -2375,6 +2384,26 @@ def main(argv=None) -> int:
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него
     # достижима без единой правки исходника — свежий worktree без `data/` есть
     # штатное, протоколом предписанное дерево.
+    # §49 ТЗ CIO, критерий «Persistence»: входил ли капитал на ставку-всплеск,
+    # которой через неделю не было (цикл #701, ADR-479). Сосед по вопросу —
+    # `target_stability` (ADR-271), но он мерит МЕХАНИЗМ (маржа против дневного
+    # хода ставки), а этот — ИСХОД на деньгах, которые уже переложены. Ни одно
+    # не поправка к другому.
+    try:
+        from spa_core.monitoring import cio_apy_persistence
+        _cap = cio_apy_persistence.run(root=args.root)
+        if _cap.get("measured"):
+            _cc = observed(_cap["doc"], "counts", kind=dict)
+            _rev = (None if _cc is None
+                    else observed_number(_cc, cio_apy_persistence.VERDICT_REVERTED))
+            print(f"cio_apy_persistence: {_cap['doc'].get('status')} — входов на "
+                  f"всплеске, которого через неделю не было, "
+                  f"{'НЕ ИЗМЕРЕНО' if _rev is None else int(_rev)}")
+        else:
+            print(f"cio_apy_persistence: НЕ ИЗМЕРЕНО — "
+                  f"{_cap['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "cio_apy_persistence", e)
     try:
         from spa_core.monitoring import call_sourced_input_census
         _csi = call_sourced_input_census.run(root=args.root)
