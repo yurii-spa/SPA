@@ -796,6 +796,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "recent", "invisible", "visible",
                                      "turnover_usd_disjoint",
                                      "materiality_usd", "book_scale_usd"),
+    # Критерий §49 `Persistence` приказа CIO (ADR-481). `blind_spot_demonstrated`
+    # объявлен ОТДЕЛЬНО от `status` по той же причине, что у соседа: статус
+    # говорит про НАСТОЯЩЕЕ (есть ли свежий ход с умершим преимуществом), а
+    # слепота — про ПОСТРОЕНИЕ (ручки про устойчивость нет ни одной, цены хода
+    # в записи нет), и от тишины книги она не гаснет.
+    "gain_persistence_census.json": ("status", "criterion", "journal", "series",
+                                     "policy", "aliases", "alias_seams", "items",
+                                     "counts", "blind_spot_demonstrated",
+                                     "blind_spot", "dead", "recent_dead",
+                                     "unmeasured", "recent_unmeasured",
+                                     "negative_at_move", "oscillation_overlap",
+                                     "materiality_usd", "book_scale_usd"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -1002,6 +1014,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unresolved_path_census.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
+    "gain_persistence_census.json":
+        "spa_core/monitoring/gain_persistence_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2882,6 +2896,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ввозы двух объявленных форм).
         from spa_core.monitoring.book_oscillation_census import format_report as _boc_report
         out.extend(_boc_report(data))
+    elif name == "gain_persistence_census.json":
+        # Критерий §49 `Persistence` приказа CIO (ADR-481). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ (дефект `tier_curator`: отчёт три месяца
+        # писался в никуда). Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.gain_persistence_census import format_report as _gpc_report
+        out.extend(_gpc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
