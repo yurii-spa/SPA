@@ -809,6 +809,22 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                    "net_gate_unchecked", "fresh_findings",
                                    "records_unmeasured", "dedeployed_usd_max",
                                    "horizon_days"),
+    # Критерий §49 `Pre-trade safety` приказа CIO (ADR-487). `freshness_judgeable`
+    # объявлен ОТДЕЛЬНО от `status` намеренно: статус судит, было ли второе
+    # наблюдение входов, а эта ось говорит, ЕСТЬ ЛИ ЧЕМ судить чрезмерную
+    # старость — допуска свежести владелец не объявлял, и «нечем судить» не
+    # имеет права выглядеть как «вход свеж».
+    "pre_trade_recheck_census.json": ("status", "criterion", "policy",
+                                      "findings", "unmeasured_records",
+                                      "freshness_judgeable", "tolerance_s",
+                                      "executions", "executions_measurable",
+                                      "no_recheck", "recheck_present",
+                                      "stale_beyond_tolerance",
+                                      "records_unmeasured", "ttl_declared_count",
+                                      "window_s_min", "window_s_median",
+                                      "window_s_max", "freshest_execution",
+                                      "gate_readers", "identity",
+                                      "chain_rows", "unparsable_lines"),
     # Критерий §49 `Risk` приказа CIO (ADR-486). `gate_binding` объявлен ОТДЕЛЬНО
     # от `counts` намеренно: сводный вердикт честно говорит «не определено», когда
     # копии ярлыка спорят, а деньги связывает то, что прочёл ГЕЙТ, и утопить это в
@@ -1042,6 +1058,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/policy_binding_census.py",
     "gain_persistence_census.json":
         "spa_core/monitoring/gain_persistence_census.py",
+    "pre_trade_recheck_census.json":
+        "spa_core/monitoring/pre_trade_recheck_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2941,6 +2959,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.gain_persistence_census import format_report as _gpc_report
         out.extend(_gpc_report(data))
+    elif name == "pre_trade_recheck_census.json":
+        # Критерий §49 `Pre-trade safety` приказа CIO (ADR-487). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ (дефект `tier_curator`: отчёт три месяца
+        # писался в никуда). Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.pre_trade_recheck_census import format_report as _ptr_report
+        out.extend(_ptr_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

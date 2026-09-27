@@ -229,6 +229,11 @@ PRODUCES = (
     # `data/`, — поэтому такт суточный, как у самого ряда: чаще мерить нечего
     # (новой точки ряда нет), реже — умершее преимущество узнаётся не в тот день.
     "data/gain_persistence_census.json",
+    # Критерий §49 `Pre-trade safety` приказа владельца «Portfolio CIO»
+    # (ADR-487, цикл #708). Было ли у исполненного хода ВТОРОЕ наблюдение входов
+    # между предложением и исполнением. Ступень читает цепочку аудита — то есть
+    # ЖИВОЙ `data/`, — поэтому такт у неё суточный, как у самой цепочки.
+    "data/pre_trade_recheck_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -341,6 +346,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "keep_dominance_census",
     "policy_binding_census",
     "gain_persistence_census",
+    "pre_trade_recheck_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -597,6 +603,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "gain_persistence_census": {
         "module": "spa_core/monitoring/gain_persistence_census.py",
         "artifact": "data/gain_persistence_census.json"},
+    "pre_trade_recheck_census": {
+        "module": "spa_core/monitoring/pre_trade_recheck_census.py",
+        "artifact": "data/pre_trade_recheck_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2561,6 +2570,23 @@ def main(argv=None) -> int:
                   f"{_gpc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "gain_persistence_census", e)
+
+    # Ступень §49 `Pre-trade safety` приказа CIO (ADR-487): было ли у ходa второе
+    # наблюдение входов между предложением и исполнением. Читает цепочку аудита,
+    # ничего не чинит; заголовочное число — исполнения БЕЗ второго наблюдения.
+    try:
+        from spa_core.monitoring import pre_trade_recheck_census
+        _ptr = pre_trade_recheck_census.run(root=args.root)
+        if _ptr.get("measured"):
+            _nr = observed_number(_ptr["doc"], "no_recheck")
+            print(f"pre_trade_recheck_census: {_ptr['doc'].get('status')} — "
+                  f"исполнений без второго наблюдения входов "
+                  f"{'НЕ ИЗМЕРЕНО' if _nr is None else int(_nr)}")
+        else:
+            print(f"pre_trade_recheck_census: НЕ ИЗМЕРЕНО — "
+                  f"{_ptr['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "pre_trade_recheck_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
