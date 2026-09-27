@@ -234,6 +234,12 @@ PRODUCES = (
     # между предложением и исполнением. Ступень читает цепочку аудита — то есть
     # ЖИВОЙ `data/`, — поэтому такт у неё суточный, как у самой цепочки.
     "data/pre_trade_recheck_census.json",
+    # Критерий §49 `Owner visibility` приказа владельца «Portfolio CIO»
+    # (ADR-488, цикл #709). Доходят ли до владельца ТРИ названных им числа
+    # (current/optimal APY, Yield Gap) и рекомендация. Ступень читает журнал
+    # решений и выдачу слоя отображения — то есть ЖИВОЙ `data/`, — поэтому такт
+    # у неё суточный, как у самого журнала.
+    "data/owner_visibility_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -347,6 +353,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "policy_binding_census",
     "gain_persistence_census",
     "pre_trade_recheck_census",
+    "owner_visibility_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -606,6 +613,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "pre_trade_recheck_census": {
         "module": "spa_core/monitoring/pre_trade_recheck_census.py",
         "artifact": "data/pre_trade_recheck_census.json"},
+    "owner_visibility_census": {
+        "module": "spa_core/monitoring/owner_visibility_census.py",
+        "artifact": "data/owner_visibility_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2587,6 +2597,24 @@ def main(argv=None) -> int:
                   f"{_ptr['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "pre_trade_recheck_census", e)
+
+    # Ступень §49 `Owner visibility` приказа CIO (ADR-488): доходят ли до
+    # владельца названные им числа. Читает журнал решений и выдачу слоя
+    # отображения, ничего не чинит; заголовочное число — предметы, которые
+    # ЗАПИСАНЫ, но до владельца не доставлены.
+    try:
+        from spa_core.monitoring import owner_visibility_census
+        _ovc = owner_visibility_census.run(root=args.root)
+        if _ovc.get("measured"):
+            _lost = observed_number(_ovc["doc"], "recorded_but_not_delivered")
+            print(f"owner_visibility_census: {_ovc['doc'].get('status')} — "
+                  f"записано, но до владельца не доставлено "
+                  f"{'НЕ ИЗМЕРЕНО' if _lost is None else int(_lost)}")
+        else:
+            print(f"owner_visibility_census: НЕ ИЗМЕРЕНО — "
+                  f"{_ovc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "owner_visibility_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

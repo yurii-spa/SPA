@@ -825,6 +825,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "window_s_max", "freshest_execution",
                                       "gate_readers", "identity",
                                       "chain_rows", "unparsable_lines"),
+    # Критерий §49 `Owner visibility` приказа CIO (ADR-488). `books` объявлен
+    # отдельно от сводных счётчиков намеренно: сводка говорит СКОЛЬКО предметов
+    # не доехало, а действовать можно только по имени книги и предмета.
+    "owner_visibility_census.json": ("status", "criterion", "books",
+                                     "books_unreadable", "subjects_total",
+                                     "delivered_as_field", "prose_only",
+                                     "absent", "subjects_unmeasured",
+                                     "recorded_but_not_delivered",
+                                     "surfaces", "neighbour_rates"),
     # Критерий §49 `Risk` приказа CIO (ADR-486). `gate_binding` объявлен ОТДЕЛЬНО
     # от `counts` намеренно: сводный вердикт честно говорит «не определено», когда
     # копии ярлыка спорят, а деньги связывает то, что прочёл ГЕЙТ, и утопить это в
@@ -1060,6 +1069,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/gain_persistence_census.py",
     "pre_trade_recheck_census.json":
         "spa_core/monitoring/pre_trade_recheck_census.py",
+    "owner_visibility_census.json":
+        "spa_core/monitoring/owner_visibility_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2966,6 +2977,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.pre_trade_recheck_census import format_report as _ptr_report
         out.extend(_ptr_report(data))
+    elif name == "owner_visibility_census.json":
+        # Критерий §49 `Owner visibility` приказа CIO (ADR-488). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ, и это было бы тем самым дефектом, который
+        # прибор измеряет: он про число, не доехавшее до читателя. Правило
+        # отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.owner_visibility_census import format_report as _ovc_report
+        out.extend(_ovc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
