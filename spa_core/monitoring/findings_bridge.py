@@ -212,6 +212,12 @@ PRODUCES = (
     # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
     # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
     "data/book_oscillation_census.json",
+    # Критерий §49 `Persistence` приказа владельца «Portfolio CIO» (ADR-481,
+    # цикл #702). Удержалось ли преимущество, ради которого деньги ушли, на
+    # горизонте окупаемости владельца. Ступень читает журнал ходов и накопитель
+    # ставок — то есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё
+    # суточный, как у самого накопителя.
+    "data/apy_persistence_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -321,6 +327,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hand_truncation_census",
     "unresolved_path_census",
     "book_oscillation_census",
+    "apy_persistence_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -568,6 +575,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
+    "apy_persistence_census": {
+        "module": "spa_core/monitoring/apy_persistence_census.py",
+        "artifact": "data/apy_persistence_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2477,6 +2487,24 @@ def main(argv=None) -> int:
                   f"{_boc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "book_oscillation_census", e)
+
+    # Ступень §49 `Persistence` приказа CIO (ADR-481): удержалось ли
+    # преимущество, ради которого деньги ушли. Читает журнал ходов, накопитель
+    # ставок и поверхность решения; ничего не чинит. Заголовочное число — ходы,
+    # прошедшие планку владельца на входе и опустившиеся ниже неё за горизонт.
+    try:
+        from spa_core.monitoring import apy_persistence_census
+        _apc = apy_persistence_census.run(root=args.root)
+        if _apc.get("measured"):
+            _af = observed_number(_apc["doc"], "faded_below_owner_band")
+            print(f"apy_persistence_census: {_apc['doc'].get('status')} — ходов, у "
+                  f"которых преимущество не удержалось ниже планки владельца, "
+                  f"{'НЕ ИЗМЕРЕНО' if _af is None else int(_af)}")
+        else:
+            print(f"apy_persistence_census: НЕ ИЗМЕРЕНО — "
+                  f"{_apc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "apy_persistence_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
