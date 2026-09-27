@@ -212,6 +212,11 @@ PRODUCES = (
     # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
     # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
     "data/book_oscillation_census.json",
+    # Критерий §49 `Economics` приказа владельца «Portfolio CIO» (ADR-481,
+    # цикл #702). Побеждает ли DO NOTHING ту раскладку, которую тот же документ
+    # зовёт оптимальной. Ступень читает журналы вердиктов — то есть ЖИВОЙ
+    # `data/`, а не дерево, — поэтому такт у неё суточный, как у самих журналов.
+    "data/keep_dominance_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -321,6 +326,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hand_truncation_census",
     "unresolved_path_census",
     "book_oscillation_census",
+    "keep_dominance_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -568,6 +574,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
+    "keep_dominance_census": {
+        "module": "spa_core/monitoring/keep_dominance_census.py",
+        "artifact": "data/keep_dominance_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2477,6 +2486,24 @@ def main(argv=None) -> int:
                   f"{_boc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "book_oscillation_census", e)
+
+    # Ступень §49 `Economics` приказа CIO (ADR-481): побеждает ли решение ничего
+    # не делать ту раскладку, которую документ советника зовёт оптимальной.
+    # Читает журналы вердиктов и ничего не чинит; заголовочное число — сколько
+    # раз опубликованный оптимум проиграл KEEP по СВОЕЙ же мерке, до издержек.
+    try:
+        from spa_core.monitoring import keep_dominance_census
+        _kdc = keep_dominance_census.run(root=args.root)
+        if _kdc.get("measured"):
+            _kd = observed_number(_kdc["doc"], "dominated_by_keep")
+            print(f"keep_dominance_census: {_kdc['doc'].get('status')} — "
+                  f"опубликованный оптимум проиграл DO NOTHING "
+                  f"{'НЕ ИЗМЕРЕНО' if _kd is None else int(_kd)} раз")
+        else:
+            print(f"keep_dominance_census: НЕ ИЗМЕРЕНО — "
+                  f"{_kdc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "keep_dominance_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
