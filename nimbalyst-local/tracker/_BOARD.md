@@ -2,19 +2,22 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-26T14:30:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-27T10:35:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (08f660fe5).
+> Сверено с `origin/main` (643d7755a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1112** · ждёт владельца: **7** · занято сессиями: **14**.
+> Всего карточек: **1121** · ждёт владельца: **10** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
+- **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
 - **Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх** · _high_  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`
+- **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
 - **Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла**  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md`
 
@@ -37,14 +40,17 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (289)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (292)
 
 ### · needs-owner
+- «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
+- Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md` · 2026-09-25
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 - Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
+- Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 ### · ingested
@@ -332,7 +338,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (582)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (588)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -811,6 +817,11 @@
 - Находка петли: com.spa.agent_health: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-agent-health-kod-i.md` · 2026-09-10
 - Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
+- Находка петли: data/adapter_repair_price.json: возраст 15.9ч > SLO 7ч (класс agent_re  ·  `inbox-nahodka-petli-data-adapter-repair-price.md` · 2026-09-27
+- Находка петли: data/apy_composition.json: возраст 23.5ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-apy-composition-json.md` · 2026-09-27
+- Находка петли: data/arming_wall_order.json: возраст 15.9ч > SLO 7ч (класс agent_regis  ·  `inbox-nahodka-petli-data-arming-wall-order-jso.md` · 2026-09-27
+- Находка петли: data/asset_registry_gap_price.json: возраст 15.9ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr.md` · 2026-09-27
+- Находка петли: data/audit_trail_rate_input_coverage.json: возраст 15.9ч > SLO 7ч (кла  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu.md` · 2026-09-27
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
 - Находка петли: манифест ↔ факты: com.spa.mission_tick: агент есть в фактах, нет в ман  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-mis.md` · 2026-09-25
@@ -865,6 +876,7 @@
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
 - Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца  ·  `inbox-rabota-dvuh-pr-ne-doehala-do-main-50-i-4.md` · 2026-09-25
+- Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
 - Расширить lint_llm_forbidden.py на дверь-subprocess: запуск claude из каталогов риска/исполнения/наблюдения  ·  `inbox-rasshirit-lint-llm-forbidden-py-na-dver.md` · 2026-09-09
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20

@@ -796,6 +796,40 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "recent", "invisible", "visible",
                                      "turnover_usd_disjoint",
                                      "materiality_usd", "book_scale_usd"),
+    # Критерий §49 `Economics` приказа CIO (ADR-484). `cash_explanation`
+    # объявлена ОТДЕЛЬНО от `status` намеренно: статус судит НАСТОЯЩЕЕ (есть ли
+    # находка на свежей дате), а ось объяснения кэша — утверждение о том, по
+    # какой книге объяснение вообще считается, и оно не гаснет от тихого дня.
+    "keep_dominance_census.json": ("status", "criterion", "policy", "books",
+                                   "findings", "unmeasured_records",
+                                   "unroutable_journals", "cash_explanation",
+                                   "findings_material", "dominated_by_keep",
+                                   "net_negative_missed_by_gate",
+                                   "net_negative_caught_by_gate",
+                                   "net_gate_unchecked", "fresh_findings",
+                                   "records_unmeasured", "dedeployed_usd_max",
+                                   "horizon_days"),
+    # Критерий §49 `Risk` приказа CIO (ADR-486). `gate_binding` объявлен ОТДЕЛЬНО
+    # от `counts` намеренно: сводный вердикт честно говорит «не определено», когда
+    # копии ярлыка спорят, а деньги связывает то, что прочёл ГЕЙТ, и утопить это в
+    # оговорке значило бы ответить не на тот вопрос.
+    "policy_binding_census.json": ("status", "criterion", "journal", "thresholds",
+                                   "threshold_birth", "label_sources", "gate_reads",
+                                   "label_disagreement", "tier_unknown", "counts",
+                                   "gate_binding", "states", "present",
+                                   "latest_violation", "what_it_does_not_prove"),
+    # Критерий §49 `Persistence` приказа CIO (ADR-485). `blind_spot_demonstrated`
+    # объявлен ОТДЕЛЬНО от `status` по той же причине, что у соседа: статус
+    # говорит про НАСТОЯЩЕЕ (есть ли свежий ход с умершим преимуществом), а
+    # слепота — про ПОСТРОЕНИЕ (ручки про устойчивость нет ни одной, цены хода
+    # в записи нет), и от тишины книги она не гаснет.
+    "gain_persistence_census.json": ("status", "criterion", "journal", "series",
+                                     "policy", "aliases", "alias_seams", "items",
+                                     "counts", "blind_spot_demonstrated",
+                                     "blind_spot", "dead", "recent_dead",
+                                     "unmeasured", "recent_unmeasured",
+                                     "negative_at_move", "oscillation_overlap",
+                                     "materiality_usd", "book_scale_usd"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -1002,6 +1036,12 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unresolved_path_census.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
+    "keep_dominance_census.json":
+        "spa_core/monitoring/keep_dominance_census.py",
+    "policy_binding_census.json":
+        "spa_core/monitoring/policy_binding_census.py",
+    "gain_persistence_census.json":
+        "spa_core/monitoring/gain_persistence_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2882,6 +2922,25 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ввозы двух объявленных форм).
         from spa_core.monitoring.book_oscillation_census import format_report as _boc_report
         out.extend(_boc_report(data))
+    elif name == "keep_dominance_census.json":
+        # Критерий §49 `Economics` приказа CIO (ADR-484). Без этой ветки артефакт
+        # читается ВХОЛОСТУЮ. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.keep_dominance_census import format_report as _kdc_report
+        out.extend(_kdc_report(data))
+    elif name == "policy_binding_census.json":
+        # Критерий §49 `Risk` приказа CIO (ADR-486). Без этой ветки артефакт
+        # читается ВХОЛОСТУЮ. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ;
+        # ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух форм).
+        from spa_core.monitoring.policy_binding_census import format_report as _pbc_report
+        out.extend(_pbc_report(data))
+    elif name == "gain_persistence_census.json":
+        # Критерий §49 `Persistence` приказа CIO (ADR-485). Без этой ветки
+        # артефакт читается ВХОЛОСТУЮ (дефект `tier_curator`: отчёт три месяца
+        # писался в никуда). Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.gain_persistence_census import format_report as _gpc_report
+        out.extend(_gpc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом

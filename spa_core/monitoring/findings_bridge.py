@@ -212,6 +212,23 @@ PRODUCES = (
     # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
     # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
     "data/book_oscillation_census.json",
+    # Критерий §49 `Economics` приказа владельца «Portfolio CIO» (ADR-484,
+    # цикл #702). Побеждает ли DO NOTHING ту раскладку, которую тот же документ
+    # зовёт оптимальной. Ступень читает журналы вердиктов — то есть ЖИВОЙ
+    # `data/`, а не дерево, — поэтому такт у неё суточный, как у самих журналов.
+    "data/keep_dominance_census.json",
+    # Критерий §49 `Risk` приказа владельца «Portfolio CIO» (ADR-486, цикл #705).
+    # Нарушала ли объявленные потолки книга, которая РЕАЛЬНО стояла, — и определён
+    # ли ответ, если ярлык тира лежит в пяти копиях. Ступень читает журнал ходов
+    # (ЖИВОЙ `data/`) и историю файла политики, поэтому такт суточный, как у
+    # самого журнала.
+    "data/policy_binding_census.json",
+    # Критерий §49 `Persistence` приказа владельца «Portfolio CIO» (ADR-485,
+    # цикл #702). Сколько дней жило преимущество, которым ход был оправдан.
+    # Ступень читает журнал ходов и наблюдённый ряд ставок — то есть ЖИВОЙ
+    # `data/`, — поэтому такт суточный, как у самого ряда: чаще мерить нечего
+    # (новой точки ряда нет), реже — умершее преимущество узнаётся не в тот день.
+    "data/gain_persistence_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -321,6 +338,9 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hand_truncation_census",
     "unresolved_path_census",
     "book_oscillation_census",
+    "keep_dominance_census",
+    "policy_binding_census",
+    "gain_persistence_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -568,6 +588,15 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
+    "keep_dominance_census": {
+        "module": "spa_core/monitoring/keep_dominance_census.py",
+        "artifact": "data/keep_dominance_census.json"},
+    "policy_binding_census": {
+        "module": "spa_core/monitoring/policy_binding_census.py",
+        "artifact": "data/policy_binding_census.json"},
+    "gain_persistence_census": {
+        "module": "spa_core/monitoring/gain_persistence_census.py",
+        "artifact": "data/gain_persistence_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2477,6 +2506,61 @@ def main(argv=None) -> int:
                   f"{_boc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "book_oscillation_census", e)
+
+    # Ступень §49 `Economics` приказа CIO (ADR-484): побеждает ли решение ничего
+    # не делать ту раскладку, которую документ советника зовёт оптимальной.
+    # Читает журналы вердиктов и ничего не чинит; заголовочное число — сколько
+    # раз опубликованный оптимум проиграл KEEP по СВОЕЙ же мерке, до издержек.
+    try:
+        from spa_core.monitoring import keep_dominance_census
+        _kdc = keep_dominance_census.run(root=args.root)
+        if _kdc.get("measured"):
+            _kd = observed_number(_kdc["doc"], "dominated_by_keep")
+            print(f"keep_dominance_census: {_kdc['doc'].get('status')} — "
+                  f"опубликованный оптимум проиграл DO NOTHING "
+                  f"{'НЕ ИЗМЕРЕНО' if _kd is None else int(_kd)} раз")
+        else:
+            print(f"keep_dominance_census: НЕ ИЗМЕРЕНО — "
+                  f"{_kdc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "keep_dominance_census", e)
+
+    # Ступень §49 `Risk` приказа CIO (ADR-486): нарушала ли потолки книга, которая
+    # РЕАЛЬНО стояла. Читает журнал ходов и историю файла политики, ничего не
+    # чинит; заголовочное число — состояния, нарушившие потолок по ТЕМ копиям
+    # ярлыка тира, которые читает сам risk_gate.
+    try:
+        from spa_core.monitoring import policy_binding_census
+        _pbc = policy_binding_census.run(root=args.root)
+        if _pbc.get("measured"):
+            _gate = (_pbc["doc"].get("gate_binding") or {})
+            _gv = observed_number(_gate, "violating_count")
+            print(f"policy_binding_census: {_pbc['doc'].get('status')} — "
+                  f"исполненных состояний, нарушивших потолок по копиям гейта, "
+                  f"{'НЕ ИЗМЕРЕНО' if _gv is None else int(_gv)}")
+        else:
+            print(f"policy_binding_census: НЕ ИЗМЕРЕНО — "
+                  f"{_pbc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "policy_binding_census", e)
+
+    # Ступень §49 `Persistence` приказа CIO (ADR-485): сколько дней жило
+    # преимущество, которым ход был оправдан. Читает журнал ходов и наблюдённый
+    # ряд ставок, ничего не чинит; заголовочное число — ходы, чьё преимущество
+    # умерло раньше горизонта окупаемости владельца.
+    try:
+        from spa_core.monitoring import gain_persistence_census
+        _gpc = gain_persistence_census.run(root=args.root)
+        if _gpc.get("measured"):
+            _gd = observed_number(_gpc["doc"], "advantage_died_total")
+            print(f"gain_persistence_census: {_gpc['doc'].get('status')} — ходов, "
+                  f"чьё преимущество умерло раньше горизонта окупаемости, "
+                  f"{'НЕ ИЗМЕРЕНО' if _gd is None else int(_gd)}")
+        else:
+            print(f"gain_persistence_census: НЕ ИЗМЕРЕНО — "
+                  f"{_gpc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "gain_persistence_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
