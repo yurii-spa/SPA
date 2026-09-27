@@ -212,6 +212,12 @@ PRODUCES = (
     # есть ЖИВОЙ `data/`, а не дерево, — поэтому такт у неё суточный, как у
     # самого журнала: чаще мерить нечего, реже — прыжок узнаётся не в тот день.
     "data/book_oscillation_census.json",
+    # Критерий §49 `Risk` приказа владельца «Portfolio CIO» (ADR-481, цикл #705).
+    # Нарушала ли объявленные потолки книга, которая РЕАЛЬНО стояла, — и определён
+    # ли ответ, если ярлык тира лежит в пяти копиях. Ступень читает журнал ходов
+    # (ЖИВОЙ `data/`) и историю файла политики, поэтому такт суточный, как у
+    # самого журнала.
+    "data/policy_binding_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -321,6 +327,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "hand_truncation_census",
     "unresolved_path_census",
     "book_oscillation_census",
+    "policy_binding_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -568,6 +575,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
+    "policy_binding_census": {
+        "module": "spa_core/monitoring/policy_binding_census.py",
+        "artifact": "data/policy_binding_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2477,6 +2487,25 @@ def main(argv=None) -> int:
                   f"{_boc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "book_oscillation_census", e)
+
+    # Ступень §49 `Risk` приказа CIO (ADR-481): нарушала ли потолки книга, которая
+    # РЕАЛЬНО стояла. Читает журнал ходов и историю файла политики, ничего не
+    # чинит; заголовочное число — состояния, нарушившие потолок по ТЕМ копиям
+    # ярлыка тира, которые читает сам risk_gate.
+    try:
+        from spa_core.monitoring import policy_binding_census
+        _pbc = policy_binding_census.run(root=args.root)
+        if _pbc.get("measured"):
+            _gate = (_pbc["doc"].get("gate_binding") or {})
+            _gv = observed_number(_gate, "violating_count")
+            print(f"policy_binding_census: {_pbc['doc'].get('status')} — "
+                  f"исполненных состояний, нарушивших потолок по копиям гейта, "
+                  f"{'НЕ ИЗМЕРЕНО' if _gv is None else int(_gv)}")
+        else:
+            print(f"policy_binding_census: НЕ ИЗМЕРЕНО — "
+                  f"{_pbc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "policy_binding_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

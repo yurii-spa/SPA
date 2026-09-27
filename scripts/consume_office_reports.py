@@ -796,6 +796,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "recent", "invisible", "visible",
                                      "turnover_usd_disjoint",
                                      "materiality_usd", "book_scale_usd"),
+    # Критерий §49 `Risk` приказа CIO (ADR-481). `gate_binding` объявлен ОТДЕЛЬНО
+    # от `counts` намеренно: сводный вердикт честно говорит «не определено», когда
+    # копии ярлыка спорят, а деньги связывает то, что прочёл ГЕЙТ, и утопить это в
+    # оговорке значило бы ответить не на тот вопрос.
+    "policy_binding_census.json": ("status", "criterion", "journal", "thresholds",
+                                   "threshold_birth", "label_sources", "gate_reads",
+                                   "label_disagreement", "tier_unknown", "counts",
+                                   "gate_binding", "states", "present",
+                                   "latest_violation", "what_it_does_not_prove"),
     "rate_observation_census.json": ("status", "independence", "run_axis",
                                      "comparable_axis", "mechanism",
                                      "outside_denominator", "counts",
@@ -1002,6 +1011,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unresolved_path_census.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
+    "policy_binding_census.json":
+        "spa_core/monitoring/policy_binding_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2882,6 +2893,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ввозы двух объявленных форм).
         from spa_core.monitoring.book_oscillation_census import format_report as _boc_report
         out.extend(_boc_report(data))
+    elif name == "policy_binding_census.json":
+        # Критерий §49 `Risk` приказа CIO (ADR-481). Без этой ветки артефакт
+        # читается ВХОЛОСТУЮ. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ;
+        # ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух форм).
+        from spa_core.monitoring.policy_binding_census import format_report as _pbc_report
+        out.extend(_pbc_report(data))
     elif name == "arming_wall_order.json":
         # Заказ #545. Порядок строк — порядок вопроса: сперва ОБА порядка снятия
         # стен с числами освобождённых дней, потом вердикт ветки, и только потом
