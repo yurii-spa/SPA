@@ -622,4 +622,6 @@ def test_gating_dirs_survived_the_tightening() -> None:
     assert _GATING_DIRS == {
         "tests", "spa_core/tests", "scripts/tests",
         "spa_core/analytics/gross_of", "research/cards",
+        # studio_shell/ добавлен в CI по явному решению владельца 2026-09-28 (ADR-495):
+        "studio_shell",
     }, sorted(_GATING_DIRS)

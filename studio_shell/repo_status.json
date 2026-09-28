@@ -1,0 +1,34 @@
+{
+ "schema": "studio-os/repo-status/1",
+ "policy": "ADR-494",
+ "canonical": {
+  "ref": "origin/main",
+  "sha": "13561f72c8c458efe45c6caf06e1da0fe3931064",
+  "sha_short": "13561f72c8c4",
+  "stale_vs_remote": false,
+  "remote_sha_short": null
+ },
+ "candidate": {
+  "tree": "/private/tmp/studio-int",
+  "branch": "integration/studio-os",
+  "sha": "13561f72c8c458efe45c6caf06e1da0fe3931064",
+  "sha_short": "13561f72c8c4",
+  "state_vs_canonical": "IN_SYNC",
+  "ahead": 0,
+  "behind": 0
+ },
+ "production": {
+  "tree": "/Users/yuriikulieshov/Documents/SPA_Claude",
+  "sha": "aeaab8bdca3b3964507b5a1530e39a78f59da466",
+  "sha_short": "aeaab8bdca3b",
+  "state_vs_canonical": "DIVERGED_OR_STALE"
+ },
+ "mirror": {
+  "tree": "/Users/yuriikulieshov/Documents/SPA_mirror",
+  "sha_short": "13561f72c8c4"
+ },
+ "deployment_required": false,
+ "promotion_path": "candidate → push_to_github.py → origin/main → autosync → owner-gated restart (ADR-494)",
+ "rollback": "revert the offending commit on origin/main (never force-push); restore backup + restart for a hot agent",
+ "note": "Network-free unless check_remote=True. Candidate AHEAD = commits await owner-gated promotion; it is NOT a defect — it is the normal pre-promotion state."
+}

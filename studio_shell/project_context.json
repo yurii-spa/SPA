@@ -1,0 +1,162 @@
+{
+ "schema": "studio-os/context-pack/1",
+ "generated_note": "Generated projection from canon (ADR-495). Disposable. Re-run any time.",
+ "project": {
+  "value": {
+   "id": "earn-defi-product",
+   "name": "Earn DeFi Product",
+   "status": "ACTIVE"
+  },
+  "provenance": "data/studio_projects.json"
+ },
+ "purpose": {
+  "value": "The public product surface (earn-defi.com) and its owner-facing experience — honest APY/evidence, paper-stage, no solicitation.",
+  "provenance": "data/studio_projects.json"
+ },
+ "boundaries": {
+  "value": "Studio OS manages WORK ON the Investment Engine; the Investment Engine owns financial truth. Read-only cockpit; no money path; RiskPolicy untouched.",
+  "provenance": "data/studio_projects.json / ADR-495 / CLAUDE.md invariants"
+ },
+ "accepted_decisions": {
+  "value": [
+   {
+    "id": "ADR-029",
+    "summary": "Research strategies framework",
+    "status": "Accepted"
+   },
+   {
+    "id": "ADR-030",
+    "summary": "PIT backtest standard",
+    "status": "Accepted"
+   },
+   {
+    "id": "ADR-034",
+    "summary": "Two-tier kill-switch (исходный)",
+    "status": "Superseded by ADR-048"
+   },
+   {
+    "id": "ADR-048",
+    "summary": "Two-tier kill-switch SOFT −5% / HARD −10% inclusive",
+    "status": "Accepted"
+   },
+   {
+    "id": "ADR-050",
+    "summary": "RiskPolicy → governance-слой; API auth; exec-bypass закрыт",
+    "status": "Accepted"
+   },
+   {
+    "id": "ADR-053",
+    "summary": "RTMR real-time monitoring sense-loop",
+    "status": "Accepted"
+   }
+  ],
+  "provenance": "docs/decisions/INDEX.md"
+ },
+ "proposed_decisions": {
+  "value": [],
+  "provenance": "docs/decisions/drafts/"
+ },
+ "roadmap": {
+  "value": "# SPA — STATE (текущее состояние проекта)\n> Живой файл состояния. Оркестратор читает в начале цикла и обновляет в конце.\n> Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,\n> задачи, решения, вопросы. **Максимум ~150 строк.**\n>\n> **Хроника циклов живёт в `docs/journal/<неделя>.md`, а НЕ здесь.** Сюда — только то, что меняет ответ на «что делать дальше».",
+  "provenance": "docs/STATE.md"
+ },
+ "work": {
+  "value": {
+   "active": 0,
+   "owner_wait": 5,
+   "blocked": 0,
+   "review": 0,
+   "failed": 2,
+   "done_recent": 10
+  },
+  "provenance": "studio_shell/read_model.json ← mission-state/v04/ledger.json"
+ },
+ "owner_decisions_waiting": {
+  "value": [
+   {
+    "title": "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются"
+   },
+   {
+    "title": "Критичная находка петли: com.spa.director_server загружен, в манифесте ОТСУТСТВУЕТ (класс swarm"
+   },
+   {
+    "title": "Критичная находка петли: com.spa.director_build загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_"
+   },
+   {
+    "title": "Потолок Base-цепочки записан в трёх местах — какое из них главное?"
+   },
+   {
+    "title": "Пять процентов кэша записаны в двух местах — это одно правило или два?"
+   }
+  ],
+  "provenance": "studio_shell/read_model.json#decisions"
+ },
+ "recent_activity": {
+  "value": [
+   "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)"
+  ],
+  "provenance": "studio_shell/read_model.json#activity"
+ },
+ "releases": {
+  "value": {
+   "golive": "27/29"
+  },
+  "provenance": "data/golive_status.json"
+ },
+ "research": {
+  "value": {
+   "maturity_register": true
+  },
+  "provenance": "docs/MATURITY_REGISTER.md / research/"
+ },
+ "risks": {
+  "value": {
+   "risk_alerts": 18
+  },
+  "provenance": "studio_shell/read_model.json#system.health.risk_alerts"
+ },
+ "runtime_health": {
+  "value": {
+   "dispatch": "closed"
+  },
+  "provenance": "studio_shell/read_model.json#system.dispatch"
+ },
+ "last_handoff": {
+  "value": {
+   "project_id": "studio-os",
+   "ts": "2026-09-28T02:00:00Z",
+   "requested": "Pre-promotion hardening",
+   "done": "ADR-492→OWNER_REVIEW; Relationship Registry ADR-493 (per-task records, origin-typed, no silent fail); handoff→per-session files; research orphans→HEURISTIC labels",
+   "changed": "spa_core/studio_os/{links,handoff,research,context}.py; owner_remote/gateway.py; studio_shell/{studio_core.js,build_studio_core.py,graph.html}",
+   "decisions": "ADR-492 downgraded (owner did not explicitly accept); ADR-493 PROPOSED",
+   "evidence": null,
+   "tests": null,
+   "commits": null,
+   "open_questions": null,
+   "blockers": null,
+   "next_action": "Owner: accept ADR-492/493; authorize promotion cherry-pick",
+   "owner_action": "review ADR-492/493"
+  },
+  "provenance": "data/handoffs/ (per-session) + legacy data/studio_handoffs.jsonl"
+ },
+ "next_recommended_work": {
+  "value": "Resolve 5 owner-waiting decision(s) — see DECISIONS.",
+  "provenance": "derived from work counts + owner queue"
+ },
+ "do_not_redesign": {
+  "value": [
+   "FounderOS/JARVIS shell",
+   "RiskPolicy v1.0",
+   "the mission ledger",
+   "the ADR decision authority",
+   "the Telegram production bot (one bot)"
+  ],
+  "provenance": "ADR-495 / CLAUDE.md invariants"
+ },
+ "generated_at": "2026-09-28T09:49:46+00:00"
+}

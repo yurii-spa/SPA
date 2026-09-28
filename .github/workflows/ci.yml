@@ -134,7 +134,7 @@ jobs:
       # spa_core/analytics/gross_of/ (295 тестов, 0.2с) и research/cards/ (7).
       - name: Run scripts/ gate tests + colocated suites
         run: |
-          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
+          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ studio_shell/ \
             -q --tb=short -p no:randomly
         env:
           SPA_ENV: ci

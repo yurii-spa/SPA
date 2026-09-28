@@ -1,0 +1,66 @@
+{
+ "schema": "earn-defi/slice-comparison/1",
+ "kind": "FACTUAL_SIDE_BY_SIDE (not a ranking/recommendation)",
+ "rows": [
+  "evidence",
+  "apy_pct",
+  "position_apy",
+  "tvl_usd",
+  "tvl_source",
+  "strategy_binding",
+  "candidate_strategies",
+  "held",
+  "paper_capital_usd",
+  "risk_gates_passed",
+  "freshness",
+  "result",
+  "missing_or_partial_fields"
+ ],
+ "a": {
+  "protocol": "Aave V3",
+  "id": "op:aave_v3",
+  "evidence": "UNEVIDENCED (static/fallback)",
+  "apy_pct": 3.5,
+  "position_apy": null,
+  "tvl_usd": 12000000000.0,
+  "tvl_source": "static",
+  "strategy_binding": "MISSING",
+  "candidate_strategies": 7,
+  "held": false,
+  "paper_capital_usd": 0,
+  "risk_gates_passed": "1/3",
+  "risk_gate_detail": {
+   "APY ∈ [1.0, 30.0]%": true,
+   "APY must be evidenced (live)": false,
+   "live TVL ≥ $5,000,000 (ADR-053: static does NOT count)": false
+  },
+  "freshness": "UNKNOWN",
+  "result": "NOT FUNDABLE · UNEVIDENCED",
+  "new_allocation_fundable": false,
+  "missing_or_partial_fields": 18
+ },
+ "b": {
+  "protocol": "Pendle Finance (PT markets)",
+  "id": "op:pendle",
+  "evidence": "UNEVIDENCED (static/fallback)",
+  "apy_pct": 8.0,
+  "position_apy": 13.9419,
+  "tvl_usd": 500000000.0,
+  "tvl_source": "static",
+  "strategy_binding": "MISSING",
+  "candidate_strategies": 7,
+  "held": true,
+  "paper_capital_usd": 20000.0,
+  "risk_gates_passed": "1/3",
+  "risk_gate_detail": {
+   "APY ∈ [1.0, 30.0]%": true,
+   "APY must be evidenced (live)": false,
+   "live TVL ≥ $5,000,000 (ADR-053: static does NOT count)": false
+  },
+  "freshness": "UNKNOWN",
+  "result": "PAPER · HELD",
+  "new_allocation_fundable": false,
+  "missing_or_partial_fields": 16
+ },
+ "note": "Same shared projections. No score, no advice — facts side by side so the Owner sees WHY one object is closer to fundable than another."
+}

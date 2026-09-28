@@ -1,0 +1,161 @@
+{
+ "schema": "studio-os/project-registry/1",
+ "note": "Projects as first-class objects. POINTERS to canonical sources — never copied content. Studio OS manages WORK ON the Investment Engine; the Investment Engine owns financial truth.",
+ "updated_at": "2026-09-27",
+ "projects": [
+  {
+   "project_id": "studio-os",
+   "name": "Studio OS",
+   "purpose": "The persistent company brain: the OS in which Earn DeFi is developed across many temporary AI sessions without losing decisions, context, or work.",
+   "status": "ACTIVE",
+   "owner": "@yurii",
+   "repositories": [
+    "yurii-spa/SPA (origin/main = canonical, ADR-494)"
+   ],
+   "canonical_docs": [
+    "PROJECT_CONTROL/00_START_HERE.md",
+    "CLAUDE.md",
+    "docs/SYSTEM_MAP.md"
+   ],
+   "architecture_docs": [
+    "docs/decisions/ADR-494-canonical-repository-and-deployment-policy.md",
+    "docs/decisions/ADR-495-studio-os-core-v1-registry-context-decisions.md",
+    "docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md"
+   ],
+   "roadmap": [
+    "MASTER_PLAN_v1.md",
+    "docs/STATE.md"
+   ],
+   "task_sources": [
+    "studio-os-scratch/mission-state/v04/ledger.json",
+    "nimbalyst-local/tracker/_BOARD.md",
+    "KANBAN.json"
+   ],
+   "decision_sources": [
+    "docs/decisions/",
+    "docs/adr/",
+    "docs/decisions/INDEX.md"
+   ],
+   "research_sources": [
+    "docs/MATURITY_REGISTER.md"
+   ],
+   "release_sources": [
+    "PROJECT_CONTROL/11_CHANGELOG.md",
+    "git tags"
+   ],
+   "runtime_components": [
+    "studio_shell/ (read-only cockpit)",
+    "spa_core/studio_os/ (core projectors)"
+   ],
+   "interfaces": [
+    "studio_shell/graph.html (desktop)",
+    "spa_core/telegram/bot.py (Owner gateway)"
+   ],
+   "dependencies": [],
+   "last_handoff": "data/studio_handoffs.jsonl",
+   "updated_at": "2026-09-27"
+  },
+  {
+   "project_id": "earn-defi-product",
+   "name": "Earn DeFi Product",
+   "purpose": "The public product surface (earn-defi.com) and its owner-facing experience — honest APY/evidence, paper-stage, no solicitation.",
+   "status": "ACTIVE",
+   "owner": "@yurii",
+   "repositories": [
+    "yurii-spa/SPA (landing/)",
+    "earn-defi site repo (separate)"
+   ],
+   "canonical_docs": [
+    ".claude/rules/site-copy.md",
+    ".claude/rules/site-numbers.md"
+   ],
+   "architecture_docs": [
+    "docs/decisions/ADR-YL-011 (Site Custodian)"
+   ],
+   "roadmap": [
+    "MASTER_PLAN_v1.md",
+    "docs/PHASE2_ROADMAP.md"
+   ],
+   "task_sources": [
+    "nimbalyst-local/tracker/_BOARD.md"
+   ],
+   "decision_sources": [
+    "docs/decisions/"
+   ],
+   "research_sources": [
+    "research/",
+    "docs/37_apy_realism_and_evidence_standard.md"
+   ],
+   "release_sources": [
+    "data/golive_status.json",
+    ".github/workflows/deploy-landing.yml"
+   ],
+   "runtime_components": [
+    "landing/ (Cloudflare Pages)",
+    "studio_shell/ slices (Aave/Pendle)"
+   ],
+   "interfaces": [
+    "earn-defi.com",
+    "studio_shell slice + compare views"
+   ],
+   "dependencies": [
+    "investment-engine"
+   ],
+   "last_handoff": "data/studio_handoffs.jsonl",
+   "updated_at": "2026-09-27"
+  },
+  {
+   "project_id": "investment-engine",
+   "name": "Investment Engine",
+   "purpose": "The deterministic paper-trading yield engine: adapters, RiskPolicy v1.0, kill-switch, allocator. OWNS financial truth. Studio OS never copies its state into canon.",
+   "status": "ACTIVE (paper)",
+   "owner": "@yurii",
+   "repositories": [
+    "yurii-spa/SPA (spa_core/)"
+   ],
+   "canonical_docs": [
+    ".claude/rules/risk-engine.md",
+    ".claude/rules/adapters.md",
+    "docs/06_spa_core_invariants.md"
+   ],
+   "architecture_docs": [
+    "docs/decisions/ADR-034 / ADR-048 (kill-switch)",
+    "docs/decisions/ADR-050 / ADR-053 / ADR-055"
+   ],
+   "roadmap": [
+    "MASTER_PLAN_v1.md (MP-xxx)",
+    "KANBAN.json"
+   ],
+   "task_sources": [
+    "studio-os-scratch/mission-state/v04/ledger.json",
+    "KANBAN.json"
+   ],
+   "decision_sources": [
+    "docs/decisions/",
+    "docs/adr/"
+   ],
+   "research_sources": [
+    "research/",
+    "docs/37_apy_realism_and_evidence_standard.md",
+    "docs/MATURITY_REGISTER.md"
+   ],
+   "release_sources": [
+    "data/golive_status.json"
+   ],
+   "runtime_components": [
+    "spa_core/paper_trading/",
+    "spa_core/risk/policy.py (EXECUTED)",
+    "spa_core/governance/kill_switch.py",
+    "spa_core/adapters/"
+   ],
+   "interfaces": [
+    "spa_core/owner_remote/slice.py (read-only projection)",
+    "data/current_positions.json (financial truth — engine-owned)"
+   ],
+   "dependencies": [],
+   "boundary": "OWNS financial truth. Studio OS reads projections only; never writes capital/RiskPolicy.",
+   "last_handoff": "data/studio_handoffs.jsonl",
+   "updated_at": "2026-09-27"
+  }
+ ]
+}

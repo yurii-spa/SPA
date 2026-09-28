@@ -1,0 +1,480 @@
+{
+ "schema": "earn-defi/investment-slice/1",
+ "entity": {
+  "id": "op:pendle",
+  "protocol": "pendle",
+  "label": "Pendle Finance (PT markets)"
+ },
+ "chain_stages": [
+  "OPPORTUNITY",
+  "STRATEGY",
+  "POSITION",
+  "CAPITAL",
+  "RISK",
+  "RESULT",
+  "WHY"
+ ],
+ "opportunity": {
+  "protocol": {
+   "status": "AVAILABLE",
+   "value": "Pendle Finance (PT markets)",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "chain": {
+   "status": "AVAILABLE",
+   "value": "ethereum",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "asset": {
+   "status": "DERIVABLE",
+   "value": "USDC",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": "derived: stablecoin supply market"
+  },
+  "apy_pct": {
+   "status": "AVAILABLE",
+   "value": 8.0,
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "apy_evidence": {
+   "status": "AVAILABLE",
+   "value": "UNEVIDENCED (static/fallback)",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "tvl_usd": {
+   "status": "AVAILABLE",
+   "value": 500000000.0,
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "tvl_source": {
+   "status": "AVAILABLE",
+   "value": "static",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "liquidity_capacity": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no capacity/liquidity field in adapter snapshot"
+  },
+  "freshness": {
+   "status": "AVAILABLE",
+   "value": "UNKNOWN",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  }
+ },
+ "strategy": {
+  "candidate_strategies": {
+   "status": "AVAILABLE",
+   "value": [
+    {
+     "id": "S3",
+     "name": "Aave Arbitrum L2 + Morpho",
+     "tier": "T1",
+     "status": "active"
+    },
+    {
+     "id": "S6",
+     "name": "Max Diversified",
+     "tier": "T2",
+     "status": "active"
+    },
+    {
+     "id": "s9_emode_looping",
+     "name": "S9 — Aave E-Mode USDC Looping",
+     "tier": "T3",
+     "status": "active"
+    },
+    {
+     "id": "S14",
+     "name": "S14 Arbitrum Radiant Max",
+     "tier": "T2",
+     "status": "active"
+    },
+    {
+     "id": "S15",
+     "name": "MultiChain L2 Yield",
+     "tier": "T1",
+     "status": "active"
+    },
+    {
+     "id": "S17",
+     "name": "Polygon Yield",
+     "tier": "T1",
+     "status": "active"
+    },
+    {
+     "id": "S21_LOOP",
+     "name": "Aave V3 USDC Recursive Loop",
+     "tier": "T2",
+     "status": "active"
+    }
+   ],
+   "provenance": "data/strategy_summary.json#strategies",
+   "note": null
+  },
+  "active_binding": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no canonical opportunity→strategy→position binding exists (no allocation). Required later: a position record naming the chosen strategy_id."
+  }
+ },
+ "position": {
+  "position_id": {
+   "status": "AVAILABLE",
+   "value": "pendle",
+   "provenance": null,
+   "note": null
+  },
+  "strategy_id": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no active binding (see strategy.active_binding)"
+  },
+  "purpose": {
+   "status": "DERIVABLE",
+   "value": "stablecoin yield (supply)",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "capital_amount": {
+   "status": "AVAILABLE",
+   "value": 20000.0,
+   "provenance": "data/current_positions.json#positions_detail",
+   "note": null
+  },
+  "track": {
+   "status": "AVAILABLE",
+   "value": "PAPER",
+   "provenance": "data/current_positions.json#execution_mode",
+   "note": null
+  },
+  "asset": {
+   "status": "DERIVABLE",
+   "value": "USDC",
+   "provenance": null,
+   "note": null
+  },
+  "chain": {
+   "status": "AVAILABLE",
+   "value": "ethereum",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "protocol": {
+   "status": "AVAILABLE",
+   "value": "Pendle Finance (PT markets)",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "mechanism": {
+   "status": "DERIVABLE",
+   "value": "over-collateralised lending (supply)",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "yield_source": {
+   "status": "DERIVABLE",
+   "value": "variable supply APY",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "position_apy": {
+   "status": "AVAILABLE",
+   "value": 13.9419,
+   "provenance": "data/current_positions.json#positions_detail",
+   "note": "APY recorded ON the position (may differ from the live adapter snapshot)"
+  },
+  "position_apy_source": {
+   "status": "AVAILABLE",
+   "value": "live",
+   "provenance": "data/current_positions.json#positions_detail",
+   "note": "live = evidenced at/for this position; fallback_stale = not fresh"
+  },
+  "gross_apy": {
+   "status": "AVAILABLE",
+   "value": 13.9419,
+   "provenance": "data/current_positions.json#positions_detail",
+   "note": "position-recorded"
+  },
+  "costs": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no cost model for an unheld position"
+  },
+  "net_apy": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "requires costs + a held position"
+  },
+  "risk_tier": {
+   "status": "AVAILABLE",
+   "value": "T1",
+   "provenance": "data/strategy_summary.json",
+   "note": "tier of the nearest candidate strategy; not a position tier"
+  },
+  "protocol_score": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no protocol-score field in canonical snapshot"
+  },
+  "tvl": {
+   "status": "AVAILABLE",
+   "value": 500000000.0,
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "incident_history": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no incident-history canonical source wired"
+  },
+  "audit_evidence": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no audit-evidence field in snapshot"
+  },
+  "oracle_risk": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no oracle-risk field in snapshot"
+  },
+  "timelock_status": {
+   "status": "NOT_APPLICABLE",
+   "value": null,
+   "provenance": null,
+   "note": "GSM timelock gate applies to Sky/sUSDS, not Aave supply"
+  },
+  "entry_route": {
+   "status": "DERIVABLE",
+   "value": null,
+   "provenance": null,
+   "note": "no position to enter/held"
+  },
+  "entry_cost": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": null
+  },
+  "ongoing_cost": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": null
+  },
+  "exit_route": {
+   "status": "DERIVABLE",
+   "value": null,
+   "provenance": null,
+   "note": null
+  },
+  "exit_cost": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": null
+  },
+  "exit_liquidity": {
+   "status": "PARTIAL",
+   "value": null,
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": "TVL known ($ large) but no capacity/util field"
+  },
+  "exit_conditions": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": null
+  },
+  "stress_scenarios": {
+   "status": "MISSING",
+   "value": null,
+   "provenance": null,
+   "note": "no stress-scenario canonical source wired"
+  },
+  "monitoring_policy": {
+   "status": "DERIVABLE",
+   "value": "daily cycle re-evaluates APY/TVL evidence; stale feed → unfundable",
+   "provenance": ".claude/rules/adapters.md / RiskPolicy",
+   "note": null
+  },
+  "evidence": {
+   "status": "AVAILABLE",
+   "value": "APY unevidenced (live_apy=null); TVL static",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  },
+  "decision_history": {
+   "status": "PARTIAL",
+   "value": "see WHY trace",
+   "provenance": "studio_shell/why_aave.json",
+   "note": null
+  },
+  "status": {
+   "status": "AVAILABLE",
+   "value": "NOT HELD · UNEVIDENCED",
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "note": null
+  }
+ },
+ "capital": {
+  "track": {
+   "status": "AVAILABLE",
+   "value": "PAPER",
+   "provenance": "data/current_positions.json#execution_mode",
+   "note": null
+  },
+  "allocated_to_this": {
+   "status": "AVAILABLE",
+   "value": 20000.0,
+   "provenance": "data/current_positions.json",
+   "note": "0 — no capital allocated to this opportunity"
+  },
+  "book_total_usd": {
+   "status": "AVAILABLE",
+   "value": 100000.0,
+   "provenance": "data/current_positions.json#capital_usd",
+   "note": null
+  },
+  "deployed_usd": {
+   "status": "AVAILABLE",
+   "value": 80000.0,
+   "provenance": "data/current_positions.json",
+   "note": null
+  },
+  "cash_usd": {
+   "status": "AVAILABLE",
+   "value": 20000.0,
+   "provenance": "data/current_positions.json",
+   "note": null
+  },
+  "allocation_pct": {
+   "status": "AVAILABLE",
+   "value": 0.0,
+   "provenance": "data/current_positions.json",
+   "note": "0% of book"
+  },
+  "real_money_implication": {
+   "status": "AVAILABLE",
+   "value": "NONE — PAPER/virtual",
+   "provenance": null,
+   "note": null
+  }
+ },
+ "risk": {
+  "policy_version": {
+   "status": "AVAILABLE",
+   "value": "v1.0",
+   "provenance": "spa_core/risk/policy.py",
+   "note": null
+  },
+  "policy_kind": {
+   "status": "AVAILABLE",
+   "value": "EXECUTED",
+   "provenance": null,
+   "note": null
+  },
+  "gates": {
+   "status": "AVAILABLE",
+   "value": [
+    {
+     "rule": "APY ∈ [1.0, 30.0]%",
+     "input": 8.0,
+     "pass": true,
+     "policy": "EXECUTED — spa_core/risk/policy.py#RiskConfig"
+    },
+    {
+     "rule": "APY must be evidenced (live)",
+     "input": "UNEVIDENCED",
+     "pass": false,
+     "policy": "EXECUTED — spa_core/risk/policy.py#RiskConfig"
+    },
+    {
+     "rule": "live TVL ≥ $5,000,000 (ADR-053: static does NOT count)",
+     "input": "500000000.0 (static/unevidenced)",
+     "pass": false,
+     "policy": "EXECUTED — spa_core/risk/policy.py#RiskConfig"
+    }
+   ],
+   "provenance": "EXECUTED — spa_core/risk/policy.py#RiskConfig",
+   "note": null
+  },
+  "fundable": {
+   "status": "DERIVABLE",
+   "value": false,
+   "provenance": "EXECUTED — spa_core/risk/policy.py#RiskConfig",
+   "note": null
+  },
+  "reason": {
+   "status": "AVAILABLE",
+   "value": "blocked by: APY must be evidenced (live); live TVL ≥ $5,000,000 (ADR-053: static does NOT count)",
+   "provenance": null,
+   "note": null
+  }
+ },
+ "result": {
+  "label": {
+   "status": "AVAILABLE",
+   "value": "PAPER · HELD",
+   "provenance": null,
+   "note": null
+  },
+  "held": {
+   "status": "AVAILABLE",
+   "value": true,
+   "provenance": null,
+   "note": null
+  },
+  "new_allocation_fundable": {
+   "status": "DERIVABLE",
+   "value": false,
+   "provenance": "EXECUTED — spa_core/risk/policy.py#RiskConfig",
+   "note": null
+  },
+  "reason": {
+   "status": "AVAILABLE",
+   "value": "held $20,000 (PAPER). NEW-capital fundability: blocked by: APY must be evidenced (live); live TVL ≥ $5,000,000 (ADR-053: static does NOT count)",
+   "provenance": null,
+   "note": null
+  }
+ },
+ "why": {
+  "available": {
+   "status": "AVAILABLE",
+   "value": true,
+   "provenance": "studio_shell/why_aave.json",
+   "note": null
+  },
+  "trace_partial": {
+   "status": "AVAILABLE",
+   "value": true,
+   "provenance": null,
+   "note": null
+  },
+  "missing_edges": {
+   "status": "AVAILABLE",
+   "value": [
+    "strategy→position binding"
+   ],
+   "provenance": null,
+   "note": null
+  }
+ },
+ "note": "Read-only projection. Not canonical state. Blanks marked MISSING/NA, never invented."
+}

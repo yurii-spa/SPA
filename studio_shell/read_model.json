@@ -1,0 +1,770 @@
+{
+ "schema": "studio-os/cockpit-read-model/1",
+ "generated_at": "2026-09-27T22:47:56.439462+00:00",
+ "generator": "studio_shell/build_read_model.py",
+ "canonical_note": "ПРОИЗВОДНАЯ проекция. Источник правды — файлы/git/ledger. У каждой сущности есть `source`. UI не есть память компании.",
+ "sources": {
+  "ledger": {
+   "path": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json",
+   "present": true,
+   "updated_at": "2026-09-27T22:35:42.265665+00:00",
+   "age_seconds": 734,
+   "freshness": "LIVE"
+  },
+  "tracker_board": {
+   "path": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md"
+  }
+ },
+ "freshness_legend": {
+  "LIVE": "< 15m",
+  "RECENT": "< 6h",
+  "STALE": ">= 6h",
+  "UNKNOWN": "нет отметки времени"
+ },
+ "overview": {
+  "counts": {
+   "planned": 0,
+   "queued": 0,
+   "running": 0,
+   "review": 0,
+   "owner_wait": 0,
+   "blocked": 0,
+   "failed": 2,
+   "done": 10
+  },
+  "missions_total": 2,
+  "work_total": 12,
+  "owner_waiting": 5,
+  "running": 0,
+  "blocked": 0,
+  "failed": 2,
+  "done": 10,
+  "dispatch_open": false,
+  "ledger_freshness": {
+   "path": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json",
+   "present": true,
+   "updated_at": "2026-09-27T22:35:42.265665+00:00",
+   "age_seconds": 734,
+   "freshness": "LIVE"
+  }
+ },
+ "missions": [
+  {
+   "id": "mis-3addfa5685e9db5e8803",
+   "title": "V04-SELF-HOST: Studio OS достраивает управление миссиями",
+   "state": "ACTIVE",
+   "ui_state": "running",
+   "permission_zone": "AUTONOMOUS",
+   "priority": "OWNER_BUILD",
+   "owner_intent": "Достроить безопасные способности управления миссиями Studio OS v0.4 силами самой плоскости исполнения миссий. Остались измеренные пробелы: (1) проекция «лента миссии» — недавние завершения и переходы, выведенные из канонических улик; (2) операционные показатели здоровья управлени",
+   "success_criteria": [
+    "каждая работа имеет машинный критерий приёмки",
+    "фактическая зона записи не выходит за объявленную",
+    "целевая проверка зелёная у каждой принятой пачки",
+    "интеграция производит НОВУЮ личность кандидата с родословной"
+   ],
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#missions.mis-3addfa5685e9db5e8803"
+  },
+  {
+   "id": "mis-2f3d7440d356ed458dd3",
+   "title": "V05-REVIEW-AND-REPAIR: суждение и починка в расписании",
+   "state": "ACTIVE",
+   "ui_state": "running",
+   "permission_zone": "AUTONOMOUS",
+   "priority": "OWNER_BUILD",
+   "owner_intent": "Провести суждение и самопочинку в расписание так, чтобы ни один свод изменений не входил в интеграцию без суждения, а найденное ревьюером возвращалось в работу без человека. Слой ревью существует и покрыт пробами, но в поток миссии НЕ ПРОВЕДЁН: вызывающих ноль, поэтому каждый сво",
+   "success_criteria": [
+    "ни один свод не входит в интеграцию без записанного суждения, и это проверяется пробой, а не порядком вызовов",
+    "вердикт REPAIR_REQUIRED порождает новую попытку через расписание, без человека",
+    "вердикт OWNER_REQUIRED виден во входе решений владельца",
+    "предел попыток починки объявлен и его исчерпание НАЗВАНО"
+   ],
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#missions.mis-2f3d7440d356ed458dd3"
+  }
+ ],
+ "work": [
+  {
+   "id": "wi-12d5513964536a6458b05699",
+   "work_item_id": "wi-12d5513964536a6458b05699",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Остановка выдачи новой работы: состояние сохраняется, начатые работники доживают",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-12d5513964536a6458b05699",
+   "created_at": "2026-09-24T18:00:12.819908+00:00",
+   "last_transition": "2026-09-24T19:11:04.604898+00:00",
+   "history_len": 50,
+   "attempt": 3,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-12d5513964536a6458b05699"
+  },
+  {
+   "id": "wi-5e710b72bc95e7fdd620ed4b",
+   "work_item_id": "wi-5e710b72bc95e7fdd620ed4b",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Лента миссии: проекция завершений и переходов, выведенная из канонических улик",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-5e710b72bc95e7fdd620ed4b",
+   "created_at": "2026-09-24T18:00:12.822662+00:00",
+   "last_transition": "2026-09-24T19:28:15.890917+00:00",
+   "history_len": 68,
+   "attempt": 3,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-5e710b72bc95e7fdd620ed4b"
+  },
+  {
+   "id": "wi-024eb1735ca9f8330ff199b5",
+   "work_item_id": "wi-024eb1735ca9f8330ff199b5",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Операционные показатели здоровья управления миссиями без выдуманных нулей",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-024eb1735ca9f8330ff199b5",
+   "created_at": "2026-09-24T18:00:12.824912+00:00",
+   "last_transition": "2026-09-24T19:28:15.927093+00:00",
+   "history_len": 98,
+   "attempt": 4,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-024eb1735ca9f8330ff199b5"
+  },
+  {
+   "id": "wi-7b260ceed8e9db30c78893c4",
+   "work_item_id": "wi-7b260ceed8e9db30c78893c4",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Прибор масштаба: время тика, проверки графа и расчёта готовности на графах разного размера",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-7b260ceed8e9db30c78893c4",
+   "created_at": "2026-09-24T18:15:52.978988+00:00",
+   "last_transition": "2026-09-24T19:28:15.958249+00:00",
+   "history_len": 47,
+   "attempt": 3,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-7b260ceed8e9db30c78893c4"
+  },
+  {
+   "id": "wi-39db02773fa0ecd05aa5aba0",
+   "work_item_id": "wi-39db02773fa0ecd05aa5aba0",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Документ операций: как остановить выдачу и как понять, что она завершена",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-39db02773fa0ecd05aa5aba0",
+   "created_at": "2026-09-24T19:33:17.043302+00:00",
+   "last_transition": "2026-09-24T19:33:17.353215+00:00",
+   "history_len": 3,
+   "attempt": 1,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-39db02773fa0ecd05aa5aba0"
+  },
+  {
+   "id": "wi-e8307e497992d594cd032a35",
+   "work_item_id": "wi-e8307e497992d594cd032a35",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Ворота интеграции спрашивают суждение: свод без ревью не входит, и это меряется исходом, а не порядком вызовов",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-e8307e497992d594cd032a35",
+   "created_at": "2026-09-24T21:59:02.401695+00:00",
+   "last_transition": "2026-09-24T21:59:02.424605+00:00",
+   "history_len": 3,
+   "attempt": 1,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-e8307e497992d594cd032a35"
+  },
+  {
+   "id": "wi-a286d8c666cf778721e6355f",
+   "work_item_id": "wi-a286d8c666cf778721e6355f",
+   "mission_id": "mis-3addfa5685e9db5e8803",
+   "title": "Проверка: фактическая зона записи не вышла за объявленную, интеграция дала новую личность кандидата",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-a286d8c666cf778721e6355f",
+   "created_at": "2026-09-24T22:14:03.355106+00:00",
+   "last_transition": "2026-09-25T01:29:17.395382+00:00",
+   "history_len": 44,
+   "attempt": 5,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-a286d8c666cf778721e6355f"
+  },
+  {
+   "id": "wi-81b130cec4108c7103ef84d2",
+   "work_item_id": "wi-81b130cec4108c7103ef84d2",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Вердикт OWNER_REQUIRED виден во входе решений владельца: один источник нужды, а не два экрана",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-81b130cec4108c7103ef84d2",
+   "created_at": "2026-09-24T22:44:06.753574+00:00",
+   "last_transition": "2026-09-24T22:44:06.796859+00:00",
+   "history_len": 3,
+   "attempt": 2,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-81b130cec4108c7103ef84d2"
+  },
+  {
+   "id": "wi-946df6c507dd5f1c0b384d90",
+   "work_item_id": "wi-946df6c507dd5f1c0b384d90",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Род намерения «суждение»: ревью отправляется ТЕМ ЖЕ тиком и тем же долгим заданием, что и реализация",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-946df6c507dd5f1c0b384d90",
+   "created_at": "2026-09-25T01:44:18.332619+00:00",
+   "last_transition": "2026-09-25T03:59:32.266162+00:00",
+   "history_len": 59,
+   "attempt": 7,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-946df6c507dd5f1c0b384d90"
+  },
+  {
+   "id": "wi-3b106b582df529f05ce2903b",
+   "work_item_id": "wi-3b106b582df529f05ce2903b",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Вердикт ревью связан с жизненным состоянием работы: приёмка · НОВАЯ попытка · владелец · не измерено",
+   "state": "COMPLETED",
+   "ui_state": "done",
+   "zone": "memory",
+   "reason_code": "INTENT_COMPLETED",
+   "request_summary": "работа миссии wi-3b106b582df529f05ce2903b",
+   "created_at": "2026-09-25T04:14:34.042757+00:00",
+   "last_transition": "2026-09-25T06:14:46.530211+00:00",
+   "history_len": 44,
+   "attempt": 3,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-3b106b582df529f05ce2903b"
+  },
+  {
+   "id": "wi-391cbc05097b3b59e1ac1e7b",
+   "work_item_id": "wi-391cbc05097b3b59e1ac1e7b",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Решение записано: ADR о проводке суждения и починки, и документы перестают утверждать «вызывающих ноль»",
+   "state": "FAILED_RETRYABLE",
+   "ui_state": "failed",
+   "zone": "reliability",
+   "reason_code": "INTENT_ROLE_NOT_MEASURED",
+   "request_summary": "работа миссии wi-391cbc05097b3b59e1ac1e7b",
+   "created_at": "2026-09-25T06:29:47.776712+00:00",
+   "last_transition": "2026-09-27T22:35:42.148014+00:00",
+   "history_len": 755,
+   "attempt": 1,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "id": "wi-f9b2c302ee811f028352573d",
+   "work_item_id": "wi-f9b2c302ee811f028352573d",
+   "mission_id": "mis-2f3d7440d356ed458dd3",
+   "title": "Исчерпание предела починок НАЗВАНО в улике тика, а не растворяется в «ничего не готово»",
+   "state": "FAILED_RETRYABLE",
+   "ui_state": "failed",
+   "zone": "reliability",
+   "reason_code": "INTENT_VALIDATION_FAILED",
+   "request_summary": "работа миссии wi-f9b2c302ee811f028352573d",
+   "created_at": "2026-09-25T06:59:50.048225+00:00",
+   "last_transition": "2026-09-27T22:35:42.265637+00:00",
+   "history_len": 749,
+   "attempt": 1,
+   "permission_zone": "AUTONOMOUS",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-f9b2c302ee811f028352573d"
+  }
+ ],
+ "roles": {
+  "ai_roles": [
+   {
+    "role": "PROGRAM_ARCHITECT",
+    "writes": false,
+    "tools": [
+     "Read",
+     "Grep",
+     "Glob"
+    ],
+    "config": "program_planner.ROLE_CONFIG",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.PROGRAM_ARCHITECT"
+   },
+   {
+    "role": "TASK_ARCHITECT",
+    "writes": false,
+    "tools": null,
+    "config": "loop-v01 architect_prompt + architect_grounding",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.TASK_ARCHITECT"
+   },
+   {
+    "role": "IMPLEMENTER",
+    "writes": "isolated exec tree only",
+    "tools": null,
+    "config": "loop-v01 run_executor",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.IMPLEMENTER"
+   }
+  ],
+  "fleet": {
+   "total_loaded": 71,
+   "total_known": 80,
+   "by_role": {
+    "monitoring": 28,
+    "allocation": 9,
+    "infra": 7,
+    "other": 13,
+    "reporting": 6,
+    "research": 8
+   },
+   "problem_count": 0,
+   "freshness": {
+    "path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_registry.json",
+    "present": true,
+    "updated_at": "2026-07-17T01:51:49.781968+00:00",
+    "age_seconds": 6296166,
+    "freshness": "STALE"
+   },
+   "note": "Реестр флота — снимок; при устаревании freshness=STALE, это исторический флот Investment/monitoring, не Studio-роли",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_registry.json"
+  },
+  "ownership_freshness": {
+   "path": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json",
+   "present": true,
+   "updated_at": "2026-09-24",
+   "age_seconds": null,
+   "freshness": "UNKNOWN"
+  }
+ },
+ "decisions": {
+  "items": [
+   {
+    "title": "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются",
+    "card": "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md",
+    "zone": "red",
+    "permission": "owner_approval_required",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md.md"
+   },
+   {
+    "title": "Критичная находка петли: com.spa.director_server загружен, в манифесте ОТСУТСТВУЕТ (класс swarm",
+    "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-direct-2.md",
+    "zone": "red",
+    "permission": "owner_approval_required",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-kritichnaya-nahodka-petli-com-spa-direct-2.md.md"
+   },
+   {
+    "title": "Критичная находка петли: com.spa.director_build загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_",
+    "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-direct.md",
+    "zone": "red",
+    "permission": "owner_approval_required",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-kritichnaya-nahodka-petli-com-spa-direct.md.md"
+   },
+   {
+    "title": "Потолок Base-цепочки записан в трёх местах — какое из них главное?",
+    "card": "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md",
+    "zone": "red",
+    "permission": "owner_approval_required",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md.md"
+   },
+   {
+    "title": "Пять процентов кэша записаны в двух местах — это одно правило или два?",
+    "card": "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md",
+    "zone": "red",
+    "permission": "owner_approval_required",
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md.md"
+   }
+  ],
+  "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md",
+  "present": true,
+  "updated_at": "2026-09-27T20:31:34Z",
+  "age_seconds": 8182,
+  "freshness": "RECENT"
+ },
+ "system": {
+  "dispatch": {
+   "open": false,
+   "reason": "ARB §H: ни одного исполнения кода кандидата под личностью владельца. Плоскости работника ещё нет (studio-worker не создан), а две работы готовы к отправке — следующий тик запустил бы их под доверенной личностью. Открыть после установки плоскости и прохождения B-G. · кто: yuriikulieshov · когда: 2026-09-25T08:23:54+0200",
+   "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#mission_dispatch_disabled"
+  },
+  "provider_plane": {
+   "last_activity": {
+    "path": "/tmp/spa_studio_provider_runner.out.log",
+    "present": true,
+    "updated_at": "2026-09-27T22:44:33.057161+00:00",
+    "age_seconds": 203,
+    "freshness": "LIVE"
+   },
+   "last_outcome": [
+    {
+     "file": "canary-cutover-20260927T144417Z.job.json",
+     "job_id": "canary-cutover-20260927T144417Z",
+     "outcome": "CLAIMED_ELSEWHERE"
+    }
+   ],
+   "note": "Живое состояние службы требует привилегий (launchctl) — здесь только последняя активность из /tmp-лога; не измерено иначе",
+   "source": "/tmp/spa_studio_provider_runner.out.log"
+  },
+  "candidate_plane": {
+   "last_activity": {
+    "path": "/tmp/spa_studio_worker_runner.out.log",
+    "present": true,
+    "updated_at": "2026-09-27T22:43:10.903636+00:00",
+    "age_seconds": 285,
+    "freshness": "LIVE"
+   },
+   "last_scan": [],
+   "note": "То же: живое состояние — привилегированная проба; лог показывает последний скан",
+   "source": "/tmp/spa_studio_worker_runner.out.log"
+  },
+  "golive": {
+   "ready": false,
+   "passed": 27,
+   "total": 29,
+   "blockers": [
+    "gap_monitor_30d: 13/30 evidenced track days (anchor 2026-06-22; 17 more needed — target ~2026-07-21)",
+    "min_track_days_30: 13/30 evidenced paper-trading days (anchor 2026-06-22; 17 more needed — target go-live ~2026-07-21)"
+   ],
+   "real_track_days": 13,
+   "freshness": {
+    "path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/golive_status.json",
+    "present": true,
+    "updated_at": "2026-07-04T11:28:54.198703+00:00",
+    "age_seconds": 7384742,
+    "freshness": "STALE"
+   },
+   "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/golive_status.json"
+  },
+  "health": {
+   "risk_alerts": {
+    "count": 18,
+    "status": "critical",
+    "freshness": {
+     "path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/risk_alerts.json",
+     "present": true,
+     "updated_at": "2026-09-27T21:53:10.933336+00:00",
+     "age_seconds": 3285,
+     "freshness": "RECENT"
+    },
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/risk_alerts.json"
+   },
+   "agents": {
+    "overall": "CRITICAL",
+    "healthy": 30,
+    "warning": 1,
+    "critical": 2,
+    "total": 32,
+    "freshness": {
+     "path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_health.json",
+     "present": true,
+     "updated_at": "2026-06-21T23:50:19.389522+00:00",
+     "age_seconds": 8463457,
+     "freshness": "STALE"
+    },
+    "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_health.json"
+   }
+  }
+ },
+ "activity": [
+  {
+   "ts": "2026-09-27T22:35:42.265637+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:35:42.239031+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:35:42.213014+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:35:42.148014+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:35:42.122043+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:35:42.097485+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.588379+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.562228+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.536383+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.471963+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.446113+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:20:40.420413+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:05:39.126712+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:05:39.101778+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:05:39.077075+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T22:05:39.016644+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:05:38.992577+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T22:05:38.968343+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.601119+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.579731+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.566019+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.515321+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.488142+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:50:37.460452+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:35:36.121554+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:35:36.095790+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:35:36.073540+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:35:36.013471+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:35:35.991035+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:35:35.968228+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.704501+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.688263+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.667423+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.604917+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.579823+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:20:34.557722+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  },
+  {
+   "ts": "2026-09-27T21:05:33.170136+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:05:33.146650+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:05:33.123313+00:00",
+   "kind": "transition",
+   "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)",
+   "ref": "wi-f9b2c302ee811f028352573d"
+  },
+  {
+   "ts": "2026-09-27T21:05:33.062148+00:00",
+   "kind": "transition",
+   "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)",
+   "ref": "wi-391cbc05097b3b59e1ac1e7b"
+  }
+ ],
+ "capacity": {
+  "subscription_plan": "claude-max",
+  "subscription_usd_per_month": 230,
+  "cost_per_cycle_usd": 2.25,
+  "freshness": {
+   "path": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/owner_settings.json",
+   "present": true,
+   "updated_at": null,
+   "age_seconds": null,
+   "freshness": "UNKNOWN"
+  },
+  "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/owner_settings.json",
+  "note": "Активные сессии/слоты флота не измеряются этим срезом — не выдумываем"
+ },
+ "git": {
+  "head": "630f8c554",
+  "changed_count": 216,
+  "untracked": 133,
+  "source": "git status --porcelain"
+ },
+ "ui_state_map": {
+  "NEW": "planned",
+  "NOT_STARTED": "planned",
+  "PLANNING": "planned",
+  "CLAIMED": "queued",
+  "CAN_CONTINUE": "queued",
+  "WAIT_DEPENDENCY": "queued",
+  "WAIT_RESOURCE": "queued",
+  "WAIT_PRIORITY": "queued",
+  "STALE_INPUT": "queued",
+  "RUNNING": "running",
+  "ACTIVE": "running",
+  "REVIEW": "review",
+  "WAIT_OWNER": "owner_wait",
+  "BLOCKED_POLICY": "blocked",
+  "BUDGET_EXHAUSTED": "blocked",
+  "FAILED_RETRYABLE": "failed",
+  "FAILED_TERMINAL": "failed",
+  "COMPLETED": "done",
+  "CLOSED": "done"
+ },
+ "zone_map": {
+  "planned": "intake",
+  "queued": "intake",
+  "running": "engineering",
+  "review": "review",
+  "owner_wait": "owner",
+  "blocked": "blocked",
+  "failed": "reliability",
+  "done": "memory"
+ }
+}

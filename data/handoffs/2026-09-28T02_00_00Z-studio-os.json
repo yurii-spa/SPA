@@ -1,0 +1,15 @@
+{
+ "project_id": "studio-os",
+ "ts": "2026-09-28T02:00:00Z",
+ "requested": "Pre-promotion hardening",
+ "done": "ADR-492→OWNER_REVIEW; Relationship Registry ADR-493 (per-task records, origin-typed, no silent fail); handoff→per-session files; research orphans→HEURISTIC labels",
+ "changed": "spa_core/studio_os/{links,handoff,research,context}.py; owner_remote/gateway.py; studio_shell/{studio_core.js,build_studio_core.py,graph.html}",
+ "decisions": "ADR-492 downgraded (owner did not explicitly accept); ADR-493 PROPOSED",
+ "evidence": null,
+ "tests": null,
+ "commits": null,
+ "open_questions": null,
+ "blockers": null,
+ "next_action": "Owner: accept ADR-492/493; authorize promotion cherry-pick",
+ "owner_action": "review ADR-492/493"
+}

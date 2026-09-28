@@ -201,7 +201,7 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 60
         run: |
-          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
+          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ studio_shell/ \
             -q --tb=short -p no:randomly -p spa_core.ci.pytest_stream_record \
             --timeout=180 --timeout-method=signal \
             --junitxml=reports/junit-scripts.xml

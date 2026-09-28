@@ -1,0 +1,621 @@
+{
+ "schema": "earn-defi/universe-graph/1",
+ "generated_at": "2026-09-27T19:05:36.508673+00:00",
+ "note": "READ-ONLY projection of real SPA state. UI ≠ canonical truth. track: MARKET=live market data · PAPER=virtual capital · STUDIO=studio-os state · UNKNOWN=no clean read source. Absence is named, never a fake PASS.",
+ "tracks": [
+  "MARKET",
+  "PAPER",
+  "SHADOW",
+  "STUDIO",
+  "UNKNOWN"
+ ],
+ "nodes": [
+  {
+   "id": "earndefi",
+   "label": "EARN DEFI",
+   "domain": "core",
+   "kind": "core",
+   "track": "STUDIO",
+   "status": "",
+   "metrics": {},
+   "provenance": "studio-os",
+   "fresh": "",
+   "hub": true
+  },
+  {
+   "id": "opps",
+   "label": "OPPORTUNITIES",
+   "domain": "opportunities",
+   "kind": "hub",
+   "track": "MARKET",
+   "status": "live 0/0",
+   "metrics": {},
+   "provenance": "data/adapter_status.json",
+   "fresh": "STALE",
+   "hub": true
+  },
+  {
+   "id": "op:aave_v3",
+   "label": "Aave V3",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 3.5,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 12000000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.aave_v3",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:compound_v3",
+   "label": "Compound V3 (Comet USDC)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 5.2,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 3000000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.compound_v3",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:morpho_blue",
+   "label": "Morpho Blue",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 4.1,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 2000000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.morpho_blue",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:aave_arbitrum",
+   "label": "Aave V3 Arbitrum",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 4.1,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 1200000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.aave_arbitrum",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:sdai",
+   "label": "MakerDAO Savings DAI (sDAI)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 5.5,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 1200000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.sdai",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:morpho_steakhouse",
+   "label": "Morpho Steakhouse USDC",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 6.5,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 800000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.morpho_steakhouse",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:sfrax",
+   "label": "Frax sFRAX",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 6.0,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 800000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.sfrax",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:susde",
+   "label": "Ethena sUSDe",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 12.0,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 800000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.susde",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:aave_v3_polygon",
+   "label": "Aave V3 Polygon (USDC.e)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 5.1,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 600000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.aave_v3_polygon",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:spark_susds",
+   "label": "Spark sUSDS",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 5.5,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 500000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.spark_susds",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:pendle",
+   "label": "Pendle Finance (PT markets)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 8.0,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 500000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.pendle",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:pendle_pt",
+   "label": "Pendle PT REST (fixed-rate)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 8.0,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 500000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.pendle_pt",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:aave_v3_optimism",
+   "label": "Aave V3 Optimism",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 4.8,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 400000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.aave_v3_optimism",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "op:wusdm",
+   "label": "Mountain Protocol wUSDM (RWA T-bill)",
+   "domain": "opportunities",
+   "kind": "opportunity",
+   "track": "MARKET",
+   "status": "APY unevidenced",
+   "metrics": {
+    "apy_pct": 5.0,
+    "apy_evidence": "UNKNOWN",
+    "tvl_usd": 400000000.0,
+    "tvl_source": "static",
+    "tvl_evidenced": false
+   },
+   "provenance": "data/adapter_status.json#adapters.wusdm",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "chains",
+   "label": "CHAINS",
+   "domain": "opportunities",
+   "kind": "hub",
+   "track": "MARKET",
+   "status": "",
+   "metrics": {},
+   "provenance": "data/chains_status.json",
+   "fresh": "STALE",
+   "hub": true
+  },
+  {
+   "id": "chain:ethereum",
+   "label": "ethereum",
+   "domain": "opportunities",
+   "kind": "chain",
+   "track": "MARKET",
+   "status": "",
+   "metrics": {
+    "pools": 2
+   },
+   "provenance": "data/chains_status.json#chains.ethereum",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "risk",
+   "label": "RISK",
+   "domain": "risk",
+   "kind": "hub",
+   "track": "STUDIO",
+   "status": "17 alerts",
+   "metrics": {
+    "alerts": 17,
+    "alert_status": "critical"
+   },
+   "provenance": "data/risk_alerts.json",
+   "fresh": "STALE",
+   "hub": true
+  },
+  {
+   "id": "golive",
+   "label": "GoLive 27/29",
+   "domain": "risk",
+   "kind": "gate",
+   "track": "STUDIO",
+   "status": "not ready",
+   "metrics": {
+    "passed": 27,
+    "total": 29,
+    "track_days": 13,
+    "blockers": [
+     "gap_monitor_30d: 13/30 evidenced track days (anchor 2026-06-22; 17 more needed — target ~2026-07-21)",
+     "min_track_days_30: 13/30 evidenced paper-trading days (anchor 2026-06-22; 17 more needed — target go-live ~2026-07-21)"
+    ]
+   },
+   "provenance": "data/golive_status.json",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "capital",
+   "label": "CAPITAL",
+   "domain": "capital",
+   "kind": "hub",
+   "track": "PAPER",
+   "status": "PAPER — виртуальный капитал",
+   "metrics": {
+    "paper_usd": {
+     "starting_capital_usd": 100000.0,
+     "currency": "USDC",
+     "mode": "paper",
+     "is_demo": false,
+     "go_live_target": "2026-08-01"
+    },
+    "note": "paper trading; not real capital"
+   },
+   "provenance": "data/capital_config.json (paper)",
+   "fresh": "UNKNOWN",
+   "hub": true
+  },
+  {
+   "id": "system",
+   "label": "SYSTEM",
+   "domain": "system",
+   "kind": "hub",
+   "track": "STUDIO",
+   "status": "",
+   "metrics": {},
+   "provenance": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json",
+   "fresh": "LIVE",
+   "hub": true
+  },
+  {
+   "id": "missions",
+   "label": "Missions 2",
+   "domain": "system",
+   "kind": "missions",
+   "track": "STUDIO",
+   "status": "dispatch CLOSED",
+   "metrics": {
+    "missions": 2,
+    "work_items": 12,
+    "dispatch_open": false
+   },
+   "provenance": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#missions",
+   "fresh": "LIVE",
+   "hub": false
+  },
+  {
+   "id": "provider",
+   "label": "PROVIDER plane",
+   "domain": "system",
+   "kind": "plane",
+   "track": "STUDIO",
+   "status": "needs privileged probe for live state",
+   "metrics": {},
+   "provenance": "/tmp/spa_studio_provider_runner.out.log",
+   "fresh": "",
+   "hub": false
+  },
+  {
+   "id": "candidate",
+   "label": "CANDIDATE plane",
+   "domain": "system",
+   "kind": "plane",
+   "track": "STUDIO",
+   "status": "",
+   "metrics": {},
+   "provenance": "/tmp/spa_studio_worker_runner.out.log",
+   "fresh": "",
+   "hub": false
+  },
+  {
+   "id": "fleet",
+   "label": "Fleet 71/80",
+   "domain": "system",
+   "kind": "fleet",
+   "track": "STUDIO",
+   "status": "snapshot — check freshness",
+   "metrics": {
+    "loaded": 71,
+    "known": 80,
+    "by_role": {
+     "monitoring": 28,
+     "allocation": 9,
+     "infra": 7,
+     "other": 13,
+     "reporting": 6,
+     "research": 8
+    }
+   },
+   "provenance": "data/agent_registry.json",
+   "fresh": "STALE",
+   "hub": false
+  },
+  {
+   "id": "factory",
+   "label": "FACTORY / R&D",
+   "domain": "factory",
+   "kind": "hub",
+   "track": "UNKNOWN",
+   "status": "strategy lifecycle read source: NOT AVAILABLE (advisory only)",
+   "metrics": {},
+   "provenance": "strategy_lab (advisory) — no canonical investor-strategy projection",
+   "fresh": "",
+   "hub": true
+  }
+ ],
+ "edges": [
+  {
+   "source": "earndefi",
+   "target": "opps",
+   "kind": "domain",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:aave_v3",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:compound_v3",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:morpho_blue",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:aave_arbitrum",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:sdai",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:morpho_steakhouse",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:sfrax",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:susde",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:aave_v3_polygon",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:spark_susds",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:pendle",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:pendle_pt",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:aave_v3_optimism",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "opps",
+   "target": "op:wusdm",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "earndefi",
+   "target": "chains",
+   "kind": "domain",
+   "flow": false
+  },
+  {
+   "source": "chains",
+   "target": "chain:ethereum",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "earndefi",
+   "target": "risk",
+   "kind": "domain",
+   "flow": false
+  },
+  {
+   "source": "risk",
+   "target": "golive",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "earndefi",
+   "target": "capital",
+   "kind": "domain",
+   "flow": false
+  },
+  {
+   "source": "earndefi",
+   "target": "system",
+   "kind": "domain",
+   "flow": false
+  },
+  {
+   "source": "system",
+   "target": "missions",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "system",
+   "target": "provider",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "system",
+   "target": "candidate",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "system",
+   "target": "fleet",
+   "kind": "contains",
+   "flow": false
+  },
+  {
+   "source": "earndefi",
+   "target": "factory",
+   "kind": "domain",
+   "flow": false
+  }
+ ],
+ "counts": {
+  "nodes": 27,
+  "edges": 26
+ }
+}

@@ -1,0 +1,174 @@
+{
+ "schema": "earn-defi/why-trace/1",
+ "generated_at": "2026-09-27T19:05:36.527268+00:00",
+ "object": "Aave V3",
+ "object_id": "op:aave_v3",
+ "trace_partial": true,
+ "partial_reason": "TVL floor cannot be evidenced (tvl_source=static, needs live) — deterministic gate is UNEVIDENCED, fail-CLOSED",
+ "note": "Deterministic RiskPolicy gates vs LLM shown distinctly. LLM has NO authority over capital (invariant #3). No fabricated edges; missing segments named.",
+ "authorities": {
+  "DETERMINISTIC": "RiskPolicy v1.0 gate",
+  "LLM": "advisory only, forbidden in risk",
+  "NONE": "data/fact"
+ },
+ "nodes": [
+  {
+   "id": "obj",
+   "label": "Aave V3",
+   "kind": "object",
+   "authority": "NONE",
+   "status": "MARKET",
+   "detail": "Opportunity",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "src",
+   "label": "adapter_status",
+   "kind": "source",
+   "authority": "NONE",
+   "status": "RECENT",
+   "detail": "DeFiLlama-backed adapter status",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "ev_apy",
+   "label": "APY evidence",
+   "kind": "evidence",
+   "authority": "NONE",
+   "status": "UNEVIDENCED",
+   "detail": "fallback / not fresh",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "ev_tvl",
+   "label": "TVL evidence",
+   "kind": "evidence",
+   "authority": "NONE",
+   "status": "UNEVIDENCED",
+   "detail": "tvl_source=static",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "f_apy",
+   "label": "APY 3.5%",
+   "kind": "fact",
+   "authority": "NONE",
+   "status": "UNEVIDENCED",
+   "detail": "",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "f_tvl",
+   "label": "TVL $12.0B",
+   "kind": "fact",
+   "authority": "NONE",
+   "status": "UNEVIDENCED",
+   "detail": "",
+   "provenance": "data/adapter_status.json#adapters.aave_v3"
+  },
+  {
+   "id": "g_apy",
+   "label": "APY band 1–30%",
+   "kind": "gate",
+   "authority": "DETERMINISTIC",
+   "status": "PASS",
+   "detail": "RiskPolicy v1.0 · EXECUTED (code)",
+   "provenance": "spa_core/risk/policy.py#RiskConfig",
+   "policy_kind": "EXECUTED"
+  },
+  {
+   "id": "g_tvl",
+   "label": "TVL floor $5M (live)",
+   "kind": "gate",
+   "authority": "DETERMINISTIC",
+   "status": "UNEVIDENCED",
+   "detail": "EXECUTED: min_tvl_usd in RiskConfig; ADR-053 requires tvl_source==live — static literal does not evidence it",
+   "provenance": "spa_core/risk/policy.py#min_tvl_usd",
+   "policy_kind": "EXECUTED"
+  },
+  {
+   "id": "llm",
+   "label": "LLM recommendation",
+   "kind": "llm",
+   "authority": "LLM",
+   "status": "ABSENT",
+   "detail": "LLM forbidden in risk/execution (invariant #3) — no LLM authority over capital",
+   "provenance": "CLAUDE.md#invariants"
+  },
+  {
+   "id": "dec",
+   "label": "RiskPolicy decision",
+   "kind": "decision",
+   "authority": "DETERMINISTIC",
+   "status": "UNEVIDENCED",
+   "detail": "fail-CLOSED: unevidenced TVL floor ⇒ not fundable in live",
+   "provenance": ".claude/rules/risk-engine.md"
+  },
+  {
+   "id": "res",
+   "label": "Not in live allocation",
+   "kind": "result",
+   "authority": "DETERMINISTIC",
+   "status": "PAPER",
+   "detail": "paper-trading; live allocation gated by RiskPolicy + go-live",
+   "provenance": "data/golive_status.json"
+  }
+ ],
+ "edges": [
+  {
+   "source": "obj",
+   "target": "src",
+   "label": ""
+  },
+  {
+   "source": "src",
+   "target": "ev_apy",
+   "label": ""
+  },
+  {
+   "source": "src",
+   "target": "ev_tvl",
+   "label": ""
+  },
+  {
+   "source": "ev_apy",
+   "target": "f_apy",
+   "label": ""
+  },
+  {
+   "source": "ev_tvl",
+   "target": "f_tvl",
+   "label": ""
+  },
+  {
+   "source": "f_apy",
+   "target": "g_apy",
+   "label": ""
+  },
+  {
+   "source": "f_tvl",
+   "target": "g_tvl",
+   "label": ""
+  },
+  {
+   "source": "g_apy",
+   "target": "dec",
+   "label": ""
+  },
+  {
+   "source": "g_tvl",
+   "target": "dec",
+   "label": ""
+  },
+  {
+   "source": "llm",
+   "target": "dec",
+   "label": "no authority"
+  },
+  {
+   "source": "dec",
+   "target": "res",
+   "label": ""
+  }
+ ]
+}

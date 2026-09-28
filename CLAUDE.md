@@ -214,7 +214,7 @@ python3 scripts/update_system_briefing.py
 # ci-ветки; без них прогон отвечает на СВОЙ вопрос, а не на нужный (цикл #421).
 # Расхождение этой строки с воркфлоу краснит spa_core/tests/test_prescribed_run_matches_ci.py.
 # Перенос строки здесь ЗАПРЕЩЁН: разбор команды идёт по строке, и `\` обрывает список каталогов.
-SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest tests/ spa_core/tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ -q --tb=short -p no:randomly
+SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest tests/ spa_core/tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ studio_shell/ -q --tb=short -p no:randomly
 # Статус агентов:
 launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
 # Переустановить агентов:

@@ -1,0 +1,267 @@
+{
+ "schema": "studio-os/research-model/1",
+ "present": true,
+ "total": 13,
+ "linked": 2,
+ "orphan": 11,
+ "orphan_breakdown": {
+  "LIKELY_STANDALONE": 6,
+  "LIKELY_MISSING_LINK": 2,
+  "UNKNOWN": 3
+ },
+ "evidence_standard": "docs/37_apy_realism_and_evidence_standard.md",
+ "maturity_register": "docs/MATURITY_REGISTER.md",
+ "items": [
+  {
+   "id": "01_competitor_analysis",
+   "title": "Конкурентный анализ DeFi Yield Platforms",
+   "ref": "research/01_competitor_analysis.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "02_devops_best_practices",
+   "title": "DevOps Best Practices для DeFi/FinTech на Mac Mini (Self-Hosted)",
+   "ref": "research/02_devops_best_practices.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "03_landing_page_conversion",
+   "title": "Landing Page Conversion для DeFi/Fintech B2B",
+   "ref": "research/03_landing_page_conversion.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": true,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_MISSING_LINK",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "цитирует стандарт эвиденса (L0–L6) ⇒ вероятно относится к решению, но ни один ADR не называет его; сигнал, не доказательство",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "04_investor_cabinet_ux",
+   "title": "Investor Cabinet UX — Research Report",
+   "ref": "research/04_investor_cabinet_ux.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "UNKNOWN",
+   "orphan_confidence": "UNKNOWN",
+   "orphan_reason": "ни ссылки из решения, ни признаков справочной/устаревшей природы",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "05_regulatory_analysis",
+   "title": "Regulatory Analysis: DeFi Yield Platform",
+   "ref": "research/05_regulatory_analysis.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "06_cloudflare_architecture",
+   "title": "Cloudflare Pages + Tunnel: Оптимальная архитектура для Fullstack App",
+   "ref": "research/06_cloudflare_architecture.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "07_fastapi_best_practices",
+   "title": "FastAPI для финансового API — Production Best Practices",
+   "ref": "research/07_fastapi_best_practices.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "08_smart_contract_security",
+   "title": "DeFi Smart Contract Vault — Аудит и Безопасность",
+   "ref": "research/08_smart_contract_security.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": true,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_MISSING_LINK",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "цитирует стандарт эвиденса (L0–L6) ⇒ вероятно относится к решению, но ни один ADR не называет его; сигнал, не доказательство",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "09_mac_mini_reliability",
+   "title": "Mac Mini как Production Server — Reliability Engineering",
+   "ref": "research/09_mac_mini_reliability.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "UNKNOWN",
+   "orphan_confidence": "UNKNOWN",
+   "orphan_reason": "ни ссылки из решения, ни признаков справочной/устаревшей природы",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "10_fee_structure",
+   "title": "Token Economics & Fee Structure для DeFi Yield Fund",
+   "ref": "research/10_fee_structure.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": true,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [
+    "ADR-030-pit-backtest-standard.md",
+    "ADR-338-assertions-that-judge-a-structure-by-a-substring.md",
+    "ADR-341-execution-touch-is-judged-by-structure-not-substring.md",
+    "ADR-343-where-the-haystack-content-came-from.md",
+    "ADR-370-owner-decisions-2026-09-13.md",
+    "ADR-495-studio-os-core-v1-registry-context-decisions.md"
+   ],
+   "produced_task": null,
+   "implemented": null,
+   "status": "LINKED",
+   "orphan_class": null,
+   "orphan_confidence": null,
+   "orphan_reason": null,
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "11_frontend_stack",
+   "title": "Frontend Stack: Next.js vs Astro для Fintech Landing + Dashboard",
+   "ref": "research/11_frontend_stack.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "UNKNOWN",
+   "orphan_confidence": "UNKNOWN",
+   "orphan_reason": "ни ссылки из решения, ни признаков справочной/устаревшей природы",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "12_gnosis_safe_guide",
+   "title": "Gnosis Safe + Hardware Wallets — Операционный гайд для DeFi Fund Manager",
+   "ref": "research/12_gnosis_safe_guide.md",
+   "date": "2026-06-18",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [],
+   "produced_task": null,
+   "implemented": null,
+   "status": "ORPHAN",
+   "orphan_class": "LIKELY_STANDALONE",
+   "orphan_confidence": "HEURISTIC",
+   "orphan_reason": "имя совпало с паттерном справочного материала (конкуренты/devops/регулятор/архитектура/гайд) — вероятно фоновой материал, НО это эвристика по имени файла, не факт",
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  },
+  {
+   "id": "yield_research_2026",
+   "title": "SPA Yield Research Report — June 2026",
+   "ref": "research/yield_research_2026.md",
+   "date": "2025/11/04",
+   "evidence": {
+    "cites_standard": false,
+    "standard": "docs/37_apy_realism_and_evidence_standard.md"
+   },
+   "supports_decisions": [
+    "ADR-029-research-strategies-framework.md",
+    "ADR-030-pit-backtest-standard.md",
+    "ADR-061-apy-evidence-gate.md",
+    "ADR-067-owner-decisions-2026-08-06-autopilot-mandate.md",
+    "ADR-228-arming-reachability-is-a-measured-question.md",
+    "ADR-271-shadow-blockade-names-the-wrong-dial.md",
+    "ADR-335-one-pool-one-key-for-every-money-path-writer.md",
+    "ADR-YL-012-spa-swarm.md"
+   ],
+   "produced_task": null,
+   "implemented": null,
+   "status": "LINKED",
+   "orphan_class": null,
+   "orphan_confidence": null,
+   "orphan_reason": null,
+   "provenance": "research/ + scan of docs/decisions/ for a naming reference"
+  }
+ ],
+ "note": "Edges are VERIFIED references only (a decision names the research file/tokens). Unlinked = ORPHAN, shown honestly. research→task/implementation links are MISSING (no canonical source)."
+}

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Studio OS — snapshot</title>
+<style>
+/* Studio OS Shell — design system. Dark, premium, calm. Mobile-first.
+   Tokens adapted from spa_director_os_prototype_v2 visual language. */
+:root {
+  --bg: #0a0d14;
+  --bg-1: #0e1220;
+  --panel: #141a2b;
+  --panel-2: #1a2236;
+  --line: #26304a;
+  --line-soft: #1c2438;
+  --ink: #e8edf7;
+  --ink-2: #9aa7c2;
+  --ink-3: #64708c;
+  --brand: #6ea8fe;
+  --brand-2: #8f7bff;
+  --green: #3ecf8e;
+  --yellow: #f2c14e;
+  --red: #ff6b6b;
+  --cyan: #4fd1c5;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 10px 40px rgba(0,0,0,.45);
+  --shadow-soft: 0 2px 14px rgba(0,0,0,.3);
+  --grad-brand: linear-gradient(135deg, var(--brand), var(--brand-2));
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  --tap: 44px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(1200px 700px at 80% -10%, #16203a 0%, var(--bg) 55%) fixed;
+  color: var(--ink); font-family: var(--font);
+  -webkit-font-smoothing: antialiased; font-size: 15px; line-height: 1.45;
+}
+a { color: var(--brand); text-decoration: none; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82em; color: var(--ink-2); }
+
+/* ---- App frame ---- */
+.app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; align-self: start; height: 100vh;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg));
+  border-right: 1px solid var(--line-soft); padding: 18px 14px; display: flex; flex-direction: column; gap: 6px;
+}
+.brand { display: flex; align-items: center; gap: 11px; padding: 6px 8px 16px; }
+.brand .logo { width: 34px; height: 34px; border-radius: 10px; background: var(--grad-brand);
+  box-shadow: 0 6px 18px rgba(110,168,254,.35); flex: none; position: relative; }
+.brand .logo::after { content: ""; position: absolute; inset: 8px; border-radius: 5px;
+  background: rgba(10,13,20,.55); }
+.brand .name { font-weight: 700; letter-spacing: .2px; }
+.brand .sub { font-size: 11px; color: var(--ink-3); }
+.modeswitch { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 4px; margin-bottom: 10px; }
+.modeswitch button { flex: 1; border: 0; background: transparent; color: var(--ink-2); font-weight: 600;
+  padding: 9px 6px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.modeswitch button.active { background: var(--grad-brand); color: #08101f; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  background: transparent; border: 0; color: var(--ink-2); padding: 11px 12px; border-radius: 10px;
+  cursor: pointer; font-size: 14px; font-weight: 500; min-height: var(--tap); }
+.nav button .ico { width: 18px; text-align: center; opacity: .9; }
+.nav button:hover { background: var(--panel); color: var(--ink); }
+.nav button.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 3px 0 0 var(--brand); }
+.nav .badge { margin-left: auto; background: var(--red); color: #1b0808; border-radius: 999px;
+  font-size: 11px; font-weight: 700; padding: 1px 7px; }
+.sidebar .spacer { flex: 1; }
+.langbtn { background: var(--panel); border: 1px solid var(--line); color: var(--ink-2); border-radius: 10px;
+  padding: 9px; cursor: pointer; font-weight: 700; min-height: var(--tap); }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.topbanner { font-size: 12px; color: var(--ink-3); padding: 8px 22px; border-bottom: 1px solid var(--line-soft);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,.15); }
+.topbanner .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
+.topbanner.closed .dot { background: var(--yellow); }
+.content { padding: 22px; max-width: 1180px; width: 100%; }
+h1.page { font-size: 22px; margin: 2px 0 4px; }
+.page-sub { color: var(--ink-3); font-size: 13px; margin-bottom: 18px; }
+
+/* ---- Cards & grid ---- */
+.grid { display: grid; gap: 14px; }
+.g-kpi { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.g-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.card { background: linear-gradient(180deg, var(--panel), var(--bg-1)); border: 1px solid var(--line-soft);
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-soft); }
+.card h3 { margin: 0 0 12px; font-size: 13px; letter-spacing: .4px; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.kpi .v { font-size: 30px; font-weight: 750; letter-spacing: -.5px; }
+.kpi .l { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+.kpi.accent .v { color: var(--brand); }
+.kpi.warn .v { color: var(--yellow); }
+.kpi.bad .v { color: var(--red); }
+.kpi.good .v { color: var(--green); }
+
+/* ---- Status + risk ---- */
+.badge-s { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.badge-s::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.s-running { color: var(--brand); border-color: rgba(110,168,254,.4); background: rgba(110,168,254,.08); }
+.s-owner_wait { color: var(--yellow); border-color: rgba(242,193,78,.4); background: rgba(242,193,78,.08); }
+.s-blocked { color: #ff9f6b; border-color: rgba(255,159,107,.4); background: rgba(255,159,107,.08); }
+.s-failed { color: var(--red); border-color: rgba(255,107,107,.4); background: rgba(255,107,107,.08); }
+.s-done { color: var(--green); border-color: rgba(62,207,142,.35); background: rgba(62,207,142,.07); }
+.s-review { color: var(--cyan); border-color: rgba(79,209,197,.4); background: rgba(79,209,197,.08); }
+.s-queued, .s-planned { color: var(--ink-2); }
+.zone-pill { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+.z-green { background: rgba(62,207,142,.15); color: var(--green); }
+.z-yellow { background: rgba(242,193,78,.15); color: var(--yellow); }
+.z-red { background: rgba(255,107,107,.15); color: var(--red); }
+.fresh { font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-3); }
+.fresh.LIVE { color: var(--green); border-color: rgba(62,207,142,.35); }
+.fresh.RECENT { color: var(--cyan); border-color: rgba(79,209,197,.3); }
+.fresh.STALE { color: var(--yellow); border-color: rgba(242,193,78,.35); }
+.fresh.UNKNOWN { color: var(--ink-3); }
+
+/* ---- Work board ---- */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.filters button { background: var(--panel); border: 1px solid var(--line-soft); color: var(--ink-2);
+  border-radius: 999px; padding: 7px 13px; cursor: pointer; font-size: 13px; min-height: 38px; }
+.filters button.active { background: var(--panel-2); color: var(--ink); border-color: var(--line); }
+.tasklist { display: flex; flex-direction: column; gap: 10px; }
+.task { background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+  padding: 13px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: border-color .15s, transform .1s; }
+.task:hover { border-color: var(--line); transform: translateY(-1px); }
+.task .tid { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ink-3); flex: none; }
+.task .ttitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.task .tright { display: flex; gap: 8px; align-items: center; flex: none; }
+.empty { color: var(--ink-3); text-align: center; padding: 40px 10px; border: 1px dashed var(--line-soft); border-radius: var(--radius); }
+
+/* rows */
+.row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+.row:last-child { border-bottom: 0; }
+.row .k { color: var(--ink-3); font-size: 13px; }
+.row .val { text-align: right; }
+.list-clean { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.activity li { display: flex; gap: 10px; font-size: 13px; color: var(--ink-2); padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.activity li .t { color: var(--ink-3); font-family: ui-monospace, Menlo, monospace; font-size: 11px; flex: none; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.5; }
+
+/* ---- Drawer (task detail) ---- */
+.scrim { position: fixed; inset: 0; background: rgba(3,6,12,.62); backdrop-filter: blur(3px); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 94vw); background: var(--bg-1);
+  border-left: 1px solid var(--line); z-index: 41; transform: translateX(102%); transition: transform .28s cubic-bezier(.2,.8,.2,1);
+  box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.drawer.open { transform: translateX(0); }
+.drawer .dh { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); }
+.drawer .dh .x { margin-left: auto; background: var(--panel); border: 1px solid var(--line); color: var(--ink-2);
+  border-radius: 9px; width: 40px; height: 40px; cursor: pointer; font-size: 18px; }
+.drawer .db { padding: 18px; overflow: auto; }
+
+/* ---- Studio View ---- */
+.studio-wrap { padding: 16px 22px 28px; }
+.studio-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.studio-head .legend { color: var(--ink-3); font-size: 12px; max-width: 640px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; cursor: pointer; }
+.stage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.zone { position: relative; min-height: 172px; border-radius: var(--radius); padding: 12px;
+  background: radial-gradient(120% 100% at 50% 0%, var(--panel-2), var(--bg-1)); border: 1px solid var(--line-soft); overflow: hidden; }
+.zone::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent, rgba(0,0,0,.25)); pointer-events: none; }
+.zone.z-owner { border-color: rgba(242,193,78,.35); box-shadow: inset 0 0 40px rgba(242,193,78,.06); }
+.zone.z-blocked { border-color: rgba(255,159,107,.3); }
+.zone.z-reliability { border-color: rgba(255,107,107,.25); }
+.zone .zh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; position: relative; z-index: 1; }
+.zone .zh .zn { font-size: 12px; font-weight: 700; letter-spacing: .3px; color: var(--ink); }
+.zone .zh .zc { font-size: 11px; color: var(--ink-3); background: rgba(0,0,0,.3); border-radius: 6px; padding: 1px 7px; }
+.agents { display: flex; flex-wrap: wrap; gap: 8px; position: relative; z-index: 1; }
+.agent { display: flex; align-items: center; gap: 7px; background: rgba(10,14,24,.7); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 11px 5px 6px; cursor: pointer; font-size: 12px; color: var(--ink);
+  animation: pop .4s ease; transition: transform .2s, box-shadow .2s; }
+.agent:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+.agent .av { width: 22px; height: 22px; border-radius: 50%; background: var(--grad-brand); flex: none; position: relative; }
+.agent .av.running { animation: pulse 1.8s ease-in-out infinite; }
+.agent.st-owner_wait .av { background: linear-gradient(135deg, var(--yellow), #d99a2b); }
+.agent.st-blocked .av { background: linear-gradient(135deg, #ff9f6b, #e0663a); }
+.agent.st-failed .av { background: linear-gradient(135deg, var(--red), #b23b3b); }
+.agent.st-done .av { background: linear-gradient(135deg, var(--green), #2a9d6a); }
+.agent.st-review .av { background: linear-gradient(135deg, var(--cyan), #2f9e94); }
+.agent .an { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zone .empty-z { color: var(--ink-3); font-size: 12px; opacity: .6; position: relative; z-index: 1; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(110,168,254,.5); } 50% { box-shadow: 0 0 0 6px rgba(110,168,254,0); } }
+body.reduce-motion .agent { animation: none; }
+body.reduce-motion .agent .av.running { animation: none; }
+body.reduce-motion * { transition: none !important; }
+
+/* ---- Mobile ---- */
+.mobitop { display: none; }
+.bottomnav { display: none; }
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobitop { display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    position: sticky; top: 0; z-index: 20; background: rgba(10,13,20,.9); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-soft); }
+  .mobitop .name { font-weight: 700; }
+  .mobitop .logo { width: 26px; height: 26px; border-radius: 8px; background: var(--grad-brand); flex: none; }
+  .mobitop .modeswitch { margin: 0 0 0 auto; width: auto; }
+  .mobitop .modeswitch button { padding: 7px 10px; font-size: 12px; }
+  .mobitop .langbtn { padding: 7px 10px; min-height: 38px; }
+  .content { padding: 16px 14px 90px; }
+  .studio-wrap { padding: 12px 14px 90px; }
+  .stage { grid-template-columns: 1fr; }
+  .bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+    background: rgba(12,16,26,.96); backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); justify-content: space-around; }
+  .bottomnav button { flex: 1; background: transparent; border: 0; color: var(--ink-3); font-size: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 2px; min-height: var(--tap); cursor: pointer; }
+  .bottomnav button .ico { font-size: 17px; }
+  .bottomnav button.active { color: var(--brand); }
+  .bottomnav .badge { position: absolute; top: 2px; margin-left: 16px; background: var(--red); color: #1b0808;
+    border-radius: 999px; font-size: 9px; font-weight: 700; padding: 0 5px; }
+  h1.page { font-size: 19px; }
+  .drawer { width: 100vw; }
+}
+@media (min-width: 861px) { .mobitop { display: none; } }
+
+</style>
+</head>
+<body>
+<div id="app" class="app"></div>
+<div id="scrim" class="scrim"></div>
+<aside id="drawer" class="drawer" aria-label="Task detail">
+  <div class="dh"><strong class="dtitle"></strong><button class="x" aria-label="Close">×</button></div>
+  <div class="db"></div>
+</aside>
+<script>
+// ---- inlined i18n ----
+// Studio OS Shell — i18n (first-class, RU/EN). No hard-coded strings in components.
+// Technical identifiers (TASK ids, ADR-xxx, Claude Code, PROVIDER, CANDIDATE, GitHub) stay verbatim.
+const DICT = {
+  ru: {
+    "app.title": "Studio OS",
+    "app.subtitle": "Операционная система автономной AI-студии",
+    "mode.mission": "Mission Control",
+    "mode.studio": "Studio View",
+    "nav.overview": "Обзор",
+    "nav.work": "Работа",
+    "nav.decisions": "Решения",
+    "nav.agents": "Роли",
+    "nav.system": "Система",
+    "nav.studio": "Студия",
+    "lang.switch": "EN",
+    "common.source": "Источник",
+    "common.none": "нет",
+    "common.unknown": "Не измерено",
+    "common.notAvailable": "Недоступно",
+    "common.open": "Открыть",
+    "common.close": "Закрыть",
+    "common.reason": "Причина",
+    "common.updated": "Обновлено",
+    "common.mission": "Миссия",
+    "common.priority": "Приоритет",
+    "common.zone": "Зона",
+    "common.attempt": "Попытка",
+    "fresh.LIVE": "живое",
+    "fresh.RECENT": "недавнее",
+    "fresh.STALE": "устарело",
+    "fresh.UNKNOWN": "не измерено",
+    "status.planned": "Запланировано",
+    "status.queued": "В очереди",
+    "status.running": "Выполняется",
+    "status.review": "Проверка",
+    "status.owner_wait": "Ждёт решения",
+    "status.blocked": "Заблокировано",
+    "status.failed": "Ошибка",
+    "status.done": "Завершено",
+    "overview.title": "Обзор студии",
+    "overview.dispatch": "Диспетчеризация",
+    "overview.dispatch.open": "открыта",
+    "overview.dispatch.closed": "закрыта",
+    "overview.running": "Выполняется",
+    "overview.owner": "Ждёт владельца",
+    "overview.blocked": "Заблокировано",
+    "overview.failed": "Ошибки",
+    "overview.done": "Завершено",
+    "overview.missions": "Миссии",
+    "overview.work": "Задачи",
+    "overview.ledger": "Свежесть леджера",
+    "overview.activity": "Активность",
+    "overview.golive": "Готовность go-live",
+    "overview.health": "Здоровье",
+    "overview.emptyActivity": "Событий пока нет",
+    "work.title": "Работа",
+    "work.empty": "Задач в этом состоянии нет",
+    "work.filter.all": "Все",
+    "task.state": "Состояние",
+    "task.backendState": "Backend-состояние",
+    "task.reason": "Причина",
+    "task.request": "Запрос",
+    "task.created": "Создано",
+    "task.lastTransition": "Последний переход",
+    "task.history": "История переходов",
+    "task.mission": "Миссия",
+    "task.zone": "Зона Studio View",
+    "task.provenance": "Провенанс (канон)",
+    "decisions.title": "Решения владельца",
+    "decisions.empty": "Нет решений, ожидающих владельца",
+    "decisions.needsOwner": "Ждёт вашего решения",
+    "decisions.card": "Карточка",
+    "decisions.note": "Действия (одобрить/отклонить) появятся, только когда за ними будет аудируемая детерминированная команда. Сейчас — только чтение.",
+    "agents.title": "Роли и флот",
+    "agents.aiRoles": "AI-роли Studio OS",
+    "agents.writes": "Запись",
+    "agents.tools": "Инструменты",
+    "agents.fleet": "Флот (снимок)",
+    "agents.loaded": "Загружено",
+    "agents.known": "Известно",
+    "agents.problems": "Проблемы",
+    "agents.fleetNote": "Реестр флота — исторический снимок мониторинга/Investment, не Studio-роли. Смотрите свежесть.",
+    "agents.writesNo": "нет (read-only)",
+    "agents.writesIsolated": "только в изолированном дереве",
+    "system.title": "Система и надёжность",
+    "system.dispatch": "Диспетчеризация миссий",
+    "system.provider": "Плоскость PROVIDER",
+    "system.candidate": "Плоскость CANDIDATE",
+    "system.golive": "Go-live",
+    "system.health": "Здоровье",
+    "system.lastActivity": "Последняя активность",
+    "system.privNote": "Живое состояние службы требует привилегий (launchctl). Показана последняя активность из лога.",
+    "system.blockers": "Блокеры",
+    "system.trackDays": "Дней трека",
+    "system.riskAlerts": "Риск-алерты",
+    "system.capacity": "Ёмкость / подписка",
+    "system.plan": "Тариф",
+    "system.costCycle": "Стоимость цикла",
+    "studio.title": "Студия",
+    "studio.legend": "Агенты и задачи привязаны к реальному состоянию леджера. Зоны — метафора канона, а не игра.",
+    "studio.reduceMotion": "Меньше движения",
+    "studio.empty": "Пусто",
+    "studio.zone.intake": "Приём / Бэклог",
+    "studio.zone.engineering": "Инженерия",
+    "studio.zone.review": "Проверка / QA",
+    "studio.zone.owner": "Командный центр владельца",
+    "studio.zone.blocked": "Заблокировано",
+    "studio.zone.reliability": "Надёжность",
+    "studio.zone.memory": "Память / Библиотека",
+    "banner.readonly": "Только чтение · UI не является источником правды · капитал и Investment Engine недоступны",
+    "banner.dispatchClosed": "Диспетчеризация закрыта",
+  },
+  en: {
+    "app.title": "Studio OS",
+    "app.subtitle": "Operating system for an autonomous AI studio",
+    "mode.mission": "Mission Control",
+    "mode.studio": "Studio View",
+    "nav.overview": "Overview",
+    "nav.work": "Work",
+    "nav.decisions": "Decisions",
+    "nav.agents": "Roles",
+    "nav.system": "System",
+    "nav.studio": "Studio",
+    "lang.switch": "RU",
+    "common.source": "Source",
+    "common.none": "none",
+    "common.unknown": "Not measured",
+    "common.notAvailable": "Not available",
+    "common.open": "Open",
+    "common.close": "Close",
+    "common.reason": "Reason",
+    "common.updated": "Updated",
+    "common.mission": "Mission",
+    "common.priority": "Priority",
+    "common.zone": "Zone",
+    "common.attempt": "Attempt",
+    "fresh.LIVE": "live",
+    "fresh.RECENT": "recent",
+    "fresh.STALE": "stale",
+    "fresh.UNKNOWN": "not measured",
+    "status.planned": "Planned",
+    "status.queued": "Queued",
+    "status.running": "Running",
+    "status.review": "Needs Review",
+    "status.owner_wait": "Waiting for Owner",
+    "status.blocked": "Blocked",
+    "status.failed": "Failed",
+    "status.done": "Completed",
+    "overview.title": "Studio overview",
+    "overview.dispatch": "Dispatch",
+    "overview.dispatch.open": "open",
+    "overview.dispatch.closed": "closed",
+    "overview.running": "Running",
+    "overview.owner": "Waiting for Owner",
+    "overview.blocked": "Blocked",
+    "overview.failed": "Failed",
+    "overview.done": "Completed",
+    "overview.missions": "Missions",
+    "overview.work": "Tasks",
+    "overview.ledger": "Ledger freshness",
+    "overview.activity": "Activity",
+    "overview.golive": "Go-live readiness",
+    "overview.health": "Health",
+    "overview.emptyActivity": "No events yet",
+    "work.title": "Work",
+    "work.empty": "No tasks in this state",
+    "work.filter.all": "All",
+    "task.state": "State",
+    "task.backendState": "Backend state",
+    "task.reason": "Reason",
+    "task.request": "Request",
+    "task.created": "Created",
+    "task.lastTransition": "Last transition",
+    "task.history": "Transition history",
+    "task.mission": "Mission",
+    "task.zone": "Studio View zone",
+    "task.provenance": "Provenance (canonical)",
+    "decisions.title": "Owner decisions",
+    "decisions.empty": "No decisions waiting for the Owner",
+    "decisions.needsOwner": "Waiting for your decision",
+    "decisions.card": "Card",
+    "decisions.note": "Approve/Reject actions appear only when an audited deterministic command backs them. This is read-only.",
+    "agents.title": "Roles & fleet",
+    "agents.aiRoles": "Studio OS AI roles",
+    "agents.writes": "Writes",
+    "agents.tools": "Tools",
+    "agents.fleet": "Fleet (snapshot)",
+    "agents.loaded": "Loaded",
+    "agents.known": "Known",
+    "agents.problems": "Problems",
+    "agents.fleetNote": "The fleet registry is a historical monitoring/Investment snapshot, not Studio roles. Check freshness.",
+    "agents.writesNo": "no (read-only)",
+    "agents.writesIsolated": "isolated exec tree only",
+    "system.title": "System & reliability",
+    "system.dispatch": "Mission dispatch",
+    "system.provider": "PROVIDER plane",
+    "system.candidate": "CANDIDATE plane",
+    "system.golive": "Go-live",
+    "system.health": "Health",
+    "system.lastActivity": "Last activity",
+    "system.privNote": "Live service state needs privileges (launchctl). Showing last activity from the log.",
+    "system.blockers": "Blockers",
+    "system.trackDays": "Track days",
+    "system.riskAlerts": "Risk alerts",
+    "system.capacity": "Capacity / subscription",
+    "system.plan": "Plan",
+    "system.costCycle": "Cost per cycle",
+    "studio.title": "Studio",
+    "studio.legend": "Agents and tasks are bound to real ledger state. Zones are a metaphor for canonical state, not a game.",
+    "studio.reduceMotion": "Reduce motion",
+    "studio.empty": "Empty",
+    "studio.zone.intake": "Intake / Backlog",
+    "studio.zone.engineering": "Engineering",
+    "studio.zone.review": "Review / QA",
+    "studio.zone.owner": "Owner Command Center",
+    "studio.zone.blocked": "Blocked",
+    "studio.zone.reliability": "Reliability",
+    "studio.zone.memory": "Memory / Library",
+    "banner.readonly": "Read-only · the UI is not a source of truth · capital and Investment Engine are out of reach",
+    "banner.dispatchClosed": "Dispatch is closed",
+  },
+};
+
+function makeT(lang) {
+  return (key, fallback) => (DICT[lang] && DICT[lang][key]) || (DICT.en[key]) || fallback || key;
+}
+
+</script>
+<script>
+// ---- embedded read model + fetch shim (review artifact only) ----
+window.__MODEL__ = {"schema": "studio-os/cockpit-read-model/1", "generated_at": "2026-09-27T15:44:35.963817+00:00", "generator": "studio_shell/build_read_model.py", "canonical_note": "ПРОИЗВОДНАЯ проекция. Источник правды — файлы/git/ledger. У каждой сущности есть `source`. UI не есть память компании.", "sources": {"ledger": {"path": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json", "present": true, "updated_at": "2026-09-27T15:34:45.555360+00:00", "age_seconds": 590, "freshness": "LIVE"}, "tracker_board": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md"}}, "freshness_legend": {"LIVE": "< 15m", "RECENT": "< 6h", "STALE": ">= 6h", "UNKNOWN": "нет отметки времени"}, "overview": {"counts": {"planned": 0, "queued": 0, "running": 0, "review": 0, "owner_wait": 0, "blocked": 0, "failed": 2, "done": 10}, "missions_total": 2, "work_total": 12, "owner_waiting": 5, "running": 0, "blocked": 0, "failed": 2, "done": 10, "dispatch_open": false, "ledger_freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json", "present": true, "updated_at": "2026-09-27T15:34:45.555360+00:00", "age_seconds": 590, "freshness": "LIVE"}}, "missions": [{"id": "mis-3addfa5685e9db5e8803", "title": "V04-SELF-HOST: Studio OS достраивает управление миссиями", "state": "ACTIVE", "ui_state": "running", "permission_zone": "AUTONOMOUS", "priority": "OWNER_BUILD", "owner_intent": "Достроить безопасные способности управления миссиями Studio OS v0.4 силами самой плоскости исполнения миссий. Остались измеренные пробелы: (1) проекция «лента миссии» — недавние завершения и переходы, выведенные из канонических улик; (2) операционные показатели здоровья управлени", "success_criteria": ["каждая работа имеет машинный критерий приёмки", "фактическая зона записи не выходит за объявленную", "целевая проверка зелёная у каждой принятой пачки", "интеграция производит НОВУЮ личность кандидата с родословной"], "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#missions.mis-3addfa5685e9db5e8803"}, {"id": "mis-2f3d7440d356ed458dd3", "title": "V05-REVIEW-AND-REPAIR: суждение и починка в расписании", "state": "ACTIVE", "ui_state": "running", "permission_zone": "AUTONOMOUS", "priority": "OWNER_BUILD", "owner_intent": "Провести суждение и самопочинку в расписание так, чтобы ни один свод изменений не входил в интеграцию без суждения, а найденное ревьюером возвращалось в работу без человека. Слой ревью существует и покрыт пробами, но в поток миссии НЕ ПРОВЕДЁН: вызывающих ноль, поэтому каждый сво", "success_criteria": ["ни один свод не входит в интеграцию без записанного суждения, и это проверяется пробой, а не порядком вызовов", "вердикт REPAIR_REQUIRED порождает новую попытку через расписание, без человека", "вердикт OWNER_REQUIRED виден во входе решений владельца", "предел попыток починки объявлен и его исчерпание НАЗВАНО"], "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#missions.mis-2f3d7440d356ed458dd3"}], "work": [{"id": "wi-12d5513964536a6458b05699", "work_item_id": "wi-12d5513964536a6458b05699", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Остановка выдачи новой работы: состояние сохраняется, начатые работники доживают", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-12d5513964536a6458b05699", "created_at": "2026-09-24T18:00:12.819908+00:00", "last_transition": "2026-09-24T19:11:04.604898+00:00", "history_len": 50, "attempt": 3, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-12d5513964536a6458b05699"}, {"id": "wi-5e710b72bc95e7fdd620ed4b", "work_item_id": "wi-5e710b72bc95e7fdd620ed4b", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Лента миссии: проекция завершений и переходов, выведенная из канонических улик", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-5e710b72bc95e7fdd620ed4b", "created_at": "2026-09-24T18:00:12.822662+00:00", "last_transition": "2026-09-24T19:28:15.890917+00:00", "history_len": 68, "attempt": 3, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-5e710b72bc95e7fdd620ed4b"}, {"id": "wi-024eb1735ca9f8330ff199b5", "work_item_id": "wi-024eb1735ca9f8330ff199b5", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Операционные показатели здоровья управления миссиями без выдуманных нулей", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-024eb1735ca9f8330ff199b5", "created_at": "2026-09-24T18:00:12.824912+00:00", "last_transition": "2026-09-24T19:28:15.927093+00:00", "history_len": 98, "attempt": 4, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-024eb1735ca9f8330ff199b5"}, {"id": "wi-7b260ceed8e9db30c78893c4", "work_item_id": "wi-7b260ceed8e9db30c78893c4", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Прибор масштаба: время тика, проверки графа и расчёта готовности на графах разного размера", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-7b260ceed8e9db30c78893c4", "created_at": "2026-09-24T18:15:52.978988+00:00", "last_transition": "2026-09-24T19:28:15.958249+00:00", "history_len": 47, "attempt": 3, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-7b260ceed8e9db30c78893c4"}, {"id": "wi-39db02773fa0ecd05aa5aba0", "work_item_id": "wi-39db02773fa0ecd05aa5aba0", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Документ операций: как остановить выдачу и как понять, что она завершена", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-39db02773fa0ecd05aa5aba0", "created_at": "2026-09-24T19:33:17.043302+00:00", "last_transition": "2026-09-24T19:33:17.353215+00:00", "history_len": 3, "attempt": 1, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-39db02773fa0ecd05aa5aba0"}, {"id": "wi-e8307e497992d594cd032a35", "work_item_id": "wi-e8307e497992d594cd032a35", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Ворота интеграции спрашивают суждение: свод без ревью не входит, и это меряется исходом, а не порядком вызовов", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-e8307e497992d594cd032a35", "created_at": "2026-09-24T21:59:02.401695+00:00", "last_transition": "2026-09-24T21:59:02.424605+00:00", "history_len": 3, "attempt": 1, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-e8307e497992d594cd032a35"}, {"id": "wi-a286d8c666cf778721e6355f", "work_item_id": "wi-a286d8c666cf778721e6355f", "mission_id": "mis-3addfa5685e9db5e8803", "title": "Проверка: фактическая зона записи не вышла за объявленную, интеграция дала новую личность кандидата", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-a286d8c666cf778721e6355f", "created_at": "2026-09-24T22:14:03.355106+00:00", "last_transition": "2026-09-25T01:29:17.395382+00:00", "history_len": 44, "attempt": 5, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-a286d8c666cf778721e6355f"}, {"id": "wi-81b130cec4108c7103ef84d2", "work_item_id": "wi-81b130cec4108c7103ef84d2", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Вердикт OWNER_REQUIRED виден во входе решений владельца: один источник нужды, а не два экрана", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-81b130cec4108c7103ef84d2", "created_at": "2026-09-24T22:44:06.753574+00:00", "last_transition": "2026-09-24T22:44:06.796859+00:00", "history_len": 3, "attempt": 2, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-81b130cec4108c7103ef84d2"}, {"id": "wi-946df6c507dd5f1c0b384d90", "work_item_id": "wi-946df6c507dd5f1c0b384d90", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Род намерения «суждение»: ревью отправляется ТЕМ ЖЕ тиком и тем же долгим заданием, что и реализация", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-946df6c507dd5f1c0b384d90", "created_at": "2026-09-25T01:44:18.332619+00:00", "last_transition": "2026-09-25T03:59:32.266162+00:00", "history_len": 59, "attempt": 7, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-946df6c507dd5f1c0b384d90"}, {"id": "wi-3b106b582df529f05ce2903b", "work_item_id": "wi-3b106b582df529f05ce2903b", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Вердикт ревью связан с жизненным состоянием работы: приёмка · НОВАЯ попытка · владелец · не измерено", "state": "COMPLETED", "ui_state": "done", "zone": "memory", "reason_code": "INTENT_COMPLETED", "request_summary": "работа миссии wi-3b106b582df529f05ce2903b", "created_at": "2026-09-25T04:14:34.042757+00:00", "last_transition": "2026-09-25T06:14:46.530211+00:00", "history_len": 44, "attempt": 3, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-3b106b582df529f05ce2903b"}, {"id": "wi-391cbc05097b3b59e1ac1e7b", "work_item_id": "wi-391cbc05097b3b59e1ac1e7b", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Решение записано: ADR о проводке суждения и починки, и документы перестают утверждать «вызывающих ноль»", "state": "FAILED_RETRYABLE", "ui_state": "failed", "zone": "reliability", "reason_code": "INTENT_ROLE_NOT_MEASURED", "request_summary": "работа миссии wi-391cbc05097b3b59e1ac1e7b", "created_at": "2026-09-25T06:29:47.776712+00:00", "last_transition": "2026-09-27T15:34:45.453889+00:00", "history_len": 671, "attempt": 1, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-391cbc05097b3b59e1ac1e7b"}, {"id": "wi-f9b2c302ee811f028352573d", "work_item_id": "wi-f9b2c302ee811f028352573d", "mission_id": "mis-2f3d7440d356ed458dd3", "title": "Исчерпание предела починок НАЗВАНО в улике тика, а не растворяется в «ничего не готово»", "state": "FAILED_RETRYABLE", "ui_state": "failed", "zone": "reliability", "reason_code": "INTENT_VALIDATION_FAILED", "request_summary": "работа миссии wi-f9b2c302ee811f028352573d", "created_at": "2026-09-25T06:59:50.048225+00:00", "last_transition": "2026-09-27T15:34:45.555334+00:00", "history_len": 665, "attempt": 1, "permission_zone": "AUTONOMOUS", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#items.mission:wi-f9b2c302ee811f028352573d"}], "roles": {"ai_roles": [{"role": "PROGRAM_ARCHITECT", "writes": false, "tools": ["Read", "Grep", "Glob"], "config": "program_planner.ROLE_CONFIG", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.PROGRAM_ARCHITECT"}, {"role": "TASK_ARCHITECT", "writes": false, "tools": null, "config": "loop-v01 architect_prompt + architect_grounding", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.TASK_ARCHITECT"}, {"role": "IMPLEMENTER", "writes": "isolated exec tree only", "tools": null, "config": "loop-v01 run_executor", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json#ai_roles.IMPLEMENTER"}], "fleet": {"total_loaded": 71, "total_known": 80, "by_role": {"monitoring": 28, "allocation": 9, "infra": 7, "other": 13, "reporting": 6, "research": 8}, "problem_count": 0, "freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_registry.json", "present": true, "updated_at": "2026-07-17T01:51:49.781968+00:00", "age_seconds": 6270766, "freshness": "STALE"}, "note": "Реестр флота — снимок; при устаревании freshness=STALE, это исторический флот Investment/monitoring, не Studio-роли", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_registry.json"}, "ownership_freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/studio_os_v03_ownership.json", "present": true, "updated_at": "2026-09-24", "age_seconds": null, "freshness": "UNKNOWN"}}, "decisions": {"items": [{"title": "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются", "card": "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md", "zone": "red", "permission": "owner_approval_required", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md.md"}, {"title": "Критичная находка петли: com.spa.director_server загружен, в манифесте ОТСУТСТВУЕТ (класс swarm", "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-direct-2.md", "zone": "red", "permission": "owner_approval_required", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-kritichnaya-nahodka-petli-com-spa-direct-2.md.md"}, {"title": "Критичная находка петли: com.spa.director_build загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_", "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-direct.md", "zone": "red", "permission": "owner_approval_required", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-kritichnaya-nahodka-petli-com-spa-direct.md.md"}, {"title": "Потолок Base-цепочки записан в трёх местах — какое из них главное?", "card": "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md", "zone": "red", "permission": "owner_approval_required", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md.md"}, {"title": "Пять процентов кэша записаны в двух местах — это одно правило или два?", "card": "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md", "zone": "red", "permission": "owner_approval_required", "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md#needs-owner → nimbalyst-local/tracker/owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md.md"}], "source": "/Users/yuriikulieshov/studio-os-scratch/v03/nimbalyst-local/tracker/_BOARD.md", "present": true, "updated_at": "2026-09-21T21:09:06Z", "age_seconds": 498929, "freshness": "STALE"}, "system": {"dispatch": {"open": false, "reason": "ARB §H: ни одного исполнения кода кандидата под личностью владельца. Плоскости работника ещё нет (studio-worker не создан), а две работы готовы к отправке — следующий тик запустил бы их под доверенной личностью. Открыть после установки плоскости и прохождения B-G. · кто: yuriikulieshov · когда: 2026-09-25T08:23:54+0200", "source": "/Users/yuriikulieshov/studio-os-scratch/mission-state/v04/ledger.json#mission_dispatch_disabled"}, "provider_plane": {"last_activity": {"path": "/tmp/spa_studio_provider_runner.out.log", "present": true, "updated_at": "2026-09-27T15:44:24.379295+00:00", "age_seconds": 11, "freshness": "LIVE"}, "last_outcome": [{"file": "canary-cutover-20260927T144417Z.job.json", "job_id": "canary-cutover-20260927T144417Z", "outcome": "CLAIMED_ELSEWHERE"}], "note": "Живое состояние службы требует привилегий (launchctl) — здесь только последняя активность из /tmp-лога; не измерено иначе", "source": "/tmp/spa_studio_provider_runner.out.log"}, "candidate_plane": {"last_activity": {"path": "/tmp/spa_studio_worker_runner.out.log", "present": true, "updated_at": "2026-09-27T15:42:51.311930+00:00", "age_seconds": 104, "freshness": "LIVE"}, "last_scan": [], "note": "То же: живое состояние — привилегированная проба; лог показывает последний скан", "source": "/tmp/spa_studio_worker_runner.out.log"}, "golive": {"ready": false, "passed": 27, "total": 29, "blockers": ["gap_monitor_30d: 13/30 evidenced track days (anchor 2026-06-22; 17 more needed — target ~2026-07-21)", "min_track_days_30: 13/30 evidenced paper-trading days (anchor 2026-06-22; 17 more needed — target go-live ~2026-07-21)"], "real_track_days": 13, "freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/golive_status.json", "present": true, "updated_at": "2026-07-04T11:28:54.198703+00:00", "age_seconds": 7359341, "freshness": "STALE"}, "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/golive_status.json"}, "health": {"risk_alerts": {"count": 17, "status": "critical", "freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/risk_alerts.json", "present": true, "updated_at": "2026-09-24T19:21:11.596235+00:00", "age_seconds": 246204, "freshness": "STALE"}, "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/risk_alerts.json"}, "agents": {"overall": "CRITICAL", "healthy": 30, "warning": 1, "critical": 2, "total": 32, "freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_health.json", "present": true, "updated_at": "2026-06-21T23:50:19.389522+00:00", "age_seconds": 8438056, "freshness": "STALE"}, "source": "/Users/yuriikulieshov/studio-os-scratch/v03/data/agent_health.json"}}}, "activity": [{"ts": "2026-09-27T15:34:45.555334+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:34:45.531159+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:34:45.507200+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:34:45.453889+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:34:45.430821+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:34:45.405487+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:19:44.097235+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:19:44.074552+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:19:44.055651+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:19:44.000184+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:19:43.974142+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:19:43.947817+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:04:42.735059+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:04:42.710080+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:04:42.684572+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T15:04:42.622989+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:04:42.597505+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T15:04:42.573575+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:49:41.177348+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:49:41.154484+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:49:41.132142+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:49:41.077112+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:49:41.053476+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:49:41.030799+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:34:39.479081+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:34:39.452780+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:34:39.431364+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:34:39.372499+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:34:39.351921+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:34:39.329552+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:19:37.851227+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:19:37.822973+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:19:37.796897+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:19:37.741638+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:19:37.722662+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → RUNNING (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:19:37.701460+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → CLAIMED (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}, {"ts": "2026-09-27T14:04:36.175420+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → FAILED_RETRYABLE (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:04:36.150699+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → RUNNING (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:04:36.125145+00:00", "kind": "transition", "text": "wi-f9b2c302ee811f028352573d → CLAIMED (INTENT_VALIDATION_FAILED)", "ref": "wi-f9b2c302ee811f028352573d"}, {"ts": "2026-09-27T14:04:36.063676+00:00", "kind": "transition", "text": "wi-391cbc05097b3b59e1ac1e7b → FAILED_RETRYABLE (INTENT_ROLE_NOT_MEASURED)", "ref": "wi-391cbc05097b3b59e1ac1e7b"}], "capacity": {"subscription_plan": "claude-max", "subscription_usd_per_month": 230, "cost_per_cycle_usd": 2.25, "freshness": {"path": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/owner_settings.json", "present": true, "updated_at": null, "age_seconds": null, "freshness": "UNKNOWN"}, "source": "/Users/yuriikulieshov/studio-os-scratch/v03/architecture/owner_settings.json", "note": "Активные сессии/слоты флота не измеряются этим срезом — не выдумываем"}, "git": {"head": "84150c7cb", "changed_count": 135, "untracked": 120, "source": "git status --porcelain"}, "ui_state_map": {"NEW": "planned", "NOT_STARTED": "planned", "PLANNING": "planned", "CLAIMED": "queued", "CAN_CONTINUE": "queued", "WAIT_DEPENDENCY": "queued", "WAIT_RESOURCE": "queued", "WAIT_PRIORITY": "queued", "STALE_INPUT": "queued", "RUNNING": "running", "ACTIVE": "running", "REVIEW": "review", "WAIT_OWNER": "owner_wait", "BLOCKED_POLICY": "blocked", "BUDGET_EXHAUSTED": "blocked", "FAILED_RETRYABLE": "failed", "FAILED_TERMINAL": "failed", "COMPLETED": "done", "CLOSED": "done"}, "zone_map": {"planned": "intake", "queued": "intake", "running": "engineering", "review": "review", "owner_wait": "owner", "blocked": "blocked", "failed": "reliability", "done": "memory"}};
+const __realFetch = window.fetch ? window.fetch.bind(window) : null;
+window.fetch = function(url){
+  if (String(url).indexOf('read_model.json') !== -1)
+    return Promise.resolve({ ok: true, json: async () => window.__MODEL__ });
+  return __realFetch ? __realFetch(url) : Promise.reject('no fetch');
+};
+</script>
+<script>
+// ---- inlined app (module import stripped; makeT is global) ----
+// Studio OS Shell — v0 read-only app. Vanilla JS, no build step. Consumes read_model.json.
+// Both modes (Mission Control + Studio View) render the SAME canonical-derived state.
+
+const STATE = { lang: localStorage.getItem('sos.lang') || 'ru', mode: localStorage.getItem('sos.mode') || 'mission',
+  page: 'overview', model: null, t: null, reduceMotion: localStorage.getItem('sos.rm') === '1' };
+
+const NAV = [
+  ['overview', '◎'], ['work', '▤'], ['decisions', '◆'], ['agents', '◇'], ['system', '❖'],
+];
+const ZONES = ['owner', 'intake', 'engineering', 'review', 'blocked', 'reliability', 'memory'];
+const STATUS_ORDER = ['owner_wait','running','review','queued','planned','blocked','failed','done'];
+
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) n.setAttribute(k, v);
+  }
+  for (const kid of kids) { if (kid == null) continue; n.append(kid.nodeType ? kid : document.createTextNode(kid)); }
+  return n;
+};
+
+async function loadModel() {
+  try {
+    const r = await fetch('./read_model.json?_=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    STATE.model = await r.json();
+  } catch (e) {
+    STATE.model = { __error: String(e) };
+  }
+}
+
+function fresh(t, f) {
+  if (!f) return null;
+  const lab = t('fresh.' + (f.freshness || 'UNKNOWN'), f.freshness);
+  return el('span', { class: 'fresh ' + (f.freshness || 'UNKNOWN'), title: f.updated_at || '' }, lab);
+}
+function statusBadge(t, ui) { return el('span', { class: 'badge-s s-' + ui }, t('status.' + ui, ui)); }
+function zonePill(zone) {
+  if (!zone) return null;
+  const cls = zone === 'red' ? 'z-red' : zone === 'yellow' ? 'z-yellow' : zone === 'green' ? 'z-green' : 'z-yellow';
+  return el('span', { class: 'zone-pill ' + cls }, zone);
+}
+
+// ---------------- Mission Control pages ----------------
+function pageOverview(t, m) {
+  const ov = m.overview || {}; const c = ov.counts || {};
+  const wrap = el('div', {});
+  wrap.append(el('h1', { class: 'page' }, t('overview.title')));
+  wrap.append(el('div', { class: 'page-sub' }, m.generated_at ? t('common.updated') + ': ' + fmtTime(m.generated_at) : ''));
+  const kpi = el('div', { class: 'grid g-kpi' });
+  const cards = [
+    ['owner', ov.owner_waiting || 0, 'warn'],
+    ['running', c.running || 0, 'accent'],
+    ['blocked', c.blocked || 0, ov.blocked ? 'warn' : ''],
+    ['failed', c.failed || 0, ov.failed ? 'bad' : ''],
+    ['done', c.done || 0, 'good'],
+    ['missions', ov.missions_total || 0, ''],
+  ];
+  for (const [key, val, cls] of cards) {
+    kpi.append(el('div', { class: 'card kpi ' + cls }, el('div', { class: 'v' }, String(val)),
+      el('div', { class: 'l' }, t('overview.' + key))));
+  }
+  wrap.append(kpi);
+
+  const two = el('div', { class: 'grid g-2', style: 'margin-top:14px' });
+  // dispatch + golive
+  const sys = m.system || {}; const disp = sys.dispatch || {};
+  const c1 = el('div', { class: 'card' }, el('h3', {}, t('overview.dispatch')));
+  c1.append(row(t('overview.dispatch'), el('span', { class: 'badge-s ' + (disp.open ? 's-running' : 's-owner_wait') },
+    disp.open ? t('overview.dispatch.open') : t('overview.dispatch.closed'))));
+  if (!disp.open && disp.reason) c1.append(el('div', { class: 'note' }, '⚠︎ ' + disp.reason));
+  const gl = sys.golive;
+  if (gl) {
+    c1.append(row(t('overview.golive'), el('span', {}, (gl.passed ?? '—') + ' / ' + (gl.total ?? '—'))));
+    c1.append(row(t('system.trackDays'), el('span', {}, String(gl.real_track_days ?? t('common.unknown')))));
+    if (gl.freshness) c1.append(row(t('common.updated'), fresh(t, gl.freshness)));
+  }
+  two.append(c1);
+  // activity
+  const c2 = el('div', { class: 'card' }, el('h3', {}, t('overview.activity')));
+  const acts = (m.activity || []);
+  if (!acts.length) c2.append(el('div', { class: 'note' }, t('overview.emptyActivity')));
+  else {
+    const ul = el('ul', { class: 'list-clean activity' });
+    for (const a of acts.slice(0, 8)) ul.append(el('li', {}, el('span', { class: 't' }, shortTime(a.ts)), el('span', {}, a.text)));
+    c2.append(ul);
+  }
+  two.append(c2);
+  wrap.append(two);
+  return wrap;
+}
+
+function pageWork(t, m) {
+  const wrap = el('div', {});
+  wrap.append(el('h1', { class: 'page' }, t('work.title')));
+  const work = m.work || [];
+  const counts = {}; for (const w of work) counts[w.ui_state] = (counts[w.ui_state] || 0) + 1;
+  const filters = el('div', { class: 'filters' });
+  const mk = (key, label) => {
+    const b = el('button', { class: STATE.workFilter === key || (!STATE.workFilter && key === 'all') ? 'active' : '',
+      onclick: () => { STATE.workFilter = key; render(); } }, label + (key !== 'all' && counts[key] ? ' · ' + counts[key] : ''));
+    return b;
+  };
+  filters.append(mk('all', t('work.filter.all') + ' · ' + work.length));
+  for (const s of STATUS_ORDER) if (counts[s]) filters.append(mk(s, t('status.' + s)));
+  wrap.append(filters);
+  const list = el('div', { class: 'tasklist' });
+  const shown = work.filter(w => !STATE.workFilter || STATE.workFilter === 'all' || w.ui_state === STATE.workFilter)
+    .sort((a, b) => STATUS_ORDER.indexOf(a.ui_state) - STATUS_ORDER.indexOf(b.ui_state));
+  if (!shown.length) list.append(el('div', { class: 'empty' }, t('work.empty')));
+  for (const w of shown) {
+    list.append(el('div', { class: 'task', onclick: () => openTask(w) },
+      el('span', { class: 'tid' }, (w.work_item_id || '').replace('wi-', '').slice(0, 8)),
+      el('span', { class: 'ttitle' }, w.title || w.id),
+      el('span', { class: 'tright' }, w.permission_zone ? zonePill(w.permission_zone) : null, statusBadge(t, w.ui_state))));
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+function pageDecisions(t, m) {
+  const wrap = el('div', {});
+  wrap.append(el('h1', { class: 'page' }, t('decisions.title')));
+  const d = (m.decisions && m.decisions.items) || [];
+  if (!d.length) { wrap.append(el('div', { class: 'empty' }, t('decisions.empty'))); return wrap; }
+  const list = el('div', { class: 'tasklist' });
+  for (const it of d) {
+    const card = el('div', { class: 'card' });
+    card.append(el('div', { style: 'display:flex;gap:10px;align-items:flex-start' },
+      zonePill('red'), el('div', { style: 'flex:1;font-weight:600' }, it.title)));
+    card.append(el('div', { class: 'note' }, t('decisions.needsOwner')));
+    if (it.card) card.append(el('div', { class: 'mono', style: 'margin-top:6px' }, t('decisions.card') + ': ' + it.card + '.md'));
+    list.append(card);
+  }
+  wrap.append(list);
+  wrap.append(el('div', { class: 'note', style: 'margin-top:14px' }, t('decisions.note')));
+  return wrap;
+}
+
+function pageAgents(t, m) {
+  const wrap = el('div', {}); wrap.append(el('h1', { class: 'page' }, t('agents.title')));
+  const roles = (m.roles && m.roles.ai_roles) || [];
+  const c = el('div', { class: 'card' }, el('h3', {}, t('agents.aiRoles')));
+  for (const r of roles) {
+    const writes = r.writes === false ? t('agents.writesNo') : (typeof r.writes === 'string' ? t('agents.writesIsolated') : String(r.writes));
+    c.append(el('div', { class: 'row' }, el('span', { class: 'k' }, r.role),
+      el('span', { class: 'val' }, el('span', { class: 'badge-s ' + (r.writes === false ? 's-done' : 's-owner_wait') }, writes),
+        r.tools ? el('span', { class: 'mono', style: 'margin-left:8px' }, r.tools.join(', ')) : null)));
+  }
+  wrap.append(c);
+  const fleet = m.roles && m.roles.fleet;
+  if (fleet) {
+    const f = el('div', { class: 'card', style: 'margin-top:14px' }, el('h3', {}, t('agents.fleet')));
+    f.append(row(t('agents.loaded'), el('span', {}, (fleet.total_loaded ?? '—') + ' / ' + (fleet.total_known ?? '—'))));
+    f.append(row(t('agents.problems'), el('span', {}, String(fleet.problem_count ?? t('common.unknown')))));
+    if (fleet.freshness) f.append(row(t('common.updated'), fresh(t, fleet.freshness)));
+    f.append(el('div', { class: 'note' }, t('agents.fleetNote')));
+    wrap.append(f);
+  }
+  return wrap;
+}
+
+function pageSystem(t, m) {
+  const wrap = el('div', {}); wrap.append(el('h1', { class: 'page' }, t('system.title')));
+  const sys = m.system || {};
+  const two = el('div', { class: 'grid g-2' });
+  // dispatch
+  const cd = el('div', { class: 'card' }, el('h3', {}, t('system.dispatch')));
+  cd.append(row(t('overview.dispatch'), el('span', { class: 'badge-s ' + (sys.dispatch?.open ? 's-running' : 's-owner_wait') },
+    sys.dispatch?.open ? t('overview.dispatch.open') : t('overview.dispatch.closed'))));
+  if (sys.dispatch?.reason) cd.append(el('div', { class: 'note' }, sys.dispatch.reason));
+  two.append(cd);
+  // provider + candidate
+  for (const [k, plane] of [['system.provider', sys.provider_plane], ['system.candidate', sys.candidate_plane]]) {
+    if (!plane) continue;
+    const c = el('div', { class: 'card' }, el('h3', {}, t(k)));
+    const fa = plane.last_activity;
+    c.append(row(t('system.lastActivity'), fa ? fresh(t, fa) : el('span', {}, t('common.unknown'))));
+    c.append(el('div', { class: 'note' }, plane.note || t('system.privNote')));
+    two.append(c);
+  }
+  // golive
+  if (sys.golive) {
+    const g = el('div', { class: 'card' }, el('h3', {}, t('system.golive')));
+    g.append(row('ready', el('span', { class: 'badge-s ' + (sys.golive.ready ? 's-done' : 's-owner_wait') }, String(sys.golive.ready))));
+    g.append(row(t('system.golive'), el('span', {}, (sys.golive.passed ?? '—') + ' / ' + (sys.golive.total ?? '—'))));
+    (sys.golive.blockers || []).forEach(b => g.append(el('div', { class: 'note' }, '• ' + b)));
+    two.append(g);
+  }
+  // health + capacity
+  const h = el('div', { class: 'card' }, el('h3', {}, t('system.health')));
+  const ra = sys.health?.risk_alerts;
+  if (ra) { h.append(row(t('system.riskAlerts'), el('span', {}, String(ra.count ?? t('common.unknown'))))); if (ra.freshness) h.append(row(t('common.updated'), fresh(t, ra.freshness))); }
+  const ah = sys.health?.agents;
+  if (ah) h.append(row(t('system.health'), el('span', {}, `${ah.overall ?? '?'} (${ah.healthy ?? 0}/${ah.total ?? 0})`)));
+  const cap = m.capacity;
+  if (cap && cap.subscription_plan) {
+    h.append(row(t('system.plan'), el('span', {}, cap.subscription_plan)));
+    h.append(row(t('system.costCycle'), el('span', {}, cap.cost_per_cycle_usd != null ? '$' + cap.cost_per_cycle_usd : t('common.unknown'))));
+  }
+  two.append(h);
+  wrap.append(two);
+  return wrap;
+}
+
+// ---------------- Studio View ----------------
+function studioView(t, m) {
+  const wrap = el('div', { class: 'studio-wrap' });
+  const head = el('div', { class: 'studio-head' },
+    el('h1', { class: 'page', style: 'margin:0' }, t('studio.title')),
+    el('label', { class: 'toggle' },
+      (() => { const cb = el('input', { type: 'checkbox' }); cb.checked = STATE.reduceMotion;
+        cb.addEventListener('change', () => { STATE.reduceMotion = cb.checked; localStorage.setItem('sos.rm', cb.checked ? '1' : '0'); applyMotion(); }); return cb; })(),
+      t('studio.reduceMotion')));
+  wrap.append(head);
+  wrap.append(el('div', { class: 'studio-head' }, el('div', { class: 'legend' }, t('studio.legend'))));
+  const work = m.work || [];
+  const byZone = {}; ZONES.forEach(z => byZone[z] = []);
+  for (const w of work) { const z = w.zone && byZone[w.zone] ? w.zone : 'intake'; byZone[z].push(w); }
+  // owner zone also gets decisions
+  const dec = (m.decisions && m.decisions.items) || [];
+  const stage = el('div', { class: 'stage' });
+  for (const z of ZONES) {
+    const items = byZone[z];
+    const extra = z === 'owner' ? dec.length : 0;
+    const zc = el('div', { class: 'zone z-' + z });
+    zc.append(el('div', { class: 'zh' }, el('span', { class: 'zn' }, t('studio.zone.' + z)),
+      el('span', { class: 'zc' }, String(items.length + extra))));
+    const ag = el('div', { class: 'agents' });
+    for (const w of items) {
+      ag.append(el('div', { class: 'agent st-' + w.ui_state, onclick: () => openTask(w) },
+        el('span', { class: 'av ' + (w.ui_state === 'running' ? 'running' : '') }),
+        el('span', { class: 'an' }, w.title || w.work_item_id)));
+    }
+    if (z === 'owner') for (const d of dec) ag.append(el('div', { class: 'agent st-owner_wait' },
+      el('span', { class: 'av' }), el('span', { class: 'an' }, d.title)));
+    if (!items.length && !extra) ag.append(el('div', { class: 'empty-z' }, t('studio.empty')));
+    zc.append(ag); stage.append(zc);
+  }
+  wrap.append(stage);
+  return wrap;
+}
+
+// ---------------- Task drawer (shared entity across modes) ----------------
+function openTask(w) {
+  const t = STATE.t;
+  const scrim = document.getElementById('scrim');
+  const dr = document.getElementById('drawer');
+  const body = dr.querySelector('.db');
+  dr.querySelector('.dtitle').textContent = w.title || w.work_item_id;
+  body.innerHTML = '';
+  const add = (k, v) => body.append(row(k, typeof v === 'string' || typeof v === 'number' ? el('span', {}, String(v)) : v));
+  body.append(el('div', { class: 'mono', style: 'margin-bottom:10px' }, w.work_item_id));
+  add(t('task.state'), statusBadge(t, w.ui_state));
+  add(t('task.backendState'), el('span', { class: 'mono' }, w.state || t('common.unknown')));
+  if (w.permission_zone) add(t('common.zone'), zonePill(w.permission_zone));
+  add(t('task.zone'), t('studio.zone.' + w.zone, w.zone));
+  if (w.mission_id) add(t('task.mission'), el('span', { class: 'mono' }, w.mission_id));
+  if (w.reason_code) add(t('task.reason'), w.reason_code);
+  if (w.request_summary) add(t('task.request'), w.request_summary);
+  if (w.created_at) add(t('task.created'), fmtTime(w.created_at));
+  if (w.history_len != null) add(t('task.history'), String(w.history_len));
+  if (w.attempt != null) add(t('common.attempt'), String(w.attempt));
+  if (w.source) body.append(el('div', { class: 'note', style: 'margin-top:12px' }, t('task.provenance') + ': ' + w.source));
+  scrim.classList.add('open'); dr.classList.add('open');
+}
+function closeDrawer() { document.getElementById('scrim').classList.remove('open'); document.getElementById('drawer').classList.remove('open'); }
+
+// ---------------- helpers ----------------
+function row(k, valNode) { return el('div', { class: 'row' }, el('span', { class: 'k' }, k), el('span', { class: 'val' }, valNode)); }
+function fmtTime(s) { try { return new Date(s).toLocaleString(STATE.lang === 'ru' ? 'ru-RU' : 'en-US'); } catch { return s; } }
+function shortTime(s) { if (!s) return '—'; try { return new Date(s).toLocaleTimeString(STATE.lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } }
+function applyMotion() { document.body.classList.toggle('reduce-motion', STATE.reduceMotion); }
+
+// ---------------- render ----------------
+function render() {
+  const t = STATE.t = makeT(STATE.lang);
+  const m = STATE.model || {};
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  const decCount = (m.decisions && m.decisions.items && m.decisions.items.length) || 0;
+
+  // sidebar (desktop)
+  const side = el('aside', { class: 'sidebar' });
+  side.append(el('div', { class: 'brand' }, el('div', { class: 'logo' }),
+    el('div', {}, el('div', { class: 'name' }, t('app.title')), el('div', { class: 'sub' }, t('app.subtitle')))));
+  side.append(modeSwitch(t));
+  const nav = el('nav', { class: 'nav' });
+  for (const [key, ico] of NAV) {
+    const b = el('button', { class: STATE.mode === 'mission' && STATE.page === key ? 'active' : '',
+      onclick: () => { STATE.mode = 'mission'; STATE.page = key; persist(); render(); } },
+      el('span', { class: 'ico' }, ico), el('span', {}, t('nav.' + key)));
+    if (key === 'decisions' && decCount) b.append(el('span', { class: 'badge' }, String(decCount)));
+    nav.append(b);
+  }
+  const sb = el('button', { class: STATE.mode === 'studio' ? 'active' : '',
+    onclick: () => { STATE.mode = 'studio'; persist(); render(); } }, el('span', { class: 'ico' }, '◊'), el('span', {}, t('nav.studio')));
+  nav.append(sb);
+  side.append(nav);
+  side.append(el('div', { class: 'spacer' }));
+  side.append(el('button', { class: 'langbtn', onclick: toggleLang }, t('lang.switch')));
+  app.append(side);
+
+  // main
+  const main = el('div', { class: 'main' });
+  main.append(mobitop(t, decCount));
+  const disp = m.system && m.system.dispatch;
+  const banner = el('div', { class: 'topbanner' + (disp && !disp.open ? ' closed' : '') },
+    el('span', { class: 'dot' }), el('span', {}, t('banner.readonly')));
+  if (disp && !disp.open) banner.append(el('span', {}, '· ' + t('banner.dispatchClosed')));
+  main.append(banner);
+
+  let view;
+  if (m.__error) view = el('div', { class: 'content' }, el('div', { class: 'empty' }, t('common.notAvailable') + ': read_model.json — ' + m.__error));
+  else if (STATE.mode === 'studio') view = studioView(t, m);
+  else {
+    const content = el('div', { class: 'content' });
+    const pages = { overview: pageOverview, work: pageWork, decisions: pageDecisions, agents: pageAgents, system: pageSystem };
+    content.append((pages[STATE.page] || pageOverview)(t, m));
+    view = content;
+  }
+  main.append(view);
+  main.append(bottomnav(t, decCount));
+  app.append(main);
+  applyMotion();
+}
+
+function modeSwitch(t) {
+  return el('div', { class: 'modeswitch' },
+    el('button', { class: STATE.mode === 'mission' ? 'active' : '', onclick: () => { STATE.mode = 'mission'; persist(); render(); } }, t('mode.mission')),
+    el('button', { class: STATE.mode === 'studio' ? 'active' : '', onclick: () => { STATE.mode = 'studio'; persist(); render(); } }, t('mode.studio')));
+}
+function mobitop(t, decCount) {
+  return el('div', { class: 'mobitop' }, el('div', { class: 'logo' }), el('div', { class: 'name' }, t('app.title')),
+    modeSwitch(t), el('button', { class: 'langbtn', onclick: toggleLang }, t('lang.switch')));
+}
+function bottomnav(t, decCount) {
+  const bn = el('div', { class: 'bottomnav' });
+  for (const [key, ico] of NAV) {
+    const b = el('button', { class: STATE.mode === 'mission' && STATE.page === key ? 'active' : '',
+      onclick: () => { STATE.mode = 'mission'; STATE.page = key; persist(); render(); } },
+      el('span', { class: 'ico' }, ico), el('span', {}, t('nav.' + key)));
+    if (key === 'decisions' && decCount) b.append(el('span', { class: 'badge' }, String(decCount)));
+    bn.append(b);
+  }
+  bn.append(el('button', { class: STATE.mode === 'studio' ? 'active' : '', onclick: () => { STATE.mode = 'studio'; persist(); render(); } },
+    el('span', { class: 'ico' }, '◊'), el('span', {}, t('nav.studio'))));
+  return bn;
+}
+function toggleLang() { STATE.lang = STATE.lang === 'ru' ? 'en' : 'ru'; localStorage.setItem('sos.lang', STATE.lang); document.documentElement.lang = STATE.lang; render(); }
+function persist() { localStorage.setItem('sos.mode', STATE.mode); }
+
+async function boot() {
+  document.documentElement.lang = STATE.lang;
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.getElementById('drawer').querySelector('.x').addEventListener('click', closeDrawer);
+  await loadModel();
+  render();
+  // gentle refresh of the read model view every 30s (read-only)
+  setInterval(async () => { await loadModel(); render(); }, 30000);
+}
+boot();
+</script>
+</body>
+</html>
