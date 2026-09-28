@@ -2322,6 +2322,97 @@ def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
                        f"— вердикта приёмки у приказа не будет")
 
 
+#: Предел возраста артефакта переписи «две сессии на одном предмете».
+#: 48 ч — ЗАМЕР, а не вкус: производитель `com.spa.decision_loop` ходит раз в
+#: 6 ч (`StartInterval` 21600 в его plist), у артефакта объявлен SLO 12 ч, и
+#: 48 ч это четыре пропущенных такта. Предел нужен потому, что население
+#: (журнал объявлений) растёт каждый день: старая запись говорила бы «квитанции
+#: есть у всех» про взятия, которых в ней ещё нет.
+_SUBJECT_RECEIPT_MAX_AGE_H = 48.0
+
+
+def _probe_subject_taking_leaves_a_guard_receipt(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        report: dict | None = None) -> tuple[str, str]:
+    """Заказ G38 п. 3: оставляет ли ВЗЯТИЕ предмета квитанцию сторожа захвата.
+
+    Предмет — класс «две сессии на одном предмете» (ADR-413), который лежал
+    остатком примерно пятьдесят заказов подряд. Цена класса измерена переписью
+    :mod:`spa_core.monitoring.duplicate_subject_census`; закрывается же карточка
+    не ценой (она потрачена и задним числом не меняется), а ПРОВОДКОЙ: пока у
+    взятия предмета нет наблюдаемого следа обращения к сторожу, ни одно будущее
+    столкновение не будет отличимо от передачи.
+
+    Три исхода разведены:
+
+    * `satisfied` — в окне есть взятия, и у каждого есть квитанция;
+    * `not_satisfied` — есть взятия без квитанции (это находка);
+    * `unmeasured` — артефакта нет / он старше предела / перепись не измерила /
+      **в окне нет ни одного взятия**. Последнее — не «чисто»: «у всех взятий
+      есть квитанция» при нуле взятий верно ПО ПОСТРОЕНИЮ и ответом не является.
+
+    Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "порядок взятия работы целиком, пофайловой формы у него нет")
+    try:
+        from spa_core.monitoring import duplicate_subject_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    rel = os.path.join("data", census.ARTIFACT_NAME)
+    if report is None:
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+                report = json.load(fh)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"артефакта переписи нет или он не прочитан ({rel}): "
+                                f"{type(exc).__name__}: {exc} — порядок взятия работы "
+                                f"НЕ НАБЛЮДЁН")
+    if not isinstance(report, dict) or not report.get("measured"):
+        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+        return UNMEASURED, f"перепись не измерила: {reason}"
+
+    stamp = report.get("generated_at")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return UNMEASURED, (f"у артефакта нет читаемой отметки времени "
+                            f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age > _SUBJECT_RECEIPT_MAX_AGE_H:
+        return UNMEASURED, (f"артефакт старше предела: {age:.1f}ч при пределе "
+                            f"{_SUBJECT_RECEIPT_MAX_AGE_H:.0f}ч — за это время в журнале "
+                            f"появились взятия, о которых запись не говорит")
+
+    receipts = report.get("receipts")
+    if not isinstance(receipts, dict):
+        return UNMEASURED, "в артефакте нет раздела `receipts` — проводка не измерена"
+    takings = receipts.get("window_takings")
+    without = receipts.get("window_takings_without_receipt")
+    if not isinstance(takings, int) or not isinstance(without, int):
+        return UNMEASURED, ("в артефакте нет чисел взятий — измерено это или нет, "
+                            "сказать нечем")
+    if takings == 0:
+        return UNMEASURED, (f"в окне {receipts.get('window_days')} дн. ни одного взятия "
+                            f"предмета: «квитанция есть у всех» верно по построению")
+    price = report.get("price") if isinstance(report.get("price"), dict) else {}
+    if without > 0:
+        return NOT_SATISFIED, (
+            f"{without} из {takings} взятий предмета за {receipts.get('window_days')} дн. "
+            f"не оставили квитанции сторожа захвата; цена класса на сегодня — "
+            f"{price.get('lost_coordinates')} координат(ы), сделанных двумя и более "
+            f"сессиями и не доехавших ни до одной, {price.get('sessions_on_lost_coordinates')} "
+            f"сессий(я)")
+    return SATISFIED, (f"все {takings} взятий предмета за {receipts.get('window_days')} дн. "
+                       f"оставили квитанцию сторожа захвата")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -2350,6 +2441,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "no_single_criterion_probe_on_a_multi_criterion_order":
         _probe_no_single_criterion_probe_on_a_multi_criterion_order,
     "no_regression_tests_pass": _probe_no_regression_tests_pass,
+    "subject_taking_leaves_a_guard_receipt":
+        _probe_subject_taking_leaves_a_guard_receipt,
 }
 
 

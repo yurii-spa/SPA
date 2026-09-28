@@ -828,6 +828,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # Критерий §49 `Owner visibility` приказа CIO (ADR-488). `books` объявлен
     # отдельно от сводных счётчиков намеренно: сводка говорит СКОЛЬКО предметов
     # не доехало, а действовать можно только по имени книги и предмета.
+    # Заказ G38 п. 3 (ADR-498): цена класса «две сессии на одном предмете».
+    # `price` и `receipts` объявлены отдельно намеренно: первое говорит, сколько
+    # класс уже стоил, второе — почему его никто не остановил, и подменять одно
+    # другим запрещено.
+    "duplicate_subject_census.json": ("status", "measured", "order", "base_ref",
+                                      "price", "receipts", "guard_wiring",
+                                      "journal"),
     "owner_visibility_census.json": ("status", "criterion", "books",
                                      "books_unreadable", "subjects_total",
                                      "delivered_as_field", "prose_only",
@@ -1078,6 +1085,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/pre_trade_recheck_census.py",
     "owner_visibility_census.json":
         "spa_core/monitoring/owner_visibility_census.py",
+    "duplicate_subject_census.json":
+        "spa_core/monitoring/duplicate_subject_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2927,6 +2936,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # двух объявленных форм, скобочная многострочная — ни одна из них).
         from spa_core.monitoring.vacuous_guard_census import format_report as _vgc_report
         out.extend(_vgc_report(data))
+    elif name == "duplicate_subject_census.json":
+        # Заказ G38 п. 3 (ADR-498). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # файл открыт, а в контекст не попадает ни одно число. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм, скобочная многострочная — ни одна).
+        from spa_core.monitoring.duplicate_subject_census import format_report as _dsc_report
+        out.extend(_dsc_report(data))
     elif name == "call_sourced_input_census.json":
         # Заказ G45 п. 1 (ADR-421). Без этой ветки артефакт читается ВХОЛОСТУЮ.
         # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ

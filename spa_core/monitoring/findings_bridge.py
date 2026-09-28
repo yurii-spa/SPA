@@ -240,6 +240,10 @@ PRODUCES = (
     # решений и выдачу слоя отображения — то есть ЖИВОЙ `data/`, — поэтому такт
     # у неё суточный, как у самого журнала.
     "data/owner_visibility_census.json",
+    # Цена класса «две сессии на одном предмете» — заказ G38 п. 3 (ADR-413,
+    # ADR-498). Ступень читает журнал объявлений (живой `data/`) и дерево
+    # базового ref, поэтому такт у неё суточный, как у самого журнала.
+    "data/duplicate_subject_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -354,6 +358,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "gain_persistence_census",
     "pre_trade_recheck_census",
     "owner_visibility_census",
+    "duplicate_subject_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -616,6 +621,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "owner_visibility_census": {
         "module": "spa_core/monitoring/owner_visibility_census.py",
         "artifact": "data/owner_visibility_census.json"},
+    "duplicate_subject_census": {
+        "module": "spa_core/monitoring/duplicate_subject_census.py",
+        "artifact": "data/duplicate_subject_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2615,6 +2623,27 @@ def main(argv=None) -> int:
                   f"{_ovc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "owner_visibility_census", e)
+
+    # Ступень заказа G38 п. 3 (ADR-498): цена класса «две сессии на одном
+    # предмете». Читает добровольный журнал объявлений и дерево базового ref,
+    # ничего не чинит; заголовочное число — координаты, сделанные двумя и
+    # более сессиями и не доехавшие ни до одной.
+    try:
+        from spa_core.monitoring import duplicate_subject_census
+        _dsc = duplicate_subject_census.run(root=args.root)
+        if _dsc.get("measured"):
+            # `... or {}` здесь был бы ровно тем, что запрещает инв. #17:
+            # «раздела нет» склеилось бы с «потерь ноль».
+            _price = observed(_dsc["doc"], "price", kind=dict)
+            _lost = None if _price is None else observed_number(_price, "lost_coordinates")
+            print(f"duplicate_subject_census: {_dsc['doc'].get('status')} — "
+                  f"координат сделано дважды и потеряно "
+                  f"{'НЕ ИЗМЕРЕНО' if _lost is None else int(_lost)}")
+        else:
+            print(f"duplicate_subject_census: НЕ ИЗМЕРЕНО — "
+                  f"{_dsc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "duplicate_subject_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
