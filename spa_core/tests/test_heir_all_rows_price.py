@@ -88,10 +88,11 @@ class HeirClassificationControls(unittest.TestCase):
             sys.modules.pop(name, None)
         self.tmp.cleanup()
 
-    def _heir(self, name: str, entry):
+    def _heir(self, name: str, entry, **kw):
         self.installed.append(name)
         _install(name, entry)
-        return H.classify_heir(name, self.stands)
+        kw.setdefault("baseline_loader", H.collapsing_loader)
+        return H.classify_heir(name, self.stands, **kw)
 
     def test_a_reader_that_sums_rows_is_called_double_counts(self):
         """СУММА по строкам — ровно тот двойной счёт, против которого правило."""
@@ -224,10 +225,18 @@ class HeirClassificationControls(unittest.TestCase):
             return {"lines": n}
         row = self._heir("spa_core.tests._fake_noncollapsing_heir", measure)
         self.assertEqual(row["outcome"], H.HEIR_UNMEASURED, row)
-        self.assertIn("день не схлопывает", str(row["reason"]))
+        # Формулировка отказа изменена НАМЕРЕННО ([ADR-499]): прежняя —
+        # «этот наследник день не схлопывает» — была утверждением об
+        # ИСТОЧНИКЕ, напечатанным как утверждение о наследнике, и после
+        # ADR-395 она печаталась КАЖДОМУ. Теперь отказ называет путь и
+        # отсылает к разделу ПРЕДМЕТ, который отвечает, чьё это свойство.
+        self.assertIn("схлопывания на этом пути нет", str(row["reason"]))
+        self.assertIn("collapsing_loader", str(row["reason"]),
+                      "отказ обязан назвать, ЧЕМ служил режим «как есть»")
 
     def test_the_instrument_refuses_to_measure_itself(self):
-        row = H.classify_heir(H.__name__, self.stands)
+        row = H.classify_heir(H.__name__, self.stands,
+                              baseline_loader=H.collapsing_loader)
         self.assertEqual(row["outcome"], H.HEIR_UNMEASURED)
         self.assertIn("сам прибор", str(row["reason"]))
 
@@ -254,7 +263,13 @@ class TheNullControl(unittest.TestCase):
 
     @staticmethod
     def _same_behaviour(data_dir, book_id=None):
-        """Свой разбор, ТО ЖЕ правило замены — поведение оригинала."""
+        """Свой разбор, ТО ЖЕ правило замены — поведение ОБЪЯВЛЕННОЙ базы.
+
+        База набора — :func:`heir_all_rows_price.collapsing_loader` (мир до
+        [ADR-395]), и «тождественная подмена» обязана быть тождественна ЕЙ, а
+        не живому загрузчику: иначе нулевой контроль мерил бы разницу между
+        двумя разными мирами и зеленел бы по неверной причине.
+        """
         rows, bad = H.all_rows_loader(data_dir, book_id)
         by = {}
         for r in rows:
@@ -275,6 +290,7 @@ class TheNullControl(unittest.TestCase):
             self.installed.append(name)
             _install(name, entry)
             row = H.classify_heir(name, self.stands,
+                                  baseline_loader=H.collapsing_loader,
                                   patched_loader=self._same_behaviour)
             self.assertEqual(row["outcome"], H.HEIR_UNCHANGED,
                              f"{name}: нулевой контроль обязан дать unchanged, "
@@ -292,7 +308,8 @@ class TheNullControl(unittest.TestCase):
         name = "spa_core.tests._null_sum_moves"
         self.installed.append(name)
         _install(name, summing)
-        row = H.classify_heir(name, self.stands)
+        row = H.classify_heir(name, self.stands,
+                              baseline_loader=H.collapsing_loader)
         self.assertEqual(row["outcome"], H.HEIR_DOUBLE, row)
 
 
@@ -523,11 +540,18 @@ class VerdictAndReport(unittest.TestCase):
         self.assertIn("[НЕ ДОКАЗЫВАЕТ]", text)
         self.assertIn("НЕ доказывает, что получившееся число", text)
 
-    def test_an_unmeasured_doc_prints_the_reason_and_nothing_else(self):
+    def test_an_unmeasured_doc_prints_the_reason_and_the_subject_line(self):
+        """Причина отказа и ПРЕДМЕТ — обе строки, и больше ничего.
+
+        Строка предмета печатается ДАЖЕ в отказе ([ADR-499]): «не измерено»
+        без ответа на вопрос «а предмет-то есть?» и есть та самая слитая
+        форма, из-за которой прибор двенадцать суток молчал об источнике.
+        """
         lines = H.format_report({"status": H.STATUS_UNMEASURED,
                                  "unmeasured_reason": "журнала нет"})
-        self.assertEqual(len(lines), 1)
-        self.assertIn("журнала нет", lines[0])
+        self.assertEqual(len(lines), 2, lines)
+        self.assertIn("[ПРЕДМЕТ] НЕ ИЗМЕРЕН", lines[0])
+        self.assertIn("журнала нет", lines[1])
 
     def test_main_returns_a_distinct_code_for_each_outcome(self):
         """Коды возврата проверяются ВЫЗОВОМ, а не своей таблицей рядом."""
@@ -656,6 +680,249 @@ class WhosePropertyByOutcome(unittest.TestCase):
         row = H.whose_property("_g17_absent_module", self.stand, self.tree)
         self.assertEqual(row["whose"], H.WHOSE_UNMEASURED, row)
         self.assertIn("импорт", str(row["reason"]))
+
+
+# ── предмет прибора: есть ли он у ИСТОЧНИКА (ADR-499) ────────────────────────
+class TheSubjectIsAskedAtTheSource(unittest.TestCase):
+    """Схлопывает ли день САМ загрузчик — вопрос, которого прибор не задавал.
+
+    Двенадцать суток (16.09–28.09) десять узлов набора были красными, и форма
+    падения одна: встроенный контроль стенда отказывал КАЖДОМУ наследнику. Отказ
+    был утверждением об ИСТОЧНИКЕ, напечатанным как утверждение о каждом
+    наследнике по отдельности, — и пока вопрос не задан источнику, отличить одно
+    от другого нечем. Здесь он задан, и контроль двусторонний: мир ПОСЛЕ
+    [ADR-395] и мир ДО него воспроизводятся ВХОДОМ, а не ожиданием.
+    """
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        root = Path(self.tmp.name)
+        src = _stand_material(root)
+        self.stands, why = H.build_stands(src, root / "stands", day="2026-09-06")
+        self.assertIsNotNone(self.stands, why)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_the_live_loader_does_not_collapse_and_the_pre_adr395_one_does(self):
+        """Та самая пара, ради которой всё: один и тот же стенд, два загрузчика.
+
+        Это ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ, которого требует [ADR-455]: без стороны
+        «ДО ADR-395» вердикт «предмета нет» был бы неотличим от «прибор
+        сломался».
+        """
+        live = H.subject_state(self.stands)
+        self.assertEqual(live["state"], H.SUBJECT_NO_COLLAPSE, live)
+        self.assertGreater(live["rows_on_s_true"], live["rows_on_s_one"])
+
+        before = H.subject_state(self.stands, loader=H.collapsing_loader)
+        self.assertEqual(before["state"], H.SUBJECT_COLLAPSES, before)
+        self.assertEqual(before["rows_on_s_true"], before["rows_on_s_one"])
+
+    def test_the_pre_adr395_loader_keeps_the_LAST_line_of_the_day(self):
+        """«later line wins» — правило дословное, и сторона у него именно эта.
+
+        Загрузчик, оставляющий ПЕРВУЮ строку, тоже схлопывал бы день и прошёл
+        бы проверку выше. Воспроизведение мира ДО ADR-395 обязано совпадать с
+        ним и в этом, иначе контроль воспроизводит не тот мир.
+        """
+        rows, bad = H.collapsing_loader(Path(self.stands["s_true"]) / "data")
+        day = [r for r in rows if str(r["cycle_date"]) == "2026-09-06"]
+        self.assertEqual(len(day), 1, day)
+        self.assertEqual(day[0]["verdict"], "HOLD",
+                         "ранняя строка дня — ACT-близнец; победила она ⇒ "
+                         "правило воспроизведено наоборот")
+        self.assertEqual(bad, 0)
+
+    def test_the_patch_now_differs_from_the_live_loader_ONLY_on_the_repeats(self):
+        """Вторая находка замера #716, и она числом, а не прозой.
+
+        После ADR-395 ``all_rows_loader`` отличается от живого загрузчика лишь
+        тем, что не схлопывает ПОБАЙТОВО РАВНЫЙ повтор одного прогона, — то
+        есть снимает идемпотентность, которую ADR-395 сохранил намеренно.
+        Прибор, «починенный» возвратом этой подмены в предмет, продавал бы
+        известную потерю как цену починки.
+        """
+        live = H.subject_state(self.stands)
+        self.assertTrue(live["patch_differs_only_on_repeat"], live)
+        self.assertTrue(set(live["patch_delta"]) <= {"s_dup2", "s_dup3"}, live)
+        self.assertTrue(live["patch_delta"], "подмена обязана отличаться хоть чем-то")
+
+    def test_a_patch_differing_on_a_NON_repeat_stand_is_not_called_repeat_only(self):
+        """Обратная сторона находки: «только на повторах» — утверждение, а не ярлык.
+
+        Без этого контроля признак был бы истинным при ЛЮБОМ отличии подмены,
+        и вывод «мерилась бы уже не цена схлопывания» опирался бы на слово, а
+        не на замер.
+        """
+        def hides_the_erased_run(data_dir, book_id=None):
+            """Прячет ранний прогон дня — отличие на НЕповторных стендах."""
+            rows, bad = H.all_rows_loader(data_dir, book_id)
+            return [r for r in rows if r.get("verdict") != "ACT"], bad
+        out = H.subject_state(self.stands, patched_loader=hides_the_erased_run)
+        self.assertEqual(out["state"], H.SUBJECT_NO_COLLAPSE, out)
+        self.assertFalse(out["patch_differs_only_on_repeat"], out["patch_delta"])
+        self.assertIn("s_true", out["patch_delta"])
+
+    def test_a_patch_identical_to_the_baseline_is_not_a_finding_at_all(self):
+        """Пустая дельта — это «подмена ничего не меняет», а не «меняет повтор».
+
+        Нулевой контроль самого признака: без него «отличается ТОЛЬКО на
+        повторах» печаталось бы и тогда, когда подмена не отличается ничем.
+        """
+        from spa_core.paper_trading import shadow_trigger_eval as live
+        out = H.subject_state(self.stands, patched_loader=live.load_history)
+        self.assertEqual(out["patch_delta"], {}, out)
+        self.assertFalse(out["patch_differs_only_on_repeat"], out)
+
+    def test_the_reachability_probe_runs_under_the_DECLARED_baseline_too(self):
+        """Проба достижимости — первый прогон наследника, и база нужна уже ей.
+
+        Наследник, которому мир после ADR-395 не по зубам, под неверно
+        проведённой пробой падает ЕЩЁ ДО замера, и прибор приписывает отказ
+        не той фазе. Ловится наследником, который РАЗЛИЧАЕТ два мира отказом:
+        при верной проводке он доходит до фазы «все строки» и падает ИМЕННО
+        там, при неверной — падает на пробе достижимости.
+        """
+        def measure(data_dir, write=False):
+            rows, _ = ste.load_history(Path(data_dir))
+            day = [r for r in rows if str(r["cycle_date"]) == "2026-09-06"]
+            if len(day) > 1:
+                raise RuntimeError("мир после ADR-395 этому наследнику не по зубам")
+            return {"verdict": day[0].get("verdict") if day else None}
+        name = "spa_core.tests._fake_one_row_only_heir"
+        _install(name, measure)
+        try:
+            row = H.classify_heir(name, self.stands,
+                                  baseline_loader=H.collapsing_loader)
+            self.assertIn("в режиме «все строки»", str(row["reason"]), row)
+            self.assertNotIn("measure() упал: RuntimeError", str(row["reason"]),
+                             "падение на ПРОБЕ достижимости означает, что проба "
+                             "шла не под объявленной базой")
+            self.assertGreater(row["loader_calls"], 0)
+        finally:
+            sys.modules.pop(name, None)
+
+    def test_a_loader_that_raises_is_unmeasured_and_not_no_collapse(self):
+        """Третий исход: не спросили ⇒ «не измерено», а не «не схлопывает»."""
+        def broken(data_dir, book_id=None):
+            raise RuntimeError("стенд не по мне")
+        out = H.subject_state(self.stands, loader=broken)
+        self.assertEqual(out["state"], H.SUBJECT_UNMEASURED, out)
+        self.assertIsNone(out["rows_on_s_one"])
+
+    def test_a_loader_blind_to_the_day_is_unmeasured_and_not_collapse(self):
+        """Ноль строк дня — это сломанный стенд, а не «схлопывает до нуля»."""
+        def blind(data_dir, book_id=None):
+            return [], 0
+        out = H.subject_state(self.stands, loader=blind)
+        self.assertEqual(out["state"], H.SUBJECT_UNMEASURED, out)
+        self.assertIn("стенд собран неверно", str(out["reason"]))
+
+    def test_fewer_rows_on_the_richer_day_is_refused_loudly(self):
+        """Исход, которого у честного загрузчика нет, судить нельзя."""
+        def upside_down(data_dir, book_id=None):
+            rows, bad = H.all_rows_loader(data_dir, book_id)
+            return (rows[:1] if len(rows) > 3 else rows), bad
+        out = H.subject_state(self.stands, loader=upside_down)
+        self.assertEqual(out["state"], H.SUBJECT_UNMEASURED, out)
+        self.assertIn("МЕНЬШЕ", str(out["reason"]))
+
+    def test_the_default_baseline_of_classify_heir_is_the_LIVE_loader(self):
+        """Умолчание — мир КАК ЕСТЬ, а не воспроизведение музея.
+
+        Контроль самой инъекции. Если бы умолчанием стал
+        ``collapsing_loader``, прибор на живом дереве мерил бы мир 2026-09-хх
+        до ADR-395 и печатал бы «цену», которой в этом дереве нет ни у кого.
+        """
+        def measure(data_dir, write=False):
+            rows, _ = ste.load_history(Path(data_dir))
+            day = [r for r in rows if str(r["cycle_date"]) == "2026-09-06"]
+            return {"n": len(day)}
+        name = "spa_core.tests._fake_row_counter"
+        _install(name, measure)
+        try:
+            live = H.classify_heir(name, self.stands)
+            self.assertEqual(live["baseline"], "живой load_history", live)
+            self.assertEqual(live["outcome"], H.HEIR_UNMEASURED,
+                             "живой загрузчик не схлопывает ⇒ предпосылка "
+                             "стенда не выполнена, и это ВЕРНЫЙ отказ")
+            injected = H.classify_heir(name, self.stands,
+                                       baseline_loader=H.collapsing_loader)
+            self.assertEqual(injected["baseline"], "collapsing_loader", injected)
+            self.assertEqual(injected["outcome"], H.HEIR_DOUBLE, injected)
+        finally:
+            sys.modules.pop(name, None)
+
+
+class TheEmptyPopulationIsMeasuredNotSilent(unittest.TestCase):
+    """Пустое население бывает ИЗМЕРЕННЫМ, и это не то же, что «не измерено».
+
+    Инвариант #17 буквально: три исхода обязаны быть различимы. До [ADR-499]
+    все три печатались одной строкой ``UNMEASURED`` «схлопывающих наследников
+    не найдено» — и за ней прятались 96 читателей из 115, о которых перепись
+    не сказала НИЧЕГО.
+    """
+
+    def _doc(self, state, **kw):
+        doc = {"heir_outcomes": {}, "heirs_population": 0,
+               "subject": {"state": state, "reason": "по построению теста"},
+               "census_measured": 19, "census_unmeasured": 96}
+        doc.update(kw)
+        return doc
+
+    def test_no_collapse_at_source_is_a_measured_empty_class(self):
+        v = H._verdict(self._doc(H.SUBJECT_NO_COLLAPSE))
+        self.assertEqual(v["status"], H.STATUS_OK, v)
+        self.assertIn("ИЗМЕРЕНО", v["headline"])
+        self.assertIn("НЕ ИЗМЕРЕНО 96", v["headline"],
+                      "ноль обязан нести рядом неизмеренную часть населения")
+
+    def test_a_collapsing_source_with_no_heirs_is_a_contradiction_not_a_calm_zero(self):
+        v = H._verdict(self._doc(H.SUBJECT_COLLAPSES))
+        self.assertEqual(v["status"], H.STATUS_WARNING, v)
+        self.assertIn("спорит с источником", v["headline"])
+
+    def test_an_unmeasured_subject_keeps_the_whole_answer_unmeasured(self):
+        v = H._verdict(self._doc(H.SUBJECT_UNMEASURED))
+        self.assertEqual(v["status"], H.STATUS_UNMEASURED, v)
+        self.assertIn("ПРЕДМЕТ у источника тоже не измерен",
+                      v["unmeasured_reason"])
+
+    def test_a_doc_without_a_subject_section_is_unmeasured_and_not_OK(self):
+        """Раздела нет ⇒ вопрос не задавали. Молчаливого OK здесь нет."""
+        doc = self._doc(H.SUBJECT_NO_COLLAPSE)
+        doc.pop("subject")
+        v = H._verdict(doc)
+        self.assertEqual(v["status"], H.STATUS_UNMEASURED, v)
+
+    def test_the_census_breakdown_reaches_the_report(self):
+        lines = H.format_report({
+            "status": H.STATUS_OK, "headline": "пусто и измерено",
+            "stand": {"day": "2026-09-06", "donor_day": "2026-09-05",
+                      "day_rule": "назван вызовом"},
+            "subject": {"state": H.SUBJECT_NO_COLLAPSE, "reason": "источник не схлопывает",
+                        "rows_on_s_one": 4, "rows_on_s_true": 5, "rows_on_s_dup2": 4,
+                        "patch_differs_only_on_repeat": True},
+            "heir_outcomes": {}, "heirs_population": 0,
+            "census_outcomes": {"unmeasured": 96, "sees_both": 17,
+                                "insensitive_stand": 2},
+            "census_measured": 19, "census_unmeasured": 96,
+            "whose_outcomes": {}, "no_entry_population": 0})
+        text = "\n".join(lines)
+        self.assertIn("[ПРЕДМЕТ] no_collapse_at_source", text)
+        self.assertIn("[ПОДМЕНА] отличается от живого загрузчика ТОЛЬКО", text)
+        self.assertIn("[ПЕРЕПИСЬ] измерено 19 · не измерено 96", text)
+        self.assertIn("[ВЕРДИКТ] пусто и измерено", text)
+
+    def test_a_report_without_a_census_says_NOT_MEASURED_and_not_nothing(self):
+        lines = H.format_report({
+            "status": H.STATUS_OK, "headline": "h",
+            "stand": {"day": "d", "donor_day": "c", "day_rule": "r"},
+            "subject": {"state": H.SUBJECT_NO_COLLAPSE, "reason": "r"},
+            "heir_outcomes": {}, "heirs_population": 0,
+            "whose_outcomes": {}, "no_entry_population": 0})
+        self.assertIn("[ПЕРЕПИСЬ] НЕ ИЗМЕРЕНА", "\n".join(lines))
 
 
 if __name__ == "__main__":

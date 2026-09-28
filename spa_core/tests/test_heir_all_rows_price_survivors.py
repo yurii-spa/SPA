@@ -300,7 +300,8 @@ class TheRepeatDetectorNeedsBothArms(unittest.TestCase):
     def _classify(self, name, entry):
         self.installed.append(name)
         _install(name, entry)
-        return H.classify_heir(name, self.stands)
+        return H.classify_heir(name, self.stands,
+                               baseline_loader=H.collapsing_loader)
 
     def test_an_heir_blind_to_a_pair_but_not_to_a_triple_is_still_double_counting(self):
         """строки 514/517: `inflates_2 or inflates_3` → `and`.
@@ -394,6 +395,7 @@ class MeasureSelectsAndCountsThePopulation(unittest.TestCase):
         self.tmp.cleanup()
 
     def _measure(self, **kw):
+        kw.setdefault("baseline_loader", H.collapsing_loader)
         return H.measure(self.src, now=NOW, tree_root=self.root,
                          stand_root=self.root / "stands", day=_day(2), **kw)
 
@@ -403,6 +405,20 @@ class MeasureSelectsAndCountsThePopulation(unittest.TestCase):
         self.assertEqual(doc["heirs_population"], 2)
         self.assertEqual(sorted(r["module"] for r in doc["heirs"]),
                          ["fake_last_a", "fake_last_b"])
+
+    def test_the_census_breakdown_counts_each_reader_once_and_splits_measured(self):
+        """[ADR-499]: «наследников 0» обязано нести рядом разбор переписи.
+
+        Ловит и накопитель (`+1` → `+2`), и подмену «измерено = всё
+        население»: на живом дереве 96 читателей из 115 НЕ ИЗМЕРЕНЫ, и ноль,
+        напечатанный без них, есть другое утверждение.
+        """
+        doc = self._measure()
+        self.assertEqual(doc["census_outcomes"],
+                         {G16.READER_LAST: 2, G16.READER_FIRST: 1,
+                          G16.READER_UNMEASURED: 4}, doc["census_outcomes"])
+        self.assertEqual(doc["census_unmeasured"], 4)
+        self.assertEqual(doc["census_measured"], 3)
 
     def test_the_outcome_counter_accumulates_one_per_heir(self):
         """строка 763: `counts.get(k, 0) + 1` → `+ 2` / `get(k, 1)`."""
@@ -435,7 +451,8 @@ class MeasureSelectsAndCountsThePopulation(unittest.TestCase):
         self.assertIsNotNone(doc["whose_outcomes"])
         off = H.measure(self.src, now=NOW, tree_root=self.root,
                         stand_root=self.root / "stands2", day=_day(2),
-                        sweep_entries=False)
+                        sweep_entries=False,
+                        baseline_loader=H.collapsing_loader)
         self.assertIsNone(off["whose_outcomes"])
         self.assertIn("sweep_entries=False", off["whose_unmeasured_reason"])
 
@@ -456,14 +473,23 @@ class MeasureSelectsAndCountsThePopulation(unittest.TestCase):
 
         def population_that_reenters(tree_root, **kw):
             nested["doc"] = H.measure(self.src, now=NOW, tree_root=self.root,
-                                      stand_root=self.root / "nested")
+                                      stand_root=self.root / "nested",
+                                      baseline_loader=H.collapsing_loader)
             return set(), {"population": 0}
 
         G16.reader_population = population_that_reenters
         doc = self._measure()
         self.assertEqual(nested["doc"]["status"], H.STATUS_UNMEASURED)
         self.assertIn("сам прибор", nested["doc"]["unmeasured_reason"])
-        self.assertEqual(doc["status"], H.STATUS_UNMEASURED)
+        # Внешний замер: населения нет, а ПРЕДМЕТ есть (база набора
+        # схлопывает) — по [ADR-499] это WARNING «перепись спорит с
+        # источником», а не UNMEASURED. Прежнее ожидание UNMEASURED
+        # закрепляло ровно ту слитую форму, которую ADR-499 и разводит:
+        # пустое население объявлялось неизмеренным независимо от того,
+        # спрашивали ли источник. Предмет ЭТОГО теста — вложенный отказ,
+        # и он проверен строкой выше.
+        self.assertEqual(doc["status"], H.STATUS_WARNING, doc)
+        self.assertIn("перепись спорит с источником", doc["headline"])
 
 
 # ── дир-ведомые кандидаты ────────────────────────────────────────────────────

@@ -134,6 +134,36 @@ DEFAULT_HORIZON_DAYS``), а не своей константой: поздней
   входа нужен не каталог, а состояние или аргументы. Это ТРЕТИЙ класс, и он
   назван, а не приписан к одной из двух сторон ради двоичного ответа.
 
+## Предмет прибора после ADR-395 (дополнено [ADR-499], цикл #716)
+
+Заказ G17 спрашивал цену правки, КОТОРОЙ ЕЩЁ НЕ БЫЛО. Правка произошла:
+[ADR-395] снял схлопывание у самого ``load_history``. С этого дня встроенный
+контроль стенда отказывал КАЖДОМУ наследнику — и отказ этот был утверждением
+об ИСТОЧНИКЕ, напечатанным как утверждение о каждом наследнике по
+отдельности; десять тестов прибора краснели двенадцать суток подряд.
+
+Замер #716 на настоящем стенде (день ``2026-09-25``, материал живого журнала):
+
+| загрузчик | строк дня: одна · две · повтор | вердикт |
+|---|---|---|
+| живой ``load_history`` | 4 · **5** · 4 | НЕ схлопывает |
+| :func:`collapsing_loader` (до ADR-395) | 1 · **1** · 1 | схлопывает |
+| :func:`all_rows_loader` (подмена) | 4 · 5 · **5** | НЕ схлопывает |
+
+Отсюда два следствия, и оба записаны в артефакт числами, а не прозой.
+**Первое:** предмет прибора снят у источника, и правильный исход — не
+``unmeasured`` двадцать раз, а объявленное «население класса пусто, ИЗМЕРЕНО»
+рядом с разбором переписи (сколько читателей измерено, сколько нет).
+**Второе:** подмена ``all_rows_loader`` отличается теперь от живого загрузчика
+ТОЛЬКО на стендах-повторах, то есть мерила бы уже не цену схлопывания, а
+снятие идемпотентности, которую ADR-395 сохранил НАМЕРЕННО. Поэтому «починить»
+прибор, вернув ему подмену как предмет, запрещено: он продал бы известную
+потерю как цену починки.
+
+Что прибор делает теперь: спрашивает у ИСТОЧНИКА, схлопывает ли он день, и
+отвечает измеренно. Это сторож [ADR-395] в обратную сторону — вернувшееся
+схлопывание он назовёт ``collapse_at_source`` и снова начнёт мерить цену.
+
 ADVISORY: ``hit_rate``, ``MIN_HIT_RATE``, ``TriggerParams``, писатель журнала и
 его правило замены, ``load_history``, ``POLLED_ADAPTERS``, пины, адаптеры,
 накопитель ряда, пороги RiskPolicy v1.0, стоп-кран, живой трек и ``landing/``
@@ -175,6 +205,15 @@ HEIR_DOUBLE = "double_counts"
 HEIR_UNCHANGED = "unchanged"
 HEIR_UNMEASURED = "unmeasured"
 
+# Состояние ПРЕДМЕТА прибора — схлопывает ли день САМ ИСТОЧНИК (ADR-455).
+# Вопрос задаётся ОДИН раз у загрузчика, а не выводится из молчания наследников:
+# после [ADR-395] встроенный контроль стенда отказывал КАЖДОМУ наследнику, и
+# отказ этот был утверждением об источнике, напечатанным как утверждение о
+# каждом наследнике по отдельности.
+SUBJECT_COLLAPSES = "collapse_at_source"
+SUBJECT_NO_COLLAPSE = "no_collapse_at_source"
+SUBJECT_UNMEASURED = "unmeasured"
+
 # ── исходы вопросу «чьё свойство» ────────────────────────────────────────────
 WHOSE_INSTRUMENT = "instrument"
 WHOSE_MODULE = "module"
@@ -207,6 +246,11 @@ WHAT_IT_DOES_NOT_PROVE = (
     "изменился», а не «не изменится никогда»",
     "класс `instrument` доказывает, что дир-ведомая точка входа ОТРАБОТАЛА на "
     "стенде, а не что она отвечает на тот же вопрос, что искал сосед",
+    "`no_collapse_at_source` доказывает, что схлопывания нет на ЭТОМ пути "
+    "(загрузчик судьи на этом стенде), а не что его нет нигде: читатель, "
+    "разбирающий журнал сам, мимо загрузчика, этим замером не виден",
+    "«схлопывающих наследников ноль» относится к ИЗМЕРЕННОЙ части переписи; "
+    "неизмеренная часть названа своим числом и в ноль не входит",
 )
 
 #: Второй заслон самоисключения: прибор сам читает журнал, и войти в
@@ -364,6 +408,134 @@ def all_rows_loader(data_dir, book_id=None) -> Tuple[List[dict], int]:
     return rows, bad
 
 
+def collapsing_loader(data_dir, book_id=None) -> Tuple[List[dict], int]:
+    """``load_history`` в редакции ДО [ADR-395] — день схлопывается.
+
+    Разбор перенесён ДОСЛОВНО из ``spa_core/paper_trading/shadow_trigger_eval.py``
+    коммита ``fa6a91b76`` (``by_date[str(obj["cycle_date"])] = obj  # later line
+    wins``), а не написан по памяти: это ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ прибора, и
+    правдоподобная реконструкция контролем не является.
+
+    Зачем он здесь. Предмет прибора — ЦЕНА схлопывания, а схлопывания в живом
+    загрузчике больше нет ([ADR-395], замер в [ADR-455]). Стенд, чей «как есть»
+    берётся у окружения, после этого мерил не наследника, а календарь доставки.
+    Тот же порядок, что у времени и у номера процесса в
+    ``.claude/rules/deployment.md``: **схлопывание — ВХОД замера, а не
+    окружение**, и мир ДО ADR-395 воспроизводится этим входом, а не ожиданием.
+    """
+    from spa_core.paper_trading import shadow_trigger_eval as ste
+    path = Path(data_dir) / ste._history_filename(book_id)
+    by_date: Dict[str, dict] = {}
+    bad = 0
+    if not path.exists():
+        return [], 0
+    try:
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        log.warning("shadow history unreadable (%s)", exc)
+        return [], 0
+    for raw in raw_lines:
+        if not raw.strip():
+            continue
+        try:
+            obj = json.loads(raw)
+        except ValueError:
+            bad += 1
+            continue
+        if not isinstance(obj, dict) or not obj.get("cycle_date"):
+            bad += 1
+            continue
+        by_date[str(obj["cycle_date"])] = obj  # later line wins (same-date re-run)
+    return [by_date[d] for d in sorted(by_date)], bad
+
+
+def _rows_of_day(loader: Callable, stand: Path, day: str) -> Optional[int]:
+    """Сколько строк дня ``day`` отдаёт ``loader`` на стенде. ``None`` — не спросить."""
+    try:
+        rows, _bad = loader(Path(stand) / "data")
+    except BaseException as exc:  # noqa: BLE001 — чужой загрузчик
+        log.warning("loader raised on %s: %s", stand, type(exc).__name__)
+        return None
+    if not isinstance(rows, list):
+        return None
+    return sum(1 for r in rows
+               if isinstance(r, dict) and str(r.get("cycle_date")) == day)
+
+
+def subject_state(stands: dict, *, loader: Optional[Callable] = None,
+                  patched_loader: Optional[Callable] = None) -> dict:
+    """ЕСТЬ ЛИ у прибора предмет: схлопывает ли день САМ загрузчик.
+
+    Спрашивается у ИСТОЧНИКА и ровно один раз. Признак — ИСХОД, а не текст
+    функции: на стенде ``S_true`` день содержит ДВА разных прогона, на
+    ``S_one`` — один. Загрузчик, который схлопывает, отдаст за день одно и то
+    же число строк в обоих случаях; загрузчик, который не схлопывает, — на
+    ``S_true`` больше.
+
+    Отдельно называется ИДЕМПОТЕНТНОСТЬ (``S_dup2``: та же строка побайтово
+    дважды). Это РАЗНЫЕ свойства: [ADR-395] снял схлопывание и СОХРАНИЛ
+    идемпотентность, сузив её до одного прогона. Слить их значило бы объявить
+    сохранённое свойство утраченным.
+
+    Третий исход обязателен: загрузчик упал или стенд не прочитан ⇒
+    ``unmeasured`` с названной причиной, а не «не схлопывает».
+    """
+    from spa_core.paper_trading import shadow_trigger_eval as ste
+
+    loader = ste.load_history if loader is None else loader
+    patched_loader = all_rows_loader if patched_loader is None else patched_loader
+    day = str(stands.get("day"))
+    out: Dict[str, object] = {"day": day}
+    n_one = _rows_of_day(loader, stands["s_one"], day)
+    n_true = _rows_of_day(loader, stands["s_true"], day)
+    n_dup2 = _rows_of_day(loader, stands["s_dup2"], day)
+    out.update(rows_on_s_one=n_one, rows_on_s_true=n_true, rows_on_s_dup2=n_dup2)
+    if n_one is None or n_true is None:
+        out.update(state=SUBJECT_UNMEASURED,
+                   reason="загрузчик не ответил на стенде: про схлопывание "
+                          "у источника НЕ ИЗМЕРЕНО ничего")
+        return out
+    if n_one == 0:
+        out.update(state=SUBJECT_UNMEASURED,
+                   reason="на стенде из ОДНОЙ строки дня загрузчик не вернул "
+                          "ни одной: стенд собран неверно либо день не тот")
+        return out
+    if n_true < n_one:
+        out.update(state=SUBJECT_UNMEASURED,
+                   reason=f"день из ДВУХ прогонов дал МЕНЬШЕ строк ({n_true}), "
+                          f"чем день из одного ({n_one}): такого исхода у "
+                          f"честного загрузчика нет, судить нельзя")
+        return out
+    out["keeps_repeat_apart"] = (None if n_dup2 is None
+                                 else bool(n_dup2 > n_one))
+    if n_true == n_one:
+        out.update(state=SUBJECT_COLLAPSES,
+                   reason=f"день из двух РАЗНЫХ прогонов отдан теми же {n_one} "
+                          f"строк(ами), что день из одного: источник схлопывает, "
+                          f"и цена схлопывания измерима")
+        return out
+    out.update(state=SUBJECT_NO_COLLAPSE,
+               reason=f"день из двух РАЗНЫХ прогонов отдан {n_true} строк(ами) "
+                      f"против {n_one}: источник НЕ схлопывает — предмет "
+                      f"прибора снят у источника (ADR-395), и это ИЗМЕРЕНО, "
+                      f"а не предположено")
+    # Чем ОСТАЛАСЬ подмена прибора, когда схлопывания у источника нет. Разница
+    # ровно на повторных стендах и означает, что подменой мерилась бы уже не
+    # цена схлопывания, а СНЯТИЕ идемпотентности, которое ADR-395 сохранил
+    # намеренно. Печатать это числом обязательно: иначе прибор однажды «починят»
+    # обратно и продадут потерю идемпотентности как цену правки.
+    delta = {}
+    for key in ("s_one", "s_first", "s_true", "s_dup2", "s_dup3"):
+        base_n = _rows_of_day(loader, stands[key], day)
+        patch_n = _rows_of_day(patched_loader, stands[key], day)
+        if base_n != patch_n:
+            delta[key] = {"baseline": base_n, "patched": patch_n}
+    out["patch_delta"] = delta
+    out["patch_differs_only_on_repeat"] = bool(
+        delta and set(delta) <= {"s_dup2", "s_dup3"})
+    return out
+
+
 def rebind_everywhere(original, replacement) -> List[Tuple[object, str]]:
     """Переставить КАЖДЫЙ атрибут дерева, который ЕСТЬ ``original``.
 
@@ -416,7 +588,8 @@ def _answer(call: Callable[[Path], object], stand: Path) -> str:
 
 
 def classify_heir(module_name: str, stands: dict, *,
-                  patched_loader: Optional[Callable] = None) -> dict:
+                  patched_loader: Optional[Callable] = None,
+                  baseline_loader: Optional[Callable] = None) -> dict:
     """Вердикт одному наследнику — по ИСХОДУ на пяти стендах, в двух режимах.
 
     ``patched_loader`` — чем подменяется загрузчик; по умолчанию
@@ -424,6 +597,14 @@ def classify_heir(module_name: str, stands: dict, *,
     подмена на загрузчик с ТЕМ ЖЕ поведением обязана дать всем
     ``unchanged``. Без него «ответ изменился» доказывало бы лишь то, что
     мы что-то подменили, а не то, ЧТО именно мы подменили.
+
+    ``baseline_loader`` — чем служит режим «КАК ЕСТЬ»; по умолчанию живой
+    ``load_history``. Параметр добавлен [ADR-499] по предписанию [ADR-455]:
+    встроенный контроль стенда требует, чтобы БЕЗ подмены день из двух строк
+    был неотличим от дня из одной последней, а живой загрузчик после
+    [ADR-395] не схлопывает — то есть «как есть» перестал быть объявленной
+    стороной замера и стал календарём доставки. Мир ДО ADR-395
+    воспроизводится входом :func:`collapsing_loader`, а не ожиданием.
     """
     patched_loader = all_rows_loader if patched_loader is None else patched_loader
     import importlib
@@ -449,12 +630,15 @@ def classify_heir(module_name: str, stands: dict, *,
 
     from spa_core.paper_trading import shadow_trigger_eval as ste
     original = ste.load_history
+    baseline = original if baseline_loader is None else baseline_loader
+    row["baseline"] = ("живой load_history" if baseline_loader is None
+                       else getattr(baseline, "__name__", repr(baseline)))
 
     # 1. Достижимость. Наследник, до которого подмена не дотянулась, ответит
     #    одинаково в обоих режимах — и уехал бы в `unchanged`, то есть в
     #    «правка ему ничего не стоит». Это «не измерено», а не ноль.
     counter = _CallCounter()
-    sites = rebind_everywhere(original, counter.wrap(original))
+    sites = rebind_everywhere(original, counter.wrap(baseline))
     try:
         call(stands["s_true"])
     except BaseException as exc:  # noqa: BLE001
@@ -473,8 +657,11 @@ def classify_heir(module_name: str, stands: dict, *,
                           "ИЗМЕРЕНО ничего")
         return row
 
-    # 2. Ответы в обоих режимах.
+    # 2. Ответы в обоих режимах. «Как есть» тоже идёт ПОД объявленным
+    #    загрузчиком: по умолчанию это живой, и тогда строка ниже —
+    #    тождественная перестановка; но объявленной стороной он быть обязан.
     keys = ("s_one", "s_first", "s_true", "s_dup2", "s_dup3")
+    sites = rebind_everywhere(original, baseline)
     try:
         as_is = {k: _answer(call, stands[k]) for k in keys}
         again = _answer(call, stands["s_true"])
@@ -482,6 +669,8 @@ def classify_heir(module_name: str, stands: dict, *,
         row.update(outcome=HEIR_UNMEASURED,
                    reason=f"{entry}() упал в режиме «как есть»: {type(exc).__name__}")
         return row
+    finally:
+        restore(sites, original)
     if again != as_is["s_true"]:
         row.update(outcome=HEIR_UNMEASURED,
                    reason="ответ не воспроизводится на ОДНОМ И ТОМ ЖЕ стенде")
@@ -492,9 +681,11 @@ def classify_heir(module_name: str, stands: dict, *,
     # дальнейший вердикт был бы верным ответом не на тот вопрос.
     if as_is["s_true"] != as_is["s_one"]:
         row.update(outcome=HEIR_UNMEASURED,
-                   reason="без подмены ответ на дне из ДВУХ строк уже отличается "
-                          "от ответа по одной ПОСЛЕДНЕЙ: этот наследник день не "
-                          "схлопывает, и мерить ему цену схлопывания нечем")
+                   reason=f"без подмены ({row['baseline']}) ответ на дне из ДВУХ "
+                          f"строк уже отличается от ответа по одной ПОСЛЕДНЕЙ: "
+                          f"схлопывания на этом пути нет, и мерить его цену нечем. "
+                          f"ЧЬЁ это свойство — наследника или источника — "
+                          f"отвечает раздел ПРЕДМЕТ замера, а не эта строка")
         return row
 
     sites = rebind_everywhere(original, patched_loader)
@@ -705,7 +896,8 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
             stand_root: Optional[Path] = None,
             tree_root: Optional[Path] = None,
             day: Optional[str] = None,
-            sweep_entries: bool = True) -> dict:
+            sweep_entries: bool = True,
+            baseline_loader: Optional[Callable] = None) -> dict:
     """Полный замер G17. Только чтение живого ``data/``; стенды — копии."""
     global _SWEEPING
     stamp = (now or _utcnow()).isoformat()
@@ -735,6 +927,9 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         return doc
     doc["stand"] = {k: (str(v) if isinstance(v, Path) else v)
                     for k, v in stands.items()}
+    # ПРЕДМЕТ — первым вопросом и у ИСТОЧНИКА. Пока он не задан, молчание
+    # наследников неотличимо от их отсутствия (ADR-455).
+    doc["subject"] = subject_state(stands, loader=baseline_loader)
 
     _SWEEPING = True
     try:
@@ -752,11 +947,21 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
                 "s3": stands["s_first"]}))
         doc["population"] = {"total": len(census), "stats_population":
                              pop_stats.get("population")}
+        # Разбор переписи ОБЯЗАТЕЛЕН рядом с числом наследников: «схлопывающих
+        # ноль» на населении, три четверти которого НЕ ИЗМЕРЕНЫ, есть другое
+        # утверждение, чем «ноль из измеренных» (инв. #17).
+        ccounts: Dict[str, int] = {}
+        for r in census:
+            ccounts[str(r.get("outcome"))] = ccounts.get(str(r.get("outcome")), 0) + 1
+        doc["census_outcomes"] = ccounts
+        doc["census_unmeasured"] = ccounts.get(g16.READER_UNMEASURED, 0)
+        doc["census_measured"] = len(census) - doc["census_unmeasured"]
 
         heirs = [r["module"] for r in census
                  if r.get("outcome") == g16.READER_LAST]
         doc["heirs_population"] = len(heirs)
-        heir_rows = [classify_heir(name, stands) for name in heirs]
+        heir_rows = [classify_heir(name, stands, baseline_loader=baseline_loader)
+                     for name in heirs]
         doc["heirs"] = heir_rows
         counts: Dict[str, int] = {}
         for r in heir_rows:
@@ -800,9 +1005,32 @@ def _verdict(doc: dict) -> dict:
         return {"status": STATUS_UNMEASURED,
                 "unmeasured_reason": "население наследников не измерено"}
     if pop == 0:
+        # Три исхода, и прежде все три печатались одной строкой UNMEASURED
+        # (ADR-455/ADR-499). Разводит их ПРЕДМЕТ, спрошенный у источника.
+        subject = observed(doc, "subject", kind=dict)
+        state = None if subject is None else subject.get("state")
+        unmeasured = observed(doc, "census_unmeasured", kind=int)
+        measured = observed(doc, "census_measured", kind=int)
+        tail = ("" if unmeasured is None or measured is None else
+                f" Перепись: ИЗМЕРЕНО {measured}, НЕ ИЗМЕРЕНО {unmeasured} — "
+                f"ноль относится к измеренным, а не ко всему населению.")
+        if state == SUBJECT_NO_COLLAPSE:
+            return {"status": STATUS_OK,
+                    "headline": f"население класса ПУСТО, и это ИЗМЕРЕНО: "
+                                f"источник день не схлопывает "
+                                f"({subject.get('reason')}), схлопывающих "
+                                f"наследников нет.{tail}"}
+        if state == SUBJECT_COLLAPSES:
+            return {"status": STATUS_WARNING,
+                    "headline": f"источник день СХЛОПЫВАЕТ, а схлопывающих "
+                                f"наследников перепись не нашла: перепись спорит "
+                                f"с источником, и спор этот сам есть находка."
+                                f"{tail}"}
         return {"status": STATUS_UNMEASURED,
-                "unmeasured_reason": "схлопывающих наследников не найдено: "
-                                     "мерить цену не у кого"}
+                "unmeasured_reason":
+                    "схлопывающих наследников не найдено, и ПРЕДМЕТ у источника "
+                    "тоже не измерен: "
+                    + str(None if subject is None else subject.get("reason"))}
     double = counts.get(HEIR_DOUBLE, 0)
     recovers = counts.get(HEIR_RECOVERS, 0)
     if double:
@@ -824,6 +1052,20 @@ def format_report(doc: dict) -> List[str]:
 
     out: List[str] = []
     status = doc.get("status", STATUS_UNMEASURED)
+    subject = observed(doc, "subject", kind=dict)
+    if subject is None:
+        out.append("[ПРЕДМЕТ] НЕ ИЗМЕРЕН: у источника не спрашивали, схлопывает "
+                   "ли он день")
+    else:
+        out.append(f"[ПРЕДМЕТ] {subject.get('state')}: {subject.get('reason')} "
+                   f"(строк дня: одна {subject.get('rows_on_s_one')} · две "
+                   f"{subject.get('rows_on_s_true')} · повтор "
+                   f"{subject.get('rows_on_s_dup2')})")
+        if subject.get("patch_differs_only_on_repeat"):
+            out.append("[ПОДМЕНА] отличается от живого загрузчика ТОЛЬКО на "
+                       "стендах-повторах: ею мерилась бы уже не цена "
+                       "схлопывания, а снятие идемпотентности, которое ADR-395 "
+                       "сохранил намеренно")
     if status == STATUS_UNMEASURED:
         out.append(f"[НЕ ИЗМЕРЕНО] {doc.get('unmeasured_reason', 'причина не названа')}")
         return out
@@ -834,6 +1076,15 @@ def format_report(doc: dict) -> List[str]:
     pop = doc.get("heirs_population")
     out.append(f"[ОТВЕТ] наследников {pop}: "
                + " · ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    ccounts = observed(doc, "census_outcomes", kind=dict)
+    if ccounts is None:
+        out.append("[ПЕРЕПИСЬ] НЕ ИЗМЕРЕНА: разбора читателей по исходам нет")
+    else:
+        out.append(f"[ПЕРЕПИСЬ] измерено {doc.get('census_measured')} · не "
+                   f"измерено {doc.get('census_unmeasured')} · "
+                   + " · ".join(f"{k}={v}" for k, v in sorted(ccounts.items())))
+    if doc.get("headline"):
+        out.append(f"[ВЕРДИКТ] {doc.get('headline')}")
     for row in observed(doc, "heirs", kind=list) or []:
         out.append(f"   [{row.get('outcome')}] {row.get('module')} "
                    f"({row.get('entry', '—')}): {row.get('reason')}")

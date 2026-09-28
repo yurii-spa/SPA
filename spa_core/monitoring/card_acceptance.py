@@ -2413,6 +2413,99 @@ def _probe_subject_taking_leaves_a_guard_receipt(
                        f"оставили квитанцию сторожа захвата")
 
 
+#: Такт производителя G17 — ступень `findings_bridge` (6 ч). Предел вдвое
+#: шире такта: пропущенный прогон ещё не «не измерено», два подряд — уже да.
+_G17_MAX_AGE_H = 12.0
+
+
+def _probe_g17_subject_state_is_measured(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        report: dict | None = None) -> tuple[str, str]:
+    """[ADR-499]: говорит ли прибор G17 о своём ПРЕДМЕТЕ измеренно.
+
+    Предмет прибора — цена схлопывания дня; [ADR-395] снял схлопывание у
+    самого ``load_history``, и с 16.09 прибор печатал на живом дереве
+    ``UNMEASURED`` «схлопывающих наследников не найдено». За этой строкой
+    прятались СРАЗУ ТРИ разных состояния: измеренный пустой класс, спор
+    переписи с источником и настоящее «не измерено». Инвариант #17 требует
+    их различать.
+
+    Критерий — ИСХОД в живом артефакте, а не наличие кода:
+
+    * `satisfied` — артефакт свеж, раздел ``subject`` называет состояние
+      источника ИЗМЕРЕННЫМ, и при пустом населении вердикт этого не скрывает;
+    * `not_satisfied` — раздела нет либо пустое население снова объявлено
+      неизмеренным (регресс к слитой форме);
+    * `unmeasured` — артефакта нет / он старше предела / состояние источника
+      само не измерено. «Не измерено» за «чисто» не выдаётся.
+
+    Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "ответ прибора о самом себе, пофайловой формы у него нет")
+    try:
+        from spa_core.monitoring import heir_all_rows_price as g17
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"прибор не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    rel = os.path.join("data", g17.ARTIFACT)
+    if report is None:
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+                report = json.load(fh)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"артефакта прибора нет или он не прочитан ({rel}): "
+                                f"{type(exc).__name__}: {exc} — про предмет НЕ "
+                                f"ИЗМЕРЕНО ничего")
+    if not isinstance(report, dict):
+        return UNMEASURED, "артефакт прибора не словарь — судить нечем"
+
+    stamp = report.get("generated_at")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return UNMEASURED, (f"у артефакта нет читаемой отметки времени "
+                            f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age > _G17_MAX_AGE_H:
+        return UNMEASURED, (f"артефакт старше предела: {age:.1f}ч при пределе "
+                            f"{_G17_MAX_AGE_H:.0f}ч — сегодняшнего ответа прибора нет")
+
+    subject = report.get("subject")
+    if not isinstance(subject, dict) or not subject.get("state"):
+        return NOT_SATISFIED, ("в артефакте нет раздела `subject`: у ИСТОЧНИКА не "
+                               "спрашивали, схлопывает ли он день, и молчание "
+                               "наследников неотличимо от их отсутствия")
+    state = str(subject.get("state"))
+    if state == g17.SUBJECT_UNMEASURED:
+        return UNMEASURED, (f"состояние источника само не измерено: "
+                            f"{subject.get('reason')}")
+    if state not in (g17.SUBJECT_COLLAPSES, g17.SUBJECT_NO_COLLAPSE):
+        return UNMEASURED, (f"состояние источника названо словом вне закрытого "
+                            f"перечня ({state!r}) — что оно значит, сказать нечем")
+    status = str(report.get("status"))
+    pop = report.get("heirs_population")
+    if pop == 0 and status == g17.STATUS_UNMEASURED:
+        return NOT_SATISFIED, (
+            f"источник измерен ({state}), а пустое население всё равно объявлено "
+            f"неизмеренным: {report.get('unmeasured_reason')} — это возврат к "
+            f"слитой форме, ради которой писан ADR-499")
+    measured = report.get("census_measured")
+    unmeasured = report.get("census_unmeasured")
+    if not isinstance(measured, int) or not isinstance(unmeasured, int):
+        return NOT_SATISFIED, ("разбора переписи в артефакте нет: «наследников "
+                               "ноль» напечатан без того, у скольких читателей "
+                               "это вообще измерено")
+    return SATISFIED, (f"источник измерен: {state}; наследников {pop} при переписи "
+                       f"ИЗМЕРЕНО {measured} / НЕ ИЗМЕРЕНО {unmeasured}; вердикт "
+                       f"прибора {status}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -2441,6 +2534,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "no_single_criterion_probe_on_a_multi_criterion_order":
         _probe_no_single_criterion_probe_on_a_multi_criterion_order,
     "no_regression_tests_pass": _probe_no_regression_tests_pass,
+    "g17_subject_state_is_measured": _probe_g17_subject_state_is_measured,
     "subject_taking_leaves_a_guard_receipt":
         _probe_subject_taking_leaves_a_guard_receipt,
 }
