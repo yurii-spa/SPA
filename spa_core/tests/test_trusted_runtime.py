@@ -131,26 +131,49 @@ def _verify(d, digest):
         capture_output=True, text=True)
 
 
+# These exercise REAL macOS ordinary-user filesystem semantics (mode bits, traversal). They are NOT mocked;
+# they need a 3.13 to build the bundle and darwin perm behaviour. On non-macOS/non-3.13 they skip (stated).
+import sys as _sys
+_REAL_PERM = _sys.platform == "darwin" and _sys.version_info[:2] == (3, 13)
+
+
 @pytest.fixture(scope="module")
 def ro_runtime(tmp_path_factory):
-    """A real relocatable 3.13 bundle, installed READ-ONLY (files+dirs a-w) like the trusted plane."""
-    import sys
-    if sys.version_info[:2] != (3, 13):
-        pytest.skip("needs a 3.13 to build the runtime bundle")
+    """A real relocatable 3.13 bundle, permissions NORMALISED exactly as the installer does on the trusted
+    plane: dirs 0755, library files 0644, exe 0755 — so an ORDINARY user can read/traverse/execute but not write."""
+    if not _REAL_PERM:
+        pytest.skip("needs macOS + 3.13 for real ordinary-user permission verification")
     stage = str(tmp_path_factory.mktemp("rt") / "bundle")
-    r = subprocess.run(["bash", BUILDER, "--src", sys.executable, "--stage", stage, "--print-digest"],
+    r = subprocess.run(["bash", BUILDER, "--src", _sys.executable, "--stage", stage, "--print-digest"],
                        capture_output=True, text=True)
     if r.returncode != 0 or not os.path.isdir(stage):
         pytest.skip("build_trusted_runtime.sh unavailable: " + r.stderr[-200:])
     digest = _digest_of(stage)
-    subprocess.run(["chmod", "-R", "a-w", stage])                # fully read-only (files + dirs)
+    # The real install is ROOT-owned 0755 dirs / 0644 files (user reads via other-bits, cannot write). A test
+    # cannot create root-owned files, so we reproduce the same USER-FACING invariant with a user-owned tree that
+    # the user can read/traverse/execute but NOT write: dirs 0555, files 0444, exe 0555. (source is 0700/0600.)
+    subprocess.run(["bash", "-c", "find %s -type d -exec chmod 0555 {} +; find %s -type f -exec chmod 0444 {} +; chmod 0555 %s/bin/python3" % (stage, stage, stage)])
     yield stage, digest
-    subprocess.run(["chmod", "-R", "u+w", stage])                # allow cleanup
+    subprocess.run(["chmod", "-R", "u+rwx", stage])              # allow cleanup
 
 
 def test_correct_runtime_verifies(ro_runtime):
     stage, digest = ro_runtime
-    assert _verify(stage, digest).returncode == 0                # read-only, root-would-be-owner, digest, smoke
+    r = _verify(stage, digest)
+    assert r.returncode == 0, (r.stdout + r.stderr)              # accessible+traversable+non-writable+runs
+
+
+def test_unreadable_stdlib_dir_fails_closed_and_surfaces_reason(ro_runtime):
+    """The Checkpoint-D defect: a stdlib dir the intended user cannot traverse → FAIL CLOSED, reason SURFACED."""
+    stage, digest = ro_runtime
+    d = os.path.join(stage, "lib/python3.13")
+    subprocess.run(["chmod", "0700", d]); subprocess.run(["chmod", "000", d])   # not traversable by this user
+    try:
+        r = _verify(stage, digest); out = (r.stdout + r.stderr).lower()
+        assert r.returncode != 0
+        assert "traversable" in out or "permission denied" in out or "not readable" in out  # reason surfaced, not suppressed
+    finally:
+        subprocess.run(["chmod", "0755", d])
 
 
 def test_writable_stdlib_file_fails_closed_and_untouched(ro_runtime):
@@ -190,9 +213,84 @@ def test_group_other_writable_fails_closed(ro_runtime):
 def test_tampered_file_fails_closed(ro_runtime):
     stage, digest = ro_runtime
     f = os.path.join(stage, "lib/python3.13/os.py")
-    subprocess.run(["chmod", "u+w", f]); open(f, "a").write("# t\n")
+    subprocess.run(["chmod", "u+w", f])
+    orig = open(f, "rb").read()                              # save exact bytes for a clean restore
     try:
+        open(f, "ab").write(b"# t\n"); subprocess.run(["chmod", "0444", f])   # read-only again, content changed
         r = _verify(stage, digest)
         assert r.returncode != 0 and "digest" in (r.stdout + r.stderr).lower()
     finally:
-        open(f, "r+").truncate(os.path.getsize(f) - 4); subprocess.run(["chmod", "a-w", f])
+        subprocess.run(["chmod", "u+w", f]); open(f, "wb").write(orig); subprocess.run(["chmod", "0444", f])
+    assert _digest_of(stage) == digest                       # fixture restored byte-for-byte
+
+
+# ── Point 2: additional AS-USER verification regression evidence (real macOS ordinary-user semantics) ──
+# NOTE ON SCOPE: these exercise the VERIFICATION logic (verify_runtime_tree) via --verify-runtime as the real
+# user. They do NOT exercise the NORMALISATION step (installer TEMP chmod) nor the root-owned/`sudo -u` install
+# branch — those require actual root and a root-owned tree, which a non-privileged test cannot create. Those
+# branches are covered only at real sudo-install time (Checkpoint C/D). We deliberately do NOT substitute a
+# user-owned 0555/0444 tree as evidence for the root-owned branch.
+
+def test_unreadable_regular_file_in_traversable_tree(ro_runtime):
+    """Directory traversable, but a regular library file is unreadable by the user → FAIL (find -print misses this)."""
+    stage, digest = ro_runtime
+    f = os.path.join(stage, "lib/python3.13/os.py")
+    subprocess.run(["chmod", "000", f])                      # dir stays 0555 (traversable); file unreadable
+    try:
+        r = _verify(stage, digest); out = (r.stdout + r.stderr).lower()
+        assert r.returncode != 0 and ("unreadable" in out or "permission" in out)
+    finally:
+        subprocess.run(["chmod", "0444", f])                 # restore perms BEFORE reading digest back
+    assert _digest_of(stage) == digest                       # content untouched — verify did not mutate
+
+
+def test_acl_granted_write_fails_closed(ro_runtime):
+    """Mode is 0444 but a macOS ACL grants the user write → FAIL. Mode-bit-only checks would MISS this."""
+    stage, digest = ro_runtime
+    f = os.path.join(stage, "lib/python3.13/os.py")
+    who = subprocess.run(["id", "-un"], capture_output=True, text=True).stdout.strip()
+    add = subprocess.run(["chmod", "+a", "%s allow write" % who, f], capture_output=True, text=True)
+    if add.returncode != 0:
+        import pytest; pytest.skip("ACL not supported here: " + add.stderr)
+    try:
+        r = _verify(stage, digest); out = (r.stdout + r.stderr).lower()
+        assert r.returncode != 0 and "writable" in out
+    finally:
+        subprocess.run(["chmod", "-a", "%s allow write" % who, f])
+
+
+def test_accessibility_failure_with_empty_stderr_is_caught_by_exit_status(ro_runtime):
+    """A verifier that fails with EMPTY stderr must still FAIL — exit status is authoritative, not stderr text."""
+    stage, digest = ro_runtime
+    fake = os.path.join(os.path.dirname(stage), "fakepy")
+    open(fake, "w").write("#!/bin/sh\ncat >/dev/null 2>&1\nexit 3\n"); os.chmod(fake, 0o755)  # consume stdin, exit 3, no output
+    env = dict(os.environ, STUDIO_BOOTSTRAP_PY=fake)
+    r = subprocess.run(["bash", INSTALLER, "--verify-runtime", stage, "--runtime-digest", digest,
+        "--launcher", "x", "--launcher-sha256", "x", "--repo", "x", "--approved", "x", "--runtime", "x"],
+        capture_output=True, text=True, env=env)
+    assert r.returncode != 0 and "exit=3" in (r.stdout + r.stderr)      # failed by status, empty stderr surfaced as exit=3
+
+
+def test_existing_inaccessible_runtime_fails_without_mutation(ro_runtime):
+    """Simulates the existing broken (inaccessible) runtime: verify FAILS and the tree is NOT mutated."""
+    stage, digest = ro_runtime
+    d = os.path.join(stage, "lib/python3.13")
+    before = _digest_of(stage)
+    subprocess.run(["chmod", "000", d])
+    try:
+        r = _verify(stage, digest)
+        assert r.returncode != 0
+        subprocess.run(["chmod", "0555", d])                # only to read the digest back
+        assert _digest_of(stage) == before                  # content untouched — no chmod/delete/repair by verify
+    finally:
+        subprocess.run(["chmod", "0555", d])
+
+
+def test_diagnostic_mode_refuses_to_certify_for_a_different_identity():
+    """--verify-runtime run as user A must not claim verification for user B (identity check)."""
+    import getpass
+    r = subprocess.run(["bash", INSTALLER, "--verify-runtime", "/tmp", "--runtime-digest", "x",
+        "--launcher", "x", "--launcher-sha256", "x", "--repo", "x", "--approved", "x", "--runtime", "x"],
+        capture_output=True, text=True, env=dict(os.environ, SUDO_USER="somebodyelse"))
+    # USER_NAME resolves to SUDO_USER=somebodyelse while we run as the real user → refuse
+    assert r.returncode != 0 and ("refuse to certify" in (r.stdout + r.stderr) or "must run AS" in (r.stdout + r.stderr))

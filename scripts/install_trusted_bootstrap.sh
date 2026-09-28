@@ -33,23 +33,63 @@ rt_digest(){ ( cd "$1" && find . -type f -not -path '*/__pycache__/*' -not -name
 
 # WHOLE-TREE read-only verification of an installed/candidate runtime. Never modifies the tree. `who` is the
 # identity that must not be able to write (default USER_NAME). Fails CLOSED (exit 1) on the first violation.
+BOOTSTRAP_PY="${STUDIO_BOOTSTRAP_PY:-/usr/bin/python3}"   # OS python for the as-user verifier (accessible, root:wheel)
+
 verify_runtime_tree(){ # $1=dir $2=expected_digest [$3=who] [$4=require_root]
   local D="$1" EXP="$2" WHO="${3:-$USER_NAME}" REQROOT="${4:-0}"
-  [ -f "$D/bin/python3" ] || die "runtime $D: bin/python3 missing (regular file)"
-  local SL; SL=$(find "$D" -type l 2>/dev/null); [ -z "$SL" ] || die "runtime $D: symlink present ($SL)"
-  [ "$(rt_digest "$D")" = "$EXP" ] || die "runtime $D: digest != $EXP"
-  # writability: no file OR directory anywhere may be writable by WHO (WHO-owned + user-write, or group/other-write)
-  local W; W=$(find "$D" -user "$WHO" -perm -0200 -print -quit 2>/dev/null)
-  [ -z "$W" ] || die "runtime $D: object writable by $WHO ($W)"
-  local W2; W2=$(find "$D" \( -perm -0020 -o -perm -0002 \) -print -quit 2>/dev/null)
-  [ -z "$W2" ] || die "runtime $D: group/other-writable object ($W2)"
-  if [ "$REQROOT" = 1 ]; then
-    local NR; NR=$(find "$D" ! -user root -print -quit 2>/dev/null)
-    [ -z "$NR" ] || die "runtime $D: non-root-owned object ($NR)"
+  # do not let a diagnostic run claim verification for an identity it is not actually executing as (FIRST)
+  if [ "$(id -u)" != 0 ] && [ "$WHO" != "$(id -un)" ]; then
+    die "verify must run AS $WHO (root uses sudo -u); current identity is $(id -un) — refuse to certify for $WHO"
   fi
-  "$D/bin/python3" -E -s -c "import sys;assert sys.version_info[:2]==(3,13)" 2>/dev/null || die "runtime $D: 3.13 smoke failed"
-  "$D/bin/python3" -E -s -S -c "import sys,os;assert os.path.realpath(sys.prefix)==os.path.realpath('$D');assert not [p for p in sys.path if p and ('miniconda' in p or os.path.expanduser('~/Library') in p)]" 2>/dev/null \
-    || die "runtime $D: relocation/isolation failed"
+  # run a command AS the intended ordinary user: sudo -u when we are root (install), else directly (verify mode)
+  runas(){ if [ "$(id -u)" = 0 ]; then sudo -u "$WHO" "$@"; else "$@"; fi; }
+  [ -f "$D/bin/python3" ] || die "runtime $D: bin/python3 missing (regular file)"
+  # 1) AS-USER EFFECTIVE tree verification (walked + os.access → honors ACLs, not just mode bits): accessibility,
+  #    listability/traversal, actual file readability, EFFECTIVE non-writability, object-type + symlink rejection,
+  #    and (require_root) root ownership. Exit status is authoritative; diagnostics retained.
+  local out st
+  set +e
+  out=$(runas "$BOOTSTRAP_PY" -E -s - "$D" "$REQROOT" <<'PYV' 2>&1
+import os, sys, stat
+root, reqroot = sys.argv[1], (sys.argv[2] == "1")
+bad, errs = [], []
+def add(k, p):
+    if len(bad) < 50: bad.append("%s: %s" % (k, p))
+for dp, dirs, files in os.walk(root, onerror=lambda e: errs.append("walk:%s" % e)):
+    dst = os.lstat(dp)
+    if not stat.S_ISDIR(dst.st_mode): add("nondir", dp)
+    if reqroot and dst.st_uid != 0: add("dir_not_root_owned", dp)
+    if not os.access(dp, os.R_OK | os.X_OK): add("dir_not_listable_or_traversable", dp)
+    if os.access(dp, os.W_OK): add("dir_writable_by_user", dp)          # effective — honors ACLs
+    if dst.st_mode & 0o022: add("dir_group_or_other_writable", dp)      # mode-bit hygiene (any non-owner write)
+    for d in list(dirs):
+        if os.path.islink(os.path.join(dp, d)): add("symlink_dir", os.path.join(dp, d))
+    for f in files:
+        p = os.path.join(dp, f); ls = os.lstat(p)
+        if stat.S_ISLNK(ls.st_mode): add("symlink", p); continue
+        if not stat.S_ISREG(ls.st_mode): add("nonregular_object", p); continue
+        if reqroot and ls.st_uid != 0: add("file_not_root_owned", p)
+        if not os.access(p, os.R_OK): add("file_unreadable", p)          # actual readability, not just -print
+        if os.access(p, os.W_OK): add("file_writable_by_user", p)        # effective — honors ACLs
+        if ls.st_mode & 0o022: add("file_group_or_other_writable", p)    # mode-bit hygiene
+if errs:
+    sys.stderr.write("\n".join(errs[:20]) + "\n"); sys.exit(2)           # accessibility failure (traversal)
+if bad:
+    sys.stderr.write("\n".join(bad[:20]) + "\n"); sys.exit(1)
+print("USER_TREE_OK")
+PYV
+)
+  st=$?
+  set -e
+  [ "$st" = 0 ] || die "runtime $D: as-user ($WHO) tree verification FAILED exit=$st — $(printf '%s' "$out" | grep -v USER_TREE_OK | head -1)"
+  # 2) content digest (content only; independent of permissions)
+  [ "$(rt_digest "$D")" = "$EXP" ] || die "runtime $D: digest != $EXP"
+  # 3) startup + relocation + isolation AS WHO — proves the fleet user can actually run the interpreter
+  local se
+  se=$(runas "$D/bin/python3" -E -s -c "import sys;assert sys.version_info[:2]==(3,13)" 2>&1) \
+    || die "runtime $D: 3.13 startup as $WHO failed — $(printf '%s' "$se" | tail -1)"
+  se=$(runas "$D/bin/python3" -E -s -S -c "import sys,os;assert os.path.realpath(sys.prefix)==os.path.realpath('$D');assert not [p for p in sys.path if p and ('miniconda' in p or os.path.expanduser('~/Library') in p)]" 2>&1) \
+    || die "runtime $D: relocation/isolation as $WHO failed — $(printf '%s' "$se" | tail -1)"
 }
 
 # read-only diagnostic mode: verify a runtime tree and exit (no install, no root needed)
@@ -89,21 +129,24 @@ elif [ -d "$RUNTIME_DST" ]; then
   verify_runtime_tree "$RUNTIME_DST" "$RDIGEST" "$USER_NAME" 1
   say "runtime already installed, WHOLE TREE verified (0 symlink, digest, root-owned, non-writable, smoke, isolation) — REUSED untouched: $RUNTIME_DST"
 else
-  # B) not installed → build into a TEMP inside the trusted root, verify everything, then ATOMIC rename
+  # B) not installed → build into a TEMP inside the trusted root, NORMALISE permissions, verify AS THE
+  #    INTENDED USER, then ATOMIC rename. Publish only after the fleet user is proven able to run it.
   TEMP="$ROOT/toolchains/.tmp-$RID.$$"; rm -rf "$TEMP"
   trap 'rm -rf "$TEMP"' EXIT
   cp -R "$RUNTIME" "$TEMP"
-  chown -R root:wheel "$TEMP"; chmod -R go-w "$TEMP"; find "$TEMP" -type f -exec chmod a-w {} +; chmod 0755 "$TEMP/bin/python3"
-  SL3=$(find "$TEMP" -type l 2>/dev/null); [ -z "$SL3" ] || die "TEMP has symlink(s) after copy: $SL3"
-  [ "$(rt_digest "$TEMP")" = "$RDIGEST" ] || die "TEMP digest mismatch after copy"
-  "$TEMP/bin/python3" -E -s -S -c "import sys,os;assert os.path.realpath(sys.prefix)==os.path.realpath('$TEMP')" || die "TEMP does not relocate"
-  if sudo -u "$USER_NAME" test -w "$TEMP/bin/python3" || \
-     [ -n "$(sudo -u "$USER_NAME" find "$TEMP" -writable -print -quit 2>/dev/null)" ]; then
-    die "TEMP runtime has a component writable by $USER_NAME — NOT trusted"
-  fi
+  chown -R root:wheel "$TEMP"
+  # EXPLICIT installed permission model (the source may be 0700/0600; do NOT preserve it):
+  #   directories 0755 (root write; everyone traverse+list) · library files 0644 (root write; everyone read)
+  #   executable  0755 (root write; everyone read+execute). All root-owned ⇒ the fleet user has read/exec, NOT write.
+  find "$TEMP" -type d -exec chmod 0755 {} +
+  find "$TEMP" -type f -exec chmod 0644 {} +
+  chmod 0755 "$TEMP/bin/python3"
+  # verify the WHOLE tree AS THE INTENDED USER before publication (accessibility, symlink, digest, ownership,
+  # non-writability, startup, relocation, isolation). This would have caught the 0700-unreadable defect.
+  verify_runtime_tree "$TEMP" "$RDIGEST" "$USER_NAME" 1
   mv "$TEMP" "$RUNTIME_DST"          # ATOMIC publish (same filesystem); TEMP never visible as final
   trap - EXIT
-  say "runtime installed atomically root-owned read-only: $RUNTIME_DST ($APP_VER); $USER_NAME cannot write it ✓"
+  say "runtime installed atomically, whole tree verified AS $USER_NAME (accessible, non-writable, runs): $RUNTIME_DST ($APP_VER) ✓"
 fi
 
 # 1) verify the launcher artifact matches the reviewed sha256 (content-address; refuse otherwise)
@@ -159,6 +202,15 @@ if [ "$DRY" = 0 ]; then
     if sudo -u "$USER_NAME" test -w "$f"; then die "PERMISSION LEAK: $USER_NAME can write $f"; fi
   done
   say "permission proof: $USER_NAME cannot write launcher/approval/runtime/release ✓"
+fi
+
+# 6b) APPROVED-RELEASE IMPORT as the fleet user (SEPARATE step: the release is materialised at step 4, AFTER
+#     the runtime TEMP verification at step 0, so this end-to-end check runs here once both are installed —
+#     before any canary). Proves the trusted 3.13 can import the approved release paths as the ordinary user.
+if [ "$DRY" = 0 ]; then
+  IMPERR=$(cd "$REL" && sudo -u "$USER_NAME" "$APP_PYTHON" -E -s -c "import importlib;[importlib.import_module(m) for m in ['spa_core.monitoring.deployment_acceptance','spa_core.paper_trading.cycle_runner','spa_core.orchestrator.adapter_orchestrator']]" 2>&1) \
+    || die "approved-release import as $USER_NAME FAILED — $(printf '%s' "$IMPERR" | tail -1)"
+  say "approved-release imports as $USER_NAME on the trusted runtime ✓ (canary-ready)"
 fi
 
 say "DONE. Next (owner): Phase 6 canary — repoint ONE benign plist's ProgramArguments to the BOOTSTRAP python:"
