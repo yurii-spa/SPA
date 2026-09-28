@@ -93,7 +93,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.observation import observed
 
 ARTIFACT_NAME = "owner_visibility_census.json"
-SCHEMA = "owner-visibility-census-v1"
+SCHEMA = "owner-visibility-census-v2"
 CRITERION = ("§49 Owner visibility приказа владельца «Portfolio CIO»: "
              "«Owner видит current/optimal APY, Yield Gap и recommendation»")
 
@@ -126,6 +126,15 @@ BRIEF_ENDPOINT = "/api/live/books/brief"
 #: Каталоги, где живут поверхности владельца. Тесты в население оси не входят —
 #: тест читателем владельца не является (урок `cio_explainability`).
 SURFACE_DIRS = ("landing/src", "spa_core/telegram", "scripts", "docs")
+
+#: Из них КОДОВЫЕ — те, где вызов эндпоинта вообще возможен. `docs/` в перечень
+#: не входит намеренно: документ читателем выдачи быть не может, он способен
+#: только упомянуть путь. Различие нужно для третьего исхода: «в дереве нет
+#: поверхностей» и «поверхность есть и выдачу не зовёт» — разные ответы, а
+#: упоминания в `docs/` есть в ЛЮБОМ дереве и склеивали их (замер #710:
+#: прод-дерево без `landing/src/pages/admin/portfolio-summary.astro` давало
+#: «читателей 0» рядом с двумя упоминаниями в `docs/` и выглядело находкой).
+CODE_SURFACE_DIRS = ("landing/src", "spa_core/telegram", "scripts")
 
 #: Прибор не может найти СЕБЯ, потому что живёт ВНЕ населения оси: ни
 #: `spa_core/monitoring/`, ни `spa_core/tests/` в `SURFACE_DIRS` не входят.
@@ -365,6 +374,7 @@ def measure_surfaces(repo_root: Optional[Path],
     pattern = _call_argument_pattern(endpoint)
     callers: List[str] = []
     mentions: List[str] = []
+    code_population: List[str] = []
     unread: Dict[str, str] = {}
     for rel_dir in SURFACE_DIRS:
         base = repo_root / rel_dir
@@ -387,12 +397,111 @@ def measure_surfaces(repo_root: Optional[Path],
                 continue
             if endpoint not in text:
                 continue
+            if rel_dir in CODE_SURFACE_DIRS:
+                code_population.append(rel)
             if pattern.search(text):
                 callers.append(rel)
             else:
                 mentions.append(rel)
+    if not code_population:
+        #: Населения у оси НЕТ ВОВСЕ: ни один файл поверхностных каталогов даже не
+        #: упоминает эндпоинт. Это НЕ «страница перестала звать выдачу» — это
+        #: дерево без страницы, и два исхода обязаны быть различимы (инв. #17).
+        #: Так отвечает прод-дерево: `landing/` туда не синхронизируется
+        #: (`.claude/rules/deployment.md`, ADR-152), поэтому мерить ось надо из
+        #: дерева, которое поверхность несёт.
+        return {"measured": False,
+                "reason": (f"ни один файл кодовых каталогов "
+                           f"{', '.join(CODE_SURFACE_DIRS)} даже не упоминает "
+                           f"{endpoint} — населения у оси нет вовсе: в ЭТОМ дереве "
+                           f"поверхностей владельца нет, и это НЕ «страница "
+                           f"перестала звать выдачу». Мерить надо из дерева, "
+                           f"которое поверхность несёт: `landing/` в прод-дерево не "
+                           f"синхронизируется (ADR-152)"),
+                "endpoint": endpoint, "callers": [], "mentions_only": mentions,
+                "code_population": [], "files_unread": unread}
     return {"measured": True, "reason": None, "endpoint": endpoint,
             "callers": callers, "mentions_only": mentions,
+            "code_population": code_population, "files_unread": unread}
+
+
+def _field_read_pattern(name: str) -> "re.Pattern[str]":
+    """Имя поля, прочитанное КАК ПОЛЕ, а не встреченное как текст.
+
+    Та же разница, что у оси поверхностей между вызовом и упоминанием пути:
+    ``br.current_apy_pp`` и ``br['current_apy_pp']`` — чтение, а слово внутри
+    фразы — нет. Зачёт по простому вхождению подстроки был бы ровно тем
+    дефектом, который запрещает ADR-333: выдача, переставшая нести поле, но
+    сохранившая его имя в шапке-комментарии, объявлялась бы дошедшей.
+    """
+    esc = re.escape(name)
+    #: Третья форма — деструктуризация/сокращённый ключ (`{current_apy_pp}`,
+    #: `{a, current_apy_pp}`, `{current_apy_pp: x}`). Граница у неё УЗКАЯ
+    #: намеренно: первая редакция принимала «имя где угодно внутри однострочных
+    #: фигурных скобок», и такая мера ошибается в сторону ОПРАВДАНИЯ — фраза
+    #: `{ // когда-то читали current_apy_pp }` объявлялась чтением. Ошибаться
+    #: эта ось обязана в сторону находки, поэтому имя обязано стоять сразу за
+    #: `{` или `,` и сразу перед `}`, `,` или `:`.
+    return re.compile(r"""(?:\.\s*""" + esc + r"""\b)"""
+                      r"""|(?:\[\s*['"]""" + esc + r"""['"]\s*\])"""
+                      r"""|(?:[{,]\s*""" + esc + r"""\s*[},:])""")
+
+
+def measure_surface_fields(repo_root: Optional[Path], callers: List[str],
+                           field_names: List[str]) -> Dict[str, Any]:
+    """Читает ли поверхность-читатель то ПОЛЕ, которым предмет доставлен.
+
+    Зачем ось нужна отдельно от `measure_surfaces`. Та отвечает «кто зовёт
+    эндпоинт», и ответ «зовёт один» был бы зелёным даже если бы страница
+    брала из выдачи одну прозу. Замер 2026-09-28 (цикл #710) ровно такой и
+    оказался: после доставки трёх чисел в выдачу `portfolio-summary.astro`
+    звал эндпоинт и не читал НИ ОДНОГО из четырёх полей — включая `verdict`,
+    который прежний замер числил дошедшим. «Дошло до выдачи» и «дошло до
+    владельца» разделяет последний шаг, и до этой оси его не мерил никто.
+
+    Чего ось НЕ утверждает — и это принципиально: она меряет ФОРМУ чтения, а
+    не достижимость кода. Выражение `br.current_apy_pp`, стоящее в
+    комментарии, она признает чтением, а поле, собранное из куска имени, — не
+    признает. Ошибаться такая мера обязана в сторону находки, а не оправдания:
+    ложная тревога стоит перечитывания файла, ложное «дошло» — трёх месяцев.
+    """
+    if repo_root is None:
+        return {"measured": False,
+                "reason": "корень дерева не передан — ось чтения полей не измерена"}
+    if not callers:
+        return {"measured": False,
+                "reason": ("поверхностей-читателей не найдено — читать поля "
+                           "выдачи некому, и это НЕ «поля дошли»")}
+    if not field_names:
+        return {"measured": False,
+                "reason": ("ни один предмет не доставлен полем — проверять "
+                           "чтение поля нечего")}
+    repo_root = Path(repo_root)
+    patterns = {name: _field_read_pattern(name) for name in sorted(set(field_names))}
+    read_by: Dict[str, List[str]] = {name: [] for name in patterns}
+    mentions: Dict[str, List[str]] = {name: [] for name in patterns}
+    unread: Dict[str, str] = {}
+    for rel in callers:
+        path = repo_root / rel
+        try:
+            text = path.read_text(encoding="utf-8", errors="strict")
+        except Exception as exc:  # noqa: BLE001
+            unread[rel] = f"{type(exc).__name__}: {exc}"
+            continue
+        for name, pattern in patterns.items():
+            if pattern.search(text):
+                read_by[name].append(rel)
+            elif name in text:
+                mentions[name].append(rel)
+    if unread and not any(read_by.values()):
+        return {"measured": False,
+                "reason": ("ни одна поверхность-читатель не прочитана: "
+                           + "; ".join(f"{r}: {w}" for r, w in sorted(unread.items()))),
+                "files_unread": unread}
+    return {"measured": True, "reason": None,
+            "read_by": {k: v for k, v in read_by.items() if v},
+            "not_read": sorted(k for k, v in read_by.items() if not v),
+            "mentions_only": {k: v for k, v in mentions.items() if v and not read_by[k]},
             "files_unread": unread}
 
 
@@ -464,9 +573,17 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         }
 
     surfaces = measure_surfaces(repo_root)
-    neighbours = measure_neighbour_rates(
-        repo_root, list(surfaces.get("callers") or []) if surfaces.get("measured")
-        else [])
+    callers = list(surfaces.get("callers") or []) if surfaces.get("measured") else []
+    neighbours = measure_neighbour_rates(repo_root, callers)
+    #: Имена полей, которыми предметы РЕАЛЬНО доставлены — вход третьей оси.
+    #: Перечень берётся из замера, а не из таблицы SUBJECTS: спрашивать надо про
+    #: то поле, которое выдача несёт сегодня, иначе ось мерила бы ожидание.
+    delivered_field_names = sorted({
+        str(row["delivered_as"]) for book in books.values()
+        for row in book["subjects"]
+        if row["delivery"] == DELIVERY_FIELD and row.get("delivered_as")})
+    surface_fields = measure_surface_fields(repo_root, callers,
+                                           delivered_field_names)
 
     totals = {kind: 0 for kind in (DELIVERY_FIELD, DELIVERY_PROSE,
                                    DELIVERY_ABSENT, DELIVERY_UNMEASURED)}
@@ -481,9 +598,15 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         1 for book in books.values() for row in book["subjects"]
         if row.get("recorded") and row["delivery"] in (DELIVERY_ABSENT,
                                                        DELIVERY_PROSE))
-    if not surfaces.get("measured"):
+    #: Предмет, дошедший до ВЫДАЧИ полем, но не прочитанный ни одной
+    #: поверхностью владельца. До оси #710 этот исход был неотличим от «дошло»:
+    #: выдачу читал реальный читатель, а конкретное поле он не брал.
+    not_rendered = sorted(surface_fields.get("not_read") or []) \
+        if surface_fields.get("measured") else []
+    delivered_but_not_rendered = len(not_rendered)
+    if not surfaces.get("measured") or not surface_fields.get("measured"):
         status = STATUS_UNMEASURED
-    elif recorded_but_lost:
+    elif recorded_but_lost or delivered_but_not_rendered:
         status = STATUS_CRITICAL
     elif totals[DELIVERY_UNMEASURED]:
         status = STATUS_WARNING
@@ -500,7 +623,10 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         "absent": totals[DELIVERY_ABSENT],
         "subjects_unmeasured": totals[DELIVERY_UNMEASURED],
         "recorded_but_not_delivered": recorded_but_lost,
-        "surfaces": surfaces, "neighbour_rates": neighbours,
+        "delivered_but_not_rendered": delivered_but_not_rendered,
+        "fields_not_rendered": not_rendered,
+        "surfaces": surfaces, "surface_fields": surface_fields,
+        "neighbour_rates": neighbours,
         "reason": None,
     }
 
@@ -513,8 +639,11 @@ def _unmeasured(reason: str, now: datetime, **extra: Any) -> Dict[str, Any]:
         "reason": reason, "books": {}, "subjects_total": 0,
         "delivered_as_field": 0, "prose_only": 0, "absent": 0,
         "subjects_unmeasured": 0, "recorded_but_not_delivered": 0,
+        "delivered_but_not_rendered": 0, "fields_not_rendered": [],
         "surfaces": {"measured": False,
                      "reason": "предмет замера не прочитан — ось не мерилась"},
+        "surface_fields": {"measured": False,
+                           "reason": "предмет замера не прочитан — ось не мерилась"},
         "neighbour_rates": {"measured": False,
                             "reason": "предмет замера не прочитан"},
     }
@@ -534,7 +663,9 @@ def summary_line(report: Dict[str, Any]) -> str:
             f"{report['delivered_as_field']} · только прозой "
             f"{report['prose_only']} · НЕ ДОХОДИТ {report['absent']} · "
             f"НЕ ИЗМЕРЕНО {report['subjects_unmeasured']} · записано, но не "
-            f"доставлено {report['recorded_but_not_delivered']}")
+            f"доставлено {report['recorded_but_not_delivered']} · доставлено "
+            f"полем, но НЕ ЧИТАЕТСЯ поверхностью "
+            f"{report.get('delivered_but_not_rendered', 0)}")
 
 
 def format_report(report: Dict[str, Any], limit: int = 12) -> List[str]:
@@ -582,6 +713,20 @@ def format_report(report: Dict[str, Any], limit: int = 12) -> List[str]:
         if mentions:
             lines.append("   упоминание пути НЕ читатель: "
                          + ", ".join(mentions))
+    sfields = observed(report, "surface_fields", kind=dict) or {}
+    if not sfields.get("measured"):
+        lines.append(f"[ЧТЕНИЕ ПОЛЯ] НЕ ИЗМЕРЕНО — {sfields.get('reason')}")
+    else:
+        for name, rels in sorted((sfields.get("read_by") or {}).items()):
+            lines.append(f"[ЧТЕНИЕ ПОЛЯ] `{name}` читают: " + ", ".join(rels))
+        for name in sfields.get("not_read") or []:
+            seen = (sfields.get("mentions_only") or {}).get(name) or []
+            lines.append(
+                f"[НЕ ЧИТАЕТСЯ] поле `{name}` есть в выдаче, но ни одна "
+                f"поверхность владельца его не берёт"
+                + (f" (имя встречается, но не как чтение: {', '.join(seen)})"
+                   if seen else "")
+                + " — до выдачи предмет дошёл, до владельца нет")
     neighbours = observed(report, "neighbour_rates", kind=dict) or {}
     if neighbours.get("measured"):
         for rel, names in sorted((neighbours.get("by_surface") or {}).items()):
@@ -591,7 +736,8 @@ def format_report(report: Dict[str, Any], limit: int = 12) -> List[str]:
                            "владелец не заметит пустым")
     lines.append("НЕ ДОКЛАДЫВАЕТ: верность самих чисел (предмет — доставка, не "
                  "счёт); прочитал ли владелец страницу; равенство СМЫСЛА "
-                 "соседних ставок — ось называет только их ИМЕНА")
+                 "соседних ставок — ось называет только их ИМЕНА; достижимость "
+                 "кода, читающего поле — ось чтения меряет ФОРМУ чтения")
     return lines
 
 

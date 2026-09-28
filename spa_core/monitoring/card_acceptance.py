@@ -1901,6 +1901,137 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
                        f"(PR без добавляемых файлов)")
 
 
+
+#: Свежее этого — запись журнала решений ещё наблюдение живого производителя.
+#: Писатель (`write_shadow_rationale`) отрабатывает каждым дневным циклом, поэтому
+#: 24 ч ловили бы ОДНУ пропущенную свечу и превращали критерий в «не измерено» от
+#: шума. 48 ч = молчали ДВА цикла подряд: тогда доставка полей, померенная по такой
+#: записи, говорит о канонe в git, а не о том, что владелец видит сегодня. Часть
+#: вопроса, а не предположение: `data/` частично лежит в git, и в worktree/на CI
+#: журнал ЕСТЬ — замороженный. Протухло ⇒ `unmeasured`, НИКОГДА не `satisfied`.
+OWNER_VISIBILITY_MAX_AGE_H = 48.0
+
+
+def _probe_owner_visibility_numbers_delivered(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: все четыре предмета §49 доходят до владельца ПОЛЕМ.
+
+    Предмет — ровно тот, что у карточки `inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do`
+    и у приказа `inbox-task-portfolio-cio-dynamic-capital-alloc` (§49 `Owner
+    visibility`): «Owner видит current/optimal APY, Yield Gap и recommendation».
+    Замер #709 (ADR-488): журнал решений нёс все четыре предмета своими полями,
+    выдача слоя отображения оставляла ОДИН — три числа терялись на последнем
+    шаге, 9 предметов из 12 «записано, но не доставлено».
+
+    **Меряется ИСХОД, а не структура.** Проба не спрашивает «есть ли модуль
+    отображения» и «есть ли у него читатель» — на оба вопроса система отвечала
+    ДА, пока числа не доходили. Она зовёт перепись
+    (`spa_core.monitoring.owner_visibility_census`), а та гоняет НАСТОЯЩИЙ
+    `build_books_brief` и сверяет ЗНАЧЕНИЕ каждого предмета с записью журнала.
+
+    **Подстрокой проба не проходит (ADR-333).** Зачёт у переписи — равенство
+    значений в поле; найденная в прозе форма числа даёт `prose_only`, и это
+    считается потерей, а не зачётом. Третья ось (#710) идёт на шаг дальше: поле,
+    которое выдача несёт, обязано ЧИТАТЬСЯ поверхностью владельца — иначе
+    предмет дошёл до выдачи и не дошёл до владельца, а прежние две оси обе
+    зелены.
+
+    Три исхода разведены:
+
+    * `satisfied` — 12 предметов из 12 полем, ни одного потерянного и ни одного
+      непрочитанного поверхностью;
+    * `not_satisfied` — есть предмет, записанный журналом и не доставленный
+      (или доставленный, но поверхностью не читаемый) — это находка;
+    * `unmeasured` — журнал/выдача/ось поверхностей не прочитаны, запись
+      протухла, или предмет не записан вовсе. «Не измерено» никогда не выдаётся
+      ни за находку, ни за разрешение закрыть карточку (инв. #17).
+
+    Часы и каталог данных — ВХОДЫ, не окружение: иначе вердикт решала бы
+    переменная среды, а положительный контроль не мог бы закрепить обе стороны
+    сравнения (`.claude/rules/deployment.md`). Проба только ЧИТАЕТ: перепись
+    ничего не чинит и ничего не двигает.
+    """
+    try:
+        from spa_core.monitoring import owner_visibility_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    try:
+        report = census.run_census(
+            _pathlib.Path(data_dir or os.path.join(root, "data")),
+            now=now, repo_root=_pathlib.Path(root))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+
+    if not report.get("measured"):
+        return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
+
+    # Возраст записи — часть вопроса. Мерится у КАЖДОЙ книги, чья доставка
+    # попала в вердикт: протухла одна — утверждение о ней уже не наблюдение.
+    when = now or datetime.now(timezone.utc)
+    books = report.get("books") or {}
+    if not books:
+        return UNMEASURED, "перепись не вернула ни одной книги — мерить нечего"
+    for book, data in sorted(books.items()):
+        stamp = (data or {}).get("generated_at")
+        if not stamp:
+            return UNMEASURED, (f"у записи книги {book} нет `generated_at` — возраст "
+                                f"не измерен, судить о доставке нечем")
+        try:
+            made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except ValueError:
+            return UNMEASURED, (f"книга {book}: generated_at {stamp!r} не разобран — "
+                                f"возраст НЕ измерен")
+        if made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        age_h = (when - made).total_seconds() / 3600.0
+        if age_h > OWNER_VISIBILITY_MAX_AGE_H:
+            return UNMEASURED, (
+                f"журнал решений книги {book} протух: возраст {age_h:.1f}ч при "
+                f"пределе {OWNER_VISIBILITY_MAX_AGE_H:.0f}ч — это замороженный "
+                f"канон, а не то, что владелец видит сегодня; мерить надо из "
+                f"дерева с живым data/")
+
+    total = int(report.get("subjects_total") or 0)
+    as_field = int(report.get("delivered_as_field") or 0)
+    lost = int(report.get("recorded_but_not_delivered") or 0)
+    not_rendered = list(report.get("fields_not_rendered") or [])
+    blind = int(report.get("subjects_unmeasured") or 0)
+    surfaces = report.get("surfaces") or {}
+    callers = list(surfaces.get("callers") or [])
+
+    if report.get("status") == census.STATUS_UNMEASURED:
+        sfields = report.get("surface_fields") or {}
+        why = (surfaces.get("reason") if not surfaces.get("measured")
+               else sfields.get("reason")) or "причина не названа"
+        return UNMEASURED, f"ось поверхностей владельца не измерена: {why}"
+    if lost:
+        return NOT_SATISFIED, (
+            f"записано, но НЕ доставлено {lost} предмет(ов) из {total}: журнал "
+            f"несёт число, выдача слоя отображения его роняет")
+    if not_rendered:
+        return NOT_SATISFIED, (
+            f"доставлено полем, но поверхность владельца НЕ читает "
+            f"{len(not_rendered)} пол(е/я): {', '.join(not_rendered)} — до выдачи "
+            f"предмет дошёл, до владельца нет")
+    if blind:
+        return UNMEASURED, (
+            f"{blind} предмет(ов) из {total} НЕ записаны журналом решений — "
+            f"доставка не измерена, и это не «владелец их видит»")
+    if not callers:
+        return UNMEASURED, ("поверхностей-читателей эндпоинта выдачи не найдено — "
+                            "полю некуда доходить")
+    if total == 0 or as_field != total:
+        return UNMEASURED, (f"перепись дала нечитаемый расклад: предметов {total}, "
+                            f"полем {as_field} — вердикт не выводится")
+    return SATISFIED, (
+        f"доходит полем {as_field} из {total} (три книги × четыре предмета §49), "
+        f"потеряно 0, поверхность читает все поля: {', '.join(callers)}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -1922,6 +2053,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_forbidden_import_gate_single_instrument,
     "ci_main_verdict_green": _probe_ci_main_verdict_green,
     "pr_work_arrived_on_main": _probe_pr_work_arrived_on_main,
+    "owner_visibility_numbers_delivered":
+        _probe_owner_visibility_numbers_delivered,
 }
 
 

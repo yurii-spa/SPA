@@ -226,3 +226,68 @@ def test_second_cycle_updates_only_the_book_that_ran(tmp_path):
     assert after["aggressive"] == before["aggressive"]
     assert after["balanced"] != before["balanced"]
     assert "susde" in after["balanced"]["where"]
+
+
+# ── три числа §49 «Owner visibility» (ADR-489, цикл #710) ────────────────────
+
+def test_the_three_owner_numbers_are_carried_as_FIELDS():
+    """Критерий владельца §49: он видит current APY, optimal APY и Yield Gap.
+
+    До #710 слой отображения читал запись, несущую все четыре предмета, и
+    оставлял в выдаче ОДИН (`verdict`) — материал лежал в одном поле от
+    читателя (замер #709, ADR-488). Поле, а не проза: подстроку внутри
+    объяснения нельзя ни подписать, ни сверить, и она исчезает при смене
+    причины.
+    """
+    out = brief_from_history([{
+        "verdict": "HOLD", "cycle_date": "2026-09-27",
+        "book_apy_pp": 4.62636, "target_apy_pp": 4.856832, "gain_pp": 0.230472,
+    }])
+    assert out["current_apy_pp"] == 4.62636
+    assert out["optimal_apy_pp"] == 4.856832
+    assert out["yield_gap_pp"] == 0.230472
+    assert out["verdict"] == "HOLD"
+    assert out["numbers_evidenced"] is True
+    assert out["numbers_missing"] == []
+    #: Род числа объявлен В ВЫДАЧЕ: ставка без периода — намерение, не число.
+    assert "годов" in out["numbers_unit"]
+
+
+def test_a_measured_zero_is_not_confused_with_a_missing_number():
+    """Инвариант #17: у книги без материальных ног Yield Gap РАВЕН нулю.
+
+    Подставить туда «данных нет» значило бы соврать в обратную сторону — так
+    записи balanced/aggressive и выглядят (`gain_pp` = 0.0 по-настоящему).
+    """
+    out = brief_from_history([{
+        "verdict": "HOLD", "book_apy_pp": 4.766805,
+        "target_apy_pp": 4.766805, "gain_pp": 0.0,
+    }])
+    assert out["yield_gap_pp"] == 0.0
+    assert out["numbers_evidenced"] is True
+
+
+def test_a_record_without_the_numbers_says_so_instead_of_substituting():
+    """Запись схемы `shadow-hist-v1` этих полей не несёт вовсе.
+
+    Отсутствие обязано быть ОТДЕЛЬНЫМ значением и НАЗВАННЫМ (инв. #17), а не
+    нулём: читатель выдачи должен отличить «ставки нет в записи» от «ставка 0».
+    """
+    out = brief_from_history([{"verdict": "HOLD", "cycle_date": "2026-08-01"}])
+    assert out["current_apy_pp"] is None
+    assert out["optimal_apy_pp"] is None
+    assert out["yield_gap_pp"] is None
+    assert out["numbers_evidenced"] is False
+    assert out["numbers_missing"] == ["book_apy_pp", "target_apy_pp", "gain_pp"]
+
+
+def test_a_non_numeric_value_is_absence_not_a_number():
+    """Мусор в поле не есть замер — `observed_number` отвергает и `bool`."""
+    out = brief_from_history([{
+        "verdict": "HOLD", "book_apy_pp": "4.6", "target_apy_pp": True,
+        "gain_pp": None,
+    }])
+    assert out["current_apy_pp"] is None
+    assert out["optimal_apy_pp"] is None
+    assert out["yield_gap_pp"] is None
+    assert out["numbers_evidenced"] is False

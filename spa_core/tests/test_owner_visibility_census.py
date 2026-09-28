@@ -67,6 +67,54 @@ LIVE_RECORD = {
 }
 
 
+class _pre710_display_layer:
+    """Слой отображения ТАКИМ, КАКИМ он был до #710 — без трёх полей.
+
+    Зачем это нужно отдельной подпоркой. Тесты ниже воспроизводят замер 27.09
+    («выдача роняет три числа»), а с #710 настоящая выдача их НЕСЁТ — то есть
+    предпосылка защитного теста исчезла вместе с дефектом. Удалить тест значило
+    бы снять сторожа с починенного места (инв. #16); оставить как есть — судить
+    о состоянии, которого больше нет. Поэтому старая форма выдачи ВОСПРОИЗВОДИТСЯ
+    явно, опустошая перечень `OWNER_NUMBER_FIELDS`, и утверждение теста остаётся
+    дословно прежним: на такой выдаче перепись обязана дать CRITICAL и назвать
+    девять потерянных предметов.
+
+    Подмена не переписывает логику слоя своей копией: зовётся настоящий
+    `build_books_brief`, у него лишь отнят перечень доставляемых полей.
+    """
+
+    def __enter__(self):
+        from spa_core.paper_trading import cio_brief
+        self._mod = cio_brief
+        self._saved = cio_brief.OWNER_NUMBER_FIELDS
+        cio_brief.OWNER_NUMBER_FIELDS = ()
+        return self
+
+    def __exit__(self, *exc):
+        self._mod.OWNER_NUMBER_FIELDS = self._saved
+        return False
+
+
+def _write_surface(root: Path, field_names, *, call: bool = True) -> str:
+    """Одноразовая поверхность владельца в дереве теста.
+
+    Появилась с третьей осью переписи (#710, ADR-489): ось спрашивает, читает ли
+    поверхность ИМЯ поля, которым предмет доставлен, и у дерева без поверхности
+    честно отвечает «населения нет» ⇒ `UNMEASURED`. Тесты ниже мерят ДРУГИЕ оси
+    (поле/проза, отчёт, артефакт), поэтому их контур обязан нести поверхность —
+    иначе они перестают отвечать на свой вопрос. Это правка ФИКСТУРЫ, а не
+    ослабление утверждения: каждое `assert` в них осталось прежним (инв. #16).
+    """
+    rel = "landing/src/pages/admin/probe-surface.astro"
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    reads = " ".join(f"show(br.{name});" for name in field_names)
+    head = f"var r = await jget('{M.BRIEF_ENDPOINT}');" if call else ""
+    path.write_text(f"<script is:inline>{head} {reads}</script>\n",
+                    encoding="utf-8")
+    return rel
+
+
 def _write_ledger(data_dir: Path, record: dict, book_id: str) -> None:
     """Журнал книги — НАСТОЯЩИМ правилом имени писателя, не своей копией."""
     from spa_core.paper_trading.allocation_rationale import history_filename
@@ -330,7 +378,9 @@ class TestWholeContour(unittest.TestCase):
             data = root / "data"
             for book in M.BOOKS:
                 _write_ledger(data, LIVE_RECORD, book)
-            report = M.run_census(data, now=NOW, repo_root=root)
+            _write_surface(root, ["verdict"])
+            with _pre710_display_layer():
+                report = M.run_census(data, now=NOW, repo_root=root)
             self.assertTrue(report["measured"])
             self.assertEqual(report["status"], M.STATUS_CRITICAL)
             self.assertEqual(report["subjects_total"], 12)
@@ -360,6 +410,8 @@ class TestWholeContour(unittest.TestCase):
                                "apy_opt_pp": LIVE_RECORD["target_apy_pp"],
                                "gain_pp": LIVE_RECORD["gain_pp"]}
                         for book in M.BOOKS}
+
+            _write_surface(root, ["verdict", "apy_now_pp", "apy_opt_pp", "gain_pp"])
 
             import spa_core.paper_trading.cio_brief as brief_mod
             original = brief_mod.build_books_brief
@@ -411,7 +463,9 @@ class TestWholeContour(unittest.TestCase):
             data = root / "data"
             for book in M.BOOKS:
                 _write_ledger(data, LIVE_RECORD, book)
-            out = M.run(root=str(root), now=NOW)
+            _write_surface(root, ["verdict"])
+            with _pre710_display_layer():
+                out = M.run(root=str(root), now=NOW)
             self.assertTrue(out["measured"])
             path = data / M.ARTIFACT_NAME
             self.assertTrue(path.is_file(), "артефакта нет НА ДИСКЕ")
@@ -440,7 +494,9 @@ class TestReport(unittest.TestCase):
         data = root / "data"
         for book in M.BOOKS:
             _write_ledger(data, LIVE_RECORD, book)
-        return M.run_census(data, now=NOW, repo_root=root)
+        _write_surface(root, ["verdict"])
+        with _pre710_display_layer():
+            return M.run_census(data, now=NOW, repo_root=root)
 
     def test_summary_line_names_the_criterion_and_the_counts(self):
         with TemporaryDirectory() as td:

@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.paper_trading.shadow_trigger_eval import load_history
+from spa_core.utils.observation import observed_number
 
 log = logging.getLogger("spa.paper_trading.cio_brief")
 
@@ -129,6 +130,52 @@ def _why_now_text(records: List[dict]) -> str:
     return f"рутинно — {streak}-й день подряд без изменений."
 
 
+#: Три ЧИСЛА критерия §49 `Owner visibility` приказа владельца «Portfolio CIO»
+#: и ключ журнала, которым каждое записано. Порядок — как в словах владельца:
+#: «current/optimal APY, Yield Gap». Четвёртый предмет критерия (recommendation)
+#: в перечень не входит: он уже уезжал полем ``verdict``.
+#:
+#: Почему перечень существует отдельной таблицей, а не тремя строками внутри
+#: выдачи: замер #709 (ADR-488) показал, что журнал нёс все четыре предмета
+#: своими полями, а слой отображения оставлял ОДИН и роняли три — то есть
+#: материал лежал в одном поле от читателя. Таблица делает пропажу поля
+#: измеримой снаружи (`spa_core.monitoring.owner_visibility_census` сверяет
+#: ЗНАЧЕНИЕ, а не подстроку), а не вопросом внимательности следующего автора.
+OWNER_NUMBER_FIELDS: tuple[tuple[str, str], ...] = (
+    ("current_apy_pp", "book_apy_pp"),
+    ("optimal_apy_pp", "target_apy_pp"),
+    ("yield_gap_pp", "gain_pp"),
+)
+
+#: Род всех трёх чисел, объявленный В САМОЙ выдаче. Ставка без периода это
+#: намерение, а не число (`.claude/rules/site-numbers.md`): читатель выдачи не
+#: обязан догадываться, что `pp` здесь — процентные пункты ГОДОВОЙ ставки.
+OWNER_NUMBER_UNIT = "процентные пункты годовой ставки (pp, annual)"
+
+
+def _owner_numbers(rec: dict) -> dict:
+    """Три числа §49 — ИЗ ЗАПИСИ, ничего не пересчитывая заново.
+
+    Слой отображения по своему контракту не считает («Computes nothing new»),
+    поэтому здесь только чтение журнала. Отсутствие наблюдения представлено
+    ОТДЕЛЬНЫМ значением (``None``) и названо списком ``numbers_missing``
+    (инвариант #17): запись схемы ``shadow-hist-v1`` этих полей не несёт вовсе,
+    и «поля нет» обязано быть отличимо от «ставка равна нулю» — у книг без
+    материальных ног ``gain_pp`` РАВЕН нулю по-настоящему, и подставить туда
+    ``None`` значило бы соврать в обратную сторону.
+    """
+    out: dict = {"numbers_unit": OWNER_NUMBER_UNIT}
+    missing: List[str] = []
+    for out_key, journal_key in OWNER_NUMBER_FIELDS:
+        value = observed_number(rec, journal_key)
+        out[out_key] = value
+        if value is None:
+            missing.append(journal_key)
+    out["numbers_evidenced"] = not missing
+    out["numbers_missing"] = missing
+    return out
+
+
 def brief_from_history(records: List[dict]) -> dict:
     """Pure — no I/O. ``records`` must already be date-sorted (as returned by
     :func:`load_history`). Empty history → explicit fail-closed state."""
@@ -138,6 +185,7 @@ def brief_from_history(records: List[dict]) -> dict:
     why = _why_text(latest)
     return {
         "available": True,
+        **_owner_numbers(latest),
         "decision_id": latest.get("decision_id"),
         "cycle_date": latest.get("cycle_date"),
         "policy_version": latest.get("policy_version"),

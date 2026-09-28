@@ -833,7 +833,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "delivered_as_field", "prose_only",
                                      "absent", "subjects_unmeasured",
                                      "recorded_but_not_delivered",
-                                     "surfaces", "neighbour_rates"),
+                                     # ADR-489: последний шаг до владельца. Поле,
+                                     # доехавшее до выдачи и не читаемое ни одной
+                                     # поверхностью, — отдельный исход: обе прежние
+                                     # оси на нём зелены.
+                                     "delivered_but_not_rendered",
+                                     "fields_not_rendered",
+                                     "surfaces", "surface_fields",
+                                     "neighbour_rates"),
     # Критерий §49 `Risk` приказа CIO (ADR-486). `gate_binding` объявлен ОТДЕЛЬНО
     # от `counts` намеренно: сводный вердикт честно говорит «не определено», когда
     # копии ярлыка спорят, а деньги связывает то, что прочёл ГЕЙТ, и утопить это в
