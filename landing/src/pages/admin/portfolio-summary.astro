@@ -9,6 +9,20 @@
 // trade). admin={true} -> noindex/nofollow + slim operator bar. Fail-safe: API offline shows
 // "офлайн" honestly, never a fabricated number. Balanced/Aggressive have no decision-record
 // producer wired yet — their brief honestly says so instead of guessing.
+//
+// Четыре предмета §49 приказа владельца «Portfolio CIO» (current APY, optimal APY, Yield Gap,
+// recommendation) берутся ПОЛЯМИ выдачи — br.current_apy_pp / br.optimal_apy_pp /
+// br.yield_gap_pp / br.verdict, каждое из журнала решений (ADR-489). Литералов здесь нет и быть
+// не может: значения нет ⇒ «данные недоступны», НИКОГДА последнее известное
+// (.claude/rules/site-numbers.md). До #710 страница звала эндпоинт и не читала ни одного из
+// четырёх полей — числа доезжали до выдачи и терялись на последнем шаге; сторож этого шага —
+// ось чтения поля в spa_core/monitoring/owner_visibility_census.py.
+//
+// Две ставки на карточке РАЗНОГО РОДА, и подписаны они так, чтобы их нельзя было спутать:
+// «Годовых (реализовано)» — annualized_apy_pct, что книга УЖЕ заработала; «сейчас/оптимум» —
+// ставка АЛЛОКАЦИИ из журнала решений, то есть чего стоит текущая и предлагаемая раскладка.
+// 27.09 они расходились в три раза (1,42 % против 4,63 пп), и пустое место владелец заметил бы,
+// а занятое похожим именем — нет (ADR-488).
 import Layout from '../../layouts/Layout.astro';
 ---
 <Layout title="Operator · Portfolio Summary" admin={true}>
@@ -37,9 +51,20 @@ import Layout from '../../layouts/Layout.astro';
 <script is:inline>
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
-    function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&lt;','>':'&gt;','&':'&amp;'}[c]||c;});}
+    // Карта чинена #710: ключ '&' стоял ДВАЖДЫ, а ключа '<' не было вовсе — в
+    // объектном литерале побеждает последний, поэтому '&' экранировался верно, а
+    // '<' падал в `|| c` и уезжал в innerHTML СЫРЫМ. Шаблон /[&<>]/ его ловил,
+    // то есть замысел был именно экранировать: это опечатка ('&':'&lt;' вместо
+    // '<':'&lt;'), а не решение. Замечено потому, что этот цикл добавил сюда новые
+    // места вызова (verdict и numbers_missing приходят из журнала решений через API).
+    function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]||c;});}
     function fmtUsd(n){return (n==null)?'—':'$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0});}
     function fmtPct(n){return (n==null)?'—':(n>=0?'+':'')+Number(n).toFixed(2)+'%';}
+    // Ставка аллокации — процентные пункты ГОДОВОЙ ставки. Нет значения ⇒ «данные
+    // недоступны», не «0,00 пп»: ноль здесь бывает настоящим (книга без материальных ног
+    // честно даёт Yield Gap = 0), поэтому подставить его под пропажу нельзя (инв. #17).
+    function fmtPp(n){return (n==null)?'данные недоступны':Number(n).toFixed(2)+' пп';}
+    function fmtGap(n){return (n==null)?'данные недоступны':(n>=0?'+':'')+Number(n).toFixed(2)+' пп';}
     function pctTone(n){return n==null?'muted':n>=0?'ok':'bad';}
     function setOffline(off){document.getElementById('ps-offline').hidden=!off;document.getElementById('ps-state').textContent=off?'офлайн':'онлайн';}
 
@@ -62,10 +87,21 @@ import Layout from '../../layouts/Layout.astro';
           card.innerHTML='<div class="ps-card-h"><span class="nm">'+esc(b.label||fallbackLabel)+'</span><span class="p '+pctTone(b.return_pct)+'">'+fmtPct(b.return_pct)+'</span></div>'+
             '<div class="ps-row"><span class="l">Капитал</span><span>'+fmtUsd(b.seed_equity)+'</span></div>'+
             '<div class="ps-row"><span class="l">NAV сейчас</span><span>'+fmtUsd(b.equity)+'</span></div>'+
-            '<div class="ps-row"><span class="l">Годовых (расч.)</span><span>'+fmtPct(b.annualized_apy_pct)+'</span></div>'+
+            '<div class="ps-row"><span class="l">Годовых (реализовано)</span><span>'+fmtPct(b.annualized_apy_pct)+'</span></div>'+
             '<div class="ps-row"><span class="l">С</span><span class="mut">'+esc(b.start_date||'—')+'</span></div>'+
             (br.available
-              ? '<div class="ps-why">'+esc(br.why_now||'')+' '+esc(br.why||'')+'</div>'
+              ? '<div class="ps-alloc">'+
+                  '<div class="ps-alloc-h">Решение аллокации'+(br.cycle_date?' · цикл '+esc(br.cycle_date):'')+'</div>'+
+                  '<div class="ps-row"><span class="l">Ставка сейчас</span><span>'+fmtPp(br.current_apy_pp)+'</span></div>'+
+                  '<div class="ps-row"><span class="l">Ставка оптимума</span><span>'+fmtPp(br.optimal_apy_pp)+'</span></div>'+
+                  '<div class="ps-row"><span class="l">Yield Gap</span><span class="'+pctTone(br.yield_gap_pp)+'">'+fmtGap(br.yield_gap_pp)+'</span></div>'+
+                  '<div class="ps-row"><span class="l">Рекомендация</span><span class="rec">'+esc(br.verdict||'данные недоступны')+'</span></div>'+
+                  '<div class="ps-note">Годовые, из журнала решений. Это ставка РАСКЛАДКИ, а не заработанное книгой и не обещание; просадки в этой выдаче нет — не выдумываем.'+
+                    (br.numbers_evidenced===false&&(br.numbers_missing||[]).length
+                      ? ' Запись не несёт: '+esc((br.numbers_missing||[]).join(', '))+'.'
+                      : '')+'</div>'+
+                '</div>'+
+                '<div class="ps-why">'+esc(br.why_now||'')+' '+esc(br.why||'')+'</div>'
               : '<div class="ps-why mut">нет записи решений для этой книги</div>');
         }
         grid.appendChild(card);
@@ -129,6 +165,10 @@ import Layout from '../../layouts/Layout.astro';
   .p{font-family:var(--font-mono,monospace);font-size:.78rem;padding:2px 8px;border-radius:6px}
   .p.ok{background:#34d39918;color:#34d399}.p.bad{background:#f8717118;color:#f87171}.p.muted{background:#8a8f9818;color:#8a8f98}
   .ps-card-d{font-size:.8rem;color:var(--text-muted,#8a8f98)}
+  .ps-alloc{margin-top:10px;padding-top:8px;border-top:1px solid var(--border,#26282e)}
+  .ps-alloc-h{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted,#8a8f98);margin-bottom:6px}
+  .ps-alloc .rec{font-weight:600}
+  .ps-note{font-size:.72rem;color:var(--text-faint,#6a6f78);margin-top:6px;line-height:1.4}
   .ps-why{font-size:.78rem;color:var(--text-muted,#8a8f98);margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#26282e);line-height:1.4}
   .ps-why.mut{color:var(--text-faint,#6a6f78)}
   .mut{color:var(--text-faint,#6a6f78)}
