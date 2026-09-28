@@ -193,18 +193,46 @@ def tally(rows: Dict[str, dict]) -> dict:
         for item in (row.get("lists") or [])
         if int(item.get("n") or 0) > 1
         and str(item.get("outcome")) in _DICT_OUTCOMES)
-    # Списки СКАЛЯРОВ длиннее одного — не предмет заказа, но и не ноль:
-    # обходятся они позиционно, а элемент в них называет себя СВОИМ ЗНАЧЕНИЕМ.
-    # Число печатается рядом, чтобы «полем себя не называют» не прочиталось как
-    # «личности у них быть не может».
-    scalar_lists_multi = sum(
-        1 for row in rows.values()
-        if not row.get("cause") and not row.get("truncated")
-        for item in (row.get("lists") or [])
-        if int(item.get("n") or 0) > 1
-        and str(item.get("outcome")) == "unnamed_not_dicts")
+    # Списки СКАЛЯРОВ длиннее одного. Заказ G35 п. 3 (он же G37 п. 4) исполнен:
+    # элемент в них называет себя СВОИМ ЗНАЧЕНИЕМ, и правило это теперь не в
+    # тексте комментария, а в `element_identity`. Поэтому число разложено на три,
+    # а не оставлено одним: слитое `scalar_lists_multi` после правила означало бы
+    # уже не то, что означало до неё, и упало бы с 640 до остатка МОЛЧА.
+    #
+    # И заодно исправлен знаменатель: прежняя редакция считала здесь ВСЁ
+    # `unnamed_not_dicts` (>1), то есть вместе со списками списков и смешанными —
+    # под подписью «списки скаляров». Теперь состав спрашивается у причины отказа.
+    def _count(pred) -> int:
+        return sum(
+            1 for row in rows.values()
+            if not row.get("cause") and not row.get("truncated")
+            for item in (row.get("lists") or [])
+            if int(item.get("n") or 0) > 1 and pred(item))
+
+    named_by_value = _count(
+        lambda item: str(item.get("outcome")) == "named_by_value")
+    scalar_not_unique = _count(
+        lambda item: str(item.get("outcome")) == "unnamed_not_dicts"
+        and str(item.get("scalar_refused")) == "not_unique")
+    not_scalar_at_all = _count(
+        lambda item: str(item.get("outcome")) == "unnamed_not_dicts"
+        and str(item.get("scalar_refused")) == "not_scalar")
+    # Строка без названной причины. Живой зонд её не производит (`classify_list`
+    # ставит причину всегда), но сложить такую строку «никуда» значило бы дать ей
+    # исчезнуть из ВСЕХ трёх чисел молча — а именно так выглядит расхождение
+    # зонда со сводом, если оно однажды случится. Третий исход назван (инв. #17).
+    cause_unmeasured = _count(
+        lambda item: str(item.get("outcome")) == "unnamed_not_dicts"
+        and str(item.get("scalar_refused")) not in ("not_unique", "not_scalar"))
     return {
-        "scalar_lists_multi": scalar_lists_multi,
+        # Списки ОДНИХ скаляров: получившие личность плюс отказанные за
+        # повтор значений. Смешанные и вложенные сюда не входят — они не
+        # списки скаляров, и считать их здесь значило бы разводить число водой.
+        "scalar_lists_multi": named_by_value + scalar_not_unique,
+        "scalar_named_by_value": named_by_value,
+        "scalar_not_unique": scalar_not_unique,
+        "not_scalar_lists_multi": not_scalar_at_all,
+        "scalar_cause_unmeasured": cause_unmeasured,
         "lists_total": total_lists,
         "outcomes": outcomes,
         "singletons": singletons,

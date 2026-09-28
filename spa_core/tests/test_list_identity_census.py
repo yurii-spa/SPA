@@ -54,8 +54,21 @@ class ClassifyOneList(unittest.TestCase):
         self.assertEqual(row["candidates"], ["label"])
 
     def test_non_dict_elements_are_not_a_gap_in_the_whitelist(self):
-        row = probe.classify_list([1, 2, 3])
-        self.assertEqual(row["outcome"], "unnamed_not_dicts")
+        """ПРАВКА НАМЕРЕННАЯ (инв. #16, журнал цикла #717) — и она УСИЛЕНИЕ.
+
+        Утверждение то же, что было («список скаляров — не пробел списка имён»),
+        но прежде оно доказывалось исходом `unnamed_not_dicts`, то есть тем, что
+        личности у списка НЕТ вовсе. Теперь личность у него есть и она не поле
+        (заказ G35 п. 3): `named_by_value`. Вторая половина — формы, у которых
+        личности по-прежнему нет, — не удалена, а дописана рядом: без неё
+        «не пробел» покупалось бы тем, что отказов не осталось.
+        """
+        self.assertEqual(probe.classify_list([1, 2, 3])["outcome"],
+                         "named_by_value")
+        self.assertEqual(probe.classify_list([1, 2, 2])["outcome"],
+                         "unnamed_not_dicts")
+        self.assertEqual(probe.classify_list([[1], [2]])["outcome"],
+                         "unnamed_not_dicts")
 
     def test_empty_list_has_nothing_to_name(self):
         self.assertEqual(probe.classify_list([])["outcome"], "unnamed_empty")
@@ -84,15 +97,38 @@ class VerdictIsNotASecondCopyOfTheRule(unittest.TestCase):
         [],
         [1, 2],
         [{"code": "solo"}],
+        # ПРАВКА НАМЕРЕННАЯ (инв. #16, журнал цикла #720): население этой
+        # проверки и было дефектом. Голых скаляров в корпусе стояла ОДНА форма
+        # (`[1, 2]`), и граница второго рода в него не попадала вовсе —
+        # поэтому копия правила у зонда и копия у `element_identity` разошлись
+        # на `bool`, а сверяющий тест остался ЗЕЛЁН. Добавлено, не снято:
+        # утверждений стало больше на пять форм.
+        [True, False],            # голые bool — личности быть не должно
+        [True, 1],                # bool рядом со числом
+        ["a", "a"],               # скаляры, но значения повторяются
+        [None, "a"],              # None скаляром не считается
+        ["a", {"code": "b"}],     # смешанный: ни поля, ни значения
     ]
 
     def test_named_iff_element_identity_names_it(self):
+        """ПРАВКА НАМЕРЕННАЯ (инв. #16, журнал цикла #717): родов личности два.
+
+        Прежняя редакция сверяла ОДИН род — поле — и потому не заметила бы
+        расхождения по второму: `row.get("field")` у списка скаляров пуст всегда,
+        и сравнение с правилом было бы тавтологией. Теперь сверяется РОД целиком,
+        и оба исхода `named`/`named_by_value` привязаны к правилу поимённо.
+        Проверка не ослаблена: утверждений стало три вместо двух.
+        """
+        from spa_core.monitoring.run_identity_key_price import BY_VALUE
         for items in self.CORPUS:
             with self.subTest(items=items):
                 row = probe.classify_list(items)
-                mine = row.get("field")
-                self.assertEqual(mine, element_identity(items))
-                self.assertEqual(row["outcome"] == "named", mine is not None)
+                rule = element_identity(items)
+                by_value = rule is BY_VALUE
+                self.assertEqual(row.get("field"), None if by_value else rule)
+                self.assertEqual(row["outcome"] == "named",
+                                 rule is not None and not by_value)
+                self.assertEqual(row["outcome"] == "named_by_value", by_value)
 
     def test_bool_is_never_an_identity(self):
         # Положительный контроль на оговорку самой переписи: True/False
@@ -100,6 +136,47 @@ class VerdictIsNotASecondCopyOfTheRule(unittest.TestCase):
         row = probe.classify_list([{"code": True}, {"code": False}])
         self.assertNotEqual(row["outcome"], "named")
         self.assertNotIn("code", row.get("candidates") or [])
+
+    def test_bool_is_never_an_identity_BY_VALUE_EITHER(self):
+        """Положительный контроль на аварию циклов #717–#719 (ADR-502).
+
+        Первая редакция правила личности-по-значению проверяла
+        ``isinstance(v, (str, int, float))`` и НЕ исключала ``bool`` — при том
+        что её собственный docstring утверждал обратное, а копия того же правила
+        у зонда ``bool`` исключала. Список ``[True, False]`` получал координаты
+        ``[=true]``/``[=false]``, то есть личность из совпадения.
+
+        Цена названа отдельно, потому что она хуже «лишней личности»: у пары
+        флагов координата по значению НЕ МЕНЯЕТСЯ при их перестановке. Настоящая
+        новость — флаги поменялись местами — стала бы невидимой; это ровно та
+        тихая потеря, против которой правило и написано, только наизнанку.
+        """
+        for items in ([True, False], [False, True], [True, 1], [0, False]):
+            with self.subTest(items=items):
+                self.assertIsNone(element_identity(items))
+                row = probe.classify_list(items)
+                self.assertEqual(row["outcome"], "unnamed_not_dicts")
+                self.assertEqual(row.get("scalar_refused"), "not_scalar")
+
+    def test_the_rule_has_exactly_one_copy_and_the_verdicts_prove_it(self):
+        """Расхождение ВТОРОГО РОДА ловится сверкой, а не подсчётом копий.
+
+        Заказ **G89 п. 1** — перепись пар «исполнитель ↔ сторож с разным кодом
+        одного условия». Здесь такая пара закрыта поимённо: вердикт
+        ``scalar_verdict`` у зонда, вердикт ``unique_scalars`` у правила и
+        собственный вердикт ``element_identity`` обязаны совпадать на КАЖДОЙ
+        форме корпуса. Считать копии в тексте бессмысленно — копия может быть
+        одна и всё равно не та; сверяется ИСХОД.
+        """
+        from spa_core.monitoring.run_identity_key_price import (
+            BY_VALUE, unique_scalars)
+        for items in self.CORPUS:
+            if not items or all(isinstance(i, dict) for i in items):
+                continue
+            with self.subTest(items=items):
+                rule = unique_scalars(items)
+                self.assertEqual(probe.scalar_verdict(items)[0], rule)
+                self.assertEqual(element_identity(items) is BY_VALUE, rule)
 
 
 class FieldVerdictCauses(unittest.TestCase):
@@ -223,12 +300,40 @@ class TallyKeepsTheDenominatorHonest(unittest.TestCase):
         # Первая редакция брала в знаменатель всякий `unnamed_*`, и списки
         # скаляров раздували его вчетверо под подписью «словари». Контроль
         # держит обе половины: скаляр — РЯДОМ, словарь — ВНУТРИ.
+        #
+        # ПРАВКА НАМЕРЕННАЯ (инв. #16, журнал цикла #717): у строки скаляров
+        # теперь есть РОД, и слитое `scalar_lists_multi` разложено на три. Сцена
+        # дописана до состава, который производит живой зонд: «списки скаляров»
+        # это получившие личность ПЛЮС отказанные за повтор значений, а список
+        # списков сюда не входит вовсе — он не список скаляров.
         rows = {"m": {"entry": "measure", "lists": [
-            {"coord": ".s", "n": 3, "outcome": "unnamed_not_dicts"},
+            {"coord": ".s", "n": 3, "outcome": "named_by_value"},
+            {"coord": ".s2", "n": 3, "outcome": "unnamed_not_dicts",
+             "scalar_refused": "not_unique"},
+            {"coord": ".s3", "n": 3, "outcome": "unnamed_not_dicts",
+             "scalar_refused": "not_scalar"},
             {"coord": ".d", "n": 3, "outcome": "unnamed_no_candidate"}]}}
         counts = census.tally(rows)
         self.assertEqual(counts["denominator_of_finding"], 1)
-        self.assertEqual(counts["scalar_lists_multi"], 1)
+        self.assertEqual(counts["scalar_lists_multi"], 2)
+        self.assertEqual(counts["scalar_named_by_value"], 1)
+        self.assertEqual(counts["scalar_not_unique"], 1)
+        self.assertEqual(counts["not_scalar_lists_multi"], 1)
+        self.assertEqual(counts["scalar_cause_unmeasured"], 0)
+
+    def test_a_scalar_row_without_a_stated_cause_is_named_not_dropped(self):
+        """Строка, не попавшая ни в одно ведро, обязана быть НАЗВАНА.
+
+        Живой зонд такую не производит — причина ставится всегда. Но если он
+        однажды разойдётся со сводом, строка исчезла бы из всех трёх чисел
+        молча, и своду нечем было бы об этом сказать (инв. #17).
+        """
+        rows = {"m": {"entry": "measure", "lists": [
+            {"coord": ".s", "n": 3, "outcome": "unnamed_not_dicts"}]}}
+        counts = census.tally(rows)
+        self.assertEqual(counts["scalar_cause_unmeasured"], 1)
+        self.assertEqual(counts["scalar_lists_multi"], 0)
+        self.assertEqual(counts["not_scalar_lists_multi"], 0)
 
     def test_empty_lists_never_reach_the_denominator(self):
         rows = {"m": {"entry": "measure", "lists": [

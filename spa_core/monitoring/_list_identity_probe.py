@@ -31,8 +31,8 @@ import pathlib  # noqa: E402
 from typing import Dict, List, Optional, Tuple  # noqa: E402
 
 from spa_core.monitoring.run_identity_key_price import (  # noqa: E402
-    _IDENTITY_FIELDS, _ident_token, element_identity, indexed,
-    module_driver, no_entry_cause,
+    _IDENTITY_FIELDS, element_identity, indexed,
+    module_driver, no_entry_cause, scalar_refusal,
 )
 
 #: Каталог стенда (его подкаталог ``data/`` получает читатель).
@@ -77,13 +77,26 @@ def field_verdict(items: List[dict], field: str) -> Tuple[bool, str]:
     values = [item.get(field, _MISSING) for item in items]
     if any(v is _MISSING for v in values):
         return False, "field_absent"
-    if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool)
-               for v in values):
-        return False, "not_scalar"
-    tokens = [_ident_token(v) for v in values]
-    if len(set(tokens)) != len(tokens):
-        return False, "not_unique"
-    return True, ""
+    # «Скаляры и уникальны» спрашивается у ОДНОЙ копии правила
+    # (`run_identity_key_price.scalar_refusal`), а не считается здесь заново:
+    # своя копия и есть то, чем зонд разошёлся с правилом на `bool` (ADR-502).
+    # Ветка `field_absent` остаётся своей — её у правила нет вовсе, потому что
+    # у значения списка нет понятия «поля не было».
+    cause = scalar_refusal(values)
+    return (not cause), cause
+
+
+def scalar_verdict(items: List) -> Tuple[bool, str]:
+    """Годна ли личность-по-значению — и ПОЧЕМУ нет, если нет.
+
+    Та же развязка, что у ``field_verdict``: вердикт (первое значение) обязан
+    совпадать с тем, что вынесла бы ``element_identity`` (``BY_VALUE`` против
+    ``None``), а причина — только диагноз для отчёта. Сверку вердикта с правилом
+    держит отдельный тест: разойдись они, перепись докладывала бы про списки не
+    то, что делает с ними обход.
+    """
+    cause = scalar_refusal(items)
+    return (not cause), cause
 
 
 def candidates_outside(items: List[dict]) -> List[str]:
@@ -105,12 +118,17 @@ def candidates_outside(items: List[dict]) -> List[str]:
 
 
 def classify_list(items) -> dict:
-    """Один список — один исход, и их четыре, а не два.
+    """Один список — один исход, и их шесть, а не два.
 
     * ``named`` — личность есть, названа полем из нынешнего списка имён;
+    * ``named_by_value`` — элементы-скаляры, уникальны: личность есть, и она не
+      поле, а само значение (заказ G35 п. 3 / G37 п. 4). Отдельный исход, а не
+      подвид ``named``: у этих списков НЕТ поля, и слить их значило бы потерять
+      ответ на вопрос заказа — сколько личностей даёт не список имён;
     * ``unnamed_empty`` — список пуст: называть нечего;
-    * ``unnamed_not_dicts`` — элементы не словари: полем себя не называют
-      по построению, и это не пробел списка имён;
+    * ``unnamed_not_dicts`` — элементы не словари И значением себя тоже не
+      называют (``scalar_refused`` говорит, почему: не скаляры либо значения
+      повторяются). Это не пробел списка имён;
     * ``unnamed_candidate_outside`` — словари, годного имени из списка нет, а
       ВНЕ списка — есть. Это и есть предмет заказа;
     * ``unnamed_no_candidate`` — словари, годного поля нет вовсе. Третий исход
@@ -121,7 +139,18 @@ def classify_list(items) -> dict:
         row["outcome"] = "unnamed_empty"
         return row
     if not all(isinstance(item, dict) for item in items):
+        # Личность, которая НЕ ЕСТЬ ПОЛЕ (заказ G35 п. 3 / G37 п. 4). Прежняя
+        # редакция ставила здесь `unnamed_not_dicts` на всё не-словарное разом —
+        # и это был вердикт ПРО СПИСОК ИМЁН, напечатанный про список, у которого
+        # имён нет по построению. Теперь род спрашивается у того же правила, что
+        # пишет координату, а причина отказа называется отдельно.
+        ok, cause = scalar_verdict(items)
+        if ok:
+            row["outcome"] = "named_by_value"
+            row["identity"] = "by_value"
+            return row
         row["outcome"] = "unnamed_not_dicts"
+        row["scalar_refused"] = cause
         return row
     field = element_identity(items)
     if field is not None:

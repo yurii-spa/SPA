@@ -147,7 +147,8 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import (Callable, Dict, List, Optional, Sequence, Set, Tuple,
+                    Union)
 
 from spa_core.monitoring._http_reader_probe import UNREAD_RESPONSE
 from spa_core.utils.observation import observed
@@ -669,7 +670,72 @@ def _ident_token(value) -> str:
     return json.dumps(value, sort_keys=True, default=str, ensure_ascii=False)
 
 
-def element_identity(items) -> Optional[str]:
+class _ByValue:
+    """Личность, которая НЕ ЕСТЬ ПОЛЕ: элемент-скаляр называет себя собой.
+
+    Второе правило рядом с полем-именем (заказ **G35, п. 3** приказа владельца
+    «Portfolio CIO», он же **G37, п. 4**). Отдельный род, а не строка-имя: у
+    скаляра поля нет вовсе, и вписать сюда какое-нибудь ``"="`` значило бы
+    завести имя, которое может оказаться настоящим ключом словаря, — то есть
+    спутать два правила в одной координате.
+
+    Координата пишется ``[=<токен>]`` (без имени слева) именно затем, чтобы
+    читающий видел, ОТКУДА взялась личность: ``[protocol="aave_v3"]`` — поле,
+    ``[="aave_v3"]`` — само значение. Одно правило записи на всю семью живёт
+    в ``indexed``; здесь — только род.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:                                # pragma: no cover
+        return "BY_VALUE"
+
+
+#: Единственный экземпляр: сравнение рода идёт по тождеству (``is``), поэтому
+#: второго быть не должно. ``unstable_coords`` сверяет роды двух проб обычным
+#: ``!=``, и на синглтоне это тождество и есть.
+BY_VALUE = _ByValue()
+
+
+def scalar_refusal(values) -> str:
+    """ПОЧЕМУ набор значений не годится в личность — пустая строка = годится.
+
+    Одна копия правила «скаляры и уникальны» на весь модуль, и вердикт с
+    причиной выводятся ОТСЮДА оба, потому что разойтись они могут только здесь.
+    Этим кончилась первая редакция ADR-502 (циклы #717–#719, трижды написана и
+    ни разу не доставлена): у правила было ДВЕ копии — ``_scalar_identity``
+    рядом с ``element_identity`` и ``scalar_verdict`` у зонда переписи, — и они
+    разошлись на ``bool``. Копия у зонда ``bool`` исключала, копия правила
+    забыла, хотя её же docstring утверждал обратное; сверяющий тест был ЗЕЛЁН,
+    потому что его корпус не содержал списка голых ``bool``. Расхождение
+    ВТОРОГО РОДА — не вердиктом, а населением проверки (заказ G89 п. 1).
+
+    Условия и причины их существования:
+
+    * каждое значение — скаляр (``str``/``int``/``float``), и ``bool``
+      ИСКЛЮЧЁН. ``True``/``False`` уникальны максимум в списке из двух, то есть
+      «личность» была бы совпадением. Хуже: у списка из двух флагов координата
+      по значению ``[=true]``/``[=false]`` не меняется при их ПЕРЕСТАНОВКЕ —
+      настоящая новость (флаги поменялись местами) стала бы невидимой, а это
+      ровно та тихая потеря, против которой правило и написано;
+    * значения уникальны по всему списку. Неуникальное значение назвало бы два
+      разных места ОДНОЙ координатой — хуже позиции, потому что тихо.
+    """
+    if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool)
+               for v in values):
+        return "not_scalar"
+    tokens = [_ident_token(v) for v in values]
+    if len(set(tokens)) != len(tokens):
+        return "not_unique"
+    return ""
+
+
+def unique_scalars(values) -> bool:
+    """Вердикт того же правила. Ровно отрицание причины — по построению."""
+    return not scalar_refusal(values)
+
+
+def element_identity(items) -> Optional[Union[str, "_ByValue"]]:
     """Поле, которым элементы списка различимы ПО ЛИЧНОСТИ, а не по месту.
 
     Заказ **G33, п. 3**. Координата вида ``.findings[8].severity`` позиционна, и
@@ -692,7 +758,27 @@ def element_identity(items) -> Optional[str]:
     if not isinstance(items, list) or not items:
         return None
     if not all(isinstance(item, dict) for item in items):
-        return None
+        # Личность, которая НЕ ЕСТЬ ПОЛЕ (заказ G35 п. 3 / G37 п. 4). У списка
+        # скаляров поля нет по построению — и это НЕ значит, что личности у него
+        # быть не может: элемент называет себя своим значением. Прежняя редакция
+        # возвращала здесь `None` на всё не-словарное разом, и позиционными
+        # оставались 640 списков из 1703 (перепись `list_identity_census`,
+        # замер 25.09) — то есть большинство населения, а не остаток.
+        #
+        # Направление правки — в сторону БОЛЬШЕЙ строгости, и это измеримо:
+        # потребитель координат снимает (`drop`) то, что назвал нестабильным,
+        # поэтому ЛОЖНАЯ нестабильность глушит живые листья. Позиционная пара на
+        # переставленном списке даёт ровно её: сдвинувшееся значение объявляется
+        # изменившимся на каждом съехавшем месте. По значению переставленный
+        # список стабилен, и снимается меньше, а не больше.
+        #
+        # ЧЕГО ПРАВИЛО НЕ ЗНАЕТ: упорядочен ли список по смыслу. У ряда, где
+        # место есть день, «значение переехало» — настоящая новость, и по
+        # значению она не видна. Различить набор от ряда по ОДНОМУ наблюдению
+        # нечем, поэтому выбран тот исход, который у ЭТОГО потребителя ошибается
+        # в сторону сохранения листьев, и односторонность названа здесь, а не
+        # оставлена читателю.
+        return BY_VALUE if unique_scalars(items) else None
     for field in _IDENTITY_FIELDS:
         values = [item.get(field) for item in items]
         # Одна проверка, а не две. Отдельной ветки «поля нет» здесь стояла — и
@@ -700,16 +786,31 @@ def element_identity(items) -> Optional[str]:
         # `None`, а `None` не проходит и проверку типа, то есть ветка была
         # неотличима от своего удаления. Сторож, снятие которого ничего не
         # меняет, — украшение; правило одно и живёт в одной строке.
-        if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool)
-                   for v in values):
-            continue
-        tokens = [_ident_token(v) for v in values]
-        if len(set(tokens)) == len(tokens):
+        # Правило «скаляры и уникальны» спрашивается у ОДНОЙ копии
+        # (`unique_scalars`) — той же, которой судит личность-по-значению и
+        # которой докладывает причину зонд переписи. До #720 здесь стояла своя
+        # копия, и именно так разошлись роды на `bool`.
+        if unique_scalars(values):
             return field
     return None
 
 
-def indexed(items, field: Optional[str] = None):
+def _ident_suffix(field, element) -> str:
+    """Токен личности ОДНОГО элемента — одна формула на всю семью.
+
+    До этой правки формула стояла ДВАЖДЫ: в ``indexed`` (пишет координату) и в
+    ``unstable_coords`` (сопоставляет две пробы). Вторая копия жила под
+    контролем теста, и пока родов личности был один, расхождение было
+    маловероятным; с появлением второго рода (``BY_VALUE``) его пришлось бы
+    вписывать в оба места, а «одно правило в двух копиях» — тот самый класс,
+    которым ADR-416 покрасил `main` на верном дереве. Копия одна.
+    """
+    if field is BY_VALUE:
+        return f"={_ident_token(element)}"
+    return f"{field}={_ident_token(element[field])}"
+
+
+def indexed(items, field=None):
     """Пары ``(суффикс координаты, элемент)`` — ОДНО правило записи на всю семью.
 
     Обходы ОДНОГО ответа (``stable_leaf_digests``, ``_stable_leaves``,
@@ -727,7 +828,7 @@ def indexed(items, field: Optional[str] = None):
         field = element_identity(items)
     for idx, value in enumerate(items):
         yield (f"[{idx}]" if field is None
-               else f"[{field}={_ident_token(value[field])}]"), value
+               else f"[{_ident_suffix(field, value)}]"), value
 
 
 def unstable_coords(one, two, path: str = "") -> Set[str]:
@@ -760,8 +861,8 @@ def unstable_coords(one, two, path: str = "") -> Set[str]:
             # только под именем личности. Fail-CLOSED: нестабилен весь список.
             return {path}
         if field is not None:
-            m1 = {f"{field}={_ident_token(i[field])}": i for i in one}
-            m2 = {f"{field}={_ident_token(i[field])}": i for i in two}
+            m1 = {_ident_suffix(field, i): i for i in one}
+            m2 = {_ident_suffix(field, i): i for i in two}
             for token in sorted(set(m1) | set(m2)):
                 coord = f"{path}[{token}]"
                 if token not in m1 or token not in m2:

@@ -1168,8 +1168,19 @@ class ListElementIsNamedByIdentityNotByPlace(unittest.TestCase):
         self.assertIsNone(
             self.g16.element_identity([{"id": True}, {"id": False}]))
 
-    def test_a_list_of_non_dicts_has_no_identity(self):
-        self.assertIsNone(self.g16.element_identity([1, 2, 3]))
+    def test_an_empty_list_has_no_identity(self):
+        """Пустой список называть нечем — и это не пробел правила.
+
+        ПРАВКА НАМЕРЕННАЯ (инв. #16, записана в журнал цикла #717). Здесь стоял
+        `test_a_list_of_non_dicts_has_no_identity`, и он утверждал
+        `assertIsNone(element_identity([1, 2, 3]))` — то есть ЗАКРЕПЛЯЛ ровно тот
+        пробел, который заказ G35 п. 3 велел закрыть: список скаляров остаётся
+        позиционным. Утверждение про `[1, 2, 3]` не удалено, а ПЕРЕНЕСЕНО с
+        верным ожиданием в `ScalarListIsNamedByItsOwnValue` ниже; вместе с ним
+        перенесены и все формы, у которых личности по-прежнему нет (смешанный
+        список, список списков, повторяющиеся значения, `bool`). Ни одна
+        проверка не снята: узлов стало больше, а не меньше.
+        """
         self.assertIsNone(self.g16.element_identity([]))
 
     def test_identity_field_order_is_the_declared_one(self):
@@ -1253,6 +1264,219 @@ class ListElementIsNamedByIdentityNotByPlace(unittest.TestCase):
         self.assertEqual(self.g16.element_identity([{"id": 1}, {"id": "1"}]), "id")
         names = [s for s, _ in self.g16.indexed([{"id": 1}, {"id": "1"}])]
         self.assertEqual(len(set(names)), 2)
+
+
+class ScalarListIsNamedByItsOwnValue(unittest.TestCase):
+    """Заказ **G35, п. 3** (он же **G37, п. 4**): личность, которая НЕ ЕСТЬ ПОЛЕ.
+
+    У списка скаляров поля нет по построению, и прежнее правило возвращало на
+    него `None` — то есть оставляло позиционным БОЛЬШИНСТВО населения (перепись
+    25.09: 640 таких списков из 1703). Элемент-скаляр называет себя своим
+    значением, и вся семья обходов обязана звать его одинаково.
+    """
+
+    def setUp(self):
+        from spa_core.monitoring import run_identity_key_price as g16
+        self.g16 = g16
+
+    # — сам род личности: одно правило, и у него обе стороны —
+
+    def test_unique_scalars_are_named_by_value(self):
+        self.assertIs(self.g16.element_identity([1, 2, 3]), self.g16.BY_VALUE)
+        self.assertIs(self.g16.element_identity(["a", "b"]), self.g16.BY_VALUE)
+
+    def test_repeated_value_is_refused_exactly_as_a_repeated_field_is(self):
+        """Повтор хуже места: два разных элемента получили бы ОДНО имя, и тихо."""
+        self.assertIsNone(self.g16.element_identity([1, 2, 2]))
+        self.assertIsNone(self.g16.element_identity(["a", "a"]))
+
+    def test_bools_are_not_an_identity_by_value_either(self):
+        """Тот же довод, что у поля: `True`/`False` уникальны максимум вдвоём."""
+        self.assertIsNone(self.g16.element_identity([True, False]))
+
+    def test_a_mixed_list_has_no_identity(self):
+        """Часть элементов — словари: ни полем, ни значением набор не назвать."""
+        self.assertIsNone(self.g16.element_identity([1, {"code": "a"}]))
+
+    def test_a_list_of_containers_has_no_identity(self):
+        self.assertIsNone(self.g16.element_identity([[1], [2]]))
+        self.assertIsNone(self.g16.element_identity([{"a": 1}, [2]]))
+
+    def test_a_scalar_identity_is_written_without_a_field_name(self):
+        """`[="x"]` против `[code="x"]`: читающий видит, ОТКУДА личность.
+
+        Если бы оба рода писались одинаково, координата перестала бы отвечать на
+        вопрос «поле это или значение» — а от ответа зависит, у кого спрашивать
+        при расхождении.
+        """
+        by_value = [s for s, _ in self.g16.indexed(["x", "y"])]
+        by_field = [s for s, _ in self.g16.indexed([{"code": "x"}, {"code": "y"}])]
+        self.assertEqual(by_value, ['[="x"]', '[="y"]'])
+        self.assertEqual(by_field, ['[code="x"]', '[code="y"]'])
+        self.assertEqual(set(by_value) & set(by_field), set())
+
+    def test_the_type_of_a_scalar_is_part_of_its_identity(self):
+        """`1` и `"1"` — разные личности, иначе два элемента слились бы в один."""
+        names = [s for s, _ in self.g16.indexed([1, "1"])]
+        self.assertEqual(len(set(names)), 2)
+
+    # — НАЗВАННЫЙ ВРЕД: позиционная пара врёт на переставленном списке —
+
+    def test_a_reordered_scalar_list_is_no_longer_called_unstable(self):
+        """Тот самый вред, ради которого правило и написано.
+
+        До правки обе координаты объявлялись нестабильными и уходили в `drop`,
+        то есть ЛОЖНАЯ нестабильность глушила живые листья. Порядок личностью не
+        является — переставленный набор устойчив.
+        """
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "b"]}, {"p": ["b", "a"]}), set())
+
+    def test_a_changed_value_is_still_caught_and_names_both_sides(self):
+        """Обратная сторона: правило НЕ имеет права глушить настоящую разницу.
+
+        Без этого контроля предыдущий тест был бы куплен слепотой: «ничего не
+        расходится» достигается и тем, что перестали смотреть.
+        """
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "b"]}, {"p": ["a", "c"]}),
+            {'.p[="b"]', '.p[="c"]'})
+
+    def test_a_grown_list_keeps_the_coordinates_of_its_unchanged_neighbours(self):
+        """Прежняя ветка «длины разные ⇒ весь список нестабилен» теряла соседей."""
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "b"]}, {"p": ["a", "b", "c"]}),
+            {'.p[="c"]'})
+
+    def test_a_repeated_value_falls_back_to_the_whole_list_fail_closed(self):
+        """Личности нет ни у одной стороны ⇒ пары по месту; длины разошлись ⇒ весь."""
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "a"]}, {"p": ["a", "b"]}), {".p"})
+
+    def test_one_side_named_by_value_and_the_other_not_is_the_whole_list(self):
+        """Роды разошлись — сравнивать нечем, и это fail-CLOSED, а не пары по месту."""
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "b"]}, {"p": ["a", "a"]}), {".p"})
+
+    def test_a_field_identity_never_pairs_with_a_value_identity(self):
+        """`BY_VALUE` против имени поля — тоже расхождение рода, а не совпадение."""
+        self.assertEqual(
+            self.g16.unstable_coords({"p": ["a", "b"]},
+                                     {"p": [{"code": "a"}, {"code": "b"}]}),
+            {".p"})
+
+    # — ОДНО правило записи на всю семью —
+
+    def test_every_traversal_in_the_family_spells_the_scalar_the_same_way(self):
+        """Разойдись запись — снятая координата не нашлась бы у соседа.
+
+        Именно это и предупреждает docstring `indexed`: множество `drop` общее,
+        и «ничего не снято» прочиталось бы как «нечего было снимать».
+        """
+        answer = {"p": ["a", "b"], "s": 1}
+        drop = self.g16.unstable_coords(answer, {"p": ["a", "c"], "s": 1})
+        self.assertEqual(drop, {'.p[="b"]', '.p[="c"]'})
+        self.assertEqual(sorted(self.g16.stable_leaf_digests(answer, drop)),
+                         ['.p[="a"]', ".s"])
+        self.assertEqual(self.g16._stable_leaves(answer, drop), 2)
+        self.assertEqual(
+            self.g16.mask_coords(answer, drop, "", "<X>")["p"][1], "<X>")
+        self.assertIn('.p[="b"]', dict(self.g16._leaves(answer)))
+        self.assertEqual(self.g16.leaf_values(answer, {'.p[="a"]'}),
+                         {'.p[="a"]': {"value": "a"}})
+
+    def test_the_token_formula_lives_in_exactly_one_place(self):
+        """`indexed` и `unstable_coords` берут суффикс из одной функции.
+
+        Копий было две, и с появлением второго рода личности расхождение стало
+        бы вопросом времени — тот самый класс, которым ADR-416 покрасил `main`
+        на верном дереве. Контроль смотрит на ПРОИСХОЖДЕНИЕ имени, а не на
+        сегодняшнее совпадение строк: подмена общей формулы обязана съехать
+        у ОБОИХ сразу.
+        """
+        original = self.g16._ident_suffix
+        try:
+            self.g16._ident_suffix = lambda field, element: "СОРВАНО"
+            written = [s for s, _ in self.g16.indexed(["a", "b"])]
+            paired = self.g16.unstable_coords({"p": ["a"]}, {"p": ["b"]})
+        finally:
+            self.g16._ident_suffix = original
+        self.assertEqual(written, ["[СОРВАНО]", "[СОРВАНО]"])
+        self.assertEqual(paired, {".p[СОРВАНО]"})
+
+    def test_the_sentinel_is_a_single_object_so_roles_compare_by_identity(self):
+        """Второй экземпляр рода сделал бы `field != field_two` истинным зря."""
+        self.assertIs(self.g16.element_identity([1, 2]),
+                      self.g16.element_identity(["x", "y"]))
+        self.assertNotIsInstance(self.g16.BY_VALUE, str)
+
+
+class ProbeAgreesWithTheRuleItReportsOn(unittest.TestCase):
+    """Вердикт переписи обязан совпадать с правилом, которое пишет координату.
+
+    У переписи своя, диагностическая копия условия (`scalar_verdict`) — ровно
+    как `field_verdict` у поля, и по той же причине: причина отказа нужна
+    отчёту, а вердикт решает правило. Разойдись копии — перепись докладывала бы
+    про списки не то, что делает с ними обход (класс ADR-416/417).
+    """
+
+    def setUp(self):
+        from spa_core.monitoring import _list_identity_probe as probe
+        from spa_core.monitoring import run_identity_key_price as g16
+        self.probe = probe
+        self.g16 = g16
+
+    #: Формы, на которых два рода личности и оба отказа различимы.
+    CASES = ([1, 2, 3], ["a", "b"], [1, 2, 2], ["a", "a"], [True, False],
+             [1, {"code": "a"}], [[1], [2]], [1, "1"], [], [0.5, 0.25],
+             [{"code": "a"}, {"code": "b"}], [{"code": "a"}, {"code": "a"}])
+
+    def test_scalar_verdict_never_disagrees_with_element_identity(self):
+        for items in self.CASES:
+            if not items or all(isinstance(i, dict) for i in items):
+                continue
+            with self.subTest(items=items):
+                self.assertEqual(
+                    self.probe.scalar_verdict(items)[0],
+                    self.g16.element_identity(items) is self.g16.BY_VALUE)
+
+    def test_the_outcome_is_named_by_value_exactly_when_the_rule_names_it(self):
+        for items in self.CASES:
+            with self.subTest(items=items):
+                row = self.probe.classify_list(items)
+                named = row["outcome"] == "named_by_value"
+                self.assertEqual(
+                    named, self.g16.element_identity(items) is self.g16.BY_VALUE)
+
+    def test_a_refused_scalar_list_says_WHY_not_just_that_it_has_no_field(self):
+        """«Не словари» и «значения повторяются» — разные вердикты (инв. #17)."""
+        self.assertEqual(self.probe.classify_list([1, 2, 2])["scalar_refused"],
+                         "not_unique")
+        self.assertEqual(self.probe.classify_list([[1], [2]])["scalar_refused"],
+                         "not_scalar")
+
+    def test_the_row_stays_json_serialisable_and_carries_no_sentinel(self):
+        """Строка переписи уезжает в артефакт: объект-род в JSON не лезет.
+
+        Положить `BY_VALUE` в `row["field"]` было бы естественной ошибкой —
+        и зонд упал бы при записи, а не при разборе.
+        """
+        row = self.probe.classify_list(["a", "b"])
+        json.dumps(row)
+        self.assertNotIn("field", row)
+        self.assertEqual(row["identity"], "by_value")
+
+    def test_the_walk_still_descends_into_a_by_value_list(self):
+        """`indexed(node, row.get("field"))` получает None ⇒ пересчитает род.
+
+        Если бы обход зонда терял род, вложенные списки перестали бы попадать
+        в перепись вовсе — и число «списков всего» упало бы молча.
+        """
+        rows = self.probe.walk_lists(
+            {"outer": [{"code": "a", "inner": ["p", "q"]}]},
+            self.probe._Budget(), "")
+        coords = {r["coord"] for r in rows}
+        self.assertIn('.outer[code="a"].inner', coords)
 
 
 class TempStandIsAnOutcomeOfItsOwnMeasuredNotNamed(unittest.TestCase):
