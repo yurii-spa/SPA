@@ -75,11 +75,14 @@ def plan_exec(service, approved_sha, releases_dir):
     return {"argv": argv, "cwd": str(root), "exec_root": str(root), "sha": approved_sha}, "EXEC_FROM_RELEASE"
 
 
-# ── installed entrypoint (root plane). launchd runs: <fixed python> <this file> <service-id> ──────────
+# ── installed entrypoint (root plane). launchd runs: <trusted python> <this file> <service-id> ──────────
 # Trusted-plane fixed locations (all root-owned, user-write-denied). Overridable ONLY for hermetic tests.
 TRUSTED_ROOT = "/Library/Application Support/StudioOS"
-# Deterministic interpreter — the root-plane toolchain, NOT $PATH (ARB Phase 2: interpreter path deterministic).
-DEFAULT_PYTHON = TRUSTED_ROOT + "/toolchains/base/bin/python3"
+# INTERPRETER: the launcher re-execs the approved release with the SAME interpreter it is already running under
+# (`sys.executable`) — i.e. the one launchd invoked it with, named in the ROOT-OWNED plist ProgramArguments.
+# The interpreter-trust decision therefore lives in the root-owned plist (the Owner names a non-user-writable
+# python there), not in a hardcoded path here — which also avoids a wrong/absent path. (ARB Checkpoint-A fix:
+# the earlier hardcoded `…/toolchains/base/bin/python3` did not exist.)
 # ACTIVE is an observation marker (what actually started), not authority; written user-side, never read as a gate.
 ACTIVE_MARKER_PATH = str(Path.home() / "Documents" / "SPA_Claude" / "data" / "active_release.json")
 
@@ -96,6 +99,7 @@ def main(service_id, *, root=None, python=None, active_path=None):
     deterministic isolated interpreter. FAIL CLOSED (exit 3) before any application code loads. Never touches
     the mutable tree. Returns a verdict string in test mode (when python is a list sink) or execs for real."""
     import os
+    import sys
     root = Path(root or TRUSTED_ROOT)
     approved = _read_approved(root / "approved_release.json")
     plan, verdict = plan_exec(service_id, approved, root / "releases")
@@ -108,9 +112,10 @@ def main(service_id, *, root=None, python=None, active_path=None):
         ap.write_text(json.dumps({"active_sha": plan["sha"], "service": service_id}))
     except Exception:
         pass
-    py = DEFAULT_PYTHON if python is None else python
+    # re-exec the release with the SAME (trusted, launchd-named) interpreter; no hardcoded path
+    py = sys.executable if python is None else python
     if isinstance(py, list):                     # test hook: capture instead of exec
-        py.append((py_exec := [DEFAULT_PYTHON, *plan["argv"]], plan["cwd"]))
+        py.append((py_exec := [sys.executable, *plan["argv"]], plan["cwd"]))
         return ("EXEC_FROM_RELEASE", py_exec, plan["cwd"])
     os.chdir(plan["cwd"])
     os.execv(py, [py, *plan["argv"]])            # replaces the process; imports come from the release only
