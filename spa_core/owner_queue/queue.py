@@ -153,6 +153,87 @@ IN_WORK_STATUSES = frozenset({"in-progress", "blocked"})
 INBOX_ACCEPTANCE_BASELINE = Path(__file__).resolve().parents[2] / "scripts" / "inbox_acceptance_baseline.json"
 
 
+def carried_release(carried_to: str | Path | None,
+                    card_path: str | Path | None = None,
+                    repo_root: str | Path | None = None,
+                    tracker_dir: str | Path | None = None,
+                    ideas_dir: str | Path | None = None) -> tuple[Path | None, str]:
+    """Заработанное ли это освобождение носителя — **ОДНА копия условия** (ADR-501).
+
+    Возвращает ``(путь, "")`` при заработанном освобождении и ``(None, причина)`` иначе.
+    Причина — часть ответа: отказ обязан называть, КАКОЕ звено не сошлось, иначе
+    вызывающему нечего чинить.
+
+    Почему одна копия. До ADR-501 условие жило двумя редакциями — у исполнителя
+    (`set_status`) и у сторожа (`test_inbox_acceptance_ratchet`), — и они разошлись
+    ВТОРЫМ РОДОМ: исполнитель считал путь от CWD, сторож от корня репозитория. Замер
+    цикла #717: один и тот же законный `carried_to` очередь принимает из корня репо и
+    ОТКАЗЫВАЕТ из любого другого каталога, тогда как сторож освобождает всегда. Тот же
+    порядок, каким сюда уже ввезено `INTAKE_STATUSES` (заказ G42 п. 1): имя живёт у
+    исполнителя, сторож его ВВОЗИТ, и правка у одного краснит другого.
+
+    Система координат — **корень репозитория**, а не CWD: карточку двигают из worktree
+    и из песочницы, и путь в карточке обязан значить одно и то же отовсюду.
+
+    `repo_root` и `tracker_dir` — ОБЪЯВЛЕННЫЕ ШВЫ, а не окружение (тот же порядок, что
+    у часов и у живости процесса в `.claude/rules/deployment.md`): по умолчанию — корень
+    этого репозитория и рабочий трекер, а одноразовая сцена передаёт свои. Подмена
+    модульной переменной у ОДНОГО из двух читателей и была бы возвратом к двум копиям.
+    """
+    root = Path(repo_root) if repo_root is not None else _REPO_ROOT
+    tracker = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
+    ideas = Path(ideas_dir) if ideas_dir is not None else root / "docs" / "ideas"
+    if carried_to is None:
+        return None, "carried_to не объявлен"
+    target = str(carried_to).strip().strip("\"'")
+    if not target:
+        return None, "carried_to пуст"
+
+    path = Path(target)
+    if not path.is_absolute():
+        path = root / path                # ОДНА система координат, не CWD
+
+    if not path.exists():
+        return None, (f"объявлено `carried_to={target}`, но такого файла нет — освобождение "
+                      f"носителя ЗАРАБАТЫВАЕТСЯ существующим предметом, а не обещанием")
+    if not path.is_file():
+        return None, f"`carried_to={target}` — это каталог, а не предмет"
+
+    # Сама на себя карточка содержимое не увозит: такое освобождение тавтологично и
+    # было бы опт-аутом с нулевой ценой. Население сегодня 0 — сторона закрыта ДО того,
+    # как появится первый случай, а не после.
+    if card_path is not None:
+        try:
+            if path.resolve() == Path(card_path).resolve():
+                return None, (f"`carried_to={target}` указывает на саму карточку — "
+                              f"освобождение тавтологично")
+        except OSError:
+            pass
+
+    # Предмет обязан принадлежать миру носителя, иначе строка `carried_to: README.md`
+    # гасила бы ЛЮБУЮ карточку — тот самый универсальный глушитель, ради запрета
+    # которого писан ADR-416. Три законных мира, и каждый ИЗМЕРЕН, а не назначен:
+    #   • карточка трекера      — оба сегодняшних носителя (замер #717);
+    #   • заметка `docs/ideas/` — ветка `kind == "idea"` у `intake`;
+    #   • сосед по каталогу     — шов песочницы: карточка и предмет в одном временном
+    #     дереве (контроль `test_an_existing_target_frees_the_carrier`). В проде этот
+    #     мир совпадает с первым.
+    if path.suffix != ".md":
+        return None, f"`carried_to={target}` — не `.md`: предмет носителя это заметка или карточка"
+    _homes = [tracker, ideas]
+    if card_path is not None:
+        _homes.append(Path(card_path).parent)
+    for home in _homes:
+        try:
+            path.resolve().relative_to(Path(home).resolve())
+            return path, ""
+        except (ValueError, OSError):
+            continue
+    return None, (f"`carried_to={target}` лежит вне мира носителя (карточка трекера, "
+                  f"заметка docs/ideas/ или сосед по каталогу) — освобождение не заработано")
+
+
+
 def _inbox_acceptance_baseline() -> set[str] | None:
     """Имена карточек, освобождённых от критерия по базе. `None` — база не прочиталась
     (это НЕ «пусто»: отказать тогда нельзя никому, и вызывающий обязан сказать это вслух)."""
@@ -392,7 +473,8 @@ def list_cards(
 
 def set_status(path: str | Path, new_status: str,
                closed_by: str | None = None, evidence: str | None = None,
-               carried_to: str | Path | None = None) -> None:
+               carried_to: str | Path | None = None,
+               repo_root: str | Path | None = None) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
     Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
@@ -448,14 +530,18 @@ def set_status(path: str | Path, new_status: str,
     # НАЗВАТЬ путь, куда уехало содержимое, и путь обязан СУЩЕСТВОВАТЬ. Имя без файла
     # освобождения не даёт — иначе это был бы тот самый опт-аут, который учит
     # отключать сторожа.
+    # ОДНА копия условия (ADR-501) — та же, что ввозит сторож. Своей редакции здесь
+    # больше нет: прежняя считала путь от CWD и отказывала законному носителю всюду,
+    # кроме корня репозитория.
     _carried_ok = False
     if carried_to is not None:
-        _carried_ok = Path(carried_to).exists()
+        # `repo_root` ВВОДИТСЯ вызывающим, а не берётся у окружения: приём заданий
+        # (`owner_queue.intake`) кладёт заметку-идею в СВОЙ корень, и без этого шва
+        # законное освобождение идеей получало отказ всюду, кроме боевого дерева.
+        _resolved, _why = carried_release(carried_to, p, repo_root=repo_root)
+        _carried_ok = _resolved is not None
         if not _carried_ok:
-            raise AcceptanceCriterionMissing(
-                f"{p.name}: объявлено `carried_to={carried_to}`, но такого файла нет — "
-                f"освобождение носителя ЗАРАБАТЫВАЕТСЯ существующим предметом, а не "
-                f"обещанием")
+            raise AcceptanceCriterionMissing(f"{p.name}: {_why}")
     if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
             and not _carried_ok and not has_acceptance_criterion(_fm)):
         _base = _inbox_acceptance_baseline()

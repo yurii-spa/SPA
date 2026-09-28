@@ -60,7 +60,7 @@ _CARRIED = re.compile(r"^carried_to:\s*(\S.*?)\s*$", re.M)
 #: храповик держал свою копию этого множества, правка у очереди не краснила
 #: сторожа, а правка у сторожа не краснила ничего. Ровно так разошлось
 #: условие `carried_to` (ADR-416) — красным стал `main` при ВЕРНОМ дереве.
-from spa_core.owner_queue.queue import INTAKE_STATUSES  # noqa: E402
+from spa_core.owner_queue.queue import INTAKE_STATUSES, carried_release  # noqa: E402
 
 
 def _frontmatter(name: str) -> str:
@@ -84,23 +84,25 @@ def has_criterion(name: str) -> bool:
 
 
 def carried_home(name: str) -> "str | None":
-    """Путь, куда уехало содержимое карточки-носителя, — ТОЛЬКО если он существует.
+    """Путь, куда уехало содержимое карточки-носителя, — ТОЛЬКО если освобождение ЗАРАБОТАНО.
 
-    Одно и то же условие с `owner_queue.queue.set_status`: обещание освобождения не
-    даёт. Третьего исхода здесь нет намеренно — поля нет и файла нет читаются
-    одинаково («освобождения не заработано»), и обе дороги ведут к тому же вердикту,
-    что и раньше.
+    Своей редакции условия здесь БОЛЬШЕ НЕТ (ADR-501). Она была второй копией и
+    разошлась с исполнителем вторым родом: сторож считал путь от корня репозитория,
+    `set_status` — от CWD, поэтому один и тот же законный носитель освобождался у
+    сторожа и получал отказ у очереди из любого каталога, кроме корня. Теперь
+    условие ввозится оттуда же, откуда `INTAKE_STATUSES`: правка у исполнителя
+    краснит сторожа, а не расходится с ним молча.
+
+    Третьего исхода здесь нет намеренно — поля нет и предмет не заработан читаются
+    одинаково («освобождения нет»), и обе дороги ведут к тому же вердикту, что и раньше.
     """
     m = _CARRIED.search(_frontmatter(name))
     if not m:
         return None
     target = m.group(1).strip().strip("\"'")
-    if not target:
-        return None
-    path = Path(target)
-    if not path.is_absolute():
-        path = _REPO / target
-    return target if path.exists() else None
+    resolved, _why = carried_release(target, _TRACKER / name,
+                                     repo_root=_REPO, tracker_dir=_TRACKER)
+    return target if resolved is not None else None
 
 
 def status_of(name: str) -> str:
@@ -164,15 +166,25 @@ def test_a_carrier_is_freed_only_by_a_path_that_exists(tmp_path, monkeypatch) ->
     """
     tracker = tmp_path / "tracker"
     tracker.mkdir()
-    (tmp_path / "есть-такая-карточка.md").write_text("носитель уехал сюда", encoding="utf-8")
+    # ПРЕДМЕТ ЛЕЖИТ В ТРЕКЕРЕ — сцена приведена к миру, который описывает (ADR-501,
+    # инв. #16). Раньше он лежал в корне одноразового дерева, и это было безразлично:
+    # условие спрашивало только «существует ли». С ADR-501 у условия появилась сторона
+    # «предмет принадлежит миру носителя», и субъект теста от переноса НЕ меняется —
+    # он по-прежнему ровно «заработанное против обещанного», обе карточки по-прежнему
+    # различаются ровно существованием названного пути. Оба живых носителя на
+    # `origin/main` (замер #717) указывают именно на карточку трекера.
+    (tracker / "есть-такая-карточка.md").write_text("носитель уехал сюда", encoding="utf-8")
+    # Путь ОТ КОРНЯ дерева — ровно та форма, которой живут оба носителя на `origin/main`
+    # (`nimbalyst-local/tracker/inbox-….md`). Голое имя работало, пока предмет лежал в
+    # корне; координата не менялась, менялось место предмета.
     (tracker / "inbox-uehalo.md").write_text(
-        "---\nstatus: done\ncarried_to: есть-такая-карточка.md\n---\n", encoding="utf-8")
+        "---\nstatus: done\ncarried_to: tracker/есть-такая-карточка.md\n---\n", encoding="utf-8")
     (tracker / "inbox-obeschano.md").write_text(
-        "---\nstatus: done\ncarried_to: нет-такой-карточки.md\n---\n", encoding="utf-8")
+        "---\nstatus: done\ncarried_to: tracker/нет-такой-карточки.md\n---\n", encoding="utf-8")
     monkeypatch.setattr("spa_core.tests.test_inbox_acceptance_ratchet._TRACKER", tracker)
     monkeypatch.setattr("spa_core.tests.test_inbox_acceptance_ratchet._REPO", tmp_path)
 
-    assert carried_home("inbox-uehalo.md") == "есть-такая-карточка.md"
+    assert carried_home("inbox-uehalo.md") == "tracker/есть-такая-карточка.md"
     assert carried_home("inbox-obeschano.md") is None, (
         "обещанный путь освободил носителя — это опт-аут, а не заработанное освобождение")
     assert carried_home("inbox-uehalo.md") and not has_criterion("inbox-uehalo.md"), (

@@ -184,3 +184,166 @@ class ACarrierIsRetiredNotTakenIntoWork(unittest.TestCase):
             card = self._card(Path(tmp))
             with self.assertRaises(AcceptanceCriterionMissing):
                 set_status(card, "done")
+
+
+class CarriedReleaseIsOneCondition(unittest.TestCase):
+    """ADR-501: у освобождения носителя ОДНА копия условия — и у каждой стороны контроль.
+
+    Замер цикла #717, ради которого написан класс: `set_status` считал путь от **CWD**,
+    а храповик приёмки — от **корня репозитория**. Один и тот же законный `carried_to`
+    очередь принимала из корня репо и ОТКАЗЫВАЛА из любого другого каталога, тогда как
+    сторож освобождал всегда. Это расхождение ВТОРОГО РОДА (исполнитель и сторож
+    проверяют разное), и именно оно названо в карточке
+    `inbox-hrapovik-priemki-krasen-na-ispravnom-sos` как оставшаяся работа.
+
+    Каждая сторона условия закреплена в ОБЕ стороны: сторона без отрицательного
+    контроля — украшение, потому что снявшая её мутация ничего не покрасит.
+    """
+
+    def _scene(self, tmp: Path):
+        """Одноразовое дерево: корень, трекер, каталог идей."""
+        (tmp / "nimbalyst-local" / "tracker").mkdir(parents=True)
+        (tmp / "docs" / "ideas").mkdir(parents=True)
+        card = tmp / "nimbalyst-local" / "tracker" / "inbox-nositel.md"
+        card.write_text("---\ntrackerStatus:\n  type: inbox\ntitle: \"н\"\nstatus: new\n---\n\nтекст\n",
+                        encoding="utf-8")
+        return card
+
+    def _release(self, target, card, tmp):
+        from spa_core.owner_queue.queue import carried_release
+        return carried_release(target, card, repo_root=tmp,
+                               tracker_dir=tmp / "nimbalyst-local" / "tracker")
+
+    def test_the_verdict_does_not_depend_on_the_CURRENT_DIRECTORY(self):
+        """ТОТ САМЫЙ дефект: вердикт обязан быть один из любого каталога.
+
+        Прежняя редакция исполнителя звала `Path(carried_to).exists()` — то есть
+        спрашивала у CWD. Карточки двигают из worktree и из песочницы, и путь в
+        карточке обязан значить одно и то же отовсюду.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            (tmp / "nimbalyst-local" / "tracker" / "inbox-cel.md").write_text("цель", encoding="utf-8")
+            rel = "nimbalyst-local/tracker/inbox-cel.md"
+            verdicts = []
+            cwd_before = os.getcwd()
+            try:
+                for where in (tmp, Path(tempfile.mkdtemp())):
+                    os.chdir(where)
+                    verdicts.append(self._release(rel, card, tmp)[0] is not None)
+            finally:
+                os.chdir(cwd_before)
+            self.assertEqual(verdicts, [True, True],
+                             "вердикт освобождения зависит от текущего каталога — "
+                             "это ровно расхождение, измеренное циклом #717")
+
+    def test_the_guard_and_the_executor_read_THE_SAME_code(self):
+        """Не «оба зелёные», а буквально одна функция: своей копии нет ни у кого."""
+        import inspect
+        from spa_core.owner_queue import queue as q
+        import spa_core.tests.test_inbox_acceptance_ratchet as ratchet
+        self.assertIs(ratchet.carried_release, q.carried_release)
+        self.assertIn("carried_release(", inspect.getsource(q.set_status),
+                      "исполнитель завёл свою редакцию условия — это возврат к двум копиям")
+
+    def test_a_card_may_not_free_ITSELF(self):
+        """Тавтология освобождением не является: иначе это опт-аут с нулевой ценой."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            path, why = self._release(card, card, tmp)
+            self.assertIsNone(path, "карточка освободила сама себя")
+            self.assertIn("саму карточку", why)
+
+    def test_an_arbitrary_existing_file_is_NOT_a_release(self):
+        """Обратная сторона мира носителя: иначе `carried_to: README.md` гасит что угодно."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            (tmp / "README.md").write_text("не предмет носителя", encoding="utf-8")
+            path, why = self._release("README.md", card, tmp)
+            self.assertIsNone(path, "любой существующий файл освободил носителя — "
+                                    "это универсальный глушитель храповика")
+            self.assertIn("вне мира носителя", why)
+
+    def test_an_IDEA_NOTE_frees_the_carrier(self):
+        """`docs/ideas/` — законный предмет: туда гасит носителя сам `intake`.
+
+        Условие «цель обязана быть карточкой трекера» (как оно записано в карточке)
+        отказало бы этому пути. Поэтому оно ИЗМЕРЕНО и отклонено, а не переписано.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            (tmp / "docs" / "ideas" / "2026-09-28-mysl.md").write_text("# идея", encoding="utf-8")
+            path, _ = self._release("docs/ideas/2026-09-28-mysl.md", card, tmp)
+            self.assertIsNotNone(path, "законное освобождение идеей отклонено — "
+                                       "это сломало бы ветку kind=='idea' у intake")
+
+    def test_a_DIRECTORY_is_not_a_subject(self):
+        """Каталог существует, но содержимое носителя в него не уезжает."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            path, why = self._release("docs/ideas", card, tmp)
+            self.assertIsNone(path)
+            self.assertIn("каталог", why)
+
+    def test_every_refusal_NAMES_THE_LINK_that_actually_failed(self):
+        """Отказ обязан назвать ИМЕННО ТО звено, которое не сошлось.
+
+        Сначала здесь проверялось лишь «причина непустая», и батарея мутаций показала
+        цену такой проверки: три мутанта из семи ВЫЖИЛИ. Снятая проверка существования
+        и снятая проверка пустоты обе проваливались дальше, в ветку `is_file()`, и
+        пропавший предмет объявлялся «каталогом». Вердикт при этом оставался верным —
+        а причина лгала, и чинить по ней было нечего. Это тот же класс «зелёный ответ
+        на СВОЙ вопрос», только на тексте отказа.
+        """
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            (tmp / "README.md").write_text("не предмет", encoding="utf-8")
+            (tmp / "nimbalyst-local" / "tracker" / "_BOARD.json").write_text("{}", encoding="utf-8")
+            cases = [
+                (None,                                  "не объявлен"),
+                ("",                                    "пуст"),
+                ("нет-такого.md",                       "такого файла нет"),
+                ("docs/ideas",                          "каталог"),
+                ("README.md",                           "вне мира носителя"),
+                ("nimbalyst-local/tracker/_BOARD.json", "не `.md`"),
+                (str(card),                             "саму карточку"),
+            ]
+            for target, expect in cases:
+                path, why = self._release(target, card, tmp)
+                self.assertIsNone(path, f"{target!r} освободил носителя")
+                self.assertIn(expect, why,
+                              f"отказ по {target!r} назвал НЕ ТО звено: {why!r}")
+
+    def test_the_seam_REACHES_the_executor_not_just_the_condition(self):
+        """Половина проводки — та же бомба (урок #453).
+
+        Шов `repo_root` у самого условия ничего не стоит, если `set_status` его не
+        передаёт: приём заданий кладёт заметку-идею в СВОЙ корень, и носитель получал
+        бы отказ всюду, кроме боевого дерева. Ровно это и покраснело у `test_owner_intake`
+        в цикле #717, когда шов дошёл до условия и не дошёл до исполнителя.
+        """
+        import tempfile
+        from spa_core.owner_queue.queue import set_status, load_card, AcceptanceCriterionMissing
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            card = self._scene(tmp)
+            note = tmp / "docs" / "ideas" / "2026-09-28-mysl.md"
+            note.write_text("# идея", encoding="utf-8")
+            # без объявленного корня заметка лежит вне мира носителя — отказ
+            with self.assertRaises(AcceptanceCriterionMissing):
+                set_status(card, "done", carried_to=note)
+            # с объявленным — освобождение заработано
+            set_status(card, "done", carried_to=note, repo_root=tmp)
+            self.assertEqual(load_card(card).status, "done")

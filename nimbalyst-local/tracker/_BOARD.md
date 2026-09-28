@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-28T12:36:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-28T20:26:48Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (603b30077) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (1bcdd0390) · у **3** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1133** · ждёт владельца: **11** · занято сессиями: **14**.
 
@@ -347,7 +347,6 @@
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
-- Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
 - earn-defi: свой расчёт realized price вместо лицензии Coin Metrics (ADR-286 §6, решение 09.09 без задачи)  ·  `inbox-earn-defi-svoi-raschet-realized-price-vm.md` · 2026-09-16
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
@@ -744,6 +743,9 @@
 - Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
 - Журнал решений: чинить писателя и читателя одним заходом (ответ владельца, вариант A)  ·  `inbox-zhurnal-reshenii-chinit-pisatelya-i-chit.md` · 2026-09-15
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
+### · owner-done
+- Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
+- Храповик приёмки красен на исправном состоянии: законное освобождение carried_to он читает как дефект  ·  `inbox-hrapovik-priemki-krasen-na-ispravnom-sos.md` · 2026-09-18
 ### · new
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
@@ -810,7 +812,6 @@
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
 - Храповик литеральных дат снова КРАСНЫЙ на main — два ДРУГИХ файла (cio_failure_modes, decision_reproducibility)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na-2.md` · 2026-09-08
 - Храповик населения читателей журнала решений красен на чистом origin/main: keep_dominance_census читает apy_evidenced_pct и не измеряется  ·  `inbox-hrapovik-naseleniya-chitatelei-zhurnala.md` · 2026-09-28
-- Храповик приёмки красен на исправном состоянии: законное освобождение carried_to он читает как дефект  ·  `inbox-hrapovik-priemki-krasen-na-ispravnom-sos.md` · 2026-09-18
 - Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md` · 2026-09-28
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10

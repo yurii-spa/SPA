@@ -176,7 +176,9 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 atomic_save_text(f"# {card.title}\n\n_Из Inbox {dt.strftime('%Y-%m-%d')} (source: {card.fields.get('source','')})._\n{partial_body}\n{body}\n", str(fpath))
                 # Носитель гасится, НАЗЫВАЯ предмет, куда уехало содержимое (ADR-375).
                 # Это и есть его приёмка: заметка существует — проверяемо.
-                set_status(card.path, "done", carried_to=fpath)
+                # Корень НАЗВАН: заметка лежит в `_REPO/docs/ideas`, и условие
+                # освобождения обязано мерить от того же корня (ADR-501).
+                set_status(card.path, "done", carried_to=fpath, repo_root=_REPO)
                 _queue_notice(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>{partial_tg}")
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
@@ -195,7 +197,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 # `create_card` возвращает путь либо объект с `path` — берём оба вида,
                 # потому что сверять приходится СУЩЕСТВОВАНИЕМ, а не типом.
                 _target = getattr(_owner_card, "path", _owner_card)
-                set_status(card.path, "done", carried_to=_target)
+                set_status(card.path, "done", carried_to=_target, repo_root=_REPO)
                 _queue_notice(f"❓ Есть вопрос — смотри карточку: {html.escape(q)}{partial_tg}")
             else:  # task
                 # вписать критерий (полную декомпозицию делает обычный цикл), статус in-progress

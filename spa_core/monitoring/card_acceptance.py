@@ -2506,7 +2506,69 @@ def _probe_g17_subject_state_is_measured(
                        f"прибора {status}")
 
 
+def _probe_carried_release_is_one_condition(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """[ADR-501]: читают ли исполнитель и сторож ОДНУ копию условия `carried_to`.
+
+    Критерий назван ДО работы и НЕ этой сессией: он стоит в теле карточки
+    `inbox-hrapovik-priemki-krasen-na-ispravnom-sos`, написанном циклом #627 —
+    «зелёный на чистом `origin/main` И красный на карточке с поддельным
+    `carried_to`». Проба его лишь МЕХАНИЗИРУЕТ, а не выбирает задним числом.
+
+    Меряется ИСХОД, а не структура: у сторожа спрашивают его собственный вердикт
+    на заведомо законном и заведомо поддельном носителе, в одноразовом дереве.
+    Подстрокой проба не проходит — вердикты сравниваются как значения.
+
+    * `satisfied` — обе стороны сошлись И обе двери ведут в одну функцию;
+    * `not_satisfied` — законный носитель не освобождён, поддельный освобождён,
+      либо у исполнителя снова своя редакция условия;
+    * `unmeasured` — условие не импортируется (кода нет / сломан): про предмет
+      не измерено НИЧЕГО, и за «чисто» это не выдаётся.
+    """
+    import tempfile
+    from pathlib import Path as _P
+    try:
+        from spa_core.owner_queue.queue import carried_release, set_status
+        import spa_core.tests.test_inbox_acceptance_ratchet as _ratchet
+    except Exception as exc:  # noqa: BLE001 — отсутствие прибора это третий исход
+        return "unmeasured", (f"условие carried_release не импортируется ({exc.__class__.__name__}: "
+                              f"{exc}) — про предмет НЕ ИЗМЕРЕНО ничего")
+
+    # 1. Одна ли это функция у обоих читателей — вопрос о ПРОВОДКЕ, не о зелени.
+    if _ratchet.carried_release is not carried_release:
+        return "not_satisfied", "сторож читает НЕ ту функцию, что исполнитель — снова две копии"
+    try:
+        import inspect
+        if "carried_release(" not in inspect.getsource(set_status):
+            return "not_satisfied", "исполнитель завёл свою редакцию условия — возврат к двум копиям"
+    except OSError as exc:
+        return "unmeasured", f"исходник set_status не прочитан ({exc}) — проводка НЕ ИЗМЕРЕНА"
+
+    # 2. Исход на законном и на поддельном носителе — в одноразовом дереве.
+    with tempfile.TemporaryDirectory() as t:
+        tmp = _P(t)
+        tracker = tmp / "nimbalyst-local" / "tracker"
+        tracker.mkdir(parents=True)
+        card = tracker / "inbox-nositel.md"
+        card.write_text("---\nstatus: done\n---\n", encoding="utf-8")
+        (tracker / "inbox-cel.md").write_text("цель", encoding="utf-8")
+        legit, _ = carried_release("nimbalyst-local/tracker/inbox-cel.md", card,
+                                   repo_root=tmp, tracker_dir=tracker)
+        fake, why = carried_release("nimbalyst-local/tracker/net-takoi.md", card,
+                                    repo_root=tmp, tracker_dir=tracker)
+        itself, _ = carried_release(card, card, repo_root=tmp, tracker_dir=tracker)
+    if legit is None:
+        return "not_satisfied", "законный носитель НЕ освобождён — условие строже правила"
+    if fake is not None:
+        return "not_satisfied", "обещанный путь освободил носителя — это опт-аут, а не приёмка"
+    if itself is not None:
+        return "not_satisfied", "карточка освободила сама себя — тавтологичное освобождение"
+    return "satisfied", ("одна копия условия у исполнителя и сторожа; законный носитель "
+                         f"освобождён, обещанный отклонён ({why[:60]}…), тавтологичный отклонён")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
