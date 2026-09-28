@@ -2097,6 +2097,159 @@ def _probe_portfolio_decision_owner_covers_capital(
         f"${report['uncovered_usd']:,.2f}; " + detail)
 
 
+#: Предел возраста записи прогона для пробы `no_regression_tests_pass`.
+#: Восемь суток — тот же такт, что у соседних недельных приборов. Предел нужен
+#: потому, что население может НЕ измениться, а код под ним — измениться: тогда
+#: старая запись говорила бы «зелено» про дерево, которого уже нет. Проверка
+#: покрытия населения этого не ловит по построению, и подменять одно другим
+#: было бы ровно тем «зелёным ответом на свой вопрос», против которого проба
+#: и написана.
+_NO_REGRESSION_MAX_AGE_H = 192.0
+
+
+def _probe_no_regression_tests_pass(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        report: dict | None = None) -> tuple[str, str]:
+    """Критерий §49 `No regression`: проходят ли существующие risk/security/architecture-тесты.
+
+    Предмет — дословный критерий владельца из приказа
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`: «Existing
+    risk/security/architecture tests проходят».
+
+    **Меряется ИСХОД, а не цвет джобы.** «CI красный» ≠ «тесты падают» (ADR-474),
+    и «CI зелёный» ≠ «эти тесты прошли». Проба берёт население трёх объявленных
+    поверхностей у переписи
+    (:mod:`spa_core.monitoring.no_regression_census`) — разбором дерева, а не по
+    имени файла, — и спрашивает у ЗАПИСИ прогона исход КАЖДОГО члена.
+
+    **Покрытие проверяется ЗАНОВО, у живого дерева.** Записанный отчёт
+    отвечает о том населении, какое было на момент замера; тест, добавленный
+    после, в записи отсутствует, и зачесть его «наверное, зелёным» значило бы
+    сделать пробу fail-OPEN ровно там, где она нужна. Поэтому население
+    пересчитывается здесь, и член населения без исхода в отчёте — `unmeasured`
+    с ИМЕНЕМ.
+
+    Три исхода разведены:
+
+    * `satisfied` — у каждого члена населения есть исход, и все исходы зелёные;
+    * `not_satisfied` — есть НАЗВАННАЯ поломка (это находка, и гасить её
+      правкой теста запрещено — инв. #16);
+    * `unmeasured` — отчёта нет / он старше предела / население расширилось
+      после замера / перепись не измерила. «Не измерено» не выдаётся ни за
+      находку, ни за разрешение закрыть карточку (инв. #17).
+
+    Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение: иначе вердикт решала
+    бы переменная среды, а положительный контроль не мог бы закрепить обе
+    стороны сравнения (`.claude/rules/deployment.md`).
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий — о ТРЁХ поверхностях целиком, и пофайловой "
+                            "формы у него нет намеренно")
+    try:
+        from spa_core.monitoring import no_regression_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    if report is None:
+        path = os.path.join(root, census.REPORT_REL)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                report = json.load(fh)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"отчёта переписи нет или он не прочитан "
+                                f"({census.REPORT_REL}): {type(exc).__name__}: {exc} — "
+                                f"исход тестов не наблюдён")
+    if not isinstance(report, dict) or not report.get("measured"):
+        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+        return UNMEASURED, f"перепись не измерила: {reason}"
+
+    stamp = report.get("generated_at")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return UNMEASURED, (f"у отчёта переписи нет читаемой отметки времени "
+                            f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН, "
+                            f"а старая запись говорит о дереве, которого уже нет")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age > _NO_REGRESSION_MAX_AGE_H:
+        return UNMEASURED, (f"запись прогона старше предела: {age:.1f}ч при пределе "
+                            f"{_NO_REGRESSION_MAX_AGE_H:.0f}ч — население могло не "
+                            f"измениться, а код под ним измениться")
+
+    try:
+        live = census.population(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"население живого дерева не разобрано: {type(exc).__name__}: {exc}"
+    if live["unparsed"]:
+        return UNMEASURED, (f"{len(live['unparsed'])} тест-файл(ов) живого дерева не "
+                            f"разобран(ы) — принадлежность НЕИЗВЕСТНА: "
+                            + ", ".join(u["file"] for u in live["unparsed"][:4]))
+
+    surfaces = report.get("surfaces") or {}
+    if set(surfaces) != set(live["surfaces"]):
+        return UNMEASURED, (f"поверхности отчёта {sorted(surfaces)} разошлись с "
+                            f"объявленными {sorted(live['surfaces'])} — отчёт отвечает "
+                            f"на другой вопрос")
+
+    failed: list[str] = []
+    missing: list[str] = []
+    total = 0
+    for name, live_surface in live["surfaces"].items():
+        got = surfaces.get(name) or {}
+        green = set(got.get("files_passed") or [])
+        bad = {row.get("file") for row in (got.get("files_failed") or [])}
+        unknown = {row.get("file") for row in (got.get("files_unmeasured") or [])}
+        if not live_surface["files"]:
+            return UNMEASURED, (f"население поверхности {name!r} ПУСТО — сторож без "
+                                f"населения зелен по построению, и эта зелень ничего "
+                                f"не значит")
+        for rel in live_surface["files"]:
+            total += 1
+            # Порядок проверок — часть меры: отчёт, назвавший один файл сразу в
+            # двух корзинах, сам себе противоречит, и молча выбрать из них
+            # зелёную значило бы сделать пробу fail-OPEN на испорченной записи.
+            where = [bucket for bucket, names in
+                     (("упал", bad), ("зелен", green), ("без вердикта", unknown))
+                     if rel in names]
+            if len(where) > 1:
+                missing.append(f"{name}:{rel} (отчёт противоречит сам себе: "
+                               f"{', '.join(where)})")
+            elif rel in bad:
+                failed.append(f"{name}:{rel}")
+            elif rel in green:
+                continue
+            elif rel in unknown:
+                missing.append(f"{name}:{rel} (вердикта не получил)")
+            else:
+                missing.append(f"{name}:{rel} (в отчёте отсутствует — появился "
+                               f"после замера)")
+
+    head = (report.get("repo_head") or "дерево не названо")[:9]
+    where = " · ".join(
+        f"{m.get('hostname') or 'хост не назван'} {m.get('timestamp') or ''}".strip()
+        for m in (report.get("records_meta") or [])) or "происхождение записи не названо"
+    tail = (f"население {total} тест-файл(ов), запись о {head}, снята на {where}, "
+            f"возраст {age:.1f}ч")
+
+    if failed:
+        return NOT_SATISFIED, (
+            f"существующие тесты объявленных поверхностей НЕ проходят: "
+            f"{len(failed)} файл(ов) — " + " · ".join(failed[:6])
+            + (" …" if len(failed) > 6 else "") + f"; {tail}")
+    if missing:
+        return UNMEASURED, (
+            f"вердикт получили не все члены населения: {len(missing)} без исхода — "
+            + " · ".join(missing[:6]) + (" …" if len(missing) > 6 else "")
+            + f"; {tail}")
+    return SATISFIED, (f"каждый член населения получил вердикт, и все вердикты "
+                       f"зелёные: {tail}")
+
+
 def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
         arg: str | None, *, tracker_dir: str | None = None,
         repo_root: str | None = None, ref: str = "origin/main") -> tuple[str, str]:
@@ -2196,6 +2349,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":
         _probe_no_single_criterion_probe_on_a_multi_criterion_order,
+    "no_regression_tests_pass": _probe_no_regression_tests_pass,
 }
 
 
