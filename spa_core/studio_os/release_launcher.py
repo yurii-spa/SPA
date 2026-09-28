@@ -75,14 +75,15 @@ def plan_exec(service, approved_sha, releases_dir):
     return {"argv": argv, "cwd": str(root), "exec_root": str(root), "sha": approved_sha}, "EXEC_FROM_RELEASE"
 
 
-# ── installed entrypoint (root plane). launchd runs: <trusted python> <this file> <service-id> ──────────
+# ── installed entrypoint (root plane). launchd runs: /usr/bin/python3 -I  <this file> <service-id> ──────────
 # Trusted-plane fixed locations (all root-owned, user-write-denied). Overridable ONLY for hermetic tests.
 TRUSTED_ROOT = "/Library/Application Support/StudioOS"
-# INTERPRETER: the launcher re-execs the approved release with the SAME interpreter it is already running under
-# (`sys.executable`) — i.e. the one launchd invoked it with, named in the ROOT-OWNED plist ProgramArguments.
-# The interpreter-trust decision therefore lives in the root-owned plist (the Owner names a non-user-writable
-# python there), not in a hardcoded path here — which also avoids a wrong/absent path. (ARB Checkpoint-A fix:
-# the earlier hardcoded `…/toolchains/base/bin/python3` did not exist.)
+# TWO interpreters, two trust roots:
+#   BOOTSTRAP  — the OS `/usr/bin/python3 -I` (root:wheel, system stdlib; -I drops PYTHONPATH/HOME/user-site/cwd)
+#                runs THIS launcher. The launcher is stdlib-only, so it needs nothing user-writable.
+#   APPLICATION— the launcher execs the approved release with a FIXED trusted 3.13 read from the ROOT-OWNED
+#                runtime manifest (`_read_app_python`), NEVER sys.executable (=3.9 bootstrap) and NEVER a path
+#                from the (user-influenced) approval file. Missing manifest → FAIL CLOSED before any app code.
 # ACTIVE is an observation marker (what actually started), not authority; written user-side, never read as a gate.
 ACTIVE_MARKER_PATH = str(Path.home() / "Documents" / "SPA_Claude" / "data" / "active_release.json")
 
@@ -94,17 +95,33 @@ def _read_approved(approved_file):
         return None
 
 
+def _read_app_python(root):
+    """The APPLICATION runtime interpreter — a FIXED trusted 3.13 named in the ROOT-OWNED runtime manifest
+    (`<root>/runtime.json` → app_python). NOT sys.executable: launchd bootstraps the launcher with the OS
+    /usr/bin/python3 (3.9), so sys.executable would run 3.13 app code on 3.9. NOT from approved_release.json
+    (user-influenced). None → fail CLOSED."""
+    try:
+        return json.loads((Path(root) / "runtime.json").read_text()).get("app_python")
+    except Exception:
+        return None
+
+
 def main(service_id, *, root=None, python=None, active_path=None):
-    """The installed launcher's exec: resolve the approved release, record ACTIVE, exec from the release with a
-    deterministic isolated interpreter. FAIL CLOSED (exit 3) before any application code loads. Never touches
-    the mutable tree. Returns a verdict string in test mode (when python is a list sink) or execs for real."""
+    """The installed launcher's exec: resolve the approved release, record ACTIVE, exec from the release with the
+    FIXED trusted 3.13 app runtime (root-owned runtime manifest), isolated (`-E -s`, cwd=release). FAIL CLOSED
+    (exit 3) before any application code loads. Never touches the mutable tree; the application is ALWAYS exec'd
+    with `app_py` (the trusted 3.13 from runtime.json) — NEVER sys.executable (which would be the 3.9 bootstrap).
+    Returns a verdict string in test mode (python is a list sink) or execs for real."""
     import os
-    import sys
     root = Path(root or TRUSTED_ROOT)
     approved = _read_approved(root / "approved_release.json")
     plan, verdict = plan_exec(service_id, approved, root / "releases")
     if verdict != "EXEC_FROM_RELEASE":
         return ("FAIL_CLOSED", verdict)
+    # resolve the trusted APP runtime BEFORE recording anything — fail CLOSED if the runtime manifest is absent
+    app_py = python if python is not None else _read_app_python(root)
+    if app_py is None:
+        return ("FAIL_CLOSED", "APP_RUNTIME_MISSING")   # no trusted 3.13 configured → execute nothing
     # record ACTIVE = the sha we are about to exec (observation only)
     try:
         ap = Path(active_path or ACTIVE_MARKER_PATH)
@@ -112,13 +129,12 @@ def main(service_id, *, root=None, python=None, active_path=None):
         ap.write_text(json.dumps({"active_sha": plan["sha"], "service": service_id}))
     except Exception:
         pass
-    # re-exec the release with the SAME (trusted, launchd-named) interpreter; no hardcoded path
-    py = sys.executable if python is None else python
-    if isinstance(py, list):                     # test hook: capture instead of exec
-        py.append((py_exec := [sys.executable, *plan["argv"]], plan["cwd"]))
+    if isinstance(app_py, list):                 # test hook: capture the plan; the test supplies its own interpreter
+        app_py.append((py_exec := ["<app_python-from-runtime.json>", *plan["argv"]], plan["cwd"]))
         return ("EXEC_FROM_RELEASE", py_exec, plan["cwd"])
+    # THE ONE application exec path: the trusted 3.13 (app_py) execs the release; imports come from the release only
     os.chdir(plan["cwd"])
-    os.execv(py, [py, *plan["argv"]])            # replaces the process; imports come from the release only
+    os.execv(app_py, [app_py, *plan["argv"]])
 
 
 if __name__ == "__main__":                       # pragma: no cover — exercised in production, not CI

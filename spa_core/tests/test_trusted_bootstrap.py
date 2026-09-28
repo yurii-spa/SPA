@@ -115,6 +115,26 @@ def test_main_fails_closed_without_approval(tmp_path):
     assert not (tmp_path / "a.json").exists()
 
 
+def test_main_fails_closed_without_app_runtime(tmp_path):
+    """Approved + release present but NO root-owned runtime.json → FAIL_CLOSED (never sys.executable/bootstrap)."""
+    root = tmp_path / "StudioOS"; (root / "releases").mkdir(parents=True)
+    _mk_release(root / "releases", "A" * 40, "RELEASE_A")
+    (root / "approved_release.json").write_text(json.dumps({"approved_sha": "A" * 40}))
+    # python=None → reads runtime.json which is absent → APP_RUNTIME_MISSING before any exec
+    r = LNCH.main("agent:prober", root=root, python=None, active_path=tmp_path / "a.json")
+    assert r[0] == "FAIL_CLOSED" and r[1] == "APP_RUNTIME_MISSING"
+    assert not (tmp_path / "a.json").exists()
+
+
+def test_app_runtime_read_from_root_manifest(tmp_path):
+    """The app interpreter comes from the ROOT-OWNED runtime.json, never sys.executable, never the approval file."""
+    root = tmp_path / "StudioOS"
+    (root / "runtime.json").parent.mkdir(parents=True, exist_ok=True)
+    (root / "runtime.json").write_text(json.dumps({"app_python": "/Library/Application Support/StudioOS/toolchains/py313/bin/python3"}))
+    assert LNCH._read_app_python(root) == "/Library/Application Support/StudioOS/toolchains/py313/bin/python3"
+    assert LNCH._read_app_python(tmp_path / "none") is None       # absent → None → fail-closed upstream
+
+
 # ── ROLLBACK: approve A → approve B → B bad → approve A again → next start runs A (no history rewrite) ──
 def test_rollback_reapprove_prior(tmp_path):
     releases = tmp_path / "releases"; releases.mkdir()

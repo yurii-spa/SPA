@@ -1,16 +1,20 @@
 {
   "schema": "studio-os/cutover-artifact-manifest/1",
-  "canonical_commit": "PENDING_launcher_fix_push",
+  "canonical_commit": "PENDING_runtime_closure_push",
   "adr_number": "ADR-500",
   "approved_release_sha": "5b65257784441f61568e6c3bd22e9d0a1e928c83",
   "installer_path": "scripts/install_trusted_bootstrap.sh",
-  "installer_sha256": "8cf04b6d0488b643b4e3079218f3431f50aa4ef38f31a1e1077d94b5ddfe55e9",
+  "installer_sha256": "502462ab81930234350df5651f6404476d8b1db8baa67a759f7b9a464f243b0b",
   "launcher_path": "spa_core/studio_os/release_launcher.py",
-  "launcher_sha256": "0e85c5e64fc1121fb91088ca3b518716ce6f3d1def390475c27171a62b111510",
+  "launcher_sha256": "eec1ae58a2309b5b02c7554e88afea2a58c226ce6a7f64861d5392196e71f696",
   "trusted_python_path": "/Library/Application Support/StudioOS/toolchains/base/bin/python3",
   "trusted_python_sha256": "MEASURE_ON_INSTALL (root-owned toolchain; shasum at install time)",
   "expected_release_path": "/Library/Application Support/StudioOS/releases/5b65257784441f61568e6c3bd22e9d0a1e928c83/",
   "expected_approval_file": "/Library/Application Support/StudioOS/approved_release.json",
-  "install_target_launcher": "/Library/Application Support/StudioOS/bin/release_launcher-0e85c5e64fc1121fb91088ca3b518716ce6f3d1def390475c27171a62b111510.py",
-  "canary_service": "canary \u2192 spa_core.monitoring.deployment_acceptance (benign, non-money)"
+  "install_target_launcher": "/Library/Application Support/StudioOS/bin/release_launcher-eec1ae58a2309b5b02c7554e88afea2a58c226ce6a7f64861d5392196e71f696.py",
+  "canary_service": "canary \u2192 spa_core.monitoring.deployment_acceptance (benign, non-money)",
+  "base_origin_sha": "96c8ba526266afb66517af64e06a40d4d5e9435f",
+  "bootstrap_python": "/usr/bin/python3 -I  (OS, root:wheel 3.9.6; launcher runs here)",
+  "app_runtime_model": "root-owned runtime.json -> app_python (trusted non-user-writable 3.13); launcher execs release with it, -E -s, cwd=release",
+  "app_runtime_manifest": "/Library/Application Support/StudioOS/runtime.json"
 }
