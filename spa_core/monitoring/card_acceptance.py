@@ -2032,6 +2032,143 @@ def _probe_owner_visibility_numbers_delivered(
         f"потеряно 0, поверхность читает все поля: {', '.join(callers)}")
 
 
+def _probe_portfolio_decision_owner_covers_capital(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Architecture`: владелец решения на уровне ВСЕГО портфеля.
+
+    Предмет — дословный критерий владельца из приказа
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`: «Portfolio-level decision
+    owner существует». Главное слово — **portfolio-level**: цель §1 того же
+    приказа сформулирована как «доходность ВСЕГО ПОРТФЕЛЯ», значит вопрос не
+    «есть ли аллокатор» и не «решает ли кто-нибудь состав книги», а покрывает ли
+    чьё-то решение весь капитал.
+
+    **Меряется ИСХОД, а не структура.** Проба не спрашивает «существует ли
+    модуль аллокации» — на этот вопрос система отвечает ДА с самого начала, при
+    том что две трети капитала лежат в книгах, которых этот модуль не видит.
+    Она зовёт перепись
+    (:mod:`spa_core.monitoring.cio_decision_owner_census`), а та считает ДОЛЛАРЫ:
+    население книг выводится разбором дерева, капитал каждой берётся из живого
+    ``data/``, и доля самого широкого производителя сравнивается с единицей.
+
+    Три исхода разведены:
+
+    * `satisfied` — решение одного производителя (или межкнижного решателя)
+      покрывает 100 % капитала: критерий владельца ВЫПОЛНЕН;
+    * `not_satisfied` — покрытие неполное: у каждой книги свой решатель, портфель
+      целиком не решает никто — это находка;
+    * `unmeasured` — население книг не разобрано, книга не прочитана, знаменателя
+      нет, либо роль модуля, видящего ВСЕ книги, не установлена. «Не измерено»
+      не выдаётся ни за находку, ни за разрешение закрыть карточку (инв. #17).
+
+    Часы и каталоги — ВХОДЫ, не окружение: иначе вердикт решала бы переменная
+    среды, а положительный контроль не мог бы закрепить обе стороны сравнения
+    (`.claude/rules/deployment.md`). Проба только ЧИТАЕТ.
+    """
+    try:
+        from spa_core.monitoring import cio_decision_owner_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    try:
+        report = census.run_census(
+            _pathlib.Path(data_dir or os.path.join(root, "data")),
+            repo_root=_pathlib.Path(root), now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+
+    if not report.get("measured"):
+        return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
+
+    widest = report["widest_share"]
+    detail = (f"{report['widest_producer']} решает "
+              f"${report['widest_covered_usd']:,.2f} = {widest * 100:.2f}% из "
+              f"${report['total_capital_usd']:,.2f}; книг {len(report['books'])}, "
+              f"межкнижных решателей {len(report['cross_book_deciders'])}")
+    if report["verdict"] == census.OWNER_EXISTS:
+        return SATISFIED, "владелец решения покрывает весь портфель: " + detail
+    out_of_scope = report.get("books_out_of_scope") or []
+    return NOT_SATISFIED, (
+        f"портфель целиком не решает никто: книг вне самого широкого решения "
+        f"{len(out_of_scope)} ({', '.join(out_of_scope) or '—'}), капитала вне него "
+        f"${report['uncovered_usd']:,.2f}; " + detail)
+
+
+def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
+        arg: str | None, *, tracker_dir: str | None = None,
+        repo_root: str | None = None, ref: str = "origin/main") -> tuple[str, str]:
+    """Критерий: у МНОГОКРИТЕРИАЛЬНОГО приказа не объявлена проба ОДНОГО критерия.
+
+    Предмет — находка цикла #710
+    (`inbox-proba-odnogo-kriteriya-49-obyavlena-na-k`): на карточке стоячего приказа
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`, несущего ТРИНАДЦАТЬ критериев
+    §49, стояла проба одного из них. После доставки ADR-489 она давала `satisfied`,
+    и шаг 0-офис печатал у приказа «КРИТЕРИЙ ВЫПОЛНЕН» — читается это как «приказ
+    исполнен», хотя критерии оставались открытыми, да и приказ по инв. #14 не
+    закрывается вовсе. Зелёный ответ на СВОЙ вопрос, подписанный именем чужого,
+    более широкого.
+
+    Аргумент — ключ карточки (имя файла без `.md`). Меряется ИСХОД: карточка НЕ
+    производит вердикта приёмки. Условие этого исхода ровно одно и оно
+    структурное — отсутствие `acceptance_probe` во frontmatter, потому что
+    :func:`audit` строит строку ровно по нему; связь закреплена отдельным тестом
+    (проба не зовёт `audit` сама: `audit` зовёт пробы, и вызов был бы рекурсией).
+
+    **Спрашиваются ОБЕ копии карточки.** Вред жил в ПРОД-дереве, а `nimbalyst-local/`
+    туда не синхронизируется (ADR-152): копия на `origin/main` строки не несла
+    никогда, и проба, спросившая только origin, объявила бы чистым дерево, где
+    вред и находится.
+
+    Три исхода: `satisfied` — ни одна найденная копия пробы не объявляет;
+    `not_satisfied` — объявляет (с именем копии); `unmeasured` — карточки не нашли
+    ни локально, ни на `ref`, либо чтение `ref` прервалось.
+    """
+    key = (arg or "").strip()
+    if not key:
+        return UNMEASURED, "проба требует ключ карточки аргументом"
+    name = key if key.endswith(".md") else key + ".md"
+
+    tracker_dir = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
+    root = repo_root or _repo_root_for(tracker_dir)
+
+    copies: list[tuple[str, str]] = []
+    local = os.path.join(tracker_dir, name)
+    if os.path.isfile(local):
+        try:
+            copies.append((f"дерево {tracker_dir}", open(
+                local, encoding="utf-8", errors="replace").read()))
+        except OSError as exc:
+            return UNMEASURED, f"локальная копия не прочитана: {exc}"
+
+    ref_unmeasured = ""
+    if _is_git_repo(root):
+        blob = _git(["show", f"{ref}:{TRACKER_REL}/{name}"], repo_root=root)
+        if blob is None:
+            ref_unmeasured = f"копия на `{ref}` не прочитана"
+        else:
+            copies.append((ref, blob))
+
+    if not copies:
+        return UNMEASURED, (f"карточка {name} не найдена ни локально, ни на `{ref}`"
+                            + (f"; {ref_unmeasured}" if ref_unmeasured else ""))
+
+    carrying = [where for where, text in copies
+                if (parse_frontmatter(text).get("acceptance_probe") or "").strip()]
+    if carrying:
+        return NOT_SATISFIED, (
+            f"{name}: проба одного критерия объявлена у многокритериального приказа "
+            f"в копи(и/ях) " + ", ".join(carrying)
+            + " — офис напечатает вердикт одного критерия как вердикт приказа")
+    if ref_unmeasured:
+        return UNMEASURED, (f"{name}: прочитанные копии чисты, но {ref_unmeasured} — "
+                            f"«чисто» и «не измерено» смешивать запрещено")
+    return SATISFIED, (f"{name}: ни одна из {len(copies)} копи(и/й) пробы не объявляет "
+                       f"— вердикта приёмки у приказа не будет")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
@@ -2055,6 +2192,10 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "pr_work_arrived_on_main": _probe_pr_work_arrived_on_main,
     "owner_visibility_numbers_delivered":
         _probe_owner_visibility_numbers_delivered,
+    "portfolio_decision_owner_covers_capital":
+        _probe_portfolio_decision_owner_covers_capital,
+    "no_single_criterion_probe_on_a_multi_criterion_order":
+        _probe_no_single_criterion_probe_on_a_multi_criterion_order,
 }
 
 

@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: Проба одного критерия §49 объявлена на карточке всего стоячего приказа — офис прочтёт её как «приказ исполнен»
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-28
+acceptance_probe: no_single_criterion_probe_on_a_multi_criterion_order:inbox-task-portfolio-cio-dynamic-capital-alloc
+status_trail:
+  - "2026-09-28T03:57:18.689603+00:00 new -> done · queue.set_status · cycle-76394"
 ---
 
 ## Что случилось и почему это важно
@@ -56,3 +59,34 @@ CIO» несёт **тринадцать** критериев §49. Назван�
 
 Вердикт приёмки перестанет называть исполненным приказ, у которого открыты два
 критерия из тринадцати.
+
+---
+
+## Цикл #713 (28.09) — исполнено по варианту (а): у стоячего приказа критерия нет по природе
+
+Взято вариантом **(а)** из шага 1 — рекомендация карточки. Составная проба у приказа,
+который по инварианту #14 не закрывается вовсе, никогда не разрешила бы закрытие, а
+стоила бы как настоящий прибор.
+
+**Сделано:** строка `acceptance_probe: owner_visibility_numbers_delivered` снята с
+карточки `inbox-task-portfolio-cio-dynamic-capital-alloc` в **ПРОД-дереве**
+(`~/Documents/SPA_Claude`) — там, где её поставила мёртвая сессия `cycle-21061`. На
+`origin/main` её и не было, поэтому правка origin её не убрала бы; резервная копия
+исходного файла снята до правки.
+
+**Проверено дифференциально, из ПРОД-дерева:**
+
+| `python3 -m spa_core.monitoring.card_acceptance` | до | после |
+|---|---|---|
+| объявлено проб | 20 | 19 |
+| открытых карточек с пробой | 7 | 6 |
+| **не измерено** | **1** (`inbox-task-portfolio-cio-dynamic-capital-alloc`) | **0** |
+
+Строка вердикта у стоячего приказа больше не печатается ни в каком виде — ни «КРИТЕРИЙ
+ВЫПОЛНЕН», ни «не измерено».
+
+**Критерии §49 живут на карточках-детях, и это теперь не только рекомендация:** цикл
+#713 завёл `inbox-kriterii-49-architecture-suschestvuet-li` с пробой
+`portfolio_decision_owner_covers_capital` ровно на ОДИН критерий (ADR-490). Тот же
+порядок держит и `inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do` (проба
+`owner_visibility_numbers_delivered`, критерий `Owner visibility`).
