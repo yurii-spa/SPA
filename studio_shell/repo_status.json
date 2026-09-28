@@ -1,18 +1,18 @@
 {
  "schema": "studio-os/repo-status/1",
- "policy": "ADR-494",
+ "policy": "ADR-494 + ADR-500(PROPOSED)",
  "canonical": {
   "ref": "origin/main",
-  "sha": "13561f72c8c458efe45c6caf06e1da0fe3931064",
-  "sha_short": "13561f72c8c4",
+  "sha": "96c8ba526266afb66517af64e06a40d4d5e9435f",
+  "sha_short": "96c8ba526266",
   "stale_vs_remote": false,
   "remote_sha_short": null
  },
  "candidate": {
-  "tree": "/private/tmp/studio-int",
-  "branch": "integration/studio-os",
-  "sha": "13561f72c8c458efe45c6caf06e1da0fe3931064",
-  "sha_short": "13561f72c8c4",
+  "tree": "/private/tmp/tb-promo",
+  "branch": "promo/trusted-bootstrap",
+  "sha": "96c8ba526266afb66517af64e06a40d4d5e9435f",
+  "sha_short": "96c8ba526266",
   "state_vs_canonical": "IN_SYNC",
   "ahead": 0,
   "behind": 0
@@ -21,13 +21,33 @@
   "tree": "/Users/yuriikulieshov/Documents/SPA_Claude",
   "sha": "aeaab8bdca3b3964507b5a1530e39a78f59da466",
   "sha_short": "aeaab8bdca3b",
-  "state_vs_canonical": "DIVERGED_OR_STALE"
+  "state_vs_canonical": "DIVERGED_OR_STALE",
+  "warning": "git HEAD only — NOT what is executing; see `release` for STAGED/ACTIVE"
+ },
+ "release": {
+  "schema": "studio-os/release-state/2",
+  "policy": "ADR-500",
+  "canonical_sha": "96c8ba526266afb66517af64e06a40d4d5e9435f",
+  "canonical_sha_short": "96c8ba526266",
+  "staged_sha": "96c8ba526266afb66517af64e06a40d4d5e9435f",
+  "staged_sha_short": "96c8ba526266",
+  "active_sha": "UNKNOWN",
+  "active_sha_short": "UNKNOWN",
+  "active_verified": false,
+  "active_evidence": "no running process has cwd in a verified releases/<sha> (launcher not wired or nothing running)",
+  "active_marker_hint": null,
+  "approved_sha": null,
+  "approved_sha_short": null,
+  "restart_decision": "DEPLOYMENT_APPROVAL_REQUIRED",
+  "status": "ACTIVE_UNKNOWN · DEPLOYMENT_APPROVAL_REQUIRED",
+  "restart_would_activate": true,
+  "note": "ACTIVE is MEASURED from process cwd → root-owned releases/<sha> → .release_sha; the user-writable active_release.json is a hint, never authority. UNKNOWN when unproven."
  },
  "mirror": {
   "tree": "/Users/yuriikulieshov/Documents/SPA_mirror",
-  "sha_short": "13561f72c8c4"
+  "sha_short": "96c8ba526266"
  },
- "deployment_required": false,
+ "deployment_required": true,
  "promotion_path": "candidate → push_to_github.py → origin/main → autosync → owner-gated restart (ADR-494)",
  "rollback": "revert the offending commit on origin/main (never force-push); restore backup + restart for a hot agent",
  "note": "Network-free unless check_remote=True. Candidate AHEAD = commits await owner-gated promotion; it is NOT a defect — it is the normal pre-promotion state."

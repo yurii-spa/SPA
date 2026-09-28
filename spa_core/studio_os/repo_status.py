@@ -76,15 +76,25 @@ def status(check_remote: bool = False) -> dict:
 
     deployment_required = bool(candidate and production and candidate != production and cand_state in ("AHEAD", "DIVERGED"))
 
+    # Release-state (PROPOSED ADR-500): CANONICAL vs STAGED (on-disk, autosync target) vs ACTIVE (running).
+    # production.sha above is the production git HEAD — it is NOT what is executing (the autosync checks out
+    # code paths without touching HEAD), so it must never be read as ACTIVE. The `release` block is the truth.
+    from spa_core.studio_os.release_state import release_state
+    release = release_state(canonical_local, prod=PROD)
+    # deployment is required whenever newer code is staged than is provably active (or ACTIVE is unproven).
+    deployment_required = deployment_required or release["restart_would_activate"] or release["active_sha"] == "UNKNOWN"
+
     return {
         "schema": "studio-os/repo-status/1",
-        "policy": "ADR-494",
+        "policy": "ADR-494 + ADR-500(PROPOSED)",
         "canonical": {"ref": CANONICAL_REF, "sha": canonical_local, "sha_short": (canonical_local or "")[:12],
                       "stale_vs_remote": canonical_stale, "remote_sha_short": (remote or "")[:12] if remote else None},
         "candidate": {"tree": str(REPO), "branch": branch, "sha": candidate, "sha_short": (candidate or "")[:12],
                       "state_vs_canonical": cand_state, "ahead": ahead, "behind": behind},
         "production": {"tree": str(PROD), "sha": production, "sha_short": (production or "")[:12],
-                       "state_vs_canonical": prod_state},
+                       "state_vs_canonical": prod_state,
+                       "warning": "git HEAD only — NOT what is executing; see `release` for STAGED/ACTIVE"},
+        "release": release,
         "mirror": {"tree": str(MIRROR), "sha_short": (mirror or "")[:12] if mirror else None},
         "deployment_required": deployment_required,
         "promotion_path": "candidate → push_to_github.py → origin/main → autosync → owner-gated restart (ADR-494)",

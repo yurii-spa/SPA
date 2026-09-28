@@ -2,12 +2,12 @@
  "schema": "studio-os/research-model/1",
  "present": true,
  "total": 13,
- "linked": 2,
- "orphan": 11,
+ "linked": 3,
+ "orphan": 10,
  "orphan_breakdown": {
   "LIKELY_STANDALONE": 6,
   "LIKELY_MISSING_LINK": 2,
-  "UNKNOWN": 3
+  "UNKNOWN": 2
  },
  "evidence_standard": "docs/37_apy_realism_and_evidence_standard.md",
  "maturity_register": "docs/MATURITY_REGISTER.md",
@@ -165,13 +165,15 @@
     "cites_standard": false,
     "standard": "docs/37_apy_realism_and_evidence_standard.md"
    },
-   "supports_decisions": [],
+   "supports_decisions": [
+    "ADR-500-production-activation-boundary.md"
+   ],
    "produced_task": null,
    "implemented": null,
-   "status": "ORPHAN",
-   "orphan_class": "UNKNOWN",
-   "orphan_confidence": "UNKNOWN",
-   "orphan_reason": "ни ссылки из решения, ни признаков справочной/устаревшей природы",
+   "status": "LINKED",
+   "orphan_class": null,
+   "orphan_confidence": null,
+   "orphan_reason": null,
    "provenance": "research/ + scan of docs/decisions/ for a naming reference"
   },
   {

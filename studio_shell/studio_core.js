@@ -99,16 +99,23 @@ export function renderProjects(mount, ctx, projects, lang, nav, repo) {
   hc.append(H('div', { class: 'pc-prov' }, ctx.last_handoff.provenance));
   right.append(hc);
 
-  // CODE SYNC (ADR-494) — candidate / canonical / production
+  // CODE SYNC — CANONICAL / STAGED / ACTIVE (ADR-494 + ADR-500). NOT production git HEAD: the autosync
+  // checks out code without touching HEAD, so HEAD is not what executes. STAGED = on disk (restart target);
+  // ACTIVE = what running processes started from (UNKNOWN until a startup marker proves it).
   if (repo && repo.candidate) {
-    const sc = card(L(lang, 'СИНХРОНИЗАЦИЯ КОДА (ADR-494)', 'CODE SYNC (ADR-494)'));
-    const st = repo.candidate.state_vs_canonical;
-    const warn = st !== 'IN_SYNC' || repo.production.state_vs_canonical !== 'IN_SYNC';
-    sc.append(kv(L(lang, 'КАНОН', 'CANONICAL'), (repo.canonical.sha_short || '—') + ' (origin/main)'));
-    sc.append(kv(L(lang, 'КАНДИДАТ', 'CANDIDATE'), (repo.candidate.sha_short || '—') + ' · ' + st + ` (+${repo.candidate.ahead ?? '?'}/-${repo.candidate.behind ?? '?'})`, null, warn));
-    sc.append(kv(L(lang, 'ПРОДАКШН', 'PRODUCTION'), (repo.production.sha_short || '—') + ' · ' + repo.production.state_vs_canonical));
-    sc.append(H('div', { class: 'pc-row' + (repo.deployment_required ? ' warn' : '') }, (repo.deployment_required ? '⚠ ' : '✓ ') + L(lang, 'деплой требуется: ', 'deployment required: ') + (repo.deployment_required ? 'ДА' : 'нет')));
-    sc.append(H('div', { class: 'pc-prov' }, repo.promotion_path));
+    const rel = repo.release || {};
+    const sc = card(L(lang, 'СИНХРОНИЗАЦИЯ КОДА (ADR-494/500)', 'CODE SYNC (ADR-494/500)'));
+    const approvalNeeded = (rel.status || '').indexOf('DEPLOYMENT_APPROVAL_REQUIRED') >= 0 || rel.active_sha === 'UNKNOWN';
+    sc.append(kv(L(lang, 'КАНОН', 'CANONICAL'), (rel.canonical_sha_short || repo.canonical.sha_short || '—') + ' (origin/main)'));
+    sc.append(kv(L(lang, 'ПОДГОТОВЛЕНО', 'STAGED'), (rel.staged_sha_short || '—') + L(lang, ' (на диске — цель рестарта)', ' (on disk — restart target)'), null, rel.staged_sha && rel.staged_sha !== rel.active_sha));
+    sc.append(kv(L(lang, 'АКТИВНО', 'ACTIVE'), (rel.active_sha_short || 'UNKNOWN') + L(lang, ' (что реально исполняется)', ' (what is executing)'), null, rel.active_sha === 'UNKNOWN'));
+    if (rel.approved_sha_short) sc.append(kv(L(lang, 'ОДОБРЕНО', 'APPROVED'), rel.approved_sha_short));
+    const stTxt = approvalNeeded ? L(lang, '⚠ ТРЕБУЕТСЯ ОДОБРЕНИЕ ДЕПЛОЯ', '⚠ DEPLOYMENT APPROVAL REQUIRED')
+      : (rel.status === 'IN_SYNC' ? L(lang, '✓ активно = подготовлено', '✓ active = staged') : (rel.status || '—'));
+    sc.append(H('div', { class: 'pc-row' + (approvalNeeded ? ' warn' : '') }, stTxt));
+    sc.append(H('div', { class: 'pc-row dim' }, L(lang, 'рестарт: ', 'restart: ') + (rel.restart_decision || '—')));
+    sc.append(kv(L(lang, 'КАНДИДАТ', 'CANDIDATE'), (repo.candidate.sha_short || '—') + ' · ' + repo.candidate.state_vs_canonical));
+    sc.append(H('div', { class: 'pc-prov' }, 'HEAD prod ' + (repo.production.sha_short || '—') + ' — git HEAD only, NOT active'));
     right.append(sc);
   }
 

@@ -1,0 +1,16 @@
+{
+  "schema": "studio-os/cutover-artifact-manifest/1",
+  "canonical_commit": "PENDING_PROMOTION (candidate 7c0a370d5778; see CANONICAL_PROMOTION)",
+  "adr_number": "ADR-500",
+  "approved_release_sha": "5b65257784441f61568e6c3bd22e9d0a1e928c83",
+  "installer_path": "scripts/install_trusted_bootstrap.sh",
+  "installer_sha256": "8cf04b6d0488b643b4e3079218f3431f50aa4ef38f31a1e1077d94b5ddfe55e9",
+  "launcher_path": "spa_core/studio_os/release_launcher.py",
+  "launcher_sha256": "eeefadbac44fe67646721c7fc6be1712736e326c76480718b9fb87d922a0d6ff",
+  "trusted_python_path": "/Library/Application Support/StudioOS/toolchains/base/bin/python3",
+  "trusted_python_sha256": "MEASURE_ON_INSTALL (root-owned toolchain; shasum at install time)",
+  "expected_release_path": "/Library/Application Support/StudioOS/releases/5b65257784441f61568e6c3bd22e9d0a1e928c83/",
+  "expected_approval_file": "/Library/Application Support/StudioOS/approved_release.json",
+  "install_target_launcher": "/Library/Application Support/StudioOS/bin/release_launcher-eeefadbac44fe67646721c7fc6be1712736e326c76480718b9fb87d922a0d6ff.py",
+  "canary_service": "canary \u2192 spa_core.monitoring.deployment_acceptance (benign, non-money)"
+}
