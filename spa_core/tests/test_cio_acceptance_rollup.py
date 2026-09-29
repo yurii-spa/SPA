@@ -425,6 +425,14 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         # ADR-511: четвёртая привязка, тем же порядком и по той же
                         # причине — снимок и есть живой реестр.
                         "Anti-churn": ["book_does_not_oscillate_between_opportunities"],
+                        # ADR-512: ПЯТАЯ и последняя привязка цены TRANSCRIPTION,
+                        # тем же порядком и по той же причине — предикат этого
+                        # теста И ЕСТЬ живой реестр объявлений (см. его имя), и
+                        # новая строка здесь предмет утверждения, а не способ
+                        # погасить падение (инв. #16: правка намеренна, причина
+                        # названа здесь и записана в журнал цикла).
+                        "Pre-trade safety":
+                            ["trade_is_rechecked_immediately_before_execution"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 

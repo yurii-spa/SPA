@@ -452,7 +452,13 @@ def identity_axis(executions: List[dict]) -> Dict[str, Any]:
             "timestamps": [r.get("timestamp") for r in rows],
         })
     return {"measured": True, "events": len(executions),
-            "distinct_labels": len(labels), "unlabelled_events": unlabelled,
+            "distinct_labels": len(labels),
+            #: СОСТАВ, а не только счёт. Счёт отвечает на вопрос «уникален ли
+            #: ярлык», состав — на вопрос «а все ли ходы книги вообще попали в
+            #: цепочку»; второй читатель цепочки, собирающий этот состав сам,
+            #: был бы вторым местом для правила «что считать исполнением».
+            "labels": sorted(labels),
+            "unlabelled_events": unlabelled,
             "colliding_labels": collisions}
 
 
@@ -576,6 +582,9 @@ def _unmeasured(reason: str, now: datetime,
                          "inert_callers": None, "test_callers": None,
                          "unparsed_files": None},
         "identity": {"measured": False, "events": 0, "distinct_labels": 0,
+                     #: None, а не `[]`: «состава нет» и «состав пуст» — разные
+                     #: ответы, и второй здесь был бы неправдой (инв. #17).
+                     "labels": None,
                      "unlabelled_events": 0, "colliding_labels": []},
         "recheck_vocabulary": list(RECHECK_EVENT_TYPES),
         "does_not_report": [], "advisory": "прибор только ЧИТАЕТ",

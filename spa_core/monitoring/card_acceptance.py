@@ -717,6 +717,60 @@ def _book_oscillation_module():
     return importlib.import_module(BOOK_OSCILLATION_MODULE)
 
 
+def _standing_book_liveness(data: "_pathlib.Path", *,
+                            now: "datetime | None", tail: str
+                            ) -> "tuple[str | None, object]":
+    """Живо ли дерево, о котором выносится вердикт: возраст СТОЯЩЕЙ книги.
+
+    Возврат: `(None, (отметка, возраст_в_днях, документ))`, когда книга прочитана, отметка
+    разобрана и возраст в пределе; `(UNMEASURED, причина)`, когда ответить нечем.
+    Вердикта «не выполнен» отсюда не выходит НИ ОДНОГО: вопрос здесь не о
+    предмете критерия, а о том, о живом ли дереве речь.
+
+    Почему чтение ОДНО, а объяснение — у звавшего
+    ---------------------------------------------------------------------------
+    Вопрос «а живо ли это дерево» задают уже три пробы §49 (`Risk`, `Anti-churn`
+    и `Pre-trade safety`), и предел с именем файла у них ОДИН — константы
+    :data:`STANDING_BOOK_MAX_AGE_D` и :data:`STANDING_BOOK_FILE`. Само чтение до
+    цикла #729 лежало двумя рукописными копиями; третья копия и была бы тем
+    «одним правилом в трёх местах», которое расходится молча.
+
+    А вот ПОСЛЕДСТВИЕ тишины мёртвого дерева у каждого критерия своё, и общего
+    текста для него не существует: у `Anti-churn` молчание читалось бы как
+    «книга больше не прыгает», у `Pre-trade safety` — как «ходы перепроверяются».
+    Поэтому объяснение приходит от звавшего параметром `tail`, а не выдумывается
+    здесь.
+    """
+    path = data / STANDING_BOOK_FILE
+    try:
+        standing = json.loads(path.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"книга, которая стои́т сегодня, не прочитана ({path}): "
+                            f"{type(exc).__name__}: {exc} — проверить, о живом ли "
+                            f"дереве вердикт, НЕЧЕМ")
+    stamp = observed(standing, "generated_at", kind=str)
+    if stamp is None:
+        return UNMEASURED, (f"у {STANDING_BOOK_FILE} нет отметки `generated_at` — "
+                            f"возраст стоящей книги НЕ ИЗМЕРЕН, и отличить живое "
+                            f"дерево от замороженного канона `data/` нечем")
+    ref = now or datetime.now(timezone.utc)
+    try:
+        age_d = (ref - datetime.fromisoformat(stamp)).total_seconds() / 86400.0
+    except (ValueError, TypeError) as exc:
+        return UNMEASURED, (f"отметка стоящей книги {stamp!r} не разобрана как дата "
+                            f"({type(exc).__name__}) — её возраст НЕ ИЗМЕРЕН")
+    if age_d > STANDING_BOOK_MAX_AGE_D:
+        return UNMEASURED, (f"стоящая книга протухла: {STANDING_BOOK_FILE} снята "
+                            f"{stamp} — {age_d:.1f} дн назад при пределе "
+                            f"{STANDING_BOOK_MAX_AGE_D:.0f} (дневной цикл её не "
+                            f"переписывает либо это замороженный канон `data/`, а не "
+                            f"наблюдение) — {tail}")
+    #: Документ возвращается ЗДЕСЬ, а не читается звавшим заново: второе чтение
+    #: того же файла могло бы застать уже ДРУГУЮ книгу, и вердикт относился бы к
+    #: одной, а возраст — к другой.
+    return None, (stamp, age_d, standing)
+
+
 def _standing_book_agrees_with_journal_tail(
         report: dict, data: "_pathlib.Path", census,
         *, now: "datetime | None" = None) -> "tuple[str | None, str]":
@@ -758,32 +812,13 @@ def _standing_book_agrees_with_journal_tail(
     переименование ключа (`fluid_usdc` → `fluid_fusdc`, ход T034) развело бы
     стороны на 42 % книги без единой настоящей разницы.
     """
-    path = data / STANDING_BOOK_FILE
-    try:
-        standing = json.loads(path.read_text(encoding="utf-8"))
-    except BaseException as exc:  # noqa: BLE001
-        return UNMEASURED, (f"книга, которая стои́т сегодня, не прочитана ({path}): "
-                            f"{type(exc).__name__}: {exc} — проверить, о живой ли "
-                            f"системе вердикт, НЕЧЕМ")
-
-    stamp = observed(standing, "generated_at", kind=str)
-    if stamp is None:
-        return UNMEASURED, (f"у {STANDING_BOOK_FILE} нет отметки `generated_at` — "
-                            f"возраст стоящей книги НЕ ИЗМЕРЕН, и отличить живое "
-                            f"дерево от замороженного канона `data/` нечем")
-    ref = now or datetime.now(timezone.utc)
-    try:
-        age_d = (ref - datetime.fromisoformat(stamp)).total_seconds() / 86400.0
-    except (ValueError, TypeError) as exc:
-        return UNMEASURED, (f"отметка стоящей книги {stamp!r} не разобрана как дата "
-                            f"({type(exc).__name__}) — её возраст НЕ ИЗМЕРЕН")
-    if age_d > STANDING_BOOK_MAX_AGE_D:
-        return UNMEASURED, (f"стоящая книга протухла: {STANDING_BOOK_FILE} снята "
-                            f"{stamp} — {age_d:.1f} дн назад при пределе "
-                            f"{STANDING_BOOK_MAX_AGE_D:.0f} (дневной цикл её не "
-                            f"переписывает либо это замороженный канон `data/`, а не "
-                            f"наблюдение) — «возвратов от now нет» отсюда было бы "
-                            f"тишиной мёртвого дерева, а не ответом о системе")
+    verdict, payload = _standing_book_liveness(
+        data, now=now,
+        tail="«возвратов от now нет» отсюда было бы тишиной мёртвого дерева, а "
+             "не ответом о системе")
+    if verdict is not None:
+        return verdict, str(payload)
+    stamp, _age_d, standing = payload
 
     present = observed(report, "present", kind=dict)
     tail = observed(present or {}, "positions", kind=dict)
@@ -1159,31 +1194,11 @@ def _standing_book_agrees_with_present(
     здесь не о политике, а о том, о чём вообще речь, — и смешать «политику
     обошли» с «мы смотрим не на ту книгу» значило бы завести второе правило.
     """
-    path = data / STANDING_BOOK_FILE
-    try:
-        standing = json.loads(path.read_text(encoding="utf-8"))
-    except BaseException as exc:  # noqa: BLE001
-        return UNMEASURED, (f"книга, которая стои́т сегодня, не прочитана ({path}): "
-                            f"{type(exc).__name__}: {exc} — проверить, о сегодняшней "
-                            f"ли книге вердикт, НЕЧЕМ")
-
-    stamp = observed(standing, "generated_at", kind=str)
-    if stamp is None:
-        return UNMEASURED, (f"у {STANDING_BOOK_FILE} нет отметки `generated_at` — "
-                            f"возраст стоящей книги НЕ ИЗМЕРЕН, и сказать, о сегодняшнем "
-                            f"ли дне вердикт, нельзя")
-    ref = now or datetime.now(timezone.utc)
-    try:
-        age_d = (ref - datetime.fromisoformat(stamp)).total_seconds() / 86400.0
-    except (ValueError, TypeError) as exc:
-        return UNMEASURED, (f"отметка стоящей книги {stamp!r} не разобрана как дата "
-                            f"({type(exc).__name__}) — её возраст НЕ ИЗМЕРЕН")
-    if age_d > STANDING_BOOK_MAX_AGE_D:
-        return UNMEASURED, (f"стоящая книга протухла: {STANDING_BOOK_FILE} снята "
-                            f"{stamp} — {age_d:.1f} дн назад при пределе "
-                            f"{STANDING_BOOK_MAX_AGE_D:.0f} (дневной цикл её не "
-                            f"переписывает либо это замороженный канон `data/`, а не "
-                            f"наблюдение) — мерить надо из дерева с живым data/")
+    verdict, payload = _standing_book_liveness(
+        data, now=now, tail="мерить надо из дерева с живым data/")
+    if verdict is not None:
+        return verdict, str(payload)
+    stamp, _age_d, standing = payload
 
     judged = observed(report.get("present") or {}, "positions", kind=dict)
     if judged is None:
@@ -1209,6 +1224,235 @@ def _standing_book_agrees_with_present(
             f"разошлись суммой {moved or '—'} — вердикт относится к книге, которой "
             f"уже нет, и выдать его за ответ о сегодня нельзя")
     return None, ""
+
+
+#: Перепись повторной проверки перед исполнением (цикл #708). Модуль ПАКЕТНЫЙ,
+#: поэтому его подмена в `sys.modules` доходит до пробы — контроль этим и
+#: пользуется, чтобы увидеть: проба читает ПРИБОР, а не свою копию его логики.
+PRE_TRADE_RECHECK_MODULE = "spa_core.monitoring.pre_trade_recheck_census"
+
+
+def _pre_trade_recheck_module():
+    """Перепись повторной проверки. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(PRE_TRADE_RECHECK_MODULE)
+
+
+def _chain_covers_the_books_moves(
+        report: dict, data: "_pathlib.Path") -> "tuple[str | None, str]":
+    """Знает ли цепочка аудита ВСЕ ходы, которые книга записала за собой.
+
+    Возврат: `(None, "")` — знает; `(UNMEASURED, причина)` — ответить нечем.
+    Вердикта «не выполнен» отсюда не выходит ни одного: неполнота ЗАПИСИ и
+    отсутствие повторной проверки — разные находки, и слить их значило бы
+    объявить дыру в журнале нарушением критерия владельца.
+
+    Почему вопрос здесь про ПОКРЫТИЕ, а не про возраст
+    ---------------------------------------------------------------------------
+    Три предыдущие привязки §49 учили, что адрес вопроса «законен ли вердикт» у
+    каждого критерия свой (ADR-508/510/511). Здесь он оказался и не возрастом, и
+    не тождеством книги: прибор судит ЦЕПОЧКУ АУДИТА, а цепочка — отдельная
+    запись, и вопрос к ней один: а все ли ходы книги в неё попали. Ход, о котором
+    цепочка не знает, не порождает ни одного исполнения без второго наблюдения —
+    он просто не осматривается, и «у каждого хода была повторная проверка»
+    сказано было бы о ВЫБОРКЕ.
+
+    Население берётся у журнала ходов, а его имя — ССЫЛКОЙ на константу переписи
+    прыжков книги (`JOURNAL_NAME`): второй литерал того же имени был бы вторым
+    местом для имени. Состав цепочки берётся у САМОГО прибора
+    (`identity.labels`), а не собирается здесь вторым чтением: «что считать
+    исполнением» — правило прибора, и вторая его копия разошлась бы молча.
+    """
+    try:
+        book = _book_oscillation_module()
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"перепись прыжков книги не загружена, а у неё объявлено "
+                            f"имя журнала ходов: {type(exc).__name__}: {exc} — "
+                            f"население для сверки покрытия взять неоткуда")
+    name = getattr(book, "JOURNAL_NAME", None)
+    if not isinstance(name, str) or not name:
+        return UNMEASURED, ("имя журнала ходов не объявлено переписью прыжков книги — "
+                            "подставить своё значило бы завести второе место для "
+                            "имени файла")
+    path = data / name
+    try:
+        moves = json.loads(path.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"журнал ходов не прочитан ({path}): "
+                            f"{type(exc).__name__}: {exc} — сверить, все ли ходы "
+                            f"книги попали в цепочку аудита, НЕЧЕМ")
+    if not isinstance(moves, list) or not moves:
+        return UNMEASURED, (f"журнал ходов {name} пуст или не является списком — "
+                            f"населения, по которому мерится покрытие, нет, и считать "
+                            f"его нулём значило бы выдать НЕ ИЗМЕРЕНО за покрытие")
+    rows = [m for m in moves if isinstance(m, dict)]
+    labelled = [m.get("trade_id") for m in rows
+                if isinstance(m.get("trade_id"), str) and m.get("trade_id")]
+    if len(labelled) != len(rows):
+        return UNMEASURED, (f"у {len(rows) - len(labelled)} из {len(rows)} ходов "
+                            f"журнала нет ярлыка `trade_id` — сверять покрытие "
+                            f"нечем, и «цепочка знает все ходы» отсюда было бы "
+                            f"утверждением, а не замером")
+    identity = observed(report, "identity", kind=dict)
+    if identity is None or identity.get("measured") is not True:
+        return UNMEASURED, (f"перепись не измерила ось ярлыков исполнений "
+                            f"({(identity or {}).get('reason') or 'причина не названа'})"
+                            f" — состав цепочки взять неоткуда")
+    labels = observed(identity, "labels", kind=list)
+    if labels is None:
+        return UNMEASURED, ("перепись не назвала СОСТАВ ярлыков цепочки (`identity."
+                            "labels`) — сверить покрытие ходов книги НЕЧЕМ, а счёт "
+                            "различных ярлыков отвечает на другой вопрос")
+    known = set(labels)
+    missing = [t for t in labelled if t not in known]
+    if missing:
+        shown = ", ".join(missing[:6]) + ("…" if len(missing) > 6 else "")
+        return UNMEASURED, (
+            f"цепочка аудита знает не все ходы книги: из {len(labelled)} записанных "
+            f"ходов ({name}) исполнения нет у {len(missing)} — {shown}; «у каждого "
+            f"хода была повторная проверка» относилось бы к ВЫБОРКЕ, а не к книге, "
+            f"и ход, о котором цепочка не знает, не осматривается вовсе")
+    return None, ""
+
+
+def _probe_trade_is_rechecked_immediately_before_execution(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Pre-trade safety` приказа CIO: «Каждый trade пересчитывается
+    непосредственно перед execution».
+
+    ПЯТАЯ и последняя привязка цены `TRANSCRIPTION` — и снова ОДНА, а не пакетом
+    (запрет G94). Перепись `pre_trade_recheck_census` живёт с цикла #708, её
+    артефакт пишется ступенью моста и свеж (замер 29.09: 6,2 ч при объявленном
+    пределе 12 ч) — а запись «этот прибор есть мера этого критерия» лежала
+    ПРОЗОЙ, и сводный замер (`scripts/cio_acceptance_rollup.py`) честно отвечал
+    «машинной пробы, объявившей себя мерой этого критерия, в реестре НЕТ».
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    `OK` → `satisfied` · `WARNING`/`CRITICAL` → `not_satisfied` · третий исход
+    прибора → `unmeasured`. Своего порога у пробы нет НИ ОДНОГО, и передать
+    прибору `tolerance_s` она не имеет права: допуск свежести входа — ручка
+    ВЛАДЕЛЬЦА (§22 «Не hardcode»), и её в колонке `TriggerParams` сегодня нет
+    вовсе. Прибор объявляет этот вопрос третьим исходом
+    (`freshness_judgeable=False`) — проба это НАЗЫВАЕТ, а не закрашивает.
+
+    Законность вердикта спрошена АСИММЕТРИЧНО — и это находка цикла
+    ---------------------------------------------------------------------------
+    Три предыдущие привязки спрашивали «о живом ли материале вердикт» ДО всякого
+    переноса. Здесь такой порядок был бы вреден, и вот почему: доказательство
+    прибора ОДНОСТОРОННЕЕ. `WARNING` означает «нашлось исполнение, у которого
+    второго наблюдения входов не было» — утверждение существования, и ни дыра в
+    записи, ни возраст дерева его не отменяют: исполнение, стоявшее на том же
+    наблюдении, что и предложение, стояло на нём навсегда. А `OK` означает «ни
+    одного такого не нашлось» — утверждение обо ВСЕХ, и оно рушится от любой
+    неполноты материала.
+
+    Поэтому вопрос о законности задаётся ТОЛЬКО на зелёном пути. Задать его
+    раньше значило бы превратить измеренную находку владельца (46 исполнений из
+    46 без второго наблюдения, замер 29.09) в «НЕ ИЗМЕРЕНО» из-за гигиены
+    материала — то есть спрятать красное за правилом о чистоте, зеркальный
+    дефект к «не измерено, выданному за чисто».
+
+    Зазор назван: `WARNING` держится, пока в цепочке лежит хоть одно такое
+    исполнение, и «подождав неделю» его не погасить — история не меняется.
+    Красным при этом становится КРИТЕРИЙ, а не прибор: сам прибор развёл замер и
+    вердикт именно затем, чтобы не быть красным навсегда
+    (`.claude/rules/deployment.md`). Честно это ещё и потому, что у красного есть
+    ВТОРАЯ, сегодняшняя опора, которую прибор меряет по ЭТОМУ дереву:
+    `gate_readers` — у модуля повторной проверки
+    (`spa_core/execution/safety_checks.py`) нет ни одного читателя на денежном
+    пути, и по инварианту #6 быть не может. Проба печатает это число рядом с
+    вердиктом, чтобы «находка только в истории» не пришлось принимать на веру.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Верность самих проверок.** Что `PreExecutionSafety` проверяет правильно —
+      вопрос не этого прибора и не этой пробы.
+    * **Восемь из девяти предметов §27 по отдельности.** Мерится ПРИЗНАК второго
+      взгляда на мир (ярлык наблюдения изменился либо в цепочке есть событие
+      повторной проверки), а не покрытие каждого предмета.
+    * **Ходы вне цепочки.** О них прибор не знает ничего; дверь закрыта вопросом
+      о покрытии — и закрыта лишь на зелёном пути и лишь по СОСТАВУ ярлыков.
+    * **Ничего не чинит.** Только читает; ни строки `TriggerParams`, RiskPolicy,
+      стоп-крана, аллокатора, гейта исполнения или живого трека.
+    """
+    try:
+        census = _pre_trade_recheck_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"перепись повторной проверки не загружена: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление читается
+    # ДО прогона: на отказном пути прогон до доклада может не дойти вовсе.
+    # Совпадение — ПО ЯКОРЮ, а не подстрокой «Pre-trade safety»: подстрока совпала
+    # бы с любой заметкой о предпусковых проверках (ADR-333).
+    anchor = "§49 Pre-trade safety"
+    declared = str(getattr(census, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
+                            f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
+                            f"и считать её мерой этого критерия нельзя")
+
+    data = data_dir or os.path.join(REPO_ROOT, "data")
+    root = repo_root or REPO_ROOT
+    try:
+        report = census.run_census(_pathlib.Path(data), now=now,
+                                   repo_root=_pathlib.Path(root))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"перепись повторной проверки упала: "
+                            f"{type(exc).__name__}: {exc}")
+
+    if not report.get("measured"):
+        return UNMEASURED, (f"перепись отказалась мерить: "
+                            f"{report.get('reason') or 'причина не названа'}")
+
+    gate = report.get("gate_readers") or {}
+    money = gate.get("money_path_callers")
+    today = (f"читателей модуля повторной проверки на денежном пути "
+             f"{len(money)} (по замеру ЭТОГО дерева)" if isinstance(money, list)
+             else f"читатели модуля повторной проверки НЕ измерены: "
+                  f"{gate.get('reason') or 'причина не названа'}")
+    where = (f"исполнений {report.get('executions')} (измеримых "
+             f"{report.get('executions_measurable')}), окно "
+             f"{report.get('window_s_min')}…{report.get('window_s_max')}с, срок "
+             f"годности решения объявлен у {report.get('ttl_declared_count')}; "
+             f"{today}; замер снят {report.get('generated_at')}")
+    blind = ("прибор судит ЗАПИСАННЫЕ исполнения, а не пути кода; верность самих "
+             "проверок и восемь из девяти предметов §27 по отдельности он не "
+             "докладывает")
+    if not report.get("freshness_judgeable"):
+        blind += (f"; вопрос «вход был слишком стар» НЕ ИЗМЕРЕН — "
+                  f"{report.get('freshness_unjudgeable_reason')}")
+
+    status = report.get("status")
+    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+        return NOT_SATISFIED, (
+            f"ход перед исполнением заново не пересчитывается: без второго "
+            f"наблюдения входов {report.get('no_recheck')} исполнени(й) из "
+            f"{report.get('executions_measurable')} измеримых, с повторной "
+            f"проверкой {report.get('recheck_present')}, старше объявленного "
+            f"владельцем допуска {report.get('stale_beyond_tolerance')}; вопрос о "
+            f"полноте записи здесь НЕ задаётся — находка существования от неё не "
+            f"зависит ({where}; {blind})")
+    if status == census.STATUS_OK:
+        verdict, why = _standing_book_liveness(
+            _pathlib.Path(data), now=now,
+            tail="«ни одного исполнения без второго наблюдения» отсюда было бы "
+                 "тишиной мёртвого дерева, а не ответом о системе")
+        if verdict is not None:
+            return verdict, str(why)
+        verdict, why = _chain_covers_the_books_moves(report, _pathlib.Path(data))
+        if verdict is not None:
+            return verdict, why
+        return SATISFIED, (
+            f"у каждого записанного исполнения входы наблюдались ЗАНОВО: без "
+            f"второго наблюдения 0, с повторной проверкой "
+            f"{report.get('recheck_present')}, и цепочка аудита знает все ходы "
+            f"журнала ({where}; {blind})")
+    return UNMEASURED, (f"перепись вернула статус {status!r}, который не переносится "
+                        f"в вердикт критерия — молчать об этом нельзя")
 
 
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
@@ -3443,6 +3687,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_risk_policy_unbypassable_in_executed_states,
     "book_does_not_oscillate_between_opportunities":
         _probe_book_does_not_oscillate_between_opportunities,
+    "trade_is_rechecked_immediately_before_execution":
+        _probe_trade_is_rechecked_immediately_before_execution,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
@@ -3483,6 +3729,7 @@ _probe_economics_net_return_dominates_keep.s49_criterion = "Economics"
 _probe_persistence_advantage_outlives_horizon.s49_criterion = "Persistence"
 _probe_risk_policy_unbypassable_in_executed_states.s49_criterion = "Risk"
 _probe_book_does_not_oscillate_between_opportunities.s49_criterion = "Anti-churn"
+_probe_trade_is_rechecked_immediately_before_execution.s49_criterion = "Pre-trade safety"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 
