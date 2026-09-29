@@ -414,6 +414,11 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
     declared = probes_by_s49_criterion()
     assert declared == {"Architecture": ["portfolio_decision_owner_covers_capital"],
                         "Economics": ["economics_net_return_dominates_keep"],
+                        # Заказ G95 п. 1, ADR-508: вторая привязка §49 уехала из прозы
+                        # в поле. Снимок обновлён НЕ для того, чтобы погасить падение:
+                        # предикат этого теста И ЕСТЬ живой реестр (см. его имя), и
+                        # новая строка здесь — предмет утверждения, а не помеха ему.
+                        "Persistence": ["persistence_advantage_outlives_horizon"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 

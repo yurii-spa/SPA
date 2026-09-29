@@ -71,7 +71,12 @@ def test_install_has_shebang() -> None:
 def test_gate_bare_exceptions() -> None:
     """pre_commit_check.sh must check for bare exceptions."""
     content = _read_pre_commit()
-    assert "bare exception" in content.lower() or "Exception\|RuntimeError" in content or \
+    # Строка СЫРАЯ намеренно: `\|` — это BRE-альтернатива в шаблоне grep, а не
+    # escape-последовательность Python. В обычной строке она законна лишь по
+    # снисхождению разбора — Python оставляет неизвестный escape как есть, печатая
+    # SyntaxWarning (в 3.14 это уже SyntaxError). Значение строки не меняется ни на
+    # байт; меняется то, что вердикт перестаёт зависеть от снисхождения.
+    assert "bare exception" in content.lower() or r"Exception\|RuntimeError" in content or \
            "Exception|RuntimeError" in content, \
         "pre_commit_check.sh must include a bare exceptions gate"
 

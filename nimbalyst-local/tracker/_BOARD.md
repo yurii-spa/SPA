@@ -2,20 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-29T05:33:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-29T08:43:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1bfa5bb95) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (fa8b918bf) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1143** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1144** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком**  ·  `owner-decision-gde-proveryat-priemku-zakaza-portfolio-c.md`
 - **Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md`
-- **Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md`
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
@@ -49,9 +47,7 @@
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком  ·  `owner-decision-gde-proveryat-priemku-zakaza-portfolio-c.md` · 2026-09-29
 - Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
-- Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md` · 2026-09-25
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
@@ -189,6 +185,7 @@
 - Ежедневную проверку аналитики некому гонять — выбери, кто это делает  ·  `owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g.md` · 2026-08-24
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
 - Где проходит граница «решай сам» и «спроси меня» — 26 карточек ждут тебя  ·  `owner-decision-gde-granitsa-reshai-sam-i-sprosi-menya.md` · 2026-09-09
+- Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком  ·  `owner-decision-gde-proveryat-priemku-zakaza-portfolio-c.md` · 2026-09-29
 - Где живёт первый пилот на реальных деньгах: посчитано, при каком размере книга перестаёт проедать себя комиссиями  ·  `owner-decision-gde-zhivet-pervyi-pilot-na-realnyh-dengah-2026-08-30.md` · 2026-08-30
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Гейт и аллокатор считают «живой TVL» по-разному — из-за этого отчёт спорит сам с собой  ·  `owner-decision-geit-i-allokator-schitayut-zhivoi-tvl-po.md` · 2026-08-08
@@ -341,10 +338,11 @@
 - Критичная находка петли: com.spa.dfb_capture: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-dfb-ca.md` · 2026-08-30
 - Критичная находка петли: com.spa.director_server загружен, в манифесте ОТСУТСТВУЕТ (класс swarm  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-direct-2.md` · 2026-09-21
 - Критичная находка петли: com.spa.director_build загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-direct.md` · 2026-09-21
+- Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md` · 2026-09-25
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (607)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (608)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -919,6 +917,7 @@
 - Слив Aggressive: CIO обязан курировать пропорции постоянно — директива владельца 31.08  ·  `inbox-sliv-aggressive-cio-obyazan-kurirovat-pr.md` · 2026-08-31
 - Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)  ·  `inbox-smena-nominatsii-pozitsii-kak-edinstvenn.md` · 2026-08-22
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
+- Собрать дерево-приёмки §49 «Portfolio CIO» — только для чтения (решение владельца, вариант 1)  ·  `inbox-sobrat-derevo-priemki-49-portfolio-cio-t.md` · 2026-09-29
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
 - Список шагов CI выведен через ШЕСТЬ литеральных пробелов — сдвинется отступ, проверка замолчит  ·  `inbox-spisok-shagov-ci-vyveden-cherez-shest-li.md` · 2026-09-11
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31

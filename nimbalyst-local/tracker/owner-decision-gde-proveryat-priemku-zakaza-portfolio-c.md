@@ -2,9 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-09-29
+owner_choice: 1
+owner_answered_at: 2026-09-29T06:48:06.373168+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-09-29T06:48:06.373581+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-09-29T08:42:39.654920+00:00 owner-done -> ingested · queue.set_status · cycle-44339"
 ---
 
 ## Что случилось и почему это важно
@@ -42,3 +50,11 @@ created: 2026-09-29
 
 Агент заводит эту папку (или записывает выбранный вариант 3 решением), и сводный
 замер §49 начинает отвечать про одну систему, а не про три разных.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Отдельная папка-приёмка
+
+_Ответ владельца получен 2026-09-29T06:48:06.373168+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

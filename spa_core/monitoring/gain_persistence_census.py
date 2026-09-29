@@ -146,6 +146,17 @@ DECISIONS_NAME = "allocation_rationale_history.jsonl"
 #: Артефакт прибора — его читает шаг 0-офис.
 ARTIFACT_NAME = "gain_persistence_census.json"
 
+#: Чего прибор есть мера. Объявление живёт МОДУЛЬНОЙ константой, а не только внутри
+#: доклада, ровно по одной причине: привязку «этот прибор есть мера этого критерия»
+#: обязан уметь прочитать читатель, который прибор НЕ ЗАПУСКАЛ (сводка §49, проба
+#: реестра `card_acceptance`). Пока строка существовала лишь в возврате
+#: :func:`run_census`, спросить об этой привязке можно было только ценой прогона —
+#: а на отказном пути (`measured=False`) и того нельзя: доклад отказа поля
+#: `criterion` не несёт вовсе. Доклад теперь ССЫЛАЕТСЯ на константу, поэтому мест
+#: у строки по-прежнему ОДНО (`.claude/rules/site-numbers.md`).
+CRITERION = ("§49 Persistence — «Transient APY spikes не вызывают ненужные "
+             "trades» (+ §10 duration above threshold, §41 minimum persistence)")
+
 SPECIES_BEFORE_HOLD = "died_before_min_hold"
 SPECIES_WITHIN_PAYBACK = "died_within_payback_horizon"
 SPECIES_OUTLIVED = "outlived_horizon"
@@ -576,8 +587,7 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         "measured": True,
         "status": status,
         "generated_at": now.isoformat(),
-        "criterion": ("§49 Persistence — «Transient APY spikes не вызывают ненужные "
-                      "trades» (+ §10 duration above threshold, §41 minimum persistence)"),
+        "criterion": CRITERION,
         "journal": {"path": journal["path"], "rows": journal["rows"],
                     "moves": len(moves), "undated": journal["undated"],
                     "first_ts": moves[0]["ts"].isoformat(),
