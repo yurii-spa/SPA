@@ -71,11 +71,21 @@ class TestThirdOutcome(unittest.TestCase):
         self.assertFalse(m.measured)
 
     def test_unchecked_outranks_critical_in_overall(self):
+        # ПРАВКА ЦИКЛА #731, НАМЕРЕННАЯ И ОБОСНОВАННАЯ (инв. #16): прежде здесь
+        # стояло `all("нет файла" in u)`. С непрочитанной книгой капитала нет, а
+        # размеры сцены замера задаются потолком политики ОТ КАПИТАЛА — значит и
+        # целевую функцию спросить не у чего, и это ВТОРАЯ, самостоятельная
+        # причина «не измерено». Требование «все причины — одна и та же»
+        # запрещало бы прибору называть вторую; требование ниже строже: названа
+        # обязана быть КАЖДАЯ, и обе поимённо.
         rep = M.run(root=tempfile.gettempdir(), write=False, now=_T0,
                     reader=lambda p: (_ for _ in ()).throw(OSError("нет файла")))
         self.assertEqual(rep["overall"], "UNCHECKED")
         self.assertTrue(rep["unchecked"])
-        self.assertTrue(all("нет файла" in u for u in rep["unchecked"]))
+        self.assertTrue(any("нет файла" in u for u in rep["unchecked"]))
+        self.assertTrue(any("НЕ СПРОСИЛИ" in u for u in rep["unchecked"]))
+        self.assertTrue(all(u.strip() for u in rep["unchecked"]),
+                        "причина без текста — это «не измерено» без причины")
 
 
 class TestThreeNumbersAndOnlyOneIsFact(unittest.TestCase):
@@ -244,12 +254,34 @@ class TestRunOnASnapshot(unittest.TestCase):
             kinds = {f["kind"] for f in rep["findings"]}
             self.assertIn("denominator_is_a_literal", kinds)
 
-    def test_linearity_finding_is_present_regardless_of_the_snapshot(self):
+    def test_linearity_finding_now_comes_from_a_measurement(self):
+        """Та же находка, что и раньше, — но теперь она ИЗМЕРЕНА, а не напечатана.
+
+        ЗАМЕНА ТЕСТА НАМЕРЕННА И ОБОСНОВАНА (инв. #16, цикл #731, ADR-514).
+        Прежний тест назывался `…_is_present_regardless_of_the_snapshot` и
+        требовал, чтобы находка присутствовала ВСЕГДА. Он верно описывал то, что
+        код делал, — и ровно этим закреплял дефект: находка была безусловной
+        строкой, то есть претензией, способной пережить свой предмет молча.
+        Требование «присутствует всегда» сделало бы невозможным единственный
+        честный исход «целевую функцию спросили, и она реагирует».
+
+        Новое требование СТРОЖЕ прежнего: находка обязана быть, И при ней обязан
+        стоять состоявшийся замер с двумя разными размерами.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             self._snapshot(tmp, {"b": 10_000.0}, {"b": _row()})
             rep = M.run(root=tmp, data_dir=tmp, write=False, now=_T0)
             kinds = {f["kind"] for f in rep["findings"]}
             self.assertIn("objective_is_linear_in_rate", kinds)
+            sens = rep["objective_size_sensitivity"]
+            self.assertTrue(sens["measured"], sens["reason"])
+            self.assertFalse(sens["size_aware"])
+            self.assertNotEqual(sens["small_usd"], sens["large_usd"])
+            self.assertEqual(sens["rate_at_small_pp"], sens["rate_at_large_pp"])
+            # Порог «функция вернула другое число» ЧИСЛЕННЫЙ, и что он на
+            # порядки ниже настоящего эффекта — замер, а не вкус.
+            self.assertGreater(sens["reference_dilution_pp"],
+                               M.NUMERICAL_EPS_PP * 1e6)
 
     def test_wrong_shape_is_unchecked_not_a_crash(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -418,6 +450,293 @@ class TestOfficeStepReadsIt(unittest.TestCase):
         src = self._office_source()
         self.assertIn('"marginal_apy_at_size.json": '
                       '"spa_core/monitoring/marginal_apy_at_size.py"', src)
+
+
+# ── цикл #731: претензия о линейности стала ЗАМЕРОМ, и у замера контроль ─────
+
+
+class _FakeObjectiveModule:
+    """Подставная целевая функция. Ставку роняет ПО РАЗМЕРУ — и замер обязан это увидеть.
+
+    Нужна затем, что иначе контроль был бы односторонним: сегодня живая функция
+    линейна, и тест, умеющий только это, не отличил бы работающий замер от
+    константы, возвращающей «линейна» при любом входе.
+    """
+
+    def __init__(self, drop_per_unit_weight: float = 1.0):
+        self._drop = drop_per_unit_weight
+        outer = self
+
+        class AllocationTuner:
+            def _weighted_apy(self, weights, adapter_data):
+                rates = {a["id"]: float(a.get("apy") or 0.0) for a in adapter_data}
+                # Ставка ПАДАЕТ с весом: ровно то, чего ТЗ §12 и требует.
+                return sum(w * (rates.get(pid, 0.0) - outer._drop * w)
+                           for pid, w in weights.items())
+
+        self.AllocationTuner = AllocationTuner
+
+
+class _BrokenObjectiveModule:
+    """Целевая функция, у которой доходностный член унесли или переименовали."""
+
+    class AllocationTuner:
+        pass
+
+
+class _RaisingObjectiveModule:
+    class AllocationTuner:
+        def _weighted_apy(self, weights, adapter_data):
+            raise RuntimeError("сцена не принята")
+
+
+class _MuteObjectiveModule:
+    class AllocationTuner:
+        def _weighted_apy(self, weights, adapter_data):
+            return None
+
+
+def _keeping_real_constraints(module):
+    """Перенести в подставной модуль НАСТОЯЩИЕ `TunerConstraints`.
+
+    Целевая функция и потолки политики живут в одном модуле; подменив его
+    целиком, мы поменяли бы разом две вещи, и «функцию спросить нечем» стало бы
+    неотличимо от «пороги не прочитаны».
+    """
+    from spa_core.tuner.allocation_tuner import TunerConstraints
+
+    module.TunerConstraints = TunerConstraints
+    return module
+
+
+class _swap_objective:
+    """Подменить модуль целевой функции в `sys.modules` на время теста."""
+
+    def __init__(self, module):
+        self._module = module
+        self._saved = None
+        self._had = False
+
+    def __enter__(self):
+        import sys
+        self._had = M.OBJECTIVE_MODULE in sys.modules
+        self._saved = sys.modules.get(M.OBJECTIVE_MODULE)
+        sys.modules[M.OBJECTIVE_MODULE] = self._module
+        return self._module
+
+    def __exit__(self, *exc):
+        import sys
+        if self._had:
+            sys.modules[M.OBJECTIVE_MODULE] = self._saved
+        else:
+            sys.modules.pop(M.OBJECTIVE_MODULE, None)
+        return False
+
+
+class TestObjectiveSizeSensitivityIsMeasuredNotAsserted(unittest.TestCase):
+    """Положительный контроль ЗАМЕРА — в ОБЕ стороны, и по каждому порванному звену.
+
+    Дефект, который воспроизводится: до цикла #731 ответ на главный вопрос
+    владельца был напечатанной строкой. Проверка «строка есть» зелена и на
+    системе, где ранжирующее число давно стало функцией размера, — то есть
+    отвечает на свой вопрос, а не на нужный.
+    """
+
+    def test_live_objective_is_measured_size_blind(self):
+        s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertTrue(s["measured"], s["reason"])
+        self.assertFalse(s["size_aware"])
+        self.assertEqual(s["rate_at_small_pp"], s["rate_at_large_pp"])
+        self.assertEqual(s["large_usd"], 40_000.0)
+        self.assertLess(s["small_usd"], s["large_usd"])
+
+    def test_a_size_aware_objective_flips_the_measurement(self):
+        with _swap_objective(_FakeObjectiveModule()):
+            s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertTrue(s["measured"], s["reason"])
+        self.assertTrue(s["size_aware"])
+        self.assertGreater(s["rate_at_small_pp"], s["rate_at_large_pp"])
+
+    def test_the_probe_reads_the_live_objective_not_its_own_copy(self):
+        """Подмена ДОХОДИТ до замера — иначе он мерил бы собственное убеждение."""
+        base = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        with _swap_objective(_FakeObjectiveModule()):
+            swapped = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertNotEqual(base["size_aware"], swapped["size_aware"])
+
+    def test_missing_yield_term_is_a_named_third_outcome(self):
+        with _swap_objective(_BrokenObjectiveModule()):
+            s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertFalse(s["measured"])
+        self.assertIn(M.OBJECTIVE_YIELD_TERM, s["reason"])
+        self.assertIsNone(s["size_aware"])
+
+    def test_raising_objective_is_a_named_third_outcome(self):
+        with _swap_objective(_RaisingObjectiveModule()):
+            s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertFalse(s["measured"])
+        self.assertIn("RuntimeError", s["reason"])
+
+    def test_unusable_return_is_a_named_third_outcome(self):
+        with _swap_objective(_MuteObjectiveModule()):
+            s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertFalse(s["measured"])
+        self.assertIn("НЕ ИЗМЕРЕНА", s["reason"])
+
+    def test_missing_tuner_class_is_a_named_third_outcome(self):
+        class _NoTuner:
+            pass
+
+        with _swap_objective(_NoTuner()):
+            s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4)
+        self.assertFalse(s["measured"])
+        self.assertIn("AllocationTuner", s["reason"])
+
+    def test_unimportable_objective_is_a_named_third_outcome(self):
+        def _boom(name):
+            raise ImportError(f"нет модуля {name}")
+
+        s = M.objective_size_sensitivity(100_000.0, 5_000_000.0, 0.4,
+                                         importer=_boom)
+        self.assertFalse(s["measured"])
+        self.assertIn("ImportError", s["reason"])
+
+    def test_unread_policy_is_not_replaced_by_a_literal(self):
+        for floor, cap in ((None, 0.4), (5_000_000.0, None)):
+            with self.subTest(floor=floor, cap=cap):
+                s = M.objective_size_sensitivity(100_000.0, floor, cap)
+                self.assertFalse(s["measured"])
+                self.assertIn("TunerConstraints", s["reason"])
+                self.assertIsNone(s["size_aware"])
+
+    def test_unread_capital_is_not_replaced_by_a_zero(self):
+        s = M.objective_size_sensitivity(0.0, 5_000_000.0, 0.4)
+        self.assertFalse(s["measured"])
+        self.assertIn("капитал", s["reason"])
+        self.assertIsNone(s["rate_at_small_pp"])
+
+    def test_unaskable_objective_makes_the_run_unchecked_not_linear(self):
+        """Порванное звено НЕ возвращает прежнее умолчание «функция линейна»."""
+        with tempfile.TemporaryDirectory() as tmp:
+            self._snapshot(tmp, {"b": 10_000.0}, {"b": _row()})
+            # Подменяется РОВНО доходностный член: потолки политики живут в том
+            # же модуле и переносятся настоящими, иначе замер отвечал бы «пороги
+            # не прочитаны», а не «функцию спросить нечем».
+            with _swap_objective(_keeping_real_constraints(_BrokenObjectiveModule())):
+                rep = M.run(root=tmp, data_dir=tmp, write=False, now=_T0)
+        kinds = {f["kind"] for f in rep["findings"]}
+        self.assertNotIn("objective_is_linear_in_rate", kinds)
+        self.assertEqual(rep["overall"], "UNCHECKED")
+        self.assertTrue(any("НЕ СПРОСИЛИ" in u for u in rep["unchecked"]))
+
+    def _snapshot(self, tmp, positions, adapters, capital=100_000.0):
+        with open(os.path.join(tmp, "adapter_status.json"), "w") as fh:
+            json.dump({"adapters": adapters}, fh)
+        with open(os.path.join(tmp, "current_positions.json"), "w") as fh:
+            json.dump({"capital_usd": capital, "positions": positions}, fh)
+
+
+class TestCriterionBlock(unittest.TestCase):
+    """Вердикт критерия §49 — по ОСИ находки, и НЕ есть `overall`."""
+
+    _MEASURED = {"measured": True, "size_aware": True, "rate_at_small_pp": 8.0,
+                 "rate_at_large_pp": 7.0, "small_usd": 40.0, "large_usd": 40_000.0,
+                 "reference_dilution_pp": 0.03, "delta_pp": 1.0, "reason": None}
+
+    def test_found_axis_gives_not_satisfied(self):
+        block = M._criterion_block(
+            [{"kind": "objective_is_linear_in_rate", "severity": "INFO"}],
+            [], self._MEASURED, deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_NOT_SATISFIED)
+        self.assertEqual(block["found"], ["objective_is_linear_in_rate"])
+
+    def test_found_axis_survives_incompleteness_beside_it(self):
+        """Утверждение СУЩЕСТВОВАНИЯ не отменяется непрочитанным рядом.
+
+        Ровно здесь перенос `overall` соврал бы: у прибора третий исход стои́т
+        выше `CRITICAL`, и измеренное красное владельца стало бы «не измерено».
+        """
+        block = M._criterion_block(
+            [{"kind": "objective_is_linear_in_rate", "severity": "INFO"},
+             {"kind": "denominator_is_a_literal", "severity": "WARN"}],
+            ["снимок адаптеров не прочитан"], self._MEASURED, deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_NOT_SATISFIED)
+
+    def test_unobserved_axis_alone_gives_the_third_outcome(self):
+        block = M._criterion_block(
+            [{"kind": "denominator_is_a_literal", "severity": "WARN"}],
+            [], self._MEASURED, deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_UNMEASURED)
+        self.assertIn("denominator_is_a_literal", block["reason"])
+
+    def test_unchecked_alone_gives_the_third_outcome(self):
+        block = M._criterion_block([], ["целевую функцию НЕ СПРОСИЛИ: …"],
+                                   {"measured": False, "reason": "…",
+                                    "size_aware": None},
+                                   deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_UNMEASURED)
+
+    def test_unknown_finding_kind_breaks_the_verdict_by_name(self):
+        block = M._criterion_block([{"kind": "brand_new_thing", "severity": "INFO"}],
+                                   [], self._MEASURED, deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_UNMEASURED)
+        self.assertIn("brand_new_thing", block["reason"])
+
+    def test_empty_book_is_not_a_green_verdict(self):
+        block = M._criterion_block(
+            [{"kind": "objective_reacts_to_our_size", "severity": "INFO"}],
+            [], self._MEASURED, deployed_usd=0.0)
+        self.assertEqual(block["status"], M.CRITERION_UNMEASURED)
+        self.assertIn("мёртвого дерева", block["reason"])
+
+    def test_green_path_needs_a_size_aware_objective_and_a_live_book(self):
+        block = M._criterion_block(
+            [{"kind": "objective_reacts_to_our_size", "severity": "INFO"}],
+            [], self._MEASURED, deployed_usd=95_000.0)
+        self.assertEqual(block["status"], M.CRITERION_SATISFIED)
+
+    def test_every_emitted_kind_has_a_declared_axis(self):
+        """Перечень осей ЗАКРЫТ, и он обязан покрывать всё, что прибор рождает.
+
+        Вид, который прибор печатает, но осью не объявил, обрывал бы вердикт
+        третьим исходом на живом дереве — то есть сторож замолчал бы от
+        собственной неполноты.
+        """
+        import re
+        with open(M.__file__, encoding="utf-8") as fh:
+            body = fh.read()
+        emitted = set(re.findall(r'"kind":\s*"([a-z_]+)"', body))
+        self.assertTrue(emitted, "виды находок в теле прибора не найдены вовсе")
+        self.assertEqual(emitted - set(M.FINDING_AXIS), set())
+
+    def test_criterion_verdict_is_not_the_overall_ladder(self):
+        """`overall` и вердикт критерия РАСХОДЯТСЯ — и это цель, а не побочность."""
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "adapter_status.json"), "w") as fh:
+                json.dump({"adapters": {"b": _row()}}, fh)
+            with open(os.path.join(tmp, "current_positions.json"), "w") as fh:
+                json.dump({"capital_usd": 100_000.0,
+                           "positions": {"b": 10_000.0}}, fh)
+            rep = M.run(root=tmp, data_dir=tmp, write=False, now=_T0)
+        self.assertEqual(rep["overall"], "INFO")
+        self.assertEqual(rep["criterion"]["status"], M.CRITERION_NOT_SATISFIED)
+
+
+class TestCriterionDeclaration(unittest.TestCase):
+    def test_instrument_declares_the_criterion_by_anchor(self):
+        self.assertTrue(M.CRITERION.startswith("§49 Marginal return"))
+
+    def test_manifest_binds_this_artifact_in_the_canonical_form(self):
+        """Привязка читается из ЖИВОЙ конституции, а не из фикстуры (урок #730)."""
+        from spa_core.monitoring import s49_criterion_price as price
+
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(M.__file__))))
+        bindings = price.parse_bindings(price.read_manifest(root))["bindings"]
+        rows = bindings.get("Marginal return")
+        self.assertIsNotNone(rows, "конституция не объявляет меру `Marginal return`")
+        self.assertEqual([r["path"] for r in rows], [M.REPORT_REL])
+        self.assertEqual(rows[0]["form"], price.CANONICAL_FORM)
 
 
 if __name__ == "__main__":                                    # pragma: no cover

@@ -8,8 +8,8 @@
   показывает 8% APY, это не означает, что $40k можно разместить под 8%.»
 * §49 «Acceptance criteria» → «**Marginal return.**»
 
-Ответ на «учитывается ли» — **НЕТ, по построению.** Целевая функция оптимизатора
-линейна по ставке пула::
+Ответ на «учитывается ли» — **НЕТ, и это ИЗМЕРЕНО, а не заявлено** (цикл #731).
+Целевая функция оптимизатора линейна по ставке пула::
 
     _weighted_apy = Σ  weight[pid] · apy[pid]        # spa_core/tuner/allocation_tuner.py
     _score        = _weighted_apy − concentration − constraints
@@ -17,6 +17,17 @@
 ``apy[pid]`` берётся из снимка и НЕ зависит от ``weight[pid]``. Положить в пул $1 и
 положить $40 000 — обе раскладки оцениваются одной и той же ставкой. Ровно это
 владелец и описал.
+
+**Почему слова «и это измерено» здесь стоят отдельно.** До цикла #731 абзац выше
+и был всем ответом: находка ``objective_is_linear_in_rate`` добавлялась в отчёт
+БЕЗУСЛОВНО, с готовым текстом, при любом снимке. Претензия была верной — и не
+проверялась ни разу, то есть пережила бы свой предмет молча: сделай кто-нибудь
+ранжирующее число чувствительным к размеру, модуль продолжил бы печатать, что
+оно линейно. Теперь ответ даёт :func:`objective_size_sensitivity` — она
+спрашивает ЖИВОЙ доходностный член целевой функции дважды, при крошечной позиции
+и при наибольшей разрешённой политикой, и сравнивает приписанную ставку. Замер
+29.09: **8.0 пп при $40 и 8.0 пп при $40 000, Δ = 0.0**, тогда как модель
+разбавления на той же сцене роняет ставку на **0.0318 пп**.
 
 Чего этот модуль НЕ делает
 ==========================
@@ -111,6 +122,78 @@ from spa_core.analytics.yield_dilution_analyzer import _diluted_apy
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/marginal_apy_at_size.json"
+
+# ── чей мерой объявлен этот прибор ───────────────────────────────────────────
+
+#: Критерий §49 ТЗ «Portfolio CIO», мерой которого объявлен ЭТОТ прибор.
+#: Проба `card_acceptance` сверяет объявление ПО ЯКОРЮ («§49 Marginal return»),
+#: а не подстрокой: подстрока «Marginal return» совпала бы с любой заметкой о
+#: предельной доходности (ADR-333).
+CRITERION = ("§49 Marginal return — «Position size влияет на expected yield» "
+             "(+ тело ТЗ §12 «Marginal APY»: «обязательно учитывать влияние "
+             "нашего капитала»)")
+
+CRITERION_SATISFIED = "SATISFIED"
+CRITERION_NOT_SATISFIED = "NOT_SATISFIED"
+CRITERION_UNMEASURED = "UNMEASURED"
+
+#: Ось находки: каким УТВЕРЖДЕНИЕМ она отвечает на вопрос критерия.
+#:
+#: `found`       — утверждение СУЩЕСТВОВАНИЯ: ставка, по которой решение
+#:                 ранжирует, от нашего размера НЕ зависит (либо зависит, но
+#:                 ошибка уже съедает полосу выгоды). Неполнота материала рядом
+#:                 такую находку не отменяет.
+#: `compared`    — сравнение состоялось, и целевая функция на размер РЕАГИРУЕТ.
+#: `unobserved`  — сравнение не состоялось: знаменатель разбавления не наблюдён.
+#:                 Третий исход.
+#: `context`     — факт об устройстве решения, а не наблюдение дня.
+AXIS_FOUND = "found"
+AXIS_COMPARED = "compared"
+AXIS_UNOBSERVED = "unobserved"
+AXIS_CONTEXT = "context"
+
+#: Вид находки → ось. Перечень ЗАКРЫТ: вид, которого здесь нет, обрывает вердикт
+#: критерия третьим исходом с названным именем вида. Классифицировать новый вид
+#: молча значило бы решить за автора, существование это или его отсутствие.
+#:
+#: Таблица живёт У ПРИБОРА, а не у пробы: виды порождает он, и вторая копия
+#: таблицы рядом с пробой разъехалась бы с ними молча (урок цикла #730).
+FINDING_AXIS = {
+    "objective_is_linear_in_rate": AXIS_FOUND,
+    "objective_reacts_to_our_size": AXIS_COMPARED,
+    "linearity_eats_the_gain_band": AXIS_FOUND,
+    "denominator_is_a_literal": AXIS_UNOBSERVED,
+}
+
+# ── у кого спрашивают про размер ─────────────────────────────────────────────
+
+#: Где живёт целевая функция, у которой спрашивают. Имя объявлено СТРОКОЙ, а не
+#: зашито импортом в теле замера: контроль подменяет модуль в ``sys.modules`` и
+#: убеждается, что замер читает ЖИВУЮ функцию, а не свою копию её свойства.
+OBJECTIVE_MODULE = "spa_core.tuner.allocation_tuner"
+
+#: Член целевой функции, который приписывает раскладке ожидаемую доходность.
+#: Переименуют или унесут — замер обязан сказать «НЕ ИЗМЕРЕНО» с адресом, а не
+#: промолчать: именно так напечатанная претензия и переживает свой предмет.
+OBJECTIVE_YIELD_TERM = "_weighted_apy"
+
+#: Ключ сцены замера. Синтетический по построению — ни в одном реестре его нет,
+#: столкнуться с живым протоколом сцена не может.
+PROBE_POOL_ID = "probe_marginal_return_pool"
+
+#: Ставка сцены, пп. Взята НЕ из головы: это дословное число примера владельца в
+#: §12 ТЗ («если vault показывает 8% APY, это не означает, что $40k можно
+#: разместить под 8%»). Масштаб, а не чья-то доходность.
+PROBE_RATE_PP = 8.0
+
+#: Порог «функция вернула ДРУГОЕ число». Он ЧИСЛЕННЫЙ, а не политический: он
+#: отделяет шум двоичной арифметики от реакции на размер и ничьим решением не
+#: является. Что он на порядки ниже настоящего эффекта — не предположение, а
+#: замер: рядом печатается ``reference_dilution_pp`` — насколько ставку роняет
+#: модель разбавления на ТОЙ ЖЕ сцене (29.09: 0.0318 пп, то есть в ~3·10⁷ раз
+#: больше этого порога). Сравнивать их читателю не приходится: обе величины
+#: стоят в отчёте рядом.
+NUMERICAL_EPS_PP = 1e-9
 
 # Ни одного порога этот модуль НЕ назначает. Все три читаются из своих домов:
 # TVL-floor и потолок концентрации — ``TunerConstraints`` (те самые, которыми
@@ -209,6 +292,12 @@ def _num(v: object) -> float | None:
 def _read_json(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def _import_module(name: str) -> Any:
+    """Импорт по ИМЕНИ — вход замера, чтобы контроль мог подставить свою дверь."""
+    import importlib
+    return importlib.import_module(name)
 
 
 def measure_pool(
@@ -341,6 +430,224 @@ def scale_ceiling(
     }
 
 
+def objective_size_sensitivity(
+    capital_usd: float,
+    tvl_floor: float | None,
+    protocol_cap: float | None,
+    *,
+    importer: Callable[[str], Any] | None = None,
+) -> dict:
+    """Спросить ЖИВУЮ целевую функцию: меняется ли приписанная ставка от РАЗМЕРА.
+
+    Находка цикла #731, ради которой замер и написан
+    ---------------------------------------------------------------------------
+    До этого цикла модуль отвечал на главный вопрос владельца **напечатанным
+    предложением**: находка ``objective_is_linear_in_rate`` добавлялась в отчёт
+    БЕЗУСЛОВНО, при любом снимке, и её текст («целевая функция линейна по ставке
+    пула») был утверждением автора, прочитавшего код однажды. Утверждение верно и
+    сегодня — но никто его не спрашивал у кода ни разу, а значит:
+
+    * сделай кто-нибудь целевую функцию чувствительной к размеру — модуль
+      продолжил бы печатать, что она линейна, и вердикт §49 стал бы молча ложным;
+    * перенести такую находку в машинный вердикт критерия значило бы перенести
+      ПРОЗУ, то есть ровно тот дефект, против которого написана вся эта работа
+      (`.claude/rules/site-numbers.md`: перепечатанное число не расходится — оно
+      перестаёт быть правдой молча).
+
+    Поэтому претензия стала ЗАМЕРОМ, и замер ДИФФЕРЕНЦИАЛЬНЫЙ.
+
+    Как он устроен
+    ---------------------------------------------------------------------------
+    Строится сцена из ОДНОГО синтетического пула со ставкой :data:`PROBE_RATE_PP`
+    и у живого члена целевой функции (:data:`OBJECTIVE_YIELD_TERM` модуля
+    :data:`OBJECTIVE_MODULE`) дважды спрашивается приписанная доходность — при
+    крошечной позиции и при НАИБОЛЬШЕЙ разрешённой политикой (``cap·capital``,
+    те самые «$40k» из примера владельца). Обе величины приводятся к ставке за
+    единицу веса. Совпали ⇒ размер на ранжирующее число не влияет.
+
+    Границы сцены заданы ПОЛИТИКОЙ, а не этим модулем: потолок концентрации и
+    TVL-floor приходят из ``TunerConstraints`` (см. :func:`_policy_limits`).
+    Непрочитанный порог ⇒ сцену строить не из чего ⇒ третий исход с причиной, а
+    не «функция линейна» по умолчанию.
+
+    Чего замер НЕ докладывает
+    ---------------------------------------------------------------------------
+    * **Верность самой ставки.** Сцена синтетическая: спрашивается СВОЙСТВО
+      функции (реагирует ли она на размер), а не сегодняшняя доходность книги.
+    * **Штрафы целевой функции.** Концентрационный штраф от весов зависит, и это
+      не «учёт размера в ожидаемой доходности», а штраф. Спрашивается ровно
+      доходностный член.
+    * **Пути, идущие мимо этого члена.** Если ожидаемую доходность где-то считают
+      ещё раз своей копией, замер об этом не знает — он судит объявленную дверь.
+
+    Возврат — словарь с ``measured``; ``False`` несёт ``reason``. Числа при
+    неизмеренном замере остаются ``None``: ноль сюда не подставляется (инв. #17).
+    """
+    out: dict = {
+        "measured": False,
+        "reason": None,
+        "objective": f"{OBJECTIVE_MODULE}.AllocationTuner.{OBJECTIVE_YIELD_TERM}",
+        "small_usd": None,
+        "large_usd": None,
+        "rate_at_small_pp": None,
+        "rate_at_large_pp": None,
+        "delta_pp": None,
+        "reference_dilution_pp": None,
+        "size_aware": None,
+    }
+
+    if capital_usd is None or capital_usd <= 0:
+        out["reason"] = ("капитал книги не прочитан — размеры сцены задаются "
+                         "потолком политики ОТ КАПИТАЛА, и без него сцены нет")
+        return out
+    if protocol_cap is None or tvl_floor is None:
+        out["reason"] = ("потолок концентрации и/или TVL-floor не прочитаны из "
+                         "`TunerConstraints` — сцену строить не из чего, и "
+                         "литералом они здесь не заменяются")
+        return out
+
+    large = float(protocol_cap) * float(capital_usd)
+    small = large / 1000.0
+    if large <= 0 or small <= 0:
+        out["reason"] = (f"размеры сцены непригодны (большая ${large:,.2f}, "
+                         f"малая ${small:,.2f}) — спрашивать нечем")
+        return out
+    out["small_usd"] = round(small, 6)
+    out["large_usd"] = round(large, 2)
+
+    imp = importer or _import_module
+    try:
+        module = imp(OBJECTIVE_MODULE)
+    except BaseException as exc:                      # noqa: BLE001
+        out["reason"] = (f"целевая функция не загружена ({OBJECTIVE_MODULE}): "
+                         f"{type(exc).__name__}: {exc}")
+        return out
+
+    tuner_cls = getattr(module, "AllocationTuner", None)
+    if tuner_cls is None:
+        out["reason"] = (f"в {OBJECTIVE_MODULE} нет `AllocationTuner` — целевая "
+                         f"функция переехала, и спросить её НЕ У ЧЕГО")
+        return out
+    try:
+        tuner = tuner_cls()
+    except BaseException as exc:                      # noqa: BLE001
+        out["reason"] = (f"`AllocationTuner()` не построен: "
+                         f"{type(exc).__name__}: {exc}")
+        return out
+
+    term = getattr(tuner, OBJECTIVE_YIELD_TERM, None)
+    if not callable(term):
+        out["reason"] = (f"у целевой функции нет вызываемого "
+                         f"`{OBJECTIVE_YIELD_TERM}` — доходностный член "
+                         f"переименован или унесён; молчать об этом нельзя")
+        return out
+
+    scene = [{"id": PROBE_POOL_ID, "apy": PROBE_RATE_PP, "tier": "T1"}]
+    rates: list[float] = []
+    for amount in (small, large):
+        weight = amount / float(capital_usd)
+        try:
+            value = term({PROBE_POOL_ID: weight}, scene)
+        except BaseException as exc:                  # noqa: BLE001
+            out["reason"] = (f"доходностный член целевой функции упал на сцене "
+                             f"(${amount:,.2f}): {type(exc).__name__}: {exc}")
+            return out
+        number = _num(value)
+        if number is None or weight <= 0:
+            out["reason"] = (f"доходностный член вернул непригодное значение "
+                             f"{value!r} при весе {weight!r} — ставка за единицу "
+                             f"веса НЕ ИЗМЕРЕНА")
+            return out
+        rates.append(number / weight)
+
+    rate_small, rate_large = rates
+    delta = rate_small - rate_large
+    out.update({
+        "measured": True,
+        "rate_at_small_pp": round(rate_small, 9),
+        "rate_at_large_pp": round(rate_large, 9),
+        "delta_pp": round(delta, 9),
+        # Насколько ту же ставку роняет МОДЕЛЬ разбавления на той же сцене:
+        # масштаб настоящего эффекта рядом с численным порогом. Считает чужой
+        # модуль (MP-911), своей копии формулы здесь нет.
+        "reference_dilution_pp": round(
+            PROBE_RATE_PP - _diluted_apy(0.0, PROBE_RATE_PP, float(tvl_floor), large), 9),
+        "size_aware": abs(delta) > NUMERICAL_EPS_PP,
+    })
+    return out
+
+
+def _criterion_block(findings: list[dict], unchecked: list[str],
+                     sensitivity: dict, *, deployed_usd: float) -> dict:
+    """Вердикт КРИТЕРИЯ §49 `Marginal return` — и почему он НЕ есть ``overall``.
+
+    ``overall`` у этого прибора — лестница ТЯЖЕСТИ для здоровья артефакта, и
+    третий исход стои́т в ней ВЫШЕ ``CRITICAL`` намеренно. Для здоровья это
+    верно; для вердикта критерия тот же порядок был бы ложью в другую сторону:
+    находка «ранжирующая ставка от размера не зависит» есть утверждение
+    СУЩЕСТВОВАНИЯ, и непрочитанный рядом пул её не отменяет. Перенести
+    ``overall`` значило бы спрятать измеренное красное за «не измерено» —
+    инвариант #17 наизнанку (урок цикла #730, ADR-513).
+
+    Порядок разрешения:
+
+    1. вид находки не объявлен осью ⇒ третий исход с именем вида;
+    2. есть находка оси ``found`` ⇒ ``NOT_SATISFIED`` независимо от неполноты;
+    3. иначе есть ``unchecked`` или находка оси ``unobserved`` ⇒ третий исход;
+    4. иначе ЗЕЛЁНЫЙ путь, и только на нём спрашивается законность: развёрнут ли
+       вообще капитал. «Размер учитывается» про пустую книгу — тишина мёртвого
+       дерева, а не ответ о системе.
+    """
+    found: list[str] = []
+    unobserved: list[str] = []
+    compared: list[str] = []
+    for f in findings:
+        kind = str(f.get("kind"))
+        axis = FINDING_AXIS.get(kind)
+        if axis is None:
+            return {"criterion": CRITERION, "status": CRITERION_UNMEASURED,
+                    "reason": (f"у находки {kind!r} не объявлена ось "
+                               f"(`FINDING_AXIS`) — отнести её к существованию "
+                               f"или к его отсутствию молча нельзя"),
+                    "found": [], "unobserved": [], "compared": [],
+                    "sensitivity": sensitivity}
+        if axis == AXIS_FOUND:
+            found.append(kind)
+        elif axis == AXIS_UNOBSERVED:
+            unobserved.append(kind)
+        elif axis == AXIS_COMPARED:
+            compared.append(kind)
+
+    base = {"criterion": CRITERION, "found": sorted(set(found)),
+            "unobserved": sorted(set(unobserved)),
+            "compared": sorted(set(compared)), "sensitivity": sensitivity}
+
+    if found:
+        return dict(base, status=CRITERION_NOT_SATISFIED,
+                    reason=("размер позиции на ожидаемую доходность решения не "
+                            "влияет: " + ", ".join(sorted(set(found)))
+                            + " — находка существования, и неполнота материала "
+                              "рядом её не отменяет"))
+    if unchecked or unobserved:
+        why = list(unchecked) + [f"находка {k}" for k in sorted(set(unobserved))]
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=("спросить решение о влиянии размера было нечем: "
+                            + "; ".join(why)))
+    if deployed_usd <= 0:
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=("книга пуста (развёрнуто $0) — «размер учитывается» "
+                            "отсюда было бы тишиной мёртвого дерева, а не "
+                            "ответом о системе"))
+    return dict(base, status=CRITERION_SATISFIED,
+                reason=(f"целевая функция на размер РЕАГИРУЕТ (измерено: ставка "
+                        f"{sensitivity.get('rate_at_small_pp')} пп при "
+                        f"${sensitivity.get('small_usd')} против "
+                        f"{sensitivity.get('rate_at_large_pp')} пп при "
+                        f"${sensitivity.get('large_usd')}), и знаменатель "
+                        f"разбавления наблюдён у всего развёрнутого капитала "
+                        f"(${deployed_usd:,.2f})"))
+
+
 def run(
     root: str = REPO_ROOT,
     *,
@@ -406,18 +713,45 @@ def run(
               "reason": "пороги политики не прочитаны из своих домов — см. `unchecked`"}
     )
 
-    # Находка №1 — сам факт, который спрашивал владелец. Он не зависит от снимка:
-    # линейность целевой функции есть свойство кода, а не сегодняшних чисел.
-    findings.append({
-        "severity": "INFO",
-        "kind": "objective_is_linear_in_rate",
-        "message": (
-            "целевая функция оптимизатора линейна по ставке пула "
-            "(`_weighted_apy` = Σ weight·apy): размер НАШЕЙ позиции ставку, по "
-            "которой её ранжируют, не меняет — §12 ТЗ CIO. Правка ранжирующего "
-            "числа money-path, здесь только замер"
-        ),
-    })
+    # Находка №1 — сам вопрос владельца, и она СПРАШИВАЕТСЯ У КОДА, а не
+    # печатается. До цикла #731 здесь безусловно добавлялась готовая фраза
+    # «целевая функция линейна»: верная сегодня и не проверенная ни разу — то
+    # есть претензия, способная пережить свой предмет молча. Теперь это
+    # дифференциальный замер живой целевой функции (`objective_size_sensitivity`),
+    # и «спросить не вышло» — третий исход с причиной, а не прежнее умолчание.
+    sensitivity = objective_size_sensitivity(capital, floor, cap)
+    if not sensitivity["measured"]:
+        unchecked.append(
+            f"целевую функцию о влиянии размера НЕ СПРОСИЛИ: {sensitivity['reason']}")
+    elif sensitivity["size_aware"]:
+        findings.append({
+            "severity": "INFO",
+            "kind": "objective_reacts_to_our_size",
+            "message": (
+                f"ИЗМЕРЕНО у живой целевой функции ({sensitivity['objective']}): "
+                f"приписанная ставка падает с {sensitivity['rate_at_small_pp']} пп "
+                f"при ${sensitivity['small_usd']:,.2f} до "
+                f"{sensitivity['rate_at_large_pp']} пп при "
+                f"${sensitivity['large_usd']:,.2f} — размер позиции на ранжирующее "
+                f"число влияет"
+            ),
+        })
+    else:
+        findings.append({
+            "severity": "INFO",
+            "kind": "objective_is_linear_in_rate",
+            "message": (
+                f"ИЗМЕРЕНО дифференциально у живой целевой функции "
+                f"({sensitivity['objective']}): приписанная ставка одна и та же — "
+                f"{sensitivity['rate_at_small_pp']} пп при "
+                f"${sensitivity['small_usd']:,.2f} и при "
+                f"${sensitivity['large_usd']:,.2f} (Δ {sensitivity['delta_pp']} пп), "
+                f"тогда как модель разбавления на той же сцене роняет её на "
+                f"{sensitivity['reference_dilution_pp']} пп. Размер НАШЕЙ позиции "
+                f"ставку, по которой её ранжируют, не меняет — §12 ТЗ CIO. Правка "
+                f"ранжирующего числа money-path, здесь только замер"
+            ),
+        })
 
     if unmeasured_capital > 0 and deployed > 0:
         pct = unmeasured_capital / deployed * 100.0
@@ -473,8 +807,11 @@ def run(
         "policy_bound": bound,
         "scale_ceiling": ceiling,
         "policy_provenance": provenance,
+        "objective_size_sensitivity": sensitivity,
         "findings": findings,
         "unchecked": unchecked,
+        "criterion": _criterion_block(findings, unchecked, sensitivity,
+                                      deployed_usd=deployed),
         "note": (
             "ADVISORY. Отвечает на §12 «Marginal APY» и §49 «Marginal return» ТЗ "
             "«Portfolio CIO». Капитал по этому вердикту НЕ двигается: целевая функция "
@@ -526,6 +863,8 @@ def _main(argv: list[str] | None = None) -> int:
               f"${sc['capital_usd_at_crossing']:,.0f}")
     for u in rep["unchecked"]:
         print(f"   [НЕ ИЗМЕРЕНО] {u}")
+    cr = rep["criterion"]
+    print(f"   §49 Marginal return: {cr['status']} — {cr['reason']}")
     return {"OK": 0, "INFO": 0, "WARN": 1, "CRITICAL": 1, "UNCHECKED": 2}[rep["overall"]]
 
 

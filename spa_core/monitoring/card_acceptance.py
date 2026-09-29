@@ -1581,6 +1581,139 @@ def _probe_costs_are_accounted_for_in_the_decision(
                         f"переносится — молчать об этом нельзя")
 
 
+#: Прибор предельной доходности (цикл #493). Модуль ПАКЕТНЫЙ, поэтому его подмена
+#: в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы увидеть:
+#: проба читает ПРИБОР, а не свою копию его логики.
+MARGINAL_RETURN_MODULE = "spa_core.monitoring.marginal_apy_at_size"
+
+
+def _marginal_return_module():
+    """Прибор предельной доходности. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(MARGINAL_RETURN_MODULE)
+
+
+def _probe_marginal_return_size_changes_expected_yield(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Marginal return` приказа CIO: «Position size влияет на expected yield».
+
+    Вторая привязка цены `WORDING` — и снова ОДНА, а не пакетом (запрет G94).
+    Прибор `marginal_apy_at_size` живёт с цикла #493, артефакт свеж (замер 29.09:
+    4,0 ч при объявленном пределе 7 ч) — а запись «этот прибор есть мера этого
+    критерия» лежала ПРОЗОЙ и не канонической формулировкой: конституция писала
+    `§49 «Marginal return»`, то есть форму `quoted`. Сводный замер
+    (`scripts/cio_acceptance_rollup.py`) честно отвечал «машинной пробы,
+    объявившей себя мерой этого критерия, в реестре НЕТ».
+
+    Почему перенос ПРОЗЫ был бы здесь особенно дорог — находка цикла #731
+    ---------------------------------------------------------------------------
+    Главный ответ прибора («ранжирующая ставка от нашего размера не зависит»)
+    до этого цикла был НАПЕЧАТАННЫМ предложением: находка
+    `objective_is_linear_in_rate` добавлялась в отчёт БЕЗУСЛОВНО, с готовым
+    текстом, при любом снимке. Претензия верна и сегодня — но её не спрашивали у
+    кода ни разу, и она пережила бы свой предмет молча. Поэтому цикл сперва
+    сделал её ЗАМЕРОМ (`objective_size_sensitivity` спрашивает живой доходностный
+    член целевой функции дважды — при крошечной позиции и при наибольшей
+    разрешённой политикой), и только потом привязал к критерию.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    Берётся поле `criterion.status`, которое прибор публикует сам. Своего порога
+    у пробы нет ни одного: границы сцены задаёт `TunerConstraints` владельца
+    (потолок концентрации, TVL-floor), полосу выгоды — `TriggerParams`.
+
+    Почему переносится НЕ `overall` — тот же урок, что у `Costs` (ADR-513)
+    ---------------------------------------------------------------------------
+    `overall` есть лестница ТЯЖЕСТИ, где третий исход стои́т выше `CRITICAL`
+    намеренно: для здоровья артефакта верно, для вердикта критерия — ложь в
+    другую сторону. Находка «размер не учитывается» есть утверждение
+    СУЩЕСТВОВАНИЯ, и непрочитанный рядом пул её не отменяет. Прибор поэтому
+    читает свои находки ПО ОСИ (`FINDING_AXIS`), а таблица осей живёт у него.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Верность самой ставки.** Сцена замера синтетическая: спрашивается
+      СВОЙСТВО целевой функции, а не сегодняшняя доходность книги.
+    * **Пути мимо объявленной двери.** Считай кто-нибудь ожидаемую доходность
+      своей копией в обход `_weighted_apy` — замер об этом не знает.
+    * **Величину вреда.** Из трёх величин разбавления фактом является только
+      `error_pp_definitional`; остальное — названное вслух допущение MP-911.
+    * **Ничего не чинит.** Прибор зовётся с `write=False`; ранжирующее число —
+      money-path и решение владельца, здесь только замер.
+
+    Почему `repo_root` НЕ объявлен входом дерева
+    ---------------------------------------------------------------------------
+    Объявить его значило бы соврать о проводке. Вердикт этой пробы зависит от
+    ДВУХ вещей: от каталога материала (`data_dir`) и от КОДА целевой функции — а
+    код приходит импортом по `sys.path`, а не из `repo_root`. Прибор пользуется
+    `root` ровно для записи артефакта, которая здесь выключена. Вход, который
+    физически не может изменить исход, объявленный входом, читался бы как
+    «дерево замера дошло», и `scripts/cio_acceptance_rollup.py` напечатал бы это
+    про дерево, которого проба не видела.
+    """
+    try:
+        meter = _marginal_return_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"прибор предельной доходности не загружен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление читается
+    # ДО прогона: на отказном пути прогон до доклада может не дойти вовсе.
+    # Совпадение — ПО ЯКОРЮ, а не подстрокой «Marginal return»: подстрока совпала
+    # бы с любой заметкой о предельной доходности (ADR-333).
+    anchor = "§49 Marginal return"
+    declared = str(getattr(meter, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
+                            f"(его CRITERION: {declared[:80]!r}) — привязка не "
+                            f"сходится, и считать его мерой этого критерия нельзя")
+
+    data = data_dir or os.path.join(REPO_ROOT, "data")
+    try:
+        report = meter.run(root=REPO_ROOT, write=False, data_dir=data, now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"прибор предельной доходности упал: "
+                            f"{type(exc).__name__}: {exc}")
+
+    block = observed(report, "criterion", kind=dict)
+    if block is None:
+        return UNMEASURED, ("прибор не вынес вердикта о критерии (поля `criterion` "
+                            "в отчёте нет) — переносить нечего, и молчать об этом "
+                            "нельзя")
+
+    sens = block.get("sensitivity") or {}
+    if sens.get("measured"):
+        asked = (f"целевую функцию спросили дважды ({sens.get('objective')}): "
+                 f"{sens.get('rate_at_small_pp')} пп при ${sens.get('small_usd')} "
+                 f"против {sens.get('rate_at_large_pp')} пп при "
+                 f"${sens.get('large_usd')}, Δ {sens.get('delta_pp')} пп при "
+                 f"разбавлении модели {sens.get('reference_dilution_pp')} пп на "
+                 f"той же сцене")
+    else:
+        asked = (f"целевую функцию о размере СПРОСИТЬ НЕ ВЫШЛО: "
+                 f"{sens.get('reason') or 'причина не названа'}")
+    where = (f"{asked}; развёрнуто ${report.get('deployed_usd')} из капитала "
+             f"${report.get('capital_usd')}, знаменатель разбавления не наблюдён у "
+             f"${report.get('unmeasured_capital_usd')}; непрочитанного "
+             f"{len(report.get('unchecked') or [])}")
+    blind = ("сцена замера синтетическая — спрашивается СВОЙСТВО целевой функции, "
+             "а не сегодняшняя доходность книги; о путях мимо объявленного "
+             "доходностного члена прибор не знает ничего, а из трёх величин "
+             "разбавления фактом является только определительная")
+
+    status = block.get("status")
+    reason = block.get("reason") or "причина не названа"
+    if status == meter.CRITERION_NOT_SATISFIED:
+        return NOT_SATISFIED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_UNMEASURED:
+        return UNMEASURED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_SATISFIED:
+        return SATISFIED, f"{reason} ({where}; {blind})"
+    return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
+                        f"переносится — молчать об этом нельзя")
+
+
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
 #: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
 #: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
@@ -3833,6 +3966,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_no_single_criterion_probe_on_a_multi_criterion_order,
     "costs_are_accounted_for_in_the_decision":
         _probe_costs_are_accounted_for_in_the_decision,
+    "marginal_return_size_changes_expected_yield":
+        _probe_marginal_return_size_changes_expected_yield,
     "no_regression_tests_pass": _probe_no_regression_tests_pass,
     "g17_subject_state_is_measured": _probe_g17_subject_state_is_measured,
     "subject_taking_leaves_a_guard_receipt":
@@ -3859,6 +3994,7 @@ _probe_risk_policy_unbypassable_in_executed_states.s49_criterion = "Risk"
 _probe_book_does_not_oscillate_between_opportunities.s49_criterion = "Anti-churn"
 _probe_trade_is_rechecked_immediately_before_execution.s49_criterion = "Pre-trade safety"
 _probe_costs_are_accounted_for_in_the_decision.s49_criterion = "Costs"
+_probe_marginal_return_size_changes_expected_yield.s49_criterion = "Marginal return"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 
