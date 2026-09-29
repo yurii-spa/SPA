@@ -14054,6 +14054,457 @@ def writer_harm_form(root: Path, open_step: Optional[dict]) -> dict:
     }
 
 
+# --- ДОСТИЖИМОСТЬ раскола у ПИСАТЕЛЯ (заказ G85 п. 1) ----------------------
+#
+# Весь ряд G78…G84 мерил ЧИТАТЕЛЯ и называл свои числа (0, 53→0, 26→3, 16→7)
+# РАСКОЛАМИ: читатель спрашивает у счётчика ОБЪЯВЛЕННЫЙ класс, и незнакомый
+# молча выпадает из вердикта. ADR-469 померил ПИСАТЕЛЯ того же населения и
+# нашёл, что 36 из 158 счётчиков на незнакомом классе ПАДАЮТ `KeyError`, то
+# есть незнакомый класс до читателя не доезжает вовсе. Отсюда вопрос заказа
+# G85 п. 1 дословно:
+#
+#   Сколько из СЕМИ расколов ADR-466 и ТРЁХ ADR-467 стоят на писателе,
+#   который молчит, а сколько — на падающем. Раскол у читателя, до которого
+#   класс не долетает, есть находка НЕДОСТИЖИМАЯ, и отличить её от достижимой
+#   обязано ЗВЕНО, а не оговорка.
+#
+# Разница не косметическая и ровно та, что ADR-469 назвал главной: молчание
+# неотличимо от правды (вердикт уезжает ЧИСТЫМ при незнакомом классе), а
+# падение видно в тот же миг и fail-CLOSED по построению. Раскол, стоящий на
+# падающем писателе, остаётся дефектом — но ДРУГИМ, и звать оба одним словом
+# значит складывать противоположные исходы.
+
+#: Незнакомый класс доезжает до расколотого читателя: писатель заводит его
+#: молча, читатель про него не спрашивает ⇒ вердикт уходит чистым. Ровно тот
+#: вред, который ряд и называл расколом.
+REACH_REACHABLE = "split_is_reachable_the_writer_admits_the_unknown_class"
+#: Незнакомый класс до читателя НЕ доезжает: писатель падает `KeyError`
+#: раньше. Раскол у такого читателя есть находка НЕДОСТИЖИМАЯ — вред здесь
+#: есть, но он громкий, а не тихий.
+REACH_UNREACHABLE = "split_is_unreachable_the_writer_raises_before_the_reader"
+#: ТРЕТИЙ ИСХОД с названной причиной. Не «достижимо» и не «нет».
+REACH_UNRESOLVED = "reachability_of_the_split_is_not_measured"
+_REACH_OUTCOMES = (REACH_REACHABLE, REACH_UNREACHABLE, REACH_UNRESOLVED)
+
+#: ПРИЧИНЫ третьего исхода, и они разные потому, что чинятся разным.
+#: Первая — расхождение двух дорог к одному населению: по построению его быть
+#: не может (обе стороны зовут одну и ту же соседскую функцию отбора), и
+#: ветка существует именно поэтому — разойдись правило однажды, шаг обязан
+#: ОТКАЗАТЬ поимённо, а не досчитать раскол по писателю, которого не нашёл.
+REACH_GAP_NO_WRITER_SITE = "no_open_counter_site_stands_at_the_split_anchor"
+#: Вторая — писатель найден, а род его накопителя шаг ADR-469 не доказал
+#: (связан вне области · пришёл непрозрачным вызовом · связан разными родами).
+#: Собственной догадки о роде здесь НЕТ намеренно: вторая копия правила рода
+#: и есть предмет, который вся эта перепись ищет.
+REACH_GAP_WRITER_UNRESOLVED = "writer_step_did_not_measure_the_accumulator_kind"
+_REACH_GAPS = (REACH_GAP_NO_WRITER_SITE, REACH_GAP_WRITER_UNRESOLVED)
+
+#: Отказы самого шага. Три, и ни один не есть ноль.
+UNMEASURED_REACH_NEIGHBOUR = "split_step_or_writer_step_is_absent_or_unmeasured"
+UNMEASURED_REACH_POPULATION = "second_walk_disagrees_with_the_split_steps"
+UNMEASURED_REACH_CONTROL = "declared_reachability_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина сцены. Два контура доходят до расколотого читателя
+#: ОДИНАКОВО (форма побега, поля и чтения дословно соседские — иначе сцена
+#: мерила бы чужое правило), и различаются РОВНО писателем: строгий род
+#: `{v: 0 for v in _VERDICTS}` + `+=` — тот самый живой случай
+#: `copy_independence_probe.measure`, который ADR-466 предъявил как
+#: ДОКАЗАННЫЙ раскол; молчащая форма `X[k] = X.get(k, 0) + 1` — ADR-459.
+#: Если правило не разведёт эти два, число «сколько расколов достижимо» было
+#: бы свойством формы, а не населения.
+REACH_CONTROL_SOURCE = '''
+VERDICT_CLEAN = "clean"
+VERDICT_DIRTY = "dirty"
+_VERDICTS = (VERDICT_CLEAN, VERDICT_DIRTY)
+
+
+def loud_writer(rows):
+    counts = {v: 0 for v in _VERDICTS}
+    for row in rows:
+        counts[str(row.get("verdict"))] += 1
+    return {"loud": counts}
+
+
+def loud_caller(rows):
+    doc = loud_writer(rows)
+    return len(doc)
+
+
+def loud_reader(doc):
+    c = doc["loud"]
+    return c[VERDICT_DIRTY] > 0
+
+
+def quiet_writer(rows):
+    counts = {}
+    for row in rows:
+        cls = str(row.get("verdict"))
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"quiet": counts}
+
+
+def quiet_caller(rows):
+    doc = quiet_writer(rows)
+    return len(doc)
+
+
+def quiet_reader(doc):
+    c = doc["quiet"]
+    return c[VERDICT_DIRTY] > 0
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг нашёл N достижимых» было бы
+#: неотличимо от «шаг объявляет достижимым что угодно». Контур тот же, а
+#: накопитель приходит НЕПРОЗРАЧНЫМ вызовом: род его не доказан, и шаг обязан
+#: ответить ТРЕТЬИМ ИСХОДОМ с названной причиной, а не досчитать раскол в
+#: достижимые «потому что читатель-то раскололся».
+REACH_CONTROL_CLEAN = '''
+VERDICT_CLEAN = "clean"
+VERDICT_DIRTY = "dirty"
+
+
+def opaque_writer(rows):
+    counts = build_counter()
+    for row in rows:
+        counts[str(row.get("verdict"))] += 1
+    return {"opaque": counts}
+
+
+def opaque_caller(rows):
+    doc = opaque_writer(rows)
+    return len(doc)
+
+
+def opaque_reader(doc):
+    c = doc["opaque"]
+    return c[VERDICT_DIRTY] > 0
+'''
+
+
+def _reach_site(split: dict, writer: Optional[dict]) -> dict:
+    """Достижим ли ОДИН раскол — по вердикту ПИСАТЕЛЯ в том же узле.
+
+    Своего правила о роде накопителя здесь нет ни одной строки: вердикт
+    берётся у шага ADR-469 (:func:`_writer_kind_site`) как есть. Вторая копия
+    правила рода и была бы ровно тем дефектом, который эта перепись ищет.
+    """
+    if not isinstance(writer, dict):
+        return {"reach": REACH_UNRESOLVED,
+                "reach_gap": REACH_GAP_NO_WRITER_SITE,
+                "writer": None, "writer_gap": None, "accumulator": None,
+                "proved_by": None, "keyerror_reaches_the_caller": None}
+    verdict = writer.get("writer")
+    if verdict == WRITER_SILENT:
+        reach = REACH_REACHABLE
+        gap = None
+    elif verdict == WRITER_LOUD:
+        reach = REACH_UNREACHABLE
+        gap = None
+    else:
+        reach = REACH_UNRESOLVED
+        gap = REACH_GAP_WRITER_UNRESOLVED
+    return {"reach": reach, "reach_gap": gap, "writer": verdict,
+            "writer_gap": writer.get("writer_gap"),
+            "accumulator": writer.get("accumulator"),
+            "proved_by": writer.get("proved_by"),
+            "keyerror_reaches_the_caller":
+                writer.get("keyerror_reaches_the_caller")}
+
+
+def _reach_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Расколы ОДНОГО файла вместе с вердиктом их писателя.
+
+    Население НЕ пересобирается ни на одной из двух сторон: расколы приходят
+    от шагов ADR-466/ADR-467 (:func:`_bound_name_sites`,
+    :func:`_defensive_tail_sites`), писатели — от шага ADR-469
+    (:func:`_writer_kind_sites`). Стык — УЗЕЛ (файл и строка): обе стороны
+    обходят одни и те же места записи счётчика, поэтому связь идёт по адресу,
+    а не по имени счётчика (имя не есть адрес — урок ADR-465).
+    """
+    writers = {(w["file"], w["line"]): w for w in _writer_kind_sites(rel, tree)}
+    rows: List[dict] = []
+    for origin, found in (("bound_name_step", _bound_name_sites(rel, tree)),
+                          ("defensive_tail_step",
+                           _defensive_tail_sites(rel, tree))):
+        step_key = ("bound_step" if origin == "bound_name_step"
+                    else "tail_step")
+        for site in found:
+            if site.get(step_key) != ONE_STEP_SPLITS:
+                continue
+            row = {"file": site["file"], "line": site["line"],
+                   "owner": site["owner"], "counter": site["counter"],
+                   "field": site.get("field"), "split_found_by": origin}
+            row.update(_reach_site(site, writers.get((site["file"],
+                                                     site["line"]))))
+            rows.append(row)
+    return sorted(rows, key=lambda item: (item["file"], item["line"] or 0))
+
+
+def _reach_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Две половины, и вторая не украшение первой. Положительная обязана развести
+    два раскола, доехавших до читателя ОДИНАКОВО, на достижимый и
+    недостижимый — и назвать род накопителя у недостижимого. Отрицательная
+    обязана НЕ объявить достижимым ни одного там, где род писателя не доказан,
+    и назвать причину своим именем. Третья причина (`писателя в узле нет`)
+    проверяется ПРЯМО на ветке: по построению две дороги к населению разойтись
+    не могут, и сцены, которая их рассорит, не существует — а ветка обязана
+    остаться, иначе разошедшись однажды правило досчитало бы раскол по
+    писателю, которого не нашло.
+    """
+    try:
+        hit = _reach_sites("<control>", ast.parse(REACH_CONTROL_SOURCE))
+        clean = _reach_sites("<control-clean>",
+                             ast.parse(REACH_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    live = [s for s in hit if s["reach"] == REACH_REACHABLE]
+    dead = [s for s in hit if s["reach"] == REACH_UNREACHABLE]
+    if len(live) != 1 or len(dead) != 1:
+        return {"passed": False, "reachable": len(live),
+                "unreachable": len(dead), "sites": len(hit),
+                "reason": (f"на известных случаях правило развело "
+                           f"{len(live)} достижимых и {len(dead)} "
+                           f"недостижимых расколов вместо 1 и 1 — число от "
+                           f"такой сцены было бы свойством правила, а не "
+                           f"населения")}
+    if dead[0]["accumulator"] != "strict":
+        return {"passed": False, "accumulator": dead[0]["accumulator"],
+                "reason": ("недостижимый раскол объявлен без рода накопителя: "
+                           "вердикт писателя не доехал, а значит достижимость "
+                           "доказана не им")}
+    if live[0]["proved_by"] != WRITER_BY_FORM:
+        return {"passed": False, "proved_by": live[0]["proved_by"],
+                "reason": ("достижимость молчащего раскола доказана не формой "
+                           "`.get(k, D)` — доказательство подменено")}
+    claimed = [s for s in clean if s["reach"] == REACH_REACHABLE]
+    if claimed:
+        return {"passed": False, "clean_false_positives": len(claimed),
+                "reason": (f"на отрицательной половине сцены правило объявило "
+                           f"достижимыми {len(claimed)} раскол(ов) — там, где "
+                           f"род накопителя писателя НЕ доказан вовсе")}
+    if len(clean) != 1 or clean[0]["reach_gap"] != REACH_GAP_WRITER_UNRESOLVED:
+        return {"passed": False, "clean_sites": len(clean),
+                "clean_gap": (clean[0]["reach_gap"] if clean else None),
+                "reason": ("отрицательная половина не назвала причину третьего "
+                           f"исхода именем `{REACH_GAP_WRITER_UNRESOLVED}` — "
+                           "отказ без причины посылает чинить не то")}
+    missing = _reach_site(dict(clean[0]), None)
+    if (missing["reach"] != REACH_UNRESOLVED
+            or missing["reach_gap"] != REACH_GAP_NO_WRITER_SITE):
+        return {"passed": False,
+                "reason": ("ветка «писателя в узле нет» не отвечает третьим "
+                           "исходом: расхождение двух дорог к населению стало "
+                           "бы вердиктом вместо отказа")}
+    return {"passed": True, "reachable": len(live), "unreachable": len(dead),
+            "accumulator": dead[0]["accumulator"],
+            "proved_by": live[0]["proved_by"],
+            "clean_sites": len(clean), "clean_false_positives": 0,
+            "clean_gap": clean[0]["reach_gap"],
+            "missing_writer_gap": missing["reach_gap"]}
+
+
+def split_reachability_at_the_writer(root: Path, bound_step: Optional[dict],
+                                     tail_step: Optional[dict],
+                                     writer_step: Optional[dict]) -> dict:
+    """Достижим ли раскол ряда — спрошено у ПИСАТЕЛЯ (**заказ G85 п. 1**).
+
+    Ряд G78…G84 предъявлял свои числа как РАСКОЛЫ: читатель спрашивает
+    объявленный класс, незнакомый молча выпадает, вердикт уезжает чистым.
+    ADR-469 померил писателя того же населения и нашёл, что у 36 счётчиков из
+    158 незнакомый класс до читателя НЕ ДОЕЗЖАЕТ — писатель падает `KeyError`
+    раньше. Заказ G85 п. 1 просит соединить два замера:
+
+    > Сколько из СЕМИ расколов ADR-466 и ТРЁХ ADR-467 стоят на писателе,
+    > который молчит, а сколько — на падающем. Раскол у читателя, до которого
+    > класс не долетает, есть находка НЕДОСТИЖИМАЯ, и отличить её от
+    > достижимой обязано ЗВЕНО, а не оговорка.
+
+    **Почему это не оттенок.** «Молча посчитан» и «падает `KeyError`» —
+    противоположные исходы, и ADR-469 сказал это прямо: первый неотличим от
+    правды, второй виден в тот же миг и fail-CLOSED по построению. Раскол,
+    стоящий на падающем писателе, остаётся дефектом — но ГРОМКИМ, и звать его
+    тем же словом значит выдавать одно за другое. Отсюда и форма ответа:
+    достижимость есть ЗВЕНО с собственным именем, а не оговорка в тексте.
+
+    **Ни одного своего правила.** Расколы приходят от шагов ADR-466/ADR-467,
+    вердикт писателя — от шага ADR-469, стык идёт по УЗЛУ (файл и строка).
+    Вторая копия правила «какой счётчик открыт», «что есть раскол» или «каков
+    род накопителя» была бы ровно тем предметом, который эта перепись ищет.
+
+    **Население сверяется с суммой соседей** (`splits` у обоих шагов): свой
+    обход есть вторая дорога к тому же населению, и разойдясь с первой, он
+    отвечал бы на другой вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько расколов ряда стои́т на МОЛЧАЩЕМ писателе, а "
+                     "сколько — на падающем `KeyError` (то есть недостижимо)"),
+        "order": "G85.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    for name, step in (("bound_name_read_in_this_scope", bound_step),
+                       ("defensive_tail_binding", tail_step),
+                       ("writer_harm_form", writer_step)):
+        if (not isinstance(step, dict)
+                or str(step.get("status")) != "MEASURED"):
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_REACH_NEIGHBOUR,
+                    "reason": (f"шаг `{name}` не измерен — населения "
+                               f"«раскол» или вердикта писателя не "
+                               f"существует; это НЕ «недостижимых нет»")}
+    bound_outcomes = observed(bound_step, "bound_step_outcomes", kind=dict)
+    tail_outcomes = observed(tail_step, "tail_step_outcomes", kind=dict)
+    if bound_outcomes is None or tail_outcomes is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_NEIGHBOUR,
+                "reason": ("сосед не назвал исходов своего шага — сверять "
+                           "свой обход не с чем")}
+    declared_bound = observed(bound_outcomes, ONE_STEP_SPLITS, kind=int)
+    declared_tail = observed(tail_outcomes, ONE_STEP_SPLITS, kind=int)
+    if declared_bound is None or declared_tail is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_NEIGHBOUR,
+                "reason": (f"у соседа нет числа расколов "
+                           f"(`{ONE_STEP_SPLITS}`): отсутствие поля не есть "
+                           f"ноль расколов")}
+    declared_population = declared_bound + declared_tail
+    control = _reach_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_CONTROL,
+                "reason": (f"объявленное правило достижимости не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_reach_sites(rel, tree))
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_REACH_POPULATION,
+                "population": len(rows),
+                "declared_population": declared_population,
+                "reason": (f"свой обход нашёл {len(rows)} раскол(ов), соседи "
+                           f"назвали {declared_population} "
+                           f"({declared_bound} + {declared_tail}) — это ДВЕ "
+                           f"разные дороги к одному населению, и разойдясь, "
+                           f"они отвечают на разные вопросы")}
+
+    # Форма ЗАКРЫТАЯ, и это не стиль: открытый счётчик есть ровно тот предмет,
+    # который прибор ищет, — завести его ЗДЕСЬ значило бы мерить самого себя
+    # (находка цикла #689, повторённая ADR-469).
+    outcomes = {cls: sum(1 for r in rows if r["reach"] == cls)
+                for cls in _REACH_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("reach_gap") == gap)
+            for gap in _REACH_GAPS}
+    by_step = {step: sum(1 for r in rows if r["split_found_by"] == step)
+               for step in ("bound_name_step", "defensive_tail_step")}
+    dead_rows = [r for r in rows if r["reach"] == REACH_UNREACHABLE]
+    live_rows = [r for r in rows if r["reach"] == REACH_REACHABLE]
+    # Оговорка к НЕДОСТИЖИМОМУ, измеренная ЧИСЛОМ, а не прозой: `KeyError`
+    # внутри `try/except Exception` снова становится тишиной — класс до
+    # читателя всё равно не доезжает (раскол недостижим), но вред перестаёт
+    # быть видимым, и это ТРЕТИЙ вред, здесь не разбираемый.
+    swallowed = sum(1 for r in dead_rows
+                    if r.get("keyerror_reaches_the_caller") is False)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared_population,
+        "declared_by_bound_name_step": declared_bound,
+        "declared_by_defensive_tail_step": declared_tail,
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "reach_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "splits_by_step": by_step,
+        "unreachable_but_swallowed_here": swallowed,
+        "unreachable_reaching_the_caller": len(dead_rows) - swallowed,
+        "still_unmeasured": outcomes[REACH_UNRESOLVED],
+        "unreachable_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "accumulator": r["accumulator"],
+             "found_by": r["split_found_by"],
+             "reaches_the_caller": r["keyerror_reaches_the_caller"]}
+            for r in dead_rows][:COSTED_SAMPLE],
+        "reachable_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "proved_by": r["proved_by"], "found_by": r["split_found_by"]}
+            for r in live_rows][:COSTED_SAMPLE],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("reach_gap"),
+             "writer_gap": r.get("writer_gap")}
+            for r in rows
+            if r["reach"] == REACH_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"`{REACH_UNREACHABLE}` НЕ означает «вреда нет»: он означает, "
+             "что вред ГРОМКИЙ — писатель падает, и класс до чистого вердикта "
+             "не доезжает. Тихий и громкий вред чинятся разным, и ровно "
+             "поэтому у них разные имена, а не одно слово «раскол»"),
+            (f"`{REACH_REACHABLE}` доказывает ДОРОГУ, а не событие: шаг "
+             "отвечает «незнакомый класс ДОЕХАЛ БЫ до чистого вердикта», а "
+             "не «незнакомый класс есть в артефакте СЕГОДНЯ». Второй вопрос "
+             "— к живому артефакту, и его этот шаг не задаёт"),
+            (f"`{REACH_GAP_NO_WRITER_SITE}` — ветка fail-CLOSED, а не "
+             "находка: обе стороны отбирают население ОДНОЙ соседской "
+             "функцией, поэтому разойтись в узле они не могут по построению, "
+             "и сцены, которая их рассорит, не существует; проверена ветка "
+             "ПРЯМО, и остаётся она затем, чтобы расхождение однажды стало "
+             "отказом, а не досчитанным расколом"),
+            ("оговорка к недостижимому измерена ЧИСЛОМ "
+             "(`unreachable_but_swallowed_here`): `KeyError` внутри "
+             "`try/except Exception` снова становится тишиной — класс до "
+             "читателя всё равно не доезжает, но вред перестаёт быть видимым, "
+             "и это ТРЕТИЙ вред, здесь не разбираемый"),
+            ("население наследует ВЕСЬ потолок обоих соседей сверху (ADR-461 "
+             "— ключ, разобранный кортежем; ADR-462 — счётчик, не уезжающий "
+             "вовсе; ADR-465 — форма чтения; ADR-466/467 — односторонность "
+             "связывания; ADR-469 — формы `Counter(...)`/`.update(...)` над "
+             "перечнем ключей): своего замера населения у этого шага нет по "
+             "построению, и найденное есть доказанный МИНИМУМ"),
+            ("шаг НЕ пересчитывает числа ряда за прошлые ADR: он говорит, "
+             "какая ДОЛЯ сегодняшних расколов достижима. Числа 0/0/3/7 из "
+             "ADR-463…466 остаются замерами своих дней — перепечатать их "
+             "здесь значило бы выдать прозу за наблюдение"),
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -15414,6 +15865,16 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # или `KeyError`. Население — открытые счётчики соседа, сверяется числом.
     writer_step = writer_harm_form(root, open_counters)
 
+    # --- ДОСТИЖИМ ли раскол ряда (заказ G85 п. 1) -------------------------
+    # Ряд называл свои числа расколами у ЧИТАТЕЛЯ; ADR-469 нашёл, что у 36
+    # счётчиков из 158 незнакомый класс до читателя не доезжает вовсе.
+    # Вопрос G85 п. 1 — сколько расколов стои́т на МОЛЧАЩЕМ писателе, а
+    # сколько недостижимо. Своего правила ни о расколе, ни о роде накопителя
+    # шаг не имеет: расколы приходят от двух шагов, писатель — от третьего,
+    # стык идёт по УЗЛУ; население сверяется с суммой расколов соседей.
+    reach_step = split_reachability_at_the_writer(root, bound_step, tail_step,
+                                                 writer_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -15567,6 +16028,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # ЧИТАТЕЛЯ, а этот шаг — ПИСАТЕЛЯ. Разные предметы с разным третьим
         # исходом, и ответ одного не отменяет другого.
         "writer_harm_form": writer_step,
+        "split_reachability_at_the_writer": reach_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -17541,6 +18003,65 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` — `KeyError` долетает до зовущего: "
                 f"{item.get('reaches_the_caller')}")
         for blind in (observed(writer_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    reach_step = observed(doc, "split_reachability_at_the_writer", kind=dict)
+    if reach_step is None:
+        out.append("[ДОСТИЖИМОСТЬ РАСКОЛА] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «все расколы достижимы»")
+    elif str(reach_step.get("status")) == "UNMEASURED":
+        out.append(f"[ДОСТИЖИМОСТЬ РАСКОЛА] НЕ ИЗМЕРЕНО "
+                   f"[{reach_step.get('unmeasured_class')}]: "
+                   f"{reach_step.get('reason')}")
+    else:
+        outcomes = observed(reach_step, "reach_outcomes", kind=dict) or {}
+        why = observed(reach_step, "unresolved_reasons", kind=dict) or {}
+        by_step = observed(reach_step, "splits_by_step", kind=dict) or {}
+        out.append(
+            f"[ДОСТИЖИМОСТЬ РАСКОЛА] из {reach_step.get('population')} "
+            f"раскол(ов) ряда до чистого вердикта незнакомый класс ДОЕХАЛ БЫ у "
+            f"{outcomes.get(REACH_REACHABLE)}, а у "
+            f"{outcomes.get(REACH_UNREACHABLE)} писатель падает `KeyError` "
+            f"раньше — эти находки НЕДОСТИЖИМЫ; не измерено у "
+            f"{reach_step.get('still_unmeasured')}")
+        out.append(
+            f"[ДОСТИЖИМОСТЬ · ЧЬИ РАСКОЛЫ] шаг по связанному имени (ADR-466) "
+            f"{by_step.get('bound_name_step')} · шаг за защитным хвостом "
+            f"(ADR-467) {by_step.get('defensive_tail_step')}; соседи назвали "
+            f"{reach_step.get('declared_by_bound_name_step')} и "
+            f"{reach_step.get('declared_by_defensive_tail_step')}, и "
+            f"разойдись числа — шаг отказал бы целиком")
+        out.append(
+            f"[ДОСТИЖИМОСТЬ · ОГОВОРКА К НЕДОСТИЖИМОМУ] из "
+            f"{outcomes.get(REACH_UNREACHABLE)} падающих `KeyError` долетает "
+            f"до зовущего у "
+            f"{reach_step.get('unreachable_reaching_the_caller')}, а у "
+            f"{reach_step.get('unreachable_but_swallowed_here')} его тут же "
+            f"проглатывает широкий обработчик — класс до читателя всё равно не "
+            f"доезжает, но вред перестаёт быть видимым")
+        out.append(
+            f"[ДОСТИЖИМОСТЬ · ПОЧЕМУ НЕ ИЗМЕРЕНО] писателя в узле нет "
+            f"{why.get(REACH_GAP_NO_WRITER_SITE)} · род накопителя шаг "
+            f"ADR-469 не доказал {why.get(REACH_GAP_WRITER_UNRESOLVED)}")
+        control = observed(reach_step, "control", kind=dict) or {}
+        out.append(
+            f"[ДОСТИЖИМОСТЬ · КОНТРОЛЬ] на известных случаях правило развело "
+            f"{control.get('reachable')} достижимый и "
+            f"{control.get('unreachable')} недостижимый раскол, доехавшие до "
+            f"читателя ОДИНАКОВО (род недостижимого — "
+            f"`{control.get('accumulator')}`, достижимость молчащего доказана "
+            f"`{control.get('proved_by')}`); на отрицательной половине не "
+            f"объявило достижимым ни одного и назвало причину "
+            f"`{control.get('clean_gap')}`, а ветка пропавшего писателя "
+            f"отвечает `{control.get('missing_writer_gap')}`")
+        for item in (observed(reach_step, "unreachable_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ДОСТИЖИМОСТЬ · НЕДОСТИЖИМ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` → поле `{item.get('field')}`, "
+                f"накопитель `{item.get('accumulator')}`, раскол нашёл "
+                f"{item.get('found_by')}: класс до читателя не доезжает")
+        for blind in (observed(reach_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
