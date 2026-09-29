@@ -56,6 +56,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import re
@@ -2613,6 +2614,42 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
 }
 
 
+# --- Объявление предмета: какая проба меряет какой критерий §49 приказа CIO ------
+#
+# Объявление лежит У САМОЙ ПРОБЫ (атрибут функции), а не в отдельном списке рядом.
+# Список рядом разъехался бы с реестром МОЛЧА: пробу переименовали бы, а строка в
+# списке продолжала бы указывать на старое имя и читалась бы как «критерий измерен».
+# Атрибут переезжает вместе с телом пробы, потому что он и есть часть тела.
+#
+# Объявление — НЕ доказательство. Оно говорит «эта проба претендует мерить этот
+# критерий»; правда ли она его мерит, решает её собственный контроль в обе стороны
+# (`.claude/rules/acceptance.md`, п. 3). Сводный замер (`scripts/cio_acceptance_rollup.py`)
+# сверяет имя критерия с населением, прочитанным из §49 САМОЙ карточки приказа, —
+# объявление, указывающее мимо населения, становится находкой, а не тихим нулём.
+_probe_portfolio_decision_owner_covers_capital.s49_criterion = "Architecture"
+_probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
+_probe_no_regression_tests_pass.s49_criterion = "No regression"
+
+
+def probes_by_s49_criterion() -> dict:
+    """Какие зарегистрированные пробы объявляют себя мерой критерия §49.
+
+    Возврат: критерий → **СПИСОК** имён проб. Список, а не имя: две пробы, объявившие
+    один критерий, есть столкновение объявлений, и выбрать из них одну молча значило бы
+    спрятать его. Разрешает столкновение читатель, а не эта функция.
+
+    Обходится РЕЕСТР (`PROBES`), а не модуль: проба, потерявшая регистрацию, измерять
+    уже ничего не может, и считать её объявление действующим значило бы записать
+    критерий в измеренные по мёртвой ссылке.
+    """
+    out: dict = {}
+    for name, fn in PROBES.items():
+        crit = getattr(fn, "s49_criterion", None)
+        if isinstance(crit, str) and crit.strip():
+            out.setdefault(crit.strip(), []).append(name)
+    return {k: sorted(v) for k, v in sorted(out.items())}
+
+
 def validate_spec(spec: str) -> str | None:
     """Разобрать ОБЪЯВЛЕНИЕ пробы, не исполняя её. Возврат: None — годится, иначе причина.
 
@@ -2656,12 +2693,44 @@ def parse_frontmatter(text: str) -> dict:
     return out
 
 
-def run_probe(spec: str) -> tuple[str, str]:
+#: Входы, которыми пробе можно указать ЧУЖОЕ дерево вместо своего.
+PROBE_TREE_INPUTS = ("repo_root", "data_dir")
+
+
+def probe_tree_inputs(name: str) -> tuple:
+    """Какие из :data:`PROBE_TREE_INPUTS` проба `name` принимает ВХОДОМ.
+
+    Существует затем, чтобы читатель `run_probe(..., repo_root=…, data_dir=…)` мог
+    напечатать ПРАВДУ о том, дошло ли до пробы чужое дерево. Проб, читающих своё
+    дерево жёстко, в реестре большинство; позвать такую с чужим деревом и промолчать
+    значило бы выдать вердикт об ОДНОМ дереве за вердикт о другом — ровно та
+    «половина инъекции», про которую написано в `.claude/rules/deployment.md`.
+
+    Возврат — кортеж принятых имён (пустой, если проба не принимает ни одного или
+    имя не зарегистрировано). Пустота здесь не ошибка, а ответ.
+    """
+    fn = PROBES.get((name or "").strip())
+    if fn is None:
+        return ()
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return ()
+    return tuple(p for p in PROBE_TREE_INPUTS if p in params)
+
+
+def run_probe(spec: str, *, repo_root: str | None = None,
+              data_dir: str | None = None) -> tuple[str, str]:
     """Исполнить пробу по её ОБЪЯВЛЕНИЮ. Возврат — (вердикт, пояснение).
 
     Fail-CLOSED в обе стороны: незнакомое имя, кривой аргумент и любое исключение
     внутри пробы дают `unmeasured`, а не `not_satisfied` (не находка) и тем более
     не `satisfied` (не разрешение закрыть карточку).
+
+    `repo_root` и `data_dir` доходят ТОЛЬКО до тех проб, которые объявили их
+    входом; остальные читают своё дерево. Узнать, что именно дошло, —
+    :func:`probe_tree_inputs`; спрашивать обязан читатель, потому что молчание
+    здесь неотличимо от ответа.
     """
     spec = (spec or "").strip()
     if not spec:
@@ -2673,8 +2742,11 @@ def run_probe(spec: str) -> tuple[str, str]:
     fn = PROBES.get(name)
     if fn is None:
         return UNMEASURED, f"проба {name!r} не зарегистрирована — измерять нечем"
+    offered = {"repo_root": repo_root, "data_dir": data_dir}
+    accepted = probe_tree_inputs(name)
+    kw = {k: v for k, v in offered.items() if v and k in accepted}
     try:
-        verdict, detail = fn(arg)
+        verdict, detail = fn(arg, **kw)
     except Exception as exc:  # noqa: BLE001 — падение пробы это «не измерено», не вердикт
         return UNMEASURED, f"проба упала: {type(exc).__name__}: {exc}"
     if verdict not in (SATISFIED, NOT_SATISFIED, UNMEASURED):
