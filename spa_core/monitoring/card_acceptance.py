@@ -1714,6 +1714,199 @@ def _probe_marginal_return_size_changes_expected_yield(
                         f"переносится — молчать об этом нельзя")
 
 
+#: Прибор воспроизводимости расчёта (цикл #501). Модуль ПАКЕТНЫЙ, поэтому его
+#: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
+#: увидеть: проба читает ПРИБОР, а не свою копию его правила.
+DETERMINISM_MODULE = "spa_core.monitoring.decision_reproducibility"
+
+
+def _determinism_module():
+    """Прибор воспроизводимости. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(DETERMINISM_MODULE)
+
+
+def _probe_determinism_recomputation_is_reproducible(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None,
+        subjects=None, census=None) -> tuple[str, str]:
+    """Критерий §49 `Determinism` приказа CIO: «Calculations reproducible».
+
+    ТРЕТЬЯ и последняя привязка цены `WORDING` — и снова ОДНА, а не пакетом
+    (запрет G94). Прибор `decision_reproducibility` живёт с цикла #501, артефакт
+    свеж (замер 29.09: 5,8 ч при объявленном пределе 7 ч) — а запись «этот прибор
+    есть мера этого критерия» лежала в конституции ПРОЗОЙ и притом формой
+    `paren`: `§49 ТЗ «Portfolio CIO» (Determinism: …)`. Сводный замер
+    (`scripts/cio_acceptance_rollup.py`) честно отвечал «машинной пробы,
+    объявившей себя мерой этого критерия, в реестре НЕТ».
+
+    Почему перенос ПРОЗЫ был бы здесь особенно дорог — находка цикла #732
+    ---------------------------------------------------------------------------
+    Прибор отвечает «один снимок — один ответ», и ответ этот ПРАВДА: замер 29.09
+    даёт `distinct_outputs = 1` у обоих субъектов. Но читатель сводки понимает
+    его как утверждение ВСЕОБЩЕЕ — «расчёты системы воспроизводимы», — а
+    спрашивается он у населения из двух субъектов, набранного руками, и с
+    поверхностью, которая на самом деле решает книги, это население не сверял
+    никто. Замер: `portfolio_rebalancer` пишет ту же книгу, что аллокатор, и
+    спрошен НЕ БЫЛ; `hy_cycle` и `lp_cycle` решают ещё $199 905,40 и не спрошены
+    тоже. **Капитал, чья решающая поверхность спрошена целиком, — $0,00 из
+    $301 352,65.** Перенеси проба зелёный ответ прибора как есть — критерий
+    владельца стал бы `ВЫПОЛНЕН` по одной трети книги, измеренной на треть.
+
+    Поэтому прибор сперва получил ЗАМЕР покрытия (`decider_coverage`): знаменатель
+    в долларах приходит от переписи решателей (`cio_decision_owner_census`), а
+    «кого спрашивали» выводится РАЗБОРОМ кода субъектов, а не запиской рядом.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    Берётся поле `criterion.status`, и правило его вычисления живёт у прибора
+    (`criterion_verdict`). Проба считает его по ПРОЧИТАННОМУ артефакту — тем же
+    кодом, но без повторного подъёма процессов: дословный опыт владельца («100
+    запусков») стоит минуты, и звать его из приёмки карточки значило бы сделать
+    приёмку дороже работы. Артефакт при этом не проза, а ЗАМЕР: его пишет
+    ежечасный мост (`com.spa.decision_loop`).
+
+    Свежесть артефакта судится ЕГО ЖЕ паспортом
+    ---------------------------------------------------------------------------
+    Порог берётся из манифеста ОДНИМ читателем, который спрашивает ОБА дома
+    объявления (`rebalance_cost_evidence.declared_slo_hours`, находка #730:
+    `artifacts[]` и `agents[].produces[]`; общий `manifest_slo` видит один дом —
+    это отдельная карточка). Своего «24 часа» проба не назначает: порог не
+    измерение, а решение, и жить он обязан в конституции.
+
+    Почему переносится НЕ `overall` — тот же урок, что у `Costs` (ADR-513)
+    ---------------------------------------------------------------------------
+    `overall` есть лестница ТЯЖЕСТИ, где третий исход стои́т выше `CRITICAL`
+    намеренно (`test_unchecked_outranks_critical_in_the_overall_verdict`). Для
+    здоровья артефакта верно, для вердикта критерия — ложь в другую сторону:
+    находка «один снимок дал разные ответы» есть утверждение СУЩЕСТВОВАНИЯ, и
+    непрочитанный рядом субъект её не отменяет. Таблица осей живёт у прибора.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Транзитивную цепочку.** «Спрошен» значит «субъект зовёт этот модуль по
+      имени». Модуль, до которого расчёт доходит внутри, спрошенным не
+      объявляется: иначе спрошенным оказалось бы всё, к чему прикоснулся вызов.
+    * **Верность самого сравнения.** Что из сравнения вычтены ИМЕННО часы
+      производителя, держат сторожа прибора, а не эта проба.
+    * **Полноту населения книг.** Книги перечисляет перепись решателей; о книге,
+      которой нет в ней, проба не знает ничего.
+    * **«Не спрошен» ≠ «не воспроизводим».** Про решателя, которого не
+      спрашивали, не известно НИЧЕГО, и проба говорит это словами в каждом
+      вердикте (инв. #17).
+    * **Ничего не чинит.** Читаются артефакт и дерево; ни строки RiskPolicy,
+      стоп-крана, аллокатора, `hy_cycle`/`lp_cycle` или живого трека.
+    """
+    try:
+        meter = _determinism_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"прибор воспроизводимости не загружен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление читается
+    # ДО чтения артефакта. Совпадение — ПО ЯКОРЮ, а не подстрокой «Determinism»:
+    # подстрока совпала бы с любой заметкой о детерминизме (ADR-333).
+    anchor = "§49 Determinism"
+    declared = str(getattr(meter, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
+                            f"(его CRITERION: {declared[:80]!r}) — привязка не "
+                            f"сходится, и считать его мерой этого критерия нельзя")
+
+    root = repo_root or REPO_ROOT
+    data = data_dir or os.path.join(root, "data")
+    rel = str(getattr(meter, "REPORT_REL", "") or "")
+    if not rel:
+        return UNMEASURED, ("прибор не называет адрес своего артефакта "
+                            "(`REPORT_REL`) — читать нечего")
+    path = os.path.join(data, os.path.basename(rel))
+
+    def _read(where: str):
+        with open(where, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    try:
+        doc = _read(path)
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, (f"артефакт {path} не прочитан ({exc}) — о "
+                            f"воспроизводимости НЕ СКАЗАНО НИЧЕГО")
+    if not isinstance(doc, dict):
+        return UNMEASURED, (f"артефакт {path} — не объект "
+                            f"({type(doc).__name__}), вердикта в нём нет")
+
+    # Свежесть: порог из конституции, возраст печатается всегда.
+    try:
+        slo, slo_prov = _cost_evidence_module().declared_slo_hours(root, _read, rel)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"срок годности {rel} не прочитан: "
+                            f"{type(exc).__name__}: {exc}")
+    stamp = observed(doc, "generated_at", kind=str)
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        made = None
+    if made is not None and made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    if made is None:
+        return UNMEASURED, (f"артефакт не пишет разбираемый `generated_at` "
+                            f"({stamp!r}) — возраст НЕ ИЗМЕРЕН, и `slo_hours` при "
+                            f"нём украшение")
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if slo is None:
+        return UNMEASURED, (f"артефакту {age:.1f} ч, а срок годности взять неоткуда: "
+                            f"{slo_prov} — свежесть НЕ СУЖДЕНА")
+    if age > float(slo):
+        return UNMEASURED, (f"артефакт протух: {age:.1f} ч при объявленном пределе "
+                            f"{float(slo):g} ч ({slo_prov}) — сегодняшнего ответа "
+                            f"прибора нет, а вчерашний за него не выдаётся")
+
+    # `subjects` и `census` — ВХОДЫ, а не окружение, и ровно по той причине, по
+    # которой входом объявлены часы (`.claude/rules/deployment.md`): контроль
+    # обязан закрепить ОБЕ стороны сравнения — и население субъектов, и
+    # знаменатель в долларах. Умолчание — живая перепись и живой список прибора;
+    # `run_probe` их не предлагает и предложить не может (он знает только про
+    # дерево), так что боевой путь всегда идёт по умолчанию.
+    try:
+        block = meter.criterion_verdict(doc, root=root, data_dir=data, now=now,
+                                        subjects=subjects, census=census)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"вердикт критерия не вынесен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    cov = block.get("coverage") or {}
+    if cov.get("measured"):
+        where = (f"спрошена целиком решающая поверхность "
+                 f"${cov['fully_asked_usd']:,.2f} из ${cov['total_capital_usd']:,.2f} "
+                 f"(частично ${cov['partly_asked_usd']:,.2f} · не спрошена "
+                 f"${cov['unasked_usd']:,.2f} · решатель не назван "
+                 f"${cov['no_decider_usd']:,.2f}); спрошены "
+                 f"{', '.join(cov['asked_modules']) or '—'}, из них не решают ни "
+                 f"одной книги {', '.join(cov['asked_modules_deciding_nothing']) or '—'}")
+    else:
+        where = f"покрытие решающей поверхности НЕ ИЗМЕРЕНО: {cov.get('reason')}"
+    where += (f"; прогонов {doc.get('runs')}, субъектов "
+              f"{len(doc.get('subjects_measured') or [])}, находок "
+              f"{len(doc.get('findings') or [])}, непрочитанного "
+              f"{len(doc.get('unchecked') or [])}; артефакт снят {stamp} "
+              f"({age:.1f} ч при пределе {float(slo):g} ч, {slo_prov})")
+    blind = ("«не спрошен» это НЕ «не воспроизводим»: про такого решателя не "
+             "известно ничего; спрошенным объявляется модуль, который субъект "
+             "зовёт ПО ИМЕНИ, транзитивную цепочку проба не обходит, а книги "
+             "перечисляет перепись решателей — о книге вне неё проба не знает")
+
+    status = block.get("status")
+    reason = block.get("reason") or "причина не названа"
+    if status == meter.CRITERION_NOT_SATISFIED:
+        return NOT_SATISFIED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_UNMEASURED:
+        return UNMEASURED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_SATISFIED:
+        return SATISFIED, f"{reason} ({where}; {blind})"
+    return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
+                        f"переносится — молчать об этом нельзя")
+
+
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
 #: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
 #: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
@@ -3968,6 +4161,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_costs_are_accounted_for_in_the_decision,
     "marginal_return_size_changes_expected_yield":
         _probe_marginal_return_size_changes_expected_yield,
+    "determinism_recomputation_is_reproducible":
+        _probe_determinism_recomputation_is_reproducible,
     "no_regression_tests_pass": _probe_no_regression_tests_pass,
     "g17_subject_state_is_measured": _probe_g17_subject_state_is_measured,
     "subject_taking_leaves_a_guard_receipt":
@@ -3995,6 +4190,7 @@ _probe_book_does_not_oscillate_between_opportunities.s49_criterion = "Anti-churn
 _probe_trade_is_rechecked_immediately_before_execution.s49_criterion = "Pre-trade safety"
 _probe_costs_are_accounted_for_in_the_decision.s49_criterion = "Costs"
 _probe_marginal_return_size_changes_expected_yield.s49_criterion = "Marginal return"
+_probe_determinism_recomputation_is_reproducible.s49_criterion = "Determinism"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 

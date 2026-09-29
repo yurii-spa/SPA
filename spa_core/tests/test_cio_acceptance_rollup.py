@@ -449,6 +449,18 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         # названа здесь и записана в журнал цикла).
                         "Pre-trade safety":
                             ["trade_is_rechecked_immediately_before_execution"],
+                        # ADR-515: ТРЕТЬЯ и последняя привязка цены WORDING —
+                        # тем же порядком и по той же причине. Правка снимка
+                        # намеренна и обоснована (инв. #16): предикат этого
+                        # теста И ЕСТЬ живой реестр объявлений, поэтому новая
+                        # строка здесь — предмет утверждения, а не способ
+                        # погасить падение. Конституция приведена к канонической
+                        # форме тем же пушем; сверх привязки цикл СПЕРВА измерил
+                        # покрытие решающей поверхности — до него зелёный ответ
+                        # прибора был утверждением о населении из двух
+                        # субъектов, не сверенном ни с одной книгой.
+                        "Determinism":
+                            ["determinism_recomputation_is_reproducible"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 
