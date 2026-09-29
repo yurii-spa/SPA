@@ -27,6 +27,12 @@
 3. **Критерий без пробы — ТРЕТИЙ ИСХОД**, а не ноль, не «не выполнено» и тем более
    не «выполнено» (инв. #17). «Меры сегодня нет» и «мера есть и говорит нет» —
    разные ответы, и чинятся они разным: первое пишут, второе исправляют.
+4. **У каждого «НЕ ИЗМЕРЕНО» названа ЦЕНА** (заказ G93 п. 1,
+   `spa_core/monitoring/s49_criterion_price.py`). Десять одинаковых `НЕ ИЗМЕРЕНО`
+   читаются как десять одинаковых дыр, а это неверно: у одних артефакт уже живёт,
+   свеж и объявлен в конституции — не хватает ОДНОГО поля; у других артефакта нет
+   вовсе — не хватает РЕШЕНИЯ, какой артефакт есть мера. Слить их в одно слово
+   значило бы повторить дефект инв. #17 этажом выше.
 
 ## Чего прибор НЕ докладывает (назвать слепоту — часть замера)
 
@@ -67,6 +73,7 @@ from spa_core.monitoring.card_acceptance import (  # noqa: E402
     probes_by_s49_criterion,
     run_probe,
 )
+from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
 
 #: Карточка стоячего приказа владельца — носитель §49.
 CARD_REL = "nimbalyst-local/tracker/inbox-task-portfolio-cio-dynamic-capital-alloc.md"
@@ -288,7 +295,7 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
 
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             measure_tree: str | None = None, data_dir: str | None = None,
-            probe_runner=None) -> dict:
+            probe_runner=None, now=None) -> dict:
     """Свести §49: у каждого критерия — вердикт либо названная причина его отсутствия.
 
     `measure_tree` — дерево, О КОТОРОМ выносится вердикт (умолчание — дерево
@@ -325,7 +332,13 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
     for name in names:
         probes = declared.get(name) or []
         if not probes:
+            # `priceable` — не украшение строки, а её ОТБОР в замер цены. Цена
+            # (G93 п. 1) отвечает на вопрос «чего не хватает, чтобы мерка
+            # появилась», и он осмыслен ровно там, где мерки НЕТ. У критерия с
+            # пробой, ответившей `НЕ ИЗМЕРЕНО`, причина уже названа своей строкой,
+            # и приписать ему «цену привязки» значило бы ответить не на тот вопрос.
             rows.append({"criterion": name, "probe": None, "verdict": UNMEASURED,
+                         "priceable": True,
                          "detail": "машинной пробы, объявившей себя мерой этого "
                                    "критерия, в реестре НЕТ — вердикт сегодня взять "
                                    "неоткуда",
@@ -357,12 +370,39 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
     for row in rows:
         counts[row["verdict"]] = counts.get(row["verdict"], 0) + 1
 
+    # Цена меряется О ТОМ ЖЕ дереве, о котором выносится вердикт: сводка про одно
+    # дерево с ценой про другое была бы двумя ответами под одним заголовком.
+    price_tree = measure_tree or repo_root
+    price_data = data_dir or os.path.join(price_tree, "data")
+    price_problem = None
+    price_report = None
+    unpriced = [r["criterion"] for r in rows if r.get("priceable")]
+    try:
+        price_report = price_meter.measure(unpriced, repo_root=price_tree,
+                                           data_dir=price_data,
+                                           population=names, now=now)
+    except price_meter.Unmeasured as exc:
+        # Непрочитанная конституция гасит ЦЕНУ, а не сводку: вердикты выше уже
+        # сняты и остаются верны. Но молчать нельзя — «цены нет» обязано быть
+        # видно строкой, иначе отсутствующий столбец читается как «цены ноль».
+        price_problem = str(exc)
+    else:
+        by_name = {r["criterion"]: r for r in price_report["rows"]}
+        for row in rows:
+            if row.get("priceable"):
+                row["price"] = by_name.get(row["criterion"])
+
     split = bool(measure_tree and data_dir
                  and os.path.abspath(data_dir) != os.path.abspath(
                      os.path.join(measure_tree, "data")))
     return {"population": len(names), "rows": rows, "counts": counts,
             "measure_tree": measure_tree, "data_dir": data_dir,
             "split_tree": split,
+            "price_counts": (price_report or {}).get("counts"),
+            "price_tree": price_tree, "price_data_dir": price_data,
+            "price_problem": price_problem,
+            "orphan_bindings": (price_report or {}).get("orphan_bindings"),
+            "unparsed_bindings": (price_report or {}).get("unparsed_mentions"),
             "orphan_declarations": orphan, "sources": population["sources"],
             "comparison": population["comparison"],
             "population_problems": population["problems"]}
@@ -429,10 +469,29 @@ def main(argv: list[str] | None = None) -> int:
                    "  · дерево замера НЕ дошло: проба читает СВОЁ дерево")
             print(f"  {mark}  {row['criterion']}  [{probe}]{tag}")
             print(f"      {row['detail']}")
+            cost = row.get("price")
+            if cost:
+                print(f"      ЦЕНА · {cost['price']}: "
+                      f"{price_meter.PRICE_RU.get(cost['price'], '?')} — "
+                      f"{cost['detail']}")
         print()
         print(f"ИТОГ: ВЫПОЛНЕНО {counts[SATISFIED]} · НЕ ВЫПОЛНЕНО "
               f"{counts[NOT_SATISFIED]} · НЕ ИЗМЕРЕНО {counts[UNMEASURED]} "
               f"из {report['population']}")
+        if report["price_problem"]:
+            print(f"  ⚠️  ЦЕНА НЕ НАЗВАНА НИ У ОДНОГО критерия: "
+                  f"{report['price_problem']}")
+        elif report["price_counts"]:
+            print(f"  цена мерена о дереве {report['price_tree']} "
+                  f"(артефакты: {report['price_data_dir']}): "
+                  + " · ".join(f"{k} {v}" for k, v in
+                               sorted(report["price_counts"].items())))
+        for name, paths in sorted((report["orphan_bindings"] or {}).items()):
+            print(f"  ⚠️  привязка МИМО населения: {', '.join(paths)} объявлен "
+                  f"мерой критерия {name!r}, которого в §49 нет")
+        for miss in (report["unparsed_bindings"] or []):
+            print(f"  ⚠️  §49 упомянут НЕРАЗОБРАННОЙ формой в {miss['path']}: "
+                  f"{miss['snippet']!r} — привязка НЕ ИЗМЕРЕНА")
         if report["orphan_declarations"]:
             for crit, probes in sorted(report["orphan_declarations"].items()):
                 print(f"  ⚠️  объявление МИМО населения: {', '.join(probes)} "

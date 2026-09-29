@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-29T03:26:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-29T05:33:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0b630b614).
+> Сверено с `origin/main` (1bfa5bb95) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1141** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1143** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -344,7 +344,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (605)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (607)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -862,6 +862,7 @@
 - Объявление владения называет ПРОД-пути, поэтому привязать прогон к его дереву нечем даже при абсолютных путях  ·  `inbox-osirotevshii-polnyi-progon-est-yadra-a-e.md` · 2026-09-18
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
+- Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
@@ -921,6 +922,7 @@
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
 - Список шагов CI выведен через ШЕСТЬ литеральных пробелов — сдвинется отступ, проверка замолчит  ·  `inbox-spisok-shagov-ci-vyveden-cherez-shest-li.md` · 2026-09-11
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
+- Срок годности четырёх отчётов короче такта агента, который их пишет — порог перестал отличать поломку от нормы  ·  `inbox-srok-godnosti-chetyreh-otchetov-koroche.md` · 2026-09-29
 - Сторож брошенных прогонов слеп к /tmp-дереву: починку относительного пути применили к ОДНОМУ читателю журнала, читателей два  ·  `inbox-storozh-broshennyh-progonov-slep-k-tmp-d.md` · 2026-09-08
 - Сторож брошенных прогонов теряет заказчика, если сессия объявила пути относительно — третий исход прячет настоящую сироту  ·  `inbox-storozh-broshennyh-progonov-teryaet-zaka.md` · 2026-09-10
 - Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30

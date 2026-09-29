@@ -483,3 +483,177 @@ def test_run_probe_stays_fail_closed_when_a_probe_explodes(monkeypatch):
     verdict, detail = run_probe("boom", repo_root="/r")
     assert verdict == UNMEASURED
     assert "дверь заклинило" in detail
+
+
+# --------------------------------------------------------------------------
+# 7. Цена «НЕ ИЗМЕРЕНО» (заказ G93 п. 1, ADR-506)
+#
+# Сводка ADR-505 печатала десять одинаковых `НЕ ИЗМЕРЕНО`, и читались они как
+# десять одинаковых дыр. Это неверно, и разница между ними и есть ответ: у одних
+# артефакт уже живёт и объявлен — не хватает ОДНОГО поля; у других артефакта нет
+# вовсе — не хватает РЕШЕНИЯ. Тесты ниже стерегут ровно эту неслитность плюс два
+# свойства проводки: цена не смеет трогать вердикты и не смеет молчать.
+# --------------------------------------------------------------------------
+
+import datetime as _dt  # noqa: E402
+import json as _json  # noqa: E402
+
+from spa_core.monitoring import s49_criterion_price as _price  # noqa: E402
+
+# FROZEN-DATE-OK: injected-clock — якорь передаётся замеру входом (`now=_NOW`),
+# а отметка артефакта выводится из него же; стенные часы здесь не спрашиваются.
+_NOW = _dt.datetime(2026, 9, 29, 12, 0, tzinfo=_dt.timezone.utc)
+
+
+def _with_constitution(root: str, *, notes: str | None, artifact_age_h=None):
+    """Дописать сцене конституцию и (по желанию) живой артефакт."""
+    manifest_dir = os.path.join(root, os.path.dirname(_price.MANIFEST_REL))
+    os.makedirs(manifest_dir, exist_ok=True)
+    entry = {"path": "data/econ_census.json", "producer": "com.spa.x",
+             "consumers": ["orchestrator_protocol"], "slo_hours": 12,
+             "status": "active"}
+    if notes is not None:
+        entry["notes"] = notes
+    with open(os.path.join(root, _price.MANIFEST_REL), "w", encoding="utf-8") as fh:
+        _json.dump({"artifacts": [entry]}, fh)
+    data_dir = os.path.join(root, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    if artifact_age_h is not None:
+        stamp = (_NOW - _dt.timedelta(hours=artifact_age_h)).isoformat()
+        with open(os.path.join(data_dir, "econ_census.json"), "w",
+                  encoding="utf-8") as fh:
+            _json.dump({"generated_at": stamp}, fh)
+    return data_dir
+
+
+def _row(report, criterion):
+    return next(r for r in report["rows"] if r["criterion"] == criterion)
+
+
+def test_a_criterion_without_a_probe_gets_a_named_price(tmp_path):
+    root = _scene(tmp_path)
+    data_dir = _with_constitution(root, notes="Критерий §49 `Economics` приказа",
+                                  artifact_age_h=1.0)
+    report = rollup.measure(root, ref=BRANCH, data_dir=data_dir, measure_tree=root,
+                            probe_runner=_fixed(SATISFIED), now=_NOW)
+    price = _row(report, "Economics")["price"]
+    assert price["price"] == _price.TRANSCRIPTION
+    assert price["artifact"] == "data/econ_census.json"
+
+
+def test_a_stale_artifact_turns_the_price_into_the_producers(tmp_path):
+    """Артефакт, которого нет в такте, не дешевеет оттого, что он объявлен."""
+    root = _scene(tmp_path)
+    data_dir = _with_constitution(root, notes="Критерий §49 `Economics` приказа",
+                                  artifact_age_h=99.0)
+    report = rollup.measure(root, ref=BRANCH, data_dir=data_dir, measure_tree=root,
+                            probe_runner=_fixed(SATISFIED), now=_NOW)
+    assert _row(report, "Economics")["price"]["price"] == _price.PRODUCER
+
+
+def test_a_criterion_nobody_bound_costs_a_decision(tmp_path):
+    root = _scene(tmp_path)
+    data_dir = _with_constitution(root, notes="заметка без ссылки на раздел",
+                                  artifact_age_h=1.0)
+    report = rollup.measure(root, ref=BRANCH, data_dir=data_dir, measure_tree=root,
+                            probe_runner=_fixed(SATISFIED), now=_NOW)
+    assert _row(report, "Economics")["price"]["price"] == _price.DECISION
+
+
+def test_a_criterion_that_HAS_a_probe_is_not_priced(tmp_path, monkeypatch):
+    """Цена отвечает «чего не хватает, чтобы мерка появилась» — у критерия с
+    пробой этот вопрос не стои́т, и его причина уже названа своей строкой.
+    Приписать ему цену привязки значило бы ответить не на тот вопрос.
+    """
+    root = _scene(tmp_path)
+    data_dir = _with_constitution(root, notes="Критерий §49 `Economics` приказа",
+                                  artifact_age_h=1.0)
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Economics": ["какая-то_проба"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs", lambda spec: ["repo_root"])
+    report = rollup.measure(root, ref=BRANCH, data_dir=data_dir, measure_tree=root,
+                            probe_runner=_fixed(UNMEASURED), now=_NOW)
+    row = _row(report, "Economics")
+    assert row["verdict"] == UNMEASURED
+    assert row.get("price") is None
+    assert row.get("priceable") is not True
+    # И в СЧЁТЕ его тоже быть не должно: цена, посчитанная и не показанная,
+    # всё равно попадает в итоговую строку и завышает её.
+    assert sum(report["price_counts"].values()) == 2  # Architecture, No regression
+
+
+def test_an_unreadable_constitution_says_so_and_leaves_verdicts_alone(tmp_path):
+    """Цены нет ⇒ строка об этом ОБЯЗАНА быть: пустой столбец читается как ноль.
+
+    И обратная сторона: отказ ЦЕНЫ не смеет трогать вердикты — они сняты другим
+    прибором и остаются верны.
+    """
+    bare = _scene(tmp_path)
+    blind = rollup.measure(bare, ref=BRANCH, measure_tree=bare,
+                           probe_runner=_fixed(SATISFIED), now=_NOW)
+    assert blind["price_problem"] and "manifest" in blind["price_problem"]
+    assert blind["price_counts"] is None
+
+    # Обратная сторона: та же сцена С конституцией. Вердикты обязаны совпасть
+    # до последнего — иначе цена влияет на приёмку, а она не вправе.
+    seeing = _scene(tmp_path / "second", )
+    _with_constitution(seeing, notes="Критерий §49 `Economics` приказа",
+                       artifact_age_h=1.0)
+    lit = rollup.measure(seeing, ref=BRANCH, measure_tree=seeing,
+                         probe_runner=_fixed(SATISFIED), now=_NOW)
+    assert lit["price_problem"] is None and lit["price_counts"]
+    assert blind["counts"] == lit["counts"]
+    assert ([(r["criterion"], r["verdict"]) for r in blind["rows"]]
+            == [(r["criterion"], r["verdict"]) for r in lit["rows"]])
+
+
+def test_the_price_problem_reaches_the_printout(tmp_path, capsys):
+    root = _scene(tmp_path)
+    rollup.main(["--repo-root", root, "--ref", BRANCH, "--measure-tree", root])
+    assert "ЦЕНА НЕ НАЗВАНА НИ У ОДНОГО" in capsys.readouterr().out
+
+
+def test_the_price_is_measured_about_the_measured_tree_not_the_card_tree(tmp_path):
+    """Сводка про одно дерево с ценой про другое — два ответа под одним заголовком.
+
+    Деревья здесь РАЗНЫЕ намеренно: карточка живёт в одном, конституция и живые
+    артефакты — в другом. Совпадающие деревья сделали бы этот контроль зелёным
+    по построению (урок ADR-504), и подмена `measure_tree` на `repo_root`
+    прошла бы незамеченной.
+    """
+    card_tree = _scene(tmp_path)
+    measured = str(tmp_path / "measured")
+    os.makedirs(measured)
+    data_dir = _with_constitution(measured,
+                                  notes="Критерий §49 `Economics` приказа",
+                                  artifact_age_h=1.0)
+    report = rollup.measure(card_tree, ref=BRANCH, measure_tree=measured, now=_NOW,
+                            probe_runner=_fixed(SATISFIED))
+    assert report["price_tree"] == measured
+    assert report["price_data_dir"] == data_dir
+    assert _row(report, "Economics")["price"]["price"] == _price.TRANSCRIPTION
+
+
+def test_an_orphan_binding_reaches_the_report_and_the_printout(tmp_path, capsys):
+    root = _scene(tmp_path)
+    _with_constitution(root, notes="Критерий §49 `Forecast accuracy` приказа",
+                       artifact_age_h=1.0)
+    rollup.main(["--repo-root", root, "--ref", BRANCH, "--measure-tree", root])
+    out = capsys.readouterr().out
+    assert "привязка МИМО населения" in out and "Forecast accuracy" in out
+
+
+def test_an_unparsed_mention_reaches_the_printout(tmp_path, capsys):
+    root = _scene(tmp_path)
+    _with_constitution(root, notes="см. §49 приказа где-то там", artifact_age_h=1.0)
+    rollup.main(["--repo-root", root, "--ref", BRANCH, "--measure-tree", root])
+    assert "НЕРАЗОБРАННОЙ формой" in capsys.readouterr().out
+
+
+def test_the_price_never_changes_the_exit_code(tmp_path):
+    """Цена — ответ о том, ЧЕГО не хватает; вердикт о приказе выносит не она."""
+    root = _scene(tmp_path)
+    _with_constitution(root, notes="Критерий §49 `Economics` приказа",
+                       artifact_age_h=1.0)
+    assert rollup.main(["--repo-root", root, "--ref", BRANCH,
+                        "--measure-tree", root]) == 1
