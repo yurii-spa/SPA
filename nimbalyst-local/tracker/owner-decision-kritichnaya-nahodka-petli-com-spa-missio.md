@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw"
-status: needs-owner
+status: done
 source: nimbalyst
 created: 2026-09-25
 finding_key: "B1:unknown:com.spa.mission_tick"
+status_trail:
+  - "2026-09-29T06:40:58.451206+00:00 needs-owner -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
