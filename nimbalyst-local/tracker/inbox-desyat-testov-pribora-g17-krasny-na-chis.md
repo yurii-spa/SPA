@@ -2,13 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил"
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-16
 acceptance_probe: g17_subject_state_is_measured
 status_trail:
   - "2026-09-28T12:13:10.658990+00:00 new -> in-progress · queue.set_status · cycle-4496"
   - "2026-09-28T20:12:03.020084+00:00 in-progress -> owner-done · queue.set_status/closed_by:cycle-717/evidence:проба g17_subject_state_is_measured ПЕРЕМЕРЕНА ИЗ ПРОД-ДЕРЕВА (не со слов шага 0-офис): satisfied — «источник измерен: no_collapse_at_source; наследников 0 при переписи ИЗМЕРЕНО 19 / НЕ ИЗМЕРЕНО 98; в · cycle-88376"
+  - "2026-09-29T01:31:28.056045+00:00 owner-done -> ingested · queue.set_status · cycle-24042"
 ---
 
 ## Что измерено (цикл #618, 16.09)

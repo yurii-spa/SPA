@@ -2,12 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Храповик приёмки красен на исправном состоянии: законное освобождение carried_to он читает как дефект"
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-18
 acceptance_probe: carried_release_is_one_condition
 status_trail:
   - "2026-09-28T20:13:54.071665+00:00 new -> owner-done · queue.set_status/closed_by:cycle-717/evidence:ADR-501. Критерий карточки (#627, ДО работы): храповик зелёный на чистом origin/main И красный на поддельном carried_to — выполнен, обе стороны закреплены тестом. Машинная проба carried_release_is_one · cycle-88376"
+  - "2026-09-29T01:31:28.598126+00:00 owner-done -> ingested · queue.set_status · cycle-24042"
 ---
 
 ## Что измерено (цикл #627, 18.09)

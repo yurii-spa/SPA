@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-29T00:00:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-29T01:31:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (b3782f4bb) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (5129e5285) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1138** · ждёт владельца: **12** · занято сессиями: **14**.
 
@@ -382,6 +382,8 @@
 - Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md` · 2026-09-08 · 🔒 `pid20023`
 - Вторая нога маятника проходит как «размещение кэша» после частичного де-риска  ·  `inbox-vtoraya-noga-mayatnika-prohodit-kak-razmeschenie.md` · 2026-08-30
 ### · ingested
+- Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
+- Храповик приёмки красен на исправном состоянии: законное освобождение carried_to он читает как дефект  ·  `inbox-hrapovik-priemki-krasen-na-ispravnom-sos.md` · 2026-09-18
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 - Расхождение: книга 'плечо на wstETH' работает с 2x, а справочник продукта говорит 3x  ·  `inbox-rashozhdenie-kniga-plecho-na-wsteth-rabo.md` · 2026-08-29
 ### · done
@@ -745,9 +747,6 @@
 - Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
 - Журнал решений: чинить писателя и читателя одним заходом (ответ владельца, вариант A)  ·  `inbox-zhurnal-reshenii-chinit-pisatelya-i-chit.md` · 2026-09-15
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
-### · owner-done
-- Десять тестов прибора G17 красны на чистом main: ADR-395 унёс предмет, который прибор мерил  ·  `inbox-desyat-testov-pribora-g17-krasny-na-chis.md` · 2026-09-16
-- Храповик приёмки красен на исправном состоянии: законное освобождение carried_to он читает как дефект  ·  `inbox-hrapovik-priemki-krasen-na-ispravnom-sos.md` · 2026-09-18
 ### · new
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
