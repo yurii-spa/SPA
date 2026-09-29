@@ -47,6 +47,11 @@ checkout», #? оговорка к rates-carry). Единственное мес
   (D) Идентифицируемость «лестницы»: сколько дней подряд цель-срок 30 и цель-срок 180
       выбирают ОДИН И ТОТ ЖЕ рынок. Совпадение ⇒ сравнение сроков на этой панели
       НЕ ИЗМЕРЕНО (названная причина), а не «разницы нет».
+  (E) Прямой симулятор лестницы — ЧТОБЫ п. (D) был не доводом, а ЗАМЕРОМ. Держать PT с
+      целевым сроком до погашения, перекатываться в ближайший к цели живой рынок; марк по
+      ВЫВЕДЕННОЙ цене, издержка rt на перекат. Если разные цели дают ПОБИТОВО одинаковую
+      кривую, вырождение показано числом, а не рассуждением о листинге. Числа реестра
+      берутся отсюда, а не из черновика: иначе они невоспроизводимы.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -68,6 +73,8 @@ SPLIT = "2026-01-01"
 MIN_GAP_DAYS = 20   # ближе этого две ноги — один срок, наклон считать не на чем
 MIN_SHORT_TAU = 5   # у истекающего рынка котировка тонкая; tau в знаменателе множит шум
 LADDER_TARGETS = (30, 180)
+SIM_TARGETS = (30, 60, 90, 120, 180)
+SIM_RT_BP = (0.0, 96.0)
 
 
 def _forward_rate(tau_s: float, y_s: float, tau_l: float, y_l: float) -> float:
@@ -182,10 +189,88 @@ def ladder_identifiability(u: H.Underlying) -> dict:
     }
 
 
+def simulate_ladder(u: H.Underlying, target_days: int, rt_bp: float) -> Optional[dict]:
+    """Держать PT с целевым сроком до погашения; на погашении перейти в ближайший к цели
+    живой рынок. Марк — по ВЫВЕДЕННОЙ цене (наблюдённой в ряде нет ни одной). Причинно:
+    решение дня принимается по строкам этого же дня, цена входа берётся из них же."""
+    dates = u.dates
+    if len(dates) < 2:
+        return None
+    equity = 1.0
+    pos: Optional[str] = None
+    entry_px = 1.0
+    rolls = 0
+    curve: List[float] = []
+    entries: List[dict] = []
+    for day in dates:
+        live = u.obs[day]
+        if pos is not None and pos in live:
+            tau, y, _ = live[pos]
+            curve.append(equity * H.pt_price(y, tau) / entry_px)
+        elif pos is not None:
+            curve.append(equity / entry_px)          # погасился в 1
+        else:
+            curve.append(equity)
+        if pos is not None and pos in live and live[pos][0] > 1:
+            continue
+        if pos is not None:                           # реализовать и заплатить за перекат
+            if pos in live:
+                tau, y, _ = live[pos]
+                equity *= H.pt_price(y, tau) / entry_px
+            else:
+                equity /= entry_px
+            equity *= 1.0 - rt_bp / 1e4
+            rolls += 1
+        cands = [l for l in u.legs(day) if l[0] >= MIN_SHORT_TAU]
+        if not cands:
+            pos = None
+            continue
+        tau, y, _tvl, market = min(cands, key=lambda l: abs(l[0] - target_days))
+        pos, entry_px = market, H.pt_price(y, tau)
+        # запись входа — чтобы «цена входа взята из строк ТОГО ЖЕ дня» можно было
+        # проверить тестом, а не только заявить в комментарии
+        entries.append({"day": day, "market": market, "tau": tau, "implied_yield": y})
+    span = H.days(dates[0], dates[-1])
+    if span <= 0 or curve[0] <= 0:
+        return None
+    final = curve[-1] / curve[0]
+    peak = float("-inf")
+    max_dd = 0.0
+    for v in curve:
+        peak = max(peak, v)
+        if peak > 0:
+            max_dd = max(max_dd, (peak - v) / peak)
+    return {
+        "target_days": target_days,
+        "rt_bp": rt_bp,
+        "ann_pct": (final ** (365.0 / span) - 1.0) * 100.0,
+        "max_dd_pct": max_dd * 100.0,
+        "rolls": rolls,
+        "span_days": span,
+        "entries": entries,
+        # отпечаток кривой: две цели, давшие один и тот же путь, обязаны быть НАЗВАНЫ
+        "curve_fingerprint": tuple(round(v, 12) for v in curve),
+    }
+
+
 def run(data_dir: Path) -> dict:
     universe = H.load(data_dir)
     out: Dict[str, dict] = {}
     for name, u in sorted(universe.items()):
+        sims = [r for r in (simulate_ladder(u, t, rt) for rt in SIM_RT_BP for t in SIM_TARGETS)
+                if r is not None]
+        degenerate = []
+        for rt in SIM_RT_BP:
+            rows = [r for r in sims if r["rt_bp"] == rt]
+            seen: Dict[tuple, int] = {}
+            for r in rows:
+                first = seen.setdefault(r["curve_fingerprint"], r["target_days"])
+                if first != r["target_days"]:
+                    degenerate.append({"rt_bp": rt, "target_days": r["target_days"],
+                                       "identical_to_target_days": first})
+        for r in sims:
+            r.pop("curve_fingerprint", None)
+            r.pop("entries", None)
         causal = forward_bias(u, look_ahead=False)
         control = forward_bias(u, look_ahead=True)
         per_year: Dict[str, dict] = {}
@@ -205,6 +290,8 @@ def run(data_dir: Path) -> dict:
             "bias_test": _summary([r for r in causal if r["date"] >= SPLIT]),
             "control_look_ahead": _summary(control),
             "ladder": ladder_identifiability(u),
+            "ladder_sim": sims,
+            "ladder_sim_degenerate": degenerate,
         }
     return {"split": SPLIT, "per_underlying": out}
 
@@ -260,6 +347,18 @@ def report(o: dict) -> None:
             if l["frac_same"] > 0.5:
                 print("       ⇒ сравнение сроков на этой панели НЕ ИЗМЕРЕНО: листинг не содержит "
                       "двух сроков одновременно чаще, чем содержит. Это причина, а не результат.")
+        sim = v.get("ladder_sim") or []
+        if not sim:
+            print("  E. прямой симулятор лестницы: НЕ ИЗМЕРЕН (нет живых рынков)")
+        else:
+            print("  E. прямой симулятор лестницы (держать до погашения, марк по ВЫВЕДЕННОЙ цене):")
+            for r in sim:
+                print(f"       цель {r['target_days']:3d}д  rt={r['rt_bp']:4.0f}bp ⇒ "
+                      f"APY {r['ann_pct']:6.2f}%  maxDD {r['max_dd_pct']:5.2f}%  "
+                      f"перекатов {r['rolls']:3d} за {r['span_days']}д")
+            for d in v.get("ladder_sim_degenerate") or []:
+                print(f"       ⚠️ rt={d['rt_bp']:.0f}bp: цель {d['target_days']}д даёт ПОБИТОВО ту же "
+                      f"кривую, что цель {d['identical_to_target_days']}д — вырождение ИЗМЕРЕНО")
 
 
 def main(argv=None) -> int:

@@ -157,6 +157,83 @@ def test_legs_closer_than_the_minimum_gap_yield_no_slope():
     assert PTTS.curve_shape(u) is None
 
 
+# ── #117: the shipped ladder simulator ──────────────────────────────────────
+
+def _single_market_panel(iy: float = 0.10, n_days: int = 300) -> H.Underlying:
+    u = H.Underlying("sUSDe")
+    for i in range(n_days):
+        day = H.shift("2025-01-01", i)
+        if H.days(day, "2026-06-30") > 0:
+            u.add("ONLY", "2026-06-30", _row(day, iy))
+    return u
+
+
+def _rolling_panel(n_days: int = 730, drift: float = 0.0) -> H.Underlying:
+    """Quarterly maturities so the ladder actually rolls, and a yield that MOVES day to
+    day — a constant-yield fixture cannot catch a one-day look-ahead."""
+    u = H.Underlying("sUSDe")
+    maturities = ["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31",
+                  "2026-03-31", "2026-06-30", "2026-09-30", "2026-12-31"]
+    for i in range(n_days):
+        day = H.shift("2025-01-01", i)
+        iy = 0.10 + drift * i + 0.02 * ((i % 7) - 3) / 3.0
+        for m in maturities:
+            tau = H.days(day, m)
+            if 0 < tau <= 200:
+                u.add(m, m, _row(day, iy))
+    return u
+
+
+def test_holding_one_pt_to_maturity_earns_its_implied_yield():
+    r = PTTS.simulate_ladder(_single_market_panel(0.10), target_days=180, rt_bp=0.0)
+    assert r["rolls"] == 0
+    assert r["ann_pct"] == pytest.approx(10.0, abs=0.05)
+
+
+def test_roll_cost_is_actually_charged_once_per_roll():
+    free = PTTS.simulate_ladder(_rolling_panel(), 30, 0.0)
+    paid = PTTS.simulate_ladder(_rolling_panel(), 30, 96.0)
+    assert free["rolls"] >= 2, "fixture must roll, or this control proves nothing"
+    assert paid["rolls"] == free["rolls"]
+    # the whole cost is rolls * 96bp compounded; at minimum it must strictly bite
+    assert paid["ann_pct"] < free["ann_pct"] - 0.5
+
+
+def test_the_entry_price_comes_from_the_rows_of_that_same_day():
+    """Causality control: a peeked entry (tomorrow's quote) is the bug this catches."""
+    u = _rolling_panel(drift=0.0005)          # the yield must MOVE, or peeking is invisible
+    r = PTTS.simulate_ladder(u, 90, 0.0)
+    assert r["entries"], "fixture must enter at least once"
+    for e in r["entries"]:
+        same_day = u.obs[e["day"]][e["market"]]
+        assert (e["tau"], e["implied_yield"]) == (same_day[0], same_day[1])
+
+
+def test_the_curve_up_to_day_k_does_not_depend_on_anything_after_it():
+    full = PTTS.simulate_ladder(_rolling_panel(n_days=600), 60, 0.0)
+    short = PTTS.simulate_ladder(_rolling_panel(n_days=300), 60, 0.0)
+    assert full["curve_fingerprint"][:300] == short["curve_fingerprint"][:300]
+
+
+def test_degenerate_targets_are_named_not_silently_averaged(tmp_path):
+    """One live market -> every target picks it -> the run must SAY so."""
+    data = _write(tmp_path, {
+        "PT-sUSDe-1": _market("PT-sUSDe-1", "2026-06-30", "sUSDe", "stable_synth",
+                              [_row(H.shift("2025-01-01", i), 0.10, uy=0.05)
+                               for i in range(300)]),
+    })
+    out = PTTS.run(data)["per_underlying"]["sUSDe"]
+    assert out["ladder"]["frac_same"] == 1.0
+    reported = {d["target_days"] for d in out["ladder_sim_degenerate"]}
+    assert reported == {60, 90, 120, 180}          # all identical to target 30
+    # and the fingerprint is stripped from the shipped result (it is a control, not a number)
+    assert all("curve_fingerprint" not in r for r in out["ladder_sim"])
+
+
+def test_an_empty_underlying_yields_no_simulation():
+    assert PTTS.simulate_ladder(H.Underlying("sUSDe"), 30, 0.0) is None
+
+
 # ── #118: vintages, coverage, regimes ───────────────────────────────────────
 
 def _float_panel(n_float_days: int, float_rate: float = 0.05) -> H.Underlying:
