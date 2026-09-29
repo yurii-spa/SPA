@@ -367,6 +367,155 @@ def _probe_second_artifact_tvl_agrees(arg: str | None, *,
     return NOT_SATISFIED, " · ".join(details)
 
 
+#: Имя переписи доминирования KEEP в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
+#: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
+#: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
+KEEP_DOMINANCE_MODULE = "spa_core.monitoring.keep_dominance_census"
+#: Журнал вердиктов получает запись КАЖДЫМ дневным циклом на каждую книгу. Новее
+#: этого числа дней — наблюдение; старше — замороженный канон `data/` из git
+#: (в worktree и на CI журнала нет вовсе, но он МОЖЕТ там быть и быть старым, и
+#: тогда вердикт относился бы не к живой системе). Два дня, а не один: одна
+#: пропущенная книгой дата — обычный сдвиг такта, две — журнал не живой.
+DECISION_JOURNAL_MAX_AGE_D = 2.0
+
+
+def _keep_dominance_module():
+    """Перепись доминирования KEEP. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(KEEP_DOMINANCE_MODULE)
+
+
+def _probe_economics_net_return_dominates_keep(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Economics` приказа CIO: «Решения используют net expected return, а не raw APY».
+
+    До этой пробы критерий был ИЗМЕРЕН прибором и НЕ ИЗМЕРЕН сводкой. Перепись
+    `keep_dominance_census` живёт с цикла #702, её артефакт пишется в такте и свеж —
+    а запись «этот прибор есть мера этого критерия» лежала ПРОЗОЙ в заметке
+    `architecture/manifest.json`, и сводный замер (`scripts/cio_acceptance_rollup.py`)
+    честно отвечал «машинной пробы, объявившей себя мерой этого критерия, в реестре
+    НЕТ». Десять таких строк читались как десять одинаковых дыр, а цена у них была
+    разная (ADR-506): здесь не хватало ОДНОГО поля. Заказ владельца G94 п. 1 требует
+    перенести привязку в поле — но по одной пробе и каждую со своим контролем в обе
+    стороны (`.claude/rules/acceptance.md`, п. 3), иначе появится пять объявлений и
+    ни одного наблюдения.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    `OK` → `satisfied` · `WARNING`/`CRITICAL` → `not_satisfied` · третий исход
+    прибора → `unmeasured`. Своего порога у пробы нет НИ ОДНОГО: «много ли находок»
+    и «считается ли находка свежей» решено внутри переписи, обосновано её
+    докладом и закреплено её тестами. Второе правило здесь было бы вторым местом
+    для числа — тот самый дефект, против которого написано
+    `.claude/rules/site-numbers.md`.
+
+    Почему находка = «критерий НЕ выполнен», а не «предупреждение»
+    ---------------------------------------------------------------------------
+    Порода `dominated_by_keep` (`gain_pp < 0`) есть НАБЛЮДАЕМОЕ доказательство,
+    что KEEP не входит в ранжирование: решение ничего не делать доступно всегда и
+    стои́т $0, поэтому оптимизатор по чистой ожидаемой доходности отрицательного
+    прироста выдать не может. Порода `net_negative_missed_by_gate` — тот же ответ с
+    другой стороны: чистый исход за горизонт владельца отрицателен, а собственный
+    гейт записи сказал `True`. И то, и другое — прямое «нет» на вопрос §49.
+
+    Прибор гоняется НАСТОЯЩИЙ
+    ---------------------------------------------------------------------------
+    Проба зовёт `run_census` на живых журналах, а не читает готовый артефакт: артефакт
+    неизвестного возраста ответил бы о том дне, когда его писали. Каталог данных —
+    ВХОД (`data_dir`), часы — ВХОД (`now`); иначе вердикт решали бы переменная
+    окружения и стенные часы, а не предмет (`.claude/rules/deployment.md`).
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Записи третьего исхода вердикт не меняют.** `records_unmeasured` (запись
+      нечитаема, пересчёт не сошёлся) и `net_gate_unchecked` (старая схема без
+      гейта окупаемости) НАЗЫВАЮТСЯ в пояснении числом, но статус книги решает
+      перепись, и переигрывать её здесь значило бы завести второе правило.
+      Замер 29.09 (прод): `net_gate_unchecked` 12 у книги `conservative`.
+    * **Правду объявления.** Что перепись мерит ИМЕННО этот критерий — утверждение
+      её собственного доклада (`CRITERION`), и проба его СВЕРЯЕТ (ниже), а не
+      принимает на веру. Полноту же критерия не докладывает никто: «net expected
+      return» шире одного знака прироста, и зазор назван здесь.
+    * **Ничего не чинит.** Только читает; ни строки аллокатора, RiskPolicy,
+      стоп-крана или живого трека.
+    """
+    try:
+        census = _keep_dominance_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"перепись доминирования KEEP не загружена: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия. Совпадение имени
+    # критерия проверяется ПО ЯКОРЮ (`§49 Economics`), а не подстрокой «Economics»:
+    # подстрока совпала бы и с чужой заметкой, и объявление стало бы украшением.
+    anchor = "§49 Economics"
+    declared = str(getattr(census, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
+                            f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
+                            f"и считать её мерой этого критерия нельзя")
+
+    data = data_dir or os.path.join(REPO_ROOT, "data")
+    try:
+        report = census.run_census(_pathlib.Path(data), now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"перепись доминирования KEEP упала: "
+                            f"{type(exc).__name__}: {exc}")
+
+    if not report.get("measured"):
+        return UNMEASURED, (f"перепись отказалась мерить: "
+                            f"{report.get('reason') or 'причина не названа'}")
+
+    books = [b for b in (report.get("books") or []) if b.get("measured")]
+    dates = [b.get("latest_cycle_date") for b in books if b.get("latest_cycle_date")]
+    if not dates:
+        return UNMEASURED, ("ни у одной измеренной книги нет `latest_cycle_date` — "
+                            "возраст журнала вердиктов не измерен, и судить о живой "
+                            "системе нечем")
+    newest = max(str(d) for d in dates)
+    ref = (now or datetime.now(timezone.utc)).date()
+    try:
+        age_d = (ref - datetime.fromisoformat(newest).date()).days
+    except ValueError:
+        return UNMEASURED, (f"`latest_cycle_date` {newest!r} не разобран как дата — "
+                            f"возраст журнала вердиктов НЕ ИЗМЕРЕН")
+    if age_d > DECISION_JOURNAL_MAX_AGE_D:
+        return UNMEASURED, (f"журнал вердиктов протух: свежайшая дата цикла {newest} — "
+                            f"{age_d} дн назад при пределе "
+                            f"{DECISION_JOURNAL_MAX_AGE_D:.0f} (замороженный канон "
+                            f"`data/`, не наблюдение) — мерить надо из дерева с живым "
+                            f"data/")
+
+    where = (f"книг {len(books)}, свежайший цикл {newest}, пороги "
+             f"{report['policy']['version']}/{report['policy']['mode']}, "
+             f"горизонт {report['horizon_days']:.0f} дн")
+    blind = (f"третий исход записей: нечитаемых {report.get('records_unmeasured', 0)}, "
+             f"без гейта окупаемости {report.get('net_gate_unchecked', 0)}")
+
+    status = report.get("status")
+    if status == census.STATUS_OK:
+        return SATISFIED, (f"находок нет ни в одной книге: предъявленный оптимум нигде "
+                           f"не проигрывает решению ничего не делать, и ни один "
+                           f"отрицательный чистый исход не прошёл мимо гейта "
+                           f"окупаемости ({where}; {blind})")
+    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+        fresh = report.get("fresh_findings", 0)
+        kinds = {}
+        for f in report.get("findings") or []:
+            kinds[f.get("kind")] = kinds.get(f.get("kind"), 0) + 1
+        by_kind = ", ".join(f"{k}: {v}" for k, v in sorted(kinds.items())) or "порода не названа"
+        when = ("в свежайшем цикле" if fresh else
+                "только в истории — в свежайшем цикле находок нет")
+        return NOT_SATISFIED, (f"решения НЕ ранжируются по чистой ожидаемой "
+                               f"доходности: материальных находок "
+                               f"{report.get('findings_material', 0)} ({by_kind}), "
+                               f"{when}; максимум выведенного из оборота "
+                               f"${report.get('dedeployed_usd_max', 0.0):,.2f} "
+                               f"({where}; {blind})")
+    return UNMEASURED, (f"перепись вернула статус {status!r}, который не переносится в "
+                        f"вердикт критерия — молчать об этом нельзя")
+
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
 #: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
 #: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
@@ -2591,6 +2740,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
+    "economics_net_return_dominates_keep":
+        _probe_economics_net_return_dominates_keep,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
@@ -2627,6 +2778,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
 # сверяет имя критерия с населением, прочитанным из §49 САМОЙ карточки приказа, —
 # объявление, указывающее мимо населения, становится находкой, а не тихим нулём.
 _probe_portfolio_decision_owner_covers_capital.s49_criterion = "Architecture"
+_probe_economics_net_return_dominates_keep.s49_criterion = "Economics"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 

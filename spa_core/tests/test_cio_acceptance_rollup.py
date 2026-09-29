@@ -413,6 +413,7 @@ def test_without_a_measure_tree_the_reach_question_is_not_asked(tmp_path,
 def test_declarations_are_read_from_the_registry_not_from_a_side_list():
     declared = probes_by_s49_criterion()
     assert declared == {"Architecture": ["portfolio_decision_owner_covers_capital"],
+                        "Economics": ["economics_net_return_dominates_keep"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 
@@ -530,7 +531,23 @@ def _row(report, criterion):
     return next(r for r in report["rows"] if r["criterion"] == criterion)
 
 
-def test_a_criterion_without_a_probe_gets_a_named_price(tmp_path):
+def _no_declarations(monkeypatch):
+    """Сцена цены обязана САМА решать, у кого мерки нет.
+
+    Цена отвечает на вопрос «чего не хватает, чтобы мерка появилась», и осмыслен он
+    ровно у критерия БЕЗ пробы. Взять этот отбор из ЖИВОГО реестра значило бы
+    сделать предпосылку сцены фактом окружения: цикл #725 объявил пробу мерой
+    `Economics`, и пять сцен разом перестали мерить то, о чём написаны, — по
+    причине, к их предмету не относящейся. Ровно тот класс, что у календаря, у
+    номера процесса и у git-окружения (`.claude/rules/deployment.md`): предпосылка
+    обязана быть ВХОДОМ. Обратная сторона закреплена отдельно —
+    `test_a_criterion_that_HAS_a_probe_is_not_priced`.
+    """
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {})
+
+
+def test_a_criterion_without_a_probe_gets_a_named_price(tmp_path, monkeypatch):
+    _no_declarations(monkeypatch)
     root = _scene(tmp_path)
     data_dir = _with_constitution(root, notes="Критерий §49 `Economics` приказа",
                                   artifact_age_h=1.0)
@@ -541,8 +558,9 @@ def test_a_criterion_without_a_probe_gets_a_named_price(tmp_path):
     assert price["artifact"] == "data/econ_census.json"
 
 
-def test_a_stale_artifact_turns_the_price_into_the_producers(tmp_path):
+def test_a_stale_artifact_turns_the_price_into_the_producers(tmp_path, monkeypatch):
     """Артефакт, которого нет в такте, не дешевеет оттого, что он объявлен."""
+    _no_declarations(monkeypatch)
     root = _scene(tmp_path)
     data_dir = _with_constitution(root, notes="Критерий §49 `Economics` приказа",
                                   artifact_age_h=99.0)
@@ -551,7 +569,8 @@ def test_a_stale_artifact_turns_the_price_into_the_producers(tmp_path):
     assert _row(report, "Economics")["price"]["price"] == _price.PRODUCER
 
 
-def test_a_criterion_nobody_bound_costs_a_decision(tmp_path):
+def test_a_criterion_nobody_bound_costs_a_decision(tmp_path, monkeypatch):
+    _no_declarations(monkeypatch)
     root = _scene(tmp_path)
     data_dir = _with_constitution(root, notes="заметка без ссылки на раздел",
                                   artifact_age_h=1.0)
@@ -582,12 +601,13 @@ def test_a_criterion_that_HAS_a_probe_is_not_priced(tmp_path, monkeypatch):
     assert sum(report["price_counts"].values()) == 2  # Architecture, No regression
 
 
-def test_an_unreadable_constitution_says_so_and_leaves_verdicts_alone(tmp_path):
+def test_an_unreadable_constitution_says_so_and_leaves_verdicts_alone(tmp_path, monkeypatch):
     """Цены нет ⇒ строка об этом ОБЯЗАНА быть: пустой столбец читается как ноль.
 
     И обратная сторона: отказ ЦЕНЫ не смеет трогать вердикты — они сняты другим
     прибором и остаются верны.
     """
+    _no_declarations(monkeypatch)
     bare = _scene(tmp_path)
     blind = rollup.measure(bare, ref=BRANCH, measure_tree=bare,
                            probe_runner=_fixed(SATISFIED), now=_NOW)
@@ -613,7 +633,7 @@ def test_the_price_problem_reaches_the_printout(tmp_path, capsys):
     assert "ЦЕНА НЕ НАЗВАНА НИ У ОДНОГО" in capsys.readouterr().out
 
 
-def test_the_price_is_measured_about_the_measured_tree_not_the_card_tree(tmp_path):
+def test_the_price_is_measured_about_the_measured_tree_not_the_card_tree(tmp_path, monkeypatch):
     """Сводка про одно дерево с ценой про другое — два ответа под одним заголовком.
 
     Деревья здесь РАЗНЫЕ намеренно: карточка живёт в одном, конституция и живые
@@ -621,6 +641,7 @@ def test_the_price_is_measured_about_the_measured_tree_not_the_card_tree(tmp_pat
     по построению (урок ADR-504), и подмена `measure_tree` на `repo_root`
     прошла бы незамеченной.
     """
+    _no_declarations(monkeypatch)
     card_tree = _scene(tmp_path)
     measured = str(tmp_path / "measured")
     os.makedirs(measured)
