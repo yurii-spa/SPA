@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import tempfile
 import unittest
 
@@ -533,6 +534,239 @@ class TestWiring(unittest.TestCase):
                       "отчёта нет в таблице полей шага 0-офис")
         self.assertIn('elif name == "rebalance_cost_evidence.json":', src,
                       "у отчёта нет ПЕЧАТАЮЩЕЙ ветки в шаге 0-офис")
+
+
+#: Манифест, объявляющий срок годности ТОЛЬКО в паспорте производителя —
+#: ровно так, как его объявляет НАСТОЯЩИЙ `architecture/manifest.json`
+#: (замер 29.09: `data/gas_price_history.json` живёт в
+#: `agents[com.spa.gas_price_agent].produces`, а среди `artifacts[]` его нет).
+def _manifest_passport_only(slo=1.5, artifact=None, label="com.spa.gas_price_agent"):
+    return {"artifacts": [],
+            "agents": [{"label": label,
+                        "produces": [{"artifact": artifact or R.GAS_ARTIFACT_REL,
+                                      "slo_hours": slo}]}]}
+
+
+def _manifest_both_homes(gas_slo=1.5, verdict_slo=26.0):
+    """Оба дома сразу — газ в верхнем реестре, вердикт в паспорте производителя."""
+    return {"artifacts": [{"path": R.GAS_ARTIFACT_REL, "slo_hours": gas_slo}],
+            "agents": [{"label": "com.spa.daily_cycle",
+                        "produces": [{"artifact": R.VERDICT_ARTIFACT_REL,
+                                      "slo_hours": verdict_slo}]}]}
+
+
+class TestTheHomeOfTheThresholdIsAskedInBOTHPLACES(unittest.TestCase):
+    """Авария #730: дом порога искали в ОДНОМ из двух мест, где он живёт.
+
+    `gas_slo_hours` перебирал только верхнеуровневые `artifacts[]` и на
+    ненайденное честно отвечал «в манифесте нет записи». Ответ был верен по
+    букве и ложен по существу: этот манифест объявляет сроки годности ТАКЖЕ в
+    паспорте производителя, и у `data/gas_price_history.json` объявление живёт
+    ИМЕННО там — 1,5 ч. Свежесть наблюдения газа не судилась НИ РАЗУ.
+
+    Сторож этого не ловил потому, что фикстура клала SLO в тот дом, куда
+    смотрел код: тест отвечал на свой вопрос, а не на нужный.
+    """
+
+    def test_the_producers_passport_is_a_home_too(self):
+        slo, prov = R.gas_slo_hours("/root", lambda p: _manifest_passport_only())
+        self.assertEqual(slo, 1.5)
+        self.assertIn("com.spa.gas_price_agent", prov,
+                      "провенанс обязан НАЗВАТЬ производителя, а не «где-то в агентах»")
+
+    def test_the_REAL_manifest_declares_the_gas_SLO_and_it_IS_found(self):
+        """Тот самый контроль, которого не было: вопрос задан ЖИВОЙ конституции.
+
+        Фикстура доказывает, что разбор умеет прочитать объявление. А вот
+        умеет ли он прочитать объявление ЭТОГО репозитория — вопрос другой, и
+        до #730 его не задавал никто. Верни поиск в один дом — тест покраснеет
+        на настоящем манифесте, а не на выдуманном.
+        """
+        slo, prov = R.gas_slo_hours(R.REPO_ROOT, R._read_json)
+        self.assertIsNotNone(
+            slo, f"срок годности наблюдения газа объявлен в живом манифесте, но "
+                 f"разбор его не нашёл: {prov}")
+
+    def test_freshness_becomes_judged_when_the_home_is_only_in_the_passport(self):
+        """Сквозной контроль аварии: протухшее чтение обязано быть НАЗВАНО."""
+        rep = _tree(**{"architecture/manifest.json": _manifest_passport_only(),
+                       "data/gas_price_history.json": _gas_doc(age_hours=48.0)}).run()
+        kinds = {f["kind"] for f in rep["findings"]}
+        self.assertIn("observed_gas_is_stale", kinds)
+
+    def test_two_homes_disagreeing_is_a_THIRD_OUTCOME_not_a_choice(self):
+        """Два разных числа — срок годности не объявлен, а ОСПОРЕН."""
+        manifest = {"artifacts": [{"path": R.GAS_ARTIFACT_REL, "slo_hours": 1.5}],
+                    "agents": [{"label": "com.spa.gas_price_agent",
+                                "produces": [{"artifact": R.GAS_ARTIFACT_REL,
+                                              "slo_hours": 12.0}]}]}
+        slo, prov = R.gas_slo_hours("/root", lambda p: manifest)
+        self.assertIsNone(slo, "выбрать одно из двух спорящих чисел молча нельзя")
+        self.assertIn("оспорен", prov)
+        # И свежесть тогда НЕ судится: спор конституции не есть порог.
+        rep = _tree(**{"architecture/manifest.json": manifest,
+                       "data/gas_price_history.json": _gas_doc(age_hours=48.0)}).run()
+        self.assertNotIn("observed_gas_is_stale",
+                         {f["kind"] for f in rep["findings"]})
+
+    def test_two_homes_agreeing_is_one_answer(self):
+        manifest = {"artifacts": [{"path": R.GAS_ARTIFACT_REL, "slo_hours": 1.5}],
+                    "agents": [{"label": "com.spa.gas_price_agent",
+                                "produces": [{"artifact": R.GAS_ARTIFACT_REL,
+                                              "slo_hours": 1.5}]}]}
+        slo, _ = R.gas_slo_hours("/root", lambda p: manifest)
+        self.assertEqual(slo, 1.5)
+
+    def test_no_home_anywhere_still_means_NOT_judged(self):
+        slo, prov = R.gas_slo_hours("/root", lambda p: {"artifacts": [], "agents": []})
+        self.assertIsNone(slo)
+        self.assertIn("artifacts[]", prov)
+        self.assertIn("agents[].produces[]", prov,
+                      "причина обязана назвать ОБА дома, иначе читатель снова "
+                      "решит, что спрошено было всё")
+
+    def test_a_malformed_manifest_is_NOT_an_empty_home(self):
+        """«Этот дом пуст» и «этот дом не разобран» чинятся разным (инв. #17).
+
+        Ключ не того типа — поломка конституции, и она обязана дойти до
+        читателя причиной, а не превратиться в тихий пустой перебор: иначе
+        испорченный манифест читался бы как «объявления просто нет».
+        """
+        slo, prov = R.gas_slo_hours(
+            "/root", lambda p: {"artifacts": [], "agents": {"не": "список"}})
+        self.assertIsNone(slo)
+        self.assertIn("манифест не прочитан", prov)
+        self.assertIn("`agents`", prov)
+
+    def test_the_lookup_is_ONE_and_gas_only_names_its_artifact(self):
+        """Второй копии разбора манифеста нет: `gas_slo_hours` — обёртка."""
+        a = R.gas_slo_hours("/root", lambda p: _manifest_passport_only())
+        b = R.declared_slo_hours("/root", lambda p: _manifest_passport_only(),
+                                 R.GAS_ARTIFACT_REL)
+        self.assertEqual(a, b)
+
+
+class TestTheCriterionVerdictIsNotTheSeverityLadder(unittest.TestCase):
+    """Вердикт критерия §49 `Costs` читает находки ПО ОСИ, а не поле `overall`.
+
+    `overall` ставит третий исход ВЫШЕ `CRITICAL` намеренно
+    (`test_unchecked_outranks_critical`): для здоровья артефакта это верно.
+    Для вердикта критерия тот же порядок прятал бы ИЗМЕРЕННОЕ красное за «не
+    измерено» — инвариант #17 наизнанку.
+    """
+
+    def test_a_found_divergence_survives_an_unchecked(self):
+        """Главный контроль цикла: неполнота рядом не отменяет находку.
+
+        Снимок оркестратора убран ⇒ `unchecked` не пуст ⇒ `overall` = UNCHECKED.
+        Но расхождение стоимости НАЙДЕНО, и вердикт критерия обязан остаться
+        красным: утверждение существования от чужой неполноты не зависит.
+        """
+        rep = _tree(**{"data/gas_price_history.json":
+                       _gas_doc(spot_source="unchecked")}).run()
+        self.assertEqual(rep["overall"], "UNCHECKED")
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED,
+                         "без наблюдения газа сравнивать нечем — это третий исход")
+
+        # А теперь то же самое, но наблюдение ЕСТЬ и расхождение НАЙДЕНО:
+        # слиппедж не моделируется на части оборота (TVL одной ноги не
+        # наблюдён) ⇒ `unchecked` не пуст ⇒ `overall` = UNCHECKED. Сравнение
+        # газа при этом состоялось, и находка о нём НАЙДЕНА.
+        partial = {"adapters": [a for a in _orch()["adapters"]
+                                if a["protocol"] != "pendle"]}
+        rep = _tree(**{"data/adapter_orchestrator_status.json": partial}).run()
+        self.assertTrue(rep["unchecked"], "фикстура не воспроизвела неполноту")
+        self.assertEqual(rep["overall"], "UNCHECKED")
+        self.assertIn("cost_error_exceeds_the_deciding_margin",
+                      rep["criterion"]["found"])
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_NOT_SATISFIED,
+                         "находка существования спрятана за «не измерено» — "
+                         "инвариант #17 наизнанку")
+
+    def test_unchecked_without_a_finding_IS_the_third_outcome(self):
+        rep = _tree(**{"data/allocation_rationale.json": None}).run()
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
+        self.assertEqual(rep["criterion"]["found"], [])
+
+    def test_an_unknown_finding_kind_is_a_THIRD_OUTCOME_not_a_silent_class(self):
+        block = R._criterion_block(
+            [{"severity": "WARN", "kind": "kind_invented_tomorrow"}], [], None,
+            verdict_freshness={"slo_hours": 1.0, "age_hours": 0.0})
+        self.assertEqual(block["status"], R.CRITERION_UNMEASURED)
+        self.assertIn("kind_invented_tomorrow", block["reason"])
+
+    def test_every_kind_the_module_can_emit_has_an_axis(self):
+        """Храповик: вид находки, рождённый кодом, обязан быть объявлен осью.
+
+        Иначе новый вид молча уводил бы вердикт критерия в третий исход — то
+        есть выключал бы меру, не тронув ни строчки в ней.
+        """
+        with open(R.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        emitted = set(re.findall(r'"kind":\s*"([a-z_]+)"', src))
+        self.assertTrue(emitted, "виды находок не найдены — замер НЕ СОСТОЯЛСЯ")
+        self.assertEqual(emitted - set(R.FINDING_AXIS), set())
+
+    def test_an_assumption_does_not_redden_the_criterion(self):
+        """Модель над наблюдённым TVL — ДОПУЩЕНИЕ, и вердикта оно не двигает."""
+        block = R._criterion_block(
+            [{"severity": "WARN", "kind": "modelled_slippage_above_the_flat_charge"}],
+            [], None, verdict_freshness={"slo_hours": 26.0, "age_hours": 1.0})
+        self.assertEqual(block["status"], R.CRITERION_SATISFIED)
+        self.assertEqual(block["assumption"],
+                         ["modelled_slippage_above_the_flat_charge"])
+
+    def _green(self, **files):
+        base = {"data/gas_price_history.json": _gas_doc(eth_gwei=19.2),
+                "architecture/manifest.json": _manifest_both_homes()}
+        base.update(files)
+        return _tree(**base).run()
+
+    def test_a_clean_and_fresh_tree_is_SATISFIED(self):
+        rep = self._green()
+        self.assertEqual(rep["criterion"]["found"], [])
+        self.assertEqual(rep["unchecked"], [])
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_SATISFIED,
+                         rep["criterion"]["reason"])
+
+    def test_the_green_path_asks_the_age_of_the_RECORDED_verdict(self):
+        """«Расхождений нет» про вердикт трёхнедельной давности — тишина дерева."""
+        old = _rationale()
+        old["generated_at"] = _ts(24.0 * 21)
+        rep = self._green(**{"data/allocation_rationale.json": old})
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
+        self.assertIn("протух", rep["criterion"]["reason"])
+
+    def test_the_green_path_refuses_when_the_verdicts_SLO_has_no_home(self):
+        rep = self._green(**{"architecture/manifest.json": _manifest(slo=1.5)})
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
+        self.assertIn("дом срока годности", rep["criterion"]["reason"])
+
+    def test_an_unparsable_verdict_stamp_is_NOT_treated_as_fresh(self):
+        broken = _rationale()
+        broken["generated_at"] = "не-дата"
+        rep = self._green(**{"data/allocation_rationale.json": broken})
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
+        self.assertIn("НЕ ИЗМЕРЕН", rep["criterion"]["reason"])
+
+    def test_the_unjudged_ratio_is_named_when_the_gate_margin_is_absent(self):
+        """Тихий день: отношение ИЗМЕРЕНО, но зазора гейта нет — и это сказано.
+
+        Порога «во сколько раз уже много» вне зазора гейта владелец не
+        объявлял; назначить его здесь значило бы завести порог вне его дома.
+        Поэтому число печатается, а вердикта из него не выходит.
+        """
+        quiet = _rationale(payback=None)
+        rep = _tree(**{"data/allocation_rationale.json": quiet}).run()
+        unjudged = rep["criterion"]["unjudged"]
+        self.assertIsNotNone(unjudged, "измеренное отношение не названо вовсе")
+        self.assertIsNotNone(unjudged["gas_ratio_charged_over_observed"])
+        self.assertEqual(rep["criterion"]["found"], [],
+                         "без зазора гейта находки нет — и выдумывать её нельзя")
+
+    def test_the_declaration_names_THIS_criterion_by_anchor(self):
+        self.assertTrue(R.CRITERION.startswith("§49 Costs"),
+                        "проба сверяет объявление по ЯКОРЮ, а не подстрокой")
 
 
 if __name__ == "__main__":                                    # pragma: no cover

@@ -1455,6 +1455,132 @@ def _probe_trade_is_rechecked_immediately_before_execution(
                         f"в вердикт критерия — молчать об этом нельзя")
 
 
+#: Прибор стоимости перекладки (цикл #501, ADR-243). Модуль ПАКЕТНЫЙ, поэтому его
+#: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
+#: увидеть: проба читает ПРИБОР, а не свою копию его логики.
+COST_EVIDENCE_MODULE = "spa_core.monitoring.rebalance_cost_evidence"
+
+
+def _cost_evidence_module():
+    """Прибор стоимости перекладки. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(COST_EVIDENCE_MODULE)
+
+
+def _probe_costs_are_accounted_for_in_the_decision(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Costs` приказа CIO: «Gas, fees, slippage accounted for in decision».
+
+    ПЕРВАЯ привязка цены `WORDING` — и снова ОДНА, а не пакетом (запрет G94).
+    Прибор `rebalance_cost_evidence` живёт с цикла #501, артефакт свеж (замер
+    29.09: 2,1 ч при объявленном пределе 7 ч) — а запись «этот прибор есть мера
+    этого критерия» лежала ПРОЗОЙ, и притом НЕ канонической формулировкой:
+    конституция писала `§49 ТЗ «Portfolio CIO» (Costs: …)`, то есть форму
+    `paren`, и читателю оставалось угадывать. Сводный замер
+    (`scripts/cio_acceptance_rollup.py`) честно отвечал «машинной пробы,
+    объявившей себя мерой этого критерия, в реестре НЕТ».
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    Берётся поле `criterion.status`, которое прибор теперь публикует сам:
+    `SATISFIED` → `satisfied` · `NOT_SATISFIED` → `not_satisfied` ·
+    `UNMEASURED` → `unmeasured`. Своего порога у пробы нет НИ ОДНОГО: и срок
+    годности наблюдения газа (1,5 ч), и срок годности записанного вердикта
+    (26 ч) читаются прибором из манифеста, а полоса выгоды и горизонт
+    окупаемости — из `TriggerParams` владельца.
+
+    Почему переносится НЕ `overall` — находка цикла
+    ---------------------------------------------------------------------------
+    `overall` у этого прибора есть лестница ТЯЖЕСТИ, и третий исход стои́т в ней
+    ВЫШЕ `CRITICAL` намеренно (`test_unchecked_outranks_critical`): иначе «не
+    измерено» тонет в находках. Для здоровья артефакта это верно, а для вердикта
+    критерия было бы ложью в другую сторону — находка расхождения есть
+    утверждение СУЩЕСТВОВАНИЯ, и непрочитанный рядом снимок её не отменяет.
+    Перенести `overall` значило бы спрятать измеренное красное за «не измерено»,
+    то есть вывернуть инвариант #17 наизнанку. Поэтому прибор получил отдельное
+    поле, читающее свои находки ПО ОСИ (`FINDING_AXIS`), а таблица осей живёт у
+    него: виды находок порождает он, и вторая её копия здесь разъехалась бы
+    молча.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Верность самих чисел стоимости.** Что литералы `cost_model` верны — не
+      вопрос этой пробы; прибор как раз и меряет их расхождение с наблюдением.
+    * **Комиссии и слиппедж НАБЛЮДЕНИЕМ.** Наблюдается ровно одна компонента из
+      трёх — газ; слиппедж сверяется МОДЕЛЬЮ над наблюдённым TVL, и прибор
+      никогда не поднимает это выше допущения. Критерий владельца шире, чем
+      сегодняшняя мера, и это сказано вслух здесь, а не спрятано в зелёном.
+    * **Тихий день.** Прибор умеет измерить отношение заряженного газа к
+      наблюдённому и тогда, когда перекладка не предложена, — но находкой это не
+      становится: находки сравнивают ошибку с ЗАЗОРОМ ГЕЙТА, а зазора без
+      предложенной перекладки нет. Число печатается рядом (`unjudged`), потому
+      что порога «во сколько раз уже много» вне зазора гейта владелец не
+      объявлял, и назначить его пробой значило бы завести порог вне его дома.
+    * **Ничего не чинит.** Прибор зовётся с `write=False`: проба не переписывает
+      даже его собственный артефакт. Ни строки `TriggerParams`, `cost_model`,
+      RiskPolicy, стоп-крана, аллокатора или живого трека.
+    """
+    try:
+        meter = _cost_evidence_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"прибор стоимости перекладки не загружен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление читается
+    # ДО прогона: на отказном пути прогон до доклада может не дойти вовсе.
+    # Совпадение — ПО ЯКОРЮ, а не подстрокой «Costs»: подстрока совпала бы с
+    # любой заметкой о стоимости (ADR-333).
+    anchor = "§49 Costs"
+    declared = str(getattr(meter, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
+                            f"(его CRITERION: {declared[:80]!r}) — привязка не "
+                            f"сходится, и считать его мерой этого критерия нельзя")
+
+    root = repo_root or REPO_ROOT
+    data = data_dir or os.path.join(root, "data")
+    try:
+        report = meter.run(root=root, write=False, data_dir=data, now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"прибор стоимости перекладки упал: "
+                            f"{type(exc).__name__}: {exc}")
+
+    block = observed(report, "criterion", kind=dict)
+    if block is None:
+        return UNMEASURED, ("прибор не вынес вердикта о критерии (поля `criterion` "
+                            "в отчёте нет) — переносить нечего, и молчать об этом "
+                            "нельзя")
+
+    fresh = report.get("verdict_freshness") or {}
+    where = (f"находок расхождения {len(block.get('found') or [])}, "
+             f"ненаблюдённого {len(block.get('unobserved') or [])}, допущений "
+             f"{len(block.get('assumption') or [])}, непрочитанного "
+             f"{len(report.get('unchecked') or [])}; записанный вердикт снят "
+             f"{fresh.get('stamp')} ({fresh.get('age_hours')} ч при пределе "
+             f"{fresh.get('slo_hours')} ч, {fresh.get('slo_provenance')})")
+    blind = ("наблюдается ОДНА компонента стоимости из трёх — газ; слиппедж "
+             "сверяется МОДЕЛЬЮ над наблюдённым TVL и выше допущения не "
+             "поднимается, комиссии не наблюдаются вовсе")
+    unjudged = block.get("unjudged")
+    if isinstance(unjudged, dict):
+        blind += (f"; ИЗМЕРЕНО, НО НЕ СУЖДЕНО: заряженный газ ×"
+                  f"{unjudged.get('gas_ratio_charged_over_observed')} от "
+                  f"наблюдённого — {unjudged.get('reason')}")
+
+    status = block.get("status")
+    reason = block.get("reason") or "причина не названа"
+    if status == meter.CRITERION_NOT_SATISFIED:
+        return NOT_SATISFIED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_UNMEASURED:
+        return UNMEASURED, f"{reason} ({where}; {blind})"
+    if status == meter.CRITERION_SATISFIED:
+        return SATISFIED, f"{reason} ({where}; {blind})"
+    return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
+                        f"переносится — молчать об этом нельзя")
+
+
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
 #: грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог подменить в нём
 #: секцию через `sys.modules[...]` и увидеть, что проба это ЗАМЕЧАЕТ.
@@ -3705,6 +3831,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":
         _probe_no_single_criterion_probe_on_a_multi_criterion_order,
+    "costs_are_accounted_for_in_the_decision":
+        _probe_costs_are_accounted_for_in_the_decision,
     "no_regression_tests_pass": _probe_no_regression_tests_pass,
     "g17_subject_state_is_measured": _probe_g17_subject_state_is_measured,
     "subject_taking_leaves_a_guard_receipt":
@@ -3730,6 +3858,7 @@ _probe_persistence_advantage_outlives_horizon.s49_criterion = "Persistence"
 _probe_risk_policy_unbypassable_in_executed_states.s49_criterion = "Risk"
 _probe_book_does_not_oscillate_between_opportunities.s49_criterion = "Anti-churn"
 _probe_trade_is_rechecked_immediately_before_execution.s49_criterion = "Pre-trade safety"
+_probe_costs_are_accounted_for_in_the_decision.s49_criterion = "Costs"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 

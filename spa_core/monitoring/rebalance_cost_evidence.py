@@ -153,6 +153,66 @@ GAS_ARTIFACT_REL = "data/gas_price_history.json"
 
 _LIVE = "live"
 
+#: Записанный вердикт цикла — материал, О КОТОРОМ судит этот прибор. Его свежесть
+#: спрашивается на ЗЕЛЁНОМ пути вердикта критерия (см. :func:`_criterion_block`).
+VERDICT_ARTIFACT_REL = "data/allocation_rationale.json"
+
+
+# ── чей мерой объявлен этот прибор ───────────────────────────────────────────
+
+#: Критерий §49 ТЗ «Portfolio CIO», мерой которого объявлен ЭТОТ прибор.
+#: Проба `card_acceptance` сверяет объявление ПО ЯКОРЮ («§49 Costs»), а не
+#: подстрокой: подстрока «Costs» совпала бы с любой заметкой о стоимости
+#: (ADR-333).
+CRITERION = ("§49 Costs — «Gas, fees, slippage accounted for in decision» "
+             "(+ тело ТЗ: решение обязано учитывать «стоимость ребалансировки "
+             "… и стоимость последующего выхода»)")
+
+CRITERION_SATISFIED = "SATISFIED"
+CRITERION_NOT_SATISFIED = "NOT_SATISFIED"
+CRITERION_UNMEASURED = "UNMEASURED"
+
+#: Ось находки: каким УТВЕРЖДЕНИЕМ она отвечает на вопрос критерия.
+#:
+#: `found`       — утверждение СУЩЕСТВОВАНИЯ: ошибка стоимости БОЛЬШЕ зазора,
+#:                 которым решается гейт. Неполнота материала рядом его не
+#:                 отменяет.
+#: `compared`    — сравнение состоялось, и ошибка уложилась в зазор решения.
+#:                 Вердикта не двигает: порог здесь не подобран, а взят по
+#:                 ПРИНЦИПУ — «больше зазора, которым принимается решение», — и
+#:                 всё, что внутри зазора, решение не переворачивает. Сам прибор
+#:                 разводит эти два случая разной тяжестью (`CRITICAL` против
+#:                 `WARN`) именно поэтому.
+#: `unobserved`  — сравнение не состоялось: наблюдать было нечем. Третий исход.
+#: `assumption`  — сравнивалась МОДЕЛЬ, а не наблюдение. Вердикта критерия не
+#:                 двигает ни в какую сторону: поднять допущение до находки
+#:                 значило бы выдать модель за измерение — ровно та подмена,
+#:                 против которой написан этот модуль (и по которой слиппедж
+#:                 никогда не поднимается выше `WARN`).
+#: `context`     — факт об устройстве решения, а не наблюдение дня.
+AXIS_FOUND = "found"
+AXIS_COMPARED = "compared"
+AXIS_UNOBSERVED = "unobserved"
+AXIS_ASSUMPTION = "assumption"
+AXIS_CONTEXT = "context"
+
+#: Вид находки → ось. Перечень ЗАКРЫТ: вид, которого здесь нет, обрывает вердикт
+#: критерия третьим исходом с названным именем вида. Классифицировать новый вид
+#: молча значило бы решить за автора, существование это или его отсутствие.
+#:
+#: Таблица живёт У ПРИБОРА, а не у пробы: виды порождает он, и вторая копия
+#: таблицы рядом с пробой разъехалась бы с ними молча.
+FINDING_AXIS = {
+    "cost_error_exceeds_the_deciding_margin": AXIS_FOUND,
+    "cost_error_within_the_deciding_margin": AXIS_COMPARED,
+    "observed_gas_flips_the_gate": AXIS_FOUND,
+    "observed_gas_is_stale": AXIS_UNOBSERVED,
+    "tvl_snapshot_unavailable": AXIS_UNOBSERVED,
+    "modelled_slippage_above_the_flat_charge": AXIS_ASSUMPTION,
+    "cost_enters_only_the_payback_gate": AXIS_CONTEXT,
+    "all_three_cost_components_are_literals": AXIS_CONTEXT,
+}
+
 
 def _num(v: object) -> float | None:
     """Число или None. bool числом НЕ считается."""
@@ -178,25 +238,94 @@ def _parse_ts(value: object) -> dt.datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
 
 
-def gas_slo_hours(root: str, read: Callable[[str], Any]) -> tuple[float | None, str]:
-    """SLO свежести наблюдения газа — из ДОМА артефакта (манифест архитектуры).
+def declared_slo_hours(root: str, read: Callable[[str], Any],
+                       rel: str) -> tuple[float | None, str]:
+    """SLO свежести артефакта — из ДОМА, где конституция его объявила.
 
     Порог свежести этот модуль себе не назначает: у артефакта есть паспорт, и
-    судить его собственный производитель уже обязался. Не прочиталось ⇒ None, и
+    судить его собственный производитель уже обязался. Дома нет ⇒ ``None``, и
     свежесть тогда НЕ судится вовсе (возраст всё равно печатается) — выдумать
     здесь «24 часа» значило бы завести второй, никем не принятый порог.
+
+    **Домов у манифеста ДВА, и спрашивать надо оба (находка цикла #730).**
+    Прежняя редакция искала объявление только среди верхнеуровневых
+    ``artifacts[]`` и на ненайденное честно отвечала «в манифесте нет записи».
+    Ответ был верен по букве и ложен по существу: этот манифест объявляет сроки
+    годности ТАКЖЕ в паспорте производителя (``agents[].produces[]``), и у
+    ``data/gas_price_history.json`` объявление живёт ИМЕННО там — **1,5 ч**.
+    Поэтому свежесть наблюдения газа не судилась НИ РАЗУ за всё время жизни
+    прибора: замер 29.09 на живом дереве — чтение по ``ethereum`` возрастом
+    **29,66 ч** при объявленных 1,5 ч, и находка ``observed_gas_is_stale`` не
+    рождалась никогда. Сторожа это не ловили потому, что фикстура клала SLO в
+    ТОТ дом, куда смотрел код, — тест отвечал на свой вопрос, а не на нужный.
+
+    **Расхождение двух домов — ТРЕТИЙ ИСХОД, а не выбор одного.** Два разных
+    числа под одним артефактом означают, что срок годности не объявлен, а
+    оспорен; взять любое из них значило бы решить спор конституции молча.
     """
     path = os.path.join(root, "architecture", "manifest.json")
+    homes: list[tuple[str, float]] = []
+    def _entries(doc: dict, key: str) -> list:
+        """Список под ключом. Ключа НЕТ — дома нет вовсе, и это не поломка.
+
+        А вот ключ НЕ ТОГО ТИПА — поломка конституции, и она обязана дойти до
+        читателя третьим исходом, а не превратиться в пустой перебор: «этот дом
+        пуст» и «этот дом не разобран» чинятся разным (инвариант #17).
+        """
+        rows = doc.get(key)
+        if rows is None:
+            return []
+        if not isinstance(rows, list):
+            raise TypeError(f"`{key}` в манифесте не список, а "
+                            f"{type(rows).__name__}")
+        return rows
+
     try:
         manifest = read(path)
-        for art in manifest.get("artifacts") or []:
-            if isinstance(art, dict) and art.get("path") == GAS_ARTIFACT_REL:
+        for art in _entries(manifest, "artifacts"):
+            if isinstance(art, dict) and art.get("path") == rel:
                 slo = _num(art.get("slo_hours"))
                 if slo is not None:
-                    return slo, f"манифест: artifacts[{GAS_ARTIFACT_REL}].slo_hours={slo}"
-        return None, f"в манифесте нет записи artifacts[{GAS_ARTIFACT_REL}].slo_hours"
+                    homes.append((f"artifacts[{rel}].slo_hours", slo))
+        for agent in _entries(manifest, "agents"):
+            if not isinstance(agent, dict):
+                continue
+            for made in _entries(agent, "produces"):
+                if isinstance(made, dict) and made.get("artifact") == rel:
+                    slo = _num(made.get("slo_hours"))
+                    if slo is not None:
+                        # Имя агента — `label`: так его зовут launchd и сам
+                        # манифест. Провенанс без имени производителя не
+                        # провенанс, а указание «где-то в агентах»; отсутствие
+                        # имени НАЗЫВАЕТСЯ, а не подменяется пустой строкой.
+                        who = agent.get("label")
+                        who = who if isinstance(who, str) and who.strip() \
+                            else "агент без `label`"
+                        homes.append(
+                            (f"agents[{who}].produces[{rel}].slo_hours", slo))
     except Exception as exc:  # noqa: BLE001 — отсутствие дома = третий исход
         return None, f"манифест не прочитан ({path}): {exc}"
+
+    if not homes:
+        return None, (f"в манифесте нет записи о сроке годности {rel} — ни в "
+                      f"artifacts[], ни в agents[].produces[]")
+    values = {v for _, v in homes}
+    if len(values) > 1:
+        named = "; ".join(f"{where}={v}" for where, v in homes)
+        return None, (f"срок годности {rel} объявлен РАЗНЫМ в {len(homes)} местах "
+                      f"({named}) — он не объявлен, а оспорен, и выбрать одно "
+                      f"число молча значило бы решить спор конституции за неё")
+    slo = homes[0][1]
+    return slo, "манифест: " + "; ".join(f"{where}={v}" for where, v in homes)
+
+
+def gas_slo_hours(root: str, read: Callable[[str], Any]) -> tuple[float | None, str]:
+    """SLO свежести наблюдения газа. Тонкая обёртка над :func:`declared_slo_hours`.
+
+    Имя оставлено: на него ссылаются сторожа и провенанс в отчёте. Второй копии
+    разбора манифеста здесь НЕТ намеренно — одно правило, одно место.
+    """
+    return declared_slo_hours(root, read, GAS_ARTIFACT_REL)
 
 
 def observed_gas_usd_per_leg(gas_doc: dict, *, now: dt.datetime) -> dict:
@@ -338,6 +467,119 @@ def modelled_slippage_usd(legs: list[dict], tvl: dict[str, float | None],
             "provenance": "assumption:model_over_observed_tvl"}
 
 
+def _criterion_block(findings: list[dict], unchecked: list[str],
+                     substitution: dict | None, *,
+                     verdict_freshness: dict) -> dict:
+    """Вердикт КРИТЕРИЯ §49 `Costs` — и почему он НЕ есть поле ``overall``.
+
+    ``overall`` — лестница ТЯЖЕСТИ для здоровья артефакта, и третий исход стои́т
+    в ней ВЫШЕ ``CRITICAL`` намеренно (``test_unchecked_outranks_critical``):
+    иначе «не измерено» тонет в находках. Для ЗДОРОВЬЯ это верно.
+
+    Для вердикта критерия тот же порядок был бы ложью в другую сторону.
+    Доказательство здесь ОДНОСТОРОННЕЕ: находка расхождения есть утверждение
+    СУЩЕСТВОВАНИЯ («заряжено ×N от наблюдённого при зазоре гейта ×M»), и то, что
+    рядом чего-то не прочитали, её не отменяет; а «расхождений нет» есть
+    утверждение обо ВСЁМ и рушится от любой неполноты. Перенести ``overall`` в
+    вердикт критерия значило бы спрятать измеренное красное за «не измерено» —
+    инвариант #17 наизнанку (урок цикла #729, ADR-512).
+
+    Поэтому читаются НАХОДКИ ПО ОСИ (:data:`FINDING_AXIS`), а не одно сводное
+    слово, и порядок разрешения такой:
+
+    1. вид находки не объявлен осью ⇒ третий исход с именем вида;
+    2. есть находка оси ``found`` ⇒ ``NOT_SATISFIED`` — независимо от неполноты;
+    3. иначе есть ``unchecked`` или находка оси ``unobserved`` ⇒ третий исход;
+    4. иначе ЗЕЛЁНЫЙ путь, и только на нём спрашивается законность: свеж ли
+       ЗАПИСАННЫЙ ВЕРДИКТ, о котором всё это сказано. «Расхождений нет» про
+       вердикт трёхнедельной давности — тишина мёртвого дерева, а не ответ.
+
+    Зазор назван вслух полем ``unjudged``: прибор умеет измерить отношение
+    заряженного газа к наблюдённому и на тихом дне (перекладка не предложена ⇒
+    ``payback_days`` нет ⇒ зазора гейта нет ⇒ находка не рождается). Порога «во
+    сколько раз уже много» БЕЗ зазора гейта владелец не объявлял, и назначить
+    его здесь значило бы завести порог вне его дома — поэтому число печатается,
+    а вердикта из него не выходит.
+    """
+    found: list[str] = []
+    unobserved: list[str] = []
+    assumption: list[str] = []
+    compared: list[str] = []
+    for f in findings:
+        kind = str(f.get("kind"))
+        axis = FINDING_AXIS.get(kind)
+        if axis is None:
+            return {"criterion": CRITERION, "status": CRITERION_UNMEASURED,
+                    "reason": (f"у находки {kind!r} не объявлена ось "
+                               f"(`FINDING_AXIS`) — отнести её к существованию "
+                               f"или к его отсутствию молча нельзя"),
+                    "found": [], "unobserved": [], "assumption": [],
+                    "compared": [], "unjudged": None}
+        if axis == AXIS_FOUND:
+            found.append(kind)
+        elif axis == AXIS_UNOBSERVED:
+            unobserved.append(kind)
+        elif axis == AXIS_ASSUMPTION:
+            assumption.append(kind)
+        elif axis == AXIS_COMPARED:
+            compared.append(kind)
+
+    unjudged = None
+    if isinstance(substitution, dict):
+        ratio = substitution.get("gas_ratio_charged_over_observed")
+        if ratio is not None and substitution.get("gate_flip_margin") is None:
+            unjudged = {
+                "gas_ratio_charged_over_observed": ratio,
+                "reason": ("зазор гейта не определён (перекладка не предложена "
+                           "либо `payback_days` не записан) — сравнивать ошибку "
+                           "не с чем; порога «во сколько раз уже много» вне "
+                           "зазора гейта владелец не объявлял"),
+            }
+
+    base = {"criterion": CRITERION, "found": sorted(set(found)),
+            "unobserved": sorted(set(unobserved)),
+            "assumption": sorted(set(assumption)),
+            "compared": sorted(set(compared)), "unjudged": unjudged}
+
+    if found:
+        return dict(base, status=CRITERION_NOT_SATISFIED,
+                    reason=("стоимость, которой решение пользуется, разошлась с "
+                            "наблюдённой: " + ", ".join(sorted(set(found)))
+                            + " — находка существования, и неполнота материала "
+                              "рядом её не отменяет"))
+    if unchecked or unobserved:
+        why = list(unchecked) + [f"находка {k}" for k in sorted(set(unobserved))]
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=("сравнить заряженную стоимость с наблюдённой было "
+                            "нечем: " + "; ".join(why)))
+
+    slo = verdict_freshness.get("slo_hours")
+    age = verdict_freshness.get("age_hours")
+    if slo is None:
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=(f"дом срока годности записанного вердикта не назван "
+                            f"({verdict_freshness.get('slo_provenance')}) — "
+                            f"«расхождений нет» отсюда было бы сказано о вердикте "
+                            f"любого возраста"))
+    if age is None:
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=(f"возраст записанного вердикта НЕ ИЗМЕРЕН (отметка "
+                            f"{verdict_freshness.get('stamp')!r} не разобрана) — "
+                            f"отличить живое дерево от замороженного канона "
+                            f"`data/` нечем"))
+    if age > slo:
+        return dict(base, status=CRITERION_UNMEASURED,
+                    reason=(f"записанный вердикт протух: снят "
+                            f"{verdict_freshness.get('stamp')} — {age} ч назад при "
+                            f"объявленном пределе {slo} ч; «расхождений нет» — "
+                            f"тишина мёртвого дерева, а не ответ о системе"))
+    return dict(base, status=CRITERION_SATISFIED,
+                reason=(f"стоимость входит в записанный вердикт, и заряженное "
+                        f"сошлось с наблюдённым: находок расхождения 0, "
+                        f"непрочитанного 0, вердикт снят {age} ч назад при "
+                        f"пределе {slo} ч"))
+
+
 def run(
     root: str = REPO_ROOT,
     *,
@@ -409,6 +651,20 @@ def run(
         unchecked.append(f"наблюдение газа не прочитано ({gas_path}): {exc}")
 
     slo_hours, slo_provenance = gas_slo_hours(root, read)
+
+    # Свежесть ЗАПИСАННОГО ВЕРДИКТА — материала, о котором судит этот прибор.
+    # Спрашивается только на зелёном пути вердикта критерия; здесь она МЕРИТСЯ,
+    # а решение о ней принимает `_criterion_block`.
+    verdict_slo, verdict_slo_prov = declared_slo_hours(root, read,
+                                                       VERDICT_ARTIFACT_REL)
+    verdict_ts = _parse_ts(verdict_at)
+    verdict_freshness = {
+        "stamp": verdict_at,
+        "age_hours": (round((now - verdict_ts).total_seconds() / 3600.0, 2)
+                      if verdict_ts is not None else None),
+        "slo_hours": verdict_slo,
+        "slo_provenance": verdict_slo_prov,
+    }
 
     # ── пороги решения: из СВОЕГО дома, запасных литералов нет ───────────────
     max_payback_days: float | None = None
@@ -643,6 +899,9 @@ def run(
         },
         "findings": findings,
         "unchecked": unchecked,
+        "verdict_freshness": verdict_freshness,
+        "criterion": _criterion_block(findings, unchecked, substitution,
+                                      verdict_freshness=verdict_freshness),
         "note": (
             "ADVISORY. Отвечает на §49 «Costs» ТЗ «Portfolio CIO» (gas, fees, slippage "
             "accounted for in decision). Капитал по этому вердикту НЕ двигается: "

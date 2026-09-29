@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-29T08:43:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-29T15:37:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fa8b918bf) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (49942ca1c) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1144** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1146** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -19,6 +19,7 @@
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
 - **Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх** · _high_  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
+- **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
 - **Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла**  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md`
 
@@ -41,7 +42,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (295)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (296)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
@@ -53,6 +54,7 @@
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 - Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
+- Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 ### · ingested
@@ -342,7 +344,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (608)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (609)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -847,6 +849,7 @@
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10
 - Nimbalyst не видит 13 карточек — заголовок с двоеточием без кавычек ломает разбор frontmatter  ·  `inbox-nimbalyst-ne-vidit-13-kartochek-zagolovo.md` · 2026-09-17
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
+- Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
