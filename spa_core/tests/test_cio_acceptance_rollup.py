@@ -422,6 +422,9 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         # Заказ G96 п. 1, ADR-510: третья привязка, тем же порядком
                         # и по той же причине — снимок и есть живой реестр.
                         "Risk": ["risk_policy_unbypassable_in_executed_states"],
+                        # ADR-511: четвёртая привязка, тем же порядком и по той же
+                        # причине — снимок и есть живой реестр.
+                        "Anti-churn": ["book_does_not_oscillate_between_opportunities"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 

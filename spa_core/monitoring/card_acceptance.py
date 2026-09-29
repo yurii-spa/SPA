@@ -705,6 +705,264 @@ def _probe_persistence_advantage_outlives_horizon(
                         f"вердикт критерия — молчать об этом нельзя")
 
 
+#: Имя переписи прыжков книги в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его подмена
+#: в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы увидеть: проба
+#: читает ПРИБОР, а не собственную копию его логики.
+BOOK_OSCILLATION_MODULE = "spa_core.monitoring.book_oscillation_census"
+
+
+def _book_oscillation_module():
+    """Перепись прыжков книги. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(BOOK_OSCILLATION_MODULE)
+
+
+def _standing_book_agrees_with_journal_tail(
+        report: dict, data: "_pathlib.Path", census,
+        *, now: "datetime | None" = None) -> "tuple[str | None, str]":
+    """Та ли это книга и тот ли это журнал — или мы судим о замороженном каноне.
+
+    Возвращает `(None, "")`, когда вердикт переписи законно относится к живой
+    системе, и `(UNMEASURED, причина)`, когда ответить нечем. Вердикта «не
+    выполнен» отсюда не выходит НИ ОДНОГО: вопрос здесь не о прыжках книги, а о
+    том, о чём вообще речь, — и смешать «книга прыгала» с «мы смотрим не на ту
+    книгу» значило бы завести второе правило.
+
+    Почему дверь именно ЭТА — и почему рассуждение своё, а не переписанное
+    ---------------------------------------------------------------------------
+    Урок ADR-508/ADR-510 применяется, а не копируется: адрес вопроса о свежести
+    у каждого предмета СВОЙ, и здесь он получился третьим по счёту и по смыслу.
+
+    Спрашивать возраст у журнала ходов НЕЛЬЗЯ: он пополняется, только когда ход
+    БЫЛ. Замер 29.09 — последний ход `T034` от 11.09, восемнадцать дней назад, и
+    это спокойная неделя, а не протухший источник; спросив у него, проба
+    объявила бы исправную систему «НЕ ИЗМЕРЕНО».
+
+    Но и молчать нельзя, и опасность здесь ОБРАТНАЯ вердикту `Risk`. Там ложь
+    была бы о книге, которой уже нет; здесь — ЛОЖНАЯ ЗЕЛЁНАЯ: «возвратов от now
+    нет» звучит одинаково и у системы, которая перестала прыгать, и у
+    замороженного канона `data/` (в нём ходов 7 против 34 живых), и у книги,
+    которая двигалась МИМО журнала — ход без записи не породит возврата ни у
+    какого прибора, сверяющего состояния по записям.
+
+    Все три случая закрывает ОДИН вопрос, и он не о возрасте журнала: сходится
+    ли СОСТАВ состояния, на котором журнал кончается, с книгой, которая стои́т
+    сегодня. Стоящая книга переписывается КАЖДЫМ дневным циклом, поэтому её
+    свежесть отвечает за живость дерева, а совпадение состава — за полноту
+    журнала. Тихая неделя при этом проходит: восемнадцать дней без ходов
+    законны ровно до тех пор, пока книга и хвост журнала говорят одно и то же.
+
+    Нормализует чужую сторону ТА ЖЕ `canonical_state` прибора, которой он судил
+    сами возвраты, и теми же псевдонимами и тем же порогом существенности:
+    вторая копия правила «что считать позицией» разошлась бы молча, а
+    переименование ключа (`fluid_usdc` → `fluid_fusdc`, ход T034) развело бы
+    стороны на 42 % книги без единой настоящей разницы.
+    """
+    path = data / STANDING_BOOK_FILE
+    try:
+        standing = json.loads(path.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"книга, которая стои́т сегодня, не прочитана ({path}): "
+                            f"{type(exc).__name__}: {exc} — проверить, о живой ли "
+                            f"системе вердикт, НЕЧЕМ")
+
+    stamp = observed(standing, "generated_at", kind=str)
+    if stamp is None:
+        return UNMEASURED, (f"у {STANDING_BOOK_FILE} нет отметки `generated_at` — "
+                            f"возраст стоящей книги НЕ ИЗМЕРЕН, и отличить живое "
+                            f"дерево от замороженного канона `data/` нечем")
+    ref = now or datetime.now(timezone.utc)
+    try:
+        age_d = (ref - datetime.fromisoformat(stamp)).total_seconds() / 86400.0
+    except (ValueError, TypeError) as exc:
+        return UNMEASURED, (f"отметка стоящей книги {stamp!r} не разобрана как дата "
+                            f"({type(exc).__name__}) — её возраст НЕ ИЗМЕРЕН")
+    if age_d > STANDING_BOOK_MAX_AGE_D:
+        return UNMEASURED, (f"стоящая книга протухла: {STANDING_BOOK_FILE} снята "
+                            f"{stamp} — {age_d:.1f} дн назад при пределе "
+                            f"{STANDING_BOOK_MAX_AGE_D:.0f} (дневной цикл её не "
+                            f"переписывает либо это замороженный канон `data/`, а не "
+                            f"наблюдение) — «возвратов от now нет» отсюда было бы "
+                            f"тишиной мёртвого дерева, а не ответом о системе")
+
+    present = observed(report, "present", kind=dict)
+    tail = observed(present or {}, "positions", kind=dict)
+    if tail is None:
+        return UNMEASURED, ("перепись не назвала СОСТАВ состояния, на котором кончается "
+                            "журнал — сверить его с сегодняшней книгой НЕЧЕМ")
+
+    aliases = report.get("aliases") or {}
+    try:
+        min_usd = float(report.get("materiality_usd"))
+    except (TypeError, ValueError):
+        return UNMEASURED, ("перепись не назвала порог существенности — привести "
+                            "стоящую книгу к тому же виду, в каком прибор судил "
+                            "состояния, НЕЧЕМ")
+    standing_positions = census.canonical_state(
+        standing.get("positions"), aliases, min_usd)
+    if standing_positions != tail:
+        only_tail = sorted(set(tail) - set(standing_positions))
+        only_standing = sorted(set(standing_positions) - set(tail))
+        moved = sorted(k for k in set(tail) & set(standing_positions)
+                       if tail[k] != standing_positions[k])
+        return UNMEASURED, (
+            f"журнал ходов кончается состоянием {present.get('trade_id')} от "
+            f"{present.get('day')}, а сегодня стои́т ДРУГАЯ книга "
+            f"({STANDING_BOOK_FILE} от {stamp}): только в хвосте журнала "
+            f"{only_tail or '—'}, только в стоящей {only_standing or '—'}, "
+            f"разошлись суммой {moved or '—'} — книга двигалась мимо записи либо "
+            f"журнал не тот, и «возвратов от now нет» доказывало бы лишь неполноту "
+            f"журнала")
+    return None, ""
+
+
+def _probe_book_does_not_oscillate_between_opportunities(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Anti-churn` приказа CIO: «Система не прыгает между одинаковыми
+    opportunities» (+ §22 — защита от формы `A → B → A → B`).
+
+    Четвёртая привязка заказа владельца — и снова ОДНА, а не пакетом: пять
+    объявлений и ни одного наблюдения были бы переписью, а не работой (запрет
+    G94). Перепись `book_oscillation_census` живёт с цикла #701, её артефакт
+    пишется ступенью моста в такте и свеж (замер 29.09: 4,7 ч при объявленном
+    пределе 12 ч) — а запись «этот прибор есть мера этого критерия» лежала
+    ПРОЗОЙ в заметке `architecture/manifest.json`, и сводный замер
+    (`scripts/cio_acceptance_rollup.py`) честно отвечал «машинной пробы,
+    объявившей себя мерой этого критерия, в реестре НЕТ». Цена этой строки
+    измерена ADR-506 как `TRANSCRIPTION`: не хватает ОДНОГО поля.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    `OK` → `satisfied` · `CRITICAL`/`WARNING` → `not_satisfied` · третий исход
+    прибора → `unmeasured`. Своего порога у пробы нет НИ ОДНОГО: существенность
+    ноги и окно разворота прибор читает из `TriggerParams.for_mode()` — той же
+    колонки владельца (ADR-060 §3), которой судит живой путь, — и без неё
+    ОТКАЗЫВАЕТ мерить (§22 приказа: «Не hardcode»). Второе правило здесь было бы
+    вторым местом для числа.
+
+    **`WARNING` переносится в «не выполнен», а не в «предупреждение».** Эта
+    порода означает: внутри окна разворота от `now` возвратов нет, но в истории
+    они ЕСТЬ — книга уже возвращалась в состояние, которое сама покинула, при
+    работавших на тот момент защитах. Критерий владельца говорит о свойстве
+    СИСТЕМЫ («не прыгает»), а не о погоде на этой неделе, и «сейчас тихо» его не
+    доказывает.
+
+    Зазор этого выбора назван, а не спрятан
+    ---------------------------------------------------------------------------
+    История не меняется: возврат, состоявшийся в августе, состоялся навсегда, —
+    поэтому `WARNING` держится, пока в журнале лежит хоть один возврат, и
+    погасить его «подождав неделю» нельзя. Сам прибор развёл замер и вердикт
+    ИМЕННО чтобы не быть красным навсегда (`.claude/rules/deployment.md`:
+    сторожа, краснеющего на верное состояние, чинят, а не терпят), и здесь это
+    разведение сохранено — красным становится КРИТЕРИЙ, а не прибор.
+
+    Различие существенно, и вот почему оно честно: у красного есть ДВЕ разные
+    цены, и прибор их уже посчитал. `visible_to_check` — возврат за два хода:
+    гистерезис его видел, ход всё равно состоялся, значит вопрос в ВЕЛИЧИНЕ
+    порога, и порог — колонка владельца. `invisible_by_construction` — возврат
+    за три и более хода: гистерезис сравнивает ноги с ходом НЕПОСРЕДСТВЕННО
+    предыдущим (`last_move_legs`), и такой возврат ему нечем увидеть не по
+    ошибке порога, а по ПРЕДМЕТУ сравнения. Второе чинится кодом и после починки
+    гаснет по-настоящему; первое — решением владельца. Замер 29.09: возвратов 12,
+    из них невидимых по построению 7.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Что возврат был НЕВЕРЕН.** Мир умеет разворачиваться по-настоящему:
+      ставка выросла и упала, и вернуться тогда — правильное решение. Прибор
+      говорит лишь, что возврат СОСТОЯЛСЯ, и называет его цену; верность каждого
+      решения он не пересчитывает, и проба не добавляет к этому ничего.
+    * **Односторонность доказательства.** Отсутствие возвратов НЕ доказывает,
+      что система прыгать не может: прибор судит ЗАПИСАННЫЕ состояния книги, а
+      не пути кода, и о ходах вне журнала не знает ничего. Дверь к этой слепоте
+      закрыта отдельным вопросом (совпадение хвоста журнала со стоящей книгой),
+      но закрыта она лишь на СЕГОДНЯ и лишь по составу.
+    * **Правду объявления** проба СВЕРЯЕТ (ниже) по якорю, а не принимает на
+      веру. Доклад прибора ссылается на ту же константу, поэтому второй,
+      «докладной» сверки здесь нет: она была бы тавтологичной по построению, и
+      молчать об этом нельзя.
+    * **Ничего не чинит.** Только читает; ни строки `TriggerParams`, демпфера
+      частоты, гистерезиса, RiskPolicy, стоп-крана, аллокатора или живого трека.
+    """
+    try:
+        census = _book_oscillation_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"перепись прыжков книги не загружена: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление читается
+    # ДО прогона — потому что на отказном пути прогон до доклада может не дойти
+    # вовсе. Совпадение проверяется ПО ЯКОРЮ (`§49 Anti-churn`), а не подстрокой
+    # «Anti-churn»: подстрока совпала бы с любой заметкой про демпфер частоты, и
+    # объявление стало бы украшением (ADR-333).
+    anchor = "§49 Anti-churn"
+    declared = str(getattr(census, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
+                            f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
+                            f"и считать её мерой этого критерия нельзя")
+
+    data = data_dir or os.path.join(REPO_ROOT, "data")
+    try:
+        report = census.run_census(_pathlib.Path(data), now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"перепись прыжков книги упала: "
+                            f"{type(exc).__name__}: {exc}")
+
+    if not report.get("measured"):
+        return UNMEASURED, (f"перепись отказалась мерить: "
+                            f"{report.get('reason') or 'причина не названа'}")
+
+    verdict, why = _standing_book_agrees_with_journal_tail(
+        report, _pathlib.Path(data), census, now=now)
+    if verdict is not None:
+        return verdict, why
+
+    counts = observed(report, "counts", kind=dict)
+    if counts is None:
+        return UNMEASURED, ("перепись объявила себя измеренной, но сводки `counts` в "
+                            "отчёте нет — считать нечего, и подставить нули здесь "
+                            "значило бы выдать НЕ ИЗМЕРЕНО за измеренный ноль")
+
+    pol = report.get("policy") or {}
+    present = report.get("present") or {}
+    where = (f"ходов {(report.get('journal') or {}).get('moves', 0)}, хвост журнала "
+             f"{present.get('trade_id')} от {present.get('day')}, окно разворота "
+             f"{pol.get('reversal_window_days')} дн и существенность ноги "
+             f"{pol.get('min_leg_frac')} — из TriggerParams владельца "
+             f"({pol.get('mode')}/{pol.get('version')}), порог существенности "
+             f"${report.get('materiality_usd', 0.0):,.2f} от книги "
+             f"${report.get('book_scale_usd', 0.0):,.2f}")
+    blind = (f"псевдонимов ключей выведено {len(report.get('aliases') or {})}; прибор "
+             f"судит ЗАПИСАННЫЕ состояния, а не пути кода, и о ходах вне журнала не "
+             f"знает ничего; верность каждого возврата он не пересчитывает")
+
+    status = report.get("status")
+    if status == census.STATUS_OK:
+        return SATISFIED, (f"книга не возвращалась в состояние, которое сама покинула, "
+                           f"ни разу за весь журнал: возвратов {counts.get('returns_total', 0)} "
+                           f"({where}; {blind})")
+    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+        recent = counts.get("recent_within_window_from_now", 0)
+        when = (f"внутри окна разворота от now таких возвратов {recent}"
+                if recent else
+                "внутри окна разворота от now возвратов нет — только в истории, и это "
+                "НЕ «такого не бывало»")
+        return NOT_SATISFIED, (
+            f"книга возвращалась в состояние, которое сама покинула, "
+            f"{counts.get('returns_within_window', 0)} раз(а) внутри окна разворота "
+            f"(всего возвратов {counts.get('returns_total', 0)}); из них НЕВИДИМЫ "
+            f"гистерезису по построению {counts.get('invisible_by_construction', 0)} "
+            f"(вопрос ПРЕДМЕТА сравнения — чинится кодом), видел и пропустил "
+            f"{counts.get('visible_to_check', 0)} (вопрос ВЕЛИЧИНЫ порога — колонка "
+            f"владельца); {when}; оборот по непересекающимся "
+            f"${report.get('turnover_usd_disjoint', 0.0):,.2f} при остатке — книга "
+            f"кончила там, где начала ({where}; {blind})")
+    return UNMEASURED, (f"перепись вернула статус {status!r}, который не переносится в "
+                        f"вердикт критерия — молчать об этом нельзя")
+
+
 #: Имя переписи связывающих потолков в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
 #: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
 #: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
@@ -3183,6 +3441,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_persistence_advantage_outlives_horizon,
     "risk_policy_unbypassable_in_executed_states":
         _probe_risk_policy_unbypassable_in_executed_states,
+    "book_does_not_oscillate_between_opportunities":
+        _probe_book_does_not_oscillate_between_opportunities,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
@@ -3222,6 +3482,7 @@ _probe_portfolio_decision_owner_covers_capital.s49_criterion = "Architecture"
 _probe_economics_net_return_dominates_keep.s49_criterion = "Economics"
 _probe_persistence_advantage_outlives_horizon.s49_criterion = "Persistence"
 _probe_risk_policy_unbypassable_in_executed_states.s49_criterion = "Risk"
+_probe_book_does_not_oscillate_between_opportunities.s49_criterion = "Anti-churn"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 

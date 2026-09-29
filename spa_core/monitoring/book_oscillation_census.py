@@ -131,6 +131,17 @@ STATUS_UNMEASURED = "UNMEASURED"
 #: Код возврата третьего исхода. Ноль здесь был бы «чисто», которого никто не мерил.
 EXIT_UNMEASURED = 3
 
+#: Какой критерий §49 приказа владельца «Portfolio CIO» этот прибор объявляет своим
+#: предметом. Строка жила ОДНОЙ рукописной копией внутри измеренного отчёта, а
+#: отказной путь не нёс её вовсе — читатель третьего исхода не видел привязки и не
+#: мог узнать, о чём вообще молчит прибор. Место теперь ОДНО, и на него ССЫЛАЮТСЯ
+#: оба пути, а не повторяют его. Читает объявление не только человек: проба
+#: `book_does_not_oscillate_between_opportunities` сверяет по ЯКОРЮ
+#: («§49 Anti-churn»), что прибор меряет именно этот критерий, а не принимает
+#: привязку на веру.
+CRITERION = ("§49 Anti-churn — «Система не прыгает между одинаковыми opportunities» "
+             "(+ §22: защита от формы A → B → A → B)")
+
 
 # ── часы и разбор отметок ────────────────────────────────────────────────────
 
@@ -441,13 +452,23 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         "measured": True,
         "status": status,
         "generated_at": now.isoformat(),
-        "criterion": "§49 Anti-churn — «Система не прыгает между одинаковыми opportunities»",
+        "criterion": CRITERION,
         "journal": {"path": journal["path"], "rows": journal["rows"],
                     "moves": len(moves), "undated": journal["undated"],
                     "first_ts": moves[0]["ts"].isoformat(),
                     "last_ts": moves[-1]["ts"].isoformat()},
         "policy": {k: policy[k] for k in
                    ("min_leg_frac", "reversal_window_days", "mode", "version")},
+        # СОСТАВ состояния, на котором журнал кончается. Публикуется потому, что
+        # «возвратов от now нет» есть утверждение о ЖИВОЙ книге, а журнал ходов
+        # пополняется только когда ход был: тишину в нём читатель обязан уметь
+        # отличить от замороженного канона `data/` и от ходов, прошедших мимо
+        # записи. Сверить это можно лишь ПО СОСТАВУ, и нормализует его ТА ЖЕ
+        # `canonical_state`, которой прибор судил сами возвраты, — вторая копия
+        # правила «что считать позицией» разошлась бы молча.
+        "present": {"trade_id": moves[-1]["trade_id"],
+                    "day": moves[-1]["ts"].date().isoformat(),
+                    "positions": canonical_state(moves[-1]["to"], aliases, min_usd)},
         "materiality_usd": round(min_usd, 2),
         "book_scale_usd": round(book_scale, 2),
         "aliases": aliases,
@@ -478,7 +499,7 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
 
 def _unmeasured(reason: str, now: datetime) -> Dict[str, Any]:
     return {"measured": False, "status": STATUS_UNMEASURED, "reason": reason,
-            "generated_at": now.isoformat(), "returns": [],
+            "generated_at": now.isoformat(), "criterion": CRITERION, "returns": [],
             "blind_spot_demonstrated": False, "recent": [],
             "counts": {"returns_total": 0, "returns_within_window": 0,
                        "invisible_by_construction": 0, "visible_to_check": 0,
