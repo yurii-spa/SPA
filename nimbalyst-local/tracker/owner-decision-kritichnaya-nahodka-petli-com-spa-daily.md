@@ -6,6 +6,10 @@ status: needs-owner
 source: nimbalyst
 created: 2026-09-28
 finding_key: "B1:dead:com.spa.daily_cycle"
+owner_choice: ack
+owner_answered_at: 2026-09-29T06:48:36.207997+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
