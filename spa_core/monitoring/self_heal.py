@@ -279,8 +279,9 @@ def _beacon_age_seconds() -> float | None:
 def _recover_cycle() -> bool:
     """Run the deterministic, file-locked gap recovery (idempotent 1/day)."""
     try:
+        from spa_core.utils.fleet_python import fleet_python
         r = _run([
-            "/Users/yuriikulieshov/miniconda3/bin/python3",
+            fleet_python(),
             "-m", "spa_core.paper_trading.gap_monitor", "--recover",
         ])
         ok = r.returncode == 0

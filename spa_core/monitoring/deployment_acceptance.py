@@ -58,10 +58,24 @@ from spa_core.monitoring.entrypoint_import_probe import (
     probe_wrapper,
 )
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.data_dir import DATA_DIR_ENV, own_data_dir
+# Интерпретатор ФЛОТА — единый источник правды (spa_core/utils/fleet_python.py). Пробы
+# импорта обязаны спрашивать ЕГО, а не `sys.executable`/`python3` из PATH: под
+# trusted-bootstrap приёмка сама исполняется на доверенном stdlib-only 3.13, где
+# site-пакетов агентов (uvicorn и пр.) нет ПО ПОСТРОЕНИЮ, и вопрос «импортируется ли
+# зависимость агента» получил бы ответ о ЧУЖОЙ среде (замер 2026-09-29: канарейка на 3.13
+# объявила apiserver/familyfund сломанными по uvicorn, а он стоит в miniconda 0.49.0 —
+# интерпретаторе, которым эти агенты и запускаются).
+from spa_core.utils.fleet_python import fleet_python
 
 log = logging.getLogger("spa.monitoring.deployment_acceptance")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _is_python_interpreter(basename: str) -> bool:
+    return (basename in {"python", "python2", "python3"}
+            or basename.startswith("python3.") or basename.startswith("python2."))
 
 
 def measuring_from_worktree(root: Optional[Path] = None) -> bool:
@@ -79,6 +93,29 @@ def measuring_from_worktree(root: Optional[Path] = None) -> bool:
     """
     r = Path(root) if root else _REPO_ROOT
     return (r / ".git").is_file()
+
+
+RELEASE_SHA_FILE = ".release_sha"
+
+
+def measuring_from_release(root: Optional[Path] = None) -> bool:
+    """Правда ли, что нас спросили ИЗ неизменяемого content-addressed релиза.
+
+    Trusted-bootstrap исполняет одобренный релиз из
+    ``/Library/Application Support/StudioOS/releases/<sha>/`` — дерево root-owned,
+    read-only, самоопознающееся файлом ``.release_sha`` (его пишет launcher). Признак
+    структурный, как у :func:`measuring_from_worktree`, и от пути не зависит.
+
+    Зачем. Релиз — не живое состояние прода, а замёрзшая копия: его ``data/`` свежа
+    ПО ПОСТРОЕНИЮ (mtime = момент материализации), а сам он read-only. Мерить по нему
+    свежесть артефактов — печатать ложную тревогу; писать в него квитанцию — биться в
+    read-only дерево (Errno 13, замер 2026-09-29). Оба лечит этот один признак. Правило:
+    НЕИЗМЕНЯЕМЫЙ РЕЛИЗ ≠ ИЗМЕНЯЕМОЕ ОПЕРАЦИОННОЕ СОСТОЯНИЕ (ADR-516).
+    """
+    r = Path(root) if root else _REPO_ROOT
+    return (r / RELEASE_SHA_FILE).is_file()
+
+
 STATE_FILENAME = "deployment_acceptance.json"
 DEFAULT_AGENT_DIR = Path.home() / "Library" / "LaunchAgents"
 AGENT_GLOB = "com.spa.*.plist"
@@ -197,15 +234,18 @@ def _entrypoints_from_plists(agent_dir: Path) -> List[dict]:
             with open(p, "rb") as fh:
                 doc = plistlib.load(fh)
         except Exception as exc:  # noqa: BLE001
-            out.append({"label": label, "script": None, "interval_sec": None,
+            out.append({"label": label, "script": None, "argv0": None, "interval_sec": None,
                         "problem": "plist unreadable: {}".format(exc)})
             continue
         args = doc.get("ProgramArguments") or ([doc["Program"]] if doc.get("Program") else [])
+        # argv0 — то, что launchd ИСПОЛНЯЕТ (интерпретатор или сам скрипт). Скрипт
+        # (первый .sh/.py/.command) может быть его АРГУМЕНТОМ — см. check_entrypoints.
+        argv0 = args[0] if args and isinstance(args[0], str) else None
         script = next((a for a in args if isinstance(a, str) and a.endswith((".sh", ".command", ".py"))), None)
         if script is None:
             # Nothing script-like: an inline binary invocation, not our concern.
             continue
-        out.append({"label": label, "script": script,
+        out.append({"label": label, "script": script, "argv0": argv0,
                     "interval_sec": _schedule_interval_sec(doc), "problem": None})
     return out
 
@@ -223,6 +263,27 @@ def check_entrypoints(agent_dir: Optional[Path] = None) -> List[dict]:
             broken.append(entry)
             continue
         script = entry["script"]
+        argv0 = entry.get("argv0")
+        b0 = os.path.basename(argv0) if argv0 else ""
+        # launchd ИСПОЛНЯЕТ argv0. Если это PYTHON, то `.py` — его АРГУМЕНТ: python его
+        # ЧИТАЕТ (нужен +r, не +x). Так trusted-launcher (`/usr/bin/python3 -I <launcher>.py`)
+        # исполняет НЕИЗМЕНЯЕМЫЙ launcher с режимом 0444 — и требовать у него +x было ложным
+        # срабатыванием (замер 2026-09-29, канарейка). Проверяем: python исполним, а .py —
+        # существует и читается.
+        if argv0 and _is_python_interpreter(b0):
+            if not os.path.isfile(argv0):
+                broken.append({**entry, "problem": "python interpreter missing: {}".format(argv0)})
+            elif not os.access(argv0, os.X_OK):
+                broken.append({**entry, "problem": "python interpreter not executable (launchd would exit 126): {}".format(argv0)})
+            elif not os.path.isfile(script):
+                broken.append({**entry, "problem": "script argument missing (launchd would exit 127)"})
+            elif not os.access(script, os.R_OK):
+                broken.append({**entry, "problem": "script argument unreadable — python cannot read it (exit 126)"})
+            # +x у .py не требуем: его читает интерпретатор, а не launchd.
+            continue
+        # Оболочечная обёртка (`/bin/bash foo.sh`) или прямой запуск: правило доставки
+        # (deployment.md) и авария 2026-08-04 требуют, чтобы ИСПОЛНЯЕМЫЙ launchd'ом скрипт
+        # нёс +x (режим 0644 = агент мёртв, exit 126). Флот держит .sh на 0755 намеренно.
         if not os.path.isfile(script):
             broken.append({**entry, "problem": "entrypoint missing"})
         elif not os.access(script, os.X_OK):
@@ -242,11 +303,12 @@ def check_imports(
     """
     failed: List[dict] = []
     root = Path(repo_root) if repo_root else _REPO_ROOT
+    fp = fleet_python()  # интерпретатор ФЛОТА, а не sys.executable/PATH — см. fleet_python()
 
     def _default(mod: str) -> tuple:
         try:
             proc = subprocess.run(
-                ["python3", "-c", "import {}".format(mod)],
+                [fp, "-c", "import {}".format(mod)],
                 cwd=str(root), capture_output=True, text=True, timeout=120)
         except Exception as exc:  # noqa: BLE001
             return False, "{}: {}".format(type(exc).__name__, exc)
@@ -283,7 +345,8 @@ def check_entrypoint_imports(
     """
     out: List[dict] = []
     root = str(Path(repo_root) if repo_root else _REPO_ROOT)
-    run = prober or (lambda w: probe_wrapper(w, default_repo_root=root, timeout=timeout))
+    fp = fleet_python()  # пробуем импорт цели интерпретатором ФЛОТА, не sys.executable
+    run = prober or (lambda w: probe_wrapper(w, default_repo_root=root, timeout=timeout, python=fp))
     for entry in _entrypoints_from_plists(agent_dir or DEFAULT_AGENT_DIR):
         label, script = entry.get("label"), entry.get("script")
         if entry.get("problem") or not script:
@@ -332,6 +395,63 @@ def _data_dir_for(data_dir: Optional[Path], repo_root: Optional[Path]) -> Path:
     if repo_root is not None:
         return Path(repo_root) / "data"  # спросили про ЭТО дерево — про него и отвечаем
     return _REPO_ROOT / "data"
+
+
+def _artifact_dir(data_dir: Optional[Path], repo_root: Optional[Path]):
+    """Каталог ЖИВОГО состояния для проверки свежести артефактов. ``(Path|None, reason)``.
+
+    Детерминированно, БЕЗ ручного ``--data-dir``:
+
+    * явный ``data_dir`` — закон;
+    * из НЕИЗМЕНЯЕМОГО релиза ``data/`` — замёрзшая копия ⇒ живое состояние называет
+      ``SPA_DATA_DIR`` (проводка канарейки через ``EnvironmentVariables`` плиста, ведь
+      argv launcher заморожен) — мерим ЕГО; нет переменной — мерить негде (``None``);
+    * из git-worktree ``data/`` — checkout ⇒ ``None``;
+    * обычное рабочее дерево — ``repo_root/data``.
+
+    ``SPA_DATA_DIR`` учитывается ТОЛЬКО в режиме релиза: в worktree/обычном дереве приёмка
+    судит ДЕРЕВО, о котором спросили (``repo_root/data``, семантика «judges the tree»), а
+    не изолирующий sandbox тестов — иначе весь набор про суждение о дереве разъехался бы.
+    """
+    if data_dir is not None:
+        return Path(data_dir), ""
+    root = Path(repo_root) if repo_root else _REPO_ROOT
+    if measuring_from_release(root):
+        env_live = os.environ.get(DATA_DIR_ENV, "").strip()
+        if env_live:
+            return Path(env_live), ""     # релиз: SPA_DATA_DIR детерминированно называет живое состояние
+        return None, ("измерено из неизменяемого релиза (releases/<sha>/) без SPA_DATA_DIR: data/ "
+                      "здесь — замёрзшая копия. Свежесть артефактов НЕ ПРОВЕРЕНА. Пропиши "
+                      "SPA_DATA_DIR (EnvironmentVariables плиста) на живое состояние прода.")
+    if measuring_from_worktree(root):
+        return None, ("измерено из git-worktree: data/ здесь — checkout, а не живое состояние "
+                      "прода. Свежесть артефактов НЕ ПРОВЕРЕНА. Запусти приёмку из рабочего "
+                      "дерева прода.")
+    return root / "data", ""              # обычное рабочее дерево — судим его data/
+
+
+def _receipt_target(data_dir: Optional[Path], repo_root: Optional[Path]):
+    """Куда класть квитанцию приёмки. Возвращает ``(Path|None, reason)``.
+
+    Правило: НИКОГДА не писать в неизменяемый релиз (ADR-516). Вне релиза семантика
+    прежняя — квитанция ложится в дерево, О КОТОРОМ вердикт (:func:`_data_dir_for`).
+    Внутри неизменяемого релиза это дерево read-only: тогда установленный обход —
+    ``SPA_DATA_DIR`` (:func:`own_data_dir`); если он не выставлен, писать НЕКУДА —
+    возвращаем ``None`` и НАЗЫВАЕМ причину, а не бьёмся в Errno 13.
+    """
+    if data_dir is not None:
+        return Path(data_dir), ""
+    root = Path(repo_root) if repo_root else _REPO_ROOT
+    if measuring_from_release(root):
+        default = root / "data"
+        target = own_data_dir(str(default))          # учитывает SPA_DATA_DIR
+        if Path(target) == default:                   # обхода нет ⇒ писать некуда (release read-only)
+            return None, ("receipt NOT persisted: acceptance ran from an immutable release "
+                          "(releases/<sha>/) and SPA_DATA_DIR is unset — that tree is read-only. "
+                          "Set SPA_DATA_DIR to a live state dir, or run acceptance from the prod "
+                          "working tree, to persist the receipt.")
+        return target, ""
+    return _data_dir_for(data_dir, repo_root), ""
 
 
 def check_scheduled_artifacts(
@@ -399,17 +519,12 @@ def run_acceptance(
         # читать. Всё ОСТАЛЬНОЕ «не проверено» — находка: мы могли измерить и не смогли.
         rep.entrypoint_imports_structural = [p for p in blind if p.get("structural")]
         rep.entrypoint_imports_unchecked = [p for p in blind if not p.get("structural")]
-        if data_dir is None and measuring_from_worktree(repo_root):
-            # Не измеряем то, о чём не можем судить. «Не измерено» — честный ответ;
-            # уверенное «протухло» про чужое дерево было бы ложной тревогой, а
-            # ложная тревога учит выключать проверку.
-            rep.artifacts_unchecked = (
-                "измерено из git-worktree: data/ здесь — checkout, а не живое "
-                "состояние прода. Свежесть артефактов НЕ ПРОВЕРЕНА. Запусти приёмку "
-                "из рабочего дерева прода.")
+        art_dir, art_reason = _artifact_dir(data_dir, repo_root)
+        if art_dir is None:
+            # Мерить негде — «не измерено» с причиной, а не ложная тревога/тишина.
+            rep.artifacts_unchecked = art_reason
         else:
-            rep.artifacts_overdue = check_scheduled_artifacts(
-                data_dir, artifacts, repo_root=repo_root)
+            rep.artifacts_overdue = check_scheduled_artifacts(art_dir, artifacts)
 
         if rep.entrypoints_broken:
             rep.reasons.append(
@@ -473,13 +588,23 @@ def run_acceptance(
     doc["note"] = ("Answers only 'can this fleet start?'. It does not verify the code is the "
                    "delivered version (deployment_drift) nor that agents are producing "
                    "(agent_health) — three different questions, none replaces another.")
+    doc["state_persisted"] = False
+    doc["state_note"] = ""
     if write:
-        try:
-            # Квитанция ложится в ТО ЖЕ дерево, о котором вердикт: иначе отчёт о
-            # проде приземляется в data/ worktree, где его никто не читает.
-            atomic_save(doc, str(_data_dir_for(data_dir, repo_root) / STATE_FILENAME))
-        except Exception as exc:  # noqa: BLE001
-            log.warning("acceptance: could not persist state (%s)", exc)
+        target, skip = _receipt_target(data_dir, repo_root)
+        if target is None:
+            # Писать НЕКУДА (внутри неизменяемого релиза): не бьёмся в read-only дерево,
+            # а НАЗЫВАЕМ причину. Телеметрия опциональна — её отсутствие вердикт не искажает.
+            doc["state_note"] = skip
+            log.warning("acceptance: %s", skip)
+        else:
+            try:
+                doc["state_persisted"] = True  # до записи, чтобы квитанция была самосогласована
+                atomic_save(doc, str(Path(target) / STATE_FILENAME))
+            except Exception as exc:  # noqa: BLE001
+                doc["state_persisted"] = False
+                doc["state_note"] = "could not persist state ({})".format(exc)
+                log.warning("acceptance: could not persist state (%s)", exc)
 
     (log.error if rep.status == CRITICAL else log.warning if rep.status == WARNING else log.info)(
         "deployment_acceptance: %s — %s", rep.status, "; ".join(rep.reasons))

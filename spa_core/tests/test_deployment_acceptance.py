@@ -288,7 +288,7 @@ def test_entrypoint_listing_carries_the_schedule(tmp_path: Path):
 
     entries = _entrypoints_from_plists(agents)
     assert entries == [{"label": "com.spa.orchestrator", "script": str(script),
-                        "interval_sec": 3600.0, "problem": None}]
+                        "argv0": "/bin/bash", "interval_sec": 3600.0, "problem": None}]
 
 
 def test_unreadable_plist_still_reports_the_schedule_field(tmp_path: Path):
