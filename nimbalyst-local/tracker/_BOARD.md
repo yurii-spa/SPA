@@ -2,17 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-28T22:14:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-29T00:00:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d573ca0bc) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (b3782f4bb) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1135** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1138** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
+- **Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md`
 - **Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md`
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
@@ -41,12 +42,13 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (293)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (294)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
+- Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
 - Критичная находка петли: com.spa.mission_tick загружен, в манифесте ОТСУТСТВУЕТ (класс swarm_dw  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio.md` · 2026-09-25
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
@@ -340,7 +342,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (601)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (603)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -833,6 +835,7 @@
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.agent_health: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-agent-health-kod-i.md` · 2026-09-10
+- Находка петли: com.spa.decision_loop: код и манифест называют РАЗНЫЙ продукт (только  ·  `inbox-nahodka-petli-com-spa-decision-loop-kod-2.md` · 2026-09-28
 - Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
@@ -863,6 +866,7 @@
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
+- Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
