@@ -100,6 +100,16 @@ STATUS_WARNING = "WARNING"
 STATUS_CRITICAL = "CRITICAL"
 STATUS_UNMEASURED = "UNMEASURED"
 
+#: Какой критерий §49 приказа владельца «Portfolio CIO» этот прибор объявляет
+#: своим предметом. Строка жила ДВАЖДЫ — в измеренном отчёте и в отказном — и
+#: обе копии писались руками: разъехаться они могли молча, а читатель отказного
+#: пути не увидел бы привязки вовсе. Место теперь ОДНО, и на него ССЫЛАЕТСЯ
+#: доклад, а не повторяет его. Читает объявление не только человек: проба
+#: `risk_policy_unbypassable_in_executed_states` сверяет по ЯКОРЮ («§49 `Risk`»),
+#: что прибор меряет именно этот критерий, а не принимает привязку на веру.
+CRITERION = ("§49 `Risk` приказа владельца «Portfolio CIO»: "
+             "Risk Policy невозможно обойти")
+
 #: Пороги, которые прибор переигрывает, и ИМЯ поля `RiskConfig`, из которого
 #: читается значение. Имя же служит ключом к истории файла политики: дата
 #: рождения порога измеряется по появлению этого имени, а не по памяти.
@@ -653,6 +663,11 @@ def run_census(root: Path, data_dir: Path, now: Optional[datetime] = None,
     latest_violation = next((r for r in reversed(states)
                              if r["outcome"] == "violation"), None)
     present = states[-1] if states else None
+    # `states` строится ОДИН-К-ОДНОМУ с `moves` (каждая ветвь цикла добавляет
+    # ровно одну запись), поэтому состав настоящего состояния берётся у того же
+    # хода. Нормализация — та же функция, что судила: второй копии правила
+    # «что считать позицией» здесь нет.
+    present_positions = _positions((moves[-1] or {}).get("to_allocation")) if moves else {}
     # Вердикт судит НАСТОЯЩЕЕ — состояние, в котором книга СТОИТ сейчас.
     # Сторож, красный от всей истории, красен навсегда и учит себя игнорировать
     # (урок ADR-480); поэтому история остаётся ЗАМЕРОМ в полях, а не статусом.
@@ -672,8 +687,7 @@ def run_census(root: Path, data_dir: Path, now: Optional[datetime] = None,
         "generated_at": stamp.isoformat(),
         "status": status,
         "measured": True,
-        "criterion": ("§49 `Risk` приказа владельца «Portfolio CIO»: "
-                      "Risk Policy невозможно обойти"),
+        "criterion": CRITERION,
         "journal": {"path": str(data_dir / "trades.json"), "moves": len(moves)},
         "thresholds": thresholds,
         "threshold_birth": births,
@@ -699,9 +713,17 @@ def run_census(root: Path, data_dir: Path, now: Optional[datetime] = None,
             "disagreeing_count": len(gate_unmeasured),
         },
         "states": states,
+        # СОСТАВ настоящего состояния публикуется вместе с его вердиктом.
+        # Без него отчёт называет книгу, которую судил, только номером хода — и
+        # читатель не может спросить, та ли это книга, что стои́т сегодня.
+        # Журнал ходов пополняется лишь когда ход БЫЛ (замер 29.09: последний —
+        # 18 дн назад), поэтому «настоящее» здесь значит «последнее исполненное»,
+        # а не «сегодняшнее», и сверять их есть чем только при опубликованном
+        # составе.
         "present": {"trade_id": (present or {}).get("trade_id"),
                     "day": (present or {}).get("day"),
-                    "outcome": (present or {}).get("outcome")},
+                    "outcome": (present or {}).get("outcome"),
+                    "positions": present_positions},
         "latest_violation": ({"trade_id": latest_violation["trade_id"],
                               "day": latest_violation["day"],
                               "violations": latest_violation["violations"]}
@@ -721,8 +743,7 @@ def _unmeasured(reason: str, now: datetime) -> Dict[str, Any]:
         "status": STATUS_UNMEASURED,
         "measured": False,
         "reason": reason,
-        "criterion": ("§49 `Risk` приказа владельца «Portfolio CIO»: "
-                      "Risk Policy невозможно обойти"),
+        "criterion": CRITERION,
     }
 
 

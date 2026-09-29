@@ -419,6 +419,9 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         # предикат этого теста И ЕСТЬ живой реестр (см. его имя), и
                         # новая строка здесь — предмет утверждения, а не помеха ему.
                         "Persistence": ["persistence_advantage_outlives_horizon"],
+                        # Заказ G96 п. 1, ADR-510: третья привязка, тем же порядком
+                        # и по той же причине — снимок и есть живой реестр.
+                        "Risk": ["risk_policy_unbypassable_in_executed_states"],
                         "No regression": ["no_regression_tests_pass"],
                         "Owner visibility": ["owner_visibility_numbers_delivered"]}
 

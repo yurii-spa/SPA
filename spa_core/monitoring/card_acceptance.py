@@ -65,6 +65,8 @@ import pathlib as _pathlib
 from datetime import datetime, timezone
 from typing import Callable
 
+from spa_core.utils.observation import observed
+
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
 UNMEASURED = "unmeasured"
@@ -701,6 +703,254 @@ def _probe_persistence_advantage_outlives_horizon(
             f"({where}; {blind})")
     return UNMEASURED, (f"перепись вернула статус {status!r}, который не переносится в "
                         f"вердикт критерия — молчать об этом нельзя")
+
+
+#: Имя переписи связывающих потолков в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
+#: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
+#: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
+POLICY_BINDING_MODULE = "spa_core.monitoring.policy_binding_census"
+
+#: Книга, которая СТОИТ сегодня. Переписывается КАЖДЫМ дневным циклом, поэтому
+#: предел возраста у неё ТОТ ЖЕ, что у журнала вердиктов. Это ССЫЛКА, а не второй
+#: литерал: два числа на один такт были бы вторым местом для числа
+#: (`.claude/rules/site-numbers.md`). Своё имя — потому что артефакт другой, и
+#: спрашивать о его возрасте приходится отдельным вопросом.
+STANDING_BOOK_MAX_AGE_D = DECISION_JOURNAL_MAX_AGE_D
+#: Файл стоящей книги. Одно имя на ОБА вопроса к ней — возраст и тождество.
+STANDING_BOOK_FILE = "current_positions.json"
+
+
+def _policy_binding_module():
+    """Перепись связывающих потолков. Импорт, а не загрузка по пути: модуль пакетный."""
+    import importlib
+    return importlib.import_module(POLICY_BINDING_MODULE)
+
+
+def _probe_risk_policy_unbypassable_in_executed_states(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Risk` приказа CIO: «Risk Policy невозможно обойти».
+
+    Третья привязка заказа владельца (G96 п. 1) — и снова ОДНА, а не пакетом:
+    пять объявлений и ни одного наблюдения были бы переписью, а не работой
+    (запрет G94). Перепись `policy_binding_census` живёт с цикла #705, её
+    артефакт пишется в такте и свеж (замер 29.09: 3,1 ч при объявленном пределе
+    26 ч) — а запись «этот прибор есть мера этого критерия» лежала ПРОЗОЙ в
+    заметке `architecture/manifest.json`, и сводный замер
+    (`scripts/cio_acceptance_rollup.py`) честно отвечал «машинной пробы,
+    объявившей себя мерой этого критерия, в реестре НЕТ». Цена этой строки
+    измерена ADR-506 как `TRANSCRIPTION`: не хватает ОДНОГО поля.
+
+    Вердикт — ПЕРЕНОС вердикта прибора, а не второе правило
+    ---------------------------------------------------------------------------
+    `OK` → `satisfied` · `WARNING`/`CRITICAL` → `not_satisfied` · третий исход
+    прибора → `unmeasured`. Своего порога у пробы нет НИ ОДНОГО: все потолки
+    прибор читает из `RiskConfig` (§22 приказа: «Не hardcode») и без них
+    ОТКАЗЫВАЕТ мерить. Второе правило здесь было бы вторым местом для числа.
+
+    **`WARNING` переносится в «не выполнен», а не в «предупреждение».** Эта
+    порода означает: книга, стоящая сейчас, чиста, но в истории есть состояние,
+    нарушавшее потолок, и/или копии ярлыка тира спорят — то есть ответ «нарушен
+    ли потолок» сегодня не определён. Критерий владельца говорит о
+    НЕВОЗМОЖНОСТИ обхода; «сейчас чисто» её не доказывает.
+
+    Почему спор ЯРЛЫКА — это тоже «критерий не выполнен»
+    ---------------------------------------------------------------------------
+    Вердикт гейта неоспорим, но потолок на протокол выбирается ТИРОМ, а тир —
+    ВХОД гейта, а не его решение. Ярлык, сдвинувшийся в одной копии из пяти,
+    меняет связывающий потолок вдвое (T1 40 % → T2 20 %), не породив ни одного
+    `approved=False`. Потолок обходят не доводом, а ярлыком — доктрина самого
+    прибора, и переносится она целиком.
+
+    Прибор гоняется НАСТОЯЩИЙ
+    ---------------------------------------------------------------------------
+    Проба зовёт `run_census` на живых журналах, а не читает готовый артефакт:
+    артефакт неизвестного возраста ответил бы о том дне, когда его писали.
+    Каталог данных и дерево — ВХОДЫ (`data_dir`, `repo_root`), часы — ВХОД
+    (`now`); иначе вердикт решали бы переменная окружения и стенные часы, а не
+    предмет (`.claude/rules/deployment.md`). Дерево нужно прибору не для кода, а
+    для ИСТОРИИ: дата рождения порога меряется по истории файла политики, и
+    поверхностный клон даёт у прибора третий исход, а не дату границы обрезки.
+
+    Свежесть спрашивается у СТОЯЩЕЙ КНИГИ, а не у журнала ходов
+    ---------------------------------------------------------------------------
+    Урок ADR-508 применён к новому предмету и дал ДРУГОЙ адрес. Журнал ходов
+    (`trades.json`) пополняется только когда ход был: замер 29.09 — последнее
+    исполненное состояние `T034` от 11.09, восемнадцать дней назад, и это
+    нормальная спокойная неделя, а не протухший источник. Спросить возраст у
+    него значило бы объявить исправную систему «НЕ ИЗМЕРЕНО».
+
+    Опасность здесь ОБРАТНАЯ и сильнее: перепись судит ПОСЛЕДНЕЕ ИСПОЛНЕННОЕ
+    состояние и называет его настоящим. Если книга с тех пор изменилась мимо
+    журнала, вердикт «сейчас чисто» относился бы к книге, которой уже нет.
+    Поэтому спрашивается ежедневно переписываемая `current_positions.json`, и
+    спрашивается дважды: СВЕЖА ли она и ТА ЖЕ ли это книга, которую судила
+    перепись. Дверь названа замером: на 29.09 состав сходится ключ в ключ
+    (`maple`, `fluid_fusdc`, `morpho_blue_base`, `compound_v3`, `aave_v3`) при
+    разнице дат в 18 дней — то есть сегодня вердикт о настоящем законен, и
+    законен он ИЗМЕРЕННО, а не по умолчанию.
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Односторонность доказательства.** Отсутствие нарушений в журнале НЕ
+      доказывает, что политику обойти нельзя: прибор судит СОСТОЯНИЯ книги, а не
+      пути кода, и о сделках вне журнала не знает ничего. Это сказано в
+      пояснении каждый раз, а не только здесь.
+    * **Состояния третьего исхода вердикт не меняют.** `unmeasured` (тир не
+      назван ни одной копией), `rule_postdates_state` (порог младше состояния) и
+      `violation_rule_birth_unmeasured` (порог нарушен, но существовал ли он в
+      тот день — неизвестно) НАЗЫВАЮТСЯ числом, но статус решает перепись, и
+      переигрывать её здесь значило бы завести второе правило.
+    * **Правду объявления** проба СВЕРЯЕТ (ниже) по якорю, а не принимает на
+      веру. Доклад прибора ссылается на ту же константу, поэтому второй,
+      «докладной» сверки здесь нет: она была бы тавтологичной по построению, и
+      молчать об этом нельзя.
+    * **Ничего не чинит.** Только читает; ни строки RiskPolicy, стоп-крана,
+      аллокатора, ярлыка тира или живого трека. Спор ярлыков — предмет
+      владельца (тир меняется ADR-ом), и подправить копию «заодно» было бы ровно
+      тем молчаливым сдвигом, который прибор ищет.
+    """
+    try:
+        census = _policy_binding_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"перепись связывающих потолков не загружена: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Прибор обязан сам объявлять себя мерой ЭТОГО критерия, и объявление
+    # читается ДО прогона — потому что на отказном пути доклад тоже строится, но
+    # прогон до него может не дойти вовсе. Совпадение проверяется ПО ЯКОРЮ
+    # (``§49 `Risk` ``), а не подстрокой «Risk»: подстрока совпала бы с любой
+    # заметкой про риск, и объявление стало бы украшением.
+    anchor = "§49 `Risk`"
+    declared = str(getattr(census, "CRITERION", "") or "")
+    if not declared.startswith(anchor):
+        return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
+                            f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
+                            f"и считать её мерой этого критерия нельзя")
+
+    root = repo_root or REPO_ROOT
+    data = data_dir or os.path.join(REPO_ROOT, "data")
+    try:
+        report = census.run_census(_pathlib.Path(root), _pathlib.Path(data), now=now)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"перепись связывающих потолков упала: "
+                            f"{type(exc).__name__}: {exc}")
+
+    if not report.get("measured"):
+        return UNMEASURED, (f"перепись отказалась мерить: "
+                            f"{report.get('reason') or 'причина не названа'}")
+
+    verdict, why = _standing_book_agrees_with_present(
+        report, _pathlib.Path(data), now=now)
+    if verdict is not None:
+        return verdict, why
+
+    counts = observed(report, "counts", kind=dict)
+    if counts is None:
+        return UNMEASURED, ("перепись объявила себя измеренной, но сводки `counts` "
+                            "в отчёте нет — считать нечего, и подставить нули здесь "
+                            "значило бы выдать НЕ ИЗМЕРЕНО за измеренный ноль")
+
+    present = report.get("present") or {}
+    where = (f"исполненных состояний {len(report.get('states') or [])}, настоящее "
+             f"{present.get('trade_id')} от {present.get('day')}, копий ярлыка тира "
+             f"{len(report.get('label_sources') or {})}, гейт читает "
+             f"{', '.join(report.get('gate_reads') or []) or 'не названо'}, потолки "
+             f"из RiskConfig ({len(report.get('thresholds') or {})} полей)")
+    blind = (f"третий исход состояний: тир не назван ни одной копией "
+             f"{counts.get('unmeasured', 0)}, потолок младше состояния "
+             f"{counts.get('rule_postdates_state', 0)}, нарушен-но-срок-потолка-не-измерен "
+             f"{counts.get('violation_rule_birth_unmeasured', 0)}; отсутствие нарушений "
+             f"НЕ доказывает, что политику обойти нельзя — доказательство одностороннее, "
+             f"и о сделках вне журнала прибор не знает ничего")
+
+    status = report.get("status")
+    if status == census.STATUS_OK:
+        return SATISFIED, (f"ни одно исполненное состояние книги не нарушало потолка, "
+                           f"который на тот день существовал, и ни один ярлык тира не "
+                           f"спорит между копиями: чисто {counts.get('clean', 0)} "
+                           f"({where}; {blind})")
+    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+        disputed = sorted(report.get("label_disagreement") or {})
+        unknown = sorted(report.get("tier_unknown") or [])
+        gate = report.get("gate_binding") or {}
+        when = ("книга, которая СТОИТ сейчас, сама нарушает потолок либо её вердикт "
+                "не определён"
+                if status == census.STATUS_CRITICAL else
+                "сегодняшнее состояние чисто, но это НЕ «такого не бывало» — находка "
+                "лежит в истории и/или копии ярлыка спорят")
+        return NOT_SATISFIED, (
+            f"потолок, связывавший книгу, обойдён или не определён: нарушений "
+            f"{counts.get('violation', 0)} (по копиям, которые читает ГЕЙТ — "
+            f"{gate.get('violating_count', 0)}), вердикт зависит от копии ярлыка у "
+            f"{counts.get('undetermined', 0)} состояний, спорят ярлыки у "
+            f"{len(disputed)} ключ(ей) {disputed or '—'}, тир неизвестен у "
+            f"{len(unknown)}; {when} ({where}; {blind})")
+    return UNMEASURED, (f"перепись вернула статус {status!r}, который не переносится в "
+                        f"вердикт критерия — молчать об этом нельзя")
+
+
+def _standing_book_agrees_with_present(
+        report: dict, data: "_pathlib.Path", *,
+        now: "datetime | None" = None) -> "tuple[str | None, str]":
+    """Относится ли вердикт переписи к книге, которая стои́т СЕГОДНЯ.
+
+    Возвращает `(None, "")`, когда относится, и `(UNMEASURED, причина)`, когда
+    ответить нечем. Вердикта «не выполнен» отсюда не выходит НИ ОДНОГО: вопрос
+    здесь не о политике, а о том, о чём вообще речь, — и смешать «политику
+    обошли» с «мы смотрим не на ту книгу» значило бы завести второе правило.
+    """
+    path = data / STANDING_BOOK_FILE
+    try:
+        standing = json.loads(path.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"книга, которая стои́т сегодня, не прочитана ({path}): "
+                            f"{type(exc).__name__}: {exc} — проверить, о сегодняшней "
+                            f"ли книге вердикт, НЕЧЕМ")
+
+    stamp = observed(standing, "generated_at", kind=str)
+    if stamp is None:
+        return UNMEASURED, (f"у {STANDING_BOOK_FILE} нет отметки `generated_at` — "
+                            f"возраст стоящей книги НЕ ИЗМЕРЕН, и сказать, о сегодняшнем "
+                            f"ли дне вердикт, нельзя")
+    ref = now or datetime.now(timezone.utc)
+    try:
+        age_d = (ref - datetime.fromisoformat(stamp)).total_seconds() / 86400.0
+    except (ValueError, TypeError) as exc:
+        return UNMEASURED, (f"отметка стоящей книги {stamp!r} не разобрана как дата "
+                            f"({type(exc).__name__}) — её возраст НЕ ИЗМЕРЕН")
+    if age_d > STANDING_BOOK_MAX_AGE_D:
+        return UNMEASURED, (f"стоящая книга протухла: {STANDING_BOOK_FILE} снята "
+                            f"{stamp} — {age_d:.1f} дн назад при пределе "
+                            f"{STANDING_BOOK_MAX_AGE_D:.0f} (дневной цикл её не "
+                            f"переписывает либо это замороженный канон `data/`, а не "
+                            f"наблюдение) — мерить надо из дерева с живым data/")
+
+    judged = observed(report.get("present") or {}, "positions", kind=dict)
+    if judged is None:
+        return UNMEASURED, ("перепись не назвала СОСТАВ состояния, которое считает "
+                            "настоящим — сверить его с сегодняшней книгой НЕЧЕМ")
+
+    # Нормализуется чужая сторона ТОЙ ЖЕ функцией прибора, которая нормализовала
+    # судимую: «что считать позицией» (округление, нулевые ноги) — правило
+    # прибора, и вторая его копия здесь разошлась бы молча.
+    census = _policy_binding_module()
+    standing_positions = census._positions(standing.get("positions"))
+    if standing_positions != judged:
+        only_judged = sorted(set(judged) - set(standing_positions))
+        only_standing = sorted(set(standing_positions) - set(judged))
+        moved = sorted(k for k in set(judged) & set(standing_positions)
+                       if judged[k] != standing_positions[k])
+        present = report.get("present") or {}
+        return UNMEASURED, (
+            f"перепись судит состояние {present.get('trade_id')} от "
+            f"{present.get('day')}, а сегодня стои́т ДРУГАЯ книга "
+            f"({STANDING_BOOK_FILE} от {stamp}): только в судимой "
+            f"{only_judged or '—'}, только в стоящей {only_standing or '—'}, "
+            f"разошлись суммой {moved or '—'} — вердикт относится к книге, которой "
+            f"уже нет, и выдать его за ответ о сегодня нельзя")
+    return None, ""
 
 
 #: Имя модуля брифинга в `sys.modules`. Скрипт лежит в `scripts/` (не пакет), поэтому
@@ -2931,6 +3181,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_economics_net_return_dominates_keep,
     "persistence_advantage_outlives_horizon":
         _probe_persistence_advantage_outlives_horizon,
+    "risk_policy_unbypassable_in_executed_states":
+        _probe_risk_policy_unbypassable_in_executed_states,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
@@ -2969,6 +3221,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
 _probe_portfolio_decision_owner_covers_capital.s49_criterion = "Architecture"
 _probe_economics_net_return_dominates_keep.s49_criterion = "Economics"
 _probe_persistence_advantage_outlives_horizon.s49_criterion = "Persistence"
+_probe_risk_policy_unbypassable_in_executed_states.s49_criterion = "Risk"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 
