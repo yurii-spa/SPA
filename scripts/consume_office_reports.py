@@ -4342,6 +4342,27 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               f"{type(_exc).__name__}: {_exc}")
     print()
 
+    # ── власть пина у гейта финансирования (ADR-520) ────────────────────────
+    # Второй вопрос к тому же месту, и он НЕ следует из первого: сосед выше
+    # отвечает, ВИДЕН ли запинённый ключ производителю, по которому решается
+    # финансирование. Присутствие имени не означает, что производитель наблюдал
+    # ТОТ пул, который пин объявил. Замер 30.09: `aave_v3` и `morpho_blue_base`
+    # видны и судятся по ДРУГИМ пулам, `compound_v3` виден и не назвал пула
+    # вовсе — $55 000 из $95 000 развёрнутых. Оба артефакта при этом зелены.
+    try:
+        from scripts.pin_identity_authority_census import (
+            census as _pin_authority,
+            report_lines as _pin_authority_lines,
+        )
+        _auth_ddir = data_dir or os.path.join(receipt_root, "data")
+        for _ln in _pin_authority_lines(_pin_authority(_auth_ddir)):
+            print(_ln)
+    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+        print("— власть пина у гейта финансирования (ADR-520) —")
+        print(f"   [{_UNMEASURED}] сверка не выполнена: "
+              f"{type(_exc).__name__}: {_exc}")
+    print()
+
     # Клауза о вхолостую ДОПИСЫВАЕТСЯ, а не переписывает итог: в здоровом
     # состоянии (hollow=0) строка та же, что и была, — соседние тесты сверяют её
     # дословно, и ослаблять их ради нового счётчика было бы нечестно.
