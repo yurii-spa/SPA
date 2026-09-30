@@ -308,3 +308,9 @@ def test_the_package_has_no_execution_path():
         assert forbidden not in src, forbidden
     import spa_core.trading_research as tr
     assert tr.EXECUTION_ENABLED is False and tr.RESEARCH_ONLY is True
+
+
+def test_the_fleet_sandbox_redirects_all_engine_state(tmp_path, monkeypatch):
+    monkeypatch.delenv("SPA_TRADING_DATA_DIR", raising=False)
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
+    assert fw.data_dir() == tmp_path / "trading_research"

@@ -33,7 +33,12 @@ BACKTEST_EVERY_MS = 24 * 3_600_000
 
 
 def data_dir() -> Path:
-    return Path(os.environ.get("SPA_TRADING_DATA_DIR") or (REPO / "data" / "trading_research"))
+    """Engine state dir. Honours the fleet sandbox (SPA_DATA_DIR via live_paths) so the pre-deploy
+    gate's sandboxed run never touches the live evidence (found 2026-09-30: it did, before this)."""
+    if os.environ.get("SPA_TRADING_DATA_DIR"):
+        return Path(os.environ["SPA_TRADING_DATA_DIR"])
+    from spa_core.utils.live_paths import live_data_dir
+    return live_data_dir(REPO) / "trading_research"
 
 
 def _release() -> Optional[str]:
