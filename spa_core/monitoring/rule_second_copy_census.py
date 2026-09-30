@@ -16147,6 +16147,664 @@ def loop_key_over_a_declared_list(root: Path,
     }
 
 
+#: Три ФОРМЫ вердикта — перечень ЗАКРЫТ. Вердиктом признаётся развилка, ОБЕ
+#: ветви которой дают объявленный класс: тернарник · пара `return` под `if` ·
+#: пара присваиваний. Вердикт, собранный словарём переходов или цепочкой
+#: `elif` длиннее двух ветвей, в население НЕ попадает вовсе — односторонность
+#: объявлена ЗАРАНЕЕ (ADR-522), и ненайденное этим правилом не есть ноль.
+VERDICT_FORM_IFEXP = 'form_ifexp'
+VERDICT_FORM_IF_RETURN = 'form_if_return'
+VERDICT_FORM_IF_ASSIGN = 'form_if_assign'
+_VERDICT_FORMS = (VERDICT_FORM_IFEXP, VERDICT_FORM_IF_RETURN, VERDICT_FORM_IF_ASSIGN)
+#: ЧЕМ доказано, какие классы производитель умеет вернуть. Форм пять, и они
+#: перечислены затем, чтобы «производитель известен» было утверждением с
+#: НАЗВАННЫМ основанием, а не словом: форма, ни разу не предъявленная
+#: контролем, пробой не является (уроки ADR-517…ADR-519).
+PRODUCER_AT_THE_WRITE = 'the_class_is_declared_at_the_write_site'
+PRODUCER_BY_ENUMERATION = 'the_key_runs_over_a_declared_enumeration'
+PRODUCER_BY_LOCAL_BINDINGS = 'every_binding_of_the_key_in_this_scope_is_a_declared_class'
+PRODUCER_BY_CALL = 'the_key_comes_from_a_call_of_a_function_defined_in_this_file'
+PRODUCER_BY_FIELD = 'the_key_is_a_field_this_file_writes_with_declared_classes'
+_PRODUCER_FORMS = (PRODUCER_AT_THE_WRITE, PRODUCER_BY_ENUMERATION, PRODUCER_BY_LOCAL_BINDINGS, PRODUCER_BY_CALL, PRODUCER_BY_FIELD)
+#: Шесть имён отказа, и они разводят то, что чинится РАЗНЫМ: форма ключа вне
+#: перечня · производителя нет в файле · производитель мутен · ключ связан и
+#: вне области · записи счётчика расходятся · токен класса не имеет значения.
+#: Слить их в одно «не измерено» значило бы потерять адрес починки внутри
+#: самого прибора (инв. #17 действует и на его собственные исходы).
+VERDICT_GAP_KEY_FORM = 'the_written_key_has_a_form_outside_the_closed_list'
+VERDICT_GAP_NOT_IN_THIS_FILE = 'the_producer_of_the_class_is_not_defined_in_this_file'
+VERDICT_GAP_NOT_ENUMERABLE = 'the_producer_can_return_a_value_this_rule_cannot_enumerate'
+VERDICT_GAP_KEY_BOUND_ELSEWHERE = 'the_key_is_also_bound_by_a_source_this_scope_does_not_show'
+VERDICT_GAP_WRITES_DISAGREE = 'the_writes_of_this_counter_disagree_one_resolves_and_another_does_not'
+VERDICT_GAP_TOKEN_NOT_COMPARABLE = 'a_class_token_does_not_resolve_to_a_value_and_a_name_is_not_a_value'
+_VERDICT_GAPS = (VERDICT_GAP_KEY_FORM, VERDICT_GAP_NOT_IN_THIS_FILE, VERDICT_GAP_NOT_ENUMERABLE, VERDICT_GAP_KEY_BOUND_ELSEWHERE, VERDICT_GAP_WRITES_DISAGREE, VERDICT_GAP_TOKEN_NOT_COMPARABLE)
+#: Порядок РАЗБОРА, а не перечисления. Спор записей спрашивается ПЕРВЫМ:
+#: две записи одного счётчика, из которых одна разрешается, а другая нет, суть
+#: ОТСУТСТВИЕ ответа, а не первый из двух ответов.
+_VERDICT_GAP_ORDER = (VERDICT_GAP_WRITES_DISAGREE, VERDICT_GAP_TOKEN_NOT_COMPARABLE, VERDICT_GAP_KEY_BOUND_ELSEWHERE, VERDICT_GAP_NOT_ENUMERABLE, VERDICT_GAP_NOT_IN_THIS_FILE, VERDICT_GAP_KEY_FORM)
+#: Четыре исхода. Разводить «не назван НИГДЕ» и «назван ДРУГОЙ дорогой той же
+#: области» обязательно, и это не оттенок: у аварии ADR-468
+#: `OLD_DECISION_NOT_RECORDED` возвращался литералом и не упоминался в области
+#: вердикта НИ РАЗУ. Объявить вредом каждый неполный перечень значило бы
+#: выдумать находки, объявить безопасным — погасить настоящую.
+VERDICT_READS_EVERY_CLASS = 'the_verdict_names_every_class_the_producer_can_return'
+#: ⚠️ НЕ означает «всё в порядке». Означает, что о классе вне набора судит
+#: другая дорога той же области, — а ПРАВА ЛИ она, шаг не спрашивал ни разу.
+VERDICT_NAMED_ELSEWHERE = 'a_class_outside_the_keys_is_named_elsewhere_in_the_same_scope'
+VERDICT_BLIND = 'a_class_outside_the_keys_is_named_nowhere_in_this_scope'
+VERDICT_UNRESOLVED = 'the_classes_of_the_producer_are_not_measured'
+_VERDICT_OUTCOMES = (VERDICT_READS_EVERY_CLASS, VERDICT_NAMED_ELSEWHERE, VERDICT_BLIND, VERDICT_UNRESOLVED)
+#: Третий исход ШАГА ЦЕЛИКОМ. Контроль не узнал ИЗВЕСТНОГО случая ⇒ правило
+#: не доказано, и печатать при этом население значило бы выдать неизмеренное
+#: за чистое — ровно подделка, против которой шаг и написан.
+UNMEASURED_VERDICT_CONTROL = 'declared_verdict_rule_missed_the_known_case'
+UNMEASURED_VERDICT_TREE = 'the_tree_of_the_step_is_not_read_whole'
+#: ПОЛОЖИТЕЛЬНАЯ сцена: воспроизводит аварию ADR-468 ПОИМЁННО (ослепший класс
+#: обязан оказаться `old_not_recorded`) и обязана предъявить ВСЕ пять форм
+#: производителя, ВСЕ три формы вердикта и все разрешённые исходы.
+VERDICT_CONTROL_SOURCE = '''
+CLEAN = "clean"
+DIRTY = "dirty"
+UNEXPLAINED = "unexplained"
+WEAKENING = "weakening"
+OLD_NOT_RECORDED = "old_not_recorded"
+KINDS = (UNEXPLAINED, WEAKENING)
+
+
+def classify(row):
+    if row.get("old") is None:
+        return OLD_NOT_RECORDED
+    if row.get("weak"):
+        return WEAKENING
+    return UNEXPLAINED
+
+
+def rows_of(raw):
+    out = []
+    for item in raw:
+        out.append({"cls": UNEXPLAINED if item else WEAKENING})
+    return out
+
+
+def incident(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return (CLEAN if not counts.get(UNEXPLAINED) and not counts.get(WEAKENING)
+            else DIRTY)
+
+
+def at_the_write(rows):
+    counts = {}
+    for row in rows:
+        counts[UNEXPLAINED] = counts.get(UNEXPLAINED, 0) + 1
+    return DIRTY if counts.get(UNEXPLAINED) else CLEAN
+
+
+def over_enum(rows):
+    counts = {}
+    for cls in KINDS:
+        counts[cls] = counts.get(cls, 0) + len(rows)
+    return DIRTY if counts.get(UNEXPLAINED) or counts.get(WEAKENING) else CLEAN
+
+
+def complete(rows):
+    counts = {}
+    for row in rows:
+        if row.get("weak"):
+            cls = WEAKENING
+        else:
+            cls = UNEXPLAINED
+        counts[cls] = counts.get(cls, 0) + 1
+    if counts.get(UNEXPLAINED) or counts.get(WEAKENING):
+        return DIRTY
+    else:
+        return CLEAN
+
+
+def named_elsewhere(raw):
+    rows = rows_of(raw)
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    seen_weak = [r for r in rows if r.get("cls") == WEAKENING]
+    if counts.get(UNEXPLAINED) or seen_weak:
+        status = DIRTY
+    else:
+        status = CLEAN
+    return status
+'''
+#: ОТРИЦАТЕЛЬНАЯ сцена: по счётчику на КАЖДОЕ из шести имён отказа. Иначе
+#: снять любую клаузу правила поодиночке можно было бы молча.
+VERDICT_CONTROL_CLEAN = '''
+from outside import classify_outside, IMPORTED_CLASS
+
+OK = "ok"
+BAD = "bad"
+ALPHA = "alpha"
+BETA = "beta"
+
+
+def opaque_local(row):
+    return row["x"]
+
+
+def by_a_form_outside(rows):
+    counts = {}
+    for row in rows:
+        counts[str(row["s"]).lower()] = counts.get(str(row["s"]).lower(), 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+
+
+def by_a_foreign_producer(rows):
+    counts = {}
+    for row in rows:
+        cls = classify_outside(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+
+
+def by_an_opaque_producer(rows):
+    counts = {}
+    for row in rows:
+        cls = opaque_local(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+
+
+def by_a_key_bound_elsewhere(rows, cls):
+    counts = {}
+    for row in rows:
+        cls = ALPHA
+        counts[cls] = counts.get(cls, 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+
+
+def by_writes_that_disagree(rows):
+    counts = {}
+    counts[ALPHA] = counts.get(ALPHA, 0) + 1
+    for row in rows:
+        counts[str(row["s"]).lower()] = counts.get(str(row["s"]).lower(), 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+
+
+def by_a_token_without_a_value(rows):
+    counts = {}
+    for row in rows:
+        counts[IMPORTED_CLASS] = counts.get(IMPORTED_CLASS, 0) + 1
+    return BAD if counts.get(ALPHA) else OK
+'''
+
+
+def _class_token(node: Optional[ast.AST], consts: Dict[str, Optional[str]]) -> Optional[Tuple[str, str]]:
+    """Класс как СРАВНИМАЯ величина: ``("value", …)`` либо ``("name", …)``.
+
+    Две вселенных здесь не смешиваются намеренно. Литерал ``'clean'`` и
+    константа ``CLEAN = "clean"`` — одно и то же значение, и сравнивать их
+    обязано ЗНАЧЕНИЕ. А имя, значения которого файл не знает (ввезённая
+    константа), значением не является ни в какую сторону: объявить его
+    «отличным от всех» значило бы выдумать находку, а «равным чему-нибудь» —
+    погасить настоящую.
+    """
+    if isinstance(node, ast.Constant):
+        return ('value', node.value) if isinstance(node.value, str) else None
+    if isinstance(node, ast.Name):
+        name: Optional[str] = node.id
+    elif isinstance(node, ast.Attribute):
+        name = node.attr
+    else:
+        return None
+    raw = consts.get(name)
+    if raw is not None:
+        try:
+            value = ast.literal_eval(raw)
+        except (ValueError, SyntaxError):
+            value = None
+        if isinstance(value, str):
+            return ('value', value)
+    return ('name', name)
+
+
+def _class_values(node: ast.AST, declared: Set[str]) -> Optional[List[ast.AST]]:
+    """Узлы классов, которыми выражение МОЖЕТ оказаться, — или ``None``.
+
+    ``None`` значит «перечислить нельзя», и это ТРЕТИЙ ИСХОД, а не пустой
+    список: пустой читался бы как «классов нет», то есть как доказанная
+    полнота вердикта, которой никто не мерил.
+
+    Тернарник разбирается обеими ветвями: ``CLASS_OBSERVED if kinds else
+    CLASS_VALUE_UNMEASURED`` есть ДВА класса, и взять из него один значило бы
+    занизить вселенную производителя ровно на ту половину, которая обычно и
+    означает «не измерено».
+    """
+    if isinstance(node, ast.IfExp):
+        left = _class_values(node.body, declared)
+        right = _class_values(node.orelse, declared)
+        if left is None or right is None:
+            return None
+        return left + right
+    return [node] if _is_declared_class(node, declared) else None
+
+
+def _field_read_name(expr: ast.AST) -> Optional[str]:
+    """Имя ПОЛЯ, которое читает выражение (``row["cls"]`` / ``row.get("cls")``)."""
+    if isinstance(expr, ast.Subscript) and isinstance(expr.slice, ast.Constant) and isinstance(expr.slice.value, str):
+        return expr.slice.value
+    if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Attribute) and (expr.func.attr == 'get') and expr.args and isinstance(expr.args[0], ast.Constant) and isinstance(expr.args[0].value, str):
+        return expr.args[0].value
+    return None
+
+
+def _field_class_universe(tree: ast.AST, field: str, declared: Set[str]) -> Tuple[bool, bool, List[ast.AST]]:
+    """Классы, которыми ЭТОТ ФАЙЛ пишет поле: ``(писали ли, мутное ли, узлы)``.
+
+    Три формы записи поля, и все три живые: ``d["f"] = …``, словарь-литерал
+    ``{"f": …}`` и ключевое слово ``update(f=…)``. Знать только первую
+    значило бы объявить производителя ненайденным у половины переписей.
+
+    РЕЛЕЙ того же поля (``{"f": (prev or {}).get("f")}``) новым классом НЕ
+    является и в мутные не зачисляется: он пересказывает уже посчитанное, и
+    зачесть его значило бы отказать всему вердикту за то, что файл где-то
+    пересылает собственное поле дальше.
+    """
+    seen = False
+    opaque = False
+    values: List[ast.AST] = []
+    for node in ast.walk(tree):
+        candidates: List[ast.AST] = []
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Subscript):
+            key = node.targets[0].slice
+            if isinstance(key, ast.Constant) and key.value == field:
+                candidates = [node.value]
+        elif isinstance(node, ast.Dict):
+            candidates = [v for k, v in zip(node.keys, node.values) if isinstance(k, ast.Constant) and k.value == field]
+        elif isinstance(node, ast.Call):
+            candidates = [kw.value for kw in node.keywords if kw.arg == field]
+        for value in candidates:
+            seen = True
+            if _field_read_name(value) == field:
+                continue
+            got = _class_values(value, declared)
+            if got is None:
+                opaque = True
+            else:
+                values.extend(got)
+    return (seen, opaque, values)
+
+
+def _enumeration_elements(tree: ast.AST, name: str) -> Optional[List[ast.AST]]:
+    """Элементы перечня-константы МОДУЛЯ по его имени."""
+    for node in getattr(tree, 'body', []) if isinstance(tree, ast.Module) else []:
+        targets: List[ast.AST] = []
+        value: Optional[ast.AST] = None
+        if isinstance(node, ast.Assign):
+            targets, value = (list(node.targets), node.value)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = ([node.target], node.value)
+        if value is None:
+            continue
+        if not any((isinstance(t, ast.Name) and t.id == name for t in targets)):
+            continue
+        if isinstance(value, (ast.Tuple, ast.List, ast.Set)) and value.elts:
+            return list(value.elts)
+    return None
+
+
+def _producer_of_the_written_class(key: ast.AST, scope: ast.AST, tree: ast.AST, funcs: Dict[str, ast.AST], declared: Set[str], enums: Set[str], binds: Dict[str, List[ast.AST]]) -> dict:
+    """Какие классы умеет вернуть производитель ЭТОГО ключа записи.
+
+    Либо ``{"form": …, "classes": [...]}``, либо ``{"gap": …}``. Третьего не
+    возвращается: «не доказано» есть отказ с ИМЕНЕМ, а не тихое зачисление в
+    полные.
+
+    ПОРЯДОК ЗВЕНЬЕВ НЕ ПРОИЗВОЛЕН. Переменная цикла спрашивается ПЕРВОЙ,
+    потому что :func:`_scope_bindings` связывает цель цикла с ИТЕРИРУЕМЫМ, а
+    не с элементом: принять это связывание за значение значило бы объявить
+    классом сам перечень. Правило «перечень ли это объявленных классов» не
+    переписано — его считает :func:`_declared_enumeration_display` (ADR-519).
+    """
+    loops = _loop_targets_of(scope, key.id) if isinstance(key, ast.Name) else []
+    if loops:
+        if _name_binding_sources(scope, key.id) != len(loops):
+            return {'gap': VERDICT_GAP_KEY_BOUND_ELSEWHERE}
+        classes: List[ast.AST] = []
+        for iterated, bare in loops:
+            if not bare:
+                return {'gap': VERDICT_GAP_KEY_FORM}
+            if _declared_enumeration_display(iterated, declared):
+                classes.extend(iterated.elts)
+                continue
+            if isinstance(iterated, ast.Name) and iterated.id in enums:
+                elements = _enumeration_elements(tree, iterated.id)
+                if elements is None:
+                    return {'gap': VERDICT_GAP_KEY_FORM}
+                classes.extend(elements)
+                continue
+            return {'gap': VERDICT_GAP_KEY_FORM}
+        return {'form': PRODUCER_BY_ENUMERATION, 'classes': classes}
+    at_write = _class_values(key, declared)
+    if at_write is not None:
+        return {'form': PRODUCER_AT_THE_WRITE, 'classes': at_write}
+    expr: Optional[ast.AST] = key
+    if isinstance(key, ast.Name):
+        bound = binds.get(key.id) or []
+        if not bound:
+            return {'gap': VERDICT_GAP_KEY_BOUND_ELSEWHERE}
+        if _name_binding_sources(scope, key.id) != len(bound):
+            return {'gap': VERDICT_GAP_KEY_BOUND_ELSEWHERE}
+        local: List[ast.AST] = []
+        enumerable = True
+        for source in bound:
+            got = _class_values(source, declared)
+            if got is None:
+                enumerable = False
+                break
+            local.extend(got)
+        if enumerable:
+            return {'form': PRODUCER_BY_LOCAL_BINDINGS, 'classes': local}
+        if len(bound) != 1:
+            return {'gap': VERDICT_GAP_WRITES_DISAGREE}
+        expr = bound[0]
+    if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name):
+        producer = funcs.get(expr.func.id)
+        if producer is None:
+            return {'gap': VERDICT_GAP_NOT_IN_THIS_FILE}
+        returned: List[ast.AST] = []
+        for node in ast.walk(producer):
+            if not (isinstance(node, ast.Return) and node.value is not None):
+                continue
+            got = _class_values(node.value, declared)
+            if got is None:
+                return {'gap': VERDICT_GAP_NOT_ENUMERABLE}
+            returned.extend(got)
+        if not returned:
+            return {'gap': VERDICT_GAP_NOT_ENUMERABLE}
+        return {'form': PRODUCER_BY_CALL, 'classes': returned}
+    field = _field_read_name(expr) if expr is not None else None
+    if field is not None:
+        seen, opaque, values = _field_class_universe(tree, field, declared)
+        if not seen:
+            return {'gap': VERDICT_GAP_NOT_IN_THIS_FILE}
+        if opaque or not values:
+            return {'gap': VERDICT_GAP_NOT_ENUMERABLE}
+        return {'form': PRODUCER_BY_FIELD, 'classes': values}
+    return {'gap': VERDICT_GAP_KEY_FORM}
+
+
+def _verdict_outcomes(node: ast.AST, declared: Set[str]) -> Optional[Tuple[str, List[ast.AST]]]:
+    """Вердикт ли это и какой ФОРМЫ — ``(форма, исходы)`` либо ``None``.
+
+    Вердиктом признаётся развилка, ОБЕ ветви которой дают объявленный класс:
+    тернарник, пара ``return`` и пара присваиваний ОДНОМУ имени. Развилка, у
+    которой класс даёт только одна ветвь, вердиктом не признаётся — вторая
+    ветвь могла бы вернуть что угодно, и судить о полноте перечня было бы не
+    по чему.
+    """
+    if isinstance(node, ast.IfExp):
+        if _is_declared_class(node.body, declared) and _is_declared_class(node.orelse, declared):
+            return (VERDICT_FORM_IFEXP, [node.body, node.orelse])
+        return None
+    if not isinstance(node, ast.If):
+        return None
+    then = [s.value for s in node.body if isinstance(s, ast.Return) and s.value is not None]
+    other = [s.value for s in node.orelse if isinstance(s, ast.Return) and s.value is not None]
+    if then and other and all((_is_declared_class(v, declared) for v in then + other)):
+        return (VERDICT_FORM_IF_RETURN, then + other)
+
+    def _assigned(body: List[ast.AST]) -> Dict[str, ast.AST]:
+        out: Dict[str, ast.AST] = {}
+        for stmt in body:
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
+                out[stmt.targets[0].id] = stmt.value
+        return out
+    left, right = (_assigned(node.body), _assigned(node.orelse))
+    shared = sorted(set(left) & set(right))
+    values = [left[n] for n in shared] + [right[n] for n in shared]
+    if shared and all((_is_declared_class(v, declared) for v in values)):
+        return (VERDICT_FORM_IF_ASSIGN, values)
+    return None
+
+
+def _counter_reads_by_name(test: ast.AST) -> Dict[str, List[ast.AST]]:
+    """Что ЧИТАЕТ условие вердикта: ``{имя словаря: [узлы ключей]}``.
+
+    Ключи возвращаются ВСЕ, включая неименованные: отбор «читает ли вердикт
+    ИМЕНОВАННЫМИ ключами» делает вызывающий, и сделать его здесь значило бы
+    молча выкинуть из населения ровно те вердикты, которые читают счётчик и
+    по имени, и по чему-то ещё.
+    """
+    out: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(test):
+        base: Optional[ast.AST] = None
+        key: Optional[ast.AST] = None
+        if isinstance(node, ast.Subscript):
+            base, key = (node.value, node.slice)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and (node.func.attr == 'get') and node.args:
+            base, key = (node.func.value, node.args[0])
+        if base is None or key is None or (not isinstance(base, ast.Name)):
+            continue
+        out.setdefault(base.id, []).append(key)
+    return out
+
+
+def _owner_function(parents: Dict[int, ast.AST], node: ast.AST) -> Optional[ast.AST]:
+    """Функция, в теле которой стои́т узел, — по РОДИТЕЛЯМ, а не по строкам.
+
+    Диапазон строк здесь был бы правилом-на-глаз: вложенная функция и
+    объемлющая перекрываются, и «самая поздняя из объемлющих» есть догадка,
+    а не разбор.
+    """
+    current = parents.get(id(node))
+    while current is not None:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return current
+        current = parents.get(id(current))
+    return None
+
+
+def _class_named_in_scope(scope: ast.AST, token: Tuple[str, str], consts: Dict[str, Optional[str]]) -> bool:
+    """Назван ли класс в области вердикта хоть где-нибудь ещё.
+
+    Сравнение идёт ТОКЕНОМ, а не подстрокой исходника: ``'field'`` встречается
+    внутри слова ``fields`` и внутри ``"field not read"``, и текстовый ответ
+    объявил бы класс названным там, где его не называли.
+    """
+    for node in ast.walk(scope):
+        if not isinstance(node, (ast.Constant, ast.Name, ast.Attribute)):
+            continue
+        if _class_token(node, consts) == token:
+            return True
+    return False
+
+
+def _verdict_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], int]:
+    """Вердикты ОДНОГО файла: ``(строки населения, исключено записью вне области)``.
+
+    В население берётся вердикт, который читает счётчик ИМЕНОВАННЫМИ ключами
+    (все до одного — объявленные классы) и счётчик которого пишется В ТОЙ ЖЕ
+    области. Счётчик, который пишут в ДРУГОЙ функции того же файла, из
+    населения исключён и посчитан ОТДЕЛЬНЫМ числом: одноимённые ``counts`` в
+    соседних функциях суть разные словари, и слить их значило бы выдать
+    чужую вселенную классов за эту.
+    """
+    rows: List[dict] = []
+    elsewhere = 0
+    declared = _declared_constant_names(tree)
+    consts = toplevel_constants(tree)
+    enums, _rebound = _module_declared_enumerations(tree, declared)
+    funcs: Dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            funcs.setdefault(node.name, node)
+    in_file: Dict[str, int] = {}
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is not None and isinstance(shape[0], ast.Name):
+            in_file[shape[0].id] = in_file.get(shape[0].id, 0) + 1
+    if not in_file:
+        return (rows, elsewhere)
+    parents = _parent_map(tree)
+    for node in ast.walk(tree):
+        found = _verdict_outcomes(node, declared)
+        if found is None:
+            continue
+        form, outcomes = found
+        scope = _owner_function(parents, node)
+        if scope is None:
+            continue
+        binds = _scope_bindings(scope)
+        for counter, keys in sorted(_counter_reads_by_name(node.test).items()):
+            if counter not in in_file:
+                continue
+            if not all((_is_declared_class(k, declared) for k in keys)):
+                continue
+            writes = [shape[1] for inner in ast.walk(scope) if (shape := _counter_target_key(inner)) is not None and isinstance(shape[0], ast.Name) and (shape[0].id == counter)]
+            if not writes:
+                elsewhere += 1
+                continue
+            rows.append(_verdict_row(rel, node, form, outcomes, counter, keys, writes, scope, tree, funcs, declared, consts, enums, binds))
+    return (rows, elsewhere)
+
+
+def _verdict_row(rel: str, node: ast.AST, form: str, outcomes: List[ast.AST], counter: str, keys: List[ast.AST], writes: List[ast.AST], scope: ast.AST, tree: ast.AST, funcs: Dict[str, ast.AST], declared: Set[str], consts: Dict[str, Optional[str]], enums: Set[str], binds: Dict[str, List[ast.AST]]) -> dict:
+    """ОДНА строка населения: вердикт, его ключи и вселенная производителя."""
+    head = {'file': rel, 'line': int(getattr(node, 'lineno', 0) or 0), 'owner': getattr(scope, 'name', None), 'counter': counter, 'form': form, 'outcomes': len(outcomes), 'keys': sorted({ast.unparse(k) for k in keys})}
+    read_tokens = {_class_token(k, consts) for k in keys}
+    universe: Set[Tuple[str, str]] = set()
+    forms: Set[str] = set()
+    gaps: List[str] = []
+    for written in writes:
+        out = _producer_of_the_written_class(written, scope, tree, funcs, declared, enums, binds)
+        if 'gap' in out:
+            gaps.append(out['gap'])
+            continue
+        forms.add(out['form'])
+        universe |= {_class_token(c, consts) for c in out['classes']}
+    if gaps and forms:
+        return {**head, 'verdict': VERDICT_UNRESOLVED, 'gap': VERDICT_GAP_WRITES_DISAGREE, 'producer_forms': sorted(forms), 'missing': []}
+    if gaps:
+        return {**head, 'verdict': VERDICT_UNRESOLVED, 'gap': min(gaps, key=_VERDICT_GAP_ORDER.index), 'producer_forms': [], 'missing': []}
+    tokens = universe | read_tokens
+    if None in tokens or any((kind != 'value' for kind, _v in tokens)):
+        return {**head, 'verdict': VERDICT_UNRESOLVED, 'gap': VERDICT_GAP_TOKEN_NOT_COMPARABLE, 'producer_forms': sorted(forms), 'missing': []}
+    missing = sorted((value for _kind, value in universe - read_tokens))
+    head = {**head, 'producer_forms': sorted(forms), 'producer_classes': sorted((value for _k, value in universe)), 'missing': missing}
+    if not missing:
+        return {**head, 'verdict': VERDICT_READS_EVERY_CLASS, 'gap': None}
+    nowhere = [value for value in missing if not _class_named_in_scope(scope, ('value', value), consts)]
+    if nowhere:
+        return {**head, 'verdict': VERDICT_BLIND, 'gap': None, 'named_nowhere': nowhere}
+    return {**head, 'verdict': VERDICT_NAMED_ELSEWHERE, 'gap': None}
+
+
+def _verdict_control() -> dict:
+    """Проба объявленного правила — ДО замера, обеими половинами.
+
+    Население этого шага мало, и сила правила поэтому доказывается ЗДЕСЬ, а
+    не числом замера: положительная сцена обязана предъявить ВСЕ пять форм
+    производителя, ВСЕ три формы вердикта и ВСЕ три разрешённых исхода —
+    включая аварию ADR-468 дословно, с ИМЕНЕМ ослепшего класса. Отрицательная
+    обязана отказать по счётчику на КАЖДОЕ имя отказа: два класса, слитые в
+    одно имя, есть потеря указания на починку.
+    """
+    try:
+        source, source_elsewhere = _verdict_sites('<control>', ast.parse(VERDICT_CONTROL_SOURCE))
+        clean, _clean_elsewhere = _verdict_sites('<control-clean>', ast.parse(VERDICT_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {'passed': False, 'reason': f'сцена контроля не разобрана: {exc}'}
+    if len(source) != 5:
+        return {'passed': False, 'reason': f'в положительной сцене правило нашло {len(source)} вердикт(ов) из 5 — разрешать нечего'}
+    if source_elsewhere:
+        return {'passed': False, 'reason': f'положительная сцена исключила {source_elsewhere} вердикт(ов) как «счётчик пишут в другой области» — сцена, половина которой до правила не доехала, силы правила не доказывает'}
+    unresolved = [r for r in source if r['verdict'] == VERDICT_UNRESOLVED]
+    if unresolved:
+        return {'passed': False, 'reason': f"шаг не разрешил {len(unresolved)} вердикт(ов) положительной сцены: {sorted((r['gap'] for r in unresolved))}"}
+    forms = sorted({f for r in source for f in r['producer_forms']})
+    if forms != sorted(_PRODUCER_FORMS):
+        return {'passed': False, 'reason': f'положительная сцена доказала производителя формами {forms}, а объявлено {sorted(_PRODUCER_FORMS)} — правило, знающее одну форму, объявит «производитель не найден» там, где он найден'}
+    shapes = sorted({r['form'] for r in source})
+    if shapes != sorted(_VERDICT_FORMS):
+        return {'passed': False, 'reason': f'положительная сцена предъявила формы вердикта {shapes}, а объявлено {sorted(_VERDICT_FORMS)}'}
+    outcomes = sorted({r['verdict'] for r in source})
+    want_outcomes = sorted(set(_VERDICT_OUTCOMES) - {VERDICT_UNRESOLVED})
+    if outcomes != want_outcomes:
+        return {'passed': False, 'reason': f'положительная сцена дала исходы {outcomes}, а разрешённых объявлено {want_outcomes} — исход, ни разу не предъявленный, пробой не проверен'}
+    blind = [r for r in source if r['verdict'] == VERDICT_BLIND]
+    if len(blind) != 1 or blind[0].get('named_nowhere') != ['old_not_recorded']:
+        return {'passed': False, 'reason': f"авария ADR-468 не воспроизведена ПОИМЁННО: ослепших вердиктов {len(blind)}, классы {[r.get('named_nowhere') for r in blind]} вместо ['old_not_recorded']"}
+    resolved = [r for r in clean if r['verdict'] != VERDICT_UNRESOLVED]
+    if resolved:
+        return {'passed': False, 'reason': f'в отрицательной сцене шаг разрешил {len(resolved)} вердикт(ов): правило, которому всё годится, звена не имеет'}
+    got = sorted({r['gap'] for r in clean})
+    want = sorted(_VERDICT_GAPS)
+    if got != want:
+        return {'passed': False, 'reason': f'отрицательная сцена отказала именами {got}, а объявлено {want} — отказ под ЧУЖИМ именем посылает чинить не то (урок ADR-465)'}
+    if len(clean) != len(want):
+        return {'passed': False, 'reason': f'{len(clean)} отказ(ов) на {len(want)} объявленных имён: два класса, слитые в одно имя, есть потеря указания на починку'}
+    return {'passed': True, 'positive': len(source), 'negative': len(clean), 'producer_forms': forms, 'verdict_forms': shapes, 'outcomes': outcomes, 'gaps': got, 'incident_class': blind[0].get('named_nowhere')}
+
+
+def verdict_over_named_keys(root: Path) -> dict:
+    """Сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при
+    производителе, способном вернуть класс вне этого набора
+    (**заказ G100 п. 3**, он же G85 п. 3, он же G84 п. 1).
+
+    ADR-468 починил ОДИН гейт: вердикт теневого моста спрашивал ДВА имени
+    (``counts.get(UNEXPLAINED)``, ``counts.get(WEAKENING)``), а
+    ``classify_mismatch`` умел вернуть третий класс — «старое решение НЕ
+    ЗАПИСАНО». На нуле сравнений гейт печатал ``CLEAN`` и код возврата 0, то
+    есть ПОДДЕЛЫВАЛ доказательство безопасности. Нашли это не замером, а
+    чужим заказом, и с 24.09 заказ повторяет дословно:
+
+    > Сколько в дереве функций, возвращающих вердикт из счётчика классов,
+    > читают его ИМЕНОВАННЫМИ ключами при производителе, способном вернуть
+    > класс вне этого набора. Односторонность назвать заранее и ограничить
+    > звеном: производитель обязан быть найден в ТОМ ЖЕ файле (межфайловый
+    > разбор — третий исход, а не догадка). Третий исход обязателен там, где
+    > производитель не найден: «читает два ключа» без знания, сколько классов
+    > бывает, — не отказ, а незнание.
+
+    ADVISORY: ни одного вердикта, ни одного счётчика и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {'question': 'сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при производителе того же файла, способном вернуть класс вне этого набора', 'order': 'G100.3', 'applied': False, 'dirs': list(OPEN_COUNTER_DIRS), 'skipped_dirs': list(OPEN_COUNTER_SKIP)}
+    control = _verdict_control()
+    head['control'] = control
+    if not control.get('passed'):
+        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_VERDICT_CONTROL, 'reason': f"объявленное правило вердикта не прошло контроль: {control.get('reason')}"}
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    elsewhere = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({'file': sub, 'reason': 'каталога нет в дереве'})
+            continue
+        for path in sorted(base.rglob('*.py')):
+            rel = path.relative_to(root).as_posix()
+            if any((rel.startswith(skip) for skip in OPEN_COUNTER_SKIP)):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding='utf-8'))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({'file': rel, 'reason': f'{type(exc).__name__}: {exc}'})
+                continue
+            found, skipped = _verdict_sites(rel, tree)
+            rows.extend(found)
+            elsewhere += skipped
+    if unreadable:
+        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_VERDICT_TREE, 'files_unreadable': unreadable, 'reason': f'{len(unreadable)} файл(ов) или каталог(ов) не прочитано — население неполно, а неполное население не есть измеренное'}
+    outcomes = {cls: sum((1 for r in rows if r['verdict'] == cls)) for cls in _VERDICT_OUTCOMES}
+    gaps = {gap: sum((1 for r in rows if r.get('gap') == gap)) for gap in _VERDICT_GAPS}
+    producers = {form: sum((1 for r in rows if form in (r.get('producer_forms') or []))) for form in _PRODUCER_FORMS}
+    shapes = {form: sum((1 for r in rows if r['form'] == form)) for form in _VERDICT_FORMS}
+    return {**head, 'status': 'MEASURED', 'population': len(rows), 'files_scanned': scanned, 'files_unreadable': unreadable, 'verdict_outcomes': outcomes, 'unresolved_reasons': gaps, 'producer_proved_by': producers, 'verdict_forms': shapes, 'blind_to_a_class_named_nowhere': outcomes[VERDICT_BLIND], 'partial_but_named_elsewhere': outcomes[VERDICT_NAMED_ELSEWHERE], 'complete': outcomes[VERDICT_READS_EVERY_CLASS], 'still_unmeasured': outcomes[VERDICT_UNRESOLVED], 'counter_written_in_another_scope': elsewhere, 'harm_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'named_nowhere': r.get('named_nowhere'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_BLIND][:COSTED_SAMPLE], 'partial_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'missing': r.get('missing'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_NAMED_ELSEWHERE][:COSTED_SAMPLE], 'unresolved_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'gap': r.get('gap')} for r in rows if r['verdict'] == VERDICT_UNRESOLVED][:COSTED_SAMPLE], 'blind': ['шаг мерит ФОРМУ вердикта из закрытого перечня (тернарник, пара `return`, пара присваиваний). Вердикт, собранный словарём переходов или цепочкой `elif` длиннее двух ветвей, в население не попадает вовсе, и ненайденное этим правилом не есть ноль', f'`{VERDICT_NAMED_ELSEWHERE}` НЕ есть «всё в порядке»: он говорит, что о классе судит ДРУГАЯ дорога той же области. ПРАВА ли она, шаг не спрашивал ни разу — назвать это вредом значило бы выдумать находку, назвать безопасным — погасить настоящую', f'{elsewhere} вердикт(ов) исключены из населения: счётчик пишут в ДРУГОЙ области того же файла. Одноимённые `counts` в соседних функциях суть разные словари, и слить их значило бы выдать чужую вселенную классов за эту', 'производитель ищется ТОЛЬКО в том же файле — односторонность объявлена заказом заранее; межфайловый разбор есть третий исход, а не догадка', 'шаг доказывает, что класс НЕ НАЗВАН, а не что он приходит сегодня: доказана ДОРОГА, не событие'], 'what_it_does_not_prove': ['что неназванный класс встречается в данных сегодня — это ДОРОГА, не событие', 'что вердикт с полным перечнем ключей судит ПРАВИЛЬНО: шаг мерит перечень, а не смысл', 'что третий исход исчерпан: формы вне закрытого перечня остались незнанием намеренно']}
+
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -17533,6 +18191,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # переменными цикла, чей класс доказан. Население — ОДИН счётчик, и это
     # сказано вслух: сила правила доказана контролем, а не числом.
     loop_key_step = loop_key_over_a_declared_list(root, tail_step)
+    verdict_step = verdict_over_named_keys(root)
 
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
@@ -17694,6 +18353,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # третьим исходом, и ответ одного не отменяет другого.
         "accumulator_kind_at_the_binding": kind_step,
         "loop_key_over_a_declared_list": loop_key_step,
+            "verdict_over_named_keys": verdict_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -19852,6 +20512,28 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{item.get('gap')}")
         for blind in (observed(loop_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
+    verdict_step = observed(doc, 'verdict_over_named_keys', kind=dict)
+    if verdict_step is None:
+        out.append('[ВЕРДИКТ ПО ИМЕНАМ] НЕ ИЗМЕРЕНО — перепись собрана без этого шага; это НЕ «таких вердиктов нет»')
+    elif str(verdict_step.get('status')) == 'UNMEASURED':
+        out.append(f"[ВЕРДИКТ ПО ИМЕНАМ] НЕ ИЗМЕРЕНО [{verdict_step.get('unmeasured_class')}]: {verdict_step.get('reason')}")
+    else:
+        outcomes = observed(verdict_step, 'verdict_outcomes', kind=dict) or {}
+        why = observed(verdict_step, 'unresolved_reasons', kind=dict) or {}
+        proved = observed(verdict_step, 'producer_proved_by', kind=dict) or {}
+        control = observed(verdict_step, 'control', kind=dict) or {}
+        out.append(f"[ВЕРДИКТ ПО ИМЕНАМ] из {verdict_step.get('population')} вердикт(ов), читающих счётчик классов ИМЕНОВАННЫМИ ключами: перечень ПОЛОН у {outcomes.get(VERDICT_READS_EVERY_CLASS)} · класс не назван НИГДЕ в области {outcomes.get(VERDICT_BLIND)} (форма аварии ADR-468) · назван ДРУГОЙ дорогой той же области {outcomes.get(VERDICT_NAMED_ELSEWHERE)} · не измерено {outcomes.get(VERDICT_UNRESOLVED)}")
+        out.append(f'[ВЕРДИКТ · ЧЕМ ДОКАЗАН ПРОИЗВОДИТЕЛЬ] класс у записи {proved.get(PRODUCER_AT_THE_WRITE)} · перечень {proved.get(PRODUCER_BY_ENUMERATION)} · связывания области {proved.get(PRODUCER_BY_LOCAL_BINDINGS)} · вызов своего файла {proved.get(PRODUCER_BY_CALL)} · поле своего файла {proved.get(PRODUCER_BY_FIELD)}')
+        out.append(f'[ВЕРДИКТ · ПОЧЕМУ НЕ ИЗМЕРЕНО] форма ключа вне перечня {why.get(VERDICT_GAP_KEY_FORM)} · производителя нет в файле {why.get(VERDICT_GAP_NOT_IN_THIS_FILE)} · производитель мутен {why.get(VERDICT_GAP_NOT_ENUMERABLE)} · ключ связан и вне области {why.get(VERDICT_GAP_KEY_BOUND_ELSEWHERE)} · записи расходятся {why.get(VERDICT_GAP_WRITES_DISAGREE)} · токен без значения {why.get(VERDICT_GAP_TOKEN_NOT_COMPARABLE)}')
+        out.append(f"[ВЕРДИКТ · НАСЕЛЕНИЕ] {verdict_step.get('population')} вердикт(ов); ещё {verdict_step.get('counter_written_in_another_scope')} исключено (счётчик пишут в ДРУГОЙ области того же файла). Сила правила доказана КОНТРОЛЕМ: положительная сцена {control.get('positive')} (все {len(control.get('producer_forms') or [])} формы производителя, авария ADR-468 поимённо {control.get('incident_class')}), отрицательная {control.get('negative')} с {len(control.get('gaps') or [])} РАЗНЫМИ именами отказа")
+        for item in (observed(verdict_step, 'harm_sample', kind=list) or [])[:max_rows]:
+            out.append(f"[ВЕРДИКТ · СЛЕП] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` читает {item.get('keys')}, а производитель умеет вернуть {item.get('named_nowhere')} — не названо в области НИ РАЗУ")
+        for item in (observed(verdict_step, 'partial_sample', kind=list) or [])[:max_rows]:
+            out.append(f"[ВЕРДИКТ · ЧАСТИЧЕН] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` читает {item.get('keys')}; вне набора {item.get('missing')} — о них судит ДРУГАЯ дорога той же области, и права ли она, шаг не спрашивал")
+        for item in (observed(verdict_step, 'unresolved_sample', kind=list) or [])[:max_rows]:
+            out.append(f"[ВЕРДИКТ · НЕ ИЗМЕРЕНО] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` — {item.get('gap')}")
+        for blind in observed(verdict_step, 'blind', kind=list) or []:
+            out.append(f'[СЛЕПОТА] {blind}')
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "
