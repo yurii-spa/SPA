@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.trading_research</string>
+    <!-- Trading Research Engine v0 forward-paper tick (ADR-525). PAPER/RESEARCH ONLY.
+         Every 15 min; no KeepAlive (short-lived, exits after each tick — no restart storm);
+         RunAtLoad so the first tick after a reboot/login catches up immediately. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_trading_research.sh</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    <key>StartInterval</key>
+    <integer>900</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_trading_research.launchd.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_trading_research.launchd.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
+</dict>
+</plist>

@@ -3101,8 +3101,8 @@
   },
   {
    "label": "com.spa.trading_research",
-   "plist_source": "repo:launchd/com.spa.trading_research.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:900s",
    "program": "agent_trading_research.sh",
    "layer": "product",

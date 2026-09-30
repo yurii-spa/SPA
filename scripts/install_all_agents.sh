@@ -242,6 +242,11 @@ install_agent \
     "$REPO/scripts/com.spa.self_heal.plist" \
     "com.spa.self_heal"
 
+# Trading Research Engine v0 — forward-paper tick (ADR-525; research/paper only, every 15 min)
+install_agent \
+    "$REPO/scripts/com.spa.trading_research.plist" \
+    "com.spa.trading_research"
+
 # Threat Reactor — intraday kill-switch on CRITICAL threats to held protocols (every 5 min)
 install_agent \
     "$REPO/scripts/com.spa.threat_reactor.plist" \
