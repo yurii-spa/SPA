@@ -281,3 +281,29 @@ def test_kill_switch_is_read_from_the_switch_file_not_the_daily_snapshot(tmp_pat
     (repo / "data" / "kill_switch_active.json").write_text("{broken", encoding="utf-8")
     rep = dr.collect(_inputs(tmp_path, repo))
     assert rep["kill_switch_active"] is None and rep["status"] != "green"
+
+
+def test_trading_research_block_and_its_staleness_alert(tmp_path):
+    repo = _repo(tmp_path)
+    tr = repo / "data" / "trading_research"
+    tr.mkdir(parents=True)
+    status = {"generated_at_ms": int((NOW - timedelta(minutes=10)).timestamp() * 1000), "ok": True,
+              "candidates": 138, "backtest_qualified": 5, "forward_paper": 5, "observations": 40,
+              "evidence_verified": True, "live_capital_usd": 0, "stages": {"FORWARD_PAPER": 5},
+              "shortlist": [{"id": "donchian@v1:BTC:4h:spot_long:abc", "oos_sharpe": 1.17,
+                             "oos_max_drawdown": -0.26, "forward_bars": 3, "forward_net": 0.01}]}
+    (tr / "status.json").write_text(json.dumps(status), encoding="utf-8")
+    rep = dr.collect(_inputs(tmp_path, repo))
+    text = dr.render(rep, "product")
+    assert "Кандидатов: 138" in text and "forward-paper: 5" in text and "Живой капитал: $0" in text
+    assert "TRADING: 138 кандидатов" in dr.render(rep, "summary")
+    assert not any("торговое" in a for a in rep["alerts"])
+    status["generated_at_ms"] = int((NOW - timedelta(hours=5)).timestamp() * 1000)
+    (tr / "status.json").write_text(json.dumps(status), encoding="utf-8")
+    rep = dr.collect(_inputs(tmp_path, repo))
+    assert any("такт не шёл 5 ч" in a for a in rep["alerts"]) and rep["status"] == "red"
+
+
+def test_trading_status_absent_is_not_measured(tmp_path):
+    rep = dr.collect(_inputs(tmp_path, _repo(tmp_path)))
+    assert rep["trading"] is None and "TRADING (исследование, бумага): не измерено" in dr.render(rep, "product")

@@ -65,7 +65,10 @@ MUST_HAVE = [
 # academy.db (Academy onboarding DB, stage 9, 2026-07-04) is captured when present
 # but is NOT in MUST_HAVE: on a host where the Academy is not yet deployed the file
 # is simply absent and skipped — it must never fail-CLOSE the daily backup.
-_SQLITE_FILES = ("track.db", "academy.db")
+# trading_research/evidence.db (ADR-525) is the forward-paper evidence ledger: append-only and
+# irreplaceable (a bar that closed cannot be observed again). Captured when present; market.db is
+# re-derivable from the exchange and deliberately not archived.
+_SQLITE_FILES = ("track.db", "academy.db", "trading_research/evidence.db")
 
 
 class BackupIncompleteError(RuntimeError):

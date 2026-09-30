@@ -88,7 +88,8 @@ _TOPIC_BROKEN = re.compile(r"(слома|не\s+работа|проблем|тр
 _TOPIC_DONE = re.compile(r"(сделан|сделали|сделал|готово|завершен|закрыт|выполнен|done|completed)", re.I)
 _TOPIC_SYSTEM = re.compile(r"(работает|систем|агент|флот|служб|здоров|статус|релиз|worker|работник|system|fleet|health)", re.I)
 _TOPIC_PRODUCT = re.compile(r"(капитал|портфел|позици|стратег|доходн|apy|трек|go.?live|пул|протокол|aave|morpho|"
-                            r"pendle|sky|euler|earn\s*defi|spa\b|nav|просадк|portfolio|strateg|yield)", re.I)
+                            r"pendle|sky|euler|earn\s*defi|spa\b|nav|просадк|portfolio|strateg|yield|трейдинг|торгов|сигнал|бэктест|"
+                            r"backtest|trading|forward.?paper|кандидат)", re.I)
 _IDEA = re.compile(r"(у\s+меня\s+(есть\s+)?иде|иде[яю]\s*[:—-]|запиши\s+иде|добавь\s+иде|новая\s+иде|есть\s+иде|"
                    r"заметк|\bidea\b)", re.I)
 _TASK = re.compile(r"(созда(й|ть)\s*задач|добавь\s*задач|нов(ая|ую)\s*задач|поставь\s*задач|задача\s*[:—-]|"

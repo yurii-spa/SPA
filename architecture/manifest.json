@@ -1913,6 +1913,23 @@
    }
   },
   {
+   "label": "com.spa.mission_tick",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:900s",
+   "program": "mission_tick_agent.sh",
+   "layer": "product",
+   "role": "other",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "none",
+   "notes": "Studio Mission Fabric shadow tick (studio-os-scratch/v03); paused by the owner (bootout + launchctl disable) — see ADR-521 journal 2026-09-30",
+   "passport": {}
+  },
+  {
    "label": "com.spa.monthly_statement",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -3081,6 +3098,28 @@
     "rights": "читать трекер и снимок статусов; писать свой снимок и отчёт",
     "limits": "LLM запрещён; не импортирует execution; ничего не чинит — только называет"
    }
+  },
+  {
+   "label": "com.spa.trading_research",
+   "plist_source": "repo:launchd/com.spa.trading_research.plist",
+   "reboot_safe": false,
+   "schedule": "interval:900s",
+   "program": "agent_trading_research.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/trading_research/status.json",
+     "slo_hours": 2.0
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": "ADR-525 Trading Research Engine v0 forward-paper tick; research/paper only, no execution",
+   "passport": {}
   },
   {
    "label": "com.spa.uptime_monitor",

@@ -39,6 +39,8 @@ STATE_FILE = "data/director_report_state.json"
 
 #: A daily cycle older than this is a real exception (same SLA agent_health uses).
 CYCLE_STALE_H = 26.0
+#: A forward-paper tick older than this is an exception (the scheduler runs every 15 min).
+TRADING_STALE_H = 2.0
 #: Disk below this share free is an alert (2026-09-26: one log filled the Mac Mini to zero).
 DISK_FREE_MIN = 0.10
 #: Owner-facing services whose liveness the Owner actually feels.
@@ -330,8 +332,29 @@ def collect(inp: Inputs) -> dict:
         "kill_switch_active": kill,
     }
 
+    # TRADING RESEARCH (read-only; the engine owns this state — spa_core/trading_research, ADR-525)
+    trs = _read_json(repo / "data" / "trading_research" / "status.json")
+    if not isinstance(trs, dict) or "generated_at_ms" not in trs:
+        rep["trading"] = None
+    else:
+        age_h = round((now.timestamp() * 1000 - trs["generated_at_ms"]) / 3_600_000, 1)
+        rep["trading"] = {**{k: trs.get(k) for k in ("ok", "candidates", "backtest_qualified",
+                                                     "forward_paper", "observations", "evidence_verified",
+                                                     "live_capital_usd", "shortlist", "error")},
+                          # stages absent ⇒ None (not measured); present but no such stage ⇒ a measured 0
+                          "robust": (trs["stages"].get("ROBUST", 0) if isinstance(trs.get("stages"), dict) else None),
+                          "champions": (trs["stages"].get("CHAMPION_CANDIDATE", 0)
+                                        if isinstance(trs.get("stages"), dict) else None),
+                          "age_h": age_h}
+
     # ALERTS — only exceptions
     alerts: List[str] = []
+    t = rep["trading"]
+    if t is not None and (t["ok"] is False or t["age_h"] > TRADING_STALE_H):
+        alerts.append(f"🔴 торговое исследование: такт не шёл {t['age_h']:.0f} ч"
+                      + (f" ({t['error']})" if t.get("error") else ""))
+    elif t is not None and t["evidence_verified"] is False:
+        alerts.append("🔴 торговое исследование: цепочка доказательств нарушена")
     if kill is True:
         alerts.append("🛑 стоп-кран взведён")
     elif kill is None:
@@ -441,6 +464,10 @@ def render_summary(rep: dict) -> str:
     if rep.get("claude_sessions") is not None:
         inw += f" · работников сейчас {rep['claude_sessions']}"
     L.append(inw)
+    t = rep.get("trading")
+    if t is not None:
+        L.append(f"TRADING: {t['candidates']} кандидатов · forward-paper {t['forward_paper']} · "
+                 f"живой капитал {_usd_or_nm(t.get('live_capital_usd'))}")
     L.append("ПРОБЛЕМЫ: " + ("нет" if not rep["alerts"] else ""))
     for a in rep["alerts"][:6]:
         L.append(f"• {a}")
@@ -508,7 +535,7 @@ def render_product(rep: dict) -> str:
     p = rep.get("product")
     L = ["📈 ПРОДУКТ · Earn DeFi / SPA"]
     if p is None:
-        return "\n".join(L + ["Трек: " + NOT_MEASURED])
+        return "\n".join(L + ["Трек: " + NOT_MEASURED, ""] + render_trading(rep))
     mode = "бумажный трек (капитал виртуальный)" if p.get("mode") != "live" else "LIVE"
     L.append(f"Режим: {mode}")
     if p.get("days_running") is not None:
@@ -518,7 +545,33 @@ def render_product(rep: dict) -> str:
     ks = p.get("kill_switch_active")
     L.append("Стоп-кран: " + ("ВЗВЕДЁН" if ks is True else "не взведён" if ks is False else NOT_MEASURED))
     L.append("Подробности портфеля и стратегий — в SPA-боте.")
+    L.append("")
+    L.extend(render_trading(rep))
     return "\n".join(L)
+
+
+def _usd_or_nm(v) -> str:
+    return NOT_MEASURED if v is None else f"${v}"
+
+
+def render_trading(rep: dict) -> List[str]:
+    t = rep.get("trading")
+    if t is None:
+        return ["TRADING (исследование, бумага): " + NOT_MEASURED]
+    L = ["TRADING — исследование и бумажный forward, реального капитала нет",
+         f"Кандидатов: {t['candidates']} · прошли бэктест: {t['backtest_qualified']} · "
+         f"forward-paper: {t['forward_paper']} · robust: {t['robust']} · чемпионов: {t['champions']}",
+         f"Живой капитал: {_usd_or_nm(t.get('live_capital_usd'))} · наблюдений: {t['observations']} · "
+         f"цепочка {'цела' if t['evidence_verified'] else 'НАРУШЕНА'} · такт {t['age_h']:.1f} ч назад"]
+    if t.get("shortlist"):
+        L.append("Лучшие кандидаты (разные сделки, OOS):")
+        for s in t["shortlist"][:3]:
+            name = s["id"].split(":")[0] + " " + s["id"].split(":")[2] + " " + s["id"].split(":")[3]
+            fb = s.get("forward_bars") or 0
+            fwd = (f" · forward {s['forward_net']:+.1%} за {fb} бар." if fb and s.get("forward_net") is not None
+                   else " · forward только начался")
+            L.append(f"• {name}: Sharpe OOS {s['oos_sharpe']:.2f}, просадка {s['oos_max_drawdown']:.0%}{fwd}")
+    return L
 
 
 def render_alerts(rep: dict) -> str:
