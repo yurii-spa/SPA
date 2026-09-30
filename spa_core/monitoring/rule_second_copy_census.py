@@ -14505,6 +14505,733 @@ def split_reachability_at_the_writer(root: Path, bound_step: Optional[dict],
     }
 
 
+# ---------------------------------------------------------------------------
+# РОД НАКОПИТЕЛЯ У САМОГО СВЯЗЫВАНИЯ — заказ G85 п. 2
+# ---------------------------------------------------------------------------
+
+#: Что стало с родом накопителя, когда спросили СВЯЗЫВАНИЕ, а не имя. Три
+#: исхода, и делит их ПРЕДМЕТ: «род доказан» и «род по-прежнему не доказан»
+#: суть разные ответы на вопрос ADR-469, а «накопитель вообще не отображение»
+#: не есть ответ на него ВОВСЕ — там нет класса, и `KeyError` недостижим по
+#: построению.
+KIND_RESOLVED = "accumulator_kind_resolved_at_the_binding"
+KIND_NOT_A_MAPPING = "the_accumulator_is_a_sequence_not_a_mapping"
+KIND_STILL_UNMEASURED = "accumulator_kind_still_not_measured"
+_KIND_OUTCOMES = (KIND_RESOLVED, KIND_NOT_A_MAPPING, KIND_STILL_UNMEASURED)
+
+#: ЧЕМ род доказан. Перечень ЗАКРЫТ, и это требование заказа дословно:
+#: «перечень обязан оставаться ЗАКРЫТЫМ». Форма связывания вне перечня есть
+#: третий исход, а не «наверное, словарь».
+REPAIR_TUPLE_POSITION = "bound_by_position_in_a_tuple_assignment"
+REPAIR_ELEMENT_DEFAULT = "element_taken_with_a_literal_default"
+REPAIR_CALLER_ARGUMENT = "the_kind_is_decided_by_the_caller_in_this_file"
+_KIND_REPAIRS = (REPAIR_TUPLE_POSITION, REPAIR_ELEMENT_DEFAULT,
+                 REPAIR_CALLER_ARGUMENT)
+
+#: Почему род НЕ доказан даже у связывания. Имена разные потому, что чинятся
+#: РАЗНЫМ: параметру без зовущего нужен межфайловый разбор, спорящим зовущим —
+#: сам факт спора (чинить нечего, надо признать), форме вне перечня —
+#: расширение перечня следующим шагом.
+KIND_GAP_NO_CALLER = "parameter_has_no_caller_in_this_file"
+KIND_GAP_CALLERS_DISAGREE = "callers_in_this_file_pass_more_than_one_kind"
+KIND_GAP_OPAQUE = "the_binding_form_is_outside_the_closed_list"
+#: Четвёртое имя, и оно появилось ЗАМЕРОМ, а не из головы: у пяти живых
+#: счётчиков зовущий НАЙДЕН, а передаёт он ИМЯ (`redistribute(w, …)`, где `w`
+#: — сам параметр зовущего), и род его не доказывается ОДНИМ звеном. Звать это
+#: «связывание вне перечня» значило бы повторить ровно тот дефект, который
+#: этот шаг вменяет соседу: причина здесь не в связывании, а в АРГУМЕНТЕ, и
+#: чинится она вторым звеном, а не расширением перечня форм.
+KIND_GAP_CALLER_ARGUMENT = "the_caller_argument_is_outside_the_closed_list"
+_KIND_GAPS = (KIND_GAP_NO_CALLER, KIND_GAP_CALLERS_DISAGREE, KIND_GAP_OPAQUE,
+              KIND_GAP_CALLER_ARGUMENT)
+
+#: Вердикты ADR-469, которые этот шаг перепроверяет на ЧЕСТНОСТЬ ИМЕНИ. Имя,
+#: утверждающее о накопителе то, чего о нём не спрашивали, есть ровно тот
+#: дефект, против которого написан весь ряд, — и ADR-469 нашёл его однажды
+#: внутри самого себя (`silence_proved_by` = 142 при 106 молчащих).
+MISNAMED_SCOPE = "named_not_bound_in_scope_but_the_target_is_not_a_name"
+MISNAMED_OPAQUE = "named_a_call_of_unknown_kind_but_the_binding_is_not_a_call"
+_MISNAMED = (MISNAMED_SCOPE, MISNAMED_OPAQUE)
+
+#: Отказы самого шага. Три, и ни один не есть ноль.
+UNMEASURED_KIND_NEIGHBOUR = "writer_harm_form_is_absent_or_unmeasured"
+UNMEASURED_KIND_POPULATION = "second_walk_disagrees_with_the_writer_step"
+UNMEASURED_KIND_CONTROL = "declared_binding_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина сцены. Здесь стоят ЖИВЫЕ формы дерева, каждая —
+#: своим названным ремонтом: разбор кортежа (`tracker_counts.counts_ref`,
+#: `cartographer/owner_decisions.build_owner_decisions`), умолчание элемента
+#: (`rule_second_copy_census.paragraph_witness_price`), аргумент зовущего
+#: (`edge_trim_proceeds_destination.redistribute`) и последовательность
+#: (`edge_weekday_loss_gate.tail_share_by_wd`). Род обязан выйти РАЗНЫМ у
+#: строгого и снисходительного разбора кортежа — иначе ремонт доказывал бы
+#: форму, а не род.
+KIND_BINDING_CONTROL_SOURCE = '''
+from collections import Counter
+
+_VERDICTS = ("clean", "dirty")
+
+
+def by_tuple_strict(rows):
+    spare, counts = [], {v: 0 for v in _VERDICTS}
+    for row in rows:
+        counts[str(row.get("verdict"))] += 1
+    return counts
+
+
+def by_tuple_forgiving(rows):
+    spare, counts = [], Counter()
+    for row in rows:
+        counts[str(row.get("verdict"))] += 1
+    return counts
+
+
+def by_element(rows, tally):
+    for row in rows:
+        cell = tally.setdefault("side", {"fired": 0})
+        cell[str(row.get("verdict"))] += 1
+
+
+def by_sequence(rows, axis):
+    slots = [0] * len(axis)
+    for row in rows:
+        slots[int(row.get("slot"))] += 1
+    return slots
+
+
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows):
+    return callee(rows, {v: 0 for v in _VERDICTS})
+
+
+def already_proved_by_the_neighbour(rows):
+    plain = {}
+    for row in rows:
+        plain[str(row.get("verdict"))] += 1
+    return plain
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «ремонт доказал род у N» было бы
+#: неотличимо от «ремонт объявляет род у чего угодно»: правило обязано ещё и
+#: ПРОМАХНУТЬСЯ там, где промахнуться должно, и развести отказы ИМЕНАМИ.
+#: Самое острое место — `disagree`: у него ДВА зовущих в этом же файле, и они
+#: передают накопители ПРОТИВОПОЛОЖНОГО рода. Правило, берущее первого
+#: зовущего, ответило бы уверенным родом на вопрос, ответа на который нет.
+KIND_BINDING_CONTROL_CLEAN = '''
+from collections import Counter
+
+
+def no_caller(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def disagree(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def one_way(rows):
+    return disagree(rows, {})
+
+
+def other_way(rows):
+    return disagree(rows, Counter())
+
+
+def opaque_tuple(rows):
+    spare, counts = build_pair()
+    for row in rows:
+        counts[str(row.get("verdict"))] += 1
+    return counts
+
+
+def opaque_default(rows, tally):
+    for row in rows:
+        cell = tally.setdefault("side", build_cell())
+        cell[str(row.get("verdict"))] += 1
+
+
+def relayed(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def relay(rows, upstream):
+    return relayed(rows, upstream)
+'''
+
+
+def _sequence_binding(expr: ast.AST) -> bool:
+    """Связывание, дающее ПОСЛЕДОВАТЕЛЬНОСТЬ, а не отображение.
+
+    Перечень ЗАКРЫТ ровно так же, как перечень конструкторов у ADR-469:
+    список-литерал, списковое включение и `[x] * n`. У такого накопителя
+    индекс есть ПОЛОЖЕНИЕ, а не класс, и отсутствующего ключа у него не
+    бывает вовсе — промах даёт `IndexError`, а не `KeyError`. Поэтому это
+    не «род не измерен», а находка о НАСЕЛЕНИИ.
+    """
+    if isinstance(expr, (ast.List, ast.ListComp)):
+        return True
+    if (isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Mult)
+            and (isinstance(expr.left, (ast.List, ast.ListComp))
+                 or isinstance(expr.right, (ast.List, ast.ListComp)))):
+        return True
+    return False
+
+
+def _tuple_position_kind(name: str, expr: ast.AST,
+                         scope: ast.AST) -> Optional[ast.AST]:
+    """Выражение, которым имя связано ПО ПОЛОЖЕНИЮ в кортежном присваивании.
+
+    `_scope_bindings` связывает КАЖДОЕ имя кортежной цели со ВСЕЙ правой
+    частью — иначе ключ счётчика оказался бы «пришедшим из артефакта» (там
+    это верно и намеренно). Здесь та же правая часть означает другое: род
+    накопителя лежит в СВОЁМ элементе, и достать его можно только по
+    положению. Длины обязаны совпадать; расхождение (звёздочка, распаковка
+    вызова) — не догадка, а `None`.
+    """
+    for node in ast.walk(scope):
+        if not isinstance(node, ast.Assign):
+            continue
+        if node.value is not expr:
+            continue
+        for tgt in node.targets:
+            if not isinstance(tgt, (ast.Tuple, ast.List)):
+                continue
+            if not isinstance(expr, (ast.Tuple, ast.List)):
+                continue
+            if len(tgt.elts) != len(expr.elts):
+                continue
+            if any(isinstance(el, ast.Starred) for el in tgt.elts):
+                continue
+            for pos, el in enumerate(tgt.elts):
+                if isinstance(el, ast.Name) and el.id == name:
+                    return expr.elts[pos]
+    return None
+
+
+def _literal_default_of_setdefault(expr: ast.AST) -> Optional[ast.AST]:
+    """Выражение умолчания у `<...>.setdefault(k, D)` — род ЭЛЕМЕНТА.
+
+    Накопитель здесь не имя, а элемент чужого контейнера, и род его решает
+    ровно умолчание: именно оно станет тем отображением, в которое пойдёт
+    счёт. Вторая копия правила рода не заводится — род умолчания считает
+    :func:`_accumulator_kind`, как и везде.
+    """
+    if not isinstance(expr, ast.Call):
+        return None
+    fn = expr.func
+    if not isinstance(fn, ast.Attribute) or fn.attr != "setdefault":
+        return None
+    if len(expr.args) != 2:
+        return None
+    return expr.args[1]
+
+
+def _caller_argument_kinds(name: str, scope: ast.AST,
+                           tree: ast.AST) -> Tuple[Set[Optional[str]], int]:
+    """Рода, которые зовущие ЭТОГО ЖЕ ФАЙЛА передают на место параметра.
+
+    **Односторонность объявлена заранее и ограничена ОДНИМ звеном:** зовущие
+    ищутся только в этом файле и только по ИМЕНИ функции. Зовущий из другого
+    модуля не ищется вовсе — иначе ответ зависел бы от того, как далеко
+    прибор решил заглянуть, а именно это ADR-469 назвал догадкой.
+
+    Возвращает (рода, сколько зовущих найдено). Спор родов не сводится к
+    одному: два зовущих, передающих противоположные накопители, есть
+    ОТСУТСТВИЕ ответа, а не первый из них.
+    """
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return set(), 0
+    args = scope.args
+    order = list(args.posonlyargs) + list(args.args)
+    pos = next((i for i, a in enumerate(order) if a.arg == name), None)
+    kinds: Set[Optional[str]] = set()
+    seen = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        called = (fn.id if isinstance(fn, ast.Name)
+                  else fn.attr if isinstance(fn, ast.Attribute) else None)
+        if called != scope.name:
+            continue
+        given: Optional[ast.AST] = None
+        for kw in node.keywords:
+            if kw.arg == name:
+                given = kw.value
+        if given is None and pos is not None and len(node.args) > pos:
+            if not any(isinstance(a, ast.Starred) for a in node.args[:pos + 1]):
+                given = node.args[pos]
+        if given is None:
+            continue
+        seen += 1
+        kinds.add("sequence" if _sequence_binding(given)
+                  else _accumulator_kind(given))
+    return kinds, seen
+
+
+def _binding_kind_site(scope: ast.AST, tree: ast.AST, target: ast.AST,
+                       writer: dict) -> dict:
+    """Род накопителя ОДНОГО счётчика, спрошенный у его СВЯЗЫВАНИЯ.
+
+    Правило применяется ТОЛЬКО там, где ADR-469 ответил третьим исходом:
+    переспрашивать уже доказанный род значило бы завести вторую копию
+    правила рода — ровно тот предмет, который вся перепись и ищет.
+    """
+    blank = {"kind_outcome": None, "resolved_by": None, "kind_gap": None,
+             "accumulator": None, "misnamed": None, "callers_seen": None}
+    if writer["writer"] != WRITER_UNRESOLVED:
+        return blank
+
+    # Честность ИМЕНИ вердикта соседа — до всякого ремонта. Имя, утверждающее
+    # о накопителе то, чего о нём не спрашивали, есть тот же дефект, что
+    # ADR-469 нашёл внутри себя: вопрос «связан ли в этой области» к цели, не
+    # являющейся именем, не задавался ВООБЩЕ.
+    misnamed = None
+    gap = writer["writer_gap"]
+    if gap == WRITER_GAP_NO_BINDING and not isinstance(target, ast.Name):
+        misnamed = MISNAMED_SCOPE
+
+    binds = (_scope_bindings(scope).get(target.id) or []
+             if isinstance(target, ast.Name) else [])
+    if (gap == WRITER_GAP_OPAQUE and binds
+            and not any(isinstance(b, ast.Call) for b in binds)):
+        misnamed = MISNAMED_OPAQUE
+
+    def _done(outcome: str, **rest) -> dict:
+        return {**blank, "kind_outcome": outcome, "misnamed": misnamed, **rest}
+
+    # (1) Накопитель — ЭЛЕМЕНТ чужого контейнера, взятый с умолчанием. Форма
+    #     живёт в дереве ДВУМЯ видами, и спрашиваются оба: элемент может быть
+    #     и самой целью (`witness.setdefault(k, D)[cls] += 1`), и связыванием
+    #     имени (`cell = tally.setdefault(k, D)` … `cell[cls] += 1`).
+    #     Спрашивается ПЕРВЫМ: у первого вида цель не имя, и вопрос об
+    #     области к ней неприменим вовсе.
+    for expr in ([target] if not isinstance(target, ast.Name) else binds):
+        default = _literal_default_of_setdefault(expr)
+        if default is None:
+            continue
+        if _sequence_binding(default):
+            return _done(KIND_NOT_A_MAPPING,
+                         resolved_by=REPAIR_ELEMENT_DEFAULT)
+        kind = _accumulator_kind(default)
+        if kind is not None:
+            return _done(KIND_RESOLVED, resolved_by=REPAIR_ELEMENT_DEFAULT,
+                         accumulator=kind)
+        return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_OPAQUE)
+
+    if not isinstance(target, ast.Name):
+        return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_OPAQUE)
+
+    # (2) Параметр: род решает ЗОВУЩИЙ, и это межобластной вопрос. Звено
+    #     объявлено — этот файл, по имени функции.
+    params: Set[str] = set()
+    if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        a = scope.args
+        params = {p.arg for p in (list(a.posonlyargs) + list(a.args)
+                                  + list(a.kwonlyargs))}
+        if a.vararg:
+            params.add(a.vararg.arg)
+        if a.kwarg:
+            params.add(a.kwarg.arg)
+    if not binds and target.id in params:
+        kinds, seen = _caller_argument_kinds(target.id, scope, tree)
+        if not seen:
+            return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_NO_CALLER,
+                         callers_seen=0)
+        if len(kinds) > 1:
+            return _done(KIND_STILL_UNMEASURED,
+                         kind_gap=KIND_GAP_CALLERS_DISAGREE,
+                         callers_seen=seen)
+        only = kinds.pop()
+        if only is None:
+            # Своим именем, а не общим: зовущий НАЙДЕН и передаёт имя, род
+            # которого не доказывается одним звеном. Это не «форма вне
+            # перечня» — чинится вторым звеном, а не перечнем.
+            return _done(KIND_STILL_UNMEASURED,
+                         kind_gap=KIND_GAP_CALLER_ARGUMENT,
+                         callers_seen=seen)
+        if only == "sequence":
+            return _done(KIND_NOT_A_MAPPING,
+                         resolved_by=REPAIR_CALLER_ARGUMENT,
+                         callers_seen=seen)
+        return _done(KIND_RESOLVED, resolved_by=REPAIR_CALLER_ARGUMENT,
+                     accumulator=only, callers_seen=seen)
+
+    # (3) Связывание в этой области: последовательность либо элемент кортежа.
+    kinds_here: Set[Optional[str]] = set()
+    outcomes: Set[str] = set()
+    for expr in binds:
+        if _sequence_binding(expr):
+            outcomes.add(KIND_NOT_A_MAPPING)
+            continue
+        el = _tuple_position_kind(target.id, expr, scope)
+        if el is None:
+            outcomes.add(KIND_STILL_UNMEASURED)
+            continue
+        if _sequence_binding(el):
+            outcomes.add(KIND_NOT_A_MAPPING)
+            continue
+        kind = _accumulator_kind(el)
+        if kind is None:
+            outcomes.add(KIND_STILL_UNMEASURED)
+            continue
+        kinds_here.add(kind)
+        outcomes.add(KIND_RESOLVED)
+    if not binds or len(outcomes) != 1:
+        return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_OPAQUE)
+    only_outcome = outcomes.pop()
+    if only_outcome == KIND_NOT_A_MAPPING:
+        return _done(KIND_NOT_A_MAPPING, resolved_by=REPAIR_TUPLE_POSITION
+                     if kinds_here else None)
+    if only_outcome == KIND_RESOLVED and len(kinds_here) == 1:
+        return _done(KIND_RESOLVED, resolved_by=REPAIR_TUPLE_POSITION,
+                     accumulator=kinds_here.pop())
+    return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_OPAQUE)
+
+
+def _binding_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Род накопителя у связывания для каждого ОТКРЫТОГО счётчика файла.
+
+    Обход и правило открытости — ДОСЛОВНО соседские
+    (:func:`_writer_kind_sites`), и вердикт писателя берётся у соседа как
+    есть. Своего правила о роде накопителя здесь нет ни одной строки: новое
+    только то, ЧТО считать связыванием.
+    """
+    module_binds = _scope_bindings(tree)
+    owner_of = _counter_owner_scopes(tree)
+    scope_cache: Dict[int, Tuple[Dict[str, List[ast.AST]], Set[str], str]] = {}
+
+    def _scope_of(scope: ast.AST):
+        cached = scope_cache.get(id(scope))
+        if cached is not None:
+            return cached
+        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = scope.args
+            params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                      + list(args.kwonlyargs))}
+            if args.vararg:
+                params.add(args.vararg.arg)
+            if args.kwarg:
+                params.add(args.kwarg.arg)
+            made = (_scope_bindings(scope), params, scope.name)
+        else:
+            made = (module_binds, set(), "<module>")
+        scope_cache[id(scope)] = made
+        return made
+
+    found: List[dict] = []
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        target, key, form = shape
+        scope = owner_of.get(id(node), tree)
+        binds, params, owner = _scope_of(scope)
+        if _key_origin(key, binds, module_binds, params, set()) != KEY_ARTIFACT:
+            continue
+        if _membership_checked(scope, node, key):
+            continue
+        writer = _writer_kind_site(scope, node, target, form)
+        found.append({
+            "file": rel,
+            "line": getattr(node, "lineno", None),
+            "owner": owner,
+            "form": form,
+            "counter": ast.unparse(target)[:60],
+            "writer": writer["writer"],
+            "writer_gap": writer["writer_gap"],
+            **_binding_kind_site(scope, tree, target, writer),
+        })
+    return sorted(found, key=lambda item: (item["file"], item["line"] or 0))
+
+
+def _binding_kind_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Положительная половина обязана доказать род ВСЕМИ ТРЕМЯ названными
+    ремонтами и развести строгий разбор кортежа от снисходительного: выйди
+    род одинаковым, ремонт доказывал бы форму, а не род. Она же обязана
+    назвать последовательность последовательностью — иначе находка о
+    населении утонула бы в «роде не измерен».
+
+    Отрицательная половина обязана НЕ доказать рода ни у одного и развести
+    свои отказы ТРЕМЯ разными именами. Самое острое место — два зовущих,
+    передающих противоположные накопители: правило, берущее первого,
+    ответило бы уверенным родом там, где ответа нет.
+    """
+    try:
+        hit = _binding_kind_sites("<control>",
+                                  ast.parse(KIND_BINDING_CONTROL_SOURCE))
+        clean = _binding_kind_sites("<control-clean>",
+                                    ast.parse(KIND_BINDING_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    hit = [s for s in hit if s["writer"] == WRITER_UNRESOLVED]
+    clean = [s for s in clean if s["writer"] == WRITER_UNRESOLVED]
+    resolved = [s for s in hit if s["kind_outcome"] == KIND_RESOLVED]
+    by_repair = {r: sorted(s["accumulator"] for s in resolved
+                           if s["resolved_by"] == r) for r in _KIND_REPAIRS}
+    if any(not v for v in by_repair.values()):
+        return {"passed": False, "by_repair": by_repair,
+                "reason": (f"положительная половина не доказала рода одним из "
+                           f"названных ремонтов ({by_repair}) — ремонт без "
+                           f"живого случая есть украшение, а не правило")}
+    if by_repair[REPAIR_TUPLE_POSITION] != ["forgiving", "strict"]:
+        return {"passed": False,
+                "tuple_kinds": by_repair[REPAIR_TUPLE_POSITION],
+                "reason": ("разбор кортежа не развёл строгий накопитель от "
+                           "снисходительного — род оказался свойством ФОРМЫ "
+                           "связывания, а не самого накопителя")}
+    seqs = [s for s in hit if s["kind_outcome"] == KIND_NOT_A_MAPPING]
+    if len(seqs) != 1:
+        return {"passed": False, "sequences": len(seqs),
+                "reason": (f"последовательностей на положительной половине "
+                           f"названо {len(seqs)} вместо 1 — находка о "
+                           f"НАСЕЛЕНИИ слилась бы с «род не измерен»")}
+    claimed = [s for s in clean if s["kind_outcome"] != KIND_STILL_UNMEASURED]
+    if claimed:
+        return {"passed": False, "clean_false_positives": len(claimed),
+                "reason": (f"на отрицательной половине правило ответило о "
+                           f"роде у {len(claimed)} накопител(ей) — там, где "
+                           f"связывание вне закрытого перечня")}
+    clean_gaps = {s["kind_gap"] for s in clean}
+    if clean_gaps != set(_KIND_GAPS):
+        return {"passed": False, "clean_gaps": sorted(map(str, clean_gaps)),
+                "reason": (f"отрицательная половина развела отказы именами "
+                           f"{sorted(map(str, clean_gaps))} вместо всех трёх "
+                           f"{list(_KIND_GAPS)} — отказ без своей причины "
+                           f"посылает чинить не то")}
+    relayed = [s for s in clean
+               if s["kind_gap"] == KIND_GAP_CALLER_ARGUMENT]
+    if len(relayed) != 1 or relayed[0]["callers_seen"] != 1:
+        return {"passed": False,
+                "relayed": [s["callers_seen"] for s in relayed],
+                "reason": ("зовущий, передающий ИМЯ, не отделён от "
+                           "связывания вне перечня: причина там в АРГУМЕНТЕ, "
+                           "и общее имя послало бы расширять перечень форм "
+                           "вместо второго звена")}
+    disagreed = [s for s in clean
+                 if s["kind_gap"] == KIND_GAP_CALLERS_DISAGREE]
+    if len(disagreed) != 1 or disagreed[0]["callers_seen"] != 2:
+        return {"passed": False,
+                "disagreeing": [s["callers_seen"] for s in disagreed],
+                "reason": ("спор зовущих не измерен ЧИСЛОМ зовущих: правило, "
+                           "берущее первого, ответило бы уверенным родом на "
+                           "вопрос, ответа на который нет")}
+    return {"passed": True, "sites": len(hit), "resolved": len(resolved),
+            "by_repair": by_repair, "sequences": len(seqs),
+            "clean_sites": len(clean), "clean_false_positives": 0,
+            "clean_gaps": sorted(map(str, clean_gaps)),
+            "relayed_callers_seen": relayed[0]["callers_seen"],
+            "disagreeing_callers_seen": disagreed[0]["callers_seen"]}
+
+
+def accumulator_kind_at_the_binding(root: Path,
+                                    writer_step: Optional[dict]) -> dict:
+    """Род накопителя, спрошенный у СВЯЗЫВАНИЯ (**заказ G85 п. 2**).
+
+    ADR-469 померил форму вреда у писателя и у части населения ответил
+    ТРЕТЬИМ ИСХОДОМ: род накопителя не измерен. Заказ G85 п. 2 просит
+    разобрать этот остаток, и просит дословно:
+
+    > Шестнадцать неизмеренных родов. Восемь связаны вне области записи,
+    > восемь пришли непрозрачным вызовом. Первые чинятся межобластным
+    > разбором, вторые — расширением перечня конструкторов; односторонность
+    > назвать заранее и ограничить звеном (перечень обязан оставаться
+    > ЗАКРЫТЫМ).
+
+    **Числа заказа НЕ перепечатываются.** Население берётся у соседа ЖИВЫМ и
+    сверяется с его собственным числом: 16 есть замер 24.09, а не константа.
+
+    **Что замер нашёл сверх заказа.** Оба имени третьего исхода ADR-469
+    утверждают о накопителе то, чего о нём не спрашивали:
+    `accumulator_is_not_bound_in_this_scope` стоит и на целях, которые
+    ИМЕНЕМ не являются вовсе (`by_leg[p['protocol']][cls] += 1` — накопитель
+    здесь элемент чужого контейнера, и вопрос об области к нему
+    неприменим), а `..._comes_from_a_call_of_an_unknown_kind` — на
+    связываниях, которые ВЫЗОВОМ не являются (`a, b = {}, Counter()`:
+    `_scope_bindings` отдаёт всему кортежу одну правую часть, и кортеж
+    назван вызовом). Число, чьё имя не описывает того, что оно считает, есть
+    ровно тот дефект, против которого написан весь ряд, — ADR-469 нашёл его
+    однажды внутри себя (`silence_proved_by` = 142 при 106 молчащих), и это
+    второй экземпляр того же класса в том же приборе. Поэтому честность имени
+    мерится ЧИСЛОМ (`misnamed_gaps`), а не оговоркой.
+
+    **И находка о НАСЕЛЕНИИ.** Часть остатка — накопители, которые не
+    отображения, а последовательности (`extra_loss = [0.0] * len(axis)`,
+    `cnt = [0] * 7`). У них индекс есть ПОЛОЖЕНИЕ, а не класс; отсутствующего
+    ключа не бывает вовсе, промах даёт `IndexError`. Это не «род не измерен»,
+    а ЛОЖНЫЙ член населения «открытый счётчик класса», унаследованного от
+    соседа, — то есть поправка к знаменателю всех чисел ряда G78…G98, и
+    названа она отдельным исходом, а не спрятана в третий.
+
+    **Односторонность объявлена заранее и ограничена ОДНИМ звеном.** Зовущие
+    параметра ищутся только в ЭТОМ файле и только по имени функции; перечень
+    форм связывания ЗАКРЫТ (кортеж по положению · умолчание `setdefault` ·
+    аргумент зовущего · список-литерал, включение и `[x] * n`), и форма вне
+    перечня есть третий исход, а не «наверное, словарь». Спор двух зовущих —
+    ОТСУТСТВИЕ ответа, а не первый из них.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("у скольких счётчиков, чей род накопителя ADR-469 НЕ "
+                     "измерил, род доказывается самим СВЯЗЫВАНИЕМ — и каким "
+                     "названным ремонтом"),
+        "order": "G85.2",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(writer_step, dict)
+            or str(writer_step.get("status")) == "UNMEASURED"
+            or observed(writer_step, "unresolved_reasons", kind=dict) is None):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_KIND_NEIGHBOUR,
+                "reason": ("шаг формы вреда у писателя не измерен — населения "
+                           "«род не измерен» не существует; это НЕ «все рода "
+                           "измерены»")}
+    declared = writer_step["unresolved_reasons"]
+    declared_total = sum(int(v) for v in declared.values())
+    control = _binding_kind_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_KIND_CONTROL,
+                "reason": (f"объявленное правило связывания не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_binding_kind_sites(rel, tree))
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_KIND_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    mine = [r for r in rows if r["writer"] == WRITER_UNRESOLVED]
+    if len(mine) != declared_total:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_KIND_POPULATION,
+                "population": len(mine),
+                "declared_population": declared_total,
+                "reason": (f"свой обход нашёл {len(mine)} счётчик(ов) с "
+                           f"неизмеренным родом, сосед назвал "
+                           f"{declared_total} — это ДВЕ дороги к одному "
+                           f"населению, и разойдясь, они отвечают на разные "
+                           f"вопросы")}
+
+    outcomes = {cls: sum(1 for r in mine if r["kind_outcome"] == cls)
+                for cls in _KIND_OUTCOMES}
+    # ТОЛЬКО среди доказанных родов, и это не мелочь: `resolved_by` стоит и у
+    # исхода «накопитель не отображение» (там ремонт доказал, что класса нет),
+    # поэтому счёт по всему остатку носил бы имя «чем доказан РОД», считая
+    # строки, где рода не доказано вовсе. Тот же дефект ADR-469 нашёл однажды
+    # внутри себя (`silence_proved_by` = 142 при 106 молчащих) — и поймал его
+    # здесь собственный отрицательный тест, а не чтение глазами.
+    repairs = {rep: sum(1 for r in mine if r["resolved_by"] == rep
+                        and r["kind_outcome"] == KIND_RESOLVED)
+               for rep in _KIND_REPAIRS}
+    sequence_repairs = {rep: sum(1 for r in mine if r["resolved_by"] == rep
+                                 and r["kind_outcome"] == KIND_NOT_A_MAPPING)
+                        for rep in _KIND_REPAIRS}
+    gaps = {gap: sum(1 for r in mine if r["kind_gap"] == gap)
+            for gap in _KIND_GAPS}
+    # ТОЛЬКО среди доказанных, и это не мелочь: `accumulator` у исхода
+    # «не отображение» пуст по построению, и счёт по всему остатку носил бы
+    # имя, которое не описывает того, что он считает (урок ADR-469 о себе).
+    kinds = {k: sum(1 for r in mine
+                    if r["kind_outcome"] == KIND_RESOLVED
+                    and r["accumulator"] == k)
+             for k in ("strict", "forgiving")}
+    misnamed = {name: sum(1 for r in mine if r["misnamed"] == name)
+                for name in _MISNAMED}
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(mine),
+        "declared_population": declared_total,
+        "declared_by_writer_step": dict(declared),
+        "kind_outcomes": outcomes,
+        "resolved_by": repairs,
+        # Отдельным полем, а не строкой в соседнем: «чем доказан РОД» и «чем
+        # доказано, что накопитель не отображение» — разные утверждения.
+        "sequence_proved_by": sequence_repairs,
+        "resolved_kinds": kinds,
+        "unresolved_reasons": gaps,
+        "still_unmeasured": outcomes[KIND_STILL_UNMEASURED],
+        "misnamed_gaps": misnamed,
+        "misnamed_total": sum(misnamed.values()),
+        "resolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "resolved_by": r["resolved_by"],
+             "accumulator": r["accumulator"],
+             "writer_gap_was": r["writer_gap"], "misnamed": r["misnamed"]}
+            for r in mine if r["kind_outcome"] == KIND_RESOLVED][:COSTED_SAMPLE],
+        "not_a_mapping_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "writer_gap_was": r["writer_gap"]}
+            for r in mine
+            if r["kind_outcome"] == KIND_NOT_A_MAPPING][:COSTED_SAMPLE],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r["kind_gap"],
+             "callers_seen": r["callers_seen"]}
+            for r in mine
+            if r["kind_outcome"] == KIND_STILL_UNMEASURED][:COSTED_SAMPLE],
+        "blind": [
+            ("род доказан у СВЯЗЫВАНИЯ, а не у события: «накопитель строг» "
+             "значит `KeyError` достижим по построению, а НЕ что незнакомый "
+             "класс приходил сюда хоть раз — событие не мерил никто"),
+            (f"`{KIND_NOT_A_MAPPING}` есть поправка к ЗНАМЕНАТЕЛЮ ряда: эти "
+             "счётчики не открыты и не закрыты, у них НЕТ класса вовсе. "
+             "Числа прошлых ADR ряда здесь НЕ пересчитываются — они замеры "
+             "своих дней"),
+            ("зовущие параметра искались только в ЭТОМ файле и только по "
+             "имени функции (звено объявлено заранее): зовущий из другого "
+             "модуля не искался вовсе, и `parameter_has_no_caller_in_this_file` "
+             "НЕ означает «зовущих нет»"),
+            ("перечень форм связывания ЗАКРЫТ; форма вне него есть третий "
+             "исход. Расширять перечень — работа следующего шага, а не "
+             "догадка этого"),
+            ("население наследует ВЕСЬ потолок соседа сверху (ADR-461, "
+             "ADR-462, ADR-465, ADR-466, ADR-469): своего замера населения у "
+             "этого шага нет по построению"),
+        ],
+        "what_it_does_not_prove": [
+            "что у доказанного рода вред наступил — род говорит о ДОРОГЕ, событие не спрошено",
+            "что `misnamed_gaps` = 0 означало бы верные имена: шаг сверяет ровно два утверждения соседа, а не все",
+            "что остаток не сократится дальше — формы связывания вне закрытого перечня остались третьим исходом намеренно",
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -15875,6 +16602,14 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     reach_step = split_reachability_at_the_writer(root, bound_step, tail_step,
                                                  writer_step)
 
+    # --- РОД НАКОПИТЕЛЯ У СВЯЗЫВАНИЯ (заказ G85 п. 2) --------------------
+    # ADR-469 у части населения ответил третьим исходом: род не измерен.
+    # Заказ просит разобрать ОСТАТОК — межобластным разбором и расширением
+    # перечня форм, при ЗАКРЫТОМ перечне. Своего правила о роде шаг не имеет:
+    # род считает `_accumulator_kind` соседа, новое здесь — что считать
+    # СВЯЗЫВАНИЕМ. Население берётся у соседа и сверяется с его числом.
+    kind_step = accumulator_kind_at_the_binding(root, writer_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -16029,6 +16764,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # исходом, и ответ одного не отменяет другого.
         "writer_harm_form": writer_step,
         "split_reachability_at_the_writer": reach_step,
+        # Отдельным ключом, а не поправкой к соседу: ADR-469 отвечает «род не
+        # измерен», а этот шаг — «род доказан связыванием / накопитель вообще
+        # не отображение / по-прежнему не измерен». Разные предметы с разным
+        # третьим исходом, и ответ одного не отменяет другого.
+        "accumulator_kind_at_the_binding": kind_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -18062,6 +18802,67 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"накопитель `{item.get('accumulator')}`, раскол нашёл "
                 f"{item.get('found_by')}: класс до читателя не доезжает")
         for blind in (observed(reach_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    kind_step = observed(doc, "accumulator_kind_at_the_binding", kind=dict)
+    if kind_step is None:
+        out.append("[РОД У СВЯЗЫВАНИЯ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «род измерен у всех»")
+    elif str(kind_step.get("status")) == "UNMEASURED":
+        out.append(f"[РОД У СВЯЗЫВАНИЯ] НЕ ИЗМЕРЕНО "
+                   f"[{kind_step.get('unmeasured_class')}]: "
+                   f"{kind_step.get('reason')}")
+    else:
+        outcomes = observed(kind_step, "kind_outcomes", kind=dict) or {}
+        repairs = observed(kind_step, "resolved_by", kind=dict) or {}
+        kinds = observed(kind_step, "resolved_kinds", kind=dict) or {}
+        why = observed(kind_step, "unresolved_reasons", kind=dict) or {}
+        wrong = observed(kind_step, "misnamed_gaps", kind=dict) or {}
+        out.append(
+            f"[РОД У СВЯЗЫВАНИЯ] из {kind_step.get('population')} счётчик(ов), "
+            f"чей род ADR-469 НЕ измерил, связывание доказало род у "
+            f"{outcomes.get(KIND_RESOLVED)} (строгих {kinds.get('strict')}, "
+            f"снисходительных {kinds.get('forgiving')}); у "
+            f"{outcomes.get(KIND_NOT_A_MAPPING)} накопитель — "
+            f"ПОСЛЕДОВАТЕЛЬНОСТЬ, а не отображение: класса у них нет вовсе; "
+            f"не измерено по-прежнему {kind_step.get('still_unmeasured')}")
+        out.append(
+            f"[РОД · ЧЕМ ДОКАЗАН] кортеж по положению "
+            f"{repairs.get(REPAIR_TUPLE_POSITION)} · умолчание `setdefault` "
+            f"{repairs.get(REPAIR_ELEMENT_DEFAULT)} · аргумент зовущего в "
+            f"этом файле {repairs.get(REPAIR_CALLER_ARGUMENT)}")
+        out.append(
+            f"[РОД · ПОЧЕМУ НЕ ИЗМЕРЕНО] зовущего в этом файле нет "
+            f"{why.get(KIND_GAP_NO_CALLER)} · зовущие спорят о роде "
+            f"{why.get(KIND_GAP_CALLERS_DISAGREE)} · форма связывания вне "
+            f"закрытого перечня {why.get(KIND_GAP_OPAQUE)} · аргумент "
+            f"зовущего вне перечня {why.get(KIND_GAP_CALLER_ARGUMENT)}")
+        out.append(
+            f"[РОД · ЧЕСТНОСТЬ ИМЕНИ У СОСЕДА] из "
+            f"{kind_step.get('population')} третьих исходов ADR-469 имя "
+            f"утверждает НЕСПРОШЕННОЕ у {kind_step.get('misnamed_total')}: "
+            f"«связан не в этой области» при цели, которая ИМЕНЕМ не является, "
+            f"— {wrong.get(MISNAMED_SCOPE)}; «пришёл вызовом неизвестного "
+            f"рода» при связывании, которое ВЫЗОВОМ не является, — "
+            f"{wrong.get(MISNAMED_OPAQUE)}. Число, чьё имя не описывает того, "
+            f"что оно считает, есть предмет всего ряда")
+        control = observed(kind_step, "control", kind=dict) or {}
+        out.append(
+            f"[РОД · КОНТРОЛЬ] на известных случаях правило доказало род "
+            f"{control.get('resolved')} накопител(ям) ВСЕМИ тремя ремонтами "
+            f"(разбор кортежа развёл {control.get('by_repair', {}).get(REPAIR_TUPLE_POSITION)}), "
+            f"назвало {control.get('sequences')} последовательность и на "
+            f"отрицательной половине не ответило о роде ни у одного, разведя "
+            f"отказы {len(control.get('clean_gaps') or [])} именами; спор "
+            f"зовущих измерен числом зовущих "
+            f"({control.get('disagreeing_callers_seen')})")
+        for item in (observed(kind_step, "not_a_mapping_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[РОД · НЕ ОТОБРАЖЕНИЕ] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` — индекс есть ПОЛОЖЕНИЕ, а не класс; "
+                f"сосед звал это `{item.get('writer_gap_was')}`")
+        for blind in (observed(kind_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
