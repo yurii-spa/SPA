@@ -127,11 +127,22 @@ def test_the_old_harm_keeps_its_old_name_and_nothing_is_weakened():
     """Новый код ДОБАВЛЯЕТСЯ к прежним находкам, а не заменяет их (инв. #16)."""
     r = _ev(site_asof=_day(5), snap_asof=_day(0), prev=_fossil_prev())
     codes = _codes(r)
-    # Ровно те три находки, что дал живой прогон 36165025624: as-of на двух страницах
-    # и завышенный APY. Дни при этом НЕ сравнивались ни разу: сверка дней читает
-    # главную (`sl-day`), а главная их рендерит клиентом — на /track-record (`tr-days-2`)
-    # число есть, но его этот сторож не смотрит. Замерено, названо, отдельная находка.
-    assert codes.count("SITE_BEHIND_SNAPSHOT") == 2   # home as-of, track as-of
+    # Живой прогон 36165025624 дал три находки: as-of на двух страницах и завышенный
+    # APY. Дни тогда НЕ сравнивались ни разу — сверка дней читала главную (`sl-day`),
+    # а число лежало на /track-record (`tr-days-2`), куда сторож не смотрел.
+    #
+    # ИЗМЕНЕНО 30.09 (заказ G86 п. 1, ADR-523) — УСИЛЕНИЕ, не ослабление, и потому
+    # правка намеренная (инв. #16): операнд теперь берётся с той страницы, где число
+    # ЕСТЬ, и та же сцена даёт ТРЕТЬЕ расхождение — `evidenced_days` 89 против 94.
+    # Это ровно тот вред, который ADR-475 назвал остатком; он здесь и закрывается.
+    # `gates_passed` в этих фикстурах нет ни на одной странице ⇒ сверка честно
+    # объявляет себя НЕ ИЗМЕРЕННОЙ (третий исход), а не молчит, как прежде.
+    assert codes.count("SITE_BEHIND_SNAPSHOT") == 3   # home as-of, track as-of, дни
+    days_leg = [f for f in r["fails"]
+                if f["code"] == "SITE_BEHIND_SNAPSHOT" and "evidenced_days" in f["detail"]]
+    assert len(days_leg) == 1 and "track#tr-days-2" in days_leg[0]["detail"], days_leg
+    assert "COMPARISON_NOT_MEASURED" in codes         # гейты: операнда нет ни на одной странице
+    assert r["number_legs"]["gates_passed"].startswith("unmeasured:site:")
     assert "OVERSTATED_METRIC" in codes               # 5.0 % против живых 4.9386 %
     assert r["ok"] is False and r["site_overstated"] is True
     # прежняя политика стоп-крана НЕ изменилась: верный снимок не деградируется

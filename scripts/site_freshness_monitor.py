@@ -21,6 +21,7 @@ FAIL categories (each a distinct, logged reason-code):
   MISSING_ASOF        — live page has no as-of label, or it disagrees with the snapshot
   UNAVAILABLE         — a sitemap URL is not 200 / redirects unexpectedly
   VERIFIER_PIN_MISMATCH — live verify_spa.py SHA-256 != the published pin
+  COMPARISON_NOT_MEASURED — у сверки не нашлось операнда (третий исход, не «равно»)
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -152,20 +153,123 @@ def _hours_since_ts(ts_str, now):
     return (now - d).total_seconds() / 3600.0
 
 
-def parse_site_numbers(html):
-    """Extract the public headline numbers from rendered HTML (P1-6 static ids). None if absent."""
+#: С КАКОЙ СТРАНИЦЫ берётся операнд каждой сверки — ОБЪЯВЛЕНИЕ, а не побочный
+#: результат порядка `or` внутри парсера (заказ G86 п. 1, поставлен ADR-475).
+#:
+#: До 30.09 парсер знал три id главной (`sl-day`/`sl-apy`/`sl-gates`) и пробовал их
+#: ПЕРВЫМИ на любой странице. Замер живого сайта 30.09: этих элементов в разметке
+#: `landing/src/pages/index.astro` НЕТ ВОВСЕ — остались только вызовы `setText('sl-day', …)`,
+#: а `setText` защищён `if(el)` и потому молча ничего не делает. Главная отдаёт числа под
+#: ДРУГИМИ id (`m-days`=96, `m-apy`=~4.9%, `m-gates`=29/29), и о них сторож не знал.
+#: Итог: `site_home` в отчёте был `{evidenced_days: null, paper_apy_pct: null,
+#: gates_passed: null, end_equity: null}`, обе сверки `cmp_int` получали `None` и
+#: пропускались молча — «не измерено» было неотличимо от «равно» (инв. #17). В аварии
+#: 25.09 (89 на сайте против 94 в репозитории) расхождение поймали метки `as of`,
+#: а сверка ДНЕЙ промолчала именно здесь.
+#:
+#: Формат: label -> ((страница, id, регексп, ПОЧЕМУ эта страница), …) в порядке опроса.
+#: Историчные id главной оставлены НАМЕРЕННО и не как совместимость: старая сборка на CDN
+#: несёт именно их, а вопрос сторожа — «что отдаёт живой сайт», а не «что в текущих
+#: исходниках».
+SITE_NUMBER_SOURCES = {
+    "evidenced_days": (
+        ("home", "m-days", r'id="m-days"[^>]*>\s*~?([\d,]+)',
+         "карточка метрик главной; серверный рендер {snapDays} из витрины"),
+        ("home", "sl-day", r'id="sl-day"[^>]*>\s*~?([\d,]+)',
+         "историчный id главной; элемента в разметке больше нет, но старая сборка на CDN его несёт"),
+        ("track", "tr-days-2", r'id="tr-days-2"[^>]*>\s*([\d,]+)',
+         "/track-record: серверный рендер {realDays}, число видно в HTML"),
+    ),
+    "gates_passed": (
+        ("home", "m-gates", r'id="m-gates"[^>]*>\s*([\d,]+)\s*/',
+         "единственная страница, отдающая пару гейтов в HTML (29/29)"),
+        ("home", "sl-gates", r'id="sl-gates"[^>]*>\s*([\d,]+)\s*/',
+         "историчный id главной; см. выше"),
+        ("track", "tr-gates-pass", r'id="tr-gates-pass"[^>]*>\s*([\d,]+)',
+         "/track-record отдаёт ЗАГЛУШКУ `—` и заполняет её клиентом (setText) — объявлена, "
+         "чтобы «заглушка» и «id отсутствует» были РАЗНЫМИ исходами, а не общим молчанием"),
+    ),
+    "paper_apy_pct": (
+        ("home", "m-apy", r'id="m-apy"[^>]*>\s*~?([\d.]+)%',
+         "карточка метрик главной; серверный рендер {snapApy} из витрины"),
+        ("home", "sl-apy", r'id="sl-apy"[^>]*>\s*~?([\d.]+)%',
+         "историчный id главной; см. выше"),
+        ("track", "tr-apy", r'id="tr-apy"[^>]*>\s*~?([\d.]+)%',
+         "/track-record: серверный рендер apyTxt"),
+    ),
+    "end_equity": (
+        ("track", "tr-equity", r'id="tr-equity"[^>]*>\s*\$?([\d,]+)',
+         "/track-record: серверный рендер eqTxt"),
+        ("track", "por-nav", r'id="por-nav"[^>]*>\s*\$?([\d,]+)',
+         "тот же NAV во второй карточке /track-record"),
+    ),
+}
+
+#: Односторонность этой меры — НАЗВАНА ЗАРАНЕЕ, до всякого вердикта.
+#:
+#: Сторож читает СЕРВЕРНЫЙ HTML через urllib. Поэтому:
+#:  · число НАЙДЕНО  ⇒ страница его действительно несёт — утверждение сильное;
+#:  · число НЕ найдено ⇒ доказано ТОЛЬКО то, что сторож его отсюда не видит. Посетитель
+#:    может видеть его прекрасно: `/track-record` отдаёт `id="tr-gates-pass">—</span>`
+#:    и дорисовывает `29` клиентом.
+#: Отсюда правило: ненайденное число НИКОГДА не читается ни как «равно», ни как «на сайте
+#: числа нет». Это ТРЕТИЙ исход — «сверка не измерена», — и он громкий (`COMPARISON_NOT_MEASURED`).
+SOURCE_LEG_MEASURED = "measured"
+SOURCE_LEG_ID_ABSENT = "unmeasured:id_absent"
+SOURCE_LEG_PLACEHOLDER = "unmeasured:id_present_value_unreadable"
+
+
+def locate_site_number(label, pages, sources=None):
+    """Найти операнд `label` в отданном сайтом HTML и НАЗВАТЬ, откуда он взят.
+
+    `pages` — {имя страницы: html}. Возвращает `(hits, probes)`:
+      · `hits`   — [(страница, id, значение)] по каждому объявленному источнику, который дал число;
+      · `probes` — [(страница, id, исход)] по ВСЕМ объявленным источникам, включая пустые.
+    Пустой `hits` — это не ноль и не «равно», а третий исход (см. односторонность выше).
+    """
+    table = SITE_NUMBER_SOURCES if sources is None else sources
+    hits, probes = [], []
+    for page, elem_id, pattern, _why in table.get(label, ()):
+        html = (pages or {}).get(page)
+        if not html:
+            probes.append((page, elem_id, "unmeasured:page_not_fetched"))
+            continue
+        # Присутствие ЭЛЕМЕНТА спрашивается ОТДЕЛЬНО от читаемости значения. Свалить
+        # их в один регексп значит стереть единственную улику, что число на странице
+        # есть: `id="tr-gates-pass">&mdash;</span>` — это заглушка, которую заполняет
+        # клиент, и от «такого id на странице нет» она отличается лекарством.
+        if f'id="{elem_id}"' not in html:
+            probes.append((page, elem_id, SOURCE_LEG_ID_ABSENT))
+            continue
+        m = re.search(pattern, html)
+        value = _num(m.group(1)) if m else None
+        if value is None:
+            probes.append((page, elem_id, SOURCE_LEG_PLACEHOLDER))
+            continue
+        probes.append((page, elem_id, SOURCE_LEG_MEASURED))
+        hits.append((page, elem_id, value))
+    return hits, probes
+
+
+def parse_site_numbers(html, page=None):
+    """Публичные числа из отданного HTML. `None` — числа на этой странице не видно.
+
+    `page` НАЗЫВАЕТ, чья это страница, и тогда опрашиваются только объявленные для неё
+    источники (`SITE_NUMBER_SOURCES`). `page=None` — старое поведение «любой объявленный
+    источник», оставленное для вызовов, которым страница неизвестна; для вопроса «с какой
+    страницы взят операнд» оно не годится и потому в `evaluate()` не используется.
+    """
     if not html:
         return {}
-    def g(pat):
-        m = re.search(pat, html)
-        return m.group(1) if m else None
-    return {
-        "evidenced_days": _num(g(r'id="sl-day">\s*~?([\d,]+)') or g(r'id="tr-days-2">\s*([\d,]+)')),
-        "paper_apy_pct": _num(g(r'id="sl-apy">\s*~?([\d.]+)%') or g(r'id="tr-apy">\s*~?([\d.]+)%')),
-        "gates_passed": _num(g(r'id="sl-gates">\s*([\d]+)/')),
-        "end_equity": _num(g(r'id="tr-equity">\s*\$?([\d,]+)')),
-        "as_of": g(r'as of (\d{4}-\d{2}-\d{2})') or g(r'static snapshot as of (\d{4}-\d{2}-\d{2})'),
-    }
+    pages = {"home": html, "track": html} if page is None else {page: html}
+    out = {}
+    for label in SITE_NUMBER_SOURCES:
+        hits, _ = locate_site_number(label, pages)
+        out[label] = hits[0][2] if hits else None
+    m = (re.search(r'as of (\d{4}-\d{2}-\d{2})', html)
+         or re.search(r'static snapshot as of (\d{4}-\d{2}-\d{2})', html))
+    out["as_of"] = m.group(1) if m else None
+    return out
 
 
 def _chain_rows(equity_chain):
@@ -273,8 +377,11 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         shelf_leg = "unmeasured:shelf_has_no_measured_at"
     else:
         shelf_leg = "measured"
-    site_home = parse_site_numbers(home_html)
-    site_track = parse_site_numbers(track_html)
+    # Страница НАЗЫВАЕТСЯ явно: до 30.09 обе разбирались одним и тем же списком id, и
+    # главная молча подбирала id страницы /track-record (заказ G86 п. 1).
+    site_home = parse_site_numbers(home_html, page="home")
+    site_track = parse_site_numbers(track_html, page="track")
+    site_pages = {"home": home_html, "track": track_html}
     apih = api or {}
 
     # 1. snapshot freshness
@@ -312,11 +419,39 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     #    странице отрендерены из витрины, поэтому спрашивать их у снимка значит сверять
     #    страницу с файлом, которого она не читает (заказ G86 п. 1 — «с КАКОЙ страницы
     #    взят операнд»; здесь ответ глубже: с какого ИСТОЧНИКА).
-    def cmp_int(label, site_v, shelf_v):
-        if site_v is not None and shelf_v is not None and abs(site_v - shelf_v) >= 1:
-            fail("SITE_BEHIND_SNAPSHOT", f"site {label}={site_v} != витрина {label}={shelf_v}")
-    cmp_int("evidenced_days", site_home.get("evidenced_days"), shelf_days)
-    cmp_int("gates_passed", site_home.get("gates_passed"), shelf_gates)
+    #
+    #    С 30.09 (заказ G86 п. 1) у сверки ТРИ исхода, а не два, и операнд НАЗЫВАЕТ свою
+    #    страницу и свой id. Прежде `cmp_int` брал число только у `site_home`, а у главной
+    #    все четыре числа были `None` по построению — молчание сверки было неотличимо от
+    #    согласия. Теперь опрашиваются ВСЕ объявленные страницы: расхождение на любой из
+    #    них есть расхождение, «увидели на одной, не увидели на другой» — не повод молчать.
+    number_legs = {}
+
+    def cmp_declared(label, shelf_v):
+        hits, probes = locate_site_number(label, site_pages)
+        seen = ", ".join(f"{pg}#{el}={val:g}" for pg, el, val in hits)
+        trail = ", ".join(f"{pg}#{el}:{leg}" for pg, el, leg in probes) or "источников не объявлено"
+        if not hits:
+            number_legs[label] = f"unmeasured:site:{trail}"
+            fail("COMPARISON_NOT_MEASURED",
+                 f"сверка «{label}» НЕ ИЗМЕРЕНА: ни один объявленный источник не дал числа "
+                 f"({trail}). Это третий исход, а не согласие: ненайденное в серверном HTML "
+                 f"число посетитель может видеть — страница дорисовывает его клиентом")
+            return
+        if shelf_v is None:
+            number_legs[label] = f"unmeasured:shelf_has_no_value|site:{seen}"
+            fail("COMPARISON_NOT_MEASURED",
+                 f"сверка «{label}» НЕ ИЗМЕРЕНА со стороны ВИТРИНЫ: сайт отдаёт {seen}, "
+                 f"а в витрине значения нет — сравнивать не с чем")
+            return
+        number_legs[label] = f"measured:{seen}"
+        for pg, el, val in hits:
+            if abs(val - shelf_v) >= 1:
+                fail("SITE_BEHIND_SNAPSHOT",
+                     f"site {label}={val:g} ({pg}#{el}) != витрина {label}={shelf_v:g}")
+
+    cmp_declared("evidenced_days", shelf_days)
+    cmp_declared("gates_passed", shelf_gates)
 
     # 5. snapshot == API (snapshot regenerated after cycle?)
     #    evidenced_days: robust like-for-like staleness signal (both count the same real
@@ -544,6 +679,10 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "snapshot_overstated": snapshot_overstated,  # committed snapshot itself is overstated -> degrade
         "site_home": site_home,
         "site_track": site_track,
+        # С КАКОЙ страницы взят операнд каждой сверки (заказ G86 п. 1). Три исхода:
+        # `measured:<стр>#<id>=<знач>` · `unmeasured:site:<след по всем источникам>` ·
+        # `unmeasured:shelf_has_no_value|site:<…>`.
+        "number_legs": number_legs,
         "snapshot": {k: snap.get(k) for k in ("as_of", "real_track_days", "paper_apy_pct", "gates_passed", "end_equity")},
         # ДВА производителя рядом: снимок ежедневный, витрина недельная. Разность между
         # ними — НОРМА по установке владельца, а не находка; находкой её читал сторож до
