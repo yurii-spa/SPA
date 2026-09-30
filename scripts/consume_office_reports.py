@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import collections
 import datetime as dt
 import json
 import os
@@ -99,6 +100,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery", "censuses"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
+    # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
+    # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
+    # не отличает «нашли ноль» от «поле не пишется».
+    "site_freshness_report.json": ("ok", "n_fails", "fails", "snapshot_age_h",
+                                   "stale_48h", "site_as_of"),
     # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
     # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
     # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
@@ -948,6 +954,7 @@ _MD_TS_RE = re.compile(r"(20\d\d-\d\d-\d\d)[ T](\d\d:\d\d)(?::\d\d)?\s*UTC")
 # ложное, — читатель учится игнорировать строку, и сигнал теряется.
 _PRODUCER: dict[str, str] = {
     "chief_investment.json": "spa_core/investment_os/agents/chief_investment.py",
+    "site_freshness_report.json": "scripts/site_freshness_monitor.py",
     "_health.json": "spa_core/investment_os/health.py",
     "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
@@ -1126,6 +1133,10 @@ _TS_FIELD: dict[str, str] = {
     # Без этой строки возраст артефакта был бы «НЕ ИЗМЕРЕН» по построению.
     "rebalance_trigger.json": "checked_at",
     "code_sync_status.json": "timestamp",
+    # Кустодиан сайта пишет `ts` (ADR-YL-011 / ADR-475). Без этой строки возраст
+    # его отчёта был бы «НЕ ИЗМЕРЕН» по построению — и объявление артефакта в
+    # офисе стало бы ровно тем украшением, против которого написан заказ G86 п. 4.
+    "site_freshness_report.json": "ts",
 }
 
 
@@ -1764,6 +1775,24 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             v = o.get("value") or {}
             out.append(f"   возможность: {v.get('protocol')} {v.get('apy_pct')}% "
                        f"(evidence {o.get('evidence_level')})")
+    elif name == "site_freshness_report.json":
+        # Site Custodian (ADR-YL-011, ADR-475). Заказ владельца G86 п. 4: у находки
+        # `PUBLISHER_STUCK` внутри цикла читателя не было ВОВСЕ — отчёт доходил до
+        # человека тревогой в Телеграм и красной джобой, а шаг 0-офис его не читал.
+        # Объявление стало законным только после замера писателя (ADR-526): агент
+        # `com.spa.site_freshness` загружен с 09.09, такт 6 ч, артефакт наблюдался
+        # свежим. До того объявление дало бы вечный красный, чинимый лишь деплоем.
+        codes = collections.Counter(
+            (f or {}).get("code") for f in (data.get("fails") or []))
+        out.append(f"   вердикт: {'OK' if data.get('ok') else 'ЕСТЬ РАСХОЖДЕНИЯ'} "
+                   f"(n_fails {_num(data, 'n_fails')})")
+        for code, n in sorted(codes.items()):
+            sample = next((f.get("detail") for f in (data.get("fails") or [])
+                           if (f or {}).get("code") == code), "")
+            out.append(f"   {code} ×{n}: {str(sample)[:160]}")
+        out.append(f"   снимок {_num(data, 'snapshot_age_h')}ч · API "
+                   f"{_num(data, 'api_age_h')}ч · сайт as-of {data.get('site_as_of')} · "
+                   f"два прогона подряд протухшими: {data.get('stale_48h')}")
     elif name == "_health.json":
         # Схема ВЫМЕРЕНА по производителю (`investment_os/health.py`): счётчики
         # лежат в `counts`, а строки аналитиков — в `analysts`. Прежняя ветка
@@ -4379,6 +4408,29 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         print("   " + _prior_report(_prior_measure(receipt_root)).replace("\n", "\n   "))
     except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
         print("— операнд «предыдущий прогон» из git-tracked артефакта (ADR-524) —")
+        print(f"   [{_UNMEASURED}] перепись не выполнена: "
+              f"{type(_exc).__name__}: {_exc}")
+    print()
+
+    # ── находка без читателя внутри цикла (ADR-526, заказ G86 п. 4) ────────
+    # Вопрос СВОЙ и к соседу ADR-524 не сводится: тот спрашивает, ЧТО читает
+    # сторож (прошлый прогон или константу), этот — читает ли произведённую
+    # находку хоть КТО-НИБУДЬ. Авария заказа: кустодиан пишет отчёт каждые 6 ч,
+    # а шаг 0-офис его не читал — находка `PUBLISHER_STUCK` доходила только
+    # тревогой и красной джобой, то есть мимо цикла. Ноги в объявленном
+    # порядке: сначала ПИСАТЕЛЬ (наблюдением, а не объявлением), потом читатель.
+    try:
+        from spa_core.monitoring.finding_reader_census import (
+            measure as _reader_measure,
+            format_report as _reader_report,
+        )
+        print("— находка без читателя внутри цикла (ADR-526) —")
+        _rc = _reader_measure(receipt_root,
+                              data_dir=data_dir or os.path.join(receipt_root, "data"),
+                              now=now)
+        print("   " + _reader_report(_rc).replace("\n", "\n   "))
+    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+        print("— находка без читателя внутри цикла (ADR-526) —")
         print(f"   [{_UNMEASURED}] перепись не выполнена: "
               f"{type(_exc).__name__}: {_exc}")
     print()
