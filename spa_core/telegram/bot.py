@@ -43,6 +43,7 @@ Design
 from __future__ import annotations
 
 import contextlib
+import html
 import json
 import logging
 import os
@@ -91,6 +92,11 @@ HTTP_TIMEOUT_S = 35  # long-poll timeout (30) + slack
 # (ask_router headless claude, 120s) + one long-poll (35s) so normal work never trips it.
 _WATCHDOG_CHECK_S = 30    # how often the watchdog samples the poll heartbeat
 _STALL_LIMIT_S = 240      # loop silent longer than this → force restart (> 120s + 35s + slack)
+# A voice message is the one legit handler SLOWER than the stall limit: download (30s) + local
+# whisper (up to 300s) + classifier (120s). Before 2026-09-30 the watchdog killed the bot mid-
+# transcription and — the offset being already advanced — the owner's voice note was lost for
+# good. The handler now declares a bounded busy window; the watchdog still fires past it.
+_VOICE_BUDGET_S = 30 + 300 + 120 + 60
 
 # ── Сентинел свежести кода (ADR-117, 2026-08-22) ─────────────────────────────
 # Бот — KeepAlive-длгожитель: процесс держит в памяти код, набранный при старте,
@@ -199,6 +205,46 @@ def get_chat_id() -> Optional[str]:
 
 
 # ─── Atomic IO ──────────────────────────────────────────────────────────────
+
+
+TG_TEXT_LIMIT = 4096
+_FIT_TO = 3900   # headroom: Telegram counts UTF-16 units, Python counts code points
+
+
+def _utf16_len(s: str) -> int:
+    return len(s.encode("utf-16-le")) // 2
+
+
+def _cut_utf16(s: str, limit: int) -> str:
+    """Longest prefix of ``s`` that fits ``limit`` UTF-16 units (never splits a character)."""
+    n = 0
+    for i, ch in enumerate(s):
+        n += 2 if ord(ch) > 0xFFFF else 1
+        if n > limit:
+            return s[:i]
+    return s
+
+
+def _fit_telegram(text: str, parse_mode: Optional[str]) -> str:
+    """Keep a too-long message VISIBLE instead of letting the Bot API reject it with 400.
+
+    Before 2026-09-30 nothing clipped here: an LLM answer over 4096 was refused, `_api_call`
+    returned None and the owner saw nothing at all. Cutting HTML mid-tag would be refused too,
+    so an over-long HTML text is flattened to escaped plain text first (the markup is lost, the
+    words are not), then cut and marked as shortened."""
+    text = text or ""
+    if _utf16_len(text) <= TG_TEXT_LIMIT:
+        return text
+    if (parse_mode or "").upper() == "HTML":
+        import re as _re
+        plain = html.unescape(_re.sub(r"<[^>]+>", "", text))
+        # escaping can only lengthen the text, so cut the ESCAPED form, never mid-entity
+        esc = html.escape(_cut_utf16(plain, _FIT_TO))
+        while _utf16_len(esc) > _FIT_TO:
+            plain = plain[: max(0, len(plain) - 200)]
+            esc = html.escape(_cut_utf16(plain, _FIT_TO))
+        return esc.rstrip() + "\n… (сокращено)"
+    return _cut_utf16(text, _FIT_TO).rstrip() + "\n… (сокращено)"
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -390,7 +436,7 @@ class TelegramBot:
                 pass  # guard import failure must never block a legitimate reply
             params: Dict[str, Any] = {
                 "chat_id": target,
-                "text": text,
+                "text": _fit_telegram(text, parse_mode),
                 "parse_mode": parse_mode,
                 "disable_web_page_preview": True,
             }
@@ -1012,6 +1058,24 @@ class TelegramBot:
             self.send_message("❌ Error arming kill-switch: {}".format(type(exc).__name__), chat_id)
 
     def cmd_resume(self, chat_id: str) -> None:
+        # Telegram may lift ONLY the stop it armed itself (/pause → reason "manual_telegram").
+        # A latch armed by anything else — the execution safety layer, an incident, an operator
+        # file — is not Telegram's to clear: one tap on an old «Снять» button used to write
+        # active:false over it (2026-09-30 audit). Fail-CLOSED on an unreadable file.
+        cur = _read_json(KILL_SWITCH_FILE, None) if KILL_SWITCH_FILE.exists() else {}
+        if not isinstance(cur, dict):
+            self.send_message(
+                "⚠️ Не могу прочитать состояние стоп-крана — снимать вслепую не буду.", chat_id)
+            return
+        if cur.get("active") is False or not cur:
+            self.send_message("ℹ️ Аварийная остановка не взведена — снимать нечего.", chat_id)
+            return
+        if cur.get("reason") != "manual_telegram":
+            self.send_message(
+                "⛔ Стоп-кран взведён НЕ из Telegram (причина: <code>{}</code>).\n"
+                "Снять его отсюда нельзя — только тем путём, которым он был взведён.".format(
+                    html.escape(str(cur.get("reason") or "не указана"))), chat_id)
+            return
         try:
             _atomic_write_json(KILL_SWITCH_FILE, {
                 "active": False,
@@ -1075,21 +1139,22 @@ class TelegramBot:
 
     def register_commands(self) -> bool:
         """Register bot commands via setMyCommands (shown in Telegram ☰ menu)."""
+        # ONLY what a TYPED command really does (router COMMAND_TO_PATH + the /status and /task
+        # intercepts). Until 2026-09-30 the ☰ menu also advertised /pause, /resume, /why and
+        # /help, and typing any of them just opened the home panel — /pause in particular read
+        # as «stop» and stopped nothing. The emergency stop stays a deliberate BUTTON on the
+        # menu panel; the Studio OS / Owner control plane (report, intake) lives in the Bridge bot.
         commands = [
-            {"command": "start",     "description": "Приветствие и главное меню"},
-            {"command": "menu",      "description": "Интерактивное меню кнопок"},
-            {"command": "status",    "description": "Статус системы и equity"},
-            {"command": "portfolio", "description": "Текущая аллокация по протоколам"},
-            {"command": "today",     "description": "P&L за сегодня"},
-            {"command": "week",      "description": "Недельный отчёт (7 дней)"},
-            {"command": "agents",    "description": "Статус агентов launchd"},
-            {"command": "alerts",    "description": "Активные алерты и peg-мониторинг"},
-            {"command": "why",       "description": "Диагностика причин ❌ агентов"},
-            {"command": "pause",     "description": "Kill-switch (поставить на паузу)"},
-            {"command": "resume",    "description": "Снять паузу"},
-            {"command": "task",      "description": "Добавить задание в inbox (текст или голосовое)"},
-            {"command": "status",    "description": "Сводка системы простым языком"},
-            {"command": "help",      "description": "Список всех команд"},
+            {"command": "start",      "description": "Главная панель SPA"},
+            {"command": "status",     "description": "Сводка SPA простым языком"},
+            {"command": "portfolio",  "description": "Бумажный портфель по протоколам"},
+            {"command": "strategies", "description": "Стратегии и исследования"},
+            {"command": "golive",     "description": "Готовность к go-live"},
+            {"command": "today",      "description": "Итог дня"},
+            {"command": "week",       "description": "Итог недели"},
+            {"command": "alerts",     "description": "Тревоги SPA"},
+            {"command": "agents",     "description": "Агенты SPA"},
+            {"command": "task",       "description": "Задание в inbox (текст или голосовое)"},
         ]
         result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
         if result and result.get("ok"):
@@ -1526,11 +1591,19 @@ class TelegramBot:
             if is_voice:  # голос → расшифровать → классифицировать (вопрос/задача/непонятно)
                 self.send_message("🎤 Слушаю…", chat_id)
                 from spa_core.telegram.inbox_intake import transcribe_voice_message
-                transcript = transcribe_voice_message(self.token, str(voice["file_id"]))
-                if not transcript:
-                    self.send_message("🎤 Не смог расшифровать. Повтори или напиши текстом.", chat_id)
-                    return True
-                self._classify_route(transcript, chat_id, source="voice")
+                self._busy_until = time.time() + _VOICE_BUDGET_S
+                try:
+                    transcript = transcribe_voice_message(self.token, str(voice["file_id"]))
+                    if not transcript:
+                        log.warning("voice STT failed (file_id=%s) — owner asked to resend",
+                                    str(voice["file_id"])[:24])
+                        self.send_message("🎤 Не смог расшифровать — голосовое НЕ записано никуда. "
+                                          "Повтори или напиши текстом.", chat_id)
+                        return True
+                    self._classify_route(transcript, chat_id, source="voice")
+                finally:
+                    self._last_beat = time.time()   # stamp BEFORE closing the window: no gap
+                    self._busy_until = 0.0
                 return True
             # Свободный текст. СНАЧАЛА — не ОТВЕТ ли это на карточку решения: когда кнопок
             # нет, мы сами написали владельцу «Ответь номером варианта в чат, я разберу»
@@ -1762,7 +1835,11 @@ class TelegramBot:
         def _watch() -> None:
             while True:
                 time.sleep(_WATCHDOG_CHECK_S)
-                stalled = time.time() - getattr(self, "_last_beat", time.time())
+                now = time.time()
+                if now < getattr(self, "_busy_until", 0.0):
+                    continue          # a declared, bounded long handler (voice) is running
+                stalled = now - max(getattr(self, "_last_beat", now),
+                                    getattr(self, "_busy_until", 0.0) or 0.0)
                 if stalled > _STALL_LIMIT_S:
                     log.error("poll loop STALLED %.0fs (> %ds) — forcing restart via "
                               "os._exit(1); launchd KeepAlive will respawn the bot.",

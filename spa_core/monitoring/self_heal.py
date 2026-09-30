@@ -88,6 +88,7 @@ from spa_core.monitoring.agent_health_monitor import (  # noqa: E402
     CYCLE_STALE_H,
     RETIRED_LABELS,
     classify_agent,
+    launchd_disabled_labels,
     requires_residency,
 )
 
@@ -136,15 +137,29 @@ def _loaded_labels() -> Dict[str, int]:
     return out
 
 
+def _disabled_labels() -> frozenset:
+    """Labels switched off with ``launchctl disable`` (the owner's pause, which
+    survives reboot). Not measurable ⇒ empty: we may then over-report a paused
+    agent as down, but we can never hide a genuinely dead one."""
+    return launchd_disabled_labels() or frozenset()
+
+
 def _expected_labels() -> List[str]:
-    """Every installed (non-disabled, non-retired) com.spa.*.plist label."""
+    """Every installed com.spa.*.plist label that is neither retired, nor
+    ``*.disabled`` on disk, nor switched off with ``launchctl disable``.
+
+    The last clause is the 2026-09-30 fix: a paused ``com.spa.mission_tick``
+    was "revived" every 5 minutes (only launchd's refusal stopped it) and kept
+    the fleet unhealthy forever. Reviving what the owner paused is not healing."""
     if not _LA.exists():
         return []
+    disabled = _disabled_labels()
     return sorted(
         p.stem for p in _LA.glob("com.spa.*.plist")
         if p.suffix == ".plist"
         and not p.name.endswith(".disabled")
         and p.stem not in RETIRED_LABELS
+        and p.stem not in disabled
     )
 
 

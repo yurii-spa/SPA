@@ -28,10 +28,19 @@ GUI="gui/$UID_N"
 RETIRED="com.spa.bot_commands com.spa.httpserver com.spa.telegram_daily com.spa.telegram_weekly com.spa.morning_digest com.spa.daily-paper-report"
 is_retired() { case " $RETIRED " in *" $1 "*) return 0;; *) return 1;; esac; }
 
+# INTENTIONALLY DISABLED agents — switched off with `launchctl disable` (the
+# owner's pause; the override survives reboot). Never bootstrap them and never
+# count them as down (2026-09-30: this script tried to revive the paused
+# com.spa.mission_tick at every login and reported the pause as an outage).
+# Unreadable override list ⇒ empty set: over-reports, never hides.
+DISABLED_SET=" $(launchctl print-disabled "$GUI" 2>/dev/null \
+  | sed -nE 's/^[[:space:]]*"([^"]+)"[[:space:]]*=>[[:space:]]*(disabled|true).*/\1/p' | tr '\n' ' ')"
+is_disabled() { case "$DISABLED_SET" in *" $1 "*) return 0;; *) return 1;; esac; }
+
 echo "── SPA fleet post-reboot check ── $(date -u '+%Y-%m-%d %H:%M UTC')"
 
-installed=0 loaded=0 healed=0 still_down=0 exit78=0
-declare -a DOWN HEALED FAILED
+installed=0 loaded=0 healed=0 still_down=0 exit78=0 disabled=0
+declare -a DOWN HEALED FAILED DISABLED_L
 
 for f in "$LA"/com.spa.*.plist; do
   [ -f "$f" ] || continue
@@ -44,6 +53,8 @@ for f in "$LA"/com.spa.*.plist; do
   installed=$((installed+1))
   if launchctl print "$GUI/$lbl" >/dev/null 2>&1; then
     loaded=$((loaded+1))
+  elif is_disabled "$lbl"; then
+    disabled=$((disabled+1)); DISABLED_L+=("$lbl")
   else
     # not loaded → bootstrap it (exactly what login does)
     DOWN+=("$lbl")
@@ -65,13 +76,22 @@ while read -r pid st lab; do
   [ "$st" = "78" ] && { exit78=$((exit78+1)); echo "  ⚠️ exit-78: $lab"; }
 done < <(launchctl list | grep 'com.spa')
 
-echo "  installed=$installed loaded=$loaded healed=$healed still_down=$still_down exit78=$exit78"
+echo "  installed=$installed loaded=$loaded healed=$healed still_down=$still_down exit78=$exit78 disabled=$disabled"
+[ "${#DISABLED_L[@]}" -gt 0 ] && printf '  intentionally disabled (not revived): %s\n' "${DISABLED_L[*]}"
 [ "${#HEALED[@]}" -gt 0 ] && printf '  healed: %s\n' "${HEALED[*]}"
 [ "${#FAILED[@]}" -gt 0 ] && printf '  STILL DOWN (investigate): %s\n' "${FAILED[*]}"
 
 # critical user-facing services
 echo "── critical services ──"
-ping_code="$(curl -s -m6 -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/live/ping 2>/dev/null)"
+# At login this runs while the fleet is still starting, so a single probe races
+# the apiserver (2026-09-30: "000" 6 s after login, 200 a minute later). Retry
+# for up to ~60 s before calling it down.
+ping_code=""
+for _try in 1 2 3 4 5 6 7 8 9 10; do
+  ping_code="$(curl -s -m6 -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/live/ping 2>/dev/null)"
+  [ "$ping_code" = "200" ] && break
+  sleep 5
+done
 echo "  apiserver /api/live/ping: ${ping_code:-DOWN}"
 bot_st="$(launchctl list | grep -E 'com.spa.telegram_bot\b' | awk '{print $2}')"
 echo "  telegram_bot: ${bot_st:-NOT LOADED}"
@@ -125,6 +145,8 @@ if [ -d "$STATUS_DIR" ]; then
   "exit78": $exit78,
   "healed_labels": $(json_arr ${HEALED[@]+"${HEALED[@]}"}),
   "still_down_labels": $(json_arr ${FAILED[@]+"${FAILED[@]}"}),
+  "disabled": $disabled,
+  "disabled_labels": $(json_arr ${DISABLED_L[@]+"${DISABLED_L[@]}"}),
   "apiserver_ping_code": "${ping_code:-DOWN}",
   "telegram_bot_loaded": $([ -n "$bot_st" ] && echo true || echo false),
   "cloudflared_loaded": $([ "$cf_st" -gt 0 ] && echo true || echo false),

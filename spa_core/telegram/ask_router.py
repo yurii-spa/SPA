@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -129,6 +130,16 @@ Telegram. Определи ТИП сообщения и ответь СТРОГ�
 """
 
 
+#: The classifier gets the owner's words and a context digest already built into the prompt, so it
+#: needs NO tools. Until 2026-09-30 it ran with ``--dangerously-skip-permissions`` and no cwd, i.e. a
+#: headless agent with full permissions inside the production tree for every free-text message —
+#: nothing technical stopped it from editing files, arming/clearing the kill switch or pushing.
+#: Now: no built-in tools (``--tools ""``) and no MCP servers (``--strict-mcp-config`` without a
+#: config) — it can only read the prompt and write an answer. Pinned by test_ask_router_no_tools.py.
+CLASSIFIER_FLAGS = ("--tools", "", "--strict-mcp-config")
+_SAFE_CWD = tempfile.gettempdir()
+
+
 def classify_and_answer(text: str, *, timeout: int = 120) -> tuple[str, str]:
     """Return (kind, response): kind ∈ {'question','task','unclear','unavailable'}.
 
@@ -146,8 +157,8 @@ def classify_and_answer(text: str, *, timeout: int = 120) -> tuple[str, str]:
     env["PATH"] = "/Users/yuriikulieshov/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
     try:
         proc = subprocess.run(
-            [_CLAUDE, "-p", prompt, "--dangerously-skip-permissions"],
-            capture_output=True, text=True, timeout=timeout, env=env,
+            [_CLAUDE, "-p", prompt, *CLASSIFIER_FLAGS],
+            capture_output=True, text=True, timeout=timeout, env=env, cwd=_SAFE_CWD,
         )
     except Exception as exc:  # noqa: BLE001
         log.warning("ask_router: claude call failed: %s", exc)

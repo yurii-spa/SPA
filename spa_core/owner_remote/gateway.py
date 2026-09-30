@@ -86,11 +86,60 @@ def plan(text: str, *, source: str, message_id=None) -> dict:
     return {**base, "action": "answer", "text": answers.route_green(text, c.get("view"))}
 
 
-def register_pending(token: str, *, title: str, body: str, source: str) -> None:
+#: What a confirmed draft becomes. "unclassified" = the Owner picks task/idea at confirm time.
+KINDS = ("task", "idea", "decision", "unclassified")
+
+
+def register_pending(token: str, *, title: str, body: str, source: str, kind: str = "task") -> None:
+    if kind not in KINDS:
+        raise ValueError(f"unknown draft kind {kind!r}")
     d = _load_pending()
     if token not in d:                       # never overwrite a decided token (idempotency)
-        d[token] = {"title": title, "body": body, "source": source, "status": "pending", "ts": _now()}
+        d[token] = {"title": title, "body": body, "source": source, "status": "pending", "ts": _now(),
+                    "kind": kind}
         _save_pending(d)
+
+
+def confirm(token: str, *, as_kind: str | None = None) -> dict:
+    """Owner-confirmed write for ANY draft kind — exactly once per token (retry / double-tap safe).
+
+    `as_kind` lets the Owner decide an "unclassified" draft (only task / idea). RED is re-checked on
+    the stored text here as defence-in-depth: a draft can never become a write if its words ask to
+    move money, sign, go live or change risk — whatever the plan said earlier.
+    """
+    d = _load_pending()
+    rec = d.get(token)
+    if not rec:
+        return {"ok": False, "error": "no such pending draft"}
+    if rec.get("status") == "done":
+        return {"ok": True, "id": rec.get("card_id"), "kind": rec.get("kind", "task"), "idempotent": True}
+    if rec.get("status") == "cancelled":
+        return {"ok": False, "error": "cancelled"}
+    from spa_core.owner_remote.intent import is_red
+    if is_red(rec.get("body") or rec.get("title") or ""):
+        return {"ok": False, "error": "red_blocked"}
+    kind = rec.get("kind", "task")
+    if as_kind is not None:
+        if as_kind not in ("task", "idea") or kind not in ("unclassified", as_kind):
+            return {"ok": False, "error": f"cannot confirm a {kind} draft as {as_kind}"}
+        kind = as_kind
+    if kind == "unclassified":
+        return {"ok": False, "error": "choose task or idea"}
+    if kind == "task":
+        rec["kind"] = "task"; d[token] = rec; _save_pending(d)
+        res = confirm_task(token)
+        res["kind"] = "task"
+        return res
+    if kind == "idea":
+        res = capture_idea(rec.get("body") or rec["title"], source=rec.get("source", "telegram"))
+    else:
+        res = record_decision_draft(rec.get("body") or rec["title"], source=rec.get("source", "telegram"))
+    if not res.get("ok"):
+        return {**res, "kind": kind}
+    rec.update({"status": "done", "kind": kind, "done_ts": _now(),
+                "card_id": res.get("id") or res.get("draft_id") or res.get("path")})
+    d[token] = rec; _save_pending(d)
+    return {**res, "ok": True, "kind": kind, "idempotent": False, "id": rec["card_id"]}
 
 
 def confirm_task(token: str) -> dict:

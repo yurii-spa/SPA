@@ -9,7 +9,9 @@ from spa_core.telegram import ask_router
 
 
 def _fake_claude(stdout: str, rc: int = 0):
-    def _run(cmd, capture_output, text, timeout, env):  # noqa: ANN001
+    # cwd= joined the call on 2026-09-30 (classifier runs outside the repo, no tools) —
+    # the fake accepts it; what it asserts about the verdict is unchanged.
+    def _run(cmd, capture_output, text, timeout, env, cwd=None):  # noqa: ANN001
         return types.SimpleNamespace(returncode=rc, stdout=stdout, stderr="")
     return _run
 

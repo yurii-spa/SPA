@@ -379,6 +379,58 @@ def _run_launchctl_list() -> str:
         return ""
 
 
+def parse_launchctl_disabled(text: str) -> Dict[str, bool]:
+    """Parse ``launchctl print-disabled gui/<uid>`` → {label: is_disabled}.
+
+    Lines look like ``"com.spa.x" => disabled`` (current macOS) or
+    ``"com.spa.x" => true`` (older macOS, where true means disabled).
+    Anything unrecognised is skipped, never guessed.
+    """
+    out: Dict[str, bool] = {}
+    for line in (text or "").splitlines():
+        m = re.match(r'\s*"([^"]+)"\s*=>\s*(\w+)', line)
+        if not m:
+            continue
+        val = m.group(2).lower()
+        if val in ("disabled", "true"):
+            out[m.group(1)] = True
+        elif val in ("enabled", "false"):
+            out[m.group(1)] = False
+    return out
+
+
+def _run_launchctl_disabled() -> Optional[str]:
+    """Run ``launchctl print-disabled gui/<uid>``; None = NOT MEASURED (inv. #17)."""
+    try:
+        proc = subprocess.run(
+            ["launchctl", "print-disabled", f"gui/{os.getuid()}"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("launchctl print-disabled failed: %s", exc)
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def launchd_disabled_labels(text: Optional[str] = None) -> Optional[frozenset]:
+    """Labels the owner switched off with ``launchctl disable`` (persists across
+    reboot). None ⇒ not measured: callers then treat NOTHING as intentionally
+    off, so an unreadable override list can only over-report a down agent,
+    never hide one (fail-CLOSED).
+
+    Why this exists (2026-09-30, post-reboot audit): the owner paused
+    ``com.spa.mission_tick`` with ``bootout`` + ``disable``. Without this
+    notion the fleet read the pause as an outage — agent_health went CRITICAL
+    for the whole fleet, self_heal tried to ``bootstrap`` it every 5 minutes
+    and reboot_verify tried again at login. Only launchd's own refusal kept
+    the paused workload from being revived by our healers."""
+    if text is None:
+        text = _run_launchctl_disabled()
+        if text is None:
+            return None
+    return frozenset(lbl for lbl, off in parse_launchctl_disabled(text).items() if off)
+
+
 # ===========================================================================
 # plist discovery & classification
 # ===========================================================================
@@ -694,7 +746,8 @@ def judge_lock_refusal(data_dir: Optional[Path], now: datetime,
 def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 launchctl: Dict[str, dict], now: datetime,
                 project_root: Path = _PROJECT_ROOT,
-                data_dir: Optional[Path] = None) -> AgentHealth:
+                data_dir: Optional[Path] = None,
+                disabled: bool = False) -> AgentHealth:
     """Classify the health of a single agent. Fail-safe.
 
     ``data_dir`` нужен ровно для ОДНОГО вопроса — отказа замка дневного цикла
@@ -723,6 +776,11 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
     # they actually run within their schedule window (fail-CLOSED: a calendar job
     # whose log is stale past its window IS still flagged).
     if not health.loaded:
+        if disabled:
+            # Switched off on purpose (`launchctl disable`, survives reboot):
+            # a measured, intended state — said out loud, never a fault.
+            health.note = "intentionally disabled (launchctl disable)"
+            return health
         if requires_residency(cat, plist):
             health.status = CRITICAL
             health.issue = "not loaded in launchctl"
@@ -1581,10 +1639,12 @@ class AgentHealthMonitor:
                  launch_agents_dir: Path = _DEFAULT_LAUNCH_AGENTS_DIR,
                  launchctl_output: Optional[str] = None,
                  autopush_log: str = _AUTOPUSH_LOG,
-                 now: Optional[datetime] = None):
+                 now: Optional[datetime] = None,
+                 launchctl_disabled_output: Optional[str] = None):
         self.data_dir = Path(data_dir)
         self.launch_agents_dir = Path(launch_agents_dir)
         self._launchctl_output = launchctl_output
+        self._launchctl_disabled_output = launchctl_disabled_output
         self.autopush_log = autopush_log
         self.now = now or _utcnow()
 
@@ -1595,10 +1655,18 @@ class AgentHealthMonitor:
             text = _run_launchctl_list()
         return parse_launchctl_list(text)
 
+    def _disabled(self) -> frozenset:
+        # An injected `launchctl list` is a hermetic scene: never mix in the
+        # host's override list unless the scene injects that too.
+        if self._launchctl_disabled_output is None and self._launchctl_output is not None:
+            return frozenset()
+        return launchd_disabled_labels(self._launchctl_disabled_output) or frozenset()
+
     # -- core ----------------------------------------------------------------
     def collect(self) -> dict:
         """Build the report (no side effects beyond reading)."""
         launchctl = self._launchctl()
+        disabled = self._disabled()
         agents: List[AgentHealth] = []
         for path in discover_plists(self.launch_agents_dir):
             label = label_from_path(path)
@@ -1610,7 +1678,8 @@ class AgentHealthMonitor:
             # `data_dir` — не украшение: без него отказ замка дневного цикла
             # остаётся НЕ ИЗМЕРЕННЫМ и краснит (fail-CLOSED, цикл #290).
             agents.append(check_agent(label, plist, parse_ok, launchctl, self.now,
-                                      data_dir=self.data_dir))
+                                      data_dir=self.data_dir,
+                                      disabled=label in disabled))
 
         sys_checks, sys_status, sys_issues = check_system(
             self.data_dir, self.now, self.autopush_log)

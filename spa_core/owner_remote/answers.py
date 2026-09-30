@@ -19,6 +19,16 @@ def _load(rel):
         return None
 
 
+#: Said instead of any claim when the projection itself is absent (e.g. the production tree, which
+#: does not carry studio_shell/). An empty read model must never read as «✅ nothing is wrong».
+RM_MISSING = "Данные read model недоступны (studio_shell/read_model.json не найден) — не измерено."
+
+
+def _rm():
+    rm = _load("studio_shell/read_model.json")
+    return rm if isinstance(rm, dict) else None
+
+
 def _usd(v):
     if v is None:
         return "н/д"
@@ -54,7 +64,9 @@ def answer_strategies(paper_only: bool = False) -> str:
 
 
 def answer_system() -> str:
-    rm = _load("studio_shell/read_model.json") or {}
+    rm = _rm()
+    if rm is None:
+        return RM_MISSING
     sysd = rm.get("system") or {}
     disp = (sysd.get("dispatch") or {})
     health = sysd.get("health") or {}
@@ -69,7 +81,9 @@ def answer_system() -> str:
 
 
 def answer_attention() -> str:
-    rm = _load("studio_shell/read_model.json") or {}
+    rm = _rm()
+    if rm is None:
+        return RM_MISSING
     dec = ((rm.get("decisions") or {}).get("items")) or []
     counts = (rm.get("overview") or {}).get("counts") or {}
     owner_wait = (counts.get("owner_wait") or 0) + len(dec)
@@ -90,7 +104,9 @@ def answer_attention() -> str:
 
 
 def answer_broken() -> str:
-    rm = _load("studio_shell/read_model.json") or {}
+    rm = _rm()
+    if rm is None:
+        return RM_MISSING
     counts = (rm.get("overview") or {}).get("counts") or {}
     health = ((rm.get("system") or {}).get("health") or {})
     ra = (health.get("risk_alerts") or {}).get("count") or 0
@@ -101,7 +117,9 @@ def answer_broken() -> str:
 
 
 def _work_by_state():
-    rm = _load("studio_shell/read_model.json") or {}
+    rm = _rm()
+    if rm is None:
+        return None
     from collections import defaultdict
     d = defaultdict(list)
     for w in (rm.get("work") or []):
@@ -111,6 +129,8 @@ def _work_by_state():
 
 def answer_active() -> str:
     d = _work_by_state()
+    if d is None:
+        return RM_MISSING
     act = d.get("running", []) + d.get("review", [])
     if not act:
         return "▶️ Активных задач сейчас нет (running/review = 0). Источник: mission ledger."
@@ -122,6 +142,8 @@ def answer_active() -> str:
 
 def answer_blocked() -> str:
     d = _work_by_state()
+    if d is None:
+        return RM_MISSING
     bl = d.get("blocked", []) + d.get("failed", [])
     if not bl:
         return "✅ Ничего не заблокировано и не упало (blocked/failed = 0)."
@@ -132,7 +154,9 @@ def answer_blocked() -> str:
 
 
 def answer_decisions_waiting() -> str:
-    rm = _load("studio_shell/read_model.json") or {}
+    rm = _rm()
+    if rm is None:
+        return RM_MISSING
     dec = ((rm.get("decisions") or {}).get("items")) or []
     try:
         from spa_core.studio_os.decisions import list_drafts
@@ -151,6 +175,8 @@ def answer_decisions_waiting() -> str:
 
 def answer_done_today() -> str:
     d = _work_by_state()
+    if d is None:
+        return RM_MISSING
     done = d.get("done", [])
     lines = [f"✅ Недавно завершено: {len(done)} (read model — недавнее окно леджера)"]
     for w in done[:6]:

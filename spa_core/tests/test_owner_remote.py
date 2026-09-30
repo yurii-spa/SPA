@@ -147,7 +147,11 @@ def test_confirm_is_idempotent(tmp_path, monkeypatch):
         return pathobj, "проверить Morpho"
 
     import spa_core.telegram.inbox_intake as ii
+    import spa_core.studio_os.links as links
     monkeypatch.setattr(ii, "save_inbox_task", fake_save)
+    # the linkage overlay is a separate concern; left real it wrote the git-tracked
+    # data/task_links/card-0.json on every run (card: inbox-progon-testov-perepisyvaet-…)
+    monkeypatch.setattr(links, "record_link", lambda *a, **k: {"ok": True})
 
     tok = gateway.token_for("telegram_text", 42)
     gateway.register_pending(tok, title="проверить Morpho", body="проверить Morpho", source="telegram_text")
