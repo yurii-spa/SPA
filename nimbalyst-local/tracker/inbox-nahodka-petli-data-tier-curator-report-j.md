@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-29
 finding_key: "B2:stale:data/tier_curator_report.json"
+status_trail:
+  - "2026-09-30T23:19:04.616199+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
