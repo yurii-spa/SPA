@@ -57,3 +57,19 @@ Owner control plane, the **SPA bot** (`com.spa.telegram_bot`) as the product sur
   misleading one).
 - Tests: `test_owner_control_plane.py`, `test_spa_bot_safety_boundaries.py`,
   `test_launchd_disabled_is_not_down.py`; the `test_ask_router.py` fake accepts `cwd=` (journal).
+
+## Поправка 2026-09-30 (вечер): один маршрутизатор намерений
+
+Живая проверка владельца: голосом «Скажи, пожалуйста, что сейчас нужно от меня?» — Whisper распознал
+верно, а Bridge предложил «Как задачу / Как идею». Причины: (1) у Bridge был свой regex-предроутер,
+который не знал «сейчас / было / скажи, пожалуйста»; (2) `classify()` отвечал только «насколько
+опасно», и любой вопрос без темы становился черновиком; (3) заодно найдено: «Увеличь risk limit» был
+GREEN — глагола «увелич» не было в RED.
+
+Решение: `owner_remote.intent.route()` поверх того же `classify()` — намерение и риск раздельно
+(READ_QUESTION · OWNER_NEEDS · SYSTEM_STATUS · PRODUCT_QUERY · TASK_/IDEA_/DECISION_CAPTURE ·
+ACTION_COMMAND · AMBIGUOUS). CLI `plan` маршрутизирует им: вопрос → раздел отчёта или пояснение, без
+кнопок записи; черновик — только для явного task/idea/decision; неясное → одно уточнение
+(«Это вопрос» / задача / идея); вопрос о рискованном действии → пояснение, приказ → RED. Bridge
+(b19.6.33) свой предроутер удалил; текст и расшифровка идут одним путём. RED-глаголы расширены в
+Python и в JS-зеркале (`studio_shell/surfaces.js`), паритет закреплён тестом.

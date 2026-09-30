@@ -53,7 +53,7 @@ def seam(tmp_path, monkeypatch):
 
 def test_plan_never_writes_and_confirm_writes_exactly_once(seam):
     p = cli.cmd_plan("Создай задачу проверить Morpho", "telegram_bridge", 11)
-    assert p["action"] == "confirm_task" and p["kind"] == "task"
+    assert p["action"] == "confirm" and p["kind"] == "task"
     assert seam.cards == []                                  # a plan is not a write
     r1 = gateway.confirm(p["token"])
     r2 = gateway.confirm(p["token"])                         # double tap / Telegram retry
@@ -83,17 +83,60 @@ def test_red_is_blocked_at_plan_and_again_at_confirm(seam):
 
 def test_unclassified_text_waits_for_the_owner_to_choose(seam):
     p = cli.cmd_plan("проверить Morpho", "telegram_bridge", 14)
-    assert p["kind"] == "unclassified" and p["action"] == "capture"
+    assert p["kind"] == "unclassified" and p["action"] == "clarify"
     assert gateway.confirm(p["token"])["ok"] is False           # no silent default
     assert gateway.confirm(p["token"], as_kind="task")["ok"] is True
     assert len(seam.cards) == 1
 
 
-def test_a_real_question_is_answered_and_leaves_nothing_pending(seam, monkeypatch):
-    monkeypatch.setattr(answers, "answer_capital", lambda: "💰 Капитал — PAPER")
+def test_a_real_question_is_answered_and_leaves_nothing_pending(seam):
     p = cli.cmd_plan("Покажи капитал", "telegram_bridge", 18)
-    assert p["action"] == "answer" and p["text"] == "💰 Капитал — PAPER" and "token" not in p
+    assert p["action"] == "report" and p["section"] == "product" and "token" not in p
     assert not gateway._load_pending()
+
+
+# The ten cases the Owner required after the live defect of 2026-09-30 («Скажи, пожалуйста, что сейчас
+# нужно от меня?» was offered «Как задачу / Как идею»). Text and the SAME words after Whisper take one path.
+ROUTING = [
+    ("Скажи, пожалуйста, что сейчас нужно от меня?", "report", "owner"),
+    ("Что сейчас нужно от меня?", "report", "owner"),
+    ("Что сейчас сломано?", "report", "alerts"),
+    ("Что было сделано сегодня?", "report", "work"),
+    ("Добавь задачу проверить Telegram завтра", "confirm", "task"),
+    ("У меня идея добавить новый Trading Engine", "confirm", "idea"),
+    ("Запиши решение оставить mission_tick выключенным", "confirm", "decision"),
+    ("Что будет, если увеличить risk limit?", "explain", None),
+    ("Увеличь risk limit", "block", None),
+    ("проверить Morpho", "clarify", "unclassified"),
+]
+
+
+@pytest.mark.parametrize("text,action,detail", ROUTING)
+def test_owner_routing_matrix(seam, text, action, detail):
+    p = cli.cmd_plan(text, "telegram_bridge", 100)
+    assert p["action"] == action, (text, p)
+    if action == "report":
+        assert p["section"] == detail and "token" not in p           # answered, nothing to record
+    if action in ("confirm", "clarify"):
+        assert p["kind"] == detail and p["token"]
+    if action in ("report", "explain", "block"):
+        assert not gateway._load_pending(), "a read or a refusal must leave no draft"
+    assert seam.cards == [] and not list(seam.ideas.glob("*"))         # plan NEVER writes
+
+
+@pytest.mark.parametrize("text,action,detail", ROUTING)
+def test_voice_transcript_routes_exactly_like_text(seam, text, action, detail):
+    typed = cli.cmd_plan(text, "telegram_bridge", 200)
+    voiced = cli.cmd_plan(text, "telegram_bridge_voice", 200)
+    for k in ("action", "intent", "zone", "section", "kind"):
+        assert typed.get(k) == voiced.get(k), k
+
+
+def test_explaining_a_risky_action_changes_nothing_and_ordering_it_is_red(seam):
+    q = cli.cmd_plan("Что будет, если увеличить risk limit?", "telegram_bridge", 300)
+    assert q["zone"] == "RED" and q["intent"] == "READ_QUESTION" and "никогда" in q["text"].lower()
+    a = cli.cmd_plan("Увеличь risk limit", "telegram_bridge", 301)
+    assert a["zone"] == "RED" and a["intent"] == "ACTION_COMMAND" and "token" not in a
 
 
 def test_a_typed_draft_cannot_be_reclassified(seam):

@@ -23,27 +23,47 @@ import sys
 
 from spa_core.owner_remote import gateway
 
-#: `answers.route_green`'s fallback when no question was recognised (it is a hint, not an answer).
-GENERIC_ANSWER_PREFIX = "Отвечаю по данным read model."
+
+
+SENSITIVE_EXPLAIN = (
+    "ℹ️ Это вопрос о чувствительном действии — отвечаю, ничего не меняя.\n"
+    "Деньги, ставки, лимиты риска, стоп-кран и включение live из Telegram не меняются НИКОГДА. "
+    "Пороги RiskPolicy v1.0 меняются только новым ADR с твоим решением; сейчас идёт бумажный трек, "
+    "реальный капитал не задействован. Если хочешь это обсудить — скажи «запиши решение …» (черновик)."
+)
+ACTION_REFUSED = ("Действия из свободного текста я не выполняю. Если это поручение — скажи "
+                  "«создай задачу …», и я предложу записать его после твоей кнопки.")
+CLARIFY = "Не уверен, что ты имеешь в виду. Это вопрос или это нужно записать?"
+_KIND = {"TASK_CAPTURE": "task", "IDEA_CAPTURE": "idea", "DECISION_CAPTURE": "decision"}
 
 
 def cmd_plan(text: str, source: str, message_id) -> dict:
-    p = gateway.plan(text, source=source, message_id=message_id)
-    action = p["action"]
-    out = {"ok": True, "action": action, "zone": p["zone"], "intent": p["intent"], "text": p["text"]}
-    if action in ("noop", "block"):
-        return out
-    if action == "answer" and not (p["text"] or "").startswith(GENERIC_ANSWER_PREFIX):
-        return out          # a GREEN question with a real answer: no draft, nothing pending
-    if action == "answer":
-        # no recognised question and no intake verb — the Owner decides task or idea
-        out["action"] = "capture"
-    kind = {"confirm_task": "task", "idea": "idea", "decision_draft": "decision"}.get(action, "unclassified")
+    """ONE router for text and Whisper transcripts (intent.route). Only a real capture intent (or the
+    Owner's own choice after a clarification) registers a draft; a question is answered, never recorded."""
+    from spa_core.owner_remote.intent import route
+    r = route(text)
+    out = {"ok": True, "intent": r["intent"], "zone": r["zone"], "confidence": r.get("confidence")}
+    intent = r["intent"]
+    if r["zone"] == "NONE":
+        return {**out, "action": "noop", "text": "Пустое сообщение."}
+    if intent == "ACTION_COMMAND":
+        if r["zone"] == "RED":
+            return {**out, "action": "block",
+                    "text": gateway.plan(text, source=source, message_id=message_id)["text"]}
+        return {**out, "action": "refuse_action", "text": ACTION_REFUSED}
+    if r.get("topic") == "sensitive":
+        return {**out, "action": "explain", "text": SENSITIVE_EXPLAIN}
+    if r.get("section"):
+        return {**out, "action": "report", "section": r["section"]}
     token = gateway.token_for(source, message_id if message_id is not None else "manual")
-    title = (p.get("normalized") or text).strip()[:120]
-    gateway.register_pending(token, title=title, body=text.strip(), source=source, kind=kind)
-    out.update({"token": token, "kind": kind, "title": title})
-    return out
+    title = " ".join(text.split())[:120]
+    if intent in _KIND:
+        gateway.register_pending(token, title=title, body=text.strip(), source=source, kind=_KIND[intent])
+        return {**out, "action": "confirm", "kind": _KIND[intent], "token": token, "title": title}
+    # AMBIGUOUS: one clarification; the Owner's button decides (question → report, or task / idea)
+    gateway.register_pending(token, title=title, body=text.strip(), source=source, kind="unclassified")
+    return {**out, "action": "clarify", "kind": "unclassified", "token": token, "title": title,
+            "text": CLARIFY}
 
 
 def cmd_transcribe(path: str) -> dict:
