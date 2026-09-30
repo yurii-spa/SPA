@@ -21,7 +21,7 @@ mirror, pre-push `ls-remote`) need no credential at all. GitHub Actions use the 
 | Credential | State | Consumer found | Action |
 |---|---|---|---|
 | `GITHUB_PAT_MCP_CLAUDE` (fine-grained «spa-mcp-fine-grained», fp `11b2e89da3`) | **expired (401)** | only `~/.zshrc` → `GITHUB_PERSONAL_ACCESS_TOKEN` → Claude Code github MCP plugin (+ a stale `launchctl setenv` copy) | Keychain item deleted; `.zshrc` export commented out; launchctl env unset; plugin `github@claude-plugins-official` disabled. SPA / Studio OS / Bridge never used it. Not re-issued. |
-| `GITHUB_PAT_WORKFLOW` + internet `github.com`/`yurii-spa` (classic, `repo, workflow`, **no expiry**, all repos; fp `4a6fc7bb45`) | valid, **over-privileged, now unused** | none in code; git helper no longer selects it | Owner: revoke on github.com and delete both Keychain items (agent was not permitted to write the secret store). |
+| `GITHUB_PAT_WORKFLOW` + internet `github.com`/`yurii-spa` (classic, `repo, workflow`, **no expiry**, all repos; fp `4a6fc7bb45`) | **removed** — owner cleanup 2026-09-30 | none in code; git helper no longer selects it | Both Keychain items deleted by the owner; verified 2026-09-30: only `GITHUB_PAT_SPA` + `github.com/x-access-token` remain (same token, fp `e2f8065e6a`). |
 | token-shaped string in old local `.claude/worktrees/*/docs/governance/ANTI_PATTERNS.md` (classic, fp `46eb12352e`) | dead (401) | none; not on `origin/main` | none needed |
 
 ## Rules
