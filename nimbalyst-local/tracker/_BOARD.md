@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-29T15:37:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-09-30T04:27:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (49942ca1c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (900ef8c20) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1146** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1153** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -344,7 +344,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (609)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (616)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -841,9 +841,14 @@
 - Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
+- Находка петли: data/candidate_discovery_status.json: возраст 39.0ч > SLO 26ч (класс a  ·  `inbox-nahodka-petli-data-candidate-discovery-s-2.md` · 2026-09-29
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
+- Находка петли: data/candidate_registry.json: возраст 39.0ч > SLO 26ч (класс agent_reg  ·  `inbox-nahodka-petli-data-candidate-registry-js-2.md` · 2026-09-29
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
+- Находка петли: data/rebalance_trigger.json: возраст 39.0ч > SLO 26ч (класс agent_regi  ·  `inbox-nahodka-petli-data-rebalance-trigger-jso.md` · 2026-09-29
+- Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re  ·  `inbox-nahodka-petli-data-tier-curator-report-j.md` · 2026-09-29
 - Находка петли: манифест ↔ факты: com.spa.mission_tick: агент есть в фактах, нет в ман  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-mis.md` · 2026-09-25
+- Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat-2.md` · 2026-09-17
 - Неприменённый ответ владельца «1» — адресат не назван  ·  `inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md` · 2026-09-10
@@ -894,6 +899,7 @@
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
+- Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
@@ -955,6 +961,7 @@
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
+- Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`

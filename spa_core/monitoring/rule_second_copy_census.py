@@ -13227,28 +13227,52 @@ def _defensive_tail_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
     «отдано без имени», — то есть ровно на населении заказа. Свод по
     нескольким чтениям — :func:`_merge_step_reads` соседа.
     """
-    reads = _document_field_reads(tree, owner_of, field, scope)
     seen: List[dict] = []
     tailed: List[dict] = []
-    for reader_scope, node, _form in reads:
-        neighbour = _one_step_reader(reader_scope, node, declared)
-        if neighbour.get("gap") != STEP_GAP_ESCAPES_AGAIN:
-            seen.append(neighbour)
-            continue
-        bound = _bound_name_site(reader_scope, node, declared)
-        if bound.get("gap") not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
-            seen.append(bound)
-            continue
-        step = _defensive_tail_site(reader_scope, node, declared)
-        seen.append(step)
-        tailed.append(step)
+    forms: Set[str] = set()
+    for _reader_scope, _node, form, out, behind in _defensive_tail_reads(
+            tree, owner_of, declared, scope, field):
+        seen.append(out)
+        forms.add(form)
+        if behind:
+            tailed.append(out)
     merged = _merge_step_reads(seen)
     return {**merged,
-            "read_forms": sorted({form for _s, _n, form in reads}),
+            "read_forms": sorted(forms),
             "tail_names": sorted({s["bound"] for s in tailed
                                   if s.get("bound")}),
             "behind_a_tail": len(tailed),
             "stepped": sum(1 for s in tailed if s.get("sources") == 1)}
+
+
+def _defensive_tail_reads(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                          declared: Set[str], scope: ast.AST, field: str
+                          ) -> Iterable[Tuple[ast.AST, ast.AST, str, dict,
+                                              bool]]:
+    """Чтения поля ОДНОГО счётчика вместе с ОБЛАСТЬЮ читателя и вердиктом.
+
+    Обход ОДИН, читателей у него два — :func:`_defensive_tail_step` берёт
+    вердикты, а шаг за КЛЮЧ ИЗ ЦИКЛА (заказ G85 п. 4) берёт ещё и область с
+    узлом. Добывать область вторым обходом значило бы завести вторую копию
+    правила «где читают это поле» внутри прибора, который вторые копии и ищет.
+
+    Последний элемент кортежа — дошёл ли шаг ЗА ХВОСТ до этого чтения: два
+    предыдущих отказа (вердикт соседа не «убежал снова» · связывание не за
+    хвостом) в население заказа не входят, и не различить их значило бы
+    считать чужой отказ своим.
+    """
+    for reader_scope, node, form in _document_field_reads(
+            tree, owner_of, field, scope):
+        neighbour = _one_step_reader(reader_scope, node, declared)
+        if neighbour.get("gap") != STEP_GAP_ESCAPES_AGAIN:
+            yield reader_scope, node, form, neighbour, False
+            continue
+        bound = _bound_name_site(reader_scope, node, declared)
+        if bound.get("gap") not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
+            yield reader_scope, node, form, bound, False
+            continue
+        yield (reader_scope, node, form,
+               _defensive_tail_site(reader_scope, node, declared), True)
 
 
 def _defensive_tail_sites(rel: str, tree: ast.AST) -> List[dict]:
@@ -15232,6 +15256,897 @@ def accumulator_kind_at_the_binding(root: Path,
     }
 
 
+# ---------------------------------------------------------------------------
+# КЛЮЧ ИЗ ЦИКЛА — заказ G85 п. 4 (он же G84 п. 3, он же G83 п. 1)
+# ---------------------------------------------------------------------------
+
+#: ЧЕМ доказано, что класс всё-таки ОБЪЯВЛЕН, хотя в точке чтения его нет.
+#: Две формы, и разводить их обязательно: перечень модуля живёт ОДНОЙ строкой
+#: на весь файл и меняется отдельной правкой, перечень «на месте» не живёт
+#: нигде, кроме самого цикла. Сила доказательства у них одинаковая, а цена
+#: сопровождения — разная, поэтому одним числом они не подаются.
+LOOP_BY_MODULE_ENUM = "the_key_runs_over_a_module_level_declared_enumeration"
+LOOP_BY_ENUM_IN_PLACE = "the_key_runs_over_an_enumeration_of_declared_classes_written_in_place"
+_LOOP_PROOFS = (LOOP_BY_MODULE_ENUM, LOOP_BY_ENUM_IN_PLACE)
+
+#: Почему класс у ключа НЕ доказан. Имя у каждой причины своё, и это не
+#: украшение: чинятся они РАЗНЫМ. «Ключ вообще не переменная цикла» требует
+#: другого шага; «перечень не константа модуля» есть ОБЪЯВЛЕННАЯ
+#: односторонность и не чинится ничем; «связан ещё и вне цикла» требует
+#: разбора того второго связывания; «циклы расходятся» не требует ничего,
+#: кроме честности — спор есть ОТСУТСТВИЕ ответа, а не первый из ответов.
+LOOP_GAP_NOT_A_LOOP_VARIABLE = "the_unresolved_key_is_not_a_loop_variable_in_this_scope"
+LOOP_GAP_TUPLE_TARGET = "the_key_is_unpacked_from_a_tuple_target_not_iterated_directly"
+LOOP_GAP_BOUND_OUTSIDE = "the_key_is_also_bound_outside_a_loop_in_this_scope"
+LOOP_GAP_ITER_NOT_A_MODULE_NAME = "the_iterated_expression_is_not_a_module_level_name"
+LOOP_GAP_ITER_NOT_AN_ENUMERATION = "the_iterated_module_name_is_not_an_enumeration_of_declared_classes"
+LOOP_GAP_ITER_REBOUND = "the_iterated_enumeration_is_assigned_more_than_once_at_module_level"
+LOOP_GAP_LOOPS_DISAGREE = "the_key_is_bound_by_loops_that_run_over_different_kinds_of_iterable"
+_LOOP_GAPS = (LOOP_GAP_NOT_A_LOOP_VARIABLE, LOOP_GAP_TUPLE_TARGET,
+              LOOP_GAP_BOUND_OUTSIDE, LOOP_GAP_ITER_NOT_A_MODULE_NAME,
+              LOOP_GAP_ITER_NOT_AN_ENUMERATION, LOOP_GAP_ITER_REBOUND,
+              LOOP_GAP_LOOPS_DISAGREE)
+
+#: Порядок называния отказа, когда циклов несколько и причины разные. Первым
+#: идёт самый ДОРОГОЙ предел — имя отказа есть указание, что чинить (урок
+#: ADR-465), и назвать дешёвую причину при живой дорогой значило бы послать
+#: чинить не то.
+#: Перечень ПОЛОН — это перестановка :data:`_LOOP_GAPS`, а не подмножество, и
+#: держит это тест: имя, не попавшее в порядок, ронял бы `.index` ГРОМКО, а
+#: запасная ветка «первый попавшийся» выдала бы вместо него тихое не то.
+_LOOP_GAP_ORDER = (LOOP_GAP_LOOPS_DISAGREE, LOOP_GAP_BOUND_OUTSIDE,
+                   LOOP_GAP_TUPLE_TARGET, LOOP_GAP_ITER_NOT_A_MODULE_NAME,
+                   LOOP_GAP_ITER_REBOUND, LOOP_GAP_ITER_NOT_AN_ENUMERATION,
+                   LOOP_GAP_NOT_A_LOOP_VARIABLE)
+
+#: Вердикт шага. ДВА, а не три: население отобрано отказом «прочитан ключом,
+#: которого правило не разрешает», а признание перечня объявлением способно
+#: перевести чтение только из ``dynamic`` в ``splits``
+#: (:func:`_one_step_reader` смотрит ``splits`` первым, ``wholesale`` — после
+#: ``dynamic``). «Дошёл и безвреден» через этот шаг НЕДОСТИЖИМ ПО ПОСТРОЕНИЮ,
+#: и объявить его значило бы обещать разбор, которого нет (урок ADR-467 о
+#: недостижимой ветке).
+_LOOP_KEY_OUTCOMES = (ONE_STEP_SPLITS, ONE_STEP_UNRESOLVED)
+
+#: Отказ шага, недостижимый через сам шаг и потому в перечень НЕ внесённый:
+#: вердикт соседа пересчитывается тем же вызовом, что его и выдал. Ветка
+#: остаётся (она верна, если до неё дойти) и проверяется ПРЯМЫМ вызовом
+#: помощника — порядком ADR-466/467, а не через шаг.
+LOOP_GAP_NEIGHBOUR_VERDICT = "the_neighbour_dynamic_verdict_does_not_reproduce_at_this_read"
+
+#: Отказы самого шага. Три, и ни один не есть ноль.
+UNMEASURED_LOOP_NEIGHBOUR = "defensive_tail_step_is_absent_or_unmeasured"
+UNMEASURED_LOOP_POPULATION = "second_walk_disagrees_with_the_defensive_tail_step"
+UNMEASURED_LOOP_CONTROL = "declared_loop_key_rule_missed_the_known_case"
+
+#: ЛОЖНЫЙ член населения ряда: ключ, которым ПИШУТ счётчик, доказанно
+#: принимает значения только из объявленного перечня. Тот же вопрос, что у
+#: читателя, заданный писателю — и это НЕ предмет заказа, а поправка к
+#: ЗНАМЕНАТЕЛЮ, поэтому число подаётся отдельным полем и ничего не правит.
+FALSE_BY_INDEX = "the_written_key_is_an_element_of_a_declared_enumeration_by_index"
+FALSE_NOT_PROVED = "the_written_key_is_not_proved_to_come_from_a_declared_enumeration"
+FALSE_KEY_NODE_ABSENT = "the_write_node_is_not_found_by_the_line_and_key_of_the_neighbour"
+_FALSE_MEMBER_FORMS = (FALSE_BY_INDEX, FALSE_NOT_PROVED,
+                       FALSE_KEY_NODE_ABSENT)
+#: ПЕРЕМЕННОЙ ЦИКЛА этой поправки НЕТ, и это ЗАМЕР, а не недосмотр:
+#: соседский :func:`_key_origin` идёт по связываниям до неподвижной точки и
+#: ключ `for k in ENUM` разрешает САМ (``key_is_a_literal``), то есть в
+#: население «открытых счётчиков» такой ключ не попадает вовсе. Единственная
+#: течь правила соседа — КОРОТКОЕ ЗАМЫКАНИЕ :func:`_reads_data` на любой
+#: подписке: до обхода связываний дело не доходит. Объявить здесь форму,
+#: которой шаг выдать не может, значило бы обещать разбор, которого нет
+#: (урок ADR-467 о недостижимой ветке).
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля — ФОРМА живого случая
+#: (``unresolved_path_census.report``): счётчик, открытый классом из данных,
+#: уезжает полем в документ, читается обратно ЗА ЗАЩИТНЫМ ХВОСТОМ и
+#: печатается ``c.get(k, 0)`` внутри пробега по перечню. Обе доказывающие
+#: формы обязаны предъявиться: перечень МОДУЛЯ (``alpha``) и перечень НА
+#: МЕСТЕ (``beta``). Дословной сцена быть не может — живой файл целиком в
+#: строку не переписывают, — воспроизводится то, что составляет ПРЕДМЕТ.
+LOOP_KEY_CONTROL_SOURCE = '''
+EXT_A = "a"
+EXT_B = "b"
+EXTS = (EXT_A, EXT_B)
+
+
+def alpha_writer(rows):
+    counts = {e: 0 for e in EXTS}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"alpha": counts}
+
+
+def alpha_caller(rows):
+    doc = alpha_writer(rows)
+    return len(doc)
+
+
+def alpha_reader(doc):
+    c = doc["alpha"] or {}
+    return " ".join("%s %s" % (k, c.get(k, 0)) for k in EXTS)
+
+
+def beta_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"beta": counts}
+
+
+def beta_caller(rows):
+    doc = beta_writer(rows)
+    return len(doc)
+
+
+def beta_reader(doc):
+    c = doc["beta"] or {}
+    out = []
+    for k in ("p", "q"):
+        out.append(c.get(k, 0))
+    return out
+
+
+def omega_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"omega": counts}
+
+
+def omega_caller(rows):
+    doc = omega_writer(rows)
+    return len(doc)
+
+
+def omega_reader(doc):
+    c = doc["omega"] or {}
+    out = []
+    for k in EXTS:
+        out.append(c.get(k, 0))
+    for j in ("r", "s"):
+        out.append(c.get(j, 0))
+    return out
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Каждый счётчик обязан получить СВОЙ отказ, и
+#: перечень имён проверяется целиком: отказ под чужим именем посылает чинить
+#: не то. `gamma` — ключ не переменная цикла вовсе; `delta` — ключ распакован
+#: из кортежной цели; `epsilon` — то же имя связано ещё и ВНЕ цикла (ровно тот
+#: дефект, который поймал отрицательный контроль в черновике этого шага);
+#: `zeta` — пробегается результат ВЫЗОВА; `eta` — имя модуля связано строкой,
+#: а не перечнем; `theta` — перечень модуля переприсвоен; `iota` — два цикла
+#: расходятся о роде итерируемого.
+LOOP_KEY_CONTROL_CLEAN = '''
+GOOD = ("a", "b")
+PLAIN = "plain"
+PAIRS = (("a", 1), ("b", 2))
+TWICE = ("a", "b")
+TWICE = ("c", "d")
+
+
+def gamma_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"gamma": counts}
+
+
+def gamma_caller(rows):
+    doc = gamma_writer(rows)
+    return len(doc)
+
+
+def gamma_reader(doc, row):
+    c = doc["gamma"] or {}
+    return c.get(row["cls"], 0)
+
+
+def delta_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"delta": counts}
+
+
+def delta_caller(rows):
+    doc = delta_writer(rows)
+    return len(doc)
+
+
+def delta_reader(doc):
+    c = doc["delta"] or {}
+    out = []
+    for k, _n in PAIRS:
+        out.append(c.get(k, 0))
+    return out
+
+
+def epsilon_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"epsilon": counts}
+
+
+def epsilon_caller(rows):
+    doc = epsilon_writer(rows)
+    return len(doc)
+
+
+def epsilon_reader(doc, row):
+    c = doc["epsilon"] or {}
+    k = row["cls"]
+    out = [c.get(k, 0)]
+    for k in GOOD:
+        out.append(c.get(k, 0))
+    return out
+
+
+def zeta_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"zeta": counts}
+
+
+def zeta_caller(rows):
+    doc = zeta_writer(rows)
+    return len(doc)
+
+
+def zeta_reader(doc):
+    c = doc["zeta"] or {}
+    out = []
+    for k in sorted(c):
+        out.append(c.get(k, 0))
+    return out
+
+
+def eta_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"eta": counts}
+
+
+def eta_caller(rows):
+    doc = eta_writer(rows)
+    return len(doc)
+
+
+def eta_reader(doc):
+    c = doc["eta"] or {}
+    out = []
+    for k in PLAIN:
+        out.append(c.get(k, 0))
+    return out
+
+
+def theta_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"theta": counts}
+
+
+def theta_caller(rows):
+    doc = theta_writer(rows)
+    return len(doc)
+
+
+def theta_reader(doc):
+    c = doc["theta"] or {}
+    out = []
+    for k in TWICE:
+        out.append(c.get(k, 0))
+    return out
+
+
+def iota_writer(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return {"iota": counts}
+
+
+def iota_caller(rows):
+    doc = iota_writer(rows)
+    return len(doc)
+
+
+def iota_reader(doc):
+    c = doc["iota"] or {}
+    out = []
+    for k in GOOD:
+        out.append(c.get(k, 0))
+    for k in sorted(c):
+        out.append(c.get(k, 0))
+    return out
+
+
+def kappa_local(rows):
+    counts = {}
+    for row in rows:
+        counts[row["cls"]] = counts.get(row["cls"], 0) + 1
+    return counts[GOOD[0]] > 0
+'''
+
+
+def _declared_enumeration_display(node: Optional[ast.AST],
+                                  declared: Set[str]) -> bool:
+    """Перечень ли это ОБЪЯВЛЕННЫХ классов — по ЗНАЧЕНИЮ, а не по имени.
+
+    Правило «что есть объявленный класс» здесь НЕ переписано: его считает
+    соседский :func:`_is_declared_class`. Новое ровно одно — что перечень
+    таких классов сам объявляет класс своей переменной цикла.
+
+    Пустой перечень перечнем НЕ считается: он не объявляет ни одного класса, и
+    зачесть его значило бы доказать объявленность отсутствием элементов.
+    """
+    if not isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return False
+    if not node.elts:
+        return False
+    return all(_is_declared_class(el, declared) for el in node.elts)
+
+
+def _module_declared_enumerations(tree: ast.AST, declared: Set[str]
+                                  ) -> Tuple[Set[str], Set[str]]:
+    """Имена МОДУЛЯ, связанные перечнем объявленных классов: раз и НЕ раз.
+
+    Возвращает ``(связанные ровно один раз, связанные повторно)``. Второе не
+    сваливается в «не перечень»: переприсвоенное имя чинится иначе, чем имя,
+    которое перечнем никогда не было, — и имя отказа есть указание, что чинить.
+
+    ЗВЕНО, ОБЪЯВЛЕННОЕ ЗАРАНЕЕ: перечень обязан быть константой МОДУЛЯ.
+    Параметр, результат вызова и локальное имя здесь не признаются, потому что
+    иначе «объявленность» держалась бы на ИМЕНИ, а не на значении, — ровно тот
+    дефект, против которого ADR-465 и ADR-466 завели свои звенья.
+    """
+    counted: Dict[str, int] = {}
+    value_of: Dict[str, ast.AST] = {}
+    for node in (getattr(tree, "body", []) if isinstance(tree, ast.Module)
+                 else []):
+        targets: List[ast.AST] = []
+        value: Optional[ast.AST] = None
+        if isinstance(node, ast.Assign):
+            targets, value = list(node.targets), node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        if value is None:
+            continue
+        for tgt in targets:
+            if isinstance(tgt, ast.Name):
+                counted[tgt.id] = counted.get(tgt.id, 0) + 1
+                value_of[tgt.id] = value
+    once: Set[str] = set()
+    rebound: Set[str] = set()
+    for name, times in counted.items():
+        if not _declared_enumeration_display(value_of[name], declared):
+            continue
+        (once if times == 1 else rebound).add(name)
+    return once, rebound
+
+
+def _loop_targets_of(scope: ast.AST, name: str) -> List[Tuple[ast.AST, bool]]:
+    """Циклы области, связывающие это имя: ``(итерируемое, цель ли это ИМЯ)``.
+
+    Списковые включения учитываются наравне с ``for``: живой случай заказа
+    (``ext.get(k, 0) for k in EXTENSIONS``) есть именно включение, и знать
+    только оператор значило бы объявить «ключ не переменная цикла» там, где
+    он ею является.
+    """
+    out: List[Tuple[ast.AST, bool]] = []
+    for node in ast.walk(scope):
+        target: Optional[ast.AST] = None
+        if isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+            target = node.target
+        if target is None:
+            continue
+        if isinstance(target, ast.Name):
+            if target.id == name:
+                out.append((node.iter, True))
+            continue
+        names = {n.id for n in ast.walk(target)
+                 if isinstance(n, ast.Name)}
+        if name in names:
+            out.append((node.iter, False))
+    return out
+
+
+def _loop_key_proof(scope: ast.AST, name: str, declared: Set[str],
+                    enums: Set[str], rebound: Set[str],
+                    module_names: Set[str]) -> dict:
+    """Объявлен ли класс у ключа-переменной цикла — ОДНО имя, один вердикт.
+
+    Либо ``{"proofs": [...]}`` (класс объявлен, и названо ЧЕМ), либо
+    ``{"gap": ...}``. Третьего не возвращается: «не доказано» есть отказ с
+    именем, а не тихое зачисление в безвредные.
+    """
+    targets = _loop_targets_of(scope, name)
+    if not targets:
+        return {"gap": LOOP_GAP_NOT_A_LOOP_VARIABLE}
+    if any(not bare for _iter, bare in targets):
+        return {"gap": LOOP_GAP_TUPLE_TARGET}
+    # «Все циклы согласны» НЕ означает «все связывания суть циклы»: в
+    # черновике этого шага ровно эта подмена засчитала два счётчика, у которых
+    # имя приходило из ВЫЗОВА, а цикл по перечню стоял рядом в той же области.
+    if _name_binding_sources(scope, name) != len(targets):
+        return {"gap": LOOP_GAP_BOUND_OUTSIDE}
+    proofs: Set[str] = set()
+    gaps: List[str] = []
+    for iterated, _bare in targets:
+        if _declared_enumeration_display(iterated, declared):
+            proofs.add(LOOP_BY_ENUM_IN_PLACE)
+            continue
+        if not isinstance(iterated, ast.Name):
+            gaps.append(LOOP_GAP_ITER_NOT_A_MODULE_NAME)
+            continue
+        if (iterated.id not in module_names
+                or _name_binding_sources(scope, iterated.id) > 0):
+            gaps.append(LOOP_GAP_ITER_NOT_A_MODULE_NAME)
+            continue
+        if iterated.id in rebound:
+            gaps.append(LOOP_GAP_ITER_REBOUND)
+            continue
+        if iterated.id not in enums:
+            gaps.append(LOOP_GAP_ITER_NOT_AN_ENUMERATION)
+            continue
+        proofs.add(LOOP_BY_MODULE_ENUM)
+    if proofs and gaps:
+        return {"gap": LOOP_GAP_LOOPS_DISAGREE}
+    if gaps:
+        # Перечень порядка ПОЛОН по построению: каждое имя, которое эта
+        # функция кладёт в `gaps`, объявлено в `_LOOP_GAP_ORDER`, и держит это
+        # тест, а не запасная ветка. `.index` на незаявленном имени падает
+        # ГРОМКО — это лучше тихого «первый попавшийся».
+        return {"gap": min(gaps, key=_LOOP_GAP_ORDER.index)}
+    return {"proofs": sorted(proofs)}
+
+
+def _loop_key_reader(reader_scope: ast.AST, bound: str, declared: Set[str],
+                     enums: Set[str], rebound: Set[str],
+                     module_names: Set[str]) -> dict:
+    """ОДИН шаг за ключ из цикла для ОДНОГО чтения, до которого дошёл сосед.
+
+    Правило читателя НЕ переписано ни на строку: его считает соседский
+    :func:`_one_step_reader`, и всё, что делает этот шаг, — РАСШИРЯЕТ ему
+    перечень объявленных классов именами переменных цикла, чей класс доказан.
+    Второй копии правила «что есть раскол» здесь нет по построению.
+
+    Какие ИМЕНА суть ключи неразрешимых чтений, мерится ИСХОДОМ: имя
+    подставляется в объявленные по одному, и ключом признаётся то, от которого
+    вердикт соседа МЕНЯЕТСЯ. Разбирать узлы чтения вторым обходом значило бы
+    завести ту самую вторую копию.
+    """
+    read = ast.Name(id=bound, ctx=ast.Load())
+    base = _one_step_reader(reader_scope, read, declared)
+    if base.get("gap") != READER_GAP_DYNAMIC:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": LOOP_GAP_NEIGHBOUR_VERDICT, "splits": [],
+                "keys": [], "proofs": {}}
+    candidates = sorted({name for node in ast.walk(reader_scope)
+                         if isinstance(node, (ast.For, ast.AsyncFor,
+                                              ast.comprehension))
+                         for name in ({node.target.id}
+                                      if isinstance(node.target, ast.Name)
+                                      else {n.id for n in ast.walk(node.target)
+                                            if isinstance(n, ast.Name)})})
+    keys = [name for name in candidates
+            if _one_step_reader(reader_scope, read,
+                                declared | {name})["verdict"]
+            == ONE_STEP_SPLITS]
+    if not keys:
+        return {"verdict": ONE_STEP_UNRESOLVED,
+                "gap": LOOP_GAP_NOT_A_LOOP_VARIABLE, "splits": [],
+                "keys": [], "proofs": {}}
+    proved: Dict[str, List[str]] = {}
+    gaps: List[str] = []
+    for name in keys:
+        out = _loop_key_proof(reader_scope, name, declared, enums, rebound,
+                              module_names)
+        if "proofs" in out:
+            proved[name] = out["proofs"]
+        else:
+            gaps.append(out["gap"])
+    if proved:
+        # Раскол доказан, если ХОТЬ ОДИН ключ объявлен: у соседа `splits`
+        # смотрится первым, и одного расколотого чтения ему достаточно.
+        step = _one_step_reader(reader_scope, read, declared | set(proved))
+        return {**step, "keys": keys, "proofs": proved}
+    return {"verdict": ONE_STEP_UNRESOLVED,
+            "gap": min(gaps, key=_LOOP_GAP_ORDER.index),
+            "splits": [], "keys": keys, "proofs": {}}
+
+
+def _loop_key_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
+                   declared: Set[str], scope: ast.AST, field: str,
+                   enums: Set[str], rebound: Set[str],
+                   module_names: Set[str]) -> dict:
+    """Шаг за ключ из цикла для ОДНОГО счётчика — по всем его чтениям.
+
+    Население НЕ пересобирается: чтения и области даёт соседский
+    :func:`_defensive_tail_reads`, а разбирается только то чтение, которому
+    шаг за хвост отказал ИМЕННО ключом. Свод по нескольким чтениям —
+    соседский :func:`_merge_step_reads`.
+    """
+    seen: List[dict] = []
+    touched: List[dict] = []
+    for reader_scope, _node, _form, out, behind in _defensive_tail_reads(
+            tree, owner_of, declared, scope, field):
+        # Две причины пройти мимо, и они РАЗНЫЕ: до чтения не дошёл шаг за
+        # хвост (отказ ЧУЖОЙ, и брать его на себя значило бы считать чужой
+        # предел своим) либо дошёл и отказал НЕ ключом. Слитые в одно условие,
+        # они проверялись бы одним тестом на два утверждения.
+        if not behind:
+            seen.append(out)
+            continue
+        if out.get("gap") != READER_GAP_DYNAMIC:
+            seen.append(out)
+            continue
+        step = _loop_key_reader(reader_scope, out["bound"], declared, enums,
+                                rebound, module_names)
+        seen.append(step)
+        touched.append(step)
+    merged = _merge_step_reads(seen)
+    return {**merged,
+            "keys": sorted({k for s in touched for k in s["keys"]}),
+            "proofs": sorted({p for s in touched
+                              for ps in s["proofs"].values() for p in ps}),
+            "reads_by_a_loop_key": len(touched)}
+
+
+def _loop_key_sites(rel: str, tree: ast.AST) -> List[dict]:
+    """Счётчики ОДНОГО файла, которым шаг за хвост отказал КЛЮЧОМ.
+
+    Обход и все звенья до последнего — соседские, дословно как у шага за
+    защитный хвост (:func:`_defensive_tail_sites`). Отбирается ровно то, чему
+    ПОСЛЕДНИЙ отказал :data:`READER_GAP_DYNAMIC`: это и есть население заказа.
+    """
+    rows: List[dict] = []
+    parents: Optional[Dict[int, ast.AST]] = None
+    owner_of: Optional[Dict[int, ast.AST]] = None
+    declared: Optional[Set[str]] = None
+    enums: Set[str] = set()
+    rebound: Set[str] = set()
+    module_names: Set[str] = set()
+    for site, target, scope in _one_step_site_nodes(rel, tree):
+        # Обе половины охраны дословно соседские, и вторая не украшение
+        # первой: без узла счётчика шагать некуда, а `_field_step` на
+        # `None` упал бы. Контроль на неё — ПРЯМОЙ (подставленное
+        # население), потому что разобранное дерево такого узла не даёт.
+        if site.get("step_gap") != STEP_GAP_CONTAINER or target is None:
+            continue
+        if parents is None:
+            parents = _parent_map(tree)
+            owner_of = _counter_owner_scopes(tree)
+            declared = _declared_constant_names(tree)
+            enums, rebound = _module_declared_enumerations(tree, declared)
+            module_names = set(toplevel_constants(tree)) | enums | rebound
+        field_out = _field_step(tree, parents, owner_of, declared, scope,
+                                target)
+        if field_out["gap"] not in (FIELD_GAP_FIELD_NEVER_READ,
+                                    STEP_GAP_RESULT_UNBOUND):
+            continue
+        doc_out = _document_reader_step(tree, owner_of, declared, scope,
+                                        list(field_out["fields"]))
+        if doc_out["gap"] != STEP_GAP_ESCAPES_AGAIN:
+            continue
+        bound_out = _bound_name_step(tree, owner_of, declared, scope,
+                                     doc_out["field"])
+        if bound_out["gap"] not in (BOUND_GAP_OR_TAIL, BOUND_GAP_UNBOUND):
+            continue
+        tail_out = _defensive_tail_step(tree, owner_of, declared, scope,
+                                       doc_out["field"])
+        if tail_out["gap"] != READER_GAP_DYNAMIC:
+            continue
+        out = _loop_key_step(tree, owner_of, declared, scope,
+                             doc_out["field"], enums, rebound, module_names)
+        rows.append({**site, "field": doc_out["field"],
+                     "tail_gap": tail_out["gap"],
+                     "loop_step": out["verdict"], "loop_gap": out["gap"],
+                     "loop_keys": out["keys"],
+                     "loop_proofs": out["proofs"],
+                     "loop_splits": out["splits"],
+                     "reads_by_a_loop_key": out["reads_by_a_loop_key"]})
+    return rows
+
+
+def _written_key_from_an_enumeration(rel: str, tree: ast.AST) -> dict:
+    """ЛОЖНЫЕ члены населения ряда: ключ ПИСАТЕЛЯ из объявленного перечня.
+
+    Тот же вопрос, что задан читателю, заданный ПИСАТЕЛЮ, — и это НЕ предмет
+    заказа. Сосед признаёт счётчик открытым, когда ключ «пришёл из данных»
+    (:func:`_reads_data`), а тот свидетель отвечает ``True`` на ЛЮБУЮ
+    подписку: ``EXTENSIONS[cut - 1]`` — индекс в объявленный перечень, и класс
+    у него объявлен не хуже, чем у литерала.
+
+    Шаг соседа НЕ правится: перечисленное здесь есть поправка к ЗНАМЕНАТЕЛЮ
+    ряда G78…G99, и применять её самовольно значило бы пересчитать числа
+    чужих решений (у каждого из них свой день замера).
+    """
+    population = [s for s in _open_counter_sites(rel, tree)
+                  if s["key_origin"] == KEY_ARTIFACT
+                  and not s["membership_checked"]]
+    forms = {form: 0 for form in _FALSE_MEMBER_FORMS}
+    sample: List[dict] = []
+    if not population:
+        return {"population": 0, "forms": forms, "sample": sample}
+    declared = _declared_constant_names(tree)
+    enums, _rebound = _module_declared_enumerations(tree, declared)
+    by_line: Dict[Tuple[int, str], Tuple[ast.AST, ast.AST]] = {}
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        line = int(getattr(node, "lineno", 0) or 0)
+        by_line[(line, ast.unparse(shape[1])[:60])] = (node, shape[1])
+    for site in population:
+        found = by_line.get((int(site["line"] or 0), site["key"]))
+        if found is None:
+            forms[FALSE_KEY_NODE_ABSENT] += 1
+            continue
+        _node, key = found
+        if not (isinstance(key, ast.Subscript)
+                and isinstance(key.value, ast.Name)
+                and key.value.id in enums):
+            forms[FALSE_NOT_PROVED] += 1
+            continue
+        form = FALSE_BY_INDEX
+        forms[form] += 1
+        sample.append({"file": site["file"], "line": site["line"],
+                       "owner": site["owner"], "counter": site["counter"],
+                       "key": site["key"], "form": form})
+    return {"population": len(population), "forms": forms, "sample": sample}
+
+
+def _loop_key_control() -> dict:
+    """Проба объявленного правила — ДО замера, обеими половинами.
+
+    Население этого шага — ОДИН счётчик, и это сказано вслух в самом шаге:
+    правило, выведенное на населении в одну строку, есть подгонка прибора под
+    данные. Поэтому сила правила доказывается ЗДЕСЬ, а не числом замера.
+
+    Первая половина требует разрешить ОБЕ доказывающие формы (перечень модуля
+    и перечень на месте). Вторая требует отказать там, где отказать должно, и
+    отказать РАЗНЫМИ именами — по одному на каждое объявленное имя отказа;
+    имён семь, и счётчиков в отрицательной сцене ровно семь.
+    """
+    try:
+        source = _loop_key_sites("<control>",
+                                 ast.parse(LOOP_KEY_CONTROL_SOURCE))
+        clean = _loop_key_sites("<control-clean>",
+                                ast.parse(LOOP_KEY_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(source) != 3:
+        return {"passed": False, "reason": (
+            f"в положительной сцене правило нашло {len(source)} счётчик(ов) "
+            f"с ключом из цикла из 3 — разрешать нечего")}
+    resolved = [s for s in source if s["loop_step"] == ONE_STEP_SPLITS]
+    if len(resolved) != len(source):
+        return {"passed": False, "reason": (
+            f"шаг разрешил {len(resolved)} из {len(source)} счётчиков "
+            f"положительной сцены: исходы "
+            f"{sorted(s['loop_step'] for s in source)}")}
+    proofs = sorted({p for s in source for p in s["loop_proofs"]})
+    if proofs != sorted(_LOOP_PROOFS):
+        return {"passed": False, "reason": (
+            f"положительная сцена доказала формами {proofs}, а объявлено "
+            f"{sorted(_LOOP_PROOFS)} — правило, знающее одну, объявило бы "
+            f"«класс не объявлен» там, где перечень написан другой формой")}
+    refused = [s for s in clean if s["loop_step"] == ONE_STEP_UNRESOLVED]
+    if len(refused) != len(clean):
+        return {"passed": False, "reason": (
+            f"в отрицательной сцене шаг разрешил {len(clean) - len(refused)} "
+            f"счётчик(ов): правило, которому всё годится, звена не имеет")}
+    got = sorted({s["loop_gap"] for s in refused})
+    want = sorted(_LOOP_GAPS)
+    if got != want:
+        return {"passed": False, "reason": (
+            f"отрицательная сцена отказала именами {got}, а объявлено "
+            f"{want} — отказ под ЧУЖИМ именем посылает чинить не то "
+            f"(урок ADR-465)")}
+    if len(refused) != len(want):
+        return {"passed": False, "reason": (
+            f"{len(refused)} отказ(ов) на {len(want)} объявленных имён: два "
+            f"класса, слитые в одно имя, есть потеря указания на починку")}
+    return {"passed": True, "positive": len(source), "negative": len(refused),
+            "proof_forms": proofs, "gaps": got}
+
+
+def loop_key_over_a_declared_list(root: Path,
+                                  tail_step: Optional[dict]) -> dict:
+    """Сколько чтений НЕРАЗРЕШИМЫМ ключом разрешает пробег по перечню
+    (**заказ G85 п. 4**, он же G84 п. 3, он же G83 п. 1).
+
+    ADR-467 назвал остаток шага за защитный хвост ИМЕНАМИ, и одно из них —
+    «счётчик прочитан ключом, которого правило не разрешает»:
+    ``" · ".join(f"{k} {ext.get(k, 0)}" for k in EXTENSIONS)``. Ключ здесь не
+    литерал и не объявленная константа — он пробегает ОБЪЯВЛЕННЫЙ перечень,
+    то есть класс всё-таки назван, просто не в точке чтения. Заказ дословно:
+
+    > Сколько чтений неразрешимым ключом разрешает шаг, признающий пробег по
+    > объявленному перечню ОБЪЯВЛЕНИЕМ класса, и сколько остаётся третьим
+    > исходом. Односторонность назвать заранее и ограничить звеном: перечень
+    > обязан быть КОНСТАНТОЙ модуля (не параметром, не результатом вызова) —
+    > иначе «объявленность» держалась бы на имени, а не на значении.
+    > Население этого шага — ОДИН счётчик, и это обязано быть сказано вслух:
+    > правило, выведенное на населении в одну строку, есть подгонка прибора
+    > под данные, поэтому сила правила доказывается КОНТРОЛЕМ, а не числом.
+
+    Требование про население исполнено буквально: число замера подаётся рядом
+    с ним (:func:`_loop_key_control`), а не вместо него.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("сколько счётчиков, чьё чтение шаг за защитный хвост "
+                     "отказал НЕРАЗРЕШИМЫМ КЛЮЧОМ, разрешает признание "
+                     "пробега по объявленному перечню объявлением класса, и "
+                     "сколько остаётся третьим исходом"),
+        "order": "G85.4",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    if (not isinstance(tail_step, dict)
+            or str(tail_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_LOOP_NEIGHBOUR,
+                "reason": ("шаг за защитный хвост не измерен — населения "
+                           "«прочитан неразрешимым ключом» не существует; "
+                           "это НЕ «таких счётчиков нет»")}
+    reasons = observed(tail_step, "unresolved_reasons", kind=dict)
+    declared_population = (None if reasons is None
+                           else observed(reasons, READER_GAP_DYNAMIC,
+                                         kind=int))
+    if declared_population is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_LOOP_NEIGHBOUR,
+                "reason": ("сосед не назвал числа счётчиков, отказанных "
+                           "неразрешимым ключом — сверять свой обход не с чем")}
+    control = _loop_key_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_LOOP_CONTROL,
+                "reason": (f"объявленное правило ключа из цикла не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    false_population = 0
+    # Свод по файлам собирается ЗАКРЫТОЙ формой, а не `d[k] += n`: открытый
+    # счётчик здесь был бы ровно тем предметом, который перепись ищет, и
+    # первая редакция этого шага его завела — население соседа выросло
+    # 171 → 172 моим же кодом. Прибор, добавляющий себя в измеряемый класс,
+    # мерит уже не дерево.
+    false_by_file: List[Dict[str, int]] = []
+    false_sample: List[dict] = []
+    # Обход ДОСЛОВНО соседский — каталоги, правило пропуска и обращение с
+    # неразобранным файлом. Иначе две дороги к одному населению разошлись бы
+    # не по правилу шага, а по правилу ОБХОДА.
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            rows.extend(_loop_key_sites(rel, tree))
+            side = _written_key_from_an_enumeration(rel, tree)
+            false_population += side["population"]
+            false_by_file.append(side["forms"])
+            false_sample.extend(side["sample"])
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_LOOP_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    if len(rows) != declared_population:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_LOOP_POPULATION,
+                "population": len(rows),
+                "declared_population": declared_population,
+                "reason": (f"свой обход нашёл {len(rows)} счётчик(ов), сосед "
+                           f"назвал {declared_population} — это ДВЕ разные "
+                           f"дороги к одному населению, и разойдясь, они "
+                           f"отвечают на разные вопросы")}
+
+    # Форма ЗАКРЫТАЯ, и открытого счётчика здесь нет намеренно: он и есть тот
+    # предмет, который перепись ищет.
+    outcomes = {cls: sum(1 for r in rows if r["loop_step"] == cls)
+                for cls in _LOOP_KEY_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("loop_gap") == gap)
+            for gap in _LOOP_GAPS}
+    proofs = {proof: sum(1 for r in rows if proof in (r.get("loop_proofs")
+                                                      or []))
+              for proof in _LOOP_PROOFS}
+    false_forms = {form: sum(int(per.get(form) or 0) for per in false_by_file)
+                   for form in _FALSE_MEMBER_FORMS}
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared_population,
+        "files_scanned": scanned,
+        "files_unreadable": unreadable,
+        "loop_step_outcomes": outcomes,
+        "unresolved_reasons": gaps,
+        "resolved_by": proofs,
+        "resolved_by_the_loop_key_step": outcomes[ONE_STEP_SPLITS],
+        "still_unmeasured": outcomes[ONE_STEP_UNRESOLVED],
+        "population_is_one_counter": len(rows) == 1,
+        "false_members_of_the_neighbour_population": {
+            "population": false_population,
+            "forms": false_forms,
+            "sample": false_sample[:COSTED_SAMPLE],
+        },
+        "harm_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "field": r.get("field"),
+             "keys": r.get("loop_keys"), "proofs": r.get("loop_proofs"),
+             "split": (r["loop_splits"] or [{}])[0].get("how")}
+            for r in rows if r["loop_step"] == ONE_STEP_SPLITS][:COSTED_SAMPLE],
+        "unresolved_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r.get("loop_gap"),
+             "keys": r.get("loop_keys")}
+            for r in rows
+            if r["loop_step"] == ONE_STEP_UNRESOLVED][:COSTED_SAMPLE],
+        "blind": [
+            (f"НАСЕЛЕНИЕ ШАГА — {len(rows)} счётчик(ов), и заказ требует "
+             "сказать это вслух: правило, выведенное на населении в одну "
+             "строку, есть подгонка прибора под данные. Сила правила "
+             "доказывается КОНТРОЛЕМ (положительная сцена "
+             f"{control.get('positive')} · отрицательная "
+             f"{control.get('negative')} с разными именами), а не числом"),
+            (f"`{LOOP_GAP_ITER_NOT_A_MODULE_NAME}` — ОБЪЯВЛЕННАЯ "
+             "односторонность, а не находка: перечень признан объявлением "
+             "класса ТОЛЬКО будучи константой модуля, потому что иначе "
+             "объявленность держалась бы на ИМЕНИ, а не на значении"),
+            ("шаг доказывает, что класс ОБЪЯВЛЕН, а не что вред наступил: "
+             "раскол у читателя говорит о ДОРОГЕ, и достижим ли он у "
+             "писателя — вопрос соседа "
+             "(`split_reachability_at_the_writer`), которому этот раскол не "
+             "передан: его население набрано у ДВУХ других шагов"),
+            ("`false_members_of_the_neighbour_population` — поправка к "
+             "ЗНАМЕНАТЕЛЮ ряда, а НЕ предмет заказа: она названа числом и "
+             "НЕ применена, население соседа осталось как есть, и числа "
+             "прошлых решений не пересчитаны — каждое есть замер своего дня"),
+            ("течь правила соседа о ключе — ОДНА и названа: короткое "
+             "замыкание `_reads_data` на любой подписке. Ключ переменной "
+             "цикла сосед разрешает САМ (обход связываний до неподвижной "
+             "точки), поэтому формы «переменная цикла» в поправке нет вовсе — "
+             "это замер, а не недосмотр"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461…ADR-467): своего замера населения у этого шага нет "
+             "по построению"),
+        ],
+        "what_it_does_not_prove": [
+            "что незнакомый класс есть в артефакте сегодня — доказана ДОРОГА, не событие",
+            "что остаток исчерпан: формы вне закрытого перечня остались третьим исходом намеренно",
+            "что ложные члены населения — ВСЕ: свидетель односторонний, и ненайденное им не есть ноль",
+        ],
+    }
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -16610,6 +17525,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # СВЯЗЫВАНИЕМ. Население берётся у соседа и сверяется с его числом.
     kind_step = accumulator_kind_at_the_binding(root, writer_step)
 
+    # --- КЛЮЧ ИЗ ЦИКЛА (заказ G85 п. 4, он же G84 п. 3, он же G83 п. 1) ----
+    # Последний остаток шага за защитный хвост: счётчик прочитан ключом,
+    # которого правило не разрешает, — а ключ пробегает ОБЪЯВЛЕННЫЙ перечень,
+    # то есть класс назван, просто не в точке чтения. Правило читателя не
+    # переписывается: шаг лишь РАСШИРЯЕТ соседу перечень объявленных классов
+    # переменными цикла, чей класс доказан. Население — ОДИН счётчик, и это
+    # сказано вслух: сила правила доказана контролем, а не числом.
+    loop_key_step = loop_key_over_a_declared_list(root, tail_step)
+
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
@@ -16769,6 +17693,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # не отображение / по-прежнему не измерен». Разные предметы с разным
         # третьим исходом, и ответ одного не отменяет другого.
         "accumulator_kind_at_the_binding": kind_step,
+        "loop_key_over_a_declared_list": loop_key_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -18863,6 +19788,69 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` — индекс есть ПОЛОЖЕНИЕ, а не класс; "
                 f"сосед звал это `{item.get('writer_gap_was')}`")
         for blind in (observed(kind_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    loop_step = observed(doc, "loop_key_over_a_declared_list", kind=dict)
+    if loop_step is None:
+        out.append("[КЛЮЧ ИЗ ЦИКЛА] НЕ ИЗМЕРЕНО — перепись собрана без этого "
+                   "шага; это НЕ «неразрешимых ключей нет»")
+    elif str(loop_step.get("status")) == "UNMEASURED":
+        out.append(f"[КЛЮЧ ИЗ ЦИКЛА] НЕ ИЗМЕРЕНО "
+                   f"[{loop_step.get('unmeasured_class')}]: "
+                   f"{loop_step.get('reason')}")
+    else:
+        outcomes = observed(loop_step, "loop_step_outcomes", kind=dict) or {}
+        why = observed(loop_step, "unresolved_reasons", kind=dict) or {}
+        forms = observed(loop_step, "resolved_by", kind=dict) or {}
+        control = observed(loop_step, "control", kind=dict) or {}
+        out.append(
+            f"[КЛЮЧ ИЗ ЦИКЛА] из {loop_step.get('population')} счётчик(ов), "
+            f"которым шаг за защитный хвост отказал НЕРАЗРЕШИМЫМ КЛЮЧОМ, "
+            f"признание пробега по объявленному перечню разрешило "
+            f"{outcomes.get(ONE_STEP_SPLITS)}; третьим исходом осталось "
+            f"{loop_step.get('still_unmeasured')}")
+        out.append(
+            f"[КЛЮЧ · ЧЕМ ДОКАЗАН] перечень КОНСТАНТА МОДУЛЯ "
+            f"{forms.get(LOOP_BY_MODULE_ENUM)} · перечень НА МЕСТЕ "
+            f"{forms.get(LOOP_BY_ENUM_IN_PLACE)}")
+        out.append(
+            f"[КЛЮЧ · ПОЧЕМУ НЕ ДОКАЗАН] ключ не переменная цикла "
+            f"{why.get(LOOP_GAP_NOT_A_LOOP_VARIABLE)} · распакован из кортежа "
+            f"{why.get(LOOP_GAP_TUPLE_TARGET)} · связан ещё и вне цикла "
+            f"{why.get(LOOP_GAP_BOUND_OUTSIDE)} · итерируемое не имя модуля "
+            f"{why.get(LOOP_GAP_ITER_NOT_A_MODULE_NAME)} · имя модуля не "
+            f"перечень {why.get(LOOP_GAP_ITER_NOT_AN_ENUMERATION)} · перечень "
+            f"переприсвоен {why.get(LOOP_GAP_ITER_REBOUND)} · циклы "
+            f"расходятся {why.get(LOOP_GAP_LOOPS_DISAGREE)}")
+        out.append(
+            f"[КЛЮЧ · НАСЕЛЕНИЕ] {loop_step.get('population')} счётчик(ов) — "
+            f"правило, выведенное на населении в одну строку, есть подгонка "
+            f"прибора под данные, поэтому сила правила доказана КОНТРОЛЕМ: "
+            f"положительная сцена {control.get('positive')} (обе формы), "
+            f"отрицательная {control.get('negative')} с "
+            f"{len(control.get('gaps') or [])} РАЗНЫМИ именами отказа")
+        false = (observed(loop_step, "false_members_of_the_neighbour_population",
+                          kind=dict) or {})
+        ff = observed(false, "forms", kind=dict) or {}
+        out.append(
+            f"[КЛЮЧ · ПОПРАВКА К ЗНАМЕНАТЕЛЮ] тот же вопрос, заданный "
+            f"ПИСАТЕЛЮ: из {false.get('population')} открытых счётчиков ряда "
+            f"ключ доказанно приходит из объявленного перечня у "
+            f"{ff.get(FALSE_BY_INDEX)} (индекс в перечень) — такой счётчик "
+            f"классу, которого никто не объявлял, НЕ открыт. Поправка НАЗВАНА "
+            f"и НЕ применена: числа прошлых решений суть замеры своих дней")
+        for item in (observed(loop_step, "harm_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[КЛЮЧ · РАСКОЛ] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` — "
+                f"`{item.get('split')}`, ключ {item.get('keys')}")
+        for item in (observed(loop_step, "unresolved_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[КЛЮЧ · НЕ ИЗМЕРЕНО] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` — "
+                f"{item.get('gap')}")
+        for blind in (observed(loop_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
