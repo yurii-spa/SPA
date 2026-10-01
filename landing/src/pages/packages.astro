@@ -11,6 +11,14 @@ import { book as shelfBook, value as shelfValue } from '../lib/site_numbers.js';
 // /packages 2–6% bug). Rich per-tier copy (what/caveat/status) stays inline; band/name/tone/live come
 // from the shared source below.
 import BANDS from '../lib/tier_bands.json';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
+// ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
+const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
+const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
+const rrNoteEn = measuredNoteRR(false);       // « (measured 2026-10-01)»
+const rrNoteRu = measuredNoteRR(true);
+const realizedEn = realizedPhraseRR(null);    // «~4.9% realized (measured …)»
+const realizedRu = realizedPhraseRR(null, true);
 
 // Honest yield-package tiers. The framework is evaluator.PACKAGES (Conservative / Balanced /
 // Aggressive by NET APY + drawdown limit); a package is only offered when its strategies pass the
@@ -132,7 +140,7 @@ const toneMap = {
 ---
 <Layout
   title="Yield packages — honest tiers | earn-defi.com"
-  description="Three yield-package tiers by target APY and drawdown limit. Conservative targets up to 6% (the REAL live paper book, ~3.3% realized so far, evidenced). Balanced (up to 12%) and Aggressive (up to 20%) are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden."
+  description={`Three yield-package tiers by target APY and drawdown limit. Conservative targets up to 6% (the REAL live paper book, ~${rrEn} realized so far${rrNoteEn}, evidenced). Balanced (up to 12%) and Aggressive (up to 20%) are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden.`}
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
     <section class="pb-8">
@@ -213,7 +221,7 @@ const toneMap = {
         A package is offered ONLY when its strategies pass the DSR gate on real data + the full Yield-Lab lifecycle (yield-source → protocol → liquidity → risk → Red Team → paper test → human approval). Today Conservative is real and evidenced; Balanced and Aggressive are research/paper, shown with the tail, and are NOT live-allocated.
       </p>
       <div class="flex flex-wrap gap-3 mt-4">
-        <a href="/annual-contrast" data-track="packages_to_annual_contrast" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против реальных ~3.3% →">The tail in numbers: 15% vs the real ~3.3% →</a>
+        <a href="/annual-contrast" data-track="packages_to_annual_contrast" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15% против реальных ~${rrRu}${rrNoteRu} →`}>The tail in numbers: 15% vs the real ~{rrEn}{rrNoteEn} →</a>
         <a href="/monitoring" data-track="packages_to_monitoring" class="text-sm text-accent-400 underline" data-ru="Живой мониторинг риска →">Live risk monitoring →</a>
         <a href="/status" data-track="packages_to_status" class="text-sm text-accent-400 underline" data-ru="Живой трек и go-live →">Live track & go-live →</a>
       </div>

@@ -6,6 +6,14 @@
 // (paper, tail shown). Bilingual.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../../lib/realized_rate.js';
+// ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
+const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
+const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
+const rrNoteEn = measuredNoteRR(false);       // « (measured 2026-10-01)»
+const rrNoteRu = measuredNoteRR(true);
+const realizedEn = realizedPhraseRR(null);    // «~4.9% realized (measured …)»
+const realizedRu = realizedPhraseRR(null, true);
 
 const faq = [
   {
@@ -18,7 +26,7 @@ const faq = [
   },
   {
     q: 'What return does earn-defi target?',
-    a: 'Our live conservative paper track runs at ~3.3% realized with 0.0% drawdown — real, evidenced, checkable. Up-to-20% targets exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.',
+    a: `Our live conservative paper track runs at ${realizedEn} with 0.0% drawdown — real, evidenced, checkable. Up-to-20% targets exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.`,
   },
 ];
 const faqLd = {
@@ -29,7 +37,7 @@ const faqLd = {
 ---
 <Layout
   title="Why '20% APY on stablecoins' usually means tail risk | earn-defi.com"
-  description="A 20% APY on a stablecoin is not free money — it is the price of a risk. Here is the honest breakdown of where high stablecoin yields come from, the tail they carry, and how a refusal-first desk thinks about them. ~3.3% realized on the live paper track; up-to-20% targets are paper, shown with their drawdown. Not investment advice."
+  description={`A 20% APY on a stablecoin is not free money — it is the price of a risk. Here is the honest breakdown of where high stablecoin yields come from, the tail they carry, and how a refusal-first desk thinks about them. ${realizedEn} on the live paper track; up-to-20% targets are paper, shown with their drawdown. Not investment advice.`}
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
@@ -73,7 +81,7 @@ const faqLd = {
         one such event is often a loss for the year.
       </p>
       <div class="flex flex-wrap gap-3 mt-3">
-        <a href="/annual-contrast" data-track="learn_to_annual" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против ~3,3% →">The tail in numbers: 15% vs ~3.3% →</a>
+        <a href="/annual-contrast" data-track="learn_to_annual" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15% против ~${rrRu}${rrNoteRu} →`}>The tail in numbers: 15% vs ~{rrEn}{rrNoteEn} →</a>
       </div>
     </section>
 

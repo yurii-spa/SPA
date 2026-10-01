@@ -2,12 +2,14 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник"
-status: needs-owner
+status: owner-done
 source: orchestrator
 created: 2026-10-01
 approves: landing/src/pages/packages.astro, landing/src/pages/system.astro, landing/src/pages/learn/why-20-apy-means-tail-risk.astro
 adr: ADR-531
 priority: high
+status_trail:
+  - "2026-10-01T15:59:47.477071+00:00 needs-owner -> owner-done · queue.set_status/closed_by:owner (explicit decision in session 2026-10-01: «OWNER DECISION — CLOSE REMAINING P0-4 PUBLIC CORRECTNESS GAPS», both packages approved)/evidence:owner approval 2026-10-01 of docs/owner_packages/2026-10-01-stale-realized-3-3-pct.md; literals replaced by realizedApyLabel()/measuredNote()/realizedPhrase(); dist has 0 × '3.3%'"
 ---
 
 ## Что случилось и почему это важно

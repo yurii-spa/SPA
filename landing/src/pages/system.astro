@@ -1,6 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
+// ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
+const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
+const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
+const rrNoteEn = measuredNoteRR(false);       // « (measured 2026-10-01)»
+const rrNoteRu = measuredNoteRR(true);
+const realizedEn = realizedPhraseRR(null);    // «~4.9% realized (measured …)»
+const realizedRu = realizedPhraseRR(null, true);
 
 // WS-3.6 NOTE (for the WS-7 dashboard panel — do NOT build the panel here):
 // The cutover readiness scorecard is served fail-CLOSED at GET /api/execution/readiness
@@ -29,7 +37,7 @@ const planes = [
 // (folded into /dashboard tabs + /strategies); these deep-link to the cohesive
 // equivalent instead of a separate-entity HTML page.
 const surfaces = [
-  { href: '/packages', en: 'Yield packages', ru: 'Доходные пакеты', desc_en: 'Three honest tiers — Conservative (up to 6%, ~3.3% realized so far), Balanced (up to 12%) & Aggressive (up to 20%) — research/paper, shown WITH the tail, refused for live', desc_ru: 'Три честных тира — Conservative (до 6%, ~3,3% фактических), Balanced (до 12%) и Aggressive (до 20%) — исследование/бумага, показаны С хвостом, отказаны для live' },
+  { href: '/packages', en: 'Yield packages', ru: 'Доходные пакеты', desc_en: `Three honest tiers — Conservative (up to 6%, ~${rrEn} realized so far${rrNoteEn}), Balanced (up to 12%) & Aggressive (up to 20%) — research/paper, shown WITH the tail, refused for live`, desc_ru: `Три честных тира — Conservative (до 6%, ${realizedRu}), Balanced (до 12%) и Aggressive (до 20%) — исследование/бумага, показаны С хвостом, отказаны для live` },
   { href: '/monitoring', en: 'Live risk monitoring (RTMR)', ru: 'Живой мониторинг риска (RTMR)', desc_en: 'The real-time watchman — depeg/TVL/oracle/liquidity every 45s across 5-10 sources, deterministic de-risk (paper)', desc_ru: 'Сторож реального времени — депег/TVL/оракул/ликвидность каждые 45с по 5-10 источникам, детерминированный де-риск (paper)' },
   { href: '/dashboard', en: 'Live dashboard', ru: 'Живой дашборд', desc_en: 'Canonical command center — equity, positions, go-live', desc_ru: 'Канонический командный центр — капитал, позиции, go-live' },
   { href: '/dashboard#system', en: 'Agent fleet', ru: 'Парк агентов', desc_en: 'The autonomous launchd agents that run the machine (dashboard · System tab)', desc_ru: 'Автономные launchd-агенты, управляющие системой (дашборд · вкладка System)' },

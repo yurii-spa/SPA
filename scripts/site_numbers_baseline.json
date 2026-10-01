@@ -1,6 +1,4 @@
 {
- "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО. Остаток на 11.09: единственная страница — `why-20-apy-means-tail-risk.astro`; её правка УЖЕ лежит у владельца карточкой `owner-decision-sait-why-20-apy-means-tail-risk-astro-i` (число ~3,3 % фактических это предмет №2 владельца), поэтому агент её не трогает.",
- "files": [
-  "pages/learn/why-20-apy-means-tail-risk.astro"
- ]
+ "note": "Файлы без провенанса чисел. База может ТОЛЬКО уменьшаться (scripts/site_number_provenance.py, .claude/rules/site-numbers.md). Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО. 2026-10-01: последняя страница (`why-20-apy-means-tail-risk.astro`) переведена на витрину по решению владельца (карточка owner-decision-sait-na-treh-stranitsah-vse-esche-staray) — база пуста.",
+ "files": []
 }
