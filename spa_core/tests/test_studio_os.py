@@ -3,6 +3,13 @@ gate: a fresh worker given ONLY the Context Pack must be able to answer the 8 pr
 
 Hermetic: decision/handoff tests use tmp dirs and never touch canon.
 """
+# FROZEN-DATE-OK: injected-clock — каждая из шести литеральных отметок идёт
+# ВХОДОМ (`now_iso=`) в сам проверяемый вызов: `propose_decision`,
+# `accept_decision`, `reject_decision`, `write_handoff`. Обе стороны закреплены,
+# и от календаря эти тесты не зависят вовсе. Претензия не записка: её сверяет
+# AST-мера `spa_core/tests/_injected_clock.py` (ADR-479, цикл #477) — вердикт
+# `proven`, 6 якорей, 6 инъекций, ни одного несвязанного. Выход из класса
+# первым приёмом `.claude/rules/deployment.md`, а не глушение (инв. #16).
 import pytest
 
 from spa_core.studio_os import context, registry, research, search

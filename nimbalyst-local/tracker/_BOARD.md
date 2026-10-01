@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-01T03:22:37Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-01T05:44:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1ad4d58d4) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (5dc066b84) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1154** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1155** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -346,7 +346,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (616)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (617)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -859,6 +859,7 @@
 - Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
+- Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
