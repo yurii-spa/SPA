@@ -88,6 +88,22 @@ Implementation note: the stops (−8 %, −25 %) are code constants (`hy_cycle._
 
 RU headings: «Риски протокола — где лежат деньги» / «Риски стратегии — что книга с ними делает».
 
+### 9. How to publish the Balanced / Aggressive tracks after the cost-model fix (ADR-531 P0-1)
+The 39 existing daily rows of each book were computed by the defective model v1. From 2026-09-10 they
+carry phantom gas; from 08-24 to 09-09 they used literal rates. They are kept unchanged and classified
+DISTORTED. The first v2 row is written on the first UTC day after delivery, and the book's
+`economics_model_boundary` records it. `track_snapshot.json` already carries `post_fix` (v2-only)
+next to the unchanged `apy_pct`.
+
+Options:
+- **A (recommended):** publish Balanced/Aggressive from the v2 boundary as a new track version. Show
+  the v1 period as «distorted by a cost-model defect, kept for audit» without its number. Days count
+  from the boundary.
+- **B:** keep publishing the full history with a visible boundary marker and both numbers.
+- **C:** change nothing on the site now.
+
+Nothing is deleted or rewritten under any option.
+
 ## Also found and evidenced, NOT included (owner may add)
 - `/methodology` lines ~296-309 invert the tracks: they say «Balanced — paper tracked since June 22» and «Conservative / Aggressive — not yet started». The opposite is true.
 - `/risk-disclosure:63` still states a «target go-live date approximately July 21, 2026». `golive_label.js` has no owner-set date.
