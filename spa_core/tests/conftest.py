@@ -798,3 +798,20 @@ if ambient_session_guard is None:
     sys.modules["spa_ambient_session_guard"] = ambient_session_guard
 
 _no_ambient_session_identity = ambient_session_guard._no_ambient_session_identity
+
+
+@pytest.fixture(autouse=True)
+def _no_live_paper_feeds(monkeypatch):
+    """ADR-533: the paper mechanics' feeds answer "not injected" under test (shared module)."""
+    import importlib.util as _u
+    import sys as _s
+    mod = _s.modules.get("spa_paper_feed_guard")
+    if mod is None:
+        spec = _u.spec_from_file_location(
+            "spa_paper_feed_guard",
+            Path(__file__).resolve().parent / "paper_feed_guard.py")
+        mod = _u.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _s.modules["spa_paper_feed_guard"] = mod
+    mod.install(monkeypatch)
+    yield

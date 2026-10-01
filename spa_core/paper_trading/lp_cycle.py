@@ -135,6 +135,44 @@ def check_positions_delta_neutral(positions: list) -> bool:
         return False  # fail-closed
 
 
+def _loop_equity(loop: dict, val: dict) -> float:
+    """Loop equity for the book: measured value, else the LAST measured value (named, not invented)."""
+    if loop.get("status") != "open":
+        return 0.0
+    if val.get("measured"):
+        return float(val["equity"])
+    return float(((loop.get("last_valuation") or {}).get("equity")) or 0.0)
+
+
+def _record_observation(state: dict, now, mobs: dict, sup: dict, dec) -> None:
+    """ADR-533: one line per scheduled run (never fails the cycle)."""
+    try:
+        from spa_core.paper_trading import paper_observations as _po
+        from spa_core.paper_trading import strategy_mandates as _sm
+        exp = _sm.active_experiment(state) or {}
+        val = sup.get("valuation") or {}
+        _po.record(_LP_DATA_PATH.parent, "aggressive", now, {
+            "strategy_version": exp.get("strategy_version"),
+            "experiment_id": exp.get("experiment_id"),
+            "accounting_row": dec is not None,
+            "equity_usd": round(float(state.get("equity") or 0.0), 2),
+            "floating_equity_usd": round(float(state.get("floating_equity") or 0.0), 2),
+            "loop_status": (state.get("loop") or {}).get("status"),
+            "loop_valuation": {k: val.get(k) for k in ("measured", "equity", "hf", "ltv", "reason")},
+            "supervision_action": sup.get("action"),
+            "data": {"morpho_ok": bool((mobs or {}).get("ok")), "missing": (mobs or {}).get("missing"),
+                     "borrow_apy_pct": (mobs or {}).get("borrow_apy_pct"),
+                     "utilization": (mobs or {}).get("utilization"),
+                     "oracle_price": (mobs or {}).get("collateral_price_in_loan"),
+                     "implied_usde": (mobs or {}).get("implied_underlying_price_in_loan")},
+            "decision": (dec or {}).get("decision", "no accounting this run"),
+            "decision_reason": (dec or {}).get("reason"),
+        })
+    except Exception as exc:  # noqa: BLE001 — evidence layer; named in the log, never breaks the cycle
+        import logging as _logging
+        _logging.getLogger("spa.lp_cycle").warning("observation not recorded (%s)", exc)
+
+
 def run_lp_cycle(dry_run: bool = True) -> dict:
     """
     Один цикл Engine C LP/Liquidity paper trading.
@@ -205,6 +243,27 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         state["note"] = (f"Aggressive (Engine C) — clean start seeded "
                          f"${LP_SEED_EQUITY:,.0f} virtual (owner mandate 2026-08 «Гоу B»).")
 
+    # ── ADR-533: SIMULATED loop — supervised on EVERY run, before anything can skip the cycle ──
+    # De-risk only (deleverage / unwind / simulated liquidation). The book's equity is the floating
+    # part plus the loop's equity valued at the market's own oracle price and debt share price.
+    from datetime import timezone as _tz
+    from spa_core.paper_trading import loop_book as _lb, morpho_market as _mm
+    _now_aware = now.replace(tzinfo=_tz.utc)
+    try:
+        _mobs = _mm.observe(now=_now_aware)
+    except Exception as _m_exc:  # noqa: BLE001 — feed failure is a named outcome, never a price
+        _mobs = {"ok": False, "missing": [f"Morpho feed failed: {type(_m_exc).__name__}"]}
+    _loop = state.setdefault("loop", {"status": "flat"})
+    _floating = float(state.get("floating_equity", state.get("equity", 0.0)) or 0.0)
+    _sup = _lb.supervise(_loop, _mobs, _now_aware)
+    _floating += float(_sup.get("cash_out_usd") or 0.0)
+    # cash an intraday unwind / liquidation returned to the floating part since the last accounting
+    # row — recorded in the NEXT row's archive so the day-to-day continuity check can see it
+    state["pending_floating_cash_usd"] = round(float(state.get("pending_floating_cash_usd") or 0.0)
+                                               + float(_sup.get("cash_out_usd") or 0.0), 6)
+    state["floating_equity"] = _floating
+    state["equity"] = _floating + _loop_equity(_loop, _sup["valuation"])
+
     # ── delta-neutral check ──────────────────────────────────────────────────
     positions = state.get("positions", [])
     if not check_positions_delta_neutral(positions):
@@ -212,6 +271,7 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         state["cycles_completed"] = state.get("cycles_completed", 0) + 1
         if not dry_run:
             save_lp_state(state)
+            _record_observation(state, _now_aware, _mobs, _sup, None)
         return {
             "sleeve": "C",
             "cycle_skipped": True,
@@ -233,12 +293,20 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     il_dd = compute_il_drawdown(equity, peak)
 
     if il_dd < IL_KILL_THRESHOLD:
+        # ADR-533: the book stops — an open loop is unwound first, at stress slippage.
+        if _loop.get("status") == "open" and _mobs.get("ok"):
+            _e = _lb.unwind(_loop, _mobs, _now_aware, stress=True, reason="book kill switch")
+            state["floating_equity"] = float(state["floating_equity"]) + float(_e["cash_out_usd"])
+            state["pending_floating_cash_usd"] = round(float(state.get("pending_floating_cash_usd") or 0.0)
+                                                       + float(_e["cash_out_usd"]), 6)
+            state["equity"] = equity = state["floating_equity"]
         state["peak_equity"] = peak
         state["il_drawdown_pct"] = il_dd
         state["last_cycle_at"] = now.isoformat() + "Z"
         state["LLM_FORBIDDEN"] = True
         if not dry_run:
             save_lp_state(state)
+            _record_observation(state, _now_aware, _mobs, _sup, None)
         return {
             "sleeve": "C",
             "kill_switch": True,
@@ -272,8 +340,27 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         for _leg in (positions):
             if isinstance(_leg, dict):
                 _leg.pop("mark_price", None)
+    _loop_dec = None
     if today not in existing_dates:
         from spa_core.investment_os.directive import cio_allows_new_positions
+        from spa_core.paper_trading import strategy_mandates as _sm
+        _sm.ensure_experiment(
+            state, "aggressive", start_date=today, run_ts=now.isoformat() + "Z", initial_equity=equity,
+            initial_note=("equity carried from the closed legacy-lending experiment: the concentrated "
+                          "lending legs are kept, the simulated loop starts flat"))
+        _loop_open_value = _loop_equity(_loop, _sup["valuation"])
+        _rows_hint = sleeve_book.load_ranking_rows()
+        _hint = next((float(r["apy_pct"]) for r in _rows_hint if r.get("protocol") == "susde"
+                      and r.get("apy_source") == "live" and isinstance(r.get("apy_pct"), (int, float))), None)
+        _loop_dec = _lb.daily_decide(_loop, _mobs, budget_usd=_lb.LOOP_SHARE * equity,
+                                     yield_hint_pct=_hint, allow_new=cio_allows_new_positions(),
+                                     now=_now_aware)
+        state["floating_equity"] = (float(state["floating_equity"]) - float(_loop_dec["cash_in_usd"])
+                                    + float(_loop_dec["cash_out_usd"]))
+        _loop_val = _lb.valuation(_loop, _mobs, _now_aware)
+        state["loop_stress"] = (_lb.stress(_loop, _mobs, _now_aware, yield_pct=_loop_dec["yield_pct"])
+                                if _mobs.get("ok") and _loop_dec.get("yield_pct") is not None else None)
+        equity = float(state["floating_equity"])          # плавающая часть
         rows = sleeve_book.load_ranking_rows()
         # ADR-292: абсолютный порог 6 % снят — против НАБЛЮДЁННЫХ ставок он
         # опустошал книгу целиком (см. sleeve_book.book_candidates).
@@ -326,6 +413,9 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         # «не измерено» нельзя было прочитать как «не двигалось».
         _mtm = sleeve_book.mark_to_market(book, _prices, revalue_notional=True)
         equity += _mtm["pnl_usd"]
+        _floating_close = equity
+        state["floating_equity"] = _floating_close
+        equity = _floating_close + _loop_equity(_loop, _loop_val)   # ADR-533: книга = плавающая + петля
         if equity > peak:
             peak = equity
         il_dd = compute_il_drawdown(equity, peak)
@@ -338,6 +428,7 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         state.setdefault("economics_model_boundary", sleeve_book.model_boundary(
             state.get("daily_history") or [], first_v2_date=today,
             activated_at=now.isoformat() + "Z"))
+        _intraday_cash = float(state.get("pending_floating_cash_usd") or 0.0)
         state.setdefault("daily_history", []).append({
             "date": today,
             "equity": round(equity, 2),
@@ -360,6 +451,18 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "economics_model": sleeve_book.ECONOMICS_MODEL,
             "cost_dust_usd": round(_dust, 2),
             "delta_neutral_ok": True,
+            # ADR-533: версия СТРАТЕГИИ — отдельно от версии учёта (economics_model)
+            "strategy_version": _sm.mandate("aggressive")["strategy_version"],
+            "experiment_id": (_sm.active_experiment(state) or {}).get("experiment_id"),
+            "floating_equity_usd": round(_floating_close, 2),
+            "loop_status": _loop.get("status"),
+            "loop_equity_usd": round(_loop_equity(_loop, _loop_val), 2),
+            "loop_hf": _loop_val.get("hf"),
+            "loop_ltv": _loop_val.get("ltv"),
+            "loop_measured": _loop_val.get("measured"),
+            "loop_decision": _loop_dec["decision"],
+            "loop_reason": _loop_dec["reason"],
+            "loop_economics": _loop_dec.get("economics"),
         })
         # ADR-292 п.4: архив входов дня. Fail-open — доказательная обвязка не имеет права
         # уронить цикл, который несёт трек; отказ при этом НЕ молчит (лог с причиной).
@@ -369,15 +472,25 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
                 _LP_DATA_PATH.parent, "aggressive",
                 _sia.build_record(
                     book="aggressive", cycle_date=today, run_ts=now.isoformat() + "Z",
-                    open_equity=_open_equity, close_equity=equity,
+                    open_equity=_open_equity, close_equity=_floating_close,
                     book_before=_legs_before, book_after=_book_after_snapshot,
                     candidates=cands, chains=sleeve_book.chains_from_rows(rows),
                     prices=_prices, marks_before=_marks_before,
                     daily_yield_usd=dy, cost_usd=_cost["cost_usd"],
                     mtm_pnl_usd=_mtm["pnl_usd"],
                     accrual_basis=sleeve_book.ACCRUAL_BASIS, allow_new=allow_new,
-                    economics_model=sleeve_book.ECONOMICS_MODEL, cost_dust_usd=_dust),
+                    economics_model=sleeve_book.ECONOMICS_MODEL, cost_dust_usd=_dust,
+                    sub_book={"kind": "loop", "value_open": round(_loop_open_value, 6),
+                              "value_close": round(_loop_equity(_loop, _loop_val), 6),
+                              "cash_in_usd": _loop_dec["cash_in_usd"],
+                              "cash_out_usd": _loop_dec["cash_out_usd"],
+                              "intraday_cash_in_usd": float(state.get("pending_floating_cash_usd") or 0.0),
+                              "state_after": {k: _loop.get(k) for k in ("status", "collateral_units",
+                                                                         "debt_shares")},
+                              "valuation_inputs": {k: _loop_val.get(k) for k in ("price", "debt_per_share")},
+                              "decision": _loop_dec, "observation": _mobs}),
                 now.isoformat() + "Z")
+            state["pending_floating_cash_usd"] = 0.0
         except Exception as _arch_exc:  # noqa: BLE001
             import logging as _logging
             _logging.getLogger("spa.aggressive").warning(
@@ -442,8 +555,18 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     state["cycles_completed"] = state.get("cycles_completed", 0) + 1
     state["LLM_FORBIDDEN"] = True
 
+    if today in existing_dates:
+        # не дневной прогон: книга = последняя дневная плавающая часть + петля, оценённая СЕЙЧАС
+        equity = float(state["equity"])
+        if equity > peak:
+            peak = equity
+        il_dd = compute_il_drawdown(equity, peak)
+        state["peak_equity"] = peak
+        state["il_drawdown_pct"] = il_dd
+
     if not dry_run:
         save_lp_state(state)
+        _record_observation(state, _now_aware, _mobs, _sup, _loop_dec)
 
     # ── ADR-201: тень слива 50/30/20 (advisory, fail-open) ──────────────────
     # Прецедент — shadow-блок ADR-060 в cycle_runner: отчётная тень не имеет

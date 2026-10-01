@@ -42,10 +42,19 @@ _KIND = {
 }
 
 
+#: ADR-533 sub-book positions: not adapters, so their exit is declared here with its reason.
+#: PT: sold on the Pendle AMM before expiry (or held to par) — 24 h as the Pendle adapters declare;
+#: loop: an unwind is a chain of swaps (sUSDe→USDe→PYUSD) and a repay — 24 h, the 7-day sUSDe
+#: cooldown route is NOT assumed; the swap slippage is in loop_book's cost model.
+SUB_BOOK_LATENCY_HOURS = {"pendle_pt_susds": 24.0, "morpho_susde_pyusd_loop": 24.0}
+
+
 def latency_hours(key: object) -> Optional[float]:
     """Declared exit latency of a registry key, from its adapter class. ``None`` = undeclared."""
     from spa_core.adapters import ADAPTER_REGISTRY
     k = str(key or "").strip().lower()
+    if k in SUB_BOOK_LATENCY_HOURS:
+        return SUB_BOOK_LATENCY_HOURS[k]
     for entry in ADAPTER_REGISTRY:
         if entry[0] == k:
             v = getattr(entry[2], "EXIT_LATENCY_HOURS", None)

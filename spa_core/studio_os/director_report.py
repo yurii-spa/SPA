@@ -347,6 +347,14 @@ def collect(inp: Inputs) -> dict:
                                         if isinstance(trs.get("stages"), dict) else None),
                           "age_h": age_h}
 
+    # DEFI PAPER PORTFOLIOS (read-only; ONE read model shared with the site — ADR-533)
+    try:
+        from spa_core.defi_engine.package_status import build_all as _pkg_build
+        rep["defi"] = _pkg_build(repo / "data", now)["packages"]
+    except Exception as exc:  # noqa: BLE001 — a broken read model is a named gap, not a crash
+        rep["defi"] = None
+        rep["defi_error"] = f"{type(exc).__name__}: {exc}"
+
     # ALERTS — only exceptions
     alerts: List[str] = []
     t = rep["trading"]
@@ -355,6 +363,12 @@ def collect(inp: Inputs) -> dict:
                       + (f" ({t['error']})" if t.get("error") else ""))
     elif t is not None and t["evidence_verified"] is False:
         alerts.append("🔴 торговое исследование: цепочка доказательств нарушена")
+    if rep.get("defi") is None:
+        alerts.append("❔ DeFi-портфели: " + NOT_MEASURED)
+    else:
+        for _name, _p in rep["defi"].items():
+            if (_p.get("work") or {}).get("state") == "FAILED":
+                alerts.append(f"🔴 DeFi {_name}: {(_p.get('work') or {}).get('reason')}")
     if kill is True:
         alerts.append("🛑 стоп-кран взведён")
     elif kill is None:
@@ -464,6 +478,8 @@ def render_summary(rep: dict) -> str:
     if rep.get("claude_sessions") is not None:
         inw += f" · работников сейчас {rep['claude_sessions']}"
     L.append(inw)
+    for line in render_defi(rep, short=True):
+        L.append(line)
     t = rep.get("trading")
     if t is not None:
         L.append(f"TRADING: {t['candidates']} кандидатов · forward-paper {t['forward_paper']} · "
@@ -544,10 +560,43 @@ def render_product(rep: dict) -> str:
         L.append(f"Проверки готовности: {p['golive_passed']}/{p['golive_total']} · {p.get('golive_state')}")
     ks = p.get("kill_switch_active")
     L.append("Стоп-кран: " + ("ВЗВЕДЁН" if ks is True else "не взведён" if ks is False else NOT_MEASURED))
-    L.append("Подробности портфеля и стратегий — в SPA-боте.")
+    L.append("")
+    L.extend(render_defi(rep))
     L.append("")
     L.extend(render_trading(rep))
     return "\n".join(L)
+
+
+_DEFI_WORD = {"RUNNING": "работает", "PAUSED": "пауза", "FAILED": "НЕ РАБОТАЕТ", "NOT_STARTED": "не запущен",
+              "HEALTHY": "данные в норме", "WAITING_FOR_DATA": "ждёт данных", "DEGRADED": "данные неполные",
+              "HOLD": "удержание", "WARMUP": "разогрев", "ACCUMULATING": "накапливает", "REPORTABLE": "отчётна"}
+
+
+def render_defi(rep: dict, short: bool = False) -> List[str]:
+    """Three paper portfolios — one line each; the mechanic version and why it holds (ADR-533)."""
+    d = rep.get("defi")
+    if d is None:
+        return ["DEFI (3 бумажных портфеля): " + NOT_MEASURED]
+    L = ["DEFI — 3 бумажных портфеля, реального капитала нет"]
+    for name in ("conservative", "balanced", "aggressive"):
+        p = d.get(name)
+        if not isinstance(p, dict):
+            L.append(f"• {name}: {NOT_MEASURED}")
+            continue
+        w, da, h = p.get("work"), p.get("data"), p.get("history")
+        if not (isinstance(w, dict) and isinstance(da, dict) and isinstance(h, dict)):
+            L.append(f"• {name}: {NOT_MEASURED} (статус неполный)")
+            continue
+        line = (f"• {name}: {_DEFI_WORD.get(w.get('state'), w.get('state'))} · "
+                f"{_DEFI_WORD.get(da.get('state'), da.get('state'))} · "
+                f"{_DEFI_WORD.get(h.get('state'), h.get('state'))} {h.get('valid_periods')} дн · "
+                f"{p.get('running_version')}")
+        if p.get("new_version_pending"):
+            line += f" → {p['new_version_pending']['strategy_version']} (ждёт первой строки)"
+        L.append(line)
+        if not short and da.get("reason"):
+            L.append(f"   причина: {_clip(str(da['reason']), 120)}")
+    return L
 
 
 def _usd_or_nm(v) -> str:

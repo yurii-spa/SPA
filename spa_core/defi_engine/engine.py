@@ -31,6 +31,7 @@ from typing import Optional
 
 from spa_core.defi_engine import SCHEMA_VERSION, PASSPORT_SCHEMA_VERSION
 from spa_core.defi_engine import apy_contract, books as B, coverage, exit_model, loss_budget, mechanics, tiers
+from spa_core.defi_engine import package_status
 from spa_core.defi_engine.passport import EVIDENCE_LEVEL, build_passport
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -152,6 +153,8 @@ def build(data_dir: "Path | str | None" = None, now: Optional[datetime] = None) 
         "mechanics": {"vocabulary": sorted(mechanics.MECHANICS), "parameter_status": mechanics.PARAMETER_STATUS},
         "n_passports": len(passports),
         "findings": findings,
+        # ADR-533: the ONE read model of the three paper portfolios (site + Director read this)
+        "packages": package_status.build_all(ddir, now)["packages"],
     }
     passport_doc = {"schema": PASSPORT_SCHEMA_VERSION, "generated_at": generated, "run_id": run_id,
                     "derived_from": "data/defi_engine/status.json inputs (rebuilt every run; never an input)",

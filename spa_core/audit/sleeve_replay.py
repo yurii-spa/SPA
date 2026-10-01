@@ -49,6 +49,23 @@ def _history(data_dir: Path, book: str) -> dict[str, dict]:
     return out
 
 
+def sub_book_value(sub: dict) -> "float | None":
+    """Close value of a mechanic sub-book from its recorded legs/inputs (ADR-533)."""
+    kind = sub.get("kind")
+    if kind == "pt_carry":
+        return round(sum(float(l["units"]) * float(l["mark"]) for l in sub.get("legs_after") or []), 6)
+    if kind == "loop":
+        st = sub.get("state_after") or {}
+        if st.get("status") != "open":
+            return 0.0
+        vi = sub.get("valuation_inputs") or {}
+        if vi.get("price") is None or vi.get("debt_per_share") is None:
+            return None
+        return round(float(st["collateral_units"]) * float(vi["price"])
+                     - float(st["debt_shares"]) * float(vi["debt_per_share"]), 6)
+    return None
+
+
 def replay(data_dir: str | os.PathLike, book: str,
            tolerance_usd: float = TOLERANCE_USD) -> dict[str, Any]:
     d = Path(data_dir)
@@ -123,6 +140,16 @@ def replay(data_dir: str | os.PathLike, book: str,
 
         want_open = float(pl.get("open_equity") or 0.0)
         got_close = want_open + dy - cost + mtm
+        # ADR-533: a day with a mechanic sub-book closes at floating part + sub-book. The sub-book's
+        # close value is RE-DERIVED from its recorded legs / inputs, not copied from the record.
+        sub = pl.get("sub_book")
+        if isinstance(sub, dict):
+            sub_val = sub_book_value(sub)
+            if sub_val is None or abs(sub_val - float(sub.get("value_close") or 0.0)) > tolerance_usd:
+                diffs.append({"date": dt, "reason": "sub-book close value does not re-derive",
+                              "recorded": sub.get("value_close"), "rederived": sub_val})
+                continue
+            got_close += sub_val
         stored_close = float(bar.get("equity") if bar.get("equity") is not None
                              else pl.get("close_equity") or 0.0)
         delta = abs(got_close - stored_close)
@@ -132,6 +159,33 @@ def replay(data_dir: str | os.PathLike, book: str,
                           "stored": round(stored_close, 6), "delta_usd": round(delta, 6),
                           "legs": {"yield": round(dy, 6), "cost": round(cost, 6),
                                    "mtm": round(mtm, 6)}})
+
+    # ADR-533: day-to-day CONTINUITY of the floating part. A day's opening floating equity must be the
+    # previous day's closing floating equity moved only by the cash the mechanic sub-book took or gave
+    # (PT bought / redeemed / sold; loop cash in / out, intraday unwind cash). Without this the replay
+    # starts each day from the recorded opening and cannot see a flow applied twice or not at all.
+    for prev_dt, cur_dt in zip(sorted(by_date), sorted(by_date)[1:]):
+        prev, cur = by_date[prev_dt], by_date[cur_dt]
+        sub = cur.get("sub_book")
+        if not isinstance(sub, dict):
+            continue
+        if sub.get("kind") == "pt_carry":
+            flow = (-float(sub.get("bought_usd") or 0.0) + float(sub.get("redeemed_usd") or 0.0)
+                    + float(sub.get("sold_usd") or 0.0))
+        elif sub.get("kind") == "loop":
+            flow = (-float(sub.get("cash_in_usd") or 0.0) + float(sub.get("cash_out_usd") or 0.0)
+                    + float(sub.get("intraday_cash_in_usd") or 0.0))
+        else:
+            continue
+        prev_float = float(prev.get("close_equity") or 0.0)
+        # the previous day closed WITH a sub-book: its total is floating + sub value; its archived
+        # close_equity is the floating part (ADR-533) — a legacy day (no sub-book) closed floating = total
+        want = prev_float + flow
+        got = float(cur.get("open_equity") or 0.0)
+        if abs(want - got) > tolerance_usd:
+            diffs.append({"date": cur_dt, "reason": "floating part does not continue from the previous day",
+                          "expected_open": round(want, 6), "recorded_open": round(got, 6),
+                          "flow_usd": round(flow, 6)})
 
     return {
         "status": "FAIL" if diffs else "PASS",

@@ -312,3 +312,20 @@ def pytest_sessionstart(session):                # noqa: D401 — хук pytest
 def pytest_sessionfinish(session, exitstatus):   # noqa: D401 — хук pytest
     """Отчёт сторожа живого `data/` — и красный прогон, если состояние поехало."""
     live_data_write_guard.session_finish(session)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_paper_feeds(monkeypatch):
+    """ADR-533: the paper mechanics' feeds answer "not injected" under test (shared module)."""
+    import importlib.util as _u
+    import sys as _s
+    mod = _s.modules.get("spa_paper_feed_guard")
+    if mod is None:
+        spec = _u.spec_from_file_location(
+            "spa_paper_feed_guard",
+            Path(__file__).resolve().parents[1] / "spa_core" / "tests" / "paper_feed_guard.py")
+        mod = _u.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _s.modules["spa_paper_feed_guard"] = mod
+    mod.install(monkeypatch)
+    yield

@@ -1415,12 +1415,17 @@
     {
      "artifact": "data/defi_engine/passports.json",
      "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/paper_observations/balanced.jsonl",
+     "slo_hours": 3.0
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
-    "ADR-532"
+    "ADR-532",
+    "ADR-533"
    ],
    "curation": "partial",
    "notes": "",
@@ -1898,12 +1903,17 @@
     {
      "artifact": "data/defi_engine/passports.json",
      "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/paper_observations/aggressive.jsonl",
+     "slo_hours": 3.0
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
-    "ADR-532"
+    "ADR-532",
+    "ADR-533"
    ],
    "curation": "partial",
    "notes": "",

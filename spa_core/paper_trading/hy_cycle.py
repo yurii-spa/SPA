@@ -252,6 +252,8 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         state["LLM_FORBIDDEN"] = True
         if not dry_run:
             save_hy_state(state)
+            from datetime import timezone as _tz0
+            _record_observation(state, now.replace(tzinfo=_tz0.utc), None, None)
         return {
             "sleeve": "B",
             "kill_switch": True,
@@ -285,7 +287,33 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         for _leg in (state.get("positions") or []):
             if isinstance(_leg, dict):
                 _leg.pop("mark_price", None)
+    # ADR-533: мандат balanced-fixed-carry-v1 — часть книги держит Pendle PT до погашения.
+    from datetime import timezone as _tz
+    from spa_core.paper_trading import pendle_market as _pm, pt_carry as _pt
+    _now_aware = now.replace(tzinfo=_tz.utc)
+    try:
+        _pobs = _pm.observe(now=_now_aware)
+    except Exception as _p_exc:  # noqa: BLE001 — feed failure is a named outcome, never a price
+        _pobs = {"ok": False, "reason": f"Pendle feed failed: {type(_p_exc).__name__}", "markets": []}
+    _carry = None
     if today not in existing_dates:
+        from spa_core.paper_trading import strategy_mandates as _sm
+        _sm.ensure_experiment(
+            state, "balanced", start_date=today, run_ts=now.isoformat() + "Z", initial_equity=equity,
+            initial_note=("equity carried from the closed legacy-lending experiment: the floating legs are "
+                          "kept, the fixed-rate (PT) part starts empty"))
+        # Фиксированная часть решается ПЕРВОЙ: её покупки берут кэш у плавающей части, погашения
+        # возвращают его. Плавающие ноги затем пересобираются на ОСТАТОК, а не на весь капитал.
+        _carry_open = _pt.value(state.get("fixed_carry") or {})
+        # Бенчмарк плавающей ставки — то, что заработала бы ПЛАВАЮЩАЯ часть: средняя живая ставка
+        # кандидатов, которых она взяла бы (топ MAX_POSITIONS), а не текущие ноги (у свежей книги их нет).
+        _top = sleeve_book.book_candidates(sleeve_book.load_ranking_rows())[:sleeve_book.MAX_POSITIONS]
+        _bench = (sum(float(c["apy_pct"]) for c in _top) / len(_top)) if _top else None
+        _carry = _pt.daily_step(state.get("fixed_carry"), _pobs, equity_total=equity,
+                                benchmark_apy_pct=_bench, allow_new=allow_new, now=_now_aware)
+        state["fixed_carry"] = _carry["sub"]
+        equity = (equity - _carry_open - _carry["bought_usd"] + _carry["redeemed_usd"]
+                  + _carry["sold_usd"])           # плавающая часть
         rows = sleeve_book.load_ranking_rows()
         # ADR-292: абсолютный порог 6 % снят — против НАБЛЮДЁННЫХ ставок он
         # опустошал книгу целиком (см. sleeve_book.book_candidates).
@@ -334,6 +362,8 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         # «не измерено» нельзя было прочитать как «не двигалось».
         _mtm = sleeve_book.mark_to_market(book, _prices, revalue_notional=True)
         equity += _mtm["pnl_usd"]
+        _floating_close = equity
+        equity = _floating_close + _carry["value_after"]      # ADR-533: книга = плавающая + PT
         if equity > peak:
             peak = equity
         drawdown = compute_drawdown(equity, peak)
@@ -371,6 +401,16 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
             "accrual_basis": sleeve_book.ACCRUAL_BASIS,
             "economics_model": sleeve_book.ECONOMICS_MODEL,
             "cost_dust_usd": round(_dust, 2),
+            # ADR-533: версия СТРАТЕГИИ — отдельно от версии учёта (economics_model)
+            "strategy_version": _sm.mandate("balanced")["strategy_version"],
+            "experiment_id": (_sm.active_experiment(state) or {}).get("experiment_id"),
+            "floating_equity_usd": round(_floating_close, 2),
+            "fixed_carry_value_usd": round(_carry["value_after"], 2),
+            "fixed_carry_mark_pnl_usd": round(_carry["mark_pnl_usd"], 4),
+            "fixed_carry_trade_cost_usd": round(_carry["cost_usd"], 4),
+            "fixed_carry_decision": _carry["decision"],
+            "fixed_carry_reasons": _carry["reasons"][:6],
+            "fixed_carry_degraded": _carry["degraded"],
         })
         # ADR-292 п.4: архив входов дня. Fail-open — доказательная обвязка не имеет права
         # уронить цикл, который несёт трек; отказ при этом НЕ молчит (лог с причиной).
@@ -380,14 +420,19 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
                 _HY_DATA_PATH.parent, "balanced",
                 _sia.build_record(
                     book="balanced", cycle_date=today, run_ts=now.isoformat() + "Z",
-                    open_equity=_open_equity, close_equity=equity,
+                    open_equity=_open_equity, close_equity=_floating_close,
                     book_before=_legs_before, book_after=_book_after_snapshot,
                     candidates=cands, chains=sleeve_book.chains_from_rows(rows),
                     prices=_prices, marks_before=_marks_before,
                     daily_yield_usd=dy, cost_usd=_cost["cost_usd"],
                     mtm_pnl_usd=_mtm["pnl_usd"],
                     accrual_basis=sleeve_book.ACCRUAL_BASIS, allow_new=allow_new,
-                    economics_model=sleeve_book.ECONOMICS_MODEL, cost_dust_usd=_dust),
+                    economics_model=sleeve_book.ECONOMICS_MODEL, cost_dust_usd=_dust,
+                    sub_book={"kind": "pt_carry", "value_open": round(_carry_open, 6),
+                              "value_close": round(_carry["value_after"], 6),
+                              "bought_usd": _carry["bought_usd"], "redeemed_usd": _carry["redeemed_usd"],
+                              "sold_usd": _carry["sold_usd"], "legs_after": _carry["sub"]["legs"],
+                              "events": _carry["events"], "observation": _pobs}),
                 now.isoformat() + "Z")
         except Exception as _arch_exc:  # noqa: BLE001
             import logging as _logging
@@ -460,6 +505,7 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
 
     if not dry_run:
         save_hy_state(state)
+        _record_observation(state, _now_aware, _pobs, _carry)
 
     return {
         "sleeve": "B",
@@ -472,6 +518,32 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         "dry_run": dry_run,
         "LLM_FORBIDDEN": True,
     }
+
+
+def _record_observation(state: dict, now, pobs: dict, carry) -> None:
+    """ADR-533: one line per scheduled run — what it saw and decided (never fails the cycle)."""
+    try:
+        from spa_core.paper_trading import paper_observations as _po, pt_carry as _pt
+        from spa_core.paper_trading import strategy_mandates as _sm
+        exp = _sm.active_experiment(state) or {}
+        markets = (pobs or {}).get("markets") or []
+        _po.record(_HY_DATA_PATH.parent, "balanced", now, {
+            "strategy_version": exp.get("strategy_version"),
+            "experiment_id": exp.get("experiment_id"),
+            "accounting_row": carry is not None,
+            "equity_usd": round(float(state.get("equity") or 0.0), 2),
+            "fixed_carry_value_usd": round(_pt.value(state.get("fixed_carry") or {}), 2),
+            "fixed_carry_legs": len((state.get("fixed_carry") or {}).get("legs") or []),
+            "data": {"pendle_ok": bool((pobs or {}).get("ok")),
+                     "pendle_reason": (pobs or {}).get("reason"),
+                     "markets": [{k: m.get(k) for k in ("market", "implied_apy_pct", "pt_price_usd",
+                                                         "mark_ok", "days_to_expiry", "liquidity_usd")}
+                                 for m in markets]},
+            "decision": (carry or {}).get("decision", "no accounting this run"),
+        })
+    except Exception as exc:  # noqa: BLE001 — evidence layer; named in the log, never breaks the cycle
+        import logging as _logging
+        _logging.getLogger("spa.hy_cycle").warning("observation not recorded (%s)", exc)
 
 
 def get_hy_summary() -> dict:

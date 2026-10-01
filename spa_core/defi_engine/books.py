@@ -161,6 +161,24 @@ def _sleeve(ddir: Path, book: str) -> dict:
                           "apy_source": "book's observed rate (sleeve state)",
                           "apy_live": (not bool(p.get("stale"))) if "stale" in p else None,
                           "stamped_delta_neutral": p.get("is_delta_neutral")})
+    # ADR-533: the mechanic sub-books are positions of the book too
+    legs = (st.get("fixed_carry") or {}).get("legs") or []
+    if legs:
+        positions.append({"protocol": "pendle_pt_susds",
+                          "notional_usd": round(sum(float(l["units"]) * float(l["mark"]) for l in legs), 2),
+                          "apy_pct": None, "apy_source": "fixed rate locked at purchase (PT price)",
+                          "apy_live": all(bool(l.get("mark_ok")) for l in legs),
+                          "kind": "pt_fixed", "legs": len(legs)})
+    loop = st.get("loop") or {}
+    if loop.get("status") == "open":
+        lv = loop.get("last_valuation") or {}
+        positions.append({"protocol": "morpho_susde_pyusd_loop",
+                          "notional_usd": round(float(lv.get("equity") or 0.0), 2),
+                          "apy_pct": None, "apy_source": "simulated loop: collateral share price − debt growth",
+                          # live only if the LATEST run measured the loop (not the stale fallback)
+                          "apy_live": int(loop.get("unmeasured_runs") or 0) == 0 and lv.get("at") is not None,
+                          "kind": "loop",
+                          "debt_usd": lv.get("debt_value"), "hf": lv.get("hf")})
     hist = [h for h in (st.get("daily_history") or []) if isinstance(h, dict)]
     v2 = [h for h in hist if h.get("economics_model") == ECONOMICS_MODEL]
     series = [{"date": h.get("date"), "equity": _num(h.get("equity")),

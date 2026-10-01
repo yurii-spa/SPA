@@ -86,8 +86,9 @@ def build_record(
     allow_new: Optional[bool] = None,
     economics_model: Optional[str] = None,
     cost_dust_usd: Optional[float] = None,
+    sub_book: Optional[dict] = None,
 ) -> dict:
-    return {
+    rec = {
         "schema_version": SCHEMA_VERSION,
         "book": book,
         "cycle_date": cycle_date,
@@ -111,6 +112,12 @@ def build_record(
         "economics_model": economics_model,
         "cost_dust_usd": None if cost_dust_usd is None else round(float(cost_dust_usd), 6),
     }
+    # ADR-533: the mechanic's own part (PT legs / the loop) — its value at open and close, the cash
+    # it took from / gave to the floating part, and what is needed to RE-DERIVE its close value.
+    # ``open_equity`` / ``close_equity`` above stay the FLOATING part, as before.
+    if sub_book is not None:
+        rec["sub_book"] = sub_book
+    return rec
 
 
 def append_record(data_dir: str | os.PathLike, book: str, payload: dict, ts: str) -> dict:

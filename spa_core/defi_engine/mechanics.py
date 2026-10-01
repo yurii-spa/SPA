@@ -163,6 +163,9 @@ POSITION_MECHANIC: dict[str, tuple[str, str]] = {
     # stable-pair liquidity
     "aerodrome_base": ("lp_stable", "USDC"),
     "velodrome_optimism": ("lp_stable", "USDC"),
+    # ADR-533 mechanic sub-books (not registry keys — the sleeves' own positions)
+    "pendle_pt_susds": ("pt_fixed", "USDS"),            # Balanced fixed-rate part
+    "morpho_susde_pyusd_loop": ("loop", "USDE"),        # Aggressive SIMULATED loop (USDe ×L vs PYUSD)
 }
 
 
