@@ -119,6 +119,8 @@ _PROOF_SUBTREES = (
                           #     + paper/ = the CAPTURED BOOK series + its hash-anchored proof
     "tournament",        # (E) tournament ranking chain
     "rwa_backstop",      # (F) RWA-backstop NAV proof
+    "paper_observations",  # (G) ADR-533: one line per scheduled run of the paper portfolios — the
+                           #     evidence of the runs themselves (the books are top-level and covered)
 )
 
 
