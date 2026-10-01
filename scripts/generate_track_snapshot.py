@@ -185,7 +185,27 @@ def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
         # С какого дня начисление идёт по НАБЛЮДЁННЫМ ставкам (ADR-292/298).
         # `None` = не измерено; витрина обязана отличать это от «литералов не было».
         "observed_accrual_since": _observed_accrual_since(book) if book else None,
+        # ADR-531: граница экономических моделей книги. Строки v1 (до неё) искажены
+        # фантомным газом и НЕ сопоставимы со строками v2; `apy_pct` выше по-прежнему
+        # считается по всем честным барам — смена публикуемого числа есть решение
+        # владельца (предмет №2), поэтому здесь только РАЗДЕЛЕНИЕ, без подмены.
+        "economics_model_boundary": st.get("economics_model_boundary"),
+        "post_fix": _post_fix_track(honest),
     }
+
+
+def _post_fix_track(honest: list) -> dict:
+    """Те же честные бары, но только посчитанные моделью v2 (ADR-531). <2 баров ⇒ apy None."""
+    from spa_core.paper_trading.sleeve_book import ECONOMICS_MODEL
+    v2 = [h for h in honest if h.get("economics_model") == ECONOMICS_MODEL]
+    apy = None
+    if len(v2) >= 2:
+        a, b = float(v2[0].get("equity") or 0), float(v2[-1].get("equity") or 0)
+        if a > 0 and b > 0:
+            apy = round(((b / a) ** (365.0 / len(v2)) - 1.0) * 100.0, 2)
+    return {"model": ECONOMICS_MODEL, "days": len(v2),
+            "first_date": v2[0].get("date") if v2 else None, "apy_pct": apy,
+            "pre_fix_days": len(honest) - len(v2)}
 
 
 def _go_live_target(golive: dict):

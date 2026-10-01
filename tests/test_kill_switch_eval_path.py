@@ -249,9 +249,13 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
                     {"positions": {p: 10_000.0 for p in protocols}})
 
     def _critical_flag(self, protocol: str) -> None:
+        # ADR-531: the reactor acts only on a MEASURED document — the fixture carries the timestamp
+        # the real red_flag_monitor always writes. Detection/activation assertions are unchanged.
+        from datetime import datetime as _dt, timezone as _tz
         _write_json(self.data_dir / "red_flags.json", {
             "fallback_used": False,
             "sources": ["defillama"],
+            "generated_at": _dt.now(_tz.utc).isoformat(),
             "red_flags": [
                 {"protocol": protocol, "severity": "CRITICAL", "category": "depeg",
                  "source": "defillama"},

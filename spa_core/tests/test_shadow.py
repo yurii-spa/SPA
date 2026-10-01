@@ -13,6 +13,7 @@ import pytest
 
 from spa_core.shadow import STRATEGIES, compute_shadow_allocation, run_shadow_cycle
 from spa_core.shadow.shadow_tracker import INITIAL_CAPITAL, SHADOW_FILENAME
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 # Orchestrator-form adapters (protocol/apy_pct), as run_cycle passes them.
 ADAPTERS = [
@@ -168,6 +169,7 @@ class _FakeAllocator:
 def test_cycle_runner_writes_shadow_portfolio(tmp_path):
     from spa_core.paper_trading import cycle_runner as cr
 
+    write_measured_red_flags(tmp_path, NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     res = cr.run_cycle(
         data_dir=tmp_path,
         now=NOW,
@@ -194,6 +196,7 @@ def test_cycle_runner_survives_broken_shadow(tmp_path, monkeypatch):
         raise RuntimeError("shadow exploded")
 
     monkeypatch.setattr(st, "run_shadow_cycle", _boom)
+    write_measured_red_flags(tmp_path, NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     res = cr.run_cycle(
         data_dir=tmp_path,
         now=NOW,

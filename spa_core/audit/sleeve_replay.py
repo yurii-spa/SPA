@@ -100,9 +100,25 @@ def replay(data_dir: str | os.PathLike, book: str,
             else:
                 leg["mark_price"] = mp
 
-        dy, _deployed = sleeve_book.accrue_book(copy.deepcopy(after), cands)
+        # ADR-531: день пересчитывается ТОЙ моделью, что его писала. Нет поля ⇒ v1
+        # (записи до 2026-10-01) — без полосы пыли, как они и были посчитаны.
+        model = pl.get("economics_model") or sleeve_book.ECONOMICS_MODEL_V1
+        if model == sleeve_book.ECONOMICS_MODEL_V1:
+            dust = 0.0
+        elif model == sleeve_book.ECONOMICS_MODEL and pl.get("cost_dust_usd") is not None:
+            dust = float(pl["cost_dust_usd"])
+        else:
+            diffs.append({"date": dt, "reason": f"модель {model!r} без полосы пыли или незнакома — "
+                                                "день не пересчитать"})
+            continue
         cost = sleeve_book.book_move_cost(pl.get("book_before"), pl.get("book_after"),
-                                          pl.get("chains") or {})["cost_usd"]
+                                          pl.get("chains") or {}, dust_usd=dust)["cost_usd"]
+        if model == sleeve_book.ECONOMICS_MODEL:
+            # v2: процент сначала растёт ВНУТРИ позиции, затем переоценка — тот же порядок, что
+            # у цикла (иначе движение цены считалось бы без сегодняшнего процента).
+            dy, _deployed = sleeve_book.accrue_book(after, cands, compound_in_place=True)
+        else:
+            dy, _deployed = sleeve_book.accrue_book(copy.deepcopy(after), cands)
         mtm = sleeve_book.mark_to_market(after, pl.get("prices") or {})["pnl_usd"]
 
         want_open = float(pl.get("open_equity") or 0.0)

@@ -3,7 +3,7 @@
 > **This file is THE roadmap.** Every other `docs/*ROADMAP*.md` is historical and marked SUPERSEDED in
 > `architecture/memory_truth.json` (ADR-527). Changing the order or adding a top-level item needs the
 > owner's directive and a line in `docs/decisions/` — the roadmap is not edited from chat.
-> Last confirmed by the owner: **2026-10-01** (directive «DEFI ARCHITECTURE GAP AUDIT»).
+> Last confirmed by the owner: **2026-10-01** (directive «DEFI ENGINE vNEXT — PHASE 0»).
 
 ## Closed epics (accepted by the owner)
 
@@ -20,7 +20,7 @@
 
 1. ~~Memory & Context Architecture v1~~ — done (ADR-527).
 2. ~~DeFi Architecture Gap Audit~~ — done (ADR-530).
-3. **DeFi Engine vNext** — next; not started. Input: `docs/DEFI_ARCHITECTURE_GAP_AUDIT.md` §J (P0 first) and §K.
+3. **DeFi Engine vNext** — Phase 0 (P0 safety & data-integrity repair) done, ADR-531; **Phase 1 Foundation** next, not started (protocol- vs strategy-risk model, one APY contract, one tier authority, position passport, exit/liquidity model, loss budgets, monitoring coverage). Input: `docs/DEFI_ARCHITECTURE_GAP_AUDIT.md` §J/§K.
 4. **Build Loop / remaining workflow gaps**
 5. **Owner Remote / Mission Control evolution**
 6. **Capital Allocator / Portfolio CIO** (cross-engine allocation; see `docs/CAPITAL_ARCHITECTURE.md`)

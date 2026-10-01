@@ -73,9 +73,13 @@ class _FakeAllocator:
 
 
 def _run(tmp_path, target_usd, *, adapters=None, now=None, write=True):
+    # ADR-531: a sandbox without a measured red_flags input would HOLD (LAW 1) — give it one.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    now = now or datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    write_measured_red_flags(tmp_path, now)
     return cr.run_cycle(
         data_dir=tmp_path,
-        now=now or datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
+        now=now,
         orchestrator_fn=_orch_fn(adapters if adapters is not None else DEFAULT_ADAPTERS),
         allocator=_FakeAllocator(target_usd),
         # MP-012: no-op risk scorer keeps these tests network-free.

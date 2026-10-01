@@ -216,9 +216,11 @@ class PaperTradingKickoff:
             )
         triggered = bool(data.get("triggered", False))
         reason = data.get("reason", "")
+        # ADR-531: «not triggered» because the inputs are UNMEASURED is not a met prerequisite
+        unmeasured = (not triggered) and data.get("state") == "UNMEASURED"
         return PrerequisiteCheck(
             name="kill_switch",
-            passed=not triggered,
+            passed=not triggered and not unmeasured,
             required=True,
             notes=f"triggered={triggered}" + (f", reason={reason}" if triggered else ""),
         )

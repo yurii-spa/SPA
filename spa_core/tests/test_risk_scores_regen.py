@@ -30,6 +30,7 @@ from unittest import mock
 import pytest
 
 from spa_core.paper_trading import cycle_runner as cr
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 NOW = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
@@ -66,6 +67,7 @@ class _FakeAllocator:
 
 
 def _run(tmp_path, *, risk_scorer_fn, write=True, allocator=None):
+    write_measured_red_flags(tmp_path, NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=NOW,

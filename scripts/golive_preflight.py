@@ -529,6 +529,10 @@ def _check_kill_switch_not_active(data_dir: Path) -> CheckResult:
         data = json.loads(path.read_text(encoding="utf-8"))
         triggered = data.get("triggered", True)
         reason = data.get("reason", "unknown")
+        if not triggered and data.get("state") == "UNMEASURED":
+            # ADR-531: not fired because its inputs are NOT measured — not a pass
+            return CheckResult(name, "warn",
+                               f"Kill switch inputs UNMEASURED ({reason})", value=None)
         if not triggered:
             return CheckResult(name, "pass",
                                f"Kill switch NOT triggered ({reason})", value=False)

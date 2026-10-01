@@ -20,6 +20,7 @@ import pytest
 
 from spa_core.paper_trading import cycle_runner as cr
 from spa_core.paper_trading.golive_checker import GoLiveChecker, GoLiveResult
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 NOW = datetime(2026, 6, 10, 12, 0, tzinfo=timezone.utc)
 # Early enough that all synthetic May/June fixtures count as honest track days.
@@ -624,6 +625,7 @@ def _run_cycle(tmp_path, **kw):
             strategy_loop_active=False,
         )
     )
+    write_measured_red_flags(tmp_path, NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=NOW,

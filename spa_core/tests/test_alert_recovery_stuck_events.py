@@ -157,6 +157,16 @@ class TestKillSwitchRecovery(_PushHarness):
         from spa_core.monitoring import threat_reactor
         self.tr = threat_reactor
         self.data = self.data_dir
+        # ADR-531: recovery is announced only when the switch is MEASURED off and every
+        # reactor input is measured — the scene therefore carries real, fresh inputs.
+        from spa_core.tests._measured_inputs import write_measured_kill_inputs
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        write_measured_kill_inputs(self.data)
+        _now = _dt.now(_tz.utc).isoformat()
+        (self.data / "peg_report.json").write_text(_json.dumps(
+            {"generated_at": _now, "overall_status": "GREEN", "critical": 0, "worst_deviation_pct": 0.0}))
+        (self.data / "emergency_status.json").write_text(_json.dumps({"status": "CLEAR"}))
         p = mock.patch.object(threat_reactor, "_DATA", self.data)
         p.start()
         self.addCleanup(p.stop)

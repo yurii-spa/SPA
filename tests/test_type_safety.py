@@ -30,6 +30,7 @@ from spa_core.risk.policy import (
 )
 from spa_core.allocator.allocator import AllocationResult
 from spa_core.paper_trading import cycle_runner as cr
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Fixtures: deterministic, network-free cycle wiring ──────────────────────
@@ -72,6 +73,7 @@ def _orch_fn(adapters, status="ok"):
 @pytest.fixture
 def cycle_result(tmp_path):
     """Run one fully-injected, deterministic paper-trading cycle."""
+    write_measured_red_flags(tmp_path, datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc))  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),

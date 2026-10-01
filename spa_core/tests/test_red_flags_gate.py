@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 import os
 import tempfile
 import unittest
@@ -66,7 +67,7 @@ def _make_flag(category="apy_spike", source_field="defillama", bootstrap_field=F
 def _make_doc(flags, fallback_used=False, sources=None):
     """Возвращает dict верхнего уровня red_flags.json."""
     doc = {
-        "generated_at": "2026-06-20T00:00:00Z",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "monitor_version": "1.0",
         "sources": sources if sources is not None else ["defillama"],
         "fallback_used": fallback_used,
@@ -375,7 +376,7 @@ class TestRedFlagsGate(unittest.TestCase):
     def test_20_red_flags_not_a_list_no_trigger(self):
         """red_flags — не список (dict) → False."""
         doc = {
-            "generated_at": "2026-06-20T00:00:00Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "fallback_used": False,
             "red_flags": {"error": "not a list"},
         }
@@ -416,8 +417,13 @@ class TestRedFlagsGate(unittest.TestCase):
 
     # ── Test 23: fallback_used=true overrides even with live sources ──────────
 
-    def test_23_fallback_true_with_live_sources_still_ignored(self):
-        """fallback_used=True даже при sources=["defillama"] → флаги игнорируются."""
+    def test_23_fallback_true_with_live_flags_is_no_longer_ignored_wholesale(self):
+        """ADR-531 (P0-2, audit ADR-530): this test used to assert the DEFECT — «fallback_used=True
+        even with live sources ⇒ every flag ignored». On 2026-10-01 that rule made a live CRITICAL
+        flag on a held protocol unable to fire the kill switch. The contract is now per flag:
+        live flags in a fallback document COUNT (here 8 CRITICAL on held > threshold ⇒ trigger),
+        bootstrap flags do not (test_24 / test_07 keep that side). Changed deliberately, not weakened:
+        the new assertion is strictly stronger (a trigger is required, not merely «no trigger»)."""
         doc = _make_doc(
             flags=[_make_flag() for _ in range(8)],
             fallback_used=True,
@@ -425,8 +431,7 @@ class TestRedFlagsGate(unittest.TestCase):
         )
         self._write_flags(doc)
         triggered, reason = self._check()
-        self.assertFalse(triggered)
-        self.assertIn("ignored", reason)
+        self.assertTrue(triggered, reason)
 
     # ── Test 24: exact scenario from the incident (6 bootstrap flags) ─────────
 
@@ -434,7 +439,7 @@ class TestRedFlagsGate(unittest.TestCase):
         """Точный сценарий инцидента: red_flags.json с fallback_used=True, 6 дефолтных флагов."""
         # Воспроизводим файл из инцидента
         incident_doc = {
-            "generated_at": "2026-06-20T15:42:42.532632Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "monitor_version": "1.0",
             "sources": ["bootstrap"],
             "fallback_used": True,
@@ -496,7 +501,7 @@ class TestRedFlagsGate(unittest.TestCase):
     def test_25_real_live_6_flags_after_fix_still_triggers(self):
         """После фикса 6 реальных live-флагов всё равно триггерят (безопасность не снижается)."""
         live_doc = {
-            "generated_at": "2026-06-20T16:00:00Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "monitor_version": "1.0",
             "sources": ["defillama", "snapshot", "chainalysis"],
             "fallback_used": False,
@@ -525,7 +530,7 @@ class TestRedFlagsGate(unittest.TestCase):
     def test_27_missing_fallback_used_key_treated_as_false(self):
         """fallback_used ключ отсутствует в doc → считается False (live-данные)."""
         doc = {
-            "generated_at": "2026-06-20T00:00:00Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "sources": ["defillama"],
             "red_flags": [_make_flag() for _ in range(6)],
         }

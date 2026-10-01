@@ -205,7 +205,8 @@ class IntegratedRiskDashboard:
                 details={"file": _PEG_REPORT_FILE, "status": "MISSING"},
             )
 
-        overall_status = data.get("overall_status", "GREEN")
+        # ADR-531: нет поля статуса — не «GREEN». Неизвестный статус не красится в зелёный.
+        overall_status = data.get("overall_status", "UNKNOWN")
         critical = data.get("critical", 0)
         warning_cnt = data.get("warning", 0)
         caution = data.get("caution", 0)
@@ -227,10 +228,15 @@ class IntegratedRiskDashboard:
                 f"Peg caution: {warning_cnt} warning, "
                 f"{caution} caution out of {total} adapters"
             )
-        else:  # GREEN
+        elif overall_status == "GREEN":
             score = 0.0
             level = "OK"
             summary = f"All {total} adapters stable (peg OK)"
+        else:  # UNKNOWN / anything unrecognised — NOT measured, never «stable» (ADR-531)
+            score = 0.5
+            level = "WARNING"
+            summary = (f"Peg status {overall_status}: {data.get('unmeasured', '?')} held asset(s) "
+                       "not measured — peg exposure unknown")
 
         return RiskSignal(
             source="peg",

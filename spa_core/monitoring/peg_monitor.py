@@ -1,8 +1,9 @@
 """
 peg_monitor.py — MP-601 PegStabilityMonitor.
 
-Мониторит отклонение цены стейблкоинов от 1.00 по всем адаптерам.
-Создаёт CRITICAL алерт при депеге любого адаптера.
+Мониторит отклонение цены стейблкоинов от 1.00 по тому, что книги ДЕРЖАТ (+ наличные).
+Создаёт CRITICAL алерт при депеге. Цена — только наблюдённая (поле адаптера или кворум
+RTMR); нет цены ⇒ UNMEASURED, общий статус UNKNOWN — никогда GREEN (ADR-531).
 
 Атомарные записи: tmp-file + os.replace. Только stdlib.
 Никогда не поднимает исключений наружу (fail-safe).
@@ -59,10 +60,13 @@ class PegStatus:
     adapter_id: str
     asset: str            # "USDC", "DAI", "USDT", "FRAX", etc.
     chain: str
-    current_price: float  # extracted from adapter_status.json
-    deviation_pct: float  # abs(price - 1.0) * 100
-    status: str           # "STABLE" / "CAUTION" / "WARNING" / "CRITICAL"
+    current_price: Optional[float]  # наблюдённая цена; None = НЕ ИЗМЕРЕНО (ADR-531)
+    deviation_pct: Optional[float]  # abs(price - 1.0) * 100; None, когда цены нет
+    status: str           # "STABLE" / "CAUTION" / "WARNING" / "CRITICAL" / "UNMEASURED"
     last_checked: str     # ISO timestamp
+    price_source: str = "none"   # "adapter" / "rtmr_quorum" / "adapter+rtmr" / "none"
+    conflict: bool = False       # источники разошлись ≥ CAUTION — взята худшая цена
+    instrument_price: Optional[float] = None   # цена САМОГО инструмента (поле адаптера) — для переоценки
 
     def to_dict(self) -> dict:
         return {
@@ -73,6 +77,9 @@ class PegStatus:
             "deviation_pct": self.deviation_pct,
             "status": self.status,
             "last_checked": self.last_checked,
+            "price_source": self.price_source,
+            "conflict": self.conflict,
+            "instrument_price": self.instrument_price,
         }
 
 
@@ -86,9 +93,13 @@ class PegReport:
     warning: int           # deviation >= 0.3%
     critical: int          # deviation >= 1.0%
     worst_adapter: str     # adapter_id с наибольшим deviation
-    worst_deviation_pct: float
+    worst_deviation_pct: Optional[float]   # None — ни одна цена не измерена
     statuses: List[PegStatus] = field(default_factory=list)
-    overall_status: str = "GREEN"  # "GREEN" / "YELLOW" / "RED"
+    # "GREEN" / "YELLOW" / "RED" / "UNKNOWN". GREEN — ТОЛЬКО когда каждый наблюдаемый
+    # актив измерен и стабилен (ADR-531); слепой монитор GREEN не выдаёт.
+    overall_status: str = "UNKNOWN"
+    unmeasured: int = 0
+    reason: Optional[str] = None           # почему UNKNOWN, если так
 
     def to_dict(self) -> dict:
         return {
@@ -98,9 +109,12 @@ class PegReport:
             "caution": self.caution,
             "warning": self.warning,
             "critical": self.critical,
+            "unmeasured": self.unmeasured,
             "worst_adapter": self.worst_adapter,
             "worst_deviation_pct": self.worst_deviation_pct,
             "overall_status": self.overall_status,
+            "reason": self.reason,
+            "monitored_set": "held positions of all three books + book cash (ADR-531)",
             "statuses": [s.to_dict() for s in self.statuses],
         }
 
@@ -148,7 +162,17 @@ class PegStabilityMonitor:
         "wusdm":    "USDM",
         "stusd":    "USD+",
         "scrvusd":  "crvUSD",
+        # Держимые книгами на 2026-10-01 (ADR-531: монитор смотрит на то, что держим).
+        "maple":    "USDC",
+        "fluid":    "USDC",
+        "euler":    "USDC",
+        "susde":    "USDe",
+        "ethena":   "USDe",
+        "cash":     "USDC",
     }
+
+    #: Свежесть мультиисточниковой цены RTMR (сенсор пега, кворум ≥3 бирж, ADR-053).
+    RTMR_PRICE_MAX_AGE_S = 1800
 
     def __init__(
         self,
@@ -248,13 +272,15 @@ class PegStabilityMonitor:
     # Price extraction
     # ------------------------------------------------------------------
 
-    def get_peg_price(self, adapter_id: str, data: dict) -> float:
+    def get_peg_price(self, adapter_id: str, data: dict) -> Optional[float]:
         """
         Ищет цену актива в entry адаптера.
 
         Проверяет поля в порядке приоритета:
             usdc_price → dai_price → frax_price → peg_price → price → asset_price.
-        Fallback: 1.0 (assume stable).
+        Нет поля ⇒ ``None`` — НЕ ИЗМЕРЕНО. Подстановки 1.0 («assume stable») больше нет
+        (ADR-531, P0-3 аудита ADR-530): выдуманная единица выглядела как наблюдение и
+        красила монитор в GREEN, а его GREEN читал внутридневной стоп-кран.
         """
         entry = self._find_entry(adapter_id, data)
         for field_name in (
@@ -262,9 +288,9 @@ class PegStabilityMonitor:
             "peg_price", "price", "asset_price",
         ):
             val = entry.get(field_name)
-            if isinstance(val, (int, float)) and not isinstance(val, bool):
+            if isinstance(val, (int, float)) and not isinstance(val, bool) and val > 0:
                 return float(val)
-        return 1.0
+        return None
 
     @staticmethod
     def _find_entry(adapter_id: str, data: dict) -> dict:
@@ -320,31 +346,157 @@ class PegStabilityMonitor:
     # Single adapter check
     # ------------------------------------------------------------------
 
-    def check_adapter(self, adapter_id: str, data: dict) -> PegStatus:
-        """Создаёт PegStatus для одного адаптера."""
+    def _asset_is_mapped(self, adapter_id: str) -> bool:
+        lower = adapter_id.lower()
+        return lower in self.ASSET_MAP or any(k in lower for k in self.ASSET_MAP)
+
+    def check_adapter(self, adapter_id: str, data: dict,
+                      rtmr_prices: Optional[Dict[str, float]] = None) -> PegStatus:
+        """Создаёт PegStatus для одного адаптера.
+
+        Цена — только НАБЛЮДЁННАЯ: поле самого адаптера и/или мультиисточниковая цена
+        RTMR по базовому активу (кворум бирж, ADR-053). Обе есть и расходятся ≥ CAUTION ⇒
+        берётся худшая (большее отклонение), ``conflict=True``. Ни одной ⇒ UNMEASURED.
+        Актив, выведенный только запасным «USDC» (имя не опознано), не оценивается —
+        цена угаданного актива не есть наблюдение.
+        """
         now = datetime.now(timezone.utc).isoformat()
         entry = self._find_entry(adapter_id, data)
 
         # Asset: prefer assets[] from entry, else infer from adapter_id
         asset = self.infer_asset(adapter_id)
+        asset_known = self._asset_is_mapped(adapter_id)
         assets_field = entry.get("assets")
         if isinstance(assets_field, list) and assets_field:
             asset = str(assets_field[0])
+            asset_known = True
 
         chain = self._extract_chain(entry)
-        current_price = self.get_peg_price(adapter_id, data)
-        deviation_pct = round(abs(current_price - 1.0) * 100, 6)
-        status = self.classify_status(deviation_pct)
+        own = self.get_peg_price(adapter_id, data)
+        quorum = None
+        if asset_known and rtmr_prices:
+            seen = [rtmr_prices[a.strip().upper()] for a in str(asset).split("/")
+                    if a.strip().upper() in rtmr_prices]
+            if seen:
+                quorum = max(seen, key=lambda px: abs(px - 1.0))
+        conflict = False
+        if own is not None and quorum is not None:
+            conflict = abs(own - quorum) * 100 >= self.CAUTION_PCT
+            price = own if abs(own - 1.0) >= abs(quorum - 1.0) else quorum
+            source = "adapter+rtmr"
+        elif own is not None:
+            price, source = own, "adapter"
+        elif quorum is not None:
+            price, source = quorum, "rtmr_quorum"
+        else:
+            price, source = None, "none"
 
+        if price is None:
+            return PegStatus(adapter_id=adapter_id, asset=asset, chain=chain,
+                             current_price=None, deviation_pct=None, status="UNMEASURED",
+                             last_checked=now, price_source="none")
+        deviation_pct = round(abs(price - 1.0) * 100, 6)
         return PegStatus(
             adapter_id=adapter_id,
             asset=asset,
             chain=chain,
-            current_price=current_price,
+            current_price=price,
             deviation_pct=deviation_pct,
-            status=status,
+            status=self.classify_status(deviation_pct),
             last_checked=now,
+            price_source=source,
+            conflict=conflict,
+            instrument_price=own,
         )
+
+    def load_rtmr_prices(self, now_s: Optional[float] = None) -> Dict[str, float]:
+        """asset → цена из сенсора пега RTMR (``data/monitoring/signals/latest.json``).
+
+        Берётся только сигнал ``source == "peg"`` с ``staleness_ok`` и числовой ценой, не
+        старше ``RTMR_PRICE_MAX_AGE_S``. Нет файла / протух / нечитаем ⇒ ``{}`` (цены нет —
+        и это видно как UNMEASURED, а не как «стабильно»).
+        """
+        try:
+            doc = json.loads((self._data_dir / "monitoring" / "signals" / "latest.json")
+                             .read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 — no quorum file ⇒ no price ⇒ UNMEASURED (visible)
+            log.warning("peg_monitor: RTMR signals unreadable (%s) — quorum prices unavailable", exc)
+            return {}
+        now_s = float(now_s if now_s is not None else datetime.now(timezone.utc).timestamp())
+        out: Dict[str, float] = {}
+        for s in (doc.get("signals") or []) if isinstance(doc, dict) else []:
+            if not isinstance(s, dict) or s.get("source") != "peg" or not s.get("staleness_ok"):
+                continue
+            ts = s.get("ts")
+            if not isinstance(ts, (int, float)) or now_s - float(ts) > self.RTMR_PRICE_MAX_AGE_S:
+                continue
+            px = (s.get("detail") or {}).get("price")
+            scope = str(s.get("scope") or "").strip().upper()
+            if scope and isinstance(px, (int, float)) and not isinstance(px, bool) and px > 0:
+                out[scope] = float(px)
+        return out
+
+    def load_held_ids(self) -> Optional[List[str]]:
+        """Протоколы, которые книги держат сейчас (+ ``cash`` при наличных), отсортировано.
+
+        Главная книга (``current_positions.json``) обязательна: нечитаема ⇒ ``None`` —
+        «что держим» НЕ ИЗМЕРЕНО. Книги рукавов необязательны (их может не быть), но
+        существующий нечитаемый файл тоже даёт ``None``.
+        """
+        def _read(name):
+            path = self._data_dir / name
+            if not path.exists():
+                return False
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                return None
+        main = _read("current_positions.json")
+        if not isinstance(main, dict) or not isinstance(main.get("positions"), dict):
+            return None
+        held = set()
+        for proto, usd in main["positions"].items():
+            try:
+                if float(usd) > 0:
+                    held.add(str(proto))
+            except (TypeError, ValueError):
+                return None
+        cash = main.get("cash_usd")   # нет поля ⇒ наличных не наблюдали ⇒ их и не смотрим
+        if isinstance(cash, (int, float)) and not isinstance(cash, bool) and cash > 0:
+            held.add("cash")
+        for name in ("hy_paper_trading.json", "lp_paper_trading.json"):
+            doc = _read(name)
+            if doc is False:
+                continue
+            if not isinstance(doc, dict):
+                return None
+            legs = doc.get("positions")
+            if legs is not None and not isinstance(legs, list):
+                return None
+            for leg in legs if isinstance(legs, list) else []:
+                if not isinstance(leg, dict) or not leg.get("protocol"):
+                    continue
+                n = leg.get("notional_usd")
+                if isinstance(n, (int, float)) and not isinstance(n, bool) and n > 0:
+                    held.add(str(leg["protocol"]))
+        return sorted(held)
+
+    def _measure(self) -> PegReport:
+        """Один замер наблюдаемого набора; общий путь ``run_check`` и ``get_report``."""
+        generated_at = datetime.now(timezone.utc).isoformat()
+        held = self.load_held_ids()
+        if held is None:
+            rep = self._build_report(generated_at, [])
+            rep.reason = "held positions unreadable — peg exposure NOT MEASURED"
+            return rep
+        data = self.load_adapter_status()
+        rtmr = self.load_rtmr_prices()
+        statuses = [self.check_adapter(aid, data, rtmr) for aid in held]
+        rep = self._build_report(generated_at, statuses)
+        if rep.overall_status == "UNKNOWN":
+            rep.reason = (f"{rep.unmeasured} of {rep.total_monitored} held asset(s) without an "
+                          "observed price — NOT MEASURED, never «stable»")
+        return rep
 
     # ------------------------------------------------------------------
     # Extract all adapter IDs
@@ -388,9 +540,16 @@ class PegStabilityMonitor:
 
     @staticmethod
     def _compute_overall_status(statuses: List[PegStatus]) -> str:
-        """RED if any CRITICAL; YELLOW if any WARNING or CAUTION; GREEN otherwise."""
+        """RED > UNKNOWN > YELLOW > GREEN (ADR-531).
+
+        RED — хоть один CRITICAL. UNKNOWN — пустой набор или хоть один UNMEASURED (слепой
+        монитор не имеет права сказать GREEN). YELLOW — WARNING/CAUTION. GREEN — только
+        когда КАЖДЫЙ наблюдаемый актив измерен и стабилен.
+        """
         if any(s.status == "CRITICAL" for s in statuses):
             return "RED"
+        if not statuses or any(s.status == "UNMEASURED" for s in statuses):
+            return "UNKNOWN"
         if any(s.status in ("WARNING", "CAUTION") for s in statuses):
             return "YELLOW"
         return "GREEN"
@@ -406,14 +565,16 @@ class PegStabilityMonitor:
         caution  = sum(1 for s in statuses if s.status == "CAUTION")
         warning  = sum(1 for s in statuses if s.status == "WARNING")
         critical = sum(1 for s in statuses if s.status == "CRITICAL")
+        unmeasured = sum(1 for s in statuses if s.status == "UNMEASURED")
 
-        if statuses:
-            worst = max(statuses, key=lambda s: s.deviation_pct)
+        measured = [s for s in statuses if s.deviation_pct is not None]
+        if measured:
+            worst = max(measured, key=lambda s: s.deviation_pct)
             worst_adapter = worst.adapter_id
             worst_deviation_pct = worst.deviation_pct
         else:
             worst_adapter = ""
-            worst_deviation_pct = 0.0
+            worst_deviation_pct = None   # ни одной цены — отклонение не измерено, а не 0
 
         overall = PegStabilityMonitor._compute_overall_status(statuses)
 
@@ -428,6 +589,7 @@ class PegStabilityMonitor:
             worst_deviation_pct=worst_deviation_pct,
             statuses=statuses,
             overall_status=overall,
+            unmeasured=unmeasured,
         )
 
     # ------------------------------------------------------------------
@@ -574,63 +736,35 @@ class PegStabilityMonitor:
 
     def run_check(self) -> PegReport:
         """
-        Основной метод: загружает адаптеры → проверяет peg → создаёт алерты
-        → сохраняет историю в peg_history.json.
+        Основной метод: замер держимого набора → алерты → история в peg_history.json.
 
-        Всегда возвращает PegReport (fail-safe).
+        Всегда возвращает PegReport (fail-safe). Ошибка — UNKNOWN, никогда не GREEN.
         """
-        generated_at = datetime.now(timezone.utc).isoformat()
         try:
-            data = self.load_adapter_status()
-            adapter_ids = self._extract_adapter_ids(data)
-            statuses = [self.check_adapter(aid, data) for aid in adapter_ids]
-
-            self._create_alerts(statuses)
-            report = self._build_report(generated_at, statuses)
+            report = self._measure()
+            self._create_alerts(report.statuses)
             self._save_history(report)
             return report
-
         except Exception as exc:  # noqa: BLE001
             log.error("run_check unexpected error: %s", exc)
-            return PegReport(
-                generated_at=generated_at,
-                total_monitored=0,
-                stable=0,
-                caution=0,
-                warning=0,
-                critical=0,
-                worst_adapter="",
-                worst_deviation_pct=0.0,
-                statuses=[],
-                overall_status="GREEN",
-            )
+            return self._error_report(exc)
 
     def get_report(self) -> PegReport:
         """
         Только читает и классифицирует — без создания алертов
         и без записи истории (side-effect-free).
         """
-        generated_at = datetime.now(timezone.utc).isoformat()
         try:
-            data = self.load_adapter_status()
-            adapter_ids = self._extract_adapter_ids(data)
-            statuses = [self.check_adapter(aid, data) for aid in adapter_ids]
-            return self._build_report(generated_at, statuses)
-
+            return self._measure()
         except Exception as exc:  # noqa: BLE001
             log.error("get_report unexpected error: %s", exc)
-            return PegReport(
-                generated_at=generated_at,
-                total_monitored=0,
-                stable=0,
-                caution=0,
-                warning=0,
-                critical=0,
-                worst_adapter="",
-                worst_deviation_pct=0.0,
-                statuses=[],
-                overall_status="GREEN",
-            )
+            return self._error_report(exc)
+
+    @staticmethod
+    def _error_report(exc: Exception) -> PegReport:
+        rep = PegStabilityMonitor._build_report(datetime.now(timezone.utc).isoformat(), [])
+        rep.reason = f"peg check failed ({type(exc).__name__}) — NOT MEASURED"
+        return rep
 
     def format_telegram_message(self) -> str:
         """
@@ -640,7 +774,7 @@ class PegStabilityMonitor:
         """
         try:
             report = self.get_report()
-            emoji_map = {"GREEN": "🟢", "YELLOW": "🟡", "RED": "🔴"}
+            emoji_map = {"GREEN": "🟢", "YELLOW": "🟡", "RED": "🔴", "UNKNOWN": "⚪"}
             emoji = emoji_map.get(report.overall_status, "⚪")
             lines = [
                 f"{emoji} <b>PegMonitor [{report.overall_status}]</b>",
@@ -653,7 +787,9 @@ class PegStabilityMonitor:
                     f"🔴{report.critical} CRITICAL"
                 ),
             ]
-            if report.worst_adapter:
+            if report.unmeasured:
+                lines.append(f"❔ {report.unmeasured} held asset(s) NOT MEASURED (no observed price)")
+            if report.worst_adapter and report.worst_deviation_pct is not None:
                 lines.append(
                     f"🏆 Worst: <code>{report.worst_adapter}</code> "
                     f"dev={report.worst_deviation_pct:.4f}%"
@@ -665,11 +801,11 @@ class PegStabilityMonitor:
                 lines.append("")
                 lines.append("<b>Non-stable adapters:</b>")
                 for s in non_stable:
+                    px = "n/a" if s.current_price is None else f"{s.current_price:.6f}"
+                    dev = "n/a" if s.deviation_pct is None else f"{s.deviation_pct:.4f}%"
                     lines.append(
                         f"  [{s.status}] <code>{s.adapter_id}</code> "
-                        f"{s.asset}@{s.chain} "
-                        f"price={s.current_price:.6f} "
-                        f"dev={s.deviation_pct:.4f}%"
+                        f"{s.asset}@{s.chain} price={px} dev={dev}"
                     )
 
             msg = "\n".join(lines)
@@ -737,17 +873,18 @@ def _main(argv=None) -> int:
         f"{report.warning} WARNING | "
         f"{report.critical} CRITICAL"
     )
-    if report.worst_adapter:
+    if report.worst_adapter and report.worst_deviation_pct is not None:
         print(
             f"Worst: {report.worst_adapter} — "
             f"deviation={report.worst_deviation_pct:.4f}%"
         )
+    if report.reason:
+        print(f"Reason: {report.reason}")
     for s in report.statuses:
         if s.status != "STABLE":
-            print(
-                f"  [{s.status}] {s.adapter_id} ({s.asset}@{s.chain}) "
-                f"price={s.current_price:.6f} dev={s.deviation_pct:.4f}%"
-            )
+            px = "n/a" if s.current_price is None else f"{s.current_price:.6f}"
+            dev = "n/a" if s.deviation_pct is None else f"{s.deviation_pct:.4f}%"
+            print(f"  [{s.status}] {s.adapter_id} ({s.asset}@{s.chain}) price={px} dev={dev}")
     return 0
 
 

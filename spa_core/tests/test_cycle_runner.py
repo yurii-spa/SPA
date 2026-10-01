@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from spa_core.paper_trading import cycle_runner as cr
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ class _FakeAllocator:
 
 def _run(tmp_path, apy_map, target_usd, *, now=None, status="ok", **kw):
     now = now or datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    write_measured_red_flags(tmp_path, now)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=now,
@@ -312,6 +314,7 @@ def test_equity_curve_ring_buffer_365(tmp_path):
 
 
 def test_graceful_when_orchestrator_returns_no_live_data(tmp_path):
+    write_measured_red_flags(tmp_path, datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc))  # ADR-531: measured kill input, else LAW 1 HOLD
     res = cr.run_cycle(
         data_dir=tmp_path,
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
@@ -334,6 +337,7 @@ def test_graceful_when_orchestrator_returns_no_live_data(tmp_path):
 
 def test_no_live_data_when_status_ok_but_no_apy(tmp_path):
     # status "ok" but adapters carry no usable APY → still treated as no live data.
+    write_measured_red_flags(tmp_path, datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc))  # ADR-531: measured kill input, else LAW 1 HOLD
     res = cr.run_cycle(
         data_dir=tmp_path,
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
@@ -466,6 +470,7 @@ def test_derisk_passes_even_when_cio_says_hold(tmp_path, monkeypatch):
 
 
 def test_dry_run_writes_nothing(tmp_path):
+    write_measured_red_flags(tmp_path, datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc))  # ADR-531: measured kill input, else LAW 1 HOLD
     cr.run_cycle(
         data_dir=tmp_path,
         now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),
@@ -583,6 +588,7 @@ def _overdiv_orch_fn(apy_map):
 
 
 def _run_overdiv(tmp_path, *, now):
+    write_measured_red_flags(tmp_path, now)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=now,

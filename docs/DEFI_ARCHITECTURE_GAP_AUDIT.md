@@ -237,6 +237,8 @@ All fixes touch public numbers / legal wording ⇒ **owner subject №2**; they 
 
 ### P0 — correctness / safety blockers
 
+> **Status 2026-10-01 (ADR-531):** P0-1, P0-2, P0-3 fixed in code; P0-4 owner package prepared, not published.
+
 | ID | Gap | Why it matters | Subsystem | Dependency | Evidence | Acceptance criterion for the future fix |
 |---|---|---|---|---|---|---|
 | P0-1 | Sleeve books charge full gas on daily accrual drift | Balanced/Aggressive tracks are wrong by construction (−$34/day, −$10/day); any published number from them is false | `paper_trading/sleeve_book.py` (`rebalance_book` + `book_move_cost`) | none | ✔ `hy/lp_paper_trading.json` 2026-09-28…10-01 cost 48.03 / 24.01 vs yield 13–14 | with unchanged holdings and no new candidate, a replay of the last 22 observed days charges `cost_usd == 0` on drift-only days and `net_pnl == yield`; a genuine swap still pays the cost_model cost; the restated tracks are published only after owner approval (subject №2) |

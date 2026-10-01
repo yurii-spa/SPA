@@ -84,6 +84,8 @@ def build_record(
     mtm_pnl_usd: float,
     accrual_basis: str,
     allow_new: Optional[bool] = None,
+    economics_model: Optional[str] = None,
+    cost_dust_usd: Optional[float] = None,
 ) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
@@ -104,6 +106,10 @@ def build_record(
         "close_equity": round(float(close_equity), 6),
         "accrual_basis": accrual_basis,
         "allow_new": allow_new,
+        # ADR-531: модель, которой посчитан день, и её полоса пыли. Нет поля ⇒ v1
+        # (записи до 2026-10-01) — пересчёт обязан идти по ТОЙ модели, что писала день.
+        "economics_model": economics_model,
+        "cost_dust_usd": None if cost_dust_usd is None else round(float(cost_dust_usd), 6),
     }
 
 

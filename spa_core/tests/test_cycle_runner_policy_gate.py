@@ -34,6 +34,7 @@ from types import SimpleNamespace
 
 import spa_core.paper_trading.cycle_runner as cr
 from spa_core.paper_trading.cycle_runner import _apply_risk_policy_gate
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -137,6 +138,7 @@ def _run_cycle(
     *,
     write: bool = True,
 ):
+    write_measured_red_flags(tmp_path, _NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=_NOW,

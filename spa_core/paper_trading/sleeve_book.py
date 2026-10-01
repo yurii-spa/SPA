@@ -80,6 +80,56 @@ MIN_TVL_USD = 5_000_000.0
 
 ACCRUAL_BASIS = "per_position_observed_apy"
 
+# ── Экономическая модель книги (ADR-531, P0-1 аудита ADR-530) ────────────────
+# v1 (до 2026-10-01): `rebalance_book` каждый день пересобирал КАЖДУЮ ногу в
+# `equity × вес`. Начисленный доход растил equity, но не нотионалы, поэтому назавтра
+# каждая нога «двигалась» на свою долю дохода, и `book_move_cost` без полосы пыли
+# брал за это полный газ Ethereum ($12 за ногу): Balanced $48.03 при доходе $13.77 в
+# день, Aggressive $24.01 при $14.34 — трек терял деньги ПО ПОСТРОЕНИЮ.
+# v2: процент и наблюдённая переоценка остаются ВНУТРИ позиции (так ведёт себя
+# настоящий лендинг — без транзакции); ноги в полосе пыли не двигаются и не платят;
+# настоящий ход (открытие, закрытие, перекладка сверх пыли) платит по той же модели
+# костов. Строка истории и запись архива несут имя модели; строка БЕЗ поля — v1 по
+# определению, пересчитывается по v1 и НЕ переписывается.
+ECONOMICS_MODEL_V1 = "sleeve-econ-v1"
+ECONOMICS_MODEL = "sleeve-econ-v2"
+#: Когда дефект был установлен (замер аудита, ADR-530) — граница записывается в книгу.
+ECONOMICS_DEFECT_FOUND_AT = "2026-10-01T07:50:00Z"
+#: Расхождение суммы нотионалов и equity, ниже которого книга считается согласованной.
+_BOOK_EQUITY_TOLERANCE_USD = 1.0
+
+
+def model_boundary(history: list, *, first_v2_date: str, activated_at: str) -> dict:
+    """Граница v1 → v2 для книги: сколько строк посчитано старой моделью и когда включена новая.
+
+    Пишется в state книги один раз (``setdefault``). Ничего в истории не меняет: строки v1
+    остаются как были, их атрибуция — по этой границе и по отсутствию ``economics_model``.
+    """
+    v1 = [r for r in (history or []) if isinstance(r, dict)
+          and r.get("economics_model") in (None, ECONOMICS_MODEL_V1)]
+    return {
+        "v1_model": ECONOMICS_MODEL_V1,
+        "v2_model": ECONOMICS_MODEL,
+        "defect": "v1 charged full gas per leg on daily accrual drift (ADR-530 P0-1)",
+        "defect_found_at": ECONOMICS_DEFECT_FOUND_AT,
+        "v2_activated_at": activated_at,
+        "first_v2_date": first_v2_date,
+        "v1_rows": len(v1),
+        "v1_last_date": (v1[-1].get("date") if v1 else None),
+        "v1_classification": "DISTORTED — kept as historical evidence, not comparable with v2",
+        "adr": "ADR-531",
+    }
+
+
+def dust_band_usd(equity: float) -> float:
+    """Полоса пыли книги в USD — ТА ЖЕ, что у консервативной книги (`TriggerParams.min_leg_frac`).
+
+    Второго числа на этой оси нет намеренно: правило «нога меньше 0.5 % капитала не
+    двигается — платить полный газ за неё бессмысленно» живёт в одном месте.
+    """
+    from spa_core.allocator.rebalance_economics import TriggerParams
+    return max(0.0, float(TriggerParams.for_mode().min_leg_frac)) * max(0.0, float(equity or 0.0))
+
 
 def load_ranking_rows(path: Optional[Path] = None) -> List[dict]:
     """Живое ранжирование APY (пишет cycle_runner). Ошибка чтения → [] (fail-closed)."""
@@ -279,6 +329,7 @@ def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,
                    *, today: str, allow_new: bool = True,
                    max_positions: int = MAX_POSITIONS,
                    cap_pct: float = PER_PROTOCOL_CAP_PCT,
+                   keep_within_usd: float = 0.0,
                    ) -> Tuple[List[dict], List[str], List[str]]:
     """Перестроить книгу под сегодняшних кандидатов. Возвращает (book, opened, closed).
 
@@ -290,6 +341,11 @@ def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,
       (CIO-постура RED запрещает НОВОЕ, ADR-103; удержание не запрещает).
     • Веса: равный сплит по книге, но ≤ cap_pct капитала на протокол; остаток —
       кэш (начисляет 0, и это видно в deployed_usd).
+    • ``keep_within_usd`` > 0 (модель v2): удержанная нога, чей нотионал отличается от
+      целевого не больше чем на эту полосу, НЕ пересобирается — это не ход. Если после
+      этого сумма ног превысила бы equity (книга не может держать больше, чем у неё
+      есть), пересобираются ВСЕ ноги — детерминированно, без выбора «кого урезать».
+      ``0.0`` (по умолчанию) — поведение v1, каждая нога в ``equity × вес``.
     """
     equity = max(0.0, float(equity or 0.0))
     held = [dict(p) for p in (positions or []) if str(p.get("protocol") or "").strip()]
@@ -316,18 +372,29 @@ def rebalance_book(positions: List[dict], candidates: List[dict], equity: float,
     n = len(kept)
     if n and equity > 0:
         weight = min(1.0 / n, cap_pct / 100.0)
+        target = round(equity * weight, 2)
+        band = max(0.0, float(keep_within_usd or 0.0))
         for p in kept:
             p["apy_pct"] = round(float(cand_by_name[p["protocol"]]), 4)
-            p["notional_usd"] = round(equity * weight, 2)
+            cur = float(p.get("notional_usd") or 0.0)
+            if not (band > 0 and cur > 0 and abs(target - cur) <= band):
+                p["notional_usd"] = target
             p["stale"] = False
+        if band > 0 and sum(float(p["notional_usd"]) for p in kept) > equity + _BOOK_EQUITY_TOLERANCE_USD:
+            for p in kept:
+                p["notional_usd"] = target
     return kept, opened, closed
 
 
-def accrue_book(positions: List[dict], candidates: List[dict]) -> Tuple[float, float]:
+def accrue_book(positions: List[dict], candidates: List[dict], *,
+                compound_in_place: bool = False) -> Tuple[float, float]:
     """Дневной доход книги: КАЖДАЯ позиция по ЕЁ живому APY из сегодняшних кандидатов.
 
     Протокола нет среди кандидатов (данные пропали) → его позиция начисляет 0 и
     помечается stale=True — отсутствие данных наблюдаемо, доход не выдуман.
+    ``compound_in_place`` (модель v2): начисленное прибавляется к нотионалу ЭТОЙ ноги —
+    процент лендинга растёт внутри позиции без транзакции, и назавтра это не «ход».
+    Возвращаемые числа от флага не зависят (deployed — до начисления).
     Возвращает (daily_yield_usd, deployed_usd).
     """
     cand_by_name = {c["protocol"]: c["apy_pct"] for c in candidates}
@@ -343,7 +410,10 @@ def accrue_book(positions: List[dict], candidates: List[dict]) -> Tuple[float, f
             p["stale"] = True
             continue
         p["stale"] = False
-        total += notional * (min(float(apy), APY_CAP) / 100.0) / 365.0
+        leg = notional * (min(float(apy), APY_CAP) / 100.0) / 365.0
+        total += leg
+        if compound_in_place:
+            p["notional_usd"] = round(notional + leg, 6)
     return round(total, 6), round(deployed, 2)
 
 
@@ -388,13 +458,17 @@ def chains_from_rows(rows: Optional[List[dict]]) -> dict:
 
 
 def book_move_cost(before: Optional[List[dict]], after: Optional[List[dict]],
-                   chains: Optional[dict] = None) -> dict:
+                   chains: Optional[dict] = None, *, dust_usd: float = 0.0) -> dict:
     """Стоимость перехода книги ``before`` → ``after`` в долларах.
 
     Оборот считается ОДНОСТОРОННЕ — ``max(куплено, продано)``: при обмене одной
     позиции на другую это половина валового, а при развёртывании кэша (продажи нет
     вовсе) — вся развёрнутая сумма. ``gross/2`` во втором случае занизил бы издержку
     ровно на том движении, которое книга делает чаще всего.
+
+    ``dust_usd`` (модель v2): нога, сдвинувшаяся не больше чем на эту сумму, не считается
+    тронутой — ни газа, ни оборота (то же правило, что у консервативной книги,
+    `rebalance_economics._legs`). ``0.0`` — поведение v1.
 
     Возвращает ``{"cost_usd", "turnover_usd", "gas_usd", "slippage_usd", "bridge_usd",
     "touched": [...], "chains": [...]}``. Ничего не меняет во входных списках.
@@ -417,7 +491,7 @@ def book_move_cost(before: Optional[List[dict]], after: Optional[List[dict]],
     touched: List[str] = []
     for proto in sorted(set(b) | set(a)):
         d = a.get(proto, 0.0) - b.get(proto, 0.0)
-        if abs(d) <= 1e-9:
+        if abs(d) <= max(1e-9, float(dust_usd or 0.0)):
             continue
         touched.append(proto)
         if d > 0:
@@ -476,14 +550,22 @@ def observed_prices(path: Optional[Path] = None) -> dict:
     for st in ((d.get("latest") or {}).get("statuses") or []):
         if not isinstance(st, dict):
             continue
+        # ADR-531: переоценка — только по цене САМОГО инструмента (поле адаптера). Цена
+        # кворума RTMR — это пег базового стейблкоина, а не стоимость, скажем, syrupUSDC;
+        # строки старого монитора (без `price_source`) несли выдуманную 1.0 и тоже не берутся.
+        if not str(st.get("price_source") or "").startswith("adapter"):
+            continue
         name = str(st.get("adapter_id") or "").strip()
-        price = st.get("current_price")
+        # «adapter+rtmr»: current_price — худшая из двух (для пега), а переоценке нужна цена
+        # инструмента — она хранится отдельно (review ADR-531 S2).
+        price = st.get("instrument_price", st.get("current_price"))
         if name and isinstance(price, (int, float)) and not isinstance(price, bool) and price > 0:
             out[name] = float(price)
     return out
 
 
-def mark_to_market(positions: Optional[List[dict]], prices: Optional[dict]) -> dict:
+def mark_to_market(positions: Optional[List[dict]], prices: Optional[dict], *,
+                   revalue_notional: bool = False) -> dict:
     """Переоценить книгу по наблюдённым ценам. МУТИРУЕТ ``mark_price`` у покрытых ног.
 
     Возвращает ``{"pnl_usd", "covered_usd", "deployed_usd", "coverage_pct",
@@ -493,6 +575,8 @@ def mark_to_market(positions: Optional[List[dict]], prices: Optional[dict]) -> d
     считается только между ДВУМЯ наблюдениями. Нулевое покрытие возвращает
     ``coverage_pct = 0.0`` и ``pnl_usd = 0.0``: это «не измерено», а не «не двигалось»,
     и различить их обязан потребитель — поле ``coverage_pct`` для того и есть.
+    ``revalue_notional`` (модель v2): переоценка меняет и нотионал ноги — стоимость
+    позиции изменилась без транзакции, и назавтра это не «ход». P&L от флага не зависит.
     """
     prices = prices or {}
     pnl = 0.0
@@ -516,7 +600,10 @@ def mark_to_market(positions: Optional[List[dict]], prices: Optional[dict]) -> d
         marked.append(proto)
         prev = p.get("mark_price")
         if isinstance(prev, (int, float)) and not isinstance(prev, bool) and prev > 0:
-            pnl += notional * (float(px) / float(prev) - 1.0)
+            move = notional * (float(px) / float(prev) - 1.0)
+            pnl += move
+            if revalue_notional:
+                p["notional_usd"] = round(notional + move, 6)
         p["mark_price"] = float(px)
     return {
         "pnl_usd": round(pnl, 6),

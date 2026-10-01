@@ -220,6 +220,9 @@ def _seed_sandbox(td: Path, *, held: dict, closes: list[float]) -> None:
 
 
 def _run(td: Path, *, universe, target, closes, held, now=_NOW):
+    # ADR-531: a sandbox without a measured red_flags input would HOLD (LAW 1) — give it one.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    write_measured_red_flags(td, now)
     return _cr.run_cycle(
         data_dir=str(td),
         now=now,

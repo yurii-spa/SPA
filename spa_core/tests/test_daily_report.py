@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from spa_core.reporting import daily_report as dr
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 NOW = datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc)
 DATE = "2026-06-10"  # «вчера» относительно NOW
@@ -194,6 +195,7 @@ def test_cycle_runner_writes_daily_report(tmp_path):
         )
     )
     now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    write_measured_red_flags(tmp_path, now)  # ADR-531: measured kill input, else LAW 1 HOLD
     result = cr.run_cycle(
         data_dir=tmp_path,
         now=now,
@@ -241,6 +243,7 @@ def test_cycle_runner_report_failure_is_failsafe(tmp_path, monkeypatch, caplog):
         )
     )
     with caplog.at_level(logging.WARNING, logger="spa.cycle_runner"):
+        write_measured_red_flags(tmp_path, datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc))  # ADR-531: measured kill input, else LAW 1 HOLD
         result = cr.run_cycle(
             data_dir=tmp_path,
             now=datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc),

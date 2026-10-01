@@ -55,6 +55,7 @@ from spa_core.paper_trading import cycle_runner as cr
 from spa_core.paper_trading.golive_checker import GoLiveChecker
 from spa_core.paper_trading.equity import _upsert_equity_point
 from spa_core.governance import ssot
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Repo / live-data identity (for the safety guard) ────────────────────────
@@ -102,6 +103,7 @@ class _FakeAllocator:
 
 def _run_inert_cycle(ddir: Path):
     """Run ONE inert cycle into *ddir* (injected fakes, no network/iCloud)."""
+    write_measured_red_flags(ddir, _NOW)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=ddir,
         now=_NOW,

@@ -567,6 +567,9 @@ def check_circuit_breaker() -> CheckResult:
     # (1) fail-CLOSED: a corrupt file must NEVER be read as "the switch is off".
     if ks_state == "unreadable":
         unchecked.append("kill_switch_status.json unreadable ({})".format(ks_doc))
+    elif ks_state == "ok" and isinstance(ks_doc, dict) and ks_doc.get("state") == "UNMEASURED":
+        # ADR-531: the switch did not fire because its inputs are not measured — say so
+        unchecked.append("kill switch inputs UNMEASURED ({})".format(ks_doc.get("reason", "?")))
     if ds_state == "unreadable":
         unchecked.append("derisk_status.json unreadable ({})".format(ds_doc))
 

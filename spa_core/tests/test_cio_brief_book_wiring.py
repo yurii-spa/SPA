@@ -267,7 +267,14 @@ class TestHyCycleWritesItsOwnLedger:
         rec = json.loads(ledger.read_text().splitlines()[-1])
         assert rec["current_positions"] == {}                    # day 1: nothing held before
         assert rec["target_positions"] == {"pendle": 40_000.0}   # day 1: what it opened
-        assert sleeve_book.collapse_legs_to_flat(state["positions"]) == rec["target_positions"]
+        # ADR-531 (economics v2): the day's interest accrues INSIDE the position, so the
+        # held book is the decided target plus exactly that day's recorded yield — not a
+        # copy of the target (v1 re-sized every leg to the target and then charged gas for
+        # the drift). The invariant is therefore stated with the yield, not weakened.
+        held = sleeve_book.collapse_legs_to_flat(state["positions"])
+        assert set(held) == set(rec["target_positions"])
+        day_yield = state["daily_history"][-1]["daily_yield_usd"]
+        assert abs(sum(held.values()) - sum(rec["target_positions"].values()) - day_yield) < 0.01
 
 
 class TestLpCycleWritesItsOwnLedger:

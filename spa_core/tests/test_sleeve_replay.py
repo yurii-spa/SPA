@@ -169,8 +169,10 @@ class TestSnapshotIsTheInputNotTheOutput:
 
     def test_a_mark_written_after_the_snapshot_never_reaches_the_archive(self, hy, tmp_path):
         _write_ranking(tmp_path, ("maple", 9.5), ("fluid", 8.0))
+        # ADR-531: the sleeve marks only an INSTRUMENT price (price_source "adapter"); the peg
+        # monitor's quorum price of the underlying stablecoin is not the value of a maple position.
         (tmp_path / "peg_history.json").write_text(json.dumps({
-            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 1.0}]}}),
+            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 1.0, "price_source": "adapter"}]}}),
             encoding="utf-8")
         hy.run_hy_cycle(dry_run=False)
         rec = archive.read_all(tmp_path, "balanced")[-1]["payload"]
@@ -188,7 +190,7 @@ class TestSnapshotIsTheInputNotTheOutput:
         import datetime as dt
         _write_ranking(tmp_path, ("maple", 9.5), ("fluid", 8.0))
         (tmp_path / "peg_history.json").write_text(json.dumps({
-            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 1.0}]}}),
+            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 1.0, "price_source": "adapter"}]}}),
             encoding="utf-8")
         hy.run_hy_cycle(dry_run=False)
         # Второй день делается СДВИГОМ ЧАСОВ, а не переписыванием уже записанной даты:
@@ -197,7 +199,7 @@ class TestSnapshotIsTheInputNotTheOutput:
         real_utcnow = hy.clock.utcnow
         hy.clock.utcnow = lambda: real_utcnow() + dt.timedelta(days=1)
         (tmp_path / "peg_history.json").write_text(json.dumps({
-            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 0.98}]}}),
+            "latest": {"statuses": [{"adapter_id": "maple", "current_price": 0.98, "price_source": "adapter"}]}}),
             encoding="utf-8")
         try:
             hy.run_hy_cycle(dry_run=False)

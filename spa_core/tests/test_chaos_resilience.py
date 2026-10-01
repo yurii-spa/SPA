@@ -108,19 +108,20 @@ def test_threat_reactor_detects_wide_band_depeg(tmp_path, monkeypatch):
 
 
 def test_threat_reactor_held_protocol_critical_redflag_detected(tmp_path, monkeypatch):
-    """A LIVE (fallback_used=False) CRITICAL red flag on a HELD protocol → threat."""
-    _point_threat_reactor_at(
-        tmp_path, monkeypatch,
-        current_positions={"positions": {"aave_v3": 50000.0}},
-        red_flags={
-            "fallback_used": False,
-            "red_flags": [
-                {"severity": "CRITICAL", "protocol": "aave_v3", "category": "tvl_collapse"}
-            ],
-        },
-    )
+    """A LIVE CRITICAL red flag on a HELD protocol → threat (one flag, the reactor's designed rule).
+    ADR-531: the document must be MEASURED, so the fixture carries what the writer always writes
+    (generated_at, category provenance); a stale copy of the same document is not a threat."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    flag = {"severity": "CRITICAL", "protocol": "aave_v3", "category": "tvl_drop", "source": "defillama"}
+    doc = {"generated_at": now.isoformat(), "fallback_used": False, "sources": ["defillama"],
+           "provenance": {"by_category": {"tvl_drop": "live"}}, "red_flags": [flag]}
+    _point_threat_reactor_at(tmp_path, monkeypatch,
+                             current_positions={"positions": {"aave_v3": 50000.0}}, red_flags=doc)
     threats = threat_reactor._detect_threats()
     assert any("red flag CRITICAL on HELD" in t for t in threats), threats
+    stale = dict(doc, generated_at=(now - datetime.timedelta(days=30)).isoformat())
+    _write_json(tmp_path / "data" / "red_flags.json", stale)
+    assert not any("red flag" in t for t in threat_reactor._detect_threats())
 
 
 def test_threat_reactor_fallback_redflag_is_ignored(tmp_path, monkeypatch):
@@ -166,11 +167,19 @@ def test_threat_reactor_detects_emergency_halt(tmp_path, monkeypatch):
 
 
 def test_threat_reactor_clear_when_no_faults(tmp_path, monkeypatch):
+    # ADR-531: «clear» means no threat AND every input MEASURED, so the no-fault scene now
+    # carries what the real writers always write (generated_at, overall_status, provenance,
+    # the held book). The assertions below are unchanged; the unmeasured scene is covered by
+    # test_defi_p0_repair.test_blind_peg_sensor_cannot_reach_the_reactor_as_clear.
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     _point_threat_reactor_at(
         tmp_path, monkeypatch,
-        peg_report={"critical": 0, "worst_deviation_pct": 0.1},
-        red_flags={"fallback_used": False, "red_flags": []},
+        peg_report={"generated_at": now, "overall_status": "GREEN", "critical": 0,
+                    "worst_deviation_pct": 0.1},
+        red_flags={"generated_at": now, "fallback_used": False, "sources": ["defillama"],
+                   "provenance": {"by_category": {"tvl_drop": "live"}}, "red_flags": []},
         emergency_status={"status": "OK"},
+        current_positions={"positions": {"aave_v3": 50000.0}},
     )
     monkeypatch.setattr(threat_reactor, "_kill_switch_active", lambda: False)
     report = threat_reactor.run_reactor(dry_run=True)
@@ -609,6 +618,9 @@ def _run_chaos_cycle(ddir, now, *, orch=_clean_orch):
     is explicit + non-canonical, so the write-interlock honours it verbatim and
     the real repo data/ is never touched.
     """
+    # ADR-531: a sandbox without a measured red_flags input would HOLD (LAW 1) — give it one.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    write_measured_red_flags(ddir, now)
     return _cr.run_cycle(
         data_dir=str(ddir),
         now=now,
@@ -823,6 +835,8 @@ def test_fault_runs_never_touch_canonical_track(tmp_path, monkeypatch):
     monkeypatch.setattr(_cr, "_DEFAULT_DATA_DIR", canon, raising=True)
     monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path / "sbx"))
     monkeypatch.delenv("SPA_ALLOW_LIVE_WRITE", raising=False)
+    from spa_core.tests._measured_inputs import write_measured_red_flags   # ADR-531
+    write_measured_red_flags(tmp_path / "sbx", _dt(2026, 6, 11, 8, tzinfo=_tz.utc))   # the cycle's clock
 
     _logging.disable(_logging.CRITICAL)
     try:
@@ -1074,6 +1088,9 @@ def test_chaos_blocked_policy_never_fabricates_allocation(tmp_path, _quiet_cycle
                 strategy_loop_active=False,
             )
 
+    # ADR-531: measured kill input, so the block under test is the POLICY block, not LAW 1.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    write_measured_red_flags(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
     r = _cr.run_cycle(
         data_dir=str(tmp_path),
         now=_dt(2026, 6, 11, 8, tzinfo=_tz.utc),

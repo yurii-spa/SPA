@@ -81,6 +81,9 @@ _NOW = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
 
 
 def _run(tmp_path):
+    # ADR-531: a sandbox without a measured red_flags input would HOLD (LAW 1) — give it one.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    write_measured_red_flags(tmp_path, _NOW)
     return cr.run_cycle(
         data_dir=tmp_path,
         now=_NOW,
@@ -317,7 +320,12 @@ _GOLDEN = {
         "date": "2026-06-10",
         "days_running": 1,
         "kill_switch_active": False,
-        "kill_switch_reason": "all triggers clear",
+        # ADR-531: a first cycle has no evidenced series, so «all triggers clear» was a claim
+        # about triggers that could not yet be evaluated. The honest reason names them; every
+        # other field of this golden is byte-identical (behaviour unchanged, wording corrected).
+        "kill_switch_reason": ("no trigger fired; partial: drawdown NOT_APPLICABLE: no evidenced drawdown "
+                               "series yet \u2014 NOT_APPLICABLE (no equity data); sharpe NOT_APPLICABLE: no "
+                               "equity data for evidenced sharpe \u2014 NOT_APPLICABLE"),
         "live_data": True,
         "market_regime": "STABLE",
         "model_used": "risk_adjusted",

@@ -335,10 +335,18 @@ def _drill_hard_kill_red_flags(ddir: Path) -> dict:
            {"positions": {"aave_v3": 40_000.0, "morpho_blue": 20_000.0}})
     flags = [
         {"protocol": "aave_v3", "severity": "CRITICAL", "source": "defillama",
-         "reason": f"drill flag {i}"}
+         "category": "tvl_drop", "reason": f"drill flag {i}"}
         for i in range(6)  # 6 > RED_FLAGS_THRESHOLD (5)
     ]
-    _write(ddir, "red_flags.json", {"red_flags": flags, "sources": ["defillama"]})
+    # ADR-531: the drill writes what the real red_flag_monitor writes — a FRESH document with
+    # measured category provenance. An unstamped document is UNMEASURED by design and would
+    # (correctly) not fire the kill; the drill must exercise the firing path, not that one.
+    from datetime import datetime as _dt, timezone as _tz
+    _write(ddir, "red_flags.json", {
+        "red_flags": flags, "sources": ["defillama"], "fallback_used": False,
+        "generated_at": _dt.now(_tz.utc).isoformat(),
+        "provenance": {"by_category": {"tvl_drop": "live"}},
+    })
     try:
         checker = KillSwitchChecker(data_dir=str(ddir))
         triggered, reason = checker.check_red_flags_trigger()

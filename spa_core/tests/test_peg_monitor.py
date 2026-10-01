@@ -90,13 +90,27 @@ def _adapter_status_with_price(adapter_id: str, price: float) -> dict:
 
 
 def _make_monitor(tmp_dir: str, use_alerts: bool = False) -> PegStabilityMonitor:
-    return PegStabilityMonitor(data_path=tmp_dir, use_alert_dispatcher=use_alerts)
+    m = PegStabilityMonitor(data_path=tmp_dir, use_alert_dispatcher=use_alerts)
+    # ADR-531: scenes now HOLD their adapters, so a CRITICAL break is a held-protocol push.
+    # The push itself is stubbed (it must never reach the owner's chat); counts and statuses run for real.
+    m._push_peg_break = lambda status, title, message: None
+    return m
 
 
 def _write_adapter_status(tmp_dir: str, payload: dict) -> None:
+    """adapter_status.json + a held book of the SAME adapters.
+
+    ADR-531: the monitor watches what the books HOLD (not whatever adapter_status lists), so a
+    scene that wants these adapters measured must also hold them — the fixture says so explicitly.
+    """
     path = Path(tmp_dir) / "adapter_status.json"
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh)
+    held = [k for k, v in payload.items() if isinstance(v, dict) and k != "adapters"]
+    held += [e.get("protocol_key") for e in payload.get("adapters", []) or []
+             if isinstance(e, dict) and e.get("protocol_key")]
+    with open(Path(tmp_dir) / "current_positions.json", "w", encoding="utf-8") as fh:
+        json.dump({"positions": {h: 10_000.0 for h in held}}, fh)
 
 
 # ===========================================================================
@@ -307,13 +321,17 @@ class TestGetPegPrice(unittest.TestCase):
         data = {"my_adapter": {"peg_price": 0.997}}
         self.assertAlmostEqual(self.monitor.get_peg_price("my_adapter", data), 0.997)
 
-    def test_05_no_price_field_returns_1_0(self):
+    def test_05_no_price_field_returns_none(self):
+        # ADR-531 (P0-3): this used to assert the synthetic 1.0 «assume stable» — the defect.
+        # No price field is NOT MEASURED, never a price.
         data = {"my_adapter": {"apy_pct": 5.0}}
-        self.assertAlmostEqual(self.monitor.get_peg_price("my_adapter", data), 1.0)
+        self.assertIsNone(self.monitor.get_peg_price("my_adapter", data))
 
-    def test_06_missing_adapter_returns_1_0(self):
+    def test_06_missing_adapter_returns_none(self):
+        # ADR-531 (P0-3): this used to assert the synthetic 1.0 «assume stable» — the defect.
+        # No price field is NOT MEASURED, never a price.
         data = {"other_adapter": {"usdc_price": 0.99}}
-        self.assertAlmostEqual(self.monitor.get_peg_price("my_adapter", data), 1.0)
+        self.assertIsNone(self.monitor.get_peg_price("my_adapter", data))
 
     def test_07_usdc_price_priority_over_dai_price(self):
         data = {"my_adapter": {"usdc_price": 0.996, "dai_price": 0.994}}
@@ -337,15 +355,19 @@ class TestGetPegPrice(unittest.TestCase):
                 {"protocol_key": "aave-v3", "apy_pct": 4.2}
             ]
         }
-        self.assertAlmostEqual(self.monitor.get_peg_price("aave-v3", data), 1.0)
+        # ADR-531 (P0-3): was the synthetic 1.0 — no price field is NOT MEASURED.
+        self.assertIsNone(self.monitor.get_peg_price("aave-v3", data))
 
-    def test_11_empty_data_returns_1_0(self):
-        self.assertAlmostEqual(self.monitor.get_peg_price("any", {}), 1.0)
+    def test_11_empty_data_returns_none(self):
+        # ADR-531 (P0-3): this used to assert the synthetic 1.0 «assume stable» — the defect.
+        # No price field is NOT MEASURED, never a price.
+        self.assertIsNone(self.monitor.get_peg_price("any", {}))
 
     def test_12_bool_value_ignored(self):
         # bool is subclass of int, must not be returned as price
         data = {"my_adapter": {"usdc_price": True}}
-        self.assertAlmostEqual(self.monitor.get_peg_price("my_adapter", data), 1.0)
+        # ADR-531: still not a price — and no longer replaced by a synthetic 1.0
+        self.assertIsNone(self.monitor.get_peg_price("my_adapter", data))
 
 
 # ===========================================================================
@@ -468,11 +490,12 @@ class TestCheckAdapter(unittest.TestCase):
         dt = datetime.fromisoformat(ps.last_checked)
         self.assertIsInstance(dt, datetime)
 
-    def test_11_missing_adapter_fallback_stable(self):
+    def test_11_missing_adapter_is_unmeasured_not_stable(self):
+        # ADR-531 (P0-3): was «missing adapter ⇒ price 1.0 ⇒ STABLE» — the blind-sensor defect.
         data = {}
         ps = self.monitor.check_adapter("nonexistent", data)
-        self.assertAlmostEqual(ps.current_price, 1.0)
-        self.assertEqual(ps.status, "STABLE")
+        self.assertIsNone(ps.current_price)
+        self.assertEqual(ps.status, "UNMEASURED")
 
     def test_12_price_above_1_deviation_is_abs(self):
         # price = 1.005 → deviation = 0.5% → WARNING
@@ -802,9 +825,10 @@ class TestOverallStatusIntegration(unittest.TestCase):
         result = PegStabilityMonitor._compute_overall_status(statuses)
         self.assertEqual(result, "RED")
 
-    def test_compute_overall_empty_is_green(self):
+    def test_compute_overall_empty_is_unknown(self):
+        # ADR-531 (P0-3): an empty measurement is not «all stable» — a blind monitor never says GREEN.
         result = PegStabilityMonitor._compute_overall_status([])
-        self.assertEqual(result, "GREEN")
+        self.assertEqual(result, "UNKNOWN")
 
 
 # ===========================================================================

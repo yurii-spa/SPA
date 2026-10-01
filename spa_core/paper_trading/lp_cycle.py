@@ -264,7 +264,14 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     # Захватываем книгу ДО сегодняшнего ребаланса — ниже (CIO Brief SHADOW) это
     # «текущая» позиция хода, а ветка ниже перезапишет и `state["positions"]`, и
     # локальную `positions`.
+    _decided_book = None
     _legs_before = list(positions)
+    if today not in existing_dates and "economics_model_boundary" not in state:
+        # ADR-531 (review S3): отметки цен, оставленные старым монитором (выдуманная 1.0), не
+        # наблюдения — первая v2-переоценка взяла бы их базой и вписала фантомный скачок в нотионал.
+        for _leg in (positions):
+            if isinstance(_leg, dict):
+                _leg.pop("mark_price", None)
     if today not in existing_dates:
         from spa_core.investment_os.directive import cio_allows_new_positions
         rows = sleeve_book.load_ranking_rows()
@@ -273,10 +280,13 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         cands = sleeve_book.book_candidates(rows)
         # CIO-директива (ADR-103): постура RED ⇒ новых позиций не открываем.
         allow_new = cio_allows_new_positions()
+        # ADR-531 (P0-1): модель v2 — нога в полосе пыли не пересобирается и не платит.
+        _dust = sleeve_book.dust_band_usd(equity)
         book, opened, closed = sleeve_book.rebalance_book(
             positions, cands, equity, today=today, allow_new=allow_new,
             max_positions=sleeve_book.AGG_MAX_POSITIONS,
             cap_pct=sleeve_book.AGG_PER_PROTOCOL_CAP_PCT,
+            keep_within_usd=_dust,
         )
         # ADR-328 (взвод CIO, решение владельца 11.09 «на все пакеты»): ход, который
         # ПРЕДЛОЖИЛ rebalance_book, принимается только с разрешения CIO. Раньше книга
@@ -293,24 +303,28 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         # исправность на уже изменённом входе.
         import copy as _copy
         _book_after_snapshot = _copy.deepcopy(book)
+        _decided_book = _book_after_snapshot   # ADR-531: решение дня — ДО начисления в позицию
         _marks_before = {p.get("protocol"): p.get("mark_price") for p in (book or [])
                          if isinstance(p, dict) and p.get("mark_price") is not None}
         _open_equity = equity
         _prices = sleeve_book.observed_prices()
-        dy, deployed = sleeve_book.accrue_book(book, cands)
+        dy, deployed = sleeve_book.accrue_book(book, cands, compound_in_place=True)
         # ADR-292: издержки перекладки СПИСЫВАЮТСЯ. До этого кривая книги не могла
         # упасть ни в один день по построению — начисление всегда положительно, а
         # за собственные ходы книга не платила. Числа берутся из единственной
         # модели костов дерева (sleeve_book.book_move_cost).
-        _cost = sleeve_book.book_move_cost(_legs_before, book,
-                                           sleeve_book.chains_from_rows(rows))
+        # Стоимость хода меряется на книге ДО начисления (тот же вход, что пересчитывает
+        # sleeve_replay): процент, выросший внутри позиции, ходом не является.
+        _cost = sleeve_book.book_move_cost(_legs_before, _book_after_snapshot,
+                                           sleeve_book.chains_from_rows(rows),
+                                           dust_usd=_dust)
         equity += dy - _cost["cost_usd"]
         state["costs_paid_usd"] = round(
             float(state.get("costs_paid_usd") or 0.0) + _cost["cost_usd"], 6)
         # ADR-292: переоценка позиций — шов с ТРЕТЬИМ исходом. Что не наблюдали, то
         # не переоценивается; доля покрытия пишется в строку истории числом, чтобы
         # «не измерено» нельзя было прочитать как «не двигалось».
-        _mtm = sleeve_book.mark_to_market(book, _prices)
+        _mtm = sleeve_book.mark_to_market(book, _prices, revalue_notional=True)
         equity += _mtm["pnl_usd"]
         if equity > peak:
             peak = equity
@@ -318,6 +332,12 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
         state["equity"] = equity
         state["positions"] = book
         positions = book
+        # ADR-531: граница моделей пишется ОДИН раз, в день первой строки v2. Строки
+        # до неё — v1 (искажены фантомным газом) и НЕ переписываются; отчёты обязаны
+        # различать «до» и «после» по этой границе, а не сравнивать их как одно.
+        state.setdefault("economics_model_boundary", sleeve_book.model_boundary(
+            state.get("daily_history") or [], first_v2_date=today,
+            activated_at=now.isoformat() + "Z"))
         state.setdefault("daily_history", []).append({
             "date": today,
             "equity": round(equity, 2),
@@ -337,6 +357,8 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "closed": closed,
             "cio_allowed_new": allow_new,
             "accrual_basis": sleeve_book.ACCRUAL_BASIS,
+            "economics_model": sleeve_book.ECONOMICS_MODEL,
+            "cost_dust_usd": round(_dust, 2),
             "delta_neutral_ok": True,
         })
         # ADR-292 п.4: архив входов дня. Fail-open — доказательная обвязка не имеет права
@@ -353,7 +375,8 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
                     prices=_prices, marks_before=_marks_before,
                     daily_yield_usd=dy, cost_usd=_cost["cost_usd"],
                     mtm_pnl_usd=_mtm["pnl_usd"],
-                    accrual_basis=sleeve_book.ACCRUAL_BASIS, allow_new=allow_new),
+                    accrual_basis=sleeve_book.ACCRUAL_BASIS, allow_new=allow_new,
+                    economics_model=sleeve_book.ECONOMICS_MODEL, cost_dust_usd=_dust),
                 now.isoformat() + "Z")
         except Exception as _arch_exc:  # noqa: BLE001
             import logging as _logging
@@ -389,7 +412,10 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             # молча и записал в живое состояние (запрещено, .claude/rules/deployment.md).
             data_dir=_LP_DATA_PATH.parent,
             current_positions=sleeve_book.collapse_legs_to_flat(_legs_before),
-            target_positions=sleeve_book.collapse_legs_to_flat(positions),
+            # ADR-531: цель — РЕШЁННАЯ книга дня; процент, выросший внутри позиции
+            # после решения, целью не является (повторный прогон дня: решения нет ⇒ держимое).
+            target_positions=sleeve_book.collapse_legs_to_flat(
+                _decided_book if _decided_book is not None else (positions)),
             apy_pct=_apy_pct,
             apy_sources=_apy_sources,
             tvl_sources=_tvl_sources,

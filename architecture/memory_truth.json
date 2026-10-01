@@ -183,7 +183,7 @@
    "subject": "roadmap",
    "status": "ACTIVE",
    "aliases": "дорожная карта что дальше следующий эпик roadmap after Trading Research Engine план",
-   "fact": "Canonical roadmap docs/ROADMAP.md: 1 Memory & Context Architecture v1 (done, ADR-527) → 2 DeFi Architecture Gap Audit (done, ADR-530) → 3 DeFi Engine vNext (next; input docs/DEFI_ARCHITECTURE_GAP_AUDIT.md §J/§K) → 4 Build Loop → 5 Owner Remote / Mission Control → 6 Capital Allocator / Portfolio CIO → 7 limited real-capital pilots → 8 later engines.",
+   "fact": "Canonical roadmap docs/ROADMAP.md: 1 Memory & Context Architecture v1 (done, ADR-527) → 2 DeFi Architecture Gap Audit (done, ADR-530) → 3 DeFi Engine vNext (Phase 0 P0 repair done, ADR-531; Phase 1 Foundation next, not started) → 4 Build Loop → 5 Owner Remote / Mission Control → 6 Capital Allocator / Portfolio CIO → 7 limited real-capital pilots → 8 later engines.",
    "evidence": [
     "spa:docs/ROADMAP.md",
     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md"
@@ -214,10 +214,11 @@
    "subject": "defi-p0-gaps",
    "status": "ACTIVE",
    "aliases": "P0 дефекты DeFi безопасность корректность газ рукава kill switch red flags peg_monitor сайт solicitation",
-   "fact": "P0 findings of the DeFi gap audit (2026-10-01), unfixed until DeFi Engine vNext: (1) sleeve books charge full ETH gas on daily accrual drift — Balanced $48.03 vs $13.77 yield/day, Aggressive $24.01 vs $14.34 — tracks wrong by construction; (2) kill-switch red-flag trigger ignores all flags when fallback_used=true and reads a missing file as not-triggered; (3) peg_monitor returns price 1.0 when no price exists, watches non-held adapters, feeds threat_reactor; (4) public package pages contradict books/canon (Tier-1-only vs 50% T2, 'No lock-up T+1' solicitation, L6 for paper) — owner subject 2.",
+   "fact": "DeFi gap audit P0s (ADR-530) — status after ADR-531 (2026-10-01): P0-1 FIXED — sleeve books use economics model sleeve-econ-v2 (no gas on accrual drift; v1 rows kept, classified DISTORTED, boundary in book state); P0-2 FIXED — kill-switch triggers have outcomes TRIGGERED/CLEAR/PARTIAL/NOT_APPLICABLE/UNMEASURED, unmeasured red flags ⇒ cycle FAIL-SAFE HOLD (no liquidation), live flags decided by category provenance; P0-3 FIXED — peg_monitor has no synthetic 1.0, prices from adapter or RTMR quorum, watches held positions, GREEN only when all measured; P0-4 OPEN — public wording package awaits the owner (subject 2).",
    "evidence": [
-    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
-    "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md"
+    "spa:docs/decisions/ADR-531-defi-vnext-phase0-p0-repair.md",
+    "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+    "spa:docs/owner_packages/2026-10-01-defi-p0-4-site-wording.md"
    ]
   },
   {

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -248,9 +248,13 @@ def test_red_flags_mixed_advisory_plus_real_critical_on_held_triggers(tmp_path):
         {"protocol": "aave_v3", "severity": "CRITICAL", "source": "bootstrap"},
         {"protocol": "external_proto", "severity": "CRITICAL", "source": "defillama"},
     ]
+    # ADR-531: a red_flags document without a readable generated_at is UNMEASURED (its age
+    # is unknown), so the fixture carries the timestamp the real writer always emits. The
+    # assertion — real CRITICAL-on-held flags still trigger through the noise — is unchanged.
     _write_json(
         tmp_path / "red_flags.json",
-        {"sources": ["defillama", "bootstrap"], "red_flags": flags},
+        {"sources": ["defillama", "bootstrap"], "red_flags": flags,
+         "generated_at": datetime.now(timezone.utc).isoformat()},
     )
     checker = KillSwitchChecker(data_dir=tmp_path)
     triggered, reason = checker.check_red_flags_trigger()
@@ -372,7 +376,10 @@ def test_red_flags_trigger_raising_does_not_silently_pass(tmp_path, monkeypatch)
     def _boom(self, *a, **k):
         raise RuntimeError("red_flags store corrupted")
 
-    monkeypatch.setattr(KillSwitchChecker, "check_red_flags_trigger", _boom)
+    # ADR-531: the sweep evaluates red flags through `evaluate_red_flags` (it returns the
+    # four-way outcome; `check_red_flags_trigger` is now a thin wrapper over it), so the
+    # explosion is injected at the seam the sweep actually calls — same contract, same strength.
+    monkeypatch.setattr(KillSwitchChecker, "evaluate_red_flags", _boom)
     with pytest.raises(RuntimeError):
         run_kill_switch_check(
             equity_curve=[_real_bar(ks.PAPER_REAL_START, 100_000.0)],

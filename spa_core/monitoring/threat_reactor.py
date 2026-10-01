@@ -16,7 +16,9 @@ Triggers (deterministic, stdlib only, LLM FORBIDDEN; LIVE data only — bootstra
 fallback red-flags are ignored):
   - peg_report.json: any monitored stablecoin in CRITICAL peg state (critical > 0),
     or worst deviation beyond DEPEG_BAND_PCT;
-  - red_flags.json (fallback_used == False): a CRITICAL flag on a HELD protocol;
+  - red_flags.json: ONE CRITICAL flag on a HELD protocol, provided the document is MEASURED
+    (fresh, live category exists), the flag is live by source + category provenance and the
+    held match is exact (ADR-531, independent review);
   - emergency_status.json: state HALT or PAUSE.
 
 Fail-SAFE: the activation write is retried and, if it can't be written, alerts loudly
@@ -78,7 +80,6 @@ def _norm(s: str) -> str:
 def _detect_threats() -> List[str]:
     """Return a list of human-readable CRITICAL threats (empty = all clear)."""
     threats: List[str] = []
-    held = _held_protocols()
 
     # 1) Stablecoin depeg (peg_monitor monitors the stables underlying our positions).
     peg = _load("peg_report.json", {})
@@ -98,19 +99,30 @@ def _detect_threats() -> List[str]:
             except (TypeError, ValueError):
                 pass
 
-    # 2) Red flags — LIVE only, CRITICAL, on a HELD protocol.
-    rf = _load("red_flags.json", {})
-    if isinstance(rf, dict) and not rf.get("fallback_used", False):
-        for f in rf.get("red_flags", []):
-            if not isinstance(f, dict):
-                continue
-            if str(f.get("severity", "")).upper() not in ("CRITICAL", "CRIT"):
-                continue
-            proto = _norm(f.get("protocol"))
-            if any(h and (h in proto or proto in h) for h in held):
-                threats.append(
-                    f"red flag CRITICAL on HELD {f.get('protocol')}: {f.get('category')}"
-                )
+    # 2) Red flags — the reactor's own designed rule (MP-REACT, N1): ONE CRITICAL flag on a HELD
+    # protocol is a threat. ADR-531 + independent review make it trustworthy instead of dead:
+    #   * the document must be MEASURED (fresh, stamped, a live category exists) — the kill
+    #     switch's `evaluate_red_flags` decides; UNMEASURED is reported by _detect_unmeasured;
+    #   * a flag is live by its source AND its category provenance (split_live_red_flags — one rule);
+    #   * HELD is matched EXACTLY after normalisation (no substring «morpho» ⊂ «morpho_blue_base»).
+    # Formerly the whole document was skipped whenever `fallback_used=true` — always true on the
+    # live document — so a live CRITICAL TVL-drop / governance flag could never act (ADR-530 P0-2).
+    try:
+        from spa_core.governance.kill_switch import (
+            KillSwitchChecker, OUTCOME_UNMEASURED, _load_held_protocols, _norm_protocol,
+            split_live_red_flags)
+        outcome, _why = KillSwitchChecker(data_dir=str(_DATA)).evaluate_red_flags()
+        rf = _load("red_flags.json", {})
+        if outcome != OUTCOME_UNMEASURED and isinstance(rf, dict):
+            held_exact = _load_held_protocols(_DATA)
+            for f in split_live_red_flags(rf)[0]:
+                if str(f.get("severity", "")).upper() not in ("CRITICAL", "CRIT"):
+                    continue
+                if _norm_protocol(f.get("protocol", "")) in held_exact:
+                    threats.append(
+                        f"red flag CRITICAL on HELD {f.get('protocol')}: {f.get('category')}")
+    except Exception:  # noqa: BLE001 — the same evaluation failure is named by _detect_unmeasured
+        pass
 
     # 3) Emergency breakers HALT/PAUSE.
     emg = _load("emergency_status.json", {})
@@ -120,6 +132,58 @@ def _detect_threats() -> List[str]:
             threats.append(f"emergency breaker: {st}")
 
     return threats
+
+
+def _age_s(ts) -> float | None:
+    try:
+        dt = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds()
+
+
+def _peg_max_age_s() -> float:
+    """Срок свежести peg_report — объявленный контракт агента (uptime_monitor), не второе число."""
+    try:
+        from spa_core.monitoring.uptime_monitor import AGENT_OUTPUT_FILES
+        return float(AGENT_OUTPUT_FILES["com.spa.peg_monitor"][1])
+    except Exception:  # noqa: BLE001 — контракт нечитаем ⇒ строгий срок
+        return 1800.0
+
+
+def _detect_unmeasured() -> List[str]:
+    """Входы реактора, которые сейчас НЕ ИЗМЕРЕНЫ (ADR-531, инв. #17).
+
+    Не повод стрелять стоп-краном (отсутствие доказательства опасности — не опасность),
+    но и не «всё чисто»: отчёт пишет их явно, ``clear`` при них ложно, восстановление
+    алерта стоп-крана при них не объявляется.
+    """
+    out: List[str] = []
+    peg = _load("peg_report.json", None)
+    if not isinstance(peg, dict):
+        out.append("peg_report: missing or unreadable")
+    else:
+        age = _age_s(peg.get("generated_at"))
+        if age is None:
+            out.append("peg_report: no readable generated_at")
+        elif age > _peg_max_age_s():
+            out.append(f"peg_report: stale ({age / 60:.0f} min)")
+        elif age < -300:
+            out.append(f"peg_report: dated {-age / 60:.0f} min in the future (clock skew)")
+        elif str(peg.get("overall_status", "")).upper() not in ("GREEN", "YELLOW", "RED"):
+            out.append(f"peg_report: {peg.get('overall_status')} — {peg.get('reason') or 'not measured'}")
+    try:
+        from spa_core.governance.kill_switch import KillSwitchChecker, OUTCOME_UNMEASURED
+        outcome, why = KillSwitchChecker(data_dir=str(_DATA)).evaluate_red_flags()
+        if outcome == OUTCOME_UNMEASURED:
+            out.append(f"red_flags: {why}")
+    except Exception as exc:  # noqa: BLE001
+        out.append(f"red_flags: evaluation failed ({type(exc).__name__})")
+    if not isinstance(_load("emergency_status.json", None), dict):
+        out.append("emergency_status: missing or unreadable")
+    return out
 
 
 KS_ACTIVE = "active"
@@ -147,9 +211,13 @@ def _kill_switch_state() -> str:
     Never raises.
     """
     try:
-        from spa_core.governance.kill_switch import KillSwitchChecker
-        res = KillSwitchChecker(data_dir=str(_DATA)).is_kill_switch_active()
-        return KS_ACTIVE if bool(res[0] if isinstance(res, tuple) else res) else KS_CLEAR
+        from spa_core.governance.kill_switch import KillSwitchChecker, OUTCOME_UNMEASURED
+        _ck = KillSwitchChecker(data_dir=str(_DATA))
+        triggered, state, _why = _ck.summarize(_ck.evaluate_triggers())
+        if triggered:
+            return KS_ACTIVE
+        # ADR-531: не измеренный вход стоп-крана — не «снят», а «не знаем».
+        return KS_UNKNOWN if state == OUTCOME_UNMEASURED else KS_CLEAR
     except Exception:
         pass
     path = _DATA / "kill_switch_active.json"
@@ -312,6 +380,7 @@ def _save(report: dict) -> None:
 def run_reactor(dry_run: bool = False) -> dict:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     threats = _detect_threats()
+    unmeasured = _detect_unmeasured()
     # Two reads on purpose. ``_kill_switch_active`` stays the seam the ACTIVATION
     # decision hangs on (and the seam the chaos tests inject at — moving it would
     # have silently un-tested re-activation storms); ``_kill_switch_state`` adds the
@@ -353,18 +422,21 @@ def run_reactor(dry_run: bool = False) -> dict:
     recovery_held_back = None
     pending = None if dry_run else _pending_kill_switch_incident()
     if pending is not None:
-        if ks_state == KS_CLEAR and not threats:
+        if ks_state == KS_CLEAR and not threats and not unmeasured:
             resolved_alert = _resolve_kill_switch(pending)
             if not resolved_alert:
                 recovery_held_back = "resolve_not_delivered"
         elif ks_state != KS_CLEAR:
             recovery_held_back = f"kill_switch_state_{ks_state}"
-        else:
+        elif threats:
             recovery_held_back = "threats_still_present"
+        else:
+            recovery_held_back = "inputs_unmeasured"
 
     report = {
         "ts": now,
         "threats": threats,
+        "unmeasured": unmeasured,
         "kill_switch_state": ks_state,
         "kill_switch_already_active": already,
         "acted": acted,
@@ -372,7 +444,8 @@ def run_reactor(dry_run: bool = False) -> dict:
         "alert_pending_before_run": pending is not None,
         "alert_resolved": resolved_alert,
         "recovery_held_back": recovery_held_back,
-        "clear": not threats,
+        # ADR-531: «чисто» — только когда нет угроз И каждый вход измерен.
+        "clear": not threats and not unmeasured,
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:

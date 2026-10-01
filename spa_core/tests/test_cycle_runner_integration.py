@@ -60,6 +60,9 @@ def _make_adapter_status(protocols: list[dict] | None = None) -> dict:
 def _tmp_data_dir(adapter_status: dict | None = None) -> Path:
     """Create a temp dir with optional adapter_status.json."""
     td = Path(tempfile.mkdtemp(prefix="spa_test_"))
+    # ADR-531: a sandbox without a measured red_flags input would HOLD (LAW 1) — give it one.
+    from spa_core.tests._measured_inputs import write_measured_red_flags
+    write_measured_red_flags(td)
     if adapter_status is not None:
         (td / "adapter_status.json").write_text(
             json.dumps(adapter_status), encoding="utf-8"

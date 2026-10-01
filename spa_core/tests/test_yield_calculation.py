@@ -23,6 +23,7 @@ from spa_core.paper_trading.cycle_runner import (
     _accrue_daily_yield,
     _last_trade_id_from_file,
 )
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ class _FakeAllocator:
 
 def _run(tmp_path, orch_apy_map, target_usd, *, now=None):
     now = now or datetime(2026, 6, 15, 8, 0, tzinfo=timezone.utc)
+    write_measured_red_flags(tmp_path, now)  # ADR-531: measured kill input, else LAW 1 HOLD
     return cr.run_cycle(
         data_dir=tmp_path,
         now=now,

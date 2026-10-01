@@ -1410,9 +1410,17 @@ def run_cycle(
         _ks_equity = (
             list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
         )
-        kill_status = run_kill_switch_check(equity_curve=_ks_equity, data_dir=ddir)
+        # ADR-531: свежесть входов стоп-крана судится по часам ЦИКЛА (вход, не окружение).
+        kill_status = run_kill_switch_check(equity_curve=_ks_equity, data_dir=ddir, now=now_dt)
         _ks_triggered = bool(kill_status.get("triggered"))
         _ks_reason = str(kill_status.get("reason") or "")
+        # ADR-531 (P0-2): вход стоп-крана НЕ измерен (нет/протух/нечитаем/весь не живой) —
+        # безопасность не подтверждена ⇒ LAW 1, тот же путь, что у упавшей проверки:
+        # держать позиции, новых не открывать. Не ликвидация: отсутствие доказательства
+        # опасности не есть доказательство опасности. И никогда не «all triggers clear».
+        if not _ks_triggered and kill_status.get("state") == "UNMEASURED":
+            log.critical("kill switch input UNMEASURED — FAIL-SAFE HOLD: %s", _ks_reason)
+            _mark_safety_failure(f"kill_switch_unmeasured: {_ks_reason}")
         if _ks_triggered:
             _ks_allocation = dict(kill_status.get("allocation") or {})
             log.critical("KILL SWITCH ACTIVE: %s", _ks_reason)

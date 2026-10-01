@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 import sys
 import unittest
 import tempfile
@@ -238,7 +239,7 @@ class TestRedFlagsTrigger(unittest.TestCase):
         _write_json(
             self.data_dir / "red_flags.json",
             {"red_flags": flags, "sources": ["defillama"],
-             "fallback_used": False, "generated_at": "2026-06-11T00:00:00Z"},
+             "fallback_used": False, "generated_at": datetime.now(timezone.utc).isoformat()},
         )
 
     def test_red_flags_trigger_fires(self) -> None:
@@ -273,7 +274,8 @@ class TestRedFlagsTrigger(unittest.TestCase):
         ]
         _write_json(
             self.data_dir / "red_flags.json",
-            {"red_flags": flags, "sources": ["defillama"], "fallback_used": False},
+            {"red_flags": flags, "sources": ["defillama"], "fallback_used": False,
+             "generated_at": datetime.now(timezone.utc).isoformat()},
         )
         # No positions file → nothing held.
         triggered, reason = self.checker.check_red_flags_trigger()
@@ -580,6 +582,8 @@ class TestN1SafetyFix(unittest.TestCase):
             "sources": sources if sources is not None else ["defillama"],
             "fallback_used": fallback_used,
             "red_flags": flags,
+            # ADR-531: the real writer always stamps the document; an unstamped one is UNMEASURED
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         })
 
     # ── (1) mixed-source + bootstrap/WARN flags → NO trigger ─────────────────

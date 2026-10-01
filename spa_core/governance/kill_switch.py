@@ -84,6 +84,26 @@ MIN_DAYS_FOR_SHARPE = 30         # минимум дней данных, что�
 SHARPE_EARLY_PERIOD_DAYS = 60   # первые N дней → early period
 SHARPE_EARLY_THRESHOLD = -2.0   # мягкий порог в early period
 
+# ─── Outcome of one trigger (ADR-531, P0-2 аудита ADR-530) ──────────────────────
+# До ADR-531 у триггера было два исхода — (сработал, нет), и «нет данных» молча
+# становилось «нет»: при `fallback_used=true` red-flags игнорировал ВСЕ флаги, а
+# отсутствующий файл давал «not triggered», и статус писал «all triggers clear».
+# Инвариант #17: «не измерено» — отдельное значение. Отсутствие доказательства
+# опасности не есть доказательство безопасности — и не повод ликвидировать книгу:
+# UNMEASURED не срабатывает стоп-краном, но статус НИКОГДА не «clear», а цикл
+# держит позиции и не открывает новых (LAW 1, тот же путь, что у упавшей проверки).
+OUTCOME_TRIGGERED = "TRIGGERED"
+OUTCOME_CLEAR = "CLEAR"                    # измерено, порог не достигнут
+OUTCOME_PARTIAL = "PARTIAL"                # измерено по живым источникам; часть входа — не живая (названа)
+OUTCOME_NOT_APPLICABLE = "NOT_APPLICABLE"  # триггер ещё не применим: нет доказательного ряда / малая выборка
+OUTCOME_UNMEASURED = "UNMEASURED"          # входа нет / протух / нечитаем / весь не живой
+#: Свежесть red_flags.json как ВХОДА стоп-крана — объявленное окно живости его
+#: производителя (`spa_core/monitoring/uptime_monitor.AGENT_OUTPUT_FILES`,
+#: `com.spa.red_flag_monitor` → 1800 с: 5-минутный монитор старше 30 мин считается
+#: мёртвым). Паритет держит тест; второго значения нет. `slo_hours` 3.0 манифеста —
+#: другой вопрос («артефакт просрочен»), не «наблюдение ещё текущее».
+RED_FLAGS_MAX_AGE_S = 1800
+
 KILL_SWITCH_ACTIVE_FILENAME = "kill_switch_active.json"
 KILL_SWITCH_STATUS_FILENAME = "kill_switch_status.json"
 DERISK_STATUS_FILENAME = "derisk_status.json"  # soft-tier de-risk state (ADR-034)
@@ -190,6 +210,66 @@ def _load_held_protocols(data_dir: Path) -> set[str]:
             except (TypeError, ValueError):
                 held.add(_norm_protocol(proto))
     return held
+
+
+def _load_held_protocols_or_none(data_dir: Path) -> set[str] | None:
+    """Как ``_load_held_protocols``, но нечитаемый/отсутствующий файл позиций — ``None``.
+
+    Пустое множество означает «измерено: ничего не держим» (в т.ч. файла ещё нет — первый
+    цикл, тот же смысл, что у самого цикла); ``None`` — файл есть, но не читается.
+    Раньше обе ситуации были пустым множеством, и CRITICAL-флаг на настоящей позиции
+    молча не считался, когда файл позиций не читался (ADR-531).
+    """
+    path = data_dir / POSITIONS_FILENAME
+    if not path.exists():
+        return set()   # книги ещё нет (первый цикл) — измерено: ничего не держим
+    doc = _read_json(path, None)
+    if not isinstance(doc, (dict, list)):
+        return None    # файл есть, но не читается — НЕ измерено
+    return _load_held_protocols(data_dir)
+
+
+def split_live_red_flags(doc: dict) -> tuple[list[dict], list[dict]]:
+    """``(живые, исключённые)`` флаги документа red_flags — ЕДИНОЕ правило (стоп-кран и
+    внутридневной реактор зовут его оба, второй копии нет; ADR-531).
+
+    Флаг живой, только если (а) его собственный ``source`` не ``bootstrap`` И (б) его
+    категория по ИЗМЕРЕННОЙ провенансной карте монитора (``provenance.by_category``) —
+    ``live``. Категория без записи в карте — не живая (не измерена). У документа без
+    провенансной карты (старый формат) действует только (а); если такой документ сам
+    помечен ``fallback_used``, флаг без названного источника живым не считается.
+
+    Почему (б): у флага ``token_unlock`` с ``source: defillama`` вся категория в тот же
+    день была ``bootstrap`` (фикстура базы) — по одному полю флага его посчитали бы живым
+    и могли бы ложно закрыть книгу. «Живое» решает измерение монитора, а не ярлык строки.
+    """
+    flags = [f for f in (doc.get("red_flags") or []) if isinstance(f, dict)]
+    prov = doc.get("provenance")
+    by_cat = prov.get("by_category") if isinstance(prov, dict) else None
+    live, excluded = [], []
+    for f in flags:
+        src = f.get("source")
+        if isinstance(by_cat, dict):
+            ok = src != "bootstrap" and by_cat.get(str(f.get("category", ""))) == "live"
+        elif doc.get("fallback_used"):
+            # документ сам говорит «часть данных — подстановка», карты нет: флаг без
+            # названного живого источника — живость НЕ ИЗВЕСТНА, по нему не стреляют
+            ok = bool(src) and src != "bootstrap"
+        else:
+            ok = src != "bootstrap"
+        (live if ok else excluded).append(f)
+    return live, excluded
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    """ISO-время → aware UTC; нечитаемо ⇒ None (третий исход, а не «сейчас»)."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 # ─── Shared evidenced-drawdown computation ──────────────────────────────────────
@@ -329,7 +409,11 @@ class KillSwitchChecker:
     data_dir : путь к папке data/ (по умолчанию <repo>/data)
     """
 
-    def __init__(self, data_dir: str | os.PathLike | None = None) -> None:
+    def __init__(self, data_dir: str | os.PathLike | None = None, *,
+                 now: datetime | None = None) -> None:
+        # Время — вход (свежесть red_flags), а не окружение: тест передаёт `now`.
+        self._now = now
+        self._sharpe_outcome = OUTCOME_UNMEASURED
         if data_dir is None:
             # По умолчанию: <repo>/data (два уровня вверх от этого файла)
             self.data_dir = Path(__file__).resolve().parents[2] / "data"
@@ -443,13 +527,56 @@ class KillSwitchChecker:
         -------
         (triggered, reason)
         """
-        doc = _read_json(self.data_dir / RED_FLAGS_FILENAME, {})
-        if not isinstance(doc, dict):
-            return False, "red_flags.json missing or invalid"
+        outcome, reason = self.evaluate_red_flags()
+        return outcome == OUTCOME_TRIGGERED, reason
 
+    def evaluate_red_flags(self) -> tuple[str, str]:
+        """Исход red-flags-триггера: TRIGGERED / CLEAR / PARTIAL / UNMEASURED (ADR-531).
+
+        Таблица истинности (порог `RED_FLAGS_THRESHOLD` и правило «CRITICAL на
+        удерживаемом протоколе» НЕ менялись):
+
+        ============================================  =============
+        вход                                          исход
+        ============================================  =============
+        файла нет / не JSON / не dict / нет списка     UNMEASURED
+        нет или нечитаем ``generated_at``              UNMEASURED
+        старше ``RED_FLAGS_MAX_AGE_S``                 UNMEASURED
+        все источники bootstrap / ни одной живой категории  UNMEASURED
+        позиции книги нечитаемы                        UNMEASURED
+        > порога CRITICAL-на-удерживаемом (живые)      TRIGGERED
+        ``fallback_used`` / часть флагов не живая      PARTIAL (живые посчитаны, остальные названы)
+        только WARN / CRITICAL не на наших / ≤ порога  CLEAR
+        ============================================  =============
+
+        Раньше ``fallback_used=true`` отбрасывал ВСЕ флаги, включая живые категории
+        (tvl_drop, governance) — живой CRITICAL на удерживаемом протоколе не мог
+        сработать. Теперь живость решается по флагу и его категории
+        (:func:`split_live_red_flags`).
+        """
+        path = self.data_dir / RED_FLAGS_FILENAME
+        if not path.exists():
+            return OUTCOME_UNMEASURED, f"{RED_FLAGS_FILENAME} missing — red flags UNMEASURED"
+        doc = _read_json(path, None)
+        if not isinstance(doc, dict):
+            return OUTCOME_UNMEASURED, f"{RED_FLAGS_FILENAME} unreadable or not an object — UNMEASURED"
         flags = doc.get("red_flags")
         if not isinstance(flags, list):
-            return False, "no red_flags list in file"
+            return OUTCOME_UNMEASURED, f"no red_flags list in {RED_FLAGS_FILENAME} — UNMEASURED"
+        gen = _parse_ts(doc.get("generated_at"))
+        if gen is None:
+            return OUTCOME_UNMEASURED, f"{RED_FLAGS_FILENAME} has no readable generated_at — UNMEASURED"
+        now = self._now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        age_s = (now - gen).total_seconds()
+        if age_s < -300:
+            return OUTCOME_UNMEASURED, (
+                f"{RED_FLAGS_FILENAME} is dated {-age_s / 60:.0f} min in the future — clock skew, UNMEASURED")
+        if age_s > RED_FLAGS_MAX_AGE_S:
+            return OUTCOME_UNMEASURED, (
+                f"{RED_FLAGS_FILENAME} is {age_s / 60:.0f} min old > {RED_FLAGS_MAX_AGE_S // 60} min — "
+                "stale, UNMEASURED")
 
         # Читаем параметры из risk_policy.json (с fallback на compile-time defaults)
         policy = _read_json(self.data_dir / "risk_policy.json", {})
@@ -458,50 +585,44 @@ class KillSwitchChecker:
         ignore_bootstrap: bool = bool(policy.get("RED_FLAGS_IGNORE_BOOTSTRAP", True))
         threshold: int = int(policy.get("RED_FLAGS_THRESHOLD", RED_FLAGS_THRESHOLD))
 
+        dict_flags = [f for f in flags if isinstance(f, dict)]
+        doc_fallback = bool(doc.get("fallback_used", False))
+        doc_sources = doc.get("sources", [])
+        doc_is_bootstrap = (isinstance(doc_sources, list) and len(doc_sources) > 0
+                            and set(doc_sources) <= {"bootstrap"})
         if ignore_bootstrap:
-            # (a) Документ-уровень: fallback_used=true ИЛИ все источники bootstrap
-            # → данные — заглушки, не живые. MIXED sources (содержат не только
-            # bootstrap) НЕ считаются bootstrap-документом (см. live-писатель).
-            doc_fallback = bool(doc.get("fallback_used", False))
-            doc_sources = doc.get("sources", [])
-            doc_is_bootstrap = (
-                isinstance(doc_sources, list)
-                and len(doc_sources) > 0
-                and set(doc_sources) <= {"bootstrap"}
-            )
-            if doc_fallback or doc_is_bootstrap:
-                log.warning(
-                    "red_flags: fallback_used=%s / all-bootstrap-sources=%s — "
-                    "ignoring all %d flags for kill_switch (non-live data)",
-                    doc_fallback,
-                    doc_is_bootstrap,
-                    len(flags),
-                )
-                return False, (
-                    f"red_flags: {len(flags)} flags ignored "
-                    f"(fallback_used={doc_fallback}, sources={doc_sources})"
-                )
-
-            # (b) Флаг-уровень: исключаем флаги, чей СОБСТВЕННЫЙ source=bootstrap
-            # (RedFlag не имеет поля "bootstrap" — только "source").
-            live_flags = [
-                f for f in flags
-                if isinstance(f, dict) and f.get("source") != "bootstrap"
-            ]
+            live_flags, excluded = split_live_red_flags(doc)
+            # НЕ ИЗМЕРЕНО — только когда ни одна категория не измерена вживую. Живые
+            # категории без флагов — это измеренное «чисто», а не пустота (замер 01.10:
+            # tvl_drop и governance живые и пустые, все 4 флага — из bootstrap-категорий;
+            # считать такой документ «не измерено» значило бы держать книгу каждый день).
+            prov = doc.get("provenance")
+            by_cat = prov.get("by_category") if isinstance(prov, dict) else None
+            no_live_category = (isinstance(by_cat, dict)
+                                and not any(v == "live" for v in by_cat.values()))
+            # документ сам говорит «подстановка», карты нет и ни одного флага с живым
+            # источником — живого наблюдения нет вовсе (review ADR-531 S6)
+            if not isinstance(by_cat, dict) and doc_fallback and not live_flags:
+                no_live_category = True
+            if doc_is_bootstrap or no_live_category:
+                return OUTCOME_UNMEASURED, (
+                    f"red_flags: no category measured live — {len(dict_flags)} flag(s) ignored "
+                    f"(fallback_used={doc_fallback}, sources={doc_sources}, provenance={by_cat}) — "
+                    "UNMEASURED")
         else:
-            live_flags = [f for f in flags if isinstance(f, dict)]
+            live_flags, excluded = dict_flags, []
 
-        # (c) Только CRITICAL-флаги на УДЕРЖИВАЕМЫХ протоколах закрывают книгу.
-        # Advisory / WARN / флаги на внешних (не в портфеле) протоколах — НЕ в счёт.
-        held = _load_held_protocols(self.data_dir)
+        held = _load_held_protocols_or_none(self.data_dir)
+        if held is None:
+            return OUTCOME_UNMEASURED, (
+                f"{POSITIONS_FILENAME} unreadable — cannot tell which flags hit held protocols, "
+                "UNMEASURED")
         critical_on_held = [
             f for f in live_flags
             if str(f.get("severity", "")).upper() == "CRITICAL"
             and _norm_protocol(f.get("protocol", "")) in held
         ]
-
         count = len(critical_on_held)
-
         if count > threshold:
             protos = sorted({str(f.get("protocol", "")) for f in critical_on_held})
             reason = (
@@ -509,13 +630,16 @@ class KillSwitchChecker:
                 f"(CRITICAL on held protocols: {protos}, from {RED_FLAGS_FILENAME})"
             )
             log.warning("KILL SWITCH red_flags trigger: %s", reason)
-            return True, reason
+            return OUTCOME_TRIGGERED, reason
 
-        return False, (
-            f"red_flags count {count} ≤ {threshold} "
-            f"(CRITICAL-on-held; {len(live_flags)} live flag(s), "
-            f"{len(held)} held protocol(s))"
-        )
+        base = (f"red_flags count {count} ≤ {threshold} "
+                f"(CRITICAL-on-held; {len(live_flags)} live flag(s), {len(held)} held protocol(s))")
+        if doc_fallback or excluded:
+            cats = sorted({str(f.get("category", "?")) for f in excluded})
+            return OUTCOME_PARTIAL, (
+                f"{base}; PARTIAL — fallback_used={doc_fallback}, {len(excluded)} non-live flag(s) "
+                f"not counted (categories {cats})")
+        return OUTCOME_CLEAR, base
 
     # ── Trigger 3: manual ────────────────────────────────────────────────────
 
@@ -581,7 +705,8 @@ class KillSwitchChecker:
         equity_doc = _read_json(self.data_dir / "equity_curve_daily.json", {})
         daily = equity_doc.get("daily") if isinstance(equity_doc, dict) else None
         if not isinstance(daily, list) or not daily:
-            return False, "no equity data for evidenced sharpe — fail-closed"
+            self._sharpe_outcome = OUTCOME_NOT_APPLICABLE
+            return False, "no equity data for evidenced sharpe — NOT_APPLICABLE"
 
         # Honest evidenced count drives the early-period / min-days gating.
         ev_returns = evidenced_daily_returns(daily, paper_start=PAPER_REAL_START)
@@ -602,6 +727,7 @@ class KillSwitchChecker:
         # THIN/UNKNOWN (None) → not enough evidenced returns, or degenerate
         # dispersion. Fail-CLOSED: never kill on an undefined Sharpe.
         if sharpe is None:
+            self._sharpe_outcome = OUTCOME_NOT_APPLICABLE
             return False, (
                 f"evidenced sharpe THIN/UNKNOWN — {len(ev_returns)} evidenced "
                 f"return(s) < min required (fail-closed, no kill)"
@@ -609,6 +735,7 @@ class KillSwitchChecker:
         sharpe_val = float(sharpe)
 
         if num_days < MIN_DAYS_FOR_SHARPE:
+            self._sharpe_outcome = OUTCOME_NOT_APPLICABLE
             return False, (
                 f"evidenced sharpe {sharpe_val:.4f} — insufficient data "
                 f"({num_days:.0f} evidenced days < {MIN_DAYS_FOR_SHARPE} required)"
@@ -640,8 +767,10 @@ class KillSwitchChecker:
                 f"[{period_label}] (computed over evidenced equity series)"
             )
             log.warning("KILL SWITCH sharpe trigger: %s", reason)
+            self._sharpe_outcome = OUTCOME_TRIGGERED
             return True, reason
 
+        self._sharpe_outcome = OUTCOME_CLEAR
         return False, (
             f"evidenced sharpe {sharpe_val:.4f} >= {effective_threshold} "
             f"[{period_label}]"
@@ -649,36 +778,82 @@ class KillSwitchChecker:
 
     # ── Main check ────────────────────────────────────────────────────────────
 
+    def evaluate_triggers(self, equity_curve: list[dict] | None = None) -> list[dict]:
+        """Исход КАЖДОГО триггера: ``[{"trigger", "outcome", "reason"}]`` (ADR-531).
+
+        Порядок: manual → drawdown → red_flags → sharpe (тот же, что был).
+        """
+        out: list[dict] = []
+        trig, why = self.check_manual_trigger()
+        out.append({"trigger": "manual", "outcome": OUTCOME_TRIGGERED if trig else OUTCOME_CLEAR,
+                    "reason": why})
+
+        curve_unreadable = False
+        if equity_curve is None:
+            _ep = self.data_dir / "equity_curve_daily.json"
+            equity_doc = _read_json(_ep, None)
+            # файл есть, но не читается — это НЕ «трек ещё не начался» (review ADR-531 S7)
+            curve_unreadable = _ep.exists() and not isinstance(equity_doc, dict)
+            equity_curve = (equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
+        # Всегда через check_drawdown_trigger (его исключение обязано всплыть, а не
+        # стать «чисто»); «не сработал» без доказательного ряда — UNMEASURED.
+        trig, why = self.check_drawdown_trigger(equity_curve)
+        if trig:
+            out.append({"trigger": "drawdown", "outcome": OUTCOME_TRIGGERED, "reason": why})
+        elif curve_unreadable:
+            out.append({"trigger": "drawdown", "outcome": OUTCOME_UNMEASURED,
+                        "reason": "equity_curve_daily.json present but unreadable — drawdown UNMEASURED"})
+        elif not equity_curve or not isinstance(equity_curve, list) or \
+                evidenced_drawdown_pct(equity_curve) is None:
+            # Нет доказательного ряда (начало трека) — триггер ещё не применим: назван,
+            # не «clear» и не повод держать (иначе новая книга не развернулась бы никогда).
+            out.append({"trigger": "drawdown", "outcome": OUTCOME_NOT_APPLICABLE,
+                        "reason": f"no evidenced drawdown series yet — NOT_APPLICABLE ({why})"})
+        else:
+            out.append({"trigger": "drawdown", "outcome": OUTCOME_CLEAR, "reason": why})
+
+        outcome, why = self.evaluate_red_flags()
+        out.append({"trigger": "red_flags", "outcome": outcome, "reason": why})
+
+        self._sharpe_outcome = OUTCOME_UNMEASURED
+        trig, why = self.check_sharpe_trigger()
+        out.append({"trigger": "sharpe",
+                    "outcome": OUTCOME_TRIGGERED if trig else self._sharpe_outcome, "reason": why})
+        return out
+
+    @staticmethod
+    def summarize(results: list[dict]) -> tuple[bool, str, str]:
+        """``(triggered, state, reason)`` из исходов триггеров.
+
+        state: ``TRIGGERED`` (первый сработавший) · ``UNMEASURED`` (хоть один не измерен —
+        «clear» НЕ пишется) · ``CLEAR_PARTIAL`` (всё измерено, но часть входа не живая или
+        триггер ещё не применим — названо) · ``CLEAR`` (всё измерено и чисто — только тогда
+        «all triggers clear»).
+        """
+        for r in results:
+            if r["outcome"] == OUTCOME_TRIGGERED:
+                return True, OUTCOME_TRIGGERED, r["reason"]
+        unm = [r for r in results if r["outcome"] == OUTCOME_UNMEASURED]
+        if unm:
+            return False, OUTCOME_UNMEASURED, "UNMEASURED — not all-clear: " + "; ".join(
+                f"{r['trigger']}: {r['reason']}" for r in unm)
+        part = [r for r in results if r["outcome"] in (OUTCOME_PARTIAL, OUTCOME_NOT_APPLICABLE)]
+        if part:
+            return False, "CLEAR_PARTIAL", "no trigger fired; partial: " + "; ".join(
+                f"{r['trigger']} {r['outcome']}: {r['reason']}" for r in part)
+        return False, OUTCOME_CLEAR, "all triggers clear"
+
     def is_kill_switch_active(
         self, equity_curve: list[dict] | None = None
     ) -> tuple[bool, str]:
-        """Проверяет все триггеры, возвращает (active, reason) для первого сработавшего.
+        """``(active, reason)``: первый сработавший триггер; иначе — состояние (ADR-531).
 
+        «all triggers clear» возвращается ТОЛЬКО когда каждый триггер измерен и чист;
+        не измеренный вход называется в причине (``UNMEASURED — …``), а не прячется.
         Порядок проверки: manual → drawdown → red_flags → sharpe.
-
-        Parameters
-        ----------
-        equity_curve : список дневных баров; если None — будет прочитан из файла.
-
-        Returns
-        -------
-        (triggered: bool, reason: str)
         """
-        # Порядок: сначала manual (мгновенная остановка), потом метрические
-        for check_fn, needs_curve in [
-            (self._check_manual_wrap, False),
-            (self._check_drawdown_wrap, True),
-            (self._check_red_flags_wrap, False),
-            (self._check_sharpe_wrap, False),
-        ]:
-            if needs_curve:
-                triggered, reason = check_fn(equity_curve)
-            else:
-                triggered, reason = check_fn(None)
-            if triggered:
-                return True, reason
-
-        return False, "all triggers clear"
+        triggered, _state, reason = self.summarize(self.evaluate_triggers(equity_curve))
+        return triggered, reason
 
     def is_derisk_active(
         self, equity_curve: list[dict] | None = None
@@ -799,6 +974,8 @@ class KillSwitchChecker:
 def run_kill_switch_check(
     equity_curve: list[dict] | None = None,
     data_dir: str | os.PathLike | None = None,
+    *,
+    now: datetime | None = None,
 ) -> dict:
     """Точка входа для cycle_runner.
 
@@ -812,14 +989,18 @@ def run_kill_switch_check(
     -------
     dict с ключами:
         triggered   : bool
+        state       : str  (TRIGGERED / UNMEASURED / CLEAR_PARTIAL / CLEAR, ADR-531)
+        unmeasured  : list[str] — триггеры без измерения
+        triggers    : list[dict] — исход каждого триггера
         reason      : str
         allocation  : dict (all-cash при triggered=True, иначе {})
         ts          : str (ISO timestamp)
     """
-    checker = KillSwitchChecker(data_dir=data_dir)
-    now_ts = datetime.now(timezone.utc).isoformat()
+    checker = KillSwitchChecker(data_dir=data_dir, now=now)
+    now_ts = (now or datetime.now(timezone.utc)).isoformat()
 
-    triggered, reason = checker.is_kill_switch_active(equity_curve=equity_curve)
+    results = checker.evaluate_triggers(equity_curve=equity_curve)
+    triggered, state, reason = checker.summarize(results)
 
     allocation: dict[str, float] = {}
     if triggered:
@@ -832,7 +1013,9 @@ def run_kill_switch_check(
         status_doc = {
             "generated_at": now_ts,
             "triggered": True,
+            "state": state,
             "reason": reason,
+            "triggers": results,
             "allocation": allocation,
         }
         try:
@@ -844,7 +1027,9 @@ def run_kill_switch_check(
         status_doc = {
             "generated_at": now_ts,
             "triggered": False,
+            "state": state,
             "reason": reason,
+            "triggers": results,
             "allocation": {},
         }
         try:
@@ -854,6 +1039,11 @@ def run_kill_switch_check(
 
     return {
         "triggered": triggered,
+        # ADR-531: TRIGGERED / UNMEASURED / CLEAR_PARTIAL / CLEAR. UNMEASURED не срабатывает
+        # стоп-краном, но вызывающий обязан держать позиции (cycle_runner LAW 1).
+        "state": state,
+        "unmeasured": [r["trigger"] for r in results if r["outcome"] == OUTCOME_UNMEASURED],
+        "triggers": results,
         "reason": reason,
         "allocation": allocation,
         "ts": now_ts,

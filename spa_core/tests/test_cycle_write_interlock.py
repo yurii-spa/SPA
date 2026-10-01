@@ -32,6 +32,7 @@ from spa_core.paper_trading._cycle_io import (
     LIVE_WRITE_ENV,
     resolve_data_dir,
 )
+from spa_core.tests._measured_inputs import write_measured_red_flags  # ADR-531
 
 
 # ─── Fixtures: make a TEMP dir act as the canonical dir ───────────────────────
@@ -94,6 +95,10 @@ class _FakeAllocator:
 
 
 def _run(*, data_dir=None, allow_live_write=False):
+    # ADR-531: measured kill input, else LAW 1 HOLD — written where the cycle will resolve its dir
+    from spa_core.paper_trading._cycle_io import resolve_data_dir as _rdd
+    write_measured_red_flags(_rdd(data_dir, allow_live_write=allow_live_write)[0],
+                             datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc))
     return cr.run_cycle(
         data_dir=data_dir,
         now=datetime(2026, 6, 11, 8, 0, tzinfo=timezone.utc),
