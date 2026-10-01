@@ -314,6 +314,24 @@ class TestCheckIsAGate(unittest.TestCase):
         self.assertEqual(r["stale"], [])
         self.assertEqual(r["empty"], 1)
 
+    def test_curated_fields_beyond_the_derived_five_survive_a_write(self):
+        """ADR-527: «зачем существует агент» (why / created_by / forbidden / last_verified) выводить
+        не из чего — запись паспорта стирала их молча, и явная причина агента пропадала при каждом
+        прогоне генератора."""
+        f = _load("_fap", "scripts/fill_agent_passports.py")
+        curated = {"why": "owner directive", "created_by": ["ADR-1"], "last_verified": "x"}
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "manifest.json"
+            path.write_text(json.dumps({"agents": [{
+                "label": "com.spa.agent_health", "program": "agent_agent_health.sh",
+                "produces": [{"artifact": "data/x.json", "slo_hours": 3}],
+                "passport": dict(curated)}]}), encoding="utf-8")
+            f.MANIFEST = path
+            f.run(write=True)
+            pp = json.loads(path.read_text(encoding="utf-8"))["agents"][0]["passport"]
+        self.assertEqual({k: pp.get(k) for k in curated}, curated)
+        self.assertTrue(pp["quality_metric"])          # the derived fields are still filled
+
     def test_real_manifest_is_currently_up_to_date(self):
         """Замер на настоящем файле: CI-шаг зелёный не по случайности."""
         f = _load("_fap", "scripts/fill_agent_passports.py")

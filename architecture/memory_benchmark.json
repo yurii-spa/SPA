@@ -1,0 +1,253 @@
+{
+ "schema": "studio-os/memory-benchmark/1",
+ "note": "Fresh-session benchmark (ADR-527). expect_any = at least one of these sources must be retrieved; facts = regexes the final answer must contain; Q12 has no evidence on purpose.",
+ "questions": [
+  {
+   "id": "Q1",
+   "q": [
+    "Зачем существует агент com.spa.trading_research и какое решение его создало?",
+    "Почему у нас есть агент trading_research, откуда он взялся?",
+    "Why does the com.spa.trading_research agent exist and which decision created it?"
+   ],
+   "expect_any": [
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+    "spa:architecture/manifest.json",
+    "spa:docs/TRADING_RESEARCH_ENGINE.md"
+   ],
+   "facts": [
+    "ADR-525",
+    "forward"
+   ],
+   "current": true,
+   "heldout": [
+    "слушай, а зачем вообще у нас крутится этот агент торгового ресёрча и откуда он взялся, каким решением его завели?",
+    "com.spa.trading_research зачем создан какое решение ADR",
+    "а com.spa.trading_research — какой у него purpose и какой decision его породил?"
+   ]
+  },
+  {
+   "id": "Q2",
+   "q": [
+    "В чём разница между Bridge Telegram и SPA Telegram?",
+    "Чем Bridge-бот отличается от SPA-бота в Телеграме?",
+    "What is the difference between the Bridge Telegram bot and the SPA Telegram bot?"
+   ],
+   "expect_any": [
+    "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md"
+   ],
+   "facts": [
+    "Studio OS",
+    "продукт|product"
+   ],
+   "heldout": [
+    "слушай, а чем отличается бот в телеге от моста от того бота, который SPA?",
+    "Bridge бот vs SPA бот разница Телеграм",
+    "в чём difference между Telegram-ботом Bridge и SPA-ботом, кто за что отвечает?"
+   ]
+  },
+  {
+   "id": "Q3",
+   "q": [
+    "Кто владеет финансовым состоянием: Studio OS или инвестиционные движки?",
+    "Где живёт финансовое состояние — в Studio OS или в движках?",
+    "Who owns financial state: Studio OS or the Investment Engines?"
+   ],
+   "expect_any": [
+    "spa:docs/CAPITAL_ARCHITECTURE.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+   ],
+   "facts": [
+    "engine|движ"
+   ],
+   "heldout": [
+    "слушай, а кто у нас держит деньги и состояние портфеля — сама студия или движки, которые инвестируют?",
+    "финансовое состояние владелец Studio OS или движки",
+    "financial state кто owner — control plane студии или investment engines?"
+   ]
+  },
+  {
+   "id": "Q4",
+   "q": [
+    "Какая идея привела к созданию Trading Research Engine?",
+    "Откуда появился движок торговых исследований?",
+    "What idea led to the Trading Research Engine?"
+   ],
+   "expect_any": [
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+    "spa:docs/TRADING_RESEARCH_ENGINE.md"
+   ],
+   "facts": [
+    "ADR-525",
+    "owner|владел"
+   ],
+   "heldout": [
+    "слушай, а с какой мысли вообще началась эта штука для исследования трейдинга?",
+    "Trading Research Engine откуда идея исходная мысль",
+    "какая была initial idea, из которой вырос research engine для трейдинга?"
+   ]
+  },
+  {
+   "id": "Q5",
+   "q": [
+    "Что уже реализовано в Trading Research Engine?",
+    "Что уже сделано в движке торговых исследований?",
+    "What has already been implemented in the Trading Research Engine?"
+   ],
+   "expect_any": [
+    "spa:docs/TRADING_RESEARCH_ENGINE.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+   ],
+   "facts": [
+    "138",
+    "forward"
+   ],
+   "heldout": [
+    "слушай, а что уже реально сделано в торговом исследовательском движке, что работает?",
+    "Trading Research Engine что готово сделано реализовано",
+    "какие фичи в Trading Research Engine уже implemented и задеплоены, а не только в планах?"
+   ]
+  },
+  {
+   "id": "Q6",
+   "q": [
+    "Какой релиз сейчас активен, а какой заменён?",
+    "Какая версия Bridge сейчас в работе и какую она заменила?",
+    "Which release is currently active and which one was superseded?"
+   ],
+   "expect_any": [
+    "spa:architecture/memory_truth.json",
+    "bridge:docs/releases/B19-RELEASES.md"
+   ],
+   "facts": [
+    "b19.6.33|4cb68535"
+   ],
+   "heldout": [
+    "слушай, а какой релиз у нас сейчас живой, а какой мы заменили?",
+    "текущий релиз активный предыдущий заменённый",
+    "какой release сейчас active, а какой superseded и чем его заменили?"
+   ]
+  },
+  {
+   "id": "Q7",
+   "q": [
+    "Почему mission_tick намеренно поставлен на паузу?",
+    "Зачем выключили mission_tick?",
+    "Why is mission_tick intentionally paused?"
+   ],
+   "expect_any": [
+    "spa:architecture/memory_truth.json",
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+    "shadow:docs/decisions/ADR-473-periodic-shadow-mission-tick.md"
+   ],
+   "facts": [
+    "владел|owner",
+    "disable|выключ|bootout"
+   ],
+   "heldout": [
+    "слушай, а почему тот тикер миссий мы специально поставили на паузу?",
+    "mission_tick пауза почему намеренно остановлен",
+    "mission_tick стоит на pause by design — в чём reason, почему не запускаем?"
+   ]
+  },
+  {
+   "id": "Q8",
+   "q": [
+    "На что системе нужно одобрение владельца?",
+    "Что агент не может решать сам без Юрия?",
+    "What does the system require Owner approval for?"
+   ],
+   "expect_any": [
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md"
+   ],
+   "facts": [
+    "ден[ье]г|деньг|money|capital|капитал",
+    "необратим|irreversib"
+   ],
+   "heldout": [
+    "слушай, а на что системе обязательно нужно моё одобрение, где без меня нельзя?",
+    "что требует подтверждения владельца список",
+    "какие действия упираются в owner approval boundary, где нужен мой approve?"
+   ]
+  },
+  {
+   "id": "Q9",
+   "q": [
+    "Что произошло при инциденте и восстановлении Fleet Acceptance?",
+    "Что случилось с приёмкой флота и как её починили?",
+    "What happened during the Fleet Acceptance incident and recovery?"
+   ],
+   "expect_any": [
+    "spa:docs/decisions/ADR-516-immutable-release-not-mutable-operational-state.md",
+    "spa:docs/journal/2026-W40.md"
+   ],
+   "facts": [
+    "ADR-516"
+   ],
+   "heldout": [
+    "слушай, а что там было с тем инцидентом при приёмке флота и как мы оттуда выбрались?",
+    "Fleet Acceptance инцидент восстановление что случилось",
+    "расскажи про incident на фазе Fleet Acceptance — что сломалось и как был recovery?"
+   ]
+  },
+  {
+   "id": "Q10",
+   "q": [
+    "Какая дорожная карта после Trading Research Engine?",
+    "Что делаем дальше после торгового движка, какой следующий эпик?",
+    "What is the current roadmap after the Trading Research Engine?"
+   ],
+   "expect_any": [
+    "spa:docs/ROADMAP.md"
+   ],
+   "facts": [
+    "DeFi Architecture Gap Audit"
+   ],
+   "heldout": [
+    "слушай, а что у нас дальше по плану после движка для трейдинг-ресёрча?",
+    "роадмап после Trading Research Engine следующие шаги",
+    "какой сейчас roadmap и next milestones после того, как закрыли Trading Research Engine?"
+   ]
+  },
+  {
+   "id": "Q11",
+   "q": [
+    "Чем предложенная DeFi-фича отличается от реализованной?",
+    "Как отличить описанную в документах функцию от работающей?",
+    "What is the difference between a proposed DeFi feature and an implemented one?"
+   ],
+   "expect_any": [
+    "spa:.claude/rules/design-docs.md",
+    "spa:docs/MEMORY_ARCHITECTURE.md"
+   ],
+   "facts": [
+    "L2|PROPOSED|предлож"
+   ],
+   "heldout": [
+    "слушай, а как понять, где DeFi-фича только предложена, а где уже реально сделана?",
+    "DeFi фича предложенная vs реализованная отличие",
+    "в чём разница между proposed DeFi feature и уже implemented — по какому признаку отличать?"
+   ]
+  },
+  {
+   "id": "Q12",
+   "q": [
+    "Какую доходность показала стратегия на Solana в 2024 году?",
+    "Сколько заработала наша торговля на Solana в прошлом году?",
+    "What return did our Solana strategy make in 2024?"
+   ],
+   "expect_any": [],
+   "expect_unknown": true,
+   "facts": [
+    "UNKNOWN"
+   ],
+   "heldout": [
+    "слушай, а сколько заработала наша стратегия на Солане за двадцать четвёртый год?",
+    "Solana стратегия доход 2024 прибыль",
+    "какой PnL дала наша Solana trading strategy за 2024 год?"
+   ]
+  }
+ ],
+ "heldout_note": "heldout phrasings were written by an independent agent that saw only the question meanings — never tune the index on them"
+}

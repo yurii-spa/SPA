@@ -32,4 +32,12 @@ bash "$REPO/scripts/dr_offsite_copy.sh" >> "$LOG" 2>&1
 OFFSITE_STATUS=$?
 echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) dr_offsite_copy exit=$OFFSITE_STATUS ===" >> "$LOG"
 
+# Tail step (ADR-527): company memory that origin does NOT hold — local-only git repositories
+# (Studio Bridge, Studio OS, Company Memory, earn-defi), the shadow worktree's off-origin branch,
+# Bridge/mission state, lineage records and Claude auto-memory → iCloud Drive (leaves the Mac).
+# Same fail-safe as above: recorded, never masks the main backup's verdict; the MANIFEST names gaps.
+echo "--- $(date -u +%Y-%m-%dT%H:%M:%SZ) memory_backup tail step ---" >> "$LOG"
+"$PY" "$REPO/scripts/memory_backup.py" >> "$LOG" 2>&1
+echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) memory_backup exit=$? ===" >> "$LOG"
+
 exit $STATUS

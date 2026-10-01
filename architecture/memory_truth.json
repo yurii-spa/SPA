@@ -1,0 +1,245 @@
+{
+ "schema": "studio-os/memory-truth/1",
+ "note": "Explicit, reasoned status overrides and semantic facts for memory (ADR-527). Each entry must cite evidence. This file never overrides an ADR's decision — it records what supersedes what.",
+ "overrides": [
+  {
+   "path": "spa:docs/AI1_ROADMAP.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/ATOMIC_MIGRATION_ROADMAP.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/FAMILY_FUND_ROADMAP.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/PHASE2_ROADMAP.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/PRODUCT_REDESIGN_ROADMAP_H2_2026.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/ROADMAP_2MONTH_EISENHOWER_v2.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/ROADMAP_2MONTH_EISENHOWER.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "spa:docs/YIELD_STRATEGY_ROADMAP.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/ROADMAP.md",
+   "reason": "historical roadmap; the single canonical roadmap is docs/ROADMAP.md (ADR-527)",
+   "evidence": "audit 2026-10-01: 11+ competing roadmap files, none current"
+  },
+  {
+   "path": "bridge:docs/handoffs/CURRENT-HANDOFF.md",
+   "status": "OBSERVED",
+   "reason": "Bridge handoff: episodic; its CANONICAL-BASELINE block is machine-checked by scripts/check_handoff_consistency.py"
+  }
+ ],
+ "facts": [
+  {
+   "subject": "com.spa.mission_tick",
+   "status": "ACTIVE",
+   "fact": "PAUSED by the owner: launchctl bootout + launchctl disable (persists across reboot); fleet health reads it as 'intentionally disabled', self_heal/reboot_verify never revive it.",
+   "evidence": [
+    "launchctl print-disabled gui/501 (measured 2026-09-30, 2026-10-01)",
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+    "spa:docs/journal/2026-W40.md"
+   ],
+   "unknown": "The written RATIONALE for the pause is not in canonical sources. The owner's 2026-09-30 directive listed it as an invariant of the accepted Trusted Runtime / Fleet Acceptance phase; the stop procedure is designed in shadow ADR-473/474 (studio-os-scratch/v03, not on origin).",
+   "aliases": "mission_tick пауза выключен почему остановлен mission tick paused disabled"
+  },
+  {
+   "subject": "trusted-release",
+   "status": "ACTIVE",
+   "fact": "Approved release 4cb68535329b2b09cb86d3a863aba6536e3f6c77; previous release 5b65257784441f61568e6c3bd22e9d0a1e928c83 retained as rollback (SUPERSEDED as active).",
+   "evidence": [
+    "/Library/Application Support/StudioOS/approved_release.json",
+    "spa:docs/decisions/ADR-516-immutable-release-not-mutable-operational-state.md"
+   ],
+   "aliases": "активный релиз заменённый approved release trusted runtime релиз доверенного рантайма"
+  },
+  {
+   "subject": "bridge-release",
+   "status": "ACTIVE",
+   "fact": "Live Bridge release b19.6.33 (5cd55b2); b19.6.32 (5a5d379) SUPERSEDED by it; b19.6.31-canary3 (3dbc23e) SUPERSEDED.",
+   "evidence": [
+    "bridge:docs/releases/B19-RELEASES.md",
+    "bridge:docs/handoffs/CURRENT-HANDOFF.md"
+   ],
+   "aliases": "Bridge релиз версия b19 активная заменённая"
+  },
+  {
+   "subject": "docs/adr",
+   "status": "SUPERSEDED",
+   "fact": "docs/adr/ is the historical first ADR registry (index generated 2026-06-20); docs/decisions/ is canonical. Numbers 029/030/048/050/053 collide between them — always cite the path.",
+   "evidence": [
+    "CLAUDE.md fact table (two ADR registries)"
+   ]
+  },
+  {
+   "subject": "PROJECT_CONTROL",
+   "status": "SUPERSEDED",
+   "fact": "PROJECT_CONTROL/ (last change 2026-07-15) is superseded by CLAUDE.md + docs/STATE.md + docs/ROADMAP.md as session entry points.",
+   "evidence": [
+    "audit 2026-10-01"
+   ]
+  },
+  {
+   "subject": "KANBAN.json",
+   "status": "SUPERSEDED",
+   "fact": "KANBAN.json (last change 2026-07-04) is superseded by nimbalyst-local/tracker cards for work tracking; golive/readiness_checker still reads it (known debt).",
+   "evidence": [
+    "audit 2026-10-01"
+   ]
+  },
+  {
+   "subject": "telegram-surfaces",
+   "status": "ACTIVE",
+   "aliases": "Bridge Telegram SPA Telegram два бота разница Bridge-бот SPA-бот телеграм пульт владельца продуктовый бот",
+   "fact": "Two Telegram bots by design. Bridge bot (com.studiobridge.telegram, repo studio_bridge) = Studio OS Owner Control Plane: Director report /report /needs /alerts /work /system /product, confirm-first text/voice intake through SPA's canonical seams. SPA bot (com.spa.telegram_bot) = product surface: portfolio, strategies, go-live, SPA alerts, SPA owner-decision cards. Neither moves capital.",
+   "evidence": [
+    "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md"
+   ]
+  },
+  {
+   "subject": "financial-state-ownership",
+   "status": "ACTIVE",
+   "aliases": "кто владеет финансовым состоянием Studio OS инвестиционные движки граница финансовая правда где живёт финансовое состояние",
+   "fact": "Studio OS is the control plane (tasks, evidence, approvals, memory, releases) and never holds financial state. Investment engines (DeFi yield engine, Trading Research Engine, earn-defi) own signals, strategies, market data, positions, execution models and financial risk state.",
+   "evidence": [
+    "spa:docs/CAPITAL_ARCHITECTURE.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+    "company:decisions/owner/2026-08-27-studio-os-investment-engine-boundary.md"
+   ]
+  },
+  {
+   "subject": "trading-research-engine",
+   "status": "ACTIVE",
+   "aliases": "Trading Research Engine движок торговых исследований торговый движок откуда появился идея что реализовано что сделано",
+   "fact": "Origin: owner directive 2026-09-30 «CAPITAL ARCHITECTURE v1 + TRADING RESEARCH ENGINE v0» after an audit found SPA had no directional price-trading engine (ADR-525). Implemented: spa_core/trading_research — 138 BTC candidates (10 public-domain families × 1h/4h/1D × spot / 1× perp paper), closed-candle Binance data, backtest with IS/OOS/costs/regimes, ranking (5 qualified), append-only hash-chained FORWARD paper since 2026-09-30 21:23 UTC, agent com.spa.trading_research every 15 min, TRADING block in the Director report. No real execution.",
+   "evidence": [
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+    "spa:docs/TRADING_RESEARCH_ENGINE.md"
+   ]
+  },
+  {
+   "subject": "owner-approval",
+   "status": "ACTIVE",
+   "aliases": "одобрение владельца что требует Юрия решай сам спроси меня owner approval owner gate что нельзя без владельца",
+   "fact": "Exactly three subjects stay with the owner (ADR-285): (1) real money movement — execution, keys, payments, going live; (2) public yield numbers, tier naming, legal wording; (3) irreversible actions — data deletion, external publication, external commitments. Plus actions the agent physically cannot do (sudo, creating repos). Everything else the agent decides and records in the journal.",
+   "evidence": [
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md"
+   ]
+  },
+  {
+   "subject": "fleet-acceptance-incident",
+   "status": "OBSERVED",
+   "aliases": "Fleet Acceptance инцидент восстановление приёмка флота канарейка что случилось",
+   "fact": "2026-09-29 the trusted-bootstrap canary exited 2/CRITICAL; three of four findings were defects of the acceptance INSTRUMENT, not the fleet: the acceptance receipt was written into the immutable release, launcher exec model, fleet interpreter path. Fixed by ADR-516 (immutable release ≠ mutable operational state; single-source fleet_python); the phase was then accepted (approved release 4cb68535).",
+   "evidence": [
+    "spa:docs/decisions/ADR-516-immutable-release-not-mutable-operational-state.md",
+    "spa:docs/journal/2026-W40.md"
+   ]
+  },
+  {
+   "subject": "roadmap",
+   "status": "ACTIVE",
+   "aliases": "дорожная карта что дальше следующий эпик roadmap after Trading Research Engine план",
+   "fact": "Canonical roadmap docs/ROADMAP.md: 1 Memory & Context Architecture v1 (with MemPalace evaluation) → 2 DeFi Architecture Gap Audit → 3 DeFi Engine vNext → 4 Build Loop → 5 Owner Remote / Mission Control → 6 Capital Allocator / Portfolio CIO → 7 limited real-capital pilots → 8 later engines.",
+   "evidence": [
+    "spa:docs/ROADMAP.md"
+   ]
+  },
+  {
+   "subject": "proposed-vs-implemented",
+   "status": "ACTIVE",
+   "aliases": "предложенная реализованная фича описанное отличие работающее proposed implemented feature L2 L4 зрелость",
+   "fact": "A proposed feature (idea, draft, design doc) is not an implemented one. Design docs carry a maturity level: L2 = document exists, no code; L3 = code but not really working; L4 = code + tests + data; L5 = live agent (.claude/rules/design-docs.md, docs/MATURITY_REGISTER.md). Memory statuses: PROPOSED ≠ ACCEPTED ≠ ACTIVE; an idea in docs/ideas is not an instruction until #promote.",
+   "evidence": [
+    "spa:.claude/rules/design-docs.md",
+    "spa:docs/MEMORY_ARCHITECTURE.md"
+   ]
+  }
+ ],
+ "agents": [
+  {
+   "label": "com.studiobridge.telegram",
+   "program": "scripts/run_telegram_bot.sh",
+   "layer": "studio-os",
+   "intent": "active",
+   "schedule": "daemon (KeepAlive)",
+   "passport": {
+    "goal": "Studio Bridge Telegram bot — the Owner Control Plane on the iPhone.",
+    "why": "Owner directive 2026-09-30: Bridge bot carries the Director report and confirm-first text/voice intake; SPA bot stays product.",
+    "created_by": [
+     "ADR-B19.6.32",
+     "ADR-B10.1 (adapter origin)"
+    ],
+    "forbidden": "owning SPA state; writing cards itself (uses spa_core.owner_remote.cli)",
+    "last_verified": "2026-10-01"
+   }
+  },
+  {
+   "label": "com.studiobridge.coordinator",
+   "program": "scripts/run_coordinator.sh",
+   "layer": "studio-os",
+   "intent": "active",
+   "schedule": "daemon (KeepAlive), 30 s loop",
+   "passport": {
+    "goal": "Bridge coordinator: scans state, enqueues owner notifications, reconciles gates, picks one run route.",
+    "why": "Phase autopilot coordinator (Bridge ADR-B16/B17).",
+    "created_by": [
+     "ADR-B16",
+     "ADR-B17"
+    ],
+    "last_verified": "2026-10-01"
+   }
+  },
+  {
+   "label": "com.studiobridge.activation-engine",
+   "program": "activation engine",
+   "layer": "studio-os",
+   "intent": "active",
+   "schedule": "KeepAlive, exits 7 by design",
+   "passport": {
+    "goal": "Owner-bootstrapped activation engine for Bridge campaigns.",
+    "why": "Bridge ADR-B19.4.1; loaded but exits 7 deliberately while no activation is authorised — not restarted on release.",
+    "created_by": [
+     "ADR-B19.4.1"
+    ],
+    "last_verified": "2026-10-01"
+   }
+  }
+ ]
+}

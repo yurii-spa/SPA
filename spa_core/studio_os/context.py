@@ -35,8 +35,9 @@ def _sec(value, provenance, note=None):
 def _recent_decisions(n=6):
     idx = _read("docs/decisions/INDEX.md") or ""
     rows = re.findall(r"\|\s*(ADR-[\w-]+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|", idx)
-    out = [{"id": r[0], "summary": r[1].strip()[:140], "status": r[2].strip()} for r in rows[:n]]
-    return out
+    # INDEX.md is appended in number order: the RECENT decisions are the last rows (ADR-527 audit —
+    # `rows[:n]` returned ADR-029…ADR-034 as «recent»)
+    return [{"id": r[0], "summary": r[1].strip()[:140], "status": r[2].strip()} for r in rows[-n:][::-1]]
 
 
 def _drafts():
@@ -47,12 +48,13 @@ def _drafts():
 
 
 def _roadmap_snip():
-    for f in ("docs/STATE.md", "MASTER_PLAN_v1.md"):
+    # docs/ROADMAP.md is the single canonical roadmap (ADR-527); STATE.md / MASTER_PLAN only if it is absent
+    for f in ("docs/ROADMAP.md", "docs/STATE.md", "MASTER_PLAN_v1.md"):
         t = _read(f)
         if t:
             lines = [ln.strip() for ln in t.splitlines() if ln.strip()][:6]
             return _sec("\n".join(lines), f)
-    return _sec(None, "docs/STATE.md|MASTER_PLAN_v1.md", "roadmap source not found")
+    return _sec(None, "docs/ROADMAP.md|docs/STATE.md|MASTER_PLAN_v1.md", "roadmap source not found")
 
 
 def _last_handoff():

@@ -787,7 +787,9 @@ def run(*, write: bool) -> dict:
         # Существующее НЕ перетирается: если поле уже заполнено человеком,
         # оно ценнее выведенного автоматически.
         merged = {f: (str(existing.get(f) or "").strip() or derived[f]) for f in FIELDS}
-        a["passport"] = merged
+        # Курированные поля СВЕРХ выводимых (why / created_by / forbidden / last_verified — ADR-527,
+        # паспорт «зачем существует агент») выводить не из чего — и стирать их нельзя по тому же правилу.
+        a["passport"] = {**merged, **{k: v for k, v in existing.items() if k not in FIELDS}}
         have = sum(1 for f in FIELDS if merged[f])
         full += have == len(FIELDS)
         partial += 0 < have < len(FIELDS)

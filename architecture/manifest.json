@@ -699,7 +699,13 @@
     "quality_metric": "data/equity_curve_daily.json свежее 26 ч; data/current_positions.json свежее 26 ч; data/allocation_rationale.json свежее 26 ч; data/allocation_rationale_history.jsonl свежее 26 ч; data/shadow_trigger_evaluation.json свежее 26 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "писать data/equity_curve_daily.json, data/current_positions.json, data/allocation_rationale.json …; слать CRITICAL владельцу через push_policy",
-    "limits": "LLM запрещён"
+    "limits": "LLM запрещён",
+    "why": "The paper-trading daily cycle: live APY/TVL from whitelisted protocols → deterministic RiskPolicy → rebalance the virtual $100k portfolio (CLAUDE.md «Что это»).",
+    "created_by": [
+     "CLAUDE.md product definition",
+     "MASTER_PLAN_v1"
+    ],
+    "last_verified": "2026-10-01"
    }
   },
   {
@@ -1927,7 +1933,20 @@
    "governed_by": [],
    "curation": "none",
    "notes": "Studio Mission Fabric shadow tick (studio-os-scratch/v03); paused by the owner (bootout + launchctl disable) — see ADR-521 journal 2026-09-30",
-   "passport": {}
+   "passport": {
+    "goal": "Periodic SHADOW entry of the Studio Mission Fabric: calls mission_tick.py every 900 s; no scheduling logic of its own.",
+    "quality_metric": "запускается по расписанию interval:900s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
+    "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
+    "rights": "",
+    "limits": "",
+    "why": "Owner decision dec-eb243e74bdb99dcc (2026-09-24, variant A) authorised a shadow periodic tick; currently PAUSED by the owner (bootout + launchctl disable).",
+    "created_by": [
+     "owner decision dec-eb243e74bdb99dcc (2026-09-24)",
+     "ADR-473 (shadow worktree studio-os-scratch/v03, not on origin)"
+    ],
+    "forbidden": "production activation, canonical delivery, Investment Engine, rates, risk limits, capital (plist header)",
+    "last_verified": "2026-10-01"
+   }
   },
   {
    "label": "com.spa.monthly_statement",
@@ -2025,7 +2044,12 @@
     "quality_metric": "запускается по расписанию interval:3600s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "запускать 6 шаг(ов): scripts.check_owner_order_starvation, scripts.consume_office_reports, scripts.cycle_analytics_audit …; запускать внешние: open",
-    "limits": "ни один шаг не импортирует execution; LLM запрещён"
+    "limits": "ни один шаг не импортирует execution; LLM запрещён",
+    "why": "Hourly headless Claude cycle executing docs/ORCHESTRATOR_PROTOCOL.md under «управляемая автономия» (owner-approved 2026-07-15).",
+    "created_by": [
+     "owner approval 2026-07-15 — docs/ORCHESTRATOR_PROTOCOL.md"
+    ],
+    "last_verified": "2026-10-01"
    }
   },
   {
@@ -2431,7 +2455,12 @@
     "quality_metric": "data/self_heal_revivals.json свежее 26.0 ч; data/self_heal_status.json свежее 26.0 ч",
     "escalation": "CRITICAL владельцу в Телеграм через push_policy (дневной потолок; стоп-кран от него освобождён)",
     "rights": "слать CRITICAL владельцу через push_policy",
-    "limits": "LLM запрещён; не импортирует execution"
+    "limits": "LLM запрещён; не импортирует execution",
+    "why": "Active watchdog (MP-SELFHEAL): revives resident agents that should run, restarts down servers, recovers a missed daily cycle; never revives an owner-paused agent (ADR-521).",
+    "created_by": [
+     "MASTER_PLAN_v1 MP-SELFHEAL"
+    ],
+    "last_verified": "2026-10-01"
    }
   },
   {
@@ -2882,7 +2911,13 @@
     "quality_metric": "процесс загружен в launchd и держит pid (data/agent_health.json: loaded=true, pid≠0)",
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "писать data/kill_switch_active.json, data/tg_bot_v2_offset.json",
-    "limits": "не импортирует execution"
+    "limits": "не импортирует execution",
+    "why": "SPA product Telegram surface: portfolio/strategy/go-live panels, SPA alerts, SPA owner-decision cards, /task and voice intake. Role fixed by ADR-521 (Bridge bot = Studio OS control plane).",
+    "created_by": [
+     "ADR-521 (role)"
+    ],
+    "forbidden": "moving capital, clearing a kill-switch latch it did not arm, LLM tools (classifier runs with --tools \"\")",
+    "last_verified": "2026-10-01"
    }
   },
   {
@@ -3119,7 +3154,19 @@
    "governed_by": [],
    "curation": "partial",
    "notes": "ADR-525 Trading Research Engine v0 forward-paper tick; research/paper only, no execution",
-   "passport": {}
+   "passport": {
+    "goal": "Trading Research Engine v0 forward-paper tick (research/paper only).",
+    "quality_metric": "data/trading_research/status.json fresher than 2 h; evidence hash chains verify",
+    "escalation": "Director report alert 🔴 when the tick is stale > 2 h or the chain breaks",
+    "rights": "писать data/trading_research/status.json",
+    "limits": "",
+    "why": "Owner directive 2026-09-30: start collecting irreversible forward-paper evidence for directional trading candidates; SPA had no price-trading engine (audit in ADR-525).",
+    "created_by": [
+     "ADR-525"
+    ],
+    "forbidden": "exchange orders, API keys, capital movement, leverage activation, LIMITED_LIVE/PRODUCTION stages (refused in code)",
+    "last_verified": "2026-10-01"
+   }
   },
   {
    "label": "com.spa.uptime_monitor",
