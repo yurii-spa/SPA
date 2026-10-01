@@ -171,3 +171,26 @@ Recorded as P1 debt, not fixed in Phase 0:
 - The kill switch's held set reads the main book only.
 - **Pre-existing:** `intraday_equity` uses the absolute deviation, so it never marks down on a depeg.
 - The dust band depends on `SPA_CAPITAL_MODE` (replay is safe: the band is archived).
+
+## Phase 0 closure (2026-10-01) — P0-4 public site published and verified
+
+Owner decisions (2026-10-01, three rounds): the P0-4 package and Option A for item 9, then the gated
+remainder, then the two follow-up packages. Every public change went through `scripts/safe_site_push.py`;
+the class-E lines went through cards in `owner-done` (ADR-146 closing with `closed_by` + `evidence`).
+
+| Commit | What |
+|---|---|
+| `1a2d7925` | P0-4 items 1–3, 5–9 (Conservative T1+T2, withdrawal terms unset, target bands, Aggressive mechanics, modelled costs, protocol vs strategy risks, gross/net, Option A sleeve history) |
+| `9095029f` | gated remainder: L6 → L3 paper label, Aggressive description without leverage |
+| `983ec0f2` | four remaining Aggressive blocks no longer describe this book as levered |
+| `a7f78d79` | last hardcoded «~3.3% realized» → `realized_rate.js` with measurement date; provenance baseline empty |
+| `bffc45f3`, `478a2c16` | evidence, owner cards, packages |
+
+Live verification (`curl -L`, after the last deploy): the 45-check P0-4 script passes 45/45;
+there is no «3.3%» on `/`, `/packages`, `/system`, `/snapshot`, the learn page or `/strategies/aggressive`;
+one rate, 4.9% (shelf, measured 2026-10-01), appears everywhere; the Aggressive page has no
+statement that this book is levered or liquidation-exposed, and 26 refusal markers EN/RU remain.
+Out of scope, left as is: lab-context sentences on the Aggressive page (meta `:13`, banner `:24-25`,
+FAQ `:377-378`) speak of «the aggressive strategies» researched in the Aggressive Lab and their ~50% tail —
+attributed to the Lab, as the package states. «0.0% drawdown» in the learn FAQ remains a literal (not approved).
+Trading Research ran throughout (`PAPER_RESEARCH_ONLY`, `live_capital_usd: 0`); live capital is 0.
