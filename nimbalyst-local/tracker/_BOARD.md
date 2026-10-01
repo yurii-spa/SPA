@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-09-30T04:27:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-01T03:22:37Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (900ef8c20) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (1ad4d58d4) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1153** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1154** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -14,6 +14,7 @@
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md`
+- **Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md`
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
@@ -42,13 +43,14 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (296)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (297)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
+- Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md` · 2026-09-30
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
@@ -516,11 +518,15 @@
 - Находка петли: data/arming_wall_order.json: возраст 15.9ч > SLO 7ч (класс agent_regis  ·  `inbox-nahodka-petli-data-arming-wall-order-jso.md` · 2026-09-27
 - Находка петли: data/asset_registry_gap_price.json: возраст 15.9ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr.md` · 2026-09-27
 - Находка петли: data/audit_trail_rate_input_coverage.json: возраст 15.9ч > SLO 7ч (кла  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu.md` · 2026-09-27
+- Находка петли: data/candidate_discovery_status.json: возраст 39.0ч > SLO 26ч (класс a  ·  `inbox-nahodka-petli-data-candidate-discovery-s-2.md` · 2026-09-29
+- Находка петли: data/candidate_registry.json: возраст 39.0ч > SLO 26ч (класс agent_reg  ·  `inbox-nahodka-petli-data-candidate-registry-js-2.md` · 2026-09-29
 - Находка петли: data/cio_outcome_independence.json: активный артефакт отсутствует на д  ·  `inbox-nahodka-petli-data-cio-outcome-independe.md` · 2026-09-08
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
 - Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
 - Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
+- Находка петли: data/rebalance_trigger.json: возраст 39.0ч > SLO 26ч (класс agent_regi  ·  `inbox-nahodka-petli-data-rebalance-trigger-jso.md` · 2026-09-29
+- Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re  ·  `inbox-nahodka-petli-data-tier-curator-report-j.md` · 2026-09-29
 - Находка петли: data/unobserved_leg_remedy_class.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-unobserved-leg-remedy.md` · 2026-09-14
 - Находка петли: data/unobserved_turnover_dependence.json: возраст 13.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-unobserved-turnover-d.md` · 2026-09-14
 - Находка петли: docs/SYSTEM_BRIEFING.md: последний ресит старше SLO 2ч — потребитель з  ·  `inbox-nahodka-petli-docs-system-briefing-md-po.md` · 2026-08-11
@@ -841,12 +847,8 @@
 - Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
-- Находка петли: data/candidate_discovery_status.json: возраст 39.0ч > SLO 26ч (класс a  ·  `inbox-nahodka-petli-data-candidate-discovery-s-2.md` · 2026-09-29
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
-- Находка петли: data/candidate_registry.json: возраст 39.0ч > SLO 26ч (класс agent_reg  ·  `inbox-nahodka-petli-data-candidate-registry-js-2.md` · 2026-09-29
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
-- Находка петли: data/rebalance_trigger.json: возраст 39.0ч > SLO 26ч (класс agent_regi  ·  `inbox-nahodka-petli-data-rebalance-trigger-jso.md` · 2026-09-29
-- Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re  ·  `inbox-nahodka-petli-data-tier-curator-report-j.md` · 2026-09-29
 - Находка петли: манифест ↔ факты: com.spa.mission_tick: агент есть в фактах, нет в ман  ·  `inbox-nahodka-petli-manifest-fakty-com-spa-mis.md` · 2026-09-25
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
