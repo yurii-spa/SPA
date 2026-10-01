@@ -1407,11 +1407,21 @@
     {
      "artifact": "data/sleeve_inputs_balanced.jsonl",
      "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/defi_engine/status.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/defi_engine/passports.json",
+     "slo_hours": 26.0
     }
    ],
    "consumes": [],
    "consumer_required": false,
-   "governed_by": [],
+   "governed_by": [
+    "ADR-532"
+   ],
    "curation": "partial",
    "notes": "",
    "passport": {
@@ -1880,11 +1890,21 @@
     {
      "artifact": "data/sleeve_inputs_aggressive.jsonl",
      "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/defi_engine/status.json",
+     "slo_hours": 26.0
+    },
+    {
+     "artifact": "data/defi_engine/passports.json",
+     "slo_hours": 26.0
     }
    ],
    "consumes": [],
    "consumer_required": false,
-   "governed_by": [],
+   "governed_by": [
+    "ADR-532"
+   ],
    "curation": "partial",
    "notes": "",
    "passport": {

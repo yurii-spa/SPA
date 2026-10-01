@@ -513,6 +513,16 @@ if __name__ == "__main__":
     result = run_lp_cycle(dry_run=dry)
     summary = get_lp_summary()
 
+    if not dry:
+        # ADR-532: refresh the derived DeFi engine status + Position Passports after THIS book is
+        # written. Advisory: the cycle's result above is final; a failure is named, never silent.
+        try:
+            from spa_core.defi_engine.engine import publish_advisory
+            _why = publish_advisory()
+        except Exception as _exc:  # noqa: BLE001 — import failure is a named outcome too
+            _why = f"defi_engine import failed: {type(_exc).__name__}: {_exc}"
+        print(f"[lp_cycle] defi_engine: {'published' if _why is None else _why}")
+
     print(
         f"[lp_cycle {LP_CYCLE_VERSION}] sleeve={result.get('sleeve')} "
         f"skipped={result.get('cycle_skipped', False)} "
