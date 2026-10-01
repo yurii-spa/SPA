@@ -375,3 +375,10 @@ def test_cycles_publish_only_from_their_cli_block():
         tries = [n for n in ast.walk(main[0]) if isinstance(n, ast.Try)]
         inside = {id(c) for tr in tries for c in ast.walk(ast.Module(body=tr.body, type_ignores=[]))}
         assert all(id(p) in inside for p in pub), f"{name}: publish must be guarded by try/except"
+
+
+def test_code_version_is_the_package_content_not_git_head(tmp_path, monkeypatch):
+    v1 = engine._code_version()
+    assert v1 and len(v1) == 12
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("git called")))
+    assert engine._code_version() == v1, "must not depend on git"

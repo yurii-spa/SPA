@@ -25,7 +25,6 @@ LLM_FORBIDDEN, stdlib only.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -46,11 +45,20 @@ def _data_dir(data_dir: "Path | str | None") -> Path:
 
 
 def _code_version() -> Optional[str]:
+    """sha256 (12 hex) over this package's own sources — what code BUILT the document.
+
+    Not ``git rev-parse HEAD``: the production tree receives code by file sync and its git index
+    lags origin by design (ADR-152), so HEAD there names a commit the code is not. Measured on the
+    first production run: HEAD said ``aeaab8bdca3b`` while the code was origin ``f705a951``.
+    """
+    import hashlib
     try:
-        r = subprocess.run(["git", "-C", str(_ROOT), "rev-parse", "--short=12", "HEAD"],
-                           capture_output=True, text=True, timeout=5)
-        return r.stdout.strip() or None if r.returncode == 0 else None
-    except Exception:  # noqa: BLE001 — no git (packaged tree): the field is unmeasured, not faked
+        h = hashlib.sha256()
+        for f in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            h.update(f.name.encode())
+            h.update(f.read_bytes())
+        return h.hexdigest()[:12]
+    except Exception:  # noqa: BLE001 — unreadable sources: the field is unmeasured, not faked
         return None
 
 
@@ -129,6 +137,7 @@ def build(data_dir: "Path | str | None" = None, now: Optional[datetime] = None) 
         "generated_at": generated,
         "run_id": run_id,
         "code_version": _code_version(),
+        "code_version_basis": "sha256 of spa_core/defi_engine/*.py (not git HEAD: the prod index lags)",
         "adr": "ADR-532",
         "money_path_effect": "none — advisory derived view; RiskPolicy v1.0 is the only hard gate",
         "live_capital_usd": 0,
