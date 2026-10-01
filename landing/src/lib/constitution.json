@@ -12,6 +12,11 @@
     "base_chain_pct": 20.0,
     "_source": "spa_core/allocator/allocator.py (ADR-025/ADR-136)"
   },
+  "sleeve_stops": {
+    "balanced_stop_pct": 8.0,
+    "aggressive_stop_pct": 25.0,
+    "_source": "spa_core/paper_trading/hy_cycle.py + lp_cycle.py (outside RiskPolicy, ADR-125/531)"
+  },
   "start_capital_usd": 100000.0,
   "currency": "USDC",
   "min_cash_buffer_pct": 5.0,

@@ -146,20 +146,23 @@ def _observed_accrual_since(book: str) -> "str | None":
 def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
     """Paper-трек рукава (Balanced=hy, Aggressive=lp) для карточки тира — ЧЕСТНЫЙ.
 
-    Правило владельца 2026-08-19 (карточка owner-decision-sbalansirovannyi-tir-…,
-    вариант 1): «идёт paper-тест» показывается ТОЛЬКО когда positions_count > 0 —
-    факт, а не аванс. Поэтому:
-      • days_with_positions — бары, где книга реально держала позиции;
-      • apy_pct — годовая ставка, посчитанная ТОЛЬКО по этим честным барам
-        (≥2 бара, иначе None → «—»);
-      • бары фантомного начисления (equity растёт при positions_count == 0,
-        замер #208) в APY НЕ входят — они видны отдельным счётчиком.
-    Файла нет / нечитаем → all-None (сайт честно молчит). ADR-103.
+    Решение владельца 2026-10-01 (ADR-531, пункт 9 пакета P0-4, вариант A): публикуются ТОЛЬКО
+    дни, посчитанные исправленной моделью издержек `sleeve-econ-v2`. Строки модели v1 искажены
+    выявленным дефектом учёта (газ за дрейф начисления), они НЕ удаляются и НЕ переписываются,
+    в число НЕ входят и показываются отдельной пометкой без числа (`pre_fix_period`). Старое и
+    новое в одну непрерывную историю не сводятся: дни, ставка и просадка — только по v2.
+
+    Прежние правила остаются: «идёт paper-тест» — только при positions_count > 0 (решение
+    владельца 19.08); ставка — по честным барам, ≥2 бара, иначе None → «—». Файла нет /
+    нечитаем → all-None (сайт честно молчит). ADR-103.
     """
+    from spa_core.paper_trading.sleeve_book import ECONOMICS_MODEL
     st = _load(state_path)
     hist = [h for h in (st.get("daily_history") or []) if isinstance(h, dict)]
-    funded = [h for h in hist if float(h.get("equity", 0) or 0) > 0]
+    v2 = [h for h in hist if h.get("economics_model") == ECONOMICS_MODEL]
+    funded = [h for h in v2 if float(h.get("equity", 0) or 0) > 0]
     honest = [h for h in funded if int(h.get("positions_count", 0) or 0) > 0]
+    pre_fix_days = len(hist) - len(v2)
 
     apy = None
     if len(honest) >= 2:
@@ -169,28 +172,49 @@ def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
         if first_eq > 0 and last_eq > 0:
             apy = round(((last_eq / first_eq) ** (365.0 / days) - 1.0) * 100.0, 2)
 
-    dd_vals = [float(h.get("drawdown_pct") or h.get("il_drawdown_pct") or 0.0) for h in honest]
+    # Просадка — от пика ТОЛЬКО v2-ряда: поле строки меряет от пика всей книги, включая
+    # искажённый период, и смешало бы два режима в одном числе.
+    dd = None
+    if honest:
+        peak, worst = 0.0, 0.0
+        for h in honest:
+            eq = float(h.get("equity") or 0)
+            peak = max(peak, eq)
+            if peak > 0:
+                worst = min(worst, eq / peak - 1.0)
+        dd = round(worst * 100.0, 2)
     last = funded[-1] if funded else {}
-    status = ("paper_test_running" if honest
-              else ("accrual_only_no_positions" if funded else "not_started"))
+    if honest:
+        status = "paper_test_running"
+    elif funded:
+        status = "accrual_only_no_positions"     # v2-начисление без позиций — не трек (19.08)
+    elif pre_fix_days:
+        status = "restarted_on_corrected_model"   # граница пройдена, исправленных дней ещё нет
+    else:
+        status = "not_started"
+    boundary = st.get("economics_model_boundary")
     return {
         "status": status,                       # факт, не аванс
         "days_with_positions": len(honest),
         "days_funded": len(funded),
-        "apy_pct": apy,                         # только по честным барам, иначе None
-        "dd_pct": round(min(dd_vals) * 100.0, 2) if dd_vals else None,
-        "nav_usd": round(float(st.get("equity") or 0.0), 2) or None,
-        "positions_count": int(last.get("positions_count", 0) or 0),
+        "apy_pct": apy,                         # только v2, честные бары, иначе None
+        "dd_pct": dd,
+        # NAV книги несёт итог искажённого периода — при наличии v1-строк не публикуется
+        # (вариант A: старое с новым не смешивается); без них — текущий equity.
+        "nav_usd": (None if pre_fix_days else (round(float(st.get("equity") or 0.0), 2) or None)),
+        "positions_count": int(last.get("positions_count", 0) or 0) if last else None,
         "evidence": "paper",                    # это paper-тест, не live (инв. #8)
-        # С какого дня начисление идёт по НАБЛЮДЁННЫМ ставкам (ADR-292/298).
-        # `None` = не измерено; витрина обязана отличать это от «литералов не было».
-        "observed_accrual_since": _observed_accrual_since(book) if book else None,
-        # ADR-531: граница экономических моделей книги. Строки v1 (до неё) искажены
-        # фантомным газом и НЕ сопоставимы со строками v2; `apy_pct` выше по-прежнему
-        # считается по всем честным барам — смена публикуемого числа есть решение
-        # владельца (предмет №2), поэтому здесь только РАЗДЕЛЕНИЕ, без подмены.
-        "economics_model_boundary": st.get("economics_model_boundary"),
-        "post_fix": _post_fix_track(honest),
+        # Все v2-дни начислены по НАБЛЮДЁННЫМ ставкам: дата — первый день v2.
+        "observed_accrual_since": (v2[0].get("date") if v2 else None),
+        "economics_model": ECONOMICS_MODEL,
+        "economics_model_boundary": boundary,
+        "pre_fix_period": ({"days": pre_fix_days, "status": "distorted",
+                            "label_en": "earlier period distorted by the identified accounting defect "
+                                        "— retained for audit, not shown",
+                            "label_ru": "прежний период искажён выявленным дефектом учёта — "
+                                        "сохранён для аудита, не показывается"}
+                           if pre_fix_days else None),
+        "post_fix": dict(_post_fix_track(honest), pre_fix_days=pre_fix_days),
     }
 
 

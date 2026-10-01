@@ -38,6 +38,12 @@ SHELF = ROOT / "landing" / "src" / "data" / "site_numbers.json"
 
 #: Пути снимка, которых в переходнике нет НАМЕРЕННО. База может только уменьшаться;
 #: дописывать сюда путь, чтобы погасить падение, запрещено — у каждой строки причина.
+# ADR-531, вариант A владельца 01.10: опубликованное число книги (apy_pct/dd_pct/days) уже
+# посчитано ТОЛЬКО по v2-строкам, а искажённый период идёт меткой pre_fix_period (в переходнике).
+R_MODEL = "провенанс модели издержек для аудита; страница показывает метку pre_fix_period (ADR-531)"
+R_POST = ("дубль опубликованного v2-числа для аудита: при варианте A apy_pct сам считается только "
+          "по v2-строкам, страница читает его (ADR-531)")
+
 NOT_IN_VIEW = {
     "/note": "текст для человека, не число",
     "/generator": "имя генератора снимка — провенанс, не показатель",
@@ -49,6 +55,22 @@ NOT_IN_VIEW = {
     "/paper_tracks/aggressive/days_funded": "не читает ни одна страница (замер 13.09)",
     "/paper_tracks/balanced/observed_accrual_since": "заменено на evidence_split.observed_since",
     "/paper_tracks/aggressive/observed_accrual_since": "заменено на evidence_split.observed_since",
+    "/paper_tracks/balanced/economics_model": R_MODEL,
+    "/paper_tracks/balanced/economics_model_boundary": R_MODEL,
+    "/paper_tracks/balanced/post_fix": R_POST,
+    "/paper_tracks/balanced/post_fix/apy_pct": R_POST,
+    "/paper_tracks/balanced/post_fix/days": R_POST,
+    "/paper_tracks/balanced/post_fix/first_date": R_POST,
+    "/paper_tracks/balanced/post_fix/model": R_POST,
+    "/paper_tracks/balanced/post_fix/pre_fix_days": R_POST,
+    "/paper_tracks/aggressive/economics_model": R_MODEL,
+    "/paper_tracks/aggressive/economics_model_boundary": R_MODEL,
+    "/paper_tracks/aggressive/post_fix": R_POST,
+    "/paper_tracks/aggressive/post_fix/apy_pct": R_POST,
+    "/paper_tracks/aggressive/post_fix/days": R_POST,
+    "/paper_tracks/aggressive/post_fix/first_date": R_POST,
+    "/paper_tracks/aggressive/post_fix/model": R_POST,
+    "/paper_tracks/aggressive/post_fix/pre_fix_days": R_POST,
 }
 
 _DUMP = """

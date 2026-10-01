@@ -30,9 +30,14 @@ def _load():
     return mod
 
 
-def _bar(date, equity, positions=0, dd=0.0):
-    return {"date": date, "equity": equity, "positions_count": positions,
-            "drawdown_pct": dd}
+def _bar(date, equity, positions=0, dd=0.0, model="sleeve-econ-v2"):
+    # По умолчанию бар посчитан исправленной моделью: с 2026-10-01 (ADR-531, вариант A
+    # владельца) в число идут ТОЛЬКО v2-строки, а правила 19.08 действуют внутри них.
+    bar = {"date": date, "equity": equity, "positions_count": positions,
+           "drawdown_pct": dd}
+    if model:
+        bar["economics_model"] = model
+    return bar
 
 
 class TestSleevePaperTrack(unittest.TestCase):
@@ -84,6 +89,34 @@ class TestSleevePaperTrack(unittest.TestCase):
             t = self._track(td, [_bar("2026-08-21", 100010.0, positions=4)])
         self.assertEqual(t["status"], "paper_test_running")
         self.assertIsNone(t["apy_pct"])
+
+    def test_pre_fix_rows_restart_the_track_and_are_never_counted(self):
+        """Вариант A 01.10: v1-строки сохранены, но ни в дни, ни в ставку, ни в NAV не входят."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            t = self._track(td, [_bar("2026-09-01", 100000.0, positions=3, model=None),
+                                 _bar("2026-09-02", 99000.0, positions=3, model=None)])
+        self.assertEqual(t["status"], "restarted_on_corrected_model")
+        self.assertIsNone(t["apy_pct"])
+        self.assertIsNone(t["dd_pct"])
+        self.assertIsNone(t["nav_usd"], "NAV несёт итог искажённого периода")
+        self.assertEqual(t["days_with_positions"], 0)
+        self.assertEqual(t["pre_fix_period"]["days"], 2)
+        self.assertEqual(t["pre_fix_period"]["status"], "distorted")
+
+    def test_mixed_history_counts_only_the_corrected_days(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            t = self._track(td, [_bar("2026-09-01", 100000.0, positions=3, model=None),
+                                 _bar("2026-09-02", 90000.0, positions=3, model=None),
+                                 _bar("2026-09-03", 100000.0, positions=3),
+                                 _bar("2026-09-04", 100020.0, positions=3)])
+        self.assertEqual(t["status"], "paper_test_running")
+        self.assertEqual(t["days_with_positions"], 2)
+        self.assertAlmostEqual(t["apy_pct"], 3.72, delta=0.05)
+        self.assertEqual(t["dd_pct"], 0.0, "просадка v1-периода не входит в v2-ряд")
+        self.assertEqual(t["observed_accrual_since"], "2026-09-03")
+        self.assertEqual(t["pre_fix_period"]["days"], 2)
 
 
 class TestBuildSnapshotIntegration(unittest.TestCase):

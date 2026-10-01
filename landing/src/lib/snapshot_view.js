@@ -72,6 +72,7 @@ export default {
       nav_usd: v(b.nav),
       evidence: 'paper',
       evidence_split: b.evidence_split || null,
+      pre_fix_period: b.pre_fix_period || null,   // ADR-531: искажённый период — метка без числа
     }])),
 
   // ── ряд графика: ДНЕВНОЙ, см. оговорку в шапке ─────────────────────────────

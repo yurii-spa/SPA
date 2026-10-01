@@ -2,7 +2,9 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)"
-status: needs-owner
+status: ingested
+answer: "A — пакет одобрен целиком; пункт 9 — вариант A (с границы sleeve-econ-v2, старый период помечен без числа). Ответ в сессии 2026-10-01."
+approves: landing/src/lib/tier_bands.json, landing/src/data/strategy_config.json, landing/src/pages/strategies/aggressive.astro
 source: nimbalyst
 created: 2026-10-01
 priority: high
@@ -37,3 +39,22 @@ Safe используется», «депег — низкий» у Balanced) �
 По A/B я внесу правки в `landing/` только через `scripts/safe_site_push.py` (сторож owner-gate), числа —
 только из снимка и `constitution.json`, проверю каждую страницу через `curl` и отчитаюсь. По C — оставлю
 пакет как есть и отмечу это в журнале.
+
+## Ответ владельца (записан 2026-10-01)
+Пакет одобрен целиком (вариант A), по пункту 9 тоже вариант A: показатели Balanced и Aggressive публикуются
+только с границы `sleeve-econ-v2`, старая история не удалена и не переписана, помечена «искажена выявленным
+дефектом учёта — сохранена для аудита», и со старыми днями в одну историю не сводится. Новых обещаний нет.
+
+**Что опубликовано сразу.** Всё одобренное, что не трогает строки с токенами честности: пункты 1, 2, 3
+(без замены L6), 5, 6, 7, 8 и пункт 9.
+
+**Что осталось.** Четыре строки, где сторож `check_owner_gate` (класс E, `honesty.token.removed`)
+требует твой статус `owner-done`, а не устное «да». Мне ставить `owner-done` запрещено (инвариант №14):
+- `tier_bands.json`: «L6 · подтверждён вживую» → «L3 · бумажный трек (подтверждённый)» (пункт 3);
+- Aggressive: описание в `strategy_config.json` и две строки `strategies/aggressive.astro` (подзаголовок
+  и вступление, пункт 4). Метка «Refused for live capital» сохранена.
+Правка готова: `docs/owner_packages/2026-10-01-defi-p0-4-gated-remainder.patch`.
+
+**Как довести.** Переведи эту карточку в `owner-done` (поле `approves:` уже заполнено). Любая сессия
+применит патч и запушит через `scripts/safe_site_push.py` с трейлером
+`Owner-Approved: owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne`.

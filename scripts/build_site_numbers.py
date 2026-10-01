@@ -166,6 +166,8 @@ def _book(track: dict, key: str, label: str, measured_at: object = None) -> dict
         # витрина не покрывает показатель, и страница печатала бы `undefined`
         # (поймано дифференциалом собранного HTML, а не глазами).
         "positions": _num(b.get("positions_count")),
+        # ADR-531 / вариант A владельца: прежний период искажён дефектом учёта — пометка БЕЗ числа.
+        "pre_fix_period": (b.get("pre_fix_period") if isinstance(b.get("pre_fix_period"), dict) else None),
         "apy": figure(b.get("apy_pct"), unit="%", kind=MEASUREMENT, annualised=True,
                       source="landing/src/data/track_snapshot.json → paper_tracks",
                       evidence=b.get("evidence"),

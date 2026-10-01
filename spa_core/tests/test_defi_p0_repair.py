@@ -159,7 +159,11 @@ def test_snapshot_separates_post_fix_days_and_keeps_the_published_number(tmp_pat
                              "economics_model_boundary": {"first_v2_date": "e0"}})
     tr = gts._sleeve_paper_track(tmp_path / "lp.json")
     assert tr["post_fix"]["days"] == 3 and tr["post_fix"]["pre_fix_days"] == 5
-    assert tr["post_fix"]["apy_pct"] > 0 > tr["apy_pct"]   # the two are never merged into one number
+    # Option A (owner, 2026-10-01): the published figure is the v2 figure; the pre-fix
+    # period is a label without a number and never merged into the series.
+    assert tr["post_fix"]["apy_pct"] > 0 and tr["apy_pct"] == tr["post_fix"]["apy_pct"]
+    assert tr["days_with_positions"] == 3 and tr["pre_fix_period"]["days"] == 5
+    assert tr["nav_usd"] is None
     assert tr["economics_model_boundary"]["first_v2_date"] == "e0"
 
 

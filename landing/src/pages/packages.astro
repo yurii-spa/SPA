@@ -26,7 +26,7 @@ const tiers = [
   {
     key: 'conservative',
     en: 'Conservative', ru: 'Консервативный',
-    status_en: 'LIVE · evidenced · fundable', status_ru: 'LIVE · подтверждён · fundable',
+    status_en: 'PAPER · evidenced track', status_ru: 'PAPER · подтверждённый трек',
     tone: 'green',
     live: true,
     what_en: 'T1/T2 stablecoin lending — Aave, Compound, Morpho, Spark. Deterministic RiskPolicy gate, ≥$5M TVL floor, per-protocol caps. This is the book the desk actually runs on paper today.',
@@ -56,8 +56,8 @@ const tiers = [
     status_en: 'RESEARCH · paper track running · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · отказан для live (осознанно)',
     tone: 'red',
     live: false,
-    what_en: 'Levered PT carry loops, points/incentive farming, unhedged directional restaking. Historically high headline (backtest: the levered loop compounds hard) — and a brutal tail: the unhedged directional book lost ~50% through the ETH crash; the levered loop carries liquidation-cascade risk.',
-    what_ru: 'Плечевые PT-carry петли, points/incentive-фарм, нехеджированный directional-рестейкинг. Исторически высокий headline (бэктест: плечевая петля жёстко компаундит) — и брутальный хвост: нехеджированная directional-книга потеряла ~50% на обвале ETH; плечевая петля несёт риск ликвидационного каскада.',
+    what_en: 'The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.',
+    what_ru: 'Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.',
     caveat_en: 'This is the 12–20% advertised elsewhere as "yield". Our engine found it AND its ~50% tail — so it REFUSES live capital until it is proven. That refusal is what you are buying: nobody else publishes what they will not touch. Want the validation report first?',
     caveat_ru: 'Это те 12–20%, что рекламируются в других местах как «доходность». Наш движок нашёл их И их ~50% хвост — поэтому ОТКАЗЫВАЕТ для live-капитала, пока они не доказаны. Этот отказ и есть то, что вы покупаете: никто больше не публикует то, чего не трогает. Хотите первым получить отчёт о валидации?',
   },
@@ -82,13 +82,23 @@ for (const t of tiers) {
     t.evidence_en = b.evidence_en; t.evidence_ru = b.evidence_ru;
     const dd = snapPkg[t.key] && snapPkg[t.key].dd_pct;
     if (t.key === 'conservative' && typeof dd === 'number') {
-      t.tail_en = `Worst drawdown: ${dd.toFixed(1)}% realized to date (live paper track)`;
-      t.tail_ru = `Макс. просадка: ${dd.toFixed(1)}% реализованная на сегодня (live paper-трек)`;
+      t.tail_en = `Worst drawdown: ${dd.toFixed(1)}% realized to date (paper track)`;
+      t.tail_ru = `Макс. просадка: ${dd.toFixed(1)}% реализованная на сегодня (бумажный трек)`;
     } else {
       t.tail_en = b.tail_en; t.tail_ru = b.tail_ru;
     }
   }
   const pt = paperTracks[t.key];
+  // ADR-531 / owner Option A: only days of the corrected cost model (sleeve-econ-v2) are published;
+  // the earlier period is labelled — never shown as a number, never merged with the new one.
+  if (pt && pt.pre_fix_period && !t.live) {
+    t.prefix_en = `${pt.pre_fix_period.label_en} (${pt.pre_fix_period.days} days)`;
+    t.prefix_ru = `${pt.pre_fix_period.label_ru} (${pt.pre_fix_period.days} дн.)`;
+  }
+  if (pt && pt.status === 'restarted_on_corrected_model' && !t.live) {
+    t.paper_en = 'Paper test restarted on the corrected cost model — no corrected days yet';
+    t.paper_ru = 'Paper-тест перезапущен на исправленной модели издержек — исправленных дней ещё нет';
+  }
   if (pt && pt.status === 'paper_test_running' && !t.live) {
     const apyPart_en = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, to date)` : '';
     const apyPart_ru = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, на сегодня)` : '';
@@ -147,7 +157,7 @@ const toneMap = {
                 are scannable instead of a wall of 6 lines each. */}
             <div class="flex items-center justify-between mb-3">
               <h2 class="text-xl font-bold text-white" data-ru={t.ru}>{t.en}</h2>
-              {t.live && <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">LIVE · evidenced</span>}
+              {t.live && <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300" data-ru="PAPER · подтверждённый трек">PAPER · evidenced track</span>}
             </div>
             <div class="text-2xl font-bold text-white font-mono mb-3" data-ru={t.band_ru}>{t.band_en}</div>
             <div class={`inline-flex items-center gap-2 self-start text-[11px] font-medium px-2.5 py-1 rounded-full ${c.badge} mb-3`}>
@@ -159,6 +169,11 @@ const toneMap = {
               <div class="text-xs font-mono text-data-teal mb-4 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
                 <span data-ru={t.paper_ru}>{t.paper_en}</span>
+              </div>
+            )}
+            {t.prefix_en && (
+              <div class="text-xs font-mono text-amber-300/90 -mt-2 mb-4" data-ru={t.prefix_ru}>
+                ⚠ {t.prefix_en}
               </div>
             )}
             {t.caveat_en && (

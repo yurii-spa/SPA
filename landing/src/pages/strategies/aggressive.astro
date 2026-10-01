@@ -5,6 +5,7 @@ import strategies from '../../data/strategy_config.json';
 
 const maxYield = strategies.strategies.find(s => s.id === 'max-yield')!;
 const global = strategies.global;
+import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered from code, never typed
 ---
 
 <Layout
@@ -122,19 +123,19 @@ const global = strategies.global;
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Плечевые PT-carry петли">Levered PT carry loops</span>
+              <span data-ru="Две позиции кредитования стейблкоинов">Two stablecoin lending positions</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Points / incentive-фарминг">Points / incentive farming</span>
+              <span data-ru="Высокая концентрация в меньшем числе протоколов">High concentration in fewer protocols</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Нехеджированный directional-рестейкинг">Unhedged directional restaking</span>
+              <span data-ru="Более широкий стоп, чем у Balanced">A wider stop than Balanced</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Реальный риск каскадных ликвидаций и депега">Real liquidation-cascade &amp; depeg risk</span>
+              <span data-ru="Без плеча, без петель, без LP">No leverage, no loops, no LP</span>
             </li>
           </ul>
         </div>
@@ -172,8 +173,8 @@ const global = strategies.global;
           </span>
         ))}
       </div>
-      <p class="text-xs text-white/25 mt-3" data-ru="Доходность усиливается за счёт плеча. Более высокая доходность сопряжена с пропорционально более высоким риском потерь.">
-        Yield amplified through leverage. Higher returns come with proportionally higher risk of loss.
+      <p class="text-xs text-white/25 mt-3" data-ru="Плеча в этой книге нет; повышенный риск — от концентрации в меньшем числе протоколов.">
+        This book uses no leverage; its higher risk comes from concentration in fewer protocols.
       </p>
     </section>
 
@@ -273,7 +274,7 @@ const global = strategies.global;
 
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
+      <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски протокола — где лежат деньги">Protocol risks — where the money sits</p>
       <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт все риски Balanced плюс риски плеча и directional-экспозиции. Он имеет реальный риск каскадных ликвидаций и депега — нехеджированная книга потеряла ~50% на обвале ETH. Отказан для live-капитала.">
         Aggressive carries all risks of the Balanced strategy plus leverage and directional risks. It has
         real liquidation-cascade and depeg risk — an unhedged book saw ~50% through the ETH crash. Refused for live capital.
@@ -322,6 +323,8 @@ const global = strategies.global;
           </p>
         </div>
       </div>
+          <p class="text-xs text-danger uppercase tracking-wider font-mono mt-8 mb-3" data-ru="Риски стратегии — что книга с ними делает">Strategy risks — what the book does with it</p>
+      <p class="text-sm text-white/55 leading-relaxed" data-ru="Простое размещение под процент, сконцентрированное в двух протоколах; без плеча.">Plain supply concentrated in two protocols; no leverage.</p>
     </section>
 
     <!-- 12. Emergency Behavior -->
@@ -403,10 +406,10 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Применяется ли та же риск-политика?">Does the same risk policy apply?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. RiskPolicy v1.0 применяется ко всем стратегиям. У Aggressive есть дополнительные ограничения, связанные с плечом, поверх базовой политики. Действует тот же неотменяемый двухуровневый kill switch: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%.">
-            Yes. RiskPolicy v1.0 applies to all strategies. Aggressive has additional
-            leverage-specific constraints on top of the base policy. The same non-overridable
-            two-tier kill switch applies: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Нет. RiskPolicy v1.0 и двухуровневый стоп-кран действуют для книги Conservative. Balanced и Aggressive — советующие бумажные книги вне RiskPolicy; у каждой свой стоп от пика: Balanced −${C.sleeve_stops.balanced_stop_pct}%, Aggressive −${C.sleeve_stops.aggressive_stop_pct}%.`}>
+            No. RiskPolicy v1.0 and the two-tier kill switch govern the Conservative book. Balanced and Aggressive
+            are advisory paper books outside RiskPolicy; each has its own stop from peak: Balanced
+            −{C.sleeve_stops.balanced_stop_pct}%, Aggressive −{C.sleeve_stops.aggressive_stop_pct}%.
           </p>
         </div>
 

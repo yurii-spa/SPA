@@ -109,6 +109,27 @@ def chain_caps() -> Tuple[dict, str]:
     return caps, ""
 
 
+def sleeve_stops() -> Tuple[dict, str]:
+    """Стопы советующих книг Balanced/Aggressive — ИЗ КОНСТАНТ их циклов (ADR-531, пункт 5 P0-4).
+
+    Эти книги живут вне RiskPolicy, и у каждой свой стоп от пика. Сайт обязан называть их
+    числом из кода, а не литералом: копия здесь была бы вторым домом порога.
+    """
+    if str(_REPO) not in sys.path:
+        sys.path.insert(0, str(_REPO))
+    try:
+        from spa_core.paper_trading import hy_cycle as _hy, lp_cycle as _lp
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"стопы рукавов не прочитаны: {type(exc).__name__}: {exc}"
+    b, a = getattr(_hy, "_KILL_DRAWDOWN_THRESHOLD", None), getattr(_lp, "IL_KILL_THRESHOLD", None)
+    for name, val in (("hy_cycle._KILL_DRAWDOWN_THRESHOLD", b), ("lp_cycle.IL_KILL_THRESHOLD", a)):
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            return {}, f"в коде нет числового {name} — конституция была бы неполной"
+    return {"balanced_stop_pct": round(abs(float(b)) * 100.0, 4),
+            "aggressive_stop_pct": round(abs(float(a)) * 100.0, 4),
+            "_source": "spa_core/paper_trading/hy_cycle.py + lp_cycle.py (outside RiskPolicy, ADR-125/531)"}, ""
+
+
 def build(source: Path = SOURCE) -> Tuple[dict, str]:
     """``(документ, причина-отказа)``. Отказ ⇒ документ пустой, писать нечего."""
     try:
@@ -121,6 +142,9 @@ def build(source: Path = SOURCE) -> Tuple[dict, str]:
     caps, why_caps = chain_caps()
     if why_caps:
         return {}, why_caps
+    stops, why_stops = sleeve_stops()
+    if why_stops:
+        return {}, why_stops
     out: Dict[str, object] = {
         "note": ("Числа-РЕШЕНИЯ сайта. Источник — data/capital_config.json + "
                  "governance/kill_switch.py + потолки сети из allocator.py; файл СГЕНЕРИРОВАН "
@@ -129,6 +153,7 @@ def build(source: Path = SOURCE) -> Tuple[dict, str]:
         "source": "data/capital_config.json",
         "kill_switch": ladder,
         "chain_caps": caps,
+        "sleeve_stops": stops,
     }
     missing = []
     for name, path in FIELDS.items():

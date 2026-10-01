@@ -145,6 +145,8 @@ const goLive = goLiveLabel(snap);
 
     <!-- 6. Evidence levels (L0–L6) — what every number on the site is allowed to claim -->
     <section class="py-10 border-t border-border">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-3" data-ru="Брутто и нетто">Gross and net</p>
+      <p class="text-sm text-white/55 leading-relaxed mb-8" data-ru="Брутто — ставка протокола, как её показывает DeFiLlama. Бумажное нетто — брутто минус расчётная стоимость собственных ходов книги. Ни то, ни другое не учитывает налоги, реальное исполнение и комиссии сверх тех, что уже в ставке.">Gross = the protocol’s supply rate as reported (DeFiLlama). Paper net = gross minus the modelled cost of the book’s own moves. Neither includes taxes, real execution or fees beyond those inside the rate.</p>
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Уровни доказательности (L0–L6)">Evidence Levels (L0–L6)</p>
       <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Каждая цифра доходности на сайте несёт уровень доказательности — сколько реального подтверждения за ней стоит. Ниже L2 никакая APY не показывается публично. Бумага (paper) — это L3, и она всегда помечена «paper», никогда «live». Это канон (ADR-YL-009); другие страницы лишь используют метки.">
         Every yield number on this site carries an <strong class="text-white/80">evidence level</strong> — how much
