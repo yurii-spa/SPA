@@ -91,8 +91,8 @@
       "status_label": "Research · refused for live",
       "who_for": "Experienced allocators accepting higher volatility for yield upside.",
       "taglineRu": "Продвинутая механика для повышенной терпимости к доходности",
-      "description": "Levered PT carry, points / incentive farming, and unhedged directional restaking. Real liquidation-cascade and depeg risk — paper-tested in the Aggressive Lab, refused for live capital. The tail is shown, not hidden.",
-      "descriptionRu": "Плечевой PT-carry, points / incentive-фарминг и нехеджированный directional-рестейкинг. Реальный риск каскадных ликвидаций и депега — paper-тест в Aggressive Lab, отказан для live-капитала. Хвост показан, не спрятан.",
+      "description": "The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.",
+      "descriptionRu": "Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.",
       "yield_sources": [
         "Optimised Aave positions",
         "Advanced Morpho vaults",

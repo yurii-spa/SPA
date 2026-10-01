@@ -2,13 +2,15 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)"
-status: ingested
+status: owner-done
 answer: "A — пакет одобрен целиком; пункт 9 — вариант A (с границы sleeve-econ-v2, старый период помечен без числа). Ответ в сессии 2026-10-01."
 approves: landing/src/lib/tier_bands.json, landing/src/data/strategy_config.json, landing/src/pages/strategies/aggressive.astro
 source: nimbalyst
 created: 2026-10-01
 priority: high
 adr: ADR-531
+status_trail:
+  - "2026-10-01T14:51:03.735987+00:00 ingested -> owner-done · queue.set_status/closed_by:owner (explicit decision in session 2026-10-01: «OWNER DECISION — COMPLETE P0-4», approves owner-done + gated remainder)/evidence:owner text 2026-10-01 approving owner-done and publication of docs/owner_packages/2026-10-01-defi-p0-4-gated-remainder.patch (4 edits); first 40/45 live checks — commit bffc45f3 journal W40"
 ---
 
 ## Что случилось и почему это важно
