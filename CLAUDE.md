@@ -3,8 +3,10 @@
 > **Источник правды — файлы в git.** Nimbalyst / Obsidian / дашборды — только окна в них.
 > Полная топология и two-agent separation: [`PROJECT_CONTROL/00_START_HERE.md`](PROJECT_CONTROL/00_START_HERE.md).
 >
-> **Снимок состояния** (git-committed `data/golive_status.json`; ЖИВЫЕ числа — `docs/SYSTEM_BRIEFING.md` /
-> `docs/STATE.md`): GoLive **27/29** · трек **13/30** evidenced (anchor **2026-06-22**) · kill-switch SOFT −5% / HARD −10%.
+> **Снимок состояния** (живой замер 2026-10-01, ADR-530; ЖИВЫЕ числа — `docs/SYSTEM_BRIEFING.md` / `docs/STATE.md`;
+> git-committed `data/golive_status.json` устарел): GoLive **29/29** — это инвентарь, `ready_for_live=false` · трек
+> **100** evidenced дней (anchor **2026-06-22**) · kill-switch SOFT −5% / HARD −10%. Карта DeFi «что реально
+> работает» — `docs/DEFI_ARCHITECTURE_GAP_AUDIT.md`.
 
 ## ⚡ Проверенные факты и ловушки (читать ПЕРВЫМ; дата проверки обязательна; НЕ перепроверять — ПОЛЬЗОВАТЬСЯ)
 

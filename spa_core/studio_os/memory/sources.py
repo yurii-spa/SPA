@@ -50,6 +50,7 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "docs/MEMORY_ARCHITECTURE.md", "CANONICAL", "doc", 3),
     Rule("spa", "docs/TRADING_RESEARCH_ENGINE.md", "CANONICAL", "doc", 3),
     Rule("spa", "docs/GITHUB_CREDENTIALS.md", "CANONICAL", "doc", 3),
+    Rule("spa", "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md", "CANONICAL", "doc", 3),
     Rule("spa", "docs/THREE_TIER_YIELD_PRODUCT.md", "CANONICAL", "doc", 2),
     Rule("spa", "docs/STATE.md", "CANONICAL", "doc", 2),
     Rule("spa", "architecture/manifest.json", "CANONICAL", "agents", 3),

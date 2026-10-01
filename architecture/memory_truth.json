@@ -62,6 +62,13 @@
    "path": "bridge:docs/handoffs/CURRENT-HANDOFF.md",
    "status": "OBSERVED",
    "reason": "Bridge handoff: episodic; its CANONICAL-BASELINE block is machine-checked by scripts/check_handoff_consistency.py"
+  },
+  {
+   "path": "spa:docs/LOOPING_STRATEGY.md",
+   "status": "SUPERSEDED",
+   "superseded_by": "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+   "reason": "its 'L2 — no code' header is stale: loop strategies exist in advisory code (s21_aave_loop, emode_looping, aggressive_lab LeverageLoop); current state in the DeFi gap audit §E",
+   "evidence": "audit 2026-10-01 (ADR-530)"
   }
  ],
  "facts": [
@@ -176,9 +183,10 @@
    "subject": "roadmap",
    "status": "ACTIVE",
    "aliases": "дорожная карта что дальше следующий эпик roadmap after Trading Research Engine план",
-   "fact": "Canonical roadmap docs/ROADMAP.md: 1 Memory & Context Architecture v1 (with MemPalace evaluation) → 2 DeFi Architecture Gap Audit → 3 DeFi Engine vNext → 4 Build Loop → 5 Owner Remote / Mission Control → 6 Capital Allocator / Portfolio CIO → 7 limited real-capital pilots → 8 later engines.",
+   "fact": "Canonical roadmap docs/ROADMAP.md: 1 Memory & Context Architecture v1 (done, ADR-527) → 2 DeFi Architecture Gap Audit (done, ADR-530) → 3 DeFi Engine vNext (next; input docs/DEFI_ARCHITECTURE_GAP_AUDIT.md §J/§K) → 4 Build Loop → 5 Owner Remote / Mission Control → 6 Capital Allocator / Portfolio CIO → 7 limited real-capital pilots → 8 later engines.",
    "evidence": [
-    "spa:docs/ROADMAP.md"
+    "spa:docs/ROADMAP.md",
+    "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md"
    ]
   },
   {
@@ -189,6 +197,55 @@
    "evidence": [
     "spa:.claude/rules/design-docs.md",
     "spa:docs/MEMORY_ARCHITECTURE.md"
+   ]
+  },
+  {
+   "subject": "defi-packages",
+   "status": "ACTIVE",
+   "aliases": "три пакета тиры Conservative Balanced Aggressive Консервативный Сбалансированный Агрессивный Preserve Core Max Yield packages tiers что держат книги",
+   "fact": "Measured 2026-10-01: Conservative = main cycle_runner book under RiskPolicy v1.0 (T1 45% / T2 50%, 100 evidenced days); Balanced = hy_cycle sleeve (data/hy_paper_trading.json), Aggressive = lp_cycle sleeve (data/lp_paper_trading.json), both OUTSIDE RiskPolicy with own kills -8% / -25%. All three hold only single-asset stablecoin lending/savings; 'aggressive' = concentration (2 names up to 60%) + wider stop, not riskier protocols or complex mechanics. Loops/PT/YT/LP/delta-neutral/basis run only in advisory labs.",
+   "evidence": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+    "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+    "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+   ]
+  },
+  {
+   "subject": "defi-p0-gaps",
+   "status": "ACTIVE",
+   "aliases": "P0 дефекты DeFi безопасность корректность газ рукава kill switch red flags peg_monitor сайт solicitation",
+   "fact": "P0 findings of the DeFi gap audit (2026-10-01), unfixed until DeFi Engine vNext: (1) sleeve books charge full ETH gas on daily accrual drift — Balanced $48.03 vs $13.77 yield/day, Aggressive $24.01 vs $14.34 — tracks wrong by construction; (2) kill-switch red-flag trigger ignores all flags when fallback_used=true and reads a missing file as not-triggered; (3) peg_monitor returns price 1.0 when no price exists, watches non-held adapters, feeds threat_reactor; (4) public package pages contradict books/canon (Tier-1-only vs 50% T2, 'No lock-up T+1' solicitation, L6 for paper) — owner subject 2.",
+   "evidence": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+    "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md"
+   ]
+  },
+  {
+   "subject": "defi-two-dimensional-risk",
+   "status": "ACTIVE",
+   "aliases": "протокольный риск стратегический риск механика две оси protocol risk strategy risk mechanic loop supply одно измерение",
+   "fact": "Protocol risk and strategy (mechanic) risk are ONE dimension today: tier T1/T2/T3 + one risk_score per adapter, StrategySpec.tier reuses protocol labels; the only mechanic attribute (is_delta_neutral) is stamped True on every sleeve leg. An Aave loop would inherit Aave's T1 cap. vNext adds a mechanic axis, advisory until an ADR (RiskPolicy v1.0 frozen).",
+   "evidence": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md"
+   ]
+  },
+  {
+   "subject": "golive-status",
+   "status": "ACTIVE",
+   "aliases": "GoLive 29/29 27/29 готовность go-live трек дней 100 evidenced ready_for_live",
+   "fact": "Live 2026-10-01: GoLive 29/29, ready, gate_passed_owner_decision_pending, 100 evidenced days — but about 13 of 29 checks only prove a file exists/imports and execution_readiness says ready_for_live=false (custody/MPC, external audit, execution mode). The CLAUDE.md snapshot '27/29 · 13/30' and git-committed data/golive_status.json are stale mirrors.",
+   "evidence": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+    "spa:CLAUDE.md"
+   ]
+  },
+  {
+   "subject": "defi-roles",
+   "status": "ACTIVE",
+   "aliases": "роли агенты opportunity scanner net yield loop simulator health factor rate shock oracle depeg liquidity exit strategy supervisor новые агенты",
+   "fact": "All eight target DeFi roles exist under other names (alpha_agent+discovery_step, rebalance_economics+cio_arming, mass_tournament/levered_stress, RTMR peg/oracle/liquidity sensors, kill_switch+threat_reactor+CIO). No new agent is justified: gaps are a missing RTMR rate sensor, incomplete liquidity scopes (maple, morpho_blue_base), a blind peg_monitor and fragmented supervision.",
+   "evidence": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md"
    ]
   }
  ],
