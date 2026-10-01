@@ -2,12 +2,14 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет"
-status: needs-owner
+status: owner-done
 source: orchestrator
 created: 2026-10-01
 approves: landing/src/pages/strategies/aggressive.astro
 adr: ADR-531
 priority: high
+status_trail:
+  - "2026-10-01T15:59:47.470986+00:00 needs-owner -> owner-done · queue.set_status/closed_by:owner (explicit decision in session 2026-10-01: «OWNER DECISION — CLOSE REMAINING P0-4 PUBLIC CORRECTNESS GAPS», both packages approved)/evidence:owner approval 2026-10-01 of docs/owner_packages/2026-10-01-aggressive-residual-leverage.md; patch applied as is; live check after push"
 ---
 
 ## Что случилось и почему это важно
