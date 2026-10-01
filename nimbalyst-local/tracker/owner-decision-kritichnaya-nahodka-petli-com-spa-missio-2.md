@@ -6,6 +6,10 @@ status: needs-owner
 source: nimbalyst
 created: 2026-09-30
 finding_key: "B1:dead:com.spa.mission_tick"
+owner_choice: ack
+owner_answered_at: 2026-10-01T07:00:44.855526+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
 ---
 
 ## Что случилось и почему это важно
