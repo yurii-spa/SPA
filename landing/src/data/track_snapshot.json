@@ -122,10 +122,16 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-02T10:47:02Z",
-    "generated_at": "2026-10-02T10:47:02Z",
+    "published_at": "2026-10-02T11:51:39Z",
+    "generated_at": "2026-10-02T11:51:39Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
+    "code_identity": {
+      "state": "IN_SYNC",
+      "origin_commit": "40d9cdf66827",
+      "checked_at": "2026-10-02T11:43:58.832469+00:00",
+      "age_h": 0.13
+    },
     "status_colour_is_not_a_risk_grade": true,
     "packages": {
       "conservative": {
@@ -145,7 +151,7 @@
           "reason_en": null,
           "reason_ru": null,
           "last_run_at": "2026-10-02T09:55:40.444175+00:00",
-          "age_h": 0.86
+          "age_h": 1.93
         },
         "data": {
           "state": "HEALTHY",
@@ -179,6 +185,22 @@
           "live_reason_en": "paper validation; real capital only after the go-live gates and an owner decision",
           "live_reason_ru": "бумажная проверка; реальный капитал — только после гейтов go-live и решения владельца"
         },
+        "composition": {
+          "state": "MEASURED",
+          "tiers_held": {
+            "T1": [
+              "aave_v3",
+              "compound_v3"
+            ],
+            "T2": [
+              "fluid_fusdc",
+              "maple",
+              "morpho_blue_base"
+            ]
+          },
+          "summary_en": "T1: aave_v3, compound_v3 · T2: fluid_fusdc, maple, morpho_blue_base",
+          "summary_ru": "T1: aave_v3, compound_v3 · T2: fluid_fusdc, maple, morpho_blue_base"
+        },
         "freshness": {
           "schedule_en": "daily (cycle at 08:00 local)",
           "schedule_ru": "ежедневно (цикл в 08:00 по местному времени)",
@@ -205,16 +227,16 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-02T10:00:22.121914Z",
-          "age_h": 0.78
+          "last_run_at": "2026-10-02T11:00:23.196210Z",
+          "age_h": 0.85
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T10:00:22Z",
+          "last_observation_at": "2026-10-02T11:00:23Z",
           "missed_runs_24h": 0,
-          "observations": 13
+          "observations": 14
         },
         "decision": {
           "state": "HOLD",
@@ -240,14 +262,29 @@
           "live_reason_en": "research paper portfolio outside the go-live track — refused for live capital",
           "live_reason_ru": "исследовательский бумажный портфель вне трека go-live — реальный капитал не допускается"
         },
+        "composition": {
+          "state": "MEASURED",
+          "tiers_held": {
+            "T2": [
+              "fluid_fusdc",
+              "maple",
+              "morpho_steakhouse"
+            ],
+            "T3": [
+              "susde"
+            ]
+          },
+          "summary_en": "T2: fluid_fusdc, maple, morpho_steakhouse · T3: susde",
+          "summary_ru": "T2: fluid_fusdc, maple, morpho_steakhouse · T3: susde"
+        },
         "freshness": {
           "schedule_en": "hourly; one accounting row a day",
           "schedule_ru": "ежечасно; одна учётная строка в день",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-02T10:00:22.121914Z",
-          "source_observed_at": "2026-10-02T10:00:22Z",
-          "stale_at": "2026-10-02T12:30:22Z"
+          "last_successful_run_at": "2026-10-02T11:00:23.196210Z",
+          "source_observed_at": "2026-10-02T11:00:23Z",
+          "stale_at": "2026-10-02T13:30:23Z"
         }
       },
       "aggressive": {
@@ -266,16 +303,16 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-02T10:00:08.308443Z",
-          "age_h": 0.78
+          "last_run_at": "2026-10-02T11:00:10.216177Z",
+          "age_h": 0.86
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T10:00:08Z",
+          "last_observation_at": "2026-10-02T11:00:10Z",
           "missed_runs_24h": 0,
-          "observations": 13
+          "observations": 14
         },
         "decision": {
           "state": "OPEN",
@@ -301,14 +338,25 @@
           "live_reason_en": "simulated leverage, research paper portfolio — refused for live capital",
           "live_reason_ru": "симулированное плечо, исследовательский бумажный портфель — реальный капитал не допускается"
         },
+        "composition": {
+          "state": "MEASURED",
+          "tiers_held": {
+            "T2": [
+              "fluid_fusdc",
+              "maple"
+            ]
+          },
+          "summary_en": "T2: fluid_fusdc, maple · plus the simulated Morpho Blue loop (sUSDe collateral)",
+          "summary_ru": "T2: fluid_fusdc, maple · плюс симулированная петля Morpho Blue (залог sUSDe)"
+        },
         "freshness": {
           "schedule_en": "hourly; loop supervised every run, one accounting row a day",
           "schedule_ru": "ежечасно; петля проверяется каждый запуск, одна учётная строка в день",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-02T10:00:08.308443Z",
-          "source_observed_at": "2026-10-02T10:00:08Z",
-          "stale_at": "2026-10-02T12:30:08Z"
+          "last_successful_run_at": "2026-10-02T11:00:10.216177Z",
+          "source_observed_at": "2026-10-02T11:00:10Z",
+          "stale_at": "2026-10-02T13:30:10Z"
         }
       }
     }

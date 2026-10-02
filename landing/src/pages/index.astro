@@ -31,6 +31,12 @@ const degraded = snap.degraded === true;
 // ADR-537: the package cards no longer carry a backtest blend or backtest drawdown fallback — they
 // render from the one status record and the one shelf (components/PackageStatusRows.astro).
 import { researchTarget } from '../lib/package_card.js';
+import TIER_BANDS from '../lib/tier_bands.json';
+// The calculator scenario's rate is the canonical band's own number («up to 20%» → 20), never typed here.
+const _aggT = researchTarget('aggressive', false);
+const aggTargetPct = (_aggT && /(\d+(?:\.\d+)?)\s*%/.test(_aggT)) ? Number(_aggT.match(/(\d+(?:\.\d+)?)\s*%/)[1]) : null;
+const aggDays = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive
+  && snap.package_status.packages.aggressive.history && snap.package_status.packages.aggressive.history.valid_periods) ?? '—';
 const aggStart = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive && snap.package_status.packages.aggressive.experiment_start_date) || '—';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
@@ -62,16 +68,17 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <span data-ru="Доходность на стейблкоинах,">A stablecoin yield desk that</span>
         <span class="accent" data-ru="где доказана каждая цифра.">proves every number.</span>
       </h1>
-      {/* ADR-537 (owner, 2026-10-02): the lead used to OPEN with «target up to ~20%/yr» and set the
-           realized rate after it as proof of the same thing — a research target and a measured result
-           in one sentence, above the cards, at hero size. Now the lead states the three mechanics and the
-           one measured result with its date and its drawdown phrase (both from the shelf); the targets
-           live on the cards as a labelled secondary line. The dead checkup CTA stays repointed. */}
-      <p class="sub" data-ru={`Три бумажных портфеля с разной механикой: кредитование без плеча, фиксированная ставка Pendle PT и симулированная петля на Morpho Blue. Фактический бумажный результат Conservative — ${realizedNumRu} годовых (замер ${realizedAt ?? "—"}; ${drawdownPhraseRR(snapRR, true)}). У Balanced и Aggressive статистика текущих версий накапливается. Реального капитала нет. Начните с бесплатного 60-секундного снимка безопасности.`}>
-        Three paper portfolios with different mechanics: unlevered lending, a Pendle PT fixed rate and a
-        simulated loop on Morpho Blue. The Conservative book’s realized paper result is {realizedNumEn} annualised
-        (measured {realizedAt ?? "—"}; {drawdownPhraseRR(snapRR)}). Balanced and Aggressive are accumulating the
-        statistics of their current versions. No real capital. Start with the free 60-second safety snapshot.
+      {/* ADR-537 change record CR-537-3: this lead (owner wish J3, 2026-07-12 «брать максимум»,
+           docs/CUSTOMER_JOURNEY_MAP.md) was replaced on 02.10 by a session's own reading of the owner's
+           card instruction and is RESTORED here: the framing is subject №2 and the choice between it and
+           the mechanics-first lead is in the owner package, not decided by an agent.
+           The closing sentence used to say "start with a free wallet check" — that check lived on
+           checkup.earn-defi.com, which is no longer deployed. Every NUMBER in this line is unchanged
+           (owner-gated); only the dead call-to-action was repointed at the live snapshot. */}
+      <p class="sub" data-ru={`Цель — до ~20% годовых в наших исследовательских стратегиях (на бумаге, всегда с показанным риском — «хвостом»). На фундаменте живого деска, который уже доказал ${realizedNumRu} фактических при 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). Начните с бесплатного 60-секундного снимка безопасности.`}>
+        Target up to ~20%/yr in our research strategies — paper, always shown with the tail — built on a
+        live desk that already proves {realizedNumEn} realized at 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). Start with the free 60-second
+        safety snapshot.
       </p>
 
       {/* Top-of-funnel. Was the paste-an-address widget to the checkup service; that service is
@@ -176,20 +183,33 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 6px" data-ru="Посчитайте свою доходность">Estimate your yield</p>
       <h2 style="font-size:24px;font-weight:800;color:var(--text-primary);margin:0 0 20px" data-ru="Сколько могут заработать ваши стейблкоины">What your stablecoins could earn</h2>
       <div style="font-size:15px;color:var(--text-secondary);margin-bottom:8px"><span data-ru="Сумма">Amount</span>: <span id="calc-amt" style="font-family:var(--font-mono);font-weight:800;color:var(--text-primary)">$50,000</span></div>
-      <input id="calc-slider" data-rate={realizedPctNum ?? ""} type="range" min="1000" max="500000" step="1000" value="50000" aria-label="Amount" style="width:100%;max-width:520px;accent-color:#34d399" />
-      {/* ADR-537: ONE column — the realized Conservative paper rate from the shelf. The second column
-           («if research targets validate: up to $10,000/yr») projected earnings from a research TARGET
-           at the same size as a measured result, with its 20% typed into the script below — a third
-           copy of a public number, and the comparison the owner asked to remove (2026-10-02). It also
-           overflowed a 375 px screen (scrollWidth 396, measured). */}
+      <input id="calc-slider" data-rate={realizedPctNum ?? ""} data-scenario-pct={aggTargetPct ?? ""} type="range" min="1000" max="500000" step="1000" value="50000" aria-label="Amount" style="width:100%;max-width:520px;accent-color:#34d399" />
+      {/* ADR-537, change record CR-537-1. The calculator (redesign task M3, owner-commissioned brief
+           2026-07-12, docs/redesign/01_PHASE0_SELL_SPRINT_SPEC.md) exists so a visitor can size the
+           realized result for an amount of their own AND see what a research target would mean — with its
+           tail inside the component. Kept: both. Changed on purpose: (1) the target's 20% was typed into the
+           script — it now comes from the canonical band (tier_bands.json); (2) the scenario sat beside the
+           measured result at the same size and colour, as if the two were the same kind of number — it is
+           now a separate, smaller block labelled «scenario, not a result» with its assumptions named;
+           (3) its tail is the band's own tail string, which names the book it was measured on. The
+           two-column grid that overflowed 375 px (scrollWidth 396, measured) is one column. */}
       <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-top:22px;max-width:520px;margin-left:auto;margin-right:auto">
         <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:12px;color:var(--text-muted)" data-ru="По фактической бумажной ставке Conservative">At the realized Conservative paper rate</div>
           <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)">~$<span id="calc-real">{calcInit}</span><small style="font-size:13px;font-weight:600" data-ru=" в год"> /yr</small></div>
           <div style="font-size:11px;color:var(--text-faint);overflow-wrap:anywhere" data-ru={`${realizedNumRu} годовых, замер ${realizedAt ?? "—"} · ${drawdownPhraseRR(snapRR, true)} · за вычетом расчётных газа и проскальзывания собственных ходов книги (с 10.09.2026); реальные издержки исполнения не учтены`}>{realizedNumEn} annualised, measured {realizedAt ?? "—"} · {drawdownPhraseRR(snapRR)} · net of modelled gas and slippage of the book’s own moves (since 2026-09-10); real execution costs not included</div>
         </div>
+        {aggTargetPct != null && (
+          <div style="padding:14px 16px;border-radius:12px;background:transparent;border:1px dashed var(--border);text-align:left">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)" data-ru="Сценарий, а не результат">Scenario, not a result</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;overflow-wrap:anywhere">
+              <span data-ru={`Если бы исследовательская цель Aggressive (${researchTarget('aggressive', true)} годовых) была достигнута: до`}>{`If the Aggressive research target (${researchTarget('aggressive', false)} a year) were reached: up to`}</span> <span style="font-family:var(--font-mono)">$<span id="calc-scn">—</span></span><span data-ru=" в год"> /yr</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:4px;overflow-wrap:anywhere" data-ru={`Допущения: ставка цели на всю сумму, до реальных издержек исполнения; у текущей версии Aggressive валидных дней ${aggDays} из 30 — результата ещё нет. Хвост исследования: ${TIER_BANDS.aggressive.tail_ru}. Не прогноз и не оферта.`}>{`Assumptions: the target rate on the whole amount, before real execution costs; the current Aggressive version has ${aggDays} of 30 valid days — no result yet. Research tail: ${TIER_BANDS.aggressive.tail_en}. Not a forecast, not an offer.`}</div>
+          </div>
+        )}
       </div>
-      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация на основе фактического бумажного результата — не обещание и не оферта. Balanced и Aggressive здесь не пересчитываются: у их текущих версий ещё нет результата, а исследовательская цель — не результат. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative, from the realized paper result — not a promise and not an offer. Balanced and Aggressive are not projected here: their current versions have no result yet, and a research target is not a result. Past paper results don't guarantee future returns.</p>
+      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация — не обещание и не оферта. Первая строка — фактический бумажный результат Conservative; сценарий ниже — исследовательская цель, а не результат. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative — not a promise and not an offer. The first line is the Conservative book’s realized paper result; the scenario below is a research target, not a result. Past paper results don't guarantee future returns.</p>
     </div>
     <script is:inline>
       (function(){
@@ -199,6 +219,8 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           var a=+s.value;
           document.getElementById('calc-amt').textContent='$'+fmt(a);
           var rr=parseFloat(s.dataset.rate); document.getElementById('calc-real').textContent=isFinite(rr)?fmt(a*rr/100):'—';
+          var tp=parseFloat(s.dataset.scenarioPct), sc=document.getElementById('calc-scn');
+          if(sc) sc.textContent=isFinite(tp)?fmt(a*tp/100):'—';
         }
         // F1 (redesign): fire calc_interact ONCE when the user first engages the yield calculator
         // (a funnel-depth signal), then keep updating. Throttled to a single event to avoid flooding.

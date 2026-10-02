@@ -17,14 +17,15 @@ interface Props { pkg: 'conservative' | 'balanced' | 'aggressive'; part?: 'statu
 const { pkg, part = 'all' } = Astro.props;
 const ps = (snap && snap.package_status) || null;
 const rec = (ps && ps.packages && ps.packages[pkg]) || null;
-const { en: E, ru: R } = cardModels(pkg, rec, Date.now());
+const ci = (ps && ps.code_identity) || null;
+const { en: E, ru: R } = cardModels(pkg, rec, Date.now(), ci);
 const show = (p: string) => part === 'all' || part === p;
 const val = (m: any, path: string) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), m);
 const t = (path: string) => ({ en: val(E, path) ?? '', ru: val(R, path) ?? '' });
 const missing = E.missing === true;
 const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16).replace('T', ' ') + ' UTC' : '—';
 ---
-<div class="pkr" data-pkg-rows={pkg} data-part={part} data-rec={JSON.stringify(rec)} data-published={publishedAt}>
+<div class="pkr" data-pkg-rows={pkg} data-part={part} data-rec={JSON.stringify(rec)} data-ci={JSON.stringify(ci)} data-published={publishedAt}>
   {show('status') && (
     <div class="pkr-status">
       <div class="pkr-badges">
@@ -47,6 +48,9 @@ const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16)
       <div><dt data-ru="Механика текущей версии">Mechanic of the current version</dt>
         <dd><span data-slot="mechanic" data-ru={t('mechanic').ru}>{t('mechanic').en}</span>
           <span class="pkr-mono" data-slot="version" data-ru={t('version').ru}>{t('version').en}</span></dd></div>
+      <div><dt data-ru="Тиры протоколов в книге (метки реестра)">Protocol tiers held (registry labels)</dt>
+        <dd><span class="pkr-mono" data-slot="tiers" data-ru={t('tiers').ru}>{t('tiers').en}</span>
+          <span class="pkr-sub" data-ru="тир — это свойство протокола, механика — свойство стратегии; одно не заменяет другое">a tier describes the protocol, the mechanic describes the strategy; one does not replace the other</span></dd></div>
       <div><dt data-ru="Позиция и решение">Position and decision</dt>
         <dd><span class="pkr-strong" data-slot="decision.label" data-ru={t('decision.label').ru}>{t('decision.label').en}</span>
           <span class="pkr-sub" data-slot="decision.position" data-ru={t('decision.position').ru}>{t('decision.position').en}</span>
@@ -69,13 +73,15 @@ const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16)
       <div><dt data-ru="Последний успешный цикл">Last successful run</dt>
         <dd><span class="pkr-mono" data-slot="freshness.last_run" data-ru={t('freshness.last_run').ru}>{t('freshness.last_run').en}</span>
           <span class="pkr-sub" data-slot="freshness.schedule" data-ru={t('freshness.schedule').ru}>{t('freshness.schedule').en}</span>
+          <span class="pkr-sub" data-slot="freshness.code" data-ru={t('freshness.code').ru}>{t('freshness.code').en}</span>
           <span class="pkr-sub" data-slot="source" data-ru={`статус из опубликованного снимка ${publishedAt}`}>status from the published snapshot {publishedAt}</span>
           <noscript><span class="pkr-sub pkr-warn-text">Without JavaScript this is the status at publication, not now / Без JavaScript это статус на момент публикации, а не сейчас</span></noscript></dd></div>
     </dl>
   )}
   {show('body') && !missing && t('target').en && (
     <p class="pkr-target"><span data-ru="Исследовательская цель — не результат и не прогноз:">Research target — not a result, not a forecast:</span>
-      <span data-slot="target" data-ru={t('target').ru}>{t('target').en}</span></p>
+      <span data-slot="target" data-ru={t('target').ru}>{t('target').en}</span>
+      <span class="pkr-sub" data-slot="tail" data-ru={t('tail').ru} hidden={!t('tail').en}>{t('tail').en}</span></p>
   )}
 </div>
 
@@ -118,6 +124,7 @@ const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16)
   const fmt = (d: Date) => d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 
   let live: Record<string, any> | null = null;
+  let liveCi: any = null;
   let liveAt: Date | null = null;
   let liveFailed = false;
   let lastTry: Date | null = null;
@@ -136,8 +143,10 @@ const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16)
     document.querySelectorAll<HTMLElement>('[data-pkg-rows]').forEach((box) => {
       const key = box.dataset.pkgRows as string;
       let rec: any = null;
+      let ci: any = null;
       try { rec = live ? live[key] : JSON.parse(box.dataset.rec || 'null'); } catch { rec = null; }
-      const { en, ru } = cardModels(key, rec, now);
+      try { ci = live ? liveCi : JSON.parse(box.dataset.ci || 'null'); } catch { ci = null; }
+      const { en, ru } = cardModels(key, rec, now, ci);
       box.querySelectorAll('[data-slot]').forEach((el) => {
         const path = el.getAttribute('data-slot') as string;
         if (path === 'source') {
@@ -167,7 +176,7 @@ const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16)
       const r = await fetch(API + '/api/v1/packages/status', { cache: 'no-store' });
       const body = r.ok ? await r.json() : null;
       if (body && body.packages && typeof body.packages === 'object') {
-        live = body.packages; liveAt = new Date(); liveFailed = false;
+        live = body.packages; liveCi = body.code_identity || null; liveAt = new Date(); liveFailed = false;
       } else { liveFailed = true; }
     } catch { liveFailed = true; }
     render();

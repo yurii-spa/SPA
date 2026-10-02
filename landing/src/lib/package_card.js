@@ -209,6 +209,17 @@ function stopFor(key, ru) {
     : `−${ss.aggressive_stop_pct}% from peak → the loop is unwound and the book stops trading; before that the loop deleverages and unwinds on its own health-factor and USDe-price triggers`;
 }
 
+/**
+ * The research tail that belongs NEXT to a research target (site-copy rule «хвост всегда виден»):
+ * the band's own tail string, which names the book it was measured on. Conservative shows its
+ * realized drawdown instead, so it has none here.
+ */
+export function researchTail(key, ru) {
+  if (key === 'conservative') return null;
+  const b = TIER_BANDS[key];
+  return (b && (ru ? b.tail_ru : b.tail_en)) || null;
+}
+
 /** The research target, if one is published: the first segment of the canonical tier band. */
 export function researchTarget(key, ru) {
   const b = TIER_BANDS[key];
@@ -218,7 +229,18 @@ export function researchTarget(key, ru) {
 }
 
 /** Everything a card prints, in the fixed order of the owner's format. */
-export function cardModel(key, rec, nowMs, lang) {
+function codeLine(ci, ru) {
+  if (!ci || !ci.state || ci.state === 'UNMEASURED') return ru ? 'версия исполняемого кода не измерена' : 'version of the running code not measured';
+  const at = when(ci.checked_at);
+  if (ci.state === 'IN_SYNC') {
+    return ru ? `код: дерево совпадает с origin ${ci.origin_commit} (проверено ${at})`
+      : `code: the tree matches origin ${ci.origin_commit} (checked ${at})`;
+  }
+  return ru ? `код: совпадение с origin не подтверждено (${ci.state}, ${at})`
+    : `code: match with origin not confirmed (${ci.state}, ${at})`;
+}
+
+export function cardModel(key, rec, nowMs, lang, ci) {
   const ru = lang === 'ru';
   const p = effective(rec, nowMs);
   if (!p) {
@@ -265,12 +287,16 @@ export function cardModel(key, rec, nowMs, lang) {
       since: p.history && p.history.first_period, earlier: p.history && p.history.earlier_rows_kept },
     risk: { profile: ru ? RISK_PROFILE[key].ru : RISK_PROFILE[key].en, drawdown: drawdownFor(key, p, ru), stop: stopFor(key, ru) },
     freshness: { last_run: when(f.last_successful_run_at), observed: when(f.source_observed_at),
-      schedule: ru ? f.schedule_ru : f.schedule_en, stale_at: when(f.stale_at) },
+      schedule: ru ? f.schedule_ru : f.schedule_en, stale_at: when(f.stale_at), code: codeLine(ci, ru) },
     target: researchTarget(key, ru),
+    tail: researchTail(key, ru),
+    tiers: (p.composition && p.composition.state === 'MEASURED')
+      ? (ru ? p.composition.summary_ru : p.composition.summary_en)
+      : (ru ? 'не измерено' : 'not measured'),
   };
 }
 
 /** Both languages at once — what a server-rendered node needs for the site's data-ru toggle. */
-export function cardModels(key, rec, nowMs) {
-  return { en: cardModel(key, rec, nowMs, 'en'), ru: cardModel(key, rec, nowMs, 'ru') };
+export function cardModels(key, rec, nowMs, ci) {
+  return { en: cardModel(key, rec, nowMs, 'en', ci), ru: cardModel(key, rec, nowMs, 'ru', ci) };
 }
