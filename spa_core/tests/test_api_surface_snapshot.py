@@ -224,6 +224,9 @@ GOLDEN_ROUTES = {
     ("/api/btc-engine/shadow.json", ("GET",)),
     ("/api/live/books", ("GET",)),
     ("/api/live/books/brief", ("GET",)),
+    # Added 2026-10-02 (ADR-537): the fresh public copy of the paper-portfolio status — the site's
+    # cards re-read it so «running now» does not lean on a once-a-day snapshot.
+    ("/api/v1/packages/status", ("GET",)),
 }
 
 
@@ -289,7 +292,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 151  # 144 → 151 on 2026-09-08 (+7 routes, see GOLDEN_ROUTES tail)
+    assert len(_app_route_table()) == 152  # 144 → 151 on 2026-09-08 (+7 routes); 152 on 2026-10-02 (+/api/v1/packages/status, ADR-537)
 
 
 def test_openapi_path_count_stable():
@@ -298,7 +301,8 @@ def test_openapi_path_count_stable():
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
     # 143 → 150 on 2026-09-08: +5 /api/btc-engine* (ADR-260) +2 /api/live/books* (same day, other cycle)
-    assert len(paths) == 150  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    # 150 → 151 on 2026-10-02: +/api/v1/packages/status (ADR-537)
+    assert len(paths) == 151  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

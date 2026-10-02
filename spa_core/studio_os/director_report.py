@@ -367,8 +367,15 @@ def collect(inp: Inputs) -> dict:
         alerts.append("❔ DeFi-портфели: " + NOT_MEASURED)
     else:
         for _name, _p in rep["defi"].items():
-            if (_p.get("work") or {}).get("state") == "FAILED":
-                alerts.append(f"🔴 DeFi {_name}: {(_p.get('work') or {}).get('reason')}")
+            _w = _p.get("work") or {}
+            if _w.get("state") == "FAILED":
+                alerts.append(f"🔴 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
+            elif _w.get("state") == "PAUSED":
+                alerts.append(f"🟡 DeFi {_name}: пауза — {_w.get('reason_ru') or _w.get('reason')}")
+            elif _w.get("state") == "UNKNOWN":
+                alerts.append(f"🟡 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
+            elif (_p.get("data") or {}).get("state") in ("STALE", "DEGRADED"):
+                alerts.append(f"🟡 DeFi {_name}: {(_p.get('data') or {}).get('reason_ru') or 'данные неполные'}")
     if kill is True:
         alerts.append("🛑 стоп-кран взведён")
     elif kill is None:
@@ -568,8 +575,12 @@ def render_product(rep: dict) -> str:
 
 
 _DEFI_WORD = {"RUNNING": "работает", "PAUSED": "пауза", "FAILED": "НЕ РАБОТАЕТ", "NOT_STARTED": "не запущен",
+              "UNKNOWN": "статус не подтверждён",
               "HEALTHY": "данные в норме", "WAITING_FOR_DATA": "ждёт данных", "DEGRADED": "данные неполные",
-              "HOLD": "удержание", "WARMUP": "разогрев", "ACCUMULATING": "накапливает", "REPORTABLE": "отчётна"}
+              "STALE": "данные устарели",
+              "OPEN": "позиция открыта", "HOLD": "удержание", "EXIT": "выход", "NONE": "решений нет",
+              "WARMUP": "разогрев", "ACCUMULATING": "накапливает", "REPORTABLE": "отчётна",
+              "NOT_APPROVED": "live не одобрен", "REFUSED": "live отказан"}
 
 
 def render_defi(rep: dict, short: bool = False) -> List[str]:
@@ -587,15 +598,28 @@ def render_defi(rep: dict, short: bool = False) -> List[str]:
         if not (isinstance(w, dict) and isinstance(da, dict) and isinstance(h, dict)):
             L.append(f"• {name}: {NOT_MEASURED} (статус неполный)")
             continue
+        dec = p.get("decision") if isinstance(p.get("decision"), dict) else {}
+        mode = p.get("mode") if isinstance(p.get("mode"), dict) else {}
         line = (f"• {name}: {_DEFI_WORD.get(w.get('state'), w.get('state'))} · "
                 f"{_DEFI_WORD.get(da.get('state'), da.get('state'))} · "
+                f"{_DEFI_WORD.get(dec.get('state'), dec.get('state') or NOT_MEASURED)} · "
                 f"{_DEFI_WORD.get(h.get('state'), h.get('state'))} {h.get('valid_periods')} дн · "
-                f"{p.get('running_version')}")
+                f"{p.get('running_version')} · "
+                f"{_DEFI_WORD.get(mode.get('live'), mode.get('live') or NOT_MEASURED)}")
         if p.get("new_version_pending"):
             line += f" → {p['new_version_pending']['strategy_version']} (ждёт первой строки)"
         L.append(line)
-        if not short and da.get("reason"):
-            L.append(f"   причина: {_clip(str(da['reason']), 120)}")
+        if not short:
+            if dec.get("position_ru"):
+                L.append(f"   позиция: {_clip(str(dec['position_ru']), 120)}")
+            if dec.get("defect_ru"):
+                L.append(f"   ⚠ {_clip(str(dec['defect_ru']), 160)}")
+            for label, src in (("работа", w), ("данные", da), ("решение", dec)):
+                _r = src.get("reason_ru")
+                if not _r or _r == "причина записана в журнале книги":   # owner sees the raw reason here
+                    _r = src.get("reason") or _r
+                if _r:
+                    L.append(f"   {label}: {_clip(str(_r), 120)}")
     return L
 
 

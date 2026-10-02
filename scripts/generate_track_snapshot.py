@@ -228,28 +228,16 @@ def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
 
 
 def _package_status() -> dict:
-    """Project ``defi_engine.package_status`` for the site. Unavailable ⇒ a named gap, never a guess."""
+    """Project ``defi_engine.package_status`` for the site through its ONE public projection
+    (``public_view`` — the same one the public API serves). Unavailable ⇒ a named gap, never a guess."""
     try:
         if str(ROOT) not in sys.path:
             sys.path.insert(0, str(ROOT))
-        from spa_core.defi_engine.package_status import build_all
-        full = build_all(ROOT / "data")
+        from spa_core.defi_engine.package_status import build_all, public_view
+        return public_view(build_all(ROOT / "data"))
     except Exception as exc:  # noqa: BLE001
-        return {"unavailable_reason": f"{type(exc).__name__}: {exc}"}
-    keep = ("running_version", "mandate_version", "mechanic", "experiment_id", "experiment_start_date",
-            "new_version_pending", "headline_en", "headline_ru")
-    out = {"generated_at": full.get("generated_at"), "mode": full.get("mode"),
-           "live_capital_usd": full.get("live_capital_usd"), "packages": {}}
-    for name, p in (full.get("packages") or {}).items():
-        out["packages"][name] = {
-            **{k: p.get(k) for k in keep},
-            "work": {k: (p.get("work") or {}).get(k) for k in ("state", "reason", "last_run_at")},
-            "data": {k: (p.get("data") or {}).get(k) for k in ("state", "reason", "reason_en", "reason_ru",
-                                                               "last_observation_at")},
-            "history": {k: (p.get("history") or {}).get(k)
-                        for k in ("state", "valid_periods", "first_period", "last_period", "reportable_after")},
-        }
-    return out
+        # the exception TYPE only: its message can carry a local path, and this file is public
+        return {"unavailable_reason": f"package status read model unavailable ({type(exc).__name__})"}
 
 
 def _post_fix_track(honest: list) -> dict:

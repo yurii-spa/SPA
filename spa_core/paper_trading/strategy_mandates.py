@@ -36,6 +36,11 @@ ROLES = {
 
 MANDATES: dict[str, dict] = {
     "conservative": {
+        "mechanic_short_en": "unlevered stablecoin lending",
+        "mechanic_short_ru": "кредитование стейблкоинов без плеча",
+        "live_admission": {"state": "NOT_APPROVED",
+                           "reason_en": "paper validation; real capital only after the go-live gates and an owner decision",
+                           "reason_ru": "бумажная проверка; реальный капитал — только после гейтов go-live и решения владельца"},
         "strategy_id": "conservative-lending",
         "strategy_version": "conservative-lending-v1",
         "accounting_version": "main-book-adr298",
@@ -60,6 +65,11 @@ MANDATES: dict[str, dict] = {
                  "tests": ["spa_core/tests/test_cycle_runner.py", "spa_core/tests/test_paper_mechanics.py"]},
     },
     "balanced": {
+        "mechanic_short_en": "stablecoin lending + Pendle PT fixed rate held to maturity",
+        "mechanic_short_ru": "кредитование стейблкоинов + фиксированная ставка Pendle PT до погашения",
+        "live_admission": {"state": "REFUSED",
+                           "reason_en": "research paper portfolio outside the go-live track — refused for live capital",
+                           "reason_ru": "исследовательский бумажный портфель вне трека go-live — реальный капитал не допускается"},
         "strategy_id": "balanced-fixed-carry",
         "strategy_version": "balanced-fixed-carry-v1",
         "accounting_version": "sleeve-econ-v2",
@@ -88,6 +98,11 @@ MANDATES: dict[str, dict] = {
                  "tests": ["spa_core/tests/test_paper_mechanics.py", "spa_core/tests/test_paper_cycles.py"]},
     },
     "aggressive": {
+        "mechanic_short_en": "stablecoin lending + a simulated sUSDe/PYUSD loop on Morpho Blue",
+        "mechanic_short_ru": "кредитование стейблкоинов + симулированная петля sUSDe/PYUSD на Morpho Blue",
+        "live_admission": {"state": "REFUSED",
+                           "reason_en": "simulated leverage, research paper portfolio — refused for live capital",
+                           "reason_ru": "симулированное плечо, исследовательский бумажный портфель — реальный капитал не допускается"},
         "strategy_id": "aggressive-susde-loop",
         "strategy_version": "aggressive-susde-loop-v1",
         "accounting_version": "sleeve-econ-v2",

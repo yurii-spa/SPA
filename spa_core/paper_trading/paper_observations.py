@@ -6,8 +6,11 @@ what it valued, what it decided — one line per hour slot.
 
 * **idempotent:** the key is ``(book, hour slot)``; a second run in the same slot appends nothing, so a
   re-run never duplicates an observation (it is reported as ``duplicate_slot``);
-* **missed runs are visible:** a gap between consecutive slots is a missed scheduled run — the reader
-  counts them (``gaps``), nothing fills them in;
+* **missed runs are visible:** ``missed_runs`` counts them from the INTERVALS between consecutive runs
+  (a 2 h interval on an hourly schedule = one missed run); nothing fills them in. ``gaps`` lists empty
+  clock-hour slots, which is NOT the same question: launchd ``StartInterval`` drifts a few seconds a
+  run, so a run at 05:59:59 followed by one at 07:00:10 leaves slot 06 empty with no run missed
+  (measured 2026-10-02 on both sleeves);
 * **append-only, atomic:** the file is rewritten whole through ``atomic_save`` (tmp + ``os.replace``) and
   never shortened except by the retention window (newest ``MAX_LINES`` kept).
 
@@ -77,3 +80,33 @@ def gaps(rows: list[dict], *, since_slot: Optional[str] = None) -> list[str]:
         if s not in have:
             out.append(s)
     return out
+
+
+def missed_runs(rows: list[dict], *, expected_h: float = 1.0, since: Optional[datetime] = None,
+                now: Optional[datetime] = None) -> int:
+    """Scheduled runs that did not happen, from the intervals between recorded runs.
+
+    A run was due every ``expected_h`` after the previous one; it counts as missed when the next
+    recorded run came more than half an interval after it was due (a few seconds of launchd drift
+    across an hour boundary is not a miss). With ``now``, the runs due after the LAST recorded run are
+    counted too — a stopped process is a growing number, never a measured zero. With ``since``, only
+    runs that were due at or after it are counted (a restart after 30 h is not «29 in 24 h»).
+    """
+    ts = []
+    for r in rows:
+        try:
+            ts.append(datetime.strptime(str(r.get("run_ts")), "%Y-%m-%dT%H:%M:%SZ"))
+        except ValueError:
+            continue
+    ts.sort()
+    step = timedelta(hours=expected_h)
+    grace = step / 2
+    ends = list(zip(ts, ts[1:])) + ([(ts[-1], now)] if (ts and now is not None and now > ts[-1]) else [])
+    missed = 0
+    for a, b in ends:
+        due = a + step
+        while due + grace < b:
+            if since is None or due >= since:
+                missed += 1
+            due += step
+    return missed

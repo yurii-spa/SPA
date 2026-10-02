@@ -12,8 +12,9 @@ import time as _time
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
-from spa_core.api._shared import now, read_state
+from spa_core.api._shared import NO_CACHE_HEADERS, data_dir, now, read_state
 
 log = logging.getLogger("spa.api")
 
@@ -135,6 +136,26 @@ def v1_adapters():
             return {"adapters": fallback, "count": len(fallback) if isinstance(fallback, list) else 0,
                     "source": "file_fallback", "timestamp": now()}
         return {"error": str(e), "adapters": [], "count": 0, "timestamp": now()}
+
+
+@router.get("/api/v1/packages/status")
+def v1_packages_status():
+    """Operational status of the three PAPER portfolios, rebuilt per request (ADR-533/534).
+
+    The site's daily snapshot carries the same projection (``package_status.public_view``); this is
+    the fresh copy, so «running now» does not lean on a once-a-day build. Never cached: a status that a
+    CDN or a browser could replay would be exactly the illusion of freshness the endpoint exists to stop.
+    A read failure is a named 503, not an empty «all fine».
+    """
+    try:
+        from spa_core.defi_engine.package_status import build_all, public_view
+        body = public_view(build_all(data_dir()))
+        body["source"] = "live"
+        return JSONResponse(body, headers=NO_CACHE_HEADERS)
+    except Exception as e:  # noqa: BLE001
+        log.warning(f"/api/v1/packages/status error: {e}")
+        return JSONResponse({"error": "package status unavailable", "packages": None, "timestamp": now()},
+                            status_code=503, headers=NO_CACHE_HEADERS)
 
 
 @router.get("/api/v1/evidence")
