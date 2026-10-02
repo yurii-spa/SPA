@@ -78,8 +78,10 @@ paper / OUTSIDE_RISKPOLICY. stdlib-only, deterministic, LLM FORBIDDEN.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import itertools
 import json
 import math
+import statistics
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -594,12 +596,367 @@ def run_idea17(panel: Dict[str, Dict[str, float]], axis: List[str], verbose: boo
     return result
 
 
+
+# ===========================================================================================
+# #122 PLB — Panel Live Breadth · #123 NLF — N-Leg Frontier          (added 2026-10-02)
+# ===========================================================================================
+# These two live HERE, beside the loader, on purpose: what they measure is a property of this
+# panel that every consumer of `load_panel` has been reading wrongly, including this file's own
+# `run_idea17`. Putting the correction in a separate script would have put the instrument one
+# import away from the defect it describes.
+#
+#   PLB  — how many of the "ten books" are still MOVING on the days being judged, what that does
+#          to EW-10 as a zero, and where an inverse-risk sizer actually sends the money.
+#   NLF  — the result curve by NUMBER of live legs, each size's membership chosen on TRAIN only.
+#
+# Advisory / paper / OUTSIDE_RISKPOLICY, like the rest of this file. stdlib-only, deterministic.
+
+#: registry-canonical TRAIN/TEST boundary. TRAIN_END above is the same date; named again here
+#: so a reader of this section does not have to scroll to learn which split it means.
+PLB_SPLIT = TRAIN_END
+#: canonical round-trip toll, #10/#49. A STATIC subset pays it once, on day one.
+PLB_ROUNDTRIP = 0.0096
+#: per-name policy ceiling used across the project; equal weight over N names gives 1/N each.
+POLICY_CAP = 0.20
+#: a book counts as live over a slice if its return is non-zero on at least this many of its days
+LIVE_MIN_MOVES = 1
+
+
+def book_census(panel_dir: Path = PANEL_DIR) -> Dict[str, dict]:
+    """Per-book liveness census read from the RAW series, not from the aligned panel.
+
+    Per book: rows, the first date with ``killed: true`` (or None), the last date on which
+    equity_usd changed, and how many days it changed at all. Reading the raw rows matters: in
+    the aligned panel a frozen book is a run of 0.0 returns, indistinguishable by eye from a
+    book nobody measured. The raw row carries `killed` and a frozen `equity_usd`, so the two
+    cases ARE distinguishable here (inv. #17) and the census says which one it found. A book
+    with no backtest block gets ``moving_days = None`` — never 0.
+    """
+    out: Dict[str, dict] = {}
+    for sub in sorted(p for p in panel_dir.iterdir() if p.is_dir()):
+        series = sub / "realized_series.jsonl"
+        if not series.exists():
+            continue
+        bt = backtest_block(_read_rows(series))
+        if not bt:
+            out[sub.name] = {"rows": 0, "killed_on": None, "last_move": None,
+                             "moving_days": None, "unmeasured": "no backtest block"}
+            continue
+        killed_on = next((r["date"] for r in bt if r.get("killed")), None)
+        last_move: Optional[str] = None
+        moving = 0
+        prev: Optional[float] = None
+        for r in bt:
+            eq = r.get("equity_usd")
+            if eq is None:
+                continue
+            if prev is not None and abs(eq - prev) > 1e-9:
+                moving += 1
+                last_move = r["date"]
+            prev = eq
+        out[sub.name] = {"rows": len(bt), "killed_on": killed_on, "last_move": last_move,
+                         "moving_days": moving, "unmeasured": None}
+    if not out:
+        raise RuntimeError(f"no books found under {panel_dir} — refusing to report a clean census")
+    return out
+
+
+def live_breadth(axis: Sequence[str], rets: Dict[str, Sequence[float]],
+                 books: Sequence[str], *, lo: int = 0, hi: Optional[int] = None,
+                 min_moves: int = LIVE_MIN_MOVES) -> Tuple[List[str], List[str]]:
+    """Split `books` into (live, frozen) over the slice [lo, hi) of the axis.
+
+    The slice is an ARGUMENT on purpose. Asked over the full axis this panel answers "10 of 10
+    live", and it is not lying: each frozen book did move once, early in 2024. Liveness is a
+    property of the days being judged, so a caller that wants a useful denominator has to say
+    WHICH days.
+    """
+    hi = len(axis) if hi is None else hi
+    live, frozen = [], []
+    for b in books:
+        moves = sum(1 for i in range(lo, hi) if abs(rets[b][i]) > 1e-12)
+        (live if moves >= min_moves else frozen).append(b)
+    return live, frozen
+
+
+def post_kill_era(axis: Sequence[str], census: Dict[str, dict]) -> Tuple[int, Optional[str]]:
+    """Index on `axis` of the day after the LAST kill, and that kill's date.
+
+    The era that matters is the one after the last book died: on it the breadth is constant and
+    it covers most of the axis. The date is MEASURED from the census, never written down as a
+    constant. No kills at all ⇒ (0, None) — no fabricated era date.
+    """
+    kills = [c["killed_on"] for c in census.values() if c.get("killed_on")]
+    if not kills:
+        return 0, None
+    last = max(kills)
+    return sum(1 for d in axis if d <= last), last
+
+
+def subset_perf(sub: Sequence[str], rets: Dict[str, Sequence[float]],
+                lo: int, hi: int, *, roundtrip: float = 0.0) -> Dict[str, float]:
+    """Equal-weight the subset over [lo, hi). `roundtrip` is charged ONCE, on day one.
+
+    maxDD is returned as a POSITIVE magnitude here, unlike `perf`, which returns it negative.
+    That sign is why this wrapper exists: with the negative convention a `maxdd <= cap` filter
+    admits everything and a drawdown cap silently never binds — four different caps printed
+    byte-identical frontiers before this was caught.
+    """
+    if not sub:
+        raise ValueError("empty subset — refusing to report a portfolio of nothing")
+    k = list(sub)
+    series = [sum(rets[b][i] for b in k) / len(k) for i in range(lo, hi)]
+    if roundtrip:
+        series = list(series)
+        series[0] -= roundtrip
+    p = dict(perf(series))
+    p["maxdd"] = abs(p["maxdd"])
+    p["n_days"] = float(hi - lo)
+    return p
+
+
+def plb_load(panel_dir: Path = PANEL_DIR) -> Tuple[List[str], Dict[str, List[float]], List[str]]:
+    panel = load_panel(panel_dir)
+    axis = common_axis(panel)
+    if len(axis) < 200:
+        raise RuntimeError(f"common axis is {len(axis)} days — refusing to judge anything on it")
+    books = sorted(panel)
+    return axis, {b: [panel[b][d] for d in axis] for b in books}, books
+
+
+def inverse_risk_weights(rets: Dict[str, Sequence[float]], books: Sequence[str],
+                         *, end: int, lookback: int = 30, kind: str = "sigma",
+                         floor: float = 1e-5) -> Dict[str, float]:
+    """Causal inverse-risk weights at day `end` (window strictly before `end`).
+
+    kind='sigma'    — `run_idea17`'s inverse trailing volatility.
+    kind='downside' — inverse worst single day in the window (the sigma_down family, #108/#109).
+    `floor` is the only free number, and on a panel with frozen books it is what decides their
+    weight. It is therefore a parameter, not a constant: the caller can watch it move the answer.
+    """
+    lo = max(0, end - lookback)
+    win = list(range(lo, end))
+    if len(win) < 5:
+        raise ValueError("window shorter than 5 days — refusing to call that a risk estimate")
+    raw: Dict[str, float] = {}
+    for b in books:
+        vals = [rets[b][i] for i in win]
+        if kind == "sigma":
+            risk = statistics.pstdev(vals) if len(vals) > 1 else 0.0
+        elif kind == "downside":
+            risk = -min(list(vals) + [0.0])
+        else:
+            raise ValueError(f"unknown kind {kind!r}")
+        raw[b] = 1.0 / max(risk, floor)
+    total = sum(raw.values())
+    return {b: raw[b] / total for b in books}
+
+
+def degenerate_calmar_subsets(universe: Sequence[str], rets: Dict[str, Sequence[float]],
+                              *, lo: int, hi: int) -> Tuple[int, int]:
+    """(subsets whose maxDD is exactly 0 over the slice, total subsets).
+
+    A zero-drawdown subset has an undefined Calmar; `perf` reports inf. Any selection that
+    maximises Calmar therefore picks one of these, and what it picks earns nothing. This count
+    is the reason `nleg_frontier` selects on APY under a drawdown cap instead.
+    """
+    zero = 0
+    total = 0
+    for n in range(1, len(universe) + 1):
+        for sub in itertools.combinations(universe, n):
+            total += 1
+            if subset_perf(sub, rets, lo, hi)["maxdd"] <= 1e-12:
+                zero += 1
+    return zero, total
+
+
+def rank_spearman(xs: Sequence[float], ys: Sequence[float]) -> float:
+    if len(xs) != len(ys) or len(xs) < 3:
+        raise ValueError("spearman needs two equal series of at least 3 points")
+    if len(set(xs)) < 2 or len(set(ys)) < 2:
+        raise ValueError("a constant series has no rank correlation — refusing to return 0.0")
+
+    def rank(v: Sequence[float]) -> List[float]:
+        order = sorted(range(len(v)), key=lambda i: v[i])
+        out = [0.0] * len(v)
+        for pos, i in enumerate(order):
+            out[i] = float(pos)
+        return out
+
+    a, b = rank(xs), rank(ys)
+    ma, mb = statistics.mean(a), statistics.mean(b)
+    cov = sum((x - ma) * (y - mb) for x, y in zip(a, b))
+    sa = sum((x - ma) ** 2 for x in a) ** 0.5
+    sb = sum((y - mb) ** 2 for y in b) ** 0.5
+    return cov / (sa * sb)
+
+
+def choice_transfer(universe: Sequence[str], rets: Dict[str, Sequence[float]],
+                    *, train_hi: int, test_hi: int) -> Dict[str, float]:
+    """Does the TRAIN ranking of subsets survive into TEST? Rank correlation over ALL subsets.
+
+    This is the only thing standing between «the TRAIN-best subset won on TEST» and «one of N
+    subsets won on TEST». A high value says the choice is transferable; it does NOT say the
+    mechanism is alpha — on this panel the book LEVELS are nearly fixed across the two halves,
+    and ranking nearly-fixed levels is easy.
+    """
+    subs = [s for n in range(1, len(universe) + 1) for s in itertools.combinations(universe, n)]
+    tr = [subset_perf(s, rets, 0, train_hi) for s in subs]
+    te = [subset_perf(s, rets, train_hi, test_hi) for s in subs]
+    return {
+        "n_subsets": float(len(subs)),
+        "apy_spearman": rank_spearman([p["apy"] for p in tr], [p["apy"] for p in te]),
+        "maxdd_spearman": rank_spearman([p["maxdd"] for p in tr], [p["maxdd"] for p in te]),
+    }
+
+
+def nleg_frontier(universe: Sequence[str], rets: Dict[str, Sequence[float]],
+                  *, train_hi: int, test_hi: int, cap: float,
+                  roundtrip: float = 0.0) -> List[dict]:
+    """For each N: the TRAIN-best subset under the drawdown cap, with its TEST result.
+
+    Selection is «max TRAIN APY subject to |TRAIN maxDD| <= cap», and it reads the TRAIN slice
+    only. A cap that admits no subset of size N yields a row with `admitted = 0`, every number
+    None and a named reason — the third outcome, never a zero and never a dropped line (inv. #17).
+    """
+    rows: List[dict] = []
+    for n in range(1, len(universe) + 1):
+        cand = []
+        for sub in itertools.combinations(universe, n):
+            tr = subset_perf(sub, rets, 0, train_hi, roundtrip=roundtrip)
+            if tr["maxdd"] <= cap:
+                cand.append((sub, tr))
+        if not cand:
+            rows.append({"n": n, "admitted": 0, "subset": None, "train": None, "test": None,
+                         "test_rank": None, "admissible_by_policy": (1.0 / n) <= POLICY_CAP,
+                         "reason": f"no subset of size {n} has |TRAIN maxDD| <= {cap:.4f}"})
+            continue
+        best_sub, best_tr = max(cand, key=lambda kv: kv[1]["apy"])
+        tests = {sub: subset_perf(sub, rets, train_hi, test_hi, roundtrip=roundtrip)
+                 for sub, _ in cand}
+        ordered = sorted((t["apy"] for t in tests.values()), reverse=True)
+        rows.append({"n": n, "admitted": len(cand), "subset": list(best_sub),
+                     "train": best_tr, "test": tests[best_sub],
+                     "test_rank": ordered.index(tests[best_sub]["apy"]) + 1,
+                     "test_median_apy": statistics.median(ordered),
+                     "test_best_apy": ordered[0],
+                     "admissible_by_policy": (1.0 / n) <= POLICY_CAP,
+                     "reason": None})
+    return rows
+
+
+def run_plb_nlf(panel_dir: Path = PANEL_DIR, *, caps: Sequence[float] = (0.02, 0.05, 0.10),
+                verbose: bool = True) -> dict:
+    """#122 PLB + #123 NLF, printed in the order they must be read."""
+    axis, rets, books = plb_load(panel_dir)
+    n = len(axis)
+    ti = sum(1 for d in axis if d <= PLB_SPLIT)
+    census = book_census(panel_dir)
+    era_i, era_date = post_kill_era(axis, census)
+    live_full, _ = live_breadth(axis, rets, books)
+    live_era, frozen_era = live_breadth(axis, rets, books, lo=era_i)
+    live_test, frozen_test = live_breadth(axis, rets, books, lo=ti)
+
+    if verbose:
+        print(f"\n{'='*86}\n#122 PLB — Panel Live Breadth · #123 NLF — N-Leg Frontier  (advisory, [bt])")
+        print(f"  panel {panel_dir}  books {len(books)}  axis {n} days {axis[0]}..{axis[-1]}"
+              f"  TRAIN {ti} (<= {PLB_SPLIT})  TEST {n-ti}")
+        print("\n0. CENSUS — who is still moving (`killed` + frozen equity is MEASURED zero, not absent)")
+        print(f"  {'book':<20}{'rows':>6}{'killed on':>13}{'last move':>13}{'moving days':>13}")
+        for b in books:
+            c = census.get(b, {})
+            if c.get("unmeasured"):
+                print(f"  {b:<20}{'—':>6}{'НЕ ИЗМЕРЕНО':>13}  {c['unmeasured']}")
+                continue
+            print(f"  {b:<20}{c['rows']:>6}{str(c['killed_on'] or '—'):>13}"
+                  f"{str(c['last_move'] or '—'):>13}{c['moving_days']:>13}")
+        print(f"\n  full axis: live {len(live_full)}/{len(books)} — every book moved SOMETIME, so that")
+        print("    count answers nothing. Liveness is a property of the slice being judged:")
+        if era_date is None:
+            print("  post-kill era: НЕ ИЗМЕРЕНО — no book in this panel was killed")
+        else:
+            print(f"  post-kill era (after the last kill {era_date}: {n-era_i}/{n} days = "
+                  f"{(n-era_i)/n*100:.0f}% of the axis): live {len(live_era)}/{len(books)}, "
+                  f"frozen {sorted(frozen_era)}")
+        print(f"  TEST half ({n-ti} days): live {len(live_test)}/{len(books)}, frozen {sorted(frozen_test)}")
+
+        print("\n1. CONSEQUENCE FOR THE ZERO — EW over all books is a partly UNINVESTED portfolio")
+    arms = [("EW-all (registry zero)", list(books)), (f"EW-live ({len(live_era)})", sorted(live_era))]
+    if frozen_era:
+        arms.append((f"EW-frozen ({len(frozen_era)})", sorted(frozen_era)))
+    zero: Dict[str, dict] = {}
+    for label, sub in arms:
+        zero[label] = {"full": subset_perf(sub, rets, 0, n),
+                       "train": subset_perf(sub, rets, 0, ti),
+                       "test": subset_perf(sub, rets, ti, n)}
+        if verbose:
+            z = zero[label]
+            print(f"  {label:<26} FULL {z['full']['apy']*100:7.2f}%/{z['full']['maxdd']*100:5.2f}%"
+                  f"   TRAIN {z['train']['apy']*100:7.2f}%/{z['train']['maxdd']*100:5.2f}%"
+                  f"   TEST {z['test']['apy']*100:7.2f}%/{z['test']['maxdd']*100:5.2f}%")
+    if verbose and frozen_era:
+        print(f"  => {len(frozen_era)/len(books)*100:.0f}% of EW-all capital sits in books that cannot"
+              " move. Not a tail hedge: a hole.")
+        print("\n2. CONSEQUENCE FOR EVERY INVERSE-RISK SIZER — where does 1/risk send the money?")
+    leak: Dict[str, float] = {}
+    for kind in ("sigma", "downside"):
+        w = inverse_risk_weights(rets, books, end=n, kind=kind)
+        leak[kind] = sum(w[b] for b in frozen_era)
+        if verbose:
+            top = ", ".join(f"{b}={w[b]*100:.1f}%" for b in sorted(books, key=lambda x: -w[x])[:4])
+            print(f"  1/{kind:<9} share to FROZEN books = {leak[kind]*100:5.1f}%   top: {top}")
+    if verbose:
+        print("  (run_idea17's inverse-vol row on this panel is therefore largely cash wearing a book's name.)")
+
+    zero_cal, total_cal = degenerate_calmar_subsets(live_era, rets, lo=0, hi=ti)
+    transfer = choice_transfer(live_era, rets, train_hi=ti, test_hi=n)
+    if verbose:
+        print(f"\n3. WHY CALMAR IS NOT THE SELECTION CRITERION: {zero_cal} of {total_cal} live-sleeve"
+              " subsets have TRAIN maxDD == 0 exactly ⇒ Calmar = inf.")
+        print(f"\n4. DOES THE CHOICE TRANSFER? over {int(transfer['n_subsets'])} live-sleeve subsets:"
+              f" spearman(TRAIN APY, TEST APY) = {transfer['apy_spearman']:+.3f},"
+              f" spearman(TRAIN maxDD, TEST maxDD) = {transfer['maxdd_spearman']:+.3f}")
+    fronts: Dict[float, List[dict]] = {}
+    for cap in caps:
+        rows = nleg_frontier(live_era, rets, train_hi=ti, test_hi=n, cap=cap)
+        fronts[cap] = rows
+        if not verbose:
+            continue
+        print(f"\n5. NLF — live sleeve, max TRAIN APY s.t. |TRAIN maxDD| <= {cap*100:.0f}%"
+              "  (TEST printed as it falls)")
+        print(f"   {'N':>2} {'TRAIN-chosen subset':<54}{'TRapy':>8}{'TRdd':>7}{'TEapy':>8}"
+              f"{'TEdd':>7}{'TESTrank':>10}  policy")
+        for r in rows:
+            pol = "ok" if r["admissible_by_policy"] else f">{POLICY_CAP*100:.0f}%/name"
+            if r["admitted"] == 0:
+                print(f"   {r['n']:>2} {'НЕ ИЗМЕРЕНО: ' + r['reason']:<54}"
+                      f"{'—':>8}{'—':>7}{'—':>8}{'—':>7}{'—':>10}  {pol}")
+                continue
+            print(f"   {r['n']:>2} {','.join(b[:8] for b in r['subset']):<54}"
+                  f"{r['train']['apy']*100:7.2f}%{r['train']['maxdd']*100:6.2f}%"
+                  f"{r['test']['apy']*100:7.2f}%{r['test']['maxdd']*100:6.2f}%"
+                  f"{r['test_rank']:6d}/{r['admitted']:<3}  {pol}")
+    if verbose:
+        print("\n  HONEST LIMITS: [bt] [L0/L1] — the books are backtests, not fills; the LEVELS are not")
+        print("  promises (#91 measured gas alone at 1607 bp at the $100k pilot size). The findings are")
+        print("  the live count, the corrected zero, the sizer leak and the ORDERING.")
+    return {"axis_days": n, "train_days": ti, "era_start": era_date,
+            "census": census, "live_era": sorted(live_era), "frozen_era": sorted(frozen_era),
+            "live_test": sorted(live_test), "zero": zero, "sizer_leak": leak,
+            "degenerate_calmar": {"zero_dd_subsets": zero_cal, "total": total_cal},
+            "transfer": transfer, "frontier": {str(c): rows for c, rows in fronts.items()}}
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     target = "susde_dn"
     for a in argv:
         if a.startswith("--target="):
             target = a.split("=", 1)[1]
+    if "--plb" in argv:
+        # #122 PLB / #123 NLF — the panel's own liveness, and the frontier by number of live legs
+        run_plb_nlf()
+        return 0
     panel = load_panel()
     axis = common_axis(panel)
     if target not in panel:
