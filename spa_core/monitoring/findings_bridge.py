@@ -244,6 +244,10 @@ PRODUCES = (
     # ADR-498). Ступень читает журнал объявлений (живой `data/`) и дерево
     # базового ref, поэтому такт у неё суточный, как у самого журнала.
     "data/duplicate_subject_census.json",
+    # Кто окажется ЧИТАТЕЛЕМ квитанции read-only проверки захвата — заказ G88 п. 1
+    # (ADR-498, измерен ADR-535). Ступень поднимает одноразовые сцены и читает
+    # ЖИВОЕ дерево (кто грузит сторожа), поэтому такт у неё суточный, как у соседа.
+    "data/claim_guard_receipt_readers.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -359,6 +363,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "pre_trade_recheck_census",
     "owner_visibility_census",
     "duplicate_subject_census",
+    "claim_guard_receipt_readers",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -624,6 +629,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "duplicate_subject_census": {
         "module": "spa_core/monitoring/duplicate_subject_census.py",
         "artifact": "data/duplicate_subject_census.json"},
+    "claim_guard_receipt_readers": {
+        "module": "spa_core/monitoring/claim_guard_receipt_readers.py",
+        "artifact": "data/claim_guard_receipt_readers.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -2644,6 +2652,25 @@ def main(argv=None) -> int:
                   f"{_dsc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "duplicate_subject_census", e)
+
+    # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
+    # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
+    # сцены в `mkdtemp`; заголовочное число — вердикт проводки квитанции.
+    try:
+        from spa_core.monitoring import claim_guard_receipt_readers
+        _cgr = claim_guard_receipt_readers.run(root=args.root)
+        if _cgr.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «читателей ноль» (инв. #17).
+            _rd = observed(_cgr["doc"], "verdict_readers", kind=dict)
+            _names = None if _rd is None else observed(_rd, "readers", kind=list)
+            print(f"claim_guard_receipt_readers: {_cgr['doc'].get('status')} — "
+                  f"читателей вердикта "
+                  f"{'НЕ ИЗМЕРЕНО' if _names is None else len(_names)}")
+        else:
+            print(f"claim_guard_receipt_readers: НЕ ИЗМЕРЕНО — "
+                  f"{_cgr['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "claim_guard_receipt_readers", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

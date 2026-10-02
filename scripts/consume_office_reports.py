@@ -846,6 +846,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "duplicate_subject_census.json": ("status", "measured", "order", "base_ref",
                                       "price", "receipts", "guard_wiring",
                                       "journal"),
+    # Заказ G88 п. 1 (ADR-535): у кого квитанция read-only проверки окажется
+    # ЧИТАТЕЛЕМ. Четыре оси объявлены ОТДЕЛЬНО намеренно: «след», «читатель
+    # вердикта», «читатель квитанции» и «цена наивного канала» — четыре разных
+    # утверждения, и подменять одно другим запрещено (ровно та подмена, на
+    # которой заказ стоял двадцать один заказ подряд).
+    "claim_guard_receipt_readers.json": ("status", "measured", "order", "applied",
+                                        "trace", "verdict_readers",
+                                        "receipt_reader", "naive_channel"),
     "owner_visibility_census.json": ("status", "criterion", "books",
                                      "books_unreadable", "subjects_total",
                                      "delivered_as_field", "prose_only",
@@ -1099,6 +1107,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/owner_visibility_census.py",
     "duplicate_subject_census.json":
         "spa_core/monitoring/duplicate_subject_census.py",
+    "claim_guard_receipt_readers.json":
+        "spa_core/monitoring/claim_guard_receipt_readers.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2977,6 +2987,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм, скобочная многострочная — ни одна).
         from spa_core.monitoring.duplicate_subject_census import format_report as _dsc_report
         out.extend(_dsc_report(data))
+    elif name == "claim_guard_receipt_readers.json":
+        # Заказ G88 п. 1 (ADR-535). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # и это был бы тот же дефект, что ловит сам заказ: находка без читателя
+        # внутри цикла. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.claim_guard_receipt_readers import format_report as _cgr_report
+        out.extend(_cgr_report(data))
     elif name == "call_sourced_input_census.json":
         # Заказ G45 п. 1 (ADR-421). Без этой ветки артефакт читается ВХОЛОСТУЮ.
         # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
