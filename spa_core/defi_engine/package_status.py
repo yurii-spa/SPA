@@ -83,6 +83,36 @@ def _slot_24h_ago(now: datetime) -> str:
     return (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H")
 
 
+_REASONS = (
+    # (regex on the machine reason, EN, RU) — the site shows people sentences, the Director the raw one
+    (r"implied ([\d.]+) % < floor ([\d.]+) %",
+     "the PT fixed rate ({0} %) is below the floor ({1} %) set by the floating benchmark",
+     "фиксированная ставка PT ({0} %) ниже порога ({1} %), заданного плавающей ставкой"),
+    (r"levered net ([\d.]+) % < unlevered",
+     "the loop's net carry ({0} %) does not clear its hurdle",
+     "чистая доходность петли ({0} %) не проходит порог"),
+    (r"cooldown", "pause after the last exit", "пауза после последнего выхода"),
+    (r"utilisation", "market utilisation above the limit", "утилизация рынка выше предела"),
+    (r"spread", "borrow rate too close to the collateral yield", "ставка займа слишком близка к доходности залога"),
+    (r"floor \(or unmeasured\)|below the 0\.97", "USDe below its price floor", "USDe ниже порога цены"),
+    (r"unmeasured|not measured|no observation", "inputs not measured", "входные данные не измерены"),
+    (r"CIO directive", "CIO directive: no new positions", "директива CIO: новых позиций нет"),
+    (r"first row", "the current version has not written its first day yet", "текущая версия ещё не записала первый день"),
+)
+
+
+def localized_reason(reason: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """People-readable EN/RU for a machine reason; unknown reasons keep EN and get a neutral RU."""
+    import re
+    if not reason:
+        return None, None
+    for pat, en, ru in _REASONS:
+        m = re.search(pat, reason)
+        if m:
+            return en.format(*m.groups()), ru.format(*m.groups())
+    return reason, "причина записана в журнале книги"
+
+
 def _history(n: int) -> str:
     return "WARMUP" if n < 2 else ("REPORTABLE" if n >= REPORTABLE_AFTER else "ACCUMULATING")
 
@@ -163,6 +193,7 @@ def _sleeve(package: str, ddir: Path, health: Optional[dict], now: datetime) -> 
         d = {"state": "HOLD", "reason": "; ".join(map(str, reasons))[:300] or "no entry condition met"}
     else:
         d = {"state": "HEALTHY", "reason": None}
+    d["reason_en"], d["reason_ru"] = localized_reason(d.get("reason"))
     d.update(last_observation_at=(last_obs or {}).get("run_ts"), feed_ok=feed_ok,
              missed_runs_24h=(len([g for g in PO.gaps(obs) if g >= _slot_24h_ago(now)]) if obs else None),
              observations=len(obs))
@@ -221,6 +252,7 @@ def _conservative(ddir: Path, health: Optional[dict], now: datetime) -> dict:
     else:
         d = {"state": "HEALTHY", "reason": None}
     d["last_observation_at"] = (cp or {}).get("generated_at")
+    d["reason_en"], d["reason_ru"] = localized_reason(d.get("reason"))
     hist = {"state": _history(len(bars)), "valid_periods": len(bars),
             "first_period": bars[0].get("date") if bars else None,
             "last_period": bars[-1].get("date") if bars else None, "reportable_after": REPORTABLE_AFTER,

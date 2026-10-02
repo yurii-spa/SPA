@@ -133,8 +133,8 @@ for (const t of tiers) {
       });
     }
     t.status_rows.push({
-      en: `Last successful run: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · data: ${DATA_WORD.en[d.state] || d.state}${d.reason ? ' — ' + d.reason : ''}`,
-      ru: `Последний успешный запуск: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · данные: ${DATA_WORD.ru[d.state] || d.state}${d.reason ? ' — ' + d.reason : ''}`,
+      en: `Last successful run: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · data: ${DATA_WORD.en[d.state] || d.state}${(d.reason_en || d.reason) ? ' — ' + (d.reason_en || d.reason) : ''}`,
+      ru: `Последний успешный запуск: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · данные: ${DATA_WORD.ru[d.state] || d.state}${d.reason_ru ? ' — ' + d.reason_ru : ''}`,
     });
     t.status_rows.push({ en: 'PAPER — simulation, no real capital', ru: 'PAPER — симуляция, реального капитала нет' });
   }

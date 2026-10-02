@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-10-02",
-  "generated_at": "2026-10-02T02:01:03Z",
+  "generated_at": "2026-10-02T02:06:22Z",
   "degraded": false,
   "real_track_days": 101,
   "go_live_target": null,
@@ -122,7 +122,7 @@
     }
   },
   "package_status": {
-    "generated_at": "2026-10-02T02:01:03Z",
+    "generated_at": "2026-10-02T02:06:22Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "packages": {
@@ -143,6 +143,8 @@
         "data": {
           "state": "HEALTHY",
           "reason": null,
+          "reason_en": null,
+          "reason_ru": null,
           "last_observation_at": "2026-10-02T00:33:04.310434+00:00"
         },
         "history": {
@@ -170,6 +172,8 @@
         "data": {
           "state": "HOLD",
           "reason": "sUSDS 0x9c560ebaf78e596cbcc27411d633a74d628dd7dc: implied 4.905 % < floor 6.336 % (benchmark 7.336 %)",
+          "reason_en": "the PT fixed rate (4.905 %) is below the floor (6.336 %) set by the floating benchmark",
+          "reason_ru": "\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 PT (4.905 %) \u043d\u0438\u0436\u0435 \u043f\u043e\u0440\u043e\u0433\u0430 (6.336 %), \u0437\u0430\u0434\u0430\u043d\u043d\u043e\u0433\u043e \u043f\u043b\u0430\u0432\u0430\u044e\u0449\u0435\u0439 \u0441\u0442\u0430\u0432\u043a\u043e\u0439",
           "last_observation_at": "2026-10-02T01:59:39Z"
         },
         "history": {
@@ -197,6 +201,8 @@
         "data": {
           "state": "HEALTHY",
           "reason": null,
+          "reason_en": null,
+          "reason_ru": null,
           "last_observation_at": "2026-10-02T01:59:40Z"
         },
         "history": {

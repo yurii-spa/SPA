@@ -118,3 +118,13 @@ def test_reportable_after_thirty_valid_periods(tmp_path):
     _health(tmp_path)
     _book(tmp_path, "hy_paper_trading.json", last_run=NOW, experiment="balanced-fixed-carry-v1@d0", rows=30)
     assert PS.build_all(tmp_path, NOW)["packages"]["balanced"]["history"]["state"] == "REPORTABLE"
+
+
+
+def test_reasons_are_people_sentences_in_both_languages():
+    en, ru = PS.localized_reason("sUSDS 0x9c56: implied 4.905 % < floor 6.336 % (benchmark 7.336 %)")
+    assert "4.905" in en and "4.905" in ru and "floor" not in ru and "implied" not in ru
+    en2, ru2 = PS.localized_reason("levered net 5.631 % < unlevered 5.285 % + 1.0 pp")
+    assert "петли" in ru2
+    assert PS.localized_reason("something new") == ("something new", "причина записана в журнале книги")
+    assert PS.localized_reason(None) == (None, None)

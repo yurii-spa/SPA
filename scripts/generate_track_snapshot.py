@@ -244,7 +244,8 @@ def _package_status() -> dict:
         out["packages"][name] = {
             **{k: p.get(k) for k in keep},
             "work": {k: (p.get("work") or {}).get(k) for k in ("state", "reason", "last_run_at")},
-            "data": {k: (p.get("data") or {}).get(k) for k in ("state", "reason", "last_observation_at")},
+            "data": {k: (p.get("data") or {}).get(k) for k in ("state", "reason", "reason_en", "reason_ru",
+                                                               "last_observation_at")},
             "history": {k: (p.get("history") or {}).get(k)
                         for k in ("state", "valid_periods", "first_period", "last_period", "reportable_after")},
         }
