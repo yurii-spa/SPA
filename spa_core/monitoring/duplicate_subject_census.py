@@ -252,9 +252,53 @@ def normalise(declared: str, top_level: Iterable[str]) -> Optional[str]:
     return None
 
 
+def tree_prefix_of(declared: str, top_level: Iterable[str]) -> Optional[str]:
+    """Приставка ДЕРЕВА, в котором работа объявлена, или ``None``.
+
+    Обратная половина :func:`normalise`: та отрезает приставку, чтобы получить
+    координату репозитория, а здесь нужна именно приставка — чтобы спросить,
+    существует ли ещё дерево, из которого работу можно ПОДНЯТЬ. Объявление
+    бывает и без приставки (сессия назвала путь относительно репозитория) — это
+    не ошибка и не отсутствие дерева, а ТРЕТИЙ исход: дерево не названо.
+    """
+    text = str(declared).replace("\\", "/").strip()
+    if not text:
+        return None
+    parts = [p for p in text.split("/") if p not in ("", ".")]
+    tops = set(top_level)
+    for index, segment in enumerate(parts):
+        if segment in tops:
+            if index == 0:
+                return None
+            prefix = "/".join(parts[:index])
+            return "/" + prefix if text.startswith("/") else prefix
+    return None
+
+
 def _tokens(name: str) -> List[str]:
     stem = name.rsplit(".", 1)[0] if "." in name else name
     return [t for t in stem.replace("-", "_").split("_") if t]
+
+
+def _shared_prefix(mine: Sequence[str], theirs: Sequence[str]) -> int:
+    shared = 0
+    for left, right in zip(mine, theirs):
+        if left != right:
+            break
+        shared += 1
+    return shared
+
+
+def _numbered(tokens: Sequence[str]) -> Optional[Tuple[str, List[str]]]:
+    """Имя вида ``<слово>-<число>-<слаг>`` → (слово, слаг). Иначе ``None``.
+
+    Нужно ровно для нумерованных документов (``ADR-366-…``): у них ПЕРВЫЕ
+    токены — марка и номер, а предмет лежит ЗА номером, и сравнение по началу
+    имени до него не доходит никогда.
+    """
+    if len(tokens) < 3 or not tokens[1].isdigit() or tokens[0].isdigit():
+        return None
+    return tokens[0], list(tokens[2:])
 
 
 def kin_of(coordinate: str, base_paths: Iterable[str]) -> List[str]:
@@ -264,26 +308,113 @@ def kin_of(coordinate: str, base_paths: Iterable[str]) -> List[str]:
     самом имени: у двухтокенного имени (``orphan_runs.py``) роднёй считается
     только файл, делящий ОБА токена, иначе короткое имя не могло бы иметь
     родни вовсе, и переименование у него было бы недостижимо по построению.
+
+    **Вторая дверь — СЛАГ нумерованного документа, и без неё мера односторонне
+    завышала цену.** Замер #751: объявленный ``ADR-365-capital-observability-
+    over-history.md`` лежит на базе как ``ADR-366-capital-observability-over-
+    history.md`` — переномерован перед пушем, потому что номер 365 за сутки
+    сиротства занял другой цикл (сказано дословно в сообщении того коммита,
+    ``32e03c3a5``). Сравнение по НАЧАЛУ имени такую родню увидеть не может по
+    построению: токены расходятся на номере, то есть вторыми, и дальше первого
+    совпадения мера не идёт. Документ был ДОСТАВЛЕН, а перепись звала его
+    потерей и посылала следующую сессию поднимать уже сделанную работу.
+
+    Односторонность правила номера при этом сохранена, и ровно она разводит два
+    случая: ``ADR-154-unmeasured-origin-sweep-and-board-composition`` против
+    лежащего на базе ``ADR-154-contracts-before-orchestration`` — тот же номер,
+    но слаг не делит НИ ОДНОГО токена, то есть номер переиспользован другим
+    циклом, а объявленного документа не существует. Это остаётся потерей.
     """
     directory, _, leaf = coordinate.rpartition("/")
     mine = _tokens(leaf)
     if not mine:
         return []
     need = min(_KIN_TOKENS, len(mine))
+    mine_numbered = _numbered(mine)
     kin: List[str] = []
     for path in base_paths:
         other_dir, _, other_leaf = path.rpartition("/")
         if other_dir != directory or other_leaf == leaf:
             continue
         theirs = _tokens(other_leaf)
-        shared = 0
-        for left, right in zip(mine, theirs):
-            if left != right:
-                break
-            shared += 1
-        if shared >= need:
+        if _shared_prefix(mine, theirs) >= need:
+            kin.append(path)
+            continue
+        theirs_numbered = _numbered(theirs)
+        if mine_numbered is None or theirs_numbered is None:
+            continue
+        if mine_numbered[0] != theirs_numbered[0]:
+            continue
+        my_slug, their_slug = mine_numbered[1], theirs_numbered[1]
+        slug_need = min(_KIN_TOKENS, len(my_slug))
+        if _shared_prefix(my_slug, their_slug) >= slug_need:
             kin.append(path)
     return sorted(kin)
+
+
+#: Что означает отсутствие координаты на базе, когда база ПОМНИТ её удаление.
+#: Замер #751: `scripts/day30_review.py` объявили две сессии 19.08 (#301 и
+#: #302) — и обе объявили его, чтобы СПИСАТЬ обёртку. Удаление доставлено
+#: коммитом `d45cb4a3c` того же дня, а замену (`python3 -m
+#: spa_core.riskwire.day30_review`) закрепил тест `test_day30_review_cli_contract.py`,
+#: лежащий на базе. Перепись читала ту же пустоту как потерю: чем успешнее
+#: доставлено списание, тем больше оно похоже на пропавшую работу. Односторонне
+#: и в опасную сторону — следующую сессию посылали ВЕРНУТЬ файл, то есть
+#: отменить решение.
+def retirement_door(repo_root: Path, ref: str):
+    """Замыкание «помнит ли база удаление этой координаты».
+
+    **Отказ здесь АСИММЕТРИЧЕН, и это замер, а не осторожность.** Обрезанная
+    история (`.git/shallow`) не мешает УВИДЕТЬ удаление: если коммит достижим,
+    он достижим. Мешает она ровно обратному — заключить, что удаления НЕ БЫЛО:
+    `git log` по пути в обрезанном дереве честно отдаёт пустоту и код 0, и
+    прочесть эту пустоту как «не удалялось» значило бы объявить потерей каждое
+    доставленное списание. Замер прод-дерева #751: 443 достижимых коммита при
+    20 точках обрезки, удаляющий коммит `d45cb4a3c` в дереве ЛЕЖИТ (объект
+    есть), а обходом не достигается — пустой ответ при существующем удалении.
+
+    Поэтому: нашли удаление ⇒ ИЗМЕРЕНО · не нашли в полном клоне ⇒ ИЗМЕРЕНО и
+    равно нулю · не нашли в обрезанном ⇒ НЕ ИЗМЕРЕНО с названной причиной.
+    """
+    def _git(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["git", *args], cwd=str(repo_root),
+                              capture_output=True, text=True, timeout=120)
+
+    def _dead(reason: str):
+        return lambda coordinate: {"asked": True, "measured": False, "reason": reason,
+                                   "deleted_at": None, "sha": None}
+
+    try:
+        shallow = _git("rev-parse", "--is-shallow-repository")
+    except (OSError, subprocess.SubprocessError) as exc:
+        return _dead(f"git не отработал: {exc}")
+    if shallow.returncode != 0:
+        return _dead(f"глубина клона не прочитана: {shallow.stderr.strip()[:160]}")
+    truncated = shallow.stdout.strip() == "true"
+
+    def ask(coordinate: str) -> Dict[str, Any]:
+        try:
+            log = _git("log", ref, "--diff-filter=D", "-1",
+                       "--format=%cI%x09%H", "--", coordinate)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"asked": True, "measured": False, "deleted_at": None, "sha": None,
+                    "reason": f"git не отработал: {exc}"}
+        if log.returncode != 0:
+            return {"asked": True, "measured": False, "deleted_at": None, "sha": None,
+                    "reason": f"история пути не прочитана: {log.stderr.strip()[:160]}"}
+        line = log.stdout.strip().splitlines()[0] if log.stdout.strip() else ""
+        if not line:
+            if truncated:
+                return {"asked": True, "measured": False, "deleted_at": None, "sha": None,
+                        "reason": ("дерево ОБРЕЗАНО (`.git/shallow`): пустой обход не есть "
+                                   "отсутствие удаления — нужен полный клон")}
+            return {"asked": True, "measured": True, "deleted_at": None, "sha": None,
+                    "reason": None}
+        stamp, _, sha = line.partition("\t")
+        return {"asked": True, "measured": True, "deleted_at": stamp.strip(),
+                "sha": sha.strip(), "reason": None}
+
+    return ask
 
 
 # ───────────────────────── ось A: цена по координате ──────────────────────
@@ -307,8 +438,75 @@ def _dropped_coordinates(records: Sequence[Dict[str, Any]],
     return dropped
 
 
-def measure_price(records: Sequence[Dict[str, Any]], base: Dict[str, Any]) -> Dict[str, Any]:
-    """Ось A: координаты, объявленные ДВУМЯ и более различными сессиями."""
+def _retirement_verdict(coordinate: str, first_declared: str,
+                        retirement) -> Tuple[str, Optional[str]]:
+    """Отсутствие на базе: потеря, доставленное СПИСАНИЕ или НЕ ИЗМЕРЕНО.
+
+    Разводит их ОТМЕТКА: удаление ПОЗЖЕ объявления значит, что сессия объявила
+    координату, чтобы её убрать, и убрала — работа доехала. Удаление РАНЬШЕ
+    объявления ничего не оправдывает: там сессия завела файл заново и не
+    доставила, и это по-прежнему потеря. Поэтому сравниваются отметки, а не
+    факт «когда-то удалялся».
+    """
+    if retirement is None:
+        return "absent_lost", "not_asked"
+    answer = retirement(coordinate)
+    if not answer.get("measured"):
+        return "absent_retirement_unmeasured", str(answer.get("reason") or "причина не названа")
+    deleted_at = answer.get("deleted_at")
+    if not deleted_at:
+        return "absent_lost", "база удаления этой координаты не помнит"
+    left, right = _parse_ts(deleted_at), _parse_ts(first_declared)
+    if left is None or right is None:
+        return "absent_retirement_unmeasured", f"отметка не разобрана: {deleted_at!r}"
+    if left >= right:
+        return "retired_at_base", f"списана коммитом {answer.get('sha', '')[:9]} в {deleted_at}"
+    return "absent_lost", f"удалена ДО объявления ({deleted_at}) — заведена заново и не доехала"
+
+
+def _liftability(slot: Dict[str, Any], tree_exists) -> Dict[str, Any]:
+    """Цело ли ещё дерево, из которого потерянную работу можно ПОДНЯТЬ.
+
+    Заказ G88 п. 3 велел поднять потерянные координаты, и этого у переписи не
+    хватало: цену она называет, а подъёмность — нет. Замер #751: все 11
+    объявленных деревьев (`/tmp/spa_c301`…`/tmp/spa_c588`) стёрты, то есть
+    приказ «поднять» пришёл через 32 дня после того, как поднимать стало
+    нечего. Окно подъёма равно времени жизни `/tmp`, и мерить его обязан тот же
+    прибор, что называет цену, — иначе следующая сессия снова узнает об этом
+    только своим поиском.
+
+    Три исхода, и третий не склеен ни с одним: дерево ЕСТЬ (поднимать можно и
+    путь назван) · дерево стёрто (цена окончательна) · дерево не названо вовсе
+    (объявление пришло относительным путём — сказать нечего).
+    """
+    probe = tree_exists if tree_exists is not None else (lambda path: Path(path).exists())
+    trees = sorted(slot.get("trees") or ())
+    alive = [t for t in trees if probe(t)]
+    if alive:
+        state = "tree_present"
+    elif trees:
+        state = "tree_gone"
+    else:
+        state = "tree_not_named"
+    return {"liftable": state, "trees": trees[:3], "trees_alive": alive[:3]}
+
+
+def measure_price(records: Sequence[Dict[str, Any]], base: Dict[str, Any], *,
+                  retirement=None, tree_exists=None) -> Dict[str, Any]:
+    """Ось A: координаты, объявленные ДВУМЯ и более различными сессиями.
+
+    ``retirement`` — дверь «помнит ли база удаление этой координаты»
+    (:func:`retirement_door`). ``None`` значит «не спрошено», и такая координата
+    остаётся ``absent_lost`` с пометкой ``not_asked``: ошибка идёт в сторону
+    ЗАВЫШЕНИЯ цены, а не занижения. Боевой путь (:func:`run_census`) дверь
+    передаёт ВСЕГДА, и это закреплено тестом — иначе «не спрошено» стало бы
+    тихим fail-OPEN.
+
+    ``tree_exists`` — дверь «цело ли ещё дерево, из которого работу можно
+    поднять». Дверь к ОС принимается ВХОДОМ (урок `.claude/rules/deployment.md`
+    про личность процесса): иначе тест судил бы о том, что сегодня лежит в
+    `/tmp` у этого хоста.
+    """
     top_level = base["top_level"]
     base_paths = base["paths"]
     base_dirs = {p.rsplit("/", 1)[0] for p in base_paths if "/" in p}
@@ -332,9 +530,15 @@ def measure_price(records: Sequence[Dict[str, Any]], base: Dict[str, Any]) -> Di
                 unnormalised += 1
                 continue
             slot = declarations.setdefault((subject, coordinate),
-                                          {"anchors": {}, "first": record["ts"]})
+                                          {"anchors": {}, "first": record["ts"],
+                                           "trees": set(), "trees_unnamed": 0})
             slot["anchors"].setdefault(anchor, record["ts"])
             slot["first"] = min(slot["first"], record["ts"])
+            prefix = tree_prefix_of(str(declared), top_level)
+            if prefix is None:
+                slot["trees_unnamed"] += 1
+            else:
+                slot["trees"].add(prefix)
 
     findings: List[Dict[str, Any]] = []
     buckets: "collections.Counter[str]" = collections.Counter()
@@ -349,22 +553,37 @@ def measure_price(records: Sequence[Dict[str, Any]], base: Dict[str, Any]) -> Di
             # сказать нечего, и подставлять «на базе нет» было бы ложью.
             buckets["declared_a_directory"] += 1
             continue
+        retirement_note: Optional[str] = None
         if coordinate in base_paths:
             verdict = "at_base"
         elif base_at and slot["first"] > base_at:
             verdict = "base_ref_older_than_declaration"
+        elif kin_of(coordinate, base_paths):
+            verdict = "absent_kin"
         else:
-            verdict = "absent_kin" if kin_of(coordinate, base_paths) else "absent_lost"
+            verdict, retirement_note = _retirement_verdict(
+                coordinate, slot["first"], retirement)
         buckets[verdict] += 1
-        if verdict in ("absent_lost", "absent_kin"):
-            findings.append({
+        if verdict in ("absent_lost", "absent_kin", "retired_at_base",
+                       "absent_retirement_unmeasured"):
+            finding = {
                 "subject": subject, "coordinate": coordinate, "verdict": verdict,
                 "sessions": len(slot["anchors"]),
                 "first_declared": slot["first"],
                 "kin": kin_of(coordinate, base_paths)[:3],
-            })
+            }
+            if retirement_note is not None:
+                finding["retirement"] = retirement_note
+            if verdict in ("absent_lost", "absent_retirement_unmeasured"):
+                # Подъёмность спрашивается и у «не измерено»: она про ДЕРЕВО,
+                # а не про вопрос списания, и на обрезанном клоне (то есть на
+                # боевом хосте) иначе не докладывалась бы вовсе — ровно там,
+                # где заказ G88 п. 3 её и спрашивает.
+                finding.update(_liftability(slot, tree_exists))
+            findings.append(finding)
 
     lost = [f for f in findings if f["verdict"] == "absent_lost"]
+    lift = collections.Counter(f["liftable"] for f in findings if "liftable" in f)
     sessions_on_lost = set()
     for (subject, coordinate), slot in declarations.items():
         if any(f["subject"] == subject and f["coordinate"] == coordinate for f in lost):
@@ -375,6 +594,10 @@ def measure_price(records: Sequence[Dict[str, Any]], base: Dict[str, Any]) -> Di
         "coordinates_shared_by_two_or_more": sum(buckets.values()),
         "by_verdict": dict(sorted(buckets.items())),
         "lost_coordinates": len(lost),
+        "retirement_door_asked": retirement is not None,
+        "retirement_unmeasured": buckets.get("absent_retirement_unmeasured", 0),
+        "retired_at_base": buckets.get("retired_at_base", 0),
+        "liftability": dict(sorted(lift.items())),
         "sessions_on_lost_coordinates": len(sessions_on_lost),
         "subjects_on_lost_coordinates": len({f["subject"] for f in lost}),
         "records_without_subject": no_subject,
@@ -564,7 +787,8 @@ def measure_guard_wiring(repo_root: Path) -> Dict[str, Any]:
 def run_census(data_dir: Path, *, repo_root: Path,
                base_ref: str = DEFAULT_BASE_REF,
                now: Optional[datetime] = None,
-               window_days: int = _WINDOW_DAYS) -> Dict[str, Any]:
+               window_days: int = _WINDOW_DAYS,
+               history_root: Optional[Path] = None) -> Dict[str, Any]:
     """Отчёт переписи. ``measured=False`` ⇒ вердикта нет вовсе."""
     stamp = (now or datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z")
     report: Dict[str, Any] = {
@@ -600,7 +824,11 @@ def run_census(data_dir: Path, *, repo_root: Path,
                           "committed_at": base["committed_at"],
                           "files": len(base["paths"]), "measured": True}
 
-    price = measure_price(journal["records"], base)
+    # Историю удалений спрашиваем у ПОЛНОГО клона, если он назван: рабочее
+    # дерево прода обрезано по построению (замер #751 — 443 коммита при 20
+    # точках обрезки), и у него на вопрос «списана или потеряна» ответа нет.
+    price = measure_price(journal["records"], base,
+                          retirement=retirement_door(history_root or repo_root, base["ref"]))
     if price["coordinates_declared"] == 0:
         # Слепой проход (приставка не распознана ни у одной записи) выглядел бы
         # как «дважды сделанной работы нет». Это НЕ ИЗМЕРЕНО, и громко.
@@ -622,9 +850,15 @@ def run_census(data_dir: Path, *, repo_root: Path,
         return report
 
     report["measured"] = True
+    # Fail-CLOSED по третьему исходу двери списания: координата, про которую
+    # «удаляли или нет» НЕ ИЗМЕРЕНО, не имеет права закрывать класс. Иначе
+    # поверхностный клон — то есть самое обычное окружение CI — обнулил бы и
+    # цену, и вердикт разом, и это читалось бы как «чисто» (урок pyflakes в
+    # `.claude/rules/deployment.md`: отсутствие инструмента тише красного).
     report["status"] = (STATUS_OPEN
                         if receipts["window_takings_without_receipt"] > 0
                            or price["lost_coordinates"] > 0
+                           or price["retirement_unmeasured"] > 0
                         else STATUS_CLOSED)
     return report
 
@@ -651,6 +885,20 @@ def format_report(report: Dict[str, Any]) -> List[str]:
         f"сессий на потерянных координатах {price['sessions_on_lost_coordinates']}")
     lines.append("[ОСЬ A] по вердикту: " + " · ".join(
         f"{k} {v}" for k, v in price["by_verdict"].items()))
+    if not price.get("retirement_door_asked"):
+        lines.append("[СПИСАНИЕ · НЕ СПРОШЕНО] дверь удаления не передана — цена ЗАВЫШЕНА "
+                     "на доставленные списания; боевой путь дверь передаёт всегда")
+    elif price.get("retirement_unmeasured"):
+        lines.append(f"[СПИСАНИЕ · НЕ ИЗМЕРЕНО] у {price['retirement_unmeasured']} координат(ы) "
+                     "история удалений не прочитана: «потеряно» и «списано» НЕ РАЗВЕДЕНЫ, "
+                     "и это не «чисто»")
+    if price.get("retired_at_base"):
+        lines.append(f"[СПИСАНИЕ · ДОСТАВЛЕНО] {price['retired_at_base']} координат(ы) "
+                     "отсутствуют на базе ПОТОМУ, что их удаление доехало — в цену не идут")
+    if price.get("liftability"):
+        lines.append("[ПОДЪЁМНОСТЬ потерянного] " + " · ".join(
+            f"{k} {v}" for k, v in price["liftability"].items())
+            + " — окно подъёма равно времени жизни дерева, а не сроку заказа")
     lines.append(
         f"[ОСЬ B] взятий предмета за {receipts['window_days']} дн. "
         f"{receipts['window_takings']}, БЕЗ квитанции сторожа "
@@ -668,9 +916,13 @@ def format_report(report: Dict[str, Any]) -> List[str]:
     for finding in price["findings"][:8]:
         lines.append(f"[{finding['verdict']}] сессий {finding['sessions']} · "
                      f"{finding['subject']} :: {finding['coordinate']}"
-                     + (f" · родня {finding['kin'][0]}" if finding["kin"] else ""))
+                     + (f" · родня {finding['kin'][0]}" if finding["kin"] else "")
+                     + (f" · {finding['retirement']}" if finding.get("retirement") else "")
+                     + (f" · подъём: {finding['liftable']}" if finding.get("liftable") else ""))
     lines.append("НЕ ДОКЛАДЫВАЕТ: полноту добровольного журнала · были ли две сессии "
-                 "передачей или переделкой · верность самого сторожа захвата")
+                 "передачей или переделкой · верность самого сторожа захвата · "
+                 "доставку под СОВСЕМ другим именем (родня ищется в том же каталоге) · "
+                 "содержимое целого дерева — подъёмность есть наличие дерева, а не работы в нём")
     lines.append("ADVISORY: пороги RiskPolicy v1.0, стоп-кран, аллокатор, живой трек и "
                  "landing/ НЕ трогаются — прибор только ЧИТАЕТ журнал и дерево базового ref")
     return lines
@@ -698,6 +950,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--data-dir", default=None, help="каталог данных (по умолчанию — свой)")
     ap.add_argument("--repo-root", default=None, help="корень дерева (по умолчанию — свой)")
+    ap.add_argument("--history-root", default=None,
+                    help=("корень ПОЛНОГО клона для вопроса «координату списали или "
+                          "потеряли» (по умолчанию — своё дерево; обрезанное на этот "
+                          "вопрос честно отвечает «НЕ ИЗМЕРЕНО»)"))
     ap.add_argument("--base-ref", default=DEFAULT_BASE_REF, help="базовый ref доставки")
     ap.add_argument("--window-days", type=int, default=_WINDOW_DAYS)
     ap.add_argument("--json", action="store_true")
@@ -707,7 +963,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     repo_root = Path(args.repo_root) if args.repo_root else Path(__file__).resolve().parents[2]
     data_dir = Path(args.data_dir) if args.data_dir else (repo_root / "data")
     report = run_census(data_dir, repo_root=repo_root, base_ref=args.base_ref,
-                        window_days=args.window_days)
+                        window_days=args.window_days,
+                        history_root=Path(args.history_root) if args.history_root else None)
     if args.save:
         save_artifact(report, data_dir)
     if args.json:

@@ -574,3 +574,360 @@ class TestArtifactAndExit:
                        "--base-ref", "main", "--window-days", "36500"])
         assert code == 1
         assert "CLASS_OPEN" in capsys.readouterr().out
+
+
+# ════════════════════ цикл #751 · заказ G88 п. 3 ════════════════════
+#
+# Три звена, добавленные после замера #751, и у каждого контроль в ОБЕ стороны.
+# Замер, из которого они выросли: из 7 координат, объявленных прибором
+# потерянными, ДВЕ потеряны не были — одна списана доставленным удалением,
+# другая доставлена под переномерованным именем. Обе ошибки односторонни и в
+# опасную сторону: цена завышена, а следующую сессию посылали «поднять» уже
+# сделанную работу (а в случае списания — ОТМЕНИТЬ решение).
+
+
+def _repo_with_history(tmp_path: Path, *, name: str = "repo",
+                       steps: list[tuple[str, dict[str, str | None]]]) -> Path:
+    """Репозиторий, у которого есть ИСТОРИЯ: по коммиту на шаг.
+
+    ``None`` в значении = файл на этом шаге УДАЛЯЕТСЯ. Имя ветки — вход сцены
+    (`git init -b`), иначе вердикт решал бы `init.defaultBranch` хоста.
+    """
+    root = tmp_path / name
+    root.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=root, check=True)
+    for message, files in steps:
+        for rel, text in files.items():
+            path = root / rel
+            if text is None:
+                subprocess.run(["git", "rm", "-q", rel], cwd=root, check=True,
+                               capture_output=True)
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", message, "--allow-empty"], cwd=root,
+                       check=True, capture_output=True)
+    return root
+
+
+def _truncate(tmp_path: Path, source: Path, depth: int) -> Path:
+    """Обрезанный клон — ровно та форма, в которой работает прод-дерево."""
+    target = tmp_path / f"shallow{depth}"
+    subprocess.run(["git", "clone", "--depth", str(depth), "-b", "main",
+                    f"file://{source}", str(target)],
+                   check=True, capture_output=True)
+    assert subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=target,
+                          capture_output=True, text=True).stdout.strip() == "true"
+    return target
+
+
+class TestKinOfARenumberedDocument:
+    """Родня нумерованного документа ищется по СЛАГУ, а не по началу имени."""
+
+    _DECLARED = "docs/decisions/ADR-365-capital-observability-over-history.md"
+
+    def _verdict(self, base_paths) -> dict:
+        recs = [rec(ts_=ts(1), pid=1, files=[f"/t/a/{self._DECLARED}"]),
+                rec(ts_=ts(2), pid=2, files=[f"/t/b/{self._DECLARED}"])]
+        return M.measure_price(recs, base(set(base_paths) | {"docs/decisions/keep.md"}))
+
+    def test_the_same_slug_under_another_number_is_kin_not_a_loss(self):
+        """Доставлено как ADR-366: номер 365 за сутки сиротства занял другой цикл.
+
+        Сравнение по НАЧАЛУ имени такую родню увидеть не может по построению —
+        токены расходятся вторыми, на номере.
+        """
+        got = self._verdict({"docs/decisions/ADR-366-capital-observability-over-history.md"})
+        assert got["by_verdict"].get("absent_kin") == 1
+        assert got["lost_coordinates"] == 0
+        assert got["findings"][0]["kin"] == [
+            "docs/decisions/ADR-366-capital-observability-over-history.md"]
+
+    def test_the_same_number_with_another_slug_is_still_a_loss(self):
+        """Обратная сторона: номер переиспользован, объявленного документа нет."""
+        recs = [rec(ts_=ts(1), pid=1,
+                    files=["/t/a/docs/decisions/ADR-154-unmeasured-origin-sweep-and-board-composition.md"]),
+                rec(ts_=ts(2), pid=2,
+                    files=["/t/b/docs/decisions/ADR-154-unmeasured-origin-sweep-and-board-composition.md"])]
+        got = M.measure_price(recs, base({"docs/decisions/ADR-154-contracts-before-orchestration.md"}))
+        assert got["lost_coordinates"] == 1
+        assert got["by_verdict"].get("absent_kin") is None
+
+    def test_a_neighbour_sharing_only_two_slug_tokens_is_not_kin(self):
+        """Порог слага тот же, что у начала имени: два токена роднёй не делают."""
+        got = self._verdict(
+            {"docs/decisions/ADR-364-capital-observability-census-g1-acceptance.md"})
+        assert got["lost_coordinates"] == 1
+
+    def test_another_mark_with_the_same_slug_is_not_kin(self):
+        """Марка документа — часть личности: RFC-366 не есть переименование ADR-365."""
+        got = self._verdict(
+            {"docs/decisions/RFC-366-capital-observability-over-history.md"})
+        assert got["lost_coordinates"] == 1
+
+    def test_an_unnumbered_name_keeps_the_old_rule(self):
+        """Правило номера не отменяет прежнее: ненумерованные имена — по началу."""
+        assert M.kin_of("spa_core/tests/test_tracker_board_composition.py",
+                        {"spa_core/tests/test_tracker_board_matches_cards.py"})
+        assert not M.kin_of("spa_core/tests/test_tracker_board_composition.py",
+                            {"spa_core/tests/test_cycle_lock_watch.py"})
+
+
+class TestRetirementDoor:
+    """Доставленное УДАЛЕНИЕ не есть потеря — и отказ двери асимметричен."""
+
+    _PATH = "scripts/day30_review.py"
+
+    def _declared(self, day: int) -> list[dict]:
+        return [rec(ts_=ts(day), pid=1, files=[f"/t/a/{self._PATH}"]),
+                rec(ts_=ts(day + 1), pid=2, files=[f"/t/b/{self._PATH}"])]
+
+    def test_a_deletion_delivered_after_the_declaration_is_a_retirement(self, tmp_path):
+        """Сессия объявила координату, чтобы её УБРАТЬ, и убрала — работа доехала."""
+        root = self._repo_deleting_after_declaration(tmp_path)
+        got = M.measure_price(self._declared(1),
+                              base({"scripts/keep.py"}, committed_at="2026-09-30T00:00:00+00:00"),
+                              retirement=M.retirement_door(root, "main"))
+        assert got["by_verdict"].get("retired_at_base") == 1
+        assert got["lost_coordinates"] == 0
+        assert got["retired_at_base"] == 1
+        assert "списана коммитом" in got["findings"][0]["retirement"]
+
+    def _repo_deleting_after_declaration(self, tmp_path) -> Path:
+        """Удаление ПОЗЖЕ объявления: отметки коммитов — настоящие, объявления — 09-01/02."""
+        return _repo_with_history(tmp_path, steps=[
+            ("рождение", {self._PATH: "x\n", "scripts/keep.py": "k\n"}),
+            ("списание", {self._PATH: None}),
+        ])
+
+    def test_a_deletion_BEFORE_the_declaration_is_still_a_loss(self, tmp_path):
+        """Файл удалили раньше — значит сессия завела его ЗАНОВО и не доставила.
+
+        Обратный контроль той же двери: оправдывает не «когда-то удалялся», а
+        именно отметка позже объявления.
+        """
+        root = self._repo_deleting_after_declaration(tmp_path)
+        far_future = [rec(ts_=f"2099-01-0{n}T12:00:00Z", pid=n,
+                          files=[f"/t/{n}/{self._PATH}"]) for n in (1, 2)]
+        got = M.measure_price(far_future,
+                              base({"scripts/keep.py"}, committed_at="2099-12-31T00:00:00+00:00"),
+                              retirement=M.retirement_door(root, "main"))
+        assert got["lost_coordinates"] == 1
+        assert "удалена ДО объявления" in got["findings"][0]["retirement"]
+
+    def test_a_coordinate_never_at_base_is_a_loss_in_a_full_clone(self, tmp_path):
+        """«Измерено и равно нулю»: полный клон удаления не помнит ⇒ потеря."""
+        root = _repo_with_history(tmp_path, steps=[("рождение", {"scripts/keep.py": "k\n"})])
+        got = M.measure_price(self._declared(1), base({"scripts/keep.py"}),
+                              retirement=M.retirement_door(root, "main"))
+        assert got["lost_coordinates"] == 1
+        assert got["findings"][0]["retirement"] == "база удаления этой координаты не помнит"
+        assert got["retirement_unmeasured"] == 0
+
+    def test_a_truncated_clone_may_NOT_say_the_coordinate_was_never_deleted(self, tmp_path):
+        """ТРЕТИЙ исход, и он не склеен ни с «потеряно», ни с «списано».
+
+        Прод-дерево обрезано по построению (замер #751: 443 коммита, 20 точек
+        обрезки), и `git log` по пути отдаёт там пустоту с кодом 0 при живом
+        объекте удаляющего коммита. Прочесть эту пустоту как «не удалялось»
+        значило бы объявить потерей каждое доставленное списание.
+        """
+        source = _repo_with_history(tmp_path, steps=[
+            ("рождение", {self._PATH: "x\n", "scripts/keep.py": "k\n"}),
+            ("списание", {self._PATH: None}),
+            ("после", {"scripts/other.py": "o\n"}),
+        ])
+        shallow = _truncate(tmp_path, source, depth=1)
+        got = M.measure_price(self._declared(1), base({"scripts/keep.py"}),
+                              retirement=M.retirement_door(shallow, "main"))
+        assert got["by_verdict"].get("absent_retirement_unmeasured") == 1
+        assert got["lost_coordinates"] == 0
+        assert got["retirement_unmeasured"] == 1
+        assert "ОБРЕЗАНО" in got["findings"][0]["retirement"]
+
+    def test_a_VISIBLE_deletion_is_measured_even_in_a_truncated_clone(self, tmp_path):
+        """Асимметрия отказа: обрезка мешает заключить «не было», а не «увидеть».
+
+        Положительный контроль ровно на то, что дверь не отказывает ОПТОМ по
+        признаку «клон обрезан»: если удаляющий коммит достижим, вердикт есть.
+        """
+        source = _repo_with_history(tmp_path, steps=[
+            ("рождение", {self._PATH: "x\n", "scripts/keep.py": "k\n"}),
+            ("списание", {self._PATH: None}),
+        ])
+        shallow = _truncate(tmp_path, source, depth=2)
+        answer = M.retirement_door(shallow, "main")(self._PATH)
+        assert answer["measured"] is True and answer["deleted_at"]
+
+    def test_not_a_repository_is_not_measured(self, tmp_path):
+        answer = M.retirement_door(tmp_path, "main")(self._PATH)
+        assert answer["measured"] is False and answer["reason"]
+
+    def test_without_a_door_the_price_says_NOT_ASKED_out_loud(self):
+        """«Не спрошено» обязано быть видно: иначе это тихий fail-OPEN.
+
+        Ошибка при этом идёт в сторону ЗАВЫШЕНИЯ цены, а не занижения.
+        """
+        got = M.measure_price(self._declared(1), base({"scripts/keep.py"}))
+        assert got["retirement_door_asked"] is False
+        assert got["findings"][0]["retirement"] == "not_asked"
+        report = {"measured": True, "status": M.STATUS_OPEN, "price": got,
+                  "receipts": {"window_days": 30, "window_takings": 1,
+                               "window_takings_without_receipt": 1,
+                               "receipts_in_journal": 0, "absence_means": "—"},
+                  "guard_wiring": {"measured": False, "reason": "—"}}
+        assert any("НЕ СПРОШЕНО" in line for line in M.format_report(report))
+
+
+class TestLiftabilityOfLostWork:
+    """Подъёмность: окно подъёма равно времени жизни дерева, а не сроку заказа."""
+
+    _PATH = "spa_core/monitoring/orphan_runs.py"
+
+    def _recs(self, prefixes) -> list[dict]:
+        return [rec(ts_=ts(n + 1), pid=n + 1, files=[f"{prefix}/{self._PATH}".lstrip("/") if not prefix
+                                                     else f"{prefix}/{self._PATH}"])
+                for n, prefix in enumerate(prefixes)]
+
+    def test_a_gone_tree_makes_the_price_final(self):
+        """Замер #751: все 11 объявленных деревьев стёрты ⇒ поднимать нечего."""
+        got = M.measure_price(self._recs(["/tmp/spa_c400", "/tmp/spa_c403"]),
+                              base({"spa_core/monitoring/keep.py"}),
+                              tree_exists=lambda path: False)
+        assert got["liftability"] == {"tree_gone": 1}
+        assert got["findings"][0]["trees"] == ["/tmp/spa_c400", "/tmp/spa_c403"]
+        assert got["findings"][0]["trees_alive"] == []
+
+    def test_a_living_tree_NAMES_the_path_to_lift_from(self):
+        """Обратная сторона: дерево цело ⇒ путь назван, и подъём возможен."""
+        got = M.measure_price(self._recs(["/tmp/spa_c400", "/tmp/spa_c403"]),
+                              base({"spa_core/monitoring/keep.py"}),
+                              tree_exists=lambda path: path == "/tmp/spa_c403")
+        assert got["liftability"] == {"tree_present": 1}
+        assert got["findings"][0]["trees_alive"] == ["/tmp/spa_c403"]
+
+    def test_a_declaration_without_a_tree_prefix_is_a_THIRD_outcome(self):
+        """Объявление относительным путём: дерево не названо — сказать нечего.
+
+        Это не «дерева нет»: цикл-398 объявил ADR относительным путём, и выдать
+        его за стёртое дерево значило бы изготовить вердикт из формы записи.
+        """
+        recs = [rec(ts_=ts(1), pid=1, files=[self._PATH]),
+                rec(ts_=ts(2), pid=2, files=[self._PATH])]
+        got = M.measure_price(recs, base({"spa_core/monitoring/keep.py"}),
+                              tree_exists=lambda path: False)
+        assert got["liftability"] == {"tree_not_named": 1}
+        assert got["findings"][0]["trees"] == []
+
+    def test_the_filesystem_door_is_an_INPUT_not_the_host(self):
+        """Положительный контроль проводки: пробу спрашивают, а не угадывают.
+
+        Та же причина, по которой `pid_alive` инъектируется
+        (`.claude/rules/deployment.md`): иначе тест судил бы о том, что сегодня
+        лежит в `/tmp` у ЭТОГО хоста.
+        """
+        asked: list[str] = []
+
+        def probe(path: str) -> bool:
+            asked.append(path)
+            return False
+
+        M.measure_price(self._recs(["/tmp/spa_cA", "/tmp/spa_cB"]),
+                        base({"spa_core/monitoring/keep.py"}), tree_exists=probe)
+        assert sorted(asked) == ["/tmp/spa_cA", "/tmp/spa_cB"]
+
+
+class TestTreePrefix:
+    _TOPS = {"spa_core", "docs", "scripts"}
+
+    def test_an_absolute_declaration_keeps_its_leading_slash(self):
+        assert M.tree_prefix_of("/tmp/spa_c400/spa_core/monitoring/x.py",
+                                self._TOPS) == "/tmp/spa_c400"
+
+    def test_a_repo_relative_declaration_names_no_tree(self):
+        assert M.tree_prefix_of("docs/decisions/ADR-1-x.md", self._TOPS) is None
+
+    def test_an_unrecognised_declaration_names_no_tree(self):
+        assert M.tree_prefix_of("/var/log/syslog", self._TOPS) is None
+
+
+class TestProductionPathAlwaysAsks:
+    """Боевой путь дверь передаёт ВСЕГДА, и обрезка не читается как «чисто»."""
+
+    def test_run_census_asks_the_retirement_door(self, tmp_path):
+        recs = [rec(ts_=ts(26), pid=1, files=["/t/a/scripts/gone.py"]),
+                rec(ts_=ts(27), pid=2, files=["/t/b/scripts/gone.py"])]
+        root = _repo_with_history(tmp_path, steps=[("рождение", {"scripts/keep.py": "k\n"})])
+        data = root / "data"
+        data.mkdir()
+        (data / M.JOURNAL_NAME).write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs), encoding="utf-8")
+        report = M.run_census(data, repo_root=root, base_ref="main", now=NOW,
+                              window_days=36500)
+        assert report["price"]["retirement_door_asked"] is True
+
+    def test_the_class_stays_OPEN_while_retirement_is_unmeasured(self, tmp_path):
+        """Fail-CLOSED ПО ВЕРДИКТУ, а не по строке отчёта.
+
+        Сцена подобрана так, что закрыть класс мешает ТОЛЬКО третий исход двери
+        списания: потерянных координат ноль, квитанция у каждого взятия есть.
+        Снять `or price["retirement_unmeasured"] > 0` из `run_census` — и тест
+        краснеет, объявив класс закрытым на обрезанном клоне.
+
+        Иначе обрезанное дерево — то есть обычное окружение этого прода —
+        обнулило бы и цену, и вердикт разом, и это читалось бы как «чисто»
+        (урок `pyflakes` в `.claude/rules/deployment.md`: отсутствие ответа
+        тише красного).
+        """
+        source = _repo_with_history(tmp_path, steps=[
+            ("рождение", {"scripts/gone.py": "x\n", "scripts/keep.py": "k\n"}),
+            ("списание", {"scripts/gone.py": None}),
+            ("после", {"scripts/other.py": "o\n"}),
+        ])
+        shallow = _truncate(tmp_path, source, depth=1)
+        taking = rec(ts_=ts(26), pid=1, files=["/t/a/scripts/gone.py"])
+        receipt = rec(ts_=ts(26, 13), pid=1, files=[],
+                      summary=M._RECEIPT_PREFIX + " сторож спрошен")
+        second = rec(ts_=ts(27), pid=2, files=["/t/b/scripts/gone.py"])
+        second_receipt = rec(ts_=ts(27, 13), pid=2, files=[],
+                             summary=M._RECEIPT_PREFIX + " сторож спрошен")
+        data = tmp_path / "data"
+        data.mkdir()
+        (data / M.JOURNAL_NAME).write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n"
+                    for r in (taking, receipt, second, second_receipt)),
+            encoding="utf-8")
+        report = M.run_census(data, repo_root=shallow, base_ref="main", now=NOW,
+                              window_days=36500)
+        assert report["measured"] is True
+        price = report["price"]
+        assert price["lost_coordinates"] == 0, "сцена обязана не иметь потерь"
+        assert price["retirement_unmeasured"] == 1
+        assert report["receipts"]["window_takings_without_receipt"] == 0, \
+            "сцена обязана не иметь взятий без квитанции"
+        assert report["status"] == M.STATUS_OPEN
+
+    def test_liftability_is_reported_even_when_retirement_is_unmeasured(self, tmp_path):
+        """Подъёмность про ДЕРЕВО, а не про вопрос списания.
+
+        На обрезанном клоне — то есть на боевом хосте — все отсутствующие
+        координаты уходят в третий исход двери списания, и привязка подъёмности
+        только к `absent_lost` молчала бы ровно там, где заказ G88 п. 3 её и
+        спрашивает.
+        """
+        source = _repo_with_history(tmp_path, steps=[
+            ("рождение", {"scripts/keep.py": "k\n"}),
+            ("после", {"scripts/other.py": "o\n"}),
+        ])
+        shallow = _truncate(tmp_path, source, depth=1)
+        recs = [rec(ts_=ts(1), pid=1, files=["/tmp/spa_cGONE/scripts/gone.py"]),
+                rec(ts_=ts(2), pid=2, files=["/tmp/spa_cGONE/scripts/gone.py"])]
+        got = M.measure_price(recs, base({"scripts/keep.py"}),
+                              retirement=M.retirement_door(shallow, "main"),
+                              tree_exists=lambda path: False)
+        assert got["retirement_unmeasured"] == 1
+        assert got["liftability"] == {"tree_gone": 1}
+        assert got["findings"][0]["trees"] == ["/tmp/spa_cGONE"]
