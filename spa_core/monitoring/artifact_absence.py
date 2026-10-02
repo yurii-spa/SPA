@@ -121,6 +121,11 @@ class Absence:
     module_age_h: float | None = None
     runner_ran_at: str | None = None
     skip_reason: str | None = None
+    #: ЧЕМ мерили «успел ли бегун увидеть производителя»: `run_started_at`
+    #: (старт процесса — верный момент) либо `generated_at` (последняя фаза
+    #: прогона — приближение, завышающее «успел»). Поле объявлено, а не
+    #: выведено из текста: читатель вправе знать, на чём стоит вердикт.
+    clock_field: str | None = None
 
     @property
     def not_yet(self) -> bool:
@@ -224,7 +229,16 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
             reason=(f"производитель {module} назван в составе ступени бегуна "
                     f"({os.path.basename(runner_report_rel)})"))
 
-    ran = _parse_ts(report.get("generated_at"))
+    # ЧТО именно спрашивается: «был ли код производителя в дереве РАНЬШЕ, чем
+    # процесс бегуна зафиксировал свой код», то есть раньше его СТАРТА. Мост —
+    # последняя фаза прогона, и `generated_at` отстоит от старта на часы (замер
+    # 02.10: старт 04:46:42Z, `generated_at` 08:10:17Z — 3 ч 24 мин). Поэтому
+    # приоритет у `run_started_at`, а `generated_at` остаётся ПРИБЛИЖЕНИЕМ, и
+    # сторона его ошибки названа: он завышает «успел увидеть», то есть ошибается
+    # в сторону ЛОЖНОЙ НАХОДКИ на исправной проводке (ADR-536, цикл #750).
+    started = _parse_ts(report.get("run_started_at"))
+    clock_field = "run_started_at" if started is not None else "generated_at"
+    ran = started if started is not None else _parse_ts(report.get("generated_at"))
     if ran is None:
         return Absence(
             artifact=artifact_rel, kind=UNMEASURED_REPORT_HAS_NO_CLOCK,
@@ -237,16 +251,34 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
     if ran < born:
         return Absence(
             artifact=artifact_rel, kind=NOT_YET, is_finding=False,
-            stage=stage, module=module,
+            stage=stage, module=module, clock_field=clock_field,
             module_age_h=round((now - born).total_seconds() / 3600.0, 2),
-            runner_ran_at=report.get("generated_at"),
+            runner_ran_at=report.get(clock_field),
             reason=(f"производитель {module} приехал в дерево ПОСЛЕ последнего "
                     f"прогона своего бегуна"))
 
+    # Та же находка, но причина больше не утверждает лишнего: по
+    # `generated_at` нельзя сказать «бегун стартовал после прихода кода» —
+    # можно лишь «мост начался после». Разница и есть ложная находка 02.10.
+    if clock_field == "generated_at":
+        return Absence(
+            artifact=artifact_rel, kind=DECLARED_WITHOUT_CALL, is_finding=True,
+            stage=stage, module=module, clock_field=clock_field,
+            runner_ran_at=report.get("generated_at"),
+            reason=(f"производитель {module} в дереве есть, ступень {stage!r} "
+                    f"бегун не назвал, а СТАРТ его процесса — {UNMEASURED} "
+                    f"(в отчёте нет `run_started_at`) — вердикт стоит на "
+                    f"`generated_at` ({report.get('generated_at')}), то есть на "
+                    f"НАЧАЛЕ ПОСЛЕДНЕЙ ФАЗЫ прогона, а код мог приехать внутрь "
+                    f"уже идущего прогона; форма ADR-259 не исключена, но и не "
+                    f"доказана"))
+
     return Absence(
         artifact=artifact_rel, kind=DECLARED_WITHOUT_CALL, is_finding=True,
-        stage=stage, module=module, runner_ran_at=report.get("generated_at"),
-        reason=(f"производитель {module} в дереве есть, бегун отработал ПОСЛЕ "
-                f"его прихода ({report.get('generated_at')}) и ступень "
-                f"{stage!r} не назвал — объявленный артефакт без производящего "
-                f"вызова (форма ADR-259)"))
+        stage=stage, module=module, clock_field=clock_field,
+        runner_ran_at=report.get("run_started_at"),
+        reason=(f"производитель {module} в дереве есть, процесс бегуна "
+                f"СТАРТОВАЛ ПОСЛЕ его прихода "
+                f"({report.get('run_started_at')}) и ступень {stage!r} не "
+                f"назвал — объявленный артефакт без производящего вызова "
+                f"(форма ADR-259)"))

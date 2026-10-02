@@ -248,6 +248,10 @@ PRODUCES = (
     # (ADR-498, измерен ADR-535). Ступень поднимает одноразовые сцены и читает
     # ЖИВОЕ дерево (кто грузит сторожа), поэтому такт у неё суточный, как у соседа.
     "data/claim_guard_receipt_readers.json",
+    # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
+    # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
+    # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
+    "data/claim_release_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -364,6 +368,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "owner_visibility_census",
     "duplicate_subject_census",
     "claim_guard_receipt_readers",
+    "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -632,6 +637,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "claim_guard_receipt_readers": {
         "module": "spa_core/monitoring/claim_guard_receipt_readers.py",
         "artifact": "data/claim_guard_receipt_readers.json"},
+    "claim_release_census": {
+        "module": "spa_core/monitoring/claim_release_census.py",
+        "artifact": "data/claim_release_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -1078,7 +1086,32 @@ def census_skipped(record: dict, name: str, exc: BaseException) -> None:
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card,
                deliver=None, retract=retract_card, deliver_answers=None,
-               censuses: dict | None = None) -> dict:
+               censuses: dict | None = None,
+               run_started_at: dt.datetime | None = None) -> dict:
+    """`run_started_at` — когда ЗАПУСТИЛСЯ процесс бегуна, а не когда начался мост.
+
+    Два разных момента, и до цикла #750 наружу ехал только второй. Мост —
+    ПОСЛЕДНЯЯ фаза прогона: ступень переписей идёт перед ним и на живом Маке
+    занимает часы, поэтому `generated_at` отстоит от старта процесса далеко.
+    Замер 02.10: процесс стартовал `04:46:42Z` (баннер START, pid 74604),
+    `generated_at` = `08:10:17Z` — зазор **3 ч 24 мин**.
+
+    Кто на этом спотыкался: `artifact_absence.verdict` спрашивает «успел ли
+    бегун увидеть производителя» и сравнивал дату модуля с `generated_at`.
+    Код ступени `claim_guard_receipt_readers` (ADR-535) лёг в прод-дерево в
+    `05:49:42Z` — то есть на час ПОЗЖЕ старта процесса и на два часа РАНЬШЕ
+    `generated_at`. Процесс к тому времени свой `findings_bridge` уже
+    импортировал, ступени в исполняемом коде не было по построению — а шаг
+    0-офис объявил исправную проводку находкой «объявленный артефакт без
+    производящего вызова (форма ADR-259)». Это тот же класс, что ADR-478:
+    сторож сверял артефакт с НЕ ТЕМ моментом и указывал не ту дверь.
+
+    Момент импорта и есть момент, после которого код процесса неизменяем
+    (`.claude/rules/deployment.md`, «долгоживущий агент держит код с момента
+    старта»). Поле пишется ТОЛЬКО когда его передали: отсутствие поля —
+    самостоятельный третий исход у читателя, а не молчаливая подстановка
+    `generated_at` под видом старта.
+    """
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date().isoformat()
     state = _load_state(root)
@@ -1223,6 +1256,11 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               # Провенанс предмета в ТОЙ ЖЕ форме, что у architecture_conformance
               # (одна функция на обоих) — читает `_subject_drift` шага 0-офис.
               "inputs": subject_inputs(root, (DECIDER_REL,)),
+              # Старт ПРОЦЕССА (не моста) — см. докстроку `run_bridge`. Ключа
+              # нет, если звавший его не передал: «не измерено» обязано быть
+              # отличимо от «равно generated_at» (инв. #17).
+              **({"run_started_at": run_started_at.isoformat()}
+                 if run_started_at is not None else {}),
               "delivery": delivery,
               "owner_answer_delivery": _deliver_owner_answers(root, now, deliver_answers),
               "created": created, "deferred": deferred, "closed": closed,
@@ -1271,6 +1309,12 @@ def main(argv=None) -> int:
     if not args.run:
         ap.print_help()
         return 0
+    # Старт процесса снимается ЗДЕСЬ — до ступени переписей, которая на живом
+    # Маке занимает часы. Это момент, после которого код процесса неизменяем;
+    # именно его спрашивает `artifact_absence.verdict` у вопроса «успел ли
+    # бегун увидеть производителя». Снимать его внутри `run_bridge` было бы
+    # тем же `generated_at` под новым именем (зазор 02.10 — 3 ч 24 мин).
+    run_started_at = dt.datetime.now(dt.timezone.utc)
     # Ступень переписей. Что она пробовала и на чём споткнулась — едет в
     # отчёт моста (`censuses`), потому что снаружи у пропуска нет иного
     # следа, кроме отсутствующего артефакта, а его шаг 0-офис до #524
@@ -2671,6 +2715,25 @@ def main(argv=None) -> int:
                   f"{_cgr['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
         census_skipped(_skipped, "claim_guard_receipt_readers", e)
+
+    # Ступень заказа G88 п. 2 (ADR-536): кто и когда ЗАКРЫВАЕТ захват, и чего стоил
+    # бы срок годности. Заголовочное число — захваты, стоящие открытыми при карточке,
+    # про которую уже сказано «закрыта»: это и есть находка, а не размер населения.
+    try:
+        from spa_core.monitoring import claim_release_census
+        _crc = claim_release_census.run(root=args.root)
+        if _crc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «таких захватов ноль» (инв. #17).
+            _oc = observed(_crc["doc"], "open_claims", kind=dict)
+            _stuck = None if _oc is None else observed(
+                _oc, "card_declared_done_by_another_identity", kind=int)
+            print(f"claim_release_census: {_crc['doc'].get('status')} — захватов, "
+                  f"открытых при закрытой карточке: "
+                  f"{'НЕ ИЗМЕРЕНО' if _stuck is None else _stuck}")
+        else:
+            print(f"claim_release_census: НЕ ИЗМЕРЕНО — {_crc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "claim_release_census", e)
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:
@@ -2694,7 +2757,8 @@ def main(argv=None) -> int:
         census_skipped(_skipped, "loop_retro", e)
     r = run_bridge(root=args.root,
                    censuses={"attempted": list(CENSUS_STAGE),
-                             "skipped": _skipped})
+                             "skipped": _skipped},
+                   run_started_at=run_started_at)
     try:
         from spa_core.monitoring import loop_health
         loop_health.run(root=args.root)

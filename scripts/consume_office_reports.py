@@ -854,6 +854,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "claim_guard_receipt_readers.json": ("status", "measured", "order", "applied",
                                         "trace", "verdict_readers",
                                         "receipt_reader", "naive_channel"),
+    # Заказ G88 п. 2 (ADR-536): кто и когда ЗАКРЫВАЕТ захват. Четыре оси объявлены
+    # ОТДЕЛЬНО намеренно: «кто закрывает», «когда закрывает», «почему остался
+    # открытым» и «чего стоил бы срок» — четыре разных утверждения, и подменять
+    # одно другим запрещено (на такой подмене заказ стоял двадцать один заказ).
+    "claim_release_census.json": ("status", "measured", "order", "applied",
+                                  "population", "writers", "latency",
+                                  "open_claims", "expiry_ladder"),
     "owner_visibility_census.json": ("status", "criterion", "books",
                                      "books_unreadable", "subjects_total",
                                      "delivered_as_field", "prose_only",
@@ -1109,6 +1116,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/duplicate_subject_census.py",
     "claim_guard_receipt_readers.json":
         "spa_core/monitoring/claim_guard_receipt_readers.py",
+    "claim_release_census.json":
+        "spa_core/monitoring/claim_release_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
     "apy_composition.json": "spa_core/monitoring/apy_composition.py",
     "rebalance_trigger.json": "spa_core/paper_trading/rebalance_trigger.py",
@@ -2994,6 +3003,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.claim_guard_receipt_readers import format_report as _cgr_report
         out.extend(_cgr_report(data))
+    elif name == "claim_release_census.json":
+        # Заказ G88 п. 2 (ADR-536). Без этой ветки артефакт читается ВХОЛОСТУЮ — и это
+        # был бы тот же дефект, что ловит сам заказ: находка без читателя внутри цикла.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож
+        # достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.claim_release_census import format_report as _crc_report
+        out.extend(_crc_report(data))
     elif name == "call_sourced_input_census.json":
         # Заказ G45 п. 1 (ADR-421). Без этой ветки артефакт читается ВХОЛОСТУЮ.
         # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
@@ -4159,10 +4175,16 @@ def _absent_verdict(rel: str, *, root: str, data_dir: str | None,
     plain = ["   файла нет на диске"]
 
     if v.kind == _aa.NOT_YET:
+        # ЧЕМ мерили — часть ответа, а не подробность: `run_started_at` это
+        # старт процесса бегуна, `generated_at` — начало его последней фазы
+        # (ADR-536, цикл #750). Молча назвать второе «прогоном» значило бы
+        # повторить ту же подмену момента, только в тексте офиса.
+        _clock = ("процесс стартовал" if v.clock_field == "run_started_at"
+                  else "мост начался (старт процесса НЕ ИЗМЕРЕН)")
         return False, [
             f"   ⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ (это НЕ находка): производитель "
-            f"{v.module} лежит в дереве {v.module_age_h:.1f}ч, а его бегун "
-            f"({_RUNNER_REPORT}) последний раз отработал "
+            f"{v.module} лежит в дереве {v.module_age_h:.1f}ч, а у его бегуна "
+            f"({_RUNNER_REPORT}) {_clock} "
             f"{v.runner_ran_at} — ДО его прихода.",
             f"   Ответ будет на следующем прогоне бегуна. Если и тогда файла "
             f"не появится, строка станет находкой сама.",
