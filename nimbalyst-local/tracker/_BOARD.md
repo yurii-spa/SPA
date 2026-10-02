@@ -2,19 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-02T16:25:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-02T19:03:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (758211e3c) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f70dc61bd) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1162** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1162** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
-- **Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md`
-- **Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте**  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md`
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
@@ -49,8 +47,6 @@
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
-- Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md` · 2026-09-30
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
@@ -59,6 +55,8 @@
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
+### · owner-accepted
+- Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md` · 2026-09-30
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -210,6 +208,7 @@
 - Координатор ёмкости пулов между тремя книгами: блокировать жёстко или предупреждать?  ·  `owner-decision-koordinator-emkosti-pulov-mezhdu-tremya.md` · 2026-08-30
 - Координатор ёмкости пулов: свой порог для суммы трёх книг или текущий RiskPolicy?  ·  `owner-decision-koordinator-emkosti-pulov-svoi-porog-dly.md` · 2026-08-30
 - Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает  ·  `owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a.md` · 2026-09-12
+- Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
 - Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.digest_weekly работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest.md` · 2026-08-08
 - Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-site-f.md` · 2026-09-09

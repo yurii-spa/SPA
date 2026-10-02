@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте"
-status: needs-owner
+status: owner-accepted
 source: nimbalyst
 created: 2026-09-30
 finding_key: "B1:dead:com.spa.mission_tick"
@@ -10,6 +10,9 @@ owner_choice: ack
 owner_answered_at: 2026-10-01T07:00:44.855526+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: ack
+status_trail:
+  - "2026-10-01T07:00:44.856525+00:00 needs-owner -> owner-accepted · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -26,3 +29,40 @@ com.spa.mission_tick: intent=active, но НЕ загружен во флоте
 Мост сам закроет эту карточку, когда находка исчезнет; сторож продолжит следить, чтобы она не вернулась.
 
 _finding_key: `B1:dead:com.spa.mission_tick` · источник: architecture_conformance · ADR-066_
+
+---
+
+## Решение владельца
+
+**Принято — беру в работу**
+
+_Ответ владельца получен 2026-10-01T07:00:44.855526+00:00 (telegram). Поручение ПРИНЯТО владельцем — карточка остаётся открытой (`owner-accepted`), пока агент не выполнит её критерий приёмки и не отчитается. Закрыть её в `ingested` может только этот отчёт._
+
+---
+
+## Отчёт агента (цикл #754, 2026-10-02): находка ЖИВА, и эта сессия её не чинит
+
+**Замер.** В живом `data/architecture_conformance.json` (2026-10-02T16:56:21Z) находка
+`B1:dead:com.spa.mission_tick` **на месте**, severity CRITICAL, `first_seen` 2026-09-30.
+`launchctl list` агента `com.spa.mission_tick` не показывает вовсе — он действительно не
+загружен, объявление `intent=active` при этом стои́т.
+
+**Почему я её не закрыл.** Чинить её значит загрузить агента во флот (`launchctl bootstrap`), а
+это ровно то действие, которое запрещено мандату этой сессии прямым текстом («ЗАПРЕЩЕНО:
+деплой/выгрузку агентов») и правилом `.claude/rules/deployment.md` п. 6 («прод-дерево — только с
+разрешения владельца; агент готовит и ждёт»). Твой `ack` 01.10 это разрешение по ЭТОЙ находке
+даёт, и противоречие названо вслух, а не обойдено молча: **работа не сделана, и причина —
+запрет мандата, а не отсутствие твоего согласия.** Решать, что сильнее, — не моё дело.
+
+**Что нужно для закрытия (готово к исполнению, одна команда и одна проверка).**
+1. `bash scripts/check_agent_before_deploy.sh com.spa.mission_tick` — гейт перед установкой.
+   ⚠️ Если цель окажется долгожителем (`KeepAlive` без расписания) — НЕ этот гейт, а
+   `scripts/agent_static_probe.sh`: гейт поднимает ВТОРОЙ процесс и на долгожителе вреден
+   (замер 2026-08-08, `.claude/rules/deployment.md`).
+2. `launchctl bootstrap` по инструкции `scripts/install_all_agents.sh` (≤3 агентов за раз).
+3. `python3 -m spa_core.monitoring.deployment_acceptance` — до и после.
+4. Приёмка карточки: находка `B1:dead:com.spa.mission_tick` исчезает из
+   `data/architecture_conformance.json` при следующем прогоне сторожа.
+
+**Статус остаётся `owner-accepted`** — твой, и агент его не двигает (инв. #14). Карточка ждёт не
+ответа, а исполнения, и исполнителю нужен мандат, которого у этой сессии нет.
