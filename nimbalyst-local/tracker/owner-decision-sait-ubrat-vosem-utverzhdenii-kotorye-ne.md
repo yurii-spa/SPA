@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)"
-status: owner-done
+status: ingested
 answer: "A — пакет одобрен целиком; пункт 9 — вариант A (с границы sleeve-econ-v2, старый период помечен без числа). Ответ в сессии 2026-10-01."
 approves: landing/src/lib/tier_bands.json, landing/src/data/strategy_config.json, landing/src/pages/strategies/aggressive.astro
 source: nimbalyst
@@ -11,6 +11,7 @@ priority: high
 adr: ADR-531
 status_trail:
   - "2026-10-01T14:51:03.735987+00:00 ingested -> owner-done · queue.set_status/closed_by:owner (explicit decision in session 2026-10-01: «OWNER DECISION — COMPLETE P0-4», approves owner-done + gated remainder)/evidence:owner text 2026-10-01 approving owner-done and publication of docs/owner_packages/2026-10-01-defi-p0-4-gated-remainder.patch (4 edits); first 40/45 live checks — commit bffc45f3 journal W40"
+  - "2026-10-02T16:23:43.670207+00:00 owner-done -> ingested · queue.set_status · cycle-93700"
 ---
 
 ## Что случилось и почему это важно
@@ -75,3 +76,13 @@ Safe используется», «депег — низкий» у Balanced) �
 Ставка 4.9 % на главной и на карточке Conservative. Найдено и вынесено отдельными карточками (не правилось):
 - старое «~3.3%» на трёх страницах → `owner-decision-sait-na-treh-stranitsah-vse-esche-staray`;
 - четыре блока на странице Aggressive вне пакета, всё ещё описывающие плечо → `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes`.
+
+---
+
+## Инжест ответа владельца — цикл #753 (2026-10-02)
+
+Статус переведён `owner-done → ingested` (инв. #14: `owner-done` ставит только владелец, `ingested` — агент после инжеста). Решение владельца записано в `status_trail` и в ADR-531.
+
+**Что измерено перед закрытием.** Проверено ЖИВЫМ сайтом: на `/packages/`, `/system/`, `/strategies/conservative/` нет ни одной из формулировок действующего фонда («T+1», «no lock-up», «без локапа», «no fee», «minimum investment») и ни одного «только Tier 1». Единственное совпадение по «L6» — внутри SVG-пути, а не претензия эвиденса.
+
+**Названо, а не умолчано:** машинного следа ответа (`owner_choice`, `owner_answered_at`) у карточки нет ни в одной копии — владелец ответил текстом в сессии 01.10, а не кнопкой, и очередь об этом предупредила при переводе статуса. Закрытие стоит на `closed_by:owner` + `evidence` в `status_trail` и на замере живого сайта выше, а не на прозе сессии.
