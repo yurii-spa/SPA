@@ -126,6 +126,247 @@ def run_probe(names: Sequence[str], stand: Path, tree_root: Path,
             return None, f"ответ зонда не прочитан: {type(exc).__name__}"
 
 
+#: Имена, которых у публичной поверхности этого модуля быть НЕ ДОЛЖНО.
+#: Прибор отвечает на вопрос «сколько имён берёт каждая пара порогов», а не
+#: «годно ли имя»: порог не назначен ни один, и выбрать его вправе только
+#: решение. Состав пина — тот же приём, что у соседа (ADR-539): правило
+#: «гейта нет» проверяется СОСТАВОМ имён модуля, иначе гейт однажды появится
+#: тихой правкой, а прозаическая оговорка в докстринге останется.
+_NO_GATE_NAMES = ("apply_threshold", "chosen_pair", "reject_field", "is_fit",
+                  "admit_field", "unfit_for_identity", "threshold_gate")
+
+
+def _ranked_by_population(freq: Dict[str, int],
+                          strength: Dict[str, int]) -> List[Tuple[str, int]]:
+    """Порядок по НАСЕЛЕНИЮ имени — вторая половина пары, не замена первой.
+
+    Заказ G91 п. 2 начинается словами «население имени — РЯДОМ с длиной, а не
+    вместо неё», и это не стилистика. Печать уже несла обе половины
+    (``имя×N (макс. длина L)``), но УКОРОЧЕНИЕ перечня в отчёте офиса резало
+    хвост по ОДНОЙ оси — по длине. Замер 02.10 на живом артефакте: при
+    ``max_fields=8`` восьмёрка по длине кончается на ``journal_pp`` (длина 9,
+    ×1), а ``forward_date`` — самое населённое имя переписи (×11) и один из двух
+    примеров, которыми заказ и обосновал пару, — в отчёт офиса не попадает
+    ВОВСЕ. Голова по населению печатается рядом ровно поэтому; складывать две
+    головы в один порядок нельзя — взвешенный балл был бы тем самым «на глаз».
+    """
+    def _key(item: Tuple[str, int]):
+        field, pop = item
+        length = observed_number(strength, field)
+        # Длина НЕ ИЗМЕРЕНА ⇒ имя уходит в хвост своей группы по населению, и
+        # ОТДЕЛЬНОГО члена-флага для этого здесь НЕ НУЖНО — в отличие от
+        # порядка по длине (`_rank`), где длина есть ПЕРВЫЙ ключ и флаг
+        # обязателен. Разница измерена мутацией (цикл #753): флаг в этом ключе
+        # оказался мутационно-эквивалентным, то есть не менял ни одного
+        # порядка, — а член без наблюдаемого следствия есть украшение, и держать
+        # его «для симметрии» значило бы оставить в наборе утверждение, которое
+        # никакой контроль не в силах опровергнуть.
+        return (-pop, -length if length is not None else 0, field)
+
+    return sorted(freq.items(), key=_key)
+
+
+def threshold_grid(freq: Dict[str, int], strength: Dict[str, int]) -> dict:
+    """Сетка порогов по ПАРЕ чисел: сколько имён берёт каждая пара и КАКИЕ.
+
+    Заказ G91 п. 2 дословно: «порог по ПАРЕ чисел не назначать на глаз —
+    сначала замерить, сколько имён каждая пара порогов берёт и что среди
+    взятых». Отсюда три свойства замера, и каждое держит заказ, а не вкус:
+
+    * **Оси — НАБЛЮДЁННЫЕ значения**, а не круглые числа и не равномерный шаг.
+      Выбрать шаг сетки на глаз значит выбрать на глаз и порог, только спрятав
+      выбор в оформление. Наблюдённые значения дают ровно те пары, между
+      которыми вообще есть разница: между 8 и 9 она есть, между 12 и 13 — нет.
+    * **У имени в ячейке ТРИ исхода, и третий назван** (инв. #17). Длина у
+      имени может быть не измерена; тогда исход решает другая ось либо не
+      решает никто, и в «не взято» такое имя НЕ складывается.
+    * **Два прочтения пары, и они не суммируются.** ``both`` — имя обязано
+      пройти обе оси, ``either`` — достаточно одной. Разделение не косметика:
+      заказ привёл два имени, у каждого из которых одна ось сильна, а другая
+      нища, и конъюнкция с дизъюнкцией судят их ПРОТИВОПОЛОЖНО. Одно число на
+      две разные ставки было бы ответом, не относящимся ни к одной.
+
+    Вердикт правила (``rule_verdict``) ВЫЧИСЛЯЕТСЯ из замера, а не объявляется
+    строкой: он держится на двух наблюдаемых условиях (ниже), и если население
+    однажды их не предъявит, вердикт сменится САМ — отказ пересматривается
+    решением, а не ветшает молча.
+
+    Гейта здесь нет ни одного: прибор печатает цену каждой пары, выбор пары —
+    предмет ADR. Правило «гейта нет» пинится составом публичных имён модуля
+    (``_NO_GATE_NAMES``), а не обещанием в этом абзаце.
+    """
+    names = sorted(freq)
+    if not names:
+        return {"status": "UNMEASURED",
+                "reason": "кандидатов нет — пару порогов мерить не на чем"}
+    # Длина — ЧИСЛО ЭЛЕМЕНТОВ, то есть целое. `observed_number` отдаёт float,
+    # и печатать «L≥93.0» значило бы предъявить дробный порог там, где дробных
+    # значений не бывает. Нецелое значение при этом НЕ приводится к целому
+    # молча: такого в документе быть не может, а если оно появилось — документ
+    # не то, чем себя называет, и это третий исход с названной причиной
+    # (инв. #17), а не «длина 92».
+    length_of: Dict[str, Optional[int]] = {}
+    not_integral: List[str] = []
+    for name in names:
+        raw = observed_number(strength, name)
+        if raw is None:
+            length_of[name] = None
+        elif float(raw).is_integer():
+            length_of[name] = int(raw)
+        else:
+            length_of[name] = None
+            not_integral.append(name)
+    pops = sorted({int(freq[name]) for name in names})
+    lens = sorted({v for v in length_of.values() if v is not None})
+    if not lens:
+        return {"status": "UNMEASURED",
+                "reason": ("ни у одного кандидата длина не измерена — второй "
+                           "оси у пары нет, и сетка по одной оси была бы "
+                           "ответом на другой вопрос")}
+
+    cells: List[dict] = []
+    for n_min in pops:
+        for l_min in lens:
+            both_taken, both_unmeasured = [], []
+            either_taken, either_unmeasured = [], []
+            for name in names:
+                pop = int(freq[name])
+                length = length_of[name]
+                # КОНЪЮНКЦИЯ. Ось населения решает первой: не прошла — исход
+                # решён и длина не нужна. Прошла, а длина не измерена — исход
+                # решала бы ИМЕННО она, значит «не измерено», а не «не взято».
+                if pop >= n_min:
+                    if length is None:
+                        both_unmeasured.append(name)
+                    elif length >= l_min:
+                        both_taken.append(name)
+                # ДИЗЪЮНКЦИЯ. Достаточно одной оси, поэтому неизмеренная длина
+                # мешает только тогда, когда население УЖЕ не прошло.
+                if pop >= n_min or (length is not None and length >= l_min):
+                    either_taken.append(name)
+                elif length is None:
+                    either_unmeasured.append(name)
+            cells.append({
+                "n_min": n_min, "l_min": l_min,
+                "both": {"taken": len(both_taken), "names": both_taken,
+                         "length_unmeasured": len(both_unmeasured)},
+                "either": {"taken": len(either_taken), "names": either_taken,
+                           "length_unmeasured": len(either_unmeasured)},
+            })
+
+    # ЧЕМПИОНЫ осей — множества, а не по одному имени: ничья на оси длины
+    # наблюдена (два имени при 93), и взять из неё одно «первое» значило бы
+    # скрыть ровно то совпадение, вокруг которого крутится вердикт.
+    top_pop = max(int(freq[name]) for name in names)
+    top_len = max(lens)
+    champions = {
+        "by_population": {
+            "value": top_pop,
+            "names": sorted(n for n in names if int(freq[n]) == top_pop)},
+        "by_max_length": {
+            "value": top_len,
+            "names": sorted(n for n in names if length_of[n] == top_len)},
+    }
+    all_champions = set(champions["by_population"]["names"]) | set(
+        champions["by_max_length"]["names"])
+    # Ячейки, где конъюнкция берёт ОБОИХ чемпионов. Если такие есть только при
+    # поле на полу своей оси — порог по этой оси не делает работы вовсе.
+    champion_cells = [c for c in cells
+                      if all_champions <= set(c["both"]["names"])]
+    population_axis_idle = bool(champion_cells) and all(
+        c["n_min"] == pops[0] for c in champion_cells)
+    length_axis_idle = bool(champion_cells) and all(
+        c["l_min"] == lens[0] for c in champion_cells)
+
+    # СЛЕПОЕ ПЯТНО пары. Имена с ОДИНАКОВОЙ координатой ``(население, длина)``
+    # неразличимы любым порогом по этим двум числам — это свойство пары, а не
+    # наблюдение дня, и именно оно решает вердикт.
+    coords: Dict[Tuple[int, int], List[str]] = {}
+    for name in names:
+        length = length_of[name]
+        if length is None:
+            continue
+        coords.setdefault((int(freq[name]), int(length)), []).append(name)
+    collisions = [{"population": pop, "max_length": length,
+                   "names": sorted(group)}
+                  for (pop, length), group in sorted(coords.items())
+                  if len(group) > 1]
+    blind_names = sorted(n for c in collisions for n in c["names"])
+    coordinate_unmeasured = sorted(n for n in names if length_of[n] is None)
+
+    reasons: List[str] = []
+    if blind_names:
+        reasons.append(
+            f"у {len(blind_names)} имён координата ПОВТОРЯЕТСЯ "
+            f"({len(collisions)} класс(ов) совпадения): порог по этой паре "
+            f"чисел не различает их ни при каком значении")
+    if population_axis_idle:
+        reasons.append(
+            f"оба чемпиона осей конъюнкция берёт только при n_min={pops[0]}, "
+            f"то есть на полу оси населения — порог по населению не делает "
+            f"работы вовсе")
+    if length_axis_idle:
+        reasons.append(
+            f"оба чемпиона осей конъюнкция берёт только при l_min={lens[0]} — "
+            f"порог по длине не делает работы вовсе")
+    if not champion_cells:
+        reasons.append("ни одна пара не берёт оба чемпиона осей сразу")
+    return {
+        "status": "MEASURED",
+        "axes": {"population": pops, "max_length": lens},
+        "axes_source": ("наблюдённые значения населения переписи — шаг сетки на "
+                        "глаз не выбран ни по одной оси"),
+        "readings": ["both", "either"],
+        "pairs": len(cells),
+        "cells": cells,
+        "champions": champions,
+        "champion_cells": [{"n_min": c["n_min"], "l_min": c["l_min"]}
+                           for c in champion_cells],
+        "population_axis_idle": population_axis_idle,
+        "length_axis_idle": length_axis_idle,
+        "collisions": collisions,
+        "blind_names": blind_names,
+        "coordinate_unmeasured": coordinate_unmeasured,
+        "coordinate_not_integral": sorted(not_integral),
+        "rule_verdict": "REFUSED" if reasons else "NOT_REFUTED",
+        "rule_verdict_reasons": reasons,
+        "what_it_does_not_prove": [
+            "ни один порог НЕ назначен и ни один гейт не заведён — прибор "
+            "называет цену каждой пары, выбор пары есть решение",
+            "«не опровергнуто» (NOT_REFUTED) не значит «правило годно»: это "
+            "лишь отсутствие двух названных улик на СЕГОДНЯШНЕМ населении",
+            "обе оси — наблюдения одного ответа читателей, а не обещание "
+            "писателя: население и длина меняются со скоростью кода",
+        ],
+    }
+
+
+def distinct_taken_sets(grid: dict, reading: str = "both") -> List[dict]:
+    """Различные наборы взятых имён — и СИЛЬНЕЙШАЯ пара, дающая каждый.
+
+    Пар в сетке десятки, а различных ОТВЕТОВ у них единицы: печатать все пары
+    значило бы утопить ответ заказа («что среди взятых») в таблице. Выбор
+    представителя не на глаз: среди пар с одинаковым набором берётся
+    сильнейшая — наибольшая по ``(n_min, l_min)``, то есть та, которая этот
+    набор удерживает при самых строгих порогах.
+    """
+    cells = (grid or {}).get("cells")
+    if not cells:
+        return []
+    best: Dict[Tuple[str, ...], dict] = {}
+    for cell in cells:
+        side = cell.get(reading) or {}
+        key = tuple(side.get("names") or ())
+        prev = best.get(key)
+        here = (int(cell["n_min"]), int(cell["l_min"]))
+        if prev is None or here > (int(prev["n_min"]), int(prev["l_min"])):
+            best[key] = {"n_min": cell["n_min"], "l_min": cell["l_min"],
+                         "taken": side.get("taken"), "names": list(key),
+                         "length_unmeasured": side.get("length_unmeasured")}
+    return sorted(best.values(), key=lambda row: (-int(row["taken"] or 0),
+                                                 row["n_min"], row["l_min"]))
+
+
 def tally(rows: Dict[str, dict]) -> dict:
     """Свод по СПИСКАМ, а не по читателям: предмет заказа — список.
 
@@ -242,6 +483,11 @@ def tally(rows: Dict[str, dict]) -> dict:
         "named_fields": named_fields,
         "candidate_fields_outside": candidate_fields,
         "candidate_field_strength": strength,
+        # Заказ G91 п. 2: ПАРА чисел («население × длина»), замеренная сеткой
+        # наблюдённых значений. Складывать её в одно число с полями выше
+        # нельзя — это ответ на другой вопрос: не «какие поля годны», а «что
+        # взяла бы каждая пара порогов, если бы её назначили».
+        "threshold_grid": threshold_grid(candidate_fields, strength),
         "denominator_of_finding": unnamed_dicts_multi,
         "finding_rows": finding_rows,
     }
@@ -315,8 +561,89 @@ def measure(data_dir: Path, tree_root: Path, *,
     return doc
 
 
+def grid_report(grid: dict, *, max_cells: int = 12) -> List[str]:
+    """Строки сетки порогов. Знаменатель пары — рядом с числителем, как везде."""
+    axes = grid.get("axes") or {}
+    pops = axes.get("population") or []
+    lens = axes.get("max_length") or []
+    out = [f"[ПАРА ЧИСЕЛ · ОСИ] население: {', '.join(str(x) for x in pops)} · "
+           f"макс. длина: {', '.join(str(x) for x in lens)} ⇒ пар "
+           f"{grid.get('pairs')}. {grid.get('axes_source')}"]
+    champ = grid.get("champions") or {}
+    by_pop = champ.get("by_population") or {}
+    by_len = champ.get("by_max_length") or {}
+    out.append(f"[ПАРА ЧИСЕЛ · ЧЕМПИОНЫ] по населению ×{by_pop.get('value')}: "
+               f"{', '.join(by_pop.get('names') or [])} · по длине "
+               f"{by_len.get('value')}: {', '.join(by_len.get('names') or [])}")
+    for reading, title in (("both", "КОНЪЮНКЦИЯ (обе оси)"),
+                           ("either", "ДИЗЪЮНКЦИЯ (любая ось)")):
+        rows = distinct_taken_sets(grid, reading=reading)
+        out.append(f"[ПАРА ЧИСЕЛ · {title}] различных ответов у "
+                   f"{grid.get('pairs')} пар: {len(rows)} — ниже сильнейшая "
+                   f"пара каждого ответа")
+        for row in rows[:max_cells]:
+            names = ", ".join(row.get("names") or []) or "— ничего"
+            # `or 0` здесь был бы ровно инв. #17 наизнанку: ячейка, у которой
+            # счётчика неизмеренных НЕТ, напечаталась бы как «неизмеренных
+            # ноль». Поймано храповиком класса на этой самой строке.
+            unmeasured = observed_number(row, "length_unmeasured")
+            if unmeasured is None:
+                tail = ("; скольким именам длина не измерена — НЕ СКАЗАНО, и "
+                        "это не ноль")
+            elif unmeasured:
+                tail = f"; длина не измерена у {int(unmeasured)}"
+            else:
+                tail = ""
+            out.append(f"   n≥{row.get('n_min')} и L≥{row.get('l_min')}: "
+                       f"взято {row.get('taken')} — {names}{tail}")
+        if len(rows) > max_cells:
+            out.append(f"   … ещё {len(rows) - max_cells} ответ(ов) — полный "
+                       f"перечень в {ARTIFACT}")
+    # Перечень классов совпадения НЕСЁТ вердикт, поэтому его отсутствие — не
+    # «пятна нет», а отсутствие замера: пустой список и отсутствующий ключ
+    # отвечают на разные вопросы (инв. #17).
+    collisions = observed(grid, "collisions", kind=list)
+    if collisions is None:
+        out.append("[ПАРА ЧИСЕЛ · НЕ ИЗМЕРЕНО] перечня классов совпадения в "
+                   "сетке нет вовсе — это не «совпадающих координат нет»")
+        collisions = []
+    elif collisions:
+        shown = "; ".join(
+            f"({c.get('population')}, {c.get('max_length')}): "
+            f"{', '.join(c.get('names') or [])}" for c in collisions[:max_cells])
+        out.append(f"[ПАРА ЧИСЕЛ · СЛЕПОЕ ПЯТНО] координата повторяется у "
+                   f"{len(grid.get('blind_names') or [])} имён в "
+                   f"{len(collisions)} класс(ах): {shown} — внутри класса пара "
+                   f"порогов не различает имена НИ ПРИ КАКОМ значении")
+    else:
+        out.append("[ПАРА ЧИСЕЛ · СЛЕПОЕ ПЯТНО] совпадающих координат нет — "
+                   "пара различает все имена населения")
+    if grid.get("coordinate_not_integral"):
+        out.append(f"[ПАРА ЧИСЕЛ · НЕ ИЗМЕРЕНО] длина НЕ ЦЕЛАЯ у "
+                   f"{len(grid['coordinate_not_integral'])} имён: "
+                   f"{', '.join(grid['coordinate_not_integral'])} — число "
+                   f"элементов дробным не бывает, и округлять его значило бы "
+                   f"выдать поправку за наблюдение")
+    if grid.get("coordinate_unmeasured"):
+        out.append(f"[ПАРА ЧИСЕЛ · НЕ ИЗМЕРЕНО] длины нет у "
+                   f"{len(grid['coordinate_unmeasured'])} имён: "
+                   f"{', '.join(grid['coordinate_unmeasured'])} — они не "
+                   f"сложены в «не взято» ни в одной ячейке")
+    verdict = grid.get("rule_verdict")
+    reasons = grid.get("rule_verdict_reasons") or []
+    out.append(f"[ПАРА ЧИСЕЛ · ВЕРДИКТ ПРАВИЛА] {verdict}"
+               + (": " + " · ".join(reasons) if reasons else
+                  " — названных улик против пары на СЕГОДНЯШНЕМ населении нет; "
+                  "это не «правило годно»"))
+    out.append("[ПАРА ЧИСЕЛ · ГЕЙТА НЕТ] ни один порог не назначен и ни одно "
+               "имя не дописано в _IDENTITY_FIELDS: выбор пары — предмет ADR, "
+               "а не прибора")
+    return out
+
+
 def report(doc: dict, *, max_rows: int = 20,
-           max_fields: Optional[int] = None) -> List[str]:
+           max_fields: Optional[int] = None,
+           max_cells: int = 12) -> List[str]:
     """Отчёт. Знаменатель печатается рядом с числителем — всегда."""
     out = [f"Перепись личности списков (G34 п. 1) — {doc.get('status')}"]
     # Звавший печатается ДО раннего возврата намеренно: на документе UNMEASURED
@@ -391,6 +718,22 @@ def report(doc: dict, *, max_rows: int = 20,
                    "уникальность почти неизбежна и свидетельствует слабо; "
                    "дописывать имя в список по строке с длиной 2 значило бы "
                    "вернуть ту самую догадку")
+        # Вторая голова — по НАСЕЛЕНИЮ (заказ G91 п. 2). Печатается РЯДОМ и
+        # всегда, а не вместо и не «когда перечень укорочен»: порядок по одной
+        # оси при укорочении хвоста выбрасывает чемпиона другой оси, и замер
+        # 02.10 это предъявил на живом артефакте (`forward_date` ×11 — за
+        # восьмёркой по длине). Два порядка НЕ складываются в один балл:
+        # взвесить оси значило бы назначить порог на глаз, что заказ запрещает.
+        by_pop = _ranked_by_population(fields, strength)
+        pop_shown = by_pop if max_fields is None else by_pop[:max_fields]
+        hidden = [k for k, _ in pop_shown if k not in {k2 for k2, _ in shown}]
+        pop_line = ", ".join(
+            f"{k}×{v} (макс. длина {strength.get(k, '?')})" for k, v in pop_shown)
+        out.append(f"[РЯДОМ, ПО НАСЕЛЕНИЮ] те же поля в порядке населения: "
+                   f"{pop_line}"
+                   + (f"; порядком по длине скрыто: {', '.join(hidden)}"
+                      if hidden else "; голова та же, что по длине"))
+
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
             out.append("[НЕ ИЗМЕРЕНО] перечня строк-находок у документа нет "
@@ -403,6 +746,18 @@ def report(doc: dict, *, max_rows: int = 20,
         if len(rows) > max_rows:
             out.append(f"   … ещё {len(rows) - max_rows} строк(и) — полный "
                        f"перечень в {ARTIFACT}")
+        # Сетка порогов печатается ПОСЛЕ строк-находок намеренно: она отвечает
+        # не на «какие поля годны», а на «что взяла бы пара порогов, если её
+        # назначить», и вклинивать её между полями и их строками значило бы
+        # разорвать один ответ надвое.
+        grid = observed(c, "threshold_grid", kind=dict)
+        if grid is None:
+            out.append("[НЕ ИЗМЕРЕНО] сетки порогов по паре чисел в документе "
+                       "нет вовсе — это не «пара ничего не берёт»")
+        elif str(grid.get("status")) != "MEASURED":
+            out.append(f"[НЕ ИЗМЕРЕНО] пара порогов: {grid.get('reason')}")
+        else:
+            out.extend(grid_report(grid, max_cells=max_cells))
     else:
         out.append("[ОПОРА] годных полей вне списка имён не нашлось — нынешний "
                    "список имён не занижает личность ни у одного списка населения")
@@ -422,7 +777,7 @@ def report(doc: dict, *, max_rows: int = 20,
 
 
 def format_report(doc: dict, *, max_rows: int = 5,
-                  max_fields: int = 8) -> List[str]:
+                  max_fields: int = 8, max_cells: int = 6) -> List[str]:
     """Строки для ЧИТАТЕЛЯ переписи — обязательного шага 0-офис (заказ G35 п. 5).
 
     Второй копии правила отрисовки здесь НЕТ намеренно: ветка шага 0-офис
@@ -436,7 +791,8 @@ def format_report(doc: dict, *, max_rows: int = 5,
     режется хвост, значит голова обязана быть сильнейшим свидетельством, то
     есть самым ДЛИННЫМ списком, а не самым частым именем.
     """
-    lines = report(doc, max_rows=max_rows, max_fields=max_fields)
+    lines = report(doc, max_rows=max_rows, max_fields=max_fields,
+                   max_cells=max_cells)
     if str(doc.get("status")) == "FINDING":
         lines[0] = f"⚠️ {lines[0]}"
     return lines
