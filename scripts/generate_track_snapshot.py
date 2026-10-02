@@ -159,10 +159,16 @@ def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
     from spa_core.paper_trading.sleeve_book import ECONOMICS_MODEL
     st = _load(state_path)
     hist = [h for h in (st.get("daily_history") or []) if isinstance(h, dict)]
-    v2 = [h for h in hist if h.get("economics_model") == ECONOMICS_MODEL]
+    v2_all = [h for h in hist if h.get("economics_model") == ECONOMICS_MODEL]
+    # ADR-533: a change of strategy version opens a new experiment; the published figures are the
+    # CURRENT experiment's rows only — an earlier version's statistics are never carried over.
+    _active = next((e for e in reversed(st.get("experiments") or []) if e.get("status") == "active"), None)
+    v2 = ([h for h in v2_all if h.get("experiment_id") == _active.get("experiment_id")]
+          if _active else v2_all)
+    earlier_version_rows = len(v2_all) - len(v2)
     funded = [h for h in v2 if float(h.get("equity", 0) or 0) > 0]
     honest = [h for h in funded if int(h.get("positions_count", 0) or 0) > 0]
-    pre_fix_days = len(hist) - len(v2)
+    pre_fix_days = len(hist) - len(v2_all)       # rows of the distorted v1 cost model only
 
     apy = None
     if len(honest) >= 2:
@@ -215,7 +221,34 @@ def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
                                         "сохранён для аудита, не показывается"}
                            if pre_fix_days else None),
         "post_fix": dict(_post_fix_track(honest), pre_fix_days=pre_fix_days),
+        # rows of an EARLIER strategy version under the corrected model — kept, not counted, not "distorted"
+        "earlier_version_rows": earlier_version_rows,
+        "experiment_id": (_active or {}).get("experiment_id"),
     }
+
+
+def _package_status() -> dict:
+    """Project ``defi_engine.package_status`` for the site. Unavailable ⇒ a named gap, never a guess."""
+    try:
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from spa_core.defi_engine.package_status import build_all
+        full = build_all(ROOT / "data")
+    except Exception as exc:  # noqa: BLE001
+        return {"unavailable_reason": f"{type(exc).__name__}: {exc}"}
+    keep = ("running_version", "mandate_version", "mechanic", "experiment_id", "experiment_start_date",
+            "new_version_pending", "headline_en", "headline_ru")
+    out = {"generated_at": full.get("generated_at"), "mode": full.get("mode"),
+           "live_capital_usd": full.get("live_capital_usd"), "packages": {}}
+    for name, p in (full.get("packages") or {}).items():
+        out["packages"][name] = {
+            **{k: p.get(k) for k in keep},
+            "work": {k: (p.get("work") or {}).get(k) for k in ("state", "reason", "last_run_at")},
+            "data": {k: (p.get("data") or {}).get(k) for k in ("state", "reason", "last_observation_at")},
+            "history": {k: (p.get("history") or {}).get(k)
+                        for k in ("state", "valid_periods", "first_period", "last_period", "reportable_after")},
+        }
+    return out
 
 
 def _post_fix_track(honest: list) -> dict:
@@ -337,6 +370,9 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
             "balanced": _sleeve_paper_track(ROOT / "data" / "hy_paper_trading.json", "balanced"),
             "aggressive": _sleeve_paper_track(ROOT / "data" / "lp_paper_trading.json", "aggressive"),
         },
+        # ADR-533: the ONE read model of the three paper portfolios — work / data / history state,
+        # the running strategy version and the version waiting to start. A status, not a figure.
+        "package_status": _package_status(),
         "bars": bars,
     }
     return snap

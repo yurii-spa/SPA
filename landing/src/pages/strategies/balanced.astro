@@ -4,6 +4,7 @@ import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
 import snap from '../../lib/snapshot_view.js';
 import { goLiveLabel } from '../../lib/golive_label.js';
+import C from '../../lib/constitution.json';
 
 const core = strategies.strategies.find(s => s.id === 'core')!;
 const global = strategies.global;
@@ -36,9 +37,9 @@ const goLive = goLiveLabel(snap);
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Balanced">
         Balanced Strategy
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Систематическая доходность в DeFi: детерминированная ребалансировка с риск-гейтами по Tier 1 + Tier 2. Research/paper — с показанным хвостом, отказан для live-капитала. Живая evidenced go-live книга — это тир Conservative.">
-        Systematic DeFi yield with a paper track record since June 2026. Deterministic
-        risk-gated rebalancing across Tier 1 and selected Tier 2 protocols.
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Плавающее кредитование стейблкоинов плюс фиксированная часть — принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения. Бумажный портфель вне RiskPolicy v1.0 со своим стопом. Research/paper — с показанным хвостом, отказан для live-капитала. Живая evidenced go-live книга — это тир Conservative.">
+        Floating stablecoin lending plus a fixed-rate part — Pendle principal tokens bought at a
+        discount and held to maturity. A paper portfolio outside RiskPolicy v1.0, with its own stop.
         Research / paper — shown WITH its tail, refused for live capital. The live evidenced go-live book is the Conservative tier.
       </p>
     </section>
@@ -68,8 +69,8 @@ const goLive = goLiveLabel(snap);
         </div>
         <span class="text-white/60 text-sm font-medium" data-ru="Средний риск">Medium Risk</span>
       </div>
-      <p class="text-xs text-white/50 mt-2" data-ru="Использует протоколы Tier 1 и отдельные Tier 2. Без плеча, без лупинга.">
-        Uses Tier 1 + selected Tier 2 protocols. No leverage, no looping.
+      <p class="text-xs text-white/50 mt-2" data-ru="Плавающее кредитование Tier 1 / Tier 2 и принципал-токены Pendle до погашения (до 40% книги). Без плеча, без лупинга.">
+        Floating Tier 1 / Tier 2 lending plus Pendle principal tokens held to maturity (up to 40% of the book). No leverage, no looping.
       </p>
     </section>
 
@@ -111,10 +112,11 @@ const goLive = goLiveLabel(snap);
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Стратегия Balanced распределяет капитал по аудированным DeFi-протоколам кредитования с высоким TVL. Ребалансировка запускается ежедневно cycle runner'ом и проходит через RiskPolicy v1.0 — детерминированный, неотменяемый риск-движок.">
-        The Balanced strategy allocates across audited, high-TVL DeFi lending protocols. Rebalancing
-        is triggered daily by the cycle runner and gated by RiskPolicy v1.0 — a deterministic,
-        non-overridable risk engine.
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru={`Бумажная книга Balanced держит плавающее кредитование на аудированных рынках с высоким TVL (только живые APY и TVL) и, до 40% книги, принципал-токены Pendle до погашения. Книга работает ежечасно, одна учётная строка в день, вне RiskPolicy v1.0: её собственный стоп — ${C.sleeve_stops.balanced_stop_pct}% от пика, а её ходы гейтит взвод CIO.`}>
+        The Balanced paper book holds floating supply in audited, high-TVL lending markets (live APY and
+        live TVL only) and, up to 40% of the book, Pendle principal tokens held to maturity. It runs hourly,
+        one accounting day per day, outside RiskPolicy v1.0: its own stop is {C.sleeve_stops.balanced_stop_pct}% from peak, and CIO
+        arming gates its moves.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -165,9 +167,9 @@ const goLive = goLiveLabel(snap);
           </span>
         ))}
       </div>
-      <p class="text-xs text-white/25 mt-3" data-ru="Вся доходность формируется из процентных ставок рынков кредитования. Без фарминга governance-токенов, без предоставления ликвидности, без плеча.">
-        All yield comes from lending market interest rates. No governance token farming,
-        no liquidity provision, no leverage.
+      <p class="text-xs text-white/25 mt-3" data-ru="Доходность формируется из процентов рынков кредитования и, в фиксированной части, из дисконта PT, который к погашению сходится к номиналу. Без фарминга governance-токенов, без предоставления ликвидности, без плеча.">
+        Yield comes from lending market interest and, on the fixed-rate part, from the PT discount
+        pulling to par at maturity. No governance token farming, no liquidity provision, no leverage.
       </p>
     </section>
 
@@ -290,9 +292,9 @@ const goLive = goLiveLabel(snap);
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/55 leading-relaxed" data-ru="USDC или другие стейблкоины могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDC или другие стейблкоины могут временно или навсегда потерять привязку. Стоп книги Balanced срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика, независимо от причины: торговля прекращается, позиции не продаются.`}>
             USDC or other stablecoins may temporarily or permanently lose their peg.
-            The kill switch responds by tier: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%, regardless of cause.
+            The Balanced book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak, regardless of cause: trading stops, positions are not sold.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -311,7 +313,7 @@ const goLive = goLiveLabel(snap);
         </div>
       </div>
           <p class="text-xs text-danger uppercase tracking-wider font-mono mt-8 mb-3" data-ru="Риски стратегии — что книга с ними делает">Strategy risks — what the book does with it</p>
-      <p class="text-sm text-white/55 leading-relaxed" data-ru="Простое размещение под процент плюс застейканный USDe — синтетический доллар, чья доходность зависит от ставок фондирования.">Plain supply plus staked USDe, a synthetic dollar whose yield depends on funding rates.</p>
+      <p class="text-sm text-white/55 leading-relaxed" data-ru="Простое размещение под процент плюс застейканный USDe — синтетический доллар, чья доходность зависит от ставок фондирования, — и принципал-токены Pendle: фиксированная ставка до погашения; продажа до срока шла бы по рыночной цене; привязка базового актива (USDS) должна держаться.">Plain supply plus staked USDe (a synthetic dollar whose yield depends on funding rates) and Pendle principal tokens: a fixed rate held to maturity; a sale before maturity would be at the market price; the underlying’s peg (USDS) must hold.</p>
     </section>
 
     <!-- 12. Emergency Behavior -->
@@ -325,18 +327,14 @@ const goLive = goLiveLabel(snap);
             </svg>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Kill switch реагирует на просадку капитала от пика к текущему. При ≥5% (SOFT) деск останавливает новые входы и любое увеличение позиций (удержание и сокращение разрешены), НЕ ликвидируя — это запрет наращивать, а не снижение уже открытой экспозиции. При ≥10% (HARD) весь портфель переводится в кэш. Это неотменяемо — ни человек, ни ИИ, ни логика стратегии не могут предотвратить срабатывание.">
-              The kill switch responds to peak-to-current equity drawdown. At ≥5% (SOFT) the desk
-              halts new entries and any position increase (holds and reductions still allowed) and
-              does NOT liquidate — this blocks further growth, it does not reduce exposure already
-              open. At ≥10% (HARD) the whole portfolio moves to cash. This is non-overridable — no
-              human, no AI, no strategy logic can prevent the trigger.
+            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Стоп книги (просадка от пика)">Book stop (peak drawdown)</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Balanced — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её собственный стоп: при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика книга прекращает торговлю — новых ходов нет, удерживаемые позиции (включая принципал-токены) не продаются.`}>
+              Balanced is a paper book outside RiskPolicy v1.0 and outside the main book’s two-tier ladder. Its
+              own stop: at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak the book stops trading — no new moves; the
+              positions it holds (principal tokens included) are kept, not sold.
             </p>
-            <p class="text-xs text-white/50" data-ru="HARD — последний рубеж: перевод всего портфеля в кэш. SOFT текущую экспозицию не снижает, только блокирует её рост. Ни один из уровней не устраняет уже понесённые убытки.">
-              HARD is the last line of defense: it moves the whole portfolio to cash. SOFT does
-              not reduce current exposure — it only blocks further growth. Neither tier eliminates
-              losses already incurred.
+            <p class="text-xs text-white/50" data-ru="Стоп не устраняет уже понесённые убытки.">
+              The stop does not eliminate losses already incurred.
             </p>
           </div>
         </div>
@@ -432,11 +430,11 @@ const goLive = goLiveLabel(snap);
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Что произойдёт, если протокол взломают?">What happens if a protocol gets exploited?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Kill switch реагирует по уровню на просадку портфеля от пика: SOFT де-риск при ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины. Лимиты на протокол (40% T1 / 20% T2) ограничивают экспозицию в один протокол. Минимальный TVL ($5M+) исключает мелкие пулы, которые статистически более подвержены взлому.">
-            The kill switch responds by tier to peak portfolio drawdown: SOFT de-risk at ≥5%, HARD
-            (all to cash) at ≥10%, regardless of cause. Per-protocol caps (40% T1 / 20% T2) limit
-            single-protocol exposure. The TVL floor ($5M+) excludes smaller pools that are
-            statistically more likely to be exploited.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Стоп книги срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика, независимо от причины. Книга держит не больше четырёх протоколов и не больше 25% капитала в одном, а принципал-токены — не больше 25% на рынок. Плавающая часть берёт только пулы с живыми APY и TVL не ниже $5M. Лимиты RiskPolicy v1.0 (40% T1 / 20% T2) действуют для книги Conservative, не для этой.`}>
+            The book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak, regardless of cause. The book holds at most four
+            protocols and at most 25% of its capital in one, and principal tokens at most 25% per market. The floating
+            part takes only pools with live APY and live TVL of at least $5M. RiskPolicy v1.0 caps (40% T1 / 20% T2) govern the
+            Conservative book, not this one.
           </p>
         </div>
 

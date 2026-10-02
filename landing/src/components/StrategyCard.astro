@@ -23,8 +23,9 @@ interface Props {
 
 const { strategy } = Astro.props;
 
-// RU translations keyed by strategy.id — the source data (strategy_config.json)
-// is English-only, so per-strategy Russian strings live here and are bound to data-ru.
+// RU strings: tagline / description / target note come from strategy_config.json's own RU fields (ONE
+// source with the strategy pages — ADR-533 found this table saying «Tier 1 only… paper tracking not
+// started» while the config said the opposite). The table below keeps only the labels the config lacks.
 interface StrategyRu {
   tagline: string;
   status_label: string;
@@ -36,7 +37,7 @@ interface StrategyRu {
 const strategyRu: Record<string, StrategyRu> = {
   'preserve': {
     tagline: 'Доходность с фокусом на сохранение капитала',
-    status_label: 'Целевой профиль — валидация в ожидании',
+    status_label: 'Бумажный трек · подтверждённый',
     who_for: 'Аллокаторы, ставящие сохранение капитала выше оптимизации доходности.',
     description: 'Только протоколы Tier 1. Без looping, без плеча. Повышенный денежный буфер. Более строгий отбор протоколов. Валидация в ожидании — бумажный трекинг ещё не начат.',
     target_apy_note: 'Целевой профиль — валидация в ожидании. Не в бумажном треке. Переменный APY, не гарантирован.',
@@ -44,7 +45,7 @@ const strategyRu: Record<string, StrategyRu> = {
   },
   'core': {
     tagline: 'Системная, риск-гейтированная доходность DeFi — в бумажном треке с июня 2026',
-    status_label: 'В бумажном треке',
+    status_label: 'Исследование / бумага — хвост показан',
     who_for: 'Семейные офисы и частные аллокаторы, ищущие системную, прозрачную доходность DeFi.',
     description: 'Tier 1 + отдельные протоколы Tier 2. Детерминированная риск-гейтированная ребалансировка. Публичный бумажный трек-рекорд, засчитываемый якорь 22 июня 2026.',
     target_apy_note: 'Целевой диапазон; фактический бумажный APY ~3.6% (переменный, ~4.5% blended). Не гарантирован. Засчитываемый трек с 22 июня 2026.',
@@ -52,7 +53,7 @@ const strategyRu: Record<string, StrategyRu> = {
   },
   'max-yield': {
     tagline: 'Продвинутые механики для более высокой толерантности к доходности',
-    status_label: 'Скоро',
+    status_label: 'Исследование · отказан для live',
     who_for: 'Опытные аллокаторы, принимающие повышенную волатильность ради потенциала доходности.',
     description: 'Продвинутые механики хранилищ и оптимизированные стратегии кредитования. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.',
     target_apy_note: 'Целевой профиль — валидация в ожидании. Не в бумажном треке. Переменный APY, не гарантирован. Возможна потеря капитала.',
@@ -86,7 +87,7 @@ const isDisabled = strategy.status === 'coming-soon';
   <!-- Name + tagline. h2 (not h3): these tier cards are the top-level sections under the page h1,
        so h1→h2 keeps the heading order skip-free (WCAG 1.3.1). Styling is class-based → unchanged. -->
   <h2 class="text-xl font-bold text-white mb-1">{strategy.name}</h2>
-  <p class="text-sm text-white/50 mb-6" data-ru={ru?.tagline}>{strategy.tagline}</p>
+  <p class="text-sm text-white/50 mb-6" data-ru={strategy.taglineRu ?? ru?.tagline}>{strategy.tagline}</p>
 
   <!-- APY -->
   <div class="mb-6">
@@ -95,7 +96,7 @@ const isDisabled = strategy.status === 'coming-soon';
       <span class="text-4xl font-mono font-bold text-white">~{strategy.target_apy}%</span>
       <span class="text-sm text-white/50 font-mono" data-ru="целевой APY">target APY</span>
     </div>
-    <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={ru?.target_apy_note}>{strategy.target_apy_note}</p>
+    <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={strategy.target_apy_note_ru ?? ru?.target_apy_note}>{strategy.target_apy_note}</p>
   </div>
 
   <!-- Risk bars -->
@@ -122,7 +123,7 @@ const isDisabled = strategy.status === 'coming-soon';
   </div>
 
   <!-- Description -->
-  <p class="text-sm text-white/55 leading-relaxed mb-6 flex-grow" data-ru={ru?.description}>{strategy.description}</p>
+  <p class="text-sm text-white/55 leading-relaxed mb-6 flex-grow" data-ru={strategy.descriptionRu ?? ru?.description}>{strategy.description}</p>
 
   <!-- Who it's for -->
   <div class="mb-6">

@@ -45,6 +45,11 @@ R_POST = ("дубль опубликованного v2-числа для ауд
           "по v2-строкам, страница читает его (ADR-531)")
 
 NOT_IN_VIEW = {
+    # ADR-533: аудит-провенанс текущего эксперимента; страница показывает его из package_status
+    "/paper_tracks/balanced/earlier_version_rows": "аудит: строки прошлой версии стратегии, страница не печатает",
+    "/paper_tracks/aggressive/earlier_version_rows": "аудит: строки прошлой версии стратегии, страница не печатает",
+    "/paper_tracks/balanced/experiment_id": "идентификатор эксперимента — страница берёт его из package_status",
+    "/paper_tracks/aggressive/experiment_id": "идентификатор эксперимента — страница берёт его из package_status",
     "/note": "текст для человека, не число",
     "/generator": "имя генератора снимка — провенанс, не показатель",
     "/generated_from": "перечень источников снимка — провенанс, не показатель",
@@ -72,6 +77,13 @@ NOT_IN_VIEW = {
     "/paper_tracks/aggressive/post_fix/model": R_POST,
     "/paper_tracks/aggressive/post_fix/pre_fix_days": R_POST,
 }
+
+# The ADR-531 boundary record grows sub-fields once a book has corrected-model rows — the same audit
+# provenance as its parent, never printed by a page.
+for _b in ("balanced", "aggressive"):
+    for _f in ("adr", "defect", "defect_found_at", "first_v2_date", "v1_classification", "v1_last_date",
+               "v1_model", "v1_rows", "v2_activated_at", "v2_model"):
+        NOT_IN_VIEW[f"/paper_tracks/{_b}/economics_model_boundary/{_f}"] = R_MODEL
 
 _DUMP = """
 import { readFileSync } from 'node:fs';

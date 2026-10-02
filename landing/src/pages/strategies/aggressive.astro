@@ -41,7 +41,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
         Aggressive Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.">The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.</span>
+        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка (цена оракула, ставка долга, порог ликвидации, коэффициент здоровья). Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.">The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market’s own data (oracle price, debt rate, liquidation threshold, health factor). The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.</span>
       </p>
     </section>
 
@@ -113,8 +113,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.">
-        The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка (цена оракула, ставка долга, порог ликвидации, коэффициент здоровья). Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.">
+        The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market’s own data (oracle price, debt rate, liquidation threshold, health factor). The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -134,7 +134,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Без плеча, без петель, без LP">No leverage, no loops, no LP</span>
+              <span data-ru="Симулированная петля (бумага): входит, только если доходность перекрывает издержки">Simulated loop (paper): enters only when its carry beats its costs</span>
             </li>
           </ul>
         </div>
@@ -172,8 +172,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
           </span>
         ))}
       </div>
-      <p class="text-xs text-white/25 mt-3" data-ru="Плеча в этой книге нет; повышенный риск — от концентрации в меньшем числе протоколов.">
-        This book uses no leverage; its higher risk comes from concentration in fewer protocols.
+      <p class="text-xs text-white/25 mt-3" data-ru="Кредитная часть без плеча; петля — бумажная симуляция без реальных займов. Повышенный риск — от концентрации и, когда петля открыта, от её плеча.">
+        The lending part uses no leverage; the loop is a paper simulation with no real borrowing. Higher risk comes from concentration and, when the loop is open, from its leverage.
       </p>
     </section>
 
@@ -198,9 +198,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive — это advisory-исследование ВНЕ RiskPolicy v1.0: детерминированный гейт ОТКАЗЫВАЕТ его для live-капитала. Параметры ниже — это живой гейт, который тир не проходит; сама книга без плеча, её риск — концентрация в меньшем числе протоколов.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive — это advisory-исследование ВНЕ RiskPolicy v1.0: детерминированный гейт ОТКАЗЫВАЕТ его для live-капитала. Параметры ниже — это живой гейт, который тир не проходит; кредитная часть без плеча, а петля — бумажная симуляция со своими порогами коэффициента здоровья.">
         Aggressive is advisory research OUTSIDE RiskPolicy v1.0 — the deterministic gate REFUSES it for live capital.
-        The parameters below are the live gate it does not pass; the book itself uses no leverage — its risk is concentration in fewer protocols.
+        The parameters below are the live gate it does not pass; its lending part uses no leverage; its loop is a paper simulation with its own health-factor triggers.
       </p>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
@@ -239,8 +239,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Риск ликвидации">Liquidation risk</td>
-              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="Нет в этой книге">None in this book</td>
-              <td class="px-5 py-3 text-white/55" data-ru="Книга не занимает и не использует плечо; плечевые конструкции исследуются только в Aggressive Lab. Гейт отказывает live: это advisory-исследование вне RiskPolicy v1.0">The book does not borrow or use leverage; levered constructions are researched only in the Aggressive Lab. The gate refuses live: advisory research outside RiskPolicy v1.0</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="Только в симуляции (петля)">Simulated only (the loop)</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Реальных займов нет. Ликвидация бумажной петли моделируется по LLTV и бонусу ликвидатора самого рынка; ниже коэффициента здоровья 1,15 петля сокращается. Гейт отказывает live: это advisory-исследование вне RiskPolicy v1.0">No real borrowing. The paper loop’s liquidation is modelled with the market’s own LLTV and liquidation incentive; below a health factor of 1.15 it is deleveraged. The gate refuses live: advisory research outside RiskPolicy v1.0</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
@@ -274,8 +274,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски протокола — где лежат деньги">Protocol risks — where the money sits</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт риски кредитования стейблкоинов, сконцентрированные в меньшем числе протоколов, и более широкий стоп, чем Balanced. Плеча нет. Просадка ~50% на обвале ETH относится к нехеджированной исследовательской книге Aggressive Lab, а не к этой. Отказан для live-капитала.">
-        Aggressive carries stablecoin lending risks concentrated in fewer protocols, with a wider stop than Balanced. It uses no leverage.
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт риски кредитования стейблкоинов, сконцентрированные в меньшем числе протоколов, и более широкий стоп, чем Balanced. Кредитная часть без плеча; симулированная петля добавляет на бумаге риск плеча (депег USDe ×L, скачок ставки займа). Просадка ~50% на обвале ETH относится к нехеджированной исследовательской книге Aggressive Lab, а не к этой. Отказан для live-капитала.">
+        Aggressive carries stablecoin lending risks concentrated in fewer protocols, with a wider stop than Balanced. Its lending part uses no leverage; the simulated loop adds leverage risk on paper (USDe depeg ×L, borrow-rate spikes).
         The ~50% drawdown through the ETH crash belongs to the unhedged Aggressive Lab research book, not to this one. Refused for live capital.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -288,9 +288,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/55 leading-relaxed" data-ru="USDT или USDC могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
-            USDT or USDC may temporarily or permanently lose their peg.
-            The kill switch responds by tier: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%, regardless of cause.
+          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDT или USDC могут временно или навсегда потерять привязку; в симулированной петле депег USDe бьёт по залогу с плечом. Петля сокращается при коэффициенте здоровья ниже 1,15 и закрывается ниже 1,08 или при цене USDe ниже 0,97; стоп всей книги — ${C.sleeve_stops.aggressive_stop_pct}% от пика.`}>
+            USDT or USDC may temporarily or permanently lose their peg; in the simulated loop a USDe depeg hits leveraged collateral.
+            The loop is deleveraged below a health factor of 1.15 and closed below 1.08 or when USDe trades under 0.97; the whole book stops at {C.sleeve_stops.aggressive_stop_pct}% from peak.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -323,7 +323,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
         </div>
       </div>
           <p class="text-xs text-danger uppercase tracking-wider font-mono mt-8 mb-3" data-ru="Риски стратегии — что книга с ними делает">Strategy risks — what the book does with it</p>
-      <p class="text-sm text-white/55 leading-relaxed" data-ru="Простое размещение под процент, сконцентрированное в двух протоколах; без плеча.">Plain supply concentrated in two protocols; no leverage.</p>
+      <p class="text-sm text-white/55 leading-relaxed" data-ru="Простое размещение под процент, сконцентрированное в двух протоколах, и симулированная петля sUSDe/PYUSD (бумага), которая ждёт, пока доходность не перекроет издержки.">Plain supply concentrated in two protocols, plus a simulated sUSDe/PYUSD loop (paper) that waits until its carry beats its costs.</p>
     </section>
 
     <!-- 12. Emergency Behavior -->
@@ -337,16 +337,14 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
             </svg>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="При просадке капитала от пика ≥5% (SOFT) деск останавливает новые входы и увеличение позиций, без ликвидации — это запрет наращивать, а не снижение уже открытой экспозиции. При ≥10% (HARD) весь портфель переводится в 100% кэш. Неотменяемо, полностью автоматизировано.">
-              At ≥5% peak-to-current equity drawdown (SOFT) the desk halts new entries and position
-              increases, without liquidating — this blocks further growth, it does not reduce
-              exposure already open. At ≥10% (HARD) the whole portfolio moves to 100% cash.
-              Non-overridable, fully automated.
+            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Стоп книги и надзор за петлёй">Book stop and loop supervision</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Aggressive — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её стоп: при просадке ${C.sleeve_stops.aggressive_stop_pct}% от пика книга прекращает торговлю; открытая петля перед этим закрывается. Петля проверяется каждый час: ниже коэффициента здоровья 1,15 — сокращение, ниже 1,08 или при цене USDe ниже 0,97 — закрытие.`}>
+              Aggressive is a paper book outside RiskPolicy v1.0 and outside the main book’s two-tier ladder. Its stop: at a
+              {C.sleeve_stops.aggressive_stop_pct}% drawdown from peak the book stops trading; an open loop is closed first. The loop is checked every hour:
+              below a health factor of 1.15 it is deleveraged, below 1.08 or with USDe under 0.97 it is closed.
             </p>
-            <p class="text-xs text-white/50" data-ru="SOFT текущую экспозицию не снижает, только блокирует её рост. HARD переводит портфель в кэш. Ни один из уровней не отменяет уже понесённые убытки.">
-              SOFT does not reduce current exposure — it only blocks further growth. HARD moves the
-              portfolio to cash. Neither tier undoes losses already incurred.
+            <p class="text-xs text-white/50" data-ru="Ни стоп, ни надзор не отменяют уже понесённые убытки; у бумажной петли нет реальных займов.">
+              Neither the stop nor the supervision undoes losses already incurred; the paper loop has no real borrowing.
             </p>
           </div>
         </div>
@@ -381,8 +379,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли риск ликвидации?">Is there liquidation risk?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Не в этой книге: она не занимает и не использует плечо. Риск каскадных ликвидаций и депега несут плечевые конструкции, которые исследуются только в отдельной Aggressive Lab и эту книгу не финансируют. Деск ОТКАЗЫВАЕТ этот тир для live-капитала; он существует как advisory paper-исследование с показанным хвостом.">
-            Not in this book: it does not borrow or use leverage. Liquidation-cascade and depeg risk belong to the levered constructions
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Только в симулированной петле: реальных займов нет. Когда бумажная петля открыта, её ликвидация моделируется по параметрам самого рынка, а до этого петля сокращается или закрывается. Риск каскадных ликвидаций и депега несут плечевые конструкции, которые исследуются только в отдельной Aggressive Lab и эту книгу не финансируют. Деск ОТКАЗЫВАЕТ этот тир для live-капитала; он существует как advisory paper-исследование с показанным хвостом.">
+            Only in the simulated loop: nothing is borrowed for real. When the paper loop is open its liquidation is modelled with
+            the market’s own parameters, and the loop is deleveraged or closed before that. Liquidation-cascade and depeg risk of the levered constructions
             researched only in the separate Aggressive Lab, which never fund this book. The desk REFUSES this tier for live capital; it exists as advisory paper research with the tail shown.
           </p>
         </div>

@@ -1430,11 +1430,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "Engine B (HY/Carry) paper trading cycle — EPIC-1 S1.3.",
-    "quality_metric": "data/hy_paper_trading.json свежее 26.0 ч",
-    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
-    "rights": "писать data/hy_paper_trading.json",
-    "limits": "LLM запрещён; не импортирует execution"
+    "goal": "Balanced paper portfolio, mandate balanced-fixed-carry-v1 (ADR-533): floating stablecoin supply + Pendle PT held to maturity (≤40 %). Roles: opportunity scan, net economics, position simulation, risk gates, liquidity/exit, portfolio supervision.",
+    "quality_metric": "one accounting row a day with strategy_version + experiment_id; one observation per hourly run (data/paper_observations/balanced.jsonl, SLO 3 h); sleeve_replay PASS incl. sub-book continuity",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести по SLO; package_status → Director показывает FAILED/PAUSED/DEGRADED",
+    "rights": "писать data/hy_paper_trading.json, data/sleeve_inputs_balanced.jsonl, data/paper_observations/balanced.jsonl; читать Pendle API (GET) — только бумага",
+    "limits": "LLM запрещён; не импортирует execution; не подписывает и не отправляет транзакций; вне RiskPolicy v1.0, не меняет тиры и лимиты основной книги"
    }
   },
   {
@@ -1918,11 +1918,11 @@
    "curation": "partial",
    "notes": "",
    "passport": {
-    "goal": "Engine C (LP/Liquidity) paper trading cycle — EPIC-2 S2.2.",
-    "quality_metric": "data/lp_paper_trading.json свежее 26.0 ч",
-    "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
-    "rights": "писать data/lp_paper_trading.json",
-    "limits": "LLM запрещён; не импортирует execution"
+    "goal": "Aggressive paper portfolio, mandate aggressive-susde-loop-v1 (ADR-533): concentrated stablecoin supply + a SIMULATED sUSDe/PYUSD loop on Morpho Blue 0x90ef… (≤50 %). Roles: opportunity scan, net economics, position simulation, risk & stress, debt supervision (HF every run), liquidity/exit, portfolio supervision.",
+    "quality_metric": "loop supervised on EVERY run (observation per hourly slot, SLO 3 h); one accounting row a day with strategy_version + experiment_id; sleeve_replay PASS incl. sub-book continuity",
+    "escalation": "молчанием: протухший артефакт ловят сторожа свежести по SLO; package_status → Director показывает FAILED/PAUSED/DEGRADED/HOLD с причиной",
+    "rights": "писать data/lp_paper_trading.json, data/sleeve_inputs_aggressive.jsonl, data/paper_observations/aggressive.jsonl; читать on-chain eth_call (2 свидетеля), Morpho API и DeFiLlama (GET) — только бумага",
+    "limits": "LLM запрещён; не импортирует execution; заём, плечо и ликвидация существуют ТОЛЬКО в симуляции — ни ключей, ни подписи, ни транзакций; вне RiskPolicy v1.0"
    }
   },
   {

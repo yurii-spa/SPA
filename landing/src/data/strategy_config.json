@@ -11,7 +11,7 @@
       "status": "paper-tracked",
       "status_label": "Paper Tracked · evidenced",
       "who_for": "Allocators prioritising capital preservation over yield optimisation.",
-      "taglineRu": "Доходность с фокусом на сохранении капитала",
+      "taglineRu": "Реальная книга деска — живой бумажный трек с 22 июня 2026",
       "description": "Stablecoin lending in Tier 1 and Tier 2 protocols within per-tier RiskPolicy caps. No leverage, no looping. Evidenced paper track since June 22, 2026 — this is the book the desk actually runs.",
       "descriptionRu": "Кредитование стейблкоинов в протоколах Tier 1 и Tier 2 в пределах лимитов RiskPolicy по уровням. Без плеча, без зацикливания. Подтверждённый бумажный трек с 22 июня 2026 — это книга, которую деск реально ведёт.",
       "yield_sources": [
@@ -34,12 +34,12 @@
       ],
       "path": "/strategies/conservative",
       "tagline_ru": "Реальная книга деска — живой бумажный трек с 22 июня 2026",
-      "description_ru": "Только протоколы Tier 1. Без петель и плеча. Больше кэш-буфера. Строже допуск протоколов. Подтверждённый бумажный трек с 22 июня 2026 — это книга, которую деск действительно ведёт."
+      "description_ru": "Кредитование стейблкоинов в протоколах Tier 1 и Tier 2 в пределах лимитов RiskPolicy по уровням. Без плеча, без зацикливания. Подтверждённый бумажный трек с 22 июня 2026 — это книга, которую деск реально ведёт."
     },
     {
       "id": "core",
       "name": "Balanced",
-      "tagline": "Research book — being rebuilt onto observed rates",
+      "tagline": "Research book — a fixed-rate part next to floating lending",
       "target_apy": 5,
       "risk_level": "medium",
       "risk_level_label": "Medium Risk",
@@ -48,8 +48,8 @@
       "status_label": "Research / Paper — tail shown",
       "track_record_since": "2026-06-22",
       "who_for": "Family offices and individual allocators seeking systematic, transparent DeFi yield.",
-      "descriptionRu": "Протоколы Tier 1 и отдельные Tier 2. Детерминированная ребалансировка с риск-гейтами. Публичный бумажный трек с 22 июня 2026 года (evidenced anchor).",
-      "description": "Tier 1 + selected Tier 2 protocols. Deterministic risk-gated rebalancing. Research/paper — the evidenced June 22 track belongs to Conservative, not to this tier.",
+      "descriptionRu": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
+      "description": "Floating stablecoin lending plus a fixed-rate part: Pendle principal tokens bought at a discount and held to maturity (up to 40% of the book). Research/paper — the evidenced June 22 track belongs to Conservative, not to this tier.",
       "yield_sources": [
         "Aave V3 USDC",
         "Morpho Blue USDC",
@@ -76,8 +76,9 @@
         "USDC (ERC-20)"
       ],
       "path": "/strategies/balanced",
-      "tagline_ru": "Исследовательская книга — переводится на наблюдаемые ставки",
-      "description_ru": "Tier 1 + отдельные протоколы Tier 2. Детерминированный риск-гейт при ребалансе. Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру."
+      "tagline_ru": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием",
+      "description_ru": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
+      "taglineRu": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием"
     },
     {
       "id": "max-yield",
@@ -91,8 +92,8 @@
       "status_label": "Research · refused for live",
       "who_for": "Experienced allocators accepting higher volatility for yield upside.",
       "taglineRu": "Продвинутая механика для повышенной терпимости к доходности",
-      "description": "The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.",
-      "descriptionRu": "Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.",
+      "description": "The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market’s own data. The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.",
+      "descriptionRu": "Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка. Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.",
       "yield_sources": [
         "Optimised Aave positions",
         "Advanced Morpho vaults",

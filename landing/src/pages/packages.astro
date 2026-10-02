@@ -53,8 +53,8 @@ const tiers = [
     status_en: 'RESEARCH · not live-allocated', status_ru: 'ИССЛЕДОВАНИЕ · без live-аллокации',
     tone: 'amber',
     live: false,
-    what_en: 'sUSDe carry, Pendle YT-sUSDe. Risk-class C (yield paid for a tail). Paper-tested in the Aggressive Lab WITH its drawdowns labelled by event — never live-allocated until it passes the full lifecycle (yield-source + Red Team + ≥30-day paper + human approval).',
-    what_ru: 'sUSDe carry, Pendle YT-sUSDe. Риск-класс C (доход за хвост). Тестируется на бумаге в Aggressive Lab С просадками, помеченными по событию — не аллоцируется live, пока не пройдёт полный цикл (источник дохода + Red Team + ≥30 дней на бумаге + одобрение человека).',
+    what_en: 'The Balanced paper book combines floating stablecoin supply with a fixed-rate part: Pendle principal tokens (today PT-sUSDS) bought at a discount and held to maturity, up to 40% of the book and 25% per market. The fixed rate is locked at purchase. No leverage.',
+    what_ru: 'Бумажная книга Balanced сочетает плавающее кредитование стейблкоинов с фиксированной частью: принципал-токены Pendle (сейчас PT-sUSDS), купленные с дисконтом и удерживаемые до погашения, — до 40% книги и до 25% на один рынок. Ставка фиксируется при покупке. Без плеча.',
     caveat_en: 'Our engine already found this — and its tail. It stays in paper until it clears 30 forward days + a real vol event; that discipline IS the product. Real in the good months, measured in the bad. Join early-access to get in the day it clears.',
     caveat_ru: 'Наш движок уже нашёл это — и его хвост. Оно остаётся на бумаге, пока не пройдёт 30 форвардных дней и реальное событие волатильности; эта дисциплина И ЕСТЬ продукт. Реально в хорошие месяцы, измерено в плохие. Вступи в ранний доступ, чтобы войти в день, когда оно пройдёт.',
   },
@@ -64,8 +64,8 @@ const tiers = [
     status_en: 'RESEARCH · paper track running · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · отказан для live (осознанно)',
     tone: 'red',
     live: false,
-    what_en: 'The Aggressive paper book holds two stablecoin lending positions with high concentration and a wider stop than Balanced. It uses no leverage, no loops and no LP. Leveraged constructions are researched only in the separate advisory Aggressive Lab and never fund this book.',
-    what_ru: 'Бумажная книга Aggressive держит две позиции кредитования стейблкоинов с высокой концентрацией и более широким стопом, чем Balanced. Плеча, петель и LP нет. Плечевые конструкции исследуются только в отдельной советующей лаборатории Aggressive Lab и эту книгу не финансируют.',
+    what_en: 'The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market\u2019s own data (oracle price, debt rate, liquidation threshold, health factor). The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.',
+    what_ru: 'Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка (цена оракула, ставка долга, порог ликвидации, коэффициент здоровья). Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.',
     caveat_en: 'This is the 12–20% advertised elsewhere as "yield". Our engine found it AND its ~50% tail — so it REFUSES live capital until it is proven. That refusal is what you are buying: nobody else publishes what they will not touch. Want the validation report first?',
     caveat_ru: 'Это те 12–20%, что рекламируются в других местах как «доходность». Наш движок нашёл их И их ~50% хвост — поэтому ОТКАЗЫВАЕТ для live-капитала, пока они не доказаны. Этот отказ и есть то, что вы покупаете: никто больше не публикует то, чего не трогает. Хотите первым получить отчёт о валидации?',
   },
@@ -83,6 +83,11 @@ const snapPkg = (snap && snap.packages) || {};
 // (status === 'paper_test_running', i.e. positions_count > 0 was MEASURED, never assumed).
 // APY here is computed over positions-held bars only (phantom accrual bars excluded, #208).
 const paperTracks = (snap && snap.paper_tracks) || {};
+const pkgStatus = (snap && snap.package_status && snap.package_status.packages) || {};
+const DATA_WORD = {
+  en: { HEALTHY: 'healthy', WAITING_FOR_DATA: 'waiting for the first day of the version', DEGRADED: 'degraded', HOLD: 'hold' },
+  ru: { HEALTHY: 'в норме', WAITING_FOR_DATA: 'ждёт первого дня версии', DEGRADED: 'неполные', HOLD: 'удержание' },
+};
 for (const t of tiers) {
   const b = BANDS[t.key];
   if (b) {
@@ -103,15 +108,49 @@ for (const t of tiers) {
     t.prefix_en = `${pt.pre_fix_period.label_en} (${pt.pre_fix_period.days} days)`;
     t.prefix_ru = `${pt.pre_fix_period.label_ru} (${pt.pre_fix_period.days} дн.)`;
   }
-  if (pt && pt.status === 'restarted_on_corrected_model' && !t.live) {
-    t.paper_en = 'Paper test restarted on the corrected cost model — no corrected days yet';
-    t.paper_ru = 'Paper-тест перезапущен на исправленной модели издержек — исправленных дней ещё нет';
+  // ADR-533: the paper status comes from ONE read model (snapshot.package_status): work / data /
+  // history are separate, and a running book whose new version has no valid days yet is "running,
+  // accumulating" — never "not started". Rendered for every package, the evidenced one included.
+  const ps = pkgStatus[t.key];
+  if (ps && ps.headline_en) {
+    t.paper_en = ps.headline_en;
+    t.paper_ru = ps.headline_ru;
+    const w = ps.work || {}, d = ps.data || {};
+    t.status_rows = [];
+    if (ps.new_version_pending) {
+      t.status_rows.push({
+        en: `Current paper portfolio: ${ps.running_version}`,
+        ru: `Текущий бумажный портфель: ${ps.running_version}`,
+      });
+      t.status_rows.push({
+        en: `New version in validation: ${ps.new_version_pending.strategy_version} — starts with its first accounting day`,
+        ru: `Новая версия на проверке: ${ps.new_version_pending.strategy_version} — начнётся с первого учётного дня`,
+      });
+    } else {
+      t.status_rows.push({
+        en: `Version: ${ps.running_version} · experiment since ${ps.experiment_start_date || '—'}`,
+        ru: `Версия: ${ps.running_version} · эксперимент с ${ps.experiment_start_date || '—'}`,
+      });
+    }
+    t.status_rows.push({
+      en: `Last successful run: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · data: ${DATA_WORD.en[d.state] || d.state}${d.reason ? ' — ' + d.reason : ''}`,
+      ru: `Последний успешный запуск: ${(w.last_run_at || '—').slice(0, 16).replace('T', ' ')} UTC · данные: ${DATA_WORD.ru[d.state] || d.state}${d.reason ? ' — ' + d.reason : ''}`,
+    });
+    t.status_rows.push({ en: 'PAPER — simulation, no real capital', ru: 'PAPER — симуляция, реального капитала нет' });
   }
   if (pt && pt.status === 'paper_test_running' && !t.live) {
     const apyPart_en = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, to date)` : '';
     const apyPart_ru = (typeof pt.apy_pct === 'number') ? ` · APY ${pt.apy_pct.toFixed(1)}% (paper, на сегодня)` : '';
-    t.paper_en = `Paper test running · day ${pt.days_with_positions} · ${pt.positions_count} positions${apyPart_en}`;
-    t.paper_ru = `Идёт paper-тест · день ${pt.days_with_positions} · позиций: ${pt.positions_count}${apyPart_ru}`;
+    if (ps && ps.headline_en) {
+      // ADR-533: the headline stays the read model's; the to-date rate is an extra row, shown only when
+      // the CURRENT version has ≥ 2 valid days (the snapshot computes it over that version's rows only).
+      if (apyPart_en && ps.history && ps.history.state !== 'WARMUP') {
+        t.status_rows.push({ en: `Rate of the current version${apyPart_en}`, ru: `Ставка текущей версии${apyPart_ru}` });
+      }
+    } else {
+      t.paper_en = `Paper test running · day ${pt.days_with_positions} · ${pt.positions_count} positions${apyPart_en}`;
+      t.paper_ru = `Идёт paper-тест · день ${pt.days_with_positions} · позиций: ${pt.positions_count}${apyPart_ru}`;
+    }
 
     // ДОЛЯ ДНЕЙ, НАЧИСЛЕННЫХ ПО НЕНАБЛЮДЁННЫМ СТАВКАМ (ADR-365, обязательство ADR-357 п. 4).
     //
@@ -178,6 +217,11 @@ const toneMap = {
                 <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
                 <span data-ru={t.paper_ru}>{t.paper_en}</span>
               </div>
+            )}
+            {t.status_rows && (
+              <ul class="text-[11px] font-mono text-slate-400 -mt-2 mb-4 space-y-1">
+                {t.status_rows.map((r) => <li data-ru={r.ru}>{r.en}</li>)}
+              </ul>
             )}
             {t.prefix_en && (
               <div class="text-xs font-mono text-amber-300/90 -mt-2 mb-4" data-ru={t.prefix_ru}>
