@@ -487,7 +487,9 @@ def _code_identity(ddir: Path, now: datetime) -> dict:
         return {"state": "UNMEASURED", "reason": "code-sync receipt absent or unreadable"}
     at = _ts(cs.get("timestamp"))
     age = round((now - at).total_seconds() / 3600.0, 2) if at else None
-    state = "IN_SYNC" if cs.get("result") == "IN_SYNC" else "NOT_IN_SYNC"
+    # code_sync_from_origin.sh: IN_SYNC (no drift) and SYNCED (checkout + import probe + drift re-measured 0)
+    # both mean «the tree is origin_main»; FETCH_FAILED / SNAPSHOT_FAILED / CHECKOUT_FAILED / ROLLED_BACK do not
+    state = "IN_SYNC" if cs.get("result") in ("IN_SYNC", "SYNCED") else "NOT_IN_SYNC"
     if state == "IN_SYNC" and (age is None or age > 2.0):
         state = "STALE_RECEIPT"
     sha = str(cs.get("origin_main") or "")

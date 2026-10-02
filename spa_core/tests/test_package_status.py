@@ -328,8 +328,12 @@ def test_code_identity_comes_from_the_sync_receipt_and_says_when_it_is_old(tmp_p
         {"timestamp": _iso(NOW - timedelta(hours=5)), "result": "IN_SYNC", "origin_main": "a" * 40}))
     assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "STALE_RECEIPT"
     (tmp_path / "code_sync_status.json").write_text(json.dumps(
-        {"timestamp": _iso(NOW), "result": "DRIFT", "origin_main": "b" * 40}))
-    assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "NOT_IN_SYNC"
+        {"timestamp": _iso(NOW), "result": "SYNCED", "origin_main": "c" * 40}))
+    assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "IN_SYNC", "a fresh sync is in sync"
+    for bad in ("ROLLED_BACK", "CHECKOUT_FAILED", "FETCH_FAILED"):
+        (tmp_path / "code_sync_status.json").write_text(json.dumps(
+            {"timestamp": _iso(NOW), "result": bad, "origin_main": "b" * 40}))
+        assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "NOT_IN_SYNC", bad
 
 
 def test_a_written_status_is_not_proof_of_a_run(tmp_path):
