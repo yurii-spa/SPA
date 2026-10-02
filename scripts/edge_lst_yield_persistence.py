@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -209,4 +210,9 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    if "--discount" in sys.argv[1:]:
+        # #121 LDR: the same tokens' PRICE ratio to ETH — is a discount-reversion edge measurable
+        # on the repository's only price history? (scripts/edge_lrt_discount.py; answer: no)
+        import edge_lrt_discount
+        raise SystemExit(edge_lrt_discount.main([a for a in sys.argv[1:] if a != "--discount"]))
     raise SystemExit(main())

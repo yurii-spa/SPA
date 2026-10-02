@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-01T14:55:15Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-02T02:01:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (bffc45f3c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (979de3376).
 >
-> Всего карточек: **1158** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1160** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -18,9 +18,7 @@
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
-- **Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник** · _high_  ·  `owner-decision-sait-na-treh-stranitsah-vse-esche-staray.md`
 - **Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх** · _high_  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`
-- **Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет** · _high_  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md`
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
@@ -56,9 +54,7 @@
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
-- Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник  ·  `owner-decision-sait-na-treh-stranitsah-vse-esche-staray.md` · 2026-10-01
 - Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
-- Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md` · 2026-10-01
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
@@ -350,9 +346,11 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 ### · owner-done
+- Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник  ·  `owner-decision-sait-na-treh-stranitsah-vse-esche-staray.md` · 2026-10-01
+- Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md` · 2026-10-01
 - Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)  ·  `owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne.md` · 2026-10-01
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (617)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (619)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -909,6 +907,7 @@
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
 - Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
+- Проверить retro TEST 1 rates_desk на шумном ряду цен LST/ETH  ·  `inbox-proverit-retro-test-1-rates-desk-na-shum.md` · 2026-10-02
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
@@ -948,6 +947,7 @@
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож публичной цепи ПОДСТАВЛЯЕТ фикстуру вместо настоящего журнала — оба исхода passed  ·  `inbox-storozh-publichnoi-tsepi-podstavlyaet-fi.md` · 2026-09-19
+- Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
 - Страж перезаписи не оставляет квитанции: его вердикт нельзя проверить ни на одном прошлом прогоне  ·  `inbox-strazh-perezapisi-ne-ostavlyaet-kvitants.md` · 2026-09-12

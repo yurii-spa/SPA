@@ -253,4 +253,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if "--real" in sys.argv[1:]:
+        # #120 CADS-REAL: this mechanism re-measured on the REAL 10-book panel, decomposed into
+        # stop vs target, with costs and a train/test split (scripts/edge_cads_real.py).
+        import edge_cads_real
+        raise SystemExit(edge_cads_real.main([a for a in sys.argv[1:] if a != "--real"]))
     main()
