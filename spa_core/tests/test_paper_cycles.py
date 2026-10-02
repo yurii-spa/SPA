@@ -253,3 +253,21 @@ def test_aggressive_negative_carry_exit_through_the_cycle_replays(sandbox):
     assert st["loop"]["status"] == "flat" and st["daily_history"][-1]["loop_decision"] == "exit"
     rp = _replay(s["tmp"], "aggressive")
     assert rp["status"] == "PASS", rp["diffs"]
+
+
+
+def test_balanced_benchmark_is_the_held_floating_yield_not_a_spiking_candidate(sandbox):
+    """02.10 in production: a candidate spiking to 12.6 % (not held) lifted the candidate mean to 7.3 %
+    and refused a PT the held legs (5.0 %) would have accepted."""
+    s = sandbox
+    _pendle(s["mp"], implied=0.06)
+    s["hy"].run_hy_cycle(dry_run=False)                      # day 1: legs exist, PT bought
+    _write_ranking(s["tmp"], ("maple", 5.0), ("fluid_fusdc", 4.8), ("susde", 5.0), ("aave_v3", 25.0))
+    st = _state(s["tmp"], "hy_paper_trading.json")
+    st["fixed_carry"] = {"legs": []}                        # make room for a new decision
+    (s["tmp"] / "hy_paper_trading.json").write_text(json.dumps(st))
+    s["clock"].advance(days=1)
+    _pendle(s["mp"], implied=0.055)   # ≥ held-legs floor 5.27 %, < the spiked candidate-mean floor 8.95 %
+    s["hy"].run_hy_cycle(dry_run=False)
+    bar = _state(s["tmp"], "hy_paper_trading.json")["daily_history"][-1]
+    assert bar["fixed_carry_decision"] == "buy", bar["fixed_carry_reasons"]

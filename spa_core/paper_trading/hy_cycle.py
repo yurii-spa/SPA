@@ -305,10 +305,18 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         # Фиксированная часть решается ПЕРВОЙ: её покупки берут кэш у плавающей части, погашения
         # возвращают его. Плавающие ноги затем пересобираются на ОСТАТОК, а не на весь капитал.
         _carry_open = _pt.value(state.get("fixed_carry") or {})
-        # Бенчмарк плавающей ставки — то, что заработала бы ПЛАВАЮЩАЯ часть: средняя живая ставка
-        # кандидатов, которых она взяла бы (топ MAX_POSITIONS), а не текущие ноги (у свежей книги их нет).
-        _top = sleeve_book.book_candidates(sleeve_book.load_ranking_rows())[:sleeve_book.MAX_POSITIONS]
-        _bench = (sum(float(c["apy_pct"]) for c in _top) / len(_top)) if _top else None
+        # Бенчмарк плавающей ставки — то, что РЕАЛЬНО зарабатывает плавающая часть: средневзвешенная
+        # ставка удерживаемых ног. Только у книги без ног — средняя живая ставка топ-кандидатов.
+        # Замер 02.10: «кандидат» aave_v3 со скачущим рядом (3.7 % → 12.6 % через день) поднял среднее
+        # кандидатов до 7.3 %, хотя книга его не держала и её ноги давали 5.0 % — PT отвергнут зря.
+        _held = [p for p in (state.get("positions") or []) if isinstance(p.get("apy_pct"), (int, float))
+                 and float(p.get("notional_usd") or 0.0) > 0]
+        if _held:
+            _bench = (sum(float(p["apy_pct"]) * float(p["notional_usd"]) for p in _held)
+                      / sum(float(p["notional_usd"]) for p in _held))
+        else:
+            _top = sleeve_book.book_candidates(sleeve_book.load_ranking_rows())[:sleeve_book.MAX_POSITIONS]
+            _bench = (sum(float(c["apy_pct"]) for c in _top) / len(_top)) if _top else None
         _carry = _pt.daily_step(state.get("fixed_carry"), _pobs, equity_total=equity,
                                 benchmark_apy_pct=_bench, allow_new=allow_new, now=_now_aware)
         state["fixed_carry"] = _carry["sub"]
