@@ -78,6 +78,17 @@ CRITICAL_FILES = [
     "rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl",  # its hash-anchored proof
     "tournament/decision_log.jsonl",                        # (E) tournament ranking chain
     "rwa_backstop/nav_proof.jsonl",                         # (F) RWA-backstop NAV proof
+    # ── ADR-533/537: the two paper sleeve books, their replayable inputs and the run journal ──
+    # Measured 2026-10-02: only the broad `daily` series carried these, and the off-host copy
+    # (`offsite_copy`) takes the NEWEST archive — in practice this `dr` series, written later each
+    # night. A lost disk would have lost the Balanced and Aggressive books and their evidence.
+    # Not MUST_HAVE: a missing one is recorded, the main-book restore still ships.
+    "hy_paper_trading.json",                                # Balanced book (PT carry + floating)
+    "lp_paper_trading.json",                                # Aggressive book (simulated loop + lending)
+    "sleeve_inputs_balanced.jsonl",                         # hash-chained replay inputs
+    "sleeve_inputs_aggressive.jsonl",
+    "paper_observations/balanced.jsonl",                    # one line per scheduled run
+    "paper_observations/aggressive.jsonl",
 ]
 
 # The MUST-HAVE recovery set. A backup that omits any of these is INCOMPLETE and the

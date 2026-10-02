@@ -328,3 +328,36 @@ def test_drill_detects_and_refuses_corrupt_proof_chain(tmp_path, monkeypatch):
     proof = {e["file"]: e for e in report["files_validated"]}.get("proof_chains")
     assert proof is not None and proof["ok"] is False
     assert "chain broken" in proof["detail"].lower() or "fail" in proof["detail"].lower()
+
+
+def test_dr_backup_carries_the_paper_sleeve_books_and_their_evidence(tmp_path, monkeypatch):
+    # ADR-537: the off-host copy takes the newest archive (in practice this dr series); the sleeve
+    # books, their replay inputs and the run journal must be in it, not only in the daily series
+    data = tmp_path / "data"
+    backups = data / "backups"
+    backups.mkdir(parents=True)
+    _seed_data(data)
+    sleeve = ("hy_paper_trading.json", "lp_paper_trading.json", "sleeve_inputs_balanced.jsonl",
+              "sleeve_inputs_aggressive.jsonl", "paper_observations/balanced.jsonl",
+              "paper_observations/aggressive.jsonl")
+    for rel in sleeve:
+        (data / rel).parent.mkdir(parents=True, exist_ok=True)
+        (data / rel).write_text("{}\n")
+    monkeypatch.setattr(dr, "_DATA", data)
+    monkeypatch.setattr(dr, "_BACKUPS", backups)
+    rep = dr.snapshot(ts="20260627T120000Z")
+    members = _archive_members(rep["archive"])
+    for rel in sleeve:
+        assert rel in members, rel
+    assert dr.verify_backup(rep["archive"])["valid"] is True
+
+
+def test_a_missing_sleeve_file_does_not_block_the_main_book_restore(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    backups = data / "backups"
+    backups.mkdir(parents=True)
+    _seed_data(data)
+    monkeypatch.setattr(dr, "_DATA", data)
+    monkeypatch.setattr(dr, "_BACKUPS", backups)
+    rep = dr.snapshot(ts="20260627T120000Z")
+    assert rep["written"] is True and "hy_paper_trading.json" not in _archive_members(rep["archive"])
