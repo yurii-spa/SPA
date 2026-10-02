@@ -481,3 +481,224 @@ def test_the_measure_refuses_when_the_file_state_is_unreadable(repo, monkeypatch
     taut, why = _taut(repo, _tracker(repo) / f"{CARD}.md", sha)
     assert taut is None, why
     assert "не прочитано" in why, why
+
+
+# ---------------------------------------------------------------------------------
+# ПРОВОДКА ДЕРЕВА до пробы (заказ G92 п. 1, ADR-542)
+#
+# Класс: проба, читающая КАРТОЧКИ, объявляла свою зависимость от дерева только
+# параметром в сигнатуре — и этого объявления не видел никто. `probe_tree_inputs`
+# отвечала про `card_copies_agree` ПУСТЫМ кортежем («дерева не принимает»), хотя
+# дерево для неё и есть предмет; `audit` знал каталог карточек (он только что из
+# него читал) и пробе его не передавал; `orchestrator_queue.py probe` писал пробу
+# в карточку одного дерева и СЛЕДУЮЩЕЙ строкой печатал вердикт о другом.
+#
+# Замер #755, воспроизводимый командой: очередь напечатала `unmeasured`
+# «карточки нет ни в дереве» о карточке, которую эта же команда только что
+# создала, и назвала при этом чужое дерево (1162 карточки вместо одной).
+# ---------------------------------------------------------------------------------
+
+def _origin_ref(root: Path):
+    """Сделать `origin/main` разрешимым БЕЗ сети: ссылка на текущий HEAD.
+
+    Нужна затем, чтобы проба дошла до строки `where` и НАЗВАЛА дерево. Репозиторий
+    без `origin/main` отвечает «ref не разрешается» — ответ верный, но дерева он не
+    называет, и предмет этой секции (о КАКОМ дереве вердикт) им не измерить.
+    """
+    _git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+
+@pytest.fixture()
+def tree_with_probed_card(repo):
+    """Одноразовое дерево с ОТКРЫТОЙ карточкой, объявившей эту пробу.
+
+    `HEAD` уводится от `ref` НАМЕРЕННО (`_head_away_from_ref`): пока он равен
+    `ref`, сверка тавтологична и проба отвечает `unmeasured` ЛЮБОМУ предмету
+    (ADR-504). На такой сцене «вердикт о том дереве» не измерить — зелёный был бы
+    свойством сцены. С уведённым `HEAD` исход СОДЕРЖАТЕЛЕН: «копии сошлись», и
+    получить его можно только получив настоящий каталог карточек.
+    """
+    key = "inbox-podopytnaya"
+    (_tracker(repo) / f"{key}.md").write_text(
+        _card(status="in-progress").replace(
+            "status: in-progress",
+            f"status: in-progress\nacceptance_probe: card_copies_agree:{key}"),
+        encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "карточка с пробой")
+    _origin_ref(repo)
+    _head_away_from_ref(repo)
+    return repo, key
+
+
+def _tree_named(detail: str) -> str:
+    """Какое дерево НАЗВАЛА проба. Сравнивать ПУТИ, а не искать подстроку.
+
+    Подстрочная проверка здесь молча пропускает целый класс: путь к ФАЙЛУ карточки
+    содержит путь к её каталогу, и каталог содержит корень дерева, — мутация
+    «передали файл вместо каталога» пережила первую редакцию этой секции именно так
+    (ADR-333: проба не проходит подстрокой).
+    """
+    import re as _re
+    m = _re.search(r"дерево ([^,]+),", detail)
+    assert m, f"проба не назвала дерево: {detail}"
+    return m.group(1)
+
+
+def test_the_probe_declares_its_tree_dependence_to_the_machine():
+    """Объявление машинное, а не прозой в docstring.
+
+    До #755 зависимость жила ТОЛЬКО в docstring, а docstring не читает никто —
+    ровно урок ADR-504, повторённый на соседнем предмете.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    assert "tracker_dir" in ca.PROBE_TREE_INPUTS
+    assert ca.probe_tree_inputs("card_copies_agree") == ("tracker_dir",)
+
+
+def test_the_second_tracker_probe_declares_BOTH_of_its_doors():
+    """Половина инъекции — та же бомба (`.claude/rules/deployment.md`).
+
+    У `no_single_criterion_probe_on_a_multi_criterion_order` дверей к дереву ДВЕ и
+    они РАЗНЫЕ по природе: локальная копия карточки берётся по `tracker_dir`, копия
+    на `ref` — через git в `repo_root`. До #755 реестр знал про одну, и вердикт
+    можно было собрать из двух деревьев, ничего об этом не сказав.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    assert ca.probe_tree_inputs(
+        "no_single_criterion_probe_on_a_multi_criterion_order") == (
+            "repo_root", "tracker_dir")
+
+
+def test_a_probe_that_reads_its_own_tree_hard_still_declares_nothing():
+    """Обратная сторона: реестр не начал приписывать вход кому попало.
+
+    Без этой пары «объявляют все» было бы неотличимо от «объявление работает».
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    assert ca.probe_tree_inputs("forbidden_import_gate_single_instrument") == ()
+    assert ca.probe_tree_inputs("imya-kotorogo-net") == ()
+
+
+def test_run_probe_delivers_the_tracker_dir_to_the_probe_that_declared_it(
+        monkeypatch):
+    from spa_core.monitoring import card_acceptance as ca
+
+    seen: dict = {}
+
+    def spy(arg, *, tracker_dir=None, ref=None):
+        seen["arg"], seen["tracker_dir"] = arg, tracker_dir
+        return SATISFIED, "ок"
+
+    monkeypatch.setitem(ca.PROBES, "card_copies_agree", spy)
+    verdict, _ = ca.run_probe("card_copies_agree:x", tracker_dir="/chuzhoe/tracker")
+    assert verdict == SATISFIED
+    assert seen == {"arg": "x", "tracker_dir": "/chuzhoe/tracker"}
+
+
+def test_run_probe_withholds_the_tracker_dir_from_a_probe_that_did_not_declare_it(
+        monkeypatch):
+    """Обратная сторона проводки: чужое дерево НЕ подсовывается молча.
+
+    Проба без объявления обязана упасть по сигнатуре, если ей что-то передать, —
+    поэтому зелёный здесь и есть доказательство, что не передали.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    def no_tree(arg):
+        return SATISFIED, "читаю своё дерево"
+
+    monkeypatch.setitem(ca.PROBES, "card_copies_agree", no_tree)
+    verdict, detail = ca.run_probe("card_copies_agree:x",
+                                   tracker_dir="/chuzhoe/tracker")
+    assert verdict == SATISFIED, detail
+
+
+def test_audit_measures_the_tracker_it_was_GIVEN(tree_with_probed_card):
+    """Вердикт — о дереве, КОТОРОЕ НАЗВАЛ ЧИТАТЕЛЬ, а не о дереве модуля.
+
+    Положительный контроль аварии #755: до правки `audit`, которому передали чужой
+    каталог карточек, печатал в своём заголовке один каталог, а в строке вердикта —
+    другой, и читателю доходила одна половина.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    root, key = tree_with_probed_card
+    res = ca.audit(str(_tracker(root)), origin_readthrough=False)
+    row = next(r for r in res["rows"] if r["card"] == key)
+    assert _tree_named(row["detail"]) == str(root), row["detail"]
+    # И ИСХОД содержателен, а не «не измерено»: каталог дошёл настолько, что
+    # карточка в нём НАЙДЕНА и сверена.
+    assert row["verdict"] == SATISFIED, row["detail"]
+    assert "копии сошлись" in row["detail"], row["detail"]
+
+
+def test_without_an_argument_the_probe_still_falls_back_to_its_own_tree(
+        tree_with_probed_card):
+    """Пара к предыдущему: разницу делает АРГУМЕНТ, а не что-то ещё.
+
+    Умолчание осталось прежним (дерево модуля) — значит зелёный предыдущего теста
+    не может быть свойством сцены: та же сцена без аргумента называет другое дерево.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    root, key = tree_with_probed_card
+    _verdict, detail = _probe_card_copies_agree(key)
+    assert _tree_named(detail) == str(ca.REPO_ROOT), detail
+    assert _tree_named(detail) != str(root), detail
+
+
+def test_audit_hands_the_probe_the_same_directory_it_reported(tree_with_probed_card,
+                                                              monkeypatch):
+    """Заголовок `audit` и вход пробы — ОДИН каталог, и это проверяется связью.
+
+    Предыдущий тест смотрит на ИСХОД (какое дерево названо в detail); этот — на
+    проводку, потому что исход мог бы совпасть случайно.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    root, key = tree_with_probed_card
+    seen: dict = {}
+    real = ca.run_probe
+
+    def spy(spec, **kw):
+        seen.update(kw)
+        return real(spec, **kw)
+
+    monkeypatch.setattr(ca, "run_probe", spy)
+    res = ca.audit(str(_tracker(root)), origin_readthrough=False)
+    assert seen.get("tracker_dir") == res["tracker_dir"]
+    assert seen.get("repo_root") == str(root)
+
+
+def test_the_queue_hands_the_cards_own_directory_to_the_probe(tree_with_probed_card):
+    """Очередь знает каталог карточки — и теперь его передаёт.
+
+    Меряется ИСХОД команды целиком (подпроцесс), а не вызов внутри: до #755
+    строка «проба сейчас даёт» противоречила строке про доску, напечатанной той же
+    командой на две строки выше, — два ответа об одном дереве под одним заголовком.
+    """
+    from spa_core.monitoring import card_acceptance as ca
+
+    root, key = tree_with_probed_card
+    card = _tracker(root) / f"{key}.md"
+    # Критерий у карточки уже объявлен, а делающая сессия его не правит (ADR-209):
+    # возвращаем карточку в `new`, иначе очередь ОТКАЖЕТ — и правильно откажет.
+    card.write_text(card.read_text(encoding="utf-8").replace(
+        "status: in-progress", "status: new", 1), encoding="utf-8")
+    res = subprocess.run(
+        [sys.executable, str(_SCRIPTS / "orchestrator_queue.py"), "probe",
+         str(card), f"card_copies_agree:{key}"],
+        capture_output=True, text=True, cwd=str(_REPO_ROOT))
+    assert res.returncode == 0, res.stdout + res.stderr
+    line = next(ln for ln in res.stdout.splitlines() if "проба сейчас даёт" in ln)
+    assert _tree_named(line) == str(root), line
+    # Каталог, а не ФАЙЛ: путь к файлу СОДЕРЖИТ путь к каталогу, поэтому разницу
+    # ловит только ИСХОД — прочла ли проба карточку там, куда её послали. Признак
+    # прочтения именно ЛОКАЛЬНОЙ копии: она называет её статус (`new`), а он есть
+    # только в файле, лежащем в переданном каталоге; на `ref` стоит `in-progress`.
+    assert SATISFIED in line, line
+    assert "здесь `new`" in line, line

@@ -725,3 +725,80 @@ def test_the_price_never_changes_the_exit_code(tmp_path):
                        artifact_age_h=1.0)
     assert rollup.main(["--repo-root", root, "--ref", BRANCH,
                         "--measure-tree", root]) == 1
+
+
+# --------------------------------------------------------------------------
+# 7a. `tree_inputs_reached` выводится ИЗ ПЕРЕДАННОГО, а не из второй копии мерки
+#     (заказ G92 п. 1, ADR-542)
+#
+# Класс: отчёт о достижимости считался ВТОРЫМ выражением, знавшим ровно два
+# имени входа («`repo_root` — дерево, иначе — данные»). Третий вход реестра
+# (`tracker_dir`) эта ветка объявила бы дошедшим, НЕ передав его: условие
+# `data_dir or measure_tree` истинно всегда, когда мы в этой ветке. Поле
+# существует ровно затем, чтобы не врать о достижимости (ADR-220: две копии
+# одной мерки расходятся молча).
+# --------------------------------------------------------------------------
+
+def test_a_probe_declaring_the_tracker_dir_actually_receives_it(tmp_path,
+                                                                monkeypatch):
+    seen: dict = {}
+
+    def runner(spec, **kw):
+        seen.update(kw)
+        return SATISFIED, "ок"
+
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Architecture": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs",
+                        lambda name: ("repo_root", "tracker_dir"))
+    report = rollup.measure(_scene(tmp_path), ref=BRANCH, measure_tree="/somewhere",
+                            probe_runner=runner)
+    assert seen == {"repo_root": "/somewhere",
+                    "tracker_dir": os.path.join("/somewhere", rollup.TRACKER_REL)}
+    row = next(r for r in report["rows"] if r["criterion"] == "Architecture")
+    assert row["tree_inputs_reached"] == ["repo_root", "tracker_dir"]
+
+
+def test_reach_never_names_an_input_that_was_not_passed(tmp_path, monkeypatch):
+    """Положительный контроль аварии: отчёт не вправе обогнать передачу.
+
+    `--data-dir` без `--measure-tree`: `tracker_dir` вывести НЕ из чего, и
+    достижимым он называться не смеет. Вторая копия мерки назвала бы его дошедшим
+    (её `else`-ветка отдавала `data_dir or measure_tree`), не передав ничего.
+    """
+    seen: dict = {}
+
+    def runner(spec, **kw):
+        seen.update(kw)
+        return SATISFIED, "ок"
+
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Architecture": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs",
+                        lambda name: ("repo_root", "tracker_dir"))
+    report = rollup.measure(_scene(tmp_path), ref=BRANCH, data_dir="/d",
+                            probe_runner=runner)
+    assert seen == {"repo_root": None, "tracker_dir": None}
+    row = next(r for r in report["rows"] if r["criterion"] == "Architecture")
+    assert row["tree_inputs_reached"] == []
+
+
+def test_an_input_outside_the_registry_is_never_offered(tmp_path, monkeypatch):
+    """Обратная сторона: предлагается только объявленное реестром.
+
+    Без этой пары «предлагаем всё, что знаем» было бы неотличимо от «предлагаем
+    объявленное», и проба упала бы по сигнатуре — то есть `unmeasured` вместо
+    вердикта, молча.
+    """
+    seen: dict = {}
+
+    def runner(spec, **kw):
+        seen.update(kw)
+        return SATISFIED, "ок"
+
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Architecture": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs", lambda name: ("data_dir",))
+    rollup.measure(_scene(tmp_path), ref=BRANCH, measure_tree="/somewhere",
+                   probe_runner=runner)
+    assert seen == {"data_dir": os.path.join("/somewhere", "data")}

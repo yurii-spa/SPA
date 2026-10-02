@@ -68,6 +68,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from spa_core.monitoring.card_acceptance import (  # noqa: E402
     NOT_SATISFIED,
     SATISFIED,
+    TRACKER_REL,
     UNMEASURED,
     probe_tree_inputs,
     probes_by_s49_criterion,
@@ -353,13 +354,25 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             continue
         accepted = probe_tree_inputs(probes[0])
         if measure_tree or data_dir:
-            verdict, detail = probe_runner(
-                probes[0], repo_root=measure_tree,
-                data_dir=data_dir or (os.path.join(measure_tree, "data")
-                                      if measure_tree else None))
-            reached = [k for k in accepted
-                       if (measure_tree if k == "repo_root" else
-                           (data_dir or measure_tree))]
+            # ОДНА копия правила: что предложено, то и напечатано дошедшим.
+            # Прежде предложение и отчёт о нём считались ДВУМЯ выражениями, и
+            # второе знало ровно два имени входа («`repo_root` — дерево, иначе —
+            # данные»). Третий вход реестра (`tracker_dir`, заказ G92 п. 1) эта
+            # ветка объявила бы дошедшим, не передав его: `data_dir or
+            # measure_tree` истинно всегда, когда мы здесь. Поле `reached`
+            # существует ровно затем, чтобы НЕ врать о достижимости, — значит
+            # выводиться оно обязано из переданного, а не из второй копии мерки
+            # (ADR-220: две копии одной мерки расходятся молча).
+            offered = {
+                "repo_root": measure_tree,
+                "data_dir": data_dir or (os.path.join(measure_tree, "data")
+                                         if measure_tree else None),
+                "tracker_dir": (os.path.join(measure_tree, TRACKER_REL)
+                                if measure_tree else None),
+            }
+            kw = {k: offered.get(k) for k in accepted}
+            verdict, detail = probe_runner(probes[0], **kw)
+            reached = [k for k in accepted if kw.get(k)]
         else:
             verdict, detail = probe_runner(probes[0])
             reached = None

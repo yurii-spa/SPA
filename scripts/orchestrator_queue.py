@@ -862,7 +862,14 @@ def cmd_probe(args) -> int:
     # в аргументе — имя реестр проверил, а КЛЮЧ проверить может только сама проба.
     try:
         from spa_core.monitoring.card_acceptance import run_probe
-        verdict, detail = run_probe(args.probe.strip())
+        # Каталог карточки ДОХОДИТ до пробы (заказ G92 п. 1, ADR-542). Он известен
+        # прямо здесь — строкой ниже тем же выражением пересобирается доска, — и
+        # до #755 не передавался: команда писала пробу в карточку одного дерева и
+        # следующей же строкой печатала «проба сейчас даёт» о другом. Замер:
+        # вердикт `unmeasured` «карточки нет ни в дереве» о карточке, которую эта
+        # же команда только что и создала.
+        verdict, detail = run_probe(args.probe.strip(),
+                                    tracker_dir=str(path.resolve().parent))
         print(f"    проба сейчас даёт: {verdict} — {detail}")
     except Exception as exc:  # noqa: BLE001 — это справка, а не гейт
         print(f"    [НЕ ИЗМЕРЕНО] пробу не удалось прогнать: {type(exc).__name__}: {exc}")

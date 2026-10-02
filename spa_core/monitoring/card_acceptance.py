@@ -4258,7 +4258,16 @@ def parse_frontmatter(text: str) -> dict:
 
 
 #: Входы, которыми пробе можно указать ЧУЖОЕ дерево вместо своего.
-PROBE_TREE_INPUTS = ("repo_root", "data_dir")
+#:
+#: `tracker_dir` добавлен циклом #755 (заказ G92 п. 1, ADR-542). До него проба,
+#: читающая КАРТОЧКИ, объявляла свою зависимость от дерева только параметром в
+#: сигнатуре — и этого объявления не видел никто: :func:`probe_tree_inputs`
+#: отвечала про `card_copies_agree` пустым кортежем, то есть «дерева не
+#: принимает», хотя дерево для неё и есть предмет. Замер того же цикла:
+#: `orchestrator_queue.py probe` писал пробу в карточку одного дерева и в
+#: следующей строке печатал вердикт о другом — «карточки нет ни в дереве», о
+#: карточке, которую сам только что создал.
+PROBE_TREE_INPUTS = ("repo_root", "data_dir", "tracker_dir")
 
 
 def probe_tree_inputs(name: str) -> tuple:
@@ -4284,17 +4293,25 @@ def probe_tree_inputs(name: str) -> tuple:
 
 
 def run_probe(spec: str, *, repo_root: str | None = None,
-              data_dir: str | None = None) -> tuple[str, str]:
+              data_dir: str | None = None,
+              tracker_dir: str | None = None) -> tuple[str, str]:
     """Исполнить пробу по её ОБЪЯВЛЕНИЮ. Возврат — (вердикт, пояснение).
 
     Fail-CLOSED в обе стороны: незнакомое имя, кривой аргумент и любое исключение
     внутри пробы дают `unmeasured`, а не `not_satisfied` (не находка) и тем более
     не `satisfied` (не разрешение закрыть карточку).
 
-    `repo_root` и `data_dir` доходят ТОЛЬКО до тех проб, которые объявили их
-    входом; остальные читают своё дерево. Узнать, что именно дошло, —
+    `repo_root`, `data_dir` и `tracker_dir` доходят ТОЛЬКО до тех проб, которые
+    объявили их входом; остальные читают своё дерево. Узнать, что именно дошло, —
     :func:`probe_tree_inputs`; спрашивать обязан читатель, потому что молчание
     здесь неотличимо от ответа.
+
+    `tracker_dir` — каталог КАРТОЧЕК, и он отдельный вход, а не производная от
+    `repo_root`: у пробы, читающей обе копии карточки, дверей к дереву ДВЕ
+    (локальный файл берётся по `tracker_dir`, копия на `ref` — через git в
+    `repo_root`), и провести одну, оставив вторую на умолчании, значило бы собрать
+    один вердикт из двух деревьев — та самая «половина инъекции»
+    (`.claude/rules/deployment.md`).
     """
     spec = (spec or "").strip()
     if not spec:
@@ -4306,7 +4323,8 @@ def run_probe(spec: str, *, repo_root: str | None = None,
     fn = PROBES.get(name)
     if fn is None:
         return UNMEASURED, f"проба {name!r} не зарегистрирована — измерять нечем"
-    offered = {"repo_root": repo_root, "data_dir": data_dir}
+    offered = {"repo_root": repo_root, "data_dir": data_dir,
+               "tracker_dir": tracker_dir}
     accepted = probe_tree_inputs(name)
     kw = {k: v for k, v in offered.items() if v and k in accepted}
     try:
@@ -4515,7 +4533,16 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
             # СВЕДЁННОЙ работе — шум, неотличимый по форме от настоящей находки.
             # Объявление при этом не теряется: закрытые считаются отдельно.
             if is_open:
-                verdict, detail = run_probe(spec)
+                # Каталог карточек и дерево ДОХОДЯТ до пробы (заказ G92 п. 1,
+                # ADR-542). `audit` их знает — он только что прочитал карточку
+                # именно отсюда, — и не передать их значило бы вынести вердикт о
+                # дереве, в котором лежит МОДУЛЬ, под заголовком про дерево,
+                # которое назвал читатель. Карточка `from_origin` при этом своего
+                # файла в `tracker_dir` не имеет; проба отвечает об этом ТРЕТЬИМ
+                # исходом («карточки нет ни в дереве, ни среди разошедшихся»), и
+                # это верно: читать её локальную копию действительно негде.
+                verdict, detail = run_probe(spec, tracker_dir=tracker_dir,
+                                            repo_root=repo_root)
             else:
                 verdict, detail = NOT_PROBED, f"карточка закрыта ({status}) — вопрос снят"
             rows.append({
