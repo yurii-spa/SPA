@@ -67,7 +67,7 @@ Lines carrying honesty tokens are kept byte-for-byte. Rewording them needs an ow
 - the strategy-page banners;
 - the page meta descriptions.
 
-They are now placed as the live-admission line, next to the new status. The rewording is in the consolidated owner package (ADR-537 §Owner package, journal 2026-W40).
+They are now placed as the live-admission line, next to the new status. The rewording is in the consolidated owner package (`docs/owner_packages/2026-10-02-three-portfolios-closeout.md`).
 
 ## Verification
 
