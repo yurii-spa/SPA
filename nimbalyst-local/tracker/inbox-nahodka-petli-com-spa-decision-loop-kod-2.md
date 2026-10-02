@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: com.spa.decision_loop: код и манифест называют РАЗНЫЙ продукт (только "
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-28
 finding_key: "B7:manifest_parity:com.spa.decision_loop"
+status_trail:
+  - "2026-10-02T23:19:00.909714+00:00 new -> done · queue.set_status"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
