@@ -62,13 +62,16 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <span data-ru="Доходность на стейблкоинах,">A stablecoin yield desk that</span>
         <span class="accent" data-ru="где доказана каждая цифра.">proves every number.</span>
       </h1>
-      {/* The closing sentence used to say "start with a free wallet check" — that check lived on
-           checkup.earn-defi.com, which is no longer deployed. Every NUMBER in this line is unchanged
-           (owner-gated); only the dead call-to-action was repointed at the live snapshot. */}
-      <p class="sub" data-ru={`Цель — до ~20% годовых в наших исследовательских стратегиях (на бумаге, всегда с показанным риском — «хвостом»). На фундаменте живого деска, который уже доказал ${realizedNumRu} фактических при 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). Начните с бесплатного 60-секундного снимка безопасности.`}>
-        Target up to ~20%/yr in our research strategies — paper, always shown with the tail — built on a
-        live desk that already proves {realizedNumEn} realized at 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). Start with the free 60-second
-        safety snapshot.
+      {/* ADR-537 (owner, 2026-10-02): the lead used to OPEN with «target up to ~20%/yr» and set the
+           realized rate after it as proof of the same thing — a research target and a measured result
+           in one sentence, above the cards, at hero size. Now the lead states the three mechanics and the
+           one measured result with its date and its drawdown phrase (both from the shelf); the targets
+           live on the cards as a labelled secondary line. The dead checkup CTA stays repointed. */}
+      <p class="sub" data-ru={`Три бумажных портфеля с разной механикой: кредитование без плеча, фиксированная ставка Pendle PT и симулированная петля на Morpho Blue. Фактический бумажный результат Conservative — ${realizedNumRu} годовых (замер ${realizedAt ?? "—"}; ${drawdownPhraseRR(snapRR, true)}). У Balanced и Aggressive статистика текущих версий накапливается. Реального капитала нет. Начните с бесплатного 60-секундного снимка безопасности.`}>
+        Three paper portfolios with different mechanics: unlevered lending, a Pendle PT fixed rate and a
+        simulated loop on Morpho Blue. The Conservative book’s realized paper result is {realizedNumEn} annualised
+        (measured {realizedAt ?? "—"}; {drawdownPhraseRR(snapRR)}). Balanced and Aggressive are accumulating the
+        statistics of their current versions. No real capital. Start with the free 60-second safety snapshot.
       </p>
 
       {/* Top-of-funnel. Was the paste-an-address widget to the checkup service; that service is
