@@ -107,3 +107,20 @@ The site snapshot (`package_status`) and the Director (`render_defi`) read this 
 | B: Conservative 3 % | public promise vs trigger | the published "≤3 %" is a target band, held by no trigger. A halt-new trigger at 3 % would NOT guarantee a loss ≤ 3 %. Either the wording changes (subject №2) or a trigger is added (risk policy) → owner |
 | C: RTMR liquidity scopes and rate sensor | main-book de-risk ladder | owner. The new paper mechanics carry their OWN supervision in this ADR: loop HF every hour, PT mark confirmation |
 | D: delta-neutral from mechanic | sleeve check | unchanged. The loop is supervised by HF and depeg, not by the stamp |
+
+## Production evidence (2026-10-01 → 2026-10-02)
+
+| Step | Evidence |
+|---|---|
+| Delivery | `1ddd16fc` (mechanics, read model, Director), `f1ee13cb` (backup of run evidence), `979de337` (Balanced benchmark fix), `aeaea66b` + `e1fcb643` (site); code sync 21:34Z, `deployment_acceptance` OK |
+| First scheduled runs | 2026-10-01 21:55Z: observations in `data/paper_observations/{balanced,aggressive}.jsonl` (Pendle ok, Morpho ok) |
+| New versions start | 2026-10-02 00:55Z, first accounting rows: `balanced-fixed-carry-v1@2026-10-02` and `aggressive-susde-loop-v1@2026-10-02`; Aggressive loop ENTERED (borrow 4.20 %, sUSDe 5.30 %, levered net 6.51 % ≥ hurdle 6.29 %; HF 1.307; debt $116,692; collateral $166,703; cost $119.55) |
+| Idempotence + restart | 00:59Z `launchctl kickstart -k` both sleeves in the same hour slot: no 2nd row, no 2nd loop entry, no 2nd observation; state survived |
+| Second scheduled run | 01:59Z slot T01 both books; loop supervised (HF 1.307145, LTV 0.70, measured) |
+| Old history | Balanced/Aggressive: 39 earlier rows kept in the closed `*-legacy-lending` experiment; Conservative track not touched (101 evidenced days) |
+| Site | `/packages` after JS: three statuses from the read model (RU and EN), versions + experiment dates, last run, data state with a natural-language reason, PAPER; strategy pages describe the actual mechanics; owner gate CLEAN |
+
+**Defect found by the first production decision:** Balanced refused PT-sUSDS against a floating
+benchmark of 7.34 % made by `aave_v3` at 12.59 % (a jumping series the book does not hold). The benchmark
+is now the HELD floating legs' weighted yield (5.04 % that day); the corrected rule decides first on the
+2026-10-03 row.
