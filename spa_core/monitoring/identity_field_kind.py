@@ -36,8 +36,40 @@
 Поэтому документ несёт ``fitness_rule.verdict = "REFUSED"`` с причиной, а не
 гейт, и ни один потребитель не получает отсюда права отвергнуть имя.
 
-Две оси, и смешивать их нельзя
+Три оси, и смешивать их нельзя
 ------------------------------------------------------------------------------
+``arithmetic_derived`` (заказ **G91 п. 3**)
+    Значение ПОСЧИТАНО по данным: счёт, сумма, округление, разность, доля.
+    Эта ось отвечает на слово самого заказа — «первые два суть ЗАМЕРЫ», — и
+    отвечает машиной: до неё «замер против имени» различал человек, а дорогая
+    половина признака объявлялась ненайденной. Найдена не вся: ось ловит замер
+    АРИФМЕТИЧЕСКИЙ и молчит о замере, пришедшем из чужого модуля готовым
+    числом. Односторонность названа ниже и ЗАМЕРЕНА, а не оговорена.
+
+    **Род называет не оператор, а операнд.** ``/`` бывает склейкой путей
+    (``root / "data"`` — в этом дереве чаще, чем делением), ``-`` — разностью
+    множеств, ``+`` — склейкой строк. Числом выражение делает операнд,
+    **числовой ПО ПОСТРОЕНИЮ**: числовой литерал либо счёт/сумма/округление.
+    При таком операнде второй обязан быть числом — иначе выражение не
+    исполнилось бы вовсе (``"a" - 1`` есть ``TypeError``). Признак поэтому
+    утверждение о коде, а не догадка по виду оператора; и он односторонний в
+    сторону «чисто»: ``a - b``, где оба имени неизвестны, находкой НЕ является.
+
+    **Литерал-число сам по себе замером НЕ является.** ``{"window_s": 300}`` —
+    постоянная, а не наблюдение: координата по ней не переезжает. Ось ловит
+    ВЫЧИСЛЕНИЕ, и это различие проверяется контролем в обе стороны.
+
+    **Прочтений у оси ДВА, и они не складываются.** Сильное — значение ЕСТЬ
+    посчитанное число. Слабое (``arithmetic_formatted``) — значение есть ТЕКСТ,
+    собранный из посчитанного числа. Разделить их пришлось ЗАМЕРОМ, а не из
+    любви к порядку: f-строка рода не называет, потому что AST не отличает
+    отформатированный замер (``f"{share:.1f}%"``) от СГЕНЕРИРОВАННОГО ИМЕНИ
+    (``f"protocol_{i % 12}"`` — настоящая строка ``scripts/dfb_perf_budget.py``,
+    и имя там именно имя). Первая редакция держала f-строку в сильном прочтении
+    и обвиняла этим ``protocol`` — имя из ``_HAND_PICKED_IDENTITY_FIELDS``.
+    Слабое прочтение печатается отдельным числом ровно как
+    ``clock_named_read`` у соседней оси.
+
 ``wall_clock_derived``
     Значение производится СТЕННОЙ ДВЕРЬЮ самого модуля: ``datetime.now()``,
     ``datetime.utcnow()``, ``date.today()``, ``time.time()`` — напрямую, через
@@ -98,6 +130,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import dataclasses
 import json
 import sys
 from dataclasses import dataclass
@@ -119,6 +152,50 @@ WALL_CLOCK = "wall_clock_derived"
 CLOCK_NAMED_READ = "clock_named_read"
 NOT_DERIVED = "not_derived"
 UNMEASURED = "unmeasured"
+
+#: Вердикты ТРЕТЬЕЙ оси (заказ **G91 п. 3**). Своя тройка, а не члены прежней:
+#: «часов нет» и «арифметики нет» — разные ответы, и сложить их в один
+#: ``not_derived`` значило бы потерять ровно ту половину признака, которую заказ
+#: назвал дорогой.
+ARITH_DERIVED = "arithmetic_derived"
+#: СЛАБОЕ прочтение той же оси: текст, собранный из посчитанного числа. Отдельным
+#: вердиктом, а не членом сильного: f-строка рода не называет (см. справку).
+ARITH_FORMATTED = "arithmetic_formatted"
+NOT_ARITH = "not_arithmetic"
+
+#: Вызовы, чьё значение есть ЧИСЛО, посчитанное ПО ДАННЫМ. Названы поимённо по
+#: той же причине, что `_DOOR_ATTRS`: по «числовому виду» признак утащил бы и
+#: конвертеры входа (`int("3")` переводит ДАННОЕ значение и ничего не считает).
+#: ``max``/``min`` здесь НЕТ намеренно: они ВЫБИРАЮТ один из поданных элементов,
+#: а не вычисляют новый, и выбранным вполне может оказаться имя.
+_ARITH_CALLS = frozenset({"sum", "len", "round", "abs", "mean", "median",
+                          "fmean", "stdev", "variance"})
+
+#: Узлы, у которых значение происходит от детей НА ЭТОЙ оси. Короче, чем
+#: `_TRANSPARENT`: ``Attribute`` здесь нет (``obj.name`` числом от числового
+#: ``obj`` не становится), ``Subscript`` нет (ключ отображения своим значением
+#: арифметики не делает), ``Await`` нет. ``JoinedStr``/``FormattedValue`` ЕСТЬ:
+#: текст, собранный из посчитанного числа (``f"{share:.1f}%"``), переезжает
+#: вместе с числом, и координата по нему ездила бы так же.
+_ARITH_TRANSPARENT = (ast.IfExp, ast.BoolOp, ast.UnaryOp, ast.NamedExpr)
+
+#: Вызовы, превращающие число в ТЕКСТ. Отсюда начинается СЛАБОЕ прочтение оси.
+_TEXT_FORMATTERS = frozenset({"str", "format", "repr"})
+
+#: Вызовы, у которых число ОСТАЁТСЯ числом. Своя тройка рядом с `_FORMATTERS`
+#: соседней оси, и это не дублирование: для часов `str(now)` — «те же часы в
+#: другом виде», а для счёта `str(n)` — уже ТЕКСТ, и место ему в слабом
+#: прочтении. Держать один список на обе оси значило бы, что `str(len(xs))`
+#: сильное, а `f"{len(xs)}"` слабое — одна и та же мысль в двух вердиктах.
+#: Нашла расхождение МУТАЦИЯ, а не чтение глазами.
+_NUM_FORMATTERS = frozenset({"int", "float", "round", "abs"})
+
+#: Контейнерные литералы и выражения-генераторы: спуск в них ЗАПРЕЩЁН на обеих
+#: осях. Словарь, в котором лежит посчитанное число, сам числом не является —
+#: иначе всякое поле-документ объявлялось бы замером («контейнер не есть
+#: привязка», `.claude/rules/deployment.md`).
+_CONTAINERS = (ast.Dict, ast.List, ast.Set, ast.Tuple, ast.ListComp,
+               ast.DictComp, ast.SetComp, ast.GeneratorExp, ast.Lambda)
 
 #: Имена методов, которые СПРАШИВАЮТ у операционной системы время. Названы
 #: поимённо по той же причине, по которой поимённо названы `CLOCK_FIELDS`:
@@ -149,14 +226,27 @@ _TRANSPARENT = (ast.Attribute, ast.BinOp, ast.IfExp, ast.BoolOp, ast.UnaryOp,
 
 @dataclass(frozen=True)
 class Evidence:
-    """Одно место, где ИМЕНОВАННОЕ поле получает значение, и чем оно оказалось."""
+    """Одно место, где ИМЕНОВАННОЕ поле получает значение, и чем оно оказалось.
+
+    ``arith`` — ТРЕТЬЯ ось отдельным полем, а не ещё одно значение ``verdict``.
+    Это не оформление: поле, посчитанное арифметикой, и поле, скопированное с
+    часов, — разные утверждения о коде, и они бывают верны ОБА сразу
+    (``{"age_h": (now - then).total_seconds() / 3600}``). Склеить их в одну
+    строку вердикта значило бы сделать вторую находку невидимой ровно там, где
+    она дороже всего.
+    """
     module: str
     line: int
     verdict: str
     how: str
+    arith: str = ""
+    arith_text: str = ""
 
     def __str__(self) -> str:                                # pragma: no cover
-        return f"{self.module}:{self.line} {self.verdict} ({self.how})"
+        tail = (f" +{ARITH_DERIVED}({self.arith})" if self.arith
+                else f" +{ARITH_FORMATTED}({self.arith_text})" if self.arith_text
+                else "")
+        return f"{self.module}:{self.line} {self.verdict} ({self.how}){tail}"
 
 
 # ── стенные двери ────────────────────────────────────────────────────────────
@@ -192,13 +282,18 @@ def _returns(func: ast.AST) -> List[ast.AST]:
     return out
 
 
-def clock_wrappers(tree: ast.Module) -> FrozenSet[str]:
-    """Функции модуля, КОТОРЫЕ ОТДАЮТ стенное время (``_utcnow`` и родня).
+def _wrappers(tree: ast.Module, derive) -> FrozenSet[str]:
+    """Функции модуля, КОТОРЫЕ ОТДАЮТ значение искомого рода — до неподвижной точки.
 
-    Не «в теле которых где-то есть часы». Это различие и есть вся цена первой
-    редакции: ``check_sky_status_live()`` трогает часы внутри, а отдаёт словарь
-    состояния, и по «содержит» её результат объявлялся стенным — вместе с полем
-    ``source``, которое к часам не имеет отношения вовсе. Признак — РЕЗУЛЬТАТ.
+    Одна копия правила на обе оси. Вторая его копия означала бы, что «обёртка
+    часов» и «обёртка счёта» ищутся по разным правилам, а расходятся такие
+    копии молча — это и есть урок ADR-502 (``scalar_refusal``: одно правило,
+    один дом).
+
+    Признак — РЕЗУЛЬТАТ, а не «в теле где-то есть». Это различие и есть вся
+    цена первой редакции меры: ``check_sky_status_live()`` трогает часы внутри,
+    а отдаёт словарь состояния, и по «содержит» её результат объявлялся
+    стенным — вместе с полем ``source``, которое к часам не имеет отношения.
     """
     funcs: Dict[str, ast.AST] = {}
     for node in ast.walk(tree):
@@ -211,7 +306,7 @@ def clock_wrappers(tree: ast.Module) -> FrozenSet[str]:
             if name in wrappers:
                 continue
             scope = _Scope(frozenset(), frozenset(wrappers))
-            if any(derivation(expr, scope) for expr in _returns(node)):
+            if any(derive(expr, scope) for expr in _returns(node)):
                 wrappers.add(name)
                 grew = True
         if not grew:
@@ -219,7 +314,37 @@ def clock_wrappers(tree: ast.Module) -> FrozenSet[str]:
     return frozenset(wrappers)
 
 
+def clock_wrappers(tree: ast.Module) -> FrozenSet[str]:
+    """Функции модуля, КОТОРЫЕ ОТДАЮТ стенное время (``_utcnow`` и родня)."""
+    return _wrappers(tree, derivation)
+
+
+def arith_wrappers(tree: ast.Module) -> FrozenSet[str]:
+    """Функции модуля, КОТОРЫЕ ОТДАЮТ посчитанное число (``_share_pct`` и родня)."""
+    return _wrappers(tree, arith_derivation)
+
+
 # ── происхождение значения ───────────────────────────────────────────────────
+
+def value_children(node: ast.AST) -> List[ast.AST]:
+    """Дети, чьё значение МОЖЕТ стать значением узла. Одна копия на обе оси.
+
+    Нужна из-за ``IfExp``: у ``a if test else b`` значение приходит из ветвей и
+    НИКОГДА из условия. Обе оси спускались во ВСЕХ детей, и это давало ложную
+    находку на живом коде — ``stability_tracker.py:202``, где
+    ``message = f"…" + (f"…" if n_fails else "")``: склейка СТРОК объявлялась
+    посчитанным числом, потому что числом оказалось ``n_fails`` в УСЛОВИИ.
+    Условие управляет выбором, но значением не становится; считать иначе
+    значило бы обвинять всякое выражение, в чьей развилке стои́т счётчик.
+
+    Остальные узлы прозрачны всеми детьми по праву: у ``or``/``and`` значением
+    становится один из операндов, у унарного оператора — его операнд, у ``:=`` —
+    присваиваемое значение.
+    """
+    if isinstance(node, ast.IfExp):
+        return [node.body, node.orelse]
+    return list(ast.iter_child_nodes(node))
+
 
 @dataclass(frozen=True)
 class _Scope:
@@ -267,12 +392,136 @@ def derivation(node: Optional[ast.AST], scope: _Scope, depth: int = 0) -> Option
         # получателя, и только если он сам производное.
         return derivation(node.value, scope, depth + 1)
     if isinstance(node, _TRANSPARENT):
-        for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.Dict, ast.List, ast.Set, ast.Tuple,
-                                  ast.ListComp, ast.DictComp, ast.SetComp,
-                                  ast.GeneratorExp, ast.Lambda)):
+        for child in value_children(node):
+            if isinstance(child, _CONTAINERS):
                 continue
             got = derivation(child, scope, depth + 1)
+            if got:
+                return got
+    return None
+
+
+# ── посчитанное число (третья ось, заказ G91 п. 3) ───────────────────────────
+
+def arith_door(node: ast.AST) -> Optional[str]:
+    """Это ВЫЗОВ, считающий число по данным? Возвращает его запись или ``None``.
+
+    Имя берётся и у простого вызова (``sum(xs)``), и у метода
+    (``statistics.mean(xs)``, ``rows.count(x)``) — чей это модуль, признак не
+    спрашивает: вопрос в том, ЧТО вызов отдаёт, а не кому он принадлежит.
+    Вызов без аргументов счётом не является (``round()`` не существует).
+    """
+    if not isinstance(node, ast.Call) or not node.args:
+        return None
+    func = node.func
+    name = None
+    if isinstance(func, ast.Name):
+        name = func.id
+    elif isinstance(func, ast.Attribute):
+        name = func.attr
+    return f"{name}()" if name in _ARITH_CALLS else None
+
+
+def _numeric_operand(node: ast.AST, scope: "_Scope", depth: int) -> Optional[str]:
+    """Операнд, числовой ПО ПОСТРОЕНИЮ — литерал-число либо посчитанное число.
+
+    ``bool`` исключён типом, а не вычитанием из списка: ``True`` есть ``int`` по
+    наследству, и ``isinstance`` пропустил бы флаг в арифметику. Поэтому тип
+    спрашивается точным совпадением.
+    """
+    if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+        return f"literal:{node.value!r}"
+    return arith_derivation(node, scope, depth)
+
+
+def arith_derivation(node: Optional[ast.AST], scope: "_Scope",
+                     depth: int = 0) -> Optional[str]:
+    """ПОСЧИТАНО ли значение выражения по данным — и чем.
+
+    Литерал-число, стоящий ОДИН, находкой не является: постоянная не переезжает.
+    Находкой его делает только соседство с оператором, то есть ВЫЧИСЛЕНИЕ.
+    """
+    if node is None or depth > 16:
+        return None
+    direct = arith_door(node)
+    if direct:
+        return direct
+    if isinstance(node, ast.Name):
+        return f"name:{node.id}" if node.id in scope.derived else None
+    if isinstance(node, ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name):
+            if func.id in scope.wrappers and func.id not in scope.derived:
+                return f"{func.id}()"
+            if func.id in _NUM_FORMATTERS and node.args:
+                return arith_derivation(node.args[0], scope, depth + 1)
+        elif isinstance(func, ast.Attribute) and func.attr in scope.wrappers:
+            return f"{func.attr}()"
+        return None
+    if isinstance(node, ast.BinOp):
+        # Род называет ОПЕРАНД, а не оператор: `/` в этом дереве чаще склейка
+        # путей, чем деление. Числовой по построению операнд обязывает второй
+        # быть числом — иначе выражение не исполнилось бы вовсе.
+        for side in (node.left, node.right):
+            if isinstance(side, _CONTAINERS):
+                continue
+            got = _numeric_operand(side, scope, depth + 1)  # IfExp внутри —
+            # по тому же правилу `value_children`: условие значением не станет
+            if got:
+                return got
+        return None
+    if isinstance(node, _ARITH_TRANSPARENT):
+        for child in value_children(node):
+            if isinstance(child, _CONTAINERS):
+                continue
+            got = arith_derivation(child, scope, depth + 1)
+            if got:
+                return got
+    return None
+
+
+def arith_formatted(node: Optional[ast.AST], scope: "_Scope",
+                    depth: int = 0) -> Optional[str]:
+    """ТЕКСТ, собранный из посчитанного числа — СЛАБОЕ прочтение оси.
+
+    Почему отдельно, а не членом сильного прочтения: AST не отличает
+    отформатированный замер от сгенерированного имени, и это измерено на живом
+    коде поимённо (``f"protocol_{i % 12}"`` против ``f"{pct:.1f}%"``). Держать
+    их в одном вердикте значило бы обвинять имя за то, что в нём есть номер.
+
+    У f-строки спрашиваются её ПОДСТАНОВКИ (``FormattedValue.value``), а не всё
+    поддерево: обход всем деревом утащил бы и числа из вложенного словаря, а
+    контейнер привязкой не является.
+    """
+    if node is None or depth > 16:
+        return None
+    if isinstance(node, ast.JoinedStr):
+        for piece in node.values:
+            if isinstance(piece, ast.FormattedValue):
+                got = arith_derivation(piece.value, scope)
+                if got:
+                    return f"f-string({got})"
+        return None
+    if isinstance(node, ast.FormattedValue):
+        got = arith_derivation(node.value, scope)
+        return f"f-string({got})" if got else None
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in _TEXT_FORMATTERS and node.args):
+        got = arith_derivation(node.args[0], scope)
+        if got:
+            return f"{node.func.id}({got})"
+        # Спуск продолжается СЛАБЫМ прочтением, а не кончается здесь. Дыру
+        # нашёл собственный прогон: `str(row.get("trade_id") or f"#{len(moves)+1}")`
+        # (`book_oscillation_census.py:229`) — текст, собранный из счёта, —
+        # обеими прочтениями молчал, потому что между `str()` и f-строкой стои́т
+        # развилка `or`, а сильное прочтение в f-строку не ходит по построению.
+        inner = arith_formatted(node.args[0], scope, depth + 1)
+        return f"{node.func.id}({inner})" if inner else None
+    if isinstance(node, (ast.BinOp, ast.IfExp, ast.BoolOp, ast.NamedExpr)):
+        for child in value_children(node):
+            if isinstance(child, _CONTAINERS):
+                continue
+            got = arith_formatted(child, scope, depth + 1)
             if got:
                 return got
     return None
@@ -339,8 +588,16 @@ def _own_body(scope_node: ast.AST) -> Iterable[ast.AST]:
         stack.extend(ast.iter_child_nodes(node))
 
 
-def scope_derived(scope_node: ast.AST, outer: _Scope) -> _Scope:
-    """Привязки ЭТОЙ области: внешние минус затенённые плюс свои, до неподвижной точки."""
+def scope_derived(scope_node: ast.AST, outer: _Scope, derive=None) -> _Scope:
+    """Привязки ЭТОЙ области: внешние минус затенённые плюс свои, до неподвижной точки.
+
+    ``derive`` — та же область видимости, но для другой оси. Параметр, а не
+    вторая копия функции: правило «параметр затеняет внешнюю привязку» должно
+    быть одно на обе оси, иначе ложная находка, закрытая на одной оси, вернётся
+    на другой (это и была первая ложная находка меры — имя ``p`` из одной
+    функции, обвинявшее ``{"protocol": p}`` в другой).
+    """
+    derive = derivation if derive is None else derive
     shadow = _shadowed(scope_node)
     derived: Set[str] = set(outer.derived) - shadow
     body = list(_own_body(scope_node))
@@ -350,7 +607,7 @@ def scope_derived(scope_node: ast.AST, outer: _Scope) -> _Scope:
         for node in body:
             value = getattr(node, "value", None)
             if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)) and value is not None:
-                if derivation(value, probe) is None:
+                if derive(value, probe) is None:
                     continue
                 names = _targets(node.target) if hasattr(node, "target") else set()
                 for target in getattr(node, "targets", []):
@@ -449,26 +706,45 @@ def module_kinds(source: str,
         tree = ast.parse(source)
     except (SyntaxError, ValueError) as exc:
         return {}, f"не разобрано: {type(exc).__name__}"
-    wrappers = clock_wrappers(tree)
-    scopes: Dict[int, _Scope] = {}
-    root = scope_derived(tree, _Scope(frozenset(), wrappers))
-    scopes[id(tree)] = root
-    for scope_node in _scopes(tree):
-        if id(scope_node) not in scopes:
-            scopes[id(scope_node)] = scope_derived(scope_node, root)
+    scopes = _scope_table(tree, derivation, clock_wrappers(tree))
+    arith_scopes = _scope_table(tree, arith_derivation, arith_wrappers(tree))
     out: Dict[str, List[Evidence]] = {}
     for name, value, line, scope_node in field_assignments(tree):
-        scope = scopes.get(id(scope_node), root)
+        if wanted is not None and name not in wanted:
+            continue
+        scope = scopes.get(id(scope_node), scopes[id(tree)])
         how = derivation(value, scope)
         if how:
             verdict = WALL_CLOCK
         else:
             how = clock_named_read(value)
             verdict = CLOCK_NAMED_READ if how else NOT_DERIVED
-        if wanted is not None and name not in wanted:
-            continue
-        out.setdefault(name, []).append(Evidence("", line, verdict, how or ""))
+        arith_scope = arith_scopes.get(id(scope_node), arith_scopes[id(tree)])
+        arith = arith_derivation(value, arith_scope)
+        # Слабое прочтение спрашивается ТОЛЬКО когда сильное молчит: текст,
+        # собранный из числа, которое и само уже находка, второй находкой не
+        # является — иначе одно место кода считалось бы дважды.
+        text = "" if arith else (arith_formatted(value, arith_scope) or "")
+        out.setdefault(name, []).append(
+            Evidence("", line, verdict, how or "", arith or "", text))
     return out, ""
+
+
+def _scope_table(tree: ast.Module, derive, wrappers: FrozenSet[str]
+                 ) -> Dict[int, _Scope]:
+    """Привязки каждой области модуля для ОДНОЙ оси. Две оси — две таблицы.
+
+    Общей таблицы быть не может: имя, производное от часов, и имя, производное
+    от счёта, — разные множества, и слить их значило бы объявить стенным всё,
+    что посчитано, и посчитанным всё, что стенное.
+    """
+    table: Dict[int, _Scope] = {}
+    root = scope_derived(tree, _Scope(frozenset(), wrappers), derive)
+    table[id(tree)] = root
+    for scope_node in _scopes(tree):
+        if id(scope_node) not in table:
+            table[id(scope_node)] = scope_derived(scope_node, root, derive)
+    return table
 
 
 # ── перепись по дереву ───────────────────────────────────────────────────────
@@ -508,14 +784,34 @@ def census(names: Sequence[str], tree_root: Path,
             for name, rows in kinds.items():
                 if name not in wanted:
                     continue
+                # Пересборка с АДРЕСОМ файла. Перечислять поля по одному здесь
+                # нельзя: первая редакция третьей оси так и потеряла её —
+                # `arith` в этот конструктор не попал, и КАЖДАЯ находка оси
+                # приезжала в свод как `not_arithmetic`, то есть «измерено и
+                # ноль». Молчаливый ноль вместо находки — ровно инв. #17, и
+                # поймал его собственный прогон по живому дереву, а не разбор
+                # глазами. Поэтому адрес ДОПИСЫВАЕТСЯ к готовой улике
+                # (`replace`), и новое поле оси физически не может отвалиться.
                 per_name[name].extend(
-                    Evidence(rel, r.line, r.verdict, r.how) for r in rows)
+                    dataclasses.replace(r, module=rel) for r in rows)
     fields: Dict[str, dict] = {}
     for name in names:
         rows = per_name[name]
         wall = [r for r in rows if r.verdict == WALL_CLOCK]
         read = [r for r in rows if r.verdict == CLOCK_NAMED_READ]
         clean = [r for r in rows if r.verdict == NOT_DERIVED]
+        counted = [r for r in rows if r.arith]
+        formatted = [r for r in rows if r.arith_text]
+        if not files_parsed:
+            arith_verdict, arith_why = UNMEASURED, "ни один файл дерева не разобран"
+        elif not rows:
+            arith_verdict, arith_why = UNMEASURED, "производитель поля не найден в дереве"
+        elif counted:
+            arith_verdict, arith_why = ARITH_DERIVED, ""
+        elif formatted:
+            arith_verdict, arith_why = ARITH_FORMATTED, ""
+        else:
+            arith_verdict, arith_why = NOT_ARITH, ""
         if not files_parsed:
             verdict, why = UNMEASURED, "ни один файл дерева не разобран"
         elif not rows:
@@ -537,6 +833,17 @@ def census(names: Sequence[str], tree_root: Path,
             "wall_clock_count": len(wall),
             "clock_named_read_count": len(read),
             "not_derived_count": len(clean),
+            # Третья ось — ОТДЕЛЬНЫМ вердиктом рядом, а не членом прежнего.
+            # «Часов нет» и «арифметики нет» суть разные ответы о коде, и
+            # у каждого свой третий исход (инв. #17).
+            "arithmetic_verdict": arith_verdict,
+            "why_arithmetic_unmeasured": arith_why,
+            "arithmetic_sites": [f"{r.module}:{r.line} {r.arith}"
+                                 for r in counted[:8]],
+            "arithmetic_count": len(counted),
+            "arithmetic_formatted_sites": [f"{r.module}:{r.line} {r.arith_text}"
+                                           for r in formatted[:8]],
+            "arithmetic_formatted_count": len(formatted),
         }
     return {
         "schema": SCHEMA,
@@ -572,6 +879,94 @@ FITNESS_RULE = {
 }
 
 
+#: Правило «посчитано ⇒ личностью быть не вправе» — предмет заказа **G91 п. 3**,
+#: который назвал два имени четвёрки «ЗАМЕРАМИ». Слово заказа теперь измеримо
+#: машиной; САМО ПРАВИЛО при этом отвергнуто, и вердикт его не объявлен строкой,
+#: а ВЫЧИСЛЯЕТСЯ из двух условий (:func:`measure_rule`): исчезни условие — отказ
+#: пересматривается решением, а не ветшает молча.
+MEASURE_RULE_COUNTEREXAMPLES = (
+    {"field": "day",
+     "producer": "spa_core/backtesting/replay.py",
+     "claim": "посчитан арифметикой (`best_idx + 1`) и личностью быть ВПРАВЕ: "
+              "вычисленный ПОРЯДКОВЫЙ НОМЕР именно и называет, который это "
+              "элемент ряда",
+     "admitted": True},
+    {"field": "code",
+     "producer": "scripts/check_undelivered_work.py",
+     "claim": "у ЭТОГО производителя держит `len(b[\"code\"])` — СЧЁТ, а у "
+              "прочих то же имя держит имя. Род есть свойство МЕСТА, а "
+              "`_IDENTITY_FIELDS` есть множество ИМЁН: granularity не та, и "
+              "правило по имени неисполнимо в принципе",
+     "admitted": True},
+)
+
+#: Имена, которые заказ G91 п. 3 назвал ЗАМЕРАМИ. Ось обязана поймать хотя бы
+#: одно — иначе она не делает работы, ради которой названа.
+MEASURE_RULE_SUBJECTS = ("realised_usd_per_day", "best_net_usd")
+
+
+def measure_rule(doc: dict) -> dict:
+    """Вердикт правила «посчитано ⇒ не личность» — ВЫЧИСЛЕН из замера.
+
+    Два условия, и оба читаются из того же документа, что и находки:
+
+    1. **ось делает работу** — хотя бы одно имя, названное заказом замером,
+       поймано СИЛЬНЫМ прочтением;
+    2. **ось щадит принятое** — ни одно имя из ``_IDENTITY_FIELDS`` сильным
+       прочтением не поймано.
+
+    Правило принимается только при обоих. Имя, которого в документе нет вовсе,
+    условием не считается ни за, ни против: ``UNMEASURED`` — третий исход, а не
+    голос (инв. #17).
+    """
+    fields = doc.get("fields") or {}
+
+    def strong(name: str) -> Optional[bool]:
+        row = fields.get(name)
+        if row is None or row.get("arithmetic_verdict") == UNMEASURED:
+            return None
+        return row.get("arithmetic_verdict") == ARITH_DERIVED
+
+    caught = [n for n in MEASURE_RULE_SUBJECTS if strong(n) is True]
+    missed = [n for n in MEASURE_RULE_SUBJECTS if strong(n) is False]
+    subj_unmeasured = [n for n in MEASURE_RULE_SUBJECTS if strong(n) is None]
+    admitted_caught = [n for n in _IDENTITY_FIELDS if strong(n) is True]
+    admitted_unmeasured = [n for n in _IDENTITY_FIELDS if strong(n) is None]
+    asked = [n for n in MEASURE_RULE_SUBJECTS + tuple(_IDENTITY_FIELDS)
+             if n in fields]
+    if not asked:
+        return {"verdict": UNMEASURED,
+                "why": "ни одно имя предмета не спрошено у этого документа",
+                "axis_does_work": None, "axis_spares_admitted": None}
+    does_work = bool(caught)
+    spares = not admitted_caught
+    verdict = "ACCEPTED" if (does_work and spares) else "REFUSED"
+    why = []
+    if not does_work:
+        why.append("сильное прочтение не поймало ни одного имени, названного "
+                   "заказом замером ⇒ ось не делает работы")
+    if admitted_caught:
+        why.append("сильным прочтением поймано УЖЕ ПРИНЯТОЕ имя: "
+                   + ", ".join(admitted_caught)
+                   + " ⇒ импликация ложна в ту сторону, которая и была нужна")
+    return {
+        "verdict": verdict,
+        "why": "; ".join(why),
+        "axis_does_work": does_work,
+        "axis_spares_admitted": spares,
+        "subjects_caught": caught,
+        "subjects_missed_by_the_axis": missed,
+        "subjects_unmeasured": subj_unmeasured,
+        "admitted_names_caught": admitted_caught,
+        "admitted_names_unmeasured": admitted_unmeasured,
+        "counterexamples": list(MEASURE_RULE_COUNTEREXAMPLES),
+        "one_sidedness": (
+            "ось ловит замер АРИФМЕТИЧЕСКИЙ и молчит о числе, пришедшем "
+            "готовым из чужого модуля (`(enum[...] or {}).get(\"net_usd\")`); "
+            "промах в сторону «чисто» и назван, а не оговорён"),
+    }
+
+
 def report(doc: dict, *, max_rows: int = 40) -> str:
     lines = [f"род поля-кандидата в личность (заказ G91 п. 1), схема {doc['schema']}",
              f"  файлов разобрано: {doc['files_parsed']} · "
@@ -589,8 +984,17 @@ def report(doc: dict, *, max_rows: int = 40) -> str:
         extra = row["why_unmeasured"] or (
             row["wall_clock_sites"] or row["clock_named_read_sites"] or [""])[0]
         lines.append(f"  {mark} {name}: {row['verdict']} — {extra}")
+    counted = sum(1 for r in fields.values()
+                  if r.get("arithmetic_verdict") == ARITH_DERIVED)
+    formatted = sum(1 for r in fields.values()
+                    if r.get("arithmetic_verdict") == ARITH_FORMATTED)
+    lines.append(f"  ось «посчитано» (G91 п. 3): сильное прочтение {counted} имён · "
+                 f"слабое (текст из числа) {formatted} — прочтения НЕ складываются")
     rule = doc["fitness_rule"]
     lines.append(f"  правило «род ⇒ годность»: {rule['verdict']} — {rule['why']}")
+    mrule = measure_rule(doc)
+    lines.append(f"  правило «посчитано ⇒ не личность»: {mrule['verdict']}"
+                 + (f" — {mrule['why']}" if mrule.get("why") else ""))
     lines.append("  ADVISORY: прибор только ЧИТАЕТ исходники; _IDENTITY_FIELDS, "
                  "координаты, RiskPolicy v1.0, стоп-кран и живой трек не трогает")
     return "\n".join(lines)

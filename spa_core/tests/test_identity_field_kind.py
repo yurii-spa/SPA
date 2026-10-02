@@ -11,6 +11,10 @@
 3. **Правило «род ⇒ годность» отвергнуто ЗАМЕРОМ.** Оба контрпримера
    перемеряются здесь живым прогоном по настоящему коду. Исчезни они — тест
    краснеет, и отказ пересматривается решением, а не ветшает молча.
+4. **Ось «посчитано» (заказ G91 п. 3) и её правило — отдельный вопрос.** Слово
+   заказа «ЗАМЕР» измеримо машиной; правило «посчитано ⇒ личностью быть не
+   вправе» отвергнуто, и вердикт ВЫЧИСЛЯЕТСЯ из двух условий, а не объявлен
+   строкой. Оба контрпримера — на живом коде и перемеряются каждый прогон.
 
 LLM здесь запрещён. Литеральных дат в файле нет: мера читает исходники и часов
 не спрашивает вовсе, поэтому классу замороженных дат эта батарея не принадлежит.
@@ -439,6 +443,422 @@ class _tmptree:
 
     def __exit__(self, *exc) -> None:
         self._td.cleanup()
+
+
+# ── ось «посчитано» (заказ G91 п. 3) ─────────────────────────────────────────
+
+def arith(source: str, field: str):
+    """Сильное прочтение оси для одного поля — множество записей находки."""
+    rows, why = kind.module_kinds(source, {field})
+    assert not why, why
+    return {r.arith for r in rows.get(field, []) if r.arith}
+
+
+def formatted(source: str, field: str):
+    """СЛАБОЕ прочтение: текст, собранный из посчитанного числа."""
+    rows, why = kind.module_kinds(source, {field})
+    assert not why, why
+    return {r.arith_text for r in rows.get(field, []) if r.arith_text}
+
+
+class TheCountedAxisMeasuresWhatItClaims(unittest.TestCase):
+    """Каждое правило сильного прочтения — с контролем в обе стороны."""
+
+    def test_a_count_is_a_measure(self):
+        self.assertEqual(arith('def f(xs):\n    return {"n": len(xs)}\n', "n"),
+                         {"len()"})
+
+    def test_a_sum_and_a_rounding_are_measures(self):
+        self.assertEqual(arith('def f(xs):\n    return {"n": sum(xs)}\n', "n"),
+                         {"sum()"})
+        self.assertEqual(arith('def f(x):\n    return {"n": round(x, 4)}\n', "n"),
+                         {"round()"})
+
+    def test_a_CONVERTER_of_a_given_value_is_NOT_a_measure(self):
+        """Обратный контроль: ``int("3")`` переводит ДАННОЕ значение и ничего
+        не считает. Признак по «числовому виду» утащил бы и его."""
+        self.assertEqual(arith('def f(raw):\n    return {"n": int(raw)}\n', "n"),
+                         set())
+
+    def test_max_and_min_CHOOSE_and_are_not_measures(self):
+        """``max`` отдаёт один из поданных элементов, и выбранным вполне может
+        оказаться ИМЯ. Поэтому их нет в словаре арифметических дверей."""
+        self.assertEqual(arith('def f(xs):\n    return {"n": max(xs)}\n', "n"),
+                         set())
+
+    def test_a_LITERAL_number_standing_alone_is_a_CONSTANT_not_a_measure(self):
+        """``{"window_s": 300}`` — постоянная: координата по ней не переезжает.
+
+        Прямой контроль к следующему тесту: находкой литерал делает только
+        соседство с оператором, то есть ВЫЧИСЛЕНИЕ.
+        """
+        self.assertEqual(arith('def f():\n    return {"window_s": 300}\n',
+                               "window_s"), set())
+
+    def test_a_literal_number_NEXT_TO_an_operator_IS_a_measure(self):
+        self.assertEqual(arith('def f(i):\n    return {"n": i + 1}\n', "n"),
+                         {"literal:1"})
+
+    def test_the_OPERAND_names_the_kind_and_not_the_OPERATOR(self):
+        """``/`` в этом дереве чаще склейка путей, чем деление.
+
+        Обратный контроль к предыдущему: тот же оператор, операнд не числовой ⇒
+        находки нет. Обвинять оператор значило бы объявить замером каждый
+        ``root / "data"``.
+        """
+        self.assertEqual(arith('def f(root):\n    return {"path": root / "data"}\n',
+                               "path"), set())
+        self.assertEqual(arith('def f(a, b):\n    return {"n": a - b}\n', "n"),
+                         set())
+
+    def test_a_BOOL_is_not_a_number_even_though_python_says_it_is(self):
+        """``True`` есть ``int`` по наследству. Тип спрашивается точным
+        совпадением — иначе флаг уехал бы в арифметику."""
+        self.assertEqual(arith('def f(x):\n    return {"n": x * True}\n', "n"),
+                         set())
+
+    def test_a_wrapper_that_RETURNS_a_count_is_a_door(self):
+        src = ('def _n(xs):\n    return len(xs)\n'
+               'def f(xs):\n    return {"n": _n(xs)}\n')
+        self.assertEqual(arith(src, "n"), {"_n()"})
+
+    def test_a_function_that_merely_COUNTS_INSIDE_is_NOT_a_door(self):
+        """Обратный контроль к обёртке: признак — РЕЗУЛЬТАТ, а не «в теле есть».
+
+        Это ровно цена первой редакции соседней оси (``check_sky_status_live``).
+        """
+        src = ('def _n(xs):\n    seen = len(xs)\n    return xs\n'
+               'def f(xs):\n    return {"n": _n(xs)}\n')
+        self.assertEqual(arith(src, "n"), set())
+
+    def test_a_count_bound_to_a_name_reaches_the_field(self):
+        src = ('def f(xs):\n    n = len(xs)\n    return {"n": n}\n')
+        self.assertEqual(arith(src, "n"), {"name:n"})
+
+    def test_a_PARAMETER_shadows_the_outer_binding(self):
+        """Область видимости — часть правильности замера, а не украшение."""
+        src = ('DATA = [1, 2]\n'
+               'n = len(DATA)\n'
+               'def b(n):\n    return {"n": n}\n')
+        self.assertEqual(arith(src, "n"), set())
+
+    def test_the_MODULE_binding_reaches_a_function_that_does_NOT_shadow_it(self):
+        """Обратный контроль к затенению: без параметра привязка модуля доходит."""
+        src = ('DATA = [1, 2]\n'
+               'n = len(DATA)\n'
+               'def b():\n    return {"n": n}\n')
+        self.assertEqual(arith(src, "n"), {"name:n"})
+
+    def test_a_count_INSIDE_A_CONTAINER_does_not_make_the_container_a_measure(self):
+        """Контейнер привязкой не является (`.claude/rules/deployment.md`)."""
+        src = ('def f(xs):\n    return {"row": {"n": len(xs)}}\n')
+        self.assertEqual(arith(src, "row"), set())
+
+    def test_a_count_passed_as_an_ARGUMENT_does_not_make_the_call_a_measure(self):
+        """Вызов, которому счёт ушёл аргументом, — его ПОТРЕБИТЕЛЬ."""
+        src = ('def f(xs):\n    return {"row": build(total=len(xs))}\n')
+        self.assertEqual(arith(src, "row"), set())
+
+
+class TheCONDITIONisNotTheVALUE(unittest.TestCase):
+    """``a if test else b``: значение приходит из ветвей и НИКОГДА из условия.
+
+    Положительный контроль — настоящая ложная находка собственного прогона:
+    ``stability_tracker.py:202`` склеивает СТРОКИ, а посчитанным числом там
+    оказался счётчик в развилке.
+    """
+
+    def test_a_number_in_the_CONDITION_is_not_the_value(self):
+        src = ('def f(xs):\n    k = len(xs)\n'
+               '    return {"m": "a" if k else "b"}\n')
+        self.assertEqual(arith(src, "m"), set())
+
+    def test_a_number_in_a_BRANCH_is_the_value(self):
+        src = ('def f(xs, flag):\n    k = len(xs)\n'
+               '    return {"m": k if flag else 0}\n')
+        self.assertEqual(arith(src, "m"), {"name:k"})
+
+    def test_the_rule_is_ONE_copy_and_the_clock_axis_obeys_it_too(self):
+        """Тот же дефект жил на оси часов, и лечится он одной копией правила."""
+        src = ('import datetime\n'
+               'def f():\n    t = datetime.datetime.now()\n'
+               '    return {"m": "a" if t else "b"}\n')
+        self.assertNotIn(kind.WALL_CLOCK, verdicts(src, "m"))
+        src2 = ('import datetime\n'
+                'def f(flag):\n    t = datetime.datetime.now()\n'
+                '    return {"m": t if flag else None}\n')
+        self.assertIn(kind.WALL_CLOCK, verdicts(src2, "m"))
+
+    def test_the_false_finding_is_measured_CLEAN_on_the_real_file(self):
+        src = (_TREE / "spa_core/paper_trading/stability_tracker.py"
+               ).read_text(encoding="utf-8")
+        self.assertEqual(arith(src, "message"), set())
+
+    def test_value_children_names_the_branches_and_not_the_test(self):
+        node = ast.parse("a if t else b").body[0].value
+        got = {getattr(n, "id", None) for n in kind.value_children(node)}
+        self.assertEqual(got, {"a", "b"})
+
+
+class TheWEAKreadingIsKeptSeparate(unittest.TestCase):
+    """f-строка рода НЕ называет, и это измерено на живом коде поимённо."""
+
+    def test_text_assembled_from_a_count_is_the_WEAK_reading(self):
+        src = ('def f(xs):\n    k = len(xs)\n    return {"m": f"{k} rows"}\n')
+        self.assertEqual(arith(src, "m"), set())
+        self.assertEqual(formatted(src, "m"), {"f-string(name:k)"})
+
+    def test_a_GENERATED_NAME_and_a_FORMATTED_MEASURE_are_indistinguishable(self):
+        """Два живых случая одной формы — и потому прочтение слабое.
+
+        ``f"protocol_{i % 12}"`` — имя; ``f"{pct:.1f}%"`` — замер. AST их не
+        различает, поэтому держать оба в СИЛЬНОМ прочтении значило бы обвинять
+        имя за то, что в нём есть номер.
+        """
+        name_src = ('def f(i):\n    return {"protocol": f"protocol_{i % 12}"}\n')
+        meas_src = ('def f(x, t):\n    pct = 100.0 * x / t\n'
+                    '    return {"share": f"{pct:.1f}%"}\n')
+        self.assertEqual(arith(name_src, "protocol"), set())
+        self.assertEqual(arith(meas_src, "share"), set())
+        self.assertTrue(formatted(name_src, "protocol"))
+        self.assertTrue(formatted(meas_src, "share"))
+
+    def test_str_of_a_number_is_TEXT_and_belongs_to_the_weak_reading(self):
+        """Расхождение, найденное МУТАЦИЕЙ: держать один список форматировщиков
+        на обе оси значило бы, что ``str(len(xs))`` сильное, а ``f"{len(xs)}"``
+        слабое — одна мысль в двух вердиктах."""
+        src = ('def f(xs):\n    return {"m": str(len(xs))}\n')
+        self.assertEqual(arith(src, "m"), set())
+        self.assertEqual(formatted(src, "m"), {"str(len())"})
+
+    def test_int_of_a_number_STAYS_a_number(self):
+        """Обратный контроль: числовой форматировщик числа не отнимает."""
+        src = ('def f(xs):\n    return {"m": int(len(xs) / 2)}\n')
+        self.assertEqual(arith(src, "m"), {"len()"})
+
+    def test_a_text_with_NO_number_in_it_is_neither_reading(self):
+        src = ('def f(who):\n    return {"m": f"hello {who}"}\n')
+        self.assertEqual(arith(src, "m"), set())
+        self.assertEqual(formatted(src, "m"), set())
+
+    def test_the_f_string_is_asked_its_SUBSTITUTIONS_and_not_its_subtree(self):
+        """Обход всем поддеревом утащил бы числа из вложенного контейнера."""
+        src = ('def f():\n    return {"m": f"{ {\'n\': len([1])} }"}\n')
+        self.assertEqual(arith(src, "m"), set())
+        self.assertEqual(formatted(src, "m"), set())
+
+    def test_the_weak_reading_descends_THROUGH_str_around_a_fork(self):
+        """Дыра собственного прогона: между ``str()`` и f-строкой стои́т ``or``."""
+        src = ('def f(row, moves):\n'
+               '    return {"trade_id": str(row.get("trade_id") or f"#{len(moves) + 1}")}\n')
+        self.assertEqual(formatted(src, "trade_id"), {'str(f-string(len()))'})
+
+    def test_the_two_readings_never_double_count_one_site(self):
+        """Сильное молчит ⇒ спрашивается слабое. Оба сразу — невозможно.
+
+        Сцена подобрана ЗАМЕРОМ, а не на глаз: мутация «считать всегда оба»
+        пережила две предыдущие редакции этого теста, потому что в них не было
+        места, годного обоим прочтениям СРАЗУ, и мутант оказывался
+        равносильным. Здесь годно: у ``len(xs) or f"{k}"`` сильное прочтение
+        находит счёт в первом операнде, слабое — f-строку во втором.
+        """
+        src = ('def f(xs):\n    k = len(xs)\n'
+               '    return {"a": len(xs) or f"{k}", "b": f"{k}"}\n')
+        rows, _ = kind.module_kinds(src, {"a", "b"})
+        self.assertTrue(rows["a"][0].arith, "сцена обязана быть годной сильному")
+        value = ast.parse('len(xs) or f"{k}"').body[0].value
+        scope = kind._Scope(frozenset({"k"}), frozenset())
+        self.assertTrue(kind.arith_formatted(value, scope),
+                        "сцена обязана быть годной и слабому — "
+                        "иначе мутант равносилен")
+        for name, evs in rows.items():
+            for ev in evs:
+                with self.subTest(field=name):
+                    self.assertFalse(ev.arith and ev.arith_text)
+
+    def test_the_weak_reading_has_its_own_verdict_in_the_census(self):
+        with _tmptree() as root:
+            (root / "spa_core").mkdir()
+            (root / "spa_core" / "m.py").write_text(
+                'def f(xs):\n    k = len(xs)\n    return {"m": f"{k} rows"}\n',
+                encoding="utf-8")
+            doc = kind.census(("m",), root, roots=("spa_core",))
+        row = doc["fields"]["m"]
+        self.assertEqual(row["arithmetic_verdict"], kind.ARITH_FORMATTED)
+        self.assertEqual(row["arithmetic_count"], 0)
+        self.assertEqual(row["arithmetic_formatted_count"], 1)
+
+
+class TheCensusCarriesTheAxisAllTheWayToTheSwod(unittest.TestCase):
+    """Проводка оси доказывается ИСХОДОМ: находка обязана дойти до свода.
+
+    Положительный контроль — настоящий дефект первой редакции: свод пересобирал
+    ``Evidence`` перечислением полей, новое поле оси в конструктор не попало, и
+    КАЖДАЯ находка приезжала как ``not_arithmetic``, то есть «измерено и ноль».
+    Молчаливый ноль вместо находки — ровно инв. #17.
+    """
+
+    def test_a_finding_reaches_the_census_verdict(self):
+        with _tmptree() as root:
+            (root / "spa_core").mkdir()
+            (root / "spa_core" / "m.py").write_text(
+                'def f(xs):\n    return {"n": len(xs)}\n', encoding="utf-8")
+            doc = kind.census(("n",), root, roots=("spa_core",))
+        row = doc["fields"]["n"]
+        self.assertEqual(row["arithmetic_verdict"], kind.ARITH_DERIVED)
+        self.assertEqual(row["arithmetic_count"], 1)
+        self.assertTrue(row["arithmetic_sites"])
+        self.assertIn("spa_core/m.py", row["arithmetic_sites"][0])
+
+    def test_the_sites_carry_the_FILE_and_not_an_empty_address(self):
+        """Адрес дописывается к готовой улике, а не перечисляется заново."""
+        with _tmptree() as root:
+            (root / "spa_core").mkdir()
+            (root / "spa_core" / "m.py").write_text(
+                'def f(xs):\n    return {"n": sum(xs)}\n', encoding="utf-8")
+            doc = kind.census(("n",), root, roots=("spa_core",))
+        self.assertRegex(doc["fields"]["n"]["arithmetic_sites"][0],
+                         r"^spa_core/m\.py:\d+ sum\(\)$")
+
+    def test_the_clean_name_is_NOT_ARITH_and_not_unmeasured(self):
+        with _tmptree() as root:
+            (root / "spa_core").mkdir()
+            (root / "spa_core" / "m.py").write_text(
+                'def f(x):\n    return {"n": x}\n', encoding="utf-8")
+            doc = kind.census(("n",), root, roots=("spa_core",))
+        self.assertEqual(doc["fields"]["n"]["arithmetic_verdict"], kind.NOT_ARITH)
+
+    def test_no_producer_is_UNMEASURED_on_the_axis_too(self):
+        """«Писателя не нашли» и «арифметики нет» — разные ответы (инв. #17)."""
+        with _tmptree() as root:
+            (root / "spa_core").mkdir()
+            (root / "spa_core" / "m.py").write_text(
+                'def f(x):\n    return x\n', encoding="utf-8")
+            doc = kind.census(("absent_name",), root, roots=("spa_core",))
+        row = doc["fields"]["absent_name"]
+        self.assertEqual(row["arithmetic_verdict"], kind.UNMEASURED)
+        self.assertTrue(row["why_arithmetic_unmeasured"])
+
+    def test_the_two_axes_keep_SEPARATE_scope_tables(self):
+        """Общая таблица объявила бы стенным всё посчитанное и наоборот."""
+        src = ('import datetime\n'
+               'def f(xs):\n'
+               '    t = datetime.datetime.now()\n'
+               '    k = len(xs)\n'
+               '    return {"a": t, "b": k}\n')
+        rows, _ = kind.module_kinds(src, {"a", "b"})
+        a, = rows["a"]
+        b, = rows["b"]
+        self.assertEqual((a.verdict, a.arith), (kind.WALL_CLOCK, ""))
+        self.assertEqual((b.verdict, b.arith), (kind.NOT_DERIVED, "name:k"))
+
+    def test_both_axes_can_be_true_of_ONE_site_at_once(self):
+        """Возраст в часах: и часы, и арифметика. Склейка сделала бы вторую
+        находку невидимой ровно там, где она дороже всего."""
+        src = ('import datetime\n'
+               'def f(then):\n'
+               '    now = datetime.datetime.now()\n'
+               '    return {"age_h": (now - then).total_seconds() / 3600}\n')
+        ev, = kind.module_kinds(src, {"age_h"})[0]["age_h"]
+        self.assertEqual(ev.verdict, kind.WALL_CLOCK)
+        self.assertTrue(ev.arith)
+
+
+class TheCountedRuleIsRefusedByMeasurement(unittest.TestCase):
+    """Вердикт правила ВЫЧИСЛЯЕТСЯ из двух условий, а не объявлен строкой."""
+
+    @classmethod
+    def setUpClass(cls):
+        names = kind.MEASURE_RULE_SUBJECTS + tuple(_IDENTITY_FIELDS)
+        cls.doc = kind.census(names, _TREE)
+        cls.rule = kind.measure_rule(cls.doc)
+
+    def test_the_verdict_is_REFUSED_on_the_live_tree(self):
+        self.assertEqual(self.rule["verdict"], "REFUSED")
+        self.assertTrue(self.rule["why"])
+
+    def test_the_axis_DOES_the_work_it_was_named_for(self):
+        """Первое условие выполнено: имя, названное заказом замером, поймано."""
+        self.assertTrue(self.rule["axis_does_work"])
+        self.assertIn("realised_usd_per_day", self.rule["subjects_caught"])
+
+    def test_the_refusal_rests_on_the_SECOND_condition_being_broken(self):
+        """Поймано УЖЕ ПРИНЯТОЕ имя ⇒ импликация ложна в нужную сторону."""
+        self.assertFalse(self.rule["axis_spares_admitted"])
+        self.assertTrue(set(self.rule["admitted_names_caught"])
+                        & set(_IDENTITY_FIELDS))
+
+    def test_every_counterexample_is_REPRODUCED_on_real_code(self):
+        for case in kind.MEASURE_RULE_COUNTEREXAMPLES:
+            with self.subTest(field=case["field"]):
+                path = _TREE / case["producer"]
+                self.assertTrue(path.is_file(), f"нет файла {case['producer']}")
+                self.assertTrue(
+                    arith(path.read_text(encoding="utf-8"), case["field"]),
+                    f"{case['field']} у {case['producer']} больше не посчитан — "
+                    f"отказ правила обязан быть пересмотрен РЕШЕНИЕМ")
+                self.assertIn(case["field"], _IDENTITY_FIELDS)
+
+    def test_the_computed_ORDINAL_counterexample_is_an_admitted_identity(self):
+        """``day = best_idx + 1`` — вычисленный НОМЕР, и он именно называет,
+        который это элемент ряда. Гейт по оси выбросил бы принятое имя."""
+        src = (_TREE / "spa_core/backtesting/replay.py").read_text(encoding="utf-8")
+        self.assertTrue(arith(src, "day"))
+        self.assertIn("day", _MEASURED_IDENTITY_FIELDS)
+
+    def test_the_SAME_NAME_is_a_count_at_one_producer_and_a_name_at_others(self):
+        """Род есть свойство МЕСТА, а ``_IDENTITY_FIELDS`` — множество ИМЁН.
+
+        Правило по имени неисполнимо не из осторожности, а по несовпадению
+        granularity, и вот оно поимённо.
+        """
+        src = (_TREE / "scripts/check_undelivered_work.py").read_text(encoding="utf-8")
+        self.assertTrue(arith(src, "code"))
+        self.assertIn("code", _IDENTITY_FIELDS)
+
+    def test_the_one_sidedness_is_MEASURED_and_not_merely_declared(self):
+        """Ось молчит о числе, пришедшем готовым из чужого модуля.
+
+        ``best_net_usd`` заказ назвал замером, и он им является — но у
+        производителя стои́т ``.get("net_usd")``, то есть чтение. Промах назван.
+        """
+        self.assertIn("best_net_usd", self.rule["subjects_missed_by_the_axis"])
+        self.assertTrue(self.rule["one_sidedness"])
+        src = (_TREE / "spa_core/monitoring/criterion_sign_price.py"
+               ).read_text(encoding="utf-8")
+        self.assertEqual(arith(src, "best_net_usd"), set())
+
+    def test_an_unmeasured_name_is_neither_a_vote_FOR_nor_AGAINST(self):
+        """Третий исход не голосует (инв. #17)."""
+        doc = {"fields": {"realised_usd_per_day":
+                          {"arithmetic_verdict": kind.UNMEASURED}}}
+        rule = kind.measure_rule(doc)
+        self.assertFalse(rule["axis_does_work"])
+        self.assertIn("realised_usd_per_day", rule["subjects_unmeasured"])
+        self.assertEqual(rule["subjects_caught"], [])
+
+    def test_asking_NOTHING_is_UNMEASURED_and_not_a_verdict(self):
+        rule = kind.measure_rule({"fields": {}})
+        self.assertEqual(rule["verdict"], kind.UNMEASURED)
+        self.assertIsNone(rule["axis_does_work"])
+
+    def test_the_rule_would_be_ACCEPTED_only_if_BOTH_conditions_held(self):
+        """Положительный контроль самого вычисления: вердикт не прибит гвоздём.
+
+        Сцена сочинённая — и именно поэтому она доказывает, что ``REFUSED`` выше
+        есть ЗАМЕР живого дерева, а не константа.
+        """
+        fields = {n: {"arithmetic_verdict": kind.NOT_ARITH}
+                  for n in _IDENTITY_FIELDS}
+        fields["realised_usd_per_day"] = {"arithmetic_verdict": kind.ARITH_DERIVED}
+        rule = kind.measure_rule({"fields": fields})
+        self.assertEqual(rule["verdict"], "ACCEPTED")
+
+    def test_the_module_still_offers_no_gate_for_the_new_axis_either(self):
+        public = {n for n in dir(kind) if not n.startswith("_")}
+        forbidden = {"reject_measure", "is_measure_unfit", "drop_measures",
+                     "apply_measure_rule", "unfit_by_arithmetic"}
+        self.assertEqual(public & forbidden, set())
 
 
 if __name__ == "__main__":                                   # pragma: no cover
