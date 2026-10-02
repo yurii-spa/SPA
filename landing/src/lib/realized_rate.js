@@ -87,8 +87,9 @@ export function evidencedDays(_ignoredSnap) {
 export function drawdownPhrase(_ignoredSnap, ru = false) {
   const dd = Number(NUMBERS && NUMBERS.headline && NUMBERS.headline.drawdown
                     && NUMBERS.headline.drawdown.value);
-  const shown = Number.isFinite(dd) ? Math.abs(dd).toFixed(1) : '0.0';
+  if (!Number.isFinite(dd)) return ru ? 'наблюдавшаяся просадка не измерена' : 'observed drawdown not measured';
+  const shown = Math.abs(dd).toFixed(1);
   return ru
-    ? `просадка ${shown.replace('.', ',')}% — начисление по построению не уходит в минус, издержки перекладок в кривую пока не списываются`
-    : `${shown}% drawdown — an accrual book cannot fall by construction; trading costs are not charged to the curve yet`;
+    ? `наблюдавшаяся просадка ${shown.replace('.', ',')}% — прошлое наблюдение, не предел убытка: кредитное начисление редко уходит в минус, а депег или сбой протокола в этой истории не встречались`
+    : `observed drawdown ${shown}% — a past observation, not a loss limit: lending accrual rarely falls, and a depeg or protocol failure has not occurred in this history`;
 }

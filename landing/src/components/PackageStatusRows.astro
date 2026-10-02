@@ -1,0 +1,183 @@
+---
+// PackageStatusRows — the rows of a paper-portfolio card, one format for all three (ADR-537).
+//
+// Every surface that shows Conservative / Balanced / Aggressive (home, /packages, strategy pages)
+// renders these rows from the SAME status record through the SAME rule (lib/package_card.js).
+// `part` lets a page keep its own frame around them:
+//   status — the operational line: work + data badges and their reasons
+//   live   — real-capital admission (PAPER only + not approved / refused, with the reason)
+//   body   — mechanic · position/decision · result · statistics · risk · freshness · research target
+//   all    — the three in that order
+// The server render uses the daily snapshot; the card script below re-renders from
+// /api/v1/packages/status and re-judges freshness by the reader's clock every minute.
+import { cardModels } from '../lib/package_card.js';
+import snap from '../lib/snapshot_view.js';
+
+interface Props { pkg: 'conservative' | 'balanced' | 'aggressive'; part?: 'status' | 'live' | 'body' | 'all'; }
+const { pkg, part = 'all' } = Astro.props;
+const ps = (snap && snap.package_status) || null;
+const rec = (ps && ps.packages && ps.packages[pkg]) || null;
+const { en: E, ru: R } = cardModels(pkg, rec, Date.now());
+const show = (p: string) => part === 'all' || part === p;
+const val = (m: any, path: string) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), m);
+const t = (path: string) => ({ en: val(E, path) ?? '', ru: val(R, path) ?? '' });
+const missing = E.missing === true;
+const publishedAt = ps && ps.published_at ? String(ps.published_at).slice(0, 16).replace('T', ' ') + ' UTC' : '—';
+---
+<div class="pkr" data-pkg-rows={pkg} data-part={part} data-rec={JSON.stringify(rec)} data-published={publishedAt}>
+  {show('status') && (
+    <div class="pkr-status">
+      <div class="pkr-badges">
+        <span class="pkr-badge" data-tone={E.work.tone} data-tone-slot="work.tone" data-slot="work.label" data-ru={t('work.label').ru}>{t('work.label').en}</span>
+        {!missing && <span class="pkr-badge" data-tone={E.data.tone} data-tone-slot="data.tone" data-slot="data.label" data-ru={t('data.label').ru}>{t('data.label').en}</span>}
+      </div>
+      <p class="pkr-note" data-slot="work.reason" data-ru={t('work.reason').ru} hidden={!t('work.reason').en}>{t('work.reason').en}</p>
+      {!missing && <p class="pkr-note pkr-warn" data-slot="data.reason" data-ru={t('data.reason').ru} hidden={!t('data.reason').en}>{t('data.reason').en}</p>}
+      {!missing && <p class="pkr-note pkr-warn" data-slot="data.missed" data-ru={t('data.missed').ru} hidden={!t('data.missed').en}>{t('data.missed').en}</p>}
+    </div>
+  )}
+  {show('live') && !missing && (
+    <p class="pkr-live" data-tone={E.live.tone} data-tone-slot="live.tone">
+      <span class="pkr-chip" data-slot="live.label" data-ru={t('live.label').ru}>{t('live.label').en}</span>
+      <span class="pkr-live-why" data-slot="live.reason" data-ru={t('live.reason').ru}>{t('live.reason').en}</span>
+    </p>
+  )}
+  {show('body') && !missing && (
+    <dl class="pkr-dl">
+      <div><dt data-ru="Механика текущей версии">Mechanic of the current version</dt>
+        <dd><span data-slot="mechanic" data-ru={t('mechanic').ru}>{t('mechanic').en}</span>
+          <span class="pkr-mono" data-slot="version" data-ru={t('version').ru}>{t('version').en}</span></dd></div>
+      <div><dt data-ru="Позиция и решение">Position and decision</dt>
+        <dd><span class="pkr-strong" data-slot="decision.label" data-ru={t('decision.label').ru}>{t('decision.label').en}</span>
+          <span class="pkr-sub" data-slot="decision.position" data-ru={t('decision.position').ru}>{t('decision.position').en}</span>
+          <span class="pkr-sub" data-slot="decision.reason" data-ru={t('decision.reason').ru} hidden={!t('decision.reason').en}>{t('decision.reason').en}</span>
+          <span class="pkr-sub pkr-warn-text" data-slot="decision.defect" data-ru={t('decision.defect').ru} hidden={!t('decision.defect').en}>{t('decision.defect').en}</span></dd></div>
+      <div class="pkr-result"><dt data-ru="Бумажный результат текущей версии">Paper result of the current version</dt>
+        <dd><span class="pkr-result-main" data-measured={String(E.result && E.result.measured === true)} data-flag-slot="result.measured" data-slot="result.main" data-ru={t('result.main').ru}>{t('result.main').en}</span>
+          <span class="pkr-sub" data-slot="result.unit" data-ru={t('result.unit').ru} hidden={!t('result.unit').en}>{t('result.unit').en}</span>
+          <span class="pkr-sub" data-slot="result.sub" data-ru={t('result.sub').ru}>{t('result.sub').en}</span>
+          <span class="pkr-sub" data-slot="costs" data-ru={t('costs').ru}>{t('costs').en}</span></dd></div>
+      <div><dt data-ru="Зрелость статистики">Statistics maturity</dt>
+        <dd><span data-slot="history.label" data-ru={t('history.label').ru}>{t('history.label').en}</span></dd></div>
+      <div><dt data-ru="Профиль риска">Risk profile</dt>
+        <dd><span data-slot="risk.profile" data-ru={t('risk.profile').ru}>{t('risk.profile').en}</span>
+          <span class="pkr-sub" data-ru="цвет статуса не является оценкой риска">the status colour is not a risk grade</span></dd></div>
+      <div><dt data-ru="Наблюдавшаяся просадка">Observed drawdown</dt>
+        <dd data-slot="risk.drawdown" data-ru={t('risk.drawdown').ru}>{t('risk.drawdown').en}</dd></div>
+      <div><dt data-ru="Правило остановки">Stop rule</dt>
+        <dd data-slot="risk.stop" data-ru={t('risk.stop').ru}>{t('risk.stop').en}</dd></div>
+      <div><dt data-ru="Последний успешный цикл">Last successful run</dt>
+        <dd><span class="pkr-mono" data-slot="freshness.last_run" data-ru={t('freshness.last_run').ru}>{t('freshness.last_run').en}</span>
+          <span class="pkr-sub" data-slot="freshness.schedule" data-ru={t('freshness.schedule').ru}>{t('freshness.schedule').en}</span>
+          <span class="pkr-sub" data-slot="source" data-ru={`статус из опубликованного снимка ${publishedAt}`}>status from the published snapshot {publishedAt}</span>
+          <noscript><span class="pkr-sub pkr-warn-text">Without JavaScript this is the status at publication, not now / Без JavaScript это статус на момент публикации, а не сейчас</span></noscript></dd></div>
+    </dl>
+  )}
+  {show('body') && !missing && t('target').en && (
+    <p class="pkr-target"><span data-ru="Исследовательская цель — не результат и не прогноз:">Research target — not a result, not a forecast:</span>
+      <span data-slot="target" data-ru={t('target').ru}>{t('target').en}</span></p>
+  )}
+</div>
+
+<style>
+  .pkr { font-size: .8125rem; color: var(--text-secondary); }
+  .pkr-status { margin: 0 0 12px; }
+  .pkr-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pkr-badge, .pkr-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .75rem; font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-secondary); background: transparent; max-width: 100%; overflow-wrap: anywhere; }
+  .pkr-badge[data-tone="ok"] { color: #34d399; border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.08); }
+  .pkr-badge[data-tone="warn"], .pkr-live[data-tone="warn"] .pkr-chip { color: #eab308; border-color: rgba(234,179,8,.35); background: rgba(234,179,8,.10); }
+  .pkr-badge[data-tone="bad"] { color: #f87171; border-color: rgba(248,113,113,.45); background: rgba(248,113,113,.10); }
+  .pkr-note { margin: 6px 0 0; font-size: .75rem; color: var(--text-muted); line-height: 1.45; overflow-wrap: anywhere; }
+  .pkr-note.pkr-warn { color: #eab308; }
+  .pkr-live { margin: 0 0 14px; line-height: 1.45; }
+  .pkr-live-why { display: block; margin-top: 4px; font-size: .75rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .pkr-dl { margin: 0 0 12px; }
+  .pkr-dl > div { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .pkr-dl > div:last-child { border-bottom: none; }
+  .pkr-dl dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 0 0 3px; }
+  .pkr-dl dd { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+  .pkr-strong { color: var(--text-primary); font-weight: 600; }
+  .pkr-warn-text { color: #eab308 !important; }
+  .pkr-sub { display: block; font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
+  .pkr-mono { font-family: var(--font-mono); font-size: .75rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .pkr-result-main { display: block; font-family: var(--font-mono); font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
+  .pkr-result-main[data-measured="false"] { font-family: inherit; font-size: .9375rem; font-weight: 600; color: var(--text-secondary); }
+  .pkr-target { margin: 0 0 16px; font-size: .75rem; color: var(--text-muted); border-left: 2px solid var(--border); padding-left: 8px; }
+  [hidden] { display: none !important; }
+</style>
+
+<script>
+  import { cardModels } from '../lib/package_card.js';
+
+  const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+  const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as any)[c]);
+  const lang = () => { try { return (window as any).spaI18n?.getLang?.() || 'en'; } catch { return 'en'; } };
+  const val = (m: any, path: string) => path.split('.').reduce((o: any, k) => (o == null ? o : o[k]), m);
+  const fmt = (d: Date) => d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+
+  let live: Record<string, any> | null = null;
+  let liveAt: Date | null = null;
+  let liveFailed = false;
+  let lastTry: Date | null = null;
+
+  function setText(el: Element, en: string, ru: string) {
+    const e = esc(en), r = esc(ru);
+    el.setAttribute('data-en-orig', e);
+    el.setAttribute('data-en', en);          // pages with their own textContent toggle read this one
+    el.setAttribute('data-ru', r);
+    el.innerHTML = lang() === 'ru' ? r : e;
+    (el as HTMLElement).hidden = !en && !ru;
+  }
+
+  function render() {
+    const now = Date.now();
+    document.querySelectorAll<HTMLElement>('[data-pkg-rows]').forEach((box) => {
+      const key = box.dataset.pkgRows as string;
+      let rec: any = null;
+      try { rec = live ? live[key] : JSON.parse(box.dataset.rec || 'null'); } catch { rec = null; }
+      const { en, ru } = cardModels(key, rec, now);
+      box.querySelectorAll('[data-slot]').forEach((el) => {
+        const path = el.getAttribute('data-slot') as string;
+        if (path === 'source') {
+          const pub = box.dataset.published || '—';
+          if (live && liveAt && liveFailed && lastTry)
+            setText(el, `live status fetched ${fmt(liveAt)}; the refresh at ${fmt(lastTry)} failed`,
+                        `живой статус получен ${fmt(liveAt)}; обновление в ${fmt(lastTry)} не удалось`);
+          else if (live && liveAt) setText(el, `live status, fetched ${fmt(liveAt)}`, `живой статус, получен ${fmt(liveAt)}`);
+          else setText(el, `status from the published snapshot ${pub}${liveFailed ? ' — live status unavailable' : ''}`,
+                           `статус из опубликованного снимка ${pub}${liveFailed ? ' — живой статус недоступен' : ''}`);
+          return;
+        }
+        setText(el, val(en, path) ?? '', val(ru, path) ?? '');
+      });
+      box.querySelectorAll('[data-flag-slot]').forEach((el) => {
+        el.setAttribute('data-measured', String(val(en, el.getAttribute('data-flag-slot') as string) === true));
+      });
+      box.querySelectorAll('[data-tone-slot]').forEach((el) => {
+        el.setAttribute('data-tone', val(en, el.getAttribute('data-tone-slot') as string) || 'warn');
+      });
+    });
+  }
+
+  async function load() {
+    lastTry = new Date();
+    try {
+      const r = await fetch(API + '/api/v1/packages/status', { cache: 'no-store' });
+      const body = r.ok ? await r.json() : null;
+      if (body && body.packages && typeof body.packages === 'object') {
+        live = body.packages; liveAt = new Date(); liveFailed = false;
+      } else { liveFailed = true; }
+    } catch { liveFailed = true; }
+    render();
+  }
+
+  if (document.querySelector('[data-pkg-rows]')) {
+    render();
+    load();
+    setInterval(render, 60_000);          // the reader's clock turns an expired record yellow
+    setInterval(load, 5 * 60_000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+  }
+</script>

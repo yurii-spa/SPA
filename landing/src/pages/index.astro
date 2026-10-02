@@ -3,6 +3,7 @@
 // strip, footer) comes from Layout; this page is just the Console body + sections.
 import Layout from '../layouts/Layout.astro';
 import snap from '../lib/snapshot_view.js';
+import PackageStatusRows from '../components/PackageStatusRows.astro';
 // WalletCheck (the paste-an-address hero widget) is NOT imported any more: it cross-navigated to
 // checkup.earn-defi.com, and that service is gone — every route of the domain answers 404 (Railway
 // edge fallback, measured 2026-08-16). An entry form that leads to a 404 is worse than no form.
@@ -27,18 +28,13 @@ const snapAsOf = snap.as_of || snap.generated_at || null;
 // Site-Custodian kill-rule (ADR-YL-011): when degraded, show a plaque instead of a possibly-wrong number
 // (refusal-first — honest absence beats a false figure).
 const degraded = snap.degraded === true;
-// Tier-card net-APY static fallback from snapshot.packages (same source /api/tier1/packages fills). A tier
-// with no computed backend value stays '—' (honest absence, never a hardcoded number); JS overrides live.
-const pkgApy = (k) => { const v = snap.packages && snap.packages[k] && snap.packages[k].apy_pct; return v != null ? Number(v).toFixed(1) + '%' : '—'; };
-// #46 — render the TAIL (worst drawdown) at the point of tier choice, server-side, so a card NEVER
-// shows a bare "—" for its drawdown at first paint. Realized dd from the live snapshot when present
-// (conservative); otherwise the measured BACKTEST worst from the single tier_bands source (clearly
-// tagged "(bt)", evidence-tagged on /packages) — a real measured value, never invented. JS still
-// overrides the data-fb="dd" cells live.
-import TIER_BANDS from '../lib/tier_bands.json';
+// ADR-537: the package cards no longer carry a backtest blend or backtest drawdown fallback — they
+// render from the one status record and the one shelf (components/PackageStatusRows.astro).
+import { researchTarget } from '../lib/package_card.js';
+const aggStart = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive && snap.package_status.packages.aggressive.experiment_start_date) || '—';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, realizedApyPct as realizedPctRR, measuredAt as measuredAtRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, realizedApyPct as realizedPctRR, measuredAt as measuredAtRR, drawdownPhrase as drawdownPhraseRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -47,16 +43,6 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
 const realizedPctNum = realizedPctRR(snapRR);
 const realizedAt = measuredAtRR();
 const calcInit = (typeof realizedPctNum === 'number') ? Math.round(50000 * realizedPctNum / 100).toLocaleString('en-US') : '—';
-const pkgDD = (k) => {
-  const v = snap.packages && snap.packages[k] && snap.packages[k].dd_pct;
-  if (typeof v === 'number') return Number(v).toFixed(1) + '%';
-  return (TIER_BANDS[k] && TIER_BANDS[k].dd_short_en) || '—';
-};
-const pkgDDru = (k) => {
-  const v = snap.packages && snap.packages[k] && snap.packages[k].dd_pct;
-  if (typeof v === 'number') return Number(v).toFixed(1) + '%';
-  return (TIER_BANDS[k] && TIER_BANDS[k].dd_short_ru) || '—';
-};
 // Equity series for the offline spark fallback (build-time, last snapshot).
 // P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
 // so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
@@ -127,12 +113,14 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#34d399" data-ru="до ~6%">up to ~6%<small style="font-size:12px;font-weight:600" data-ru=" цель/год"> /yr target</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru={`${realizedNumRu} факт. на треке · проверяемо · 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) · не гарантия`}>{realizedNumEn} realized to date · auditable · 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) · not a guarantee</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru={realizedNumRu}>{realizedNumEn}</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru={`годовых, фактически на бумаге · замер ${realizedAt ?? "—"} · исследовательская цель ${researchTarget('conservative', true) ?? "—"} — не прогноз`}>annualised, realized on paper · measured {realizedAt ?? "—"} · research target {researchTarget('conservative', false) ?? "—"} — not a forecast</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru={`проверяемо · ${drawdownPhraseRR(snapRR, true)} · за вычетом расчётных газа и проскальзывания собственных ходов книги (с 10.09.2026); реальные издержки исполнения не учтены · не гарантия`}>auditable · {drawdownPhraseRR(snapRR)} · net of modelled gas and slippage of the book’s own moves (since 2026-09-10); real execution costs not included · not a guarantee</div>
         </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (исследование)">Aggressive (research)</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to 20%<small style="font-size:12px;font-weight:600" data-ru=" цель"> target</small></div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-secondary);padding:6px 0" data-ru="результат накапливается">result accumulating</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru={`новая версия с ${aggStart} · исследовательская цель ${researchTarget('aggressive', true) ?? "—"} — не результат и не прогноз`}>new version since {aggStart} · research target {researchTarget('aggressive', false) ?? "—"} — not a result, not a forecast</div>
           <div style="font-size:11px;color:var(--text-faint)" data-ru="бумага · хвост показан · для live отклонён">paper · tail shown · refused for live</div>
         </div>
       </div>
@@ -186,19 +174,19 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <h2 style="font-size:24px;font-weight:800;color:var(--text-primary);margin:0 0 20px" data-ru="Сколько могут заработать ваши стейблкоины">What your stablecoins could earn</h2>
       <div style="font-size:15px;color:var(--text-secondary);margin-bottom:8px"><span data-ru="Сумма">Amount</span>: <span id="calc-amt" style="font-family:var(--font-mono);font-weight:800;color:var(--text-primary)">$50,000</span></div>
       <input id="calc-slider" data-rate={realizedPctNum ?? ""} type="range" min="1000" max="500000" step="1000" value="50000" aria-label="Amount" style="width:100%;max-width:520px;accent-color:#34d399" />
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px">
-        <div style="padding:18px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
-          <div style="font-size:12px;color:#34d399" data-ru="На нашем реализованном треке">At our realized rate</div>
-          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#34d399">~$<span id="calc-real">{calcInit}</span><small style="font-size:13px;font-weight:600">/yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru={`${realizedNumRu} фактической · 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены)`}>{realizedNumEn} realized · 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included)</div>
-        </div>
-        <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px dashed rgba(234,179,8,.5)">
-          <div style="font-size:12px;color:#eab308" data-ru="Если цели исследования подтвердятся">If research targets validate</div>
-          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to $<span id="calc-agg">10,000</span><small style="font-size:13px;font-weight:600">/yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="исследование · цель до 20% · макс. просадка в бэктесте ~50%">research · up-to-20% target · max backtest drawdown ~50%</div>
+      {/* ADR-537: ONE column — the realized Conservative paper rate from the shelf. The second column
+           («if research targets validate: up to $10,000/yr») projected earnings from a research TARGET
+           at the same size as a measured result, with its 20% typed into the script below — a third
+           copy of a public number, and the comparison the owner asked to remove (2026-10-02). It also
+           overflowed a 375 px screen (scrollWidth 396, measured). */}
+      <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-top:22px;max-width:520px;margin-left:auto;margin-right:auto">
+        <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--text-muted)" data-ru="По фактической бумажной ставке Conservative">At the realized Conservative paper rate</div>
+          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)">~$<span id="calc-real">{calcInit}</span><small style="font-size:13px;font-weight:600" data-ru=" в год"> /yr</small></div>
+          <div style="font-size:11px;color:var(--text-faint);overflow-wrap:anywhere" data-ru={`${realizedNumRu} годовых, замер ${realizedAt ?? "—"} · ${drawdownPhraseRR(snapRR, true)} · за вычетом расчётных газа и проскальзывания собственных ходов книги (с 10.09.2026); реальные издержки исполнения не учтены`}>{realizedNumEn} annualised, measured {realizedAt ?? "—"} · {drawdownPhraseRR(snapRR)} · net of modelled gas and slippage of the book’s own moves (since 2026-09-10); real execution costs not included</div>
         </div>
       </div>
-      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация на основе реального фактического числа и исследовательской цели — не обещание. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative from the real realized number + a research target — not a promise. Past paper results don't guarantee future returns.</p>
+      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация на основе фактического бумажного результата — не обещание и не оферта. Balanced и Aggressive здесь не пересчитываются: у их текущих версий ещё нет результата, а исследовательская цель — не результат. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative, from the realized paper result — not a promise and not an offer. Balanced and Aggressive are not projected here: their current versions have no result yet, and a research target is not a result. Past paper results don't guarantee future returns.</p>
     </div>
     <script is:inline>
       (function(){
@@ -208,7 +196,6 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           var a=+s.value;
           document.getElementById('calc-amt').textContent='$'+fmt(a);
           var rr=parseFloat(s.dataset.rate); document.getElementById('calc-real').textContent=isFinite(rr)?fmt(a*rr/100):'—';
-          document.getElementById('calc-agg').textContent=fmt(a*0.20);
         }
         // F1 (redesign): fire calc_interact ONCE when the user first engages the yield calculator
         // (a funnel-depth signal), then keep updating. Throttled to a single event to avoid flooding.
@@ -266,54 +253,37 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     <div class="container">
       <div class="sec-head">
         <span class="eyebrow" data-ru="Стратегии">Strategies</span>
-        <h2 data-ru="Три профиля риска, одна детерминированная политика">Three risk profiles, one deterministic policy</h2>
-        <p data-ru="Доходность бумажная и переменная, не гарантирована. Live-данные через api.earn-defi.com.">APY is paper and variable, not guaranteed. Live data via api.earn-defi.com.</p>
+        <h2 data-ru="Три бумажных портфеля, три разные механики">Three paper portfolios, three different mechanics</h2>
+        <p data-ru="Только бумага, реального капитала нет. Статус работы обновляется по живому расписанию; результат показывается только для текущей версии стратегии и только когда статистики достаточно. Доходность переменная и не гарантирована.">Paper only, no real capital. The operating status follows the live schedule; a result is shown only for the current strategy version and only once it has enough statistics. Yield is variable and not guaranteed.</p>
         <div class="pkg-meta-row">
           <span class="pkg-meta-chip" id="pkgMetaChip">
             <span class="dot" aria-hidden="true"></span>
-            <span id="pkgMetaText" data-ru="Чистый APY — валидированный бэктест · advisory · не реализованный капитал">Net APY — validated backtest · advisory · not realized capital</span>
+            <span id="pkgMetaText" data-ru="Зелёный статус значит «процесс работает и данные свежие» — это не оценка риска, не доходность и не допуск к реальным деньгам">A green status means “the process runs and its data is fresh” — not a risk grade, not a return and not approval for real money</span>
           </span>
         </div>
       </div>
       <div class="tier-grid" id="tierGrid">
-        <div class="tier-card t-preserve">
+        <div class="tier-card t-preserve" data-pkg="conservative">
           <h3>Conservative</h3>
-          <span class="pill ok" data-ru="Бумажный трек · подтверждён">Paper-tracked · evidenced</span>
-          <div class="tier-apy" data-ru={realizedNumRu}>{realizedNumEn}<small> paper, annualised</small></div>
-          <div class="tier-cap" data-ru={`бумажный · годовых · замер ${realizedAt ?? "—"} · цель до 6% · не гарантирован`}>paper · annualised · measured {realizedAt ?? "—"} · target up to 6% · not guaranteed</div>
-          <ul class="tier-dl">
-            <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>
-            <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
-          </ul>
-          <p class="tier-who" style="color:#34d399" data-ru={`Реальная книга, которую деск ведёт сегодня — живой бумажный трек с 22 июня 2026, ${realizedNumRu} реализовано.`}>The real book the desk runs today — a live paper track since June 22, 2026, {realizedNumEn} realized so far.</p>
-          <a class="btn-card" href="/strategies/conservative" data-track="tier_view_conservative" data-ru="Подробнее →">View strategy details →</a>
+          <PackageStatusRows pkg="conservative" part="status" />
+          <PackageStatusRows pkg="conservative" part="live" />
+          <PackageStatusRows pkg="conservative" part="body" />
+          <a class="btn-card" href="/strategies/conservative" data-track="tier_view_conservative" data-ru="Подробнее и доказательства →">Details and evidence →</a>
         </div>
-        <div class="tier-card t-core">
+        <div class="tier-card t-core" data-pkg="balanced">
           <h3>Balanced</h3>
-          <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="Research / paper">Research / paper</span>
-          <div class="tier-apy">up to 12%<small> target, before execution costs</small></div>
-          <div class="tier-cap" data-ru="research/paper · хвост показан · не в go-live треке">research/paper · tail shown · not in go-live track</div>
-          <ul class="tier-dl">
-            <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Сбаланс.">Balanced</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('balanced')}>{pkgDD('balanced')}</span></li>
-            <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
-          </ul>
-          <p class="tier-who" data-ru="Сбалансированная база Уровней 1 и 2.">Balanced Tier 1 + Tier 2 blend.</p>
-          <a class="btn-card" href="/strategies/balanced" data-track="tier_view_balanced" data-ru="Подробнее →">View strategy details →</a>
+          <PackageStatusRows pkg="balanced" part="status" />
+          <PackageStatusRows pkg="balanced" part="live" />
+          <PackageStatusRows pkg="balanced" part="body" />
+          <a class="btn-card" href="/strategies/balanced" data-track="tier_view_balanced" data-ru="Подробнее и доказательства →">Details and evidence →</a>
         </div>
-        <div class="tier-card t-max">
+        <div class="tier-card t-max" data-pkg="aggressive">
           <h3>Aggressive</h3>
+          <PackageStatusRows pkg="aggressive" part="status" />
           <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="Paper-тест · отказан для live">Paper-tested · refused for live</span>
-          <div class="tier-apy">up to 20%<small> target, before execution costs</small></div>
           <div class="tier-cap" data-ru="paper-тест в Aggressive Lab · отказан для live-капитала">paper-tested in Aggressive Lab · refused for live capital</div>
-          <ul class="tier-dl">
-            <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Выше">Higher</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('aggressive')}>{pkgDD('aggressive')}</span></li>
-            <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
-          </ul>
-          <p class="tier-who" data-ru="Advisory-исследование — paper-тест в Aggressive Lab, никогда не в live. Хвост показан честно, не спрятан.">Advisory research — paper-tested in the Aggressive Lab, never live-allocated. The tail is shown honestly, not hidden.</p>
-          <a class="btn-card" href="/strategies/aggressive" data-track="tier_view_aggressive" data-ru="Подробнее →">View strategy details →</a>
+          <PackageStatusRows pkg="aggressive" part="body" />
+          <a class="btn-card" href="/strategies/aggressive" data-track="tier_view_aggressive" data-ru="Подробнее и доказательства →">Details and evidence →</a>
         </div>
       </div>
     </div>
@@ -664,37 +634,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       }).catch(function(){});
     }
 
-    var PKG_ORDER = ['conservative','balanced','aggressive'];
-    function loadPackages(){
-      fetch(API + '/api/tier1/packages').then(function(r){ return r.json(); }).then(function(d){
-        var pkgs = (d && d.packages) || {};
-        // Honesty chip — prefer the API meta.disclaimer (verbatim, EN); the static
-        // bilingual copy already in the DOM stands when offline or in RU.
-        if (d && d.meta && d.meta.disclaimer && LANG() !== 'ru'){
-          var mt = document.getElementById('pkgMetaText');
-          if (mt){ mt.textContent = d.meta.disclaimer; mt.removeAttribute('data-ru'); }
-        }
-        var cards = document.querySelectorAll('#tierGrid .tier-card');
-        PKG_ORDER.forEach(function(key, i){
-          var p = pkgs[key]; var card = cards[i]; if(!p || !card) return;
-          // ADR-531 / P0-4 item 6: Conservative shows its realized paper rate (server-rendered);
-          // the backtest blend is not the package rate and must not replace it.
-          if(key === 'conservative') return;
-          var apy = (p.blended_net_apy_pct != null) ? Number(p.blended_net_apy_pct).toFixed(1) + '%' : '—';
-          var apyEl = card.querySelector('[data-fb="apy"]');
-          if(apyEl){
-            var small = apyEl.querySelector('small');
-            if(small){ apyEl.innerHTML = apy + small.outerHTML; } else { apyEl.textContent = apy; }
-          }
-          var ddEl = card.querySelector('[data-fb="dd"]');
-          if(ddEl){
-            var dd = (p.worst_dd_pct != null) ? Number(p.worst_dd_pct).toFixed(1) + '%'
-                   : (p.max_dd_limit_pct != null) ? '≤ ' + p.max_dd_limit_pct + '%' : '—';
-            ddEl.textContent = dd;
-          }
-        });
-      }).catch(function(){});
-    }
+    // ADR-537: the package cards are rendered and refreshed by PackageStatusRows from the one status
+    // record (/api/v1/packages/status) and the one shelf; nothing here overwrites them any more —
+    // the old loadPackages() wrote a BACKTEST blend and a backtest drawdown into the cards.
 
     function drawSpark(points){
       var svg = document.getElementById('spark'); if(!svg || !points || points.length < 2) return;
@@ -756,7 +698,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
 
     // UX-09 focus helper removed with the hero widget (2026-08-16); #analyze still scrolls.
 
-    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); loadRefusalCount(); }
+    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadEvidence(); loadNav(); loadRefusalCount(); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();

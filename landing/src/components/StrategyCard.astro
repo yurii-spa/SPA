@@ -22,6 +22,13 @@ interface Props {
 }
 
 const { strategy } = Astro.props;
+// ADR-537: the card's status and result come from the ONE status record and the ONE shelf through the
+// same rows the home page and /packages render; the research target from the ONE band source
+// (tier_bands.json). strategy_config's own `target_apy` (6/5/15) disagreed with that band source
+// (6/12/20) — a third copy of the same public number — so the card no longer prints it.
+import PackageStatusRows from './PackageStatusRows.astro';
+const PKG: Record<string, 'conservative' | 'balanced' | 'aggressive'> = { preserve: 'conservative', core: 'balanced', 'max-yield': 'aggressive' };
+const pkg = PKG[strategy.id];
 
 // RU strings: tagline / description / target note come from strategy_config.json's own RU fields (ONE
 // source with the strategy pages — ADR-533 found this table saying «Tier 1 only… paper tracking not
@@ -62,43 +69,21 @@ const strategyRu: Record<string, StrategyRu> = {
 };
 const ru: StrategyRu | undefined = strategyRu[strategy.id];
 
-const statusStyles: Record<string, string> = {
-  'paper-tracked': 'bg-ok-bg text-ok border border-ok-border',
-  'target-profile': 'bg-blue-600/10 text-blue-400 border border-blue-800',
-  'coming-soon': 'bg-white/5 text-white/55 border border-white/10',
-  'live': 'bg-ok-bg text-ok border border-ok-border',
-};
-
 const isDisabled = strategy.status === 'coming-soon';
 ---
 
 <div class="rounded-2xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 flex flex-col h-full hover:border-white/20 transition-colors">
-
-  <!-- Status badge -->
-  <div class="mb-5">
-    <span class={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${statusStyles[strategy.status] || statusStyles['coming-soon']}`}>
-      {strategy.status === 'live' && (
-        <span class="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" aria-hidden="true"></span>
-      )}
-      <span data-ru={ru?.status_label}>{strategy.status_label}</span>
-    </span>
-  </div>
 
   <!-- Name + tagline. h2 (not h3): these tier cards are the top-level sections under the page h1,
        so h1→h2 keeps the heading order skip-free (WCAG 1.3.1). Styling is class-based → unchanged. -->
   <h2 class="text-xl font-bold text-white mb-1">{strategy.name}</h2>
   <p class="text-sm text-white/50 mb-6" data-ru={strategy.taglineRu ?? ru?.tagline}>{strategy.tagline}</p>
 
-  <!-- APY -->
+  {pkg && <PackageStatusRows pkg={pkg} part="all" />}
   <div class="mb-6">
-    <p class="text-[10px] text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Целевой профиль">Target profile</p>
-    <div class="flex items-baseline gap-1">
-      <span class="text-4xl font-mono font-bold text-white">~{strategy.target_apy}%</span>
-      <span class="text-sm text-white/50 font-mono" data-ru="целевой APY">target APY</span>
-    </div>
-    <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={strategy.target_apy_note_ru ?? ru?.target_apy_note}>{strategy.target_apy_note}</p>
+    <p class="text-[11px] text-white/40 font-mono mb-1"><span data-ru="Исследовательский ярлык:">Research label:</span> <span data-ru={ru?.status_label}>{strategy.status_label}</span></p>
+    <p class="text-[11px] text-white/40 mt-1 leading-relaxed" data-ru={strategy.target_apy_note_ru ?? ru?.target_apy_note}>{strategy.target_apy_note}</p>
   </div>
-
   <!-- Risk bars -->
   <div class="mb-6">
     <div class="flex items-center gap-2 mb-1">

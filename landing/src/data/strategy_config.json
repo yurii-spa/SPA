@@ -51,23 +51,20 @@
       "descriptionRu": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
       "description": "Floating stablecoin lending plus a fixed-rate part: Pendle principal tokens bought at a discount and held to maturity (up to 40% of the book). Research/paper — the evidenced June 22 track belongs to Conservative, not to this tier.",
       "yield_sources": [
-        "Aave V3 USDC",
-        "Morpho Blue USDC",
-        "Compound V3 USDC",
-        "Yearn V3 USDC",
-        "Euler V2 USDC"
+        "Floating stablecoin lending (live APY and TVL)",
+        "Pendle PT on sUSDS, bought at a discount and held to maturity"
       ],
       "does_not": [
         "Use leverage",
         "Use looping",
-        "Bypass RiskPolicy gates",
-        "Allocate to unaudited protocols"
+        "Sell a PT before maturity (v1 holds to maturity)",
+        "Claim RiskPolicy v1.0 protection — it is a paper book outside RiskPolicy with its own stop"
       ],
       "does_not_ru": [
         "Использовать плечо",
         "Использовать лупинг",
-        "Обходить гейты RiskPolicy",
-        "Размещать средства в неаудированных протоколах"
+        "Продавать PT до погашения (версия 1 держит до погашения)",
+        "Ссылаться на защиту RiskPolicy v1.0 — это бумажная книга вне RiskPolicy со своим стопом"
       ],
       "target_apy_note": "Target band. Research/paper only, not live-allocated and not part of the go-live track. Measured 2026-09-09: coverage by observed rates was 0.0% — the book accrued on literals. It is being rebuilt onto observed rates with mark-to-market (ADR-292); until that lands no realized number is claimed here.",
       "target_apy_note_ru": "Целевая полоса. Только исследование/бумага, без live-аллокации и вне go-live трека. Замер 09.09.2026: покрытие наблюдаемыми ставками было 0.0% — книга начислялась по литералам. Переводится на наблюдаемые ставки с переоценкой позиций (ADR-292); до этого фактическое число здесь не заявляется.",
@@ -78,7 +75,11 @@
       "path": "/strategies/balanced",
       "tagline_ru": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием",
       "description_ru": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
-      "taglineRu": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием"
+      "taglineRu": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием",
+      "yield_sources_ru": [
+        "Плавающее кредитование стейблкоинов (живые APY и TVL)",
+        "Pendle PT на sUSDS, купленный с дисконтом и удерживаемый до погашения"
+      ]
     },
     {
       "id": "max-yield",
@@ -95,14 +96,13 @@
       "description": "The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market’s own data. The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.",
       "descriptionRu": "Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка. Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.",
       "yield_sources": [
-        "Optimised Aave positions",
-        "Advanced Morpho vaults",
-        "Selected higher-yield pools"
+        "Concentrated stablecoin lending (top-2, ≤60% per protocol)",
+        "Simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market (≤50% of the book)"
       ],
       "does_not": [
         "Move real / live capital (paper-only, refused for live)",
-        "Bypass RiskPolicy gates",
-        "Allocate without risk gate approval"
+        "Sign or send a transaction (no keys, on-chain reads only)",
+        "Claim RiskPolicy v1.0 protection — it is outside RiskPolicy, held by its own stop and the loop exit rules"
       ],
       "target_apy_note": "Target profile. Research/paper only, refused for live capital by design. Measured 2026-09-09: coverage by observed rates was 0.0% — the book accrued on literals. Being rebuilt onto observed rates with mark-to-market (ADR-292). Possible loss of capital.",
       "target_apy_note_ru": "Целевой профиль. Только исследование/бумага, для live-капитала отказан по построению. Замер 09.09.2026: покрытие наблюдаемыми ставками было 0.0% — книга начислялась по литералам. Переводится на наблюдаемые ставки с переоценкой (ADR-292). Возможна потеря капитала.",
@@ -110,7 +110,11 @@
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
       ],
-      "path": "/strategies/aggressive"
+      "path": "/strategies/aggressive",
+      "yield_sources_ru": [
+        "Концентрированное кредитование стейблкоинов (два лучших рынка, ≤60% на протокол)",
+        "Симулированная петля «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue (≤50% книги)"
+      ]
     }
   ],
   "global": {

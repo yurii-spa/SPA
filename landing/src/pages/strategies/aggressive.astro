@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import PackageStatusRows from '../../components/PackageStatusRows.astro';
 import strategies from '../../data/strategy_config.json';
 
 const maxYield = strategies.strategies.find(s => s.id === 'max-yield')!;
@@ -33,10 +34,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
 
     <!-- 1. Hero -->
     <section class="pt-12 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
-        <span data-ru="Research · Paper">Research · Paper</span>
-      </div>
+      <div class="mb-6 max-w-2xl"><PackageStatusRows pkg="aggressive" part="status" /></div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Aggressive">
         Aggressive Strategy
       </h1>
@@ -45,17 +43,14 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
       </p>
     </section>
 
-    <!-- 2. Target APY -->
+    <!-- 2. Paper status of the current version (ADR-537: the same rows as the home page and /packages;
+         the research target is a secondary line inside them, never the headline number) -->
     <section class="py-10 border-t border-white/5">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-        <div>
-          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
-          <div class="flex items-baseline gap-2">
-            <span class="text-5xl font-mono font-bold text-accent-400">up to 20%</span>
-            <span class="text-sm text-white/50 font-mono">target APY</span>
-          </div>
-          <p class="text-xs text-white/25 mt-2" data-ru={maxYield.target_apy_note_ru}>{maxYield.target_apy_note}</p>
-        </div>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Бумажный портфель сейчас">The paper portfolio now</p>
+      <div class="max-w-2xl">
+        <PackageStatusRows pkg="aggressive" part="live" />
+        <PackageStatusRows pkg="aggressive" part="body" />
+        <p class="text-xs text-white/25 mt-2" data-ru={maxYield.target_apy_note_ru}>{maxYield.target_apy_note}</p>
       </div>
     </section>
 
@@ -166,8 +161,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Источники доходности">Yield Sources</p>
       <div class="flex flex-wrap gap-2">
-        {maxYield.yield_sources.map((source: string) => (
-          <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
+        {maxYield.yield_sources.map((source: string, i: number) => (
+          <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10" data-ru={maxYield.yield_sources_ru?.[i] ?? source}>
             {source}
           </span>
         ))}
@@ -183,9 +178,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { en: 'Move real / live capital — paper-only, refused for live', ru: 'Двигать реальный / live-капитал — только paper, отказан для live' },
-          { en: 'Allocate without risk gate approval', ru: 'Размещать средства без одобрения риск-гейта' },
-          { en: 'Bypass RiskPolicy deterministic gate', ru: 'Обходить детерминированный гейт RiskPolicy' },
-          { en: 'Override kill switch in any scenario', ru: 'Переопределять kill switch в любом сценарии' },
+          { en: 'Sign or send a transaction — no keys; on-chain reads only', ru: 'Подписывать или отправлять транзакции — ключей нет, только чтение данных из блокчейна' },
+          { en: 'Claim RiskPolicy v1.0 protection — it is outside RiskPolicy, held by its own stop and the loop’s exit rules', ru: 'Ссылаться на защиту RiskPolicy v1.0 — книга вне RiskPolicy, её держат собственный стоп и правила выхода петли' },
+          { en: 'Override its own stop or the loop’s exit rules', ru: 'Отменять собственный стоп или правила выхода петли' },
         ].map((item) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
             <span class="text-danger flex-shrink-0">&#10005;</span>

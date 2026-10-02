@@ -62,14 +62,14 @@
         "first_v2_date": "2026-10-02",
         "v1_rows": 39,
         "v1_last_date": "2026-10-01",
-        "v1_classification": "DISTORTED \u2014 kept as historical evidence, not comparable with v2",
+        "v1_classification": "DISTORTED — kept as historical evidence, not comparable with v2",
         "adr": "ADR-531"
       },
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
-        "label_en": "earlier period distorted by the identified accounting defect \u2014 retained for audit, not shown",
-        "label_ru": "\u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434 \u0438\u0441\u043a\u0430\u0436\u0451\u043d \u0432\u044b\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u043c \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u043c \u0443\u0447\u0451\u0442\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u0434\u043b\u044f \u0430\u0443\u0434\u0438\u0442\u0430, \u043d\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f"
+        "label_en": "earlier period distorted by the identified accounting defect — retained for audit, not shown",
+        "label_ru": "прежний период искажён выявленным дефектом учёта — сохранён для аудита, не показывается"
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
@@ -101,14 +101,14 @@
         "first_v2_date": "2026-10-02",
         "v1_rows": 39,
         "v1_last_date": "2026-10-01",
-        "v1_classification": "DISTORTED \u2014 kept as historical evidence, not comparable with v2",
+        "v1_classification": "DISTORTED — kept as historical evidence, not comparable with v2",
         "adr": "ADR-531"
       },
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
-        "label_en": "earlier period distorted by the identified accounting defect \u2014 retained for audit, not shown",
-        "label_ru": "\u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434 \u0438\u0441\u043a\u0430\u0436\u0451\u043d \u0432\u044b\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u043c \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u043c \u0443\u0447\u0451\u0442\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u0434\u043b\u044f \u0430\u0443\u0434\u0438\u0442\u0430, \u043d\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f"
+        "label_en": "earlier period distorted by the identified accounting defect — retained for audit, not shown",
+        "label_ru": "прежний период искажён выявленным дефектом учёта — сохранён для аудита, не показывается"
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
@@ -122,95 +122,193 @@
     }
   },
   "package_status": {
-    "generated_at": "2026-10-02T02:06:22Z",
+    "published_at": "2026-10-02T10:47:02Z",
+    "generated_at": "2026-10-02T10:47:02Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
+    "status_colour_is_not_a_risk_grade": true,
     "packages": {
       "conservative": {
+        "package": "conservative",
         "running_version": "conservative-lending-v1",
         "mandate_version": "conservative-lending-v1",
-        "mechanic": "unlevered stablecoin supply in T1/T2 lending markets",
+        "accounting_version": "main-book-adr298",
         "experiment_id": "conservative-lending-v1@2026-06-22",
         "experiment_start_date": "2026-06-22",
         "new_version_pending": null,
-        "headline_en": "Paper test running \u00b7 101 valid days of the current version",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0438\u0434\u0451\u0442 \u00b7 101 \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d. \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438",
+        "headline_en": "Paper test running · 101 valid days of the current version",
+        "headline_ru": "Бумажный тест идёт · валидных дней текущей версии: 101",
+        "mechanic_short_en": "unlevered stablecoin lending",
+        "mechanic_short_ru": "кредитование стейблкоинов без плеча",
         "work": {
           "state": "RUNNING",
-          "reason": null,
-          "last_run_at": "2026-10-02T00:33:04.310434+00:00"
+          "reason_en": null,
+          "reason_ru": null,
+          "last_run_at": "2026-10-02T09:55:40.444175+00:00",
+          "age_h": 0.86
         },
         "data": {
           "state": "HEALTHY",
-          "reason": null,
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T00:33:04.310434+00:00"
+          "last_observation_at": "2026-10-02T09:55:40.444175+00:00",
+          "missed_runs_24h": null,
+          "observations": null
+        },
+        "decision": {
+          "state": "OPEN",
+          "position_en": "5 lending positions, cash $5,000",
+          "position_ru": "позиций кредитования: 5, кэш $5 000",
+          "reason_en": "no rebalance: the gain does not beat the cost band",
+          "reason_ru": "без ребаланса: выигрыш не перекрывает порог издержек",
+          "decision_date": "2026-10-02",
+          "defect_en": null,
+          "defect_ru": null
         },
         "history": {
           "state": "REPORTABLE",
           "valid_periods": 101,
           "first_period": "2026-06-22",
           "last_period": "2026-10-02",
-          "reportable_after": 30
+          "reportable_after": 30,
+          "earlier_rows_kept": 0
+        },
+        "mode": {
+          "state": "PAPER_ONLY",
+          "live": "NOT_APPROVED",
+          "live_reason_en": "paper validation; real capital only after the go-live gates and an owner decision",
+          "live_reason_ru": "бумажная проверка; реальный капитал — только после гейтов go-live и решения владельца"
+        },
+        "freshness": {
+          "schedule_en": "daily (cycle at 08:00 local)",
+          "schedule_ru": "ежедневно (цикл в 08:00 по местному времени)",
+          "expected_every_h": 24.0,
+          "stale_after_h": 26.0,
+          "last_successful_run_at": "2026-10-02T09:55:40.444175+00:00",
+          "source_observed_at": "2026-10-02T09:55:40.444175+00:00",
+          "stale_at": "2026-10-03T11:55:40Z"
         }
       },
       "balanced": {
+        "package": "balanced",
         "running_version": "balanced-fixed-carry-v1",
         "mandate_version": "balanced-fixed-carry-v1",
-        "mechanic": "unlevered fixed rate: Pendle PT bought at a discount and held to maturity, next to floating stablecoin supply",
+        "accounting_version": "sleeve-econ-v2",
         "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
         "headline_en": "Paper test running. Statistics of the current version are accumulating (1 valid day so far)",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 1)",
+        "headline_ru": "Бумажный тест запущен. Статистика текущей версии накапливается (валидных дн.: 1)",
+        "mechanic_short_en": "stablecoin lending + Pendle PT fixed rate held to maturity",
+        "mechanic_short_ru": "кредитование стейблкоинов + фиксированная ставка Pendle PT до погашения",
         "work": {
           "state": "RUNNING",
-          "reason": null,
-          "last_run_at": "2026-10-02T01:59:39.345324Z"
+          "reason_en": null,
+          "reason_ru": null,
+          "last_run_at": "2026-10-02T10:00:22.121914Z",
+          "age_h": 0.78
         },
         "data": {
+          "state": "HEALTHY",
+          "reason_en": null,
+          "reason_ru": null,
+          "last_observation_at": "2026-10-02T10:00:22Z",
+          "missed_runs_24h": 0,
+          "observations": 13
+        },
+        "decision": {
           "state": "HOLD",
-          "reason": "sUSDS 0x9c560ebaf78e596cbcc27411d633a74d628dd7dc: implied 4.905 % < floor 6.336 % (benchmark 7.336 %)",
+          "position_en": "no PT bought — waiting for its entry conditions",
+          "position_ru": "PT не куплен — ждёт условий входа",
           "reason_en": "the PT fixed rate (4.905 %) is below the floor (6.336 %) set by the floating benchmark",
-          "reason_ru": "\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 PT (4.905 %) \u043d\u0438\u0436\u0435 \u043f\u043e\u0440\u043e\u0433\u0430 (6.336 %), \u0437\u0430\u0434\u0430\u043d\u043d\u043e\u0433\u043e \u043f\u043b\u0430\u0432\u0430\u044e\u0449\u0435\u0439 \u0441\u0442\u0430\u0432\u043a\u043e\u0439",
-          "last_observation_at": "2026-10-02T01:59:39Z"
+          "reason_ru": "фиксированная ставка PT (4,905 %) ниже порога (6,336 %), заданного плавающей ставкой",
+          "decision_date": "2026-10-02",
+          "defect_en": "this decision used a defective benchmark (an aave_v3 rate spike the book does not hold; fixed in 979de337) — the next scheduled decision uses the corrected rule",
+          "defect_ru": "это решение принято по дефектному ориентиру (скачок ставки aave_v3, которого нет в книге; исправлено в 979de337) — следующее плановое решение идёт по исправленному правилу"
         },
         "history": {
           "state": "WARMUP",
           "valid_periods": 1,
           "first_period": "2026-10-02",
           "last_period": "2026-10-02",
-          "reportable_after": 30
+          "reportable_after": 30,
+          "earlier_rows_kept": 39
+        },
+        "mode": {
+          "state": "PAPER_ONLY",
+          "live": "REFUSED",
+          "live_reason_en": "research paper portfolio outside the go-live track — refused for live capital",
+          "live_reason_ru": "исследовательский бумажный портфель вне трека go-live — реальный капитал не допускается"
+        },
+        "freshness": {
+          "schedule_en": "hourly; one accounting row a day",
+          "schedule_ru": "ежечасно; одна учётная строка в день",
+          "expected_every_h": 1.0,
+          "stale_after_h": 2.5,
+          "last_successful_run_at": "2026-10-02T10:00:22.121914Z",
+          "source_observed_at": "2026-10-02T10:00:22Z",
+          "stale_at": "2026-10-02T12:30:22Z"
         }
       },
       "aggressive": {
+        "package": "aggressive",
         "running_version": "aggressive-susde-loop-v1",
         "mandate_version": "aggressive-susde-loop-v1",
-        "mechanic": "SIMULATED recursive lending: sUSDe collateral, PYUSD debt on Morpho Blue (market 0x90ef\u2026, LLTV 0.915), next to concentrated stablecoin supply",
+        "accounting_version": "sleeve-econ-v2",
         "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
         "headline_en": "Paper test running. Statistics of the current version are accumulating (1 valid day so far)",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 1)",
+        "headline_ru": "Бумажный тест запущен. Статистика текущей версии накапливается (валидных дн.: 1)",
+        "mechanic_short_en": "stablecoin lending + a simulated sUSDe/PYUSD loop on Morpho Blue",
+        "mechanic_short_ru": "кредитование стейблкоинов + симулированная петля sUSDe/PYUSD на Morpho Blue",
         "work": {
           "state": "RUNNING",
-          "reason": null,
-          "last_run_at": "2026-10-02T01:59:40.408512Z"
+          "reason_en": null,
+          "reason_ru": null,
+          "last_run_at": "2026-10-02T10:00:08.308443Z",
+          "age_h": 0.78
         },
         "data": {
           "state": "HEALTHY",
-          "reason": null,
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T01:59:40Z"
+          "last_observation_at": "2026-10-02T10:00:08Z",
+          "missed_runs_24h": 0,
+          "observations": 13
+        },
+        "decision": {
+          "state": "OPEN",
+          "position_en": "simulated loop open · debt $116,697 · health factor 1.307 at the last check",
+          "position_ru": "симулированная петля открыта · долг $116 697 · фактор здоровья 1,307 на последней проверке",
+          "reason_en": "entry conditions met",
+          "reason_ru": "условия входа выполнены",
+          "decision_date": "2026-10-02",
+          "defect_en": null,
+          "defect_ru": null
         },
         "history": {
           "state": "WARMUP",
           "valid_periods": 1,
           "first_period": "2026-10-02",
           "last_period": "2026-10-02",
-          "reportable_after": 30
+          "reportable_after": 30,
+          "earlier_rows_kept": 39
+        },
+        "mode": {
+          "state": "PAPER_ONLY",
+          "live": "REFUSED",
+          "live_reason_en": "simulated leverage, research paper portfolio — refused for live capital",
+          "live_reason_ru": "симулированное плечо, исследовательский бумажный портфель — реальный капитал не допускается"
+        },
+        "freshness": {
+          "schedule_en": "hourly; loop supervised every run, one accounting row a day",
+          "schedule_ru": "ежечасно; петля проверяется каждый запуск, одна учётная строка в день",
+          "expected_every_h": 1.0,
+          "stale_after_h": 2.5,
+          "last_successful_run_at": "2026-10-02T10:00:08.308443Z",
+          "source_observed_at": "2026-10-02T10:00:08Z",
+          "stale_at": "2026-10-02T12:30:08Z"
         }
       }
     }
@@ -740,7 +838,7 @@
       "source": "backfill",
       "evidenced": false,
       "series_reset": true,
-      "note": "series_reset: start of the backfill synthetic series \u2014 the equity step from the prior (warmup) series is a SERIES BOUNDARY, not a real daily loss (daily_return_pct=0.0 by construction; not evidenced, not counted)."
+      "note": "series_reset: start of the backfill synthetic series — the equity step from the prior (warmup) series is a SERIES BOUNDARY, not a real daily loss (daily_return_pct=0.0 by construction; not evidenced, not counted)."
     },
     {
       "date": "2026-06-11",
@@ -1006,7 +1104,7 @@
         "yearn_v3": 3170.45
       },
       "reconstructed": true,
-      "reconstruction_note": "interpolated \u2014 no daily_cycle log for this date; bounded by real 06-20 and 06-22 close",
+      "reconstruction_note": "interpolated — no daily_cycle log for this date; bounded by real 06-20 and 06-22 close",
       "source": "reconstructed",
       "evidenced": false
     },

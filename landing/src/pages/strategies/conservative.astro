@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import PackageStatusRows from '../../components/PackageStatusRows.astro';
 import strategies from '../../data/strategy_config.json';
 import snap from '../../lib/snapshot_view.js';
 import { goLiveLabel } from '../../lib/golive_label.js';
@@ -29,10 +30,7 @@ const goLive = goLiveLabel(snap);
 
     <!-- 1. Hero -->
     <section class="pt-20 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-ok-bg border border-ok-border text-xs text-ok font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
-        <span data-ru="Бумажный трек · подтверждён (anchor 22.06.2026)">Paper-Tracked · evidenced (anchor Jun 22, 2026)</span>
-      </div>
+      <div class="mb-6 max-w-2xl"><PackageStatusRows pkg="conservative" part="status" /></div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Conservative">
         Conservative Strategy
       </h1>
@@ -41,17 +39,14 @@ const goLive = goLiveLabel(snap);
       </p>
     </section>
 
-    <!-- 2. Target APY -->
+    <!-- 2. Paper status of the current version (ADR-537: the same rows as the home page and /packages;
+         the research target is a secondary line inside them, never the headline number) -->
     <section class="py-10 border-t border-white/5">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-        <div>
-          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
-          <div class="flex items-baseline gap-2">
-            <span class="text-5xl font-mono font-bold text-accent-400">up to 6%</span>
-            <span class="text-sm text-white/50 font-mono">APY</span>
-          </div>
-          <p class="text-xs text-white/25 mt-2" data-ru={preserve.target_apy_note_ru}>{preserve.target_apy_note}</p>
-        </div>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Бумажный портфель сейчас">The paper portfolio now</p>
+      <div class="max-w-2xl">
+        <PackageStatusRows pkg="conservative" part="live" />
+        <PackageStatusRows pkg="conservative" part="body" />
+        <p class="text-xs text-white/25 mt-2" data-ru={preserve.target_apy_note_ru}>{preserve.target_apy_note}</p>
       </div>
     </section>
 
