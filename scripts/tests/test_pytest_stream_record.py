@@ -187,9 +187,132 @@ def test_without_the_env_var_no_writer_is_created_at_all(monkeypatch) -> None:
     """
     plugin = _import_plugin()
     monkeypatch.delenv(plugin.STREAM_ENV, raising=False)
+    # ⚠️ ЖИВОЙ писатель ЭТОЙ сессии спасается ДО вызова (замер цикла #747,
+    # ADR-534). `pytest_configure` присваивает МОДУЛЬНУЮ глобаль, а
+    # `_import_plugin` отдаёт тот самый объект модуля, которым плагин работает
+    # прямо сейчас, — поэтому без спасения тест выключал потоковую запись
+    # СВОЕГО ЖЕ прогона на весь остаток сессии. Замер шага
+    # `scripts/tests/ + colocated` на РЕАЛЬНОМ прогоне CI 36852036618 (обе ноги
+    # матрицы, побайтово одинаково): запись обрывалась ровно на `start` этого
+    # случая — 416 стартов против 588 тестов собственного junit того же шага,
+    # то есть 172 случая не попадали в неё вовсе, строки `end` не было,
+    # и `ci_verdict --stream` объявлял «сессия не дошла до конца» о сессии,
+    # которая дошла. Утверждение теста НЕ ослаблено (инв. #16): проверяется то
+    # же самое, спасён только сосед. `setattr` на текущее значение регистрирует
+    # возврат — восстановление делает сам monkeypatch на разборе.
+    monkeypatch.setattr(plugin, "_RECORDER", plugin._RECORDER,            # noqa: SLF001
+                        raising=False)
     plugin.pytest_configure(_FakeConfig())
     assert plugin._RECORDER is None, (                                   # noqa: SLF001
         "без переменной окружения писатель всё равно создан — плагин не инертен")
+
+
+# ── положительный контроль на аварию цикла #747 (ADR-534) ───────────────────
+#: Сцена воспроизводит МЕХАНИЗМ, а не файл: случай зовёт `pytest_configure`
+#: без переменной окружения и — в одной из двух сцен — не спасает глобаль.
+_NULLING_CASE = """import importlib
+import sys
+
+sys.path.insert(0, {root!r})
+plugin = importlib.import_module("spa_core.ci.pytest_stream_record")
+
+
+class _Cfg:
+    class invocation_params:
+        args = ()
+
+
+def test_nulls_the_global_recorder(monkeypatch):
+    monkeypatch.delenv(plugin.STREAM_ENV, raising=False)
+{rescue}    plugin.pytest_configure(_Cfg())
+    assert plugin._RECORDER is None
+"""
+
+_AFTER_CASE = """def test_runs_after_the_nulling_case():
+    assert True
+"""
+
+
+def _stream_env_name() -> str:
+    return _import_plugin().STREAM_ENV
+
+
+def _nulling_scene(tmp_path: Path, *, rescue: bool) -> dict:
+    """Два файла-случая и настоящий прогон с плагином.
+
+    Прогон внешний (подпроцесс) намеренно: беда живёт в МОДУЛЬНОЙ глобали
+    плагина, и воспроизводить её внутри своей же сессии значило бы
+    выключить собственную запись — ровно то, что чинится.
+    """
+    scene = tmp_path / ("rescued" if rescue else "bare")
+    scene.mkdir()
+    rescue_line = ('    monkeypatch.setattr(plugin, "_RECORDER", '
+                   "plugin._RECORDER, raising=False)\n" if rescue else "")
+    (scene / "test_a_nulling.py").write_text(
+        _NULLING_CASE.format(root=str(_REPO_ROOT), rescue=rescue_line),
+        encoding="utf-8")
+    (scene / "test_b_after.py").write_text(_AFTER_CASE, encoding="utf-8")
+    record = scene / "stream.jsonl"
+    env = dict(os.environ)
+    env[_stream_env_name()] = str(record)
+    env["SPA_ENV"] = "ci"
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", str(scene), "-q", "-p", "no:randomly",
+         "-p", _PLUGIN_ARG],
+        cwd=str(_REPO_ROOT), capture_output=True, text=True, env=env, timeout=300)
+    text = record.read_text(encoding="utf-8") if record.exists() else ""
+    return {"rc": done.returncode, "out": done.stdout + done.stderr,
+            "record": text}
+
+
+def test_a_case_that_nulls_the_global_recorder_silences_the_rest_of_the_session(
+        tmp_path: Path) -> None:
+    """Контроль в ОБЕ стороны: без спасения запись глохнет, со спасением — нет.
+
+    Мерится РАЗНИЦА двух сцен, а не одна из них: «со спасением всё хорошо» без
+    второй сцены не доказывало бы, что беда вообще возможна, — а она случилась
+    на живом шаге CI и прожила незамеченной, потому что `ci_verdict` честно
+    отвечал на СВОЙ вопрос («дошла ли сессия до конца») и был формально прав
+    и неверен по сути.
+    """
+    bare = _nulling_scene(tmp_path, rescue=False)
+    rescued = _nulling_scene(tmp_path, rescue=True)
+
+    assert bare["rc"] == 0, bare["out"][-2000:]
+    assert rescued["rc"] == 0, rescued["out"][-2000:]
+
+    # БЕЗ спасения: следующего случая в записи нет вовсе, и конца сессии тоже.
+    assert "test_b_after.py" not in bare["record"], (
+        "писатель, выключенный тестом, всё-таки записал следующий случай — "
+        "сцена не воспроизводит аварию, и контроль ничего не стои́т")
+    assert '"e": "end"' not in bare["record"]
+
+    # СО спасением: и случай, и конец сессии на месте.
+    assert "test_b_after.py" in rescued["record"], rescued["record"][-800:]
+    assert '"e": "end"' in rescued["record"]
+
+
+def test_the_real_battery_leaves_its_own_record_complete(tmp_path: Path) -> None:
+    """Исход на РЕАЛЬНОМ файле, а не на сцене: батарея не глушит себя.
+
+    Структурная проверка («в файле есть `monkeypatch.setattr`») судила бы о
+    форме; здесь спрашивается ИСХОД — есть ли в записи строка `end` после
+    прогона настоящей батареи с настоящим плагином.
+    """
+    record = tmp_path / "self.jsonl"
+    env = dict(os.environ)
+    env[_stream_env_name()] = str(record)
+    env["SPA_ENV"] = "ci"
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", str(Path(__file__).resolve()),
+         "-q", "-p", "no:randomly", "-p", _PLUGIN_ARG,
+         "-k", "not leaves_its_own_record_complete and not silences_the_rest"],
+        cwd=str(_REPO_ROOT), capture_output=True, text=True, env=env, timeout=900)
+    assert record.exists(), done.stdout[-2000:]
+    text = record.read_text(encoding="utf-8")
+    assert '"e": "end"' in text, (
+        "батарея плагина оборвала собственную потоковую запись: строки `end` "
+        "нет ⇒ писателя выключили посреди сессии\n" + done.stdout[-2000:])
 
 
 def test_a_teardown_failure_keeps_the_plugin_counters_balanced(tmp_path: Path) -> None:

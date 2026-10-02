@@ -43,6 +43,14 @@
 остаётся **2**; запись только НАЗЫВАЕТ — какие тесты успели упасть и какой исполнялся,
 когда сессию сняли. Записи нет ⇒ так и сказано («имён нет»), а не молчание.
 
+**Третий вопрос к той же записи: КУДА УШЛО ВРЕМЯ (цикл #747, ADR-534, заказ G87 п. 3).**
+У шага есть внешняя граница `timeout-minutes: 240`, и она объявлена ГРАНИЦЕЙ ЗАВИСАНИЯ, а
+не бюджетом: сколько шаг идёт на самом деле, не измерялось с 26.08. Запись, которая с
+ADR-528 переживает раннер, несёт отметку времени у КАЖДОГО события — значит размах прогона
+и его раскладка по случаям добываются ровно отсюда, без экстраполяции двух чисел в третье
+(ADR-473). Раскладку считает `spa_core/monitoring/step_time_census.py`; вердикта она не
+выносит и кода возврата не трогает — предмет там секунды, а не исходы.
+
 Коды возврата: **0** — измерено, зелено · **1** — измерено, красно · **2** — НЕ ИЗМЕРЕНО.
 Скрипт ничего не чинит и ничего не перезапускает: он только НАЗЫВАЕТ исход.
 
@@ -270,6 +278,30 @@ def format_stream(stream: StreamRead, *, measured: bool) -> str:
     return "\n".join(lines)
 
 
+def format_time(path: Path | None, *, label: str) -> str:
+    """Раскладка размаха прогона по случаям. Вердикта НЕ выносит.
+
+    Ввоз внутри функции, а не сверху: скрипт обязан оставаться запускаемым из каталога,
+    где пакет `spa_core` не на пути ввоза, и отсутствие переписи — НАЗВАННЫЙ третий
+    исход, а не молчание и не нули (урок `pyflakes`, `.claude/rules/deployment.md`).
+    """
+    if path is None:
+        return ""
+    # launchd и Actions зовут СКРИПТ ПО ПУТИ, поэтому `sys.path[0]` — каталог
+    # `scripts/`, а не корень репозитория, и `cd` в корень этого не меняет
+    # (`.claude/rules/deployment.md`, ADR-148: ровно на этом каждый запуск падал
+    # `com.spa.source_discovery`). Корень добавляется явно и ровно один раз.
+    root = str(Path(__file__).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from spa_core.monitoring.step_time_census import census_from_path, format_census
+    except ImportError as exc:                               # pragma: no cover - среда
+        return (f"   время: НЕ ИЗМЕРЕНО — перепись не ввезена "
+                f"(spa_core.monitoring.step_time_census): {exc}")
+    return format_census(census_from_path(path), label=label)
+
+
 def format_verdict(verdict: Verdict, *, label: str) -> str:
     """Человекочитаемая строка для лога Actions. Исход — первым словом."""
     head = f"{verdict.label} — {label}"
@@ -330,6 +362,12 @@ def main(argv: list[str] | None = None) -> int:
     note = cross_check(verdict, stream)
     if note:
         print(note)
+    # Куда ушло время — ВТОРОЙ вопрос к той же записи, и задаётся он ВСЕГДА, а не
+    # только на обрыве: у дошедшей сессии ответ и есть первый честный замер бюджета
+    # шага, а у оборванной — нижняя граница с названной причиной (ADR-534).
+    timing = format_time(args.stream, label=args.label)
+    if timing:
+        print(timing)
     # Код возврата берётся у ОДНОГО источника. Потоковая запись его не трогает ни в
     # какую сторону: иначе «успели 80 тысяч, все зелёные» стало бы вердиктом о наборе.
     return verdict.rc

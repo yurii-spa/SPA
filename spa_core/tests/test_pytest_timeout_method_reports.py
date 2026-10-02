@@ -99,8 +99,13 @@ def _make_case(tmp_path: Path) -> Path:
 def _run(tmp_path: Path, method: str) -> subprocess.CompletedProcess[str]:
     junit = tmp_path / f"junit-{method}.xml"
     return subprocess.run(
+        # `--rootdir` добавлен циклом #747: якорь ЗДЕСЬ уже был (`cwd=tmp_path` —
+        # один из трёх измеренных #382), но линт `test_child_pytest_rootdir.py`
+        # читает ARGV и `cwd` не видит, поэтому на `main` он КРАСНЫЙ (прогон
+        # 36852036618, обе ноги). Утверждение теста не ослаблено и не сужено
+        # (инв. #16) — добавлен ровно тот флаг, который требует сообщение линта.
         [sys.executable, "-m", "pytest", str(tmp_path), "-q", "-p", "no:randomly",
-         "-p", "no:cacheprovider",
+         "-p", "no:cacheprovider", "--rootdir", str(tmp_path),
          f"--timeout={_INNER_TIMEOUT_S}", f"--timeout-method={method}",
          f"--junitxml={junit}"],
         cwd=tmp_path, capture_output=True, text=True, timeout=300,
