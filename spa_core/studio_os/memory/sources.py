@@ -53,6 +53,12 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md", "CANONICAL", "doc", 3),
     Rule("spa", "docs/THREE_TIER_YIELD_PRODUCT.md", "CANONICAL", "doc", 2),
     Rule("spa", "docs/STATE.md", "CANONICAL", "doc", 2),
+    # The site-redesign execution specs (owner-commissioned brief, 2026-07-12): the ORIGIN of public
+    # site features (calculator M3, comparison bar M2, tier cards, funnel events). Authority 1 — later
+    # ADRs override them — but without them «why does this site feature exist?» had no source at all
+    # (measured 2026-10-02: the assembler returned NOT covered for the homepage calculator; ADR-537).
+    Rule("spa", "docs/SITE_REDESIGN_MASTER_BRIEF.md", "CANONICAL", "doc", 1),
+    Rule("spa", "docs/redesign/*.md", "CANONICAL", "doc", 1),
     Rule("spa", "architecture/manifest.json", "CANONICAL", "agents", 3),
     Rule("spa", "architecture/memory_truth.json", "SEMANTIC", "truth", 3),
     Rule("spa", "docs/*ROADMAP*.md", "CANONICAL", "roadmap", 1),        # demoted by the truth registry

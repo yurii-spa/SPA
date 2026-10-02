@@ -303,3 +303,53 @@ def test_missed_runs_counts_a_stopped_process_and_clips_to_the_window():
     assert PO.missed_runs(rows, now=t0, since=t0 - timedelta(hours=24)) == 24
     rows.append({"run_ts": t0.strftime("%Y-%m-%dT%H:%M:%SZ")})
     assert PO.missed_runs(rows, since=t0 - timedelta(hours=24)) == 24, "a restart is not «29 in 24 h»"
+
+
+def test_composition_is_measured_from_registry_labels_of_held_positions(tmp_path):
+    # «Tier mix: T1 + T2» was printed for every package; measured 02.10 Balanced held susde (T3)
+    _health(tmp_path)
+    _book(tmp_path, "hy_paper_trading.json", last_run=NOW, experiment="balanced-fixed-carry-v1@d0", rows=1,
+          extra={"positions": [{"protocol": "aave_v3"}, {"protocol": "susde"}, {"protocol": "no_such_key"}]})
+    c = PS.public_view(PS.build_all(tmp_path, NOW))["packages"]["balanced"]["composition"]
+    assert c["state"] == "MEASURED"
+    assert c["tiers_held"]["T1"] == ["aave_v3"] and c["tiers_held"]["T3"] == ["susde"]
+    assert c["tiers_held"]["unlabelled"] == ["no_such_key"], "an unknown label is never assumed T1"
+    assert "без метки" in c["summary_ru"]
+
+
+def test_code_identity_comes_from_the_sync_receipt_and_says_when_it_is_old(tmp_path):
+    _health(tmp_path)
+    assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "UNMEASURED"
+    (tmp_path / "code_sync_status.json").write_text(json.dumps(
+        {"timestamp": _iso(NOW - timedelta(minutes=10)), "result": "IN_SYNC", "origin_main": "a" * 40}))
+    ci = PS.public_view(PS.build_all(tmp_path, NOW))["code_identity"]
+    assert ci["state"] == "IN_SYNC" and ci["origin_commit"] == "a" * 12
+    (tmp_path / "code_sync_status.json").write_text(json.dumps(
+        {"timestamp": _iso(NOW - timedelta(hours=5)), "result": "IN_SYNC", "origin_main": "a" * 40}))
+    assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "STALE_RECEIPT"
+    (tmp_path / "code_sync_status.json").write_text(json.dumps(
+        {"timestamp": _iso(NOW), "result": "DRIFT", "origin_main": "b" * 40}))
+    assert PS.build_all(tmp_path, NOW)["code_identity"]["state"] == "NOT_IN_SYNC"
+
+
+def test_a_written_status_is_not_proof_of_a_run(tmp_path):
+    # negative check (owner 02.10): a fresh generated_at with an old run is not «running»
+    _health(tmp_path)
+    _book(tmp_path, "lp_paper_trading.json", last_run=NOW - timedelta(hours=10),
+          experiment="aggressive-susde-loop-v1@d0", rows=3)
+    full = PS.build_all(tmp_path, NOW)
+    assert full["generated_at"] == _iso(NOW)
+    assert full["packages"]["aggressive"]["work"]["state"] != "RUNNING"
+
+
+def test_a_tripped_stop_reaches_the_public_view_and_the_director_alert(tmp_path):
+    # the whole chain: book kill → read model → the projection the API and the site serve → Director
+    from spa_core.studio_os.director_report import defi_alerts
+    _health(tmp_path)
+    _book(tmp_path, "lp_paper_trading.json", last_run=NOW, experiment="aggressive-susde-loop-v1@d0", rows=2,
+          extra={"il_drawdown_pct": -0.30})
+    full = PS.build_all(tmp_path, NOW)
+    assert PS.public_view(full)["packages"]["aggressive"]["work"]["state"] == "PAUSED"
+    alerts = defi_alerts(full["packages"])
+    assert any("aggressive" in a and "пауза" in a for a in alerts), alerts
+    assert defi_alerts(None) and "не измерено" in defi_alerts(None)[0].lower()

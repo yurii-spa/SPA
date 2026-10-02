@@ -50,6 +50,12 @@ GLOSSARY = [
     {"инцидент", "incident", "авария", "recovery", "восстановление"},
     {"торговый", "торговое", "trading", "трейдинг", "стратегии", "strategies"},
     {"одобрение", "approval", "разрешение", "permission", "gate", "гейт"},
+    # site vocabulary (ADR-537): the redesign specs that explain WHY a site feature exists are English;
+    # an owner asks in Russian. Measured 2026-10-02: «калькулятор доходности» found no spec at all.
+    {"калькулятор", "калькулятора", "calculator", "calc"},
+    # NOT «главная → homepage»: «главная находка» (main finding) is far more frequent in the canon (measured)
+    {"сайт", "сайта", "сайте", "site", "website"},
+    {"пакет", "пакеты", "пакетов", "package", "packages", "тир", "тиры", "tier", "tiers"},
 ]
 _GLOSS_INDEX: Dict[str, set] = {}
 for _g in GLOSSARY:

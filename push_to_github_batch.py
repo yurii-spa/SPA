@@ -140,6 +140,11 @@ enforce_owner_choice_authorship = _root_push.enforce_owner_choice_authorship
 OwnerChoiceUnattributed = _root_push.OwnerChoiceUnattributed
 OWNER_CHOICE_INTERLOCK_EXIT = _root_push.OWNER_CHOICE_INTERLOCK_EXIT
 
+# Интерлок записи изменения (ADR-537) — та же ОДНА реализация: под этим CLI стоит safe_site_push.py.
+enforce_change_evidence = _root_push.enforce_change_evidence
+ChangeEvidenceMissing = _root_push.ChangeEvidenceMissing
+CHANGE_EVIDENCE_EXIT = _root_push.CHANGE_EVIDENCE_EXIT
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -215,6 +220,14 @@ def main():
                                         runner_file=__file__)
     except OwnerChoiceUnattributed:
         sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
+
+    # ── ИНТЕРЛОК ЗАПИСИ ИЗМЕНЕНИЯ (ADR-537) — тот же вызов, что и в push_to_github.py ──
+    allow_ce_unmeasured = os.environ.get("SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED") == "1"
+    try:
+        enforce_change_evidence(all_files, message, allow_unmeasured=allow_ce_unmeasured,
+                                runner_file=__file__)
+    except ChangeEvidenceMissing:
+        sys.exit(CHANGE_EVIDENCE_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)

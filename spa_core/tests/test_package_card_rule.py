@@ -32,11 +32,11 @@ const sn = new Function('NUMBERS', strip(readFileSync(path.join(root, 'landing/s
   + '\nreturn { value, pct, usd, headlineApy, book, threshold };')(NUMBERS);
 const card = new Function('NUMBERS', 'value', 'figPct', 'figUsd', 'headlineApy', 'book', 'threshold', 'C', 'TIER_BANDS',
   strip(readFileSync(path.join(root, 'landing/src/lib/package_card.js'), 'utf8'))
-  + '\nreturn { effective, cardModel, researchTarget };')(
+  + '\nreturn { effective, cardModel, researchTarget, researchTail };')(
   NUMBERS, sn.value, sn.pct, sn.usd, sn.headlineApy, sn.book, sn.threshold,
   J('landing/src/lib/constitution.json'), J('landing/src/lib/tier_bands.json'));
 const cases = JSON.parse(readFileSync(process.argv[3], 'utf8'));
-const out = cases.map(([key, rec, now, lang]) => card.cardModel(key, rec, Date.parse(now), lang));
+const out = cases.map(([key, rec, now, lang, ci]) => card.cardModel(key, rec, Date.parse(now), lang, ci));
 console.log(JSON.stringify(out));
 """
 
@@ -61,8 +61,8 @@ LATE = "2026-01-15T18:00:00Z"           # six hours after the run; past stale_at
 DAY_LATER = "2026-01-16T13:00:00Z"
 
 
-def _case(key, rec, now, lang):
-    return [key, rec, now, lang]
+def _case(key, rec, now, lang, ci=None):
+    return [key, rec, now, lang, ci]
 
 
 def _rec(work="RUNNING", data="HEALTHY", stale_at="2026-01-15T14:30:00Z", history="WARMUP", n=1):
@@ -112,3 +112,28 @@ def test_warmup_shows_no_number_and_reportable_conservative_takes_the_shelf_rate
     assert rep["result"]["main"] == f"{apy:.1f}%", "the card prints the shelf's number, not its own"
     assert "not a loss limit" in rep["risk"]["drawdown"]
     assert rep["target"] and "not" not in rep["target"]
+
+
+def test_a_research_target_always_travels_with_its_tail_and_tiers_and_code_are_shown():
+    rec = _rec()
+    rec["composition"] = {"state": "MEASURED", "summary_en": "T2: maple · T3: susde", "summary_ru": "T2: maple · T3: susde"}
+    ci = {"state": "IN_SYNC", "origin_commit": "40d9cdf66827", "checked_at": NOW}
+    agg, cons, no_ci = _run([_case("aggressive", rec, NOW, "en", ci), _case("conservative", _rec(), NOW, "ru", ci),
+                             _case("balanced", _rec(), NOW, "ru")])
+    bands = json.loads((ROOT / "landing/src/lib/tier_bands.json").read_text(encoding="utf-8"))
+    assert agg["target"] and agg["tail"] == bands["aggressive"]["tail_en"], "no target without its tail"
+    assert cons["tail"] is None, "Conservative shows its measured drawdown instead"
+    assert agg["tiers"] == "T2: maple · T3: susde" and cons["tiers"] == "не измерено"
+    assert "40d9cdf66827" in agg["freshness"]["code"] and "не измерена" in no_ci["freshness"]["code"]
+
+
+def test_the_home_calculator_takes_its_scenario_rate_from_the_band_not_a_literal():
+    src = (ROOT / "landing/src/pages/index.astro").read_text(encoding="utf-8")
+    assert "a*0.20" not in src and "a*0.2" not in src, "the July literal must not come back"
+    assert "data-scenario-pct={aggTargetPct" in src and "researchTarget('aggressive'" in src
+    assert "Scenario, not a result" in src and "Сценарий, а не результат" in src
+
+
+def test_a_paused_book_is_never_green_on_the_card():
+    (m,) = _run([_case("aggressive", _rec(work="PAUSED"), NOW, "en")])
+    assert m["work"]["state"] == "PAUSED" and m["work"]["tone"] == "warn"

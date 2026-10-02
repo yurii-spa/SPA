@@ -204,6 +204,33 @@ DECISION_DEFECTS = {
 }
 
 
+def _composition(protocols, *, extra_en: str = "", extra_ru: str = "") -> dict:
+    """Registry tier labels of the protocols the book HOLDS — measured, not a description.
+
+    The cards used to print «Tier mix: T1 + T2» for all three packages; measured 2026-10-02 the
+    Balanced book held `susde`, labelled T3 in ADAPTER_REGISTRY (the `susde`/`ethena_susde` identity
+    question of ADR-532 package A is still with the owner). Tier ≠ mechanic (owner, 2026-10-02): both
+    are shown, each from its own source. No label known ⇒ ``unlabelled`` (never assumed T1).
+    """
+    try:
+        from spa_core.risk.concentration_monitor import _tier_map
+        tmap = _tier_map()
+    except Exception:  # noqa: BLE001 — absent registry is a named outcome
+        tmap = None
+    if tmap is None:
+        return {"state": "UNMEASURED", "tiers_held": None, "source": "ADAPTER_REGISTRY unreadable"}
+    held: dict = {}
+    for p in protocols:
+        t = tmap.get(str(p)) or "unlabelled"
+        held.setdefault(t, []).append(str(p))
+    order = sorted(held, key=lambda t: (t == "unlabelled", t))
+    en = " · ".join(f"{t}: {', '.join(sorted(held[t]))}" for t in order) or "no positions"
+    return {"state": "MEASURED", "tiers_held": {t: sorted(held[t]) for t in order},
+            "summary_en": en + extra_en, "summary_ru": (en.replace("unlabelled", "без метки")
+                                                       if held else "позиций нет") + extra_ru,
+            "source": "ADAPTER_REGISTRY tier labels of the held positions"}
+
+
 def _decision(state: str, raw: Optional[str], reasons: list, position_en: str, position_ru: str) -> dict:
     reason = "; ".join(map(str, reasons))[:300] or None
     r_en, r_ru = localized_reason(reason)
@@ -306,6 +333,11 @@ def _sleeve(package: str, ddir: Path, health: Optional[dict], now: datetime) -> 
             "earlier_rows_kept": len(rows) - len(cur_rows),
             "observed_drawdown_pct": _observed_drawdown([h.get("equity") for h in cur_rows])}
     pos = {"count": len(st.get("positions") or []), "floating_equity_usd": st.get("floating_equity")}
+    _held = [p.get("protocol") for p in (st.get("positions") or []) if isinstance(p, dict) and p.get("protocol")]
+    _loop_open = package == "aggressive" and (st.get("loop") or {}).get("status") == "open"
+    composition = _composition(
+        _held, extra_en=" · plus the simulated Morpho Blue loop (sUSDe collateral)" if _loop_open else "",
+        extra_ru=" · плюс симулированная петля Morpho Blue (залог sUSDe)" if _loop_open else "")
     if package == "balanced":
         legs = (st.get("fixed_carry") or {}).get("legs") or []
         pos.update(fixed_rate_legs=len(legs),
@@ -355,7 +387,7 @@ def _sleeve(package: str, ddir: Path, health: Optional[dict], now: datetime) -> 
             "experiment_start_date": (exp or {}).get("start_date"),
             "initial_state": (exp or {}).get("initial_state"),
             "new_version_pending": pending, "work": {**w, "last_run_at": st.get("last_cycle_at")},
-            "data": d, "decision": dec, "history": hist, "positions": pos,
+            "data": d, "decision": dec, "history": hist, "positions": pos, "composition": composition,
             "last_decision": {"decision": decision, "reasons": reasons[:4]},
             "mode": _mode(m), "freshness": _freshness(package, st.get("last_cycle_at"),
                                                       (last_obs or {}).get("run_ts")),
@@ -435,10 +467,32 @@ def _conservative(ddir: Path, health: Optional[dict], now: datetime) -> dict:
             "new_version_pending": None, "work": {**w, "last_run_at": (cp or {}).get("generated_at")},
             "data": d, "decision": decision, "history": hist,
             "positions": {"count": len(pos), "cash_usd": (cp or {}).get("cash_usd")},
+            "composition": _composition(list(pos.keys())),
             "last_decision": {"decision": dec.get("decision"), "reasons": reasons},
             "mode": _mode(m), "freshness": _freshness("conservative", (cp or {}).get("generated_at"),
                                                       (cp or {}).get("generated_at")),
             "equity_usd": (cp or {}).get("current_equity_usd"), "headline_en": en, "headline_ru": ru}
+
+
+def _code_identity(ddir: Path, now: datetime) -> dict:
+    """Which code the scheduled runs execute — from the code-sync receipt, not from a git HEAD.
+
+    The prod tree's own git index lags origin by design (code arrives by sync, not by checkout), so
+    «HEAD» proves nothing about what runs. The hourly sleeves and the daily cycle start a fresh
+    process each run and execute the tree as synced; ``code_sync_status.json`` names the origin
+    commit the tree matched and when that was checked. Absent / not in sync ⇒ said so.
+    """
+    cs = _load(ddir / "code_sync_status.json")
+    if not isinstance(cs, dict):
+        return {"state": "UNMEASURED", "reason": "code-sync receipt absent or unreadable"}
+    at = _ts(cs.get("timestamp"))
+    age = round((now - at).total_seconds() / 3600.0, 2) if at else None
+    state = "IN_SYNC" if cs.get("result") == "IN_SYNC" else "NOT_IN_SYNC"
+    if state == "IN_SYNC" and (age is None or age > 2.0):
+        state = "STALE_RECEIPT"
+    sha = str(cs.get("origin_main") or "")
+    return {"state": state, "origin_commit": sha[:12] or None, "checked_at": cs.get("timestamp"),
+            "age_h": age, "result": cs.get("result")}
 
 
 def build_all(data_dir: "Path | str", now: Optional[datetime] = None) -> dict:
@@ -446,7 +500,8 @@ def build_all(data_dir: "Path | str", now: Optional[datetime] = None) -> dict:
     now = now or datetime.now(timezone.utc)
     health = _load(ddir / "agent_health.json")
     out = {"generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": "PAPER", "live_capital_usd": 0,
-           "agent_health_at": (health or {}).get("timestamp"), "packages": {}}
+           "agent_health_at": (health or {}).get("timestamp"), "code_identity": _code_identity(ddir, now),
+           "packages": {}}
     out["packages"]["conservative"] = _conservative(ddir, health, now)
     for p in ("balanced", "aggressive"):
         try:
@@ -478,6 +533,7 @@ _PUBLIC = {
     "history": ("state", "valid_periods", "first_period", "last_period", "reportable_after",
                 "earlier_rows_kept"),
     "mode": ("state", "live", "live_reason_en", "live_reason_ru"),
+    "composition": ("state", "tiers_held", "summary_en", "summary_ru"),
     "freshness": ("schedule_en", "schedule_ru", "expected_every_h", "stale_after_h",
                   "last_successful_run_at", "source_observed_at", "stale_at"),
 }
@@ -501,8 +557,10 @@ def _scrub(v):
 def public_view(full: dict) -> dict:
     """The ONE sanitised projection of ``build_all`` for public surfaces (site snapshot, public API)."""
     from spa_core.paper_trading import strategy_mandates as SM
+    ci = full.get("code_identity") if isinstance(full.get("code_identity"), dict) else {}
     out = {"published_at": full.get("generated_at"), "generated_at": full.get("generated_at"),
            "mode": full.get("mode"), "live_capital_usd": full.get("live_capital_usd"),
+           "code_identity": {k: ci.get(k) for k in ("state", "origin_commit", "checked_at", "age_h")},
            "status_colour_is_not_a_risk_grade": True, "packages": {}}
     for name, p in (full.get("packages") or {}).items():
         if not isinstance(p, dict):

@@ -1931,6 +1931,57 @@ def enforce_adr_numbers(all_files, allow: bool = False,
 
 
 OWNER_CHOICE_INTERLOCK_EXIT = 8
+CHANGE_EVIDENCE_EXIT = 9
+
+
+class ChangeEvidenceMissing(Exception):
+    """Набор удаляет значимую функцию без записи изменения (ADR-537)."""
+
+
+def enforce_change_evidence(all_files, message: str, allow_unmeasured: bool = False,
+                            runner_file: Optional[str] = None) -> bool:
+    """Значимое удаление уезжает только со ссылкой на запись изменения. ОДНА реализация на ВСЕ CLI.
+
+    Требование владельца 02.10: «существующая функция не должна исчезать только потому, что
+    новая сессия не понимает, зачем её когда-то сделали». Сторож — `scripts/check_change_evidence.py`
+    рядом с ЗАПУЩЕННЫМ CLI: он находит значимые удаления (функции денежного пути и статуса,
+    маршруты API, публичные элементы сайта) и требует `Change-Record: <path>#<id>` в сообщении
+    коммита с записью, где перечислено КАЖДОЕ удаление. Отказ (rc=1) снимается только записью —
+    флага обхода нет намеренно. «НЕ ИЗМЕРЕНО» (rc=2) — отказ fail-CLOSED, осознанно продолжить
+    можно `--allow-change-evidence-unmeasured` (печатается, не молчит). Возвращает True, если
+    сторож отработал; бросает :class:`ChangeEvidenceMissing` при отказе.
+    """
+    # ТРИГГЕР, как у интерлока номеров ADR: набор без файлов из зоны сторожа его не трогает.
+    _scope = ("landing/src/", "spa_core/paper_trading/", "spa_core/defi_engine/", "spa_core/risk/",
+              "spa_core/governance/", "spa_core/api/", "spa_core/studio_os/memory/",
+              "scripts/generate_track_snapshot.py", "scripts/build_site_numbers.py",
+              "scripts/build_site_constitution.py", "scripts/check_owner_gate.py", "scripts/safe_site_push.py",
+              "push_to_github.py", "push_to_github_batch.py")
+    files = [os.path.abspath(f) for f in all_files]
+    if not any(any(z in f.replace("\\", "/") for z in _scope) for f in files):
+        return False
+    base = os.path.dirname(os.path.abspath(runner_file or __file__))
+    guard = os.path.join(base, "scripts", "check_change_evidence.py")
+    if not os.path.isfile(guard):
+        msg = (f"ОТКАЗ (запись изменения): сторож {guard} не найден — удаления НЕ измерены "
+               f"(fail-CLOSED). Осознанно продолжить: --allow-change-evidence-unmeasured.")
+        if allow_unmeasured:
+            print(msg + "\n(продолжаю: неизмеренность разрешена явно)", file=sys.stderr)
+            return True
+        print(msg, file=sys.stderr)
+        raise ChangeEvidenceMissing(msg)
+    rc = subprocess.run([sys.executable, guard, "--files", *files, "--message", message or ""]).returncode
+    if rc == 0:
+        return True
+    if rc == 2 and allow_unmeasured:
+        print("(продолжаю: удаления НЕ измерены, разрешено явно --allow-change-evidence-unmeasured)",
+              file=sys.stderr)
+        return True
+    msg = (f"ОТКАЗ (запись изменения, rc={rc}): набор не доставлен. Значимое удаление требует "
+           f"`Change-Record: <path>#<id>` в сообщении и записи ```change-record (см. "
+           f"scripts/check_change_evidence.py).")
+    print(msg, file=sys.stderr)
+    raise ChangeEvidenceMissing(msg)
 
 
 class OwnerChoiceUnattributed(Exception):
@@ -2062,6 +2113,9 @@ def main():
     parser.add_argument("--allow-owner-choice-write", action="store_true",
                         help="ОСОЗНАННО доставить карточку, ставящую owner_choice без единого "
                              "признака авторства (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-change-evidence-unmeasured", action="store_true",
+                        help="ОСОЗНАННО доставить набор, удаления в котором НЕ ИЗМЕРЕНЫ (git/база "
+                             "недоступны). Отказ из-за удаления БЕЗ записи этим не снимается")
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
@@ -2079,6 +2133,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
+    allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
+        os.environ.get("SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED") == "1"
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -2133,6 +2189,14 @@ def main():
         enforce_owner_choice_authorship(all_files, allow=allow_owner_choice)
     except OwnerChoiceUnattributed:
         sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
+
+    # ── ИНТЕРЛОК ЗАПИСИ ИЗМЕНЕНИЯ (ADR-537) — до сети, для ЛЮБОГО контекста ─────────
+    # Значимое удаление (функция денежного пути/статуса, маршрут API, публичный элемент сайта)
+    # уезжает только со ссылкой на запись изменения. Реализация одна, её же зовёт batch-CLI.
+    try:
+        enforce_change_evidence(all_files, message, allow_unmeasured=allow_ce_unmeasured)
+    except ChangeEvidenceMissing:
+        sys.exit(CHANGE_EVIDENCE_EXIT)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST

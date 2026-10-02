@@ -350,7 +350,9 @@ def collect(inp: Inputs) -> dict:
     # DEFI PAPER PORTFOLIOS (read-only; ONE read model shared with the site — ADR-533)
     try:
         from spa_core.defi_engine.package_status import build_all as _pkg_build
-        rep["defi"] = _pkg_build(repo / "data", now)["packages"]
+        _full = _pkg_build(repo / "data", now)
+        rep["defi"] = _full["packages"]
+        rep["defi_code"] = _full.get("code_identity")
     except Exception as exc:  # noqa: BLE001 — a broken read model is a named gap, not a crash
         rep["defi"] = None
         rep["defi_error"] = f"{type(exc).__name__}: {exc}"
@@ -363,19 +365,7 @@ def collect(inp: Inputs) -> dict:
                       + (f" ({t['error']})" if t.get("error") else ""))
     elif t is not None and t["evidence_verified"] is False:
         alerts.append("🔴 торговое исследование: цепочка доказательств нарушена")
-    if rep.get("defi") is None:
-        alerts.append("❔ DeFi-портфели: " + NOT_MEASURED)
-    else:
-        for _name, _p in rep["defi"].items():
-            _w = _p.get("work") or {}
-            if _w.get("state") == "FAILED":
-                alerts.append(f"🔴 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
-            elif _w.get("state") == "PAUSED":
-                alerts.append(f"🟡 DeFi {_name}: пауза — {_w.get('reason_ru') or _w.get('reason')}")
-            elif _w.get("state") == "UNKNOWN":
-                alerts.append(f"🟡 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
-            elif (_p.get("data") or {}).get("state") in ("STALE", "DEGRADED"):
-                alerts.append(f"🟡 DeFi {_name}: {(_p.get('data') or {}).get('reason_ru') or 'данные неполные'}")
+    alerts += defi_alerts(rep.get("defi"))
     if kill is True:
         alerts.append("🛑 стоп-кран взведён")
     elif kill is None:
@@ -583,12 +573,37 @@ _DEFI_WORD = {"RUNNING": "работает", "PAUSED": "пауза", "FAILED": "
               "NOT_APPROVED": "live не одобрен", "REFUSED": "live отказан"}
 
 
+def defi_alerts(defi) -> List[str]:
+    """Alerts of the three paper portfolios — a tripped stop, a confirmed fault, an unconfirmed run, stale
+    or incomplete data. A separate function so the whole chain (book → read model → alert) is testable."""
+    if defi is None:
+        return ["❔ DeFi-портфели: " + NOT_MEASURED]
+    out: List[str] = []
+    for _name, _p in defi.items():
+        _w = (_p or {}).get("work") or {}
+        if _w.get("state") == "FAILED":
+            out.append(f"🔴 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
+        elif _w.get("state") == "PAUSED":
+            out.append(f"🟡 DeFi {_name}: пауза — {_w.get('reason_ru') or _w.get('reason')}")
+        elif _w.get("state") == "UNKNOWN":
+            out.append(f"🟡 DeFi {_name}: {_w.get('reason_ru') or _w.get('reason')}")
+        elif ((_p or {}).get("data") or {}).get("state") in ("STALE", "DEGRADED"):
+            out.append(f"🟡 DeFi {_name}: {((_p or {}).get('data') or {}).get('reason_ru') or 'данные неполные'}")
+    return out
+
+
 def render_defi(rep: dict, short: bool = False) -> List[str]:
     """Three paper portfolios — one line each; the mechanic version and why it holds (ADR-533)."""
     d = rep.get("defi")
     if d is None:
         return ["DEFI (3 бумажных портфеля): " + NOT_MEASURED]
     L = ["DEFI — 3 бумажных портфеля, реального капитала нет"]
+    ci = rep.get("defi_code") if isinstance(rep.get("defi_code"), dict) else None
+    if ci is None or ci.get("state") in (None, "UNMEASURED"):
+        L.append("Код запусков: " + NOT_MEASURED)
+    else:
+        L.append(f"Код запусков: {'совпадает с' if ci.get('state') == 'IN_SYNC' else 'НЕ подтверждён против'} "
+                 f"origin {ci.get('origin_commit')} (проверено {str(ci.get('checked_at') or '')[:16]})")
     for name in ("conservative", "balanced", "aggressive"):
         p = d.get(name)
         if not isinstance(p, dict):
