@@ -3008,6 +3008,92 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
 
 
 
+#: Имя карточки решения, названное в теле находки. Обратные кавычки ОБЯЗАТЕЛЬНЫ:
+#: проба не вправе собирать имена из вольного текста и зеленеть на том, чего не
+#: разбирала (ADR-333 — «не проходит подстрокой»).
+_NAMED_CARD_RE = re.compile(r"`(ow(?:n|ner-decision)-[a-z0-9][a-z0-9-]*)`")
+
+#: Статусы, означающие «решение владельца записано в канон» (`.nimbalyst/trackers/owner-decision.yaml`,
+#: `category: done`). Список берётся отсюда, а не угадывается строкой у каждого читателя.
+_CLOSED_AT_ORIGIN = frozenset({"ingested", "done"})
+
+
+def _probe_named_cards_closed_at_origin(arg: str | None, *, tracker_dir: str | None = None,
+                                        ref: str | None = None) -> tuple[str, str]:
+    """Критерий: каждая карточка решения, НАЗВАННАЯ в теле находки `arg`, закрыта на `origin/main`.
+
+    ЗАЧЕМ (ADR-544, цикл #757). Находка вида «N ответов владельца не доехали до канона»
+    закрывается не прозой и не перечитыванием, а вопросом к ИСТОЧНИКУ ПРАВДЫ — git, —
+    по КАЖДОМУ названному имени. Замер 03.10 на
+    ``inbox-dvenadtsat-otvetov-vladeltsa-stoyat-v-ow``: все двенадцать названных карточек
+    на ``origin/main`` стоят в ``ingested``, то есть находка ЛОЖНА, и ложной её сделал
+    прод-трекер, куда инжест не возвращается НИКОГДА (ADR-152).
+
+    Проба меряет ИСХОД, а не структуру: она зелена ровно тогда, когда утверждение находки
+    перестало быть верным — потому ли, что работу сделали, потому ли, что её и не было.
+    Обе причины суть закрытие, и обе проверяются одним вопросом к origin.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ:
+
+    * имён в теле НЕТ ⇒ ``unmeasured``. Пустое множество обошло бы пробу «вакуумно
+      зелёной» — ровно тот дефект, против которого написан инв. #17;
+    * нет репозитория / ``origin/main`` не прочитан / карточка не прочитана ⇒ ``unmeasured``
+      с названной причиной;
+    * хоть одно названное имя открыто на origin (или его там нет вовсе) ⇒ ``not_satisfied``
+      с перечнем.
+    """
+    if not arg:
+        return UNMEASURED, ("пробе нужна карточка-находка "
+                            "(acceptance_probe: named_cards_closed_at_origin:<имя-карточки>)")
+    tracker = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
+    root = _repo_root_for(tracker)
+    if not _is_git_repo(root):
+        return UNMEASURED, f"в {root} нет репозитория — закрытость на origin НЕ ИЗМЕРЕНА"
+    card_id = arg[:-3] if arg.endswith(".md") else arg
+    card_path = os.path.join(tracker, f"{card_id}.md")
+    if not os.path.isfile(card_path):
+        return UNMEASURED, f"карточки {card_id} нет в дереве — предмет НЕ ИЗМЕРЕН"
+    try:
+        body = _pathlib.Path(card_path).read_text(encoding="utf-8")
+    except OSError as exc:
+        return UNMEASURED, f"карточка {card_id} не прочитана ({exc}) — НЕ ИЗМЕРЕНО"
+
+    names = sorted(set(_NAMED_CARD_RE.findall(body)))
+    if not names:
+        return UNMEASURED, (f"в теле {card_id} не названо ни одной карточки решения — "
+                            f"пустое множество НЕ читается как «всё закрыто»")
+
+    import subprocess as _subprocess
+
+    use_ref = ref or "origin/main"
+    opened: list[str] = []
+    for name in names:
+        rel = f"{TRACKER_REL}/{name}.md"
+        try:
+            out = _subprocess.run(["git", "-C", root, "show", f"{use_ref}:{rel}"],
+                                  capture_output=True, text=True, timeout=30)
+        except (OSError, _subprocess.SubprocessError) as exc:
+            return UNMEASURED, f"git не ответил про {name} ({exc}) — НЕ ИЗМЕРЕНО"
+        if out.returncode != 0:
+            opened.append(f"{name}: на {use_ref} файла нет")
+            continue
+        status = ""
+        for line in out.stdout.splitlines():
+            if line.startswith("status:"):
+                status = line.split(":", 1)[1].strip()
+                break
+        if status not in _CLOSED_AT_ORIGIN:
+            shown = status or "не прочитан"
+            opened.append(f"{name}: на {use_ref} статус '{shown}'")
+
+    where = f"названо {len(names)}, ref {use_ref}"
+    if opened:
+        return NOT_SATISFIED, (f"НЕ закрыты на {use_ref}: {len(opened)} из {len(names)} — "
+                               + "; ".join(opened[:6]) + f" ({where})")
+    return SATISFIED, (f"все {len(names)} названных карточек закрыты на {use_ref} "
+                       f"(статус из {sorted(_CLOSED_AT_ORIGIN)}) ({where})")
+
+
 def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
                              ref: str | None = None) -> tuple[str, str]:
     """Критерий: у карточки `arg` НЕТ закрытия, которое существует только здесь.
@@ -4147,6 +4233,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "journal_reader_census_verdict_under_injected_clock":
         _probe_journal_reader_census_verdict_under_injected_clock,
     "card_copies_agree": _probe_card_copies_agree,
+    "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "forbidden_import_gate_single_instrument":
         _probe_forbidden_import_gate_single_instrument,
     "ci_main_verdict_green": _probe_ci_main_verdict_green,

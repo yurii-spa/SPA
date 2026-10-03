@@ -2,15 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-03T01:56:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-03T04:09:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c6c6345ee) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (88ff132d7).
 >
-> Всего карточек: **1167** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1171** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
+- **Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине**  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md`
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
@@ -42,10 +43,11 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (301)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (302)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
+- Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md` · 2026-09-26
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
@@ -350,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (625)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (628)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -464,6 +466,7 @@
 - Доставка объявляет ВЕЧНЫЙ долг о закрытии, которое УЖЕ на origin: «доехало ли моё изменение» решается побайтовым равенством всего файла  ·  `inbox-dostavka-obyavlyaet-vechnyi-dolg-o-zakry.md` · 2026-08-17
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
 - Два разных реестра адаптеров носят ОДНО имя ADAPTER_REGISTRY: 36 кортежей против 22-dict, пересечение 13, aave_v3 против aave_usdc  ·  `inbox-dva-raznyh-reestra-adapterov-nosyat-odno.md` · 2026-08-12
+- Двенадцать ответов владельца стоят в owner-done и не доехали до канона: шаг 2 по ним не отработал  ·  `inbox-dvenadtsat-otvetov-vladeltsa-stoyat-v-ow.md` · 2026-10-01
 - Единственный красный тест на main: окно проверки трека стало ПУСТЫМ по построению (55 <= n <= 30)  ·  `inbox-edinstvennyi-krasnyi-test-na-main-okno-p.md` · 2026-08-24
 - Ещё три двери в чат владельца шлют мимо дедупа и журнала (site_freshness из CI — самая существенная)  ·  `inbox-esche-tri-dveri-v-chat-vladeltsa-shlyut.md` · 2026-08-13
 - если тот же target можно приблизить простым:  ·  `inbox-esli-tot-zhe-target-mozhno-priblizit-pro.md` · 2026-08-13
@@ -805,6 +808,7 @@
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23
 - Девять красных в CI с разными причинами: разобрать поимённо, числа в базы не дописывать  ·  `inbox-devyat-krasnyh-v-ci-s-raznymi-prichinami.md` · 2026-09-26
 - Девять сторожей зелены без своего входа — чинить по одному  ·  `inbox-devyat-storozhei-zeleny-bez-svoego-vhoda.md` · 2026-09-19
+- Добавь задачу проверить Telegram завтра  ·  `inbox-dobav-zadachu-proverit-telegram-zavtra.md` · 2026-09-30
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17
@@ -955,6 +959,7 @@
 - Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
+- Сторож здоровья флота пишет OK выгруженному дневному циклу — узнаёт о пропуске только через сутки  ·  `inbox-storozh-zdorovya-flota-pishet-ok-vygruzh.md` · 2026-09-29
 - Страж перезаписи не оставляет квитанции: его вердикт нельзя проверить ни на одном прошлом прогоне  ·  `inbox-strazh-perezapisi-ne-ostavlyaet-kvitants.md` · 2026-09-12
 - Страж перезаписи решает применимость по КЭШУ: у пушера ноль fetch, а свежая база рядом берётся по HTTP  ·  `inbox-strazh-perezapisi-reshaet-primenimost-po.md` · 2026-09-12
 - Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход  ·  `inbox-strazh-provenansa-chitaet-pravku-stroki.md` · 2026-09-26
