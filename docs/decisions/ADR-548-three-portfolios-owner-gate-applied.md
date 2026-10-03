@@ -52,3 +52,21 @@ The owner approved all ten items, with clarifications. They were applied in one 
   thresholds; real capital = 0.
 - ADR-532 packages A (tier labels), B (Conservative 3 % budget binding), C (RTMR) and D, which wait
   for their own decisions.
+
+## Delivery evidence (2026-10-03)
+
+| Step | Evidence |
+|---|---|
+| Commits | `a2e210f7`: 31 files, all ten items. `8864def1`: three leftovers found by the live check — the /faq KYC contact block, «identity verification before first deposit» on two strategy pages, and the /packages evidence chip overflowing 390 px |
+| Gate | `safe_site_push.py` with `Owner-Approved: owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo` (card owner-done, ADR-146): CLEAN |
+| Production | code-sync `a2e210f75c66` at 12:07:47Z; apiserver restarted; `deployment_acceptance` ok; the public API serves the new read model (Balanced «tier unresolved: susde») |
+| Site | CDP after JS, 10 pages × 375/390/430/1280 × EN/RU: **80/80**, no overflow or clipping, no forbidden pattern |
+| Stops | reference reproduced from the book files: Balanced −0.108 % from 99 568.80 (legacy 100 496.02 kept), Aggressive −0.123 % from 100 260.76 (legacy 100 607.21 kept); thresholds unchanged |
+| Tests | reverse controls 5 / 1 / 2 red without the fixes; 131 affected files: 7 932 passed, 0 failed; follow-up 128 passed; landing build 120 pages rc 0 |
+
+## Known remaining debts (named, not hidden)
+
+- «Who it's for» audience blurbs on the strategy pages (e.g. «Family offices and individual allocators…») remain. They were not in the approved package, read as product positioning, and are left for a future wording pass, not changed silently.
+- The `invest@earn-defi.com` contact address is kept: changing a mail address can break routing.
+- ADR-532 packages A–D (tier labels incl. the `susde`/`ethena_susde` identity, Conservative 3 % budget binding, RTMR, delta-neutral check) are with the owner.
+
