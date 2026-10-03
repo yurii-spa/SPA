@@ -210,6 +210,14 @@ PRODUCES = (
     # одном процессе), поэтому такта у неё НЕТ: SLO равняется такту БЕГУНА —
     # гейт 6ч + наблюдённый период прогона (ADR-506) = 14ч.
     "data/slo_keepability.json",
+    # Заказ G94 п. 3 (ADR-550) — сколько привязок конституции держится ПРОЗОЙ и
+    # у скольких из них есть второй читатель. Замер ПЕРЕД объявлением поля:
+    # ADR-506 назвал цену у десяти §49-привязок, но населения прозы целиком не
+    # мерил никто, а «объявить поле механически» уже стоило нам G86 п. 4.
+    # Ступень дешёвая (разбор конституции и дерева в одном процессе, 0.6 с),
+    # поэтому такта у неё НЕТ: SLO равняется такту БЕГУНА — гейт 6ч +
+    # наблюдённый период прогона (ADR-506) = 14ч.
+    "data/prose_binding_census.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -388,6 +396,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "acceptance_tree_capability",
     "s49_tally_tact",
     "slo_keepability",
+    "prose_binding_census",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -645,6 +654,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "slo_keepability": {
         "module": "spa_core/monitoring/slo_keepability.py",
         "artifact": "data/slo_keepability.json"},
+    "prose_binding_census": {
+        "module": "spa_core/monitoring/prose_binding_census.py",
+        "artifact": "data/prose_binding_census.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2635,6 +2647,32 @@ def main(argv=None) -> int:
                   f"{_slokdoc.get('population')}; вердикт {_slokdoc.get('verdict')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "slo_keepability", e)
+    # Заказ G94 п. 3 (ADR-550): сколько привязок конституции держится ПРОЗОЙ и
+    # у скольких из них есть ВТОРОЙ читатель. Замер стои́т ПЕРЕД решением
+    # объявлять поле — «объявить механически» уже стоило нам G86 п. 4.
+    try:
+        # Приёмник зова назван ПО МОДУЛЮ, а не псевдонимом: сторож
+        # `test_census_stage_root_contract` выводит население ступени из ИМЕНИ
+        # приёмника и затем импортирует его как модуль пакета (предсуществующий
+        # красный с #758/#760, карточка заведена). Своя ступень класс не
+        # пополняет, и форму зова в комментарии дословно НЕ приводим — сторож
+        # читает ТЕКСТ, и пояснение рядом с ним есть часть его входа (#761).
+        from spa_core.monitoring import prose_binding_census
+        _pbcr = prose_binding_census.run(root=args.root)
+        _pbcdoc = _pbcr["doc"]
+        if str(_pbcdoc.get("status")) != "OK":
+            print(f"prose_binding_census: НЕ ИЗМЕРЕНО — {_pbcdoc.get('reason')}")
+        else:
+            _pbcplaces = observed(_pbcdoc, prose_binding_census.PLACES_KEY, kind=dict) or {}
+            print(f"prose_binding_census: привязок конституции "
+                  f"{_pbcdoc.get('population')} — держится прозой "
+                  f"{_pbcdoc.get('on_prose')} · поле обходится "
+                  f"{observed_number(_pbcplaces, prose_binding_census.FIELD_BYPASSED)} · "
+                  f"родов без единого читателя прозы "
+                  f"{len(_pbcdoc.get('kinds_without_a_prose_parser') or [])}; "
+                  f"вердикт {_pbcdoc.get('verdict')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "prose_binding_census", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него

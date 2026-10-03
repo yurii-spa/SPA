@@ -784,6 +784,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "slo_keepability.json": ("status", "tally", "population", "verdict",
                              "unmeasured_causes", "schedule_axis", "window_hours",
                              "findings"),
+    # Заказ G94 п. 3 (ADR-550). `places` в схеме ОБЯЗАТЕЛЕН: «прозой 228 из 246»
+    # без разбивки по местам читалось бы как одна дыра, тогда как цена у «поле
+    # обходится» (заполнить) и «поля нет» (объявить) РАЗНАЯ — за это слияние уже
+    # платил ADR-506. `kinds_without_a_prose_parser` обязателен потому, что род
+    # привязки без единого читателя и есть ответ на вторую половину заказа;
+    # `reader_tally` — потому, что без него асимметрия мерок прозы и поля
+    # (разбор против ключа) в контекст не попадает вовсе.
+    "prose_binding_census.json": ("status", "population", "on_prose", "places",
+                                  "by_kind", "kinds_without_a_prose_parser",
+                                  "reader_tally", "verdict", "findings"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1135,6 +1145,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/s49_tally_tact.py",
     "slo_keepability.json":
         "spa_core/monitoring/slo_keepability.py",
+    "prose_binding_census.json":
+        "spa_core/monitoring/prose_binding_census.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -3058,6 +3070,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # одна из них).
         from spa_core.monitoring.slo_keepability import format_report as _slok_report
         out.extend(_slok_report(data))
+    elif name == "prose_binding_census.json":
+        # Заказ G94 п. 3 (ADR-550). Без этой ветки артефакт читается ВХОЛОСТУЮ,
+        # и вопрос «читает ли прозу конституции хоть кто-нибудь» остаётся без
+        # ответа ровно так, как сама проза остаётся без читателя. Правило
+        # отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож
+        # достижимости вырезает ввозы двух объявленных форм, скобочная
+        # многострочная — ни одна из них).
+        from spa_core.monitoring.prose_binding_census import format_report as _pbc_report
+        out.extend(_pbc_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-03T13:32:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-03T15:41:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (19923c77f) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (02bcdb1da) · ещё **1** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1178** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1180** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -353,7 +353,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (633)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (635)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -876,6 +876,7 @@
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
+- Одиннадцать агентов обходят существующее поле governed_by: их ADR лежит в заметке, где его не читает никто  ·  `inbox-odinnadtsat-agentov-obhodyat-suschestvuy.md` · 2026-10-03
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Осиротевшая работа cycle-74714 (05.09): наблюдение есть, но не в том артефакте, куда смотрит гейт — $14 210 снято с цели  ·  `inbox-osirotevshaya-rabota-cycle-74714-05-09-n.md` · 2026-09-05
@@ -964,6 +965,7 @@
 - Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
+- Сторож запрета utcnow судит ТЕКСТОМ: он красен на main из-за докстроки, объясняющей то же правило  ·  `inbox-storozh-zapreta-utcnow-sudit-tekstom-on.md` · 2026-10-03
 - Сторож здоровья флота пишет OK выгруженному дневному циклу — узнаёт о пропуске только через сутки  ·  `inbox-storozh-zdorovya-flota-pishet-ok-vygruzh.md` · 2026-09-29
 - Страж перезаписи не оставляет квитанции: его вердикт нельзя проверить ни на одном прошлом прогоне  ·  `inbox-strazh-perezapisi-ne-ostavlyaet-kvitants.md` · 2026-09-12
 - Страж перезаписи решает применимость по КЭШУ: у пушера ноль fetch, а свежая база рядом берётся по HTTP  ·  `inbox-strazh-perezapisi-reshaet-primenimost-po.md` · 2026-09-12
