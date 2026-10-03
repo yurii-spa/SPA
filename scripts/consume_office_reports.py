@@ -749,6 +749,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "door_inside_consumer_loop",
                                   "vacuous_and_reachable", "probe_ledger",
                                   "what_it_does_not_prove"),
+    # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
+    # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
+    # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
+    # и зовётся рукой. `decisions_reached` и `noise_control` — по той же причине:
+    # замер без них неотличим от замера, ничего не вычислившего.
+    "green_by_construction_census.json": ("status", "counts", "rows",
+                                          "test_files", "stage_population",
+                                          "decisions_total", "decisions_reached",
+                                          "forced_runs", "noise_control"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1092,6 +1101,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/rule_second_copy_census.py",
     "vacuous_guard_census.json":
         "spa_core/monitoring/vacuous_guard_census.py",
+    "green_by_construction_census.json":
+        "spa_core/monitoring/green_by_construction_census.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -2981,6 +2992,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ввозы двух объявленных форм, скобочная многострочная — ни одна из них.
         from spa_core.monitoring.rule_second_copy_census import format_report as _rsc_report
         out.extend(_rsc_report(data))
+    elif name == "green_by_construction_census.json":
+        # Заказ G92 п. 2 (ADR-543). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # файл открыт, а в контекст не попадает ни одно число. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм, скобочная многострочная — ни одна).
+        from spa_core.monitoring.green_by_construction_census import format_report as _gbc_report
+        out.extend(_gbc_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст

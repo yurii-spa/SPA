@@ -182,6 +182,12 @@ PRODUCES = (
     # намеренно: один его прогон стои́т сотен прогонов pytest, и место ему —
     # рука, а не шестичасовой агент.
     "data/vacuous_guard_census.json",
+    # Заказ G92 п. 2 (ADR-543) — перепись тестов, зелёных ПО ПОСТРОЕНИЮ.
+    # Ступень ДОРОГАЯ (сотни прогонов pytest), поэтому у неё ТАКТ: срок решает
+    # ФАЙЛ (`green_by_construction_census.run` -> `measurement_due`), SLO 192ч,
+    # и население ступени УРЕЗАНО до одного файла проб — полный замер зовётся
+    # рукой через CLI и стои́т часа.
+    "data/green_by_construction_census.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -356,6 +362,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "tact_gate_census",
     "rule_second_copy_census",
     "vacuous_guard_census",
+    "green_by_construction_census",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -601,6 +608,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "vacuous_guard_census": {
         "module": "spa_core/monitoring/vacuous_guard_census.py",
         "artifact": "data/vacuous_guard_census.json"},
+    "green_by_construction_census": {
+        "module": "spa_core/monitoring/green_by_construction_census.py",
+        "artifact": "data/green_by_construction_census.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2488,6 +2498,28 @@ def main(argv=None) -> int:
                   f"{_vgc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "vacuous_guard_census", e)
+    # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
+    # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
+    # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому
+    # у неё ТАКТ и УРЕЗАННОЕ население; «внутри такта» и «измерено» — разные
+    # исходы, и ноль в первой ветке не печатается.
+    try:
+        from spa_core.monitoring import green_by_construction_census as _gbc
+        _gbcr = _gbc.run(root=args.root)
+        if _gbcr.get("measured"):
+            _gc = observed(_gbcr["doc"], "counts", kind=dict)
+            _found = (None if _gc is None else observed_number(
+                _gc, _gbc.VERDICT_GREEN_BY_CONSTRUCTION))
+            print(f"green_by_construction_census: {_gbcr['doc'].get('status')} — "
+                  f"тестов, зелёных по построению, "
+                  f"{'НЕ ИЗМЕРЕНО' if _found is None else int(_found)} "
+                  f"(население ступени урезано до "
+                  f"{len(_gbc.STAGE_TEST_FILES)} файл(ов))")
+        else:
+            print(f"green_by_construction_census: внутри такта, НЕ мерили — "
+                  f"{_gbcr.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "green_by_construction_census", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него
