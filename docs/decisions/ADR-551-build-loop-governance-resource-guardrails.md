@@ -183,3 +183,31 @@ It confirmed findings 2, 3, 4, 9, 10, 13–17 as fixed and found eight more defe
 
 Known and named, not fixed (latent): with `pytest -n` (xdist) the controller never collects, so an xdist run takes no lease. xdist is not installed in the project interpreter.
 
+## Delivery and production evidence (2026-10-03)
+
+| Step | Evidence |
+|---|---|
+| Commits | `15d4998b` (46 files: the whole epic after two reviews) · `14bbe0b3` (secret redaction, shallow-clone origin, manifest written by its own generator) |
+| Code in production | code-sync `15d4998bc` at 16:29:26Z and `14bbe0b3` at 16:49:48Z; `deployment_acceptance` rc 0 (85 entrypoints executable, 69 agents import their target) |
+| Agents installed through the pre-deploy gate | `com.spa.resource_guard` and `com.spa.resource_cleanup`: sandboxed manual run exit 0, canonical track hash unchanged, both `launchctl` last exit 0; restart (`kickstart -k`) came back healthy |
+| Resource guard, live | «OK: disk 123 GB free; memory pressure 1, swap 67%»; 2 GB reserve in place; CRITICAL = apiserver + cloudflared, IMPORTANT includes rtmr_sense (955 MB, the largest SPA process) |
+| Drill (no real fill) | the same machine under a policy copy with thresholds above reality ⇒ CRITICAL (disk) + WARN (memory), exit 2, `--no-notify` |
+| Admission, live | the prescribed `SPA_ENV=ci` full run took a lease (11,680 tests, reniced 0→10); real registry, three processes on one tree ⇒ 1 WON + 2 named refusals; the crashed holder's lease was pruned on the next read |
+| Cleanup, live | dry run reviewed before install (6,261 empty `spa_test*` stands, ≥ 24.4 h, 0.01 GB, no unmeasured root); the first passes removed 2 × 2,000 (the cap) — every logged path is allow-listed, the youngest 24.4 h old; reaper: 98 worktrees all `keep` (nothing proven delivered — fail-closed) |
+| Orphan report, live | 338 findings: undeclared outputs 176 · abandoned worktrees 55 · stale in-progress cards 33 · pages without lineage 31 · manifest-active not loaded 16 · loaded not in manifest 10 · duplicate roadmaps 8 · stray temp trees 5 · artifacts without reader 4. Nothing deleted. Supervision: marketing 80 drafts (44 ACCEPTED_NOT_RELEASED — no publisher, 36 NEEDS_REVIEW); R&D 113 ideas (107 archived with a verdict, 6 open) |
+| Director | `collect()` on production: status green, resources + orphans sections rendered; the Telegram bridge runs it as a fresh subprocess per request (no restart needed) |
+| Recovery | git: a fresh worktree from origin reproduces provenance and the full lineage; backup: DR snapshot `spa_state_20261003T163833Z` restored 28 files including the cleanup log (2,000 lines); index: memory rebuilt (19,943 chunks) with `architecture/provenance.json` as a canonical source |
+| Fresh session (no context) | answered «why / which task / which decision / producer / owner / replaced / may it go / release outcome» for the calculator from sources, labelled CONFIRMED / HYPOTHESIS / UNKNOWN (producer session UNKNOWN; business outcome UNKNOWN); full lineage of a completed card; `academy/certificate.astro` ⇒ purpose UNKNOWN, NOT removable |
+| Found by the fresh session and fixed | `resource_health.json` stored the tunnel's `--token` (inv. #7). Redacted since `14bbe0b3`; exposure was local only (not in git, the backups or iCloud; two scratch copies deleted); the production file was rewritten clean (0 fragments) |
+
+## Known remaining debts (named, not hidden)
+
+- **Historical producer sessions are UNKNOWN.** Commits share one author identity; no session id exists before this epic. The provenance registry says so instead of guessing.
+- **The business outcome after release is not measured** (e.g. how the calculator funnel performs). RELEASE is proven; OUTCOME means «closed with evidence».
+- **The orphan backlog is reported, not resolved:** 31 pages without lineage, 176 undeclared outputs, 33 stale in-progress cards, 55 abandoned worktrees that the reaper cannot prove delivered. Each needs a decision, not a sweep.
+- **Approved CMO drafts have no publisher.** Publishing is owner subject №2; the report names it.
+- **`mkdtemp` sites without cleanup (35 files, ADR-546 card)** stay open. The TTL sweep bounds the damage; it does not fix the producers.
+- **xdist (`pytest -n`) runs take no lease** (latent: xdist is not installed).
+- **17 pre-existing test failures** in the affected set also fail on the clean base (ratchets of other workstreams); none touched.
+- **Optional, owner:** rotating the Cloudflare tunnel token. It never left the Mac, but it sat in a local file for about 20 minutes.
+
