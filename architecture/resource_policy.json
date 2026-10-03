@@ -1,0 +1,112 @@
+{
+  "_doc": "ADR-551 · Resource guardrails. The ONE policy for disk/memory thresholds, process classes, heavy-job admission and allow-listed cleanup. Read by spa_core/monitoring/resource_guard.py and spa_core/utils/heavy_job.py. Changing a number here is a reviewed commit, not a runtime knob. Canonical, git-tracked; nothing here is a financial or risk limit.",
+  "version": 1,
+  "disk": {
+    "volume": "/System/Volumes/Data",
+    "warn_free_gb": 40,
+    "critical_free_gb": 15,
+    "reserve_gb": 2,
+    "reserve_path": "~/.spa_disk_reserve/reserve.bin",
+    "_why": "Measured 2026-10-02/03: the Data volume reached 0 bytes twice (ENOSPC 22:58-23:03Z and 07:55-08:05Z) from ~87 GB of abandoned test stands plus parallel worktrees; nothing in the fleet asked «is there room to write». 40 GB leaves a day of the worst measured growth (~30 GB/day); 15 GB still lets the alert itself be written. The reserve file is released at CRITICAL so canonical writers (paper books, atomic_save) keep room while the cause is found."
+  },
+  "memory": {
+    "pressure_warn_level": 2,
+    "pressure_critical_level": 4,
+    "swap_warn_pct": 85,
+    "swap_critical_pct": 97,
+    "_why": "kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical (the kernel's own grading, not ours). Swap on this Mac is 3 x 1 GB files; the previous Claude session's wait loops were killed under low memory on 2026-10-02/03."
+  },
+  "process_classes": {
+    "CRITICAL": {
+      "labels": [
+        "com.spa.hy_cycle",
+        "com.spa.lp_cycle",
+        "com.spa.daily_cycle",
+        "com.spa.apiserver",
+        "com.spa.cloudflared"
+      ],
+      "_why": "Derived from dependencies: the paper books (hy/lp sleeves, the daily Conservative cycle) are the canonical writers the package status read model reads (spa_core/defi_engine/package_status.py); the site and Director read that model through the API (com.spa.apiserver) behind the tunnel (com.spa.cloudflared). A lost run here is a lost observation that cannot be backfilled."
+    },
+    "IMPORTANT": {
+      "labels": [
+        "com.spa.director_server",
+        "com.spa.director_build",
+        "com.spa.telegram_bot",
+        "com.studiobridge.telegram",
+        "com.studiobridge.coordinator",
+        "com.spa.daily_backup",
+        "com.spa.trading_research",
+        "com.spa.agent_health",
+        "com.spa.resource_guard",
+        "com.spa.orchestrator",
+        "com.spa.rtmr_sense"
+      ],
+      "_why": "Owner surfaces (Director, Telegram), the backup that keeps evidence off-host, Trading Research (must not break), the health and resource monitors themselves, and the autonomous build loop runner (its CHILDREN are disposable, the scheduler is not). RTMR sense loop (ADR-053) feeds the Conservative book's FREEZE reaction."
+    },
+    "DISPOSABLE": {
+      "command_patterns": [
+        "python[0-9.]* -m pytest",
+        "/pytest ",
+        "claude -p ",
+        "--headless",
+        "node .*\\.mjs",
+        "/private/tmp/spa_",
+        "/tmp/spa_c[0-9]"
+      ],
+      "_why": "Test shards, headless LLM runs, browser verification and anything executing from a disposable /tmp worktree. They may be slowed (nice) under pressure; they are never killed by the guard."
+    }
+  },
+  "heavy_jobs": {
+    "registry_dir": "~/.spa_heavy_jobs",
+    "max_concurrent": {
+      "full_suite": 2,
+      "default": 3
+    },
+    "full_suite_min_tests": 2000,
+    "min_free_disk_gb": 20,
+    "refuse_at_pressure_level": 4,
+    "nice": 10,
+    "_why": "docs/audits/p0-ci-resource-admission.md: two concurrent full runs drove free memory to 0.1 GB and six jobs were killed. A full suite takes a lease; a third waits; the same tree is never claimed by two live jobs."
+  },
+  "cleanup": {
+    "disposable_dirs": [
+      {
+        "root": "$USER_TEMP",
+        "prefixes": [
+          "g17_",
+          "g18_",
+          "spa_test_backups",
+          "spa_test_pipeline",
+          "gbc_run_",
+          "spa_dr_stage_"
+        ],
+        "ttl_hours": 24,
+        "_why": "mkdtemp stands of measurement tools and tests (ADR-546: 957 g17_/g18_ dirs, 87 GB). Created by code, never canonical."
+      },
+      {
+        "root": "/private/tmp",
+        "prefixes": [
+          "spa_test_backups_"
+        ],
+        "ttl_hours": 24,
+        "_why": "Test backup stands (spa_test_backups_*). Headless-browser profiles were dropped from the list: a short prefix (vpsys…) could match another tool's directory (review 2026-10-03)."
+      }
+    ],
+    "worktrees": {
+      "tool": "scripts/reap_stale_worktrees.py",
+      "args": [
+        "--apply",
+        "--json"
+      ],
+      "_why": "Linked git worktrees are removed ONLY by the existing reaper: idle >= 24 h, every changed path delivered/superseded, archived to ~/SPA_backups/worktree_reap before removal; anything unproven stays."
+    },
+    "never_touch": [
+      "/Users/yuriikulieshov/Documents/SPA_Claude",
+      "/Users/yuriikulieshov/Documents/SPA_mirror",
+      "/Users/yuriikulieshov/SPA_backups",
+      "/Users/yuriikulieshov/spa_offsite_backups",
+      "/private/tmp/claude-501"
+    ],
+    "max_deletions_per_run": 2000
+  }
+}

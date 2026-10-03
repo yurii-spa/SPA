@@ -199,7 +199,10 @@ scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) �
 # Потомки claude отделяются в СВОЮ сессию, поэтому граница владения — доказанная
 # принадлежность RUN_ID, а не группа. 124 = владение закрыто, 125 = не закрыто/не измерено.
 echo "[$(ts)] ARMED: invoking headless Claude (governed autonomy, skip-permissions; срок ${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}s)" >> "$LOG"
-"$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
+# ADR-551: the build loop's work (claude and every pytest/mutation child) starts at nice 10 —
+# children inherit it — so a heavy cycle cannot starve the CRITICAL paper schedulers
+# (architecture/resource_policy.json). Priority only; nothing is limited or killed.
+nice -n 10 "$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --timeout-s "${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}" \
     --grace-s "${SPA_ORCHESTRATOR_KILL_GRACE_S:-120}" \
     --log "$LOG" --label orchestrator \

@@ -966,8 +966,16 @@ def close_card(root: str, card_path: str) -> bool:
     """Закрыть ТОЛЬКО нетронутую карточку моста. Взятую в работу не трогаем."""
     if not card_is_untouched(card_path):
         return False
+    # ADR-551: a closing carries who closed it and on what evidence — for the bridge the evidence IS
+    # the disappearance of the finding that bred the card.
     try:
-        return _queue(root, "set-status", card_path, "done").returncode == 0
+        _fm = _frontmatter(card_path)
+    except Exception:  # noqa: BLE001 — the key is a courtesy in the evidence text, never a gate
+        _fm = {}
+    _key = (_fm or {}).get("finding_key") or os.path.basename(card_path)
+    try:
+        return _queue(root, "set-status", card_path, "done", "--closed-by", "findings_bridge",
+                      "--evidence", f"finding {_key} absent in the fresh report (ADR-066 C2)").returncode == 0
     except Exception:
         return False
 

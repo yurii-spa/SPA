@@ -60,6 +60,10 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "docs/SITE_REDESIGN_MASTER_BRIEF.md", "CANONICAL", "doc", 1),
     Rule("spa", "docs/redesign/*.md", "CANONICAL", "doc", 1),
     Rule("spa", "architecture/manifest.json", "CANONICAL", "agents", 3),
+    # ADR-551: WHY an artifact exists, who owns it, what authorized it — one chunk per artifact, so
+    # «why does the calculator exist / may it be removed» is answered from the registry, not guessed.
+    Rule("spa", "architecture/provenance.json", "CANONICAL", "provenance", 3),
+    Rule("spa", "architecture/resource_policy.json", "CANONICAL", "doc", 2),
     Rule("spa", "architecture/memory_truth.json", "SEMANTIC", "truth", 3),
     Rule("spa", "docs/*ROADMAP*.md", "CANONICAL", "roadmap", 1),        # demoted by the truth registry
     Rule("spa", "docs/ideas/*.md", "EPISODIC", "idea", 1),

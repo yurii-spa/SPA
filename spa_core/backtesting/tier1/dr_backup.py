@@ -89,6 +89,9 @@ CRITICAL_FILES = [
     "sleeve_inputs_aggressive.jsonl",
     "paper_observations/balanced.jsonl",                    # one line per scheduled run
     "paper_observations/aggressive.jsonl",
+    # ── ADR-551: the append-only log of every allow-listed removal — the evidence that the cleanup
+    #    removed only what its policy allowed (task/provenance truth itself is git-tracked).
+    "resource_cleanup_log.jsonl",
 ]
 
 # The MUST-HAVE recovery set. A backup that omits any of these is INCOMPLETE and the

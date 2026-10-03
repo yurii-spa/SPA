@@ -43,6 +43,8 @@ CYCLE_STALE_H = 26.0
 TRADING_STALE_H = 2.0
 #: Disk below this share free is an alert (2026-09-26: one log filled the Mac Mini to zero).
 DISK_FREE_MIN = 0.10
+#: resource_guard runs every 5 min (com.spa.resource_guard); 3 missed runs ⇒ the guard is silent.
+RESOURCE_STALE_MIN = 20
 #: Owner-facing services whose liveness the Owner actually feels.
 KEY_SERVICES = (
     ("com.studiobridge.telegram", "Bridge-бот"),
@@ -274,6 +276,33 @@ def collect(inp: Inputs) -> dict:
     except (OSError, AttributeError, ZeroDivisionError):
         rep["disk_free_share"] = None
 
+    # RESOURCES / ORPHANS — ADR-551 read model: the guard's and the orphan report's own files, read,
+    # never re-measured here (one truth). Age is shown so a dead guard cannot keep saying «healthy».
+    rh = _read_json(repo / "data" / "resource_health.json")
+    if isinstance(rh, dict):
+        gen = _parse_ts(rh.get("generated_at"))
+        procs = rh.get("processes") or {}
+        try:
+            from spa_core.utils import heavy_job as _hj
+            jobs = [{k: l.get(k) for k in ("kind", "tree", "pid", "started_at")}
+                    for l in _hj.live_leases(_hj._policy())] if inp.measure_host else []
+        except Exception:  # noqa: BLE001 — leases are an extra, never a crash
+            jobs = None
+        rep["resources"] = {
+            "overall": rh.get("overall"), "age_min": round((now - gen).total_seconds() / 60, 1) if gen else None,
+            "disk_free_gb": (rh.get("disk") or {}).get("free_gb"), "disk_state": (rh.get("disk") or {}).get("state"),
+            "memory_state": (rh.get("memory") or {}).get("state"),
+            "pressure_level": (rh.get("memory") or {}).get("pressure_level"),
+            "swap_pct": ((rh.get("memory") or {}).get("swap") or {}).get("used_pct"),
+            "heavy": [{"cmd": r.get("cmd", "")[:80], "rss_mb": r.get("rss_mb"), "class": r.get("class")}
+                      for r in (procs.get("top") or [])[:5]],
+            "rss_mb_by_class": procs.get("rss_mb_by_class"), "heavy_job_leases": jobs}
+    else:
+        rep["resources"] = None
+    orr = _read_json(repo / "data" / "orphan_report.json")
+    rep["orphans"] = ({"total": orr.get("total"), "counts": orr.get("counts"), "generated_at": orr.get("generated_at")}
+                      if isinstance(orr, dict) else None)
+
     # WORK / OWNER — tracker
     cards = load_cards(repo / "nimbalyst-local" / "tracker")
     if cards is None:
@@ -383,6 +412,17 @@ def collect(inp: Inputs) -> dict:
         alerts.append(f"🔴 дневной цикл не шёл {rep['cycle_age_h']:.0f} ч")
     if rep["disk_free_share"] is not None and rep["disk_free_share"] < DISK_FREE_MIN:
         alerts.append(f"🔴 диск почти полон: свободно {rep['disk_free_share']:.0%}")
+    res = rep.get("resources")
+    if res is None:
+        alerts.append("❔ ресурсы Мака: " + NOT_MEASURED + " (нет data/resource_health.json)")
+    elif res.get("age_min") is None or res["age_min"] > RESOURCE_STALE_MIN:
+        alerts.append(f"❔ ресурсы Мака: замер старше {RESOURCE_STALE_MIN} мин — сторож молчит")
+    elif res.get("overall") in ("CRITICAL", "NOT_MEASURED"):
+        alerts.append(f"🔴 ресурсы Мака: {res['overall']} — диск {res.get('disk_free_gb')} ГБ, "
+                      f"давление памяти {res.get('pressure_level')}, своп {res.get('swap_pct')}%")
+    elif res.get("overall") == "WARN":
+        alerts.append(f"🟡 ресурсы Мака: диск {res.get('disk_free_gb')} ГБ, давление {res.get('pressure_level')}, "
+                      f"своп {res.get('swap_pct')}%")
     for s in rep["services"] or []:
         if not s["running"]:
             alerts.append(f"🔴 {s['name']} не запущен")
@@ -518,6 +558,21 @@ def render_system(rep: dict) -> str:
                                  else NOT_MEASURED))
     ds = rep.get("disk_free_share")
     L.append("Диск свободен: " + (f"{ds:.0%}" if ds is not None else NOT_MEASURED))
+    res = rep.get("resources")
+    if res:
+        L.append(f"Ресурсы: {res.get('overall')} · диск {res.get('disk_free_gb')} ГБ · давление памяти "
+                 f"{res.get('pressure_level')} · своп {res.get('swap_pct')}% · замер {res.get('age_min')} мин назад")
+        if res.get("rss_mb_by_class"):
+            L.append("Память по классам (МБ): " + ", ".join(f"{k} {v:.0f}" for k, v in res["rss_mb_by_class"].items()))
+        for h in res.get("heavy") or []:
+            L.append(f"  · {h['class']} {h['rss_mb']:.0f} МБ {_clip(h['cmd'], 60)}")
+        if res.get("heavy_job_leases"):
+            L.append("Тяжёлые задания: " + "; ".join(f"{j['kind']} pid {j['pid']} в {Path(str(j['tree'])).name}"
+                                                    for j in res["heavy_job_leases"]))
+    else:
+        L.append("Ресурсы: " + NOT_MEASURED)
+    o = rep.get("orphans")
+    L.append("Сироты (отчёт, ничего не удаляется): " + (f"{o['total']} — {o['counts']}" if o else NOT_MEASURED))
     return "\n".join(L)
 
 

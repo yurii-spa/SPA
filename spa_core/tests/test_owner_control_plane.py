@@ -174,7 +174,7 @@ def _card(d: Path, name: str, status: str, title: str, created: datetime, trail=
     (d / name).write_text("\n".join(lines + ["---", "", "body"]), encoding="utf-8")
 
 
-def _repo(tmp_path: Path, *, cycle_age_h=2.0, agent_health=True) -> Path:
+def _repo(tmp_path: Path, *, cycle_age_h=2.0, agent_health=True, resources="OK") -> Path:
     repo = tmp_path / "repo"
     tr = repo / "nimbalyst-local" / "tracker"
     tr.mkdir(parents=True)
@@ -192,6 +192,12 @@ def _repo(tmp_path: Path, *, cycle_age_h=2.0, agent_health=True) -> Path:
         "kill_switch_active": False,
         "last_cycle_ts": (NOW - timedelta(hours=cycle_age_h)).isoformat()}), encoding="utf-8")
     (data / "golive_status.json").write_text(json.dumps({"passed": 29, "total": 29}), encoding="utf-8")
+    if resources:
+        # ADR-551: a healthy world includes a fresh resource-guard reading; its absence is NOT MEASURED.
+        (data / "resource_health.json").write_text(json.dumps({
+            "generated_at": (NOW - timedelta(minutes=4)).strftime("%Y-%m-%dT%H:%M:%SZ"), "overall": resources,
+            "disk": {"state": "OK", "free_gb": 120.0}, "memory": {"state": "OK", "pressure_level": 1,
+            "swap": {"used_pct": 40.0}}, "processes": {"top": [], "rss_mb_by_class": {}}}), encoding="utf-8")
     if agent_health:
         (data / "agent_health.json").write_text(json.dumps({
             "timestamp": (NOW - timedelta(minutes=10)).isoformat(), "cadence_minutes": 60,
@@ -307,3 +313,19 @@ def test_trading_research_block_and_its_staleness_alert(tmp_path):
 def test_trading_status_absent_is_not_measured(tmp_path):
     rep = dr.collect(_inputs(tmp_path, _repo(tmp_path)))
     assert rep["trading"] is None and "TRADING (исследование, бумага): не измерено" in dr.render(rep, "product")
+
+
+# ── ADR-551: resources are part of the owner's read model, and silence is not health ─────────
+
+def test_resources_absent_is_not_measured_not_green(tmp_path):
+    rep = dr.collect(_inputs(tmp_path, _repo(tmp_path, resources=None)))
+    assert any("ресурсы Мака" in a and "НЕ ИЗМЕРЕНО" in a.upper() for a in rep["alerts"]), rep["alerts"]
+    assert rep["status"] != "green"
+
+
+def test_resources_critical_is_red_and_rendered(tmp_path):
+    rep = dr.collect(_inputs(tmp_path, _repo(tmp_path, resources="CRITICAL")))
+    assert rep["status"] == "red"
+    assert any(a.startswith("🔴 ресурсы Мака") for a in rep["alerts"])
+    assert "Ресурсы: CRITICAL" in dr.render(rep, "system")
+

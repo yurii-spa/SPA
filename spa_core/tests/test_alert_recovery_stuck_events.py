@@ -431,6 +431,8 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
         "telegram_down",
         # checkpoint_failed: чекпойнт объявляет и провал, и возврат к норме.
         "checkpoint_failed",
+        # resource_critical (ADR-551): сторож ресурсов объявляет и нехватку, и восстановление.
+        "resource_critical",
     }
 
     def test_every_whitelisted_key_can_leave_the_bad_state(self):
@@ -464,6 +466,7 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
             "rules_critical": "spa_core/monitoring/rules_watchdog.py",
             "telegram_down": "spa_core/monitoring/telegram_health.py",
             "checkpoint_failed": "scripts/checkpoint_7day.py",
+            "resource_critical": "spa_core/monitoring/resource_guard.py",
         }
         self.assertEqual(set(senders), self.RESOLVED_BY_SENDERS)
         for key, rel in senders.items():

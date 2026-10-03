@@ -85,8 +85,19 @@ fail-closed, hash-chain, тесты) и КАРТОЧКА владельцу на
 создавать; если пуш вернул HTTP 422 'must be made through a pull request', значит правило вернули: \
 НЕ обходить его ветками молча, а завести карточку владельцу и сообщить в отчёте."
 
+# ADR-551 (audit 2026-10-03): this agent runs a headless Claude told to push to main, but it did
+# NOT declare itself autonomous — so push_to_github treated it as an ATTENDED session and the
+# landing/** owner-gate interlock (SPA_AUTONOMOUS=1 ⇒ site files only via safe_site_push.py →
+# check_owner_gate.py) did not apply. Declaring it closes that hole; it changes nothing else.
+export SPA_AUTONOMOUS=1
+
 echo "[$(ts)] ARMED: invoking headless Claude (novel-edge R&D, skip-permissions)" >> "$LOG"
-"$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions >> "$LOG" 2>&1
+# ADR-551: same governed runner as the orchestrator — a run id in the log, a hard term (4 h) and
+# ownership of the children; nice 10 so R&D backtests cannot starve the paper schedulers.
+nice -n 10 /Users/yuriikulieshov/miniconda3/bin/python3 "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
+    --timeout-s "${SPA_RND_TIMEOUT_S:-14400}" --grace-s 120 \
+    --log "$LOG" --label novel_edge_rnd \
+    -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 echo "[$(ts)] === iteration END (claude exit $RC) ===" >> "$LOG"
 exit $RC

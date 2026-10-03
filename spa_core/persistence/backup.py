@@ -76,6 +76,8 @@ TRACK_FILES = (
     "sleeve_inputs_aggressive.jsonl",
     "paper_observations/balanced.jsonl",
     "paper_observations/aggressive.jsonl",
+    # ADR-551: the removal log of the daily allow-listed cleanup (evidence of what was deleted).
+    "resource_cleanup_log.jsonl",
 )
 
 MANIFEST_FILENAME = "manifest.json"

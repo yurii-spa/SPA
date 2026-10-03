@@ -137,7 +137,8 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 icon = {"DONE": "✅", "IN_PROGRESS": "🔧", "REJECTED": "🚫"}.get(verdict, "ℹ️")
                 _queue_notice(f"{icon} {html.escape(resp_h or 'нашёл совпадение в памяти — дубль не создаю')}")
                 _journal_history(dt, card, verdict, resp_h)
-                set_status(card.path, "done")
+                set_status(card.path, "done", closed_by="owner_queue.intake/history_check",
+                           evidence=f"duplicate of existing work (verdict {verdict}): {(resp_h or '')[:160]}")
                 processed.append(card.id)
                 continue
             if verdict == "PARTIAL" and resp_h:

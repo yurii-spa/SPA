@@ -42,6 +42,7 @@ if _SCRIPTS_DIR not in sys.path:
 from spa_core.owner_queue.queue import (
     AcceptanceCriterionLocked,
     AcceptanceCriterionMissing,
+    LifecycleRefused,
     OwnerDoneForbidden,
     TRACKER_DIR,
     create_card,
@@ -727,8 +728,9 @@ def cmd_set_status(args) -> int:
         if refused is not None:
             return refused
     try:
-        set_status(args.path, args.status)
-    except (OwnerDoneForbidden, AcceptanceCriterionMissing) as exc:
+        set_status(args.path, args.status, closed_by=getattr(args, "closed_by", None),
+                   evidence=getattr(args, "evidence", None))
+    except (OwnerDoneForbidden, AcceptanceCriterionMissing, LifecycleRefused) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001
@@ -1049,6 +1051,10 @@ def build_parser() -> argparse.ArgumentParser:
     ps = sub.add_parser("set-status", help="atomically set a card's status (owner-done FORBIDDEN)")
     ps.add_argument("path")
     ps.add_argument("status")
+    ps.add_argument("--closed-by", dest="closed_by", default=None,
+                    help="who closes (required for done / owner-done, ADR-551)")
+    ps.add_argument("--evidence", default=None,
+                    help="what the closure rests on (required for done / owner-done, ADR-551)")
     ps.add_argument("--answer-from", action="append", default=None,
                     help="каталог трекера, где искать след ответа владельца перед `ingested` "
                          "(повторяемый). По умолчанию — рабочие деревья этого репозитория, "

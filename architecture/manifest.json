@@ -3339,6 +3339,70 @@
     "rights": "запускать 1 шаг(ов): scripts.morning_work_digest",
     "limits": "не импортирует execution"
    }
+  },
+  {
+   "label": "com.spa.resource_guard",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_resource_guard.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/resource_health.json",
+     "slo_hours": 0.5
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-551"
+   ],
+   "curation": "complete",
+   "notes": "Disk/memory/swap guard (ADR-551): after two ENOSPC windows (2026-10-02/03) no fleet agent asked «is there room to write».",
+   "passport": {
+    "goal": "есть ли у Мака место и память для критичных писателей (бумажные книги, API) — и кто их съедает",
+    "quality_metric": "каждые 5 мин свежий data/resource_health.json; CRITICAL доходит до владельца ОДИН раз за инцидент и снимается при восстановлении",
+    "escalation": "push_policy resource_critical (Tier-1, edge-triggered); коды 0 OK · 1 WARN · 2 CRITICAL либо НЕ ИЗМЕРЕНО",
+    "rights": "читать df/sysctl/ps/launchctl; понижать приоритет DISPOSABLE-процессов под давлением памяти; держать/освобождать резервный файл диска",
+    "limits": "ничего не убивает и не удаляет; LLM запрещён; капитал и RiskPolicy не трогает"
+   }
+  },
+  {
+   "label": "com.spa.resource_cleanup",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:40",
+   "program": "agent_resource_cleanup.sh",
+   "layer": "product",
+   "role": "maintenance",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/resource_cleanup_log.jsonl",
+     "slo_hours": 48.0
+    },
+    {
+     "artifact": "data/orphan_report.json",
+     "slo_hours": 48.0
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-551"
+   ],
+   "curation": "complete",
+   "notes": "Daily allow-listed cleanup + worktree reaper + orphan/supervision report (ADR-551). 87 GB of mkdtemp stands accumulated in 3 days before (ADR-546).",
+   "passport": {
+    "goal": "не дать одноразовым стендам и брошенным деревьям снова съесть диск — и назвать всё бесхозное, ничего не удаляя без правила",
+    "quality_metric": "удаляет ТОЛЬКО префиксы из architecture/resource_policy.json старше TTL; деревья — только через reap_stale_worktrees (доказанная доставка); отчёт сирот раз в сутки",
+    "escalation": "код 2, если отчёт сирот или жнец деревьев НЕ ИЗМЕРЕНЫ; находки — в Director",
+    "rights": "удалять allow-listed одноразовые каталоги; снимать worktree через жнеца (с архивом); писать отчёт",
+    "limits": "never_touch: прод-дерево, зеркало, бэкапы, скрэтчпады сессий; канон/доказательства/бэкапы не удаляются никогда; LLM запрещён"
+   }
   }
  ],
  "artifacts": [
@@ -4604,6 +4668,36 @@
    "slo_hours": 14,
    "status": "active",
    "notes": "Заказ G93 п. 3 приказа «Portfolio CIO», ADR-547. КТО обязан звать сводку §49 и с каким ТАКТОМ — и такт здесь ВЫЧИСЛЕН, а не объявлен: вердикт сводки есть функция артефактов, объявленных мерой критериев §49, поэтому такт-пол = min(slo_hours) по этим привязкам (замер 2026-10-03: 7 ч, ставит Costs через data/rebalance_cost_evidence.json; bound 9 · bound_without_slo 0 · unbound 4). Звать реже пола значит печатать вердикт о мире, которого уже нет. ЗАМЕР того же дня: сводку зовёт РОВНО ОДНА ступень (acceptance_tree_capability, объявленный такт 192 ч) — медленнее пола в 27,43×, и её артефакт на момент замера не производился ни разу (artifact_absent — третий исход, а не «не несёт»). Импорт НЕ считается зовом: исход imports_only называется вслух, потому что храповик неподключённых скриптов считает проводкой ЛЮБУЮ ссылку — один импорт ради чужого правила сделал сироту «подключённой» молча. Ступень несёт и САМО ТАЛЛИ §49 (выполнено · не выполнено · не измерено = 0 · 10 · 3 из 13 на 2026-10-03), иначе прибор был бы ответом «читателя нет» без читателя. Стоимость прогона ИЗМЕРЕНА: 60,7…61,2 с (три замера) ⇒ доли процента такта. Гейт такта 6 ч (короче пола, чтобы гейт никогда не был причиной устаревания), срок решает ФАЙЛ; SLO 14 ч = гейт 6 ч + наблюдённый период бегуна com.spa.decision_loop (ADR-506: StartInterval считается от ЗАВЕРШЕНИЯ прогона, 6,82…7,84 ч), поэтому остаточный разрыв до пола в 2× есть предел БЕГУНА, а не ошибка объявления — прибор продолжает его называть. НЕ ДОКЛАДЫВАЕТ: наблюдённый период бегуна (сравниваются ОБЪЯВЛЕННЫЕ такты) · верность самой пробы · зовущего вне объявленного состава ступеней моста."
+  },
+  {
+   "path": "data/resource_health.json",
+   "producer": "com.spa.resource_guard",
+   "consumers": [
+    "spa_core/studio_os/director_report.py"
+   ],
+   "slo_hours": 0.5,
+   "status": "active",
+   "notes": "ADR-551 resource read model (disk/memory/swap/process classes)."
+  },
+  {
+   "path": "data/resource_cleanup_log.jsonl",
+   "producer": "com.spa.resource_cleanup",
+   "consumers": [
+    "owner audit (append-only removal log)"
+   ],
+   "slo_hours": 48.0,
+   "status": "active",
+   "notes": "ADR-551: every allow-listed removal with path, age and size."
+  },
+  {
+   "path": "data/orphan_report.json",
+   "producer": "com.spa.resource_cleanup",
+   "consumers": [
+    "spa_core/studio_os/director_report.py"
+   ],
+   "slo_hours": 48.0,
+   "status": "active",
+   "notes": "ADR-551 orphan & supervision report — report only, nothing deleted."
   }
  ],
  "designed_architectures": [

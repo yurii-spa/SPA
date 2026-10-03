@@ -51,14 +51,16 @@ def _tree(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _card(tree: Path, name: str = CARD, status: str = "needs-owner") -> Path:
+def _card(tree: Path, name: str = CARD, status: str = "needs-owner", answered: bool = False) -> Path:
+    # `answered` plays the owner (ADR-551: an agent closes an owner decision only on a recorded answer).
     p = tree / sentinel.TRACKER_REL / name
     p.write_text(
         "---\n"
         "trackerStatus:\n"
         "  type: owner-decision\n"
         f'title: "Сайт: автономная правка задела owner-gated область — нужно решение"\n'
-        f"status: {status}\n"
+        + ("owner_answer_via: test-fixture\n" if answered else "")
+        + f"status: {status}\n"
         "created: 2026-08-08\n"
         "---\n\n"
         "## Что случилось и почему это важно\n\nтело карточки\n",
@@ -135,7 +137,7 @@ def test_set_status_is_attributed_and_names_the_writer(tmp_path):
     сторожу дату 2026-08-09 против отметки «сейчас» значило бы сломать тест календарём.
     """
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
     sentinel.run(root=tree)
 
     set_status(card, "in-progress")
@@ -172,11 +174,11 @@ def test_owner_answer_is_attributed(tmp_path, monkeypatch):
 def test_chain_of_two_writes_is_attributed(tmp_path):
     """Между снимками карточка прошла `new -> in-progress -> done` — цепочка объяснена."""
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
     sentinel.run(root=tree)
 
     set_status(card, "in-progress")
-    set_status(card, "done")
+    set_status(card, "done", closed_by="test", evidence="ADR-551: a closure carries its evidence")
 
     r = sentinel.run(root=tree)
     assert r["unattributed"] == []
@@ -189,7 +191,7 @@ def test_chain_of_two_writes_is_attributed(tmp_path):
 def test_stale_record_cannot_launder_a_new_transition(tmp_path):
     """Старая законная запись не выдаёт индульгенцию последующим молчаливым правкам."""
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
 
     status_audit.record_status_write(card, old="new", new="needs-owner",
                                      source="queue.set_status",
@@ -207,7 +209,7 @@ def test_stale_record_cannot_launder_a_new_transition(tmp_path):
 def test_record_about_another_transition_is_named_not_accepted(tmp_path):
     """Журнал объясняет ДРУГОЙ переход — это находка, а не «объяснено»."""
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
     sentinel.run(root=tree, now=T0)
 
     status_audit.record_status_write(card, old="new", new="in-progress",
@@ -273,9 +275,9 @@ def test_appeared_and_vanished_cards_are_not_transitions(tmp_path):
 def test_record_names_process_tree_and_source(tmp_path):
     """«Кто, какой pid, какая карточка, из какого дерева» — дословный запрос карточки."""
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
 
-    set_status(card, "done")
+    set_status(card, "done", closed_by="test", evidence="ADR-551: a closure carries its evidence")
 
     entries, broken = status_audit.read_audit(tree)
     assert broken == []
@@ -301,10 +303,10 @@ def test_owner_done_refusal_leaves_no_record(tmp_path):
 def test_audit_failure_does_not_block_the_status_write(tmp_path, capsys):
     """Не записался журнал — потерян след, но не работа; и жалоба обязана быть громкой."""
     tree = _tree(tmp_path)
-    card = _card(tree, status="new", name="inbox-probe.md")
+    card = _card(tree, status="new", name="inbox-probe.md", answered=True)
     (tree / "data").chmod(0o500)  # каталог только на чтение
     try:
-        set_status(card, "done")
+        set_status(card, "done", closed_by="test", evidence="ADR-551: a closure carries its evidence")
         assert status_audit.read_status(card) == "done"
         assert "журнал не записан" in capsys.readouterr().err
     finally:

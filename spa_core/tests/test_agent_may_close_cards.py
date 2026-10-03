@@ -42,9 +42,17 @@ from spa_core.owner_queue.status_audit import read_status, read_trail
 # pytest собирает независимо от имени. Здесь наследования нет — значит держит только имя.
 
 
-def _card(tmp_path, status="needs-owner"):
-    return create_card("owner-decision", "проба", "тело", status=status,
-                       tracker_dir=tmp_path)
+def _card(tmp_path, status="needs-owner", answered=True):
+    """ADR-551 (owner, 2026-10-03): an agent closes an owner decision only on the owner's RECORDED
+    answer. `answered=True` plays the owner the way the Telegram answer path does — it writes
+    `owner_answer_via` — so the delegated-closing tests below keep testing what they were written
+    for; `answered=False` is the new refusal, tested in its own class."""
+    card = create_card("owner-decision", "проба", "тело", status=status, tracker_dir=tmp_path)
+    if answered:
+        txt = card.read_text(encoding="utf-8")
+        card.write_text(txt.replace("\nstatus:", "\nowner_answer_via: test-fixture (plays the owner)\nstatus:", 1),
+                        encoding="utf-8")
+    return card
 
 
 class TestOwnerDelegatedClosing:
@@ -141,3 +149,28 @@ class TestTheSentinelDidNotGoQuiet:
         """Иначе переход на новое имя — переименование, а не расширение."""
         assert OWNER_ONLY_STATUSES < ATTRIBUTION_CRITICAL_STATUSES
         assert AGENT_CLOSABLE_STATUS in ATTRIBUTION_CRITICAL_STATUSES
+
+
+class TestNoClosingOfAnUnansweredOwnerDecision:
+    """ADR-551: «prevent agent closing Owner decisions» — the evidence of an agent is not the
+    owner's answer. Without a recorded answer the owner decision stays with the owner; the
+    misrouted-card path (ADR-285) is `ingested`, which stays open to the agent."""
+
+    def test_owner_done_without_a_recorded_answer_is_refused(self, tmp_path):
+        from spa_core.owner_queue.queue import LifecycleRefused
+        card = _card(tmp_path, answered=False)
+        with pytest.raises(LifecycleRefused):
+            set_status(card, AGENT_CLOSABLE_STATUS, closed_by="agent", evidence="я проверил")
+        assert read_status(card) == "needs-owner"
+
+    def test_done_without_a_recorded_answer_is_refused_too(self, tmp_path):
+        from spa_core.owner_queue.queue import LifecycleRefused
+        card = _card(tmp_path, answered=False)
+        with pytest.raises(LifecycleRefused):
+            set_status(card, "done", closed_by="agent", evidence="я проверил")
+
+    def test_ingested_stays_open_for_a_misrouted_card(self, tmp_path):
+        card = _card(tmp_path, answered=False)
+        set_status(card, "ingested")
+        assert read_status(card) == "ingested"
+

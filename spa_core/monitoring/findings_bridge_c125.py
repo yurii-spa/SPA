@@ -380,7 +380,8 @@ def close_card(entry: dict, root: str, now: dt.datetime, *, runner=None,
                 f"отчёте; непрочитанный отчёт не закрывает ничего.\n")
     append = appender or _append_to_card
     err = append(os.path.join(root, path) if not os.path.isabs(path) else path, evidence)
-    rc, out, err_out = runner(["set-status", path, "done"])
+    rc, out, err_out = runner(["set-status", path, "done", "--closed-by", "findings_bridge",
+                               "--evidence", f"finding {entry['key']} absent in the fresh report {rel} (ADR-066 C2)"])
     if rc != 0:
         return {"key": entry["key"], "card_path": path,
                 "error": f"set-status rc={rc}: {err_out or out}"}

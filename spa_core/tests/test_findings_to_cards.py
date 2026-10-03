@@ -268,7 +268,10 @@ def test_vanished_finding_closes_the_card_with_evidence(root):
     write_source(root, "arch", report([], overall="OK"))
     rep = run_bridge(root, q, now=NOW + dt.timedelta(hours=12))
     assert rep["counts"]["closed"] == 1
-    assert ["set-status", str(card), "done"] in q.calls
+    # ADR-551: a closing carries who closed and on what evidence — the bridge names the vanished finding.
+    closing = [c for c in q.calls if c[:3] == ["set-status", str(card), "done"]]
+    assert closing and "--closed-by" in closing[0] and "--evidence" in closing[0]
+    assert "absent" in closing[0][closing[0].index("--evidence") + 1]
     assert "Закрыто автоматически" in card.read_text(encoding="utf-8")
 
 

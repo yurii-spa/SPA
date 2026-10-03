@@ -141,6 +141,47 @@ class AcceptanceCriterionMissing(RuntimeError):
     """inbox-карточку берут в работу без машинного критерия приёмки (`.claude/rules/acceptance.md`)."""
 
 
+class LifecycleRefused(RuntimeError):
+    """A status change outside the card lifecycle (Build Loop v1, ADR-551): a transition the
+    table does not allow, a `done` with no recorded evidence, or an owner decision closed by an
+    agent with no recorded owner answer."""
+
+
+#: Build Loop v1 (ADR-551) — the ONE transition table of the card lifecycle, keyed by STATUS (not by
+#: tracker type: measured 2026-10-03, inbox cards carry owner statuses too). Derived from every
+#: transition recorded in the cards' own `status_trail` (needs-owner→ingested 40, owner-done→ingested
+#: 45, new→done 117, …) plus their logical counterparts; a status outside this vocabulary is refused
+#: (a typo like «closed» would make a card invisible to every filter). A card whose CURRENT status is
+#: unknown (legacy, or none at all) is not judged — a dead letter must stay repairable.
+#: Re-opening a closed card is allowed on purpose: a reopened card is visible, a vanished one is not.
+CARD_TRANSITIONS = {
+    "new": {"backlog", "in-progress", "blocked", "done", "ingested", "needs-owner"},
+    "backlog": {"new", "in-progress", "blocked", "done", "ingested", "needs-owner"},
+    "in-progress": {"new", "backlog", "blocked", "done", "needs-owner", "owner-done", "ingested"},
+    "blocked": {"new", "backlog", "in-progress", "done", "needs-owner", "owner-done"},
+    "done": {"new", "backlog", "in-progress"},
+    "needs-owner": {"new", "backlog", "in-progress", "blocked", "ingested", "owner-done", "owner-accepted", "done"},
+    "owner-accepted": {"in-progress", "ingested", "owner-done"},
+    "owner-done": {"ingested", "needs-owner"},
+    "ingested": {"new", "backlog", "in-progress", "needs-owner", "owner-done", "done"},
+}
+CARD_STATUSES = frozenset(CARD_TRANSITIONS)
+
+#: Statuses that CLOSE work. Closing is a claim that the work is finished, so it needs a record of
+#: who closed it and on what evidence — the same rule ADR-146 set for `owner-done`, extended to
+#: `done` (audit 2026-10-03: 0 of 135 closed agent cards and 288 of 363 closed inbox cards carried
+#: any machine evidence).
+EVIDENCED_CLOSING_STATUSES = frozenset({"done", AGENT_CLOSABLE_STATUS})
+
+#: The only closer allowed to RETRACT a bridge-born question (the findings bridge family closes as
+#: «findings_bridge»).
+BRIDGE_CLOSERS = frozenset({"findings_bridge"})
+
+#: Frontmatter fields that prove the OWNER answered an owner-decision card (written by the
+#: Telegram answer path and by the ingest of an owner reply).
+OWNER_ANSWER_FIELDS = ("owner_choice", "owner_answer_via", "owner_answered_at")
+
+
 class AcceptanceCriterionLocked(RuntimeError):
     """Пробу карточки В РАБОТЕ пытаются заменить: мерку выбирают ДО работы, не после."""
 
@@ -471,6 +512,55 @@ def list_cards(
     return cards
 
 
+def check_lifecycle(tracker_type, old: str | None, new: str, *, fm: dict | None = None,
+                    closed_by: str | None = None, evidence: str | None = None,
+                    carried: bool = False, name: str = "card") -> None:
+    """Refuse a status change outside the card lifecycle (Build Loop v1, ADR-551). Pure: raises
+    `LifecycleRefused` or returns None. Same status → no-op, always allowed."""
+    if old == new:
+        return
+    if new not in CARD_STATUSES:
+        raise LifecycleRefused(
+            f"{name}: '{new}' is not a card status (known: {', '.join(sorted(CARD_STATUSES))}; "
+            f"table: queue.CARD_TRANSITIONS)")
+    if old in CARD_TRANSITIONS and new not in CARD_TRANSITIONS[old]:
+        raise LifecycleRefused(
+            f"{name}: cannot move '{old}' → '{new}' "
+            f"(allowed from '{old}': {', '.join(sorted(CARD_TRANSITIONS[old]))}; table: queue.CARD_TRANSITIONS)")
+    if new in EVIDENCED_CLOSING_STATUSES and not carried and not (closed_by and evidence):
+        raise LifecycleRefused(
+            f"{name}: closing with '{new}' needs closed_by= AND evidence= — a closed card is a claim "
+            f"that the work is finished, and the claim must say on what it rests (ADR-146, ADR-551). "
+            f"CLI: orchestrator_queue.py set-status <card> {new} --closed-by <who> --evidence <what>")
+    fm = fm or {}
+    # The owner's word on the card (second review 2026-10-03). Read from PARSED trail items (old / new /
+    # source written by our own writers), never a regex over the raw line — a session id containing
+    # «-> owner-done» must not forge an answer. The owner's word is any of:
+    #   · an answer field (Telegram answer path / ingest of a reply);
+    #   · the card LEFT owner-accepted — agents can never set that status, so only the owner put it there;
+    #   · the card is (or was) owner-done and no agent closure (`closed_by:` in the source) put it there —
+    #     an answer given in Nimbalyst writes no field and no trail, only the status.
+    items = [t for t in (fm.get("status_trail_items") or []) if isinstance(t, dict)]
+    agent_closed = any(t.get("new") == AGENT_CLOSABLE_STATUS and "closed_by:" in str(t.get("source", ""))
+                       for t in items)
+    _owner_word = (any(str(fm.get(f) or "").strip() for f in OWNER_ANSWER_FIELDS)
+                   or any(t.get("old") == OWNER_ACCEPTED_STATUS for t in items)
+                   or any(t.get("new") in (AGENT_CLOSABLE_STATUS, OWNER_ACCEPTED_STATUS)
+                          and "closed_by:" not in str(t.get("source", "")) for t in items)
+                   or ((old == AGENT_CLOSABLE_STATUS or any(t.get("old") == AGENT_CLOSABLE_STATUS for t in items))
+                       and not agent_closed))
+    # The findings bridge retracts its OWN untouched question when the finding that bred it disappears
+    # (ADR-066 C2): only the bridge's closers, only `done`, only a card nobody has moved since birth.
+    _bridge_retraction = (new == "done" and bool(str(fm.get("finding_key") or "").strip())
+                          and str(closed_by or "") in BRIDGE_CLOSERS and not items)
+    if (tracker_type == "owner-decision" and new in EVIDENCED_CLOSING_STATUSES
+            and old != OWNER_ACCEPTED_STATUS and not _owner_word and not _bridge_retraction):
+        raise LifecycleRefused(
+            f"{name}: an owner decision is closed only on the owner's recorded answer "
+            f"({' / '.join(OWNER_ANSWER_FIELDS)} in the card, or status owner-accepted). "
+            f"No answer recorded ⇒ the card stays with the owner (invariant #14, ADR-551).")
+
+
 def set_status(path: str | Path, new_status: str,
                closed_by: str | None = None, evidence: str | None = None,
                carried_to: str | Path | None = None,
@@ -557,6 +647,19 @@ def set_status(path: str | Path, new_status: str,
                 f"Нет подходящей пробы — зарегистрировать новую с контролем в обе стороны. "
                 f"В базу scripts/inbox_acceptance_baseline.json НЕ дописывать: она только уменьшается.")
 
+    # Build Loop v1 (ADR-551): the lifecycle check runs AFTER the acceptance rule above, so a card
+    # taken without a criterion is still refused for THAT reason first.
+    try:
+        from spa_core.owner_queue.status_audit import read_trail as _read_trail
+        _fm_lc = dict(_fm, status_trail_items=_read_trail(text))
+    except Exception:  # noqa: BLE001 — no trail reader ⇒ judged on fields alone (stricter)
+        _fm_lc = _fm
+    # Legacy own-* cards carry a top-level `type:` instead of `trackerStatus.type` (16 measured) — they
+    # are owner decisions all the same (second review 2026-10-03).
+    _lc_type = _tracker_type or (str(_fm.get("type")).strip() if _fm.get("type") else None)
+    check_lifecycle(_lc_type, _old_status, new_status, fm=_fm_lc, closed_by=closed_by,
+                    evidence=evidence, carried=_carried_ok, name=p.name)
+
     lines = text.splitlines(keepends=True)
     # Locate frontmatter bounds in the raw (keepends) line list.
     start = None
@@ -598,7 +701,7 @@ def set_status(path: str | Path, new_status: str,
     # Разделитель следа из основания вычищается: иначе основание с ` · ` внутри развалило бы
     # разбор строки на поля.
     _source = "queue.set_status"
-    if new_status == AGENT_CLOSABLE_STATUS and closed_by and evidence:
+    if new_status in EVIDENCED_CLOSING_STATUSES and closed_by and evidence:
         _clean = str(evidence).replace(TRAIL_SEP.strip(), "-").replace("\n", " ").strip()
         _source = f"queue.set_status/closed_by:{closed_by}/evidence:{_clean[:200]}"
     _text = stamp_trail("".join(lines), old=_old_status, new=new_status,

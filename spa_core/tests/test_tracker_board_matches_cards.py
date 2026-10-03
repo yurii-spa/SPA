@@ -188,7 +188,9 @@ def test_set_status_rebuilds_the_board_of_the_cards_own_tracker(sandbox: Path) -
 
     res = subprocess.run(
         [sys.executable, str(REPO_ROOT / "scripts" / "orchestrator_queue.py"),
-         "set-status", str(sandbox / "inbox-k.md"), "done"],
+         "set-status", str(sandbox / "inbox-k.md"), "done",
+         # ADR-551: a closing carries who closed it and on what evidence
+         "--closed-by", "test", "--evidence", "board rebuild control"],
         capture_output=True, text=True, cwd=str(REPO_ROOT),
     )
     assert res.returncode == 0, res.stdout + res.stderr

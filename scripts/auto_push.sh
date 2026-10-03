@@ -41,12 +41,23 @@ fi
 PUSHED=0
 SKIPPED=0
 FAILED=0
+REFUSED=0
 
 # Must run from project root so push scripts find push_to_github.py
 cd "$PROJECT_DIR"
 
+# ADR-551 (audit 2026-10-03): this agent executed ANY scripts/push_v*.sh it found — an ungated
+# executor of whatever a session dropped there (none exist today: pushed=0 every run). Only names
+# listed in scripts/auto_push_allowlist.txt run now; everything else is reported, never executed.
+ALLOW="$SCRIPT_DIR/auto_push_allowlist.txt"
+touch "$ALLOW"
 for f in $(ls "$SCRIPT_DIR"/push_v*.sh 2>/dev/null | sort -V); do
     name=$(basename "$f")
+    if ! grep -qxF "$name" "$ALLOW" 2>/dev/null; then
+        echo "$(date): REFUSED $name — not in auto_push_allowlist.txt (ADR-551); not executed"
+        REFUSED=$((REFUSED+1))
+        continue
+    fi
     if grep -qxF "$name" "$LOG" 2>/dev/null; then
         SKIPPED=$((SKIPPED+1))
         continue
@@ -64,5 +75,5 @@ for f in $(ls "$SCRIPT_DIR"/push_v*.sh 2>/dev/null | sort -V); do
     fi
 done
 
-SUMMARY="$(date): auto_push complete — pushed=$PUSHED skipped=$SKIPPED failed=$FAILED"
+SUMMARY="$(date): auto_push complete — pushed=$PUSHED skipped=$SKIPPED failed=$FAILED refused=$REFUSED"
 echo "$SUMMARY" | tee -a "$RUN_LOG"

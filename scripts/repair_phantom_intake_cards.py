@@ -137,7 +137,8 @@ def repair(tracker_dir: Path, *, apply: bool) -> dict:
             if "Закрыто автоматически" not in text:
                 item["phantom"].write_text(
                     text.rstrip() + _CLOSE_NOTE.format(sig=item["signature"]), encoding="utf-8")
-            set_status(item["phantom"], "done")
+            set_status(item["phantom"], "done", closed_by="repair_phantom_intake_cards",
+                       evidence=f"phantom intake card, signature {item['signature']}")
         closed.append(item["phantom"].name)
 
     return {

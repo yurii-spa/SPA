@@ -357,6 +357,10 @@ def test_unclear_card_records_the_source_text_readably(tmp_path, monkeypatch):
     # `_wire` подменяет `list_cards` одной карточкой — снимаем подмену, иначе сверка
     # смотрела бы в харнесс, а не в трекер (сторож судил бы не тот предмет).
     monkeypatch.undo()
+    # ADR-551: the agent closes an owner decision only on the owner's recorded answer — the
+    # fixture plays the owner and records it first.
+    _t = owner_cards[0].read_text(encoding="utf-8")
+    owner_cards[0].write_text(_t.replace("\nstatus:", "\nowner_answer_via: test-fixture\nstatus:", 1), encoding="utf-8")
     Q.set_status(owner_cards[0], "done", closed_by="test", evidence="контроль #446")
     hit = exact_prior_ask(text, tracker_dir=tmp_path / "tracker")
     assert hit is not None and hit["status"] == "done", (

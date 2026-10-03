@@ -67,8 +67,17 @@ class _ClarificationCase(unittest.TestCase):
             p.write_text(txt.replace("status: needs-owner", f"status: {status}", 1),
                          encoding="utf-8")
         elif status != "needs-owner":
+            # ADR-551: агент закрывает вопрос владельца только по ЗАПИСАННОМУ ответу владельца —
+            # фикстура играет владельца и записывает ответ, как это делает путь ответа в Telegram.
+            _record_owner_answer(p)
             set_status(p, status, closed_by="test", evidence="положительный контроль #446")
         return p
+
+
+def _record_owner_answer(p):
+    txt = p.read_text(encoding="utf-8")
+    p.write_text(txt.replace("\nstatus:", "\nowner_answer_via: test-fixture (plays the owner)\nstatus:", 1),
+                 encoding="utf-8")
 
 
 class ExactPriorAskTest(_ClarificationCase):
@@ -140,6 +149,7 @@ class ExactPriorAskTest(_ClarificationCase):
         """Обычная карточка, процитировавшая текст, вопросом владельцу не была."""
         create_card("owner-decision", "Обычный вопрос", _clarification_body(REAL_TEXT_13),
                     status="needs-owner", source="findings-bridge", tracker_dir=self.tracker)
+        _record_owner_answer(self.tracker / "owner-decision-obychnyi-vopros.md")
         set_status(self.tracker / "owner-decision-obychnyi-vopros.md", "done",
                    closed_by="test", evidence="обратный контроль")
         self.assertIsNone(exact_prior_ask(REAL_TEXT_13, tracker_dir=self.tracker))

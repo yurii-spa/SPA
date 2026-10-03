@@ -137,6 +137,22 @@ def _agent_docs(text: str) -> List[tuple]:
     return out
 
 
+def _provenance_docs(text: str) -> List[tuple]:
+    """architecture/provenance.json → one chunk per artifact (ADR-551): purpose, task, decision,
+    producer, reviewer, owner, status — the record a fresh session needs before changing it."""
+    try:
+        m = json.loads(text)
+    except ValueError:
+        return []
+    out = []
+    for a in m.get("artifacts", []):
+        keys = ("purpose", "purpose_source", "source_task", "source_decision", "producer_role", "producer_run",
+                "reviewer", "owner_role", "status", "supersedes", "consumers", "notes")
+        body = "\n".join(f"{k}: {a[k]}" for k in keys if a.get(k)) + f"\nanchors: {', '.join(a.get('anchors', []))}"
+        out.append((f"ARTIFACT {a['id']} [{a.get('status')}] {' '.join(a.get('anchors', []))}", body))
+    return out
+
+
 def _truth_docs(text: str) -> List[tuple]:
     """architecture/memory_truth.json → one chunk per fact/override (semantic memory with evidence)."""
     try:
@@ -201,7 +217,7 @@ def build(path: Optional[Path] = None) -> Dict:
         st = truth.resolve(key, rule.layer, clean)
         title = _title(clean, rel)
         pieces = (_agent_docs(clean) if rule.kind == "agents" else _truth_docs(clean) if rule.kind == "truth"
-                  else _chunks(clean))
+                  else _provenance_docs(clean) if rule.kind == "provenance" else _chunks(clean))
         for heading, body in pieces:
             if not body.strip():
                 continue

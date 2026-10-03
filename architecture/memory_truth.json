@@ -3,6 +3,18 @@
  "note": "Explicit, reasoned status overrides and semantic facts for memory (ADR-527). Each entry must cite evidence. This file never overrides an ADR's decision — it records what supersedes what.",
  "overrides": [
   {
+   "path": "spa:architecture/provenance.json",
+   "status": "ACCEPTED",
+   "reason": "canonical artifact provenance registry of ADR-551; JSON carries no status line",
+   "evidence": "docs/decisions/ADR-551-build-loop-governance-resource-guardrails.md"
+  },
+  {
+   "path": "spa:architecture/resource_policy.json",
+   "status": "ACCEPTED",
+   "reason": "canonical resource guardrail policy of ADR-551; JSON carries no status line",
+   "evidence": "docs/decisions/ADR-551-build-loop-governance-resource-guardrails.md"
+  },
+  {
    "path": "spa:docs/AI1_ROADMAP.md",
    "status": "SUPERSEDED",
    "superseded_by": "spa:docs/ROADMAP.md",

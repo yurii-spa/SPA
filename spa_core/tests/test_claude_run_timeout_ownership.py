@@ -546,8 +546,12 @@ class WrappersAndHygiene(unittest.TestCase):
         молча, и агент остался бы без вызова Claude вовсе. Расширение объёма на вторую
         обёртку обязано быть правкой ЭТОГО списка, то есть решением, а не побочным эффектом.
         """
-        WIRED = {"agent_orchestrator.sh": "SPA_ORCHESTRATOR_TIMEOUT_S"}
-        NOT_YET_WIRED = ("agent_novel_edge_rnd.sh",)
+        # ADR-551 (2026-10-03) extends the scope to the R&D wrapper — the decision this list asks for:
+        # the orchestrator canary ran clean (10 governed cycles with run ids on 2026-10-03 alone,
+        # /tmp/spa_orchestrator.log), and the audit found the R&D agent ungoverned (no term, no run id).
+        WIRED = {"agent_orchestrator.sh": "SPA_ORCHESTRATOR_TIMEOUT_S",
+                 "agent_novel_edge_rnd.sh": "SPA_RND_TIMEOUT_S"}
+        NOT_YET_WIRED = ()
 
         for name, var in WIRED.items():
             src = open(os.path.join(ROOT, "scripts", name), encoding="utf-8").read()
