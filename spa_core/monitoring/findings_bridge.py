@@ -188,6 +188,12 @@ PRODUCES = (
     # и население ступени УРЕЗАНО до одного файла проб — полный замер зовётся
     # рукой через CLI и стои́т часа.
     "data/green_by_construction_census.json",
+    # Заказ G93 п. 2 (ADR-545) — какое ДЕРЕВО способно ответить на §49 приказа
+    # «Portfolio CIO». Ступень ДОРОГАЯ (настоящие пробы §49 по каждому дереву,
+    # минуты) и предмет у неё — КОНФИГУРАЦИЯ деревьев, которая не меняется
+    # ежечасно; поэтому ТАКТ, срок решает ФАЙЛ
+    # (`acceptance_tree_capability.run` -> `measurement_due`), SLO 192ч.
+    "data/acceptance_tree_capability.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -363,6 +369,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "rule_second_copy_census",
     "vacuous_guard_census",
     "green_by_construction_census",
+    "acceptance_tree_capability",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -611,6 +618,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "green_by_construction_census": {
         "module": "spa_core/monitoring/green_by_construction_census.py",
         "artifact": "data/green_by_construction_census.json"},
+    "acceptance_tree_capability": {
+        "module": "spa_core/monitoring/acceptance_tree_capability.py",
+        "artifact": "data/acceptance_tree_capability.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2520,6 +2530,33 @@ def main(argv=None) -> int:
                   f"{_gbcr.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "green_by_construction_census", e)
+    # Дерево приёмки §49 (G93 п. 2, ADR-545): способно ли дерево ВООБЩЕ вынести
+    # вердикт по критерию приказа — вопрос соседний с «выполнен ли критерий», и
+    # мера у него ДИФФЕРЕНЦИАЛЬНАЯ: у одного дерева слепота дерева неотличима от
+    # отсутствия наблюдения на свете. Ступень с ТАКТОМ (пробы настоящие);
+    # «внутри такта» и «измерено» — разные исходы, и ноль в первой ветке не
+    # печатается.
+    try:
+        from spa_core.monitoring import acceptance_tree_capability as _atc
+        _atcr = _atc.run(root=args.root)
+        if _atcr.get("measured"):
+            _adoc = _atcr["doc"]
+            if str(_adoc.get("status")) != "OK":
+                print(f"acceptance_tree_capability: НЕ ИЗМЕРЕНО — "
+                      f"{_adoc.get('reason')}")
+            else:
+                _acounts = observed(_adoc, "counts", kind=dict)
+                _bound = (None if _acounts is None else
+                          observed_number(_acounts, _atc.TREE_BOUND))
+                print(f"acceptance_tree_capability: дерево приёмки — "
+                      f"{_adoc.get('acceptance_tree') or 'НЕ ИЗМЕРЕНО'}; "
+                      f"критериев, у которых место приёмки РЕШАЕТ, "
+                      f"{'НЕ ИЗМЕРЕНО' if _bound is None else int(_bound)}")
+        else:
+            print(f"acceptance_tree_capability: внутри такта, НЕ мерили — "
+                  f"{_atcr.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "acceptance_tree_capability", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него

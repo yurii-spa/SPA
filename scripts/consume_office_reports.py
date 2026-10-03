@@ -758,6 +758,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                           "test_files", "stage_population",
                                           "decisions_total", "decisions_reached",
                                           "forced_runs", "noise_control"),
+    # Заказ G93 п. 2 (ADR-545). `trees_measured` в схеме обязателен: «место
+    # приёмки решает у 6 критериев» без перечня измеренных деревьев не значит
+    # ничего — вердикт дифференциальный, и население дифференциала есть часть
+    # ответа. `acceptance_tree` обязателен по той же причине: отсутствие поля
+    # прочлось бы как «дерева нет», тогда как это ДВА разных исхода (названо
+    # одно дерево · счёт равный, старшинство НЕ ИЗМЕРЕНО).
+    "acceptance_tree_capability.json": ("status", "counts", "rows",
+                                        "trees_measured", "acceptance_tree",
+                                        "answered_by_tree", "findings"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1103,6 +1112,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/vacuous_guard_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
+    "acceptance_tree_capability.json":
+        "spa_core/monitoring/acceptance_tree_capability.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -2999,6 +3010,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм, скобочная многострочная — ни одна).
         from spa_core.monitoring.green_by_construction_census import format_report as _gbc_report
         out.extend(_gbc_report(data))
+    elif name == "acceptance_tree_capability.json":
+        # Заказ G93 п. 2 (ADR-545). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # файл открыт, а в контекст не попадает ни одно число, и именно так
+        # одиннадцать циклов подряд называли §49 «не измеренным», не узнав, что
+        # слепота принадлежит ДЕРЕВУ. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы
+        # двух объявленных форм, скобочная многострочная — ни одна из них).
+        from spa_core.monitoring.acceptance_tree_capability import format_report as _atc_report
+        out.extend(_atc_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст
