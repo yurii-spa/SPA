@@ -1,0 +1,15 @@
+{
+  "name": "Mission Control",
+  "short_name": "Mission Control",
+  "description": "SPA owner read-only remote — read-only, no money action",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0b0f14",
+  "background_color": "#0b0f14",
+  "lang": "ru",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1245,6 +1245,11 @@ class TelegramBot:
                 # §6 Inbox intake: /task <text> or a voice message → Inbox card.
                 if self._handle_inbox_intake(msg, text, chat_id):
                     return
+                # Mission Control deep link (ADR-552): «/start od_<card-slug-prefix>» opens THAT owner
+                # decision with its buttons — the same canonical sender as «что на мне?». The web UI
+                # stays read-only; the answer is given here, by the owner, with the owner check.
+                if self._handle_decision_deeplink(text, chat_id):
+                    return
                 # Any command or bare text (re)spawns the Home panel as a new message.
                 router.handle_command(text if text.startswith("/") else "/menu", chat_id)
         except Exception as exc:  # noqa: BLE001 — never let one update crash the loop
@@ -1408,6 +1413,30 @@ class TelegramBot:
                 self._emit_document_card(emit)
         except Exception as exc:  # noqa: BLE001 — опрос важнее сборщика
             log.warning("flush_pending_documents failed: %s", exc)
+
+    _DEEPLINK = __import__("re").compile(r"^/start\s+od_([a-z0-9-]{3,61})$")
+
+    def _handle_decision_deeplink(self, text: str, chat_id: str) -> bool:
+        """«/start od_<slug-prefix>» → send that card (owner only; unknown/ambiguous ⇒ fall through to the
+        menu). A Telegram start payload is ≤64 chars of [A-Za-z0-9_-], so the link carries a prefix of
+        the card slug, resolved to exactly one card in the live tracker."""
+        m = self._DEEPLINK.match((text or "").strip())
+        if not m:
+            return False
+        from spa_core.telegram import owner_decisions as od
+        try:
+            if not self._get_router().is_owner(chat_id):      # the same fail-closed owner gate
+                return False
+            tracker = od._live_tracker_dir(None)
+            exact = Path(tracker) / f"{m.group(1)}.md"
+            hits = [exact] if exact.is_file() else sorted(p for p in Path(tracker).glob(f"{m.group(1)}*.md"))
+        except Exception as exc:  # noqa: BLE001 — a broken lookup falls back to the menu
+            log.warning("decision deeplink failed: %s", exc)
+            return False
+        if len(hits) != 1:
+            return False
+        self._send_card(hits[0], chat_id)
+        return True
 
     def _send_card(self, path, chat_id: str) -> None:
         """Одна карточка владельцу: needs-owner → полный вид с кнопками, иначе сводка."""

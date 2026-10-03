@@ -192,6 +192,12 @@ def _repo(tmp_path: Path, *, cycle_age_h=2.0, agent_health=True, resources="OK")
         "kill_switch_active": False,
         "last_cycle_ts": (NOW - timedelta(hours=cycle_age_h)).isoformat()}), encoding="utf-8")
     (data / "golive_status.json").write_text(json.dumps({"passed": 29, "total": 29}), encoding="utf-8")
+    # ADR-552 / WP-A05 #5: a healthy world includes a FRESH clear reading of the drawdown kill switch;
+    # without it the switch is «не измерено», never «не взведён».
+    (data / "kill_switch_status.json").write_text(json.dumps({
+        "generated_at": (NOW - timedelta(hours=1)).isoformat(), "triggered": False, "state": "CLEAR"}), encoding="utf-8")
+    (data / "derisk_status.json").write_text(json.dumps({
+        "generated_at": (NOW - timedelta(hours=1)).isoformat(), "active": False, "tier": "NONE"}), encoding="utf-8")
     if resources:
         # ADR-551: a healthy world includes a fresh resource-guard reading; its absence is NOT MEASURED.
         (data / "resource_health.json").write_text(json.dumps({
@@ -329,3 +335,47 @@ def test_resources_critical_is_red_and_rendered(tmp_path):
     assert any(a.startswith("🔴 ресурсы Мака") for a in rep["alerts"])
     assert "Ресурсы: CRITICAL" in dr.render(rep, "system")
 
+
+
+def test_a_fleet_in_warning_is_yellow_with_names_not_green(tmp_path):
+    """ADR-552: Mission Control showed DEGRADED while /report said «всё работает» for the same
+    agent_health.json (4 agents in WARNING, 2026-10-03). One meaning in both places."""
+    repo = _repo(tmp_path)
+    ah = json.loads((repo / "data" / "agent_health.json").read_text())
+    ah.update(overall_status="WARNING", warning_count=1)
+    ah["agents"].append({"label": "com.spa.site_freshness", "status": "WARNING"})
+    (repo / "data" / "agent_health.json").write_text(json.dumps(ah))
+    rep = dr.collect(_inputs(tmp_path, repo))
+    assert rep["status"] == "yellow"
+    assert any(a.startswith("🟡 агенты с предупреждением: 1 — site_freshness") for a in rep["alerts"])
+
+
+@pytest.mark.parametrize("status, expect", [
+    ({"state": "CLEAR", "triggered": False, "hours": 1}, False),
+    ({"state": "CLEAR_PARTIAL", "triggered": False, "hours": 1}, False),
+    ({"state": "HARD_KILL", "triggered": True, "hours": 1}, True),
+    ({"state": "UNMEASURED", "triggered": False, "hours": 1}, None),       # the switch's own third outcome
+    ({"state": "CLEAR", "triggered": False, "hours": 30}, None),           # a stale CLEAR proves nothing
+    (None, None),                                                          # file absent
+])
+def test_kill_switch_reading_keeps_the_third_outcome(tmp_path, status, expect):
+    """WP-A05 #5: an UNMEASURED, stale or absent drawdown reading was shown as «не взведён»."""
+    repo = _repo(tmp_path)
+    f = repo / "data" / "kill_switch_status.json"
+    if status is None:
+        f.unlink()
+    else:
+        f.write_text(json.dumps({"generated_at": (NOW - timedelta(hours=status["hours"])).isoformat(),
+                                 "state": status["state"], "triggered": status["triggered"]}))
+    rep = dr.collect(_inputs(tmp_path, repo))
+    assert rep["kill_switch_active"] is expect
+    if expect is None:
+        assert any(a.startswith("❔ стоп-кран") for a in rep["alerts"])
+
+
+def test_soft_derisk_is_named(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "data" / "derisk_status.json").write_text(json.dumps({
+        "generated_at": (NOW - timedelta(hours=1)).isoformat(), "active": True, "tier": "SOFT_DERISK"}))
+    rep = dr.collect(_inputs(tmp_path, repo))
+    assert rep["derisk_active"] is True and rep["status"] == "yellow"

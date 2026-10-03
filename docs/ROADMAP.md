@@ -20,9 +20,9 @@
 
 1. ~~Memory & Context Architecture v1~~ — done (ADR-527).
 2. ~~DeFi Architecture Gap Audit~~ — done (ADR-530).
-3. **DeFi Engine vNext** — Phase 0 done (ADR-531); Phase 1 foundation done (ADR-532, derived `defi_engine`); **three paper portfolios with distinct mechanics running** (ADR-533: Conservative lending under RiskPolicy · Balanced fixed-rate PT to maturity · Aggressive SIMULATED sUSDe/PYUSD loop). Open, owner-gated: money-path bindings (tier labels, Conservative 3 % budget wording/trigger, RTMR coverage) — ADR-532/533; public wording of the strategy pages is published through the owner gate.
-4. **Build Loop / remaining workflow gaps**
-5. **Owner Remote / Mission Control evolution**
+3. ~~DeFi Engine vNext~~ — done: three paper portfolios closed through the owner gate 2026-10-03 (ADR-537). Phase 0 done (ADR-531); Phase 1 foundation done (ADR-532, derived `defi_engine`); **three paper portfolios with distinct mechanics running** (ADR-533: Conservative lending under RiskPolicy · Balanced fixed-rate PT to maturity · Aggressive SIMULATED sUSDe/PYUSD loop). Open, owner-gated: money-path bindings (tier labels, Conservative 3 % budget wording/trigger, RTMR coverage) — ADR-532/533; public wording of the strategy pages is published through the owner gate.
+4. ~~Build Loop / remaining workflow gaps~~ — done (ADR-551: card lifecycle with evidenced closing, lineage, provenance, orphans, resource guard).
+5. **Owner Remote / Mission Control** — in progress (ADR-552: one read model, loopback web UI, decisions answered in Telegram).
 6. **Capital Allocator / Portfolio CIO** (cross-engine allocation; see `docs/CAPITAL_ARCHITECTURE.md`)
 7. **Limited real-capital pilots** — owner-gated (real money, CLAUDE.md subject №1)
 8. **Later engines:** traditional markets, RWA / stable yield, volatility / options

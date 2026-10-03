@@ -199,6 +199,24 @@ class Inputs:
     measure_host: bool = True   # False in tests: never ask the real machine
 
 
+#: kill_switch_status / derisk_status are rewritten by every daily cycle; older than a cycle + slack = not measured
+KILL_STATUS_STALE_H = 26
+
+
+def _fresh(ts, now: datetime, max_h: float) -> bool:
+    try:
+        d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return False
+    d = d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    return (now - d).total_seconds() <= max_h * 3600
+
+
+def _proc_name(cmd) -> str:
+    from spa_core.studio_os.mission_control import proc_name
+    return proc_name(cmd)
+
+
 def _git_log_since(mirror: Path, since: datetime) -> Optional[List[str]]:
     out = _run(["git", "-C", str(mirror), "log", "origin/main", f"--since={since.isoformat()}",
                 "--format=%H", "--name-status"], timeout=20)
@@ -241,6 +259,7 @@ def collect(inp: Inputs) -> dict:
             "ok": ah.get("healthy_count"), "warning": ah.get("warning_count"),
             "critical": ah.get("critical_count"), "total": ah.get("total_agents"),
             "critical_labels": [a.get("label") for a in agents if a.get("status") == "CRITICAL"],
+            "warning_labels": [a.get("label") for a in agents if a.get("status") == "WARNING"],
             "disabled_labels": [a.get("label") for a in agents
                                 if "intentionally disabled" in str(a.get("note") or "")],
             "snapshot_at": ah.get("timestamp"),
@@ -285,7 +304,7 @@ def collect(inp: Inputs) -> dict:
         try:
             from spa_core.utils import heavy_job as _hj
             jobs = [{k: l.get(k) for k in ("kind", "tree", "pid", "started_at")}
-                    for l in _hj.live_leases(_hj._policy())] if inp.measure_host else []
+                    for l in _hj.live_leases(_hj._policy(), prune=False)] if inp.measure_host else None
         except Exception:  # noqa: BLE001 — leases are an extra, never a crash
             jobs = None
         rep["resources"] = {
@@ -294,7 +313,8 @@ def collect(inp: Inputs) -> dict:
             "memory_state": (rh.get("memory") or {}).get("state"),
             "pressure_level": (rh.get("memory") or {}).get("pressure_level"),
             "swap_pct": ((rh.get("memory") or {}).get("swap") or {}).get("used_pct"),
-            "heavy": [{"cmd": r.get("cmd", "")[:80], "rss_mb": r.get("rss_mb"), "class": r.get("class")}
+            # process NAME only — a command line can carry prompts, paths or secrets (ADR-551/552)
+            "heavy": [{"cmd": _proc_name(r.get("cmd")), "rss_mb": r.get("rss_mb"), "class": r.get("class")}
                       for r in (procs.get("top") or [])[:5]],
             "rss_mb_by_class": procs.get("rss_mb_by_class"), "heavy_job_leases": jobs}
     else:
@@ -323,9 +343,20 @@ def collect(inp: Inputs) -> dict:
                                                              reverse=True)][:5],
             "blocked_titles": [c.title for c in blocked][:5],
         }
-        waiting = sorted(pick(lambda c: c.status == "needs-owner"), key=lambda c: c.created)
+        # ADR-552: the owner queue is ORIGIN's cards (where new questions land) with answers already
+        # recorded in the production tree overlaid — the same view Mission Control shows. The production
+        # tree alone missed every question created after its last sync (743 vs 1182 cards measured).
+        ocards = (load_cards(Path(inp.mirror) / "nimbalyst-local" / "tracker")
+                  if (inp.measure_host or Path(inp.mirror) != MIRROR) and Path(inp.mirror) != repo else None)
+        from spa_core.studio_os.mission_control import ANSWERED_STATUSES
+        answered = {Path(c.path).name for c in cards if c.status in ANSWERED_STATUSES}
+        src = ocards if ocards is not None else cards
+        waiting = sorted([c for c in src if c.status == "needs-owner" and Path(c.path).name not in answered],
+                         key=lambda c: c.created)
+        accepted = [c for c in src if c.status == "owner-accepted"]
         rep["owner"] = {
-            "needs_owner": len(waiting),
+            "needs_owner": len(waiting), "accepted_in_work": len(accepted),
+            "source": "origin tracker + production answers" if ocards is not None else "production tracker",
             "items": [{"title": c.title, "created": c.created, "card": c.path} for c in waiting],
         }
 
@@ -349,6 +380,21 @@ def collect(inp: Inputs) -> dict:
     else:
         ks = _read_json(ks_path)
         kill = None if not isinstance(ks, dict) else (ks.get("active") is not False)
+    # ADR-552: the HARD tier lives in kill_switch_status.json (triggered/state) and SOFT in
+    # derisk_status.json — the same keys package_status reads. Reading only the manual flag made the
+    # Director say «не взведён» while the site said HARD_KILL (Mission Control audit, inv. #17).
+    kss = _read_json(repo / "data" / "kill_switch_status.json")
+    kst = str((kss or {}).get("state", "")).upper() if isinstance(kss, dict) else ""
+    if isinstance(kss, dict) and (kss.get("triggered") is True or kst in ("HARD_KILL", "TRIGGERED")):
+        kill = True
+    elif kill is not True and not (isinstance(kss, dict) and kst.startswith("CLEAR")
+                                   and _fresh(kss.get("generated_at"), now, KILL_STATUS_STALE_H)):
+        # unreadable, UNMEASURED, an unknown state or a stale CLEAR is NOT «не взведён» (inv. #17,
+        # WP-A05 finding 5): the manual flag alone does not prove the drawdown tier is clear
+        kill = None
+    drs = _read_json(repo / "data" / "derisk_status.json")
+    rep["derisk_active"] = (bool(drs.get("active")) if isinstance(drs, dict)
+                            and _fresh(drs.get("generated_at"), now, KILL_STATUS_STALE_H) else None)
     rep["kill_switch_active"] = kill
 
     # PRODUCT
@@ -399,6 +445,8 @@ def collect(inp: Inputs) -> dict:
         alerts.append("🛑 стоп-кран взведён")
     elif kill is None:
         alerts.append("❔ стоп-кран: " + NOT_MEASURED)
+    if rep.get("derisk_active") is True:
+        alerts.append("🟡 мягкий стоп (снижение риска) включён: новые входы остановлены")
     if rep["fleet"] is None:
         alerts.append("❔ здоровье флота: " + NOT_MEASURED)
     elif rep["fleet"]["critical_labels"]:
@@ -406,11 +454,18 @@ def collect(inp: Inputs) -> dict:
             lbl.replace("com.spa.", "") for lbl in rep["fleet"]["critical_labels"][:6]))
     elif rep["fleet"]["overall"] in ("STALE", "UNCHECKED"):
         alerts.append(f"❔ снимок здоровья флота {rep['fleet']['overall']} — монитор молчит")
+    elif rep["fleet"]["overall"] == "WARNING":
+        # ADR-552: one meaning with Mission Control — a fleet in WARNING is «есть что проверить», not «всё работает»
+        names = [lbl.replace("com.spa.", "") for lbl in rep["fleet"]["warning_labels"][:6]]
+        alerts.append(f"🟡 агенты с предупреждением: {rep['fleet']['warning']}"
+                      + (" — " + ", ".join(names) if names else ""))
     if rep["cycle_age_h"] is None:
         alerts.append("❔ дневной цикл: " + NOT_MEASURED)
     elif rep["cycle_age_h"] > CYCLE_STALE_H:
         alerts.append(f"🔴 дневной цикл не шёл {rep['cycle_age_h']:.0f} ч")
-    if rep["disk_free_share"] is not None and rep["disk_free_share"] < DISK_FREE_MIN:
+    if rep["disk_free_share"] is None and inp.measure_host:
+        alerts.append("❔ диск: " + NOT_MEASURED)
+    elif rep["disk_free_share"] is not None and rep["disk_free_share"] < DISK_FREE_MIN:
         alerts.append(f"🔴 диск почти полон: свободно {rep['disk_free_share']:.0%}")
     res = rep.get("resources")
     if res is None:
@@ -705,7 +760,8 @@ def render_trading(rep: dict) -> List[str]:
          f"Кандидатов: {t['candidates']} · прошли бэктест: {t['backtest_qualified']} · "
          f"forward-paper: {t['forward_paper']} · robust: {t['robust']} · чемпионов: {t['champions']}",
          f"Живой капитал: {_usd_or_nm(t.get('live_capital_usd'))} · наблюдений: {t['observations']} · "
-         f"цепочка {'цела' if t['evidence_verified'] else 'НАРУШЕНА'} · такт {t['age_h']:.1f} ч назад"]
+         f"цепочка {'цела' if t['evidence_verified'] is True else 'НАРУШЕНА' if t['evidence_verified'] is False else NOT_MEASURED}"
+         f" · такт {t['age_h']:.1f} ч назад"]
     if t.get("shortlist"):
         L.append("Лучшие кандидаты (разные сделки, OOS):")
         for s in t["shortlist"][:3]:

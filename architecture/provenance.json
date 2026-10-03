@@ -267,6 +267,21 @@
       "consumers": ["later R&D runs"]
     },
     {
+      "id": "owner.mission_control",
+      "kind": "read-model+ui",
+      "anchors": ["spa_core/studio_os/mission_control.py", "spa_core/studio_os/mission_ui/", "spa_core/studio_os/mission_server.py", "spa_core/studio_os/mission_build.py"],
+      "purpose": "Owner Remote / Mission Control v1: one read-only owner read model (mission.json) and a loopback web UI for phone and desktop over the canonical stores; owner decisions are answered in Telegram, never on the page.",
+      "purpose_source": "ADR-552",
+      "source_task": "owner macro-epic 2026-10-03 «OWNER REMOTE / MISSION CONTROL v1»",
+      "source_decision": "ADR-552",
+      "producer_role": "attended coding session",
+      "producer_run": "com.spa.mission_control (every 5 min) builds the bundle; com.spa.mission_server serves it on 127.0.0.1:8790",
+      "reviewer": "WP-A05 independent architecture/security review (journal W40)",
+      "owner_role": "build-loop",
+      "status": "ACTIVE",
+      "consumers": ["owner (browser, loopback)", "spa_core/studio_os/director_report.py shares its semantics (ANSWERED_STATUSES, proc_name)"]
+    },
+    {
       "id": "ops.autopush",
       "kind": "automation",
       "anchors": ["scripts/auto_push.sh"],
