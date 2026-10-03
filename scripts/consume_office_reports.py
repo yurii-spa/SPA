@@ -767,6 +767,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "acceptance_tree_capability.json": ("status", "counts", "rows",
                                         "trees_measured", "acceptance_tree",
                                         "answered_by_tree", "findings"),
+    # Заказ G93 п. 3 (ADR-547). `tact_floor_hours` в схеме обязателен: ТАЛЛИ
+    # без такта-пола читается как вердикт о сегодняшнем мире, а он вердикт о
+    # мире НА МОМЕНТ прогона — и момент этот обязан иметь срок. `verdict` и
+    # `callers_calling` обязательны по той же причине: «сводку зовут» и «сводку
+    # зовут в её такте» суть разные положения дел, и отсутствие поля прочлось
+    # бы как первое.
+    "s49_tally_tact.json": ("status", "tally", "population", "tact_floor_hours",
+                            "tact_floor_set_by", "callers_calling", "verdict",
+                            "tally_cost_s", "findings"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1114,6 +1123,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
         "spa_core/monitoring/acceptance_tree_capability.py",
+    "s49_tally_tact.json":
+        "spa_core/monitoring/s49_tally_tact.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -3019,6 +3030,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # двух объявленных форм, скобочная многострочная — ни одна из них).
         from spa_core.monitoring.acceptance_tree_capability import format_report as _atc_report
         out.extend(_atc_report(data))
+    elif name == "s49_tally_tact.json":
+        # Заказ G93 п. 3 (ADR-547). Без этой ветки артефакт читается ВХОЛОСТУЮ, и
+        # ТАЛЛИ §49 — единственное число, которого приказ владельца просит прямо, —
+        # снова не доходит ни до кого. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ;
+        # ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух объявленных
+        # форм, скобочная многострочная — ни одна из них).
+        from spa_core.monitoring.s49_tally_tact import format_report as _stt_report
+        out.extend(_stt_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст

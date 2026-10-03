@@ -194,6 +194,14 @@ PRODUCES = (
     # ежечасно; поэтому ТАКТ, срок решает ФАЙЛ
     # (`acceptance_tree_capability.run` -> `measurement_due`), SLO 192ч.
     "data/acceptance_tree_capability.json",
+    # Заказ G93 п. 3 (ADR-547) — КТО обязан звать сводку §49 и с каким
+    # ТАКТОМ. Такт не выбран, а ВЫЧИСЛЕН: он равен самому короткому
+    # `slo_hours` среди входов, объявленных мерой критериев §49 (замер
+    # 03.10 — 7ч, ставит `Costs`). Ступень несёт и САМО ТАЛЛИ §49
+    # (выполнено · не выполнено · не измерено) — иначе прибор был бы
+    # ответом «читателя нет» без читателя. Гейт такта 6ч < пола, SLO 14ч
+    # (гейт 6ч + наблюдённый период бегуна, ADR-506).
+    "data/s49_tally_tact.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -370,6 +378,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "vacuous_guard_census",
     "green_by_construction_census",
     "acceptance_tree_capability",
+    "s49_tally_tact",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -621,6 +630,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "acceptance_tree_capability": {
         "module": "spa_core/monitoring/acceptance_tree_capability.py",
         "artifact": "data/acceptance_tree_capability.json"},
+    "s49_tally_tact": {
+        "module": "spa_core/monitoring/s49_tally_tact.py",
+        "artifact": "data/s49_tally_tact.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2557,6 +2569,31 @@ def main(argv=None) -> int:
                   f"{_atcr.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "acceptance_tree_capability", e)
+    # Такт сводки §49 (G93 п. 3, ADR-547): такт ВЫЧИСЛЕН из входов вердикта,
+    # а не объявлен; ступень несёт и само ТАЛЛИ §49, потому что вердикт сводки
+    # доходит до читателя ТОЛЬКО артефактом.
+    try:
+        from spa_core.monitoring import s49_tally_tact as _stt
+        _sttr = _stt.run(root=args.root)
+        if _sttr.get("measured"):
+            _sdoc = _sttr["doc"]
+            if str(_sdoc.get("status")) != "OK":
+                print(f"s49_tally_tact: НЕ ИЗМЕРЕНО — {_sdoc.get('reason')}")
+            else:
+                _stally = observed(_sdoc, "tally", kind=dict) or {}
+                _sfloor = observed(_sdoc, "tact_floor_hours", kind=(int, float))
+                print(f"s49_tally_tact: ТАЛЛИ §49 — выполнено "
+                      f"{observed_number(_stally, 'satisfied')} · не выполнено "
+                      f"{observed_number(_stally, 'not_satisfied')} · не измерено "
+                      f"{observed_number(_stally, 'unmeasured')} из "
+                      f"{_sdoc.get('population')}; такт-пол "
+                      f"{'НЕ ИЗМЕРЕН' if _sfloor is None else f'{float(_sfloor):g}ч'}, "
+                      f"вердикт {_sdoc.get('verdict')}")
+        else:
+            print(f"s49_tally_tact: внутри такта, НЕ мерили — "
+                  f"{_sttr.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "s49_tally_tact", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него
