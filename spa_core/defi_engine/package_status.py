@@ -75,7 +75,9 @@ def _ts(v) -> Optional[datetime]:
 def _agent(health: Optional[dict], label: str) -> Optional[dict]:
     for a in (health or {}).get("agents") or []:
         if isinstance(a, dict) and a.get("label") == label:
-            return a
+            # the snapshot's own time travels with the row: an exit code is a fact about the run
+            # BEFORE that moment, never about a run that happened after it
+            return {**a, "_snapshot_at": (health or {}).get("timestamp")}
     return None
 
 
@@ -97,7 +99,12 @@ def _work_state(package: str, last_run: Optional[datetime], agent: Optional[dict
         return {"state": "FAILED", "reason": "no successful run timestamp"}
     age = (now - last_run).total_seconds() / 3600.0
     if agent is not None and agent.get("last_exit") not in (0, None):
-        return {"state": "FAILED", "reason": f"last exit {agent.get('last_exit')}", "age_h": round(age, 2)}
+        snap_at = _ts(agent.get("_snapshot_at"))
+        # Measured 2026-10-03: the 23:00Z run died on ENOSPC (exit 120), the 00:01Z run succeeded, and the
+        # health snapshot taken in between kept saying 120 — the card read «not running» about a book that
+        # had just written its row. A non-zero exit older than the latest successful run is history, not state.
+        if snap_at is None or snap_at >= last_run:
+            return {"state": "FAILED", "reason": f"last exit {agent.get('last_exit')}", "age_h": round(age, 2)}
     if age > _FRESH_H[package]:
         # overdue, but no fault is CONFIRMED (exit 0, still loaded): the honest word is UNKNOWN
         return {"state": "UNKNOWN", "reason": f"no successful run for {age:.1f} h", "age_h": round(age, 2)}
@@ -122,6 +129,10 @@ _REASONS = (
     (r"floor \(or unmeasured\)|below the 0\.97", "USDe below its price floor", "USDe ниже порога цены"),
     (r"unmeasured|not measured|no observation", "inputs not measured", "входные данные не измерены"),
     (r"CIO directive", "CIO directive: no new positions", "директива CIO: новых позиций нет"),
+    (r"implied ([\d.]+) % ≥ floor ([\d.]+) %",
+     "the PT fixed rate ({0} %) clears the floor ({1} %) set by the floating benchmark",
+     "фиксированная ставка PT ({0} %) проходит порог ({1} %), заданный плавающей ставкой"),
+    (r"position open; carry checked", "position open; carry re-checked", "позиция открыта; доходность перепроверена"),
     (r"all entry conditions met", "entry conditions met", "условия входа выполнены"),
     (r"no successful run for ([\d.]+) h", "no successful run for {0} h — cause not confirmed",
      "успешного запуска нет {0} ч — причина не подтверждена"),

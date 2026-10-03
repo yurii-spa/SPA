@@ -357,3 +357,22 @@ def test_a_tripped_stop_reaches_the_public_view_and_the_director_alert(tmp_path)
     alerts = defi_alerts(full["packages"])
     assert any("aggressive" in a and "пауза" in a for a in alerts), alerts
     assert defi_alerts(None) and "не измерено" in defi_alerts(None)[0].lower()
+
+
+
+def test_an_exit_code_older_than_the_latest_successful_run_is_history_not_state(tmp_path):
+    # live 2026-10-03: 23:00Z run exit 120 (ENOSPC), 00:01Z run ok, health snapshot from 00:00Z still said 120
+    agents = [{"label": "com.spa.hy_cycle", "loaded": True, "last_exit": 120}]
+    (tmp_path / "agent_health.json").write_text(json.dumps({"timestamp": _iso(NOW - timedelta(minutes=5)),
+                                                            "agents": agents}))
+    _book(tmp_path, "hy_paper_trading.json", last_run=NOW, experiment="balanced-fixed-carry-v1@d0", rows=2)
+    assert PS.build_all(tmp_path, NOW)["packages"]["balanced"]["work"]["state"] == "RUNNING"
+    (tmp_path / "agent_health.json").write_text(json.dumps({"timestamp": _iso(NOW + timedelta(minutes=1)),
+                                                            "agents": agents}))
+    assert PS.build_all(tmp_path, NOW)["packages"]["balanced"]["work"]["state"] == "FAILED", \
+        "a failure measured AFTER the last successful run is still a confirmed fault"
+
+
+def test_a_buy_reason_reads_as_a_sentence():
+    en, ru = PS.localized_reason("sUSDS 0x9c56: implied 4.834 % ≥ floor 4.040 %")
+    assert "clears" in en and "4,834" in ru and "проходит порог" in ru
