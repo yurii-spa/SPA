@@ -23,7 +23,7 @@ const goLive = goLiveLabel(snap);
 
 <Layout
   title="Balanced Strategy — Systematic DeFi Yield | SPA earn-defi.com"
-  description="Systematic DeFi yield, Tier 1 + Tier 2 protocols, deterministic risk gates. Up to 12% target APY (variable, not guaranteed). Research/paper — shown WITH its tail, refused for live capital; the live evidenced go-live book is the Conservative tier. USDT and USDC."
+  description="Balanced paper portfolio: floating stablecoin lending plus Pendle PT fixed-rate legs held to maturity. Status and results of the current version; statistics are accumulating. Research targets are not results. Paper only, refused for live capital."
 >
 
   <!-- Nav -->
@@ -35,10 +35,10 @@ const goLive = goLiveLabel(snap);
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Balanced">
         Balanced Strategy
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Плавающее кредитование стейблкоинов плюс фиксированная часть — принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения. Бумажный портфель вне RiskPolicy v1.0 со своим стопом. Research/paper — с показанным хвостом, отказан для live-капитала. Живая evidenced go-live книга — это тир Conservative.">
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Плавающее кредитование стейблкоинов плюс фиксированная часть — принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения. Бумажный портфель вне RiskPolicy v1.0 со своим стопом. Research/paper — с показанным хвостом, отказан для live-капитала. Бумажная книга с отчётной историей — это тир Conservative.">
         Floating stablecoin lending plus a fixed-rate part — Pendle principal tokens bought at a
         discount and held to maturity. A paper portfolio outside RiskPolicy v1.0, with its own stop.
-        Research / paper — shown WITH its tail, refused for live capital. The live evidenced go-live book is the Conservative tier.
+        Research / paper — shown WITH its tail, refused for live capital. The paper book with a reportable history is the Conservative tier.
       </p>
     </section>
 
@@ -107,10 +107,10 @@ const goLive = goLiveLabel(snap);
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru={`Бумажная книга Balanced держит плавающее кредитование на аудированных рынках с высоким TVL (только живые APY и TVL) и, до 40% книги, принципал-токены Pendle до погашения. Книга работает ежечасно, одна учётная строка в день, вне RiskPolicy v1.0: её собственный стоп — ${C.sleeve_stops.balanced_stop_pct}% от пика, а её ходы гейтит взвод CIO.`}>
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru={`Бумажная книга Balanced держит плавающее кредитование на аудированных рынках с высоким TVL (только живые APY и TVL) и, до 40% книги, принципал-токены Pendle до погашения. Книга работает ежечасно, одна учётная строка в день, вне RiskPolicy v1.0: её собственный стоп — ${C.sleeve_stops.balanced_stop_pct}% от пика текущей версии, а её ходы гейтит взвод CIO.`}>
         The Balanced paper book holds floating supply in audited, high-TVL lending markets (live APY and
         live TVL only) and, up to 40% of the book, Pendle principal tokens held to maturity. It runs hourly,
-        one accounting day per day, outside RiskPolicy v1.0: its own stop is {C.sleeve_stops.balanced_stop_pct}% from peak, and CIO
+        one accounting day per day, outside RiskPolicy v1.0: its own stop is {C.sleeve_stops.balanced_stop_pct}% from the current version’s peak, and CIO
         arming gates its moves.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,10 +184,10 @@ const goLive = goLiveLabel(snap);
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="RiskPolicy v1.0 — гейт книги Conservative">RiskPolicy v1.0 — the Conservative book’s gate</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Ниже — параметры детерминированного гейта основной книги (Conservative). Бумажная книга Balanced находится ВНЕ RiskPolicy v1.0: её держат собственные правила (только живые APY и TVL, не больше четырёх протоколов, лимиты на PT) и собственный стоп от пика. Таблица показывает, какой гейт ей пришлось бы пройти ради реального капитала.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Ниже — параметры детерминированного гейта основной книги (Conservative). Бумажная книга Balanced находится ВНЕ RiskPolicy v1.0: её держат собственные правила (только живые APY и TVL, не больше четырёх протоколов, лимиты на PT) и собственный стоп от пика текущей версии. Таблица показывает, какой гейт ей пришлось бы пройти ради реального капитала.">
         Below are the parameters of the main (Conservative) book’s deterministic gate. The Balanced paper book is OUTSIDE
         RiskPolicy v1.0: it is held by its own rules (live APY and TVL only, at most four protocols, PT caps) and its own
-        stop from peak. The table shows the gate it would have to pass for real capital.
+        stop from the current version’s peak. The table shows the gate it would have to pass for real capital.
       </p>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
@@ -288,9 +288,9 @@ const goLive = goLiveLabel(snap);
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDC или другие стейблкоины могут временно или навсегда потерять привязку. Стоп книги Balanced срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика, независимо от причины: торговля прекращается, позиции не продаются.`}>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDC или другие стейблкоины могут временно или навсегда потерять привязку. Стоп книги Balanced срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика текущей версии, независимо от причины: торговля прекращается, позиции не продаются.`}>
             USDC or other stablecoins may temporarily or permanently lose their peg.
-            The Balanced book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak, regardless of cause: trading stops, positions are not sold.
+            The Balanced book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from the current version’s peak, regardless of cause: trading stops, positions are not sold.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -324,9 +324,9 @@ const goLive = goLiveLabel(snap);
           </div>
           <div>
             <h4 class="text-sm font-semibold text-white mb-2" data-ru="Стоп книги (просадка от пика)">Book stop (peak drawdown)</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Balanced — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её собственный стоп: при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика книга прекращает торговлю — новых ходов нет, удерживаемые позиции (включая принципал-токены) не продаются.`}>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Balanced — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её собственный стоп: при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика текущей версии книга прекращает торговлю — новых ходов нет, удерживаемые позиции (включая принципал-токены) не продаются.`}>
               Balanced is a paper book outside RiskPolicy v1.0 and outside the main book’s two-tier ladder. Its
-              own stop: at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak the book stops trading — no new moves; the
+              own stop: at a {C.sleeve_stops.balanced_stop_pct}% drawdown from the current version’s peak the book stops trading — no new moves; the
               positions it holds (principal tokens included) are kept, not sold.
             </p>
             <p class="text-xs text-white/50" data-ru="Стоп не устраняет уже понесённые убытки.">
@@ -341,9 +341,8 @@ const goLive = goLiveLabel(snap);
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Структура комиссий обсуждается индивидуально при онбординге. Действует принцип high-water mark — комиссия за результат не взимается до восстановления предыдущего пика.">
-          Fee structure is discussed individually during onboarding. High-water mark applies —
-          no performance fee until the previous peak is recovered.
+        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Комиссий нет: это бумажная стадия, ничего не предлагается. Коммерческие условия — только после go-live и юридической проверки.">
+          No fees: this is a paper stage and nothing is offered. Commercial terms only after go-live and a legal review.
         </p>
         <p class="text-xs text-white/50" data-ru="В период бумажной торговли комиссии отсутствуют.">
           No fees during paper trading period.
@@ -386,8 +385,8 @@ const goLive = goLiveLabel(snap);
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Какие активы поддерживаются?">What assets are supported?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
-            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums or pool capacity limits.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажные книги ведутся в USDC. Депозиты не принимаются: это бумажная стадия, ничего не предлагается.">
+            The paper books are kept in USDC. No deposits are accepted: this is a paper stage and nothing is offered.
           </p>
         </div>
 
@@ -427,8 +426,8 @@ const goLive = goLiveLabel(snap);
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Что произойдёт, если протокол взломают?">What happens if a protocol gets exploited?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Стоп книги срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика, независимо от причины. Книга держит не больше четырёх протоколов и не больше 25% капитала в одном, а принципал-токены — не больше 25% на рынок. Плавающая часть берёт только пулы с живыми APY и TVL не ниже $5M. Лимиты RiskPolicy v1.0 (40% T1 / 20% T2) действуют для книги Conservative, не для этой.`}>
-            The book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from peak, regardless of cause. The book holds at most four
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Стоп книги срабатывает при просадке ${C.sleeve_stops.balanced_stop_pct}% от пика текущей версии, независимо от причины. Книга держит не больше четырёх протоколов и не больше 25% капитала в одном, а принципал-токены — не больше 25% на рынок. Плавающая часть берёт только пулы с живыми APY и TVL не ниже $5M. Лимиты RiskPolicy v1.0 (40% T1 / 20% T2) действуют для книги Conservative, не для этой.`}>
+            The book stop fires at a {C.sleeve_stops.balanced_stop_pct}% drawdown from the current version’s peak, regardless of cause. The book holds at most four
             protocols and at most 25% of its capital in one, and principal tokens at most 25% per market. The floating
             part takes only pools with live APY and live TVL of at least $5M. RiskPolicy v1.0 caps (40% T1 / 20% T2) govern the
             Conservative book, not this one.

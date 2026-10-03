@@ -11,7 +11,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
 
 <Layout
   title="Aggressive Strategy — Advanced DeFi Mechanics | SPA earn-defi.com"
-  description="Up to 20% target APY. The aggressive strategies are actively paper-tested in the Aggressive Lab (live forward track) but REFUSED for live capital — the yield compensates for tail risk (~50% drawdown through the ETH crash), not edge. Research/paper, shown WITH its real tail."
+  description="Aggressive paper portfolio: concentrated stablecoin lending plus a simulated sUSDe/PYUSD loop on Morpho Blue. Status and results of the current version; statistics are accumulating. Research targets are not results. Paper only, refused for live capital."
 >
 
   <!-- Nav -->
@@ -21,13 +21,13 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <div class="mt-8 rounded-xl border border-warn-border bg-warn-bg p-5 flex items-start gap-3">
       <span class="text-warn flex-shrink-0 text-lg mt-0.5">&#9888;</span>
       <div>
-        <p class="text-sm text-white/70 font-medium mb-1" data-ru="ЦЕЛЕВОЙ ПРОФИЛЬ — RESEARCH/PAPER, ОТКАЗАН ДЛЯ LIVE">TARGET PROFILE — RESEARCH/PAPER, REFUSED FOR LIVE</p>
-        <p class="text-sm text-white/50 leading-relaxed" data-ru="Целевой APY приведён только для иллюстрации. Высокодоходный тир теперь честно задокументирован: 12–20% стратегии, от которых деск ОТКАЗЫВАЕТСЯ для live, paper-тестируются в Aggressive Lab С реальным датированным хвостом (нехеджированная directional-книга потеряла ~50% на обвале ETH). Стабильные 15% — это не альфа, а хвост.">
-          Target APY is illustrative only. The higher-yield tier is now honestly documented: the 12–20% strategies the desk REFUSES for live are paper-tested in the Aggressive Lab WITH their real, dated tail (the unhedged directional book lost ~50% through the ETH crash). A stable 15% is not alpha — it is a tail.
+        <p class="text-sm text-white/70 font-medium mb-1" data-ru="БУМАЖНЫЙ ЭКСПЕРИМЕНТ — РЕАЛЬНЫЙ КАПИТАЛ НЕ ДОПУСКАЕТСЯ">PAPER EXPERIMENT — REFUSED FOR LIVE CAPITAL</p>
+        <p class="text-sm text-white/50 leading-relaxed" data-ru="Текущая версия — бумажный эксперимент: концентрированное кредитование стейблкоинов и симулированная петля sUSDe/PYUSD на Morpho Blue; её статистика накапливается; результат текущей версии пока не считается достаточным для отчётной оценки. Исследовательская цель — не результат. Предыдущее исследование (Aggressive Lab) — другие книги со своим датированным хвостом: нехеджированная направленная книга потеряла ~50% на обвале ETH.">
+          The current version is a paper experiment: concentrated stablecoin lending and a simulated sUSDe/PYUSD loop on Morpho Blue; its statistics are accumulating; there is no reportable result for the current version yet. A research target is not a result. The earlier research (the Aggressive Lab) is a set of other books with their own dated tail: the unhedged directional book lost ~50% through the ETH crash.
         </p>
         <div class="flex flex-wrap gap-3 mt-3">
           <a data-track="aggressive_to_packages" href="/packages" class="text-sm text-accent-400 underline" data-ru="Тир Aggressive в пакетах →">The Aggressive tier in packages →</a>
-          <a href="/aggressive-lab" class="text-sm text-accent-400 underline" data-ru="Живой paper-тест агрессивных стратегий →">Live paper-test of the aggressive strategies →</a>
+          <a href="/aggressive-lab" class="text-sm text-accent-400 underline" data-ru="Предыдущее исследование: Aggressive Lab →">The earlier research: the Aggressive Lab →</a>
         </div>
       </div>
     </div>
@@ -78,7 +78,7 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
           <div class="text-xs text-white/50 mb-1" data-ru="Фаза">Phase</div>
           <div class="text-warn font-semibold flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
-            <span data-ru="Paper-тест (Aggressive Lab)">Paper-Tested (Aggressive Lab)</span>
+            <span data-ru="Бумажный эксперимент (текущая версия)">Paper experiment (current version)</span>
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
@@ -260,8 +260,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
           <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
           <span class="text-sm text-warn font-medium" data-ru="Активный paper-тест · отказан для live-капитала">Paper-tested · refused for live capital</span>
         </div>
-        <p class="text-sm text-white/55 leading-relaxed" data-ru="Агрессивные стратегии активно paper-тестируются в Aggressive Lab (несколько книг, живой forward-трек) — С реальным датированным хвостом. Для LIVE-капитала деск их ОТКАЗЫВАЕТ: доходность здесь — компенсация за хвостовой риск, а не эдж. APY — целевой диапазон, не гарантия.">
-          The aggressive strategies are actively <a href="/aggressive-lab" class="text-accent-400 underline">paper-tested in the Aggressive Lab</a> (several books, a live forward track) — WITH their real, dated tail. The desk REFUSES them for LIVE capital: the yield here is compensation for tail risk, not edge. APY is a target range, not a guarantee.
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Текущая версия — бумажный эксперимент: кредитование стейблкоинов и симулированная петля sUSDe/PYUSD; её статистика накапливается, результат пока не считается достаточным для отчётной оценки. Для LIVE-капитала деск этот тир ОТКАЗЫВАЕТ: доходность здесь — компенсация за риск, а не эдж. Исследовательская цель — не результат и не гарантия. Предыдущее исследование — Aggressive Lab, другие книги со своим датированным хвостом.">
+          The current version is a paper experiment: stablecoin lending plus a simulated sUSDe/PYUSD loop; its statistics are accumulating and there is no reportable result yet. The desk REFUSES this tier for LIVE capital: the yield here is compensation for risk, not edge. A research target is not a result and not a guarantee. The earlier research is the <a href="/aggressive-lab" class="text-accent-400 underline">Aggressive Lab</a>, a set of other books with their own dated tail.
         </p>
       </div>
     </section>
@@ -283,9 +283,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDT или USDC могут временно или навсегда потерять привязку; в симулированной петле депег USDe бьёт по залогу с плечом. Петля сокращается при коэффициенте здоровья ниже 1,15 и закрывается ниже 1,08 или при цене USDe ниже 0,97; стоп всей книги — ${C.sleeve_stops.aggressive_stop_pct}% от пика.`}>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru={`USDT или USDC могут временно или навсегда потерять привязку; в симулированной петле депег USDe бьёт по залогу с плечом. Петля сокращается при коэффициенте здоровья ниже 1,15 и закрывается ниже 1,08 или при цене USDe ниже 0,97; стоп всей книги — ${C.sleeve_stops.aggressive_stop_pct}% от пика текущей версии.`}>
             USDT or USDC may temporarily or permanently lose their peg; in the simulated loop a USDe depeg hits leveraged collateral.
-            The loop is deleveraged below a health factor of 1.15 and closed below 1.08 or when USDe trades under 0.97; the whole book stops at {C.sleeve_stops.aggressive_stop_pct}% from peak.
+            The loop is deleveraged below a health factor of 1.15 and closed below 1.08 or when USDe trades under 0.97; the whole book stops at {C.sleeve_stops.aggressive_stop_pct}% from the current version’s peak.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -311,9 +311,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Refused-for-live риск">Refused-for-live risk</h4>
-          <p class="text-xs text-white/55 leading-relaxed" data-ru="Стратегии paper-тестируются в Aggressive Lab с реальным хвостом, но для LIVE-капитала деск их ОТКАЗЫВАЕТ. Целевой APY — диапазон, не гарантия; возможна существенная потеря капитала.">
-            These strategies are paper-tested in the Aggressive Lab with their real tail, but the desk
-            REFUSES them for LIVE capital. Target APY is a range, not a guarantee; substantial capital loss is possible.
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="Текущая версия существует только на бумаге, и для LIVE-капитала деск её ОТКАЗЫВАЕТ. Исследовательская цель — не результат и не гарантия; при реальном капитале была бы возможна существенная потеря.">
+            The current version exists on paper only, and the desk
+            REFUSES it for LIVE capital. A research target is not a result and not a guarantee; with real capital, substantial loss would be possible.
           </p>
         </div>
       </div>
@@ -333,9 +333,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
           </div>
           <div>
             <h4 class="text-sm font-semibold text-white mb-2" data-ru="Стоп книги и надзор за петлёй">Book stop and loop supervision</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Aggressive — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её стоп: при просадке ${C.sleeve_stops.aggressive_stop_pct}% от пика книга прекращает торговлю; открытая петля перед этим закрывается. Петля проверяется каждый час: ниже коэффициента здоровья 1,15 — сокращение, ниже 1,08 или при цене USDe ниже 0,97 — закрытие.`}>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru={`Aggressive — бумажная книга вне RiskPolicy v1.0 и вне двухуровневой лестницы основной книги. Её стоп: при просадке ${C.sleeve_stops.aggressive_stop_pct}% от пика текущей версии книга прекращает торговлю; открытая петля перед этим закрывается. Петля проверяется каждый час: ниже коэффициента здоровья 1,15 — сокращение, ниже 1,08 или при цене USDe ниже 0,97 — закрытие.`}>
               Aggressive is a paper book outside RiskPolicy v1.0 and outside the main book’s two-tier ladder. Its stop: at a
-              {C.sleeve_stops.aggressive_stop_pct}% drawdown from peak the book stops trading; an open loop is closed first. The loop is checked every hour:
+              {C.sleeve_stops.aggressive_stop_pct}% drawdown from the current version’s peak the book stops trading; an open loop is closed first. The loop is checked every hour:
               below a health factor of 1.15 it is deleveraged, below 1.08 or with USDe under 0.97 it is closed.
             </p>
             <p class="text-xs text-white/50" data-ru="Ни стоп, ни надзор не отменяют уже понесённые убытки; у бумажной петли нет реальных займов.">
@@ -350,9 +350,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Структура комиссий обсуждается индивидуально при онбординге. Действует принцип high-water mark — комиссия за результат не взимается до восстановления предыдущего пика.">
-          Fee structure is discussed individually during onboarding. High-water mark applies —
-          no performance fee until the previous peak is recovered.
+        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Комиссий нет: это бумажная стадия, ничего не предлагается. Коммерческие условия — только после go-live и юридической проверки.">
+          No fees: this is a paper stage and nothing is offered. Commercial terms only after go-live and a legal review.
         </p>
         <p class="text-xs text-white/50" data-ru="В период бумажной торговли комиссии отсутствуют.">
           No fees during paper trading period.
@@ -367,8 +366,8 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Будет ли Aggressive доступна для live?">Will Aggressive be available for live capital?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Стратегии уже paper-тестируются в Aggressive Lab (живой forward-трек). Но для LIVE-капитала деск их сознательно ОТКАЗЫВАЕТ — не из-за незрелости, а потому что доходность здесь компенсирует хвостовой риск (~50% просадка на обвале ETH), а не эдж. Это принципиальная позиция, а не дата запуска.">
-            The strategies are already paper-tested in the <a href="/aggressive-lab" class="text-accent-400 underline">Aggressive Lab</a> (a live forward track). But the desk deliberately REFUSES them for LIVE capital — not because they're immature, but because the yield here compensates for tail risk (~50% drawdown through the ETH crash), not edge. It's a stance, not a launch date.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Нет. Текущая версия — бумажный эксперимент с симулированным плечом, и для LIVE-капитала деск её сознательно ОТКАЗЫВАЕТ: доходность здесь компенсирует риск плеча и депега, а не эдж. Это принципиальная позиция, а не дата запуска. Хвост ~50% на обвале ETH относится к предыдущему исследованию (Aggressive Lab), а не к этой книге.">
+            No. The current version is a paper experiment with simulated leverage, and the desk deliberately REFUSES it for LIVE capital — the yield here compensates for leverage and depeg risk, not edge. It's a stance, not a launch date. The ~50% tail through the ETH crash belongs to the earlier research (the <a href="/aggressive-lab" class="text-accent-400 underline">Aggressive Lab</a>), not to this book.
           </p>
         </div>
 
@@ -376,16 +375,15 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли риск ликвидации?">Is there liquidation risk?</h4>
           <p class="text-sm text-white/55 leading-relaxed" data-ru="Только в симулированной петле: реальных займов нет. Когда бумажная петля открыта, её ликвидация моделируется по параметрам самого рынка, а до этого петля сокращается или закрывается. Риск каскадных ликвидаций и депега несут плечевые конструкции, которые исследуются только в отдельной Aggressive Lab и эту книгу не финансируют. Деск ОТКАЗЫВАЕТ этот тир для live-капитала; он существует как advisory paper-исследование с показанным хвостом.">
             Only in the simulated loop: nothing is borrowed for real. When the paper loop is open its liquidation is modelled with
-            the market’s own parameters, and the loop is deleveraged or closed before that. Liquidation-cascade and depeg risk of the levered constructions
-            researched only in the separate Aggressive Lab, which never fund this book. The desk REFUSES this tier for live capital; it exists as advisory paper research with the tail shown.
+            the market’s own parameters, and the loop is deleveraged or closed before that. Liquidation-cascade and depeg risk of the earlier levered constructions
+            belongs to the separate Aggressive Lab research, which never funds this book. The desk REFUSES this tier for live capital; it exists as advisory paper research with the tail shown.
           </p>
         </div>
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Какие активы поддерживаются?">What assets are supported?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
-            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums
-            or pool capacity limits.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажные книги ведутся в USDC. Депозиты не принимаются: это бумажная стадия, ничего не предлагается.">
+            The paper books are kept in USDC. No deposits are accepted: this is a paper stage and nothing is offered.
           </p>
         </div>
 
@@ -399,18 +397,18 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Применяется ли та же риск-политика?">Does the same risk policy apply?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Нет. RiskPolicy v1.0 и двухуровневый стоп-кран действуют для книги Conservative. Balanced и Aggressive — советующие бумажные книги вне RiskPolicy; у каждой свой стоп от пика: Balanced −${C.sleeve_stops.balanced_stop_pct}%, Aggressive −${C.sleeve_stops.aggressive_stop_pct}%.`}>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru={`Нет. RiskPolicy v1.0 и двухуровневый стоп-кран действуют для книги Conservative. Balanced и Aggressive — советующие бумажные книги вне RiskPolicy; у каждой свой стоп от пика текущей версии (порог остановки, не гарантия максимального убытка): Balanced −${C.sleeve_stops.balanced_stop_pct}%, Aggressive −${C.sleeve_stops.aggressive_stop_pct}%.`}>
             No. RiskPolicy v1.0 and the two-tier kill switch govern the Conservative book. Balanced and Aggressive
-            are advisory paper books outside RiskPolicy; each has its own stop from peak: Balanced
+            are advisory paper books outside RiskPolicy; each has its own stop from the current version’s peak (a stop trigger, not a maximum-loss guarantee): Balanced
             −{C.sleeve_stops.balanced_stop_pct}%, Aggressive −{C.sleeve_stops.aggressive_stop_pct}%.
           </p>
         </div>
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Будет ли период бумажной торговли?">Will there be a paper trading period?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. Как и все стратегии, Aggressive пройдёт период бумажной валидации до развёртывания реального капитала. Будут применяться критерии GoLiveChecker.">
-            Yes. Like all strategies, Aggressive will undergo a paper trading validation period
-            before any real capital is deployed. GoLiveChecker criteria will apply.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Он идёт сейчас: текущая версия Aggressive — бумажный эксперимент, и её статистика накапливается. Отказ для реального капитала от этого не меняется: бумажный период здесь — исследование, а не путь к запуску.">
+            It is running now: the current Aggressive version is a paper experiment and its statistics are accumulating.
+            The refusal of real capital does not change with it: the paper period here is research, not a path to launch.
           </p>
         </div>
 
@@ -421,9 +419,9 @@ import C from '../../lib/constitution.json';   // ADR-531: sleeve stops rendered
     <section class="py-16 border-t border-white/5">
       <div class="text-center">
         <h2 class="text-2xl font-bold text-white mb-4" data-ru="Изучите другие стратегии">Explore Other Strategies</h2>
-        <p class="text-white/55 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Aggressive paper-тестируется, но отказан для live. Смотрите живой paper-тест в Aggressive Lab, или Conservative — реальную evidenced-книгу с меньшим риском.">
-          Aggressive is paper-tested but refused for live. See the live paper-test in the
-          <a href="/aggressive-lab" class="text-accent-400 underline">Aggressive Lab</a>, or Conservative — the real evidenced book with lower risk.
+        <p class="text-white/55 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Aggressive — бумажный эксперимент, отказан для live. Смотрите Conservative — бумажную книгу с отчётной историей и меньшим риском, или предыдущее исследование в Aggressive Lab.">
+          Aggressive is a paper experiment and refused for live. See Conservative — the paper book with a reportable history and lower risk, or the earlier research in the
+          <a href="/aggressive-lab" class="text-accent-400 underline">Aggressive Lab</a>.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
           <a data-track="aggressive_to_strategies_balanced"             href="/strategies/balanced"

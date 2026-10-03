@@ -201,12 +201,12 @@ function stopFor(key, ru) {
   }
   if (key === 'balanced') {
     return ru
-      ? `−${ss.balanced_stop_pct}% от пика → книга прекращает сделки, позиции сохраняются`
-      : `−${ss.balanced_stop_pct}% from peak → the book stops trading; positions are kept`;
+      ? `−${ss.balanced_stop_pct}% от пика текущей версии → книга прекращает сделки, позиции сохраняются (порог остановки, не гарантия максимального убытка)`
+      : `−${ss.balanced_stop_pct}% from the current version’s peak → the book stops trading; positions are kept (a stop trigger, not a maximum-loss guarantee)`;
   }
   return ru
-    ? `−${ss.aggressive_stop_pct}% от пика → петля закрывается, книга прекращает сделки; раньше петля сама сокращается и закрывается по фактору здоровья и цене USDe`
-    : `−${ss.aggressive_stop_pct}% from peak → the loop is unwound and the book stops trading; before that the loop deleverages and unwinds on its own health-factor and USDe-price triggers`;
+    ? `−${ss.aggressive_stop_pct}% от пика текущей версии → петля закрывается, книга прекращает сделки; раньше петля сама сокращается и закрывается по фактору здоровья и цене USDe (порог остановки, не гарантия максимального убытка)`
+    : `−${ss.aggressive_stop_pct}% from the current version’s peak → the loop is unwound and the book stops trading; before that the loop deleverages and unwinds on its own health-factor and USDe-price triggers (a stop trigger, not a maximum-loss guarantee)`;
 }
 
 /**

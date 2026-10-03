@@ -149,7 +149,10 @@ def test_book_kill_unwinds_an_open_loop(sandbox):
     _morpho(s["mp"])
     s["lp"].run_lp_cycle(dry_run=False)
     st = _state(s["tmp"], "lp_paper_trading.json")
-    st["peak_equity"] = st["equity"] * 1.5          # simulated deep drawdown from peak
+    # simulated deep drawdown from the CURRENT experiment's peak — the stop's reference since the owner's
+    # decision of 2026-10-03 (item 7); inflating only the legacy peak no longer moves the stop, by design
+    st["peak_equity"] = st["equity"] * 1.5
+    next(e for e in st["experiments"] if e.get("status") == "active")["initial_state"]["equity_usd"] = st["equity"] * 1.5
     (s["tmp"] / "lp_paper_trading.json").write_text(json.dumps(st))
     s["clock"].advance(hours=1)
     res = s["lp"].run_lp_cycle(dry_run=False)

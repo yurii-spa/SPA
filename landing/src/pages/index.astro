@@ -75,10 +75,11 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
            The closing sentence used to say "start with a free wallet check" — that check lived on
            checkup.earn-defi.com, which is no longer deployed. Every NUMBER in this line is unchanged
            (owner-gated); only the dead call-to-action was repointed at the live snapshot. */}
-      <p class="sub" data-ru={`Цель — до ~20% годовых в наших исследовательских стратегиях (на бумаге, всегда с показанным риском — «хвостом»). На фундаменте живого деска, который уже доказал ${realizedNumRu} фактических при 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). Начните с бесплатного 60-секундного снимка безопасности.`}>
-        Target up to ~20%/yr in our research strategies — paper, always shown with the tail — built on a
-        live desk that already proves {realizedNumEn} realized at 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). Start with the free 60-second
-        safety snapshot.
+      <p class="sub" data-ru={`Три бумажных портфеля с разной механикой: кредитование без плеча, фиксированная ставка Pendle PT и симулированная петля на Morpho Blue. Фактический бумажный результат Conservative — ${realizedNumRu} годовых (замер ${realizedAt ?? "—"}; ${drawdownPhraseRR(snapRR, true)}). У Balanced и Aggressive статистика текущих версий накапливается. Реального капитала нет. Начните с бесплатного 60-секундного снимка безопасности.`}>
+        Three paper portfolios with different mechanics: unlevered lending, a Pendle PT fixed rate and a
+        simulated loop on Morpho Blue. The Conservative book’s realized paper result is {realizedNumEn} annualised
+        (measured {realizedAt ?? "—"}; {drawdownPhraseRR(snapRR)}). Balanced and Aggressive are accumulating the
+        statistics of their current versions. No real capital. Start with the free 60-second safety snapshot.
       </p>
 
       {/* Top-of-funnel. Was the paste-an-address widget to the checkup service; that service is
@@ -131,7 +132,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (исследование)">Aggressive (research)</div>
           <div style="font-size:16px;font-weight:700;color:var(--text-secondary);padding:6px 0" data-ru="результат накапливается">result accumulating</div>
           <div style="font-size:11px;color:var(--text-muted)" data-ru={`новая версия с ${aggStart} · исследовательская цель ${researchTarget('aggressive', true) ?? "—"} — не результат и не прогноз`}>new version since {aggStart} · research target {researchTarget('aggressive', false) ?? "—"} — not a result, not a forecast</div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="бумага · хвост показан · для live отклонён">paper · tail shown · refused for live</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="бумага · симулированная петля · реальный капитал не допускается">paper · simulated loop · refused for live capital</div>
         </div>
       </div>
     </div>
@@ -205,7 +206,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;overflow-wrap:anywhere">
               <span data-ru={`Если бы исследовательская цель Aggressive (${researchTarget('aggressive', true)} годовых) была достигнута: до`}>{`If the Aggressive research target (${researchTarget('aggressive', false)} a year) were reached: up to`}</span> <span style="font-family:var(--font-mono)">$<span id="calc-scn">—</span></span><span data-ru=" в год"> /yr</span>
             </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:4px;overflow-wrap:anywhere" data-ru={`Допущения: ставка цели на всю сумму, до реальных издержек исполнения; у текущей версии Aggressive валидных дней ${aggDays} из 30 — результата ещё нет. Хвост исследования: ${TIER_BANDS.aggressive.tail_ru}. Не прогноз и не оферта.`}>{`Assumptions: the target rate on the whole amount, before real execution costs; the current Aggressive version has ${aggDays} of 30 valid days — no result yet. Research tail: ${TIER_BANDS.aggressive.tail_en}. Not a forecast, not an offer.`}</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:4px;overflow-wrap:anywhere" data-ru={`Допущения: ставка цели на всю сумму, до реальных издержек исполнения; у текущей версии Aggressive валидных дней ${aggDays} из 30 — отчётного результата ещё нет. Хвост исследования: ${TIER_BANDS.aggressive.tail_ru}. Не прогноз и не оферта.`}>{`Assumptions: the target rate on the whole amount, before real execution costs; the current Aggressive version has ${aggDays} of 30 valid days — no reportable result yet. Research tail: ${TIER_BANDS.aggressive.tail_en}. Not a forecast, not an offer.`}</div>
           </div>
         )}
       </div>
@@ -235,10 +236,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <section class="band" style="padding:34px 0">
     <div style="max-width:560px;margin:0 auto;padding:0 24px;text-align:center">
       <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#eab308;font-family:var(--font-mono);margin:0 0 6px" data-ru="Ранний доступ">Early access</p>
-      <h2 style="font-size:22px;font-weight:800;color:var(--text-primary);margin:0 0 10px" data-ru="Агрессивные таргеты выйдут в live только после проверки">Aggressive targets go live only after they're proven</h2>
-      <p style="font-size:14px;color:var(--text-secondary);margin:0 0 18px" data-ru="30 дней вперёд и реальное событие волатильности. Вступите, чтобы первыми получить отчёт о проверке — без обязательств и без обещаний доходности.">30 forward days + a real vol event. Join to get the validation report first — no obligation, no yield promise.</p>
+      <h2 style="font-size:22px;font-weight:800;color:var(--text-primary);margin:0 0 10px" data-ru="30-дневный отчёт paper-теста — когда текущая версия портфеля наберёт 30 валидных дней">30-day paper report — when the current portfolio version reaches 30 valid days</h2>
+      <p style="font-size:14px;color:var(--text-secondary);margin:0 0 18px" data-ru="Оставьте адрес, чтобы получить отчёт бумажного исследования. Это отчёт paper-теста — не инвестиционное предложение, не обещание доходности и не обещание выхода в live.">Leave an address to get the paper research report. It is a paper report — not an investment offer, no promise of yield and no promise of going live.</p>
       <form id="ea-form" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <input id="ea-email" type="email" required placeholder="you@fund.com" aria-label="Email" style="flex:1;min-width:220px;max-width:320px;padding:11px 16px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary)" />
+        <input id="ea-email" type="email" required placeholder="you@example.com" aria-label="Email" style="flex:1;min-width:220px;max-width:320px;padding:11px 16px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary)" />
         <button type="submit" style="padding:11px 22px;border-radius:10px;background:#eab308;color:#000;font-weight:700;border:none;cursor:pointer" data-ru="Вступить">Join the list</button>
       </form>
       <p id="ea-status" style="font-size:12px;color:var(--text-faint);margin-top:12px;min-height:1em" role="status" aria-live="polite"></p>
@@ -305,8 +306,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div class="tier-card t-max" data-pkg="aggressive">
           <h3>Aggressive</h3>
           <PackageStatusRows pkg="aggressive" part="status" />
-          <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="Paper-тест · отказан для live">Paper-tested · refused for live</span>
-          <div class="tier-cap" data-ru="paper-тест в Aggressive Lab · отказан для live-капитала">paper-tested in Aggressive Lab · refused for live capital</div>
+          <PackageStatusRows pkg="aggressive" part="live" />
           <PackageStatusRows pkg="aggressive" part="body" />
           <a class="btn-card" href="/strategies/aggressive" data-track="tier_view_aggressive" data-ru="Подробнее и доказательства →">Details and evidence →</a>
         </div>

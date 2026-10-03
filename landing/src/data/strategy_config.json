@@ -4,7 +4,6 @@
       "id": "preserve",
       "name": "Conservative",
       "tagline": "The desk's real book — a live paper track since June 22, 2026",
-      "target_apy": 6,
       "risk_level": "lower",
       "risk_level_label": "Lower Risk",
       "risk_bars": 1,
@@ -40,7 +39,6 @@
       "id": "core",
       "name": "Balanced",
       "tagline": "Research book — a fixed-rate part next to floating lending",
-      "target_apy": 5,
       "risk_level": "medium",
       "risk_level_label": "Medium Risk",
       "risk_bars": 2,
@@ -66,8 +64,8 @@
         "Продавать PT до погашения (версия 1 держит до погашения)",
         "Ссылаться на защиту RiskPolicy v1.0 — это бумажная книга вне RiskPolicy со своим стопом"
       ],
-      "target_apy_note": "Target band. Research/paper only, not live-allocated and not part of the go-live track. Measured 2026-09-09: coverage by observed rates was 0.0% — the book accrued on literals. It is being rebuilt onto observed rates with mark-to-market (ADR-292); until that lands no realized number is claimed here.",
-      "target_apy_note_ru": "Целевая полоса. Только исследование/бумага, без live-аллокации и вне go-live трека. Замер 09.09.2026: покрытие наблюдаемыми ставками было 0.0% — книга начислялась по литералам. Переводится на наблюдаемые ставки с переоценкой позиций (ADR-292); до этого фактическое число здесь не заявляется.",
+      "target_apy_note": "Research target. Paper only, not live-allocated and not part of the go-live track. The current version accrues on observed rates, with the PT leg marked at its observed Pendle price; its statistics are accumulating. A research target is not a result.",
+      "target_apy_note_ru": "Исследовательская цель. Только бумага, без live-аллокации и вне go-live трека. Текущая версия начисляет по наблюдаемым ставкам, нога PT оценивается по наблюдаемой цене Pendle; её статистика накапливается. Исследовательская цель — не результат.",
       "assets": [
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
@@ -85,7 +83,6 @@
       "id": "max-yield",
       "name": "Aggressive",
       "tagline": "Advanced mechanics for higher yield tolerance",
-      "target_apy": 15,
       "risk_level": "higher",
       "risk_level_label": "Higher Risk",
       "risk_bars": 3,
@@ -104,8 +101,8 @@
         "Sign or send a transaction (no keys, on-chain reads only)",
         "Claim RiskPolicy v1.0 protection — it is outside RiskPolicy, held by its own stop and the loop exit rules"
       ],
-      "target_apy_note": "Target profile. Research/paper only, refused for live capital by design. Measured 2026-09-09: coverage by observed rates was 0.0% — the book accrued on literals. Being rebuilt onto observed rates with mark-to-market (ADR-292). Possible loss of capital.",
-      "target_apy_note_ru": "Целевой профиль. Только исследование/бумага, для live-капитала отказан по построению. Замер 09.09.2026: покрытие наблюдаемыми ставками было 0.0% — книга начислялась по литералам. Переводится на наблюдаемые ставки с переоценкой (ADR-292). Возможна потеря капитала.",
+      "target_apy_note": "Research target. Paper only, refused for live capital by design. The current version accrues on observed rates; the simulated loop is valued from its Morpho market’s oracle price and debt shares. Its statistics are accumulating; a research target is not a result. With real capital, loss would be possible.",
+      "target_apy_note_ru": "Исследовательская цель. Только бумага, для live-капитала отказан по построению. Текущая версия начисляет по наблюдаемым ставкам; симулированная петля оценивается по цене оракула своего рынка Morpho и долевому долгу. Её статистика накапливается; исследовательская цель — не результат. При реальном капитале была бы возможна потеря.",
       "assets": [
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"

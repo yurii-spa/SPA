@@ -215,13 +215,28 @@ DECISION_DEFECTS = {
 }
 
 
+#: Protocol identities that are NOT resolved, named with the decision that owns them. `susde` (held by
+#: the sleeves) and `ethena_susde` may be one asset under two keys with two different tier labels (T3 vs
+#: T2); which one is right is package A of ADR-532, with the owner. Until it is decided the label is
+#: not shown at all (owner, 2026-10-03, package three-portfolios-closeout item 10: «если identity
+#: спорна — UNKNOWN/unresolved, а не новый выдуманный tier»).
+IDENTITY_UNRESOLVED = {
+    "susde": "identity vs ethena_susde not resolved (ADR-532 package A)",
+    "ethena_susde": "identity vs susde not resolved (ADR-532 package A)",
+}
+
+
 def _composition(protocols, *, extra_en: str = "", extra_ru: str = "") -> dict:
     """Registry tier labels of the protocols the book HOLDS — measured, not a description.
 
     The cards used to print «Tier mix: T1 + T2» for all three packages; measured 2026-10-02 the
     Balanced book held `susde`, labelled T3 in ADAPTER_REGISTRY (the `susde`/`ethena_susde` identity
     question of ADR-532 package A is still with the owner). Tier ≠ mechanic (owner, 2026-10-02): both
-    are shown, each from its own source. No label known ⇒ ``unlabelled`` (never assumed T1).
+    are shown, each from its own source. No label known ⇒ ``unlabelled`` (never assumed T1). The
+    label comes from the canonical registry only; a protocol whose IDENTITY is unresolved shows no
+    label at all — it goes to ``unresolved`` with its reason (owner, 2026-10-03, item 10). A copy that
+    disagrees with the canonical registry does not change what is shown: that is the tier census's
+    finding (ADR-532), not a reason to doubt the canonical label.
     """
     try:
         from spa_core.risk.concentration_monitor import _tier_map
@@ -231,15 +246,25 @@ def _composition(protocols, *, extra_en: str = "", extra_ru: str = "") -> dict:
     if tmap is None:
         return {"state": "UNMEASURED", "tiers_held": None, "source": "ADAPTER_REGISTRY unreadable"}
     held: dict = {}
+    unresolved: dict = {}
     for p in protocols:
-        t = tmap.get(str(p)) or "unlabelled"
-        held.setdefault(t, []).append(str(p))
-    order = sorted(held, key=lambda t: (t == "unlabelled", t))
-    en = " · ".join(f"{t}: {', '.join(sorted(held[t]))}" for t in order) or "no positions"
-    return {"state": "MEASURED", "tiers_held": {t: sorted(held[t]) for t in order},
-            "summary_en": en + extra_en, "summary_ru": (en.replace("unlabelled", "без метки")
-                                                       if held else "позиций нет") + extra_ru,
-            "source": "ADAPTER_REGISTRY tier labels of the held positions"}
+        p = str(p)
+        if p in IDENTITY_UNRESOLVED:
+            t = "unresolved"
+            unresolved[p] = IDENTITY_UNRESOLVED[p]
+        else:
+            t = tmap.get(p) or "unlabelled"
+        held.setdefault(t, []).append(p)
+    order = sorted(held, key=lambda t: (t in ("unlabelled", "unresolved"), t))
+    en = " · ".join(f"{'tier unresolved' if t == 'unresolved' else t}: {', '.join(sorted(held[t]))}"
+                    for t in order) or "no positions"
+    ru = (en.replace("unlabelled", "без метки").replace("tier unresolved", "тир не определён")
+          if held else "позиций нет")
+    out = {"state": "MEASURED", "tiers_held": {t: sorted(held[t]) for t in order},
+           "unresolved": unresolved,
+           "summary_en": en + extra_en, "summary_ru": ru + extra_ru,
+           "source": "ADAPTER_REGISTRY tier labels of the held positions; unresolved identities withheld"}
+    return out
 
 
 def _decision(state: str, raw: Optional[str], reasons: list, position_en: str, position_ru: str) -> dict:
@@ -546,7 +571,7 @@ _PUBLIC = {
     "history": ("state", "valid_periods", "first_period", "last_period", "reportable_after",
                 "earlier_rows_kept"),
     "mode": ("state", "live", "live_reason_en", "live_reason_ru"),
-    "composition": ("state", "tiers_held", "summary_en", "summary_ru"),
+    "composition": ("state", "tiers_held", "unresolved", "summary_en", "summary_ru"),
     "freshness": ("schedule_en", "schedule_ru", "expected_every_h", "stale_after_h",
                   "last_successful_run_at", "source_observed_at", "stale_at"),
 }

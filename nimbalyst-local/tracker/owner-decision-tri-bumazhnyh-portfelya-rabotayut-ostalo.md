@@ -2,12 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-10-03
 priority: high
 package: docs/owner_packages/2026-10-02-three-portfolios-closeout.md
-approves: [landing/src/pages/index.astro, landing/src/pages/packages.astro, landing/src/pages/faq.astro, landing/src/pages/strategies/aggressive.astro, landing/src/pages/strategies/balanced.astro, landing/src/pages/strategies/conservative.astro, landing/src/lib/tier_bands.json]
+approves: [landing/src/pages/index.astro, landing/src/pages/packages.astro, landing/src/pages/faq.astro, landing/src/pages/fees.astro, landing/src/pages/snapshot.astro, landing/src/pages/system.astro, landing/src/pages/strategies/index.astro, landing/src/pages/strategies/aggressive.astro, landing/src/pages/strategies/balanced.astro, landing/src/pages/strategies/conservative.astro, landing/src/lib/tier_bands.json, landing/src/lib/package_card.js, landing/src/data/strategy_config.json, landing/src/components/StrategyCard.astro]
+owner_choice: "все 10 пунктов одобрены с уточнениями; 6 — вариант 6а; 8 — вариант 8б; 9 — оставить"
+owner_answer_via: "интерактивная сессия Claude Code, 2026-10-03"
+status_trail:
+  - "2026-10-03T11:52:20.156947+00:00 needs-owner -> owner-done · queue.set_status/closed_by:agent on the owner's explicit decision of 2026-10-03 (interactive session: «Одобряю consolidated package … Закрыть owner card как owner-done»)/evidence:all 10 items applied as approved (with the owner's clarifications) in one commit; check_owner_gate passes with Owner-Approved: owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo; landing build 12"
 ---
 
 ## Что случилось и почему это важно
@@ -89,3 +93,17 @@ approves: [landing/src/pages/index.astro, landing/src/pages/packages.astro, land
 ## Что будет после
 
 Агент применит одобренные пункты одним коммитом через `safe_site_push.py` с этой карточкой, перепроверит все страницы в браузере, закроет карточку и допишет журнал. Неодобренные пункты останутся как есть.
+
+## Ответ владельца (2026-10-03, интерактивная сессия)
+
+Одобрен весь пакет с уточнениями; текст ответа дословно — в журнале `docs/journal/2026-W40.md`, запись 03.10.
+
+1. Aggressive — да: текущая механика (кредитование + симулированная петля sUSDe/PYUSD), только бумага, реальный капитал не допускается; Aggressive Lab — историческое исследование. Не писать «результата ещё нет» — писать «отчётного результата пока нет». Уровень доказательности — только по шкале `docs/37`, не повышать ради интерфейса.
+2. Мета-описания — да. 3. FAQ — да: убрать фонд, минимальную сумму и впечатление действующего продукта.
+4. Комиссии — да: один текст на трёх страницах стратегий и /fees, будущую модель комиссий не создавать.
+5. Ранний доступ — да, формулировка «30-дневный отчёт paper-теста»; 30 дней не «валидируют» и не ведут в live.
+6. Вариант 6а: 6/12/20 % — только подписанные исследовательские цели; «≤3/≤10/≤25 %» убрать; настоящие стопы показывать отдельно с их действием; `strategy_config.target_apy` удалить, если не является authority.
+7. Да: стопы −8 % / −25 % меряются от пика текущего эксперимента; пороги не меняются; старый пик и история не переписываются; граница версии записана; опора воспроизводима; только бумага.
+8. Вариант 8б. 9. Калькулятор — оставить (сценарий отделён, ставка из канона, без 0,20).
+10. Да: тиры фактических позиций — только из канонического реестра; спорная идентичность ⇒ «не определён»; русский хвост — «нехеджированная направленная книга»; исторический хвост ~50 % отделён от текущей петли и от стопа.
+

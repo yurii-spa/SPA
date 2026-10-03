@@ -94,6 +94,9 @@ def test_typo_signature_is_reported_not_swallowed(monkeypatch, caplog):
     ("landing/a.astro, landing/b.astro", ["landing/a.astro", "landing/b.astro"]),
     ("landing/a.astro\nlanding/b.astro", ["landing/a.astro", "landing/b.astro"]),
     ("landing/a.astro", ["landing/a.astro"]),
+    # YAML flow form as one string (2026-10-03): «[a» / «c]» used to match nothing
+    ("[landing/a.astro, landing/b.astro]", ["landing/a.astro", "landing/b.astro"]),
+    ("[landing/a.astro]", ["landing/a.astro"]),
     ("B", ["B"]),
     (None, []),
     ("", []),

@@ -6,13 +6,14 @@ import strategies from '../../data/strategy_config.json';
 import snap from '../../lib/snapshot_view.js';
 // ADR-292/286: the realized rate is NEVER typed — one source, rendered from the snapshot.
 import { realizedPhrase } from '../../lib/realized_rate.js';
+import { researchTarget } from '../../lib/package_card.js';
 const realizedEn = realizedPhrase(snap);
 const realizedRu = realizedPhrase(snap, true);
 ---
 
 <Layout
   title="Investment Strategies — SPA | earn-defi.com"
-  description="Three risk profiles for DeFi yield: Conservative, Balanced, and Aggressive. Deterministic risk gates, public paper track record. Variable APY, not guaranteed."
+  description="Three paper portfolios with different mechanics: unlevered stablecoin lending, a Pendle PT fixed rate and a simulated loop on Morpho Blue. Status and results of the current versions; research targets are not results. No real capital."
 >
 
   <!-- Nav -->
@@ -25,9 +26,10 @@ const realizedRu = realizedPhrase(snap, true);
         <h1 class="text-4xl sm:text-5xl font-bold text-text-primary mb-6 leading-tight" data-ru="Один фреймворк. Три профиля риска.">
           One Framework. Three Risk Profiles.
         </h1>
-        <p class="text-lg text-text-secondary leading-relaxed" data-ru="Тот же детерминированный риск-движок. Те же неотменяемые гейты. Разные аллокации, оптимизированные под вашу терпимость к риску. Все показатели APY переменные и не гарантированы.">
-          Same deterministic risk engine. Same non-overridable gates. Different allocations
-          optimised for your risk tolerance. All APY figures are variable and not guaranteed.
+        <p class="text-lg text-text-secondary leading-relaxed" data-ru="Три бумажных портфеля с разной механикой и разным риском. RiskPolicy v1.0 управляет книгой Conservative; Balanced и Aggressive — бумажные книги вне её, у каждой свой стоп. Реального капитала нет; ставки переменные и не гарантированы.">
+          Three paper portfolios with different mechanics and different risk. RiskPolicy v1.0 governs the
+          Conservative book; Balanced and Aggressive are paper books outside it, each with its own stop.
+          No real capital; rates are variable and not guaranteed.
         </p>
       </div>
 
@@ -67,11 +69,11 @@ const realizedRu = realizedPhrase(snap, true);
       <div class="max-w-3xl mx-auto mb-12 rounded-xl p-5 flex items-start gap-4"
            style="background:var(--bg-surface);border:1px solid var(--border)">
         <div class="min-w-0">
-          <p class="text-sm font-semibold text-text-primary mb-1" data-ru="Тиры честно — с хвостом">The tiers, honestly — with the tail</p>
-          <p class="text-sm text-text-secondary leading-relaxed" data-ru={`Conservative — до 6% (подтверждён, fundable; ${realizedRu} на текущий момент). Balanced (до 12%) и Aggressive (до 20%) — research/paper, показаны С реальным датированным хвостом и отказаны для live-капитала. Чем выше тир, тем больше хвост — измерен, не спрятан.`}>
-            Conservative targets up to 6% (evidenced, fundable; {realizedEn} track-to-date). Balanced (up to 12%) and Aggressive (up to 20%) are research/paper,
-            shown WITH their real dated tail and refused for live capital. The higher the tier, the bigger the
-            tail — measured, not hidden.
+          <p class="text-sm font-semibold text-text-primary mb-1" data-ru="Три портфеля честно — с хвостом">The three portfolios, honestly — with the tail</p>
+          <p class="text-sm text-text-secondary leading-relaxed" data-ru={`Conservative — фактический бумажный результат ${realizedRu} на текущий момент (исследовательская цель ${researchTarget('conservative', true)}). У Balanced (исследовательская цель ${researchTarget('balanced', true)}) и Aggressive (${researchTarget('aggressive', true)}) статистика текущих версий накапливается; обе отказаны для live-капитала, их исторические хвосты показаны рядом. Исследовательская цель — не результат.`}>
+            Conservative: realized paper result {realizedEn} track-to-date (research target {researchTarget('conservative', false)}). Balanced (research target {researchTarget('balanced', false)}) and Aggressive ({researchTarget('aggressive', false)}) are accumulating the
+            statistics of their current versions; both are refused for live capital, and their historical tails are shown next to them.
+            A research target is not a result.
           </p>
         </div>
         <a data-track="index_to_packages" href="/packages" class="shrink-0 inline-flex items-center gap-1.5 text-sm font-mono whitespace-nowrap px-3 py-1.5 rounded-md border"

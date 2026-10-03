@@ -62,7 +62,7 @@ const tiers = [
   {
     key: 'aggressive',
     en: 'Aggressive', ru: 'Агрессивный',
-    status_en: 'RESEARCH · paper track running · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · отказан для live (осознанно)',
+    status_en: 'RESEARCH · simulated loop experiment · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · эксперимент с симулированной петлёй · реальный капитал не допускается (осознанно)',
     tone: 'red',
     live: false,
     what_en: 'The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market\u2019s own data (oracle price, debt rate, liquidation threshold, health factor). The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.',
@@ -134,7 +134,7 @@ const toneMap = {
 ---
 <Layout
   title="Yield packages — honest tiers | earn-defi.com"
-  description={`Three yield-package tiers by target APY and drawdown limit. Conservative targets up to 6% (the REAL live paper book, ~${rrEn} realized so far${rrNoteEn}, evidenced). Balanced (up to 12%) and Aggressive (up to 20%) are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden.`}
+  description={`Three paper portfolios with different mechanics: unlevered stablecoin lending (Conservative, ~${rrEn} realized paper result so far${rrNoteEn}), a Pendle PT fixed rate (Balanced) and a simulated loop on Morpho Blue (Aggressive). Status and results of the current versions; research targets are not results. Balanced and Aggressive are refused for live capital. No real capital.`}
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
     <section class="pb-8">

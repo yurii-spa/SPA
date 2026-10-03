@@ -1,15 +1,15 @@
 {
-    "_note": "6mo-M1 #7 — SINGLE canonical source for tier APY/drawdown BAND label strings. Every surface (packages.astro, SiteHeader nav, index fallback) imports from here so the bands can never diverge (they did: SiteHeader said Preserve 6–8% while /packages said Conservative 2–6% — the 6–8% overstated the evidenced conservative book, then ~3.3% (историческая величина на 2026-07; текущая НЕ печатается нигде — src/lib/realized_rate.js)). The live per-tier APY NUMBER still comes dynamically from track_snapshot.packages / /api/tier1/packages; this file is the STATIC band-label + name-set source. The exact band VALUES remain owner-adjustable in ONE place (backlog #8, the canonical public APY definition); the alt_name set (Preserve/Core/Max-Yield) vs primary (Conservative/Balanced/Aggressive) is owner choice #6. OWNER 2026-07-11: primary name set = Conservative/Balanced/Aggressive; APY display = \"up to {max}%\" (aggressive capped at up-to-20%); drawdown/tail budgets kept, real tails shown.",
+    "_note": "6mo-M1 #7 — SINGLE canonical source for tier APY/drawdown BAND label strings. Every surface (packages.astro, SiteHeader nav, index fallback) imports from here so the bands can never diverge (they did: SiteHeader said Preserve 6–8% while /packages said Conservative 2–6% — the 6–8% overstated the evidenced conservative book, then ~3.3% (историческая величина на 2026-07; текущая НЕ печатается нигде — src/lib/realized_rate.js)). The live per-tier APY NUMBER still comes dynamically from track_snapshot.packages / /api/tier1/packages; this file is the STATIC band-label + name-set source. The exact band VALUES remain owner-adjustable in ONE place (backlog #8, the canonical public APY definition); the alt_name set (Preserve/Core/Max-Yield) vs primary (Conservative/Balanced/Aggressive) is owner choice #6. OWNER 2026-07-11: primary name set = Conservative/Balanced/Aggressive; APY display = \"up to {max}%\" (aggressive capped at up-to-20%); real tails shown. OWNER 2026-10-03 (package three-portfolios-closeout, 6a): the 6/12/20 numbers are RESEARCH TARGETS only; the «≤3/≤10/≤25% drawdown» budgets glued to them were removed — they were never stop triggers. The real stops render separately from constitution.json (package_card.js). Tails name the book they were measured on; the Aggressive evidence level stays L2 (docs/37: the current version has days, not an L3 paper period).",
     "conservative": {
         "key": "conservative",
         "en": "Conservative",
         "ru": "Консервативный",
         "alt_en": "Preserve",
         "alt_ru": "Preserve",
-        "band_en": "up to 6% · target band, annualised, before real execution costs · ≤3% drawdown",
-        "band_ru": "до 6% · целевой диапазон, годовых, до реальных издержек исполнения · просадка ≤3%",
-        "nav_band_en": "Capital protection first (up to 6%)",
-        "nav_band_ru": "Сначала защита капитала (up to 6%)",
+        "band_en": "up to 6% · target band, annualised, before real execution costs",
+        "band_ru": "до 6% · целевой диапазон, годовых, до реальных издержек исполнения",
+        "nav_band_en": "Capital protection first (research target up to 6%)",
+        "nav_band_ru": "Сначала защита капитала (исследовательская цель до 6%)",
         "tone": "green",
         "live": true,
         "evidence_en": "L3 · paper track (evidenced)",
@@ -17,7 +17,8 @@
         "tail_en": "Worst drawdown: realized to date (paper track)",
         "tail_ru": "Макс. просадка: реализованная на сегодня (бумажный трек)",
         "dd_short_en": "0.0% (live)",
-        "dd_short_ru": "0.0% (live)"
+        "dd_short_ru": "0.0% (live)",
+        "loss_budget_pct": 3.0
     },
     "balanced": {
         "key": "balanced",
@@ -25,18 +26,19 @@
         "ru": "Сбалансированный",
         "alt_en": "Core",
         "alt_ru": "Core",
-        "band_en": "up to 12% · target band, annualised, before real execution costs · ≤10% drawdown",
-        "band_ru": "до 12% · целевой диапазон, годовых, до реальных издержек исполнения · просадка ≤10%",
-        "nav_band_en": "Better yield, controlled risk (up to 12%)",
-        "nav_band_ru": "Больше доходности, контроль риска (up to 12%)",
+        "band_en": "up to 12% · target band, annualised, before real execution costs",
+        "band_ru": "до 12% · целевой диапазон, годовых, до реальных издержек исполнения",
+        "nav_band_en": "Better yield, controlled risk (research target up to 12%)",
+        "nav_band_ru": "Больше доходности, контроль риска (исследовательская цель до 12%)",
         "tone": "amber",
         "live": false,
         "evidence_en": "L2 · paper / backtest",
         "evidence_ru": "L2 · paper / бэктест",
-        "tail_en": "Worst drawdown: ~4.5% (backtest, hedged sUSDe book) · budget ≤10%",
-        "tail_ru": "Макс. просадка: ~4.5% (бэктест, хедж-книга sUSDe) · бюджет ≤10%",
+        "tail_en": "Historical tail: ~4.5% drawdown (backtest of an earlier hedged sUSDe book, not the current version)",
+        "tail_ru": "Исторический хвост: просадка ~4,5% (бэктест прежней хеджированной книги sUSDe, не текущей версии)",
         "dd_short_en": "~4.5% (bt)",
-        "dd_short_ru": "~4.5% (бэкт.)"
+        "dd_short_ru": "~4.5% (бэкт.)",
+        "loss_budget_pct": 10.0
     },
     "aggressive": {
         "key": "aggressive",
@@ -44,17 +46,19 @@
         "ru": "Агрессивный",
         "alt_en": "Max Yield",
         "alt_ru": "Max Yield",
-        "band_en": "up to 20% · target band, annualised, before real execution costs · ≤25% drawdown",
-        "band_ru": "до 20% · целевой диапазон, годовых, до реальных издержек исполнения · просадка ≤25%",
-        "nav_band_en": "Higher risk, active monitoring (up to 20%)",
-        "nav_band_ru": "Выше риск, активный мониторинг (up to 20%)",
+        "band_en": "up to 20% · target band, annualised, before real execution costs",
+        "band_ru": "до 20% · целевой диапазон, годовых, до реальных издержек исполнения",
+        "nav_band_en": "Higher risk, active monitoring (research target up to 20%)",
+        "nav_band_ru": "Выше риск, активный мониторинг (исследовательская цель до 20%)",
         "tone": "red",
         "live": false,
-        "evidence_en": "L2 · backtest · refused for live",
-        "evidence_ru": "L2 · бэктест · для live отказан",
-        "tail_en": "Worst drawdown: up to ~50% (backtest, unhedged directional book) · budget ≤25%",
-        "tail_ru": "Макс. просадка: до ~50% (бэктест, нехедж. directional-книга) · бюджет ≤25%",
+        "evidence_en": "L2 · verified data feeds; current version on paper, statistics accumulating · refused for live",
+        "evidence_ru": "L2 · проверенные источники данных; текущая версия на бумаге, статистика накапливается · для live отказан",
+        "tail_en": "Historical tail: up to ~50% drawdown (backtest of the earlier Aggressive Lab research book, an unhedged directional book — not the current loop)",
+        "tail_ru": "Исторический хвост: просадка до ~50% (бэктест прежней исследовательской книги Aggressive Lab — нехеджированная направленная книга, не текущая петля)",
         "dd_short_en": "~50% (bt)",
-        "dd_short_ru": "~50% (бэкт.)"
-    }
+        "dd_short_ru": "~50% (бэкт.)",
+        "loss_budget_pct": 25.0
+    },
+    "_loss_budget_note": "loss_budget_pct: the ADVISORY drawdown budget the defi_engine measures each book against (spa_core/defi_engine/loss_budget.py mirrors it, parity-tested). It is NOT a stop and NOT a maximum-loss guarantee, so it is not printed next to the research targets (owner 2026-10-03, item 6a). The enforced stops are in constitution.json and render separately with their action."
 }

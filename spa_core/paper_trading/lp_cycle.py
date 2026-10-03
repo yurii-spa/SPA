@@ -292,7 +292,15 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
 
     il_dd = compute_il_drawdown(equity, peak)
 
-    if il_dd < IL_KILL_THRESHOLD:
+    # The −25 % stop is measured from the CURRENT experiment's peak (owner decision 2026-10-03,
+    # package three-portfolios-closeout item 7). Same threshold; the legacy peak_equity /
+    # il_drawdown_pct keep being written as before. The reference is derived from the book file.
+    from spa_core.paper_trading import strategy_mandates as _sm_stop
+    _stop_ref = _sm_stop.stop_reference(state, equity)
+    _stop_dd = compute_il_drawdown(equity, _stop_ref["peak_equity"])
+    state["stop_reference"] = {**_stop_ref, "drawdown_pct": _stop_dd, "threshold_pct": IL_KILL_THRESHOLD}
+
+    if _stop_dd < IL_KILL_THRESHOLD:
         # ADR-533: the book stops — an open loop is unwound first, at stress slippage.
         if _loop.get("status") == "open" and _mobs.get("ok"):
             _e = _lb.unwind(_loop, _mobs, _now_aware, stress=True, reason="book kill switch")
@@ -311,7 +319,8 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
             "sleeve": "C",
             "kill_switch": True,
             "reason": (
-                f"IL drawdown={il_dd:.2%} exceeds {IL_KILL_THRESHOLD:.0%} threshold"
+                f"drawdown={_stop_dd:.2%} from the {_stop_ref['basis']} "
+                f"{_stop_ref['peak_equity']:,.2f} exceeds {IL_KILL_THRESHOLD:.0%} threshold"
             ),
             "equity": equity,
             "peak_equity": peak,

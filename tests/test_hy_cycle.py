@@ -513,3 +513,53 @@ class TestReseed100kMigration:
             "книга ушла ниже, чем стоит один ход — это уже не издержка")
         assert captured.get("daily_history"), "история книги стёрта"
         assert captured.get("reseed_100k_done") is True
+
+
+# ── Стоп от пика ТЕКУЩЕГО эксперимента (решение владельца 2026-10-03, пакет
+#    three-portfolios-closeout п. 7). Порог −8 % тот же; legacy peak не трогается. ──
+
+def _versioned_state(equity):
+    # Замер 03.10: legacy peak 100 496.02 записан прежней версией; эксперимент
+    # balanced-fixed-carry-v1@2026-10-02 стартовал с 99 555.06 и писал 99 568.80.
+    return {
+        "equity": equity, "peak_equity": 100496.02, "positions": [], "cycles_completed": 0,
+        "daily_history": [
+            {"date": "2026-10-01", "equity": 100496.02},                       # old version, no experiment_id
+            {"date": "2026-10-02", "equity": 99568.80, "experiment_id": "balanced-fixed-carry-v1@2026-10-02"},
+        ],
+        "experiments": [
+            {"experiment_id": "balanced-legacy-lending", "status": "closed"},
+            {"experiment_id": "balanced-fixed-carry-v1@2026-10-02", "status": "active",
+             "strategy_version": "balanced-fixed-carry-v1", "started_at": "2026-10-02T00:55:51Z", "initial_state": {"equity_usd": 99555.06}},
+        ],
+    }
+
+
+class TestStopFromCurrentExperimentPeak:
+    def test_reference_is_the_current_experiment_peak_and_legacy_is_kept(self, m, monkeypatch):
+        from spa_core.paper_trading.strategy_mandates import stop_reference
+        ref = stop_reference(_versioned_state(99461.47), 99461.47)
+        monkeypatch.setattr(m, "load_hy_state", lambda: _versioned_state(99461.47))
+        assert not m.run_hy_cycle(dry_run=True).get("kill_switch")
+        assert ref["basis"] == "current_experiment_peak"
+        assert ref["peak_equity"] == 99568.80 and ref["legacy_peak_equity"] == 100496.02
+
+    def test_a_drop_that_only_the_old_peak_would_stop_does_not_stop(self, m, monkeypatch):
+        # 92 000: −8.45 % from the old 100 496 (old rule: STOP), −7.60 % from 99 568.80 (new: run)
+        monkeypatch.setattr(m, "load_hy_state", lambda: _versioned_state(92000.0))
+        assert not m.run_hy_cycle(dry_run=True).get("kill_switch")
+
+    def test_the_same_threshold_still_stops_from_the_version_peak(self, m, monkeypatch):
+        # 91 500: −8.10 % from 99 568.80 ⇒ the −8 % stop fires, threshold unchanged
+        monkeypatch.setattr(m, "load_hy_state", lambda: _versioned_state(91500.0))
+        r = m.run_hy_cycle(dry_run=True)
+        assert r.get("kill_switch") is True and "current_experiment_peak" in r["reason"]
+
+    def test_without_a_recorded_experiment_the_stricter_legacy_peak_is_used(self, m, monkeypatch):
+        def _no_baseline():
+            st = _versioned_state(92000.0)
+            st["experiments"][1]["initial_state"] = {}
+            return st
+        monkeypatch.setattr(m, "load_hy_state", _no_baseline)
+        r = m.run_hy_cycle(dry_run=True)
+        assert r.get("kill_switch") is True and "legacy_peak" in r["reason"]

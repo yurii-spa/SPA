@@ -230,10 +230,12 @@ def test_book_exit_profile_and_policy(tmp_path):
 
 def test_runtime_budget_mirror_equals_the_published_page():
     bands = json.loads((REPO / "landing/src/lib/tier_bands.json").read_text(encoding="utf-8"))
+    # Owner 2026-10-03 (item 6a): the «≤N % drawdown» text left the research-target band — it was never
+    # a stop. The budget the engine measures now lives in its own field; parity is checked there, and
+    # the band is checked to carry NO budget (so it cannot creep back as a pseudo-guarantee).
     for book, pct in loss_budget.PUBLISHED_BUDGET_PCT.items():
-        m = re.search(r"≤\s*(\d+(?:\.\d+)?)\s*%\s*drawdown", bands[book]["band_en"])
-        assert m, f"{book}: published band carries no drawdown budget"
-        assert float(m.group(1)) == pct, f"{book}: page {m.group(1)} % vs engine {pct} %"
+        assert bands[book].get("loss_budget_pct") == pct, f"{book}: page {bands[book].get('loss_budget_pct')} % vs engine {pct} %"
+        assert not re.search(r"≤\s*\d", bands[book]["band_en"] + bands[book]["band_ru"]), f"{book}: budget back in the band"
 
 
 def test_budget_binding_and_levels(tmp_path):

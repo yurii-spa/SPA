@@ -622,7 +622,14 @@ def _parse_approves(raw) -> list[str]:
     if isinstance(raw, (list, tuple, set)):
         items = [str(x) for x in raw]
     else:
-        items = re.split(r"[,\n;]+", str(raw))
+        # The YAML flow form `[a, b, c]` reaches here as ONE string when the frontmatter reader does
+        # not parse flow lists: without the brackets stripped, the first and last entries were
+        # «[a» and «c]» and silently matched nothing (measured 2026-10-03 on the three-portfolios
+        # card: index.astro and tier_bands.json stayed gated under an owner-done approval).
+        txt = str(raw).strip()
+        if txt.startswith("[") and txt.endswith("]"):
+            txt = txt[1:-1]
+        items = re.split(r"[,\n;]+", txt)
     return [s.strip().strip("'\"") for s in items if str(s).strip().strip("'\"")]
 
 

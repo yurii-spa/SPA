@@ -617,3 +617,34 @@ class TestReseed100kMigration:
             "книга ушла ниже, чем стоит один ход — это уже не издержка")
         assert captured.get("daily_history"), "история книги стёрта"
         assert captured.get("reseed_100k_done") is True
+
+
+# ── The −25 % stop from the CURRENT experiment's peak (owner decision 2026-10-03, package
+#    three-portfolios-closeout item 7). Same threshold; the legacy peak is not touched. ──
+
+def _versioned_lp_state(equity):
+    return {
+        "equity": equity, "peak_equity": 100607.21, "positions": [], "cycles_completed": 0,
+        "daily_history": [
+            {"date": "2026-10-01", "equity": 100607.21},
+            {"date": "2026-10-02", "equity": 100084.13, "experiment_id": "aggressive-susde-loop-v1@2026-10-02"},
+        ],
+        "experiments": [
+            {"experiment_id": "aggressive-legacy-lending", "status": "closed"},
+            {"experiment_id": "aggressive-susde-loop-v1@2026-10-02", "status": "active",
+             "strategy_version": "aggressive-susde-loop-v1", "started_at": "2026-10-02T00:55:51Z", "initial_state": {"equity_usd": 100260.76}},
+        ],
+    }
+
+
+class TestStopFromCurrentExperimentPeak:
+    def test_a_drop_that_only_the_old_peak_would_stop_does_not_stop(self, m, monkeypatch):
+        # 75 300: −25.15 % from the old 100 607.21 (old rule: STOP), −24.90 % from 100 260.76 (run)
+        monkeypatch.setattr(m, "load_lp_state", lambda: _versioned_lp_state(75300.0))
+        assert not m.run_lp_cycle(dry_run=True).get("kill_switch")
+
+    def test_the_same_threshold_still_stops_from_the_version_peak(self, m, monkeypatch):
+        # 75 000: −25.19 % from 100 260.76 ⇒ the −25 % stop fires
+        monkeypatch.setattr(m, "load_lp_state", lambda: _versioned_lp_state(75000.0))
+        r = m.run_lp_cycle(dry_run=True)
+        assert r.get("kill_switch") is True and "current_experiment_peak" in r["reason"]

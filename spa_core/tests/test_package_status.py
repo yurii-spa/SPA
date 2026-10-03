@@ -306,15 +306,23 @@ def test_missed_runs_counts_a_stopped_process_and_clips_to_the_window():
 
 
 def test_composition_is_measured_from_registry_labels_of_held_positions(tmp_path):
-    # «Tier mix: T1 + T2» was printed for every package; measured 02.10 Balanced held susde (T3)
+    # «Tier mix: T1 + T2» was printed for every package; measured 02.10 Balanced held susde (T3).
+    # Owner 2026-10-03 (item 10): a protocol whose IDENTITY is unresolved shows no tier at all — susde
+    # (vs ethena_susde, ADR-532 package A) moved from the T3 assertion to «unresolved»; the T3 label
+    # path is now pinned on extra_finance_base, an undisputed T3 key of the canonical registry.
     _health(tmp_path)
     _book(tmp_path, "hy_paper_trading.json", last_run=NOW, experiment="balanced-fixed-carry-v1@d0", rows=1,
-          extra={"positions": [{"protocol": "aave_v3"}, {"protocol": "susde"}, {"protocol": "no_such_key"}]})
+          extra={"positions": [{"protocol": "aave_v3"}, {"protocol": "susde"}, {"protocol": "no_such_key"},
+                               {"protocol": "extra_finance_base"}]})
     c = PS.public_view(PS.build_all(tmp_path, NOW))["packages"]["balanced"]["composition"]
     assert c["state"] == "MEASURED"
-    assert c["tiers_held"]["T1"] == ["aave_v3"] and c["tiers_held"]["T3"] == ["susde"]
+    assert c["tiers_held"]["T1"] == ["aave_v3"] and c["tiers_held"]["T3"] == ["extra_finance_base"]
     assert c["tiers_held"]["unlabelled"] == ["no_such_key"], "an unknown label is never assumed T1"
     assert "без метки" in c["summary_ru"]
+    assert c["tiers_held"]["unresolved"] == ["susde"], "a disputed identity never gets a tier on the card"
+    assert "ADR-532" in c["unresolved"]["susde"]
+    assert "tier unresolved: susde" in c["summary_en"] and "тир не определён: susde" in c["summary_ru"]
+    assert "T3: extra_finance_base" in c["summary_en"] and "susde" not in c["summary_en"].split("tier unresolved")[0]
 
 
 def test_code_identity_comes_from_the_sync_receipt_and_says_when_it_is_old(tmp_path):

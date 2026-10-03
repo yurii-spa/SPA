@@ -178,3 +178,35 @@ def active_experiment(state: dict) -> Optional[dict]:
         if e.get("status") == "active":
             return e
     return None
+
+
+def stop_reference(state: dict, equity: float) -> dict:
+    """The peak the book's drawdown STOP is measured from — the CURRENT experiment's peak.
+
+    Owner decision 2026-10-03 (package three-portfolios-closeout, item 7): the existing stops
+    (Balanced −8 %, Aggressive −25 %) are measured from the peak of the current paper experiment,
+    not from the peak the previous version wrote. The thresholds themselves do not change.
+
+    Reproducible by construction: the peak is DERIVED from what the book file already holds — the
+    experiment's recorded initial equity, the equity of the rows that experiment wrote, and the
+    equity now — and never stored over history. The legacy all-time ``peak_equity`` stays where it
+    is and keeps being written as before; this function only reads it.
+
+    No active experiment with a recorded initial equity ⇒ the legacy peak (the higher, i.e. the
+    stricter reference), named as such — never a guessed baseline.
+    """
+    legacy = float(state.get("peak_equity") or 0.0)
+    exp = active_experiment(state)
+    init = ((exp or {}).get("initial_state") or {}).get("equity_usd")
+    if not exp or not isinstance(init, (int, float)):
+        return {"basis": "legacy_peak", "experiment_id": (exp or {}).get("experiment_id"),
+                "peak_equity": max(legacy, float(equity)),
+                "reason": "no active experiment with a recorded initial equity — the stricter legacy peak is used"}
+    eid = exp.get("experiment_id")
+    vals = [float(init), float(equity)]
+    vals += [float(h["equity"]) for h in (state.get("daily_history") or [])
+             if h.get("experiment_id") == eid and isinstance(h.get("equity"), (int, float))]
+    return {"basis": "current_experiment_peak", "experiment_id": eid,
+            "since": exp.get("started_at"), "initial_equity_usd": float(init),
+            "peak_equity": max(vals), "legacy_peak_equity": legacy,
+            "decision": "owner 2026-10-03, package three-portfolios-closeout item 7"}

@@ -244,7 +244,16 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
 
     drawdown = compute_drawdown(equity, peak)
 
-    if drawdown < _KILL_DRAWDOWN_THRESHOLD:
+    # Стоп −8 % меряется от пика ТЕКУЩЕГО эксперимента (решение владельца 2026-10-03, пакет
+    # three-portfolios-closeout п. 7). Порог тот же; legacy peak_equity/drawdown_pct пишутся как
+    # раньше и не переписываются. Опора выводится из самого файла книги (воспроизводима).
+    from spa_core.paper_trading import strategy_mandates as _sm_stop
+    _stop_ref = _sm_stop.stop_reference(state, equity)
+    _stop_dd = compute_drawdown(equity, _stop_ref["peak_equity"])
+    state["stop_reference"] = {**_stop_ref, "drawdown_pct": _stop_dd,
+                               "threshold_pct": _KILL_DRAWDOWN_THRESHOLD}
+
+    if _stop_dd < _KILL_DRAWDOWN_THRESHOLD:
         state["regime"] = "EXIT"  # форсируем EXIT в state
         state["peak_equity"] = peak
         state["drawdown_pct"] = drawdown
@@ -257,7 +266,8 @@ def run_hy_cycle(dry_run: bool = True) -> dict:
         return {
             "sleeve": "B",
             "kill_switch": True,
-            "reason": f"drawdown={drawdown:.2%} exceeds {_KILL_DRAWDOWN_THRESHOLD:.0%} threshold",
+            "reason": (f"drawdown={_stop_dd:.2%} from the {_stop_ref['basis']} "
+                       f"{_stop_ref['peak_equity']:,.2f} exceeds {_KILL_DRAWDOWN_THRESHOLD:.0%} threshold"),
             "equity": equity,
             "peak_equity": peak,
             "drawdown_pct": drawdown,

@@ -29,7 +29,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-#: Published drawdown budget per package, percent (mirror of tier_bands.json, parity-tested).
+#: Advisory drawdown budget per package, percent (mirror of tier_bands.json `loss_budget_pct`, parity-tested).
+#: Since 2026-10-03 (owner, item 6a) it is no longer printed inside the research-target band.
 PUBLISHED_BUDGET_PCT = {"conservative": 3.0, "balanced": 10.0, "aggressive": 25.0}
 
 _LEVELS = ((0.5, "ok"), (0.8, "watch"), (1.0, "warn"))
@@ -65,7 +66,7 @@ def book_budget(book_id: str, book: dict) -> dict:
     bound = (None if nearest is None or budget is None else nearest <= budget + 1e-9)
     out = {
         "budget_pct": budget,
-        "budget_source": "published package band (tier_bands.json), runtime mirror parity-tested",
+        "budget_source": "tier_bands.json loss_budget_pct (advisory, not printed as a band), runtime mirror parity-tested",
         "nearest_enforced_stop_pct": nearest,
         "bound_by_enforced_stop": bound,
         "unbound_gap_pct": (round(nearest - budget, 4) if bound is False else None),
