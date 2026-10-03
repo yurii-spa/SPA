@@ -1,6 +1,14 @@
-# Owner package · три бумажных портфеля — единый пакет решений (ADR-537)
-
-> Дата: 2026-10-02 · связано: ADR-533, ADR-537 (записи CR-537-1…5), ADR-532 (пакет A–D) · карточка: `nimbalyst-local/tracker/owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo.md` (needs-owner).
+---
+trackerStatus:
+  type: owner-decision
+title: Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)
+status: needs-owner
+source: nimbalyst
+created: 2026-10-03
+priority: high
+package: docs/owner_packages/2026-10-02-three-portfolios-closeout.md
+approves: [landing/src/pages/index.astro, landing/src/pages/packages.astro, landing/src/pages/faq.astro, landing/src/pages/strategies/aggressive.astro, landing/src/pages/strategies/balanced.astro, landing/src/pages/strategies/conservative.astro, landing/src/lib/tier_bands.json]
+---
 
 ## Что случилось и почему это важно
 
@@ -81,24 +89,3 @@
 ## Что будет после
 
 Агент применит одобренные пункты одним коммитом через `safe_site_push.py` с этой карточкой, перепроверит все страницы в браузере, закроет карточку и допишет журнал. Неодобренные пункты останутся как есть.
-
-## Патч
-
-`2026-10-02-three-portfolios-closeout.patch` уже готов. Он покрывает пункты 1 (главная, /packages и баннер Aggressive), 3, 4 (три страницы стратегий), 5, 8б и русскую строку хвоста из п. 10.
-
-`check_owner_gate.py` на патче даёт `GATED — 5`, все пять — класс E, удаление строки с меткой честности:
-- `index.astro:134`, `:308`, `:309`;
-- `packages.astro:65`;
-- `strategies/aggressive.astro:24`.
-
-Метка «refused for live / реальный капитал не допускается» в каждом месте остаётся. Меняется только формулировка: новая привязана к текущей механике, а не к книге Aggressive Lab.
-
-Без патча, после твоего «да», агент применит по тому же образцу:
-- мета-описания (п. 2);
-- `/strategies/aggressive` строки 264–268;
-- `/strategies/balanced` строку 41;
-- `/strategies` строки 70–75;
-- `/system`;
-- шаг «рост» в `/snapshot`;
-- `strategy_config`;
-- `tier_bands` evidence (п. 1 и 10).

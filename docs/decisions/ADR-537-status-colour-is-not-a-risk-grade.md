@@ -174,3 +174,18 @@ owner_approval: not required (copy correction; numbers unchanged and sourced)
 reversible: yes
 rollback: revert a0a826aa
 ```
+
+## Production evidence (2026-10-02 → 2026-10-03)
+
+| Step | Evidence |
+|---|---|
+| Delivery | `acacff4f` `a0a826aa` `40d9cdf6` (first pass) · `45247720` `7b3ef001` `2da2fe8d` `3596bcb7` `0e4253e0` `7e46cf24` (second pass, guard, records, DR, fix); code sync each time, `deployment_acceptance` rc 0; apiserver restarted after each API-visible change (a long-lived process keeps its start-time code — measured: it answered NOT_IN_SYNC after `2da2fe8d` until restarted) |
+| Balanced, natural scheduled decision | row 2026-10-03 (run 00:01Z): benchmark = held legs 5.040 %, floor 4.040 %, PT-sUSDS implied 4.834 % ⇒ **BUY** $24 892.20 cost basis (25 % per-market cap) → 25 017.69 units × 0.99301 = $24 842.90, trade cost $49.30; floating $74 618.57 + PT $24 842.90 = equity $99 461.47. Predicted from the same inputs before the row (journal 02.10). The 02.10 defective-benchmark row is unchanged, its defect named next to it |
+| Aggressive | loop open since 02.10 00:55Z, supervised hourly; 10-03 row HOLD «position open; carry checked», HF 1.3075, LTV 0.6998, debt $116 705 (grows at the observed borrow rate) |
+| Replay | `sleeve_replay` PASS both books, 24 days to 2026-10-03 incl. the PT sub-book, max diff $0.005, input chain intact |
+| Incident | 23:00Z runs died on ENOSPC (exit 120) at the atomic book write — books intact, one missed run recorded; the session's own scratch worktrees were part of the disk pressure and were removed |
+| Read model | live data exposed a stale-exit-code defect (fixed `7e46cf24`); after it: all three RUNNING · HEALTHY · OPEN, Balanced/Aggressive «1 scheduled run missed in 24 h», code identity IN_SYNC with origin |
+| Site | prod, CDP viewports 375/390/430/1280 × EN/RU × six pages after JS: 48/48 with `innerWidth = clientWidth = scrollWidth`, no clipped content, live status source; «updates stopped» (clock +4 h, API blocked): hourly sleeves turn yellow «status not confirmed · data out of date», source named |
+| Director | same fields: work / data / decision / statistics / live admission, code identity, defect note |
+| Fresh session | an agent without the conversation answered the six owner questions + four negative checks from sources (memory assembler + primary files), labelled CONFIRMED / HYPOTHESIS / UNKNOWN; its one gap (owner package not in canon) closed by `docs/owner_packages/2026-10-02-three-portfolios-closeout.md` |
+| Tests | full suite on the final code in six isolated worktrees: 37 failures, all reproduced on clean origin except `tests/cartographer/test_owner_briefing.py`, which fails deterministically whenever a pytest argv contains a file named `*token*` (the cartographer stores the raw command line) — a harness artefact of file-list sharding, not a regression; named, not fixed (foreign module) |
