@@ -149,3 +149,18 @@ and the Telegram button says it opens Telegram.
 
 One meaning in both owner surfaces (found by the live consistency check, not the review): a fleet in WARNING
 is «🟡 есть что проверить» in `/report` too — before, Telegram said «всё работает» for the same file.
+
+## External access enabled (owner gate closed, 2026-10-03/04)
+
+- The owner created the Cloudflare Access application and the tunnel route `mc.earn-defi.com`. The team domain and
+  AUD were read from Cloudflare's own redirect, because the owner's message carried placeholders. They are recorded
+  only in `~/studio-os-serve/mission_access.json` (0600, outside the repo). Our RS256 verifier accepts the team's
+  real signature.
+- The protected listener `127.0.0.1:8792` requires a JWT plus the public Host on every route. `127.0.0.1:8790` stays
+  local-only. cloudflared connects ONLY to :8792 (measured: 3 connections to 8792, 0 to 8790).
+- Unauthenticated: every path → 302 to the Access login; forged header or cookie → 302; :8792 direct without a JWT → 403.
+- The tunnel token was rotated by the owner. cloudflared was restarted through launchd on the new token (fingerprint
+  matches Keychain). Four connections registered, the API and site 200, and the token appears in no data file, log
+  or model.
+- Authenticated owner session: model served, assets byte-identical to the verified bundle (CSP and
+  `X-Frame-Options: DENY` on every response), RU/EN toggles, and Telegram parity.
