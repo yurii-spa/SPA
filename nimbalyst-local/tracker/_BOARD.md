@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-03T04:09:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-03T08:45:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (88ff132d7).
+> Сверено с `origin/main` (89002546f) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1171** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1173** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -352,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (628)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (630)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -859,6 +859,7 @@
 - Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
+- Находка петли: data/heir_all_rows_price.json: возраст 13.2ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-heir-all-rows-price-j.md` · 2026-10-03
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
@@ -908,6 +909,7 @@
 - Предписанный прогон КРАСНЫЙ на чистом main: 17 падений, замер на пришпиленном af1d972eb  ·  `inbox-predpisannyi-progon-krasnyi-na-chistom-m.md` · 2026-08-29
 - Предписанный прогон не доживает до вердикта — CI умирает по таймауту внутри пробы стабильности  ·  `inbox-predpisannyi-progon-ne-dozhivaet-do-verdi.md` · 2026-09-19
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
+- Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `inbox-pribory-brosayut-odnorazovyi-stend-87-gb.md` · 2026-10-03
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `inbox-prikaz-vladeltsa-uskolznul-ot-storozha-n.md` · 2026-09-04
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`

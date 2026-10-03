@@ -128,6 +128,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.disposable_stand import drop_stand, make_stand
+
 log = logging.getLogger("spa.monitoring.judge_alone_price")
 
 VERSION = "judge-alone-price-v1"
@@ -718,90 +720,96 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         return doc
 
     tree = Path(tree_root) if tree_root else Path(__file__).resolve().parents[2]
-    import tempfile
-    tmp = Path(stand_root) if stand_root else Path(tempfile.mkdtemp(prefix="g18_"))
-    tmp.mkdir(parents=True, exist_ok=True)
+    tmp, stand_owned = make_stand("g18_", stand_root)
+    # try/finally — не украшение: внутри тела ДВА досрочных `return doc`
+    # (плюс выход по исключению), и каждый оставлял стенд на диске
+    # навсегда — авария 2026-10-03, 87 ГБ брошенных копий (ADR-546).
+    # `finally` правит ТОТ ЖЕ объект, который уже назван в return, поэтому
+    # поле исхода уборки доходит до вызывающего и на досрочных путях тоже.
+    try:
 
-    doc["journal"] = {
-        "rows": len(rows),
-        "days": len({str(r.get("cycle_date")) for r in rows}),
-        "days_with_second_row": days_with_second_row(rows),
-    }
-    doc["fix_site"] = attribute_readers(tree)
-
-    carousel = _Carousel(Path(data_dir), tmp, rows)
-    doc["stand_root"] = str(carousel.root)
-
-    # Опора: сегодняшний судья на НЕТРОНУТОМ журнале — классы дней берутся у него.
-    carousel.journal.write_text(
-        "\n".join(json.dumps(r, sort_keys=True, default=str) for r in rows) + "\n",
-        encoding="utf-8")
-    baseline, why_base, _ = _ask_judge(carousel.data, None, patch=False)
-    if baseline is None:
-        doc["status"] = STATUS_UNMEASURED
-        doc["unmeasured_reason"] = f"опорный ответ судьи не получен: {why_base}"
-        return doc
-
-    families, missing = pick_families(baseline, rows)
-    doc["families"] = {name: str(rows[i].get("cycle_date"))
-                       for name, i in sorted(families.items())}
-    doc["families_missing"] = missing
-    if not families:
-        doc["status"] = STATUS_UNMEASURED
-        doc["unmeasured_reason"] = ("ни одного класса дня не нашлось — повтор "
-                                    "ставить не на чем")
-        return doc
-
-    # (а) — загрузчик отдаёт ВСЕ строки, судья не тронут.
-    answers, refusals = repeat_census(carousel, families, form=None, patch=True)
-    doc["repeat_refusals"] = refusals
-    values = classify_values(answers, list(families))
-    doc["values"] = values
-    vcounts: Dict[str, int] = {}
-    for row in values:
-        vcounts[str(row["outcome"])] = vcounts.get(str(row["outcome"]), 0) + 1
-    doc["value_outcomes"] = vcounts
-    doc["values_population"] = len(values)
-
-    inflating = [str(r["value"]) for r in values if r["outcome"] == VALUE_INFLATES]
-
-    # (б) — обе формы плюс нулевой контроль.
-    forms: Dict[str, object] = {}
-    for form in FORMS:
-        seen, form_refusals, day = form_sees_act(
-            carousel, families.get(FAMILY_SCORED_HOLD, sorted(families.values())[0]),
-            form=form, values=inflating)
-        repeat_answers, rep_ref = repeat_census(carousel, families,
-                                                form=form, patch=True)
-        repeat_rows = classify_values(repeat_answers, list(families))
-        moved_on_repeat = [str(r["value"]) for r in repeat_rows
-                           if r["outcome"] == VALUE_INFLATES]
-        forms[form] = {
-            "day": day,
-            "sees_early_act": sorted(k for k, v in seen.items() if v == FORM_SEES_ACT),
-            "blind_to_early_act": sorted(k for k, v in seen.items() if v == FORM_BLIND),
-            "unmeasured": sorted(k for k, v in seen.items() if v == FORM_UNMEASURED),
-            "still_inflates_on_repeat": moved_on_repeat,
-            "refusals": form_refusals + rep_ref,
+        doc["journal"] = {
+            "rows": len(rows),
+            "days": len({str(r.get("cycle_date")) for r in rows}),
+            "days_with_second_row": days_with_second_row(rows),
         }
-    doc["forms"] = forms
+        doc["fix_site"] = attribute_readers(tree)
 
-    # (в) — два числа: сегодня и ёмкость.
-    doc["returns_today"] = {
-        "act_days": 0 if not doc["journal"]["days_with_second_row"] else None,
-        "reason": ("дней со ВТОРОЙ строкой в журнале ноль: писатель удаляет раннюю "
-                   "строку при записи, и починка судьи в одиночку читать ей нечего")
-        if not doc["journal"]["days_with_second_row"] else
-        "в журнале есть дни со второй строкой — число считается перебором",
-    }
-    if with_capacity:
-        doc["capacity"] = {form: capacity(carousel, form=form) for form in FORMS}
-    else:
-        doc["capacity"] = None
-        doc["capacity_unmeasured_reason"] = "ёмкость не мерилась: with_capacity=False"
+        carousel = _Carousel(Path(data_dir), tmp, rows)
+        doc["stand_root"] = str(carousel.root)
 
-    doc.update(_verdict(doc))
-    return doc
+        # Опора: сегодняшний судья на НЕТРОНУТОМ журнале — классы дней берутся у него.
+        carousel.journal.write_text(
+            "\n".join(json.dumps(r, sort_keys=True, default=str) for r in rows) + "\n",
+            encoding="utf-8")
+        baseline, why_base, _ = _ask_judge(carousel.data, None, patch=False)
+        if baseline is None:
+            doc["status"] = STATUS_UNMEASURED
+            doc["unmeasured_reason"] = f"опорный ответ судьи не получен: {why_base}"
+            return doc
+
+        families, missing = pick_families(baseline, rows)
+        doc["families"] = {name: str(rows[i].get("cycle_date"))
+                           for name, i in sorted(families.items())}
+        doc["families_missing"] = missing
+        if not families:
+            doc["status"] = STATUS_UNMEASURED
+            doc["unmeasured_reason"] = ("ни одного класса дня не нашлось — повтор "
+                                        "ставить не на чем")
+            return doc
+
+        # (а) — загрузчик отдаёт ВСЕ строки, судья не тронут.
+        answers, refusals = repeat_census(carousel, families, form=None, patch=True)
+        doc["repeat_refusals"] = refusals
+        values = classify_values(answers, list(families))
+        doc["values"] = values
+        vcounts: Dict[str, int] = {}
+        for row in values:
+            vcounts[str(row["outcome"])] = vcounts.get(str(row["outcome"]), 0) + 1
+        doc["value_outcomes"] = vcounts
+        doc["values_population"] = len(values)
+
+        inflating = [str(r["value"]) for r in values if r["outcome"] == VALUE_INFLATES]
+
+        # (б) — обе формы плюс нулевой контроль.
+        forms: Dict[str, object] = {}
+        for form in FORMS:
+            seen, form_refusals, day = form_sees_act(
+                carousel, families.get(FAMILY_SCORED_HOLD, sorted(families.values())[0]),
+                form=form, values=inflating)
+            repeat_answers, rep_ref = repeat_census(carousel, families,
+                                                    form=form, patch=True)
+            repeat_rows = classify_values(repeat_answers, list(families))
+            moved_on_repeat = [str(r["value"]) for r in repeat_rows
+                               if r["outcome"] == VALUE_INFLATES]
+            forms[form] = {
+                "day": day,
+                "sees_early_act": sorted(k for k, v in seen.items() if v == FORM_SEES_ACT),
+                "blind_to_early_act": sorted(k for k, v in seen.items() if v == FORM_BLIND),
+                "unmeasured": sorted(k for k, v in seen.items() if v == FORM_UNMEASURED),
+                "still_inflates_on_repeat": moved_on_repeat,
+                "refusals": form_refusals + rep_ref,
+            }
+        doc["forms"] = forms
+
+        # (в) — два числа: сегодня и ёмкость.
+        doc["returns_today"] = {
+            "act_days": 0 if not doc["journal"]["days_with_second_row"] else None,
+            "reason": ("дней со ВТОРОЙ строкой в журнале ноль: писатель удаляет раннюю "
+                       "строку при записи, и починка судьи в одиночку читать ей нечего")
+            if not doc["journal"]["days_with_second_row"] else
+            "в журнале есть дни со второй строкой — число считается перебором",
+        }
+        if with_capacity:
+            doc["capacity"] = {form: capacity(carousel, form=form) for form in FORMS}
+        else:
+            doc["capacity"] = None
+            doc["capacity_unmeasured_reason"] = "ёмкость не мерилась: with_capacity=False"
+
+        doc.update(_verdict(doc))
+        return doc
+    finally:
+        doc.update(drop_stand(tmp, owned=stand_owned))
 
 
 def _verdict(doc: dict) -> dict:

@@ -186,6 +186,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.disposable_stand import drop_stand, make_stand
+
 log = logging.getLogger(__name__)
 
 VERSION = "heir-all-rows-price-v1"
@@ -916,80 +918,86 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         return doc
 
     tree = Path(tree_root) if tree_root else Path(__file__).resolve().parents[2]
-    import tempfile
-    tmp = Path(stand_root) if stand_root else Path(tempfile.mkdtemp(prefix="g17_"))
-    tmp.mkdir(parents=True, exist_ok=True)
-
-    stands, why = build_stands(Path(data_dir), tmp, day=day)
-    if stands is None:
-        doc["status"] = STATUS_UNMEASURED
-        doc["unmeasured_reason"] = f"стенды не построены: {why}"
-        return doc
-    doc["stand"] = {k: (str(v) if isinstance(v, Path) else v)
-                    for k, v in stands.items()}
-    # ПРЕДМЕТ — первым вопросом и у ИСТОЧНИКА. Пока он не задан, молчание
-    # наследников неотличимо от их отсутствия (ADR-455).
-    doc["subject"] = subject_state(stands, loader=baseline_loader)
-
-    _SWEEPING = True
+    tmp, stand_owned = make_stand("g17_", stand_root)
+    # try/finally — не украшение: внутри тела ОДИН досрочный `return doc`
+    # (плюс выход по исключению), и каждый оставлял стенд на диске
+    # навсегда — авария 2026-10-03, 87 ГБ брошенных копий (ADR-546).
+    # `finally` правит ТОТ ЖЕ объект, который уже назван в return, поэтому
+    # поле исхода уборки доходит до вызывающего и на досрочных путях тоже.
     try:
-        from spa_core.monitoring import run_identity_key_price as g16
 
-        roads, pop_stats = g16.reader_population(tree)
-        census: List[dict] = []
-        for name in sorted(roads):
-            if name in (g16.__name__, __name__):
-                census.append({"module": name, "outcome": g16.READER_UNMEASURED,
-                               "reason": "прибор переписи / прибор этого замера"})
-                continue
-            census.append(g16.classify_reader(name, {
-                "s1": stands["s_one"], "s2": stands["s_true"],
-                "s3": stands["s_first"]}))
-        doc["population"] = {"total": len(census), "stats_population":
-                             pop_stats.get("population")}
-        # Разбор переписи ОБЯЗАТЕЛЕН рядом с числом наследников: «схлопывающих
-        # ноль» на населении, три четверти которого НЕ ИЗМЕРЕНЫ, есть другое
-        # утверждение, чем «ноль из измеренных» (инв. #17).
-        ccounts: Dict[str, int] = {}
-        for r in census:
-            ccounts[str(r.get("outcome"))] = ccounts.get(str(r.get("outcome")), 0) + 1
-        doc["census_outcomes"] = ccounts
-        doc["census_unmeasured"] = ccounts.get(g16.READER_UNMEASURED, 0)
-        doc["census_measured"] = len(census) - doc["census_unmeasured"]
+        stands, why = build_stands(Path(data_dir), tmp, day=day)
+        if stands is None:
+            doc["status"] = STATUS_UNMEASURED
+            doc["unmeasured_reason"] = f"стенды не построены: {why}"
+            return doc
+        doc["stand"] = {k: (str(v) if isinstance(v, Path) else v)
+                        for k, v in stands.items()}
+        # ПРЕДМЕТ — первым вопросом и у ИСТОЧНИКА. Пока он не задан, молчание
+        # наследников неотличимо от их отсутствия (ADR-455).
+        doc["subject"] = subject_state(stands, loader=baseline_loader)
 
-        heirs = [r["module"] for r in census
-                 if r.get("outcome") == g16.READER_LAST]
-        doc["heirs_population"] = len(heirs)
-        heir_rows = [classify_heir(name, stands, baseline_loader=baseline_loader)
-                     for name in heirs]
-        doc["heirs"] = heir_rows
-        counts: Dict[str, int] = {}
-        for r in heir_rows:
-            counts[str(r["outcome"])] = counts.get(str(r["outcome"]), 0) + 1
-        doc["heir_outcomes"] = counts
+        _SWEEPING = True
+        try:
+            from spa_core.monitoring import run_identity_key_price as g16
 
-        no_entry = [r["module"] for r in census
-                    if r.get("outcome") == g16.READER_UNMEASURED
-                    and str(r.get("reason", "")).startswith("нет приводимой точки входа")]
-        doc["no_entry_population"] = len(no_entry)
-        if sweep_entries:
-            whose_rows = [whose_property(name, stands["s_one"], tree)
-                          for name in no_entry]
-            doc["whose"] = whose_rows
-            wcounts: Dict[str, int] = {}
-            for r in whose_rows:
-                wcounts[str(r["whose"])] = wcounts.get(str(r["whose"]), 0) + 1
-            doc["whose_outcomes"] = wcounts
-        else:
-            doc["whose"] = None
-            doc["whose_outcomes"] = None
-            doc["whose_unmeasured_reason"] = (
-                "вторая половина заказа не мерилась: sweep_entries=False")
+            roads, pop_stats = g16.reader_population(tree)
+            census: List[dict] = []
+            for name in sorted(roads):
+                if name in (g16.__name__, __name__):
+                    census.append({"module": name, "outcome": g16.READER_UNMEASURED,
+                                   "reason": "прибор переписи / прибор этого замера"})
+                    continue
+                census.append(g16.classify_reader(name, {
+                    "s1": stands["s_one"], "s2": stands["s_true"],
+                    "s3": stands["s_first"]}))
+            doc["population"] = {"total": len(census), "stats_population":
+                                 pop_stats.get("population")}
+            # Разбор переписи ОБЯЗАТЕЛЕН рядом с числом наследников: «схлопывающих
+            # ноль» на населении, три четверти которого НЕ ИЗМЕРЕНЫ, есть другое
+            # утверждение, чем «ноль из измеренных» (инв. #17).
+            ccounts: Dict[str, int] = {}
+            for r in census:
+                ccounts[str(r.get("outcome"))] = ccounts.get(str(r.get("outcome")), 0) + 1
+            doc["census_outcomes"] = ccounts
+            doc["census_unmeasured"] = ccounts.get(g16.READER_UNMEASURED, 0)
+            doc["census_measured"] = len(census) - doc["census_unmeasured"]
+
+            heirs = [r["module"] for r in census
+                     if r.get("outcome") == g16.READER_LAST]
+            doc["heirs_population"] = len(heirs)
+            heir_rows = [classify_heir(name, stands, baseline_loader=baseline_loader)
+                         for name in heirs]
+            doc["heirs"] = heir_rows
+            counts: Dict[str, int] = {}
+            for r in heir_rows:
+                counts[str(r["outcome"])] = counts.get(str(r["outcome"]), 0) + 1
+            doc["heir_outcomes"] = counts
+
+            no_entry = [r["module"] for r in census
+                        if r.get("outcome") == g16.READER_UNMEASURED
+                        and str(r.get("reason", "")).startswith("нет приводимой точки входа")]
+            doc["no_entry_population"] = len(no_entry)
+            if sweep_entries:
+                whose_rows = [whose_property(name, stands["s_one"], tree)
+                              for name in no_entry]
+                doc["whose"] = whose_rows
+                wcounts: Dict[str, int] = {}
+                for r in whose_rows:
+                    wcounts[str(r["whose"])] = wcounts.get(str(r["whose"]), 0) + 1
+                doc["whose_outcomes"] = wcounts
+            else:
+                doc["whose"] = None
+                doc["whose_outcomes"] = None
+                doc["whose_unmeasured_reason"] = (
+                    "вторая половина заказа не мерилась: sweep_entries=False")
+        finally:
+            _SWEEPING = False
+
+        doc.update(_verdict(doc))
+        return doc
     finally:
-        _SWEEPING = False
-
-    doc.update(_verdict(doc))
-    return doc
+        doc.update(drop_stand(tmp, owned=stand_owned))
 
 
 def _verdict(doc: dict) -> dict:
