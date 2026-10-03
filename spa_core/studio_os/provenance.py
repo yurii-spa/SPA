@@ -112,10 +112,25 @@ def git_facts(path: str, *, root: Optional[Path] = None, marker: str = "") -> di
     file_log = _log(root, ["--follow", "--", path])
     if not file_log:
         return {"state": UNKNOWN, "reason": "no git history found"}
-    comp = _log(root, ["-S", marker, "--", path]) if marker else []
+    # The component's origin is searched across ALL refs (ADR-537 memory-before-change: the first
+    # appearance on main can be a bulk re-add, and a shallow clone hides older main history — measured
+    # 2026-10-03 on the production clone: main alone gave a 10-02 commit, --all gave e3263507b).
+    comp = _log(root, ["--all", "-S", marker, "--", path]) if marker else []
+    shallow = (_git(["rev-parse", "--is-shallow-repository"], root) or "").strip() == "true"
     first = comp[-1] if comp else file_log[-1]
+    basis = f"content «{marker}», all refs" if comp else "file"
+    if shallow:
+        # A shallow boundary commit «adds» everything below it: if that is what we found, it is the
+        # earliest VISIBLE commit, not the origin — say so instead of inventing an origin.
+        sp = (_git(["rev-parse", "--git-path", "shallow"], root) or "").strip()
+        try:
+            boundary = {ln.strip()[:9] for ln in (Path(sp) if os.path.isabs(sp) else root / sp).read_text().splitlines()}
+        except OSError:
+            boundary = set()
+        if first["sha"] in boundary or not comp:
+            basis += " — SHALLOW clone: earliest VISIBLE commit, the true first is UNKNOWN here"
     last = file_log[0]
-    return {"state": "MEASURED", "first": first, "first_basis": f"content «{marker}»" if comp else "file",
+    return {"state": "MEASURED", "first": first, "first_basis": basis, "shallow_clone": shallow,
             "last": last, "n_commits": len(file_log),
             "adrs": sorted({a for c in file_log for a in c["adrs"]}),
             "models": sorted({m for c in file_log for m in c["co_authors"]}),

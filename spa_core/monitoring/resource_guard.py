@@ -172,6 +172,21 @@ def _ppid_map(rows) -> dict[int, int]:
     return {r["pid"]: r["ppid"] for r in rows}
 
 
+_SECRET_FLAG = re.compile(r"(?i)(--?[\w-]*(?:token|secret|passw(?:or)?d|api[-_]?key|auth|credential)[\w-]*)(=|\s+)(\S+)")
+_SECRET_BLOB = re.compile(r"(?<![\w/.-])[A-Za-z0-9+_=-]{40,}(?![\w/.-])")
+_SECRET_ENV = re.compile(r"(?i)\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY)[A-Z0-9_]*)=(\S+)")
+
+
+def redact_cmd(cmd: str) -> str:
+    """Command lines go to a file and to the owner's Telegram (Director): secrets never do (inv. #7).
+    Measured 2026-10-03 by the fresh-session test: the tunnel's `--token <jwt>` landed in
+    data/resource_health.json. Values of secret-looking flags/env vars and any long opaque blob
+    are replaced; the process stays recognisable."""
+    cmd = _SECRET_FLAG.sub(lambda m: f"{m.group(1)}{m.group(2)}<redacted>", cmd)
+    cmd = _SECRET_ENV.sub(lambda m: f"{m.group(1)}=<redacted>", cmd)
+    return _SECRET_BLOB.sub("<redacted>", cmd)
+
+
 def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> dict:
     out = run(["ps", "-axo", "pid=,ppid=,rss=,nice=,etime=,command="])
     if out is None:
@@ -183,7 +198,7 @@ def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> d
             continue
         rows.append({"pid": int(parts[0]), "ppid": int(parts[1]), "rss_mb": round(int(parts[2]) / 1024, 1),
                      "nice": int(parts[3]) if parts[3].lstrip("-").isdigit() else None,
-                     "etime": parts[4], "cmd": parts[5][:240]})
+                     "etime": parts[4], "cmd": redact_cmd(parts[5])[:240], "_raw": parts[5]})
     labels = launchd_pids(run=run)
     parents = _ppid_map(rows)
 
@@ -199,7 +214,7 @@ def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> d
 
     for r in rows:
         r["label"] = label_of(r["pid"])
-        r["class"] = classify(r["cmd"], r["label"], policy)
+        r["class"] = classify(r.pop("_raw"), r["label"], policy)   # classify on the real line, store the redacted one
     rows.sort(key=lambda r: -r["rss_mb"])
     by_class: dict[str, float] = {}
     for r in rows:
@@ -213,7 +228,7 @@ def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> d
 
 def _same_process(pid: int, cmd: str) -> bool:
     out = _run(["ps", "-o", "command=", "-p", str(pid)])
-    return bool(out) and out.strip()[:120] == cmd.strip()[:120]
+    return bool(out) and redact_cmd(out.strip())[:120] == cmd.strip()[:120]
 
 
 def protect(report: dict, policy: dict, *, setpriority: Callable = os.setpriority,

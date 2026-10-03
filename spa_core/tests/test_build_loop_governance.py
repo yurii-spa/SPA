@@ -184,6 +184,15 @@ class TestProvenance:
         assert g["adrs"] == ["ADR-900"] and g["models"] == ["Claude Test"] and g["cycles"] == ["42"]
         assert g["sessions"] == [], "no session id in history ⇒ none reported, never invented"
 
+    def test_a_shallow_clone_does_not_invent_an_origin(self, tmp_path):
+        repo = _scene_repo(tmp_path)
+        clone = tmp_path / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{repo}", str(clone)], check=True)
+        g = prov.git_facts("page.astro", root=clone, marker="calc-slider")
+        assert g["shallow_clone"] is True and "true first is UNKNOWN" in g["first_basis"]
+        full = prov.git_facts("page.astro", root=repo, marker="calc-slider")
+        assert full["shallow_clone"] is False and "UNKNOWN" not in full["first_basis"]
+
     def test_release_is_measured_against_the_production_commit(self, tmp_path):
         repo = _scene_repo(tmp_path)
         head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -373,6 +382,20 @@ class TestScenarioDPressure:
         state = json.loads((tmp_path / "telegram" / "push_state.json").read_text(encoding="utf-8"))
         assert "resource_critical" in json.dumps(state)
         rg.notify(ok, data_dir=tmp_path, send=False)
+
+    def test_command_lines_never_carry_secrets(self, tmp_path):
+        tok = "eyJ" + "a1B2c3D4e5F6g7H8i9J0" * 4
+        line = f"/opt/homebrew/bin/cloudflared tunnel --no-autoupdate run --token {tok}"
+        red = rg.redact_cmd(line)
+        assert tok not in red and "--token <redacted>" in red and "cloudflared tunnel" in red
+        assert tok[:12] not in rg.redact_cmd(f"x --api-key={tok}") and "API_TOKEN=<redacted>" in rg.redact_cmd(f"env API_TOKEN={tok} y")
+        assert rg.redact_cmd("python3 -m pytest spa_core/tests -q") == "python3 -m pytest spa_core/tests -q"
+        ps = f"  101     1  50000   0   01:00 {line}\n  102     1   9000   0   01:00 python3 -m pytest x\n"
+        run = lambda cmd, **k: ps if cmd[0] == "ps" else "PID\tStatus\tLabel\n101\t0\tcom.spa.cloudflared\n"
+        rep = rg.measure_processes(_policy(tmp_path), run=run)
+        dumped = json.dumps(rep)
+        assert tok not in dumped and tok[:20] not in dumped
+        assert {r["pid"]: r["class"] for r in rep["top"]} == {101: "CRITICAL", 102: "DISPOSABLE"}
 
     def test_classification_protects_critical_and_slows_only_disposable(self, tmp_path):
         pol = _policy(tmp_path)

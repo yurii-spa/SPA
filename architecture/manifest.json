@@ -2411,6 +2411,70 @@
    }
   },
   {
+   "label": "com.spa.resource_cleanup",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:40",
+   "program": "agent_resource_cleanup.sh",
+   "layer": "product",
+   "role": "maintenance",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/resource_cleanup_log.jsonl",
+     "slo_hours": 48.0
+    },
+    {
+     "artifact": "data/orphan_report.json",
+     "slo_hours": 48.0
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-551"
+   ],
+   "curation": "complete",
+   "notes": "Daily allow-listed cleanup + worktree reaper + orphan/supervision report (ADR-551). 87 GB of mkdtemp stands accumulated in 3 days before (ADR-546).",
+   "passport": {
+    "goal": "не дать одноразовым стендам и брошенным деревьям снова съесть диск — и назвать всё бесхозное, ничего не удаляя без правила",
+    "quality_metric": "удаляет ТОЛЬКО префиксы из architecture/resource_policy.json старше TTL; деревья — только через reap_stale_worktrees (доказанная доставка); отчёт сирот раз в сутки",
+    "escalation": "код 2, если отчёт сирот или жнец деревьев НЕ ИЗМЕРЕНЫ; находки — в Director",
+    "rights": "удалять allow-listed одноразовые каталоги; снимать worktree через жнеца (с архивом); писать отчёт",
+    "limits": "never_touch: прод-дерево, зеркало, бэкапы, скрэтчпады сессий; канон/доказательства/бэкапы не удаляются никогда; LLM запрещён"
+   }
+  },
+  {
+   "label": "com.spa.resource_guard",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_resource_guard.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/resource_health.json",
+     "slo_hours": 0.5
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-551"
+   ],
+   "curation": "complete",
+   "notes": "Disk/memory/swap guard (ADR-551): after two ENOSPC windows (2026-10-02/03) no fleet agent asked «is there room to write».",
+   "passport": {
+    "goal": "есть ли у Мака место и память для критичных писателей (бумажные книги, API) — и кто их съедает",
+    "quality_metric": "каждые 5 мин свежий data/resource_health.json; CRITICAL доходит до владельца ОДИН раз за инцидент и снимается при восстановлении",
+    "escalation": "push_policy resource_critical (Tier-1, edge-triggered); коды 0 OK · 1 WARN · 2 CRITICAL либо НЕ ИЗМЕРЕНО",
+    "rights": "читать df/sysctl/ps/launchctl; понижать приоритет DISPOSABLE-процессов под давлением памяти; держать/освобождать резервный файл диска",
+    "limits": "ничего не убивает и не удаляет; LLM запрещён; капитал и RiskPolicy не трогает"
+   }
+  },
+  {
    "label": "com.spa.rtmr_sense",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -3338,70 +3402,6 @@
     "escalation": "молчанием: неработающий процесс ловит agent_health (не загружен в launchctl / ненулевой код выхода) и шлёт владельцу в Телеграм",
     "rights": "запускать 1 шаг(ов): scripts.morning_work_digest",
     "limits": "не импортирует execution"
-   }
-  },
-  {
-   "label": "com.spa.resource_guard",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_resource_guard.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/resource_health.json",
-     "slo_hours": 0.5
-    }
-   ],
-   "consumes": [],
-   "consumer_required": true,
-   "governed_by": [
-    "ADR-551"
-   ],
-   "curation": "complete",
-   "notes": "Disk/memory/swap guard (ADR-551): after two ENOSPC windows (2026-10-02/03) no fleet agent asked «is there room to write».",
-   "passport": {
-    "goal": "есть ли у Мака место и память для критичных писателей (бумажные книги, API) — и кто их съедает",
-    "quality_metric": "каждые 5 мин свежий data/resource_health.json; CRITICAL доходит до владельца ОДИН раз за инцидент и снимается при восстановлении",
-    "escalation": "push_policy resource_critical (Tier-1, edge-triggered); коды 0 OK · 1 WARN · 2 CRITICAL либо НЕ ИЗМЕРЕНО",
-    "rights": "читать df/sysctl/ps/launchctl; понижать приоритет DISPOSABLE-процессов под давлением памяти; держать/освобождать резервный файл диска",
-    "limits": "ничего не убивает и не удаляет; LLM запрещён; капитал и RiskPolicy не трогает"
-   }
-  },
-  {
-   "label": "com.spa.resource_cleanup",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "calendar:05:40",
-   "program": "agent_resource_cleanup.sh",
-   "layer": "product",
-   "role": "maintenance",
-   "intent": "active",
-   "produces": [
-    {
-     "artifact": "data/resource_cleanup_log.jsonl",
-     "slo_hours": 48.0
-    },
-    {
-     "artifact": "data/orphan_report.json",
-     "slo_hours": 48.0
-    }
-   ],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-551"
-   ],
-   "curation": "complete",
-   "notes": "Daily allow-listed cleanup + worktree reaper + orphan/supervision report (ADR-551). 87 GB of mkdtemp stands accumulated in 3 days before (ADR-546).",
-   "passport": {
-    "goal": "не дать одноразовым стендам и брошенным деревьям снова съесть диск — и назвать всё бесхозное, ничего не удаляя без правила",
-    "quality_metric": "удаляет ТОЛЬКО префиксы из architecture/resource_policy.json старше TTL; деревья — только через reap_stale_worktrees (доказанная доставка); отчёт сирот раз в сутки",
-    "escalation": "код 2, если отчёт сирот или жнец деревьев НЕ ИЗМЕРЕНЫ; находки — в Director",
-    "rights": "удалять allow-listed одноразовые каталоги; снимать worktree через жнеца (с архивом); писать отчёт",
-    "limits": "never_touch: прод-дерево, зеркало, бэкапы, скрэтчпады сессий; канон/доказательства/бэкапы не удаляются никогда; LLM запрещён"
    }
   }
  ],
