@@ -1981,6 +1981,56 @@
    }
   },
   {
+   "label": "com.spa.mission_control",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_mission_control.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-552"
+   ],
+   "curation": "complete",
+   "notes": "Mission Control v1 builder (ADR-552): mission_control.build() → a new bundle (mission.json + mission_ui/) under ~/studio-os-serve/mission, pointer moved atomically. Writes nothing in the repo.",
+   "passport": {
+    "goal": "собрать одну владельческую модель чтения (mission.json) из канонических источников и подложить её веб-интерфейсу",
+    "quality_metric": "каждые 5 мин новый комплект; ~/studio-os-serve/mission/current.json моложе 15 мин; build() упал ⇒ код 2 и прежний комплект нетронут",
+    "escalation": "код 2 → agent_health; интерфейс сам показывает «данные устарели» по возрасту generated_at",
+    "rights": "писать только ~/studio-os-serve/mission (вне репозитория)",
+    "limits": "только чтение канона; никаких записей в карточки, деньги, риск, деплой; LLM запрещён"
+   }
+  },
+  {
+   "label": "com.spa.mission_server",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_mission_server.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-552"
+   ],
+   "curation": "complete",
+   "notes": "Mission Control v1 web server (ADR-552): 127.0.0.1:8790 only, GET/HEAD, fixed routes, strict CSP; a public host only behind Cloudflare Access JWT (not configured).",
+   "passport": {
+    "goal": "раздать владельцу Mission Control (телефон и десктоп) только на петле, без единого пути записи",
+    "quality_metric": "процесс загружен и держит pid; /healthz отвечает 200 и возраст комплекта < 15 мин",
+    "escalation": "agent_health (не загружен / нет pid); 503 при нечитаемом комплекте",
+    "rights": "читать ~/studio-os-serve/mission; слушать 127.0.0.1:8790",
+    "limits": "никаких методов кроме GET/HEAD; никакого внешнего хоста без Cloudflare Access JWT; LLM запрещён"
+   }
+  },
+  {
    "label": "com.spa.mission_tick",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -2472,56 +2522,6 @@
     "escalation": "push_policy resource_critical (Tier-1, edge-triggered); коды 0 OK · 1 WARN · 2 CRITICAL либо НЕ ИЗМЕРЕНО",
     "rights": "читать df/sysctl/ps/launchctl; понижать приоритет DISPOSABLE-процессов под давлением памяти; держать/освобождать резервный файл диска",
     "limits": "ничего не убивает и не удаляет; LLM запрещён; капитал и RiskPolicy не трогает"
-   }
-  },
-  {
-   "label": "com.spa.mission_control",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "interval:300s",
-   "program": "agent_mission_control.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-552"
-   ],
-   "curation": "complete",
-   "notes": "Mission Control v1 builder (ADR-552): mission_control.build() → a new bundle (mission.json + mission_ui/) under ~/studio-os-serve/mission, pointer moved atomically. Writes nothing in the repo.",
-   "passport": {
-    "goal": "собрать одну владельческую модель чтения (mission.json) из канонических источников и подложить её веб-интерфейсу",
-    "quality_metric": "каждые 5 мин новый комплект; ~/studio-os-serve/mission/current.json моложе 15 мин; build() упал ⇒ код 2 и прежний комплект нетронут",
-    "escalation": "код 2 → agent_health; интерфейс сам показывает «данные устарели» по возрасту generated_at",
-    "rights": "писать только ~/studio-os-serve/mission (вне репозитория)",
-    "limits": "только чтение канона; никаких записей в карточки, деньги, риск, деплой; LLM запрещён"
-   }
-  },
-  {
-   "label": "com.spa.mission_server",
-   "plist_source": "launch_agents",
-   "reboot_safe": true,
-   "schedule": "daemon",
-   "program": "agent_mission_server.sh",
-   "layer": "product",
-   "role": "monitoring",
-   "intent": "active",
-   "produces": [],
-   "consumes": [],
-   "consumer_required": false,
-   "governed_by": [
-    "ADR-552"
-   ],
-   "curation": "complete",
-   "notes": "Mission Control v1 web server (ADR-552): 127.0.0.1:8790 only, GET/HEAD, fixed routes, strict CSP; a public host only behind Cloudflare Access JWT (not configured).",
-   "passport": {
-    "goal": "раздать владельцу Mission Control (телефон и десктоп) только на петле, без единого пути записи",
-    "quality_metric": "процесс загружен и держит pid; /healthz отвечает 200 и возраст комплекта < 15 мин",
-    "escalation": "agent_health (не загружен / нет pid); 503 при нечитаемом комплекте",
-    "rights": "читать ~/studio-os-serve/mission; слушать 127.0.0.1:8790",
-    "limits": "никаких методов кроме GET/HEAD; никакого внешнего хоста без Cloudflare Access JWT; LLM запрещён"
    }
   },
   {
