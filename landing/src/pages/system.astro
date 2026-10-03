@@ -524,7 +524,14 @@ const surfaces = [
         // Thresholds line (optional).
         var th = d.thresholds;
         if(th && typeof th === 'object'){
-          var bits = Object.keys(th).map(function(k){ return esc(k) + ': ' + esc(th[k]); });
+          // A nested value (`weights: {depeg, drift, funding}`) printed as «[object Object]» (seen 03.10).
+          var bits = Object.keys(th).map(function(k){
+            var v = th[k];
+            if(v && typeof v === 'object'){
+              v = Object.keys(v).map(function(j){ return j + ' ' + v[j]; }).join(' / ');
+            }
+            return esc(k) + ': ' + esc(v);
+          });
           if(bits.length) setText('ref-thresholds', '· ' + bits.join(' · '));
         }
       }

@@ -190,6 +190,38 @@ class TestRunBackup(unittest.TestCase):
         dated = next(backup_dir.iterdir())
         self.assertTrue((dated / "trades.json").exists())
 
+    def test_D6_paper_portfolio_books_reach_the_off_host_copy(self):
+        """ADR-533: the Balanced/Aggressive books, replay inputs and run journal are copied
+        byte-for-byte, the sub-directory of the run journal included. Measured 2026-10-03: the
+        iCloud copy (the only one that leaves the Mac) carried the Conservative track alone."""
+        data_dir, backup_dir = self._setup()
+        paper = ("hy_paper_trading.json", "lp_paper_trading.json",
+                 "sleeve_inputs_balanced.jsonl", "sleeve_inputs_aggressive.jsonl",
+                 "paper_observations/balanced.jsonl", "paper_observations/aggressive.jsonl")
+        for name in paper:
+            (data_dir / name).parent.mkdir(parents=True, exist_ok=True)
+            _make_dummy_file(data_dir / name, f'{{"book": "{name}"}}')
+        result = run_backup(data_dir=data_dir, backup_dir=backup_dir)
+        self.assertEqual(result.get("status"), "ok", result)
+        dated = next(d for d in backup_dir.iterdir() if d.is_dir())
+        listed = {f["name"]: f["sha256"] for f in json.loads((dated / MANIFEST_FILENAME).read_text())["files"]}
+        for name in paper:
+            self.assertIn(name, result["files"])
+            self.assertEqual((dated / name).read_bytes(), (data_dir / name).read_bytes(), name)
+            self.assertEqual(listed.get(name), _sha256(data_dir / name), name)
+
+    def test_D7_off_host_copy_covers_the_dr_paper_set(self):
+        """The two producers must not drift apart again: every paper-portfolio file the local DR
+        archive carries is also in the off-host track set."""
+        from spa_core.backtesting.tier1 import dr_backup
+        src = pathlib.Path(dr_backup.__file__).read_text()
+        paper = [n for n in ("hy_paper_trading.json", "lp_paper_trading.json",
+                             "sleeve_inputs_balanced.jsonl", "sleeve_inputs_aggressive.jsonl",
+                             "paper_observations/balanced.jsonl", "paper_observations/aggressive.jsonl")
+                 if f'"{n}"' in src]
+        self.assertEqual(len(paper), 6, "the DR set no longer names the paper books — re-measure")
+        self.assertEqual([n for n in paper if n not in TRACK_FILES], [])
+
     def test_D5_missing_data_dir_returns_error_not_exception(self):
         """run_backup with non-existent data_dir returns error dict, not exception."""
         with tempfile.TemporaryDirectory() as d:

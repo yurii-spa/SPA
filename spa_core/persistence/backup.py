@@ -67,6 +67,15 @@ TRACK_FILES = (
     "paper_trading_status.json",
     "KANBAN.json",
     "SPA_sprint_log.md",
+    # ADR-533: the Balanced and Aggressive paper books, their hash-chained replay inputs and the
+    # hourly observation journal. This is the only copy that leaves the Mac (iCloud); until
+    # 2026-10-03 it carried the Conservative track alone, while the local DR archive had all six.
+    "hy_paper_trading.json",
+    "lp_paper_trading.json",
+    "sleeve_inputs_balanced.jsonl",
+    "sleeve_inputs_aggressive.jsonl",
+    "paper_observations/balanced.jsonl",
+    "paper_observations/aggressive.jsonl",
 )
 
 MANIFEST_FILENAME = "manifest.json"
