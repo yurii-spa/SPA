@@ -621,12 +621,29 @@ async def live_health():
 # basenames that resolve inside the data dir are served.
 _LIVE_FILE_RE = re.compile(r"^[A-Za-z0-9_.-]+\.json$")
 
+#: SECURITY (2026-10-03, Mission Control audit). This route is public (api.earn-defi.com, no Access) and
+#: used to serve EVERY data/*.json verbatim — internal operational files included: resource_health
+#: (process command lines; for ~20 minutes on 2026-10-03 it held the cloudflared tunnel token before
+#: redaction), orphan_report, agent_health, telegram_alert_actions, dr_offsite_status … No site page or
+#: tool consumes the route (measured by grep across landing/, studio_shell/, the Bridge and scripts/).
+#: It now serves ONLY files that are already public through their own routes; everything else is 404,
+#: indistinguishable from «absent» so the route no longer enumerates internal files.
+PUBLIC_DATA_FILES = frozenset({
+    "system_health.json",
+    "paper_trading_status.json",
+    "current_positions.json",
+    "equity_curve_daily.json",
+    "golive_status.json",
+})
+
 
 @router.get("/api/live/data/{filename}")
 async def live_data_file(filename: str):
     """Serve a single data/*.json file verbatim (read-only, traversal-safe)."""
     if not _LIVE_FILE_RE.match(filename):
         raise HTTPException(status_code=400, detail={"error": "invalid filename"})
+    if filename not in PUBLIC_DATA_FILES:
+        raise HTTPException(status_code=404, detail={"error": "not found"})
     _dd = data_dir()
     path = (_dd / filename).resolve()
     try:

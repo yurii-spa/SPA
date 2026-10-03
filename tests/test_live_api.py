@@ -154,6 +154,16 @@ def test_data_file_served_verbatim(client):
     assert r.json() == payload
 
 
+def test_internal_operational_files_are_not_public(client):
+    """Security 2026-10-03: the route is public; internal files must be 404 even when present —
+    resource_health once carried the tunnel token in a process command line."""
+    for name in ("resource_health.json", "orphan_report.json", "agent_health.json",
+                 "telegram_alert_actions.json", "dr_offsite_status.json"):
+        _write(client, name, {"secret_like": "x"})
+        r = client.get(f"/api/live/data/{name}")
+        assert r.status_code == 404, name
+
+
 def test_data_file_missing_404(client):
     r = client.get("/api/live/data/does_not_exist.json")
     assert r.status_code == 404
