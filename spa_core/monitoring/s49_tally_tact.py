@@ -475,7 +475,11 @@ def measure(repo_root: str | Path = _REPO_ROOT, *, data_dir: Optional[str] = Non
             "такт зовущих НЕ ИЗМЕРЕН, и выдать это за «такт в порядке» нельзя: "
             + " · ".join(f"{r['stage']} ({r['artifact']})" for r in who["calling"]))
 
-    tally = dict(report.get("counts") or {})
+    # `or {}` читалось сторожем инв. #17 как подстановка наблюдения. Поведение
+    # не меняется (отсутствие счёта и так доходит до читателя как `None` в
+    # каждом поле ТАЛЛИ), но форма перестаёт быть подстановкой.
+    _counts = observed(report, "counts", kind=dict)
+    tally = dict(_counts) if _counts is not None else {}
     findings = sum((
         1 if verdict != FLOOR_SERVED else 0,
         sum(1 for r in who["calling"] if r.get("carries") != CARRIES_TALLY),

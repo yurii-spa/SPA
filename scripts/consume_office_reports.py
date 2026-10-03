@@ -776,6 +776,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "s49_tally_tact.json": ("status", "tally", "population", "tact_floor_hours",
                             "tact_floor_set_by", "callers_calling", "verdict",
                             "tally_cost_s", "findings"),
+    # Заказ G94 (ADR-549). `unmeasured_causes` в схеме ОБЯЗАТЕЛЕН: «выдерживаем
+    # 64» без причин неизмеренных читалось бы как «у остальных всё хорошо», тогда
+    # как у 120 артефактов такт не наблюдён ВОВСЕ, и чинится это разным у каждой
+    # причины. `verdict` обязателен по той же причине, `window_hours` — потому
+    # что окно короче срока делает «нарушений нет» верным ПО ПОСТРОЕНИЮ.
+    "slo_keepability.json": ("status", "tally", "population", "verdict",
+                             "unmeasured_causes", "schedule_axis", "window_hours",
+                             "findings"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1125,6 +1133,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/acceptance_tree_capability.py",
     "s49_tally_tact.json":
         "spa_core/monitoring/s49_tally_tact.py",
+    "slo_keepability.json":
+        "spa_core/monitoring/slo_keepability.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -3038,6 +3048,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # форм, скобочная многострочная — ни одна из них).
         from spa_core.monitoring.s49_tally_tact import format_report as _stt_report
         out.extend(_stt_report(data))
+    elif name == "slo_keepability.json":
+        # Заказ G94 (ADR-549). Без этой ветки артефакт читается ВХОЛОСТУЮ, и
+        # вопрос «а выдерживает ли производитель объявленный срок» снова
+        # остаётся без ответа — ровно так три критерия приёмки владельца
+        # простояли «НЕ ИЗМЕРЕНО» на недостижимом сроке. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм, скобочная многострочная — ни
+        # одна из них).
+        from spa_core.monitoring.slo_keepability import format_report as _slok_report
+        out.extend(_slok_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст

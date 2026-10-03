@@ -202,6 +202,14 @@ PRODUCES = (
     # ответом «читателя нет» без читателя. Гейт такта 6ч < пола, SLO 14ч
     # (гейт 6ч + наблюдённый период бегуна, ADR-506).
     "data/s49_tally_tact.json",
+    # Заказ G94 (ADR-549) — выдерживает ли производитель ОБЪЯВЛЕННЫЙ `slo_hours`
+    # по НАБЛЮДЁННОМУ такту. ADR-506 измерил этот класс РУКОЙ у одного агента
+    # (объявлено 7ч, наблюдено до 7.84ч — семь периодов из восьми длиннее срока)
+    # и назвал его: порог, который производитель не может выдержать никогда, не
+    # отличает здоровье от болезни. Ступень дешёвая (разбор текстовых логов в
+    # одном процессе), поэтому такта у неё НЕТ: SLO равняется такту БЕГУНА —
+    # гейт 6ч + наблюдённый период прогона (ADR-506) = 14ч.
+    "data/slo_keepability.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -379,6 +387,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "green_by_construction_census",
     "acceptance_tree_capability",
     "s49_tally_tact",
+    "slo_keepability",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -633,6 +642,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "s49_tally_tact": {
         "module": "spa_core/monitoring/s49_tally_tact.py",
         "artifact": "data/s49_tally_tact.json"},
+    "slo_keepability": {
+        "module": "spa_core/monitoring/slo_keepability.py",
+        "artifact": "data/slo_keepability.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2594,6 +2606,35 @@ def main(argv=None) -> int:
                   f"{_sttr.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "s49_tally_tact", e)
+    # Заказ G94 (ADR-549): выдерживает ли производитель ОБЪЯВЛЕННЫЙ срок годности.
+    # Предмет — АРТЕФАКТ, а не агент: обещание дано файлу, а служить ему могут
+    # несколько производителей, и поагентный вердикт печатал бы находку там, где
+    # срок выдерживается. Такта у ступени нет: замер есть разбор логов.
+    try:
+        # Приёмник зова назван ПО МОДУЛЮ, а не псевдонимом: сторож
+        # `test_census_stage_root_contract` выводит население ступени из ИМЕНИ
+        # приёмника и затем импортирует его как модуль пакета. Псевдоним
+        # (`_atc`, `_stt`) ему не импортируется, и сторож краснеет —
+        # предсуществующий красный с #758/#760, карточка заведена. Своя ступень
+        # этот класс не пополняет.
+        #
+        # Имя приёмника в КОММЕНТАРИИ тоже становится населением: сторож читает
+        # текст, а не дерево разбора, поэтому форму зова здесь дословно НЕ
+        # приводим — первая редакция этого комментария завела ступень «X».
+        from spa_core.monitoring import slo_keepability
+        _slokr = slo_keepability.run(root=args.root)
+        _slokdoc = _slokr["doc"]
+        if str(_slokdoc.get("status")) != "OK":
+            print(f"slo_keepability: НЕ ИЗМЕРЕНО — {_slokdoc.get('reason')}")
+        else:
+            _sltally = observed(_slokdoc, "tally", kind=dict) or {}
+            print(f"slo_keepability: объявленный срок годности — выдерживаем "
+                  f"{observed_number(_sltally, slo_keepability.KEEPABLE)} · НЕ выдерживаем "
+                  f"{observed_number(_sltally, slo_keepability.UNKEEPABLE)} · такт не наблюдён "
+                  f"{observed_number(_sltally, slo_keepability.UNMEASURED)} из "
+                  f"{_slokdoc.get('population')}; вердикт {_slokdoc.get('verdict')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "slo_keepability", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него

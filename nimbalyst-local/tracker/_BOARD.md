@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-03T08:45:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-03T13:32:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (89002546f) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (19923c77f) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1173** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1178** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -20,7 +20,6 @@
 - **Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх** · _high_  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
-- **Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)** · _high_  ·  `owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
 - **Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла**  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md`
 
@@ -43,7 +42,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (302)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (304)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
@@ -56,7 +55,6 @@
 - Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
-- Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)  ·  `owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo.md` · 2026-10-03
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 ### · owner-accepted
@@ -310,6 +308,7 @@
 - Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить  ·  `owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne.md` · 2026-08-29
 - Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
+- Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)  ·  `owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo.md` · 2026-10-03
 - Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив  ·  `owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo.md` · 2026-08-24
 - Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)  ·  `owner-decision-tri-paketa-nachali-realnyi-paper-test-ba.md` · 2026-08-23
 - Три выведенных агента остались в системе и красят сверку архитектуры  ·  `owner-decision-tri-vyvedennyh-agenta-ostalis-v-sisteme.md` · 2026-08-08
@@ -324,6 +323,8 @@
 - Уточнение по заметке: ADR-070.11: честный exit digest-обёртки  ·  `owner-decision-utochnenie-po-zametke-adr-070-11-chestny-2.md` · 2026-08-31
 - Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md` · 2026-08-31
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
+- Уточнение по заметке: Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `owner-decision-utochnenie-po-zametke-hrapovik-zamorozhe.md` · 2026-10-03
+- Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve-2.md` · 2026-10-03
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - Утренние сообщения в Telegram: главное + подробности  ·  `owner-decision-utrennie-soobscheniya-v-telegram-glavnoe.md` · 2026-09-08
 - В шаблоне договора осталось снятое ограничение по Sky/sUSDS  ·  `owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra.md` · 2026-08-25
@@ -352,7 +353,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (630)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (633)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -948,6 +949,8 @@
 - Список шагов CI выведен через ШЕСТЬ литеральных пробелов — сдвинется отступ, проверка замолчит  ·  `inbox-spisok-shagov-ci-vyveden-cherez-shest-li.md` · 2026-09-11
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
 - Срок годности четырёх отчётов короче такта агента, который их пишет — порог перестал отличать поломку от нормы  ·  `inbox-srok-godnosti-chetyreh-otchetov-koroche.md` · 2026-09-29
+- Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя  ·  `inbox-sto-tridtsat-devyat-broshennyh-derevev-t.md` · 2026-10-03
+- Сторож «артефакт ступени лежит в data/» КРАСЕН с 03.10: приёмник-псевдоним не импортируется как модуль  ·  `inbox-storozh-artefakt-stupeni-lezhit-v-data-k.md` · 2026-10-03
 - Сторож брошенных прогонов слеп к /tmp-дереву: починку относительного пути применили к ОДНОМУ читателю журнала, читателей два  ·  `inbox-storozh-broshennyh-progonov-slep-k-tmp-d.md` · 2026-09-08
 - Сторож брошенных прогонов теряет заказчика, если сессия объявила пути относительно — третий исход прячет настоящую сироту  ·  `inbox-storozh-broshennyh-progonov-teryaet-zaka.md` · 2026-09-10
 - Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30
@@ -971,6 +974,7 @@
 - Свой signal.py затеняет стандартный: у 30 приборов каталога monitoring недостижим путь отказа по сроку  ·  `inbox-svoi-signal-py-zatenyaet-standartnyi-u-3.md` · 2026-09-19
 - T1-протокол sky_susds не может получить деньги ничем: ADR-065 поднял его в первый тир, а адаптера у него нет (G1)  ·  `inbox-t1-protokol-sky-susds-ne-mozhet-poluchit.md` · 2026-09-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
+- Такт двух главных производителей НЕ ИЗМЕРИМ: запись прогонов живёт в /tmp и стирается (106 артефактов)  ·  `inbox-takt-dvuh-glavnyh-proizvoditelei-ne-izme.md` · 2026-10-03
 - Тест доставки карточек красный в ЛЮБОМ свежем worktree: он судит mtime файлов дерева, а не поведение  ·  `inbox-test-dostavki-kartochek-krasnyi-v-lyubom.md` · 2026-09-08
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
 - На чистом origin/main красный храповик литеральных дат — test_studio_os.py вошёл в класс без разбора  ·  `inbox-test-studio-os-frozen-date-ratchet.md` · 2026-09-29

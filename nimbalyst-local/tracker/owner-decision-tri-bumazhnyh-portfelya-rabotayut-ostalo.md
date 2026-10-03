@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-10-03
 priority: high
@@ -12,6 +12,7 @@ owner_choice: "все 10 пунктов одобрены с уточнениям
 owner_answer_via: "интерактивная сессия Claude Code, 2026-10-03"
 status_trail:
   - "2026-10-03T11:52:20.156947+00:00 needs-owner -> owner-done · queue.set_status/closed_by:agent on the owner's explicit decision of 2026-10-03 (interactive session: «Одобряю consolidated package … Закрыть owner card как owner-done»)/evidence:all 10 items applied as approved (with the owner's clarifications) in one commit; check_owner_gate passes with Owner-Approved: owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo; landing build 12"
+  - "2026-10-03T13:32:02.657635+00:00 owner-done -> ingested · queue.set_status · cycle-20378"
 ---
 
 ## Что случилось и почему это важно
