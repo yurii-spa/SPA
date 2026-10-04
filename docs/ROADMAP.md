@@ -40,7 +40,12 @@
    research projected read-only; equities and options ARCHITECTURE_ONLY. First production run: 49 candidates,
    PAPER_ACTIVE 0, CIO_ELIGIBLE 0. Oracle (CIO display name) sees the universe, cannot allocate it. Real capital $0;
    no candidate is live-authorized; no real-money pilot has started. No further epic is started automatically.
-9. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+9. **RM-EVIDENCE-01 · Research evidence + paper admission v1** — ACTIVE (started 2026-10-04): turn "we discovered
+   candidates" into "we can prove which deserve forward paper testing, why, and which do not". Sherlock
+   (`head_of_research`, display name chosen by the owner) owns research quality and paper admission through
+   deterministic gates — no capital authority; Oracle still allocates only CIO_ELIGIBLE candidates on paper; the
+   owner alone approves real-capital action. Real capital $0.
+10. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 
