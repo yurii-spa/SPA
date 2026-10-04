@@ -74,6 +74,8 @@ from spa_core.monitoring.card_acceptance import (  # noqa: E402
     probes_by_s49_criterion,
     run_probe,
 )
+from spa_core.monitoring import card_acceptance as _card_acceptance  # noqa: E402
+from spa_core.monitoring import probe_verdict_authorship as authorship  # noqa: E402
 from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
 from spa_core.monitoring import s49_verdict_addressee as addressee_meter  # noqa: E402
 
@@ -320,6 +322,23 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
     # до него не доходила бы — и контроль, думающий, что подменил мерку, на
     # самом деле мерил настоящую. Такой контроль зелен по построению.
     probe_runner = probe_runner or run_probe
+
+    # Род вердикта читается НАД ТЕМ ЖЕ файлом, из которого пришли исполняемые
+    # пробы (`card_acceptance.__file__`), а НЕ над `--repo-root`. Разница
+    # существенна: пробы приходят из `sys.path`, карточка — из названного
+    # дерева, и прочитать род из второго значило бы судить о паре «реестр одного
+    # дерева × тело другого» — ровно тот дефект, который сводка про себя уже
+    # говорит вслух словом `split_tree`.
+    authorship_problem = None
+    authorship_report = None
+    try:
+        authorship_report = authorship.measure(
+            source=getattr(_card_acceptance, "__file__", None))
+    except authorship.Unmeasured as exc:
+        # Род НЕ ИЗМЕРЕН — это третий исход, а не «своя мера»: сводка обязана
+        # сказать читателю, что адресата красной строки назвать нечем.
+        authorship_problem = str(exc)
+
     population = read_population(repo_root, ref=ref, card_rel=card_rel)
     names = population["criteria"]
     declared = probes_by_s49_criterion()
@@ -378,7 +397,9 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             verdict, detail = probe_runner(probes[0])
             reached = None
         rows.append({"criterion": name, "probe": probes[0], "verdict": verdict,
-                     "detail": detail, "tree_inputs_reached": reached})
+                     "detail": detail, "tree_inputs_reached": reached,
+                     "measure": _authorship_row(authorship_report,
+                                                authorship_problem, probes[0])})
 
     counts = {SATISFIED: 0, NOT_SATISFIED: 0, UNMEASURED: 0}
     for row in rows:
@@ -456,9 +477,35 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             "price_problem": price_problem,
             "orphan_bindings": (price_report or {}).get("orphan_bindings"),
             "unparsed_bindings": (price_report or {}).get("unparsed_mentions"),
+            "authorship": authorship_report, "authorship_problem": authorship_problem,
             "orphan_declarations": orphan, "sources": population["sources"],
             "comparison": population["comparison"],
             "population_problems": population["problems"]}
+
+
+def _authorship_row(report: dict | None, problem: str | None,
+                    probe_name: str) -> dict:
+    """Чья мера произвела вердикт этой строки — для читателя сводки (G96 п. 3).
+
+    До этого поля строка ``❌ НЕ ВЫПОЛНЕН  Economics  [economics_…]`` несла ДВА
+    разных утверждения под одним видом: «перепись объявила находку» (порог чужой,
+    спорить надо с прибором) и «проба сама сравнила число со своим порогом»
+    (спорить надо с пробой). Читатель, не знающий рода, шёл не к тому адресату.
+
+    `None`-отчёт не подменяется «своей мерой»: род становится `unmeasured` с
+    названной причиной, потому что «мерку назвать нечем» и «мерит сама проба» —
+    разные вещи (инв. #17).
+    """
+    if report is None:
+        return {"kind": authorship.KIND_UNMEASURED, "instruments": [],
+                "reason": problem or "род вердикта не измерен, причина не названа"}
+    row = authorship.authorship_of(probe_name, report=report)
+    if row is None:
+        return {"kind": authorship.KIND_UNMEASURED, "instruments": [],
+                "reason": (f"пробы {probe_name!r} нет в разборе реестра — род её "
+                           f"вердикта НЕ ИЗМЕРЕН")}
+    return {"kind": row["kind"], "instruments": row["instruments"],
+            "reason": row.get("reason")}
 
 
 _MARK = {SATISFIED: "✅ ВЫПОЛНЕН", NOT_SATISFIED: "❌ НЕ ВЫПОЛНЕН",
@@ -522,6 +569,19 @@ def main(argv: list[str] | None = None) -> int:
                    "  · дерево замера НЕ дошло: проба читает СВОЁ дерево")
             print(f"  {mark}  {row['criterion']}  [{probe}]{tag}")
             print(f"      {row['detail']}")
+            whose = row.get("measure")
+            if whose:
+                over = ("" if not whose["instruments"] else
+                        " ← " + ", ".join(whose["instruments"]))
+                print(f"      МЕРА · "
+                      f"{authorship.KIND_RU.get(whose['kind'], whose['kind'])}"
+                      f"{over}")
+                if whose["kind"] == authorship.KIND_SELF_JUDGED \
+                        and whose["instruments"]:
+                    print("      ⚠️  порог ЗДЕСЬ свой, хотя числа взяты у прибора — "
+                          "спорить об этой строке надо с пробой, не с прибором")
+                if whose.get("reason"):
+                    print(f"      ⚠️  {whose['reason']}")
             cost = row.get("price")
             if cost:
                 print(f"      ЦЕНА · {cost['price']}: "
