@@ -547,6 +547,7 @@ import datetime as _dt  # noqa: E402
 import json as _json  # noqa: E402
 
 from spa_core.monitoring import s49_criterion_price as _price  # noqa: E402
+from spa_core.monitoring import s49_verdict_addressee as addressee_meter  # noqa: E402
 
 # FROZEN-DATE-OK: injected-clock — якорь передаётся замеру входом (`now=_NOW`),
 # а отметка артефакта выводится из него же; стенные часы здесь не спрашиваются.
@@ -802,3 +803,317 @@ def test_an_input_outside_the_registry_is_never_offered(tmp_path, monkeypatch):
     rollup.measure(_scene(tmp_path), ref=BRANCH, measure_tree="/somewhere",
                    probe_runner=runner)
     assert seen == {"data_dir": os.path.join("/somewhere", "data")}
+
+
+# --------------------------------------------------------------------------
+# 7. АДРЕСАТ вердикта (заказ G95 п. 3): «НЕ ВЫПОЛНЕН» обязан называть, за кем
+#    починка. Девять отказов без адресата читались как девять долгов агента,
+#    хотя `Economics` лежал вопросом владельцу с 27.09 (замер 2026-10-04).
+#    Сам прибор и его пять исходов — `test_s49_verdict_addressee.py`; здесь
+#    закрепляется ПРОВОДКА: что он позван, чем он позван и что его отказ не
+#    уносит с собой вердикты.
+#
+#    Сцена уже несёт непустую очередь: карточка приказа лежит в том же каталоге
+#    `nimbalyst-local/tracker/`, поэтому прибор здесь не отказывает, а честно
+#    отвечает `NONE` у всех трёх — дословно состояние, которое заказ и называет.
+# --------------------------------------------------------------------------
+
+def _with_queue(root: str, cards: dict[str, str]) -> None:
+    """Положить карточки в очередь сцены и ЗАКОММИТИТЬ их (очередь живёт на ref)."""
+    tracker = os.path.join(root, rollup.TRACKER_REL)
+    os.makedirs(tracker, exist_ok=True)
+    for card_id, text in cards.items():
+        with open(os.path.join(tracker, f"{card_id}.md"), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "queue"], cwd=root, check=True,
+                   capture_output=True)
+
+
+def _owner_card(declares: str | None, status: str = "needs-owner",
+                ctype: str = "owner-decision") -> str:
+    head = (f"---\ntrackerStatus:\n  type: {ctype}\ntitle: \"вопрос\"\n"
+            f"status: {status}\n")
+    if declares is not None:
+        head += f"{addressee_meter.FIELD}: {declares}\n"
+    return head + "---\n\n## Что случилось и почему это важно\n\nтело\n"
+
+
+def test_the_scene_queue_starts_with_nobody_addressed(tmp_path, monkeypatch):
+    """Предпосылка сцены — ЗАМЕР: без неё «адресат появился» не с чем сравнить."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    report = rollup.measure(_scene(tmp_path), ref=BRANCH,
+                            probe_runner=_fixed(NOT_SATISFIED, "отказ"))
+    assert report["addressee_counts"][addressee_meter.NONE] == 3
+    assert report["addressee_counts"][addressee_meter.OWNER_OPEN] == 0
+
+
+def test_the_addressee_of_each_row_is_named_from_the_queue(tmp_path, monkeypatch):
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Economics": ["p1"], "Architecture": ["p2"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics"),
+                       "own-silent": _owner_card(None)})
+    report = rollup.measure(root, ref=BRANCH,
+                            probe_runner=_fixed(NOT_SATISFIED, "отказ"))
+    assert _row(report, "Economics")["addressee"]["kind"] == addressee_meter.OWNER_OPEN
+    assert [c["card"] for c in _row(report, "Economics")["addressee"]["cards"]] \
+        == ["own-economics"]
+    # Обратная сторона: критерий, которого карточка не объявляла, адресата НЕ
+    # получает — иначе «адресат назван» было бы свойством наличия очереди.
+    assert _row(report, "Architecture")["addressee"]["kind"] == addressee_meter.NONE
+
+
+def test_the_answer_counts_only_refusals_and_only_unaddressed_ones(tmp_path,
+                                                                   monkeypatch):
+    """Ответ заказа — число, и оно считается по `not_satisfied`, а не по населению."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Economics": ["p1"], "Architecture": ["p2"],
+                                 "No regression": ["p3"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics")})
+
+    def runner(spec, **kw):
+        # `No regression` ВЫПОЛНЕН и адресата не имеет — в ответ попасть не
+        # должен: вопрос заказа про отказы, и смешать это значило бы назвать
+        # долгом пройденный критерий.
+        return (SATISFIED, "ок") if spec == "p3" else (NOT_SATISFIED, "отказ")
+
+    report = rollup.measure(root, ref=BRANCH, probe_runner=runner)
+    assert report["unaddressed_not_satisfied"] == ["Architecture"]
+    assert report["counts"][NOT_SATISFIED] == 2
+    assert report["addressee_counts"][addressee_meter.OWNER_OPEN] == 1
+
+
+def test_a_closed_card_does_not_count_as_an_addressee_in_the_rollup(tmp_path,
+                                                                    monkeypatch):
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics", status="ingested")})
+    report = rollup.measure(root, ref=BRANCH,
+                            probe_runner=_fixed(NOT_SATISFIED, "отказ"))
+    assert _row(report, "Economics")["addressee"]["kind"] == addressee_meter.OWNER_CLOSED
+    # Закрытая карточка адресатом не является: ответ уже дан, и «НЕ ВЫПОЛНЕН»
+    # рядом с ним — отдельная находка, а не ожидание владельца.
+    assert "Economics" in report["unaddressed_not_satisfied"]
+
+
+def test_a_refused_addressee_says_so_and_leaves_verdicts_alone(tmp_path, monkeypatch):
+    """Отказ адресата гасит СТОЛБЕЦ, а не сводку — и обязан быть НАЗВАН.
+
+    Положительный контроль подмены «не измерено» ответом: без строки отчёта
+    отсутствующий столбец читается как «адресата ни у кого нет», а это другой
+    ответ, и чинится он другим. Отказ подаётся подменой прибора, а не калечением
+    сцены: ЧЕМ именно очередь бывает непрочитана — предмет его собственного
+    набора (`test_s49_verdict_addressee.py`), здесь предмет — проводка.
+    """
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+
+    def refuse(*a, **kw):
+        raise addressee_meter.Unmeasured("очередь не прочитана (контроль)")
+
+    monkeypatch.setattr(addressee_meter, "measure", refuse)
+    report = rollup.measure(_scene(tmp_path), ref=BRANCH,
+                            probe_runner=_fixed(NOT_SATISFIED, "отказ"))
+    assert "контроль" in (report["addressee_problem"] or "")
+    assert report["addressee_counts"] is None
+    assert report["unaddressed_not_satisfied"] is None
+    assert _row(report, "Economics")["verdict"] == NOT_SATISFIED
+    assert "addressee" not in _row(report, "Economics")
+
+
+def test_the_queue_is_read_from_the_instrument_tree_not_from_measure_tree(
+        tmp_path, monkeypatch):
+    """`measure_tree` — субъект вердиктов, а не адрес очереди.
+
+    Очередь живёт на ref и читается из дерева прибора. Если бы адрес очереди
+    брался из `measure_tree`, сводка про прод-дерево читала бы ЕГО карточки —
+    а они по построению отстают от origin (ADR-152), и названный адресат
+    оказался бы адресатом другой очереди.
+    """
+    seen: dict = {}
+    real = addressee_meter.measure
+
+    def spy(criteria, **kw):
+        seen.update(kw)
+        return real(criteria, **kw)
+
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    monkeypatch.setattr(addressee_meter, "measure", spy)
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics")})
+    report = rollup.measure(root, ref=BRANCH, measure_tree=str(tmp_path / "elsewhere"),
+                            probe_runner=_fixed(NOT_SATISFIED, "отказ"))
+    assert seen["tracker_dir"] == os.path.join(root, rollup.TRACKER_REL)
+    assert _row(report, "Economics")["addressee"]["kind"] == addressee_meter.OWNER_OPEN
+
+
+def test_the_printed_report_names_the_addressee_and_the_answer(tmp_path, monkeypatch,
+                                                               capsys):
+    """Поле в отчёте, которого не видно в печати, читателю сводки не помогает."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion",
+                        lambda: {"Economics": ["p1"], "Architecture": ["p2"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics")})
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert "own-economics" in out
+    assert addressee_meter.OWNER_OPEN in out
+    # Число ответа печатается И называет, КОГО не хватает.
+    assert "ОТВЕТ G95 п. 3" in out and "Architecture" in out
+
+
+def test_the_printed_report_names_an_undelivered_declaration(tmp_path, monkeypatch,
+                                                             capsys):
+    """Объявление, лежащее только в дереве, обязано быть НАЗВАНО недоставленным."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    tracker = os.path.join(root, rollup.TRACKER_REL)
+    with open(os.path.join(tracker, "own-draft.md"), "w", encoding="utf-8") as fh:
+        fh.write(_owner_card("Economics"))  # НЕ коммитим: на ref его нет
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert addressee_meter.TREE_ONLY in out
+    # И в ответ заказа он НЕ попадает как названный адресат.
+    assert "Economics" in out.split("ОТВЕТ G95 п. 3")[1]
+
+
+# --------------------------------------------------------------------------
+# Три состояния достижимости — ТРИ РАЗНЫЕ строки в печати, а не два
+#
+# Добавлено циклом #765. Строка `tag` в печати существовала без единого теста,
+# и мутация `reach is None` → `reach is not None` ВЫЖИВАЛА на зелёной батарее
+# из 80 тестов — мутант как раз и нашёлся тем, что остался на диске в дереве
+# умершего цикла (ADR-555). Поля отчёта тремя исходами проверены выше; здесь
+# проверяется, что до ЧИТАТЕЛЯ доходят все три, а «не измерено» не выдаётся за
+# «измерено и пусто» (инв. #17) в самой печати.
+# --------------------------------------------------------------------------
+
+_REACHED = "дерево замера дошло входами"
+_NOT_REACHED = "дерево замера НЕ дошло"
+
+
+def test_the_printout_says_nothing_about_reach_when_no_tree_was_offered(
+        tmp_path, monkeypatch, capsys):
+    """Дерева не предлагали ⇒ о достижимости НЕ СКАЗАНО НИЧЕГО."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs", lambda name: ("repo_root",))
+    monkeypatch.setattr(rollup, "run_probe", _fixed(SATISFIED, "ок"))
+    rollup.main(["--repo-root", _scene(tmp_path), "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert _REACHED not in out
+    assert _NOT_REACHED not in out
+
+
+def test_the_printout_says_the_tree_did_not_reach_a_probe_that_takes_nothing(
+        tmp_path, monkeypatch, capsys):
+    """Дерево предложили, проба входов не объявила ⇒ сказано «НЕ дошло»."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs", lambda name: ())
+    monkeypatch.setattr(rollup, "run_probe", _fixed(SATISFIED, "ок"))
+    rollup.main(["--repo-root", _scene(tmp_path), "--ref", BRANCH,
+                 "--measure-tree", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert _NOT_REACHED in out
+    assert _REACHED not in out
+
+
+def test_the_printout_names_the_inputs_that_actually_reached_the_probe(
+        tmp_path, monkeypatch, capsys):
+    """Вход дошёл ⇒ он НАЗВАН по имени, а не подразумевается."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    monkeypatch.setattr(rollup, "probe_tree_inputs", lambda name: ("repo_root",))
+    monkeypatch.setattr(rollup, "run_probe", _fixed(SATISFIED, "ок"))
+    rollup.main(["--repo-root", _scene(tmp_path), "--ref", BRANCH,
+                 "--measure-tree", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert f"{_REACHED}: repo_root" in out
+    assert _NOT_REACHED not in out
+
+
+# --------------------------------------------------------------------------
+# 8. ПЕЧАТЬ столбца адресата — пять ветвей, и каждая жила без контроля
+#
+# Добавлено циклом #765 по замеру мутаций: в проводке адресата выжило ПЯТЬ
+# мутантов, и все пятеро — идиома запасного значения (`… or []`, `… or '?'`)
+# в ПЕЧАТИ. Флип `or` → `and` там тих по построению: цикл просто не исполняется,
+# предупреждение не печатается, sha подменяется вопросительным знаком — и ни
+# один тест этого не замечал, потому что проверялось НАЛИЧИЕ сводки, а не то,
+# что в ней сказано. Отчёт о наблюдении, которого не видно читателю, и есть
+# «не измерено, выданное за ответ» (инв. #17).
+# --------------------------------------------------------------------------
+
+def test_the_printout_names_the_sha_of_the_queue_it_read(tmp_path, monkeypatch,
+                                                         capsys):
+    """«Сверено с очередью» без sha читалось бы как «сверено со свежайшей»."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics")})
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    sha = subprocess.run(["git", "rev-parse", BRANCH], cwd=root, check=True,
+                         capture_output=True, text=True).stdout.strip()
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    # Строка адресата, а не вывод целиком: sha той же очереди печатает и
+    # сравнение копий выше, и «sha где-то есть» прошло бы при подменённом
+    # столбце — проверять надо ТУ строку, которая про адресата (замер #765).
+    line = next(l for l in capsys.readouterr().out.split("\n")
+                if "адресат мерен по очереди" in l)
+    assert sha[:9] in line
+
+
+def test_the_printout_names_a_draft_declaration_standing_beside_a_named_addressee(
+        tmp_path, monkeypatch, capsys):
+    """Адресат назван на ref — недоставленный черновик всё равно печатается РЯДОМ."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-economics": _owner_card("Economics")})
+    tracker = os.path.join(root, rollup.TRACKER_REL)
+    with open(os.path.join(tracker, "own-draft.md"), "w", encoding="utf-8") as fh:
+        fh.write(_owner_card("Economics"))  # НЕ коммитим: на ref его нет
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert addressee_meter.OWNER_OPEN in out
+    assert "own-draft" in out and "только в рабочем дереве" in out
+
+
+def test_the_printout_says_an_unknown_status_leaves_openness_unmeasured(
+        tmp_path, monkeypatch, capsys):
+    """Статус вне словарности ⇒ «открыт ли вопрос» НЕ ИЗМЕРЕНО, и это сказано."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-weird": _owner_card("Economics", status="полузакрыт")})
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert "вне объявленной словарности" in out and "НЕ ИЗМЕРЕНО" in out
+    assert "own-weird" in out
+
+
+def test_the_printout_names_a_declaration_past_the_population(tmp_path, monkeypatch,
+                                                              capsys):
+    """Объявление критерия, которого в §49 нет, — находка, а не тишина."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    _with_queue(root, {"own-ghost": _owner_card("Такого критерия нет")})
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert "МИМО населения" in out and "own-ghost" in out
+
+
+def test_the_printout_names_a_queue_problem_instead_of_swallowing_it(
+        tmp_path, monkeypatch, capsys):
+    """Блочная форма объявления теряется разбором — и это печатается ВСЛУХ."""
+    monkeypatch.setattr(rollup, "probes_by_s49_criterion", lambda: {"Economics": ["p1"]})
+    root = _scene(tmp_path)
+    block = ("---\ntrackerStatus:\n  type: owner-decision\ntitle: \"вопрос\"\n"
+             f"status: needs-owner\n{addressee_meter.FIELD}:\n  - Economics\n"
+             "---\n\n## Что случилось и почему это важно\n\nтело\n")
+    _with_queue(root, {"own-block": block})
+    monkeypatch.setattr(rollup, "run_probe", _fixed(NOT_SATISFIED, "отказ"))
+    rollup.main(["--repo-root", root, "--ref", BRANCH])
+    out = capsys.readouterr().out
+    assert "очередь:" in out and "own-block" in out

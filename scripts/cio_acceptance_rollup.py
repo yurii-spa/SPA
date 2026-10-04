@@ -75,6 +75,7 @@ from spa_core.monitoring.card_acceptance import (  # noqa: E402
     run_probe,
 )
 from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
+from spa_core.monitoring import s49_verdict_addressee as addressee_meter  # noqa: E402
 
 #: Карточка стоячего приказа владельца — носитель §49.
 CARD_REL = "nimbalyst-local/tracker/inbox-task-portfolio-cio-dynamic-capital-alloc.md"
@@ -405,12 +406,51 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             if row.get("priceable"):
                 row["price"] = by_name.get(row["criterion"])
 
+    # Адресат меряется ПО ОЧЕРЕДИ, а не по дереву под рукой: `nimbalyst-local/`
+    # в прод-дерево не синкается (ADR-152), и карточка, которую видит владелец,
+    # живёт на ref. Дерево читается второй осью и даёт свою находку (`TREE_ONLY`).
+    addressee_problem = None
+    addressee = None
+    try:
+        addressee = addressee_meter.measure(
+            names, tracker_dir=os.path.join(repo_root, TRACKER_REL), ref=ref)
+    except addressee_meter.Unmeasured as exc:
+        # Непрочитанная очередь гасит СТОЛБЕЦ, а не сводку — тот же порядок, что
+        # у цены выше: вердикты уже сняты и остаются верны, но «адресата нет»
+        # обязано быть отличимо от «очередь не прочитана».
+        addressee_problem = str(exc)
+    else:
+        by_name = {r["criterion"]: r for r in addressee["rows"]}
+        for row in rows:
+            row["addressee"] = by_name.get(row["criterion"])
+
+    # ОТВЕТ заказа G95 п. 3: отказ без НАЗВАННОГО открытого вопроса владельцу
+    # читается как долг агента. `None` здесь значит «адресата не мерили вовсе»,
+    # и пустой список значит «мерили, таких нет» — два разных исхода (инв. #17).
+    unaddressed = None
+    if addressee is not None:
+        unaddressed = [r["criterion"] for r in rows
+                       if r["verdict"] == NOT_SATISFIED
+                       and (r.get("addressee") or {}).get("kind")
+                       != addressee_meter.OWNER_OPEN]
+
     split = bool(measure_tree and data_dir
                  and os.path.abspath(data_dir) != os.path.abspath(
                      os.path.join(measure_tree, "data")))
     return {"population": len(names), "rows": rows, "counts": counts,
             "measure_tree": measure_tree, "data_dir": data_dir,
             "split_tree": split,
+            "addressee_counts": (addressee or {}).get("counts"),
+            "addressee_ref": (addressee or {}).get("ref"),
+            "addressee_ref_sha": (addressee or {}).get("ref_sha"),
+            "addressee_cards_on_ref": (addressee or {}).get(
+                "cards_declaring_on_ref"),
+            "addressee_cards_in_tree": (addressee or {}).get(
+                "cards_declaring_in_tree"),
+            "addressee_orphan": (addressee or {}).get("orphan_declarations"),
+            "addressee_problems": (addressee or {}).get("problems"),
+            "addressee_problem": addressee_problem,
+            "unaddressed_not_satisfied": unaddressed,
             "price_counts": (price_report or {}).get("counts"),
             "price_tree": price_tree, "price_data_dir": price_data,
             "price_problem": price_problem,
@@ -487,10 +527,49 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"      ЦЕНА · {cost['price']}: "
                       f"{price_meter.PRICE_RU.get(cost['price'], '?')} — "
                       f"{cost['detail']}")
+            who = row.get("addressee")
+            if who:
+                cards = ", ".join(f"{c['card']} [{c['status']}]"
+                                  for c in who["cards"])
+                print(f"      АДРЕСАТ · {who['kind']}: {who['detail']}"
+                      + (f" ({cards})" if who["cards"] else ""))
+                for extra in who.get("tree_only_extra") or []:
+                    print(f"      ⚠️  объявление {extra} есть только в рабочем "
+                          f"дереве — владельцу оно НЕ НАЗВАНО")
+                for unk in who.get("unknown_status") or []:
+                    print(f"      ⚠️  карточка {unk['card']} несёт статус "
+                          f"{unk['status']!r} вне объявленной словарности — "
+                          f"открыт ли вопрос, НЕ ИЗМЕРЕНО")
         print()
         print(f"ИТОГ: ВЫПОЛНЕНО {counts[SATISFIED]} · НЕ ВЫПОЛНЕНО "
               f"{counts[NOT_SATISFIED]} · НЕ ИЗМЕРЕНО {counts[UNMEASURED]} "
               f"из {report['population']}")
+        if report["addressee_problem"]:
+            print(f"  ⚠️  АДРЕСАТ НЕ НАЗВАН НИ У ОДНОГО критерия: "
+                  f"{report['addressee_problem']}")
+        elif report["addressee_counts"] is not None:
+            print(f"  адресат мерен по очереди `{report['addressee_ref']}` "
+                  f"{(report['addressee_ref_sha'] or '?')[:9]} (объявивших "
+                  f"карточек: на ref {report['addressee_cards_on_ref']}, в "
+                  f"дереве {report['addressee_cards_in_tree']}): "
+                  + " · ".join(f"{k} {v}" for k, v in
+                               sorted(report["addressee_counts"].items())))
+            unaddressed = report["unaddressed_not_satisfied"]
+            if unaddressed:
+                print(f"  ❗ОТВЕТ G95 п. 3: из {report['counts'][NOT_SATISFIED]}"
+                      f" отказ(ов) адресата владельца НЕ НАЗВАНО у "
+                      f"{len(unaddressed)} — они читаются как долг агента, хотя "
+                      f"починка может лежать за предметом №1 границы ADR-285: "
+                      + ", ".join(unaddressed))
+            elif report["counts"][NOT_SATISFIED]:
+                print(f"  ✅ у каждого из {report['counts'][NOT_SATISFIED]} "
+                      f"отказ(ов) адресат назван открытой карточкой владельца")
+        for name, cards in sorted((report["addressee_orphan"] or {}).items()):
+            print(f"  ⚠️  объявление адресата МИМО населения: "
+                  f"{', '.join(cards)} объявляет себя адресатом критерия "
+                  f"{name!r}, которого в §49 нет")
+        for problem in report["addressee_problems"] or []:
+            print(f"  ⚠️  очередь: {problem}")
         if report["price_problem"]:
             print(f"  ⚠️  ЦЕНА НЕ НАЗВАНА НИ У ОДНОГО критерия: "
                   f"{report['price_problem']}")
