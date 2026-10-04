@@ -39,9 +39,11 @@ files) and renders it; it never writes financial state. Mutable engine state liv
 
 ## Capital Allocator / Portfolio CIO
 
-The future top-level coordinator that sets weights across the branches above. **Not built.** It will
-consume each engine's published, evidence-backed metrics; no engine may allocate across branches on
-its own. Building it is a separate epic and a separate ADR.
+The top-level coordinator that recommends weights across the branches above — **built as ADVISORY / PAPER**
+(ADR-554, `spa_core/investment_cio`, role `chief_investment_officer` «Штирлиц»). It consumes each engine's
+published, evidence-backed metrics, abstains when evidence is insufficient, and writes an immutable
+recommendation ledger; it never executes and no engine reads it. Turning a recommendation into capital
+movement is a separate owner decision (real money, subject №1).
 
 ## Permission boundaries (unchanged, restated)
 
