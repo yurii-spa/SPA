@@ -442,5 +442,7 @@ or new; each is now fixed with a test shown red without the fix.
   missing `latest.json` is rebuilt from the ledger; truncated tail, tampered row and missing anchors all give
   integrity BROKEN, readiness withheld, Mission Control CRITICAL, exit 2; repair refuses tampering and waits for
   owner confirmation on a torn anchor; a broken incident store gives CRITICAL; readiness never became green.
-- Verdict on production data: all six sleeves **NOT_READY**; no runbook generated; real capital $0; automated live
+- Verdict on production data (after round 3, 2026-10-04 07:05Z): the three DeFi sleeves **BLOCKED** (kill switch
+  `CLEAR_PARTIAL` counts as armed — L4), cash / trading_research / market_neutral_basis **NOT_READY**; none is
+  SHADOW_READY or MANUAL_PILOT_READY; no runbook generated; real capital $0; automated live
   execution PROHIBITED; no real transaction or order was submitted.

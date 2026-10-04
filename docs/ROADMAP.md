@@ -27,7 +27,8 @@
 7. ~~RM-LIVE-01 · Shadow execution + limited capital pilot readiness~~ — DONE 2026-10-04 (ADR-556): `spa_core/capital_shadow`
    (agent `com.spa.capital_shadow`, 09:45) — unsigned intents, keyless 2-of-N quorum simulation, hash-chained shadow
    ledger, forward reconciliation, sticky incidents, readiness verdict; Mission Control «Live Readiness/Shadow» (no
-   buttons). Verdict: every sleeve **NOT_READY**. Real capital $0; automated live execution PROHIBITED; no real
+   buttons). Verdict: no sleeve is ready — DeFi Conservative/Balanced/Aggressive **BLOCKED** (kill switch
+   CLEAR_PARTIAL ≠ CLEAR), cash/trading/basis **NOT_READY**. Real capital $0; automated live execution PROHIBITED; no real
    transaction or order was submitted. **A limited real-capital pilot has NOT happened** — it remains owner-gated
    (real money, CLAUDE.md subject №1: custody, counterparty source, off-host anchor, GoLive/live admission, pilot
    amount, kill switch CLEAR) and is not part of RM-LIVE-01. RM-EXPAND is not started.
