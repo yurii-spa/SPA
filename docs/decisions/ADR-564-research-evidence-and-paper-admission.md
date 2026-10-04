@@ -272,3 +272,26 @@ from any chain-native citation without binding the role's identity; the initial 
 (`/api/../x`, caller-built URLs only); the OUSG waiver end is a constant because facts have no structured
 `effective_until`; on-chain lending-index returns need an explicit "contract-computed state" class to count as
 independent again.
+
+## CIO eligibility gates added by this ADR — the complete list (closeout, 2026-10-05)
+
+`contract.CIO_ELIGIBILITY_GATES` (ADR-560's seven) gains **ten** gates here: four from the architecture review
+(`min_origins_cio` — at least `MIN_GROUPS_CIO["return"] = 2` independent groups, `counterparty_grade_strong_for_credit_like`,
+`holder_eligibility_documented`, `not_reference_track`) and six from the post-implementation review M1
+(`return_grade_strong_for_cio`, `custody_grade_strong_for_cio`, `reserves_grade_adequate_for_cio`,
+`legal_grade_adequate_for_cio`, `reserves_groups_sufficient_for_cio`, `custody_groups_sufficient_for_cio`).
+A fresh-session proof listed only the first four — this section exists so the list has one place.
+
+## Delivery and acceptance (2026-10-05)
+
+Commit `cc0d3914` (66 files, one commit). Production: `deployment_acceptance` OK before and after; code-sync of 59
+files with an import probe and drift 0; `com.spa.research_factory` run via launchd exit 0 — 89 candidates
+discovered, 73 reviewed by Sherlock, all NEEDS_MORE_EVIDENCE, PAPER_ACTIVE 0, CIO_ELIGIBLE 0, integrity OK,
+`real_capital_usd` 0, `live_authorized` false; Oracle's view OK with RESEARCH_ONLY 5 / PAPER_ACTIVE 0 /
+CIO_ELIGIBLE 0. Mission Control: rebuilt bundle served on loopback `:8790/mission.json` with the Sherlock block
+and no execute/approve control; the external `mc.earn-defi.com` page is behind Cloudflare Access and the browser
+session had expired ("НЕ ИЗМЕРЕНО / нет связи") — re-checking it needs the owner's own sign-in. Recovery drill on a
+copy of post-deploy production data: 9/9 (tamper ⇒ BROKEN and exit 2; read model rebuilt from the ledger; corrupt
+index ignored; same-time restart appends nothing; concurrent run exit 75; admission gate cannot be skipped; stale
+read model revokes readiness and Oracle gains nothing; terminal candidates stay visible; decision reasons survive a
+restart). Fresh-session proof: 20/20 answered from files, 19 fully right, CIO gate list incomplete (fixed above).
