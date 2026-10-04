@@ -569,3 +569,22 @@ def test_a_broken_shadow_ledger_is_critical_and_the_ui_has_no_action_control(tmp
     app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
     seg = app[app.index("function renderLiveReadinessCard"):app.index("function renderPackageCard")]
     assert '"button"' not in seg and "addEventListener" not in seg      # nothing to click
+
+
+def test_live_readiness_brief_renders_nested_values_not_object_object():
+    """Found on the live phone page 2026-10-04: the last-reconciliation line printed
+    ``blocks=[object Object]`` — the nested block pair was string-concatenated. The
+    brief formatter is executed for real (node), not grepped."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "NOT MEASURED: node is not installed — this test runs the real formatter"
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    seg = app[app.index("function renderLiveReadinessCard"):app.index("function renderPackageCard")]
+    start = seg.index("function brief(x)")
+    body = seg[start:seg.index('c.appendChild(kv("live.last_sim"', start)]
+    js = body + "\nprocess.stdout.write(brief({outcome: 'MATCHED', blocks: {intent: 1, check: 2}, block: null}));"
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert "[object Object]" not in out.stdout
+    assert 'blocks={"intent":1,"check":2}' in out.stdout and "block=null" in out.stdout

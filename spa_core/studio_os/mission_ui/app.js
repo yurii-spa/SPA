@@ -497,7 +497,10 @@
     })));
     function brief(x) {
       if (!x) return null;
-      return Object.keys(x).map(function (k) { return k + "=" + x[k]; }).join(" · ");
+      return Object.keys(x).map(function (k) {
+        var v = x[k];
+        return k + "=" + (v !== null && typeof v === "object" ? JSON.stringify(v) : v);
+      }).join(" · ");
     }
     c.appendChild(kv("live.last_sim", brief(lr.last_simulation)));
     c.appendChild(kv("live.last_shadow", brief(lr.last_shadow_execution)));
