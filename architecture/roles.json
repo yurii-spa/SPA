@@ -1,0 +1,103 @@
+{
+  "schema": "roles/1",
+  "roles": [
+    {
+      "role_id": "chief_investment_officer",
+      "title": "Chief Investment Officer",
+      "display_name": "Штирлиц",
+      "domain": [
+        "capital",
+        "investments",
+        "portfolio construction",
+        "investment research"
+      ],
+      "domain_excludes": [
+        "Studio OS operations",
+        "data freshness monitoring",
+        "fleet operations",
+        "delivery"
+      ],
+      "implemented": true,
+      "adr": [
+        "ADR-554",
+        "ADR-324",
+        "ADR-328",
+        "ADR-103",
+        "ADR-104",
+        "ADR-055"
+      ],
+      "components": [
+        {
+          "path": "spa_core/investment_cio/",
+          "authority": "NONE",
+          "effect": "advisory cross-sleeve recommendation; executes nothing"
+        }
+      ],
+      "may": [
+        "read evidence",
+        "publish recommendations and outcomes"
+      ],
+      "may_not": [
+        "move money",
+        "submit transactions",
+        "enable live trading or live DeFi",
+        "change RiskPolicy",
+        "change stops, financial or leverage limits",
+        "change protocol tiers",
+        "change live admission",
+        "change strategy mechanics",
+        "publish financial claims"
+      ],
+      "authority": "NONE",
+      "related_preexisting": [
+        {
+          "path": "spa_core/paper_trading/cio_arming.py",
+          "authority": "PAPER_VETO",
+          "effect": "per-book reshuffle veto on the paper money path (pre-existing, unchanged)",
+          "governed_by": "ADR-324/328 (owner armed 2026-09-11)",
+          "note": "pre-existing mechanism with its OWN authority; NOT conferred by this role and not changed by ADR-554"
+        },
+        {
+          "path": "spa_core/investment_os/directive.py",
+          "authority": "PAPER_BRAKE",
+          "effect": "no-increase brake on RED/CRITICAL posture (pre-existing, unchanged)",
+          "governed_by": "ADR-103/104",
+          "note": "pre-existing mechanism with its OWN authority; NOT conferred by this role and not changed by ADR-554"
+        },
+        {
+          "path": "spa_core/investment_os/agents/chief_investment.py",
+          "authority": "ADVISORY_INPUT_TO_BRAKE",
+          "effect": "house-view posture read by directive.py",
+          "governed_by": "docs/08, ADR-055",
+          "note": "pre-existing mechanism with its OWN authority; NOT conferred by this role and not changed by ADR-554"
+        }
+      ]
+    },
+    {
+      "role_id": "chief_operating_officer",
+      "title": "Chief Operating Officer",
+      "display_name": "Шурик",
+      "domain": [
+        "Studio OS operations",
+        "workflow",
+        "delivery",
+        "organizational execution"
+      ],
+      "domain_excludes": [
+        "capital",
+        "investments"
+      ],
+      "implemented": false,
+      "reserved": true,
+      "adr": [],
+      "components": [],
+      "may": [],
+      "may_not": []
+    }
+  ],
+  "rules": [
+    "authority binds to role_id; display_name is UI metadata only",
+    "no agent is created to fill a title",
+    "a related_preexisting component keeps the authority its own ADR gives it; the role neither owns nor extends it (ADR-554 review finding 11)"
+  ]
+}

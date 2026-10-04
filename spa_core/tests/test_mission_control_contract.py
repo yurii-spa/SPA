@@ -500,3 +500,37 @@ def test_restore_drill_is_read_from_its_real_shape(tmp_path, drill, state, shown
     assert b["restore_drill"] == shown and b["_meta"]["state"] == state
     if state != "HEALTHY":
         assert "restore drill" in b["_meta"]["reason"]
+
+
+# ── Investment CIO (ADR-554) in the Capital area ────────────────────────────────────────────────
+def test_cio_section_is_not_measured_before_any_recommendation(tmp_path):
+    m = _build(_scene(tmp_path))
+    cio = m["capital"]["investment_cio"]
+    assert cio["_meta"]["state"] == "NOT_MEASURED" and cio["_meta"]["reason"]
+    assert m["overview"]["capital"]["investment_cio"]["state"] == "NOT_MEASURED"
+
+
+def test_cio_section_matches_the_canonical_read_and_never_executes(tmp_path):
+    from spa_core.investment_cio import read as cio_read, run as cio_run
+    s = _scene(tmp_path)
+    assert cio_run.main(["--data-dir", str(s.data), "--now", NOW.strftime(ISO)]) == 0
+    m = _build(s)
+    cio, canon = m["capital"]["investment_cio"], cio_read.latest(s.data, now=NOW)
+    assert cio["stance"] == canon["recommendation"]["stance"]
+    assert cio["recommendation_id"] == canon["recommendation"]["recommendation_id"][:12]
+    assert cio["executes"] is False and cio["role"]["role_id"] == "chief_investment_officer"
+    assert cio["_meta"]["state"] == "HEALTHY" and cio["ledger"]["chain_ok"] is True
+    assert "nothing executes it" in cio["boundary"]
+
+
+def test_a_tampered_cio_ledger_is_critical_in_mission_control(tmp_path):
+    from spa_core.investment_cio import run as cio_run
+    s = _scene(tmp_path)
+    assert cio_run.main(["--data-dir", str(s.data), "--now", NOW.strftime(ISO)]) == 0
+    led = s.data / "investment_cio" / "ledger.jsonl"
+    rows = [json.loads(x) for x in led.read_text(encoding="utf-8").splitlines() if x.strip()]
+    rows[-1]["recommendation"]["stance"] = "RECOMMEND"          # rewrite history after the fact
+    led.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    cio = _build(s)["capital"]["investment_cio"]
+    assert cio["_meta"]["state"] == "CRITICAL" and cio["integrity"] == "BROKEN"
+    assert "stance" not in cio and "recommended_weights" not in cio      # a tampered recommendation is withheld

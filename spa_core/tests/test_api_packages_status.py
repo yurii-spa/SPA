@@ -24,6 +24,10 @@ def client(tmp_path, monkeypatch):
 def test_status_is_served_uncached_and_sanitised(client):
     c, tmp = client
     (tmp / "agent_health.json").write_text(json.dumps({"agents": []}))
+    # ADR-554 DQ-2: real capital 0 is derived from the declared paper execution mode, so the scene declares it
+    (tmp / "paper_trading_status.json").write_text(json.dumps({"execution_mode": "read_only_simulation"}))
+    (tmp / "defi_engine").mkdir()
+    (tmp / "defi_engine" / "status.json").write_text(json.dumps({"execution_mode": "read_only_simulation"}))
     r = c.get("/api/v1/packages/status")
     assert r.status_code == 200
     assert "no-store" in r.headers.get("cache-control", "")

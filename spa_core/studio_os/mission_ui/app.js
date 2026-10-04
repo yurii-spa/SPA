@@ -331,6 +331,9 @@
     det.appendChild(h("p", {}, [rc.basis === null || rc.basis === undefined ? t("common.not_measured") : rc.basis]));
     box.appendChild(det);
     c.appendChild(box);
+    var ci = cap.investment_cio || {};
+    c.appendChild(kv("cio.short", ci.stance ? t("cio.stance." + ci.stance) +
+      (ci.confidence ? " · " + t("cio.confidence." + ci.confidence) : "") : null));
     var pkgs = cap.packages || {};
     var rows = h("div", { class: "package-rows" });
     Object.keys(pkgs).forEach(function (key) {
@@ -381,6 +384,7 @@
     var cap = model.capital || {};
     root.appendChild(h("p", { class: "area-label" }, [cap.boundary || t("capital.boundary")]));
     var grid = h("div", { class: "grid" });
+    grid.appendChild(renderInvestmentCioCard(cap.investment_cio));
     var pkgs = get(cap, "packages.items", {}) || {};
     Object.keys(pkgs).forEach(function (key) {
       grid.appendChild(renderPackageCard(key, pkgs[key]));
@@ -388,6 +392,76 @@
     grid.appendChild(renderTradingResearchCard(cap.trading_research));
     grid.appendChild(renderRealCapitalCard(cap.real_capital));
     root.appendChild(grid);
+  }
+
+  // Штирлиц — Chief Investment Officer (ADR-554). A paper recommendation: no button, nothing executes it.
+  function pct(x) {
+    return (typeof x === "number") ? Math.round(x * 100) + "%" : t("common.not_measured");
+  }
+
+  function renderWeights(labelKey, weights) {
+    var wrap = h("div", { class: "list-section" });
+    wrap.appendChild(h("div", { class: "k" }, [t(labelKey)]));
+    var keys = Object.keys(weights || {});
+    if (!keys.length) {
+      wrap.appendChild(h("div", { class: "v" }, [t("cio.no_weights")]));
+      return wrap;
+    }
+    var ul = h("ul", { class: "plain-list" });
+    keys.sort().forEach(function (k) {
+      ul.appendChild(h("li", {}, [t("cio.sleeve." + k) + ": " + pct(weights[k])]));
+    });
+    wrap.appendChild(ul);
+    return wrap;
+  }
+
+  function renderInvestmentCioCard(cio) {
+    cio = cio || {};
+    var c = card(t("cio.title"), renderBadge(get(cio, "_meta.state", null), isStaleGlobal()));
+    c.className += " card--prominent";
+    c.appendChild(h("p", { class: "note" }, [t("cio.boundary")]));
+    if (get(cio, "_meta.state", null) === "NOT_MEASURED") {
+      c.appendChild(h("p", {}, [get(cio, "_meta.reason", null) || t("common.not_measured")]));
+      return c;
+    }
+    c.appendChild(kv("cio.stance", cio.stance ? t("cio.stance." + cio.stance) : null));
+    c.appendChild(kv("cio.confidence", cio.confidence ? t("cio.confidence." + cio.confidence) : null));
+    c.appendChild(kv("cio.date", cio.date));
+    c.appendChild(kv("cio.evidence_cutoff", cio.evidence_cutoff));
+    if (cio.evidence_cutoff_complete !== true) {
+      // N9: the cutoff covers only readable inputs; unreadable or stale ones are named, never hidden
+      c.appendChild(h("div", { class: "warning-chip" }, [t("cio.evidence_incomplete") + ": " +
+        ((cio.evidence_incomplete_inputs || []).join(", ") || t("common.not_measured"))]));
+    }
+    c.appendChild(renderWeights("cio.recommended", cio.recommended_weights));
+    var alts = cio.alternatives || {};
+    if (alts.EVIDENCE_ONLY) c.appendChild(renderWeights("cio.evidence_only", alts.EVIDENCE_ONLY.weights));
+    c.appendChild(renderWeights("cio.seed_split", cio.seed_split_weights));
+    c.appendChild(renderListField("cio.abstentions", Object.keys(cio.abstentions || {}).sort().map(function (k) {
+      return t("cio.sleeve." + k) + " — " + cio.abstentions[k];
+    })));
+    c.appendChild(renderListField("cio.binding", (cio.binding_constraints || []).map(function (b) {
+      return b.constraint + ": " + b.state + (b.detail ? " — " + b.detail : "");
+    })));
+    // basis is named: with no recommendation the factors are read on the experiments' seed split (review #14)
+    c.appendChild(renderListField(cio.major_risks_basis === "recommended" ? "cio.major_risks_rec" : "cio.major_risks_seed",
+      (cio.major_risks || []).map(function (r) {
+        return r.factor + " — " + (r.sleeves || []).map(function (s) { return t("cio.sleeve." + s); }).join(", ") +
+          " · " + t("cio.weight_touching") + " " + pct(r.sleeve_weight_touching);
+      })));
+    var why = h("details");
+    why.appendChild(h("summary", {}, [t("cio.why")]));
+    why.appendChild(renderListField("cio.rationale", cio.rationale || []));
+    why.appendChild(renderListField("cio.confidence_reasons", cio.confidence_reasons || []));
+    why.appendChild(renderListField("cio.unknowns", cio.unknowns || []));
+    c.appendChild(why);
+    var led = cio.ledger || {};
+    c.appendChild(kv("cio.ledger", led.entries === undefined ? null :
+      led.entries + " · " + (led.chain_ok ? t("cio.chain_ok") : t("cio.chain_broken")) +
+      " · " + t("cio.outcomes") + " " + (cio.outcomes && typeof cio.outcomes.scored === "number"
+        ? cio.outcomes.scored + " / " + t("cio.pending") + " " + cio.outcomes.pending : t("common.not_measured"))));
+    c.appendChild(kv("cio.real_capital", cio.real_capital_usd === 0 ? "$0" : null));
+    return c;
   }
 
   function renderPackageCard(key, p) {

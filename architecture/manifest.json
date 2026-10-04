@@ -1528,6 +1528,36 @@
    }
   },
   {
+   "label": "com.spa.investment_cio",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:30",
+   "program": "agent_investment_cio.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_cio/latest.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-554"
+   ],
+   "curation": "complete",
+   "notes": "Investment CIO «Штирлиц» (role chief_investment_officer, ADR-554): cross-sleeve ADVISORY/PAPER recommendation + immutable hash-chained ledger + forward outcomes. Authority NONE: nothing reads it on a money path.",
+   "passport": {
+    "goal": "раз в день сказать, как распределил бы капитал между рукавами CIO по доказательствам — или честно воздержаться — и через 7/30 дней сравнить с тем, что было",
+    "quality_metric": "одна запись в data/investment_cio/ledger.jsonl на дату; цепочка хешей цела; latest.json моложе 26 ч; исходы только по барам ПОСЛЕ даты рекомендации",
+    "escalation": "код 2 (сломанная цепочка/сбой) → agent_health; 75 = чужой прогон держит замок",
+    "rights": "писать только data/investment_cio/",
+    "limits": "не исполняет, не пишет книги, не меняет RiskPolicy/стопы/лимиты/тиры/допуск; LLM запрещён"
+   }
+  },
+  {
    "label": "com.spa.io_chief_investment",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -4748,6 +4778,16 @@
    "slo_hours": 48.0,
    "status": "active",
    "notes": "ADR-551 orphan & supervision report — report only, nothing deleted."
+  },
+  {
+   "path": "data/investment_cio/latest.json",
+   "producer": "com.spa.investment_cio",
+   "consumers": [
+    "spa_core/studio_os/mission_control.py"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-554 CIO latest recommendation pointer (rebuildable from the append-only ledger)."
   }
  ],
  "designed_architectures": [

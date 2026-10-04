@@ -282,6 +282,21 @@
       "consumers": ["owner (browser, loopback)", "spa_core/studio_os/director_report.py shares its semantics (ANSWERED_STATUSES, proc_name)"]
     },
     {
+      "id": "investment.cio",
+      "kind": "read-model+advisory-policy+ledger",
+      "anchors": ["spa_core/investment_cio/", "architecture/roles.json", "data/investment_cio/ledger.jsonl"],
+      "purpose": "Investment CIO «Штирлиц» (role_id chief_investment_officer): projects the engines' published state into comparable capital sleeves, recommends a cross-sleeve PAPER allocation or abstains, records each recommendation in an immutable hash-chained ledger and scores it against later outcomes. Executes nothing.",
+      "purpose_source": "ADR-554",
+      "source_task": "owner macro-epic 2026-10-04 «CHIEF INVESTMENT OFFICER / CAPITAL ALLOCATION»",
+      "source_decision": "ADR-554 (fills docs/CAPITAL_ARCHITECTURE.md «Capital Allocator — Not built»)",
+      "producer_role": "attended coding session",
+      "producer_run": "com.spa.investment_cio (daily 09:30)",
+      "reviewer": "independent architecture review of the freeze + post-implementation review (ADR-554)",
+      "owner_role": "build-loop",
+      "status": "EXPERIMENTAL",
+      "consumers": ["spa_core/studio_os/mission_control.py (Capital tab, read-only)"]
+    },
+    {
       "id": "ops.autopush",
       "kind": "automation",
       "anchors": ["scripts/auto_push.sh"],

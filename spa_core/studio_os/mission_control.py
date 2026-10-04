@@ -84,6 +84,9 @@ CONTRACT: list[dict] = [
      "stale_after_min": 120, "unknown": "NOT_MEASURED", "redaction": "public_view scrub", "mobile": True, "alert": False},
     {"path": "capital.trading_research", "source": "data/trading_research/status.json",
      "stale_after_min": 60, "unknown": "NOT_MEASURED", "redaction": "no shortlist free text", "mobile": True, "alert": True},
+    {"path": "capital.investment_cio", "source": "spa_core.investment_cio.read.latest (ledger.jsonl + latest.json, ADR-554)",
+     "stale_after_min": 1800, "unknown": "NOT_MEASURED (no recommendation yet)", "redaction": "safe_text on every string",
+     "mobile": True, "alert": False},
     {"path": "capital.real_capital", "source": "paper_trading_status.execution_mode + package live_capital_usd + trading live_capital_usd",
      "stale_after_min": None, "unknown": "UNKNOWN (never 0 by default)", "redaction": "-", "mobile": True, "alert": True},
     {"path": "studio.epics", "source": "docs/ROADMAP.md (owner-confirmed order; ~~struck~~ = done)",
@@ -461,6 +464,63 @@ def release_feed(inp: MCInputs, now: datetime, cs: Optional[dict]) -> dict:
                              "NOT_APPLICABLE: docs/site/tracker commits are not delivered by code-sync.")}
 
 
+def _investment_cio_section(data: Path, now: datetime) -> dict:
+    """Штирлиц — Chief Investment Officer (ADR-554): read through the CIO package's single read function — no
+    second truth. Colour = health of the CIO feed (fresh, chain intact), never the quality of the portfolio."""
+    src = ["data/investment_cio/ledger.jsonl", "data/investment_cio/latest.json"]
+    try:
+        from spa_core.investment_cio import read as cio_read
+        doc = cio_read.latest(data, now=now)
+    except Exception as exc:  # noqa: BLE001 — an unreadable CIO feed is NOT_MEASURED, never a crash
+        return _nm(src, now, f"CIO read failed: {type(exc).__name__}")
+    if doc.get("integrity") == "BROKEN":
+        # the decision history cannot be trusted: the recommendation is withheld and this is CRITICAL, not quiet
+        return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
+                "integrity": "BROKEN", "boundary": "paper recommendation — nothing executes it; real capital stays $0"}
+    if doc.get("state") != "MEASURED":
+        return _nm(src, now, doc.get("reason") or "no CIO recommendation yet")
+    rec = doc.get("recommendation") or {}
+    chain_ok = (doc.get("ledger") or {}).get("chain_ok")
+    st = "HEALTHY" if chain_ok else "CRITICAL"
+    # ADR-554 finding #14: major_risks now carries a named `basis` ("recommended" when there is a
+    # recommendation, else "seed_split") and the per-factor weight is `sleeve_weight_touching`
+    # (the sleeve weight that touches the factor, not a portfolio-level weighted risk score).
+    major_risks_doc = rec.get("major_risks") or {}
+    major_risks_factors = major_risks_doc.get("factors") or {}
+    out = {"_meta": _meta(st, src, _ts(rec.get("generated_at")), now, 1800,
+                          reason=None if chain_ok else "decision ledger hash chain is broken"),
+           "role": {"role_id": rec.get("role_id"), "title": "Chief Investment Officer", "display_name": "Штирлиц"},
+           "stance": rec.get("stance"), "confidence": rec.get("confidence"),
+           "confidence_reasons": [safe_text(x, 240) for x in (rec.get("confidence_reasons") or [])],
+           "date": rec.get("date"), "evidence_cutoff": rec.get("evidence_cutoff"),
+           # review N9: the cutoff covers only the inputs that were readable — say so when some were not
+           "evidence_cutoff_complete": rec.get("evidence_cutoff_complete"),
+           "evidence_incomplete_inputs": [safe_text(x if isinstance(x, str) else (x or {}).get("name"), 80)
+                                          for x in (rec.get("evidence_cutoff_incomplete_inputs") or [])][:12],
+           "recommended_weights": rec.get("recommended_weights") or {},
+           "seed_split_weights": rec.get("seed_split_weights") or {},
+           "alternatives": {k: {"weights": (v or {}).get("weights"), "note": safe_text((v or {}).get("note"), 200)}
+                            for k, v in (rec.get("alternatives_considered") or {}).items()},
+           "abstentions": {k: safe_text(v, 240) for k, v in (rec.get("abstentions") or {}).items()},
+           "binding_constraints": [{"constraint": c.get("constraint"), "state": c.get("state"),
+                                    "detail": safe_text(c.get("detail") or c.get("reason"), 240)}
+                                   for c in (rec.get("binding_constraints") or [])],
+           "major_risks_basis": major_risks_doc.get("basis"),
+           "major_risks": [{"factor": f, "sleeves": v.get("contributors"),
+                            "sleeve_weight_touching": v.get("sleeve_weight_touching")}
+                           for f, v in sorted(major_risks_factors.items(),
+                                              key=lambda kv: -(kv[1].get("sleeve_weight_touching") or 0))][:8],
+           "unknowns": [safe_text(u, 200) for u in (rec.get("unknowns") or [])][:10],
+           # a recommendation without its rule trace is unexplained — None («not measured»), never an empty list
+           "rationale": ([safe_text(x, 260) for x in rec["rationale"]][:14]
+                         if isinstance(rec.get("rationale"), list) else None),
+           "ledger": doc.get("ledger"), "outcomes": doc.get("outcomes"),
+           "policy_version": rec.get("policy_version"), "recommendation_id": (str(rec["recommendation_id"])[:12] if rec.get("recommendation_id") else None),
+           "mode": rec.get("mode"), "executes": rec.get("executes"), "real_capital_usd": rec.get("real_capital_usd"),
+           "boundary": "paper recommendation — nothing executes it; real capital stays $0"}
+    return out
+
+
 def build(inp: Optional[MCInputs] = None) -> dict:
     inp = inp or MCInputs()
     now = inp.now or datetime.now(timezone.utc)
@@ -694,10 +754,12 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                 "basis": f"execution_mode={mode}; live_capital_usd reported by the paper engines={live_vals}"}
     _rank = {"HEALTHY": 0, "DEGRADED": 1, "STALE": 1, "NOT_MEASURED": 2, "CRITICAL": 3}
     cap_state = max((packages["_meta"]["state"], trading["_meta"]["state"]), key=lambda s: _rank.get(s, 2))
+    investment_cio = _investment_cio_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
                "packages": packages, "trading_research": trading, "real_capital": real,
+               "investment_cio": investment_cio,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────
@@ -798,6 +860,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                 "claude_workers": rep.get("claude_sessions"),
                 "heavy_jobs": len(leases) if isinstance(leases, list) else None},
         "capital": {"real_capital": real,
+                    "investment_cio": ({"stance": investment_cio.get("stance"), "confidence": investment_cio.get("confidence"),
+                                        "date": investment_cio.get("date"), "state": investment_cio["_meta"]["state"]}),
                     "packages": {k: {"state": v["state"], "work": v["work"], "decision": v["decision"], "evidence": v["evidence"],
                                      "live": v["live"]} for k, v in (packages.get("items") or {}).items()},
                     "trading_research": {"state": trading["_meta"]["state"], "forward_paper": trading.get("forward_paper"),

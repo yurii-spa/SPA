@@ -105,11 +105,51 @@ def test_hold_shows_its_reason(tmp_path):
 
 
 def test_killed_aggressive_book_is_paused_not_running(tmp_path):
+    # ADR-554 DQ-3: the scene carries the drawdown the book STOPS on (lp_cycle writes stop_reference every
+    # cycle, owner 2026-10-03 item 7); before, the read model judged the legacy all-time drawdown instead
     _health(tmp_path)
     _book(tmp_path, "lp_paper_trading.json", last_run=NOW, experiment="aggressive-susde-loop-v1@d0", rows=2,
-          extra={"il_drawdown_pct": -0.30})
+          extra={"il_drawdown_pct": -0.30, "stop_reference": {"drawdown_pct": -0.30}})
     p = PS.build_all(tmp_path, NOW)["packages"]["aggressive"]
     assert p["work"]["state"] == "PAUSED" and "kill" in p["work"]["reason"]
+
+
+def test_legacy_drawdown_alone_does_not_pause_a_trading_book(tmp_path):
+    """The bug ADR-554 DQ-3 fixes: the legacy peak says −30 % but the current experiment is −5 % — the book
+    keeps trading (lp_cycle), so the read model must not publish PAUSED."""
+    _health(tmp_path)
+    _book(tmp_path, "lp_paper_trading.json", last_run=NOW, experiment="aggressive-susde-loop-v1@d0", rows=2,
+          extra={"il_drawdown_pct": -0.30, "stop_reference": {"drawdown_pct": -0.05}})
+    p = PS.build_all(tmp_path, NOW)["packages"]["aggressive"]
+    assert p["work"]["state"] == "RUNNING"
+
+
+def test_an_absent_book_has_unmeasured_not_zero_valid_periods(tmp_path):
+    """ADR-554 DQ-1 (inv. #17): no book file is «not measured», never a measured 0."""
+    _health(tmp_path)
+    p = PS.build_all(tmp_path, NOW)["packages"]["balanced"]
+    assert p["history"]["valid_periods"] is None and p["history"]["reason"]
+
+
+def test_live_capital_is_derived_from_the_execution_mode(tmp_path):
+    """ADR-554 DQ-2: 0 only when the engine declares a paper mode; unreadable mode ⇒ not measured."""
+    _health(tmp_path)
+    assert PS.build_all(tmp_path, NOW)["live_capital_usd"] is None
+    (tmp_path / "paper_trading_status.json").write_text(json.dumps({"execution_mode": "read_only_simulation"}))
+    assert PS.build_all(tmp_path, NOW)["live_capital_usd"] is None      # the DeFi engine's mode is unread
+    (tmp_path / "defi_engine").mkdir()
+    (tmp_path / "defi_engine" / "status.json").write_text(json.dumps({"execution_mode": "read_only_simulation"}))
+    assert PS.build_all(tmp_path, NOW)["live_capital_usd"] == 0
+    (tmp_path / "paper_trading_status.json").write_text(json.dumps({"execution_mode": "live"}))
+    assert PS.build_all(tmp_path, NOW)["live_capital_usd"] is None
+
+
+def test_a_balanced_stop_drawdown_pauses_the_book(tmp_path):
+    """ADR-554 DQ-3: the drawdown the Balanced book stops on is read, not only the regime flag."""
+    _health(tmp_path)
+    _book(tmp_path, "hy_paper_trading.json", last_run=NOW, experiment="balanced-fixed-carry-v1@d0", rows=2,
+          extra={"regime": "ENTER", "stop_reference": {"drawdown_pct": -9.0, "threshold_pct": -8.0}})
+    assert PS.build_all(tmp_path, NOW)["packages"]["balanced"]["work"]["state"] == "PAUSED"
 
 
 def test_absent_book_is_not_started(tmp_path):
@@ -359,7 +399,7 @@ def test_a_tripped_stop_reaches_the_public_view_and_the_director_alert(tmp_path)
     from spa_core.studio_os.director_report import defi_alerts
     _health(tmp_path)
     _book(tmp_path, "lp_paper_trading.json", last_run=NOW, experiment="aggressive-susde-loop-v1@d0", rows=2,
-          extra={"il_drawdown_pct": -0.30})
+          extra={"il_drawdown_pct": -0.30, "stop_reference": {"drawdown_pct": -0.30}})
     full = PS.build_all(tmp_path, NOW)
     assert PS.public_view(full)["packages"]["aggressive"]["work"]["state"] == "PAUSED"
     alerts = defi_alerts(full["packages"])

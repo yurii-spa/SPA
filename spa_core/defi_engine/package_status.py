@@ -299,7 +299,8 @@ def _sleeve(package: str, ddir: Path, health: Optional[dict], now: datetime) -> 
                  "book_file": f"data/{_FILES[package]}"}
     if not isinstance(st, dict):
         w = {"state": "NOT_STARTED", "reason": f"{_FILES[package]} absent or unreadable"}
-        hist = {"state": "WARMUP", "valid_periods": 0}
+        # ADR-554 DQ-1: no book file is NOT «0 valid periods measured» — the count is unknown
+        hist = {"state": "WARMUP", "valid_periods": None, "reason": w["reason"]}
         r_en, r_ru = localized_reason(w["reason"])
         return {**out, "work": {**w, "reason_en": r_en, "reason_ru": r_ru},
                 "data": {"state": "WAITING_FOR_DATA", "reason": w["reason"], "reason_en": r_en, "reason_ru": r_ru},
@@ -313,10 +314,24 @@ def _sleeve(package: str, ddir: Path, health: Optional[dict], now: datetime) -> 
     last_obs = obs[-1] if obs else None
     last_run = _ts(st.get("last_cycle_at"))
     if package == "balanced":
-        killed = st.get("regime") == "EXIT"
+        # ADR-554 DQ-3: hy_cycle forces EXIT when its stop trips; the stop drawdown it wrote is read as well,
+        # so both sleeves are judged by the stop they actually stop on
+        sr = st.get("stop_reference") if isinstance(st.get("stop_reference"), dict) else {}
+        tripped = (isinstance(sr.get("drawdown_pct"), (int, float)) and isinstance(sr.get("threshold_pct"), (int, float))
+                   and sr["drawdown_pct"] < sr["threshold_pct"])
+        killed = st.get("regime") == "EXIT" or tripped
     else:
-        from spa_core.paper_trading.lp_cycle import IL_KILL_THRESHOLD
-        dd = st.get("il_drawdown_pct")
+        # ADR-554 DQ-3: the book stops on the CURRENT experiment's peak (lp_cycle, owner 2026-10-03 item 7);
+        # judging «paused» from the legacy all-time drawdown could say PAUSED while the book trades
+        from spa_core.paper_trading.lp_cycle import IL_KILL_THRESHOLD, compute_il_drawdown
+        sr = st.get("stop_reference") if isinstance(st.get("stop_reference"), dict) else {}
+        eq = st.get("equity")
+        if isinstance(sr.get("drawdown_pct"), (int, float)):
+            dd = sr["drawdown_pct"]                      # what the book itself stopped on this cycle
+        elif isinstance(eq, (int, float)):
+            dd = compute_il_drawdown(float(eq), SM.stop_reference(st, float(eq))["peak_equity"])
+        else:
+            dd = None
         killed = isinstance(dd, (int, float)) and dd < IL_KILL_THRESHOLD
     paused = "book kill switch engaged (stop from peak)" if killed else None
     w = _work(package, last_run, _agent(health, _AGENTS[package]), paused,
@@ -533,11 +548,27 @@ def _code_identity(ddir: Path, now: datetime) -> dict:
             "age_h": age, "result": cs.get("result")}
 
 
+#: execution modes in which no real capital can be deployed (paper_trading_status.execution_mode)
+_PAPER_MODES = ("read_only_simulation", "paper")
+
+
+def _live_capital_usd(ddir: Path) -> Optional[int]:
+    """ADR-554 DQ-2: 0 only when EVERY engine declares a paper execution mode — derived, not a literal, so the
+    day execution flips this stops saying 0 on its own. Any unreadable or non-paper mode ⇒ None (not measured).
+    This read model never computes a positive real-capital figure (a public money number, owner subject №1)."""
+    modes = []
+    for rel in ("paper_trading_status.json", "defi_engine/status.json"):
+        doc = _load(ddir / rel)
+        modes.append(doc.get("execution_mode") if isinstance(doc, dict) else None)
+    return 0 if all(m in _PAPER_MODES for m in modes) else None
+
+
 def build_all(data_dir: "Path | str", now: Optional[datetime] = None) -> dict:
     ddir = Path(data_dir)
     now = now or datetime.now(timezone.utc)
     health = _load(ddir / "agent_health.json")
-    out = {"generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": "PAPER", "live_capital_usd": 0,
+    out = {"generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": "PAPER",
+           "live_capital_usd": _live_capital_usd(ddir),
            "agent_health_at": (health or {}).get("timestamp"), "code_identity": _code_identity(ddir, now),
            "packages": {}}
     out["packages"]["conservative"] = _conservative(ddir, health, now)
@@ -551,7 +582,8 @@ def build_all(data_dir: "Path | str", now: Optional[datetime] = None) -> dict:
                                                          "reason_en": r_en, "reason_ru": r_ru},
                                   "data": {"state": "WAITING_FOR_DATA", "reason": None},
                                   "decision": {"state": "NONE"},
-                                  "history": {"state": "WARMUP", "valid_periods": 0},
+                                  "history": {"state": "WARMUP", "valid_periods": None,
+                                              "reason": "read model error — valid periods not measured"},
                                   "mode": _mode(SM.mandate(p)),
                                   "headline_en": "Paper status unavailable", "headline_ru": "Статус недоступен"}
     return out

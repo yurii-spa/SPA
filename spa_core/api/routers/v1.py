@@ -50,7 +50,10 @@ def v1_golive():
     """GoLive readiness report — data/golive_status.json, with inline-report fallback."""
     golive_data = read_state("golive_status.json", None)
     if golive_data is not None:
-        golive_data["timestamp"] = now()
+        # ADR-554 DQ-4: keep the checker's own time — overwriting it with request time made a stale
+        # golive_status.json read as fresh to every API reader. Request time travels as `served_at`.
+        golive_data["served_at"] = now()
+        golive_data.setdefault("timestamp", None)
         golive_data["source"] = "file"
         return golive_data
 
