@@ -53,6 +53,41 @@ export function pct(fig, ru = false, digits = 1) {
   return (ru ? s.replace('.', ',') : s) + '%';
 }
 
+/**
+ * Округление ВНИЗ до `digits` знаков — решение владельца 2026-10-04, вариант 1
+ * (ADR-563, предмет №2 границы ADR-285).
+ *
+ * Зачем отдельно от `pct`. Округление к ближайшему на одном знаке добавляет до
+ * +0,05 п.п., и 4,9637 % печаталось как 5,0 % — то есть сайт показывал БОЛЬШЕ
+ * измеренного (инв. #8). Вниз ошибка всегда в нашу невыгодную сторону, а это
+ * единственная безопасная сторона для числа о доходности.
+ *
+ * Почему `pct` не переделан целиком: вниз округляется СТАВКА. У просадки
+ * безопасная сторона обратная (вниз она занижала бы убыток), и менять её
+ * заодно значило бы выдать свою догадку за решение владельца.
+ *
+ * Зачем эпсилон. Двоичная дробь 2.9 лежит в памяти как 2.8999999999999996, и
+ * `Math.floor(2.9 * 10) / 10` дало бы 2,8 — то есть «вниз» срезало бы знак у
+ * числа, которое УЖЕ ровно. Эпсилон меньше любой десятой доли процентного
+ * пункта и сдвигает только значения, отличающиеся от ровной десятой на
+ * погрешность представления.
+ */
+export function floorTo(n, digits = 1) {
+  if (!Number.isFinite(n)) return null;
+  const scale = Math.pow(10, digits);
+  return Math.floor(n * scale + 1e-9) / scale;
+}
+
+/** Ставка, округлённая ВНИЗ: «4,9%» — никогда больше измеренного. */
+export function pctDown(fig, ru = false, digits = 1) {
+  const n = value(fig);
+  if (n == null) return ru ? 'данные недоступны' : 'data unavailable';
+  const floored = floorTo(n, digits);
+  if (floored == null) return ru ? 'данные недоступны' : 'data unavailable';
+  const s = floored.toFixed(digits);
+  return (ru ? s.replace('.', ',') : s) + '%';
+}
+
 /** «$101 256» — null-safe. */
 export function usd(fig, ru = false) {
   const n = value(fig);
@@ -97,6 +132,7 @@ export function rateWithTail(id, ru = false) {
   return {
     apy: a,
     drawdown: dd,
-    text: ru ? `${pct(b.apy, true)} годовых · ${ddText}` : `${pct(b.apy)} annualised · ${ddText}`,
+    // Ставка — ВНИЗ (решение владельца, ADR-563); просадка — к ближайшему.
+    text: ru ? `${pctDown(b.apy, true)} годовых · ${ddText}` : `${pctDown(b.apy)} annualised · ${ddText}`,
   };
 }

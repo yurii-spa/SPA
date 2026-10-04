@@ -34,6 +34,7 @@
 //     because "0.0% drawdown" read as resilience is the most misleading number on the site.
 
 import NUMBERS from '../data/site_numbers.json';
+import { floorTo } from './site_numbers.js';
 
 /** Realized track-to-date APY in percent, or null when the shelf does not carry it. */
 export function realizedApyPct(_ignoredSnap) {
@@ -54,11 +55,22 @@ export function measuredNote(ru = false) {
   return ru ? ` (замер ${d})` : ` (measured ${d})`;
 }
 
-/** "5.4%" / "5,4%" — one decimal, locale-aware; null-safe. */
+/**
+ * "4.9%" / "4,9%" — один знак, округление ВНИЗ, локаль-зависимо; null-safe.
+ *
+ * ВНИЗ, а не к ближайшему — решение владельца 2026-10-04, вариант 1 (ADR-563).
+ * Замер, вызвавший вопрос: измерено 4,9637 %, печаталось 5,0 % — публикуемая
+ * ставка была ВЫШЕ измеренной, то есть прямое нарушение инв. #8. Округление
+ * вниз делает ошибку всегда в нашу невыгодную сторону. Арифметика — одна, в
+ * `site_numbers.floorTo`: второй её экземпляр разошёлся бы с первым при первой
+ * правке.
+ */
 export function realizedApyLabel(_ignoredSnap, ru = false) {
   const n = realizedApyPct();
   if (n == null) return ru ? 'нет данных' : 'data unavailable';
-  const s = n.toFixed(1);
+  const floored = floorTo(n, 1);
+  if (floored == null) return ru ? 'нет данных' : 'data unavailable';
+  const s = floored.toFixed(1);
   return (ru ? s.replace('.', ',') : s) + '%';
 }
 
