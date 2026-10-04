@@ -794,6 +794,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "prose_binding_census.json": ("status", "population", "on_prose", "places",
                                   "by_kind", "kinds_without_a_prose_parser",
                                   "reader_tally", "verdict", "findings"),
+    # Заказ G96 п. 2 (ADR-508). `counts_batteries` обязателен ОТДЕЛЬНО от
+    # `counts`: головной ответ заказа — про род «батарея мутаций», и одно
+    # число по всему дереву прочлось бы как ответ про батареи, тогда как
+    # шесть седьмых населения — простые правщики источника. `undecidable` и
+    # `unreadable` обязательны потому, что без них третий исход (членство или
+    # разбор НЕ ИЗМЕРЕНЫ) в контекст не попадает вовсе и «находок ноль»
+    # становится неотличимо от «искали не той формой».
+    "mutation_application_census.json": ("status", "answer", "counts",
+                                         "counts_batteries", "sites",
+                                         "undecidable", "unreadable", "findings"),
     # Заказ G45 п. 1 (ADR-421). `places` в схеме обязателен по той же причине,
     # что `roles` у соседа: «входов 52» без него прочлось бы как «столько
     # перечней в дереве», тогда как осмотрено 445 мест и 195 из них с
@@ -1147,6 +1157,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/slo_keepability.py",
     "prose_binding_census.json":
         "spa_core/monitoring/prose_binding_census.py",
+    "mutation_application_census.json":
+        "spa_core/monitoring/mutation_application_census.py",
     "call_sourced_input_census.json":
         "spa_core/monitoring/call_sourced_input_census.py",
     "truncated_input_census.json":
@@ -3079,6 +3091,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # многострочная — ни одна из них).
         from spa_core.monitoring.prose_binding_census import format_report as _pbc_report
         out.extend(_pbc_report(data))
+    elif name == "mutation_application_census.json":
+        # Заказ G96 п. 2 (ADR-508). Без этой ветки артефакт читается ВХОЛОСТУЮ,
+        # и вопрос «лжёт ли батарея о своём покрытии» остаётся без ответа ровно
+        # так, как сама подмена остаётся без вопроса о якоре. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм, скобочная многострочная — ни
+        # одна из них).
+        from spa_core.monitoring.mutation_application_census import format_report as _mac_report
+        out.extend(_mac_report(data))
     elif name == "vacuous_guard_census.json":
         # Заказ G44 п. 1 (ADR-420). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # ровно тот дефект, который перепись и меряет: файл открыт, а в контекст

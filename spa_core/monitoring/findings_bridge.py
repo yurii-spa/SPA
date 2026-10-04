@@ -218,6 +218,15 @@ PRODUCES = (
     # поэтому такта у неё НЕТ: SLO равняется такту БЕГУНА — гейт 6ч +
     # наблюдённый период прогона (ADR-506) = 14ч.
     "data/prose_binding_census.json",
+    # Заказ G96 п. 2 (ADR-508) — сколько мутационных подмен считаются
+    # ПРИМЕНЁННЫМИ, не спросив о якоре. Класс измерен рукой в цикле #727 (из 16
+    # подмен применились 7, девять молча пропущены), и прибора на него не было.
+    # Ступень дешёвая (разбор AST дерева в одном процессе, ~14 с), поэтому
+    # такта у неё НЕТ: предмет меняется КАЖДЫМ циклом, который пишет батарею,
+    # то есть почти каждым, и платить такт значило бы отвечать вчерашним
+    # числом. SLO равняется такту БЕГУНА — гейт 6ч + наблюдённый период
+    # прогона (ADR-506) = 14ч.
+    "data/mutation_application_census.json",
     # Заказ G45 п. 1 (ADR-421) — СОСЕДНЯЯ координата, не та же: ADR-420 мерил
     # входы, записанные ЛИТЕРАЛОМ, и опустошал их правкой; здесь вход собирает
     # ВЫЗОВ (`ROOT.rglob`, `read_text`, `_collect()`), и опустошить его правкой
@@ -397,6 +406,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "s49_tally_tact",
     "slo_keepability",
     "prose_binding_census",
+    "mutation_application_census",
     "call_sourced_input_census",
     "truncated_input_census",
     "hand_truncation_census",
@@ -657,6 +667,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "prose_binding_census": {
         "module": "spa_core/monitoring/prose_binding_census.py",
         "artifact": "data/prose_binding_census.json"},
+    "mutation_application_census": {
+        "module": "spa_core/monitoring/mutation_application_census.py",
+        "artifact": "data/mutation_application_census.json"},
     "call_sourced_input_census": {
         "module": "spa_core/monitoring/call_sourced_input_census.py",
         "artifact": "data/call_sourced_input_census.json"},
@@ -2681,6 +2694,27 @@ def main(argv=None) -> int:
                   f"вердикт {_pbcdoc.get('verdict')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "prose_binding_census", e)
+    # Применённость мутационной подмены (G96 п. 2, ADR-508): батарея, считающая
+    # подмену применённой без вопроса о якоре, лжёт о покрытии — и лжёт в
+    # СТРОГУЮ сторону («тесты слабее, чем они есть»), поэтому вердикт её никто
+    # не оспаривает. Приёмник зова назван ПО МОДУЛЮ, а не псевдонимом.
+    try:
+        from spa_core.monitoring import mutation_application_census
+        _macr = mutation_application_census.run(root=args.root)
+        _macdoc = _macr["doc"]
+        if str(_macdoc.get("status")) != "OK":
+            print(f"mutation_application_census: НЕ ИЗМЕРЕНО — {_macdoc.get('reason')}")
+        else:
+            _macb = observed(_macdoc, "counts_batteries", kind=dict) or {}
+            _maca = observed(_macb, "anchor", kind=dict) or {}
+            print(f"mutation_application_census: подмен {_macdoc.get('sites')} — "
+                  f"из них батарей {sum(_maca.values())}, применённость НЕ спрошена "
+                  f"у {observed_number(_maca, mutation_application_census.ANCHOR_UNCHECKED)}"
+                  f" · слепа к кратности у "
+                  f"{observed_number(_maca, mutation_application_census.ANCHOR_PRESENCE)};"
+                  f" НАХОДОК {len(_macdoc.get('findings') or [])}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "mutation_application_census", e)
     # Перепись входов, собранных ВЫЗОВОМ (G45 п. 1, ADR-421): что сторож ДЕЛАЕТ,
     # когда его вход пуст. Дыра названа самим ADR-420: перечень, собранный
     # вызовом, в то население не входил ПО ПОСТРОЕНИЮ, а пустота у него

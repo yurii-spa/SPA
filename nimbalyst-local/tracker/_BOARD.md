@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-04T01:49:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-04T05:38:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (361ddb1dc) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (6cfe66d95) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1185** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1187** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -353,7 +353,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (640)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (642)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -918,6 +918,7 @@
 - Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `inbox-pribory-brosayut-odnorazovyi-stend-87-gb.md` · 2026-10-03
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `inbox-prikaz-vladeltsa-uskolznul-ot-storozha-n.md` · 2026-09-04
+- Проба приёмки объявляет карточку закрытой, не проверив, что подмена применилась  ·  `inbox-proba-priemki-obyavlyaet-kartochku-zakry.md` · 2026-10-04
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
@@ -934,6 +935,7 @@
 - Реестр решений: дописать указатели на 78 ADR из других папок (решение владельца, вариант А)  ·  `inbox-reestr-reshenii-dopisat-ukazateli-na-78.md` · 2026-09-07
 - Реинвестировать начисленное: буфер и размещение от текущего equity, знаменатель потолков сделать ОБЩИМ  ·  `inbox-reinvestirovat-nachislennoe-bufer-i-razm.md` · 2026-09-09
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
+- Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31
