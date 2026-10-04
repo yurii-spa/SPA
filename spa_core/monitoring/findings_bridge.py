@@ -158,6 +158,17 @@ PRODUCES = (
     # закончен, ответ получен — плечо проводится. Такт недельный и решает его
     # ФАЙЛ (`python_reader_clock_doors.run` → `measurement_due`), SLO 192ч.
     "data/python_reader_clock_doors.json",
+    # Заказ G97 п. 3 (ADR-562). ТРЕТЬЕ плечо того же семейства «часы как вход»:
+    # сосед выше спрашивает, закрывается ли дверь читателя пином, а этот — ПРАВДА
+    # ЛИ ВОЗРАСТ артефакта, то есть доходит ли инъектированный `now` до САМОЙ
+    # отметки `generated_at`. Подмена часов у такого производителя проходит все
+    # контроли вердикта и врёт только в отметке — ровно там, где её читает
+    # сторож свежести. Мера зовёт сотню ЧУЖИХ производителей, и они ПИШУТ,
+    # поэтому зов идёт в КОПИИ дерева (`sandbox=True`), а в живой `data/` ложится
+    # ровно один файл — отчёт прибора. Цена ИЗМЕРЕНА: 25.2 мин на 98
+    # производителей в двух плечах (ADR-562), поэтому такт недельный и решает
+    # его ФАЙЛ (`artifact_stamp_clock_doors.run` → `measurement_due`), SLO 192ч.
+    "data/artifact_stamp_clock_doors.json",
     # Заказ G39 п. 3 (ADR-415). Перепись гейтов такта: у скольких производителей
     # решение «пора ли производить» лежит ВНЕ производящей функции, так что
     # второй звавший обязан завести свою копию правила (класс ADR-220). Такта у
@@ -398,6 +409,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "haystack_origin_census",
     "list_identity_census",
     "python_reader_clock_doors",
+    "artifact_stamp_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
     "vacuous_guard_census",
@@ -643,6 +655,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "python_reader_clock_doors": {
         "module": "spa_core/monitoring/python_reader_clock_doors.py",
         "artifact": "data/python_reader_clock_doors.json"},
+    "artifact_stamp_clock_doors": {
+        "module": "spa_core/monitoring/artifact_stamp_clock_doors.py",
+        "artifact": "data/artifact_stamp_clock_doors.json"},
     "tact_gate_census": {
         "module": "spa_core/monitoring/tact_gate_census.py",
         "artifact": "data/tact_gate_census.json"},
@@ -2494,6 +2509,47 @@ def main(argv=None) -> int:
                   f"{_prcd.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "python_reader_clock_doors", e)
+    # (G97 п. 3, ADR-562) ТРЕТЬЕ плечо семейства «часы как вход». Сосед выше
+    # спрашивает, закрывается ли дверь ЧИТАТЕЛЯ пином класса; этот — доходит ли
+    # инъектированный `now` до САМОЙ отметки `generated_at` у ПРОИЗВОДИТЕЛЯ.
+    # Разница не в оттенке: у производителя вердикт от часов не зависит, поэтому
+    # подмена часов проходит все контроли вердикта и врёт ТОЛЬКО в возрасте
+    # артефакта — то есть ровно там, где его читает сторож свежести.
+    #
+    # `sandbox=True` обязателен и не является осторожностью: мера зовёт сотню
+    # ЧУЖИХ производителей, а они ПИШУТ. Зов идёт в копии дерева, живой `data/`
+    # получает ровно ОДИН новый файл — отчёт самого прибора. В главном дереве
+    # прибор отказывает замером (`assert_disposable_tree`), а не доверием.
+    #
+    # ЦЕНА НАЗВАНА, а не умолчана: 25.2 мин на 98 производителей в двух плечах
+    # (замер 04.10, ADR-562). Такт НЕДЕЛЬНЫЙ и решает его ФАЙЛ, поэтому в 167
+    # прогонах агента из 168 ступень стоит одного чтения отметки.
+    #
+    # «Не мерили» и «измерено» — разные исходы (инв. #17): внутри такта
+    # печатается причина, а не вердикт о населении, которого никто не смотрел.
+    try:
+        from spa_core.monitoring import artifact_stamp_clock_doors
+        _ascd = artifact_stamp_clock_doors.run(root=args.root, if_due=True,
+                                               sandbox=True)
+        if _ascd.get("skipped"):
+            print(f"artifact_stamp_clock_doors: внутри такта, НЕ мерили — "
+                  f"{_ascd.get('reason')}")
+        else:
+            # Счётчики — ЧЕСТНОЙ формой: отсутствие блока не ноль находок
+            # (инв. #17), иначе «находок 0» стало бы утверждением о том, чего
+            # прибор не мерил.
+            _af = _ascd.get("findings_total")
+            _au = _ascd.get("unmeasured_total")
+            _ac = observed(_ascd, "counts", kind=dict)
+            _ar = (None if _ac is None
+                   else _ac.get(artifact_stamp_clock_doors.REACHES, 0))
+            print(f"artifact_stamp_clock_doors: инъекция доходит до отметки у "
+                  f"{'НЕ ИЗМЕРЕНО' if _ar is None else int(_ar)} из "
+                  f"{_ascd.get('planned')}; находок "
+                  f"{'НЕ ИЗМЕРЕНО' if _af is None else int(_af)}, НЕ ИЗМЕРЕНО "
+                  f"{'НЕ ИЗМЕРЕНО' if _au is None else int(_au)}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "artifact_stamp_clock_doors", e)
     # Перепись гейтов такта (G39 п. 3, ADR-415): где у производителя лежит
     # решение «пора ли производить». Гейта такта у САМОЙ переписи нет, и это
     # замер, а не поблажка: зов — разбор AST в одном процессе, 5.7с против
