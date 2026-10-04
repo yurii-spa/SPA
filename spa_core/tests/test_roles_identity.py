@@ -15,7 +15,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 ROLES_PATH = ROOT / "architecture" / "roles.json"
 
-DISPLAY_NAMES = ("Штирлиц", "Шурик")
+# the former CIO display name stays in the guard: it must never become an authority key either
+DISPLAY_NAMES = ("Oracle", "Штирлиц", "Шурик")
 #: files allowed to carry a display-name literal at all (identity declaration / tests / contract).
 ALLOWED_FILES = {ROLES_PATH}
 
@@ -39,7 +40,7 @@ def test_cio_title_exact():
     doc = _roles_doc()
     cio = _role(doc, "chief_investment_officer")
     assert cio["title"] == "Chief Investment Officer"
-    assert cio["display_name"] == "Штирлиц"
+    assert cio["display_name"] == "Oracle"  # owner renamed the display identity 2026-10-04 (was «Штирлиц»)
     assert cio["implemented"] is True
 
 
@@ -169,3 +170,18 @@ def test_display_name_never_used_as_an_authority_key():
         if visitor.hits:
             violations.append((str(path), visitor.hits))
     assert violations == [], f"display name used as an authority-check key: {violations}"
+
+
+def test_cio_display_name_has_one_value_everywhere_it_is_shown():
+    """Owner renamed the CIO's display identity to «Oracle» (2026-10-04). Mission Control used to
+    carry its own hard-coded literal, so a rename in roles.json would not have reached the UI. The
+    registry, the CIO contract, the Mission Control section and both UI languages must agree."""
+    from spa_core.investment_cio import contract as cio_contract
+    from spa_core.studio_os import mission_control as mc
+    name = _role(_roles_doc(), "chief_investment_officer")["display_name"]
+    assert cio_contract.ROLE_DISPLAY_NAME == name
+    assert mc._cio_display_name() == name
+    i18n = (ROOT / "spa_core" / "studio_os" / "mission_ui" / "i18n.js").read_text(encoding="utf-8")
+    titles = [ln for ln in i18n.splitlines() if '"cio.title"' in ln or '"cio.short"' in ln]
+    assert len(titles) == 4 and all(name in ln for ln in titles), titles
+    assert "Штирлиц" not in i18n

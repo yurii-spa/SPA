@@ -1202,63 +1202,172 @@ def _build_trading_research_sleeve(tr_input: Input, regime_fit: dict) -> dict:
 
 # ── market_neutral_basis sleeve ─────────────────────────────────────────────────────────
 
-def _build_market_neutral_sleeve(variant_input: Input, susde_input: Input, rates_input: Input,
-                                 regime_fit: dict) -> dict:
+def _frozen_pendle_timestamp(doc: Any) -> tuple:
+    """``(datetime_or_None, display_date_string_or_None)`` for when
+    ``rates_desk/pendle_pt_history.json``'s inputs are frozen at.
+
+    Prefers ``generated_at``'s FULL precision (hour-of-day matters for the age-vs-cadence
+    judgement in :func:`_susde_dn_effective_state` — REWORK M6a found that truncating to a bare
+    date before computing age could move a boundary case by several hours and flip the verdict);
+    falls back to the declared ``window.end``, else the latest per-market series date, ONLY when
+    ``generated_at`` itself is absent/unparseable — those two fallbacks never carry a time-of-day,
+    so their datetime is midnight UTC on that date (a conservative, explicitly-approximate lower
+    bound on freshness, never silently treated as more precise than it is).
+    ``(None, None)`` only when nothing at all is readable."""
+    if not isinstance(doc, dict):
+        return None, None
+    gen = _as_of_generated_at(doc)
+    if gen is not None:
+        return gen, gen.date().isoformat()
+    window = observed(doc, "window", kind=dict) or {}
+    end = window.get("end")
+    if isinstance(end, str) and end:
+        return _parse_ts(end), end
+    best = None
+    for market in (observed(doc, "markets", kind=dict) or {}).values():
+        for row in (market or {}).get("series") or []:
+            d = (row or {}).get("date")
+            if isinstance(d, str) and (best is None or d > best):
+                best = d
+    return (_parse_ts(best) if best else None), best
+
+
+def _susde_dn_effective_state(susde_input: Input, pendle_history_input: Input, now: datetime) -> tuple:
+    """ADR-560 Phase-0 repair, REWORK M6(a): susde_dn's forward rows are frozen replays of
+    ``rates_desk/pendle_pt_history.json``'s inputs (the real-history feeds load the deep Pendle
+    dataset ONCE — ``aggressive_lab/run.py`` ``_real_history_feeds`` — and ``feeds.py``'s
+    ``MarketSnapshot`` then always returns that same last point). Judge staleness by the FROZEN
+    DATE'S AGE against the same cadence already used for this strand
+    (``susde_input.cadence_hours`` == ``CADENCE_RESEARCH_STRAND_H``) — never a hardcoded
+    unconditional STALE, which would never clear even if the upstream Pendle dataset were
+    repaired. When the pendle file itself cannot be read or dated, fall back to the strand's own
+    file-cadence judgement (never silently MEASURED just because we can't check the frozen date).
+
+    Returns ``(state, reason_or_None)`` only — this NEVER touches ``.as_of``/``.age_hours``: those
+    stay the FILE's true observation. Moving them would also move ``policy.recommend``'s
+    ``evidence_cutoff`` (every input's ``as_of`` feeds ``min(as_ofs)`` there), which REWORK M6(c)
+    forbids."""
+    frozen_as_of, frozen_date = _frozen_pendle_timestamp(pendle_history_input.doc)
+    cadence = susde_input.cadence_hours or CADENCE_RESEARCH_STRAND_H
+    if frozen_as_of is not None:
+        age_h = (now - frozen_as_of).total_seconds() / 3600.0
+        if age_h > cadence:
+            return contract.STALE, (f"inputs frozen at {frozen_date} (pendle_pt_history generated_at), "
+                                    f"{age_h:.1f}h old > {cadence:.0f}h limit")
+        return contract.MEASURED, None
+    # pendle file unreadable/undated: can't judge by its age — fall back to the strand's own
+    # file-cadence state rather than inventing a verdict.
+    return susde_input.state, susde_input.state_reason
+
+
+def _build_market_neutral_sleeve(variant_input: Input, susde_input: Input, pendle_history_input: Input,
+                                 regime_fit: dict, now: datetime) -> dict:
+    """ADR-560 Phase-0 audit repairs (three genuine defects, none of them a weight change — every
+    cell here stays ``allocatable=False``, OBSERVE_ONLY):
+
+    (a) The sleeve used to carry a third strand labelled "rates_desk (fixed carry)" that read
+        ``rates_desk/equity_track.jsonl`` — which IS the go-live equity hash chain
+        (``spa_core/audit/equity_proof_chain.py``, co-located under ``rates_desk/`` for historical
+        reasons only). Conservative was being counted a SECOND time under a different name, both
+        here and in correlation's research pairs. The strand is removed; nothing is substituted.
+    (b) ``variant_n`` was mislabelled "swarm blend" — there is no swarm book behind it, it is an
+        LRT-collateral loop paired with a short ETH perp. Relabelled "LRT + short ETH perp
+        (variant_n)" throughout (mechanism text, risk evidence, composition).
+    (c) ``susde_dn``'s forward rows are frozen replays of 2026-07-05 inputs: judged by
+        :func:`_susde_dn_effective_state` (age-based, never hardcoded — REWORK M6a), and the
+        verdict is applied to ``susde_input.state``/``.state_reason`` by the CALLER
+        (:func:`build_sleeves`), BEFORE this function runs, so the general input manifest (every
+        other reader of ``susde_input``) sees the SAME verdict (REWORK M6b) — this function simply
+        trusts ``susde_input.state`` like it already trusts ``variant_input.state``. The sleeve's
+        overall freshness is governed by the OLDEST strand input, never the freshest — the old
+        code picked ``max(as_of)``, which let a daily-touched-but-frozen file look "fresh" because
+        its row timestamp kept advancing even though its content never did; for susde_dn
+        specifically, "its own input as_of" is the frozen Pendle date, not the wrapper file's row
+        timestamp (that date never feeds ``evidence_cutoff`` — see REWORK M6c).
+    """
     out = _blank_sleeve("market_neutral_basis")
-    out["mechanism"] = ("three independent paper/backtest basis strands (swarm variant_n blend, sUSDe delta-neutral, "
-                        "rates_desk fixed carry) — no unified book, no mandate")
+    out["mechanism"] = ("two independent paper/backtest basis strands (LRT + short ETH perp (variant_n), "
+                        "sUSDe delta-neutral) — no unified book, no mandate")
     out["mode"] = "OBSERVE_ONLY"
     out["live_admission"] = "NOT_APPLICABLE / outside RiskPolicy (no mandate)"
-    out["capital_basis"] = _not_measured("three independent paper strands, no single book basis")
+    out["capital_basis"] = _not_measured("two independent paper strands, no single book basis")
     out["current_equity"] = _not_measured("not a single book; strands run independent paper equity (see composition)")
-    out["observation_window"] = _not_measured("no unified window across three independent strands")
-    out["valid_periods"] = _not_measured("no unified valid_periods counter across three strands")
+    out["observation_window"] = _not_measured("no unified window across two independent strands")
+    out["valid_periods"] = _not_measured("no unified valid_periods counter across the strands")
     out["maturity"] = _maturity_cell(out["valid_periods"])
     out["expected_return"] = _not_measured(
-        "no blended return across three unrelated strands (would mix backtest and forward incomparably)")
-    out["realized_return"] = _not_measured("no blended realized return across three unrelated strands")
+        "no blended return across two unrelated strands (would mix backtest and forward incomparably)")
+    out["realized_return"] = _not_measured("no blended realized return across two unrelated strands")
     out["volatility"] = _not_measured("no blended return series")
-    out["max_drawdown"] = _not_measured("no blended drawdown across three unrelated strands")
+    out["max_drawdown"] = _not_measured("no blended drawdown across two unrelated strands")
     out["liquidity"] = _not_measured("exit model not published for research strands")
     out["time_to_exit"] = _not_measured("exit model not published for research strands")
     out["cash_share"] = _not_measured("sleeve carries no cash field")
-    out["gross_exposure_over_nav"] = _not_measured("leverage not uniformly disclosed across the three strands")
-    out["leverage"] = _not_measured("leverage not uniformly disclosed across the three strands")
+    out["gross_exposure_over_nav"] = _not_measured("leverage not uniformly disclosed across the strands")
+    out["leverage"] = _not_measured("leverage not uniformly disclosed across the strands")
     out["nearest_enforced_stop"] = _not_measured("no mandate; outside RiskPolicy, no enforced stop")
     out["loss_budget"] = _not_measured("no mandate; outside RiskPolicy, no loss budget")
-    out["stress_loss"] = _not_measured("no unified stress model across the three strands")
+    out["stress_loss"] = _not_measured("no unified stress model across the strands")
     out["worst_case_loss"] = _not_measured("no stop and no stress model; outside RiskPolicy")
 
     susde_last = (susde_input.doc or [None])[-1] if isinstance(susde_input.doc, list) and susde_input.doc else None
     out["mtm_coverage"] = contract.measured(susde_last.get("mtm_today_pct"), unit="pct", source=susde_input.path_str,
                                              as_of=susde_input.as_of_iso,
-                                             note="susde_dn only; no unified mtm coverage across all three strands") \
+                                             note="susde_dn only; no unified mtm coverage across both strands") \
         if susde_last and isinstance(susde_last.get("mtm_today_pct"), (int, float)) else \
-        _not_measured("no unified mtm coverage across three strands")
+        _not_measured("no unified mtm coverage across both strands")
 
-    freshest = max((i for i in (variant_input, susde_input, rates_input) if i is not None),
-                   key=lambda i: (i.as_of or datetime.min.replace(tzinfo=timezone.utc)))
-    if freshest.state == contract.NOT_MEASURED:
-        out["data_freshness"] = _not_measured("none of the three strands are readable")
-    elif freshest.state == contract.STALE:
-        out["data_freshness"] = contract.absent(contract.STALE,
-                                                 reason=f"freshest strand ({freshest.name}) still "
-                                                        f"{freshest.age_hours:.1f}h old", source=freshest.path_str,
-                                                 as_of=freshest.as_of_iso)
+    # susde_input.state/.state_reason already carry the age-judged verdict (set by build_sleeves,
+    # via _susde_dn_effective_state, before this function runs — REWORK M6a/b). Here we only need
+    # the frozen date again for DISPLAY (its own input as_of for the "oldest wins" rule and for
+    # human-readable text) — a pure, side-effect-free recomputation of the same inputs.
+    frozen_as_of, frozen_date = _frozen_pendle_timestamp(pendle_history_input.doc)
+    frozen_as_of = frozen_as_of or susde_input.as_of
+    if susde_input.state == contract.MEASURED:
+        susde_stale_reason = "pendle_pt_history within cadence"
     else:
-        out["data_freshness"] = contract.measured({"state": "FRESH", "freshest_strand": freshest.name},
-                                                    unit=None, source=freshest.path_str, as_of=freshest.as_of_iso)
+        susde_stale_reason = susde_input.state_reason or "susde_dn freshness not judgeable"
 
+    strand_states = [
+        {"name": "variant_n", "label": "LRT + short ETH perp (variant_n)", "input": variant_input,
+         "state": variant_input.state, "age_hours": variant_input.age_hours, "as_of": variant_input.as_of,
+         "as_of_iso": variant_input.as_of_iso, "path_str": variant_input.path_str,
+         "reason": variant_input.state_reason},
+        {"name": "susde_dn", "label": "susde_dn (delta-neutral)", "input": susde_input,
+         "state": susde_input.state, "age_hours": susde_input.age_hours, "as_of": frozen_as_of,
+         "as_of_iso": frozen_as_of.isoformat() if frozen_as_of else susde_input.as_of_iso,
+         "path_str": susde_input.path_str, "reason": susde_input.state_reason},
+    ]
+    readable_strands = [s for s in strand_states if s["input"].doc is not None]
+    if not readable_strands:
+        out["data_freshness"] = _not_measured("neither strand is readable")
+    else:
+        oldest = min(readable_strands, key=lambda s: (s["as_of"] or datetime.min.replace(tzinfo=timezone.utc)))
+        if oldest["state"] == contract.NOT_MEASURED:
+            out["data_freshness"] = _not_measured(f"oldest strand ({oldest['name']}) has no readable as_of")
+        elif oldest["state"] == contract.STALE:
+            out["data_freshness"] = contract.absent(
+                contract.STALE,
+                reason=oldest["reason"] or (f"oldest strand ({oldest['name']}) still "
+                                            f"{(oldest['age_hours'] or 0):.1f}h old"),
+                source=oldest["path_str"], as_of=oldest["as_of_iso"])
+        else:
+            out["data_freshness"] = contract.measured({"state": "FRESH", "oldest_strand": oldest["name"]},
+                                                        unit=None, source=oldest["path_str"],
+                                                        as_of=oldest["as_of_iso"])
+
+    susde_evidence_text = (f"susde_dn forward rows are FROZEN REPLAYS, not live forward evidence "
+                           f"({susde_stale_reason})" if susde_input.state != contract.MEASURED else
+                           "susde_dn forward rows within the pendle_pt_history cadence")
     out["evidence_state"] = contract.measured(
-        "mixed: backtest+forward (susde_dn), continuous paper (variant_n), evidenced daily (rates_desk; fixed-carry, "
-        "not basis)", unit=None, source="three strands", as_of=None, note="not a unified evidence level")
+        f"mixed: {susde_evidence_text}; variant_n is continuous paper", unit=None, source="two strands",
+        as_of=None, note="not a unified evidence level")
     out["regime_fit"] = dict(regime_fit)
     out["confidence"] = contract.measured("LOW", unit=None, source="cio-policy-v1", as_of=None,
                                            note="observe-only, no mandate, heterogeneous strands")
-    out["capacity"] = _not_measured("no capacity model across three unrelated strands")
+    out["capacity"] = _not_measured("no capacity model across two unrelated strands")
     out["risk"] = {
-        "PROTOCOL": {"level": "MEDIUM", "evidence": "variant_n / susde_dn / rates_desk mix pools and venues",
-                     "source": None},
+        "PROTOCOL": {"level": "MEDIUM", "evidence": "variant_n / susde_dn mix pools and venues", "source": None},
         "STRATEGY": {"level": "MEDIUM", "evidence": "delta_neutral; funding/basis risk remains despite hedge",
                      "source": None},
         "MARKET": {"level": "MEDIUM", "evidence": "usde_peg + funding_rate factors", "source": None},
@@ -1267,12 +1376,15 @@ def _build_market_neutral_sleeve(variant_input: Input, susde_input: Input, rates
         "LIQUIDITY": {"level": "UNKNOWN", "evidence": "no exit model published", "source": None},
         "COUNTERPARTY": {"level": "UNKNOWN", "evidence": "no source today", "source": None},
         "LEVERAGE": {"level": "UNKNOWN", "evidence": "not uniformly disclosed across strands", "source": None},
-        "DATA_MODEL": {"level": "HIGH", "evidence": "susde_dn mixes a 2024 backtest with 2026 forward rows",
+        "DATA_MODEL": {"level": "HIGH" if susde_input.state != contract.MEASURED else "MEDIUM",
+                       "evidence": (f"susde_dn forward rows are frozen — {susde_stale_reason}"
+                                   if susde_input.state != contract.MEASURED else
+                                   "susde_dn forward rows within cadence; still a heterogeneous mix with variant_n"),
                        "source": susde_input.path_str},
     }
     comp = []
-    for name, inp in (("variant_n (swarm blend)", variant_input), ("susde_dn (delta-neutral)", susde_input),
-                       ("rates_desk (fixed carry)", rates_input)):
+    for s in strand_states:
+        inp = s["input"]
         last_equity = None
         if isinstance(inp.doc, dict):
             series = inp.doc.get("series") or []
@@ -1282,7 +1394,7 @@ def _build_market_neutral_sleeve(variant_input: Input, susde_input: Input, rates
             last = inp.doc[-1]
             if isinstance(last, dict):
                 last_equity = last.get("equity_usd") or last.get("close_equity")
-        comp.append({"protocol": name, "mechanic": "market_neutral_basis", "tier": "UNKNOWN",
+        comp.append({"protocol": s["label"], "mechanic": "market_neutral_basis", "tier": "UNKNOWN",
                     "share": _not_measured("no portfolio weight; independent paper strand"),
                     "usd": contract.measured(last_equity, unit="usd", source=inp.path_str, as_of=inp.as_of_iso,
                                               note="strand's own paper equity, not a book allocation")
@@ -1291,20 +1403,23 @@ def _build_market_neutral_sleeve(variant_input: Input, susde_input: Input, rates
     out["composition"] = comp
     out["factors"] = _factors_for([], "market_neutral_basis")
     out["correlation_features"] = {
-        "strands": {"variant_n": variant_input.path_str, "susde_dn": susde_input.path_str,
-                    "rates_desk": rates_input.path_str},
+        "strands": {"variant_n": variant_input.path_str, "susde_dn": susde_input.path_str},
     }
-    readable = [i.name for i in (variant_input, susde_input, rates_input) if i.doc is not None]
+    readable = [s["name"] for s in strand_states if s["input"].doc is not None]
     out["gates"] = [
         {"gate": "data_healthy", "state": "PASS" if readable else "FAIL",
-         "reason": f"readable strands: {readable}" if readable else "none of the three strands are readable"},
-        {"gate": "data_fresh", "state": "UNKNOWN", "reason": "mixed cadence across three unrelated strands"},
-        {"gate": "work_running", "state": "UNKNOWN", "reason": "no scheduled single job; three independent strands"},
+         "reason": f"readable strands: {readable}" if readable else "neither strand is readable"},
+        {"gate": "data_fresh",
+         "state": "PASS" if susde_input.state == contract.MEASURED else "FAIL",
+         "reason": f"susde_dn: {susde_stale_reason}" if susde_input.state != contract.MEASURED else
+                   "susde_dn: pendle_pt_history within cadence"},
+        {"gate": "work_running", "state": "UNKNOWN", "reason": "no scheduled single job; independent strands"},
         {"gate": "stop_not_active", "state": "UNKNOWN", "reason": "no mandate, no stop defined"},
         {"gate": "worst_case_loss_known", "state": "FAIL", "reason": "no stop/stress model; outside RiskPolicy"},
     ]
-    out["warnings"] = ["outside RiskPolicy v1.0; no owner mandate (ADR-554 Phase 0)"]
-    out["unknowns"] = ["no unified return/vol/drawdown across the three strands", "leverage not disclosed",
+    out["warnings"] = ["outside RiskPolicy v1.0; no owner mandate (ADR-554 Phase 0)",
+                       f"susde_dn: {susde_stale_reason}"]
+    out["unknowns"] = ["no unified return/vol/drawdown across the strands", "leverage not disclosed",
                        "COUNTERPARTY risk has no source"]
     return out
 
@@ -1336,8 +1451,21 @@ def build_sleeves(data_dir: Path, now: datetime) -> dict:
                                  CADENCE_RESEARCH_STRAND_H, _as_of_last_series_point, now)
     susde_input = _make_input("susde_dn_realized_series", "aggressive_lab/susde_dn/realized_series.jsonl", data_dir,
                                CADENCE_RESEARCH_STRAND_H, _as_of_last_row("as_of"), now, kind="jsonl")
-    rates_input = _make_input("rates_desk_equity_track", "rates_desk/equity_track.jsonl", data_dir,
-                               CADENCE_RESEARCH_STRAND_H, _as_of_last_row("date"), now, kind="jsonl")
+    # ADR-560 Phase-0 repair: NOT a market_neutral_basis strand (that was "rates_desk (fixed
+    # carry)", removed — it read the go-live equity chain and double-counted Conservative). This
+    # is read ONLY to judge susde_dn's freshness (REWORK M6a) — it is deliberately kept OUT of the
+    # `inputs` manifest list below (REWORK M6c): policy.recommend()'s `evidence_cutoff` is
+    # `min(i["as_of"] for i in inputs)`, and this file's own as_of is frozen at 2026-07-05 — were
+    # it ever counted there, it would drag today's cutoff back to July, changing what cio-policy-v1
+    # outputs. No cadence of its own: it is read for ITS DATE only, never displayed as a
+    # freshness-tracked input in its own right.
+    pendle_history_input = _make_input("rates_desk_pendle_pt_history", "rates_desk/pendle_pt_history.json",
+                                       data_dir, None, _as_of_generated_at, now)
+    # REWORK M6b: the general input manifest must show the SAME verdict the sleeve uses for
+    # susde_dn, not the file's own (misleadingly fresh) row-touch cadence. Mutating `.state` here —
+    # before `inputs` is assembled below and before the sleeve is built — makes this the ONE place
+    # that decides it; `.as_of`/`.age_hours` are deliberately left untouched (see the comment above).
+    susde_input.state, susde_input.state_reason = _susde_dn_effective_state(susde_input, pendle_history_input, now)
     chief_input = _make_input("chief_investment", "investment_os/chief_investment.json", data_dir, CADENCE_DAILY_H,
                                _as_of_generated_at, now)
     funding_input = _make_input("funding_regime", "swarm/funding_regime.json", data_dir, CADENCE_DAILY_H,
@@ -1359,7 +1487,8 @@ def build_sleeves(data_dir: Path, now: datetime) -> dict:
                                               now),
         "cash": _build_cash_sleeve(books_doc, regime_fit, now),
         "trading_research": _build_trading_research_sleeve(tr_input, regime_fit),
-        "market_neutral_basis": _build_market_neutral_sleeve(variant_input, susde_input, rates_input, regime_fit),
+        "market_neutral_basis": _build_market_neutral_sleeve(variant_input, susde_input, pendle_history_input,
+                                                              regime_fit, now),
     }
 
     # exposure.py / correlation.py imported lazily to avoid any import-order surprise.
@@ -1369,8 +1498,12 @@ def build_sleeves(data_dir: Path, now: datetime) -> dict:
     seed_weight = round(1.0 / 3.0, 6)
     seed_split_weights = {sid: seed_weight for sid in contract.DEFI_SLEEVES}
 
+    # REWORK M6c: rates_desk_pendle_pt_history is deliberately NOT in this list — see the comment
+    # where it is built, above. susde_input IS here, as before; only its `.state` changed (M6b),
+    # never its `.as_of`/`.age_hours`, so evidence_cutoff (min of every input's as_of, in
+    # policy.recommend) is unaffected by either of those fixes.
     inputs = [defi_input, hy_input, lp_input, equity_curve_input, kill_input, derisk_input, tr_input, variant_input,
-              susde_input, rates_input, chief_input, funding_input, market_input, adapters_input]
+              susde_input, chief_input, funding_input, market_input, adapters_input]
 
     return {
         "schema": contract.SCHEMA_SLEEVES,

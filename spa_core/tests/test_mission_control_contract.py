@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -588,3 +590,145 @@ def test_live_readiness_brief_renders_nested_values_not_object_object():
     assert out.returncode == 0, out.stderr
     assert "[object Object]" not in out.stdout
     assert 'blocks={"intent":1,"check":2}' in out.stdout and "block=null" in out.stdout
+
+
+# ── ADR-560 WP-S08: Research Universe section ──────────────────────────────────────────────────
+
+def test_research_universe_contract_row_and_declared_path(tmp_path):
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert "capital.research_universe" in {r["path"] for r in mc.CONTRACT}
+    assert "banner" in ru
+    assert "RESEARCH" in ru["banner"] and "real capital $0" in ru["banner"]
+
+
+def test_research_universe_is_not_measured_when_the_package_is_absent(tmp_path, monkeypatch):
+    """Appendix I's read interface, not today's deployment: simulate ADR-560 packages A/B being
+    absent from this tree the way test_investment_cio_research_universe.py does, and require the
+    section to say so explicitly rather than ever looking like zero candidates were found."""
+    fake_pkg = types.ModuleType("spa_core.research_factory")
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory", fake_pkg)
+    monkeypatch.delitem(sys.modules, "spa_core.research_factory.read", raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "NOT_MEASURED"
+    assert ru["banner"] == mc.RESEARCH_UNIVERSE_BANNER
+
+
+def test_research_universe_broken_ledger_is_critical(tmp_path, monkeypatch):
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = lambda data_dir: {"schema": "research-factory-status/1", "integrity": "BROKEN",
+                                    "reason": "hash break"}
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "CRITICAL"
+    assert ru["integrity"] == "BROKEN"
+    assert ru["banner"] == mc.RESEARCH_UNIVERSE_BANNER
+
+
+def test_research_universe_read_failure_is_not_measured_never_a_crash(tmp_path, monkeypatch):
+    def _boom(data_dir):
+        raise RuntimeError("torn ledger line")
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = _boom
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "NOT_MEASURED"
+    assert ru["banner"] == mc.RESEARCH_UNIVERSE_BANNER
+
+
+def test_research_universe_card_has_no_action_control():
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    seg = app[app.index("function renderResearchUniverseCard"):app.index("// ── STUDIO")]
+    assert '"button"' not in seg and "addEventListener" not in seg
+
+
+def test_research_universe_celltext_renders_nested_values_not_object_object():
+    """Same class as the live-readiness `brief` bug (2026-10-04): a cell whose ``value`` happens
+    to be a nested structure must never be string-concatenated raw. Executed for real (node)."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "NOT MEASURED: node is not installed — this test runs the real formatter"
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    start = app.index("function cellText(cell)")
+    end = app.index("function renderResearchUniverseCard")
+    body = app[start:end]
+    stub = "function t(k){return k;}\n"
+    js = stub + body + ("\nprocess.stdout.write(cellText({state:'ESTIMATED_WITH_METHOD', "
+                        "value:{weird:1}, unit:'pct'}));")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert "[object Object]" not in out.stdout
+    assert '{"weird":1}' in out.stdout
+
+
+def test_i18n_has_every_research_key_the_card_uses_in_both_languages():
+    src = (Path(mc.__file__).parent / "mission_ui" / "i18n.js").read_text(encoding="utf-8")
+    d = json.loads(src.split("/*I18N_START*/", 1)[1].split("/*I18N_END*/", 1)[0])
+    for key in ("research.title", "research.banner", "research.broken", "research.counts",
+               "research.by_domain", "research.by_mechanism", "research.top_candidates",
+               "research.forward_periods", "research.rejected", "research.stale_feeds",
+               "research.counterparty_unknown", "research.domain_decisions", "research.observe_only",
+               "research.paper_active", "research.cio_eligible", "cio.research_universe"):
+        assert key in d["ru"], key
+        assert key in d["en"], key
+
+
+# ── REWORK M5: research_universe staleness must follow generated_at, not "I was just queried" ──
+
+def test_research_universe_is_stale_when_the_last_run_is_four_days_old(tmp_path, monkeypatch):
+    """Package A is moving read.latest()'s `generated_at` from the wall clock at query time (always
+    ~0 age, so a dead agent still looked HEALTHY) to the last run row's own timestamp. A 4-day-old
+    run (96h, well past the ~26h contract.CIO_READ_MODEL_MAX_AGE_H convention) must show STALE —
+    never HEALTHY just because someone happened to ask recently."""
+    old_generated_at = (NOW - timedelta(days=4)).strftime(ISO)
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = lambda data_dir: {
+        "schema": "research-factory-status/1", "generated_at": old_generated_at, "integrity": "OK",
+        "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
+        "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
+        "real_capital_usd": 0, "live_authorized": False}
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "STALE", ru["_meta"]
+    assert ru["_meta"]["age_min"] is not None and ru["_meta"]["age_min"] > 1560
+    row = next(r for r in mc.CONTRACT if r["path"] == "capital.research_universe")
+    assert row["alert"] is True
+
+
+def test_research_universe_is_healthy_when_the_last_run_is_recent(tmp_path, monkeypatch):
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = lambda data_dir: {
+        "schema": "research-factory-status/1", "generated_at": NOW.strftime(ISO), "integrity": "OK",
+        "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
+        "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
+        "real_capital_usd": 0, "live_authorized": False}
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "HEALTHY", ru["_meta"]
+
+
+def test_research_universe_stale_threshold_is_26h_not_the_generic_30h(tmp_path, monkeypatch):
+    """A run 28h old is past contract.CIO_READ_MODEL_MAX_AGE_H (~26h, the convention this file
+    already uses for system.kill_switch/system.derisk) but still under the generic 30h a sibling
+    capital section uses — red if this section reused that generic 1800-minute threshold instead
+    of aligning to the ~26h one the coordinator asked for."""
+    old_generated_at = (NOW - timedelta(hours=28)).strftime(ISO)
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = lambda data_dir: {
+        "schema": "research-factory-status/1", "generated_at": old_generated_at, "integrity": "OK",
+        "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
+        "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
+        "real_capital_usd": 0, "live_authorized": False}
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "STALE", ru["_meta"]

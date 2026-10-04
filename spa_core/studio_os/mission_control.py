@@ -90,6 +90,10 @@ CONTRACT: list[dict] = [
     {"path": "capital.investment_cio", "source": "spa_core.investment_cio.read.latest (ledger.jsonl + latest.json, ADR-554)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no recommendation yet)", "redaction": "safe_text on every string",
      "mobile": True, "alert": False},
+    {"path": "capital.research_universe", "source": "spa_core.research_factory.read.latest (ADR-560, RESEARCH/PAPER only)",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED (no research_factory run yet); BROKEN ledger ⇒ CRITICAL; "
+     "STALE when the last run's generated_at is older than ~26h (contract.CIO_READ_MODEL_MAX_AGE_H)",
+     "redaction": "safe_text on every string", "mobile": True, "alert": True},
     {"path": "capital.real_capital", "source": "paper_trading_status.execution_mode + package live_capital_usd + trading live_capital_usd",
      "stale_after_min": None, "unknown": "UNKNOWN (never 0 by default)", "redaction": "-", "mobile": True, "alert": True},
     {"path": "studio.epics", "source": "docs/ROADMAP.md (owner-confirmed order; ~~struck~~ = done)",
@@ -523,21 +527,46 @@ def _live_readiness_section(data: Path, now: datetime) -> dict:
             "ledger": doc.get("ledger")}
 
 
+def _cio_display_name() -> Optional[str]:
+    try:
+        from spa_core.investment_cio import contract as cio_contract
+        return cio_contract.ROLE_DISPLAY_NAME
+    except Exception:  # noqa: BLE001 — a missing name is shown as absent, never invented
+        return None
+
+
+def _cio_research_universe_counts(view: Any) -> dict:
+    """The CIO's OWN ``research_universe`` view (ADR-560 WP-S07), shown as counts only on the
+    Oracle card — never the full candidate list, that lives in the separate Research Universe
+    section below. Absence is its own value: a view that is missing/NOT_MEASURED is never shown
+    as zero candidates."""
+    if not isinstance(view, dict):
+        return {"state": "NOT_MEASURED", "observe_only": None, "paper_active": None, "cio_eligible": None}
+    state = view.get("state") or "NOT_MEASURED"
+    counts = {k: (len(view[k]) if isinstance(view.get(k), list) else None)
+              for k in ("observe_only", "paper_active", "cio_eligible")}
+    return {"state": state, **counts}
+
+
 def _investment_cio_section(data: Path, now: datetime) -> dict:
-    """Штирлиц — Chief Investment Officer (ADR-554): read through the CIO package's single read function — no
+    """Oracle — Chief Investment Officer (ADR-554): read through the CIO package's single read function — no
     second truth. Colour = health of the CIO feed (fresh, chain intact), never the quality of the portfolio."""
     src = ["data/investment_cio/ledger.jsonl", "data/investment_cio/latest.json"]
     try:
         from spa_core.investment_cio import read as cio_read
         doc = cio_read.latest(data, now=now)
     except Exception as exc:  # noqa: BLE001 — an unreadable CIO feed is NOT_MEASURED, never a crash
-        return _nm(src, now, f"CIO read failed: {type(exc).__name__}")
+        return {**_nm(src, now, f"CIO read failed: {type(exc).__name__}"),
+                "research_universe": _cio_research_universe_counts(None)}
+    research_universe_counts = _cio_research_universe_counts(doc.get("research_universe"))
     if doc.get("integrity") == "BROKEN":
         # the decision history cannot be trusted: the recommendation is withheld and this is CRITICAL, not quiet
         return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
-                "integrity": "BROKEN", "boundary": "paper recommendation — nothing executes it; real capital stays $0"}
+                "integrity": "BROKEN", "research_universe": research_universe_counts,
+                "boundary": "paper recommendation — nothing executes it; real capital stays $0"}
     if doc.get("state") != "MEASURED":
-        return _nm(src, now, doc.get("reason") or "no CIO recommendation yet")
+        return {**_nm(src, now, doc.get("reason") or "no CIO recommendation yet"),
+                "research_universe": research_universe_counts}
     rec = doc.get("recommendation") or {}
     chain_ok = (doc.get("ledger") or {}).get("chain_ok")
     st = "HEALTHY" if chain_ok else "CRITICAL"
@@ -548,7 +577,9 @@ def _investment_cio_section(data: Path, now: datetime) -> dict:
     major_risks_factors = major_risks_doc.get("factors") or {}
     out = {"_meta": _meta(st, src, _ts(rec.get("generated_at")), now, 1800,
                           reason=None if chain_ok else "decision ledger hash chain is broken"),
-           "role": {"role_id": rec.get("role_id"), "title": "Chief Investment Officer", "display_name": "Штирлиц"},
+           "role": {"role_id": rec.get("role_id"), "title": "Chief Investment Officer",
+                    # one source for the display name: the CIO contract (= architecture/roles.json, tested)
+                    "display_name": _cio_display_name()},
            "stance": rec.get("stance"), "confidence": rec.get("confidence"),
            "confidence_reasons": [safe_text(x, 240) for x in (rec.get("confidence_reasons") or [])],
            "date": rec.get("date"), "evidence_cutoff": rec.get("evidence_cutoff"),
@@ -576,8 +607,82 @@ def _investment_cio_section(data: Path, now: datetime) -> dict:
            "ledger": doc.get("ledger"), "outcomes": doc.get("outcomes"),
            "policy_version": rec.get("policy_version"), "recommendation_id": (str(rec["recommendation_id"])[:12] if rec.get("recommendation_id") else None),
            "mode": rec.get("mode"), "executes": rec.get("executes"), "real_capital_usd": rec.get("real_capital_usd"),
+           "research_universe": research_universe_counts,
            "boundary": "paper recommendation — nothing executes it; real capital stays $0"}
     return out
+
+
+#: ADR-560 WP-S08: shown always, whatever the section's own state — a boundary notice, not a
+#: measured fact, so it must not disappear just because the factory has not run yet.
+RESEARCH_UNIVERSE_BANNER = ("RESEARCH ≠ APPROVED · PAPER ≠ LIVE · CIO_ELIGIBLE ≠ REAL-MONEY APPROVED · "
+                           "real capital $0")
+
+
+def _research_candidate_sort_key(c: dict) -> tuple:
+    """Rank by EVIDENCE, never by advertised APY (ADR-560 WP-S08's own explicit instruction):
+    forward periods first (more days of real observation beats everything), then whether the net
+    figure is MEASURED/ESTIMATED (never an advertised-only number), then the net value itself."""
+    maturity = (c.get("evidence_maturity") or {}).get("forward_periods") if isinstance(c.get("evidence_maturity"),
+                                                                                       dict) else None
+    maturity = maturity or 0
+    net = c.get("net_expected_return") or {}
+    state_rank = {"MEASURED": 0, "ESTIMATED_WITH_METHOD": 1}.get(net.get("state"), 2)
+    value = net.get("value")
+    return (-maturity, state_rank, -(value if isinstance(value, (int, float)) else 0))
+
+
+def _research_universe_section(data: Path, now: datetime) -> dict:
+    """ADR-560 WP-S08: the research factory's own universe, read ONLY through
+    spa_core.research_factory.read.latest — no second truth. OBSERVE_ONLY / PAPER_ACTIVE /
+    CIO_ELIGIBLE are the factory's own vocabulary and are never approval, which is exactly why the
+    banner is shown unconditionally: this section is one an owner glancing at Mission Control could
+    otherwise misread as a buy list. BROKEN ⇒ CRITICAL; no status at all ⇒ NOT_MEASURED (the agent
+    has not run yet, or packages A/B are not deployed on this tree)."""
+    src = ["data/research_factory/ledger.jsonl", "data/research_factory/status.json"]
+    try:
+        from spa_core.research_factory import read as rf_read
+        doc = rf_read.latest(data)
+    except ImportError as exc:
+        return {**_nm(src, now, f"research_factory not available ({exc})"), "banner": RESEARCH_UNIVERSE_BANNER}
+    except Exception as exc:  # noqa: BLE001 — an unreadable factory feed is NOT_MEASURED, never a crash
+        return {**_nm(src, now, f"research_factory read failed: {type(exc).__name__}"),
+                "banner": RESEARCH_UNIVERSE_BANNER}
+    if not isinstance(doc, dict) or not doc.get("schema"):
+        return {**_nm(src, now, "no research factory status yet"), "banner": RESEARCH_UNIVERSE_BANNER}
+    if doc.get("integrity") == "BROKEN":
+        return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
+                "integrity": "BROKEN", "banner": RESEARCH_UNIVERSE_BANNER}
+    denom = doc.get("denominators") or {}
+    candidates = [c for c in (doc.get("candidates") or []) if isinstance(c, dict)]
+    top = sorted(candidates, key=_research_candidate_sort_key)[:10]
+    return {
+        # REWORK M5: Package A is moving `generated_at` from "when I was queried" (always ~0 age,
+        # so a 4-day-dead agent still looked HEALTHY) to the LAST RUN ROW's time — the one honest
+        # signal of whether the factory is actually still running. 1560 min == 26h, matching
+        # contract.CIO_READ_MODEL_MAX_AGE_H (the same convention this file already uses for
+        # system.kill_switch / system.derisk); _meta() downgrades to STALE on its own once the age
+        # exceeds this, no extra branch needed here.
+        "_meta": _meta("HEALTHY", src, _ts(doc.get("generated_at")), now, 1560),
+        "real_capital_usd": doc.get("real_capital_usd"), "live_authorized": doc.get("live_authorized"),
+        "counts": {k: denom.get(k) for k in ("discovered", "paper_active", "cio_eligible", "observe_only",
+                                             "rejected", "scanned", "truncated", "disappeared")},
+        "by_domain": doc.get("by_domain") or {}, "by_mechanism": doc.get("by_mechanism") or {},
+        "top_candidates": [{"candidate_id": c.get("candidate_id"), "domain": c.get("domain"),
+                            "mechanism_id": c.get("mechanism_id"), "instrument": safe_text(c.get("instrument"), 80),
+                            "venue_or_protocol": safe_text(c.get("venue_or_protocol"), 80),
+                            "admission_state": c.get("admission_state"),
+                            "forward_periods": (c.get("evidence_maturity") or {}).get("forward_periods"),
+                            "net_expected_return": c.get("net_expected_return")} for c in top],
+        "rejected": [{"candidate_id": r.get("candidate_id"), "state": r.get("state"),
+                      "reasons": [safe_text(x, 160) for x in (r.get("reasons") or [])][:5]}
+                     for r in (doc.get("rejections") or [])][:20],
+        "stale_feeds": [{"source_root": f.get("source_root"), "age_h": f.get("age_h")}
+                        for f in (doc.get("stale_feeds") or [])][:20],
+        "counterparty_unknown_count": doc.get("counterparty_unknown_count"),
+        "domain_decisions": doc.get("domain_decisions") or {},
+        "basis_track": doc.get("basis_track"),
+        "banner": RESEARCH_UNIVERSE_BANNER,
+    }
 
 
 def build(inp: Optional[MCInputs] = None) -> dict:
@@ -815,12 +920,14 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     cap_state = max((packages["_meta"]["state"], trading["_meta"]["state"]), key=lambda s: _rank.get(s, 2))
     investment_cio = _investment_cio_section(data, now)
     live_readiness = _live_readiness_section(data, now)
+    research_universe = _research_universe_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
                "packages": packages, "trading_research": trading, "real_capital": real,
                "investment_cio": investment_cio,
                "live_readiness": live_readiness,
+               "research_universe": research_universe,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────

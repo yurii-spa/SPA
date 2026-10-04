@@ -37,3 +37,14 @@
   the owner. The existing capital-shadow boundary (ADR-556: shadow execution, readiness verdict, guards) could carry
   this identity later. Its authority would remain NONE — it certifies nothing. The read-only verifier
   recomputes readiness, and only the owner crosses the money boundary. Recorded as a candidate only.
+
+## Display-name change and a new candidate (2026-10-04, RM-EXPAND-01 / ADR-560)
+
+- The owner selected **Oracle** as the display name of `chief_investment_officer` (was «Штирлиц»). Display metadata
+  only; `role_id`, modules and authority unchanged. Single source: `architecture/roles.json` = `investment_cio.contract
+  .ROLE_DISPLAY_NAME` (tested), Mission Control reads the contract.
+- **Candidate, not created:** `role_id: head_of_research` · title «Head of Research» — would own the Research Factory's
+  admission decisions (RESEARCH → PAPER, the evidence gate to CIO_ELIGIBLE); authority over capital NONE; it proposes,
+  Oracle allocates on paper, only the owner moves money. `display_name` UNASSIGNED — the owner chooses.
+  Suggested characters: Hermione Granger · Spock · Lisbeth Salander · Dr. Ellie Arroway · Sherlock Holmes ·
+  Hari Seldon.

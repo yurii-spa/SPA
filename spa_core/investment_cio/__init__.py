@@ -1,1 +1,1 @@
-"""Investment CIO (Штирлиц) — cross-sleeve ADVISORY/PAPER capital allocation (ADR-554). Never executes."""
+"""Investment CIO (Oracle) — cross-sleeve ADVISORY/PAPER capital allocation (ADR-554). Never executes."""

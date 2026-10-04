@@ -575,11 +575,41 @@ def _not_ready_report(sleeve_id: str, now: datetime, reason: str) -> dict:
 #: the six ADR-554 sleeves — every one gets a report, even the ones that are never a pilot candidate
 _ALL_SLEEVES = ("defi_conservative", "defi_balanced", "defi_aggressive", "cash", "trading_research",
                "market_neutral_basis")
+#: ADR-560 binding #8: this key STAYS, unconditionally, for "market_neutral_basis" — the sleeve can
+#: NEVER become a pilot candidate no matter what the research factory measures; the readiness
+#: repair below only ever changes the REASON TEXT, never whether the gate fires. The literal string
+#: here is the fail-closed FALLBACK used when the factory's basis-track read is unavailable/broken.
 _NEVER_CANDIDATE = {
     "cash": "cash sleeve is not an execution candidate (no action type applies)",
     "trading_research": "no venue sandbox, no keys — observe-only (ADR-556 inherited blocker)",
-    "market_neutral_basis": "stale Basis feed / observe-only (ADR-556 inherited blocker)",
+    "market_neutral_basis": ("research/observe-only — never a pilot candidate (ADR-560); "
+                             "basis track NOT_MEASURED (research factory has no status)"),
 }
+
+
+def _market_neutral_basis_reason(data_dir: Path, *, fallback: str) -> str:
+    """ADR-560 binding #8: only the REASON TEXT is derived from the research factory's measured
+    ``basis_track`` — the sleeve itself is NEVER a pilot candidate regardless of what the factory
+    measures (the gate that fires is ``_NEVER_CANDIDATE`` membership, unconditional, in
+    :func:`evaluate` below). A missing module, an unreadable/broken status, or a status without a
+    ``basis_track`` all fall back to the same fail-closed literal, never a crash and never silence."""
+    try:
+        from spa_core.research_factory import read as rf_read
+    except ImportError:
+        return fallback
+    try:
+        status = rf_read.latest(Path(data_dir))
+    except Exception:  # noqa: BLE001 — an unreadable factory status is the fallback, never a crash
+        return fallback
+    if not isinstance(status, dict) or status.get("integrity") == "BROKEN":
+        return fallback
+    basis_track = status.get("basis_track")
+    if not isinstance(basis_track, dict) or not basis_track.get("state"):
+        return fallback
+    state = basis_track["state"]
+    reason = basis_track.get("reason")
+    tail = f"basis track {state}" + (f" — {reason}" if reason else "")
+    return f"research/observe-only — never a pilot candidate (ADR-560); {tail}"
 
 
 def venue_canary_section(ledger_entries: list) -> dict:
@@ -633,7 +663,10 @@ def evaluate(data_dir: Path, ledger_entries: list, now: datetime) -> dict:
     out = {}
     for sleeve_id in _ALL_SLEEVES:
         if sleeve_id in _NEVER_CANDIDATE:
-            out[sleeve_id] = _not_ready_report(sleeve_id, now, _NEVER_CANDIDATE[sleeve_id])
+            reason = _NEVER_CANDIDATE[sleeve_id]
+            if sleeve_id == "market_neutral_basis":
+                reason = _market_neutral_basis_reason(data_dir, fallback=reason)
+            out[sleeve_id] = _not_ready_report(sleeve_id, now, reason)
         else:
             out[sleeve_id] = _evaluate_defi_sleeve(data_dir, sleeve_id, now, ledger_entries, sleeves_doc)
     return out

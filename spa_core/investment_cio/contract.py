@@ -1,4 +1,4 @@
-"""Investment CIO (Штирлиц) — the frozen contract of ADR-554.
+"""Investment CIO (Oracle) — the frozen contract of ADR-554.
 
 Role ``chief_investment_officer``: a cross-sleeve, ADVISORY / PAPER capital-allocation layer. It projects the
 engines' own published state into comparable sleeves, recommends (or abstains), records every recommendation in an
@@ -21,7 +21,7 @@ POLICY_VERSION = "cio-policy-v1"
 
 ROLE_ID = "chief_investment_officer"
 ROLE_TITLE = "Chief Investment Officer"
-ROLE_DISPLAY_NAME = "Штирлиц"
+ROLE_DISPLAY_NAME = "Oracle"  # display metadata only (owner 2026-10-04; formerly «Штирлиц»); authority binds to ROLE_ID
 MODE = "ADVISORY_PAPER"
 
 # ── cell states (invariant #17: absence is its own value) ─────────────────────────────────────────

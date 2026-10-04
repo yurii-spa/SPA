@@ -1582,7 +1582,7 @@
     "ADR-554"
    ],
    "curation": "complete",
-   "notes": "Investment CIO «Штирлиц» (role chief_investment_officer, ADR-554): cross-sleeve ADVISORY/PAPER recommendation + immutable hash-chained ledger + forward outcomes. Authority NONE: nothing reads it on a money path.",
+   "notes": "Investment CIO «Oracle» (role chief_investment_officer, ADR-554): cross-sleeve ADVISORY/PAPER recommendation + immutable hash-chained ledger + forward outcomes. Authority NONE: nothing reads it on a money path.",
    "passport": {
     "goal": "раз в день сказать, как распределил бы капитал между рукавами CIO по доказательствам — или честно воздержаться — и через 7/30 дней сравнить с тем, что было",
     "quality_metric": "одна запись в data/investment_cio/ledger.jsonl на дату; цепочка хешей цела; latest.json моложе 26 ч; исходы только по барам ПОСЛЕ даты рекомендации",
@@ -2486,6 +2486,36 @@
     "escalation": "молчанием: протухший артефакт ловят сторожа свежести (artifact_freshness / agent_health) по SLO из манифеста",
     "rights": "писать data/refusal_status.json",
     "limits": "LLM запрещён; не импортирует execution"
+   }
+  },
+  {
+   "label": "com.spa.research_factory",
+   "plist_source": "repo:launchd/com.spa.research_factory.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:09:05",
+   "program": "agent_research_factory.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/research_factory/status.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-560"
+   ],
+   "curation": "complete",
+   "notes": "ADR-560 RM-EXPAND-01 Research Factory v1: discovers capital opportunities outside the three DeFi books, groups by economic mechanism, moves candidates through a deterministic research -> paper -> CIO-eligible lifecycle. RESEARCH/PAPER only; real capital $0; never signs/broadcasts/orders; CIO_ELIGIBLE means only that Oracle MAY consider a candidate in paper allocation. NOT YET INSTALLED on this dev host (repo-plist only) — scripts/check_agent_before_deploy.sh + launchctl bootstrap required before this agent runs; the generator's --check is expected to report drift here until then.",
+   "passport": {
+    "goal": "ежедневно расширять и честно размечать вселенную капитальных возможностей за пределами трёх DeFi книг — измерено/оценено/неизвестно, никогда выдуманным числом",
+    "quality_metric": "data/research_factory/status.json свежее 26ч; цепочка журнала и якорь целы; ни один кандидат не продвинут в CIO_ELIGIBLE без пройденных гейтов допуска",
+    "escalation": "поломка журнала / конфликт независимых источников (>25%) / неизвестный контрагент → Telegram-алерт; код 2 → agent_health; 75 = замок занят",
+    "rights": "писать только data/research_factory/ и data/research_factory_anchors/; читать существующие артефакты (discovery, RWA safety board, канонический funding median, Sky/sUSDS, trading_research); читать через существующий read-only RPC-клиент capital_shadow.rpc (eth_call только, 2-of-N кворум)",
+    "limits": "нет ключей, нет подписи, нет отправки транзакций/ордеров, не меняет RiskPolicy/стопы/лимиты/тиры/cio-policy-v1; LLM запрещён; CIO_ELIGIBLE не означает разрешение реальных денег"
    }
   },
   {

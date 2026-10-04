@@ -1,7 +1,7 @@
 """Investment CIO — WP-S01 accrual correlation (ADR-554 WP-A05 / F6).
 
 Pearson correlation of daily returns between sleeves, and separately between the
-observe-only research series (conservative vs rates_desk etc.), computed ONLY on the
+observe-only research series (conservative vs variant_n / susde_dn), computed ONLY on the
 CURRENT economics of each series (re-versioned books do not smuggle a dead version's
 history into the figure). Below the overlap/variance minimums the result is an explicit
 ``NOT_ENOUGH_HISTORY`` / ``UNDEFINED`` cell, never a fabricated number — today every
@@ -110,14 +110,6 @@ def _series_susde_dn(data_dir: Path) -> Optional[dict]:
     return _returns_from_points(points) or None
 
 
-def _series_rates_desk(data_dir: Path) -> Optional[dict]:
-    rows = _read_jsonl(data_dir / "rates_desk" / "equity_track.jsonl")
-    if not rows:
-        return None
-    points = [(r.get("date"), r.get("close_equity")) for r in rows if isinstance(r, dict)]
-    return _returns_from_points(points) or None
-
-
 def _pearson(xs: list[float], ys: list[float]) -> Optional[float]:
     n = len(xs)
     mx = sum(xs) / n
@@ -195,11 +187,13 @@ def build(data_dir: Path, sleeves: dict, now: datetime) -> dict:
             a, b = official_ids[i], official_ids[j]
             official_pairs.append(_pair(a, official_series[a], b, official_series[b], now))
 
+    # ADR-560 Phase-0 repair: "rates_desk" used to read rates_desk/equity_track.jsonl here too —
+    # which IS the go-live equity hash chain (audit/equity_proof_chain.py), so Conservative was
+    # correlated against itself under a second name. Removed; nothing substituted.
     research_series = {
         "defi_conservative": cons_series,
         "variant_n": _series_variant_n(data_dir),
         "susde_dn": _series_susde_dn(data_dir),
-        "rates_desk": _series_rates_desk(data_dir),
     }
     research_ids = list(research_series)
     research_pairs = []

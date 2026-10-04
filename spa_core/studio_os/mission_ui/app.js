@@ -394,10 +394,11 @@
     });
     grid.appendChild(renderTradingResearchCard(cap.trading_research));
     grid.appendChild(renderRealCapitalCard(cap.real_capital));
+    grid.appendChild(renderResearchUniverseCard(cap.research_universe));
     root.appendChild(grid);
   }
 
-  // Штирлиц — Chief Investment Officer (ADR-554). A paper recommendation: no button, nothing executes it.
+  // Oracle — Chief Investment Officer (ADR-554). A paper recommendation: no button, nothing executes it.
   function pct(x) {
     return (typeof x === "number") ? Math.round(x * 100) + "%" : t("common.not_measured");
   }
@@ -464,6 +465,13 @@
       " · " + t("cio.outcomes") + " " + (cio.outcomes && typeof cio.outcomes.scored === "number"
         ? cio.outcomes.scored + " / " + t("cio.pending") + " " + cio.outcomes.pending : t("common.not_measured"))));
     c.appendChild(kv("cio.real_capital", cio.real_capital_usd === 0 ? "$0" : null));
+    // ADR-560 WP-S07: the CIO can SEE the research universe but never ALLOCATE it — counts only,
+    // the full list lives in the separate Research Universe card.
+    var rview = cio.research_universe || {};
+    c.appendChild(kv("cio.research_universe", rview.state ? (rview.state + " · " +
+      t("research.observe_only") + "=" + textOrNM(rview.observe_only) + " · " +
+      t("research.paper_active") + "=" + textOrNM(rview.paper_active) + " · " +
+      t("research.cio_eligible") + "=" + textOrNM(rview.cio_eligible)) : null));
     return c;
   }
 
@@ -565,6 +573,65 @@
     det.appendChild(h("summary", {}, [t("capital.real_capital.basis")]));
     det.appendChild(h("p", {}, [rc.basis === null || rc.basis === undefined ? t("common.not_measured") : rc.basis]));
     c.appendChild(det);
+    return c;
+  }
+
+  // ADR-560 (RM-EXPAND-01): a value CELL (contract.cell()-shaped: {state, value, unit, reason, …})
+  // rendered as one string — never string-concatenated with the object directly, which is exactly
+  // how "[object Object]" happened on the live phone page (2026-10-04, live_readiness `brief`).
+  function cellText(cell) {
+    if (cell === null || cell === undefined || typeof cell !== "object") return t("common.not_measured");
+    var state = cell.state;
+    if (state === "MEASURED" || state === "ESTIMATED_WITH_METHOD" || state === "DOCUMENTED") {
+      var v = cell.value;
+      var vs = (v === null || v === undefined) ? t("common.not_measured") :
+        (typeof v === "object" ? JSON.stringify(v) : String(v));
+      return vs + (cell.unit ? " " + cell.unit : "") + " (" + state + ")";
+    }
+    return (state || t("common.unknown")) + (cell.reason ? ": " + cell.reason : "");
+  }
+
+  // ADR-560 WP-S08: research universe — discovered/paper-active/CIO-eligible/observe-only/rejected
+  // candidates outside the three DeFi books. RESEARCH / OBSERVE_ONLY / PAPER_ACTIVE / CIO_ELIGIBLE
+  // are the factory's own vocabulary and NEVER mean "approved" — the banner says so every time
+  // this card renders, whatever its own state. No button, no addEventListener: read-only.
+  function renderResearchUniverseCard(ru) {
+    ru = ru || {};
+    var st = get(ru, "_meta.state", null);
+    var c = card(t("research.title"), renderBadge(st, isStaleGlobal()));
+    c.appendChild(h("div", { class: "warning-chip" }, [ru.banner || t("research.banner")]));
+    if (ru.integrity === "BROKEN") {
+      c.appendChild(h("p", {}, [t("research.broken") + ": " + (get(ru, "_meta.reason", null) || "")]));
+      return c;
+    }
+    if (st === "NOT_MEASURED") {
+      c.appendChild(h("p", {}, [get(ru, "_meta.reason", null) || t("common.not_measured")]));
+      return c;
+    }
+    c.appendChild(kv("research.real_capital", ru.real_capital_usd === 0 ? "$0" : null));
+    var counts = ru.counts || {};
+    c.appendChild(renderListField("research.counts", Object.keys(counts).sort().map(function (k) {
+      return k + ": " + textOrNM(counts[k]);
+    })));
+    c.appendChild(renderListField("research.by_domain", Object.keys(ru.by_domain || {}).sort().map(function (k) {
+      return k + ": " + ru.by_domain[k];
+    })));
+    c.appendChild(renderListField("research.by_mechanism", Object.keys(ru.by_mechanism || {}).sort().map(
+      function (k) { return k + ": " + ru.by_mechanism[k]; })));
+    c.appendChild(renderListField("research.top_candidates", (ru.top_candidates || []).map(function (x) {
+      return (x.instrument || x.venue_or_protocol || x.candidate_id || "?") + " · " + (x.mechanism_id || "?") +
+        " · " + t("research.forward_periods") + "=" + textOrNM(x.forward_periods) +
+        " · net=" + cellText(x.net_expected_return) + " · " + (x.admission_state || "?");
+    })));
+    c.appendChild(renderListField("research.rejected", (ru.rejected || []).map(function (x) {
+      return (x.candidate_id || "?") + " [" + (x.state || "?") + "]: " + (x.reasons || []).join("; ");
+    })));
+    c.appendChild(renderListField("research.stale_feeds", (ru.stale_feeds || []).map(function (x) {
+      return (x.source_root || "?") + " · " + textOrNM(x.age_h) + "h";
+    })));
+    c.appendChild(kv("research.counterparty_unknown", ru.counterparty_unknown_count));
+    c.appendChild(renderListField("research.domain_decisions", Object.keys(ru.domain_decisions || {}).sort().map(
+      function (k) { return k + ": " + ru.domain_decisions[k]; })));
     return c;
   }
 

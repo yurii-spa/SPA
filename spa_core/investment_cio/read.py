@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from spa_core.investment_cio import contract, ledger, outcomes
+from spa_core.investment_cio import contract, ledger, outcomes, research_universe
 
 
 def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
@@ -28,17 +28,27 @@ def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
     when its content disagrees with the tail it claims to mirror.
     """
     now = now or datetime.now(timezone.utc)
+    # ADR-560 WP-S07: a separate, NON-SLEEVE research-universe projection — built fresh here, at
+    # READ time, from research_factory.read.cio_view. Never stored, never part of `recommendation`
+    # (contract.REC_FIELDS is frozen), and computed regardless of the CIO ledger's own state below:
+    # a broken/missing CIO ledger must not also hide the research universe, and a broken/missing
+    # research factory must never affect the CIO's own recommendation (see the differential test in
+    # test_investment_cio_research_universe.py).
+    research_universe_view = research_universe.build(data_dir, now)
     try:
         entries = ledger.read_all(data_dir)
     except ledger.LedgerError as exc:
-        return {"state": contract.NOT_MEASURED, "integrity": "BROKEN", "reason": str(exc)}
+        return {"state": contract.NOT_MEASURED, "integrity": "BROKEN", "reason": str(exc),
+                "research_universe": research_universe_view}
     if not entries:
-        return {"state": contract.NOT_MEASURED, "reason": "no recommendations have been written yet"}
+        return {"state": contract.NOT_MEASURED, "reason": "no recommendations have been written yet",
+                "research_universe": research_universe_view}
 
     try:
         chain = ledger.verify_chain(data_dir)
     except ledger.LedgerError as exc:
-        return {"state": contract.NOT_MEASURED, "integrity": "BROKEN", "reason": str(exc)}
+        return {"state": contract.NOT_MEASURED, "integrity": "BROKEN", "reason": str(exc),
+                "research_universe": research_universe_view}
 
     # N3: a chain that is not intact (hash break, tampering caught via the anchors, or a missing
     # anchor) must NEVER be served as a trustworthy recommendation — the entry at the tail might
@@ -47,7 +57,8 @@ def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
     if not chain.get("ok", False):
         return {"state": contract.NOT_MEASURED, "integrity": "BROKEN",
                 "reason": f"ledger chain is not intact (break_at={chain.get('break_at')}, "
-                         f"reason={chain.get('reason') or 'chain'}) — recommendation withheld"}
+                         f"reason={chain.get('reason') or 'chain'}) — recommendation withheld",
+                "research_universe": research_universe_view}
 
     tail = entries[-1]
     recommendation = tail["recommendation"]  # ALWAYS the ledger tail — the pointer is a hint only
@@ -82,4 +93,5 @@ def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
         },
         "outcomes": {"scored": scored, "pending": pending},
         "age_hours": age_hours,
+        "research_universe": research_universe_view,
     }
