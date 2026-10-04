@@ -32,12 +32,14 @@
    transaction or order was submitted. **A limited real-capital pilot has NOT happened** — it remains owner-gated
    (real money, CLAUDE.md subject №1: custody, counterparty source, off-host anchor, GoLive/live admission, pilot
    amount, kill switch CLEAR) and is not part of RM-LIVE-01.
-8. **RM-EXPAND-01 · Capital universe expansion + Research Factory v1** — ACTIVE (started 2026-10-04): one reusable
-   factory that discovers candidates outside the three DeFi books, groups them by ECONOMIC MECHANISM, records where
-   the yield comes from, what is measured vs assumed, counterparty exposure (UNKNOWN allowed, never "safe"), and
-   admits candidates through RESEARCH → PAPER → CIO_ELIGIBLE. Domains: cash/treasury, market-neutral/basis, RWA /
-   stable yield; equities and options get evidence-based build/defer decisions. RESEARCH/PAPER only — nothing moves
-   money, nothing is live-authorized, and CIO_ELIGIBLE means only that Oracle may consider the sleeve in PAPER allocation.
+8. ~~RM-EXPAND-01 · Capital universe expansion + Research Factory v1~~ — DONE 2026-10-04 (ADR-560): `spa_core/research_factory`
+   (agent `com.spa.research_factory`, 09:05) — candidates grouped by economic mechanism and keyed by the held instrument,
+   cells with state + source root, four return kinds kept apart, first counterparty-risk model (no blended rating,
+   UNKNOWN never safe), lifecycle RESEARCH → PAPER → CIO_ELIGIBLE, forward evidence only when the upstream advanced.
+   Domains: cash/treasury, market-neutral/basis (repaired, not re-built), RWA/stable yield, DeFi discovery; trading
+   research projected read-only; equities and options ARCHITECTURE_ONLY. First production run: 49 candidates,
+   PAPER_ACTIVE 0, CIO_ELIGIBLE 0. Oracle (CIO display name) sees the universe, cannot allocate it. Real capital $0;
+   no candidate is live-authorized; no real-money pilot has started. No further epic is started automatically.
 9. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints

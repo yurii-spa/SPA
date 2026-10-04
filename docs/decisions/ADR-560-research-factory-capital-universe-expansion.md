@@ -114,7 +114,7 @@ A "Research Universe" section in the existing Capital area — no new dashboard,
 `RESEARCH ≠ APPROVED · PAPER ≠ LIVE · CIO_ELIGIBLE ≠ REAL-MONEY APPROVED`.
 
 ### Runtime
-Agent `com.spa.research_factory`, daily 10:15 (after discovery 08:00, RWA board 05:50, CIO 09:30, shadow 09:45),
+Agent `com.spa.research_factory`, daily **09:05** (binding #11: before the CIO at 09:30 and shadow at 09:45),
 `python -m spa_core.research_factory.run`; reads existing artifacts only — **no new network client**.
 
 ## Role identity
@@ -280,3 +280,17 @@ valid outcome, and nothing was admitted on an advertised APY. Basis track: fundi
 
 No new human-facing role was created. A candidate is recorded for the owner (see journal / final report):
 `head_of_research` — owns admission RESEARCH → PAPER; authority NONE over capital. `display_name` UNASSIGNED.
+
+## Delivery and closeout (2026-10-04)
+
+Code `ad283847b`; agent installed through the deploy gate; first production run exit 0 (49 candidates, ledger intact);
+Mission Control and Oracle verified on production, including the external phone view; fresh-session proof PASS (16/16).
+
+**Known debts (recorded, not blocking):** the run row's `denominators.discovered` (40) excludes the 9 unresolved
+DATA_INSUFFICIENT entries that the read model counts (49) — one name, two measures; the read model's `rejections` list
+holds HELD candidates (hold states), not terminal REJECTED ones; `counterparty_unknown_count` counts candidates with ANY
+unknown role, unlike `by_state.COUNTERPARTY_UNKNOWN` (the hold state); the `counterparty` ledger kind is unused
+(counterparty facts live inside candidate snapshots); Mission Control lists held candidates by id rather than name;
+BUIDL-class nets use an issuer-documented 0 bps fee (labelled ESTIMATED, never MEASURED); migrating the
+`investment_cio` and `capital_shadow` ledgers onto `utils/hash_ledger.py`; a forward-only Deribit public-chain
+collector (options) is the named next step for that domain.
