@@ -31,8 +31,14 @@
    CLEAR_PARTIAL ≠ CLEAR), cash/trading/basis **NOT_READY**. Real capital $0; automated live execution PROHIBITED; no real
    transaction or order was submitted. **A limited real-capital pilot has NOT happened** — it remains owner-gated
    (real money, CLAUDE.md subject №1: custody, counterparty source, off-host anchor, GoLive/live admission, pilot
-   amount, kill switch CLEAR) and is not part of RM-LIVE-01. RM-EXPAND is not started.
-8. **Later engines:** traditional markets, RWA / stable yield, volatility / options
+   amount, kill switch CLEAR) and is not part of RM-LIVE-01.
+8. **RM-EXPAND-01 · Capital universe expansion + Research Factory v1** — ACTIVE (started 2026-10-04): one reusable
+   factory that discovers candidates outside the three DeFi books, groups them by ECONOMIC MECHANISM, records where
+   the yield comes from, what is measured vs assumed, counterparty exposure (UNKNOWN allowed, never "safe"), and
+   admits candidates through RESEARCH → PAPER → CIO_ELIGIBLE. Domains: cash/treasury, market-neutral/basis, RWA /
+   stable yield; equities and options get evidence-based build/defer decisions. RESEARCH/PAPER only — nothing moves
+   money, nothing is live-authorized, and CIO_ELIGIBLE means only that Oracle may consider the sleeve in PAPER allocation.
+9. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 
