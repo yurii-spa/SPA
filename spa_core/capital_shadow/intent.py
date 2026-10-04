@@ -80,12 +80,19 @@ def _snap_field(value: Any, *, as_of: Optional[str], digest: Optional[str],
 
 
 def read_kill_switch_state(data_dir: Path) -> dict:
-    """``state`` ∈ CLEAR / CLEAR_PARTIAL / SOFT_DERISK / HARD_KILL / ARMED / None.
+    """``state`` is whatever string the writer publishes, verbatim — never validated against a
+    fixed set here, because the explicit-``state`` path below passes it straight through.
+    review round-3 L4: the REAL writer (``spa_core/governance/kill_switch.py``, ADR-531) publishes
+    an EXPLICIT ``state`` of ``TRIGGERED`` / ``UNMEASURED`` / ``CLEAR_PARTIAL`` / ``CLEAR`` — never
+    ``HARD_KILL``/``SOFT_DERISK``/``ARMED`` (an earlier version of this docstring named those three
+    and led a caller to allowlist-match on names the real writer never produces, review L4). The
+    legacy fallback below (``triggered`` bool, no explicit ``state`` field) is a SEPARATE, older
+    shape and still derives ``HARD_KILL``/``CLEAR_PARTIAL`` — every caller comparing this value
+    must treat anything other than exactly ``"CLEAR"`` as not-clear (fail-closed), never allowlist
+    a fixed set of "bad" names.
 
-    The live schema (``governance/kill_switch.py``) does not (yet) publish an explicit ``state``
-    string in ``kill_switch_status.json`` on this host — only ``triggered`` (bool). When no
-    explicit ``state`` is published we fall back to ``triggered``, and the fallback itself is
-    CLEAR_PARTIAL (not full CLEAR): a boolean collapses SOFT_DERISK and CLEAR into the same
+    When no explicit ``state`` is published we fall back to ``triggered``, and the fallback itself
+    is CLEAR_PARTIAL (not full CLEAR): a boolean collapses SOFT_DERISK and CLEAR into the same
     ``False``, so "not triggered" is not full confidence that nothing is de-risking.
     """
     path = Path(data_dir) / "kill_switch_status.json"
@@ -348,6 +355,20 @@ def risk_blockers(risk_snapshot: dict) -> list:
 #: can never feed a real sleeve's gates.
 CANARY_SLEEVE = "scenario_canary"
 
+
+def is_test_scenario(scenario_value: Any) -> bool:
+    """True iff ``scenario_value`` is a TEST_SCENARIO marker — matched CASE-INSENSITIVELY on
+    :data:`contract.SCENARIO_TEST_PREFIX` (review round-3 L5: machine.py's scenario ceiling
+    matched the prefix case-SENSITIVELY, so a lowercase ``"test_scenario:..."`` intent was treated
+    as a CURRENT_STATE one and could advance past SHADOW_EXECUTED exactly like a real decision —
+    the ceiling exists specifically to stop fixture/test intents from ever reaching
+    pilot-readiness states). The ONE shared check: machine.py / readiness.py / read.py / run.py /
+    reconcile.py all call this rather than each re-implementing their own
+    ``.startswith(contract.SCENARIO_TEST_PREFIX)`` (one name, one object — the same defect class
+    CLAUDE.md warns against for adapter registries)."""
+    return isinstance(scenario_value, str) and \
+        scenario_value.lower().startswith(contract.SCENARIO_TEST_PREFIX.lower())
+
 #: sleeve_id -> (rationale file, book file) — the book is the book's OWN paper decision, never a
 #: second source of truth (ADR-556 review #11: the intent comes from the book, not from the CIO).
 _SLEEVE_SOURCES = {
@@ -420,9 +441,17 @@ _TRADE_STALE_FINAL = "trade_stale_final"
 
 TRADE_CONSUMED = "consumed"            # a real ACTION intent was recorded — never retried again
 TRADE_STALE_CONSUMED = "stale_consumed"  # the final "trade stale" NO_ACTION was already recorded
-TRADE_RETRY = "retry"                  # only blocked NO_ACTION attempts exist; age < TTL — try again
-TRADE_GO_STALE = "go_stale"            # only blocked NO_ACTION attempts exist; age >= TTL — finalize
+TRADE_RETRY = "retry"                  # only blocked NO_ACTION attempts exist; age < window — try again
+TRADE_GO_STALE = "go_stale"            # only blocked NO_ACTION attempts exist; age >= window — finalize
 TRADE_FRESH = "fresh"                  # never attempted before
+
+#: review N6 (round 3 re-review): production runs the daily cycle ONCE a day (09:45) — a trade
+#: blocked on day 1 and cleared on day 2 must still get retried, so this window is deliberately
+#: NOT contract.INTENT_TTL_SHADOW_S (6h; that is a DIFFERENT thing — a single intent's own
+#: expiry). 72h means at least THREE daily cycles get a real chance before a trade is finalized
+#: stale. contract.py is frozen (not editable from this file scope) — this is a local constant,
+#: same pattern as CANARY_SLEEVE above.
+TRADE_RETRY_WINDOW_S = 72 * 3600  # >= 3 daily cycles at a once-per-day cadence
 
 
 def _trade_attempt_state(data_dir: Path, sleeve_id: str, trade_id: str, protocol: str,
@@ -432,9 +461,12 @@ def _trade_attempt_state(data_dir: Path, sleeve_id: str, trade_id: str, protocol
     ``(trade_id, protocol)`` key stopped every future attempt, forever — even once the blocking
     condition resolved). Only a REAL action-type intent now consumes a trade immediately; a
     blocked NO_ACTION stays retry-eligible while the trade's own age (time since its FIRST
-    attempt) is under :data:`contract.INTENT_TTL_SHADOW_S` — the same window a real intent would
-    live for. Past that, one final NO_ACTION ("trade stale") is recorded and marked so it is never
-    reconsidered again."""
+    attempt) is under :data:`TRADE_RETRY_WINDOW_S` — deliberately WIDER than a single intent's
+    own TTL, to survive the daily cadence of the real cycle (review N6, round 3: at
+    contract.INTENT_TTL_SHADOW_S == 6h, a trade blocked on day 1 and cleared on day 2 was
+    finalized stale before the daily cycle ever got to retry it — the original symptom survived
+    the first fix). Past that, one final NO_ACTION ("trade stale") is recorded and marked so it is
+    never reconsidered again."""
     from spa_core.capital_shadow import ledger as cs_ledger
     try:
         entries = cs_ledger.read_all(data_dir)
@@ -465,7 +497,7 @@ def _trade_attempt_state(data_dir: Path, sleeve_id: str, trade_id: str, protocol
     if first_seen is None:
         return TRADE_FRESH, None
     age_s = (now - first_seen).total_seconds()
-    if age_s >= contract.INTENT_TTL_SHADOW_S:
+    if age_s >= TRADE_RETRY_WINDOW_S:
         return TRADE_GO_STALE, first_seen
     return TRADE_RETRY, first_seen
 
@@ -522,7 +554,7 @@ def _conservative_intents(data_dir: Path, now: datetime, pin: dict, risk_snapsho
             out.append(_no_action(
                 now=now, pin=pin, sleeve_id=sleeve_id, risk_snapshot=risk_snapshot, unknowns=unknowns,
                 reason=f"trade {trade_id} protocol {proto}: stale — blocked since {first_seen.isoformat()} "
-                      f"with no action ever created, now past the {contract.INTENT_TTL_SHADOW_S}s retry window",
+                      f"with no action ever created, now past the {TRADE_RETRY_WINDOW_S}s retry window (>= 3 daily cycles)",
                 source_recommendation_id=cio_rec_id, source_book_decision=verdict,
                 constraints={**key, _TRADE_STALE_FINAL: True}, date_scoped=True))
             continue
@@ -624,7 +656,7 @@ def _hyLP_intents(data_dir: Path, now: datetime, pin: dict, risk_snapshot: dict,
             out.append(_no_action(
                 now=now, pin=pin, sleeve_id=sleeve_id, risk_snapshot=risk_snapshot, unknowns=unknowns,
                 reason=f"position {venue!r} ({trade_id}): stale — blocked since {first_seen.isoformat()} with "
-                      f"no action ever created, now past the {contract.INTENT_TTL_SHADOW_S}s retry window",
+                      f"no action ever created, now past the {TRADE_RETRY_WINDOW_S}s retry window (>= 3 daily cycles)",
                 source_recommendation_id=cio_rec_id, source_book_decision=verdict,
                 constraints={**key, _TRADE_STALE_FINAL: True}, date_scoped=True))
             continue

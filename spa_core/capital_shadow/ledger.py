@@ -272,41 +272,79 @@ def repair(data_dir: Path, *, lock_timeout_s: float = 5.0, dispatcher: Any = Non
                 first_bad_idx = len(parsed)
                 break
 
-        # review N4-iv: a bad/unparseable line is a torn WRITE only if it is the very LAST line —
-        # a crash mid-append leaves at most one incomplete trailing line. A bad line with MORE
-        # content after it is not a crash, it is mid-chain TAMPERING, and nothing may be moved
-        # aside: moving a "torn tail" that isn't actually the tail would silently discard
-        # legitimate later entries while dressing the damage up as a routine repair.
-        if first_bad_idx is not None and first_bad_idx != len(non_empty_lines) - 1:
-            try:
-                from spa_core.capital_shadow import incidents as _incidents
-                _incidents.raise_incident(
-                    data_dir, "ledger_tampered",
-                    f"bad/unparseable line at position {first_bad_idx + 1} of {len(non_empty_lines)}, "
-                    f"followed by {len(non_empty_lines) - first_bad_idx - 1} more line(s) — mid-chain "
-                    f"tampering, not a torn tail; refusing to move anything aside",
-                    now=datetime.now(timezone.utc), dispatcher=dispatcher)
-            except Exception:  # noqa: BLE001 — the refusal below is authoritative either way
-                pass
-            return {"repaired": False,
-                    "reason": "ledger_tampered: a bad line is followed by more content mid-chain — only a "
-                             "torn LAST line may ever be moved aside",
-                    "fixable": False, "good_lines": first_bad_idx, "moved_lines": 0}
-
+        # M1 / review N4-iv: a bad/unparseable line is a torn WRITE only if it is the very LAST
+        # line — a crash mid-append leaves at most one incomplete trailing line. But a "torn
+        # tail" is not only a JSON syntax error: changing a payload IN PLACE (seq/prev_hash/
+        # entry_hash fields left untouched, or even a self-consistently recomputed hash) still
+        # parses fine, so the hash/chain and the per-entry ANCHOR must be scanned too — a break
+        # before the last line, or a break on a row that ALREADY has a recorded anchor (its hash
+        # was witnessed before this edit), is tampering regardless of whether the JSON itself is
+        # syntactically valid. Nothing may be moved aside in either case: moving a "torn tail"
+        # that isn't actually the tail would silently discard legitimate later entries (M1's
+        # reproduction: tampering seq 2 of 4 used to return repaired=True, moving 3 rows aside —
+        # 2 of them perfectly legitimate — and raised no incident at all).
+        anchors_by_seq = {a.get("seq"): a for a in read_anchors(data_dir)}
         prev = GENESIS
-        expected_seq = 1
         verified_good: List[dict] = []
-        for e in parsed:
-            if e.get("seq") != expected_seq or e.get("prev_hash") != prev:
+        hash_break_idx = None
+        hash_break_is_anchor_mismatch = False
+        for idx, e in enumerate(parsed):
+            seq = e.get("seq")
+            # ANY break on a row whose seq already has a RECORDED anchor is tampering, regardless
+            # of which specific check below trips first — the anchor is the external, sibling-
+            # directory witness that this exact row was already attested; existing-and-touched is
+            # tampering even when the break shows up as a chain/hash mismatch, not only when the
+            # (forged) hash happens to still match its own anchor's content.
+            already_anchored = seq in anchors_by_seq
+            if seq != idx + 1 or e.get("prev_hash") != prev:
+                hash_break_idx = idx
+                hash_break_is_anchor_mismatch = already_anchored
                 break
             want = _entry_hash(prev, e["seq"], e["kind"], e["key"], e["payload"], e["at"])
             if want != e.get("entry_hash"):
+                hash_break_idx = idx
+                hash_break_is_anchor_mismatch = already_anchored
+                break
+            anchor = anchors_by_seq.get(seq)
+            if anchor is not None and anchor.get("entry_hash") != e.get("entry_hash"):
+                hash_break_idx = idx
+                hash_break_is_anchor_mismatch = True
                 break
             verified_good.append(e)
             prev = e["entry_hash"]
-            expected_seq += 1
 
-        if first_bad_idx is None and len(verified_good) == len(parsed):
+        # the EARLIEST problem wins: a hash/chain/anchor break always occurs at or before the
+        # JSON parse error position (parsing only reached `first_bad_idx` because everything up
+        # to there parsed — the hash scan runs over exactly that successfully-parsed prefix).
+        bad_idx = hash_break_idx if hash_break_idx is not None else first_bad_idx
+        is_anchor_mismatch_at_bad = hash_break_is_anchor_mismatch and hash_break_idx == bad_idx
+        # Final re-review M1-r: an UNPARSEABLE line is a torn write only if its position was never
+        # witnessed. Every row before it verified, so its seq is its 1-based position; an anchor
+        # recorded for that seq means the row was complete once and has been cut since.
+        if hash_break_idx is None and first_bad_idx is not None and (first_bad_idx + 1) in anchors_by_seq:
+            is_anchor_mismatch_at_bad = True
+
+        if bad_idx is not None and (bad_idx != len(non_empty_lines) - 1 or is_anchor_mismatch_at_bad):
+            detail = (f"bad/tampered line at position {bad_idx + 1} of {len(non_empty_lines)}"
+                     + (f", followed by {len(non_empty_lines) - bad_idx - 1} more line(s) — mid-chain "
+                        f"tampering, not a torn tail"
+                       if bad_idx != len(non_empty_lines) - 1 else
+                       ", which already has a DIFFERENT entry_hash recorded in the sibling anchor "
+                       "file — it was changed AFTER being witnessed")
+                     + "; refusing to move anything aside")
+            try:
+                from spa_core.capital_shadow import incidents as _incidents
+                _incidents.raise_incident(data_dir, "ledger_tampered", detail, now=datetime.now(timezone.utc),
+                                          dispatcher=dispatcher)
+            except Exception:  # noqa: BLE001 — the refusal below is authoritative either way
+                pass
+            return {"repaired": False,
+                    "reason": "ledger_tampered: a hash/chain break before the last line, or a rewritten "
+                             "already-anchored row — only a torn LAST, NEVER-anchored line may ever be "
+                             "moved aside",
+                    "fixable": False, "good_lines": bad_idx, "moved_lines": 0}
+
+        if bad_idx is None:
             chain_verdict = verify_chain(data_dir)
             # MEDIUM review finding #11c: re-anchoring is allowed ONLY when the tail entry's own
             # anchor is the thing missing AND that entry's hash chains correctly from the last

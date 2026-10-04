@@ -17,6 +17,7 @@ from typing import Any, Callable, Optional
 from spa_core.capital_shadow import contract
 from spa_core.capital_shadow.intent import book_digest_and_asof
 from spa_core.capital_shadow.intent import to_base_units_for_intent as _intent_to_base_units
+from spa_core.capital_shadow.intent import is_test_scenario as _is_test_scenario
 from spa_core.utils.observation import observed
 
 #: declared tolerance per field (no invented precision)
@@ -252,7 +253,9 @@ def forward_reconcile(intent: dict, simulation: dict, *, client: Any, now: datet
     # a TEST_SCENARIO canary holds no book position, so the book-mark comparison does not apply to it
     # (it is named, never assumed equal); for a CURRENT-STATE intent book_mark stays mandatory (review #9).
     # Canary evidence never reaches a sleeve gate (readiness filters by sleeve), so this cannot certify a sleeve.
-    if str(intent.get("scenario") or "").startswith(contract.SCENARIO_TEST_PREFIX):
+    # review round-3 L5: delegates to intent.is_test_scenario (case-INSENSITIVE on the prefix) —
+    # same shared check as machine.py's scenario ceiling, read.py and run.py.
+    if _is_test_scenario(intent.get("scenario")):
         mandatory = tuple(f for f in mandatory if f != "book_mark")
 
     if action in (contract.ACTION_DEPOSIT_4626, contract.ACTION_REDEEM_4626):

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.capital_shadow import contract, incidents, ledger, readiness
+from spa_core.capital_shadow.intent import is_test_scenario
 
 _DEFI_SLEEVES = ("defi_conservative", "defi_balanced", "defi_aggressive")
 
@@ -26,8 +27,9 @@ _CANARY_SLEEVE = "scenario_canary"
 
 
 def _is_scenario_payload(payload: dict) -> bool:
-    s = payload.get("scenario")
-    return isinstance(s, str) and s.startswith(contract.SCENARIO_TEST_PREFIX)
+    # review round-3 L5: delegates to intent.is_test_scenario (case-INSENSITIVE on the prefix) —
+    # same shared check as machine.py's scenario ceiling, run.py and reconcile.py.
+    return is_test_scenario(payload.get("scenario"))
 
 
 def _short(intent_id) -> Optional[str]:

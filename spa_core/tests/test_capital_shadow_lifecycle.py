@@ -1072,12 +1072,12 @@ def test_n5_venue_canary_is_a_separate_top_level_key_never_inside_readiness(tmp_
     assert result["venue_canary"]["sleeve_id"] == "scenario_canary"
 
 
-def test_n6_blocked_trade_stays_retry_eligible_within_ttl_then_goes_stale(tmp_path, monkeypatch):
+def test_n6_blocked_trade_stays_retry_eligible_within_window_then_goes_stale(tmp_path, monkeypatch):
     """review N6: a trade blocked by a risk blocker (here: the permanently-unmeasured depeg gate,
     seeded by _seed_common) must stay eligible for retry while the first blocked attempt is
-    younger than contract.INTENT_TTL_SHADOW_S — it must NEVER be permanently consumed by a blocked
-    NO_ACTION. Past the TTL it is finalized exactly once as "trade stale", and only THEN is it
-    permanently consumed (no more per-protocol attempts)."""
+    younger than intent_mod.TRADE_RETRY_WINDOW_S — it must NEVER be permanently consumed by a
+    blocked NO_ACTION. Past the window it is finalized exactly once as "trade stale", and only
+    THEN is it permanently consumed (no more per-protocol attempts)."""
     _seed_common(tmp_path)
     _allow_cio(monkeypatch)
     atomic_save({"decision_shadow": {"verdict": "RECOMMEND"}}, str(tmp_path / "allocation_rationale.json"))
@@ -1089,12 +1089,12 @@ def test_n6_blocked_trade_stays_retry_eligible_within_ttl_then_goes_stale(tmp_pa
     assert "blocked by current risk state" in conservative_t0["reason"]
     machine.record_intent(tmp_path, conservative_t0, t0)
 
-    # within TTL (1h later): RETRY-eligible — attempted again, never silently dropped just
+    # within the window (1h later): RETRY-eligible — attempted again, never silently dropped just
     # because a blocked attempt for this SAME trade/protocol already exists on the ledger. The
     # reason text is stable (same blocking condition), so this reproduces the SAME intent_id as
     # t0 by design (review: a content hash has no "now" field) — record_intent is correctly
     # idempotent on it; what matters is that build_current_intents keeps OFFERING the retry
-    # rather than silently going to "already consumed" before the TTL has elapsed.
+    # rather than silently going to "already consumed" before the window has elapsed.
     t1 = t0 + timedelta(hours=1)
     intents_t1 = intent_mod.build_current_intents(tmp_path, t1, _pin())
     conservative_t1 = next(i for i in intents_t1 if i["sleeve_id"] == "defi_conservative")
@@ -1103,8 +1103,18 @@ def test_n6_blocked_trade_stays_retry_eligible_within_ttl_then_goes_stale(tmp_pa
     assert "stale" not in conservative_t1["reason"]
     machine.record_intent(tmp_path, conservative_t1, t1)
 
-    # past TTL: finalized ONCE as "trade stale".
-    t2 = t0 + timedelta(seconds=contract.INTENT_TTL_SHADOW_S + 3600)
+    # still within the window at 48h (two daily cycles) — this is EXACTLY the gap the round-3
+    # re-review found broken at the old 6h TTL-shaped window: still RETRY, never stale.
+    t_mid = t0 + timedelta(hours=48)
+    intents_mid = intent_mod.build_current_intents(tmp_path, t_mid, _pin())
+    conservative_mid = next(i for i in intents_mid if i["sleeve_id"] == "defi_conservative")
+    assert conservative_mid["action_type"] == contract.ACTION_NO_ACTION
+    assert "blocked by current risk state" in conservative_mid["reason"]
+    assert "stale" not in conservative_mid["reason"]
+    machine.record_intent(tmp_path, conservative_mid, t_mid)
+
+    # past the window (72h+): finalized ONCE as "trade stale".
+    t2 = t0 + timedelta(seconds=intent_mod.TRADE_RETRY_WINDOW_S + 3600)
     intents_t2 = intent_mod.build_current_intents(tmp_path, t2, _pin())
     conservative_t2 = next(i for i in intents_t2 if i["sleeve_id"] == "defi_conservative")
     assert conservative_t2["action_type"] == contract.ACTION_NO_ACTION
@@ -1117,6 +1127,35 @@ def test_n6_blocked_trade_stays_retry_eligible_within_ttl_then_goes_stale(tmp_pa
     conservative_t3 = next(i for i in intents_t3 if i["sleeve_id"] == "defi_conservative")
     assert conservative_t3["action_type"] == contract.ACTION_NO_ACTION
     assert "already consumed" in conservative_t3["reason"]
+
+
+def test_n6_round3_trade_cleared_after_one_daily_cycle_still_rebuilds_a_real_action(tmp_path, monkeypatch):
+    """review N6 round-3 re-review's exact scenario: a trade blocked on day 0 and UNBLOCKED on
+    day +1 (one daily cycle later, 24h) must still produce a REAL action intent — at the OLD
+    window (contract.INTENT_TTL_SHADOW_S == 6h) this trade would already have been finalized
+    "stale" long before the first daily cycle ever got a chance to retry it, and the original
+    symptom (a cleared trade never executed) would have survived the first N6 fix."""
+    _seed_common(tmp_path)
+    _allow_cio(monkeypatch)
+    atomic_save({"decision_shadow": {"verdict": "RECOMMEND"}}, str(tmp_path / "allocation_rationale.json"))
+
+    t0 = NOW
+    intents_t0 = intent_mod.build_current_intents(tmp_path, t0, _pin())
+    conservative_t0 = next(i for i in intents_t0 if i["sleeve_id"] == "defi_conservative")
+    assert conservative_t0["action_type"] == contract.ACTION_NO_ACTION
+    assert "blocked by current risk state" in conservative_t0["reason"]
+    machine.record_intent(tmp_path, conservative_t0, t0)
+
+    # day +1 (24h later, one daily cycle): the blocking condition clears. (The real depeg gate is
+    # permanently unmeasured and can never clear on its own — monkeypatched here so the test is
+    # about the RETRY WINDOW, not about depeg ever becoming measured.)
+    monkeypatch.setattr(intent_mod, "risk_blockers", lambda risk_snapshot: [])
+    t1 = t0 + timedelta(hours=24)
+    intents_t1 = intent_mod.build_current_intents(tmp_path, t1, _pin())
+    conservative_t1 = next(i for i in intents_t1 if i["sleeve_id"] == "defi_conservative")
+    assert conservative_t1["action_type"] == contract.ACTION_SUPPLY
+    assert conservative_t1["network_or_venue"] == "aave_v3"
+    assert conservative_t1["notional"] == 1000.0
 
 
 def test_n6_no_action_on_missing_pin_is_date_scoped_to_avoid_id_collision(tmp_path, monkeypatch):
@@ -1152,15 +1191,22 @@ def test_n6_no_action_on_missing_pin_is_date_scoped_to_avoid_id_collision(tmp_pa
 
 class _SecurityEventClient:
     """A fake RpcClient-shaped object whose security_events list grows across calls, exactly like
-    the real rpc.RpcClient accumulates quorum-disagreement/forbidden-method events."""
+    the real rpc.RpcClient accumulates quorum-disagreement/forbidden-method events. Each call's
+    event carries its OWN call count in the detail text — distinct real events, deliberately never
+    identical-content duplicates (review round-3 L3's identity-set dedup is keyed on (kind,
+    detail); a fake that emitted the exact same detail text every call would be indistinguishable
+    from "the same event read twice" by construction, and could never test "N real events -> N
+    incidents" at all)."""
 
     def __init__(self, block=100):
         self._block = block
         self.security_events = []
+        self._n = 0
 
     def pin_block(self):
-        self.security_events.append({"kind": "quorum_disagreement", "detail": "2-of-3 quorum reached, "
-                                     "1 dissenting operator"})
+        self._n += 1
+        self.security_events.append({"kind": "quorum_disagreement", "detail": f"2-of-3 quorum reached, "
+                                     f"1 dissenting operator (call #{self._n})"})
         return {"state": contract.MEASURED, "number": self._block, "hash": "0x" + "cd" * 32,
                "operators": ["Allnodes", "dRPC"]}
 
@@ -1264,3 +1310,262 @@ def test_15_spot_order_fixture_funds_cash_explicitly_never_defaults_to_zero(tmp_
     order = sim["call"]["args_readable"][0]["value"]
     assert order["cash"] == an_intent["notional"]
     assert order["cash"] > 0.0
+
+
+# ── round-3 item 2: a SPOT_ORDER partial fill must NEVER be recorded as a clean SIM_PASS ────────
+
+def test_round3_spot_order_partial_fill_is_never_recorded_as_sim_pass(tmp_path):
+    """review round-3 item 2: exchange_sim.simulate_order sets accepted=True for BOTH a full fill
+    AND a STATUS_PARTIAL one — the OLD run.py read only "accepted" and recorded a partial fill as
+    SIM_PASS, advancing the intent to SIMULATED exactly like a clean pass. Drives the REAL
+    run.py SPOT_ORDER path with a notional that exceeds the hardcoded book's liquidity (1,000,000
+    units at price 1.0) — the fill really is STATUS_PARTIAL, not a test double standing in for
+    one."""
+    from spa_core.capital_shadow import exchange_sim as real_exchange_sim
+    an_intent = intent_mod._base_fields(
+        now=NOW, pin=_pin(), sleeve_id=intent_mod.CANARY_SLEEVE, strategy_id="scenario_canary:spot_partial",
+        action_type=contract.ACTION_SPOT_ORDER, network_or_venue="binance_spot", instrument="binance_spot",
+        from_asset="USDC", to_asset="USDC", notional=2_000_000.0, notional_unit="USDC",
+        source_recommendation_id=None, source_role_id=contract.SOURCE_ROLE_ID, source_book_decision=None,
+        risk_snapshot={k: {"state": contract.NOT_MEASURED, "value": None, "as_of": None, "digest": None,
+        "reason": "TEST_SCENARIO — not a real decision"} for k in ("kill_switch", "derisk", "riskpolicy_verdict",
+        "riskpolicy_version", "cio_recommendation_id", "cio_stance", "book_state_digest", "depeg")},
+        unknowns=[], reason="round-3 item 2 fixture: notional exceeds the hardcoded book liquidity",
+        scenario=f"{contract.SCENARIO_TEST_PREFIX}spot_partial")
+    run_mod._validate(tmp_path, an_intent, NOW)
+    rep = run_mod._simulate_and_execute(tmp_path, an_intent, NOW, simulate_mod=None, client=None)
+
+    assert rep["outcome"] == "SIMULATION_FAILED"  # NEVER "SIMULATED" — a partial fill is not a pass
+    sim = ledger.load_simulation(tmp_path, an_intent["intent_id"])
+    assert sim["result"] != contract.SIM_PASS
+    assert sim["result"] == "PARTIAL"
+    assert sim["post_state"]["status"] == real_exchange_sim.STATUS_PARTIAL
+    assert sim["post_state"]["partial_fill"] is True
+    # the machine itself must never have advanced to S_SIMULATED (a PASS-shaped state).
+    assert machine.current_state(tmp_path, an_intent["intent_id"]) == contract.S_SIMULATION_FAILED
+
+
+# ── round-3 item L1: policy_violation must fail-CLOSED when it cannot verify ────────────────────
+
+def test_l1_policy_violation_unresolvable_base_units_is_a_violation():
+    """review round-3 L1: if the intent's own notional cannot be resolved to base units (unknown
+    venue/token/decimals), that IS a violation (fail-closed) — the OLD guard silently skipped the
+    whole comparison and returned "no violation" (None) whenever `expected` was None."""
+    an_intent = {"constraints": {}, "action_type": contract.ACTION_APPROVE, "notional": 1000.0,
+                "network_or_venue": "not_a_real_venue", "notional_unit": "USDC", "from_asset": "USDC"}
+    sim = {"gas_estimate": 50_000, "call": {"args_readable": [{"name": "amount", "value": 1_000_000_000}]}}
+    violation = machine.policy_violation(an_intent, sim)
+    assert violation is not None
+    assert "cannot resolve" in violation
+
+
+def test_l1_policy_violation_bool_approve_amount_is_a_violation():
+    """review round-3 L1: a bool amount value (e.g. a malformed simulated call) must never be
+    silently treated as "not a violation" just because isinstance(True, int) is True in Python."""
+    an_intent = next(i for i in intent_mod.build_scenario_intents(NOW, _pin(), "l1bool")
+                     if i["action_type"] == contract.ACTION_APPROVE)
+    sim = {"gas_estimate": 50_000, "call": {"args_readable": [{"name": "amount", "value": True}]}}
+    violation = machine.policy_violation(an_intent, sim)
+    assert violation is not None
+    assert "not a plain integer" in violation
+
+
+def test_l1_policy_violation_float_approve_amount_is_a_violation():
+    """review round-3 L1: base units are always an exact integer — a float value (even one that
+    happens to equal the expected integer numerically) must never pass silently."""
+    an_intent = next(i for i in intent_mod.build_scenario_intents(NOW, _pin(), "l1float")
+                     if i["action_type"] == contract.ACTION_APPROVE)
+    expected = intent_mod.to_base_units_for_intent(an_intent)
+    sim = {"gas_estimate": 50_000, "call": {"args_readable": [{"name": "amount", "value": float(expected)}]}}
+    violation = machine.policy_violation(an_intent, sim)
+    assert violation is not None
+    assert "not a plain integer" in violation
+
+
+def test_l3_one_event_yields_one_incident_across_pin_and_forward_reconciliation(tmp_path, monkeypatch):
+    """review round-3 L3: when ONE client is shared between _get_pin and
+    _run_forward_reconciliation (both run inside the SAME run_cycle), the client's
+    security_events list is read at BOTH sites — without a single shared identity tracker, each
+    site's own "start from zero" memory re-escalated the same real events again (measured: 6 real
+    events -> 16 incidents). Threading ONE shared `escalated` set through both calls — exactly as
+    run_cycle now does — must yield exactly one incident per distinct real event, never one per
+    site."""
+    an_intent = _shadow_execute_deposit(tmp_path, monkeypatch, old_block=100, sleeve_id="defi_balanced",
+                                        venue="fluid_fusdc", notional=1000.0)
+    client = _SecurityEventClient(block=150)
+    escalated: set = set()
+
+    # site 1: _get_pin touches the client and escalates its (so far: one) event.
+    run_mod._get_pin(1, live_rpc=True, client=client, data_dir=tmp_path, now=NOW, escalated=escalated)
+    # site 2: forward reconciliation REUSES the SAME client (its pin_block() is called again,
+    # appending another distinct event) and must escalate ONLY what site 1 did not already.
+    run_mod._run_forward_reconciliation(tmp_path, NOW, rpc_mod=None, simulate_mod=_FakeForwardSimulate(1000.0),
+                                        client=client, escalated=escalated)
+
+    assert len(client.security_events) >= 2
+    open_incs = incidents.open_incidents(tmp_path)
+    assert len(open_incs) == len(client.security_events)
+
+
+# ── round-3 item L4: kill_armed must catch the REAL writer's states, not an imagined allowlist ──
+
+def test_l4_kill_armed_catches_the_real_writers_triggered_state(tmp_path):
+    """review round-3 L4: the REAL writer (spa_core/governance/kill_switch.py, ADR-531) publishes
+    state="TRIGGERED" — the OLD kill_armed only matched "HARD_KILL"/"ARMED" (names the real writer
+    never writes), so a genuinely triggered kill-switch never forced readiness_state to BLOCKED
+    via this independent hard-block signal."""
+    _seed_common(tmp_path)
+    atomic_save({"generated_at": "2026-10-04T11:00:00Z", "triggered": True, "state": "TRIGGERED",
+                "reason": "drawdown >= 10%"}, str(tmp_path / "kill_switch_status.json"))
+    reports = readiness.evaluate(tmp_path, [], NOW)
+    assert reports["defi_conservative"]["readiness_state"] == contract.R_BLOCKED
+
+
+def test_l4_kill_armed_treats_clear_partial_as_armed_too(tmp_path):
+    """review round-3 L4: CLEAR_PARTIAL ("all measured but partial/not-yet-applicable triggers")
+    is NOT full confidence of safety and must be armed too — fail-closed treats anything other
+    than the exact string "CLEAR" as armed, never an allowlist of specific "bad" names."""
+    _seed_common(tmp_path)
+    atomic_save({"generated_at": "2026-10-04T11:00:00Z", "triggered": False, "state": "CLEAR_PARTIAL",
+                "reason": "no trigger fired; partial: red_flags PARTIAL"},
+               str(tmp_path / "kill_switch_status.json"))
+    reports = readiness.evaluate(tmp_path, [], NOW)
+    assert reports["defi_conservative"]["readiness_state"] == contract.R_BLOCKED
+
+
+def test_l4_kill_armed_false_on_exact_clear(tmp_path):
+    """the exact string "CLEAR" (and only that) is NOT armed — kill_armed must not become so
+    aggressive that it blocks everything regardless of state."""
+    _seed_common(tmp_path)  # kill_switch_status.json state == "CLEAR"
+    reports = readiness.evaluate(tmp_path, [], NOW)
+    assert reports["defi_conservative"]["readiness_state"] != contract.R_BLOCKED
+
+
+# ── round-3 item L5: readiness evidence filters on BOTH sleeve_id AND scenario ───────────────────
+
+def test_l5_scenario_row_with_a_real_sleeve_id_never_satisfies_the_reconciliation_gate(tmp_path):
+    """review round-3 L5: a row whose OWNING intent's scenario starts with the TEST_SCENARIO
+    prefix must never feed a real sleeve's gates, WHATEVER its sleeve_id — the OLD filter
+    (sleeve_id equality alone) relied entirely on every scenario-intent-builder always setting
+    CANARY_SLEEVE; this reproduces the one case that filter cannot catch: a scenario row that
+    (by a hypothetical bug elsewhere) carries a REAL sleeve_id."""
+    _seed_common(tmp_path)
+    atomic_save([{"trade_id": "T1", "ts": "2026-10-01T00:00:00Z", "from_allocation": {},
+                 "to_allocation": {"aave_v3": 1000.0}}], str(tmp_path / "trades.json"))
+    entries = [
+        {"seq": 1, "kind": "intent", "payload": {"intent_id": "fake-scenario-leak", "sleeve_id":
+         "defi_conservative", "scenario": f"{contract.SCENARIO_TEST_PREFIX}leak"}},
+        {"seq": 2, "kind": "reconciliation", "payload": {"intent_id": "fake-scenario-leak", "venue": "aave_v3",
+         "outcome": contract.REC_MATCHED, "sleeve_id": "defi_conservative"}},
+    ]
+    gate = readiness._reconciliation_gate(tmp_path, entries, "defi_conservative")
+    # the only row claiming MATCHED belongs to a scenario intent — it must not count, so the gate
+    # reports the venue MISSING, never a clean PASS.
+    assert gate["state"] == contract.GATE_FAIL
+    assert "aave_v3" in gate["evidence"]["missing"]
+
+
+def test_l5_scenario_intent_ids_reads_off_the_intent_row_never_the_evidence_payload(tmp_path):
+    """_scenario_intent_ids must read the owning intent's OWN scenario field — simulation /
+    reconciliation / unwind_probe payloads carry no scenario field of their own (confirmed by
+    reading ledger.record_simulation_entry and reconcile.forward_reconcile)."""
+    entries = [
+        {"seq": 1, "kind": "intent", "payload": {"intent_id": "a", "scenario":
+         f"{contract.SCENARIO_TEST_PREFIX}x"}},
+        {"seq": 2, "kind": "intent", "payload": {"intent_id": "b", "scenario": contract.SCENARIO_CURRENT}},
+    ]
+    ids = readiness._scenario_intent_ids(entries)
+    assert ids == {"a"}
+
+
+# ── round-3 item L5: the scenario ceiling (and every scenario-prefix check) is case-insensitive ──
+
+def test_l5_scenario_ceiling_is_case_insensitive_on_the_prefix(tmp_path):
+    """review round-3 L5: a lowercase "test_scenario:..." intent must be treated as a scenario
+    intent EXACTLY like the canonical uppercase form — the OLD case-sensitive match let it bypass
+    machine.py's scenario ceiling entirely (treated as CURRENT_STATE, free to advance past
+    SHADOW_EXECUTED like a real decision)."""
+    _seed_common(tmp_path)
+    an_intent = intent_mod._base_fields(
+        now=NOW, pin=_pin(), sleeve_id=intent_mod.CANARY_SLEEVE, strategy_id="scenario_canary:case",
+        action_type=contract.ACTION_SUPPLY, network_or_venue="aave_v3", instrument="aave_v3", from_asset="USDC",
+        to_asset="USDC", notional=1000.0, notional_unit="USDC", source_recommendation_id=None,
+        source_role_id=contract.SOURCE_ROLE_ID, source_book_decision=None,
+        risk_snapshot={k: {"state": contract.NOT_MEASURED, "value": None, "as_of": None, "digest": None,
+        "reason": "fixture"} for k in ("kill_switch", "derisk", "riskpolicy_verdict", "riskpolicy_version",
+        "cio_recommendation_id", "cio_stance", "book_state_digest", "depeg")}, unknowns=[],
+        reason="round-3 L5 fixture", scenario="test_scenario:case")  # deliberately lowercase
+    assert machine._is_scenario(an_intent) is True
+    machine.record_intent(tmp_path, an_intent, NOW)
+    machine.advance(tmp_path, an_intent, contract.S_VALIDATED, {}, NOW)
+    machine.advance(tmp_path, an_intent, contract.S_SIMULATED, {}, NOW)
+    machine.advance(tmp_path, an_intent, contract.S_SHADOW_READY, {}, NOW)
+    machine.advance(tmp_path, an_intent, contract.S_SHADOW_EXECUTED, {}, NOW)
+    # the ceiling (contract.SCENARIO_MAX_STATE == S_SHADOW_EXECUTED) must refuse the NEXT step too
+    # — exactly as it does for the canonical uppercase prefix.
+    with pytest.raises(machine.IllegalTransition):
+        machine.advance(tmp_path, an_intent, contract.S_RECONCILED, {}, NOW)
+
+
+def test_l5_is_test_scenario_case_insensitive_shared_helper():
+    assert intent_mod.is_test_scenario("test_scenario:x") is True
+    assert intent_mod.is_test_scenario("TEST_SCENARIO:x") is True
+    assert intent_mod.is_test_scenario("Test_Scenario:x") is True
+    assert intent_mod.is_test_scenario(contract.SCENARIO_CURRENT) is False
+    assert intent_mod.is_test_scenario(None) is False
+
+
+# ── round-3 item 7 (M2): run.py's --data-dir default must honour SPA_DATA_DIR ───────────────────
+
+def test_m2_main_honours_spa_data_dir_when_no_data_dir_flag_given(tmp_path, monkeypatch):
+    """review round-3 M2: scripts/check_agent_before_deploy.sh sets SPA_DATA_DIR to a sandbox for
+    its trial run — with the OLD hard-coded relative default ("data"), a gate trial with no
+    explicit --data-dir still wrote into the PRODUCTION data/capital_shadow (measured at a real
+    deploy, 08:13). main() with SPA_DATA_DIR set and NO --data-dir must write ONLY under that
+    sandbox, never under any "data" relative to CWD."""
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
+    monkeypatch.chdir(tmp_path)  # a CWD-relative "data" would also happen to land under tmp_path
+    # here by coincidence — prove it did NOT take that path by checking the EXACT sandbox dir.
+    rc = run_mod.main(["--now", NOW.strftime("%Y-%m-%dT%H:%M:%SZ"), "--no-rpc"])
+    assert rc == contract.EXIT_OK
+    assert (tmp_path / contract.DATA_SUBDIR / contract.LEDGER).exists()
+
+
+def test_m2_explicit_data_dir_flag_still_wins_over_spa_data_dir(tmp_path, monkeypatch):
+    """review round-3 M2: an explicit --data-dir must still win over SPA_DATA_DIR."""
+    sandbox = tmp_path / "spa_data_dir_sandbox"
+    explicit = tmp_path / "explicit_data_dir"
+    monkeypatch.setenv("SPA_DATA_DIR", str(sandbox))
+    rc = run_mod.main(["--data-dir", str(explicit), "--now", NOW.strftime("%Y-%m-%dT%H:%M:%SZ"), "--no-rpc"])
+    assert rc == contract.EXIT_OK
+    assert (explicit / contract.DATA_SUBDIR / contract.LEDGER).exists()
+    assert not (sandbox / contract.DATA_SUBDIR / contract.LEDGER).exists()
+
+
+def test_final_rereview_scenario_intent_ids_is_case_insensitive():
+    """Final re-review L5-r: readiness kept its own case-SENSITIVE prefix check, so evidence owned
+    by a ``test_scenario:`` (lowercase) intent still counted for a real sleeve."""
+    entries = [
+        {"seq": 1, "kind": "intent", "payload": {"intent_id": "lo", "scenario": "test_scenario:lower"}},
+        {"seq": 2, "kind": "intent", "payload": {"intent_id": "mx", "scenario": "Test_Scenario:mixed"}},
+        {"seq": 3, "kind": "intent", "payload": {"intent_id": "cur", "scenario": contract.SCENARIO_CURRENT}},
+    ]
+    assert readiness._scenario_intent_ids(entries) == {"lo", "mx"}
+
+
+def test_final_rereview_default_data_dir_is_this_code_trees_own_data(tmp_path, monkeypatch):
+    """Final re-review L-new: with SPA_DATA_DIR unset, the default fell back to the LIVE tree, so a
+    run from any worktree appended to the production ledger. It must be this code tree's own data/."""
+    monkeypatch.delenv("SPA_DATA_DIR", raising=False)
+    seen = {}
+
+    class _Stop(BaseException):  # main() turns ordinary exceptions into exit codes
+        pass
+
+    def fake_run_cycle(data_dir, now, **kw):  # capture the resolved dir; run nothing
+        seen["data_dir"] = Path(data_dir)
+        raise _Stop()
+    monkeypatch.setattr(run_mod, "run_cycle", fake_run_cycle)
+    with pytest.raises(_Stop):
+        run_mod.main(["--now", NOW.strftime("%Y-%m-%dT%H:%M:%SZ"), "--no-rpc"])
+    assert seen["data_dir"] == Path(run_mod.__file__).resolve().parents[2] / "data"

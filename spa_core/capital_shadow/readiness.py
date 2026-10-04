@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.capital_shadow import contract, ledger
-from spa_core.capital_shadow.intent import _read_json, book_digest_and_asof, read_kill_switch_state
+from spa_core.capital_shadow.intent import _read_json, book_digest_and_asof, is_test_scenario, read_kill_switch_state
 from spa_core.utils.observation import observed
 
 #: sleeve_id -> book file (the same mapping intent.py uses — the book is the single source)
@@ -246,14 +246,52 @@ def _mtm_gate(sleeves_doc: dict, sleeve_id: str) -> dict:
                 probe="sleeves.build_sleeves().mtm_coverage >= 0.99")
 
 
+def _scenario_intent_ids(ledger_entries: list) -> set:
+    """Every ``intent_id`` whose OWNING intent's own ``scenario`` field starts with
+    :data:`contract.SCENARIO_TEST_PREFIX` — read straight off the ``intent`` kind rows in
+    ``ledger_entries`` (never off the simulation/reconciliation/unwind_probe payload itself,
+    which — confirmed by reading ``ledger.record_simulation_entry``/``reconcile.forward_reconcile``
+    — carries no ``scenario`` field of its own; ``ledger.py``/``reconcile.py`` are a concurrent
+    agent's files this round, so this is a READ-side cross-reference, not a payload-shape change)."""
+    ids = set()
+    for e in ledger_entries:
+        if e.get("kind") != "intent":
+            continue
+        payload = e.get("payload") or {}
+        scenario = payload.get("scenario")
+        if is_test_scenario(scenario):
+            iid = payload.get("intent_id")
+            if iid is not None:
+                ids.add(iid)
+    return ids
+
+
 def _real_sleeve_rows(ledger_entries: list, kind: str, sleeve_id: str) -> list:
     """Rows of ``kind`` whose OWNING intent's own ``sleeve_id`` is this exact real sleeve — never
     :data:`intent_mod.CANARY_SLEEVE` (review #3 HIGH: a TEST_SCENARIO simulation/reconciliation for
     the same VENUE used to satisfy a real sleeve's gate just because the venue matched; every
     scenario intent now carries a dedicated non-candidate sleeve id precisely so this filter is a
-    single equality check, not a lookup into the owning intent's own scenario field)."""
-    return [e for e in ledger_entries if e.get("kind") == kind and (e.get("payload") or {}).get("sleeve_id")
-           == sleeve_id]
+    single equality check, not a lookup into the owning intent's own scenario field).
+
+    review round-3 L5: filtering by ``sleeve_id`` ALONE relies entirely on every TEST_SCENARIO
+    intent-builder disciplining itself to always set :data:`intent_mod.CANARY_SLEEVE` — true today,
+    but a single future bug in ANY intent-builder (a scenario intent accidentally carrying a REAL
+    sleeve_id) would then leak straight into a real sleeve's gates with NO second check catching
+    it. A row is excluded here whenever its OWNING intent's ``scenario`` field starts with
+    :data:`contract.SCENARIO_TEST_PREFIX`, REGARDLESS of what ``sleeve_id`` that intent carries —
+    two independent signals, not one."""
+    scenario_ids = _scenario_intent_ids(ledger_entries)
+    out = []
+    for e in ledger_entries:
+        if e.get("kind") != kind:
+            continue
+        payload = e.get("payload") or {}
+        if payload.get("sleeve_id") != sleeve_id:
+            continue
+        if payload.get("intent_id") in scenario_ids:
+            continue
+        out.append(e)
+    return out
 
 
 def _reconciliation_gate(data_dir: Path, ledger_entries: list, sleeve_id: str) -> dict:
@@ -452,7 +490,16 @@ def _evaluate_defi_sleeve(data_dir: Path, sleeve_id: str, now: datetime, ledger_
         open_incidents = []
         incidents_read_error = repr(exc)
     kill_value = system_checks["kill_switch_clear"]["evidence"]
-    kill_armed = isinstance(kill_value, dict) and kill_value.get("state") in ("HARD_KILL", "ARMED")
+    # review round-3 L4: the REAL writer (spa_core/governance/kill_switch.py, ADR-531) publishes
+    # state in {"TRIGGERED", "UNMEASURED", "CLEAR_PARTIAL", "CLEAR"} — it never writes "HARD_KILL"
+    # or "ARMED" at all. The OLD allowlist-of-two only matched names the real writer never
+    # produces, so a genuinely TRIGGERED kill-switch never tripped this INDEPENDENT hard-block
+    # signal (the kill_switch_clear GATE itself still correctly FAILed on state != "CLEAR" — this
+    # is a SEPARATE, harder signal that forces readiness_state straight to R_BLOCKED). Fail-closed
+    # (inv. #2): ANY state other than exactly "CLEAR" is armed, including a missing/unmeasured
+    # state (None) and the legacy triggered=true/false-derived fallback states
+    # ("HARD_KILL"/"CLEAR_PARTIAL" respectively — both already != "CLEAR").
+    kill_armed = isinstance(kill_value, dict) and kill_value.get("state") != "CLEAR"
 
     blocked = bool(open_incidents) or kill_armed or not chain.get("ok", False) or incidents_read_error is not None
     all_pass = set(system_checks) == set(contract.SYSTEM_GATES) and \

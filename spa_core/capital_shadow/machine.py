@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.capital_shadow import contract, ledger
-from spa_core.capital_shadow.intent import build_risk_snapshot, book_digest_and_asof, risk_blockers, _SLEEVE_SOURCES
+from spa_core.capital_shadow.intent import build_risk_snapshot, book_digest_and_asof, risk_blockers, \
+    _SLEEVE_SOURCES, is_test_scenario
 
 
 class IllegalTransition(Exception):
@@ -53,7 +54,10 @@ def current_state(data_dir: Path, intent_id: str) -> str:
 
 
 def _is_scenario(intent: dict) -> bool:
-    return isinstance(intent.get("scenario"), str) and intent["scenario"].startswith(contract.SCENARIO_TEST_PREFIX)
+    # review round-3 L5: delegates to intent.is_test_scenario (case-INSENSITIVE on the prefix) —
+    # see that function's docstring for why a case-sensitive match here was a safety gap: it let
+    # a lowercase "test_scenario:..." intent advance past SCENARIO_MAX_STATE like a real decision.
+    return is_test_scenario(intent.get("scenario"))
 
 
 _ORDER = contract.HAPPY_PATH  # DRAFT..OWNER_GATE, in order
@@ -207,7 +211,17 @@ def policy_violation(intent: dict, sim_record: dict) -> Optional[str]:
         # units) used to coincidentally "match" 1000.0 and always pass — both wrong.
         from spa_core.capital_shadow.intent import to_base_units_for_intent
         expected = to_base_units_for_intent(intent)
-        if isinstance(val, (int, float)) and not isinstance(val, bool) and expected is not None \
-                and val != expected:
+        # review round-3 item L1 (fail-CLOSED, inv. #2): the OLD guard
+        # (`isinstance(val, (int, float)) and not isinstance(val, bool) and expected is not None`)
+        # SKIPPED the whole comparison — i.e. returned "no violation" — whenever `expected` could
+        # not be resolved (unknown venue/token/decimals) OR `val` was a bool/float. "Cannot verify"
+        # is never the same as "verified safe"; both are now violations in their own right.
+        if expected is None:
+            return ("cannot resolve the intent's own notional to base units (unknown venue/token/decimals) "
+                    "— refusing to confirm the approve amount equals it")
+        if not isinstance(val, int) or isinstance(val, bool):
+            return f"approve amount {val!r} is not a plain integer in base units — cannot confirm it " \
+                   f"equals the intent's notional"
+        if val != expected:
             return f"excessive allowance: approve arg {val!r} base units != intent notional {expected!r} base units"
     return None

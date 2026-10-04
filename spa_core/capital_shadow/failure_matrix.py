@@ -634,27 +634,34 @@ def run_matrix(tmp_root: Path) -> list:
     record("mismatched reconciliation", "a later re-read disagreeing with the simulated outcome -> MISMATCH",
           f33)
 
-    # 34. simulated partial fill — REAL exchange_sim.simulate_order, book has less liquidity than
-    # the order quantity (1000 asked, only 400 available at an affordable price).
+    # 34. simulated partial fill — drives the REAL run.py SPOT_ORDER path (not a hand-called
+    # exchange_sim + a hard-coded outcome literal, review round-3 item 2: that form always passes
+    # regardless of what the pipeline actually records). run.py's SPOT_ORDER fixture book has
+    # 1,000,000 units of liquidity at price 1.0 (hard-coded, see run.py); a notional far above
+    # that forces a REAL STATUS_PARTIAL fill, and the row asserts on what run.py itself recorded.
     def f34():
         from spa_core.capital_shadow import exchange_sim as real_exchange_sim
-        order = {"symbol": "binance_spot", "side": "BUY", "type": "MARKET", "quantity": 1000.0, "cash": 1000.0,
-                "position": 0.0}
-        book = {"bids": [], "asks": [[1.0, 400.0]]}  # only 400 units available at price 1.0
-        fill = real_exchange_sim.simulate_order(order, {}, book)
-        is_partial_status = fill.get("status") == real_exchange_sim.STATUS_PARTIAL
-        # the contract's own reconciliation outcome: REC_PARTIAL is RESERVED for the real-execution
-        # reconciler and must never be produced here — a real exchange_sim PARTIAL fill is reported
-        # as REC_NOT_MEASURED by this layer, never invented into REC_PARTIAL.
-        rec_outcome = contract.REC_NOT_MEASURED
-        return {"fill": fill, "rec_outcome": rec_outcome}, \
-            is_partial_status and fill.get("partial_fill") is True and fill.get("filled_qty") == 400.0 \
-            and rec_outcome != contract.REC_PARTIAL, \
-            ("a REAL exchange_sim.simulate_order PARTIAL fill (400/1000 filled) is reported as "
-            "REC_NOT_MEASURED by the shadow layer — REC_PARTIAL stays reserved for the real-execution "
-            "reconciler, never invented here")
-    record("simulated partial fill (real exchange_sim)", "never REC_PARTIAL in shadow; a real PARTIAL status "
-          "reported as REC_NOT_MEASURED with the reason named", f34)
+        d = _scene(tmp_root)
+        an_intent = _one_intent(d, action_type=contract.ACTION_SPOT_ORDER, venue="binance_spot",
+                                notional=2_000_000.0, scenario="partial_fill")
+        run_mod._validate(d, an_intent, NOW)
+        rep = run_mod._simulate_and_execute(d, an_intent, NOW, simulate_mod=None, client=None)
+        sim = ledger.load_simulation(d, an_intent["intent_id"])
+        current_state = machine.current_state(d, an_intent["intent_id"])
+        ok = (rep.get("outcome") == "SIMULATION_FAILED" and sim is not None
+             and sim.get("result") != contract.SIM_PASS
+             and sim.get("post_state", {}).get("status") == real_exchange_sim.STATUS_PARTIAL
+             and sim.get("post_state", {}).get("partial_fill") is True
+             and current_state == contract.S_SIMULATION_FAILED)
+        return {"report": rep, "sim_result": sim.get("result") if sim else None,
+               "fill_status": sim.get("post_state", {}).get("status") if sim else None,
+               "machine_state": current_state}, ok, \
+            ("a REAL run.py SPOT_ORDER whose notional exceeds the hard-coded book's liquidity gets a "
+            "REAL exchange_sim STATUS_PARTIAL fill, and run.py records it as result='PARTIAL' "
+            "(never SIM_PASS), outcome SIMULATION_FAILED, and the machine never advances to SIMULATED "
+            "— a partial fill is never booked as a clean pass")
+    record("simulated partial fill (real run.py SPOT_ORDER path)", "never recorded as SIM_PASS / advanced "
+          "to SIMULATED; outcome SIMULATION_FAILED with the real exchange_sim PARTIAL status named", f34)
 
     # 35. concurrent runners — the NEW top-level run lock (review #13), distinct from row 2/27's
     # ledger-internal lock. Simulated via an INDEPENDENT file descriptor holding the SAME run-lock

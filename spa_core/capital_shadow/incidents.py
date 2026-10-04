@@ -27,9 +27,11 @@ Control) that need a distinct third state rather than catching an exception them
 ``data/alert_log.json`` / ``data/alert_dispatcher_dedup.json`` regardless of the ``data_dir`` this
 call was actually scoped to, so a test or scratch run writing incidents under a ``tmp_path`` was
 STILL mutating the real repo's tracked state. Now the real dispatcher is only ever used when
-``data_dir`` resolves to the actual production live data dir
-(``spa_core.utils.live_paths.live_data_dir()``); every other ``data_dir`` gets a local, no-network
-stand-in that appends to ``<data_dir>/capital_shadow/alerts_outbox.jsonl`` instead.
+``data_dir`` resolves, STRUCTURALLY and not overridably by any environment variable, to THIS CODE
+TREE's own ``<repo root>/data`` (never ``spa_core.utils.live_paths.live_data_dir()``, which
+honours ``SPA_DATA_DIR``/``SPA_LIVE_ROOT`` — exactly the override a sandbox run would set,
+closing the N7 PARTIAL gap the second re-review found); every other ``data_dir`` gets a local,
+no-network stand-in that appends to ``<data_dir>/capital_shadow/alerts_outbox.jsonl`` instead.
 
 # LLM_FORBIDDEN
 """
@@ -317,10 +319,25 @@ class _OutboxDispatcher:
         return {"channels_succeeded": ["outbox"]}
 
 
+#: review N7: THIS CODE TREE's own repo root — ``incidents.py`` lives at
+#: ``<repo root>/spa_core/capital_shadow/incidents.py``, so ``parents[2]`` is the repo root
+#: regardless of cwd, env, or which worktree this module was loaded from.
+_THIS_CODE_TREE_ROOT = Path(__file__).resolve().parents[2]
+
+
 def _is_production_data_dir(data_dir: Path) -> bool:
+    """Review N7 (PARTIAL in the previous round): the earlier version asked
+    ``spa_core.utils.live_paths.live_data_dir()``, which HONOURS ``SPA_DATA_DIR``/
+    ``SPA_LIVE_ROOT`` — so a sandbox run that happened to export ``SPA_DATA_DIR`` pointing
+    anywhere (including the pre-deploy gate's own sandbox) would get upgraded to "production" by
+    the very env var a sandbox sets to AVOID touching production. This is now STRUCTURAL and not
+    overridable by any environment variable: the real dispatcher is used ONLY when the resolved
+    ``data_dir`` equals THIS CODE TREE's own ``<repo root>/data`` — the directory ``git`` actually
+    tracks the live state in, not whatever a sandbox tells the process to believe it is. Any other
+    directory — including one that is itself a copy named/pointed-at as "the production dir" by
+    an env var — gets the local outbox."""
     try:
-        from spa_core.utils.live_paths import live_data_dir
-        return Path(data_dir).resolve() == live_data_dir().resolve()
+        return Path(data_dir).resolve() == (_THIS_CODE_TREE_ROOT / "data").resolve()
     except Exception:  # noqa: BLE001 — any uncertainty here must land on "not production"
         return False
 
@@ -329,9 +346,10 @@ def _default_dispatcher(data_dir: Path) -> Any:
     """``dispatcher=None`` used to always reach for the REAL ``AlertDispatcher()`` — which, through
     its hard-coded defaults and the retired Telegram push's digest-queue fallback, writes into the
     repo's own live ``data/`` regardless of what ``data_dir`` this call was scoped to. Now the real
-    dispatcher is used ONLY when ``data_dir`` IS the actual production live data dir; every other
-    caller (tests, scratch runs, another agent's sandbox) gets :class:`_OutboxDispatcher` bound to
-    ITS OWN ``data_dir`` instead (review N7)."""
+    dispatcher is used ONLY when ``data_dir`` IS structurally this code tree's own ``<repo
+    root>/data`` (see :func:`_is_production_data_dir`); every other caller (tests, scratch runs,
+    the pre-deploy gate's sandbox, another agent's worktree) gets :class:`_OutboxDispatcher` bound
+    to ITS OWN ``data_dir`` instead (review N7)."""
     if _is_production_data_dir(data_dir):
         try:
             from spa_core.alerts.alert_dispatcher import AlertDispatcher
@@ -392,7 +410,15 @@ def clear_incident(data_dir: Path, incident_id: str, repair_evidence: str, *,
     ``data/capital_shadow/owner_confirmations/<incident_id>.json`` (an OUT-OF-BAND OWNER act — this
     runtime never writes that file) and refuses unless its ``nonce`` field EXACTLY matches the one
     ``raise_incident`` minted for this incident. An arbitrary string can never satisfy this: there
-    is no caller-supplied token to simply pass through anymore (review #11b / N4-ii)."""
+    is no caller-supplied token to simply pass through anymore (review #11b / N4-ii).
+
+    Review L6: clearing an incident that is ALREADY ``CLEARED`` is refused outright, never a
+    second append. The previous lookup filtered rows by ``status == "OPEN"`` without checking
+    RECENCY — since ``raise_incident``'s own row always has ``status == "OPEN"``, that lookup
+    kept finding it again on every subsequent call regardless of a later CLEARED row, so a second
+    (or Nth) ``clear_incident`` call for the same incident silently succeeded and appended another
+    CLEARED row. The lookup now takes the LATEST row by ``seq`` for this ``incident_id`` (any
+    status) and requires IT to be ``OPEN``."""
     if not repair_evidence:
         raise ValueError("clear_incident requires non-empty repair_evidence")
     now = now or datetime.now(timezone.utc)
@@ -400,10 +426,14 @@ def clear_incident(data_dir: Path, incident_id: str, repair_evidence: str, *,
         rows = read_all(data_dir)
         found = None
         for r in rows:
-            if r.get("incident_id") == incident_id and r.get("status") == "OPEN":
+            if r.get("incident_id") == incident_id and (found is None or r.get("seq", 0) > found.get("seq", 0)):
                 found = r
         if found is None:
-            raise ValueError(f"no OPEN incident {incident_id!r} to clear")
+            raise ValueError(f"no incident {incident_id!r} found to clear")
+        if found.get("status") != "OPEN":
+            raise ValueError(f"incident {incident_id!r} is not OPEN (status={found.get('status')!r}) — it was "
+                             f"already cleared; clearing is not idempotent and never appends a second CLEARED "
+                             f"row (review L6)")
         kind = found.get("kind")
         confirmation_token = None
         if kind in OWNER_CONFIRMATION_REQUIRED_KINDS:

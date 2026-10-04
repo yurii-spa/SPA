@@ -10,6 +10,8 @@ client (interface only); nothing here touches a real network.
 """
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -702,6 +704,23 @@ def test_clear_incident_allows_non_sensitive_kind_without_confirmation_file(tmp_
     assert cleared["status"] == "CLEARED"
 
 
+def test_clear_incident_twice_is_refused_not_a_second_append(tmp_path):
+    """L6: before this fix, the lookup inside clear_incident filtered by status == "OPEN" without
+    checking recency — raise_incident's OWN row always has status OPEN, so a second (or Nth)
+    clear_incident call for the SAME incident kept finding that original row again and happily
+    appended another CLEARED row."""
+    row = incidents.raise_incident(tmp_path, "forbidden_method", "x", now=NOW, dispatcher=_NullDispatcher())
+    first = incidents.clear_incident(tmp_path, row["incident_id"], "repaired once")
+    assert first["status"] == "CLEARED"
+
+    with pytest.raises(ValueError, match="already cleared"):
+        incidents.clear_incident(tmp_path, row["incident_id"], "repaired again")
+
+    rows_for_incident = [r for r in incidents.read_all(tmp_path) if r["incident_id"] == row["incident_id"]]
+    assert len(rows_for_incident) == 2  # exactly OPEN + the one CLEARED row, never a second CLEARED
+    assert [r["status"] for r in rows_for_incident] == ["OPEN", "CLEARED"]
+
+
 def test_ledger_repaired_is_an_owner_confirmation_required_kind():
     assert "ledger_repaired" in incidents.OWNER_CONFIRMATION_REQUIRED_KINDS
 
@@ -729,6 +748,104 @@ def test_ledger_repair_refuses_mid_chain_tamper(tmp_path):
           [lines[1]]
     incs = incidents.open_incidents(tmp_path)
     assert any(i["kind"] == "ledger_tampered" for i in incs), incs
+
+
+def test_ledger_repair_refuses_mid_chain_payload_tamper_even_when_the_line_still_parses(tmp_path):
+    """M1: the previous fix only caught a mid-chain line that fails to PARSE. Changing a
+    payload IN PLACE on an earlier row (seq/prev_hash/entry_hash left untouched) still parses as
+    valid JSON — the break only shows up as a HASH mismatch. Reproduced exactly as described: a
+    4-row ledger, seq 2's payload edited. Before this fix: repaired=True, 3 rows (2 of them
+    legitimate) moved aside, no incident."""
+    intents = [_supply_intent(tag=f"m1-{i}") for i in range(4)]
+    for an_intent in intents:
+        machine.record_intent(tmp_path, an_intent, NOW)
+    ledger_path = tmp_path / contract.DATA_SUBDIR / contract.LEDGER
+    lines = ledger_path.read_text().splitlines()
+    assert len(lines) == 4
+    original_bytes = ledger_path.read_bytes()
+
+    row2 = json.loads(lines[1])
+    assert row2["seq"] == 2
+    row2["payload"]["sleeve_id"] = "TAMPERED"  # entry_hash/prev_hash/seq left exactly as-is
+    lines[1] = json.dumps(row2)
+    ledger_path.write_text("\n".join(lines) + "\n")
+    tampered_bytes = ledger_path.read_bytes()
+    assert tampered_bytes != original_bytes
+
+    result = ledger.repair(tmp_path, dispatcher=_NullDispatcher())
+    assert result["repaired"] is False
+    assert result["fixable"] is False
+    assert "tampered" in result["reason"]
+    assert result["moved_lines"] == 0
+    # byte-identical: nothing moved, nothing rewritten, not even the 2 perfectly good rows after it
+    assert ledger_path.read_bytes() == tampered_bytes
+    incs = incidents.open_incidents(tmp_path)
+    assert any(i["kind"] == "ledger_tampered" for i in incs), incs
+
+
+def test_ledger_repair_refuses_tamper_on_an_already_anchored_last_row(tmp_path):
+    """M1: 'any break on an anchored row is tampering' — even if that row happens to be the
+    LAST one. A legitimate torn tail is only ever a row that was NEVER witnessed by an anchor;
+    rewriting a row that already has one, even the tail, is tampering, not a crash."""
+    intents = [_supply_intent(tag=f"m1anchor-{i}") for i in range(3)]
+    for an_intent in intents:
+        machine.record_intent(tmp_path, an_intent, NOW)
+    ledger_path = tmp_path / contract.DATA_SUBDIR / contract.LEDGER
+    lines = ledger_path.read_text().splitlines()
+    assert len(lines) == 3
+    anchors_path = tmp_path / contract.ANCHORS_SUBDIR / "anchors.jsonl"
+    assert len(anchors_path.read_text().splitlines()) == 3  # every row IS anchored already
+
+    row3 = json.loads(lines[-1])
+    row3["payload"]["sleeve_id"] = "TAMPERED-TAIL"
+    lines[-1] = json.dumps(row3)
+    tampered_text = "\n".join(lines) + "\n"
+    ledger_path.write_text(tampered_text)
+
+    result = ledger.repair(tmp_path, dispatcher=_NullDispatcher())
+    assert result["repaired"] is False
+    assert result["fixable"] is False
+    assert ledger_path.read_text() == tampered_text
+    incs = incidents.open_incidents(tmp_path)
+    assert any(i["kind"] == "ledger_tampered" for i in incs), incs
+
+
+def test_ledger_repair_refuses_an_anchored_last_row_cut_short_to_unparseable(tmp_path):
+    """Final re-review M1-r: cutting the WITNESSED last row short (so it no longer parses) was
+    treated as a crash-torn tail — moved aside, repaired=True, no incident. A torn write can only
+    be a row that was never anchored; this one was complete once."""
+    for i in range(4):
+        machine.record_intent(tmp_path, _supply_intent(tag=f"m1r-{i}"), NOW)
+    ledger_path = tmp_path / contract.DATA_SUBDIR / contract.LEDGER
+    lines = ledger_path.read_text().splitlines()
+    anchors_path = tmp_path / contract.ANCHORS_SUBDIR / "anchors.jsonl"
+    assert len(anchors_path.read_text().splitlines()) == 4  # the scene: every row IS anchored
+    lines[-1] = lines[-1][: len(lines[-1]) // 2]
+    cut_text = "\n".join(lines) + "\n"
+    ledger_path.write_text(cut_text)
+
+    result = ledger.repair(tmp_path, dispatcher=_NullDispatcher())
+    assert result["repaired"] is False and result["fixable"] is False
+    assert ledger_path.read_text() == cut_text
+    assert not list(ledger_path.parent.glob(contract.LEDGER + ".torn-*"))
+    assert any(i["kind"] == "ledger_tampered" for i in incidents.open_incidents(tmp_path))
+
+
+def test_ledger_repair_still_handles_genuine_torn_tail_after_several_good_rows(tmp_path):
+    """The companion positive control for M1: a torn (unparseable, never-anchored) LAST line
+    after several perfectly good, already-anchored rows must still be repaired normally."""
+    intents = [_supply_intent(tag=f"torn-{i}") for i in range(4)]
+    for an_intent in intents:
+        machine.record_intent(tmp_path, an_intent, NOW)
+    ledger_path = tmp_path / contract.DATA_SUBDIR / contract.LEDGER
+    with open(ledger_path, "a") as f:
+        f.write('{"seq": 5, "incomplete')  # crash mid-write of a 5th row — never anchored
+
+    result = ledger.repair(tmp_path, dispatcher=_NullDispatcher())
+    assert result["repaired"] is True
+    assert result["good_lines"] == 4
+    assert result["moved_lines"] == 1
+    assert ledger.verify_chain(tmp_path)["ok"] is True
 
 
 def test_ledger_repair_still_moves_aside_a_torn_last_line(tmp_path):
@@ -812,8 +929,42 @@ def test_default_dispatcher_is_outbox_for_non_production_dir(tmp_path):
     assert isinstance(incidents._default_dispatcher(tmp_path), incidents._OutboxDispatcher)
 
 
-def test_default_dispatcher_is_real_only_for_the_actual_production_dir(monkeypatch, tmp_path):
-    from spa_core.utils import live_paths
-    monkeypatch.setattr(live_paths, "live_data_dir", lambda *a, **k: tmp_path)
-    dispatcher = incidents._default_dispatcher(tmp_path)
+def test_default_dispatcher_is_real_only_for_the_actual_code_tree_data_dir():
+    real_data_dir = REPO_ROOT / "data"
+    dispatcher = incidents._default_dispatcher(real_data_dir)
     assert not isinstance(dispatcher, incidents._OutboxDispatcher)
+
+
+# ── N7 PARTIAL (second re-review): the production/sandbox decision must be STRUCTURAL, never
+# overridable by SPA_DATA_DIR/SPA_LIVE_ROOT (the very envs a sandbox sets to AVOID production).
+
+def test_n7_sandbox_dir_named_by_spa_data_dir_still_gets_the_outbox(tmp_path, monkeypatch):
+    """(a) A sandbox run whose ``--data-dir`` happens to equal ``$SPA_DATA_DIR`` must NOT be
+    upgraded to "production" by that env var. Before the structural fix, ``_is_production_data_dir``
+    asked ``live_paths.live_data_dir()``, which reads ``SPA_DATA_DIR`` first and would have
+    returned ``tmp_path`` here, making this scratch run look like production."""
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))
+    assert isinstance(incidents._default_dispatcher(tmp_path), incidents._OutboxDispatcher)
+
+    real_dedup = REPO_ROOT / "data" / "alert_dispatcher_dedup.json"
+    before = real_dedup.read_bytes() if real_dedup.exists() else None
+    incidents.raise_incident(tmp_path, "forbidden_method", "sandbox named by SPA_DATA_DIR", now=NOW)
+    after = real_dedup.read_bytes() if real_dedup.exists() else None
+    assert before == after
+
+
+def test_n7_production_dir_is_real_even_if_spa_data_dir_points_elsewhere(monkeypatch, tmp_path):
+    """(b) The actual code-tree data dir must get the REAL dispatcher even when
+    ``SPA_DATA_DIR``/``SPA_LIVE_ROOT`` are set to point somewhere else entirely (e.g. the
+    pre-deploy gate's own sandbox) — the decision ignores those envs completely, in both
+    directions."""
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path))  # points elsewhere — must be ignored
+    real_data_dir = REPO_ROOT / "data"
+    dispatcher = incidents._default_dispatcher(real_data_dir)
+    assert not isinstance(dispatcher, incidents._OutboxDispatcher)
+
+
+def test_n7_is_production_data_dir_ignores_spa_live_root_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("SPA_LIVE_ROOT", str(tmp_path))
+    assert incidents._is_production_data_dir(tmp_path / "data") is False
+    assert incidents._is_production_data_dir(REPO_ROOT / "data") is True

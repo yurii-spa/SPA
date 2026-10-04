@@ -13,6 +13,7 @@ Nothing here signs, broadcasts, or moves a single unit of real value (``REAL_CAP
 from __future__ import annotations
 
 import argparse
+import os
 import contextlib
 import fcntl
 import sys
@@ -29,7 +30,7 @@ def _iso(now: datetime) -> str:
 
 
 def _get_pin(chain_id: int, *, live_rpc: bool, rpc_mod: Any = None, client: Any = None, data_dir: Any = None,
-            now: Any = None, dispatcher: Any = None) -> dict:
+            now: Any = None, dispatcher: Any = None, escalated: Optional[set] = None) -> dict:
     if not live_rpc:
         return {"state": contract.NOT_MEASURED, "number": None, "hash": None, "operators": [],
                "reason": "--no-rpc (default): no live RPC quorum was consulted"}
@@ -42,16 +43,20 @@ def _get_pin(chain_id: int, *, live_rpc: bool, rpc_mod: Any = None, client: Any 
     c = client or rpc_mod.RpcClient(chain_id)
     pin = c.pin_block()
     # review #5 remainder: the PIN client's own security_events (forbidden-method/quorum-dissent)
-    # must be escalated too, not only the per-intent simulation client's.
+    # must be escalated too, not only the per-intent simulation client's. review round-3 L3:
+    # `escalated` (same identity set threaded through every escalation site in run_cycle) is what
+    # stops this client's events being re-raised again at the simulate/forward-reconciliation
+    # sites when the SAME client object is shared across all three.
     if data_dir is not None and now is not None:
         _escalate_security_events(data_dir, {"security_events": getattr(c, "security_events", [])}, now,
-                                  dispatcher)
+                                  dispatcher, escalated=escalated)
     return pin
 
 
 def _is_scenario(an_intent: dict) -> bool:
-    s = an_intent.get("scenario")
-    return isinstance(s, str) and s.startswith(contract.SCENARIO_TEST_PREFIX)
+    # review round-3 L5: delegates to intent.is_test_scenario (case-INSENSITIVE on the prefix) —
+    # same shared check as machine.py's scenario ceiling, read.py and reconcile.py.
+    return intent_mod.is_test_scenario(an_intent.get("scenario"))
 
 
 class _RefusingClient:
@@ -121,11 +126,31 @@ def _validate(data_dir: Path, an_intent: dict, now: datetime) -> bool:
         return False
 
 
-def _escalate_security_events(data_dir: Path, sim_record: dict, now: datetime, dispatcher: Any) -> None:
+def _escalate_security_events(data_dir: Path, sim_record: dict, now: datetime, dispatcher: Any, *,
+                              escalated: Optional[set] = None) -> None:
     """review #5 HIGH: a security event on the simulation record (forbidden-method attempt,
     quorum disagreement INCLUDING minority dissent — ``rpc.RpcClient`` records both) used to sit
     inside the simulation evidence and never become an incident. Every event is escalated, one
-    incident each; unrecognised kinds are never invented into the fixed taxonomy."""
+    incident each; unrecognised kinds are never invented into the fixed taxonomy.
+
+    review round-3 L3: when ONE client is shared across ``_get_pin``, every per-intent
+    ``_simulate_and_execute`` call, and ``_run_forward_reconciliation``, its ``security_events``
+    list is read (in full, or in some overlapping slice) at EACH of those sites — the OLD code
+    had no shared memory across sites, so the SAME real event became a FRESH incident every time
+    it was seen again (measured: 6 real events -> 16 incidents). ``escalated`` is an identity set
+    keyed by ``(kind, repr(detail))`` — not the client's identity, not a list index, which both
+    break the moment two different call sites see the SAME event through two differently-sliced
+    lists. It MUST be the SAME set object threaded through every escalation site within one
+    ``run_cycle`` for "one event -> one incident" to hold HOWEVER clients are shared; the default
+    ``None`` only dedups duplicate events WITHIN this one call's own list (correct for a single
+    standalone call, e.g. a failure_matrix row that never shares a client across sites).
+    Known, accepted limitation: two materially DIFFERENT real events that happen to carry an
+    identical ``(kind, detail)`` pair are indistinguishable by this identity and the second is
+    treated as a duplicate — in practice ``rpc.RpcClient``'s own detail text names the block/
+    operators involved, which makes a real collision implausible; a content hash is used, not an
+    object/list identity, specifically so repeated READS of the same growing list are the case
+    this guards against, not the event's own uniqueness."""
+    seen_this_call: set = set()
     for ev in (sim_record.get("security_events") or []):
         if not isinstance(ev, dict):
             continue
@@ -133,12 +158,20 @@ def _escalate_security_events(data_dir: Path, sim_record: dict, now: datetime, d
         if kind not in incidents.KINDS:
             continue
         detail = ev.get("detail")
+        identity = (kind, repr(detail))
+        if identity in seen_this_call:
+            continue
+        seen_this_call.add(identity)
+        if escalated is not None:
+            if identity in escalated:
+                continue
+            escalated.add(identity)
         detail_text = detail if isinstance(detail, str) else repr(detail)
         incidents.raise_incident(data_dir, kind, detail_text, now=now, dispatcher=dispatcher)
 
 
 def _simulate_and_execute(data_dir: Path, an_intent: dict, now: datetime, *, simulate_mod: Any,
-                           client: Any, dispatcher: Any = None) -> dict:
+                           client: Any, dispatcher: Any = None, escalated: Optional[set] = None) -> dict:
     """VALIDATED -> SIMULATED -> SHADOW_READY -> SHADOW_EXECUTED -> (reconcile). Returns a small
     per-intent report. Never advances a TEST_SCENARIO intent past SHADOW_EXECUTED
     (contract.SCENARIO_MAX_STATE, review #12) — a reconciliation OUTCOME may still be recorded
@@ -170,6 +203,24 @@ def _simulate_and_execute(data_dir: Path, an_intent: dict, now: datetime, *, sim
                  "quantity": an_intent.get("notional"), "cash": assumed_full_funding_usd, "position": 0.0}
         book = {"bids": [[1.0, 1_000_000.0]], "asks": [[1.0, 1_000_000.0]]}
         fill = exchange_mod.simulate_order(order, {}, book)
+        # review round-3 item 2: exchange_sim sets accepted=True for BOTH a full STATUS_SIMULATED
+        # fill AND a STATUS_PARTIAL one — "accepted" means "the order was not rejected outright",
+        # never "this is a clean pass". A partial fill is NOT a full simulation and must never be
+        # recorded as SIM_PASS / advance like one (that would book a partial fill as a clean pass
+        # in the real pipeline, exactly the gap failure_matrix row 34 must now catch for real).
+        is_partial = fill.get("status") == getattr(exchange_mod, "STATUS_PARTIAL", "PARTIAL")
+        if is_partial:
+            sim_result = "PARTIAL"
+            revert_reason = fill.get("reason") or "partial fill — not a full simulation"
+            is_pass = False
+        elif fill.get("accepted"):
+            sim_result = contract.SIM_PASS
+            revert_reason = fill.get("reason")
+            is_pass = True
+        else:
+            sim_result = contract.SIM_FAIL
+            revert_reason = fill.get("reason")
+            is_pass = False
         sim_record = {"schema": contract.SCHEMA_SIMULATION, "intent_id": intent_id,
                       "label": exchange_mod.LABEL, "not_proven": list(contract.NOT_PROVEN),
                       "trust_model": "deterministic local match against a caller-supplied book — "
@@ -177,13 +228,12 @@ def _simulate_and_execute(data_dir: Path, an_intent: dict, now: datetime, *, sim
                       "hash": None, "operators": []}, "sender": None, "checks": [],
                       "call": {"signature": "exchange_sim.simulate_order", "selector": None, "args_readable":
                                [{"name": "order", "type": "dict", "value": order}]},
-                      "gas_estimate": None, "result": contract.SIM_PASS if fill.get("accepted") else
-                      contract.SIM_FAIL, "revert_reason": fill.get("reason"), "post_state": fill,
-                      "security_events": [], "simulated_at": _iso(now)}
+                      "gas_estimate": None, "result": sim_result, "revert_reason": revert_reason,
+                      "post_state": fill, "security_events": [], "simulated_at": _iso(now)}
         ledger.record_simulation_entry(data_dir, an_intent, sim_record, now)
-        to_state = contract.S_SIMULATED if fill.get("accepted") else contract.S_SIMULATION_FAILED
-        machine.advance(data_dir, an_intent, to_state, {"exchange_sim": fill.get("accepted")}, now)
-        report["outcome"] = "SIMULATED" if fill.get("accepted") else "SIMULATION_FAILED"
+        to_state = contract.S_SIMULATED if is_pass else contract.S_SIMULATION_FAILED
+        machine.advance(data_dir, an_intent, to_state, {"exchange_sim": is_pass}, now)
+        report["outcome"] = "SIMULATED" if is_pass else "SIMULATION_FAILED"
         return report
 
     if an_intent.get("network_or_venue") in contract.PERMISSIONED_VENUES:
@@ -212,7 +262,7 @@ def _simulate_and_execute(data_dir: Path, an_intent: dict, now: datetime, *, sim
         report["outcome"] = "SIMULATION_FAILED"
         return report
     ledger.record_simulation_entry(data_dir, an_intent, sim_record, now)
-    _escalate_security_events(data_dir, sim_record, now, dispatcher)
+    _escalate_security_events(data_dir, sim_record, now, dispatcher, escalated=escalated)
 
     if sim_record.get("result") != contract.SIM_PASS:
         machine.advance(data_dir, an_intent, contract.S_SIMULATION_FAILED,
@@ -284,7 +334,7 @@ def _simulate_and_execute(data_dir: Path, an_intent: dict, now: datetime, *, sim
 
 
 def _run_forward_reconciliation(data_dir: Path, now: datetime, *, rpc_mod: Any, simulate_mod: Any,
-                                client: Any, dispatcher: Any = None) -> list:
+                                client: Any, dispatcher: Any = None, escalated: Optional[set] = None) -> list:
     """At the START of every run (review #4): for every earlier SHADOW_EXECUTED intent not yet
     FINALLY reconciled — scenario or current-state — re-read the chain at a NEW pinned block.
     MATCHED/MISMATCH are final (review #9): once recorded, never revisited. A ``NOT_MEASURED``
@@ -328,10 +378,17 @@ def _run_forward_reconciliation(data_dir: Path, now: datetime, *, rpc_mod: Any, 
     except ImportError:
         tokens_mod = None
     clients_by_chain: dict = {}
-    # review #5 remainder: these clients are REUSED across intents within one pass, so their
-    # security_events list keeps growing — escalate only the slice NOT yet seen, per client, or
-    # the same real event would be turned into a fresh incident on every subsequent intent.
-    _escalated_count: dict = {}
+    # review #5 remainder / round-3 L3: these clients are REUSED across intents within one pass,
+    # so their security_events list keeps growing. The OLD per-client slice-index dedup here was
+    # its OWN separate bookkeeping from _get_pin's / _simulate_and_execute's — when the SAME
+    # client object is ALSO shared with those sites (an explicitly-injected client, not one built
+    # locally here), each site's independent "start from 0" memory re-escalated the same real
+    # event once per site. `escalated` is now the ONE shared content-identity set threaded through
+    # every escalation call in run_cycle; a local set is created here only when none was supplied
+    # (a standalone call to this function, e.g. in a test, still dedups correctly across the
+    # multiple intents reconciled within THIS call).
+    if escalated is None:
+        escalated = set()
 
     def _client_for(chain_id):
         if client is not None:
@@ -346,11 +403,9 @@ def _run_forward_reconciliation(data_dir: Path, now: datetime, *, rpc_mod: Any, 
 
     def _escalate_new(cl) -> None:
         events = getattr(cl, "security_events", None) or []
-        start = _escalated_count.get(id(cl), 0)
-        new_events = events[start:]
-        if new_events:
-            _escalate_security_events(data_dir, {"security_events": new_events}, now, dispatcher)
-        _escalated_count[id(cl)] = len(events)
+        if events:
+            _escalate_security_events(data_dir, {"security_events": events}, now, dispatcher,
+                                      escalated=escalated)
 
     reports = []
     for intent_id in pending_ids:
@@ -442,11 +497,17 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
             except ImportError:
                 rpc_mod = None
 
+        # review round-3 L3: ONE shared content-identity set for every escalation call this cycle
+        # makes — pin, forward reconciliation, and every per-intent simulation — so a client
+        # shared across those sites never has the same real security event turned into more than
+        # one incident (measured before this fix: 6 real events -> 16 incidents).
+        escalated: set = set()
+
         forward_reports = _run_forward_reconciliation(data_dir, now, rpc_mod=rpc_mod, simulate_mod=simulate_mod,
-                                                      client=client, dispatcher=dispatcher)
+                                                      client=client, dispatcher=dispatcher, escalated=escalated)
 
         pin = _get_pin(1, live_rpc=live_rpc, rpc_mod=rpc_mod, client=client, data_dir=data_dir, now=now,
-                      dispatcher=dispatcher)
+                      dispatcher=dispatcher, escalated=escalated)
 
         current_intents = intent_mod.build_current_intents(data_dir, now, pin)
         per_intent_reports = []
@@ -459,7 +520,8 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
                                            "outcome": "NO_ACTION"})
                 continue
             per_intent_reports.append(_simulate_and_execute(data_dir, an_intent, now, simulate_mod=simulate_mod,
-                                                            client=client, dispatcher=dispatcher))
+                                                            client=client, dispatcher=dispatcher,
+                                                            escalated=escalated))
 
         scenario_intents = []
         if scenario:
@@ -477,7 +539,8 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
                                               "sleeve_id": an_intent["sleeve_id"], "outcome": "NO_ACTION"})
                     continue
                 per_intent_reports.append(_simulate_and_execute(data_dir, an_intent, now, simulate_mod=simulate_mod,
-                                                                client=client, dispatcher=dispatcher))
+                                                                client=client, dispatcher=dispatcher,
+                                                                escalated=escalated))
 
         # review N5: readiness.evaluate() now returns ONLY sleeve reports — venue_canary moved to
         # its own top-level key (read.latest() builds it separately via venue_canary_section()).
@@ -500,7 +563,14 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m spa_core.capital_shadow.run")
-    parser.add_argument("--data-dir", default="data")
+    # review round-3 item 7 (M2): the OLD default ("data", a path relative to CWD) ignored
+    # SPA_DATA_DIR entirely. scripts/check_agent_before_deploy.sh sets SPA_DATA_DIR to a sandbox
+    # for its trial run — with the old default, a gate trial run with no explicit --data-dir still
+    # wrote straight into the PRODUCTION data/capital_shadow (measured: it did, at a real deploy,
+    # 08:13). default=None (same pattern as spa_core/investment_cio/run.py) lets the resolution
+    # happen at call time: an explicit --data-dir always wins; otherwise live_data_dir() honours
+    # SPA_DATA_DIR first, else this code tree's own data/ (never another tree's).
+    parser.add_argument("--data-dir", default=None, help="defaults to SPA_DATA_DIR, else this code tree's own data/ dir")
     parser.add_argument("--now", default=None)
     parser.add_argument("--scenario", default=None)
     rpc_group = parser.add_mutually_exclusive_group()
@@ -508,9 +578,20 @@ def main(argv=None) -> int:
     rpc_group.add_argument("--no-rpc", action="store_true", default=False)
     args = parser.parse_args(argv)
 
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+    else:
+        # Final re-review (L-new): live_data_dir() falls back to the LIVE tree when SPA_DATA_DIR is
+        # unset, so a run from any worktree appended to the production ledger. The default is now
+        # SPA_DATA_DIR if set, else THIS code tree's own data/ — the launchd agent runs from the
+        # production tree, so production still writes production; a worktree writes its own.
+        from spa_core.utils.live_paths import DATA_DIR_ENV
+        sandbox = os.environ.get(DATA_DIR_ENV)
+        data_dir = Path(sandbox) if sandbox else Path(__file__).resolve().parents[2] / "data"
+
     now = datetime.fromisoformat(args.now.replace("Z", "+00:00")) if args.now else datetime.now(timezone.utc)
     try:
-        summary = run_cycle(Path(args.data_dir), now, scenario=args.scenario, live_rpc=bool(args.live_rpc))
+        summary = run_cycle(data_dir, now, scenario=args.scenario, live_rpc=bool(args.live_rpc))
     except (ledger.LockBusy, RunLocked) as exc:
         print(f"capital_shadow: LOCKED: {exc}")
         return contract.EXIT_LOCKED

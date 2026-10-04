@@ -389,9 +389,54 @@ regression test that was shown red without the fix.
   exchange rows 5/6/7 use a labelled injectable fetcher with the real `exchange_sim` as control, row 34 induces a
   real PARTIAL fill and expects NOT_MEASURED; the observability gate is an allowlist (`OK`/`HEALTHY`).
 
+## Final re-review (2026-10-04) — round 3 remediation
+
+The second reviewer re-probed the N1–N8 fixes adversarially. N1–N5, N8, the RPC allow-list, no-sign/no-broadcast,
+TEST_SCENARIO readiness, the observability allowlist and `kill_switch_clear` were CLOSED. The items below were open
+or new; each is now fixed with a test shown red without the fix.
+
+- **N6** — the retry window was the 6 h intent TTL, but the agent runs once a day, so a trade blocked on day 1 was
+  finalised before day 2 could retry it. New `intent.TRADE_RETRY_WINDOW_S` = 72 h (≥ 3 daily cycles); the intent
+  TTL is unchanged.
+- **N7 / M2** — production was recognised through the env-overridable `live_data_dir()`, so a sandbox named by
+  `SPA_DATA_DIR` got the real alert dispatcher and vice versa. Detection is now structural (the code tree's own
+  `data/`, environment ignored). Separately, `run.main` defaulted to the CWD-relative `data` and ignored
+  `SPA_DATA_DIR`, so the pre-deploy gate's trial run on 2026-10-04 08:13 wrote into production
+  `data/capital_shadow` (harmless: it is the agent's own store, the run was the agent's normal run). The default is now
+  `live_data_dir()`.
+- **Row 34 / PARTIAL fill** — the row asserted a hard-coded literal, and the real pipeline booked a partial
+  exchange fill as SIM_PASS. A PARTIAL fill is now `result=PARTIAL` → `SIMULATION_FAILED`; the row drives the real
+  run path.
+- **M1** — repair treated a mid-chain payload tamper whose line still parsed as a "torn tail" and moved legitimate
+  rows aside. Repair now fixes only an unparseable or hash-broken LAST line that was never anchored; any earlier or
+  anchored break is `ledger_tampered`: incident raised, file byte-identical.
+- **L1** — unresolvable base units or a non-integer amount in an APPROVE is a policy violation (fail-closed).
+- **L3** — security events are escalated once per event identity across pin, simulation and reconciliation, even
+  through one shared client.
+- **L4** — any kill-switch state other than exactly `CLEAR` counts as armed (the real writer publishes `TRIGGERED`,
+  `UNMEASURED`, `CLEAR_PARTIAL`).
+- **L5** — evidence rows are excluded from a real sleeve by their owning intent's scenario, not only by sleeve id;
+  one case-insensitive `intent.is_test_scenario` replaces five copies. Measured on production: all 48 TEST_SCENARIO
+  rows carry `scenario_canary`.
+- **L6** — clearing an incident twice is refused. Stated plainly: the owner nonce is in plaintext in
+  `incidents.jsonl`; the out-of-band file stops the runtime from clearing its own incidents (no code path writes a
+  confirmation), not a hostile process running as the same OS user.
+
+- **Re-verification of round 3** by the same reviewer: N6, N7/M2, row 34 with the PARTIAL path, L1, L3, L4, L6
+  CLOSED. Two residuals and one side effect were then fixed, each with a test shown red without the fix:
+  **M1-r** — an anchored last row cut short to unparseable was still "repaired"; an unparseable line whose position
+  is anchored is now tampering. **L5-r** — `readiness._scenario_intent_ids` kept its own case-sensitive prefix
+  check; it now calls `intent.is_test_scenario`. **L-new** — with `SPA_DATA_DIR` unset the default data dir fell
+  back to the LIVE tree, so a worktree run appended to the production ledger; the default is now `SPA_DATA_DIR`,
+  else this code tree's own `data/`.
+- Accepted, recorded rather than fixed: two identical `forbidden_method` attempts collapse into one incident (the
+  attempt count is lost, the escalation is not); emptying both `incidents.jsonl` and its LOCAL anchors reads as
+  zero incidents — the local anchor is not an off-host witness, which is exactly why `offhost_anchor` is a hard FAIL;
+  `verify.expected_amount_base_units` is a second scaling helper (it fails closed where it diverges).
+
 ## Final evidence (2026-10-04)
 
-- Tests: capital_shadow + Mission Control + guards + execution hardening — **3222 passed, 1 skipped** (pre-existing).
+- Tests: capital_shadow + Mission Control + guards + ratchets + execution hardening — **3351 passed, 1 skipped** (pre-existing).
 - Failure matrix: **34 induced failures, 0 failing**.
 - Recovery drill (copy of production data, `--no-rpc`): restart duplicates nothing (24 → 24 rows); corrupt or
   missing `latest.json` is rebuilt from the ledger; truncated tail, tampered row and missing anchors all give

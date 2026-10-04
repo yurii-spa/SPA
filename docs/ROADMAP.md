@@ -23,12 +23,14 @@
 3. ~~DeFi Engine vNext~~ — done: three paper portfolios closed through the owner gate 2026-10-03 (ADR-537). Phase 0 done (ADR-531); Phase 1 foundation done (ADR-532, derived `defi_engine`); **three paper portfolios with distinct mechanics running** (ADR-533: Conservative lending under RiskPolicy · Balanced fixed-rate PT to maturity · Aggressive SIMULATED sUSDe/PYUSD loop). Open, owner-gated: money-path bindings (tier labels, Conservative 3 % budget wording/trigger, RTMR coverage) — ADR-532/533; public wording of the strategy pages is published through the owner gate.
 4. ~~Build Loop / remaining workflow gaps~~ — done (ADR-551: card lifecycle with evidenced closing, lineage, provenance, orphans, resource guard).
 5. ~~Owner Remote / Mission Control v1~~ — done 2026-10-04 (ADR-552): `https://mc.earn-defi.com` behind Cloudflare Access → protected listener :8792; desktop on `127.0.0.1:8790`.
-6. ~~Capital Allocator / Portfolio CIO v1~~ — done 2026-10-04 (ADR-554): Investment CIO «Штирлиц» (`role_id` `chief_investment_officer`), ADVISORY / PAPER cross-sleeve recommendation + immutable decision ledger + forward outcomes; executes nothing. Its own next step is evidence, not code: Balanced/Aggressive reach 30 valid periods ~2026-11-01.
-7. **RM-LIVE-01 · Shadow execution + limited capital pilot readiness** — ACTIVE (started 2026-10-04): the boundary
-   between a CIO recommendation and any future real-capital action — unsigned intents, simulation, shadow
-   execution, reconciliation, readiness verdict. Real capital stays $0; automated live execution is prohibited.
-   **Limited real-capital pilots themselves** remain owner-gated (real money, CLAUDE.md subject №1) and are NOT part
-   of RM-LIVE-01.
+6. ~~Capital Allocator / Portfolio CIO v1 (RM-CAP)~~ — DONE 2026-10-04 (ADR-554): Investment CIO «Штирлиц» (`role_id` `chief_investment_officer`), ADVISORY / PAPER cross-sleeve recommendation + immutable decision ledger + forward outcomes; executes nothing. Its own next step is evidence, not code: Balanced/Aggressive reach 30 valid periods ~2026-11-01.
+7. ~~RM-LIVE-01 · Shadow execution + limited capital pilot readiness~~ — DONE 2026-10-04 (ADR-556): `spa_core/capital_shadow`
+   (agent `com.spa.capital_shadow`, 09:45) — unsigned intents, keyless 2-of-N quorum simulation, hash-chained shadow
+   ledger, forward reconciliation, sticky incidents, readiness verdict; Mission Control «Live Readiness/Shadow» (no
+   buttons). Verdict: every sleeve **NOT_READY**. Real capital $0; automated live execution PROHIBITED; no real
+   transaction or order was submitted. **A limited real-capital pilot has NOT happened** — it remains owner-gated
+   (real money, CLAUDE.md subject №1: custody, counterparty source, off-host anchor, GoLive/live admission, pilot
+   amount, kill switch CLEAR) and is not part of RM-LIVE-01. RM-EXPAND is not started.
 8. **Later engines:** traditional markets, RWA / stable yield, volatility / options
 
 ## Standing constraints
