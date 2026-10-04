@@ -28,7 +28,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from spa_core.research_factory import contract, counterparty_registry, onchain
+from spa_core.research_factory import contract, counterparty_registry, evidence_contract, onchain
 from spa_core.research_factory.scanners._common import (empty_result, full_candidate, not_applicable,
                                                           not_measured, read_json)
 
@@ -99,6 +99,198 @@ def _funding_cell(doc: dict, asset: str, now: datetime) -> dict:
                          source_class=contract.PRIMARY_VENUE, source_root="venue:median5", as_of=as_of,
                          recorded_at=now.isoformat(), now=now, method=ANNUALISE_METHOD, reason=QUORUM_CAVEAT,
                          window="since_admission")
+
+
+#: ADR-564 binding #8: official fee sources only (KuCoin's contracts API, Hyperliquid's own fee
+#: docs); every other venue has no verified fee source in this repo's citation seed and stays
+#: NOT_MEASURED — never a guessed/typical figure.
+#: H2 (post-implementation review, 2026-10-04): a ONE-OFF cost (a per-trade taker fee) declares
+#: this unit explicitly — never the bare, ambiguous "fraction" `contract.ANNUAL_RATE_UNITS` would
+#: treat as a recurring annual rate (the exact shape of a separate, already-fixed live defect in
+#: scanners/rwa.py — ``rwa.UNIT_ONE_OFF``, redeclared here rather than imported so this module
+#: does not depend on rwa.py for a plain string constant).
+UNIT_ONE_OFF = "fraction_one_off"
+PERP_TAKER_FEE = {"kucoin": 0.0006, "hyperliquid": 0.00045}
+#: (origin, source_class, ref, effective_from) — effective_from is the citation's OWN retrieval
+#: date (registry/facts.jsonl's retrieved_at, 2026-10-04), never the scan clock (review H1's
+#: discipline, applied to a curated fact instead of a live cache).
+PERP_TAKER_FEE_SOURCE = {
+    "kucoin": ("venue:kucoin", contract.OFFICIAL_API, "api-futures.kucoin.com/api/v1/contracts/<symbol> "
+              "takerFeeRate", "2026-10-04"),
+    "hyperliquid": ("venue:hyperliquid", contract.OFFICIAL_API,
+                    "hyperliquid.gitbook.io/hyperliquid-docs/trading/fees (venue-published fee schedule)",
+                    "2026-10-04"),
+}
+#: ADR-564 decision #6: funding capture is one candidate PER (perp venue, spot venue) pair; all
+#: pairs of one asset share this family tag (recorded on ``underlying_root`` — contract.py v1 has
+#: no dedicated ``exposure_family`` field; that lives on the v2 evidence bundle, package E1).
+FUNDING_FAMILY_ROOT = "perp:{asset}:family"
+SPOT_LEG_VENUES = ("binance", "bybit", "okx", "kucoin")      # Hyperliquid has no native spot market
+PERP_LEG_VENUES = ("binance", "bybit", "okx", "kucoin", "hyperliquid")
+
+
+def _settlement_rows(funding_rows: list, asset: str, venue: str) -> list:
+    claim = f"funding_settlement:{asset}"
+    return [r for r in (funding_rows or []) if r.get("claim") == claim and r.get("origin") == f"venue:{venue}"
+           and r.get("state") == contract.MEASURED]
+
+
+def _latest_settlement_cell(rows: list, now: datetime) -> dict:
+    if not rows:
+        return not_measured("no persisted settlement rows for this venue (never a fabricated median)")
+    latest = max(rows, key=lambda r: r.get("upstream_ts") or "")
+    as_of = latest.get("upstream_ts")
+    if not isinstance(as_of, str) or contract.parse_ts(as_of) is None:
+        return not_measured("latest settlement row has no parseable upstream_ts")
+    annual_pct = float(latest["value"]) * 3.0 * 365.0 * 100.0   # review N5 style annualisation; sign preserved
+    return contract.cell(contract.MEASURED, round(annual_pct, 10), unit="pct_apy_annualised",
+                         source_ref=latest.get("ref"), source_class=contract.PRIMARY_VENUE,
+                         source_root=f"venue:{latest.get('origin', '').removeprefix('venue:')}", as_of=as_of,
+                         recorded_at=now.isoformat(), now=now, window="since_admission", n=len(rows),
+                         method="per-venue settlement rate × 3 settlements/day × 365, annualised; sign preserved, "
+                                "never clamped (ADR-564 binding #8 — never the 5-venue median)")
+
+
+def _book_entry_cell(book_rows: list, asset: str, venue: str, claim_prefix: str, now: datetime) -> dict:
+    row = next((r for r in (book_rows or []) if r.get("claim") == f"{claim_prefix}:{asset}"
+               and r.get("origin") == f"venue:{venue}"), None)
+    if row is None or row.get("state") != contract.MEASURED:
+        return not_measured(f"no {claim_prefix} book-walk evidence for {venue}/{asset} — "
+                            "a delta-neutral pair needs entry evidence for BOTH legs (ADR-564 decision #6)")
+    return contract.cell(contract.MEASURED, row.get("value"), unit=row.get("unit"), source_ref=row.get("ref"),
+                         source_class=contract.PRIMARY_VENUE, source_root=f"venue:{venue}",
+                         as_of=row.get("upstream_ts") or now.isoformat(), recorded_at=now.isoformat(), now=now,
+                         reason=row.get("reason"))
+
+
+def _slippage_cost_cell(book_rows: list, asset: str, spot_venue: str, now: datetime) -> dict:
+    """H2 (post-implementation review, 2026-10-04): the hedge leg's COST is the SLIPPAGE of the
+    spot book-walk fill away from the top-of-book mid, in bps (``collectors.books``'
+    ``spot_slippage_bps:{asset}`` claim) — never the fill PRICE itself (the live defect: a MEASURED
+    ``2701.78`` priced cell, unit ``avg_price_usd_for_10000_usd_notional``, sitting in a COST
+    field)."""
+    row = next((r for r in (book_rows or []) if r.get("claim") == f"spot_slippage_bps:{asset}"
+               and r.get("origin") == f"venue:{spot_venue}"), None)
+    if row is None or row.get("state") != contract.MEASURED:
+        return not_measured(f"no spot_slippage_bps evidence for {spot_venue}/{asset} — a delta-neutral "
+                            "pair needs entry evidence for BOTH legs (ADR-564 decision #6)")
+    return contract.cell(contract.MEASURED, row.get("value"), unit="bps", source_ref=row.get("ref"),
+                         source_class=contract.PRIMARY_VENUE, source_root=f"venue:{spot_venue}",
+                         as_of=now.isoformat(), recorded_at=now.isoformat(), now=now, reason=row.get("reason"))
+
+
+def _taker_fee_component(kind: str, venue: str, now: datetime, *, is_spot: bool) -> dict:
+    """H2: every fee component carries an EXPLICIT one-off unit — never the bare, ambiguous
+    "fraction" that let a one-off cost be mistaken for an annual rate elsewhere in this package.
+    Perp taker fees are cited for KuCoin/Hyperliquid only (``PERP_TAKER_FEE``); no spot taker fee
+    is cited for ANY venue in this repo's citation seed — a leg with no official fee source gets
+    an explicit NOT_MEASURED component, never a guessed/typical figure, so COST can never grade
+    ADEQUATE for that leg."""
+    if is_spot:
+        cell = not_measured(f"{venue}: no official spot taker-fee source cited in this repo's citation "
+                            "seed — COST UNKNOWN for the spot leg, never a guessed figure")
+        effective_from = None
+    else:
+        fee_val = PERP_TAKER_FEE.get(venue)
+        if fee_val is None:
+            cell = not_measured(f"{venue}: no official taker-fee source in this repo's citation seed — "
+                                "COST UNKNOWN, never a guessed figure (ADR-564 binding #8)")
+            effective_from = None
+        else:
+            origin, source_class, ref, effective_from = PERP_TAKER_FEE_SOURCE[venue]
+            cell = contract.cell(contract.DOCUMENTED, fee_val, unit=UNIT_ONE_OFF, source_ref=ref,
+                                 source_class=source_class, source_root=f"venue:{venue}", as_of=effective_from,
+                                 recorded_at=now.isoformat(), now=now,
+                                 method=f"{venue} taker fee — ONE-OFF per trade, never an annual rate")
+    return {"kind": kind, "cell": cell, "unit": UNIT_ONE_OFF, "effective_from": effective_from,
+           "subject_to_change": is_spot, "one_off": True}
+
+
+def funding_pair_paper_accounting_hints(perp_venue: str, spot_venue: str, now: datetime) -> dict:
+    """``evidence_contract.PAPER_ACCOUNTING_EVIDENCE_FIELDS`` shape, PER LEG (paper.py's own
+    docstring: "two-leg (funding-pair) candidates replace the block above with:
+    `legs`: {`perp`: {...}, `spot`: {...}}") — H2's frozen shape for E1's ``grade_cost``, which
+    needs BOTH legs' fee components (a leg with no cited fee source has NOT_MEASURED components,
+    so COST cannot grade ADEQUATE on that leg alone)."""
+    perp_leg = {
+        "entry_price": None,
+        "entry_fee_components": [_taker_fee_component("entry", perp_venue, now, is_spot=False)],
+        "exit_fee_components": [_taker_fee_component("exit", perp_venue, now, is_spot=False)],
+        "redemption_delay_days": not_applicable("CEX perp leg; no redemption concept"),
+        "price_is_net_of_performance_fee": None, "performance_fee_rate": None,
+        "leverage": not_measured(f"{perp_venue}: margin requirement not measured — no venue "
+                                 "margin-schedule client"),
+        "maintenance_margin_rate": not_measured(f"{perp_venue}: maintenance margin not measured"),
+        "collateral_yield_rate": None,
+        "fee_source": (PERP_TAKER_FEE_SOURCE[perp_venue][2] if perp_venue in PERP_TAKER_FEE_SOURCE
+                      else f"no official taker-fee source cited for {perp_venue}"),
+        "holding_period_days_declared": None, "return_origin_group": f"venue:{perp_venue}",
+    }
+    spot_leg = {
+        "entry_price": None,
+        "entry_fee_components": [_taker_fee_component("entry", spot_venue, now, is_spot=True)],
+        "exit_fee_components": [_taker_fee_component("exit", spot_venue, now, is_spot=True)],
+        "redemption_delay_days": not_applicable("CEX spot leg; no redemption concept"),
+        "price_is_net_of_performance_fee": None, "performance_fee_rate": None,
+        "leverage": not_applicable("spot leg; unlevered hedge"),
+        "maintenance_margin_rate": not_applicable("spot leg; unlevered hedge"),
+        "collateral_yield_rate": None,
+        "fee_source": f"no official spot taker-fee source cited for {spot_venue} in this repo's citation seed",
+        "holding_period_days_declared": None, "return_origin_group": f"venue:{spot_venue}",
+    }
+    return {"legs": {"perp": perp_leg, "spot": spot_leg}}
+
+
+def funding_pair_candidates(asset: str, funding_rows: list, book_rows: list, now: datetime) -> list:
+    """One candidate per (perp venue × spot venue) PAIR for ``asset`` (ADR-564 decision #6) — the
+    fix for the single cross-venue ``median5`` candidate: every venue's own persisted settlement
+    rows stand on their own, dispersion stays visible, and a pair is never admitted on
+    manufactured hedge-leg evidence."""
+    out = []
+    family_root = FUNDING_FAMILY_ROOT.format(asset=asset)
+    for perp_venue in PERP_LEG_VENUES:
+        settlement_rows = _settlement_rows(funding_rows, asset, perp_venue)
+        for spot_venue in SPOT_LEG_VENUES:
+            # evidence_contract.FUNDING_PAIR_ID ("perp:{asset}:{perp_venue}+spot:{spot_venue}") is
+            # the DISPLAY label (and the v2 bundle's id, once E1's bundle.py exists) — it does not
+            # fit contract.py v1's frozen INSTRUMENT_ID_RE (no "+", single venue token), so the v1
+            # instrument_id used for exposure_key()/candidate_id is a concatenated form instead.
+            pair_label = evidence_contract.FUNDING_PAIR_ID.format(asset=asset, perp_venue=perp_venue,
+                                                                   spot_venue=spot_venue)
+            instrument_id = f"perp:{asset}:{perp_venue}{spot_venue}"
+            cells = {
+                "base_return": not_applicable("FUNDING_CAPTURE has no base/deposit-yield leg"),
+                "funding": _latest_settlement_cell(settlement_rows, now),
+                "incentive_return": not_applicable("no incentive/reward component for a perp funding leg"),
+                "quoted_return": not_applicable("no issuer-advertised rate for a perp funding leg"),
+                # H2: no leg has a recurring ANNUAL fee — entry/exit taker fees are ONE-OFF (see
+                # paper_accounting_hints.legs); the v1 single cell is never fed a one-off cost again.
+                "fees": not_applicable("FUNDING_CAPTURE's taker fees are ONE-OFF per leg, never an annual "
+                                       "rate — see paper_accounting_hints.legs.{perp,spot}.*_fee_components"),
+                "gas": not_applicable("CEX perp leg; no on-chain gas"),
+                # H2: a COST in bps (slippage), never the fill PRICE a prior version stored here.
+                "hedging_cost": _slippage_cost_cell(book_rows, asset, spot_venue, now),
+                "duration": not_applicable("perpetual position; no fixed maturity"),
+                "liquidity": _book_entry_cell(book_rows, asset, perp_venue, "perp_mark", now),
+                "time_to_exit": not_measured("time to flatten a perp position not measured"),
+                "capacity": not_measured("venue capacity not measured"),
+                "measured_return": not_applicable("pre-admission scan; no running paper account yet"),
+                "realised_return": not_applicable("pre-admission scan; no running paper account yet"),
+                "leverage": not_measured("margin requirement not measured — no venue margin-schedule client"),
+                "liquidation_distance": not_measured("no margin/liquidation-price client for this leg"),
+            }
+            cells["net_expected_return"] = contract.net_expected_return(cells)
+            cand = full_candidate(
+                scanner=SCANNER_NAME, mechanism_id="FUNDING_CAPTURE", domain=DOMAIN, network="cex",
+                instrument=f"{asset} perp funding: {perp_venue} perp / {spot_venue} spot ({pair_label})",
+                instrument_id=instrument_id, venue_or_protocol=f"{perp_venue}+{spot_venue}",
+                underlying_root=family_root, economic_driver_key=f"{asset}_PERP_FUNDING",
+                yield_source="delta_neutral", strategy_family="basis", return_window="since_admission",
+                cells=cells, now=now,
+            )
+            cand["paper_accounting_hints"] = funding_pair_paper_accounting_hints(perp_venue, spot_venue, now)
+            out.append(cand)
+    return out
 
 
 def _funding_capture_candidate(asset: str, doc: dict, now: datetime) -> dict:
@@ -209,7 +401,12 @@ def _susde_candidate(adapter_status: dict, susde_dn_last: "dict | None", now: da
 #: Package-B scanner inventing a basis-track candidate for an engine it does not own).
 
 
-def scan(data_dir, now: datetime, *, rpc_client=None) -> dict:
+def scan(data_dir, now: datetime, *, rpc_client=None, funding_rows=None, book_rows=None) -> dict:
+    """``funding_rows``/``book_rows``: pre-collected ``collectors.funding_venues``/``collectors.books``
+    observation rows (ADR-564 decision #6) — when given, this scan also emits one PAIR candidate
+    per (perp venue × spot venue) per asset (``funding_pair_candidates``) and marks the legacy
+    5-venue-median candidate ``superseded_by`` the pair family; a caller that does not have
+    collected rows yet still gets the (now-superseded) median candidate unchanged, never a crash."""
     data_dir = Path(data_dir)
     as_of = now.isoformat()
 
@@ -238,19 +435,26 @@ def scan(data_dir, now: datetime, *, rpc_client=None) -> dict:
 
     candidates, observations, counterparty = [], {}, {}
 
-    eth_cand = _funding_capture_candidate("ETH", eth_doc or {}, now)
-    candidates.append(eth_cand)
-    counterparty[eth_cand["candidate_id"]] = counterparty_registry.funding_capture()
-    if eth_cand["funding"]["state"] == contract.MEASURED:
-        observations[eth_cand["candidate_id"]] = {"observed_return": eth_cand["funding"], "realised_index": None,
-                                                   "period": now.date().isoformat()}
-
-    btc_cand = _funding_capture_candidate("BTC", btc_doc or {}, now)
-    candidates.append(btc_cand)
-    counterparty[btc_cand["candidate_id"]] = counterparty_registry.funding_capture()
-    if btc_cand["funding"]["state"] == contract.MEASURED:
-        observations[btc_cand["candidate_id"]] = {"observed_return": btc_cand["funding"], "realised_index": None,
-                                                   "period": now.date().isoformat()}
+    for asset, doc in (("ETH", eth_doc or {}), ("BTC", btc_doc or {})):
+        legacy_cand = _funding_capture_candidate(asset, doc, now)
+        if funding_rows is not None or book_rows is not None:
+            # ADR-564 decision #6: the 5-venue median is a display aggregate only, superseded by
+            # the per-venue-pair family; it is never removed outright (continuity for anything
+            # still reading the old instrument id), only labelled.
+            legacy_cand["superseded_by"] = FUNDING_FAMILY_ROOT.format(asset=asset)
+        candidates.append(legacy_cand)
+        counterparty[legacy_cand["candidate_id"]] = counterparty_registry.funding_capture()
+        if legacy_cand["funding"]["state"] == contract.MEASURED:
+            observations[legacy_cand["candidate_id"]] = {"observed_return": legacy_cand["funding"],
+                                                          "realised_index": None, "period": now.date().isoformat()}
+        if funding_rows is not None or book_rows is not None:
+            for pair_cand in funding_pair_candidates(asset, funding_rows or [], book_rows or [], now):
+                candidates.append(pair_cand)
+                counterparty[pair_cand["candidate_id"]] = counterparty_registry.funding_capture()
+                if pair_cand["funding"]["state"] == contract.MEASURED:
+                    observations[pair_cand["candidate_id"]] = {"observed_return": pair_cand["funding"],
+                                                               "realised_index": None,
+                                                               "period": now.date().isoformat()}
 
     susde_result = _susde_candidate(adapter_status or {}, susde_dn_last, now)
     if susde_result is not None:

@@ -1,0 +1,31 @@
+{
+ "schema": "fact-review/1",
+ "reviewer": "RM-EVIDENCE-01 independent fact review round 3 (Opus, separate session)",
+ "reviewed_at": "2026-10-04T21:25:27Z",
+ "facts": [
+  {
+   "fact_id": "fact-023-111b79cf5fa7",
+   "fact_sha256": "8fe12a83360a789709f98e8fa60ff00d05d5b78493847afc6e6c38b084223469",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL ref (HTTP 200, no redirect) + ref.md; host usyc.docs.hashnote.com in issuer:hashnote hosts",
+   "evidence": "Service Providers table row 'Fund Administrator | NAV Consulting'. Issuer-hosted page => origin issuer:hashnote, channel official_doc, claim_type administrator honest.",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-024-e29269283957",
+   "fact_sha256": "78d2e6fb265434d7348eeaeae3c0fdefd9a49ce998f478065b492efb93789ddb",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL ref (HTTP 200, no redirect) + ref.md; host usyc.docs.hashnote.com in issuer:hashnote hosts",
+   "evidence": "Service Providers table row 'Auditor | Cohen and Company' (link cohencpa.com). Issuer's own claim; origin/channel/claim_type honest.",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-025-d2fde4aa2b38",
+   "fact_sha256": "7edb4d182e29ffa88fb923f791a6effdd6545a0ed549c3bd7d1bb0ddb41fcd7e",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL ref (HTTP 200, no redirect) + ref.md; host usyc.docs.hashnote.com in issuer:hashnote hosts",
+   "evidence": "'only accessible to institutions outside the United States, subject to eligibility restrictions and a US$100,000 minimum'; step 3 'Fund administrator performs KYC/AML checks' supports kyc=true.",
+   "issue": null
+  }
+ ]
+}

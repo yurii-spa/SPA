@@ -27,6 +27,18 @@ STATE_BROKEN = "BROKEN"
 STATE_NOT_MEASURED = "NOT_MEASURED"
 VIEW_STATES = (STATE_OK, STATE_STALE, STATE_BROKEN, STATE_NOT_MEASURED)
 
+# ── Oracle's own three-bucket vocabulary (ADR-564 decision #9) ─────────────────────────────────
+#: the factory's ``observe_only`` bucket is what Oracle may only RESEARCH (never allocate, never
+#: even consider); ``paper_active`` already folds in EVIDENCE_ACCUMULATING upstream
+#: (research_factory.read.cio_view — a paper-active-plus-counted-evidence candidate is still only
+#: "evaluated forward with simulated capital", never allocatable on its own); ``cio_eligible`` is
+#: the only bucket :func:`research_sleeve_allocatable` will ever say yes to, and even that needs a
+#: future sleeve row's own ADR (none exists today).
+RESEARCH_ONLY = "RESEARCH_ONLY"
+PAPER_ACTIVE = "PAPER_ACTIVE"
+CIO_ELIGIBLE = "CIO_ELIGIBLE"
+VISIBILITY_BUCKETS = (RESEARCH_ONLY, PAPER_ACTIVE, CIO_ELIGIBLE)
+
 
 def _empty(state: str, reason: str) -> dict:
     return {"state": state, "reason": reason, "observe_only": [], "paper_active": [], "cio_eligible": [],
@@ -66,6 +78,19 @@ def build(data_dir: Path, now: Optional[datetime] = None) -> dict:
     }
 
 
+def visibility(view: dict) -> dict:
+    """Oracle's own three buckets, exposed SEPARATELY under their own names (ADR-564 decision #9)
+    — a read-time relabelling of :func:`build`'s ``observe_only`` / ``paper_active`` /
+    ``cio_eligible`` lists, never a second computation of membership. A malformed/absent view
+    answers with every bucket ``None`` (not measured), never an empty list that could be misread
+    as "nothing in that bucket today"."""
+    if not isinstance(view, dict):
+        return {RESEARCH_ONLY: None, PAPER_ACTIVE: None, CIO_ELIGIBLE: None}
+    return {RESEARCH_ONLY: list(view.get("observe_only") or []),
+            PAPER_ACTIVE: list(view.get("paper_active") or []),
+            CIO_ELIGIBLE: list(view.get("cio_eligible") or [])}
+
+
 def _candidate_entries(entries: Any) -> list:
     """[(candidate_id, exposure_key_version_or_None), …]. ``None`` means the view's entry did not
     declare a version (a bare candidate_id, or a dict without the field) — matched by id alone.
@@ -84,6 +109,11 @@ def research_sleeve_allocatable(contract_flag: bool, candidate_id: str, exposure
                                 view: dict) -> bool:
     """ADR-560 WP-S07 / binding #14: FOR FUTURE USE ONLY — no research sleeve row exists yet, and
     this is never called from :mod:`spa_core.investment_cio.policy`.
+
+    Membership in ``PAPER_ACTIVE`` alone (ADR-564 decision #9) — whether or not the upstream
+    candidate has also reached EVIDENCE_ACCUMULATING, which the factory already folds into the
+    same bucket — is NEVER sufficient: only ``CIO_ELIGIBLE`` membership can ever return True here.
+    "Evaluated forward with simulated capital" is not "safe to allocate".
 
     Fail-CLOSED by construction: True only if ALL of —
       1. ``contract_flag`` is literally True (a future sleeve row's own static flag);

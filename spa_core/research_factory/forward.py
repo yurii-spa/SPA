@@ -4,6 +4,12 @@ The counting rule (what makes a forward period COUNT toward maturity) lives in e
 place: ``contract.period_countable()``. This module never re-implements it — it builds
 ``prev_counted`` (the previous COUNTED observation, same shape, or ``None``) and the active
 admission's ``as_of``, then asks the contract function and records its verdict (H1 rework).
+The ONE exception (N1, post-implementation review 2026-10-04): ``contract.period_countable``
+has no notion of lifecycle state at all, so a row recorded while the candidate's CURRENT state
+is ``PAUSED_PAPER`` is forced ``counted=False`` here, before ever asking the contract function —
+``run.py`` keeps recording observations for a paused candidate on purpose ("tracking only"), and
+without this, those periods would count toward ``contract.MIN_FORWARD_PERIODS_CIO`` and a
+re-ADMIT under the SAME admission would resume already mature.
 
 The FIRST-recorded value for a ``(candidate_id, period)`` is frozen (the ledger's own keyed
 idempotency: a later DIFFERENT value for the same key is written as a separate ``revision`` row
@@ -61,7 +67,11 @@ def record(data_dir: Path, candidate_id: str, obs: dict, now: datetime) -> dict:
     admission_row = None
     if admission_id:
         for e in ledger.read_all():
-            if e.get("kind") == "admission" and (e.get("payload") or {}).get("admission_id") == admission_id:
+            # ADR-564 binding #1: the live gate_ref is now a v2 "paper_admission_v2" snapshot id
+            # (v1's "admission" kind can no longer be newly written at all — admission.py refuses
+            # it — but its lookup is kept here too so a pre-ADR-564 ledger still replays).
+            if e.get("kind") in ("admission", "paper_admission_v2") \
+                    and (e.get("payload") or {}).get("admission_id") == admission_id:
                 admission_row = e
                 break
     at = iso(now)
@@ -80,7 +90,19 @@ def record(data_dir: Path, candidate_id: str, obs: dict, now: datetime) -> dict:
     prior_rows = counted_rows(data_dir, candidate_id)
     prev_counted = (prior_rows[-1].get("payload") or {}) if prior_rows else None
 
-    countable, reason = contract.period_countable(obs, prev_counted, admission_as_of, now)
+    # N1 (post-implementation review, 2026-10-04): run.py keeps calling record() for a
+    # PAUSED_PAPER candidate on purpose ("marks continue as labelled tracking") — but
+    # contract.period_countable has no notion of lifecycle state at all, so without this check a
+    # paused candidate's observations counted toward contract.MIN_FORWARD_PERIODS_CIO exactly like
+    # an active one, and a later re-ADMIT under the SAME admission resumed already mature. The
+    # current state — never the admission's own state at write time — decides this: a period
+    # recorded before the pause (while PAPER_ACTIVE/EVIDENCE_ACCUMULATING/CIO_ELIGIBLE) is
+    # unaffected and keeps whatever contract.period_countable already decided for it.
+    current_state = lifecycle.current_state(data_dir, candidate_id)
+    if current_state == contract.PAUSED_PAPER:
+        countable, reason = False, PAUSED_REASON
+    else:
+        countable, reason = contract.period_countable(obs, prev_counted, admission_as_of, now)
 
     counted = bool(countable)
     payload = {"candidate_id": candidate_id, "period": period, "observed_return": observed,
@@ -105,6 +127,10 @@ def record(data_dir: Path, candidate_id: str, obs: dict, now: datetime) -> dict:
     return entry
 
 
+#: the reason a PAUSED_PAPER observation carries; such rows are tracking, neither a count nor a miss
+PAUSED_REASON = "paused: tracking only, not counted toward maturity"
+
+
 def _maybe_mark_stale(data_dir: Path, candidate_id: str, now: datetime) -> None:
     """H4: 3 consecutive NOT-COUNTED periods move a paper-state candidate to STALE — regardless
     of the SPECIFIC reason (a genuinely stale-at-recording period, a missing observation this
@@ -113,7 +139,10 @@ def _maybe_mark_stale(data_dir: Path, candidate_id: str, now: datetime) -> None:
     evidence for — that is exactly what STALE means; narrowing this to one particular reason
     string left the "no observation at all" case (H4) outside the rule it was meant to feed."""
     ledger = ledger_for(data_dir)
-    rows = _observation_rows(ledger, candidate_id)
+    # second re-review N3: rows recorded while PAUSED_PAPER are tracking only — not a miss either;
+    # counting them let a resumed position go STALE on its first honestly quiet day
+    rows = [r for r in _observation_rows(ledger, candidate_id)
+            if (r.get("payload") or {}).get("reason") != PAUSED_REASON]
     tail = rows[-contract.STALE_PERIODS_TO_STALE_STATE:]
     if len(tail) < contract.STALE_PERIODS_TO_STALE_STATE:
         return

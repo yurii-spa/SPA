@@ -53,16 +53,23 @@ def test_cli_returns_nonzero_when_a_scenario_is_broken(tmp_path, monkeypatch):
 
 def test_mutation_check_stale_scenario_is_sensitive_to_the_freshness_window(monkeypatch, tmp_path):
     """FM-01 (stale APY) must flip to NOT-stale if the freshness window were widened enough to
-    cover the induced age — proving the scenario actually depends on contract.FRESHNESS_MAX_AGE_H,
-    not on a hard-coded expectation."""
-    from spa_core.research_factory import contract as c
-    wide = dict(c.FRESHNESS_MAX_AGE_H)
-    wide["rate"] = 24.0 * 365  # a window wide enough to swallow the induced 10-day staleness
-    monkeypatch.setattr(c, "FRESHNESS_MAX_AGE_H", wide)
+    cover the induced age — proving the scenario actually depends on the live freshness window,
+    not on a hard-coded expectation.
+
+    Round 5 (ADR-564 binding #1) re-verification, 2026-10-04: FM-01 now runs through the real
+    v2 pipeline (``run._sherlock_review_candidate``, since v1's own admission.evaluate() is
+    display-only and no longer drives the lifecycle). v2's freshness check
+    (``grades.freshness_verdict``) reads ``evidence_contract.FRESHNESS``, a DIFFERENT table from
+    v1's ``contract.FRESHNESS_MAX_AGE_H`` (which v2 never consults) — patching the v1 table here
+    left this check silently vacuous (observed stayed STALE either way) until corrected."""
+    from spa_core.research_factory import evidence_contract as ec
+    wide = {k: dict(v) for k, v in ec.FRESHNESS.items()}
+    wide["rate"]["max_age_h"] = 24.0 * 365  # a window wide enough to swallow the induced 10-day staleness
+    monkeypatch.setattr(ec, "FRESHNESS", wide)
     row = fm._c01_stale_apy(tmp_path)
     induced, expected, observed, ok = row
     assert observed != contract.STALE_STATE, (
-        "widening FRESHNESS_MAX_AGE_H did not change the observed outcome — FM-01 is not "
+        "widening evidence_contract.FRESHNESS did not change the observed outcome — FM-01 is not "
         "actually exercising the freshness window, it is a hard-coded assertion")
 
 

@@ -143,6 +143,11 @@ def test_env_always_carries_the_skip_sync_flag_and_a_private_stamp(tmp_path):
     assert "Documents/SPA_Claude" not in joined           # never defaults toward production
 
 
+UNREACHABLE_NETWORK_ENV = "".join(f"export {k}=http://127.0.0.1:9\n" for k in
+                                  ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy")) + \
+    "unset NO_PROXY no_proxy\n"
+
+
 def _run_wrapper_equivalent(sandbox_dir: Path, tmp_path: Path, *, timeout_s: int = 45,
                             extra_positional: str = "") -> subprocess.CompletedProcess:
     """Exactly scripts/agent_research_factory.sh's invocation shape — a SINGLE exported
@@ -159,6 +164,12 @@ def _run_wrapper_equivalent(sandbox_dir: Path, tmp_path: Path, *, timeout_s: int
     INSIDE the one exported MODULE_ARGS string instead, exactly how the real wrapper would."""
     script = _invocation(tmp_path, sandbox_dir, module_args="--live-rpc --now 2026-10-04T12:00:00Z",
                          extra_positional=extra_positional)
+    # ADR-564 §8: under --live-rpc Sherlock's evidence collectors fetch BY DESIGN before any
+    # scanner runs (funding-pair candidates are built from those rows), so "an empty sandbox
+    # makes no call" stopped being true. The network is made deliberately UNREACHABLE instead
+    # (urllib honours *_proxy; port 9 refuses at once): the run stays hermetic and fast, and the
+    # refusal itself becomes the thing asserted — fail-CLOSED and named, never a hang.
+    script = UNREACHABLE_NETWORK_ENV + script
     return subprocess.run(["/bin/bash", "-c", script], capture_output=True, text=True, timeout=timeout_s)
 
 
@@ -200,9 +211,10 @@ def test_sandboxed_run_through_the_real_template_honours_spa_data_dir(tmp_path):
 
 
 def test_sandboxed_run_completes_fast_with_no_candidates_to_avoid_network(tmp_path):
-    """A second, independent proof that no network call is attempted on an empty sandbox: the run
-    must complete well within a few seconds, not the gate's multi-minute RUN_TIMEOUT a hung network
-    call would consume."""
+    """With the network unreachable, the run must complete well within a few seconds — not the
+    gate's multi-minute RUN_TIMEOUT a hung network call would consume — and every evidence fetch
+    it attempted must be recorded fail-CLOSED with a named reason (ADR-564 §8 changed this test's
+    premise: collectors fetch under --live-rpc by design; journalled W41)."""
     import time
     TEST_LOG.unlink(missing_ok=True)
     try:
@@ -211,7 +223,16 @@ def test_sandboxed_run_completes_fast_with_no_candidates_to_avoid_network(tmp_pa
         proc = _run_wrapper_equivalent(sandbox, tmp_path, timeout_s=20)
         elapsed = time.monotonic() - t0
         assert proc.returncode == 0, proc.stderr
-        assert elapsed < 15, f"took {elapsed:.1f}s — suspiciously slow for an empty sandbox, no network expected"
+        assert elapsed < 15, f"took {elapsed:.1f}s — suspiciously slow with the network unreachable"
+        # every evidence fetch the collectors attempted failed CLOSED and NAMED: no value, a reason
+        import json as _json
+        rows = [_json.loads(line) for line in
+                (sandbox / "research_factory" / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+        observations = [r["payload"] for r in rows if r["kind"] == "evidence_observation"]
+        assert observations, "the collectors attempted nothing — --live-rpc did not reach them"
+        assert all(o.get("value") is None and o.get("reason") for o in observations), \
+            [o for o in observations if o.get("value") is not None or not o.get("reason")][:3]
     finally:
         TEST_LOG.unlink(missing_ok=True)
 

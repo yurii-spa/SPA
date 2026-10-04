@@ -306,10 +306,54 @@ SNAPSHOT_FINGERPRINT_EXCLUDES = ("admission_state", "paper_status", "evidence_ma
 CELL_FINGERPRINT_EXCLUDES = ("as_of", "recorded_at")
 
 
-def net_expected_return(c: dict) -> dict:
+#: annual-rate units the net formula accepts, as a multiplier to a fraction per year
+ANNUAL_RATE_UNITS = {"fraction_apy": 1.0, "fraction": 1.0, "pct_apy": 0.01, "pct_apy_annualised": 0.01,
+                     "frac/yr": 1.0, "bps_apy": 0.0001}
+#: ONE-OFF cost units (a subscription/redemption/entry/exit fee, paid once, never recurring) —
+#: deliberately NOT in ANNUAL_RATE_UNITS. ADR-564 Round 5 Issue #2 (live-validation finding,
+#: 2026-10-04): a prior run netted a one-off bps fee AS IF it were an annual rate (net=-2697);
+#: `net_expected_return` below never does that — a one-off cost is either SKIPPED (REFERENCE_TRACK:
+#: "not netted, a reference track holds no position to pay it from") or AMORTISED over an explicitly
+#: declared holding period (HOLDABLE), never silently annualised.
+ONE_OFF_RATE_UNITS = {"bps_one_off": 0.0001, "fraction_one_off": 1.0}
+#: mirrors evidence_contract.PAPER_MODE_REFERENCE_TRACK's value — contract.py cannot import
+#: evidence_contract (evidence_contract imports contract as c1; the reverse would be circular).
+_PAPER_MODE_REFERENCE_TRACK = "REFERENCE_TRACK"
+
+
+def _annual_fraction(x: dict):
+    """The cell's value as a fraction per year, or None when its unit is not a declared annual rate."""
+    if not isinstance(x, dict) or x.get("value") is None or isinstance(x.get("value"), bool):
+        return None
+    m = ANNUAL_RATE_UNITS.get(x.get("unit"))
+    return None if m is None else float(x["value"]) * m
+
+
+def _one_off_fraction(x: dict):
+    """The cell's value as a one-off fraction (never annualised on its own), or None when its unit
+    is not a declared one-off rate."""
+    if not isinstance(x, dict) or x.get("value") is None or isinstance(x.get("value"), bool):
+        return None
+    m = ONE_OFF_RATE_UNITS.get(x.get("unit"))
+    return None if m is None else float(x["value"]) * m
+
+
+def net_expected_return(c: dict, *, paper_mode: Optional[str] = None,
+                        holding_period_days: Optional[float] = None) -> dict:
     """NET = base_return − Σ COST_FIELDS (unless the cost is embedded_in_return) [+ funding only when the
     mechanism does NOT already embed it]. Any applicable input NOT_MEASURED/STALE/CONFLICTED ⇒ the result is
-    NOT_MEASURED and names it. incentive_return is never added (review #6)."""
+    NOT_MEASURED and names it. incentive_return is never added (review #6).
+
+    ``paper_mode``/``holding_period_days`` are OPTIONAL — every existing caller that omits them keeps
+    TODAY's behaviour exactly (a one-off-unit cost with no mode given is NOT_MEASURED, "needs
+    amortisation"). ADR-564 Round 5 Issue #2: when a cost cell's unit is a recognised ONE-OFF rate
+    (``ONE_OFF_RATE_UNITS``, never an annual rate on its own):
+      * ``paper_mode == "REFERENCE_TRACK"`` — the one-off cost is SKIPPED (never subtracted, never
+        fails the computation by itself) and named in the result's ``method`` as "not netted" — a
+        reference track holds no position for a one-off entry/exit cost to apply AGAINST;
+      * otherwise (HOLDABLE or unspecified) — amortised into an annual-equivalent drag over
+        ``holding_period_days`` when a POSITIVE one is declared; no declared holding period ⇒
+        NOT_MEASURED (unchanged pre-fix behaviour — never silently annualised)."""
     base = c.get("base_return") if isinstance(c.get("base_return"), dict) else {}
     funding = c.get("funding") if isinstance(c.get("funding"), dict) else {}
     if base.get("state") == NOT_APPLICABLE:
@@ -321,7 +365,10 @@ def net_expected_return(c: dict) -> dict:
     elif base.get("state") not in VALUED_STATES:
         return cell(NOT_MEASURED, reason="base_return not valued")
     else:
-        total, used = base["value"], ["base_return"]
+        if _annual_fraction(base) is None:
+            return cell(NOT_MEASURED, reason=f"base_return unit {base.get('unit')!r} is not an annual rate")
+        total, used = _annual_fraction(base), ["base_return"]
+    not_netted = []
     for f in COST_FIELDS + ("funding",):
         x = c.get(f) or {}
         st = x.get("state")
@@ -329,13 +376,40 @@ def net_expected_return(c: dict) -> dict:
             continue
         if st not in VALUED_STATES:
             return cell(NOT_MEASURED, reason=f"{f} is {st or 'missing'} — net return not computable")
-        total = total + x["value"] if f == "funding" else total - x["value"]
+        # ADR-564 integration finding: costs and the rate must be in ONE annual unit. A one-off fee (bps per
+        # trade, USD) or a unit-less value can only be netted after amortisation over a DECLARED holding period —
+        # never subtracted from an annual rate as is (a live run produced net = -2697 from exactly that).
+        if _annual_fraction(x) is None:
+            one_off = _one_off_fraction(x)
+            if one_off is None:
+                return cell(NOT_MEASURED, reason=f"{f} unit {x.get('unit')!r} is not an annual rate comparable "
+                                                 f"with the return — needs amortisation over a declared holding "
+                                                 f"period")
+            if paper_mode == _PAPER_MODE_REFERENCE_TRACK:
+                not_netted.append(f)
+                continue
+            if not (isinstance(holding_period_days, (int, float)) and not isinstance(holding_period_days, bool)
+                   and holding_period_days > 0):
+                return cell(NOT_MEASURED, reason=f"{f} unit {x.get('unit')!r} is a one-off cost — needs a "
+                                                 f"declared holding_period_days to amortise, none given")
+            delta = one_off * (365.0 / float(holding_period_days))
+            total -= delta
+            used.append(f"{f}(amortised/{holding_period_days:g}d)")
+            continue
+        if _annual_fraction(base if used else funding) is None:
+            return cell(NOT_MEASURED, reason=f"{f} unit {x.get('unit')!r} is not an annual rate comparable with the "
+                                             f"return — needs amortisation over a declared holding period")
+        delta = _annual_fraction(x)
+        total = total + delta if f == "funding" else total - delta
         used.append(f)
-    states = {(c.get(f) or {}).get("state") for f in used}
+    states = {(c.get(f) or {}).get("state") for f in used + not_netted}
     st = ESTIMATED_WITH_METHOD
-    return cell(st, round(total, 10), unit=base.get("unit") or funding.get("unit"),
-                method="base_return − costs (+ funding when not embedded); inputs: " + ",".join(used)
-                + "; input states: " + ",".join(sorted(s for s in states if s)))
+    method = ("base_return − costs (+ funding when not embedded); inputs: " + ",".join(used)
+             + "; input states: " + ",".join(sorted(s for s in states if s)))
+    if not_netted:
+        method += ("; not netted (REFERENCE_TRACK holds no position to apply a one-off cost against): "
+                  + ",".join(not_netted))
+    return cell(st, round(total, 10), unit="fraction_apy", method=method)
 
 
 # ── lifecycle (WP-A03, review #1/#13) ────────────────────────────────────────────────────────────
@@ -453,7 +527,16 @@ MIN_FORWARD_PERIODS_CIO = 30          # same threshold as the CIO's DEVELOPING m
 STALE_PERIODS_TO_STALE_STATE = 3      # a stale period is not counted; 3 consecutive ⇒ STALE
 MATURITY_ON_READMISSION = 0           # re-admission restarts maturity at 0
 CIO_ELIGIBILITY_GATES = ("forward_periods", "admission_still_valid", "data_fresh", "counterparty_no_unknown_role",
-                         "counterparty_credit_bar", "no_duplicate_exposure", "realised_vs_observed_consistent")
+                         "counterparty_credit_bar", "no_duplicate_exposure", "realised_vs_observed_consistent",
+                         # ADR-564 amendment (architecture review #13): paper admission must never quietly become
+                         # CIO eligibility on issuer-only evidence or on a position SPA could not hold
+                         "min_origins_cio", "counterparty_grade_strong_for_credit_like",
+                         "holder_eligibility_documented", "not_reference_track",
+                         # ADR-564 post-implementation review M1 amendment: every CIO_MIN_GRADE /
+                         # MIN_GROUPS_CIO bar is ENFORCED, not just declared
+                         "return_grade_strong_for_cio", "custody_grade_strong_for_cio",
+                         "reserves_grade_adequate_for_cio", "legal_grade_adequate_for_cio",
+                         "reserves_groups_sufficient_for_cio", "custody_groups_sufficient_for_cio")
 CIO_VISIBILITY = (OBSERVE_ONLY, PAPER_ACTIVE, CIO_ELIGIBLE)
 #: the CIO may trust the read model only if fresher than this and its ledger-head hash matches
 CIO_READ_MODEL_MAX_AGE_H = 26.0

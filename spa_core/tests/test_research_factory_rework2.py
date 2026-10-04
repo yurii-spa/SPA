@@ -23,6 +23,7 @@ from spa_core.research_factory import (
 )
 from spa_core.research_factory._common import ledger_for
 import spa_core.research_factory._common as common_mod
+from spa_core.tests import _research_evidence_v2_fixtures as v2fx
 from spa_core.utils.hash_ledger import LedgerError
 
 NOW = datetime(2026, 10, 4, 12, 0, 0, tzinfo=timezone.utc)
@@ -52,7 +53,11 @@ def make_candidate(mechanism_id="STABLECOIN_SAVINGS", domain="CASH_TREASURY", in
         "producing_scanner": "test_scanner",
         "instrument": instrument_id, "instrument_id": instrument_id, "underlying_root": instrument_id,
         "economic_driver_key": f"DRIVER_{mechanism_id}", "yield_source": "savings_rate",
-        "base_return": _cell(), "fees": _cell(contract.NOT_APPLICABLE, reason="n/a"),
+        # unit="fraction" is a declared ANNUAL rate (contract.ANNUAL_RATE_UNITS) — contract.
+        # net_expected_return() is now unit-aware (ADR-564 integration finding: a live run
+        # netted a one-off fee against an annual rate unchecked and produced net=-2697); a
+        # unit-less default would make every candidate built here honestly NOT_MEASURED.
+        "base_return": _cell(unit="fraction"), "fees": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "gas": _cell(contract.NOT_APPLICABLE, reason="n/a"), "funding": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "hedging_cost": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "liquidity": _cell(contract.MEASURED, 1_000_000.0), "time_to_exit": _cell(contract.MEASURED, 0.0),
@@ -72,16 +77,9 @@ def make_candidate(mechanism_id="STABLECOIN_SAVINGS", domain="CASH_TREASURY", in
 
 
 def _admit_to_paper_active(data_dir: Path, candidate: dict, now: datetime = NOW) -> str:
-    cid = candidate["candidate_id"]
-    registry.upsert(data_dir, candidate, now)
-    for s in (contract.SCREENED, contract.RESEARCH_READY, contract.PAPER_CANDIDATE):
-        lifecycle.transition(data_dir, cid, s, reason="setup", now=now)
-    report = admission.evaluate(candidate, {"_existing_book_roots": []}, now)
-    assert report["verdict"] == contract.GATE_PASS, report
-    snap = admission.write_admission_snapshot(data_dir, candidate, report, now)
-    admission_id = snap["payload"]["admission_id"]
-    lifecycle.transition(data_dir, cid, contract.PAPER_ACTIVE, gate_ref=admission_id, reason="setup", now=now)
-    return admission_id
+    """ADR-564 binding #1: v1 ``admission.write_admission_snapshot`` now always refuses — this
+    delegates to the shared all-STRONG v2 fixture helper (same signature/return as before)."""
+    return v2fx.admit_to_paper_active_v2(data_dir, candidate, now)
 
 
 def _fresh_ledger(tmp_path: Path):
@@ -97,19 +95,25 @@ def _fresh_ledger(tmp_path: Path):
 def test_m2_pct_apy_vs_fraction_is_consistent(tmp_path):
     """The review's exact reproduction: index growing at 4.5%/yr vs. base_return 4.5 'pct_apy'
     must PASS once both sides are converted to the same fraction (0.045)."""
-    c = make_candidate(base_return=_cell(contract.MEASURED, 4.5, unit="pct_apy"))
+    c = make_candidate(base_return=_cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                     source_root="venue:test_observed_feed"))
     cid = c["candidate_id"]
     _admit_to_paper_active(tmp_path, c, NOW)
     t0 = NOW + timedelta(hours=1)
     t1 = t0 + timedelta(days=30)
     idx0, idx1 = 1.0, (1.045) ** (30.0 / 365.25)
+    # ADR-564 amendment: realised_vs_observed_consistent is UNKNOWN when both sides share an
+    # origin — observed_return is an INDEPENDENT (venue:) feed here, distinct from the on-chain
+    # realised_index, so this test still exercises the unit-conversion consistency check.
     forward.record(tmp_path, cid, {
         "period": "P0", "observed_return": _cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                                source_root="venue:test_observed_feed",
                                                 as_of=t0.isoformat(), judge_now=t0),
         "realised_index": _cell(contract.MEASURED, idx0, source_class=contract.PRIMARY_CHAIN,
                                as_of=t0.isoformat(), judge_now=t0)}, t0)
     forward.record(tmp_path, cid, {
         "period": "P1", "observed_return": _cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                                source_root="venue:test_observed_feed",
                                                 as_of=t1.isoformat(), judge_now=t1),
         "realised_index": _cell(contract.MEASURED, idx1, source_class=contract.PRIMARY_CHAIN,
                                as_of=t1.isoformat(), judge_now=t1)}, t1)
@@ -129,19 +133,25 @@ def test_m2_mutation_check_without_unit_conversion_the_consistent_case_fails():
 
 
 def test_m2_two_x_mismatch_fails(tmp_path):
-    c = make_candidate(base_return=_cell(contract.MEASURED, 4.5, unit="pct_apy"))
+    c = make_candidate(base_return=_cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                     source_root="venue:test_observed_feed"))
     cid = c["candidate_id"]
     _admit_to_paper_active(tmp_path, c, NOW)
     t0 = NOW + timedelta(hours=1)
     t1 = t0 + timedelta(days=30)
     idx0, idx1 = 1.0, (1.09) ** (30.0 / 365.25)  # ~2x the 4.5% rate
+    # ADR-564 amendment: realised_vs_observed_consistent is UNKNOWN when both sides share an
+    # origin — observed_return is an INDEPENDENT (venue:) feed here, distinct from the on-chain
+    # realised_index, so this test still exercises the mismatch-detection it is named for.
     forward.record(tmp_path, cid, {
         "period": "P0", "observed_return": _cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                                source_root="venue:test_observed_feed",
                                                 as_of=t0.isoformat(), judge_now=t0),
         "realised_index": _cell(contract.MEASURED, idx0, source_class=contract.PRIMARY_CHAIN,
                                as_of=t0.isoformat(), judge_now=t0)}, t0)
     forward.record(tmp_path, cid, {
         "period": "P1", "observed_return": _cell(contract.MEASURED, 4.5, unit="pct_apy",
+                                                source_root="venue:test_observed_feed",
                                                 as_of=t1.isoformat(), judge_now=t1),
         "realised_index": _cell(contract.MEASURED, idx1, source_class=contract.PRIMARY_CHAIN,
                                as_of=t1.isoformat(), judge_now=t1)}, t1)
@@ -228,6 +238,12 @@ def test_n2_forged_status_json_cannot_grant_eligibility(monkeypatch, tmp_path):
 
     import spa_core.research_factory.run as run_mod
     monkeypatch.setattr(run_mod, "_discover_scanners", lambda: [])
+    # this test's subject is status.json forgery resistance, not Sherlock's lifecycle decision —
+    # with zero scanners wired, a fresh Sherlock re-review has no v2_evidence beyond
+    # run._default_v2_evidence's conservative defaults and would (correctly, post-review M4)
+    # demote this all-strong-fixture-admitted candidate to PAUSED_PAPER, which is a REAL
+    # consequence of zero evidence, not something this test is about.
+    monkeypatch.setattr(run_mod, "_sherlock_review_all", lambda *a, **k: None)
     run_mod.run_once(tmp_path, NOW)
 
     status_path = ledger_for(tmp_path).root() / contract.STATUS

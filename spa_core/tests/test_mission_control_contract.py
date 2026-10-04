@@ -732,3 +732,288 @@ def test_research_universe_stale_threshold_is_26h_not_the_generic_30h(tmp_path, 
     monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
     ru = _build(_scene(tmp_path))["capital"]["research_universe"]
     assert ru["_meta"]["state"] == "STALE", ru["_meta"]
+
+
+# ── ADR-564 (RM-EVIDENCE-01) Package E4: Sherlock block + per-candidate evidence ────────────────
+
+def _fake_rf_read(monkeypatch, fn):
+    fake = types.ModuleType("spa_core.research_factory.read")
+    fake.latest = fn
+    import spa_core.research_factory as rf_pkg
+    monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
+    monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
+
+
+_SHERLOCK_DOC_BASE = {
+    "schema": "research-factory-status/1", "generated_at": None, "integrity": "OK",
+    "denominators": {}, "by_domain": {}, "by_mechanism": {}, "rejections": [], "stale_feeds": [],
+    "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
+    "real_capital_usd": 0, "live_authorized": False,
+}
+
+
+def test_sherlock_display_name_has_one_value_everywhere_it_is_shown():
+    """Same guarantee ADR-554 gave Oracle (test_cio_display_name_has_one_value_everywhere_it_is_shown):
+    roles.json, the frozen evidence contract and Mission Control's own reader must agree, or a
+    rename in roles.json would not reach the UI."""
+    import json as _json
+    from spa_core.research_factory import evidence_contract as rf_contract
+    roles = _json.loads((mc.REPO / "architecture" / "roles.json").read_text(encoding="utf-8"))
+    role = next(r for r in roles["roles"] if r["role_id"] == "head_of_research")
+    assert rf_contract.ROLE_DISPLAY_NAME == role["display_name"] == "Sherlock"
+    assert mc._research_display_name() == "Sherlock"
+    i18n = (Path(mc.__file__).parent / "mission_ui" / "i18n.js").read_text(encoding="utf-8")
+    titles = [ln for ln in i18n.splitlines() if '"sherlock.title"' in ln]
+    assert len(titles) == 2 and all("Sherlock" in ln for ln in titles), titles
+
+
+def test_sherlock_block_is_none_when_the_read_model_has_not_published_it(tmp_path, monkeypatch):
+    """An older status row (or package E1 not deployed yet on this tree) carries no ``sherlock``
+    key at all — that must read as "not shown" (None), never as zero reviews."""
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO), candidates=[]))
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] == "HEALTHY"
+    assert ru["sherlock"] is None
+
+
+@pytest.mark.parametrize("bad_sherlock", [[], "nonsense", 42, True])
+def test_sherlock_block_is_none_on_a_malformed_sherlock_value(tmp_path, monkeypatch, bad_sherlock):
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO), candidates=[],
+                                              sherlock=bad_sherlock))
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["sherlock"] is None
+
+
+@pytest.mark.parametrize("bad_state_path", ["not_measured", "broken", "import_absent"])
+def test_sherlock_block_is_none_whenever_the_section_itself_is_degraded(tmp_path, monkeypatch, bad_state_path):
+    """BROKEN ⇒ CRITICAL, no status ⇒ NOT_MEASURED (both already true of the section) — and in
+    both cases, plus the package-absent case, the Sherlock sub-block is None, never a stale copy
+    of a previous healthy read."""
+    if bad_state_path == "not_measured":
+        _fake_rf_read(monkeypatch, lambda d: {"not": "a status doc"})
+    elif bad_state_path == "broken":
+        _fake_rf_read(monkeypatch, lambda d: {"schema": "research-factory-status/1", "integrity": "BROKEN",
+                                              "reason": "hash break", "sherlock": {"role_id": "head_of_research"}})
+    else:
+        fake_pkg = types.ModuleType("spa_core.research_factory")
+        monkeypatch.setitem(sys.modules, "spa_core.research_factory", fake_pkg)
+        monkeypatch.delitem(sys.modules, "spa_core.research_factory.read", raising=False)
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["_meta"]["state"] in ("NOT_MEASURED", "CRITICAL"), ru["_meta"]
+    assert ru["sherlock"] is None
+
+
+def test_sherlock_block_projects_the_appendix_i_shape(tmp_path, monkeypatch):
+    sherlock_raw = {
+        "role_id": "head_of_research", "display_name": "SOMEONE ELSE",  # must be IGNORED — one source
+        "reviewed_today": 7, "evidence_ready": 3, "paper_active": 2, "cio_eligible": 0,
+        "counterparty_unknown": 1, "conflicts": 0, "stale_evidence": 1,
+        "top_blockers": [{"gate": "custody_understood", "count": 4}, "bad-shape-entry"],
+        "decisions_today": [
+            {"candidate_id": "c1", "instrument": "USYC", "decision": "NEEDS_MORE_EVIDENCE",
+             "failed_gates": ["custody_understood"], "required_next_evidence": ["custodian citation"],
+             "evidence_ceiling": "ISSUER_ASSERTED", "paper_mode": "REFERENCE_TRACK"},
+            "not-a-dict-skip-me",
+        ],
+    }
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO), candidates=[],
+                                              sherlock=sherlock_raw))
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    sh = ru["sherlock"]
+    assert sh["role_id"] == "head_of_research"
+    assert sh["display_name"] == "Sherlock"            # one source — never the read model's own copy
+    assert sh["reviewed_today"] == 7 and sh["evidence_ready"] == 3
+    assert sh["paper_active"] == 2 and sh["cio_eligible"] == 0
+    assert sh["counterparty_unknown"] == 1 and sh["conflicts"] == 0 and sh["stale_evidence"] == 1
+    assert sh["top_blockers"][0] == {"gate": "custody_understood", "count": 4}
+    assert sh["top_blockers"][1] == {"gate": "bad-shape-entry", "count": None}
+    assert len(sh["decisions_today"]) == 1               # the non-dict entry is dropped, not crashed on
+    row = sh["decisions_today"][0]
+    assert row["candidate_id"] == "c1" and row["instrument"] == "USYC"
+    assert row["decision"] == "NEEDS_MORE_EVIDENCE"
+    assert row["failed_gates"] == ["custody_understood"]
+    assert row["required_next_evidence"] == ["custodian citation"]
+    assert row["evidence_ceiling"] == "ISSUER_ASSERTED" and row["paper_mode"] == "REFERENCE_TRACK"
+
+
+def test_sherlock_top_blockers_and_decisions_today_are_capped(tmp_path, monkeypatch):
+    sherlock_raw = {"top_blockers": [{"gate": f"g{i}", "count": i} for i in range(20)],
+                    "decisions_today": [{"candidate_id": f"c{i}"} for i in range(30)]}
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO), candidates=[],
+                                              sherlock=sherlock_raw))
+    sh = _build(_scene(tmp_path))["capital"]["research_universe"]["sherlock"]
+    assert len(sh["top_blockers"]) == 8
+    assert len(sh["decisions_today"]) == 20
+
+
+# ── per-candidate evidence detail ───────────────────────────────────────────────────────────────
+
+def test_candidate_evidence_is_none_when_the_candidate_carries_none(tmp_path, monkeypatch):
+    """"Sherlock has not graded this" must never look like "every grade happens to be empty"."""
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO),
+                                              candidates=[{"candidate_id": "c1", "instrument": "USYC"}]))
+    ru = _build(_scene(tmp_path))["capital"]["research_universe"]
+    assert ru["top_candidates"][0]["evidence"] is None
+
+
+def test_candidate_evidence_projects_the_appendix_i_shape(tmp_path, monkeypatch):
+    evidence_raw = {
+        "grades": {"RETURN": "ADEQUATE", "CUSTODY": "UNKNOWN", 7: "ignored-non-string-key"},
+        "evidence_ceiling": "ISSUER_ASSERTED", "issuer_asserted_roles": ["custodian"],
+        "circularity_concerns": ["issuer oracle = issuer API"], "who_pays": "USYC redemption fee payer",
+        "counterparties": {"custodian": {"state": "UNKNOWN", "identity": None},
+                           "issuer": {"state": "IDENTIFIED", "identity": "Hashnote"}, 9: "ignored"},
+        "measured": ["on-chain NAV"], "documented": ["redemption terms"], "unknown": ["custodian identity"],
+        "blocking_gaps": ["custody_understood"], "paper_mode": "REFERENCE_TRACK",
+        "latest_decision": "NEEDS_MORE_EVIDENCE",
+        "paper_position": {"nav_usd": 10000.0, "realised_return": 0.0, "unrealised_return": 0.0012,
+                           "mark_state": "FRESH"},
+    }
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO),
+                                              candidates=[{"candidate_id": "c1", "instrument": "USYC",
+                                                          "evidence": evidence_raw}]))
+    ev = _build(_scene(tmp_path))["capital"]["research_universe"]["top_candidates"][0]["evidence"]
+    assert ev["grades"] == {"RETURN": "ADEQUATE", "CUSTODY": "UNKNOWN"}
+    assert ev["evidence_ceiling"] == "ISSUER_ASSERTED"
+    assert ev["issuer_asserted_roles"] == ["custodian"]
+    assert ev["circularity_concerns"] == ["issuer oracle = issuer API"]
+    assert ev["who_pays"] == "USYC redemption fee payer"
+    assert ev["counterparties"] == {"custodian": {"state": "UNKNOWN", "identity": None},
+                                    "issuer": {"state": "IDENTIFIED", "identity": "Hashnote"}}
+    assert ev["measured"] == ["on-chain NAV"] and ev["documented"] == ["redemption terms"]
+    assert ev["unknown"] == ["custodian identity"] and ev["blocking_gaps"] == ["custody_understood"]
+    assert ev["paper_mode"] == "REFERENCE_TRACK" and ev["latest_decision"] == "NEEDS_MORE_EVIDENCE"
+    assert ev["paper_position"] == {"nav_usd": 10000.0, "realised_return": 0.0, "unrealised_return": 0.0012,
+                                    "mark_state": "FRESH"}
+
+
+def test_candidate_evidence_paper_position_is_none_when_absent(tmp_path, monkeypatch):
+    evidence_raw = {"grades": {}, "paper_mode": "HOLDABLE"}
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO),
+                                              candidates=[{"candidate_id": "c1", "evidence": evidence_raw}]))
+    ev = _build(_scene(tmp_path))["capital"]["research_universe"]["top_candidates"][0]["evidence"]
+    assert ev["paper_position"] is None
+    # "grades": {} was PRESENT and empty — a real "measured nothing" observation, kept as {}
+    assert ev["grades"] == {}
+    # the sub-fields below were simply ABSENT from evidence_raw (invariant #17: absence must be
+    # its own value) — must stay None, never silently collapsed into the SAME [] a present-but-
+    # empty list would use (that would mean "measured zero items", a different observation)
+    for key in ("issuer_asserted_roles", "circularity_concerns", "measured", "documented", "unknown",
+               "blocking_gaps"):
+        assert ev[key] is None, key
+    assert ev["counterparties"] is None
+
+
+def test_candidate_evidence_distinguishes_absent_from_measured_empty_lists(tmp_path, monkeypatch):
+    evidence_raw = {"grades": {}, "measured": [], "documented": ["redemption terms"],
+                    "counterparties": {}}
+    _fake_rf_read(monkeypatch, lambda d: dict(_SHERLOCK_DOC_BASE, generated_at=NOW.strftime(ISO),
+                                              candidates=[{"candidate_id": "c1", "evidence": evidence_raw}]))
+    ev = _build(_scene(tmp_path))["capital"]["research_universe"]["top_candidates"][0]["evidence"]
+    assert ev["measured"] == []                          # present, empty — "measured: nothing"
+    assert ev["documented"] == ["redemption terms"]
+    assert ev["unknown"] is None                          # absent — never shown
+    assert ev["counterparties"] == {}
+
+
+# ── UI: no action controls, RU/EN parity, nested values never [object Object] ───────────────────
+
+def test_sherlock_and_candidate_evidence_cards_have_no_action_control():
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    seg = app[app.index("function renderResearchUniverseCard"):app.index("// ── STUDIO")]
+    assert '"button"' not in seg and "addEventListener" not in seg
+    assert "renderSherlockBlock" in seg and "renderResearchCandidateDetail" in seg
+
+
+def test_i18n_has_every_sherlock_and_candidate_key_the_card_uses_in_both_languages():
+    src = (Path(mc.__file__).parent / "mission_ui" / "i18n.js").read_text(encoding="utf-8")
+    d = json.loads(src.split("/*I18N_START*/", 1)[1].split("/*I18N_END*/", 1)[0])
+    for key in ("sherlock.title", "sherlock.not_shown", "sherlock.boundary", "sherlock.reviewed_today",
+               "sherlock.evidence_ready", "sherlock.paper_active", "sherlock.cio_eligible",
+               "sherlock.counterparty_unknown", "sherlock.conflicts", "sherlock.stale_evidence",
+               "sherlock.top_blockers", "sherlock.decisions_today",
+               "research.candidate.who_pays", "research.candidate.grades", "research.candidate.evidence_ceiling",
+               "research.candidate.issuer_asserted_roles", "research.candidate.circularity_concerns",
+               "research.candidate.counterparties", "research.candidate.measured",
+               "research.candidate.documented", "research.candidate.unknown", "research.candidate.blocking_gaps",
+               "research.candidate.paper_mode", "research.candidate.latest_decision",
+               "research.candidate.paper_position", "research.candidate.nav",
+               "research.candidate.realised_return", "research.candidate.unrealised_return",
+               "research.candidate.mark_state", "research.candidate.failed_gates",
+               "research.candidate.required_next_evidence", "research.candidate.no_evidence",
+               "research.issuer_asserted_label", "research.reference_track_note",
+               "research.paper_mode.HOLDABLE", "research.paper_mode.REFERENCE_TRACK",
+               "research.ceiling.THIRD_PARTY_DOCUMENTED", "research.ceiling.OBSERVED",
+               "research.decision.ADMIT_TO_PAPER", "research.decision.HOLD", "research.decision.REJECT",
+               "research.decision.STALE", "research.decision.NEEDS_MORE_EVIDENCE"):
+        assert key in d["ru"], key
+        assert key in d["en"], key
+    # the issuer-asserted label is printed verbatim — binding #4's exact wording, both languages
+    assert d["en"]["research.issuer_asserted_label"] == "issuer-asserted, not verified"
+    assert d["ru"]["research.issuer_asserted_label"] == "заявлено эмитентом, не проверено"
+
+
+def test_evidence_ceiling_and_paper_mode_formatters_never_render_object_object():
+    """Same class as the live-readiness `brief` bug and the research `cellText` bug (both
+    2026-10-04): a non-string ceiling/mode/decision value concatenated into a translation-key
+    lookup must never leak "[object Object]" into the key it builds. Executed for real (node),
+    not grepped."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "NOT MEASURED: node is not installed — this test runs the real formatter"
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    start = app.index("function evidenceCeilingText")
+    end = app.index("function renderSherlockBlock")
+    body = app[start:end]
+    stub = "function t(k){return k;}\n"
+    js = (stub + body +
+          "\nprocess.stdout.write(JSON.stringify({"
+          "a: evidenceCeilingText({weird: 1}),"
+          "b: paperModeText({weird: 1}),"
+          "c: decisionText({weird: 1}),"
+          "d: evidenceCeilingText('ISSUER_ASSERTED'),"
+          "e: evidenceCeilingText('OBSERVED')"
+          "}));")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert "[object Object]" not in out.stdout
+    parsed = json.loads(out.stdout)
+    assert parsed["a"] == "common.not_measured" and parsed["b"] == "common.not_measured"
+    assert parsed["c"] == "common.not_measured"
+    assert parsed["d"] == "research.issuer_asserted_label"
+    assert parsed["e"] == "research.ceiling.OBSERVED"
+
+
+def test_research_candidate_detail_renders_nested_evidence_not_object_object():
+    """The candidate-detail formatter (grades / counterparties maps) must stringify nested
+    structures through the shared ``kv``/``textOrNM`` path rather than ever string-concatenating
+    an object directly. Executed for real (node)."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "NOT MEASURED: node is not installed — this test runs the real formatter"
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    # textOrNM is the shared nested-value formatter already covered by its own call sites; here we
+    # confirm it handles the exact nested shape renderCandidateEvidenceDetail passes to kv() for a
+    # counterparty entry — never raw string concatenation of the object.
+    start = app.index("function textOrNM")
+    end = app.index("function kv(")
+    body = app[start:end]
+    stub = "function t(k){return k;}\n"
+    js = (stub + body +
+          "\nprocess.stdout.write(textOrNM({custodian: {state: 'UNKNOWN', identity: null}}));")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert "[object Object]" not in out.stdout
+    assert "custodian: state: UNKNOWN" in out.stdout
+
+
+def test_sherlock_decision_row_carries_unknown_gates():
+    """Live-run finding: a candidate held only by UNKNOWN gates (OUSG on its first oracle read) showed
+    failed_gates=[] and so no reason at all. Unknown gates block admission and must be shown."""
+    row = mc._sherlock_decision_row({"candidate_id": "c", "instrument": "OUSG", "decision": "NEEDS_MORE_EVIDENCE",
+                                     "failed_gates": [], "unknown_gates": ["data_fresh", "custody_understood"]})
+    assert row["unknown_gates"] == ["data_fresh", "custody_understood"]
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    assert "research.candidate.unknown_gates" in app

@@ -74,6 +74,54 @@
       ]
     },
     {
+      "role_id": "head_of_research",
+      "title": "Head of Research",
+      "display_name": "Sherlock",
+      "domain": [
+        "research quality",
+        "candidate evidence",
+        "paper admission",
+        "evidence maturity",
+        "source conflict handling",
+        "counterparty evidence"
+      ],
+      "domain_excludes": [
+        "capital allocation",
+        "cio policy",
+        "live use",
+        "risk policy and financial limits"
+      ],
+      "implemented": true,
+      "adr": [
+        "ADR-560",
+        "ADR-564"
+      ],
+      "components": [
+        {
+          "path": "spa_core/research_factory/",
+          "authority": "PAPER_ADMISSION",
+          "effect": "deterministic research governance: evidence bundles, admission gates and ResearchAdmissionDecision; admits a candidate to PAPER (simulated capital) or holds/rejects it; executes nothing"
+        }
+      ],
+      "may": [
+        "read evidence",
+        "decide research/paper admission by deterministic gates",
+        "publish evidence bundles and admission decisions"
+      ],
+      "may_not": [
+        "allocate capital",
+        "change Oracle (cio-policy-v1) policy",
+        "move money",
+        "sign or broadcast transactions",
+        "approve live use",
+        "change RiskPolicy",
+        "change stops, financial or leverage limits",
+        "change protocol tiers"
+      ],
+      "authority": "NONE",
+      "authority_over_capital": "NONE"
+    },
+    {
       "role_id": "chief_operating_officer",
       "title": "Chief Operating Officer",
       "display_name": "Шурик",

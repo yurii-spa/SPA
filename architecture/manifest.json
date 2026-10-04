@@ -2510,10 +2510,11 @@
    "consumes": [],
    "consumer_required": true,
    "governed_by": [
-    "ADR-560"
+    "ADR-560",
+    "ADR-564"
    ],
    "curation": "complete",
-   "notes": "ADR-560 RM-EXPAND-01 Research Factory v1: discovers capital opportunities outside the three DeFi books, groups by economic mechanism, moves candidates through a deterministic research -> paper -> CIO-eligible lifecycle. RESEARCH/PAPER only; real capital $0; never signs/broadcasts/orders; CIO_ELIGIBLE means only that Oracle MAY consider a candidate in paper allocation. Installed 2026-10-04 through scripts/check_agent_before_deploy.sh (sandboxed trial run, then launchctl bootstrap); first production run exit 0.",
+   "notes": "ADR-560 RM-EXPAND-01 Research Factory v1: discovers capital opportunities outside the three DeFi books, groups by economic mechanism, moves candidates through a deterministic research -> paper -> CIO-eligible lifecycle. RESEARCH/PAPER only; real capital $0; never signs/broadcasts/orders; CIO_ELIGIBLE means only that Oracle MAY consider a candidate in paper allocation. Installed 2026-10-04 through scripts/check_agent_before_deploy.sh (sandboxed trial run, then launchctl bootstrap); first production run exit 0. ADR-564 RM-EVIDENCE-01 (same daily run, 09:05, before Sherlock's evidence bundles/gates/decision): Sherlock (role_id head_of_research, authority over capital NONE) runs the evidence contract (CandidateEvidenceBundle, CounterpartyProfile v2, paper-admission v2, deterministic ResearchAdmissionDecision) deciding ADMIT_TO_PAPER / HOLD / REJECT / STALE / NEEDS_MORE_EVIDENCE; no LLM decides a gate or a number.",
    "passport": {
     "goal": "ежедневно расширять и честно размечать вселенную капитальных возможностей за пределами трёх DeFi книг — измерено/оценено/неизвестно, никогда выдуманным числом",
     "quality_metric": "data/research_factory/status.json свежее 26ч; цепочка журнала и якорь целы; ни один кандидат не продвинут в CIO_ELIGIBLE без пройденных гейтов допуска",

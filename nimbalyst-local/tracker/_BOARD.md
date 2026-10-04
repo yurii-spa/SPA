@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-04T12:59:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-04T22:40:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6309a15df).
+> Сверено с `origin/main` (03dc9ad8d) · статусов дочитано оттуда: **9** (копия в дереве — прежняя версия того же файла) · ещё **1** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ.
 >
-> Всего карточек: **1189** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1190** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -17,7 +17,6 @@
 - **Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение**  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md`
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
-- **Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх** · _high_  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
@@ -52,7 +51,6 @@
 - Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
-- Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
@@ -267,6 +265,7 @@
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3.md` · 2026-08-08
 - Сайт: автономная правка задела owner-gated область — нужно решение  ·  `owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat.md` · 2026-08-08
 - Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник  ·  `owner-decision-sait-na-treh-stranitsah-vse-esche-staray.md` · 2026-10-01
+- Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
 - Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md` · 2026-10-01
 - Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)  ·  `owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne.md` · 2026-10-01
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
@@ -353,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (644)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (645)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -510,13 +509,17 @@
 - Находка петли: аналитик _health: каденция 0% < 50% окна 14д; ни одной датированной вы  ·  `inbox-nahodka-petli-analitik-health-kadentsiya.md` · 2026-08-05
 - Находка петли: аналитик red_team: CRITICAL — требует реакции (карточка/решение), не п  ·  `inbox-nahodka-petli-analitik-red-team-critical.md` · 2026-08-10
 - Находка петли: архив вердиктов отстаёт от выработки: аналитики _health, liquidity, ma  ·  `inbox-nahodka-petli-arhiv-verdiktov-otstaet-ot.md` · 2026-08-06
+- Находка петли: com.spa.agent_health: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-agent-health-kod-i.md` · 2026-09-10
 - Находка петли: com.spa.apiserver: код и манифест называют РАЗНЫЙ продукт (только в об  ·  `inbox-nahodka-petli-com-spa-apiserver-kod-i-ma.md` · 2026-08-29
 - Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc  ·  `inbox-nahodka-petli-com-spa-artifact-freshness.md` · 2026-08-05
 - Находка петли: com.spa.decision_loop: код и манифест называют РАЗНЫЙ продукт (только  ·  `inbox-nahodka-petli-com-spa-decision-loop-kod-2.md` · 2026-09-28
 - Находка петли: com.spa.decision_loop: код и манифест называют РАЗНЫЙ продукт (только  ·  `inbox-nahodka-petli-com-spa-decision-loop-kod.md` · 2026-09-09
 - Находка петли: com.spa.familyfund: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-familyfund-kod-i-m.md` · 2026-08-29
 - Находка петли: com.spa.gas_price_agent работает, но plist не персистентен (repo:launc  ·  `inbox-nahodka-petli-com-spa-gas-price-agent-ra.md` · 2026-09-01
+- Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
+- Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
 - Находка петли: com.spa.rtmr_sense: код и манифест называют РАЗНЫЙ продукт (только в о  ·  `inbox-nahodka-petli-com-spa-rtmr-sense-kod-i-m.md` · 2026-08-29
+- Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
 - Находка петли: com.spa.source_discovery работает, но plist не персистентен (repo:laun  ·  `inbox-nahodka-petli-com-spa-source-discovery-r.md` · 2026-08-27
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
@@ -528,14 +531,18 @@
 - Находка петли: data/asset_registry_gap_price.json: возраст 15.9ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr.md` · 2026-09-27
 - Находка петли: data/audit_trail_rate_input_coverage.json: возраст 15.9ч > SLO 7ч (кла  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu.md` · 2026-09-27
 - Находка петли: data/candidate_discovery_status.json: возраст 39.0ч > SLO 26ч (класс a  ·  `inbox-nahodka-petli-data-candidate-discovery-s-2.md` · 2026-09-29
+- Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: возраст 39.0ч > SLO 26ч (класс agent_reg  ·  `inbox-nahodka-petli-data-candidate-registry-js-2.md` · 2026-09-29
+- Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
 - Находка петли: data/cio_outcome_independence.json: активный артефакт отсутствует на д  ·  `inbox-nahodka-petli-data-cio-outcome-independe.md` · 2026-09-08
+- Находка петли: data/heir_all_rows_price.json: возраст 13.2ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-heir-all-rows-price-j.md` · 2026-10-03
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
 - Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
 - Находка петли: data/investment_os/liquidity.json: возраст 36.0ч > SLO 26ч (класс agen  ·  `inbox-nahodka-petli-data-investment-os-liquidi.md` · 2026-10-03
 - Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
 - Находка петли: data/rebalance_trigger.json: возраст 39.0ч > SLO 26ч (класс agent_regi  ·  `inbox-nahodka-petli-data-rebalance-trigger-jso.md` · 2026-09-29
+- Находка петли: data/resource_health.json: consumer_required, но НИ ОДНОГО ресита потр  ·  `inbox-nahodka-petli-data-resource-health-json.md` · 2026-10-04
 - Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re  ·  `inbox-nahodka-petli-data-tier-curator-report-j.md` · 2026-09-29
 - Находка петли: data/unobserved_leg_remedy_class.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-unobserved-leg-remedy.md` · 2026-09-14
 - Находка петли: data/unobserved_turnover_dependence.json: возраст 13.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-unobserved-turnover-d.md` · 2026-09-14
@@ -840,6 +847,7 @@
 - Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md` · 2026-09-28
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
+- Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
 - Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
@@ -857,14 +865,6 @@
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
-- Находка петли: com.spa.agent_health: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-agent-health-kod-i.md` · 2026-09-10
-- Находка петли: com.spa.hy_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-hy-cycle-kod-i-man.md` · 2026-09-10
-- Находка петли: com.spa.lp_cycle: код и манифест называют РАЗНЫЙ продукт (только в объ  ·  `inbox-nahodka-petli-com-spa-lp-cycle-kod-i-man.md` · 2026-09-10
-- Находка петли: com.spa.site_freshness: объявлено PRODUCES (data/site_freshness_report  ·  `inbox-nahodka-petli-com-spa-site-freshness-oby.md` · 2026-09-28
-- Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
-- Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
-- Находка петли: data/heir_all_rows_price.json: возраст 13.2ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-heir-all-rows-price-j.md` · 2026-10-03
-- Находка петли: data/resource_health.json: consumer_required, но НИ ОДНОГО ресита потр  ·  `inbox-nahodka-petli-data-resource-health-json.md` · 2026-10-04
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20

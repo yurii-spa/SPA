@@ -40,11 +40,15 @@
    research projected read-only; equities and options ARCHITECTURE_ONLY. First production run: 49 candidates,
    PAPER_ACTIVE 0, CIO_ELIGIBLE 0. Oracle (CIO display name) sees the universe, cannot allocate it. Real capital $0;
    no candidate is live-authorized; no real-money pilot has started. No further epic is started automatically.
-9. **RM-EVIDENCE-01 · Research evidence + paper admission v1** — ACTIVE (started 2026-10-04): turn "we discovered
-   candidates" into "we can prove which deserve forward paper testing, why, and which do not". Sherlock
-   (`head_of_research`, display name chosen by the owner) owns research quality and paper admission through
-   deterministic gates — no capital authority; Oracle still allocates only CIO_ELIGIBLE candidates on paper; the
-   owner alone approves real-capital action. Real capital $0.
+9. ~~RM-EVIDENCE-01 · Research evidence + paper admission v1~~ — DONE 2026-10-05 (ADR-564): Sherlock
+   (`head_of_research`, no capital authority) admits candidates to paper only through deterministic gates — evidence
+   bundles, counterparty roles, 12 grades, independent-source groups, Paper Admission v2 (20 gates, UNKNOWN fails
+   closed), immutable decisions with replay, paper accounting with no zero-fee defaults, pauses that do not mature.
+   Curated facts count only after an independent review bound to their content hash (30 of 43 usable). Result on
+   production data: 73 candidates, PAPER_ACTIVE 0, CIO_ELIGIBLE 0 — the blockers are named evidence gaps, not code.
+   Oracle still allocates only CIO_ELIGIBLE candidates on paper; RiskPolicy and cio-policy-v1 unchanged. Real capital
+   $0; no real-money pilot, no COO epic and no new asset-class expansion has started. No further epic is started
+   automatically.
 10. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints

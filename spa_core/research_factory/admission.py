@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.research_factory import contract, dedup
-from spa_core.research_factory._common import code_identity, iso, ledger_for
 
 PASS, FAIL, UNKNOWN = contract.GATE_PASS, contract.GATE_FAIL, contract.GATE_UNKNOWN
 
@@ -241,31 +240,22 @@ def evaluate(candidate: dict, registry_view: dict, now: datetime) -> dict:
            "verdict": overall, "gates": gates}
 
 
+class V1AdmissionSuperseded(Exception):
+    """ADR-564 binding #1: once this ADR is in force, the v1 PASS-report path into
+    PAPER_ACTIVE/EVIDENCE_ACCUMULATING is permanently refused. Only a Sherlock
+    ``ADMIT_TO_PAPER`` decision (``spa_core.research_factory.decision``) plus its
+    ``paper-admission/2`` snapshot (``decision.write_admission_snapshot_v2``) may open paper now;
+    ``lifecycle.py`` no longer accepts a v1 ``kind="admission"`` row as a gate_ref either way.
+    :func:`evaluate` is unaffected and stays in use for DISPLAY and for routing a non-PASS
+    candidate to its hold state — only the WRITE of a new v1 snapshot is refused."""
+
+
 def write_admission_snapshot(data_dir: Path, candidate: dict, report: dict, now: datetime) -> dict:
-    """Persists an IMMUTABLE admission row (only called when ``report['verdict'] == PASS``)."""
-    if report.get("verdict") != PASS:
-        raise ValueError("write_admission_snapshot called on a non-PASS report")
-    ledger = ledger_for(data_dir)
-    at = iso(now)
-    cid = candidate["candidate_id"]
-    admission_id = contract.digest({"candidate_id": cid, "at": at, "gates": report["gates"]})[:24]
-    source_refs = sorted({r.get("source_root") for r in (candidate.get("source_refs") or []) if r.get("source_root")})
-    payload = {
-        "admission_id": admission_id, "candidate_id": cid, "exposure_key": candidate.get("exposure_key"),
-        "exposure_key_version": candidate.get("exposure_key_version"),
-        "contract_version": contract.CONTRACT_VERSION, "code_identity": code_identity(),
-        "as_of": at, "recorded_at": at, "gates": report["gates"],
-        "gate_input_digests": {f: contract.digest(candidate.get(f)) for f in contract.CELL_FIELDS},
-        "source_refs": source_refs,
-        "thresholds": {"conflict_tolerance_rel": contract.CONFLICT_TOLERANCE_REL,
-                      "freshness_max_age_h": contract.FRESHNESS_MAX_AGE_H},
-        "candidate_digest": contract.digest(candidate),
-        "verdict": PASS,
-    }
-    assert set(payload) - {"verdict"} == set(contract.ADMISSION_SNAPSHOT_FIELDS)
-    key = ["admission", cid, admission_id]
-    from spa_core.utils.hash_ledger import DuplicateKey
-    try:
-        return ledger.append("admission", key, payload, at)
-    except DuplicateKey as dup:
-        return dup.existing
+    """Superseded (ADR-564 binding #1) — always refuses. Kept as a function (not deleted) so the
+    refusal itself is a named, importable, testable behaviour rather than a missing attribute."""
+    raise V1AdmissionSuperseded(
+        "ADR-564 binding #1: paper admission now requires a Sherlock ADMIT_TO_PAPER decision + a "
+        "paper-admission/2 snapshot (spa_core.research_factory.decision.decide_and_record / "
+        "write_admission_snapshot_v2); the v1 PASS-report path into "
+        "PAPER_ACTIVE/EVIDENCE_ACCUMULATING is permanently refused. admission.evaluate() remains "
+        "in force for display and hold-state routing only.")

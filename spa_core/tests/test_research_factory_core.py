@@ -25,6 +25,7 @@ from spa_core.research_factory import (
 )
 from spa_core.research_factory._common import ledger_for
 from spa_core.utils.hash_ledger import DuplicateKey, LedgerError, RunLocked
+from spa_core.tests import _research_evidence_v2_fixtures as v2fx
 
 NOW = datetime(2026, 10, 4, 12, 0, 0, tzinfo=timezone.utc)
 
@@ -72,17 +73,15 @@ def make_candidate(mechanism_id="STABLECOIN_SAVINGS", domain="CASH_TREASURY", in
 
 
 def _admit_to_paper_active(data_dir: Path, candidate: dict, now: datetime = NOW) -> str:
-    """Walks a valid candidate all the way to PAPER_ACTIVE via the real gated transitions."""
-    cid = candidate["candidate_id"]
-    registry.upsert(data_dir, candidate, now)
-    for s in (contract.SCREENED, contract.RESEARCH_READY, contract.PAPER_CANDIDATE):
-        lifecycle.transition(data_dir, cid, s, reason="setup", now=now)
-    report = admission.evaluate(candidate, {"_existing_book_roots": []}, now)
-    assert report["verdict"] == contract.GATE_PASS, report
-    snap = admission.write_admission_snapshot(data_dir, candidate, report, now)
-    admission_id = snap["payload"]["admission_id"]
-    lifecycle.transition(data_dir, cid, contract.PAPER_ACTIVE, gate_ref=admission_id, reason="setup", now=now)
-    return admission_id
+    """Walks a valid candidate all the way to PAPER_ACTIVE via the real gated transitions.
+
+    ADR-564 binding #1: ``admission.write_admission_snapshot`` (v1) now always refuses — opening
+    paper requires a real Sherlock ADMIT_TO_PAPER decision instead. Delegates to the shared
+    all-STRONG v2 fixture helper (``_research_evidence_v2_fixtures``); same signature, same
+    return (the admission_id string used as ``gate_ref``), so every existing caller of this
+    function elsewhere in this file is unaffected."""
+    from spa_core.tests._research_evidence_v2_fixtures import admit_to_paper_active_v2
+    return admit_to_paper_active_v2(data_dir, candidate, now)
 
 
 # ── 1. missing return != 0 ──────────────────────────────────────────────────────────────────
@@ -143,8 +142,12 @@ def test_realised_return_without_independent_index_is_modelled_not_a_number(tmp_
 # ── 5. gross != net ──────────────────────────────────────────────────────────────────────────
 
 def test_net_expected_return_subtracts_costs_gross_is_not_net():
+    # unit="fraction" declares these as already-ANNUAL costs (contract.ANNUAL_RATE_UNITS) —
+    # contract.net_expected_return() is unit-aware now; a unit-less cost would be honestly
+    # NOT_MEASURED ("needs amortisation over a declared holding period") rather than netted.
     c = make_candidate(mechanism_id="LENDING", domain="DEFI_STABLE_YIELD",
-                      fees=_cell(contract.MEASURED, 0.01), gas=_cell(contract.MEASURED, 0.002))
+                      fees=_cell(contract.MEASURED, 0.01, unit="fraction"),
+                      gas=_cell(contract.MEASURED, 0.002, unit="fraction"))
     net = contract.net_expected_return(c)
     assert net["value"] == pytest.approx(1.0 - 0.01 - 0.002)
     assert net["value"] != c["base_return"]["value"]
@@ -154,6 +157,55 @@ def test_incentive_return_never_added_to_net():
     c = make_candidate(incentive_return=_cell(contract.MEASURED, 5.0))
     net = contract.net_expected_return(c)
     assert net["value"] == pytest.approx(1.0)  # the 5.0 incentive never leaks in
+
+
+def test_net_expected_return_one_off_cost_without_mode_stays_not_measured():
+    """Default (pre-fix) behaviour is UNCHANGED: a one-off-unit cost with no paper_mode/holding
+    period given is honestly NOT_MEASURED, never silently annualised — every caller that has not
+    been updated to pass paper_mode/holding_period_days keeps today's refusal."""
+    c = make_candidate(fees=_cell(contract.MEASURED, 0.0004, unit="bps_one_off"))
+    net = contract.net_expected_return(c)
+    assert net["state"] == contract.NOT_MEASURED
+    assert "amortis" in net["reason"]
+
+
+def test_net_expected_return_reference_track_skips_one_off_cost_not_subtracted():
+    """Round 5, Issue #2: REFERENCE_TRACK computes net from the ANNUAL components only — a
+    one-off cost (USYC's 4bps subscription fee, relabelled bps_one_off) is SKIPPED, never
+    subtracted, and the computation still SUCCEEDS (named 'not netted' in the method, not
+    silently dropped)."""
+    c = make_candidate(fees=_cell(contract.MEASURED, 0.0004, unit="bps_one_off"))
+    net = contract.net_expected_return(c, paper_mode="REFERENCE_TRACK")
+    assert net["state"] in contract.VALUED_STATES
+    assert net["value"] == pytest.approx(1.0)  # base_return alone — the one-off fee not subtracted
+    assert "not netted" in net["method"]
+    assert "fees" in net["method"]
+
+
+def test_net_expected_return_holdable_amortises_one_off_cost_over_holding_period():
+    """Round 5, Issue #2, HOLDABLE half: a one-off cost IS netted when a holding period is
+    declared — amortised (spread) over that period, never treated as an annual rate itself."""
+    c = make_candidate(fees=_cell(contract.MEASURED, 0.01, unit="fraction_one_off"))  # 1% one-off
+    net = contract.net_expected_return(c, holding_period_days=36.5)  # 1/10 of a year
+    assert net["state"] in contract.VALUED_STATES
+    assert net["value"] == pytest.approx(1.0 - 0.10)  # 1% / (36.5/365) = 10% annualised drag
+
+
+def test_net_expected_return_holdable_one_off_without_holding_period_is_not_measured():
+    """HOLDABLE with NO declared holding period still refuses (unchanged fail-closed default) —
+    amortisation needs a real period, never an implicit/default one."""
+    c = make_candidate(fees=_cell(contract.MEASURED, 0.01, unit="fraction_one_off"))
+    net = contract.net_expected_return(c, paper_mode="HOLDABLE", holding_period_days=None)
+    assert net["state"] == contract.NOT_MEASURED
+
+
+def test_mutation_check_reference_track_one_off_skip_is_the_guard_not_a_coincidence():
+    """MUTATION CHECK: without the REFERENCE_TRACK branch (i.e. the one-off cost always needing
+    amortisation regardless of mode), the SAME REFERENCE_TRACK call as above would refuse —
+    proving the skip is a real behaviour change, not a tautology."""
+    c = make_candidate(fees=_cell(contract.MEASURED, 0.0004, unit="bps_one_off"))
+    net_without_mode = contract.net_expected_return(c)  # no paper_mode passed at all
+    assert net_without_mode["state"] == contract.NOT_MEASURED  # the old universal refusal, reproduced
 
 
 # ── 6. economic dedup ────────────────────────────────────────────────────────────────────────
@@ -258,7 +310,7 @@ def test_re_admission_restarts_maturity_at_zero(tmp_path):
     # send it back to SCREENED and re-admit with a FRESH admission snapshot
     lifecycle.transition(tmp_path, cid, contract.REJECTED, reason="forced for test", now=t1)
     candidate2 = dict(c)
-    candidate2["base_return"] = _cell(contract.MEASURED, 0.06, as_of=t1.isoformat(), judge_now=t1)
+    candidate2["base_return"] = _cell(contract.MEASURED, 0.06, unit="fraction", as_of=t1.isoformat(), judge_now=t1)
     registry.upsert(tmp_path, candidate2, t1)
     lifecycle.transition(tmp_path, cid, contract.SCREENED,
                         gate_ref={"prev_digest": "a", "new_digest": "b"}, reason="re-screen", now=t1)
@@ -616,10 +668,10 @@ def test_reaching_paper_active_from_every_possible_predecessor_needs_admission(t
     elif frm == contract.PAUSED_PAPER:
         for s in (contract.SCREENED, contract.RESEARCH_READY, contract.PAPER_CANDIDATE):
             lifecycle.transition(tmp_path, cid, s, reason="setup", now=NOW)
-        admission_id = lifecycle.active_admission_id(tmp_path, cid)
-        report = admission.evaluate(c, {"_existing_book_roots": []}, NOW)
-        snap = admission.write_admission_snapshot(tmp_path, c, report, NOW)
-        lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=snap["payload"]["admission_id"],
+        # ADR-564 binding #1: v1 admission.write_admission_snapshot now always refuses — a real
+        # Sherlock ADMIT_TO_PAPER decision (the shared all-STRONG v2 fixture helper) is the door.
+        admission_id = v2fx.v2_admission_id_for(tmp_path, c, NOW)
+        lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=admission_id,
                             reason="setup", now=NOW)
         lifecycle.transition(tmp_path, cid, contract.PAUSED_PAPER, reason="pause", now=NOW)
     else:
@@ -628,16 +680,16 @@ def test_reaching_paper_active_from_every_possible_predecessor_needs_admission(t
     with pytest.raises(lifecycle.InvalidTransition):
         lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=None, reason="no gate", now=NOW)
 
-    report = admission.evaluate(c, {"_existing_book_roots": []}, NOW)
-    assert report["verdict"] == contract.GATE_PASS
-    snap = admission.write_admission_snapshot(tmp_path, c, report, NOW)
+    # same candidate, same NOW -> the v2 bundle/decision/snapshot are content-addressed and
+    # idempotent, so this is the SAME admission_id as above for PAUSED_PAPER (still a REAL,
+    # independently re-derived admission id, never a cached Python variable reused blindly).
+    admission_id = v2fx.v2_admission_id_for(tmp_path, c, NOW)
     if frm == contract.PAUSED_PAPER:
-        # PAUSED_PAPER resumes ONLY to its recorded paused_from (PAPER_ACTIVE here) — a resume
-        # with a FRESH admission id for the same candidate is still gated correctly
-        row = lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=snap["payload"]["admission_id"],
+        # PAUSED_PAPER resumes ONLY to its recorded paused_from (PAPER_ACTIVE here)
+        row = lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=admission_id,
                                   reason="resume", now=NOW)
     else:
-        row = lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=snap["payload"]["admission_id"],
+        row = lifecycle.transition(tmp_path, cid, contract.PAPER_ACTIVE, gate_ref=admission_id,
                                   reason="admitted", now=NOW)
     assert row["payload"]["to_state"] == contract.PAPER_ACTIVE
 

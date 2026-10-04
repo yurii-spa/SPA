@@ -1,0 +1,149 @@
+{
+  "issuer:hashnote": {
+    "group": "circle",
+    "affiliated_with": ["issuer:circle"],
+    "appointed_by": null,
+    "hosts": ["usyc.docs.hashnote.com", "usyc.hashnote.com"],
+    "note": "Hashnote (USYC issuer) was acquired by Circle -- Circle and Hashnote are ONE affiliation group, not two independent origins (ADR-564 decision #2). Post-implementation review H6 (2026-10-04): every USYC custodian/administrator/auditor fact cites an ISSUER-HOSTED page (usyc.docs.hashnote.com) naming Marex/Customers Bank/NAV Consulting/Cohen and Company -- an issuer-hosted page is the ISSUER's claim about who serves those roles, whatever party it names, so those facts' own `origin` is this id, not the named party's."
+  },
+  "issuer:circle": {
+    "group": "circle",
+    "affiliated_with": ["issuer:hashnote"],
+    "appointed_by": null,
+    "hosts": [],
+    "note": "Circle International Bermuda Limited -- USYC issuer per usyc.docs.hashnote.com; acquired Hashnote."
+  },
+  "issuer:ondo": {
+    "group": "ondo",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["docs.ondo.finance", "ondo.finance"],
+    "note": "Ondo Finance -- issuer of USDY and OUSG (via Ondo I LP / Ondo USDY LLC / Ondo Global Markets (BVI) Limited; see facts.jsonl for the USDY issuer-entity conflict). Post-implementation review H6: OUSG's administrator (NAV Consulting) fact cites docs.ondo.finance -- an issuer-hosted page -- so that fact's `origin` is this id, not administrator:nav_consulting_ousg."
+  },
+  "issuer:blackrock": {
+    "group": "blackrock",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": [],
+    "note": "BlackRock -- co-issuer of BUIDL (BlackRock USD Institutional Digital Liquidity Fund Ltd., CIK 0002013810, BVI, 3(c)(7)). No BUIDL fact cites a literal blackrock.com host; the custodian/transfer-agent facts cite a prnewswire.com press release -- a wire-service host is not an issuer's own domain, so it is not listed under `hosts`. The independent fact review (2026-10-04) found every BUIDL release on prnewswire is \"News provided by Securitize\" -- those facts now name agent:securitize as origin (appointed by BlackRock, so still the blackrock group). The RELEASE's content is the issuer's own claim (the issuer's and Securitize's joint announcement, not an independent party's), so `origin` for those facts is this id, never prnewswire.com itself and never custodian:bny_mellon/agent:securitize."
+  },
+  "agent:securitize": {
+    "group": "securitize",
+    "affiliated_with": [],
+    "appointed_by": "issuer:blackrock",
+    "hosts": ["www.prnewswire.com"],
+    "note": "Securitize, LLC -- BUIDL's tokeniser and transfer agent (joint BlackRock/Securitize press release); a separate company from BlackRock, so counted as its OWN group when IT is the origin of a citation -- and since the independent fact review (2026-10-04) the BUIDL prnewswire release facts name it as origin ('News provided by Securitize'); being appointed by issuer:blackrock it resolves to the blackrock group, so those facts never count as independent of the issuer."
+  },
+  "custodian:bny_mellon": {
+    "group": "bny_mellon",
+    "affiliated_with": [],
+    "appointed_by": "issuer:blackrock",
+    "hosts": [],
+    "note": "Bank of New York Mellon -- named as BUIDL's cash and securities custodian by the issuer/tokeniser press release (review H6: that citation's `origin` is issuer:blackrock, since the release is issuer-hosted content, not an independent BNY Mellon statement). This id remains registered for any FUTURE citation that is genuinely BNY Mellon's own statement."
+  },
+  "custodian:marex": {
+    "group": "marex",
+    "affiliated_with": [],
+    "appointed_by": "issuer:hashnote",
+    "hosts": [],
+    "note": "Marex -- named as USYC's custodian/prime broker on usyc.docs.hashnote.com (review H6: that page is ISSUER-hosted, so the fact's `origin` is issuer:hashnote, not this id -- an issuer-hosted page is the issuer's claim about who serves this role, not Marex's own). This id remains registered for any FUTURE citation that is genuinely Marex's own statement (e.g. a Marex-hosted page or regulator filing naming it)."
+  },
+  "custodian:customers_bank": {
+    "group": "customers_bank",
+    "affiliated_with": [],
+    "appointed_by": "issuer:hashnote",
+    "hosts": [],
+    "note": "Customers Bank -- named as USYC's banking partner on usyc.docs.hashnote.com (review H6: issuer-hosted -- same discipline as custodian:marex above)."
+  },
+  "agent:ankura": {
+    "group": "ankura",
+    "affiliated_with": [],
+    "appointed_by": "issuer:ondo",
+    "hosts": [],
+    "note": "Ankura Trust -- USDY collateral/verification agent, named on Ondo's own blog (2023-08-03) -- issuer-hosted content; the fact's `origin` is issuer:ondo, not this id."
+  },
+  "administrator:nav_consulting": {
+    "group": "circle",
+    "affiliated_with": [],
+    "appointed_by": "issuer:hashnote",
+    "hosts": [],
+    "note": "NAV Consulting -- USYC/SDYF's fund administrator, appointed by Hashnote/Circle, named on usyc.docs.hashnote.com (review H6: issuer-hosted -- the USYC administrator fact's `origin` is issuer:hashnote, not this id). `group` is folded to the appointer's group (circle) by evidence_contract.origin_group() -- an administrator appointed by the issuer is never independent of it. See administrator:nav_consulting_ousg for the SAME firm's separate OUSG appointment (by Ondo, a different appointer/group) -- one id per APPOINTMENT relationship, since independence is folded per-appointer, not per legal entity."
+  },
+  "administrator:nav_consulting_ousg": {
+    "group": "ondo",
+    "affiliated_with": [],
+    "appointed_by": "issuer:ondo",
+    "hosts": [],
+    "note": "NAV Consulting -- the SAME firm as administrator:nav_consulting, in its SEPARATE capacity as OUSG's fund administrator, appointed by Ondo I LP and named on docs.ondo.finance (review H6: issuer-hosted -- the OUSG administrator fact's `origin` is issuer:ondo, not this id). `group` folds to the appointer's group (ondo)."
+  },
+  "auditor:cohen_and_company": {
+    "group": "circle",
+    "affiliated_with": [],
+    "appointed_by": "issuer:hashnote",
+    "hosts": [],
+    "note": "Cohen and Company -- USYC/SDYF's auditor, appointed by Hashnote/Circle, named on usyc.docs.hashnote.com (review H6: issuer-hosted -- the USYC auditor fact's `origin` is issuer:hashnote, not this id). `group` folds to the appointer's group (circle)."
+  },
+  "regulator:sec": {
+    "group": "sec",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["www.sec.gov"],
+    "note": "U.S. Securities and Exchange Commission -- Form D/D-A filings for BlackRock USD Institutional Digital Liquidity Fund Ltd. (CIK 0002013810) and Ondo I LP (CIK 0001957431)."
+  },
+  "venue:binance": {
+    "group": "binance",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["fapi.binance.com", "api.binance.com", "www.binance.com"],
+    "note": "Binance -- ADGM entities Nest Exchange / Nest Clearing and Custody Limited (Recognised Clearing House) / Nest Trading, per binance.com/en/terms."
+  },
+  "venue:bybit": {
+    "group": "bybit",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["api.bybit.com"],
+    "note": "Bybit -- operating legal entity UNKNOWN in this seed (not independently documented)."
+  },
+  "venue:okx": {
+    "group": "okx",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["www.okx.com"],
+    "note": "OKX -- operating/jurisdiction entity UNKNOWN in this seed."
+  },
+  "venue:kucoin": {
+    "group": "kucoin",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["api-futures.kucoin.com", "api.kucoin.com", "www.kucoin.com"],
+    "note": "KuCoin -- terms of use name no operating entity, governed by Turks and Caicos law (kucoin.com/legal/terms-of-use)."
+  },
+  "venue:hyperliquid": {
+    "group": "hyperliquid",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["api.hyperliquid.xyz", "hyperliquid.gitbook.io"],
+    "note": "Hyperliquid -- on-chain perp DEX; fee schedule at hyperliquid.gitbook.io/hyperliquid-docs/trading/fees."
+  },
+  "aggregator:defillama": {
+    "group": "defillama",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": ["yields.llama.fi"],
+    "note": "DeFiLlama -- relays issuer/oracle data; never an independent origin by itself (channel=aggregator only, grade caps at WEAK)."
+  },
+  "aggregator:redstone": {
+    "group": "redstone",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": [],
+    "note": "RedStone -- off-chain gateway relaying BUIDL's issuer-posted daily interest accrual; relays the issuer, is not an independent origin of its own. No specific RedStone host is cited in this seed."
+  },
+  "chain:1": {
+    "group": "onchain_ethereum",
+    "affiliated_with": [],
+    "appointed_by": null,
+    "hosts": [],
+    "note": "Ethereum mainnet -- a chain-native origin only for CHAIN_NATIVE_CLAIMS (bytecode/token_identity/supply/balance/event); a value an issuer POSTS on-chain keeps the issuer as origin (evidence_contract.CHAIN_NATIVE_CLAIMS). Not a web host."
+  }
+}

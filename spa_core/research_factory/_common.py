@@ -38,13 +38,25 @@ def ledger_for(data_dir: Path) -> HashLedger:
 
 
 def code_identity() -> str:
-    """sha256 over every ``.py`` source file directly inside this package (not ``scanners/``,
-    not tests) — ADMISSION_SNAPSHOT_FIELDS' ``code_identity``."""
+    """sha256 over every ``.py`` source file directly inside this package AND inside its
+    ``scanners/``/``collectors/`` subpackages (not tests) — ADMISSION_SNAPSHOT_FIELDS'
+    ``code_identity``. Post-implementation review M3 (2026-10-04): a scanner/collector code
+    change can change what evidence a candidate's bundle was BUILT from without changing a
+    single byte inside this package's own top-level files — replay's "did the code that
+    produced this decision change?" question was blind to exactly that until scanners/collectors
+    joined the digest too."""
     pkg_dir = Path(__file__).resolve().parent
     parts = []
     for p in sorted(pkg_dir.glob("*.py")):
         parts.append(p.name)
         parts.append(p.read_text(encoding="utf-8"))
+    for subdir in ("scanners", "collectors"):
+        sub = pkg_dir / subdir
+        if not sub.is_dir():
+            continue
+        for p in sorted(sub.rglob("*.py")):
+            parts.append(f"{subdir}/{p.relative_to(sub)}")
+            parts.append(p.read_text(encoding="utf-8"))
     return contract.digest(parts)
 
 

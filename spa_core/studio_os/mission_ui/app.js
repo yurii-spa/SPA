@@ -618,11 +618,16 @@
     })));
     c.appendChild(renderListField("research.by_mechanism", Object.keys(ru.by_mechanism || {}).sort().map(
       function (k) { return k + ": " + ru.by_mechanism[k]; })));
-    c.appendChild(renderListField("research.top_candidates", (ru.top_candidates || []).map(function (x) {
-      return (x.instrument || x.venue_or_protocol || x.candidate_id || "?") + " · " + (x.mechanism_id || "?") +
-        " · " + t("research.forward_periods") + "=" + textOrNM(x.forward_periods) +
-        " · net=" + cellText(x.net_expected_return) + " · " + (x.admission_state || "?");
-    })));
+    c.appendChild(renderSherlockBlock(ru.sherlock));
+    var topWrap = h("div", { class: "list-section" });
+    topWrap.appendChild(h("div", { class: "k" }, [t("research.top_candidates")]));
+    var topCands = ru.top_candidates || [];
+    if (!topCands.length) {
+      topWrap.appendChild(h("div", { class: "v" }, [t("common.none")]));
+    } else {
+      topCands.forEach(function (x) { topWrap.appendChild(renderResearchCandidateDetail(x)); });
+    }
+    c.appendChild(topWrap);
     c.appendChild(renderListField("research.rejected", (ru.rejected || []).map(function (x) {
       return (x.candidate_id || "?") + " [" + (x.state || "?") + "]: " + (x.reasons || []).join("; ");
     })));
@@ -633,6 +638,118 @@
     c.appendChild(renderListField("research.domain_decisions", Object.keys(ru.domain_decisions || {}).sort().map(
       function (k) { return k + ": " + ru.domain_decisions[k]; })));
     return c;
+  }
+
+  // ADR-564 (RM-EVIDENCE-01): Sherlock — Head of Research. Deterministic research governance
+  // only — no capital authority, nothing executes (same read-only boundary as the card around
+  // it). Rendered INSIDE the existing Research Universe card, never a separate top-level card.
+  // Each guards against a non-string value with typeof — a nested object concatenated into a
+  // translation-key lookup ("research.ceiling." + {...}) is exactly how "[object Object]"
+  // happened on the live phone page before (2026-10-04, live_readiness `brief`); here the guard
+  // falls back to "not measured" instead of ever building that key.
+  function evidenceCeilingText(ceiling) {
+    if (!ceiling || typeof ceiling !== "string") return t("common.not_measured");
+    if (ceiling === "ISSUER_ASSERTED") return t("research.issuer_asserted_label");
+    return t("research.ceiling." + ceiling);
+  }
+
+  function paperModeText(mode) {
+    return (mode && typeof mode === "string") ? t("research.paper_mode." + mode) : t("common.not_measured");
+  }
+
+  function decisionText(decision) {
+    return (decision && typeof decision === "string") ? t("research.decision." + decision) : t("common.not_measured");
+  }
+
+  function renderSherlockBlock(sh) {
+    var wrap = h("div", { class: "list-section sherlock-block" });
+    wrap.appendChild(h("div", { class: "k" },
+      [sh && sh.display_name ? (sh.display_name + " — " + t("sherlock.title")) : t("sherlock.title")]));
+    if (!sh) {
+      wrap.appendChild(h("div", { class: "v" }, [t("sherlock.not_shown")]));
+      return wrap;
+    }
+    var body = h("div", { class: "v" });
+    body.appendChild(h("p", { class: "note" }, [t("sherlock.boundary")]));
+    [["sherlock.reviewed_today", sh.reviewed_today], ["sherlock.evidence_ready", sh.evidence_ready],
+     ["sherlock.paper_active", sh.paper_active], ["sherlock.cio_eligible", sh.cio_eligible],
+     ["sherlock.counterparty_unknown", sh.counterparty_unknown], ["sherlock.conflicts", sh.conflicts],
+     ["sherlock.stale_evidence", sh.stale_evidence]].forEach(function (pair) {
+      body.appendChild(kv(pair[0], pair[1]));
+    });
+    body.appendChild(renderListField("sherlock.top_blockers", (sh.top_blockers || []).map(function (b) {
+      return b.gate + " × " + textOrNM(b.count);
+    })));
+    body.appendChild(renderListField("sherlock.decisions_today", (sh.decisions_today || []).map(function (d) {
+      var line = (d.instrument || d.candidate_id || "?") + " — " + decisionText(d.decision) +
+        " · " + evidenceCeilingText(d.evidence_ceiling) + " · " + paperModeText(d.paper_mode);
+      if (d.failed_gates && d.failed_gates.length) {
+        line += " · " + t("research.candidate.failed_gates") + "=" + d.failed_gates.join(", ");
+      }
+      if (d.unknown_gates && d.unknown_gates.length) {
+        line += " · " + t("research.candidate.unknown_gates") + "=" + d.unknown_gates.join(", ");
+      }
+      if (d.required_next_evidence && d.required_next_evidence.length) {
+        line += " · " + t("research.candidate.required_next_evidence") + "=" + d.required_next_evidence.join(", ");
+      }
+      return line;
+    })));
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  // Per-candidate evidence detail: who pays, counterparties (role → state + identity),
+  // measured/documented/unknown, blocking gaps, latest decision, paper position NAV and returns.
+  function renderCandidateEvidenceDetail(ev) {
+    var wrap = h("div", { class: "candidate-evidence" });
+    if (!ev) {
+      wrap.appendChild(h("p", {}, [t("research.candidate.no_evidence")]));
+      return wrap;
+    }
+    wrap.appendChild(kv("research.candidate.who_pays", ev.who_pays));
+    var grades = ev.grades || {};
+    wrap.appendChild(renderListField("research.candidate.grades", Object.keys(grades).sort().map(function (k) {
+      return k + ": " + grades[k];
+    })));
+    wrap.appendChild(kv("research.candidate.evidence_ceiling", evidenceCeilingText(ev.evidence_ceiling)));
+    wrap.appendChild(renderListField("research.candidate.issuer_asserted_roles", ev.issuer_asserted_roles));
+    wrap.appendChild(renderListField("research.candidate.circularity_concerns", ev.circularity_concerns));
+    var cps = ev.counterparties || {};
+    wrap.appendChild(renderListField("research.candidate.counterparties", Object.keys(cps).sort().map(
+      function (role) {
+        var cp = cps[role] || {};
+        return role + ": " + (cp.state || t("common.unknown")) + (cp.identity ? " — " + cp.identity : "");
+      })));
+    wrap.appendChild(renderListField("research.candidate.measured", ev.measured));
+    wrap.appendChild(renderListField("research.candidate.documented", ev.documented));
+    wrap.appendChild(renderListField("research.candidate.unknown", ev.unknown));
+    wrap.appendChild(renderListField("research.candidate.blocking_gaps", ev.blocking_gaps));
+    wrap.appendChild(kv("research.candidate.paper_mode", paperModeText(ev.paper_mode)));
+    if (ev.paper_mode === "REFERENCE_TRACK") {
+      wrap.appendChild(h("div", { class: "warning-chip" }, [t("research.reference_track_note")]));
+    }
+    wrap.appendChild(kv("research.candidate.latest_decision", ev.latest_decision ? decisionText(ev.latest_decision) : null));
+    var pos = ev.paper_position;
+    if (pos) {
+      wrap.appendChild(kv("research.candidate.nav",
+        (pos.nav_usd === null || pos.nav_usd === undefined) ? null : "$" + pos.nav_usd));
+      wrap.appendChild(kv("research.candidate.realised_return", pos.realised_return));
+      wrap.appendChild(kv("research.candidate.unrealised_return", pos.unrealised_return));
+      wrap.appendChild(kv("research.candidate.mark_state", pos.mark_state));
+    } else {
+      wrap.appendChild(kv("research.candidate.paper_position", null));
+    }
+    return wrap;
+  }
+
+  function renderResearchCandidateDetail(x) {
+    var det = h("details", { class: "candidate-detail" });
+    var summary = (x.instrument || x.venue_or_protocol || x.candidate_id || "?") + " · " + (x.mechanism_id || "?") +
+      " · " + t("research.forward_periods") + "=" + textOrNM(x.forward_periods) +
+      " · net=" + cellText(x.net_expected_return) + " · " + (x.admission_state || "?");
+    det.appendChild(h("summary", {}, [summary]));
+    det.appendChild(renderCandidateEvidenceDetail(x.evidence));
+    return det;
   }
 
   // ── STUDIO ─────────────────────────────────────────────────────────────────────────────

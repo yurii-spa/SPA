@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.research_factory import contract
+from spa_core.research_factory import evidence_contract
 from spa_core.research_factory._common import iso, ledger_for
 from spa_core.utils.hash_ledger import DuplicateKey, HashLedger
 
@@ -91,9 +92,9 @@ def active_admission_id(data_dir: Path, candidate_id: str) -> Optional[str]:
     return gate_ref if isinstance(gate_ref, str) else None
 
 
-def _find_admission(ledger: HashLedger, candidate_id: str, admission_id: str) -> Optional[dict]:
+def _find_admission_v2(ledger: HashLedger, candidate_id: str, admission_id: str) -> Optional[dict]:
     for e in ledger.read_all():
-        if e.get("kind") != "admission":
+        if e.get("kind") != "paper_admission_v2":
             continue
         p = e.get("payload") or {}
         if p.get("candidate_id") == candidate_id and p.get("admission_id") == admission_id:
@@ -101,14 +102,41 @@ def _find_admission(ledger: HashLedger, candidate_id: str, admission_id: str) ->
     return None
 
 
+def _find_admit_decision(ledger: HashLedger, candidate_id: str, bundle_digest: Any) -> Optional[dict]:
+    for e in ledger.read_all():
+        if e.get("kind") != "admission_decision":
+            continue
+        p = e.get("payload") or {}
+        if p.get("candidate_id") == candidate_id and p.get("bundle_digest") == bundle_digest \
+                and p.get("decision") == evidence_contract.ADMIT_TO_PAPER:
+            return e
+    return None
+
+
 def _validate_admission_gate(ledger: HashLedger, candidate_id: str, gate_ref: Any) -> None:
+    """ADR-564 binding #1: the ONLY door into PAPER_ACTIVE/EVIDENCE_ACCUMULATING. ``gate_ref`` must
+    name a ``paper-admission/2`` snapshot (kind ``paper_admission_v2``) for THIS candidate, whose
+    ``decision_id``/``bundle_digest`` match a ``kind="admission_decision"`` row recording
+    ``ADMIT_TO_PAPER`` for the SAME candidate and bundle digest. ADR-560's v1 ``kind="admission"``
+    rows (and ``admission.write_admission_snapshot``, which now refuses to write new ones) are no
+    longer a valid door — an all-PASS v1 report cannot open a position (positive control:
+    ``test_paper_active_requires_a_real_pass_admission_snapshot`` / the ADR's binding review)."""
     if not isinstance(gate_ref, str) or not gate_ref:
-        raise InvalidTransition("gate_ref must name a PASS admission snapshot id")
-    row = _find_admission(ledger, candidate_id, gate_ref)
+        raise InvalidTransition("gate_ref must name a paper-admission/2 snapshot id (ADR-564 binding #1)")
+    row = _find_admission_v2(ledger, candidate_id, gate_ref)
     if row is None:
-        raise InvalidTransition(f"no admission snapshot {gate_ref!r} recorded for {candidate_id!r}")
-    if (row.get("payload") or {}).get("verdict") != contract.GATE_PASS:
-        raise InvalidTransition(f"admission snapshot {gate_ref!r} is not a PASS verdict")
+        raise InvalidTransition(f"no paper-admission/2 snapshot {gate_ref!r} recorded for {candidate_id!r}")
+    payload = row.get("payload") or {}
+    if payload.get("schema") != evidence_contract.SCHEMA_ADMISSION_V2:
+        raise InvalidTransition(f"admission snapshot {gate_ref!r} is not schema "
+                                f"{evidence_contract.SCHEMA_ADMISSION_V2!r}")
+    decision_id, bundle_digest = payload.get("decision_id"), payload.get("bundle_digest")
+    if not decision_id or not bundle_digest:
+        raise InvalidTransition(f"paper-admission/2 snapshot {gate_ref!r} is missing decision_id/bundle_digest")
+    decision_row = _find_admit_decision(ledger, candidate_id, bundle_digest)
+    if decision_row is None or (decision_row.get("payload") or {}).get("decision_id") != decision_id:
+        raise InvalidTransition(f"no ADMIT_TO_PAPER decision {decision_id!r} matching bundle {bundle_digest!r} "
+                                f"for {candidate_id!r} (ADR-564 binding #1)")
 
 
 def _validate_cio_gate(gate_ref: Any) -> None:
@@ -173,7 +201,11 @@ def transition(data_dir: Path, candidate_id: str, to_state: str, *, gate_ref: An
         if frm == contract.PAUSED_PAPER and to_state in (contract.PAPER_ACTIVE, contract.EVIDENCE_ACCUMULATING):
             paused_row = _last_transition_to(ledger, candidate_id, contract.PAUSED_PAPER)
             paused_from = (paused_row.get("payload") or {}).get("paused_from") if paused_row else None
-            if to_state != paused_from:
+            # a pause from CIO_ELIGIBLE never resumes straight back to eligibility: it re-enters
+            # EVIDENCE_ACCUMULATING and must re-earn CIO_ELIGIBLE through the CIO gate
+            resume_to = (contract.EVIDENCE_ACCUMULATING if paused_from == contract.CIO_ELIGIBLE
+                         else paused_from)
+            if to_state != resume_to:
                 raise InvalidTransition(f"{candidate_id}: PAUSED_PAPER resumes only to its recorded "
                                         f"paused_from ({paused_from!r}), not {to_state!r}")
 

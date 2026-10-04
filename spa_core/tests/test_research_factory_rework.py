@@ -22,6 +22,7 @@ from spa_core.research_factory import (
 )
 from spa_core.research_factory._common import ledger_for
 from spa_core.utils.hash_ledger import LedgerError
+from spa_core.tests import _research_evidence_v2_fixtures as v2fx
 
 NOW = datetime(2026, 10, 4, 12, 0, 0, tzinfo=timezone.utc)
 
@@ -49,7 +50,11 @@ def make_candidate(mechanism_id="STABLECOIN_SAVINGS", domain="CASH_TREASURY", in
         "domain": domain, "network": contract.canonical_network(network), "venue_or_protocol": "test_scanner",
         "instrument": instrument_id, "instrument_id": instrument_id, "underlying_root": instrument_id,
         "economic_driver_key": f"DRIVER_{mechanism_id}", "yield_source": "savings_rate",
-        "base_return": _cell(), "fees": _cell(contract.NOT_APPLICABLE, reason="n/a"),
+        # unit="fraction" is a declared ANNUAL rate (contract.ANNUAL_RATE_UNITS) — contract.
+        # net_expected_return() is now unit-aware (ADR-564 integration finding: a live run
+        # netted a one-off fee against an annual rate unchecked and produced net=-2697); a
+        # unit-less default would make every candidate built here honestly NOT_MEASURED.
+        "base_return": _cell(unit="fraction"), "fees": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "gas": _cell(contract.NOT_APPLICABLE, reason="n/a"), "funding": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "hedging_cost": _cell(contract.NOT_APPLICABLE, reason="n/a"),
         "liquidity": _cell(contract.MEASURED, 1_000_000.0), "time_to_exit": _cell(contract.MEASURED, 0.0),
@@ -70,16 +75,9 @@ def make_candidate(mechanism_id="STABLECOIN_SAVINGS", domain="CASH_TREASURY", in
 
 
 def _admit_to_paper_active(data_dir: Path, candidate: dict, now: datetime = NOW) -> str:
-    cid = candidate["candidate_id"]
-    registry.upsert(data_dir, candidate, now)
-    for s in (contract.SCREENED, contract.RESEARCH_READY, contract.PAPER_CANDIDATE):
-        lifecycle.transition(data_dir, cid, s, reason="setup", now=now)
-    report = admission.evaluate(candidate, {"_existing_book_roots": []}, now)
-    assert report["verdict"] == contract.GATE_PASS, report
-    snap = admission.write_admission_snapshot(data_dir, candidate, report, now)
-    admission_id = snap["payload"]["admission_id"]
-    lifecycle.transition(data_dir, cid, contract.PAPER_ACTIVE, gate_ref=admission_id, reason="setup", now=now)
-    return admission_id
+    """ADR-564 binding #1: v1 ``admission.write_admission_snapshot`` now always refuses — this
+    delegates to the shared all-STRONG v2 fixture helper (same signature/return as before)."""
+    return v2fx.admit_to_paper_active_v2(data_dir, candidate, now)
 
 
 # ── H0: rpc_client must be a real RpcClient instance ────────────────────────────────────────
@@ -180,7 +178,7 @@ def test_h2_identical_data_12h_apart_appends_no_snapshot_and_no_transition(tmp_p
     c2 = make_candidate(mechanism_id="LENDING", domain="DEFI_STABLE_YIELD",
                        counterparty_data={"roles": {}, "dimensions": {}})
     # only the TIMESTAMPS differ from c — same numbers, same structure, everywhere
-    c2["base_return"] = _cell(contract.MEASURED, 1.0, as_of=later.isoformat(), judge_now=later)
+    c2["base_return"] = _cell(contract.MEASURED, 1.0, unit="fraction", as_of=later.isoformat(), judge_now=later)
     c2["source_refs"] = [{"source_root": "chain:1", "source_class": contract.PRIMARY_PROTOCOL,
                          "value": 1.0, "as_of": later.isoformat(), "recorded_at": later.isoformat()}]
     fp1 = registry.fingerprint_of(c)
@@ -445,7 +443,8 @@ def test_h5_mutation_check_source_refs_no_longer_consulted():
 # ── M2: realised return is annualised to match the observed rate's unit ────────────────────
 
 def test_m2_annualised_realised_return_matches_apy_shaped_base_return(tmp_path):
-    c = make_candidate(base_return=_cell(contract.MEASURED, 0.05, unit="fraction"))  # 5% APY
+    c = make_candidate(base_return=_cell(contract.MEASURED, 0.05, unit="fraction",
+                                     source_root="venue:test_observed_feed"))  # 5% APY
     cid = c["candidate_id"]
     admission_id = _admit_to_paper_active(tmp_path, c, NOW)
     # a realised_index growing at ~5%/yr compounded, sampled 30 days apart
@@ -453,13 +452,18 @@ def test_m2_annualised_realised_return_matches_apy_shaped_base_return(tmp_path):
     t1 = t0 + timedelta(days=30)
     idx0 = 1.0
     idx1 = (1.05) ** (30.0 / 365.25)
+    # ADR-564 amendment: realised_vs_observed_consistent is UNKNOWN when both sides share an
+    # origin — observed_return here is an INDEPENDENT (venue:) feed, distinct from the on-chain
+    # realised_index, so this test still exercises the numeric consistency check it is named for.
     obs0 = {"period": "2026-11-04", "realised_index": _cell(contract.MEASURED, idx0, source_class=contract.PRIMARY_CHAIN,
                                                            as_of=t0.isoformat(), judge_now=t0),
-           "observed_return": _cell(contract.MEASURED, 0.05, as_of=t0.isoformat(), judge_now=t0)}
+           "observed_return": _cell(contract.MEASURED, 0.05, source_root="venue:test_observed_feed",
+                                   as_of=t0.isoformat(), judge_now=t0)}
     forward.record(tmp_path, cid, obs0, t0)
     obs1 = {"period": "2026-12-04", "realised_index": _cell(contract.MEASURED, idx1, source_class=contract.PRIMARY_CHAIN,
                                                            as_of=t1.isoformat(), judge_now=t1),
-           "observed_return": _cell(contract.MEASURED, 0.05, as_of=t1.isoformat(), judge_now=t1)}
+           "observed_return": _cell(contract.MEASURED, 0.05, source_root="venue:test_observed_feed",
+                                   as_of=t1.isoformat(), judge_now=t1)}
     forward.record(tmp_path, cid, obs1, t1)
     kind, realised_cell = forward.realised_return(tmp_path, cid)
     assert kind == contract.RETURN_REALISED_PAPER
@@ -486,7 +490,8 @@ def test_m2_mutation_check_un_annualised_period_fraction_would_fail(tmp_path):
 
 def test_m2_both_directions_realised_higher_and_lower_than_observed(tmp_path):
     for apy, idx_annual_rate, expect_pass in ((0.05, 0.051, True), (0.05, 0.12, False)):
-        c = make_candidate(base_return=_cell(contract.MEASURED, apy, unit="fraction"),
+        c = make_candidate(base_return=_cell(contract.MEASURED, apy, unit="fraction",
+                              source_root="venue:test_observed_feed"),
                           instrument_id=f"ethereum:0x{'44' if expect_pass else '55'}" + "0" * 38)
         cid = c["candidate_id"]
         _admit_to_paper_active(tmp_path, c, NOW)
@@ -494,16 +499,21 @@ def test_m2_both_directions_realised_higher_and_lower_than_observed(tmp_path):
         t1 = t0 + timedelta(days=60)
         idx0 = 1.0
         idx1 = (1 + idx_annual_rate) ** (60.0 / 365.25)
+        # ADR-564 amendment: realised_vs_observed_consistent is UNKNOWN when both sides share an
+        # origin — observed_return is an INDEPENDENT (venue:) feed here, distinct from the
+        # on-chain realised_index, so this test still exercises the numeric consistency check.
         forward.record(tmp_path, cid, {"period": "P0",
                                        "realised_index": _cell(contract.MEASURED, idx0, source_class=contract.PRIMARY_CHAIN,
                                                               as_of=t0.isoformat(), judge_now=t0),
-                                       "observed_return": _cell(contract.MEASURED, apy, as_of=t0.isoformat(),
-                                                               judge_now=t0)}, t0)
+                                       "observed_return": _cell(contract.MEASURED, apy,
+                                                               source_root="venue:test_observed_feed",
+                                                               as_of=t0.isoformat(), judge_now=t0)}, t0)
         forward.record(tmp_path, cid, {"period": "P1",
                                        "realised_index": _cell(contract.MEASURED, idx1, source_class=contract.PRIMARY_CHAIN,
                                                               as_of=t1.isoformat(), judge_now=t1),
-                                       "observed_return": _cell(contract.MEASURED, apy, as_of=t1.isoformat(),
-                                                               judge_now=t1)}, t1)
+                                       "observed_return": _cell(contract.MEASURED, apy,
+                                                               source_root="venue:test_observed_feed",
+                                                               as_of=t1.isoformat(), judge_now=t1)}, t1)
         view = {"_existing_book_roots": []}
         report = eligibility.evaluate(tmp_path, registry.current_candidate(tmp_path, cid), view, t1)
         verdict = report["gates"]["realised_vs_observed_consistent"]["verdict"]
@@ -640,6 +650,12 @@ def test_low_evidence_accumulating_counts_as_paper_active(monkeypatch, tmp_path)
 
     import spa_core.research_factory.run as run_mod
     monkeypatch.setattr(run_mod, "_discover_scanners", lambda: [])
+    # this test's subject is cio_view's OWN denominator counting, not Sherlock's lifecycle
+    # decision — with zero scanners wired, a fresh Sherlock re-review has no v2_evidence beyond
+    # run._default_v2_evidence's conservative defaults and would (correctly, post-review M4)
+    # demote this all-strong-fixture-admitted candidate to PAUSED_PAPER, which is a REAL
+    # consequence of zero evidence, not something this test is about.
+    monkeypatch.setattr(run_mod, "_sherlock_review_all", lambda *a, **k: None)
     run_mod.run_once(tmp_path, NOW + timedelta(hours=1))
     view = read.cio_view(tmp_path, NOW + timedelta(hours=1))
     assert cid in view["paper_active"]

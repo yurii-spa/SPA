@@ -438,18 +438,30 @@ def test_rwa_floor_rate_without_generated_at_is_not_measured_no_exception(tmp_pa
     """review M4: rwa.py used to build a MEASURED cell with as_of=None when rwa_floor.json had a
     matching per-pool rate but no top-level 'generated_at' — contract.cell() raises on that,
     which used to kill all 11 RWA candidates. Must now be NOT_MEASURED, no exception, and every
-    OTHER asset must still be processed."""
+    OTHER asset must still be processed.
+
+    ADR-564 (RM-EVIDENCE-01) update, 2026-10-04: BUIDL is one of the four Phase-0-audited
+    instruments (``rwa.CHAIN_JOIN_REQUIRED_SYMBOLS``) and is NEVER read from the symbol-keyed
+    ``rwa_floor.json`` cache anymore (that cache has no chain/underlying-contract field — the
+    exact wrong-chain-pool defect the ADR fixes) — its ``base_return`` reason is now the
+    chain-correct-join message, not "generated_at". This test's ORIGINAL subject (a per-pool rate
+    present but the cache's top-level 'generated_at' absent) still applies verbatim to cUSDO,
+    which is unaffected by the ADR-564 fix — moved there rather than dropped."""
     _rwa_fixture(tmp_path)
     _write(tmp_path / "market_data" / "rwa_floor.json", {
         # no 'generated_at' at all
-        "pools": [{"label": "blackrock-buidl:BUIDL", "apy_pct": 3.7, "tvl_usd": 9.0e8,
+        "pools": [{"label": "openeden-usdo:cUSDO", "apy_pct": 3.7, "tvl_usd": 9.0e8,
                   "pool": "590d770e-ed5d-4c8d-ad96-5178c2072295"}],
     })
     res = rwa.scan(tmp_path, NOW)  # must not raise
     assert len(res["candidates"]) == 2  # BUIDL + cUSDO (sBUIDL stays unresolved, no contract)
+    cusdo = [c for c in res["candidates"] if c["instrument"] == "cUSDO"][0]
+    assert cusdo["base_return"]["state"] == contract.NOT_MEASURED
+    assert "generated_at" in cusdo["base_return"]["reason"]
+    # BUIDL (ADR-564): never falls back to the symbol-keyed cache, raw_pools or NOT_MEASURED only.
     buidl = [c for c in res["candidates"] if c["instrument"] == "BUIDL"][0]
     assert buidl["base_return"]["state"] == contract.NOT_MEASURED
-    assert "generated_at" in buidl["base_return"]["reason"]
+    assert "chain-correct join" in buidl["base_return"]["reason"]
 
 
 def test_rwa_board_without_generated_at_is_not_measured_no_exception(tmp_path):
@@ -486,7 +498,14 @@ def test_rwa_counterparty_roles_default_unknown_not_blanket_na(tmp_path):
 def test_rwa_counterparty_never_cites_audited_document(tmp_path):
     """review H6b: this repo holds no audit letter for any of these funds — AUDITED_DOCUMENT must
     never appear as a source_class. Redemption fee/delay (the issuer's own published terms) are
-    ISSUER_CLAIM; the board's own liquidity analysis is SECONDARY_SOURCE."""
+    ISSUER_CLAIM; the board's own liquidity analysis is SECONDARY_SOURCE.
+
+    ADR-564 (RM-EVIDENCE-01) update, 2026-10-04: BUIDL's ``fees`` CELL no longer comes from the
+    board's uniform (uncited) ``redemption_fee_bps=0`` — the Phase-0 citation seed has "no
+    official fee figure" for BUIDL, so the cell is now NOT_MEASURED (COST UNKNOWN), never a
+    source_class at all. The "fees/time_to_exit are ISSUER_CLAIM" assertion still holds for
+    ``time_to_exit`` (untouched by ADR-564) and is checked against cUSDO for ``fees`` instead,
+    which still takes the board's (unaudited) redemption_fee_bps path."""
     _rwa_fixture(tmp_path)
     res = rwa.scan(tmp_path, NOW)
     buidl = [c for c in res["candidates"] if c["instrument"] == "BUIDL"][0]
@@ -497,10 +516,14 @@ def test_rwa_counterparty_never_cites_audited_document(tmp_path):
     assert cp["roles"]["redemption_agent"]["source_class"] == contract.ISSUER_CLAIM
     assert cp["dimensions"]["redemption_restrictions"]["source_class"] == contract.ISSUER_CLAIM
     assert cp["dimensions"]["legal_dependence"]["source_class"] == contract.SECONDARY_SOURCE
-    # the candidate's own cells agree: fees/time_to_exit are ISSUER_CLAIM (issuer-published terms).
-    assert buidl["fees"]["source_class"] == contract.ISSUER_CLAIM
+    # ADR-564: BUIDL's fees cell is now NOT_MEASURED (no official figure cited) — never a guessed
+    # 0, never a source_class.
+    assert buidl["fees"]["state"] == contract.NOT_MEASURED
+    assert buidl["fees"]["source_class"] is None
     assert buidl["time_to_exit"]["source_class"] == contract.ISSUER_CLAIM
     assert buidl["liquidity"]["source_class"] == contract.SECONDARY_SOURCE
+    cusdo = [c for c in res["candidates"] if c["instrument"] == "cUSDO"][0]
+    assert cusdo["fees"]["source_class"] == contract.ISSUER_CLAIM
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════

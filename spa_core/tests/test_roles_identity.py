@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ROLES_PATH = ROOT / "architecture" / "roles.json"
 
 # the former CIO display name stays in the guard: it must never become an authority key either
-DISPLAY_NAMES = ("Oracle", "Штирлиц", "Шурик")
+DISPLAY_NAMES = ("Oracle", "Sherlock", "Штирлиц", "Шурик")
 #: files allowed to carry a display-name literal at all (identity declaration / tests / contract).
 ALLOWED_FILES = {ROLES_PATH}
 
@@ -185,3 +185,15 @@ def test_cio_display_name_has_one_value_everywhere_it_is_shown():
     titles = [ln for ln in i18n.splitlines() if '"cio.title"' in ln or '"cio.short"' in ln]
     assert len(titles) == 4 and all(name in ln for ln in titles), titles
     assert "Штирлиц" not in i18n
+
+
+def test_head_of_research_is_sherlock_with_no_capital_authority():
+    """Owner selected «Sherlock» for head_of_research (RM-EVIDENCE-01). The role governs research/paper
+    admission only: authority over capital is NONE and the may_not list carries the capital boundary."""
+    r = _role(_roles_doc(), "head_of_research")
+    assert r["title"] == "Head of Research" and r["display_name"] == "Sherlock"
+    assert r["authority"] == "NONE" and r["authority_over_capital"] == "NONE"
+    assert {c["authority"] for c in r["components"]} == {"PAPER_ADMISSION"}
+    for must_not in ("allocate capital", "move money", "approve live use", "change RiskPolicy",
+                     "change Oracle (cio-policy-v1) policy"):
+        assert must_not in r["may_not"], must_not

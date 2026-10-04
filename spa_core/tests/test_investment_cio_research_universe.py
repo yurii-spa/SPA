@@ -150,6 +150,45 @@ def test_allocatable_false_on_malformed_view():
     assert research_universe.research_sleeve_allocatable(True, "c1", 1, {}) is False
 
 
+def test_allocatable_false_for_a_paper_active_candidate_not_yet_cio_eligible():
+    """ADR-564 decision #9: PAPER_ACTIVE (which already folds in EVIDENCE_ACCUMULATING upstream,
+    per research_factory.read.cio_view) is never enough on its own — only cio_eligible membership
+    can ever return True. A candidate present in paper_active but absent from cio_eligible must
+    stay False, whatever the contract flag says."""
+    view = {"state": "OK", "paper_active": ["c1"], "cio_eligible": []}
+    assert research_universe.research_sleeve_allocatable(True, "c1", 1, view) is False
+    # same candidate, with an EVIDENCE_ACCUMULATING-shaped entry (version declared) — still False
+    view2 = {"state": "OK",
+            "paper_active": [{"candidate_id": "c1", "exposure_key_version": 1}], "cio_eligible": []}
+    assert research_universe.research_sleeve_allocatable(True, "c1", 1, view2) is False
+
+
+# ── visibility() — RESEARCH_ONLY / PAPER_ACTIVE / CIO_ELIGIBLE exposed separately (decision #9) ──
+
+def test_visibility_exposes_the_three_buckets_under_their_own_names():
+    view = {"state": "OK", "observe_only": ["o1"], "paper_active": ["p1", "p2"],
+            "cio_eligible": [{"candidate_id": "c1", "exposure_key_version": 1}]}
+    vis = research_universe.visibility(view)
+    assert vis == {research_universe.RESEARCH_ONLY: ["o1"], research_universe.PAPER_ACTIVE: ["p1", "p2"],
+                   research_universe.CIO_ELIGIBLE: [{"candidate_id": "c1", "exposure_key_version": 1}]}
+    assert set(vis) == set(research_universe.VISIBILITY_BUCKETS)
+
+
+def test_visibility_on_malformed_view_is_not_measured_not_empty():
+    for bad in (None, "nonsense", 42):
+        vis = research_universe.visibility(bad)
+        assert vis == {research_universe.RESEARCH_ONLY: None, research_universe.PAPER_ACTIVE: None,
+                       research_universe.CIO_ELIGIBLE: None}
+
+
+def test_visibility_defaults_missing_buckets_to_empty_not_none_when_view_is_a_dict():
+    # a dict-shaped view that simply omits a key (e.g. an older status row) is "measured empty",
+    # distinct from "the whole view could not be read" above.
+    vis = research_universe.visibility({"state": "OK"})
+    assert vis == {research_universe.RESEARCH_ONLY: [], research_universe.PAPER_ACTIVE: [],
+                   research_universe.CIO_ELIGIBLE: []}
+
+
 # ── read.latest() carries research_universe as its own top-level key ───────────────────────────
 
 def test_read_latest_carries_research_universe_even_with_no_cio_recommendation_yet(tmp_path, monkeypatch):
@@ -222,6 +261,49 @@ def test_cio_run_is_byte_identical_with_and_without_a_research_factory_status_pr
     assert rec_field_without == rec_field_with
     assert "research_universe" not in line_without["recommendation"]
     assert "research_universe" not in line_with["recommendation"]
+
+
+def test_cio_run_is_byte_identical_with_a_research_status_that_has_paper_active_candidates(tmp_path, monkeypatch):
+    """ADR-564 task 2's own extension of the differential test above: a research_factory read
+    naming real PAPER_ACTIVE candidates (via Appendix I's frozen ``cio_view()`` shape, monkeypatched
+    — package E1 lands this on the tree in parallel, so this suite never depends on its actual
+    on-disk format) must still leave build_sleeves' output and policy.recommend's weights/ledger
+    record byte-identical to the no-research-factory-at-all scene. sleeves.py/policy.py read
+    nothing under research_factory/ — PAPER_ACTIVE is visible to Oracle (via investment_cio.read's
+    ``research_universe`` key) but never an input to the recommendation itself."""
+    without_dir = _full_scene(tmp_path / "without2", now=NOW)
+    with_dir = _full_scene(tmp_path / "with2", now=NOW)
+
+    sleeves_without, rec_without = _sleeves_and_rec(without_dir)
+    # the monkeypatch is installed only around the "with" build, so it cannot leak into "without"
+    _install_fake_rf_read(monkeypatch, cio_view=lambda d, n: {
+        "state": "OK", "reason": None, "observe_only": [], "paper_active": ["c-paper-1"],
+        "cio_eligible": [], "correlation_groups": {}, "ledger_head_hash": "feedbead"})
+    sleeves_with, rec_with = _sleeves_and_rec(with_dir)
+
+    assert sleeves_without == sleeves_with
+    assert rec_without["recommended_weights"] == rec_with["recommended_weights"]
+    hash_basis_without = {k: v for k, v in rec_without.items() if k not in ("recommendation_id", "generated_at")}
+    hash_basis_with = {k: v for k, v in rec_with.items() if k not in ("recommendation_id", "generated_at")}
+    assert hash_basis_without == hash_basis_with
+
+    snap_without = ledger.save_snapshot(without_dir, sleeves_without)
+    snap_with = ledger.save_snapshot(with_dir, sleeves_with)
+    line_without = ledger.append(without_dir, rec_without, snapshot_digest_=snap_without,
+                                 code_identity_=ledger.code_identity())
+    line_with = ledger.append(with_dir, rec_with, snapshot_digest_=snap_with,
+                              code_identity_=ledger.code_identity())
+    rec_field_without = {k: v for k, v in line_without["recommendation"].items() if k != "generated_at"}
+    rec_field_with = {k: v for k, v in line_with["recommendation"].items() if k != "generated_at"}
+    assert rec_field_without == rec_field_with
+    assert "research_universe" not in line_without["recommendation"]
+    assert "research_universe" not in line_with["recommendation"]
+
+    # and the research universe IS visible through the separate read-time projection, proving the
+    # PAPER_ACTIVE candidate was not simply ignored — it is seen, just never allocated from.
+    doc = cio_read.latest(with_dir, now=NOW)
+    assert "c-paper-1" in (doc["research_universe"].get("paper_active") or [])
+    assert research_universe.research_sleeve_allocatable(True, "c-paper-1", 1, doc["research_universe"]) is False
 
 
 def test_cio_run_unaffected_even_when_research_factory_status_is_broken_json(tmp_path):

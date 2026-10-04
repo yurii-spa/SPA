@@ -1,0 +1,351 @@
+{
+ "schema": "fact-review/1",
+ "reviewer": "RM-EVIDENCE-01 independent fact review (Opus, separate session)",
+ "reviewed_at": "2026-10-04T20:17:19Z",
+ "facts": [
+  {
+   "fact_id": "fact-000-e192891cea25",
+   "verdict": "CONFIRMED",
+   "method": "eth_call via eth.drpc.org at block 26119871 (publicnode refuses archive), cross-checked latest on publicnode",
+   "evidence": "name()='BlackRock USD Institutional Digital Liquidity Fund', symbol()='BUIDL', decimals()=6 at block 26119871",
+   "issue": null,
+   "fact_sha256": "7c6c4b904c356bf944d1f53c62f46d52f73c800b5026a88c76947fcdc217bd49"
+  },
+  {
+   "fact_id": "fact-001-d08dbf8a9d13",
+   "verdict": "CONFIRMED",
+   "method": "eth_call via eth.drpc.org at block 26119871 (publicnode refuses archive), cross-checked latest on publicnode; BSC totalSupply via bsc-dataseed",
+   "evidence": "'US Yield Coin'/'USYC'/6 at block. Parenthetical checked separately: BSC USYC supply ~2.07B vs Ethereum ~36.8M",
+   "issue": "Parenthetical '(most supply bridged to BSC)' is not an output of the cited eth_call; true per BSC RPC but belongs in a separate fact",
+   "fact_sha256": "0b2ad4f4730697331e0cf169dcb0c4a4fabbd3b0cd8f1e695457dda043287952"
+  },
+  {
+   "fact_id": "fact-002-72b73cb599b1",
+   "verdict": "CONFIRMED",
+   "method": "eth_call via eth.drpc.org at block 26119871 (publicnode refuses archive), cross-checked latest on publicnode",
+   "evidence": "'Ondo Short-Term U.S. Government Bond Fund'/'OUSG'/18 at block 26119871",
+   "issue": null,
+   "fact_sha256": "98312c5911d1926576784f0efba0d4bdbb6fe212fccfa15ec5da4ccc2e865f23"
+  },
+  {
+   "fact_id": "fact-003-3e9612b44d6a",
+   "verdict": "CONFIRMED",
+   "method": "eth_call via eth.drpc.org at block 26119871 (publicnode refuses archive), cross-checked latest on publicnode",
+   "evidence": "'Ondo U.S. Dollar Yield'/'USDY'/18 at block 26119871",
+   "issue": null,
+   "fact_sha256": "f2c77aaae6cce6e3d1a8e337ae42391c5880c7e46919a52e9a28612b7fca4a63"
+  },
+  {
+   "fact_id": "fact-004-776ef393bb43",
+   "verdict": "REJECTED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) token-price + smart-contracts; latestRoundData() on both oracle addresses via drpc",
+   "evidence": "token-price page links USYC Oracle 0x4c48bcb2...8b3e (8 dec, round 815). 0x74f2 (18 dec, round 525, ans 1.139002815, upd 2026-10-02T12:31:59Z) only on smart-contracts page",
+   "issue": "Cited page does not name 0x74f2 and points to a different oracle (0x4c48..., 8 decimals). Issuer docs list two oracles; ref must be smart-contracts page and the conflict recorded",
+   "fact_sha256": "0630efdcb278976a6e87941438fbc2108a8db48ec396c6f34f73fe22f89a3896"
+  },
+  {
+   "fact_id": "fact-005-cc698c096ed2",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) addresses + usdy-instant-manager-integration; getPrice() via drpc at block",
+   "evidence": "addresses lists USDYOracleWrapper 0x87b126e5...DF90; dev guide: getPrice() 18 dec, getPriceData() adds block timestamp; on-chain 1.14843046",
+   "issue": "Note: getPriceData timestamp is the current block time, not a last-update time",
+   "fact_sha256": "466dd1b778e52baa950b9140f3adf5425baed3b2c27f14e8b4ecf0383e7503e9"
+  },
+  {
+   "fact_id": "fact-006-c2144ed9bedb",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) addresses; getAssetPrice(OUSG) selector 0xb3596f07 via drpc; ABI via Sourcify",
+   "evidence": "addresses lists OndoOracle 0x9Cad45a8...4094; getAssetPrice(OUSG)=116.767284 at block; verified ABI has no timestamp getter",
+   "issue": null,
+   "fact_sha256": "ac3424acdb498d141ccca7c5200a31b025f19af07d03767c50df797347d67350"
+  },
+  {
+   "fact_id": "fact-007-1a7ec116da48",
+   "verdict": "REJECTED",
+   "method": "WebSearch + curl blog.redstone.finance (2026-07-06, 2026-07-30, 2026-02-26 posts)",
+   "evidence": "RedStone: 'delivers both a daily NAV feed and a daily interest accrual feed for BUIDL across six networks: Ethereum, ...' via push (on-chain, 24h heartbeat) and pull",
+   "issue": "RedStone's own publications contradict 'no on-chain NAV on Ethereum; off-chain gateway only'. Ref is not a URL; value 9.339e-5 not reproducible; aggregator:redstone has no hosts",
+   "fact_sha256": "c942e30817eae857feb96144d72e0707ba09b8c41117d39fc38e851ad8a544f2"
+  },
+  {
+   "fact_id": "fact-008-146560c67e89",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) fees",
+   "evidence": "Fees table: Performance Fee 10% of yield",
+   "issue": null,
+   "fact_sha256": "6342845216f5eaea61162fbdbdaf39ec05fcea17c1f8b5ec1320804a59422ec7"
+  },
+  {
+   "fact_id": "fact-009-0307590e874b",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) fees",
+   "evidence": "Subscription Fee 4 bps",
+   "issue": null,
+   "fact_sha256": "9305a2c767b43768ff4189d0215c97e5746a94d95738ddbda636f1b5e6b29ed2"
+  },
+  {
+   "fact_id": "fact-010-252c474e5589",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) fees",
+   "evidence": "Redemption Fee 3 bps",
+   "issue": null,
+   "fact_sha256": "3086dc3e9e8b38dab4e8bca9e0d790ce1c053bc26661dd5e1ebead5da40848ec"
+  },
+  {
+   "fact_id": "fact-011-e05383ddf117",
+   "verdict": "REJECTED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) token-price, fees, introduction",
+   "evidence": "token-price: price = NAV of Prime Brokerage account / total USYC supply; no statement that price is net of fees or that the performance fee accrues into price",
+   "issue": "Quote overstates the source: 'net of fees' / 'performance fee accrued into per-token price' appears on no fetched issuer page",
+   "fact_sha256": "a8f916ecf180bda1964f4b3f8993238055fd4e3a9afc1d5c982679584f6a1db1"
+  },
+  {
+   "fact_id": "fact-012-dfa69cfc7df7",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) qualified-access-products/ousg/fees-and-taxes + overview",
+   "evidence": "'management fee of 0.15%, which we have waived until January 1, 2027'",
+   "issue": null,
+   "fact_sha256": "b3ccc0424a2dac0bdfd9a57a65a24e15ad92bffcec37cc940d9cd1a8000a5ad2"
+  },
+  {
+   "fact_id": "fact-013-10871521a665",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) ousg/fees-and-taxes",
+   "evidence": "'Fund expenses are capped at 0.15% per annum.'",
+   "issue": "'run-rate not separately published' is a reviewer gloss (absence claim), not text of the source",
+   "fact_sha256": "f5420800c2c990da9df46f5db8a1ab29eda6256a1a1e400e39fac7c03e3b9bea"
+  },
+  {
+   "fact_id": "fact-014-708e04660d44",
+   "verdict": "REJECTED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) usdy/basics, important-notes, comparison, rebasing, usdy-vs-rUSDY, converter; curl ondo.finance/usdy",
+   "evidence": "No occurrence of 'spread' on any current USDY page; basics describes price via Reference Token Price only",
+   "issue": "Quoted phrase 'minus a small spread' is not in the cited source (possibly from an older page version); value null is fine but quote unsupported",
+   "fact_sha256": "42b283b07f8ca782acb8dc7b0844708525291cbe214655fd21619701008c15dc"
+  },
+  {
+   "fact_id": "fact-015-dc0bfbf69ccd",
+   "verdict": "CONFIRMED",
+   "method": "curl sec.gov primary_doc.xml + filing index (declared UA)",
+   "evidence": "entityName BlackRock USD Institutional Digital Liquidity Fund Ltd., CIK 0002013810, VIRGIN ISLANDS, BRITISH, exemptions 06c/3C/3C.7, D/A filed 2026-07-27",
+   "issue": null,
+   "fact_sha256": "649b4dde7955327768da06e0b22b4bd832b62bcd9f612afb2301df0dc967e744"
+  },
+  {
+   "fact_id": "fact-016-58a81abbd79b",
+   "verdict": "CONFIRMED",
+   "method": "curl sec.gov primary_doc.xml",
+   "evidence": "minimumInvestmentAccepted 100000 (Form D/A)",
+   "issue": "role 'issuer' on a minimum-investment claim is an odd label (harmless)",
+   "fact_sha256": "0e40920a9ee9104a47f7bcea59618a8ff588a6e67632abd5277d6fe05f38f7b3"
+  },
+  {
+   "fact_id": "fact-017-9fd3ad4a52fc",
+   "verdict": "REJECTED",
+   "method": "WebSearch + curl prnewswire releases 302401480, 302410160, 302304035",
+   "evidence": "Text present ('Bank of New York Mellon serves as BUIDL's cash and securities custodian') but every BUIDL release on prnewswire is 'News provided by Securitize', 'SOURCE Securitize'",
+   "issue": "Origin mismatch: publisher is Securitize (agent:securitize), not issuer:blackrock. Ref is not a specific URL",
+   "fact_sha256": "bddccbf632d1569d2b9bb3123945bf022637c774515adc1bd122a827d7959ad8"
+  },
+  {
+   "fact_id": "fact-018-770f152745ea",
+   "verdict": "REJECTED",
+   "method": "curl same prnewswire releases",
+   "evidence": "Releases say BUIDL is 'tokenized by Securitize' and boilerplate 'Securitize, LLC is a transfer agent registered with the SEC'; none fetched states it is BUIDL's transfer agent",
+   "issue": "Origin mismatch (releases published by Securitize, not BlackRock); ref is not a specific URL; quote stronger than fetched text",
+   "fact_sha256": "e305a21e62689a22236288da1535e6d2b25141528df5403c99ebde4a2990c305"
+  },
+  {
+   "fact_id": "fact-019-f418fc4e2913",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) introduction (site root)",
+   "evidence": "'USYC is issued by Circle International Bermuda Limited, regulated by Bermuda Monetary Authority (BMA)'",
+   "issue": null,
+   "fact_sha256": "221eb5b606d6642a23ac31e0578816298ebc711f974004b824a6e35ec3674a03"
+  },
+  {
+   "fact_id": "fact-020-2cebe658fe0b",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) service-providers + introduction",
+   "evidence": "Prime Broker Marex; Bank Customers Bank; MPC Wallet Fireblocks; intro: assets in segregated custodial accounts at prime broker",
+   "issue": "Custodian role for Marex is from introduction page; service-providers says 'Prime Broker'",
+   "fact_sha256": "d082e32e844cc492ea0b3ce22a5373a83640209145bd3d736c56e7d0dc6a418f"
+  },
+  {
+   "fact_id": "fact-021-eaf11d4f6cda",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) smart-contracts + introduction + product-structuring",
+   "evidence": "Ethereum Teller (USDC) 0xeE35F963BFC71b51eC95147f26c030D674ea30e6; '24/7/365', 'redeem on the same day (T+0)'",
+   "issue": "24/7 and T+0 are on introduction/product-structuring, not the cited smart-contracts page",
+   "fact_sha256": "b2ce956071c3009580996b2cde022aba9af08974d74038f0e0d810b22125df50"
+  },
+  {
+   "fact_id": "fact-022-2785d1707def",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) product-structuring + introduction",
+   "evidence": "'represents an interest in a Cayman Islands mutual fund licensed by CIMA'; SDYF = Hashnote International Short Duration Yield Fund Ltd.",
+   "issue": null,
+   "fact_sha256": "fc9a2f02b4f46eef40586d57d4b12a1cff562a224fa84b71e719bad08f7f87f2"
+  },
+  {
+   "fact_id": "fact-023-111b79cf5fa7",
+   "verdict": "REJECTED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) product-structuring + service-providers",
+   "evidence": "product-structuring mentions 'fund administrator' but names nobody; NAV Consulting is named only on service-providers.md",
+   "issue": "Cited page does not support the value; correct ref is overview/service-providers.md (claim itself true)",
+   "fact_sha256": "72f21bdeaa21a1c1899abb7ba8da37a21ad4c9192fe6f380cca901fcab39f2f4"
+  },
+  {
+   "fact_id": "fact-024-e29269283957",
+   "verdict": "REJECTED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) product-structuring + service-providers",
+   "evidence": "Auditor 'Cohen and Company' appears only on service-providers.md; product-structuring has no auditor",
+   "issue": "Cited page does not support the value; correct ref is overview/service-providers.md (claim itself true)",
+   "fact_sha256": "fcdd59124da254b446261b22dac0b20646d86063de25e489d3a35580da4fdc72"
+  },
+  {
+   "fact_id": "fact-025-d2fde4aa2b38",
+   "verdict": "CONFIRMED",
+   "method": "curl usyc.docs.hashnote.com/<page>.md (GitBook markdown) investor-onboarding",
+   "evidence": "'only accessible to institutions outside the United States... US$100,000 minimum'; KYC/AML by fund administrator",
+   "issue": null,
+   "fact_sha256": "9c3a96d8832b180906d2fe339d758cea039c4ed910fcccf1af5f1392a66a12dc"
+  },
+  {
+   "fact_id": "fact-026-80fbdddf88ca",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) usdy/basics",
+   "evidence": "'a tokenized note formerly issued by Ondo USDY LLC, which as of December 15, 2025 has been folded into the Ondo Stocks umbrella'",
+   "issue": null,
+   "fact_sha256": "ee329df0046088d126e8a806a7723f76686acb34e45c57c4f9d0dc5f41091627"
+  },
+  {
+   "fact_id": "fact-027-ddcd1d4fc23c",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) usdy/eligibility",
+   "evidence": "'Ondo Global Markets (BVI) Limited, the issuer of USDY tokens'",
+   "issue": null,
+   "fact_sha256": "947b0916bde63cce201c631acd1c3fabed34694079f9fe76996adb0a124f3e82"
+  },
+  {
+   "fact_id": "fact-028-1715b85cd4fb",
+   "verdict": "REJECTED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) addresses + usdy/basics + usdy-instant-manager-integration",
+   "evidence": "addresses: USDY_InstantManager 0xa42613C2...1f15 (instant USDC buy/redeem). basics: Ondo USDY LLC redeems USD only by wire to non-US accounts",
+   "issue": "Quote conflates two paths: USD wire (Ondo USDY LLC) is not 'via USDY_InstantManager', which redeems into USDC on-chain",
+   "fact_sha256": "7e9f9b53f5e389669bd5818bdac74929b1eba367cfb3a2de226963cf43e3e618"
+  },
+  {
+   "fact_id": "fact-029-e90d9ddb617a",
+   "verdict": "REJECTED",
+   "method": "curl ondo.finance/blog/introducing-ondo-usd-yield-usdy",
+   "evidence": "Ondo blog, Aug 3 2023: 'Ankura Trust serves as the Verification Agent and Collateral Agent for USDY holders'",
+   "issue": "Origin mismatch: publisher is Ondo (issuer:ondo), not agent:ankura; origins.json itself says so. Also 2023 claim predates Dec-2025 restructuring",
+   "fact_sha256": "2e8dc6026053c4d80eb1161e77360ce22e2ab9738de51119085ea648ee71253b"
+  },
+  {
+   "fact_id": "fact-030-d42c536e3312",
+   "verdict": "REJECTED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) ousg/overview + ousg/regulatory-compliance",
+   "evidence": "Overview never says 'issued by Ondo Finance'; regulatory-compliance: 'The issuer of OUSG, Ondo I LP'",
+   "issue": "Contradicted by issuer's own docs: issuer is Ondo I LP, not 'Ondo Finance'",
+   "fact_sha256": "7b2549ee6d8638c8b5a48d45f50807c5274dee7375dd1934fcddd8ad42a0ca22"
+  },
+  {
+   "fact_id": "fact-031-3c30c1543131",
+   "verdict": "CONFIRMED",
+   "method": "curl sec.gov primary_doc.xml + filing index",
+   "evidence": "Ondo I LP, CIK 0001957431, DELAWARE, 06c/3C/3C.7, minimumInvestmentAccepted 5000, D/A filed 2026-01-20",
+   "issue": null,
+   "fact_sha256": "e22449bcfc5536b8cd5e1eea150dacc3222b54fb7828a64d1d308ee2be2fad96"
+  },
+  {
+   "fact_id": "fact-032-d0e1fbc102a7",
+   "verdict": "CONFIRMED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) ousg/redeeming + addresses",
+   "evidence": "Instant redemption atomic; non-instant next Business Day; min $5K instant / $50K non-instant; OUSG_InstantManager 0x93358db7...643a on addresses page",
+   "issue": "InstantManager address is on addresses page, not the redeeming page",
+   "fact_sha256": "2bf80c0fd24cbe5daa72b67058ccba555abe276dd072d2c59e064cfeca525476"
+  },
+  {
+   "fact_id": "fact-033-e90a56eef391",
+   "verdict": "REJECTED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) ousg/overview + ousg/trust-and-transparency",
+   "evidence": "Overview does not name an administrator; trust-and-transparency: 'our fund administrator (NAV Consulting)'",
+   "issue": "Cited page does not support the value; correct ref is ousg/trust-and-transparency (claim itself true)",
+   "fact_sha256": "29862344611fed95b20f51273b8f04b7e97d3027933add0736941b9a7480db0d"
+  },
+  {
+   "fact_id": "fact-034-5a688d82e9c2",
+   "verdict": "REJECTED",
+   "method": "curl docs.ondo.finance/<page>.md (Mintlify markdown) ousg/regulatory-compliance + SEC Form D",
+   "evidence": "Ondo states: 'The issuer of OUSG, Ondo I LP, is exempt ... in reliance on Section 3(c)(7)'",
+   "issue": "Contradicted: the OUSG<->Ondo I LP link IS stated by Ondo (documented, not merely inferred); state UNKNOWN is wrong",
+   "fact_sha256": "fe8f06846b038ecd780614100d529a9e98bd2dda43b5e6d090579fb42c62a2b8"
+  },
+  {
+   "fact_id": "fact-035-6b69cad055d1",
+   "verdict": "CONFIRMED",
+   "method": "curl api-futures.kucoin.com/api/v1/contracts/XBTUSDTM and /contracts/active",
+   "evidence": "takerFeeRate 0.0006 (all 690 active contracts)",
+   "issue": null,
+   "fact_sha256": "80bf871ed9e0c2746c682b7165b5f5056f498d23d5de6df85494915b4a69e18f"
+  },
+  {
+   "fact_id": "fact-036-5708d58490b4",
+   "verdict": "CONFIRMED",
+   "method": "curl hyperliquid.gitbook.io/.../trading/fees.md; api.hyperliquid.xyz spotMeta",
+   "evidence": "Perps base taker 0.045%, spot base taker 0.070%; spot tokens only UBTC/UETH (wrapped), no native BTC/ETH",
+   "issue": "'no native BTC/ETH spot' is not on the fees page (confirmed via spotMeta API instead)",
+   "fact_sha256": "0d232e75548cb71b94d400b107fcc67caeaafc43ca137d11a2203750acf83af4"
+  },
+  {
+   "fact_id": "fact-037-704b192b35e5",
+   "verdict": "CONFIRMED",
+   "method": "WebFetch binance.com/en/terms (curl returned empty JS shell)",
+   "evidence": "'Nest Exchange Limited...Recognised Investment Exchange', 'Nest Clearing and Custody Limited...Recognised Clearing House', 'Nest Trading Limited', FSRA ADGM",
+   "issue": null,
+   "fact_sha256": "af608eb1e19b4ab00c00caf0c9bc01cf79df75207094684920b65f7a76debd30"
+  },
+  {
+   "fact_id": "fact-038-cdaabdd6bd92",
+   "verdict": "CONFIRMED",
+   "method": "curl kucoin.com/legal/terms-of-use",
+   "evidence": "No operating legal entity named; 'activities are subject exclusively to the laws of the Turks and Caicos Islands'",
+   "issue": null,
+   "fact_sha256": "a96d63046e73bbd3bdd1949e5ce98f162f5fd9d66ab8e85ddee39ab2985ce8f2"
+  },
+  {
+   "fact_id": "fact-039-e0a84898ad6e",
+   "verdict": "CONFIRMED",
+   "method": "curl yields.llama.fi/pools, matched pool id prefixes + underlyingTokens",
+   "evidence": "b2b1d98f Ethereum BUIDL underlying 0x7712c342 apy 3.46733; 590d770e Solana apy 3.77782 (largest TVL)",
+   "issue": "Note: a second Ethereum BUIDL pool b663ca59 ('Institutional', 0x6a9DA2D7, 3.809%) exists, so a chain-only join is also ambiguous; must join on address",
+   "fact_sha256": "6526c86260f272129409202d90a93a1cdcd93ae8f706b02936559d72c8e361fa"
+  },
+  {
+   "fact_id": "fact-040-22affc2eef8b",
+   "verdict": "CONFIRMED",
+   "method": "curl yields.llama.fi/pools, matched pool id prefixes + underlyingTokens",
+   "evidence": "7436db9b Ethereum OUSG 3.43 underlying 0x1b19c193; 36e8a552 XRPL OUSG (larger TVL)",
+   "issue": null,
+   "fact_sha256": "8eec4be1d8d47f400824422c69aabb690f2bc0ef3aec554d0e5d93e98647b721"
+  },
+  {
+   "fact_id": "fact-041-60bb2d27f37e",
+   "verdict": "CONFIRMED",
+   "method": "curl yields.llama.fi/pools, matched pool id prefixes + underlyingTokens",
+   "evidence": "448a64ff Ethereum USYC underlying 0x136471a3; 7c0a89c7 BSC USYC TVL ~$2.36B (largest)",
+   "issue": null,
+   "fact_sha256": "16e0a96694127cc19b098a74027438457429156950e1bad39d719115963635cd"
+  },
+  {
+   "fact_id": "fact-042-aa3ac7909c12",
+   "verdict": "CONFIRMED",
+   "method": "curl yields.llama.fi/pools, matched pool id prefixes + underlyingTokens",
+   "evidence": "ac61ee82 Ethereum USDY underlying 0x96f6ef95, only Ethereum USDY pool and largest-TVL USDY pool",
+   "issue": null,
+   "fact_sha256": "ea59e38c1c3c095bdb5a2ddf79c14d0e3d8c616fa02280f2f746c7013ef24f26"
+  }
+ ]
+}

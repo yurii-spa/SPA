@@ -535,6 +535,18 @@ def _cio_display_name() -> Optional[str]:
         return None
 
 
+def _research_display_name() -> Optional[str]:
+    """One source for Sherlock's display name, like :func:`_cio_display_name` for Oracle: the
+    frozen evidence contract (= architecture/roles.json's ``head_of_research`` entry, tested) —
+    never the research_factory read model's own copy, so a future roles.json rename reaches the
+    UI without a second edit here."""
+    try:
+        from spa_core.research_factory import evidence_contract as rf_contract
+        return rf_contract.ROLE_DISPLAY_NAME
+    except Exception:  # noqa: BLE001 — a missing name is shown as absent, never invented
+        return None
+
+
 def _cio_research_universe_counts(view: Any) -> dict:
     """The CIO's OWN ``research_universe`` view (ADR-560 WP-S07), shown as counts only on the
     Oracle card — never the full candidate list, that lives in the separate Research Universe
@@ -618,6 +630,97 @@ RESEARCH_UNIVERSE_BANNER = ("RESEARCH ≠ APPROVED · PAPER ≠ LIVE · CIO_ELIG
                            "real capital $0")
 
 
+def _sherlock_decision_row(d: Any) -> Optional[dict]:
+    """One row of ``sherlock.decisions_today`` (Appendix I). Absence of the row itself is handled
+    by the caller filtering out non-dicts — this never invents a decision."""
+    if not isinstance(d, dict):
+        return None
+    return {"candidate_id": d.get("candidate_id"), "instrument": safe_text(d.get("instrument"), 80),
+            "decision": d.get("decision"),
+            "failed_gates": [safe_text(x, 80) for x in (d.get("failed_gates") or [])][:10],
+            # UNKNOWN blocks like FAIL; without these a candidate held only by unknowns shows no reason
+            "unknown_gates": [safe_text(x, 80) for x in (d.get("unknown_gates") or [])][:10],
+            "required_next_evidence": [safe_text(x, 160) for x in (d.get("required_next_evidence") or [])][:10],
+            "evidence_ceiling": d.get("evidence_ceiling"), "paper_mode": d.get("paper_mode")}
+
+
+def _sherlock_block(doc: Any) -> Optional[dict]:
+    """ADR-564 Appendix I: Sherlock's own summary, read directly off research_factory.read.latest()'s
+    ``sherlock`` key — never recomputed here a second time (one truth; review #15's replay rule
+    applies to the decision itself, this is purely a re-projection for the card). ``None`` (not an
+    empty dict) when the key is absent — an older status row, or package E1 not deployed yet on
+    this tree — so the card can say "not shown" rather than look like zero reviews happened."""
+    sh = doc.get("sherlock") if isinstance(doc, dict) else None
+    if not isinstance(sh, dict):
+        return None
+    return {
+        "role_id": sh.get("role_id"),
+        # one source for the display name (like Oracle's _cio_display_name) — never the read
+        # model's own copy
+        "display_name": _research_display_name(),
+        "reviewed_today": sh.get("reviewed_today"),
+        "evidence_ready": sh.get("evidence_ready"),
+        "paper_active": sh.get("paper_active"),
+        "cio_eligible": sh.get("cio_eligible"),
+        "counterparty_unknown": sh.get("counterparty_unknown"),
+        "conflicts": sh.get("conflicts"),
+        "stale_evidence": sh.get("stale_evidence"),
+        "top_blockers": [{"gate": b.get("gate") if isinstance(b, dict) else b,
+                          "count": b.get("count") if isinstance(b, dict) else None}
+                         for b in (sh.get("top_blockers") or [])][:8],
+        "decisions_today": [r for r in (_sherlock_decision_row(d) for d in (sh.get("decisions_today") or [])[:20])
+                            if r is not None],
+    }
+
+
+def _research_candidate_evidence(ev: Any) -> Optional[dict]:
+    """Per-candidate ``evidence`` addition (Appendix I, read.latest()). ``None`` (never an
+    empty-looking dict) when the candidate carries no evidence block yet — "Sherlock has not
+    graded this" must never look like "every grade happens to be empty".
+
+    Invariant #17 applies one level down too: a sub-field that is ABSENT from the evidence dict
+    (Sherlock has not published that list at all) must render as ``None`` — never collapsed into
+    the SAME ``[]``/``{}`` a present-but-empty list/dict would use (that would mean "measured zero
+    items", a different, also real, observation). ``renderListField`` in the UI already tells
+    ``None`` from ``[]`` apart; ``_opt_list``/the ``grades``/``counterparties`` checks below keep
+    that distinction alive on the way out of Python instead of erasing it with a bare ``or []``."""
+    if not isinstance(ev, dict):
+        return None
+
+    def _opt_list(key: str, limit: int, text_limit: int = 160) -> Optional[list]:
+        v = ev.get(key)
+        return [safe_text(x, text_limit) for x in v][:limit] if isinstance(v, list) else None
+
+    pos = ev.get("paper_position")
+    pos_out = None
+    if isinstance(pos, dict):
+        pos_out = {"nav_usd": pos.get("nav_usd"), "realised_return": pos.get("realised_return"),
+                   "unrealised_return": pos.get("unrealised_return"), "mark_state": pos.get("mark_state")}
+    grades_raw = ev.get("grades")
+    grades_out = ({str(k): v for k, v in grades_raw.items() if isinstance(k, str)}
+                 if isinstance(grades_raw, dict) else None)
+    cps_raw = ev.get("counterparties")
+    cps_out = ({str(role): {"state": (cp or {}).get("state"),
+                            "identity": safe_text((cp or {}).get("identity"), 120)}
+               for role, cp in cps_raw.items() if isinstance(role, str)}
+              if isinstance(cps_raw, dict) else None)
+    return {
+        "grades": grades_out,
+        "evidence_ceiling": ev.get("evidence_ceiling"),
+        "issuer_asserted_roles": _opt_list("issuer_asserted_roles", 10, 60),
+        "circularity_concerns": _opt_list("circularity_concerns", 10, 200),
+        "who_pays": safe_text(ev.get("who_pays"), 160),
+        "counterparties": cps_out,
+        "measured": _opt_list("measured", 12),
+        "documented": _opt_list("documented", 12),
+        "unknown": _opt_list("unknown", 12),
+        "blocking_gaps": _opt_list("blocking_gaps", 12),
+        "paper_mode": ev.get("paper_mode"),
+        "latest_decision": ev.get("latest_decision"),
+        "paper_position": pos_out,
+    }
+
+
 def _research_candidate_sort_key(c: dict) -> tuple:
     """Rank by EVIDENCE, never by advertised APY (ADR-560 WP-S08's own explicit instruction):
     forward periods first (more days of real observation beats everything), then whether the net
@@ -643,15 +746,17 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
         from spa_core.research_factory import read as rf_read
         doc = rf_read.latest(data)
     except ImportError as exc:
-        return {**_nm(src, now, f"research_factory not available ({exc})"), "banner": RESEARCH_UNIVERSE_BANNER}
+        return {**_nm(src, now, f"research_factory not available ({exc})"), "banner": RESEARCH_UNIVERSE_BANNER,
+                "sherlock": None}
     except Exception as exc:  # noqa: BLE001 — an unreadable factory feed is NOT_MEASURED, never a crash
         return {**_nm(src, now, f"research_factory read failed: {type(exc).__name__}"),
-                "banner": RESEARCH_UNIVERSE_BANNER}
+                "banner": RESEARCH_UNIVERSE_BANNER, "sherlock": None}
     if not isinstance(doc, dict) or not doc.get("schema"):
-        return {**_nm(src, now, "no research factory status yet"), "banner": RESEARCH_UNIVERSE_BANNER}
+        return {**_nm(src, now, "no research factory status yet"), "banner": RESEARCH_UNIVERSE_BANNER,
+                "sherlock": None}
     if doc.get("integrity") == "BROKEN":
         return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
-                "integrity": "BROKEN", "banner": RESEARCH_UNIVERSE_BANNER}
+                "integrity": "BROKEN", "banner": RESEARCH_UNIVERSE_BANNER, "sherlock": None}
     denom = doc.get("denominators") or {}
     candidates = [c for c in (doc.get("candidates") or []) if isinstance(c, dict)]
     top = sorted(candidates, key=_research_candidate_sort_key)[:10]
@@ -672,7 +777,10 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
                             "venue_or_protocol": safe_text(c.get("venue_or_protocol"), 80),
                             "admission_state": c.get("admission_state"),
                             "forward_periods": (c.get("evidence_maturity") or {}).get("forward_periods"),
-                            "net_expected_return": c.get("net_expected_return")} for c in top],
+                            "net_expected_return": c.get("net_expected_return"),
+                            # ADR-564 Appendix I: per-candidate evidence detail (who pays,
+                            # counterparties, measured/documented/unknown, blockers, paper position)
+                            "evidence": _research_candidate_evidence(c.get("evidence"))} for c in top],
         "rejected": [{"candidate_id": r.get("candidate_id"), "state": r.get("state"),
                       "reasons": [safe_text(x, 160) for x in (r.get("reasons") or [])][:5]}
                      for r in (doc.get("rejections") or [])][:20],
@@ -682,6 +790,10 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
         "domain_decisions": doc.get("domain_decisions") or {},
         "basis_track": doc.get("basis_track"),
         "banner": RESEARCH_UNIVERSE_BANNER,
+        # ADR-564: Sherlock — Head of Research summary block (reviewed today, evidence-ready,
+        # paper-active, cio-eligible, counterparty unknown, conflicts, stale evidence, top
+        # blockers, recent decisions). None when the read model has not published it yet.
+        "sherlock": _sherlock_block(doc),
     }
 
 

@@ -23,6 +23,9 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.research_factory import contract, counterparty, dedup, forward, lifecycle, registry
+from spa_core.research_factory import bundle as bundle_mod
+from spa_core.research_factory import decision as decision_mod
+from spa_core.research_factory import evidence_contract as ec
 from spa_core.research_factory._common import iso, ledger_for
 
 
@@ -65,6 +68,127 @@ def latest(data_dir: Path) -> dict:
     # hand-edited file reached Mission Control and the readiness reason. Every read derives from the
     # verified ledger; status.json is a written artifact for humans only.
     return _derive_latest(data_dir, verdict=verdict)
+
+
+def _position_for(data_dir: Path, candidate_id: str) -> Optional[dict]:
+    """The latest paper position NAV view for this candidate, or ``None`` (no position opened,
+    or Package E2's ``paper.py`` is not importable — tolerated, never a crash)."""
+    try:
+        from spa_core.research_factory import paper
+    except ImportError:
+        return None
+    try:
+        views = [v for v in paper.positions(data_dir) if v.get("candidate_id") == candidate_id]
+    except Exception:  # noqa: BLE001 — a read model never crashes the caller over a paper.py defect
+        return None
+    return views[-1] if views else None
+
+
+def _evidence_block_for(data_dir: Path, candidate_id: str, candidate: dict) -> dict:
+    """Appendix I's per-candidate ``evidence`` block, derived from the candidate's LATEST
+    recorded evidence bundle (never from ``status.json``)."""
+    b = bundle_mod.latest_bundle(data_dir, candidate_id)
+    who_pays = (contract.MECHANISMS.get(candidate.get("mechanism_id")) or {}).get("who_pays")
+    if b is None:
+        return {"grades": {}, "evidence_ceiling": None, "issuer_asserted_roles": [],
+               "circularity_concerns": [], "who_pays": who_pays, "counterparties": {},
+               "measured": [], "documented": [], "unknown": [], "blocking_gaps": [],
+               "paper_mode": None, "latest_decision": None,
+               "paper_position": _position_for(data_dir, candidate_id)}
+    grades = b.get("grades") or {}
+    counterparties = {role: {"state": (entry or {}).get("state"), "identity": (entry or {}).get("identity")}
+                      for role, entry in (b.get("counterparty_evidence") or {}).items()}
+    latest_decision = decision_mod.latest_decision(data_dir, candidate_id)
+    latest_decision_view = None
+    if latest_decision is not None:
+        latest_decision_view = {
+            "decision_id": latest_decision.get("decision_id"), "decision": latest_decision.get("decision"),
+            "generated_at": latest_decision.get("generated_at"),
+            "failed_gates": latest_decision.get("failed_gates"),
+            # ADR-564 Round 5 ("also"): a decision can block on UNKNOWN gates alone (e.g. OUSG's
+            # NEEDS_MORE_EVIDENCE with failed_gates=[]) — surfacing only failed_gates then reads as
+            # "no reason". The decision payload's own "unknowns" (ec.GATE_UNKNOWN gates ∪ UNKNOWN
+            # dimensions, decision.decide()'s own field) is exactly that missing reason.
+            "unknown_gates": latest_decision.get("unknowns"),
+            "required_next_evidence": latest_decision.get("required_next_evidence"),
+            "rationale": latest_decision.get("rationale"),
+        }
+    return {
+        "grades": grades, "evidence_ceiling": b.get("evidence_ceiling"),
+        "issuer_asserted_roles": b.get("issuer_asserted_roles") or [],
+        "circularity_concerns": b.get("circularity_concerns") or [], "who_pays": who_pays,
+        "counterparties": counterparties,
+        "measured": sorted(d for d, g in grades.items() if g in (ec.ADEQUATE, ec.STRONG)),
+        "documented": sorted(d for d, g in grades.items() if g == ec.WEAK),
+        "unknown": sorted(d for d, g in grades.items() if g in (ec.UNKNOWN, ec.STALE, ec.CONFLICTED)),
+        "blocking_gaps": b.get("blocking_gaps") or [], "paper_mode": b.get("paper_mode"),
+        "latest_decision": latest_decision_view, "paper_position": _position_for(data_dir, candidate_id),
+    }
+
+
+def _sherlock_block(data_dir: Path, ledger, run_now: datetime, denom_counts: dict) -> dict:
+    """Appendix I's ``sherlock`` read-model block — the Research Universe card's "Sherlock — Head
+    of Research" row. Derived from the verified ledger's ``evidence_bundle``/``admission_decision``
+    rows, never from ``status.json``."""
+    today = run_now.date()
+    decision_rows = [e for e in ledger.read_all() if e.get("kind") == "admission_decision"]
+    latest_by_candidate: dict = {}
+    for e in decision_rows:
+        p = e.get("payload") or {}
+        cid = p.get("candidate_id")
+        if cid and (cid not in latest_by_candidate or e["seq"] > latest_by_candidate[cid]["seq"]):
+            latest_by_candidate[cid] = e
+
+    reviewed_today = any(contract.parse_ts(e.get("payload", {}).get("generated_at")) is not None
+                        and contract.parse_ts(e["payload"]["generated_at"]).date() == today
+                        for e in decision_rows)
+
+    evidence_ready = conflicted = stale = counterparty_unknown = 0
+    blocker_counts: dict = {}
+    decisions_today = []
+    for cid, e in latest_by_candidate.items():
+        p = e.get("payload") or {}
+        bundle_digest = p.get("bundle_digest")
+        bundle = bundle_mod.find_bundle(data_dir, cid, bundle_digest) if bundle_digest else None
+        if bundle is not None:
+            if not bundle.get("blocking_gaps"):
+                evidence_ready += 1
+            if bundle.get("conflicts"):
+                conflicted += 1
+            if bundle.get("stale_evidence"):
+                stale += 1
+            if (bundle.get("grades") or {}).get("COUNTERPARTY") == ec.UNKNOWN:
+                counterparty_unknown += 1
+        # an UNKNOWN gate blocks admission exactly like a FAIL one — counting only FAILs under-reported the
+        # blockers of candidates held purely by unknowns (live run: OUSG showed no reason at all)
+        unknown_gate_names = [g for g in (p.get("unknowns") or []) if g in ec.ADMISSION_V2_GATES]
+        for gate in list(p.get("failed_gates") or []) + unknown_gate_names:
+            blocker_counts[gate] = blocker_counts.get(gate, 0) + 1
+
+        gen_at = contract.parse_ts(p.get("generated_at"))
+        if gen_at is not None and gen_at.date() == today:
+            candidate = registry.current_candidate(data_dir, cid) or {}
+            decisions_today.append({
+                "candidate_id": cid, "instrument": candidate.get("instrument"),
+                "decision": p.get("decision"), "failed_gates": p.get("failed_gates"),
+                # see _evidence_block_for's matching comment: a decision may block on UNKNOWN
+                # gates alone, and failed_gates=[] must never read as "no reason".
+                "unknown_gates": p.get("unknowns"),
+                "required_next_evidence": p.get("required_next_evidence"),
+                "evidence_ceiling": p.get("evidence_ceiling"), "paper_mode": p.get("paper_mode"),
+                "rationale": p.get("rationale"),
+            })
+
+    top_blockers = sorted(({"gate": g, "count": n} for g, n in blocker_counts.items()),
+                          key=lambda row: (-row["count"], row["gate"]))[:5]
+
+    return {
+        "role_id": ec.ROLE_ID, "display_name": ec.ROLE_DISPLAY_NAME, "reviewed_today": reviewed_today,
+        "evidence_ready": evidence_ready, "paper_active": denom_counts["paper_active"],
+        "cio_eligible": denom_counts["cio_eligible"], "counterparty_unknown": counterparty_unknown,
+        "conflicts": conflicted, "stale_evidence": stale, "top_blockers": top_blockers,
+        "decisions_today": decisions_today,
+    }
 
 
 def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
@@ -131,7 +255,7 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
             "net_expected_return": contract.net_expected_return(candidate),
             "evidence_maturity": {"forward_periods": periods, "required": contract.MIN_FORWARD_PERIODS_CIO},
             "counterparty_summary": cp_summary, "reasons": _rejection_reasons(ledger, cid),
-            "admission_id": admission_id,
+            "admission_id": admission_id, "evidence": _evidence_block_for(data_dir, cid, candidate),
         })
 
     run_denom = _latest_run_denominators(ledger)
@@ -165,12 +289,15 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
             }
             break
 
+    sherlock = _sherlock_block(data_dir, ledger, run_now, denom_counts)
+
     return {
         "schema": contract.SCHEMA_STATUS, "generated_at": generated_at, "integrity": integrity,
         "ledger_head_hash": head, "authorization": contract.AUTHORIZATION_TEXT,
         "real_capital_usd": contract.REAL_CAPITAL_USD, "live_authorized": contract.LIVE_AUTHORIZED,
         "denominators": denominators, "by_state": by_state, "by_domain": by_domain,
         "by_mechanism": by_mechanism, "counterparty_unknown_count": counterparty_unknown_count,
+        "sherlock": sherlock,
         "stale_feeds": stale_feeds, "candidates": candidates_out, "rejections": rejections,
         "domain_decisions": contract.DOMAIN_DECISIONS, "basis_track": basis_track,
     }

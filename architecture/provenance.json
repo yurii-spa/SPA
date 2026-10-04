@@ -342,6 +342,21 @@
       "consumers": ["spa_core/investment_cio/research_universe.py (read-time projection, non-sleeve, ADR-560 WP-S07)", "spa_core/capital_shadow/readiness.py (_NEVER_CANDIDATE market_neutral_basis reason, ADR-560 binding #8)", "spa_core/studio_os/mission_control.py (Capital tab · Research Universe section, read-only, ADR-560 WP-S08)"]
     },
     {
+      "id": "research_factory.evidence_layer",
+      "kind": "research-governance-contract",
+      "anchors": ["spa_core/research_factory/evidence_contract.py", "docs/decisions/ADR-564-research-evidence-and-paper-admission.md"],
+      "purpose": "ADR-564 RM-EVIDENCE-01 (Sherlock): the frozen evidence bundle/counterparty-profile v2/paper-admission v2 contract over ADR-560's research factory — origin-based independence, issuer-asserted labelling (evidence_ceiling), holder eligibility, the deterministic ResearchAdmissionDecision (ADMIT_TO_PAPER/HOLD/REJECT/STALE/NEEDS_MORE_EVIDENCE), paper accounting and the collector/curated-fact/replay interfaces. Role head_of_research (display name Sherlock), authority over capital NONE; no LLM decides a gate or a number.",
+      "purpose_source": "ADR-564",
+      "source_task": "owner macro-epic RM-EXPAND-01 follow-on: Phase 0 evidence gap audit of USYC/USDY/OUSG/BUIDL/funding-capture candidates (2026-10-04)",
+      "source_decision": "ADR-564 (Binding revision after the independent architecture review, 15 findings applied, 2026-10-04)",
+      "producer_role": "attended coding session",
+      "producer_run": "com.spa.research_factory (daily 09:05, same agent/schedule as ADR-560, before the CIO's 09:30 run)",
+      "reviewer": "independent architecture review of the freeze (ADR-564 Binding revision)",
+      "owner_role": "build-loop",
+      "status": "EXPERIMENTAL",
+      "consumers": ["spa_core/studio_os/mission_control.py (Research Universe card: Sherlock block + per-candidate evidence detail, read-only, ADR-564 Appendix I)", "spa_core/investment_cio/research_universe.py (RESEARCH_ONLY/PAPER_ACTIVE/CIO_ELIGIBLE visibility, non-sleeve, ADR-564 decision #9)"]
+    },
+    {
       "id": "trading_research.engine",
       "kind": "research-registry+evidence-ledger",
       "anchors": ["spa_core/trading_research/", "data/trading_research/status.json"],
