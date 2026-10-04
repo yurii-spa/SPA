@@ -148,7 +148,13 @@ class TestExecutionModeGate:
         assert wresult["status"] == "BLOCKED"
 
     def test_live_mode_with_env_flag_proceeds(self, monkeypatch):
-        """dry_run=False + SPA_EXECUTION_MODE=live → enters live path (mocked)."""
+        """dry_run=False + SPA_EXECUTION_MODE=live → reaches the signer gate,
+        which now ALWAYS refuses (ADR-556 item 15, 2026-10-04): the
+        environment-key path was removed, so even a well-formed key with a
+        matching wallet never proceeds to sign. Old assertion was
+        ``result["status"] == "SUCCESS"`` with approve/supply tx hashes —
+        updated per CLAUDE.md inv. #16 (journal entry: docs/journal/, this
+        change note)."""
         _set_live_env(monkeypatch)
         adapter = AaveV3Adapter(chain="ethereum", dry_run=False)
 
@@ -170,9 +176,8 @@ class TestExecutionModeGate:
             result = adapter.supply("USDC", 100.0)
         finally:
             _exit_all(stack)
-        assert result["status"] == "SUCCESS"
-        assert result["approve_tx"] == "0xaaa1"
-        assert result["supply_tx"] == "0xbbb2"
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
 
 # ─── TestPrivateKeyValidation ─────────────────────────────────────────────────
@@ -212,7 +217,13 @@ class TestPrivateKeyValidation:
         assert "64 hex" in result["reason"] or "SPA_PRIVATE_KEY" in result["reason"]
 
     def test_wallet_address_mismatch_returns_error(self, monkeypatch):
-        """SPA_WALLET_ADDRESS != key-derived address → ERROR."""
+        """ADR-556 item 15 (2026-10-04): the signer gate now refuses
+        unconditionally, before the key is even read — so a mismatched
+        ``SPA_WALLET_ADDRESS`` can no longer be distinguished from any other
+        env-key scenario; the old assertion was ``"does not match" in
+        result["reason"]``. Kept (rather than deleted) to prove the
+        unconditional refusal wins even when every other env var is
+        well-formed. See CLAUDE.md inv. #16 journal note for this change."""
         monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
         monkeypatch.setenv("SPA_PRIVATE_KEY", TEST_PRIV_KEY)
         monkeypatch.setenv(
@@ -226,14 +237,24 @@ class TestPrivateKeyValidation:
         ):
             result = adapter.supply("USDC", 100.0)
         assert result["status"] == "ERROR"
-        assert "does not match" in result["reason"]
+        assert "ADR-556" in result["reason"]
 
 
 # ─── TestSupplyLivePath ───────────────────────────────────────────────────────
 
 
 class TestSupplyLivePath:
-    """End-to-end happy/sad paths through _live_supply with mocked RPC."""
+    """End-to-end happy/sad paths through _live_supply with mocked RPC.
+
+    ADR-556 item 15 (2026-10-04): ``_resolve_signer()`` now refuses
+    unconditionally before any approve/supply/revert/timeout logic runs, so
+    every scenario below — previously distinguished by its downstream RPC
+    mock — now converges on the same ``ERROR`` / ADR-556 outcome. The tests
+    are kept (not deleted) because each one still proves the refusal wins
+    under a *different* downstream mock setup — i.e. no RPC response shape
+    can route around the signer gate. Old assertions checked SUCCESS/FAILED
+    with tx hashes and phase tags; see CLAUDE.md inv. #16 journal note.
+    """
 
     def _run(self, monkeypatch, *, send_hashes, receipt_statuses):
         _set_live_env(monkeypatch)
@@ -263,12 +284,8 @@ class TestSupplyLivePath:
                 {"status": "0x1", "blockNumber": "0x101"},
             ],
         )
-        assert result["status"] == "SUCCESS"
-        assert result["approve_tx"] == "0xapprove"
-        assert result["supply_tx"] == "0xsupply"
-        assert result["block_number"] == 0x101
-        assert result["amount_usd"] == 1000.0
-        assert result["wallet"] == TEST_ADDRESS
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
     def test_supply_approve_revert_returns_failed(self, monkeypatch):
         result = self._run(
@@ -279,9 +296,8 @@ class TestSupplyLivePath:
                 {"status": "0x1", "blockNumber": "0x101"},
             ],
         )
-        assert result["status"] == "FAILED"
-        assert result["phase"] == "approve"
-        assert result["approve_tx"] == "0xapprove"
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
     def test_supply_supply_revert_returns_failed(self, monkeypatch):
         result = self._run(
@@ -292,13 +308,13 @@ class TestSupplyLivePath:
                 {"status": "0x0", "blockNumber": "0x101"},  # supply revert
             ],
         )
-        assert result["status"] == "FAILED"
-        assert result["phase"] == "supply"
-        assert result["approve_tx"] == "0xapprove"
-        assert result["supply_tx"] == "0xsupply"
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
     def test_supply_rpc_timeout_falls_back_to_failed(self, monkeypatch):
-        """If sending/signing the approve tx blows up, return FAILED — never raise."""
+        """Even an RPC timeout downstream never gets a chance to fire — the
+        signer gate refuses first (ADR-556 item 15). Old assertion expected
+        FAILED/"RPC timeout" to surface; now ERROR/ADR-556 fires earlier."""
         _set_live_env(monkeypatch)
         adapter = AaveV3Adapter(chain="ethereum", dry_run=False)
         FakeAccount = _make_fake_account_class()
@@ -317,15 +333,17 @@ class TestSupplyLivePath:
             side_effect=RuntimeError("RPC timeout"),
         ):
             result = adapter.supply("USDC", 500.0)
-        assert result["status"] == "FAILED"
-        assert result["phase"] == "approve"
-        assert "RPC timeout" in result["reason"] or "failed" in result["reason"].lower()
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
 
 # ─── TestWithdrawLivePath ─────────────────────────────────────────────────────
 
 
 class TestWithdrawLivePath:
+    """ADR-556 item 15 (2026-10-04): see TestSupplyLivePath docstring above —
+    the signer gate refuses unconditionally before withdraw/revert logic
+    runs. Old assertions checked SUCCESS/FAILED with tx hashes."""
 
     def _run(self, monkeypatch, *, send_hashes, receipt_statuses):
         _set_live_env(monkeypatch)
@@ -352,11 +370,8 @@ class TestWithdrawLivePath:
             send_hashes=["0xwithdraw"],
             receipt_statuses=[{"status": "0x1", "blockNumber": "0xabc"}],
         )
-        assert result["status"] == "SUCCESS"
-        assert result["withdraw_tx"] == "0xwithdraw"
-        assert result["block_number"] == 0xabc
-        assert result["amount_usd"] == 250.0
-        assert result["asset"] == "DAI"
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
     def test_withdraw_revert_returns_failed(self, monkeypatch):
         result = self._run(
@@ -364,9 +379,8 @@ class TestWithdrawLivePath:
             send_hashes=["0xwithdraw"],
             receipt_statuses=[{"status": "0x0", "blockNumber": "0xabc"}],
         )
-        assert result["status"] == "FAILED"
-        assert result["phase"] == "withdraw"
-        assert result["withdraw_tx"] == "0xwithdraw"
+        assert result["status"] == "ERROR"
+        assert "ADR-556" in result["reason"]
 
 
 # ─── TestEthAccountMissing ────────────────────────────────────────────────────

@@ -30,3 +30,10 @@
 - `architecture/manifest.json` agent passports: `role_id` and `display_name` as separate fields.
 - Mission Control / Telegram render `display_name (title)`.
 - A ratchet that rejects authority checks keyed on display names.
+
+## Candidate (recorded 2026-10-04, RM-LIVE-01 — not implemented, no agent created)
+
+- `role_id: execution_safety_officer` · title «Execution Safety Officer» · display name candidate: to be chosen by
+  the owner. The existing capital-shadow boundary (ADR-556: shadow execution, readiness verdict, guards) could carry
+  this identity later. Its authority would remain NONE — it certifies nothing. The read-only verifier
+  recomputes readiness, and only the owner crosses the money boundary. Recorded as a candidate only.

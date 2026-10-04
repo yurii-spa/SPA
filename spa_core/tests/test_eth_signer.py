@@ -24,6 +24,7 @@ eth_account = pytest.importorskip(
 )
 
 from spa_core.execution import eth_signer
+from spa_core.utils.errors import LiveTradingForbiddenError
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -181,16 +182,39 @@ class TestSignTransaction:
 # ─── 3. sign_message ──────────────────────────────────────────────────────────
 
 class TestSignMessage:
+    """``sign_message`` is now PERMANENTLY forbidden (ADR-556 item 15,
+    2026-10-04): ``@live_trading_forbidden`` wraps it exactly like adapters'
+    ``_sign_and_send`` — the wrapper raises unconditionally and never calls
+    the real body, for the whole paper period, regardless of
+    ``SPA_EXEC_ARMED`` or the ``LiveTradingGate``.
+
+    The normal (decorated) call is proven to refuse in
+    ``TestSignMessageRefusal`` below. These tests keep EIP-191
+    signing-correctness coverage by calling the decorator's ``__wrapped__``
+    — i.e. the exact bypass class the INNER structural guard (also added
+    here) defends against — with arming and the gate both explicitly
+    satisfied, mirroring ``TestSignTransaction``'s established
+    ``monkeypatch.setenv`` pattern. Old assertions (this file, pre-ADR-556)
+    called ``sign_message(...)`` directly expecting success; updated per
+    CLAUDE.md inv. #16 — see the journal entry for this change.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _armed_and_gated(self, monkeypatch):
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+        import spa_core.safety.live_trading_gate as ltg_mod
+        monkeypatch.setattr(ltg_mod, "require_live_gate", lambda *a, **k: None)
+
     def test_returns_hex_string(self):
         from spa_core.execution.eth_signer import sign_message
-        sig = sign_message("hello SPA", _PK1_NO_PREFIX)
+        sig = sign_message.__wrapped__("hello SPA", _PK1_NO_PREFIX)
         assert isinstance(sig, str)
         assert sig.startswith("0x")
 
     def test_signature_length(self):
         """EIP-191 signature is 65 bytes = 130 hex chars + '0x' prefix."""
         from spa_core.execution.eth_signer import sign_message
-        sig = sign_message("hello SPA", _PK1_NO_PREFIX)
+        sig = sign_message.__wrapped__("hello SPA", _PK1_NO_PREFIX)
         assert len(sig) == 132, f"Expected 132 chars (0x + 130), got {len(sig)}"
 
     def test_recoverable(self):
@@ -199,20 +223,69 @@ class TestSignMessage:
         from eth_account import Account
         from eth_account.messages import encode_defunct
         message = "test message for SPA v3.24"
-        sig = sign_message(message, _PK1_NO_PREFIX)
+        sig = sign_message.__wrapped__(message, _PK1_NO_PREFIX)
         msg_obj = encode_defunct(text=message)
         recovered = Account.recover_message(msg_obj, signature=sig)
         assert recovered.lower() == _ADDR1.lower()
 
     def test_accepts_bytes_message(self):
         from spa_core.execution.eth_signer import sign_message
-        sig = sign_message(b"\x00\x01\x02", _PK1_NO_PREFIX)
+        sig = sign_message.__wrapped__(b"\x00\x01\x02", _PK1_NO_PREFIX)
         assert sig.startswith("0x")
 
     def test_wrong_key_raises(self):
         from spa_core.execution.eth_signer import sign_message
         with pytest.raises(ValueError):
-            sign_message("hello", "tooshort")
+            sign_message.__wrapped__("hello", "tooshort")
+
+
+class TestSignMessageRefusal:
+    """ADR-556 item 15 — proves the NORMAL (decorated) entry point refuses
+    unconditionally, including when armed and gated (unlike every other
+    capital primitive, ``sign_message`` is never allowed to proceed at all
+    during the paper period — see TestSignMessage above for why)."""
+
+    def test_refuses_unconditionally_even_when_armed_and_gated(self, monkeypatch):
+        from spa_core.execution.eth_signer import sign_message
+        import spa_core.safety.live_trading_gate as ltg_mod
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+        monkeypatch.setattr(ltg_mod, "require_live_gate", lambda *a, **k: None)
+        with pytest.raises(LiveTradingForbiddenError):
+            sign_message("hello SPA", _PK1_NO_PREFIX)
+
+    def test_refuses_when_unarmed(self):
+        from spa_core.execution.eth_signer import sign_message
+        with pytest.raises(LiveTradingForbiddenError):
+            sign_message("hello SPA", _PK1_NO_PREFIX)
+
+    def test_inner_guard_refuses_unarmed_even_past_the_decorator(self, monkeypatch):
+        """Layer 2: if something ever reaches the body directly (bypassing
+        @live_trading_forbidden via __wrapped__ — the same bypass class
+        WS-5.1 closed for sign_transaction), the structural SPA_EXEC_ARMED
+        self-check still refuses."""
+        from spa_core.execution.eth_signer import sign_message
+        monkeypatch.delenv("SPA_EXEC_ARMED", raising=False)
+        with pytest.raises(LiveTradingForbiddenError):
+            sign_message.__wrapped__("hello SPA", _PK1_NO_PREFIX)
+
+    def test_inner_guard_refuses_when_gate_inactive(self, monkeypatch):
+        """Layer 2, gate half: armed but the LiveTradingGate is NOT active
+        (its real default today, data/live_trading_gate.json: active=false)
+        — still refuses, even past the decorator. ``require_live_gate`` is
+        monkeypatched to the exact exception its own LOCKED-state branch
+        raises (``LiveTradingGate.require_live_gate``), rather than letting
+        the real singleton touch ``data/`` from this test — isolation, not a
+        weaker claim: the raise it simulates is the gate's real one."""
+        from spa_core.execution.eth_signer import sign_message
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+        import spa_core.safety.live_trading_gate as ltg_mod
+
+        def _locked(*_a, **_k):
+            raise LiveTradingForbiddenError("live_trading_gate")
+
+        monkeypatch.setattr(ltg_mod, "require_live_gate", _locked)
+        with pytest.raises(LiveTradingForbiddenError):
+            sign_message.__wrapped__("hello SPA", _PK1_NO_PREFIX)
 
 
 # ─── 4. keccak256 ─────────────────────────────────────────────────────────────

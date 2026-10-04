@@ -84,6 +84,9 @@ CONTRACT: list[dict] = [
      "stale_after_min": 120, "unknown": "NOT_MEASURED", "redaction": "public_view scrub", "mobile": True, "alert": False},
     {"path": "capital.trading_research", "source": "data/trading_research/status.json",
      "stale_after_min": 60, "unknown": "NOT_MEASURED", "redaction": "no shortlist free text", "mobile": True, "alert": True},
+    {"path": "capital.live_readiness", "source": "spa_core.capital_shadow.read.latest — the separate read-only verifier (ADR-556)",
+     "stale_after_min": 1800, "unknown": "NOT_MEASURED (no shadow run yet); BROKEN ledger ⇒ CRITICAL", "redaction": "safe_text on every string",
+     "mobile": True, "alert": True},
     {"path": "capital.investment_cio", "source": "spa_core.investment_cio.read.latest (ledger.jsonl + latest.json, ADR-554)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no recommendation yet)", "redaction": "safe_text on every string",
      "mobile": True, "alert": False},
@@ -464,6 +467,62 @@ def release_feed(inp: MCInputs, now: datetime, cs: Optional[dict]) -> dict:
                              "NOT_APPLICABLE: docs/site/tracker commits are not delivered by code-sync.")}
 
 
+def _live_readiness_section(data: Path, now: datetime) -> dict:
+    """RM-LIVE-01 shadow execution + pilot readiness (ADR-556), read ONLY through the separate verifier — the writer
+    never certifies itself. Colour = health of the shadow feed and ledger, never «permission»: nothing here is
+    green past SHADOW_READY and there is no action control."""
+    src = ["data/capital_shadow/ledger.jsonl", "data/capital_shadow_anchors/anchors.jsonl"]
+    fixed = {"automated_live_execution": "PROHIBITED", "real_capital_usd": 0,
+             "banner": "Readiness is not authorization · real capital $0 · automated live execution PROHIBITED"}
+    try:
+        from spa_core.capital_shadow import read as shadow_read
+        doc = shadow_read.latest(data, now=now)
+    except Exception as exc:  # noqa: BLE001 — an unreadable shadow feed is NOT_MEASURED, never a crash
+        return {**_nm(src, now, f"shadow read failed: {type(exc).__name__}"), **fixed}
+    if doc.get("integrity") == "BROKEN":
+        return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
+                "integrity": "BROKEN", **fixed}
+    if doc.get("state") != "MEASURED" or not (doc.get("ledger") or {}).get("entries"):
+        return {**_nm(src, now, doc.get("reason") or "no shadow run yet"), **fixed}
+    summ = doc.get("summary") or {}
+    sleeves = {}
+    for sid, rep in (doc.get("readiness") or {}).items():
+        if not isinstance(rep, dict) or "readiness_state" not in rep:
+            continue                                   # e.g. venue_canary: diagnostic, never a sleeve
+        checks = rep.get("system_checks") or {}
+        sleeves[sid] = {"state": rep.get("readiness_state"),
+                        "display": safe_text(rep.get("readiness_display") or rep.get("readiness_state"), 80),
+                        "passed": sum(1 for c in checks.values() if (c or {}).get("state") == "PASS"),
+                        "gates": len(checks),
+                        "blockers": [safe_text(f"{b.get('gate')}: {b.get('reason')}", 160)
+                                     for b in (rep.get("blocking_conditions") or [])][:6],
+                        "owner_pending": [k for k, v in (rep.get("owner_preconditions") or {}).items()
+                                          if (v or {}).get("state") == "PENDING"]}
+    def _brief(x):
+        return ({k: (safe_text(v, 80) if isinstance(v, str) else v) for k, v in x.items()} if isinstance(x, dict) else None)
+    inc = summ.get("open_incidents")
+    if not isinstance(inc, dict) or inc.get("state") == "BROKEN" or not isinstance(inc.get("count"), int):
+        # an unreadable / tampered incident store is never «0 incidents» (second re-review N4)
+        st, why = "CRITICAL", f"incident store not readable: {(inc or {}).get('reason') if isinstance(inc, dict) else 'absent'}"
+        inc = inc if isinstance(inc, dict) else {}
+    elif inc["count"] > 0:
+        st, why = "CRITICAL", f"open incidents: {inc.get('kinds')}"
+    else:
+        st, why = "HEALTHY", None
+    return {"_meta": _meta(st, src, _ts(summ.get("generated_at")), now, 1800, reason=safe_text(why, 300)),
+            "execution_mode": summ.get("current_execution_mode"), **fixed,
+            "sleeves": sleeves,
+            "top_blockers": [{"gate": b.get("gate") if isinstance(b, dict) else b,
+                              "count": b.get("count") if isinstance(b, dict) else None}
+                             for b in (summ.get("top_blockers") or [])][:5],
+            "last_simulation": _brief(summ.get("last_simulation")),
+            "last_shadow_execution": _brief(summ.get("last_shadow_execution")),
+            "last_reconciliation": _brief(summ.get("last_reconciliation")),
+            "open_incidents": {"count": inc.get("count"), "kinds": inc.get("kinds")},
+            "owner_decisions_pending": summ.get("owner_decisions_pending"),
+            "ledger": doc.get("ledger")}
+
+
 def _investment_cio_section(data: Path, now: datetime) -> dict:
     """Штирлиц — Chief Investment Officer (ADR-554): read through the CIO package's single read function — no
     second truth. Colour = health of the CIO feed (fresh, chain intact), never the quality of the portfolio."""
@@ -755,11 +814,13 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     _rank = {"HEALTHY": 0, "DEGRADED": 1, "STALE": 1, "NOT_MEASURED": 2, "CRITICAL": 3}
     cap_state = max((packages["_meta"]["state"], trading["_meta"]["state"]), key=lambda s: _rank.get(s, 2))
     investment_cio = _investment_cio_section(data, now)
+    live_readiness = _live_readiness_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
                "packages": packages, "trading_research": trading, "real_capital": real,
                "investment_cio": investment_cio,
+               "live_readiness": live_readiness,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────

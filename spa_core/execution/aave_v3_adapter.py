@@ -63,9 +63,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-from spa_core.execution.arming import assert_live_armed
+from spa_core.execution.arming import assert_live_armed, refuse_env_private_key
 from spa_core.safety.safeguard import live_trading_forbidden
-from spa_core.utils.errors import ConfigError, SourceError, ValidationError
+from spa_core.utils.errors import ConfigError, SourceError, SPAError, ValidationError
 
 log = logging.getLogger("spa.aave_v3_adapter")
 
@@ -751,21 +751,18 @@ class AaveV3Adapter:
     def _resolve_signer(self) -> tuple[object, str]:
         """Load eth_account.Account + return (Account, wallet_address).
 
+        ADR-556 item 15 (2026-10-04): the environment-key path is removed.
+        This never resolves a signer from ``SPA_PRIVATE_KEY`` any more — an
+        owner-held hardware signer is the only intended live-signing path.
+        Kept as a distinct method (rather than inlining the refusal at each
+        caller) so every caller fails the same way, unconditionally, before
+        touching ``os.environ`` at all.
+
         Raises:
-            DependencyNotInstalled: eth_account missing.
-            ValueError: key missing/invalid or address mismatch.
+            LiveTradingForbiddenError: always (``refuse_env_private_key``).
         """
-        Account = _require_eth_account()
-        pk = os.environ.get("SPA_PRIVATE_KEY", "")
-        if not pk:
-            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
-        normalised = self._validate_private_key(pk)
-        acct = Account.from_key(normalised)
-        derived = acct.address
-        configured = os.environ.get("SPA_WALLET_ADDRESS")
-        if configured and configured.lower() != derived.lower():
-            raise ValidationError("SPA_WALLET_ADDRESS", configured, f"does not match derived address {derived}")
-        return acct, derived
+        _require_eth_account()
+        refuse_env_private_key("SPA_PRIVATE_KEY")
 
     @live_trading_forbidden
     def _sign_and_send(
@@ -918,7 +915,7 @@ class AaveV3Adapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             log.warning("[FALLBACK] supply preconditions: %s", exc)
             return {
                 "status":    "ERROR",
@@ -932,9 +929,14 @@ class AaveV3Adapter:
         decimals = self.TOKEN_DECIMALS[asset]
         raw_amount = int(round(amount * (10 ** decimals)))
         asset_addr = self.TOKEN_ADDRESSES[self.chain][asset]
-        pk_normalised = self._validate_private_key(
-            os.environ.get("SPA_PRIVATE_KEY", "")
-        )
+        # ADR-556 item 15 (2026-10-04, finding #14): the line that used to live
+        # here — `os.environ.get("SPA_PRIVATE_KEY", "")` — is unreachable (the
+        # try/except above already returned, since _resolve_signer() always
+        # raises) but STILL an env-key read a future edit could revive by
+        # accident. Removed outright rather than kept as dead code; calling
+        # the same refusal again costs nothing and leaves no read to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        pk_normalised = None  # never reached — refuse_env_private_key() always raises
 
         # ── Phase 1/2: approve ────────────────────────────────────────────
         try:
@@ -1116,7 +1118,7 @@ class AaveV3Adapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             log.warning("[FALLBACK] withdraw preconditions: %s", exc)
             return {
                 "status":    "ERROR",
@@ -1130,9 +1132,14 @@ class AaveV3Adapter:
         decimals = self.TOKEN_DECIMALS[asset]
         raw_amount = int(round(amount * (10 ** decimals)))
         asset_addr = self.TOKEN_ADDRESSES[self.chain][asset]
-        pk_normalised = self._validate_private_key(
-            os.environ.get("SPA_PRIVATE_KEY", "")
-        )
+        # ADR-556 item 15 (2026-10-04, finding #14): the line that used to live
+        # here — `os.environ.get("SPA_PRIVATE_KEY", "")` — is unreachable (the
+        # try/except above already returned, since _resolve_signer() always
+        # raises) but STILL an env-key read a future edit could revive by
+        # accident. Removed outright rather than kept as dead code; calling
+        # the same refusal again costs nothing and leaves no read to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        pk_normalised = None  # never reached — refuse_env_private_key() always raises
 
         try:
             chain_id = self._get_chain_id()

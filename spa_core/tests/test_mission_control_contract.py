@@ -534,3 +534,38 @@ def test_a_tampered_cio_ledger_is_critical_in_mission_control(tmp_path):
     cio = _build(s)["capital"]["investment_cio"]
     assert cio["_meta"]["state"] == "CRITICAL" and cio["integrity"] == "BROKEN"
     assert "stance" not in cio and "recommended_weights" not in cio      # a tampered recommendation is withheld
+
+
+# ── RM-LIVE-01 shadow execution + pilot readiness (ADR-556) in the Capital area ───────────────────
+def test_live_readiness_is_not_measured_before_any_shadow_run_and_states_the_boundary(tmp_path):
+    lr = _build(_scene(tmp_path))["capital"]["live_readiness"]
+    assert lr["_meta"]["state"] == "NOT_MEASURED"
+    assert lr["automated_live_execution"] == "PROHIBITED" and lr["real_capital_usd"] == 0
+    assert "not authorization" in lr["banner"]
+
+
+def test_live_readiness_matches_the_separate_verifier(tmp_path):
+    from spa_core.capital_shadow import read as shadow_read, run as shadow_run
+    s = _scene(tmp_path)
+    assert shadow_run.main(["--data-dir", str(s.data), "--now", NOW.strftime(ISO), "--no-rpc"]) == 0
+    lr = _build(s)["capital"]["live_readiness"]
+    canon = shadow_read.latest(s.data, now=NOW)
+    assert {k: v["state"] for k, v in lr["sleeves"].items()} == \
+           {k: v["readiness_state"] for k, v in canon["readiness"].items()}
+    assert all(v["state"] != "MANUAL_PILOT_READY" for v in lr["sleeves"].values())
+    assert lr["automated_live_execution"] == "PROHIBITED" and lr["real_capital_usd"] == 0
+
+
+def test_a_broken_shadow_ledger_is_critical_and_the_ui_has_no_action_control(tmp_path):
+    from spa_core.capital_shadow import run as shadow_run
+    s = _scene(tmp_path)
+    assert shadow_run.main(["--data-dir", str(s.data), "--now", NOW.strftime(ISO), "--no-rpc"]) == 0
+    led = s.data / "capital_shadow" / "ledger.jsonl"
+    rows = [json.loads(x) for x in led.read_text(encoding="utf-8").splitlines() if x.strip()]
+    rows[0]["payload"] = {"tampered": True}
+    led.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    lr = _build(s)["capital"]["live_readiness"]
+    assert lr["_meta"]["state"] == "CRITICAL" and lr["integrity"] == "BROKEN"
+    app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
+    seg = app[app.index("function renderLiveReadinessCard"):app.index("function renderPackageCard")]
+    assert '"button"' not in seg and "addEventListener" not in seg      # nothing to click

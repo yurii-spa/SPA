@@ -45,6 +45,8 @@ __all__ = [
     "EXEC_ARMED_ENV",
     "is_exec_armed",
     "assert_live_armed",
+    "ENV_PRIVATE_KEY_REFUSAL",
+    "refuse_env_private_key",
 ]
 
 # THE owner-gated go-live arming flag for the capital primitives. OFF the whole
@@ -87,3 +89,39 @@ def assert_live_armed(primitive: str) -> None:
     """
     if not is_exec_armed():
         raise LiveTradingForbiddenError(f"exec_armed:{primitive}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-556 item 15 — signer hygiene: the environment-key path is removed
+# ─────────────────────────────────────────────────────────────────────────────
+
+ENV_PRIVATE_KEY_REFUSAL = (
+    "env-key signing removed (ADR-556): an owner-held hardware signer is the "
+    "only intended path"
+)
+
+
+def refuse_env_private_key(var_name: str = "SPA_PRIVATE_KEY") -> None:
+    """Unconditionally refuse to source a live signing key from the environment.
+
+    ADR-556 item 15 (RM-LIVE-01 hardening, 2026-10-04): the environment-variable
+    key path is removed from every call site that used to read it — not just
+    when the variable is absent or malformed. There is no successful outcome
+    from this function; whether *var_name* is unset, well-formed, or would
+    derive the expected address makes no difference. An owner-held hardware
+    signer (clear-signing, never reachable by this runtime) is the only
+    intended path to a live signature.
+
+    This is intentionally a FUNCTION, not a check — callers that used to do
+    ``pk = os.environ.get(var_name); if not pk: raise ...`` now call this
+    instead of reading the variable at all, so the key never even touches a
+    local variable in the caller's frame.
+
+    Args:
+        var_name: name of the env var the caller used to read (for the
+            message only; never pass key material here).
+
+    Raises:
+        LiveTradingForbiddenError: always.
+    """
+    raise LiveTradingForbiddenError(f"{var_name}: {ENV_PRIVATE_KEY_REFUSAL}")

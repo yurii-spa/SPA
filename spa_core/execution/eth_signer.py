@@ -73,6 +73,7 @@ import urllib.request
 from typing import Any
 
 from spa_core.execution.arming import assert_live_armed
+from spa_core.safety.safeguard import live_trading_forbidden
 from spa_core.utils.errors import SourceError, ValidationError
 
 log = logging.getLogger("spa.eth_signer")
@@ -336,11 +337,29 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
 
 # ─── Message signing (EIP-191) ────────────────────────────────────────────────
 
+@live_trading_forbidden
 def sign_message(message: str | bytes, private_key_hex: str) -> str:
     """Sign an Ethereum prefixed message (EIP-191 personal_sign).
 
     Wraps ``message`` in the standard Ethereum prefix
     ``"\\x19Ethereum Signed Message:\\n<len>"`` before signing.
+
+    ADR-556 item 15 (RM-LIVE-01 hardening, 2026-10-04): this primitive was
+    found to lack the arm guard ``sign_transaction`` already had — closed
+    here with TWO layers, matching the asymmetry fix WS-5.1/5.2 already gave
+    ``sign_transaction``/``_sign_and_send``:
+      1. ``@live_trading_forbidden`` (above) — the same structural, OUTER
+         guard adapters put on ``_sign_and_send``: it raises unconditionally
+         and never delegates to this body at all, during the whole paper
+         period.
+      2. ``assert_live_armed`` + ``require_live_gate`` (below, INNER) — in
+         case something ever reaches this body directly (e.g. via the
+         decorator's ``__wrapped__``, bypassing layer 1 — the exact bypass
+         class WS-5.1 closed for ``sign_transaction``), both the structural
+         ``SPA_EXEC_ARMED`` self-check AND the independent ``LiveTradingGate``
+         must also agree before any key material is touched. The gate is
+         defence-in-depth only (its state file is writable by the same user
+         that runs this process) — stated, not relied on alone.
 
     Args:
         message: The message payload — str (UTF-8 encoded) or raw bytes.
@@ -350,9 +369,19 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
         0x-prefixed hex signature string (65 bytes: r + s + v).
 
     Raises:
+        LiveTradingForbiddenError: always, during the whole paper period
+            (layer 1); also if layer 2 is ever reached unarmed / ungated.
         ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
+    # WS-5.1 STRUCTURAL guard, mirrored from sign_transaction (ADR-556 item 15):
+    # self-check arming BEFORE touching any key material, even though the
+    # @live_trading_forbidden wrapper above already blocks every normal call.
+    assert_live_armed("eth_signer.sign_message")
+
+    from spa_core.safety.live_trading_gate import require_live_gate
+    require_live_gate()  # ADR-556 item 15 — defence in depth, stated as such above
+
     normalised_pk = _normalised_pk(private_key_hex)  # fail-CLOSED, key redacted on bad shape
 
     from eth_account.messages import encode_defunct  # type: ignore

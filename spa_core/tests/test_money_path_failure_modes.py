@@ -628,10 +628,22 @@ class TestSignerNoKeyLeakExhaustive:
     def test_hostile_backend_sign_message_scrubbed(self, monkeypatch, caplog):
         # sign_message needs eth_account.messages.encode_defunct; skip if absent.
         pytest.importorskip("eth_account")
+        # ADR-556 item 15 (2026-10-04): sign_message is now @live_trading_forbidden
+        # (permanently forbidden, same structural guard as adapters' _sign_and_send)
+        # — calling it directly would raise LiveTradingForbiddenError BEFORE ever
+        # reaching the hostile backend, which would make this scrub test pass
+        # vacuously (the key material this test exists to catch would never be
+        # touched at all). Call the decorator's __wrapped__ instead, with arming +
+        # the LiveTradingGate explicitly satisfied, so the hostile-backend/scrub
+        # path this test is actually about is still exercised for real. See
+        # CLAUDE.md inv. #16 journal note for this change.
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+        import spa_core.safety.live_trading_gate as ltg_mod
+        monkeypatch.setattr(ltg_mod, "require_live_gate", lambda *a, **k: None)
         monkeypatch.setattr(eth_signer, "_get_account", lambda: self._hostile_backend())
         with caplog.at_level(logging.DEBUG, logger="spa.eth_signer"):
             with pytest.raises(Exception) as ei:
-                eth_signer.sign_message("hello", self.KEY)
+                eth_signer.sign_message.__wrapped__("hello", self.KEY)
         self._assert_no_key(str(ei.value))
         self._assert_no_key(repr(ei.value))
         self._assert_no_key("\n".join(r.getMessage() for r in caplog.records))

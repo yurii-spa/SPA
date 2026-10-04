@@ -297,6 +297,21 @@
       "consumers": ["spa_core/studio_os/mission_control.py (Capital tab, read-only)"]
     },
     {
+      "id": "execution.capital_shadow",
+      "kind": "shadow-execution+readiness",
+      "anchors": ["spa_core/capital_shadow/", "data/capital_shadow/ledger.jsonl"],
+      "purpose": "RM-LIVE-01: the proven boundary between an investment recommendation and any future real-capital action — unsigned CapitalActionIntents, read-only simulation at a pinned block (public RPC quorum, allow-listed methods, no key), shadow execution, forward reconciliation, PilotReadinessReport. Never signs, broadcasts, orders or moves funds.",
+      "purpose_source": "ADR-556",
+      "source_task": "owner macro-epic 2026-10-04 «RM-LIVE-01 SHADOW EXECUTION + LIMITED CAPITAL PILOT READINESS»",
+      "source_decision": "ADR-556",
+      "producer_role": "attended coding session",
+      "producer_run": "com.spa.capital_shadow (daily 09:45)",
+      "reviewer": "independent architecture review + post-implementation review + re-review (ADR-556)",
+      "owner_role": "build-loop",
+      "status": "EXPERIMENTAL",
+      "consumers": ["spa_core/studio_os/mission_control.py (Capital tab, read-only via the verifier)"]
+    },
+    {
       "id": "ops.autopush",
       "kind": "automation",
       "anchors": ["scripts/auto_push.sh"],

@@ -331,6 +331,8 @@
     det.appendChild(h("p", {}, [rc.basis === null || rc.basis === undefined ? t("common.not_measured") : rc.basis]));
     box.appendChild(det);
     c.appendChild(box);
+    var lrv = cap.live_readiness || {};
+    c.appendChild(kv("live.short", t("live.prohibited") + " · $0"));
     var ci = cap.investment_cio || {};
     c.appendChild(kv("cio.short", ci.stance ? t("cio.stance." + ci.stance) +
       (ci.confidence ? " · " + t("cio.confidence." + ci.confidence) : "") : null));
@@ -385,6 +387,7 @@
     root.appendChild(h("p", { class: "area-label" }, [cap.boundary || t("capital.boundary")]));
     var grid = h("div", { class: "grid" });
     grid.appendChild(renderInvestmentCioCard(cap.investment_cio));
+    grid.appendChild(renderLiveReadinessCard(cap.live_readiness));
     var pkgs = get(cap, "packages.items", {}) || {};
     Object.keys(pkgs).forEach(function (key) {
       grid.appendChild(renderPackageCard(key, pkgs[key]));
@@ -461,6 +464,51 @@
       " · " + t("cio.outcomes") + " " + (cio.outcomes && typeof cio.outcomes.scored === "number"
         ? cio.outcomes.scored + " / " + t("cio.pending") + " " + cio.outcomes.pending : t("common.not_measured"))));
     c.appendChild(kv("cio.real_capital", cio.real_capital_usd === 0 ? "$0" : null));
+    return c;
+  }
+
+  // RM-LIVE-01 (ADR-556): shadow execution + pilot readiness. Read-only; readiness is NOT authorization.
+  // No execute / deploy / sign control exists here by design.
+  function renderLiveReadinessCard(lr) {
+    lr = lr || {};
+    var st = get(lr, "_meta.state", null);
+    var c = card(t("live.title"), renderBadge(st, isStaleGlobal()));
+    c.className += " card--prominent";
+    c.appendChild(h("div", { class: "warning-chip" }, [t("live.banner")]));
+    c.appendChild(kv("live.automation", t("live.prohibited")));
+    c.appendChild(kv("live.real_capital", lr.real_capital_usd === 0 ? "$0" : null));
+    if (lr.integrity === "BROKEN") {
+      c.appendChild(h("p", {}, [t("live.broken") + ": " + (get(lr, "_meta.reason", null) || "")]));
+      return c;
+    }
+    if (st === "NOT_MEASURED") {
+      c.appendChild(h("p", {}, [get(lr, "_meta.reason", null) || t("common.not_measured")]));
+      return c;
+    }
+    c.appendChild(kv("live.mode", lr.execution_mode));
+    c.appendChild(kv("live.owner_pending", lr.owner_decisions_pending));
+    var sl = lr.sleeves || {};
+    c.appendChild(renderListField("live.sleeves", Object.keys(sl).sort().map(function (k) {
+      var x = sl[k] || {};
+      return t("cio.sleeve." + k) + ": " + t("live.state." + x.state) + " (" + x.passed + "/" + x.gates + ")";
+    })));
+    c.appendChild(renderListField("live.top_blockers", (lr.top_blockers || []).map(function (b) {
+      return b.gate + " × " + b.count;
+    })));
+    function brief(x) {
+      if (!x) return null;
+      return Object.keys(x).map(function (k) { return k + "=" + x[k]; }).join(" · ");
+    }
+    c.appendChild(kv("live.last_sim", brief(lr.last_simulation)));
+    c.appendChild(kv("live.last_shadow", brief(lr.last_shadow_execution)));
+    c.appendChild(kv("live.last_rec", brief(lr.last_reconciliation)));
+    c.appendChild(kv("live.incidents", lr.open_incidents ? String(lr.open_incidents.count) : null));
+    var det = h("details");
+    det.appendChild(h("summary", {}, [t("live.blockers_by_sleeve")]));
+    Object.keys(sl).sort().forEach(function (k) {
+      det.appendChild(renderListField("cio.sleeve." + k, (sl[k] || {}).blockers || []));
+    });
+    c.appendChild(det);
     return c;
   }
 

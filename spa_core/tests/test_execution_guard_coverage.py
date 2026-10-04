@@ -25,10 +25,16 @@ stdlib-only test deps (pytest). No network. No live data/.
 """
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from spa_core.execution import arming
 from spa_core.utils.errors import LiveTradingForbiddenError
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+EXECUTION_DIR = REPO_ROOT / "spa_core" / "execution"
 
 # A public, fund-less, secret-shaped dev key (64 hex). NOT a real key.
 _PUBLIC_DEV_KEY = "1" * 64
@@ -399,3 +405,266 @@ class TestInertConfirmation:
         monkeypatch.setattr(eth_signer, "_get_account", lambda: _Stub)
         raw = eth_signer.sign_transaction(_PUBLIC_DEV_KEY, _TX)
         assert raw == b"\x02stub"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-556 item 15 (RM-LIVE-01, 2026-10-04) — signer hygiene hardening.
+#
+# Two gaps the independent architecture review found and this suite proves
+# closed:
+#   (1) the environment-key path (every adapter that read SPA_PRIVATE_KEY from
+#       os.environ to derive a signer) is removed — not "missing/invalid
+#       returns an error", but an UNCONDITIONAL refusal, regardless of whether
+#       the variable is set, well-formed, or would derive the expected address;
+#   (2) eth_signer.sign_message lacked the arm guard sign_transaction already
+#       had — closed in eth_signer.py itself (TestSignMessage /
+#       TestSignMessageRefusal in test_eth_signer.py cover that primitive in
+#       depth); this section proves the shared arming.refuse_env_private_key
+#       helper and its wiring into every adapter that used to read the key.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestEnvPrivateKeyRefusalUnconditional:
+    """``arming.refuse_env_private_key`` never succeeds — whether the env var
+    is absent, present-but-malformed, or a perfectly well-formed 64-hex key."""
+
+    def test_refuses_when_absent(self, monkeypatch):
+        monkeypatch.delenv("SPA_PRIVATE_KEY", raising=False)
+        with pytest.raises(LiveTradingForbiddenError):
+            arming.refuse_env_private_key("SPA_PRIVATE_KEY")
+
+    def test_refuses_when_well_formed(self, monkeypatch):
+        """The positive control: even a VALID-looking key changes nothing —
+        proving this is a removal, not a validation check that could be
+        satisfied."""
+        monkeypatch.setenv("SPA_PRIVATE_KEY", _PUBLIC_DEV_KEY)
+        with pytest.raises(LiveTradingForbiddenError):
+            arming.refuse_env_private_key("SPA_PRIVATE_KEY")
+
+    def test_message_names_the_var_but_never_a_key(self, monkeypatch):
+        monkeypatch.setenv("SPA_PRIVATE_KEY", _PUBLIC_DEV_KEY)
+        try:
+            arming.refuse_env_private_key("SPA_PRIVATE_KEY")
+            pytest.fail("expected LiveTradingForbiddenError")
+        except LiveTradingForbiddenError as exc:
+            assert "SPA_PRIVATE_KEY" in str(exc)
+            assert "ADR-556" in str(exc)
+            assert _PUBLIC_DEV_KEY not in str(exc)
+
+
+@pytest.mark.parametrize("name,Adapter", _all_execution_adapter_classes())
+def test_every_adapter_env_key_path_refuses_even_when_well_formed(
+    name, Adapter, monkeypatch,
+):
+    """Sweep every enumerated adapter's supply(): a WELL-FORMED, matching
+    ``SPA_PRIVATE_KEY`` + ``SPA_EXECUTION_MODE=live`` must still never reach a
+    live signature — ADR-556 item 15 removed that path from every one of
+    them, not just the ones a prior test happened to cover. Positive control:
+    before this epic several of these adapters would have proceeded past this
+    point (aave_v3 / compound_v3 / morpho had a real, testable success path;
+    see the updated phase3 adapter test files)."""
+    monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+    monkeypatch.setenv("SPA_PRIVATE_KEY", _PUBLIC_DEV_KEY)
+    monkeypatch.setenv("SPA_WALLET_ADDRESS", "0x" + "11" * 20)
+    if name == "sky_susds":
+        # sky_susds has an earlier tier-eligibility gate (GSM Pause Delay) that
+        # otherwise reaches for a live RPC — fake it ELIGIBLE (test_sky_susds_
+        # adapter.py's own pattern) so this sweep exercises the SAME env-key
+        # path as every other adapter, deterministically, with no network.
+        monkeypatch.setattr(
+            "spa_core.data_pipeline.sky_monitor.check_sky_status",
+            lambda *a, **k: {"protocol": "Sky/sUSDS", "status": "ELIGIBLE",
+                              "eligible_for_t1": True, "allocation_pct": 0.30,
+                              "gsm_hours": 72.0},
+        )
+        monkeypatch.setattr(
+            "spa_core.data_pipeline.sky_monitor.check_sky_status_live",
+            lambda *a, **k: {"protocol": "Sky/sUSDS", "status": "ELIGIBLE",
+                              "eligible_for_t1": True, "allocation_pct": 0.30,
+                              "gsm_hours": 72.0},
+        )
+    a = Adapter(dry_run=False)
+    asset = a.SUPPORTED_ASSETS[0]  # each adapter supports a different symbol set
+    result = a.supply(asset, 1.0)
+    # BLOCKED covers an adapter-specific earlier gate (e.g. sky_susds' GSM Pause
+    # Delay tier check) that never even reaches the env-key path; the invariant
+    # under test is narrower and absolute: SUCCESS must be impossible.
+    assert result["status"] != "SUCCESS", (
+        f"{name}: env-key path did not refuse — got {result!r}"
+    )
+    assert result["status"] in ("ERROR", "FAILED", "BLOCKED"), (
+        f"{name}: unexpected non-refusing status — got {result!r}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-556 item 15, finding #14 (coordinator review, 2026-10-04) — a prior round
+# of this hardening replaced live env-key reads with refuse_env_private_key(),
+# but left two DEAD-CODE residues behind: a literal `os.environ.get(
+# "SPA_PRIVATE_KEY", "")` after the refusal already returned (aave_v3 /
+# compound_v3 / morpho adapters), and `Account.from_key(private_key)` where
+# `private_key` was locally bound to `None` right above it (euler_v2 / maple /
+# yearn_v3 / sky_susds adapters) — "unreachable code must not keep an env-key
+# read pattern that a future edit could revive". Both are fixed in this round;
+# this section is the AST guard that proves it, with a positive control for
+# each, scoped to the WHOLE spa_core/execution tree (not just the 7 adapters),
+# because the claim is "nowhere in execution", not "nowhere in the files I
+# happened to touch".
+#
+# Scope note on `.from_key(...)`: this is deliberately NOT a blanket ban on
+# every `Account.from_key(...)` call in spa_core/execution — eth_signer.py's
+# `get_address_from_private_key` (a legitimate utility over an explicit
+# parameter) and the pre-existing, already-@live_trading_forbidden
+# `_sign_and_send` / `_execute_tx_pair` / `_execute_single_tx` methods (which
+# also take the key as a genuine parameter, not a locally-dead `None`) are
+# NOT part of this finding and are left alone. The guard only flags the EXACT
+# shape finding #14 named: the call's argument is the literal `None`, or a
+# name bound to `None` by a plain assignment earlier in the SAME block.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_os_env_read(node: ast.AST) -> bool:
+    """True for `os.getenv(...)` or `os.environ.get(...)` call nodes."""
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Attribute) and func.attr == "getenv":
+        if isinstance(func.value, ast.Name) and func.value.id == "os":
+            return True
+    if isinstance(func, ast.Attribute) and func.attr == "get":
+        val = func.value
+        if (
+            isinstance(val, ast.Attribute) and val.attr == "environ"
+            and isinstance(val.value, ast.Name) and val.value.id == "os"
+        ):
+            return True
+    return False
+
+
+def find_env_private_key_literal_reads(tree: ast.AST) -> list[tuple[str, int]]:
+    """`os.getenv("...PRIVATE_KEY...")` / `os.environ.get("...PRIVATE_KEY...")`
+    with a STRING-LITERAL argument naming a private key — a variable-driven
+    read (`os.getenv(name)`, e.g. readiness_audit.py's presence-only check,
+    which never loads the value to sign anything) is a different, legitimate
+    concern and is intentionally NOT flagged here."""
+    hits: list[tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if _is_os_env_read(node) and node.args:
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                if "PRIVATE_KEY" in first.value.upper():
+                    hits.append((first.value, node.lineno))
+    return hits
+
+
+def _none_bound_names(body: list) -> set:
+    """Names bound to the literal ``None`` by a plain ``x = None`` assignment
+    directly in this statement list (one block, no recursion — matches the
+    exact two-consecutive-lines shape finding #14 named)."""
+    bound = set()
+    for stmt in body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+            and isinstance(stmt.value, ast.Constant)
+            and stmt.value.value is None
+        ):
+            bound.add(stmt.targets[0].id)
+    return bound
+
+
+def find_from_key_none_calls(tree: ast.AST) -> list[tuple[str, int]]:
+    """``*.from_key(None)`` or ``*.from_key(x)`` where ``x`` was just bound to
+    ``None`` in the same block — see the scope note above for what this does
+    NOT flag."""
+    hits: list[tuple[str, int]] = []
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if not isinstance(body, list):
+            continue
+        none_names = _none_bound_names(body)
+        for stmt in body:
+            for call in ast.walk(stmt):
+                if not isinstance(call, ast.Call):
+                    continue
+                func = call.func
+                if not (isinstance(func, ast.Attribute) and func.attr == "from_key"):
+                    continue
+                if not call.args:
+                    continue
+                arg = call.args[0]
+                if isinstance(arg, ast.Constant) and arg.value is None:
+                    hits.append(("from_key(None)", call.lineno))
+                elif isinstance(arg, ast.Name) and arg.id in none_names:
+                    hits.append((f"from_key({arg.id})  # bound to None above", call.lineno))
+    return hits
+
+
+def _execution_py_files() -> list[Path]:
+    if not EXECUTION_DIR.is_dir():
+        return []
+    return sorted(p for p in EXECUTION_DIR.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+class TestNoDeadEnvKeyReadPattern:
+    """Finding #14 positive controls, then the real sweep."""
+
+    def test_positive_control_catches_literal_env_read(self):
+        src = 'pk = os.environ.get("SPA_PRIVATE_KEY", "")\n'
+        hits = find_env_private_key_literal_reads(ast.parse(src))
+        assert hits, "guard failed to catch a literal SPA_PRIVATE_KEY env read"
+
+    def test_positive_control_catches_getenv_form(self):
+        src = 'pk = os.getenv("PRIVATE_KEY")\n'
+        assert find_env_private_key_literal_reads(ast.parse(src))
+
+    def test_positive_control_does_not_flag_variable_driven_read(self):
+        """readiness_audit.py's presence-only pattern: the var NAME is a
+        runtime variable, not a literal — a different, legitimate concern
+        (never loads the value to sign), must not be flagged."""
+        src = (
+            'SIGNER_KEY_ENVS = ("SPA_PRIVATE_KEY",)\n'
+            'present = [name for name in SIGNER_KEY_ENVS if os.getenv(name)]\n'
+        )
+        assert find_env_private_key_literal_reads(ast.parse(src)) == []
+
+    def test_positive_control_catches_from_key_none_literal(self):
+        src = "wallet = Account.from_key(None).address\n"
+        hits = find_from_key_none_calls(ast.parse(src))
+        assert hits, "guard failed to catch Account.from_key(None)"
+
+    def test_positive_control_catches_from_key_locally_none_name(self):
+        src = (
+            "def f():\n"
+            "    private_key = None  # unreachable\n"
+            "    wallet = Account.from_key(private_key).address\n"
+            "    return wallet\n"
+        )
+        hits = find_from_key_none_calls(ast.parse(src))
+        assert hits, "guard failed to catch from_key(x) where x was just bound to None"
+
+    def test_positive_control_does_not_flag_parameter_based_from_key(self):
+        """The pre-existing, legitimate shape (e.g. eth_signer's
+        get_address_from_private_key, or _sign_and_send/_execute_tx_pair's
+        own already-@live_trading_forbidden bodies): `private_key` is a real
+        function PARAMETER, never locally assigned None — must stay clean."""
+        src = (
+            "def _sign_and_send(self, Account, private_key, **kw):\n"
+            "    wallet = Account.from_key(private_key).address\n"
+            "    return wallet\n"
+        )
+        assert find_from_key_none_calls(ast.parse(src)) == []
+
+    @pytest.mark.parametrize("path", _execution_py_files(), ids=lambda p: str(p.relative_to(EXECUTION_DIR)))
+    def test_no_literal_env_private_key_read_anywhere_in_execution(self, path):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hits = find_env_private_key_literal_reads(tree)
+        assert hits == [], f"{path.relative_to(EXECUTION_DIR)}: literal env-key read(s): {hits}"
+
+    @pytest.mark.parametrize("path", _execution_py_files(), ids=lambda p: str(p.relative_to(EXECUTION_DIR)))
+    def test_no_from_key_none_call_anywhere_in_execution(self, path):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hits = find_from_key_none_calls(tree)
+        assert hits == [], f"{path.relative_to(EXECUTION_DIR)}: dead from_key(None)-shaped call(s): {hits}"
+
+    def test_execution_tree_is_not_empty(self):
+        assert _execution_py_files(), f"no .py files found under {EXECUTION_DIR}"

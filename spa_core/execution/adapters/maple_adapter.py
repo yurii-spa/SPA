@@ -43,6 +43,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from spa_core.execution.arming import refuse_env_private_key
 from spa_core.safety.safeguard import live_trading_forbidden
 
 log = logging.getLogger("spa.maple_adapter")
@@ -50,7 +51,7 @@ log = logging.getLogger("spa.maple_adapter")
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
-from spa_core.utils.errors import ConfigError, SourceError, ValidationError
+from spa_core.utils.errors import ConfigError, LiveTradingForbiddenError, SourceError, ValidationError
 
 @dataclass
 class TxRequest:
@@ -272,11 +273,25 @@ class MapleAdapter:
         except DependencyNotInstalled as exc:
             return {"status": "ERROR", "reason": str(exc), "protocol": "maple"}
 
-        private_key = os.getenv("SPA_PRIVATE_KEY")
-        if not private_key:
-            return {"status": "ERROR", "reason": "SPA_PRIVATE_KEY not set", "protocol": "maple"}
-
-        wallet = Account.from_key(private_key).address
+        # ADR-556 item 15 (2026-10-04): the environment-key path is removed —
+        # unconditional refusal, not a "missing/invalid" check. An owner-held
+        # hardware signer is the only intended live-signing path.
+        try:
+            refuse_env_private_key("SPA_PRIVATE_KEY")
+        except LiveTradingForbiddenError as exc:
+            return {"status": "ERROR", "reason": str(exc), "protocol": "maple"}
+        # ADR-556 item 15 (2026-10-04, finding #14): no Account.from_key(...)
+        # call survives here either — this whole branch is unreachable (the
+        # try/except above already returns), and deriving "wallet" from a
+        # None key was its own dead-code landmine (a future edit touching
+        # this line could resurrect a real key read without noticing the
+        # branch above always refuses first). private_key/wallet stay BOUND
+        # (so the rest of this unreachable branch keeps parsing) but are
+        # never derived from a key — calling the refusal again is inert but
+        # leaves nothing resembling a signer-derivation call to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        private_key = None  # never reached
+        wallet = None  # never reached — no Account.from_key(...) call here any more
         expected = self._wallet_address()
         if expected and wallet.lower() != expected.lower():
             return {
@@ -355,11 +370,25 @@ class MapleAdapter:
         except DependencyNotInstalled as exc:
             return {"status": "ERROR", "reason": str(exc), "protocol": "maple"}
 
-        private_key = os.getenv("SPA_PRIVATE_KEY")
-        if not private_key:
-            return {"status": "ERROR", "reason": "SPA_PRIVATE_KEY not set", "protocol": "maple"}
-
-        wallet = Account.from_key(private_key).address
+        # ADR-556 item 15 (2026-10-04): the environment-key path is removed —
+        # unconditional refusal, not a "missing/invalid" check. An owner-held
+        # hardware signer is the only intended live-signing path.
+        try:
+            refuse_env_private_key("SPA_PRIVATE_KEY")
+        except LiveTradingForbiddenError as exc:
+            return {"status": "ERROR", "reason": str(exc), "protocol": "maple"}
+        # ADR-556 item 15 (2026-10-04, finding #14): no Account.from_key(...)
+        # call survives here either — this whole branch is unreachable (the
+        # try/except above already returns), and deriving "wallet" from a
+        # None key was its own dead-code landmine (a future edit touching
+        # this line could resurrect a real key read without noticing the
+        # branch above always refuses first). private_key/wallet stay BOUND
+        # (so the rest of this unreachable branch keeps parsing) but are
+        # never derived from a key — calling the refusal again is inert but
+        # leaves nothing resembling a signer-derivation call to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        private_key = None  # never reached
+        wallet = None  # never reached — no Account.from_key(...) call here any more
         amount_raw = int(amount * 10 ** decimals)
 
         redeem_data = (

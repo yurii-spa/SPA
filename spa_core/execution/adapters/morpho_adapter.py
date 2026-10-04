@@ -57,8 +57,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from spa_core.execution.arming import refuse_env_private_key
 from spa_core.safety.safeguard import live_trading_forbidden
-from spa_core.utils.errors import ConfigError, SourceError, ValidationError
+from spa_core.utils.errors import ConfigError, SourceError, SPAError, ValidationError
 
 log = logging.getLogger("spa.morpho_adapter")
 
@@ -446,17 +447,13 @@ class MorphoAdapter:
         return None
 
     def _resolve_signer(self) -> tuple[Any, str]:
-        Account = _require_eth_account()
-        pk = os.environ.get("SPA_PRIVATE_KEY", "")
-        if not pk:
-            raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
-        normalised = self._validate_private_key(pk)
-        acct = Account.from_key(normalised)
-        derived = acct.address
-        configured = os.environ.get("SPA_WALLET_ADDRESS")
-        if configured and configured.lower() != derived.lower():
-            raise ValidationError("SPA_WALLET_ADDRESS", configured, f"does not match derived address {derived}")
-        return acct, derived
+        """ADR-556 item 15 (2026-10-04): the environment-key path is removed.
+
+        Never resolves a signer from ``SPA_PRIVATE_KEY`` any more — an
+        owner-held hardware signer is the only intended live-signing path.
+        """
+        _require_eth_account()
+        refuse_env_private_key("SPA_PRIVATE_KEY")
 
     @live_trading_forbidden
     def _sign_and_send(
@@ -584,7 +581,7 @@ class MorphoAdapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             return {"status": "ERROR", "reason": str(exc),
                     "asset": asset, "amount": amount, "chain": self.chain, "timestamp": ts}
 
@@ -597,7 +594,12 @@ class MorphoAdapter:
         decimals = self.TOKEN_DECIMALS[asset]
         raw_amount = int(round(amount * (10 ** decimals)))
         asset_addr = self.TOKEN_ADDRESSES[self.chain][asset]
-        pk = self._validate_private_key(os.environ.get("SPA_PRIVATE_KEY", ""))
+        # ADR-556 item 15 (2026-10-04, finding #14): no leftover placeholder
+        # key variable — refuse_env_private_key() in _resolve_signer() above
+        # always raised already; calling it again here is inert but keeps
+        # this spot from ever looking like a key read to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        pk = None  # never reached
 
         # Step 1: ERC-20 approve
         try:
@@ -713,7 +715,7 @@ class MorphoAdapter:
 
         try:
             acct, wallet = self._resolve_signer()
-        except ValueError as exc:
+        except (ValueError, SPAError) as exc:
             return {"status": "ERROR", "reason": str(exc),
                     "asset": asset, "amount": amount, "chain": self.chain, "timestamp": ts}
 
@@ -725,7 +727,12 @@ class MorphoAdapter:
 
         decimals = self.TOKEN_DECIMALS[asset]
         raw_amount = int(round(amount * (10 ** decimals)))
-        pk = self._validate_private_key(os.environ.get("SPA_PRIVATE_KEY", ""))
+        # ADR-556 item 15 (2026-10-04, finding #14): no leftover placeholder
+        # key variable — refuse_env_private_key() in _resolve_signer() above
+        # always raised already; calling it again here is inert but keeps
+        # this spot from ever looking like a key read to revive.
+        refuse_env_private_key("SPA_PRIVATE_KEY")
+        pk = None  # never reached
 
         # Fetch shares for the amount (1:1 mock — real path converts via convertToAssets)
         # In practice, for exact-asset withdraw, use deposit/withdraw directly.

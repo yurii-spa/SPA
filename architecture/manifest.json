@@ -392,6 +392,36 @@
    }
   },
   {
+   "label": "com.spa.capital_shadow",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:45",
+   "program": "agent_capital_shadow.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/capital_shadow/latest.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-556"
+   ],
+   "curation": "complete",
+   "notes": "RM-LIVE-01 shadow execution + pilot readiness (ADR-556): unsigned intents, read-only simulation (allow-listed JSON-RPC, no key), shadow fills, forward reconciliation, readiness verdict. Never signs, broadcasts or orders.",
+   "passport": {
+    "goal": "ежедневно проверять, что между рекомендацией и любым будущим действием с реальными деньгами стоит доказанная граница: неподписанное намерение → симуляция → тень → сверка → вердикт готовности",
+    "quality_metric": "одна прогонка в день; цепочка журнала и якорь целы; симуляции на закреплённом блоке с ≥2 независимыми операторами; NO_ACTION, когда CIO воздерживается",
+    "escalation": "инциденты (поломка журнала, запрещённый метод, расхождение кворума) → Telegram-алерт; код 2 → agent_health; 75 = замок занят",
+    "rights": "писать только data/capital_shadow/ и data/capital_shadow_anchors/; читать данные книг; только разрешённые read-only RPC-методы",
+    "limits": "нет ключей, нет подписи, нет отправки транзакций/ордеров, нет изменения RiskPolicy/стопов/лимитов/тиров; LLM запрещён"
+   }
+  },
+  {
    "label": "com.spa.cc-kanban",
    "plist_source": "launch_agents",
    "reboot_safe": true,
@@ -4802,6 +4832,16 @@
    "slo_hours": 26,
    "status": "active",
    "notes": "ADR-554 CIO latest recommendation pointer (rebuildable from the append-only ledger)."
+  },
+  {
+   "path": "data/capital_shadow/latest.json",
+   "producer": "com.spa.capital_shadow",
+   "consumers": [
+    "spa_core/studio_os/mission_control.py"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-556 shadow execution pointer (rebuildable from the append-only ledger; the verifier recomputes readiness)."
   }
  ],
  "designed_architectures": [
