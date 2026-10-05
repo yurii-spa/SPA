@@ -262,6 +262,15 @@ PRODUCES = (
     # нижней границей неизвестного размера. Ступень статическая, зов есть
     # разбор AST в одном процессе; SLO равняется такту БЕГУНА (6ч) — 12ч.
     "data/unresolved_path_census.json",
+    # Заказ G98 п. 1 (ADR-565) — ответ на оговорку, которую ADR-517 назвал сам:
+    # достижимость доказывает ДОРОГУ, а не событие. Ступень спрашивает у ЖИВОГО
+    # артефакта каждого недостижимого раскола, встречался ли класс вне перечня.
+    # Зов есть разбор AST плюс чтение четырёх артефактов в одном процессе; цена
+    # ИЗМЕРЕНА — 19.7 с. SLO равняется такту БЕГУНА (6ч агента) — 12ч.
+    # Ступень читает артефакт СОСЕДА (`rule_second_copy_census`), поэтому
+    # стои́т ПОСЛЕ него: прочитав прошлый такт, она сверяла бы своё население с
+    # позавчерашним числом.
+    "data/unknown_class_in_the_artifact.json",
     # Критерий §49 `Anti-churn` приказа владельца «Portfolio CIO» (ADR-480,
     # цикл #701). Возвращалась ли книга в состояние, которое сама же покинула,
     # и видел ли это гистерезис разворота. Ступень читает журнал ходов — то
@@ -423,6 +432,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "truncated_input_census",
     "hand_truncation_census",
     "unresolved_path_census",
+    "unknown_class_in_the_artifact",
     "book_oscillation_census",
     "keep_dominance_census",
     "policy_binding_census",
@@ -697,6 +707,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "unresolved_path_census": {
         "module": "spa_core/monitoring/unresolved_path_census.py",
         "artifact": "data/unresolved_path_census.json"},
+    "unknown_class_in_the_artifact": {
+        "module": "spa_core/monitoring/unknown_class_in_the_artifact.py",
+        "artifact": "data/unknown_class_in_the_artifact.json"},
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
@@ -2850,6 +2863,30 @@ def main(argv=None) -> int:
                   f"{_upc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "unresolved_path_census", e)
+
+    # Ступень G98 п. 1 (ADR-565): встречался ли в ЖИВОМ артефакте недостижимого
+    # раскола класс вне перечня, который писатель заводит сегодня. Стои́т ПОСЛЕ
+    # ступени `rule_second_copy_census` намеренно: население и его ЧИСЛО берутся
+    # у соседа, и прочитав прошлый такт, ступень сверяла бы себя с позавчерашним
+    # числом. Заголовочное число — «сколько раз прибор упал бы сегодня»; второе,
+    # НЕ складываемое с ним, — значения, которые едут в записи мимо счётчика.
+    try:
+        from spa_core.monitoring import unknown_class_in_the_artifact
+        _ucia = unknown_class_in_the_artifact.run(root=args.root)
+        if _ucia.get("measured"):
+            _raise = observed_number(_ucia["doc"], "would_raise_today")
+            _rides = observed_number(_ucia["doc"], "rides_in_the_record_only")
+            print(f"unknown_class_in_the_artifact: "
+                  f"{_ucia['doc'].get('status')} — писатель впустил незнакомый "
+                  f"класс "
+                  f"{'НЕ ИЗМЕРЕНО' if _raise is None else int(_raise)} раз(а); "
+                  f"едет в записи мимо счётчика "
+                  f"{'НЕ ИЗМЕРЕНО' if _rides is None else int(_rides)}")
+        else:
+            print(f"unknown_class_in_the_artifact: НЕ ИЗМЕРЕНО — "
+                  f"{_ucia['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "unknown_class_in_the_artifact", e)
 
     # Ступень §49 `Anti-churn` приказа CIO (ADR-480): прыгала ли книга между
     # одними и теми же opportunities. Читает журнал ходов и ничего не чинит;

@@ -851,6 +851,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "new_repo_population", "rows", "sites_seen",
                                     "unreadable", "tree",
                                     "what_it_does_not_prove"),
+    # Заказ G98 п. 1 (ADR-565). `would_raise_today` и `rides_in_the_record_only`
+    # объявлены ОБА и по отдельности намеренно: это ДВА РАЗНЫХ утверждения
+    # («писатель незнакомый класс впустил» и «значение едет в записи, а
+    # счётчик его не видел»), и слить их в одно число значило бы напечатать
+    # выдуманную находку — ровно ту, которую сняла арифметика замера 05.10
+    # (189 «падений», которых не было). `record_routes` обязателен по той же
+    # причине: без него «не измерено» у дороги записи неотличимо от «чисто».
+    "unknown_class_in_the_artifact.json": (
+        "status", "invoked_by", "order", "population",
+        "published_population", "outcomes", "unmeasured_reasons",
+        "record_routes", "would_raise_today", "rides_in_the_record_only",
+        "artifact_constant_is_not_the_address", "oldest_artifact_hours",
+        "search_globs", "rows", "what_it_does_not_prove"),
     # Критерий §49 `Anti-churn` приказа CIO (ADR-480). `blind_spot_demonstrated`
     # объявлен ОТДЕЛЬНО от `status` намеренно: статус говорит про НАСТОЯЩЕЕ
     # (есть ли свежий возврат), слепота гистерезиса — про ПОСТРОЕНИЕ, и она не
@@ -1167,6 +1180,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/hand_truncation_census.py",
     "unresolved_path_census.json":
         "spa_core/monitoring/unresolved_path_census.py",
+    "unknown_class_in_the_artifact.json":
+        "spa_core/monitoring/unknown_class_in_the_artifact.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
     "keep_dominance_census.json":
@@ -3153,6 +3168,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.unresolved_path_census import format_report as _upc_report
         out.extend(_upc_report(data))
+    elif name == "unknown_class_in_the_artifact.json":
+        # Заказ G98 п. 1 (ADR-565). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.unknown_class_in_the_artifact import format_report as _ucia_report
+        out.extend(_ucia_report(data))
     elif name == "book_oscillation_census.json":
         # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
         # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
