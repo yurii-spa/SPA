@@ -864,6 +864,20 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
         "record_routes", "would_raise_today", "rides_in_the_record_only",
         "artifact_constant_is_not_the_address", "oldest_artifact_hours",
         "search_globs", "rows", "what_it_does_not_prove"),
+    # Заказ G98 п. 2 (ADR-566). `do_not_sum` и `premise_of_the_order`
+    # объявлены ОТДЕЛЬНО от `cross` намеренно: первое — ПРЯМОЙ запрет заказа
+    # («складывать два незнания в одно нельзя»), второе — ОПРОВЕРЖЕНИЕ
+    # предпосылки самого заказа замером. Выжимка без них напечатала бы
+    # клетки и потеряла оба утверждения, ради которых шаг и написан.
+    # `neighbour_age_hours` обязателен по той же причине, что у соседа:
+    # паритет сверяет СЕГОДНЯШНЕЕ дерево с ВЧЕРАШНИМ замером, и без возраста
+    # «сошлось» неотличимо от «сошлось с позавчерашним числом».
+    "reachability_of_the_rest.json": (
+        "status", "invoked_by", "order", "population",
+        "asked_by_the_neighbour", "the_rest", "cross",
+        "reader_axis_over_the_rest", "writer_axis_over_the_rest",
+        "premise_of_the_order", "do_not_sum", "neighbour_age_hours",
+        "named_rows", "blind"),
     # Критерий §49 `Anti-churn` приказа CIO (ADR-480). `blind_spot_demonstrated`
     # объявлен ОТДЕЛЬНО от `status` намеренно: статус говорит про НАСТОЯЩЕЕ
     # (есть ли свежий возврат), слепота гистерезиса — про ПОСТРОЕНИЕ, и она не
@@ -1182,6 +1196,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unresolved_path_census.py",
     "unknown_class_in_the_artifact.json":
         "spa_core/monitoring/unknown_class_in_the_artifact.py",
+    "reachability_of_the_rest.json":
+        "spa_core/monitoring/reachability_of_the_rest.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
     "keep_dominance_census.json":
@@ -3174,6 +3190,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.unknown_class_in_the_artifact import format_report as _ucia_report
         out.extend(_ucia_report(data))
+    elif name == "reachability_of_the_rest.json":
+        # Заказ G98 п. 2 (ADR-566). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.reachability_of_the_rest import format_report as _ror_report
+        out.extend(_ror_report(data))
     elif name == "book_oscillation_census.json":
         # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
         # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
