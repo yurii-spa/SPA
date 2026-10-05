@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-09-30
+acceptance_probe: series_denominator_measured
+status_trail:
+  - "2026-10-05T14:39:31.366980+00:00 new -> in-progress · queue.set_status · cycle-19528"
 ---
 
 ## Что случилось и почему это важно
