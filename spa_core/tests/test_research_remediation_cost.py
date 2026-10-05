@@ -380,7 +380,9 @@ def _ousg_mgmt_fact_never_expiring() -> list:
     return [{"fact_id": "fact-test-ousg-mgmt", "candidate_ids": [cid], "entity": "OUSG",
             "claim_type": "fee_management", "value": 0.0015, "ref": "https://docs.ondo.finance/test",
             "effective_from": "2026-10-04", "retrieved_at": "2026-10-04T00:00:00+00:00",
-            "expires_at": None, "reviewed_by": "test-fixture-independent-review"}]
+            "expires_at": None, "reviewed_by": "test-fixture-independent-review",
+            # tail of ADR-564: the waiver end is the fact's structured `effective_until` (was a rwa.py constant)
+            "effective_until": "2027-01-01T00:00:00+00:00"}]
 
 
 def test_ousg_management_fee_component_is_not_measured_on_or_after_the_waiver_end_date(monkeypatch):
@@ -400,17 +402,19 @@ def test_ousg_management_fee_component_is_not_measured_on_or_after_the_waiver_en
     mgmt_after = after["entry_fee_components"][0]
     assert mgmt_after["cell"]["state"] == c1.NOT_MEASURED
     assert mgmt_after["cell"]["value"] is None
-    assert "2027-01-01" in mgmt_after["cell"]["reason"]
+    assert "effective_until" in mgmt_after["cell"]["reason"]  # tail of ADR-564: ended by the fact's own field
 
     just_before_cutoff = on_cutoff - timedelta(seconds=1)
     still_before = rwa.paper_accounting_hints("OUSG", just_before_cutoff)
     assert still_before["entry_fee_components"][0]["cell"]["state"] == c1.DOCUMENTED
 
 
-def test_ousg_waiver_expired_helper_boundary(monkeypatch):
-    assert rwa._ousg_waiver_expired(datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)) is False
-    assert rwa._ousg_waiver_expired(datetime(2027, 1, 1, 0, 0, 0, tzinfo=timezone.utc)) is True
-    assert rwa._ousg_waiver_expired(datetime(2027, 1, 2, tzinfo=timezone.utc)) is True
-    # naive datetime (no tzinfo) must be treated as UTC, never raise.
-    assert rwa._ousg_waiver_expired(datetime(2027, 6, 1)) is True
-    assert rwa._ousg_waiver_expired(datetime(2020, 1, 1)) is False
+def test_fact_effective_until_boundary():
+    """Tail of ADR-564: the waiver-end boundary moved from rwa._ousg_waiver_expired (a literal) to the
+    loader's structured `effective_until` — ended on/after the instant, naive `now` treated as UTC."""
+    from spa_core.research_factory import registry_loader
+    fact = {"effective_until": "2027-01-01T00:00:00+00:00"}
+    assert registry_loader.has_ended(fact, datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)) is False
+    assert registry_loader.has_ended(fact, datetime(2027, 1, 1, 0, 0, 0, tzinfo=timezone.utc)) is True
+    assert registry_loader.has_ended(fact, datetime(2027, 6, 1)) is True
+    assert registry_loader.has_ended({}, datetime(2030, 1, 1, tzinfo=timezone.utc)) is False

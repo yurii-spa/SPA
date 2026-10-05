@@ -295,3 +295,39 @@ copy of post-deploy production data: 9/9 (tamper ⇒ BROKEN and exit 2; read mod
 index ignored; same-time restart appends nothing; concurrent run exit 75; admission gate cannot be skipped; stale
 read model revokes readiness and Oracle gains nothing; terminal candidates stay visible; decision reasons survive a
 restart). Fresh-session proof: 20/20 answered from files, 19 fully right, CIO gate list incomplete (fixed above).
+
+## Tail closed (2026-10-05) — card `inbox-hvost-adr-564-pyat-defektov-fabriki-issl`
+
+Acceptance probe `research_evidence_tail_closed` (`spa_core/monitoring/card_acceptance.py`) was declared on the card
+BEFORE the work and read `not_satisfied` on all six links; it reads `satisfied` now. Each link is a scene on real
+code, and its test (`spa_core/tests/test_research_evidence_tail_probe.py`) turns exactly that link red under a
+mutation. An independent review (CLOSE AFTER FIXES) and its re-review (CLOSE) shaped the final form.
+
+* **N4 — the period of the lapse day.** A pause voids every counted observation not yet confirmed by a completed
+  run — LEDGER ORDER (a later `run` row), never a timestamp, so a crashed run's period and a future-dated run row
+  are both handled — by an appended `observation_void` row. Promotion to EVIDENCE_ACCUMULATING and the CIO recheck
+  now run after Sherlock's review, never on a period the same run may void.
+* **Trust boundary.** `FACT_REVIEWERS` allow-list (a new reviewer is a visible contract change; a curator is never a
+  reviewer). OBSERVED is bound to the role: on-chain only when the chain is the origin, the claim fits the role
+  (`ROLE_OBSERVABLE_CLAIMS`) and the ref's method actually reads that claim (`ref_claim_type`); via an API only from
+  a registered origin of the role's own type (`ROLE_API_ORIGIN_PREFIXES`) independent of a KNOWN issuer group —
+  taken from the issuer's own `issuer:*` publications, no longer from whichever fact names the issuer role (BUIDL's
+  was the SEC). `legal_entity` has no own-API route: it is DOCUMENTED by an independent filing or it is not.
+* **URLs.** Paths must match `^[A-Za-z0-9._~/-]*$` with no `.`/`..` segment on every hop (refuses `..;/`, `%2e`,
+  `%252e`, `%2f`, `%5c`, fullwidth dots, NUL); no userinfo; explicit ports only from `HTTP_PORTS`.
+* **`effective_until`.** `FACT_OPTIONAL_FIELDS`: absent ⇒ not hashed (existing reviews stay bound), present ⇒ hashed,
+  null ⇒ absent; an ended fact is never "the present". The OUSG management-fee waiver end moved from a `rwa.py`
+  constant to fact-012 (re-curated, confirmed by an independent round-4 review).
+* **Contract-computed returns.** `protocol_state` is chain-native; `CONTRACT_COMPUTED_RETURN_MECHANISMS` (LENDING,
+  LOOPED_LENDING, STABLECOIN_SAVINGS — sUSDS/sDAI, whose rate the savings contract enforces) count a `chain:` return
+  read as an independent witness; a tokenised fund's posted NAV still does not.
+* Found on the way: `read.latest` fell back to the WALL CLOCK for "today" when a ledger had no run row (a date bomb
+  that went off at midnight) — now the ledger's newest entry; the RM-EXPAND-01 discovery scanner read the candidate
+  registry around its canonical reader — now through `read_candidate_registry` (unread ⇒ UNAVAILABLE), flagged PARTIAL
+  if its two reads disagree.
+
+**Still named, not fixed:** a completed run confirms a period even if Sherlock skipped this candidate (only a
+malformed snapshot is skipped); the reviewer allow-list authenticates names, not authors (visible in review);
+`return_claim_type` keys on the mechanism, not the method read. Result on production data unchanged: 73 candidates,
+PAPER_ACTIVE 0, CIO_ELIGIBLE 0, 30 of 43 facts usable.
+

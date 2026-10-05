@@ -20,6 +20,8 @@ stdlib only (``urllib``), no ``requests``. The real network call is behind an in
 """
 from __future__ import annotations
 
+import re
+
 import json
 import urllib.error
 import urllib.request
@@ -114,6 +116,19 @@ def _iso(now: datetime) -> str:
     return now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+#: tail of ADR-564 (re-review M3): the allow-list is a PATH PREFIX check, so any form a server may resolve
+#: to another resource — "/api/../x", "..;/", "%2e%2e", "%252e", "..%2f", "..%5c", fullwidth dots, NUL — must
+#: never reach it. The allowed API paths are plain ASCII, so the rule is a whitelist, not a blacklist of
+#: encodings: only unreserved characters and "/", and no "." or ".." segment. Applied on EVERY hop.
+_CANONICAL_PATH_RE = re.compile(r"^[A-Za-z0-9._~/-]*$")
+
+
+def _path_is_canonical(path: str) -> bool:
+    if not _CANONICAL_PATH_RE.match(path or ""):
+        return False
+    return not any(seg in (".", "..") for seg in path.split("/"))
+
+
 def fetch(url: str, *, method: str = "GET", body: Optional[bytes] = None,
           body_type: Optional[str] = None, headers: Optional[dict] = None,
           now: Optional[datetime] = None, transport: Optional[Transport] = None,
@@ -138,6 +153,13 @@ def fetch(url: str, *, method: str = "GET", body: Optional[bytes] = None,
         if parts.scheme not in ec.HTTP_SCHEMES:
             raise HttpRefused(f"refused: scheme {parts.scheme!r} not in HTTP_SCHEMES {ec.HTTP_SCHEMES!r} "
                               f"for {host}{path}")
+        # second re-review: the parsed host must be the ONLY host — no userinfo ("user@", "evil\\@host") — and
+        # the port the https default; a redirect hop already compared ports, the initial URL did not
+        if "@" in (parts.netloc or "") or (parts.port is not None and parts.port not in ec.HTTP_PORTS):
+            raise HttpRefused(f"refused: netloc {parts.netloc!r} carries userinfo or a non-default port")
+        if not _path_is_canonical(path):
+            raise HttpRefused(f"refused: path {path!r} is not canonical (only [A-Za-z0-9._~/-], no '.'/'..' "
+                              f"segments, nothing percent-encoded)")
         if current_method == "POST" and body_type == "hyperliquid_info":
             _check_hyperliquid_body(current_body)
         if not _match_allow(host, current_method, path, body_type):

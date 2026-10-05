@@ -2,8 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора"
-status: new
+status: done
 created: 2026-10-04
+acceptance_probe: research_evidence_tail_closed
+status_trail:
+  - "2026-10-05T00:37:19.525485+00:00 new -> in-progress · queue.set_status"
+  - "2026-10-05T01:19:31.164353+00:00 in-progress -> done · queue.set_status/closed_by:RM-EVIDENCE-01 tail session (Claude, 2026-10-05)/evidence:acceptance probe research_evidence_tail_closed = satisfied (declared before work, was not_satisfied on all six links); independent review CLOSE AFTER FIXES -> re-review CLOSE; ADR-564 section 'Tail cl"
 ---
 
 Хвост ADR-564 (RM-EVIDENCE-01): пять дефектов, названных независимым повторным разбором и не починенных

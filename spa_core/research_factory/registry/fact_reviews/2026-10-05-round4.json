@@ -1,0 +1,15 @@
+{
+ "schema": "fact-review/1",
+ "reviewer": "RM-EVIDENCE-01 independent fact review round 4 (Opus, separate session)",
+ "reviewed_at": "2026-10-05T00:43:30Z",
+ "facts": [
+  {
+   "fact_id": "fact-012-dfa69cfc7df7",
+   "fact_sha256": "0744c36459e8f468f6c75fc7e9f6f2369426f04118020ba73ef1024ca5ea9217",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL ref (HTTP 200) and ref.md on 2026-10-05; compared quote/value/effective_until to page text; checked origins.json issuer:ondo hosts; hash via evidence_contract.fact_content_sha256",
+   "evidence": "docs.ondo.finance OUSG Fees & Taxes: 'Ondo charges a management fee of 0.15%, which we have waived until January 1, 2027.' Host docs.ondo.finance is in issuer:ondo hosts.",
+   "issue": "Minor, non-blocking: page gives no timezone, so +00:00 is an assumed reading of 'until January 1, 2027' (= waiver ends at the start of that day). Page does not say 'per annum' for the management fee (only for fund expenses); 'ANNUAL' is the conventional reading. Quote is a paraphrase, not verbatim."
+  }
+ ]
+}

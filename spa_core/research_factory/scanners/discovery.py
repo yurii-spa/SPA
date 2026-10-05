@@ -31,6 +31,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from spa_core.adapter_sdk.candidate_registry import read_candidate_registry
 from spa_core.research_factory import contract, counterparty_registry
 from spa_core.research_factory.scanners._common import (empty_result, full_candidate, not_applicable,
                                                           not_measured, read_json)
@@ -101,15 +102,28 @@ def _existing_book_roots(data_dir: Path) -> list:
 def scan(data_dir, now: datetime, *, rpc_client=None) -> dict:
     data_dir = Path(data_dir)
     as_of = now.isoformat()
-    doc, err = read_json(data_dir / "candidate_registry.json")
+    # the candidates and their measurement honesty come through the ONE canonical reader
+    # (adapter_sdk.candidate_registry; test_candidate_registry_readers pins every module touching the
+    # registry): an unread registry is `measured=False` with its reason — UNAVAILABLE, never zero rows.
+    reg = read_candidate_registry(data_dir)
     existing_book_roots = _existing_book_roots(data_dir)
-    if not isinstance(doc, dict) or not isinstance(doc.get("candidates"), list):
-        res = empty_result(SCANNER_NAME, DOMAIN, as_of, "UNAVAILABLE", err or "candidate_registry.json "
-                           "has no 'candidates' list")
+    if not reg["measured"]:
+        res = empty_result(SCANNER_NAME, DOMAIN, as_of, "UNAVAILABLE", reg["reason"])
         res["existing_book_roots"] = existing_book_roots
         return res
 
-    rows = doc["candidates"]
+    rows = reg["items"]
+    # the same file's METADATA (generated_at / scanned_pools / gates) is not part of the canonical reader's
+    # answer; read it alone — a missing/odd document only makes those cells NOT_MEASURED below
+    doc, err = read_json(data_dir / "candidate_registry.json")
+    if not isinstance(doc, dict):
+        doc = {}
+    # re-review L9: two reads of one file — if the writer replaced it in between, the metadata describes
+    # different rows; say so (PARTIAL, metadata cells NOT_MEASURED) instead of mixing two versions
+    if isinstance(doc.get("candidates"), list) and \
+            [c for c in doc["candidates"] if isinstance(c, dict)] != rows:
+        err = "candidate_registry.json changed between the canonical read and the metadata read"
+        doc = {}
     scanned = doc.get("scanned_pools")
     gates = doc.get("gates") if isinstance(doc.get("gates"), dict) else {}
     max_candidates = gates.get("max_candidates")

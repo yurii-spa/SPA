@@ -110,22 +110,10 @@ UNIT_ANNUAL = "fraction_apy"
 UNIT_ONE_OFF = "fraction_one_off"
 UNIT_OF_YIELD = "fraction_of_yield"
 
-#: M5 (post-implementation review, 2026-10-04): the OUSG management-fee waiver's END DATE
-#: ("waived until January 1, 2027") is cited only as free text inside the curated fact's own
-#: ``quote`` field — the registry schema carries no structured waiver-end field at all, so this
-#: literal is the one honest thing the scanner can act on. Once ``now`` reaches it, continuing to
-#: report the fee as a DOCUMENTED 0 would silently extend a waiver past the one date the citation
-#: ever named — exactly the missing-as-zero shape invariant #17 forbids. NOT_MEASURED from this
-#: date onward, never a guess about what the fee becomes.
-OUSG_MGMT_FEE_WAIVER_END = "2027-01-01T00:00:00+00:00"
-
-
-def _ousg_waiver_expired(now: datetime) -> bool:
-    end = contract.parse_ts(OUSG_MGMT_FEE_WAIVER_END)
-    if end is None:
-        return False
-    now_aware = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
-    return now_aware >= end
+#: tail of ADR-564: the OUSG management-fee waiver's end date is now a STRUCTURED field of the curated
+#: fact (`effective_until`, evidence_contract.FACT_OPTIONAL_FIELDS) — registry_loader.facts_for drops the
+#: fact on/after it, so the cited 0 is never reported past the date the citation names. (Was a literal
+#: constant here, because the fact schema had no such field.)
 
 
 def _phase0_fee_cell(symbol: str, now: datetime) -> dict:
@@ -175,7 +163,8 @@ def _phase0_fee_cell(symbol: str, now: datetime) -> dict:
             return contract.cell(
                 contract.NOT_MEASURED,
                 reason=f"OUSG: management fee {mgmt['value']} (ANNUAL, cited {fact_as_of}) is WAIVED until "
-                      f"2027-01-01 — currently-charged management fee is 0 — BUT total fund expenses are "
+                      f"{mgmt.get('effective_until') or '(no end date recorded)'} — currently-charged "
+                      f"management fee is 0 — BUT total fund expenses are "
                       f"only capped at <= {expenses['value']} annually with no cited actual run-rate "
                       "(fee_expenses_cap fact); the TOTAL annual cost is NOT_MEASURED, never the "
                       "management-fee-only 0")
@@ -282,25 +271,18 @@ def paper_accounting_hints(symbol: str, now: datetime) -> "dict | None":
         # correctly blocks a HOLDABLE net, per paper.py's own discipline). FEE_COMPONENT_KINDS has
         # no "expenses" kind, so both use "management" — two components under one kind is a valid
         # shape (a list, not a dict keyed by kind).
-        # M5 (post-implementation review, 2026-10-04): the waiver END DATE is not machine-readable
-        # anywhere in the fact (free text in its quote only, see OUSG_MGMT_FEE_WAIVER_END above) —
-        # once `now` reaches it, the cited 0 can no longer be assumed and this component must say
-        # NOT_MEASURED instead of silently continuing to report a waiver the citation never
-        # actually claimed past that date.
+        # tail of ADR-564: the waiver end is the fact's own `effective_until`; facts_for drops an ended fact.
         if mgmt is None:
-            mgmt_cell = not_measured("OUSG: management-fee fact not found")
-        elif _ousg_waiver_expired(now):
-            mgmt_cell = not_measured(
-                f"OUSG: management fee waiver end (2027-01-01, cited only in the fact's quote text, never a "
-                f"structured field) is not machine-readable — now ({now.isoformat()}) is on/after that date, "
-                "so the cited 0 can no longer be assumed")
+            mgmt_cell = not_measured("OUSG: management-fee fact not usable (absent, unreviewed, stale, or its "
+                                     "waiver has ended — effective_until reached)")
         else:
             mgmt_cell = contract.cell(contract.DOCUMENTED, 0.0, unit=UNIT_ANNUAL, source_ref=mgmt["ref"],
                                       source_class=contract.ISSUER_CLAIM, source_root="doc:ousg_fees",
                                       as_of=mgmt.get("effective_from") or mgmt.get("retrieved_at"),
                                       recorded_at=now.isoformat(), now=now,
-                                      method=f"management fee {mgmt['value']} (ANNUAL) WAIVED until 2027-01-01 "
-                                             "(cited) — currently-charged management fee is 0")
+                                      method=f"management fee {mgmt['value']} (ANNUAL) WAIVED until "
+                                             f"{mgmt.get('effective_until') or '(no end date recorded)'} (cited) — "
+                                             "currently-charged management fee is 0")
         expenses_cell = (not_measured(
             f"OUSG: fund expenses capped at <= {expenses['value']} annually (cited {expenses.get('effective_from')}) "
             "but the actual run-rate is not separately published — COST UNKNOWN, never folded into the "

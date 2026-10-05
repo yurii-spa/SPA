@@ -284,6 +284,10 @@ class TestNoMuteReaderCanAppear(unittest.TestCase):
             "spa_core/monitoring/card_acceptance.py",       # проба по исходу; читает `candidates_measured`
             "scripts/update_system_briefing.py",            # читатель 4: секция брифинга через канон
             "spa_core/paper_trading/cycle_runner.py",       # объявляет продукт в PRODUCES; не читает
+            # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; журнал W40, раздел «RM-EVIDENCE-01 — хвост ADR-564», 05.10): сканер Research Factory
+            # (ADR-560) читал реестр напрямую; теперь кандидаты и `measured` — через канон
+            # `read_candidate_registry` (не прочитан ⇒ UNAVAILABLE, не ноль), файл — только за метаданными.
+            "spa_core/research_factory/scanners/discovery.py",  # читатель 5: через канон, спрашивает measured
         }
         self.assertEqual(
             touching, expected,

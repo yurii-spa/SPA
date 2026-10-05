@@ -196,8 +196,14 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
     last_run = _last_run_row(ledger)
     # M5: generated_at is the last RUN's own recorded moment, never the wall clock — a status
     # read hours after the last run must still say WHEN the data is from, not "just now".
-    generated_at = (last_run.get("payload") or {}).get("generated_at") or last_run.get("at") \
-        if last_run else iso(datetime.now(timezone.utc))
+    if last_run:
+        generated_at = (last_run.get("payload") or {}).get("generated_at") or last_run.get("at")
+    else:
+        # tail of ADR-564 (found when the calendar turned 04.10 → 05.10): with no run row the reader fell
+        # back to the WALL CLOCK, so "today's decisions" emptied at midnight. The ledger's own newest entry
+        # is the moment the data is from; the wall clock is used only for an empty ledger.
+        entries = ledger.read_all()
+        generated_at = (entries[-1].get("at") if entries else None) or iso(datetime.now(timezone.utc))
     # M5 leftover: every OTHER freshness judgement below (stale_feeds, basis_track) is also
     # judged against the RUN's own time, never the wall clock at read time.
     run_now = contract.parse_ts(generated_at) or datetime.now(timezone.utc)

@@ -41,7 +41,7 @@ def _fact(**overrides) -> dict:
            "role": None, "claim_type": "fee", "value": 1.0, "origin": "issuer:acme",
            "channel": ec.CHANNEL_OFFICIAL_API, "ref": "https://acme.example/page", "quote": None,
            "retrieved_at": NOW.isoformat(), "effective_from": None, "page_sha256": None,
-           "fact_sha256": None, "curated_by": "session-a", "reviewed_by": "session-b",
+           "fact_sha256": None, "curated_by": "session-a", "reviewed_by": v2fx.REVIEWER,
            "supersedes": None, "expires_at": None, "subject_to_change": False}
     base.update(overrides)
     return base
@@ -96,7 +96,7 @@ def test_forged_eth_call_ref_on_official_doc_channel_is_refused(tmp_path):
         channel=ec.CHANNEL_OFFICIAL_DOC, claim_type="custodian", origin="regulator:sec",
         quote="Some custodian, surely", role="custodian",
     ))
-    v2fx.write_fact_review(tmp_path, "session-b", [(forged["fact_id"], forged["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(forged["fact_id"], forged["fact_sha256"])])
     p = tmp_path / "forged.jsonl"
     p.write_text(json.dumps(forged) + "\n")
     origins = {"regulator:sec": {"group": "sec"}}  # no 'hosts' at all -- would fail even as a URL
@@ -125,7 +125,7 @@ def test_chain_native_ref_with_non_chain_native_claim_type_is_refused_even_on_on
     assert "fee" not in ec.CHAIN_NATIVE_CLAIMS
     bad = v2fx.stamped_fact(_fact(ref="chain:1:0xabc:something", channel=ec.CHANNEL_ON_CHAIN,
                                   claim_type="fee"))
-    v2fx.write_fact_review(tmp_path, "session-b", [(bad["fact_id"], bad["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(bad["fact_id"], bad["fact_sha256"])])
     p = tmp_path / "bad_claim_type.jsonl"
     p.write_text(json.dumps(bad) + "\n")
     refused = []
@@ -144,7 +144,7 @@ def test_reviewed_fact_edited_after_stamping_is_refused(tmp_path):
     keeps it reviewed" looks like on disk. The fixed loader must catch this; a reviewer confirming
     content X must never vouch for a row now saying Y."""
     original_row = v2fx.stamped_fact(_fact(fact_id="editable", value=1.0))
-    v2fx.write_fact_review(tmp_path, "session-b", [(original_row["fact_id"], original_row["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(original_row["fact_id"], original_row["fact_sha256"])])
 
     edited_row = dict(original_row, value=999.0)  # content changed; fact_sha256 left stale on purpose
     assert edited_row["fact_sha256"] == original_row["fact_sha256"]
@@ -174,7 +174,8 @@ def test_reviewed_fact_edited_after_stamping_is_refused(tmp_path):
 def test_reviewed_by_naming_a_reviewer_with_no_committed_record_is_refused(tmp_path):
     """A ``reviewed_by`` string naming a reviewer who never actually produced a committed record
     for this fact — the base case of self-certification: a name is not a review."""
-    row = v2fx.stamped_fact(_fact(fact_id="nobody-reviewed-this", reviewed_by="a-reviewer-with-no-file"))
+    # tail of ADR-564: a REGISTERED reviewer with no record (an unregistered one is refused earlier, by the allow-list)
+    row = v2fx.stamped_fact(_fact(fact_id="nobody-reviewed-this", reviewed_by=ec.FACT_REVIEWERS[1]))
     # deliberately: no write_fact_review call at all for this reviewer/fact_id
     p = tmp_path / "no_record.jsonl"
     p.write_text(json.dumps(row) + "\n")
@@ -202,7 +203,7 @@ def test_review_record_that_rejected_the_fact_leaves_it_unusable(tmp_path):
     REJECTED (or UNVERIFIABLE) — not CONFIRMED. A rejected fact must stay unusable even though a
     record genuinely exists and genuinely matches the content."""
     row = v2fx.stamped_fact(_fact(fact_id="rejected-fact"))
-    v2fx.write_fact_review(tmp_path, "session-b",
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER,
                           [{"fact_id": row["fact_id"], "fact_sha256": row["fact_sha256"], "verdict": "REJECTED",
                             "issue": "quote overstates the cited page"}])
     p = tmp_path / "rejected.jsonl"
@@ -218,7 +219,7 @@ def test_correct_record_at_matching_hash_and_verdict_confirmed_makes_the_fact_us
     """The positive case: content is stamped with its own real hash, a committed record names
     exactly this reviewer/fact_id/hash with verdict CONFIRMED, origin host matches. Usable."""
     row = v2fx.stamped_fact(_fact(fact_id="legit-fact"))
-    v2fx.write_fact_review(tmp_path, "session-b", [(row["fact_id"], row["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(row["fact_id"], row["fact_sha256"])])
     p = tmp_path / "legit.jsonl"
     p.write_text(json.dumps(row) + "\n")
     rows = registry_loader.load_facts(p, origins={"issuer:acme": {"group": "g", "hosts": ["acme.example"]}})

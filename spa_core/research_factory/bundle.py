@@ -217,8 +217,12 @@ def build_bundle(candidate: dict, *, profile: dict, v2_evidence: dict, facts: li
     # own gate (MIN_GROUPS_CIO["return"]=2) would then wrongly PASS on an issuer-only return claim — the
     # exact circularity ADR-564 review #2 exists to catch. Scoped to return evidence only now.
     primary_origin = v2_evidence.get("return_primary_origin")
-    return_citation_origins = ([{"origin": primary_origin}] if primary_origin else []) + \
-        [{"origin": cc.get("origin")} for cc in v2_evidence.get("return_cross_checks") or [] if cc.get("origin")]
+    # tail of ADR-564: a `chain:` return reading is a witness only where the contract computes the return
+    return_citation_origins = ([{"origin": primary_origin,
+                                 "claim_type": ec.return_claim_type(primary_origin, mechanism_id)}]
+                               if primary_origin else []) + \
+        [{"origin": cc.get("origin"), "claim_type": ec.return_claim_type(cc.get("origin"), mechanism_id)}
+         for cc in v2_evidence.get("return_cross_checks") or [] if cc.get("origin")]
     origin_groups_list = sorted(set(ec.origin_groups(return_citation_origins, registry)))
 
     source_roots = sorted({r.get("source_root") for r in (candidate.get("source_refs") or [])

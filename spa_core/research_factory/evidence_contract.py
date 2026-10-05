@@ -49,7 +49,56 @@ CHANNELS = (CHANNEL_ON_CHAIN, CHANNEL_OFFICIAL_API, CHANNEL_OFFICIAL_DOC, CHANNE
             CHANNEL_AGGREGATOR, CHANNEL_MODEL)
 #: ``chain:`` may be an ORIGIN only for chain-native facts; a value an issuer POSTS on-chain has the issuer as
 #: origin and on_chain as channel (review #11)
-CHAIN_NATIVE_CLAIMS = ("bytecode", "token_identity", "supply", "balance", "event")
+CHAIN_NATIVE_CLAIMS = ("bytecode", "token_identity", "supply", "balance", "event", "protocol_state")
+#: tail of ADR-564 (card inbox-hvost-adr-564): `protocol_state` = a value the contract COMPUTES from its own
+#: state (a lending index, a savings-rate accumulator) — chain-native, unlike a value a party POSTS to an oracle.
+#: It counts as an independent RETURN witness ONLY for these mechanisms, whose return the contract computes:
+CONTRACT_COMPUTED_RETURN_MECHANISMS = ("LENDING", "LOOPED_LENDING", "STABLECOIN_SAVINGS")
+#: the chain-native claims that can make a given ROLE "OBSERVED" — a citation must bind the role it is offered
+#: for (a bytecode read proves a contract exists, not who holds the assets). Roles absent here cannot be
+#: observed on-chain at all (OBSERVED for them needs the counterparty's own API).
+ROLE_OBSERVABLE_CLAIMS = {
+    "issuer": ("token_identity", "bytecode", "supply"),
+    "custodian": ("balance",),
+    "borrower": ("balance", "event"),
+    "redemption_agent": ("event",),
+    "oracle_provider": ("bytecode", "event"),
+    "bridge": ("bytecode", "event", "balance"),
+}
+#: second re-review (M4 residual): the API route to OBSERVED is the counterparty's OWN API — its origin must be
+#: of that role's TYPE. Roles absent here (issuer, legal_entity, borrower, oracle_provider) have no own-API route.
+ROLE_API_ORIGIN_PREFIXES = {
+    "exchange": ("venue:",),
+    "market_maker": ("venue:", "agent:"),
+    "custodian": ("custodian:",),
+    "redemption_agent": ("agent:",),
+    "bridge": ("agent:",),
+}
+#: second re-review (M4a): the claim an on-chain ref ACTUALLY reads, from its method segment
+#: (`chain:<id>:<address>:<method>` / `eth_call:<id>:<address>:<m1()/m2()>[:block:<n>]`). A declared claim_type
+#: that disagrees with the method read is refused; an unrecognised method cannot back an OBSERVED role.
+METHOD_CLAIMS = {
+    "balanceof": "balance", "balance": "balance",
+    "getcode": "bytecode", "bytecode": "bytecode",
+    "totalsupply": "supply", "supply": "supply",
+    "name": "token_identity", "symbol": "token_identity", "decimals": "token_identity",
+    "token_identity": "token_identity",
+    "event": "event", "getlogs": "event", "logs": "event",
+    "protocol_state": "protocol_state",
+}
+
+
+def ref_claim_type(ref: Optional[str]) -> Optional[str]:
+    """The single claim an on-chain ref reads, or None (not a recognised on-chain ref, or methods of
+    different claims mixed in one ref)."""
+    if not ref or not ref.startswith(("chain:", "eth_call:")):
+        return None
+    parts = ref.split(":")
+    if len(parts) < 4:
+        return None
+    methods = [m.strip().lower().replace("()", "") for m in parts[3].split("/") if m.strip()]
+    claims = {METHOD_CLAIMS.get(m) for m in methods}
+    return claims.pop() if len(claims) == 1 and None not in claims else None
 #: git-tracked origin registry: canonical id → {"group": affiliation group, "affiliated_with": [...],
 #: "appointed_by": origin|None, "note"}; independence is computed over GROUPS (e.g. issuer:hashnote and
 #: issuer:circle share group circle; an administrator appointed by the issuer is NOT independent of it)
@@ -104,6 +153,15 @@ def origin_group(origin: Optional[str], registry: dict, claim_type: Optional[str
         if isinstance(a, dict) and a.get("group"):
             return a["group"]
     return entry["group"]
+
+
+def return_claim_type(origin: Optional[str], mechanism_id: Optional[str]) -> Optional[str]:
+    """The claim type a RETURN reading carries for independence counting: `protocol_state` when it is read
+    off a chain for a mechanism whose return the contract itself computes (CONTRACT_COMPUTED_RETURN_MECHANISMS),
+    otherwise None — so a `chain:` read of a POSTED value (an oracle NAV) still counts as no group."""
+    if origin and origin.startswith("chain:") and mechanism_id in CONTRACT_COMPUTED_RETURN_MECHANISMS:
+        return "protocol_state"
+    return None
 
 
 def origin_groups(citations: list, registry: dict) -> list:
@@ -183,13 +241,21 @@ def role_entry(state: str, *, identity: Optional[str] = None, citations: Optiona
         ok = False
         for ct in cits:
             o, ch = str(ct.get("origin", "")), ct.get("channel")
-            if ch == CHANNEL_ON_CHAIN and ct.get("claim_type") in CHAIN_NATIVE_CLAIMS:
+            # tail of ADR-564 (re-review M4): an on-chain binding counts only when the CHAIN is the origin (an
+            # issuer posting a value on-chain is the issuer speaking) and the claim fits the role; the
+            # counterparty's own API counts only from a REGISTERED origin, against a KNOWN issuer group it
+            # differs from — an unregistered name, or no issuer group to compare with, fails closed.
+            if ch == CHANNEL_ON_CHAIN and o.startswith("chain:") \
+                    and ct.get("claim_type") in ROLE_OBSERVABLE_CLAIMS.get(role or "", ()) \
+                    and ref_claim_type(ct.get("ref")) == ct.get("claim_type"):
                 ok = True
-            if ch == CHANNEL_OFFICIAL_API and (issuer_group is None or _group(o) != issuer_group):
+            g = _group(o)
+            if ch == CHANNEL_OFFICIAL_API and g is not None and issuer_group is not None and g != issuer_group \
+                    and o.startswith(ROLE_API_ORIGIN_PREFIXES.get(role or "", ())):
                 ok = True
         if not ok:
-            raise ValueError("OBSERVED needs an on-chain binding or the counterparty's own API (an issuer API caps "
-                             "at IDENTIFIED)")
+            raise ValueError("OBSERVED needs an on-chain binding OF THIS ROLE (ROLE_OBSERVABLE_CLAIMS) or the "
+                             "counterparty's own API (an issuer API caps at IDENTIFIED)")
     attrs = dict(attributes or {})
     bad = set(attrs) - set(ROLE_ATTRIBUTES)
     if bad:
@@ -419,7 +485,8 @@ HTTP_ALLOW = (
     ("yields.llama.fi", "GET", "/", None),          # aggregator channel ONLY (grade WEAK at best)
 )
 HYPERLIQUID_INFO_TYPES = ("metaAndAssetCtxs", "fundingHistory", "l2Book")
-HTTP_SCHEMES = ("https",)               # review H1: plain http to an allowed host is refused
+HTTP_SCHEMES = ("https",)
+HTTP_PORTS = (443,)                     # tail of ADR-564: an explicit port must be one of these               # review H1: plain http to an allowed host is refused
 HTTP_MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 HTTP_TIMEOUT_S = 15
 
@@ -457,6 +524,19 @@ FACT_REQUIRES_INDEPENDENT_REVIEW = True
 #: only when (1) fact_sha256 equals that recomputed hash AND (2) a committed review record by `reviewed_by`
 #: CONFIRMED exactly that fact_id at exactly that fact_sha256. Records: registry/fact_reviews/*.json.
 FACT_HASH_EXCLUDED_FIELDS = ("fact_sha256", "reviewed_by")
+#: optional fact fields (tail of ADR-564): absent ⇒ absent from the content hash, so adding one to the contract
+#: never unbinds an existing review; present ⇒ hashed like any other field. `effective_until` = when the stated
+#: claim itself ends (a fee waiver's end date) — the fact is unusable on/after it, distinct from `expires_at`
+#: (when WE must re-verify it).
+FACT_OPTIONAL_FIELDS = ("effective_until",)
+#: the only identities whose review records the loader accepts. A new reviewer is a code change to this
+#: contract (visible, tested), never a free string in a data file; curators may not appear here.
+FACT_REVIEWERS = (
+    "RM-EVIDENCE-01 independent fact review (Opus, separate session)",
+    "RM-EVIDENCE-01 independent fact review round 2 (Opus, separate session)",
+    "RM-EVIDENCE-01 independent fact review round 3 (Opus, separate session)",
+    "RM-EVIDENCE-01 independent fact review round 4 (Opus, separate session)",
+)
 SCHEMA_FACT_REVIEW = "fact-review/1"
 FACT_REVIEW_FIELDS = ("schema", "reviewer", "reviewed_at", "facts")
 FACT_REVIEW_ENTRY_FIELDS = ("fact_id", "fact_sha256", "verdict", "method", "evidence", "issue")

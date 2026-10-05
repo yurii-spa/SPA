@@ -195,6 +195,15 @@ def _check_independent_review(line_no: int, row: dict, reviews: list) -> None:
         raise FactUnusable(line_no, fact_id,
                            f"reviewed_by {reviewed_by!r} equals curated_by {curated_by!r} — "
                            f"needs a DIFFERENT session's review, not the curator's own say-so")
+    if reviewed_by not in ec.FACT_REVIEWERS:
+        # tail of ADR-564: a review record can be committed under ANY name; only the contract's own
+        # reviewer list is accepted, so a new reviewer is a visible, tested contract change
+        raise FactUnusable(line_no, fact_id,
+                           f"reviewed_by {reviewed_by!r} is not in evidence_contract.FACT_REVIEWERS")
+    if curated_by in ec.FACT_REVIEWERS:
+        raise FactUnusable(line_no, fact_id,
+                           f"curated_by {curated_by!r} is a registered reviewer — a curator never reviews")
+
     content_hash = ec.fact_content_sha256(row)
     if row.get("fact_sha256") != content_hash:
         raise FactUnusable(line_no, fact_id,
@@ -312,6 +321,11 @@ def _parse_fact_line(line_no: int, raw_line: str) -> Optional[dict]:
         raise FactRegistryError(line_no, "effective_from, when present, must be a parseable ISO-8601 timestamp")
     if row.get("expires_at") is not None and c1.parse_ts(row["expires_at"]) is None:
         raise FactRegistryError(line_no, "expires_at, when present, must be a parseable ISO-8601 timestamp")
+    if row.get("effective_until") is not None and c1.parse_ts(row["effective_until"]) is None:
+        raise FactRegistryError(line_no, "effective_until, when present, must be a parseable ISO-8601 timestamp")
+    unknown = set(row) - set(ec.FACT_FIELDS) - set(ec.FACT_OPTIONAL_FIELDS)
+    if unknown:
+        raise FactRegistryError(line_no, f"unknown fact field(s) {sorted(unknown)}")
     if not isinstance(row.get("origin"), str) or not row["origin"]:
         raise FactRegistryError(line_no, "origin must name the producing party")
     return row
@@ -370,6 +384,16 @@ def is_stale(fact: dict, now: datetime) -> bool:
     return now_aware > expiry
 
 
+def has_ended(fact: dict, now: datetime) -> bool:
+    """The stated claim itself has ended (``effective_until`` on/before ``now``) — e.g. a fee waiver.
+    Unlike ``is_stale`` this is not "please re-verify": the fact no longer describes the present."""
+    until = c1.parse_ts(fact.get("effective_until"))
+    if until is None:
+        return False
+    now_aware = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+    return now_aware >= until
+
+
 def facts_for(facts: list, candidate_id: str, *, now: Optional[datetime] = None,
               include_stale: bool = False) -> list:
     """Facts naming ``candidate_id``, newest ``retrieved_at`` first. Stale facts are excluded
@@ -377,6 +401,8 @@ def facts_for(facts: list, candidate_id: str, *, now: Optional[datetime] = None,
     it, asks for that explicitly) — excluding requires ``now`` (no ``now`` ⇒ staleness is simply
     not judged, never guessed)."""
     out = [f for f in facts if candidate_id in (f.get("candidate_ids") or [])]
+    if now is not None:
+        out = [f for f in out if not has_ended(f, now)]  # an ended claim is never "the present", stale or not
     if not include_stale and now is not None:
         out = [f for f in out if not is_stale(f, now)]
     out.sort(key=lambda f: f.get("retrieved_at") or "", reverse=True)

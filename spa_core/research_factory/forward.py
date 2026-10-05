@@ -40,12 +40,45 @@ def _observation_rows(ledger, candidate_id: str) -> list:
     return out
 
 
+def _voided_periods(ledger, candidate_id: str) -> set:
+    return {(e.get("payload") or {}).get("period") for e in ledger.read_all()
+            if e.get("kind") == "observation_void" and (e.get("payload") or {}).get("candidate_id") == candidate_id}
+
+
 def counted_rows(data_dir: Path, candidate_id: str) -> list:
     ledger = ledger_for(data_dir)
     admission_id = lifecycle.active_admission_id(data_dir, candidate_id)
     rows = _observation_rows(ledger, candidate_id)
+    voided = _voided_periods(ledger, candidate_id)
     return [r for r in rows if (r.get("payload") or {}).get("counted")
-           and (r.get("payload") or {}).get("admission_id") == admission_id]
+           and (r.get("payload") or {}).get("admission_id") == admission_id
+           and (r.get("payload") or {}).get("period") not in voided]
+
+
+def void_unconfirmed_periods(data_dir: Path, candidate_id: str, now: datetime, reason: str) -> list:
+    """Tail of ADR-564 (N4; re-review M1): a run records a paper candidate's observation BEFORE Sherlock
+    reviews it, so the period recorded in the run in which the evidence lapses was judged while the candidate
+    was still active. When Sherlock pauses it, every counted period NOT YET CONFIRMED by a completed run — any
+    observation recorded after the last ``run`` row, including one left by a run that crashed between
+    recording and review — is voided by an APPENDED ``observation_void`` row (the observation itself is kept,
+    never rewritten). Returns the voided periods."""
+    ledger = ledger_for(data_dir)
+    # second re-review: confirmation is LEDGER ORDER, not time — a run row written AFTER the observation
+    # (a higher seq). A future-dated run row (a replay, `--now` in the future, clock skew) must never
+    # pre-confirm every later observation.
+    last_run_seq = max((e["seq"] for e in ledger.read_all() if e.get("kind") == "run"), default=None)
+    at = iso(now)
+    out = []
+    for e in _observation_rows(ledger, candidate_id):
+        payload = e.get("payload") or {}
+        unconfirmed = last_run_seq is None or e["seq"] > last_run_seq
+        if payload.get("counted") and unconfirmed:
+            period = payload.get("period")
+            ledger.append_idempotent("observation_void", ["observation_void", candidate_id, period],
+                                     {"candidate_id": candidate_id, "period": period, "reason": reason,
+                                      "observation_seq": e.get("seq")}, at)
+            out.append(period)
+    return out
 
 
 def forward_periods(data_dir: Path, candidate_id: str) -> int:

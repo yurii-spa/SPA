@@ -62,10 +62,11 @@ def freshness_verdict(family: str, last_change_at: Optional[datetime], now: date
     return ec.STALE if age_h > rule["max_age_h"] else ec.ADEQUATE
 
 
-def _group_of(origin: Optional[str], registry: dict) -> Optional[str]:
+def _group_of(origin: Optional[str], registry: dict, mechanism_id: Optional[str] = None) -> Optional[str]:
     if not origin:
         return None
-    groups = ec.origin_groups([{"origin": origin}], registry)
+    groups = ec.origin_groups([{"origin": origin, "claim_type": ec.return_claim_type(origin, mechanism_id)}],
+                              registry)
     return groups[0] if groups else None
 
 
@@ -126,7 +127,7 @@ def grade_return(candidate: dict, mechanism_id: str, v2_evidence: dict, now: dat
         return ec.WEAK  # aggregator-only — never ADEQUATE for RETURN
 
     primary_origin = v2_evidence.get("return_primary_origin")
-    primary_group = _group_of(primary_origin, registry)
+    primary_group = _group_of(primary_origin, registry, mechanism_id)
     cross = v2_evidence.get("return_cross_checks") or []
     # post-implementation review H5 (2026-10-04): a cross-check origin that is ITSELF ungrouped
     # (missing, an aggregator/model relay, or simply unregistered — ec.origin_group's own fail-
@@ -140,7 +141,7 @@ def grade_return(candidate: dict, mechanism_id: str, v2_evidence: dict, now: dat
         # included, would otherwise read as "different" and upgrade RETURN to STRONG
         return ec.ADEQUATE
     independent = [cc for cc in cross
-                  if (g := _group_of(cc.get("origin"), registry)) is not None and g != primary_group]
+                  if (g := _group_of(cc.get("origin"), registry, mechanism_id)) is not None and g != primary_group]
     if not independent:
         return ec.ADEQUATE
 

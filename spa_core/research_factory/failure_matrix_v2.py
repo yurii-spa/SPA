@@ -616,9 +616,28 @@ def _all_strong_profile(mechanism_id: str) -> dict:
         if role not in required:
             out[role] = ec.role_entry(ec.CP_NOT_APPLICABLE, role=role, reason="not required by this mechanism")
             continue
-        cit = ec.citation(origin="chain:1", channel=ec.CHANNEL_ON_CHAIN, ref="chain:1:0x00:bytecode",
-                          retrieved_at="2026-01-01T00:00:00Z", claim_type="bytecode")
-        out[role] = ec.role_entry(ec.CP_OBSERVED, role=role, identity="FM2 Co", citations=[cit])
+        # tail of ADR-564 (second re-review): OBSERVED is bound to the ROLE — on-chain via a chain-native read
+        # whose ref method matches the claim, or via the counterparty's OWN API (origin of the role's type);
+        # a role with neither route (legal_entity, …) is DOCUMENTED by an independent regulatory filing
+        claims = ec.ROLE_OBSERVABLE_CLAIMS.get(role)
+        api_prefixes = ec.ROLE_API_ORIGIN_PREFIXES.get(role)
+        if claims:
+            cit = ec.citation(origin="chain:1", channel=ec.CHANNEL_ON_CHAIN, ref=f"chain:1:0x00:{claims[0]}",
+                              retrieved_at="2026-01-01T00:00:00Z", claim_type=claims[0])
+            state = ec.CP_OBSERVED
+        elif api_prefixes:
+            own = {"venue:": "venue:fm2", "agent:": "agent:fm2", "custodian:": "custodian:fm2"}[api_prefixes[0]]
+            cit = ec.citation(origin=own, channel=ec.CHANNEL_OFFICIAL_API,
+                              ref="https://counterparty.example/api", retrieved_at="2026-01-01T00:00:00Z",
+                              quote=f"{role} identity from its own API")
+            state = ec.CP_OBSERVED
+        else:
+            cit = ec.citation(origin="regulator:fm2", channel=ec.CHANNEL_REGULATORY_FILING,
+                              ref="https://filings.example/doc", retrieved_at="2026-01-01T00:00:00Z",
+                              quote=f"FM2 Co is the {role}")
+            state = ec.CP_DOCUMENTED
+        out[role] = ec.role_entry(state, role=role, identity="FM2 Co", citations=[cit],
+                                  registry={"chain:1": {"group": "onchain"}, "venue:fm2": {"group": "venue_fm2"}, "custodian:fm2": {"group": "custodian_fm2"}, "agent:fm2": {"group": "agent_fm2"}, "regulator:fm2": {"group": "regulator_fm2"}}, issuer_group="issuer_fm2")
     return out
 
 

@@ -647,7 +647,10 @@ def test_facts_jsonl_every_row_matches_fact_fields_exactly():
     assert len(facts) > 0
     expected = set(evidence_contract.FACT_FIELDS)
     for row in facts:
-        assert set(row.keys()) == expected, f"{row.get('fact_id')}: {set(row.keys()) ^ expected}"
+        # tail of ADR-564: every REQUIRED field exactly, plus only the contract's OPTIONAL fields (effective_until)
+        extra = set(row.keys()) - expected
+        assert expected <= set(row.keys()) and extra <= set(evidence_contract.FACT_OPTIONAL_FIELDS), \
+            f"{row.get('fact_id')}: missing={expected - set(row.keys())} extra={extra}"
         assert row["schema"] == evidence_contract.SCHEMA_FACT.replace("1", "1") or row["schema"] == "curated-fact/1"
 
 
@@ -664,7 +667,9 @@ def test_facts_jsonl_fact_ids_are_unique():
 
 
 _CURATORS = ("RM-EVIDENCE-01 Phase-0 audit",
-             "RM-EVIDENCE-01 remediation re-curation (coordinator session, 2026-10-04)")
+             "RM-EVIDENCE-01 remediation re-curation (coordinator session, 2026-10-04)",
+             # tail of ADR-564: fact-012 gained a structured effective_until (re-curated, re-reviewed round 4)
+             "RM-EVIDENCE-01 tail curation (coordinator session, 2026-10-05)")
 
 
 def _fact_reviews() -> dict:

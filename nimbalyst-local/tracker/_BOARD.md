@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-04T22:40:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-05T01:19:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (03dc9ad8d) · статусов дочитано оттуда: **9** (копия в дереве — прежняя версия того же файла) · ещё **1** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ.
+> Сверено с `origin/main` (93cfbffe1) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1190** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1192** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -352,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (645)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (647)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -484,6 +484,7 @@
 - Храповик неподключённых скриптов считает проводкой ГРУЗ ПУША в .sh — скрипт числится вызванным потому, что однажды уехал на origin  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit-3.md` · 2026-08-25
 - Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Храповик «отсутствие наблюдения» краснеет на СДВИГЕ строк и зовёт это новым местом класса  ·  `inbox-hrapovik-otsutstvie-nablyudeniya-krasnee.md` · 2026-08-24
+- Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
 - Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
@@ -536,6 +537,7 @@
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
 - Находка петли: data/cio_outcome_independence.json: активный артефакт отсутствует на д  ·  `inbox-nahodka-petli-data-cio-outcome-independe.md` · 2026-09-08
 - Находка петли: data/heir_all_rows_price.json: возраст 13.2ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-heir-all-rows-price-j.md` · 2026-10-03
+- Находка петли: data/investment_cio/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-investment-cio-latest.md` · 2026-10-04
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
 - Находка петли: data/investment_os/chief_investment.json: возраст 19.1ч > SLO 1ч (клас  ·  `inbox-nahodka-petli-data-investment-os-chief-i.md` · 2026-08-22
 - Находка петли: data/investment_os/_health.json: последний ресит старше SLO 14ч — потр  ·  `inbox-nahodka-petli-data-investment-os-health.md` · 2026-08-12
@@ -847,7 +849,6 @@
 - Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md` · 2026-09-28
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
-- Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
 - Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
@@ -865,6 +866,7 @@
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
+- Находка петли: data/capital_shadow/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-capital-shadow-latest.md` · 2026-10-04
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20

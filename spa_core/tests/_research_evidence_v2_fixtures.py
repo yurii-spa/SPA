@@ -37,11 +37,20 @@ def _iso(now: datetime) -> str:
 #: registry entry or ``source_independence_sufficient`` (and anything else reading
 #: ``independent_root_count``) honestly fails — which is correct, but defeats the point of an
 #: "all-STRONG" fixture for tests whose subject is lifecycle/forward/eligibility, not grading.
+#: tail of ADR-564: the loader accepts review records only from evidence_contract.FACT_REVIEWERS — fixtures
+#: that stamp a fact as reviewed use a registered reviewer, never a free string.
+REVIEWER = ec.FACT_REVIEWERS[0]
+
 DEFAULT_REGISTRY = {
     "chain:1": {"group": "onchain_test"},
     "issuer:test": {"group": "issuer_test"},
     "issuer:other": {"group": "issuer_other"},
     "auditor:test": {"group": "auditor_test"},
+    # tail of ADR-564 (re-review M4): API-route OBSERVED needs a REGISTERED origin, independent of a KNOWN issuer
+    "venue:test": {"group": "venue_test"},
+    "agent:test": {"group": "agent_test"},
+    "custodian:test": {"group": "custodian_test"},
+    "regulator:test": {"group": "regulator_test"},
 }
 
 
@@ -52,9 +61,28 @@ def all_strong_profile(mechanism_id: str) -> dict:
         if role not in required:
             out[role] = ec.role_entry(ec.CP_NOT_APPLICABLE, role=role, reason="not required by this mechanism")
             continue
-        cit = ec.citation(origin="chain:1", channel=ec.CHANNEL_ON_CHAIN, ref="chain:1:0x00:bytecode",
-                          retrieved_at="2026-01-01T00:00:00Z", claim_type="bytecode")
-        out[role] = ec.role_entry(ec.CP_OBSERVED, role=role, identity="Test Co", citations=[cit])
+        # tail of ADR-564 (second re-review): OBSERVED is bound to the ROLE — on-chain via a chain-native read
+        # whose ref method matches the claim, or via the counterparty's OWN API (origin of the role's type);
+        # a role with neither route (legal_entity, …) is DOCUMENTED by an independent regulatory filing
+        claims = ec.ROLE_OBSERVABLE_CLAIMS.get(role)
+        api_prefixes = ec.ROLE_API_ORIGIN_PREFIXES.get(role)
+        if claims:
+            cit = ec.citation(origin="chain:1", channel=ec.CHANNEL_ON_CHAIN, ref=f"chain:1:0x00:{claims[0]}",
+                              retrieved_at="2026-01-01T00:00:00Z", claim_type=claims[0])
+            state = ec.CP_OBSERVED
+        elif api_prefixes:
+            own = {"venue:": "venue:test", "agent:": "agent:test", "custodian:": "custodian:test"}[api_prefixes[0]]
+            cit = ec.citation(origin=own, channel=ec.CHANNEL_OFFICIAL_API,
+                              ref="https://counterparty.example/api", retrieved_at="2026-01-01T00:00:00Z",
+                              quote=f"{role} identity from its own API")
+            state = ec.CP_OBSERVED
+        else:
+            cit = ec.citation(origin="regulator:test", channel=ec.CHANNEL_REGULATORY_FILING,
+                              ref="https://filings.example/doc", retrieved_at="2026-01-01T00:00:00Z",
+                              quote=f"Test Co is the {role}")
+            state = ec.CP_DOCUMENTED
+        out[role] = ec.role_entry(state, role=role, identity="Test Co", citations=[cit],
+                                  registry=DEFAULT_REGISTRY, issuer_group="issuer_test")
     return out
 
 

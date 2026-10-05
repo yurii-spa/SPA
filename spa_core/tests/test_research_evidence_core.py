@@ -303,10 +303,27 @@ def test_chain_origin_counts_only_for_a_chain_native_claim():
     base = {"return_family": "rate", "return_last_change_at": NOW.isoformat()}
     # an issuer primary cross-checked only by a chain read of a posted value: not STRONG
     v2 = dict(base, return_primary_origin="issuer:hashnote", return_cross_checks=[{"origin": "chain:1", "value": 0.05}])
-    assert grades.grade_return(candidate, "STABLECOIN_SAVINGS", v2, NOW, registry=reg) == ec.ADEQUATE
+    # (tail of ADR-564: the posted-value case is a tokenised fund — STABLECOIN_SAVINGS/LENDING returns are
+    # COMPUTED by their contract and count as `protocol_state`, see the test below)
+    assert grades.grade_return(candidate, "TOKENISED_TREASURY", v2, NOW, registry=reg) == ec.ADEQUATE
     # an ungrouped (chain:) primary cross-checked by the poster's own API: not STRONG either
     v2b = dict(base, return_primary_origin="chain:1", return_cross_checks=[{"origin": "issuer:hashnote", "value": 0.05}])
-    assert grades.grade_return(candidate, "STABLECOIN_SAVINGS", v2b, NOW, registry=reg) == ec.ADEQUATE
+    assert grades.grade_return(candidate, "TOKENISED_TREASURY", v2b, NOW, registry=reg) == ec.ADEQUATE
+
+
+def test_contract_computed_return_is_an_independent_chain_witness():
+    """Tail of ADR-564 (consequence of H5): a lending index / savings-rate accumulator is COMPUTED by the
+    contract — the chain witnesses it, so for CONTRACT_COMPUTED_RETURN_MECHANISMS a `chain:` primary plus
+    the protocol's own API is two groups (STRONG); the same pair for a tokenised fund (a POSTED NAV) is not."""
+    reg = {"chain:1": {"group": "onchain_ethereum"}, "issuer:proto": {"group": "proto"}}
+    candidate = make_candidate(base_return=_v1cell(c1.MEASURED, 0.05, source_class=c1.PRIMARY_CHAIN))
+    v2 = {"return_family": "rate", "return_last_change_at": NOW.isoformat(), "return_primary_origin": "chain:1",
+          "return_cross_checks": [{"origin": "issuer:proto", "value": 0.05}]}
+    for mech in ec.CONTRACT_COMPUTED_RETURN_MECHANISMS:
+        assert grades.grade_return(candidate, mech, v2, NOW, registry=reg) == ec.STRONG, mech
+    assert grades.grade_return(candidate, "TOKENISED_TREASURY", v2, NOW, registry=reg) == ec.ADEQUATE
+    assert ec.return_claim_type("chain:1", "LENDING") == "protocol_state"
+    assert ec.return_claim_type("issuer:proto", "LENDING") is None
 
 
 def test_mutation_check_unregistered_origin_does_not_silently_count(monkeypatch):
@@ -1171,6 +1188,7 @@ def test_http_client_real_urlopen_does_not_auto_follow_a_redirect_off_list(monke
         monkeypatch.setattr(ec, "HTTP_ALLOW",
                             ec.HTTP_ALLOW + (("127.0.0.1", "GET", "/redirect-off-list", None),))
         monkeypatch.setattr(ec, "HTTP_SCHEMES", ("http", "https"))  # this local server has no TLS
+        monkeypatch.setattr(ec, "HTTP_PORTS", ec.HTTP_PORTS + (port,))  # tail of ADR-564: its ephemeral port
         with pytest.raises(http_client.HttpRefused, match="redirect left the allow-listed host"):
             http_client.fetch(f"http://127.0.0.1:{port}/redirect-off-list", now=NOW)  # no transport= override
     finally:
@@ -1201,6 +1219,7 @@ def test_mutation_check_real_urlopen_redirect_bug_is_real(monkeypatch):
         monkeypatch.setattr(ec, "HTTP_ALLOW",
                             ec.HTTP_ALLOW + (("127.0.0.1", "GET", "/redirect-off-list", None),))
         monkeypatch.setattr(ec, "HTTP_SCHEMES", ("http", "https"))
+        monkeypatch.setattr(ec, "HTTP_PORTS", ec.HTTP_PORTS + (port,))  # tail of ADR-564: its ephemeral port
         with pytest.raises(Exception) as exc_info:
             http_client.fetch(f"http://127.0.0.1:{port}/redirect-off-list", now=NOW)
         assert not isinstance(exc_info.value, http_client.HttpRefused)  # the old bug, reproduced
@@ -1405,8 +1424,8 @@ def test_registry_loader_fact_requires_independent_review(tmp_path):
     p3 = tmp_path / "real_review.jsonl"
     # H6 re-review (2026-10-04): reviewed_by alone no longer suffices -- the fact needs its own
     # real content hash AND a committed review record naming it at that hash, CONFIRMED.
-    fact3 = v2fx.stamped_fact(_fact(reviewed_by="session-b"))  # genuinely different
-    v2fx.write_fact_review(tmp_path, "session-b", [(fact3["fact_id"], fact3["fact_sha256"])])
+    fact3 = v2fx.stamped_fact(_fact(reviewed_by=v2fx.REVIEWER))  # genuinely different
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(fact3["fact_id"], fact3["fact_sha256"])])
     p3.write_text(json.dumps(fact3) + "\n")
     rows3 = registry_loader.load_facts(p3, origins=origins)
     assert len(rows3) == 1
@@ -1422,7 +1441,7 @@ def test_registry_loader_fact_requires_matching_origin_host(tmp_path):
                "role": None, "claim_type": "fee", "value": 1.0, "origin": "issuer:acme",
                "channel": ec.CHANNEL_OFFICIAL_API, "ref": "https://acme.example/page", "quote": None,
                "retrieved_at": NOW.isoformat(), "effective_from": None, "page_sha256": None,
-               "fact_sha256": None, "curated_by": "session-a", "reviewed_by": "session-b",
+               "fact_sha256": None, "curated_by": "session-a", "reviewed_by": v2fx.REVIEWER,
                "supersedes": None, "expires_at": None, "subject_to_change": False}
         base.update(overrides)
         return base
@@ -1437,7 +1456,7 @@ def test_registry_loader_fact_requires_matching_origin_host(tmp_path):
     # chain-shaped ref on any claim_type -- "bytecode" matches both the ref and the claim.
     chain_fact = v2fx.stamped_fact(_fact(ref="chain:1:0xabc:bytecode", channel=ec.CHANNEL_ON_CHAIN,
                                          claim_type="bytecode"))
-    v2fx.write_fact_review(tmp_path, "session-b", [
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [
         (no_hosts_fact["fact_id"], no_hosts_fact["fact_sha256"]),
         (wrong_host_fact["fact_id"], wrong_host_fact["fact_sha256"]),
         (right_host_fact["fact_id"], right_host_fact["fact_sha256"]),
@@ -1479,7 +1498,7 @@ def test_registry_loader_refuses_free_text_and_plain_http_refs(tmp_path):
                 "role": None, "claim_type": "fee", "value": 1.0, "origin": "issuer:acme",
                 "channel": ec.CHANNEL_OFFICIAL_API, "ref": "https://acme.example/page", "quote": None,
                 "retrieved_at": NOW.isoformat(), "effective_from": None, "page_sha256": None,
-                "fact_sha256": None, "curated_by": "session-a", "reviewed_by": "session-b",
+                "fact_sha256": None, "curated_by": "session-a", "reviewed_by": v2fx.REVIEWER,
                 "supersedes": None, "expires_at": None, "subject_to_change": False}
         base.update(overrides)
         return base
@@ -1495,7 +1514,7 @@ def test_registry_loader_refuses_free_text_and_plain_http_refs(tmp_path):
     # for a chain-native, no-host ref (channel on_chain + claim_type in CHAIN_NATIVE_CLAIMS).
     eth_fact = v2fx.stamped_fact(_fact(ref="eth_call:1:0xabc:name():block:1", channel=ec.CHANNEL_ON_CHAIN,
                                        claim_type="token_identity"))
-    v2fx.write_fact_review(tmp_path, "session-b",
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER,
                           [(f["fact_id"], f["fact_sha256"]) for f in bad_facts.values()] +
                           [(eth_fact["fact_id"], eth_fact["fact_sha256"])])
     for bad_ref, needle in (("evil.example (press release)", "neither an https URL"),
@@ -1517,10 +1536,10 @@ def test_registry_loader_unusable_fact_does_not_block_other_facts_in_the_same_fi
            "claim_type": "fee", "value": 1.0, "origin": "issuer:acme", "channel": ec.CHANNEL_OFFICIAL_API,
            "ref": "https://acme.example", "quote": None, "retrieved_at": NOW.isoformat(),
            "effective_from": None, "page_sha256": None, "fact_sha256": None, "curated_by": "session-a",
-           "reviewed_by": "session-b", "supersedes": None, "expires_at": None, "subject_to_change": False}
+           "reviewed_by": v2fx.REVIEWER, "supersedes": None, "expires_at": None, "subject_to_change": False}
     good = v2fx.stamped_fact(good)  # H6 re-review: needs its own real content hash
     unreviewed = dict(good, fact_id="f2", reviewed_by=None)
-    v2fx.write_fact_review(tmp_path, "session-b", [(good["fact_id"], good["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(good["fact_id"], good["fact_sha256"])])
     p = tmp_path / "mixed.jsonl"
     p.write_text(json.dumps(unreviewed) + "\n" + json.dumps(good) + "\n")
     refused = []
@@ -1538,11 +1557,11 @@ def test_mutation_check_origin_host_leak_is_the_guard(tmp_path):
           "claim_type": "fee", "value": 1.0, "origin": "issuer:acme", "channel": ec.CHANNEL_OFFICIAL_API,
           "ref": "https://evil.example/page", "quote": None, "retrieved_at": NOW.isoformat(),
           "effective_from": None, "page_sha256": None, "fact_sha256": None, "curated_by": "session-a",
-          "reviewed_by": "session-b", "supersedes": None, "expires_at": None, "subject_to_change": False}
+          "reviewed_by": v2fx.REVIEWER, "supersedes": None, "expires_at": None, "subject_to_change": False}
     # H6 re-review: give `bad` a real content hash + a matching committed record, so this test
     # isolates the _check_origin_hosts mutation it is actually about (not the review-binding check).
     bad = v2fx.stamped_fact(bad)
-    v2fx.write_fact_review(tmp_path, "session-b", [(bad["fact_id"], bad["fact_sha256"])])
+    v2fx.write_fact_review(tmp_path, v2fx.REVIEWER, [(bad["fact_id"], bad["fact_sha256"])])
 
     def _no_host_check(line_no, row, origins):
         return None

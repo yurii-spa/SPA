@@ -574,13 +574,17 @@ def _build_profile_for(candidate: dict, facts: list, origins: dict, now: datetim
     v1_profile_source = candidate.get("counterparty")
     if not isinstance(v1_profile_source, dict):
         v1_profile_source = {}
-    issuer_fact = next((f for f in facts if f.get("role") == "issuer"), None)
+    # tail of ADR-564 (re-review M4): the issuer's group is the group of the issuer's OWN publications
+    # (origins `issuer:*`), never the origin of whichever fact names the issuer ROLE — for BUIDL that is an
+    # SEC filing, and the regulator then posed as "the issuer". No issuer publication ⇒ None, and
+    # evidence_contract.role_entry then refuses API-based OBSERVED (independence cannot be judged).
     issuer_group = None
-    if issuer_fact is not None:
-        origin_id = issuer_fact.get("origin")
-        origin_entry = origins.get(origin_id) if origin_id else None
-        if isinstance(origin_entry, dict):
-            issuer_group = origin_entry.get("group")
+    for f in facts:
+        origin_id = f.get("origin") or ""
+        if origin_id.startswith("issuer:"):
+            issuer_group = ec.origin_group(origin_id, origins)
+            if issuer_group:
+                break
 
     v1_based_profile = profile_mod.migrate_profile_from_v1(v1_profile_source, mechanism_id, now=now,
                                                            issuer_group=issuer_group, registry=origins)
@@ -765,6 +769,9 @@ def _route_sherlock_outcome(data_dir: Path, cid: str, candidate: dict, frm_state
         lifecycle.transition(data_dir, cid, contract.PAUSED_PAPER,
                             reason=f"Sherlock decision={outcome['decision']} on an admitted candidate: "
                                   + "; ".join(outcome["rationale"]), now=now)
+        # tail of ADR-564 (N4): this run's observation was recorded before this review — it does not count
+        forward.void_unconfirmed_periods(data_dir, cid, now,
+                                         f"evidence lapsed in this run (decision={outcome['decision']})")
         return
 
     target = _ideal_hold_target(outcome, bundle)
@@ -1010,8 +1017,17 @@ def _process_candidate(data_dir: Path, cid: str, all_candidates: dict, existing_
                   "observed_return": contract.cell(contract.NOT_MEASURED,
                                                     reason="no observation from any scanner this run")}
         forward.record(data_dir, cid, obs, now)
-        state = lifecycle.current_state(data_dir, cid)  # forward.record may have moved it to STALE
 
+
+def _promote_after_review(data_dir: Path, cid: str, all_candidates: dict, existing_book_roots: list,
+                          now: datetime) -> None:
+    """Re-review M1 (tail of ADR-564): promotion PAPER_ACTIVE → EVIDENCE_ACCUMULATING and the CIO eligibility
+    recheck run AFTER Sherlock's review, never on a period the same run's review may void — before, a lapsed
+    run's period promoted the candidate and the pause then left EVIDENCE_ACCUMULATING with 0 periods."""
+    candidate = all_candidates.get(cid)
+    if candidate is None:
+        return
+    state = lifecycle.current_state(data_dir, cid)
     if state == contract.PAPER_ACTIVE and forward.forward_periods(data_dir, cid) >= 1:
         admission_id = lifecycle.active_admission_id(data_dir, cid)
         lifecycle.transition(data_dir, cid, contract.EVIDENCE_ACCUMULATING, gate_ref=admission_id,
@@ -1204,6 +1220,8 @@ def run_once(data_dir: Path, now: datetime, *, rpc_client=None, http_client_=Non
 
         _sherlock_review_all(data_dir, all_candidates, existing_book_roots, origins, facts_all,
                             v2_overrides, now)
+        for cid in list(all_candidates):
+            _promote_after_review(data_dir, cid, all_candidates, existing_book_roots, now)
         _mark_open_positions(data_dir, v2_overrides, origins, now)
 
         run_payload = {

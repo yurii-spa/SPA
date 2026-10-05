@@ -4205,6 +4205,167 @@ def _probe_carried_release_is_one_condition(
                          f"освобождён, обещанный отклонён ({why[:60]}…), тавтологичный отклонён")
 
 
+def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-hvost-adr-564-…`: пять дефектов фабрики исследований, названных
+    повторным разбором ADR-564, закрыты — по ИСХОДУ, на настоящем коде, в одноразовом каталоге.
+
+    Шесть сцен, каждая — своё звено (имя звена в вердикте):
+    1. `lapse_period` (N4): допущенный кандидат с засчитанным наблюдением ЭТОГО прогона, затем
+       настоящий `run._route_sherlock_outcome` с не-ADMIT в тот же момент ⇒ период этого прогона
+       НЕ засчитан (`forward.forward_periods` не вырос);
+    2. `reviewer_allow_list`: запись проверки от имени, которого нет в
+       `evidence_contract.FACT_REVIEWERS`, с ВЕРНЫМ хэшем ⇒ факт непригоден;
+    3. `observed_role_binding`: OBSERVED для `custodian` по цитате `bytecode` ⇒ отказ; по `balance` ⇒ принят;
+    4. `initial_url_normalised`: `https://usyc.hashnote.com/api/../admin` ⇒ отказ ДО обращения к транспорту;
+    5. `effective_until`: факт с `effective_until` в прошлом относительно `now` ⇒ не годен на `now`;
+       у факта без поля хэш содержимого не зависит от появления поля в контракте;
+    6. `contract_computed_return`: ставка LENDING из `chain:` + перекрёстная проверка API протокола ⇒ STRONG;
+       та же пара у TOKENISED_TREASURY ⇒ не STRONG.
+
+    Время — вход (`now`); живое `data/` и сеть не трогаются."""
+    import json as _json
+    import shutil
+    import tempfile
+    from datetime import timedelta
+    from pathlib import Path as _Path
+
+    t0 = now or datetime.now(timezone.utc)
+    broken: list[str] = []
+    root = tempfile.mkdtemp(prefix="spa_evidence_tail_probe_")
+    try:
+        from spa_core.research_factory import (contract as c1, evidence_contract as ec, forward,
+                                               grades, http_client, lifecycle, registry_loader)
+        from spa_core.research_factory import failure_matrix_v2 as fm2
+        from spa_core.research_factory import run as rf_run
+        from spa_core.research_factory import bundle as bundle_mod
+
+        # 1. lapse_period
+        tmp = _Path(root) / "lapse"
+        tmp.mkdir()
+        cand = fm2._base_candidate()
+        cid = cand["candidate_id"]
+        fm2._admit_to_paper_active_v2(tmp, cand, t0)
+        # a period confirmed by a COMPLETED run (a run row after it) — must survive the pause below
+        t_conf = t0 + timedelta(minutes=30)
+        forward.record(tmp, cid, {"period": "p0", "backfill": False, "realised_index": None,
+                                  "observed_return": c1.cell(c1.MEASURED, 0.05, source_ref="probe",
+                                                             source_class=c1.PRIMARY_PROTOCOL,
+                                                             source_root="chain:1", as_of=t_conf.isoformat(),
+                                                             now=t_conf)}, t_conf)
+        from spa_core.research_factory._common import iso as _iso, ledger_for as _ledger_for
+        _ledger_for(tmp).append_idempotent("run", ["run", _iso(t_conf)], {"generated_at": _iso(t_conf)},
+                                           _iso(t_conf))
+        t1 = t0 + timedelta(hours=1)
+        forward.record(tmp, cid, {"period": "p1", "backfill": False, "realised_index": None,
+                                  "observed_return": c1.cell(c1.MEASURED, 0.05, source_ref="probe",
+                                                             source_class=c1.PRIMARY_PROTOCOL,
+                                                             source_root="chain:1", as_of=t1.isoformat(),
+                                                             now=t1)}, t1)
+        before = forward.forward_periods(tmp, cid)
+        b = bundle_mod.latest_bundle(tmp, cid)
+        # the review happens at a LATER moment than the recording (re-review M1: a run that crashed between
+        # recording and review is re-run later) — the unconfirmed period must still be voided
+        t2 = t0 + timedelta(hours=2)
+        rf_run._route_sherlock_outcome(tmp, cid, cand, lifecycle.current_state(tmp, cid), b, b,
+                                       {"decision": ec.NEEDS_MORE_EVIDENCE, "rationale": ["probe: evidence lapsed"],
+                                        "failed_gates": ["fees_measured"], "unknowns": []}, False, t2)
+        after = forward.forward_periods(tmp, cid)
+        if not (before >= 2 and after == before - 1):
+            broken.append(f"lapse_period(before={before}, after={after})")
+
+        # 2. reviewer_allow_list
+        reg = _Path(root) / "reg"
+        (reg / "fact_reviews").mkdir(parents=True)
+        fact = {"schema": ec.SCHEMA_FACT, "fact_id": "f1", "entity": "X", "candidate_ids": ["c1"], "role": None,
+                "claim_type": "fee", "value": 1.0, "origin": "issuer:acme", "channel": ec.CHANNEL_OFFICIAL_API,
+                "ref": "https://acme.example/page", "quote": None, "retrieved_at": t0.isoformat(),
+                "effective_from": None, "page_sha256": None, "fact_sha256": None, "curated_by": "curator-a",
+                "reviewed_by": "probe-unlisted-reviewer", "supersedes": None, "expires_at": None,
+                "subject_to_change": False}
+        fact["fact_sha256"] = ec.fact_content_sha256(fact)
+        (reg / "facts.jsonl").write_text(_json.dumps(fact) + "\n")
+        (reg / "fact_reviews" / "r.json").write_text(_json.dumps({
+            "schema": ec.SCHEMA_FACT_REVIEW, "reviewer": "probe-unlisted-reviewer", "reviewed_at": t0.isoformat(),
+            "facts": [{"fact_id": "f1", "fact_sha256": fact["fact_sha256"], "verdict": "CONFIRMED",
+                       "method": "probe", "evidence": "probe", "issue": None}]}))
+        usable = registry_loader.load_facts(reg / "facts.jsonl",
+                                            origins={"issuer:acme": {"group": "g", "hosts": ["acme.example"]}})
+        if usable:
+            broken.append("reviewer_allow_list(unlisted reviewer accepted)")
+
+        # 3. observed_role_binding
+        def _obs(claim):
+            cit = ec.citation(origin="chain:1", channel=ec.CHANNEL_ON_CHAIN, ref=f"chain:1:0x00:{claim}",
+                              retrieved_at=t0.isoformat(), claim_type=claim)
+            return ec.role_entry(ec.CP_OBSERVED, role="custodian", identity="Probe Custody", citations=[cit],
+                                 registry={"chain:1": {"group": "onchain"}})
+        try:
+            _obs("bytecode")
+            broken.append("observed_role_binding(bytecode made a custodian OBSERVED)")
+        except ValueError:
+            pass
+        try:
+            _obs("balance")
+        except ValueError as exc:
+            broken.append(f"observed_role_binding(balance refused: {str(exc)[:60]})")
+        try:  # re-review M4: an issuer POSTING on-chain is the issuer speaking, never a chain observation
+            ec.role_entry(ec.CP_OBSERVED, role="custodian", identity="Probe Custody", citations=[
+                ec.citation(origin="issuer:probe", channel=ec.CHANNEL_ON_CHAIN, ref="chain:1:0x00:probe",
+                            retrieved_at=t0.isoformat(), claim_type="balance")],
+                registry={"issuer:probe": {"group": "probe_issuer"}})
+            broken.append("observed_role_binding(issuer on-chain posting made a custodian OBSERVED)")
+        except ValueError:
+            pass
+
+        # 4. initial_url_normalised
+        calls = []
+
+        def _transport(request, timeout_s):
+            calls.append(request)
+            raise OSError("probe transport — never a real socket")
+        try:
+            http_client.fetch("https://usyc.hashnote.com/api/../admin", now=t0, transport=_transport)
+            broken.append("initial_url_normalised(fetch returned)")
+        except http_client.HttpRefused:
+            if calls:
+                broken.append("initial_url_normalised(transport reached before refusal)")
+        except Exception as exc:  # noqa: BLE001 — anything but a refusal BEFORE the transport is a broken link
+            broken.append(f"initial_url_normalised({type(exc).__name__}, transport_calls={len(calls)})")
+
+        # 5. effective_until
+        # re-review M2: recompute the hash INDEPENDENTLY over the required fields only — a fact without the
+        # optional field must hash exactly as it did before the field existed in the contract
+        import hashlib as _hashlib
+        body = {k: fact[k] for k in ec.FACT_FIELDS if k not in ec.FACT_HASH_EXCLUDED_FIELDS}
+        independent = _hashlib.sha256(_json.dumps(body, sort_keys=True, separators=(",", ":"),
+                                                  ensure_ascii=False).encode("utf-8")).hexdigest()
+        ended = dict(fact, effective_until=(t0 - timedelta(days=1)).isoformat())
+        if ec.fact_content_sha256(fact) != independent:
+            broken.append("effective_until(hash of a fact without the field changed)")
+        if registry_loader.facts_for([ended], "c1", now=t0):
+            broken.append("effective_until(ended fact still usable)")
+
+        # 6. contract_computed_return
+        greg = {"chain:1": {"group": "onchain"}, "issuer:proto": {"group": "proto"}}
+        v2 = {"return_family": "rate", "return_last_change_at": t0.isoformat(), "return_primary_origin": "chain:1",
+              "return_cross_checks": [{"origin": "issuer:proto", "value": 0.05}]}
+        cand_rate = {"base_return": c1.cell(c1.MEASURED, 0.05, source_ref="probe", source_class=c1.PRIMARY_CHAIN,
+                                             source_root="chain:1", as_of=t0.isoformat(), now=t0)}
+        lend = grades.grade_return(cand_rate, "LENDING", v2, t0, registry=greg)
+        tsy = grades.grade_return(cand_rate, "TOKENISED_TREASURY", v2, t0, registry=greg)
+        if lend != ec.STRONG or tsy == ec.STRONG:
+            broken.append(f"contract_computed_return(LENDING={lend}, TOKENISED_TREASURY={tsy})")
+    except Exception as exc:  # noqa: BLE001 — a scene that cannot even run is NOT MEASURED, named
+        return UNMEASURED, f"сцена не исполнилась: {type(exc).__name__}: {str(exc)[:160]}"
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+    if broken:
+        return NOT_SATISFIED, "разорваны звенья: " + "; ".join(broken)
+    return SATISFIED, ("хвост ADR-564 закрыт: период дня истечения не засчитан; непрописанный проверяющий "
+                       "отвергнут; OBSERVED связан с ролью; начальный URL нормализуется; effective_until "
+                       "действует; вычисленная контрактом ставка независима")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -4254,6 +4415,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "g17_subject_state_is_measured": _probe_g17_subject_state_is_measured,
     "subject_taking_leaves_a_guard_receipt":
         _probe_subject_taking_leaves_a_guard_receipt,
+    "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
 }
 
 
