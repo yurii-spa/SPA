@@ -4411,6 +4411,136 @@ def _probe_curated_facts_usable(arg: str | None, *, facts_path: "str | None" = N
     return SATISFIED, f"годны все {len(wanted)} названных фактов (проверены независимо, привязаны к содержимому)"
 
 
+# ── проба: знаменатель ряда G78…G98 ИЗМЕРЕН и доехал до читателя ─────────────
+def measure_series_denominator(root=None, artifact=None) -> dict:
+    """Поправка к знаменателю ряда: ЖИВОЙ замер против того, что видит читатель.
+
+    Возврат: ``{"measured": bool, "reason": str, "live": {...},
+    "shelf": {...} | None}``. ``measured=False`` — замер не состоялся; это НЕ
+    «поправки нет» и не «поправка применена».
+
+    **Два вопроса, и ни один не отвечает за другого.** Первый — посчитан ли
+    знаменатель НАСТОЯЩИМ прогоном по дереву, которое стои́т сейчас (артефакт
+    мог быть написан кодом, которого в дереве уже нет). Второй — доехало ли
+    число до ЧИТАТЕЛЯ: шаг 0-офис читает артефакт, и число, не попавшее в
+    него, не прочитает никто (ровно форма ADR-208).
+
+    ``root``/``artifact`` существуют ради КОНТРОЛЯ: обе двери к живому дереву
+    обязаны закрываться, иначе тест судил бы о рабочей копии, а не о стенде.
+    """
+    try:
+        from spa_core.monitoring import rule_second_copy_census as rsc
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False,
+                "reason": (f"перепись не импортируется: "
+                           f"{type(exc).__name__}: {exc}")}
+    base = _pathlib.Path(root) if root is not None else _pathlib.Path(REPO_ROOT)
+    shelf_path = (_pathlib.Path(artifact) if artifact is not None
+                  else base / "data" / rsc.ARTIFACT)
+    try:
+        neighbour = rsc.open_class_counter_census(base)
+        live = rsc.sequence_members_of_the_whole_population(base, neighbour)
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False,
+                "reason": (f"живой замер не состоялся: "
+                           f"{type(exc).__name__}: {exc}")}
+    if str(live.get("status")) != "MEASURED":
+        return {"measured": False,
+                "reason": (f"живой замер отказал "
+                           f"[{live.get('unmeasured_class')}]: "
+                           f"{live.get('reason')}")}
+    shelf = None
+    if shelf_path.exists():
+        try:
+            doc = json.loads(shelf_path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            return {"measured": False,
+                    "reason": (f"артефакт {shelf_path.name} не разобран: "
+                               f"{type(exc).__name__}: {exc}")}
+        shelf = observed(doc, "sequence_members_of_the_whole_population",
+                         kind=dict)
+        if shelf is None:
+            shelf = {}
+    return {"measured": True, "reason": "", "live": live, "shelf": shelf,
+            "artifact": str(shelf_path)}
+
+
+def _probe_series_denominator_measured(arg: str | None) -> tuple[str, str]:
+    """Критерий карточки: перепись ПЕЧАТАЕТ поправку к знаменателю, и число
+    ИЗМЕРЕНО, а не оценено (заказ G99 п. 1, ADR-568).
+
+    Меряет ИСХОД, а не структуру, и ровно двумя половинами — каждая рвётся
+    отдельно:
+
+    1. **живой прогон по дереву, которое стои́т сейчас** даёт `MEASURED`,
+       население сходится с соседним ЧИСЛОМ и с его КООРДИНАТАМИ, а головная
+       клетка не содержит счётчиков самого прибора (иначе число молча зависело
+       бы от того, доставлен прибор или нет — ADR-566);
+    2. **число доехало до читателя**: шаг есть в артефакте, который читает
+       шаг 0-офис, и население в артефакте то же, что в живом прогоне.
+       Артефакт старее кода — это НЕ выполненный критерий: читатель держит
+       вчерашнее число, и «поправка измерена» о нём неправда.
+
+    Аргумента у пробы НЕТ намеренно: поправка — о ВСЁМ населении, и пофайловой
+    формы у неё не существует. Переданный аргумент отвергается вслух.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий — о ВСЁМ населении ряда, пофайловой "
+                            "формы у него нет")
+    got = measure_series_denominator()
+    if not got.get("measured"):
+        return UNMEASURED, got.get("reason", "причина не названа")
+    live = got["live"]
+    if not live.get("coordinates_agree_with_the_neighbour"):
+        return NOT_SATISFIED, ("координаты населения разошлись с соседними — "
+                              "знаменатель считается не по тому населению")
+    own = live.get("own_sites") or {}
+    if own.get("in_the_false_cell"):
+        return NOT_SATISFIED, (
+            f"в ГОЛОВНОЙ клетке стои́т {own['in_the_false_cell']} счётчик(ов) "
+            f"самого прибора ({own.get('producer')}) — головное число зависит "
+            f"от того, доставлен прибор или нет (ADR-566)")
+    least, most = live.get("correction_at_least"), live.get("correction_at_most")
+    if not isinstance(least, int) or not isinstance(most, int) or least > most:
+        return NOT_SATISFIED, (
+            f"поправка объявлена промежутком {least}…{most} — границы не "
+            "числа или нижняя больше верхней, и такой промежуток ничего не "
+            "ограничивает")
+    shelf = got.get("shelf")
+    if shelf is None:
+        return NOT_SATISFIED, (
+            f"артефакта {got.get('artifact')} нет — число посчитано и до "
+            "читателя не доехало (шаг 0-офис читает артефакт, а не функцию)")
+    if not shelf:
+        return NOT_SATISFIED, (
+            "в артефакте шага нет вовсе: число посчитано живым прогоном и до "
+            "читателя не доехало — ровно форма ADR-208")
+    if str(shelf.get("status")) != "MEASURED":
+        return NOT_SATISFIED, (
+            f"в артефакте шаг стои́т со статусом {shelf.get('status')!r} "
+            f"[{shelf.get('unmeasured_class')}] — читатель видит отказ, а не "
+            f"поправку")
+    if shelf.get("population") != live.get("population"):
+        return NOT_SATISFIED, (
+            f"читатель держит население {shelf.get('population')}, живой "
+            f"прогон даёт {live.get('population')} — артефакт старее кода, и "
+            f"«поправка измерена» о нём неправда")
+    # Имена причин берутся у ПРОИЗВОДИТЕЛЯ: вторая копия имени разошлась бы с
+    # оригиналом молча — ровно тот предмет, который перепись и ищет.
+    from spa_core.monitoring import rule_second_copy_census as rsc
+    causes = live.get("false_members_by_cause") or {}
+    return SATISFIED, (
+        f"население {live['population']} → знаменатель "
+        f"{live['series_population_corrected']}: ложных членов "
+        f"{live['false_members_union']} (последовательность "
+        f"{causes.get(rsc.CAUSE_SEQUENCE)} · ключ-элемент перечня "
+        f"{causes.get(rsc.CAUSE_ENUMERATION_INDEX)}, пересечение "
+        f"{live['false_members_overlap']}), поправка от "
+        f"{live['correction_at_least']} до {live['correction_at_most']}; "
+        f"число доехало до читателя (артефакт держит то же население)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -4422,6 +4552,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
+    "series_denominator_measured": _probe_series_denominator_measured,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
     "economics_net_return_dominates_keep":
         _probe_economics_net_return_dominates_keep,

@@ -17616,6 +17616,612 @@ def bilingual_reach(root: Path, rows: List[dict],
     }
 
 
+# ---------------------------------------------------------------------------
+# ЗНАМЕНАТЕЛЬ РЯДА — заказ G99 п. 1
+# ---------------------------------------------------------------------------
+
+#: Исход ОДНОГО счётчика по вопросу «есть ли у него КЛАСС вообще». Перечень
+#: ЗАКРЫТ, и третий исход не оттенок второго: «не доказано, что накопитель не
+#: последовательность» никогда не выдаётся за «накопитель — отображение»
+#: (инв. #17). Имя первого исхода говорит о НАСЕЛЕНИИ, а не о вреде: у
+#: последовательности индекс есть ПОЛОЖЕНИЕ, отсутствующего ключа не бывает
+#: вовсе, и промах даёт `IndexError`, а не молчаливый новый класс.
+MEMBER_FALSE = "the_accumulator_is_a_sequence_so_the_counter_has_no_class"
+MEMBER_REFUTED = "the_accumulator_is_proved_not_to_be_a_sequence"
+MEMBER_UNMEASURED = "whether_the_accumulator_is_a_sequence_is_not_measured"
+_MEMBER_OUTCOMES = (MEMBER_FALSE, MEMBER_REFUTED, MEMBER_UNMEASURED)
+
+#: ТРИ двери к ответу «не последовательность», и складывать их в одно число
+#: нельзя: сила у них одинаковая, а ЦЕНА разная. Форма записи лексична и
+#: держится на том, что у списка нет метода `.get`; род писателя доказан
+#: соседом (ADR-469) и наследует весь его потолок; связывание разбирается
+#: закрытым перечнем форм (ADR-518) и стоит обхода. Одна дверь, ни разу не
+#: предъявленная контролем, пробой не является (урок ADR-517…519).
+DOOR_WRITE_FORM = "the_write_form_calls_get_and_no_sequence_has_that_method"
+DOOR_WRITER_KIND = "the_writer_step_already_proved_a_mapping_kind"
+DOOR_BINDING = "the_binding_proves_a_mapping_at_the_closed_list_of_forms"
+_MEMBER_DOORS = (DOOR_WRITE_FORM, DOOR_WRITER_KIND, DOOR_BINDING)
+
+
+def _door_labels(doors: Tuple[str, ...]) -> Tuple[str, ...]:
+    """Все непустые наборы дверей — в ТОМ ЖЕ порядке, в каком их называет
+    :func:`_member_site`.
+
+    Перечень ВЫВЕДЕН из закрытого списка дверей, а не перепечатан рядом:
+    вторая копия перечня есть ровно тот предмет, который эта перепись ищет у
+    других. Порядок внутри набора — порядок самого списка, и это не
+    украшение: имя набора есть КЛЮЧ счётчика, а ключ, собранный в другом
+    порядке, молча завёл бы второй класс о том же.
+    """
+    labels: List[str] = []
+    for mask in range(1, 1 << len(doors)):
+        labels.append("+".join(door for pos, door in enumerate(doors)
+                               if mask >> pos & 1))
+    return tuple(labels)
+
+
+#: Наборы дверей, которыми вердикт «не последовательность» бывает доказан.
+#: Класс вне перечня — ТРЕТИЙ ИСХОД с названной причиной, а не новый ключ:
+#: открытый счётчик внутри прибора, который открытые счётчики и считает, уже
+#: однажды сдвинул головное число ряда молча (заказ G98 п. 2, ADR-566).
+_DOOR_LABELS = _door_labels(_MEMBER_DOORS)
+
+#: Почему про счётчик не сказано НИЧЕГО. Две причины, и чинятся они разным:
+#: первая — расширением закрытого перечня форм связывания (работа следующего
+#: шага), вторая не чинится вовсе и есть НАХОДКА о коде: `.get` у списка
+#: падает `AttributeError`, то есть одна из двух дверей заведомо врёт о живом
+#: месте. Спор дверей есть ОТСУТСТВИЕ ответа, а не первая из них.
+MEMBER_GAP_NEITHER_DOOR = ("the_write_form_answers_for_both_kinds_and_the_"
+                           "binding_form_is_outside_the_closed_list")
+MEMBER_GAP_DOORS_CONTRADICT = ("the_binding_says_sequence_and_the_write_form_"
+                               "says_mapping_one_of_the_two_is_wrong")
+_MEMBER_GAPS = (MEMBER_GAP_NEITHER_DOOR, MEMBER_GAP_DOORS_CONTRADICT)
+
+#: ПРИЧИНЫ ложного членства в населении ряда. ДВЕ, у каждой своё имя и свой
+#: прибор, и подаются они ОДНИМ полем с двумя именами — потому что знаменатель
+#: один, а причин у поправки две, и назвать одну значило бы занизить поправку.
+#: Пересечение МЕРИТСЯ по координатам, а не объявляется пустым: сумма двух
+#: населений без измеренного пересечения есть догадка.
+CAUSE_SEQUENCE = "the_accumulator_is_a_sequence_the_index_is_a_position"
+CAUSE_ENUMERATION_INDEX = ("the_written_key_is_an_element_of_a_declared_"
+                           "enumeration_by_index")
+_FALSE_CAUSES = (CAUSE_SEQUENCE, CAUSE_ENUMERATION_INDEX)
+
+#: Отказы самого шага. Четыре, и ни один не есть ноль. Третий отделён от
+#: второго намеренно: совпадение ЧИСЛА населения при разошедшихся
+#: КООРДИНАТАХ — ровно тот стык, который теряет узел и удваивает другой, и
+#: сверка одних чисел его не видит (урок заказа G98 п. 2).
+UNMEASURED_MEMBER_NEIGHBOUR = "open_counter_census_is_absent_or_unmeasured"
+UNMEASURED_MEMBER_POPULATION = ("second_walk_disagrees_with_the_open_counter_"
+                                "census")
+UNMEASURED_MEMBER_COORDINATES = ("the_two_walks_agree_on_the_count_and_"
+                                 "disagree_on_the_coordinates")
+UNMEASURED_MEMBER_CONTROL = "declared_member_rule_missed_the_known_case"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля. Шесть счётчиков, и каждый отвечает за своё
+#: утверждение: последовательность · род у писателя · форма записи · род у
+#: связывания · СПОР дверей · молчание обеих. Ключ у всех шести приходит из
+#: данных — иначе счётчик не попал бы в население соседа вовсе.
+MEMBER_CONTROL_SOURCE = '''
+import collections
+
+
+def alpha(rows):
+    """Накопитель — ПОСЛЕДОВАТЕЛЬНОСТЬ: ложный член населения ряда."""
+    extra = [0.0] * 3
+    for row in rows:
+        extra[row["slot"]] += 1
+    return extra
+
+
+def beta(rows):
+    """Род доказан ПИСАТЕЛЕМ: голый словарь последовательностью не бывает."""
+    tally = {}
+    for row in rows:
+        tally[row["cls"]] += 1
+    return tally
+
+
+def gamma(rows, witness):
+    """Форма записи зовёт `.get`, которого у последовательности нет."""
+    for row in rows:
+        witness[row["cls"]] = witness.get(row["cls"], 0) + 1
+    return witness
+
+
+def delta(rows, witness):
+    """Род доказан СВЯЗЫВАНИЕМ: элемент чужого контейнера с умолчанием."""
+    for row in rows:
+        cell = witness.setdefault(row["cls"], collections.Counter())
+        cell[row["kind"]] += 1
+    return witness
+
+
+def epsilon(rows):
+    """ДВЕРИ ПРОТИВОРЕЧАТ: связывание даёт список, форма зовёт `.get`."""
+    cell = [0, 0, 0]
+    for row in rows:
+        cell[row["cls"]] = cell.get(row["cls"], 0) + 1
+    return cell
+
+
+def omega(rows, make):
+    """Молчат ОБЕ двери: накопитель пришёл мутным вызовом, форма — `+=`."""
+    cell = make()
+    for row in rows:
+        cell[row["cls"]] += 1
+    return cell
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Ни одного ложного члена, и это не повторение
+#: положительной с другими именами: здесь стоят формы, ПОХОЖИЕ на
+#: последовательность и ею не являющиеся. Правило, отвечающее «последователь-
+#: ность» хоть одному из них, завысило бы поправку к знаменателю — то есть
+#: совершило бы ровно тот дефект, против которого поправка и считается.
+MEMBER_CONTROL_CLEAN = '''
+import collections
+
+
+def alpha(rows):
+    """Список стои́т РЯДОМ, а накопитель — словарь того же имени-соседа."""
+    order = [0.0] * 3
+    tally = {}
+    for row in rows:
+        tally[row["cls"]] += 1
+    return order, tally
+
+
+def beta(rows):
+    """Включение по словарю: отображение, хотя форма похожа на список."""
+    tally = {cls: 0 for cls in ("a", "b")}
+    for row in rows:
+        tally[row["cls"]] += 1
+    return tally
+
+
+def gamma(rows, witness):
+    """Накопитель — элемент чужого контейнера, и умолчание его словарь."""
+    for row in rows:
+        cell = witness.setdefault(row["cls"], {})
+        cell[row["kind"]] += 1
+    return witness
+
+
+def omega(rows, make):
+    """Мутный вызов: род НЕ измерен, и это не «значит, последовательность»."""
+    cell = make()
+    for row in rows:
+        cell[row["cls"]] += 1
+    return cell
+'''
+
+
+def _member_site(scope: ast.AST, tree: ast.AST, target: ast.AST, form: str,
+                 writer: dict) -> dict:
+    """Есть ли у ОДНОГО счётчика класс вообще — тремя дверьми.
+
+    Своего правила о роде накопителя здесь нет ни одной строки: обе дороги
+    ведут к соседским правилам (:func:`_writer_kind_site` и
+    :func:`_binding_kind_site`), и новое только то, что ГЕЙТ соседа снят.
+
+    **Гейт снят намеренно и это ПРЕДМЕТ заказа.** Шаг ADR-518 спрашивает о
+    роде ТОЛЬКО там, где писатель ответил третьим исходом, — потому что
+    переспрашивать доказанный род значило бы завести вторую копию правила
+    рода. Вопрос заказа G99 п. 1 другой: у скольких членов населения класса
+    НЕТ ВОВСЕ. На него остаток не отвечает, и ответ «пять из семнадцати»
+    в знаменатель 206 не переносится ничем, кроме домысла.
+
+    Поле ``misnamed`` соседа здесь НЕ читается: оно утверждает о честности
+    ИМЕНИ вердикта писателя, а вердикт писателя этому шагу передан
+    синтетическим. Читать его значило бы выдать свой зов за чужой замер.
+    """
+    opened = _binding_kind_site(scope, tree, target,
+                                {"writer": WRITER_UNRESOLVED,
+                                 "writer_gap": writer["writer_gap"]})
+    doors: List[str] = []
+    if form == "form_get":
+        doors.append(DOOR_WRITE_FORM)
+    if writer["accumulator"] in ("strict", "forgiving"):
+        doors.append(DOOR_WRITER_KIND)
+    if opened["kind_outcome"] == KIND_RESOLVED:
+        doors.append(DOOR_BINDING)
+    sequence = opened["kind_outcome"] == KIND_NOT_A_MAPPING
+    if sequence and doors:
+        return {"member": MEMBER_UNMEASURED, "doors": doors,
+                "member_gap": MEMBER_GAP_DOORS_CONTRADICT,
+                "kind_outcome": opened["kind_outcome"]}
+    if sequence:
+        return {"member": MEMBER_FALSE, "doors": [], "member_gap": None,
+                "kind_outcome": opened["kind_outcome"]}
+    if doors:
+        return {"member": MEMBER_REFUTED, "doors": doors, "member_gap": None,
+                "kind_outcome": opened["kind_outcome"]}
+    return {"member": MEMBER_UNMEASURED, "doors": [],
+            "member_gap": MEMBER_GAP_NEITHER_DOOR,
+            "kind_outcome": opened["kind_outcome"]}
+
+
+def _member_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], List[tuple]]:
+    """Вердикт членства по каждому ОТКРЫТОМУ счётчику файла — и ВТОРАЯ дорога.
+
+    Возвращает ``(строки, координаты соседа)``. Координаты берутся ЧУЖОЙ
+    функцией (:func:`_open_counter_sites`) по тому же дереву: сверка одних
+    ЧИСЕЛ населения не видит стыка, который потерял узел и удвоил другой —
+    население при этом не меняется, а раскладка меняется.
+    """
+    module_binds = _scope_bindings(tree)
+    owner_of = _counter_owner_scopes(tree)
+    scope_cache: Dict[int, Tuple[Dict[str, List[ast.AST]], Set[str], str]] = {}
+
+    def _scope_of(scope: ast.AST):
+        cached = scope_cache.get(id(scope))
+        if cached is not None:
+            return cached
+        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = scope.args
+            params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                      + list(args.kwonlyargs))}
+            if args.vararg:
+                params.add(args.vararg.arg)
+            if args.kwarg:
+                params.add(args.kwarg.arg)
+            made = (_scope_bindings(scope), params, scope.name)
+        else:
+            made = (module_binds, set(), "<module>")
+        scope_cache[id(scope)] = made
+        return made
+
+    found: List[dict] = []
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        target, key, form = shape
+        scope = owner_of.get(id(node), tree)
+        binds, params, owner = _scope_of(scope)
+        if _key_origin(key, binds, module_binds, params, set()) != KEY_ARTIFACT:
+            continue
+        if _membership_checked(scope, node, key):
+            continue
+        writer = _writer_kind_site(scope, node, target, form)
+        found.append({
+            "file": rel,
+            "line": getattr(node, "lineno", None),
+            "owner": owner,
+            "form": form,
+            "counter": ast.unparse(target)[:60],
+            "key": ast.unparse(key)[:60],
+            "writer": writer["writer"],
+            **_member_site(scope, tree, target, form, writer),
+        })
+    peer = [(s["file"], s["line"], s["counter"], s["key"])
+            for s in _open_counter_sites(rel, tree)
+            if s["key_origin"] == KEY_ARTIFACT and not s["membership_checked"]]
+    return (sorted(found, key=lambda item: (item["file"], item["line"] or 0)),
+            peer)
+
+
+def _member_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Положительная половина обязана предъявить ВСЕ ТРИ двери живыми случаями
+    и развести спор дверей от молчания обеих: дверь, ни разу не сработавшая,
+    есть украшение, а общее имя отказа послало бы чинить не то.
+
+    Отрицательная половина обязана НЕ назвать ложным членом ни одного — и
+    именно на формах, ПОХОЖИХ на последовательность. Завысить поправку к
+    знаменателю значило бы совершить тот самый дефект, против которого она
+    считается.
+    """
+    try:
+        hit, hit_peer = _member_sites("<control>",
+                                      ast.parse(MEMBER_CONTROL_SOURCE))
+        clean, clean_peer = _member_sites("<control-clean>",
+                                          ast.parse(MEMBER_CONTROL_CLEAN))
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(hit) != len(hit_peer) or len(clean) != len(clean_peer):
+        return {"passed": False,
+                "sites": [len(hit), len(hit_peer), len(clean),
+                          len(clean_peer)],
+                "reason": ("две дороги к населению разошлись уже на сцене "
+                           "контроля — сверка замера проверяла бы не то, что "
+                           "заявляет")}
+    false_hits = [s for s in hit if s["member"] == MEMBER_FALSE]
+    if len(false_hits) != 1:
+        return {"passed": False, "false_members": len(false_hits),
+                "reason": (f"на положительной половине ложным членом названо "
+                           f"{len(false_hits)} счётчик(ов) вместо 1 — "
+                           f"поправка к знаменателю слилась бы с «род не "
+                           f"измерен»")}
+    doors_seen = {d for s in hit for d in s["doors"]}
+    if doors_seen != set(_MEMBER_DOORS):
+        return {"passed": False, "doors": sorted(doors_seen),
+                "reason": (f"положительная половина предъявила двери "
+                           f"{sorted(doors_seen)} вместо всех трёх "
+                           f"{list(_MEMBER_DOORS)} — дверь без живого случая "
+                           f"есть украшение, а не проба")}
+    gaps_seen = {s["member_gap"] for s in hit if s["member_gap"]}
+    if gaps_seen != set(_MEMBER_GAPS):
+        return {"passed": False, "gaps": sorted(map(str, gaps_seen)),
+                "reason": (f"спор дверей не отделён от молчания обеих: "
+                           f"названы {sorted(map(str, gaps_seen))} вместо "
+                           f"{list(_MEMBER_GAPS)}")}
+    contradicting = [s for s in hit
+                     if s["member_gap"] == MEMBER_GAP_DOORS_CONTRADICT]
+    if len(contradicting) != 1 or contradicting[0]["doors"] != [
+            DOOR_WRITE_FORM]:
+        return {"passed": False,
+                "contradicting": [s["doors"] for s in contradicting],
+                "reason": ("спор дверей обязан НАЗВАТЬ дверь, которая "
+                           "возразила: правило, берущее связывание первым, "
+                           "объявило бы ложным членом место, где `.get` у "
+                           "списка падает `AttributeError`")}
+    claimed = [s for s in clean if s["member"] == MEMBER_FALSE]
+    if claimed:
+        return {"passed": False,
+                "clean_false_positives": [
+                    (s["counter"], s["line"]) for s in claimed],
+                "reason": (f"на отрицательной половине ложным членом названо "
+                           f"{len(claimed)} счётчик(ов) — поправка к "
+                           f"знаменателю оказалась бы ЗАВЫШЕНА")}
+    if not any(s["member"] == MEMBER_UNMEASURED for s in clean):
+        return {"passed": False,
+                "reason": ("отрицательная половина не дала ни одного третьего "
+                           "исхода — мутный накопитель молча пошёл бы в "
+                           "«не последовательность» (инв. #17)")}
+    return {"passed": True, "sites": len(hit), "clean_sites": len(clean),
+            "false_members": len(false_hits),
+            "doors": sorted(doors_seen),
+            "gaps": sorted(map(str, gaps_seen)),
+            "clean_false_positives": 0,
+            "clean_outcomes": sorted({s["member"] for s in clean})}
+
+
+def sequence_members_of_the_whole_population(
+        root: Path, open_counters: Optional[dict]) -> dict:
+    """Поправка к ЗНАМЕНАТЕЛЮ ряда G78…G98 (**заказ G99 п. 1**).
+
+    Заказ дословно:
+
+    > Пять ложных членов населения — это поправка к ЗНАМЕНАТЕЛЮ, и её никто
+    > не применил. Шаг НАЗВАЛ их, но числа ряда G78…G98 по-прежнему делятся
+    > на 171. Спросить прямо: сколько из 171 открытых счётчиков соседа —
+    > последовательности, а не отображения, и каким становится население ряда
+    > после вычитания. Это вопрос к СОСЕДУ, а не к его остатку: здесь
+    > измерены только 17 из 171.
+
+    **Число 171 НЕ перепечатывается.** Оно есть замер 30.09, а не константа;
+    население берётся у соседа ЖИВЫМ и сверяется с его собственным числом И
+    с его собственными координатами. Перепечатать знаменатель внутри прибора,
+    который этот знаменатель и чинит, было бы ровно тем дефектом, против
+    которого написан весь ряд.
+
+    **Почему ответ нельзя получить домыслом.** В остатке 17 ложных членов
+    пять — доля 29 %. Перенести её на всё население значило бы объявить
+    поправку в шестьдесят счётчиков, не померив ни одного. Замер отвечает
+    иначе, и разница между домыслом и замером здесь есть предмет решения.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно; население соседа остаётся как есть,
+    и числа прошлых решений ряда НЕ пересчитываются — каждое есть замер
+    своего дня.
+    """
+    head = {
+        "question": ("у скольких членов населения «открытый счётчик класса» "
+                     "КЛАССА НЕТ ВОВСЕ — и каким становится знаменатель ряда "
+                     "после вычитания"),
+        "order": "G99.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+    }
+    declared = observed(open_counters or {}, "open_to_an_unnamed_class",
+                        kind=int)
+    if (not isinstance(open_counters, dict)
+            or str(open_counters.get("status")) == "UNMEASURED"
+            or declared is None):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_MEMBER_NEIGHBOUR,
+                "reason": ("перепись открытых счётчиков не измерена — "
+                           "знаменателя ряда не существует; это НЕ «поправка "
+                           "равна нулю»")}
+    control = _member_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_MEMBER_CONTROL,
+                "reason": (f"объявленное правило членства не прошло "
+                           f"контроль: {control.get('reason')}")}
+
+    rows: List[dict] = []
+    peer: List[tuple] = []
+    enum_false: List[dict] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            mine, theirs = _member_sites(rel, tree)
+            rows.extend(mine)
+            peer.extend(theirs)
+            enum_false.extend(_written_key_from_an_enumeration(rel,
+                                                               tree)["sample"])
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_MEMBER_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    if len(rows) != declared:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_MEMBER_POPULATION,
+                "population": len(rows),
+                "declared_population": declared,
+                "reason": (f"свой обход нашёл {len(rows)} открытых "
+                           f"счётчик(ов), сосед назвал {declared} — это ДВЕ "
+                           f"дороги к одному населению, и разойдясь, они "
+                           f"отвечают на разные вопросы")}
+    mine_coords = {(r["file"], r["line"], r["counter"], r["key"])
+                   for r in rows}
+    peer_coords = set(peer)
+    if mine_coords != peer_coords:
+        lost = sorted(peer_coords - mine_coords)[:COSTED_SAMPLE]
+        extra = sorted(mine_coords - peer_coords)[:COSTED_SAMPLE]
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_MEMBER_COORDINATES,
+                "population": len(rows),
+                "declared_population": declared,
+                "coordinates_only_at_the_neighbour": lost,
+                "coordinates_only_here": extra,
+                "reason": ("числа населения сошлись, а КООРДИНАТЫ разошлись — "
+                           "стык потерял один узел и удвоил другой, и сверка "
+                           "одних чисел этого не видит")}
+
+    outcomes = {cls: sum(1 for r in rows if r["member"] == cls)
+                for cls in _MEMBER_OUTCOMES}
+    # Счёт ПО ДВЕРЯМ, а не по счётчикам: у одного места дверей бывает две, и
+    # сумма этого словаря населению НЕ равна. Сказано здесь, а не в примечании:
+    # равенство суммы населению — то свойство, которого у счёта по дверям нет.
+    by_door = {door: sum(1 for r in rows if door in r["doors"])
+               for door in _MEMBER_DOORS}
+    # А вот ЭТОТ счёт по счётчикам, и его сумма равна числу опровергнутых:
+    # «какими дверьми ровно» — другое утверждение, чем «сколькими дверьми».
+    # Накопитель СТРОГИЙ и ключ сверен принадлежностью: прибор стои́т в
+    # населении, которое мерит, и открытый счётчик здесь сдвинул бы знаменатель
+    # ряда самим фактом доставки прибора (урок ADR-566).
+    by_exact_doors = {label: 0 for label in _DOOR_LABELS}
+    doors_outside_the_declared_labels = 0
+    for r in rows:
+        if r["member"] != MEMBER_REFUTED:
+            continue
+        label = "+".join(r["doors"])
+        if label in by_exact_doors:
+            by_exact_doors[label] += 1
+        else:
+            doors_outside_the_declared_labels += 1
+    gaps = {gap: sum(1 for r in rows if r["member_gap"] == gap)
+            for gap in _MEMBER_GAPS}
+    cross = {verdict: {cls: sum(1 for r in rows if r["writer"] == verdict
+                                and r["member"] == cls)
+                       for cls in _MEMBER_OUTCOMES}
+             for verdict in _WRITER_OUTCOMES}
+    outside = [r for r in rows if r["writer"] != WRITER_UNRESOLVED]
+    seq_coords = {(r["file"], r["line"]) for r in rows
+                  if r["member"] == MEMBER_FALSE}
+    enum_coords = {(s["file"], s["line"]) for s in enum_false}
+    union = seq_coords | enum_coords
+    own = [r for r in rows if r["file"] == PRODUCER]
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared,
+        "files_scanned": scanned,
+        "coordinates_agree_with_the_neighbour": True,
+        "member_outcomes": outcomes,
+        "refuted_by_door": by_door,
+        "refuted_by_exactly_these_doors": by_exact_doors,
+        "refuted_by_doors_outside_the_declared_labels":
+            doors_outside_the_declared_labels,
+        "unmeasured_reasons": gaps,
+        "doors_contradicting": gaps[MEMBER_GAP_DOORS_CONTRADICT],
+        "by_writer_verdict": cross,
+        # ГЛАВНОЕ ЧИСЛО ответа и его цена — рядом. «Ноль ложных членов вне
+        # остатка» есть утверждение лишь при нуле НЕ ИЗМЕРЕННЫХ там же:
+        # иначе это «не нашли», а не «нет». И отдельным полем — ПОЧЕМУ ноль:
+        # вне остатка мимо опровержения ведёт РОВНО ОДНА дорога, и это свойство
+        # построения, а не замера. Выдать его за находку значило бы заявить
+        # заслугу там, где работает конструкция.
+        "outside_the_writer_remainder": {
+            "population": len(outside),
+            "false_members": sum(1 for r in outside
+                                 if r["member"] == MEMBER_FALSE),
+            "unmeasured": sum(1 for r in outside
+                              if r["member"] == MEMBER_UNMEASURED),
+            "the_only_route_past_refutation": MEMBER_GAP_DOORS_CONTRADICT,
+        },
+        "false_members_by_cause": {
+            CAUSE_SEQUENCE: len(seq_coords),
+            CAUSE_ENUMERATION_INDEX: len(enum_coords),
+        },
+        "false_members_overlap": len(seq_coords & enum_coords),
+        "false_members_union": len(union),
+        "series_population_corrected": len(rows) - len(union),
+        # Поправка есть ПРОМЕЖУТОК, а не число: нижняя граница доказана,
+        # верхняя добавляет третий исход. Выдать нижнюю за обе значило бы
+        # объявить «не измерено» нулём (инв. #17).
+        "correction_at_least": len(union),
+        "correction_at_most": len(union) + outcomes[MEMBER_UNMEASURED],
+        "own_sites": {
+            "producer": PRODUCER,
+            "in_the_population": len(own),
+            "in_the_false_cell": sum(1 for r in own
+                                     if r["member"] == MEMBER_FALSE),
+        },
+        "false_member_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "key": r["key"], "form": r["form"],
+             "writer_was": r["writer"]}
+            for r in rows if r["member"] == MEMBER_FALSE][:COSTED_SAMPLE],
+        "unmeasured_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "gap": r["member_gap"],
+             "doors": r["doors"], "writer_was": r["writer"]}
+            for r in rows if r["member"] == MEMBER_UNMEASURED][:COSTED_SAMPLE],
+        "enumeration_index_sample": enum_false[:COSTED_SAMPLE],
+        "blind": [
+            ("дверь ФОРМЫ лексична: `.get(k, D)` доказывает, что у накопителя "
+             "есть метод `.get`, то есть он не список и не кортеж. Словарём "
+             "это его не делает — вопрос шага именно о последовательности, а "
+             "не о роде отображения"),
+            ("дверь РОДА наследует ВЕСЬ потолок соседа ADR-469 сверху: "
+             "накопитель обязан быть связан в той же области, и перечень "
+             "конструкторов закрыт"),
+            ("дверь СВЯЗЫВАНИЯ наследует потолок ADR-518: зовущие параметра "
+             "искались только в этом файле и только по имени функции"),
+            ("НОЛЬ ложных членов ВНЕ остатка «род не измерен» есть свойство "
+             "ПОСТРОЕНИЯ, а не находка: писатель, доказавший род, доказал его "
+             "перечнем конструкторов ОТОБРАЖЕНИЙ, а `.get` у "
+             "последовательности падает `AttributeError`. Мимо опровержения "
+             "ведёт РОВНО ОДНА дорога — спор дверей, — и она измерена. Отсюда "
+             "и ответ заказу: доля 29 % остатка на всё население не "
+             "переносится не потому, что её не нашли, а потому, что ей НЕГДЕ "
+             "БЫТЬ; поправка ограничена размером остатка, а не населением"),
+            (f"`{MEMBER_UNMEASURED}` есть ТРЕТИЙ исход, а не «значит, "
+             "отображение»: верхняя граница поправки его учитывает, нижняя "
+             "нет, и обе названы"),
+            ("население взято у соседа и наследует весь его потолок сверху "
+             "(ADR-461…ADR-469): своего замера населения у этого шага нет по "
+             "построению"),
+            (f"ПРИБОР СТОИ́Т В НАСЕЛЕНИИ, которое мерит (`{PRODUCER}` входит "
+             "в объявленные каталоги), поэтому своё население объявлено полем "
+             "`own_sites`: головное число обязано не зависеть от того, "
+             "доставлен прибор или нет"),
+        ],
+        "what_it_does_not_prove": [
+            "что вред наступил: класс у счётчика есть или нет — вопрос о НАСЕЛЕНИИ, а не о событии",
+            "что поправка ПРИМЕНЕНА: население соседа осталось как есть, числа прошлых решений ряда не пересчитаны",
+            "что причин ложного членства ровно две: измерены две названные, и ненайденное третьей не есть ноль",
+        ],
+    }
+
+
 #: Соседские запросы, чей ответ ЗА ОДИН прогон :func:`measure` зависит только
 #: от дерева, а дерево внутри одного прогона не меняется. Список ОБЪЯВЛЕН
 #: поимённо, а не выведен по сигнатуре: запомнить молча ответ функции, которая
@@ -18191,6 +18797,15 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # переменными цикла, чей класс доказан. Население — ОДИН счётчик, и это
     # сказано вслух: сила правила доказана контролем, а не числом.
     loop_key_step = loop_key_over_a_declared_list(root, tail_step)
+
+    # --- ЗНАМЕНАТЕЛЬ РЯДА (заказ G99 п. 1) --------------------------------
+    # Шаг G85 п. 2 назвал ложные члены населения, но спрашивал их только у
+    # ОСТАТКА «род не измерен» — семнадцати счётчиков из двух сотен. Заказ
+    # просит тот же вопрос у ВСЕГО населения: у скольких членов класса нет
+    # вовсе и каким становится знаменатель ряда после вычитания. Своего
+    # правила о роде шаг не имеет — он снимает ГЕЙТ у соседского и добавляет
+    # вторую дверь, лексическую: у последовательности нет метода `.get`.
+    member_step = sequence_members_of_the_whole_population(root, open_counters)
     verdict_step = verdict_over_named_keys(root)
 
     scanned = len(guard_files) + len(executor_files)
@@ -18353,6 +18968,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # третьим исходом, и ответ одного не отменяет другого.
         "accumulator_kind_at_the_binding": kind_step,
         "loop_key_over_a_declared_list": loop_key_step,
+        # Отдельным ключом, а не поправкой к соседу: шаг G85 п. 2 отвечает о
+        # ОСТАТКЕ «род не измерен», а этот — о ВСЁМ населении, и предмет у
+        # него другой: не «какой род», а «есть ли класс вообще». Слить их
+        # значило бы выдать ответ о семнадцати за ответ о двух сотнях.
+        "sequence_members_of_the_whole_population": member_step,
             "verdict_over_named_keys": verdict_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
@@ -20448,6 +21068,106 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"`{item.get('counter')}` — индекс есть ПОЛОЖЕНИЕ, а не класс; "
                 f"сосед звал это `{item.get('writer_gap_was')}`")
         for blind in (observed(kind_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    member_step = observed(doc, "sequence_members_of_the_whole_population",
+                           kind=dict)
+    if member_step is None:
+        out.append("[ЗНАМЕНАТЕЛЬ РЯДА] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «ложных членов населения нет»")
+    elif str(member_step.get("status")) == "UNMEASURED":
+        out.append(f"[ЗНАМЕНАТЕЛЬ РЯДА] НЕ ИЗМЕРЕНО "
+                   f"[{member_step.get('unmeasured_class')}]: "
+                   f"{member_step.get('reason')}")
+    else:
+        outcomes = observed(member_step, "member_outcomes", kind=dict) or {}
+        doors = observed(member_step, "refuted_by_door", kind=dict) or {}
+        exact = (observed(member_step, "refuted_by_exactly_these_doors",
+                          kind=dict) or {})
+        why = observed(member_step, "unmeasured_reasons", kind=dict) or {}
+        causes = (observed(member_step, "false_members_by_cause", kind=dict)
+                  or {})
+        outside = (observed(member_step, "outside_the_writer_remainder",
+                            kind=dict) or {})
+        own = observed(member_step, "own_sites", kind=dict) or {}
+        control = observed(member_step, "control", kind=dict) or {}
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ РЯДА] из {member_step.get('population')} ОТКРЫТЫХ "
+            f"счётчиков класса нет ВОВСЕ у {outcomes.get(MEMBER_FALSE)} "
+            f"(накопитель — последовательность, индекс есть положение), "
+            f"опровергнуто у {outcomes.get(MEMBER_REFUTED)}, НЕ ИЗМЕРЕНО у "
+            f"{outcomes.get(MEMBER_UNMEASURED)}; двери противоречат друг другу "
+            f"у {member_step.get('doors_contradicting')}")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ЧЕМ ОПРОВЕРГНУТО] форма записи зовёт `.get` "
+            f"{doors.get(DOOR_WRITE_FORM)} · род доказал писатель ADR-469 "
+            f"{doors.get(DOOR_WRITER_KIND)} · род доказало связывание ADR-518 "
+            f"{doors.get(DOOR_BINDING)}. Сумма по дверям населению НЕ равна: "
+            f"двумя дверьми разом доказано "
+            f"{exact.get(DOOR_WRITE_FORM + '+' + DOOR_BINDING)}, класс вне "
+            f"объявленных наборов "
+            f"{member_step.get('refuted_by_doors_outside_the_declared_labels')}")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ГЛАВНОЕ] вне остатка «род не измерен» "
+            f"({outside.get('population')} счётчиков) ложных членов "
+            f"{outside.get('false_members')} и НЕ ИЗМЕРЕНО "
+            f"{outside.get('unmeasured')}: мимо опровержения там ведёт РОВНО "
+            f"ОДНА дорога — `{outside.get('the_only_route_past_refutation')}` "
+            f"— и она измерена. Доля 29 % остатка на всё население не "
+            f"переносится не потому, что её не нашли, а потому, что ей НЕГДЕ "
+            f"быть: поправка ограничена размером ОСТАТКА, не населением")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ДВЕ ПРИЧИНЫ ОДНИМ ПОЛЕМ] последовательность "
+            f"{causes.get(CAUSE_SEQUENCE)} · ключ-элемент объявленного "
+            f"перечня {causes.get(CAUSE_ENUMERATION_INDEX)}; пересечение "
+            f"ИЗМЕРЕНО и равно {member_step.get('false_members_overlap')}, "
+            f"объединение {member_step.get('false_members_union')} ⇒ "
+            f"знаменатель ряда "
+            f"{member_step.get('series_population_corrected')} вместо "
+            f"{member_step.get('population')}")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ПОПРАВКА ЕСТЬ ПРОМЕЖУТОК] не менее "
+            f"{member_step.get('correction_at_least')} и не более "
+            f"{member_step.get('correction_at_most')}: верхняя граница "
+            f"добавляет третий исход, нижняя его не учитывает. Выдать нижнюю "
+            f"за обе значило бы объявить «не измерено» нулём (инв. #17)")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ПОЧЕМУ НЕ ИЗМЕРЕНО] форма записи отвечает за оба "
+            f"рода, а связывание вне закрытого перечня — "
+            f"{why.get(MEMBER_GAP_NEITHER_DOOR)} · двери спорят — "
+            f"{why.get(MEMBER_GAP_DOORS_CONTRADICT)}")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · ПРИБОР В СВОЁМ НАСЕЛЕНИИ] счётчиков самого "
+            f"производителя в населении {own.get('in_the_population')}, из них "
+            f"в ГОЛОВНОЙ клетке {own.get('in_the_false_cell')} — головное "
+            f"число не зависит от того, доставлен прибор или нет")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · КОНТРОЛЬ] на известных случаях правило назвало "
+            f"ложным членом {control.get('false_members')} из "
+            f"{control.get('sites')}, предъявило ВСЕ три двери живыми "
+            f"случаями и развело спор дверей от молчания обеих; на "
+            f"отрицательной половине ({control.get('clean_sites')} счётчиков, "
+            f"формы ПОХОЖИЕ на последовательность) ложных членов "
+            f"{control.get('clean_false_positives')}")
+        out.append(
+            f"[ЗНАМЕНАТЕЛЬ · СТЫК] координаты населения сверены с соседними "
+            f"ПОИМЁННО, а не числом: "
+            f"{member_step.get('coordinates_agree_with_the_neighbour')} — "
+            f"потеря узла население не меняет, а раскладку меняет")
+        for item in (observed(member_step, "false_member_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ЗНАМЕНАТЕЛЬ · ЛОЖНЫЙ ЧЛЕН] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` ключ `{item.get('key')}` — у "
+                f"последовательности отсутствующего ключа не бывает вовсе; "
+                f"сосед звал это `{item.get('writer_was')}`")
+        for item in (observed(member_step, "unmeasured_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ЗНАМЕНАТЕЛЬ · НЕ ИЗМЕРЕНО] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}` — {item.get('gap')}")
+        for blind in (observed(member_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     loop_step = observed(doc, "loop_key_over_a_declared_list", kind=dict)
     if loop_step is None:

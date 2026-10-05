@@ -737,6 +737,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "unreadable", "population_rule",
                                      "renamed_copy_surface", "remedy_counts",
                                      "findings_on_books", "probe",
+                                     # Заказ G99 п. 1 (ADR-568) — ПОПРАВКА К
+                                     # ЗНАМЕНАТЕЛЮ ряда. Объявлена
+                                     # обязательной: без неё исчезновение шага
+                                     # из артефакта прошло бы молча, а числа
+                                     # ряда снова делились бы на непоправленное
+                                     # население.
+                                     "sequence_members_of_the_whole_population",
                                      "what_it_does_not_prove"),
     # Заказ G44 п. 1 (ADR-420). `roles` в схеме обязателен: без него «входов
     # 432» прочлось бы как «столько перечней осмотрено», тогда как в население
