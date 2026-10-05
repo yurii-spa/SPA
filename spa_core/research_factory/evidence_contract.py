@@ -536,6 +536,7 @@ FACT_REVIEWERS = (
     "RM-EVIDENCE-01 independent fact review round 2 (Opus, separate session)",
     "RM-EVIDENCE-01 independent fact review round 3 (Opus, separate session)",
     "RM-EVIDENCE-01 independent fact review round 4 (Opus, separate session)",
+    "RM-EVIDENCE-01 independent fact review round 5 (Opus, separate session)",
 )
 SCHEMA_FACT_REVIEW = "fact-review/1"
 FACT_REVIEW_FIELDS = ("schema", "reviewer", "reviewed_at", "facts")

@@ -4366,6 +4366,51 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
                        "действует; вычисленная контрактом ставка независима")
 
 
+def _probe_curated_facts_usable(arg: str | None, *, facts_path: "str | None" = None) -> tuple[str, str]:
+    """Критерий: каждый НАЗВАННЫЙ курируемый факт (`arg` = id через `+`) ГОДЕН как доказательство —
+    по исходу, настоящим загрузчиком `research_factory.registry_loader.load_facts` (независимая проверка,
+    привязанная к хэшу содержимого; издатель ссылки совпадает с источником; не истёк). Не «строка есть в
+    файле»: факт без записи проверяющего, с правкой после проверки или с чужим хостом — не годен, и
+    причина отказа загрузчика названа. Сравнение id — точное, не подстрокой."""
+    if not arg:
+        return UNMEASURED, "не названо ни одного id факта (arg пуст)"
+    wanted = [w for w in arg.split("+") if w]
+    try:
+        from pathlib import Path as _Path
+        from spa_core.research_factory import registry_loader
+        path = _Path(facts_path) if facts_path else None
+        refused: list = []
+        usable = registry_loader.load_facts(path, origins=registry_loader.load_origins(), refused_out=refused)
+    except Exception as exc:  # noqa: BLE001 — a registry that cannot be loaded is NOT MEASURED, named
+        return UNMEASURED, f"реестр фактов не загрузился: {type(exc).__name__}: {str(exc)[:160]}"
+    usable_ids = {f.get("fact_id") for f in usable}
+    refused_by_id = {r.get("fact_id"): r.get("reason") for r in refused}
+    # range form `fact-043..fact-055` (an id list outgrows the 128-char argument): EVERY index in the range
+    # must exist as exactly one fact — a gap or a duplicate is named, never skipped
+    import re as _re
+    rng = _re.fullmatch(r"fact-(\d{3})\.\.fact-(\d{3})", arg)
+    if rng:
+        lo, hi = int(rng.group(1)), int(rng.group(2))
+        if lo > hi:
+            return UNMEASURED, f"диапазон {arg!r} пуст"
+        all_ids = usable_ids | set(refused_by_id)
+        wanted = []
+        for n in range(lo, hi + 1):
+            hits = sorted(i for i in all_ids if i and i.startswith(f"fact-{n:03d}-"))
+            wanted.extend(hits if len(hits) == 1 else [f"fact-{n:03d}-<{len(hits)} в реестре>"])
+    missing = []
+    for fid in wanted:
+        if fid in usable_ids:
+            continue
+        if fid in refused_by_id:
+            missing.append(f"{fid}: {str(refused_by_id[fid])[:90]}")
+        else:
+            missing.append(f"{fid}: нет в реестре")
+    if missing:
+        return NOT_SATISFIED, "не годны: " + "; ".join(missing)
+    return SATISFIED, f"годны все {len(wanted)} названных фактов (проверены независимо, привязаны к содержимому)"
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -4416,6 +4461,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "subject_taking_leaves_a_guard_receipt":
         _probe_subject_taking_leaves_a_guard_receipt,
     "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
+    "curated_facts_usable": _probe_curated_facts_usable,
 }
 
 

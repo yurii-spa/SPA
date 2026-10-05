@@ -331,3 +331,27 @@ malformed snapshot is skipped); the reviewer allow-list authenticates names, not
 `return_claim_type` keys on the mechanism, not the method read. Result on production data unchanged: 73 candidates,
 PAPER_ACTIVE 0, CIO_ELIGIBLE 0, 30 of 43 facts usable.
 
+## Evidence round 5 (2026-10-05) — corrected facts; the first candidate on paper
+
+Card `inbox-ispravlennye-fakty-vmesto-otvergnutyh-pr`, probe `curated_facts_usable:fact-043..fact-055` (declared
+before the work; a new, generic outcome probe — a named fact counts only if the REAL loader accepts it: reviewed,
+content-bound, publisher-checked, unexpired; a range must have every index). Thirteen corrected replacements for
+review-rejected facts, each quoting only its exact page and naming what it `supersedes`; an independent round-5
+review CONFIRMED 13/13 at their content hashes. **Usable facts: 43 of 56.**
+
+* USYC: both published Ethereum oracles — `0x74f2…` (contracts page; the factory's reader) and `0x4c48…` (price
+  page). Read on-chain 2026-10-05 they report the same NAV for the same date (1.1390028153 vs 1.13900281): two
+  channels of one NAV, not a conflict. Custody "segregated custodial accounts at our prime broker" (no firm named on
+  that page), Teller redemption 24/7/365, T+0, the Teller address.
+* OUSG: issuer **Ondo I LP**, stated by Ondo itself (the link is documented, not inferred); redemption terms; the
+  InstantManager and oracle addresses. USDY: the oracle-wrapper address; the USD bank-wire redemption path.
+* Not curated (no page states them): USYC "price net of fees", the USDY "small spread", BUIDL's transfer agent and
+  RedStone feed. Binance/Bybit/OKX fee pages render only by script — another official source is needed.
+
+**Result on production data:** USYC is **PAPER_ACTIVE — a REFERENCE_TRACK paper position** (Sherlock
+ADMIT_TO_PAPER, no failed gate; evidence ceiling ISSUER_ASSERTED; mark circular, labelled). LEGAL and RESERVES stay
+UNKNOWN, which the CIO bars require, so USYC cannot become CIO_ELIGIBLE on this evidence. Whether USYC's price is net
+of its 10% performance fee is unknown, so paper accrues the fee on gains (understates, never overstates). Oracle sees
+it under PAPER_ACTIVE; `research_sleeve_allocatable` is False. OUSG / USDY / BUIDL: NEEDS_MORE_EVIDENCE (fees and
+net return not computable). PAPER_ACTIVE means only "evaluated forward with simulated capital"; real capital $0.
+

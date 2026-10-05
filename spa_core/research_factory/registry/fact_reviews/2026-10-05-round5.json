@@ -1,0 +1,111 @@
+{
+ "schema": "fact-review/1",
+ "reviewer": "RM-EVIDENCE-01 independent fact review round 5 (Opus, separate session)",
+ "reviewed_at": "2026-10-05T01:30:14Z",
+ "facts": [
+  {
+   "fact_id": "fact-043-38ac57b3a8b4",
+   "fact_sha256": "d9079f24495e140afdb184d5ff38de20b153d97d0d7e0736201ce3e0c868a4f9",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json; eth_call decimals()/latestRoundData() on publicnode",
+   "evidence": "smart-contracts.md row 'Ethereum | Oracle | 0x74f2199AEb743f68f05943e5715A33EaF2b61f53' exact; host usyc.docs.hashnote.com in issuer:hashnote hosts",
+   "issue": "Note: answer_decimals=18 and kind are not on the page; verified on-chain (decimals()=18, latestRoundData answers ~1.1395). Second oracle 0x4c48 (fact-044) coexists."
+  },
+  {
+   "fact_id": "fact-044-8740712ed01f",
+   "fact_sha256": "9ac14832d4270ad438af30062be4ec4ce1654109b1fe4d172aaf8d6795bef58c",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json; eth_call decimals()",
+   "evidence": "token-price.md: 'The USYC Oracle adheres to the Chainlink aggregator interface.' + table 'Etherscan | etherscan.io/address/0x4c48bcb2160F8e0aDbf9D4F3B034f1e36d1f8b3e'",
+   "issue": "Note: quote stitches sentence + table row (faithful). answer_decimals=8 not on page; verified on-chain decimals()=8, answer ~1.1394."
+  },
+  {
+   "fact_id": "fact-045-dc28e9738a5f",
+   "fact_sha256": "8eb8601293da995ffe68d6973e9edf3b32b6b70f79a018e0672172270b849257",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "introduction.md: 'Assets are protected through segregated custodial accounts at our prime broker' verbatim; role custodian with identity 'the prime broker', no firm named",
+   "issue": "Note: HTML URL redirects to site root (same content); .md served at exact URL. Page now names Circle Intl Bermuda as issuer; 'Hashnote's' = the Hashnote fund's broker."
+  },
+  {
+   "fact_id": "fact-046-4fd85bb7edd7",
+   "fact_sha256": "31b729bdadc5727f62f8b9a21dc624db318b88b627c5f568096b25af51718024",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "subscription-and-redemption.md 'Redeem USYC': 'Redemption is available via USYC Teller with USDC 24/7/365' verbatim; value matches",
+   "issue": "Note: role redemption_agent is filled by a contract (the Teller), which the page names as the redemption channel; acceptable, not a legal party."
+  },
+  {
+   "fact_id": "fact-047-fb809a5cd732",
+   "fact_sha256": "411b6207107ceaaddba4a4dec1b8948c6e9c3827dd34a6ea6e59e50a57f0fd84",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "introduction.md Liquidity: 'investors can subscribe via USDC and redeem on the same day (T+0) into USDC' verbatim; value 'T+0 into USDC' exact",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-048-8086cb8b16ae",
+   "fact_sha256": "c303f13ed3c6206b4c5870e8bf82b9dd5e1c055a951fd091bc67bd02c051cdb8",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "smart-contracts.md Mainnet row 'Ethereum | Teller (USDC) | 0xeE35F963BFC71b51eC95147f26c030D674ea30e6' exact; chain ethereum",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-049-fa2a2afd3030",
+   "fact_sha256": "ddabefafd506f036d931c049222ea8b76fef96ae924c851249f5fc0b339c53ee",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "regulatory-compliance.md: 'The issuer of OUSG, Ondo I LP, is exempt from the registration requirements of the ... '40 Act' — names Ondo I LP as issuer; host docs.ondo.finance",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-050-df886b48b671",
+   "fact_sha256": "227b5dae7f7768d0ec230c40355e9ca52ca5628c5da1a62d62e8864ffd00a8cc",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "Same page states the link explicitly: 'The issuer of OUSG, Ondo I LP, ...' — OUSG<->Ondo I LP is DOCUMENTED, not inferred",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-051-936bc5505381",
+   "fact_sha256": "864f43a6bb95ef700b0f83a251b01f2386123c0e9055e88ebc62a152c1d2d13e",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "redeeming.md: instant redemption 'takes place as an atomic transaction so you will receive your USDC'; non-instant before 4pm ET 'typically ... next Business Day'",
+   "issue": "Note: value's 2nd clause is from the same page outside the quote; page adds 'Limitations may apply' (instant-limits). role redemption_agent names no party."
+  },
+  {
+   "fact_id": "fact-052-4c96774f2fa4",
+   "fact_sha256": "c0b6672a1c522addf0c950603c9061ebcecdc576ec6b18505d1970fc3edd4915",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "addresses.md OUSG > Ethereum: 'OUSG_InstantManager | 0x93358db73B6cd4b98D89c8F5f230E81a95c2643a' exact (instantly buy or redeem OUSG)",
+   "issue": null
+  },
+  {
+   "fact_id": "fact-053-c18b94f448b3",
+   "fact_sha256": "121ea7a5d2cb783cd2db00a24f2bee04489aad46ad1e245720dc89d8a312f5f2",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "addresses.md OUSG > Ethereum: 'OndoOracle | 0x9Cad45a8BF0Ed41Ff33074449B357C7a1fAb4094' exact; 'Unified interface for retrieving token price data'",
+   "issue": "Note: page describes OndoOracle as a unified price interface for Ondo contracts (listed in OUSG/Ethereum table), not OUSG-exclusive."
+  },
+  {
+   "fact_id": "fact-054-a03e97df50db",
+   "fact_sha256": "67d8ccc55cd354ba1a2eb6f40160b9d08575d86be6719486f5862d964202d692",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json; eth_call getPriceData()",
+   "evidence": "addresses.md USDY > Ethereum: 'USDYOracleWrapper | 0x87b126e5518b6a1Bb8465779b4607C45C643DF90' exact; 'stable entry point for reading the USDY price'",
+   "issue": "Note: kind ondo_price_data not on page; getPriceData() answers on-chain (~1.148)."
+  },
+  {
+   "fact_id": "fact-055-0d43e7fc930e",
+   "fact_sha256": "e81361ee8d866f1cd76e7ed9980db38b2eeef56fbbcd7df5185e7e108d45a14f",
+   "verdict": "CONFIRMED",
+   "method": "curl -sL <ref>.md + HTML at 2026-10-05; quote/address grep; host vs origins.json",
+   "evidence": "usdy/basics.md Redeeming: 'Ondo USDY LLC can only redeem USD via bank wire to non-US bank accounts' verbatim",
+   "issue": "Note: same page says USDY was 'formerly issued by Ondo USDY LLC', folded into Ondo Stocks 15.12.2025; USDC redemption via Ondo Global Markets (BVI)."
+  }
+ ]
+}

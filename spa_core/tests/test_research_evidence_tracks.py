@@ -669,7 +669,9 @@ def test_facts_jsonl_fact_ids_are_unique():
 _CURATORS = ("RM-EVIDENCE-01 Phase-0 audit",
              "RM-EVIDENCE-01 remediation re-curation (coordinator session, 2026-10-04)",
              # tail of ADR-564: fact-012 gained a structured effective_until (re-curated, re-reviewed round 4)
-             "RM-EVIDENCE-01 tail curation (coordinator session, 2026-10-05)")
+             "RM-EVIDENCE-01 tail curation (coordinator session, 2026-10-05)",
+             # round-5 evidence curation: corrected replacements for review-rejected facts (fact-043…055)
+             "RM-EVIDENCE-01 evidence curation round 5 (coordinator session, 2026-10-05)")
 
 
 def _fact_reviews() -> dict:

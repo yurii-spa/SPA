@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-05T01:19:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-05T01:36:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (93cfbffe1) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (cd199612e).
 >
-> Всего карточек: **1192** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1193** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -352,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (647)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (648)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -485,6 +485,7 @@
 - Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Храповик «отсутствие наблюдения» краснеет на СДВИГЕ строк и зовёт это новым местом класса  ·  `inbox-hrapovik-otsutstvie-nablyudeniya-krasnee.md` · 2026-08-24
 - Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
+- Исправленные факты вместо отвергнутых проверкой: USYC, OUSG, USDY (fact-043…055)  ·  `inbox-ispravlennye-fakty-vmesto-otvergnutyh-pr.md` · 2026-10-05
 - Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1.md` · 2026-08-08
