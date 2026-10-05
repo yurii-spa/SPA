@@ -137,12 +137,18 @@ def test_control_refuses_when_the_element_default_repair_is_blinded(
 
 
 def test_control_refuses_when_the_caller_repair_is_blinded(monkeypatch):
-    """Порвано звено «аргумент зовущего»: межобластной разбор не работает."""
+    """Порвано звено «аргумент зовущего»: межобластной разбор не работает.
+
+    Оба ремонта этого звена гаснут разом, и так и должно быть: ВТОРОЕ звено
+    (ADR-573) стоит на том же обходе зовущих, и доказать род без него не может
+    ни первое, ни оно само.
+    """
     monkeypatch.setattr(C, "_caller_argument_kinds",
-                        lambda name, scope, tree: (set(), 0))
+                        lambda name, scope, tree: [])
     control = C._binding_kind_control()
     assert not control["passed"]
     assert control["by_repair"][C.REPAIR_CALLER_ARGUMENT] == []
+    assert control["by_repair"][C.REPAIR_SECOND_LINK] == []
 
 
 def test_control_refuses_when_a_sequence_is_read_as_a_mapping(monkeypatch):
@@ -163,8 +169,7 @@ def test_control_refuses_when_disagreeing_callers_are_read_as_one_kind(
     real = C._caller_argument_kinds
 
     def _first_only(name, scope, tree):
-        kinds, seen = real(name, scope, tree)
-        return ({sorted(map(str, kinds))[0]} if kinds else kinds), seen
+        return real(name, scope, tree)[:1]
 
     monkeypatch.setattr(C, "_caller_argument_kinds", _first_only)
     control = C._binding_kind_control()
@@ -200,7 +205,16 @@ def test_the_closed_list_of_binding_forms_is_exactly_what_is_declared():
     """Перечень сверяется с ОБЪЯВЛЕННЫМ, иначе «закрыт» есть только слово."""
     assert C._KIND_REPAIRS == (C.REPAIR_TUPLE_POSITION,
                                C.REPAIR_ELEMENT_DEFAULT,
-                               C.REPAIR_CALLER_ARGUMENT)
+                               C.REPAIR_CALLER_ARGUMENT,
+                               C.REPAIR_SECOND_LINK)
+    # Порядок называния причин ВТОРОГО звена — ОБЪЯВЛЕН, и сверяется он с
+    # объявлением, а не с порядком обхода файла (ADR-573).
+    assert C._ARG_GAP_ORDER == (
+        (C._ARG_NOT_A_NAME, C.KIND_GAP_CALLER_ARGUMENT),
+        (C._ARG_SECOND_LINK_IS_A_PARAMETER, C.KIND_GAP_THIRD_LINK),
+        (C._ARG_SECOND_LINK_OPAQUE, C.KIND_GAP_SECOND_LINK_OPAQUE),
+        (C._ARG_SECOND_LINK_DISAGREES, C.KIND_GAP_SECOND_LINK_DISAGREES))
+    assert C._PROVEN_KINDS == ("strict", "forgiving", "sequence")
     # Род накопителя шаг НЕ переопределяет: перечень конструкторов остаётся
     # соседским, и своей копии у него нет ни одной строки.
     assert C._FORGIVING_CTORS == ("Counter", "defaultdict")
@@ -253,9 +267,11 @@ def test_the_step_does_not_repeat_the_sin_it_charges_the_neighbour_with(
     """Зовущий НАЙДЕН, а передаёт имя — это не «форма вне перечня».
 
     Общее имя послало бы расширять перечень форм связывания вместо второго
-    звена разбора, то есть чинить не то. Живая форма дерева —
-    `edge_trim_proceeds_destination.redistribute(w, …)`, где `w` сам параметр
-    зовущего; на ней пять счётчиков из живого остатка.
+    звена разбора, то есть чинить не то. С ADR-573 у этой формы имя СВОЁ и
+    ещё точнее: имя, которое и в области зовущего есть параметр, ждёт
+    ТРЕТЬЕГО звена, и оно объявлено НЕ разбираемым заранее. Проверяется здесь
+    именно то, ради чего ADR-518 завёл отдельный исход: «форма связывания вне
+    перечня» на этой сцене обязана остаться НУЛЁМ.
     """
     root = _scene(tmp_path, source='''
 def callee(rows, given):
@@ -269,8 +285,9 @@ def caller(rows, upstream):
     out = C.accumulator_kind_at_the_binding(root, _writer(unresolved=1))
     assert out["status"] == "MEASURED", out.get("reason")
     gaps = out["unresolved_reasons"]
-    assert gaps[C.KIND_GAP_CALLER_ARGUMENT] == 1
+    assert gaps[C.KIND_GAP_THIRD_LINK] == 1
     assert gaps[C.KIND_GAP_OPAQUE] == 0
+    assert gaps[C.KIND_GAP_CALLER_ARGUMENT] == 0
 
 
 def test_a_parameter_with_no_caller_in_this_file_is_its_own_refusal(tmp_path):
@@ -575,21 +592,21 @@ def test_the_gap_name_clause_fires_on_its_own(monkeypatch):
 
 
 def test_the_relayed_clause_fires_on_its_own(monkeypatch):
-    """Клауза «зовущий с ИМЕНЕМ отделён» — поодиночке.
+    """Клауза «аргумент, который не ИМЯ, отделён» — поодиночке.
 
-    Отрицательная половина получает ВТОРОЙ такой случай. Все четыре имени
-    отказа на месте, ложных положительных нет — покраснеть обязана ровно
-    клауза, считающая переданные имена.
+    Отрицательная половина получает ВТОРОЙ такой случай. Все имена отказа на
+    месте, ложных положительных нет — покраснеть обязана ровно клауза,
+    считающая зовущих у этой причины.
     """
     control = _clean_scene(monkeypatch, C.KIND_BINDING_CONTROL_CLEAN + '''
 
-def relayed_twice(rows, given):
+def given_a_call_twice(rows, given):
     for row in rows:
         given[str(row.get("verdict"))] += 1
 
 
-def relay_twice(rows, upstream):
-    return relayed_twice(rows, upstream)
+def passes_a_call_twice(rows):
+    return given_a_call_twice(rows, build_cell())
 ''')
     assert not control["passed"]
     assert control.get("relayed") == [1, 1], control
@@ -828,10 +845,10 @@ def test_the_population_filter_is_load_bearing_not_decorative():
     """
     control = C._binding_kind_control()
     assert control["passed"], control.get("reason")
-    assert control["sites"] == 5, control
+    assert control["sites"] == 6, control
     all_sites = C._binding_kind_sites(
         "<scene>", ast.parse(C.KIND_BINDING_CONTROL_SOURCE))
-    assert len(all_sites) == 6, [s["counter"] for s in all_sites]
+    assert len(all_sites) == 7, [s["counter"] for s in all_sites]
     proved = [s for s in all_sites if s["writer"] != C.WRITER_UNRESOLVED]
     assert len(proved) == 1 and proved[0]["kind_outcome"] is None
 
@@ -958,3 +975,660 @@ def measure(rows, flag):
     assert out["kind_outcomes"][C.KIND_STILL_UNMEASURED] == 1
     assert out["kind_outcomes"][C.KIND_NOT_A_MAPPING] == 0
     assert out["kind_outcomes"][C.KIND_RESOLVED] == 0
+
+
+# =========================================================================
+# ВТОРОЕ ЗВЕНО — заказ G99 п. 3 (ADR-573)
+# =========================================================================
+# Заказ дословно: «Пять аргументов зовущего требуют ВТОРОГО звена, и звено
+# объявлено отсутствующим. `the_caller_argument_is_outside_the_closed_list`
+# = 5: зовущий передаёт имя, чей род лежит на шаг выше. Разобрать второе звено
+# (и назвать заранее, что третье не разбирается), либо доказать замером, что
+# второе звено ничего не добавляет.»
+#
+# Замер на живом дереве ответил: звено понадобилось у пяти и ответило у
+# ЧЕТЫРЁХ. Пятый ждёт ТРЕТЬЕГО звена, и оно объявлено не разбираемым заранее.
+# Ниже — зелёный контур и красное на КАЖДОМ порванном звене.
+
+def _hit_scene(monkeypatch, source: str) -> dict:
+    """Контроль на ПОДМЕНЁННОЙ положительной половине сцены."""
+    monkeypatch.setattr(C, "KIND_BINDING_CONTROL_SOURCE", source)
+    return C._binding_kind_control()
+
+
+#: ЖИВАЯ форма четырёх счётчиков остатка: зовущий передаёт ИМЯ, и в его
+#: области имя связано словарным включением. Род доказывается ровно одним
+#: шагом вверх — и именно это ADR-518 объявил «не доказуемым одним звеном»,
+#: приняв за параметр зовущего то, что параметром не было.
+_SECOND_LINK_LIVE_FORM = '''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, live):
+    upstream = {b: 0 for b in live}
+    return callee(rows, upstream)
+'''
+
+
+def test_the_second_link_proves_the_kind_in_the_callers_scope(tmp_path):
+    """Род доказан СВЯЗЫВАНИЕМ переданного имени в области ЗОВУЩЕГО."""
+    out = C.accumulator_kind_at_the_binding(
+        _scene(tmp_path, source=_SECOND_LINK_LIVE_FORM), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["kind_outcomes"][C.KIND_RESOLVED] == 1
+    assert out["resolved_by"][C.REPAIR_SECOND_LINK] == 1
+    # Первое звено на этой сцене не отвечало ВОВСЕ, и присвоить ему ответ
+    # второго значило бы снова назвать число не тем, что оно считает.
+    assert out["resolved_by"][C.REPAIR_CALLER_ARGUMENT] == 0
+    assert out["resolved_kinds"]["strict"] == 1
+
+
+def test_the_answer_of_the_order_is_a_number_not_prose(tmp_path):
+    """«Понадобилось · ответило · осталось» — три числа, а не оговорка.
+
+    Знаменатель здесь НУЖДА, а не успех: мерить долю от доказанных значило бы
+    спрятать остаток, ради которого заказ и поставлен.
+    """
+    out = C.accumulator_kind_at_the_binding(
+        _scene(tmp_path, source=_SECOND_LINK_LIVE_FORM), _writer(unresolved=1))
+    assert out["second_link"] == {"needed": 1, "kind_proved": 1,
+                                  "not_a_mapping": 0, "still_unmeasured": 0,
+                                  "third_link_declared_not_walked": 0}
+
+
+def test_the_third_link_is_declared_not_walked_and_counted(tmp_path):
+    """Имя, которое и у зовущего есть ПАРАМЕТР, остаётся неизмеренным."""
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, upstream):
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_THIRD_LINK] == 1
+    assert out["second_link"]["third_link_declared_not_walked"] == 1
+    assert out["second_link"]["needed"] == 1
+    assert out["second_link"]["still_unmeasured"] == 1
+
+
+def test_one_proven_caller_does_not_answer_for_the_one_left_a_link_short(
+        tmp_path):
+    """ЖИВАЯ форма `_trim` из `edge_overlay_domain_admissibility`.
+
+    Один зовущий доказал род вторым звеном, другой передал СВОЙ параметр.
+    Взять доказавшего и объявить род значило бы ответить порядком обхода
+    файла: второй зовущий может передать накопитель противоположного рода, и
+    об этом по дереву НЕ ВИДНО.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, live):
+    upstream = {b: 0 for b in live}
+    return callee(rows, upstream)
+
+
+def relay(rows, upstream):
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["kind_outcomes"][C.KIND_STILL_UNMEASURED] == 1
+    assert out["unresolved_reasons"][C.KIND_GAP_THIRD_LINK] == 1
+    assert out["resolved_by"][C.REPAIR_SECOND_LINK] == 0
+
+
+def test_a_second_link_binding_outside_the_closed_list_is_its_own_refusal(
+        tmp_path):
+    """Имя связано, и форма связывания вне перечня — чинится ПЕРЕЧНЕМ.
+
+    Своё имя, а не общее с третьим звеном: там ход упёрся в параметр и чинится
+    ЗВЕНОМ, здесь — в неизвестную форму, и чинится она перечнем форм. Одно имя
+    на два ремонта послало бы чинить не то.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows):
+    upstream = make_tally()
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_SECOND_LINK_OPAQUE] == 1
+    assert out["unresolved_reasons"][C.KIND_GAP_THIRD_LINK] == 0
+    assert out["unresolved_reasons"][C.KIND_GAP_CALLER_ARGUMENT] == 0
+
+
+def test_second_link_bindings_that_prove_two_kinds_are_an_absence_of_an_answer(
+        tmp_path):
+    """Имя связано ДВАЖДЫ и разным родом — спор, а не первый из ответов."""
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+from collections import Counter
+
+
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, flag):
+    upstream = {}
+    if flag:
+        upstream = Counter()
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_SECOND_LINK_DISAGREES] == 1
+    assert out["kind_outcomes"][C.KIND_RESOLVED] == 0
+
+
+def test_one_proven_binding_beside_an_unknown_one_proves_nothing(tmp_path):
+    """Одно связывание доказало род, другое — нет: род НЕ доказан.
+
+    И назван он не спором: спорить не о чем, когда второй ответ есть «не
+    знаю». Правило, берущее доказавшее связывание, ответило бы порядком
+    обхода области.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, flag):
+    upstream = {}
+    if flag:
+        upstream = make_tally()
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_SECOND_LINK_OPAQUE] == 1
+    assert out["unresolved_reasons"][C.KIND_GAP_SECOND_LINK_DISAGREES] == 0
+    assert out["kind_outcomes"][C.KIND_RESOLVED] == 0
+
+
+_TWO_REASONS_ONE_NAME = '''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def by_call(rows):
+    return callee(rows, make_tally())
+
+
+def by_param(rows, upstream):
+    return callee(rows, upstream)
+'''
+
+_TWO_REASONS_SWAPPED = '''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def by_param(rows, upstream):
+    return callee(rows, upstream)
+
+
+def by_call(rows):
+    return callee(rows, make_tally())
+'''
+
+
+@pytest.mark.parametrize("source", [_TWO_REASONS_ONE_NAME,
+                                    _TWO_REASONS_SWAPPED])
+def test_the_name_of_the_refusal_follows_the_declared_order_not_the_file(
+        tmp_path, source):
+    """Причин у зовущих две, имя отказа ОДНО — и берётся оно по объявлению.
+
+    Порядок обхода файла не есть измерение: поменяй зовущих местами, и вердикт
+    обязан остаться тем же. Первым называется тот, на котором ход остановился
+    РАНЬШЕ, — здесь «аргумент вообще не имя», потому что за ним второго звена
+    не наступает вовсе.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source=source),
+                                            _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_CALLER_ARGUMENT] == 1
+    assert out["unresolved_reasons"][C.KIND_GAP_THIRD_LINK] == 0
+
+
+def test_the_second_link_stays_inside_one_file(tmp_path):
+    """Односторонность ОБЪЯВЛЕНА: звено — ЭТОТ файл, и соседний не читается.
+
+    Зовущий из другого файла связывает имя так, что род доказался бы сразу.
+    Шаг обязан этого НЕ увидеть и сказать «зовущего в этом файле нет» —
+    иначе ответ зависел бы от того, как далеко прибор решил заглянуть.
+    """
+    root = _scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+''')
+    (root / C.OPEN_COUNTER_DIRS[0] / "neighbour.py").write_text('''
+from scene import callee
+
+
+def caller(rows, live):
+    upstream = {b: 0 for b in live}
+    return callee(rows, upstream)
+''', encoding="utf-8")
+    out = C.accumulator_kind_at_the_binding(root, _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_NO_CALLER] == 1
+    assert out["second_link"]["needed"] == 0
+
+
+def test_the_mark_of_the_second_link_has_three_values_not_two():
+    """«Не спрашивали» · «спросили, не понадобилось» · «понадобилось».
+
+    Три исхода у наблюдения обязаны быть различимы (инв. #17): слей первые
+    два в `False`, и «сколько раз звено понадобилось» начало бы считать сам
+    факт вопроса.
+    """
+    rows = C._binding_kind_sites("<scene>", ast.parse('''
+from collections import Counter
+
+
+def proved_by_the_neighbour(rows):
+    plain = {}
+    for row in rows:
+        plain[str(row.get("verdict"))] += 1
+    return plain
+
+
+def first_link(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_a_ctor(rows):
+    return first_link(rows, Counter())
+
+
+def needs_the_second(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_a_name(rows, live):
+    upstream = {b: 0 for b in live}
+    return needs_the_second(rows, upstream)
+'''))
+    mark = {r["owner"]: r["second_link"] for r in rows}
+    assert mark["proved_by_the_neighbour"] is None
+    assert mark["first_link"] is False
+    assert mark["needs_the_second"] is True
+
+
+def test_the_second_link_asks_the_closed_list_through_its_own_one_place(
+        monkeypatch):
+    """У ВТОРОГО звена применение перечня одно — и оно `_closed_list_kind`.
+
+    Утверждение сознательно УЗКОЕ: шаг применяет перечень и в блоках (1)/(3)
+    `_binding_kind_site`, составы там другие, и расхождения двух применений
+    никто не мерил (названный остаток, заказ G134 п. 1). Проверяется ровно то,
+    что звено не держит СВОЕЙ копии: ослепи это место — и второе звено не
+    докажет рода ни у одного случая.
+    """
+    seen = {}
+    real = C._closed_list_kind
+
+    def _watched(name, expr, scope):
+        seen["called"] = True
+        return C._ARG_SECOND_LINK_OPAQUE
+
+    monkeypatch.setattr(C, "_closed_list_kind", _watched)
+    control = C._binding_kind_control()
+    assert seen.get("called"), "перечень форм у второго звена не спрошен вовсе"
+    assert not control["passed"]
+    assert control["by_repair"][C.REPAIR_SECOND_LINK] == []
+    assert real is not _watched
+
+
+# -------------------- КОНТРОЛИ НА КОНТРОЛЬ ВТОРОГО ЗВЕНА --------------------
+
+@pytest.mark.parametrize("gap,extra", [
+    (C.KIND_GAP_THIRD_LINK, '''
+
+def relayed_twice(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def relay_twice(rows, upstream):
+    return relayed_twice(rows, upstream)
+'''),
+    (C.KIND_GAP_SECOND_LINK_OPAQUE, '''
+
+def given_an_opaque_name_twice(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_an_opaque_name_twice(rows):
+    upstream = build_cell()
+    return given_an_opaque_name_twice(rows, upstream)
+'''),
+    (C.KIND_GAP_SECOND_LINK_DISAGREES, '''
+
+def given_a_disputed_name_twice(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_a_disputed_name_twice(rows, flag):
+    upstream = {}
+    if flag:
+        upstream = Counter()
+    return given_a_disputed_name_twice(rows, upstream)
+'''),
+])
+def test_each_second_link_clause_fires_on_its_own(monkeypatch, gap, extra):
+    """Каждая причина ВТОРОГО звена обязана иметь РОВНО один случай.
+
+    Две причины на одно имя неотличимы друг от друга, и сливают они разные
+    ремонты. Трогается по одной клаузе за раз: имена все на месте, ложных
+    положительных нет, замер не тронут — краснеть обязана ровно та, у которой
+    случаев стало два.
+    """
+    control = _clean_scene(monkeypatch, C.KIND_BINDING_CONTROL_CLEAN + extra)
+    assert not control["passed"]
+    assert control.get("gap") == gap, control
+    assert control.get("hits") == 2, control
+
+
+def test_the_walked_clause_fires_on_its_own(monkeypatch):
+    """Клауза «звено ПРОЙДЕНО, а не объявлено» — поодиночке.
+
+    Положительная половина получает ВТОРОЙ случай второго звена. Ремонты все
+    дают род, кортеж по-прежнему разводит накопители, отрицательная половина
+    не тронута — покраснеть обязана ровно клауза, считающая пройденное.
+    """
+    control = _hit_scene(monkeypatch, C.KIND_BINDING_CONTROL_SOURCE + '''
+
+def second_link_callee_twice(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def second_link_caller_twice(rows):
+    upstream = Counter()
+    return second_link_callee_twice(rows, upstream)
+''')
+    assert not control["passed"]
+    assert "пройденный" in control["reason"], control
+    assert len(control.get("walked") or []) == 2, control
+
+
+def test_the_mark_clause_fires_on_its_own(monkeypatch):
+    """Клауза «отметка не стои́т там, где зовущего не спрашивали».
+
+    Отметка ставится ремонтам, у которых зовущего нет вовсе. Всё остальное на
+    месте — и покраснеть обязана ровно клауза, различающая «понадобилось» от
+    «спросили».
+    """
+    real = C._binding_kind_sites
+
+    def _stamped(rel, tree):
+        rows = real(rel, tree)
+        for row in rows:
+            if row["resolved_by"] == C.REPAIR_TUPLE_POSITION:
+                row["second_link"] = True
+        return rows
+
+    monkeypatch.setattr(C, "_binding_kind_sites", _stamped)
+    control = C._binding_kind_control()
+    assert not control["passed"]
+    assert "не спрашивали" in control["reason"], control
+
+
+def test_the_second_link_is_spoken_in_the_verdict():
+    """Звено, о котором вердикт молчит, читателю не достаётся."""
+    text = "\n".join(C.report({STEP: {
+        "status": "MEASURED", "population": 17, "still_unmeasured": 4,
+        "misnamed_total": 11,
+        "kind_outcomes": {C.KIND_RESOLVED: 8, C.KIND_NOT_A_MAPPING: 5,
+                          C.KIND_STILL_UNMEASURED: 4},
+        "resolved_by": {C.REPAIR_SECOND_LINK: 4},
+        "resolved_kinds": {"strict": 8, "forgiving": 0},
+        "unresolved_reasons": {C.KIND_GAP_THIRD_LINK: 1},
+        "misnamed_gaps": {},
+        "second_link": {"needed": 5, "kind_proved": 4, "not_a_mapping": 0,
+                        "still_unmeasured": 1,
+                        "third_link_declared_not_walked": 1},
+        "control": {"passed": True}}}))
+    assert "[РОД · ВТОРОЕ ЗВЕНО] понадобилось у 5" in text
+    assert "род доказан у 4" in text
+    assert "ТРЕТЬЕГО" in text
+
+
+# -------------------- ДЫРЫ СЦЕНЫ, НАЙДЕННЫЕ МУТАЦИЕЙ (цикл #782) --------------------
+# Первый прогон мутаций по региону дал 74 убитых и 18 выживших, и ни один не зачтён:
+# все восемнадцать оказались дырами ЭТОЙ батареи, а не силой правила. Каждый тест ниже
+# назван по своему мутанту — так, чтобы снять его молча было нельзя.
+
+def test_the_second_link_proves_a_sequence_and_it_is_not_a_class_counter(
+        tmp_path):
+    """Мутанты «L14889 if → False», «L14890 return → None», «L15456 sum(1→2)».
+
+    Второе звено обязано уметь ответить и находкой о НАСЕЛЕНИИ: накопитель,
+    пришедший от зовущего, бывает последовательностью, и тогда класса у него
+    нет вовсе. Без этой сцены ветка последовательности во втором звене не
+    исполнялась ни разу, а поле `not_a_mapping` было нулём при любом множителе.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[int(row.get("slot"))] += 1
+
+
+def caller(rows, axis):
+    upstream = [0] * len(axis)
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["kind_outcomes"][C.KIND_NOT_A_MAPPING] == 1
+    assert out["sequence_proved_by"][C.REPAIR_SECOND_LINK] == 1
+    assert out["second_link"] == {"needed": 1, "kind_proved": 0,
+                                  "not_a_mapping": 1, "still_unmeasured": 0,
+                                  "third_link_declared_not_walked": 0}
+
+
+def test_the_second_link_reads_the_default_of_setdefault(tmp_path):
+    """Мутанты «L14896 is→is not», «L14901 is not→is», «L14901 return→None».
+
+    Имя у зовущего связано ЭЛЕМЕНТОМ чужого контейнера, взятым с умолчанием.
+    Форма перечню известна, и второе звено обязано её спросить — иначе род
+    остался бы неизмеренным там, где он прямо написан.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows, tally):
+    upstream = tally.setdefault("side", {"fired": 0})
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["kind_outcomes"][C.KIND_RESOLVED] == 1
+    assert out["resolved_by"][C.REPAIR_SECOND_LINK] == 1
+    assert out["resolved_kinds"]["strict"] == 1
+
+
+def test_the_second_link_takes_its_own_element_of_a_tuple_binding(tmp_path):
+    """Мутант «L14896 if → always False» — и он тонкий.
+
+    У кортежного связывания умолчания `setdefault` НЕТ, то есть первый
+    спрошенный вид формы отдаёт `None`. Правило, перестающее пропускать
+    `None`, разберёт пустоту вместо кортежа и объявит род неизмеренным —
+    при том что элемент по положению найден верно.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+from collections import Counter
+
+
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows):
+    spare, upstream = [], Counter()
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["resolved_by"][C.REPAIR_SECOND_LINK] == 1
+    assert out["resolved_kinds"]["forgiving"] == 1
+
+
+def test_the_second_link_names_a_sequence_found_inside_a_tuple_binding(
+        tmp_path):
+    """Мутанты «L14898 if → False», «L14899 return → None».
+
+    Элемент кортежа может оказаться последовательностью, и тогда ответ —
+    находка о НАСЕЛЕНИИ, а не «род не измерен». Разные исходы обязаны
+    остаться разными и на втором звене.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[int(row.get("slot"))] += 1
+
+
+def caller(rows, axis):
+    spare, upstream = {}, [0] * len(axis)
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["kind_outcomes"][C.KIND_NOT_A_MAPPING] == 1
+    assert out["sequence_proved_by"][C.REPAIR_SECOND_LINK] == 1
+
+
+@pytest.mark.parametrize("signature,what", [
+    ("def caller(rows, *upstream):", "звёздный параметр"),
+    ("def caller(rows, **upstream):", "двузвёздный параметр"),
+])
+def test_a_starred_parameter_of_the_caller_is_a_parameter_too(
+        tmp_path, signature, what):
+    """Мутанты «L14859 if a.vararg → False», «L14861 if a.kwarg → False».
+
+    Имя, собранное `*args`/`**kwargs`, параметром быть не перестаёт, и ответ
+    о нём лежит ТРЕТЬИМ звеном. Пропусти эти два вида — и то же самое
+    положение дел получило бы имя «связывание вне перечня», то есть послало
+    бы расширять перечень форм вместо звена.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source=f'''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+{signature}
+    return callee(rows, upstream)
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_THIRD_LINK] == 1, what
+    assert out["unresolved_reasons"][C.KIND_GAP_SECOND_LINK_OPAQUE] == 0
+
+
+def test_an_argument_that_is_not_a_name_never_marks_the_second_link(tmp_path):
+    """Мутант «L14992 link 1→2».
+
+    Второму звену не за что взяться, когда аргумент — не имя: звено НЕ
+    пройдено, и отметка обязана остаться ложной. Поставь её здесь, и число
+    «сколько раз звено понадобилось» начнёт считать случаи, которых оно не
+    касалось.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def caller(rows):
+    return callee(rows, make_tally())
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_CALLER_ARGUMENT] == 1
+    assert out["second_link"]["needed"] == 0
+    assert out["unresolved_sample"][0]["second_link"] is False
+
+
+def test_no_caller_is_reported_as_zero_callers_not_as_one(tmp_path):
+    """Мутант «L15069 callers_seen 0→1».
+
+    «Зовущих не нашлось» и «нашёлся один» — разные наблюдения, и число рядом
+    с отказом обязано говорить второе только тогда, когда оно верно.
+    """
+    out = C.accumulator_kind_at_the_binding(_scene(tmp_path, source='''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+'''), _writer(unresolved=1))
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["unresolved_reasons"][C.KIND_GAP_NO_CALLER] == 1
+    assert out["unresolved_sample"][0]["callers_seen"] == 0
+    assert out["unresolved_sample"][0]["second_link"] is False
+
+
+# --- КОНТРАКТ САМИХ ЗВЕНЬЕВ: ветки fail-CLOSED, через шаг НЕ наблюдаемые ---
+# Три мутанта ниже через публичный шаг не видны по построению, и это сказано
+# вслух, а не обойдено: защитная ветка «область не функция» из `_binding_kind_site`
+# недостижима (там область обязана иметь параметры), а имя `_ARG_SECOND_LINK_OPAQUE`
+# в последней строке `_closed_list_kind` неотличимо от любого другого
+# НЕдоказанного ответа — `_second_link_kind` всё равно назовёт его отказом.
+# Поэтому они проверяются у КОНТРАКТА функции, а не через вердикт: мутант,
+# наблюдаемый только у контракта, обязан быть убит у контракта, иначе он не убит.
+
+def test_params_of_a_scope_that_is_not_a_function_is_an_empty_set():
+    """Мутанты «L14854 if → False», «L14855 return → None».
+
+    Пустое МНОЖЕСТВО, а не `None` и не падение: ответ идёт в проверку
+    вхождения, и `None` обрушил бы её, а падение превратило бы отказ правила
+    в отказ прибора.
+    """
+    assert C._params_of(ast.parse("x = 1")) == set()
+    assert C._params_of(ast.parse("x = 1").body[0]) == set()
+
+
+def test_the_caller_walk_refuses_a_scope_that_is_not_a_function():
+    """Мутанты «L14957 if → False», «L14958 return → None».
+
+    У модуля параметров нет, спрашивать зовущих не о чем — и ответ обязан
+    быть ПУСТЫМ СПИСКОМ: `None` прочитался бы как «зовущих нет» через
+    `len(...)` только случайно, а падение стёрло бы весь вердикт шага.
+    """
+    tree = ast.parse('''
+def callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+''')
+    assert C._caller_argument_kinds("given", tree, tree) == []
+
+
+def test_an_unknown_binding_form_is_named_by_the_closed_list_vocabulary():
+    """Мутант «L14902 return → None».
+
+    Через вердикт шага он не виден: `None` и названная причина равно не
+    доказывают рода. Но словарь ответов этой функции ЗАКРЫТ, и имя из него —
+    часть её контракта: вернув `None`, она отдала бы наружу значение, которого
+    в словаре нет, и следующий читатель о причине не узнал бы ничего.
+    """
+    unknown = ast.parse("tally = make_it()").body[0].value
+    assert C._closed_list_kind(
+        "tally", unknown, ast.parse("tally = make_it()")) == (
+        C._ARG_SECOND_LINK_OPAQUE)

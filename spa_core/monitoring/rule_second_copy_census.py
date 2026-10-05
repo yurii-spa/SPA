@@ -14549,8 +14549,14 @@ _KIND_OUTCOMES = (KIND_RESOLVED, KIND_NOT_A_MAPPING, KIND_STILL_UNMEASURED)
 REPAIR_TUPLE_POSITION = "bound_by_position_in_a_tuple_assignment"
 REPAIR_ELEMENT_DEFAULT = "element_taken_with_a_literal_default"
 REPAIR_CALLER_ARGUMENT = "the_kind_is_decided_by_the_caller_in_this_file"
+#: Четвёртый ремонт, и он ВТОРОЕ ЗВЕНО (заказ G99 п. 3). Зовущий найден и
+#: передаёт ИМЯ — род его решает связывание этого имени в области ЗОВУЩЕГО.
+#: Имя у ремонта своё, а не общее с третьим: «род решил зовущий» и «род решило
+#: связывание у зовущего» суть разные утверждения, и число, называющее второе
+#: первым, снова было бы числом, чьё имя не описывает считаемого.
+REPAIR_SECOND_LINK = "the_kind_is_decided_one_link_above_the_caller"
 _KIND_REPAIRS = (REPAIR_TUPLE_POSITION, REPAIR_ELEMENT_DEFAULT,
-                 REPAIR_CALLER_ARGUMENT)
+                 REPAIR_CALLER_ARGUMENT, REPAIR_SECOND_LINK)
 
 #: Почему род НЕ доказан даже у связывания. Имена разные потому, что чинятся
 #: РАЗНЫМ: параметру без зовущего нужен межфайловый разбор, спорящим зовущим —
@@ -14560,14 +14566,59 @@ KIND_GAP_NO_CALLER = "parameter_has_no_caller_in_this_file"
 KIND_GAP_CALLERS_DISAGREE = "callers_in_this_file_pass_more_than_one_kind"
 KIND_GAP_OPAQUE = "the_binding_form_is_outside_the_closed_list"
 #: Четвёртое имя, и оно появилось ЗАМЕРОМ, а не из головы: у пяти живых
-#: счётчиков зовущий НАЙДЕН, а передаёт он ИМЯ (`redistribute(w, …)`, где `w`
-#: — сам параметр зовущего), и род его не доказывается ОДНИМ звеном. Звать это
-#: «связывание вне перечня» значило бы повторить ровно тот дефект, который
-#: этот шаг вменяет соседу: причина здесь не в связывании, а в АРГУМЕНТЕ, и
-#: чинится она вторым звеном, а не расширением перечня форм.
+#: счётчиков зовущий НАЙДЕН, а передаёт он ИМЯ (`redistribute(w, …)`), и род
+#: его не доказывается ОДНИМ звеном. Звать это «связывание вне перечня»
+#: значило бы повторить ровно тот дефект, который этот шаг вменяет соседу:
+#: причина здесь не в связывании, а в АРГУМЕНТЕ, и чинится она вторым звеном,
+#: а не расширением перечня форм.
+#:
+#: ⚠️ **Поправка ADR-573 к прозе ADR-518.** Здесь стояло «где `w` — сам
+#: параметр зовущего», и это была ДОГАДКА, а не замер: второе звено, пройдённое
+#: заказом G99 п. 3, показало, что у четырёх из пяти `w` в области зовущего
+#: связан словарным включением (`w = {b: 1.0 / len(live) for b in live}`), то
+#: есть род доказывается ровно одним шагом вверх. Параметром зовущего имя
+#: оказалось у ОДНОГО счётчика из пяти. Имя исхода было верным, объяснение —
+#: нет; и это тот же класс, что ряд ищет снаружи, найденный внутри себя.
 KIND_GAP_CALLER_ARGUMENT = "the_caller_argument_is_outside_the_closed_list"
+#: Три имени ВТОРОГО ЗВЕНА (заказ G99 п. 3). До него отказ «аргумент зовущего»
+#: стоял ОДИН на четырёх разных причинах, и чинятся они разным:
+#:
+#: * аргумент ВООБЩЕ не имя (`f(rows, make_tally())`) — второму звену не за что
+#:   взяться, и остаётся это `KIND_GAP_CALLER_ARGUMENT` в своём точном смысле;
+#: * имя есть, но здесь оно ПАРАМЕТР зовущего — ответ лежит ещё звеном выше, и
+#:   ТРЕТЬЕ звено этот шаг не разбирает. Названо ЗАРАНЕЕ и своим именем, а не
+#:   спрятано в общий отказ: заказ просит дословно «назвать заранее, что третье
+#:   не разбирается»;
+#: * имя связано, и хотя бы одно связывание вне закрытого перечня форм —
+#:   чинится перечнем;
+#: * имя связано формами ИЗ перечня, и они доказывают РАЗНЫЙ род — чинить
+#:   нечего, спор есть отсутствие ответа.
+KIND_GAP_THIRD_LINK = "the_second_link_is_a_parameter_the_third_is_not_walked"
+KIND_GAP_SECOND_LINK_OPAQUE = "the_second_link_has_a_binding_outside_the_closed_list"
+KIND_GAP_SECOND_LINK_DISAGREES = "the_second_link_bindings_prove_more_than_one_kind"
 _KIND_GAPS = (KIND_GAP_NO_CALLER, KIND_GAP_CALLERS_DISAGREE, KIND_GAP_OPAQUE,
-              KIND_GAP_CALLER_ARGUMENT)
+              KIND_GAP_CALLER_ARGUMENT, KIND_GAP_THIRD_LINK,
+              KIND_GAP_SECOND_LINK_OPAQUE, KIND_GAP_SECOND_LINK_DISAGREES)
+
+#: Рода, которые ДОКАЗАНЫ. Всё остальное, что приходит от зовущего, есть
+#: названная причина отказа, а не род: держать их в одном множестве значило бы
+#: считать «не знаю» ещё одним родом и объявлять спор там, где его нет.
+_PROVEN_KINDS = ("strict", "forgiving", "sequence")
+
+#: Причины отказа ВТОРОГО ЗВЕНА, в порядке ГЛУБИНЫ ХОДА, и порядок объявлен
+#: заранее: имя отказа обязано быть одно даже тогда, когда зовущих несколько и
+#: причины у них разные. Первым называется тот, на котором ход остановился
+#: РАНЬШЕ, — он и есть то, что надо починить первым, потому что следующие
+#: причины за ним просто не наступают.
+_ARG_NOT_A_NAME = "argument_is_not_a_name"
+_ARG_SECOND_LINK_IS_A_PARAMETER = "second_link_is_a_parameter"
+_ARG_SECOND_LINK_OPAQUE = "second_link_binding_outside_the_list"
+_ARG_SECOND_LINK_DISAGREES = "second_link_bindings_disagree"
+_ARG_GAP_ORDER = ((_ARG_NOT_A_NAME, KIND_GAP_CALLER_ARGUMENT),
+                  (_ARG_SECOND_LINK_IS_A_PARAMETER, KIND_GAP_THIRD_LINK),
+                  (_ARG_SECOND_LINK_OPAQUE, KIND_GAP_SECOND_LINK_OPAQUE),
+                  (_ARG_SECOND_LINK_DISAGREES,
+                   KIND_GAP_SECOND_LINK_DISAGREES))
 
 #: Вердикты ADR-469, которые этот шаг перепроверяет на ЧЕСТНОСТЬ ИМЕНИ. Имя,
 #: утверждающее о накопителе то, чего о нём не спрашивали, есть ровно тот
@@ -14632,6 +14683,16 @@ def caller(rows):
     return callee(rows, {v: 0 for v in _VERDICTS})
 
 
+def second_link_callee(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def second_link_caller(rows):
+    upstream = Counter()
+    return second_link_callee(rows, upstream)
+
+
 def already_proved_by_the_neighbour(rows):
     plain = {}
     for row in rows:
@@ -14687,6 +14748,37 @@ def relayed(rows, given):
 
 def relay(rows, upstream):
     return relayed(rows, upstream)
+
+
+def given_a_call(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_a_call(rows):
+    return given_a_call(rows, build_cell())
+
+
+def given_an_opaque_name(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_an_opaque_name(rows):
+    upstream = build_cell()
+    return given_an_opaque_name(rows, upstream)
+
+
+def given_a_disputed_name(rows, given):
+    for row in rows:
+        given[str(row.get("verdict"))] += 1
+
+
+def passes_a_disputed_name(rows, flag):
+    upstream = {}
+    if flag:
+        upstream = Counter()
+    return given_a_disputed_name(rows, upstream)
 '''
 
 
@@ -14757,26 +14849,118 @@ def _literal_default_of_setdefault(expr: ast.AST) -> Optional[ast.AST]:
     return expr.args[1]
 
 
+def _params_of(scope: ast.AST) -> Set[str]:
+    """Имена параметров области. Пустое множество у модуля — не у функции."""
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return set()
+    a = scope.args
+    names = {p.arg for p in (list(a.posonlyargs) + list(a.args)
+                             + list(a.kwonlyargs))}
+    if a.vararg:
+        names.add(a.vararg.arg)
+    if a.kwarg:
+        names.add(a.kwarg.arg)
+    return names
+
+
+def _closed_list_kind(name: str, expr: ast.AST, scope: ast.AST) -> str:
+    """Род ОДНОГО связывания по ЗАКРЫТОМУ перечню форм — для ВТОРОГО звена.
+
+    Перечень тот же, что объявлен шагом: последовательность · конструктор
+    соседа · умолчание `setdefault` · элемент кортежа по положению. Своей
+    копии правила РОДА здесь нет ни одной строки — род считает
+    :func:`_accumulator_kind` соседа, а последовательность
+    :func:`_sequence_binding`.
+
+    ⚠️ **Чего эта функция НЕ делает, и сказать это обязательно:** она не есть
+    единственное место применения перечня в шаге. Собственное имя счётчика
+    разбирают блоки (1) и (3) :func:`_binding_kind_site`, и состав форм у них
+    ДРУГОЙ — блок (3) не спрашивает ни умолчания `setdefault` (это блок (1)),
+    ни рода самого связывания напрямую (его уже доказал сосед, иначе счётчик
+    сюда не попал бы). Свести их в один вызов значило бы вернуть **форму**,
+    которой доказан род, а на ней стои́т имя ремонта (`resolved_by`) — то есть
+    задеть числа ADR-518 правкой, о которой заказ не просил. Расхождение двух
+    применений никто не мерил; это НАЗВАННЫЙ остаток (заказ G134 п. 1), а не
+    «одно место».
+
+    Форма вне перечня есть :data:`_ARG_SECOND_LINK_OPAQUE`, а не «наверное,
+    словарь».
+    """
+    if _sequence_binding(expr):
+        return "sequence"
+    kind = _accumulator_kind(expr)
+    if kind is not None:
+        return kind
+    for inner in (_literal_default_of_setdefault(expr),
+                  _tuple_position_kind(name, expr, scope)):
+        if inner is None:
+            continue
+        if _sequence_binding(inner):
+            return "sequence"
+        kind = _accumulator_kind(inner)
+        return kind if kind is not None else _ARG_SECOND_LINK_OPAQUE
+    return _ARG_SECOND_LINK_OPAQUE
+
+
+def _second_link_kind(name: str, scope: ast.AST) -> str:
+    """Род ИМЕНИ, переданного зовущим, — спрошенный у его связывания в области
+    ЗОВУЩЕГО (**ВТОРОЕ звено, заказ G99 п. 3**).
+
+    Первое звено спрашивает род у самого АРГУМЕНТА и отвечает только тогда,
+    когда аргумент — выражение известной формы (`f(rows, Counter())`). Когда
+    аргумент есть имя, род лежит на шаг выше, и этот шаг его проходит — в той
+    же области, тем же закрытым перечнем форм.
+
+    **ТРЕТЬЕ звено НЕ разбирается, и сказано это ЗАРАНЕЕ:** имя, которое в
+    области зовущего само есть параметр, получает свою причину
+    (:data:`_ARG_SECOND_LINK_IS_A_PARAMETER`) и остаётся неизмеренным. Пройти
+    его значило бы начать ход, у которого нет объявленного конца, — ровно та
+    догадка «как далеко прибор решил заглянуть», против которой написан
+    ADR-469.
+    """
+    binds = _scope_bindings(scope).get(name) or []
+    if not binds:
+        return (_ARG_SECOND_LINK_IS_A_PARAMETER if name in _params_of(scope)
+                else _ARG_SECOND_LINK_OPAQUE)
+    kinds = {_closed_list_kind(name, expr, scope) for expr in binds}
+    proven = {k for k in kinds if k in _PROVEN_KINDS}
+    if len(proven) > 1:
+        return _ARG_SECOND_LINK_DISAGREES
+    # Одно связывание доказало род, другое — нет: род НЕ доказан. Назвать это
+    # доказанным значило бы ответить порядком обхода, а назвать спором —
+    # соврать имени: спорить не о чем, когда второй ответ есть «не знаю».
+    if len(kinds) > len(proven):
+        return _ARG_SECOND_LINK_OPAQUE
+    return proven.pop()
+
+
 def _caller_argument_kinds(name: str, scope: ast.AST,
-                           tree: ast.AST) -> Tuple[Set[Optional[str]], int]:
+                           tree: ast.AST) -> List[dict]:
     """Рода, которые зовущие ЭТОГО ЖЕ ФАЙЛА передают на место параметра.
 
-    **Односторонность объявлена заранее и ограничена ОДНИМ звеном:** зовущие
-    ищутся только в этом файле и только по ИМЕНИ функции. Зовущий из другого
-    модуля не ищется вовсе — иначе ответ зависел бы от того, как далеко
-    прибор решил заглянуть, а именно это ADR-469 назвал догадкой.
+    **Односторонность объявлена заранее и ограничена ДВУМЯ звеньями:** зовущие
+    ищутся только в этом файле и только по ИМЕНИ функции; имя, переданное
+    зовущим, разрешается в области ЗОВУЩЕГО (второе звено), а имя, которое и
+    там есть параметр, остаётся неизмеренным со своей причиной — третье звено
+    не проходится. Зовущий из другого модуля не ищется вовсе: иначе ответ
+    зависел бы от того, как далеко прибор решил заглянуть, а именно это
+    ADR-469 назвал догадкой.
 
-    Возвращает (рода, сколько зовущих найдено). Спор родов не сводится к
-    одному: два зовущих, передающих противоположные накопители, есть
-    ОТСУТСТВИЕ ответа, а не первый из них.
+    Возвращает по ОДНОЙ записи на найденного зовущего: `kind` (род либо
+    названная причина отказа) и `link` (на каком звене получен ответ). Записи,
+    а не множество родов, и это не мелочь: «род доказал зовущий» и «род
+    доказало связывание у зовущего» суть разные утверждения, и свести их в
+    одно множество значило бы потерять то самое, о чём спрашивает заказ.
+    Спор родов не сводится к одному: два зовущих, передающих противоположные
+    накопители, есть ОТСУТСТВИЕ ответа, а не первый из них.
     """
     if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        return set(), 0
+        return []
     args = scope.args
     order = list(args.posonlyargs) + list(args.args)
     pos = next((i for i, a in enumerate(order) if a.arg == name), None)
-    kinds: Set[Optional[str]] = set()
-    seen = 0
+    owner_of = _counter_owner_scopes(tree)
+    found: List[dict] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -14794,10 +14978,19 @@ def _caller_argument_kinds(name: str, scope: ast.AST,
                 given = node.args[pos]
         if given is None:
             continue
-        seen += 1
-        kinds.add("sequence" if _sequence_binding(given)
-                  else _accumulator_kind(given))
-    return kinds, seen
+        if _sequence_binding(given):
+            found.append({"kind": "sequence", "link": 1})
+            continue
+        first = _accumulator_kind(given)
+        if first is not None:
+            found.append({"kind": first, "link": 1})
+        elif isinstance(given, ast.Name):
+            here = owner_of.get(id(node), tree)
+            found.append({"kind": _second_link_kind(given.id, here),
+                          "link": 2})
+        else:
+            found.append({"kind": _ARG_NOT_A_NAME, "link": 1})
+    return found
 
 
 def _binding_kind_site(scope: ast.AST, tree: ast.AST, target: ast.AST,
@@ -14809,7 +15002,11 @@ def _binding_kind_site(scope: ast.AST, tree: ast.AST, target: ast.AST,
     правила рода — ровно тот предмет, который вся перепись и ищет.
     """
     blank = {"kind_outcome": None, "resolved_by": None, "kind_gap": None,
-             "accumulator": None, "misnamed": None, "callers_seen": None}
+             "accumulator": None, "misnamed": None, "callers_seen": None,
+             # `None` = вопрос о втором звене не задавался вовсе; `False` =
+             # задавался и звено не понадобилось. Третий исход у наблюдения
+             # обязан быть ОТДЕЛЬНЫМ значением (инв. #17).
+             "second_link": None}
     if writer["writer"] != WRITER_UNRESOLVED:
         return blank
 
@@ -14865,28 +15062,35 @@ def _binding_kind_site(scope: ast.AST, tree: ast.AST, target: ast.AST,
         if a.kwarg:
             params.add(a.kwarg.arg)
     if not binds and target.id in params:
-        kinds, seen = _caller_argument_kinds(target.id, scope, tree)
+        given = _caller_argument_kinds(target.id, scope, tree)
+        seen = len(given)
         if not seen:
             return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_NO_CALLER,
-                         callers_seen=0)
-        if len(kinds) > 1:
+                         callers_seen=0, second_link=False)
+        # ВТОРОЕ звено пройдено хотя бы у одного зовущего — об этом надо
+        # доложить ЧИСЛОМ и в отказе тоже: «сколько раз звено понадобилось»
+        # есть ответ заказа, и считать его только у доказанных значило бы
+        # мерить успех, а не нужду.
+        second = any(g["link"] == 2 for g in given)
+        kinds = {g["kind"] for g in given}
+        proven = {k for k in kinds if k in _PROVEN_KINDS}
+        if len(proven) > 1:
             return _done(KIND_STILL_UNMEASURED,
                          kind_gap=KIND_GAP_CALLERS_DISAGREE,
-                         callers_seen=seen)
-        only = kinds.pop()
-        if only is None:
-            # Своим именем, а не общим: зовущий НАЙДЕН и передаёт имя, род
-            # которого не доказывается одним звеном. Это не «форма вне
-            # перечня» — чинится вторым звеном, а не перечнем.
-            return _done(KIND_STILL_UNMEASURED,
-                         kind_gap=KIND_GAP_CALLER_ARGUMENT,
-                         callers_seen=seen)
+                         callers_seen=seen, second_link=second)
+        # Причин отказа у разных зовущих может быть несколько; имя берётся по
+        # ОБЪЯВЛЕННОМУ порядку глубины хода, а не по порядку обхода файла.
+        for reason, gap in _ARG_GAP_ORDER:
+            if reason in kinds:
+                return _done(KIND_STILL_UNMEASURED, kind_gap=gap,
+                             callers_seen=seen, second_link=second)
+        only = proven.pop()
+        repair = REPAIR_SECOND_LINK if second else REPAIR_CALLER_ARGUMENT
         if only == "sequence":
-            return _done(KIND_NOT_A_MAPPING,
-                         resolved_by=REPAIR_CALLER_ARGUMENT,
-                         callers_seen=seen)
-        return _done(KIND_RESOLVED, resolved_by=REPAIR_CALLER_ARGUMENT,
-                     accumulator=only, callers_seen=seen)
+            return _done(KIND_NOT_A_MAPPING, resolved_by=repair,
+                         callers_seen=seen, second_link=second)
+        return _done(KIND_RESOLVED, resolved_by=repair,
+                     accumulator=only, callers_seen=seen, second_link=second)
 
     # (3) Связывание в этой области: последовательность либо элемент кортежа.
     kinds_here: Set[Optional[str]] = set()
@@ -14986,9 +15190,15 @@ def _binding_kind_control() -> dict:
     населении утонула бы в «роде не измерен».
 
     Отрицательная половина обязана НЕ доказать рода ни у одного и развести
-    свои отказы ТРЕМЯ разными именами. Самое острое место — два зовущих,
-    передающих противоположные накопители: правило, берущее первого,
-    ответило бы уверенным родом там, где ответа нет.
+    свои отказы ВСЕМИ объявленными именами, по одному живому случаю на имя.
+    Самое острое место — два зовущих, передающих противоположные накопители:
+    правило, берущее первого, ответило бы уверенным родом там, где ответа нет.
+
+    **ВТОРОЕ звено (заказ G99 п. 3) проверяется в обе стороны:** на
+    положительной половине оно обязано ДОКАЗАТЬ род там, где первое звено
+    ответить не могло, а на отрицательной — развести свои три причины отказа
+    (параметр у зовущего · связывание вне перечня · связывания спорят) по
+    одному случаю на причину. Звено, объявленное и не пройденное, есть проза.
     """
     try:
         hit = _binding_kind_sites("<control>",
@@ -15030,9 +15240,9 @@ def _binding_kind_control() -> dict:
     if clean_gaps != set(_KIND_GAPS):
         return {"passed": False, "clean_gaps": sorted(map(str, clean_gaps)),
                 "reason": (f"отрицательная половина развела отказы именами "
-                           f"{sorted(map(str, clean_gaps))} вместо всех трёх "
-                           f"{list(_KIND_GAPS)} — отказ без своей причины "
-                           f"посылает чинить не то")}
+                           f"{sorted(map(str, clean_gaps))} вместо всех "
+                           f"объявленных {list(_KIND_GAPS)} — отказ без своей "
+                           f"причины посылает чинить не то")}
     relayed = [s for s in clean
                if s["kind_gap"] == KIND_GAP_CALLER_ARGUMENT]
     if len(relayed) != 1 or relayed[0]["callers_seen"] != 1:
@@ -15042,6 +15252,42 @@ def _binding_kind_control() -> dict:
                            "связывания вне перечня: причина там в АРГУМЕНТЕ, "
                            "и общее имя послало бы расширять перечень форм "
                            "вместо второго звена")}
+    # ВТОРОЕ ЗВЕНО (заказ G99 п. 3). Каждая его причина обязана иметь РОВНО
+    # один живой случай на отрицательной половине: причина без своего случая
+    # есть украшение, а две причины на одном случае неотличимы друг от друга.
+    second_link_gaps = {KIND_GAP_THIRD_LINK: "второе звено есть ПАРАМЕТР "
+                                             "зовущего (третье не проходится)",
+                        KIND_GAP_SECOND_LINK_OPAQUE: "связывание второго звена "
+                                                     "вне закрытого перечня",
+                        KIND_GAP_SECOND_LINK_DISAGREES: "связывания второго "
+                                                        "звена доказывают "
+                                                        "РАЗНЫЙ род"}
+    for gap, what in second_link_gaps.items():
+        hits = [s for s in clean if s["kind_gap"] == gap]
+        if len(hits) != 1:
+            return {"passed": False, "gap": gap, "hits": len(hits),
+                    "reason": (f"причина «{what}» живёт на отрицательной "
+                               f"половине {len(hits)} раз(а) вместо одного — "
+                               f"отказ без своего случая не доказан, а два "
+                               f"случая на одно имя сливают разные ремонты")}
+    # Звено обязано быть ПРОЙДЕНО, а не объявлено: на положительной половине
+    # род доказывается ровно им, и ровно там, где первое звено ответить не
+    # могло. Проверка на `second_link` ложна у всего остального — иначе
+    # «понадобилось» было бы неотличимо от «спросили».
+    walked = [s for s in hit if s["resolved_by"] == REPAIR_SECOND_LINK]
+    if len(walked) != 1 or not walked[0]["second_link"]:
+        return {"passed": False,
+                "walked": [(s["counter"], s["second_link"]) for s in walked],
+                "reason": ("второе звено не доказало рода ни у одного случая "
+                           "положительной половины — ход, объявленный и не "
+                           "пройденный, есть проза, а не правило")}
+    if any(s["second_link"] for s in hit
+           if s["resolved_by"] in (REPAIR_TUPLE_POSITION,
+                                   REPAIR_ELEMENT_DEFAULT)):
+        return {"passed": False,
+                "reason": ("отметка «понадобилось второе звено» стои́т там, "
+                           "где зовущего не спрашивали вовсе — тогда она "
+                           "считает не ход, а сам факт вопроса")}
     disagreed = [s for s in clean
                  if s["kind_gap"] == KIND_GAP_CALLERS_DISAGREE]
     if len(disagreed) != 1 or disagreed[0]["callers_seen"] != 2:
@@ -15055,7 +15301,9 @@ def _binding_kind_control() -> dict:
             "clean_sites": len(clean), "clean_false_positives": 0,
             "clean_gaps": sorted(map(str, clean_gaps)),
             "relayed_callers_seen": relayed[0]["callers_seen"],
-            "disagreeing_callers_seen": disagreed[0]["callers_seen"]}
+            "disagreeing_callers_seen": disagreed[0]["callers_seen"],
+            "second_link_proved": len(walked),
+            "second_link_gaps": sorted(second_link_gaps)}
 
 
 def accumulator_kind_at_the_binding(root: Path,
@@ -15196,6 +15444,22 @@ def accumulator_kind_at_the_binding(root: Path,
              for k in ("strict", "forgiving")}
     misnamed = {name: sum(1 for r in mine if r["misnamed"] == name)
                 for name in _MISNAMED}
+    # ОТВЕТ заказа G99 п. 3 ЧИСЛОМ, а не прозой: сколько раз второе звено
+    # ПОНАДОБИЛОСЬ (зовущий передал имя, первое звено не ответило), и сколько
+    # раз оно ответило. Знаменатель здесь — нужда, а не успех: мерить долю от
+    # доказанных значило бы спрятать остаток, ради которого заказ и поставлен.
+    needed = [r for r in mine if r["second_link"]]
+    second_link = {
+        "needed": len(needed),
+        "kind_proved": sum(1 for r in needed
+                           if r["kind_outcome"] == KIND_RESOLVED),
+        "not_a_mapping": sum(1 for r in needed
+                             if r["kind_outcome"] == KIND_NOT_A_MAPPING),
+        "still_unmeasured": sum(1 for r in needed
+                                if r["kind_outcome"] == KIND_STILL_UNMEASURED),
+        "third_link_declared_not_walked": sum(
+            1 for r in mine if r["kind_gap"] == KIND_GAP_THIRD_LINK),
+    }
     return {
         **head,
         "status": "MEASURED",
@@ -15212,6 +15476,7 @@ def accumulator_kind_at_the_binding(root: Path,
         "still_unmeasured": outcomes[KIND_STILL_UNMEASURED],
         "misnamed_gaps": misnamed,
         "misnamed_total": sum(misnamed.values()),
+        "second_link": second_link,
         "resolved_sample": [
             {"file": r["file"], "line": r["line"], "owner": r["owner"],
              "counter": r["counter"], "resolved_by": r["resolved_by"],
@@ -15226,7 +15491,8 @@ def accumulator_kind_at_the_binding(root: Path,
         "unresolved_sample": [
             {"file": r["file"], "line": r["line"], "owner": r["owner"],
              "counter": r["counter"], "gap": r["kind_gap"],
-             "callers_seen": r["callers_seen"]}
+             "callers_seen": r["callers_seen"],
+             "second_link": r["second_link"]}
             for r in mine
             if r["kind_outcome"] == KIND_STILL_UNMEASURED][:COSTED_SAMPLE],
         "blind": [
@@ -15241,6 +15507,12 @@ def accumulator_kind_at_the_binding(root: Path,
              "имени функции (звено объявлено заранее): зовущий из другого "
              "модуля не искался вовсе, и `parameter_has_no_caller_in_this_file` "
              "НЕ означает «зовущих нет»"),
+            (f"ход вверх ограничен ДВУМЯ звеньями, и ТРЕТЬЕ объявлено "
+             f"НЕ разбираемым заранее: имя, которое и в области зовущего есть "
+             f"параметр, получает `{KIND_GAP_THIRD_LINK}` и остаётся "
+             f"неизмеренным. Это ВЫБОР, а не свойство дерева — ход без "
+             f"объявленного конца есть та самая догадка «как далеко прибор "
+             f"решил заглянуть», против которой написан ADR-469"),
             ("перечень форм связывания ЗАКРЫТ; форма вне него есть третий "
              "исход. Расширять перечень — работа следующего шага, а не "
              "догадка этого"),
@@ -15250,6 +15522,7 @@ def accumulator_kind_at_the_binding(root: Path,
         ],
         "what_it_does_not_prove": [
             "что у доказанного рода вред наступил — род говорит о ДОРОГЕ, событие не спрошено",
+            "что второе звено закрыло класс: остаток третьего звена НАЗВАН и остался остатком",
             "что `misnamed_gaps` = 0 означало бы верные имена: шаг сверяет ровно два утверждения соседа, а не все",
             "что остаток не сократится дальше — формы связывания вне закрытого перечня остались третьим исходом намеренно",
         ],
@@ -21735,13 +22008,29 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             f"[РОД · ЧЕМ ДОКАЗАН] кортеж по положению "
             f"{repairs.get(REPAIR_TUPLE_POSITION)} · умолчание `setdefault` "
             f"{repairs.get(REPAIR_ELEMENT_DEFAULT)} · аргумент зовущего в "
-            f"этом файле {repairs.get(REPAIR_CALLER_ARGUMENT)}")
+            f"этом файле {repairs.get(REPAIR_CALLER_ARGUMENT)} · связывание "
+            f"ИМЕНИ в области зовущего, второе звено "
+            f"{repairs.get(REPAIR_SECOND_LINK)}")
         out.append(
             f"[РОД · ПОЧЕМУ НЕ ИЗМЕРЕНО] зовущего в этом файле нет "
             f"{why.get(KIND_GAP_NO_CALLER)} · зовущие спорят о роде "
             f"{why.get(KIND_GAP_CALLERS_DISAGREE)} · форма связывания вне "
             f"закрытого перечня {why.get(KIND_GAP_OPAQUE)} · аргумент "
-            f"зовущего вне перечня {why.get(KIND_GAP_CALLER_ARGUMENT)}")
+            f"зовущего не имя вовсе {why.get(KIND_GAP_CALLER_ARGUMENT)} · "
+            f"второе звено есть ПАРАМЕТР, третье НЕ разбирается "
+            f"{why.get(KIND_GAP_THIRD_LINK)} · связывание второго звена вне "
+            f"перечня {why.get(KIND_GAP_SECOND_LINK_OPAQUE)} · связывания "
+            f"второго звена спорят о роде "
+            f"{why.get(KIND_GAP_SECOND_LINK_DISAGREES)}")
+        link = observed(kind_step, "second_link", kind=dict) or {}
+        out.append(
+            f"[РОД · ВТОРОЕ ЗВЕНО] понадобилось у {link.get('needed')} "
+            f"счётчик(ов) (зовущий передал ИМЯ, и первое звено рода не "
+            f"доказало); род доказан у {link.get('kind_proved')}, накопитель "
+            f"оказался последовательностью у {link.get('not_a_mapping')}, "
+            f"осталось неизмеренным {link.get('still_unmeasured')} — из них "
+            f"{link.get('third_link_declared_not_walked')} ждут ТРЕТЬЕГО "
+            f"звена, и оно объявлено НЕ разбираемым заранее")
         out.append(
             f"[РОД · ЧЕСТНОСТЬ ИМЕНИ У СОСЕДА] из "
             f"{kind_step.get('population')} третьих исходов ADR-469 имя "
@@ -21754,7 +22043,7 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         control = observed(kind_step, "control", kind=dict) or {}
         out.append(
             f"[РОД · КОНТРОЛЬ] на известных случаях правило доказало род "
-            f"{control.get('resolved')} накопител(ям) ВСЕМИ тремя ремонтами "
+            f"{control.get('resolved')} накопител(ям) ВСЕМИ объявленными ремонтами "
             f"(разбор кортежа развёл {control.get('by_repair', {}).get(REPAIR_TUPLE_POSITION)}), "
             f"назвало {control.get('sequences')} последовательность и на "
             f"отрицательной половине не ответило о роде ни у одного, разведя "
