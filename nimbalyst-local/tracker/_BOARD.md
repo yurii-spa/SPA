@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-05T14:39:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-05T19:36:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (bbb127730) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f923d5d0a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1193** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1195** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -352,7 +352,7 @@
 - Критичная находка петли: com.spa.source_discovery: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-source.md` · 2026-08-30
 - Критичная находка петли: com.spa.swarm_dwell: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-swarm.md` · 2026-08-30
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (648)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (650)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -842,6 +842,7 @@
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
 - Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
+- Храповик инварианта #17 красен на чистом origin: новый член в reachability_of_the_rest.py:664  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom-2.md` · 2026-10-05
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат КРАСНЫЙ на main: test_act_day_recovery.py вошёл в закрытый класс (замер #602)  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-main.md` · 2026-09-14
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
@@ -885,6 +886,7 @@
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
 - Одиннадцать агентов обходят существующее поле governed_by: их ADR лежит в заметке, где его не читает никто  ·  `inbox-odinnadtsat-agentov-obhodyat-suschestvuy.md` · 2026-10-03
+- Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос  ·  `inbox-ofis-zovet-artefakt-prochitannym-vholost.md` · 2026-10-05
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
 - Осиротевшая работа cycle-74714 (05.09): наблюдение есть, но не в том артефакте, куда смотрит гейт — $14 210 снято с цели  ·  `inbox-osirotevshaya-rabota-cycle-74714-05-09-n.md` · 2026-09-05

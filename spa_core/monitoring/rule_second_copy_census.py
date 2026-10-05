@@ -18222,6 +18222,700 @@ def sequence_members_of_the_whole_population(
     }
 
 
+# ---------------------------------------------------------------------------
+# О КАКОМ НАСЕЛЕНИИ ОТЧИТЫВАЕТСЯ ЧИСЛО РЯДА — заказ G99 п. 2
+# ---------------------------------------------------------------------------
+
+#: Шаг, который этот шаг НЕ мерит, — свой собственный. Исключение ПОИМЁННОЕ и
+#: строгое: прибор, стоящий в населении своего же замера, меняет его числа от
+#: одной доставки (урок ADR-566, воспроизведённый ADR-568 в этом же файле).
+SUBJECT_OWN_STEP = "subject_of_a_series_number"
+
+#: ФОРМА отбора у поля-счётчика. Перечень ЗАКРЫТ, и форма вне него есть третий
+#: исход, а не «наверное, то же самое». Разводить формы обязательно: равенство
+#: отдаёт строку РОВНО одному ключу (сумма тогда есть размер населения, о
+#: котором поле отчитывается), а поиск ключа ВНУТРИ поля строки считает
+#: вхождения — одна строка попадает в несколько ключей, и сумма о населении
+#: не говорит вовсе.
+SUBJECT_FORM_EQ = "the_filter_compares_one_row_field_with_the_key"
+SUBJECT_FORM_GUARDED = "the_filter_compares_the_key_and_guards_on_something_else"
+SUBJECT_FORM_MEMBERSHIP = "the_key_is_searched_inside_a_row_field"
+_SUBJECT_FORMS = (SUBJECT_FORM_EQ, SUBJECT_FORM_GUARDED,
+                  SUBJECT_FORM_MEMBERSHIP)
+
+#: ИСХОД одного числа ряда.
+SUBJECT_POPULATION = "the_sum_equals_the_population_the_step_declares"
+SUBJECT_PUBLISHED = "the_sum_equals_another_number_the_step_publishes"
+SUBJECT_UNPUBLISHED = "the_sum_equals_no_number_the_step_publishes"
+SUBJECT_ZERO = "the_sum_is_zero_and_a_zero_matches_every_zero"
+SUBJECT_MEMBERSHIPS = "the_field_counts_memberships_so_its_sum_claims_no_population"
+SUBJECT_UNMEASURED_OUTCOME = "the_subject_of_this_number_is_not_measured"
+_SUBJECT_OUTCOMES = (SUBJECT_POPULATION, SUBJECT_PUBLISHED,
+                     SUBJECT_UNPUBLISHED, SUBJECT_ZERO, SUBJECT_MEMBERSHIPS,
+                     SUBJECT_UNMEASURED_OUTCOME)
+
+#: ЧЕМ именно совпала сумма. Равенство — свидетель односторонний, и сила его
+#: совпадения РАЗНАЯ: число, оказавшееся классовым счётом того же шага, стои́т
+#: там, где подданному и место; совпадение со скалярным полем (например
+#: «файлов просмотрено») слабее, а совпадение сразу с несколькими именами не
+#: называет подданного вовсе. Складывать их одним числом значило бы выдать
+#: силу слабейшего за силу всех.
+SUBJECT_MATCH_IN_COUNTER = "the_number_is_a_class_count_of_the_same_step"
+SUBJECT_MATCH_SCALAR = "the_number_is_a_scalar_field_of_the_same_step"
+SUBJECT_MATCH_SEVERAL = "several_names_of_the_step_carry_that_number"
+_SUBJECT_MATCHES = (SUBJECT_MATCH_IN_COUNTER, SUBJECT_MATCH_SCALAR,
+                    SUBJECT_MATCH_SEVERAL)
+
+#: ПОЧЕМУ не измерено. Ноль здесь не выдаётся за «сошлось» (инв. #17).
+SUBJECT_GAP_STEP_UNMEASURED = "the_step_publishing_the_number_is_itself_unmeasured"
+SUBJECT_GAP_FIELD_ABSENT = "the_source_builds_the_field_but_the_verdict_has_no_such_key"
+SUBJECT_GAP_NOT_A_COUNTER = "the_published_field_is_not_a_mapping_of_whole_numbers"
+SUBJECT_GAP_FIELD_UNNAMED = "the_counter_is_built_in_the_source_and_named_by_no_verdict_key"
+SUBJECT_GAP_ENUM_UNDECLARED = "the_key_enumeration_is_not_a_module_level_declared_list"
+SUBJECT_GAP_FORM_OUTSIDE = "the_filter_form_is_outside_the_closed_list"
+SUBJECT_GAP_NO_FUNCTION = "the_step_names_no_module_level_function_of_the_producer"
+_SUBJECT_GAPS = (SUBJECT_GAP_STEP_UNMEASURED, SUBJECT_GAP_FIELD_ABSENT,
+                 SUBJECT_GAP_NOT_A_COUNTER, SUBJECT_GAP_FIELD_UNNAMED,
+                 SUBJECT_GAP_ENUM_UNDECLARED, SUBJECT_GAP_FORM_OUTSIDE,
+                 SUBJECT_GAP_NO_FUNCTION)
+
+#: Классы отказа ЦЕЛИКОМ (прибор не измерил ничего).
+UNMEASURED_SUBJECT_CONTROL = "declared_subject_rule_failed_its_own_control"
+UNMEASURED_SUBJECT_SOURCE = "the_producer_source_is_not_parsed"
+UNMEASURED_SUBJECT_SERIES = "the_series_declares_no_step_at_all"
+
+
+def _subject_declared_enumerations(tree: ast.AST) -> Dict[str, List[str]]:
+    """Перечни верхнего уровня: имя -> значения строк.
+
+    Член перечня бывает и литералом, и ИМЕНЕМ строковой константы того же
+    модуля (``_KIND_OUTCOMES = (KIND_RESOLVED, …)`` — господствующая форма
+    ряда). Перечень, у которого разобран не КАЖДЫЙ член, не объявляется
+    наполовину: он не перечень вовсе, и поле, бегущее по нему, уходит третьим
+    исходом.
+    """
+    consts: Dict[str, str] = {}
+    for node in getattr(tree, "body", []):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            consts[node.targets[0].id] = node.value.value
+    enums: Dict[str, List[str]] = {}
+    for node in getattr(tree, "body", []):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and isinstance(node.value, (ast.Tuple, ast.List, ast.Set))):
+            continue
+        values: List[str] = []
+        for item in node.value.elts:
+            if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                values.append(item.value)
+            elif isinstance(item, ast.Name) and item.id in consts:
+                values.append(consts[item.id])
+        if values and len(values) == len(node.value.elts):
+            enums[node.targets[0].id] = values
+    return enums
+
+
+def _subject_row_field(node: Optional[ast.AST], row: str) -> bool:
+    """Читает ли выражение ПОЛЕ строки: ``r[...]`` или ``r.get(...)``.
+
+    Защитный хвост (``r.get(x) or []``) считается тем же чтением: хвост меняет
+    отсутствие на пустоту, а дверь к строке остаётся одна.
+    """
+    if isinstance(node, ast.Subscript):
+        return isinstance(node.value, ast.Name) and node.value.id == row
+    if isinstance(node, ast.Call):
+        func = node.func
+        return (isinstance(func, ast.Attribute) and func.attr == "get"
+                and isinstance(func.value, ast.Name) and func.value.id == row)
+    if isinstance(node, ast.BoolOp):
+        return any(_subject_row_field(value, row) for value in node.values)
+    return False
+
+
+def _subject_filter_form(gen: ast.comprehension, key: str) -> Optional[str]:
+    """Форма отбора у одного поля-счётчика — или ``None`` вне перечня форм."""
+    if not isinstance(gen.target, ast.Name):
+        return None
+    row = gen.target.id
+    tests: List[ast.AST] = []
+    for test in gen.ifs:
+        if isinstance(test, ast.BoolOp) and isinstance(test.op, ast.And):
+            tests.extend(test.values)
+        else:
+            tests.append(test)
+    equality = 0
+    membership = 0
+    for test in tests:
+        if not (isinstance(test, ast.Compare) and len(test.ops) == 1):
+            continue
+        if isinstance(test.ops[0], ast.Eq):
+            left, right = test.left, test.comparators[0]
+            if ((_subject_row_field(left, row) and isinstance(right, ast.Name)
+                 and right.id == key)
+                    or (_subject_row_field(right, row)
+                        and isinstance(left, ast.Name) and left.id == key)):
+                equality += 1
+        elif isinstance(test.ops[0], ast.In):
+            if (isinstance(test.left, ast.Name) and test.left.id == key
+                    and _subject_row_field(test.comparators[0], row)):
+                membership += 1
+    if equality == 1 and len(tests) == 1:
+        return SUBJECT_FORM_EQ
+    if equality == 1:
+        return SUBJECT_FORM_GUARDED
+    if membership == 1 and equality == 0:
+        return SUBJECT_FORM_MEMBERSHIP
+    return None
+
+
+def _subject_counter_sites(fn: ast.AST,
+                           enums: Dict[str, List[str]]) -> List[dict]:
+    """Поля-счётчики, которые ОДИН шаг строит в своём исходнике.
+
+    Форма населения ЗАКРЫТА: словарное включение, чьё значение есть
+    ``sum(1 for … )``. Счётчик, собранный ``Counter``, циклом или литералом,
+    в население не попадает вовсе — и ненайденное этим правилом не есть ноль
+    (вторая дверь, вердикт шага, называет такие поля отдельным числом).
+    """
+    named_at: Dict[int, str] = {}
+    by_name: Dict[str, Set[str]] = {}
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values):
+            if not (isinstance(key, ast.Constant)
+                    and isinstance(key.value, str)):
+                continue
+            named_at[id(value)] = key.value
+            if isinstance(value, ast.Name):
+                by_name.setdefault(value.id, set()).add(key.value)
+    bound: Dict[str, List[ast.AST]] = {}
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            bound.setdefault(node.targets[0].id, []).append(node.value)
+
+    found: List[dict] = []
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.DictComp):
+            continue
+        value = node.value
+        if not (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                and value.func.id == "sum" and len(value.args) == 1
+                and isinstance(value.args[0], ast.GeneratorExp)
+                and len(node.generators) == 1):
+            continue
+        if not isinstance(node.key, ast.Name):
+            continue
+        field = named_at.get(id(node))
+        if field is None:
+            owners = [name for name, nodes in bound.items()
+                      if any(item is node for item in nodes)]
+            if len(owners) == 1:
+                names = by_name.get(owners[0]) or set()
+                # ОДНО имя, и только одно: поле, названное в вердикте дважды,
+                # есть ДВА утверждения, и выбрать из них первое значило бы
+                # ответить уверенно там, где ответа нет.
+                field = sorted(names)[0] if len(names) == 1 else None
+        iterated = node.generators[0].iter
+        enum_name = iterated.id if isinstance(iterated, ast.Name) else None
+        form = _subject_filter_form(value.args[0].generators[0], node.key.id)
+        found.append({
+            "line": getattr(node, "lineno", None),
+            "field": field,
+            "form": form,
+            "enumeration": enum_name,
+            "keys_declared": (enum_name in enums) if enum_name else False,
+        })
+    return sorted(found, key=lambda item: item["line"] or 0)
+
+
+#: Сцены контроля. Исходник НАСТОЯЩИЙ (его разбирает то же правило), числа —
+#: формы аварии ADR-469: имя «чем доказано МОЛЧАНИЕ» при счёте по ВСЕМ
+#: строкам. Сцены подобраны так, что у сломанной суммы совпадения нет ни с
+#: одним числом шага, а у починенной — ровно с классом, который имя называет.
+_SUBJECT_CONTROL_SOURCE = '''
+PROVED_A = "proved_a"
+PROVED_B = "proved_b"
+_PROOFS = (PROVED_A, PROVED_B)
+OUT_SILENT = "silent"
+OUT_LOUD = "loud"
+OUT_UNMEASURED = "unmeasured"
+_OUTS = (OUT_SILENT, OUT_LOUD, OUT_UNMEASURED)
+
+
+def broken_step(root):
+    rows = walk(root)
+    outcomes = {cls: sum(1 for r in rows if r["outcome"] == cls)
+                for cls in _OUTS}
+    proofs = {p: sum(1 for r in rows if r["proved_by"] == p) for p in _PROOFS}
+    return {"status": "MEASURED", "order": "G0.1", "population": len(rows),
+            "writer_outcomes": outcomes, "silence_proved_by": proofs}
+
+
+def fixed_step(root):
+    rows = walk(root)
+    outcomes = {cls: sum(1 for r in rows if r["outcome"] == cls)
+                for cls in _OUTS}
+    proofs = {p: sum(1 for r in rows
+                     if r["proved_by"] == p and r["outcome"] == OUT_SILENT)
+              for p in _PROOFS}
+    return {"status": "MEASURED", "order": "G0.2", "population": len(rows),
+            "writer_outcomes": outcomes, "silence_proved_by": proofs}
+
+
+def partition_step(root):
+    rows = walk(root)
+    outcomes = {cls: sum(1 for r in rows if r["outcome"] == cls)
+                for cls in _OUTS}
+    return {"status": "MEASURED", "order": "G0.3", "population": len(rows),
+            "writer_outcomes": outcomes}
+
+
+def membership_step(root):
+    rows = walk(root)
+    routes = {p: sum(1 for r in rows if p in (r.get("routes") or []))
+              for p in _PROOFS}
+    return {"status": "MEASURED", "order": "G0.4", "population": len(rows),
+            "routes": routes}
+
+
+def zero_step(root):
+    rows = walk(root)
+    proofs = {p: sum(1 for r in rows if r["proved_by"] == p) for p in _PROOFS}
+    return {"status": "MEASURED", "order": "G0.5", "population": len(rows),
+            "silence_proved_by": proofs}
+
+
+def outside_step(root):
+    rows = walk(root)
+    weird = {p: sum(1 for r in rows if r["proved_by"] != p) for p in _PROOFS}
+    return {"status": "MEASURED", "order": "G0.6", "population": len(rows),
+            "weird": weird}
+
+
+def tally_step(root):
+    rows = walk(root)
+    tally = {}
+    for r in rows:
+        tally[r["proved_by"]] = tally.get(r["proved_by"], 0) + 1
+    return {"status": "MEASURED", "order": "G0.9", "population": len(rows),
+            "tally": tally}
+
+
+def undeclared_enum_step(root):
+    rows = walk(root)
+    local = ["proved_a", "proved_b"]
+    proofs = {p: sum(1 for r in rows if r["proved_by"] == p) for p in local}
+    return {"status": "MEASURED", "order": "G0.7", "population": len(rows),
+            "silence_proved_by": proofs}
+
+
+def unmeasured_step(root):
+    rows = walk(root)
+    proofs = {p: sum(1 for r in rows if r["proved_by"] == p) for p in _PROOFS}
+    return {"status": "UNMEASURED", "order": "G0.8",
+            "silence_proved_by": proofs}
+'''
+
+#: Вердикты сцен контроля. Числа объявлены ЗДЕСЬ, а не вычислены сценой: иначе
+#: контроль проверял бы сам себя.
+_SUBJECT_CONTROL_DOC = {
+    "broken_step": {"status": "MEASURED", "order": "G0.1", "population": 248,
+                    "writer_outcomes": {"silent": 106, "loud": 120,
+                                        "unmeasured": 22},
+                    "silence_proved_by": {"proved_a": 80, "proved_b": 62}},
+    "fixed_step": {"status": "MEASURED", "order": "G0.2", "population": 248,
+                   "writer_outcomes": {"silent": 106, "loud": 120,
+                                       "unmeasured": 22},
+                   "silence_proved_by": {"proved_a": 70, "proved_b": 36}},
+    "partition_step": {"status": "MEASURED", "order": "G0.3",
+                       "population": 248,
+                       "writer_outcomes": {"silent": 106, "loud": 120,
+                                           "unmeasured": 22}},
+    "membership_step": {"status": "MEASURED", "order": "G0.4",
+                        "population": 94,
+                        "routes": {"proved_a": 60, "proved_b": 35}},
+    "zero_step": {"status": "MEASURED", "order": "G0.5", "population": 248,
+                  "silence_proved_by": {"proved_a": 0, "proved_b": 0}},
+    "outside_step": {"status": "MEASURED", "order": "G0.6", "population": 248,
+                     "weird": {"proved_a": 7, "proved_b": 9}},
+    "tally_step": {"status": "MEASURED", "order": "G0.9", "population": 248,
+                   "tally": {"proved_a": 5, "proved_b": 6}},
+    "undeclared_enum_step": {"status": "MEASURED", "order": "G0.7",
+                             "population": 248,
+                             "silence_proved_by": {"proved_a": 3,
+                                                   "proved_b": 4}},
+    "unmeasured_step": {"status": "UNMEASURED", "order": "G0.8",
+                        "silence_proved_by": {"proved_a": 1}},
+}
+
+#: Что КАЖДАЯ сцена обязана дать. Пара (исход, отказ): отказ назван там, где
+#: исход есть третий, и ``None`` там, где его быть не должно.
+_SUBJECT_CONTROL_EXPECT = {
+    "broken_step": (SUBJECT_UNPUBLISHED, None),
+    "fixed_step": (SUBJECT_PUBLISHED, None),
+    "partition_step": (SUBJECT_POPULATION, None),
+    "membership_step": (SUBJECT_MEMBERSHIPS, None),
+    "zero_step": (SUBJECT_ZERO, None),
+    "outside_step": (SUBJECT_UNMEASURED_OUTCOME, SUBJECT_GAP_FORM_OUTSIDE),
+    "undeclared_enum_step": (SUBJECT_UNMEASURED_OUTCOME,
+                             SUBJECT_GAP_ENUM_UNDECLARED),
+    "unmeasured_step": (SUBJECT_UNMEASURED_OUTCOME,
+                        SUBJECT_GAP_STEP_UNMEASURED),
+}
+
+
+def _subject_rows(tree: ast.AST, doc: dict,
+                  enums: Dict[str, List[str]]
+                  ) -> Tuple[List[dict], List[dict], Dict[str, int]]:
+    """Числа ряда и поля-счётчики вердикта, которых правило формы не нашло.
+
+    Две двери к одному предмету, и расхождение между ними есть ОТДЕЛЬНОЕ
+    число, а не молчание: исходник говорит, какой формой число собрано,
+    вердикт — чему оно равно сегодня.
+    """
+    funcs = {node.name: node
+             for node in getattr(tree, "body", [])
+             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    rows: List[dict] = []
+    outside: List[dict] = []
+    # Бюджет совпадения: сколько РАЗНЫХ чисел публикует шаг. Чем их больше,
+    # тем дешевле случайное равенство, — и это свойство замера обязано быть
+    # измерено рядом с ним, а не обещано словами в слепоте.
+    budget: Dict[str, int] = {}
+    for step_name in sorted(k for k, v in doc.items()
+                            if isinstance(v, dict) and "order" in v):
+        if step_name == SUBJECT_OWN_STEP:
+            continue
+        step = doc[step_name]
+        order = str(step.get("order"))
+        step_unmeasured = str(step.get("status")) == "UNMEASURED"
+        published: Dict[str, int] = {}
+        for key, value in step.items():
+            if isinstance(value, bool):
+                continue
+            if isinstance(value, int):
+                published[key] = value
+            elif isinstance(value, dict):
+                for inner, number in value.items():
+                    if isinstance(number, int) and not isinstance(number, bool):
+                        published[f"{key}[{inner}]"] = number
+        budget[step_name] = len(set(published.values()))
+        fn = funcs.get(step_name)
+        if fn is None:
+            rows.append({"step": step_name, "order": order, "field": None,
+                         "line": None, "form": None, "enumeration": None,
+                         "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                         "gap": SUBJECT_GAP_NO_FUNCTION, "sum": None,
+                         "matched": [], "closest": None})
+            continue
+        sites = _subject_counter_sites(fn, enums)
+        declared_population = step.get("population")
+        if isinstance(declared_population, bool) or not isinstance(
+                declared_population, int):
+            declared_population = None
+
+        named = {site["field"] for site in sites if site["field"]}
+        for site in sites:
+            row = {"step": step_name, "order": order, "line": site["line"],
+                   "field": site["field"], "form": site["form"],
+                   "enumeration": site["enumeration"], "sum": None,
+                   "matched": [], "closest": None}
+            if site["field"] is None:
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_FIELD_UNNAMED})
+                continue
+            if site["form"] is None:
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_FORM_OUTSIDE})
+                continue
+            if not site["keys_declared"]:
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_ENUM_UNDECLARED})
+                continue
+            if step_unmeasured:
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_STEP_UNMEASURED})
+                continue
+            if site["field"] not in step:
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_FIELD_ABSENT})
+                continue
+            counter = observed(step, site["field"], kind=dict)
+            if counter is None or not counter or not all(
+                    isinstance(number, int) and not isinstance(number, bool)
+                    for number in counter.values()):
+                rows.append({**row, "outcome": SUBJECT_UNMEASURED_OUTCOME,
+                             "gap": SUBJECT_GAP_NOT_A_COUNTER})
+                continue
+            total = sum(counter.values())
+            elsewhere = {name: number for name, number in published.items()
+                         if name != site["field"]
+                         and not name.startswith(f"{site['field']}[")}
+            matched = sorted(name for name, number in elsewhere.items()
+                             if number == total)
+            closest = None
+            if elsewhere:
+                name = min(elsewhere, key=lambda item: (
+                    abs(elsewhere[item] - total), item))
+                closest = {"name": name, "value": elsewhere[name],
+                           "delta": elsewhere[name] - total}
+            row = {**row, "sum": total, "matched": matched, "closest": closest,
+                   "keys": len(counter)}
+            if site["form"] == SUBJECT_FORM_MEMBERSHIP:
+                rows.append({**row, "outcome": SUBJECT_MEMBERSHIPS,
+                             "gap": None})
+            elif total == 0:
+                rows.append({**row, "outcome": SUBJECT_ZERO, "gap": None})
+            elif declared_population is not None and total == declared_population:
+                rows.append({**row, "outcome": SUBJECT_POPULATION, "gap": None})
+            elif matched:
+                if len(matched) > 1:
+                    kind = SUBJECT_MATCH_SEVERAL
+                elif "[" in matched[0]:
+                    kind = SUBJECT_MATCH_IN_COUNTER
+                else:
+                    kind = SUBJECT_MATCH_SCALAR
+                rows.append({**row, "outcome": SUBJECT_PUBLISHED, "gap": None,
+                             "match_kind": kind})
+            else:
+                rows.append({**row, "outcome": SUBJECT_UNPUBLISHED,
+                             "gap": None})
+
+        # ВТОРАЯ дверь: поле вердикта, которое выглядит счётчиком класса, а
+        # правило формы его не нашло. Это не находка и не «сошлось» — это
+        # измеренная граница правила формы.
+        for key, value in step.items():
+            if key in named or not isinstance(value, dict) or not value:
+                continue
+            if not all(isinstance(number, int) and not isinstance(number, bool)
+                       for number in value.values()):
+                continue
+            outside.append({"step": step_name, "field": key,
+                            "sum": sum(value.values()), "keys": len(value)})
+    return rows, outside, budget
+
+
+def _subject_control() -> dict:
+    """Правило о подданном числа на сценах, где ответ известен заранее.
+
+    Положительная сцена — авария ADR-469 ДОСЛОВНО (имя говорит «чем доказано
+    молчание», счёт идёт по всем строкам); отрицательная — та же сцена с
+    оговоркой на исход, то есть РОВНО та починка, которой правило обязано
+    зеленеть. Рядом стоят сцены населения, вхождения, нуля, формы вне перечня
+    и перечня, не объявленного модулем, — каждая со СВОИМ названным исходом:
+    контроль, проверяющий одно направление, не отличает правила от константы.
+    """
+    try:
+        tree = ast.parse(_SUBJECT_CONTROL_SOURCE)
+    except SyntaxError as exc:  # pragma: no cover - исходник свой
+        return {"passed": False, "reason": f"сцена не разобрана: {exc}"}
+    enums = _subject_declared_enumerations(tree)
+    rows, outside, budget = _subject_rows(tree, _SUBJECT_CONTROL_DOC, enums)
+    got = {row["step"]: (row["outcome"], row["gap"]) for row in rows}
+    for step, expected in _SUBJECT_CONTROL_EXPECT.items():
+        if got.get(step) != expected:
+            return {"passed": False, "scene": step, "expected": expected,
+                    "got": got.get(step),
+                    "reason": (f"сцена `{step}` ответила {got.get(step)}, а "
+                               f"обязана была {expected}")}
+    # Форма вне перечня обязана быть НАЗВАНА второй дверью, а не пропасть:
+    # поле `weird` счётчиком класса выглядит, и правило формы его не находит.
+    if not any(item["step"] == "tally_step" and item["field"] == "tally"
+               for item in outside):
+        return {"passed": False, "reason": ("счётчик, собранный циклом, не "
+                                            "назван второй дверью — "
+                                            "ненайденное выдаётся за ноль")}
+    if any(row["step"] == "tally_step" for row in rows):
+        return {"passed": False, "reason": ("счётчик вне формы попал в "
+                                            "население правила формы")}
+    fixed = [row for row in rows if row["step"] == "fixed_step"
+             and row["field"] == "silence_proved_by"]
+    if [row.get("match_kind") for row in fixed] != [SUBJECT_MATCH_IN_COUNTER]:
+        return {"passed": False, "reason": ("починенная сцена совпала НЕ с "
+                                            "классовым счётом шага — сила "
+                                            "совпадения не разведена")}
+    return {"passed": True, "scenes": len(_SUBJECT_CONTROL_EXPECT),
+            "outcomes": sorted({row["outcome"] for row in rows}),
+            "gaps": sorted({row["gap"] for row in rows if row["gap"]}),
+            "match_kinds": sorted({row["match_kind"] for row in rows
+                                   if row.get("match_kind")}),
+            "budget_measured": sorted(set(budget.values())),
+            "outside_named": len(outside)}
+
+
+def subject_of_a_series_number(root: Path, doc: dict) -> dict:
+    """О каком населении отчитывается КАЖДОЕ число ряда (**заказ G99 п. 2**).
+
+    ADR-518 мерил честность имени ЧИСЛОМ (``misnamed_gaps``) — и мерил её у
+    ДВУХ полей одного шага. Заказ G99 п. 2 просит дословно:
+
+    > Честность имени спрошена у ДВУХ полей одного шага. ``misnamed_gaps``
+    > сверяет два утверждения ADR-469 из десятков полей ряда. Тот же вопрос,
+    > заданный ВСЕМ именам вердиктов ряда: сколько из них утверждают
+    > неспрошенное. Второй экземпляр класса нашёлся за шесть дней — значит
+    > класс не одиночный, и мерить его надо переписью, а не находкой.
+
+    **Чем мерится «утверждает неспрошенное».** Не языком имени — арифметикой
+    его подданного. Поле-счётчик класса отдаёт строку РОВНО одному ключу,
+    поэтому сумма его ключей есть РАЗМЕР населения, о котором поле
+    отчитывается. Если этому размеру не равно ни одно число, которое шаг
+    публикует, — поле отчитывается о населении, которого шаг не назвал
+    НИГДЕ, и прочитать его как долю чего-либо нельзя. Ровно эту форму ADR-469
+    нашёл у себя (``silence_proved_by`` = 142 при 106 молчащих), а ADR-518 —
+    во второй раз, у двух своих имён; оба раза починка была одна и та же:
+    оговорить отбор исходом, то есть вернуть числу его подданного.
+
+    **Две двери к одному предмету, и они не заменяют друг друга.** Форма
+    числа читается у ИСХОДНИКА (словарное включение над объявленным
+    перечнем), величина — у ВЕРДИКТА. Поле, которое вердикт публикует как
+    счётчик, а правило формы не нашло, едет ОТДЕЛЬНЫМ числом
+    (``fields_outside_the_declared_form``): ненайденное этим правилом не есть
+    ноль.
+
+    **Форма отбора разведена, и это не мелочь.** Поиск ключа ВНУТРИ поля
+    строки (``route in r["routes"]``) считает вхождения, а не строки: одна
+    строка попадает в несколько ключей, сумма превышает население ПО
+    ПОСТРОЕНИЮ, и назвать это находкой значило бы выдумать её. Такие поля
+    получают свой исход и в арифметическую претензию не входят вовсе.
+
+    **Прибор не стои́т в своём населении.** Свой шаг исключён ПОИМЁННО
+    (``SUBJECT_OWN_STEP``): урок ADR-566, воспроизведённый ADR-568 в этом же
+    файле, — счётчик в головной клетке своего замера меняет его числа от
+    одной доставки.
+
+    ADVISORY: ни одного числа, ни одного вердикта и ни одного гейта эта работа
+    не правит, ``applied`` ложно.
+    """
+    head = {
+        "question": ("у скольких ЧИСЕЛ ряда — полей-счётчиков его вердиктов — "
+                     "сумма не равна ни одному числу, которое публикует сам "
+                     "шаг: такое число отчитывается о населении, которого шаг "
+                     "не назвал"),
+        "order": "G99.2",
+        "applied": False,
+        "producer": PRODUCER,
+        "own_step_excluded": SUBJECT_OWN_STEP,
+    }
+    control = _subject_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_SUBJECT_CONTROL,
+                "reason": (f"объявленное правило подданного не прошло "
+                           f"контроль: {control.get('reason')}")}
+    source = root / PRODUCER
+    try:
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_SUBJECT_SOURCE,
+                "reason": (f"исходник производителя не прочитан "
+                           f"({type(exc).__name__}: {exc}) — формы чисел не "
+                           f"существует; это НЕ «подданный у всех назван»")}
+    enums = _subject_declared_enumerations(tree)
+    rows, outside, budget = _subject_rows(tree, doc, enums)
+    declared_steps = sorted(name for name, step in doc.items()
+                            if isinstance(step, dict) and "order" in step
+                            and name != SUBJECT_OWN_STEP)
+    if not declared_steps:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_SUBJECT_SERIES,
+                "reason": ("ни один шаг вердикта не объявил заказа — у ряда "
+                           "нет населения, и это не ноль чисел без "
+                           "подданного")}
+    with_rows = sorted({row["step"] for row in rows})
+    # Шаг ряда, у которого правило формы не нашло НИ ОДНОГО числа, обязан
+    # остаться видимым: иначе читатель прочтёт «шагов ряда 13» и примет
+    # границу правила формы за размер ряда.
+    silent_steps = [name for name in declared_steps if name not in with_rows]
+    outcomes = {cls: sum(1 for row in rows if row["outcome"] == cls)
+                for cls in _SUBJECT_OUTCOMES}
+    gaps = {gap: sum(1 for row in rows if row["gap"] == gap)
+            for gap in _SUBJECT_GAPS}
+    # ТОЛЬКО среди измеренных: форма читается у исходника и у строки третьего
+    # исхода она бывает известна, но «сколько чисел собрано формой X» и
+    # «сколько измерено формой X» суть разные утверждения, и слить их значило
+    # бы повторить ровно тот дефект, который шаг и меряет.
+    forms = {form: sum(1 for row in rows if row["form"] == form
+                       and row["outcome"] != SUBJECT_UNMEASURED_OUTCOME)
+             for form in _SUBJECT_FORMS}
+    unpublished = [row for row in rows if row["outcome"] == SUBJECT_UNPUBLISHED]
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "steps_declaring_an_order": len(declared_steps),
+        "steps_with_a_number_of_the_declared_form": len(with_rows),
+        "steps_without_a_number_of_the_declared_form": silent_steps,
+        "subject_outcomes": outcomes,
+        "unmeasured_reasons": gaps,
+        "filter_forms": forms,
+        "matched_by": {kind: sum(1 for row in rows
+                                 if row.get("match_kind") == kind)
+                       for kind in _SUBJECT_MATCHES},
+        "published_numbers_per_step": {
+            "least": min(budget.values()) if budget else None,
+            "most": max(budget.values()) if budget else None,
+        },
+        "sum_matches_no_published_number": outcomes[SUBJECT_UNPUBLISHED],
+        "still_unmeasured": outcomes[SUBJECT_UNMEASURED_OUTCOME],
+        "fields_outside_the_declared_form": len(outside),
+        "outside_sample": [
+            {"step": item["step"], "field": item["field"], "sum": item["sum"],
+             "keys": item["keys"]} for item in outside][:COSTED_SAMPLE],
+        "unpublished_sample": [
+            {"step": row["step"], "order": row["order"], "line": row["line"],
+             "field": row["field"], "sum": row["sum"], "keys": row.get("keys"),
+             "form": row["form"], "closest": row["closest"]}
+            for row in unpublished][:COSTED_SAMPLE],
+        "published_sample": [
+            {"step": row["step"], "field": row["field"], "sum": row["sum"],
+             "matched": row["matched"]}
+            for row in rows
+            if row["outcome"] == SUBJECT_PUBLISHED][:COSTED_SAMPLE],
+        "unmeasured_sample": [
+            {"step": row["step"], "field": row["field"], "line": row["line"],
+             "gap": row["gap"]}
+            for row in rows
+            if row["outcome"] == SUBJECT_UNMEASURED_OUTCOME][:COSTED_SAMPLE],
+        "blind": [
+            ("равенство не есть тождество: совпавшее число доказывает, что у "
+             "суммы ЕСТЬ где быть названной, а не что названо именно это "
+             "население. Свидетель односторонний, и сильная сторона у него "
+             "одна — несовпадение"),
+            (f"`{SUBJECT_MEMBERSHIPS}` НЕ есть «всё в порядке»: у поля, "
+             "ищущего ключ внутри поля строки, сумма о населении не говорит "
+             "вовсе, и верно ли его имя, шаг не спрашивал ни разу"),
+            (f"`{SUBJECT_ZERO}` отделён намеренно: ноль совпадает с любым "
+             "нулём, и зачесть такое совпадение значило бы объявить "
+             "ненаблюдённое сошедшимся (инв. #17)"),
+            ("форма числа ЗАКРЫТА словарным включением над объявленным "
+             "перечнем; счётчик, собранный `Counter`, циклом или литералом, "
+             f"в население не входит — таких полей {len(outside)}, и они "
+             "названы отдельным числом, а не нулём"),
+            ("числа шага читаются на ОДНУ вложенность: скаляры вердикта и "
+             "значения внутри его словарей. Число, лежащее глубже, подданным "
+             "не считается — глубина объявлена, а не выбрана по удобству"),
+            ("ряд опознаётся по тому, что шаг САМ объявил заказ (`order`); "
+             "число производителя, заказа не объявившего, в население не "
+             "входит по построению"),
+            ("шаг мерит АРИФМЕТИКУ подданного, а не язык имени: поле, чья "
+             "сумма названа, может всё равно носить неверное имя — это "
+             "вопрос к читателю, и его шаг не задаёт"),
+        ],
+        "what_it_does_not_prove": [
+            "что у числа без названного подданного вред наступил: доказано, что ПРОЧИТАТЬ его как долю нельзя, а не что кто-то так прочитал",
+            "что совпавшее число названо ВЕРНО: совпадение есть необходимое условие и не достаточное",
+            "что поправка применена: числа прошлых решений ряда суть замеры своих дней и здесь не пересчитываются",
+        ],
+    }
+
+
 #: Соседские запросы, чей ответ ЗА ОДИН прогон :func:`measure` зависит только
 #: от дерева, а дерево внутри одного прогона не меняется. Список ОБЪЯВЛЕН
 #: поимённо, а не выведен по сигнатуре: запомнить молча ответ функции, которая
@@ -18811,7 +19505,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
     findings = [r for r in rows if r["verdict"] in _FINDING_CLASSES]
-    return {
+    doc = {
         "generated_at": (now or _utcnow()).isoformat(),
         "generated_by": PRODUCER,
         "invoked_by": call_provenance(tree_root=root),
@@ -19016,6 +19710,13 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
             "что «вердикт не сдвинулся» верно при ЛЮБОЙ форме починки — сдвиг измерен на САМОМ ДЕШЁВОМ расширении населения, и иная форма могла бы сдвинуть иные поля",
         ],
     }
+    # Шаг заказа G99 п. 2 спрашивает о числах ВЕРДИКТОВ, поэтому зовётся
+    # последним и по собранному документу: подданный числа есть свойство
+    # опубликованного замера, а не отдельного прохода по дереву. Свой шаг
+    # исключён ПОИМЁННО внутри — прибор, стоящий в населении своего же
+    # замера, менял бы его числа от одной доставки (ADR-566, ADR-568).
+    doc[SUBJECT_OWN_STEP] = subject_of_a_series_number(root, doc)
+    return doc
 
 
 def _reaches_subject_tree(source: str) -> bool:
@@ -21254,6 +21955,102 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
             out.append(f"[ВЕРДИКТ · НЕ ИЗМЕРЕНО] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` — {item.get('gap')}")
         for blind in observed(verdict_step, 'blind', kind=list) or []:
             out.append(f'[СЛЕПОТА] {blind}')
+    subject_step = observed(doc, SUBJECT_OWN_STEP, kind=dict)
+    if subject_step is None:
+        out.append("[ПОДДАННЫЙ ЧИСЛА] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «у всех чисел ряда подданный назван»")
+    elif str(subject_step.get("status")) == "UNMEASURED":
+        out.append(f"[ПОДДАННЫЙ ЧИСЛА] НЕ ИЗМЕРЕНО "
+                   f"[{subject_step.get('unmeasured_class')}]: "
+                   f"{subject_step.get('reason')}")
+    else:
+        outcomes = observed(subject_step, "subject_outcomes", kind=dict) or {}
+        why = observed(subject_step, "unmeasured_reasons", kind=dict) or {}
+        forms = observed(subject_step, "filter_forms", kind=dict) or {}
+        kinds = observed(subject_step, "matched_by", kind=dict) or {}
+        per_step = (observed(subject_step, "published_numbers_per_step",
+                             kind=dict) or {})
+        control = observed(subject_step, "control", kind=dict) or {}
+        silent = (observed(subject_step,
+                           "steps_without_a_number_of_the_declared_form",
+                           kind=list) or [])
+        out.append(
+            f"[ПОДДАННЫЙ ЧИСЛА] из {subject_step.get('population')} чисел "
+            f"ряда (поля-счётчики "
+            f"{subject_step.get('steps_with_a_number_of_the_declared_form')} "
+            f"шага(ов) из "
+            f"{subject_step.get('steps_declaring_an_order')}, объявивших "
+            f"заказ) сумма не равна НИ ОДНОМУ числу своего шага у "
+            f"{outcomes.get(SUBJECT_UNPUBLISHED)}; равна населению у "
+            f"{outcomes.get(SUBJECT_POPULATION)}, другому числу шага у "
+            f"{outcomes.get(SUBJECT_PUBLISHED)}, НЕ ИЗМЕРЕНО у "
+            f"{outcomes.get(SUBJECT_UNMEASURED_OUTCOME)}")
+        out.append(
+            f"[ПОДДАННЫЙ · ФОРМА ОТБОРА] равенство ключу "
+            f"{forms.get(SUBJECT_FORM_EQ)} · равенство с оговоркой "
+            f"{forms.get(SUBJECT_FORM_GUARDED)} · поиск ключа ВНУТРИ поля "
+            f"строки {forms.get(SUBJECT_FORM_MEMBERSHIP)} — последняя считает "
+            f"ВХОЖДЕНИЯ, её сумма превышает население по построению, и "
+            f"арифметической претензии к ней нет "
+            f"({outcomes.get(SUBJECT_MEMBERSHIPS)} поля(ей)); ноль отделён "
+            f"отдельным исходом у {outcomes.get(SUBJECT_ZERO)} — ноль "
+            f"совпадает с любым нулём")
+        out.append(
+            f"[ПОДДАННЫЙ · СИЛА СОВПАДЕНИЯ] классовый счёт того же шага "
+            f"{kinds.get(SUBJECT_MATCH_IN_COUNTER)} · скалярное поле "
+            f"{kinds.get(SUBJECT_MATCH_SCALAR)} · сразу несколько имён "
+            f"{kinds.get(SUBJECT_MATCH_SEVERAL)}. Бюджет случайного "
+            f"равенства ИЗМЕРЕН: шаг публикует от {per_step.get('least')} до "
+            f"{per_step.get('most')} разных чисел — чем их больше, тем дешевле "
+            f"совпадение, и сильная сторона свидетеля одна: НЕсовпадение")
+        out.append(
+            f"[ПОДДАННЫЙ · ГРАНИЦА ПРАВИЛА ФОРМЫ] полей вердикта, похожих на "
+            f"счётчик класса, но собранных иначе: "
+            f"{subject_step.get('fields_outside_the_declared_form')}; шагов "
+            f"ряда без ни одного числа объявленной формы: {len(silent)}"
+            + (f" ({', '.join(silent[:3])})" if silent else ""))
+        out.append(
+            f"[ПОДДАННЫЙ · ПОЧЕМУ НЕ ИЗМЕРЕНО] шаг сам не измерен "
+            f"{why.get(SUBJECT_GAP_STEP_UNMEASURED)} · поля нет в вердикте "
+            f"{why.get(SUBJECT_GAP_FIELD_ABSENT)} · поле не словарь чисел "
+            f"{why.get(SUBJECT_GAP_NOT_A_COUNTER)} · счётчик не назван ни "
+            f"одним ключом {why.get(SUBJECT_GAP_FIELD_UNNAMED)} · перечень не "
+            f"объявлен модулем {why.get(SUBJECT_GAP_ENUM_UNDECLARED)} · форма "
+            f"отбора вне перечня {why.get(SUBJECT_GAP_FORM_OUTSIDE)} · шаг "
+            f"не называет функции {why.get(SUBJECT_GAP_NO_FUNCTION)}")
+        out.append(
+            f"[ПОДДАННЫЙ · КОНТРОЛЬ] правило предъявлено на "
+            f"{control.get('scenes')} сценах с РАЗНЫМИ ответами: авария "
+            f"ADR-469 дословно (имя о молчании, счёт по всем строкам) красна, "
+            f"её починка оговоркой зелена, и совпадение у неё именно с "
+            f"классовым счётом; формы вне перечня, перечень не модуля, "
+            f"население, вхождения и ноль — каждая со своим именем "
+            f"({len(control.get('gaps') or [])} отказа(ов))")
+        for item in (observed(subject_step, "unpublished_sample", kind=list)
+                     or [])[:max_rows]:
+            closest = item.get("closest") or {}
+            out.append(
+                f"[ПОДДАННЫЙ · НЕ НАЗВАН] {item.get('step')}."
+                f"{item.get('field')} (строка {item.get('line')}, заказ "
+                f"{item.get('order')}) сумма {item.get('sum')} по "
+                f"{item.get('keys')} ключам — ближайшее опубликованное "
+                f"`{closest.get('name')}` = {closest.get('value')} "
+                f"(разница {closest.get('delta')})")
+        for item in (observed(subject_step, "outside_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ПОДДАННЫЙ · ВНЕ ФОРМЫ] {item.get('step')}."
+                f"{item.get('field')} — счётчик класса собран не словарным "
+                f"включением; сумма {item.get('sum')} по {item.get('keys')} "
+                f"ключам прибором НЕ судится")
+        for item in (observed(subject_step, "unmeasured_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ПОДДАННЫЙ · НЕ ИЗМЕРЕНО] {item.get('step')}."
+                f"{item.get('field')} (строка {item.get('line')}) — "
+                f"{item.get('gap')}")
+        for blind in (observed(subject_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
         f"[ГРАНИЦА ПРАВИЛА ИМЕНИ] сторожей, читающих состояние репозитория и не "
