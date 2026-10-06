@@ -207,14 +207,117 @@ def _nav_reconciliation_vs_current_book(nav: dict, track: dict) -> tuple[Any, st
     return ok, None
 
 
+# ─── Public: paper_apy_snapshot (RM-TRUTH-01 W5, ADR-580 C2) ────────────────────
+
+#: Daily cycle cadence (08:00 local); older than this and the equity curve is not
+#: just "yesterday's close", it is PAST the point where a missed run should be
+#: surfaced, not silently served as today's rate. Same order of magnitude as the
+#: other 48h staleness windows in this codebase (``analytics_scorecard.STALE_HOURS``,
+#: ``card_acceptance.OWNER_VISIBILITY_MAX_AGE_H``) — reused, not reinvented.
+PAPER_APY_STALE_AFTER_H = 48.0
+
+
+def paper_apy_snapshot(
+    data_dir: str | os.PathLike | None = None, *, now: datetime | None = None,
+) -> dict[str, Any]:
+    """The canonical realized-paper rate + drawdown, typed (ADR-580 C2).
+
+    RM-TRUTH-01's audit (``docs/rm_truth/A3_product.md`` §2.1 rows 3/14, D2) found
+    ``/api/health-public`` and ``/api/ssot/facts`` printing a SINGLE-DAY accrual
+    rate (``apy_today_pct``) under a label that claimed it was annualized/"ytd",
+    while the public hero (``landing/src/data/track_snapshot.json`` → the site's
+    "4.9%") is a DIFFERENT, honest number: compound growth over ALL evidenced bars.
+    This function computes THAT number directly from the same two canonical files
+    the snapshot script reads (``equity_curve_daily.json`` + ``golive_status.json``),
+    using the SAME formula (``spa_core.reporting.compound_apy``) — so a producer
+    that calls this gets the hero's value, not a re-derivation of it.
+
+    A stale ``as_of`` (older than :data:`PAPER_APY_STALE_AFTER_H`) nulls the value
+    and sets ``stale: True`` inside ``paper_apy_canonical`` — the endpoint reports
+    "stale", it does not silently keep serving yesterday's number under today's
+    timestamp (invariant #17: absence is a distinct value).
+
+    **Field names (integration review F4, 2026-10-05).** The value is returned ONLY
+    under the NEW names ``paper_apy_canonical`` (a typed object) and
+    ``max_drawdown_track_pct`` (+ its ``_metric_type``/``_as_of``/``_source``
+    sidecars) — never under the bare names ``paper_apy_pct`` / ``max_drawdown_pct``.
+    Those two exact names are READ by live landing pages today
+    (``DashboardSPAApp.jsx`` reads ``facts.paper_apy_pct`` from ``/api/ssot/facts``;
+    ``index.astro`` and ``track-record.astro`` read ``d.max_drawdown_pct`` from
+    ``/api/health-public``). Merging this function's dict into either endpoint's
+    response under the OLD names silently swapped what those two public numbers
+    render — a visible public-number change (ADR-285 subject #2) made without
+    owner authorisation. New consumers read the new names; the old names keep
+    serving whatever they served before this function existed.
+    """
+    from spa_core.reporting.compound_apy import compound_annualized_pct, evidenced_bars, max_drawdown_pct
+
+    ddir = _data_dir(data_dir)
+    now_dt = now or datetime.now(timezone.utc)
+    golive = _read_json(ddir / "golive_status.json", {}) or {}
+    equity = _read_json(ddir / "equity_curve_daily.json", {}) or {}
+    if not isinstance(golive, dict):
+        golive = {}
+
+    bars = evidenced_bars(equity)
+    real_days = len(bars) if bars else golive.get("real_track_days")
+    as_of = (bars[-1].get("date") if bars else None) or golive.get("as_of")
+
+    apy = None
+    if bars and isinstance(real_days, int) and real_days >= 2:
+        apy = compound_annualized_pct(bars[0].get("equity"), bars[-1].get("equity"), real_days)
+
+    stale = None
+    if isinstance(as_of, str) and as_of:
+        try:
+            as_of_dt = datetime.fromisoformat(as_of)
+            if as_of_dt.tzinfo is None:
+                as_of_dt = as_of_dt.replace(tzinfo=timezone.utc)
+            age_h = (now_dt - as_of_dt).total_seconds() / 3600.0
+            stale = age_h > PAPER_APY_STALE_AFTER_H
+        except ValueError:
+            stale = None
+
+    value = None if (stale or apy is None) else round(float(apy), 4)
+    dd = None if stale else (max_drawdown_pct(bars) if bars else None)
+
+    return {
+        # NEW name (F4) — never "paper_apy_pct": that exact name is read by
+        # DashboardSPAApp.jsx from /api/ssot/facts.
+        "paper_apy_canonical": {
+            "value": value,
+            "metric_type": "REALIZED_PAPER",
+            "window_days": real_days if isinstance(real_days, int) else None,
+            "annualisation": "compound",
+            "as_of": as_of,
+            "source": (
+                "data/equity_curve_daily.json (evidenced bars) + data/golive_status.json — "
+                "same compound method as scripts/generate_track_snapshot.py::build_snapshot "
+                "/ landing/src/data/track_snapshot.json"
+            ),
+            "reportable": value is not None,
+            "stale": stale,
+        },
+        # NEW name (F4) — never "max_drawdown_pct": that exact name is read by
+        # index.astro and track-record.astro from /api/health-public.
+        "max_drawdown_track_pct": dd,
+        "max_drawdown_track_pct_metric_type": "REALIZED_PAPER",
+        "max_drawdown_track_pct_as_of": as_of,
+        "max_drawdown_track_pct_source": "data/equity_curve_daily.json (evidenced bars, per-bar drawdown_pct)",
+    }
+
+
 # ─── Public: key_facts (the numbers the site SHOULD show, verbatim) ─────────────
 
 
-def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
+def key_facts(data_dir: str | os.PathLike | None = None, *, now: datetime | None = None) -> dict[str, Any]:
     """Return canonical headline facts read straight from SSOT.
 
     The presentation layer consumes this VERBATIM so it mirrors canon
     rather than inventing values. Missing files degrade gracefully to None.
+
+    ``now`` — вход, не окружение (deployment.md): forwarded to
+    :func:`paper_apy_snapshot` for its staleness check; defaults to real clock.
     """
     ddir = _data_dir(data_dir)
 
@@ -240,7 +343,7 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
 
     nav_ok, nav_note = _nav_reconciliation_vs_current_book(nav, track)
 
-    return {
+    facts: dict[str, Any] = {
         "ssot_version": SSOT_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "track_days": _real_track_days,
@@ -249,6 +352,16 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
         "current_equity": track.get("current_equity"),
         "total_return_pct": track.get("total_return_pct"),
         "apy_today_pct": track.get("apy_today_pct"),
+        # RM-TRUTH-01 W5 (ADR-580 C2): apy_today_pct is a SINGLE-DAY accrual rate
+        # annualized, not the track-to-date realized rate — honestly typed so a
+        # consumer does not have to guess (A3 §2.1 row 14 found DashboardSPAApp.jsx
+        # falling back to THIS field for "Paper APY" exactly because the canonical
+        # one (paper_apy_canonical, below) did not exist here). F4 (2026-10-05):
+        # the canonical value is exposed ONLY as paper_apy_canonical — never under
+        # the bare name "paper_apy_pct", which DashboardSPAApp.jsx ALSO reads
+        # (facts.paper_apy_pct ?? facts.apy_today_pct) and would silently swap.
+        "apy_today_pct_metric_type": "OBSERVED",
+        "apy_today_pct_window_days": 1,
         "daily_yield_usd": track.get("daily_yield_usd"),
         "regime": track.get("market_regime"),
         "golive_passed": golive.get("passed"),
@@ -267,6 +380,12 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
         "nav_reconciliation_ok": nav_ok,
         "nav_reconciliation_note": nav_note,
     }
+    # The canonical "4.9%" hero (paper_apy_canonical) + the live-snapshot drawdown
+    # (max_drawdown_track_pct), both under NEW names (F4) so this merge never
+    # collides with a bare "paper_apy_pct"/"max_drawdown_pct" a landing file reads
+    # (RM-TRUTH-01 W5, ADR-580 C2).
+    facts.update(paper_apy_snapshot(ddir, now=now))
+    return facts
 
 
 # ─── Public: presentation validator (the structural Law-3 guard) ────────────────

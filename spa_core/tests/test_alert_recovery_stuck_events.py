@@ -433,6 +433,9 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
         "checkpoint_failed",
         # resource_critical (ADR-551): сторож ресурсов объявляет и нехватку, и восстановление.
         "resource_critical",
+        # site_publisher_stuck (ADR-580, C12): site_freshness_monitor объявляет и застрявшую
+        # публикацию, и её разрешение (`_publisher_stuck_push`, безусловный вызов каждый прогон).
+        "site_publisher_stuck",
     }
 
     def test_every_whitelisted_key_can_leave_the_bad_state(self):
@@ -467,6 +470,7 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
             "telegram_down": "spa_core/monitoring/telegram_health.py",
             "checkpoint_failed": "scripts/checkpoint_7day.py",
             "resource_critical": "spa_core/monitoring/resource_guard.py",
+            "site_publisher_stuck": "scripts/site_freshness_monitor.py",
         }
         self.assertEqual(set(senders), self.RESOLVED_BY_SENDERS)
         for key, rel in senders.items():

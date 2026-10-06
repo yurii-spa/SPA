@@ -645,7 +645,7 @@ def test_track_stale_fires_one_debounced_alert(tmp_path, monkeypatch):
     # (stale track) no longer pushes at all — its detail lives in the digest /
     # on-demand views. So here we assert the WARNING is DETECTED but NOT pushed.
     sent = []
-    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or False))
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep, **kw: (sent.append(rep) or False))
     lc = "PID\tStatus\tLabel"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc,
@@ -822,7 +822,7 @@ def test_run_writes_output_and_dedups(tmp_path, monkeypatch):
     # When all OK, _push_via_policy is still invoked (it emits the edge-triggered
     # RESOLVED if we were previously bad — a no-op otherwise) and returns False
     # (nothing pushed). Capture the call to prove no Tier-1 push happened.
-    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or False))
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep, **kw: (sent.append(rep) or False))
 
     lc = "PID\tStatus\tLabel\n55\t0\tcom.spa.ok"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
@@ -843,7 +843,7 @@ def test_run_sends_alert_on_critical(tmp_path, monkeypatch):
                  keepalive=True, log_path="/tmp/x.log")
     sent = []
     # CRITICAL → one Tier-1 push via the single push authority.
-    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or True))
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep, **kw: (sent.append(rep) or True))
 
     lc = "PID\tStatus\tLabel"  # nothing loaded
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
@@ -859,7 +859,7 @@ def test_run_check_does_not_send(tmp_path, monkeypatch):
     _write_plist(la / "com.spa.down.plist", label="com.spa.down",
                  keepalive=True, log_path="/tmp/x.log")
     sent = []
-    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or True))
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep, **kw: (sent.append(rep) or True))
     lc = "PID\tStatus\tLabel"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc, autopush_log="/nonexistent.log", now=NOW)
@@ -885,7 +885,7 @@ def test_run_second_call_dedups(tmp_path, monkeypatch):
     monkeypatch.setattr(push_policy, "_send", lambda text: (sent.append(text) or True))
     # Point push_policy state at the tmp data dir so it survives across "runs".
     monkeypatch.setattr(ahm, "_push_via_policy",
-                        lambda rep: _push_via_tmp(rep, data))
+                        lambda rep, **kw: _push_via_tmp(rep, data))
     lc = "PID\tStatus\tLabel"  # nothing loaded → CRITICAL
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc, autopush_log="/nonexistent.log", now=NOW)

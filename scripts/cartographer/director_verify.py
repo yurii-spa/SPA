@@ -282,6 +282,23 @@ def verify_bridge(bridge_root, repositories):
     return {'commits_claimed': len(claimed), 'commits_verified': verified, **counts}
 
 
+def _owner_decision_frontmatter(text):
+    """Текст МЕЖДУ открывающим и закрывающим `---`. Пусто — frontmatter нет/не закрыт.
+
+    Эта сверка намеренно НЕ импортирует `spa_core.owner_queue.queue` (независимость —
+    весь смысл модуля, см. докстринг файла), но наивный `re.search` по ВСЕМУ файлу —
+    отдельный, не связанный с независимостью дефект: карточка может ПОМЯНУТЬ
+    `status: needs-owner` в теле (цитата, пример, описание формата), и такая строка
+    считалась бы наравне с настоящим статусом (многостатусная ловушка C5/ADR-580,
+    `inbox-ochered-*` несёт три строки `status:`). Граница по `---` закрывает ровно
+    эту дыру, не трогая остальную независимость проверки.
+    """
+    if not text.startswith('---'):
+        return ''
+    end = text.find('\n---', 3)
+    return text[3:end] if end > 0 else ''
+
+
 def verify_owner_decisions(production_root, bridge_root=None):
     """Сколько решений ждёт — свой обход, свои правила чтения."""
     root = Path(production_root)
@@ -291,8 +308,8 @@ def verify_owner_decisions(production_root, bridge_root=None):
         for f in tracker.glob('*.md'):
             if f.stem.split('-')[0] not in ('own', 'owner'):
                 continue
-            head = f.read_text(encoding='utf-8', errors='replace')[:2000]
-            if re.search(r'^status:\s*needs-owner\s*$', head, re.M):
+            fm = _owner_decision_frontmatter(f.read_text(encoding='utf-8', errors='replace'))
+            if re.search(r'^status:\s*needs-owner\s*$', fm, re.M):
                 total += 1
     blockers = _load(root / 'data' / 'owner_blockers.json') or {}
     total += sum(1 for g in blockers.get('gates') or ()

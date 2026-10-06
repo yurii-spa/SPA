@@ -25,6 +25,8 @@ from spa_core.utils import live_paths as LP
 def clean_env(monkeypatch):
     monkeypatch.delenv(LP.DATA_DIR_ENV, raising=False)
     monkeypatch.delenv(LP.LIVE_ROOT_ENV, raising=False)
+    monkeypatch.delenv(LP.SANDBOX_ENV, raising=False)
+    monkeypatch.delenv(LP.PROBE_TREE_ENV, raising=False)
 
 
 def test_sandbox_wins_over_everything(monkeypatch, tmp_path):
@@ -126,3 +128,147 @@ def test_module_creates_no_directories(monkeypatch, tmp_path):
     LP.live_data_dir(tmp_path / "тоже-нет")
     assert not (tmp_path / "нет").exists()
     assert not (tmp_path / "тоже-нет").exists()
+
+
+# ===========================================================================
+# C8(a) ADR-580 — реплей INC-1: маркер песочницы делает отказ сильнее умолчания
+# ===========================================================================
+# Прод-агент `com.spa.decision_loop` зовёт G97-зонд в одноразовом дереве; зонд
+# выставляет свои `SPA_STAMP_*`, но не `SPA_DATA_DIR`/`SPA_LIVE_ROOT`, и
+# `owner_decision_pending.json` получил отметку 2041 года — запись ушла в прод
+# (REVIEW_1.md, п. 1). Тесты ниже закрепляют защиту НА ПРИЁМНИКЕ.
+
+
+def test_sandbox_marker_refuses_the_prod_default(monkeypatch, tmp_path):
+    """Маркер есть, явного пути нет ⇒ `SandboxLeakError`, а НЕ прод-путь молча.
+
+    Это ровно форма INC-1: харнесс забыл `SPA_DATA_DIR`/`SPA_LIVE_ROOT`, и
+    умолчание указывает на `DEFAULT_LIVE_ROOT`.
+    """
+    fake_prod = tmp_path / "prod"
+    fake_prod.mkdir()
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", fake_prod)
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    with pytest.raises(LP.SandboxLeakError):
+        LP.live_root()
+    with pytest.raises(LP.SandboxLeakError):
+        LP.live_data_dir()
+
+
+def test_probe_tree_env_alone_is_a_sandbox_marker_too(monkeypatch, tmp_path):
+    """Переменная дерева зонда (`SPA_STAMP_TREE`) — ВТОРАЯ форма маркера.
+
+    Это буквально переменная G97-зонда из INC-1, а не выдуманный пример: сам
+    зонд её выставляет, общего `SPA_SANDBOX` не зная.
+    """
+    fake_prod = tmp_path / "prod"
+    fake_prod.mkdir()
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", fake_prod)
+    monkeypatch.setenv(LP.PROBE_TREE_ENV, str(tmp_path / "одноразовое-дерево"))
+    with pytest.raises(LP.SandboxLeakError):
+        LP.live_root()
+
+
+def test_explicit_sandbox_path_still_wins_over_the_marker(monkeypatch, tmp_path):
+    """C8(b): харнесс, назвавший СВОЙ путь, не отказывает — он и есть починка."""
+    fake_prod = tmp_path / "prod"
+    fake_prod.mkdir()
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", fake_prod)
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    sandbox = tmp_path / "sandbox"
+    monkeypatch.setenv(LP.LIVE_ROOT_ENV, str(sandbox))
+    monkeypatch.setenv(LP.DATA_DIR_ENV, str(sandbox / "data"))
+    assert LP.live_root() == sandbox
+    assert LP.live_data_dir() == sandbox / "data"
+
+
+def test_explicit_path_equal_to_prod_still_refuses(monkeypatch, tmp_path):
+    """Явный путь, который СЛУЧАЙНО совпал с прод-деревом, не спасает умолчание.
+
+    «Явно указал» ≠ «указал внутрь песочницы» — ADR-580 различает их буквально:
+    совпадение с `DEFAULT_LIVE_ROOT` отказывает независимо от того, пришёл ли
+    путь из переменной или из умолчания.
+    """
+    fake_prod = tmp_path / "prod"
+    fake_prod.mkdir()
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", fake_prod)
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    monkeypatch.setenv(LP.LIVE_ROOT_ENV, str(fake_prod))
+    with pytest.raises(LP.SandboxLeakError):
+        LP.live_root()
+
+
+def test_no_marker_no_change_for_ordinary_prod_agents(monkeypatch, tmp_path):
+    """Обычный прод-агент (без маркера) поведения не меняет — нулевой побочный эффект."""
+    real_prod = tmp_path / "prod"
+    real_prod.mkdir()
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", real_prod)
+    assert LP.live_root() == real_prod
+    assert LP.live_data_dir() == real_prod / "data"
+
+
+# ===========================================================================
+# F6 (REVIEW_1) — `Path.resolve()` raises ``ValueError`` (embedded NUL byte),
+# not only ``OSError``. The guard's string-comparison fallback must catch it
+# too, instead of letting a different exception crash out of the leak check.
+# ===========================================================================
+
+
+def test_embedded_nul_path_falls_back_to_string_compare_not_a_crash(monkeypatch, tmp_path):
+    """Положительный контроль F6: путь со встроенным NUL-байтом не совпадает
+    СТРОКОЙ с прод-путём ⇒ это не утечка, и функция обязана тихо вернуть, а не
+    упасть `ValueError`-ом (до фикса `except OSError` не ловил этот тип, и
+    настоящий вердикт «утечка или нет» заслонялся крашем самого сторожа).
+
+    ``os.environ`` сам отказывает записывать строку со встроенным NUL (C-уровень),
+    поэтому путь строится не через переменную окружения, а напрямую — что и так
+    вернее: предмет теста — поведение ``_refuse_if_leaking_to_prod``, а не то,
+    как путь попал на вход. Маркер выставлен явно: без него функция возвращает
+    СРАЗУ (до самого сравнения) и тест прошёл бы, ничего не измерив."""
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    fake_prod = tmp_path / "prod"
+    nul_candidate = Path(str(fake_prod) + "\x00-not-prod")
+    LP._refuse_if_leaking_to_prod(nul_candidate, fake_prod, who="test")  # must not raise ValueError
+
+
+def test_embedded_nul_path_equal_to_prod_by_string_still_refuses(monkeypatch, tmp_path):
+    """Обратная сторона: если NUL-путь строкой СОВПАДАЕТ с прод-путём (та же
+    строка), это всё равно утечка — `ValueError` не имеет права заслонить её
+    тем, что превращает отказ в тихий успех."""
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    fake_prod = tmp_path / "prod"
+    nul_prod = Path(str(fake_prod) + "\x00")
+    with pytest.raises(LP.SandboxLeakError):
+        LP._refuse_if_leaking_to_prod(nul_prod, nul_prod, who="test")
+
+
+def test_marker_without_prod_collision_does_not_refuse(monkeypatch, tmp_path):
+    """Маркер стоит, но живого прод-дерева на этой машине вообще нет (CI) — не отказ.
+
+    Отказывать здесь значило бы ломать CI, где `DEFAULT_LIVE_ROOT` не существует
+    по построению и умолчание честно падает на `fallback`/`OWN_TREE`.
+    """
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", tmp_path / "нет-такого-дерева")
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    caller = tmp_path / "дерево-вызывающего"
+    assert LP.live_root(caller) == caller
+    assert LP.live_data_dir(caller) == caller / "data"
+
+
+def test_r2_nested_claude_worktree_is_not_prod_but_prod_itself_still_refused(tmp_path, monkeypatch):
+    """R2 (ADR-580 §C8, REVIEW_INTEGRATION_3): одноразовый worktree Claude Code внутри
+    `<прод>/.claude/worktrees/<имя>` — не прод; сам прод и его прочие подкаталоги — по-прежнему
+    отказ (положительный контроль рядом: исключение не расширяет дыру)."""
+    prod = tmp_path / "SPA_Claude"
+    wt = prod / ".claude" / "worktrees" / "w1"
+    (wt / "nimbalyst-local" / "tracker").mkdir(parents=True)
+    (prod / "nimbalyst-local" / "tracker").mkdir(parents=True)
+    monkeypatch.setattr(LP, "DEFAULT_LIVE_ROOT", prod)
+    monkeypatch.setenv(LP.SANDBOX_ENV, "1")
+    LP.assert_not_prod_realpath(wt / "nimbalyst-local" / "tracker", who="t")
+    with pytest.raises(LP.SandboxLeakError):
+        LP.assert_not_prod_realpath(prod / "nimbalyst-local" / "tracker", who="t")
+    with pytest.raises(LP.SandboxLeakError):
+        LP.assert_not_prod_realpath(prod, who="t")
+    with pytest.raises(LP.SandboxLeakError):
+        LP.assert_not_prod_realpath(prod / ".claude" / "settings.json", who="t")

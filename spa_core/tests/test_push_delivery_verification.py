@@ -159,7 +159,7 @@ class FakeContentsRemote:
         return _sha
 
     def get_file_content(self):
-        def _content(pat, repo, repo_path, branch="main"):
+        def _content(pat, repo, repo_path, branch="main", expected_sha=None):
             self.requests.append(f"GET-content {repo_path}")
             return self.files.get(repo_path)
         return _content

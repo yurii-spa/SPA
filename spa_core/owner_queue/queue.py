@@ -57,13 +57,24 @@ def _resolve_tracker_dir() -> Path:
 
     Намеренно НЕ смотрим ``SPA_DATA_DIR``: песочница гейта подменяет data/,
     но вопрос владельцу — не data, он не имеет права испаряться с песочницей.
+
+    N1 (ADR-580 §C8 REVIEW_2, 2026-10-05): ``live_root()`` проверяет на утечку
+    только СВОЙ собственный возврат — утечка через симлинк стенда
+    (``<стенд>/nimbalyst-local`` → прод) видна лишь ПОСЛЕ того, как сюда
+    дописаны ``"nimbalyst-local" / "tracker"`` и путь резолвится. Поэтому
+    итоговый путь (из ОБЕИХ веток — явной и умолчания) проходит через
+    `assert_not_prod_realpath` ДО возврата: маркер песочницы не стоит у
+    обычного прод-агента, и там эта строка не делает вообще ничего.
     """
+    from spa_core.utils.live_paths import assert_not_prod_realpath, live_root
+
     env = os.environ.get("SPA_TRACKER_DIR")
     if env:
-        return Path(env)
-    from spa_core.utils.live_paths import live_root
-
-    return live_root(_REPO_ROOT) / "nimbalyst-local" / "tracker"
+        result = Path(env)
+    else:
+        result = live_root(_REPO_ROOT) / "nimbalyst-local" / "tracker"
+    assert_not_prod_realpath(result, who="owner_queue.TRACKER_DIR")
+    return result
 
 
 TRACKER_DIR = _resolve_tracker_dir()

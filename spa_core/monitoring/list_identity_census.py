@@ -62,8 +62,11 @@ from spa_core.monitoring.call_provenance import describe as provenance_line  # n
 from spa_core.monitoring.python_reader_clock_doors import (  # noqa: E402
     measurement_due, population,
 )
-from spa_core.monitoring.run_identity_key_price import build_stands  # noqa: E402
+from spa_core.monitoring.run_identity_key_price import (  # noqa: E402
+    build_stands, ensure_faithful_stand,
+)
 from spa_core.utils.atomic import atomic_save  # noqa: E402
+from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
 
 SCHEMA = "list_identity_census.v1"
@@ -100,6 +103,7 @@ def run_probe(names: Sequence[str], stand: Path, tree_root: Path,
     перепись втягивает под сотню читателей, и побочные эффекты их импорта не
     имеют права оседать в процессе, который потом пишет артефакт.
     """
+    ensure_faithful_stand(stand, tree_root)
     with tempfile.TemporaryDirectory(prefix="spa_g34_") as tmp:
         mods = Path(tmp) / "modules.json"
         out = Path(tmp) / "answer.json"
@@ -107,6 +111,15 @@ def run_probe(names: Sequence[str], stand: Path, tree_root: Path,
         env = dict(os.environ)
         env[probe.STAND_ENV] = str(stand)
         env[probe.CLOCK_ENV] = moment.isoformat()
+        # C8(b) ADR-580 (INC-1, F8 REVIEW_1 amendment): этот харнесс — тот же
+        # стенд + PYTHONPATH-форма, что у `python_reader_clock_doors` — делил с
+        # ним дыру до фикса (SPA_SANDBOX/SPA_DATA_DIR/SPA_LIVE_ROOT не стояли
+        # вовсе, и читатель без параметра падал бы на умолчании `live_paths`
+        # прямо в прод). `ensure_faithful_stand` выше делает стенд полным
+        # деревом для чтения, не трогая изоляцию `data/`.
+        env[live_paths.SANDBOX_ENV] = "1"
+        env[live_paths.LIVE_ROOT_ENV] = str(stand)
+        env[live_paths.DATA_DIR_ENV] = str(Path(stand) / "data")
         env["PYTHONPATH"] = os.pathsep.join(
             [str(tree_root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
         try:

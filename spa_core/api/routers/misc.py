@@ -199,13 +199,34 @@ def get_backtest():
 
 @router.get("/api/health-public", tags=["public"])
 def get_health_public():
-    """Flat public health snapshot for the landing LiveStatsWidget."""
+    """Flat public health snapshot for the landing LiveStatsWidget.
+
+    RM-TRUTH-01 W5 (ADR-580 C2): ``ytd_apy_pct``/``apy_today_pct_annualized`` are
+    kept VERBATIM (three ``landing/src/pages/*.astro`` files already read
+    ``ytd_apy_pct`` by that exact name — see the task's final report for which
+    ones) — a single-day accrual rate annualized, now typed ``OBSERVED``/
+    ``window_days=1`` so a consumer does not have to trust the (inherited,
+    misleading) "ytd" in the field's own name. ``paper_apy_canonical`` is NEW: the
+    SAME canonical compound/evidenced-bars rate as the public hero
+    (``landing/src/data/track_snapshot.json``), typed ``REALIZED_PAPER``.
+
+    **F4 (integration review, 2026-10-05):** ``max_drawdown_pct`` stays on its
+    ORIGINAL source (``tear_sheet.json``) under its original name — two live
+    landing pages (``index.astro``'s ``#m-dd``, ``track-record.astro``'s
+    ``#tr-dd``) read this exact field from this exact endpoint, and swapping its
+    source silently changes a public number without owner authorisation (ADR-285
+    subject #2). The live-snapshot drawdown is exposed separately, under the NEW
+    name ``max_drawdown_track_pct`` (part of ``snap`` below), which no landing
+    file reads today."""
+    from spa_core.governance.ssot import paper_apy_snapshot
+
     ps = read_state("paper_trading_status.json", {})
     gl = read_state("golive_status.json", {})
     ts = read_state("tear_sheet.json", {})
     passed = gl.get("passed", gl.get("passed_count"))
     total = gl.get("total", gl.get("total_count", gl.get("criteria_total")))
     real_track_days = gl.get("real_track_days")
+    snap = paper_apy_snapshot(data_dir())
     return {
         "generated_at": now(),
         "source": "live",
@@ -214,12 +235,25 @@ def get_health_public():
         "go_live_target": gl.get("target_date"),
         "track_days": real_track_days,
         "days_running_raw": ps.get("days_running"),
+        # Single-day accrual rate, annualized — NOT the track-to-date realized
+        # rate. Field names kept for the existing landing consumers; honesty
+        # moved into the typed metadata (ADR-580 C2), not a renamed field.
         "ytd_apy_pct": ps.get("apy_today_pct"),
-        "ytd_apy_pct_note": "annualized, not a daily figure",
+        "ytd_apy_pct_note": "single-day accrual rate, annualized — see paper_apy_canonical for the track-to-date realized rate",
         "apy_today_pct_annualized": ps.get("apy_today_pct"),
+        "apy_today_pct_metric_type": "OBSERVED",
+        "apy_today_pct_window_days": 1,
+        # NEW typed fields only (paper_apy_canonical, max_drawdown_track_pct, ...) —
+        # paper_apy_snapshot() never returns the bare names below (F4), so this
+        # merge cannot collide with them.
+        **snap,
         "current_equity": ps.get("current_equity"),
         "total_return_pct": ps.get("total_return_pct"),
         "sharpe_30d": ts.get("sharpe_ratio", ts.get("sharpe")),
+        # ORIGINAL source/name (F4) — read verbatim by index.astro (#m-dd) and
+        # track-record.astro (#tr-dd). Do not point this at the live snapshot
+        # without owner authorisation (ADR-285 subject #2); the live number is
+        # available under max_drawdown_track_pct above.
         "max_drawdown_pct": ts.get("max_drawdown_pct", ts.get("max_dd_pct")),
         "risk_gates_passed": passed,
         "risk_gates_total": total,
@@ -235,7 +269,7 @@ def get_ssot_facts():
     """Canonical headline facts straight from SSOT (Law 3)."""
     try:
         from spa_core.governance.ssot import key_facts
-        return key_facts()
+        return key_facts(data_dir())
     except Exception as exc:  # noqa: BLE001
         return {"generated_at": now(), "error": str(exc), "facts": {}}
 

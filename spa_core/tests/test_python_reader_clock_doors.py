@@ -443,6 +443,65 @@ class ArmBoundaryCarriesThePin(unittest.TestCase):
         self.assertTrue(pinned["__clock__"]["pin_observed"])      # type: ignore[index]
 
 
+class FaithfulStandCarriesNonDataSubtrees(unittest.TestCase):
+    """F7 (ADR-580 §C8, REVIEW_1 amendment): стенд несёт больше, чем `data/`.
+
+    До фикса `SPA_LIVE_ROOT` указывал на стенд, а стенд копировал ТОЛЬКО
+    `data/` (`build_stands`) — читатель, резолвящий `live_root()/<не-data>`
+    (`nimbalyst-local/tracker` и т.п.), видел ОТСУТСТВУЮЩИЙ путь там, где без
+    стенда читал бы настоящее дерево. Положительный контроль ниже воспроизводит
+    ровно эту форму: файл есть в дереве, но не в стенде, до починки.
+    """
+
+    def test_non_data_entries_become_readable_through_the_stand(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree_root = Path(tmp) / "tree"
+            (tree_root / "nimbalyst-local" / "tracker").mkdir(parents=True)
+            (tree_root / "nimbalyst-local" / "tracker" / "card.md").write_text(
+                "живой след", encoding="utf-8")
+            (tree_root / "data").mkdir()
+            (tree_root / "data" / "live_only.json").write_text("прод", encoding="utf-8")
+
+            stand = Path(tmp) / "stand"
+            stand.mkdir()
+            (stand / "data").mkdir()
+            (stand / "data" / "stand_only.json").write_text("стенд", encoding="utf-8")
+
+            doors.ensure_faithful_stand(stand, tree_root)
+
+            card = stand / "nimbalyst-local" / "tracker" / "card.md"
+            self.assertTrue(card.exists(),
+                            "F7: live_root()/nimbalyst-local/tracker видел бы "
+                            "отсутствующий путь вместо настоящего следа")
+            self.assertEqual(card.read_text(encoding="utf-8"), "живой след")
+
+            # `data/` остаётся ИЗОЛИРОВАННОЙ копией стенда, а не ссылкой на дерево
+            # (C8(b) не ослаблен этой правкой).
+            self.assertFalse((stand / "data").is_symlink())
+            self.assertTrue((stand / "data" / "stand_only.json").exists())
+            self.assertFalse((stand / "data" / "live_only.json").exists(),
+                             "F7 не имеет права смешать data/ стенда с data/ дерева")
+
+    def test_idempotent_second_call_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree_root = Path(tmp) / "tree"
+            (tree_root / "landing").mkdir(parents=True)
+            (tree_root / "data").mkdir()
+            stand = Path(tmp) / "stand"
+            stand.mkdir()
+            (stand / "data").mkdir()
+            doors.ensure_faithful_stand(stand, tree_root)
+            doors.ensure_faithful_stand(stand, tree_root)  # не имеет права упасть повторно
+            self.assertTrue((stand / "landing").exists())
+
+    def test_unreadable_tree_root_does_not_raise(self):
+        """Дерево не прочиталось ⇒ тихий возврат, а не крах плеча."""
+        with tempfile.TemporaryDirectory() as tmp:
+            stand = Path(tmp) / "stand"
+            stand.mkdir()
+            doors.ensure_faithful_stand(stand, Path(tmp) / "нет-такого-дерева")
+
+
 class NarrowingKeepsEveryCandidateAndRefusesWithoutItsInput(unittest.TestCase):
     """Сужение решает, КОГО спрашивать. Кандидата оно не теряет и нулём не молчит."""
 

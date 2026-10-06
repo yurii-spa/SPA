@@ -54,14 +54,82 @@ SNAPSHOT = ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 CONSTITUTION = ROOT / "landing" / "src" / "lib" / "constitution.json"
 OUT = ROOT / "landing" / "src" / "data" / "site_numbers.json"
 
-#: Род числа. Третьего не бывает — это и есть правило `site-numbers.md`.
+#: Род числа. ADR-580 (RM-TRUTH-01, C2) РАСШИРЯЕТ, а не отменяет правило `site-numbers.md`:
+#: третьего МЕСТА для чисел всё ещё нет, но честных РОДОВ теперь пять, не два. BACKTEST —
+#: число из исторического/бэктест-прогона (а не из живого трека: ``tier1_packages.json``,
+#: s61/s27/s62/s77 — см. `docs/rm_truth/A3_product.md` §2.1, претензия 19/claim 11
+#: `REVIEW_1.md`), TARGET — объявленная цель/ладдер (не результат), MODELLED — выведено
+#: моделью, а не наблюдено напрямую. BACKTEST никогда не несёт метку «замер»/«realized».
 MEASUREMENT = "замер"
 DECISION = "решение"
+BACKTEST = "backtest"
+TARGET = "target"
+MODELLED = "modelled"
+
+#: Полный словарь родов — используется там, где нужно перечислить ВСЕ допустимые значения
+#: (храповик `test_site_numbers_shelf.py`), а не как магическое число "2" или "5".
+KINDS = (MEASUREMENT, DECISION, BACKTEST, TARGET, MODELLED)
 
 #: Как считается годовая ставка. Названо строкой, потому что «годовая» без метода —
 #: не число, а намерение: простая экстраполяция и сложный процент дают разное.
 ANNUALISATION = ("сложный процент от якоря доказанного трека: "
                  "(NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1")
+
+#: Провенанс-маркеры (подстроки в ``source``), ОБЯЗАННЫЕ сопровождаться родом
+#: BACKTEST/TARGET/MODELLED — никогда MEASUREMENT/DECISION. Список называет КОНКРЕТНЫЕ
+#: находки, а не угадывает по форме: единственная сегодня — `tier1_packages.json`
+#: (D5/claim-11, `docs/rm_truth/A3_product.md` §5 / `REVIEW_1.md`). Расширяется по мере
+#: находок, тем же порядком, что остальные списки-исключения этого дома.
+_BACKTEST_SOURCE_MARKERS = ("tier1_packages",)
+
+
+def validate_shelf(doc: dict) -> "list[str]":
+    """Гейт последовательности публикации (C12, ADR-580). Пустой список ⇒ витрину
+    МОЖНО доставлять; непустой — КАЖДАЯ строка сама по себе достаточная причина отказать.
+
+    Два инварианта:
+
+    1. **Бэктест не выдаёт себя за замер.** Число, чей ``source`` несёт один из
+       `_BACKTEST_SOURCE_MARKERS`, не имеет права нести род MEASUREMENT/DECISION —
+       ровно дефект D5/claim-11, который жил в `packages.*` до C2 («3.7, kind=замер»
+       на самом деле `tier1_packages.blended_net_apy_pct`, бэктест-блендер
+       s61/s27/s62/s77).
+    2. **Нерепортабельная ставка — всегда ``None``.** `reportable is False` и
+       одновременно ненулевое ``value`` — дефект D6 (генератор публиковал ставку с
+       2 баров, страница сама гасила её до 30; прод-полка 04.10 несла «Balanced
+       −11.5 %» на трёх барах ровно так). `figure()` уже гасит это сам при сборке —
+       гейт здесь ВТОРОЙ рубеж (защита в глубину): ловит данные, собранные МИМО
+       `figure()` (ручная правка, другой код путь), не только регресс в этом файле.
+
+    Зовётся и тестом (регресс кода), и перед доставкой (регресс ДАННЫХ конкретного
+    прогона — напр. файл подложен в обход генератора).
+    """
+    problems: list[str] = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            if "value" in node and "unit" in node and "kind" in node:
+                kind = node.get("kind")
+                source = str(node.get("source") or "")
+                if kind in (MEASUREMENT, DECISION) and any(
+                        m in source for m in _BACKTEST_SOURCE_MARKERS):
+                    problems.append(
+                        f"{path}: источник бэктеста ({source!r}) несёт род {kind!r} — "
+                        f"BACKTEST не может называться «замер»/«решение» (ADR-580 C2)")
+                if node.get("reportable") is False and node.get("value") is not None:
+                    problems.append(
+                        f"{path}: reportable=False, но value={node.get('value')!r} — "
+                        f"нерепортабельная ставка обязана быть None (ADR-580 C2, инв. #17)")
+                return
+            for k, v in node.items():
+                walk(v, f"{path}.{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{path}[{i}]")
+
+    walk(doc, "shelf")
+    return problems
+
 
 #: Поля снимка, без которых витрина бессмысленна. Их отсутствие — отказ, а не `None`.
 REQUIRED_SNAPSHOT = ("as_of", "real_track_days", "evidenced_anchor")
@@ -69,6 +137,16 @@ REQUIRED_SNAPSHOT = ("as_of", "real_track_days", "evidenced_anchor")
 
 class NotMeasured(RuntimeError):
     """Витрина не собрана. Причина обязана быть названа."""
+
+
+class SequencingViolation(RuntimeError):
+    """C12 (ADR-580): собранная витрина не проходит гейт последовательности публикации.
+
+    Отличается от ``NotMeasured`` ПРЕДМЕТОМ: там источника нет или он не разбирается,
+    здесь источник прочитан и разобран, но ВЫДАЁТ СЕБЯ не за то, что он есть (бэктест
+    под меткой «замер») или несёт число, которого по правилу зрелости быть не должно.
+    Публиковать ТАКОЕ опаснее, чем не публиковать вовсе.
+    """
 
 
 def _load(path: Path) -> dict:
@@ -96,8 +174,21 @@ def _num(value: object) -> "float | None":
 
 def figure(value: object, *, unit: str, kind: str, source: str,
            annualised: bool = False, evidence: "str | None" = None,
-           unavailable_reason: "str | None" = None) -> dict:
-    """Одно число витрины со всем, что о нём обязан знать автор страницы."""
+           unavailable_reason: "str | None" = None,
+           window_days: "float | None" = None, window_days_reason: "str | None" = None,
+           reportable: "bool | None" = None, reportable_after: "float | None" = None) -> dict:
+    """Одно число витрины со всем, что о нём обязан знать автор страницы.
+
+    C2 (ADR-580) — обязательные поля для КАЖДОЙ СТАВКИ (``annualised=True``):
+    ``window_days`` (окно, по которому ставка посчитана — явный ``None`` с причиной, если
+    источник его не публикует, а не молчаливое отсутствие ключа), ``annualisation`` (уже
+    было) и ``reportable`` (прошла ли ставка порог зрелости; ниже порога — значение
+    обязано быть ``None``, инв. #17). ``reportable_after`` — сам порог, когда он назван.
+
+    Сравнение/упорядочивание ставок разных родов или разной ``reportable`` ADR-580 C2
+    запрещает — это проверяется на странице, не здесь; здесь обязанность — НЕ СКРЫТЬ
+    эти два свойства у числа.
+    """
     v = _num(value)
     out = {
         "value": v,
@@ -108,6 +199,26 @@ def figure(value: object, *, unit: str, kind: str, source: str,
     if annualised:
         out["annualised"] = True
         out["annualisation"] = ANNUALISATION
+        out["window_days"] = _num(window_days)
+        if out["window_days"] is None:
+            out["window_days_reason"] = (
+                window_days_reason or "продолжительность окна не опубликована источником")
+        # По умолчанию ставка «репортабельна», если у неё есть значение — явное
+        # переопределение (напр. рукав-книга ниже порога зрелости) обязано перекрыть это.
+        out["reportable"] = bool(reportable) if reportable is not None else (v is not None)
+        if reportable_after is not None:
+            out["reportable_after"] = _num(reportable_after)
+        if not out["reportable"] and v is not None:
+            # Инв. #17 / C2: нерепортабельная ставка не имеет права нести значение —
+            # это ровно дефект D6 (REVIEW_1, claim про ≥2-бар-гейт против 30-дневного
+            # правила страницы). Значение гасится ЗДЕСЬ, на входе в витрину, даже если
+            # вызывающий код забыл погасить его сам.
+            v = None
+            out["value"] = None
+            unavailable_reason = unavailable_reason or (
+                f"ставка ниже порога зрелости"
+                f"{f' ({reportable_after} дн.)' if reportable_after is not None else ''} — "
+                f"печатать «идёт paper-тест», не число")
     if evidence:
         out["evidence"] = evidence
     if v is None:
@@ -171,6 +282,13 @@ def _book(track: dict, key: str, label: str, measured_at: object = None) -> dict
         "apy": figure(b.get("apy_pct"), unit="%", kind=MEASUREMENT, annualised=True,
                       source="landing/src/data/track_snapshot.json → paper_tracks",
                       evidence=b.get("evidence"),
+                      # C2 (ADR-580): окно и зрелость идут из того же генератора, что и
+                      # сама ставка (`_sleeve_paper_track`, ADR-531/548) — не пересчитываются
+                      # здесь заново. Главная (conservative) книга не несёт эти поля, витрина
+                      # честно выводит их как None/производное — её гейт за пределами этой
+                      # задачи (см. отчёт сессии).
+                      window_days=days,
+                      reportable=b.get("reportable"), reportable_after=b.get("reportable_after"),
                       unavailable_reason="книга ещё не дала годовой ставки — "
                                          "печатать «идёт paper-тест», не число"),
         # Хвост публикуется РЯДОМ со ставкой намеренно: инвариант #8 и
@@ -216,6 +334,7 @@ def build(*, published_at: "str | None" = None) -> dict:
         "headline": {
             "apy": figure(snap.get("paper_apy_pct"), unit="%", kind=MEASUREMENT,
                           annualised=True, evidence="paper",
+                          window_days=snap.get("real_track_days"),
                           source="landing/src/data/track_snapshot.json → paper_apy_pct"),
             "drawdown": figure(snap.get("max_drawdown_pct"), unit="%", kind=MEASUREMENT,
                                source="landing/src/data/track_snapshot.json"),
@@ -249,16 +368,31 @@ def build(*, published_at: "str | None" = None) -> dict:
 
         # Публикуемые ставки пакетов. Идут ВМЕСТЕ с просадкой по той же причине,
         # что и у книг (инв. #8): доходность без хвоста читается как обещание.
+        #
+        # C2 (ADR-580): это БЭКТЕСТ, не замер. `track_snapshot.json → packages` сам пришёл
+        # из `data/tier1_packages.json` (`blended_net_apy_pct`/`worst_dd_pct`, смесь
+        # s61/s27/s62/s77 — `spa_core/backtesting/tier1/packages.py`), а НЕ из живого
+        # paper-трека. Раньше это несло `kind="замер"`: ровно дефект D5/claim-11
+        # (`docs/rm_truth/A3_product.md` §5, `REVIEW_1.md` claim 11) — число реальный
+        # paper-трек обойти не может, а ярлык говорил, что это он. ``window_days`` явный
+        # ``None``: длина бэктест-окна не публикуется источником (`tier1_packages.json`
+        # несёт только итоговые агрегаты, не границы периода) — третий исход (инв. #17),
+        # не выдуманное число.
         "packages": {
             name: {
                 "apy": figure((snap.get("packages") or {}).get(name, {}).get("apy_pct"),
-                              unit="%", kind=MEASUREMENT, annualised=True,
-                              source="track_snapshot.json → packages",
+                              unit="%", kind=BACKTEST, annualised=True,
+                              source="track_snapshot.json → packages (← data/tier1_packages.json, "
+                                     "blended_net_apy_pct — s61/s27/s62/s77, "
+                                     "spa_core/backtesting/tier1/packages.py)",
+                              window_days_reason="окно бэктеста не публикуется "
+                                                "tier1_packages.json (только итоговые агрегаты)",
                               unavailable_reason="ставка пакета не измерена — печатать "
                                                  "«идёт paper-тест», не число"),
                 "drawdown": figure((snap.get("packages") or {}).get(name, {}).get("dd_pct"),
-                                   unit="%", kind=MEASUREMENT,
-                                   source="track_snapshot.json → packages"),
+                                   unit="%", kind=BACKTEST,
+                                   source="track_snapshot.json → packages (← data/tier1_packages.json, "
+                                          "worst_dd_pct)"),
             }
             for name in ("conservative", "balanced", "aggressive")
         },
@@ -358,6 +492,14 @@ def run(*, published_at: "str | None" = None, if_due: bool = False,
         if not due:
             return {"published": False, "reason": why, "artifact": str(target)}
     doc = build(published_at=published_at)
+    # C12 (ADR-580): гейт последовательности публикации — ПЕРЕД записью байт, не после.
+    # «Собрали» и «можно показывать посетителю» — разные вопросы; если второй отвечен
+    # «нет», файл не трогаем вовсе (то же disciplина, что у `if_due` выше).
+    problems = validate_shelf(doc)
+    if problems:
+        raise SequencingViolation(
+            "витрина не прошла гейт последовательности (" + str(len(problems)) +
+            " наруш.): " + "; ".join(problems))
     text = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
     if write:
         target.write_text(text, encoding="utf-8")
@@ -383,6 +525,11 @@ def main(argv: "list[str] | None" = None) -> int:
     except NotMeasured as exc:
         print(f"НЕ ИЗМЕРЕНО — {exc}")
         return 2
+    except SequencingViolation as exc:
+        # C12: отдельный код от «НЕ ИЗМЕРЕНО» (2) — источник прочитан и разобран, но
+        # то, что он выдаёт, нарушает гейт последовательности, а не отсутствует.
+        print(f"ГЕЙТ ПОСЛЕДОВАТЕЛЬНОСТИ ОТКАЗАЛ (C12, ADR-580) — {exc}")
+        return 3
     if not outcome["published"]:
         print(f"публикация не назначена: {outcome['reason']}")
         return 0

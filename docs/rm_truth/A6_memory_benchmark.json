@@ -1,0 +1,2595 @@
+{
+ "schema": "rmtruth/A6-memory-benchmark/1",
+ "generated": "2026-10-05",
+ "auditor": "RM-TRUTH-01 A6 (read-only)",
+ "system_under_test": {
+  "name": "Studio OS memory v1 (ADR-527)",
+  "code": "~/Documents/SPA_mirror/spa_core/studio_os/memory @ b36acda46",
+  "index": "fresh build in scratch via SPA_MEMORY_INDEX (2249 files / 20429 chunks, build 5.5 s)",
+  "call": "assembler.assemble(q, budget_chars=12000, measure_host=False) in-process; CLI cold start ≈0.96 s"
+ },
+ "comparator": {
+  "name": "MemPalace 3.10.0 (embeddinggemma, multilingual)",
+  "how": "pre-existing isolated venv + palace built 2026-10-01 by the ADR-527 review session (scratch 4a80058d…/mempalace-eval), copied to this scratch, HOME isolated, HF_HUB_OFFLINE=1; nothing installed",
+  "caveat": "its corpus snapshot is 2026-10-01 — questions whose expected sources are newer are excluded from the fair subset; MemPalace scored on retrieval only (expected source basename in top-5)"
+ },
+ "scoring": {
+  "dims": "correctness, completeness, temporal, supersession, provenance — 0/1/2 each; null = not applicable",
+  "method": "automatic regex/fact grading over the assembled JSON package against ground truth verified from files (see each row's ground_truth). correctness=2 iff an expected source is in top-5 (or cited by a matched semantic fact) AND ≥50% key facts present; 1 iff expected source anywhere OR ≥50% facts; trap question H30 scores 2 only if verdict≠SUFFICIENT",
+  "limits": "package-level grading (what a model would SEE), not an LLM answer; regex grading can over-credit facts that appear in irrelevant chunks"
+ },
+ "summary": {
+  "all": {
+   "n": 39,
+   "score": 0.744,
+   "dims": {
+    "correctness": 0.731,
+    "completeness": 0.679,
+    "temporal": 0.697,
+    "supersession": 0.7,
+    "provenance": 0.885
+   },
+   "top5": 24,
+   "anywhere": 29
+  },
+  "ru": {
+   "n": 28,
+   "score": 0.742,
+   "dims": {
+    "correctness": 0.732,
+    "completeness": 0.679,
+    "temporal": 0.667,
+    "supersession": 0.714,
+    "provenance": 0.893
+   },
+   "top5": 17,
+   "anywhere": 21
+  },
+  "en": {
+   "n": 11,
+   "score": 0.75,
+   "dims": {
+    "correctness": 0.727,
+    "completeness": 0.682,
+    "temporal": 0.778,
+    "supersession": 0.667,
+    "provenance": 0.864
+   },
+   "top5": 7,
+   "anywhere": 8
+  },
+  "false_sufficient": [
+   "H03e",
+   "H14",
+   "H15",
+   "H19",
+   "H30"
+  ],
+  "verdicts": {
+   "SUFFICIENT": 28,
+   "PARTIAL": 10,
+   "INSUFFICIENT": 1
+  },
+  "sufficient_but_expected_missing": [
+   "H03e",
+   "H14",
+   "H15",
+   "H18",
+   "H18e",
+   "H19",
+   "H22",
+   "H24"
+  ],
+  "memory_latency_s": {
+   "p50": 0.548,
+   "max": 0.934
+  },
+  "fair_subset_n": 35,
+  "fair_subset_memory_top5": 22,
+  "fair_subset_mempalace_top5": 10,
+  "mempalace_all_top5": 10,
+  "mempalace_latency_s": {
+   "p50": 1.15,
+   "max": 1.36
+  },
+  "ru_en_pairs": [
+   {
+    "id": "H01",
+    "ru": 7,
+    "en": 5,
+    "max": 10,
+    "ru_hit": true,
+    "en_hit": true
+   },
+   {
+    "id": "H03",
+    "ru": 9,
+    "en": 5,
+    "max": 10,
+    "ru_hit": true,
+    "en_hit": false
+   },
+   {
+    "id": "H05",
+    "ru": 8,
+    "en": 8,
+    "max": 8,
+    "ru_hit": true,
+    "en_hit": true
+   },
+   {
+    "id": "H08",
+    "ru": 8,
+    "en": 8,
+    "max": 10,
+    "ru_hit": true,
+    "en_hit": true
+   },
+   {
+    "id": "H09",
+    "ru": 10,
+    "en": 7,
+    "max": 10,
+    "ru_hit": true,
+    "en_hit": true
+   },
+   {
+    "id": "H13",
+    "ru": 6,
+    "en": 5,
+    "max": 8,
+    "ru_hit": false,
+    "en_hit": false
+   },
+   {
+    "id": "H15",
+    "ru": 1,
+    "en": 8,
+    "max": 8,
+    "ru_hit": false,
+    "en_hit": true
+   },
+   {
+    "id": "H18",
+    "ru": 5,
+    "en": 5,
+    "max": 10,
+    "ru_hit": false,
+    "en_hit": false
+   },
+   {
+    "id": "H19",
+    "ru": 3,
+    "en": 8,
+    "max": 8,
+    "ru_hit": false,
+    "en_hit": true
+   }
+  ]
+ },
+ "builtin_benchmark_rerun": {
+  "cmd": "python -m spa_core.studio_os.memory bench (own + heldout phrasings, k=5)",
+  "result": {
+   "own": {
+    "hit_rate": 0.97,
+    "hits": 32,
+    "total": 33,
+    "latency_p50_ms": 248.4
+   },
+   "heldout": {
+    "hit_rate": 0.97,
+    "hits": 32,
+    "total": 33,
+    "latency_p50_ms": 262.2
+   }
+  },
+  "note": "self-authored 12-question set; held-out phrasings were SEEN before tuning (ADR-527 Evidence table says so) — not a clean number"
+ },
+ "prior_review": {
+  "source": "docs/decisions/ADR-527-memory-and-context-architecture-v1.md:54,66-97 · STATE.md:76 · journal 2026-W40.md:2191",
+  "verdict": "option C — borrow ideas, not a dependency",
+  "numbers": {
+   "memory_v1_first_heldout": 0.848,
+   "memory_v1_after_fixes": "0.970 own / 0.909 heldout (seen)",
+   "raw_docs_no_semantic": 0.636,
+   "mempalace_minilm": "0.273 own / 0.152 heldout",
+   "mempalace_embeddinggemma": "0.485 / 0.485, build 32 min, 374 MB palace + 796 MB model"
+  },
+  "scratch_logs": "/private/tmp/claude-501/-Users-yuriikulieshov-Documents-SPA-Claude/4a80058d-bbff-490b-99f7-24901944c2f9/scratchpad/mempalace-eval/bench_ml.txt"
+ },
+ "rows": [
+  {
+   "id": "H01",
+   "topic": "old BTC experiments",
+   "lang": "ru",
+   "question": "Какие эксперименты с BTC-движком мы делали раньше и чем они закончились?",
+   "ground_truth": "ADR-102 (2026-08-20): BTC cycle champion v0.1 accepted as a measurement, implementation NOT started (drawdown does not fit kill-switch); ADR-118 (2026-08-22) separate BTC paper-NAV track — per ADR-525 never installed; earn-defi MVRV BTC Signal Engine (2026-09-04, separate repo); ADR-525 (2026-09-30) Trading Research Engine v0, 138 BTC candidates.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+    "spa:docs/decisions/ADR-118-btc-paper-nav-track.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.891,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.71,
+    "top_refs": [
+     "earndefi:docs/04-risk-framework.md",
+     "earndefi:docs/DECISIONS.md",
+     "earndefi:docs/01-vision-architecture.md",
+     "spa:docs/decisions/ADR-118-btc-paper-nav-track.md",
+     "spa:docs/journal/2026-W35.md",
+     "spa:docs/decisions/ADR-260-btc-engine-read-api.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-102": true,
+     "ADR-118|btc_nav": true,
+     "earn-defi|MVRV": true,
+     "ADR-525": false
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": 2
+    },
+    "score_total": 7,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 9881
+   },
+   "mempalace": {
+    "top5": [
+     "spa:own-btc-dvizhok-ne-vlezaet-pod-stop-kran.md",
+     "spa:2026-W34.md",
+     "spa:ADR-120-protection-lab.md",
+     "spa:2026-W34.md",
+     "spa:ADR-102-btc-cycle-backtest-archived-not-built.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+     "spa:docs/decisions/ADR-118-btc-paper-nav-track.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+    ]
+   }
+  },
+  {
+   "id": "H01e",
+   "topic": "old BTC experiments",
+   "lang": "en",
+   "question": "What BTC engine experiments did we run before and how did they end?",
+   "ground_truth": "same as H01",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+    "spa:docs/decisions/ADR-118-btc-paper-nav-track.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.603,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:architecture/provenance.json",
+     "spa:docs/decisions/ADR-560-research-factory-capital-universe-expansion.md",
+     "bridge:docs/adr/ADR-B19.4.1-ACTIVATION-ENGINE-SERVICE.md",
+     "spa:docs/decisions/ADR-537-status-colour-is-not-a-risk-grade.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "earndefi:docs/02-btc-signal-engine.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "spa:docs/TRADING_RESEARCH_ENGINE.md"
+    ],
+    "facts_matched": {
+     "ADR-102": false,
+     "ADR-118|btc_nav": false,
+     "earn-defi|MVRV": false,
+     "ADR-525": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 0,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 0
+    },
+    "score_total": 5,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11747
+   },
+   "mempalace": {
+    "top5": [
+     "bridge:B19-RELEASES.md",
+     "bridge:B19-RELEASES.md",
+     "claude:site-rebuild-and-research-recs.md",
+     "claude:earn-defi-repo-separate-from-spa.md",
+     "spa:ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+    ],
+    "latency_s": 1.14,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+     "spa:docs/decisions/ADR-118-btc-paper-nav-track.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+    ]
+   }
+  },
+  {
+   "id": "H02",
+   "topic": "Indicator Trading origin",
+   "lang": "ru",
+   "question": "Откуда взялась идея индикаторной торговли (Indicator Trading) — MA, RSI, SuperTrend по BTC?",
+   "ground_truth": "Term 'Indicator Trading' appears nowhere in repos (rg, 0 hits). Closest: ADR-525 (owner directive 2026-09-30) Trading Research Engine v0 — 10 public-domain indicator families × BTC 1h/4h/1D = 138 candidates, because SPA had no directional price engine; earn-defi BTC Signal Engine (MVRV, trend gates) predates it (2026-09-04).",
+   "expected_sources": [
+    "spa:docs/TRADING_RESEARCH_ENGINE.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.541,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.6,
+    "top_refs": [
+     "spa:docs/TRADING_RESEARCH_ENGINE.md",
+     "spa:architecture/manifest.json",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "earndefi:docs/01-vision-architecture.md",
+     "earndefi:docs/DECISIONS.md",
+     "spa:CLAUDE.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "spa:docs/TRADING_RESEARCH_ENGINE.md"
+    ],
+    "facts_matched": {
+     "ADR-525": true,
+     "138": true,
+     "SuperTrend|RSI|Donchian": true,
+     "no directional|направлен|MVRV": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 11222
+   },
+   "mempalace": {
+    "top5": [
+     "spa:memory_truth.json",
+     "spa:2026-W40.md",
+     "claude:trading-research-engine-v0.md",
+     "spa:ADR-102-btc-cycle-backtest-archived-not-built.md",
+     "spa:manifest.json"
+    ],
+    "latency_s": 1.11,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/TRADING_RESEARCH_ENGINE.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+    ]
+   }
+  },
+  {
+   "id": "H03",
+   "topic": "Director OS intent",
+   "lang": "ru",
+   "question": "Что такое Director OS и какой был замысел?",
+   "ground_truth": "'Director OS doctrine (ADR-469)' cited by ADR-492: read-only snapshot/projection-driven mission control. That ADR-469 exists only in off-origin shadow worktree ~/studio-os-scratch/v03 with status DECISION_PROPOSED (2026-09-24); origin ADR-469 is an unrelated 'writer-harm' ADR (number collision). ADR-552 (2026-10-0x) says Director OS web cockpit (com.spa.director_server :8788) is IMPLEMENTED but DUPLICATES the Director, publish frozen since 09-20; Owner Remote/Mission Control v1 supersedes.",
+   "expected_sources": [
+    "shadow:docs/decisions/ADR-469-studio-os-v03-mission-control-plane.md",
+    "spa:docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md",
+    "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.53,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.75,
+    "top_refs": [
+     "spa:docs/decisions/ADR-423-local-llm-and-provider-router-deferred.md",
+     "spa:docs/STATE.md",
+     "spa:architecture/provenance.json",
+     "spa:docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md",
+     "spa:docs/decisions/ADR-494-canonical-repository-and-deployment-policy.md",
+     "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+    ],
+    "fact_evidence": [
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "spa:docs/TRADING_RESEARCH_ENGINE.md"
+    ],
+    "facts_matched": {
+     "ADR-492|ADR-552": true,
+     "read-only|только чтени": false,
+     "mission control|Mission Control|cockpit": true,
+     "director_server|8788|Директор": false
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 9,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11471
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-492-studio-os-hybrid-shell-cockpit.md",
+     "spa:ADR-324-cio-armed-its-verdict-decides-the-reshuffle.md",
+     "spa:owner-decision-kto-planiruet-razvitie-proekta-sudba-arh.md",
+     "shadow:ADR-473-periodic-shadow-mission-tick.md",
+     "bridge:B19-RELEASES.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md"
+    ]
+   }
+  },
+  {
+   "id": "H03e",
+   "topic": "Director OS intent",
+   "lang": "en",
+   "question": "What is Director OS and what was its intended purpose?",
+   "ground_truth": "same as H03",
+   "expected_sources": [
+    "shadow:docs/decisions/ADR-469-studio-os-v03-mission-control-plane.md",
+    "spa:docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md",
+    "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.546,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.75,
+    "top_refs": [
+     "spa:docs/decisions/ADR-537-status-colour-is-not-a-risk-grade.md",
+     "spa:docs/decisions/ADR-494-canonical-repository-and-deployment-policy.md",
+     "spa:docs/decisions/ADR-551-build-loop-governance-resource-guardrails.md",
+     "bridge:docs/adr/ADR-B18-DIRECTOR-INTERFACE-CONTROL-PLANE.md",
+     "spa:docs/ideas/2026-09-28-adr-number-race-p1.md",
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-492|ADR-552": false,
+     "read-only|только чтени": true,
+     "mission control|Mission Control|cockpit": false,
+     "director_server|8788|Директор": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 0,
+     "completeness": 0,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 5,
+    "score_max": 10,
+    "false_sufficient": true,
+    "size_chars": 10217
+   },
+   "mempalace": {
+    "top5": [
+     "bridge:B19-RELEASES.md",
+     "spa:ADR-492-studio-os-hybrid-shell-cockpit.md",
+     "bridge:B19-RELEASES.md",
+     "bridge:B19-RELEASES.md",
+     "spa:ADR-492-studio-os-hybrid-shell-cockpit.md"
+    ],
+    "latency_s": 1.12,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md"
+    ]
+   }
+  },
+  {
+   "id": "H04",
+   "topic": "three owner domains",
+   "lang": "ru",
+   "question": "Какие три домена у владельца: Capital, Studio OS и Earn DeFi Product — кто чем владеет?",
+   "ground_truth": "No single canonical doc names 'three owner domains'. Pieces: CAPITAL_ARCHITECTURE (ADR-525) capital hierarchy owned by engines not Studio OS; Studio OS/Bridge = owner control plane (ADR-521); Bridge B19.6.12 erratum: 'Earn DeFi product repo does not exist' — every Earn DeFi product task targeted SPA repo; earn-defi.com site lives in SPA landing/, ~/Documents/earn-defi is the BTC engine repo. Domain model therefore UNKNOWN/fragmented.",
+   "expected_sources": [
+    "spa:docs/CAPITAL_ARCHITECTURE.md",
+    "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+    "bridge:docs/handoffs/CURRENT-HANDOFF.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.562,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-495-studio-os-core-v1-registry-context-decisions.md",
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "bridge:docs/handoffs/CURRENT-HANDOFF.md",
+     "bridge:docs/adr/ADR-B12-COMPANY-MEMORY-REPOSITORY.md",
+     "bridge:docs/adr/ADR-B12-DIRECTOR-OPERATIONS.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/CAPITAL_ARCHITECTURE.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "company:decisions/owner/2026-08-27-studio-os-investment-engine-boundary.md",
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+    ],
+    "facts_matched": {
+     "CAPITAL": true,
+     "Studio OS": true,
+     "earn-defi|Earn DeFi": true,
+     "engine|движ|Bridge": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": 0
+    },
+    "score_total": 6,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 11661
+   },
+   "mempalace": {
+    "top5": [
+     "spa:memory_truth.json",
+     "spa:own-26-resend-domain-verification.md",
+     "earndefi:DECISIONS.md",
+     "spa:ADR-246-audit-trail-answers-three-of-nine.md",
+     "spa:inbox-task-portfolio-cio-dynamic-capital-alloc.md"
+    ],
+    "latency_s": 1.11,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/CAPITAL_ARCHITECTURE.md",
+     "spa:docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "bridge:docs/handoffs/CURRENT-HANDOFF.md"
+    ]
+   }
+  },
+  {
+   "id": "H05",
+   "topic": "old vs current strategy names",
+   "lang": "ru",
+   "question": "Как соотносятся старые названия стратегий Preserve / Core / Max Yield с Conservative / Balanced / Aggressive?",
+   "ground_truth": "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md:43 Conservative (alt Preserve) / Balanced (Core) / Aggressive (Max Yield); docs/SITE_DESIGN_SYSTEM.md:369-371 recommended mapping Preserve=Conservative etc. Naming is owner-gated (ADR-285 subject 2).",
+   "expected_sources": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+    "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.53,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.82,
+    "top_refs": [
+     "spa:docs/decisions/ADR-055-head-of-investment-agent-layer.md",
+     "spa:docs/decisions/ADR-294-observable-rates-costs-and-marks-for-both-books.md",
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/journal/2026-W40.md",
+     "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+    ],
+    "facts_matched": {
+     "Preserve": true,
+     "Max Yield": true,
+     "Conservative": true,
+     "Aggressive": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": 2
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 11449
+   },
+   "mempalace": {
+    "top5": [
+     "claude:aggressive-lab-tiers-and-feeds.md",
+     "spa:ADR-125-three-tier-paper-tracks-start.md",
+     "spa:2026-W37.md",
+     "spa:inbox-task-portfolio-cio-dynamic-capital-alloc.md",
+     "claude:owner-directive-head-of-investment-layer.md"
+    ],
+    "latency_s": 1.11,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+    ]
+   }
+  },
+  {
+   "id": "H05e",
+   "topic": "old vs current strategy names",
+   "lang": "en",
+   "question": "How do the old strategy names Preserve, Core and Max Yield map to Conservative, Balanced and Aggressive?",
+   "ground_truth": "same as H05",
+   "expected_sources": [
+    "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+    "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.537,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+     "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+     "spa:docs/redesign/02_PAGE_INVENTORY_DISPOSITION.md",
+     "claude:roadmap-v2-and-10of10-shipped.md",
+     "claude:owner-directive-three-tier-yield-product.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+    ],
+    "facts_matched": {
+     "Preserve": true,
+     "Max Yield": true,
+     "Conservative": true,
+     "Aggressive": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": 2
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 11497
+   },
+   "mempalace": {
+    "top5": [
+     "claude:aggressive-lab-tiers-and-feeds.md",
+     "claude:roadmap-v2-and-10of10-shipped.md",
+     "claude:owner-directive-head-of-investment-layer.md",
+     "claude:owner-directive-head-of-investment-layer.md",
+     "claude:owner-directive-three-tier-yield-product.md"
+    ],
+    "latency_s": 1.1,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+    ]
+   }
+  },
+  {
+   "id": "H06",
+   "topic": "superseded decision",
+   "lang": "ru",
+   "question": "Действует ли ещё запрет на Sky/sUSDS?",
+   "ground_truth": "Ban lifted 2026-08-05 as fulfilled (DSPause delay 48h, three RPCs agree), sky_susds WL/0 -> T1, ADR-065; is_gsm_compliant() gate kept.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-065-sky-susds-promoted-to-t1.md",
+    "spa:CLAUDE.md",
+    "spa:.claude/rules/adapters.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.514,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-330-registry-ban-reaches-the-sleeve-books.md",
+     "spa:docs/decisions/ADR-126-owner-decisions-2026-08-23-two-unexecuted.md",
+     "spa:docs/journal/2026-W34.md",
+     "spa:docs/STATE.md",
+     "spa:docs/decisions/ADR-131-contract-governance-precondition-rule.md",
+     "spa:docs/decisions/ADR-288-owner-connects-two-live-answering-pools-to-the-poll.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-065": true,
+     "48": true,
+     "T1": true,
+     "СНЯТ|снят|lifted|promoted|повышен": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 9,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 10513
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-330-registry-ban-reaches-the-sleeve-books.md",
+     "spa:owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md",
+     "spa:2026-W37.md",
+     "spa:owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen.md",
+     "spa:inbox-tekst-invarianta-10-sky-susds-0-zhivet-k.md"
+    ],
+    "latency_s": 1.11,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-065-sky-susds-promoted-to-t1.md",
+     "spa:CLAUDE.md",
+     "spa:.claude/rules/adapters.md"
+    ]
+   }
+  },
+  {
+   "id": "H07",
+   "topic": "superseded decision",
+   "lang": "ru",
+   "question": "Сколько классов решений раньше было owner-gated и что заменило этот список?",
+   "ground_truth": "Former list of 14 owner-gated classes replaced 2026-09-09 by ADR-285: three subjects (real money, public numbers/tier naming/legal, irreversible actions); measured 247 owner cards in 55 days.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+    "spa:CLAUDE.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.548,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+     "spa:docs/decisions/ADR-403-owner-gate-verdict-is-this-runs-report-exit-2-is-only-the-verdict.md",
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md",
+     "spa:docs/journal/2026-W37.md",
+     "spa:docs/decisions/ADR-101-autonomy-mandate-2.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-285": true,
+     "14": true,
+     "три предмета|three subjects|ровно три": true,
+     "247": false
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 9,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 9856
+   },
+   "mempalace": {
+    "top5": [
+     "spa:2026-W34.md",
+     "spa:ADR-116-standing-approval-site-numbers-legal.md",
+     "spa:2026-W37.md",
+     "spa:inbox-neprimenennyi-otvet-vladeltsa-1-adresat-2.md",
+     "spa:2026-W33.md"
+    ],
+    "latency_s": 1.12,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+     "spa:CLAUDE.md"
+    ]
+   }
+  },
+  {
+   "id": "H08",
+   "topic": "superseded decision",
+   "lang": "ru",
+   "question": "Какой roadmap сейчас канонический и что стало со старыми roadmap-файлами вроде AI1_ROADMAP и EISENHOWER?",
+   "ground_truth": "ADR-527 (2026-10-01): single roadmap docs/ROADMAP.md; AI1/ATOMIC/FAMILY_FUND/PHASE2/PRODUCT_REDESIGN/EISENHOWER v1,v2/YIELD_STRATEGY marked SUPERSEDED in architecture/memory_truth.json.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+    "spa:docs/ROADMAP.md",
+    "spa:architecture/memory_truth.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.535,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.78,
+    "top_refs": [
+     "spa:docs/decisions/ADR-105-unmeasurable-daily-loss-halts.md",
+     "spa:docs/decisions/ADR-218-benchmark-does-not-force-buy-anybody.md",
+     "spa:docs/decisions/ADR-132-pat-rotation-keychain-identity.md",
+     "spa:docs/decisions/ADR-437-the-naming-channel-was-monolingual-and-the-repository-is-not.md",
+     "spa:docs/decisions/ADR-099-adr-numbers-taken-on-branches.md",
+     "spa:docs/journal/2026-W36.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/AI1_ROADMAP.md",
+     "spa:docs/ROADMAP.md",
+     "spa:docs/ROADMAP_2MONTH_EISENHOWER.md",
+     "spa:docs/ROADMAP.md"
+    ],
+    "facts_matched": {
+     "docs/ROADMAP.md": true,
+     "SUPERSEDED": true,
+     "ADR-527": true,
+     "AI1|EISENHOWER": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": 2
+    },
+    "score_total": 8,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11786
+   },
+   "mempalace": {
+    "top5": [
+     "spa:memory_truth.json",
+     "spa:own-30-razbor-ocheredi-vladeltsa.md",
+     "spa:memory_truth.json",
+     "spa:memory_truth.json",
+     "spa:inbox-shag-0a-vechno-dokladyvaet-o-faile-kotor.md"
+    ],
+    "latency_s": 1.12,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md",
+     "spa:architecture/memory_truth.json"
+    ]
+   }
+  },
+  {
+   "id": "H08e",
+   "topic": "superseded decision",
+   "lang": "en",
+   "question": "Which roadmap is canonical now and what happened to the old roadmap files like AI1_ROADMAP and the Eisenhower roadmap?",
+   "ground_truth": "same as H08",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+    "spa:docs/ROADMAP.md",
+    "spa:architecture/memory_truth.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.497,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.89,
+    "top_refs": [
+     "spa:docs/ROADMAP.md",
+     "spa:docs/decisions/ADR-548-three-portfolios-owner-gate-applied.md",
+     "spa:docs/decisions/ADR-500-production-activation-boundary.md",
+     "spa:docs/MEMORY_ARCHITECTURE.md",
+     "spa:docs/decisions/ADR-537-status-colour-is-not-a-risk-grade.md",
+     "claude:roadmap-v2-and-10of10-shipped.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/AI1_ROADMAP.md",
+     "spa:docs/ROADMAP.md",
+     "spa:docs/ROADMAP_2MONTH_EISENHOWER.md",
+     "spa:docs/ROADMAP.md"
+    ],
+    "facts_matched": {
+     "docs/ROADMAP.md": true,
+     "SUPERSEDED": true,
+     "ADR-527": true,
+     "AI1|EISENHOWER": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": 2
+    },
+    "score_total": 8,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11614
+   },
+   "mempalace": {
+    "top5": [
+     "spa:memory_truth.json",
+     "bridge:B19-RELEASES.md",
+     "spa:memory_truth.json",
+     "spa:memory_truth.json",
+     "spa:memory_truth.json"
+    ],
+    "latency_s": 1.23,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md",
+     "spa:architecture/memory_truth.json"
+    ]
+   }
+  },
+  {
+   "id": "H09",
+   "topic": "old paper test history",
+   "lang": "ru",
+   "question": "Когда начался paper-трек ($100k), какой у него anchor и когда Balanced и Aggressive получили свои треки?",
+   "ground_truth": "Conservative $100k track anchor 2026-06-22 (CLAUDE.md, STATE.md:12); ADR-125 (2026-08-23) three packages start paper tracks; ADR-292 (2026-09-09) Balanced/Aggressive get real paper tracks instead of accrual by literals.",
+   "expected_sources": [
+    "spa:docs/STATE.md",
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+    "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.605,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.92,
+    "top_refs": [
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md",
+     "spa:docs/STATE.md",
+     "spa:docs/journal/2026-W34.md",
+     "spa:docs/decisions/ADR-089-owner-decisions-batch-2026-08-19.md",
+     "spa:docs/decisions/ADR-103-paper-book-and-cio-directive.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "2026-06-22": true,
+     "ADR-125": true,
+     "ADR-292": true,
+     "100": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 10,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 9982
+   },
+   "mempalace": {
+    "top5": [
+     "spa:STATE.md",
+     "spa:inbox-tretya-vetka-derzhit-reshenie-i-dve-kart.md",
+     "spa:inbox-sbalansirovannyi-trek-nol-profinansirova.md",
+     "spa:2026-W34.md",
+     "spa:owner-decision-20260716-082215-k-1-22.md"
+    ],
+    "latency_s": 1.16,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/STATE.md",
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+    ]
+   }
+  },
+  {
+   "id": "H09e",
+   "topic": "old paper test history",
+   "lang": "en",
+   "question": "When did the $100k paper track start, what is its anchor date, and when did Balanced and Aggressive get their own tracks?",
+   "ground_truth": "same as H09",
+   "expected_sources": [
+    "spa:docs/STATE.md",
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+    "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.554,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+     "spa:docs/decisions/ADR-531-defi-vnext-phase0-p0-repair.md",
+     "spa:docs/decisions/ADR-537-status-colour-is-not-a-risk-grade.md",
+     "spa:docs/ROADMAP.md",
+     "claude:aggressive-lab-paper-thin-by-design.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+    ],
+    "facts_matched": {
+     "2026-06-22": false,
+     "ADR-125": true,
+     "ADR-292": false,
+     "100": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": 2
+    },
+    "score_total": 7,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11580
+   },
+   "mempalace": {
+    "top5": [
+     "claude:aggressive-lab-paper-thin-by-design.md",
+     "claude:aggressive-lab-paper-thin-by-design.md",
+     "spa:inbox-tretya-vetka-derzhit-reshenie-i-dve-kart.md",
+     "claude:aggressive-lab-paper-thin-by-design.md",
+     "claude:post-paper-path-d-then-b.md"
+    ],
+    "latency_s": 1.36,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/STATE.md",
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+    ]
+   }
+  },
+  {
+   "id": "H10",
+   "topic": "agent purpose",
+   "lang": "ru",
+   "question": "Зачем нужен агент tier_curator и читает ли кто-нибудь его отчёт?",
+   "ground_truth": "tier_curator = advisory mirror without reader; promotion T3->T2 not automated; ADR-041 criteria not implemented (CLAUDE.md facts table 2026-09-11; docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md).",
+   "expected_sources": [
+    "spa:CLAUDE.md",
+    "spa:.claude/rules/risk-engine.md",
+    "spa:architecture/manifest.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.674,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.57,
+    "top_refs": [
+     "spa:docs/journal/2026-W37.md",
+     "spa:docs/decisions/ADR-487-cio-pre-trade-safety-measured-by-outcome.md",
+     "spa:docs/decisions/ADR-484-cio-economics-optimum-loses-to-do-nothing.md",
+     "spa:docs/decisions/ADR-485-persistence-criterion-measured-no-advantage-outlived-the-horizon.md",
+     "spa:docs/STATE.md",
+     "spa:docs/decisions/ADR-459-absent-reachability-was-an-outcome-named-none.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "tier_curator": true,
+     "советательн|advisory": true,
+     "читател|reader": true,
+     "ADR-041|T3.?→.?T2|подъём": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 7,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10108
+   },
+   "mempalace": {
+    "top5": [
+     "spa:own-35-srok-godnosti-artefakta-agenta.md",
+     "spa:inbox-edinitsa-priemki-kontur-a-ne-modul-obyav.md",
+     "spa:owner-decision-dva-paketa-iz-treh-zhivut-bez-potolka-ri.md",
+     "spa:owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md",
+     "spa:inbox-otchet-tir-kuratora-nikem-ne-chitaetsya.md"
+    ],
+    "latency_s": 1.19,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:CLAUDE.md",
+     "spa:.claude/rules/risk-engine.md",
+     "spa:architecture/manifest.json"
+    ]
+   }
+  },
+  {
+   "id": "H11",
+   "topic": "agent purpose",
+   "lang": "ru",
+   "question": "Что делает агент com.spa.capital_shadow, когда запускается и что он не имеет права делать?",
+   "ground_truth": "ADR-556 (2026-10-04) RM-LIVE-01: shadow execution + pilot readiness, agent 09:45, mode SHADOW, AUTO_LIVE does not exist, unsigned intents; DeFi sleeves BLOCKED, rest NOT_READY.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md",
+    "spa:architecture/manifest.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.61,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:architecture/manifest.json",
+     "spa:docs/decisions/ADR-143-owner-authorised-self-merge-and-agent-install.md",
+     "spa:docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md",
+     "spa:docs/decisions/ADR-141-tracker-status-sentinel-agent.md",
+     "spa:docs/ROADMAP.md",
+     "spa:docs/decisions/ADR-148-entrypoint-import-probe.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-556": true,
+     "SHADOW": true,
+     "09:45": true,
+     "AUTO_LIVE|без подписи|не существует": false
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": null
+    },
+    "score_total": 5,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10783
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-stroka-risk-gate-dnevnogo-limita-ubytka.md",
+     "spa:FAMILY_FUND_ROADMAP.md",
+     "spa:owner-decision-broshennye-progony-testov-vosmoi-raz-sed.md",
+     "spa:owner-decision-kto-planiruet-razvitie-proekta-sudba-arh.md",
+     "spa:inbox-agent-mozhet-napisat-owner-choice-otvet.md"
+    ],
+    "latency_s": 1.16,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:architecture/manifest.json"
+    ]
+   }
+  },
+  {
+   "id": "H12",
+   "topic": "agent purpose",
+   "lang": "en",
+   "question": "Why does com.spa.source_discovery exist and what went wrong with it?",
+   "ground_truth": ".claude/rules/deployment.md: com.spa.source_discovery failed EVERY run with ModuleNotFoundError spa_core while acceptance was green; ADR-148 (27.08) adds per-agent target load check; target find_defillama_sources.py.",
+   "expected_sources": [
+    "spa:.claude/rules/deployment.md",
+    "spa:docs/decisions/ADR-148-entrypoint-import-probe.md",
+    "spa:architecture/manifest.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.553,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.75,
+    "top_refs": [
+     "spa:docs/decisions/ADR-142-source-discovery-scheduled-with-a-reader.md",
+     "spa:docs/decisions/ADR-148-entrypoint-import-probe.md",
+     "spa:.claude/rules/deployment.md",
+     "spa:architecture/manifest.json",
+     "spa:docs/decisions/ADR-370-owner-decisions-2026-09-13.md",
+     "spa:docs/decisions/ADR-143-owner-authorised-self-merge-and-agent-install.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "source_discovery": true,
+     "ModuleNotFoundError|spa_core": true,
+     "ADR-148": true,
+     "find_defillama_sources|DefiLlama|DeFiLlama": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10741
+   },
+   "mempalace": {
+    "top5": [
+     "bridge:B19-RELEASES.md",
+     "spa:manifest.json",
+     "claude:deploy-untracked-dir-collapse.md",
+     "bridge:B19-RELEASES.md",
+     "bridge:B19-RELEASES.md"
+    ],
+    "latency_s": 1.17,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:.claude/rules/deployment.md",
+     "spa:docs/decisions/ADR-148-entrypoint-import-probe.md",
+     "spa:architecture/manifest.json"
+    ]
+   }
+  },
+  {
+   "id": "H13",
+   "topic": "repeated incidents",
+   "lang": "ru",
+   "question": "Какие крупные инциденты с доставкой и git у нас повторялись (exec-бит, force-push, checkout data)?",
+   "ground_truth": ".claude/rules/deployment.md: 2026-08-04 sync stripped exec bit 67/69 agents 5h; 2026-08-24 git checkout -- data/ reverted 116 files; 2026-08-29 force-push erased 1249 commits (pre-push hook).",
+   "expected_sources": [
+    "spa:.claude/rules/deployment.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.597,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.73,
+    "top_refs": [
+     "spa:docs/decisions/ADR-494-canonical-repository-and-deployment-policy.md",
+     "spa:docs/decisions/ADR-107-halt-file-out-of-git.md",
+     "spa:docs/journal/2026-W35.md",
+     "spa:docs/decisions/ADR-500-production-activation-boundary.md",
+     "claude:git-push-api-drift.md",
+     "claude:cf-prebuild-freshness-blocked-deploys.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "2026-08-04|04\\.08": true,
+     "67": false,
+     "1249": false,
+     "116": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 6,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10205
+   },
+   "mempalace": {
+    "top5": [
+     "spa:2026-W36.md",
+     "claude:orphaned-worktree-recovery.md",
+     "spa:owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md",
+     "claude:drift-a-checkout-can-never-converge.md",
+     "spa:2026-W31.md"
+    ],
+    "latency_s": 1.17,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:.claude/rules/deployment.md"
+    ]
+   }
+  },
+  {
+   "id": "H13e",
+   "topic": "repeated incidents",
+   "lang": "en",
+   "question": "Which large delivery and git incidents happened repeatedly (exec bit stripped, force push, checkout of data)?",
+   "ground_truth": "same as H13",
+   "expected_sources": [
+    "spa:.claude/rules/deployment.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.585,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.77,
+    "top_refs": [
+     "spa:docs/decisions/ADR-107-halt-file-out-of-git.md",
+     "spa:docs/decisions/ADR-479-git-environment-is-an-undeclared-input-of-the-suite.md",
+     "claude:hub-deploy-push-ops.md",
+     "claude:file-modes-origin-vs-host.md",
+     "claude:git-push-api-drift.md",
+     "spa:docs/decisions/ADR-494-canonical-repository-and-deployment-policy.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "2026-08-04|04\\.08": true,
+     "67": true,
+     "1249": false,
+     "116": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 5,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10602
+   },
+   "mempalace": {
+    "top5": [
+     "claude:fail-open-monitor-class.md",
+     "claude:hub-deploy-push-ops.md",
+     "claude:deploy-untracked-dir-collapse.md",
+     "claude:hub-deploy-push-ops.md",
+     "claude:architect-audit-2026-06-24.md"
+    ],
+    "latency_s": 1.16,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:.claude/rules/deployment.md"
+    ]
+   }
+  },
+  {
+   "id": "H14",
+   "topic": "repeated incidents",
+   "lang": "ru",
+   "question": "Что за утечка PAT была и какое правило по секретам из неё вышло?",
+   "ground_truth": "Incident 2026-06-10: PAT leaked into 90+ files; invariant #7 no secrets in files, read from Keychain at runtime, no push_*.html; now single token GITHUB_PAT_SPA (expires 2026-11-24).",
+   "expected_sources": [
+    "spa:CLAUDE.md",
+    "spa:docs/GITHUB_CREDENTIALS.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.594,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.86,
+    "top_refs": [
+     "spa:docs/decisions/ADR-429-a-door-that-counts-the-command-is-not-a-door.md",
+     "spa:docs/decisions/ADR-255-post-trade-verification-compares-a-value-to-itself.md",
+     "spa:docs/decisions/ADR-187-dashboard-served-the-repo-to-the-network.md",
+     "spa:docs/decisions/ADR-333-the-population-that-came-from-a-neighbours-text.md",
+     "spa:docs/decisions/ADR-223-announce-cwd-reaches-every-consumer.md",
+     "spa:docs/decisions/ADR-558-the-anchor-nobody-asked-about.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "2026-06-10": false,
+     "90": false,
+     "Keychain": false,
+     "push_\\*\\.html|push_.*html": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 0,
+     "completeness": 0,
+     "provenance": 1,
+     "temporal": 0,
+     "supersession": 0
+    },
+    "score_total": 1,
+    "score_max": 10,
+    "false_sufficient": true,
+    "size_chars": 10523
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-275-no-secret-is-read-from-inside-the-tree.md",
+     "spa:inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md",
+     "spa:2026-W35.md",
+     "spa:2026-W33.md",
+     "spa:inbox-strazh-rotatsii-pat-sam-sochinyaet-datu.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:CLAUDE.md",
+     "spa:docs/GITHUB_CREDENTIALS.md"
+    ]
+   }
+  },
+  {
+   "id": "H15",
+   "topic": "Telegram intent",
+   "lang": "ru",
+   "question": "Какую роль владелец задумал для двух Telegram-ботов?",
+   "ground_truth": "ADR-521 (2026-09-30): Bridge bot com.studiobridge.telegram = Studio OS / owner control plane; SPA bot com.spa.telegram_bot = product surface; paused != down.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+    "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.557,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.86,
+    "top_refs": [
+     "spa:docs/decisions/ADR-163-superseded-owner-answer-is-a-declared-register.md",
+     "spa:docs/decisions/ADR-180-the-bot-records-the-supersede-it-causes.md",
+     "spa:docs/decisions/ADR-150-adr-interlock-on-every-delivery-door.md",
+     "spa:docs/decisions/ADR-OWN-2026-07-repo-freeze-incident.md",
+     "spa:docs/decisions/ADR-096-owner-solicited-resend-and-honest-open-count.md",
+     "spa:docs/decisions/ADR-149-orchestrator-two-concurrent-cycles.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-521": false,
+     "Bridge": false,
+     "com.spa.telegram_bot|SPA bot|SPA-бот": false,
+     "control plane|продукт|product": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 0,
+     "completeness": 0,
+     "provenance": 1,
+     "temporal": 0,
+     "supersession": null
+    },
+    "score_total": 1,
+    "score_max": 8,
+    "false_sufficient": true,
+    "size_chars": 10481
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-geit-pered-deploem-podnimaet-vtorogo-tel.md",
+     "spa:STATE.md",
+     "spa:ADR-082-owner-text-answer.md",
+     "spa:inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md",
+     "spa:2026-W33.md"
+    ],
+    "latency_s": 1.21,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+    ]
+   }
+  },
+  {
+   "id": "H15e",
+   "topic": "Telegram intent",
+   "lang": "en",
+   "question": "What role did the owner intend for each of the two Telegram bots?",
+   "ground_truth": "same as H15",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+    "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.566,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.88,
+    "top_refs": [
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "spa:architecture/manifest.json",
+     "bridge:docs/adr/ADR-B19.4.2-TELEGRAM-ACTIVATION-CONTROL.md",
+     "spa:docs/decisions/ADR-551-build-loop-governance-resource-guardrails.md",
+     "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+    ],
+    "fact_evidence": [
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md"
+    ],
+    "facts_matched": {
+     "ADR-521": true,
+     "Bridge": true,
+     "com.spa.telegram_bot|SPA bot|SPA-бот": true,
+     "control plane|продукт|product": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10993
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-521-telegram-owner-control-plane.md",
+     "bridge:ADR-B19.6.32-OWNER-CONTROL-PLANE.md",
+     "bridge:B19-RELEASES.md",
+     "spa:memory_truth.json",
+     "bridge:ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+    ],
+    "latency_s": 1.24,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "bridge:docs/adr/ADR-B19.6.32-OWNER-CONTROL-PLANE.md"
+    ]
+   }
+  },
+  {
+   "id": "H16",
+   "topic": "Telegram intent",
+   "lang": "ru",
+   "question": "Почему кнопки под тревогой в Телеграме писали «Кнопки сейчас недоступны» и как это решили?",
+   "ground_truth": "CLAUDE.md facts table (2026-09-16): buttons gated by the bot's capability list in beacon, threshold 6h (alert_actions.BEACON_MAX_AGE_S) vs liveness 300s (telegram_health); equating them returned the warning on every restart (ADR-400).",
+   "expected_sources": [
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.592,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-069-alert-action-buttons.md",
+     "spa:docs/decisions/ADR-077-telegram-health-watchdog.md",
+     "spa:docs/decisions/ADR-082-owner-text-answer.md",
+     "spa:docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md",
+     "spa:docs/decisions/ADR-075-owner-decisions-in-telegram.md",
+     "spa:CLAUDE.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "BEACON_MAX_AGE_S|6 ч": true,
+     "300": true,
+     "ADR-400": true,
+     "маячк|beacon": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10500
+   },
+   "mempalace": {
+    "top5": [
+     "spa:STATE.md",
+     "spa:agent-knopki-resheniy-ne-doehali-i-ne-nazhimayutsya.md",
+     "spa:inbox-knopki-resheniya-tak-i-ne-prishli-prishl.md",
+     "spa:inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md",
+     "spa:inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md"
+    ]
+   }
+  },
+  {
+   "id": "H17",
+   "topic": "roadmap decisions",
+   "lang": "ru",
+   "question": "В каком порядке ADR-527 выстроил roadmap после памяти?",
+   "ground_truth": "ADR-527 §8: Memory -> DeFi Architecture Gap Audit -> DeFi Engine vNext -> Build Loop -> Owner Remote/Mission Control -> Capital Allocator/Portfolio CIO -> limited real-capital pilots (owner-gated) -> later engines.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+    "spa:docs/ROADMAP.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.934,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.67,
+    "top_refs": [
+     "spa:CLAUDE.md",
+     "spa:docs/journal/2026-W40.md",
+     "spa:docs/ROADMAP.md",
+     "spa:docs/decisions/ADR-528-failed-test-names-must-outlive-the-runner.md",
+     "spa:docs/STATE.md",
+     "claude:adr-number-gate-reads-origin-index-unless-pushed.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/ROADMAP.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/AI1_ROADMAP.md",
+     "spa:docs/ROADMAP.md"
+    ],
+    "facts_matched": {
+     "Gap Audit|gap audit": true,
+     "vNext": true,
+     "Build Loop": true,
+     "Mission Control|Owner Remote": true,
+     "Capital Allocator|CIO": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10306
+   },
+   "mempalace": {
+    "top5": [
+     "spa:memory_truth.json",
+     "spa:memory_truth.json",
+     "spa:inbox-hvost-stoyachego-prikaza-rashoditsya-s-t.md",
+     "spa:memory_truth.json",
+     "spa:owner-decision-stranitsa-treka-chetvertyi-den-pryachet.md"
+    ],
+    "latency_s": 1.26,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md"
+    ]
+   }
+  },
+  {
+   "id": "H18",
+   "topic": "Oracle origin",
+   "lang": "ru",
+   "question": "Откуда взялся Оракул (Oracle) и как он раньше назывался?",
+   "ground_truth": "ADR-554 (2026-10-04, owner macro-epic CHIEF INVESTMENT OFFICER / CAPITAL ALLOCATION): Investment CIO, display name 'Oracle' ('Штирлиц' until 2026-10-04), role_id chief_investment_officer, ADVISORY/PAPER cross-sleeve recommendation + immutable ledger (docs/ROADMAP.md:26, architecture/roles.json:7).",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+    "spa:docs/ROADMAP.md",
+    "spa:architecture/roles.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.515,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.8,
+    "top_refs": [
+     "spa:docs/decisions/ADR-098-site-custodian-publishes-from-fresh-checkout.md",
+     "spa:docs/decisions/ADR-194-a-corroborating-instrument-needs-its-own-error-rate.md",
+     "spa:docs/decisions/ADR-188-carry-replaces-a-declared-absence-in-place.md",
+     "spa:docs/decisions/ADR-498-price-of-the-two-sessions-on-one-subject-class.md",
+     "spa:docs/journal/2026-W39.md",
+     "spa:docs/journal/2026-W40.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md"
+    ],
+    "facts_matched": {
+     "ADR-554": false,
+     "Штирлиц": false,
+     "chief_investment_officer|CIO": true,
+     "ADVISORY|PAPER|советательн": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": 0
+    },
+    "score_total": 5,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11185
+   },
+   "mempalace": {
+    "top5": [
+     "spa:2026-W37.md",
+     "spa:adapters.md",
+     "spa:ADR-309-the-record-population-is-the-live-set-owner-answer-b.md",
+     "spa:ADR-192-visible-is-not-reachable.md",
+     "spa:inbox-storozh-arhitektury-krichit-critical-o-c.md"
+    ],
+    "latency_s": 1.17,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md"
+    ]
+   }
+  },
+  {
+   "id": "H18e",
+   "topic": "Oracle origin",
+   "lang": "en",
+   "question": "Where did the Oracle CIO come from and what was it called before?",
+   "ground_truth": "same as H18",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+    "spa:docs/ROADMAP.md",
+    "spa:architecture/roles.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.516,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "bridge:docs/adr/ADR-B19.5.2-RED-APPROVAL-STATE.md",
+     "spa:docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+     "spa:docs/decisions/ADR-560-research-factory-capital-universe-expansion.md",
+     "claude:research-factory-rm-expand-01.md",
+     "claude:research-evidence-rm-evidence-01.md",
+     "bridge:docs/releases/B19-RELEASES.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-554": false,
+     "Штирлиц": false,
+     "chief_investment_officer|CIO": true,
+     "ADVISORY|PAPER|советательн": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": 0
+    },
+    "score_total": 5,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 10513
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-492-studio-os-hybrid-shell-cockpit.md",
+     "bridge:CURRENT-HANDOFF.md",
+     "bridge:B19-RELEASES.md",
+     "claude:canonical-key-must-be-what-the-money-path-polls.md",
+     "spa:ADR-324-cio-armed-its-verdict-decides-the-reshuffle.md"
+    ],
+    "latency_s": 1.14,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md"
+    ]
+   }
+  },
+  {
+   "id": "H19",
+   "topic": "Sherlock origin",
+   "lang": "ru",
+   "question": "Кто такой Шерлок и какое решение его создало?",
+   "ground_truth": "ADR-564 (RM-EVIDENCE-01, 2026-10-05): owner named the research lead Sherlock, role_id head_of_research, capital authority NONE; daily run inside com.spa.research_factory 09:05.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+    "spa:architecture/roles.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.56,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.8,
+    "top_refs": [
+     "spa:docs/decisions/ADR-457-ambiguity-share-is-a-property-of-the-document-not-the-registry.md",
+     "spa:docs/decisions/ADR-266-verdict-data-third-outcome-census.md",
+     "spa:docs/decisions/ADR-075-owner-decisions-in-telegram.md",
+     "spa:docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md",
+     "spa:docs/decisions/ADR-408-price-of-closing-a-clock-door.md",
+     "spa:docs/decisions/ADR-112-crashed-daily-limit-check-halts.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-564": false,
+     "head_of_research": false,
+     "NONE|без полномочий|без капитала": true,
+     "research_factory|09:05": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 0,
+     "completeness": 0,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 3,
+    "score_max": 8,
+    "false_sufficient": true,
+    "size_chars": 10523
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-shag-2-iz-worktree-na-origin-ne-vidit-ot.md",
+     "spa:owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g.md",
+     "spa:2026-W37.md",
+     "spa:inbox-task-portfolio-cio-dynamic-capital-alloc.md",
+     "spa:own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md"
+    ],
+    "latency_s": 1.18,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": []
+   }
+  },
+  {
+   "id": "H19e",
+   "topic": "Sherlock origin",
+   "lang": "en",
+   "question": "Who is Sherlock and which decision created it?",
+   "ground_truth": "same as H19",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+    "spa:architecture/roles.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.516,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+     "spa:docs/ideas/2026-10-03-agent-role-ids-and-display-names.md",
+     "spa:architecture/provenance.json",
+     "spa:docs/decisions/ADR-254-policy-change-proposals-live-outside-the-registry.md",
+     "spa:docs/decisions/ADR-086-owner-answer-trace-delivery.md",
+     "spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md"
+    ],
+    "fact_evidence": [
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-285-owner-decision-boundary-by-subject.md"
+    ],
+    "facts_matched": {
+     "ADR-564": true,
+     "head_of_research": true,
+     "NONE|без полномочий|без капитала": true,
+     "research_factory|09:05": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10999
+   },
+   "mempalace": {
+    "top5": [
+     "spa:own-pererazdavat-li-srezannoe-zaschitami.md",
+     "spa:own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei.md",
+     "spa:own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok.md",
+     "spa:owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md",
+     "spa:owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md"
+    ],
+    "latency_s": 1.13,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": []
+   }
+  },
+  {
+   "id": "H20",
+   "topic": "product-profile decisions",
+   "lang": "ru",
+   "question": "Что владелец решил про три продуктовых пакета доходности и их бумажные портфели?",
+   "ground_truth": "Owner directive 3-tier sellable product (TOURNAMENT_VERDICT doc 2026-07-10); ADR-125 (08-23) tracks start; ADR-533 (2026-10-01) three DeFi paper portfolios: Balanced PT hold-to-maturity, Aggressive SIMULATED sUSDe/PYUSD loop, Conservative lending; one status read model.",
+   "expected_sources": [
+    "spa:docs/THREE_TIER_YIELD_PRODUCT.md",
+    "spa:docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+    "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.567,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-129-owner-decisions-2026-08-23-batch4.md",
+     "spa:docs/decisions/ADR-357-owner-decisions-2026-09-12.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+     "spa:docs/decisions/ADR-286-owner-decisions-2026-09-09.md",
+     "spa:docs/decisions/ADR-089-owner-decisions-batch-2026-08-19.md",
+     "spa:docs/decisions/ADR-392-owner-answers-2026-09-15.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-533": true,
+     "PT|Pendle": true,
+     "sUSDe|loop|SIMULATED": false,
+     "Conservative": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 7,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10252
+   },
+   "mempalace": {
+    "top5": [
+     "spa:owner-decision-dve-treti-kapitala-stoyat-na-chislah-kot.md",
+     "spa:ADR-286-owner-decisions-2026-09-09.md",
+     "spa:inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do.md",
+     "spa:THREE_TIER_YIELD_PRODUCT.md",
+     "spa:inbox-task-portfolio-cio-dynamic-capital-alloc.md"
+    ],
+    "latency_s": 1.14,
+    "expected_hit_top5": true,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/THREE_TIER_YIELD_PRODUCT.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+    ]
+   }
+  },
+  {
+   "id": "H21",
+   "topic": "product-profile decisions",
+   "lang": "ru",
+   "question": "Какие целевые доходности владелец ставил для Conservative, Balanced и Aggressive в турнирном вердикте?",
+   "ground_truth": "docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md (2026-07-10): Conservative ~3.3% / Balanced ~8-12% / Aggressive ~15-20%+. Note TOURNAMENT doc NOT in memory allow-list.",
+   "expected_sources": [
+    "spa:docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md",
+    "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.541,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/THREE_TIER_YIELD_PRODUCT.md",
+     "spa:docs/decisions/ADR-201-aggressive-sleeve-shadow-with-cio-proportion-lever.md",
+     "spa:docs/decisions/ADR-294-observable-rates-costs-and-marks-for-both-books.md",
+     "spa:docs/decisions/ADR-488-owner-visibility-three-numbers-do-not-reach-the-owner.md",
+     "spa:docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md",
+     "spa:docs/decisions/ADR-365-one-shelf-for-every-site-number.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+    ],
+    "facts_matched": {
+     "3\\.3": true,
+     "8.12": true,
+     "15.20": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 10,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11010
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-286-owner-decisions-2026-09-09.md",
+     "spa:owner-decision-dve-treti-kapitala-stoyat-na-chislah-kot.md",
+     "spa:2026-W39.md",
+     "spa:inbox-3-treka-parallelno-conservative-balanced.md",
+     "spa:agent-plan-yield-stability-90pct.md"
+    ],
+    "latency_s": 1.21,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/THREE_TIER_YIELD_PRODUCT.md"
+    ]
+   }
+  },
+  {
+   "id": "H22",
+   "topic": "memory decision",
+   "lang": "ru",
+   "question": "Почему не взяли MemPalace для памяти компании?",
+   "ground_truth": "ADR-527: option C borrow ideas; MemPalace 3.10.0 0.273/0.152 (minilm) and 0.485 (embeddinggemma, 32-min build) vs 0.94/0.85; chromadb+onnxruntime violate stdlib invariant.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+    "spa:docs/ROADMAP.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.542,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-471-one-question-about-an-unchanged-tree-one-answer.md",
+     "spa:docs/journal/2026-W37.md",
+     "spa:docs/journal/2026-W36.md",
+     "spa:docs/decisions/ADR-484-cio-economics-optimum-loses-to-do-nothing.md",
+     "spa:docs/decisions/ADR-351-the-name-loss-guard-did-not-look-at-shell.md",
+     "spa:docs/STATE.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "MemPalace": true,
+     "0\\.27|0\\.49|0\\.485|0\\.273": false,
+     "stdlib|chromadb|onnxruntime": true,
+     "borrow|заимств": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 1,
+     "temporal": 2,
+     "supersession": null
+    },
+    "score_total": 5,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10613
+   },
+   "mempalace": {
+    "top5": [
+     "spa:2026-W38.md",
+     "spa:inbox-u-nahodki-o-nepolnom-arhive-ishodov-net.md",
+     "spa:2026-W35.md",
+     "spa:2026-W37.md",
+     "spa:2026-W37.md"
+    ],
+    "latency_s": 1.18,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/ROADMAP.md"
+    ]
+   }
+  },
+  {
+   "id": "H23",
+   "topic": "kill switch",
+   "lang": "en",
+   "question": "What are the kill-switch drawdown thresholds and which ADRs set them?",
+   "ground_truth": "SOFT_DERISK [5%,10%), HARD_KILL >=10% inclusive; ADR-034 + ADR-048.",
+   "expected_sources": [
+    "spa:CLAUDE.md",
+    "spa:.claude/rules/risk-engine.md",
+    "spa:docs/decisions/ADR-048-two-tier-kill-switch.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.452,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 0.83,
+    "top_refs": [
+     "bridge:docs/adr/ADR-B19.6-RED-OPEN-SCOPE.md",
+     "spa:docs/decisions/ADR-054-kill-switch-authority.md",
+     "claude:golive-intraday-drawdown-required.md",
+     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+     "spa:docs/decisions/ADR-531-defi-vnext-phase0-p0-repair.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "5\\s?%": true,
+     "10\\s?%": true,
+     "ADR-034": true,
+     "ADR-048": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": null
+    },
+    "score_total": 5,
+    "score_max": 6,
+    "false_sufficient": false,
+    "size_chars": 9660
+   },
+   "mempalace": {
+    "top5": [
+     "spa:ADR-054-kill-switch-authority.md",
+     "claude:golive-intraday-drawdown-required.md",
+     "claude:halt-can-shadow-a-stronger-response.md",
+     "claude:owner-decisions-resolved.md",
+     "claude:golive-intraday-drawdown-required.md"
+    ],
+    "latency_s": 1.13,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:CLAUDE.md",
+     "spa:.claude/rules/risk-engine.md",
+     "spa:docs/decisions/ADR-048-two-tier-kill-switch.md"
+    ]
+   }
+  },
+  {
+   "id": "H24",
+   "topic": "duplicate registries",
+   "lang": "ru",
+   "question": "Почему у нас два реестра ADR и какие номера сталкиваются?",
+   "ground_truth": "CLAUDE.md facts table (2026-09-11): two ADR registries docs/adr and docs/decisions with 5 number collisions 029/030/048/050/053; additionally ADR-067 has two files in docs/decisions and ADR-469 collides with shadow worktree.",
+   "expected_sources": [
+    "spa:CLAUDE.md",
+    "spa:docs/decisions/INDEX.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.572,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-256-owner-answers-three-registry-and-signing-questions.md",
+     "spa:docs/decisions/ADR-145-orchestrator-two-concurrent-cycles.md",
+     "spa:docs/decisions/ADR-067-golive-blocks-on-active-gaps-only.md",
+     "spa:docs/decisions/ADR-099-adr-numbers-taken-on-branches.md",
+     "spa:docs/decisions/ADR-215-registry-index-is-shared-memory.md",
+     "spa:docs/decisions/ADR-254-policy-change-proposals-live-outside-the-registry.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "docs/adr": true,
+     "docs/decisions": true,
+     "029": false,
+     "053": false
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 1,
+     "provenance": 1,
+     "temporal": 0,
+     "supersession": null
+    },
+    "score_total": 3,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10662
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md",
+     "spa:2026-W36.md",
+     "spa:inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md",
+     "spa:2026-W33.md",
+     "spa:2026-W35.md"
+    ],
+    "latency_s": 1.17,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:CLAUDE.md"
+    ]
+   }
+  },
+  {
+   "id": "H25",
+   "topic": "Mission Control",
+   "lang": "ru",
+   "question": "Что такое Owner Remote / Mission Control и как владелец открывает его с телефона?",
+   "ground_truth": "ADR-552: :8790 loopback UI + builder, SPA-bot deep links, phone = Cloudflare Access owner gate.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.526,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.71,
+    "top_refs": [
+     "spa:docs/journal/2026-W40.md",
+     "spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md",
+     "spa:architecture/provenance.json",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "claude:owner-remote-mission-control-v1.md",
+     "spa:architecture/manifest.json"
+    ],
+    "fact_evidence": [
+     "spa:docs/ROADMAP.md",
+     "spa:docs/decisions/ADR-530-defi-architecture-gap-audit.md",
+     "spa:docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "spa:docs/journal/2026-W40.md"
+    ],
+    "facts_matched": {
+     "ADR-552": true,
+     "8790": true,
+     "Cloudflare Access|Access": true,
+     "loopback|127\\.0\\.0\\.1": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 0
+    },
+    "score_total": 8,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 11228
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md",
+     "spa:ADR-075-owner-decisions-in-telegram.md",
+     "spa:inbox-red-team-critical-eto-eho-ostanovki-a-ne-nahodka.md",
+     "spa:inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md",
+     "spa:2026-W37.md"
+    ],
+    "latency_s": 1.13,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": []
+   }
+  },
+  {
+   "id": "H26",
+   "topic": "Family fund",
+   "lang": "ru",
+   "question": "Что было с идеей семейного фонда (family fund) и где она сейчас?",
+   "ground_truth": "docs/FAMILY_FUND_ROADMAP.md SUPERSEDED by docs/ROADMAP.md (memory_truth.json); familyfund KeepAlive agent existed (deployment.md: 38.4-day-old code 09.08).",
+   "expected_sources": [
+    "spa:docs/FAMILY_FUND_ROADMAP.md",
+    "spa:architecture/memory_truth.json"
+   ],
+   "memory_v1": {
+    "latency_s": 0.486,
+    "verdict": "PARTIAL",
+    "coverage_ratio": 0.67,
+    "top_refs": [
+     "claude:family-fund-api.md",
+     "spa:docs/STATE.md",
+     "spa:docs/decisions/ADR-109-displayed-drawdown-is-the-gate-drawdown.md",
+     "spa:architecture/manifest.json",
+     "spa:docs/FAMILY_FUND_ROADMAP.md",
+     "spa:docs/journal/2026-W31.md"
+    ],
+    "fact_evidence": [
+     "spa:docs/FAMILY_FUND_ROADMAP.md",
+     "spa:docs/ROADMAP.md"
+    ],
+    "facts_matched": {
+     "FAMILY_FUND|family fund|семейн": true,
+     "SUPERSEDED": true,
+     "familyfund|ROADMAP": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [
+     "spa:docs/FAMILY_FUND_ROADMAP.md"
+    ],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": 2
+    },
+    "score_total": 8,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 9838
+   },
+   "mempalace": {
+    "top5": [
+     "spa:owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md",
+     "spa:2026-W37.md",
+     "spa:inbox-sbalansirovannyi-trek-nol-profinansirova.md",
+     "spa:owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k.md",
+     "spa:owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/FAMILY_FUND_ROADMAP.md",
+     "spa:architecture/memory_truth.json"
+    ]
+   }
+  },
+  {
+   "id": "H27",
+   "topic": "novel-edge R&D",
+   "lang": "ru",
+   "question": "Что за стандинг-директива novel-edge R&D и что она дала?",
+   "ground_truth": "Owner standing directive (claude memory owner-directive-novel-edge-rnd.md); iterations recorded in journal W38-W40 (#110/#112 negative verdicts, advisory).",
+   "expected_sources": [
+    "spa:docs/journal/2026-W39.md",
+    "claude:owner-directive-novel-edge-rnd.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.354,
+    "verdict": "INSUFFICIENT",
+    "coverage_ratio": 0.2,
+    "top_refs": [
+     "spa:docs/journal/2026-W32.md",
+     "spa:docs/journal/2026-W34.md",
+     "spa:docs/journal/2026-W31.md",
+     "spa:docs/journal/2026-W35.md",
+     "spa:docs/journal/2026-W33.md",
+     "spa:docs/journal/2026-W39.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "novel-edge": true,
+     "заказ|order": true,
+     "advisory|OUTSIDE_RISKPOLICY|негатив|negative": true
+    },
+    "expected_in_top5": false,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 1,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": null
+    },
+    "score_total": 5,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 10048
+   },
+   "mempalace": {
+    "top5": [
+     "spa:2026-W34.md",
+     "spa:2026-W37.md",
+     "spa:2026-W32.md",
+     "spa:2026-W34.md",
+     "spa:2026-W31.md"
+    ],
+    "latency_s": 1.18,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/journal/2026-W39.md",
+     "claude:owner-directive-novel-edge-rnd.md"
+    ]
+   }
+  },
+  {
+   "id": "H28",
+   "topic": "90% directive",
+   "lang": "ru",
+   "question": "Что владелец требовал про «90% должно работать» и что показал замер?",
+   "ground_truth": "Owner directive 90% must work; ADR-190 (2026-08-31) census: no engineering path to 90%, remainder decision open (owner).",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-190-no-engineering-path-to-ninety.md",
+    "claude:owner-directive-90pct-working.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.589,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-190-no-engineering-path-to-ninety.md",
+     "spa:docs/decisions/ADR-250-auto-execution-limits-four-of-twelve.md",
+     "spa:CLAUDE.md",
+     "spa:docs/decisions/ADR-266-verdict-data-third-outcome-census.md",
+     "spa:docs/decisions/ADR-357-owner-decisions-2026-09-12.md",
+     "spa:docs/decisions/ADR-099-adr-numbers-taken-on-branches.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-190": true,
+     "90": true,
+     "нет|no engineering|Инженерного пути": true
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 2,
+     "provenance": 2,
+     "temporal": 0,
+     "supersession": null
+    },
+    "score_total": 6,
+    "score_max": 8,
+    "false_sufficient": false,
+    "size_chars": 9943
+   },
+   "mempalace": {
+    "top5": [
+     "spa:agent-audit-2026-08-02-fix-tracks.md",
+     "spa:ADR-196-protocol-fact-vs-service-wiring.md",
+     "claude:no-engineering-path-to-ninety-percent.md",
+     "spa:ADR-189-owner-writeoff-outranks-the-measurement-markup.md",
+     "spa:2026-W35.md"
+    ],
+    "latency_s": 1.15,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-190-no-engineering-path-to-ninety.md",
+     "claude:owner-directive-90pct-working.md"
+    ]
+   }
+  },
+  {
+   "id": "H29",
+   "topic": "self-heal",
+   "lang": "ru",
+   "question": "Должна ли штатная самопочинка звать владельца?",
+   "ground_truth": "ADR-084 (2026-08-13): routine self-heal does not call the owner; later generalized by ADR-285.",
+   "expected_sources": [
+    "spa:docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md"
+   ],
+   "memory_v1": {
+    "latency_s": 0.521,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md",
+     "spa:docs/decisions/ADR-129-owner-decisions-2026-08-23-batch4.md",
+     "spa:docs/decisions/ADR-186-an-unattributed-choice-is-not-an-owner-answer.md",
+     "claude:guard-alarms-on-our-own-delivery.md",
+     "spa:docs/journal/2026-W34.md",
+     "spa:docs/journal/2026-W32.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {
+     "ADR-084": true,
+     "не зовёт|does not call|не звать": false
+    },
+    "expected_in_top5": true,
+    "expected_anywhere": true,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 2,
+     "completeness": 1,
+     "provenance": 2,
+     "temporal": 2,
+     "supersession": 2
+    },
+    "score_total": 9,
+    "score_max": 10,
+    "false_sufficient": false,
+    "size_chars": 10469
+   },
+   "mempalace": {
+    "top5": [
+     "spa:inbox-neprimenennyi-otvet-vladeltsa-1-adresat.md",
+     "claude:notify-for-never-sent-resend-lifts-guards.md",
+     "spa:inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md",
+     "spa:agent-reestr-svezhesti-slep-k-krivoi-treka.md",
+     "spa:ADR-075-owner-decisions-in-telegram.md"
+    ],
+    "latency_s": 1.16,
+    "expected_hit_top5": false,
+    "expected_in_corpus_2026_10_01": [
+     "spa:docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md"
+    ]
+   }
+  },
+  {
+   "id": "H30",
+   "topic": "trap: no evidence",
+   "lang": "ru",
+   "question": "Какой был результат нашего запуска на Solana mainnet в 2024 году?",
+   "ground_truth": "No such event; correct answer UNKNOWN / INSUFFICIENT.",
+   "expected_sources": [],
+   "memory_v1": {
+    "latency_s": 0.531,
+    "verdict": "SUFFICIENT",
+    "coverage_ratio": 1.0,
+    "top_refs": [
+     "spa:docs/decisions/ADR-242-marginal-return-is-bounded-by-policy-not-by-luck.md",
+     "spa:docs/decisions/ADR-142-source-discovery-scheduled-with-a-reader.md",
+     "spa:docs/decisions/ADR-354-two-coordinate-systems-in-one-git-call.md",
+     "spa:docs/decisions/ADR-465-document-field-reader-three-of-twenty-six.md",
+     "spa:docs/journal/2026-W38.md",
+     "spa:docs/journal/2026-W35.md"
+    ],
+    "fact_evidence": [],
+    "facts_matched": {},
+    "expected_in_top5": false,
+    "expected_anywhere": false,
+    "superseded_flagged": [],
+    "scores": {
+     "correctness": 0,
+     "completeness": 0,
+     "provenance": 2,
+     "temporal": null,
+     "supersession": null
+    },
+    "score_total": 2,
+    "score_max": 6,
+    "false_sufficient": true,
+    "size_chars": 10193
+   },
+   "mempalace": {
+    "top5": [
+     "spa:owner-decision-20260716-082215-k-1-22.md",
+     "spa:own-tsena-nashego-limita-20-na-odno-imya-izme.md",
+     "spa:AI1_ROADMAP.md",
+     "spa:inbox-perepis-zakonchena-oprosheny-vse-36-adap.md",
+     "spa:inbox-task-portfolio-cio-dynamic-capital-alloc.md"
+    ],
+    "latency_s": 1.1,
+    "expected_hit_top5": null,
+    "expected_in_corpus_2026_10_01": []
+   }
+  }
+ ]
+}

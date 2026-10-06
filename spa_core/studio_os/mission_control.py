@@ -283,22 +283,19 @@ def _cards(tdir: Path) -> Optional[dict]:
     return out
 
 
-_SUBJECT_HINT = (
-    (re.compile(r"капитал|деньг|money|live|ключ|кошел|wallet|execution|исполнен", re.I), "1 · real money"),
-    (re.compile(r"сайт|site|landing|формулир|wording|цифр|доходн|yield|tier|тир|legal|юрид|fee|комисс", re.I),
-     "2 · public numbers / naming / legal"),
-    (re.compile(r"удал|delete|необратим|irreversible|публикац|publish|внешн", re.I), "3 · irreversible / external"),
-)
+def risk_class(fm: dict) -> str:
+    """ADR-285 subject of an owner card (C5, ADR-580) — ONE shared classifier, shared with
+    Director (``scripts/cartographer/owner_decisions.from_tracker``).
 
+    Until 2026-10-05 this took the first keyword hit in title+body — and disagreed with
+    Director's own keyword guesser on the same cards (the audit's example: "Закрыть три PR"
+    got "1 · real money" because the text contains "ключ"). Now it reads the card's DECLARED
+    `subject:` frontmatter field (``spa_core.owner_queue.subject``) and nothing else. Missing
+    or unrecognized ⇒ UNKNOWN — a queue-defect candidate per ADR-285, never a guessed subject.
+    """
+    from spa_core.owner_queue import subject as _subject
 
-def risk_class(title: str, body: str) -> str:
-    """ADR-285 subject of an owner card. Deterministic keyword hint; no match ⇒ UNKNOWN (a queue defect
-    candidate per ADR-285, never silently «low risk»)."""
-    text = f"{title}\n{body[:1500]}"
-    for rx, label in _SUBJECT_HINT:
-        if rx.search(text):
-            return label
-    return "UNKNOWN"
+    return _subject.mission_control_label(fm)
 
 
 def _section(body: str, heading: str) -> Optional[str]:
@@ -347,7 +344,7 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
         "reason": safe_text(_section(body, "Что случилось"), 400) or "UNKNOWN",
         "requested_action": safe_text(_section(body, "Что от тебя нужно"), 400) or "UNKNOWN",
         "done_when": safe_text(_section(body, "Как понять"), 200) or "UNKNOWN",
-        "risk_class": risk_class(fm.get("title", ""), body),
+        "risk_class": risk_class(fm),
         "created_at": safe_text(fm.get("created"), 40) or "UNKNOWN",
         "source": safe_text(fm.get("source"), 60) or "UNKNOWN",
         "evidence": safe_text(fm.get("package") or fm.get("adr") or fm.get("finding_key"), 160) or "UNKNOWN",

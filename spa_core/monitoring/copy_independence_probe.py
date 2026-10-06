@@ -110,6 +110,7 @@ if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакет
 from spa_core.monitoring import rule_second_copy_census as census  # noqa: E402
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
 from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
+from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
@@ -271,6 +272,16 @@ def _run(cmd: List[str], *, cwd: Path, timeout: int = RUN_TIMEOUT_S,
          keep: Optional[int] = KEEP_OUTPUT_CHARS) -> Tuple[int, str]:
     env = dict(os.environ, SPA_ENV="ci", PYTHONHASHSEED="0", SPA_PROBE="1")
     env.pop("PYTEST_CURRENT_TEST", None)
+    # C8(b) ADR-580 (сосед INC-1). Общий ребёнок ТРЁХ харнессов (себя,
+    # `vacuous_guard_probe.run_guard`, `absent_path_probe` через него) — почти
+    # всегда ОДНОРАЗОВОЕ дерево (`git worktree add --detach`), а не копия: любой
+    # код внутри, упавший на умолчании `live_paths`, резолвился бы в прод, потому
+    # что `DEFAULT_LIVE_ROOT` — абсолютный путь, не зависящий от `cwd`. Для
+    # команд `git` (rev-parse/worktree) `cwd` — настоящий корень, и переменные
+    # здесь безвредны: git их не читает.
+    env[live_paths.SANDBOX_ENV] = "1"
+    env[live_paths.LIVE_ROOT_ENV] = str(cwd)
+    env[live_paths.DATA_DIR_ENV] = str(Path(cwd) / "data")
     try:
         proc = subprocess.run(cmd, cwd=str(cwd), env=env, capture_output=True,
                               text=True, timeout=timeout)

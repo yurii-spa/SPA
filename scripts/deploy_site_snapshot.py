@@ -30,11 +30,19 @@ never in code). Called from scripts/run_daily_paper_cycle.sh after the cycle. Sa
 # LLM_FORBIDDEN
 import hashlib
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
+# Подпроцесс-окружение для запуска скриптов ПО ПУТИ (ADR-148-класс, простой 2026-10-02…10-05):
+# launchd/`run_daily_paper_cycle.sh` зовёт эту обёртку скриптом, а не модулем, поэтому
+# `sys.path[0]` у ДОЧЕРНЕГО процесса — каталог `scripts/`, не корень репозитория. Генератор
+# сам чинит бутстрап для своих ленивых импортов (`scripts/generate_track_snapshot.py`), но
+# передача `PYTHONPATH=_ROOT` здесь — защита в глубину на случай, если появится ещё один
+# скрипт, запускаемый так же и забывший свой бутстрап.
+_SUBPROC_ENV = {**os.environ, "PYTHONPATH": str(_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")}
 _SNAP = _ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 _GEN = _ROOT / "scripts" / "generate_track_snapshot.py"
 # Числа-РЕШЕНИЯ сайта (пороги, потолки, стартовый капитал) — ADR-315. Пересобираются
@@ -153,7 +161,8 @@ def main() -> int:
               "конституцию НЕ трогаем (прежняя копия остаётся)", file=sys.stderr)
 
     # 1. regenerate from the freshly-written committed data
-    r = subprocess.run([_PY, str(_GEN)], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([_PY, str(_GEN)], capture_output=True, text=True, timeout=120,
+                        cwd=str(_ROOT), env=_SUBPROC_ENV)
     print(_both(r))
     if r.returncode != 0:
         print("deploy_site_snapshot: generator FAILED — not deploying", file=sys.stderr)

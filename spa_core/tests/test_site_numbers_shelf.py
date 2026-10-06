@@ -27,6 +27,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location("_bsn", ROOT / "scripts" / "build_site_numbers.py")
@@ -112,10 +113,56 @@ class TheShelfIsAProjectionNotASource(_Scene):
                 f"источник не из двух объявленных: {f['source']}")
 
     def test_every_number_declares_its_kind(self):
-        """Замер или решение — третьего рода не бывает (правило site-numbers)."""
+        """Один из объявленных родов — третьего МЕСТА для чисел всё ещё нет (ADR-580 C2
+        расширяет СЛОВАРЬ родов с двух до пяти; это усиление проверки, не ослабление —
+        см. `bsn.KINDS` и обоснование в шапке `scripts/build_site_numbers.py`)."""
         self.write()
         for f in _figures(bsn.build(published_at="2026-09-13")):
-            self.assertIn(f.get("kind"), (bsn.MEASUREMENT, bsn.DECISION), f)
+            self.assertIn(f.get("kind"), bsn.KINDS, f)
+
+    def test_a_backtest_number_never_carries_the_measurement_label(self):
+        """C2 (ADR-580): дефект D5/claim-11 — бэктест пакетов нёс `kind="замер"`.
+
+        `packages.*` в снимке приходит из `data/tier1_packages.json` (бэктест-блендер
+        s61/s27/s62/s77), не из живого paper-трека, и обязан нести `kind=BACKTEST`,
+        никогда `MEASUREMENT`/`DECISION`.
+        """
+        snap = json.loads(json.dumps(SNAP))
+        snap["packages"] = {"conservative": {"apy_pct": 3.7, "dd_pct": -0.5}}
+        self.write(snap=snap)
+        pkg = bsn.build(published_at="2026-09-13")["packages"]["conservative"]
+        self.assertEqual(pkg["apy"]["kind"], bsn.BACKTEST)
+        self.assertEqual(pkg["drawdown"]["kind"], bsn.BACKTEST)
+        self.assertNotEqual(pkg["apy"]["kind"], bsn.MEASUREMENT)
+        self.assertEqual(pkg["apy"]["value"], 3.7, "кол-во не меняется — меняется только ярлык рода")
+
+
+class RatesCarryWindowAndReportability(_Scene):
+    """C2 (ADR-580): у КАЖДОЙ ставки обязаны быть ``window_days``, ``reportable``."""
+
+    def test_every_rate_carries_window_days_and_reportable(self):
+        self.write()
+        doc = bsn.build(published_at="2026-09-13")
+        for path in (doc["headline"]["apy"], doc["books"]["conservative"]["apy"],
+                     doc["books"]["balanced"]["apy"], doc["books"]["aggressive"]["apy"]):
+            self.assertIn("window_days", path, path)
+            self.assertIn("reportable", path, path)
+            self.assertIsInstance(path["reportable"], bool)
+
+    def test_a_threshold_never_carries_window_days_or_reportable(self):
+        """Порог не ставка: у него этих полей не бывает вовсе (не только не annualised)."""
+        self.write()
+        for f in bsn.build(published_at="2026-09-13")["thresholds"].values():
+            self.assertNotIn("window_days", f, f)
+            self.assertNotIn("reportable", f, f)
+
+    def test_a_non_reportable_rate_can_never_carry_a_value(self):
+        """Инв. #17 / C2: нерепортабельная ставка — всегда None, даже если вызывающий
+        код забыл погасить значение сам (гейт стоит в самой витрине, не только в
+        генераторе снимка)."""
+        self.assertEqual(bsn.figure(5.3, unit="%", kind=bsn.MEASUREMENT, annualised=True,
+                                    source="track_snapshot.json", reportable=False,
+                                    reportable_after=30)["value"], None)
 
 
 class RatesAreAnnualisedAndSayHow(_Scene):
@@ -270,3 +317,87 @@ class TheWeeklyCadenceLivesInTheFileNotTheSchedule(_Scene):
         self.assertEqual(bsn.main(["--if-due", "--published-at", "2026-09-15"]), 0)
         self.assertEqual(bsn.OUT.read_text(encoding="utf-8"), before,
                          "витрина переписана раньше срока — такт держится не файлом")
+
+
+class SequencingGuardRefusesABadShelf(_Scene):
+    """C12 (ADR-580) — гейт последовательности публикации.
+
+    Положительный контроль дефекта D5/claim-11 (`docs/rm_truth/A3_product.md` §5,
+    `REVIEW_1.md`): бэктест `tier1_packages.json` нёс `kind="замер"` на живой витрине.
+    И дефекта D6: нерепортабельная ставка рукава несла число (прод-полка 04.10,
+    «Balanced −11.5 %» на трёх барах). Каждый тест ниже воспроизводит ОДНО из двух,
+    либо их отсутствие (отрицательный контроль — честная витрина публикуется).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._out = bsn.OUT
+        bsn.OUT = self.d / "site_numbers.json"
+
+    def tearDown(self):
+        bsn.OUT = self._out
+        super().tearDown()
+
+    def test_validate_shelf_is_clean_on_an_honest_document(self):
+        """Отрицательный контроль: НЕ красня на верное состояние — храповик, не декорация."""
+        self.write()
+        doc = bsn.build(published_at="2026-09-13")
+        self.assertEqual(bsn.validate_shelf(doc), [])
+
+    def test_a_backtest_source_labelled_as_measurement_is_a_violation(self):
+        found = bsn.validate_shelf({
+            "x": {"value": 3.7, "unit": "%", "kind": bsn.MEASUREMENT,
+                  "source": "track_snapshot.json → packages (← data/tier1_packages.json, "
+                            "blended_net_apy_pct)"},
+        })
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("backtest", found[0].lower() + "backtest")  # смысловая метка в сообщении
+        self.assertIn("замер", found[0])
+
+    def test_the_same_backtest_source_correctly_typed_is_not_a_violation(self):
+        self.assertEqual(bsn.validate_shelf({
+            "x": {"value": 3.7, "unit": "%", "kind": bsn.BACKTEST,
+                  "source": "track_snapshot.json → packages (← data/tier1_packages.json)"},
+        }), [])
+
+    def test_a_non_reportable_rate_carrying_a_value_is_a_violation(self):
+        found = bsn.validate_shelf({
+            "x": {"value": -11.5, "unit": "%", "kind": bsn.MEASUREMENT, "source": "x",
+                  "reportable": False, "reportable_after": 30},
+        })
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("reportable", found[0])
+
+    def test_a_non_reportable_rate_with_null_value_is_fine(self):
+        self.assertEqual(bsn.validate_shelf({
+            "x": {"value": None, "unit": "%", "kind": bsn.MEASUREMENT, "source": "x",
+                  "reportable": False, "reportable_after": 30},
+        }), [])
+
+    def test_run_raises_sequencing_violation_and_never_writes_the_file(self):
+        """Гейт живёт ПЕРЕД записью байт — файл не тронут вовсе, не записан и откачен."""
+        self.write()
+        bad_build = lambda **kw: {  # noqa: E731
+            "measured_at": "2026-09-13", "published_at": "2026-09-13",
+            "packages": {"conservative": {
+                "apy": {"value": 3.7, "unit": "%", "kind": bsn.MEASUREMENT,
+                        "source": "x (← data/tier1_packages.json)"}}},
+        }
+        with mock.patch.object(bsn, "build", bad_build):
+            with self.assertRaises(bsn.SequencingViolation):
+                bsn.run(published_at="2026-09-13")
+        self.assertFalse(bsn.OUT.exists(), "гейт отказал, а файл всё равно записан")
+
+    def test_main_returns_a_distinct_exit_code_for_a_sequencing_violation(self):
+        """Код 3 ≠ код 2 (`NotMeasured`): источник прочитан, но нарушает правило — не отсутствует."""
+        self.write()
+        bad_build = lambda **kw: {  # noqa: E731
+            "measured_at": "2026-09-13", "published_at": "2026-09-13",
+            "packages": {"conservative": {
+                "apy": {"value": 3.7, "unit": "%", "kind": bsn.MEASUREMENT,
+                        "source": "x (← data/tier1_packages.json)"}}},
+        }
+        with mock.patch.object(bsn, "build", bad_build):
+            rc = bsn.main(["--published-at", "2026-09-13"])
+        self.assertEqual(rc, 3)
+        self.assertFalse(bsn.OUT.exists())

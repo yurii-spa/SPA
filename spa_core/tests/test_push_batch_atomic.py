@@ -446,13 +446,13 @@ def test_stale_ref_recomposes_on_fresh_base_and_still_one_commit(ptg, repo, monk
     calls = {"n": 0}
     real_update = ptg.update_ref
 
-    def flaky_update(pat, r, branch, commit_sha, force=False):
+    def flaky_update(pat, r, branch, commit_sha, force=False, **kw):
         calls["n"] += 1
         if calls["n"] == 1:
             raise urllib.error.HTTPError(
                 "u", code, "stale", {},                       # type: ignore[arg-type]
                 __import__("io").BytesIO(b"Update is not a fast forward"))
-        return real_update(pat, r, branch, commit_sha, force)
+        return real_update(pat, r, branch, commit_sha, force, **kw)
 
     monkeypatch.setattr(ptg, "update_ref", flaky_update)
 

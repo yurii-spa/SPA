@@ -16,6 +16,18 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 
+# Make spa_core importable when run as a standalone script (launchd invokes this
+# file directly) — PROJECT_ROOT below is this script's parent, computed before any
+# spa_core import.
+_SCRIPT_DIR_EARLY = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT_EARLY = os.path.dirname(_SCRIPT_DIR_EARLY)
+if _PROJECT_ROOT_EARLY not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT_EARLY)
+
+# ADR-580 §C3 (RM-TRUTH-01): readiness is reported BY SCOPE — module-level import so
+# tests can monkeypatch `usb.scoped_readiness` the same way they monkeypatch `read_json`.
+from spa_core.studio_os.readiness_scopes import scoped_readiness  # noqa: E402
+
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
 #: Объявление, а не вывод из кода — вывести производителя разбором нельзя
 #: (замер 28.08: верно 13 из 27, одна ошибка, семья harness недостижима).
@@ -213,32 +225,89 @@ def agent_snapshot_state(d: dict):
 
 
 # ── Section builders ───────────────────────────────────────────────────────────
-def build_golive_section() -> str:
-    d = read_json("golive_status.json")
-    if not d:
-        return "## 🎯 GoLive Status\n_golive_status.json not found_\n"
 
-    ready = d.get("ready", False)
-    pass_count = d.get("pass_count") or d.get("passed") or sum(
-        1 for v in d.get("checks", {}).values() if v
-    )
-    total = d.get("total", 29)
-    blockers = d.get("blockers", [])
-    ts = d.get("timestamp", "")
-    icon = "✅ READY" if ready else "⛔ NOT READY"
+#: ADR-580 §C3 (RM-TRUTH-01): readiness is reported BY SCOPE, never collapsed into one
+#: public-looking "READY" headline. This replaces the old single "GoLive ✅ 29/29 pass —
+#: READY" line, which sat next to a live `execution_readiness.json: ready_for_live=false`
+#: for weeks (ADR-530 / REVIEW_1 §3) — the briefing was answering "does an inventory of 29
+#: checks exist and read something" while the reader heard "is it safe to go live".
+_SCOPE_ICON = {
+    "READY": "✅", "OK": "✅",
+    "NOT_READY": "⛔", "CRITICAL": "⛔",
+    "WARN": "⚠️", "DEGRADED": "⚠️",
+    "CORRUPT": "🧨",
+    "UNKNOWN": "❓",
+}
+
+#: F9 (ADR-580 §C10, REVIEW_1 amendment): ОДИН адрес для `resilience_status.overall`
+#: → значок, а не две копии правила. До фикса заголовочная ячейка (строка ~1253) несла
+#: СВОЮ урезанную карту без `SAME_HOST` и падала на умолчание ``❓`` — то же самое
+#: значение, которым читается «рубрика не прочиталась вовсе», хотя SAME_HOST означает
+#: «ВСЕ пробы прошли, просто офсайт — тот же хост» (детальная секция уже несла
+#: правильный 🟡). Одна карта — расхождение между двумя поверхностями отныне
+#: невозможно по построению.
+_RESILIENCE_ICON = {"OK": "✅", "SAME_HOST": "🟡", "WARNING": "⚠️", "UNKNOWN": "❓"}
+
+
+def resilience_header_cell(resil: dict) -> str:
+    """Заголовочная ячейка DR — тот же источник значка, что у детальной секции
+    (`build_resilience_section`), извлечённый в отдельную функцию ради F9
+    (REVIEW_1): до фикса ячейка держала СВОЮ копию карты без ``SAME_HOST`` и
+    падала на ``❓`` там, где секция честно печатала 🟡. Расхождение между
+    двумя поверхностями теперь невозможно: обе читают ``_RESILIENCE_ICON``."""
+    if not resil:
+        return "❓ rollup unavailable (resilience_status.json missing)"
+    r_overall = resil.get("overall", "UNKNOWN")
+    r_icon = _RESILIENCE_ICON.get(r_overall, "❓")
+    n_notes = len(resil.get("notes", []))
+    return f"{r_icon} {r_overall}" + (
+        f" ({n_notes} note{'s' if n_notes != 1 else ''})" if n_notes else "")
+
+
+def build_golive_section() -> str:
+    """Per-scope readiness (ADR-580 §C3) — NOT a single verdict.
+
+    `golive_status.json`'s 29/29 is printed too, but explicitly labelled an INVENTORY
+    count (how many checks exist and read something), never a readiness verdict. The one
+    scope that answers "can real money move" is INVESTMENT_ENGINE_READINESS, read from
+    `execution_readiness.json` (`ready_for_live`) ∧ `owner_blockers.json` — never from the
+    inventory count.
+    """
+    try:
+        scopes = scoped_readiness(DATA_DIR)
+    except Exception as exc:  # noqa: BLE001 — a broken scope module must not kill the briefing
+        return (f"## 🎯 Готовность (по областям, ADR-580 §C3)\n"
+                f"_не измерено: scoped_readiness упал ({type(exc).__name__}: {exc})_\n")
+
+    by_scope = {s["scope"]: s for s in scopes}
+    inv = by_scope["INVESTMENT_ENGINE_READINESS"]
+    inv_icon = _SCOPE_ICON.get(inv["status"], "❓")
+
+    d = read_json("golive_status.json")
+    inv_pass = d.get("pass_count") or d.get("passed")
+    inv_total = d.get("total", 29)
 
     lines = [
-        "## 🎯 GoLive Status",
-        f"**{icon}** — {pass_count}/{total} pass  ·  updated {_age_str(ts)}",
+        "## 🎯 Готовность (по областям — ADR-580 §C3, RM-TRUTH-01; ОБЩЕГО «зелёного» нет)",
+        f"**Готовность к live (инвестиции): {inv_icon} {inv['status']}** — {inv['reason']}",
+        f"Инвентарь GoLive (количество критериев, НЕ готовность к live, ADR-530): "
+        f"**{inv_pass if inv_pass is not None else '?'}/{inv_total}**",
+        "",
+        "| Область | Статус | Что это НЕ блокирует / блокирует |",
+        "|---|---|---|",
     ]
+    for s in scopes:
+        icon = _SCOPE_ICON.get(s["status"], "❓")
+        effect = s["blocking_effect"]
+        short = effect[:140] + ("…" if len(effect) > 140 else "")
+        lines.append(f"| {s['scope']} | {icon} {s['status']} | {short} |")
+
+    blockers = d.get("blockers", [])
     if blockers:
-        lines.append("\n**Blockers:**")
+        lines.append("\n**Критерии-блокеры инвентаря GoLive (не readiness):**")
         for b in blockers:
-            # shorten long blocker text
-            short = b[:120] + ("…" if len(b) > 120 else "")
+            short = str(b)[:120] + ("…" if len(str(b)) > 120 else "")
             lines.append(f"- {short}")
-    else:
-        lines.append("_No blockers — system eligible for go-live review_")
     return "\n".join(lines) + "\n"
 
 
@@ -1038,7 +1107,10 @@ def build_resilience_section() -> str:
 
     overall = d.get("overall", "UNKNOWN")
     ts = d.get("generated_at", "")
-    icon = {"OK": "✅", "WARNING": "⚠️", "UNKNOWN": "❓"}.get(overall, "❓")
+    # SAME_HOST (ADR-580 C10) is its OWN icon, never the ✅ of OK and never the plain ❓
+    # of "not measured" — every proof passed, but the one copy that left the data/*.json
+    # glob still lives on the same disk as everything it is meant to survive losing.
+    icon = _RESILIENCE_ICON.get(overall, "❓")
 
     def _proof_line(label: str, p: dict, pass_key: str, pass_label: str) -> str:
         if not p:
@@ -1069,7 +1141,7 @@ def build_resilience_section() -> str:
     ]
     notes = d.get("notes", [])
     if notes:
-        lines.append("\n**Why WARNING:**" if overall != "OK" else "\n**Notes:**")
+        lines.append("\n**Notes:**" if overall == "OK" else "\n**Why not OK:**")
         for n in notes:
             lines.append(f"- {n}")
     return "\n".join(lines) + "\n"
@@ -1103,7 +1175,11 @@ def build_rules_section() -> str:
 ## 📏 Dispatch Rules (always apply)
 
 1. **Never say agents are working without reading `agent_health.json` or `launchctl list`**.
-2. **Never say GoLive is ready without reading `golive_status.json`**.
+2. **Never say the system is ready for real money from `golive_status.json` alone** — that
+   file is an INVENTORY count (N/29 criteria exist and read something), not a readiness
+   verdict (ADR-530). Investment readiness = `execution_readiness.json.ready_for_live` ∧
+   `owner_blockers.json`, read via `spa_core.studio_os.readiness_scopes.scoped_readiness()`
+   (ADR-580 §C3). There is no single "all green" — six independent scopes, never rolled up.
 3. **Never say "all agents installed" based on plist files existing** — loaded ≠ installed.
 4. This file is auto-updated every 30 min. Its data is more reliable than Dispatch memory.
 5. When Юрий asks "как дела" / "что работает" / "агенты установлены?" → read this file first.
@@ -1146,7 +1222,15 @@ def main() -> None:
     eq = read_json("equity_curve_daily.json")
     resil = read_json("resilience_status.json")
 
-    golive_ready = golive.get("ready", False)
+    # ADR-580 §C3 (RM-TRUTH-01): the header must NEVER print "READY" for investment
+    # readiness from golive_status.json's inventory count. The one scope that answers
+    # "can real money move" is INVESTMENT_ENGINE_READINESS (execution_readiness.json
+    # ready_for_live ∧ owner_blockers.json) — read it independently of the inventory.
+    try:
+        _scopes_header = scoped_readiness(DATA_DIR)
+        _investment = next(s for s in _scopes_header if s["scope"] == "INVESTMENT_ENGINE_READINESS")
+    except Exception:  # noqa: BLE001 — header must not die if the scope module breaks
+        _investment = {"status": "UNKNOWN", "reason": "scoped_readiness unavailable"}
     golive_pass = golive.get("pass_count") or golive.get("passed") or "?"
     golive_total = golive.get("total", 29)
     # Agent fleet header cell — driven by the SAME staleness guard as the
@@ -1189,20 +1273,14 @@ def main() -> None:
                 break
 
     # Resilience header cell — fail-honest, mirrors the agent/snapshot style.
-    if not resil:
-        resil_cell = "❓ rollup unavailable (resilience_status.json missing)"
-    else:
-        r_overall = resil.get("overall", "UNKNOWN")
-        r_icon = {"OK": "✅", "WARNING": "⚠️", "UNKNOWN": "❓"}.get(r_overall, "❓")
-        n_notes = len(resil.get("notes", []))
-        resil_cell = f"{r_icon} {r_overall}" + (f" ({n_notes} note{'s' if n_notes != 1 else ''})" if n_notes else "")
+    resil_cell = resilience_header_cell(resil)
 
     # Track-integrity header cell — same snapshot the detailed section renders, so
     # the two surfaces cannot disagree (the failure mode of #197: a guard narrower
     # than its ward is its echo, and two surfaces with two sources are worse still).
     track_cell = track_integrity_cell(track_integrity_state(read_json("cycle_health.json")))
 
-    golive_icon = "✅" if golive_ready else "⛔"
+    _investment_icon = _SCOPE_ICON.get(_investment["status"], "❓")
     if agent_state == "missing":
         agent_icon = "❓"
         agent_cell = "❓ snapshot unavailable (agent_health.json missing)"
@@ -1227,7 +1305,8 @@ def main() -> None:
 
 | Metric | Value |
 |--------|-------|
-| GoLive | {golive_icon} {golive_pass}/{golive_total} pass — {"READY" if golive_ready else "NOT READY"} |
+| Готовность к live (инвестиции) | {_investment_icon} {_investment["status"]} — ready_for_live-гейт, ADR-580 §C3 |
+| Инвентарь GoLive (НЕ готовность, ADR-530) | {golive_pass}/{golive_total} |
 | Agents | {agent_cell} |
 | Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d evidenced) |
 | Track days (evidenced) | {eq_days}/30 (anchor {track_anchor}) |

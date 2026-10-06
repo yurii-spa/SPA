@@ -497,7 +497,17 @@ def _books_lines(data: dict) -> list[str]:
         ret_str = f"{ret:+.2f}%" if isinstance(ret, (int, float)) else "—"
         ann = b.get("annualized_apy_pct")
         mark = f" {_ADVISORY_MARK}" if key in _ADVISORY_BOOKS else ""
-        ann_str = f", ~{ann:.1f}% год.{mark}" if isinstance(ann, (int, float)) else ""
+        if isinstance(ann, (int, float)):
+            ann_str = f", ~{ann:.1f}% год.{mark}"
+        elif b.get("status") == "accumulating":
+            # Below the maturity gate (ADR-531/533/567 C2) — honestly "not a number
+            # yet", never blank and never the old short-window figure. Same wording
+            # the site's package cards use (spa_core.defi_engine.package_status).
+            n = b.get("days_with_positions")
+            n_str = f" (валидных дн.: {n})" if isinstance(n, int) else ""
+            ann_str = f", статистика текущей версии накапливается{n_str}{mark}"
+        else:
+            ann_str = ""
         lines.append(f"  • {_esc(label)}: {_fmt_money(b.get('equity'))} ({ret_str}{ann_str})")
     c = bs.get("combined") or {}
     n_avail = c.get("books_available")

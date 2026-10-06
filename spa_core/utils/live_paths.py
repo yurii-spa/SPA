@@ -38,6 +38,37 @@
 алертов» и здесь не ослабляется.
 
 stdlib, без побочных эффектов: ни одного каталога этот модуль не создаёт.
+
+5. Маркер песочницы — ЗАЩИТА НА ПРИЁМНИКЕ (C8(a) ADR-580, инцидент INC-1)
+------------------------------------------------------------------------------
+Замер 2026-10-05: прод-агент ``com.spa.decision_loop`` зовёт G97-зонд
+(``artifact_stamp_clock_doors.py``), а тот — ~99 производителей в ОДНОРАЗОВОМ дереве. Зонд
+выставляет свои ``SPA_STAMP_*``, но НЕ ``SPA_DATA_DIR``/``SPA_LIVE_ROOT`` — и производитель,
+резолвящий путь через этот модуль, уводил запись в прод (``owner_decision_pending.json``
+получил отметку 2041 года, якорь инъекции зонда). Защита ТОЛЬКО на стороне вызывающего
+(«харнесс обязан выставить песочницу») уже была — и не сработала, потому что харнесс об
+этом не подумал. Отказ-здесь — вторая, обязательная линия: если установлен маркер
+песочницы (``SPA_SANDBOX=1`` ЛИБО переменная дерева G97-зонда ``SPA_STAMP_TREE``), а путь
+всё равно разрешился бы в прод-дерево (``DEFAULT_LIVE_ROOT``), функция ОТКАЗЫВАЕТ
+(``SandboxLeakError``), а не возвращает путь молча. Явный ``SPA_DATA_DIR``/``SPA_LIVE_ROOT``,
+указывающий ВНУТРЬ песочницы (т.е. НЕ совпадающий с ``DEFAULT_LIVE_ROOT``), всё равно
+побеждает — это и есть правильно сконфигурированный харнесс (C8(b)).
+
+Обычный прод-агент (без маркера) этой проверки не видит вовсе: `_sandbox_marker_active()`
+смотрит только на два конкретных имени переменных, которых прод не ставит.
+
+6. N1 (ADR-580 §C8 REVIEW_2, 2026-10-05) — потомок прод-дерева тоже утечка
+------------------------------------------------------------------------------
+Независимый ре-ревьюер нашёл соседнюю форму INC-1: ``ensure_faithful_stand``
+(``run_identity_key_price.py``) делает стенд ПОЛНЫМ деревом символическими
+ссылками на всё, кроме ``data/`` — и в проде ``tree_root`` там РАВЕН живому
+дереву. Читатель, резолвящий ``live_root()/"nimbalyst-local"/"tracker"``,
+получает путь, чей REALPATH лежит не РАВНЫМ ``DEFAULT_LIVE_ROOT``, а ВНУТРИ
+него (символическая ссылка резолвится в прод-подкаталог) — а старая проверка
+сравнивала только на равенство. `_refuse_if_leaking_to_prod` теперь считает
+утечкой и потомство (`_is_same_or_within`), а `assert_not_prod_realpath` даёт
+вызывающим, которые сами дописывают подкаталог к `live_root()` (как
+`owner_queue.queue.TRACKER_DIR`), отдельную точку входа для ИХ ИТОГОВОГО пути.
 """
 from __future__ import annotations
 
@@ -50,9 +81,116 @@ DEFAULT_LIVE_ROOT = Path.home() / "Documents" / "SPA_Claude"
 DATA_DIR_ENV = "SPA_DATA_DIR"
 LIVE_ROOT_ENV = "SPA_LIVE_ROOT"
 
+#: Общий маркер песочницы (C8(b)): любой `*_doors`/`*_probe` харнесс выставляет его
+#: своим детям, независимо от того, какой у него собственный зонд.
+SANDBOX_ENV = "SPA_SANDBOX"
+
+#: Переменная дерева G97-зонда (`_artifact_stamp_clock_probe.TREE_ENV`), по которой
+#: случился INC-1. Дублируется ЛИТЕРАЛОМ, а не импортом: `spa_core/utils` не читает
+#: `spa_core/monitoring` (расслоение) — здесь важно только ИМЯ переменной.
+PROBE_TREE_ENV = "SPA_STAMP_TREE"
+
 #: Дерево, в котором лежит сам этот модуль. Последний рубеж, когда вызывающий не
 #: назвал своё дерево: детерминирован, в отличие от cwd (см. докстринг модуля).
 OWN_TREE = Path(__file__).resolve().parents[2]
+
+
+class SandboxLeakError(RuntimeError):
+    """Маркер песочницы установлен, а разрешённый путь всё равно указывает в прод.
+
+    Это INC-1 (ADR-580, C8): харнесс забыл выставить `SPA_DATA_DIR`/`SPA_LIVE_ROOT`
+    своему ребёнку, и производитель, доверившись умолчанию, записал бы в живое
+    дерево. Поднимается ДО возврата пути — писатель никогда не видит прод-путь.
+    """
+
+
+def _sandbox_marker_active() -> bool:
+    """Выставлен ли маркер песочницы — общий или зондовый."""
+    return (os.environ.get(SANDBOX_ENV) == "1"
+            or bool(os.environ.get(PROBE_TREE_ENV)))
+
+
+def _is_same_or_within(candidate: Path, prod_path: Path) -> bool:
+    """``candidate`` совпадает с ``prod_path`` ИЛИ лежит у него внутри.
+
+    N1 (ADR-580 §C8 REVIEW_2): до этой правки сравнение было чистым равенством,
+    и утечка через символическую ссылку НА подкаталог прод-дерева (например
+    ``<стенд>/nimbalyst-local`` → ``<прод>/nimbalyst-local``) оставалась
+    незамеченной — ``candidate`` в этом случае не равен ``prod_path`` (он его
+    ПОТОМОК), а был бы отказом ровно того же рода. Потомство проверяется
+    поиском ``prod_path`` среди ``candidate.parents`` — дешевле и честнее, чем
+    сравнение префиксов строкой (которое путает ``/prod`` и ``/prod2``).
+    """
+    if candidate == prod_path:
+        return True
+    if prod_path not in candidate.parents:
+        return False
+    # R2 (ADR-580 §C8, REVIEW_INTEGRATION_3): одноразовые worktree харнесса Claude Code живут
+    # ВНУТРИ каталога прод-дерева (`<прод>/.claude/worktrees/<имя>/`, замер 05.10 — 14 штук).
+    # Это ОТДЕЛЬНЫЕ рабочие деревья со своими `data/` и трекером, а не прод; правило «лежит
+    # внутри» без этого исключения отказывало им громко (fail-closed, не утечка). Исключение
+    # узкое: только потомки именно этого каталога, сравнение по разрешённым путям.
+    nested = (prod_path / _NESTED_WORKTREES).resolve() if prod_path.name != "data" else None
+    return not (nested is not None and nested in candidate.parents)
+
+
+#: Каталог одноразовых worktree Claude Code внутри прод-дерева (R2, см. `_is_same_or_within`).
+_NESTED_WORKTREES = Path(".claude") / "worktrees"
+
+
+def _refuse_if_leaking_to_prod(candidate: Path, prod_path: Path, *, who: str) -> None:
+    """Маркер активен, а `candidate` всё равно совпал с `prod_path` (или лежит
+    у него внутри) — отказ.
+
+    `prod_path` — то, с чем сравнивается результат: `DEFAULT_LIVE_ROOT` для
+    `live_root`, `DEFAULT_LIVE_ROOT / "data"` для `live_data_dir` (разные величины,
+    сравнивать `candidate` всегда с корнем сравнивало бы несравнимое).
+
+    Проверка — «совпадает или лежит внутри», не только равенство (N1, ADR-580
+    §C8 REVIEW_2): символическая ссылка стенда на подкаталог прод-дерева
+    резолвится в путь ВНУТРИ `prod_path`, а не в сам `prod_path`, и чистое
+    равенство эту форму не видело.
+    """
+    if not _sandbox_marker_active():
+        return
+    try:
+        resolved_candidate = candidate.resolve()
+        resolved_prod = prod_path.resolve()
+        leaking = _is_same_or_within(resolved_candidate, resolved_prod)
+    except (OSError, ValueError):
+        # Путь не разрешился (битая ссылка, встроенный NUL и т.п.) — сравнение по
+        # строке, не молчание (F6, ADR-580 §C8 REVIEW_1): `Path.resolve()` поднимает
+        # `ValueError` на пути со встроенным NUL-байтом, а не только `OSError` — и
+        # просто дать исключению уйти наружу здесь означало бы заслонить НАСТОЯЩУЮ
+        # утечку в прод чужим крашем ровно в момент, когда отказ важнее всего.
+        # Потомство строкой не проверяется (префикс `/prod` ловил бы и `/prod2`) —
+        # здесь остаётся только равенство, как и до этой правки.
+        resolved_candidate, resolved_prod = candidate, prod_path
+        leaking = str(candidate) == str(prod_path)
+    if leaking:
+        raise SandboxLeakError(
+            f"{who}: маркер песочницы установлен ({SANDBOX_ENV}/{PROBE_TREE_ENV}), а "
+            f"путь {resolved_candidate} совпадает с прод-деревом {resolved_prod} или "
+            "лежит внутри него — это INC-1/N1 (ADR-580 §C8). "
+            f"Харнесс обязан выставить {LIVE_ROOT_ENV}/{DATA_DIR_ENV} на свою песочницу "
+            "(C8(b), ADR-580), а не доверять умолчанию или символической ссылке внутрь "
+            "прод-дерева.")
+
+
+def assert_not_prod_realpath(path: Path, *, who: str) -> None:
+    """Маркер песочницы активен, а REALPATH ``path`` лежит в прод-дереве
+    (совпадает с `DEFAULT_LIVE_ROOT` или является его потомком) — отказ.
+
+    Отдельная точка входа от `live_root`/`live_data_dir` (N1, ADR-580 §C8
+    REVIEW_2): та пара проверяет только СВОЙ собственный возврат, а утечка N1
+    видна лишь ПОСЛЕ того, как вызывающий дописал подкаталог к результату
+    (``live_root() / "nimbalyst-local" / "tracker"``) — если этот подкаталог в
+    стенде оказался символической ссылкой на прод, `.resolve()` уводит именно
+    туда, а `live_root()` сам по себе этого не видит (он резолвит только то,
+    что вернул). Вызывающий (например `owner_queue.queue._resolve_tracker_dir`)
+    обязан передать сюда СВОЙ итоговый, уже дополненный путь.
+    """
+    _refuse_if_leaking_to_prod(Path(path), DEFAULT_LIVE_ROOT, who=who)
 
 
 def live_root(fallback: Path | None = None) -> Path:
@@ -60,13 +198,16 @@ def live_root(fallback: Path | None = None) -> Path:
 
     ``fallback=None`` ⇒ дерево ЭТОГО модуля, а не ``Path.cwd()``: рабочий каталог
     процесса ничего не говорит о том, где живёт код, и меняется под нами.
+
+    Маркер песочницы (см. докстринг модуля, п. 5) делает отказ сильнее умолчания:
+    если РЕЗУЛЬТАТ (явный ``SPA_LIVE_ROOT`` или умолчание) совпал бы с прод-деревом,
+    функция поднимает ``SandboxLeakError`` вместо того, чтобы его вернуть.
     """
     env = os.environ.get(LIVE_ROOT_ENV)
-    if env:
-        return Path(env)
-    if DEFAULT_LIVE_ROOT.is_dir():
-        return DEFAULT_LIVE_ROOT
-    return fallback or OWN_TREE
+    candidate = Path(env) if env else (
+        DEFAULT_LIVE_ROOT if DEFAULT_LIVE_ROOT.is_dir() else (fallback or OWN_TREE))
+    _refuse_if_leaking_to_prod(candidate, DEFAULT_LIVE_ROOT, who="live_root")
+    return candidate
 
 
 def live_data_dir(fallback_root: Path | None = None) -> Path:
@@ -77,5 +218,9 @@ def live_data_dir(fallback_root: Path | None = None) -> Path:
     """
     sandbox = os.environ.get(DATA_DIR_ENV)
     if sandbox:
-        return Path(sandbox)
+        candidate = Path(sandbox)
+        _refuse_if_leaking_to_prod(candidate, DEFAULT_LIVE_ROOT / "data",
+                                   who="live_data_dir")
+        return candidate
+    # `live_root` выполняет ту же проверку для своей ветки умолчания — не дублируем.
     return live_root(fallback_root) / "data"

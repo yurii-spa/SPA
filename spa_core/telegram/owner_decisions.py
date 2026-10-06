@@ -380,6 +380,101 @@ _OPTION_LETTERED_DOT_HEAD_RE = re.compile(
     r"^\s*(?:[*\-+]\s+)?\*\*\s*[A-Za-zА-Яа-я]\.(?:\s|\*\*)",
 )
 
+# ПЯТЫЙ явный диалект (C5, ADR-580) — буквенная метка СО СКОБКОЙ-ТОЛЬКО-СПРАВА, без
+# открывающей:
+#     - а) разрешить мне удалять деревья циклов старше 7 дней
+#     - б) оставить как есть и чистить руками
+# Открывающая скобка у `(а)` пропадает регулярно при ручном наборе карточек (Telegram-
+# интейк, Nimbalyst): владелец или оркестратор правит перечень «вручную», и первый
+# символ у буквы теряется. Маркер строгий: пункт списка ОБЯЗАТЕЛЕН — голое «б) после
+# обеда» посреди прозы меткой перечня не считается (тот же довод, что у
+# `_OPTION_LETTERED_PLAIN_RE`).
+_OPTION_LETTER_RIGHT_PAREN_PLAIN_RE = re.compile(
+    r"^\s*[*\-+]\s+(?P<num>[A-Za-zА-Яа-я])\)\s*"
+    r"(?!\*\*)(?P<plain>\S.*)$",
+)
+
+# ШЕСТОЙ диалект (C5, ADR-580) — буквенные метки ВНУТРИ ОДНОГО предложения/абзаца,
+# через запятую, а не каждая СВОИМ пунктом списка:
+#     Варианты: (а) разрешить мне удалять деревья циклов старше 7 дней, чья работа
+#     уже на `origin` (проверяемо машинно), (б) оставить как есть и чистить руками,
+#     (в) починить уборщика, чтобы он делал это сам.
+#
+# Авария, из-за которой диалект заведён (A5_owner_control.md, замер 2026-10-05):
+# `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal` ушла владельцу
+# `buttons=False` с 2026-10-01 и не исцелена. Все три буквы лежат в ОДНОМ абзаце
+# («Шаг 2»), и ни один из построчных диалектов выше их не видит — они ждут начала
+# СТРОКИ/пункта списка, а здесь метка стоит ПОСРЕДИ предложения; к тому же перенос
+# строки редактором рвёт абзац надвое («(а) …» на одной физической строке,
+# «(б) …, (в) …» — на следующей), поэтому разбор здесь идёт по АБЗАЦУ целиком
+# (:func:`_paragraphs`), а не по строке.
+#
+# Строгая проверка — буквы ИДУТ ПОДРЯД, начиная с (а)/(a): одиночная «(а)» в прозе
+# («пункт (а) договора») меткой перечня не считается, а разрозненные «(а) … (д) …»
+# без (б)(в)(г) — случайное совпадение символов, а не перечень (тот же fail-CLOSED
+# принцип, что у дубля номера в основном цикле ниже).
+_OPTION_INLINE_LETTER_RE = re.compile(r"\((?P<letter>[A-Za-zА-Яа-я])\)")
+#: Ссылка на вариант по букве в отдельном предложении-рекомендации: «Рекомендация —
+#: (а) с проверкой…». Отдельная пометка, а не часть `_OPTION_INLINE_LETTER_RE` —
+#: находится она МИМО захваченных подписей (см. :func:`_inline_lettered_segments`).
+_INLINE_RECOMMEND_REF_RE = re.compile(
+    r"рекоменд\w*\s*[—–:-]?\s*\((?P<letter>[A-Za-zА-Яа-я])\)", re.IGNORECASE)
+_LETTER_SEQ_RU = "абвгдежзиклмнопрстуфхцчшщ"
+_LETTER_SEQ_EN = "abcdefghijklmnopqrstuvwxyz"
+
+#: F5 (C5, ADR-580) — «**Шаг N**» делит секцию на несколько отдельных просимых действий,
+#: независимо от того, как редактор разбил абзацы (блок с буквами может оказаться СЛИТ в
+#: один абзац с другим шагом, если между ними нет пустой строки — живой пример: карточка
+#: про депег, где «Шаг 1»/«Шаг 2» — два пункта списка без разделяющей пустой строки). Ищем
+#: по СЫРЫМ строкам секции, а не по уже собранным абзацам — иначе слияние спрятало бы
+#: второй шаг внутри первого.
+_STEP_BLOCK_RE = re.compile(r"\*\*Шаг\s+(\d+)", re.IGNORECASE)
+
+
+def _paragraphs(section: List[str]) -> List[str]:
+    """Секция «Что от тебя нужно» по АБЗАЦАМ: непустые строки между пустыми, слитые
+    в одну строку пробелом — перенос редактора ВНУТРИ абзаца не рвёт метку надвое."""
+    paras: List[str] = []
+    current: List[str] = []
+    for ln in section + [""]:
+        if ln.strip():
+            current.append(ln.strip())
+        elif current:
+            paras.append(" ".join(current))
+            current = []
+    return paras
+
+
+def _inline_lettered_segments(paragraph: str) -> Optional[List[Tuple[str, str]]]:
+    """``[(буква, сырой_текст_после_метки), …]`` для ПОДРЯД идущих ``(а)(б)(в)…`` в
+    ОДНОМ абзаце, начиная строго с ``(а)``/``(a)``. Меньше двух меток, либо метки не
+    подряд ⇒ ``None`` — случайное совпадение символов, не перечень."""
+    marks = list(_OPTION_INLINE_LETTER_RE.finditer(paragraph))
+    if len(marks) < 2:
+        return None
+    letters = [m.group("letter").lower() for m in marks]
+    if letters[0] in _LETTER_SEQ_RU:
+        seq = _LETTER_SEQ_RU
+    elif letters[0] in _LETTER_SEQ_EN:
+        seq = _LETTER_SEQ_EN
+    else:
+        return None
+    if letters[0] != seq[0]:
+        return None
+    kept = 0
+    for i, letter in enumerate(letters):
+        if i >= len(seq) or letter != seq[i]:
+            break
+        kept += 1
+    if kept < 2:
+        return None
+    segments: List[Tuple[str, str]] = []
+    for i in range(kept):
+        start = marks[i].end()
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(paragraph)
+        segments.append((letters[i], paragraph[start:end]))
+    return segments
+
 # Подпись, состоящая ИЗ ОДНОЙ ПОМЕТКИ: «(а) — рекомендую.» Кнопка «рекомендую» не
 # называет варианта — суть стоит сразу за жирным, и берётся она оттуда же, откуда для
 # «**Вариант N (рекомендую)**». Пометка тут не теряется: её читает `_marks_recommendation`
@@ -852,6 +947,13 @@ def unnumbered_recommendations(body: str) -> List[str]:
 MQ_DUPLICATE_NUMBER = "duplicate_number"
 MQ_MIXED_FAMILIES = "mixed_families"
 MQ_QUESTION_ITEMS = "question_items"
+#: F5 (integration review, 2026-10-05): секция несёт НЕСКОЛЬКО блоков «Шаг N», и только
+#: ОДИН из них содержит буквенный перечень «(а)(б)(в)…». Живые примеры: карточка про
+#: диск Mac Mini (Шаг 1 — освободить место, Шаг 2 — буквенный выбор по деревьям `/tmp`,
+#: Шаг 3 — отдельное «да» на починку журналов) и карточка про депег (Шаг 1 — обязательный
+#: безопасный фикс без буквы, Шаг 2 — буквенный выбор источника цены). Нажатие буквы
+#: отвечает ТОЛЬКО на шаг с буквами; остальные шаги молча остаются без ответа владельца.
+MQ_MULTI_STEP = "multi_step_section"
 
 
 @dataclass(frozen=True)
@@ -946,6 +1048,7 @@ def _parse_options_measured(
                            or _OPTION_LETTERED_PLAIN_RE.match(ln)
                            or _OPTION_LETTERED_DOT_RE.match(ln)
                            or _OPTION_LETTERED_DOT_PLAIN_RE.match(ln)
+                           or _OPTION_LETTER_RIGHT_PAREN_PLAIN_RE.match(ln)
                            or _OPTION_BOLD_NUM_RE.match(ln)
                            or _plain_word_option(ln) for ln in section)
 
@@ -989,6 +1092,10 @@ def _parse_options_measured(
             m = _OPTION_LETTERED_PLAIN_RE.match(ln)
             if m is None:
                 m = _OPTION_LETTERED_DOT_PLAIN_RE.match(ln)
+            if m is None:
+                # «а)»/«б)» — та же буквенная метка, что «(а)», но без открывающей
+                # скобки (C5, ADR-580: теряется при ручном наборе).
+                m = _OPTION_LETTER_RIGHT_PAREN_PLAIN_RE.match(ln)
             if m is None:
                 m = _plain_word_option(ln)
             numbered = m is not None
@@ -1077,6 +1184,56 @@ def _parse_options_measured(
     # диалект видит.
     if dot_written and dot_taken != dot_written:
         return [], None
+
+    # ШЕСТОЙ диалект (C5, ADR-580) — буквенные метки ВНУТРИ ОДНОГО абзаца
+    # («Варианты: (а) …, (б) …, (в) …»). Пробуем ТОЛЬКО когда построчные диалекты не
+    # нашли НИЧЕГО: это запасной, самый слабый разбор, и смешивать его с настоящим
+    # построчным перечнем значило бы угадывать, какой из двух автор имел в виду.
+    if not options and not explicit_dialect and not bold_num_written and not dot_written:
+        paragraphs = _paragraphs(section)
+        inline_hits = [(p, segs) for p in paragraphs
+                       for segs in (_inline_lettered_segments(p),) if segs]
+        if len(inline_hits) > 1:
+            # Перечень «(а)(б)(в)» встречается в НЕСКОЛЬКИХ разных абзацах — значит это
+            # не один список вариантов, а несколько независимых решений (тот же
+            # fail-CLOSED принцип, что у дубля номера выше): кнопки смешали бы ответы
+            # на разные вопросы в один ряд.
+            return [], MultiQuestion(
+                MQ_DUPLICATE_NUMBER,
+                f"буквенный перечень «(а)(б)(в)…» встречается в {len(inline_hits)} "
+                f"разных абзацах секции — значит перечней больше одного",
+                0,
+            )
+        if len(inline_hits) == 1:
+            # F5 (integration review, 2026-10-05): перечень «(а)(б)(в)…» найден в ОДНОМ
+            # абзаце, но секция может нести ДРУГИЕ отдельные шаги вне этого абзаца (или
+            # слитые в него тем же слиянием, что собрало абзацы выше). Буква отвечает
+            # ТОЛЬКО на свой шаг — больше одного «Шаг N» в секции значит больше одного
+            # действия, которое ждёт ответа, и кнопки от буквенного перечня ответили бы
+            # не на тот вопрос (или на часть вопроса) целой кнопкой на всю карточку.
+            step_markers = _STEP_BLOCK_RE.findall("\n".join(section))
+            if len(set(step_markers)) > 1:
+                return [], MultiQuestion(
+                    MQ_MULTI_STEP,
+                    f"секция несёт {len(set(step_markers))} блока «Шаг N», а буквенный "
+                    f"перечень «(а)(б)(в)…» отвечает только на один из них — остальные "
+                    f"шаги остались бы без ответа владельца",
+                    0,
+                )
+            paragraph, segs = inline_hits[0]
+            recommended_letter = None
+            ref = _INLINE_RECOMMEND_REF_RE.search(paragraph)
+            if ref:
+                recommended_letter = ref.group("letter").lower()
+            for letter, raw in segs:
+                sentence = _FIRST_SENTENCE_RE.match(raw.strip(" \t,;:—–-"))
+                label = (sentence.group(1) if sentence else raw).strip()
+                label = _RECOMMEND_PAREN_RE.sub(" ", label).strip().rstrip(" .,;:")
+                if not label or letter in seen:
+                    continue
+                seen.add(letter)
+                options.append(ParsedOption(num=letter, label=label,
+                                            recommended=(letter == recommended_letter)))
 
     # Составная метка выдаёт ВТОРОЙ вопрос там, где правило «дубль номера ⇒ fail-CLOSED»
     # его не выдаёт: «А1/А2/А3» и «Б1/Б2» — пять РАЗНЫХ номеров, дубля нет, а буква перед
@@ -1387,11 +1544,19 @@ def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
     """Inline-клавиатура: по кнопке на вариант (⭐ у рекомендованного) + «Подробнее».
 
     По одной кнопке в ряд: подписи вариантов длинные, в два столбца Telegram их режет.
+
+    Markdown снимается ДО обрезки (``_plain``, C5/ADR-580): подпись варианта может
+    легитимно нести инлайн-код (`` `spa_core/risk/policy.py` ``) или ссылку из тела
+    карточки, а ``BUTTON_LABEL_MAX`` — всего 30 символов. Разметка, не снятая ДО
+    `_shorten`, съедала бюджет символов сама и обрывала подпись на случайном месте
+    («Главное — `spa_core/risk/policy.py`: это»); снятая ПОСЛЕ — оставляла висящую
+    закрывающую звёздочку/кавычку без пары. Порядок «сначала снять, потом резать» —
+    единственный, где оба дефекта не возникают одновременно.
     """
     rows: List[List[Dict]] = []
     for opt in options:
         star = "⭐ " if opt.recommended else ""
-        label = f"{star}{opt.num}. {_capitalize(_shorten(opt.label))}"
+        label = f"{star}{opt.num}. {_capitalize(_shorten(_plain(opt.label)))}"
         rows.append([{"text": label,
                       "callback_data": build_callback(pid, opt.callback_choice)}])
     rows.append([{"text": "📖 Подробнее", "callback_data": build_callback(pid, "more")}])

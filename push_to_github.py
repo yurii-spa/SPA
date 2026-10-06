@@ -465,14 +465,128 @@ def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> O
         return None
 
 
-def get_file_content(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[bytes]:
+# ══════════════════════════════════════════════════════════════════════════════
+# ЧТЕНИЕ БОЛЬШИХ ФАЙЛОВ: Contents API молчит про тело >1 МБ — Blob API не молчит
+#
+# ЗАЧЕМ (владелец, цикл это не менял — фиксирую решение). Contents API
+# (`GET /repos/{repo}/contents/{path}`) отдаёт `content` ТОЛЬКО для файлов
+# ≤1 МБ; для больших он честно называет `sha` и размер, но поле `content`
+# отсутствует. `get_file_content` раньше читал ИМЕННО этот эндпоинт и на
+# отсутствии `content` возвращал `None` — а стражи общей тетради
+# (`guard_entry_loss`) трактуют `None` при известной `sha` как «содержимое
+# remote НЕ ПРОЧИТАНО», и отказывают НАВСЕГДА: `docs/decisions/INDEX.md` уже
+# 1.6 МБ, и любой пуш в него не проходил иначе как `--allow-overwrite`
+# (который владелец запретил как обход, а не как решение).
+#
+# ЧТО ДЕЛАЕМ. Тот же ответ Contents API, где нет `content`, УЖЕ называет `sha`
+# пути на запрошенном `ref` — это git-blob-SHA, и blob — контент-адресуемый
+# объект: по данной sha ВСЕГДА лежат одни и те же байты (иначе это другая sha).
+# Поэтому читать содержимое ПО SHA (`GET /repos/{repo}/git/blobs/{sha}`, тот же
+# base64, лимит 100 МБ) не подвержено гонке «ветка сдвинулась между чтениями» —
+# блоб не движется, в отличие от пути на ветке. Любой вызывающий, у которого
+# ОЖИДАЕМАЯ sha уже на руках (её он сам прочитал раньше и с ней же сравнивает
+# результат — все три внутренних вызывающих `get_file_content` таковы), обязан
+# передать её через `expected_sha`: тогда функция НЕ перечитывает Contents API
+# заново под `ref=branch` (та самая гонка, от которой и защищается вся эта
+# цепочка стражей), а идёт прямиком в Blob API за БАЙТАМИ ТОЙ ЖЕ sha, что уже
+# зафиксирована. Расхождение между sha, которую назвал более ранний Contents-
+# API читатель, и sha, которую сейчас отдаёт тот же путь, — отдельный класс
+# (remote сдвинулся) и этой функции не касается: здесь либо байты нужной sha
+# получены и проверены, либо — честный `None`.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class RemoteBlobUnavailable(RuntimeError):
+    """Прочитать blob по известной SHA надёжно не вышло — ``None`` НЕ значит «безопасно».
+
+    Сеть/404/не-base64/обрыв декодирования — всё сюда; отдельный тип, чтобы
+    вызывающий (при желании) отличал «не прочитано» от «прочитано другое»
+    (:class:`RemoteBlobShaMismatch`), а не угадывал по строке сообщения.
+    """
+
+
+class RemoteBlobShaMismatch(RemoteBlobUnavailable):
+    """Байты, пришедшие по SHA, хешируются в ДРУГУЮ sha — доверять им нельзя.
+
+    Если это вообще происходит (прокси, обрезанный ответ, подмена кодирования),
+    то «просто доставить, что пришло» было бы ровно тем самым fail-OPEN, против
+    которого написан весь блок «СВЕРКА ДОСТАВЛЕННОГО» выше.
+    """
+
+
+def get_blob_bytes(pat: str, repo: str, blob_sha: str) -> bytes:
+    """Прочитать содержимое blob'а НАПРЯМУЮ по его SHA (Git Blob API, до 100 МБ).
+
+    Контент-адресуемо: нет вопроса «актуально ли», потому что sha ЕСТЬ
+    содержимое (другое содержимое — другая sha). Проверка `git_blob_sha(bytes)
+    == blob_sha` — не формальность: она ловит ровно те случаи, где сервер
+    вернул не то, о чём спросили (усечённый ответ, не-base64, 404 на самом деле
+    пришедший как пустое тело и т.п.), и превращает их в громкий отказ, а не в
+    молчаливое «похоже, сработало».
+
+    Бросает :class:`RemoteBlobUnavailable` (или её подкласс
+    :class:`RemoteBlobShaMismatch`) на ЛЮБОМ сбое — ``None``/«безопасно» эта
+    функция никогда не возвращает: решение «что считать безопасным» остаётся
+    за вызывающим (как и везде в этом файле).
+    """
+    if not _is_sha40(blob_sha):
+        raise RemoteBlobUnavailable(
+            f"blob sha не похожа на git-sha (40 hex): {blob_sha!r}")
+    try:
+        data = _api(pat, "GET", f"/repos/{repo}/git/blobs/{blob_sha}")
+    except Exception as e:  # noqa: BLE001 — сетевой/HTTP сбой, см. докстрока
+        raise RemoteBlobUnavailable(
+            f"blob {blob_sha[:8]} не прочитан: {type(e).__name__}: {e}") from e
+    if data.get("encoding") != "base64" or not isinstance(data.get("content"), str):
+        raise RemoteBlobUnavailable(
+            f"blob {blob_sha[:8]}: ответ без пригодного base64 content "
+            f"(encoding={data.get('encoding')!r})")
+    try:
+        content = base64.b64decode(data["content"])
+    except Exception as e:  # noqa: BLE001 — не-base64/обрезанная строка
+        raise RemoteBlobUnavailable(
+            f"blob {blob_sha[:8]}: content не декодировался как base64: "
+            f"{type(e).__name__}: {e}") from e
+    actual = git_blob_sha(content)
+    if actual.lower() != blob_sha.lower():
+        raise RemoteBlobShaMismatch(
+            f"blob {blob_sha[:8]}: прочитанные байты хешируются в {actual[:8]} "
+            f"— НЕ в запрошенную sha. Remote прислал не то; доверять нельзя.")
+    return content
+
+
+def get_file_content(pat: str, repo: str, repo_path: str, branch: str = "main",
+                     expected_sha: Optional[str] = None) -> Optional[bytes]:
     """Содержимое файла на GitHub. None — если прочитать не удалось.
 
-    Нужно ТОЛЬКО для пере-базы дописывания (см. :func:`rebase_append`): чтобы
-    наложить нашу добавку на свежий remote, свежий remote надо иметь. Contents
-    API не отдаёт `content` для файлов >1 МБ — это `None`, а не пустота, и
-    пере-база тогда не делается (отказ вместо догадки).
+    Нужно для пере-базы дописывания (см. :func:`rebase_append`), для стражей
+    общей тетради (:func:`guard_entry_loss` и соседи) и для строгого режима
+    `--expected-base` (:func:`guard_overwrite`, параметр `strict_base`): во
+    всех трёх свежий remote нужен БАЙТАМИ, а не только его sha. (P2-2
+    независимого ревью: формулировка исправлена — раньше заявлялась лишь
+    первая из этих трёх причин, неверно уже на момент появления второй.)
+
+    ``expected_sha`` — пин вызывающего, у которого sha уже на руках (прочитана
+    РАНЬШЕ и с ней же сравнивается результат). Передан → путь на ``branch`` НЕ
+    перечитывается заново: идём прямиком в :func:`get_blob_bytes` за байтами
+    именно этой sha (контент-адресуемо, гонки «ветка сдвинулась между
+    чтениями» здесь нет по построению). Не передан (обратная совместимость для
+    вызывающих, которым нечем пинить) — старое поведение: один GET Contents
+    API по ``ref=branch``; если он не отдал `content` (типично файлы >1 МБ —
+    это было дырой, из-за которой `docs/decisions/INDEX.md`, 1.6 МБ, не
+    проходил стража общей тетради НИКАК иначе как `--allow-overwrite`), тот же
+    ответ уже назвал СВОЮ sha — читаем по ней же через :func:`get_blob_bytes`.
+
+    Любой сбой (сеть, не-40-hex sha, несовпадение хеша) → ``None``, как и
+    раньше: вызывающие уже fail-CLOSE'ятся на ``None`` там, где это важно
+    (`guard_entry_loss` отказывает, если remote sha ЕСТЬ, а байт — нет).
     """
+    if expected_sha is not None:
+        try:
+            return get_blob_bytes(pat, repo, expected_sha)
+        except RemoteBlobUnavailable:
+            return None
+
     url = f"{API_BASE}/repos/{repo}/contents/{repo_path}?ref={branch}"
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {pat}",
@@ -482,10 +596,21 @@ def get_file_content(pat: str, repo: str, repo_path: str, branch: str = "main") 
     try:
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read())
-        if data.get("encoding") != "base64" or not isinstance(data.get("content"), str):
-            return None
-        return base64.b64decode(data["content"])
     except Exception:
+        return None
+    if data.get("encoding") == "base64" and isinstance(data.get("content"), str):
+        try:
+            return base64.b64decode(data["content"])
+        except Exception:
+            return None
+    # `content` отсутствует — типично файл >1 МБ. Тот же ответ уже назвал sha
+    # пути на этом ref; читаем её же через Blob API, не угадывая и не пропуская.
+    blob_sha = data.get("sha")
+    if not _is_sha40(blob_sha):
+        return None
+    try:
+        return get_blob_bytes(pat, repo, blob_sha)
+    except RemoteBlobUnavailable:
         return None
 
 
@@ -1199,7 +1324,8 @@ def guard_name_loss(pat: str, repo: str, branch: str, repo_path: str,
     # третий исход с названной причиной, а не падение доставки: сеть моргнула —
     # это «нечем померить», а не «терять нечего» (инв. #17).
     try:
-        remote_bytes = get_file_content(pat, repo, repo_path, branch)
+        remote_bytes = get_file_content(pat, repo, repo_path, branch,
+                                        expected_sha=remote_sha)
     except Exception as e:  # noqa: BLE001 — страж не смеет валить доставку
         return (f"⚠️  потеря имён в {repo_path} НЕ ИЗМЕРЕНА: содержимое remote не "
                 f"прочитано ({type(e).__name__}). Это не «чисто».")
@@ -1252,7 +1378,8 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                     allow_overwrite: bool = False,
                     strict_unmeasured: bool = False,
                     allow_name_loss: bool = False,
-                    allow_stale_base: bool = False) -> tuple:
+                    allow_stale_base: bool = False,
+                    strict_base: bool = False) -> tuple:
     """``(content_to_push, note)``; :class:`DivergenceRefused` — если пушить нельзя.
 
     «Не измерено» по умолчанию НЕ блокирует — но и не выдаётся за «всё в порядке»:
@@ -1267,9 +1394,30 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
     ``strict_unmeasured=True`` — явный опт-ин вызывающего: «работаю только там, где
     перезапись отслеживается». Ни от какой переменной окружения не зависит, чтобы
     поведение пушера не менялось от того, кто его запустил.
+
+    ``strict_base=True`` — режим `--expected-base` (owner decision по независимому
+    ревью `ddc680757`, P0-1). ``remote_sha`` в этом режиме — sha из ПИНОВАННОГО
+    дерева (:func:`assert_expected_base`/:func:`remote_tree_modes`), а не живое
+    чтение ветки (контракт (b)). Любое состояние КРОМЕ ``DIVERGENCE_SAFE`` —
+    немедленный :class:`BaseDriftRefused`, ДО `guard_name_loss` и ДО попытки
+    `rebase_append`: owner-политика «STOP-on-drift, NO auto-rebase» не допускает
+    ре-базу даже для чистого дописывания (контракт (c)) и не допускает «база не
+    измерена, но сойдёт» (UNMEASURED тоже СТОП). `--allow-overwrite` этот отказ
+    НЕ снимает — согласия разные, тот же принцип, что у `guard_name_loss`.
     """
     verdict = divergence_verdict(abs_path, repo_path, remote_sha, branch)
     state = verdict["state"]
+
+    if strict_base and state != DIVERGENCE_SAFE:
+        raise BaseDriftRefused(
+            f"{repo_path}: строгий режим (`--expected-base`) допускает ТОЛЬКО точное "
+            f"совпадение с пинованной базой — состояние «{state}» ({verdict['reason']}) "
+            f"этому не удовлетворяет. Ни ре-база, ни перезапись здесь не делаются "
+            f"НИКОГДА (владелец: remote bytes must match the EXACT expected origin "
+            f"commit). STOP (fail-CLOSED, инвариант #2); `--allow-overwrite` это не "
+            f"снимает.\n"
+            f"Что делать: перечитать кандидата со свежего origin и повторить с новым "
+            f"`--expected-base`.")
 
     if state == DIVERGENCE_SAFE:
         # remote == база ⇒ содержимое remote у нас уже на руках, сеть не нужна.
@@ -1310,7 +1458,8 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         watched = is_append_only_doc(repo_path) or is_rules_doc(repo_path)
         if not allow_overwrite and watched and remote_sha is not None:
             entry_note = guard_content_loss(repo_path,
-                                            get_file_content(pat, repo, repo_path, branch),
+                                            get_file_content(pat, repo, repo_path, branch,
+                                                             expected_sha=remote_sha),
                                             local_bytes, remote_sha,
                                             allow_overwrite=allow_overwrite)
             if entry_note:
@@ -1340,7 +1489,7 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                 f"{verdict['reason']}")
         return local_bytes, (f"{over}\n{name_note}" if name_note else over)
 
-    remote_bytes = get_file_content(pat, repo, repo_path, branch)
+    remote_bytes = get_file_content(pat, repo, repo_path, branch, expected_sha=remote_sha)
     rebased = rebase_append(verdict.get("base"), local_bytes, remote_bytes)
     if rebased is not None:
         # Пере-база сохраняет remote целиком ПО ПОСТРОЕНИЮ (remote — префикс
@@ -1366,13 +1515,21 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
               branch: str = "main", _stale_retries: int = 2,
               allow_overwrite: bool = False,
               allow_name_loss: bool = False,
-              allow_stale_base: bool = False) -> dict:
+              allow_stale_base: bool = False,
+              expected_base: Optional[str] = None) -> dict:
     """Пушит один файл через GitHub Contents API.
 
     409 stale-sha auto-retry: если параллельный писатель обновил файл между нашим
     get_file_sha и PUT, GitHub вернёт 409 (sha не совпадает с HEAD). Тогда мы
     заново читаем актуальный remote sha и повторяем PUT — до ``_stale_retries`` раз.
-    Детерминированно, fail-safe (исчерпали ретраи → честный FAIL).
+    Детерминированно, fail-safe (исчерпали ретраи → честный FAIL). Это УМОЛЧАНИЕ, и
+    оно НЕ меняется этой правкой: автономные циклы полагаются на него.
+
+    ``expected_base`` — строгий режим `--expected-base`. Эта функция НЕ пушит его
+    сама: см. :func:`_push_file_via_batch`, в который она целиком делегирует, когда
+    ``expected_base`` задан (независимый ревью, раунд 2, P1-NEW — читай там, ПОЧЕМУ
+    Contents API для этого не годится). Умолчание (``None``) не меняет НИ БИТА
+    поведения ниже.
     """
     import urllib.request
     import urllib.error
@@ -1390,6 +1547,11 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         repo_path = repo_relative_path(local)
     except RepoPathError as e:
         return {"ok": False, "error": str(e), "path": local_path}
+
+    if expected_base is not None:
+        return _push_file_via_batch(pat, local, message, repo, branch, dry_run,
+                                    allow_overwrite, allow_name_loss, allow_stale_base,
+                                    expected_base, repo_path)
 
     local_bytes = local.read_bytes()
     local_blob_sha = git_blob_sha(local_bytes)
@@ -1473,7 +1635,7 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
                              allow_stale_base=allow_stale_base)
         # 409 stale-sha: параллельный писатель сдвинул HEAD. Перечитываем свежий
         # remote sha и повторяем PUT (bounded). 422 тоже может означать рассинхрон
-        # sha ("does not match") — обрабатываем так же.
+        # sha ("does not match") — обрабатываем так же. ЭТО УМОЛЧАНИЕ, не трогается.
         if (e.code == 409 or (e.code == 422 and "sha" in body.lower())) and _stale_retries > 0:
             print(f"  409 stale-sha — перечитываю remote sha и повторяю ({_stale_retries} осталось)...")
             time.sleep(0.5)
@@ -1484,6 +1646,84 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
     except Exception as e:
         return {"ok": False, "error": str(e), "path": repo_path}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# СТРОГИЙ РЕЖИМ, ОДИН ФАЙЛ: ПОЧЕМУ Contents API НЕ ГОДИТСЯ (ревью, раунд 2, P1-NEW)
+#
+# Независимый ре-ревью `86eefa152` нашёл дырку, которую фейки не ловят: Contents
+# API PUT пинует только sha САМОГО ФАЙЛА (поле `sha` в payload — для optimistic
+# concurrency ПУТИ), а НЕ родительский коммит. GitHub коммитит PUT на ЛЮБОЙ
+# ТЕКУЩИЙ HEAD в момент записи. Если между `assert_expected_base` (раньше) и
+# самим PUT (позже) параллельный писатель (autopush, дневной цикл — оба РЕАЛЬНО
+# существуют) закоммитил ДРУГИЕ пути, PUT пройдёт БЕЗ 409/422 — и наш коммит
+# приземлится на родителе ≠ `--expected-base`, без единого STOP. Окно узкое
+# (секунды), но владелец просил «remote bytes must match the EXACT expected
+# origin commit», а не «почти наверняка».
+#
+# `batch_push` этой дыры не имеет (ре-ревью прошёл её трассировкой до конца):
+# `create_commit(parent=pinned_base)` + `update_ref(force=False)` — PATCH,
+# который GitHub примет ТОЛЬКО если pinned_base — ТЕКУЩИЙ родитель; иначе
+# 422 «not a fast forward», и строгий режим уже ловит это как STOP. Поэтому
+# строгий single-file ВСЕГДА идёт через `batch_push` (работает и на одном
+# файле) — не как CLI-костыль, а на уровне самой функции, чтобы ЛЮБОЙ
+# вызывающий `push_file(..., expected_base=...)` получал эту гарантию, а не
+# только путь через `main()`.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _push_file_via_batch(pat: str, local: Path, message: str, repo: str, branch: str,
+                         dry_run: bool, allow_overwrite: bool, allow_name_loss: bool,
+                         allow_stale_base: bool, expected_base: str, repo_path: str) -> dict:
+    """Строгий `push_file` — под капотом `batch_push([один файл])`. См. блок выше.
+
+    Форма ответа — КОНТРАКТ `push_file` (``path``, не ``files``/``count``), чтобы
+    вызывающие (CLI-цикл в ``main()``, тесты) не знали, что внутри — batch. Это
+    же даёт P2 бесплатно: ``batch_push`` зовёт :func:`assert_expected_base` ДО
+    своей ``dry_run``-ветки, поэтому `--dry-run --expected-base` ТОЖЕ сверяет
+    живой HEAD, а не просто печатает намерение.
+    """
+    try:
+        result = batch_push(pat, [str(local)], message, repo, branch, dry_run=dry_run,
+                            allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
+                            allow_stale_base=allow_stale_base, expected_base=expected_base)
+    except DivergenceRefused as e:
+        # Покрывает BaseDriftRefused / RemoteMovedDuringRead / ExpectedBaseNotExact
+        # и любой другой подкласс — единый контракт ответа для всех STOP'ов.
+        return {"ok": False, "error": str(e), "path": repo_path, "diverged": True}
+    except NameLossRefused as e:
+        return {"ok": False, "error": str(e), "path": repo_path, "name_loss": True}
+    except StaleBaseRefused as e:
+        return {"ok": False, "error": str(e), "path": repo_path, "stale_base": True}
+    except DeliveryUnverified as e:
+        return {"ok": False, "error": str(e), "path": repo_path, "verified": "mismatch"}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
+    except Exception as e:  # noqa: BLE001 — честный FAIL, как и у остального push_file
+        return {"ok": False, "error": str(e), "path": repo_path}
+
+    if dry_run:
+        base_commit = result.get("base_commit") or ""
+        # `action` — КОНТРАКТ `push_file`-формы (ре-ревью, раунд 3, P2-NEW):
+        # `main()` печатает `r['action']` безусловно для ЛЮБОГО `dry_run=True`
+        # ответа; без этого поля строгий `--dry-run --expected-base` с ВЕРНОЙ
+        # sha падал `KeyError` на валидном вводе — та самая находка.
+        return {"ok": True, "dry_run": True, "path": repo_path,
+                "action": (f"would commit on pinned base {base_commit[:8]}"
+                           if base_commit else "would commit (strict, pin unresolved)"),
+                "base_commit": result.get("base_commit")}
+    if not result.get("count"):
+        return {"ok": True, "skipped": True, "path": repo_path}
+    commit_sha = result.get("commit") or ""
+    # P3 (ре-ревью, раунд 3, инвариант #17): «сверено» — заявление об ИЗМЕРЕНИИ,
+    # не умолчание. `batch_push` называет СВОЙ агрегированный вердикт
+    # (`result["verified"]`) — match ТОЛЬКО если КАЖДАЯ sha (blob'ы + ref) была
+    # measurable и совпала; иначе "unmeasured". Жёстко писать "match" здесь
+    # значило бы ровно то «не измерено, выданное за безопасно», против которого
+    # написан блок «СВЕРКА ДОСТАВЛЕННОГО» выше в файле.
+    return {"ok": True, "path": repo_path, "sha": commit_sha[:8],
+           "verified": result.get("verified", "unmeasured")}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1585,6 +1825,103 @@ def get_base_ref(pat: str, repo: str, branch: str, sleep=None) -> tuple:
     return base_commit_sha, base_tree_sha
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# СТРОГИЙ РЕЖИМ (`--expected-base`): STOP-on-drift БЕЗ авто-ребейза (owner decision)
+#
+# Независимый ревью `ddc680757` (CHANGES_REQUIRED, P0-1/P1-1/P1-2/P2-1) нашёл, что
+# фикс >1 МБ по дороге НОВО включил авто-ребейз для `docs/decisions/INDEX.md`
+# (раньше DIVERGED на файле >1 МБ не могла дотянуться до `rebase_append` — байт не
+# было; теперь байты есть, и пере-база для append-only документов пошла САМА).
+# Это противоречит владельческой политике «STOP-on-drift, NO auto-rebase, remote
+# bytes must match the EXACT expected origin commit» — но ТОЛЬКО для вызывающих,
+# которые эту гарантию ПРОСЯТ явно. Автономные циклы полагаются на СЕГОДНЯШНЕЕ
+# поведение (rebase_append / 409-ребилд) и его менять НЕЛЬЗЯ — поэтому гарантия
+# добавляется КАК РЕЖИМ (``--expected-base`` / параметр функций), а не как новое
+# умолчание: без него ничего не поменялось ни байтом.
+#
+# КОНТРАКТ строгого режима (все пункты — STOP, а не нота, и не снимаются
+# `--allow-overwrite`: «согласен перезаписать» и «согласен работать не с тем
+# коммитом, который назвал» — разные согласия, тот же принцип, что у
+# `guard_name_loss`/`guard_stale_base`):
+#   (a) живой HEAD ветки ОБЯЗАН совпасть с `--expected-base` ДО единой записи;
+#   (b) сравнения стража идут БАЙТАМИ пинованного дерева, а не живым чтением ветки;
+#   (c) любая расходимость (DIVERGED) — отказ, `rebase_append` не вызывается НИКОГДА,
+#       даже если расходимость — чистое дописывание;
+#   (d) 409/422 при обновлении ref — отказ, без пересборки на свежей базе;
+#   (e) сбой живого чтения sha для пути, который ЕСТЬ в пинованном дереве, и
+#       живая sha для пути, которого НЕТ в неусечённом пинованном дереве, —
+#       тоже отказ (`assert_base_tree_matches(..., strict=True)`).
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class BaseDriftRefused(DivergenceRefused):
+    """Строгий режим (`--expected-base`): живой origin не ТОЧНО то, что ожидали.
+
+    Покрывает все STOP'ы контракта выше, КРОМЕ расхождения конкретного файла
+    (у него свой, более прицельный класс — :class:`RemoteMovedDuringRead`, тот
+    же, что уже стерёг дрейф дерева при обычном пуше). `--allow-overwrite` этот
+    отказ НЕ снимает: согласие «перезаписать» не равно согласию «работать не с
+    тем коммитом, который назвал явно».
+    """
+
+
+class ExpectedBaseNotExact(BaseDriftRefused):
+    """`--expected-base` обязан быть ПОЛНОЙ 40-символьной hex sha (ре-ревью, P2).
+
+    GitHub сам принимает укороченные sha (от 4 hex), но владелец просил РОВНО
+    «remote bytes must match the EXACT expected origin commit» — короткий
+    префикс технически может совпасть, а «технически совпало» и «точный
+    коммит, который я назвал» — разные утверждения. Отказ ЗДЕСЬ, до единого
+    сетевого вызова: форма входа проверяется раньше качества сети.
+    """
+
+
+def _sha_matches_expected(live_sha: str, expected: str) -> bool:
+    """Совпадает ли живая sha с ``expected`` ТОЧНО (полных 40 hex, регистр не важен).
+
+    Вызывается ТОЛЬКО после :func:`assert_expected_base`'s формальной проверки
+    (``expected`` уже гарантированно полная sha) — префиксное сравнение здесь
+    НЕ ведётся намеренно (ре-ревью, P2): «точный коммит» не допускает «похоже
+    совпало».
+    """
+    live = (live_sha or "").strip().lower()
+    exp = (expected or "").strip().lower()
+    return bool(live) and bool(exp) and live == exp
+
+
+def assert_expected_base(pat: str, repo: str, branch: str, expected_base: str) -> tuple:
+    """Строгий режим, пункт (a): живой HEAD ОБЯЗАН совпасть с ``expected_base``.
+
+    Вызывается ПЕРВЫМ, до единого запроса на запись (:func:`push_file` /
+    :func:`batch_push`). Возвращает ``(base_commit_sha, base_tree_sha)`` — тот
+    же пин, которым дальше пользуются и страж, и сборка дерева: несовпадение
+    с ``expected_base`` — отказ ЗДЕСЬ, а не где-то в середине доставки.
+
+    Форма входа проверяется ДО сети (ре-ревью, P2): короче полной 40-hex sha —
+    :class:`ExpectedBaseNotExact`, именованный отказ, а не молчаливое «похоже
+    совпало» и не растворение в общем «HEAD не совпал».
+    """
+    if not _is_sha40(expected_base):
+        raise ExpectedBaseNotExact(
+            f"`--expected-base` обязан быть ПОЛНОЙ 40-символьной hex sha, получено "
+            f"{expected_base!r} ({len(expected_base or '')} символ(ов)). Короткие "
+            f"префиксы GitHub принимает, владелец просил ТОЧНЫЙ коммит — сократить "
+            f"до «похоже совпало» здесь не вариант. Пуш отменён ДО единого сетевого "
+            f"вызова.\n"
+            f"Что делать: передать полную sha (`git rev-parse <ref>`).")
+    base_commit_sha, base_tree_sha = get_base_ref(pat, repo, branch)
+    if not _sha_matches_expected(base_commit_sha, expected_base):
+        raise BaseDriftRefused(
+            f"`--expected-base {expected_base}` НЕ совпадает с живым HEAD "
+            f"{branch} ({base_commit_sha[:8]}…) — origin сдвинулся с момента "
+            f"подготовки кандидата. Пуш отменён ДО ЛЮБОЙ записи (STOP-on-drift, "
+            f"строгий режим, fail-CLOSED, инвариант #2); ре-база/пересборка "
+            f"здесь не делается НИКОГДА.\n"
+            f"Что делать: перечитать кандидата со свежего origin и повторить с "
+            f"новым `--expected-base`.")
+    return base_commit_sha, base_tree_sha
+
+
 def resolve_files(file_args: list) -> list:
     """Преобразовать пути в [(repo_relative_path, abs_path)]. Бросает на отсутствующий файл."""
     resolved = []
@@ -1605,17 +1942,31 @@ def resolve_files(file_args: list) -> list:
 
 
 def remote_tree_modes(pat: str, repo: str, tree_sha: str) -> tuple:
-    """Карта `путь → режим` ветки. Вернуть (modes, truncated).
+    """Карта `путь → режим` и `путь → blob-sha` ПИНОВАННОГО дерева.
 
-    Один рекурсивный GET на всё дерево. GitHub усекает ответ на очень больших
-    деревьях и честно помечает это флагом ``truncated`` — тогда карта неполная,
-    и ОТСУТСТВИЕ пути в ней уже НЕ значит «файла на remote нет» (см.
-    :func:`tree_entry_mode`, который в этом случае отказывает, а не угадывает).
+    Вернуть ``(modes, shas, truncated)``. Один рекурсивный GET на всё дерево,
+    адресованное ``tree_sha`` — объект контент-адресуемый, поэтому результат не
+    плывёт между вызовами (в отличие от чтения пути на МЕНЯЮЩЕЙСЯ ветке).
+    GitHub усекает ответ на очень больших деревьях и честно помечает это флагом
+    ``truncated`` — тогда карта неполная, и ОТСУТСТВИЕ пути в ней уже НЕ значит
+    «файла на remote нет» (см. :func:`tree_entry_mode`, который в этом случае
+    отказывает, а не угадывает; и :func:`assert_base_tree_matches` — то же
+    правило для ``shas``).
+
+    ``shas`` — sha пути РОВНО в этом дереве (т.е. в БАЗЕ, на которой строится
+    новый коммит), а не на живой ветке. Нужна проверке дрейфа: `split_unchanged`
+    читает sha каждого файла через Contents API по `ref=<branch>` — это МОГЛО
+    произойти позже, чем был пинован `tree_sha`, и если между этими двумя
+    чтениями кто-то запушил commit в наш же путь, две sha разойдутся. Карта
+    режимов этого не поймала бы (режим файла, не задетого чужим пушем, обычно
+    не меняется) — поэтому shas собраны ОТДЕЛЬНО, из того же ответа.
     """
     data = _api(pat, "GET", f"/repos/{repo}/git/trees/{tree_sha}?recursive=1")
-    modes = {e["path"]: e["mode"] for e in data.get("tree", [])
-             if e.get("type") == "blob" and e.get("path") and e.get("mode")}
-    return modes, bool(data.get("truncated"))
+    blobs = [e for e in data.get("tree", [])
+             if e.get("type") == "blob" and e.get("path")]
+    modes = {e["path"]: e["mode"] for e in blobs if e.get("mode")}
+    shas = {e["path"]: e["sha"] for e in blobs if e.get("sha")}
+    return modes, shas, bool(data.get("truncated"))
 
 
 def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool) -> str:
@@ -1639,12 +1990,98 @@ def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool
     return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE
 
 
-def create_blob_from_bytes(pat: str, repo: str, data: bytes) -> str:
+class RemoteMovedDuringRead(DivergenceRefused):
+    """SHA пути с живой ветки не совпала с SHA того же пути в пинованной базе.
+
+    `batch_push` пинует базу ОДИН раз (`get_base_ref`), а затем читает sha
+    каждого изменённого файла ОТДЕЛЬНО через Contents API на `ref=<branch>`
+    (:func:`split_unchanged`) — то есть на МЕНЯЮЩЕЙСЯ ветке, и между этими двумя
+    чтениями могло пройти время (сетевые раунд-трипы по N файлам). Если в это
+    окно кто-то запушил коммит ровно в наш путь, две sha расходятся: та, что
+    пойдёт в стража перезаписи (из живого чтения), — уже НЕ та, что на самом
+    деле лежит в дереве, на которое встанет новый коммит.
+
+    Fail-CLOSED, БЕЗ ре-базы: продолжать здесь означало бы сверять потерю
+    записей не с тем деревом, на которое ляжет коммит, — то есть измерять не
+    тот вопрос и доложить «измерено» о том, что не измерялось (инвариант #17).
+    """
+
+
+def assert_base_tree_matches(changed: list, base_tree_shas: dict,
+                             truncated: bool, base_tree_sha: str,
+                             strict: bool = False) -> None:
+    """Отказать, если sha живого чтения расходится с sha в ПИНОВАННОЙ базе.
+
+    ``changed`` — тройки ``(repo_path, abs_path, remote_sha)`` от
+    :func:`split_unchanged` (``remote_sha`` — живое чтение, может быть
+    ``None``: новый файл либо сбой чтения — другой класс, не этот). Путь,
+    отсутствующий в ``base_tree_shas`` при НЕусечённом дереве, — просто новый
+    относительно базы (появился ПОСЛЕ неё) — не расхождение. Усечённое дерево
+    честно НЕ судит отсутствующие пути (как и :func:`tree_entry_mode`): для
+    них вопрос «совпадает ли» не измерен, а не «совпадает».
+
+    ``strict=True`` (строгий режим `--expected-base`, независимый ревью
+    P2-1) — та же проверка, но без послаблений, которые по умолчанию
+    намеренно пропускают: `remote_sha is None` при ПРИСУТСТВУЮЩЕМ пути в базе
+    (живое чтение провалилось — молчание про это было бы «не измерено, выданное
+    за безопасно», инвариант #17), путь ЕСТЬ живьём, но ОТСУТСТВУЕТ в
+    НЕусечённом пинованном дереве (появился ПОСЛЕ пина — тоже дрейф), и
+    усечённое дерево само по себе (присутствие НЕ ИЗМЕРЕНО ни в одну сторону).
+    В обычном режиме (``strict=False``) поведение — ПРЕЖНЕЕ, без единого бита
+    отличия: все три новых случая просто `continue`, как и раньше.
+    """
+    for repo_path, _abs, remote_sha in changed:
+        pinned = base_tree_shas.get(repo_path)
+        if remote_sha is None:
+            if strict and pinned is not None:
+                raise RemoteMovedDuringRead(
+                    f"{repo_path}: живое чтение sha ПРОВАЛИЛОСЬ (None), а путь ЕСТЬ в "
+                    f"пинованной базе {base_tree_sha[:8]} ({pinned[:8]}) — подтвердить "
+                    f"совпадение нечем. Строгий режим (`--expected-base`) не допускает "
+                    f"«не измерено ⇒ пропустить»: это неизмеренное, а не безопасное "
+                    f"(инвариант #17). STOP (fail-CLOSED).")
+            continue
+        if pinned is None:
+            if truncated:
+                if strict:
+                    raise RemoteMovedDuringRead(
+                        f"{repo_path}: пинованное дерево {base_tree_sha[:8]} пришло "
+                        f"УСЕЧЁННЫМ — присутствие пути в базе НЕ ИЗМЕРЕНО ни в одну "
+                        f"сторону. Строгий режим отказывает на неизмеренном, а не "
+                        f"пропускает его. STOP (fail-CLOSED).")
+                continue   # усечение — не измерено, не повод отказывать в обычном режиме
+            if strict:
+                raise RemoteMovedDuringRead(
+                    f"{repo_path}: живая sha ЕСТЬ ({remote_sha[:8]}), а пути НЕТ в "
+                    f"пинованной НЕусечённой базе {base_tree_sha[:8]} — файл появился "
+                    f"НА remote ПОСЛЕ пина. Строгий режим это считает дрейфом. "
+                    f"STOP (fail-CLOSED).")
+            continue   # путь новее базы — не повод отказывать в обычном режиме
+        if pinned != remote_sha:
+            raise RemoteMovedDuringRead(
+                f"{repo_path}: sha живого чтения ({remote_sha[:8]}) не совпадает с sha "
+                f"того же пути в пинованной базе {base_tree_sha[:8]} ({pinned[:8]}) — "
+                f"remote сдвинулся МЕЖДУ чтением базы и чтением файла. Пуш отменён "
+                f"(STOP-on-drift, fail-CLOSED, инвариант #2); ре-база здесь не делается — "
+                f"продолжать значило бы сверять потерю записей не с тем деревом, на "
+                f"которое встанет новый коммит.\n"
+                f"Что делать: повторить пуш — новое чтение базы подхватит текущее "
+                f"состояние целиком.")
+
+
+def create_blob_from_bytes(pat: str, repo: str, data: bytes,
+                           verify_sink: Optional[list] = None) -> str:
     """Шаг 3: создать blob из БАЙТОВ (base64, безопасно для бинарных и текстовых).
 
     Отдельно от :func:`create_blob`, потому что пере-база дописывания (страж
     перезаписи) отправляет не содержимое файла с диска, а «свежий remote + наш
     хвост»; читать это обратно из файла было бы неоткуда.
+
+    ``verify_sink`` — необязательный собиратель вердиктов (ре-ревью, раунд 3,
+    P3/инв. #17): если передан, вердикт ДОБАВЛЯЕТСЯ в него (вызывающий —
+    :func:`batch_push` — агрегирует по всем blob'ам + ref в ОДНО «match» /
+    «unmeasured», а не притворяется «match» по умолчанию). Не передан (как у
+    всех прежних вызывающих) — поведение прежнее, печать и всё.
     """
     blob = _api(pat, "POST", f"/repos/{repo}/git/blobs",
                 {"content": base64.b64encode(data).decode(), "encoding": "base64"})
@@ -1657,6 +2094,8 @@ def create_blob_from_bytes(pat: str, repo: str, data: bytes) -> str:
         raise DeliveryUnverified(verdict["note"])
     if verdict["state"] == "unmeasured":
         print(f"  {verdict['note']}")
+    if verify_sink is not None:
+        verify_sink.append(verdict)
     return str(blob["sha"])
 
 
@@ -1679,13 +2118,17 @@ def create_commit(pat: str, repo: str, message: str, tree_sha: str, parent_sha: 
     return str(commit["sha"])
 
 
-def update_ref(pat: str, repo: str, branch: str, commit_sha: str, force: bool = False) -> dict:
+def update_ref(pat: str, repo: str, branch: str, commit_sha: str, force: bool = False,
+               verify_sink: Optional[list] = None) -> dict:
     """Шаг 6: переместить ветку на новый коммит.
 
     Ответ PATCH — авторитетное состояние ref'а ПОСЛЕ нашей операции. Если он
     указывает не на наш коммит, ветку увёл кто-то другой, и `OK: 1 коммит …`
     было бы неправдой: файлы на `main` не появились. Сверка здесь замыкает
     цепочку доставки (blob → tree → commit → ref) и стоит ноль запросов.
+
+    ``verify_sink`` — см. :func:`create_blob_from_bytes`: тот же собиратель,
+    тот же контракт (не передан → поведение прежнее).
     """
     ref = _api(pat, "PATCH", f"/repos/{repo}/git/refs/heads/{branch}",
                {"sha": commit_sha, "force": force})
@@ -1695,6 +2138,8 @@ def update_ref(pat: str, repo: str, branch: str, commit_sha: str, force: bool = 
         raise DeliveryUnverified(verdict["note"])
     if verdict["state"] == "unmeasured":
         print(f"  {verdict['note']}")
+    if verify_sink is not None:
+        verify_sink.append(verdict)
     return ref
 
 
@@ -1724,7 +2169,9 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
 def build_entries(pat: str, repo: str, branch: str, changed: list,
                   modes: dict, truncated: bool, allow_overwrite: bool = False,
                   allow_name_loss: bool = False,
-                  allow_stale_base: bool = False) -> list:
+                  allow_stale_base: bool = False,
+                  strict_base: bool = False, tree_shas: Optional[dict] = None,
+                  verify_sink: Optional[list] = None) -> list:
     """``changed`` → записи дерева, каждая через стража перезаписи.
 
     Отдельной функцией, потому что на ретрае «база сдвинулась» (HTTP 409/422)
@@ -1740,15 +2187,23 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
     названо, такое же в `2026-W31.md` — нет). Список короче правды хуже, чем
     отсутствие списка: он выглядит полным. Побочно уходят и blob'ы-сироты,
     которые старый порядок успевал создать до отказа.
+
+    ``strict_base=True`` (режим `--expected-base`, контракт (b)) — страж получает
+    sha из ``tree_shas`` (ПИНОВАННОЕ дерево), а не живую ``remote_sha`` из
+    ``changed``: к этому моменту обе уже СВЕРЕНЫ (:func:`assert_base_tree_matches`
+    выше по стеку), так что замена не теряет информации, а делает сравнение
+    стража однозначно привязанным к пинованному коммиту, а не к ветке.
     """
     guarded, failures = [], []
     for repo_path, abs_path, remote_sha in changed:
+        guard_sha = (tree_shas or {}).get(repo_path) if strict_base else remote_sha
         try:
             content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
-                                            Path(abs_path).read_bytes(), remote_sha,
+                                            Path(abs_path).read_bytes(), guard_sha,
                                             allow_overwrite=allow_overwrite,
                                             allow_name_loss=allow_name_loss,
-                                            allow_stale_base=allow_stale_base)
+                                            allow_stale_base=allow_stale_base,
+                                            strict_base=strict_base)
         except (DivergenceRefused, NameLossRefused, StaleBaseRefused) as e:
             failures.append((repo_path, e))
             continue
@@ -1772,7 +2227,7 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
         mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
         if note:
             print(f"  {note}")
-        blob_sha = create_blob_from_bytes(pat, repo, content)
+        blob_sha = create_blob_from_bytes(pat, repo, content, verify_sink=verify_sink)
         print(f"  blob {blob_sha[:8]}  {repo_path}"
               f"{'  (exec)' if mode == EXEC_MODE else ''}")
         entries.append({"path": repo_path, "mode": mode, "type": "blob", "sha": blob_sha})
@@ -1782,17 +2237,31 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
 def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
                dry_run: bool = False, allow_overwrite: bool = False,
                allow_name_loss: bool = False,
-               allow_stale_base: bool = False) -> dict:
+               allow_stale_base: bool = False,
+               expected_base: Optional[str] = None) -> dict:
     """Собрать N файлов в ОДИН коммит через Git Data API.
 
     Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые → страж
     перезаписи → blobs → tree (с сохранением режимов) → commit → move ref.
     Ничего не изменилось → коммита НЕТ вовсе (пустые коммиты не создаются).
+    Это УМОЛЧАНИЕ, и оно НЕ меняется этой правкой: автономные циклы полагаются
+    на 409/422-пересборку.
+
+    ``expected_base`` — строгий режим `--expected-base` (owner decision по
+    независимому ревью `ddc680757`): живой HEAD ``branch`` ОБЯЗАН совпасть с
+    ним ДО единой записи (пункт (a)); страж сравнивает байты ПИНОВАННОГО
+    дерева (пункт (b)); 409/422 при обновлении ref — STOP, без пересборки
+    (пункт (d)); расхождение (DIVERGED) — STOP, без `rebase_append` (пункт
+    (c)). Умолчание (``None``) не меняет НИ БИТА поведения выше.
     """
     files = resolve_files(file_args)
 
-    # Шаги 1-2: база
-    base_commit_sha, base_tree_sha = get_base_ref(pat, repo, branch)
+    # Шаги 1-2: база. Строгий режим пинует её с проверкой (a) ДО сети ниже;
+    # обычный режим — прежним путём, без единого бита отличия.
+    if expected_base is not None:
+        base_commit_sha, base_tree_sha = assert_expected_base(pat, repo, branch, expected_base)
+    else:
+        base_commit_sha, base_tree_sha = get_base_ref(pat, repo, branch)
     print(f"  base commit: {base_commit_sha[:8]}  base tree: {base_tree_sha[:8]}")
 
     if dry_run:
@@ -1810,12 +2279,30 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
         return {"ok": True, "count": 0, "commit": None, "skipped": len(unchanged),
                 "files": [], "skipped_files": [p for p, _, _ in unchanged]}
 
-    modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
+    modes, tree_shas, truncated = remote_tree_modes(pat, repo, base_tree_sha)
+    # STOP-on-drift: sha живого чтения (`split_unchanged`, Contents API на
+    # МЕНЯЮЩЕЙСЯ ветке) обязана совпадать с sha того же пути в ПИНОВАННОЙ базе
+    # (`base_tree_sha`, прочитана раньше и больше не читается заново). Разошлись
+    # → между двумя чтениями remote сдвинулся — отказ, без ре-базы. В строгом
+    # режиме (пункт (e)) граница шире: провал живого чтения известного пути и
+    # появление пути ПОСЛЕ пина — тоже отказ (а не «не измерено — пропустить»).
+    strict_base = expected_base is not None
+    assert_base_tree_matches(changed, tree_shas, truncated, base_tree_sha, strict=strict_base)
 
     # Шаг 3: blobs (+ режим существующего файла сохраняется как есть,
-    # + страж перезаписи: чужая правка не стирается молча)
+    # + страж перезаписи: чужая правка не стирается молча). Строгий режим,
+    # пункт (b): страж сравнивает с sha ИЗ ПИНОВАННОГО дерева, не с живой.
+    #
+    # `verify_sink` (ре-ревью, раунд 3, P3/инв. #17): каждый blob и финальный
+    # ref добавляют СВОЙ вердикт («match»/«unmeasured» — «mismatch» уже поднял
+    # бы исключение выше). Итог — в возвращаемом `"verified"`, который дальше
+    # читает `_push_file_via_batch`: «match» только если ВСЁ было измеримо и
+    # совпало, иначе «unmeasured» — три исхода, не два (инвариант #17).
+    verify_sink: list = []
     entries = build_entries(pat, repo, branch, changed, modes, truncated,
-                            allow_overwrite, allow_name_loss, allow_stale_base)
+                            allow_overwrite, allow_name_loss, allow_stale_base,
+                            strict_base=strict_base, tree_shas=tree_shas,
+                            verify_sink=verify_sink)
 
     # Шаг 4: tree
     new_tree_sha = create_tree(pat, repo, base_tree_sha, entries)
@@ -1831,38 +2318,69 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
     # чтением базы и PATCH (в этом репо такой писатель есть: autopush + дневной
     # цикл). Ветка только на 409 не срабатывала бы на реальном коде ошибки.
     try:
-        update_ref(pat, repo, branch, new_commit_sha)
+        update_ref(pat, repo, branch, new_commit_sha, verify_sink=verify_sink)
     except urllib.error.HTTPError as e:
+        if expected_base is not None and e.code in (409, 422):
+            # Строгий режим, пункт (d): origin сдвинулся ПОСЛЕ `--expected-base` —
+            # ровно то, что строгий режим обещал поймать. STOP, без пересборки:
+            # «попробовать снова на свежей базе» было бы ре-базой под другим именем.
+            raise BaseDriftRefused(
+                f"HTTP {e.code} при обновлении ref — origin сдвинулся ПОСЛЕ "
+                f"`--expected-base {expected_base}` (не fast-forward). Строгий "
+                f"режим не пересобирает и не ретраит. STOP (fail-CLOSED, "
+                f"инвариант #2).\n"
+                f"Что делать: перечитать кандидата со свежего origin и повторить "
+                f"с новым `--expected-base`.") from e
         if e.code in (409, 422):
             body = e.read().decode(errors="replace")
             print(f"  HTTP {e.code} stale ref: {body[:200]} — пересобираю на свежей базе...")
             # Пересобираем коммит поверх свежего HEAD (база сдвинулась). Режимы
             # перечитываем на СВЕЖЕМ дереве: параллельный писатель мог менять и их.
             fresh_base_commit, fresh_base_tree = get_base_ref(pat, repo, branch)
-            fresh_modes, fresh_truncated = remote_tree_modes(pat, repo, fresh_base_tree)
+            fresh_modes, fresh_tree_shas, fresh_truncated = remote_tree_modes(
+                pat, repo, fresh_base_tree)
             # Содержимое пересобираем ТОЖЕ: параллельный писатель мог тронуть
             # наши пути, и старые blob'ы стёрли бы его правку (страж внутри).
             fresh_changed = [(rp, ap, get_file_sha(pat, repo, rp, branch))
                              for rp, ap, _ in changed]
+            # Тот же STOP-on-drift и на пересборке: свежая база только что
+            # пинована, а sha файлов — живое чтение сразу после неё; разошлись →
+            # remote сдвинулся СНОВА в этом же узком окне — отказ, без ре-базы.
+            assert_base_tree_matches(fresh_changed, fresh_tree_shas,
+                                     fresh_truncated, fresh_base_tree)
             # Согласия автора обязаны пережить ПОВТОР. Прежде здесь ехал один
             # `allow_overwrite`, а `allow_name_loss` молча возвращался к умолчанию —
             # «половина инъекции» (#573). Направление было безопасным (страж
             # становился строже, а не мягче), поэтому аварии отсюда не случилось;
             # но путь этот — ровно тот, где рядом пишет параллельная сессия.
+            #
+            # Свежий `verify_sink`: вердикты ПЕРВОЙ попытки — про blob'ы-сироты,
+            # которые в финальное дерево не попали; мешать их с вердиктами
+            # ПРИЗЕМЛИВШЕГОСЯ коммита значило бы судить не о том, что доехало.
+            verify_sink = []
             entries = build_entries(pat, repo, branch, fresh_changed,
                                     fresh_modes, fresh_truncated, allow_overwrite,
-                                    allow_name_loss, allow_stale_base)
+                                    allow_name_loss, allow_stale_base,
+                                    verify_sink=verify_sink)
             new_tree_sha = create_tree(pat, repo, fresh_base_tree, entries)
             new_commit_sha = create_commit(pat, repo, message, new_tree_sha, fresh_base_commit)
             print(f"  recommit {new_commit_sha[:8]} (parent {fresh_base_commit[:8]})")
-            update_ref(pat, repo, branch, new_commit_sha)
+            update_ref(pat, repo, branch, new_commit_sha, verify_sink=verify_sink)
         else:
             raise
+
+    # Агрегат — "match" ТОЛЬКО если каждый вердикт в sink'е "match"; пустой
+    # sink (теоретически невозможен здесь — хотя бы один blob и ref всегда
+    # есть, раз `changed` не пуст) честно читается как "unmeasured", а не
+    # как "match по умолчанию".
+    verified = ("match" if verify_sink and all(v["state"] == "match" for v in verify_sink)
+               else "unmeasured")
 
     return {"ok": True, "count": len(changed), "commit": new_commit_sha,
             "tree": new_tree_sha, "skipped": len(unchanged),
             "files": [p for p, _, _ in changed],
-            "skipped_files": [p for p, _, _ in unchanged]}
+            "skipped_files": [p for p, _, _ in unchanged],
+            "verified": verified}
 
 
 ADR_INTERLOCK_EXIT = 7
@@ -2094,6 +2612,17 @@ def main():
     parser.add_argument("--message", "-m", default=None, help="Commit message (авто-генерируется если не указан)")
     parser.add_argument("--repo", default=REPO, help=f"Репо (default: {REPO})")
     parser.add_argument("--branch", default="main", help="Целевая ветка (default: main)")
+    parser.add_argument("--expected-base",
+                        help="СТРОГИЙ режим (owner decision, независимые ревью ddc680757/86eefa152): "
+                             "ПОЛНАЯ 40-hex sha коммита (короче — отказ, именованный, до сети), "
+                             "который живой HEAD --branch ОБЯЗАН совпасть с ДО единой записи. "
+                             "Один файл в этом режиме ВСЕГДА идёт через Git Data API (как батч) — "
+                             "Contents API не пинует родителя. STOP-on-drift без авто-ребейза — "
+                             "расхождение, 409/422 и неизмеренный live-sha ВСЕ становятся "
+                             "отказом, а не попыткой подстроиться; --dry-run тоже сверяет живой "
+                             "HEAD. Не передан (умолчание) → поведение НЕ МЕНЯЕТСЯ: прежний "
+                             "rebase_append/409-пересборка, на которые полагаются "
+                             "автономные циклы. `--allow-overwrite` эти отказы НЕ снимает.")
     parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
     parser.add_argument("--allow-overwrite", action="store_true",
@@ -2245,7 +2774,8 @@ def main():
             result = batch_push(pat, all_files, message, args.repo, args.branch,
                                 allow_overwrite=allow_overwrite,
                                 allow_name_loss=allow_name_loss,
-                                allow_stale_base=allow_stale_base)
+                                allow_stale_base=allow_stale_base,
+                                expected_base=args.expected_base)
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")
             print(f"\nFAIL HTTP {e.code}: {body[:500]}")
@@ -2276,11 +2806,11 @@ def main():
     for f in all_files:
         r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
                       allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
-                      allow_stale_base=allow_stale_base)
+                      allow_stale_base=allow_stale_base, expected_base=args.expected_base)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
-                print(f"  {r['path']} → {r['action']}")
+                print(f"  {r['path']} → {r.get('action', '(план не назван)')}")
             elif r.get("skipped"):
                 print(f"  SKIP {r['path']} (unchanged, sha: {r.get('sha', '?')})")
             else:

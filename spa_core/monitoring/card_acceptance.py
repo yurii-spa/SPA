@@ -3439,6 +3439,12 @@ def _probe_ci_main_verdict_green(arg: str | None, *, repo_root: str | None = Non
 PR_DELIVERY_MODULE_NAME = "_spa_pr_delivery_census"
 
 
+class _PrFetchFailed(Exception):
+    """`_probe_pr_work_arrived_on_main`'s `_fetch` closure signals "no response" —
+    specific, not `RuntimeError`/`Exception` (gate #1/7 `pre_commit_check.sh`). Only
+    ever caught by `except Exception` in `scripts/pr_delivery_census.py`."""
+
+
 def _pr_delivery_module():
     """Перепись доставки PR как модуль: один раз на процесс."""
     import importlib.util
@@ -3514,7 +3520,11 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
     def _fetch(url):
         data, why = (fetch or _github_json)(url)
         if data is None:
-            raise RuntimeError(why or "ответа нет")
+            # Специфичный класс, не generic Exception/RuntimeError (gate #1/7
+            # `scripts/pre_commit_check.sh`, «No bare exceptions»). Поведение не
+            # меняется: единственные читатели — `open_pulls`/`added_paths`
+            # (`scripts/pr_delivery_census.py`), ловящие `except Exception` широко.
+            raise _PrFetchFailed(why or "ответа нет")
         return data
 
     door = exists_on_base or M.git_base_door(root)
@@ -4411,6 +4421,45 @@ def _probe_curated_facts_usable(arg: str | None, *, facts_path: "str | None" = N
     return SATISFIED, f"годны все {len(wanted)} названных фактов (проверены независимо, привязаны к содержимому)"
 
 
+def _probe_problem_absent(arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий C6 (ADR-580 §C6, REVIEW_1 amendment): Problem `arg` (= `problem_id`,
+    `spa_core.monitoring.problem_store`) ЗАКРЫТА — RCA записан И условие не наблюдалось
+    `close_absent_streak` прогонов подряд.
+
+    Три исхода:
+    * `arg` пуст, либо `data/problems.json` не прочитан, либо в нём нет записи с таким
+      `problem_id` ⇒ `unmeasured` (пустое/отсутствующее НЕ читается как «закрыто» —
+      инвариант #17);
+    * статус `INCIDENT`/`OPEN`/`MITIGATED` (условие живо и/или RCA не записан) ⇒
+      `not_satisfied`;
+    * статус `CLOSED` ⇒ `satisfied`.
+
+    Сравнение id — точное (поиск по `problem_id`, не подстрокой, ADR-333).
+    """
+    if not arg:
+        return UNMEASURED, ("пробе нужен id проблемы "
+                            "(acceptance_probe: problem_absent:<problem_id>)")
+    try:
+        from spa_core.monitoring import problem_store
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «закрыто»
+        return UNMEASURED, f"problem_store не импортирован: {type(exc).__name__}: {exc}"
+    base = _pathlib.Path(data_dir) if data_dir else _pathlib.Path(REPO_ROOT) / "data"
+    store = problem_store.load_store(base)
+    problems = store.get("problems") if isinstance(store, dict) else None
+    if not isinstance(problems, dict):
+        return UNMEASURED, f"{base / problem_store.OUTPUT_FILENAME} не прочитан — НЕ ИЗМЕРЕНО"
+    entry = next((p for p in problems.values()
+                 if isinstance(p, dict) and p.get("problem_id") == arg), None)
+    if entry is None:
+        return UNMEASURED, (f"проблема {arg!r} не найдена в "
+                            f"{base / problem_store.OUTPUT_FILENAME} — НЕ ИЗМЕРЕНО")
+    status = entry.get("status")
+    if status == problem_store.STATUS_CLOSED:
+        return SATISFIED, (f"проблема {arg!r} CLOSED: rca записан, условие отсутствовало "
+                           f"{entry.get('consecutive_absences')} прогон(ов) подряд")
+    return NOT_SATISFIED, f"проблема {arg!r} в статусе {status!r} — не закрыта"
+
+
 # ── проба: знаменатель ряда G78…G98 ИЗМЕРЕН и доехал до читателя ─────────────
 def measure_series_denominator(root=None, artifact=None) -> dict:
     """Поправка к знаменателю ряда: ЖИВОЙ замер против того, что видит читатель.
@@ -4593,6 +4642,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_subject_taking_leaves_a_guard_receipt,
     "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
     "curated_facts_usable": _probe_curated_facts_usable,
+    "problem_absent": _probe_problem_absent,
 }
 
 

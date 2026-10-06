@@ -17,7 +17,12 @@ Status vocabulary per criterion:
   * ``PASS`` — criterion satisfied.
   * ``WARN`` — soft concern (e.g. negative Sharpe); counts as half credit.
   * ``FAIL`` — criterion violated.
-  * ``SKIP`` — required data not available; excluded from the score denominator.
+  * ``SKIP`` — required data not available; excluded from the score denominator. This is
+    also the outcome for a source that EXISTS but is FROZEN beyond its own freshness —
+    ADR-580 §C3 names this explicitly: "a criterion reading a frozen file must report
+    UNKNOWN, not PASS" (see C013 below). Here that third outcome is spelled ``SKIP``, the
+    status this module already uses for "measured nothing, don't credit it" (inv. #17) —
+    not a new literal string, the same one, applied to a case it was always meant to cover.
 
 Verdict logic:
   * ``READY``       — every blocker criterion PASS and score ≥ 0.75.
@@ -46,6 +51,16 @@ MIN_WIN_RATE_PCT = 40.0
 MAX_DRAWDOWN_PCT = 5.0
 MAX_CURRENT_DRAWDOWN_PCT = 10.0
 MIN_SPRINT_COMPLETED = 3.80  # "v3.80"
+
+# C013 (ADR-580 §C3 / REVIEW_1 §3, 2026-10-05): KANBAN.json was measured FROZEN since
+# 2026-07-17 — a dead file was holding this criterion PASS forever ("fake DONE"). The
+# rule is about the OBSERVATION's age, not the sprint number's: a readiness criterion
+# for real money that goes green from a file nobody has touched in ~80 days is the same
+# "fake DONE" class as the old C012 (ADR-366) — a check for PROOF OF WORK, not a wire to
+# any particular sprint label. 30 days mirrors MIN_PAPER_DAYS below: long enough that a
+# single missed dev-progress update does not flap the criterion, short enough that a
+# truly abandoned file cannot hide behind PASS indefinitely.
+KANBAN_MAX_AGE_DAYS = 30
 MIN_ADAPTERS_WITH_APY = 2
 
 # Score thresholds for the verdict bands.
@@ -353,18 +368,77 @@ class ReadinessChecker:
         # механизм `push_v*.sh` пуст по устройству.
         out.append(self._autopush_alive())
 
-        # C013 — KANBAN sprint_completed ≥ v3.80.
+        out.append(self._check_sprint_completed())
+
+        return out
+
+    def _check_sprint_completed(self) -> _Result:
+        """C013 — KANBAN.json sprint_completed ≥ v3.80, but ONLY from an observation that
+        is still alive (ADR-580 §C3): "a criterion reading a frozen file must report
+        UNKNOWN, not PASS". REVIEW_1 (RM-TRUTH-01, 2026-10-05) measured KANBAN.json frozen
+        since 2026-07-17 — ~80 days of this criterion PASSing from a file nobody had
+        touched, which is indistinguishable from the ADR-366 "file lying on disk" defect
+        C012 was fixed for in the opposite direction (a FILE present vs. a FILE stale).
+        """
         kanban = self._read_json_root("KANBAN.json")
         sprint = kanban.get("sprint_completed") if isinstance(kanban, dict) else None
         ver = self._parse_sprint(sprint)
         if ver is None:
-            out.append(self._r("C013", "SKIP", "sprint_completed unreadable"))
-        elif ver >= MIN_SPRINT_COMPLETED:
-            out.append(self._r("C013", "PASS", f"sprint_completed = {sprint} (≥ v3.80)"))
-        else:
-            out.append(self._r("C013", "FAIL", f"sprint_completed = {sprint} (< v3.80)"))
+            return self._r("C013", "SKIP", "sprint_completed unreadable")
 
-        return out
+        # F12 (integration review, 2026-10-05): freshness here MUST come from the
+        # content's own timestamp (``last_updated``/``generated_at``), never the
+        # file's mtime. A git checkout, a mirror sync (CLAUDE.md §1) or a fresh
+        # worktree all reset mtime to "now" without touching the content — so a
+        # KANBAN.json frozen for months would read as fresh and this criterion
+        # would go back to silently PASSing exactly the "fake DONE" class ADR-580
+        # §C3 wrote this criterion to catch. Missing/unreadable timestamp ⇒ SKIP
+        # with a named reason, not a guess either way.
+        age_days = self._content_age_days(kanban, ("last_updated", "generated_at"))
+        if age_days is None:
+            return self._r(
+                "C013", "SKIP",
+                "НЕ ИЗМЕРЕНО: KANBAN.json не несёт ни last_updated, ни generated_at — "
+                "свежесть по mtime не считается (git checkout/sync переставляют mtime "
+                "без изменения содержимого, ADR-580 §C3)")
+        if age_days > KANBAN_MAX_AGE_DAYS:
+            return self._r(
+                "C013", "SKIP",
+                f"НЕ ИЗМЕРЕНО: KANBAN.json заморожен {age_days}д (> {KANBAN_MAX_AGE_DAYS}д) — "
+                f"sprint_completed={sprint} не засчитан (ADR-580 §C3: замороженный файл ⇒ "
+                f"UNKNOWN, не PASS)")
+        if ver >= MIN_SPRINT_COMPLETED:
+            return self._r("C013", "PASS", f"sprint_completed = {sprint} (≥ v3.80)")
+        return self._r("C013", "FAIL", f"sprint_completed = {sprint} (< v3.80)")
+
+    def _content_age_days(self, doc, keys: tuple[str, ...]) -> int | None:
+        """Age in days of the FIRST readable timestamp among ``keys`` inside ``doc``,
+        measured against ``self.today`` (the injected clock — deployment.md "time is
+        an input"), never mtime (F12, integration review 2026-10-05): mtime answers
+        "when did a byte on this filesystem last change", not "how old is this
+        content" — a git checkout, a mirror sync or a fresh worktree reset mtime to
+        "now" without the content moving at all, which is precisely the gap a frozen-
+        file criterion must not have. Missing/unreadable ⇒ ``None`` (SKIP, not a
+        guessed age in either direction).
+
+        A timestamp AFTER ``self.today`` (e.g. a fixture written at real test-run
+        time while ``today`` is pinned earlier) clamps to 0: "fresh", not a negative
+        age that would read as fresher-than-fresh.
+        """
+        if not isinstance(doc, dict):
+            return None
+        for key in keys:
+            raw = doc.get(key)
+            if not isinstance(raw, str) or not raw:
+                continue
+            try:
+                ts = datetime.fromisoformat(raw)
+            except ValueError:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return max((self.today - ts.date()).days, 0)
+        return None
 
     def _read_json_root(self, name: str):
         """Read a JSON file at the project root (not under data/)."""

@@ -133,6 +133,16 @@ except Exception:                          # noqa: BLE001 — never let an impor
                 return float(v)
         return None
 
+# F9 (ADR-580 §C10, REVIEW_1 amendment): имя значения берётся у ПИСАТЕЛЯ
+# (`resilience_status.OVERALL_SAME_HOST`), а не своим литералом — иначе
+# переименование значения там разошлось бы с чтением здесь молча.
+try:
+    from spa_core.monitoring.resilience_status import (
+        OVERALL_SAME_HOST as _RESILIENCE_SAME_HOST,
+    )
+except Exception:                          # noqa: BLE001 — импорт не важнее пульса флота
+    _RESILIENCE_SAME_HOST = "SAME_HOST"
+
 
 def _worst(*statuses: str) -> str:
     """Return the highest-severity status among the args."""
@@ -492,8 +502,56 @@ def _regex_plist_fallback(path: Path) -> dict:
     return out
 
 
+def _calendar_entry_category(entry: dict) -> str:
+    """Classify ONE ``StartCalendarInterval`` dict (never an array — see
+    ``classify_agent``) by which keys it carries.
+
+    Shared by the single-dict path and the array path below, so the two can
+    never silently diverge on the same entry shape.
+    """
+    # Specific date (Month + Day) → one-time job, no freshness alarm
+    if "Month" in entry and "Day" in entry:
+        return CAT_ONE_TIME
+    # Weekly schedule (Weekday key)
+    if "Weekday" in entry:
+        return CAT_WEEKLY
+    # `Day` WITHOUT `Month` is launchd's day-of-MONTH: "the 1st of every month".
+    # It used to fall through to CAT_DAILY, which asks a monthly producer a daily
+    # question and pins it to a permanent false CRITICAL (see _FRESHNESS_THRESHOLD_MIN).
+    if "Day" in entry:
+        return CAT_MONTHLY
+    return CAT_DAILY
+
+
+# Tightness rank for picking the category of a MULTI-entry schedule — lower is
+# tighter (fires more often). A union of schedules fires at least as often as
+# its tightest member, so the WHOLE agent must be judged by that member, never
+# by an arbitrary one (RM-TRUTH-01 A4 reliability finding #2 / REVIEW_1 #2):
+# `com.spa.novel_edge_rnd`'s plist is an ARRAY of two Weekday dicts (Tue+Fri),
+# which used to miss the ``isinstance(cal, dict)`` branch entirely and fall
+# through to CAT_DAILY — a permanent false CRITICAL every Fri→Tue gap (2.2
+# days > the 26h daily threshold, by construction, forever). The naive
+# opposite fix ("array ⇒ weekly") is ALSO wrong and was refuted by
+# REVIEW_1 #2: `com.spa.aggressive_lab` is an array of four same-day Hour
+# entries (0/6/12/18h) — calling that "weekly" would fail-OPEN a 6-hourly
+# agent for up to two weeks before it alarms.
+_CATEGORY_TIGHTNESS = {
+    CAT_DAILY: 0,
+    CAT_WEEKLY: 1,
+    CAT_MONTHLY: 2,
+    CAT_ONE_TIME: 3,
+}
+
+
 def classify_agent(plist: Optional[dict]) -> str:
-    """Map a plist's schedule to a freshness category."""
+    """Map a plist's schedule to a freshness category.
+
+    ``StartCalendarInterval`` may be a single dict OR an array of dicts
+    (launchd fires the job at the union of every entry). An array is
+    classified by its TIGHTEST entry — see ``_CATEGORY_TIGHTNESS`` — never by
+    a fixed rule like "array ⇒ weekly", which would hide a stale high-cadence
+    agent behind a week-long grace window.
+    """
     if not plist:
         return CAT_ON_DEMAND
     if plist.get("KeepAlive"):
@@ -506,21 +564,78 @@ def classify_agent(plist: Optional[dict]) -> str:
             return CAT_MID_FREQ
         return CAT_DAILY
     cal = plist.get("StartCalendarInterval")
-    if cal is not None:
-        if isinstance(cal, dict):
-            # Specific date (Month + Day) → one-time job, no freshness alarm
-            if "Month" in cal and "Day" in cal:
-                return CAT_ONE_TIME
-            # Weekly schedule (Weekday key)
-            if "Weekday" in cal:
-                return CAT_WEEKLY
-            # `Day` WITHOUT `Month` is launchd's day-of-MONTH: "the 1st of every month".
-            # It used to fall through to CAT_DAILY, which asks a monthly producer a daily
-            # question and pins it to a permanent false CRITICAL (see _FRESHNESS_THRESHOLD_MIN).
-            if "Day" in cal:
-                return CAT_MONTHLY
-        return CAT_DAILY
-    return CAT_ON_DEMAND
+    if cal is None:
+        return CAT_ON_DEMAND
+    if isinstance(cal, dict):
+        return _calendar_entry_category(cal)
+    if isinstance(cal, list):
+        entries = [e for e in cal if isinstance(e, dict)]
+        if not entries:
+            # Malformed/empty array — fail-CLOSED to the tightest category so
+            # a schedule we cannot read gets the SHORTEST grace window, not
+            # the longest.
+            return CAT_DAILY
+        cats = {_calendar_entry_category(e) for e in entries}
+        return min(cats, key=lambda c: _CATEGORY_TIGHTNESS[c])
+    # Unknown shape (neither dict nor list) — same fail-CLOSED choice.
+    return CAT_DAILY
+
+
+def _weekly_entries_max_gap_minutes(entries: List[dict]) -> Optional[int]:
+    """Largest circular gap (minutes) between consecutive weekly firings.
+
+    ``entries`` is the array of ``StartCalendarInterval`` dicts that carry a
+    ``Weekday`` key (callers filter first). Several weekdays in one array
+    (e.g. Tue+Fri) make the REAL worst-case gap shorter than a flat 7 days —
+    judging such an agent by the single-weekday 7-day threshold would miss a
+    genuinely missed run for up to a week (REVIEW_1 #2). Returns ``None`` when
+    there is nothing usable to compute from (caller then keeps the flat
+    CAT_WEEKLY default).
+
+    launchd/Apple Weekday convention: 0 and 7 both mean Sunday — normalised
+    with ``% 7`` so both spellings land on the same slot.
+    """
+    times_of_week: List[int] = []
+    for entry in entries:
+        wd = entry.get("Weekday")
+        if wd is None:
+            continue
+        try:
+            wd = int(wd) % 7
+            hour = int(entry.get("Hour", 0) or 0)
+            minute = int(entry.get("Minute", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        times_of_week.append(wd * 24 * 60 + hour * 60 + minute)
+    if not times_of_week:
+        return None
+    times_of_week = sorted(set(times_of_week))
+    week_min = 7 * 24 * 60
+    if len(times_of_week) == 1:
+        return week_min
+    gaps = [b - a for a, b in zip(times_of_week, times_of_week[1:])]
+    gaps.append(week_min - times_of_week[-1] + times_of_week[0])
+    return max(gaps)
+
+
+def weekly_freshness_threshold_min(plist: Optional[dict]) -> int:
+    """The WARNING threshold (minutes) for a CAT_WEEKLY agent.
+
+    Single-Weekday schedules keep the existing flat 7-day window
+    (``_FRESHNESS_THRESHOLD_MIN[CAT_WEEKLY]``, unchanged). A multi-Weekday
+    array schedule (e.g. Tue+Fri) gets the MEASURED worst-case gap instead —
+    computing it once here, next to ``classify_agent``, so the check loop
+    never has to re-derive it and the two cannot drift apart.
+    """
+    default = _FRESHNESS_THRESHOLD_MIN[CAT_WEEKLY]
+    if not plist:
+        return default
+    cal = plist.get("StartCalendarInterval")
+    if not isinstance(cal, list):
+        return default
+    entries = [e for e in cal if isinstance(e, dict) and "Weekday" in e]
+    gap = _weekly_entries_max_gap_minutes(entries)
+    return gap if gap is not None else default
 
 
 def plist_log_path(plist: Optional[dict]) -> Optional[str]:
@@ -740,6 +855,28 @@ def judge_lock_refusal(data_dir: Optional[Path], now: datetime,
                        "отказ не защитил трек, он его заменил")
 
 
+def _retired_but_loaded(label: str, entry: dict) -> AgentHealth:
+    """A ``RETIRED_LABELS`` agent that launchd STILL has loaded.
+
+    C11 (ADR-580, RM-TRUTH-01): "Retired" means unloaded AND recorded —
+    retired-but-loaded is a violation, not a silent state. This is a WARNING
+    finding (advisory fleet hygiene, same severity class as fleet-parity
+    drift), never CRITICAL: the agent itself may be running cleanly, the
+    violation is that it is running AT ALL under a label this fleet declared
+    superseded.
+    """
+    health = AgentHealth(label=label, category=CAT_ON_DEMAND)
+    health.loaded = True
+    health.pid = int(entry.get("pid") or 0)
+    health.last_exit = entry.get("exit")
+    health.status = WARNING
+    health.issue = (
+        "retired_but_loaded — label is in RETIRED_LABELS but launchctl still has it "
+        f"loaded (owner: launchctl bootout gui/$(id -u)/{label})"
+    )
+    return health
+
+
 # ===========================================================================
 # Per-agent check
 # ===========================================================================
@@ -885,7 +1022,11 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         logps = candidate_log_paths(label, plist, project_root)
         age = freshest_log_age_minutes(logps, now)
         health.log_age_min = age
-        threshold = _FRESHNESS_THRESHOLD_MIN[cat]
+        threshold = (
+            weekly_freshness_threshold_min(plist)
+            if cat == CAT_WEEKLY
+            else _FRESHNESS_THRESHOLD_MIN[cat]
+        )
         if not logps:
             # no log configured — can't assess freshness, leave as-is
             pass
@@ -1149,6 +1290,19 @@ def check_system(data_dir: Path, now: datetime,
                 "— DR proof-chain not fresh"
             )
             status = _worst(status, WARNING)
+        elif posture == _RESILIENCE_SAME_HOST:
+            # F9 (ADR-580 §C10 REVIEW_1): by construction (`resilience_status.build_posture`),
+            # overall == SAME_HOST only when EVERY drill/offsite PROOF already passed —
+            # the one and only thing missing is a truly remote destination. The old wording
+            # here ("DR drill/offsite not passing") was simply FALSE in this branch: it told
+            # the owner drills were failing when they were not. SAME_HOST is its own honest
+            # state (local backup survives file corruption, not losing this one Mac mini),
+            # never collapsed into the generic "proof failing" message.
+            issues.append(
+                "resilience posture SAME_HOST (offsite copy lives on the SAME host — "
+                "drills ARE passing; losing this Mac mini loses the backup too)"
+            )
+            status = _worst(status, WARNING)
         elif posture and posture != OK:
             issues.append(f"resilience posture {posture} (DR drill/offsite not passing)")
             status = _worst(status, WARNING)
@@ -1337,6 +1491,45 @@ def check_system(data_dir: Path, now: datetime,
         issues.append(
             "owner_decision_pending UNCHECKED: проверка «есть ли у остановки путь "
             "вверх» упала ({}) — это не «путь есть»".format(type(exc).__name__))
+        status = _worst(status, WARNING)
+
+    # --- отметки ИЗ БУДУЩЕГО (C3(d)/C8(d) ADR-580, инцидент INC-1) ----------
+    # G97-зонд в одноразовом дереве один раз УЖЕ увёл запись в прод:
+    # `owner_decision_pending.json` получил `generated_at: 2041-11-23` — якорь
+    # инъекции зонда — и простоял так 33 минуты, пока этот же монитор не
+    # перезаписал файл следующим циклом. Никто из соседей не умел ЭТО заметить:
+    # возраст файла (`file_age_minutes`) смотрит в прошлое, а отметка была из
+    # будущего. Чтение read-only (`future_stamp_detector`), три исхода (инв. #17).
+    checks["future_stamp_count"] = None
+    try:
+        from spa_core.monitoring.future_stamp_detector import (
+            CORRUPT as _FS_CORRUPT,
+            OWNER_CONTROL_FILES as _FS_OWNER_CONTROL_FILES,
+            UNCHECKED as _FS_UNCHECKED,
+            scan_data_dir as _scan_future_stamps,
+        )
+        # Область OWNER_CONTROL_HEALTH только (C3 ADR-580) — именно эти файлы, не весь
+        # `data_dir`: у `equity_curve_daily.json`/`resilience_status.json`/`fleet_parity.json`
+        # уже есть СВОЙ допуск (`CLOCK_SKEW_H` ниже и выше по этой же функции), и второй,
+        # более строгий вердикт по тому же факту был бы вторым источником правды (C1).
+        fs_doc = _scan_future_stamps(data_dir, now=now, filenames=list(_FS_OWNER_CONTROL_FILES))
+        checks["future_stamp_count"] = len(fs_doc.get("corrupt") or [])
+        if fs_doc.get("status") == _FS_CORRUPT:
+            names = ", ".join(c.get("path", "?") for c in (fs_doc.get("corrupt") or [])[:5])
+            issues.append(
+                f"ОТМЕТКА ИЗ БУДУЩЕГО: {checks['future_stamp_count']} артефакт(ов) с "
+                f"отметкой впереди часов больше чем на {fs_doc.get('skew_minutes')} мин "
+                f"({names}) — это ровно форма INC-1 (запись из песочницы ушла в прод)")
+            status = _worst(status, CRITICAL)
+            checks["critical_flags"] = int(checks.get("critical_flags") or 0) + 1
+        elif fs_doc.get("status") == _FS_UNCHECKED:
+            checks["future_stamp_count"] = None
+            log.info("future_stamp_detector UNCHECKED: %s", fs_doc.get("reason"))
+    except Exception as exc:  # noqa: BLE001 — fail-CLOSED, не тихий пропуск
+        log.warning("future_stamp_detector check failed: %s", exc)
+        issues.append(
+            "future_stamp_detector UNCHECKED: проверка отметок из будущего упала "
+            "({}) — это не «отметок из будущего нет»".format(type(exc).__name__))
         status = _worst(status, WARNING)
 
     # Стоп-кран — ФАКТ С ДИСКА, а не мнение других проверок. Файл-защёлка существует
@@ -1533,6 +1726,32 @@ def _issue_keys(report: dict) -> set:
     return keys
 
 
+def _stable_issue_keys(report: dict) -> set:
+    """Same SELECTION as ``_issue_keys`` (every agent/system issue currently
+    active), but the VALUE is a stable root-cause code
+    (``problem_store.cause_from_agent_issue``) instead of the raw issue text.
+
+    F1 (ADR-580 §C6, REVIEW_1 amendment): the raw text carries volatile
+    numbers (``log stale 3.3d`` → ``3.5d``, ``portfolio_health 70.0/100`` →
+    ``68.0/100``) that drift every run while the ROOT CAUSE is unchanged. A
+    dedup fingerprint built from that text re-pushes on every drift — the
+    exact 17×/day re-fire this function exists to kill. Occurrence counting
+    for a persisting cause belongs to Problem-store's own counter
+    (``data/problems.json``), not to a second Telegram message.
+    """
+    from spa_core.monitoring import problem_store as _ps
+
+    keys = set()
+    for a in report.get("agents", []):
+        if a.get("status") != OK and a.get("issue"):
+            cause = _ps.cause_from_agent_issue(a["issue"]) or "unknown"
+            keys.add(f"{a['label']}::{cause}")
+    for s in report.get("system_issues", []):
+        cause = _ps.cause_from_agent_issue(s) or "unknown"
+        keys.add(f"system::{cause}")
+    return keys
+
+
 def should_alert(current: dict, previous: Optional[dict]) -> Tuple[bool, List[str]]:
     """Decide whether to send a Telegram alert.
 
@@ -1556,8 +1775,33 @@ def should_alert(current: dict, previous: Optional[dict]) -> Tuple[bool, List[st
 # ===========================================================================
 # Telegram alert formatting
 # ===========================================================================
-def format_alert(report: dict) -> str:
-    """HTML Telegram message summarizing problems."""
+def _problem_ref_for_agent(a: dict, problem_records: dict) -> Optional[str]:
+    """Problem (ADR-580 §C6) соответствующая текущей строке алерта, если она уже
+    открыта — ПО ТОЙ ЖЕ нормализации, что строит сам `problem_store`, вызовом, а
+    не копией regex (иначе прибор и мерка разойдутся молча, см. правило site-numbers
+    про единственный адрес на значение)."""
+    if not problem_records:
+        return None
+    try:
+        from spa_core.monitoring import problem_store as _ps
+    except Exception:  # noqa: BLE001 — справочная ссылка не важнее самого алерта
+        return None
+    status = a.get("status")
+    cause = _ps.cause_from_agent_issue(a.get("issue") or "") or f"status_{str(status).lower()}"
+    key = _ps.problem_key(a.get("label", ""), cause)
+    p = problem_records.get(key)
+    if not isinstance(p, dict):
+        return None
+    return p.get("problem_id")
+
+
+def format_alert(report: dict, *, problem_records: Optional[dict] = None) -> str:
+    """HTML Telegram message summarizing problems.
+
+    ``problem_records`` — ``data/problems.json``'s ``"problems"`` dict (ADR-580 §C6),
+    read-only, optional. Когда строке алерта соответствует уже открытая Problem, в
+    строку добавляется её id — владелец видит, что это НЕ новый повод, а известная
+    повторяющаяся причина с карточкой."""
     overall = report.get("overall_status", OK)
     agents = report.get("agents", [])
     problems = [a for a in agents if a.get("status") != OK]
@@ -1573,7 +1817,11 @@ def format_alert(report: dict) -> str:
     for a in sorted(problems, key=lambda x: -_SEVERITY.get(x.get("status"), 0)):
         icon = "❌" if a.get("status") == CRITICAL else "⚠️"
         issue = a.get("issue") or a.get("status")
-        lines.append(f"{icon} {a['label']} — {issue}")
+        line = f"{icon} {a['label']} — {issue}"
+        pid = _problem_ref_for_agent(a, problem_records or {})
+        if pid:
+            line += f" [Problem {pid}]"
+        lines.append(line)
     # system issues
     for s in sys_issues:
         # WARN vs CRIT not tracked per-line; use ⚠️ unless mentions stale/critical
@@ -1588,7 +1836,24 @@ def format_alert(report: dict) -> str:
     return "\n".join(lines)
 
 
-def _push_via_policy(report: dict) -> bool:
+def _load_problem_records(data_dir: Path) -> dict:
+    """Read-only, best-effort: `data/problems.json`'s `"problems"` dict (ADR-580 §C6).
+
+    Never raises — a Problem-store read failure must not block the agent-health
+    alert it is only here to ANNOTATE. Returns ``{}`` on any failure (import, read,
+    bad shape) — an empty dict renders no ``[Problem …]`` tag, which is the correct
+    degrade: the alert still fires exactly as before C6 existed.
+    """
+    try:
+        from spa_core.monitoring import problem_store as _ps
+        store = _ps.load_store(data_dir)
+    except Exception:  # noqa: BLE001
+        return {}
+    problems = store.get("problems") if isinstance(store, dict) else None
+    return problems if isinstance(problems, dict) else {}
+
+
+def _push_via_policy(report: dict, data_dir: Optional[Path] = None) -> bool:
     """Route agent-health CRITICAL through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: agent_health no longer pushes directly. It pushes ONLY when
@@ -1599,6 +1864,30 @@ def _push_via_policy(report: dict) -> bool:
     states no longer push at all (their detail lives in the digest / on-demand
     ``/agents`` view); the monitor keeps WRITING agent_health.json regardless.
 
+    ADR-580 §C6 linkage (REVIEW_1 amendment, F1 fix): the push carries a
+    ``dedup_key`` built from ``_stable_issue_keys`` — root-CAUSE codes
+    (``problem_store.cause_from_agent_issue``), not raw issue text. That set is
+    unchanged while the SAME causes persist, EVEN AS the volatile numbers
+    inside their issue text drift (age, score, duration) — so a recurrence of
+    an already-open Problem stays silent exactly as the docstring always
+    claimed (edge-trigger, no new behaviour needed: the Problem's own
+    occurrence counter in ``data/problems.json`` is what tracks the
+    recurrence, not a second Telegram message). A GENUINELY NEW cause (a
+    different agent or a different cause_code — no Problem for it yet)
+    changes the fingerprint, so it still alerts, same as before C6 existed.
+    ``kill_switch`` and every other event_key never go through this function
+    at all — they are untouched.
+
+    One expected, acceptable re-push on first deploy: prod's
+    ``push_state.json`` currently stores ``fingerprint: null`` for
+    ``agent_health_critical`` (the pre-fix code never set one). The first run
+    after this fix computes a real, non-null fingerprint, which differs from
+    ``null`` by construction, so prod re-pushes ONE TIME even though the
+    underlying CRITICAL condition did not change. Every run after that is
+    silent again. This is not worth engineering around (it would mean
+    special-casing a stored ``None`` to mean "any fingerprint matches", which
+    would also hide a genuinely new first incident after a cold start).
+
     Returns whether a push was actually emitted. Fail-safe (never raises).
     """
     try:
@@ -1608,13 +1897,18 @@ def _push_via_policy(report: dict) -> bool:
         return False
 
     overall = report.get("overall_status", OK)
+    dd = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
     if overall == CRITICAL:
+        problem_records = _load_problem_records(dd)
+        dedup_key = "|".join(sorted(_stable_issue_keys(report))) or None
         return bool(
             push_policy.push_critical(
                 "agent_health_critical",
                 "CRITICAL",
                 "SPA Agent Health — CRITICAL",
-                format_alert(report),
+                format_alert(report, problem_records=problem_records),
+                dedup_key=dedup_key,
+                data_dir=dd,
             )
         )
     # Not critical anymore → emit the single edge-triggered RESOLVED (no-op if we
@@ -1624,6 +1918,7 @@ def _push_via_policy(report: dict) -> bool:
             "agent_health_critical",
             "SPA Agent Health — recovered",
             "All agents healthy again.",
+            data_dir=dd,
         )
     )
 
@@ -1673,6 +1968,16 @@ class AgentHealthMonitor:
             # Retired/superseded agents (e.g. bot_commands → telegram_bot) are not
             # part of the live fleet — skip so they neither false-flag nor count.
             if label in RETIRED_LABELS:
+                # C11 (ADR-580, RM-TRUTH-01): "retired" means unloaded AND
+                # recorded — a retired label launchd STILL has loaded is a real
+                # violation, not the normal idle state, and must stay visible.
+                # Before this check, the bare `continue` made a retired-but-loaded
+                # agent invisible to every one of agent_health's checks, not just
+                # the residency one: `com.spa.weekly_backup` sat loaded for weeks
+                # (A4/REVIEW_1 #12) while its own failing runs went unreported.
+                entry = launchctl.get(label)
+                if entry is not None:
+                    agents.append(_retired_but_loaded(label, entry))
                 continue
             plist, parse_ok = _load_plist(path)
             # `data_dir` — не украшение: без него отказ замка дневного цикла
@@ -1735,7 +2040,7 @@ class AgentHealthMonitor:
             report["alert_sent"] = False
             report["new_issues"] = new_issues
             if send:
-                ok = _push_via_policy(report)
+                ok = _push_via_policy(report, data_dir=self.data_dir)
                 report["alert_sent"] = bool(ok)
             self._write(report)
             return report
@@ -1866,6 +2171,42 @@ def _write_orphaned_pytest(data_dir: Path, report: Optional[dict] = None) -> Non
                     type(exc).__name__)
 
 
+def _write_problem_store(data_dir: Path) -> None:
+    """Side-car (ADR-580 §C6 Problem-store, REVIEW_1 amendment): recurring ops
+    failures get ONE record with a closing criterion + ONE agent-карточка instead
+    of a fresh Telegram alert every hour (owner spam measured in A4_reliability.md:
+    14+14 CRIT/recovered flaps, 7 "bootstrap failed" in 35 min).
+
+    Это НЕ новый агент (инвариант #12 — деплой owner-gated) и НЕ нагрузка на
+    `findings_bridge` (REVIEW_1 — он уже и есть писатель INC-1, 3ч+/3.8GB лог,
+    грузить его ЗАПРЕЩЕНО явно). Хвост выбран намеренно: `agent_health_monitor`
+    уже ходит ежечасно ровно в те источники, которые читает `problem_store`
+    (он сам производит `agent_health.json`, тот же каталог даёт
+    `system_health.json`/`site_freshness_report.json`/`self_heal_status.json`),
+    и уже несёт ровно такой side-car шаблон (`_write_fleet_economics`,
+    `_write_orphaned_pytest`) — try/except, честный отказ, пульс флота важнее.
+
+    Читает `agent_health.json`, который сам этот прогон только что записал
+    (`self._write` внутри `.run()` — до этого вызова), поэтому Problem по условию,
+    впервые увиденному В ЭТОМ прогоне, появится в `data/problems.json` уже сейчас,
+    а не через час.
+
+    Никогда не роняет монитор: пульс флота важнее Problem-стора.
+    """
+    try:
+        from spa_core.monitoring import problem_store
+        report = problem_store.run_once(data_dir)
+        if report.get("cards_created"):
+            log.warning("problem_store: открыто %d Problem(ы), карточки: %s",
+                        len(report["cards_created"]),
+                        [c["path"] for c in report["cards_created"]])
+        if "error" in report:
+            log.warning("problem_store отработал с ошибкой: %s", report["error"])
+    except Exception as exc:  # noqa: BLE001 — пульс флота важнее Problem-стора
+        log.warning("problem_store не отработал (%s) — пульс флота не затронут",
+                    type(exc).__name__)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -1887,6 +2228,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     report = monitor.run(send=send)
     _write_fleet_economics(Path(args.data_dir))
     _write_orphaned_pytest(Path(args.data_dir))
+    _write_problem_store(Path(args.data_dir))
     _print_summary(report)
     return 0  # always exit 0 (fail-safe daemon)
 

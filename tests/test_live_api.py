@@ -270,14 +270,35 @@ def test_books_combined_return_is_dollar_weighted_not_simple_average(client):
 
 
 def test_books_annualized_apy_computed_from_return_and_days(client):
+    """CHANGED 2026-10-05 (RM-TRUTH-01, ADR-580 C2; inv. #16 — намеренно, с причиной).
+
+    Прежняя версия закрепляла ровно дефект инвертированной лестницы: годовая ставка книги
+    выводилась ЛИНЕЙНО из ``seed_equity``/``equity``/``start_date`` без единой строки
+    истории и без порога зрелости — так Balanced/Aggressive показывали владельцу −4,4 % и
+    +1,4 % на четырёх днях (``docs/rm_truth/A3_product.md`` §2). Теперь ставка — тот же
+    расчёт, что и у публичного снимка (``sleeve_track_view``: только v2, только текущий
+    эксперимент, compound), и только с порога зрелости (ADR-531/548). Проверка в обе стороны:
+    без зрелой истории ставки НЕТ и статус «копится»; на 30 честных днях она есть и > 0.
+    """
     _write(client, "hy_paper_trading.json", {
         "seed_equity": 100000.0, "equity": 101000.0, "start_date": "2026-06-22",
     })
     body = client.get("/api/live/books").json()
-    apy = body["books"]["balanced"]["annualized_apy_pct"]
-    assert isinstance(apy, (int, float))
-    # 1% over ~68 days annualizes to well above 1% — sanity bound, not exact pin
-    assert apy > 1.0
+    book = body["books"]["balanced"]
+    assert book["annualized_apy_pct"] is None
+    assert book["annualized_apy_pct_rate"]["reportable"] is False
+
+    exp = "balanced-fixed-carry-v1@2026-10-02"
+    rows = [{"date": f"d{i:02d}", "equity": 100000.0 + 10.0 * i, "positions_count": 2,
+             "economics_model": "sleeve-econ-v2", "experiment_id": exp} for i in range(30)]
+    _write(client, "hy_paper_trading.json", {
+        "seed_equity": 100000.0, "equity": rows[-1]["equity"], "daily_history": rows,
+        "experiments": [{"experiment_id": exp, "status": "active"}],
+    })
+    book = client.get("/api/live/books").json()["books"]["balanced"]
+    assert isinstance(book["annualized_apy_pct"], (int, float))
+    assert book["annualized_apy_pct"] > 1.0
+    assert book["annualized_apy_pct_rate"]["reportable"] is True
 
 
 def test_data_file_rejects_traversal(client):

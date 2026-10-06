@@ -66,9 +66,15 @@ MUST_HAVE = [
 # but is NOT in MUST_HAVE: on a host where the Academy is not yet deployed the file
 # is simply absent and skipped — it must never fail-CLOSE the daily backup.
 # trading_research/evidence.db (ADR-525) is the forward-paper evidence ledger: append-only and
-# irreplaceable (a bar that closed cannot be observed again). Captured when present; market.db is
-# re-derivable from the exchange and deliberately not archived.
-_SQLITE_FILES = ("track.db", "academy.db", "trading_research/evidence.db")
+# irreplaceable (a bar that closed cannot be observed again). trading_research/market.db is the
+# raw OHLCV cache the candidates are scored against — individually re-derivable from the
+# exchange, which is why it was deliberately left out of this list originally. RM-TRUTH-01 /
+# ADR-580 C10 adds it anyway: it is one of the artifacts `com.spa.trading_research` declares in
+# its own PRODUCES contract (spa_core/trading_research/__main__.py), re-fetching it bar-by-bar
+# from the exchange after a host loss is slow and some venues rate-limit/rotate history, and a
+# restore that drops it silently breaks `evidence.db`'s foreign references to it until the
+# re-fetch catches up — cheap to carry, so carried.
+_SQLITE_FILES = ("track.db", "academy.db", "trading_research/evidence.db", "trading_research/market.db")
 
 
 class BackupIncompleteError(RuntimeError):
@@ -121,6 +127,19 @@ _PROOF_SUBTREES = (
     "rwa_backstop",      # (F) RWA-backstop NAV proof
     "paper_observations",  # (G) ADR-533: one line per scheduled run of the paper portfolios — the
                            #     evidence of the runs themselves (the books are top-level and covered)
+    # RM-TRUTH-01 / ADR-580 C10: the append-only ledgers of the three newer advisory engines
+    # (ADR-554/556/560) live one level deeper than the top-level glob reaches, exactly like
+    # the WS-8 subtrees above — and until now NONE of them were in this archive at all. The
+    # weekly_backup agent was the only thing that ever covered them, it is RETIRED (and its
+    # own replacement — daily_backup + dr_offsite_copy — never actually took over this part of
+    # its job), so losing weekly_backup's tar would have meant losing these ledgers outright.
+    # `architecture/provenance.json["append_only_ledgers"]` is the declared source of truth
+    # this list is checked against (spa_core/tests/test_dr_ledger_coverage.py).
+    "investment_cio",         # ADR-554: CIO cross-sleeve recommendation ledger + latest.json
+    "investment_cio_anchors",  # ADR-554 N3: the ledger's SIBLING external-anchor witness file —
+                               #     a ledger without its anchor can't prove it wasn't rewritten
+    "research_factory",       # ADR-560: candidate lifecycle ledger + index.json/status.json
+    "capital_shadow",         # ADR-556: shadow-execution ledger + latest.json
 )
 
 

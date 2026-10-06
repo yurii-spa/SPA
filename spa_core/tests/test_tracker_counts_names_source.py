@@ -102,6 +102,26 @@ class TestCountingItself(unittest.TestCase):
         """Молча выброшенная карточка исказила бы итог — она обязана попасть в свой класс."""
         self.assertEqual(self.m._status_of("# карточка без статуса"), "нет-статуса")
 
+    def test_a_status_line_in_the_BODY_is_not_counted(self):
+        """Многостатусная ловушка (C5, ADR-580): `inbox-ochered-*` несёт `status:` и во
+        frontmatter, и внутри тела (цитата/пример) — настоящий замер отвечает только
+        по frontmatter, а не по первому совпадению во всём файле."""
+        text = ("---\nstatus: ingested\n---\n\n"
+                "Пример карточки:\n```\nstatus: needs-owner\n```\n"
+                "И ещё одна цитата: `status: owner-done`.\n")
+        self.assertEqual(self.m._status_of(text), "ingested")
+
+    def test_a_status_line_before_frontmatter_opens_is_not_counted(self):
+        """Файл без frontmatter (не начинается с `---`) не имеет статуса — упоминание
+        `status:` в прозе не выдаёт себя за замер."""
+        self.assertEqual(self.m._status_of("просто текст status: done\n"), "нет-статуса")
+
+    def test_a_repeated_top_level_status_takes_the_last_write(self):
+        """Повторный top-level `status:` ВНУТРИ frontmatter — переписанное значение, как у
+        канонического парсера (`queue._parse_frontmatter`: словарь берёт последнее)."""
+        self.assertEqual(
+            self.m._status_of("---\nstatus: new\nstatus: in-progress\n---\n"), "in-progress")
+
 
 if __name__ == "__main__":
     unittest.main()

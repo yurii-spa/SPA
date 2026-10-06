@@ -96,6 +96,7 @@ from typing import Dict, List, Optional, Tuple
 
 from spa_core.monitoring import _artifact_stamp_clock_probe as probe
 from spa_core.monitoring import artifact_io_scan as io_scan
+from spa_core.utils import live_paths
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed
 
@@ -375,6 +376,14 @@ def is_own_sandbox(tree_root: Path) -> bool:
     return (Path(tree_root) / SANDBOX_MARKER).is_file()
 
 
+class SandboxBuildError(RuntimeError):
+    """Песочница прибора не может быть построена безопасно.
+
+    Именованный подкласс, а не безымянный стандартный тип — различим у
+    вызывающего и проходит гейт [1/7] `pre_commit_check.sh`.
+    """
+
+
 def make_sandbox(source: Path, box: Path) -> Path:
     """Скопировать в песочницу ровно то, что нужно замеру, и пометить её.
 
@@ -385,10 +394,10 @@ def make_sandbox(source: Path, box: Path) -> Path:
     src, dst = Path(source).resolve(), Path(box).resolve()
     if src == dst or str(dst).startswith(str(src) + os.sep) \
             or str(src).startswith(str(dst) + os.sep):
-        raise RuntimeError(f"песочница {dst} не изолирует источник {src}")
+        raise SandboxBuildError(f"песочница {dst} не изолирует источник {src}")
     if dst.exists() and any(dst.iterdir()):
-        raise RuntimeError(f"песочница {dst} уже непуста — чужие байты делают "
-                           "вердикт нечитаемым")
+        raise SandboxBuildError(f"песочница {dst} уже непуста — чужие байты делают "
+                                "вердикт нечитаемым")
     dst.mkdir(parents=True, exist_ok=True)
     for rel in SANDBOX_DIRS:
         origin = src / rel
@@ -411,7 +420,7 @@ def assert_disposable_tree(tree_root: Path, *, allow_live: bool = False) -> None
     # дерева: проверка выше отвечает раньше и отказывает на нём всегда.
     if "ГЛАВНОЕ" not in why and is_own_sandbox(Path(tree_root)):
         return
-    raise RuntimeError(f"зов производителей отказан: {why}")
+    raise SandboxBuildError(f"зов производителей отказан: {why}")
 
 
 # ── плечи ───────────────────────────────────────────────────────────────────────
@@ -436,6 +445,15 @@ def run_arm(plan: List[dict], tree_root: Path, *, inject: bool
         env[probe.ANCHOR_ENV] = ANCHOR
         env[probe.INJECT_ENV] = "1" if inject else "0"
         env[probe.TREE_ENV] = str(tree_root)
+        # C8(b) ADR-580 — реплей INC-1: без этих трёх строк производитель, который
+        # резолвит путь через `live_paths` без своего параметра, уводит запись в
+        # прод (`owner_decision_pending.json` получил отметку 2041 года). Приёмник
+        # (`live_paths.live_root`) теперь откажет САМ, если песочница всё равно не
+        # названа (C8(a)) — но починка здесь первична: пишем ВНУТРЬ дерева, а не
+        # просто громко падаем.
+        env[live_paths.SANDBOX_ENV] = "1"
+        env[live_paths.LIVE_ROOT_ENV] = str(tree_root)
+        env[live_paths.DATA_DIR_ENV] = str(Path(tree_root) / "data")
         env["PYTHONPATH"] = os.pathsep.join(
             [str(tree_root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
         died = None

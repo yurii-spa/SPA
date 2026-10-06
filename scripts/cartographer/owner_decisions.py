@@ -52,11 +52,15 @@ except ImportError:
 DOMAIN = 'STUDIO'
 
 #: Три предмета границы. Четвёртого нет; всё остальное решает агент.
+#: 'UNDECLARED' — не предмет и не его отрицание: карточка не объявила `subject:`
+#: вовсе, поэтому неизвестно, предмет это владельца или нет. Отличается от 'NONE'
+#: (эвристика посмотрела и не нашла ни одной приметы трёх предметов) — см. F2.
 SUBJECTS = {
     '1': 'движение настоящих денег',
     '2': 'публичные числа доходности, нейминг тиров, юридические формулировки',
     '3': 'необратимые действия',
     'NONE': 'ни один из трёх предметов — это дефект очереди, а не решение владельца',
+    'UNDECLARED': 'тема не объявлена во frontmatter — ждёт решения, не дефект очереди',
 }
 
 _FM = re.compile(r'^---\n(.*?)\n---', re.S)
@@ -122,9 +126,24 @@ def classify_item(item, *, stale_after_days=STALE_AFTER_DAYS):
     Порядок проверок намеренный. Принадлежность предмету решается раньше возраста:
     вопрос про настоящие деньги не перестаёт быть вопросом владельца от того, что он
     давно ждёт, — но его предпосылку надо перемерить, и это говорится отдельно.
+
+    ``'UNDECLARED'`` (найдено integration review F2, 2026-10-05) — ОТДЕЛЬНАЯ ветка от
+    ``'NONE'``. ``'NONE'`` — это ОТРИЦАТЕЛЬНЫЙ ответ эвристики других источников («ни
+    одна примета трёх предметов не найдена» — дефект очереди, работа агента).
+    ``'UNDECLARED'`` — это ОТСУТСТВИЕ ответа: карточка из трекера, у которой нет поля
+    `subject:` вовсе (сегодня — КАЖДАЯ реальная карточка `needs-owner`). Смешать их
+    значило бы классифицировать весь живой список вопросов владельцу как работу
+    агента и спрятать их из «ждёт вашего решения» — именно так и произошло ДО этой
+    правки (OWNER_DECISION_REQUIRED 2→0 на живом трекере). `UNDECLARED` поэтому падает
+    в `CLASS_UNKNOWN`, а не в `CLASS_SYSTEM`: карточка остаётся видимой владельцу
+    (Director показывает её в разделе «тема не объявлена»), не дефектом очереди.
     """
     subject = item.get('subject')
     age = item.get('age_days')
+    if subject == 'UNDECLARED':
+        return CLASS_UNKNOWN, ('карточка не объявила `subject:` во frontmatter — ждёт '
+                               'решения владельца, тема не объявлена; это НЕ дефект '
+                               'очереди и не работа агента (C5, ADR-580, F2)')
     if subject == 'NONE':
         return CLASS_SYSTEM, ('ни один из трёх предметов границы: это работа агента, '
                               'а не решение владельца')
@@ -189,11 +208,40 @@ def from_bridge_gates(db_path, *, now):
 
 def from_tracker(tracker_dir, *, now, families=('own', 'owner'),
                  waiting_statuses=('needs-owner',)):
-    """Карточки владельца. Статусы берутся ИЗ карточек, а не из головы."""
+    """Карточки владельца. Статусы берутся ИЗ карточек, а не из головы.
+
+    Тема (``subject``) — ОДНА общая функция с Mission Control (C5, ADR-580):
+    ``spa_core.owner_queue.subject``, читающая ОБЪЯВЛЕННОЕ поле ``subject:``
+    frontmatter, а не слова в заголовке. До этого у Director было СВОЁ угадывание
+    (``SUBJECT_HINTS``/``_subject_of``), и оно расходилось с Mission Control на тех
+    же карточках (замер A5_owner_control.md: «Закрыть три PR» получала разные темы
+    на двух экранах). ``_subject_of`` остаётся ниже для источников, у которых нет
+    frontmatter вовсе (гейты моста, KANBAN, json-флаги) — им эта правка не касается.
+    """
     root = Path(tracker_dir)
     if not root.is_dir():
         return {'source': 'tracker', 'state': 'NOT_MEASURED',
                 'reason': 'каталога карточек нет'}
+    # F15 (integration review, 2026-10-05): раньше `ImportError` тут молча падал на
+    # СТАРОЕ угадывание (`_subject_of`) — и поведение решал `sys.path` того, кто
+    # позвал функцию, а не код: один и тот же вызов отвечал по-разному из разных
+    # рабочих каталогов, причём молча, без единого слова об этом в результате.
+    # Сперва гарантируем КОРЕНЬ РЕПО в `sys.path` (путь от расположения ЭТОГО файла,
+    # а не от cwd вызывающего) — импорт тогда не зависит от того, как запущен
+    # скрипт. Если `spa_core.owner_queue.subject` всё равно не импортируется (пакет
+    # действительно сломан/отсутствует) — источник целиком отказывает НАЗВАННОЙ
+    # причиной (NOT_MEASURED), а не подставляет угадывание молча.
+    import sys as _sys
+    _repo_root = str(Path(__file__).resolve().parents[2])
+    if _repo_root not in _sys.path:
+        _sys.path.insert(0, _repo_root)
+    try:
+        from spa_core.owner_queue import subject as _subject_shared
+    except ImportError as exc:
+        return {'source': f'tracker:{"/".join(families)}-*', 'state': 'NOT_MEASURED',
+                'reason': (f'spa_core.owner_queue.subject не импортировался '
+                          f'({exc.__class__.__name__}: {exc}) — тема карточек НЕ '
+                          f'угадывается старой эвристикой вместо честного отказа (F15)')}
     rows, vocab = [], set()
     for path in sorted(root.glob('*.md')):
         family = path.stem.split('-')[0]
@@ -216,7 +264,9 @@ def from_tracker(tracker_dir, *, now, families=('own', 'owner'),
     waiting = [(n, f) for n, f in rows if f.get('status') in waiting_statuses]
     items = []
     for name, f in waiting:
-        subject, basis, why = _subject_of(f.get('title') or name)
+        # F15: импорт уже ПРОВЕРЕН выше (отказ NOT_MEASURED вместо угадывания) —
+        # к этой строке `_subject_shared` всегда модуль, ветки на `None` больше нет.
+        subject, basis, why = _subject_shared.director_subject(f)
         items.append({
             'source': f'tracker:{"/".join(families)}-*', 'ref': name,
             'title_ru': f.get('title') or name,

@@ -137,7 +137,7 @@ class FakeRemote:
         return _sha
 
     def get_file_content(self):
-        def _content(pat, repo, repo_path, branch="main"):
+        def _content(pat, repo, repo_path, branch="main", expected_sha=None):
             return self.files.get(repo_path)
         return _content
 
@@ -229,8 +229,15 @@ def test_parallel_append_is_not_lost_in_batch_push(ptg, monkeypatch, checkout, j
         if method == "GET" and "/git/commits/" in path:
             return {"tree": {"sha": "basetree"}}
         if method == "GET" and "/git/trees/" in path:
+            # sha ОБЯЗАНА быть настоящей (не плейсхолдером «x»*40): страж
+            # дрейфа (`assert_base_tree_matches`) сверяет её с живой sha из
+            # `get_file_sha` (тот же `remote.files["docs/journal.md"]`), и
+            # расхождение здесь читалось бы как «remote сдвинулся между
+            # пином базы и чтением файла» — хотя на самом деле это один и
+            # тот же remote, просто плейсхолдер.
+            pinned_sha = ptg.git_blob_sha(remote.files["docs/journal.md"])
             return {"tree": [{"path": "docs/journal.md", "mode": "100644",
-                              "type": "blob", "sha": "x" * 40}], "truncated": False}
+                              "type": "blob", "sha": pinned_sha}], "truncated": False}
         if method == "POST" and path.endswith("/git/blobs"):
             data = base64.b64decode(payload["content"])
             sha = ptg.git_blob_sha(data)

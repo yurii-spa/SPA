@@ -49,6 +49,23 @@ def test_nonok_posture_warns(tmp_path):
     assert any("resilience posture WARNING" in i for i in issues)
 
 
+def test_same_host_posture_does_not_claim_drills_are_failing(tmp_path):
+    """F9 (ADR-580 §C10, REVIEW_1 amendment): SAME_HOST means every proof
+    PASSED — the offsite destination just isn't truly remote. The old wording
+    ("DR drill/offsite not passing") was FALSE in this branch: it told the
+    owner drills were failing when they were not. SAME_HOST gets its own
+    honest sentence, never the generic failing-proof one."""
+    _write(tmp_path, 1.0, "SAME_HOST")
+    checks, status, issues = check_system(tmp_path, NOW, autopush_log=_NONE_LOG)
+    assert status == WARNING
+    assert checks["resilience_posture"] == "SAME_HOST"
+    same_host_issues = [i for i in issues if "SAME_HOST" in i]
+    assert same_host_issues, "SAME_HOST обязан быть назван в issues"
+    assert not any("not passing" in i for i in same_host_issues), (
+        "SAME_HOST не имеет права утверждать, что drill/offsite НЕ ПРОХОДЯТ — "
+        "по построению build_posture() они прошли")
+
+
 def test_missing_posture_file_is_not_falsely_flagged(tmp_path):
     # Consistent with the other system checks (all `if <loaded>:`) so sandbox/CI
     # fixtures without the file don't newly WARN; a truly-missing prod posture is

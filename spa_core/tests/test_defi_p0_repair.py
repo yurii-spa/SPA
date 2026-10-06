@@ -161,10 +161,47 @@ def test_snapshot_separates_post_fix_days_and_keeps_the_published_number(tmp_pat
     assert tr["post_fix"]["days"] == 3 and tr["post_fix"]["pre_fix_days"] == 5
     # Option A (owner, 2026-10-01): the published figure is the v2 figure; the pre-fix
     # period is a label without a number and never merged into the series.
-    assert tr["post_fix"]["apy_pct"] > 0 and tr["apy_pct"] == tr["post_fix"]["apy_pct"]
+    #
+    # CHANGED 2026-10-05 (ADR-580 C2, inv. #16 — explicit reason, not a silent weakening).
+    # Before this change ``apy_pct`` and ``post_fix.apy_pct`` were computed by the SAME
+    # >=2-bar rule and were therefore always equal. C2 adds a maturity gate
+    # (``REPORTABLE_AFTER`` = 30 honest bars, the canon in
+    # ``spa_core.defi_engine.package_status``) to the PUBLISHED ``apy_pct`` only — this
+    # repairs defect D6 (`docs/rm_truth/A3_product.md` §2.1 / `REVIEW_1.md` claim 11): the
+    # generator used to publish a rate from 2 bars while the page itself suppressed it
+    # below 30, and the undelivered 2026-10-04 shelf carried "Balanced -11.5%" on exactly
+    # 3 bars because of that split gate. ``post_fix`` stays ungated on purpose: it is an
+    # AUDIT figure (no page reads it — verified by grep, RM-TRUTH-01 workstream W4), and an
+    # auditor needs the raw v2 number even before it is fit to publish. So with 3 v2 bars
+    # (< 30) the two numbers now correctly DIVERGE: post_fix still shows the raw figure,
+    # the published apy_pct is None + reportable=False until maturity.
+    assert tr["post_fix"]["apy_pct"] > 0
+    assert tr["apy_pct"] is None and tr["reportable"] is False
+    assert tr["reportable_after"] == 30
     assert tr["days_with_positions"] == 3 and tr["pre_fix_period"]["days"] == 5
     assert tr["nav_usd"] is None
     assert tr["economics_model_boundary"]["first_v2_date"] == "e0"
+
+
+def test_published_apy_matches_post_fix_once_it_reaches_maturity():
+    """Положительный контроль РЯДОМ с предыдущим: на 30 честных v2-барах равенство,
+    которое прежний тест проверял безусловно, ВОЗВРАЩАЕТСЯ — C2 не разводит числа
+    навсегда, только ниже порога зрелости."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "gts2", Path(__file__).resolve().parents[2] / "scripts" / "generate_track_snapshot.py")
+    gts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gts)
+    import tempfile
+    rows = [{"date": f"e{i}", "equity": 99_850 + 15 * i, "positions_count": 2,
+            "economics_model": sb.ECONOMICS_MODEL} for i in range(30)]
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td)
+        _w(tmp_path, "lp.json", {"equity": rows[-1]["equity"], "daily_history": rows,
+                                 "economics_model_boundary": {"first_v2_date": "e0"}})
+        tr = gts._sleeve_paper_track(tmp_path / "lp.json")
+    assert tr["reportable"] is True
+    assert tr["apy_pct"] == tr["post_fix"]["apy_pct"]
 
 
 # ════════════════════════════════════════════════════════════════ P0-2 kill-switch truth table

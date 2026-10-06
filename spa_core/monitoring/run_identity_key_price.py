@@ -151,6 +151,7 @@ from typing import (Callable, Dict, List, Optional, Sequence, Set, Tuple,
                     Union)
 
 from spa_core.monitoring._http_reader_probe import UNREAD_RESPONSE
+from spa_core.utils import live_paths
 from spa_core.utils.observation import observed
 
 log = logging.getLogger(__name__)
@@ -550,6 +551,136 @@ def reader_population(tree_root: Path,
         "population": len(roads),
     }
     return dict(roads), stats
+
+
+#: Относительные пути (от ``tree_root``), несущие ИЗМЕНЯЕМОЕ прод-состояние —
+#: КОПИРУЮТСЯ, а не симлинкаются (N1, ADR-580 §C8 REVIEW_2). Именной список, не
+#: образец: замер REVIEW_2 нашёл ровно эти три пути, и расширение «что угодно
+#: похожее на данные» захватило бы `spa_core/data` и `spa_core/strategy_lab/data`
+#: — это КОД (пакеты-фетчеры), а не прод-состояние; гадать за будущую находку
+#: здесь означало бы повторить ту же ошибку другим способом.
+#:
+#: Почему копия, а не ссылка опасна именно здесь: символическая ссылка на
+#: `nimbalyst-local`/`landing/src/data`/`spa_core/database/spa.db` резолвится
+#: ПРЯМО в прод-файл, и писатель, которому ничего не известно про стенд (он
+#: получает `SPA_LIVE_ROOT=<стенд>` и просто читает/пишет по этому пути),
+#: читает/пишет туда же, что живой флот, — это и есть N1.
+_STAND_COPY_RELATIVE: Tuple[Path, ...] = (
+    Path("nimbalyst-local"),
+    Path("landing") / "src" / "data",
+    Path("spa_core") / "database" / "spa.db",
+)
+
+#: Относительные пути, несущие мутабельное/версионное состояние, но
+#: НЕПРИГОДНЫЕ к копированию по объёму — ОМИТАЮТСЯ (не линкуются и не
+#: копируются). ``.git`` прод-дерева несёт полную историю: копия на КАЖДЫЙ
+#: стенд (а плеч бывает три за один замер — s1/s2/s3) умножила бы её кратно.
+#: Читатель, резолвящий `live_root()/".git"`, увидит честное «отсутствует»
+#: (инв. #17 — отсутствие наблюдения не маскируется подстановкой), а не
+#: прод-репозиторий.
+_STAND_OMIT_RELATIVE: Tuple[Path, ...] = (
+    Path(".git"),
+)
+
+
+def _is_ancestor_of_mutable(rel: Path) -> bool:
+    """``rel`` обязан быть РАЗОБРАН рекурсивно — где-то под ним лежит мутабельный лист.
+
+    Иначе, встретив верхний каталог (``spa_core``, ``landing``) целиком, функция
+    симлинкнула бы его ОДНИМ узлом и унесла бы вложенный мутабельный путь вместе
+    с ним — ровно та утечка, которую этот модуль обязан закрыть.
+    """
+    mutables = _STAND_COPY_RELATIVE + _STAND_OMIT_RELATIVE
+    return any(len(rel.parts) < len(m.parts) and m.parts[:len(rel.parts)] == rel.parts
+              for m in mutables)
+
+
+def _copy_mutable(src: Path, dst: Path) -> None:
+    """Копия листа-мутабеля. Лист отсутствует/недоступен ⇒ тихий возврат — тот
+    же принцип отказоустойчивости, что у символической ссылки по соседству:
+    один недоступный узел не должен ронить всё плечо."""
+    try:
+        if src.is_dir():
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        elif src.is_file():
+            shutil.copy2(src, dst)
+    except OSError:
+        return
+
+
+def _mirror_entry(entry: Path, link: Path, rel: Path) -> None:
+    """Один узел зеркала: OMIT (не трогать) / COPY (мутабельный лист) /
+    РЕКУРСИЯ (каталог-предок мутабельного листа) / СИМЛИНК (чистый код,
+    безопасный целиком) — см. докстринг `ensure_faithful_stand`."""
+    if rel in _STAND_OMIT_RELATIVE:
+        return
+    if rel in _STAND_COPY_RELATIVE:
+        _copy_mutable(entry, link)
+        return
+    if entry.is_dir() and _is_ancestor_of_mutable(rel):
+        try:
+            link.mkdir(parents=True, exist_ok=True)
+            children = list(entry.iterdir())
+        except OSError:
+            return
+        for child in children:
+            child_link = link / child.name
+            if child_link.exists() or child_link.is_symlink():
+                continue
+            _mirror_entry(child, child_link, rel / child.name)
+        return
+    try:
+        link.symlink_to(entry, target_is_directory=entry.is_dir())
+    except OSError:
+        return  # отсутствие одной ссылки не должно ронить всё плечо
+
+
+def ensure_faithful_stand(stand: Path, tree_root: Path) -> None:
+    """Дополнить стенд ЧТЕНИЕМ ВСЕГО, что несёт ``tree_root``, кроме ``data/`` —
+    F7/F8 (ADR-580 §C8, REVIEW_1 amendment), общая для ВСЕХ харнессов семьи
+    `build_stands` (``python_reader_clock_doors``, ``list_identity_census``,
+    ``green_by_construction_census``).
+
+    ``build_stands`` копирует ТОЛЬКО ``data/``. Читатель, резолвящий
+    ``live_root()/<не-data>`` (например ``nimbalyst-local/tracker``), видел бы
+    ОТСУТСТВУЮЩИЙ путь там, где без стенда читал настоящее дерево — замер
+    REVIEW_1 назвал это дрейфом измерения, а не находкой о читателе.
+
+    N1 (ADR-580 §C8 REVIEW_2, 2026-10-05) — символическая ссылка ≠ безопасное
+    чтение, когда то, на что она ссылается, МУТАБЕЛЬНО. До этой правки КАЖДЫЙ
+    не-``data`` верхнеуровневый узел ``tree_root`` становился ОДНОЙ симлинкой —
+    в проде ``tree_root`` РАВЕН живому дереву (``com.spa.decision_loop`` →
+    findings_bridge, ADR-414), и ребёнок, получивший ``SPA_LIVE_ROOT=<стенд>``,
+    резолвил ``<стенд>/nimbalyst-local/tracker`` ПРЯМО в прод-трекер: читал его
+    честно, но писатель, не знающий про стенд, писал бы туда же, что живой
+    флот (ревьюер воспроизвёл это для ``owner_queue.TRACKER_DIR``). Три
+    единственные находки (`nimbalyst-local/`, `landing/src/data`,
+    `spa_core/database/spa.db`) теперь КОПИРУЮТСЯ (см. `_STAND_COPY_RELATIVE`),
+    ``.git`` ОМИТАЕТСЯ (`_STAND_OMIT_RELATIVE`, слишком объёмен для копии),
+    а всё остальное — ПРЕЖНИЙ симлинк: это код, через него ничего не записать
+    мимо файловой системы самого процесса, и копия не добавила бы изоляции.
+    Рекурсия (`_mirror_entry`/`_is_ancestor_of_mutable`) заходит только туда,
+    где под верхним узлом (`spa_core`, `landing`) лежит известный мутабельный
+    лист — остальное симлинкается ОДНИМ узлом, как и раньше, без лишней цены.
+
+    ``data/`` остаётся единственным УПРАВЛЯЕМЫМ (изолированным копией) входом
+    стенда отдельно от этой функции: читатели, берущие ``data_dir``/
+    ``write=False`` параметром или резолвящие дефолт через ``live_data_dir()``,
+    попадают туда же, что и раньше (C8(b) не ослаблен).
+    """
+    stand = Path(stand)
+    tree_root = Path(tree_root)
+    try:
+        entries = list(tree_root.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        if entry.name == "data":
+            continue
+        link = stand / entry.name
+        if link.exists() or link.is_symlink():
+            continue
+        _mirror_entry(entry, link, Path(entry.name))
 
 
 def build_stands(source_data_dir: Path, dest: Path,
@@ -1486,12 +1617,20 @@ def _run_http_probe(stand_data: Path, names: Sequence[str], tree_root: Path,
                     now: Optional[datetime] = None):
     """Один процесс: ``SPA_DATA_DIR`` и часы пинятся ДО импорта, ответ — файлом."""
     import subprocess
+    stand_data = Path(stand_data)
+    stand_root = stand_data.parent
+    ensure_faithful_stand(stand_root, tree_root)
     with tempfile.TemporaryDirectory(prefix="spa_g27_http_") as tmp:
         mods = Path(tmp) / "modules.json"
         out = Path(tmp) / "answer.json"
         mods.write_text(json.dumps(list(names)), encoding="utf-8")
         env = dict(os.environ)
         env["SPA_DATA_DIR"] = str(stand_data)
+        # C8(b) ADR-580 (INC-1, F8 REVIEW_1 amendment): `stand_root` — та же
+        # одноразовая копия, что у `python_reader_clock_doors`/
+        # `list_identity_census` (F7/F8), НИКОГДА прод — защёлка безопасна.
+        env[live_paths.SANDBOX_ENV] = "1"
+        env[live_paths.LIVE_ROOT_ENV] = str(stand_root)
         env.pop("SPA_CENSUS_PINNED_NOW", None)
         if now is not None:
             env["SPA_CENSUS_PINNED_NOW"] = now.isoformat()

@@ -161,7 +161,10 @@ class FullListAcrossAllFiles(unittest.TestCase):
         self.blobs = []
         self._orig = (pusher.guard_overwrite, pusher.create_blob_from_bytes,
                       pusher.tree_entry_mode)
-        pusher.create_blob_from_bytes = lambda pat, repo, content: (
+        # `**_` намеренно — тот же довод, что у `_fail_on` ниже (цикл #570,
+        # инв. #16): дубль с жёсткой сигнатурой ломок к РОСТУ сигнатуры
+        # настоящей функции. `verify_sink` (ре-ревью, раунд 3) — очередной рост.
+        pusher.create_blob_from_bytes = lambda pat, repo, content, **_: (
             self.blobs.append(content) or ("b" * 40))
         pusher.tree_entry_mode = lambda *a, **kw: "100644"
 

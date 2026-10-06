@@ -7,6 +7,36 @@
     "rnd": "R&D role (com.spa.novel_edge_rnd) — advisory research output only",
     "marketing": "CMO editorial role (com.spa.cmo_editorial) — drafts only; publishing is the owner's"
   },
+  "append_only_ledgers": {
+    "_doc": "ADR-580 C10 (RM-TRUTH-01): the declared set of append-only/hash-chained ledgers that MUST ride in the daily DR archive (scripts/daily_backup.py). This is the CANON this contract is checked against — spa_core/tests/test_dr_ledger_coverage.py reads this list and fails red the day a newly declared ledger here is not also in the archive's member set. A4/REVIEW_1 (2026-10-05) found all four `path` entries below missing from the daily archive; the only thing that ever covered them was com.spa.weekly_backup, which is RETIRED (RETIRED_LABELS) and whose own designated replacement (daily_backup + dr_offsite_copy) never actually took over this part of its job.",
+    "entries": [
+      {
+        "path": "data/investment_cio/ledger.jsonl",
+        "adr": "ADR-554",
+        "note": "CIO «Oracle» cross-sleeve recommendation ledger, hash-chained."
+      },
+      {
+        "path": "data/investment_cio_anchors/anchors.jsonl",
+        "adr": "ADR-554",
+        "note": "External anchor witness for the CIO ledger — a deliberate SIBLING directory of investment_cio/ (spa_core/investment_cio/ledger.py N3) so one archive member cannot restore without the other."
+      },
+      {
+        "path": "data/research_factory/ledger.jsonl",
+        "adr": "ADR-560",
+        "note": "Research Factory candidate lifecycle ledger (scan → paper → CIO-eligible transitions), hash-chained."
+      },
+      {
+        "path": "data/capital_shadow/ledger.jsonl",
+        "adr": "ADR-556",
+        "note": "RM-LIVE-01 shadow-execution ledger, hash-chained."
+      },
+      {
+        "path": "data/trading_research/evidence.db",
+        "adr": "ADR-525",
+        "note": "Trading Research Engine forward-paper evidence (sqlite, append-only, hash-chained) — already covered before C10; listed so this declaration is the complete canon, not a partial one."
+      }
+    ]
+  },
   "artifacts": [
     {
       "id": "site.calculator",

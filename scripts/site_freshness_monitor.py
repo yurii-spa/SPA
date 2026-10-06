@@ -341,14 +341,34 @@ def api_headline(golive, facts, equity_chain):
 
 # ─────────────────────────────── the pure evaluator ───────────────────────────────
 def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier_sha, pin_sha,
-             now, prev_report=None, site_numbers=None):
+             now, prev_report=None, site_numbers=None, shelf_fetch_leg=None,
+             local_site_numbers=None):
     """Pure Site-Custodian evaluation. Returns the report dict. No I/O.
 
-    ``site_numbers`` — ВИТРИНА (`landing/src/data/site_numbers.json`). Это НЕ второй снимок
-    и не удобство: с 13.09 (ADR-372) страница печатает числа ИЗ НЕЁ, а не из дневного
-    снимка, и такт её публикации НЕДЕЛЬНЫЙ по установке владельца (ADR-357 п. 5). Сторож,
-    спрашивающий «отстал ли посетитель», обязан спрашивать это у того файла, который
-    посетитель читает; см. блок 9 и ADR-478.
+    ``site_numbers`` — ВИТРИНА (`landing/src/data/site_numbers.json`), И С ADR-580 (C12,
+    RM-TRUTH-01) ЭТО ОБЯЗАНА БЫТЬ ВИТРИНА С ORIGIN/MAIN — такт публикации один (origin),
+    прод-локальная копия — артефакт сборки, не операнд. До C12 `run()` подсовывал сюда
+    прод-локальный файл: `docs/rm_truth/A3_product.md` §4 / `REVIEW_1.md` claim 4 нашли
+    ровно это — у витрины на диске (04.10) и у витрины на origin (01.10) РАЗНЫЕ такты, и
+    сторож сравнивал посетителя с тем, чего посетитель никогда не видел. С 13.09 (ADR-372)
+    страница печатает числа ИЗ ВИТРИНЫ, а не из дневного снимка, и такт её публикации
+    НЕДЕЛЬНЫЙ по установке владельца (ADR-357 п. 5). Сторож, спрашивающий «отстал ли
+    посетитель», обязан спрашивать это у ТОЙ ЖЕ витрины, которую строит Cloudflare —
+    то есть у origin; см. блок 9 и ADR-478/567.
+
+    ``shelf_fetch_leg`` — ПОЧЕМУ ``site_numbers`` пуст, когда он пуст (третий исход,
+    инв. #17): ``"not_on_origin"`` (витрина НИКОГДА не доставлялась на origin — нет
+    пайплайна доставки, отличный дефект от «сборка Cloudflare не прошла»),
+    ``"unmeasured:git_unavailable:…"`` (сеть/git недоступны — НЕ измерено, не «не
+    доставлена») или ``"unmeasured:unparseable"``. ``None`` — вызывающий код (почти
+    всегда тест) не разбирает эту разницу и получает старое общее сообщение.
+
+    ``local_site_numbers`` — прод-локальная копия витрины, ОТДЕЛЬНО, только для вопроса
+    «сделал ли ПРОИЗВОДИТЕЛЬ свою работу в срок» (`SHELF_OVERDUE`, блок 9b) — на этот
+    вопрос прод-локальный файл и есть верный операнд (`build_site_numbers.py` пишет туда,
+    не на origin, и спрашивать об этом origin означало бы путать «произвёл» с «доставил»).
+    ``None`` ⇒ используется тот же ``site_numbers`` (старое поведение существующих тестов,
+    где одна фикстура исполняла обе роли).
     """
     fails = []          # list of {code, detail, severity}
     def fail(code, detail, severity="FAIL"):
@@ -356,6 +376,14 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
 
     snap = snapshot or {}
     shelf = site_numbers if isinstance(site_numbers, dict) else {}
+    # C12 (ADR-580): ДВЕ РАЗНЫЕ витрины, ДВА РАЗНЫХ вопроса. `shelf` (выше) — ORIGIN,
+    # операнд «что мы ОПУБЛИКОВАЛИ посетителю» (блоки 3/4/9: PUBLISHER_STUCK, сверка с
+    # живой страницей). `local_shelf` — прод-локальная копия, операнд ТОЛЬКО для «сделал
+    # ли ПРОИЗВОДИТЕЛЬ свою работу в срок» (блок 9b: `SHELF_OVERDUE`) — её и спрашивает
+    # `build_site_numbers.py` о собственном такте, независимо от того, доставлено ли
+    # уже это на origin. Без `local_site_numbers` (старые вызовы/тесты) обе роли играет
+    # одна и та же фикстура — поведение не меняется.
+    local_shelf = (local_site_numbers if isinstance(local_site_numbers, dict) else shelf)
     # Что именно витрина ОБЕЩАЕТ посетителю. Нечитаемая витрина — это ТРЕТИЙ исход
     # (`unmeasured:` с названной причиной), а НЕ повод молча вернуться к снимку: именно
     # такой возврат и был дефектом до ADR-478 — сторож сверял страницу с производителем,
@@ -372,7 +400,17 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     shelf_days = _shelf_num("evidenced_days", "value")
     shelf_gates = _shelf_num("gates", "passed")
     if not shelf:
-        shelf_leg = "unmeasured:no_shelf_file"
+        # C12: причина пустоты ИМЕНОВАНА вызывающим кодом (`run()`), когда она знает её —
+        # «на origin вообще нет» (нет пайплайна доставки) НЕ ТО ЖЕ, что «git/сеть
+        # недоступны», и смешивать их значило бы продолжать путать «не доставлено»
+        # с «не измерено». Префикс не дублируется, если причина уже несёт его сама
+        # (`_origin_shelf_json` отдаёт `unmeasured:git_unavailable:…` готовым).
+        if not shelf_fetch_leg:
+            shelf_leg = "unmeasured:no_shelf_file"
+        elif shelf_fetch_leg.startswith("unmeasured:"):
+            shelf_leg = shelf_fetch_leg
+        else:
+            shelf_leg = f"unmeasured:{shelf_fetch_leg}"
     elif not shelf_as_of:
         shelf_leg = "unmeasured:shelf_has_no_measured_at"
     else:
@@ -552,6 +590,32 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         if s_.get("as_of") and (site_as_of is None or str(s_["as_of"]) < str(site_as_of)):
             site_as_of = s_["as_of"]          # самая СТАРАЯ из опубликованных дат
     site_as_of_age = _hours_since(site_as_of, now)
+
+    # 8b. ВИТРИНА НИКОГДА НЕ ДОСТАВЛЯЛАСЬ НА ORIGIN — беда ФУНДАМЕНТАЛЬНЕЕ, чем
+    #     «публикатор встал» (та подразумевает, что витрина КОГДА-ТО там была и
+    #     перестала обновляться). C12 (ADR-580) / claim 4 `REVIEW_1.md`: у
+    #     `landing/src/data/site_numbers.json` нет НИ ОДНОГО пайплайна доставки —
+    #     `deploy_site_snapshot.py` везёт только `track_snapshot.json` + `constitution.json`
+    #     (`docs/rm_truth/A3_product.md` §4: «витрина… NOT on origin»). PUBLISHER_STUCK
+    #     ниже молчит в этом случае по построению (`shelf_leg != "measured"` ⇒
+    #     `publisher_leg` не "measured" ⇒ лаг не меряется) — молчание нельзя путать с
+    #     «всё хорошо»: беда получает СВОЙ код, а не теряется в «не измерено».
+    shelf_never_delivered = (shelf_fetch_leg == "not_on_origin")
+    local_shelf_ready = bool(local_shelf and local_shelf.get("measured_at"))
+    if shelf_never_delivered and local_shelf_ready:
+        fail("SHELF_NOT_ON_ORIGIN",
+             f"витрина посчитана локально (measured_at={local_shelf.get('measured_at')}), но "
+             f"НИКОГДА не доставлялась на origin/main (git show origin/main: путь не существует) "
+             f"— у `landing/src/data/site_numbers.json` нет пайплайна доставки "
+             f"(`deploy_site_snapshot.py` везёт только track_snapshot.json + constitution.json). "
+             f"Лекарство ВНУТРИ репозитория — завести доставку витрины; Cloudflare Pages тут ни "
+             f"при чём, ей нечего собирать",
+             severity="CRITICAL")
+    elif shelf_never_delivered:
+        fail("SHELF_NOT_ON_ORIGIN",
+             "витрины нет ни на origin, ни локально — не измерено, с чего начинать: ни разу "
+             "не собрана `scripts/build_site_numbers.py`, либо прод-дерево недоступно сторожу")
+
     publish_lag_days = _days_between(site_as_of, shelf_as_of)
     shelf_newer_than_site = bool(publish_lag_days is not None and publish_lag_days > 0)
     # Имя сохранено: его читают humanize/тревога/тесты. Смысл — «мы опубликовали новее,
@@ -568,10 +632,19 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     publisher_stuck = (publisher_leg == "measured" and publish_lag_days >= PUBLISH_LAG_DAYS)
     if publisher_stuck:
         age = f"{site_as_of_age:.0f}ч" if site_as_of_age is not None else "не измерен"
+        # C12: виноват тот ЭТАП, который фактически подвёл, а не всегда Cloudflare.
+        # `publisher_stuck` здесь ПО ОПРЕДЕЛЕНИЮ означает shelf_leg == "measured" —
+        # то есть `git show origin/main:…` что-то ВЕРНУЛ. Значит доставка СОСТОЯЛАСЬ
+        # (origin несёт витрину), и единственный оставшийся подозреваемый — сборка/
+        # публикация ТОГО, что уже лежит на origin. Это ровно разбор ADR-478 (26.09):
+        # «обе половины были неверны» означало именно «не записывай подозреваемого,
+        # которого не измерил» — здесь измерение прямо подтверждает Cloudflare-этап.
         fail("PUBLISHER_STUCK",
              f"мимо посетителя прошло {publish_lag_days} публикаций (>= {PUBLISH_LAG_DAYS}): он читает "
-             f"as-of {site_as_of} (возраст {age}), а витрина опубликовала {shelf_as_of}. Лекарство "
-             f"вне этого репозитория — сборка Cloudflare Pages; повторный коммит витрины не поможет",
+             f"as-of {site_as_of} (возраст {age}), а origin/main уже несёт {shelf_as_of} (доставка "
+             f"СОСТОЯЛАСЬ — витрина прочитана `git show origin/main:…`, это не «доставка не "
+             f"случилась»). Лекарство вне этого репозитория — сборка Cloudflare Pages; повторный "
+             f"коммит витрины не поможет",
              severity="CRITICAL")
 
     # 9b. ПРОИЗВОДИТЕЛЬ ВИТРИНЫ просрочил такт — беда, которой до ADR-478 не было имени
@@ -581,10 +654,18 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     #     сайт годами показывал бы одно и то же число, а все сверки были бы зелёными.
     #     Поэтому вопрос задаётся отдельно и СВОИМ операндом: сроком, который витрина
     #     объявила сама (`next_publication`). Срок решает ФАЙЛ, а не расписание запуска.
-    shelf_next = shelf.get("next_publication") or None
+    # Операнд — ПРОД-ЛОКАЛЬНАЯ копия (`local_shelf`), не origin: вопрос здесь «сделал ли
+    # ПРОИЗВОДИТЕЛЬ свою работу в срок», а `build_site_numbers.py` пишет на диск прод-дерева,
+    # не на origin. Спрашивать это у origin смешало бы «не произвела» с «не доставлена» —
+    # ровно те два разных вопроса, которые C12 (ADR-580) требует различать.
+    local_shelf_as_of = local_shelf.get("measured_at") or None
+    local_shelf_leg = ("measured" if (local_shelf and local_shelf_as_of)
+                       else "unmeasured:no_shelf_file" if not local_shelf
+                       else "unmeasured:shelf_has_no_measured_at")
+    shelf_next = local_shelf.get("next_publication") or None
     shelf_overdue_days = _days_between(shelf_next, now.strftime("%Y-%m-%d"))
-    if shelf_leg != "measured":
-        shelf_cadence_leg = shelf_leg          # уже несёт префикс `unmeasured:` и свою причину
+    if local_shelf_leg != "measured":
+        shelf_cadence_leg = local_shelf_leg    # уже несёт префикс `unmeasured:` и свою причину
     elif not shelf_next:
         shelf_cadence_leg = "unmeasured:shelf_declares_no_next_publication"
     elif shelf_overdue_days is None:
@@ -595,7 +676,7 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         crit = shelf_overdue_days >= SHELF_OVERDUE_CRITICAL_DAYS
         fail("SHELF_OVERDUE",
              f"витрина просрочила свой же такт на {shelf_overdue_days} дн: объявлено "
-             f"next_publication={shelf_next}, замер всё ещё {shelf_as_of}. Лекарство ВНУТРИ "
+             f"next_publication={shelf_next}, замер всё ещё {local_shelf_as_of}. Лекарство ВНУТРИ "
              f"репозитория — `scripts/build_site_numbers.py`; Cloudflare тут ни при чём "
              f"(публичные числа = предмет №2, ADR-285)",
              severity="CRITICAL" if crit else "FAIL")
@@ -889,8 +970,110 @@ def _live_journal():
         return None, f"client_unavailable: {type(exc).__name__}"
 
 
+def _push_policy():
+    """``spa_core.telegram.push_policy`` — обычный импорт, иначе ПО ПУТИ (та же причина,
+    что у `_humanize_body`/`_live_journal`: и Мак (`agent_template.sh`), и CI
+    (`python scripts/site_freshness_monitor.py`) зовут этот файл ПО ПУТИ, `sys.path[0]` —
+    каталог `scripts/`, не корень репозитория).
 
-def alert_lines(report):
+    Отказ здесь означает «дедуп PUBLISHER_STUCK недоступен», НЕ «тревогу не слать»: вызывающий
+    код (`_publisher_stuck_push`) при ``None`` просто не вызывает edge-триггер, и раздел с
+    PUBLISHER_STUCK остаётся в сыром канале ровно как раньше ЭТОЙ правки — деградация тихая
+    по дедупу, а не по доставке (та же дисциплина, что у `_live_journal`).
+    """
+    try:  # обычный путь: корень репозитория уже на sys.path (Мак, тесты)
+        from spa_core.telegram import push_policy as _pp
+        return _pp
+    except Exception:  # noqa: BLE001 — ниже загрузка по файлу
+        pass
+    try:
+        import importlib.machinery
+        import importlib.util
+        import types
+
+        def _stub_pkg(name: str, directory: Path) -> None:
+            if name in sys.modules:
+                return
+            mod = types.ModuleType(name)
+            mod.__path__ = [str(directory)]  # type: ignore[attr-defined]
+            mod.__spec__ = importlib.machinery.ModuleSpec(name, None, is_package=True)
+            mod.__spec__.submodule_search_locations = [str(directory)]  # type: ignore[union-attr]
+            sys.modules[name] = mod
+
+        def _by_path(name, path):
+            spec = importlib.util.spec_from_file_location(name, path)
+            if spec is None or spec.loader is None:
+                raise ImportError(name)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+            return mod
+
+        _stub_pkg("spa_core", _ROOT / "spa_core")
+        _stub_pkg("spa_core.utils", _ROOT / "spa_core" / "utils")
+        _stub_pkg("spa_core.telegram", _ROOT / "spa_core" / "telegram")
+        if "spa_core.utils.atomic" not in sys.modules:
+            _by_path("spa_core.utils.atomic", _ROOT / "spa_core" / "utils" / "atomic.py")
+        if "spa_core.telegram.push_policy" not in sys.modules:
+            _by_path("spa_core.telegram.push_policy",
+                     _ROOT / "spa_core" / "telegram" / "push_policy.py")
+        return sys.modules["spa_core.telegram.push_policy"]
+    except Exception:  # noqa: BLE001 — доставка тревоги важнее дедупа
+        return None
+
+
+#: Коды, у которых есть СВОЙ edge-triggered канал (`push_policy`, ниже) — сырой канал
+#: (`_alert`) их не повторяет, иначе владелец получал бы одну и ту же беду ДВА РАЗА:
+#: однажды дедупом push_policy, однажды голой строкой в общем списке раз в 6 часов.
+#: C12 (ADR-580) / REVIEW_1 remediation item 4: «ONE card, not a message every 6h».
+_EDGE_TRIGGERED_CODES = frozenset({"PUBLISHER_STUCK"})
+
+
+def _publisher_stuck_push(report, *, now=None):
+    """PUBLISHER_STUCK — ОДНА карточка на инцидент, не сообщение раз в 6 часов (C12).
+
+    `push_policy` — edge-triggered по построению (докстринг модуля, п. 2): ok→bad шлёт,
+    персистентный bad молчит, bad→ok шлёт ровно одно «RESOLVED». Этот вызов безусловен —
+    решает, слать или молчать, САМ `push_policy`, опрашивая свой durable `push_state.json`;
+    здесь только переводится СОБЫТИЕ `evaluate()` в вызов политики.
+
+    ``dedup_key`` — пара дат (as-of посетителя, as-of витрины): ТА ЖЕ пара персистентно
+    молчит, ДРУГАЯ пара (новый инцидент с другими датами) звонит снова, даже если
+    предыдущий инцидент ещё не резолвился.
+
+    Возвращает диагностический словарь для отчёта (инв. #17: попытка-не-попытка видна,
+    а не растворяется). `push_policy` недоступен (CI без root на sys.path, старая копия
+    без модуля) ⇒ ``{"attempted": False, "reason": "push_policy_unavailable"}`` — раздел
+    остаётся в сыром канале как раньше, не падает молча.
+    """
+    push_policy = _push_policy()
+    if push_policy is None:
+        return {"attempted": False, "reason": "push_policy_unavailable", "routed": False}
+    stuck = bool(report.get("publisher_stuck"))
+    site_asof = report.get("site_as_of")
+    shelf_asof = report.get("shelf_as_of")
+    dedup_key = f"site={site_asof}:shelf={shelf_asof}"
+    title = "🛡️ Публикатор сайта встал"
+    stuck_fail = next((f for f in (report.get("fails") or []) if f.get("code") == "PUBLISHER_STUCK"), None)
+    body = (stuck_fail or {}).get("detail", "")
+    try:
+        if stuck:
+            sent = push_policy.push_critical(
+                "site_publisher_stuck", "CRITICAL", title, body,
+                now=now, dedup_key=dedup_key)
+            return {"attempted": True, "routed": True, "sent": sent, "dedup_key": dedup_key}
+        else:
+            sent = push_policy.resolve(
+                "site_publisher_stuck",
+                "✅ Публикатор сайта снова публикует",
+                f"посетитель и origin согласны (publisher_leg={report.get('publisher_leg')})",
+                now=now)
+            return {"attempted": True, "routed": True, "sent": sent, "resolved": True}
+    except Exception as exc:  # noqa: BLE001 — дедуп не имеет права ронять прогон
+        return {"attempted": True, "routed": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def alert_lines(report, *, exclude_codes=()):
     """Строки тревоги владельцу. ЧИСТАЯ функция: ни сети, ни секретов, ни файлов.
 
     Вынесена из `_alert`, чтобы у каждой строки был прямой контроль. Пока текст
@@ -901,11 +1084,20 @@ def alert_lines(report):
 
     Форма отчёта у двух звонящих РАЗНАЯ (`fails` у `evaluate`, `failures` у
     `_deploy_snapshot`), и обе читаются здесь.
+
+    ``exclude_codes`` — коды, уже сказанные ДРУГИМ (edge-triggered) каналом в ЭТОМ
+    прогоне (C12, ADR-580) — по умолчанию пусто, старое поведение не меняется ни для
+    одного существующего вызова. `_alert` передаёт его явно; прямой вызов этой функции
+    (как делают тесты) продолжает видеть ВСЕ коды.
     """
     fails = report.get("fails")
     if not isinstance(fails, list):
         fails = report.get("failures") or []
-    n_fails = report.get("n_fails", len(fails))
+    if exclude_codes:
+        fails = [f for f in fails if f.get("code") not in exclude_codes]
+        n_fails = len(fails)   # пересчитано — иначе заголовок и список расходятся в числе
+    else:
+        n_fails = report.get("n_fails", len(fails))
     ts = report.get("ts") or datetime.datetime.now(datetime.timezone.utc).isoformat()
     lines = [f"🛡️ SITE CUSTODIAN — {n_fails} FAIL(s) @ {ts}"]
     for f in fails[:8]:
@@ -949,6 +1141,26 @@ def _alert(report):
     """
     if report.get("ok"):
         return {"attempted": False, "reason": "report_ok"}
+    # C12 (ADR-580) / REVIEW_1 remediation item 4: PUBLISHER_STUCK имеет СВОЙ
+    # edge-triggered канал (`_publisher_stuck_push`, push_policy) — ОДНА карточка на
+    # инцидент, не сообщение раз в 6 часов. Сырой канал не повторяет её, но ТОЛЬКО
+    # когда push_policy в ЭТОМ прогоне реально принял событие (`routed`): недоступный
+    # push_policy (старая копия без модуля, CI без root на sys.path) не имеет права
+    # стать тихой потерей алерта — тогда код остаётся в сыром канале, как раньше этой
+    # правки («доставка важнее дедупа»).
+    pub_push = report.get("publisher_stuck_push") or {}
+    exclude = _EDGE_TRIGGERED_CODES if pub_push.get("routed") else frozenset()
+    if exclude:
+        fails = report.get("fails")
+        if not isinstance(fails, list):
+            fails = report.get("failures") or []
+        visible_fails = [f for f in fails if f.get("code") not in exclude]
+        has_degrade_lines = (bool(report.get("degrade_triggered"))
+                             or report.get("degrade_reaches_public") is False)
+        if not visible_fails and not has_degrade_lines:
+            # Всё, что делало прогон «не ok», уже сказано РОВНО ОДИН РАЗ edge-triggered
+            # каналом — повторять его здесь и есть тот самый «месседж раз в 6 часов».
+            return {"attempted": False, "reason": "handled_via_edge_trigger"}
     # Форма отчёта у двух звонящих РАЗНАЯ, и вторая никогда не доезжала (замер #218).
     # `_deploy_snapshot` зовёт нас со словарём `{"severity", "failures"}`, а тело читало
     # `report['n_fails']` и `report['fails']` ⇒ KeyError, который call-site глотал бы
@@ -956,7 +1168,7 @@ def _alert(report):
     # (публично видно завышенное число) не уходила владельцу НИ РАЗУ.
     # Тест 09.08 этого не видел: он подменял сам `_alert` и проверял, что его ПОЗВАЛИ, —
     # тот же класс «сторож отвечает не на тот вопрос», только уровнем ниже.
-    msg = "\n".join(alert_lines(report))
+    msg = "\n".join(alert_lines(report, exclude_codes=exclude))
     # Владельцу — простым русским (owner-задание 2026-07-20, повторено 2026-08-04).
     # Перевод чисто текстовый: нераспознанная строка проходит вербатим, технический
     # detail сохраняется, сбой перевода отдаёт исходный текст (алерт обязан дойти).
@@ -1200,6 +1412,73 @@ def _git(cwd, args: list, timeout: int = 30):
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def _git_full(cwd, args: list, timeout: int = 30):
+    """Как ``_git``, но возвращает ``(returncode, stdout, stderr)`` — не обобщает их в
+    ``None``. ``_origin_shelf_json`` ниже обязан отличить «путь не существует на этом
+    ref» от «git/сеть недоступны», а это читается только из stderr/returncode, не из
+    пустого stdout."""
+    import os
+
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    try:
+        r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
+                           text=True, timeout=timeout, env=env)
+    except Exception as exc:  # noqa: BLE001
+        return None, "", f"{type(exc).__name__}: {exc}"
+    return r.returncode, r.stdout, r.stderr
+
+
+def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30):
+    """``origin/main:<rel>`` как dict, или ``(None, leg)`` с НАЗВАННОЙ причиной (C12,
+    ADR-580 — третий исход, инв. #17).
+
+    Различает ЧЕТЫРЕ беды, не одну, ровно по разбору `docs/rm_truth/A3_product.md` §4 /
+    `REVIEW_1.md` claim 4 (+ F14, integration review 2026-10-05):
+      * ``"not_on_origin"``            — путь не существует на ``origin/main`` (витрина
+        НИКОГДА не доставлялась — дефект доставки, не Cloudflare);
+      * ``"unmeasured:git_unavailable:…"`` — git/сеть недоступны (НЕ «не доставлена»,
+        просто не измерено сейчас);
+      * ``"unmeasured:unparseable"``   — файл есть, но не разбирается как JSON;
+      * ``"unmeasured:fetch_failed:…"`` — ``fetch`` НЕ дошёл до origin, а ``git show``
+        всё равно отвечает — но по ЛОКАЛЬНОМУ, возможно устаревшему ``origin/main``.
+    Успех → ``(dict, "measured")``.
+
+    ``fetch`` раньше читался как чисто best-effort (как в `make_fresh_checkout`):
+    неудачный fetch не фатален, `origin/main` просто отвечает по тому, что уже знает
+    локальный git. F14 нашёл в этом «best-effort» дыру: когда fetch не дошёл (сеть,
+    авторизация), `git show` всё равно УСПЕШНО читает СТАРЫЙ локальный `origin/main` —
+    и до этой правки успех `git show` печатался как `"measured"`, молча выдавая
+    замер по возможно устаревшему ref за измерение текущего origin. Прод-дерево это
+    затрагивает буквально: его локальный индекс штатно отстаёт от origin на сотни
+    коммитов (CLAUDE.md §1) — то есть именно та сцена, где failed-fetch тише всего.
+    Поэтому исход fetch теперь НАЗВАН: неудача fetch понижает результат до
+    `"unmeasured:fetch_failed:…"`, даже когда локальный `git show` формально успешен —
+    «измерено против возможно устаревшего ref» это НЕ «измерено».
+    """
+    fetch_rc, _fetch_out, fetch_err = _git_full(
+        root, ["fetch", "-q", "origin", "main"], timeout=max(timeout, 60))
+    fetch_ok = fetch_rc == 0
+    rc, out, err = _git_full(root, ["show", f"origin/main:{rel}"], timeout=timeout)
+    if rc is None:
+        return None, f"unmeasured:git_unavailable:{(err or 'no_subprocess')[:160]}"
+    if rc != 0:
+        e = (err or "").lower()
+        if "does not exist" in e or "exists on disk, but not in" in e or "invalid object name" in e:
+            return None, "not_on_origin"
+        return None, f"unmeasured:git_unavailable:{(err or '').strip()[:160] or 'nonzero_exit'}"
+    if not fetch_ok:
+        # git show succeeded, but ONLY against whatever origin/main the LAST
+        # successful fetch left behind — this run's fetch did not confirm it.
+        return None, (
+            f"unmeasured:fetch_failed:{(fetch_err or '').strip()[:160] or 'nonzero_exit'} "
+            "— git show answered from a possibly-stale local origin/main ref")
+    try:
+        doc = json.loads(out)
+    except ValueError:
+        return None, "unmeasured:unparseable"
+    return (doc, "measured") if isinstance(doc, dict) else (None, "unmeasured:not_an_object")
+
+
 def publish_from_fresh_checkout(local_file: Path, message: str, *, rel: Path = None,
                                 root: Path = None, dest: Path = None,
                                 timeout: int = 180) -> dict:
@@ -1408,14 +1687,27 @@ def run():
         except ValueError:
             prev = None
     snapshot = json.loads(_SNAP.read_text()) if _SNAP.exists() else {}
-    # Витрина читается ОТДЕЛЬНО от снимка и при отказе остаётся None, а не {}: «файла нет»
-    # и «файл нечитаем» обязаны дойти до вердикта как причина, а не как пустота (инв. #17).
-    site_numbers = None
+    # Прод-локальная копия витрины — ОТДЕЛЬНО от снимка, при отказе остаётся None, а не
+    # {}: «файла нет» и «файл нечитаем» обязаны дойти до вердикта как причина, а не как
+    # пустота (инв. #17). ТОЛЬКО для `SHELF_OVERDUE` (вопрос «сделал ли ПРОИЗВОДИТЕЛЬ
+    # свою работу?») — C12 (ADR-580) запрещает использовать её операндом сверки с
+    # посетителем; для этого ниже читается origin.
+    local_site_numbers = None
     if _SHELF.exists():
         try:
-            site_numbers = json.loads(_SHELF.read_text())
+            local_site_numbers = json.loads(_SHELF.read_text())
         except ValueError:
-            site_numbers = None
+            local_site_numbers = None
+    # ВИТРИНА-ОПЕРАНД сверки с посетителем — origin/main, не прод-локальный файл (C12,
+    # ADR-580; разбор `docs/rm_truth/A3_product.md` §4 / `REVIEW_1.md` claim 4: у витрины
+    # на диске и у витрины на origin РАЗНЫЕ такты публикации, и сторож, сравнивавший
+    # посетителя с диском, называл вставшим публикатора, которому просто нечего было
+    # доставлять). Третий исход назван явно — `shelf_fetch_leg` — а не растворён в
+    # пустом ``site_numbers``.
+    site_numbers, shelf_fetch_leg = _origin_shelf_json(_ROOT, _SHELF_REL)
+    if site_numbers is None:
+        print(f"site_freshness_monitor: origin-витрина не прочитана ({shelf_fetch_leg})",
+              file=sys.stderr)
 
     _, home_html = _get(SITE + "/")
     _, track_html = _get(SITE + "/track-record/")
@@ -1440,7 +1732,12 @@ def run():
 
     report = evaluate(snapshot=snapshot, home_html=home_html, track_html=track_html, api=api,
                       sitemap_statuses=sitemap_statuses, verifier_sha=verifier_sha, pin_sha=pin,
-                      now=now, prev_report=prev, site_numbers=site_numbers)
+                      now=now, prev_report=prev, site_numbers=site_numbers,
+                      shelf_fetch_leg=shelf_fetch_leg, local_site_numbers=local_site_numbers)
+    # C12 (ADR-580): PUBLISHER_STUCK — edge-triggered, БЕЗУСЛОВНО (и когда стоит, и
+    # когда отпустило) — ``resolve()`` сам решает, слать ли «✅ RESOLVED», опрашивая
+    # СВОЙ durable state; молчаливый no-op на «уже было ok» здесь норма, не брешь.
+    report["publisher_stuck_push"] = _publisher_stuck_push(report, now=now)
     _atomic_write(_REPORT, report)
     print(json.dumps({k: report[k] for k in ("ok", "n_fails", "degrade_triggered", "snapshot_age_h")}, indent=2))
     if not report["ok"]:

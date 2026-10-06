@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -64,11 +64,20 @@ def _good_data() -> dict:
 
 
 def _root_files() -> dict:
-    """Project-root files / KANBAN that should make infra criteria PASS."""
+    """Project-root files / KANBAN that should make infra criteria PASS.
+
+    # CHANGED (integration review F12, 2026-10-05 — journal 2026-W40): KANBAN.json
+    # now carries ``last_updated`` — C013's freshness is read from the CONTENT's own
+    # timestamp, never the file's mtime (a git checkout / mirror sync resets mtime
+    # without touching content). The date is fixed just before TODAY_OK (below) so
+    # every test using the default ``today`` sees a fresh observation unless it
+    # explicitly ages it via the content, not the filesystem.
+    """
     return {
         "push_to_github.py": "# stub\n",
         "auto_push.py": "# stub\n",
-        "KANBAN.json": {"sprint_completed": "v3.85"},
+        "KANBAN.json": {"sprint_completed": "v3.85",
+                        "last_updated": "2026-07-19T00:00:00+00:00"},
     }
 
 
@@ -189,7 +198,8 @@ class TestReadinessChecker(_Harness):
         del data["return_distribution.json"]                         # C009 SKIP (high)
         del data["orchestrator_runs.json"]                           # C007 SKIP (medium)
         root = _root_files()
-        root["KANBAN.json"] = {"sprint_completed": "v3.10"}          # C013 FAIL (medium)
+        root["KANBAN.json"] = {"sprint_completed": "v3.10",
+                               "last_updated": "2026-07-19T00:00:00+00:00"}  # C013 FAIL (medium)
         result = self._build(data=data, root=root).check_all()
         self.assertEqual(result["blockers"], [])
         self.assertGreaterEqual(result["score"], 0.50)
@@ -275,13 +285,66 @@ class TestReadinessChecker(_Harness):
 
     def test_sprint_completed_check(self):
         root = _root_files()
-        root["KANBAN.json"] = {"sprint_completed": "v3.79"}
+        root["KANBAN.json"] = {"sprint_completed": "v3.79",
+                               "last_updated": "2026-07-19T00:00:00+00:00"}
         result = self._build(root=root).check_all()
         self.assertEqual(self._status(result, "C013"), "FAIL")
 
-        root["KANBAN.json"] = {"sprint_completed": "v3.86"}
+        root["KANBAN.json"] = {"sprint_completed": "v3.86",
+                               "last_updated": "2026-07-19T00:00:00+00:00"}
         result = self._build(root=root).check_all()
         self.assertEqual(self._status(result, "C013"), "PASS")
+
+    def test_sprint_completed_frozen_file_is_skip_not_pass(self):
+        """ADR-580 §C3 (REVIEW_1, RM-TRUTH-01, 2026-10-05): KANBAN.json was found FROZEN
+        since 2026-07-17 while C013 kept PASSing from it — a dead file holding a readiness
+        criterion green forever. A CONTENT timestamp older than KANBAN_MAX_AGE_DAYS must
+        report SKIP (this module's spelling of UNKNOWN), never PASS, no matter how good the
+        stale sprint_completed value looks.
+
+        # CHANGED (integration review F12, 2026-10-05 — journal 2026-W40): this test used
+        # to age the file via `os.utime` (mtime). F12 found that freshness judged by mtime
+        # is defeated by a git checkout / mirror sync, which resets mtime to "now" without
+        # touching content — so a KANBAN.json frozen for months would read as fresh again
+        # on a fresh checkout. The fix reads freshness from the CONTENT's own
+        # `last_updated`/`generated_at` field instead; this test now ages the CONTENT, not
+        # the filesystem, which is the only way this scenario is still measurable after the
+        # fix (tightening, not relaxing — the frozen-file class this test guards is the
+        # same one, just correctly diagnosed).
+        """
+        from spa_core.golive.readiness_checker import KANBAN_MAX_AGE_DAYS
+
+        root = _root_files()
+        frozen_ts = (datetime(TODAY_OK.year, TODAY_OK.month, TODAY_OK.day, tzinfo=timezone.utc)
+                     - timedelta(days=KANBAN_MAX_AGE_DAYS + 10))
+        root["KANBAN.json"] = {"sprint_completed": "v3.86",  # would PASS if fresh
+                               "last_updated": frozen_ts.isoformat()}
+        checker = self._build(root=root, today=TODAY_OK)
+
+        result = checker.check_all()
+        self.assertEqual(self._status(result, "C013"), "SKIP")
+        detail = next(c["detail"] for c in result["criteria"] if c["id"] == "C013")
+        self.assertIn("заморожен", detail)
+
+    def test_sprint_completed_recent_file_still_passes(self):
+        """Positive control for the test above: the SAME content, with a FRESH content
+        timestamp, must still PASS — the fix is about the observation's age (read from
+        content now, not mtime), not about sprint_completed itself."""
+        root = _root_files()
+        root["KANBAN.json"] = {"sprint_completed": "v3.86",
+                               "last_updated": "2026-07-19T00:00:00+00:00"}
+        result = self._build(root=root, today=TODAY_OK).check_all()
+        self.assertEqual(self._status(result, "C013"), "PASS")
+
+    def test_sprint_completed_missing_timestamp_is_skip_not_pass(self):
+        """F12 positive control: content with NO last_updated/generated_at at all must
+        SKIP, not silently PASS by falling back to any filesystem signal."""
+        root = _root_files()
+        root["KANBAN.json"] = {"sprint_completed": "v3.86"}  # no timestamp field
+        result = self._build(root=root, today=TODAY_OK).check_all()
+        self.assertEqual(self._status(result, "C013"), "SKIP")
+        detail = next(c["detail"] for c in result["criteria"] if c["id"] == "C013")
+        self.assertIn("НЕ ИЗМЕРЕНО", detail)
 
     def test_days_to_golive_calculation(self):
         result = self._build(today=date(2026, 6, 9)).check_all()

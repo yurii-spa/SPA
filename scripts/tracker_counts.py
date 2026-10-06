@@ -43,9 +43,29 @@ def _git(*args: str) -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+def _frontmatter_block(text: str) -> str:
+    """Текст МЕЖДУ открывающим и закрывающим `---`. Пусто — frontmatter нет/не закрыт.
+
+    Многостатусная ловушка (C5, ADR-580): `inbox-ochered-*` несёт ТРИ строки
+    `status:` — одну в frontmatter и ещё по разу внутри тела (пример-цитата). Без
+    этой границы `_STATUS.search()` по ВСЕМУ файлу брал первую строку, встреченную
+    где угодно, и наблюдаемый статус зависел от того, в каком порядке автор карточки
+    написал текст, а не от того, что реально стоит во frontmatter — ровно та
+    развилка «11/12/6/4», из-за которой счётчики очереди не сходятся.
+    """
+    if not text.startswith("---"):
+        return ""
+    end = text.find("\n---", 3)
+    return text[3:end] if end > 0 else ""
+
+
 def _status_of(text: str) -> str:
-    m = _STATUS.search(text)
-    return m.group(1) if m else "нет-статуса"
+    # `findall` + последнее совпадение — тот же порядок, что у канонического парсера
+    # (`spa_core.owner_queue.queue._parse_frontmatter`): повторный top-level `status:`
+    # внутри САМОГО frontmatter — это переписанное значение (словарь берёт последнее),
+    # а не две разные карточки. Строго ОДНА граница, не вторая копия правила разбора.
+    matches = _STATUS.findall(_frontmatter_block(text))
+    return matches[-1] if matches else "нет-статуса"
 
 
 def counts_local() -> tuple[collections.Counter, dict]:

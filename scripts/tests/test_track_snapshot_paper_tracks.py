@@ -11,6 +11,20 @@ owner-decision-sbalansirovannyi-tir-…, вариант 1): «идёт paper-т�
   • нет файла / нет данных → честные None, никогда не выдуманное число (инв. #8).
 
 Оффлайн, stdlib, пути инжектируются.
+
+**ИЗМЕНЕНИЕ 2026-10-05 (ADR-580 C2, инв. #16 — явное обоснование).** Два теста ниже
+(`test_real_positions_make_it_running_with_honest_apy`,
+`test_mixed_history_counts_only_the_corrected_days`) до этой правки ожидали ЧИСЛОВУЮ
+APY-ставку на ДВУХ честных барах. Это и был измеренный дефект D6
+(`docs/rm_truth/A3_product.md` §2.1 / `REVIEW_1.md` claim 11): генератор публиковал
+ставку с 2 баров, а страница отдельно гасила её до 30 — прод-полка 04.10 ровно поэтому
+несла «Balanced −11.5%» на трёх барах. Порог зрелости (30, канон
+`spa_core.defi_engine.package_status.REPORTABLE_AFTER`) теперь ОДИН и живёт в самом
+генераторе (`_sleeve_paper_track`), поэтому оба теста обновлены: ставка на 2 барах —
+`None` с `reportable=False`, а новый `TestMaturityGate` ниже закрывает сам порог
+положительным контролем (29 баров не репортабельны, 30 — репортабельны). Это УСИЛЕНИЕ
+проверки (новый класс запрещённого поведения ловится), а не ослабление: прежнее числовое
+значение было ровно тем, что ADR-580 запрещает публиковать.
 """
 from __future__ import annotations
 
@@ -20,6 +34,15 @@ import unittest
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
+
+
+def _reportable_after() -> int:
+    """Канон порога — НЕ переписанный сюда литерал (та же причина, что в генераторе)."""
+    spec = importlib.util.spec_from_file_location(
+        "_pkg_status", _REPO / "spa_core" / "defi_engine" / "package_status.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.REPORTABLE_AFTER
 
 
 def _load():
@@ -67,7 +90,8 @@ class TestSleevePaperTrack(unittest.TestCase):
         self.assertEqual(t["days_with_positions"], 0)
         self.assertEqual(t["days_funded"], 3)
 
-    def test_real_positions_make_it_running_with_honest_apy(self):
+    def test_real_positions_make_it_running_but_apy_waits_for_maturity(self):
+        """running ещё не значит "ставка готова" (C2, ADR-580) — см. обоснование в шапке файла."""
         import tempfile
         with tempfile.TemporaryDirectory() as td:
             t = self._track(td, [
@@ -78,8 +102,9 @@ class TestSleevePaperTrack(unittest.TestCase):
         self.assertEqual(t["status"], "paper_test_running")
         self.assertEqual(t["days_with_positions"], 2)
         self.assertEqual(t["positions_count"], 3)
-        # (100020/100000)^(365/2)-1 ≈ 3.72% годовых
-        self.assertAlmostEqual(t["apy_pct"], 3.72, delta=0.05)
+        self.assertIsNone(t["apy_pct"], "2 бара < порога зрелости — число не публикуется")
+        self.assertFalse(t["reportable"])
+        self.assertEqual(t["reportable_after"], _reportable_after())
         self.assertEqual(t["evidence"], "paper")
 
     def test_single_honest_bar_shows_running_but_no_apy_yet(self):
@@ -113,10 +138,52 @@ class TestSleevePaperTrack(unittest.TestCase):
                                  _bar("2026-09-04", 100020.0, positions=3)])
         self.assertEqual(t["status"], "paper_test_running")
         self.assertEqual(t["days_with_positions"], 2)
-        self.assertAlmostEqual(t["apy_pct"], 3.72, delta=0.05)
+        # 2 честных v2-бара < порога зрелости — ставка не публикуется (C2, см. обоснование
+        # в шапке файла), но просадка v2-ряда всё равно считается и показывается (инв. #8).
+        self.assertIsNone(t["apy_pct"])
+        self.assertFalse(t["reportable"])
         self.assertEqual(t["dd_pct"], 0.0, "просадка v1-периода не входит в v2-ряд")
         self.assertEqual(t["observed_accrual_since"], "2026-09-03")
         self.assertEqual(t["pre_fix_period"]["days"], 2)
+
+
+class TestMaturityGate(unittest.TestCase):
+    """C2 (ADR-580): ставка рукава ниже порога зрелости — None, с reportable=False явно.
+
+    Положительный контроль дефекта D6 (`docs/rm_truth/A3_product.md` §2.1 /
+    `REVIEW_1.md` claim 11): генератор раньше публиковал ставку с 2 баров, страница сама
+    гасила её до 30 — прод-полка 04.10 несла «Balanced −11.5%» именно так. Порог
+    проверяется ОТ КАНОНА (`REPORTABLE_AFTER`), не от переписанного литерала «30»: если
+    канон когда-нибудь изменится, этот тест изменится вместе с ним, а не разойдётся.
+    """
+
+    def _track(self, tmp, n_honest):
+        import tempfile  # noqa: F401 — совместимость сигнатуры с остальными хелперами файла
+        gts = _load()
+        p = Path(tmp) / "hy_paper_trading.json"
+        history = [_bar(f"2026-10-{i + 1:02d}", 100000.0 + i * 10.0, positions=2)
+                   for i in range(n_honest)]
+        p.write_text(json.dumps({"equity": history[-1]["equity"] if history else 0.0,
+                                 "daily_history": history}), encoding="utf-8")
+        return gts._sleeve_paper_track(p)
+
+    def test_one_bar_short_of_maturity_is_not_reportable(self):
+        import tempfile
+        threshold = _reportable_after()
+        with tempfile.TemporaryDirectory() as td:
+            t = self._track(td, threshold - 1)
+        self.assertEqual(t["days_with_positions"], threshold - 1)
+        self.assertFalse(t["reportable"])
+        self.assertIsNone(t["apy_pct"], "ниже порога — значение обязано быть None")
+
+    def test_exactly_at_maturity_is_reportable(self):
+        import tempfile
+        threshold = _reportable_after()
+        with tempfile.TemporaryDirectory() as td:
+            t = self._track(td, threshold)
+        self.assertEqual(t["days_with_positions"], threshold)
+        self.assertTrue(t["reportable"])
+        self.assertIsNotNone(t["apy_pct"], "на пороге — ставка обязана публиковаться")
 
 
 class TestBuildSnapshotIntegration(unittest.TestCase):

@@ -299,10 +299,25 @@ def _default_runner(subject: Subject, sandbox: str, root: str, seed: int,
     цикл её НЕ пришпиливает (``PYTHONHASHSEED=0`` стои́т только в тестовой
     команде CLAUDE.md). Значит вопрос «тот же ли ответ завтра» — это вопрос
     «тот же ли ответ при другой соли», и задавать его надо явно.
+
+    N2 (ADR-580 §C8 REVIEW_2, 2026-10-05): субпроцесс импортирует дерево через
+    переставленный ``PYTHONPATH`` — ровно форма, которую
+    `test_sandbox_wiring_ratchet.py` ловит у ВСЕХ соседей; эта функция была
+    единственным явным allow-list исключением. Реальный риск, названный самим
+    allow-list, был не в отсутствии маркера, а в том, что `SPA_LIVE_ROOT=root`
+    совпал бы с прод-деревом на КАЖДОМ боевом прогоне (здесь `root` по
+    умолчанию — живое дерево, как и у `python_reader_clock_doors` до F7).
+    Решение — не отсутствие маркера, а то, НА ЧТО он указывает: `SPA_LIVE_ROOT`
+    здесь ведёт в ту же одноразовую `sandbox`, что и `SPA_DATA_DIR`, а не в
+    `root` — поэтому `live_root()`, если его позовёт код субъекта, вернёт
+    песочницу, а не прод, и `SandboxLeakError` не поднимется НИКОГДА, будь
+    `root` хоть прод-деревом, хоть одноразовой копией.
     """
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = str(seed)
     env["SPA_DATA_DIR"] = sandbox
+    env["SPA_SANDBOX"] = "1"
+    env["SPA_LIVE_ROOT"] = sandbox
     env["PYTHONPATH"] = root + os.pathsep + env.get("PYTHONPATH", "")
     proc = subprocess.run(
         [sys.executable, "-c", subject.code],

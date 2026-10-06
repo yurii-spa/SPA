@@ -324,37 +324,42 @@ async def live_portfolio():
     return JSONResponse(result, headers=NO_CACHE_HEADERS)
 
 
-def _annualized_pct(return_pct: float | None, num_days: float | None) -> float | None:
-    """Annualize a cumulative return over `num_days`. None if either input is unusable."""
-    if not isinstance(return_pct, (int, float)) or not isinstance(num_days, (int, float)):
-        return None
-    if num_days <= 0:
-        return None
-    growth = 1.0 + return_pct / 100.0
-    if growth <= 0:
-        return None
-    return round((growth ** (365.0 / num_days) - 1.0) * 100.0, 4)
+#: RM-TRUTH-01 W5 (ADR-580 C2) — the pinned Telegram/admin copy
+#: (``spa_core/reporting/books_summary.py``) found the inversion defect (A3 §2,
+#: D1) still live on THIS endpoint: linear annualisation over the book's whole
+#: life, including the 39 distorted ``sleeve-econ-v1`` days (ADR-530/531), no
+#: maturity gate. Both copies now call the SAME shared helpers
+#: (``spa_core.reporting.compound_apy``, ``spa_core.paper_trading.sleeve_track``)
+#: instead of re-deriving the formula — the "two independent copies" the module
+#: docstring describes stay independent at the FILE-READ/HTTP layer only, not at
+#: the arithmetic layer, which is now one piece of code imported twice.
+from spa_core.defi_engine.package_status import REPORTABLE_AFTER as _MATURITY_DAYS
+from spa_core.paper_trading.sleeve_track import sleeve_track_view as _sleeve_track_view
+from spa_core.reporting.compound_apy import (
+    compound_annualized_pct as _compound_annualized_pct,
+    evidenced_bars as _evidenced_bars,
+)
+from spa_core.reporting.typed_numbers import typed_pct as _typed_pct
 
 
-def _accrual_anchor_date(doc: dict) -> str | None:
-    """Первый день с реальной записью доходности — не номинальный ``start_date``
-    книги (тот заводится задолго до того, как в книгу реально открывают
-    позиции; см. одноимённую функцию в ``spa_core.reporting.books_summary``,
-    откуда синхронизирована — та же аннуализация, тот же баг-класс что
-    ADR-109/ADR-201 §4)."""
-    history = doc.get("daily_history")
-    if isinstance(history, list) and history:
-        first = history[0]
-        if isinstance(first, dict) and isinstance(first.get("date"), str):
-            return first["date"]
-    start_date = doc.get("start_date")
-    return start_date if isinstance(start_date, str) else None
+def _typed_rate(value, *, window_days, as_of, source, reportable) -> dict:
+    return _typed_pct(
+        value, metric_type="REALIZED_PAPER", window_days=window_days,
+        annualisation="compound", as_of=as_of, source=source,
+        reportable=reportable, reportable_after=_MATURITY_DAYS,
+    )
 
 
 def _book_from_seed_equity(label: str, doc: dict, *, now: datetime | None = None) -> dict:
-    """Balanced/Aggressive book shape: seed_equity + equity + start_date (ADR-125 sleeves).
+    """Balanced/Aggressive book shape: seed_equity + equity + sleeve daily_history.
 
-    ``now`` — вход, не окружение: по умолчанию реальные часы, тесты пинят."""
+    NAV/return are the book's own top-level seed_equity/equity (real regardless of
+    maturity). The annualized RATE is the maturity-gated v2/current-experiment view
+    (``sleeve_track_view``, ADR-531/533): below ``_MATURITY_DAYS`` valid days it is
+    ``None`` and ``status`` reads ``accumulating``. ``now`` is accepted for
+    signature parity with the pinned reporting copy and is currently unused —
+    maturity is counted in valid DAYS (rows), not wall-clock age.
+    """
     seed = doc.get("seed_equity")
     equity = doc.get("equity")
     start_date = doc.get("start_date")
@@ -363,41 +368,69 @@ def _book_from_seed_equity(label: str, doc: dict, *, now: datetime | None = None
         if isinstance(seed, (int, float)) and seed and isinstance(equity, (int, float))
         else None
     )
-    now_dt = now or datetime.now(timezone.utc)
-    num_days = None
-    anchor_date = _accrual_anchor_date(doc)
-    if anchor_date:
-        try:
-            start = datetime.fromisoformat(anchor_date).replace(tzinfo=timezone.utc)
-            num_days = max((now_dt - start).days, 1)
-        except ValueError:
-            num_days = None
+    view = _sleeve_track_view(doc, label.lower())
+    n = view.get("days_with_positions") or 0
+    mature = n >= _MATURITY_DAYS
+    apy = view.get("apy_pct") if mature else None
+    as_of = None
+    history = doc.get("daily_history")
+    if isinstance(history, list) and history and isinstance(history[-1], dict):
+        as_of = history[-1].get("date")
+    rate = _typed_rate(
+        apy, window_days=n or None, as_of=as_of,
+        source=f"sleeve_track_view({view.get('economics_model')}, experiment "
+               f"{view.get('experiment_id')!r}, current only)",
+        reportable=mature,
+    )
+    status = (view.get("status") if mature or view.get("status") != "paper_test_running"
+              else "accumulating")
     return {
         "label": label,
         "available": True,
         "seed_equity": seed,
         "equity": equity,
         "return_pct": return_pct,
-        "annualized_apy_pct": _annualized_pct(return_pct, num_days),
+        "annualized_apy_pct": rate["value"],
+        "annualized_apy_pct_rate": rate,
+        "status": status,
+        "days_with_positions": n,
+        "maturity_days": _MATURITY_DAYS,
         "start_date": start_date,
         "last_update": doc.get("last_cycle_at"),
     }
 
 
 def _book_from_equity_curve(label: str, doc: dict) -> dict:
-    """Conservative book shape: equity_curve_daily.json's own `summary` block."""
+    """Conservative book shape: equity_curve_daily.json's own bars, compound-
+    annualised over EVIDENCED days only (the SAME method the public
+    ``paper_apy_pct`` hero uses) — not the linear ``summary.total_return_pct /
+    summary.num_days`` this used to read."""
     summary = doc.get("summary") if isinstance(doc, dict) else None
     if not isinstance(summary, dict):
         return {"label": label, "available": False, "reason": "no_summary"}
+    ev = _evidenced_bars(doc)
+    real_days = len(ev) if ev else None
+    apy = None
+    as_of = None
+    if ev and isinstance(real_days, int) and real_days >= 2:
+        apy = _compound_annualized_pct(ev[0].get("equity"), ev[-1].get("equity"), real_days)
+        as_of = ev[-1].get("date")
+    rate = _typed_rate(
+        round(apy, 4) if apy is not None else None,
+        window_days=real_days, as_of=as_of,
+        source="data/equity_curve_daily.json (evidenced bars, compound)",
+        reportable=apy is not None,
+    )
     return_pct = summary.get("total_return_pct")
-    num_days = summary.get("num_days")
     return {
         "label": label,
         "available": True,
         "seed_equity": summary.get("start_equity"),
         "equity": summary.get("end_equity"),
         "return_pct": return_pct,
-        "annualized_apy_pct": _annualized_pct(return_pct, num_days),
+        "annualized_apy_pct": rate["value"],
+        "annualized_apy_pct_rate": rate,
+        "status": "paper_test_running" if real_days else "not_started",
         "start_date": summary.get("first_date"),
         "last_update": summary.get("last_date"),
     }

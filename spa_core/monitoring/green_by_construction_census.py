@@ -88,6 +88,7 @@ _REPO_ROOT = _HERE.parents[2]
 if str(_REPO_ROOT) not in sys.path:  # pragma: no cover - путь импорта
     sys.path.insert(0, str(_REPO_ROOT))
 
+from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
@@ -349,6 +350,19 @@ def _run_pytest(root: Path, files: Sequence[str], *, module: str,
     env["PYTHONHASHSEED"] = "0"
     env["GBC_OUT"] = str(out_path)
     env["GBC_MODULE"] = module
+    # C8(b) ADR-580 (INC-1, F8 REVIEW_1 amendment): `root` — ОДНОРАЗОВАЯ полная
+    # копия дерева (`_make_copy`), а не живое. `live_paths.DEFAULT_LIVE_ROOT` —
+    # абсолютный литерал, НЕ относительный к cwd/копии: модуль, берущий свой
+    # каталог состояния константой мимо `SPA_DATA_DIR` (класс F3,
+    # `test_data_dir_env_ratchet.py`, 242 модуля на замер), посчитает, что
+    # прод-дерево существует (оно существует — это абсолютный путь ХОСТА), и
+    # запись уйдёт в НАСТОЯЩЕЕ состояние, даже когда весь остальной прогон идёт
+    # против копии. Autouse-заслон тестов (`SPA_DATA_DIR` на каждый тест) не
+    # покрывает модуль, связавший константу НА ИМПОРТЕ раньше фикстуры — ровно
+    # тот же дефект, что был у `problem_store` (F3) до починки.
+    env[live_paths.SANDBOX_ENV] = "1"
+    env[live_paths.LIVE_ROOT_ENV] = str(root)
+    env[live_paths.DATA_DIR_ENV] = str(Path(root) / "data")
     env["PYTHONPATH"] = os.pathsep.join(
         [str(plugin_dir)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
     # `--basetemp` обязателен, а не украшение: замер прогоняет pytest СОТНИ раз,

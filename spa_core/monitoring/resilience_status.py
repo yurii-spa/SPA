@@ -23,7 +23,12 @@ DESIGN (mirrors the briefing's T1 snapshot-age guard)
     * fleet drill runs ~weekly        → stale if last run > DRILL_STALE_DAYS (8d)
 - A MISSING status file is treated as "never run" → contributes WARNING (we refuse to
   vouch for a proof that has never been exercised).
-- overall == OK  iff  every proof is fresh AND passed (offsite verified, drills all_ok).
+- overall == OK  iff  every proof is fresh AND passed (offsite verified, drills all_ok)
+  AND the offsite copy is to a REAL remote (``is_real_remote: true``).
+  overall == SAME_HOST  iff  everything above passes EXCEPT the offsite destination is
+  same-host (ADR-580 C10: "«offsite» means is_real_remote:true; until then DR is reported
+  as SAME_HOST, never green" — losing the one Mac mini loses this "backup" too, so it must
+  never read as the all-clear OK).
   overall == WARNING otherwise (with the reasons collected in `notes`).
 - We READ ONLY the producers' output. This module never runs a backup, drill, or offsite
   copy itself (those are owned by other agents) — it is a pure read-derive-write rollup.
@@ -47,6 +52,23 @@ OFFSITE_STATUS = DATA_DIR / "dr_offsite_status.json"
 RESTORE_STATUS = DATA_DIR / "restore_drill_status.json"
 FLEET_STATUS = DATA_DIR / "fleet_drill_status.json"
 OUTPUT = DATA_DIR / "resilience_status.json"
+
+# Rollup verdicts, worst → best. SAME_HOST sits strictly BELOW OK so it can never be
+# mistaken for the all-clear: it names the specific thing ADR-580 C10 requires named
+# (the offsite copy exists and verifies, but still lives on the SAME disk as everything
+# it is meant to protect — a single Mac mini — so losing that host loses this "backup" too).
+OVERALL_OK = "OK"
+OVERALL_SAME_HOST = "SAME_HOST"
+OVERALL_WARNING = "WARNING"
+
+# Honest tri/quad-state for the offsite leg specifically (inv. #17: absence of a real
+# remote must be its OWN named value, never folded into a bare true/false that a reader
+# has to re-derive). Ordered worst → best; `_derive_offsite` always sets exactly one.
+OFFSITE_NEVER_RUN = "NEVER_RUN"
+OFFSITE_STALE = "STALE"
+OFFSITE_UNVERIFIED = "UNVERIFIED"
+OFFSITE_SAME_HOST = "SAME_HOST"
+OFFSITE_VERIFIED_REMOTE = "OFFSITE_VERIFIED"
 
 # Freshness windows, derived from each proof's expected cadence (fail-honest).
 OFFSITE_STALE_DAYS = 2.0   # offsite copy is a daily job → >2d means it skipped a day
@@ -100,22 +122,42 @@ def _is_stale(age_days: Optional[float], threshold_days: float) -> bool:
 
 
 # ── per-proof derivation ─────────────────────────────────────────────────────────
+def _offsite_status_label(never_run: bool, stale: bool, verified: bool,
+                           is_real_remote: bool) -> str:
+    """One honest, ordered label for the offsite leg — never a bare boolean a reader has
+    to re-derive, and never OK/green while ``is_real_remote`` is false (ADR-580 C10)."""
+    if never_run:
+        return OFFSITE_NEVER_RUN
+    if stale:
+        return OFFSITE_STALE
+    if not verified:
+        return OFFSITE_UNVERIFIED
+    if not is_real_remote:
+        return OFFSITE_SAME_HOST
+    return OFFSITE_VERIFIED_REMOTE
+
+
 def _derive_offsite(now: Optional[datetime] = None) -> Dict[str, Any]:
     d = _read_json(OFFSITE_STATUS)
     if d is None:
         return {
             "last_ts": None, "verified": False, "is_real_remote": False,
             "stale": True, "never_run": True,
+            "status": _offsite_status_label(True, True, False, False),
         }
     last_ts = d.get("last_offsite_ts")
     age = _age_days(last_ts, now)
+    stale = _is_stale(age, OFFSITE_STALE_DAYS)
+    verified = bool(d.get("verified", False))
+    is_real_remote = bool(d.get("is_real_remote", False))
     return {
         "last_ts": last_ts,
-        "verified": bool(d.get("verified", False)),
-        "is_real_remote": bool(d.get("is_real_remote", False)),
-        "stale": _is_stale(age, OFFSITE_STALE_DAYS),
+        "verified": verified,
+        "is_real_remote": is_real_remote,
+        "stale": stale,
         "never_run": False,
         "age_days": round(age, 2) if age is not None else None,
+        "status": _offsite_status_label(False, stale, verified, is_real_remote),
     }
 
 
@@ -187,15 +229,23 @@ def build_posture(now: Optional[datetime] = None) -> Dict[str, Any]:
         if not fleet["all_ok"]:
             notes.append("fleet_drill: last drill did NOT pass")
 
-    # overall: OK iff every proof fresh AND passing. The local-stand-in offsite dest
-    # is owner-flagged but does NOT by itself force WARNING (the mechanism is proven);
-    # an UNVERIFIED offsite copy DOES (the copy itself is untrustworthy).
-    ok = (
+    # overall: every PROOF (offsite run+fresh+verified, both drills fresh+all_ok) must
+    # pass before this is anything but WARNING. Passing all three proofs is necessary but
+    # NOT sufficient for "OK": ADR-580 C10 requires the same-host offsite destination to
+    # be named, never folded into a green verdict — a verified-but-local copy survives
+    # file corruption, not losing the one Mac mini it lives on. So a fully-passing run
+    # with `is_real_remote: false` reports SAME_HOST, one notch below OK, never AS OK.
+    proofs_pass = (
         not offsite["never_run"] and not offsite["stale"] and offsite["verified"]
         and not restore["never_run"] and not restore["stale"] and restore["all_ok"]
         and not fleet["never_run"] and not fleet["stale"] and fleet["all_ok"]
     )
-    overall = "OK" if ok else "WARNING"
+    if not proofs_pass:
+        overall = OVERALL_WARNING
+    elif not offsite["is_real_remote"]:
+        overall = OVERALL_SAME_HOST
+    else:
+        overall = OVERALL_OK
 
     return {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),

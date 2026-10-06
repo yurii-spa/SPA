@@ -29,6 +29,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# ADR-148-класс (простой публикации 2026-10-02…10-05): `deploy_site_snapshot.py` и launchd зовут
+# этот файл ПО ПУТИ, `sys.path[0]` тогда — `scripts/`, и КАЖДЫЙ ленивый `from spa_core…` ниже без
+# корня в пути падает `ModuleNotFoundError`. Один бутстрап на модуль, а не по одному на функцию:
+# при слиянии RM-TRUTH-01 ровно так вернулся дефект — новый ленивый импорт в `build_snapshot`
+# не получил своего бутстрапа (поймал `test_generate_track_snapshot_subprocess_import.py`).
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 GOLIVE = ROOT / "data" / "golive_status.json"
 EQUITY = ROOT / "data" / "equity_curve_daily.json"
 OUT = ROOT / "landing" / "src" / "data" / "track_snapshot.json"
@@ -58,20 +65,13 @@ def _max_drawdown_pct(bars: list):
     Uses each bar's own recorded ``drawdown_pct`` (the honest figure the cycle logged) rather than
     re-deriving peak-to-trough from equity — the old re-derivation returned 0.0 while bars carried
     drawdown_pct down to -0.026. Falls back to equity peak-to-trough only if no bar has drawdown_pct.
+
+    Delegates to ``spa_core.reporting.compound_apy.max_drawdown_pct`` (RM-TRUTH-01 W5,
+    ADR-580 C2) — the SAME formula ``/api/health-public`` now uses, so the two stop being
+    independent re-derivations of the same number.
     """
-    dds = [float(b.get("drawdown_pct")) for b in bars if b.get("drawdown_pct") is not None]
-    if dds:
-        return round(min(dds), 4)
-    eqs = [float(b.get("equity")) for b in bars if b.get("equity") is not None]
-    if len(eqs) < 2:
-        return None
-    peak = eqs[0]
-    worst = 0.0
-    for e in eqs:
-        peak = max(peak, e)
-        if peak > 0:
-            worst = min(worst, (e - peak) / peak * 100.0)
-    return round(worst, 4)
+    from spa_core.reporting.compound_apy import max_drawdown_pct as _shared_max_dd
+    return _shared_max_dd(bars)
 
 
 def _tier_packages() -> dict:
@@ -146,85 +146,20 @@ def _observed_accrual_since(book: str) -> "str | None":
 def _sleeve_paper_track(state_path: Path, book: str = "") -> dict:
     """Paper-трек рукава (Balanced=hy, Aggressive=lp) для карточки тира — ЧЕСТНЫЙ.
 
-    Решение владельца 2026-10-01 (ADR-531, пункт 9 пакета P0-4, вариант A): публикуются ТОЛЬКО
-    дни, посчитанные исправленной моделью издержек `sleeve-econ-v2`. Строки модели v1 искажены
-    выявленным дефектом учёта (газ за дрейф начисления), они НЕ удаляются и НЕ переписываются,
-    в число НЕ входят и показываются отдельной пометкой без числа (`pre_fix_period`). Старое и
-    новое в одну непрерывную историю не сводятся: дни, ставка и просадка — только по v2.
+    Thin wrapper (RM-TRUTH-01 W5, ADR-580 C1): the actual v2-only / current-experiment /
+    maturity logic now lives in ``spa_core.paper_trading.sleeve_track.sleeve_track_view``
+    — the ONE place it is computed, also imported by ``spa_core/reporting/books_summary.py``
+    and ``spa_core/api/routers/live.py`` so the Telegram "📚 Пакеты" block and
+    ``/api/live/books`` stop re-deriving it with a different (linear, unguarded) formula.
+    This function's signature/behaviour is unchanged — it still takes a *path* and does
+    its own file read, so existing callers/tests (``scripts/tests/test_track_snapshot_paper_tracks.py``)
+    are untouched.
 
-    Прежние правила остаются: «идёт paper-тест» — только при positions_count > 0 (решение
-    владельца 19.08); ставка — по честным барам, ≥2 бара, иначе None → «—». Файла нет /
-    нечитаем → all-None (сайт честно молчит). ADR-103.
+    Импорт ниже защищён модульным бутстрапом ``sys.path`` (ADR-148-класс, см. шапку файла).
+    Порог зрелости ставки (ADR-580 C2) живёт в `sleeve_track_view`, а не здесь — одно место.
     """
-    from spa_core.paper_trading.sleeve_book import ECONOMICS_MODEL
-    st = _load(state_path)
-    hist = [h for h in (st.get("daily_history") or []) if isinstance(h, dict)]
-    v2_all = [h for h in hist if h.get("economics_model") == ECONOMICS_MODEL]
-    # ADR-533: a change of strategy version opens a new experiment; the published figures are the
-    # CURRENT experiment's rows only — an earlier version's statistics are never carried over.
-    _active = next((e for e in reversed(st.get("experiments") or []) if e.get("status") == "active"), None)
-    v2 = ([h for h in v2_all if h.get("experiment_id") == _active.get("experiment_id")]
-          if _active else v2_all)
-    earlier_version_rows = len(v2_all) - len(v2)
-    funded = [h for h in v2 if float(h.get("equity", 0) or 0) > 0]
-    honest = [h for h in funded if int(h.get("positions_count", 0) or 0) > 0]
-    pre_fix_days = len(hist) - len(v2_all)       # rows of the distorted v1 cost model only
-
-    apy = None
-    if len(honest) >= 2:
-        first_eq = float(honest[0].get("equity") or 0)
-        last_eq = float(honest[-1].get("equity") or 0)
-        days = len(honest)
-        if first_eq > 0 and last_eq > 0:
-            apy = round(((last_eq / first_eq) ** (365.0 / days) - 1.0) * 100.0, 2)
-
-    # Просадка — от пика ТОЛЬКО v2-ряда: поле строки меряет от пика всей книги, включая
-    # искажённый период, и смешало бы два режима в одном числе.
-    dd = None
-    if honest:
-        peak, worst = 0.0, 0.0
-        for h in honest:
-            eq = float(h.get("equity") or 0)
-            peak = max(peak, eq)
-            if peak > 0:
-                worst = min(worst, eq / peak - 1.0)
-        dd = round(worst * 100.0, 2)
-    last = funded[-1] if funded else {}
-    if honest:
-        status = "paper_test_running"
-    elif funded:
-        status = "accrual_only_no_positions"     # v2-начисление без позиций — не трек (19.08)
-    elif pre_fix_days:
-        status = "restarted_on_corrected_model"   # граница пройдена, исправленных дней ещё нет
-    else:
-        status = "not_started"
-    boundary = st.get("economics_model_boundary")
-    return {
-        "status": status,                       # факт, не аванс
-        "days_with_positions": len(honest),
-        "days_funded": len(funded),
-        "apy_pct": apy,                         # только v2, честные бары, иначе None
-        "dd_pct": dd,
-        # NAV книги несёт итог искажённого периода — при наличии v1-строк не публикуется
-        # (вариант A: старое с новым не смешивается); без них — текущий equity.
-        "nav_usd": (None if pre_fix_days else (round(float(st.get("equity") or 0.0), 2) or None)),
-        "positions_count": int(last.get("positions_count", 0) or 0) if last else None,
-        "evidence": "paper",                    # это paper-тест, не live (инв. #8)
-        # Все v2-дни начислены по НАБЛЮДЁННЫМ ставкам: дата — первый день v2.
-        "observed_accrual_since": (v2[0].get("date") if v2 else None),
-        "economics_model": ECONOMICS_MODEL,
-        "economics_model_boundary": boundary,
-        "pre_fix_period": ({"days": pre_fix_days, "status": "distorted",
-                            "label_en": "earlier period distorted by the identified accounting defect "
-                                        "— retained for audit, not shown",
-                            "label_ru": "прежний период искажён выявленным дефектом учёта — "
-                                        "сохранён для аудита, не показывается"}
-                           if pre_fix_days else None),
-        "post_fix": dict(_post_fix_track(honest), pre_fix_days=pre_fix_days),
-        # rows of an EARLIER strategy version under the corrected model — kept, not counted, not "distorted"
-        "earlier_version_rows": earlier_version_rows,
-        "experiment_id": (_active or {}).get("experiment_id"),
-    }
+    from spa_core.paper_trading.sleeve_track import sleeve_track_view
+    return sleeve_track_view(_load(state_path), book)
 
 
 def _package_status() -> dict:
@@ -239,19 +174,6 @@ def _package_status() -> dict:
         # the exception TYPE only: its message can carry a local path, and this file is public
         return {"unavailable_reason": f"package status read model unavailable ({type(exc).__name__})"}
 
-
-def _post_fix_track(honest: list) -> dict:
-    """Те же честные бары, но только посчитанные моделью v2 (ADR-531). <2 баров ⇒ apy None."""
-    from spa_core.paper_trading.sleeve_book import ECONOMICS_MODEL
-    v2 = [h for h in honest if h.get("economics_model") == ECONOMICS_MODEL]
-    apy = None
-    if len(v2) >= 2:
-        a, b = float(v2[0].get("equity") or 0), float(v2[-1].get("equity") or 0)
-        if a > 0 and b > 0:
-            apy = round(((b / a) ** (365.0 / len(v2)) - 1.0) * 100.0, 2)
-    return {"model": ECONOMICS_MODEL, "days": len(v2),
-            "first_date": v2[0].get("date") if v2 else None, "apy_pct": apy,
-            "pre_fix_days": len(honest) - len(v2)}
 
 
 def _go_live_target(golive: dict):
@@ -303,12 +225,14 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
     # backfill/demo (invalid) and are excluded upstream, so this only ever counts
     # honest evidenced days. Too few evidenced bars to annualize => None => the site
     # renders "data unavailable", never a misleading volatile number.
+    # Delegates to spa_core.reporting.compound_apy (RM-TRUTH-01 W5, ADR-580 C2) — the
+    # SAME formula /api/health-public and /api/ssot/facts now use for paper_apy_pct.
+    from spa_core.reporting.compound_apy import compound_annualized_pct as _shared_apy
     paper_apy = None
     if len(evidenced) >= 2 and real_days > 0:
         anchor_eq = float(evidenced[0].get("equity") or 0)
         latest_eq = float(evidenced[-1].get("equity") or 0)
-        if anchor_eq > 0 and latest_eq > 0:
-            paper_apy = ((latest_eq / anchor_eq) ** (365.0 / real_days) - 1.0) * 100.0
+        paper_apy = _shared_apy(anchor_eq, latest_eq, real_days)
 
     # as_of = freshness of the underlying evidenced data (last evidenced bar date), NOT build time.
     as_of = (evidenced[-1].get("date") if evidenced else last.get("date")) or golive.get("as_of")

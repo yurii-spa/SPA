@@ -7,11 +7,22 @@ Aggressive не упоминались вовсе, хотя оба ведут р
 Числа обязаны совпадать с тем, что дашборд уже считает (/api/live/books, phase B):
 эти тесты кормят ОБЕ реализации одной фикстурой и сверяют выводы — дрейф двух
 копий парсинга краснит тест, а не живёт молча.
+
+RM-TRUTH-01 W5 (ADR-580 C2, 2026-10-05): фикстуры этого файла переписаны вместе с
+``spa_core/reporting/books_summary.py``. Прежние фикстуры (``seed_equity``/``equity``/
+``start_date``, без ``daily_history``/``economics_model``) кормили ЛИНЕЙНУЮ
+аннуализацию по номинальному якорю — тот самый механизм, который на проде держал
+Balanced −4.36% / Aggressive 1.36% ниже Conservative 4.15% (A3 §2, D1). Новые
+фикстуры несут v2-помеченную историю ADR-531/533, а короткие/немаркированные —
+проверяют, что НЕЗРЕЛАЯ книга честно отвечает ``None`` + ``accumulating``, а не
+выдуманным числом. Намеренное изменение теста (инв. #16): старое поведение само
+было дефектом, который этот цикл чинит по прямому заданию (применяет уже принятые
+ADR-531/548, не вводит новое публичное число).
 """
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from spa_core.reporting.books_summary import collect_books_summary
@@ -19,17 +30,62 @@ from spa_core.reporting.daily_telegram_report import build_report_data, format_d
 
 NOW = datetime(2026, 8, 31, 8, 0, tzinfo=timezone.utc)
 
+#: Та же граница зрелости, что в books_summary.py (REPORTABLE_AFTER, ADR-533/537) —
+#: число НЕ перепечатывается литералом, а проверяется через саму библиотеку, чтобы
+#: смена порога не рассинхронизировала фикстуры и код молча.
+from spa_core.defi_engine.package_status import REPORTABLE_AFTER as _MATURITY_DAYS
+
+
+def _mature_v2_history(final_equity: float, n: int = _MATURITY_DAYS,
+                        start: str = "2026-09-01") -> list[dict]:
+    """``n`` честных (``sleeve-econ-v2``, ``positions_count>0``) дней, линейно
+    двигающих equity от $100k до *final_equity* — достаточно, чтобы пройти
+    30-дневный порог зрелости (ADR-531/533)."""
+    d0 = date.fromisoformat(start)
+    seed = 100000.0
+    out = []
+    for i in range(n):
+        frac = i / (n - 1) if n > 1 else 1.0
+        eq = seed + (final_equity - seed) * frac
+        out.append({
+            "date": (d0 + timedelta(days=i)).isoformat(),
+            "equity": round(eq, 2),
+            "positions_count": 2,
+            "economics_model": "sleeve-econ-v2",
+        })
+    return out
+
+
+def _evidenced_bars(final_equity: float, n: int = 70,
+                     start_equity: float = 100000.0, start: str = "2026-06-22") -> list[dict]:
+    """``n`` evidenced-бар equity_curve_daily.json, линейно от *start_equity* до
+    *final_equity* — тот же вход, который ``compound_apy.compound_annualized_pct``
+    читает у настоящей книги."""
+    d0 = date.fromisoformat(start)
+    out = []
+    for i in range(n):
+        frac = i / (n - 1) if n > 1 else 1.0
+        eq = start_equity + (final_equity - start_equity) * frac
+        out.append({"date": (d0 + timedelta(days=i)).isoformat(), "equity": round(eq, 2),
+                     "evidenced": True, "drawdown_pct": 0.0})
+    return out
+
 
 def _seed_three_books(ddir: Path) -> None:
-    (ddir / "equity_curve_daily.json").write_text(json.dumps({"summary": {
-        "start_equity": 100000.0, "end_equity": 101123.06,
-        "total_return_pct": 1.1231, "num_days": 70,
-    }}), encoding="utf-8")
+    (ddir / "equity_curve_daily.json").write_text(json.dumps({
+        "summary": {
+            "start_equity": 100000.0, "end_equity": 101123.06,
+            "total_return_pct": 1.1231, "num_days": 70,
+        },
+        "daily": _evidenced_bars(101123.06, n=70),
+    }), encoding="utf-8")
     (ddir / "hy_paper_trading.json").write_text(json.dumps({
         "seed_equity": 100000.0, "equity": 100174.78, "start_date": "2026-08-23",
+        "daily_history": _mature_v2_history(100174.78),
     }), encoding="utf-8")
     (ddir / "lp_paper_trading.json").write_text(json.dumps({
         "seed_equity": 100000.0, "equity": 100213.89, "start_date": "2026-08-23",
+        "daily_history": _mature_v2_history(100213.89),
     }), encoding="utf-8")
 
 
@@ -139,75 +195,104 @@ def test_report_numbers_match_the_dashboard_endpoint(tmp_path, monkeypatch):
 
 
 def test_annualized_anchor_logic_matches_between_the_two_copies():
-    """``annualized_apy_pct`` зависит от ``now`` — сравнивать через живой
-    FastAPI-эндпоинт (два независимых чтения часов) флаково на границе суток.
-    Пинуем НАПРЯМУЮ: те же вход + тот же явный ``now`` в обе копии функции
-    ``_book_from_seed_equity`` (books_summary.py и live.py) обязаны выдать
-    одно и то же — дрейф якорной логики между копиями краснит здесь, не в
-    полночь по UTC где-то в CI."""
+    """Два НЕЗАВИСИМЫХ файла (``books_summary.py`` / ``live.py``) обязаны выдать
+    ОДНО и то же число и статус для ОДНОГО и того же документа — ADR-580 C1.
+    До RM-TRUTH-01 W5 они расходились по ФОРМУЛЕ (линейная, разный якорь) — само
+    расхождение было проявлением дефекта A3 §2/D1, не только риском его появления.
+    Теперь обе копии зовут ОДИН общий ``sleeve_track_view`` + ``compound_apy``, так
+    что дрейф возможен только на уровне ЭТОГО файла (две копии всё ещё не делят
+    FastAPI-импорт, инвариант #4), не внутри формулы."""
     from spa_core.api.routers.live import _book_from_seed_equity as live_parser
     from spa_core.reporting.books_summary import _book_from_seed_equity as report_parser
     doc = {
         "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
-        "daily_history": [{"date": "2026-08-24"}, {"date": "2026-09-01"}],
+        "daily_history": _mature_v2_history(100291.48),
     }
-    ours = report_parser("Balanced", doc, now=NOW)
-    theirs = live_parser("Balanced", doc, now=NOW)
+    ours = report_parser("Balanced", doc)
+    theirs = live_parser("Balanced", doc)
     assert ours["annualized_apy_pct"] is not None
-    # Разные формулы (books_summary: линейная; live.py: сложная) расходятся на
-    # короткого окна на пару пп — это НЕ предмет теста. Предмет — якорь: если
-    # бы одна копия молча вернулась к start_date (63д простоя), а другая
-    # осталась на daily_history (9д), разрыв был бы на ПОРЯДОК (~15% vs ~1.5%),
-    # не в разы. Порог с большим запасом от формульного шума (замерено: 1.19пп).
-    assert abs(ours["annualized_apy_pct"] - theirs["annualized_apy_pct"]) < 5.0
+    assert ours["annualized_apy_pct"] == theirs["annualized_apy_pct"]
+    assert ours["status"] == theirs["status"] == "paper_test_running"
 
 
-# ─── аннуализация: якорь — реальный первый день, не номинальный start_date ──
+# ─── аннуализация v2/current-experiment/maturity-gated (ADR-531/533/567 C2) ──
 
 
-def test_annualized_rate_uses_real_accrual_anchor_not_stale_start_date(tmp_path):
-    """Прод-разрыв 02.09.2026: ``start_date`` книги — 2026-06-22, а позиции
-    реально открылись только 2026-08-24 (63 дня простоя между ними). Старая
-    аннуализация делила накопленный % на весь интервал ОТ start_date — это
-    превращало реальную ставку ~10-13% годовых в видимость ~1.5%. Фикс:
-    якорь — первый день ``daily_history``, а не ``start_date``. ``now``
-    пинуется явно (время — вход, не окружение, deployment.md)."""
+def test_v1_rows_never_blend_into_the_realized_rate(tmp_path):
+    """ADR-531 вариант A: дни модели ``sleeve-econ-v1`` (искажены выявленным
+    дефектом учёта газа — ADR-530 P0-1) НЕ смешиваются со днями v2 в одну
+    ставку — число считается ТОЛЬКО по v2. Старый якорный баг (анализ 02.09:
+    аннуализация по номинальному ``start_date`` вместо реального первого дня
+    начисления) был частным случаем того же класса «посторонние дни внутри
+    окна»; теперь граница — явная (поле ``economics_model``), не подразумеваемая
+    (дата)."""
+    v1_rows = [{"date": f"2026-08-{d:02d}", "equity": 100000.0 - d, "positions_count": 1}
+               for d in range(1, 10)]  # без economics_model => v1 по определению, теряет деньги
+    v2_rows = _mature_v2_history(100500.0, start="2026-09-10")
+    (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
+        "seed_equity": 100000.0, "equity": 100500.0, "start_date": "2026-06-22",
+        "daily_history": v1_rows + v2_rows,
+    }), encoding="utf-8")
+    result = collect_books_summary(tmp_path)
+    b = result["books"]["balanced"]
+    assert b["annualized_apy_pct"] is not None
+    # v2-дни одни прибыльны; если бы убыточные v1-дни молча подмешались, ставка
+    # ушла бы в минус или сильно упала — она должна остаться позитивной.
+    assert b["annualized_apy_pct"] > 0, b["annualized_apy_pct"]
+    assert b["annualized_apy_pct_rate"]["window_days"] == _MATURITY_DAYS
+
+
+def test_immature_book_is_null_and_accumulating_not_a_guessed_rate(tmp_path):
+    """RM-TRUTH-01 W5 (ADR-531/533/567 C2): книга младше 30 валидных дней честно
+    отвечает ``annualized_apy_pct: None`` + ``status: accumulating`` — НЕ
+    экстраполированной ставкой короткого окна (тот механизм и держал на проде
+    Balanced −4.36% / Aggressive 1.36% ниже Conservative, A3 §2/D1)."""
     (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
         "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
-        "daily_history": [{"date": "2026-08-24"}, {"date": "2026-09-01"}],
+        "daily_history": _mature_v2_history(100291.48, n=9, start="2026-08-24"),
     }), encoding="utf-8")
-    result = collect_books_summary(tmp_path, now=NOW.replace(day=2, month=9))
-    ann = result["books"]["balanced"]["annualized_apy_pct"]
-    assert ann is not None
-    # 9 дней от якоря 2026-08-24 до запиненного «сейчас» 2026-09-02 — на
-    # 63-дневном (start_date) якоре число было бы < 2%; на реальном — двузначное.
-    assert ann > 8.0, ann
+    result = collect_books_summary(tmp_path)
+    b = result["books"]["balanced"]
+    assert b["annualized_apy_pct"] is None
+    assert b["status"] == "accumulating"
+    assert b["days_with_positions"] == 9
+    assert b["annualized_apy_pct_rate"]["reportable"] is False
 
 
-def test_annualized_rate_falls_back_to_start_date_when_no_history(tmp_path):
-    """Без daily_history (день открытия книги == первый учётный день) —
-    старое поведение сохраняется, не регрессия."""
+def test_no_history_is_not_started_not_a_guessed_rate(tmp_path):
+    """Без ``daily_history`` (книга заведена, но ни дня начисления ещё не было) —
+    статус ``not_started`` и ставка ``None`` — НЕ старый фоллбэк на номинальный
+    ``start_date`` (тот подставлял видимость ставки там, где начисления не было
+    вовсе: 63 дня простоя читались как 63 дня трека)."""
     (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
         "seed_equity": 100000.0, "equity": 100050.0, "start_date": "2026-08-31",
     }), encoding="utf-8")
     result = collect_books_summary(tmp_path, now=NOW)
-    assert result["books"]["balanced"]["annualized_apy_pct"] is not None
+    b = result["books"]["balanced"]
+    assert b["annualized_apy_pct"] is None
+    assert b["status"] == "not_started"
 
 
 def test_daily_message_shows_annualized_rate_next_to_cumulative(tmp_path):
     """Дневной отчёт обязан показывать годовую ставку РЯДОМ с накопленным %,
-    иначе за 9 дней трека +0.29% выглядит «смешно», хотя ставка нормальная."""
-    (tmp_path / "equity_curve_daily.json").write_text(json.dumps({"summary": {
-        "start_equity": 100000.0, "end_equity": 101123.06,
-        "total_return_pct": 1.1231, "num_days": 70,
-    }}), encoding="utf-8")
+    иначе за короткий трек накопленный % выглядит «смешно», хотя ставка
+    нормальная. Conservative несёт ≥2 evidenced-бара (ставка идёт оттуда,
+    compound/evidenced — не из ``summary.num_days``); Balanced младше 30
+    валидных дней и честно показывает «накапливается», а не число."""
+    (tmp_path / "equity_curve_daily.json").write_text(json.dumps({
+        "summary": {"start_equity": 100000.0, "end_equity": 101123.06,
+                    "total_return_pct": 1.1231, "num_days": 70},
+        "daily": _evidenced_bars(101123.06, n=10),
+    }), encoding="utf-8")
     (tmp_path / "hy_paper_trading.json").write_text(json.dumps({
         "seed_equity": 100000.0, "equity": 100291.48, "start_date": "2026-06-22",
-        "daily_history": [{"date": "2026-08-24"}],
+        "daily_history": [{"date": "2026-08-24", "equity": 100291.48, "positions_count": 1,
+                            "economics_model": "sleeve-econ-v2"}],
     }), encoding="utf-8")
     data = build_report_data("2026-08-31", data_dir=tmp_path, now=NOW)
     msg = format_daily_message(data)
-    assert "год." in msg  # годовая ставка подписана, не только накопленный %
+    assert "год." in msg  # Conservative: годовая ставка подписана, не только накопленный %
+    assert "накапливается" in msg  # Balanced: честно «пока нет числа», не выдумано
 
 
 # ─── format_daily_message (доставка владельцу) ──────────────────────────────

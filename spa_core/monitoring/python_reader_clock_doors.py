@@ -82,9 +82,10 @@ from typing import Dict, List, Optional, Tuple
 from spa_core.monitoring import _python_reader_clock_probe as probe
 from spa_core.monitoring.call_provenance import call_provenance
 from spa_core.monitoring.call_provenance import describe as provenance_line
+from spa_core.utils import live_paths
 from spa_core.utils.observation import observed
 from spa_core.monitoring.run_identity_key_price import (
-    build_stands, http_modules, reader_population,
+    build_stands, ensure_faithful_stand, http_modules, reader_population,
 )
 from spa_core.utils.atomic import atomic_save
 
@@ -181,6 +182,7 @@ def run_arm(names: List[str], stand: Path, tree_root: Path, moment: dt.datetime,
     бы что-нибудь закрепить, и плечо B стало бы копией плеча A.
     """
     script = Path(tree_root) / "spa_core" / "monitoring" / Path(probe.__file__).name
+    ensure_faithful_stand(stand, tree_root)
     with tempfile.TemporaryDirectory(prefix="spa_g31_arm_") as tmp:
         mods = Path(tmp) / "modules.json"
         out = Path(tmp) / "answer.json"
@@ -189,6 +191,15 @@ def run_arm(names: List[str], stand: Path, tree_root: Path, moment: dt.datetime,
         env[probe.STAND_ENV] = str(stand)
         env[probe.CLOCK_ENV] = moment.isoformat()
         env[probe.PIN_CLASS_ENV] = "1" if pin else "0"
+        # C8(b) ADR-580 (сосед INC-1): `tree_root` здесь — настоящее дерево, а не
+        # копия (стенд копирует только `data/`). «write=False передаётся везде, где
+        # параметр есть» защищает читателя, у которого параметр есть; у читателя без
+        # него зов упал бы на умолчании `live_paths` — ровно форма INC-1. Направляем
+        # умолчание на СВОЙ стенд, не на прод; F7 делает стенд ПОЛНЫМ деревом для
+        # чтения (`ensure_faithful_stand`), не трогая эту изоляцию `data/`.
+        env[live_paths.SANDBOX_ENV] = "1"
+        env[live_paths.LIVE_ROOT_ENV] = str(stand)
+        env[live_paths.DATA_DIR_ENV] = str(Path(stand) / "data")
         env["PYTHONPATH"] = os.pathsep.join(
             [str(tree_root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
         try:
