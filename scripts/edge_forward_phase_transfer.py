@@ -551,8 +551,16 @@ def run(panel_dir: Path = PANEL_DIR, *, verbose: bool = True) -> Dict[str, objec
             print(f"    {label:26s} {s['apy'] * 100:+7.2f}% {mdd:>13} {cal:>22} "
                   f"{s['mean_weight_in_frozen'] * 100:7.1f}%")
             if s["dd_status"] != "measured" or s["calmar"] is None or abs(s["calmar"] or 0) > 100:
-                print(f"    {'':26s}   why: {s['dd_reason'] or 'maxDD ~ 0 on a near-flat series '
-                      '(the sizer parks capital in books whose returns are exactly 0.0)'}")
+                # Текст по умолчанию вынесен ИМЕНЕМ, а не склеен внутри
+                # `{...}`: выражение f-строки, растянутое на две строки, —
+                # PEP 701, то есть 3.12+, а шаг `SPA CI-Lite` ставит 3.11 и
+                # честно падает `SyntaxError: unterminated string literal`.
+                # Замер 06.10 на origin/main: таких мест в репозитории РОВНО
+                # ОДНО, и это было оно.
+                why = s['dd_reason'] or (
+                    'maxDD ~ 0 on a near-flat series (the sizer parks capital '
+                    'in books whose returns are exactly 0.0)')
+                print(f"    {'':26s}   why: {why}")
             print(f"    {'':26s}   heaviest name: {s['top_name']} at "
                   f"{s['top_mean_weight'] * 100:.2f}% mean weight "
                   f"(own sigma {s['top_name_sigma'] * 100:.5f}%, "
