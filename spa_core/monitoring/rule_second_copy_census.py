@@ -17850,6 +17850,915 @@ def the_other_road_of_a_named_class(root: Path, *, population: Optional[dict] = 
     return {**head, 'status': 'MEASURED', 'population': len(rows), 'sites': len(sites), 'parent_population': len(pop['rows']), 'files_scanned': pop['files_scanned'], 'road_outcomes': roads, 'grades': grades, 'unmeasured_reasons': gaps, 'per_site': per_site, 'leads_to_a_softer_verdict': softer, 'judged_by_no_road_at_all': roads[ROAD_ONLY_REPORTED], 'sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'cls': r['cls'], 'road': r['road'], 'grade': r.get('grade'), 'gap': r.get('gap'), 'baseline': r.get('baseline'), 'road_outcome': r.get('road_outcome'), 'ranks': r.get('ranks')} for r in rows if r['road'] != ROAD_ONLY_REPORTED][:COSTED_SAMPLE], 'reported_only_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'cls': r['cls']} for r in rows if r['road'] == ROAD_ONLY_REPORTED][:COSTED_SAMPLE], 'blind': [f'ДОПУЩЕНА ОДНА форма объявленного порядка — `{ORDER_BY_EXIT_CODE}` (код возврата из `main() -> int`). Голый упорядоченный перечень распознаётся и ОТВЕРГАЕТСЯ: он объявляет порядок, но не объявляет, какой его конец тяжелее, и считать первый элемент самым мягким есть ровно та догадка о смысле имён, которую заказ запретил', 'порядок кода возврата ДВУХРАНГОВЫЙ по построению, поэтому разные исходы одного ранга разведены отдельной оценкой: файл градуирует их ОДИНАКОВО, и звать это «тем же вердиктом» значило бы стереть различие, которого файл не стирал', 'цель вердикта сверяется ТЕКСТУАЛЬНО (`ast.unparse`): два разных объекта, записанных одинаково, шаг сольёт. Односторонность объявлена, и она того же рода, что звено «тот же файл» у соседа', 'у вердикта формы «пара `return`» цель есть ВОЗВРАЩАЕМОЕ значение, и семья его исходов собирается по ВСЕМУ файлу — вселенные возвратов разных функций там сливаются (замер: в сцене `judge`+`classify` семья несёт и `ok/warn/bad`, и классы самого производителя). От этого зависит ДОПУСК объявленного порядка, поэтому сказано вслух, а не оставлено свойством реализации', 'сравниваемое ВЫРАЖЕНИЕ объявленного порядка с целью вердикта не сверяется — у `owner_visibility_census` цель есть имя `status`, а код возврата спрашивает `report["status"]`. Связь доказывается СЕМЬЁЙ исходов, а не записью подлежащего', 'дорогой признаётся ветвь, которую класс ОХРАНЯЕТ (`body`), — тот же структурный выбор, что и у базы сравнения. Класс, влияющий на исход только через ветвь `else`, в дорогу не попадёт', 'шаг доказывает ДОРОГУ, а не событие: что класс приходит в данных сегодня, он не утверждает ничем', 'носитель класса ищется ТРАНЗИТИВНО до неподвижной точки и ограничен только областью, поэтому правило ошибается В СТОРОНУ НАХОДКИ дороги, а не в сторону её пропуска. Направление выбрано намеренно: пропущенная дорога объявила бы класс НЕПОДСУДНЫМ там, где его судят, — это ложь более дорогая, чем лишняя дорога, которую видно по `named_at` и `roads`'], 'what_it_does_not_prove': ['что дорога, ведущая к тому же исходу, судит ПРАВИЛЬНО: мерится ИСХОД, не смысл', 'что класс, посчитанный только в отчётное поле, вреден сегодня — он не судим, и это ДОРОГА, не событие', 'что объявленный порядок ВЕРЕН: он взят у файла как есть, спорить с ним шаг не вправе']}
 
 
+# --- ВЕРДИКТ ВНЕ ЗАКРЫТОГО ПЕРЕЧНЯ ФОРМ (заказ G102 п. 2) -------------------
+#: Три формы вердикта ВНЕ закрытого перечня соседа (:data:`_VERDICT_FORMS`).
+#: Перечень тоже ЗАКРЫТ, и это сказано вслух: ненайденное им население не есть
+#: ноль. Названы они поимённо затем, чтобы «форм вне перечня нет» нельзя было
+#: спутать с «я искал одну форму»: заказ назвал ДВЕ (цепочка `elif` и словарь
+#: переходов), третья добавлена, потому что `match` градуирует исходы ровно
+#: так же и не спросить о нём значило бы сузить население до буквы заказа.
+FORM_OUT_ELIF_CHAIN = "a_chain_of_elif_with_more_than_two_outcome_bearing_branches"
+FORM_OUT_TRANSITION_TABLE = "a_table_of_transitions_read_by_a_key_of_the_counter"
+FORM_OUT_MATCH = "a_match_statement_whose_cases_yield_declared_classes"
+_FORMS_OUTSIDE = (FORM_OUT_ELIF_CHAIN, FORM_OUT_TRANSITION_TABLE,
+                  FORM_OUT_MATCH)
+
+#: ЧТО закрытый перечень делает с найденной формой, и разводить это
+#: обязательно. ADR-522 объявил односторонность словами «в население НЕ
+#: попадает вовсе», то есть обещал промах В СТОРОНУ ПУСТОТЫ: ненайденное не
+#: есть ноль, но и неверного числа оно не даёт. Хвост цепочки, вошедший в
+#: население КАК ЦЕЛЫЙ вердикт, есть промах в ДРУГУЮ сторону — усечённый
+#: вердикт, посчитанный полным, — и вред у него обратного знака: не «молчим о
+#: том, чего не искали», а «судим о полноте перечня ключей по двум ветвям из
+#: пяти». Слить их в одно слово значило бы потерять ровно это различие.
+ENTRY_TRUNCATED = "the_tail_of_this_form_enters_the_closed_population_as_a_WHOLE_verdict"
+ENTRY_ABSENT = "this_form_does_not_enter_the_closed_population_at_all"
+ENTRY_UNMEASURED = "whether_this_form_enters_the_closed_population_is_not_measured"
+_ENTRIES = (ENTRY_TRUNCATED, ENTRY_ABSENT, ENTRY_UNMEASURED)
+
+#: ЧЕМ доказан исход входа. «Доказано» обязано иметь названное основание:
+#: тождество узлов, пустота вклада файла и «формы такого вида в перечне нет
+#: вовсе» суть ТРИ РАЗНЫХ доказательства одного слова ``ABSENT``, и слить их
+#: значило бы выдать отсутствие формы за измеренное тождество.
+PROOF_BY_NODE_IDENTITY = "the_tail_node_was_compared_with_the_very_nodes_the_neighbour_accepted"
+PROOF_FILE_GAVE_NO_ROW = "this_file_gave_the_neighbour_no_row_at_all_so_nothing_of_it_entered"
+PROOF_NO_SUCH_FORM = "the_closed_list_has_no_form_of_this_shape_at_all"
+_ENTRY_PROOFS = (PROOF_BY_NODE_IDENTITY, PROOF_FILE_GAVE_NO_ROW,
+                 PROOF_NO_SUCH_FORM)
+
+#: Имя отказа ВХОДА. Решить «вошёл ли хвост» можно только по ТОМУ САМОМУ
+#: дереву, которое читал сосед: сверять «тот же ли это узел» по совпадению
+#: файла и строки значило бы ответить догадкой — ровно той, которую сосед
+#: запретил себе сам (см. ``_ctx`` у :func:`_verdict_population`). Сегодня
+#: ветвь есть ОХРАНА РАСШИРЕНИЯ, а не живой случай: дерево соседа берётся у
+#: его же строк населения, и потому недостижима. Проверяется прямой
+#: подстановкой в батарее, и тест говорит это вслух.
+OUT_GAP_NEIGHBOUR_TREE = "the_tree_the_neighbour_read_is_not_available_for_this_file"
+_OUT_GAPS = (OUT_GAP_NEIGHBOUR_TREE,)
+
+#: Третий исход ШАГА ЦЕЛИКОМ — три разных имени, потому что чинятся они
+#: РАЗНЫМ: не доказано правило · не измерено население соседа · дерево шага
+#: прочитано не целиком.
+UNMEASURED_OUT_CONTROL = "declared_rule_of_the_form_outside_the_list_missed_the_known_case"
+UNMEASURED_OUT_POPULATION = "the_population_of_the_neighbour_step_is_not_measured"
+UNMEASURED_OUT_TREE = "the_tree_of_the_step_is_not_read_whole"
+
+#: Сколько ветвей видит у вердикта ЗАКРЫТЫЙ перечень. Ровно две по
+#: построению: вердиктом он признаёт развилку, ОБЕ ветви которой дают
+#: объявленный класс. Число названо константой, чтобы «усечён до двух» было
+#: утверждением с адресом, а не оборотом речи.
+BRANCHES_THE_CLOSED_LIST_SEES = 2
+
+
+def _is_elif_link(outer: ast.AST, inner: ast.AST) -> bool:
+    """``elif`` ли это звено — по ОТСТУПУ, потому что дерево их не различает.
+
+    ``elif b:`` и ``else:`` + вложенный ``if b:`` дают ОДИН И ТОТ ЖЕ разбор:
+    ``orelse`` ровно из одного :class:`ast.If`. Различает их только колонка:
+    у ``elif`` она та же, что у головы, у вложенного ``if`` — глубже. Первая
+    редакция этого шага объявляла «звеном признаётся только ``elif``» и
+    проверяла форму ``orelse``, то есть называла различием то, чего в дереве
+    нет вовсе, — и собственный тест на вложенный ``if`` её и уличил.
+
+    Различие не косметическое: у вложенного ``if`` СВОЙ ``else``, и слить две
+    развилки в одну значило бы сосчитать ветви, которых цепочка не имеет.
+    """
+    if not (isinstance(outer, ast.If) and isinstance(inner, ast.If)):
+        return False
+    if len(outer.orelse) != 1 or outer.orelse[0] is not inner:
+        return False
+    return getattr(inner, "col_offset", None) == getattr(outer, "col_offset", None)
+
+
+def _elif_chain_head(parents: Dict[int, ast.AST], node: ast.AST) -> bool:
+    """ГОЛОВА цепочки, а не её звено.
+
+    Без этого вопроса одна цепочка из пяти ветвей вошла бы в население ТРИ
+    раза — с каждого своего звена, — и число населения отвечало бы на вопрос
+    «сколько у цепочек звеньев», а не «сколько в дереве цепочек». Замер:
+    13 звеньев против 7 цепочек.
+    """
+    if not isinstance(node, ast.If):
+        return False
+    return not _is_elif_link(parents.get(id(node)), node)
+
+
+def _elif_chain_links(node: ast.If) -> List[ast.If]:
+    """Звенья цепочки сверху вниз: ``if`` … ``elif`` … ``elif``."""
+    links = [node]
+    while (len(links[-1].orelse) == 1
+           and _is_elif_link(links[-1], links[-1].orelse[0])):
+        links.append(links[-1].orelse[0])
+    return links
+
+
+def _branch_classes(body: List[ast.AST], declared: Set[str]) -> List[ast.AST]:
+    """Объявленные классы, которые ветвь отдаёт ПРЯМО — ``return`` либо
+    присваивание ОДНОМУ имени.
+
+    Та же пара форм, которой пользуется сосед, и это не копия правила, а его
+    половина: сосед спрашивает «обе ли ветви дают класс», здесь же нужен
+    счёт ветвей, которые класс дают. Спрашивать это его функцией нельзя — она
+    отвечает про ПАРУ ветвей, а у цепочки их больше двух.
+    """
+    out: List[ast.AST] = []
+    for stmt in body:
+        if isinstance(stmt, ast.Return) and stmt.value is not None:
+            if _is_declared_class(stmt.value, declared):
+                out.append(stmt.value)
+        elif (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+              and isinstance(stmt.targets[0], ast.Name)
+              and _is_declared_class(stmt.value, declared)):
+            out.append(stmt.value)
+    return out
+
+
+def _counters_read_by_declared_keys(tests: List[ast.AST], in_file: Dict[str, int],
+                                    declared: Set[str]) -> Dict[str, List[ast.AST]]:
+    """Счётчики ЭТОГО файла, прочитанные ИМЕНОВАННЫМИ ключами, — объединением
+    по всем условиям цепочки.
+
+    Отбор дословно соседский (``все ключи до одного — объявленные классы``):
+    вопрос заказа про ТУ ЖЕ поверхность, и отобрать её иначе значило бы
+    сравнивать два разных населения.
+    """
+    out: Dict[str, List[ast.AST]] = {}
+    for test in tests:
+        for counter, keys in _counter_reads_by_name(test).items():
+            if counter not in in_file or not keys:
+                continue
+            if not all(_is_declared_class(k, declared) for k in keys):
+                continue
+            out.setdefault(counter, []).extend(keys)
+    return out
+
+
+def _module_tables_of_classes(tree: ast.AST, declared: Set[str]) -> Dict[str, ast.Dict]:
+    """Словари ПЕРЕХОДОВ верхнего уровня: имя → узел словаря.
+
+    Требование «все значения — объявленные классы и их не меньше двух» и есть
+    то, что делает словарь ПЕРЕХОДОМ, а не просто словарём: один класс
+    градуировки не объявляет, а значение вне объявленных классов означает,
+    что словарь отдаёт не класс.
+    """
+    out: Dict[str, ast.Dict] = {}
+    for node in getattr(tree, "body", []) if isinstance(tree, ast.Module) else []:
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and isinstance(node.value, ast.Dict)):
+            continue
+        table = node.value
+        if len(table.values) < BRANCHES_THE_CLOSED_LIST_SEES:
+            continue
+        if not all(_is_declared_class(v, declared) for v in table.values):
+            continue
+        out[node.targets[0].id] = table
+    return out
+
+
+def _mentions_a_counter(node: ast.AST, in_file: Dict[str, int]) -> Optional[str]:
+    """Имя счётчика, упомянутое в выражении, либо ``None``.
+
+    Односторонность объявлена ЗАРАНЕЕ и выбрана В СТОРОНУ НАХОДКИ: ключ
+    словаря переходов бывает вычислен (``max(counts, key=counts.get)``), и
+    требовать у него формы подписки значило бы пропустить ровно те переходы,
+    ради которых заказ и поставлен. Лишняя находка видна по полю ``key``,
+    пропущенная не видна ничем.
+    """
+    for inner in ast.walk(node):
+        if isinstance(inner, ast.Name) and inner.id in in_file:
+            return inner.id
+    return None
+
+
+def _writes_of_counter(scope: ast.AST, counter: str) -> List[ast.AST]:
+    """Записи этого счётчика В ЭТОЙ ЖЕ области — дословно как у соседа."""
+    out: List[ast.AST] = []
+    for inner in ast.walk(scope):
+        shape = _counter_target_key(inner)
+        if (shape is not None and isinstance(shape[0], ast.Name)
+                and shape[0].id == counter):
+            out.append(shape[1])
+    return out
+
+
+def _entry_of_the_tail(tail: Optional[ast.AST], *, accepted: Set[int],
+                       file_in_population: bool,
+                       tree_is_the_neighbours: bool) -> Tuple[str, str, Optional[str]]:
+    """``(исход входа, доказательство, имя отказа)`` для найденной формы.
+
+    Три доказательства, и они не взаимозаменяемы:
+
+    * **хвоста нет вовсе** (словарь переходов, ``match``) — закрытый перечень
+      формы такого вида не знает, и это ответ ПО ПОСТРОЕНИЮ, а не замер;
+    * **файл не дал соседу ни одной строки** — тогда ни один его узел не
+      вошёл, и тождество спрашивать не о чем;
+    * **тождество узлов** — единственный настоящий замер, и он требует того
+      самого дерева, которое читал сосед.
+    """
+    if tail is None:
+        return (ENTRY_ABSENT, PROOF_NO_SUCH_FORM, None)
+    if not file_in_population:
+        return (ENTRY_ABSENT, PROOF_FILE_GAVE_NO_ROW, None)
+    if not tree_is_the_neighbours:
+        return (ENTRY_UNMEASURED, PROOF_BY_NODE_IDENTITY, OUT_GAP_NEIGHBOUR_TREE)
+    if id(tail) in accepted:
+        return (ENTRY_TRUNCATED, PROOF_BY_NODE_IDENTITY, None)
+    return (ENTRY_ABSENT, PROOF_BY_NODE_IDENTITY, None)
+
+
+def _outside_sites(rel: str, tree: ast.AST, *, accepted: Set[int],
+                   file_in_population: bool,
+                   tree_is_the_neighbours: bool) -> Tuple[List[dict], int]:
+    """Формы вне закрытого перечня ОДНОГО файла: ``(строки, исключено записью
+    вне области)``.
+
+    Поверхность отбирается дословно соседскими требованиями — счётчик
+    объявленных классов, прочитанный ИМЕНОВАННЫМИ ключами, и запись этого
+    счётчика В ТОЙ ЖЕ области, — потому что заказ спрашивает про ТО ЖЕ
+    население, из которого форма выпала. Отобрать иначе значило бы ответить
+    числом про другую поверхность.
+    """
+    rows: List[dict] = []
+    elsewhere = 0
+    declared = _declared_constant_names(tree)
+    if not declared:
+        return (rows, elsewhere)
+    consts = toplevel_constants(tree)
+    in_file: Dict[str, int] = {}
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is not None and isinstance(shape[0], ast.Name):
+            in_file[shape[0].id] = in_file.get(shape[0].id, 0) + 1
+    if not in_file:
+        return (rows, elsewhere)
+    parents = _parent_map(tree)
+    tables = _module_tables_of_classes(tree, declared)
+
+    def _emit(node: ast.AST, form: str, counter: str, keys: List[ast.AST],
+              tail: Optional[ast.AST], class_nodes: List[ast.AST],
+              extra: dict) -> None:
+        entry, proof, gap = _entry_of_the_tail(
+            tail, accepted=accepted, file_in_population=file_in_population,
+            tree_is_the_neighbours=tree_is_the_neighbours)
+        # Класс печатается ЗНАЧЕНИЕМ, а имя значением не является ни в какую
+        # сторону (``_class_token``): ввезённая константа, выданная за
+        # значение, слила бы два разных класса в один.
+        tokens = [_class_token(c, consts) for c in class_nodes]
+        values = sorted({tok[1] for tok in tokens
+                         if tok is not None and tok[0] == "value"})
+        rows.append({
+            "file": rel, "line": int(getattr(node, "lineno", 0) or 0),
+            "owner": getattr(_owner_function(parents, node), "name", None),
+            "form": form, "counter": counter,
+            "keys": sorted({ast.unparse(k) for k in keys}),
+            "classes": values,
+            "classes_not_a_value": len([tok for tok in tokens
+                                        if tok is None or tok[0] != "value"]),
+            "entry": entry, "entry_proof": proof, "gap": gap,
+            "tail_line": None if tail is None else int(getattr(tail, "lineno", 0) or 0),
+            **extra,
+        })
+
+    for node in ast.walk(tree):
+        scope = _owner_function(parents, node)
+        if scope is None:
+            continue
+        # --- форма 1: цепочка `elif` длиннее двух ветвей ---
+        if _elif_chain_head(parents, node) and isinstance(node, ast.If):
+            links = _elif_chain_links(node)
+            if len(links) >= BRANCHES_THE_CLOSED_LIST_SEES:
+                carried: List[ast.AST] = []
+                bearing = 0
+                for link in links:
+                    found = _branch_classes(link.body, declared)
+                    if found:
+                        bearing += 1
+                        carried.extend(found)
+                found = _branch_classes(links[-1].orelse, declared)
+                if found:
+                    bearing += 1
+                    carried.extend(found)
+                if bearing > BRANCHES_THE_CLOSED_LIST_SEES:
+                    reads = _counters_read_by_declared_keys(
+                        [link.test for link in links], in_file, declared)
+                    for counter, keys in sorted(reads.items()):
+                        if not _writes_of_counter(scope, counter):
+                            elsewhere += 1
+                            continue
+                        _emit(node, FORM_OUT_ELIF_CHAIN, counter, keys,
+                              links[-1], carried,
+                              {"branches": len(links) + 1,
+                               "branches_bearing_a_class": bearing,
+                               "branches_the_closed_list_sees": BRANCHES_THE_CLOSED_LIST_SEES,
+                               "links": len(links)})
+        # --- форма 2: словарь переходов, прочитанный ключом счётчика ---
+        base: Optional[ast.AST] = None
+        key: Optional[ast.AST] = None
+        if isinstance(node, ast.Subscript):
+            base, key = node.value, node.slice
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+              and node.func.attr == "get" and node.args):
+            base, key = node.func.value, node.args[0]
+        if (base is not None and key is not None and isinstance(base, ast.Name)
+                and base.id in tables):
+            counter = _mentions_a_counter(key, in_file)
+            if counter is not None:
+                if _writes_of_counter(scope, counter):
+                    _emit(node, FORM_OUT_TRANSITION_TABLE, counter, [key],
+                          None, list(tables[base.id].values),
+                          {"table": base.id,
+                           "branches": len(tables[base.id].values),
+                           "branches_bearing_a_class": len(tables[base.id].values),
+                           "branches_the_closed_list_sees": 0,
+                           "key": ast.unparse(key)})
+                else:
+                    elsewhere += 1
+        # --- форма 3: `match` по счётчику ---
+        if isinstance(node, ast.Match):
+            carried = []
+            bearing = 0
+            for case in node.cases:
+                found = _branch_classes(case.body, declared)
+                if found:
+                    bearing += 1
+                    carried.extend(found)
+            if bearing >= BRANCHES_THE_CLOSED_LIST_SEES:
+                counter = _mentions_a_counter(node.subject, in_file)
+                if counter is not None:
+                    if _writes_of_counter(scope, counter):
+                        _emit(node, FORM_OUT_MATCH, counter, [node.subject],
+                              None, carried,
+                              {"branches": len(node.cases),
+                               "branches_bearing_a_class": bearing,
+                               "branches_the_closed_list_sees": 0,
+                               "subject": ast.unparse(node.subject)})
+                    else:
+                        elsewhere += 1
+    return (rows, elsewhere)
+
+
+#: ПОЛОЖИТЕЛЬНАЯ сцена. Обязана предъявить ВСЕ три формы, ОБА достижимых
+#: исхода входа и ДВА доказательства из трёх — и каждое ПОИМЁННО, по владельцу.
+#: Хвост усечённой цепочки нарочно взят в двух видах (`judge_trunc_a` —
+#: присваивание, `judge_trunc_b` — пара `return`): если бы закрытый перечень
+#: принимал хвост только одной формы, сцена из одного вида объявила бы
+#: «усечения нет» и была бы права на своей половине.
+OUT_CONTROL_SOURCE = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SOFT = "soft"
+MUTE = "mute"
+SPLIT = "split"
+TWO = "two"
+_TABLE = {HARSH: BAD, SOFT: WARN, CLEAN: OK}
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("soft"):
+        return SOFT
+    if row.get("mute"):
+        return MUTE
+    if row.get("two"):
+        return TWO
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge_trunc_a(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    if counts.get(HARSH):
+        status = BAD
+    elif counts.get(SOFT):
+        status = WARN
+    elif counts.get(CLEAN):
+        status = OK
+    else:
+        status = OK
+    return {"status": status}
+
+
+def judge_trunc_b(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    if counts.get(MUTE):
+        return BAD
+    elif counts.get(TWO):
+        return WARN
+    elif counts.get(SPLIT):
+        return OK
+    else:
+        return BAD
+
+
+def judge_absent_a(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    status = OK
+    if counts.get(HARSH):
+        status = BAD
+    elif counts.get(SOFT):
+        status = WARN
+    elif counts.get(MUTE):
+        status = BAD
+    return {"status": status}
+
+
+def judge_absent_b(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    if counts.get(HARSH):
+        return BAD
+    elif counts.get(CLEAN):
+        return WARN
+    elif counts.get(MUTE):
+        return OK
+    return BAD
+
+
+def judge_table_a(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"status": _TABLE[max(counts, key=counts.get)]}
+
+
+def judge_table_b(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return {"status": _TABLE.get(sorted(counts)[0], OK)}
+
+
+def judge_match(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    status = OK
+    match counts.get(HARSH):
+        case 0:
+            status = OK
+        case 1:
+            status = WARN
+        case _:
+            status = BAD
+    return {"status": status}
+
+
+def main(argv=None) -> int:
+    doc = judge_trunc_a([])
+    return 0 if doc["status"] in (OK, WARN) else 1
+'''
+
+#: Сцена, в которой файл не даёт закрытому перечню НИ ОДНОЙ строки: форма вне
+#: перечня есть, а признать или отвергнуть её хвост соседу не на чем. Без этой
+#: половины доказательство ``PROOF_FILE_GAVE_NO_ROW`` ни разу не предъявлено, а
+#: не предъявленное доказательство — слово, не замер.
+OUT_CONTROL_LONELY = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+HARSH = "harsh"
+SOFT = "soft"
+MUTE = "mute"
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("soft"):
+        return SOFT
+    return MUTE
+
+
+def judge_only_a_chain(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    status = OK
+    if counts.get(HARSH):
+        status = BAD
+    elif counts.get(SOFT):
+        status = WARN
+    elif counts.get(MUTE):
+        status = BAD
+    return status
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ сцена: по половине на КАЖДУЮ клаузу правила. Снять любую из
+#: них поодиночке иначе можно было бы молча.
+OUT_CONTROL_CLEAN = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SOFT = "soft"
+_MIXED = {HARSH: 1, SOFT: 2}
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("soft"):
+        return SOFT
+    return CLEAN
+
+
+def only_two_branches_bear_a_class(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    seen = 0
+    if counts.get(HARSH):
+        status = BAD
+    elif counts.get(SOFT):
+        seen = 1
+    elif counts.get(CLEAN):
+        status = OK
+    return {"status": status, "seen": seen}
+
+
+def no_counter_in_any_test(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    if rows:
+        status = BAD
+    elif len(rows) > 1:
+        status = WARN
+    elif len(rows) > 2:
+        status = OK
+    else:
+        status = OK
+    return {"status": status, "counts": counts}
+
+
+def table_of_values_that_are_not_classes(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return _MIXED[max(counts, key=counts.get)]
+
+
+def the_counter_is_written_in_another_scope(counts):
+    if counts.get(HARSH):
+        status = BAD
+    elif counts.get(SOFT):
+        status = WARN
+    elif counts.get(CLEAN):
+        status = OK
+    else:
+        status = OK
+    return status
+
+
+def filler(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    return counts
+'''
+_OUT_SCENES = (("positive", OUT_CONTROL_SOURCE),
+               ("lonely", OUT_CONTROL_LONELY))
+
+
+def _outside_rows_of_scene(label: str, source: str) -> Tuple[List[dict], int]:
+    """Строки одной сцены — тем же правилом, что и живое дерево, и с тем же
+    вопросом о входе: признаёт ли ХВОСТ формы ЗАКРЫТЫЙ перечень соседа.
+
+    Сосед зовётся ЗДЕСЬ своей же функцией (:func:`_verdict_sites`), а не
+    пересказывается: правило «что есть вердикт закрытого перечня» живёт у
+    него, и вторая его копия в этом файле была бы ровно той находкой, которую
+    весь модуль и ищет.
+    """
+    tree = ast.parse(source)
+    accepted_rows, _elsewhere = _verdict_sites(f"<{label}-neighbour>", tree)
+    accepted = {id(row["_ctx"]["node"]) for row in accepted_rows}
+    return _outside_sites(f"<{label}>", tree, accepted=accepted,
+                          file_in_population=bool(accepted_rows),
+                          tree_is_the_neighbours=True)
+
+
+def _scene_discriminates(rows: List[dict]) -> Optional[str]:
+    """Различима ли сцена ПО СЧЁТУ — причина отказа либо ``None``.
+
+    Отчёт читает счёты ПО ИМЕНИ (``by_form[FORM_OUT_MATCH]``), и при РАВНЫХ
+    счётах подмена имени ключа невидима ничем: на живом дереве два нуля,
+    посчитанные не про тот исход, выглядят в точности как верные. Урок
+    ADR-581 (цикл #786) дословно: «исход в сцене есть» ≠ «подмена исхода
+    видна».
+
+    Вынесено ОТДЕЛЬНОЙ функцией затем, что у проверки обязан быть СВОЙ
+    контроль: внутри :func:`_outside_control` она стои́т после поимённых
+    якорей и на живых сценах не исполняется ни разу — то есть была бы ровно
+    тем украшением, которое «проверка сторожа сторожей» и запрещает
+    (`.claude/rules/deployment.md`).
+    """
+    for what, names, field in (("by_form", _FORMS_OUTSIDE, "form"),
+                               ("by_entry", _ENTRIES, "entry"),
+                               ("by_proof", _ENTRY_PROOFS, "entry_proof")):
+        counts = {name: len([r for r in rows if r[field] == name])
+                  for name in names}
+        live = sorted(value for value in counts.values() if value)
+        if len(live) != len(set(live)):
+            return (f"счёты {what} положительной сцены совпадают ({counts}) — "
+                    "при равных счётах подмена ИМЕНИ ключа в сборке отчёта "
+                    "невидима ничем (урок ADR-581)")
+    return None
+
+
+def _outside_control() -> dict:
+    """Проба объявленного правила — ДО замера, обеими половинами.
+
+    Три требования, и третье не есть украшение первых двух:
+
+    1. **Поимённо.** У каждого владельца положительной сцены ожидается РОВНО
+       одна тройка «форма · вход · доказательство». Исход, предъявленный
+       сценой «где-нибудь», пробой не является: именно так ADR-581 оставил
+       живым мутанта, подменявшего ИМЯ читаемого ключа.
+    2. **Полнота словарей.** Все три формы, оба достижимых входа и все три
+       доказательства обязаны быть предъявлены — форма, ни разу не
+       предъявленная, объявит «такой формы в дереве нет» там, где она есть.
+    3. **РАЗЛИЧИМОСТЬ по счёту.** Отчёт читает счёты ПО ИМЕНИ
+       (``by_form[FORM_OUT_MATCH]``), и при равных счётах подмена имени ключа
+       невидима ничем. Поэтому сцена обязана дать ПОПАРНО РАЗНЫЕ счёты в
+       каждом словаре, который отчёт читает по имени (урок цикла #786,
+       ADR-581: «исход в сцене есть» ≠ «подмена исхода видна»).
+    """
+    seen_forms: Dict[str, int] = {}
+    seen_entries: Dict[str, int] = {}
+    seen_proofs: Dict[str, int] = {}
+    named: Dict[str, Set[Tuple[str, str, str]]] = {}
+    for label, source in _OUT_SCENES:
+        try:
+            rows, _elsewhere = _outside_rows_of_scene(label, source)
+        except (SyntaxError, ValueError, KeyError, AttributeError, TypeError) as exc:
+            return {"passed": False,
+                    "reason": f"сцена {label} не разобрана: {type(exc).__name__}: {exc}"}
+        if not rows:
+            return {"passed": False,
+                    "reason": (f"сцена {label} не дала ни одной формы вне перечня — "
+                               "правило не узнало даже своей сцены")}
+        for item in rows:
+            seen_forms[item["form"]] = seen_forms.get(item["form"], 0) + 1
+            seen_entries[item["entry"]] = seen_entries.get(item["entry"], 0) + 1
+            seen_proofs[item["entry_proof"]] = seen_proofs.get(item["entry_proof"], 0) + 1
+            if label == "positive":
+                named.setdefault(item["owner"] or "?", set()).add(
+                    (item["form"], item["entry"], item["entry_proof"]))
+    anchors = {
+        "judge_trunc_a": (FORM_OUT_ELIF_CHAIN, ENTRY_TRUNCATED, PROOF_BY_NODE_IDENTITY),
+        "judge_trunc_b": (FORM_OUT_ELIF_CHAIN, ENTRY_TRUNCATED, PROOF_BY_NODE_IDENTITY),
+        "judge_absent_a": (FORM_OUT_ELIF_CHAIN, ENTRY_ABSENT, PROOF_BY_NODE_IDENTITY),
+        "judge_absent_b": (FORM_OUT_ELIF_CHAIN, ENTRY_ABSENT, PROOF_BY_NODE_IDENTITY),
+        "judge_table_a": (FORM_OUT_TRANSITION_TABLE, ENTRY_ABSENT, PROOF_NO_SUCH_FORM),
+        "judge_table_b": (FORM_OUT_TRANSITION_TABLE, ENTRY_ABSENT, PROOF_NO_SUCH_FORM),
+        "judge_match": (FORM_OUT_MATCH, ENTRY_ABSENT, PROOF_NO_SUCH_FORM),
+    }
+    for owner, expected in sorted(anchors.items()):
+        if named.get(owner) != {expected}:
+            return {"passed": False,
+                    "reason": (f"положительная сцена: у {owner} ожидалась ровно тройка "
+                               f"{expected}, вышло {sorted(named.get(owner) or [])}")}
+    for declared_names, pool, what in ((_FORMS_OUTSIDE, seen_forms, "форма вне перечня"),
+                                       (tuple(n for n in _ENTRIES if n != ENTRY_UNMEASURED),
+                                        seen_entries, "исход входа"),
+                                       (_ENTRY_PROOFS, seen_proofs, "доказательство входа")):
+        absent = [name for name in declared_names if not pool.get(name)]
+        if absent:
+            return {"passed": False,
+                    "reason": (f"контроль не предъявил {what}: {absent} — "
+                               "правило не доказано на своей же сцене")}
+    positive_rows, _e = _outside_rows_of_scene(*_OUT_SCENES[0])
+    tie = _scene_discriminates(positive_rows)
+    if tie is not None:
+        return {"passed": False, "reason": tie}
+    try:
+        clean, clean_elsewhere = _outside_rows_of_scene("clean", OUT_CONTROL_CLEAN)
+    except (SyntaxError, ValueError, KeyError, AttributeError, TypeError) as exc:
+        return {"passed": False,
+                "reason": f"отрицательная сцена не разобрана: {type(exc).__name__}: {exc}"}
+    if clean:
+        return {"passed": False,
+                "reason": (f"в отрицательной сцене правило нашло {len(clean)} форм(ы) "
+                           f"{sorted({(r['owner'], r['form']) for r in clean})}: правило, "
+                           "которому всё годится, звена не имеет")}
+    if clean_elsewhere != 1:
+        return {"passed": False,
+                "reason": (f"отрицательная сцена исключила {clean_elsewhere} форм(ы) как "
+                           "«счётчик пишут в ДРУГОЙ области», а объявлена ровно одна — "
+                           "клауза, не предъявленная сценой, не проверена ничем")}
+    return {"passed": True, "reason": None,
+            "scenes": [label for label, _s in _OUT_SCENES] + ["clean"],
+            "forms": dict(sorted(seen_forms.items())),
+            "entries": dict(sorted(seen_entries.items())),
+            "proofs": dict(sorted(seen_proofs.items())),
+            "negative_rows": len(clean),
+            "negative_counter_elsewhere": clean_elsewhere,
+            "anchors": {owner: list(expected) for owner, expected in sorted(anchors.items())}}
+
+
+def the_verdict_form_outside_the_closed_list(root: Path, *,
+                                             population: Optional[dict] = None) -> dict:
+    """Население вердиктов ВНЕ закрытого перечня форм
+    (**заказ G102 п. 2**, поставлен [ADR-522](../../docs/decisions/ADR-522-verdict-over-named-keys-of-a-class-counter.md) 30.09).
+
+    Сосед :func:`verdict_over_named_keys` признаёт вердиктом развилку, ОБЕ
+    ветви которой дают объявленный класс, — три формы, перечень ЗАКРЫТ
+    (:data:`_VERDICT_FORMS`). Односторонность объявлена там же, и дословно:
+
+    > Вердикт, собранный словарём переходов или цепочкой ``elif`` длиннее двух
+    > ветвей, в население НЕ попадает вовсе.
+
+    Заказ ставит вопрос прямо:
+
+    > Вердикт вне закрытого перечня форм не измерен вовсе. Цепочка ``elif``
+    > длиннее двух ветвей и словарь переходов в население не попадают, и
+    > населения этого класса нет ни одного числа. Спросить тем же порядком, с
+    > тем же требованием третьего исхода.
+
+    Отвечается ДВУМЯ вопросами, и второй не есть уточнение первого:
+
+    1. **Сколько их.** Поверхность отбирается дословно соседскими
+       требованиями (счётчик объявленных классов, ИМЕНОВАННЫЕ ключи, запись
+       в той же области), потому что спрашивается про ТО ЖЕ население, из
+       которого форма выпала.
+    2. **Что с ней делает закрытый перечень.** Слово «НЕ попадает вовсе»
+       обещает промах В СТОРОНУ ПУСТОТЫ, и проверить это обещание —
+       отдельное утверждение: у цепочки ``elif`` есть ХВОСТ, и хвост сам по
+       себе есть развилка из двух ветвей, то есть ровно то, что закрытый
+       перечень вердиктом и признаёт. Вошедший хвост не «не попал» — он попал
+       УСЕЧЁННЫМ, и о полноте перечня ключей сосед судит тогда по двум
+       ветвям из пяти.
+
+    Третий исход обязателен и назван ТРЕМЯ разными именами: правило не
+    доказано контролем · население соседа не измерено · дерево шага прочитано
+    не целиком. Чинятся они разным, и слить их значило бы потерять адрес
+    починки внутри самого прибора (инв. #17 действует и на его исходы).
+
+    ADVISORY: ни одного вердикта, ни одного счётчика и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {"question": ("сколько в дереве вердиктов, собранных формой ВНЕ закрытого "
+                         "перечня соседа, и что с ними делает закрытый перечень"),
+            "order": "G102.2", "applied": False,
+            "dirs": list(OPEN_COUNTER_DIRS),
+            "skipped_dirs": list(OPEN_COUNTER_SKIP),
+            "closed_list": list(_VERDICT_FORMS),
+            "forms_outside": list(_FORMS_OUTSIDE)}
+    control = _outside_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_OUT_CONTROL,
+                "reason": ("объявленное правило формы вне перечня не прошло контроль: "
+                           f"{control.get('reason')}")}
+    pop = _verdict_population(root) if population is None else population
+    head["neighbour_control"] = pop["control"]
+    if pop["status"] != "MEASURED":
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_OUT_POPULATION,
+                "reason": (f"население соседа не измерено [{pop.get('unmeasured_class')}]: "
+                           f"{pop.get('reason')}"),
+                "files_unreadable": pop.get("files_unreadable") or []}
+    # Дерево берётся У СОСЕДА там, где он его читал: вопрос «вошёл ли ЭТОТ
+    # хвост» решается тождеством узлов, а своя копия дерева ответила бы на
+    # него совпадением файла и строки — догадкой, которую сосед запретил себе
+    # сам. Файл, не давший соседу ни одной строки, разбирается своим чтением,
+    # и тождество там спрашивать не о чем: не вошло НИЧЕГО его.
+    by_file: Dict[str, List[dict]] = {}
+    for row in pop["rows"]:
+        by_file.setdefault(row["file"], []).append(row)
+    rows: List[dict] = []
+    unreadable: List[dict] = []
+    elsewhere = 0
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            mine = by_file.get(rel)
+            if mine:
+                tree = mine[0]["_ctx"]["tree"]
+                accepted = {id(row["_ctx"]["node"]) for row in mine}
+                own_tree = True
+            else:
+                try:
+                    tree = ast.parse(path.read_text(encoding="utf-8"))
+                except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                    unreadable.append({"file": rel, "reason": f"{type(exc).__name__}: {exc}"})
+                    continue
+                accepted = set()
+                # Дерево ЭТОГО чтения, не соседского — и потому о тождестве
+                # узлов оно не говорит ничего. Спрашивать его не о чем:
+                # файл не дал соседу ни одной строки, и ответ `ABSENT`
+                # получается ПО ПОСТРОЕНИЮ раньше вопроса о дереве.
+                own_tree = False
+            found, skipped = _outside_sites(rel, tree, accepted=accepted,
+                                            file_in_population=bool(mine),
+                                            tree_is_the_neighbours=own_tree)
+            rows.extend(found)
+            elsewhere += skipped
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_OUT_TREE,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не прочитано — "
+                           "население неполно, а неполное население не есть измеренное")}
+    by_form = {name: len([r for r in rows if r["form"] == name])
+               for name in _FORMS_OUTSIDE}
+    by_entry = {name: len([r for r in rows if r["entry"] == name])
+                for name in _ENTRIES}
+    by_proof = {name: len([r for r in rows if r["entry_proof"] == name])
+                for name in _ENTRY_PROOFS}
+    gaps = {name: len([r for r in rows if r.get("gap") == name])
+            for name in _OUT_GAPS}
+    truncated = [r for r in rows if r["entry"] == ENTRY_TRUNCATED]
+    # ВРЕД назван поимённо и с числами обеих ветвей: «усечён» без счёта ветвей
+    # есть оборот речи, а не замер.
+    harm = sorted(({"file": r["file"], "line": r["line"], "owner": r["owner"],
+                    "counter": r["counter"], "tail_line": r["tail_line"],
+                    "branches_bearing_a_class": r["branches_bearing_a_class"],
+                    "branches_the_closed_list_sees": r["branches_the_closed_list_sees"],
+                    "keys": r["keys"], "classes": r["classes"]}
+                   for r in truncated),
+                  key=lambda item: (item["file"], item["line"]))
+    return {**head, "status": "MEASURED", "population": len(rows),
+            "files_scanned": scanned,
+            "neighbour_population": len(pop["rows"]),
+            "by_form": by_form, "by_entry": by_entry,
+            "by_entry_proof": by_proof, "unmeasured_reasons": gaps,
+            "counter_written_in_another_scope": elsewhere,
+            "declared_absent_but_entered_truncated": by_entry[ENTRY_TRUNCATED],
+            "truncated_sites": harm,
+            "absent_sample": [{"file": r["file"], "line": r["line"],
+                               "owner": r["owner"], "form": r["form"],
+                               "entry_proof": r["entry_proof"],
+                               "branches_bearing_a_class": r["branches_bearing_a_class"]}
+                              for r in rows if r["entry"] == ENTRY_ABSENT][:COSTED_SAMPLE],
+            "blind": [
+                "ПЕРЕЧЕНЬ ФОРМ ВНЕ ПЕРЕЧНЯ ТОЖЕ ЗАКРЫТ — три имени, и ненайденное ими "
+                "население не есть ноль. Заказ назвал две формы, третья (`match`) "
+                "добавлена, потому что градуирует исходы тем же способом; формы вроде "
+                "свёртки по циклу (`for … status = max(status, …)`) или таблицы, "
+                "собранной в рантайме, не ищутся вовсе",
+                "звеном цепочки признаётся ТОЛЬКО `elif`, и отличает его от вложенного "
+                "`if` внутри `else:` ОДНА КОЛОНКА: разбор у них ТОЖДЕСТВЕН (`orelse` "
+                "ровно из одного `ast.If`), и правило, спрашивающее форму `orelse`, "
+                "называет различием то, чего в дереве нет вовсе. Выбор объявлен: у "
+                "вложенного `if` свой `else`, и слить две развилки в одну значило бы "
+                "сосчитать ветви, которых цепочка не имеет",
+                "ключ словаря переходов и подлежащее `match` ищутся УПОМИНАНИЕМ имени "
+                "счётчика, а не формой подписки, — односторонность выбрана В СТОРОНУ "
+                "НАХОДКИ: вычисленный ключ (`max(counts, key=counts.get)`) иначе "
+                "выпал бы ровно там, где заказ его и искал. Лишняя находка видна по "
+                "полю `key`/`subject`, пропущенная не видна ничем",
+                "«вошёл ли хвост» решается ТОЖДЕСТВОМ узлов и требует того самого "
+                "дерева, которое читал сосед. Файл, не давший соседу ни одной строки, "
+                "разбирается своим чтением, и ответ там `ABSENT` ПО ПОСТРОЕНИЮ, а не "
+                "по тождеству — доказательство названо отдельным именем именно затем",
+                "шаг доказывает ФОРМУ и её ВХОД, а не вред события: что усечённый "
+                "вердикт ошибается на сегодняшних данных, он не утверждает ничем",
+            ],
+            "what_it_does_not_prove": [
+                "что вердикт формы вне перечня НЕВЕРЕН: мерится вход в население "
+                "соседа, не правильность самого вердикта",
+                "что число соседа надо исправить ИМЕННО так: усечение названо, а "
+                "каким перечнем форм его чинить — предмет отдельного решения",
+                "что цепочка, чей хвост НЕ вошёл, безвредна: она просто не измерена "
+                "соседом вовсе — ровно то, что заказ и назвал",
+            ]}
+
 
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
@@ -21920,6 +22829,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     verdict_pop = _verdict_population(root)
     verdict_step = verdict_over_named_keys(root, population=verdict_pop)
     road_step = the_other_road_of_a_named_class(root, population=verdict_pop)
+    # Третий читатель ТОГО ЖЕ населения (заказ G102 п. 2). Своё дерево он
+    # читает только у файлов, которые соседу не дали ни одной строки: вопрос
+    # «вошёл ли ЭТОТ хвост» решается тождеством узлов, и вторая копия дерева
+    # ответила бы на него совпадением файла и строки.
+    outside_step = the_verdict_form_outside_the_closed_list(
+        root, population=verdict_pop)
 
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
@@ -22102,6 +23017,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # дорога, которой судится класс вне перечня. Слить их значило бы
         # выдать «класс упомянут» за «класс судим верно».
         "the_other_road_of_a_named_class": road_step,
+        "the_verdict_form_outside_the_closed_list": outside_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -24506,6 +25422,64 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         for item in (observed(road_step, 'reported_only_sample', kind=list) or [])[:max_rows]:
             out.append(f"[ДОРОГА · НЕ СУДИТ НИКТО] {item.get('file')}:{item.get('line')} ({item.get('owner')}) класс `{item.get('cls')}` назван в области, но ни одна дорога не кладёт по нему исход")
         for blind in observed(road_step, 'blind', kind=list) or []:
+            out.append(f'[СЛЕПОТА] {blind}')
+    outside_step = observed(doc, 'the_verdict_form_outside_the_closed_list',
+                            kind=dict)
+    if outside_step is None:
+        out.append("[ФОРМА ВНЕ ПЕРЕЧНЯ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «форм вне закрытого перечня в дереве нет»")
+    elif str(outside_step.get("status")) == "UNMEASURED":
+        out.append(f"[ФОРМА ВНЕ ПЕРЕЧНЯ] НЕ ИЗМЕРЕНО "
+                   f"[{outside_step.get('unmeasured_class')}]: "
+                   f"{outside_step.get('reason')}")
+    else:
+        forms = observed(outside_step, "by_form", kind=dict) or {}
+        entries = observed(outside_step, "by_entry", kind=dict) or {}
+        proofs = observed(outside_step, "by_entry_proof", kind=dict) or {}
+        why = observed(outside_step, "unmeasured_reasons", kind=dict) or {}
+        control = observed(outside_step, "control", kind=dict) or {}
+        out.append(
+            f"[ФОРМА ВНЕ ПЕРЕЧНЯ] из {outside_step.get('files_scanned')} файл(ов) "
+            f"вердиктов формой ВНЕ закрытого перечня — "
+            f"{outside_step.get('population')}: цепочка `elif` длиннее двух "
+            f"ветвей {forms.get(FORM_OUT_ELIF_CHAIN)} · словарь переходов "
+            f"{forms.get(FORM_OUT_TRANSITION_TABLE)} · `match` "
+            f"{forms.get(FORM_OUT_MATCH)}; ещё "
+            f"{outside_step.get('counter_written_in_another_scope')} исключено "
+            f"(счётчик пишут в ДРУГОЙ области того же файла)")
+        out.append(
+            f"[ФОРМА ВНЕ ПЕРЕЧНЯ · ОТВЕТ ЗАКАЗУ G102 п. 2] ADR-522 объявил, что "
+            f"такая форма «в население НЕ попадает вовсе»; замер: ХВОСТ входит "
+            f"как ЦЕЛЫЙ вердикт у {entries.get(ENTRY_TRUNCATED)} из "
+            f"{outside_step.get('population')} при населении соседа "
+            f"{outside_step.get('neighbour_population')} — не попало вовсе у "
+            f"{entries.get(ENTRY_ABSENT)}, не измерено "
+            f"{entries.get(ENTRY_UNMEASURED)}")
+        out.append(
+            f"[ФОРМА ВНЕ ПЕРЕЧНЯ · ЧЕМ ДОКАЗАНО] тождеством узлов "
+            f"{proofs.get(PROOF_BY_NODE_IDENTITY)} · файл не дал соседу ни одной "
+            f"строки {proofs.get(PROOF_FILE_GAVE_NO_ROW)} · формы такого вида в "
+            f"перечне нет вовсе {proofs.get(PROOF_NO_SUCH_FORM)}; дерева соседа "
+            f"нет у {why.get(OUT_GAP_NEIGHBOUR_TREE)}")
+        out.append(
+            f"[ФОРМА ВНЕ ПЕРЕЧНЯ · КОНТРОЛЬ] сцен "
+            f"{len(control.get('scenes') or [])}; предъявлено форм "
+            f"{len(control.get('forms') or {})}, исходов входа "
+            f"{len(control.get('entries') or {})}, доказательств "
+            f"{len(control.get('proofs') or {})}; поимённых якорей "
+            f"{len(control.get('anchors') or {})}; отрицательная сцена дала "
+            f"{control.get('negative_rows')} строк(и) и "
+            f"{control.get('negative_counter_elsewhere')} исключение по области")
+        for item in (observed(outside_step, "truncated_sites", kind=list) or [])[:max_rows]:
+            out.append(
+                f"[ФОРМА ВНЕ ПЕРЕЧНЯ · УСЕЧЁН] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) цепочка из "
+                f"{item.get('branches_bearing_a_class')} ветв(ей), несущих класс; "
+                f"закрытый перечень взял ХВОСТ {item.get('tail_line')} как целый "
+                f"вердикт и судит о полноте ключей по "
+                f"{item.get('branches_the_closed_list_sees')} ветв(ям) — ключи "
+                f"{item.get('keys')}, классы цепочки {item.get('classes')}")
+        for blind in observed(outside_step, "blind", kind=list) or []:
             out.append(f'[СЛЕПОТА] {blind}')
     subject_step = observed(doc, SUBJECT_OWN_STEP, kind=dict)
     if subject_step is None:
