@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-06T03:08:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-06T12:40:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (98525315b).
+> Сверено с `origin/main` (96a935fda) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1196** · ждёт владельца: **11** · занято сессиями: **14**.
+> Всего карточек: **1197** · ждёт владельца: **11** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -1011,7 +1011,7 @@
 - Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав  ·  `inbox-zaslon-ot-shtorma-schitaet-popytki-a-ne.md` · 2026-08-26
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (161)
+## 🤖 Agent Tasks (что делает агент)  (162)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1092,6 +1092,7 @@
 - Чекпойнт-доставка падает 404 на ПЕРВОМ вызове в сессии — и её вообще не вызывают  ·  `agent-checkpoint-tool-crashes-on-first-use.md` · 2026-08-02
 - CI красный на main — 14 тестов зависят от git-ignored файлов data/  ·  `agent-ci-data-dependent-red-tests.md` · 2026-07-29
 - CI исключает 43 теста гейта go-live (--ignore в test.yml), а второй игнор указывает на несуществующий файл  ·  `agent-ci-ignores-golive-gate-tests.md` · 2026-07-30
+- CI-Lite красный: f-строка PEP 701 (3.12+) в edge_forward_phase_transfer.py, а шаг ставит Python 3.11  ·  `agent-ci-lite-krasen-f-stroka-pep-701-na-311.md` · 2026-10-06
 - Каталог scripts/tests не запускается в CI ни разу — 191 тест (стоп-кран, LLM-линт, gate деплоя) невидим, а его ратчет красный  ·  `agent-ci-never-runs-scripts-tests-dir.md` · 2026-08-01
 - Защита от «две сессии взяли одну карточку» слепа именно там, где работает — она красная только при выставленном SPA_SESSION_PID, а CI его не выставляет  ·  `agent-claim-guard-blind-when-session-pid-is-set.md` · 2026-08-03
 - Тесты защиты карточек пишут в НАСТОЯЩИЙ журнал объявлений — их вердикт зависит от накопленной истории, а не от кода  ·  `agent-claim-guard-tests-write-a-real-announce-journal.md` · 2026-08-03

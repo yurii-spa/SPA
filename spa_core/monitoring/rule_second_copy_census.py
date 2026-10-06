@@ -16936,7 +16936,13 @@ def _verdict_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], int]:
             if not writes:
                 elsewhere += 1
                 continue
-            rows.append(_verdict_row(rel, node, form, outcomes, counter, keys, writes, scope, tree, funcs, declared, consts, enums, binds))
+            site = _verdict_row(rel, node, form, outcomes, counter, keys, writes, scope, tree, funcs, declared, consts, enums, binds)
+            # Контекст разбора для ВТОРОГО читателя населения (заказ G102 п. 1).
+            # Из шага не выходит: оба читателя печатают поля поимённо, а
+            # второй обход ради той же развилки был бы догадкой о том, что
+            # совпадение файла и строки означает тот же узел.
+            site['_ctx'] = {'node': node, 'scope': scope, 'tree': tree, 'declared': declared, 'consts': consts, 'parents': parents}
+            rows.append(site)
     return (rows, elsewhere)
 
 
@@ -17018,34 +17024,23 @@ def _verdict_control() -> dict:
     return {'passed': True, 'positive': len(source), 'negative': len(clean), 'producer_forms': forms, 'verdict_forms': shapes, 'outcomes': outcomes, 'gaps': got, 'incident_class': blind[0].get('named_nowhere')}
 
 
-def verdict_over_named_keys(root: Path) -> dict:
-    """Сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при
-    производителе, способном вернуть класс вне этого набора
-    (**заказ G100 п. 3**, он же G85 п. 3, он же G84 п. 1).
+def _verdict_population(root: Path) -> dict:
+    """Население шага вердиктов ОДНИМ обходом — читают его ДВА шага.
 
-    ADR-468 починил ОДИН гейт: вердикт теневого моста спрашивал ДВА имени
-    (``counts.get(UNEXPLAINED)``, ``counts.get(WEAKENING)``), а
-    ``classify_mismatch`` умел вернуть третий класс — «старое решение НЕ
-    ЗАПИСАНО». На нуле сравнений гейт печатал ``CLEAN`` и код возврата 0, то
-    есть ПОДДЕЛЫВАЛ доказательство безопасности. Нашли это не замером, а
-    чужим заказом, и с 24.09 заказ повторяет дословно:
+    Второй обход дерева был бы второй копией правила «что есть вердикт», а
+    этот модуль ровно такие копии и ищет. Поэтому контроль, перечень
+    каталогов и обход живут в ОДНОМ месте, а исход читают
+    :func:`verdict_over_named_keys` (заказ G100 п. 3) и
+    :func:`the_other_road_of_a_named_class` (заказ G102 п. 1).
 
-    > Сколько в дереве функций, возвращающих вердикт из счётчика классов,
-    > читают его ИМЕНОВАННЫМИ ключами при производителе, способном вернуть
-    > класс вне этого набора. Односторонность назвать заранее и ограничить
-    > звеном: производитель обязан быть найден в ТОМ ЖЕ файле (межфайловый
-    > разбор — третий исход, а не догадка). Третий исход обязателен там, где
-    > производитель не найден: «читает два ключа» без знания, сколько классов
-    > бывает, — не отказ, а незнание.
-
-    ADVISORY: ни одного вердикта, ни одного счётчика и ни одного гейта эта
-    работа не правит, ``applied`` ложно.
+    Ключ ``_ctx`` строки населения несёт узлы разбора и из шага НЕ выходит:
+    оба читателя печатают поля поимённо. Заводить ради контекста второй
+    обход значило бы ответить на вопрос «та же ли это развилка» догадкой о
+    совпадении файла и строки.
     """
-    head = {'question': 'сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при производителе того же файла, способном вернуть класс вне этого набора', 'order': 'G100.3', 'applied': False, 'dirs': list(OPEN_COUNTER_DIRS), 'skipped_dirs': list(OPEN_COUNTER_SKIP)}
     control = _verdict_control()
-    head['control'] = control
     if not control.get('passed'):
-        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_VERDICT_CONTROL, 'reason': f"объявленное правило вердикта не прошло контроль: {control.get('reason')}"}
+        return {'status': 'UNMEASURED', 'control': control, 'unmeasured_class': UNMEASURED_VERDICT_CONTROL, 'reason': f"объявленное правило вердикта не прошло контроль: {control.get('reason')}"}
     rows: List[dict] = []
     unreadable: List[dict] = []
     scanned = 0
@@ -17069,12 +17064,790 @@ def verdict_over_named_keys(root: Path) -> dict:
             rows.extend(found)
             elsewhere += skipped
     if unreadable:
-        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_VERDICT_TREE, 'files_unreadable': unreadable, 'reason': f'{len(unreadable)} файл(ов) или каталог(ов) не прочитано — население неполно, а неполное население не есть измеренное'}
+        return {'status': 'UNMEASURED', 'control': control, 'unmeasured_class': UNMEASURED_VERDICT_TREE, 'files_unreadable': unreadable, 'reason': f'{len(unreadable)} файл(ов) или каталог(ов) не прочитано — население неполно, а неполное население не есть измеренное'}
+    return {'status': 'MEASURED', 'control': control, 'rows': rows, 'files_scanned': scanned, 'counter_written_in_another_scope': elsewhere, 'files_unreadable': unreadable}
+
+
+def verdict_over_named_keys(root: Path, *, population: Optional[dict] = None) -> dict:
+    """Сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при
+    производителе, способном вернуть класс вне этого набора
+    (**заказ G100 п. 3**, он же G85 п. 3, он же G84 п. 1).
+
+    ADR-468 починил ОДИН гейт: вердикт теневого моста спрашивал ДВА имени
+    (``counts.get(UNEXPLAINED)``, ``counts.get(WEAKENING)``), а
+    ``classify_mismatch`` умел вернуть третий класс — «старое решение НЕ
+    ЗАПИСАНО». На нуле сравнений гейт печатал ``CLEAN`` и код возврата 0, то
+    есть ПОДДЕЛЫВАЛ доказательство безопасности. Нашли это не замером, а
+    чужим заказом, и с 24.09 заказ повторяет дословно:
+
+    > Сколько в дереве функций, возвращающих вердикт из счётчика классов,
+    > читают его ИМЕНОВАННЫМИ ключами при производителе, способном вернуть
+    > класс вне этого набора. Односторонность назвать заранее и ограничить
+    > звеном: производитель обязан быть найден в ТОМ ЖЕ файле (межфайловый
+    > разбор — третий исход, а не догадка). Третий исход обязателен там, где
+    > производитель не найден: «читает два ключа» без знания, сколько классов
+    > бывает, — не отказ, а незнание.
+
+    ADVISORY: ни одного вердикта, ни одного счётчика и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {'question': 'сколько вердиктов читают счётчик классов ИМЕНОВАННЫМИ ключами при производителе того же файла, способном вернуть класс вне этого набора', 'order': 'G100.3', 'applied': False, 'dirs': list(OPEN_COUNTER_DIRS), 'skipped_dirs': list(OPEN_COUNTER_SKIP)}
+    pop = _verdict_population(root) if population is None else population
+    head['control'] = pop['control']
+    if pop['status'] != 'MEASURED':
+        if pop['unmeasured_class'] == UNMEASURED_VERDICT_TREE:
+            return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_VERDICT_TREE, 'files_unreadable': pop['files_unreadable'], 'reason': pop['reason']}
+        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': pop['unmeasured_class'], 'reason': pop['reason']}
+    rows = pop['rows']
+    scanned = pop['files_scanned']
+    elsewhere = pop['counter_written_in_another_scope']
+    unreadable = pop['files_unreadable']
     outcomes = {cls: sum((1 for r in rows if r['verdict'] == cls)) for cls in _VERDICT_OUTCOMES}
     gaps = {gap: sum((1 for r in rows if r.get('gap') == gap)) for gap in _VERDICT_GAPS}
     producers = {form: sum((1 for r in rows if form in (r.get('producer_forms') or []))) for form in _PRODUCER_FORMS}
     shapes = {form: sum((1 for r in rows if r['form'] == form)) for form in _VERDICT_FORMS}
-    return {**head, 'status': 'MEASURED', 'population': len(rows), 'files_scanned': scanned, 'files_unreadable': unreadable, 'verdict_outcomes': outcomes, 'unresolved_reasons': gaps, 'producer_proved_by': producers, 'verdict_forms': shapes, 'blind_to_a_class_named_nowhere': outcomes[VERDICT_BLIND], 'partial_but_named_elsewhere': outcomes[VERDICT_NAMED_ELSEWHERE], 'complete': outcomes[VERDICT_READS_EVERY_CLASS], 'still_unmeasured': outcomes[VERDICT_UNRESOLVED], 'counter_written_in_another_scope': elsewhere, 'harm_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'named_nowhere': r.get('named_nowhere'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_BLIND][:COSTED_SAMPLE], 'partial_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'missing': r.get('missing'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_NAMED_ELSEWHERE][:COSTED_SAMPLE], 'unresolved_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'gap': r.get('gap')} for r in rows if r['verdict'] == VERDICT_UNRESOLVED][:COSTED_SAMPLE], 'blind': ['шаг мерит ФОРМУ вердикта из закрытого перечня (тернарник, пара `return`, пара присваиваний). Вердикт, собранный словарём переходов или цепочкой `elif` длиннее двух ветвей, в население не попадает вовсе, и ненайденное этим правилом не есть ноль', f'`{VERDICT_NAMED_ELSEWHERE}` НЕ есть «всё в порядке»: он говорит, что о классе судит ДРУГАЯ дорога той же области. ПРАВА ли она, шаг не спрашивал ни разу — назвать это вредом значило бы выдумать находку, назвать безопасным — погасить настоящую', f'{elsewhere} вердикт(ов) исключены из населения: счётчик пишут в ДРУГОЙ области того же файла. Одноимённые `counts` в соседних функциях суть разные словари, и слить их значило бы выдать чужую вселенную классов за эту', 'производитель ищется ТОЛЬКО в том же файле — односторонность объявлена заказом заранее; межфайловый разбор есть третий исход, а не догадка', 'шаг доказывает, что класс НЕ НАЗВАН, а не что он приходит сегодня: доказана ДОРОГА, не событие'], 'what_it_does_not_prove': ['что неназванный класс встречается в данных сегодня — это ДОРОГА, не событие', 'что вердикт с полным перечнем ключей судит ПРАВИЛЬНО: шаг мерит перечень, а не смысл', 'что третий исход исчерпан: формы вне закрытого перечня остались незнанием намеренно']}
+    return {**head, 'status': 'MEASURED', 'population': len(rows), 'files_scanned': scanned, 'files_unreadable': unreadable, 'verdict_outcomes': outcomes, 'unresolved_reasons': gaps, 'producer_proved_by': producers, 'verdict_forms': shapes, 'blind_to_a_class_named_nowhere': outcomes[VERDICT_BLIND], 'partial_but_named_elsewhere': outcomes[VERDICT_NAMED_ELSEWHERE], 'complete': outcomes[VERDICT_READS_EVERY_CLASS], 'still_unmeasured': outcomes[VERDICT_UNRESOLVED], 'counter_written_in_another_scope': elsewhere, 'harm_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'named_nowhere': r.get('named_nowhere'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_BLIND][:COSTED_SAMPLE], 'partial_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'keys': r['keys'], 'missing': r.get('missing'), 'producer_forms': r.get('producer_forms')} for r in rows if r['verdict'] == VERDICT_NAMED_ELSEWHERE][:COSTED_SAMPLE], 'unresolved_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'counter': r['counter'], 'gap': r.get('gap')} for r in rows if r['verdict'] == VERDICT_UNRESOLVED][:COSTED_SAMPLE], 'blind': ['шаг мерит ФОРМУ вердикта из закрытого перечня (тернарник, пара `return`, пара присваиваний). Вердикт, собранный словарём переходов или цепочкой `elif` длиннее двух ветвей, в население не попадает вовсе, и ненайденное этим правилом не есть ноль', f'`{VERDICT_NAMED_ELSEWHERE}` НЕ есть «всё в порядке»: он говорит, что о классе судит ДРУГАЯ дорога той же области. ПРАВА ли она, спрашивает шаг `the_other_road_of_a_named_class` (заказ G102 п. 1), и до него не спрашивал никто', f'{elsewhere} вердикт(ов) исключены из населения: счётчик пишут в ДРУГОЙ области того же файла. Одноимённые `counts` в соседних функциях суть разные словари, и слить их значило бы выдать чужую вселенную классов за эту', 'производитель ищется ТОЛЬКО в том же файле — односторонность объявлена заказом заранее; межфайловый разбор есть третий исход, а не догадка', 'шаг доказывает, что класс НЕ НАЗВАН, а не что он приходит сегодня: доказана ДОРОГА, не событие'], 'what_it_does_not_prove': ['что неназванный класс встречается в данных сегодня — это ДОРОГА, не событие', 'что вердикт с полным перечнем ключей судит ПРАВИЛЬНО: шаг мерит перечень, а не смысл', 'что третий исход исчерпан: формы вне закрытого перечня остались незнанием намеренно']}
+
+#: ─── заказ G102 п. 1: ПРАВА ли другая дорога ──────────────────────────────
+#: Шаг G100 п. 3 доказал, что класс вне набора ключей вердикта УПОМЯНУТ в его
+#: области, и остановился ровно там, где начинается вопрос: ведёт ли это
+#: упоминание к ТОМУ ЖЕ исходу, что дал бы полный перечень, или к более
+#: мягкому. `VERDICT_NAMED_ELSEWHERE` шесть дней значил «о классе судит кто-то
+#: ещё», и кто именно — не спрашивал никто.
+RETURN_TARGET = '<значение, которое функция ВОЗВРАЩАЕТ>'
+#: Пять исходов ДОРОГИ, и сумма их равна населению. Разводить «дорога есть» и
+#: «класс только печатается» обязательно: во втором случае о классе не судит
+#: НИКТО, и назвать это «назван другой дорогой» значило бы выдать отчётное
+#: число за вердикт.
+ROAD_FOUND = 'another_road_of_this_scope_judges_the_class'
+ROAD_ONLY_REPORTED = 'the_class_is_named_but_no_road_judges_it_it_is_only_reported'
+ROAD_IN_THE_VERDICT = 'the_verdict_itself_reaches_the_class_through_a_bound_name'
+ROAD_DISAGREE = 'the_roads_of_this_class_lead_to_different_outcomes'
+ROAD_UNMEASURED = 'the_road_of_this_class_is_not_measured'
+_ROADS = (ROAD_FOUND, ROAD_ONLY_REPORTED, ROAD_IN_THE_VERDICT, ROAD_DISAGREE, ROAD_UNMEASURED)
+#: Оценка — ТОЛЬКО у найденной дороги. «Мягче» мерится порядком исходов,
+#: ОБЪЯВЛЕННЫМ в самом файле (требование заказа), а не догадкой о смысле
+#: имён: `WARNING` звучит мягче `CRITICAL` ровно до первого файла, где
+#: наоборот.
+GRADE_SAME = 'the_road_leads_to_the_SAME_outcome'
+GRADE_EQUALLY_GRADED = 'the_road_leads_to_a_DIFFERENT_outcome_this_file_grades_EQUALLY'
+GRADE_HARSHER = 'the_road_leads_to_a_HARSHER_outcome'
+GRADE_SOFTER = 'the_road_leads_to_a_SOFTER_outcome'
+GRADE_UNMEASURED = 'the_grade_of_this_road_is_not_measured'
+_GRADES = (GRADE_SAME, GRADE_EQUALLY_GRADED, GRADE_HARSHER, GRADE_SOFTER, GRADE_UNMEASURED)
+#: Единственная ДОПУЩЕННАЯ форма объявленного порядка — код возврата, который
+#: файл отдаёт за свои же исходы из `main() -> int`. Он несёт не только
+#: порядок, но и НАПРАВЛЕНИЕ: ненулевой код есть находка, и это соглашение
+#: исполняет ОС, а не толкует прибор.
+ORDER_BY_EXIT_CODE = 'the_exit_code_this_file_returns_for_its_own_outcomes'
+#: Голый упорядоченный перечень (`_SEVERITY = (OK, WARNING, CRITICAL)`)
+#: объявляет ПОРЯДОК, но не объявляет, какой его конец тяжелее. Считать
+#: первый элемент самым мягким и есть та догадка о смысле имён, которую
+#: заказ запретил прямо, — поэтому форма РАСПОЗНАЁТСЯ и НЕ допускается, а её
+#: отказ назван отдельным именем: «порядка нет» и «порядок есть, направления
+#: нет» чинятся РАЗНЫМ.
+ORDER_BARE_ENUMERATION = 'an_order_of_outcomes_with_no_declared_direction'
+_ORDER_FORMS = (ORDER_BY_EXIT_CODE, ORDER_BARE_ENUMERATION)
+#: Четыре имени отказа, и все четыре ДОСТИЖИМЫ — у каждого своя половина
+#: отрицательной сцены. Имени, которого правило не умеет выдать, здесь нет
+#: намеренно: отказ, никогда не виденный, есть украшение.
+ROAD_GAP_NO_ORDERING = 'this_file_declares_no_ordering_of_its_outcomes'
+ROAD_GAP_NO_DIRECTION = 'this_file_declares_an_order_of_outcomes_but_not_which_end_is_harsher'
+ROAD_GAP_ORDERINGS_DISAGREE = 'two_orderings_declared_by_this_file_disagree'
+ROAD_GAP_TARGET_UNKNOWN = 'the_target_of_this_verdict_is_not_a_place_this_rule_can_follow'
+_ROAD_GAPS = (ROAD_GAP_NO_ORDERING, ROAD_GAP_NO_DIRECTION, ROAD_GAP_ORDERINGS_DISAGREE, ROAD_GAP_TARGET_UNKNOWN)
+#: Порядок РАЗБОРА отказов: расхождение двух объявленных порядков есть
+#: ОТСУТСТВИЕ ответа, а не первый из двух ответов (то же правило, что у
+#: `_VERDICT_GAP_ORDER` соседа).
+_ROAD_GAP_ORDER = (ROAD_GAP_ORDERINGS_DISAGREE, ROAD_GAP_NO_DIRECTION, ROAD_GAP_NO_ORDERING, ROAD_GAP_TARGET_UNKNOWN)
+UNMEASURED_ROAD_CONTROL = 'declared_road_rule_missed_the_known_case'
+UNMEASURED_ROAD_POPULATION = 'the_population_of_the_parent_step_is_not_measured'
+
+
+def _names_the_class(node: ast.AST, token: Tuple[str, str], consts: Dict[str, Optional[str]]) -> bool:
+    """Назван ли класс ВНУТРИ этого выражения — токеном, а не подстрокой."""
+    for inner in ast.walk(node):
+        if isinstance(inner, (ast.Constant, ast.Name, ast.Attribute)) and _class_token(inner, consts) == token:
+            return True
+    return False
+
+
+def _mentions_any_name(node: ast.AST, names: Set[str]) -> bool:
+    """Упомянуто ли внутри выражения хоть одно из этих имён."""
+    return any((isinstance(inner, ast.Name) and inner.id in names for inner in ast.walk(node)))
+
+
+def _carriers_of_the_class(token: Tuple[str, str], consts: Dict[str, Optional[str]], binds: Dict[str, List[ast.AST]], counter: str) -> Set[str]:
+    """Имена области, в значение которых класс ПОПАЛ, — до неподвижной точки.
+
+    Один шаг здесь не годится и это не оттенок: класс почти никогда не стои́т
+    в условии дороги прямо. У `owner_visibility_census` он лежит внутри
+    `recorded_but_lost = sum(... if row["delivery"] in (ABSENT, PROSE))`, а в
+    условии дороги стои́т уже ИМЯ. Спроси только о прямом упоминании — и
+    дорога, ведущая к `CRITICAL`, объявилась бы отсутствующей, то есть класс
+    был бы назван неподсудным там, где его судят жёстче всего.
+
+    **САМ СЧЁТЧИК носителем НЕ является, и это не оговорка.** Счётчик почти
+    всегда заводят перечнем своих же классов
+    (`totals = {kind: 0 for kind in (FIELD, PROSE, ABSENT, UNMEASURED)}` —
+    `owner_visibility_census:588`, `counts = {c: 0 for c in (CLASS_PRICED,
+    *DEFECT_CLASSES)}` — `leg_provenance_split:425`), поэтому его ИМЯ несёт
+    все классы разом. Прими его носителем — и условие вердикта, которое
+    читает счётчик по ЛЮБОМУ ключу, объявится «дошедшим до класса само», то
+    есть неполный перечень ключей объявится полным. Замер первой редакции
+    этого шага: ровно так 4 строки населения из 8 получили ложный
+    `ROAD_IN_THE_VERDICT`. Чтение `счётчик[ключ]` есть доступ ПО КЛЮЧУ, и
+    какие ключи читает вердикт, сосед уже измерил; объявление своей вселенной
+    классов — не дорога, которой класс доходит до условия.
+    """
+    carriers: Set[str] = set()
+    for _round in range(len(binds) + 1):
+        grew = False
+        for name, values in binds.items():
+            if name in carriers or name == counter:
+                continue
+            for value in values:
+                if _names_the_class(value, token, consts) or _mentions_any_name(value, carriers):
+                    carriers.add(name)
+                    grew = True
+                    break
+        if not grew:
+            break
+    return carriers
+
+
+def _verdict_target_of(parents: Dict[int, ast.AST], node: ast.AST, form: str, declared: Set[str], consts: Dict[str, Optional[str]]) -> Optional[str]:
+    """КУДА вердикт кладёт исход — иначе «та же цель» была бы догадкой.
+
+    Без цели нельзя отличить дорогу, спорящую с вердиктом, от дороги,
+    кладущей свой исход в совершенно другое место: обе лежат в одной
+    функции, и общей у них только область.
+    """
+    if form == VERDICT_FORM_IF_RETURN:
+        return RETURN_TARGET
+    if form == VERDICT_FORM_IFEXP:
+        parent = parents.get(id(node))
+        if isinstance(parent, ast.Assign) and len(parent.targets) == 1:
+            return ast.unparse(parent.targets[0])
+        if isinstance(parent, ast.Return):
+            return RETURN_TARGET
+        return None
+    shared: List[str] = []
+    for name in sorted({t.targets[0].id for t in node.body if isinstance(t, ast.Assign) and len(t.targets) == 1 and isinstance(t.targets[0], ast.Name)} & {t.targets[0].id for t in node.orelse if isinstance(t, ast.Assign) and len(t.targets) == 1 and isinstance(t.targets[0], ast.Name)}):
+        here = _branch_outcome(node.body, name, declared, consts)
+        there = _branch_outcome(node.orelse, name, declared, consts)
+        if here is not None and there is not None:
+            shared.append(name)
+    if len(shared) != 1:
+        return None
+    return shared[0]
+
+
+def _branch_outcome(statements: Iterable[ast.AST], target: str, declared: Set[str], consts: Dict[str, Optional[str]]) -> Optional[Tuple[str, str]]:
+    """Исход, который ЭТА ветвь кладёт в цель, — или ``None``.
+
+    Разбор ШАГОВЫЙ, по операторам самой ветви: вложенная развилка есть своя
+    дорога со своим условием, и считать её исход исходом объемлющей ветви
+    значило бы приписать вердикт тому, кто его не выносил.
+    """
+    for stmt in statements:
+        if target == RETURN_TARGET:
+            if isinstance(stmt, ast.Return) and stmt.value is not None and _is_declared_class(stmt.value, declared):
+                return _class_token(stmt.value, consts)
+            continue
+        if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and ast.unparse(stmt.targets[0]) == target and _is_declared_class(stmt.value, declared):
+            return _class_token(stmt.value, consts)
+    return None
+
+
+def _outcome_family(tree: ast.AST, target: str, declared: Set[str], consts: Dict[str, Optional[str]]) -> Set[Tuple[str, str]]:
+    """Все объявленные классы, которые ЭТОТ файл кладёт в ЭТУ цель.
+
+    Семья нужна, чтобы объявленный порядок был порядком ТЕХ ЖЕ исходов:
+    `return 1 if mode == MODE_FAST else 0` тоже есть код возврата по
+    объявленным именам, но градуирует он не вердикт.
+    """
+    family: Set[Tuple[str, str]] = set()
+
+    def _take(value: Optional[ast.AST]) -> None:
+        if value is None:
+            return
+        if _is_declared_class(value, declared):
+            token = _class_token(value, consts)
+            if token is not None:
+                family.add(token)
+        elif isinstance(value, ast.IfExp):
+            _take(value.body)
+            _take(value.orelse)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and target != RETURN_TARGET:
+            if ast.unparse(node.targets[0]) == target:
+                _take(node.value)
+        elif target == RETURN_TARGET and isinstance(node, ast.Return):
+            _take(node.value)
+    return family
+
+
+def _compared_classes(test: ast.AST, declared: Set[str], consts: Dict[str, Optional[str]]) -> Optional[Tuple[List[Tuple[str, str]], bool]]:
+    """Классы, с которыми сравнивает условие, и ПОЛОЖИТЕЛЬНА ли ветвь ``body``."""
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1 or len(test.comparators) != 1:
+        return None
+    op = test.ops[0]
+    right = test.comparators[0]
+    if isinstance(op, (ast.In, ast.NotIn)):
+        if not isinstance(right, (ast.Tuple, ast.List, ast.Set)):
+            return None
+        elts = list(right.elts)
+    elif isinstance(op, (ast.Eq, ast.NotEq)):
+        elts = [right]
+    else:
+        return None
+    if not elts or not all((_is_declared_class(e, declared) for e in elts)):
+        return None
+    tokens = [_class_token(e, consts) for e in elts]
+    if any((t is None or t[0] != 'value' for t in tokens)):
+        return None
+    return ([t for t in tokens if t is not None], isinstance(op, (ast.In, ast.Eq)))
+
+
+def _exit_code_partition(node: ast.AST, family: Set[Tuple[str, str]], declared: Set[str], consts: Dict[str, Optional[str]]) -> Optional[dict]:
+    """Код возврата как ОБЪЯВЛЕННЫЙ порядок исходов — или ``None``.
+
+    Разбивка обязана быть ПОЛНОЙ по построению: названные классы получают
+    один код, все остальные — другой. Поэтому у этой формы не бывает
+    «исход не отранжирован», и имени такого отказа здесь нет.
+    """
+    if not isinstance(node, ast.IfExp):
+        return None
+
+    def _int_of(leaf: ast.AST) -> Optional[int]:
+        if isinstance(leaf, ast.Constant) and isinstance(leaf.value, int) and (not isinstance(leaf.value, bool)):
+            return int(leaf.value)
+        return None
+    hit_body, hit_else = (_int_of(node.body), _int_of(node.orelse))
+    if hit_body is None or hit_else is None or hit_body == hit_else:
+        return None
+    compared = _compared_classes(node.test, declared, consts)
+    if compared is None:
+        return None
+    tokens, positive = compared
+    if not set(tokens) <= family:
+        return None
+    named_rank = hit_body if positive else hit_else
+    other_rank = hit_else if positive else hit_body
+    return {'form': ORDER_BY_EXIT_CODE, 'ranks': {t: named_rank for t in tokens}, 'default': other_rank, 'names': sorted((value for _kind, value in tokens))}
+
+
+def _bare_enumeration(node: ast.AST, family: Set[Tuple[str, str]], declared: Set[str], consts: Dict[str, Optional[str]]) -> Optional[dict]:
+    """Голый упорядоченный перечень исходов — РАСПОЗНАН, но не допущен."""
+    if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)):
+        return None
+    value = node.value
+    if not isinstance(value, (ast.Tuple, ast.List)) or len(value.elts) < 2:
+        return None
+    if not all((_is_declared_class(e, declared) for e in value.elts)):
+        return None
+    tokens = [_class_token(e, consts) for e in value.elts]
+    if any((t is None for t in tokens)) or len(set(tokens)) != len(tokens):
+        return None
+    if not set(tokens) <= family or len(set(tokens) & family) < 2:
+        return None
+    return {'form': ORDER_BARE_ENUMERATION, 'ranks': {t: i for i, t in enumerate(tokens) if t is not None}, 'default': None, 'names': [ast.unparse(e) for e in value.elts]}
+
+
+def _rank_in(shape: dict, token: Tuple[str, str]) -> Optional[int]:
+    """Ранг исхода в объявленном порядке — или ``None``, если он его не ранжирует."""
+    if token in shape['ranks']:
+        return shape['ranks'][token]
+    return shape.get('default')
+
+
+def _declared_outcome_ordering(tree: ast.AST, family: Set[Tuple[str, str]], declared: Set[str], consts: Dict[str, Optional[str]], parents: Dict[int, ast.AST]) -> dict:
+    """Порядок исходов, объявленный САМИМ файлом, — или названный отказ.
+
+    Допущена ОДНА форма (код возврата из ``main() -> int``), и это выбор, а
+    не упущение: она единственная несёт НАПРАВЛЕНИЕ. Голый перечень
+    распознаётся и отвергается ОТДЕЛЬНЫМ именем, потому что «порядка нет
+    вовсе» и «порядок есть, а какой конец тяжелее — не сказано» чинятся
+    разным.
+    """
+    admitted: List[dict] = []
+    seen_bare = False
+    for node in ast.walk(tree):
+        bare = _bare_enumeration(node, family, declared, consts)
+        if bare is not None:
+            seen_bare = True
+        if not isinstance(node, ast.Return) or node.value is None:
+            continue
+        owner = _enclosing_main(parents, node)
+        if owner is None:
+            continue
+        shape = _exit_code_partition(node.value, family, declared, consts)
+        if shape is not None:
+            admitted.append({**shape, 'line': int(getattr(node, 'lineno', 0) or 0), 'owner': owner})
+    if not admitted:
+        return {'gap': ROAD_GAP_NO_DIRECTION if seen_bare else ROAD_GAP_NO_ORDERING}
+    for left in admitted:
+        for right in admitted:
+            for one in sorted(family):
+                for two in sorted(family):
+                    if one >= two:
+                        continue
+                    a1, a2 = (_rank_in(left, one), _rank_in(left, two))
+                    b1, b2 = (_rank_in(right, one), _rank_in(right, two))
+                    if None in (a1, a2, b1, b2):
+                        continue
+                    if ((a1 > a2) - (a1 < a2)) != ((b1 > b2) - (b1 < b2)):
+                        return {'gap': ROAD_GAP_ORDERINGS_DISAGREE}
+    return {'ordering': admitted[0], 'bare_enumeration_seen': seen_bare}
+
+
+def _enclosing_main(parents: Dict[int, ast.AST], node: ast.AST) -> Optional[str]:
+    """Имя функции ``main() -> int``, в теле которой стои́т этот ``return``.
+
+    Звено объявлено ЗАРАНЕЕ: направление кода возврата есть соглашение,
+    которое исполняет ОС, и файл берёт его на себя именно тем, что отдаёт
+    число из `main` с объявленным типом `int`. Дошло ли это число до
+    `sys.exit`, шаг мерит ОТДЕЛЬНЫМ полем и на допуск им НЕ влияет: это
+    вопрос о точке входа, а не о градуировке исходов.
+    """
+    current = parents.get(id(node))
+    while current is not None:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if current.name != 'main':
+                return None
+            ann = current.returns
+            if isinstance(ann, ast.Name) and ann.id == 'int':
+                return current.name
+            return None
+        current = parents.get(id(current))
+    return None
+
+#: ПОЛОЖИТЕЛЬНАЯ сцена: предъявляет ВСЕ пять исходов дороги и ВСЕ четыре
+#: оценки сравнения, и каждую — поимённо. Две функции вердикта, а не одна,
+#: потому что код возврата даёт ДВА ранга: «жёстче» видно только у вердикта,
+#: чья охраняемая ветвь лежит в нулевом ранге, а «мягче» — только у того,
+#: чья лежит в первом. Одна функция ответила бы на половину вопроса.
+ROAD_CONTROL_SOURCE = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SOFT = "soft"
+MUTE = "mute"
+SPLIT = "split"
+TWO = "two"
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("soft"):
+        return SOFT
+    if row.get("mute"):
+        return MUTE
+    if row.get("two"):
+        return TWO
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge_low(rows):
+    counts = {k: 0 for k in (CLEAN, HARSH, SOFT, MUTE, SPLIT, TWO)}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    reported = counts.get(MUTE)
+    if counts.get(HARSH):
+        status = BAD
+    if counts.get(CLEAN):
+        status = WARN
+    if counts.get(SOFT):
+        status = OK
+    if counts.get(TWO):
+        status = BAD
+    if counts.get(TWO):
+        status = OK
+    if counts.get(SPLIT):
+        status = WARN
+    else:
+        status = OK
+    return {"status": status, "muted": reported}
+
+
+def judge_high(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    reported = (counts.get(HARSH), counts.get(CLEAN), counts.get(MUTE), counts.get(TWO))
+    if counts.get(SOFT):
+        status = OK
+    if counts.get(SPLIT):
+        status = BAD
+    else:
+        status = WARN
+    return {"status": status, "seen": reported}
+
+
+def judge_bound(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    extra = counts.get(HARSH)
+    reported = (counts.get(CLEAN), counts.get(MUTE), counts.get(SOFT), counts.get(TWO))
+    if counts.get(SPLIT) or extra:
+        status = BAD
+    else:
+        status = WARN
+    return {"status": status, "seen": reported}
+
+
+def main(argv=None) -> int:
+    doc = judge_low([])
+    return 0 if doc["status"] in (OK, WARN) else 1
+'''
+#: ОТРИЦАТЕЛЬНАЯ сцена: по половине на КАЖДОЕ из четырёх имён отказа. Иначе
+#: снять любую клаузу правила поодиночке можно было бы молча.
+ROAD_CONTROL_NO_ORDERING = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SPLIT = "split"
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    seen = counts.get(CLEAN)
+    if counts.get(HARSH):
+        status = BAD
+    if counts.get(SPLIT):
+        status = WARN
+    else:
+        status = OK
+    return {"status": status, "seen": seen}
+'''
+ROAD_CONTROL_NO_DIRECTION = '''
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SPLIT = "split"
+RANK = (OK, WARN, BAD)
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    seen = counts.get(CLEAN)
+    if counts.get(HARSH):
+        status = BAD
+    if counts.get(SPLIT):
+        status = WARN
+    else:
+        status = OK
+    return {"status": status, "seen": seen}
+'''
+ROAD_CONTROL_DISAGREE = '''
+import sys
+
+OK = "ok"
+WARN = "warn"
+BAD = "bad"
+CLEAN = "clean"
+HARSH = "harsh"
+SPLIT = "split"
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    seen = counts.get(CLEAN)
+    if counts.get(HARSH):
+        status = BAD
+    if counts.get(SPLIT):
+        status = WARN
+    else:
+        status = OK
+    return {"status": status, "seen": seen}
+
+
+def main(argv=None) -> int:
+    doc = judge([])
+    if doc.get("seen"):
+        return 0 if doc["status"] in (OK, WARN) else 1
+    return 1 if doc["status"] in (OK, WARN) else 0
+
+
+sys.exit(main())
+'''
+ROAD_CONTROL_LOOSE_TARGET = '''
+OK = "ok"
+WARN = "warn"
+CLEAN = "clean"
+HARSH = "harsh"
+SPLIT = "split"
+
+
+def classify(row):
+    if row.get("harsh"):
+        return HARSH
+    if row.get("split"):
+        return SPLIT
+    return CLEAN
+
+
+def judge(rows):
+    counts = {}
+    for row in rows:
+        cls = classify(row)
+        counts[cls] = counts.get(cls, 0) + 1
+    out = []
+    seen = (counts.get(CLEAN), counts.get(HARSH))
+    out.append(WARN if counts.get(SPLIT) else OK)
+    return {"lines": out, "seen": seen}
+'''
+_ROAD_SCENES = (('positive', ROAD_CONTROL_SOURCE), ('no_ordering', ROAD_CONTROL_NO_ORDERING), ('no_direction', ROAD_CONTROL_NO_DIRECTION), ('orderings_disagree', ROAD_CONTROL_DISAGREE), ('loose_target', ROAD_CONTROL_LOOSE_TARGET))
+
+
+def _exit_code_reaches_the_os(tree: ast.AST) -> bool:
+    """Отдаёт ли файл значение ``main`` самому ``sys.exit``.
+
+    Поле ОТЧЁТНОЕ и на допуск порядка не влияет (см. :func:`_enclosing_main`):
+    градуировка исходов объявлена типом и значением, а точка входа — другое
+    утверждение, и смешать их значило бы ответить одним числом на два вопроса.
+    """
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and node.args):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', None)
+        if name != 'exit':
+            continue
+        inner = node.args[0]
+        if isinstance(inner, ast.Call) and getattr(inner.func, 'id', None) == 'main':
+            return True
+    return False
+
+
+def _other_road_row(row: dict, value: str) -> dict:
+    """ОДНА пара «вердикт × класс вне его ключей»: дорога и её оценка."""
+    ctx = row['_ctx']
+    node, scope, tree = (ctx['node'], ctx['scope'], ctx['tree'])
+    declared, consts, parents = (ctx['declared'], ctx['consts'], ctx['parents'])
+    token = ('value', value)
+    head = {'file': row['file'], 'line': row['line'], 'owner': row['owner'], 'counter': row['counter'], 'cls': value, 'form': row['form'], 'keys': row['keys']}
+    target = _verdict_target_of(parents, node, row['form'], declared, consts)
+    if target is None:
+        return {**head, 'target': None, 'road': ROAD_UNMEASURED, 'grade': None, 'gap': ROAD_GAP_TARGET_UNKNOWN, 'roads': []}
+    head['target'] = target
+    binds = _scope_bindings(scope)
+    carriers = _carriers_of_the_class(token, consts, binds, row['counter'])
+    # ГДЕ класс вообще назван — улика под вердиктом дороги. Без неё «дороги
+    # нет» нечем отличить от «класс назван только в объявлении вселенной
+    # самого счётчика», а чинится это разным.
+    head['named_at'] = sorted({int(getattr(inner, 'lineno', 0) or 0) for inner in ast.walk(scope) if isinstance(inner, (ast.Constant, ast.Name, ast.Attribute)) and _class_token(inner, consts) == token})
+
+    def _reaches(test: ast.AST) -> bool:
+        return _names_the_class(test, token, consts) or _mentions_any_name(test, carriers)
+    # Вердикт спрашивается ПЕРВЫМ: класс, дошедший до его условия связанным
+    # именем, судится ИМ САМИМ, и звать это «другой дорогой» значило бы
+    # выдумать дорогу там, где её нет.
+    if _reaches(node.test):
+        return {**head, 'road': ROAD_IN_THE_VERDICT, 'grade': None, 'gap': None, 'roads': []}
+    roads: List[dict] = []
+    for other in ast.walk(scope):
+        if other is node:
+            continue
+        if isinstance(other, ast.If):
+            outcome = _branch_outcome(other.body, target, declared, consts)
+        elif isinstance(other, ast.IfExp):
+            outcome = _class_token(other.body, consts) if _is_declared_class(other.body, declared) else None
+            if outcome is not None and _verdict_target_of(parents, other, VERDICT_FORM_IFEXP, declared, consts) != target:
+                outcome = None
+        else:
+            continue
+        if outcome is None or outcome[0] != 'value':
+            continue
+        if not _reaches(other.test):
+            continue
+        roads.append({'line': int(getattr(other, 'lineno', 0) or 0), 'outcome': outcome[1], 'test': ast.unparse(other.test)})
+    if not roads:
+        return {**head, 'road': ROAD_ONLY_REPORTED, 'grade': None, 'gap': None, 'roads': []}
+    distinct = sorted({r['outcome'] for r in roads})
+    if len(distinct) > 1:
+        return {**head, 'road': ROAD_DISAGREE, 'grade': None, 'gap': None, 'roads': roads, 'outcomes_of_the_roads': distinct}
+    baseline = _branch_outcome(node.body, target, declared, consts) if isinstance(node, ast.If) else (_class_token(node.body, consts) if _is_declared_class(node.body, declared) else None)
+    family = _outcome_family(tree, target, declared, consts)
+    head = {**head, 'road': ROAD_FOUND, 'roads': roads, 'road_outcome': distinct[0], 'baseline': None if baseline is None else baseline[1], 'family': sorted((v for _k, v in family)), 'exit_code_reaches_the_os': _exit_code_reaches_the_os(tree)}
+    ordering = _declared_outcome_ordering(tree, family, declared, consts, parents)
+    if 'gap' in ordering:
+        return {**head, 'grade': GRADE_UNMEASURED, 'gap': ordering['gap']}
+    shape = ordering['ordering']
+    head = {**head, 'ordering_form': shape['form'], 'ordering_line': shape['line'], 'ordering_names': shape.get('names'), 'bare_enumeration_seen': ordering.get('bare_enumeration_seen')}
+    base_rank = None if baseline is None else _rank_in(shape, baseline)
+    road_rank = _rank_in(shape, ('value', distinct[0]))
+    # ОХРАНА РАСШИРЕНИЯ, а не живая ветвь: единственная допущенная форма
+    # (код возврата) ранжирует ЛЮБОЙ исход по построению — названные классы
+    # одним числом, все прочие другим, — поэтому `None` здесь сегодня не
+    # приходит ни от одного файла дерева. Снять проверку значило бы сравнить
+    # `None > int` у первой же формы с ЧАСТИЧНЫМ порядком (голый перечень
+    # ранга вне себя не имеет). Имя отказа переиспользовано намеренно:
+    # порядок, не ранжирующий сравниваемый исход, и есть «порядка для этого
+    # сравнения нет». Проверяется подстановкой частичной формы
+    # (`test_a_partial_ordering_refuses_instead_of_comparing_none`), и тест
+    # прямо говорит, что доказывает охрану расширения, а не живой случай.
+    if base_rank is None or road_rank is None:
+        return {**head, 'grade': GRADE_UNMEASURED, 'gap': ROAD_GAP_NO_ORDERING}
+    head = {**head, 'ranks': {'baseline': base_rank, 'road': road_rank}, 'gap': None}
+    if baseline is not None and distinct[0] == baseline[1]:
+        return {**head, 'grade': GRADE_SAME}
+    if road_rank > base_rank:
+        return {**head, 'grade': GRADE_HARSHER}
+    if road_rank < base_rank:
+        return {**head, 'grade': GRADE_SOFTER}
+    return {**head, 'grade': GRADE_EQUALLY_GRADED}
+
+
+def _road_rows_of_scene(label: str, source: str) -> List[dict]:
+    """Строки одной сцены контроля — тем же правилом, что и живое дерево."""
+    tree = ast.parse(source)
+    rows, _elsewhere = _verdict_sites(f'<{label}>', tree)
+    out: List[dict] = []
+    for row in rows:
+        if row['verdict'] != VERDICT_NAMED_ELSEWHERE:
+            continue
+        for value in row.get('missing') or []:
+            out.append(_other_road_row(row, value))
+    return out
+
+
+def _road_control() -> dict:
+    """Проба объявленного правила — ДО замера, обеими половинами.
+
+    Положительная половина обязана предъявить ВСЕ исходы дороги и ВСЕ оценки
+    сравнения, и три из них — ПОИМЁННО (класс `harsh` обязан оказаться
+    жёстче, `soft` — мягче, `mute` — неподсудным ни одной дорогой).
+    Отрицательная — каждое из четырёх имён отказа своей половиной. Не узнало
+    правило известного случая ⇒ печатать при этом население значило бы выдать
+    неизмеренное за чистое.
+    """
+    seen_roads: Set[str] = set()
+    seen_grades: Set[str] = set()
+    seen_gaps: Set[str] = set()
+    named: Dict[str, Set[str]] = {}
+    for label, source in _ROAD_SCENES:
+        try:
+            rows = _road_rows_of_scene(label, source)
+        except (SyntaxError, ValueError, KeyError, AttributeError, TypeError) as exc:
+            return {'passed': False, 'reason': f'сцена {label} не разобрана: {type(exc).__name__}: {exc}'}
+        if not rows:
+            return {'passed': False, 'reason': f'сцена {label} не дала ни одной пары «вердикт × класс» — правило не узнало даже своей сцены'}
+        for item in rows:
+            seen_roads.add(item['road'])
+            if item.get('grade'):
+                seen_grades.add(item['grade'])
+            if item.get('gap'):
+                seen_gaps.add(item['gap'])
+            if label == 'positive':
+                named.setdefault(f"{item['owner']}:{item['cls']}", set()).add(item.get('grade') or item['road'])
+    anchors = {'judge_low:harsh': GRADE_HARSHER, 'judge_low:clean': GRADE_SAME, 'judge_low:soft': GRADE_EQUALLY_GRADED, 'judge_low:two': ROAD_DISAGREE, 'judge_low:mute': ROAD_ONLY_REPORTED, 'judge_high:soft': GRADE_SOFTER, 'judge_bound:harsh': ROAD_IN_THE_VERDICT}
+    for key, expected in sorted(anchors.items()):
+        if named.get(key) != {expected}:
+            return {'passed': False, 'reason': f'положительная сцена: у {key} ожидался ровно {expected}, вышло {sorted(named.get(key) or [])}'}
+    for name, pool, what in ((_ROADS, seen_roads, 'исход дороги'), (_GRADES, seen_grades, 'оценка сравнения'), (_ROAD_GAPS, seen_gaps, 'имя отказа')):
+        absent = [item for item in name if item not in pool]
+        if absent:
+            return {'passed': False, 'reason': f'контроль не предъявил {what}: {absent} — правило не доказано на своей же сцене'}
+    return {'passed': True, 'reason': None, 'scenes': [label for label, _s in _ROAD_SCENES], 'roads': sorted(seen_roads), 'grades': sorted(seen_grades), 'gaps': sorted(seen_gaps), 'anchors': {k: v for k, v in sorted(anchors.items())}}
+
+
+def the_other_road_of_a_named_class(root: Path, *, population: Optional[dict] = None) -> dict:
+    """ПРАВА ли другая дорога, которой судится класс вне ключей вердикта
+    (**заказ G102 п. 1**, поставлен [ADR-522](../../docs/decisions/ADR-522-verdict-over-named-keys-of-a-class-counter.md) 30.09).
+
+    Сосед :func:`verdict_over_named_keys` доказал, что класс вне набора
+    ИМЕНОВАННЫХ ключей вердикта упомянут в его области, и остановился ровно
+    там, где начинается вопрос. Заказ ставит его дословно:
+
+    > «Назван другой дорогой» — 3 из 3, и ПРАВА ли та дорога, не спрашивал
+    > никто. Спросить прямо: сколько из трёх дорог ведут к тому же вердикту,
+    > а сколько — к более мягкому. Односторонность назвать заранее: «мягче»
+    > обязано мериться порядком исходов, объявленным в самом файле, а не
+    > догадкой о смысле имён.
+
+    Отвечается ДВУМЯ вопросами, и второй не есть уточнение первого:
+
+    1. **Есть ли дорога вообще.** Класс бывает назван и при этом не судим
+       НИКЕМ — только посчитан в отчётное поле. Слить это с «о нём судит
+       другая дорога» значило бы выдать печать числа за вердикт.
+    2. **Куда она ведёт.** Сравнение идёт с исходом той ветви вердикта,
+       которую охраняет сам счётчик (выбор СТРУКТУРНЫЙ, а не смысловой), и
+       только по порядку, ОБЪЯВЛЕННОМУ файлом.
+
+    ADVISORY: ни одного вердикта, ни одного счётчика и ни одного гейта эта
+    работа не правит, ``applied`` ложно.
+    """
+    head = {'question': 'ведёт ли ДРУГАЯ дорога, которой судится класс вне набора ключей вердикта, к тому же исходу — или к более мягкому', 'order': 'G102.1', 'applied': False, 'dirs': list(OPEN_COUNTER_DIRS), 'skipped_dirs': list(OPEN_COUNTER_SKIP)}
+    control = _road_control()
+    head['control'] = control
+    if not control.get('passed'):
+        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_ROAD_CONTROL, 'reason': f"объявленное правило дороги не прошло контроль: {control.get('reason')}"}
+    pop = _verdict_population(root) if population is None else population
+    head['parent_control'] = pop['control']
+    if pop['status'] != 'MEASURED':
+        return {**head, 'status': 'UNMEASURED', 'unmeasured_class': UNMEASURED_ROAD_POPULATION, 'reason': f"население соседа не измерено [{pop.get('unmeasured_class')}]: {pop.get('reason')}", 'files_unreadable': pop.get('files_unreadable') or []}
+    sites = [r for r in pop['rows'] if r['verdict'] == VERDICT_NAMED_ELSEWHERE]
+    rows: List[dict] = []
+    for site in sites:
+        for value in site.get('missing') or []:
+            rows.append(_other_road_row(site, value))
+    roads = {name: sum((1 for r in rows if r['road'] == name)) for name in _ROADS}
+    grades = {name: sum((1 for r in rows if r.get('grade') == name)) for name in _GRADES}
+    gaps = {name: sum((1 for r in rows if r.get('gap') == name)) for name in _ROAD_GAPS}
+    per_site = []
+    for site in sites:
+        mine = [r for r in rows if r['file'] == site['file'] and r['line'] == site['line'] and (r['counter'] == site['counter'])]
+        per_site.append({'file': site['file'], 'line': site['line'], 'owner': site['owner'], 'counter': site['counter'], 'keys': site['keys'], 'classes': [r['cls'] for r in mine], 'roads': sorted({r['road'] for r in mine}), 'grades': sorted({r['grade'] for r in mine if r.get('grade')}), 'gaps': sorted({r['gap'] for r in mine if r.get('gap')}), 'ordering_form': next((r.get('ordering_form') for r in mine if r.get('ordering_form')), None), 'exit_code_reaches_the_os': next((r.get('exit_code_reaches_the_os') for r in mine if 'exit_code_reaches_the_os' in r), None)})
+    softer = grades[GRADE_SOFTER]
+    return {**head, 'status': 'MEASURED', 'population': len(rows), 'sites': len(sites), 'parent_population': len(pop['rows']), 'files_scanned': pop['files_scanned'], 'road_outcomes': roads, 'grades': grades, 'unmeasured_reasons': gaps, 'per_site': per_site, 'leads_to_a_softer_verdict': softer, 'judged_by_no_road_at_all': roads[ROAD_ONLY_REPORTED], 'sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'cls': r['cls'], 'road': r['road'], 'grade': r.get('grade'), 'gap': r.get('gap'), 'baseline': r.get('baseline'), 'road_outcome': r.get('road_outcome'), 'ranks': r.get('ranks')} for r in rows if r['road'] != ROAD_ONLY_REPORTED][:COSTED_SAMPLE], 'reported_only_sample': [{'file': r['file'], 'line': r['line'], 'owner': r['owner'], 'cls': r['cls']} for r in rows if r['road'] == ROAD_ONLY_REPORTED][:COSTED_SAMPLE], 'blind': [f'ДОПУЩЕНА ОДНА форма объявленного порядка — `{ORDER_BY_EXIT_CODE}` (код возврата из `main() -> int`). Голый упорядоченный перечень распознаётся и ОТВЕРГАЕТСЯ: он объявляет порядок, но не объявляет, какой его конец тяжелее, и считать первый элемент самым мягким есть ровно та догадка о смысле имён, которую заказ запретил', 'порядок кода возврата ДВУХРАНГОВЫЙ по построению, поэтому разные исходы одного ранга разведены отдельной оценкой: файл градуирует их ОДИНАКОВО, и звать это «тем же вердиктом» значило бы стереть различие, которого файл не стирал', 'цель вердикта сверяется ТЕКСТУАЛЬНО (`ast.unparse`): два разных объекта, записанных одинаково, шаг сольёт. Односторонность объявлена, и она того же рода, что звено «тот же файл» у соседа', 'у вердикта формы «пара `return`» цель есть ВОЗВРАЩАЕМОЕ значение, и семья его исходов собирается по ВСЕМУ файлу — вселенные возвратов разных функций там сливаются (замер: в сцене `judge`+`classify` семья несёт и `ok/warn/bad`, и классы самого производителя). От этого зависит ДОПУСК объявленного порядка, поэтому сказано вслух, а не оставлено свойством реализации', 'сравниваемое ВЫРАЖЕНИЕ объявленного порядка с целью вердикта не сверяется — у `owner_visibility_census` цель есть имя `status`, а код возврата спрашивает `report["status"]`. Связь доказывается СЕМЬЁЙ исходов, а не записью подлежащего', 'дорогой признаётся ветвь, которую класс ОХРАНЯЕТ (`body`), — тот же структурный выбор, что и у базы сравнения. Класс, влияющий на исход только через ветвь `else`, в дорогу не попадёт', 'шаг доказывает ДОРОГУ, а не событие: что класс приходит в данных сегодня, он не утверждает ничем', 'носитель класса ищется ТРАНЗИТИВНО до неподвижной точки и ограничен только областью, поэтому правило ошибается В СТОРОНУ НАХОДКИ дороги, а не в сторону её пропуска. Направление выбрано намеренно: пропущенная дорога объявила бы класс НЕПОДСУДНЫМ там, где его судят, — это ложь более дорогая, чем лишняя дорога, которую видно по `named_at` и `roads`'], 'what_it_does_not_prove': ['что дорога, ведущая к тому же исходу, судит ПРАВИЛЬНО: мерится ИСХОД, не смысл', 'что класс, посчитанный только в отчётное поле, вреден сегодня — он не судим, и это ДОРОГА, не событие', 'что объявленный порядок ВЕРЕН: он взят у файла как есть, спорить с ним шаг не вправе']}
 
 
 
@@ -21141,7 +21914,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
          "defensive_tail_binding": tail_step,
          "loop_key_over_a_declared_list": loop_key_step},
         reach_step)
-    verdict_step = verdict_over_named_keys(root)
+    # Население снимается ОДИН раз и читается ДВУМЯ шагами: обход 550 файлов
+    # стои́т ~3,7 с, и платить его дважды значило бы купить вторым шагом
+    # повтор работы, а не ответ.
+    verdict_pop = _verdict_population(root)
+    verdict_step = verdict_over_named_keys(root, population=verdict_pop)
+    road_step = the_other_road_of_a_named_class(root, population=verdict_pop)
 
     scanned = len(guard_files) + len(executor_files)
     classified = scanned - len(unreadable)
@@ -21319,7 +22097,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # вообще попадает. Слить их значило бы выдать ответ о девяти узлах за
         # ответ о всех расколах ряда.
         "splits_handed_to_the_reachability_judge": handover_step,
-            "verdict_over_named_keys": verdict_step,
+        "verdict_over_named_keys": verdict_step,
+        # Сосед отвечает о ПЕРЕЧНЕ ключей вердикта, этот — о том, права ли
+        # дорога, которой судится класс вне перечня. Слить их значило бы
+        # выдать «класс упомянут» за «класс судим верно».
+        "the_other_road_of_a_named_class": road_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
         "classified": classified,
@@ -23703,6 +24485,27 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         for item in (observed(verdict_step, 'unresolved_sample', kind=list) or [])[:max_rows]:
             out.append(f"[ВЕРДИКТ · НЕ ИЗМЕРЕНО] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` — {item.get('gap')}")
         for blind in observed(verdict_step, 'blind', kind=list) or []:
+            out.append(f'[СЛЕПОТА] {blind}')
+    road_step = observed(doc, 'the_other_road_of_a_named_class', kind=dict)
+    if road_step is None:
+        out.append('[ДРУГАЯ ДОРОГА] НЕ ИЗМЕРЕНО — перепись собрана без этого шага; это НЕ «дороги правы»')
+    elif str(road_step.get('status')) == 'UNMEASURED':
+        out.append(f"[ДРУГАЯ ДОРОГА] НЕ ИЗМЕРЕНО [{road_step.get('unmeasured_class')}]: {road_step.get('reason')}")
+    else:
+        roads = observed(road_step, 'road_outcomes', kind=dict) or {}
+        grades = observed(road_step, 'grades', kind=dict) or {}
+        why = observed(road_step, 'unmeasured_reasons', kind=dict) or {}
+        control = observed(road_step, 'control', kind=dict) or {}
+        out.append(f"[ДРУГАЯ ДОРОГА] из {road_step.get('population')} пар(ы) «вердикт × класс вне его ключей» у {road_step.get('sites')} вердикт(ов): дорога есть у {roads.get(ROAD_FOUND)} · класс судит САМ вердикт связанным именем у {roads.get(ROAD_IN_THE_VERDICT)} · дороги СПОРЯТ у {roads.get(ROAD_DISAGREE)} · не судит НИКТО (только печатается) у {roads.get(ROAD_ONLY_REPORTED)} · не измерено {roads.get(ROAD_UNMEASURED)}")
+        out.append(f"[ДОРОГА · КУДА ВЕДЁТ] тот же исход {grades.get(GRADE_SAME)} · иной исход, который файл градуирует ОДИНАКОВО {grades.get(GRADE_EQUALLY_GRADED)} · ЖЁСТЧЕ {grades.get(GRADE_HARSHER)} · МЯГЧЕ {grades.get(GRADE_SOFTER)} · не измерено {grades.get(GRADE_UNMEASURED)}")
+        out.append(f"[ДОРОГА · ОТВЕТ ЗАКАЗУ G102 п. 1] к более МЯГКОМУ вердикту ведут {road_step.get('leads_to_a_softer_verdict')} дорог(и); класс, о котором не судит НИ ОДНА дорога, — {road_step.get('judged_by_no_road_at_all')} (он только посчитан в отчётное поле, и это НЕ «всё в порядке»)")
+        out.append(f"[ДОРОГА · ПОЧЕМУ НЕ ИЗМЕРЕНО] порядка исходов файл не объявляет {why.get(ROAD_GAP_NO_ORDERING)} · порядок есть, направления нет {why.get(ROAD_GAP_NO_DIRECTION)} · два порядка спорят {why.get(ROAD_GAP_ORDERINGS_DISAGREE)} · цель вердикта не прослеживается {why.get(ROAD_GAP_TARGET_UNKNOWN)}")
+        out.append(f"[ДОРОГА · НАСЕЛЕНИЕ] сила правила доказана КОНТРОЛЕМ: сцен {len(control.get('scenes') or [])}, предъявлено исходов дороги {len(control.get('roads') or [])}, оценок {len(control.get('grades') or [])}, имён отказа {len(control.get('gaps') or [])}; поимённых якорей {len(control.get('anchors') or {})}")
+        for item in (observed(road_step, 'per_site', kind=list) or [])[:max_rows]:
+            out.append(f"[ДОРОГА · ВЕРДИКТ] {item.get('file')}:{item.get('line')} ({item.get('owner')}) `{item.get('counter')}` читает {item.get('keys')}; классы вне набора {item.get('classes')} → дороги {item.get('roads')}, оценки {item.get('grades')}, порядок исходов {item.get('ordering_form')}")
+        for item in (observed(road_step, 'reported_only_sample', kind=list) or [])[:max_rows]:
+            out.append(f"[ДОРОГА · НЕ СУДИТ НИКТО] {item.get('file')}:{item.get('line')} ({item.get('owner')}) класс `{item.get('cls')}` назван в области, но ни одна дорога не кладёт по нему исход")
+        for blind in observed(road_step, 'blind', kind=list) or []:
             out.append(f'[СЛЕПОТА] {blind}')
     subject_step = observed(doc, SUBJECT_OWN_STEP, kind=dict)
     if subject_step is None:
