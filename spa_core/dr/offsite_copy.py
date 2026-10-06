@@ -54,6 +54,25 @@ REPO = Path(__file__).resolve().parents[2]
 DEFAULT_BACKUP_DIR = REPO / "data" / "backups"
 DEFAULT_STATUS_PATH = REPO / "data" / "dr_offsite_status.json"
 STANDIN_DEST = Path(os.path.expanduser("~/spa_offsite_backups"))
+# RM-TRUTH-01 / ADR-580 C10: the Owner-controlled destination that ALREADY leaves the Mac.
+# iCloud Drive is signed in and syncing on the production host (the track mirror
+# `persistence/backup.py` and the ADR-527 memory backup have used it since MP-109 /
+# 2026-10-01). Used only when its parent exists; otherwise the stand-in (SAME_HOST).
+ICLOUD_PARENT = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+ICLOUD_DEST = ICLOUD_PARENT / "SPA_backups" / "dr_offsite"
+DEST_PROBE_TIMEOUT_S = 20.0
+
+
+def resolve_dest(explicit: Optional[Path] = None) -> Path:
+    """--dest → $SPA_OFFSITE_DEST → iCloud Drive (if signed in) → local stand-in."""
+    if explicit is not None:
+        return Path(os.path.expanduser(str(explicit)))
+    env = os.environ.get("SPA_OFFSITE_DEST", "").strip()
+    if env:
+        return Path(os.path.expanduser(env))
+    if ICLOUD_PARENT.is_dir():
+        return ICLOUD_DEST
+    return STANDIN_DEST
 
 ARCHIVE_GLOB = "spa_state_*.tar.gz"
 DEFAULT_KEEP = 14  # keep ~14 newest offsite copies
@@ -161,10 +180,7 @@ def run(
 
     Returns process exit code: 0 = verified copy, non-zero = any failure (fail-CLOSED).
     """
-    if dest_dir is None:
-        env = os.environ.get("SPA_OFFSITE_DEST", "").strip()
-        dest_dir = Path(env) if env else STANDIN_DEST
-    dest_dir = Path(os.path.expanduser(str(dest_dir)))
+    dest_dir = resolve_dest(dest_dir)
 
     # is_real_remote: false iff dest resolves to the local stand-in dir.
     is_real_remote = dest_dir.resolve() != STANDIN_DEST.resolve()
@@ -199,6 +215,20 @@ def run(
         )
         return 1
     print(f"[OK] source sha256: {src_sha}")
+
+    # 2b) A stalled sync filesystem (iCloud) does not FAIL — it blocks forever (measured
+    #     2026-08-04/05, persistence/backup.py). Probe the destination with a hard deadline
+    #     first; no answer ⇒ refuse, recorded (fail-CLOSED, inv. #2), never a hang.
+    from spa_core.persistence.backup import _probe_backup_root  # noqa: E402
+    stall = _probe_backup_root(dest_dir, DEST_PROBE_TIMEOUT_S)
+    if stall is not None:
+        print(f"[FAIL] destination not answering: {stall}")
+        _write_status(
+            status_path, verified=False, archive_name=src.name, sha256=src_sha,
+            dest=str(dest_dir), n_offsite_kept=0, is_real_remote=is_real_remote,
+            error=f"dest_unresponsive:{stall}",
+        )
+        return 1
 
     # 3) Atomic copy to offsite/secondary destination.
     dest_file = dest_dir / src.name
