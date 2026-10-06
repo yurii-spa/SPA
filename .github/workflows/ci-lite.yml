@@ -160,6 +160,20 @@ jobs:
           SPA_ENV: ci
         run: python3 scripts/mypy_gate.py
 
+      # `spa_core/utils/pytest_heavy_admission.py` — ПЛАГИН pytest (ADR-551,
+      # аренда тяжёлой работы), и без `pytest` он не импортируется по
+      # построению. Замер 06.10 (цикл #787): CI-Lite красен десять прогонов
+      # подряд (с 03.10) ровно на этом ОДНОМ модуле, и это ВТОРАЯ, независимая
+      # причина под тем же словом `failure` — первую (f-строка PEP 701) закрыл
+      # цикл #784, карточка `agent-ci-lite-krasen-f-stroka-pep-701-na-311`.
+      # Лечится УСИЛЕНИЕМ, а не расширением списка необязательных: с
+      # установленным `pytest` модуль действительно импортируется и проверяется,
+      # тогда как запись в `OPTIONAL` сделала бы его НЕПРОВЕРЕННЫМ молча (инв.
+      # #16). Замер правки локально: обход даёт 0 настоящих отказов.
+      - name: Install pytest — a pytest plugin cannot be imported without it
+        if: ${{ !cancelled() }}
+        run: pip install pytest==8.3.4
+
       - name: Import check — all spa_core modules import cleanly
         if: ${{ !cancelled() }}
         env:
