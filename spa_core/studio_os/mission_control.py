@@ -132,6 +132,69 @@ CONTRACT: list[dict] = [
      "stale_after_min": None, "unknown": "-", "redaction": "-", "mobile": True, "alert": False},
     {"path": "release_feed", "source": "git origin/main (mirror): subject, ADR/cycle/card refs; production containment via code_sync_status",
      "stale_after_min": None, "unknown": "null", "redaction": "safe_text on subjects", "mobile": True, "alert": False},
+    # ── Company Truth (RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592 number reserved) ──────
+    # Additive bundle key, computed by spa_core.studio_os.company_truth.build() — ONE row per
+    # truth.* card; every cell under it carries its own `canon` field too (design §2.0).
+    {"path": "truth.home.strip", "source": "company_truth.home (5 tiles)", "stale_after_min": None,
+     "unknown": "per-tile NOT_MEASURED cell", "redaction": "safe_text", "mobile": True, "alert": False},
+    {"path": "truth.home.money_chip", "source": "company_truth.money_chip ← capital.real_capital",
+     "stale_after_min": None, "unknown": "NOT_MEASURED cell", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.home.attention", "source": "company_truth.attention (≤3 lines, deterministic order)",
+     "stale_after_min": None, "unknown": "empty list", "redaction": "safe_text", "mobile": True, "alert": True},
+    {"path": "truth.capital.defi", "source": "company_truth.capital_defi ← capital.packages + sleeve_track_view",
+     "stale_after_min": 120, "unknown": "NOT_MEASURED / NOT_ENOUGH_HISTORY per book", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.trading_lab", "source": "company_truth.capital_trading_lab (guarded import, another WP's branch)",
+     "stale_after_min": 120, "unknown": "NOT_MEASURED (module absent or unreadable)", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.btc", "source": "company_truth.capital_btc ← trading_lab", "stale_after_min": 120,
+     "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.basis", "source": "company_truth.capital_basis ← capital.research_universe",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.treasury_rwa", "source": "company_truth.capital_treasury ← capital.research_universe",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.sherlock", "source": "company_truth.capital_sherlock ← capital.research_universe.sherlock",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.oracle", "source": "company_truth.capital_oracle ← capital.investment_cio",
+     "stale_after_min": 1800, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.capital.readiness", "source": "company_truth.capital_readiness ← readiness_scopes.INVESTMENT_ENGINE_READINESS + capital.live_readiness",
+     "stale_after_min": None, "unknown": "NOT_MEASURED (fail-closed wording)", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.studio.claude_work", "source": "company_truth.claude_work ← data/session_changes.jsonl + check_undelivered_work.session_state",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "safe_text on summary", "mobile": True, "alert": False},
+    {"path": "truth.studio.roadmap", "source": "company_truth.studio_roadmap ← docs/ROADMAP.md (current = IN_PROGRESS only)",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "safe_text", "mobile": True, "alert": False},
+    {"path": "truth.studio.tasks", "source": "company_truth.studio_tasks ← studio.board + studio.orphans",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.studio.fleet", "source": "company_truth.typed_fleet ← architecture/manifest.json + launchctl list + data/agent_health.json",
+     "stale_after_min": 90, "unknown": "per-count None", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.studio.incidents", "source": "company_truth.studio_incidents ← system.incidents",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "event keys only", "mobile": True, "alert": False},
+    {"path": "truth.studio.problems", "source": "company_truth.studio_problems ← data/problems.json (problem_store.load_store)",
+     "stale_after_min": None, "unknown": "NOT_MEASURED (file absent ⇒ \"ещё не запущен\")", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.studio.self_heal", "source": "company_truth.studio_self_heal ← data/self_heal_status.json",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.studio.releases", "source": "company_truth.studio_releases ← release_feed", "stale_after_min": None,
+     "unknown": "NOT_MEASURED", "redaction": "safe_text", "mobile": True, "alert": False},
+    {"path": "truth.studio.memory", "source": "company_truth.studio_memory ← architecture/memory_truth.json + data/memory/index.db",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": False, "alert": False},
+    {"path": "truth.studio.backups", "source": "company_truth.studio_backups ← data/dr_offsite_status.json + data/backups/*.tar.gz + data/resilience_status.json (three separate rows, C3)",
+     "stale_after_min": None, "unknown": "NOT_MEASURED per row; off-host NEVER green when is_real_remote is false", "redaction": "no paths", "mobile": True, "alert": True},
+    {"path": "truth.studio.decisions_summary", "source": "company_truth.studio_decisions_summary ← decisions triage",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.studio.scopes", "source": "readiness_scopes.scoped_readiness (six scopes, never collapsed)",
+     "stale_after_min": None, "unknown": "per-scope UNKNOWN", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.product.public_release", "source": "company_truth.product_public_release ← landing/src/data/site_numbers.json (mirror)",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.product.website_health", "source": "readiness_scopes.PUBLICATION_HEALTH (re-projected)", "stale_after_min": None,
+     "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": True},
+    {"path": "truth.product.profiles", "source": "company_truth.product_profiles ← capital.packages + landing/src/lib/tier_bands.json",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.product.public_metrics", "source": "company_truth.product_public_metrics ← landing/src/data/site_numbers.json.headline",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.product.truth_incidents", "source": "company_truth.product_truth_incidents ← data/problems.json",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
+    {"path": "truth.product.backlog", "source": "company_truth.product_backlog ← tracker cards (declared domain/tags)",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "safe_text on titles", "mobile": True, "alert": False},
+    {"path": "truth.product.next_release", "source": "company_truth.product_next_release ← landing/src/data/site_numbers.json.next_publication",
+     "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
 ]
 
 # ── redaction ───────────────────────────────────────────────────────────────────────────────────
@@ -206,6 +269,7 @@ class MCInputs:
     git_log: Optional[Callable[[int], Optional[list]]] = None
     leases: Optional[Callable[[], Optional[list]]] = None
     mirror_synced_at: Optional[datetime] = None          # injectable (tests); default: the mirror's last fetch
+    launchctl_full: Optional[Callable[[], Optional[str]]] = None   # injectable (tests): full `launchctl list` text
 
 
 #: the origin mirror re-fetches every 30 min; older than this, its cards/board/history are STALE
@@ -380,7 +444,13 @@ def _roadmap(mirror: Path) -> dict:
         note = raw.split("—", 1)[1].strip() if "—" in raw else ""
         state = "DONE" if done else ("IN_PROGRESS" if re.search(r"in progress|в работе", note, re.I) else "QUEUED")
         items.append({"n": int(mm.group(1)), "epic": safe_text(name, 120), "state": state, "note": safe_text(note, 200)})
-    cur = next((i for i in items if i["state"] == "IN_PROGRESS"), None) or next((i for i in items if i["state"] == "QUEUED"), None)
+    # RM-TRUTH-01 C1 (ADR-580 → Director OS v2 design §0): `current` means IN_PROGRESS, and ONLY
+    # that — never the first QUEUED item. The live defect this fixes: with no epic actually
+    # declared `в работе`, the old `or next(... QUEUED ...)` fallback silently printed whichever
+    # epic happened to be listed first as "the current epic" (observed live: "#10 Later engines —
+    # QUEUED" shown as current). Absence of an announced epic is now its own value — the caller
+    # renders "эпик в работе не объявлен" — never a guessed QUEUED item standing in for it.
+    cur = next((i for i in items if i["state"] == "IN_PROGRESS"), None)
     return {"items": items, "current": cur, "confirmed": m.group(1) if m else None}
 
 
@@ -1157,12 +1227,81 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                 "you before anything is written (ADR-521). Decisions are answered in the SPA bot with its buttons. "
                 "This page writes nothing."),
     }
+
+    # ── TRUTH (Company Truth read model, RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592
+    #    number reserved) — ONE additive key, computed by the ONE module allowed to (import
+    #    ratchet in test_company_truth_import_ratchet.py). Never writes; never asks the host
+    #    directly except through the probes gathered here, behind the SAME measure_host switch
+    #    everything else in this function already respects. ──────────────────────────────────
+    from spa_core.studio_os import company_truth as ct
+    from spa_core.studio_os import readiness_scopes as rs
+
+    manifest_doc = _read_json(Path(inp.repo) / "architecture" / "manifest.json")
+    roles_doc = _read_json(Path(inp.repo) / "architecture" / "roles.json")
+    if inp.launchctl_full is not None:
+        lc_full_text = inp.launchctl_full()
+    elif inp.measure_host:
+        try:
+            lc_full_text = subprocess.run(["launchctl", "list"], capture_output=True, text=True, timeout=15).stdout
+        except (OSError, subprocess.SubprocessError):
+            lc_full_text = None
+    else:
+        lc_full_text = None
+    launchctl_map = dr.parse_launchctl_list(lc_full_text) if lc_full_text is not None else None
+
+    log_rows: Optional[list] = None
+    log_bad = 0
+    try:
+        log_lines = (data / "session_changes.jsonl").read_text(encoding="utf-8").splitlines()[-2000:]
+    except OSError:
+        log_rows = None
+    else:
+        log_rows = []
+        for ln in log_lines:
+            if not ln.strip():
+                continue
+            try:
+                obj = json.loads(ln)
+            except ValueError:
+                log_bad += 1
+                continue
+            if isinstance(obj, dict):
+                log_rows.append(obj)
+            else:
+                log_bad += 1
+
+    def _lineage_fn(query: str):
+        return bl.lineage(query, tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host)
+
+    try:
+        scopes = rs.scoped_readiness(data, now)
+    except Exception:  # noqa: BLE001 — a broken scope reader is NOT_MEASURED per scope, never a crash here
+        scopes = []
+
+    old_owner_items = [
+        {"days": (now - _ts(d["created_at"])).days, "title": d["title"]}
+        for d in (decisions.get("pending") or [])
+        if _ts(d.get("created_at")) and (now - _ts(d["created_at"])).days >= 7
+    ] if "pending" in decisions else []
+
+    truth = ct.build(ct.TruthInputs(
+        data=data, mirror=Path(inp.mirror), repo=Path(inp.repo), now=now, measure_host=inp.measure_host,
+        rep=rep, capital=capital, cards=cards, prod_cards=prod_cards, roadmap=roadmap, board=board,
+        orphans=orphans, manifest=manifest_doc, roles=roles_doc, launchctl_map=launchctl_map,
+        lineage_fn=_lineage_fn, log_rows=log_rows, log_bad_lines=log_bad, scopes=scopes,
+        release_feed=feed, push_state_section=incidents, old_owner_items=old_owner_items,
+        # the v1 (ADR-552) Decisions section this function already built above, by id — re-used
+        # so `truth.decisions` carries the per-card reason/action/done_when/telegram_link the v2
+        # UI reads (design §2.6) without a second tracker-body parser (ADR-580 doctrine §1).
+        decisions_v1=decisions if isinstance(decisions, dict) else None,
+    ))
+
     return {"schema": SCHEMA, "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "areas": AREAS, "intake": intake,
             "vocabulary": {"operational": OPERATIONAL, "health": HEALTH, "work": WORK, "decision": DECISION,
                            "capital_mode": CAPITAL_MODE, "evidence": EVIDENCE,
                            "colour_rule": "colour follows HEALTH only — never profit, risk or approval for real money"},
             "contract": CONTRACT, "overview": overview, "capital": capital, "studio": studio,
-            "decisions": decisions, "system": system, "release_feed": feed}
+            "decisions": decisions, "system": system, "release_feed": feed, "truth": truth}
 
 
 def main(argv: Optional[list] = None) -> int:

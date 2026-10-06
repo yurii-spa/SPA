@@ -135,8 +135,23 @@ def forward_metrics(conn, cand_id: str, tf: str) -> Dict:
     return m
 
 
+def _qualification_snapshot(r: Optional[Dict]) -> Dict:
+    """IS/OOS/OOS@3x-costs Sharpe + full-history max drawdown at the instant a candidate is
+    qualified (ADR-590 fix B). Stored once, inside the append-only lifecycle event for
+    BACKTEST_QUALIFIED — the daily backtest refresh keeps recomputing these numbers, but this
+    snapshot is never overwritten, so a later drift is visible by DIFFERENCE, not by memory."""
+    r = r or {}
+    return {
+        "is_sharpe": (r.get("in_sample") or {}).get("sharpe"),
+        "oos_sharpe": (r.get("out_of_sample") or {}).get("sharpe"),
+        "oos_sharpe_3x_costs": ((r.get("cost_sensitivity") or {}).get("3x") or {}).get("oos_sharpe"),
+        "full_max_drawdown": (r.get("full") or {}).get("max_drawdown"),
+    }
+
+
 def _derive_stages(conn, bt_result: Dict, quals: List[Dict], now_ms: int) -> int:
     cur = ev.current_stages(conn)
+    by_id_res = {r["id"]: r for r in bt_result["results"]}
     oos = {r["id"]: r["out_of_sample"].get("sharpe") for r in bt_result["results"]}   # slice_metrics: always a dict
     tfs = {r["id"]: r["definition"]["timeframe"] for r in bt_result["results"]}
     n = 0
@@ -145,7 +160,8 @@ def _derive_stages(conn, bt_result: Dict, quals: List[Dict], now_ms: int) -> int
         nonlocal n
         frm = cur.get(cid)
         if frm == to:
-            return
+            return                                           # already there: the first qualification's
+                                                               # evidence stays frozen, nothing is rewritten
         lc.check(frm, to)                                   # raises on anything not automatic
         ev.append_event(conn, cid, frm, to, reason, evidence, actor="trading_research", now_ms=now_ms)
         cur[cid] = to
@@ -160,7 +176,8 @@ def _derive_stages(conn, bt_result: Dict, quals: List[Dict], now_ms: int) -> int
         stage = cur.get(cid)
         if q["qualified"]:
             if stage in ("BACKTESTING", "REJECTED"):
-                move(cid, "BACKTEST_QUALIFIED", "all qualification criteria met", {"score": q["score"]})
+                move(cid, "BACKTEST_QUALIFIED", "all qualification criteria met",
+                     {"score": q["score"], **_qualification_snapshot(by_id_res.get(cid))})
             if cur.get(cid) == "BACKTEST_QUALIFIED":
                 move(cid, "FORWARD_PAPER", "qualified; forward evidence accumulating since registration", {})
             if cur.get(cid) == "FORWARD_PAPER":
@@ -239,8 +256,14 @@ def _tick(*, now_ms: Optional[int] = None, http=md._http_json, do_backtest: Opti
             or not isinstance(prev.get("generated_at_ms"), int)       # unknown age ⇒ refresh, never «fresh»
             or now_ms - prev["generated_at_ms"] > BACKTEST_EVERY_MS)
         if need:
-            res = bt.run_all(mconn, now_ms=now_ms)
+            # ADR-590 fix B: OOS stops at the forward clock's start (MIN over every registered
+            # candidate — they all register in the same tick today, so this is one fixed instant,
+            # never pushed forward by the daily refresh). No candidate registered yet ⇒ None,
+            # the old open-ended slice.
+            oos_end_ms = econn.execute("SELECT MIN(registered_at_ms) FROM candidates").fetchone()[0]
+            res = bt.run_all(mconn, now_ms=now_ms, oos_end_ms=oos_end_ms)
             bt.save(res, bt_path)
+            bt.save_versioned(res, d)
             detail["backtest"] = "refreshed"
         res = json.loads(bt_path.read_text())
         b1h = md.load_1h(mconn, ASSETS["BTC"])
@@ -272,13 +295,35 @@ def _bt_manifest(p: Path) -> Optional[Dict]:
 def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release) -> Dict:
     from collections import Counter
     from spa_core.utils.atomic import atomic_save
-    stages = Counter(ev.current_stages(econn).values())
+    cur_stages = ev.current_stages(econn)
+    stages = Counter(cur_stages.values())
     by_id_res = {r["id"]: r for r in res["results"]}
     last_bar = {tf: t for tf, t in econn.execute(
         "SELECT timeframe, MAX(bar_close_time) FROM observations GROUP BY timeframe")}
     first = econn.execute("SELECT MIN(registered_at_ms) FROM candidates").fetchone()[0]
     ver = ev.verify(econn)
-    fwd_ids = [cid for cid, s in ev.current_stages(econn).items() if s in ("FORWARD_PAPER", "ROBUST")]
+    # ADR-590 fix D8: the FORWARD set is read from lifecycle_events (current stage), never from the
+    # backtest shortlist below — shortlist is the top-5 AFTER correlation de-dup and today happens
+    # to coincide (5 == 5), but it is a different set by construction and will diverge once more
+    # than 5 candidates qualify, or de-dup drops one that is still FORWARD_PAPER.
+    fwd_ids = [cid for cid, s in cur_stages.items() if s in ("FORWARD_PAPER", "ROBUST")]
+    forward_candidates = []
+    for cid in fwd_ids:
+        r = by_id_res.get(cid)
+        if r is None:
+            continue
+        fm = forward_metrics(econn, cid, r["definition"]["timeframe"])
+        forward_candidates.append({
+            "id": cid, "stage": cur_stages.get(cid),
+            "oos_sharpe": r["out_of_sample"].get("sharpe"),
+            "oos_max_drawdown": r["out_of_sample"].get("max_drawdown"),
+            # ADR-590 fix D7: the FULL-history drawdown is the binding gate (q_drawdown); the
+            # Director report used to print only the shallower OOS number as "просадка" — show both.
+            "full_max_drawdown": r["full"].get("max_drawdown"),
+            "forward_observations": ev.observation_count(econn, cid),   # fix D1: real COUNT(*), no +1 seed
+            "forward_net": fm.get("net_return"),
+        })
+    forward_candidates.sort(key=lambda c: (c["oos_sharpe"] is None, -(c["oos_sharpe"] or 0)))
     top = []
     for s in short[:5]:
         r = by_id_res[s["id"]]
@@ -286,7 +331,9 @@ def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release)
         top.append({"id": s["id"], "score": s["score"],
                     "oos_sharpe": r["out_of_sample"].get("sharpe"),
                     "oos_max_drawdown": r["out_of_sample"].get("max_drawdown"),
-                    "forward_bars": fm.get("bars", 0), "forward_net": fm.get("net_return")})
+                    "full_max_drawdown": r["full"].get("max_drawdown"),
+                    "forward_observations": ev.observation_count(econn, s["id"]),
+                    "forward_net": fm.get("net_return")})
     status = {
         "schema": "trading-research-status/1", "generated_at_ms": now_ms, "ok": True,
         "code_version": code, "release": release, "mode": "PAPER_RESEARCH_ONLY", "live_capital_usd": 0,
@@ -299,7 +346,11 @@ def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release)
         "backtest_generated_at_ms": res["manifest"].get("generated_at_ms"),
         "data": {"bars_1h": res["manifest"]["bars_1h"], "gaps_1h": res["manifest"]["gaps_1h"]},
         "benchmark": {tf: {"sharpe": m.get("sharpe"), "max_drawdown": m.get("max_drawdown")} for tf, m in bms.items()},
+        # "shortlist" = backtest top-5 after correlation de-dup (ranking/diagnostic use only).
+        # "forward_candidates" = the actual FORWARD_PAPER/ROBUST set (fix D8) — readers that mean
+        # "what is the engine's live forward state" must use this one, not shortlist.
         "shortlist": top,
+        "forward_candidates": forward_candidates,
     }
     atomic_save(status, str(data_dir() / "status.json"))
     return status

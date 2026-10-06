@@ -49,7 +49,12 @@
    Oracle still allocates only CIO_ELIGIBLE candidates on paper; RiskPolicy and cio-policy-v1 unchanged. Real capital
    $0; no real-money pilot, no COO epic and no new asset-class expansion has started. No further epic is started
    automatically.
-10. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+10. **RM-TRUTH-01 · Company truth reconciliation + Director OS recovery** — in progress (owner directive
+    2026-10-05, «MACRO EPIC — FRESH SESSION REQUIRED»; contracts ADR-580; Wave 1 delivered `96a935fd` 2026-10-06;
+    Wave 2 = Trading Lab canon ADR-590, memory ADR-591, Director OS v2 ADR-592, Conservative backfill ADR-593).
+    Read-only forensic map first (`docs/rm_truth/`), then waves with independent reviews. Real capital $0; no
+    historical paper data reset.
+11. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 

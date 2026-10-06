@@ -260,6 +260,17 @@
    "evidence": [
     "spa:docs/DEFI_ARCHITECTURE_GAP_AUDIT.md"
    ]
+  },
+  {
+   "subject": "chief_investment_officer",
+   "status": "ACTIVE",
+   "aliases": "oracle оракул cio сио штирлиц chief investment officer investment cio",
+   "fact": "The Investment CIO role (role_id chief_investment_officer, architecture/roles.json) display name is 'Oracle' (Оракул). Ex-name 'Штирлиц', valid until 2026-10-04 (до 2026-10-04) — ADR-554 (2026-10-04) renamed it to Oracle/CIO when it armed the role as advisory/PAPER cross-sleeve recommendation + immutable ledger. Text using 'Штирлиц'/'Stirlitz' before that date refers to the same role under its earlier, now-retired name.",
+   "evidence": [
+    "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+    "spa:architecture/roles.json",
+    "spa:docs/ROADMAP.md"
+   ]
   }
  ],
  "agents": [

@@ -1,0 +1,955 @@
+[
+ {
+  "id": "H01",
+  "lang": "ru",
+  "question": "Какие эксперименты с BTC-движком мы делали раньше и чем они закончились?",
+  "ground_truth": "ADR-102 (2026-08-20): BTC cycle champion v0.1 accepted as a measurement, implementation NOT started (drawdown does not fit kill-switch); ADR-118 (2026-08-22) separate BTC paper-NAV track — per ADR-525 never installed; earn-defi MVRV BTC Signal Engine (2026-09-04, separate repo); ADR-525 (2026-09-30) Trading Research Engine v0, 138 BTC candidates.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+   "docs/decisions/ADR-118-btc-paper-nav-track.md",
+   "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+  ],
+  "class": "old_btc_experiments",
+  "_facts": [
+   "ADR-102",
+   "ADR-118|btc_nav",
+   "earn-defi|MVRV",
+   "ADR-525"
+  ],
+  "_temporal_regex": "2026-08-2\\d|2026-09-30",
+  "_supersession_regex": "never installed|archived|НЕ начинается|не помещается",
+  "_trap": false
+ },
+ {
+  "id": "H01e",
+  "lang": "en",
+  "question": "What BTC engine experiments did we run before and how did they end?",
+  "ground_truth": "same as H01",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-102-btc-cycle-backtest-archived-not-built.md",
+   "docs/decisions/ADR-118-btc-paper-nav-track.md",
+   "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+  ],
+  "class": "old_btc_experiments",
+  "_facts": [
+   "ADR-102",
+   "ADR-118|btc_nav",
+   "earn-defi|MVRV",
+   "ADR-525"
+  ],
+  "_temporal_regex": "2026-08-2\\d|2026-09-30",
+  "_supersession_regex": "never installed|archived|НЕ начинается|не помещается",
+  "_trap": false
+ },
+ {
+  "id": "H02",
+  "lang": "ru",
+  "question": "Откуда взялась идея индикаторной торговли (Indicator Trading) — MA, RSI, SuperTrend по BTC?",
+  "ground_truth": "Term 'Indicator Trading' appears nowhere in repos (rg, 0 hits). Closest: ADR-525 (owner directive 2026-09-30) Trading Research Engine v0 — 10 public-domain indicator families × BTC 1h/4h/1D = 138 candidates, because SPA had no directional price engine; earn-defi BTC Signal Engine (MVRV, trend gates) predates it (2026-09-04).",
+  "ground_truth_sources": [
+   "docs/TRADING_RESEARCH_ENGINE.md",
+   "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md"
+  ],
+  "class": "indicator_trading_origin",
+  "_facts": [
+   "ADR-525",
+   "138",
+   "SuperTrend|RSI|Donchian",
+   "no directional|направлен|MVRV"
+  ],
+  "_temporal_regex": "2026-09-30",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H03",
+  "lang": "ru",
+  "question": "Что такое Director OS и какой был замысел?",
+  "ground_truth": "'Director OS doctrine (ADR-469)' cited by ADR-492: read-only snapshot/projection-driven mission control. That ADR-469 exists only in off-origin shadow worktree ~/studio-os-scratch/v03 with status DECISION_PROPOSED (2026-09-24); origin ADR-469 is an unrelated 'writer-harm' ADR (number collision). ADR-552 (2026-10-0x) says Director OS web cockpit (com.spa.director_server :8788) is IMPLEMENTED but DUPLICATES the Director, publish frozen since 09-20; Owner Remote/Mission Control v1 supersedes.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md",
+   "docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+  ],
+  "class": "director_os_intent",
+  "_facts": [
+   "ADR-492|ADR-552",
+   "read-only|только чтени",
+   "mission control|Mission Control|cockpit",
+   "director_server|8788|Директор"
+  ],
+  "_temporal_regex": "2026-09-2\\d|2026-10-0\\d",
+  "_supersession_regex": "DUPLICATES|PROPOSED|ADR-552",
+  "_trap": false
+ },
+ {
+  "id": "H03e",
+  "lang": "en",
+  "question": "What is Director OS and what was its intended purpose?",
+  "ground_truth": "same as H03",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md",
+   "docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+  ],
+  "class": "director_os_intent",
+  "_facts": [
+   "ADR-492|ADR-552",
+   "read-only|только чтени",
+   "mission control|Mission Control|cockpit",
+   "director_server|8788|Директор"
+  ],
+  "_temporal_regex": "2026-09-2\\d|2026-10-0\\d",
+  "_supersession_regex": "DUPLICATES|PROPOSED|ADR-552",
+  "_trap": false
+ },
+ {
+  "id": "H04",
+  "lang": "ru",
+  "question": "Какие три домена у владельца: Capital, Studio OS и Earn DeFi Product — кто чем владеет?",
+  "ground_truth": "No single canonical doc names 'three owner domains'. Pieces: CAPITAL_ARCHITECTURE (ADR-525) capital hierarchy owned by engines not Studio OS; Studio OS/Bridge = owner control plane (ADR-521); Bridge B19.6.12 erratum: 'Earn DeFi product repo does not exist' — every Earn DeFi product task targeted SPA repo; earn-defi.com site lives in SPA landing/, ~/Documents/earn-defi is the BTC engine repo. Domain model therefore UNKNOWN/fragmented.",
+  "ground_truth_sources": [
+   "docs/CAPITAL_ARCHITECTURE.md",
+   "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+   "docs/decisions/ADR-521-telegram-owner-control-plane.md"
+  ],
+  "class": "three_owner_domains",
+  "_facts": [
+   "CAPITAL",
+   "Studio OS",
+   "earn-defi|Earn DeFi",
+   "engine|движ|Bridge"
+  ],
+  "_temporal_regex": null,
+  "_supersession_regex": "Does not exist|wrong repository|B19.6.12",
+  "_trap": false
+ },
+ {
+  "id": "H05",
+  "lang": "ru",
+  "question": "Как соотносятся старые названия стратегий Preserve / Core / Max Yield с Conservative / Balanced / Aggressive?",
+  "ground_truth": "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md:43 Conservative (alt Preserve) / Balanced (Core) / Aggressive (Max Yield); docs/SITE_DESIGN_SYSTEM.md:369-371 recommended mapping Preserve=Conservative etc. Naming is owner-gated (ADR-285 subject 2).",
+  "ground_truth_sources": [
+   "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+   "docs/THREE_TIER_YIELD_PRODUCT.md"
+  ],
+  "class": "strategy_naming_old_vs_new",
+  "_facts": [
+   "Preserve",
+   "Max Yield",
+   "Conservative",
+   "Aggressive"
+  ],
+  "_temporal_regex": null,
+  "_supersession_regex": "alt|=|↔|map",
+  "_trap": false
+ },
+ {
+  "id": "H05e",
+  "lang": "en",
+  "question": "How do the old strategy names Preserve, Core and Max Yield map to Conservative, Balanced and Aggressive?",
+  "ground_truth": "same as H05",
+  "ground_truth_sources": [
+   "docs/DEFI_ARCHITECTURE_GAP_AUDIT.md",
+   "docs/THREE_TIER_YIELD_PRODUCT.md"
+  ],
+  "class": "strategy_naming_old_vs_new",
+  "_facts": [
+   "Preserve",
+   "Max Yield",
+   "Conservative",
+   "Aggressive"
+  ],
+  "_temporal_regex": null,
+  "_supersession_regex": "alt|=|↔|map",
+  "_trap": false
+ },
+ {
+  "id": "H06",
+  "lang": "ru",
+  "question": "Действует ли ещё запрет на Sky/sUSDS?",
+  "ground_truth": "Ban lifted 2026-08-05 as fulfilled (DSPause delay 48h, three RPCs agree), sky_susds WL/0 -> T1, ADR-065; is_gsm_compliant() gate kept.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-065-sky-susds-promoted-to-t1.md",
+   "CLAUDE.md",
+   ".claude/rules/adapters.md"
+  ],
+  "class": "superseded_decisions",
+  "_facts": [
+   "ADR-065",
+   "48",
+   "T1",
+   "СНЯТ|снят|lifted|promoted|повышен"
+  ],
+  "_temporal_regex": "2026-08-05",
+  "_supersession_regex": "СНЯТ|снят|ИСПОЛНЕН|повышен",
+  "_trap": false
+ },
+ {
+  "id": "H07",
+  "lang": "ru",
+  "question": "Сколько классов решений раньше было owner-gated и что заменило этот список?",
+  "ground_truth": "Former list of 14 owner-gated classes replaced 2026-09-09 by ADR-285: three subjects (real money, public numbers/tier naming/legal, irreversible actions); measured 247 owner cards in 55 days.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+   "CLAUDE.md"
+  ],
+  "class": "superseded_decisions",
+  "_facts": [
+   "ADR-285",
+   "14",
+   "три предмета|three subjects|ровно три",
+   "247"
+  ],
+  "_temporal_regex": "09\\.09|2026-09-09",
+  "_supersession_regex": "отменяет|больше не является|сняты",
+  "_trap": false
+ },
+ {
+  "id": "H08",
+  "lang": "ru",
+  "question": "Какой roadmap сейчас канонический и что стало со старыми roadmap-файлами вроде AI1_ROADMAP и EISENHOWER?",
+  "ground_truth": "ADR-527 (2026-10-01): single roadmap docs/ROADMAP.md; AI1/ATOMIC/FAMILY_FUND/PHASE2/PRODUCT_REDESIGN/EISENHOWER v1,v2/YIELD_STRATEGY marked SUPERSEDED in architecture/memory_truth.json.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+   "docs/ROADMAP.md",
+   "architecture/memory_truth.json"
+  ],
+  "class": "superseded_decisions",
+  "_facts": [
+   "docs/ROADMAP.md",
+   "SUPERSEDED",
+   "ADR-527",
+   "AI1|EISENHOWER"
+  ],
+  "_temporal_regex": "2026-10-01",
+  "_supersession_regex": "SUPERSEDED",
+  "_trap": false
+ },
+ {
+  "id": "H08e",
+  "lang": "en",
+  "question": "Which roadmap is canonical now and what happened to the old roadmap files like AI1_ROADMAP and the Eisenhower roadmap?",
+  "ground_truth": "same as H08",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+   "docs/ROADMAP.md",
+   "architecture/memory_truth.json"
+  ],
+  "class": "superseded_decisions",
+  "_facts": [
+   "docs/ROADMAP.md",
+   "SUPERSEDED",
+   "ADR-527",
+   "AI1|EISENHOWER"
+  ],
+  "_temporal_regex": "2026-10-01",
+  "_supersession_regex": "SUPERSEDED",
+  "_trap": false
+ },
+ {
+  "id": "H09",
+  "lang": "ru",
+  "question": "Когда начался paper-трек ($100k), какой у него anchor и когда Balanced и Aggressive получили свои треки?",
+  "ground_truth": "Conservative $100k track anchor 2026-06-22 (CLAUDE.md, STATE.md:12); ADR-125 (2026-08-23) three packages start paper tracks; ADR-292 (2026-09-09) Balanced/Aggressive get real paper tracks instead of accrual by literals.",
+  "ground_truth_sources": [
+   "docs/STATE.md",
+   "CLAUDE.md",
+   "docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+   "docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+  ],
+  "class": "old_paper_test_history",
+  "_facts": [
+   "2026-06-22",
+   "ADR-125",
+   "ADR-292",
+   "100"
+  ],
+  "_temporal_regex": "2026-06-22",
+  "_supersession_regex": "литерал|literal|НАСТОЯЩИЙ|real",
+  "_trap": false
+ },
+ {
+  "id": "H09e",
+  "lang": "en",
+  "question": "When did the $100k paper track start, what is its anchor date, and when did Balanced and Aggressive get their own tracks?",
+  "ground_truth": "same as H09",
+  "ground_truth_sources": [
+   "docs/STATE.md",
+   "CLAUDE.md",
+   "docs/decisions/ADR-125-three-tier-paper-tracks-start.md",
+   "docs/decisions/ADR-292-real-paper-tracks-for-both-advisory-books.md"
+  ],
+  "class": "old_paper_test_history",
+  "_facts": [
+   "2026-06-22",
+   "ADR-125",
+   "ADR-292",
+   "100"
+  ],
+  "_temporal_regex": "2026-06-22",
+  "_supersession_regex": "литерал|literal|НАСТОЯЩИЙ|real",
+  "_trap": false
+ },
+ {
+  "id": "H10",
+  "lang": "ru",
+  "question": "Зачем нужен агент tier_curator и читает ли кто-нибудь его отчёт?",
+  "ground_truth": "tier_curator = advisory mirror without reader; promotion T3->T2 not automated; ADR-041 criteria not implemented (CLAUDE.md facts table 2026-09-11; docs/TIER_LIFECYCLE_AUDIT_2026-09-11.md).",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   ".claude/rules/risk-engine.md",
+   "architecture/manifest.json"
+  ],
+  "class": "agent_purpose",
+  "_facts": [
+   "tier_curator",
+   "советательн|advisory",
+   "читател|reader",
+   "ADR-041|T3.?→.?T2|подъём"
+  ],
+  "_temporal_regex": "2026-09-11|11\\.09",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H11",
+  "lang": "ru",
+  "question": "Что делает агент com.spa.capital_shadow, когда запускается и что он не имеет права делать?",
+  "ground_truth": "ADR-556 (2026-10-04) RM-LIVE-01: shadow execution + pilot readiness, agent 09:45, mode SHADOW, AUTO_LIVE does not exist, unsigned intents; DeFi sleeves BLOCKED, rest NOT_READY.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md",
+   "architecture/manifest.json"
+  ],
+  "class": "agent_purpose",
+  "_facts": [
+   "ADR-556",
+   "SHADOW",
+   "09:45",
+   "AUTO_LIVE|без подписи|не существует"
+  ],
+  "_temporal_regex": "2026-10-04",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H12",
+  "lang": "en",
+  "question": "Why does com.spa.source_discovery exist and what went wrong with it?",
+  "ground_truth": ".claude/rules/deployment.md: com.spa.source_discovery failed EVERY run with ModuleNotFoundError spa_core while acceptance was green; ADR-148 (27.08) adds per-agent target load check; target find_defillama_sources.py.",
+  "ground_truth_sources": [
+   ".claude/rules/deployment.md",
+   "docs/decisions/ADR-148-entrypoint-import-probe.md",
+   "architecture/manifest.json"
+  ],
+  "class": "agent_purpose",
+  "_facts": [
+   "source_discovery",
+   "ModuleNotFoundError|spa_core",
+   "ADR-148",
+   "find_defillama_sources|DefiLlama|DeFiLlama"
+  ],
+  "_temporal_regex": "27\\.08|2026-08-27",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H13",
+  "lang": "ru",
+  "question": "Какие крупные инциденты с доставкой и git у нас повторялись (exec-бит, force-push, checkout data)?",
+  "ground_truth": ".claude/rules/deployment.md: 2026-08-04 sync stripped exec bit 67/69 agents 5h; 2026-08-24 git checkout -- data/ reverted 116 files; 2026-08-29 force-push erased 1249 commits (pre-push hook).",
+  "ground_truth_sources": [
+   ".claude/rules/deployment.md"
+  ],
+  "class": "repeated_incidents",
+  "_facts": [
+   "2026-08-04|04\\.08",
+   "67",
+   "1249",
+   "116"
+  ],
+  "_temporal_regex": "2026-08-04|2026-08-29|2026-08-24",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H13e",
+  "lang": "en",
+  "question": "Which large delivery and git incidents happened repeatedly (exec bit stripped, force push, checkout of data)?",
+  "ground_truth": "same as H13",
+  "ground_truth_sources": [
+   ".claude/rules/deployment.md"
+  ],
+  "class": "repeated_incidents",
+  "_facts": [
+   "2026-08-04|04\\.08",
+   "67",
+   "1249",
+   "116"
+  ],
+  "_temporal_regex": "2026-08-04|2026-08-29|2026-08-24",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H14",
+  "lang": "ru",
+  "question": "Что за утечка PAT была и какое правило по секретам из неё вышло?",
+  "ground_truth": "Incident 2026-06-10: PAT leaked into 90+ files; invariant #7 no secrets in files, read from Keychain at runtime, no push_*.html; now single token GITHUB_PAT_SPA (expires 2026-11-24).",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   "docs/GITHUB_CREDENTIALS.md"
+  ],
+  "class": "repeated_incidents",
+  "_facts": [
+   "2026-06-10",
+   "90",
+   "Keychain",
+   "push_\\*\\.html|push_.*html"
+  ],
+  "_temporal_regex": "2026-06-10",
+  "_supersession_regex": "GITHUB_PAT_SPA|истёк|удалён",
+  "_trap": false
+ },
+ {
+  "id": "H15",
+  "lang": "ru",
+  "question": "Какую роль владелец задумал для двух Telegram-ботов?",
+  "ground_truth": "ADR-521 (2026-09-30): Bridge bot com.studiobridge.telegram = Studio OS / owner control plane; SPA bot com.spa.telegram_bot = product surface; paused != down.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-521-telegram-owner-control-plane.md"
+  ],
+  "class": "telegram_intent",
+  "_facts": [
+   "ADR-521",
+   "Bridge",
+   "com.spa.telegram_bot|SPA bot|SPA-бот",
+   "control plane|продукт|product"
+  ],
+  "_temporal_regex": "2026-09-30",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H15e",
+  "lang": "en",
+  "question": "What role did the owner intend for each of the two Telegram bots?",
+  "ground_truth": "same as H15",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-521-telegram-owner-control-plane.md"
+  ],
+  "class": "telegram_intent",
+  "_facts": [
+   "ADR-521",
+   "Bridge",
+   "com.spa.telegram_bot|SPA bot|SPA-бот",
+   "control plane|продукт|product"
+  ],
+  "_temporal_regex": "2026-09-30",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H16",
+  "lang": "ru",
+  "question": "Почему кнопки под тревогой в Телеграме писали «Кнопки сейчас недоступны» и как это решили?",
+  "ground_truth": "CLAUDE.md facts table (2026-09-16): buttons gated by the bot's capability list in beacon, threshold 6h (alert_actions.BEACON_MAX_AGE_S) vs liveness 300s (telegram_health); equating them returned the warning on every restart (ADR-400).",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   "docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md"
+  ],
+  "class": "telegram_intent",
+  "_facts": [
+   "BEACON_MAX_AGE_S|6 ч",
+   "300",
+   "ADR-400",
+   "маячк|beacon"
+  ],
+  "_temporal_regex": "2026-09-16",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H17",
+  "lang": "ru",
+  "question": "В каком порядке ADR-527 выстроил roadmap после памяти?",
+  "ground_truth": "ADR-527 §8: Memory -> DeFi Architecture Gap Audit -> DeFi Engine vNext -> Build Loop -> Owner Remote/Mission Control -> Capital Allocator/Portfolio CIO -> limited real-capital pilots (owner-gated) -> later engines.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+   "docs/ROADMAP.md"
+  ],
+  "class": "roadmap_decisions",
+  "_facts": [
+   "Gap Audit|gap audit",
+   "vNext",
+   "Build Loop",
+   "Mission Control|Owner Remote",
+   "Capital Allocator|CIO"
+  ],
+  "_temporal_regex": "2026-10-01",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H18",
+  "lang": "ru",
+  "question": "Откуда взялся Оракул (Oracle) и как он раньше назывался?",
+  "ground_truth": "ADR-554 (2026-10-04, owner macro-epic CHIEF INVESTMENT OFFICER / CAPITAL ALLOCATION): Investment CIO, display name 'Oracle' ('Штирлиц' until 2026-10-04), role_id chief_investment_officer, ADVISORY/PAPER cross-sleeve recommendation + immutable ledger (docs/ROADMAP.md:26, architecture/roles.json:7).",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+   "docs/ROADMAP.md",
+   "architecture/roles.json"
+  ],
+  "class": "oracle_origin",
+  "_facts": [
+   "ADR-554",
+   "Штирлиц",
+   "chief_investment_officer|CIO",
+   "ADVISORY|PAPER|советательн"
+  ],
+  "_temporal_regex": "2026-10-04",
+  "_supersession_regex": "until 2026-10-04|до 2026-10-04|ex-|ранее",
+  "_trap": false
+ },
+ {
+  "id": "H18e",
+  "lang": "en",
+  "question": "Where did the Oracle CIO come from and what was it called before?",
+  "ground_truth": "same as H18",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+   "docs/ROADMAP.md",
+   "architecture/roles.json"
+  ],
+  "class": "oracle_origin",
+  "_facts": [
+   "ADR-554",
+   "Штирлиц",
+   "chief_investment_officer|CIO",
+   "ADVISORY|PAPER|советательн"
+  ],
+  "_temporal_regex": "2026-10-04",
+  "_supersession_regex": "until 2026-10-04|до 2026-10-04|ex-|ранее",
+  "_trap": false
+ },
+ {
+  "id": "H19",
+  "lang": "ru",
+  "question": "Кто такой Шерлок и какое решение его создало?",
+  "ground_truth": "ADR-564 (RM-EVIDENCE-01, 2026-10-05): owner named the research lead Sherlock, role_id head_of_research, capital authority NONE; daily run inside com.spa.research_factory 09:05.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+   "architecture/roles.json"
+  ],
+  "class": "sherlock_origin",
+  "_facts": [
+   "ADR-564",
+   "head_of_research",
+   "NONE|без полномочий|без капитала",
+   "research_factory|09:05"
+  ],
+  "_temporal_regex": "2026-10-0[45]",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H19e",
+  "lang": "en",
+  "question": "Who is Sherlock and which decision created it?",
+  "ground_truth": "same as H19",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+   "architecture/roles.json"
+  ],
+  "class": "sherlock_origin",
+  "_facts": [
+   "ADR-564",
+   "head_of_research",
+   "NONE|без полномочий|без капитала",
+   "research_factory|09:05"
+  ],
+  "_temporal_regex": "2026-10-0[45]",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H20",
+  "lang": "ru",
+  "question": "Что владелец решил про три продуктовых пакета доходности и их бумажные портфели?",
+  "ground_truth": "Owner directive 3-tier sellable product (TOURNAMENT_VERDICT doc 2026-07-10); ADR-125 (08-23) tracks start; ADR-533 (2026-10-01) three DeFi paper portfolios: Balanced PT hold-to-maturity, Aggressive SIMULATED sUSDe/PYUSD loop, Conservative lending; one status read model.",
+  "ground_truth_sources": [
+   "docs/THREE_TIER_YIELD_PRODUCT.md",
+   "docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+   "docs/decisions/ADR-125-three-tier-paper-tracks-start.md"
+  ],
+  "class": "product_profile_decisions",
+  "_facts": [
+   "ADR-533",
+   "PT|Pendle",
+   "sUSDe|loop|SIMULATED",
+   "Conservative"
+  ],
+  "_temporal_regex": "2026-10-01|2026-08-23",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H21",
+  "lang": "ru",
+  "question": "Какие целевые доходности владелец ставил для Conservative, Balanced и Aggressive в турнирном вердикте?",
+  "ground_truth": "docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md (2026-07-10): Conservative ~3.3% / Balanced ~8-12% / Aggressive ~15-20%+. Note TOURNAMENT doc NOT in memory allow-list.",
+  "ground_truth_sources": [
+   "docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md",
+   "docs/THREE_TIER_YIELD_PRODUCT.md"
+  ],
+  "class": "product_profile_decisions",
+  "_facts": [
+   "3\\.3",
+   "8.12",
+   "15.20"
+  ],
+  "_temporal_regex": "2026-07",
+  "_supersession_regex": "5,3|5\\.3|фактическ",
+  "_trap": false
+ },
+ {
+  "id": "H22",
+  "lang": "ru",
+  "question": "Почему не взяли MemPalace для памяти компании?",
+  "ground_truth": "ADR-527: option C borrow ideas; MemPalace 3.10.0 0.273/0.152 (minilm) and 0.485 (embeddinggemma, 32-min build) vs 0.94/0.85; chromadb+onnxruntime violate stdlib invariant.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+   "docs/ROADMAP.md"
+  ],
+  "class": "memory_decision",
+  "_facts": [
+   "MemPalace",
+   "0\\.27|0\\.49|0\\.485|0\\.273",
+   "stdlib|chromadb|onnxruntime",
+   "borrow|заимств"
+  ],
+  "_temporal_regex": "2026-10-01",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H23",
+  "lang": "en",
+  "question": "What are the kill-switch drawdown thresholds and which ADRs set them?",
+  "ground_truth": "SOFT_DERISK [5%,10%), HARD_KILL >=10% inclusive; ADR-034 + ADR-048.",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   ".claude/rules/risk-engine.md",
+   "docs/decisions/ADR-048-two-tier-kill-switch.md"
+  ],
+  "class": "owner_domains_risk",
+  "_facts": [
+   "5\\s?%",
+   "10\\s?%",
+   "ADR-034",
+   "ADR-048"
+  ],
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H24",
+  "lang": "ru",
+  "question": "Почему у нас два реестра ADR и какие номера сталкиваются?",
+  "ground_truth": "CLAUDE.md facts table (2026-09-11): two ADR registries docs/adr and docs/decisions with 5 number collisions 029/030/048/050/053; additionally ADR-067 has two files in docs/decisions and ADR-469 collides with shadow worktree.",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   "docs/decisions/INDEX.md"
+  ],
+  "class": "repeated_incidents",
+  "_facts": [
+   "docs/adr",
+   "docs/decisions",
+   "029",
+   "053"
+  ],
+  "_temporal_regex": "2026-09-11",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H25",
+  "lang": "ru",
+  "question": "Что такое Owner Remote / Mission Control и как владелец открывает его с телефона?",
+  "ground_truth": "ADR-552: :8790 loopback UI + builder, SPA-bot deep links, phone = Cloudflare Access owner gate.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+  ],
+  "class": "director_os_intent",
+  "_facts": [
+   "ADR-552",
+   "8790",
+   "Cloudflare Access|Access",
+   "loopback|127\\.0\\.0\\.1"
+  ],
+  "_temporal_regex": "2026-10-0\\d",
+  "_supersession_regex": "DUPLICATES|frozen",
+  "_trap": false
+ },
+ {
+  "id": "H26",
+  "lang": "ru",
+  "question": "Что было с идеей семейного фонда (family fund) и где она сейчас?",
+  "ground_truth": "docs/FAMILY_FUND_ROADMAP.md SUPERSEDED by docs/ROADMAP.md (memory_truth.json); familyfund KeepAlive agent existed (deployment.md: 38.4-day-old code 09.08).",
+  "ground_truth_sources": [
+   "docs/FAMILY_FUND_ROADMAP.md",
+   "architecture/memory_truth.json"
+  ],
+  "class": "superseded_decisions",
+  "_facts": [
+   "FAMILY_FUND|family fund|семейн",
+   "SUPERSEDED",
+   "familyfund|ROADMAP"
+  ],
+  "_temporal_regex": null,
+  "_supersession_regex": "SUPERSEDED",
+  "_trap": false
+ },
+ {
+  "id": "H27",
+  "lang": "ru",
+  "question": "Что за стандинг-директива novel-edge R&D и что она дала?",
+  "ground_truth": "Owner standing directive (claude memory owner-directive-novel-edge-rnd.md); iterations recorded in journal W38-W40 (#110/#112 negative verdicts, advisory).",
+  "ground_truth_sources": [
+   "docs/journal/2026-W39.md"
+  ],
+  "class": "roadmap_decisions",
+  "_facts": [
+   "novel-edge",
+   "заказ|order",
+   "advisory|OUTSIDE_RISKPOLICY|негатив|negative"
+  ],
+  "_temporal_regex": "2026-09",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H28",
+  "lang": "ru",
+  "question": "Что владелец требовал про «90% должно работать» и что показал замер?",
+  "ground_truth": "Owner directive 90% must work; ADR-190 (2026-08-31) census: no engineering path to 90%, remainder decision open (owner).",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-190-no-engineering-path-to-ninety.md"
+  ],
+  "class": "roadmap_decisions",
+  "_facts": [
+   "ADR-190",
+   "90",
+   "нет|no engineering|Инженерного пути"
+  ],
+  "_temporal_regex": "2026-08-31",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "H29",
+  "lang": "ru",
+  "question": "Должна ли штатная самопочинка звать владельца?",
+  "ground_truth": "ADR-084 (2026-08-13): routine self-heal does not call the owner; later generalized by ADR-285.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md"
+  ],
+  "class": "agent_purpose",
+  "_facts": [
+   "ADR-084",
+   "не зовёт|does not call|не звать"
+  ],
+  "_temporal_regex": "2026-08-1\\d",
+  "_supersession_regex": "ADR-285",
+  "_trap": false
+ },
+ {
+  "id": "H30",
+  "lang": "ru",
+  "question": "Какой был результат нашего запуска на Solana mainnet в 2024 году?",
+  "ground_truth": "No such event; correct answer UNKNOWN / INSUFFICIENT.",
+  "ground_truth_sources": [],
+  "class": "trap",
+  "_facts": [],
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": true
+ },
+ {
+  "id": "N01",
+  "lang": "ru",
+  "question": "На 2026-10-01 (ADR-527) roadmap называл Capital Allocator, Mission Control, Shadow-execution и Research Factory будущими шагами — что из этого уже сделано к сегодняшнему дню, 2026-10-05?",
+  "ground_truth": "К 2026-10-05 все пункты 4-9 ROADMAP.md закрыты: Build Loop (ADR-551), Mission Control v1 (ADR-552, 2026-10-04), Capital Allocator/CIO «Oracle» (ADR-554, 2026-10-04), RM-LIVE-01 shadow execution (ADR-556, 2026-10-04, все DeFi-sleeve BLOCKED/NOT_READY), RM-EXPAND-01 Research Factory (ADR-560, 2026-10-04, 49 кандидатов), RM-EVIDENCE-01 Sherlock evidence v1 (ADR-564, 2026-10-05, 73 кандидата, PAPER_ACTIVE=0, CIO_ELIGIBLE=0). Открыт только пункт 10 'Later engines' (traditional markets/options), ничего не стартует автоматически.",
+  "ground_truth_sources": [
+   "docs/ROADMAP.md",
+   "docs/decisions/ADR-552-owner-remote-mission-control-v1.md",
+   "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+   "docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md",
+   "docs/decisions/ADR-564-research-evidence-and-paper-admission.md"
+  ],
+  "class": "roadmap_decisions",
+  "_facts": null,
+  "_temporal_regex": "2026-10-0[1-5]",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N02",
+  "lang": "en",
+  "question": "As of 2026-09-11 CLAUDE.md said tier_curator's T3→T2 promotion criteria (ADR-041) were not implemented and the degradation reaction was already automatic — is either fact still true on 2026-10-05?",
+  "ground_truth": "Both facts are unchanged on 2026-10-05: CLAUDE.md's facts table still carries the 2026-09-11-dated row verbatim ('НЕ перепроверять — ПОЛЬЗОВАТЬСЯ'); promotion T3->T2 remains unautomated (tier_curator is an advisory mirror with no reader), while degradation reaction (Tier-A BLOCK -> target zeroed, stale feed -> unevidenced, TVL/APY -> RiskPolicy) was already automatic before and after that date.",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   ".claude/rules/risk-engine.md"
+  ],
+  "class": "roadmap_decisions",
+  "_facts": null,
+  "_temporal_regex": "2026-09-11",
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N03",
+  "lang": "ru",
+  "question": "Когда SPA получила лицензию MiCA в Евросоюзе на управление активами клиентов?",
+  "ground_truth": "Нет такого события ни в одном файле; продукт на paper-стадии, внешний капитал закрыт до legal-clearance (CLAUDE.md инвариант №8, .claude/rules/site-copy.md запрет solicitation-языка). Правильный ответ — UNKNOWN / нет доказательства, а не дата.",
+  "ground_truth_sources": [
+   "CLAUDE.md",
+   ".claude/rules/site-copy.md"
+  ],
+  "class": "trap",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": true
+ },
+ {
+  "id": "N04",
+  "lang": "ru",
+  "question": "Почему СИО теперь называют Оракулом, а не Штирлицем, хотя в самом ADR он до сих пор назван Штирлицем?",
+  "ground_truth": "ADR-554 (2026-10-04) и его заголовок до сих пор буквально 'Chief Investment Officer (Штирлиц)' — файл не переименован. Но architecture/roles.json (канонический реестр ролей) уже несёт display_name «Oracle» с пометкой «(«Штирлиц» until 2026-10-04)» — переименование произошло тем же днём поверх ADR, и ROADMAP.md item 6 повторяет ту же формулировку.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+   "architecture/roles.json",
+   "docs/ROADMAP.md"
+  ],
+  "class": "oracle_origin",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N05",
+  "lang": "ru",
+  "question": "Кто такой Шурик в architecture/roles.json и реализована ли эта роль?",
+  "ground_truth": "role_id chief_operating_officer, display_name «Шурик», домен Studio OS operations/workflow/delivery, implemented=false, reserved=true, список ADR пуст, components пуст — правило реестра «no agent is created to fill a title»: роль зарезервирована, но агента/кода под ней нет.",
+  "ground_truth_sources": [
+   "architecture/roles.json"
+  ],
+  "class": "agent_purpose",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N06",
+  "lang": "ru",
+  "question": "Чем бот Моста (studio_bridge, «Бридж») отличается от обычного SPA-бота в Телеграме?",
+  "ground_truth": "ADR-521 (2026-09-30): Bridge-бот (com.studiobridge.telegram) — Studio OS / owner control plane (операционная панель владельца); SPA-бот (com.spa.telegram_bot) — продуктовая поверхность. Два разных токена, 'paused != down' относится именно к SPA-боту.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-521-telegram-owner-control-plane.md"
+  ],
+  "class": "telegram_intent",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N07",
+  "lang": "en",
+  "question": "What exactly runs inside the Aggressive DeFi paper portfolio's 'simulated loop', and why is it simulated rather than a real leveraged position?",
+  "ground_truth": "ADR-533 (2026-10-01): three distinct paper mechanics — Conservative = lending under RiskPolicy, Balanced = fixed-rate PT hold-to-maturity, Aggressive = SIMULATED sUSDe/PYUSD loop (explicitly not a live leveraged DeFi position; money-path bindings for tier labels / budget wording / RTMR coverage remain owner-gated).",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+   "docs/ROADMAP.md"
+  ],
+  "class": "product_profile_decisions",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N08",
+  "lang": "ru",
+  "question": "Какая одна и та же форма «не измерено, выданного за ответ» повторялась в разных приборах — pid, git-ветка, pyflakes?",
+  "ground_truth": ".claude/rules/deployment.md описывает один класс в трёх обличьях: литеральный pid мог совпасть с живым процессом ОС (замена вердикта на разных хостах), git init без -b даёт разное имя ветки на Маке/Ubuntu, отсутствующий pyflakes отвечал 0 найденных вместо «инструмент недоступен» — во всех трёх скип/ноль/занятый номер маскировали третий исход («не измерено») под «чисто», и находили это только дифференциальным прогоном (подстановка окружения), а не чтением вердикта.",
+  "ground_truth_sources": [
+   ".claude/rules/deployment.md"
+  ],
+  "class": "repeated_incidents",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N09",
+  "lang": "ru",
+  "question": "Что делает агент com.spa.research_factory и кому принадлежит решение о допуске кандидата в paper?",
+  "ground_truth": "com.spa.research_factory, ежедневный запуск 09:05 (ADR-560/ADR-564). Решение о допуске candidate -> PAPER принимает роль Sherlock (head_of_research, authority_over_capital=NONE) через детерминированные гейты Paper Admission v2 (20 гейтов, UNKNOWN отказывает); первый прод-прогон — 73 кандидата, PAPER_ACTIVE=0, CIO_ELIGIBLE=0.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+   "docs/ROADMAP.md"
+  ],
+  "class": "agent_purpose",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N10",
+  "lang": "ru",
+  "question": "Какое решение закрыло вопрос округления публичной ставки доходности на сайте и в какую сторону теперь округляют?",
+  "ground_truth": "ADR-563 (владелец, 04.10, вариант 1): округлять ВНИЗ (floorTo в landing/src/lib/site_numbers.js). Было 5,0% при измеренных 4,9637% — округление к ближайшему добавляло до +0,05 п.п., то есть сайт показывал БОЛЬШЕ измеренного (нарушение инв. #8); просадку НЕ трогали — у неё безопасная сторона обратная.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-563-published-rate-rounds-down.md"
+  ],
+  "class": "superseded_decisions",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N11",
+  "lang": "ru",
+  "question": "Как восстанавливаются кнопки в Телеграм-боте после перезапуска под тревогой, и какое ADR это закрыло?",
+  "ground_truth": "ADR-400 (2026-09-16): порог кнопок — 6 часов (alert_actions.BEACON_MAX_AGE_S = 6*3600), отдельно от порога живости сторожа telegram_health (300с, не тронут); раньше их равняли, и окно длиннее 300с снимало кнопки с любого вопроса в этом окне — ADR-400 развёл два разных вопроса.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-400-buttons-survive-the-bot-restart-window.md"
+  ],
+  "class": "telegram_intent",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ },
+ {
+  "id": "N12",
+  "lang": "ru",
+  "question": "Чем «Директор» (Director OS / director_server :8788) отличается от «Мишн Контрол» (Mission Control :8790/:8792)?",
+  "ground_truth": "ADR-552: Director OS веб-кокпит (scripts/cartographer, com.spa.director_server :8788) — IMPLEMENTED, десктоп/loopback, его проекция ДУБЛИРУЕТ Директора, RU-only, публикация замёрзла с 09-20. Mission Control (ADR-552, 2026-10-04) — новее: https://mc.earn-defi.com за Cloudflare Access -> защищённый слушатель :8792; десктоп на 127.0.0.1:8790.",
+  "ground_truth_sources": [
+   "docs/decisions/ADR-552-owner-remote-mission-control-v1.md"
+  ],
+  "class": "director_os_intent",
+  "_facts": null,
+  "_temporal_regex": null,
+  "_supersession_regex": null,
+  "_trap": false
+ }
+]

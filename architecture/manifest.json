@@ -306,7 +306,7 @@
    "program": "agent_btc_nav.sh",
    "layer": "product",
    "role": "paper-trading",
-   "intent": "designed",
+   "intent": "retired",
    "produces": [
     {
      "artifact": "data/btc_paper_trading.json",
@@ -326,7 +326,7 @@
     "ADR-102"
    ],
    "curation": "complete",
-   "notes": "Q1-решение владельца 22.08: paper-NAV трек BTC/USDT-движка (чемпион v0.1, k=0.7 по вердикту бэктест-фазы). Двухслойно (инвариант #4): research-продюсер (pandas) пишет target_share.json, stdlib-бухгалтер ведёт ОТДЕЛЬНУЮ книгу btc_paper_trading.json — IS_ADVISORY, капитал не двигает, вне kill-switch общего NAV по построению (own-btc: ответ владельца, вариант 1 в paper-форме). intent=designed по прецеденту site_freshness: bootstrap — решение владельца (гейт инв. #12); при загрузке intent → active тем же шагом. ЧЕСТНАЯ ГРАНИЦА: движок v0.1 (backtest.py + датасеты + fetch) ещё у владельца — до передачи продюсер молчит, книга копит gap-дни, ничего не выдумывается.",
+   "notes": "Q1-решение владельца 22.08: paper-NAV трек BTC/USDT-движка (чемпион v0.1, k=0.7 по вердикту бэктест-фазы). Двухслойно (инвариант #4): research-продюсер (pandas) пишет target_share.json, stdlib-бухгалтер ведёт ОТДЕЛЬНУЮ книгу btc_paper_trading.json — IS_ADVISORY, капитал не двигает, вне kill-switch общего NAV по построению (own-btc: ответ владельца, вариант 1 в paper-форме). intent=designed по прецеденту site_freshness: bootstrap — решение владельца (гейт инв. #12); при загрузке intent → active тем же шагом. ЧЕСТНАЯ ГРАНИЦА: движок v0.1 (backtest.py + датасеты + fetch) ещё у владельца — до передачи продюсер молчит, книга копит gap-дни, ничего не выдумывается. RM-TRUTH-01 C1 / ADR-590 (2026-10-05): intent designed → retired — superseded by ADR-525 §5 (SPA Trading Research Engine v0 is the one canonical Lab lineage); this plist was never installed (repo-only, reboot_safe=false), data/btc_paper_trading.json is absent (MEASURED-ZERO); the owner's separate-BTC-NAV intent is fulfilled by earn-defi (SEPARATE_PRODUCT, not superseded). Code stays in place, uninstalled.",
    "passport": {
     "goal": "Живой paper-NAV трек BTC-лестницы v0.1 — единственная чистая валидация после сожжённых тест-окон: трек-рекорд нельзя купить или ускорить (Q1 владельца).",
     "quality_metric": "data/btc_paper_trading.json свежее 26 ч; daily_history растёт по дням без выдуманных цен (gap-дни записаны причинами, не дорисованы)",

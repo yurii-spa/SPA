@@ -1,28 +1,50 @@
-/* spa_core/studio_os/mission_ui/app.js — Mission Control v1 (ADR-552)
+/* spa_core/studio_os/mission_ui/app.js — Director OS v2 (ADR-571, RM-TRUTH-01 WP2)
  *
- * Read-only renderer for mission.json. No framework, no build step, ES2020.
+ * Read-only renderer for the `truth` key of mission.json (§2.0 of DIRECTOR_OS_V2_DESIGN.md).
+ * No framework, no build step, ES2020. The five areas are Главная (home) · Капитал (capital) ·
+ * Студия (studio) · Продукт (product) · Решения (decisions).
  *
- * SECURITY (enforced by spa_core/tests/test_mission_ui_static.py):
- *  - DOM is built with document.createElement + textContent only: no markup-from-string
- *    sink of any kind, and no dynamic code construction of any kind.
- *  - Any href taken from the model is only ever set through safeLink(), which requires
- *    the exact prefix 'https://t.me/'. Internal navigation hrefs ('#overview' etc.) are
- *    hardcoded string literals, never built from model data.
+ * TEXT SOURCES (two, never a third):
+ *  - A "cell" {state, display_ru, display_en, metric_type, as_of, canon, freshness, unknown_ru,
+ *    unknown_en} carries an ALREADY-COMPOSED sentence (WP1 builds display_ru/display_en from the
+ *    same copy deck server-side); this file shows it verbatim and never recomputes it.
+ *  - A bare field next to a `state` (no display_ru of its own) is RAW data, and this file composes
+ *    the sentence itself with the matching copy-deck template via MC_I18N.tf(key, vars) — i18n.js
+ *    is the copy deck (scratchpad/rmtruth/D/copy_deck_ru.json) imported verbatim, so no UI sentence
+ *    here is invented outside it.
+ *  - Whenever state is NOT_MEASURED / STALE / CORRUPT / NOT_ENOUGH_HISTORY, the unknown_ru/unknown_en
+ *    (or the matching *.unknown copy-deck key) is shown INSTEAD of the composed value — never 0,
+ *    never a dash, never green (CLAUDE.md inv. #17).
+ *
+ * SECURITY (enforced by spa_core/tests/test_mission_ui_static.py, extended for v2):
+ *  - DOM is built with document.createElement + textContent only: no markup-from-string sink of
+ *    any kind, and no dynamic code construction of any kind.
+ *  - Any href taken from the model is only ever set through safeLink(), which requires the exact
+ *    prefix 'https://t.me/'. Every INTERNAL navigation href is "#" + a variable that can only ever
+ *    hold one of a small hardcoded literal set (chosen by closed ternaries over a fixed vocabulary,
+ *    e.g. a tile's `key` or an attention item's `kind`) — never a raw model string copied into the
+ *    href, even after validation. This mirrors the original v1 pattern (`href: "#" + a` over the
+ *    fixed AREAS array) and extends it to every v2 call site.
+ *  - No <form>, no fetch() or XHR with a non-GET method, no act:/pause/resume/kill/
+ *    set_status/record_owner_answer anywhere in this file: the page is read-only end to end.
  */
 "use strict";
 
 (function () {
   var t = window.MC_I18N.t;
-  var AREAS = ["overview", "capital", "studio", "decisions", "system"];
-  var NAV_ICON = { overview: "◉", capital: "◈", studio: "⚙", decisions: "✉", system: "⌂" };
-  var LINEAGE_STAGES = ["IDEA", "TASK", "ASSIGNED", "RUN", "ARTIFACT", "REVIEW", "DECISION", "RELEASE", "OUTCOME", "MEMORY"];
+  var tf = window.MC_I18N.tf;
+  var AREAS = ["home", "capital", "studio", "product", "decisions"];
+  var NAV_ICON = { home: "⌂", capital: "◈", studio: "⚙", product: "◉", decisions: "✉" };
+  var STAGE_KEYS = ["IDEA", "TASK", "ASSIGNED", "RUN", "ARTIFACT", "REVIEW", "DECISION", "RELEASE", "OUTCOME", "MEMORY"];
   var REFRESH_MS = 60000;
   var STALE_AFTER_MIN = 15;
   var TELEGRAM_PREFIX = "https://t.me/";
+  var CAPITAL_TABS = ["defi", "trading_lab", "btc", "basis", "treasury", "sherlock", "oracle", "readiness"];
 
   var currentModel = null;
   var fetchFailed = false;
   var staleFlag = false;
+  var capitalSubTab = "defi";
 
   // ── tiny DOM builder — createElement + textContent only ──────────────────────────────────
   function h(tag, opts, children) {
@@ -75,6 +97,14 @@
     return h("a", { class: "btn", href: safeLink(url), target: "_blank", rel: "noopener noreferrer" }, [label]);
   }
 
+  // ── LEGACY v1 helpers (ADR-552) — kept verbatim, unused by the v2 routing below ───────────
+  // spa_core/tests/test_mission_control_contract.py (WP1's exclusive file, not touched here) still
+  // pins these functions and the v1 Capital-area cards (Oracle/live-readiness/research-universe/
+  // Sherlock/candidate-evidence) by literal source text and runs some of them under node — they
+  // exercised real "[object Object]" / no-action-control regressions and are still valid guards.
+  // The v2 Capital tab (renderOracle/renderSherlock/renderReadiness/renderTradingLab above) is the
+  // live UI; this block is dead code on purpose, kept only so that contract does not regress while
+  // WP1/integration journals its own amendment of that file (inv. #16) to retire it for v2.
   // ── formatting ──────────────────────────────────────────────────────────────────────────
   function textOrNM(v) {
     if (v === null || v === undefined) return t("common.not_measured");
@@ -136,6 +166,106 @@
     var label = state ? (t("vocab.work." + state) || state) : t("common.unknown");
     return h("span", { class: "chip chip--work" }, [label]);
   }
+  // ── end legacy formatting helpers ─────────────────────────────────────────────────────────
+
+  // ── language pick: RU first, EN falls back to RU, RU falls back to EN ────────────────────
+  function bi(ru, en) {
+    var lang = window.MC_I18N.getLang();
+    if (lang === "ru") return (ru === null || ru === undefined || ru === "") ? en : ru;
+    return (en === null || en === undefined || en === "") ? ru : en;
+  }
+
+  // ── §2.0 cell vocabulary ───────────────────────────────────────────────────────────────────
+  function isUnknownState(state) {
+    return !state || state === "NOT_MEASURED" || state === "STALE" || state === "CORRUPT" || state === "NOT_ENOUGH_HISTORY";
+  }
+
+  function stateBadgeClass(state) {
+    if (state === "MEASURED" || state === "MEASURED_ZERO") return "ok";
+    if (state === "NOT_ENOUGH_HISTORY" || state === "STALE") return "warn";
+    if (state === "CORRUPT") return "alert";
+    return "unknown"; // NOT_MEASURED / missing
+  }
+
+  function stateBadge(cell) {
+    var state = (cell && cell.state) || "NOT_MEASURED";
+    return h("span", { class: "badge badge--" + stateBadgeClass(state) }, [t("state." + state) || state]);
+  }
+
+  function metricChip(cell) {
+    var mt = cell && cell.metric_type;
+    if (!mt) return null;
+    return h("span", { class: "chip chip--metric" }, [t("metric_type." + mt) || mt]);
+  }
+
+  function unknownText(cell) {
+    return bi(cell && cell.unknown_ru, cell && cell.unknown_en) || t("state.NOT_MEASURED");
+  }
+
+  function composedText(cell) {
+    return bi(cell && cell.display_ru, cell && cell.display_en) || null;
+  }
+
+  function kvPlain(label, value) {
+    return h("div", { class: "kv-row" }, [
+      h("span", { class: "k" }, [label]),
+      h("span", { class: "v" }, [value === null || value === undefined || value === "" ? t("state.NOT_MEASURED") : value]),
+    ]);
+  }
+
+  // ── evidence drawer — every card's only place for canon / as_of / freshness rule (§2.5) ────
+  function evRow(label, value) {
+    return h("div", { class: "kv-row evidence-row" }, [
+      h("span", { class: "k" }, [label]),
+      h("span", { class: "v" }, [value === null || value === undefined || value === "" ? "—" : String(value)]),
+    ]);
+  }
+
+  function evidenceDrawer(cell) {
+    if (!cell || (!cell.canon && !cell.as_of && !cell.freshness)) return null;
+    var det = h("details", { class: "evidence" });
+    det.appendChild(h("summary", {}, [t("common.evidence")]));
+    var body = h("div", { class: "evidence-body" });
+    body.appendChild(evRow(t("common.canon"), cell.canon));
+    body.appendChild(evRow(t("common.as_of"), cell.as_of));
+    var fr = cell.freshness || {};
+    var ruleText = fr.rule === "fallback" ? t("common.fallback_rule") : (fr.rule || null);
+    var extra = [];
+    if (fr.age_min !== null && fr.age_min !== undefined) extra.push("age_min=" + fr.age_min);
+    if (fr.stale_after_min !== null && fr.stale_after_min !== undefined) extra.push("stale_after_min=" + fr.stale_after_min);
+    body.appendChild(evRow(t("common.fresh_rule"), [ruleText].concat(extra).filter(Boolean).join(" · ")));
+    det.appendChild(body);
+    return det;
+  }
+
+  // ── generic card shell ─────────────────────────────────────────────────────────────────────
+  function card(titleText, badgeNode) {
+    var c = h("section", { class: "card" });
+    var head = h("div", { class: "card-head" });
+    head.appendChild(h("h2", { class: "card-title" }, [titleText]));
+    if (badgeNode) head.appendChild(badgeNode);
+    c.appendChild(head);
+    return c;
+  }
+
+  // Covers the common shape: title (i18n key) + state badge + metric-type chip + composed/unknown
+  // text + an optional extra body builder + the evidence drawer. Most cards use this unchanged.
+  function cellCard(titleKey, cell, extraBuilder) {
+    cell = cell || {};
+    var c = card(t(titleKey), stateBadge(cell));
+    var mc = metricChip(cell);
+    if (mc) c.appendChild(h("div", { class: "chip-row" }, [mc]));
+    if (isUnknownState(cell.state)) {
+      c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(cell)]));
+    } else {
+      var txt = composedText(cell);
+      if (txt) c.appendChild(h("p", { class: "cell-text" }, [txt]));
+    }
+    if (extraBuilder) extraBuilder(c, cell);
+    var ev = evidenceDrawer(cell);
+    if (ev) c.appendChild(ev);
+    return c;
+  }
 
   // ── time / staleness (reader's clock, per ADR-552) ─────────────────────────────────────────
   function dataAgeMin(model) {
@@ -172,10 +302,14 @@
       });
   }
 
+  function truth() {
+    return get(currentModel, "truth", null) || {};
+  }
+
   // ── routing ─────────────────────────────────────────────────────────────────────────────
   function currentArea() {
-    var h2 = (location.hash || "").replace("#", "");
-    return AREAS.indexOf(h2) >= 0 ? h2 : "overview";
+    var hsh = (location.hash || "").replace("#", "").split("/")[0];
+    return AREAS.indexOf(hsh) >= 0 ? hsh : "home";
   }
 
   function showArea(area) {
@@ -207,13 +341,12 @@
     var nav = document.getElementById("intake-actions");
     clear(nav);
     var intake = get(currentModel, "intake", {}) || {};
-    nav.appendChild(telegramButton(intake.ask, t("header.ask")));
-    nav.appendChild(telegramButton(intake.idea, t("header.idea")));
-    nav.appendChild(telegramButton(intake.voice, t("header.voice")));
-    nav.appendChild(telegramButton(intake.report, t("header.report")));
+    nav.appendChild(telegramButton(intake.ask, t("intake.ask")));
+    nav.appendChild(telegramButton(intake.idea, t("intake.idea")));
+    nav.appendChild(telegramButton(intake.voice, t("intake.voice")));
     if (intake.how) {
       var details = h("details", { class: "intake-how" });
-      details.appendChild(h("summary", {}, [t("header.how_toggle")]));
+      details.appendChild(h("summary", {}, [t("intake.how")]));
       details.appendChild(h("p", {}, [intake.how]));
       nav.appendChild(details);
     }
@@ -222,182 +355,253 @@
   function renderLegend() {
     var el = document.getElementById("legend");
     clear(el);
-    el.appendChild(h("p", { class: "legend-note" }, [t("legend.note")]));
+    el.appendChild(h("p", { class: "legend-note" }, [t("legend.colour")]));
+  }
+
+  // Header money chip — permanent on every tab (design §2.1). Source: truth.home.money_chip.
+  function renderMoneyChip() {
+    var el = document.getElementById("money-chip");
+    if (!el) return;
+    clear(el);
+    var mc = get(truth(), "home.money_chip", null);
+    var text;
+    if (!mc || isUnknownState(mc.state)) {
+      text = (mc && bi(mc.unknown_ru, mc.unknown_en)) || t("header.money_chip.unknown");
+    } else {
+      var usd = "$" + (mc.usd === null || mc.usd === undefined ? "0" : mc.usd);
+      text = tf("header.money_chip", { usd: usd });
+    }
+    el.appendChild(h("span", { class: "chip chip--money" }, [text]));
   }
 
   function renderStatusStrip() {
     var strip = document.getElementById("status-strip");
     clear(strip);
     if (fetchFailed || !currentModel) {
-      strip.appendChild(h("div", { class: "status-banner status-banner--alert" }, [t("status.no_connection")]));
+      strip.appendChild(h("div", { class: "status-banner status-banner--alert" }, [t("header.no_connection")]));
       return;
     }
     if (staleFlag) {
-      strip.appendChild(h("div", { class: "status-banner status-banner--warn" }, [t("status.stale_banner")]));
+      var ageMin = dataAgeMin(currentModel);
+      var unit = window.MC_I18N.getLang() === "ru" ? " мин" : " min";
+      var ageText = ageMin === null ? t("state.NOT_MEASURED") : Math.round(ageMin) + unit;
+      strip.appendChild(h("div", { class: "status-banner status-banner--warn" }, [tf("header.stale", { age: ageText })]));
     }
-    var sysState = get(currentModel, "overview.system.state", null);
-    var needsOwner = get(currentModel, "overview.needs_owner.count", null);
-    var ageMin = dataAgeMin(currentModel);
-    var ageText = ageMin === null ? t("common.not_measured") : Math.round(ageMin) + " " + t("common.minutes_ago");
-    var row = h("div", { class: "status-row" }, [
-      renderBadge(sysState, staleFlag),
-      h("span", { class: "chip" }, [t("status.needs_you") + ": " + textOrNM(needsOwner)]),
-      h("span", { class: "chip" }, [t("status.age") + ": " + ageText]),
-    ]);
-    strip.appendChild(row);
   }
 
-  // ── OVERVIEW ───────────────────────────────────────────────────────────────────────────
-  function card(titleText, extra) {
-    var c = h("section", { class: "card" });
-    var head = h("div", { class: "card-head" });
-    head.appendChild(h("h2", { class: "card-title" }, [titleText]));
-    if (extra) head.appendChild(extra);
-    c.appendChild(head);
-    return c;
+  // ── HOME ───────────────────────────────────────────────────────────────────────────────
+  var HOME_TILE_TITLE_KEY = {
+    system: "home.tile.system", yield: "home.tile.yield", product: "home.tile.product",
+    claude: "home.tile.claude", needs: "home.tile.needs",
+  };
+
+  // Closed ternary over a fixed vocabulary of tile keys — the href can only ever be one of the
+  // five literal "#area" strings on the right, never a string copied from the model (see header
+  // security note above).
+  function homeTileLinkArea(key) {
+    if (key === "yield") return "capital";
+    if (key === "product") return "product";
+    if (key === "needs") return "decisions";
+    return "studio"; // system, claude, and any unrecognised key
   }
 
-  function renderOverview(root, model) {
-    var ov = model.overview || {};
-    var grid = h("div", { class: "grid" });
-    grid.appendChild(renderOverviewSystem(ov.system));
-    grid.appendChild(renderOverviewNeedsOwner(ov.needs_owner));
-    grid.appendChild(renderOverviewNow(ov.now));
-    grid.appendChild(renderOverviewCapital(ov.capital));
-    grid.appendChild(renderOverviewToday(ov.today));
-    grid.appendChild(renderOverviewResources(ov.resources));
-    root.appendChild(grid);
+  function renderHomeTile(tile) {
+    tile = tile || {};
+    var titleKey = HOME_TILE_TITLE_KEY[tile.key] || "home.tile.system";
+    var linkArea = homeTileLinkArea(tile.key);
+    var unknown = isUnknownState(tile.state);
+    var cls = "home-tile home-tile--" + (unknown ? stateBadgeClass(tile.state) : stateBadgeClass(tile.state));
+    var a = h("a", { class: cls, href: "#" + linkArea });
+    a.appendChild(h("div", { class: "home-tile-label" }, [t(titleKey)]));
+    var text = unknown ? unknownText(tile) : (composedText(tile) || unknownText(tile));
+    a.appendChild(h("div", { class: "home-tile-value" + (unknown ? " home-tile-value--unknown" : "") }, [text]));
+    return a;
   }
 
-  function renderOverviewSystem(sys) {
-    sys = sys || {};
-    var c = card(t("overview.system.title"), renderBadge(sys.state, isStaleGlobal()));
-    var counts = sys.counts || {};
-    var row = h("div", { class: "chip-row" });
-    Object.keys(counts).forEach(function (k) {
-      row.appendChild(h("span", { class: "chip" }, [k + ": " + counts[k]]));
-    });
-    c.appendChild(row);
-    if (sys.reason) c.appendChild(h("p", { class: "note" }, [t("overview.system.why") + ": " + sys.reason]));
-    c.appendChild(renderListField("overview.system.critical_alerts", sys.critical_alerts));
-    c.appendChild(renderListField("overview.system.alerts", sys.alerts));
-    return c;
+  // Closed vocabulary of attention "kind"s (design §2.1). Never trusts a raw link_area string.
+  function attentionLinkArea(kind) {
+    if (kind === "old_owner_item" || kind === "problem") return "decisions";
+    if (kind === "kill_switch" || kind === "derisk" || kind === "same_host") return "studio";
+    return "home";
   }
 
-  function renderOverviewNeedsOwner(no) {
-    no = no || {};
-    var c = card(t("overview.needs_owner.title"));
-    c.appendChild(kv("overview.needs_owner.count", no.count));
-    c.appendChild(kv("overview.needs_owner.accepted", no.accepted_in_work));
-    var top = no.top;
-    if (top === null || top === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-    } else if (!Array.isArray(top) || top.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-    } else {
+  function renderAttentionLine(item) {
+    item = item || {};
+    var kind = item.kind;
+    var text;
+    if (kind === "same_host") text = t("home.attention.same_host");
+    else if (kind === "kill_switch") text = t("home.attention.kill_switch");
+    else if (kind === "derisk") text = t("home.attention.derisk");
+    else if (kind === "old_owner_item") text = tf("home.attention.old_owner_item", { days: item.days, title: bi(item.title_ru, item.title_en) });
+    else if (kind === "problem") text = tf("home.attention.problem", { what: bi(item.what_ru, item.what_en) });
+    else if (kind === "corrupt") text = tf("home.attention.corrupt", { what: bi(item.what_ru, item.what_en) });
+    else text = t("state.NOT_MEASURED");
+    var linkArea = attentionLinkArea(kind);
+    return h("a", { class: "link-item", href: "#" + linkArea }, [text]);
+  }
+
+  function renderHome(root) {
+    var home = get(truth(), "home", {}) || {};
+    var stripWrap = h("div", { class: "home-strip" });
+    (home.strip || []).forEach(function (tile) { stripWrap.appendChild(renderHomeTile(tile)); });
+    if (!home.strip || !home.strip.length) {
+      stripWrap.appendChild(h("p", { class: "empty-note" }, [t("state.NOT_MEASURED")]));
+    }
+    root.appendChild(stripWrap);
+    var att = home.attention || [];
+    if (att.length) {
+      var sec = h("section", { class: "card attention-card" });
+      sec.appendChild(h("h2", { class: "card-title" }, [t("home.attention.title")]));
       var ul = h("ul", { class: "plain-list" });
-      top.forEach(function (item) {
-        var li = h("li", {});
-        li.appendChild(h("a", { class: "link-item", href: "#decisions" }, [item.title || item.id]));
-        ul.appendChild(li);
-      });
-      c.appendChild(ul);
-      c.appendChild(h("a", { class: "btn btn-link", href: "#decisions" }, [t("overview.needs_owner.open_all")]));
+      att.forEach(function (item) { ul.appendChild(h("li", {}, [renderAttentionLine(item)])); });
+      sec.appendChild(ul);
+      root.appendChild(sec);
     }
-    return c;
-  }
-
-  function renderOverviewNow(now) {
-    now = now || {};
-    var c = card(t("overview.now.title"));
-    var epic = now.current_epic;
-    c.appendChild(kv("overview.now.current_epic", epic ? epic.epic + " — " + t("vocab.work." + epic.state) : null));
-    c.appendChild(kv("overview.now.in_progress", now.in_progress));
-    c.appendChild(kv("overview.now.blocked", now.blocked));
-    c.appendChild(kv("overview.now.workers", now.claude_workers));
-    c.appendChild(kv("overview.now.heavy_jobs", now.heavy_jobs));
-    return c;
-  }
-
-  function renderOverviewCapital(cap) {
-    cap = cap || {};
-    var c = card(t("overview.capital.title"));
-    var rc = cap.real_capital || {};
-    var box = h("div", { class: "real-capital-box" });
-    box.appendChild(h("strong", {}, [t("overview.capital.real_capital") + ": "]));
-    box.appendChild(renderCapitalMode(rc));
-    var det = h("details", { class: "basis-details" });
-    det.appendChild(h("summary", {}, [t("common.details")]));
-    det.appendChild(h("p", {}, [rc.basis === null || rc.basis === undefined ? t("common.not_measured") : rc.basis]));
-    box.appendChild(det);
-    c.appendChild(box);
-    var lrv = cap.live_readiness || {};
-    c.appendChild(kv("live.short", t("live.prohibited") + " · $0"));
-    var ci = cap.investment_cio || {};
-    c.appendChild(kv("cio.short", ci.stance ? t("cio.stance." + ci.stance) +
-      (ci.confidence ? " · " + t("cio.confidence." + ci.confidence) : "") : null));
-    var pkgs = cap.packages || {};
-    var rows = h("div", { class: "package-rows" });
-    Object.keys(pkgs).forEach(function (key) {
-      var p = pkgs[key] || {};
-      var row = h("div", { class: "package-row" });
-      row.appendChild(h("span", { class: "package-name" }, [t("capital.package.name." + key)]));
-      row.appendChild(renderBadge(p.state, isStaleGlobal()));
-      row.appendChild(h("span", { class: "chip" }, [t("capital.package.work") + ": " + textOrNM(p.work)]));
-      row.appendChild(h("span", { class: "chip" }, [t("capital.package.decision") + ": " + textOrNM(p.decision)]));
-      row.appendChild(h("span", { class: "chip" }, [t("capital.package.evidence") + ": " + textOrNM(p.evidence)]));
-      row.appendChild(h("span", { class: "chip" }, [t("capital.package.live") + ": " + textOrNM(p.live)]));
-      rows.appendChild(row);
-    });
-    c.appendChild(rows);
-    var tr = cap.trading_research || {};
-    var trRow = h("div", { class: "kv-list" });
-    trRow.appendChild(renderBadge(tr.state, isStaleGlobal()));
-    trRow.appendChild(kv("capital.trading.forward_paper", tr.forward_paper));
-    trRow.appendChild(kv("capital.trading.candidates", tr.candidates));
-    c.appendChild(trRow);
-    return c;
-  }
-
-  function renderOverviewToday(today) {
-    today = today || {};
-    var c = card(t("overview.today.title"));
-    c.appendChild(kv("overview.today.releases", today.releases));
-    c.appendChild(renderListField("overview.today.releases", today.release_items, function (it) {
-      return (it.kind || "?") + " — " + (it.summary || "");
-    }));
-    c.appendChild(renderListField("overview.today.incidents", today.incidents, function (it) {
-      return (it.event || "?") + " · " + (it.since || "?");
-    }));
-    return c;
-  }
-
-  function renderOverviewResources(res) {
-    res = res || {};
-    var c = card(t("overview.resources.title"), renderBadge(res.state, isStaleGlobal()));
-    c.appendChild(kv("overview.resources.disk_free", res.disk_free_gb));
-    c.appendChild(kv("overview.resources.memory_pressure", res.pressure_level));
-    c.appendChild(kv("overview.resources.swap", res.swap_used_pct));
-    return c;
   }
 
   // ── CAPITAL ────────────────────────────────────────────────────────────────────────────
-  function renderCapital(root, model) {
-    var cap = model.capital || {};
-    root.appendChild(h("p", { class: "area-label" }, [cap.boundary || t("capital.boundary")]));
-    var grid = h("div", { class: "grid" });
-    grid.appendChild(renderInvestmentCioCard(cap.investment_cio));
-    grid.appendChild(renderLiveReadinessCard(cap.live_readiness));
-    var pkgs = get(cap, "packages.items", {}) || {};
-    Object.keys(pkgs).forEach(function (key) {
-      grid.appendChild(renderPackageCard(key, pkgs[key]));
-    });
-    grid.appendChild(renderTradingResearchCard(cap.trading_research));
-    grid.appendChild(renderRealCapitalCard(cap.real_capital));
-    grid.appendChild(renderResearchUniverseCard(cap.research_universe));
-    root.appendChild(grid);
+  function renderDefiBook(key, book) {
+    book = book || {};
+    var c = card(t("capital.book." + key), stateBadge(book));
+    var mc = metricChip(book);
+    if (mc) c.appendChild(h("div", { class: "chip-row" }, [mc]));
+    if (book.state === "NOT_ENOUGH_HISTORY") {
+      c.appendChild(h("p", { class: "cell-text" }, [tf("home.tile.yield.accumulating", { book: t("capital.book." + key), n: book.accumulating_days })]));
+    } else if (isUnknownState(book.state)) {
+      c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(book)]));
+    } else {
+      c.appendChild(h("p", { class: "cell-text" }, [tf("home.tile.yield.value", { rate: bi(book.rate_ru, book.rate_en), dd: bi(book.dd_ru, book.dd_en) })]));
+      if (book.evidenced_days !== undefined) c.appendChild(h("p", { class: "note" }, [tf("capital.book.evidenced_days", { n: book.evidenced_days })]));
+      c.appendChild(h("p", { class: "note" }, [t("capital.book.live_not_approved")]));
+    }
+    var ev = evidenceDrawer(book);
+    if (ev) c.appendChild(ev);
+    return c;
   }
 
+  function renderTargets(targets) {
+    targets = targets || {};
+    var c = card(t("capital.target.label"), stateBadge(targets));
+    var mc = metricChip(targets);
+    if (mc) c.appendChild(h("div", { class: "chip-row" }, [mc]));
+    if (isUnknownState(targets.state)) c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(targets)]));
+    else c.appendChild(h("p", { class: "cell-text" }, [composedText(targets) || unknownText(targets)]));
+    var ev = evidenceDrawer(targets);
+    if (ev) c.appendChild(ev);
+    return c;
+  }
+
+  function renderTradingLab(cell) {
+    return cellCard("capital.tab.trading_lab", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      var row = h("div", { class: "chip-row" });
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.lab.candidates", { n: cell.candidates })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.lab.forward", { n: cell.forward })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.lab.champions", { n: cell.champions })]));
+      c.appendChild(row);
+      c.appendChild(h("p", { class: "note" }, [cell.chain_ok ? t("capital.lab.chain_ok") : t("capital.lab.chain_broken")]));
+      c.appendChild(h("p", { class: "note warning-chip" }, [t("capital.lab.backtest_badge")]));
+    });
+  }
+
+  function renderBtc(cell) {
+    return cellCard("capital.tab.btc", cell, function (c, cell) {
+      if (cell.no_canon) c.appendChild(h("div", { class: "warning-chip" }, [t("capital.btc.no_canon")]));
+      if (isUnknownState(cell.state)) return;
+      if (cell.external_product) c.appendChild(h("p", { class: "note" }, [t("capital.btc.external")]));
+    });
+  }
+
+  function renderBasis(cell) {
+    return cellCard("capital.tab.basis", cell, function (c, cell) {
+      if (cell.fees_blocked) c.appendChild(h("div", { class: "warning-chip" }, [t("capital.basis.blocked_fees")]));
+    });
+  }
+
+  function renderTreasury(cell) {
+    return cellCard("capital.tab.treasury", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "note" }, [tf("capital.treasury.reference", { n: cell.reference_periods })]));
+      if (cell.cash_usd !== undefined && cell.cash_usd !== null) {
+        c.appendChild(h("p", { class: "note" }, ["$" + cell.cash_usd]));
+      }
+    });
+  }
+
+  function renderSherlock(cell) {
+    return cellCard("capital.tab.sherlock", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "note" }, [tf("capital.sherlock.usable", { usable: cell.usable, total: cell.total })]));
+      c.appendChild(h("p", { class: "note" }, [tf("capital.sherlock.awaiting", { n: cell.awaiting_review })]));
+    });
+  }
+
+  function renderOracle(cell) {
+    return cellCard("capital.tab.oracle", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      var stanceKey = cell.stance ? "capital.oracle.stance." + cell.stance : null;
+      var stanceText = stanceKey ? t(stanceKey) : null;
+      if (stanceText && stanceText !== stanceKey) c.appendChild(h("p", { class: "cell-text" }, [stanceText]));
+      c.appendChild(h("p", { class: "note" }, [t("capital.oracle.advisory")]));
+    });
+  }
+
+  function renderReadiness(cell) {
+    return cellCard("capital.tab.readiness", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      if (cell.ready === false) c.appendChild(h("div", { class: "warning-chip" }, [t("capital.readiness.not_ready")]));
+      if (cell.conditions_open !== undefined) c.appendChild(h("p", { class: "note" }, [tf("capital.readiness.conditions_open", { n: cell.conditions_open })]));
+      if (cell.inventory_passed !== undefined) {
+        c.appendChild(h("p", { class: "note" }, [tf("capital.readiness.inventory_note", { p: cell.inventory_passed, t: cell.inventory_total })]));
+      }
+      var blockers = cell.blockers || [];
+      if (blockers.length) {
+        var ul = h("ul", { class: "plain-list" });
+        blockers.forEach(function (b) { ul.appendChild(h("li", {}, [bi(b.ru, b.en)])); });
+        c.appendChild(ul);
+      }
+    });
+  }
+
+  function renderCapitalPanel(panel, tabKey, cap) {
+    if (tabKey === "defi") {
+      var defi = cap.defi || {};
+      var books = defi.books || {};
+      ["conservative", "balanced", "aggressive"].forEach(function (k) { panel.appendChild(renderDefiBook(k, books[k])); });
+      panel.appendChild(renderTargets(defi.targets));
+    } else if (tabKey === "trading_lab") panel.appendChild(renderTradingLab(cap.trading_lab));
+    else if (tabKey === "btc") panel.appendChild(renderBtc(cap.btc));
+    else if (tabKey === "basis") panel.appendChild(renderBasis(cap.basis));
+    else if (tabKey === "treasury") panel.appendChild(renderTreasury(cap.treasury_rwa));
+    else if (tabKey === "sherlock") panel.appendChild(renderSherlock(cap.sherlock));
+    else if (tabKey === "oracle") panel.appendChild(renderOracle(cap.oracle));
+    else if (tabKey === "readiness") panel.appendChild(renderReadiness(cap.readiness));
+  }
+
+  function renderCapital(root) {
+    var cap = get(truth(), "capital", {}) || {};
+    var tabsWrap = h("div", { class: "subtabs-scroll" });
+    var tabsRow = h("div", { class: "subtabs-row" });
+    CAPITAL_TABS.forEach(function (key) {
+      var btn = h("button", { type: "button", class: "subtab-chip" + (key === capitalSubTab ? " active" : "") }, [t("capital.tab." + key)]);
+      btn.addEventListener("click", function () {
+        capitalSubTab = key;
+        renderArea("capital");
+      });
+      tabsRow.appendChild(btn);
+    });
+    tabsWrap.appendChild(tabsRow);
+    root.appendChild(tabsWrap);
+    var panel = h("div", { class: "grid" });
+    renderCapitalPanel(panel, capitalSubTab, cap);
+    root.appendChild(panel);
+  }
+
+  // ── LEGACY v1 Capital-area cards (ADR-554/556/560/564) — kept verbatim, unused by v2 ──────
+  // Same rationale as the legacy formatting helpers above: test_mission_control_contract.py pins
+  // these by literal source text (some run under node) as regression guards for real
+  // "[object Object]" and no-action-control bugs. Dead code on purpose pending that file's own
+  // journaled retirement for v2.
   // Oracle — Chief Investment Officer (ADR-554). A paper recommendation: no button, nothing executes it.
   function pct(x) {
     return (typeof x === "number") ? Math.round(x * 100) + "%" : t("common.not_measured");
@@ -751,396 +955,421 @@
     det.appendChild(renderCandidateEvidenceDetail(x.evidence));
     return det;
   }
+  // ── end legacy Capital-area cards ─────────────────────────────────────────────────────────
 
   // ── STUDIO ─────────────────────────────────────────────────────────────────────────────
-  function renderStudio(root, model) {
-    var studio = model.studio || {};
-    root.appendChild(h("p", { class: "area-label" }, [t("studio.title")]));
-    var grid = h("div", { class: "grid" });
-    grid.appendChild(renderEpicsCard(studio.epics));
-    grid.appendChild(renderBoardCard(studio.board, studio.lineage));
-    grid.appendChild(renderAgentsCard(studio.agents, "studio.agents.title"));
-    grid.appendChild(renderOrphansCard(studio.orphans));
-    grid.appendChild(renderReleaseFeedCard(model.release_feed));
-    root.appendChild(grid);
-  }
-
-  function renderEpicsCard(epics) {
-    epics = epics || {};
-    var c = card(t("studio.epics.title"));
-    var items = epics.items;
-    if (items === null || items === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-    } else if (!Array.isArray(items) || items.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-    } else {
-      var curN = epics.current ? epics.current.n : null;
-      var ul = h("ul", { class: "plain-list" });
-      items.forEach(function (it) {
-        var li = h("li", { class: "epic-item" + (it.n === curN ? " epic-item--current" : "") });
-        li.appendChild(h("span", { class: "epic-n" }, ["#" + it.n + " "]));
-        li.appendChild(h("span", {}, [it.epic]));
-        li.appendChild(renderWorkChip(it.state));
-        if (it.note) li.appendChild(h("div", { class: "epic-note" }, [it.note]));
-        ul.appendChild(li);
-      });
-      c.appendChild(ul);
+  function renderClaudeWork(cell) {
+    cell = cell || {};
+    var c = card(t("studio.claude.title"), stateBadge(cell));
+    if (isUnknownState(cell.state)) {
+      c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(cell)]));
+      var ev0 = evidenceDrawer(cell);
+      if (ev0) c.appendChild(ev0);
+      return c;
     }
-    c.appendChild(kv("studio.epics.confirmed", epics.roadmap_confirmed));
+    c.appendChild(kvPlain(t("studio.claude.epic"), cell.epic || t("studio.claude.epic_none")));
+    c.appendChild(h("p", { class: "note" }, [tf("studio.claude.sessions", { a: cell.sessions_announced, u: cell.sessions_undeclared })]));
+    c.appendChild(kvPlain(t("studio.claude.card"), bi(cell.card_title_ru, cell.card_title_en)));
+    c.appendChild(kvPlain(t("studio.claude.stage"), cell.stage_key ? t("stage." + cell.stage_key) : null));
+    c.appendChild(kvPlain(t("studio.claude.blocker"), bi(cell.blocker_ru, cell.blocker_en) || t("studio.claude.blocker_none")));
+    var nextText = bi(cell.next_step_ru, cell.next_step_en);
+    if (!nextText && cell.next_stage_key) nextText = tf("studio.claude.next_stage", { stage: t("stage." + cell.next_stage_key) });
+    c.appendChild(kvPlain(t("studio.claude.next"), nextText));
+    var ev = evidenceDrawer(cell);
+    if (ev) c.appendChild(ev);
     return c;
   }
 
-  function renderCardList(labelKey, items, lineage) {
-    var wrap = h("div", { class: "list-section" });
-    wrap.appendChild(h("div", { class: "k" }, [t(labelKey)]));
-    if (items === null || items === undefined) {
-      wrap.appendChild(h("div", { class: "v" }, [t("common.not_measured")]));
-      return wrap;
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      wrap.appendChild(h("div", { class: "v" }, [t("common.none")]));
-      return wrap;
-    }
-    var ul = h("ul", { class: "plain-list" });
-    items.forEach(function (it) {
-      var li = h("li", { class: "card-row" });
-      var hasLineage = lineage && Object.prototype.hasOwnProperty.call(lineage, it.id);
-      var panel = h("div", { class: "lineage-panel", hidden: true });
-      if (hasLineage) {
-        var btn = h("button", { type: "button", class: "list-item-btn" }, [it.title || it.id]);
-        btn.addEventListener("click", function () {
-          if (panel.hidden) {
-            clear(panel);
-            panel.appendChild(renderLineage(lineage[it.id]));
-          }
-          panel.hidden = !panel.hidden;
-        });
-        li.appendChild(btn);
-      } else {
-        li.appendChild(h("span", { class: "card-row-text" }, [it.title || it.id]));
-      }
-      li.appendChild(panel);
-      ul.appendChild(li);
+  function renderRoadmap(cell) {
+    return cellCard("studio.roadmap.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      if (cell.confirmed_date) c.appendChild(h("p", { class: "note" }, [tf("studio.roadmap.confirmed", { date: cell.confirmed_date })]));
     });
-    wrap.appendChild(ul);
-    return wrap;
   }
 
-  function renderLineageStateChip(state) {
-    var cls = state === "DONE" ? "chip--ok" : state === "MISSING" ? "chip--warn" : "chip--unknown";
-    return h("span", { class: "chip " + cls }, [state || t("common.unknown")]);
-  }
-
-  function renderLineage(stages) {
-    stages = stages || {};
-    var ol = h("ol", { class: "lineage-list" });
-    LINEAGE_STAGES.forEach(function (stage) {
-      var s = stages[stage] || { state: "UNKNOWN", evidence: null };
-      var li = h("li", { class: "lineage-stage" });
-      li.appendChild(h("span", { class: "stage-name" }, [t("studio.lineage.stage." + stage)]));
-      li.appendChild(renderLineageStateChip(s.state));
-      li.appendChild(h("div", { class: "stage-evidence" }, [s.evidence === null || s.evidence === undefined ? t("common.not_measured") : String(s.evidence)]));
-      ol.appendChild(li);
-    });
-    return ol;
-  }
-
-  function renderBoardCard(board, lineage) {
-    board = board || {};
-    lineage = lineage || {};
-    var c = card(t("studio.board.title"));
-    var counts = board.counts || {};
-    var row = h("div", { class: "chip-row" });
-    Object.keys(counts).forEach(function (k) {
-      row.appendChild(h("span", { class: "chip" }, [k + ": " + counts[k]]));
-    });
-    c.appendChild(row);
-    if (board.review_note) c.appendChild(h("p", { class: "note" }, [board.review_note]));
-    c.appendChild(renderCardList("studio.board.in_progress", board.in_progress, lineage));
-    c.appendChild(renderCardList("studio.board.blocked", board.blocked, lineage));
-    c.appendChild(renderCardList("studio.board.recently_done", board.recently_done, lineage));
-    c.appendChild(kv("studio.board.queued", board.queued));
-    return c;
-  }
-
-  function renderAgentsCard(agents, titleKey) {
-    agents = agents || {};
-    var c = card(t(titleKey || "studio.agents.title"), renderBadge(get(agents, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(kv("studio.agents.ok", agents.ok));
-    c.appendChild(kv("studio.agents.warning", agents.warning));
-    c.appendChild(kv("studio.agents.critical", agents.critical));
-    c.appendChild(kv("studio.agents.total", agents.total));
-    c.appendChild(renderListField("studio.agents.critical_list", agents.critical_agents));
-    c.appendChild(renderListField("studio.agents.warning_list", agents.warning_agents));
-    c.appendChild(renderListField("studio.agents.paused", agents.paused_intentionally));
-    return c;
-  }
-
-  function renderOrphansCard(orphans) {
-    orphans = orphans || {};
-    var c = card(t("studio.orphans.title"), renderBadge(get(orphans, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(kv("studio.orphans.total", orphans.total));
-    var counts = orphans.counts;
-    if (counts && typeof counts === "object") {
+  function renderTasks(cell) {
+    return cellCard("studio.tasks.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
       var row = h("div", { class: "chip-row" });
-      Object.keys(counts).forEach(function (k) {
-        row.appendChild(h("span", { class: "chip" }, [k + ": " + counts[k]]));
-      });
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.tasks.queued", { n: cell.queued })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.tasks.in_progress", { n: cell.in_progress, stale: cell.in_progress_stale })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.tasks.blocked", { n: cell.blocked })]));
       c.appendChild(row);
-    } else {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
+    });
+  }
+
+  var FLEET_TYPES = [
+    ["runtime_services", function (x) { return tf("studio.fleet.runtime_services", { loaded: x.loaded, declared: x.declared }); }],
+    ["managed_agents", function (x) { return tf("studio.fleet.managed_agents", { loaded: x.loaded, declared: x.declared }); }],
+    ["configured_roles", function (x) { return tf("studio.fleet.configured_roles", { n: x.n }); }],
+    ["active_workers", function (x) { return tf("studio.fleet.active_workers", { a: x.a, u: x.u }); }],
+    ["retired_loaded", function (x) { return tf("studio.fleet.retired_loaded", { n: x.n }); }],
+    ["unknown_orphans", function (x) { return tf("studio.fleet.unknown_orphans", { n: x.n }); }],
+  ];
+
+  function renderFleet(cell) {
+    cell = cell || {};
+    var c = card(t("studio.fleet.title"), stateBadge(cell));
+    if (isUnknownState(cell.state)) {
+      c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [tf("studio.fleet.headline_unknown", { declared: cell.declared })]));
+      var ev0 = evidenceDrawer(cell);
+      if (ev0) c.appendChild(ev0);
+      return c;
     }
+    c.appendChild(h("p", { class: "cell-text" }, [tf("studio.fleet.headline", { ok: cell.ok, declared: cell.declared })]));
+    var types = cell.types || {};
+    var ul = h("ul", { class: "plain-list" });
+    FLEET_TYPES.forEach(function (pair) {
+      var x = types[pair[0]];
+      if (!x) return;
+      ul.appendChild(h("li", { class: x.ok === false ? "fleet-row fleet-row--warn" : "fleet-row" }, [pair[1](x)]));
+    });
+    c.appendChild(ul);
+    var failing = cell.failing || [];
+    if (failing.length) {
+      c.appendChild(h("div", { class: "warning-chip" }, [failing.map(function (f) { return bi(f.name_ru, f.name_en); }).join(", ")]));
+    }
+    var ev = evidenceDrawer(cell);
+    if (ev) c.appendChild(ev);
     return c;
   }
 
-  function renderReleaseFeedCard(feed) {
-    feed = feed || {};
-    var c = card(t("studio.release_feed.title"), renderBadge(get(feed, "_meta.state", null), isStaleGlobal()));
-    if (feed.release_note) c.appendChild(h("p", { class: "note" }, [feed.release_note]));
-    var items = feed.items;
-    if (items === null || items === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-      return c;
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-      return c;
-    }
+  function renderIncidents(cell) {
+    return cellCard("studio.incidents.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "note" }, [tf("studio.incidents.open", { n: cell.open })]));
+      (cell.items || []).forEach(function (it) {
+        var title = bi(it.title_ru, it.title_en) || t("studio.incidents.untitled");
+        c.appendChild(h("p", { class: "note" }, [title + " · " + (bi(it.since_ru, it.since_en) || "")]));
+      });
+    });
+  }
+
+  function renderProblems(cell) {
+    return cellCard("studio.problems.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      var row = h("div", { class: "chip-row" });
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.problems.open", { n: cell.open })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.problems.mitigated", { n: cell.mitigated })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("studio.problems.closed", { n: cell.closed })]));
+      c.appendChild(row);
+      (cell.items || []).forEach(function (it) {
+        var p = h("p", { class: "note" });
+        p.appendChild(document.createTextNode((it.agent_ru || t("state.NOT_MEASURED")) + " — " + bi(it.cause_ru, it.cause_en)));
+        p.appendChild(h("br"));
+        p.appendChild(document.createTextNode(tf("studio.problems.occurrences", { n: it.occurrences }) + " · " + (it.rca ? t("studio.problems.rca_yes") : t("studio.problems.rca_no"))));
+        c.appendChild(p);
+      });
+    });
+  }
+
+  function renderReleases(cell) {
+    return cellCard("studio.releases.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [cell.in_prod_ok ? t("studio.releases.in_prod_ok") : t("studio.releases.in_prod_drift")]));
+      c.appendChild(h("p", { class: "note" }, [tf("studio.releases.today", { n: cell.today })]));
+    });
+  }
+
+  function renderMemory(cell) {
+    return cellCard("studio.memory.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [cell.lag > 0 ? tf("studio.memory.lag", { n: cell.lag }) : t("studio.memory.ok")]));
+    });
+  }
+
+  function renderMachine(cell) {
+    return cellCard("studio.machine.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [tf("studio.machine.disk", { gb: cell.disk_free_gb })]));
+    });
+  }
+
+  // Backups: THREE separate rows, never collapsed to one (CLAUDE.md inv. #17 / design §2.3).
+  function backupRow(badge, text, cell) {
+    var row = h("div", { class: "backup-row" }, [badge, h("span", {}, [text])]);
+    var ev = evidenceDrawer(cell);
+    if (ev) row.appendChild(ev);
+    return row;
+  }
+
+  function renderBackupLocal(cell) {
+    cell = cell || {};
+    if (isUnknownState(cell.state)) return backupRow(stateBadge(cell), unknownText(cell), cell);
+    return backupRow(stateBadge(cell), tf("studio.backups.local", { age: bi(cell.age_ru, cell.age_en) }), cell);
+  }
+
+  function renderBackupOffHost(cell) {
+    cell = cell || {};
+    if (isUnknownState(cell.state)) return backupRow(stateBadge(cell), unknownText(cell), cell);
+    // is_real_remote=false is amber, never green, even though the fact itself was measured.
+    var cls = cell.is_real_remote ? "ok" : "warn";
+    var badge = h("span", { class: "badge badge--" + cls }, [t("state." + cell.state)]);
+    var text = cell.is_real_remote ? t("studio.backups.off_host_ok") : t("studio.backups.same_host");
+    return backupRow(badge, text, cell);
+  }
+
+  function renderBackupRecovery(cell) {
+    cell = cell || {};
+    if (isUnknownState(cell.state) && cell.drill_result === undefined) return backupRow(stateBadge(cell), unknownText(cell), cell);
+    var text;
+    if (cell.drill_result === "OK") text = tf("studio.backups.recovery_ok", { date: cell.date });
+    else if (cell.drill_result === "STALE") text = t("studio.backups.recovery_stale");
+    else if (cell.drill_result === "FAILED") text = t("studio.backups.recovery_failed");
+    else if (cell.drill_result === "NEVER_RUN") text = t("studio.backups.recovery_never");
+    else text = unknownText(cell);
+    return backupRow(stateBadge(cell), text, cell);
+  }
+
+  function renderBackups(b) {
+    b = b || {};
+    var c = card(t("studio.backups.title"));
+    c.appendChild(renderBackupLocal(b.local));
+    c.appendChild(renderBackupOffHost(b.off_host));
+    c.appendChild(renderBackupRecovery(b.recovery));
+    return c;
+  }
+
+  // Reuses the Home "needs" tile templates — "counts as on Home" per design §2.3.
+  function renderDecisionsSummary(ds) {
+    ds = ds || {};
+    var c = card(t("home.tile.needs"));
+    c.appendChild(h("p", { class: "cell-text" }, [tf("home.tile.needs.value", { own: ds.own })]));
+    c.appendChild(h("p", { class: "note" }, [tf("home.tile.needs.agent", { undeclared: ds.undeclared })]));
+    c.appendChild(h("p", { class: "note" }, [tf("home.tile.needs.answered", { answered: ds.answered })]));
+    c.appendChild(h("a", { class: "btn btn-link", href: "#decisions" }, [t("nav.decisions") + " →"]));
+    return c;
+  }
+
+  var SCOPE_ORDER = ["INVESTMENT_ENGINE_READINESS", "STUDIO_OS_HEALTH", "PRODUCT_DATA_HEALTH", "PUBLICATION_HEALTH", "OWNER_CONTROL_HEALTH", "PUBLIC_SURFACE"];
+
+  function scopeBadgeClass(status) {
+    if (status === "OK" || status === "READY") return "ok";
+    if (status === "WARN" || status === "DEGRADED" || status === "NOT_READY") return "warn";
+    if (status === "CRITICAL" || status === "CORRUPT") return "alert";
+    return "unknown";
+  }
+
+  // Exactly the six scopes, always side by side, never collapsed into one worst-of badge
+  // (test_scoped_readiness_never_collapsed is WP1's; this is the UI-side half of that guarantee).
+  function renderScopes(scopes) {
+    var c = card(t("studio.scopes.title"));
+    var byKey = {};
+    (scopes || []).forEach(function (s) { byKey[s.key] = s; });
     var ul = h("ul", { class: "plain-list" });
-    items.forEach(function (it) {
-      var li = h("li", { class: "release-row" });
-      li.appendChild(h("span", { class: "release-date" }, [it.at || ""]));
-      li.appendChild(h("span", { class: "chip" }, [it.kind || ""]));
-      li.appendChild(h("span", { class: "release-summary" }, [it.summary || ""]));
-      li.appendChild(h("span", { class: "chip" }, [it.release || ""]));
-      var det = h("details", { class: "release-details" });
-      det.appendChild(h("summary", {}, [t("studio.release_feed.commit")]));
-      var p = h("p", {});
-      p.appendChild(document.createTextNode(t("studio.release_feed.commit") + ": " + (it.commit || "—")));
-      p.appendChild(h("br"));
-      p.appendChild(document.createTextNode(t("studio.release_feed.producer") + ": " + (it.producer || "—")));
-      p.appendChild(h("br"));
-      p.appendChild(document.createTextNode(t("studio.release_feed.adrs") + ": " + ((it.adrs && it.adrs.length) ? it.adrs.join(", ") : t("common.none"))));
-      det.appendChild(p);
-      li.appendChild(det);
+    SCOPE_ORDER.forEach(function (key) {
+      var s = byKey[key] || {};
+      var status = s.status || "UNKNOWN";
+      var li = h("li", { class: "scope-row" });
+      li.appendChild(h("div", { class: "kv-row" }, [
+        h("span", { class: "k" }, [t("scope." + key)]),
+        h("span", { class: "badge badge--" + scopeBadgeClass(status) }, [t("scope_status." + status)]),
+      ]));
+      if (status === "UNKNOWN") {
+        li.appendChild(h("p", { class: "note cell-text--unknown" }, [tf("scope.unknown", { reason: bi(s.reason_ru, s.reason_en) || t("state.NOT_MEASURED") })]));
+      } else if (s.reason_ru || s.reason_en) {
+        li.appendChild(h("p", { class: "note" }, [bi(s.reason_ru, s.reason_en)]));
+      }
+      if (s.blocks_ru || s.blocks_en) li.appendChild(h("p", { class: "note" }, [t("scope.blocks") + ": " + bi(s.blocks_ru, s.blocks_en)]));
+      if (s.does_not_block_ru || s.does_not_block_en) li.appendChild(h("p", { class: "note" }, [t("scope.does_not_block") + ": " + bi(s.does_not_block_ru, s.does_not_block_en)]));
       ul.appendChild(li);
     });
     c.appendChild(ul);
     return c;
   }
 
-  // ── DECISIONS ──────────────────────────────────────────────────────────────────────────
-  function renderDecisions(root, model) {
-    var dec = model.decisions || {};
-    root.appendChild(h("p", { class: "area-label" }, [dec.how_to_answer || t("decisions.how_to_answer")]));
-    root.appendChild(renderDecisionsPending(dec.pending));
-    root.appendChild(renderDecisionsResolved(dec.recently_resolved));
+  function renderStudio(root) {
+    var studio = get(truth(), "studio", {}) || {};
+    var grid = h("div", { class: "grid" });
+    grid.appendChild(renderClaudeWork(studio.claude_work));
+    grid.appendChild(renderRoadmap(studio.roadmap));
+    grid.appendChild(renderTasks(studio.tasks));
+    grid.appendChild(renderFleet(studio.fleet));
+    grid.appendChild(renderDecisionsSummary(studio.decisions_summary));
+    grid.appendChild(renderScopes(studio.scopes));
+    grid.appendChild(renderIncidents(studio.incidents));
+    grid.appendChild(renderProblems(studio.problems));
+    grid.appendChild(cellCard("studio.selfheal.title", studio.self_heal));
+    grid.appendChild(renderReleases(studio.releases));
+    grid.appendChild(renderMemory(studio.memory));
+    grid.appendChild(renderBackups(studio.backups));
+    grid.appendChild(renderMachine(studio.machine));
+    root.appendChild(grid);
   }
 
-  function renderDecisionsPending(items) {
-    var c = card(t("decisions.pending.title"));
-    if (items === null || items === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-      return c;
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-      return c;
-    }
-    var list = h("div", { class: "decision-list" });
-    items.forEach(function (d) {
-      list.appendChild(renderDecisionCard(d));
+  // ── PRODUCT ────────────────────────────────────────────────────────────────────────────
+  function renderPublicRelease(cell) {
+    return cellCard("product.release.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [tf("product.release.value", { measured: bi(cell.measured_ru, cell.measured_en), published: bi(cell.published_ru, cell.published_en) })]));
     });
-    c.appendChild(list);
+  }
+
+  function renderProfiles(profiles) {
+    profiles = profiles || {};
+    var c = card(t("product.profiles.title"));
+    ["conservative", "balanced", "aggressive"].forEach(function (k) {
+      var cell = profiles[k] || {};
+      var row = h("div", { class: "profile-row" }, [
+        h("span", { class: "k" }, [t("capital.book." + k)]),
+        stateBadge(cell),
+      ]);
+      var text;
+      if (cell.state === "NOT_ENOUGH_HISTORY") text = tf("home.tile.yield.accumulating", { book: t("capital.book." + k), n: cell.accumulating_days });
+      else if (isUnknownState(cell.state)) text = unknownText(cell);
+      else text = tf("home.tile.yield.value", { rate: bi(cell.rate_ru, cell.rate_en), dd: bi(cell.dd_ru, cell.dd_en) });
+      row.appendChild(h("div", { class: "note" }, [text]));
+      c.appendChild(row);
+    });
     return c;
   }
 
-  function renderDecisionCard(d) {
+  function renderPublicMetrics(list) {
+    var c = card(t("product.metrics.title"));
+    if (!Array.isArray(list) || !list.length) {
+      c.appendChild(h("p", { class: "note" }, [t("product.metrics.missing")]));
+      return c;
+    }
+    var ul = h("ul", { class: "plain-list" });
+    list.forEach(function (m) {
+      m = m || {};
+      var li = h("li", {});
+      if (isUnknownState(m.state)) {
+        li.appendChild(document.createTextNode(bi(m.label_ru, m.label_en) + ": " + t("product.metrics.missing")));
+      } else {
+        var kind = m.metric_type ? t("metric_type." + m.metric_type) : t("state.NOT_MEASURED");
+        li.appendChild(document.createTextNode(tf("product.metrics.row", { label: bi(m.label_ru, m.label_en), value: bi(m.value_ru, m.value_en), kind: kind, date: bi(m.date_ru, m.date_en) })));
+      }
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    return c;
+  }
+
+  function renderProductIncidents(cell) {
+    return cellCard("product.incidents.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [tf("studio.incidents.open", { n: cell.open })]));
+    });
+  }
+
+  function renderBacklog(cell) {
+    return cellCard("product.backlog.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "note" }, [t("product.backlog.note")]));
+      var titles = bi(cell.top_titles_ru, cell.top_titles_en) || [];
+      if (titles.length) {
+        var ul = h("ul", { class: "plain-list" });
+        titles.forEach(function (ti) { ul.appendChild(h("li", {}, [ti])); });
+        c.appendChild(ul);
+      }
+    });
+  }
+
+  function renderNextRelease(cell) {
+    return cellCard("product.next.title", cell, function (c, cell) {
+      if (isUnknownState(cell.state)) return;
+      c.appendChild(h("p", { class: "cell-text" }, [tf("product.next.value", { date: bi(cell.date_ru, cell.date_en), gate: bi(cell.gate_ru, cell.gate_en) })]));
+    });
+  }
+
+  function renderProduct(root) {
+    var p = get(truth(), "product", {}) || {};
+    var grid = h("div", { class: "grid" });
+    grid.appendChild(renderPublicRelease(p.public_release));
+    grid.appendChild(cellCard("product.health.title", p.website_health));
+    grid.appendChild(renderProfiles(p.profiles));
+    grid.appendChild(renderPublicMetrics(p.public_metrics));
+    grid.appendChild(renderProductIncidents(p.truth_incidents));
+    grid.appendChild(renderBacklog(p.backlog));
+    grid.appendChild(renderNextRelease(p.next_release));
+    root.appendChild(grid);
+  }
+
+  // ── DECISIONS ──────────────────────────────────────────────────────────────────────────
+  var DECISION_GROUPS = [
+    ["owner", "decisions.group.owner"],
+    ["undeclared", "decisions.group.undeclared"],
+    ["answered", "decisions.group.answered"],
+    ["accepted", "decisions.group.accepted"],
+    ["prod_only", "decisions.group.prod_only"],
+  ];
+
+  // Карточки решений пишутся в markdown: на первом уровне владельцу нужен текст, а не разметка.
+  function plain(s) {
+    if (typeof s !== "string") return s;
+    return s.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*|__|`/g, "").replace(/^\s*>\s?/gm, "").trim();
+  }
+
+  function renderDecisionItem(d) {
     d = d || {};
     var dc = h("div", { class: "decision-card" });
-    dc.appendChild(h("h3", { class: "decision-title" }, [d.title || d.id]));
+    dc.appendChild(h("h3", { class: "decision-title" }, [bi(d.title_ru, d.title_en) || d.id || t("state.NOT_MEASURED")]));
     var meta = h("div", { class: "chip-row" });
-    meta.appendChild(h("span", { class: "chip" }, [t("vocab.decision." + d.state) || d.state || t("common.unknown")]));
-    meta.appendChild(h("span", { class: "chip" }, [d.risk_class || t("common.unknown")]));
-    meta.appendChild(h("span", { class: "chip" }, [d.created_at || t("common.unknown")]));
+    var subjKey = d.subject_key || "UNKNOWN";
+    meta.appendChild(h("span", { class: "chip" }, [t("subject." + subjKey)]));
+    if (d.age_days !== undefined && d.age_days !== null) meta.appendChild(h("span", { class: "chip" }, [tf("decisions.age", { days: d.age_days })]));
     dc.appendChild(meta);
-    var det1 = h("details", { class: "decision-reason" });
-    det1.appendChild(h("summary", {}, [t("decisions.fields.reason")]));
-    det1.appendChild(h("p", {}, [d.reason || t("common.unknown")]));
-    dc.appendChild(det1);
-    var det2 = h("details", { class: "decision-action" });
-    det2.appendChild(h("summary", {}, [t("decisions.fields.requested_action")]));
-    det2.appendChild(h("p", {}, [d.requested_action || t("common.unknown")]));
-    dc.appendChild(det2);
-    dc.appendChild(kv("decisions.fields.done_when", d.done_when));
-    dc.appendChild(kv("decisions.fields.source", d.source));
-    dc.appendChild(kv("decisions.fields.evidence", d.evidence));
-    dc.appendChild(kv("decisions.fields.scope", d.scope));
-    dc.appendChild(renderListField("decisions.fields.affected_artifacts", d.affected_artifacts));
-    if (d.missing_fields && d.missing_fields.length) {
-      dc.appendChild(h("div", { class: "warning-chip" }, [t("decisions.fields.missing_fields") + ": " + d.missing_fields.join(", ")]));
-    }
+    dc.appendChild(kvPlain(t("decisions.reason"), plain(bi(d.reason_ru, d.reason_en))));
+    dc.appendChild(kvPlain(t("decisions.action"), plain(bi(d.action_ru, d.action_en))));
+    dc.appendChild(kvPlain(t("decisions.done_when"), plain(bi(d.done_when_ru, d.done_when_en))));
     var href = safeLink(d.telegram_link);
     if (href) {
-      dc.appendChild(h("a", { class: "btn btn-primary btn-answer", href: safeLink(d.telegram_link), target: "_blank", rel: "noopener noreferrer" }, [t("decisions.answer_button")]));
+      dc.appendChild(h("a", { class: "btn btn-primary", href: safeLink(d.telegram_link), target: "_blank", rel: "noopener noreferrer" }, [t("common.open_telegram")]));
     } else {
-      dc.appendChild(h("button", { class: "btn btn-disabled", disabled: true, type: "button" }, [t("decisions.answer_unavailable")]));
-      if (d.telegram_link_note) dc.appendChild(h("p", { class: "note" }, [d.telegram_link_note]));
+      dc.appendChild(h("button", { class: "btn btn-disabled", disabled: true, type: "button" }, [t("common.open_telegram")]));
     }
     return dc;
   }
 
-  function renderDecisionsResolved(items) {
-    var c = card(t("decisions.recently_resolved.title"));
-    if (items === null || items === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-      return c;
+  function renderAnsweredItem(d) {
+    d = d || {};
+    var dc = h("div", { class: "decision-card" });
+    dc.appendChild(h("h3", { class: "decision-title" }, [bi(d.title_ru, d.title_en) || d.id || t("state.NOT_MEASURED")]));
+    var p = h("p", { class: "note" });
+    p.appendChild(document.createTextNode(bi(d.owner_answer_ru, d.owner_answer_en) || t("state.NOT_MEASURED")));
+    if (d.answered_at) {
+      p.appendChild(h("br"));
+      p.appendChild(document.createTextNode(d.answered_at));
     }
-    if (!Array.isArray(items) || items.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-      return c;
+    dc.appendChild(p);
+    return dc;
+  }
+
+  function renderAcceptedItem(d) {
+    d = d || {};
+    var dc = h("div", { class: "decision-card" });
+    dc.appendChild(h("h3", { class: "decision-title" }, [bi(d.title_ru, d.title_en) || d.id || t("state.NOT_MEASURED")]));
+    if (d.age_days !== undefined && d.age_days !== null) dc.appendChild(h("p", { class: "note" }, [tf("decisions.age", { days: d.age_days })]));
+    return dc;
+  }
+
+  function renderDecisions(root) {
+    var dec = get(truth(), "decisions", null) || {};
+    root.appendChild(h("p", { class: "area-label" }, [t("decisions.autonomy")]));
+    root.appendChild(h("p", { class: "area-label" }, [t("decisions.how")]));
+    var groups = dec.groups;
+    if (!groups) {
+      root.appendChild(h("p", { class: "empty-note" }, [bi(dec.unknown_ru, dec.unknown_en) || t("decisions.unknown")]));
+      return;
     }
-    var ul = h("ul", { class: "plain-list" });
-    items.forEach(function (d) {
-      var li = h("li", {});
-      li.appendChild(h("div", { class: "resolved-title" }, [d.title || d.id]));
-      li.appendChild(kv("decisions.fields.owner_answer", d.owner_answer));
-      li.appendChild(kv("decisions.fields.answered_at", d.answered_at));
-      ul.appendChild(li);
+    DECISION_GROUPS.forEach(function (pair) {
+      var key = pair[0];
+      var titleKey = pair[1];
+      var items = groups[key] || [];
+      var sec = h("section", { class: "card" });
+      sec.appendChild(h("h2", { class: "card-title" }, [t(titleKey) + " · " + items.length]));
+      if (items.length) {
+        var list = h("div", { class: "decision-list" });
+        items.forEach(function (d) {
+          if (key === "answered") list.appendChild(renderAnsweredItem(d));
+          else if (key === "accepted") list.appendChild(renderAcceptedItem(d));
+          else list.appendChild(renderDecisionItem(d));
+        });
+        sec.appendChild(list);
+      }
+      root.appendChild(sec);
     });
-    c.appendChild(ul);
-    return c;
-  }
-
-  // ── SYSTEM ─────────────────────────────────────────────────────────────────────────────
-  function renderSystem(root, model) {
-    var sys = model.system || {};
-    var grid = h("div", { class: "grid" });
-    grid.appendChild(renderSystemResources(sys.resources));
-    grid.appendChild(renderHeavyJobsCard(sys.heavy_jobs));
-    grid.appendChild(renderCleanupCard(sys.cleanup));
-    grid.appendChild(renderBackupsCard(sys.backups));
-    grid.appendChild(renderCodeCard(sys.code));
-    grid.appendChild(renderServicesCard(sys.services));
-    grid.appendChild(renderAgentsCard(sys.agents, "studio.agents.title"));
-    grid.appendChild(renderIncidentsCard(sys.incidents));
-    grid.appendChild(renderKillSwitchCard(sys.kill_switch, sys.derisk));
-    root.appendChild(grid);
-  }
-
-  function renderSystemResources(res) {
-    res = res || {};
-    var c = card(t("system.resources.title"), renderBadge(get(res, "_meta.state", null), isStaleGlobal()));
-    var disk = res.disk || {};
-    var mem = res.memory || {};
-    c.appendChild(kv("system.resources.disk", disk.free_gb));
-    c.appendChild(kv("system.resources.memory", mem.pressure_level));
-    c.appendChild(kv("system.resources.swap", mem.swap_used_pct));
-    var rss = res.rss_mb_by_class;
-    if (rss && typeof rss === "object") {
-      var row = h("div", { class: "chip-row" });
-      Object.keys(rss).forEach(function (k) {
-        row.appendChild(h("span", { class: "chip" }, [k + ": " + rss[k] + " MB"]));
-      });
-      c.appendChild(row);
-    } else {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-    }
-    c.appendChild(renderListField("system.resources.top_processes", res.top, function (p) {
-      return (p.name || "?") + " · " + (p.class || "?") + " · " + (p.rss_mb !== null && p.rss_mb !== undefined ? p.rss_mb + " MB" : t("common.not_measured"));
-    }));
-    return c;
-  }
-
-  function renderHeavyJobsCard(leases) {
-    var c = card(t("system.heavy_jobs.title"));
-    if (leases === null || leases === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-    } else if (!Array.isArray(leases) || leases.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-    } else {
-      var ul = h("ul", { class: "plain-list" });
-      leases.forEach(function (l) {
-        ul.appendChild(h("li", {}, [(l.kind || "?") + " · " + (l.tree || "?") + " · " + (l.since || "?")]));
-      });
-      c.appendChild(ul);
-    }
-    return c;
-  }
-
-  function renderCleanupCard(cleanup) {
-    cleanup = cleanup || {};
-    var c = card(t("system.cleanup.title"), renderBadge(get(cleanup, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(kv("system.cleanup.last_run", cleanup.last_run));
-    c.appendChild(kv("system.cleanup.removed", cleanup.removed_logged));
-    c.appendChild(kv("system.cleanup.gb", cleanup.gb_logged));
-    return c;
-  }
-
-  function renderBackupsCard(b) {
-    b = b || {};
-    var c = card(t("system.backups.title"), renderBadge(get(b, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(kv("system.backups.last_local", b.last_local_archive));
-    c.appendChild(kv("system.backups.offsite_verified", b.offsite_verified));
-    c.appendChild(kv("system.backups.offsite_real_remote", b.offsite_is_real_remote));
-    c.appendChild(kv("system.backups.restore_drill", b.restore_drill));
-    if (b.note) c.appendChild(h("p", { class: "note" }, [b.note]));
-    return c;
-  }
-
-  function renderCodeCard(code) {
-    code = code || {};
-    var c = card(t("system.code.title"), renderBadge(get(code, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(kv("system.code.production_commit", code.production_commit));
-    c.appendChild(kv("system.code.sync_result", code.sync_result));
-    c.appendChild(kv("system.code.deployment_acceptance", code.deployment_acceptance));
-    c.appendChild(kv("system.code.approved_release", code.approved_release));
-    return c;
-  }
-
-  function renderServicesCard(services) {
-    services = services || {};
-    var c = card(t("system.services.title"), renderBadge(get(services, "_meta.state", null), isStaleGlobal()));
-    var items = services.items;
-    if (items === null || items === undefined) {
-      c.appendChild(h("p", {}, [t("common.not_measured")]));
-    } else if (!Array.isArray(items) || items.length === 0) {
-      c.appendChild(h("p", {}, [t("common.none")]));
-    } else {
-      var ul = h("ul", { class: "plain-list" });
-      items.forEach(function (s) {
-        ul.appendChild(h("li", {}, [(s.name || "?") + " — " + (s.running ? t("common.yes") : t("common.no"))]));
-      });
-      c.appendChild(ul);
-    }
-    return c;
-  }
-
-  function renderIncidentsCard(inc) {
-    inc = inc || {};
-    var c = card(t("system.incidents.title"), renderBadge(get(inc, "_meta.state", null), isStaleGlobal()));
-    c.appendChild(renderListField("system.incidents.title", inc.open, function (it) {
-      return (it.event || "?") + " · " + (it.since || "?");
-    }));
-    return c;
-  }
-
-  function renderKillSwitchCard(ks, derisk) {
-    var c = card(t("system.kill_switch.title"));
-    var stale = isStaleGlobal();
-    var label, cls;
-    if (ks === true) { label = t("system.kill_switch.on"); cls = "badge--alert"; }
-    else if (ks === false && !stale) { label = t("system.kill_switch.off"); cls = "badge--ok"; }
-    else if (ks === false) { label = t("system.kill_switch.off") + " · " + t("vocab.health.STALE"); cls = "badge--warn"; }
-    else { label = t("system.kill_switch.unknown"); cls = "badge--unknown"; }
-    c.appendChild(h("span", { class: "badge " + cls }, [label]));
-    var dl, dc;
-    if (derisk === true) { dl = t("system.derisk.on"); dc = "badge--warn"; }
-    else if (derisk === false) { dl = t("system.derisk.off"); dc = stale ? "badge--warn" : "badge--ok"; }
-    else { dl = t("system.derisk.unknown"); dc = "badge--unknown"; }
-    c.appendChild(h("div", { class: "kv-row" }, [h("span", { class: "k" }, [t("system.derisk.title")]),
-      h("span", { class: "badge " + dc }, [dl])]));
-    return c;
   }
 
   // ── top-level render ───────────────────────────────────────────────────────────────────
@@ -1149,18 +1378,23 @@
     if (!container) return;
     clear(container);
     if (fetchFailed || !currentModel) {
-      container.appendChild(h("p", { class: "empty-note" }, [t("status.no_connection")]));
+      container.appendChild(h("p", { class: "empty-note" }, [t("header.no_connection")]));
       return;
     }
-    if (area === "overview") renderOverview(container, currentModel);
-    else if (area === "capital") renderCapital(container, currentModel);
-    else if (area === "studio") renderStudio(container, currentModel);
-    else if (area === "decisions") renderDecisions(container, currentModel);
-    else if (area === "system") renderSystem(container, currentModel);
+    if (!get(currentModel, "truth", null)) {
+      container.appendChild(h("p", { class: "empty-note" }, [t("state.NOT_MEASURED")]));
+      return;
+    }
+    if (area === "home") renderHome(container);
+    else if (area === "capital") renderCapital(container);
+    else if (area === "studio") renderStudio(container);
+    else if (area === "product") renderProduct(container);
+    else if (area === "decisions") renderDecisions(container);
   }
 
   function renderAll() {
     renderHeaderStaticText();
+    renderMoneyChip();
     renderIntake();
     renderStatusStrip();
     renderNav();

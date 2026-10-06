@@ -1,0 +1,557 @@
+{
+  "_comment": "WP2 fixture for the frozen §2.0 cell shape (DIRECTOR_OS_V2_DESIGN.md). Two kinds of text travel in this bundle, and the renderer (app.js) treats them differently: (1) cell-level 'display_ru'/'display_en'/'unknown_ru'/'unknown_en' are ALREADY-COMPOSED sentences (WP1 builds these from the same copy deck, server-side, in Python) and are shown verbatim; (2) bare numeric/boolean/enum fields next to a 'state' are RAW, and app.js composes the visible sentence itself with the matching copy-deck template (tf()) — this is exactly how the deck's home.tile.*.value / capital.*.* / studio.*.* / product.*.* templates get used, so no UI sentence is invented outside the deck. Every card that is a 'cell' carries at least {state, as_of, canon, freshness}; MEASURED/MEASURED_ZERO render the composed value, anything else (NOT_MEASURED/STALE/CORRUPT/NOT_ENOUGH_HISTORY) renders the *_unknown* text instead and is never shown green.",
+  "schema": "company-truth/1",
+  "computed_at": "2026-10-05T14:30:18Z",
+  "home": {
+    "strip": [
+      {
+        "key": "system",
+        "metric_type": "READINESS",
+        "state": "MEASURED",
+        "display_ru": "в норме 86 из 92 · авария: novel_edge_rnd (исследование новых идей) · предупреждений 2",
+        "display_en": "86 of 92 OK · critical: novel_edge_rnd (novel-edge research) · 2 warning",
+        "as_of": "2026-10-05T14:28:00Z",
+        "canon": "data/agent_health.json",
+        "freshness": {"age_min": 2, "stale_after_min": 180, "rule": "declared:manifest"},
+        "unknown_ru": "Состояние агентов не измерено — отчёт сторожа не прочитан или устарел",
+        "unknown_en": "Agent state not measured — guard report unreadable or stale",
+        "link_area": "studio"
+      },
+      {
+        "key": "yield",
+        "metric_type": "REALIZED_PAPER",
+        "state": "MEASURED",
+        "display_ru": "Консервативный: 4,9 % годовых · худшая просадка −0,04 % · 104 дня (бумага). Копится: Сбалансированный 4 из 30, Агрессивный 4 из 30.",
+        "display_en": "Conservative: 4.9% a year · worst drawdown −0.04% · 104 days (paper). Accumulating: Balanced 4 of 30, Aggressive 4 of 30.",
+        "as_of": "2026-10-05T08:05:00Z",
+        "canon": "spa_core.reporting.compound_apy.compound_annualized_pct(data/equity_curve_daily.json)",
+        "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:cycle_runner.DAILY_CYCLE_HOUR"},
+        "unknown_ru": "Доходность не измерена — дневной цикл не записал кривую капитала",
+        "unknown_en": "Yield not measured — daily cycle wrote no equity curve",
+        "link_area": "capital"
+      },
+      {
+        "key": "product",
+        "metric_type": "READINESS",
+        "state": "MEASURED",
+        "display_ru": "свежо: да · сайт: данные от 01.10, опубликовано 01.10",
+        "display_en": "fresh: yes · site: data as of 01.10, published 01.10",
+        "as_of": "2026-10-05T06:00:00Z",
+        "canon": "data/site_freshness_report.json",
+        "freshness": {"age_min": 510, "stale_after_min": 1440, "rule": "declared:site_freshness_monitor.STALE_AFTER_MIN"},
+        "unknown_ru": "Свежесть сайта не измерена — отчёт сторожа сайта не прочитан",
+        "unknown_en": "Site freshness not measured — site guard report unreadable",
+        "link_area": "product"
+      },
+      {
+        "key": "claude",
+        "metric_type": "OPERATIONAL",
+        "state": "MEASURED",
+        "display_ru": "RM-TRUTH-01 · карточка «Director OS v2 — мобильный интерфейс владельца» · стадия: результат в git · блокер: нет",
+        "display_en": "RM-TRUTH-01 · card «Director OS v2 — owner mobile UI» · stage: artifact in git · blocker: none",
+        "as_of": "2026-10-05T16:40:00Z",
+        "canon": "data/session_changes.jsonl",
+        "freshness": {"age_min": 1, "stale_after_min": null, "rule": "fallback"},
+        "unknown_ru": "Неизвестно, что делает Claude — журнал объявлений не прочитан",
+        "unknown_en": "Unknown what Claude is doing — announcement log unreadable",
+        "link_area": "studio"
+      },
+      {
+        "key": "needs",
+        "metric_type": "DECISION",
+        "state": "MEASURED",
+        "display_ru": "ждёт решения: 11 (у 11 тема не объявлена) · ваших вопросов: 0 · отвечено, едет в git: 2",
+        "display_en": "awaiting your decision: 11 (11 without a declared subject) · your questions: 0 · answered, on its way to git: 2",
+        "as_of": "2026-10-05T16:10:00Z",
+        "canon": "nimbalyst-local/tracker/ via scripts/orchestrator_queue.py",
+        "freshness": {"age_min": 20, "stale_after_min": 90, "rule": "declared:MIRROR_STALE_MIN"},
+        "unknown_ru": "Очередь решений не измерена — трекер не прочитан",
+        "unknown_en": "Decision queue not measured — tracker unreadable",
+        "link_area": "decisions"
+      }
+    ],
+    "money_chip": {
+      "state": "MEASURED",
+      "usd": 0,
+      "unknown_ru": "Реальные деньги: не измерено",
+      "unknown_en": "Real money: not measured"
+    },
+    "attention": [
+      {"key": "same_host", "kind": "same_host", "link_area": "studio"},
+      {"key": "old_owner_item", "kind": "old_owner_item", "days": 9, "title_ru": "Добавить ключ Etherscan на сервер", "title_en": "Add the Etherscan key on the server", "link_area": "decisions"}
+    ]
+  },
+  "capital": {
+    "defi": {
+      "books": {
+        "conservative": {
+          "metric_type": "REALIZED_PAPER",
+          "state": "MEASURED",
+          "rate_ru": "4,9 %", "rate_en": "4.9%",
+          "dd_ru": "−0,04 %", "dd_en": "−0.04%",
+          "evidenced_days": 104,
+          "as_of": "2026-10-05T08:05:00Z",
+          "canon": "spa_core.reporting.compound_apy over data/equity_curve_daily.json",
+          "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:cycle_runner.DAILY_CYCLE_HOUR"},
+          "unknown_ru": "Книга не прочитана — состояние неизвестно",
+          "unknown_en": "Book unreadable — state unknown"
+        },
+        "balanced": {
+          "metric_type": "NOT_ENOUGH_HISTORY",
+          "state": "NOT_ENOUGH_HISTORY",
+          "accumulating_days": 4,
+          "as_of": "2026-10-05T08:05:00Z",
+          "canon": "spa_core.paper_trading.sleeve_track.sleeve_track_view over data/hy_paper_trading.json",
+          "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:cycle_runner.DAILY_CYCLE_HOUR"},
+          "unknown_ru": "Книга не прочитана — состояние неизвестно",
+          "unknown_en": "Book unreadable — state unknown"
+        },
+        "aggressive": {
+          "metric_type": "NOT_ENOUGH_HISTORY",
+          "state": "NOT_ENOUGH_HISTORY",
+          "accumulating_days": 4,
+          "as_of": "2026-10-05T08:05:00Z",
+          "canon": "spa_core.paper_trading.sleeve_track.sleeve_track_view over data/lp_paper_trading.json",
+          "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:cycle_runner.DAILY_CYCLE_HOUR"},
+          "unknown_ru": "Книга не прочитана — состояние неизвестно",
+          "unknown_en": "Book unreadable — state unknown"
+        }
+      },
+      "targets": {
+        "metric_type": "TARGET",
+        "state": "MEASURED",
+        "display_ru": "Консервативный 6 % · Сбалансированный 12 % · Агрессивный 20 %",
+        "display_en": "Conservative 6% · Balanced 12% · Aggressive 20%",
+        "as_of": "2026-09-10T00:00:00Z",
+        "canon": "landing/src/lib/tier_bands.json",
+        "freshness": {"age_min": null, "stale_after_min": null, "rule": "fallback"},
+        "unknown_ru": "Ориентир не записан",
+        "unknown_en": "Target not recorded"
+      }
+    },
+    "trading_lab": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "candidates": 138,
+      "forward": 5,
+      "champions": 0,
+      "chain_ok": true,
+      "as_of": "2026-10-05T13:00:00Z",
+      "canon": "spa_core.trading_research.read_model.trading_lab_view(data/trading_research)",
+      "freshness": {"age_min": 90, "stale_after_min": 120, "rule": "declared:STALE_AFTER_H"},
+      "unknown_ru": "Лаборатория не измерена — статус движка не прочитан",
+      "unknown_en": "Lab not measured — engine status unreadable"
+    },
+    "btc": {
+      "metric_type": "OBSERVED",
+      "state": "MEASURED",
+      "display_ru": "Консенсус сигналов по таймфреймам: 1ч нейтрально, 4ч лонг, 1д нейтрально",
+      "display_en": "Signal consensus by timeframe: 1h neutral, 4h long, 1d neutral",
+      "no_canon": true,
+      "external_product": true,
+      "as_of": "2026-10-05T14:00:00Z",
+      "canon": "trading_lab_view.btc_signal_consensus_by_timeframe",
+      "freshness": {"age_min": 30, "stale_after_min": 120, "rule": "declared:STALE_AFTER_H"},
+      "unknown_ru": "BTC-сигнал не измерен",
+      "unknown_en": "BTC signal not measured"
+    },
+    "basis": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "display_ru": "кандидатов по комиссионному захвату: 40, все «недостаточно данных»",
+      "display_en": "funding-capture candidates: 40, all 'data insufficient'",
+      "fees_blocked": true,
+      "as_of": "2026-10-04T12:00:00Z",
+      "canon": "spa_core.research_factory.read.latest → research_universe.by_mechanism.FUNDING_CAPTURE",
+      "freshness": {"age_min": 1560, "stale_after_min": 1560, "rule": "declared:CIO_READ_MODEL_MAX_AGE_H"},
+      "unknown_ru": "Фабрика исследований ещё не запускалась",
+      "unknown_en": "Research factory has not run yet"
+    },
+    "treasury_rwa": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "reference_periods": 0,
+      "cash_usd": 100000,
+      "as_of": "2026-10-05T08:05:00Z",
+      "canon": "research_universe (USYC/OUSG/USDY/BUIDL) + data/current_positions.json",
+      "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "fallback"},
+      "unknown_ru": "Нет данных по казначейству",
+      "unknown_en": "No treasury data"
+    },
+    "sherlock": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "usable": 43,
+      "total": 56,
+      "awaiting_review": 13,
+      "as_of": "2026-10-05T09:00:00Z",
+      "canon": "research_universe.sherlock (research_evidence, ADR-564)",
+      "freshness": {"age_min": null, "stale_after_min": null, "rule": "fallback"},
+      "unknown_ru": "Реестр фактов не прочитан",
+      "unknown_en": "Fact registry unreadable"
+    },
+    "oracle": {
+      "metric_type": "DECISION",
+      "state": "MEASURED",
+      "stance": "INSUFFICIENT_EVIDENCE",
+      "as_of": "2026-10-01T00:00:00Z",
+      "canon": "spa_core.investment_cio.read.latest(Path('data'))",
+      "freshness": {"age_min": 6240, "stale_after_min": 108000, "rule": "declared:contract"},
+      "unknown_ru": "Рекомендаций ещё не было",
+      "unknown_en": "No recommendation yet"
+    },
+    "readiness": {
+      "metric_type": "READINESS",
+      "state": "MEASURED",
+      "ready": false,
+      "conditions_open": 4,
+      "inventory_passed": 29,
+      "inventory_total": 29,
+      "as_of": "2026-10-05T08:05:00Z",
+      "canon": "spa_core.studio_os.readiness_scopes → INVESTMENT_ENGINE_READINESS + capital_shadow.read.latest",
+      "freshness": {"age_min": 385, "stale_after_min": 1440, "rule": "declared:execution_readiness"},
+      "unknown_ru": "Готовность не измерена — деньги не трогать",
+      "unknown_en": "Readiness not measured — do not touch money",
+      "blockers": [
+        {"ru": "custody: не выбран хранитель", "en": "custody: no custodian selected"},
+        {"ru": "режим исполнения: paper, не live", "en": "execution mode: paper, not live"}
+      ]
+    }
+  },
+  "studio": {
+    "claude_work": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "epic": "RM-TRUTH-01",
+      "sessions_announced": 1,
+      "sessions_undeclared": 2,
+      "card_title_ru": "Director OS v2 — мобильный интерфейс владельца",
+      "card_title_en": "Director OS v2 — owner mobile UI",
+      "stage_key": "ARTIFACT",
+      "blocker_ru": null,
+      "blocker_en": null,
+      "next_step_ru": null,
+      "next_stage_key": "REVIEW",
+      "as_of": "2026-10-05T16:40:00Z",
+      "canon": "data/session_changes.jsonl",
+      "freshness": {"age_min": 1, "stale_after_min": null, "rule": "fallback"},
+      "unknown_ru": "Неизвестно, что делает Claude — журнал объявлений не прочитан",
+      "unknown_en": "Unknown what Claude is doing — announcement log unreadable"
+    },
+    "roadmap": {
+      "metric_type": "DECISION",
+      "state": "MEASURED",
+      "display_ru": "RM-TRUTH-01 — в работе",
+      "display_en": "RM-TRUTH-01 — in progress",
+      "confirmed_date": "02.10",
+      "as_of": "2026-10-05T12:00:00Z",
+      "canon": "docs/ROADMAP.md via _roadmap(mirror)",
+      "freshness": {"age_min": 60, "stale_after_min": 90, "rule": "declared:MIRROR_STALE_MIN"},
+      "unknown_ru": "Дорожная карта не прочитана",
+      "unknown_en": "Roadmap unreadable"
+    },
+    "tasks": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "queued": 14,
+      "in_progress": 37,
+      "in_progress_stale": 33,
+      "blocked": 5,
+      "as_of": "2026-10-05T12:00:00Z",
+      "canon": "spa_core.studio_os.build_loop.board(tdir) + orphan_report.stale_in_progress",
+      "freshness": {"age_min": 60, "stale_after_min": 90, "rule": "declared:MIRROR_STALE_MIN"},
+      "unknown_ru": "Доска задач не прочитана",
+      "unknown_en": "Task board unreadable"
+    },
+    "fleet": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "ok": 86,
+      "declared": 92,
+      "as_of": "2026-10-05T14:28:00Z",
+      "canon": "architecture/manifest.json + launchctl + data/agent_health.json",
+      "freshness": {"age_min": 2, "stale_after_min": 180, "rule": "declared:manifest"},
+      "unknown_ru": "Состав флота не измерен",
+      "unknown_en": "Fleet composition not measured",
+      "types": {
+        "runtime_services": {"loaded": 9, "declared": 9, "ok": true},
+        "managed_agents": {"loaded": 82, "declared": 83, "ok": false},
+        "configured_roles": {"n": 3, "ok": true},
+        "active_workers": {"a": 1, "u": 2, "ok": true},
+        "retired_loaded": {"n": 0, "ok": true},
+        "unknown_orphans": {"n": 3, "ok": false}
+      },
+      "failing": [
+        {"name_ru": "novel_edge_rnd — исследование новых идей", "name_en": "novel_edge_rnd — novel-edge research"}
+      ]
+    },
+    "incidents": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "open": 1,
+      "as_of": "2026-10-05T15:00:00Z",
+      "canon": "data/telegram/push_state.json",
+      "freshness": {"age_min": 90, "stale_after_min": null, "rule": "fallback"},
+      "unknown_ru": "Состояние тревог не прочитано",
+      "unknown_en": "Alert state unreadable",
+      "items": [
+        {"title_ru": null, "title_en": null, "since_ru": "с 05.10", "since_en": "since 05.10"}
+      ]
+    },
+    "problems": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "open": 2,
+      "mitigated": 1,
+      "closed": 4,
+      "as_of": "2026-10-05T14:00:00Z",
+      "canon": "spa_core.monitoring.problem_store.load_store(data/problems.json)",
+      "freshness": {"age_min": 30, "stale_after_min": 180, "rule": "declared:agent_health_monitor"},
+      "unknown_ru": "Реестр проблем ещё не запущен",
+      "unknown_en": "Problem store not running yet",
+      "items": [
+        {"agent_ru": "novel_edge_rnd", "cause_ru": "падает при старте: модуль не найден", "cause_en": "crashes at start: module not found", "occurrences": 6, "rca": true}
+      ]
+    },
+    "self_heal": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "display_ru": "последний прогон: 05.10 · перезапущено: 1 · неудач: 0",
+      "display_en": "last run: 05.10 · restarted: 1 · failures: 0",
+      "as_of": "2026-10-05T14:00:00Z",
+      "canon": "data/self_heal_status.json",
+      "freshness": {"age_min": 30, "stale_after_min": 180, "rule": "fallback"},
+      "unknown_ru": "Самовосстановление не измерено",
+      "unknown_en": "Self-heal not measured"
+    },
+    "releases": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "in_prod_ok": true,
+      "today": 6,
+      "as_of": "2026-10-05T14:00:00Z",
+      "canon": "release_feed (git origin via mirror) + system.code",
+      "freshness": {"age_min": 30, "stale_after_min": 120, "rule": "declared:code_sync_status"},
+      "unknown_ru": "Неизвестно, что сейчас в проде",
+      "unknown_en": "Unknown what runs in production"
+    },
+    "memory": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "lag": 0,
+      "as_of": "2026-10-05T13:00:00Z",
+      "canon": "architecture/memory_truth.json + data/memory/index.db",
+      "freshness": {"age_min": 90, "stale_after_min": null, "rule": "fallback"},
+      "unknown_ru": "Индекс памяти не прочитан",
+      "unknown_en": "Memory index unreadable"
+    },
+    "backups": {
+      "local": {
+        "metric_type": "OPERATIONAL",
+        "state": "MEASURED",
+        "age_ru": "6 ч", "age_en": "6 h",
+        "as_of": "2026-10-05T08:30:00Z",
+        "canon": "data/backups/spa_state_*.tar.gz (mtime)",
+        "freshness": {"age_min": 360, "stale_after_min": 1800, "rule": "declared:local_backup"},
+        "unknown_ru": "Бэкап не измерен",
+        "unknown_en": "Backup not measured"
+      },
+      "off_host": {
+        "metric_type": "OPERATIONAL",
+        "state": "MEASURED_ZERO",
+        "is_real_remote": false,
+        "as_of": "2026-10-05T08:30:00Z",
+        "canon": "data/dr_offsite_status.json",
+        "freshness": {"age_min": 360, "stale_after_min": 1800, "rule": "declared:local_backup"},
+        "unknown_ru": "Бэкап не измерен",
+        "unknown_en": "Backup not measured"
+      },
+      "recovery": {
+        "metric_type": "OPERATIONAL",
+        "state": "STALE",
+        "drill_result": "STALE",
+        "date": "20.09",
+        "as_of": "2026-09-20T00:00:00Z",
+        "canon": "data/resilience_status.json.restore_drill",
+        "freshness": {"age_min": 15840, "stale_after_min": 10080, "rule": "declared:restore_drill"},
+        "unknown_ru": "Проверка восстановления устарела",
+        "unknown_en": "Recovery test is stale"
+      }
+    },
+    "scopes": [
+      {"key": "INVESTMENT_ENGINE_READINESS", "status": "NOT_READY", "reason_ru": "custody и режим исполнения не готовы", "reason_en": "custody and execution mode not ready", "as_of": "2026-10-05T08:05:00Z", "blocks_ru": "переход на реальные деньги", "blocks_en": "moving to real money", "does_not_block_ru": "бумажную торговлю", "does_not_block_en": "paper trading"},
+      {"key": "STUDIO_OS_HEALTH", "status": "OK", "reason_ru": "86 из 92 агентов в норме", "reason_en": "86 of 92 agents OK", "as_of": "2026-10-05T14:28:00Z", "blocks_ru": null, "blocks_en": null, "does_not_block_ru": null, "does_not_block_en": null},
+      {"key": "PRODUCT_DATA_HEALTH", "status": "OK", "reason_ru": "учёт трека сходится сам с собой", "reason_en": "track bookkeeping agrees with itself", "as_of": "2026-10-05T08:05:00Z", "blocks_ru": null, "blocks_en": null, "does_not_block_ru": null, "does_not_block_en": null},
+      {"key": "PUBLICATION_HEALTH", "status": "OK", "reason_ru": "сайт свежий и честный", "reason_en": "site is fresh and honest", "as_of": "2026-10-05T06:00:00Z", "blocks_ru": null, "blocks_en": null, "does_not_block_ru": null, "does_not_block_en": null},
+      {"key": "OWNER_CONTROL_HEALTH", "status": "OK", "reason_ru": "бот и кнопки отвечают", "reason_en": "bot and buttons respond", "as_of": "2026-10-05T16:00:00Z", "blocks_ru": null, "blocks_en": null, "does_not_block_ru": null, "does_not_block_en": null},
+      {"key": "PUBLIC_SURFACE", "status": "OK", "reason_ru": "сайт не обещает то, чего нет", "reason_en": "site promises nothing it hasn't earned", "as_of": "2026-10-05T06:00:00Z", "blocks_ru": null, "blocks_en": null, "does_not_block_ru": null, "does_not_block_en": null}
+    ],
+    "machine": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED",
+      "disk_free_gb": 412,
+      "as_of": "2026-10-05T16:20:00Z",
+      "canon": "system.resources + heavy_jobs + cleanup + services",
+      "freshness": {"age_min": 10, "stale_after_min": 20, "rule": "declared:resource_monitor"},
+      "unknown_ru": "Ресурсы не измерены",
+      "unknown_en": "Resources not measured"
+    }
+  },
+  "product": {
+    "public_release": {
+      "metric_type": "TIMESTAMP",
+      "state": "MEASURED",
+      "measured_ru": "01.10", "measured_en": "01.10",
+      "published_ru": "01.10", "published_en": "01.10",
+      "as_of": "2026-10-01T00:00:00Z",
+      "canon": "landing/src/data/site_numbers.json (origin)",
+      "freshness": {"age_min": null, "stale_after_min": null, "rule": "declared:weekly_cadence"},
+      "unknown_ru": "Неизвестно, что опубликовано",
+      "unknown_en": "Unknown what is published"
+    },
+    "website_health": {
+      "metric_type": "READINESS",
+      "state": "MEASURED",
+      "display_ru": "в норме",
+      "display_en": "OK",
+      "as_of": "2026-10-05T06:00:00Z",
+      "canon": "data/site_freshness_report.json",
+      "freshness": {"age_min": 510, "stale_after_min": 1440, "rule": "declared:site_freshness_monitor"},
+      "unknown_ru": "Свежесть сайта не измерена",
+      "unknown_en": "Site freshness not measured"
+    },
+    "profiles": {
+      "conservative": {
+        "metric_type": "REALIZED_PAPER",
+        "state": "MEASURED",
+        "rate_ru": "4,9 %", "rate_en": "4.9%",
+        "dd_ru": "−0,04 %", "dd_en": "−0.04%",
+        "as_of": "2026-10-05T08:05:00Z",
+        "canon": "shelf packages.conservative",
+        "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:weekly"},
+        "unknown_ru": "Профиль не прочитан",
+        "unknown_en": "Profile unreadable"
+      },
+      "balanced": {
+        "metric_type": "NOT_ENOUGH_HISTORY",
+        "state": "NOT_ENOUGH_HISTORY",
+        "accumulating_days": 4,
+        "as_of": "2026-10-05T08:05:00Z",
+        "canon": "shelf packages.balanced",
+        "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:weekly"},
+        "unknown_ru": "Профиль не прочитан",
+        "unknown_en": "Profile unreadable"
+      },
+      "aggressive": {
+        "metric_type": "NOT_ENOUGH_HISTORY",
+        "state": "NOT_ENOUGH_HISTORY",
+        "accumulating_days": 4,
+        "as_of": "2026-10-05T08:05:00Z",
+        "canon": "shelf packages.aggressive",
+        "freshness": {"age_min": 385, "stale_after_min": 1560, "rule": "declared:weekly"},
+        "unknown_ru": "Профиль не прочитан",
+        "unknown_en": "Profile unreadable"
+      }
+    },
+    "public_metrics": [
+      {
+        "label_ru": "Доходность Conservative", "label_en": "Conservative yield",
+        "metric_type": "REALIZED_PAPER", "state": "MEASURED",
+        "value_ru": "4,9 %", "value_en": "4.9%", "date_ru": "01.10", "date_en": "01.10",
+        "as_of": "2026-10-01T00:00:00Z", "canon": "track_snapshot.paper_apy_pct",
+        "freshness": {"age_min": null, "stale_after_min": null, "rule": "declared:weekly_cadence"}
+      },
+      {
+        "label_ru": "Дней трека", "label_en": "Track days",
+        "metric_type": "COUNT", "state": "MEASURED",
+        "value_ru": "104", "value_en": "104", "date_ru": "01.10", "date_en": "01.10",
+        "as_of": "2026-10-01T00:00:00Z", "canon": "track_snapshot.real_track_days",
+        "freshness": {"age_min": null, "stale_after_min": null, "rule": "declared:weekly_cadence"}
+      }
+    ],
+    "truth_incidents": {
+      "metric_type": "OPERATIONAL",
+      "state": "MEASURED_ZERO",
+      "open": 0,
+      "as_of": "2026-10-05T06:00:00Z",
+      "canon": "problem_store SITE_PUBLICATION_FAMILY + typed_numbers ladder-conflict + PUBLIC_SURFACE",
+      "freshness": {"age_min": 510, "stale_after_min": 1440, "rule": "fallback"},
+      "unknown_ru": "Не измерено",
+      "unknown_en": "Not measured"
+    },
+    "backlog": {
+      "metric_type": "COUNT",
+      "state": "MEASURED",
+      "display_ru": "карточек: 7",
+      "display_en": "cards: 7",
+      "as_of": "2026-10-05T12:00:00Z",
+      "canon": "origin tracker, cards with declared domain/tags ∈ {site,landing,product,earn-defi}",
+      "freshness": {"age_min": 60, "stale_after_min": 90, "rule": "declared:MIRROR_STALE_MIN"},
+      "unknown_ru": "Бэклог не прочитан",
+      "unknown_en": "Backlog unreadable",
+      "top_titles_ru": ["Обновить FAQ по комиссиям", "Проверить RU-копию калькулятора"],
+      "top_titles_en": ["Update the fee FAQ", "Check the RU calculator copy"]
+    },
+    "next_release": {
+      "metric_type": "TIMESTAMP",
+      "state": "MEASURED",
+      "date_ru": "08.10", "date_en": "08.10",
+      "gate_ru": "да", "gate_en": "yes",
+      "as_of": "2026-10-05T12:00:00Z",
+      "canon": "shelf next_publication + C12 gate",
+      "freshness": {"age_min": 60, "stale_after_min": 10080, "rule": "declared:weekly_cadence"},
+      "unknown_ru": "Дата следующей публикации не записана",
+      "unknown_en": "Next publication date not recorded"
+    }
+  },
+  "decisions": {
+    "groups": {
+      "owner": [],
+      "undeclared": [
+        {
+          "id": "needs-owner-etherscan-key",
+          "title_ru": "Добавить ключ Etherscan на сервер",
+          "title_en": "Add the Etherscan key on the server",
+          "reason_ru": "Без ключа не работает проверка кошельков",
+          "reason_en": "Without the key, wallet verification does not work",
+          "action_ru": "Выдать ключ Etherscan и прислать его в Telegram",
+          "action_en": "Issue an Etherscan key and send it over Telegram",
+          "done_when_ru": "Проверка кошельков снова работает",
+          "done_when_en": "Wallet verification works again",
+          "age_days": 9,
+          "subject_key": null,
+          "telegram_link": "https://t.me/spa_owner_bot?start=card_needs-owner-etherscan-key"
+        }
+      ],
+      "answered": [
+        {
+          "id": "own-rnd-cdr-demotion",
+          "title_ru": "Понижать протокол при деградации",
+          "title_en": "Demote a protocol on degradation",
+          "owner_answer_ru": "Согласен, вариант A",
+          "owner_answer_en": "Agreed, option A",
+          "answered_at": "2026-10-03T10:00:00Z"
+        },
+        {
+          "id": "own-night-shift",
+          "title_ru": "Ночная смена без владельца",
+          "title_en": "Night shift without the owner",
+          "owner_answer_ru": "Да, продолжайте",
+          "owner_answer_en": "Yes, continue",
+          "answered_at": "2026-10-02T21:00:00Z"
+        }
+      ],
+      "accepted": [
+        {
+          "id": "own-three-tier-product",
+          "title_ru": "Трёхуровневый продукт",
+          "title_en": "Three-tier product",
+          "age_days": 3
+        }
+      ],
+      "prod_only": []
+    },
+    "unknown_ru": "Очередь решений не измерена — трекер не прочитан",
+    "unknown_en": "Decision queue not measured — tracker unreadable"
+  }
+}

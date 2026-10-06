@@ -1,0 +1,87 @@
+{
+  "schema": "studio-os/memory-aliases/1",
+  "note": "ADR-591 (RM-TRUTH-01 memory track, A5). Query-expansion aliases: RU/EN/superseded names for the SAME entity, OR-expanded by spa_core.studio_os.memory.index.concepts() exactly like the static GLOSSARY. `valid_to` marks a name the owner retired (ADR-554, 2026-10-04: 'Штирлиц' -> 'Oracle'); the name still matches OLD text that used it (so history stays retrievable), and `index.alias_groups()`/`concepts()` surface the supersession as `alias_note` so a caller can print 'ex-name, valid until <date>' instead of presenting the old name as current. A group with `ambiguous` is loaded but NEVER expanded (expanding it would trade a false negative for several false positives); 'Core' has three live meanings (Balanced-tier display name, the spa_core package, and 'core engine' as a colloquialism) and none of them was obviously the most common one to force.",
+  "groups": [
+    {
+      "canonical": "chief_investment_officer",
+      "names": [
+        {"name": "Oracle"},
+        {"name": "Оракул"},
+        {"name": "Штирлиц", "valid_to": "2026-10-04"},
+        {"name": "CIO"},
+        {"name": "СИО"},
+        {"name": "chief investment officer"}
+      ],
+      "evidence": ["spa:architecture/roles.json", "spa:docs/ROADMAP.md",
+                   "spa:docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md"]
+    },
+    {
+      "canonical": "head_of_research",
+      "names": [
+        {"name": "Sherlock"},
+        {"name": "Шерлок"},
+        {"name": "head of research"}
+      ],
+      "evidence": ["spa:architecture/roles.json", "spa:docs/decisions/ADR-564-research-evidence-and-paper-admission.md"]
+    },
+    {
+      "canonical": "chief_operating_officer",
+      "names": [
+        {"name": "Шурик"}
+      ],
+      "evidence": ["spa:architecture/roles.json"]
+    },
+    {
+      "canonical": "tier_preserve",
+      "names": [
+        {"name": "Preserve"},
+        {"name": "Conservative"},
+        {"name": "Консервативный"}
+      ],
+      "evidence": ["spa:docs/THREE_TIER_YIELD_PRODUCT.md"]
+    },
+    {
+      "canonical": "tier_core",
+      "names": [
+        {"name": "Core"}
+      ],
+      "ambiguous": "3 live meanings: the Balanced-tier display name, the spa_core package, and 'core engine' as a colloquialism — do not auto-expand",
+      "evidence": []
+    },
+    {
+      "canonical": "tier_aggressive",
+      "names": [
+        {"name": "Max Yield"},
+        {"name": "Aggressive"},
+        {"name": "Агрессивный"}
+      ],
+      "evidence": ["spa:docs/THREE_TIER_YIELD_PRODUCT.md"]
+    },
+    {
+      "canonical": "telegram",
+      "names": [
+        {"name": "Телеграм"},
+        {"name": "Telegram"}
+      ],
+      "evidence": ["spa:docs/decisions/ADR-521-telegram-owner-control-plane.md"]
+    },
+    {
+      "canonical": "mission_control",
+      "names": [
+        {"name": "Mission Control"},
+        {"name": "Мишн Контрол"}
+      ],
+      "evidence": ["spa:docs/decisions/ADR-552-owner-remote-mission-control-v1.md"]
+    },
+    {
+      "canonical": "bridge",
+      "names": [
+        {"name": "Bridge"},
+        {"name": "Мост"},
+        {"name": "Бридж"},
+        {"name": "com.studiobridge.telegram"}
+      ],
+      "evidence": []
+    }
+  ]
+}

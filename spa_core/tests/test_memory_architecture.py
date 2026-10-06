@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
 import subprocess
 import tarfile
+import time
 from pathlib import Path
 
 import pytest
@@ -269,3 +271,88 @@ def test_backup_bundles_verify_and_secrets_never_archived(tmp_path):
     assert s["ok"] and names == {"journal.jsonl", "x.db"}
     assert [x["file"] for x in s["skipped"]] == ["leak.json"]
     assert mb.bundle_repo("nope", tmp_path / "missing", store)["ok"] is False
+
+
+# ── index.build() tmp-file lifecycle (round-2 review, 2026-10-06) ──────────────────────────────
+# Before this fix, `build()` wrote into the single FIXED name `<path>.building`, shared by every
+# caller — the scheduled ensure-fresh step and an interactive `assembler.assemble()` auto-rebuild
+# could run around the same time and clobber each other's half-written sqlite file. The fix makes
+# the tmp name unique per process+call (pid + a random suffix); these tests do not actually race
+# two real processes (pytest has no primitive for that), they check the PROPERTY that makes the
+# race impossible — a unique name per call — plus the two concrete scenarios the review named:
+# "two sequential builds sharing a dir" and "an interrupted one leaving a stale tmp".
+def _empty_roots(tmp_path: Path, monkeypatch) -> None:
+    """Every source root points at a directory that does not exist — `build()` indexes zero
+    files, so the scene below runs in milliseconds and the test is about the tmp-file dance, not
+    about memory content."""
+    for name in ("spa", "bridge", "earndefi", "company", "claude", "shadow"):
+        monkeypatch.setenv(f"SPA_MEMORY_ROOT_{name.upper()}", str(tmp_path / f"absent_{name}"))
+
+
+def test_build_tmp_name_embeds_the_pid_not_the_old_shared_fixed_name(tmp_path, monkeypatch):
+    _empty_roots(tmp_path, monkeypatch)
+    path = tmp_path / "index.db"
+    seen = []
+    orig_connect = sqlite3.connect
+
+    def spy(name, *a, **kw):
+        seen.append(name)
+        return orig_connect(name, *a, **kw)
+
+    monkeypatch.setattr(sqlite3, "connect", spy)
+    index.build(path)
+    assert len(seen) == 1
+    tmp_name = Path(seen[0]).name
+    assert tmp_name.startswith("index.db.building.")
+    assert str(os.getpid()) in tmp_name
+    assert tmp_name != path.with_suffix(".building").name  # the OLD name every caller used to share
+
+
+def test_two_sequential_builds_sharing_a_dir_do_not_corrupt_each_other(tmp_path, monkeypatch):
+    """The round-2 review's own phrasing: "simulate with two sequential builds sharing a dir"."""
+    _empty_roots(tmp_path, monkeypatch)
+    path = tmp_path / "index.db"
+    a = index.build(path)
+    assert not list(path.parent.glob(f"{path.name}.building.*"))  # no leftover after a clean build
+    b = index.build(path)
+    assert path.is_file()
+    assert a["sources_digest"] == b["sources_digest"] and a["chunks"] == b["chunks"] == 0
+    assert not list(path.parent.glob(f"{path.name}.building.*"))
+
+
+def test_interrupted_build_leaves_a_stale_tmp_the_next_build_ignores(tmp_path, monkeypatch):
+    """A crashed process's tmp file (a half-written sqlite file, same shape as this one) has its
+    OWN unique name — nothing else will ever claim it — so it must neither block nor be silently
+    swept by a build that is itself still fresh enough to plausibly be in progress."""
+    _empty_roots(tmp_path, monkeypatch)
+    path = tmp_path / "index.db"
+    stale = path.parent / f"{path.name}.building.999999.deadbeef"
+    stale.write_bytes(b"not a real sqlite file")
+    man = index.build(path)
+    assert path.is_file() and man["chunks"] == 0
+    assert stale.is_file()  # fresh enough to be left alone (see _ABANDONED_TMP_MIN_AGE_S)
+
+
+def test_abandoned_stale_tmp_past_the_sweep_age_is_cleaned_up_not_accumulated(tmp_path, monkeypatch):
+    _empty_roots(tmp_path, monkeypatch)
+    path = tmp_path / "index.db"
+    stale = path.parent / f"{path.name}.building.999999.deadbeef"
+    stale.write_bytes(b"not a real sqlite file")
+    old = time.time() - index._ABANDONED_TMP_MIN_AGE_S - 60
+    os.utime(stale, (old, old))
+    index.build(path)
+    assert not stale.exists()
+
+
+def test_a_build_that_raises_discards_its_own_tmp_file(tmp_path, monkeypatch):
+    _empty_roots(tmp_path, monkeypatch)
+    path = tmp_path / "index.db"
+
+    def boom(*a, **kw):
+        raise RuntimeError("synthetic failure mid-build")
+
+    monkeypatch.setattr(index, "_build_into", boom)
+    with pytest.raises(RuntimeError):
+        index.build(path)
+    assert not path.exists()
+    assert not list(path.parent.glob(f"{path.name}.building.*"))

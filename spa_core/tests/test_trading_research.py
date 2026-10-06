@@ -296,6 +296,168 @@ def test_the_shortlist_drops_the_same_trade_twice():
     assert [p["id"] for p in rk.shortlist(res, quals)] == ["a", "c"]
 
 
+# ── ADR-590 (RM-TRUTH-01 C1) fix A: forward_observations is the real COUNT(*), never +1 ─────────
+def test_forward_observations_is_the_true_count_not_the_seeded_metrics_bars(tmp_path):
+    """forward.forward_metrics() prepends a synthetic equity=1.0 seed point before evaluate(), so
+    its `bars` is always len(observations)+1. The positive control here is: if write_status still
+    published that `bars` value as the observation count, this assertion would fail — proving the
+    fix matters, not just that the new field exists."""
+    c = ev.connect(tmp_path / "e.db")
+    cid = "cand1"
+    ev.register(c, cid, "h1", {"family": "x", "timeframe": "1D", "exec_model": "spot_long"},
+               now_ms=T0, code_version="v")
+    for frm, to in ((None, "DISCOVERED"), ("DISCOVERED", "BACKTESTING"),
+                    ("BACKTESTING", "BACKTEST_QUALIFIED"), ("BACKTEST_QUALIFIED", "FORWARD_PAPER")):
+        ev.append_event(c, cid, frm, to, "r", {}, actor="t", now_ms=T0)
+    for i in range(5):
+        ev.append_observation(c, _obs(cid=cid, t=T0 + i * HOUR_MS, eq=1.0 + 0.001 * i))
+    c.commit()
+    true_count = ev.observation_count(c, cid)
+    fm_bars = fw.forward_metrics(c, cid, "1D").get("bars")
+    assert true_count == 5
+    assert fm_bars == true_count + 1                           # the old, wrong, seeded number
+    assert true_count != fm_bars                                # positive control: they must differ
+
+    res = {"manifest": {"bars_1h": 1, "gaps_1h": 0, "generated_at_ms": T0},
+           "results": [{"id": cid, "definition": {"timeframe": "1D"},
+                       "out_of_sample": {"sharpe": 0.9, "max_drawdown": -0.2},
+                       "full": {"max_drawdown": -0.3}}]}
+    quals = [{"id": cid, "score": 0.9, "qualified": True, "rejections": []}]
+    status = fw.write_status(c, None, res, quals, [{"id": cid, "score": 0.9}], {"1D": {}},
+                             now_ms=T0 + 10 * HOUR_MS, code="v", release=None)
+    assert status["shortlist"][0]["forward_observations"] == true_count
+    assert status["forward_candidates"][0]["forward_observations"] == true_count
+    assert "forward_bars" not in status["shortlist"][0]
+    assert "forward_bars" not in status["forward_candidates"][0]
+
+
+# ── ADR-590 fix B: OOS end is frozen at forward_start, never grows with the daily refresh ───────
+def test_oos_end_ms_excludes_bars_at_or_after_the_freeze_point(monkeypatch):
+    bars = synth(3000, t0=T0)
+    cand = st.registry()[0]
+    cutoff = bars[2000].open_time
+    oos_start = bars[1000].open_time
+    monkeypatch.setattr(fw.bt, "OOS_START_MS", oos_start)
+    frozen = fw.bt.run_candidate(cand, bars, oos_end_ms=cutoff)
+    open_ended = fw.bt.run_candidate(cand, bars, oos_end_ms=None)
+    assert frozen["out_of_sample"]["bars"] == 1000             # [bar 1000, bar 2000) exclusive
+    assert open_ended["out_of_sample"]["bars"] == 2000          # [bar 1000, end]
+    assert frozen["post_registration"]["bars"] == 1000          # [bar 2000, end] — diagnostic only
+    # positive control: contamination is not a no-op — including the post-registration bars
+    # measurably changes the OOS Sharpe the ROBUST comparison and q_oos_sharpe gate would see
+    assert frozen["out_of_sample"]["sharpe"] != open_ended["out_of_sample"]["sharpe"]
+    assert open_ended["post_registration"] == {"bars": 0, "measured": False}
+
+
+def test_run_all_freezes_oos_at_min_registered_at_ms(tmp_path, monkeypatch):
+    monkeypatch.setenv("SPA_TRADING_DATA_DIR", str(tmp_path))
+    bars = synth(6000, t0=md.FIRST_1H_MS)
+    ex = FakeExchange(bars)
+    one = [c for c in st.registry() if c.timeframe == "1h" and c.exec_model == "spot_long"][:2]
+    monkeypatch.setattr(fw, "registry", lambda: one)
+    monkeypatch.setattr(fw, "by_id", lambda: {c.id: c for c in one})
+    monkeypatch.setattr(fw.bt, "registry", lambda: one)
+    reg_at = bars[5000].open_time + 30 * 60_000
+    fw.tick(now_ms=reg_at, http=ex)
+    manifest = json.loads((tmp_path / "backtest.json").read_text())["manifest"]
+    assert manifest["oos_end_ms"] == reg_at
+
+
+def test_backtest_qualified_evidence_is_frozen_on_requalification(tmp_path):
+    """ADR-590 fix B: the metrics snapshot recorded AT qualification must never be rewritten by a
+    later daily re-qualification, even when the candidate stays qualified and its live score
+    drifts — the append-only lifecycle_events table has no UPDATE path, and `_derive_stages` must
+    not append a second BACKTEST_QUALIFIED event for a candidate that never left the stage."""
+    c = ev.connect(tmp_path / "e.db")
+    ev.register(c, "cand1", "h1", {"family": "x", "timeframe": "1D", "exec_model": "spot_long"},
+               now_ms=T0, code_version="v")
+    c.commit()
+
+    def _bt(oos_sharpe, drawdown):
+        return {"manifest": {"code_version": "v"},
+                "results": [{"id": "cand1", "definition": {"timeframe": "1D"},
+                            "in_sample": {"sharpe": 1.0}, "out_of_sample": {"sharpe": oos_sharpe},
+                            "cost_sensitivity": {"3x": {"oos_sharpe": 0.6}},
+                            "full": {"max_drawdown": drawdown}}]}
+
+    quals = [{"id": "cand1", "qualified": True, "score": 0.9, "rejections": []}]
+    fw._derive_stages(c, _bt(0.9, -0.3), quals, now_ms=T0 + HOUR_MS)
+    c.commit()
+    rows = list(c.execute("SELECT evidence FROM lifecycle_events WHERE candidate_id='cand1' "
+                          "AND to_stage='BACKTEST_QUALIFIED'"))
+    assert len(rows) == 1
+    first = json.loads(rows[0][0])
+    assert first["oos_sharpe"] == 0.9 and first["full_max_drawdown"] == -0.3
+
+    # a later, drifted backtest — still qualified, so no stage change, so the ORIGINAL snapshot
+    # must survive untouched (one row, bit-for-bit identical)
+    fw._derive_stages(c, _bt(0.81, -0.54), quals, now_ms=T0 + 2 * HOUR_MS)
+    c.commit()
+    rows2 = list(c.execute("SELECT evidence FROM lifecycle_events WHERE candidate_id='cand1' "
+                           "AND to_stage='BACKTEST_QUALIFIED'"))
+    assert len(rows2) == 1
+    assert json.loads(rows2[0][0]) == first
+
+
+# ── ADR-590 fix D8: the forward SET comes from lifecycle, never from the backtest shortlist ─────
+def test_forward_candidates_come_from_lifecycle_not_from_the_backtest_shortlist(tmp_path):
+    c = ev.connect(tmp_path / "e.db")
+    ids = [f"cand{i}" for i in range(6)]
+    for i, cid in enumerate(ids):
+        ev.register(c, cid, f"h{i}", {"family": "x", "timeframe": "1D", "exec_model": "spot_long"},
+                   now_ms=T0, code_version="v")
+        for frm, to in ((None, "DISCOVERED"), ("DISCOVERED", "BACKTESTING"),
+                        ("BACKTESTING", "BACKTEST_QUALIFIED"), ("BACKTEST_QUALIFIED", "FORWARD_PAPER")):
+            ev.append_event(c, cid, frm, to, "r", {}, actor="t", now_ms=T0)
+        ev.append_observation(c, _obs(cid=cid, t=T0, eq=1.01))
+    c.commit()
+    res = {"manifest": {"bars_1h": 1, "gaps_1h": 0, "generated_at_ms": T0},
+           "results": [{"id": cid, "definition": {"timeframe": "1D"},
+                       "out_of_sample": {"sharpe": 1.0 - i * 0.01, "max_drawdown": -0.2},
+                       "full": {"max_drawdown": -0.3}} for i, cid in enumerate(ids)]}
+    quals = [{"id": cid, "score": 1.0 - i * 0.01, "qualified": True, "rejections": []} for i, cid in enumerate(ids)]
+    short = [{"id": cid, "score": 1.0 - i * 0.01} for i, cid in enumerate(ids[:5])]   # de-dup dropped the 6th
+    bms = {"1D": {"sharpe": 0.1, "max_drawdown": -0.5}}
+    status = fw.write_status(c, None, res, quals, short, bms, now_ms=T0 + HOUR_MS, code="v", release=None)
+    assert {x["id"] for x in status["shortlist"]} == set(ids[:5])
+    assert {x["id"] for x in status["forward_candidates"]} == set(ids)       # all 6, not just the top-5
+    assert status["forward_paper"] == 6
+    for row in status["forward_candidates"]:
+        assert row["full_max_drawdown"] == -0.3 and row["oos_max_drawdown"] == -0.2   # D7: both present
+
+
+# ── RM-TRUTH-01 C1 §C7: failure-injection, append-only ───────────────────────────────────────────
+def test_reregistering_a_candidate_cannot_silently_change_its_forward_start(tmp_path):
+    """A re-run that tries to register the SAME id with a different clock or definition (buggy
+    replay, or an attacker) must never move forward_start or rewrite the definition. Run only
+    against a tmp-path schema created by ev.connect() itself — never the live db."""
+    c = ev.connect(tmp_path / "e.db")
+    assert ev.register(c, "cand1", "h1", {"family": "x"}, now_ms=T0, code_version="v")
+    assert ev.register(c, "cand1", "h2", {"family": "y"}, now_ms=T0 - HOUR_MS, code_version="v2") is False
+    row = ev.registered(c)["cand1"]
+    assert row["registered_at_ms"] == T0 and row["def_hash"] == "h1" and row["definition"] == {"family": "x"}
+    with pytest.raises(sqlite3.IntegrityError):
+        c.execute("UPDATE candidates SET registered_at_ms=? WHERE candidate_id='cand1'", (T0 - HOUR_MS,))
+    with pytest.raises(sqlite3.IntegrityError):
+        c.execute("DELETE FROM candidates WHERE candidate_id='cand1'")
+
+
+def test_backfill_bars_before_registration_are_never_counted_as_forward_observations(tmp_path):
+    bars = synth(40, t0=T0)
+    cand = st.registry()[0]
+    registered_at_ms = bars[20].open_time                       # the candidate "exists" from bar 20
+    conn = ev.connect(tmp_path / "e.db")
+    targets = cand.signal(bars)
+    n = fw.advance_candidate(conn, cand, bars, targets, registered_at_ms=registered_at_ms,
+                             now_ms=bars[-1].open_time + md.HOUR_MS, funding=[], fts=[],
+                             code_version="v", release=None)
+    assert n > 0
+    first_open = conn.execute("SELECT MIN(bar_open_time) FROM observations WHERE candidate_id=?",
+                              (cand.id,)).fetchone()[0]
+    assert first_open >= registered_at_ms                        # nothing from before registration got in
+    assert ev.observation_count(conn, cand.id) == n
+
+
 # ── safety: nothing in the package can trade ───────────────────────────────────────────────────
 PKG = Path(fw.__file__).resolve().parent
 

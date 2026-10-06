@@ -16,6 +16,7 @@ import os
 import re
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -62,14 +63,77 @@ for _g in GLOSSARY:
     for _w in _g:
         _GLOSS_INDEX[_w] = _g
 
+
+def alias_groups() -> List[Dict]:
+    """ADR-591 §A5 — `architecture/memory_aliases.json`: RU/EN/superseded names for the SAME
+    entity (Oracle/Оракул/Штирлиц, Sherlock/Шерлок, Bridge/Мост…), expanded at query time exactly
+    like `GLOSSARY` above. Not cached process-wide: tests point `SPA_MEMORY_ROOT_SPA` at a
+    different tmp corpus per test, and this file is small (a few KB) to re-read. A group marked
+    `ambiguous` (e.g. "Core": tier name / package / colloquial "core engine") is loaded but never
+    expanded — expanding an ambiguous word would trade one false negative for several false
+    positives. Missing or malformed file ⇒ no aliases, never an exception (same fail-soft contract
+    as `GLOSSARY`, which is static and can't fail)."""
+    try:
+        p = src.roots()["spa"] / "architecture" / "memory_aliases.json"
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [g for g in data.get("groups", []) if not g.get("ambiguous")]
+
+
+def _alias_group_for(w: str) -> Optional[set]:
+    """Name-set of the alias group word `w` belongs to, or None. Kept separate from the
+    superseded-name NOTE below: `concepts()` dedupes by group (one «Oracle»-sized concept per
+    query, same as GLOSSARY), so a query using BOTH the current and the superseded name in the
+    same sentence («…Оракулом… Штирлицем…», N04) would silently drop the second occurrence's note
+    if the note lived on the per-concept dict. `alias_notes_in()` below scans every word
+    independently of that dedup for exactly this reason."""
+    for grp in alias_groups():
+        lower = {str(n["name"] if isinstance(n, dict) else n).lower() for n in grp.get("names", [])}
+        if w in lower or stem(w) in {stem(x) for x in lower}:
+            return lower
+    return None
+
+
+def alias_notes_in(q: str) -> List[Dict]:
+    """ADR-591 §A5/§A6-lite: every superseded alias NAME used in the query, independent of
+    `concepts()`'s per-group dedup (see `_alias_group_for`'s docstring for why that matters).
+    «Штирлиц until 2026-10-04» is the seed case: a question can legitimately use both the current
+    and the retired name in one sentence (N04) and both deserve a note."""
+    out, seen = [], set()
+    for w in _words(q):
+        for grp in alias_groups():
+            names = [n if isinstance(n, dict) else {"name": n} for n in grp.get("names", [])]
+            sup = next((n for n in names if n.get("valid_to")
+                       and (str(n["name"]).lower() == w or stem(str(n["name"]).lower()) == stem(w))), None)
+            if sup and sup["name"] not in seen:
+                seen.add(sup["name"])
+                out.append({"canonical": grp.get("canonical"), "superseded_name": sup["name"],
+                            "valid_to": sup["valid_to"]})
+    return out
+
 STOP = {"и", "в", "во", "на", "с", "со", "что", "как", "а", "по", "к", "у", "о", "об", "за", "из", "это", "ли",
         "не", "the", "a", "an", "of", "to", "is", "in", "and", "for", "what", "does", "do", "who", "which",
         "сейчас", "уже", "был", "была", "было", "были", "есть", "мне", "между", "чем", "кто", "какой",
-        "какая", "какие", "скажи", "пожалуйста", "он", "она", "оно", "они", "его", "её", "ее", "их", "им",
+        "какая", "какие", "какое", "каких", "скажи", "пожалуйста", "он", "она", "оно", "они", "его", "её", "ее",
+        "их", "им", "неё", "нее",
         "каким", "какого", "какую", "каком", "it", "its", "they", "them",
         # conversational fillers of spoken / dictated Russian — carry no topic
         "слушай", "вообще", "этот", "эта", "это", "тот", "та", "те", "штука", "реально", "вот", "ну", "там",
-        "нас", "наш", "наша", "наши", "мы", "ты", "вы", "мой", "моё", "мое", "моя", "можешь", "расскажи"}
+        "нас", "наш", "наша", "наши", "мы", "ты", "вы", "мой", "моё", "мое", "моя", "можешь", "расскажи",
+        # ADR-591 §Wave2 — English function words with ZERO topic content. Measured 2026-10-06: the
+        # Russian list above already strips auxiliaries/pronouns, but the English list stopped at a
+        # handful of articles/wh-words, so an EN phrasing of the SAME question carried several extra
+        # weight=1.0 concepts its RU twin never had ("did","was","from","come","called","before" in
+        # "Where did the Oracle CIO come from and what was it called before?"). Each of those matches
+        # almost every chunk in the corpus (auxiliary verbs, prepositions), diluting the one real
+        # concept (the alias group) relative to noise — this, not a broken alias expansion, is why
+        # RU/EN top-5 disagreed on all 9 paired questions (0/9).
+        "was", "were", "did", "will", "would", "can", "could", "should", "shall", "be", "been", "being",
+        "have", "has", "had", "this", "that", "these", "those", "then", "than", "with", "on", "at", "by",
+        "as", "about", "into", "out", "up", "down", "over", "under", "such", "any", "all", "some", "more",
+        "most", "other", "now", "also", "just", "i", "you", "he", "she", "we", "our", "your", "his", "her",
+        "if", "or", "but", "not", "no", "so", "there", "here", "both", "each", "own", "same", "too"}
 
 
 def stem(w: str) -> str:
@@ -153,6 +217,39 @@ def _provenance_docs(text: str) -> List[tuple]:
     return out
 
 
+def _roles_docs(text: str) -> List[tuple]:
+    """architecture/roles.json → one chunk per role (ADR-591 §A4): role_id, display_name (Oracle,
+    Sherlock, Шурик), domain, authority and may/may_not. Measured 2026-10-05: without this, "who is
+    Oracle / what may Sherlock not do" had zero canonical evidence (oracle_origin 0.458)."""
+    try:
+        m = json.loads(text)
+    except ValueError:
+        return []
+    out = []
+    for r in m.get("roles", []):
+        keys = ("title", "display_name", "domain", "domain_excludes", "implemented", "reserved",
+                "adr", "authority", "authority_over_capital", "may", "may_not")
+        body = "\n".join(f"{k}: {r[k]}" for k in keys if r.get(k) not in (None, [], ""))
+        out.append((f"ROLE {r['role_id']} [{r.get('display_name')}]", body))
+    return out
+
+
+_ADR_B_NUM = re.compile(r"ADR[_-](\d{2,4})(?!\d)", re.I)
+
+
+def _adr_b_docs(text: str, rel: str) -> List[tuple]:
+    """docs/adr/*.md → chunks tagged ADR-B<n> (ADR-591 §A4): a SECOND ADR registry that collides on
+    number with docs/decisions/ (CLAUDE.md: 5 cross-registry collisions; measured 2026-10-05: 10
+    including intra-registry dupes 002/021). The "ADR-B" prefix is the convention already reserved
+    in the `_ADR`/`_REF` regexes below and in passports.py/truth.py — this is its first producer."""
+    m = _ADR_B_NUM.search(Path(rel).name)
+    tag = f"ADR-B{m.group(1)}" if m else None
+    out = []
+    for heading, body in _chunks(text):
+        out.append((f"{tag} · {heading}" if tag else heading, body))
+    return out
+
+
 def _truth_docs(text: str) -> List[tuple]:
     """architecture/memory_truth.json → one chunk per fact/override (semantic memory with evidence)."""
     try:
@@ -188,14 +285,58 @@ def default_path() -> Path:
     return live_data_dir(REPO) / "memory" / "index.db"
 
 
+#: an abandoned ``.building.*`` tmp file older than this is swept at the start of the NEXT
+#: `build()` — younger than this, it is left alone on the chance it belongs to a build genuinely
+#: in progress right now (a real `build()` call measures 6–30 s; 10 min is a wide margin either way).
+_ABANDONED_TMP_MIN_AGE_S = 600
+
+
 def build(path: Optional[Path] = None) -> Dict:
-    """Rebuild from scratch (atomic: build in a tmp file, then os.replace)."""
+    """Rebuild from scratch (atomic: build in a PROCESS-UNIQUE tmp file, then ``os.replace``).
+
+    Round-2 review fix, 2026-10-06: the tmp path used to be the single FIXED name
+    ``<path>.building``, shared by every caller of this function. The scheduled ensure-fresh
+    step (``scripts/agent_system_briefing.sh``) and an interactive ``assembler.assemble()``
+    auto-rebuild (``ensure_fresh(rebuild=True)``) can both decide the index is stale and call
+    `build()` around the same time; sharing one tmp name let one connection's half-written
+    sqlite file be clobbered — or renamed out from under the other — by the sibling. The tmp
+    name now embeds the pid and a random suffix, so two concurrent builders never write to the
+    same file; only the final ``os.replace`` onto the shared ``path`` is common, and that
+    rename is already atomic at the filesystem level (one caller's complete index wins, never a
+    half-written one).
+    """
     path = Path(path or default_path())
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".building")
-    if tmp.exists():
-        tmp.unlink()
+    tmp = path.parent / f"{path.name}.building.{os.getpid()}.{uuid.uuid4().hex[:8]}"
+    # A process that died mid-build leaves ITS OWN uniquely-named tmp file behind forever —
+    # nothing will ever claim that exact name again. Sweep genuinely old leftovers so they do
+    # not accumulate, but never a fresh one: it may belong to a sibling build in progress right
+    # now, and deleting it out from under that sibling would be the very race this fix closes.
+    now = time.time()
+    for stale in path.parent.glob(f"{path.name}.building.*"):
+        try:
+            if stale != tmp and (now - stale.stat().st_mtime) > _ABANDONED_TMP_MIN_AGE_S:
+                stale.unlink()
+        except OSError:
+            pass
     conn = sqlite3.connect(str(tmp))
+    try:
+        man = _build_into(conn)
+    except Exception:
+        conn.close()
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    os.replace(tmp, path)
+    return man
+
+
+def _build_into(conn: sqlite3.Connection) -> Dict:
+    """Fills ``conn`` (open on ``tmp``) with the whole index and commits+closes it. Split out of
+    `build()` only so the tmp-file lifecycle (create unique name → fill → atomically publish or
+    discard on error) reads as one thing in `build()` itself."""
     conn.executescript(SCHEMA)
     files = list(src.iter_files())
     texts = []
@@ -217,7 +358,9 @@ def build(path: Optional[Path] = None) -> Dict:
         st = truth.resolve(key, rule.layer, clean)
         title = _title(clean, rel)
         pieces = (_agent_docs(clean) if rule.kind == "agents" else _truth_docs(clean) if rule.kind == "truth"
-                  else _provenance_docs(clean) if rule.kind == "provenance" else _chunks(clean))
+                  else _provenance_docs(clean) if rule.kind == "provenance"
+                  else _roles_docs(clean) if rule.kind == "roles"
+                  else _adr_b_docs(clean, rel) if rule.kind == "adr_b" else _chunks(clean))
         for heading, body in pieces:
             if not body.strip():
                 continue
@@ -232,12 +375,15 @@ def build(path: Optional[Path] = None) -> Dict:
             n_chunks += 1
     man = {"built_at": int(time.time()), "files": len(texts), "chunks": n_chunks, "secret_lines_dropped": dropped,
            "roots": {k: str(v) for k, v in src.roots().items()}, "present_roots": src.present_roots(),
-           "sources_digest": digest.hexdigest()[:16], "schema": "studio-os/memory-index/1"}
+           "sources_digest": digest.hexdigest()[:16],
+           # ADR-591 §A1: the CHEAP (stat-only) staleness signal `ensure_fresh()` compares against
+           # on every call. `sources_digest` above stays content-hashed (ADR-527 §A8 recovery proof).
+           "mtime_fingerprint": src.fingerprint(),
+           "schema": "studio-os/memory-index/1"}
     for k, v in man.items():
         conn.execute("INSERT INTO manifest VALUES (?,?)", (k, json.dumps(v)))
     conn.commit()
     conn.close()
-    os.replace(tmp, path)
     return man
 
 
@@ -257,9 +403,49 @@ def manifest(path: Optional[Path] = None) -> Optional[Dict]:
         c.close()
 
 
+def freshness(path: Optional[Path] = None) -> Dict:
+    """ADR-591 §A1 — does the on-disk index match the CURRENT sources, right now? Stat-only
+    (`src.fingerprint()`): never reads file content, so this is cheap enough to call on every
+    `assembler.assemble()`, not just the scheduled step. Measured 2026-10-05 (pre-fix): the live
+    prod index was 44 h stale and nothing ever compared it against anything — `search()` has no
+    concept of "old"."""
+    p = Path(path or default_path())
+    fp = src.fingerprint()
+    man = manifest(p)
+    if man is None:
+        return {"stale": True, "reason": "no-index", "fingerprint": fp, "built_at": None, "age_s": None}
+    stale = man.get("mtime_fingerprint") != fp
+    built_at = man.get("built_at")
+    age_s = (int(time.time()) - built_at) if built_at else None
+    return {"stale": stale, "reason": "sources-changed" if stale else None, "fingerprint": fp,
+            "built_at": built_at, "age_s": age_s}
+
+
+def ensure_fresh(path: Optional[Path] = None, *, rebuild: bool = True) -> Dict:
+    """ADR-591 §A1 entry point for a scheduled step (wired into `scripts/agent_system_briefing.sh`,
+    the existing 30-min mirror-sync tick — no new launchd agent) AND for `assembler.assemble()`
+    itself. `rebuild=True` (the default used by `assemble()`): a stale index is rebuilt in place
+    (≈6-30 s measured, cheap enough for an interactive call) so a query never silently answers from
+    a stale snapshot. `rebuild=False`: never writes, only reports — the caller decides what STALE
+    means for it (`assemble()` uses it to cap the verdict at PARTIAL, never SUFFICIENT)."""
+    f = freshness(path)
+    if f["stale"] and rebuild:
+        build(path)
+        f2 = freshness(path)
+        f2["rebuilt"] = True
+        return f2
+    f["rebuilt"] = False
+    return f
+
+
 #: Question/intent words: they shape the query but must not dominate the ranking.
 WEAK = {"почему", "зачем", "why", "причина", "reason", "purpose", "цель", "разница", "difference", "отличие",
-        "чем", "отличается", "откуда", "where", "what", "кто", "who", "существует", "exists", "exist"}
+        "чем", "отличается", "откуда", "where", "what", "кто", "who", "существует", "exists", "exist",
+        # ADR-591 §Wave2 — EN origin/naming intent words, same low-weight class as откуда/почему above:
+        # "come"/"from" = откуда ("Where did Oracle come FROM"), "called"/"before" = раньше назывался
+        # ("what was it CALLED BEFORE"). Kept weighted (not dropped to STOP) because they still carry a
+        # little of the question's intent, but at откуда's weight — not a full content word.
+        "come", "from", "called", "before", "after", "раньше", "назывался", "ранее", "взялся", "взялась"}
 _IDENT = re.compile(r"^(adr-b?\d[\w.]*|b19\.\d+\.\d+|com\.[\w.-]+|[a-z]+_[a-z_]+|[a-z]+-[a-z0-9-]+)$")
 
 
@@ -275,12 +461,14 @@ def _words(q: str) -> List[str]:
 
 
 def concepts(q: str) -> List[Dict]:
-    """Query → concepts: each a set of alternative surface words + stems, a weight, identifier flag."""
+    """Query → concepts: each a set of alternative surface words + stems, a weight, identifier flag.
+    ADR-591 §A5: a word not in the static GLOSSARY is also checked against the alias file — this is
+    how «Оракул» and «Oracle» end up as the SAME concept group without a model."""
     out, seen = [], set()
     for w in _words(q):
         if w in STOP or len(w) < 2:
             continue
-        group = _GLOSS_INDEX.get(w) or _GLOSS_INDEX.get(stem(w)) or {w}
+        group = _GLOSS_INDEX.get(w) or _GLOSS_INDEX.get(stem(w)) or _alias_group_for(w) or {w}
         key = tuple(sorted(group))
         if key in seen:
             continue
@@ -310,6 +498,43 @@ def _coverage(cs: List[Dict], hay: str, hay_stems: str) -> float:
     return got / tot if tot else 0.0
 
 
+def _role_canonicals() -> set:
+    """role_id of every role in `architecture/roles.json` (ADR-591 §A4) — used only to tell a role
+    alias group apart from the other alias groups (tiers, bots, Bridge…) in `memory_aliases.json`."""
+    try:
+        p = src.roots()["spa"] / "architecture" / "roles.json"
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    return {r.get("role_id") for r in data.get("roles", []) if r.get("role_id")}
+
+
+def _role_alias_words() -> set:
+    """Every surface word (any language, current or `valid_to`) that names a ROLE specifically —
+    not a tier, a bot or any other alias group. ADR-591 §Wave2 (point 3): the roles.json ranking
+    boost in `search()` used to be unconditional for `kind=="roles"`, so Sherlock's passport (which
+    legitimately says "may not change Oracle policy") could outrank the actually-relevant decision
+    on a question that only MENTIONS a role name in passing. The boost should fire only when the
+    QUESTION itself is about a role."""
+    roles = _role_canonicals()
+    if not roles:
+        return set()
+    words = set()
+    for g in alias_groups():
+        if g.get("canonical") in roles:
+            for n in g.get("names", []):
+                words.add(str(n["name"] if isinstance(n, dict) else n).lower())
+    return words
+
+
+def _query_names_role(query: str) -> bool:
+    words = _role_alias_words()
+    if not words:
+        return False
+    stemmed = {stem(w) for w in words}
+    return any(w in words or stem(w) in stemmed for w in _words(query))
+
+
 def search(query: str, *, k: int = 8, path: Optional[Path] = None, layers: Optional[Iterable[str]] = None,
            include_superseded: bool = True) -> List[Dict]:
     p = Path(path or default_path())
@@ -329,6 +554,7 @@ def search(query: str, *, k: int = 8, path: Optional[Path] = None, layers: Optio
     want = set(layers) if layers else None
     cs = concepts(query)
     idents = [c["term"] for c in cs if c["ident"]]
+    names_role = _query_names_role(query)
     out = []
     for (cid, repo, path_, layer, kind, auth, status, sup, title, heading, body, rf, s) in rows:
         if want and layer not in want:
@@ -344,6 +570,21 @@ def search(query: str, *, k: int = 8, path: Optional[Path] = None, layers: Optio
             score *= 0.5                    # one card is one task's prose — weak evidence for system questions
         if layer == "SEMANTIC":
             score *= 1.3
+        if kind in ("agents", "provenance"):
+            # ADR-591 §A4: one chunk = one entity's whole passport (agent/artifact). A generic
+            # decision that mentions the SAME name in passing (there can be dozens) should not
+            # outrank the one record that actually answers "who/what is this, who may it not do,
+            # which ADR made it".
+            score *= 2.4
+        if kind == "roles":
+            # ADR-591 §Wave2: the boost above is GLOBAL for agents/provenance (a label or artifact id
+            # is specific enough that "mentioned at all" already means "about it"). A role's display
+            # name (Oracle, Sherlock…) is not — those names show up inside OTHER roles' `may_not`
+            # lines too (see docstring above `_role_alias_words`). So the big (3.6x) boost is
+            # conditional on the QUESTION naming a role/alias; otherwise the role passport still gets
+            # the plain SEMANTIC-sized bump (1.3x, same as any other well-authored canonical record)
+            # rather than winning by default.
+            score *= 3.6 if names_role else 1.3
         if status in ("SUPERSEDED", "REJECTED"):
             score *= 0.35
         ev = re.findall(r"\b(?:spa|bridge|earndefi|company|claude|shadow):[\w./-]+\.(?:md|json)", body) if kind == "truth" else []

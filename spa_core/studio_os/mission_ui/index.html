@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mission Control</title>
-<meta name="description" content="SPA Mission Control — owner read-only remote">
+<title>Пульт</title>
+<meta name="description" content="SPA Director OS — owner read-only remote">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
@@ -12,19 +12,20 @@
 <body>
 <header class="app-header">
   <div class="header-row">
-    <h1 class="app-title">Mission Control</h1>
+    <h1 class="app-title">Пульт</h1>
     <button id="lang-toggle" class="lang-toggle" type="button">EN</button>
   </div>
+  <div id="money-chip" class="money-chip-wrap" aria-live="polite"></div>
   <div id="status-strip" class="status-strip" aria-live="polite"></div>
   <nav id="intake-actions" class="intake-actions" aria-label="Intake"></nav>
 </header>
 
 <main id="main">
-  <section id="area-overview" class="area" data-area="overview"></section>
+  <section id="area-home" class="area" data-area="home"></section>
   <section id="area-capital" class="area" data-area="capital" hidden></section>
   <section id="area-studio" class="area" data-area="studio" hidden></section>
+  <section id="area-product" class="area" data-area="product" hidden></section>
   <section id="area-decisions" class="area" data-area="decisions" hidden></section>
-  <section id="area-system" class="area" data-area="system" hidden></section>
 </main>
 
 <footer id="legend" class="legend"></footer>

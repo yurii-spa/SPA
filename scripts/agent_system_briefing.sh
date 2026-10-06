@@ -25,4 +25,18 @@ if [ -d "$_MIRROR/.git" ]; then
       && git reset --quiet --hard origin/main ) >/dev/null 2>&1 || true
 fi
 
+# ── Memory index freshness (ADR-591 §A1) ─────────────────────────────────────
+# This IS the mirror sync's existing 30-min tick — the least-invasive hook, chosen over a new
+# agent because `ensure_fresh()` is cheap when nothing changed (a stat-only walk, no file reads)
+# and the mirror above just moved the ONE thing the staleness check cares about (origin/main
+# content). Measured 2026-10-05 pre-fix: the live prod index was 44h stale and nothing on the
+# 30-min cadence ever looked at it. `SPA_MEMORY_ROOT_SPA` points the rebuild at the mirror (not
+# the prod tree, which lags origin by design — ADR-152) so the index matches what a session
+# actually reads. `|| true`: an index rebuild failure must never take the briefing down with it;
+# `perl alarm 120` (macOS has no `timeout`): a hung rebuild cannot block the briefing agent either.
+( cd /Users/yuriikulieshov/Documents/SPA_Claude \
+  && SPA_MEMORY_ROOT_SPA="$_MIRROR" /usr/bin/perl -e 'alarm 120; exec @ARGV' \
+       /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.studio_os.memory ensure-fresh \
+  ) >/tmp/spa_memory_ensure_fresh.log 2>&1 || true
+
 exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh system_briefing /Users/yuriikulieshov/Documents/SPA_Claude/scripts/update_system_briefing.py

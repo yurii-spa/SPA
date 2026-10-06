@@ -88,6 +88,15 @@ def registered(conn) -> Dict[str, Dict]:
             for r in conn.execute("SELECT * FROM candidates")}
 
 
+def observation_count(conn, cand_id: str) -> int:
+    """True forward-observation count — COUNT(*) of real rows, never `len(eq)` of a metrics series
+    that prepends a synthetic seed point (RM-TRUTH-01 C1 D1: the seed makes every `forward_bars`
+    value published by forward.forward_metrics() off by +1). This is the one place both the
+    producer (forward.write_status) and any reader are meant to get the count from."""
+    row = conn.execute("SELECT COUNT(*) FROM observations WHERE candidate_id=?", (cand_id,)).fetchone()
+    return row[0] if row else 0
+
+
 def last_observation(conn, cand_id: str) -> Optional[Dict]:
     cols = ["seq"] + list(OBS_FIELDS) + ["prev_hash", "hash"]
     r = conn.execute(f"SELECT {','.join(cols)} FROM observations WHERE candidate_id=? ORDER BY bar_open_time DESC LIMIT 1",

@@ -48,7 +48,13 @@ def _years(bars) -> List[int]:
     return sorted({datetime.fromtimestamp(b.open_time / 1000, tz=timezone.utc).year for b in bars})
 
 
-def run_candidate(cand: Candidate, bars, *, funding=None, regimes: Optional[RegimeIndex] = None) -> Dict:
+def run_candidate(cand: Candidate, bars, *, funding=None, regimes: Optional[RegimeIndex] = None,
+                  oos_end_ms: Optional[int] = None) -> Dict:
+    """`oos_end_ms` (RM-TRUTH-01 C1 D2/ADR-590 fix B): the OOS slice used for qualification and for
+    the ROBUST degradation comparison must stop at forward_start, or the daily backtest refresh
+    quietly absorbs forward-paper bars into what is advertised as out-of-sample evidence — the same
+    bars then get judged twice, once as OOS and once as forward. `None` keeps the old open-ended
+    slice (back-compat for callers that have not registered anything yet)."""
     model = EXEC_MODELS[cand.exec_model]
     tf_ms = md.TF_MS[cand.timeframe]
     targets = cand.signal(bars)
@@ -59,7 +65,11 @@ def run_candidate(cand: Candidate, bars, *, funding=None, regimes: Optional[Regi
     res = {"id": cand.id, "definition": cand.definition(), "def_hash": cand.def_hash,
            "full": full, "liquidations": base.liquidations,
            "in_sample": slice_metrics(base, bars, cand.timeframe, None, OOS_START_MS),
-           "out_of_sample": slice_metrics(base, bars, cand.timeframe, OOS_START_MS, None),
+           "out_of_sample": slice_metrics(base, bars, cand.timeframe, OOS_START_MS, oos_end_ms),
+           # diagnostic only, never a gate input (ADR-590 fix B): what happened AFTER the freeze —
+           # kept visibly separate so nobody mistakes drift for out-of-sample evidence.
+           "post_registration": (slice_metrics(base, bars, cand.timeframe, oos_end_ms, None)
+                                 if oos_end_ms is not None else {"bars": 0, "measured": False}),
            "by_year": {}, "by_regime": {}, "cost_sensitivity": {}}
     for y in _years(bars):
         lo = calendar.timegm((y, 1, 1, 0, 0, 0)) * 1000
@@ -78,7 +88,7 @@ def run_candidate(cand: Candidate, bars, *, funding=None, regimes: Optional[Regi
             res["by_regime"][reg] = {"bars": len(idx), "mean_bar_return": mu,
                                      "cum_return": _prod(r) - 1}
     for m, s in sims.items():
-        oos = slice_metrics(s, bars, cand.timeframe, OOS_START_MS, None)
+        oos = slice_metrics(s, bars, cand.timeframe, OOS_START_MS, oos_end_ms)
         res["cost_sensitivity"][f"{m:g}x"] = {"oos_net_return": oos.get("net_return"),
                                                "oos_sharpe": oos.get("sharpe")}
     # daily OOS returns (for inter-strategy correlation) — compact
@@ -117,7 +127,10 @@ def _daily_positions(sim, bars, lo_ms):
 
 
 def run_all(conn, *, symbol: str = "BTCUSDT", candidates: Optional[List[Candidate]] = None,
-            now_ms: Optional[int] = None) -> Dict:
+            now_ms: Optional[int] = None, oos_end_ms: Optional[int] = None) -> Dict:
+    """`oos_end_ms` (ADR-590 fix B): forward.tick passes MIN(candidates.registered_at_ms) here so
+    OOS stops at the forward clock's start for every candidate, instead of growing with `data_to_ms`
+    on every daily refresh. `None` (nothing registered yet) keeps the old open-ended slice."""
     candidates = candidates or registry()
     b1h = md.load_1h(conn, symbol)
     series = {tf: md.aggregate(b1h, tf) for tf in {c.timeframe for c in candidates}}
@@ -125,14 +138,15 @@ def run_all(conn, *, symbol: str = "BTCUSDT", candidates: Optional[List[Candidat
     regimes = RegimeIndex(days)
     funding = md.funding_series(conn, symbol)
     results = [run_candidate(c, series[c.timeframe], funding=funding if EXEC_MODELS[c.exec_model].funding else None,
-                             regimes=regimes) for c in candidates]
+                             regimes=regimes, oos_end_ms=oos_end_ms) for c in candidates]
     return {
         "manifest": {
             "generated_at_ms": now_ms, "code_version": code_version(), "symbol": symbol,
             "source": md.SOURCE, "base_tf": "1h",
             "data_from_ms": b1h[0].open_time if b1h else None, "data_to_ms": b1h[-1].open_time if b1h else None,
             "bars_1h": len(b1h), "data_ref_1h": data_ref(b1h), "gaps_1h": len(md.gaps_1h(b1h)),
-            "funding_points": len(funding), "oos_start_ms": OOS_START_MS, "cost_mults": COST_MULTS,
+            "funding_points": len(funding), "oos_start_ms": OOS_START_MS, "oos_end_ms": oos_end_ms,
+            "cost_mults": COST_MULTS,
             "exec_models": {k: vars(v) for k, v in EXEC_MODELS.items()},
             "timing": "signal on bar close t, fill on bar open t+1",
         },
@@ -143,3 +157,21 @@ def run_all(conn, *, symbol: str = "BTCUSDT", candidates: Optional[List[Candidat
 def save(result: dict, path: Path) -> None:
     from spa_core.utils.atomic import atomic_save
     atomic_save(result, str(path), indent=None)
+
+
+def save_versioned(result: dict, data_dir: Path) -> Path:
+    """An immutable dated copy next to the daily-overwritten `backtest.json` (ADR-590 fix B/D3):
+    the qualification-time manifest and metrics must survive the next day's refresh. Filename is
+    unique per (generated_at_ms, code_version), so two ticks never collide and an existing version
+    is never replaced — this function only ever adds a file, like the evidence tables it sits next
+    to."""
+    from spa_core.utils.atomic import atomic_save
+    manifest = result.get("manifest") or {}
+    gen_ms = manifest.get("generated_at_ms")
+    code = (manifest.get("code_version") or "unknown")[:16]
+    hist = Path(data_dir) / "backtest_history"
+    hist.mkdir(parents=True, exist_ok=True)
+    path = hist / f"backtest_{gen_ms}_{code}.json"
+    if not path.exists():
+        atomic_save(result, str(path), indent=None)
+    return path

@@ -8,11 +8,12 @@ projected READ-ONLY into the factory: domain ``TRADING_RESEARCH``, every candida
 them"). This module never re-runs, re-admits or re-scores the engine's own evidence; it reads
 exactly what ``status.json`` already reports.
 
-The status file carries only the CURRENT shortlist (the candidates presently in
-``FORWARD_PAPER``) plus aggregate stage counts for the other 133 — it has no per-candidate
-record for a REJECTED strategy, so this scanner cannot (and does not try to) project one. Payload
-kept small per the Appendix-I interface: id, stage, and a verdict derived from the engine's own
-``forward_net`` sign — never a re-derived score.
+The status file carries only the CURRENT ``forward_candidates`` (the candidates presently in
+``FORWARD_PAPER``/``ROBUST``, per lifecycle_events — ADR-590 fix D8; older files without that key
+fall back to ``shortlist``, the backtest top-5 after de-dup) plus aggregate stage counts for the
+other 133 — it has no per-candidate record for a REJECTED strategy, so this scanner cannot (and
+does not try to) project one. Payload kept small per the Appendix-I interface: id, stage, and a
+verdict derived from the engine's own ``forward_net`` sign — never a re-derived score.
 
 LLM_FORBIDDEN, stdlib only, no network.
 """
@@ -54,7 +55,12 @@ def scan(data_dir, now: datetime, *, rpc_client=None) -> dict:
     # below becomes NOT_MEASURED rather than MEASURED-with-the-wrong-time.
     doc_as_of = (datetime.fromtimestamp(generated_ms / 1000.0, tz=timezone.utc).isoformat()
                 if isinstance(generated_ms, (int, float)) else None)
-    shortlist = doc.get("shortlist") if isinstance(doc.get("shortlist"), list) else []
+    # ADR-590 fix D8: "forward_candidates" is the engine's lifecycle-derived FORWARD_PAPER/ROBUST
+    # set. "shortlist" (backtest top-5 after correlation de-dup) is a different set by
+    # construction and must not be read as "the candidates presently in FORWARD_PAPER" — they only
+    # coincide while there are 5 or fewer qualified candidates.
+    shortlist = (doc.get("forward_candidates") if isinstance(doc.get("forward_candidates"), list)
+                else doc.get("shortlist") if isinstance(doc.get("shortlist"), list) else [])
 
     candidates, observations, counterparty = [], {}, {}
     for row in shortlist:
@@ -70,12 +76,15 @@ def scan(data_dir, now: datetime, *, rpc_client=None) -> dict:
             "incentive_return": not_applicable("no incentive leg for a directional trading strategy"),
             "quoted_return": not_applicable("internal research engine; nothing is advertised"),
             "realised_return": (contract.cell(contract.MEASURED, float(forward_net), unit="fraction",
-                                              source_ref=f"data/trading_research/status.json#shortlist:{raw_id}",
+                                              source_ref=f"data/trading_research/status.json#forward_candidates:{raw_id}",
                                               source_class=contract.PRIMARY_PROTOCOL,
                                               source_root="engine:trading_research", as_of=doc_as_of,
                                               recorded_at=now.isoformat(), now=now, window="since_admission",
                                               method=f"trading_research's own forward_net over "
-                                                     f"{row.get('forward_bars')!r} forward bars; verdict={verdict}")
+                                                     # fix D1: COUNT(*) of real observations, never the
+                                                     # old 'forward_bars' (+1 synthetic seed point)
+                                                     f"{row.get('forward_observations', row.get('forward_bars'))!r} "
+                                                     f"forward bars; verdict={verdict}")
                                 if isinstance(forward_net, (int, float)) and doc_as_of is not None else
                                 not_measured("forward_net missing for this shortlist entry" if not
                                             isinstance(forward_net, (int, float)) else

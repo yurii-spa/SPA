@@ -415,7 +415,8 @@ def collect(inp: Inputs) -> dict:
         age_h = round((now.timestamp() * 1000 - trs["generated_at_ms"]) / 3_600_000, 1)
         rep["trading"] = {**{k: trs.get(k) for k in ("ok", "candidates", "backtest_qualified",
                                                      "forward_paper", "observations", "evidence_verified",
-                                                     "live_capital_usd", "shortlist", "error")},
+                                                     "live_capital_usd", "shortlist", "forward_candidates",
+                                                     "error")},
                           # stages absent ⇒ None (not measured); present but no such stage ⇒ a measured 0
                           "robust": (trs["stages"].get("ROBUST", 0) if isinstance(trs.get("stages"), dict) else None),
                           "champions": (trs["stages"].get("CHAMPION_CANDIDATE", 0)
@@ -752,6 +753,10 @@ def _usd_or_nm(v) -> str:
     return NOT_MEASURED if v is None else f"${v}"
 
 
+def _pct_or_nm(v) -> str:
+    return NOT_MEASURED if v is None else f"{v:.0%}"
+
+
 def render_trading(rep: dict) -> List[str]:
     t = rep.get("trading")
     if t is None:
@@ -762,14 +767,22 @@ def render_trading(rep: dict) -> List[str]:
          f"Живой капитал: {_usd_or_nm(t.get('live_capital_usd'))} · наблюдений: {t['observations']} · "
          f"цепочка {'цела' if t['evidence_verified'] is True else 'НАРУШЕНА' if t['evidence_verified'] is False else NOT_MEASURED}"
          f" · такт {t['age_h']:.1f} ч назад"]
-    if t.get("shortlist"):
-        L.append("Лучшие кандидаты (разные сделки, OOS):")
-        for s in t["shortlist"][:3]:
+    # ADR-590 fix D8: the forward SET comes from "forward_candidates" (lifecycle stage), never from
+    # "shortlist" (backtest top-5 after de-dup) — they coincide today but are different sets.
+    fwd = t.get("forward_candidates")
+    if fwd:
+        L.append("Forward-кандидаты (лестница лифецикла, не shortlist):")
+        for s in fwd[:3]:
             name = s["id"].split(":")[0] + " " + s["id"].split(":")[2] + " " + s["id"].split(":")[3]
-            fb = s.get("forward_bars") or 0
-            fwd = (f" · forward {s['forward_net']:+.1%} за {fb} бар." if fb and s.get("forward_net") is not None
+            fo = s.get("forward_observations") or 0
+            net = (f" · forward {s['forward_net']:+.1%} за {fo} бар." if fo and s.get("forward_net") is not None
                    else " · forward только начался")
-            L.append(f"• {name}: Sharpe OOS {s['oos_sharpe']:.2f}, просадка {s['oos_max_drawdown']:.0%}{fwd}")
+            # fix D7: full-history MDD is the binding gate; show it next to the shallower OOS number
+            # instead of printing OOS alone as "просадка".
+            L.append(f"• {name}: Sharpe OOS {s['oos_sharpe']:.2f}" if s.get("oos_sharpe") is not None
+                     else f"• {name}: Sharpe OOS {NOT_MEASURED}")
+            L[-1] += (f", просадка полная {_pct_or_nm(s.get('full_max_drawdown'))}"
+                     f" / OOS {_pct_or_nm(s.get('oos_max_drawdown'))}{net}")
     return L
 
 

@@ -15,6 +15,7 @@ Any root can be overridden with SPA_MEMORY_ROOT_<NAME> (tests point them at tmp 
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from dataclasses import dataclass
@@ -60,6 +61,14 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "docs/SITE_REDESIGN_MASTER_BRIEF.md", "CANONICAL", "doc", 1),
     Rule("spa", "docs/redesign/*.md", "CANONICAL", "doc", 1),
     Rule("spa", "architecture/manifest.json", "CANONICAL", "agents", 3),
+    # ADR-591 §A4: the registry a session is TOLD to read at session start (CLAUDE.md §1) but
+    # memory never indexed. Measured 2026-10-05: oracle_origin 0.458 / sherlock_origin 0.562 —
+    # roles.json carries the ONLY source for the Oracle/Sherlock/Шурик role_id, display_name,
+    # authority and `may_not` list; without it those questions had no canonical evidence at all.
+    Rule("spa", "architecture/roles.json", "CANONICAL", "roles", 3),
+    Rule("spa", "docs/decisions/INDEX.md", "CANONICAL", "doc", 2),
+    Rule("spa", "docs/SYSTEM_MAP.md", "CANONICAL", "doc", 2),
+    Rule("spa", "PROJECT_CONTROL/00_START_HERE.md", "CANONICAL", "doc", 2),
     # ADR-551: WHY an artifact exists, who owns it, what authorized it — one chunk per artifact, so
     # «why does the calculator exist / may it be removed» is answered from the registry, not guessed.
     Rule("spa", "architecture/provenance.json", "CANONICAL", "provenance", 3),
@@ -69,6 +78,19 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "docs/ideas/*.md", "EPISODIC", "idea", 1),
     Rule("spa", "docs/journal/2026-W*.md", "EPISODIC", "journal", 1),
     Rule("spa", "nimbalyst-local/tracker/*.md", "EPISODIC", "card", 1),
+    # ADR-591 §A4: history layer (authority 1, never canon) — these were the "un-indexed ground-truth
+    # sources" the M3 audit found questions.json relying on. The second ADR registry collides on
+    # number with docs/decisions/ (CLAUDE.md "5 collisions"; M3 measured 10 incl. intra-registry
+    # dupes) — `kind="adr_b"` tags each chunk's heading "ADR-B<n>" (registry-prefix convention
+    # already reserved in the _ADR/_REF regexes) so a retrieved chunk never poses as the ADR-<n>
+    # docs/decisions decided. docs/NN_*.md carry their own L1-L5 status line (design-docs.md) —
+    # kept at authority 1 regardless of level; weighting by level is left for a follow-up (not
+    # required by A4's accept criteria).
+    Rule("spa", "docs/adr/*.md", "EPISODIC", "adr_b", 1),
+    Rule("spa", "MASTER_PLAN_v1.md", "EPISODIC", "doc", 1),
+    Rule("spa", "docs/OWNER_BACKLOG_*.md", "EPISODIC", "doc", 1),
+    Rule("spa", "docs/[0-9][0-9]_*.md", "EPISODIC", "doc", 1),
+    Rule("spa", "docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md", "EPISODIC", "doc", 1),
     Rule("bridge", "docs/adr/*.md", "CANONICAL", "adr", 3),
     Rule("bridge", "docs/releases/*.md", "CANONICAL", "release", 2),
     Rule("bridge", "docs/handoffs/CURRENT-HANDOFF.md", "EPISODIC", "handoff", 1),
@@ -135,3 +157,20 @@ def iter_files() -> Iterator[Tuple[Rule, Path, str]]:
 
 def present_roots() -> List[str]:
     return [n for n, p in roots().items() if p.is_dir()]
+
+
+def fingerprint() -> str:
+    """Cheap staleness signal (ADR-591 §A1): (root:rel, mtime, size) of every allow-listed file,
+    stat-only — never reads file content. Changes whenever a source is added, removed, renamed or
+    modified, so it is safe to call on every `assembler.assemble()` (a directory walk + stat, not a
+    rebuild). `index.build()`'s own `sources_digest` is content-hashed and stays the recovery proof
+    (ADR-527 §A8); this is the separate, deliberately cheaper check `ensure_fresh()` compares against.
+    """
+    h = hashlib.sha256()
+    for rule, p, rel in iter_files():
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        h.update(f"{rule.root}:{rel}:{int(st.st_mtime)}:{st.st_size}\n".encode())
+    return h.hexdigest()[:16]

@@ -1,4 +1,4 @@
-"""python -m spa_core.studio_os.memory {build|search|assemble|passport|why|lineage|bench|answer-bench|coverage}"""
+"""python -m spa_core.studio_os.memory {build|ensure-fresh|search|assemble|passport|why|lineage|bench|answer-bench|coverage}"""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,7 @@ from . import assembler, benchmark, index, lineage, passports
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="spa_core.studio_os.memory")
     ap.add_argument("cmd", choices=("build", "search", "assemble", "passport", "why", "lineage", "bench",
-                                    "answer-bench", "coverage"))
+                                    "answer-bench", "coverage", "ensure-fresh"))
     ap.add_argument("arg", nargs="?", default="")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--k", type=int, default=8)
@@ -20,6 +20,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd == "build":
         out = index.build()
+    elif a.cmd == "ensure-fresh":
+        # ADR-591 §A1 — the scheduled-step entry point (wired into
+        # scripts/agent_system_briefing.sh, the existing 30-min mirror-sync tick). Never raises:
+        # a rebuild failure here must not take down the briefing step that calls it.
+        try:
+            out = index.ensure_fresh()
+        except Exception as exc:  # pragma: no cover - defensive, see docstring above
+            out = {"stale": None, "reason": f"ensure_fresh raised: {exc}", "rebuilt": False}
     elif a.cmd == "search":
         out = index.search(a.arg, k=a.k)
     elif a.cmd == "assemble":

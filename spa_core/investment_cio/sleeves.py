@@ -1112,17 +1112,26 @@ def _build_trading_research_sleeve(tr_input: Input, regime_fit: dict) -> dict:
     out["observation_window"] = _cell(
         {"forward_since_ms": observed(doc, "forward_since_ms", kind=(int, float))}, unit=None, inp=tr_input)
     out["valid_periods"] = _not_measured(
-        "trading_research tracks forward_bars per candidate, not a single sleeve-level valid_periods counter")
+        "trading_research tracks forward_observations per candidate, not a single sleeve-level "
+        "valid_periods counter")
     out["maturity"] = _maturity_cell(out["valid_periods"])
     out["expected_return"] = _not_measured(
         "no forward-return expectation published at sleeve level (per-candidate OOS metrics only)")
-    shortlist = observed(doc, "shortlist", kind=list) or []
-    min_bars = min((s.get("forward_bars") for s in shortlist if isinstance(s, dict) and
-                     isinstance(s.get("forward_bars"), (int, float))), default=None)
+    # ADR-590 fix D8: "forward_candidates" is the lifecycle-derived FORWARD_PAPER/ROBUST set;
+    # "shortlist" is the backtest top-5 after de-dup and is read here only as a fallback for a
+    # status.json written before this field existed.
+    forward_candidates = (observed(doc, "forward_candidates", kind=list)
+                          or observed(doc, "shortlist", kind=list) or [])
+    # fix D1: "forward_observations" is the real COUNT(*); "forward_bars" (older files) carries a
+    # +1 synthetic seed point and is only a fallback here, never preferred when both are present.
+    min_obs = min((s.get("forward_observations", s.get("forward_bars")) for s in forward_candidates
+                   if isinstance(s, dict) and
+                   isinstance(s.get("forward_observations", s.get("forward_bars")), (int, float))),
+                  default=None)
     out["realized_return"] = contract.absent(
         contract.NOT_ENOUGH_HISTORY,
-        reason=f"best candidate has only {min_bars} forward bar(s); no blended sleeve return" if min_bars is not None
-        else "no forward bars published", source=tr_input.path_str, as_of=tr_input.as_of_iso, n=min_bars)
+        reason=f"best candidate has only {min_obs} forward bar(s); no blended sleeve return" if min_obs is not None
+        else "no forward bars published", source=tr_input.path_str, as_of=tr_input.as_of_iso, n=min_obs)
     out["volatility"] = _not_measured("no blended sleeve-level return series")
     out["max_drawdown"] = _not_measured(
         "only per-candidate OOS max_drawdown exists (shortlist), not a blended sleeve figure")
@@ -1171,13 +1180,13 @@ def _build_trading_research_sleeve(tr_input: Input, regime_fit: dict) -> dict:
         "LIQUIDITY": {"level": "LOW", "evidence": "BTC spot, highly liquid", "source": None},
         "COUNTERPARTY": {"level": "UNKNOWN", "evidence": "no source today", "source": None},
         "LEVERAGE": {"level": "LOW", "evidence": "spot_long, no leverage disclosed", "source": tr_input.path_str},
-        "DATA_MODEL": {"level": "HIGH", "evidence": f"forward bars 3-18; min={min_bars}", "source": tr_input.path_str},
+        "DATA_MODEL": {"level": "HIGH", "evidence": f"forward bars 3-18; min={min_obs}", "source": tr_input.path_str},
     }
     out["composition"] = [
         {"protocol": s.get("id"), "mechanic": "directional_trading", "tier": "UNKNOWN",
          "share": _not_measured("no capital allocated (observe-only)"),
          "usd": _not_measured("no capital allocated (observe-only)")}
-        for s in shortlist if isinstance(s, dict)
+        for s in forward_candidates if isinstance(s, dict)
     ]
     out["factors"] = _factors_for([], "trading_research")
     out["correlation_features"] = {"series_source": None,

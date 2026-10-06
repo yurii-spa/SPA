@@ -710,3 +710,206 @@ main {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* ── Director OS v2 (ADR-571, RM-TRUTH-01 WP2) ─────────────────────────────────────────── */
+
+/* permanent money chip — every tab, design §2.1 */
+.money-chip-wrap {
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.chip--money {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--unknown-bg);
+  color: var(--unknown-fg);
+  border: 1px solid var(--unknown-border);
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+/* metric-type chip — every number on the first level names its own kind (CLAUDE.md) */
+.chip--metric {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Home strip — five full-width tiles, each a link into its domain (design §2.1 / §5) */
+.home-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+}
+
+.home-tile--ok { border-left: 4px solid var(--ok-border); }
+.home-tile--warn { border-left: 4px solid var(--warn-border); }
+.home-tile--alert { border-left: 4px solid var(--alert-border); }
+.home-tile--unknown { border-left: 4px solid var(--unknown-border); }
+
+.home-tile-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.home-tile-value {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.home-tile-value--unknown {
+  color: var(--unknown-fg);
+}
+
+.attention-card {
+  border-color: var(--warn-border);
+}
+
+/* Capital sub-tabs — the ONLY horizontal scroller on the page (design §5) */
+.subtabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  min-width: 0;
+  margin: 0 -16px;
+  padding: 0 16px 4px 16px;
+}
+
+.subtabs-row {
+  display: flex;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.subtab-chip {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated-2);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.subtab-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cell-text {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.cell-text--unknown {
+  color: var(--unknown-fg);
+}
+
+/* evidence drawer — the ONLY place canon / as_of / freshness / labels / shas may appear
+   (design §2.5: forbidden on the first level, everywhere) */
+.evidence {
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.evidence summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+
+.evidence-body {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.evidence-row .v {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.74rem;
+}
+
+.fleet-row {
+  overflow-wrap: anywhere;
+}
+
+.fleet-row--warn {
+  color: var(--warn-fg);
+}
+
+.backup-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  min-width: 0;
+}
+
+.backup-row:last-of-type {
+  border-bottom: none;
+}
+
+.scope-row {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  min-width: 0;
+}
+
+.scope-row:last-child {
+  border-bottom: none;
+}
+
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  min-width: 0;
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+/* The strip stays a single stacked column at every width. Design §5 allows Система/Продукт to
+   sit 2-up at >=430px, but only when BOTH values are <=16 characters — a condition CSS cannot
+   see (RU text length varies tile to tile and cycle to cycle). Staying stacked is the side of
+   that rule that is always correct; it never risks cramming a long sentence into a half-width
+   tile, and it still fits the design's "<=1.6 screens at 390x844" budget. */
+
+/* Карточка решения: длинный текст под подписью и по левому краю (на телефоне правое выравнивание
+   абзаца нечитаемо — замер в браузере 375–430 px, RM-TRUTH-01 Wave 2). */
+.decision-card .kv-row { flex-direction: column; align-items: stretch; }
+.decision-card .kv-row .v { text-align: left; }
