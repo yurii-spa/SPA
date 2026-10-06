@@ -3708,7 +3708,7 @@
    "history_start": null,
    "history_end": null,
    "last_verified": "2026-10-05",
-   "current_status": "LIVE since 2026-09-30",
+   "current_status": "REMOVED / RETIRED (2026-10-07, ADR-599): UNUSED_ORPHANED + unnecessary shell-capable attack surface",
    "known_failures": [
     "bot token stored in PLAINTEXT in ~/.openclaw/openclaw.json (mode 600) — outside Keychain"
    ],
@@ -3720,9 +3720,11 @@
     "whether it can run shell on the Mac from Telegram",
     "relation to SPA/Studio"
    ],
-   "recommended_action": "UNKNOWN_PURPOSE",
+   "recommended_action": "SUPERSEDED",
    "evidence_slice": "A5",
-   "register_key": "A5:telegram.openclaw"
+   "register_key": "A5:telegram.openclaw",
+   "lifecycle": "REMOVED_RETIRED",
+   "owner_decision_date": "2026-10-07"
   },
   {
    "component_id": "cockpit.director_os",
@@ -10770,7 +10772,8 @@
    "token_source": "PLAINTEXT ~/.openclaw/openclaw.json",
    "purpose": "UNKNOWN (third-party agent gateway)",
    "authority": "UNKNOWN (exec-approvals.json present)",
-   "recommendation": "UNKNOWN_PURPOSE — owner to confirm; move token to Keychain/rotate"
+   "recommendation": "UNKNOWN_PURPOSE — owner to confirm; move token to Keychain/rotate",
+   "decision": "REMOVED (ADR-599, 2026-10-07)"
   }
  ]
 }
