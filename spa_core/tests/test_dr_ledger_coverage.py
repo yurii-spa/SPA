@@ -167,3 +167,32 @@ def test_declared_sqlite_ledger_is_in_sqlite_files_or_a_subtree():
             f"{rel!r} is declared as an append-only ledger but is not in _SQLITE_FILES "
             f"{db._SQLITE_FILES} — a sqlite member is never picked up by the json glob"
         )
+
+
+def test_cio_content_addressed_snapshots_ride_in_the_archive(tmp_path, monkeypatch):
+    """RM-TRUTH-01 backup audit (07.10): ADR-554 ledger rows reference their input by
+    hash in investment_cio/snapshots/<sha256>.json.gz. The *.json/*.jsonl glob never
+    matched *.json.gz, so a restored CIO ledger could not be replayed. Positive control:
+    the snapshot is seeded, and the archive must carry it byte-for-byte."""
+    import gzip
+    import tarfile
+
+    db = _load_daily_backup_module()
+    data = tmp_path / "data"
+    backups = data / "backups"
+    backups.mkdir(parents=True)
+    _seed_must_have(data)
+    snap_rel = "investment_cio/snapshots/" + "ab" * 32 + ".json.gz"
+    snap = data / snap_rel
+    snap.parent.mkdir(parents=True)
+    payload = gzip.compress(b'{"doc": 1}')
+    snap.write_bytes(payload)
+
+    monkeypatch.setattr(db, "_DATA", str(data))
+    monkeypatch.setattr(db, "_BACKUPS", str(backups))
+    rep = db.snapshot(date_str="2026-10-07")
+    assert rep["written"] is True
+
+    with tarfile.open(rep["archive"], "r:gz") as tar:
+        assert snap_rel in tar.getnames(), "CIO input snapshot missing from the DR archive"
+        assert tar.extractfile(snap_rel).read() == payload

@@ -155,7 +155,10 @@ def _collect_sources() -> list:
         base = os.path.join(_DATA, sub)
         if not os.path.isdir(base):
             continue
-        for pattern in ("*.json", "*.jsonl"):
+        # *.json.gz: ADR-554 keeps each CIO input as a content-addressed gzipped snapshot
+        # (investment_cio/snapshots/<sha256>.json.gz) that its ledger rows reference by hash;
+        # a restored ledger without them cannot be replayed (RM-TRUTH-01 backup audit 07.10).
+        for pattern in ("*.json", "*.jsonl", "*.json.gz"):
             files.extend(glob.glob(os.path.join(base, "**", pattern), recursive=True))
     files = sorted(set(f for f in files if os.path.isfile(f)))
     return files
