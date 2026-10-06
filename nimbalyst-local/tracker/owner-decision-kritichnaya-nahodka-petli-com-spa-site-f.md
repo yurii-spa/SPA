@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте"
-status: ingested
+status: owner-accepted
 source: nimbalyst
 created: 2026-09-09
 finding_key: "B1:dead:com.spa.site_freshness"
@@ -10,6 +10,9 @@ owner_choice: ack
 owner_answered_at: 2026-09-09T06:13:27.527093+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: ack
+status_trail:
+  - "2026-09-09T06:13:27.527161+00:00 needs-owner -> owner-accepted · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -27,17 +30,10 @@ com.spa.site_freshness: intent=active, но НЕ загружен во флот�
 
 _finding_key: `B1:dead:com.spa.site_freshness` · источник: architecture_conformance · ADR-066_
 
-## Закрыто по СОБСТВЕННОМУ критерию карточки (2026-09-09)
+---
 
-Владелец ответил `ack` в 06:13. Критерий приёмки карточки — «находка исчезает из
-`data/architecture_conformance.json` при следующем прогоне» — выполнен и перемерен:
+## Решение владельца
 
-- `launchctl list` показывает `com.spa.site_freshness` загруженным;
-- `data/architecture_conformance.json` (18:54 UTC): находок про `site_freshness` — **0**,
-  всего находок — **0**.
+**Принято — беру в работу**
 
-Агент был развёрнут ночью 08→09.09 вместе с ADR-270 (кастодиан сравнивал трек-to-date APY с
-однодневным и вешал ложную плашку `degraded`); тем же заходом `intent` в манифесте переведён в
-`active`, то есть расхождение закрыто с ОБЕИХ сторон — и во флоте, и в объявлении.
-
-Мост, который должен был закрыть карточку сам, до неё не дошёл; закрыто разбором.
+_Ответ владельца получен 2026-09-09T06:13:27.527093+00:00 (telegram). Поручение ПРИНЯТО владельцем — карточка остаётся открытой (`owner-accepted`), пока агент не выполнит её критерий приёмки и не отчитается. Закрыть её в `ingested` может только этот отчёт._

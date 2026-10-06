@@ -2,15 +2,15 @@
 trackerStatus:
   type: owner-decision
 title: Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает
-status: ingested
+status: owner-done
 created: 2026-09-12
 owner_choice: 1
 owner_answered_at: 2026-09-13T20:11:25.953300+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
 status_trail:
-  - "2026-09-13T13:51:19.376328+00:00 needs-owner -> ingested · queue.set_status"
-  - "2026-09-13T20:44:42.553066+00:00 ingested -> ingested · queue.set_status · cycle-48848"
+  - "2026-09-13T20:11:25.953499+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -72,3 +72,11 @@ status_trail:
 
 В любом из трёх случаев `auto_push.py` остаётся на месте, пока ты не решишь: сейчас его
 удаление ломает критерий.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — переписать критерий на настоящую проводку
+
+_Ответ владельца получен 2026-09-13T20:11:25.953300+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

@@ -2,16 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?
-status: ingested
+status: owner-done
 created: 2026-09-12
 priority: normal
 owner_choice: 1
 owner_answered_at: 2026-09-13T20:10:59.084615+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
 status_trail:
-  - "2026-09-13T13:51:20.095522+00:00 needs-owner -> ingested · queue.set_status"
-  - "2026-09-13T20:44:43.154433+00:00 ingested -> ingested · queue.set_status · cycle-48848"
+  - "2026-09-13T20:10:59.085053+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -56,3 +56,11 @@ status_trail:
 тесты и доставит одним пушем. Агента не перезапускает: расписание недельное, следующий
 запуск подхватит новый код сам. Получив «оставь» — запишет решение в журнал и закроет
 карточку, храповик продолжит сторожить класс.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Починить сам скрипт
+
+_Ответ владельца получен 2026-09-13T20:10:59.084615+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

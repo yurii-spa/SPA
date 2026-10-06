@@ -2,14 +2,15 @@
 trackerStatus:
   type: owner-decision
 title: ИИ не пускают к деньгам — но проверка, которая это стережёт, слепа на нашу единственную дверь
-status: ingested
+status: owner-done
 created: 2026-09-07
 owner_choice: 1
 owner_answered_at: 2026-09-09T06:13:34.005745+00:00
 owner_answer_via: telegram
 owner_answered_by: 258651137
+owner_answer_kind: option
 status_trail:
-  - "2026-09-09T18:35:31.535830+00:00 needs-owner -> ingested · queue.set_status · cycle-80789"
+  - "2026-09-09T06:13:34.006071+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -72,3 +73,11 @@ status_trail:
 модуль `spa_core/monitoring/cio_architecture_constraints.py`, 41 тест,
 [ADR-252](../../docs/decisions/ADR-252-architecture-constraints-guard-blind-to-the-real-door.md).
 Ни один порог не изменён, ни одна строка рабочего контура не тронута.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Расширить проверку `lint_llm_forbidden.py`: считать
+
+_Ответ владельца получен 2026-09-09T06:13:34.005745+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

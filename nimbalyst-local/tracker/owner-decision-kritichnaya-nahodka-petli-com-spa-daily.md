@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте"
-status: ingested
+status: owner-accepted
 source: nimbalyst
 created: 2026-09-28
 finding_key: "B1:dead:com.spa.daily_cycle"
@@ -13,7 +13,6 @@ owner_answered_by: 258651137
 owner_answer_kind: ack
 status_trail:
   - "2026-09-29T06:48:36.208148+00:00 needs-owner -> owner-accepted · owner_answer.record_owner_answer"
-  - "2026-10-02T19:03:08.355443+00:00 owner-accepted -> ingested · queue.set_status · cycle-79366"
 ---
 
 ## Что случилось и почему это важно
@@ -38,21 +37,3 @@ _finding_key: `B1:dead:com.spa.daily_cycle` · источник: architecture_co
 **Принято — беру в работу**
 
 _Ответ владельца получен 2026-09-29T06:48:36.207997+00:00 (telegram). Поручение ПРИНЯТО владельцем — карточка остаётся открытой (`owner-accepted`), пока агент не выполнит её критерий приёмки и не отчитается. Закрыть её в `ingested` может только этот отчёт._
-
----
-
-## Отчёт агента (цикл #754, 2026-10-02)
-
-**Критерий приёмки ВЫПОЛНЕН и перемерен.** В живом `data/architecture_conformance.json`
-(замер 2026-10-02T16:56:21Z) находки `B1:dead:com.spa.daily_cycle` **нет**: из пяти оставшихся
-находок одна CRITICAL (`B1:dead:com.spa.mission_tick`, отдельная карточка) и четыре WARN.
-Независимая проверка той же вещи у ОС: `launchctl list | grep daily_cycle` отдаёт
-`-  0  com.spa.daily_cycle` — агент загружен во флоте, последний выход 0.
-
-**Почему карточка не закрылась сама, хотя мост умеет.** Ответ владельца (29.09, telegram) лёг в
-ПРОД-дерево — бот пишет туда, — а на `origin` карточка всё это время стояла `needs-owner`: ответ
-владельца доезжает до origin только тем, что его поднимает сессия. Ждала **84 ч**. Это не дефект
-моста, а дефект канала доставки ответа, и он уже назван заказом G110 (отдельный канал вопроса).
-
-**Статус перевожу в `ingested`:** критерий выполнен, отчёт дан (инв. #14 — `owner-done` и
-`owner-accepted` остаются за владельцем, `ingested` ставит агент своим отчётом).

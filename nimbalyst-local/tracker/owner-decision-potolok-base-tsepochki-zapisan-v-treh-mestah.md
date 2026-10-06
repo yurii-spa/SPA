@@ -5,6 +5,8 @@ title: Потолок Base-цепочки записан в трёх места�
 status: needs-owner
 source: nimbalyst
 created: 2026-09-21
+subject: MONEY
+subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 backfill 2026-10-07)"
 ---
 
 ## Что случилось и почему это важно

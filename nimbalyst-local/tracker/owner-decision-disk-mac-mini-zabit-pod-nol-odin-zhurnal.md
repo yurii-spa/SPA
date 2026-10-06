@@ -5,6 +5,8 @@ title: Диск Mac Mini забит под ноль — один журнал а
 status: needs-owner
 source: nimbalyst
 created: 2026-09-26
+subject: IRREVERSIBLE
+subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 backfill 2026-10-07)"
 ---
 
 ## Что случилось и почему это важно

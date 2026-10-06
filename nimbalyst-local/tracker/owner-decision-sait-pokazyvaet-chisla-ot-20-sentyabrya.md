@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх"
-status: ingested
+status: owner-done
 source: agent
 created: 2026-09-25
 priority: high
@@ -13,7 +13,6 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-10-04T16:03:36.531894+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
-  - "2026-10-04T22:02:48.732949+00:00 owner-done -> ingested · queue.set_status · cycle-16566"
 ---
 
 ## Что случилось и почему это важно
