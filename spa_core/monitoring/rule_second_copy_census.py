@@ -19977,6 +19977,557 @@ def subject_of_a_series_number(root: Path, doc: dict) -> dict:
     }
 
 
+#: Шаги ряда, у которых РАСКОЛ есть ИСХОД, перечислены ПОИМЁННО: имя шага в
+#: сборке · ключ его вердикта в строке населения · имя его перечня исходов ·
+#: производитель строк. Вывести этот список по сигнатуре было бы догадкой:
+#: `ONE_STEP_SPLITS` встречается и у шагов, чей предмет не раскол вовсе (род
+#: накопителя, знаменатель ряда), и запись «у кого есть раскол» обязана быть
+#: ОБЪЯВЛЕНИЕМ, а не совпадением имени константы.
+SPLIT_STEPS_OF_THE_SERIES = (
+    ("escaped_counter_one_step", "one_step", "one_step_outcomes",
+     _one_step_sites),
+    ("container_counter_field_step", "field_step", "field_step_outcomes",
+     _field_step_sites),
+    ("document_field_reader_in_file", "doc_step", "doc_step_outcomes",
+     _document_reader_sites),
+    ("bound_name_read_in_this_scope", "bound_step", "bound_step_outcomes",
+     _bound_name_sites),
+    ("defensive_tail_binding", "tail_step", "tail_step_outcomes",
+     _defensive_tail_sites),
+    ("loop_key_over_a_declared_list", "loop_step", "loop_step_outcomes",
+     _loop_key_sites),
+)
+
+#: Судья достижимости и сборка, внутри которой меряется порядок зовов. Оба
+#: имени — ИМЕНА ФУНКЦИЙ: вопрос «позван ли судья и когда» есть вопрос о
+#: ДЕРЕВЕ, а не о тексте, и строкой в артефакте он не решается.
+REACHABILITY_JUDGE_STEP = "split_reachability_at_the_writer"
+HANDOVER_ASSEMBLY_FUNCTION = "measure"
+#: Файл сборки — тот же модуль: судья и все шесть шагов живут в одном месте,
+#: и порядок их зовов есть свойство ЭТОГО файла в измеряемом дереве.
+HANDOVER_ASSEMBLY_FILE = "spa_core/monitoring/rule_second_copy_census.py"
+
+#: Раскол ДОШЁЛ до судьи: его узел стои́т в собственном населении судьи, то
+#: есть вопрос «достижим ли он у писателя» о нём ЗАДАН.
+HANDOVER_HANDED = "the_split_stands_in_the_judge_own_population"
+#: Раскол до судьи НЕ дошёл, хотя к моменту его зова уже СУЩЕСТВОВАЛ: шаг,
+#: нашедший раскол, позван РАНЬШЕ судьи — и всё равно ему не передан. Это не
+#: вопрос порядка, это непроведённая проводка.
+HANDOVER_BORN_BEFORE = "the_split_exists_before_the_judge_and_is_not_handed_to_it"
+#: Раскол РОДИЛСЯ ПОЗЖЕ: шаг, нашедший его, позван после того, как судья уже
+#: ответил. Передать его сегодня нельзя, не переставив зовы, — и это РАЗНЫЕ
+#: починки, поэтому и исходы разные.
+HANDOVER_BORN_AFTER = "the_split_is_produced_after_the_judge_has_answered"
+#: ТРЕТИЙ ИСХОД с названной причиной. Не «дошёл» и не «не дошёл».
+HANDOVER_UNMEASURED = "the_handover_of_the_split_is_not_measured"
+_HANDOVER_OUTCOMES = (HANDOVER_HANDED, HANDOVER_BORN_BEFORE,
+                      HANDOVER_BORN_AFTER, HANDOVER_UNMEASURED)
+
+#: ПРИЧИНЫ третьего исхода, и чинятся они разным.
+HANDOVER_GAP_STEP_NOT_CALLED = "the_producing_step_is_not_called_in_the_assembly"
+HANDOVER_GAP_NO_COORDINATE = "the_split_row_carries_no_file_and_line"
+_HANDOVER_GAPS = (HANDOVER_GAP_STEP_NOT_CALLED, HANDOVER_GAP_NO_COORDINATE)
+
+#: Отказы самого шага. Четыре, и ни один не есть ноль.
+UNMEASURED_HANDOVER_NEIGHBOUR = "a_split_step_or_the_judge_is_absent_or_unmeasured"
+UNMEASURED_HANDOVER_POPULATION = "own_walk_disagrees_with_a_declared_split_count"
+UNMEASURED_HANDOVER_CONTROL = "declared_handover_rule_missed_the_known_case"
+UNMEASURED_HANDOVER_ASSEMBLY = "the_assembly_source_is_not_parsed_or_names_no_judge"
+
+#: ПОЛОЖИТЕЛЬНАЯ половина сцены. Три зова вокруг судьи: один раньше и
+#: переданный, один раньше и НЕ переданный, один позже. Если правило не
+#: разведёт «раньше» и «позже», число «сколько рождается после судьи» было бы
+#: свойством правила, а не сборки. Имя судьи стои́т здесь ещё и в
+#: КОММЕНТАРИИ — упоминание зовом не является (ADR-333: правило не имеет
+#: права проходить подстрокой).
+HANDOVER_CONTROL_SOURCE = '''
+def measure(root):
+    # split_reachability_at_the_writer: упоминание в комментарии — не зов
+    early = early_step(root)
+    handed = handed_step(root, early)
+    judged = split_reachability_at_the_writer(root, handed)
+    late = late_step(root, handed)
+    return {"e": early, "h": handed, "j": judged, "l": late}
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Без неё «шаг нашёл N рождённых позже» было бы
+#: неотличимо от «шаг объявляет позже-рождённым всё, чего не нашёл». Судья
+#: здесь НЕ ЗВАН вовсе, а имя его стои́т СТРОКОЙ — и шаг обязан отказать
+#: целиком, а не объявить все расколы рождёнными после него.
+HANDOVER_CONTROL_NO_JUDGE = '''
+def measure(root):
+    note = "split_reachability_at_the_writer"
+    early = early_step(root)
+    late = late_step(root, early)
+    return {"e": early, "l": late, "n": note}
+'''
+
+
+def _assembly_call_lines(source: str,
+                         names: Tuple[str, ...]) -> Dict[str, Optional[int]]:
+    """Строка ЗОВА каждого названного имени внутри сборки — по дереву.
+
+    Отвечает ``None`` там, где зова нет: упоминание имени в комментарии, в
+    строке или в чужой функции зовом не является, и отличить одно от другого
+    обязано ДЕРЕВО, а не поиск подстроки (ADR-333).
+
+    ``SyntaxError`` НЕ глушится: нечитаемая сборка есть третий исход у
+    зовущего, а не пустая карта порядка.
+    """
+    tree = ast.parse(source)
+    body: Optional[ast.AST] = None
+    for node in tree.body:
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == HANDOVER_ASSEMBLY_FUNCTION):
+            body = node
+            break
+    order: Dict[str, Optional[int]] = {name: None for name in names}
+    if body is None:
+        return order
+    for node in ast.walk(body):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name):
+            called = func.id
+        elif isinstance(func, ast.Attribute):
+            called = func.attr
+        else:
+            continue
+        if called not in order:
+            continue
+        # `lineno` у разобранного `ast.Call` есть всегда, поэтому защиты «а
+        # если строки нет» здесь НЕТ намеренно: ветка, которую невозможно
+        # исполнить, не проверяема ничем и только выглядит осторожной.
+        seen = order[called]
+        order[called] = node.lineno if seen is None else min(seen,
+                                                             node.lineno)
+    return order
+
+
+def _handover_site(step_name: str, in_judge: bool,
+                   order: Dict[str, Optional[int]],
+                   judge_line: int) -> dict:
+    """Дошёл ли ОДИН раскол до судьи — и если нет, успел ли он родиться.
+
+    Принадлежность населению судьи решает УЗЕЛ (файл и строка), а не имя шага:
+    два шага ряда вправе найти раскол в одном месте, и тогда вопрос о нём
+    ЗАДАН, кем бы он ни был найден. Своего правила «что есть население судьи»
+    здесь нет ни строки — оно спрашивается у :func:`_reach_sites`.
+    """
+    line = order.get(step_name)
+    if in_judge:
+        return {"handover": HANDOVER_HANDED, "handover_gap": None,
+                "step_line": line}
+    if line is None:
+        return {"handover": HANDOVER_UNMEASURED,
+                "handover_gap": HANDOVER_GAP_STEP_NOT_CALLED,
+                "step_line": None}
+    if line > judge_line:
+        return {"handover": HANDOVER_BORN_AFTER, "handover_gap": None,
+                "step_line": line}
+    return {"handover": HANDOVER_BORN_BEFORE, "handover_gap": None,
+            "step_line": line}
+
+
+def _handover_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Две половины, и вторая не украшение первой. Положительная обязана развести
+    зов раньше судьи и зов позже него; отрицательная — отказать там, где судьи
+    в сборке НЕТ, а имя его стои́т строкой. Ноль достижимых из сцены, где
+    правило промахнулось, был бы свойством правила.
+    """
+    names = ("early_step", "handed_step", "late_step",
+             "absent_step", REACHABILITY_JUDGE_STEP)
+    try:
+        order = _assembly_call_lines(HANDOVER_CONTROL_SOURCE, names)
+        clean = _assembly_call_lines(HANDOVER_CONTROL_NO_JUDGE, names)
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    judge = order.get(REACHABILITY_JUDGE_STEP)
+    if judge is None:
+        return {"passed": False,
+                "reason": ("на положительной половине сцены зов судьи не "
+                           "найден вовсе — порядок мерить не от чего")}
+    if order.get("absent_step") is not None:
+        return {"passed": False,
+                "reason": ("имени, которого в сборке нет, правило назначило "
+                           "строку зова — порядок стал бы выдумкой")}
+    before = [name for name in ("early_step", "handed_step")
+              if order.get(name) is not None and order[name] < judge]
+    after = order.get("late_step")
+    if len(before) != 2 or after is None or after <= judge:
+        return {"passed": False, "before": len(before), "after": after,
+                "judge": judge,
+                "reason": ("на известных случаях правило не развело зов "
+                           "РАНЬШЕ судьи и зов ПОЗЖЕ него — число «рождается "
+                           "после» было бы свойством правила, а не сборки")}
+    if clean.get(REACHABILITY_JUDGE_STEP) is not None:
+        return {"passed": False,
+                "reason": ("на отрицательной половине сцены правило нашло зов "
+                           "судьи там, где имя его стои́т СТРОКОЙ — правило "
+                           "проходит подстрокой, а не зовом")}
+    handed = _handover_site("handed_step", True, order, judge)
+    unwired = _handover_site("handed_step", False, order, judge)
+    late = _handover_site("late_step", False, order, judge)
+    missing = _handover_site("absent_step", False, order, judge)
+    seen = (handed["handover"], unwired["handover"], late["handover"],
+            missing["handover"])
+    if seen != (HANDOVER_HANDED, HANDOVER_BORN_BEFORE, HANDOVER_BORN_AFTER,
+                HANDOVER_UNMEASURED):
+        return {"passed": False, "outcomes": list(seen),
+                "reason": ("четыре известных случая не дали четырёх разных "
+                           "исходов — исходы слиты, и «не измерено» стало "
+                           "неотличимо от ответа")}
+    if missing["handover_gap"] != HANDOVER_GAP_STEP_NOT_CALLED:
+        return {"passed": False, "gap": missing["handover_gap"],
+                "reason": ("третий исход объявлен без причины — отказ без "
+                           "причины посылает чинить не то")}
+    return {"passed": True, "positive": judge, "before": len(before),
+            "after": after, "negative_judge_calls": 0,
+            "outcomes": list(seen)}
+
+
+def splits_handed_to_the_reachability_judge(
+        root: Path, steps: Optional[dict],
+        reach_step: Optional[dict], *,
+        assembly_source: Optional[str] = None) -> dict:
+    """Кому из расколов ряда достаётся судья достижимости (**заказ G100 п. 2**).
+
+    Заказ дословно:
+
+    > Раскол этого шага не передан тому, кто судит его достижимость. Население
+    > ``split_reachability_at_the_writer`` набрано у ДВУХ шагов (ADR-466,
+    > ADR-467), и десятый раскол ряда для него не существует. Спросить прямо:
+    > достижим ли он — и заодно перемерить, сколько расколов ряда вообще
+    > доходит до этого судьи, а сколько рождается после него.
+
+    **«Рождается после» — ЗАМЕР ПО ДЕРЕВУ, а не оговорка в тексте.** Порядок
+    зовов читается у сборки :func:`measure` разбором, и имя судьи,
+    встреченное в комментарии или в строке, зовом не считается. Проза ADR
+    вправе разойтись с кодом — и тогда число «рождается после» было бы
+    свойством прозы.
+
+    **Односторонность заказа названа заранее и оказалась существенной.**
+    Заказ делил расколы на «дошедшие» и «рождённые позже»; у замера класса
+    ТРИ, и третий — самый населённый: раскол, который к зову судьи УЖЕ
+    СУЩЕСТВОВАЛ и всё равно ему не передан. Эти два лечатся разным
+    (переставить зовы · провести проводку), и звать их одним словом значило бы
+    выдать непроведённую проводку за неизбежность порядка.
+
+    **Ни одного своего правила.** Расколы приходят от шести шагов ряда как
+    есть, население судьи спрашивается у его собственного
+    :func:`_reach_sites`, достижимость непереданных — у его собственного
+    :func:`_reach_site` с вердиктом писателя от ADR-469. Вторая копия правила
+    «что есть раскол», «что есть население судьи» или «что есть достижимость»
+    была бы ровно тем предметом, который эта перепись ищет.
+
+    **Население сверяется с суммой соседей** — у КАЖДОГО из шести шагов своё
+    число расколов, и у судьи своё число населения. Свой обход есть вторая
+    дорога к тем же местам, и разойдясь с первой, он отвечал бы на другой
+    вопрос.
+
+    ADVISORY: ни одного счётчика, ни одного читателя, ни одного шага ряда и
+    ни одного гейта эта работа не правит, ``applied`` ложно. Проводка НЕ
+    проведена намеренно: расширить население судьи значит сдвинуть числа
+    прошлых решений ряда, а это отдельное решение, не замер.
+    """
+    head = {
+        "question": ("сколько расколов ряда ДОХОДИТ до судьи достижимости, "
+                     "сколько рождается ПОСЛЕ его зова, а сколько к этому "
+                     "зову уже существовало и всё равно не передано"),
+        "order": "G100.2",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+        "judge": REACHABILITY_JUDGE_STEP,
+        "assembly": f"{HANDOVER_ASSEMBLY_FILE}::{HANDOVER_ASSEMBLY_FUNCTION}",
+    }
+    if not isinstance(steps, dict):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                "reason": ("шаги ряда не переданы — населения «раскол» не "
+                           "существует; это НЕ «расколов нет»")}
+    declared: Dict[str, int] = {}
+    for name, _key, outcomes_key, _producer in SPLIT_STEPS_OF_THE_SERIES:
+        step = steps.get(name)
+        if (not isinstance(step, dict)
+                or str(step.get("status")) != "MEASURED"):
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                    "reason": (f"шаг `{name}` не измерен — его расколов не "
+                               f"существует; это НЕ «у него нет расколов»")}
+        outcomes = observed(step, outcomes_key, kind=dict)
+        if outcomes is None:
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                    "reason": (f"шаг `{name}` не назвал исходов "
+                               f"(`{outcomes_key}`) — сверять свой обход не "
+                               f"с чем")}
+        count = observed(outcomes, ONE_STEP_SPLITS, kind=int)
+        if count is None:
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                    "reason": (f"у шага `{name}` нет числа расколов "
+                               f"(`{ONE_STEP_SPLITS}`): отсутствие поля не "
+                               f"есть ноль расколов")}
+        declared[name] = count
+    if (not isinstance(reach_step, dict)
+            or str(reach_step.get("status")) != "MEASURED"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                "reason": ("сам судья не измерен — у него нет населения, и "
+                           "«ни один раскол не дошёл» было бы ложью о "
+                           "проводке")}
+    declared_judge = observed(reach_step, "population", kind=int)
+    if declared_judge is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_NEIGHBOUR,
+                "reason": ("судья не назвал своего населения — сверять "
+                           "принадлежность не с чем")}
+
+    control = _handover_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_CONTROL,
+                "reason": (f"объявленное правило порядка не прошло контроль: "
+                           f"{control.get('reason')}")}
+
+    names = tuple(name for name, _k, _o, _p in SPLIT_STEPS_OF_THE_SERIES)
+    source = assembly_source
+    if source is None:
+        path = root / HANDOVER_ASSEMBLY_FILE
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_HANDOVER_ASSEMBLY,
+                    "reason": (f"сборка `{HANDOVER_ASSEMBLY_FILE}` не "
+                               f"прочитана ({type(exc).__name__}: {exc}) — "
+                               f"порядок зовов не измерен")}
+    try:
+        order = _assembly_call_lines(source,
+                                     names + (REACHABILITY_JUDGE_STEP,))
+    except SyntaxError as exc:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_ASSEMBLY,
+                "reason": (f"сборка не разобрана ({exc}) — порядок зовов не "
+                           f"измерен")}
+    judge_line = order.get(REACHABILITY_JUDGE_STEP)
+    if judge_line is None:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_ASSEMBLY,
+                "steps_called": {k: v for k, v in order.items()},
+                "reason": (f"сборка `{HANDOVER_ASSEMBLY_FUNCTION}` не зовёт "
+                           f"`{REACHABILITY_JUDGE_STEP}` ни разу — «все "
+                           f"расколы рождаются после судьи» было бы ответом "
+                           f"там, где судьи нет вовсе")}
+
+    rows: List[dict] = []
+    judge_nodes: Set[tuple] = set()
+    unreadable: List[dict] = []
+    scanned = 0
+    # Оба ворота цены ниже ОБЪЯВЛЯЮТ своё число. Ворот, не называющий, сколько
+    # он сэкономил, снимается молча: вердикт от него не зависит по построению,
+    # и мутация такой ветки не наблюдаема ничем — то есть ворот перестаёт быть
+    # измеримым ровно там, где он единственная причина цены шага.
+    with_counter = 0
+    with_writer = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            # Население судьи — его СОБСТВЕННОЕ: второй копии правила «что он
+            # берёт» здесь нет ни строки, и поэтому принадлежность не может
+            # разойтись с тем, о чём он на самом деле ответил.
+            for site in _reach_sites(rel, tree):
+                judge_nodes.add((site["file"], site["line"]))
+            here: List[Tuple[dict, dict]] = []
+            # Отбор ДЕШЁВЫМ воротом соседа: раскол ряда по построению стои́т у
+            # ОТКРЫТОГО счётчика (вся воронка ADR-461…ADR-467 начинается у
+            # `_open_counter_sites`), поэтому файл без открытого счётчика не
+            # может нести раскола. Ошибись это допущение — сверка с числом
+            # каждого шага ОТКАЖЕТ громко, а не недосчитает молча: потому
+            # ворот и допустим.
+            if not _open_counter_sites(rel, tree):
+                continue
+            with_counter += 1
+            for name, key, _outcomes_key, producer in \
+                    SPLIT_STEPS_OF_THE_SERIES:
+                for site in producer(rel, tree):
+                    if site.get(key) != ONE_STEP_SPLITS:
+                        continue
+                    node = (site.get("file"), site.get("line"))
+                    row = {"file": site.get("file"), "line": site.get("line"),
+                           "owner": site.get("owner"),
+                           "counter": site.get("counter"),
+                           "field": site.get("field"),
+                           "split_found_by": name}
+                    if row["file"] is None or row["line"] is None:
+                        row.update({"handover": HANDOVER_UNMEASURED,
+                                    "handover_gap":
+                                        HANDOVER_GAP_NO_COORDINATE,
+                                    "step_line": order.get(name),
+                                    "reach": REACH_UNRESOLVED,
+                                    "reach_gap": REACH_GAP_NO_WRITER_SITE})
+                        rows.append(row)
+                        continue
+                    row.update(_handover_site(name, node in judge_nodes,
+                                              order, judge_line))
+                    here.append((row, site))
+                    rows.append(row)
+            # Вердикт писателя нужен ТОЛЬКО непереданным: о переданных судья
+            # ответил сам. Поэтому разбор писателя идёт ЛЕНИВО — файл без
+            # непереданного раскола не стои́т ряду ничего, и цена шага есть
+            # свойство находок, а не размера дерева.
+            if any(row["handover"] != HANDOVER_HANDED for row, _s in here):
+                writers = {(w["file"], w["line"]): w
+                           for w in _writer_kind_sites(rel, tree)}
+                with_writer += 1
+            else:
+                writers = {}
+            for row, site in here:
+                if row["handover"] == HANDOVER_HANDED:
+                    # Достижимость переданного раскола — ответ СУДЬИ, и
+                    # спрашивать её тут заново значило бы завести вторую
+                    # дорогу к уже данному ответу.
+                    row.update({"reach": None, "reach_gap": None,
+                                "reach_asked_here": False})
+                    continue
+                # Достижимость спрашивается ТЕМ ЖЕ правилом, которым судья
+                # отвечает о своём населении, — иначе ответ о непереданных
+                # был бы несравним с его ответом.
+                row.update(_reach_site(site, writers.get((row["file"],
+                                                          row["line"]))))
+                row["reach_asked_here"] = True
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_POPULATION,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    by_step = {name: sum(1 for r in rows if r["split_found_by"] == name)
+               for name, _k, _o, _p in SPLIT_STEPS_OF_THE_SERIES}
+    for name, count in declared.items():
+        if by_step[name] != count:
+            return {**head, "status": "UNMEASURED",
+                    "unmeasured_class": UNMEASURED_HANDOVER_POPULATION,
+                    "step": name, "own_walk": by_step[name],
+                    "declared": count,
+                    "reason": (f"свой обход нашёл у `{name}` "
+                               f"{by_step[name]} раскол(ов), сам шаг назвал "
+                               f"{count} — это ДВЕ разные дороги к одному "
+                               f"населению, и разойдясь, они отвечают на "
+                               f"разные вопросы")}
+    if len(judge_nodes) != declared_judge:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_HANDOVER_POPULATION,
+                "judge_population": len(judge_nodes),
+                "declared_judge_population": declared_judge,
+                "reason": (f"свой обход населения судьи нашёл "
+                           f"{len(judge_nodes)} узл(ов), сам судья назвал "
+                           f"{declared_judge} — принадлежность мерить не от "
+                           f"чего")}
+
+    # Форма ЗАКРЫТАЯ, и это не стиль: открытый счётчик есть ровно тот предмет,
+    # который прибор ищет, — завести его ЗДЕСЬ значило бы мерить самого себя.
+    outcomes = {cls: sum(1 for r in rows if r["handover"] == cls)
+                for cls in _HANDOVER_OUTCOMES}
+    gaps = {gap: sum(1 for r in rows if r.get("handover_gap") == gap)
+            for gap in _HANDOVER_GAPS}
+    unhanded = [r for r in rows if r["handover"] != HANDOVER_HANDED]
+    reach_of_unhanded = {cls: sum(1 for r in unhanded
+                                  if r.get("reach") == cls)
+                         for cls in _REACH_OUTCOMES}
+    # Узел, найденный расколом ДВУХ шагов, достаётся судье, кем бы он ни был
+    # найден, — и назвать это число надо, иначе «дошёл» тихо раздувался бы
+    # чужой находкой.
+    seen_nodes: Dict[tuple, set] = {}
+    for row in rows:
+        node = (row.get("file"), row.get("line"))
+        seen_nodes.setdefault(node, set()).add(row["split_found_by"])
+    shared = sum(1 for owners in seen_nodes.values() if len(owners) > 1)
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": sum(declared.values()),
+        "files_scanned": scanned,
+        "files_carrying_an_open_counter": with_counter,
+        "files_whose_writer_was_parsed": with_writer,
+        "splits_by_step": by_step,
+        "declared_by_step": declared,
+        "assembly_order": dict(order),
+        "judge_call_line": judge_line,
+        "judge_population": len(judge_nodes),
+        "declared_judge_population": declared_judge,
+        "handover_outcomes": outcomes,
+        "unmeasured_reasons": gaps,
+        "splits_sharing_a_node_with_another_step": shared,
+        "reachability_of_the_unhanded_splits": reach_of_unhanded,
+        "reaches_the_judge": outcomes[HANDOVER_HANDED],
+        "born_after_the_judge": outcomes[HANDOVER_BORN_AFTER],
+        "existed_before_and_still_unhanded": outcomes[HANDOVER_BORN_BEFORE],
+        "unhanded_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "found_by": r["split_found_by"],
+             "handover": r["handover"], "reach": r.get("reach"),
+             "reach_gap": r.get("reach_gap"),
+             "reach_asked_here": r.get("reach_asked_here")}
+            for r in unhanded][:COSTED_SAMPLE],
+        # У переданного раскола поля достижимости здесь НЕТ намеренно: о нём
+        # ответил судья, и повторить его ответ своей дорогой значило бы
+        # завести вторую — ровно тот предмет, который перепись ищет.
+        "handed_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "found_by": r["split_found_by"],
+             "reach_asked_here": r.get("reach_asked_here")}
+            for r in rows if r["handover"] == HANDOVER_HANDED][:COSTED_SAMPLE],
+        "blind": [
+            (f"`{HANDOVER_BORN_BEFORE}` и `{HANDOVER_BORN_AFTER}` — РАЗНЫЕ "
+             "починки, и заказ знал только вторую: первая не требует "
+             "переставлять ни одного зова, вторая требует. Сложить их одним "
+             "числом «не дошло» значило бы выдать непроведённую проводку за "
+             "неизбежность порядка"),
+            ("порядок зовов измерен у СБОРКИ, а не у прозы ADR: имя судьи в "
+             "комментарии или в строке зовом не считается, и отрицательная "
+             "половина контроля существует ровно затем"),
+            ("проводка НЕ проведена: расширить население судьи значит сдвинуть "
+             "числа прошлых решений ряда (ADR-466…ADR-469 и далее), а это "
+             "отдельное решение, не замер — ровно та односторонность, которую "
+             "заказ G100 п. 1 назвал у правила ключа"),
+            ("достижимость непереданных снята ПРАВИЛОМ СУДЬИ как есть: "
+             f"`{REACH_UNREACHABLE}` по-прежнему НЕ означает «вреда нет» — он "
+             "означает, что вред ГРОМКИЙ"),
+            ("население наследует ВЕСЬ потолок ряда сверху (ADR-461…ADR-467, "
+             "ADR-519): своего замера «что есть раскол» у этого шага нет по "
+             "построению"),
+        ],
+        "what_it_does_not_prove": [
+            "что переданный судье раскол вредит СЕГОДНЯ — доказана ДОРОГА, не событие",
+            "что судья ОТВЕТИЛ бы о непереданных то же самое, будь они в его населении: правило то же, а его собственные отказы считаются по его населению",
+            "что шесть шагов исчерпывают расколы ряда — перечень ОБЪЯВЛЕН, и новый шаг обязан быть в него внесён рукой",
+            "что порядок зовов есть порядок ПОЛУЧЕНИЯ данных: зов позже судьи мог бы отдать ему раскол через артефакт, и этого шаг не мерил",
+        ],
+    }
+
+
 #: Соседские запросы, чей ответ ЗА ОДИН прогон :func:`measure` зависит только
 #: от дерева, а дерево внутри одного прогона не меняется. Список ОБЪЯВЛЕН
 #: поимённо, а не выведен по сигнатуре: запомнить молча ответ функции, которая
@@ -20572,6 +21123,24 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # сверяется и числом, и координатами.
     short_circuit_step = key_origin_before_the_short_circuit(root,
                                                              open_counters)
+    # --- КОМУ ИЗ РАСКОЛОВ ДОСТАЁТСЯ СУДЬЯ ДОСТИЖИМОСТИ (заказ G100 п. 2) ---
+    # Судья достижимости набирает своё население у ДВУХ шагов ряда из шести, и
+    # о расколах остальных четырёх вопрос «достижим ли он у писателя» не
+    # задаётся вовсе. Шаг спрашивает прямо: сколько расколов до судьи доходит,
+    # сколько РОЖДАЕТСЯ ПОСЛЕ его зова (это замер по сборке, а не оговорка) и
+    # сколько к его зову уже существовало — и всё равно не передано. Своего
+    # правила ни о расколе, ни о населении судьи, ни о достижимости шаг не
+    # имеет; зовётся он ПОСЛЕ всех шести, иначе последние для него не
+    # существовали бы по той же причине, о которой он и докладывает.
+    handover_step = splits_handed_to_the_reachability_judge(
+        root,
+        {"escaped_counter_one_step": one_step,
+         "container_counter_field_step": field_step,
+         "document_field_reader_in_file": doc_step,
+         "bound_name_read_in_this_scope": bound_step,
+         "defensive_tail_binding": tail_step,
+         "loop_key_over_a_declared_list": loop_key_step},
+        reach_step)
     verdict_step = verdict_over_named_keys(root)
 
     scanned = len(guard_files) + len(executor_files)
@@ -20745,6 +21314,11 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # предметы с разным третьим исходом, и ответ одного не отменяет
         # другого.
         "key_origin_before_the_short_circuit": short_circuit_step,
+        # Отдельным ключом, а не поправкой к соседу: судья достижимости
+        # отвечает о СВОЁМ населении, а этот шаг — о том, кто в это население
+        # вообще попадает. Слить их значило бы выдать ответ о девяти узлах за
+        # ответ о всех расколах ряда.
+        "splits_handed_to_the_reachability_judge": handover_step,
             "verdict_over_named_keys": verdict_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
@@ -22786,6 +23360,87 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"накопитель `{item.get('accumulator')}`, раскол нашёл "
                 f"{item.get('found_by')}: класс до читателя не доезжает")
         for blind in (observed(reach_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    handover = observed(doc, "splits_handed_to_the_reachability_judge",
+                        kind=dict)
+    if handover is None:
+        out.append("[КОМУ ДОСТАЁТСЯ СУДЬЯ] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «судья достаётся всем расколам»")
+    elif str(handover.get("status")) == "UNMEASURED":
+        out.append(f"[КОМУ ДОСТАЁТСЯ СУДЬЯ] НЕ ИЗМЕРЕНО "
+                   f"[{handover.get('unmeasured_class')}]: "
+                   f"{handover.get('reason')}")
+    else:
+        outcomes = observed(handover, "handover_outcomes", kind=dict) or {}
+        why = observed(handover, "unmeasured_reasons", kind=dict) or {}
+        by_step = observed(handover, "splits_by_step", kind=dict) or {}
+        reach_of = observed(handover,
+                            "reachability_of_the_unhanded_splits",
+                            kind=dict) or {}
+        out.append(
+            f"[КОМУ ДОСТАЁТСЯ СУДЬЯ] из {handover.get('population')} "
+            f"раскол(ов) ряда судья достижимости спрошен о "
+            f"{outcomes.get(HANDOVER_HANDED)}; "
+            f"{outcomes.get(HANDOVER_BORN_AFTER)} РОЖДЕНЫ ПОСЛЕ его зова, а "
+            f"{outcomes.get(HANDOVER_BORN_BEFORE)} к его зову УЖЕ "
+            f"СУЩЕСТВОВАЛИ и всё равно не переданы; не измерено у "
+            f"{outcomes.get(HANDOVER_UNMEASURED)}")
+        out.append(
+            f"[СУДЬЯ · ОТВЕТ ЗАКАЗА] у непереданных достижим "
+            f"{reach_of.get(REACH_REACHABLE)} раскол(ов) — незнакомый класс "
+            f"доехал бы до чистого вердикта, и этого вопроса о них не задавал "
+            f"никто; недостижим {reach_of.get(REACH_UNREACHABLE)} (писатель "
+            f"падает раньше), не измерено "
+            f"{reach_of.get(REACH_UNRESOLVED)}")
+        out.append(
+            "[СУДЬЯ · ЧЬИ РАСКОЛЫ] "
+            + " · ".join(f"{name} {by_step.get(name)}"
+                         for name, _k, _o, _p in SPLIT_STEPS_OF_THE_SERIES)
+            + f"; население судьи {handover.get('judge_population')} узл(ов), "
+              f"сам судья назвал "
+              f"{handover.get('declared_judge_population')}, и разойдись "
+              f"числа — шаг отказал бы целиком")
+        order = observed(handover, "assembly_order", kind=dict) or {}
+        out.append(
+            f"[СУДЬЯ · ПОРЯДОК СБОРКИ] зов судьи на строке "
+            f"{handover.get('judge_call_line')} файла "
+            f"{HANDOVER_ASSEMBLY_FILE}; шаги — "
+            + " · ".join(f"{name}:{order.get(name)}"
+                         for name, _k, _o, _p in SPLIT_STEPS_OF_THE_SERIES)
+            + " (порядок ИЗМЕРЕН разбором, упоминание имени в комментарии "
+              "или в строке зовом не считается)")
+        out.append(
+            f"[СУДЬЯ · ПОЧЕМУ НЕ ИЗМЕРЕНО] шаг в сборке не зван "
+            f"{why.get(HANDOVER_GAP_STEP_NOT_CALLED)} · у раскола нет "
+            f"координаты {why.get(HANDOVER_GAP_NO_COORDINATE)}; узлов, "
+            f"найденных расколом двух шагов — "
+            f"{handover.get('splits_sharing_a_node_with_another_step')}")
+        out.append(
+            f"[СУДЬЯ · ЦЕНА] просмотрено файлов "
+            f"{handover.get('files_scanned')}, из них несут открытый счётчик "
+            f"{handover.get('files_carrying_an_open_counter')} (четыре "
+            f"межпроцедурных производителя показываются только им), а "
+            f"писатель разобран у "
+            f"{handover.get('files_whose_writer_was_parsed')} — у остальных "
+            f"непереданных расколов нет, и спрашивать о них нечего")
+        control = observed(handover, "control", kind=dict) or {}
+        out.append(
+            f"[СУДЬЯ · КОНТРОЛЬ] на положительной половине сцены зов судьи "
+            f"найден на строке {control.get('positive')}, раньше него "
+            f"{control.get('before')} зов(а), позже — строка "
+            f"{control.get('after')}; на отрицательной половине, где имя "
+            f"судьи стои́т СТРОКОЙ, зовов найдено "
+            f"{control.get('negative_judge_calls')} — правило не проходит "
+            f"подстрокой")
+        for item in (observed(handover, "unhanded_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[СУДЬЯ · НЕ ПЕРЕДАН] {item.get('file')}:"
+                f"{item.get('line')} ({item.get('owner')}) "
+                f"`{item.get('counter')}`, раскол нашёл "
+                f"{item.get('found_by')} → {item.get('handover')}; "
+                f"достижимость `{item.get('reach')}`")
+        for blind in (observed(handover, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     kind_step = observed(doc, "accumulator_kind_at_the_binding", kind=dict)
     if kind_step is None:
