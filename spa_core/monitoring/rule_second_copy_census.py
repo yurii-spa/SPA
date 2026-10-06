@@ -18496,6 +18496,794 @@ def sequence_members_of_the_whole_population(
 
 
 # ---------------------------------------------------------------------------
+# ЧЕМ ДЕРЖИТСЯ ЗНАМЕНАТЕЛЬ: КОРОТКОЕ ЗАМЫКАНИЕ ПРАВИЛА КЛЮЧА — заказ G100 п. 1
+# ---------------------------------------------------------------------------
+
+#: БЮДЖЕТ обхода у переставленного правила — посещений узла на ОДИН ключ.
+#: Число есть ВЫБОР, а не свойство дерева, и названо оно потому, что без него
+#: замера не существует вовсе: короткое замыкание :func:`_reads_data` не
+#: только СУДИТ — оно ПОДРЕЗАЕТ обход, и правило без него на этом дереве не
+#: досчитывает (замер цикла #783: прогон без бюджета шёл свыше десяти минут и
+#: был прерван). Бюджет исчерпан ⇒ ТРЕТИЙ ИСХОД, а не вердикт.
+RELOC_BUDGET_NODES = 4000
+
+#: ИСХОД переставленного правила у одного ключа. Перечень ЗАКРЫТ; исход вне
+#: него считается отдельным полем, а не приписывается ближайшему.
+RELOC_STILL_ARTIFACT = "the_relocated_rule_still_calls_the_key_an_artifact"
+RELOC_DECLARED = "the_relocated_rule_calls_the_key_a_declared_class"
+RELOC_LITERAL = "the_relocated_rule_calls_the_key_a_literal"
+RELOC_UNRESOLVED = "the_relocated_rule_leaves_the_key_unresolved"
+RELOC_BUDGET_SPENT = "the_relocated_traversal_spent_its_declared_budget"
+_RELOC_OUTCOMES = (RELOC_STILL_ARTIFACT, RELOC_DECLARED, RELOC_LITERAL,
+                   RELOC_UNRESOLVED, RELOC_BUDGET_SPENT)
+#: ОПРОВЕРЖЕНИЕМ признаются только эти два: «не разрешилось» и «бюджет
+#: кончился» суть третьи исходы, и складывать их с опровержением значило бы
+#: объявить ненайденное нулём (инв. #17).
+_RELOC_REFUTING = (RELOC_DECLARED, RELOC_LITERAL)
+
+#: НА ЧТО ОПЁРЛОСЬ опровержение. Ось меряется РАЗНОСТЬЮ двух прогонов одного
+#: тела, а не вторым правилом: иначе сравнивались бы две реализации.
+RELOC_RESTS_ON_EMPTY = "the_refutation_rests_on_an_empty_literal_enumeration"
+RELOC_SURVIVES_STRICT = ("the_refutation_survives_the_strict_enumeration_"
+                         "witness")
+RELOC_RESTS_ON_NOTHING = "nothing_is_refuted_at_this_site"
+_RELOC_WITNESSES = (RELOC_RESTS_ON_EMPTY, RELOC_SURVIVES_STRICT,
+                    RELOC_RESTS_ON_NOTHING)
+
+#: КОНТЕЙНЕР подписки — ФОРМА, которую заказ назвал поимённо (``EXT[cut-1]``).
+#: Отображение с КОНСТАНТНЫМИ КЛЮЧАМИ сюда НЕ входит намеренно: ``D[k]``
+#: отдаёт ЗНАЧЕНИЕ, и объявленность ключей о классе значения не говорит
+#: ничего. Ровно на этом различии соседский :func:`_literal_enumeration`
+#: считает словарь перечнем, проверяя у него КЛЮЧИ.
+RELOC_CONTAINER_SEQUENCE = "the_container_is_a_non_empty_sequence_of_constants"
+RELOC_CONTAINER_MAPPING_VALUES = ("the_container_is_a_non_empty_mapping_whose_"
+                                  "values_are_constants")
+RELOC_CONTAINER_UNDECLARED = "the_container_resolves_to_something_undeclared"
+RELOC_CONTAINER_UNRESOLVED = "the_container_does_not_resolve_from_this_scope"
+RELOC_CONTAINER_BUDGET = "the_container_traversal_spent_its_declared_budget"
+RELOC_CONTAINER_NOT_A_SUBSCRIPT = "the_key_is_not_a_subscript_at_its_top"
+_RELOC_CONTAINERS = (RELOC_CONTAINER_SEQUENCE, RELOC_CONTAINER_MAPPING_VALUES,
+                     RELOC_CONTAINER_UNDECLARED, RELOC_CONTAINER_UNRESOLVED,
+                     RELOC_CONTAINER_BUDGET, RELOC_CONTAINER_NOT_A_SUBSCRIPT)
+_RELOC_CONTAINER_DECLARING = (RELOC_CONTAINER_SEQUENCE,
+                              RELOC_CONTAINER_MAPPING_VALUES)
+
+#: Отказы самого шага. Шесть, и ни один не есть ноль.
+UNMEASURED_RELOC_NEIGHBOUR = "open_counter_census_is_absent_or_unmeasured"
+UNMEASURED_RELOC_CONTROL = "the_relocated_rule_missed_its_declared_control"
+UNMEASURED_RELOC_POPULATION = "the_two_roads_to_the_population_disagree"
+UNMEASURED_RELOC_COORDINATES = ("the_populations_agree_in_number_and_differ_"
+                                "in_coordinates")
+UNMEASURED_RELOC_IDENTITY = ("the_variant_with_both_switches_off_is_not_the_"
+                             "neighbour_rule")
+UNMEASURED_RELOC_UNREADABLE = "some_file_or_directory_was_not_read"
+
+
+def _nonempty_literal_enumeration(expr: ast.AST) -> bool:
+    """СТРОГИЙ свидетель объявленного перечня: перечень обязан быть НЕПУСТ.
+
+    Соседский :func:`_literal_enumeration` отвечает ``True`` на ПУСТОЙ литерал
+    — ``all`` над пустым перечнем истинно, — то есть ``rows = []`` объявляет
+    класс. Сегодня это невидимо: короткое замыкание успевает ответить раньше,
+    и ни один вердикт дерева от дыры не зависит (замер этого шага, ось
+    ``neighbour_verdicts_moved_by_the_strict_witness``). Свидетель нужен не
+    ВМЕСТО соседского, а РЯДОМ: разность двух прогонов называет, на что
+    опёрлось опровержение, и без неё «перестановка чинит знаменатель» было бы
+    неотличимо от «перестановка его ломает».
+    """
+    if isinstance(expr, (ast.Tuple, ast.List, ast.Set)):
+        return bool(expr.elts) and all(isinstance(el, ast.Constant)
+                                       for el in expr.elts)
+    if isinstance(expr, ast.Dict):
+        return bool(expr.keys) and all(isinstance(k, ast.Constant)
+                                       for k in expr.keys)
+    return False
+
+
+def _key_origin_variant(expr: ast.AST, binds: Dict[str, List[ast.AST]],
+                        module_binds: Dict[str, List[ast.AST]],
+                        params: Set[str], seen: Set[str],
+                        budget: List[int], *,
+                        relocate: bool, strict: bool) -> str:
+    """Соседское правило ключа с ДВУМЯ переключателями — и ОДНИМ телом.
+
+    * ``relocate`` — обход связываний спрашивается ДО короткого замыкания
+      :func:`_reads_data`, а не после (это и есть вопрос заказа G100 п. 1);
+    * ``strict`` — свидетелем объявленного перечня служит
+      :func:`_nonempty_literal_enumeration`, а не соседский.
+
+    **Тело ОДНО намеренно.** Написать переставленное правило отдельной
+    функцией значило бы мерить разностью двух РЕАЛИЗАЦИЙ, а не двух ПРАВИЛ:
+    любая описка во второй копии выглядела бы находкой. Поэтому у шага есть
+    обязательная проба тождества — при обоих переключателях ВЫКЛЮЧЕННЫХ
+    вердикт обязан совпасть с :func:`_key_origin` на ВСЁМ населении дерева;
+    не совпал ⇒ шаг отказывает целиком (``UNMEASURED_RELOC_IDENTITY``).
+
+    **Бюджет** обязателен только при ``relocate``: замыкание подрезает обход,
+    и без него рекурсия по связываниям на этом дереве не досчитывает. Он
+    считается всегда, чтобы прогон тождества шёл тем же телом.
+    """
+    if budget[0] <= 0:
+        return RELOC_BUDGET_SPENT
+    budget[0] -= 1
+    witness = (_nonempty_literal_enumeration if strict
+               else _literal_enumeration)
+    if isinstance(expr, ast.Constant):
+        return KEY_LITERAL
+    if not relocate and _reads_data(expr):
+        return KEY_ARTIFACT
+    names = sorted({n.id for n in ast.walk(expr) if isinstance(n, ast.Name)})
+    if not relocate and not names:
+        return KEY_UNRESOLVED
+    verdicts: Set[str] = set()
+    for name in names:
+        if name in seen:
+            continue
+        if name in params:
+            verdicts.add(KEY_UNRESOLVED)
+            continue
+        sources = binds.get(name) or module_binds.get(name) or []
+        if not sources:
+            verdicts.add(KEY_UNRESOLVED)
+            continue
+        for src in sources:
+            if witness(src):
+                verdicts.add(KEY_DECLARED)
+                continue
+            verdicts.add(_key_origin_variant(src, binds, module_binds, params,
+                                             seen | {name}, budget,
+                                             relocate=relocate,
+                                             strict=strict))
+    if RELOC_BUDGET_SPENT in verdicts:
+        return RELOC_BUDGET_SPENT
+    if relocate:
+        # ВОТ ОНА, перестановка: обход спрошен первым и, ответив объявленным
+        # классом БЕЗ примеси, закрывает вопрос — замыкание до него не
+        # доходит. Примесь (`UNRESOLVED` или `ARTIFACT`) вопрос не закрывает:
+        # иначе «часть ключа объявлена» читалось бы как «ключ объявлен».
+        if verdicts and verdicts <= {KEY_DECLARED, KEY_LITERAL}:
+            return KEY_LITERAL if verdicts == {KEY_LITERAL} else KEY_DECLARED
+        if _reads_data(expr):
+            return KEY_ARTIFACT
+        if not names:
+            return KEY_UNRESOLVED
+    if KEY_ARTIFACT in verdicts:
+        return KEY_ARTIFACT
+    if KEY_UNRESOLVED in verdicts or not verdicts:
+        return KEY_UNRESOLVED
+    if verdicts == {KEY_LITERAL}:
+        return KEY_LITERAL
+    return KEY_DECLARED
+
+
+#: Отображение «вердикт правила → имя исхода шага». Перечень ЗАКРЫТ и
+#: ПОЛОН по построению: `_key_origin_variant` возвращает ровно пять значений,
+#: и счётчик `relocated_outcomes_outside_the_closed_list` поэтому недостижим
+#: СЕГОДНЯ. Он не украшение: вырастет у варианта шестой возврат — исход
+#: уедет туда, а не растворится в ближайшем. Полнота сверяется тестом.
+_RELOC_BY_ORIGIN = {
+    KEY_ARTIFACT: RELOC_STILL_ARTIFACT,
+    KEY_DECLARED: RELOC_DECLARED,
+    KEY_LITERAL: RELOC_LITERAL,
+    KEY_UNRESOLVED: RELOC_UNRESOLVED,
+    RELOC_BUDGET_SPENT: RELOC_BUDGET_SPENT,
+}
+
+
+def _subscript_container_kind(expr: ast.AST,
+                              binds: Dict[str, List[ast.AST]],
+                              module_binds: Dict[str, List[ast.AST]],
+                              params: Set[str], seen: Set[str],
+                              budget: List[int]) -> str:
+    """Род КОНТЕЙНЕРА подписки — цепочкой связываний до неподвижной точки.
+
+    Вопрос у этой двери ДРУГОЙ, чем у перестановки, и это существенно:
+    перестановка спрашивает о СВОБОДНЫХ ИМЕНАХ выражения (``EXT[cut]`` — это
+    и ``EXT``, и ``cut``), а здесь спрашивается только КОНТЕЙНЕР, потому что
+    класс элемента задаёт он один. Известный ложный член ``EXTENSIONS[cut-1]``
+    имеет ровно эту форму: индекс не разрешается ничем, а класс объявлен.
+    """
+    if budget[0] <= 0:
+        return RELOC_CONTAINER_BUDGET
+    budget[0] -= 1
+    if isinstance(expr, (ast.Tuple, ast.List, ast.Set)):
+        if expr.elts and all(isinstance(el, ast.Constant)
+                             for el in expr.elts):
+            return RELOC_CONTAINER_SEQUENCE
+        return RELOC_CONTAINER_UNDECLARED
+    if isinstance(expr, ast.Dict):
+        # Спрашиваются ЗНАЧЕНИЯ, а не ключи: `D[k]` отдаёт значение, и
+        # соседский :func:`_literal_enumeration`, проверяющий у словаря
+        # КЛЮЧИ, отвечает здесь не на тот вопрос. Звать его тут было бы
+        # второй копией правила с другим предметом.
+        if expr.values and all(isinstance(v, ast.Constant)
+                               for v in expr.values):
+            return RELOC_CONTAINER_MAPPING_VALUES
+        return RELOC_CONTAINER_UNDECLARED
+    if isinstance(expr, ast.Name):
+        if expr.id in seen or expr.id in params:
+            return RELOC_CONTAINER_UNRESOLVED
+        sources = binds.get(expr.id) or module_binds.get(expr.id) or []
+        if not sources:
+            return RELOC_CONTAINER_UNRESOLVED
+        outs = {_subscript_container_kind(src, binds, module_binds, params,
+                                          seen | {expr.id}, budget)
+                for src in sources}
+        if RELOC_CONTAINER_BUDGET in outs:
+            return RELOC_CONTAINER_BUDGET
+        if len(outs) == 1:
+            return outs.pop()
+        # Разные связывания спорят ⇒ объявленным контейнер не признаётся.
+        if RELOC_CONTAINER_UNRESOLVED in outs:
+            return RELOC_CONTAINER_UNRESOLVED
+        return RELOC_CONTAINER_UNDECLARED
+    return RELOC_CONTAINER_UNDECLARED
+
+
+def _reloc_sites(rel: str, tree: ast.AST, *,
+                 budget_nodes: int = RELOC_BUDGET_NODES
+                 ) -> Tuple[List[dict], List[dict], List[tuple]]:
+    """Три набора по одному разобранному файлу.
+
+    Возвращает ``(открытые счётчики, сдвиги строгого свидетеля, координаты
+    соседа)``. Третий набор берётся ЧУЖОЙ функцией
+    (:func:`_open_counter_sites`) по тому же дереву: сверка одних ЧИСЕЛ не
+    видит стыка, потерявшего узел и удвоившего другой.
+    """
+    module_binds = _scope_bindings(tree)
+    owner_of = _counter_owner_scopes(tree)
+    scope_cache: Dict[int, Tuple[Dict[str, List[ast.AST]], Set[str], str]] = {}
+
+    def _scope_of(scope: ast.AST):
+        cached = scope_cache.get(id(scope))
+        if cached is not None:
+            return cached
+        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            args = scope.args
+            params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                      + list(args.kwonlyargs))}
+            if args.vararg:
+                params.add(args.vararg.arg)
+            if args.kwarg:
+                params.add(args.kwarg.arg)
+            made = (_scope_bindings(scope), params, scope.name)
+        else:
+            made = (module_binds, set(), "<module>")
+        scope_cache[id(scope)] = made
+        return made
+
+    open_rows: List[dict] = []
+    shifts: List[dict] = []
+    for node in ast.walk(tree):
+        shape = _counter_target_key(node)
+        if shape is None:
+            continue
+        target, key, form = shape
+        scope = owner_of.get(id(node), tree)
+        binds, params, owner = _scope_of(scope)
+        neighbour = _key_origin(key, binds, module_binds, params, set())
+        identity = _key_origin_variant(key, binds, module_binds, params, set(),
+                                       [budget_nodes],
+                                       relocate=False, strict=False)
+        strict_same_order = _key_origin_variant(
+            key, binds, module_binds, params, set(), [budget_nodes],
+            relocate=False, strict=True)
+        site = {"file": rel, "line": getattr(node, "lineno", None),
+                "owner": owner, "form": form,
+                "counter": ast.unparse(target)[:60],
+                "key": ast.unparse(key)[:60],
+                "neighbour": neighbour, "identity": identity,
+                "strict_same_order": strict_same_order}
+        if identity != neighbour or strict_same_order != neighbour:
+            shifts.append(site)
+        if neighbour != KEY_ARTIFACT:
+            continue
+        if _membership_checked(scope, node, key):
+            continue
+        relocated = _key_origin_variant(key, binds, module_binds, params,
+                                        set(), [budget_nodes],
+                                        relocate=True, strict=False)
+        relocated_strict = _key_origin_variant(key, binds, module_binds,
+                                               params, set(), [budget_nodes],
+                                               relocate=True, strict=True)
+        outcome = _RELOC_BY_ORIGIN.get(relocated)
+        outcome_strict = _RELOC_BY_ORIGIN.get(relocated_strict)
+        if outcome in _RELOC_REFUTING:
+            witness = (RELOC_SURVIVES_STRICT
+                       if outcome_strict in _RELOC_REFUTING
+                       else RELOC_RESTS_ON_EMPTY)
+        else:
+            witness = RELOC_RESTS_ON_NOTHING
+        container = (
+            _subscript_container_kind(key.value, binds, module_binds, params,
+                                      set(), [budget_nodes])
+            if isinstance(key, ast.Subscript)
+            else RELOC_CONTAINER_NOT_A_SUBSCRIPT)
+        open_rows.append({**site, "relocated": outcome,
+                          "relocated_strict": outcome_strict,
+                          "witness": witness, "container": container})
+    peer = [(s["file"], s["line"], s["counter"], s["key"])
+            for s in _open_counter_sites(rel, tree)
+            if s["key_origin"] == KEY_ARTIFACT and not s["membership_checked"]]
+    # `item["line"]` берётся без защитного `or 0`: узлы приходят из
+    # `ast.parse`, где `lineno` задан всегда, и утверждение это проверяется
+    # тестом. Мёртвая ветка здесь была бы веткой, которую не убивает ничто.
+    key_fn = (lambda item: (item["file"], item["line"]))
+    return sorted(open_rows, key=key_fn), sorted(shifts, key=key_fn), peer
+
+
+#: ПОЛОЖИТЕЛЬНАЯ половина контроля. Пять форм, и каждая обязана предъявиться
+#: ЖИВОЙ: исход без живого случая есть украшение, а не проба. Сцена нарочно
+#: разводит ДВЕ двери, которые легко слить в одну, — перестановку и контейнер:
+#: ``KINDS[i]`` опровергают ОБЕ, а ``KINDS[cut]`` (форма известного ложного
+#: члена ``EXTENSIONS[cut-1]``) — только контейнер, потому что индекс не
+#: разрешается ничем.
+RELOC_CONTROL_SOURCE = '''
+KINDS = ("alpha", "beta")
+OFFSETS = (0, 1)
+LETTER_POSITION = 0
+
+
+def refuted_by_a_non_empty_enumeration():
+    acc = {}
+    for i in OFFSETS:
+        acc[KINDS[i]] = acc.get(KINDS[i], 0) + 1
+    return acc
+
+
+def the_known_false_member(cut):
+    acc = {}
+    acc[KINDS[cut]] = acc.get(KINDS[cut], 0) + 1
+    return acc
+
+
+def the_known_false_member_again(where):
+    acc = {}
+    acc[OFFSETS[where]] = acc.get(OFFSETS[where], 0) + 1
+    return acc
+
+
+def refuted_only_by_an_empty_literal():
+    rows = []
+    acc = {}
+    for row in rows:
+        acc[row["cls"]] = acc.get(row["cls"], 0) + 1
+    return acc
+
+
+def still_an_artifact(doc):
+    acc = {}
+    acc[doc["cls"]] = acc.get(doc["cls"], 0) + 1
+    return acc
+
+
+def refuted_to_a_plain_literal():
+    acc = {}
+    label = "alpha"
+    tag = label[LETTER_POSITION]
+    acc[tag] = acc.get(tag, 0) + 1
+    return acc
+
+
+def moved_by_the_strict_witness():
+    seen = []
+    acc = {}
+    for cls in seen:
+        acc[cls] = acc.get(cls, 0) + 1
+    return acc
+
+
+def unresolved_under_the_relocation(flag):
+    acc = {}
+    picked = KINDS[0]
+    tag = f'{picked}{flag}'
+    acc[tag] = acc.get(tag, 0) + 1
+    return acc
+'''
+
+#: ОТРИЦАТЕЛЬНАЯ половина. Ключи, которые ПРАВДА приходят из данных, и
+#: литерал, которого в населении быть не должно вовсе. Без неё «опровергло
+#: четыре» было бы неотличимо от «опровергает что угодно».
+RELOC_CONTROL_CLEAN = '''
+def every_key_really_comes_from_data(doc, rows):
+    acc = {}
+    for row in rows:
+        acc[row["cls"]] = acc.get(row["cls"], 0) + 1
+    acc[doc["kind"]] = acc.get(doc["kind"], 0) + 1
+    return acc
+
+
+def a_literal_key_is_not_in_the_population():
+    acc = {}
+    acc["alpha"] = acc.get("alpha", 0) + 1
+    return acc
+'''
+
+
+def _reloc_control() -> dict:
+    """Проба объявленного правила на ИЗВЕСТНЫХ случаях — ДО замера.
+
+    Четыре требования, и ни одно не есть украшение соседнего:
+
+    1. обе дороги к населению (своя и соседская) обязаны сойтись уже на
+       сцене — иначе сверка замера проверяла бы не то, что заявляет;
+    2. КАЖДЫЙ исход переставленного правила обязан предъявиться живым
+       случаем, включая третьи (``UNRESOLVED``) — а исчерпание бюджета
+       предъявляется ТЕМ ЖЕ набором при бюджете в один узел, и голодный
+       обход обязан давать ТРЕТИЙ исход, а не опровержение: иначе обрыв
+       обхода чинил бы знаменатель сам;
+    3. опровержение на ПУСТОМ литерале обязано отделиться от опровержения на
+       НЕПУСТОМ перечне: слить их значило бы выдать дыру соседского
+       свидетеля за починку знаменателя;
+    4. на отрицательной половине опровергнуто обязано быть НОЛЬ — завысить
+       поправку значило бы совершить ровно тот дефект, против которого она
+       считается.
+    """
+    try:
+        hit, hit_shift, hit_peer = _reloc_sites(
+            "<control>", ast.parse(RELOC_CONTROL_SOURCE))
+        clean, _clean_shift, clean_peer = _reloc_sites(
+            "<control-clean>", ast.parse(RELOC_CONTROL_CLEAN))
+        starved, _s2, _p2 = _reloc_sites("<control-starved>",
+                                         ast.parse(RELOC_CONTROL_SOURCE),
+                                         budget_nodes=1)
+    except SyntaxError as exc:
+        return {"passed": False,
+                "reason": f"сцена контроля не разобрана: {exc}"}
+    if len(hit) != len(hit_peer) or len(clean) != len(clean_peer):
+        return {"passed": False,
+                "sites": [len(hit), len(hit_peer), len(clean),
+                          len(clean_peer)],
+                "reason": ("две дороги к населению разошлись уже на сцене "
+                           "контроля — сверка замера проверяла бы не то, что "
+                           "заявляет")}
+    identity_broken = [s for s in hit_shift
+                       if s["identity"] != s["neighbour"]]
+    if identity_broken:
+        return {"passed": False,
+                "shifted": [(s["file"], s["line"]) for s in identity_broken],
+                "reason": ("на сцене контроля вердикт соседа сдвинулся от "
+                           "ВЫКЛЮЧЕННЫХ переключателей — тело варианта не "
+                           "есть соседское правило")}
+    # Ось «строгий свидетель двигает вердикт соседа» на живом дереве даёт
+    # НОЛЬ, и ноль этот — утверждение, а не молчание. Утверждением он бывает
+    # только тогда, когда ось вообще способна ответить иначе: сцена обязана
+    # нести случай, где она отвечает ДА.
+    strict_moved = [s for s in hit_shift
+                    if s["strict_same_order"] != s["neighbour"]]
+    if not strict_moved:
+        return {"passed": False,
+                "reason": ("сцена не несёт НИ ОДНОГО случая, где строгий "
+                           "свидетель двигает вердикт соседа — ось, ни разу "
+                           "не ответившая «да», доказывает не ноль, а свою "
+                           "неспособность ответить")}
+    seen = {s["relocated"] for s in hit}
+    want = set(_RELOC_OUTCOMES) - {RELOC_BUDGET_SPENT}
+    if seen != want:
+        return {"passed": False, "outcomes": sorted(seen),
+                "reason": (f"положительная половина предъявила исходы "
+                           f"{sorted(seen)} вместо всех "
+                           f"{sorted(want)} — исход без живого случая есть "
+                           f"украшение, а не проба")}
+    starved_outcomes = {s["relocated"] for s in starved}
+    if RELOC_BUDGET_SPENT not in starved_outcomes:
+        return {"passed": False, "starved": sorted(starved_outcomes),
+                "reason": ("при бюджете в один узел исход «бюджет исчерпан» "
+                           "не предъявился ни разу — третий исход, не "
+                           "предъявленный живым случаем, не проверен ничем")}
+    # Требование не «голодный обход не опровергает вовсе», а «не опровергает
+    # ТОГО, ЧЕГО не опровергает полный»: ключ, чьи имена разрешает свидетель
+    # перечня с первого шага, рекурсии не требует и при бюджете в один узел
+    # отвечает тем же, чем при полном. Запрет в лоб объявил бы это дефектом.
+    # Сравнение идёт по СТРОКЕ, а не по паре «файл × строка»: источник у
+    # обоих прогонов один, а ярлык файла нарочно разный, чтобы прогоны были
+    # различимы в диагностике. Сверять пару значило бы сравнивать ярлыки.
+    full_refuted = {s["line"] for s in hit
+                    if s["relocated"] in _RELOC_REFUTING}
+    starved_refuted = {s["line"] for s in starved
+                       if s["relocated"] in _RELOC_REFUTING}
+    if starved_refuted - full_refuted:
+        return {"passed": False,
+                "starved_only": sorted(starved_refuted - full_refuted),
+                "reason": ("голодный бюджет ПРОИЗВЁЛ опровержение, которого "
+                           "нет у полного обхода — обрыв обязан давать "
+                           "третий исход, а не противоположный вердикт")}
+    witnesses = {s["witness"] for s in hit}
+    if witnesses != set(_RELOC_WITNESSES):
+        return {"passed": False, "witnesses": sorted(witnesses),
+                "reason": (f"опора опровержения предъявлена как "
+                           f"{sorted(witnesses)} вместо "
+                           f"{sorted(_RELOC_WITNESSES)} — пустой литерал не "
+                           f"отделён от настоящего перечня")}
+    only_container = [s for s in hit
+                      if s["container"] in _RELOC_CONTAINER_DECLARING
+                      and s["relocated"] not in _RELOC_REFUTING]
+    both_doors = [s for s in hit
+                  if s["container"] in _RELOC_CONTAINER_DECLARING
+                  and s["relocated"] in _RELOC_REFUTING]
+    # Чисел ДВА и они РАЗНЫЕ намеренно: при равенстве подмена «не
+    # опровергается перестановкой» на «опровергается» переставила бы их
+    # местами незаметно, и проба перестала бы отвечать на свой вопрос.
+    if len(only_container) != 2 or len(both_doors) != 1:
+        return {"passed": False, "only_container": len(only_container),
+                "both_doors": len(both_doors),
+                "reason": ("форма известного ложного члена (`ENUM[cut]`) "
+                           "обязана опровергаться КОНТЕЙНЕРОМ и НЕ "
+                           "опровергаться перестановкой — иначе две двери "
+                           "слиты в одну и ответ заказу неразложим")}
+    refuted_clean = [s for s in clean if s["relocated"] in _RELOC_REFUTING]
+    if refuted_clean:
+        return {"passed": False,
+                "clean_false_positives": [(s["counter"], s["line"])
+                                          for s in refuted_clean],
+                "reason": (f"на отрицательной половине опровергнуто "
+                           f"{len(refuted_clean)} — поправка к знаменателю "
+                           f"оказалась бы ЗАВЫШЕНА")}
+    if any(s["container"] in _RELOC_CONTAINER_DECLARING for s in clean):
+        return {"passed": False,
+                "reason": ("на отрицательной половине контейнер назван "
+                           "объявленным — дверь формы ловит ключи, которые "
+                           "правда приходят из данных")}
+    return {"passed": True, "sites": len(hit), "clean_sites": len(clean),
+            "outcomes": sorted(seen), "witnesses": sorted(witnesses),
+            "refuted_only_by_the_container": len(only_container),
+            "refuted_by_both_doors_on_the_scene": len(both_doors),
+            "clean_false_positives": 0,
+            "budget_outcomes": sorted(starved_outcomes),
+            "starved_refutations_outside_the_full_run":
+                len(starved_refuted - full_refuted),
+            "strict_witness_moved": len(strict_moved)}
+
+
+def key_origin_before_the_short_circuit(
+        root: Path, open_counters: Optional[dict]) -> dict:
+    """ТЕЧЬ правила соседа о ключе, измеренная целиком (**заказ G100 п. 1**).
+
+    Заказ дословно:
+
+    > Течь правила соседа о ключе названа, но не измерена целиком.
+    > ``_reads_data`` отвечает ``True`` на ЛЮБУЮ подписку раньше, чем идёт
+    > обход связываний, и один ложный член знаменателя этим найден. Спросить
+    > тем же порядком у ВСЕХ 171: сколько ключей «из артефакта» разрешились
+    > бы обходом связываний, если спросить его ДО короткого замыкания, а не
+    > после. Односторонность назвать заранее: правка правила соседа сдвигает
+    > знаменатель тринадцати решений разом, и применять её замером нельзя —
+    > только отдельным решением.
+
+    **Число 171 НЕ перепечатывается** — оно есть замер 30.09, а не константа.
+    Население берётся у соседа ЖИВЫМ и сверяется с его собственным числом И
+    с его собственными координатами.
+
+    **Ответ заказа раскладывается на ДВЕ двери, и смысл у них разный.**
+    Перестановка (дверь A) спрашивает у ВСЕХ свободных имён ключа; контейнер
+    (дверь B) — только у того имени, которое ЗАДАЁТ класс элемента. Известный
+    ложный член ``EXTENSIONS[cut-1]`` виден только второй: индекс не
+    разрешается ничем, и «часть ключа объявлена» вердиктом не является.
+
+    **И третья ось, без которой ответ был бы ложью:** на ЧТО опёрлось
+    опровержение. Соседский свидетель перечня считает объявленным ПУСТОЙ
+    литерал (``rows = []``), и сегодня эта дыра невидима — замыкание отвечает
+    раньше. Переставить вопрос значит СНЯТЬ маску: опровержение, опёршееся на
+    пустой литерал, не чинит знаменатель, а портит его. Поэтому поправка
+    подаётся не одним числом, а разложением.
+
+    ADVISORY: ни одного счётчика, ни одного читателя и ни одного гейта эта
+    работа не правит, ``applied`` ложно; правило соседа остаётся как есть, и
+    числа прошлых решений ряда НЕ пересчитываются — каждое есть замер своего
+    дня.
+    """
+    head = {
+        "question": ("сколько ключей «из артефакта» разрешил бы обход "
+                     "связываний, если спросить его ДО короткого замыкания, "
+                     "а не после — и на ЧТО опёрся бы каждый такой ответ"),
+        "order": "G100.1",
+        "applied": False,
+        "dirs": list(OPEN_COUNTER_DIRS),
+        "skipped_dirs": list(OPEN_COUNTER_SKIP),
+        "budget_nodes": RELOC_BUDGET_NODES,
+    }
+    declared = observed(open_counters or {}, "open_to_an_unnamed_class",
+                        kind=int)
+    if (not isinstance(open_counters, dict)
+            or str(open_counters.get("status")) == "UNMEASURED"
+            or declared is None):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_NEIGHBOUR,
+                "reason": ("перепись открытых счётчиков не измерена — "
+                           "знаменателя ряда не существует; это НЕ «течи "
+                           "нет»")}
+    control = _reloc_control()
+    head["control"] = control
+    if not control.get("passed"):
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_CONTROL,
+                "reason": (f"объявленное правило не прошло контроль: "
+                           f"{control.get('reason')}")}
+
+    rows: List[dict] = []
+    shifts: List[dict] = []
+    peer: List[tuple] = []
+    unreadable: List[dict] = []
+    scanned = 0
+    for sub in OPEN_COUNTER_DIRS:
+        base = root / sub
+        if not base.is_dir():
+            unreadable.append({"file": sub, "reason": "каталога нет в дереве"})
+            continue
+        for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
+                continue
+            scanned += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+                unreadable.append({"file": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            mine, shifted, theirs = _reloc_sites(rel, tree)
+            rows.extend(mine)
+            shifts.extend(shifted)
+            peer.extend(theirs)
+    if unreadable:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_UNREADABLE,
+                "files_unreadable": unreadable,
+                "reason": (f"{len(unreadable)} файл(ов) или каталог(ов) не "
+                           "прочитано — население неполно, а неполное "
+                           "население не есть измеренное")}
+    # Тождество ПЕРВЫМ: пока не доказано, что при выключенных переключателях
+    # тело есть соседское правило, любая разность мерила бы мою описку.
+    identity_broken = [s for s in shifts if s["identity"] != s["neighbour"]]
+    if identity_broken:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_IDENTITY,
+                "population": len(rows),
+                "identity_broken": len(identity_broken),
+                "identity_sample": [
+                    {"file": s["file"], "line": s["line"],
+                     "key": s["key"], "neighbour": s["neighbour"],
+                     "variant": s["identity"]}
+                    for s in identity_broken[:COSTED_SAMPLE]],
+                "reason": (f"у {len(identity_broken)} счётчик(ов) вариант с "
+                           f"ВЫКЛЮЧЕННЫМИ переключателями разошёлся с "
+                           f"`_key_origin` — разность двух прогонов мерила бы "
+                           f"разницу РЕАЛИЗАЦИЙ, а не правил")}
+    if len(rows) != declared:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_POPULATION,
+                "population": len(rows),
+                "declared_population": declared,
+                "reason": (f"свой обход нашёл {len(rows)} открытых "
+                           f"счётчик(ов), сосед назвал {declared} — это ДВЕ "
+                           f"дороги к одному населению, и разойдясь, они "
+                           f"отвечают на разные вопросы")}
+    mine_coords = {(r["file"], r["line"], r["counter"], r["key"])
+                   for r in rows}
+    peer_coords = set(peer)
+    if mine_coords != peer_coords:
+        return {**head, "status": "UNMEASURED",
+                "unmeasured_class": UNMEASURED_RELOC_COORDINATES,
+                "population": len(rows),
+                "declared_population": declared,
+                "coordinates_only_at_the_neighbour":
+                    sorted(peer_coords - mine_coords)[:COSTED_SAMPLE],
+                "coordinates_only_here":
+                    sorted(mine_coords - peer_coords)[:COSTED_SAMPLE],
+                "reason": ("числа населения сошлись, а КООРДИНАТЫ разошлись — "
+                           "стык потерял один узел и удвоил другой, и сверка "
+                           "одних чисел этого не видит")}
+
+    outcomes = {cls: sum(1 for r in rows if r["relocated"] == cls)
+                for cls in _RELOC_OUTCOMES}
+    # Разностью, а не счётом с литералом: ветка недостижима, пока
+    # `_RELOC_BY_ORIGIN` покрывает закрытый перечень, и счёт с литералом
+    # внутри недостижимой ветки не убивает ничто.
+    outside = len(rows) - sum(outcomes.values())
+    witnesses = {w: sum(1 for r in rows if r["witness"] == w)
+                 for w in _RELOC_WITNESSES}
+    containers = {c: sum(1 for r in rows if r["container"] == c)
+                  for c in _RELOC_CONTAINERS}
+    door_a = {(r["file"], r["line"]) for r in rows
+              if r["relocated"] in _RELOC_REFUTING}
+    door_a_honest = {(r["file"], r["line"]) for r in rows
+                     if r["relocated"] in _RELOC_REFUTING
+                     and r["witness"] == RELOC_SURVIVES_STRICT}
+    door_b = {(r["file"], r["line"]) for r in rows
+              if r["container"] in _RELOC_CONTAINER_DECLARING}
+    own = [r for r in rows if r["file"] == PRODUCER]
+    return {
+        **head,
+        "status": "MEASURED",
+        "population": len(rows),
+        "declared_population": declared,
+        "files_scanned": scanned,
+        "coordinates_agree_with_the_neighbour": True,
+        "variant_reproduces_the_neighbour": True,
+        "relocated_outcomes": outcomes,
+        "relocated_outcomes_outside_the_closed_list": outside,
+        "refutation_rests_on": witnesses,
+        "subscript_container_kinds": containers,
+        # ОТВЕТ заказа — и он НЕ одно число. Буквальное прочтение («сколько
+        # разрешилось бы») и честное («сколько разрешилось бы НЕ за счёт
+        # дыры в свидетеле соседа») расходятся, и выдать первое за второе
+        # значило бы предложить правку, которая знаменатель ПОРТИТ.
+        "answer": {
+            "refuted_by_the_relocation": len(door_a),
+            "refuted_by_the_relocation_on_a_real_enumeration":
+                len(door_a_honest),
+            "refuted_by_the_container_form": len(door_b),
+            "refuted_by_both_doors": len(door_a & door_b),
+            "refuted_by_either_door": len(door_a | door_b),
+            "denominator_now": len(rows),
+            "denominator_under_the_literal_reading":
+                len(rows) - len(door_a | door_b),
+            "denominator_under_the_honest_reading":
+                len(rows) - len(door_a_honest | door_b),
+        },
+        # ОБРАТНАЯ сторона той же дыры: двигает ли строгий свидетель хоть
+        # один вердикт СЕГОДНЯШНЕГО правила (то есть при НЕпереставленном
+        # вопросе). Ноль здесь — не «дыры нет», а «дыра целиком закрыта
+        # замыканием», и это ровно то, что делает замыкание несущим.
+        # В `shifts` к этой строке остаются ТОЛЬКО сдвиги строгого свидетеля:
+        # расхождение тождества выше возвращает отказ, и до сюда не доходит.
+        "neighbour_verdicts_moved_by_the_strict_witness": len(shifts),
+        "strict_witness_sample": [
+            {"file": s["file"], "line": s["line"], "key": s["key"],
+             "neighbour": s["neighbour"], "strict": s["strict_same_order"]}
+            for s in shifts[:COSTED_SAMPLE]],
+        "own_sites": {
+            "producer": PRODUCER,
+            "in_the_population": len(own),
+            "refuted_by_either_door": sum(
+                1 for r in own
+                if (r["file"], r["line"]) in (door_a | door_b)),
+        },
+        "refuted_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "key": r["key"],
+             "relocated": r["relocated"], "witness": r["witness"],
+             "container": r["container"]}
+            for r in rows
+            if (r["file"], r["line"]) in (door_a | door_b)][:COSTED_SAMPLE],
+        "budget_spent_sample": [
+            {"file": r["file"], "line": r["line"], "owner": r["owner"],
+             "counter": r["counter"], "key": r["key"]}
+            for r in rows
+            if r["relocated"] == RELOC_BUDGET_SPENT][:COSTED_SAMPLE],
+        "blind": [
+            (f"БЮДЖЕТ {RELOC_BUDGET_NODES} узлов на ключ — ВЫБОР, а не "
+             "свойство дерева. Он обязателен: замыкание не только судит, оно "
+             "ПОДРЕЗАЕТ обход, и переставленное правило без бюджета на этом "
+             "дереве не досчитывает. Исчерпание есть ТРЕТИЙ исход, а не "
+             "«ключ из артефакта»"),
+            ("дверь КОНТЕЙНЕРА намеренно не признаёт объявленным словарь с "
+             "константными КЛЮЧАМИ: `D[k]` отдаёт ЗНАЧЕНИЕ. Соседский "
+             "свидетель перечня проверяет у словаря именно ключи — и это "
+             "вторая, не названная заказом, сторона той же течи"),
+            ("опровержение дверью A доказывает, что ВСЕ свободные имена "
+             "ключа объявлены; оно НЕ доказывает, что объявлен класс "
+             "элемента. Обратное — дверь B: она спрашивает только контейнер, "
+             "и формы известного ложного члена дверь A не видит"),
+            ("ось «на что опёрлось» измерена РАЗНОСТЬЮ двух прогонов одного "
+             "тела; у неё нет своего правила, и потолок соседского свидетеля "
+             "она наследует целиком"),
+            ("население взято у соседа и наследует ВЕСЬ его потолок сверху "
+             "(ADR-461…ADR-469): своего замера населения у этого шага нет "
+             "по построению"),
+            (f"ПРИБОР СТОИ́Т В НАСЕЛЕНИИ, которое мерит (`{PRODUCER}` входит "
+             "в объявленные каталоги), поэтому своё население объявлено "
+             "полем `own_sites`"),
+        ],
+        "what_it_does_not_prove": [
+            "что течь ПОЧИНЕНА: правило соседа не тронуто, `applied` ложно, числа прошлых решений ряда не пересчитаны",
+            "что ложных членов ровно столько: оба свидетеля односторонние, и ненайденное ими не есть ноль",
+            "что вред наступил: измерено НАСЕЛЕНИЕ знаменателя, а не событие у счётчика",
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # О КАКОМ НАСЕЛЕНИИ ОТЧИТЫВАЕТСЯ ЧИСЛО РЯДА — заказ G99 п. 2
 # ---------------------------------------------------------------------------
 
@@ -19773,6 +20561,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     # правила о роде шаг не имеет — он снимает ГЕЙТ у соседского и добавляет
     # вторую дверь, лексическую: у последовательности нет метода `.get`.
     member_step = sequence_members_of_the_whole_population(root, open_counters)
+
+    # --- ТЕЧЬ ПРАВИЛА КЛЮЧА, ИЗМЕРЕННАЯ ЦЕЛИКОМ (заказ G100 п. 1) ---------
+    # Шаг G99 п. 1 нашёл ОДИН ложный член знаменателя и назвал его причину:
+    # `_reads_data` отвечает `True` на ЛЮБУЮ подписку РАНЬШЕ, чем идёт обход
+    # связываний. Вопрос G100 — сколько ключей «из артефакта» разрешил бы
+    # обход, спрошенный ДО замыкания. Своего правила о ключе шаг не имеет:
+    # он гоняет СОСЕДСКОЕ тело с двумя переключателями и доказывает
+    # тождество при обоих выключенных. Население берётся у соседа и
+    # сверяется и числом, и координатами.
+    short_circuit_step = key_origin_before_the_short_circuit(root,
+                                                             open_counters)
     verdict_step = verdict_over_named_keys(root)
 
     scanned = len(guard_files) + len(executor_files)
@@ -19940,6 +20739,12 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         # него другой: не «какой род», а «есть ли класс вообще». Слить их
         # значило бы выдать ответ о семнадцати за ответ о двух сотнях.
         "sequence_members_of_the_whole_population": member_step,
+        # Отдельным ключом, а не поправкой к соседу: шаг G99 п. 1 отвечает
+        # «есть ли у члена населения класс», а этот — «ЧЕМ ДЕРЖИТСЯ его
+        # членство»: порядком двух вопросов внутри правила соседа. Разные
+        # предметы с разным третьим исходом, и ответ одного не отменяет
+        # другого.
+        "key_origin_before_the_short_circuit": short_circuit_step,
             "verdict_over_named_keys": verdict_step,
         "constitution_values": len(constitution),
         "constitution_unread": constitution_unread,
@@ -22339,6 +23144,95 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
                 f"{item.get('field')} (строка {item.get('line')}) — "
                 f"{item.get('gap')}")
         for blind in (observed(subject_step, "blind", kind=list) or []):
+            out.append(f"[СЛЕПОТА] {blind}")
+    short_step = observed(doc, "key_origin_before_the_short_circuit",
+                          kind=dict)
+    if short_step is None:
+        out.append("[ТЕЧЬ ПРАВИЛА КЛЮЧА] НЕ ИЗМЕРЕНО — перепись собрана без "
+                   "этого шага; это НЕ «течи нет»")
+    elif str(short_step.get("status")) == "UNMEASURED":
+        out.append(f"[ТЕЧЬ ПРАВИЛА КЛЮЧА] НЕ ИЗМЕРЕНО "
+                   f"[{short_step.get('unmeasured_class')}]: "
+                   f"{short_step.get('reason')}")
+    else:
+        answer = observed(short_step, "answer", kind=dict) or {}
+        outcomes = observed(short_step, "relocated_outcomes", kind=dict) or {}
+        rests = observed(short_step, "refutation_rests_on", kind=dict) or {}
+        conts = (observed(short_step, "subscript_container_kinds", kind=dict)
+                 or {})
+        own = observed(short_step, "own_sites", kind=dict) or {}
+        control = observed(short_step, "control", kind=dict) or {}
+        out.append(
+            f"[ТЕЧЬ ПРАВИЛА КЛЮЧА] из {short_step.get('population')} "
+            f"ОТКРЫТЫХ счётчиков перестановка вопроса опровергает "
+            f"{answer.get('refuted_by_the_relocation')}, форма контейнера — "
+            f"{answer.get('refuted_by_the_container_form')}; обе двери разом "
+            f"{answer.get('refuted_by_both_doors')}, хоть одна "
+            f"{answer.get('refuted_by_either_door')}")
+        out.append(
+            f"[ТЕЧЬ · ОТВЕТ ЗАКАЗА] буквальное прочтение даёт знаменатель "
+            f"{answer.get('denominator_under_the_literal_reading')} вместо "
+            f"{answer.get('denominator_now')}, ЧЕСТНОЕ — "
+            f"{answer.get('denominator_under_the_honest_reading')}: "
+            f"опровержений, опёршихся на НАСТОЯЩИЙ перечень, "
+            f"{answer.get('refuted_by_the_relocation_on_a_real_enumeration')}"
+            f", а на ПУСТОЙ литерал — "
+            f"{rests.get(RELOC_RESTS_ON_EMPTY)}. Выдать первое за второе "
+            f"значило бы предложить правку, которая знаменатель ПОРТИТ")
+        out.append(
+            f"[ТЕЧЬ · ИСХОДЫ ПЕРЕСТАНОВКИ] по-прежнему артефакт "
+            f"{outcomes.get(RELOC_STILL_ARTIFACT)} · объявленный класс "
+            f"{outcomes.get(RELOC_DECLARED)} · литерал "
+            f"{outcomes.get(RELOC_LITERAL)} · не разрешилось "
+            f"{outcomes.get(RELOC_UNRESOLVED)} · бюджет "
+            f"({short_step.get('budget_nodes')} узлов на ключ) исчерпан "
+            f"{outcomes.get(RELOC_BUDGET_SPENT)}; вне закрытого перечня "
+            f"{short_step.get('relocated_outcomes_outside_the_closed_list')}")
+        out.append(
+            f"[ТЕЧЬ · КОНТЕЙНЕР ПОДПИСКИ] непустая последовательность "
+            f"констант {conts.get(RELOC_CONTAINER_SEQUENCE)} · отображение "
+            f"с константными ЗНАЧЕНИЯМИ "
+            f"{conts.get(RELOC_CONTAINER_MAPPING_VALUES)} · не объявлен "
+            f"{conts.get(RELOC_CONTAINER_UNDECLARED)} · не разрешается "
+            f"{conts.get(RELOC_CONTAINER_UNRESOLVED)} · верх ключа не "
+            f"подписка {conts.get(RELOC_CONTAINER_NOT_A_SUBSCRIPT)}")
+        out.append(
+            f"[ТЕЧЬ · ЧЕМ ДЕРЖИТСЯ ЗАМЫКАНИЕ] вердиктов СЕГОДНЯШНЕГО правила, "
+            f"которые двигает строгий свидетель перечня: "
+            f"{short_step.get('neighbour_verdicts_moved_by_the_strict_witness')}"
+            f" — ноль здесь значит не «дыры нет», а «дыра целиком закрыта "
+            f"замыканием»: именно это и делает замыкание НЕСУЩИМ")
+        out.append(
+            f"[ТЕЧЬ · ТОЖДЕСТВО ТЕЛА] вариант с ВЫКЛЮЧЕННЫМИ переключателями "
+            f"совпал с `_key_origin` на всём населении: "
+            f"{short_step.get('variant_reproduces_the_neighbour')} — без "
+            f"этого разность двух прогонов мерила бы разницу реализаций")
+        out.append(
+            f"[ТЕЧЬ · ПРИБОР В СВОЁМ НАСЕЛЕНИИ] счётчиков самого "
+            f"производителя {own.get('in_the_population')}, из них "
+            f"опровергнуто {own.get('refuted_by_either_door')}")
+        out.append(
+            f"[ТЕЧЬ · КОНТРОЛЬ] на известных случаях предъявлены исходы "
+            f"{control.get('outcomes')} и опоры {control.get('witnesses')}; "
+            f"форма известного ложного члена опровергнута ТОЛЬКО контейнером "
+            f"у {control.get('refuted_only_by_the_container')}; при бюджете "
+            f"в один узел исход {control.get('budget_outcomes')}; на "
+            f"отрицательной половине ({control.get('clean_sites')} счётчиков) "
+            f"опровергнуто {control.get('clean_false_positives')}")
+        for item in (observed(short_step, "refuted_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ТЕЧЬ · ОПРОВЕРГНУТО] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` ключ "
+                f"`{item.get('key')}` — {item.get('relocated')} / "
+                f"{item.get('witness')} / {item.get('container')}")
+        for item in (observed(short_step, "budget_spent_sample", kind=list)
+                     or [])[:max_rows]:
+            out.append(
+                f"[ТЕЧЬ · НЕ ИЗМЕРЕНО] {item.get('file')}:{item.get('line')} "
+                f"({item.get('owner')}) `{item.get('counter')}` ключ "
+                f"`{item.get('key')}` — бюджет обхода исчерпан")
+        for blind in (observed(short_step, "blind", kind=list) or []):
             out.append(f"[СЛЕПОТА] {blind}")
     surface = doc.get("renamed_copy_surface") or []
     out.append(
