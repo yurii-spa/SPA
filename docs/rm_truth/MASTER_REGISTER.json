@@ -285,7 +285,8 @@
    ],
    "recommended_action": "REPAIR",
    "evidence_slice": "A1",
-   "register_key": "A1:CAP-EDF-BTC-ENGINE"
+   "register_key": "A1:CAP-EDF-BTC-ENGINE",
+   "closeout_2026_10_07": "2026-10-07 closeout: INCIDENT trigger fixed (earn-defi 21c125e) + regression test; clearing is owner-only (ADR-006 K3) — `python3 -m earn_defi incident-clear --reason ...` then `drill`. Status: NEEDS_OWNER (human action)."
   },
   {
    "component_id": "CAP-SPA-BTCENGINE-API",
@@ -649,7 +650,8 @@
    ],
    "recommended_action": "UNKNOWN_PURPOSE",
    "evidence_slice": "A1",
-   "register_key": "A1:CAP-LOGOS-DESK"
+   "register_key": "A1:CAP-LOGOS-DESK",
+   "closeout_2026_10_07": "2026-10-07 closeout: verdict REPAIR blocked by owner legal/ToS choice (DGOJ DNS-blocks Polymarket in Spain; VPN would circumvent). Own KILL rule leans kill (0 findings / 510 healthy scans). Defects: no log rotation, no alert on failed cycles. Reversible pause = launchctl bootout com.logos.desk + com.logos.dashboard. Status: NEEDS_OWNER (legal choice)."
   },
   {
    "component_id": "main_track_conservative",
@@ -3321,7 +3323,8 @@
    "evidence_slice": "A4",
    "register_key": "A4:weekly_backup",
    "recommended_action_forensic": "SUPERSEDED",
-   "review_correction": "REVIEW_1 §3.3"
+   "review_correction": "REVIEW_1 §3.3",
+   "closeout_2026_10_07": "2026-10-07 closeout: superseded for off-device DR by daily_backup + dr_offsite_copy → iCloud Drive (1c5445d3); CIO *.json.gz snapshots now in daily archive (fe0534b5); restore drill from the iCloud copy ALL OK. Truncated weekly tars remain unverified debt; upload to Apple servers NOT MEASURED from the Mac."
   },
   {
    "component_id": "cockpit.mission_control",
