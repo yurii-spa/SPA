@@ -1,4 +1,6 @@
 # SPA System Current State
+> ⚠️ **LEGACY (ADR-610, 2026-10-07).** This file is no longer the session entry point; it is kept as dated history.
+> Start at `docs/continuity/BOOTSTRAP.md` → generated `docs/continuity/CURRENT_STATE.md` (freshness-checked).
 > Последнее обновление: **2026-06-24** | Версия: **v12.83** | Done: см. KANBAN.json
 > **ЧИТАЙ ЭТОТ ФАЙЛ ПЕРВЫМ** перед любой работой с проектом.
 >

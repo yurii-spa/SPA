@@ -74,6 +74,14 @@ ALLOW: Tuple[Rule, ...] = (
     Rule("spa", "architecture/provenance.json", "CANONICAL", "provenance", 3),
     Rule("spa", "architecture/resource_policy.json", "CANONICAL", "doc", 2),
     Rule("spa", "architecture/memory_truth.json", "SEMANTIC", "truth", 3),
+    # ADR-610: the ARB continuity contract. Curated context/intents/bootstrap are canonical context
+    # (authority 2); the GENERATED read model is DERIVED (authority 0) — retrieval must never rank a
+    # read model as a decision. Order matters: the first rule wins for a path.
+    Rule("spa", "docs/continuity/ARCHITECT_CONTEXT.md", "CANONICAL", "doc", 2),
+    Rule("spa", "docs/continuity/OWNER_INTENT_LEDGER.md", "CANONICAL", "doc", 2),
+    Rule("spa", "docs/continuity/BOOTSTRAP.md", "CANONICAL", "doc", 2),
+    Rule("spa", "docs/continuity/CURRENT_STATE.md", "DERIVED", "doc", 0),
+    Rule("spa", "docs/continuity/ARCHITECT_DECISION_INDEX.md", "DERIVED", "doc", 0),
     Rule("spa", "docs/*ROADMAP*.md", "CANONICAL", "roadmap", 1),        # demoted by the truth registry
     Rule("spa", "docs/ideas/*.md", "EPISODIC", "idea", 1),
     Rule("spa", "docs/journal/2026-W*.md", "EPISODIC", "journal", 1),

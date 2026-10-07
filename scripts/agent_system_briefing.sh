@@ -39,4 +39,14 @@ fi
        /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.studio_os.memory ensure-fresh \
   ) >/tmp/spa_memory_ensure_fresh.log 2>&1 || true
 
+# ── ARB continuity read model (ADR-610) ──────────────────────────────────────
+# Rebuilds data/continuity/{CURRENT_STATE.md,ARCHITECT_DECISION_INDEX.md,state.json} from the mirror
+# (canon) + the code-sync receipt + the published Mission Control bundle, on this same existing tick —
+# no new agent or scheduler. A refusal (a canonical source missing, a metric-type crossing …) leaves the
+# previous copy untouched and is visible in the log; `|| true` + `perl alarm 60` keep the briefing alive.
+( cd /Users/yuriikulieshov/Documents/SPA_Claude \
+  && SPA_MEMORY_ROOT_SPA="$_MIRROR" /usr/bin/perl -e 'alarm 60; exec @ARGV' \
+       /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.studio_os.memory continuity build \
+  ) >/tmp/spa_continuity_build.log 2>&1 || true
+
 exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh system_briefing /Users/yuriikulieshov/Documents/SPA_Claude/scripts/update_system_briefing.py

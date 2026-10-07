@@ -1,4 +1,4 @@
-"""python -m spa_core.studio_os.memory {build|ensure-fresh|search|assemble|passport|why|lineage|bench|answer-bench|coverage}"""
+"""python -m spa_core.studio_os.memory {build|ensure-fresh|search|assemble|passport|why|lineage|bench|answer-bench|coverage|continuity}"""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +9,11 @@ from . import assembler, benchmark, index, lineage, passports
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["continuity"]:
+        # ADR-610: the ARB continuity read model has its own options (build|check, --root/--out/...)
+        from . import continuity
+        return continuity.main(argv[1:])
     ap = argparse.ArgumentParser(prog="spa_core.studio_os.memory")
     ap.add_argument("cmd", choices=("build", "search", "assemble", "passport", "why", "lineage", "bench",
                                     "answer-bench", "coverage", "ensure-fresh"))

@@ -1,0 +1,1247 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "spa:docs/continuity/CURRENT_STATE.schema.json",
+ "title": "ARB continuity state (arb-continuity/2, ADR-610) — the machine twin of the generated CURRENT_STATE.md",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "header",
+  "inputs",
+  "runtime",
+  "sections",
+  "decisions",
+  "intents",
+  "profiles"
+ ],
+ "properties": {
+  "header": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "context_version",
+    "generated_at",
+    "repo_commit",
+    "origin_commit",
+    "production_release",
+    "latest_accepted_epic",
+    "source_snapshot_ids",
+    "generator_version",
+    "authority",
+    "runtime_truth_computed_at",
+    "production_release_verified_at",
+    "copy_role",
+    "verdict_at_generation",
+    "root_dirty_inputs"
+   ],
+   "properties": {
+    "context_version": {
+     "type": "string",
+     "enum": [
+      "arb-continuity/2"
+     ]
+    },
+    "generated_at": {
+     "type": "string",
+     "pattern": "^20\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ$"
+    },
+    "repo_commit": {
+     "type": "string",
+     "pattern": "^([0-9a-f]{40}|UNKNOWN)$"
+    },
+    "origin_commit": {
+     "type": "string",
+     "pattern": "^([0-9a-f]{40}|UNKNOWN)$"
+    },
+    "production_release": {
+     "type": "string",
+     "pattern": "^([0-9a-f]{40}|UNKNOWN)$"
+    },
+    "latest_accepted_epic": {
+     "type": "string"
+    },
+    "source_snapshot_ids": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string",
+      "pattern": "^(inputs|receipt|mission):[0-9a-f]{64}$"
+     }
+    },
+    "generator_version": {
+     "type": "string",
+     "pattern": "^arb-continuity/2\\+[0-9a-f]{12}$"
+    },
+    "authority": {
+     "type": "string",
+     "enum": [
+      "DERIVED"
+     ]
+    },
+    "runtime_truth_computed_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "production_release_verified_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "copy_role": {
+     "type": "string",
+     "enum": [
+      "PRODUCTION",
+      "COMMITTED_SNAPSHOT"
+     ]
+    },
+    "verdict_at_generation": {
+     "type": "string",
+     "enum": [
+      "CONTEXT_FRESH",
+      "CONTEXT_PARTIAL"
+     ]
+    },
+    "root_dirty_inputs": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "inputs": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string",
+    "pattern": "^[0-9a-f]{64}$"
+   }
+  },
+  "runtime": {
+   "type": "object",
+   "required": [
+    "receipt",
+    "mission"
+   ]
+  },
+  "sections": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "active_epic",
+    "latest_accepted_epic",
+    "current_origin",
+    "production_code",
+    "real_capital",
+    "live_execution",
+    "capital_summary",
+    "trading_lab",
+    "btc",
+    "defi_paper",
+    "oracle",
+    "sherlock",
+    "studio_os",
+    "director_os",
+    "memory",
+    "product_publication",
+    "active_problems",
+    "owner_gates",
+    "technical_debt",
+    "next_safe_action",
+    "last_verification"
+   ],
+   "properties": {
+    "active_epic": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "latest_accepted_epic": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "current_origin": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "production_code": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "real_capital": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "live_execution": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "capital_summary": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "trading_lab": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "btc": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "defi_paper": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "oracle": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "sherlock": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "studio_os": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "director_os": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "memory": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "product_publication": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "active_problems": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "owner_gates": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "technical_debt": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "next_safe_action": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "last_verification": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "decisions": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "topic",
+     "title",
+     "cls",
+     "declared",
+     "basis",
+     "refs",
+     "note"
+    ],
+    "properties": {
+     "cls": {
+      "type": "string",
+      "enum": [
+       "CURRENT",
+       "SUPERSEDED",
+       "REJECTED",
+       "EXPERIMENTAL",
+       "UNKNOWN"
+      ]
+     },
+     "refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "adr",
+        "path",
+        "status",
+        "effective",
+        "superseded_by"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "intents": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "intent_id",
+     "title",
+     "decisions",
+     "decision_status",
+     "flags",
+     "curated_status",
+     "last_verified"
+    ],
+    "properties": {
+     "intent_id": {
+      "type": "string",
+      "pattern": "^INT-\\d+$"
+     },
+     "decision_status": {
+      "type": "string",
+      "enum": [
+       "DECISIONS_CURRENT",
+       "SUPERSEDED_DECISION",
+       "UNKNOWN"
+      ]
+     }
+    }
+   }
+  },
+  "profiles": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "profile",
+     "internal_book",
+     "track_source",
+     "decision",
+     "effective",
+     "metric_type",
+     "runtime_state",
+     "value",
+     "reportable"
+    ],
+    "properties": {
+     "metric_type": {
+      "type": "string",
+      "enum": [
+       "TARGET_RETURN",
+       "OBSERVED_RETURN",
+       "REALIZED_PAPER_RETURN",
+       "MODELLED_RETURN",
+       "BACKTEST_RETURN"
+      ]
+     }
+    }
+   }
+  }
+ }
+}

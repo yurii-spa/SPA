@@ -1,0 +1,1008 @@
+{
+ "decisions": [
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "ADR-592 §6 information architecture; ADR-580 contracts C1–C12 per domain.",
+   "refs": [
+    {
+     "adr": "ADR-592",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-592-director-os-v2-mission-control.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-580",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Three worlds: CAPITAL / STUDIO OS / EARN DEFI PRODUCT",
+   "topic": "three-world-model"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Everything else the agent decides and records in the journal.",
+   "refs": [
+    {
+     "adr": "ADR-285",
+     "effective": "2026-09-09",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "The owner decides exactly three subjects: real money, public numbers/naming/legal, irreversible actions",
+   "topic": "owner-boundary"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Frozen after independent review; map in docs/rm_truth/.",
+   "refs": [
+    {
+     "adr": "ADR-580",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "RM-TRUTH-01 contracts C1–C12 (one writer, typed numbers, scoped readiness, one owner queue, Problem store, DR coverage)",
+   "topic": "rm-truth-contracts"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "No agent or gate reads Company Truth (import ratchet).",
+   "refs": [
+    {
+     "adr": "ADR-592",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-592-director-os-v2-mission-control.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Director OS v2 = Mission Control; Company Truth computed on read — a read model, not an authority",
+   "topic": "director-os-read-model"
+  },
+  {
+   "basis": "declared",
+   "cls": "SUPERSEDED",
+   "declared": "SUPERSEDED",
+   "disposition": null,
+   "note": "Presentation superseded by ADR-592; unloading their agents is an owner action.",
+   "refs": [
+    {
+     "adr": "ADR-592",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-592-director-os-v2-mission-control.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Director OS :8788, Studio Shell :8778, repo dashboard :8767 as owner cockpits",
+   "topic": "director-os-v1-cockpits"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Evolved in place into Director OS v2 (ADR-592).",
+   "refs": [
+    {
+     "adr": "ADR-552",
+     "effective": "2026-10-03",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-552-owner-remote-mission-control-v1.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Owner Remote / Mission Control v1 — read-only, loopback :8790, phone via Cloudflare Access",
+   "topic": "mission-control-v1"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Research/paper only; forward clocks immutable.",
+   "refs": [
+    {
+     "adr": "ADR-590",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-590-canonical-trading-research-lineage.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-525",
+     "effective": "2026-09-30",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Trading Research Engine v0 is the ONLY active Trading Lab line",
+   "topic": "trading-lab-canonical"
+  },
+  {
+   "basis": "declared",
+   "cls": "SUPERSEDED",
+   "declared": "SUPERSEDED",
+   "disposition": null,
+   "note": "SUPERSEDED_HISTORY; the earn-defi BTC Signal Engine is a SEPARATE_PRODUCT, not superseded.",
+   "refs": [
+    {
+     "adr": "ADR-590",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-590-canonical-trading-research-lineage.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "research/btc_cycle and btc_nav (older SPA BTC systems)",
+   "topic": "older-btc-engines"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Display name Oracle since 2026-10-04 («Штирлиц» before).",
+   "refs": [
+    {
+     "adr": "ADR-554",
+     "effective": "2026-10-04",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Oracle = Chief Investment Officer: advisory/paper cross-sleeve recommendation; executes nothing",
+   "topic": "oracle-cio"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Curated facts count only after content-hash-bound review.",
+   "refs": [
+    {
+     "adr": "ADR-564",
+     "effective": "2026-10-04",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-564-research-evidence-and-paper-admission.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Sherlock = Head of Research: deterministic evidence and paper admission; no capital authority",
+   "topic": "sherlock-research"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "No candidate is live-authorized.",
+   "refs": [
+    {
+     "adr": "ADR-560",
+     "effective": "2026-10-04",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-560-research-factory-capital-universe-expansion.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Research Factory v1: capital universe by economic mechanism, RESEARCH → PAPER → CIO_ELIGIBLE",
+   "topic": "research-factory"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Unsigned intents, keyless quorum simulation.",
+   "refs": [
+    {
+     "adr": "ADR-556",
+     "effective": "2026-10-04",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Shadow execution; automated live execution PROHIBITED; a real-capital pilot is owner-gated",
+   "topic": "shadow-execution"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "docs/ROADMAP.md item 3 cites ADR-537 for the owner gate; the gate decision itself is ADR-548.",
+   "refs": [
+    {
+     "adr": "ADR-533",
+     "effective": "2026-10-01",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-548",
+     "effective": "2026-10-03",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-548-three-portfolios-owner-gate-applied.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Conservative / Balanced / Aggressive = three PAPER portfolios with different mechanics",
+   "topic": "three-paper-portfolios"
+  },
+  {
+   "basis": "declared",
+   "cls": "EXPERIMENTAL",
+   "declared": "EXPERIMENTAL",
+   "disposition": null,
+   "note": "Evidence level L2 until a 30-period paper record exists.",
+   "refs": [
+    {
+     "adr": "ADR-533",
+     "effective": "2026-10-01",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-533-three-defi-paper-portfolios.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Aggressive = SIMULATED sUSDe/PYUSD loop (paper experiment, refused for live)",
+   "topic": "aggressive-simulated-loop"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Alt names Preserve/Core/Max Yield are «owner choice #6» (landing/src/lib/tier_bands.json); Core is ambiguous.",
+   "refs": [
+    {
+     "adr": "ADR-593",
+     "effective": "2026-07-11",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-593-conservative-is-the-evidenced-book-backfill.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-285",
+     "effective": "2026-09-09",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Public tiers Conservative/Balanced/Aggressive; Conservative = the evidenced book; naming is owner subject №2",
+   "topic": "public-internal-naming"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Owner option 1, 2026-10-04.",
+   "refs": [
+    {
+     "adr": "ADR-563",
+     "effective": "2026-10-04",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-563-published-rate-rounds-down.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "The published yield rate rounds DOWN",
+   "topic": "published-rate-rounds-down"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Five memory layers; chat is never canonical.",
+   "refs": [
+    {
+     "adr": "ADR-527",
+     "effective": "2026-10-01",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Memory & Context Architecture v1; docs/ROADMAP.md is the single roadmap",
+   "topic": "single-roadmap-and-memory-v1"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "",
+   "refs": [
+    {
+     "adr": "ADR-591",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-591-memory-hybrid-borrow-components.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-527",
+     "effective": "2026-10-01",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Memory = HYBRID_BORROW_COMPONENTS (stdlib FTS5 + two borrowed ideas)",
+   "topic": "memory-hybrid"
+  },
+  {
+   "basis": "declared",
+   "cls": "REJECTED",
+   "declared": "REJECTED",
+   "disposition": null,
+   "note": "Rejected on measurement (top-5 12/51 vs 31/51, 81 dependencies, stdlib invariant #4).",
+   "refs": [
+    {
+     "adr": "ADR-591",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-591-memory-hybrid-borrow-components.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-527",
+     "effective": "2026-10-01",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-527-memory-and-context-architecture-v1.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "MemPalace as a runtime dependency",
+   "topic": "mempalace-dependency"
+  },
+  {
+   "basis": "declared",
+   "cls": "SUPERSEDED",
+   "declared": "SUPERSEDED",
+   "disposition": "REMOVED_RETIRED",
+   "note": "Removed by explicit owner decision 2026-10-07; no SPA component depended on it.",
+   "refs": [
+    {
+     "adr": "ADR-599",
+     "effective": "2026-10-07",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-599-openclaw-removed.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "OpenClaw third-party AI gateway (Telegram + local model, shell access)",
+   "topic": "openclaw"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "C10 DR coverage; ADR-611 archive classes; commits 1c5445d3 (iCloud default) and fe0534b5 (CIO *.json.gz). Upload to Apple servers is NOT_MEASURED from the Mac.",
+   "refs": [
+    {
+     "adr": "ADR-580",
+     "effective": "2026-10-05",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-611",
+     "effective": "2026-10-07",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-611-backup-archive-classes.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "DR: typed archive classes FULL / CRITICAL (never chosen by age across classes) + verified off-device copy to iCloud Drive",
+   "topic": "backup-offsite"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Owner decisions 2026-10-06 (no --allow-overwrite; fix the guard); review trail docs/rm_truth/REVIEW_PUSHER_FIX_*.md.",
+   "refs": [
+    {
+     "adr": "ADR-610",
+     "effective": "2026-10-07",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-610-arb-continuity.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Guarded promotion only: push_to_github.py --expected-base <sha>, STOP on drift, no --allow-overwrite, no force",
+   "topic": "strict-promotion-guard"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "Generated files are DERIVED (authority 0), never a second state store.",
+   "refs": [
+    {
+     "adr": "ADR-610",
+     "effective": "2026-10-07",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-610-arb-continuity.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "ARB continuity: curated context + intent ledger + generated, freshness-checked CURRENT_STATE",
+   "topic": "arb-continuity"
+  }
+ ],
+ "header": {
+  "authority": "DERIVED",
+  "context_version": "arb-continuity/2",
+  "copy_role": "COMMITTED_SNAPSHOT",
+  "generated_at": "2026-10-07T02:41:09Z",
+  "generator_version": "arb-continuity/2+7e571a06a723",
+  "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
+  "origin_commit": "9b482969c07ca64e07b91adb2a1e458252dfb601",
+  "production_release": "9b482969c07ca64e07b91adb2a1e458252dfb601",
+  "production_release_verified_at": "2026-10-07T02:33:37Z",
+  "repo_commit": "75b9fb5efc6a5fc33de93e3f37abc14a40421571",
+  "root_dirty_inputs": [],
+  "runtime_truth_computed_at": "2026-10-07T02:34:24Z",
+  "source_snapshot_ids": [
+   "inputs:fa45065566f0c5810e06d1291976720cff35203a05f39127accaa6b61ab5182d",
+   "mission:0ca8f369e291848abe4a8880cbdb7094bc0504756ec9fc41d112fa03691708e9",
+   "receipt:66f4dd71fd172ca348d84e3198f69e78f2565913aa408ae35d9731a8b080c9dc"
+  ],
+  "verdict_at_generation": "CONTEXT_PARTIAL"
+ },
+ "inputs": {
+  "CLAUDE.md": "abdb0ebd8371969eb9abd5220f2dce269c880029472023ea3e6364cbc2c4c5c2",
+  "architecture/memory_truth.json": "62b2c3c4de89a17fc03b45b00a05c2bf36d041ad667adbaa6358b827fc9a7702",
+  "architecture/roles.json": "a170823dd247fa34db2942bfc2541539dd480c98e1f9d4e22d021187f1076f0c",
+  "derived:adr_registry_listing": "59110e38d671375b95be99dae686428cf2d3f49f14d9127717afd97ff540e16c",
+  "derived:supersession_of_cited_adrs": "b9998ebac27fdfed855995c41078711783b5c97ea103128eba86e679b80b48f0",
+  "docs/ROADMAP.md": "376be8e3f5c7ba574be67ead69391fd1cd11390c71ea012ab8d4eb16385c16ff",
+  "docs/STATE.md": "696c6c1fec03e82170cca95364a05a8c48805558592dc58d8c7b3e60992543dd",
+  "docs/continuity/ARCHITECT_CONTEXT.md": "61a52614a233b8226b3133e0b7e47afb1b53dbc508e88fb842881566c2fa33c6",
+  "docs/continuity/BOOTSTRAP.md": "de2af3e339641d823b959541b5a35e8f63f08591794d4d0b99baa3dca48d2b98",
+  "docs/continuity/CURRENT_STATE.schema.json": "27bfa7257f5e22ce56ed597937dfbc31edc1690a4758f9fa8865953ef3a41fb9",
+  "docs/continuity/OWNER_INTENT_LEDGER.md": "fbd2dfa7ada5f4d812b954ef87809525923cae018f579030489c8c64d2493584",
+  "docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md": "bc231b35dea65a27fd73de1565f5839858a5a4776a22dc88d7bc9a96a1165136",
+  "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md": "e65fa7ed1abdeadb0f2b39a073eeedd74567d39970babf94e8c9dad59a7f031a",
+  "docs/decisions/ADR-521-telegram-owner-control-plane.md": "918cad9a74731b4f94e99e103f47bc5bf46e0844162ec221b149cb2069d55cf5",
+  "docs/decisions/ADR-525-capital-architecture-v1-and-trading-research-engine.md": "30c3a7a37fa9b4c70b3499eeca120e98233c5a9f9c5887d95d8161d0896d6951",
+  "docs/decisions/ADR-527-memory-and-context-architecture-v1.md": "1586c8b7789ece924e8e087468ae5eaea4e962ce4990c8a11ad09eb81feb8b83",
+  "docs/decisions/ADR-533-three-defi-paper-portfolios.md": "392fca4b9d6a696e6984fcd2404d2ed0b3fed5c3da2742db8f540c22ceb94891",
+  "docs/decisions/ADR-548-three-portfolios-owner-gate-applied.md": "4261d9b362c36e915fde618518d6aad48ad2393444bd141f63882b07204cc292",
+  "docs/decisions/ADR-552-owner-remote-mission-control-v1.md": "b9756b84cc9948984c089c9bc7e75fb1a20835471d8a84092fd6f78987425fe7",
+  "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md": "310060cb50efb13aafda148194d988c26fa3cd15372971a82a20a156e5221a55",
+  "docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md": "fc1aaea5675aa7dbe6e23ba6f292cb73d77f5873e1c6084f55fbbdb51424b7e0",
+  "docs/decisions/ADR-560-research-factory-capital-universe-expansion.md": "35471bd0d007841fa8e452a5255340bef2112f25c7a0645e61b8ce6d7f34ad3c",
+  "docs/decisions/ADR-563-published-rate-rounds-down.md": "e97ecff204a17a659ed74a3d637c84e258f0982bb62ed3a06a51a41b2e624c72",
+  "docs/decisions/ADR-564-research-evidence-and-paper-admission.md": "ca582a3779eb62eb97539c99b2c2c6e5bc344a293a6a06aceefa2fce6829a680",
+  "docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md": "97a110d60f190ce2365aaa413149689ea88f28d6e4e72cbbf224b2a7bfef1db7",
+  "docs/decisions/ADR-590-canonical-trading-research-lineage.md": "82b8541198a2df723f3ca5e3acc92200947d63d3261e93572716365fbc5820c8",
+  "docs/decisions/ADR-591-memory-hybrid-borrow-components.md": "43a0eb15c20e4b1c29f5cc2fb71ee0f827336fbc5c6af00d3999f9c78ba2b3a1",
+  "docs/decisions/ADR-592-director-os-v2-mission-control.md": "869a58e7888eb33e61c54cdb076d35a0cc2a3ebc1cec98427908d3d4a96009b9",
+  "docs/decisions/ADR-593-conservative-is-the-evidenced-book-backfill.md": "85665bd46fa4bc570c95ec23769f130c3bd9455947e7619b1113c1317ab368ee",
+  "docs/decisions/ADR-599-openclaw-removed.md": "90ca9222b201dc23ac2a1c5ae3379eacc9333c0810a5d9afc8efd25a03ea509b",
+  "docs/decisions/ADR-610-arb-continuity.md": "ea3d6e36d16780d38597bbcc3a6851433d00b43c86724ada515c109771a29958",
+  "docs/decisions/ADR-611-backup-archive-classes.md": "721231c836139a2c7ae635960dbc55564d178facf5d16ddff13b7490f517c9db",
+  "docs/decisions/INDEX.md": "7ca701ce749e632ef1d84bae2f99c61f650098d8b5046bf680958a2fa3aa111e",
+  "spa_core/studio_os/memory/continuity.py": "7e571a06a723d9d74e7a488810575da0511c0ae4930a673414bd2b3ee9dceb57"
+ },
+ "intents": [
+  {
+   "curated_status": "DELIVERED (ADR-592, 2026-10-06); owner iPhone acceptance through Cloudflare Access NOT YET done by the owner.",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-552",
+    "ADR-580",
+    "ADR-592"
+   ],
+   "flags": [],
+   "intent_id": "INT-01",
+   "last_verified": "2026-10-07",
+   "title": "Director OS — one owner cockpit"
+  },
+  {
+   "curated_status": "DELIVERED (Wave 1 `96a935fd`, Wave 2 `688f2c4b`, closeout `e9b73dda`).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-580",
+    "ADR-592"
+   ],
+   "flags": [],
+   "intent_id": "INT-02",
+   "last_verified": "2026-10-07",
+   "title": "Company Truth — the system knows what it is"
+  },
+  {
+   "curated_status": "RUNNING (research/paper only); live state in CURRENT_STATE «Trading Lab».",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-525",
+    "ADR-590"
+   ],
+   "flags": [],
+   "intent_id": "INT-03",
+   "last_verified": "2026-10-07",
+   "title": "Trading Lab — a real directional research engine"
+  },
+  {
+   "curated_status": "RUNNING; candidate and forward counts in CURRENT_STATE «Trading Lab».",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-525",
+    "ADR-590"
+   ],
+   "flags": [],
+   "intent_id": "INT-04",
+   "last_verified": "2026-10-07",
+   "title": "Broad indicator research"
+  },
+  {
+   "curated_status": "ENFORCED in code (ADR-590).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-580",
+    "ADR-590"
+   ],
+   "flags": [],
+   "intent_id": "INT-05",
+   "last_verified": "2026-10-07",
+   "title": "Forward-paper time is a scarce resource"
+  },
+  {
+   "curated_status": "RUNNING on paper; Balanced/Aggressive accumulating history (reportable after 30 periods) — see CURRENT_STATE «DeFi paper».",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-533",
+    "ADR-548",
+    "ADR-593"
+   ],
+   "flags": [],
+   "intent_id": "INT-06",
+   "last_verified": "2026-10-07",
+   "title": "DeFi product strategies — three paper portfolios"
+  },
+  {
+   "curated_status": "publication candidate `rmtruth/pubtruth` waits for the owner (Owner Gate).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-285",
+    "ADR-563",
+    "ADR-580",
+    "ADR-593"
+   ],
+   "flags": [],
+   "intent_id": "INT-07",
+   "last_verified": "2026-10-07",
+   "title": "Public product semantics — numbers the visitor can trust"
+  },
+  {
+   "curated_status": "DELIVERED (docs/ROADMAP.md «Closed epics»; Bridge `b19.6.32`, `b19.6.33`).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-521"
+   ],
+   "flags": [],
+   "intent_id": "INT-08",
+   "last_verified": "2026-10-07",
+   "title": "Telegram Owner Control"
+  },
+  {
+   "curated_status": "RUNNING; open Problems in CURRENT_STATE «Active problems».",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-084",
+    "ADR-580"
+   ],
+   "flags": [],
+   "intent_id": "INT-09",
+   "last_verified": "2026-10-07",
+   "title": "Autonomous self-healing without spamming the owner"
+  },
+  {
+   "curated_status": "DELIVERED; index freshness ratchet live (ADR-591 A1).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-527",
+    "ADR-591",
+    "ADR-610"
+   ],
+   "flags": [],
+   "intent_id": "INT-10",
+   "last_verified": "2026-10-07",
+   "title": "Memory — the «Milla Jovovich» idea"
+  },
+  {
+   "curated_status": "DECIDED — dependency REJECTED (top-5 12/51 vs 31/51, 81 dependencies — ADR-591).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-527",
+    "ADR-591"
+   ],
+   "flags": [],
+   "intent_id": "INT-11",
+   "last_verified": "2026-10-07",
+   "title": "MemPalace evaluation"
+  },
+  {
+   "curated_status": "DONE 2026-10-07, remaining Owner Gates listed in docs/ROADMAP.md item 10.",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-580",
+    "ADR-590",
+    "ADR-591",
+    "ADR-592",
+    "ADR-593",
+    "ADR-599"
+   ],
+   "flags": [],
+   "intent_id": "INT-12",
+   "last_verified": "2026-10-07",
+   "title": "RM-TRUTH-01 — company truth reconciliation"
+  },
+  {
+   "curated_status": "IN PROGRESS (docs/ROADMAP.md item 11).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-527",
+    "ADR-610"
+   ],
+   "flags": [],
+   "intent_id": "INT-13",
+   "last_verified": "2026-10-07",
+   "title": "ARB continuity — architecture survives a fresh session"
+  }
+ ],
+ "profiles": [
+  {
+   "accumulating_days": "UNKNOWN",
+   "alt_name": "Preserve",
+   "decision": "ADR-593",
+   "effective": "2026-07-11",
+   "evidenced_days": 105,
+   "internal_book": "main cycle_runner book (RiskPolicy v1.0)",
+   "metric_type": "REALIZED_PAPER_RETURN",
+   "profile": "Conservative",
+   "reportable": true,
+   "runtime_state": "MEASURED",
+   "track_source": "data/equity_curve_daily.json",
+   "value": "4.9 %"
+  },
+  {
+   "accumulating_days": 6,
+   "alt_name": "Core (ambiguous)",
+   "decision": "ADR-533",
+   "effective": "2026-10-01",
+   "evidenced_days": "UNKNOWN",
+   "internal_book": "fixed-rate PT sleeve (balanced-fixed-carry-v1)",
+   "metric_type": "REALIZED_PAPER_RETURN",
+   "profile": "Balanced",
+   "reportable": false,
+   "runtime_state": "NOT_ENOUGH_HISTORY",
+   "track_source": "data/hy_paper_trading.json",
+   "value": "UNKNOWN"
+  },
+  {
+   "accumulating_days": 6,
+   "alt_name": "Max Yield",
+   "decision": "ADR-533",
+   "effective": "2026-10-01",
+   "evidenced_days": "UNKNOWN",
+   "internal_book": "SIMULATED sUSDe/PYUSD loop sleeve",
+   "metric_type": "REALIZED_PAPER_RETURN",
+   "profile": "Aggressive",
+   "reportable": false,
+   "runtime_state": "NOT_ENOUGH_HISTORY",
+   "track_source": "data/lp_paper_trading.json",
+   "value": "UNKNOWN"
+  },
+  {
+   "accumulating_days": "UNKNOWN",
+   "alt_name": "—",
+   "decision": "ADR-548",
+   "effective": "2026-10-03",
+   "evidenced_days": "UNKNOWN",
+   "internal_book": "research targets, not results",
+   "metric_type": "TARGET_RETURN",
+   "profile": "All three (target bands)",
+   "reportable": "n/a (target, not a result)",
+   "runtime_state": "MEASURED",
+   "track_source": "landing/src/lib/tier_bands.json",
+   "value": "Консервативный 6.0 % · Сбалансированный 12.0 % · Агрессивный 20.0 %"
+  }
+ ],
+ "runtime": {
+  "mission": {
+   "age_h_at_generation": 0.11,
+   "bundle": "b-20261007T023424Z-0b8eefea",
+   "computed_at": "2026-10-07T02:34:24Z",
+   "reason": "read",
+   "sha256": "0ca8f369e291848abe4a8880cbdb7094bc0504756ec9fc41d112fa03691708e9"
+  },
+  "receipt": {
+   "reason": "code sync IN_SYNC",
+   "sha256": "66f4dd71fd172ca348d84e3198f69e78f2565913aa408ae35d9731a8b080c9dc"
+  }
+ },
+ "sections": {
+  "active_epic": {
+   "as_of": null,
+   "authority": "CANONICAL",
+   "display": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening",
+   "source": "docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)",
+   "status": "MEASURED",
+   "value": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening"
+  },
+  "active_problems": {
+   "as_of": "2026-10-07T01:41:20.465062+00:00",
+   "authority": "RUNTIME",
+   "display": "открыто: 4 · утихли без причины: 2 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded",
+   "source": "runtime: mission.json truth.studio.problems (canon: data/problems.json)",
+   "status": "MEASURED",
+   "value": {
+    "closed_recent": 0,
+    "mitigated": 2,
+    "open": [
+     "com.spa.resource_guard.exit_nonzero_1",
+     "com.spa.swarm_health.exit_nonzero_1",
+     "fleet.retired_but_loaded",
+     "system_health.domains_degraded"
+    ],
+    "open_count": 4
+   }
+  },
+  "btc": {
+   "as_of": "2026-10-07T02:28:51Z",
+   "authority": "RUNTIME",
+   "display": "research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h лонг",
+   "source": "runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)",
+   "status": "MEASURED",
+   "value": {
+    "1D": {
+     "flat": 7,
+     "long": 38,
+     "short": 1
+    },
+    "1h": {
+     "flat": 19,
+     "long": 9,
+     "short": 18
+    },
+    "4h": {
+     "flat": 6,
+     "long": 38,
+     "short": 2
+    }
+   }
+  },
+  "capital_summary": {
+   "as_of": "2026-10-06T10:50:36Z",
+   "authority": "RUNTIME",
+   "display": "Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 105 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.",
+   "source": "runtime: mission.json truth.home.strip[yield] (canon: data/equity_curve_daily.json)",
+   "status": "MEASURED",
+   "value": null
+  },
+  "current_origin": {
+   "as_of": "2026-10-07T02:41:09Z",
+   "authority": "CANONICAL",
+   "display": "canonical root HEAD 75b9fb5efc6a · origin main on the server 9b482969c07c — the root is NOT at the origin head",
+   "source": "git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)",
+   "status": "MEASURED",
+   "value": "9b482969c07ca64e07b91adb2a1e458252dfb601"
+  },
+  "defi_paper": {
+   "as_of": "2026-10-06T10:50:36Z",
+   "authority": "RUNTIME",
+   "display": "Conservative: 4.9 % (MEASURED, evidenced 105 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)",
+   "source": "runtime: mission.json truth.product.profiles.* (canon per row in «Public profile mapping»)",
+   "status": "MEASURED",
+   "value": null
+  },
+  "director_os": {
+   "as_of": "2026-10-07T02:34:24Z",
+   "authority": "RUNTIME",
+   "display": "Mission Control bundle b-20261007T023424Z-0b8eefea, Company Truth computed 2026-10-07T02:34:24Z (age 0.11 h at generation); read model only (ADR-592)",
+   "source": "runtime: published Mission Control bundle (current.json → mission.json)",
+   "status": "MEASURED",
+   "value": "b-20261007T023424Z-0b8eefea"
+  },
+  "last_verification": {
+   "as_of": "2026-10-07T02:41:09Z",
+   "authority": "DERIVED",
+   "display": "generated 2026-10-07T02:41:09Z · code-sync receipt 2026-10-07T02:33:37Z · Company Truth 2026-10-07T02:34:24Z",
+   "source": "this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)",
+   "status": "MEASURED",
+   "value": null
+  },
+  "latest_accepted_epic": {
+   "as_of": null,
+   "authority": "CANONICAL",
+   "display": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery (ADR-580, ACCEPTED)",
+   "source": "docs/ROADMAP.md (struck item marked DONE with its ADR, ADR status resolved from canon)",
+   "status": "MEASURED",
+   "value": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery"
+  },
+  "live_execution": {
+   "as_of": "2026-10-06T05:15:05.214411+00:00",
+   "authority": "RUNTIME",
+   "display": "NOT ENABLED — paper only; investment-engine readiness NOT_READY, open go-live conditions 4",
+   "source": "runtime: mission.json truth.capital.readiness (canon: data/execution_readiness.json ∧ data/owner_blockers.json (readiness_scopes.INVESTMENT_ENGINE_READINESS); data/capital_shadow/ledger.jsonl); policy ADR-556",
+   "status": "MEASURED",
+   "value": "LIVE_DISABLED"
+  },
+  "memory": {
+   "as_of": null,
+   "authority": "RUNTIME",
+   "display": "index lag 0 ADRs · newest indexed 612 · truth overrides 12 (the source records no observation time)",
+   "source": "runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)",
+   "status": "PARTIAL",
+   "value": {
+    "lag": 0,
+    "newest_indexed": 612,
+    "newest_origin": 612,
+    "truth_overrides": 12
+   }
+  },
+  "next_safe_action": {
+   "as_of": null,
+   "authority": "CANONICAL",
+   "display": "deliver waves A–C with independent reviews, then an independent fresh-session LLM run from `docs/continuity/FRESH_SESSION_PROMPT.md`",
+   "source": "docs/ROADMAP.md «Next safe action:» of the active epic",
+   "status": "MEASURED",
+   "value": null
+  },
+  "oracle": {
+   "as_of": "2026-10-06T07:30:05Z",
+   "authority": "RUNTIME",
+   "display": "stance INSUFFICIENT_EVIDENCE · {\"confidence\": \"LOW\", \"date\": \"2026-10-06\", \"stance\": \"INSUFFICIENT_EVIDENCE\"} · advisory/paper, no execution authority (ADR-554)",
+   "source": "runtime: mission.json truth.capital.oracle (canon: data/investment_cio/ledger.jsonl + latest.json (ADR-554))",
+   "status": "MEASURED",
+   "value": "INSUFFICIENT_EVIDENCE"
+  },
+  "owner_gates": {
+   "as_of": null,
+   "authority": "CANONICAL",
+   "display": "epic gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access / the six RM-TRUTH-01 gates above are frozen, not executed · owner queue: {\"accepted\": 5, \"answered\": 3, \"owner\": 3, \"prod_only\": 7, \"undeclared\": 11} · owner cards: Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей маши…",
+   "source": "docs/ROADMAP.md «Owner gates:» of the latest/active epic + runtime truth.decisions (one owner queue, ADR-580 C5)",
+   "status": "MEASURED",
+   "value": {
+    "epic": [
+     "publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access",
+     "the six RM-TRUTH-01 gates above are frozen, not executed"
+    ],
+    "queue": {
+     "accepted": 5,
+     "answered": 3,
+     "owner": 3,
+     "prod_only": 7,
+     "undeclared": 11
+    }
+   }
+  },
+  "product_publication": {
+   "as_of": "2026-10-06T23:03:21+00:00",
+   "authority": "RUNTIME",
+   "display": "published 2026-10-01 (measured 2026-10-01), next 2026-10-08 · site health сайт: данные от 2026-10-01 · publication candidate is an Owner Gate (see owner_gates)",
+   "source": "runtime: mission.json truth.product.{public_release,website_health}",
+   "status": "MEASURED",
+   "value": null
+  },
+  "production_code": {
+   "as_of": "2026-10-07T02:33:37Z",
+   "authority": "RUNTIME",
+   "display": "production code = origin 9b482969c07c (code sync IN_SYNC, at 2026-10-07T02:33:37Z)",
+   "source": "runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)",
+   "status": "MEASURED",
+   "value": "9b482969c07ca64e07b91adb2a1e458252dfb601"
+  },
+  "real_capital": {
+   "as_of": null,
+   "authority": "RUNTIME",
+   "display": "real capital $0 (policy baseline $0; owner subject №1) (the source records no observation time)",
+   "source": "runtime: mission.json truth.home.money_chip (canon: paper_trading_status.execution_mode)",
+   "status": "PARTIAL",
+   "value": 0
+  },
+  "sherlock": {
+   "as_of": null,
+   "authority": "RUNTIME",
+   "display": "usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564) (the source records no observation time)",
+   "source": "runtime: mission.json truth.capital.sherlock (canon: data/research_factory/ledger.jsonl (sherlock, ADR-564))",
+   "status": "PARTIAL",
+   "value": null
+  },
+  "studio_os": {
+   "as_of": null,
+   "authority": "RUNTIME",
+   "display": "в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 340 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0 (the source records no observation time)",
+   "source": "runtime: mission.json truth.studio.{fleet,tasks,self_heal}",
+   "status": "PARTIAL",
+   "value": null
+  },
+  "technical_debt": {
+   "as_of": null,
+   "authority": "CANONICAL",
+   "display": "two archive producers share the `spa_state_` prefix (full daily vs DR-critical; closed by ADR-611); the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from 2026-07-31); Telegram read-only Capital commands; plain-language readiness reasons; LOGOS log rotation and failure alert; truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED",
+   "source": "docs/ROADMAP.md «Remaining debt:» of the latest accepted epic",
+   "status": "MEASURED",
+   "value": null
+  },
+  "trading_lab": {
+   "as_of": "2026-10-07T02:28:51Z",
+   "authority": "RUNTIME",
+   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 5.6 min",
+   "source": "runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)",
+   "status": "MEASURED",
+   "value": {
+    "candidates": 138,
+    "chain_ok": true,
+    "champions": 0,
+    "forward": 5
+   }
+  }
+ }
+}

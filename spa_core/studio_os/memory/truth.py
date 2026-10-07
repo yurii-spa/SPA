@@ -53,7 +53,8 @@ def status_of_text(text: str) -> Optional[str]:
 def superseded_ids(text: str) -> List[str]:
     out = []
     for m in _SUPERSEDES.finditer(text):
-        out += [x.upper().replace(" ", "-") for x in _ID.findall(m.group(1))]
+        # a sentence-final period is punctuation, not part of the id («Supersedes ADR-554.» — ADR-610)
+        out += [x.upper().replace(" ", "-").rstrip(".") for x in _ID.findall(m.group(1))]
     return out
 
 

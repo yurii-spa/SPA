@@ -49,12 +49,27 @@
    Oracle still allocates only CIO_ELIGIBLE candidates on paper; RiskPolicy and cio-policy-v1 unchanged. Real capital
    $0; no real-money pilot, no COO epic and no new asset-class expansion has started. No further epic is started
    automatically.
-10. **RM-TRUTH-01 · Company truth reconciliation + Director OS recovery** — in progress (owner directive
-    2026-10-05, «MACRO EPIC — FRESH SESSION REQUIRED»; contracts ADR-580; Wave 1 delivered `96a935fd` 2026-10-06;
-    Wave 2 = Trading Lab canon ADR-590, memory ADR-591, Director OS v2 ADR-592, Conservative backfill ADR-593).
-    Read-only forensic map first (`docs/rm_truth/`), then waves with independent reviews. Real capital $0; no
-    historical paper data reset.
-11. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+10. ~~RM-TRUTH-01 · Company truth reconciliation + Director OS recovery~~ — DONE 2026-10-07 (ADR-580): owner
+    directive 2026-10-05 «MACRO EPIC — FRESH SESSION REQUIRED»; accepted as delivered in the owner directive
+    ARB-CONTINUITY-01 §0 (2026-10-07). Wave 1 `96a935fd`, Wave 2 `688f2c4b` (Trading Lab canon ADR-590, memory
+    ADR-591, Director OS v2 ADR-592, Conservative backfill ADR-593), OpenClaw removed (ADR-599), owner cards
+    carried to origin `2427751a`, long-lived services restarted, off-device DR copy to iCloud `1c5445d3` +
+    `fe0534b5`, closeout `e9b73dda`. Map: `docs/rm_truth/`. Real capital $0; no historical paper data reset.
+    Owner gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi
+    INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on
+    iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through
+    Cloudflare Access. Remaining debt: two archive producers share the `spa_state_` prefix (full daily vs
+    DR-critical; closed by ADR-611); the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from
+    2026-07-31); Telegram read-only Capital commands; plain-language readiness reasons; LOGOS log rotation and
+    failure alert; truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED.
+11. **ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening** — in progress (owner
+    directive 2026-10-07, autonomous overnight macro-epic; ADR-610): a fresh AI session recovers the company from
+    `docs/continuity/` (curated ARCHITECT_CONTEXT, OWNER_INTENT_LEDGER, BOOTSTRAP; generated, freshness-checked
+    CURRENT_STATE and ARCHITECT_DECISION_INDEX); waves B (backup archive classes) and C (Telegram Capital surface,
+    Director plain language). Real capital $0; no live execution. Owner gates: the six RM-TRUTH-01 gates above are
+    frozen, not executed. Next safe action: deliver waves A–C with independent reviews, then an independent
+    fresh-session LLM run from `docs/continuity/FRESH_SESSION_PROMPT.md`.
+12. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 
