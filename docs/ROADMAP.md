@@ -78,7 +78,15 @@
     origin/main test-health record (`data/ci/origin_main/`, section shows NOT_MEASURED); shelf `next_publication`
     vs site freshness monitor disagree (10-08 vs 10-12); Sherlock reader falls back to the wall clock on an empty
     ledger. Next safe action: ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates.
-12. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+12. **PRODUCT-TRUTH-02 · Reproducible publication & public product truth** — infrastructure delivered
+    2026-10-07 (ADR-630, `b39ff06e`; independent reviews CLOSED): one product mapping (Conservative / Balanced /
+    Aggressive per ADR-OWN-2026-07; Preserve / Core / Max Yield historical names only), one publication cadence
+    (from the published shelf), typed shelf `site_numbers/2` with provenance, fail-closed
+    `scripts/verify_publication.py` on every push path, owner approval bound to the shelf sha, Director profile
+    mapping, freshness monitor judges the published shelf. Origin DOES rebuild the live site (verified).
+    Publication waits for ONE owner gate: candidate `pt02/publication-candidate-v2` (one dated site-wide rate,
+    drawdown −0.04 %, no one-day rate under mature labels), the daily-snapshot owner-gate fix, first typed shelf.
+13. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 
