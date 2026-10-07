@@ -2,24 +2,24 @@
   "generated_from": "data/golive_status.json + data/equity_curve_daily.json + data/paper_trading_status.json",
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
-  "as_of": "2026-10-02",
-  "generated_at": "2026-10-02T02:06:22Z",
+  "as_of": "2026-10-07",
+  "generated_at": "2026-10-07T11:20:00Z",
   "degraded": false,
-  "real_track_days": 101,
+  "real_track_days": 106,
   "go_live_target": null,
   "go_live_state": "gate_passed_owner_decision_pending",
   "evidenced_anchor": "2026-06-22",
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101492.73,
-  "nav_usd": 101492.73,
-  "paper_apy_pct": 4.9282,
+  "end_equity": 101550.12,
+  "nav_usd": 101550.12,
+  "paper_apy_pct": 4.8943,
   "max_drawdown_pct": -0.0393,
-  "total_return_pct": 1.4927,
+  "total_return_pct": 1.5501,
   "packages": {
     "conservative": {
-      "apy_pct": 3.7,
+      "apy_pct": 5.4,
       "dd_pct": 0.0
     },
     "balanced": {
@@ -34,20 +34,22 @@
   "paper_tracks": {
     "conservative": {
       "status": "paper_test_running",
-      "days_with_positions": 101,
-      "days_funded": 101,
-      "apy_pct": 4.93,
+      "days_with_positions": 106,
+      "days_funded": 106,
+      "apy_pct": 4.89,
       "dd_pct": -0.0393,
-      "nav_usd": 101492.73,
+      "nav_usd": 101550.12,
       "positions_count": null,
       "evidence": "paper"
     },
     "balanced": {
       "status": "paper_test_running",
-      "days_with_positions": 1,
-      "days_funded": 1,
+      "days_with_positions": 6,
+      "days_funded": 6,
       "apy_pct": null,
-      "dd_pct": 0.0,
+      "reportable": false,
+      "reportable_after": 30,
+      "dd_pct": -0.11,
       "nav_usd": null,
       "positions_count": 4,
       "evidence": "paper",
@@ -62,20 +64,22 @@
         "first_v2_date": "2026-10-02",
         "v1_rows": 39,
         "v1_last_date": "2026-10-01",
-        "v1_classification": "DISTORTED — kept as historical evidence, not comparable with v2",
+        "v1_classification": "DISTORTED \u2014 kept as historical evidence, not comparable with v2",
         "adr": "ADR-531"
       },
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
-        "label_en": "earlier period distorted by the identified accounting defect — retained for audit, not shown",
-        "label_ru": "прежний период искажён выявленным дефектом учёта — сохранён для аудита, не показывается"
+        "label_en": "earlier period distorted by the identified accounting defect \u2014 retained for audit, not shown",
+        "label_ru": "\u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434 \u0438\u0441\u043a\u0430\u0436\u0451\u043d \u0432\u044b\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u043c \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u043c \u0443\u0447\u0451\u0442\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u0434\u043b\u044f \u0430\u0443\u0434\u0438\u0442\u0430, \u043d\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f"
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
-        "days": 1,
+        "days": 6,
         "first_date": "2026-10-02",
-        "apy_pct": null,
+        "apy_pct": -3.58,
+        "reportable": false,
+        "reportable_after": 30,
         "pre_fix_days": 39
       },
       "earlier_version_rows": 0,
@@ -83,10 +87,12 @@
     },
     "aggressive": {
       "status": "paper_test_running",
-      "days_with_positions": 1,
-      "days_funded": 1,
+      "days_with_positions": 6,
+      "days_funded": 6,
       "apy_pct": null,
-      "dd_pct": 0.0,
+      "reportable": false,
+      "reportable_after": 30,
+      "dd_pct": -0.01,
       "nav_usd": null,
       "positions_count": 2,
       "evidence": "paper",
@@ -101,20 +107,22 @@
         "first_v2_date": "2026-10-02",
         "v1_rows": 39,
         "v1_last_date": "2026-10-01",
-        "v1_classification": "DISTORTED — kept as historical evidence, not comparable with v2",
+        "v1_classification": "DISTORTED \u2014 kept as historical evidence, not comparable with v2",
         "adr": "ADR-531"
       },
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
-        "label_en": "earlier period distorted by the identified accounting defect — retained for audit, not shown",
-        "label_ru": "прежний период искажён выявленным дефектом учёта — сохранён для аудита, не показывается"
+        "label_en": "earlier period distorted by the identified accounting defect \u2014 retained for audit, not shown",
+        "label_ru": "\u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u043f\u0435\u0440\u0438\u043e\u0434 \u0438\u0441\u043a\u0430\u0436\u0451\u043d \u0432\u044b\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u043c \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u043c \u0443\u0447\u0451\u0442\u0430 \u2014 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d \u0434\u043b\u044f \u0430\u0443\u0434\u0438\u0442\u0430, \u043d\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f"
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
-        "days": 1,
+        "days": 6,
         "first_date": "2026-10-02",
-        "apy_pct": null,
+        "apy_pct": 7.02,
+        "reportable": false,
+        "reportable_after": 30,
         "pre_fix_days": 39
       },
       "earlier_version_rows": 0,
@@ -122,15 +130,15 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-02T11:51:39Z",
-    "generated_at": "2026-10-02T11:51:39Z",
+    "published_at": "2026-10-07T11:20:00Z",
+    "generated_at": "2026-10-07T11:20:00Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "code_identity": {
       "state": "IN_SYNC",
-      "origin_commit": "40d9cdf66827",
-      "checked_at": "2026-10-02T11:43:58.832469+00:00",
-      "age_h": 0.13
+      "origin_commit": "0fd8c24eff08",
+      "checked_at": "2026-10-07T11:19:56.873748+00:00",
+      "age_h": 0.0
     },
     "status_colour_is_not_a_risk_grade": true,
     "packages": {
@@ -142,40 +150,40 @@
         "experiment_id": "conservative-lending-v1@2026-06-22",
         "experiment_start_date": "2026-06-22",
         "new_version_pending": null,
-        "headline_en": "Paper test running · 101 valid days of the current version",
-        "headline_ru": "Бумажный тест идёт · валидных дней текущей версии: 101",
+        "headline_en": "Paper test running \u00b7 106 valid days of the current version",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0438\u0434\u0451\u0442 \u00b7 \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d\u0435\u0439 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438: 106",
         "mechanic_short_en": "unlevered stablecoin lending",
-        "mechanic_short_ru": "кредитование стейблкоинов без плеча",
+        "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 \u0431\u0435\u0437 \u043f\u043b\u0435\u0447\u0430",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-02T09:55:40.444175+00:00",
-          "age_h": 1.93
+          "last_run_at": "2026-10-07T06:00:15.592572+00:00",
+          "age_h": 5.33
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T09:55:40.444175+00:00",
+          "last_observation_at": "2026-10-07T06:00:15.592572+00:00",
           "missed_runs_24h": null,
           "observations": null
         },
         "decision": {
           "state": "OPEN",
           "position_en": "5 lending positions, cash $5,000",
-          "position_ru": "позиций кредитования: 5, кэш $5 000",
-          "reason_en": "no rebalance: the gain does not beat the cost band",
-          "reason_ru": "без ребаланса: выигрыш не перекрывает порог издержек",
-          "decision_date": "2026-10-02",
+          "position_ru": "\u043f\u043e\u0437\u0438\u0446\u0438\u0439 \u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u044f: 5, \u043a\u044d\u0448 $5\u00a0000",
+          "reason_en": "reason recorded in the book's log",
+          "reason_ru": "\u043f\u0440\u0438\u0447\u0438\u043d\u0430 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u0430 \u0432 \u0436\u0443\u0440\u043d\u0430\u043b\u0435 \u043a\u043d\u0438\u0433\u0438",
+          "decision_date": "2026-10-07",
           "defect_en": null,
           "defect_ru": null
         },
         "history": {
           "state": "REPORTABLE",
-          "valid_periods": 101,
+          "valid_periods": 106,
           "first_period": "2026-06-22",
-          "last_period": "2026-10-02",
+          "last_period": "2026-10-07",
           "reportable_after": 30,
           "earlier_rows_kept": 0
         },
@@ -183,7 +191,7 @@
           "state": "PAPER_ONLY",
           "live": "NOT_APPROVED",
           "live_reason_en": "paper validation; real capital only after the go-live gates and an owner decision",
-          "live_reason_ru": "бумажная проверка; реальный капитал — только после гейтов go-live и решения владельца"
+          "live_reason_ru": "\u0431\u0443\u043c\u0430\u0436\u043d\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430; \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u043a\u0430\u043f\u0438\u0442\u0430\u043b \u2014 \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0441\u043b\u0435 \u0433\u0435\u0439\u0442\u043e\u0432 go-live \u0438 \u0440\u0435\u0448\u0435\u043d\u0438\u044f \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430"
         },
         "composition": {
           "state": "MEASURED",
@@ -198,17 +206,18 @@
               "morpho_blue_base"
             ]
           },
-          "summary_en": "T1: aave_v3, compound_v3 · T2: fluid_fusdc, maple, morpho_blue_base",
-          "summary_ru": "T1: aave_v3, compound_v3 · T2: fluid_fusdc, maple, morpho_blue_base"
+          "unresolved": {},
+          "summary_en": "T1: aave_v3, compound_v3 \u00b7 T2: fluid_fusdc, maple, morpho_blue_base",
+          "summary_ru": "T1: aave_v3, compound_v3 \u00b7 T2: fluid_fusdc, maple, morpho_blue_base"
         },
         "freshness": {
           "schedule_en": "daily (cycle at 08:00 local)",
-          "schedule_ru": "ежедневно (цикл в 08:00 по местному времени)",
+          "schedule_ru": "\u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e (\u0446\u0438\u043a\u043b \u0432 08:00 \u043f\u043e \u043c\u0435\u0441\u0442\u043d\u043e\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)",
           "expected_every_h": 24.0,
           "stale_after_h": 26.0,
-          "last_successful_run_at": "2026-10-02T09:55:40.444175+00:00",
-          "source_observed_at": "2026-10-02T09:55:40.444175+00:00",
-          "stale_at": "2026-10-03T11:55:40Z"
+          "last_successful_run_at": "2026-10-07T06:00:15.592572+00:00",
+          "source_observed_at": "2026-10-07T06:00:15.592572+00:00",
+          "stale_at": "2026-10-08T08:00:15Z"
         }
       },
       "balanced": {
@@ -219,48 +228,48 @@
         "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
-        "headline_en": "Paper test running. Statistics of the current version are accumulating (1 valid day so far)",
-        "headline_ru": "Бумажный тест запущен. Статистика текущей версии накапливается (валидных дн.: 1)",
+        "headline_en": "Paper test running. Statistics of the current version are accumulating (6 valid days so far)",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 6)",
         "mechanic_short_en": "stablecoin lending + Pendle PT fixed rate held to maturity",
-        "mechanic_short_ru": "кредитование стейблкоинов + фиксированная ставка Pendle PT до погашения",
+        "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 + \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 Pendle PT \u0434\u043e \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u044f",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-02T11:00:23.196210Z",
-          "age_h": 0.85
+          "last_run_at": "2026-10-07T11:04:57.397499Z",
+          "age_h": 0.25
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T11:00:23Z",
+          "last_observation_at": "2026-10-07T11:04:57Z",
           "missed_runs_24h": 0,
-          "observations": 14
+          "observations": 133
         },
         "decision": {
-          "state": "HOLD",
-          "position_en": "no PT bought — waiting for its entry conditions",
-          "position_ru": "PT не куплен — ждёт условий входа",
-          "reason_en": "the PT fixed rate (4.905 %) is below the floor (6.336 %) set by the floating benchmark",
-          "reason_ru": "фиксированная ставка PT (4,905 %) ниже порога (6,336 %), заданного плавающей ставкой",
-          "decision_date": "2026-10-02",
-          "defect_en": "this decision used a defective benchmark (an aave_v3 rate spike the book does not hold; fixed in 979de337) — the next scheduled decision uses the corrected rule",
-          "defect_ru": "это решение принято по дефектному ориентиру (скачок ставки aave_v3, которого нет в книге; исправлено в 979de337) — следующее плановое решение идёт по исправленному правилу"
+          "state": "OPEN",
+          "position_en": "1 PT leg(s) held to maturity, $24,851",
+          "position_ru": "PT \u0432 \u043a\u043d\u0438\u0433\u0435: 1, \u0434\u0435\u0440\u0436\u0430\u0442\u0441\u044f \u0434\u043e \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u044f, $24\u00a0851",
+          "reason_en": "the PT fixed rate (4.885 %) clears the floor (3.727 %) set by the floating benchmark",
+          "reason_ru": "\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 PT (4,885 %) \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u043f\u043e\u0440\u043e\u0433 (3,727 %), \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u043f\u043b\u0430\u0432\u0430\u044e\u0449\u0435\u0439 \u0441\u0442\u0430\u0432\u043a\u043e\u0439",
+          "decision_date": "2026-10-07",
+          "defect_en": null,
+          "defect_ru": null
         },
         "history": {
-          "state": "WARMUP",
-          "valid_periods": 1,
+          "state": "ACCUMULATING",
+          "valid_periods": 6,
           "first_period": "2026-10-02",
-          "last_period": "2026-10-02",
+          "last_period": "2026-10-07",
           "reportable_after": 30,
           "earlier_rows_kept": 39
         },
         "mode": {
           "state": "PAPER_ONLY",
           "live": "REFUSED",
-          "live_reason_en": "research paper portfolio outside the go-live track — refused for live capital",
-          "live_reason_ru": "исследовательский бумажный портфель вне трека go-live — реальный капитал не допускается"
+          "live_reason_en": "research paper portfolio outside the go-live track \u2014 refused for live capital",
+          "live_reason_ru": "\u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 \u0431\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u043f\u043e\u0440\u0442\u0444\u0435\u043b\u044c \u0432\u043d\u0435 \u0442\u0440\u0435\u043a\u0430 go-live \u2014 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u043a\u0430\u043f\u0438\u0442\u0430\u043b \u043d\u0435 \u0434\u043e\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f"
         },
         "composition": {
           "state": "MEASURED",
@@ -270,21 +279,24 @@
               "maple",
               "morpho_steakhouse"
             ],
-            "T3": [
+            "unresolved": [
               "susde"
             ]
           },
-          "summary_en": "T2: fluid_fusdc, maple, morpho_steakhouse · T3: susde",
-          "summary_ru": "T2: fluid_fusdc, maple, morpho_steakhouse · T3: susde"
+          "unresolved": {
+            "susde": "identity vs ethena_susde not resolved (ADR-532 package A)"
+          },
+          "summary_en": "T2: fluid_fusdc, maple, morpho_steakhouse \u00b7 tier unresolved: susde",
+          "summary_ru": "T2: fluid_fusdc, maple, morpho_steakhouse \u00b7 \u0442\u0438\u0440 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0451\u043d: susde"
         },
         "freshness": {
           "schedule_en": "hourly; one accounting row a day",
-          "schedule_ru": "ежечасно; одна учётная строка в день",
+          "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-02T11:00:23.196210Z",
-          "source_observed_at": "2026-10-02T11:00:23Z",
-          "stale_at": "2026-10-02T13:30:23Z"
+          "last_successful_run_at": "2026-10-07T11:04:57.397499Z",
+          "source_observed_at": "2026-10-07T11:04:57Z",
+          "stale_at": "2026-10-07T13:34:57Z"
         }
       },
       "aggressive": {
@@ -295,48 +307,48 @@
         "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
-        "headline_en": "Paper test running. Statistics of the current version are accumulating (1 valid day so far)",
-        "headline_ru": "Бумажный тест запущен. Статистика текущей версии накапливается (валидных дн.: 1)",
+        "headline_en": "Paper test running. Statistics of the current version are accumulating (6 valid days so far)",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 6)",
         "mechanic_short_en": "stablecoin lending + a simulated sUSDe/PYUSD loop on Morpho Blue",
-        "mechanic_short_ru": "кредитование стейблкоинов + симулированная петля sUSDe/PYUSD на Morpho Blue",
+        "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 + \u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f sUSDe/PYUSD \u043d\u0430 Morpho Blue",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-02T11:00:10.216177Z",
-          "age_h": 0.86
+          "last_run_at": "2026-10-07T11:05:00.046513Z",
+          "age_h": 0.25
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-02T11:00:10Z",
+          "last_observation_at": "2026-10-07T11:05:00Z",
           "missed_runs_24h": 0,
-          "observations": 14
+          "observations": 133
         },
         "decision": {
           "state": "OPEN",
-          "position_en": "simulated loop open · debt $116,697 · health factor 1.307 at the last check",
-          "position_ru": "симулированная петля открыта · долг $116 697 · фактор здоровья 1,307 на последней проверке",
-          "reason_en": "entry conditions met",
-          "reason_ru": "условия входа выполнены",
-          "decision_date": "2026-10-02",
+          "position_en": "simulated loop open \u00b7 debt $116,763 \u00b7 health factor 1.307 at the last check",
+          "position_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u00b7 \u0434\u043e\u043b\u0433 $116\u00a0763 \u00b7 \u0444\u0430\u043a\u0442\u043e\u0440 \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f 1,307 \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0435",
+          "reason_en": "position open; carry re-checked",
+          "reason_ru": "\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430; \u0434\u043e\u0445\u043e\u0434\u043d\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u0430",
+          "decision_date": "2026-10-07",
           "defect_en": null,
           "defect_ru": null
         },
         "history": {
-          "state": "WARMUP",
-          "valid_periods": 1,
+          "state": "ACCUMULATING",
+          "valid_periods": 6,
           "first_period": "2026-10-02",
-          "last_period": "2026-10-02",
+          "last_period": "2026-10-07",
           "reportable_after": 30,
           "earlier_rows_kept": 39
         },
         "mode": {
           "state": "PAPER_ONLY",
           "live": "REFUSED",
-          "live_reason_en": "simulated leverage, research paper portfolio — refused for live capital",
-          "live_reason_ru": "симулированное плечо, исследовательский бумажный портфель — реальный капитал не допускается"
+          "live_reason_en": "simulated leverage, research paper portfolio \u2014 refused for live capital",
+          "live_reason_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0435 \u043f\u043b\u0435\u0447\u043e, \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 \u0431\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u043f\u043e\u0440\u0442\u0444\u0435\u043b\u044c \u2014 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u043a\u0430\u043f\u0438\u0442\u0430\u043b \u043d\u0435 \u0434\u043e\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f"
         },
         "composition": {
           "state": "MEASURED",
@@ -346,17 +358,18 @@
               "maple"
             ]
           },
-          "summary_en": "T2: fluid_fusdc, maple · plus the simulated Morpho Blue loop (sUSDe collateral)",
-          "summary_ru": "T2: fluid_fusdc, maple · плюс симулированная петля Morpho Blue (залог sUSDe)"
+          "unresolved": {},
+          "summary_en": "T2: fluid_fusdc, maple \u00b7 plus the simulated Morpho Blue loop (sUSDe collateral)",
+          "summary_ru": "T2: fluid_fusdc, maple \u00b7 \u043f\u043b\u044e\u0441 \u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f Morpho Blue (\u0437\u0430\u043b\u043e\u0433 sUSDe)"
         },
         "freshness": {
           "schedule_en": "hourly; loop supervised every run, one accounting row a day",
-          "schedule_ru": "ежечасно; петля проверяется каждый запуск, одна учётная строка в день",
+          "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043f\u0435\u0442\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u043a\u0430\u0436\u0434\u044b\u0439 \u0437\u0430\u043f\u0443\u0441\u043a, \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-02T11:00:10.216177Z",
-          "source_observed_at": "2026-10-02T11:00:10Z",
-          "stale_at": "2026-10-02T13:30:10Z"
+          "last_successful_run_at": "2026-10-07T11:05:00.046513Z",
+          "source_observed_at": "2026-10-07T11:05:00Z",
+          "stale_at": "2026-10-07T13:35:00Z"
         }
       }
     }
@@ -886,7 +899,7 @@
       "source": "backfill",
       "evidenced": false,
       "series_reset": true,
-      "note": "series_reset: start of the backfill synthetic series — the equity step from the prior (warmup) series is a SERIES BOUNDARY, not a real daily loss (daily_return_pct=0.0 by construction; not evidenced, not counted)."
+      "note": "series_reset: start of the backfill synthetic series \u2014 the equity step from the prior (warmup) series is a SERIES BOUNDARY, not a real daily loss (daily_return_pct=0.0 by construction; not evidenced, not counted)."
     },
     {
       "date": "2026-06-11",
@@ -1152,7 +1165,7 @@
         "yearn_v3": 3170.45
       },
       "reconstructed": true,
-      "reconstruction_note": "interpolated — no daily_cycle log for this date; bounded by real 06-20 and 06-22 close",
+      "reconstruction_note": "interpolated \u2014 no daily_cycle log for this date; bounded by real 06-20 and 06-22 close",
       "source": "reconstructed",
       "evidenced": false
     },
@@ -3871,20 +3884,170 @@
     {
       "date": "2026-10-02",
       "open_equity": 101476.69,
-      "close_equity": 101492.73,
-      "high_equity": 101492.73,
+      "close_equity": 101490.98,
+      "high_equity": 101490.98,
       "low_equity": 101476.69,
       "snapshots": 1,
-      "daily_return_pct": 0.015805,
-      "cumulative_return_pct": 1.492728,
+      "daily_return_pct": 0.014079,
+      "cumulative_return_pct": 1.490977,
       "drawdown_pct": 0.0,
-      "equity": 101492.73,
-      "apy_today": 5.7687,
-      "apy_expected_pct": 5.7687,
-      "daily_yield_usd": 16.0382,
+      "equity": 101490.98,
+      "apy_today": 5.1387,
+      "apy_expected_pct": 5.138,
+      "daily_yield_usd": 14.2865,
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
-      "net_pnl_usd": 16.0382,
+      "net_pnl_usd": 14.2865,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-03",
+      "open_equity": 101490.98,
+      "close_equity": 101502.46,
+      "high_equity": 101502.46,
+      "low_equity": 101490.98,
+      "snapshots": 1,
+      "daily_return_pct": 0.011309,
+      "cumulative_return_pct": 1.502457,
+      "drawdown_pct": 0.0,
+      "equity": 101502.46,
+      "apy_today": 4.1277,
+      "apy_expected_pct": 4.1272,
+      "daily_yield_usd": 11.4773,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 11.4773,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-04",
+      "open_equity": 101502.46,
+      "close_equity": 101514.24,
+      "high_equity": 101514.24,
+      "low_equity": 101502.46,
+      "snapshots": 1,
+      "daily_return_pct": 0.011608,
+      "cumulative_return_pct": 1.514242,
+      "drawdown_pct": 0.0,
+      "equity": 101514.24,
+      "apy_today": 4.2369,
+      "apy_expected_pct": 4.2369,
+      "daily_yield_usd": 11.7822,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 11.7822,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-05",
+      "open_equity": 101514.24,
+      "close_equity": 101526.06,
+      "high_equity": 101526.06,
+      "low_equity": 101514.24,
+      "snapshots": 1,
+      "daily_return_pct": 0.011647,
+      "cumulative_return_pct": 1.526063,
+      "drawdown_pct": 0.0,
+      "equity": 101526.06,
+      "apy_today": 4.2511,
+      "apy_expected_pct": 4.2506,
+      "daily_yield_usd": 11.8232,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 11.8232,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-06",
+      "open_equity": 101526.06,
+      "close_equity": 101538.01,
+      "high_equity": 101538.01,
+      "low_equity": 101526.06,
+      "snapshots": 1,
+      "daily_return_pct": 0.011773,
+      "cumulative_return_pct": 1.538013,
+      "drawdown_pct": 0.0,
+      "equity": 101538.01,
+      "apy_today": 4.2973,
+      "apy_expected_pct": 4.2967,
+      "daily_yield_usd": 11.953,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 11.953,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-07",
+      "open_equity": 101538.01,
+      "close_equity": 101550.12,
+      "high_equity": 101550.12,
+      "low_equity": 101538.01,
+      "snapshots": 1,
+      "daily_return_pct": 0.011931,
+      "cumulative_return_pct": 1.550125,
+      "drawdown_pct": 0.0,
+      "equity": 101550.12,
+      "apy_today": 4.355,
+      "apy_expected_pct": 4.355,
+      "daily_yield_usd": 12.115,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 12.115,
       "unobservable_pools": [],
       "yield_forgone_usd": 0.0,
       "positions": {
