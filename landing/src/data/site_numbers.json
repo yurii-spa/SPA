@@ -5,36 +5,134 @@
     "замер": "landing/src/data/track_snapshot.json",
     "решение": "landing/src/lib/constitution.json"
   },
-  "measured_at": "2026-10-01",
-  "published_at": "2026-10-01",
+  "measured_at": "2026-10-07",
+  "published_at": "2026-10-07",
   "cadence": "weekly",
-  "next_publication": "2026-10-08",
+  "next_publication": "2026-10-14",
+  "_provenance": {
+    "schema_version": "site_numbers/2",
+    "generated_at": "2026-10-07T11:20:00Z",
+    "measurement_as_of": "2026-10-07",
+    "source_commit": "b53416d34d7cb7feff52f5b116b1f06040d6eb9e",
+    "source_commit_reason": null,
+    "source_hashes": {
+      "landing/src/data/track_snapshot.json": "1110c5f770f4a2af0c76464f0075d828662979481951116456dff5a382ecd67b",
+      "landing/src/lib/constitution.json": "ab4e2fe6b9719a91773a7a662eaae7e21ed509be17b7dea29456c688e5079ecd"
+    },
+    "cadence_rule": "spa_core/publication/cadence.py (weekly from the PUBLISHED shelf)",
+    "product_map_rule": "spa_core/publication/product_map.py (ADR-OWN-2026-07, ADR-593, ADR-533)"
+  },
+  "profiles": [
+    {
+      "profile": "conservative",
+      "public_name": "Conservative",
+      "public_name_ru": "Консервативный",
+      "historical_name": "Preserve",
+      "historical_name_note": "historical name only — no paper history is attributed to it",
+      "naming_decision": "ADR-OWN-2026-07",
+      "internal_book": "conservative-lending-v1",
+      "book_file": "data/current_positions.json + data/equity_curve_daily.json",
+      "deciding_adr": "ADR-593",
+      "decision_date": "2026-07-11",
+      "track_decisions": [
+        "ADR-019",
+        "ADR-034",
+        "ADR-048",
+        "ADR-060",
+        "ADR-298",
+        "ADR-533"
+      ],
+      "experiment_id": "conservative-lending-v1@2026-06-22",
+      "track_start": "2026-06-22",
+      "evidenced_anchor": "2026-06-22",
+      "valid_periods": 106,
+      "reportable_after": 30,
+      "maturity": "REPORTABLE",
+      "result_metric_type": "REALIZED_PAPER_RETURN",
+      "target_metric_type": "TARGET_RETURN"
+    },
+    {
+      "profile": "balanced",
+      "public_name": "Balanced",
+      "public_name_ru": "Сбалансированный",
+      "historical_name": "Core",
+      "historical_name_note": "historical name only — no paper history is attributed to it",
+      "naming_decision": "ADR-OWN-2026-07",
+      "internal_book": "balanced-fixed-carry-v1",
+      "book_file": "data/hy_paper_trading.json",
+      "deciding_adr": "ADR-533",
+      "decision_date": "2026-10-01",
+      "track_decisions": [
+        "ADR-531",
+        "ADR-532",
+        "ADR-533"
+      ],
+      "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
+      "track_start": "2026-10-02",
+      "evidenced_anchor": null,
+      "valid_periods": 6,
+      "reportable_after": 30,
+      "maturity": "ACCUMULATING",
+      "result_metric_type": null,
+      "target_metric_type": "TARGET_RETURN"
+    },
+    {
+      "profile": "aggressive",
+      "public_name": "Aggressive",
+      "public_name_ru": "Агрессивный",
+      "historical_name": "Max Yield",
+      "historical_name_note": "historical name only — no paper history is attributed to it",
+      "naming_decision": "ADR-OWN-2026-07",
+      "internal_book": "aggressive-susde-loop-v1",
+      "book_file": "data/lp_paper_trading.json",
+      "deciding_adr": "ADR-533",
+      "decision_date": "2026-10-01",
+      "track_decisions": [
+        "ADR-531",
+        "ADR-532",
+        "ADR-533"
+      ],
+      "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
+      "track_start": "2026-10-02",
+      "evidenced_anchor": null,
+      "valid_periods": 6,
+      "reportable_after": 30,
+      "maturity": "ACCUMULATING",
+      "result_metric_type": null,
+      "target_metric_type": "TARGET_RETURN"
+    }
+  ],
   "rates_are_annualised": true,
   "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
   "headline": {
     "apy": {
-      "value": 4.9165,
+      "value": 4.8943,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → paper_apy_pct",
       "annualised": true,
       "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+      "window_days": 106.0,
+      "reportable": true,
+      "reportable_after": 30.0,
+      "metric_type": "REALIZED_PAPER_RETURN",
       "evidence": "paper"
     },
     "drawdown": {
       "value": -0.0393,
       "unit": "%",
       "kind": "замер",
-      "source": "landing/src/data/track_snapshot.json"
+      "source": "landing/src/data/track_snapshot.json",
+      "basis": "PAPER"
     },
     "nav": {
-      "value": 101476.26,
+      "value": 101550.12,
       "unit": "USD",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
     },
     "evidenced_days": {
-      "value": 100.0,
+      "value": 106.0,
       "unit": "дней",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
@@ -54,47 +152,57 @@
       "source": "track_snapshot.json → days_needed (порог 30 дней, ADR-002; в снимок приходит из гейта)"
     },
     "end_equity": {
-      "value": 101476.26,
+      "value": 101550.12,
       "unit": "USD",
       "kind": "замер",
       "source": "track_snapshot.json → end_equity"
     },
     "go_live_target": null,
     "degraded": false,
-    "snapshot_generated_at": "2026-10-01T13:37:29Z"
+    "snapshot_generated_at": "2026-10-07T11:20:00Z"
   },
   "packages": {
     "conservative": {
       "apy": {
-        "value": 3.7,
+        "value": 5.4,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages",
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, blended_net_apy_pct — s61/s27/s62/s77, spa_core/backtesting/tier1/packages.py)",
         "annualised": true,
-        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1"
+        "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": null,
+        "window_days_reason": "окно бэктеста не публикуется tier1_packages.json (только итоговые агрегаты)",
+        "reportable": true,
+        "metric_type": "BACKTEST_RETURN"
       },
       "drawdown": {
         "value": 0.0,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages"
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, worst_dd_pct)",
+        "basis": "BACKTEST"
       }
     },
     "balanced": {
       "apy": {
         "value": null,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages",
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, blended_net_apy_pct — s61/s27/s62/s77, spa_core/backtesting/tier1/packages.py)",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": null,
+        "window_days_reason": "окно бэктеста не публикуется tier1_packages.json (только итоговые агрегаты)",
+        "reportable": false,
+        "metric_type": "BACKTEST_RETURN",
         "unavailable_reason": "ставка пакета не измерена — печатать «идёт paper-тест», не число"
       },
       "drawdown": {
         "value": null,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages",
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, worst_dd_pct)",
+        "basis": "BACKTEST",
         "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
       }
     },
@@ -102,17 +210,22 @@
       "apy": {
         "value": null,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages",
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, blended_net_apy_pct — s61/s27/s62/s77, spa_core/backtesting/tier1/packages.py)",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": null,
+        "window_days_reason": "окно бэктеста не публикуется tier1_packages.json (только итоговые агрегаты)",
+        "reportable": false,
+        "metric_type": "BACKTEST_RETURN",
         "unavailable_reason": "ставка пакета не измерена — печатать «идёт paper-тест», не число"
       },
       "drawdown": {
         "value": null,
         "unit": "%",
-        "kind": "замер",
-        "source": "track_snapshot.json → packages",
+        "kind": "backtest",
+        "source": "track_snapshot.json → packages (← data/tier1_packages.json, worst_dd_pct)",
+        "basis": "BACKTEST",
         "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
       }
     }
@@ -121,7 +234,7 @@
     "conservative": {
       "label": "Conservative",
       "status": "paper_test_running",
-      "days": 100.0,
+      "days": 106.0,
       "evidence_split": {
         "observed_days": null,
         "literal_days": null,
@@ -131,22 +244,27 @@
       "positions": null,
       "pre_fix_period": null,
       "apy": {
-        "value": 4.92,
+        "value": 4.89,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": 106.0,
+        "reportable": true,
+        "reportable_after": 30.0,
+        "metric_type": "REALIZED_PAPER_RETURN",
         "evidence": "paper"
       },
       "drawdown": {
         "value": -0.0393,
         "unit": "%",
         "kind": "замер",
-        "source": "landing/src/data/track_snapshot.json → paper_tracks"
+        "source": "landing/src/data/track_snapshot.json → paper_tracks",
+        "basis": "PAPER"
       },
       "nav": {
-        "value": 101476.26,
+        "value": 101550.12,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -154,15 +272,15 @@
     },
     "balanced": {
       "label": "Balanced",
-      "status": "restarted_on_corrected_model",
-      "days": 0.0,
+      "status": "paper_test_running",
+      "days": 6.0,
       "evidence_split": {
-        "observed_days": null,
-        "literal_days": null,
+        "observed_days": 6,
+        "literal_days": 0,
         "caveat": null,
-        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+        "observed_since": "2026-10-02"
       },
-      "positions": null,
+      "positions": 4.0,
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
@@ -176,15 +294,19 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": 6.0,
+        "reportable": false,
+        "reportable_after": 30.0,
+        "metric_type": "OBSERVED_RETURN",
         "evidence": "paper",
         "unavailable_reason": "книга ещё не дала годовой ставки — печатать «идёт paper-тест», не число"
       },
       "drawdown": {
-        "value": null,
+        "value": -0.11,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
-        "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
+        "basis": "PAPER"
       },
       "nav": {
         "value": null,
@@ -196,15 +318,15 @@
     },
     "aggressive": {
       "label": "Aggressive",
-      "status": "restarted_on_corrected_model",
-      "days": 0.0,
+      "status": "paper_test_running",
+      "days": 6.0,
       "evidence_split": {
-        "observed_days": null,
-        "literal_days": null,
+        "observed_days": 6,
+        "literal_days": 0,
         "caveat": null,
-        "unmeasured_reason": "дата перехода на наблюдённые ставки не измерена — доля литеральных дней НЕ ИЗВЕСТНА (это не «их ноль»)"
+        "observed_since": "2026-10-02"
       },
-      "positions": null,
+      "positions": 2.0,
       "pre_fix_period": {
         "days": 39,
         "status": "distorted",
@@ -218,15 +340,19 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
+        "window_days": 6.0,
+        "reportable": false,
+        "reportable_after": 30.0,
+        "metric_type": "OBSERVED_RETURN",
         "evidence": "paper",
         "unavailable_reason": "книга ещё не дала годовой ставки — печатать «идёт paper-тест», не число"
       },
       "drawdown": {
-        "value": null,
+        "value": -0.01,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
-        "unavailable_reason": "значения нет в источнике — печатать «данные недоступны»"
+        "basis": "PAPER"
       },
       "nav": {
         "value": null,
