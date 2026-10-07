@@ -36,7 +36,7 @@
 // factor) — never a yield figure. A sleeve's rate and drawdown appear only when the shelf carries
 // them (REPORTABLE); before that the card says the statistics are accumulating.
 
-import NUMBERS, { value, pct as figPct, usd as figUsd, headlineApy, book, threshold } from './site_numbers.js';
+import NUMBERS, { value, pct as figPct, pctDown as figPctDown, usd as figUsd, headlineApy, book, threshold } from './site_numbers.js';
 import C from './constitution.json';
 import TIER_BANDS from './tier_bands.json';
 
@@ -169,7 +169,7 @@ function resultFor(key, p, ru) {
     ? (ru ? ` · стоимость книги ${figUsd(f.nav, true)} при стартовых ${figUsd(start, true)}` : ` · book value ${figUsd(f.nav)} on a ${figUsd(start)} start`)
     : '';
   return {
-    main: figPct(f.apy, ru),
+    main: figPctDown(f.apy, ru),   // ADR-563: a published rate rounds DOWN — one site-wide figure (PRODUCT-TRUTH-02)
     unit: ru ? 'годовых, фактически на бумаге' : 'annualised, realized on paper',
     sub: ru
       ? `${f.days} дн. с ${since}${navTxt} · замер ${NUMBERS.measured_at || '—'} (публикация раз в неделю)`

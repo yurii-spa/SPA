@@ -29,11 +29,11 @@ const strip = (src) => src.split('\n').filter((l) => !/^\s*import\s/.test(l)).jo
   .replace(/export\s+default\s+NUMBERS;?/, '').replace(/export\s+(function|const)/g, '$1');
 const NUMBERS = J('landing/src/data/site_numbers.json');
 const sn = new Function('NUMBERS', strip(readFileSync(path.join(root, 'landing/src/lib/site_numbers.js'), 'utf8'))
-  + '\nreturn { value, pct, usd, headlineApy, book, threshold };')(NUMBERS);
-const card = new Function('NUMBERS', 'value', 'figPct', 'figUsd', 'headlineApy', 'book', 'threshold', 'C', 'TIER_BANDS',
+  + '\nreturn { value, pct, pctDown, usd, headlineApy, book, threshold };')(NUMBERS);
+const card = new Function('NUMBERS', 'value', 'figPct', 'figPctDown', 'figUsd', 'headlineApy', 'book', 'threshold', 'C', 'TIER_BANDS',
   strip(readFileSync(path.join(root, 'landing/src/lib/package_card.js'), 'utf8'))
   + '\nreturn { effective, cardModel, researchTarget, researchTail };')(
-  NUMBERS, sn.value, sn.pct, sn.usd, sn.headlineApy, sn.book, sn.threshold,
+  NUMBERS, sn.value, sn.pct, sn.pctDown, sn.usd, sn.headlineApy, sn.book, sn.threshold,
   J('landing/src/lib/constitution.json'), J('landing/src/lib/tier_bands.json'));
 const cases = JSON.parse(readFileSync(process.argv[3], 'utf8'));
 const out = cases.map(([key, rec, now, lang, ci]) => card.cardModel(key, rec, Date.parse(now), lang, ci));
@@ -109,7 +109,11 @@ def test_warmup_shows_no_number_and_reportable_conservative_takes_the_shelf_rate
     assert warm["result"]["measured"] is False and "%" not in warm["result"]["main"]
     assert "not published" in warm["risk"]["drawdown"]
     apy = shelf["headline"]["apy"]["value"]
-    assert rep["result"]["main"] == f"{apy:.1f}%", "the card prints the shelf's number, not its own"
+    # ADR-563: a published rate rounds DOWN — the card must print the same figure as the headline
+    # (PRODUCT-TRUTH-02, 07.10: 4.8943 printed «4.9%» on the card next to «4.8%» in the hero)
+    import math
+    assert rep["result"]["main"] == f"{math.floor(apy * 10 + 1e-9) / 10:.1f}%", \
+        "the card prints the shelf's number rounded down, not its own"
     assert "not a loss limit" in rep["risk"]["drawdown"]
     assert rep["target"] and "not" not in rep["target"]
 
