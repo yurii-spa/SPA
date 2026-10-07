@@ -75,6 +75,24 @@
   СПРАШИВАЕТ, когда был прошлый прогон; верен ли порог и верно ли ветвление — вопрос не
   его. Сказано числом, а не словами: исход зовётся ``named``, не ``safe``.
 
+## Вторая ось: ХОСТОВАЯ (заказ G104 п. 2, ADR-621)
+
+Главная ось выше спрашивает про CI, где прошлого прогона нет вовсе. ADR-524 доложил
+рядом ИЗМЕРЕННОЕ число — 215 пар, чей читатель из CI недостижим, а артефакт git-tracked,
+— и честно НЕ объявил его находкой: на рабочей машине файл на диске ЕСТЬ результат
+прошлого прогона. Заказ G104 п. 2 просит у этой цифры то, чего ей не задавали ни одного
+дня: **сколько из них заметили бы, что операнд подменён закоммиченным каноном.**
+
+Подменяющая команда — не гипотеза. Авария цикла #361: `git checkout -- data/`, набранная
+для одноразового дерева и выполненная в боевом, откатила **116 файлов на три недели**;
+из ночного резерва вернулись 114, дыра 19,5 ч осталась навсегда. Трек уцелел случайно —
+дневной цикл переписал `equity_curve_daily.json` через три минуты. Советательные журналы
+не переписал никто, и НИ ОДИН сторож об этом не сказал.
+
+Исходы хостовой оси (``HOST_OUTCOMES``) — своя ЗАКРЫТАЯ форма, своя сумма, свой третий
+исход; в сумму главных исходов она не входит и кода возврата не повышает (почему именно —
+в докстринге ``verdict``). Ноги у осей ОДНИ И ТЕ ЖЕ функции: второй копии правила нет.
+
 ADVISORY: прибор только ЧИТАЕТ (`applied=False`). Ни строки risk-логики, стоп-крана
 просадки, аллокатора, гейта исполнения, живого трека, `landing/**` или флота он не
 меняет и менять не может.
@@ -149,6 +167,44 @@ OUTCOMES = (
     OUT_CONST_TRUSTED,
     OUT_UNMEASURED,
 )
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# Хостовая ось (заказ G104 п. 2): заметил бы читатель подмену операнда КАНОНОМ
+# ─────────────────────────────────────────────────────────────────────────────────────
+#
+# Главная ось спрашивает про CI, где прошлого прогона нет вовсе. Хостовая — про ту же
+# пару на РАБОЧЕЙ машине, где файл на диске есть результат прошлого прогона и вреда
+# заказа нет, ПОКА его не подменит закоммиченный канон. Авария цикла #361: одна команда
+# `git checkout -- data/`, набранная для одноразового дерева и выполненная в боевом,
+# откатила 116 файлов на три недели. Из ночного резерва вернулись 114, дыра 19,5 ч
+# осталась навсегда. Ни один сторож об этом не сказал.
+#
+# ADR-524 доложил размер этого населения (215 пар) и честно НЕ объявил его находкой.
+# Заказ G104 п. 2 просит задать ему тот вопрос, который до сих пор не задавали ни разу:
+# **сколько из них ЗАМЕТИЛИ БЫ подмену.** Ноги — те же функции, что у главной оси, и
+# второй копии правила здесь нет: порядок ADR-460 (одно правило — один читатель).
+HOST_UNMEASURED = "host_unmeasured"
+HOST_CANON_IS_A_RECENT_RUN = "host_canon_is_a_recent_run"
+HOST_PARITY = "host_parity_with_own_regeneration"
+HOST_NO_DECISION = "host_no_decision_against_a_current_observation"
+HOST_NOTICES_BY_AGE = "host_notices_by_age"
+HOST_SILENTLY_TRUSTS = "host_silently_trusts"
+
+#: Форма хостового исхода ЗАКРЫТА так же, как главная: сумма равна хостовому населению,
+#: каждый ноль объявлен (инв. #17). Порядок — часть утверждения.
+HOST_OUTCOMES = (
+    HOST_UNMEASURED,
+    HOST_CANON_IS_A_RECENT_RUN,
+    HOST_PARITY,
+    HOST_NO_DECISION,
+    HOST_NOTICES_BY_AGE,
+    HOST_SILENTLY_TRUSTS,
+)
+
+#: Радиус дословной команды аварии #361. Пара, чей артефакт лежит вне `data/`, подмене
+#: ЭТОЙ командой не подвержена — но подвержена `git checkout -- .`, поэтому из населения
+#: не исключается, а докладывается отдельным числом.
+CANON_SUBSTITUTION_RADIUS = "data/"
 
 #: Формы, которыми объявленная автоматика кладёт артефакт обратно в дерево (YAML/plist).
 COMMIT_FORMS = ("git commit", "git-auto-commit", "add-and-commit", "stefanzweifel")
@@ -384,6 +440,13 @@ def _read_bindings(tree, artifact, resolver):
         elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and isinstance(getattr(node, "target", None), ast.Name):
             targets = [node.target]
         if not targets:
+            continue
+        # `x: int` БЕЗ значения — объявление типа, а не связывание: `node.value` там
+        # `None`, и `ast.walk(None)` падает `AttributeError`. Главная ось этой формы не
+        # видела, потому что доходила до ноги на ЧЕТЫРЁХ парах из 586; хостовая ось
+        # привела сюда двести, и прибор упал на первой же аннотации. Нечего разбирать —
+        # нечего и пометить: это отсутствие связывания, а не отказ замера.
+        if node.value is None:
             continue
         for sub in ast.walk(node.value):
             if isinstance(sub, ast.Call):
@@ -711,6 +774,31 @@ def _tracked_data_files(root):
 # Замер
 # ─────────────────────────────────────────────────────────────────────────────────────
 
+#: Сегменты пути, делающие файл ТЕСТОВЫМ ВХОДОМ, а не артефактом дерева.
+FIXTURE_SEGMENTS = ("tests", "test", "fixtures", "fixture", "_fixtures", "testdata")
+
+
+def _addressable(paths):
+    """Какие из путей одного имени могут быть адресом, который читает РАНТАЙМ.
+
+    Фикстура — вход теста, а не артефакт дерева: `tests/fixtures/golive_status.json`
+    не есть второй адрес для `data/golive_status.json`, и считать его таковым значит
+    выдумать неоднозначность. Замер 07.10: ровно это и случилось — хостовая ось дала
+    ТРИ пары «НЕ ИЗМЕРЕНО» на `golive_status.json`, и ни одной настоящей
+    двусмысленности за ними не стояло. Главная ось дала бы то же самое в тот день,
+    когда любой из трёх читателей станет достижим из CI, то есть дефект был общий.
+
+    Сужение НИКОГДА не меняет ответ на вопрос «файл git-tracked?»: если непустой
+    остаток пуст, возвращается исходный перечень. Иначе «отслеживается» молча
+    превратилось бы в «в CI отсутствует» — другой исход, другая беда.
+    """
+    kept = [
+        rel for rel in paths
+        if not (set(pathlib.PurePosixPath(rel).parts[:-1]) & set(FIXTURE_SEGMENTS))
+    ]
+    return kept or list(paths)
+
+
 def _population(root):
     """Пары (читатель, артефакт), где модуль ПИШЕТ и ЧИТАЕТ один и тот же путь."""
     pairs = []
@@ -746,6 +834,112 @@ def _population(root):
     return pairs, unparsed, commit_calls
 
 
+def _host_axis(pairs, tracked_by_name, workflows, plists, commit_calls, in_ci):
+    """Заметил бы ХОСТОВЫЙ читатель, что операнд подменён закоммиченным каноном.
+
+    Население — пары, у которых читатель НЕ достижим из CI (иначе это предмет главной
+    оси) И артефакт git-tracked (иначе подменять нечем). Это ровно та цифра, которую
+    ADR-524 доложил рядом и находкой не объявил.
+
+    Ноги спрашиваются в объявленном порядке, и порядок — часть утверждения:
+
+    1. ``host_unmeasured`` — ГРОМКИЙ третий исход с названной причиной. Имя артефакта
+       лежит в репозитории по НЕСКОЛЬКИМ путям, и какой из них подменит канон —
+       неизвестно; выбрать один значило бы догадаться (имя не есть адрес, ADR-465).
+       Правило здесь ДОСЛОВНО то же, что у главной оси, и это не совпадение: ответ
+       «не знаю адреса» не зависит от того, в CI мы или на хосте.
+
+       Первая редакция ставила сюда другую причину — «ответ писателя у двух путей
+       одного имени РАЗНЫЙ», — и эта ветка была НЕДОСТИЖИМА по построению: `_committed_back`
+       признаёт писателя и по имени артефакта тоже, а имя есть подстрока КАЖДОГО своего
+       пути, поэтому ответы двух путей совпадают всегда. Ветка, которая не срабатывает
+       никогда, есть фальшивый третий исход, и нашёл её не глаз, а попытка написать для
+       неё положительный контроль.
+    2. ``host_canon_is_a_recent_run`` — объявленная автоматика кладёт артефакт обратно.
+       Подмена заменяет наблюдение наблюдением на шаг старше; вреда заказа нет.
+    3. ``host_parity_with_own_regeneration`` — читанное сверяется с ПЕРЕСБОРКОЙ в этом
+       же прогоне. Подмена проявилась бы расхождением — замечена по построению.
+    4. ``host_no_decision_against_a_current_observation`` — прошлый операнд нигде не
+       встречается с наблюдением ЭТОГО прогона в решении. Подмена не переворачивает ни
+       одного вердикта о мире; исключён с НАЗВАННОЙ причиной, а не зачтён в молчание.
+    5. ``host_notices_by_age`` — читатель спрашивает, КОГДА был прошлый прогон, и
+       сравнивает ответ. Возраст канона был бы виден.
+    6. ``host_silently_trusts`` — **ответ заказа**: решение о мире принимается, пересборки
+       нет, возраст не спрашивается. Закоммиченный канон молча становится «прошлым
+       прогоном», и ни один сторож этого не скажет.
+
+    Ось в сумму ГЛАВНЫХ исходов не входит и кода возврата не меняет — см. ``verdict``.
+    """
+    counts = {name: 0 for name in HOST_OUTCOMES}
+    reasons = collections.Counter()
+    silent, noticed, excluded = [], [], []
+    population = 0
+    under_radius = 0
+
+    for pair in pairs:
+        reader, artifact = pair["reader"], pair["artifact"]
+        if in_ci.get(reader):
+            continue
+        candidates = sorted(tracked_by_name.get(artifact, ()))
+        if not candidates:
+            continue
+        population += 1
+        if all(c.startswith(CANON_SUBSTITUTION_RADIUS) for c in candidates):
+            under_radius += 1
+        row = {
+            "reader": reader,
+            "artifact": artifact,
+            "tracked": candidates,
+            "read_lines": pair["read_lines"],
+            "write_lines": pair["write_lines"],
+        }
+        if len(candidates) > 1:
+            counts[HOST_UNMEASURED] += 1
+            reasons[
+                f"artifact_name_ambiguous_in_repo:{artifact}:{len(candidates)}"
+            ] += 1
+            continue
+        if _committed_back(
+            artifact, candidates[0], workflows, plists, commit_calls.get(artifact, ()),
+        ):
+            counts[HOST_CANON_IS_A_RECENT_RUN] += 1
+            continue
+        tree, resolver = pair["_tree"], pair["_resolver"]
+        if _parity_with_own_regeneration(tree, artifact, resolver):
+            counts[HOST_PARITY] += 1
+            noticed.append(dict(row, why=HOST_PARITY))
+            continue
+        if not _meets_a_current_observation(tree, artifact, resolver):
+            counts[HOST_NO_DECISION] += 1
+            excluded.append(dict(row, why=HOST_NO_DECISION))
+            continue
+        if _asks_the_age(tree, artifact, resolver):
+            counts[HOST_NOTICES_BY_AGE] += 1
+            noticed.append(dict(row, why=HOST_NOTICES_BY_AGE))
+            continue
+        counts[HOST_SILENTLY_TRUSTS] += 1
+        silent.append(row)
+
+    notes = []
+    total = sum(counts.values())
+    if total != population:
+        notes.append(
+            f"сумма хостовых исходов {total} != хостовому населению {population}"
+            " — ОТКАЗ формы"
+        )
+    return {
+        "order": "G104.2",
+        "population": population,
+        "under_substitution_radius": under_radius,
+        "outcomes": counts,
+        "unmeasured_reasons": dict(reasons),
+        "silent": sorted(silent, key=lambda r: (r["reader"], r["artifact"])),
+        "noticed_sample": sorted(noticed, key=lambda r: (r["reader"], r["artifact"])),
+        "excluded_sample": sorted(excluded, key=lambda r: (r["reader"], r["artifact"])),
+        "notes": notes,
+    }
+
+
 def measure(root, tracked=None, workflows=None, plists=None):
     """Замер. Внешние двери приходят ВХОДОМ — иначе тест судил бы о живой машине."""
     root = pathlib.Path(root)
@@ -773,6 +967,12 @@ def measure(root, tracked=None, workflows=None, plists=None):
     tracked_by_name = collections.defaultdict(list)
     for rel in tracked:
         tracked_by_name[pathlib.PurePosixPath(rel).name].append(rel)
+    # Одно правило — один читатель (ADR-460): сужение до адресуемых путей делается ЗДЕСЬ,
+    # и обе оси получают один и тот же перечень. Копия этого правила внутри хостовой оси
+    # была бы вторым определением «какой путь имел в виду читатель».
+    tracked_by_name = {
+        name: _addressable(paths) for name, paths in tracked_by_name.items()
+    }
 
     if workflows is None:
         workflows, why = _workflow_texts(root)
@@ -801,9 +1001,15 @@ def measure(root, tracked=None, workflows=None, plists=None):
         outcomes[OUT_UNMEASURED] += 1
         reasons[item["reason"]] += 1
 
+    # Достижимость из CI спрашивается ОДИН раз на читателя и кладётся в кэш: прежняя
+    # редакция звала правило дважды — в главном цикле и у хостовой цифры рядом, — и две
+    # копии одного правила расходятся молча (порядок ADR-460: одно правило — один
+    # читатель). Контроль на это расхождение есть в батарее хостовой оси.
+    in_ci_by_reader = {p["reader"]: _reader_in_ci(p["reader"], workflows) for p in pairs}
+
     for pair in pairs:
         reader, artifact = pair["reader"], pair["artifact"]
-        in_ci = _reader_in_ci(reader, workflows)
+        in_ci = in_ci_by_reader[reader]
         if not in_ci:
             outcomes[OUT_NOT_IN_CI] += 1
             continue
@@ -853,11 +1059,13 @@ def measure(root, tracked=None, workflows=None, plists=None):
     # -- data/` молча подменяет закоммиченным каноном (авария цикла #361: одна команда
     # откатила 116 файлов на три недели). Форма исходов остаётся ЗАКРЫТОЙ: цифра
     # докладывается, в сумму не входит и находкой не объявляется.
-    host_only_but_tracked = sum(
-        1 for p in pairs
-        if not _reader_in_ci(p["reader"], workflows)
-        and p["artifact"] in tracked_by_name
+    #
+    # Заказ G104 п. 2 просит у этой цифры то, чего ADR-524 у неё не спросил: сколько из
+    # них ЗАМЕТИЛИ БЫ подмену. Ось считается теми же ногами и живёт отдельным разделом.
+    host = _host_axis(
+        pairs, tracked_by_name, workflows, plists, commit_calls, in_ci_by_reader,
     )
+    host_only_but_tracked = host["population"]
 
     population = len(pairs) + len(unparsed)
     total = sum(outcomes.values())
@@ -870,6 +1078,7 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "population": population,
         "readers": len({p["reader"] for p in pairs}),
         "host_only_but_git_tracked": host_only_but_tracked,
+        "host_axis": host,
         "outcomes": outcomes,
         "unmeasured_reasons": dict(reasons),
         "findings": sorted(findings, key=lambda r: (r["reader"], r["artifact"])),
@@ -881,6 +1090,10 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "notes": notes,
         "not_reported": [
             "читатель ЧУЖОГО прошлого прогона — не измерен вовсе, это следующий вопрос",
+            "хостовая ось видит ПРИЗНАК замечания (пересборка, возраст, встреча с "
+            "наблюдением), а не верность порога и ветвления у замечающего",
+            "точный радиус подменяющей команды доложен числом под data/; подменить "
+            "можно и шире (`git checkout -- .`), поэтому из населения пара не выкинута",
             "верность порога и ветвления у названного фоссила",
             "запись глубже одного локального помощника — население нижняя граница",
             "читатель, позванный окольно из джобы — считается недостижимым",
@@ -890,14 +1103,84 @@ def measure(root, tracked=None, workflows=None, plists=None):
 
 
 def verdict(doc):
-    """Код возврата: три РАЗЛИЧИМЫХ исхода, и «не измерено» никогда не 0."""
+    """Код возврата: три РАЗЛИЧИМЫХ исхода, и «не измерено» никогда не 0.
+
+    **Хостовая ось кода НЕ повышает до находки, и это РЕШЕНИЕ с названной причиной.**
+    На рабочей машине файл на диске ЕСТЬ результат прошлого прогона, то есть операнд
+    там наблюдение; вред возникает только от команды, которую `.claude/rules/deployment.md`
+    п. 4 уже ЗАПРЕЩАЕТ. Объявить двести хостовых пар находкой значило бы потребовать
+    убрать чтение собственного журнала у каждого агента флота — и красный навсегда
+    приучил бы гасить прибор. Ось отвечает на другой вопрос: каков радиус поражения
+    запрещённой команды и кто из поражённых не скажет об этом ни слова.
+
+    А вот «не измерено» хостовой оси код ПОВЫШАЕТ: неразобранная пара и отказ формы —
+    это провал замера, а не свойство дерева (инв. #17).
+    """
     if not doc.get("measured"):
         return RC_UNMEASURED
     if doc["outcomes"][OUT_UNMEASURED]:
         return RC_UNMEASURED
     if doc["notes"]:
         return RC_UNMEASURED
+    host = doc.get("host_axis")
+    if host is None:
+        return RC_UNMEASURED
+    if host["notes"] or host["outcomes"][HOST_UNMEASURED]:
+        return RC_UNMEASURED
     return RC_FINDING if doc["outcomes"][OUT_CONST_TRUSTED] else RC_MEASURED
+
+
+#: Сколько молчаливых пар печатать поимённо. Население хостовой оси — сотни, и полный
+#: перечень в шаге 0-офис утопил бы соседние секции; остаток назван ЧИСЛОМ, а не
+#: многоточием, и целиком доступен через `--json`.
+HOST_SILENT_SAMPLE = 12
+
+
+def _host_lines(doc):
+    """Раздел хостовой оси. Отсутствие раздела — третий исход, а не пустота."""
+    host = doc.get("host_axis")
+    if host is None:
+        return [
+            "  [НЕ ИЗМЕРЕНО] хостовая ось (заказ G104 п. 2) не считалась: документ "
+            "замера её не несёт"
+        ]
+    out = host["outcomes"]
+    lines = [
+        f"  — хостовая ось (заказ G104 п. 2): заметил бы читатель подмену операнда "
+        f"ЗАКОММИЧЕННЫМ каноном — население {host['population']} пар(ы), из них в радиусе "
+        f"дословной команды аварии #361 (`git checkout -- {CANON_SUBSTITUTION_RADIUS}`) "
+        f"{host['under_substitution_radius']}",
+        "    " + " · ".join(f"{name} {out[name]}" for name in HOST_OUTCOMES),
+    ]
+    for row in host["silent"][:HOST_SILENT_SAMPLE]:
+        lines.append(
+            f"    [МОЛЧА ПРИМЕТ КАНОН ЗА ПРОШЛЫЙ ПРОГОН] {row['reader']} читает "
+            f"{row['artifact']} (строки {row['read_lines']}): решение о мире есть, "
+            f"пересборки нет, возраст не спрашивается"
+        )
+    rest = len(host["silent"]) - HOST_SILENT_SAMPLE
+    if rest > 0:
+        lines.append(
+            f"    … ещё {rest} молчаливых пар(ы) того же вида (полный перечень — `--json`)"
+        )
+    if out[HOST_NO_DECISION]:
+        lines.append(
+            f"    ЦЕНА ноги «решения нет» НАЗВАНА, а не умолчана: ею исключены "
+            f"{out[HOST_NO_DECISION]} пар(ы) — самый населённый исход оси. Нога "
+            "спрашивает про РЕШЕНИЕ против наблюдения этого прогона; пара, которая "
+            "прочитанное не сравнивает, а ПЕРЕПУБЛИКУЕТ в свой же вывод, подменённый "
+            "канон разносит дальше, и этого прибор не спрашивает ни у одной из них"
+        )
+    for reason, count in sorted(host["unmeasured_reasons"].items()):
+        lines.append(f"    [НЕ ИЗМЕРЕНО] {reason}: {count}")
+    for note in host["notes"]:
+        lines.append(f"    [ОТКАЗ] {note}")
+    lines.append(
+        "    ось в сумму ГЛАВНЫХ исходов НЕ входит и кода возврата НЕ повышает: на хосте "
+        "файл на диске есть прошлый прогон, вред возникает только от команды, запрещённой "
+        "`.claude/rules/deployment.md` п. 4"
+    )
+    return lines
 
 
 def format_report(doc):
@@ -925,11 +1208,7 @@ def format_report(doc):
             f"  [константа, но ФОССИЛ НАЗВАН] {row['reader']} читает {row['artifact']}"
             f" — возраст прошлого артефакта спрашивается"
         )
-    lines.append(
-        f"  [рядом, ИЗМЕРЕНО и не находка] хостовых читателей git-tracked артефакта "
-        f"{doc.get('host_only_but_git_tracked', 0)}: на хосте это прошлый прогон, но именно "
-        f"их подменяет каноном `git checkout -- data/` (авария цикла #361)"
-    )
+    lines.extend(_host_lines(doc))
     for row in doc.get("excluded_sample", ()):
         lines.append(
             f"  [ИСКЛЮЧЁН со причиной] {row['reader']} :: {row['artifact']} — {row['why']}"
