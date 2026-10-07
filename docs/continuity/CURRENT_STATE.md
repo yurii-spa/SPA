@@ -1,23 +1,23 @@
 ---
 {
- "adr_listing_sha256": "c3b47c661cc7b43859c6bb9d73c3e01b4afdf732c932e0670388e662ca95a7ed",
- "adr_max_considered": 620,
+ "adr_listing_sha256": "6c874e3fcaa61b2b247dbf2553d7327d6d0af261d1ec2f27df249947ebe5c169",
+ "adr_max_considered": 630,
  "authority": "DERIVED",
  "context_version": "arb-continuity/2",
  "copy_role": "COMMITTED_SNAPSHOT",
- "generated_at": "2026-10-07T05:46:56Z",
+ "generated_at": "2026-10-07T08:57:07Z",
  "generator_version": "arb-continuity/2+8cd366e83d35",
  "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
- "origin_commit": "cc26f954a4500b63c5e015eec81715acc4268a4b",
- "production_release": "b70e6f4eb997c2413eeed98782dd10f1b329ef2f",
- "production_release_verified_at": "2026-10-07T05:45:50Z",
- "repo_commit": "cc26f954a4500b63c5e015eec81715acc4268a4b",
+ "origin_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
+ "production_release": "b39ff06e30facc8e4412be2b3bc4891f1607d8dc",
+ "production_release_verified_at": "2026-10-07T08:48:00Z",
+ "repo_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
  "root_dirty_inputs": [],
- "runtime_truth_computed_at": "2026-10-07T05:36:00Z",
+ "runtime_truth_computed_at": "2026-10-07T08:49:58Z",
  "source_snapshot_ids": [
-  "inputs:120174039e55c12380614ac370ea006f07d9da39b6bca0e1134e4b6b3283e427",
-  "mission:5c47c449d3ae8f4364a38e5927fbf0d73f7217feecb82000961c635ffa080307",
-  "receipt:c30a6a75b46659b6e21a047817a0668a4a2c069600e6dc218161d1ddec5cf34a"
+  "inputs:1b76a53f9f54c065266d786ad5a2bf78e51539c7663599386d65f46f97d988f5",
+  "mission:bc62723ffd5c536ffadc2f1dfdc27dd96b6ba458df3c00781d81416424b3bd17",
+  "receipt:f3917f3c8e7b0fbd2f2ffb50cac5bc63d6844e4c758780e679235c7dc722142a"
  ],
  "verdict_at_generation": "CONTEXT_FRESH"
 }
@@ -31,7 +31,7 @@
 ## Active epic / current wave
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)
-- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T05:36:00Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
+- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T08:49:58Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
 
 ## Latest accepted epic
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -39,17 +39,17 @@
 - RM-TRUTH-01 · Company truth reconciliation + Director OS recovery (ADR-580, ACCEPTED)
 
 ## Current origin
-- **status:** MEASURED · **as of:** 2026-10-07T05:46:56Z · **authority:** CANONICAL
+- **status:** MEASURED · **as of:** 2026-10-07T08:57:07Z · **authority:** CANONICAL
 - **source:** git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)
-- canonical root HEAD cc26f954a450 · origin main on the server cc26f954a450
+- canonical root HEAD 5662fa4f7316 · origin main on the server 5662fa4f7316
 
 ## Production code identity
-- **status:** MEASURED · **as of:** 2026-10-07T05:45:50Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:48:00Z · **authority:** RUNTIME
 - **source:** runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)
-- production code = origin b70e6f4eb997 (code sync IN_SYNC, at 2026-10-07T05:45:50Z)
+- production code = origin b39ff06e30fa (code sync SYNCED, at 2026-10-07T08:48:00Z)
 
 ## Real capital
-- **status:** MEASURED · **as of:** 2026-10-06T10:50:36Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T06:00:15Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.home.money_chip (canon: paper_trading_status.execution_mode)
 - real capital $0 (policy baseline $0; owner subject №1)
 
@@ -59,49 +59,49 @@
 - NOT ENABLED — paper only; investment-engine readiness NOT_READY, open go-live conditions 4
 
 ## Capital summary
-- **status:** MEASURED · **as of:** 2026-10-06T10:50:36Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T06:00:15Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.home.strip[yield] (canon: data/equity_curve_daily.json)
-- Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 105 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.
+- Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 106 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.
 
 ## Trading Lab
-- **status:** MEASURED · **as of:** 2026-10-07T05:29:28Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:45:03Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)
-- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 6.5 min
+- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 4.9 min
 
 ## BTC (directional research)
-- **status:** MEASURED · **as of:** 2026-10-07T05:29:28Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:45:03Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)
 - research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h лонг
 
 ## DeFi paper
-- **status:** MEASURED · **as of:** 2026-10-06T10:50:36Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T06:00:15Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.product.profiles.* (canon per row in «Public profile mapping»)
-- Conservative: 4.9 % (MEASURED, evidenced 105 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)
+- Conservative: 4.9 % (MEASURED, evidenced 106 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)
 
 ## Oracle (CIO)
-- **status:** MEASURED · **as of:** 2026-10-06T07:30:05Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T07:30:05Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.oracle (canon: data/investment_cio/ledger.jsonl + latest.json (ADR-554))
-- stance INSUFFICIENT_EVIDENCE · {"confidence": "LOW", "date": "2026-10-06", "stance": "INSUFFICIENT_EVIDENCE"} · advisory/paper, no execution authority (ADR-554)
+- stance INSUFFICIENT_EVIDENCE · {"confidence": "LOW", "date": "2026-10-07", "stance": "INSUFFICIENT_EVIDENCE"} · advisory/paper, no execution authority (ADR-554)
 
 ## Sherlock (Head of Research)
-- **status:** MEASURED · **as of:** 2026-10-06T07:05:05Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T07:05:05Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.sherlock (canon: data/research_factory/ledger.jsonl (sherlock, ADR-564))
 - usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564)
 
 ## Studio OS
-- **status:** MEASURED · **as of:** 2026-10-07T04:41:35Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:42:04Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.{fleet,tasks,self_heal}
-- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 346 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
+- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 347 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
 
 ## Director OS / Mission Control
-- **status:** MEASURED · **as of:** 2026-10-07T05:36:00Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:49:58Z · **authority:** RUNTIME
 - **source:** runtime: published Mission Control bundle (current.json → mission.json)
-- Mission Control bundle b-20261007T053600Z-91f2e981, Company Truth computed 2026-10-07T05:36:00Z (age 0.18 h at generation); read model only (ADR-592)
+- Mission Control bundle b-20261007T084958Z-66e7e2ec, Company Truth computed 2026-10-07T08:49:58Z (age 0.12 h at generation); read model only (ADR-592)
 
 ## Memory
-- **status:** MEASURED_ZERO · **as of:** 2026-10-07T05:12:57Z · **authority:** RUNTIME
+- **status:** MEASURED_ZERO · **as of:** 2026-10-07T07:43:39Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)
-- index lag 0 ADRs · newest indexed 614 · truth overrides 12
+- index lag 0 ADRs · newest indexed 621 · truth overrides 12
 
 ## Product / publication
 - **status:** MEASURED · **as of:** 2026-10-07T05:03:34+00:00 · **authority:** RUNTIME
@@ -109,7 +109,7 @@
 - published 2026-10-01 (measured 2026-10-01), next 2026-10-08 · site health сайт: данные от 2026-10-01 · publication candidate is an Owner Gate (see owner_gates)
 
 ## Active problems
-- **status:** MEASURED · **as of:** 2026-10-07T04:41:41.767725+00:00 · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T08:42:12.407673+00:00 · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.problems (canon: data/problems.json)
 - открыто: 4 · утихли без причины: 2 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded
 
@@ -126,7 +126,7 @@
 ## Known technical debt
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Remaining debt:» of the latest accepted epic
-- the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from 2026-07-31); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's); truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language readiness reasons (ADR-612)
+- daily site publication blocked by the owner-gate false refusal (ADR-630; corrected 07.10 — origin DOES rebuild the live site, the «snapshot from 07-31» was a wrong-ref reading); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's); truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language readiness reasons (ADR-612)
 
 ## Next safe architectural action
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -134,9 +134,9 @@
 - ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates
 
 ## Last verification evidence
-- **status:** MEASURED · **as of:** 2026-10-07T05:46:56Z · **authority:** DERIVED
+- **status:** MEASURED · **as of:** 2026-10-07T08:57:07Z · **authority:** DERIVED
 - **source:** this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)
-- generated 2026-10-07T05:46:56Z · code-sync receipt 2026-10-07T05:45:50Z · Company Truth 2026-10-07T05:36:00Z
+- generated 2026-10-07T08:57:07Z · code-sync receipt 2026-10-07T08:48:00Z · Company Truth 2026-10-07T08:49:58Z
 
 ## Public profile mapping (public ↔ internal ↔ decision ↔ track ↔ metric type)
 
@@ -169,5 +169,5 @@ Metric types are never collapsed into a generic «APY» (ADR-580 C2): TARGET_RET
 
 ## Freshness inputs
 
-35 canonical inputs hashed (`state.json` → `inputs`); runtime: receipt (code sync IN_SYNC), Mission Control bundle (read).
+35 canonical inputs hashed (`state.json` → `inputs`); runtime: receipt (code sync SYNCED), Mission Control bundle (read).
 

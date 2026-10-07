@@ -522,24 +522,24 @@
   }
  ],
  "header": {
-  "adr_listing_sha256": "c3b47c661cc7b43859c6bb9d73c3e01b4afdf732c932e0670388e662ca95a7ed",
-  "adr_max_considered": 620,
+  "adr_listing_sha256": "6c874e3fcaa61b2b247dbf2553d7327d6d0af261d1ec2f27df249947ebe5c169",
+  "adr_max_considered": 630,
   "authority": "DERIVED",
   "context_version": "arb-continuity/2",
   "copy_role": "COMMITTED_SNAPSHOT",
-  "generated_at": "2026-10-07T05:46:56Z",
+  "generated_at": "2026-10-07T08:57:07Z",
   "generator_version": "arb-continuity/2+8cd366e83d35",
   "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
-  "origin_commit": "cc26f954a4500b63c5e015eec81715acc4268a4b",
-  "production_release": "b70e6f4eb997c2413eeed98782dd10f1b329ef2f",
-  "production_release_verified_at": "2026-10-07T05:45:50Z",
-  "repo_commit": "cc26f954a4500b63c5e015eec81715acc4268a4b",
+  "origin_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
+  "production_release": "b39ff06e30facc8e4412be2b3bc4891f1607d8dc",
+  "production_release_verified_at": "2026-10-07T08:48:00Z",
+  "repo_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
   "root_dirty_inputs": [],
-  "runtime_truth_computed_at": "2026-10-07T05:36:00Z",
+  "runtime_truth_computed_at": "2026-10-07T08:49:58Z",
   "source_snapshot_ids": [
-   "inputs:120174039e55c12380614ac370ea006f07d9da39b6bca0e1134e4b6b3283e427",
-   "mission:5c47c449d3ae8f4364a38e5927fbf0d73f7217feecb82000961c635ffa080307",
-   "receipt:c30a6a75b46659b6e21a047817a0668a4a2c069600e6dc218161d1ddec5cf34a"
+   "inputs:1b76a53f9f54c065266d786ad5a2bf78e51539c7663599386d65f46f97d988f5",
+   "mission:bc62723ffd5c536ffadc2f1dfdc27dd96b6ba458df3c00781d81416424b3bd17",
+   "receipt:f3917f3c8e7b0fbd2f2ffb50cac5bc63d6844e4c758780e679235c7dc722142a"
   ],
   "verdict_at_generation": "CONTEXT_FRESH"
  },
@@ -547,10 +547,10 @@
   "CLAUDE.md": "abdb0ebd8371969eb9abd5220f2dce269c880029472023ea3e6364cbc2c4c5c2",
   "architecture/memory_truth.json": "62b2c3c4de89a17fc03b45b00a05c2bf36d041ad667adbaa6358b827fc9a7702",
   "architecture/roles.json": "a170823dd247fa34db2942bfc2541539dd480c98e1f9d4e22d021187f1076f0c",
-  "derived:adr_registry_listing": "c3b47c661cc7b43859c6bb9d73c3e01b4afdf732c932e0670388e662ca95a7ed",
+  "derived:adr_registry_listing": "6c874e3fcaa61b2b247dbf2553d7327d6d0af261d1ec2f27df249947ebe5c169",
   "derived:supersession_of_cited_adrs": "d0053278d515c63ff1934fbd65f3c75d8b9776c1faa2edd7defa959ed7658f08",
-  "docs/ROADMAP.md": "219d65aabc388e86cfa49d42e941096443f907ee73e4cb11d277d485664fb4aa",
-  "docs/STATE.md": "e61c3e60c557ca2e684822b1ad9cdb6dbefbcfbeb0ff24b2908209b548f0978b",
+  "docs/ROADMAP.md": "3f8752b3cd06b8b7e4dc050d78f556e817b935ba341e915236a8ac7cf3bfb932",
+  "docs/STATE.md": "119d222f46059c3352bd89f26c44d4d102bb2b8388f1ffd2f3a5829eb8adbff7",
   "docs/continuity/ARCHITECT_CONTEXT.md": "61a52614a233b8226b3133e0b7e47afb1b53dbc508e88fb842881566c2fa33c6",
   "docs/continuity/BOOTSTRAP.md": "f3457d2cf7f3e64671fb63f8a0a84b4e5984675366b87183dc0cc4eb266fd944",
   "docs/continuity/CURRENT_STATE.schema.json": "bf01263ab95a63fc781dc8d40a32825d261b448765a42f010d69d1121b0f3459",
@@ -577,7 +577,7 @@
   "docs/decisions/ADR-610-arb-continuity.md": "ea3d6e36d16780d38597bbcc3a6851433d00b43c86724ada515c109771a29958",
   "docs/decisions/ADR-611-backup-archive-classes.md": "721231c836139a2c7ae635960dbc55564d178facf5d16ddff13b7490f517c9db",
   "docs/decisions/ADR-612-telegram-capital-surface-and-plain-owner-language.md": "daa100eb8a22bef76827a0d9409a3ac810794ca646e06422ca387030f64af9b2",
-  "docs/decisions/INDEX.md": "a1da129a4d5ce83c0ba0f9d243fa727c318cba78a601cec75d8e1e60f4655959",
+  "docs/decisions/INDEX.md": "3bf5d11a445edd4b17bc15155b8a5b89504e6c5d603963cfda4aef29981efef8",
   "spa_core/studio_os/memory/continuity.py": "8cd366e83d35bf5a4f236d453700745ccf96435f305f650b5a762818e76411d6"
  },
  "intents": [
@@ -754,7 +754,7 @@
    "alt_name": "Preserve",
    "decision": "ADR-593",
    "effective": "2026-07-11",
-   "evidenced_days": 105,
+   "evidenced_days": 106,
    "internal_book": "main cycle_runner book (RiskPolicy v1.0)",
    "metric_type": "REALIZED_PAPER_RETURN",
    "profile": "Conservative",
@@ -808,28 +808,28 @@
  ],
  "runtime": {
   "mission": {
-   "age_h_at_generation": 0.18,
-   "bundle": "b-20261007T053600Z-91f2e981",
-   "computed_at": "2026-10-07T05:36:00Z",
+   "age_h_at_generation": 0.12,
+   "bundle": "b-20261007T084958Z-66e7e2ec",
+   "computed_at": "2026-10-07T08:49:58Z",
    "reason": "read",
-   "sha256": "5c47c449d3ae8f4364a38e5927fbf0d73f7217feecb82000961c635ffa080307"
+   "sha256": "bc62723ffd5c536ffadc2f1dfdc27dd96b6ba458df3c00781d81416424b3bd17"
   },
   "receipt": {
-   "reason": "code sync IN_SYNC",
-   "sha256": "c30a6a75b46659b6e21a047817a0668a4a2c069600e6dc218161d1ddec5cf34a"
+   "reason": "code sync SYNCED",
+   "sha256": "f3917f3c8e7b0fbd2f2ffb50cac5bc63d6844e4c758780e679235c7dc722142a"
   }
  },
  "sections": {
   "active_epic": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T05:36:00Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening",
+   "display": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T08:49:58Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening",
    "source": "docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)",
    "status": "MEASURED",
    "value": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening"
   },
   "active_problems": {
-   "as_of": "2026-10-07T04:41:41.767725+00:00",
+   "as_of": "2026-10-07T08:42:12.407673+00:00",
    "authority": "RUNTIME",
    "display": "открыто: 4 · утихли без причины: 2 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded",
    "source": "runtime: mission.json truth.studio.problems (canon: data/problems.json)",
@@ -847,7 +847,7 @@
    }
   },
   "btc": {
-   "as_of": "2026-10-07T05:29:28Z",
+   "as_of": "2026-10-07T08:45:03Z",
    "authority": "RUNTIME",
    "display": "research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h лонг",
    "source": "runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)",
@@ -871,41 +871,41 @@
    }
   },
   "capital_summary": {
-   "as_of": "2026-10-06T10:50:36Z",
+   "as_of": "2026-10-07T06:00:15Z",
    "authority": "RUNTIME",
-   "display": "Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 105 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.",
+   "display": "Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 106 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.",
    "source": "runtime: mission.json truth.home.strip[yield] (canon: data/equity_curve_daily.json)",
    "status": "MEASURED",
    "value": null
   },
   "current_origin": {
-   "as_of": "2026-10-07T05:46:56Z",
+   "as_of": "2026-10-07T08:57:07Z",
    "authority": "CANONICAL",
-   "display": "canonical root HEAD cc26f954a450 · origin main on the server cc26f954a450",
+   "display": "canonical root HEAD 5662fa4f7316 · origin main on the server 5662fa4f7316",
    "source": "git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)",
    "status": "MEASURED",
-   "value": "cc26f954a4500b63c5e015eec81715acc4268a4b"
+   "value": "5662fa4f7316c8010b6bb9941a026e18a6a211e6"
   },
   "defi_paper": {
-   "as_of": "2026-10-06T10:50:36Z",
+   "as_of": "2026-10-07T06:00:15Z",
    "authority": "RUNTIME",
-   "display": "Conservative: 4.9 % (MEASURED, evidenced 105 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)",
+   "display": "Conservative: 4.9 % (MEASURED, evidenced 106 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)",
    "source": "runtime: mission.json truth.product.profiles.* (canon per row in «Public profile mapping»)",
    "status": "MEASURED",
    "value": null
   },
   "director_os": {
-   "as_of": "2026-10-07T05:36:00Z",
+   "as_of": "2026-10-07T08:49:58Z",
    "authority": "RUNTIME",
-   "display": "Mission Control bundle b-20261007T053600Z-91f2e981, Company Truth computed 2026-10-07T05:36:00Z (age 0.18 h at generation); read model only (ADR-592)",
+   "display": "Mission Control bundle b-20261007T084958Z-66e7e2ec, Company Truth computed 2026-10-07T08:49:58Z (age 0.12 h at generation); read model only (ADR-592)",
    "source": "runtime: published Mission Control bundle (current.json → mission.json)",
    "status": "MEASURED",
-   "value": "b-20261007T053600Z-91f2e981"
+   "value": "b-20261007T084958Z-66e7e2ec"
   },
   "last_verification": {
-   "as_of": "2026-10-07T05:46:56Z",
+   "as_of": "2026-10-07T08:57:07Z",
    "authority": "DERIVED",
-   "display": "generated 2026-10-07T05:46:56Z · code-sync receipt 2026-10-07T05:45:50Z · Company Truth 2026-10-07T05:36:00Z",
+   "display": "generated 2026-10-07T08:57:07Z · code-sync receipt 2026-10-07T08:48:00Z · Company Truth 2026-10-07T08:49:58Z",
    "source": "this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)",
    "status": "MEASURED",
    "value": null
@@ -927,15 +927,15 @@
    "value": "LIVE_DISABLED"
   },
   "memory": {
-   "as_of": "2026-10-07T05:12:57Z",
+   "as_of": "2026-10-07T07:43:39Z",
    "authority": "RUNTIME",
-   "display": "index lag 0 ADRs · newest indexed 614 · truth overrides 12",
+   "display": "index lag 0 ADRs · newest indexed 621 · truth overrides 12",
    "source": "runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)",
    "status": "MEASURED_ZERO",
    "value": {
     "lag": 0,
-    "newest_indexed": 614,
-    "newest_origin": 614,
+    "newest_indexed": 621,
+    "newest_origin": 621,
     "truth_overrides": 12
    }
   },
@@ -948,9 +948,9 @@
    "value": null
   },
   "oracle": {
-   "as_of": "2026-10-06T07:30:05Z",
+   "as_of": "2026-10-07T07:30:05Z",
    "authority": "RUNTIME",
-   "display": "stance INSUFFICIENT_EVIDENCE · {\"confidence\": \"LOW\", \"date\": \"2026-10-06\", \"stance\": \"INSUFFICIENT_EVIDENCE\"} · advisory/paper, no execution authority (ADR-554)",
+   "display": "stance INSUFFICIENT_EVIDENCE · {\"confidence\": \"LOW\", \"date\": \"2026-10-07\", \"stance\": \"INSUFFICIENT_EVIDENCE\"} · advisory/paper, no execution authority (ADR-554)",
    "source": "runtime: mission.json truth.capital.oracle (canon: data/investment_cio/ledger.jsonl + latest.json (ADR-554))",
    "status": "MEASURED",
    "value": "INSUFFICIENT_EVIDENCE"
@@ -984,15 +984,15 @@
    "value": null
   },
   "production_code": {
-   "as_of": "2026-10-07T05:45:50Z",
+   "as_of": "2026-10-07T08:48:00Z",
    "authority": "RUNTIME",
-   "display": "production code = origin b70e6f4eb997 (code sync IN_SYNC, at 2026-10-07T05:45:50Z)",
+   "display": "production code = origin b39ff06e30fa (code sync SYNCED, at 2026-10-07T08:48:00Z)",
    "source": "runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)",
    "status": "MEASURED",
-   "value": "b70e6f4eb997c2413eeed98782dd10f1b329ef2f"
+   "value": "b39ff06e30facc8e4412be2b3bc4891f1607d8dc"
   },
   "real_capital": {
-   "as_of": "2026-10-06T10:50:36Z",
+   "as_of": "2026-10-07T06:00:15Z",
    "authority": "RUNTIME",
    "display": "real capital $0 (policy baseline $0; owner subject №1)",
    "source": "runtime: mission.json truth.home.money_chip (canon: paper_trading_status.execution_mode)",
@@ -1000,7 +1000,7 @@
    "value": 0
   },
   "sherlock": {
-   "as_of": "2026-10-06T07:05:05Z",
+   "as_of": "2026-10-07T07:05:05Z",
    "authority": "RUNTIME",
    "display": "usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564)",
    "source": "runtime: mission.json truth.capital.sherlock (canon: data/research_factory/ledger.jsonl (sherlock, ADR-564))",
@@ -1008,9 +1008,9 @@
    "value": null
   },
   "studio_os": {
-   "as_of": "2026-10-07T04:41:35Z",
+   "as_of": "2026-10-07T08:42:04Z",
    "authority": "RUNTIME",
-   "display": "в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 346 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0",
+   "display": "в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 347 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0",
    "source": "runtime: mission.json truth.studio.{fleet,tasks,self_heal}",
    "status": "MEASURED",
    "value": null
@@ -1018,7 +1018,7 @@
   "technical_debt": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from 2026-07-31); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's); truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language readiness reasons (ADR-612)",
+   "display": "daily site publication blocked by the owner-gate false refusal (ADR-630; corrected 07.10 — origin DOES rebuild the live site, the «snapshot from 07-31» was a wrong-ref reading); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's); truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language readiness reasons (ADR-612)",
    "source": "docs/ROADMAP.md «Remaining debt:» of the latest accepted epic",
    "status": "MEASURED",
    "value": null
@@ -1032,9 +1032,9 @@
    "value": null
   },
   "trading_lab": {
-   "as_of": "2026-10-07T05:29:28Z",
+   "as_of": "2026-10-07T08:45:03Z",
    "authority": "RUNTIME",
-   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 6.5 min",
+   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 4.9 min",
    "source": "runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)",
    "status": "MEASURED",
    "value": {
