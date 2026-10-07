@@ -98,13 +98,12 @@
     (net only, recommendation-only); causal paper portfolio; 10–15 % research question answered NO on current
     evidence. Remaining: 30 days of forward evidence, an execution-cost model (8 unknown components), cross-asset
     data (BTC only), first ledger line with the view at the Oracle run of 2026-10-08.
-14. **PRODUCT-UX-01 · Earn DeFi product experience** — candidate built 2026-10-07, NOT published: local branch
-    `ux01/candidate` (`543bf9af9`) — one product name «Earn DeFi», 6-item IA, home in 5 blocks, identical-row
-    comparison of the three profiles, metric hierarchy (realized paper primary · target secondary · backtest
-    collapsed), plain-language risk page, one go-live statement, mobile without horizontal scroll; renders only
-    canonical numbers (profile view built on the one-card model, ADR-537). Four fresh-session visitors answered the
-    key questions correctly; independent review CLOSED. Waits for ONE owner preview gate (naming, IA, number
-    ordering, removed calculator/sign-up CTAs, risk page — subject №2).
+14. **PRODUCT-UX-01 · Earn DeFi product experience** — DONE 2026-10-07: published by owner decision (`424479ce`,
+    follow-up `625d3261`; change record CR-UX01-001): «Earn DeFi», 6-item IA, 5-block home, identical-row comparison,
+    measured-first hierarchy, plain-language risk, one live-capital statement, FAQ without unsourced rates; live
+    pages verified against the canonical shelf (4.8 % = 4.8943 floored, REALIZED_PAPER, measured 2026-10-07) and at
+    375/390/430 px without horizontal scroll. No benchmark introduced (separate future decision). Debt: deep pages
+    (FAQ, research desks) still partly internal vocabulary; no public changelog / factsheet.
 15. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
