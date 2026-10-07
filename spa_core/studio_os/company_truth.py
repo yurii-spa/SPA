@@ -43,6 +43,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from spa_core.studio_os import owner_language
+
 SCHEMA = "company-truth/1"
 
 # ── cell state vocabulary (design §2.0) ──────────────────────────────────────────────────────────
@@ -209,6 +211,10 @@ def _sanitize_scope(item: dict) -> dict:
     does_not_block = parts[1].strip().rstrip(".") if len(parts) > 1 and parts[1].strip() else None
     out["blocks_ru"] = out["blocks_en"] = blocks
     out["does_not_block_ru"] = out["does_not_block_en"] = does_not_block
+    # ADR-612: owner layer in plain Russian from status + facts; ``reason_ru`` above stays the
+    # evidence layer, shown under «технические подробности».
+    plain = owner_language.scope_plain(item)
+    out["plain_ru"], out["plain_tone"] = plain["text"], plain["tone"]
     return out
 
 
@@ -1004,14 +1010,23 @@ def studio_tasks(board: Optional[dict], orphans: Optional[dict]) -> dict:
                queued=queued, in_progress=in_progress, in_progress_stale=stale, blocked=blocked)
 
 
-def studio_incidents(push_state_section: Optional[dict]) -> dict:
+def studio_incidents(push_state_section: Optional[dict], now: Optional[datetime] = None) -> dict:
     canon = "data/telegram/push_state.json"
     if push_state_section is None or push_state_section.get("_meta", {}).get("state") == "NOT_MEASURED":
         return unknown(canon, "OPERATIONAL", "Состояние тревог не прочитано")
     open_ = push_state_section.get("open") or []
-    items = [{"title_ru": it.get("event"), "title_en": it.get("event"),
-             "since_ru": it.get("since"), "since_en": it.get("since")}
-            for it in open_ if isinstance(it, dict)]
+    now = now or datetime.now(timezone.utc)
+    items = []
+    for it in open_:
+        if not isinstance(it, dict):
+            continue
+        plain = owner_language.incident_plain(it.get("event"))
+        since = _parse_ts(it.get("since"))
+        items.append({"title_ru": it.get("event"), "title_en": it.get("event"),
+                      "since_ru": it.get("since"), "since_en": it.get("since"),
+                      # ADR-612 owner layer; the raw event key + ISO time above are the evidence layer
+                      "plain_ru": plain["text"], "plain_tone": plain["tone"],
+                      "since_plain_ru": owner_language.age_ru((now - since).total_seconds() / 60.0) if since else None})
     return cell(value={"open": len(open_)}, display_ru=f"открыто: {len(open_)}", display_en=f"open: {len(open_)}",
                metric_type="OPERATIONAL", state=(MEASURED_ZERO if not open_ else MEASURED), as_of=None,
                canon=canon, fresh=freshness(None, None, "n/a"), unknown_ru="Состояние тревог не прочитано",
@@ -1034,8 +1049,13 @@ def studio_problems(data_dir: Path, now: datetime) -> dict:
     closed_recent = [p for p in rows if p.get("status") == "CLOSED" and p.get("last_seen")
                      and _parse_ts(p["last_seen"]) and (now - _parse_ts(p["last_seen"])) < timedelta(days=7)]
     text_ru = f"открыто: {len(open_)} · утихли без причины: {len(mitigated)} · закрыто за неделю: {len(closed_recent)}"
-    items = [{"agent_ru": p.get("agent"), "cause_ru": _redact(p.get("detail")), "cause_en": _redact(p.get("detail")),
-             "occurrences": p.get("occurrences"), "rca": bool(p.get("rca"))} for p in open_]
+    items = []
+    for p in open_:
+        plain = owner_language.problem_plain(p.get("agent"), p.get("cause_code"), p.get("detail"))
+        items.append({"agent_ru": p.get("agent"), "cause_ru": _redact(p.get("detail")), "cause_en": _redact(p.get("detail")),
+                      "occurrences": p.get("occurrences"), "rca": bool(p.get("rca")),
+                      # ADR-612 owner layer; agent/cause above + the code here are the evidence layer
+                      "plain_ru": plain["text"], "plain_tone": plain["tone"], "cause_code": p.get("cause_code")})
     return cell(value={"open": [p.get("problem_id") for p in open_], "mitigated": len(mitigated),
                       "closed_recent": len(closed_recent), "open_count": len(open_)},
                display_ru=text_ru, display_en=text_ru, metric_type="COUNT",
@@ -1056,7 +1076,8 @@ def studio_self_heal(data_dir: Path, now: datetime, manifest: Optional[dict] = N
     slo_min, rule = _manifest_slo_minutes(manifest, "self_heal_status.json", 26 * 60)
     state, fr = _staleness(ts, now, slo_min, rule)
     failures = doc.get("failures") or []
-    text_ru = f"последний запуск {ts.isoformat() if ts else '?'} · провалов: {len(failures)}"
+    age = owner_language.age_ru(fr.get("age_min")) if ts else None
+    text_ru = f"последний запуск {age or 'время неизвестно'} · провалов: {len(failures)}"
     unknown_ru = _stale_or_absent(state, fr.get("age_min"),
                                  "Самовосстановление устарело: последний отчёт {age} назад",
                                  "Самовосстановление не измерено")
@@ -1211,7 +1232,7 @@ def studio_cards(*, cw: dict, roadmap: dict, board: Optional[dict], orphans: Opt
     # showing "не измерено" on the real tree, although local/off-host WERE measured.
     backups = studio_backups(data_dir, now, manifest)
     return {"claude_work": cw, "roadmap": studio_roadmap(roadmap), "tasks": studio_tasks(board, orphans),
-           "fleet": fleet_cell(fleet), "incidents": studio_incidents(push_state_section),
+           "fleet": fleet_cell(fleet), "incidents": studio_incidents(push_state_section, now),
            "problems": studio_problems(data_dir, now), "self_heal": studio_self_heal(data_dir, now, manifest),
            "releases": studio_releases(release_feed_section, now), "memory": studio_memory(repo, mirror),
            "backups": {"local": backups["local_backup"], "off_host": backups["off_host_backup"],

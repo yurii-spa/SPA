@@ -27,8 +27,17 @@ HOME = "home"
 TREE: Dict[str, Dict] = {
     "home": {"crumb": "crumb.home", "children": [
         "portfolio", "golive", "strategies", "health",
-        "reports", "warnings", "decisions", "settings",
+        "reports", "warnings", "decisions", "settings", "capital",
     ]},
+
+    # ADR-612: Capital — read-only screens; every child is a `nav:` view, none is an action.
+    "capital": {"crumb": "crumb.capital", "children": [
+        "capital.btc", "capital.lab", "capital.oracle", "capital.sherlock",
+    ]},
+    "capital.btc": {"crumb": "crumb.btc", "children": []},
+    "capital.lab": {"crumb": "crumb.lab", "children": []},
+    "capital.oracle": {"crumb": "crumb.oracle", "children": []},
+    "capital.sherlock": {"crumb": "crumb.sherlock", "children": []},
 
     # Решения владельца (задание 2026-08-08): открыть список самому, не дожидаясь пуша.
     # `decisions.item` — динамический лист: в `children` родителя его НЕТ (адресуется
@@ -114,6 +123,11 @@ _CHILD_LABEL: Dict[str, str] = {
     "reports.weekly": "btn.weekly",
     "warnings.recent": "btn.recent",
     "warnings.problems": "btn.problems",
+    "capital": "btn.capital",
+    "capital.btc": "btn.btc",
+    "capital.lab": "btn.lab",
+    "capital.oracle": "btn.oracle",
+    "capital.sherlock": "btn.sherlock",
 }
 
 

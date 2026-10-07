@@ -913,3 +913,11 @@ main {
    абзаца нечитаемо — замер в браузере 375–430 px, RM-TRUTH-01 Wave 2). */
 .decision-card .kv-row { flex-direction: column; align-items: stretch; }
 .decision-card .kv-row .v { text-align: left; }
+
+/* ADR-612 owner layer tones + technical details (never wider than the card) */
+.tone--ok { color: var(--ok-fg); }
+.tone--warn { color: var(--warn-fg); }
+.tone--alert { color: var(--alert-fg); font-weight: 600; }
+.tone--unknown { color: var(--unknown-fg); }
+.tech-details .mono-wrap { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8em;
+  overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }

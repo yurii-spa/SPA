@@ -486,17 +486,8 @@ HEADLINE_MAX_CHARS = 900
 HEADLINE_FOOTER = "📄 Подробности — следующим сообщением."
 _UNMEASURED = "не измерено"
 
-_DOMAIN_RU = {
-    "d1_data_pipeline": "данные",
-    "d2_connectivity": "связь",
-    "d3_strategy_quality": "качество стратегий",
-    "d4_external": "внешние сервисы",
-    "d5_code_integrity": "целостность кода",
-    "d6_risk_gates": "риск-гейты",
-    "d7_hygiene": "гигиена",
-    "d_dfb_defi_board": "доска DeFi",
-    "d_riskwire": "лента рисков (RiskWire)",
-}
+# One table for the report and the cockpit (ADR-612): owner_language owns the wording.
+from spa_core.studio_os.owner_language import SYSTEM_DOMAIN_RU as _DOMAIN_RU  # noqa: E402
 _STATUS_MARK = {"OK": "🟢", "INFO": "🟢", "WARNING": "🟠", "CRITICAL": "🔴"}
 _STATUS_WORD = {"OK": "в порядке", "INFO": "в порядке",
                 "WARNING": "есть предупреждения", "CRITICAL": "КРИТИЧНО"}

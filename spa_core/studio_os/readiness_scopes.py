@@ -193,7 +193,10 @@ def _freshness(ts: Optional[datetime], now: datetime, stale_after_hours: Optiona
 
 
 def _item(scope: str, status: str, as_of: Optional[str], source: str, freshness: dict,
-          blocking_effect: str, reason: str) -> dict:
+          blocking_effect: str, reason: str, facts: Optional[dict] = None) -> dict:
+    """``facts`` (ADR-612) — the same numbers/codes ``reason`` was composed from, as data, so the
+    owner layer (``studio_os.owner_language``) can say them in plain Russian without re-parsing a
+    technical sentence. ``reason`` stays exactly as before: it is the evidence layer."""
     return {
         "scope": scope,
         "status": status,
@@ -202,6 +205,7 @@ def _item(scope: str, status: str, as_of: Optional[str], source: str, freshness:
         "freshness": freshness,
         "blocking_effect": blocking_effect,
         "reason": reason,
+        "facts": facts or {},
     }
 
 
@@ -245,20 +249,20 @@ def _investment_engine_readiness(data_dir: Path, now: datetime) -> dict:
             return _item(scope, "CORRUPT", ts.isoformat(), source,
                          _freshness(ts, now, slo_h, slo_src), _INVESTMENT_BLOCKING,
                          f"{label} в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин) — форма "
-                         f"INC-1 (ADR-580 §C3); содержимому не доверять")
+                         f"INC-1 (ADR-580 §C3); содержимому не доверять", {"why": "future"})
 
     if er is None:
         return _item(scope, "UNKNOWN", None, source, _freshness(None, now, slo_h, slo_src),
                      _INVESTMENT_BLOCKING,
                      f"{er_path.name} отсутствует — настоящая готовность к live НЕ измерена "
-                     f"(инв. #17); {inv}")
+                     f"(инв. #17); {inv}", {"why": "missing"})
 
     fr = _freshness(er_ts, now, slo_h, slo_src)
     if fr["stale"]:
         return _item(scope, "UNKNOWN", er_ts.isoformat() if er_ts else None, source, fr,
                      _INVESTMENT_BLOCKING,
                      f"{er_path.name} старше {slo_h:.0f} ч ({slo_src}) — не выдаётся за READY "
-                     f"или NOT_READY; {inv}")
+                     f"или NOT_READY; {inv}", {"why": "stale"})
 
     ready_for_live = observed(er, "ready_for_live", kind=bool)
     live_blockers = observed(er, "live_blockers", kind=list) or []
@@ -286,8 +290,11 @@ def _investment_engine_readiness(data_dir: Path, now: datetime) -> dict:
 
     reason = (f"{headline}; live_blockers={live_blockers or []}; "
               f"owner_blockers открыто={len(open_gates)} ({', '.join(open_gates) or '—'}); {inv}")
+    facts = {"why": "no_field"} if ready_for_live is None else {
+        "live_blockers": [str(b) for b in live_blockers],
+        "open_owner_gates": [g.split(":", 1)[0] for g in open_gates]}
     return _item(scope, status, er_ts.isoformat() if er_ts else None, source, fr,
-                 _INVESTMENT_BLOCKING, reason)
+                 _INVESTMENT_BLOCKING, reason, facts)
 
 
 # ───────────────────────────── scope 2 — STUDIO_OS_HEALTH ──────────────────────────────────
@@ -307,19 +314,20 @@ def _studio_os_health(data_dir: Path, now: datetime) -> dict:
     doc = _load_json(path)
     if doc is None:
         return _item(scope, "UNKNOWN", None, str(path), _freshness(None, now, slo_h, slo_src),
-                     _STUDIO_BLOCKING, f"{path.name} отсутствует — флот не измерен (инв. #17)")
+                     _STUDIO_BLOCKING, f"{path.name} отсутствует — флот не измерен (инв. #17)",
+                     {"why": "missing"})
 
     ts = _parse_ts(observed(doc, "timestamp", kind=str))
     if _is_future(ts, now):
         return _item(scope, "CORRUPT", ts.isoformat(), str(path),
                      _freshness(ts, now, slo_h, slo_src), _STUDIO_BLOCKING,
-                     f"timestamp в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)")
+                     f"timestamp в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)", {"why": "future"})
 
     fr = _freshness(ts, now, slo_h, slo_src)
     if fr["stale"]:
         return _item(scope, "UNKNOWN", ts.isoformat() if ts else None, str(path), fr,
                      _STUDIO_BLOCKING,
-                     f"{path.name} старше {slo_h:.0f} ч ({slo_src}) — снимок не актуален")
+                     f"{path.name} старше {slo_h:.0f} ч ({slo_src}) — снимок не актуален", {"why": "stale"})
 
     overall = observed(doc, "overall_status", kind=str)
     healthy = observed_number(doc, "healthy_count")
@@ -329,15 +337,17 @@ def _studio_os_health(data_dir: Path, now: datetime) -> dict:
     status = _AGENT_STATUS_MAP.get(overall or "", "UNKNOWN")
     reason = (f"overall_status={overall or 'UNKNOWN'}: {healthy}/{total} OK, "
               f"warning={warning}, critical={critical}")
+    facts = ({"why": "unknown_value"} if status == "UNKNOWN" else
+             {"healthy": healthy, "total": total, "warning": warning, "critical": critical})
     return _item(scope, status, ts.isoformat() if ts else None, str(path), fr,
-                 _STUDIO_BLOCKING, reason)
+                 _STUDIO_BLOCKING, reason, facts)
 
 
 # ───────────────────────────── scope 3 — PRODUCT_DATA_HEALTH ───────────────────────────────
 
 _PRODUCT_BLOCKING = (
-    "Советующий сигнал о согласованности доказательной базы трека (paper_evidence против "
-    "equity_curve) и целостности артефактов. REVIEW_1 рекомендует подключить его как гейт "
+    "Советующий сигнал о согласованности доказательной базы трека (журнал доказательств "
+    "против кривой капитала) и целостности файлов трека. REVIEW_1 рекомендует подключить его как гейт "
     "GoLive evidence-проверок, но на 2026-10-05 это НЕ подключено: сам по себе он ничего не "
     "блокирует и не трогает инвестиционный гейт, флот или публикацию (ADR-580 §C3)."
 )
@@ -352,18 +362,18 @@ def _product_data_health(data_dir: Path, now: datetime) -> dict:
     doc = _load_json(path)
     if doc is None:
         return _item(scope, "UNKNOWN", None, str(path), _freshness(None, now, slo_h, slo_src),
-                     _PRODUCT_BLOCKING, f"{path.name} отсутствует (инв. #17)")
+                     _PRODUCT_BLOCKING, f"{path.name} отсутствует (инв. #17)", {"why": "missing"})
 
     ts = _parse_ts(observed(doc, "checked_at", kind=str))
     if _is_future(ts, now):
         return _item(scope, "CORRUPT", ts.isoformat(), str(path),
                      _freshness(ts, now, slo_h, slo_src), _PRODUCT_BLOCKING,
-                     f"checked_at в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)")
+                     f"checked_at в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)", {"why": "future"})
 
     fr = _freshness(ts, now, slo_h, slo_src)
     if fr["stale"]:
         return _item(scope, "UNKNOWN", ts.isoformat() if ts else None, str(path), fr,
-                     _PRODUCT_BLOCKING, f"{path.name} старше {slo_h:.0f} ч ({slo_src})")
+                     _PRODUCT_BLOCKING, f"{path.name} старше {slo_h:.0f} ч ({slo_src})", {"why": "stale"})
 
     checks = observed(doc, "checks", kind=dict) or {}
     ev = checks.get("evidence_vs_curve") if isinstance(checks.get("evidence_vs_curve"), dict) else {}
@@ -377,8 +387,11 @@ def _product_data_health(data_dir: Path, now: datetime) -> dict:
         ev_detail += f" ({ev['divergent_days']}/{ev['compared_days']} дат расходятся)"
     ai_detail = f"artifact_integrity={ai.get('status', 'UNCHECKED')}"
     reason = f"overall={overall or 'UNKNOWN'}; {ev_detail}; {ai_detail}"
+    facts = ({"why": "unknown_value"} if status == "UNKNOWN" else
+             {"evidence_vs_curve": ev_status, "divergent_days": ev.get("divergent_days"),
+              "compared_days": ev.get("compared_days"), "artifact_integrity": ai.get("status", "UNCHECKED")})
     return _item(scope, status, ts.isoformat() if ts else None, str(path), fr,
-                 _PRODUCT_BLOCKING, reason)
+                 _PRODUCT_BLOCKING, reason, facts)
 
 
 # ───────────────────────────── scope 4 — PUBLICATION_HEALTH ────────────────────────────────
@@ -399,18 +412,18 @@ def _publication_health(data_dir: Path, now: datetime) -> dict:
     doc = _load_json(path)
     if doc is None:
         return _item(scope, "UNKNOWN", None, str(path), _freshness(None, now, slo_h, slo_src),
-                     _PUBLICATION_BLOCKING, f"{path.name} отсутствует (инв. #17)")
+                     _PUBLICATION_BLOCKING, f"{path.name} отсутствует (инв. #17)", {"why": "missing"})
 
     ts = _parse_ts(observed(doc, "ts", kind=str))
     if _is_future(ts, now):
         return _item(scope, "CORRUPT", ts.isoformat(), str(path),
                      _freshness(ts, now, slo_h, slo_src), _PUBLICATION_BLOCKING,
-                     f"ts в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)")
+                     f"ts в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин)", {"why": "future"})
 
     fr = _freshness(ts, now, slo_h, slo_src)
     if fr["stale"]:
         return _item(scope, "UNKNOWN", ts.isoformat() if ts else None, str(path), fr,
-                     _PUBLICATION_BLOCKING, f"{path.name} старше {slo_h:.0f} ч ({slo_src})")
+                     _PUBLICATION_BLOCKING, f"{path.name} старше {slo_h:.0f} ч ({slo_src})", {"why": "stale"})
 
     ok = observed(doc, "ok", kind=bool)
     fails = observed(doc, "fails", kind=list) or []
@@ -427,8 +440,9 @@ def _publication_health(data_dir: Path, now: datetime) -> dict:
         status = "UNKNOWN"
 
     reason = f"ok={ok}; n_fails={len(fails)}; коды={codes or '—'}"
+    facts = {"why": "unknown_value"} if status == "UNKNOWN" else {"codes": list(codes)}
     return _item(scope, status, ts.isoformat() if ts else None, str(path), fr,
-                 _PUBLICATION_BLOCKING, reason)
+                 _PUBLICATION_BLOCKING, reason, facts)
 
 
 # ───────────────────────────── scope 5 — OWNER_CONTROL_HEALTH ──────────────────────────────
@@ -463,7 +477,7 @@ def _owner_control_health(data_dir: Path, now: datetime) -> dict:
             return _item(scope, "CORRUPT", ts.isoformat(), source,
                          _freshness(ts, now, slo_h, slo_src), _OWNER_BLOCKING,
                          f"{label} в будущем (допуск {FUTURE_SKEW_MINUTES:.0f} мин) — форма "
-                         f"INC-1 (ADR-580 §C3)")
+                         f"INC-1 (ADR-580 §C3)", {"why": "future"})
 
     pending_note = "owner_decision_pending.json отсутствует" if pending is None else "owner_decision_pending.json читаем"
     push_note = "push_state.json отсутствует" if push is None else "push_state.json читаем"
@@ -472,12 +486,13 @@ def _owner_control_health(data_dir: Path, now: datetime) -> dict:
         return _item(scope, "UNKNOWN", None, source, _freshness(None, now, slo_h, slo_src),
                      _OWNER_BLOCKING,
                      f"{beacon_path.name} отсутствует — бот не объявляет умений (инв. #17); "
-                     f"{pending_note}; {push_note}")
+                     f"{pending_note}; {push_note}", {"why": "missing"})
 
     if beacon_ts is None:
         fr = _freshness(None, now, slo_h, slo_src)
         return _item(scope, "UNKNOWN", None, source, fr, _OWNER_BLOCKING,
-                     f"{beacon_path.name} без разбираемой updated_at; {pending_note}; {push_note}")
+                     f"{beacon_path.name} без разбираемой updated_at; {pending_note}; {push_note}",
+                     {"why": "no_field"})
 
     age_s = (now - beacon_ts).total_seconds()
     fr = {"age_hours": round(age_s / 3600.0, 4), "stale_after_hours": round(slo_h, 4),
@@ -491,7 +506,8 @@ def _owner_control_health(data_dir: Path, now: datetime) -> dict:
         status = "OK"
         reason = f"маячок свежий ({max(age_s, 0.0):.0f}с); {pending_note}; {push_note}"
 
-    return _item(scope, status, beacon_ts.isoformat(), source, fr, _OWNER_BLOCKING, reason)
+    return _item(scope, status, beacon_ts.isoformat(), source, fr, _OWNER_BLOCKING, reason,
+                 {"beacon_age_s": round(age_s), "beacon_max_age_s": _TG_BEACON_MAX_AGE_S})
 
 
 # ───────────────────────────── scope 6 — PUBLIC_SURFACE ────────────────────────────────────
@@ -516,7 +532,7 @@ def _public_surface(data_dir: Path, now: datetime) -> dict:
         fr = {"age_hours": None, "stale_after_hours": None, "threshold_source": "n/a", "stale": None}
         return _item(scope, "UNKNOWN", None, str(path), fr, _PUBLIC_SURFACE_BLOCKING,
                      f"{path} не найден рядом с data_dir — зеркало публичного сайта недоступно "
-                     f"отсюда (инв. #17)")
+                     f"отсюда (инв. #17)", {"why": "missing"})
 
     as_of_str = observed(doc, "as_of", kind=str)
     gates_passed, gates_total = doc.get("gates_passed"), doc.get("gates_total")
@@ -541,7 +557,9 @@ def _public_surface(data_dir: Path, now: datetime) -> dict:
     reason = (f"сайт показывает «Go-live progress» = {gates_passed}/{gates_total} по "
               f"состоянию на {as_of_str or '?'} (инвентарная цифра, НЕ ready_for_live — "
               f"ADR-530)")
-    return _item(scope, status, as_of_str, str(path), fr, _PUBLIC_SURFACE_BLOCKING, reason)
+    facts = ({"why": "stale" if stale else "no_field"} if status == "UNKNOWN" else
+             {"gates_passed": gates_passed, "gates_total": gates_total, "as_of": as_of_str})
+    return _item(scope, status, as_of_str, str(path), fr, _PUBLIC_SURFACE_BLOCKING, reason, facts)
 
 
 # ───────────────────────────── public API ───────────────────────────────────────────────────

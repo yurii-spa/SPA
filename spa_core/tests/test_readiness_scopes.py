@@ -69,10 +69,14 @@ class TestShapeAndNoRollup(_Harness):
         self.assertEqual(len(items), 6)
         self.assertEqual({it["scope"] for it in items}, set(SCOPES))
         for it in items:
+            # ADR-612 (2026-10-07): `facts` added deliberately — the structured numbers `reason`
+            # was composed from, for the owner's plain-Russian layer. Still no aggregate key
+            # (overall/ready/all_green): the exact-set check keeps that guarantee.
             self.assertEqual(
                 set(it.keys()),
-                {"scope", "status", "as_of", "source", "freshness", "blocking_effect", "reason"},
+                {"scope", "status", "as_of", "source", "freshness", "blocking_effect", "reason", "facts"},
             )
+            self.assertIsInstance(it["facts"], dict)
 
     def test_missing_everything_is_unknown_never_ok_or_ready(self):
         """Empty data/ directory: every scope must say UNKNOWN (inv. #17), never a healthy word."""

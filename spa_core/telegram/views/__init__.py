@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Callable, Dict, Tuple
 
 from spa_core.telegram.views import (
+    capital,
     decisions,
     home,
     portfolio,
@@ -64,6 +65,13 @@ VIEW_REGISTRY: Dict[str, Builder] = {
     "warnings.problems.item": warnings.render_item,
 
     "settings": settings.render,
+
+    # ADR-612: Capital surface — READ-ONLY, same canonical readers as Director OS.
+    "capital": capital.render_menu,
+    "capital.btc": capital.render_btc,
+    "capital.lab": capital.render_lab,
+    "capital.oracle": capital.render_oracle,
+    "capital.sherlock": capital.render_sherlock,
 }
 
 

@@ -238,6 +238,25 @@
     return det;
   }
 
+  // ── owner layer vs evidence layer (ADR-612) ─────────────────────────────────────────────
+  // The model field ``plain_ru`` is the owner sentence (no codes); the technical text it was made
+  // from stays one tap away. ``plain_tone`` never upgrades a state: "ok" only where the producer
+  // itself said OK — an unknown code arrives as "unknown" and is rendered grey, never green.
+  function toneClass(tone) {
+    return tone === "ok" || tone === "warn" || tone === "alert" ? tone : "unknown";
+  }
+
+  function techDetails(lines) {
+    lines = (lines || []).filter(function (x) { return x !== null && x !== undefined && x !== ""; });
+    if (!lines.length) return null;
+    var det = h("details", { class: "evidence tech-details" });
+    det.appendChild(h("summary", {}, [t("common.tech_details")]));
+    var body = h("div", { class: "evidence-body" });
+    lines.forEach(function (l) { body.appendChild(h("p", { class: "note mono-wrap" }, [String(l)])); });
+    det.appendChild(body);
+    return det;
+  }
+
   // ── generic card shell ─────────────────────────────────────────────────────────────────────
   function card(titleText, badgeNode) {
     var c = h("section", { class: "card" });
@@ -1039,8 +1058,13 @@
       if (isUnknownState(cell.state)) return;
       c.appendChild(h("p", { class: "note" }, [tf("studio.incidents.open", { n: cell.open })]));
       (cell.items || []).forEach(function (it) {
-        var title = bi(it.title_ru, it.title_en) || t("studio.incidents.untitled");
-        c.appendChild(h("p", { class: "note" }, [title + " · " + (bi(it.since_ru, it.since_en) || "")]));
+        var raw = bi(it.title_ru, it.title_en) || t("studio.incidents.untitled");
+        var title = it.plain_ru || raw;
+        var when = it.since_plain_ru || bi(it.since_ru, it.since_en) || "";
+        var p = h("p", { class: "note tone--" + toneClass(it.plain_tone) }, [title + (when ? " · " + when : "")]);
+        c.appendChild(p);
+        var td = techDetails([raw, bi(it.since_ru, it.since_en)]);
+        if (td) c.appendChild(td);
       });
     });
   }
@@ -1054,11 +1078,14 @@
       row.appendChild(h("span", { class: "chip" }, [tf("studio.problems.closed", { n: cell.closed })]));
       c.appendChild(row);
       (cell.items || []).forEach(function (it) {
-        var p = h("p", { class: "note" });
-        p.appendChild(document.createTextNode((it.agent_ru || t("state.NOT_MEASURED")) + " — " + bi(it.cause_ru, it.cause_en)));
+        var raw = (it.agent_ru || t("state.NOT_MEASURED")) + " — " + bi(it.cause_ru, it.cause_en);
+        var p = h("p", { class: "note tone--" + toneClass(it.plain_tone) });
+        p.appendChild(document.createTextNode(it.plain_ru || raw));
         p.appendChild(h("br"));
         p.appendChild(document.createTextNode(tf("studio.problems.occurrences", { n: it.occurrences }) + " · " + (it.rca ? t("studio.problems.rca_yes") : t("studio.problems.rca_no"))));
         c.appendChild(p);
+        var td = techDetails(it.plain_ru ? [raw, it.cause_code] : []);
+        if (td) c.appendChild(td);
       });
     });
   }
@@ -1165,13 +1192,18 @@
         h("span", { class: "k" }, [t("scope." + key)]),
         h("span", { class: "badge badge--" + scopeBadgeClass(status) }, [t("scope_status." + status)]),
       ]));
-      if (status === "UNKNOWN") {
-        li.appendChild(h("p", { class: "note cell-text--unknown" }, [tf("scope.unknown", { reason: bi(s.reason_ru, s.reason_en) || t("state.NOT_MEASURED") })]));
-      } else if (s.reason_ru || s.reason_en) {
-        li.appendChild(h("p", { class: "note" }, [bi(s.reason_ru, s.reason_en)]));
+      var techReason = bi(s.reason_ru, s.reason_en);
+      if (s.plain_ru) {
+        li.appendChild(h("p", { class: "note tone--" + toneClass(s.plain_tone) + (status === "UNKNOWN" ? " cell-text--unknown" : "") }, [s.plain_ru]));
+      } else if (status === "UNKNOWN") {
+        li.appendChild(h("p", { class: "note cell-text--unknown" }, [tf("scope.unknown", { reason: techReason || t("state.NOT_MEASURED") })]));
+      } else if (techReason) {
+        li.appendChild(h("p", { class: "note" }, [techReason]));
       }
       if (s.blocks_ru || s.blocks_en) li.appendChild(h("p", { class: "note" }, [t("scope.blocks") + ": " + bi(s.blocks_ru, s.blocks_en)]));
       if (s.does_not_block_ru || s.does_not_block_en) li.appendChild(h("p", { class: "note" }, [t("scope.does_not_block") + ": " + bi(s.does_not_block_ru, s.does_not_block_en)]));
+      var td = techDetails(s.plain_ru ? [techReason, s.source] : []);
+      if (td) li.appendChild(td);
       ul.appendChild(li);
     });
     c.appendChild(ul);

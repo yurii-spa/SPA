@@ -1274,7 +1274,12 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         return bl.lineage(query, tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host)
 
     try:
-        scopes = rs.scoped_readiness(data, now)
+        # ADR-612: the scopes are judged at the moment they are READ, not at the start of a build
+        # that runs for minutes. With the build-start `now`, the bot's 30-s beacon was always a few
+        # minutes "in the future" (−205…−280 s in every prod bundle 06–07.10), outside
+        # telegram_health.BEACON_FUTURE_TOLERANCE_S ⇒ a false «бот не подаёт признаков жизни».
+        # An injected clock (tests) is kept as given.
+        scopes = rs.scoped_readiness(data, inp.now or datetime.now(timezone.utc))
     except Exception:  # noqa: BLE001 — a broken scope reader is NOT_MEASURED per scope, never a crash here
         scopes = []
 

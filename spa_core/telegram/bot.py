@@ -488,6 +488,9 @@ class TelegramBot:
         """
         if not chat_id or message_id in (None, ""):
             return None
+        # ADR-612 review P1-3: the edit path had no length fit — a screen over 4096 was refused by
+        # the Bot API and the panel just stayed on its placeholder. Same fitter as send_message.
+        text = _fit_telegram(text, parse_mode)
         # См. send_message: guard-решение → отправка → запись под одним локом (замер 26.08).
         try:
             from spa_core.alerts.telegram_client import outbound_lock
@@ -1154,6 +1157,12 @@ class TelegramBot:
             {"command": "week",       "description": "Итог недели"},
             {"command": "alerts",     "description": "Тревоги SPA"},
             {"command": "agents",     "description": "Агенты SPA"},
+            # ADR-612: Capital — только чтение, ни одной кнопки действия.
+            {"command": "capital",    "description": "Капитал: что исследуется (только чтение)"},
+            {"command": "btc",        "description": "BTC: сигнал исследования, не сделка"},
+            {"command": "lab",        "description": "Лаборатория стратегий (бумага)"},
+            {"command": "oracle",     "description": "Oracle — советник, без права исполнения"},
+            {"command": "sherlock",   "description": "Sherlock — проверка доказательств"},
             {"command": "task",       "description": "Задание в inbox (текст или голосовое)"},
         ]
         result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
@@ -1263,6 +1272,13 @@ class TelegramBot:
         from spa_core.telegram.ask_router import classify_and_answer
 
         from spa_core.telegram import ask_router
+        from spa_core.telegram import money_intent
+
+        # ADR-612: a sentence that reads as «move money» is refused HERE, deterministically, before
+        # the LLM can file it as an inbox task an agent might read as an order. Nothing is saved.
+        if money_intent.is_money_action(message):
+            self.send_message(money_intent.REFUSAL, chat_id)
+            return
 
         kind, resp = classify_and_answer(message)
         if kind == "question":
@@ -1644,6 +1660,17 @@ class TelegramBot:
             # «Ответ 2». Сборщик трогает сообщение ТОЛЬКО если оно у предела 4096 или
             # если буфер этого чата уже открыт; ответ владельца («Ответ 1») он пропускает
             # мимо себя по форме — см. long_message.looks_like_owner_answer.
+            # ADR-612 (review P1-1): a standalone money phrase is refused BEFORE the document
+            # collector — otherwise «купи btc» would ride into the inbox past the guard. A part of a
+            # long document (at the size limit, or while a document buffer is open) is never
+            # refused: refusing would drop the owner's words; its card is stamped
+            # `money_intent: suspected` instead (inbox_intake).
+            from spa_core.telegram import long_message as _lm
+            from spa_core.telegram import money_intent as _mi
+            if (_mi.is_money_action(stripped) and not _lm.looks_truncated(stripped)
+                    and _lm.is_open(chat_id, now=time.time()) is False):
+                self.send_message(_mi.REFUSAL, chat_id)
+                return True
             if self._handle_long_document(stripped, chat_id):
                 return True
             # Реплай владельца несёт точный адрес вопроса — берём его ИЗ ОБНОВЛЕНИЯ, а не

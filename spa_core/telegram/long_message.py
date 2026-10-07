@@ -102,6 +102,29 @@ def looks_truncated(text: str) -> bool:
     return len(text) >= CONTINUATION_MIN_CHARS
 
 
+def is_open(chat_id: str, *, now: float, data_dir: Path | None = None) -> bool | None:
+    """Открыт ли для этого чата буфер документа (продолжение ещё ждут). Только чтение.
+
+    Три исхода (инв. #17): ``True`` — открыт, ``False`` — закрыт или его нет, ``None`` —
+    НЕ ИЗМЕРЕНО (буфер не прочитан или нет отметки последней части). Вызывающий обязан
+    трактовать ``None`` в сторону сохранения слов владельца, а не как «закрыт»."""
+    try:
+        entry = _load(store_path(data_dir))["pending"].get(str(chat_id))
+    except Exception:  # noqa: BLE001 — не прочитали: третий исход, а не «открыт»/«закрыт»
+        entry = None
+        unreadable = True
+    else:
+        unreadable = False
+    if unreadable:
+        return None
+    if not (isinstance(entry, dict) and entry.get("parts")):
+        return False
+    last_at = entry.get("last_at")
+    if not isinstance(last_at, (int, float)) or isinstance(last_at, bool):
+        return None
+    return now - float(last_at) <= WINDOW_S
+
+
 def looks_like_owner_answer(text: str) -> bool:
     """Похоже ли сообщение на ответ владельца номером варианта («Ответ 1»)."""
     return len(text) <= _OWNER_ANSWER_MAX_CHARS and bool(_OWNER_ANSWER_RE.match(text))

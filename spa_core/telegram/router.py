@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import html as _html
 import re as _re
+import threading
 import time
 from typing import Any, Dict, Optional, Tuple
 
@@ -75,9 +76,65 @@ COMMAND_TO_PATH = {
     "/warnings": "warnings",
     "/alerts": "warnings",
     "/settings": "settings",
+    # ADR-612: Capital surface — read-only screens. Any trailing words («/btc купи») are
+    # ignored by handle_command (only the first token is read): a command can only OPEN a view.
+    "/capital": "capital",
+    "/btc": "capital.btc",
+    "/lab": "capital.lab",
+    "/oracle": "capital.oracle",
+    "/sherlock": "capital.sherlock",
 }
 
 CALLBACK_MAX_BYTES = 64
+
+#: ADR-612: Capital screens read the canonical, VERIFIED ledgers (research_factory /
+#: investment_cio re-verify their hash chains on every read — the integrity guarantee, never
+#: skipped). Under load that is ~15–100 s (замер 07.10). The poll loop must not wait for it:
+#: the owner's other taps would freeze and the liveness watchdog (240 s) could kill the bot
+#: mid-render. So these paths answer with a placeholder at once and render in a worker thread
+#: that edits the same message; one such render at a time.
+SLOW_PATH_PREFIX = "capital"
+SLOW_PLACEHOLDER = ("⏳ Собираю данные по капиталу из проверенных журналов — это может занять до "
+                    "пары минут. Сообщение обновится само.")
+SLOW_BUSY = "⏳ Уже собираю предыдущий экран капитала — подождите, он обновится сам."
+#: review P2-1: a render that never returns (a hung read) must not lock the Capital screens
+#: forever. After this deadline the next request reclaims the slot; the stuck worker's late
+#: release is ignored (it no longer owns the slot — the token check below).
+SLOW_LOCK_DEADLINE_S = 300.0
+_slow_state = {"since": None, "token": None}
+_slow_guard = threading.Lock()
+SLOW_FAILED = "⚠️ Экран не собран ({}) — не измерено. Попробуйте ещё раз позже."
+_log = __import__("logging").getLogger(__name__)
+
+
+def _slow_acquire(now: float) -> object | None:
+    """A fresh ownership token, or None if a live (non-expired) render holds the slot."""
+    with _slow_guard:
+        since = _slow_state["since"]
+        if since is not None and now - since < SLOW_LOCK_DEADLINE_S:
+            return None
+        if since is not None:
+            _log.warning("capital render slot reclaimed after %.0fs (deadline %.0fs)", now - since,
+                         SLOW_LOCK_DEADLINE_S)
+        token = object()
+        _slow_state.update(since=now, token=token)
+        return token
+
+
+def _slow_release(token: object) -> None:
+    with _slow_guard:
+        if _slow_state["token"] is token:
+            _slow_state.update(since=None, token=None)
+
+
+def is_slow_path(path: str) -> bool:
+    return path == SLOW_PATH_PREFIX or path.startswith(SLOW_PATH_PREFIX + ".")
+
+
+def _message_id(sent: Any) -> Any:
+    if isinstance(sent, dict):
+        return (sent.get("result") or {}).get("message_id") or sent.get("message_id")
+    return None
 
 
 class Router:
@@ -86,6 +143,8 @@ class Router:
     def __init__(self, transport: Any, owner_chat_id: Optional[str]) -> None:
         self.transport = transport
         self.owner_chat_id = str(owner_chat_id) if owner_chat_id is not None else None
+        # how a slow render is run — a daemon thread in production, inline in tests
+        self.spawn = lambda fn: threading.Thread(target=fn, name="capital-render", daemon=True).start()
 
     # ── auth ────────────────────────────────────────────────────────────────
 
@@ -123,8 +182,58 @@ class Router:
         cmd = (text or "").strip().split()[0].split("@")[0].lower() if (text or "").strip() else ""
         path = COMMAND_TO_PATH.get(cmd, "home")
         lang = prefs_store.get_lang(chat_id)
+        if is_slow_path(path):
+            return self._render_slow(path, lang, chat_id, message_id=None)
         body, kb = self.render_view(path, "", lang, 0, chat_id)
         return self.transport.send_message(chat_id, body, kb)
+
+    def _render_slow(self, path: str, lang: str, chat_id: str, message_id: Any) -> Optional[Dict]:
+        """Placeholder now (new message for a command, in-place edit for a tap), the real screen
+        from a worker thread. Never raises; a second request while one renders is told so; a
+        screen that could not be delivered is SAID, never left as a silent placeholder (P1-3)."""
+        from spa_core.telegram import menus
+        nav = {"inline_keyboard": [menus.nav_row(path, lang)]}
+        token = _slow_acquire(time.time())
+        if token is None:
+            return self.transport.send_message(chat_id, SLOW_BUSY, None)
+        try:
+            if message_id is None:
+                placeholder = self.transport.send_message(chat_id, SLOW_PLACEHOLDER, nav)
+                message_id = _message_id(placeholder)
+            else:
+                placeholder = self.transport.edit_message_text(chat_id, message_id, SLOW_PLACEHOLDER, nav)
+        except Exception:  # noqa: BLE001 — the placeholder is a courtesy; the render still runs
+            _log.warning("capital placeholder failed for %s", path, exc_info=True)
+            placeholder = None
+
+        def work() -> None:
+            why = None
+            try:
+                body, kb = self.render_view(path, "", lang, 0, chat_id)
+                if message_id is not None:
+                    ok = self.transport.edit_message_text(chat_id, message_id, body, kb)
+                else:
+                    ok = self.transport.send_message(chat_id, body, kb)
+                if not ok:
+                    why = "Telegram не принял сообщение"
+            except Exception as exc:  # noqa: BLE001 — a worker must never take the bot down
+                why = type(exc).__name__
+                _log.warning("capital render %s failed", path, exc_info=True)
+            finally:
+                _slow_release(token)
+            if why is not None:
+                _log.warning("capital screen %s not delivered: %s", path, why)
+                try:
+                    self.transport.send_message(chat_id, SLOW_FAILED.format(why), nav)
+                except Exception:  # noqa: BLE001
+                    _log.warning("capital failure notice also failed", exc_info=True)
+
+        try:
+            self.spawn(work)
+        except Exception:  # noqa: BLE001 — could not start a thread: release, say so
+            _slow_release(token)
+            return self.transport.send_message(chat_id, SLOW_FAILED.format("поток не запущен"), None)
+        return placeholder
 
     # ── callback path (edit in place) ─────────────────────────────────────────
 
@@ -163,6 +272,8 @@ class Router:
             return self.handle_unknown_action(data, chat_id)
         path, arg, page = parsed
         lang = prefs_store.get_lang(chat_id)
+        if is_slow_path(path):
+            return self._render_slow(path, lang, chat_id, message_id=message_id)
         body, kb = self.render_view(path, arg, lang, page, chat_id)
         # editMessageText IN PLACE (single evolving panel — never a new bubble)
         return self.transport.edit_message_text(chat_id, message_id, body, kb)
