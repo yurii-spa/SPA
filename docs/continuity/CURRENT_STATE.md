@@ -1,23 +1,23 @@
 ---
 {
- "adr_listing_sha256": "6c874e3fcaa61b2b247dbf2553d7327d6d0af261d1ec2f27df249947ebe5c169",
+ "adr_listing_sha256": "29599974b231a43d976db8d1c903d645d79ce769ee0496c03e4bb857f8aaeb6f",
  "adr_max_considered": 630,
  "authority": "DERIVED",
  "context_version": "arb-continuity/2",
  "copy_role": "COMMITTED_SNAPSHOT",
- "generated_at": "2026-10-07T08:57:07Z",
+ "generated_at": "2026-10-07T11:24:37Z",
  "generator_version": "arb-continuity/2+8cd366e83d35",
  "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
- "origin_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
- "production_release": "b39ff06e30facc8e4412be2b3bc4891f1607d8dc",
- "production_release_verified_at": "2026-10-07T08:48:00Z",
- "repo_commit": "5662fa4f7316c8010b6bb9941a026e18a6a211e6",
+ "origin_commit": "2dd3570a26795bcfd5a347ab7ed38dbe63041a8d",
+ "production_release": "b53416d34d7cb7feff52f5b116b1f06040d6eb9e",
+ "production_release_verified_at": "2026-10-07T11:20:08Z",
+ "repo_commit": "2dd3570a26795bcfd5a347ab7ed38dbe63041a8d",
  "root_dirty_inputs": [],
- "runtime_truth_computed_at": "2026-10-07T08:49:58Z",
+ "runtime_truth_computed_at": "2026-10-07T11:06:56Z",
  "source_snapshot_ids": [
-  "inputs:1b76a53f9f54c065266d786ad5a2bf78e51539c7663599386d65f46f97d988f5",
-  "mission:bc62723ffd5c536ffadc2f1dfdc27dd96b6ba458df3c00781d81416424b3bd17",
-  "receipt:f3917f3c8e7b0fbd2f2ffb50cac5bc63d6844e4c758780e679235c7dc722142a"
+  "inputs:97169aaf960977d6bd6dd2963689d83366f632d92c5883c97eacab844f01232b",
+  "mission:dc430ccf8b4c9926c80d46b70a43b18d4c7a4960e42af15914f9eeddca7cf923",
+  "receipt:f9d0be30bbce3331ef0c92a20049528fa2474d3f15deec5e8cc9c2561f0aea7a"
  ],
  "verdict_at_generation": "CONTEXT_FRESH"
 }
@@ -31,7 +31,7 @@
 ## Active epic / current wave
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)
-- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T08:49:58Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
+- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T11:06:56Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
 
 ## Latest accepted epic
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -39,14 +39,14 @@
 - RM-TRUTH-01 · Company truth reconciliation + Director OS recovery (ADR-580, ACCEPTED)
 
 ## Current origin
-- **status:** MEASURED · **as of:** 2026-10-07T08:57:07Z · **authority:** CANONICAL
+- **status:** MEASURED · **as of:** 2026-10-07T11:24:37Z · **authority:** CANONICAL
 - **source:** git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)
-- canonical root HEAD 5662fa4f7316 · origin main on the server 5662fa4f7316
+- canonical root HEAD 2dd3570a2679 · origin main on the server 2dd3570a2679
 
 ## Production code identity
-- **status:** MEASURED · **as of:** 2026-10-07T08:48:00Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T11:20:08Z · **authority:** RUNTIME
 - **source:** runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)
-- production code = origin b39ff06e30fa (code sync SYNCED, at 2026-10-07T08:48:00Z)
+- production code = origin b53416d34d7c (code sync SYNCED, at 2026-10-07T11:20:08Z)
 
 ## Real capital
 - **status:** MEASURED · **as of:** 2026-10-07T06:00:15Z · **authority:** RUNTIME
@@ -64,12 +64,12 @@
 - Консервативный: 4.9 % годовых · худшая просадка -0.04 % · 106 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.
 
 ## Trading Lab
-- **status:** MEASURED · **as of:** 2026-10-07T08:45:03Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T11:00:29Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)
-- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 4.9 min
+- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 6.5 min
 
 ## BTC (directional research)
-- **status:** MEASURED · **as of:** 2026-10-07T08:45:03Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T11:00:29Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)
 - research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h лонг
 
@@ -89,29 +89,29 @@
 - usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564)
 
 ## Studio OS
-- **status:** MEASURED · **as of:** 2026-10-07T08:42:04Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T10:42:19Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.{fleet,tasks,self_heal}
-- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 347 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
+- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 348 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
 
 ## Director OS / Mission Control
-- **status:** MEASURED · **as of:** 2026-10-07T08:49:58Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T11:06:56Z · **authority:** RUNTIME
 - **source:** runtime: published Mission Control bundle (current.json → mission.json)
-- Mission Control bundle b-20261007T084958Z-66e7e2ec, Company Truth computed 2026-10-07T08:49:58Z (age 0.12 h at generation); read model only (ADR-592)
+- Mission Control bundle b-20261007T110656Z-b45a0a41, Company Truth computed 2026-10-07T11:06:56Z (age 0.29 h at generation); read model only (ADR-592)
 
 ## Memory
-- **status:** MEASURED_ZERO · **as of:** 2026-10-07T07:43:39Z · **authority:** RUNTIME
+- **status:** MEASURED_ZERO · **as of:** 2026-10-07T10:14:16Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)
-- index lag 0 ADRs · newest indexed 621 · truth overrides 12
+- index lag 0 ADRs · newest indexed 630 · truth overrides 12
 
 ## Product / publication
-- **status:** MEASURED · **as of:** 2026-10-07T05:03:34+00:00 · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T11:03:48+00:00 · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.product.{public_release,website_health}
-- published 2026-10-01 (measured 2026-10-01), next 2026-10-08 · site health сайт: данные от 2026-10-01 · publication candidate is an Owner Gate (see owner_gates)
+- published 2026-10-01 (measured 2026-10-01), next 2026-10-08 · site health сайт: проверка не прошла: PUBLISHED_SNAPSHOT_STALE · publication candidate is an Owner Gate (see owner_gates)
 
 ## Active problems
-- **status:** MEASURED · **as of:** 2026-10-07T08:42:12.407673+00:00 · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T10:42:26.409542+00:00 · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.problems (canon: data/problems.json)
-- открыто: 4 · утихли без причины: 2 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded
+- открыто: 5 · утихли без причины: 2 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded, site_freshness.PUBLISHED_SNAPSHOT_STALE
 
 ## origin/main test health
 - **status:** NOT_MEASURED · **as of:** — · **authority:** RUNTIME
@@ -134,9 +134,9 @@
 - ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates
 
 ## Last verification evidence
-- **status:** MEASURED · **as of:** 2026-10-07T08:57:07Z · **authority:** DERIVED
+- **status:** MEASURED · **as of:** 2026-10-07T11:24:37Z · **authority:** DERIVED
 - **source:** this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)
-- generated 2026-10-07T08:57:07Z · code-sync receipt 2026-10-07T08:48:00Z · Company Truth 2026-10-07T08:49:58Z
+- generated 2026-10-07T11:24:37Z · code-sync receipt 2026-10-07T11:20:08Z · Company Truth 2026-10-07T11:06:56Z
 
 ## Public profile mapping (public ↔ internal ↔ decision ↔ track ↔ metric type)
 
