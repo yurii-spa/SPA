@@ -72,11 +72,11 @@ def test_deploy_dry_run_pushes_nothing(monkeypatch, tmp_path):
         return _R()
 
     snap = tmp_path / "track_snapshot.json"
-    snap.write_text('{"as_of": "2026-10-07", "x": 1}')
+    snap.write_text('{"as_of": "LOCAL-GENERATION", "x": 1}')
     monkeypatch.setattr(m, "_SNAP", snap)
     monkeypatch.setattr(m.subprocess, "run", fake_run)
     monkeypatch.setattr(m.importlib.util, "spec_from_file_location", _boom)   # constitution: refused, non-fatal
-    monkeypatch.setattr(m, "_origin_snapshot", lambda: {"as_of": "2026-10-01", "x": 0})
+    monkeypatch.setattr(m, "_origin_snapshot", lambda: {"as_of": "ORIGIN-GENERATION", "x": 0})
     assert m.main(["--dry-run"]) == 0
     assert all(str(m._PUSH) not in map(str, c) for c in calls)
 
