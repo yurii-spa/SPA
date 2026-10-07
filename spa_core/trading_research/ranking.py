@@ -27,9 +27,30 @@ THRESHOLDS = {"oos_sharpe": 0.8, "is_sharpe": 0.4, "cost3x_sharpe": 0.5, "trades
               "dedupe_corr": 0.85}
 
 
-def benchmark(bars, tf: str) -> Dict:
+def benchmark(bars, tf: str, end_ms: Optional[int] = None) -> Dict:
+    """Buy-and-hold on the same window the gates judge: bars opening before `end_ms` (the forward clock's
+    start) — a benchmark that keeps growing after registration would move the gate (ADR-640 §P2-4)."""
+    if end_ms is not None:
+        bars = [b for b in bars if b.open_time < end_ms]
+    if not bars:
+        return {"bars": 0, "measured": False}
     eq = [b.close / bars[0].close for b in bars]
     return evaluate(eq, [1] * len(eq), [], tf)
+
+
+def gate_window_end(bt_result: Dict) -> Optional[int]:
+    """The window the gates judge — ONE window for the candidate metrics and the benchmark (never mixed): the
+    forward clock's start when every result carries the `gating` slice, else None (full history, old file)."""
+    results = bt_result.get("results") or []
+    if results and all(isinstance(r.get("gating"), dict) for r in results):
+        return (bt_result.get("manifest") or {}).get("oos_end_ms")
+    return None
+
+
+def _gate(r: Dict, key: str):
+    """Gate inputs come from the `gating` slice (≤ forward start); `full` only for a backtest written
+    before that slice existed (its refresh is forced by the code_version change)."""
+    return _g(r, "gating" if isinstance(r.get("gating"), dict) else "full", key)
 
 
 def _g(d, *ks):
@@ -61,12 +82,12 @@ def qualify(results: List[Dict], benchmarks: Dict[str, Dict]) -> List[Dict]:
             fails.append("q_is_sharpe")
         if (_g(r, "cost_sensitivity", "3x", "oos_sharpe") or -9) < T["cost3x_sharpe"]:
             fails.append("q_cost_3x")
-        if (_g(r, "full", "trades") or 0) < T["trades"]:
+        if (_gate(r, "trades") or 0) < T["trades"]:
             fails.append("q_trades")
-        if (_g(r, "full", "max_drawdown") or -1) < T["max_drawdown"]:
+        if (_gate(r, "max_drawdown") or -1) < T["max_drawdown"]:
             fails.append("q_drawdown")
-        cal, bcal = _g(r, "full", "calmar"), bm.get("calmar")
-        mdd, bmdd = _g(r, "full", "max_drawdown"), bm.get("max_drawdown")
+        cal, bcal = _gate(r, "calmar"), bm.get("calmar")
+        mdd, bmdd = _gate(r, "max_drawdown"), bm.get("max_drawdown")
         beats = (cal is not None and bcal is not None and cal >= bcal) or \
                 (mdd is not None and bmdd is not None and mdd >= bmdd + T["calmar_margin_pp"])
         if not beats:

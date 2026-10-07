@@ -26,6 +26,30 @@ FORBIDDEN_TARGETS = {"LIMITED_LIVE", "PRODUCTION"}
 #: Forward evidence needed before ROBUST (GREEN, still paper): time, trades, and consistency with OOS.
 ROBUST_RULES = {"min_days": 30, "min_trades": 5, "min_sharpe": 0.5, "max_degradation": 0.5}
 
+#: The admission policy as a VERSIONED object (ADR-640, CAPITAL-SOURCES-01 §4). Every lifecycle event written
+#: from now on carries the version and a fingerprint of the exact thresholds it was decided under, so "which
+#: rules admitted this candidate at that time" is read from the evidence, not reconstructed from code later.
+#: Events written before this constant existed (2026-09-30) carry no version; readers label them
+#: "reconstructed:<candidate code_version> (admission policy unversioned at the time)". Bump the version
+#: whenever ranking.THRESHOLDS or ROBUST_RULES change — the fingerprint makes a silent change visible anyway.
+#: v2 (ADR-640 §P2-4): qualification gates (trades, drawdown, Calmar, buy-and-hold benchmark) judge history up
+#: to the forward clock's start only — v1 judged the full, still-growing history.
+ADMISSION_POLICY_VERSION = "trading-admission-v2"
+
+
+def admission_policy() -> dict:
+    from .ranking import THRESHOLDS          # lazy: ranking does not import lifecycle, keep it that way
+    return {"version": ADMISSION_POLICY_VERSION, "qualification": dict(THRESHOLDS), "robust": dict(ROBUST_RULES),
+            "gating_window": "history up to the forward clock's start (backtest `gating` slice)"}
+
+
+def admission_threshold_fingerprint() -> str:
+    """Fingerprint of the THRESHOLDS and gating window only. It is not a fingerprint of the backtest code —
+    that is the BACKTESTING event's own `code_version` (named precisely so it is never read as more)."""
+    import hashlib
+    import json
+    return hashlib.sha256(json.dumps(admission_policy(), sort_keys=True).encode()).hexdigest()[:16]
+
 
 class TransitionRefused(Exception):
     pass

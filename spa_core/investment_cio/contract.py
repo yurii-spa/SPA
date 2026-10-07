@@ -58,18 +58,42 @@ def value_of(cell: Any) -> Any:
 #: sleeve_id → static identity. Everything dynamic is projected from the engines at run time.
 SLEEVES: dict = {
     "defi_conservative": {"name": "DeFi Conservative", "package": "conservative", "allocatable": True,
-                          "mechanism_class": "unlevered_lending"},
+                          "mechanism_class": "unlevered_lending", "source_type": "DEFI_YIELD"},
     "defi_balanced": {"name": "DeFi Balanced", "package": "balanced", "allocatable": True,
-                      "mechanism_class": "fixed_rate_pt"},
+                      "mechanism_class": "fixed_rate_pt", "source_type": "DEFI_YIELD"},
     "defi_aggressive": {"name": "DeFi Aggressive", "package": "aggressive", "allocatable": True,
-                        "mechanism_class": "leveraged_loop"},
-    "cash": {"name": "Cash / Treasury", "package": None, "allocatable": True, "mechanism_class": "cash"},
+                        "mechanism_class": "leveraged_loop", "source_type": "DEFI_YIELD"},
+    "cash": {"name": "Cash / Treasury", "package": None, "allocatable": True, "mechanism_class": "cash",
+             "source_type": "TREASURY_CASH"},
     "trading_research": {"name": "Trading (research)", "package": None, "allocatable": False,
-                         "mechanism_class": "directional_trading"},
+                         "mechanism_class": "directional_trading", "source_type": "TRADING_ALPHA"},
     "market_neutral_basis": {"name": "Market-Neutral / Basis (research)", "package": None, "allocatable": False,
-                             "mechanism_class": "delta_neutral"},
+                             "mechanism_class": "delta_neutral", "source_type": "MARKET_NEUTRAL_BASIS"},
 }
 DEFI_SLEEVES = ("defi_conservative", "defi_balanced", "defi_aggressive")
+
+# ── Capital Sources (ADR-640, CAPITAL-SOURCES-01) — THIS contract, extended; not a second registry ─────────
+#: Every return source of the capital portfolio is one of these types. The sleeves above ARE the sources; each
+#: carries its `source_type`. A type with no evidence stays in the registry with NOT_MEASURED cells — a
+#: placeholder never gets a number.
+SOURCE_DEFI_YIELD = "DEFI_YIELD"
+SOURCE_TRADING_ALPHA = "TRADING_ALPHA"
+SOURCE_MARKET_NEUTRAL_BASIS = "MARKET_NEUTRAL_BASIS"
+SOURCE_TREASURY_CASH = "TREASURY_CASH"
+SOURCE_TYPES = (SOURCE_DEFI_YIELD, SOURCE_TRADING_ALPHA, SOURCE_MARKET_NEUTRAL_BASIS, SOURCE_TREASURY_CASH)
+SCHEMA_CAPITAL_SOURCES = "capital-sources/1"
+#: the one view every source exposes (epic §2). Values are cells (measured/absent) unless plain identity.
+CAPITAL_SOURCE_FIELDS = (
+    # plain identity
+    "source_id", "source_type", "name", "status", "capital_mode", "oracle_sleeve",
+    # cells
+    "lifecycle_stage", "measurement_as_of", "evidence_start", "evidence_days", "observations",
+    "gross_return", "net_return", "annualized_return", "drawdown", "volatility", "sharpe", "sortino",
+    "turnover", "estimated_costs", "realized_costs", "exposure", "liquidity", "capacity",
+    "confidence", "data_quality", "freshness",
+    # structured (plain)
+    "correlation_state", "eligibility", "blockers", "provenance",
+)
 
 #: every sleeve exposes ALL of these keys; each value is a cell (measured/absent) unless noted as plain.
 SLEEVE_FIELDS = (

@@ -64,6 +64,11 @@ def run_candidate(cand: Candidate, bars, *, funding=None, regimes: Optional[Regi
                     cost_paid=base.cost_paid, funding_paid=base.funding_paid)
     res = {"id": cand.id, "definition": cand.definition(), "def_hash": cand.def_hash,
            "full": full, "liquidations": base.liquidations,
+           # the qualification GATES (trades, drawdown, Calmar vs benchmark) read THIS slice: history up to
+           # the forward clock's start. `full` grows with every daily refresh and would let post-registration
+           # prices reject or re-admit a forward member (ADR-640 §P2-4, closing the rest of ADR-590 fix B).
+           "gating": (slice_metrics(base, bars, cand.timeframe, None, oos_end_ms)
+                      if oos_end_ms is not None else full),
            "in_sample": slice_metrics(base, bars, cand.timeframe, None, OOS_START_MS),
            "out_of_sample": slice_metrics(base, bars, cand.timeframe, OOS_START_MS, oos_end_ms),
            # diagnostic only, never a gate input (ADR-590 fix B): what happened AFTER the freeze —

@@ -163,6 +163,8 @@ def _derive_stages(conn, bt_result: Dict, quals: List[Dict], now_ms: int) -> int
             return                                           # already there: the first qualification's
                                                                # evidence stays frozen, nothing is rewritten
         lc.check(frm, to)                                   # raises on anything not automatic
+        evidence = {**evidence, "admission_policy_version": lc.ADMISSION_POLICY_VERSION,
+                    "admission_threshold_fingerprint": lc.admission_threshold_fingerprint()}   # ADR-640
         ev.append_event(conn, cid, frm, to, reason, evidence, actor="trading_research", now_ms=now_ms)
         cur[cid] = to
         n += 1
@@ -267,8 +269,10 @@ def _tick(*, now_ms: Optional[int] = None, http=md._http_json, do_backtest: Opti
             detail["backtest"] = "refreshed"
         res = json.loads(bt_path.read_text())
         b1h = md.load_1h(mconn, ASSETS["BTC"])
-        bms = {tf: rk.benchmark(md.aggregate(b1h, tf), tf) for tf in {c.timeframe for c in cands}}
+        gate_end = rk.gate_window_end(res)        # ADR-640 §P2-4: one window for gates AND benchmark
+        bms = {tf: rk.benchmark(md.aggregate(b1h, tf), tf, gate_end) for tf in {c.timeframe for c in cands}}
         quals = rk.qualify(res["results"], bms)
+        res.setdefault("manifest", {})["gate_window_end_ms"] = gate_end
         detail["stage_events"] = _derive_stages(econn, res, quals, now_ms)
         econn.commit()
         short = rk.shortlist(res["results"], quals)
@@ -346,6 +350,12 @@ def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release)
         "backtest_generated_at_ms": res["manifest"].get("generated_at_ms"),
         "data": {"bars_1h": res["manifest"]["bars_1h"], "gaps_1h": res["manifest"]["gaps_1h"]},
         "benchmark": {tf: {"sharpe": m.get("sharpe"), "max_drawdown": m.get("max_drawdown")} for tf, m in bms.items()},
+        # what `benchmark` IS (ADR-640): buy-and-hold BTC over the window the qualification gates judge
+        "benchmark_window": {"kind": "buy_and_hold_btc",
+                             "end_ms": (res.get("manifest") or {}).get("gate_window_end_ms"),
+                             "note": ("history up to the forward clock's start"
+                                      if (res.get("manifest") or {}).get("gate_window_end_ms") is not None
+                                      else "full history (backtest written before the gating slice existed)")},
         # "shortlist" = backtest top-5 after correlation de-dup (ranking/diagnostic use only).
         # "forward_candidates" = the actual FORWARD_PAPER/ROBUST set (fix D8) — readers that mean
         # "what is the engine's live forward state" must use this one, not shortlist.
