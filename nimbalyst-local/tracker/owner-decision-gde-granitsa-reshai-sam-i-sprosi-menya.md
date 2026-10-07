@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Где проходит граница «решай сам» и «спроси меня» — 26 карточек ждут тебя"
-status: owner-done
+status: ingested
 source: agent
 created: 2026-09-09
 tags: [process, owner-gate, invariant-14, adr-101]
@@ -13,6 +13,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-09T15:02:18.422107+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:46:55.427611+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

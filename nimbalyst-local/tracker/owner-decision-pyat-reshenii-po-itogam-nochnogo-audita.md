@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Пять решений после ночного аудита: честные числа, кнопка «Пауза» и кто что решает"
-status: owner-done
+status: ingested
 source: agent
 created: 2026-09-09
 owner_choice: 2
@@ -12,6 +12,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-09T06:12:54.808868+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:46:58.071982+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

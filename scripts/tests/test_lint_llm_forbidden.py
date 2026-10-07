@@ -8,6 +8,8 @@ Run with:
     python3 scripts/tests/test_lint_llm_forbidden.py
 """
 
+import contextlib
+import io
 import os
 import sys
 import textwrap
@@ -393,6 +395,121 @@ class TestHelpers(unittest.TestCase):
 
     def test_should_not_skip_regular_py(self):
         self.assertFalse(linter._should_skip("/some/path", "module.py"))
+
+
+# ── 11. Дверь ВТОРАЯ у CI-входа: запуск бинаря LLM подпроцессом ───────────────
+#
+# Этот файл — ЕДИНСТВЕННЫЙ сторож инварианта #3, которого зовёт CI
+# (`ci.yml`, `proof-gate.yml`, `spa-lint.yml`). AST-сторож
+# `spa_core/ci/llm_forbidden_lint.py` существовал годом раньше и был лучше, но
+# его не звал НИКТО — поэтому дверь-запуск охранял ноль проверок, при двух
+# сторожах в дереве. Правило теперь живёт ОДНОЙ копией (там), а здесь —
+# проводка к ней и её вердикт.
+#
+# Решение владельца: карточка
+# `owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto`, вариант 1,
+# telegram 2026-09-09T06:13:34Z, инжест ADR-291 §2.
+
+_DOOR = ("import subprocess\n"
+         "def ask(q):\n"
+         "    return subprocess.run(['claude', '-p', q])\n")
+
+
+class TestLaunchDoorAtTheCIEntrypoint(_TempProjectMixin, unittest.TestCase):
+
+    def test_clean_tree_measures_the_door_and_says_so(self):
+        self._make("spa_core/risk/policy.py", "import json\n")
+        files, violations, unmeasured = linter.run_launch_lint(self.base)
+        self.assertIsNone(unmeasured)
+        self.assertEqual(violations, [])
+        self.assertEqual(files, 1)
+
+    def test_launch_in_a_guarded_dir_is_a_violation(self):
+        self._make("spa_core/risk/ask.py", _DOOR)
+        _, violations, unmeasured = linter.run_launch_lint(self.base)
+        self.assertIsNone(unmeasured)
+        self.assertEqual(len(violations), 1)
+        rel, lineno, text = violations[0]
+        self.assertEqual(rel, os.path.join("spa_core", "risk", "ask.py"))
+        self.assertEqual(lineno, 3)
+        self.assertIn("claude", text)
+
+    def test_adapters_are_guarded_too_the_entrypoints_own_population(self):
+        """`SCAN_DIRS_DEFAULT` шире списка AST-сторожа (там нет `adapters`).
+
+        Население каждого входа — его собственное и НЕ выравнивается тихо:
+        выравнивать значило бы менять радиус правила под видом проводки.
+        """
+        self._make("spa_core/adapters/x.py", _DOOR)
+        _, violations, _ = linter.run_launch_lint(self.base)
+        self.assertEqual(len(violations), 1)
+
+    def test_a_dir_outside_the_population_is_not_scanned(self):
+        self._make("spa_core/telegram/ask_router.py", _DOOR)
+        _, violations, _ = linter.run_launch_lint(self.base)
+        self.assertEqual(violations, [],
+                         "telegram — законная дверь к ИИ, краснеть на ней нельзя")
+
+    def test_test_files_are_skipped_like_door_one(self):
+        self._make("spa_core/risk/test_ask.py", _DOOR)
+        _, violations, _ = linter.run_launch_lint(self.base)
+        self.assertEqual(violations, [])
+
+    def test_main_exits_1_on_a_launch_even_when_no_sdk_import_exists(self):
+        self._make("spa_core/risk/ask.py", _DOOR)
+        self.assertEqual(linter.main(["--base-dir", self.base]), 1)
+
+    def test_main_exits_0_when_both_doors_are_clean(self):
+        self._make("spa_core/risk/policy.py", "import json\n")
+        self.assertEqual(linter.main(["--base-dir", self.base]), 0)
+
+
+class TestLaunchDoorThirdOutcome(_TempProjectMixin, unittest.TestCase):
+    """«Нечем спросить» — САМОСТОЯТЕЛЬНЫЙ исход, а не пустой список.
+
+    Это тот самый fail-OPEN, что тише красного теста: ноль находок от
+    отсутствующего инструмента неотличим от «просканировано и чисто».
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._saved = linter.find_llm_subprocess_launches
+
+    def tearDown(self):
+        linter.find_llm_subprocess_launches = self._saved
+        super().tearDown()
+
+    def test_missing_detector_is_named_not_counted_as_clean(self):
+        linter.find_llm_subprocess_launches = None
+        self._make("spa_core/risk/policy.py", "import json\n")
+        files, violations, unmeasured = linter.run_launch_lint(self.base)
+        self.assertIsNotNone(unmeasured)
+        self.assertIn("НЕ ИЗМЕРЕНА", unmeasured)
+        self.assertEqual(violations, [])
+        self.assertEqual(files, 0, "ноль файлов, а не «ноль нарушений»")
+
+    def test_main_exits_2_when_the_door_could_not_be_asked(self):
+        linter.find_llm_subprocess_launches = None
+        self._make("spa_core/risk/policy.py", "import json\n")
+        self.assertEqual(linter.main(["--base-dir", self.base]), 2,
+                         "не измерено НИКОГДА не выдаётся за чисто")
+
+    def test_unparseable_file_is_unmeasured_not_clean(self):
+        self._make("spa_core/risk/broken.py", "def a(:\n")
+        _, _, unmeasured = linter.run_launch_lint(self.base)
+        self.assertIsNotNone(unmeasured)
+        self.assertIn("SyntaxError", unmeasured)
+        self.assertEqual(linter.main(["--base-dir", self.base]), 2)
+
+    def test_sdk_violations_stay_visible_under_the_third_outcome(self):
+        """Вердикт «не измерено» не глотает уже найденное первой дверью."""
+        linter.find_llm_subprocess_launches = None
+        self._make("spa_core/risk/bad.py", "import anthropic\n")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = linter.main(["--base-dir", self.base])
+        self.assertEqual(code, 2)
+        self.assertIn("VIOLATION", buf.getvalue())
 
 
 if __name__ == "__main__":

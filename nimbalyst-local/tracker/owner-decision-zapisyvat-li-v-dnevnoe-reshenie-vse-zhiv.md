@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-10
 owner_choice: Б
@@ -12,6 +12,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-10T06:26:38.835091+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:47:02.334986+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

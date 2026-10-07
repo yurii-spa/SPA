@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром"
-status: owner-done
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
 owner_choice: 1
@@ -14,6 +14,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-08-29T21:00:44.966648+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:47:00.550151+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

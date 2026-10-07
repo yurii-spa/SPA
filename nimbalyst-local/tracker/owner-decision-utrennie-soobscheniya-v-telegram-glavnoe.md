@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Утренние сообщения в Telegram: главное + подробности"
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-08
 owner_choice: 1
@@ -12,6 +12,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-09T06:14:08.413810+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:47:01.430845+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

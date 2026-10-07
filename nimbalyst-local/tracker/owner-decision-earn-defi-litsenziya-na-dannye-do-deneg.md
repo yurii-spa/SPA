@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "earn-defi: данные взяты по бесплатной лицензии «не для коммерции»"
-status: owner-done
+status: ingested
 source: agent
 created: 2026-09-09
 tags: [earn-defi, license, legal, coinmetrics]
@@ -13,6 +13,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-09T13:35:42.361448+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:46:54.340980+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

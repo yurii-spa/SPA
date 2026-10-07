@@ -19,6 +19,7 @@ import tempfile
 from pathlib import Path
 
 from spa_core.ci.llm_forbidden_lint import (
+    find_llm_subprocess_launches,
     FORBIDDEN_DIRS,
     FORBIDDEN_IMPORTS,
     find_forbidden_imports,
@@ -285,6 +286,210 @@ class TestCLI(unittest.TestCase):
             proc = self._run_cli("--root", tmp, "--out", str(out), "--no-write")
             self.assertEqual(proc.returncode, 0)
             self.assertFalse(out.exists())
+
+
+# ── Дверь ВТОРАЯ: запуск бинаря LLM подпроцессом ──────────────────────────────
+#
+# Решение владельца 2026-09-09 (карточка
+# `owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto`, вариант 1, инжест
+# ADR-291 §2): считать нарушением инварианта #3 и ЗАПУСК программы `claude` из
+# risk/execution/monitoring/allocator, а не только импорт SDK.
+#
+# Контроль здесь двусторонний И на ЖИВОМ дереве: положительные случаи — те три
+# модуля, которыми система действительно разговаривает с Claude, отрицательные —
+# те два, что владелец назвал в карточке невиновными. Проба, не видевшая
+# настоящей двери, — украшение (`.claude/rules/deployment.md`).
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _flow(src: str):
+    return find_llm_subprocess_launches(src, "t.py")
+
+
+class TestLaunchDoorSyntheticControls(unittest.TestCase):
+    """Каждый случай — одна форма двери или одна форма невиновного."""
+
+    def test_literal_binary_as_argv0_is_a_violation(self):
+        v = _flow(
+            "import subprocess\n"
+            "def a(q):\n"
+            "    return subprocess.run(['claude', '-p', q])\n"
+        )
+        self.assertEqual(len(v), 1)
+        self.assertEqual(v[0].binary, "claude")
+        self.assertEqual(v[0].via, "subprocess.run")
+
+    def test_two_step_env_then_argv_list_is_a_violation(self):
+        """Живая форма двери: имя из окружения, затем argv-список.
+
+        Одношаговая мера увидела бы только первый шаг — поэтому неподвижная
+        точка, а не один проход.
+        """
+        v = _flow(
+            "import os, subprocess\n"
+            "_CLAUDE = os.environ.get('SPA_CLAUDE_BIN') or '/x/bin/claude'\n"
+            "def a(q):\n"
+            "    argv = [_CLAUDE, '-p', q]\n"
+            "    return subprocess.run(argv, capture_output=True)\n"
+        )
+        self.assertEqual(len(v), 1)
+        self.assertEqual(v[0].binary, "argv")
+
+    def test_alias_import_is_resolved_from_the_tree(self):
+        v = _flow(
+            "from subprocess import run as r\n"
+            "def a():\n"
+            "    return r(['claude', '-p'])\n"
+        )
+        self.assertEqual([x.via for x in v], ["subprocess.run"])
+
+    def test_module_alias_is_resolved_from_the_tree(self):
+        v = _flow(
+            "import subprocess as sp\n"
+            "def a():\n"
+            "    return sp.Popen(['claude', '-p'])\n"
+        )
+        self.assertEqual([x.via for x in v], ["subprocess.Popen"])
+
+    def test_shell_string_carrying_the_binary_is_a_violation(self):
+        v = _flow(
+            "import subprocess\n"
+            "B = '/x/claude'\n"
+            "def a(q):\n"
+            "    return subprocess.run(f'{B} -p {q}', shell=True)\n"
+        )
+        self.assertEqual(len(v), 1)
+
+    def test_other_llm_binaries_are_in_the_population(self):
+        """Инвариант #3 про LLM, а не про одно имя."""
+        v = _flow(
+            "import subprocess\n"
+            "def a():\n"
+            "    return subprocess.run(['ollama', 'run', 'm'])\n"
+        )
+        self.assertEqual(len(v), 1)
+        self.assertEqual(v[0].binary, "ollama")
+
+    # ── отрицательная сторона: упоминание читателем не делает ──
+
+    def test_mention_in_a_comment_or_string_is_not_a_violation(self):
+        v = _flow(
+            "import subprocess\n"
+            "# summarises via claude -p, see CLAUDE.md\n"
+            "MSG = 'ANTHROPIC_API_KEY not found in Keychain'\n"
+            "def a():\n"
+            "    return subprocess.run(['security', 'find-generic-password'])\n"
+        )
+        self.assertEqual(v, [])
+
+    def test_probing_for_the_binary_is_not_launching_it(self):
+        """`which ollama` спрашивает, ГДЕ бинарь, и не запускает его.
+
+        Мера смотрит в позицию ПРОГРАММЫ (argv[0]); «любой элемент argv»
+        покраснел бы здесь на том, кто LLM как раз не зовёт — живой пример
+        такого файла есть в дереве (`scripts/cartographer/snapshot.py`).
+        """
+        v = _flow(
+            "import subprocess\n"
+            "def a():\n"
+            "    return subprocess.run(['which', 'ollama'])\n"
+        )
+        self.assertEqual(v, [])
+
+    def test_env_keyword_is_not_the_launched_program(self):
+        v = _flow(
+            "import subprocess\n"
+            "def a():\n"
+            "    return subprocess.run(['git', 'log'],\n"
+            "                          env={'CLAUDE_BIN': '/x/claude'})\n"
+        )
+        self.assertEqual(v, [])
+
+    def test_a_file_without_any_launch_import_is_clean(self):
+        v = _flow("CLAUDE = '/x/bin/claude'\nX = [CLAUDE, '-p']\n")
+        self.assertEqual(v, [])
+
+    def test_unparseable_source_raises_and_is_never_silently_clean(self):
+        """Третий исход принадлежит вызывающему, а не этой функции (инв. #17)."""
+        with self.assertRaises(SyntaxError):
+            _flow("def a(:\n")
+
+
+class TestLaunchDoorLiveControls(unittest.TestCase):
+    """Положительный и отрицательный контроль на ФАЙЛАХ ЖИВОГО ДЕРЕВА.
+
+    Формы здесь не выдуманы: это ровно те модули, которыми система
+    разговаривает с Claude, и ровно те невиновные, которых владелец назвал в
+    карточке. Перепишут дверь иначе — тест покраснеет, и это верно.
+    """
+
+    _DOORS = (
+        "spa_core/telegram/ask_router.py",
+        "spa_core/owner_queue/history_check.py",
+        "scripts/morning_work_digest.py",
+    )
+    _INNOCENTS = (
+        # ANTHROPIC_API_KEY в тексте ошибки, запускает security
+        "spa_core/monitoring/telegram_watcher.py",
+        # ищет строку "CLAUDE_BIN", запускает git
+        "scripts/fill_agent_passports.py",
+        # спрашивает `which ollama`, не запускает
+        "scripts/cartographer/snapshot.py",
+        # детерминированный гейт — здесь двери быть не должно вовсе
+        "spa_core/risk/policy.py",
+    )
+
+    def _scan(self, rel: str):
+        path = _REPO_ROOT / rel
+        if not path.is_file():
+            self.fail(f"{rel} отсутствует в дереве — предпосылка контроля НЕ ОБЕСПЕЧЕНА")
+        return find_llm_subprocess_launches(
+            path.read_text(encoding="utf-8", errors="replace"), rel)
+
+    def test_every_real_door_is_seen(self):
+        for rel in self._DOORS:
+            with self.subTest(rel):
+                self.assertTrue(
+                    self._scan(rel),
+                    f"{rel} запускает бинарь LLM подпроцессом, а мера его не видит")
+
+    def test_no_innocent_is_flagged(self):
+        for rel in self._INNOCENTS:
+            with self.subTest(rel):
+                self.assertEqual(
+                    self._scan(rel), [],
+                    f"{rel} ИИ не запускает — покраснеть на нём значит стать негодным")
+
+
+class TestLaunchDoorInTheReport(unittest.TestCase):
+
+    def test_report_carries_the_launch_bucket(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _make_repo(Path(tmp), {"spa_core/risk/a.py": "import json\n"})
+            report = run_lint(tmp)
+            self.assertIn("launch_violations", report)
+            self.assertEqual(report["launch_violations"], [])
+            self.assertEqual(report["status"], "ok")
+
+    def test_a_launch_in_a_forbidden_dir_turns_the_verdict_red(self):
+        """Найти и пропустить — то же, что не найти. Вердикт ОБЩИЙ."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _make_repo(Path(tmp), {
+                "spa_core/risk/a.py":
+                    "import subprocess\n"
+                    "def ask(q):\n"
+                    "    return subprocess.run(['claude', '-p', q])\n",
+            })
+            report = run_lint(tmp)
+            self.assertEqual(report["violations"], [],
+                             "дверь-SDK здесь чиста — краснеть обязана ВТОРАЯ")
+            self.assertEqual(len(report["launch_violations"]), 1)
+            self.assertEqual(report["status"], "violations")
+
+    def test_schema_version_names_the_new_key(self):
+        from spa_core.ci import llm_forbidden_lint as mod
+        self.assertGreaterEqual(mod.SCHEMA_VERSION, 2)
 
 
 if __name__ == "__main__":

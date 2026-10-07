@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает
-status: owner-done
+status: ingested
 created: 2026-09-12
 owner_choice: 1
 owner_answered_at: 2026-09-13T20:11:25.953300+00:00
@@ -11,6 +11,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-13T20:11:25.953499+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:46:56.700154+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно

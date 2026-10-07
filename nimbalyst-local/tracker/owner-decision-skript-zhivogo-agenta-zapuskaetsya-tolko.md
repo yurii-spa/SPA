@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?
-status: owner-done
+status: ingested
 created: 2026-09-12
 priority: normal
 owner_choice: 1
@@ -12,6 +12,7 @@ owner_answered_by: 258651137
 owner_answer_kind: option
 status_trail:
   - "2026-09-13T20:10:59.085053+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-07T01:46:59.607431+00:00 owner-done -> ingested · queue.set_status · cycle-18966"
 ---
 
 ## Что случилось и почему это важно
