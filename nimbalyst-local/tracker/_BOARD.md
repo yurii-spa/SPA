@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-07T17:50:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-07T19:49:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (beef691d5).
+> Сверено с `origin/main` (477affa27) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1256** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1258** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -404,7 +404,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (661)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (663)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -937,9 +937,11 @@
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
 - Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
+- Объявленный артефакт читается ВХОЛОСТУЮ: artifact_stamp_clock_doors.json числится прочитанным и не разбирается  ·  `inbox-obyavlennyi-artefakt-chitaetsya-vholostu.md` · 2026-10-07
 - Обязательный шаг цикла отвечает о деньгах по закоммиченному канону и молчит об этом — измерено дважды в один день  ·  `inbox-obyazatelnyi-shag-tsikla-otvechaet-o-den.md` · 2026-10-07
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
+- Один агент пишет 2 ГБ логов в сутки, 59 процентов — одна повторяющаяся строка: приёмка цикла не измерилась из-за диска  ·  `inbox-odin-agent-pishet-2-gb-logov-v-sutki-59.md` · 2026-10-07
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
 - Одиннадцать агентов обходят существующее поле governed_by: их ADR лежит в заметке, где его не читает никто  ·  `inbox-odinnadtsat-agentov-obhodyat-suschestvuy.md` · 2026-10-03

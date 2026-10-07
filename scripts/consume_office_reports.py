@@ -110,6 +110,21 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # у артефакта 37 верхних ключей, объявлять надо то, что РЕАЛЬНО читается.
     "site_freshness_report.json": ("ok", "n_fails", "fails", "snapshot_age_h",
                                    "api_age_h", "stale_48h", "site_as_of"),
+    # ADR-642, заказ владельца G105 п. 1 — ПЕРВЫЙ из пяти непрочитанных
+    # производителей находок, названных ADR-526 поимённо. Перечень ВЫМЕРЕН у
+    # производителя (`summarize()` в `spa_core/monitoring/artifact_freshness.py`),
+    # а не списан с живого файла: у отчёта десять верхних ключей, объявлять надо
+    # то, что РЕАЛЬНО читает ветка.
+    # `n_unchecked` объявлен рядом с `n_stale` НАМЕРЕННО: производитель различает
+    # три исхода (`FRESH` · `STALE`/`MISSING` · `UNCHECKED` — отметки времени нет
+    # вовсе), и ветка, печатающая одно «протухло N», слила бы «измерено и равно
+    # нулю» с «не измерено» (инв. #17) у сторожа, чей единственный предмет —
+    # наблюдение свежести.
+    # `n_artifacts` — ЗНАМЕНАТЕЛЬ: «4 протухло» без него читается как «4 на весь
+    # флот», тогда как реестр свежести ведёт 14 артефактов против 221 пары
+    # «агент → артефакт» в конституции. Число без знаменателя неоспоримо.
+    "artifact_freshness.json": ("any_stale", "n_stale", "n_unchecked",
+                                "n_artifacts", "stale"),
     # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
     # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
     # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
@@ -1095,6 +1110,7 @@ _MD_TS_RE = re.compile(r"(20\d\d-\d\d-\d\d)[ T](\d\d:\d\d)(?::\d\d)?\s*UTC")
 _PRODUCER: dict[str, str] = {
     "chief_investment.json": "spa_core/investment_os/agents/chief_investment.py",
     "site_freshness_report.json": "scripts/site_freshness_monitor.py",
+    "artifact_freshness.json": "spa_core/monitoring/artifact_freshness.py",
     "_health.json": "spa_core/investment_os/health.py",
     "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
@@ -1957,6 +1973,38 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         out.append(f"   снимок {_num(data, 'snapshot_age_h')}ч · API "
                    f"{_num(data, 'api_age_h')}ч · сайт as-of {data.get('site_as_of')} · "
                    f"два прогона подряд протухшими: {data.get('stale_48h')}")
+    elif name == "artifact_freshness.json":
+        # Реестр свежести артефактов (ADR-642, заказ владельца G105 п. 1; хвост
+        # ADR-526). Собственная находка этого сторожа внутри цикла читателя не
+        # имела ВОВСЕ: `any_stale` уходил тревогой в Телеграм и больше никуда —
+        # то есть сторож, чей единственный предмет «что обязано оставаться
+        # свежим», доезжал до оркестратора молча. Замер 07.10 на живом дереве:
+        # 4 протухших из 14, старшему (`rates_desk_rate_surface`) 2481 ч = 103
+        # суток, и ни один цикл этого не произнёс.
+        #
+        # Три числа печатаются ВМЕСТЕ и это не подача. `n_stale` без `n_artifacts`
+        # не имеет знаменателя; `n_unchecked` — третий исход производителя
+        # (`UNCHECKED`: у артефакта не добыть отметку времени), и без него
+        # «протухло 0» читалось бы как «всё свежо» на реестре, который ничего не
+        # смог измерить (инв. #17).
+        stale = [r for r in (data.get("stale") or []) if isinstance(r, dict)]
+        verdict = "ПРОТУХШИЕ ЕСТЬ" if data.get("any_stale") else "все свежи"
+        out.append(f"   вердикт: {verdict} ({_num(data, 'n_stale')} из "
+                   f"{_num(data, 'n_artifacts')}) · без отметки времени: "
+                   f"{_num(data, 'n_unchecked')}")
+        # MISSING вперёд STALE: у пропавшего артефакта возраста нет вовсе, и
+        # сортировка по возрасту задвинула бы самый тяжёлый исход в хвост.
+        order = sorted(stale, key=lambda r: (r.get("age_hours") is not None,
+                                             -(r.get("age_hours") or 0.0)))
+        for r in order[:8]:
+            age = r.get("age_hours")
+            age_txt = f"{age:.0f}ч" if isinstance(age, (int, float)) else _UNMEASURED
+            out.append(f"   {r.get('status')}: {r.get('name')} — {age_txt} при сроке "
+                       f"{_num(r, 'max_age_hours')}ч (производитель "
+                       f"{r.get('producer')}, срок из {r.get('budget_source')})")
+        if len(order) > 8:
+            # Умолчание об усечении превратило бы перечень в «вот и всё».
+            out.append(f"   …и ещё {len(order) - 8} протухших не напечатано")
     elif name == "_health.json":
         # Схема ВЫМЕРЕНА по производителю (`investment_os/health.py`): счётчики
         # лежат в `counts`, а строки аналитиков — в `analysts`. Прежняя ветка
