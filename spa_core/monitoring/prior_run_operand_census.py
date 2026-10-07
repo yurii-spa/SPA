@@ -113,6 +113,37 @@ worktree, доложил **«7 ходов»** и расхождение на T00
 третий исход. В суммы двух осей выше она не входит и складыванию с ними НЕ подлежит:
 единицы населения разные (пара против пути), и одно дерево попадает в обе.
 
+## Четвёртая ось: ПЕРЕКРЁСТНАЯ (заказ G104 п. 1, ADR-623)
+
+Три оси выше спрашивают про СВОЙ вывод (пары «пишет И читает») либо про файл. Односторонность
+главной оси названа в этом же докстринге выше дословно: «читатель чужого вывода в население НЕ
+входит… это следующий вопрос, а не молчаливое „чисто“». Заказ G104 п. 1 и есть этот вопрос:
+сторож, читающий прошлый вывод ДРУГОГО производителя из git-tracked артефакта, несёт тот же
+вред — в CI он читает последний коммит, а не прогон.
+
+Единица населения та же, что у главной оси, но признак ОБРАТНЫЙ: модуль ЧИТАЕТ путь и НЕ
+пишет его (``reads - writes`` против ``writes & reads``). Два множества не имеют общего
+элемента, поэтому ни одна пара не посчитана дважды — и это закреплено тестом, а не обещано.
+
+**Ответ замера (07.10, дерево `bf7a40ba8`): находок НОЛЬ, и чем этот ноль добыт — сказано
+числом.** Население 1054 пары у 415 читателей; 1009 ПАР из CI недостижимы (на хосте
+файл на диске ЕСТЬ прошлый прогон производителя), 15 артефактов не git-tracked, у 5 нет
+производителя в дереве, 1 коммитится обратно, у 4 производитель сам достижим из CI, 1 сверяется
+с пересборкой, и **19 из 19 дошедших до последней ноги исключены тем, что прочитанное нигде не
+встречается с наблюдением ЭТОГО прогона в решении.** То есть до самого вопроса находки на этом
+дереве не доходит НИ ОДНА пара, и говорить «класса нет» было бы подменой: класс ПУСТ под
+объявленным правилом, а правило имеет названную цену (ниже).
+
+**Цена названа и проверена руками на четырёх из девятнадцати** (замер 07.10):
+`spa_core/audit/equity_proof_chain.py` читает `equity_curve_daily.json` и строит из него
+хеш-цепочку — чистое преобразование, решения о мире нет · `scripts/pre_deploy_check.py`
+проверяет разбираемость документа и считает строки — это валидатор, а не решение (тот же
+случай, что названный положительным контролем `scripts/kanban_health.py`) ·
+`spa_core/execution/readiness_audit.py` и `spa_core/governance/ssot.py` сравнивают чужое число
+с ПОРОГОМ-ЛИТЕРАЛОМ (`MIN_TRACK_DAYS`), а не с наблюдением этого прогона. Третий случай и есть
+цена: **сравнение чужого операнда с порогом в определение ноги не входит, поэтому в находку не
+идёт.** Это следующий вопрос, а не чистый ответ, и он объявлен в ``not_reported``.
+
 ADVISORY: прибор только ЧИТАЕТ (`applied=False`). Ни строки risk-логики, стоп-крана
 просадки, аллокатора, гейта исполнения, живого трека, `landing/**` или флота он не
 меняет и менять не может.
@@ -284,6 +315,46 @@ ARTIFACT_OUTCOMES = (
 #: Поэтому известный член исхода ``no_declared_writer_and_read``, у которого расхождение
 #: ВСЁ ЖЕ покраснеет, назван РУКАМИ — `architecture/manifest.json` — и живёт в
 #: ``not_reported``. Это нижняя граница точности исхода, объявленная вслух.
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# Исходы ЧЕТВЁРТОЙ, ПЕРЕКРЁСТНОЙ оси (заказ G104 п. 1, ADR-623)
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+CROSS_UNMEASURED = "cross_unmeasured"
+CROSS_NOT_IN_CI = "cross_reader_not_reachable_from_ci"
+CROSS_ABSENT_IN_CI = "cross_absent_in_ci"
+CROSS_NO_PRODUCER = "cross_no_producer_in_tree"
+CROSS_COMMITTED_BACK = "cross_prior_run_committed_back"
+CROSS_PRODUCER_IN_CI = "cross_producer_reachable_from_ci"
+CROSS_PARITY = "cross_parity_with_regeneration"
+CROSS_NO_DECISION = "cross_no_decision_against_a_current_observation"
+CROSS_CONST_NAMED = "cross_constant_named"
+CROSS_CONST_TRUSTED = "cross_constant_trusted"
+
+#: Форма перекрёстного исхода ЗАКРЫТА так же, как у трёх соседних осей: сумма равна
+#: перекрёстному населению, каждый ноль объявлен (инв. #17). Порядок — часть утверждения,
+#: и он ДОСЛОВНО повторяет порядок главной оси в той части, где вопросы те же: сначала
+#: достижимость читателя из CI (иначе дефектом стал бы каждый журнал флота), потом
+#: отслеживаемость артефакта (отсутствие операнда — другая беда), потом писатель.
+#:
+#: Две ноги есть ТОЛЬКО здесь, и обе — следствие того, что производитель ЧУЖОЙ:
+#: ``cross_no_producer_in_tree`` (артефакт не производит в дереве никто — это не «чужой
+#: прошлый прогон», а курируемый файл, предмет третьей оси) и
+#: ``cross_producer_reachable_from_ci`` (производителя зовёт та же джоба, поэтому артефакт
+#: МОЖЕТ быть произведён внутри прогона; порядок шагов по дереву НЕ виден, и исход
+#: назван по тому, что измерено, — «производитель достижим», а не «операнд свежий»).
+CROSS_OUTCOMES = (
+    CROSS_UNMEASURED,
+    CROSS_NOT_IN_CI,
+    CROSS_ABSENT_IN_CI,
+    CROSS_NO_PRODUCER,
+    CROSS_COMMITTED_BACK,
+    CROSS_PRODUCER_IN_CI,
+    CROSS_PARITY,
+    CROSS_NO_DECISION,
+    CROSS_CONST_NAMED,
+    CROSS_CONST_TRUSTED,
+)
 
 #: Радиус дословной команды аварии #361. Пара, чей артефакт лежит вне `data/`, подмене
 #: ЭТОЙ командой не подвержена — но подвержена `git checkout -- .`, поэтому из населения
@@ -1163,6 +1234,174 @@ def _artifact_axis(modules, tracked_by_name, workflows, plists, commit_calls):
     }
 
 
+def _cross_axis(
+    modules, tracked_by_name, workflows, plists, commit_calls, in_ci, unparsed,
+):
+    """Читатель ЧУЖОГО прошлого прогона из git-tracked артефакта (заказ G104 п. 1).
+
+    Главная ось признаёт «предыдущим прогоном» только чтение СВОЕГО вывода, и ADR-524
+    назвал это нижней границей вслух: сторож, читающий прошлый вывод ДРУГОГО
+    производителя, несёт тот же вред и не посчитан ни одним прибором дерева. Единица
+    населения здесь — та же, что у главной оси (пара «читатель × артефакт»), но
+    отобранная ОБРАТНЫМ структурным признаком: модуль ЧИТАЕТ путь и НЕ пишет его.
+
+    Пересечения с главной осью нет по построению: там население — ``writes & reads``,
+    здесь — ``reads - writes``. Два множества не имеют общего элемента, поэтому пара не
+    может быть посчитана дважды, и это закреплено тестом.
+
+    Ноги спрашиваются в объявленном порядке, и порядок — часть утверждения:
+
+    1. ``cross_unmeasured`` — ГРОМКИЙ третий исход с НАЗВАННОЙ причиной. Два повода, и
+       они разной природы: модуль не разобрался (его перекрёстные чтения не измерены
+       ВОВСЕ) либо имя артефакта лежит в репозитории по нескольким адресуемым путям —
+       какой из них прочтёт CI, по имени неизвестно (имя не есть адрес, ADR-465).
+    2. ``cross_reader_not_reachable_from_ci`` — ни один воркфлоу не зовёт читателя. На
+       хосте файл на диске ЕСТЬ результат прошлого прогона производителя, поэтому вреда
+       заказа тут нет. Спрашивать это первым обязательно — иначе перепись объявила бы
+       дефектом каждое чтение чужого журнала во флоте.
+    3. ``cross_absent_in_ci`` — артефакт НЕ git-tracked. В CI прошлого прогона нет
+       ВОВСЕ: операнд ОТСУТСТВУЕТ, а не врёт. Другая беда, другое лекарство (назвать
+       отсутствие третьим исходом), в находку не сливается.
+    4. ``cross_no_producer_in_tree`` — артефакт git-tracked, но в дереве его не пишет
+       НИКТО. Тогда это и не «чужой прошлый прогон»: файл курируемый, и его
+       закоммиченная копия есть законная константа. Это предмет ТРЕТЬЕЙ оси (G104 п. 3),
+       и здесь он назван исходом, а не слит в находку.
+    5. ``cross_prior_run_committed_back`` — объявленная автоматика кладёт артефакт
+       обратно. Операнд в CI есть наблюдение, пусть и на шаг старое.
+    6. ``cross_producer_reachable_from_ci`` — производителя зовёт хотя бы одна джоба.
+       Тогда артефакт МОЖЕТ быть произведён внутри того же прогона, и операнд МОЖЕТ
+       быть наблюдением. Исход назван по измеренному («производитель достижим»), а не по
+       следствию («операнд свежий»): запустится ли производитель ДО читателя, по дереву
+       не видно — ни порядок джоб, ни порядок шагов внутри джобы прибор не разбирает, и
+       это сказано в ``not_reported``. Нижняя граница находки идёт в сторону
+       ИСКЛЮЧЕНИЯ, то есть находка остаётся нижней границей.
+    7. ``cross_parity_with_regeneration`` — прочитанное сверяется с ПЕРЕСБОРКОЙ в этом
+       же прогоне. Константа проявилась бы расхождением — замечена по построению.
+    8. ``cross_no_decision_against_a_current_observation`` — прочитанное нигде не
+       встречается с наблюдением ЭТОГО прогона в решении. Константа не переворачивает ни
+       одного вердикта о мире; исключён с НАЗВАННОЙ причиной, а не зачтён в молчание.
+    9. ``cross_constant_named`` — читатель СПРАШИВАЕТ возраст прошлого артефакта. Фоссил
+       назван; это состояние кустодиана ПОСЛЕ ADR-475 и положительный контроль ноги.
+    10. ``cross_constant_trusted`` — **ОТВЕТ заказа**: в CI читается последний коммит
+        чужого производителя, обратно его не кладёт никто, производитель в том же
+        прогоне не достижим, возраст не спрашивается. Молчание выдаётся за согласие.
+
+    Ноги у осей — ОДНИ И ТЕ ЖЕ функции (``_reader_in_ci``, ``_committed_back``,
+    ``_parity_with_own_regeneration``, ``_meets_a_current_observation``,
+    ``_asks_the_age``): второй копии правила нет нигде, и это порядок ADR-460.
+
+    Односторонность названа заранее, и каждая клауза — нижняя граница находки:
+
+    - **Производитель виден на один уровень помощника** (та же оговорка, что у главной
+      оси), поэтому ``cross_no_producer_in_tree`` есть ВЕРХНЯЯ граница курируемых, а
+      ``cross_constant_trusted`` — НИЖНЯЯ граница находки.
+    - **Достижимость из CI — по УПОМИНАНИЮ** в `.github/workflows/*.yml`, и у читателя,
+      и у производителя. Окольно позванный считается недостижимым — у читателя это
+      уводит пару в исход 2, у производителя оставляет её в населении находки.
+    - **Личность производителя не проверяется на «тот ли это прогон»**: прибор видит,
+      что путь пишет другой модуль, а не что записанное относится к тому же циклу.
+    """
+    writes_by_name = collections.defaultdict(list)
+    for mod in modules:
+        for artifact, lines in mod["writes"].items():
+            writes_by_name[artifact].extend(f"{mod['rel']}:{ln}" for ln in lines)
+
+    counts = {name: 0 for name in CROSS_OUTCOMES}
+    reasons = collections.Counter()
+    findings, named, excluded = [], [], []
+    population = 0
+    under_radius = 0
+
+    # Неразобранный модуль — ТРЕТИЙ исход этой оси, а не чужая забота: его перекрёстные
+    # чтения не измерены, и выдать это за «таких пар нет» значило бы вернуть ровно тот
+    # fail-OPEN, против которого прибор написан. Та же запись идёт и в главную ось: у
+    # осей разные населения, и одно непрочитанное дерево честно отсутствует в обеих.
+    for item in unparsed:
+        population += 1
+        counts[CROSS_UNMEASURED] += 1
+        reasons[item["reason"]] += 1
+
+    for mod in modules:
+        reader = mod["rel"]
+        reader_in_ci = in_ci.get(reader)
+        for artifact in sorted(set(mod["reads"]) - set(mod["writes"])):
+            population += 1
+            row = {
+                "reader": reader,
+                "artifact": artifact,
+                "read_lines": mod["reads"][artifact],
+            }
+            if not reader_in_ci:
+                counts[CROSS_NOT_IN_CI] += 1
+                continue
+            candidates = sorted(tracked_by_name.get(artifact, ()))
+            if not candidates:
+                counts[CROSS_ABSENT_IN_CI] += 1
+                continue
+            if len(candidates) > 1:
+                counts[CROSS_UNMEASURED] += 1
+                reasons[
+                    f"artifact_name_ambiguous_in_repo:{artifact}:{len(candidates)}"
+                ] += 1
+                continue
+            path = candidates[0]
+            producers = sorted({w.split(":")[0] for w in writes_by_name.get(artifact, ())})
+            if not producers:
+                counts[CROSS_NO_PRODUCER] += 1
+                continue
+            row = dict(row, artifact=path, producers=producers, workflows=reader_in_ci)
+            if _committed_back(
+                artifact, path, workflows, plists, commit_calls.get(artifact, ()),
+            ):
+                counts[CROSS_COMMITTED_BACK] += 1
+                continue
+            producers_in_ci = sorted(p for p in producers if in_ci.get(p))
+            if producers_in_ci:
+                counts[CROSS_PRODUCER_IN_CI] += 1
+                excluded.append(dict(row, why=CROSS_PRODUCER_IN_CI,
+                                     producers_in_ci=producers_in_ci))
+                continue
+            tree, resolver = mod["_tree"], mod["_resolver"]
+            if _parity_with_own_regeneration(tree, artifact, resolver):
+                counts[CROSS_PARITY] += 1
+                excluded.append(dict(row, why=CROSS_PARITY))
+                continue
+            if not _meets_a_current_observation(tree, artifact, resolver):
+                counts[CROSS_NO_DECISION] += 1
+                excluded.append(dict(row, why=CROSS_NO_DECISION))
+                continue
+            if path.startswith(CANON_SUBSTITUTION_RADIUS):
+                under_radius += 1
+            if _asks_the_age(tree, artifact, resolver):
+                counts[CROSS_CONST_NAMED] += 1
+                named.append(row)
+                continue
+            counts[CROSS_CONST_TRUSTED] += 1
+            findings.append(row)
+
+    notes = []
+    total = sum(counts.values())
+    if total != population:
+        notes.append(
+            f"сумма перекрёстных исходов {total} != перекрёстному населению {population}"
+            " — ОТКАЗ формы"
+        )
+    return {
+        "order": "G104.1",
+        "population": population,
+        "under_substitution_radius": under_radius,
+        "readers": len({
+            m["rel"] for m in modules if set(m["reads"]) - set(m["writes"])
+        }),
+        "outcomes": counts,
+        "unmeasured_reasons": dict(reasons),
+        "findings": sorted(findings, key=lambda r: (r["reader"], r["artifact"])),
+        "named_sample": sorted(named, key=lambda r: (r["reader"], r["artifact"])),
+        "excluded_sample": sorted(excluded, key=lambda r: (r["reader"], r["artifact"])),
+        "notes": notes,
+    }
+
+
 def measure(root, tracked=None, workflows=None, plists=None):
     """Замер. Внешние двери приходят ВХОДОМ — иначе тест судил бы о живой машине."""
     root = pathlib.Path(root)
@@ -1304,6 +1543,18 @@ def measure(root, tracked=None, workflows=None, plists=None):
         modules, tracked_by_name, workflows, plists, commit_calls,
     )
 
+    # Четвёртая ось спрашивает про ту же единицу, что главная — пару «читатель ×
+    # артефакт», — но отобранную ОБРАТНЫМ признаком: читает и НЕ пишет. Это та самая
+    # односторонность, которую ADR-524 назвал вслух и оставил следующим вопросом
+    # (заказ G104 п. 1). С главной осью население не пересекается по построению
+    # (`reads - writes` против `writes & reads`), поэтому ни одна пара не посчитана
+    # дважды; складывать числа осей всё равно нельзя — это РАЗНЫЕ вопросы об одном
+    # дереве, а не части одной суммы.
+    cross = _cross_axis(
+        modules, tracked_by_name, workflows, plists, commit_calls, in_ci_by_reader,
+        unparsed,
+    )
+
     population = len(pairs) + len(unparsed)
     total = sum(outcomes.values())
     if total != population:
@@ -1317,6 +1568,7 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "host_only_but_git_tracked": host_only_but_tracked,
         "host_axis": host,
         "artifact_axis": artifact,
+        "cross_axis": cross,
         "outcomes": outcomes,
         "unmeasured_reasons": dict(reasons),
         "findings": sorted(findings, key=lambda r: (r["reader"], r["artifact"])),
@@ -1327,8 +1579,23 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "why_unmeasured": None,
         "notes": notes,
         "not_reported": [
-            "читатель ЧУЖОГО прошлого прогона — не измерен вовсе, это следующий "
-            "вопрос (заказ G104 п. 1)",
+            "перекрёстная ось (G104 п. 1) НЕ считает находкой сравнение чужого "
+            "операнда с ПОРОГОМ-ЛИТЕРАЛОМ: нога требует встречи с наблюдением ЭТОГО "
+            "прогона, и этим исключением добыт весь её ноль (19 из 19 дошедших). "
+            "Известные члены названы руками: spa_core/execution/readiness_audit.py и "
+            "spa_core/governance/ssot.py сравнивают чужое число с MIN_TRACK_DAYS. Это "
+            "следующий вопрос, а не чистый ответ",
+            "перекрёстная ось не разбирает ПОРЯДОК шагов и джоб: исход "
+            f"{CROSS_PRODUCER_IN_CI} говорит «производитель достижим той же джобой», а "
+            "НЕ «операнд свежий» — запустится ли производитель ДО читателя, по дереву "
+            "не видно, и пара уходит из находки (нижняя граница)",
+            # Число берётся из ЗАМЕРА, а не из литерала: на дереве `bf7a40ba8` оно
+            # было 1009, на `02bd142f8` — уже 1010, и напечатанная константа молча
+            # разошлась бы с осью, рядом с которой стои́т. Это дословно предмет всего
+            # ряда (ADR-475…623), и в собственном отчёте прибора он недопустим.
+            "перекрёстная ось не спрашивает хостового вопроса G104 п. 2 у своих "
+            f"{cross['outcomes'][CROSS_NOT_IN_CI]} пар: заметил бы ЧУЖОЙ "
+            "читатель подмену каноном — отдельный вопрос, здесь не измерен вовсе",
             "артефактная ось судит ПИСАТЕЛЯ файла, а не поведение его читателей: "
             "курируемость видна на один уровень помощника, поэтому "
             f"{ART_NO_RUNTIME_WRITER} есть ВЕРХНЯЯ граница, а {ART_NO_WRITER_READ} — "
@@ -1385,6 +1652,14 @@ def verdict(doc):
     тем самым сигнал главной оси: «в дереве появился НОВЫЙ сторож класса ADR-475» (код 1)
     стал бы неотличим от «замер не удался». Отказ формы (сумма != населению) — другое: это
     провал прибора, и он код поднимает.
+    
+    **Перекрёстная ось (G104 п. 1) код ПОВЫШАЕТ — и до находки, и до «не измерено», как
+    главная.** Причина не «так у соседа», а совпадение трёх вещей: единица населения та
+    же (пара «читатель × артефакт»), правило то же (те же пять функций), и находка
+    сегодня ПУСТА — значит красный означает «в дереве появился НОВЫЙ сторож класса», а
+    не «класс населён и мы с этим живём». Её «не измерено» тоже поднимает: двусмысленное
+    имя у пары — это несколько десятков возможных случаев, а не постоянное свойство
+    девяти путей, как у артефактной оси, и маскировать сигнал оно не будет.
     """
     if not doc.get("measured"):
         return RC_UNMEASURED
@@ -1402,7 +1677,14 @@ def verdict(doc):
         return RC_UNMEASURED
     if artifact["notes"]:
         return RC_UNMEASURED
-    return RC_FINDING if doc["outcomes"][OUT_CONST_TRUSTED] else RC_MEASURED
+    cross = doc.get("cross_axis")
+    if cross is None:
+        return RC_UNMEASURED
+    if cross["notes"] or cross["outcomes"][CROSS_UNMEASURED]:
+        return RC_UNMEASURED
+    if doc["outcomes"][OUT_CONST_TRUSTED] or cross["outcomes"][CROSS_CONST_TRUSTED]:
+        return RC_FINDING
+    return RC_MEASURED
 
 
 #: Сколько молчаливых пар печатать поимённо. Население хостовой оси — сотни, и полный
@@ -1507,6 +1789,72 @@ def _artifact_lines(doc):
     return lines
 
 
+#: Сколько перекрёстных строк печатать поимённо. Исключённых на последней ноге — десятки,
+#: и их перечень есть САМОЕ ценное в разделе: именно он показывает, чем ноль находки
+#: добыт. Поэтому предел щедрее, чем у соседних осей, а остаток назван ЧИСЛОМ.
+CROSS_SAMPLE = 20
+
+
+def _cross_lines(doc):
+    """Раздел перекрёстной оси. Отсутствие раздела — третий исход, а не пустота."""
+    cross = doc.get("cross_axis")
+    if cross is None:
+        return [
+            "  [НЕ ИЗМЕРЕНО] перекрёстная ось (заказ G104 п. 1) не считалась: документ "
+            "замера её не несёт"
+        ]
+    out = cross["outcomes"]
+    lines = [
+        f"  — перекрёстная ось (заказ G104 п. 1): читатель ЧУЖОГО прошлого прогона — "
+        f"население {cross['population']} пар(ы) «читает и НЕ пишет» у "
+        f"{cross['readers']} читател(ей)",
+        "    " + " · ".join(f"{name} {out[name]}" for name in CROSS_OUTCOMES),
+    ]
+    for row in cross["findings"][:CROSS_SAMPLE]:
+        lines.append(
+            f"    [ЧУЖАЯ КОНСТАНТА, молчаливо принятая за прошлый прогон] {row['reader']}"
+            f" читает {row['artifact']} (строки {row['read_lines']}), пишут его "
+            f"{len(row['producers'])} чуж(ой/их) модул(ь/я); обратно не кладёт никакая "
+            "объявленная автоматика, производитель в CI недостижим, возраст не "
+            "спрашивается"
+        )
+    for row in cross["named_sample"][:CROSS_SAMPLE]:
+        lines.append(
+            f"    [чужая константа, но ФОССИЛ НАЗВАН] {row['reader']} читает "
+            f"{row['artifact']} — возраст прошлого артефакта спрашивается"
+        )
+    # Исключённые печатаются ПОИМЕННО, а не числом, и это главное в разделе: ноль
+    # находки добыт последней ногой, и без перечня «0» читался бы как «класса нет».
+    for row in cross["excluded_sample"][:CROSS_SAMPLE]:
+        lines.append(
+            f"    [ИСКЛЮЧЁН с причиной] {row['reader']} :: {row['artifact']} — "
+            f"{row['why']}"
+        )
+    rest = len(cross["excluded_sample"]) - CROSS_SAMPLE
+    if rest > 0:
+        lines.append(
+            f"    … ещё {rest} исключённ(ая/ых) пар(а/ы) (полный перечень — `--json`)"
+        )
+    for reason, count in sorted(cross["unmeasured_reasons"].items()):
+        lines.append(f"    [НЕ ИЗМЕРЕНО] {reason}: {count}")
+    for note in cross["notes"]:
+        lines.append(f"    [ОТКАЗ] {note}")
+    lines.append(
+        f"    ЧЕМ ДОБЫТ НОЛЬ: до последних двух ног дошло "
+        f"{out[CROSS_PARITY] + out[CROSS_NO_DECISION] + out[CROSS_CONST_NAMED] + out[CROSS_CONST_TRUSTED]}"
+        f" пар(ы), и {out[CROSS_NO_DECISION]} из них исключены тем, что прочитанное "
+        "нигде не встречается с наблюдением ЭТОГО прогона в решении. Сравнение чужого "
+        "операнда с ПОРОГОМ-литералом в это определение не входит и в находку не идёт — "
+        "это названная цена, а не чистый ответ"
+    )
+    lines.append(
+        "    ось считает пары, НЕ пересекаясь с главной по построению (`reads - writes` "
+        "против `writes & reads`), но складыванию с соседями не подлежит: это разные "
+        "вопросы об одном дереве, а не части одной суммы"
+    )
+    return lines
+
+
 def format_report(doc):
     lines = []
     if not doc.get("measured"):
@@ -1534,6 +1882,7 @@ def format_report(doc):
         )
     lines.extend(_host_lines(doc))
     lines.extend(_artifact_lines(doc))
+    lines.extend(_cross_lines(doc))
     for row in doc.get("excluded_sample", ()):
         lines.append(
             f"  [ИСКЛЮЧЁН со причиной] {row['reader']} :: {row['artifact']} — {row['why']}"

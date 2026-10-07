@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -700,6 +701,670 @@ class TheInstrumentDoesNotJoinTheClassItMeasures(unittest.TestCase):
 # Замер ЖИВОГО дерева: храповик класса
 # ──────────────────────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Перекрёстная ось: читатель ЧУЖОГО прошлого прогона (заказ G104 п. 1, ADR-623)
+# ──────────────────────────────────────────────────────────────────────────────
+
+#: ПРОИЗВОДИТЕЛЬ: пишет артефакт и НЕ читает его. В главную ось не попадает (там
+#: население — `writes & reads`), в перекрёстную тоже не попадает по этому артефакту —
+#: он нужен сцене, чтобы у файла БЫЛ чужой писатель в дереве.
+SCENE_PRODUCER = '''
+import json, pathlib
+OUT = pathlib.Path("data") / "producer_out.json"
+
+def produce(value):
+    OUT.write_text(json.dumps({"value": value}))
+'''
+
+#: ЧИТАТЕЛЬ ЧУЖОГО вывода, дословная форма находки: читает `producer_out.json`, НЕ
+#: пишет его, сравнивает прочитанное с ЖИВЫМ наблюдением этого прогона (сеть), возраст
+#: чужого артефакта не спрашивает.
+SCENE_CROSS_READER = '''
+import json, pathlib, urllib.request
+PRIOR = pathlib.Path("data") / "producer_out.json"
+
+def decide(prior, live):
+    return prior.get("value") and live.get("value")
+
+def run():
+    prior = json.loads(PRIOR.read_text())
+    live = json.loads(urllib.request.urlopen("https://example.invalid").read())
+    return decide(prior, live)
+'''
+
+#: Тот же читатель, но СПРАШИВАЮЩИЙ возраст чужого артефакта — фоссил назван.
+SCENE_CROSS_READER_ASKS_AGE = '''
+import json, pathlib, datetime, urllib.request
+PRIOR = pathlib.Path("data") / "producer_out.json"
+
+def decide(prior, live, age_h):
+    return prior.get("value") and live.get("value") and age_h < 24
+
+def run():
+    prior = json.loads(PRIOR.read_text())
+    stamped = datetime.datetime.fromisoformat(prior.get("generated_at"))
+    age_h = (datetime.datetime.now(datetime.timezone.utc) - stamped).total_seconds() / 3600
+    live = json.loads(urllib.request.urlopen("https://example.invalid").read())
+    return decide(prior, live, age_h)
+'''
+
+#: Тот же читатель, сравнивающий чужое только с ЛИТЕРАЛАМИ — валидатор документа.
+#: Это ровно та нога, которой на живом дереве 07.10 добыт весь ноль находки (19 из 19).
+SCENE_CROSS_READER_LITERALS_ONLY = '''
+import json, pathlib
+PRIOR = pathlib.Path("data") / "producer_out.json"
+
+def run():
+    prior = json.loads(PRIOR.read_text())
+    return prior.get("value", 0) > 7
+'''
+
+#: Тот же читатель, СВЕРЯЮЩИЙ чужое с пересборкой в этом же прогоне.
+#:
+#: Первая редакция сцены пересборку изображала, а не несла: `rebuild()` в ней ничего не
+#: ПИСАЛА, а нога паритета по построению спрашивает происхождение от собственного
+#: ПИСАТЕЛЯ (`_write_data_names` → локальная функция), иначе за пересборку сошёл бы
+#: `json.dumps` у любого писателя и идиома проглотила бы настоящую находку. Сцена без
+#: записи поэтому честно падала в соседний исход — это была дыра СЦЕНЫ, не прибора
+#: (тот же класс, что 9 из 9 выживших мутантов циклов #752–#754). Живое дерево форму
+#: подтверждает: `spa_core/backtesting/tier1/evaluator.py` на `mass_tournament_results.json`
+#: лежит ровно в этом исходе.
+SCENE_CROSS_READER_PARITY = '''
+import json, pathlib
+PRIOR = pathlib.Path("data") / "producer_out.json"
+OWN = pathlib.Path("data") / "guard_report.json"
+
+def rebuild():
+    return {"value": 3}
+
+def run():
+    prior = json.loads(PRIOR.read_text())
+    fresh = rebuild()
+    OWN.write_text(json.dumps(fresh))
+    return prior == fresh
+'''
+
+#: Самокарусельный модуль: пишет И читает один путь. Предмет ГЛАВНОЙ оси; в
+#: перекрёстное население он не имеет права попасть ни одной парой.
+SCENE_SELF_CAROUSEL_ONLY = '''
+import json, pathlib, urllib.request
+OWN = pathlib.Path("data") / "producer_out.json"
+
+def run():
+    prior = json.loads(OWN.read_text()) if OWN.exists() else {}
+    live = json.loads(urllib.request.urlopen("https://example.invalid").read())
+    out = {"ok": bool(prior.get("value")) and bool(live.get("value"))}
+    OWN.write_text(json.dumps(out))
+    return out
+'''
+
+WORKFLOW_CALLS_READER_AND_PRODUCER = """
+name: guard
+on: [push]
+jobs:
+  run:
+    permissions:
+      contents: read
+    steps:
+      - run: python3 spa_core/producer.py
+      - run: python3 scripts/guard.py
+"""
+
+WORKFLOW_COMMITS_CROSS_ARTIFACT = """
+name: guard
+on: [push]
+jobs:
+  run:
+    permissions:
+      contents: write
+    steps:
+      - run: python3 scripts/guard.py
+      - run: git commit -am "carry data/producer_out.json forward"
+"""
+
+#: Пути, которые сцена перекрёстной оси кладёт под git. `producer_out.json` обязан быть
+#: ОТСЛЕЖИВАЕМЫМ — иначе пара уходит в `cross_absent_in_ci`, то есть в другой исход.
+CROSS_TRACK = ("data/producer_out.json",)
+
+
+def _cross_scene(reader_source=SCENE_CROSS_READER, *,
+                 workflow=WORKFLOW_CALLS_READER,
+                 producer_source=SCENE_PRODUCER,
+                 track=CROSS_TRACK):
+    """Сцена перекрёстной оси: ЧУЖОЙ производитель + читатель, который не пишет.
+
+    Производитель лежит отдельным файлом намеренно: «чужой» здесь есть свойство ДЕРЕВА
+    (путь пишет другой модуль), а не имени переменной, и сцена обязана нести это
+    свойство, а не изображать его.
+    """
+    extra = () if producer_source is None else (("spa_core/producer.py", producer_source),)
+    return _Scene(reader_source, workflow=workflow, track=track, extra_files=extra)
+
+
+def _cross_verdict(doc, reader="scripts/guard.py", artifact="producer_out.json"):
+    """Исход, в который лёг ИМЕННО этот перекрёстный читатель.
+
+    Читается по ОБРАЗЦАМ, а не по счётчику: счётчики совпадают у разных клеток, и сцена
+    обязана нести РАЗЛИЧИМОСТЬ, а не только исход (урок #786). Клетки без образца
+    (`not_in_ci`, `absent_in_ci`, `no_producer`, `committed_back`) различимы тем, что у
+    них ненулевой счётчик ровно один — это проверяется отдельным утверждением в тестах.
+    """
+    cross = doc["cross_axis"]
+    for row in cross["findings"]:
+        if row["reader"] == reader and artifact in row["artifact"]:
+            return C.CROSS_CONST_TRUSTED
+    for row in cross["named_sample"]:
+        if row["reader"] == reader and artifact in row["artifact"]:
+            return C.CROSS_CONST_NAMED
+    for row in cross["excluded_sample"]:
+        if row["reader"] == reader and artifact in row["artifact"]:
+            return row["why"]
+    nonzero = [k for k, v in cross["outcomes"].items() if v]
+    return nonzero[0] if len(nonzero) == 1 else f"ambiguous:{nonzero}"
+
+
+class TheCrossAxisFindsTheReaderOfSomeoneElsesPriorRun(unittest.TestCase):
+    """Положительный контроль находки заказа G104 п. 1.
+
+    Форма — та же, что у аварии ADR-475, но писатель ЧУЖОЙ. Главная ось такую пару не
+    видит ВОВСЕ (её население — `writes & reads`), и ровно это ADR-524 назвал вслух
+    нижней границей.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scene = _cross_scene()
+        cls.doc = cls.scene.measure()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.scene.close()
+
+    def test_the_cross_reader_of_a_committed_artifact_is_a_finding(self):
+        self.assertEqual(_cross_verdict(self.doc), C.CROSS_CONST_TRUSTED)
+
+    def test_the_main_axis_does_not_see_this_pair_at_all(self):
+        """Та самая односторонность: главная ось на этой сцене находок не имеет."""
+        self.assertEqual(self.doc["outcomes"][C.OUT_CONST_TRUSTED], 0)
+        self.assertEqual(self.doc["findings"], [])
+
+    def test_the_finding_names_reader_artifact_and_the_foreign_producers(self):
+        row = self.doc["cross_axis"]["findings"][0]
+        self.assertEqual(row["reader"], "scripts/guard.py")
+        self.assertEqual(row["artifact"], "data/producer_out.json")
+        self.assertEqual(row["producers"], ["spa_core/producer.py"])
+        self.assertTrue(row["read_lines"])
+
+    def test_a_cross_finding_makes_the_exit_code_one(self):
+        self.assertEqual(C.verdict(self.doc), C.RC_FINDING)
+
+    def test_the_report_prints_the_cross_finding_in_full(self):
+        text = C.format_report(self.doc)
+        self.assertIn("ЧУЖАЯ КОНСТАНТА", text)
+        self.assertIn("data/producer_out.json", text)
+        self.assertIn("scripts/guard.py", text)
+
+    def test_the_finding_is_counted_under_the_substitution_radius(self):
+        """`data/` — радиус дословной команды аварии #361, и он доложен числом."""
+        self.assertEqual(self.doc["cross_axis"]["under_substitution_radius"], 1)
+
+
+class EachCrossLegTornByNameChangesTheVerdict(unittest.TestCase):
+    """Контроль в ОБРАТНУЮ сторону: рвать надо каждое звено ПОИМЕННО.
+
+    Проба, зелёная на целом контуре и не краснеющая ни от одного порванного звена,
+    измеряет не контур, а своё присутствие (ADR-333, `.claude/rules/acceptance.md` п. 3).
+    """
+
+    def _measure(self, **kw):
+        scene = _cross_scene(**kw)
+        try:
+            return scene.measure()
+        finally:
+            scene.close()
+
+    def test_a_reader_unreachable_from_ci_is_not_a_finding(self):
+        doc = self._measure(workflow=WORKFLOW_SILENT)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_NOT_IN_CI)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_an_untracked_artifact_is_absent_in_ci_not_a_finding(self):
+        doc = self._measure(track=())
+        self.assertEqual(_cross_verdict(doc), C.CROSS_ABSENT_IN_CI)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_an_artifact_nobody_in_the_tree_writes_is_a_curated_constant(self):
+        """Снять производителя — и это уже не «чужой прогон», а предмет ТРЕТЬЕЙ оси."""
+        doc = self._measure(producer_source=None)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_NO_PRODUCER)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_an_automation_that_commits_the_artifact_back_is_an_observation(self):
+        doc = self._measure(workflow=WORKFLOW_COMMITS_CROSS_ARTIFACT)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_COMMITTED_BACK)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_a_producer_called_by_the_same_job_leaves_the_finding(self):
+        """Исход назван по ИЗМЕРЕННОМУ («достижим»), а не по следствию («свеж»)."""
+        doc = self._measure(workflow=WORKFLOW_CALLS_READER_AND_PRODUCER)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_PRODUCER_IN_CI)
+        row = [r for r in doc["cross_axis"]["excluded_sample"]
+               if r["why"] == C.CROSS_PRODUCER_IN_CI][0]
+        self.assertEqual(row["producers_in_ci"], ["spa_core/producer.py"])
+
+    def test_a_reader_that_asks_the_foreign_age_is_named_not_a_finding(self):
+        doc = self._measure(reader_source=SCENE_CROSS_READER_ASKS_AGE)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_CONST_NAMED)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_named_is_not_called_safe(self):
+        """Прибор видит ПРИЗНАК вопроса, а не верность порога — и зовётся `named`."""
+        self.assertIn("named", C.CROSS_CONST_NAMED)
+        self.assertNotIn("safe", C.CROSS_CONST_NAMED)
+
+    def test_a_reader_comparing_only_with_literals_is_excluded_with_a_reason(self):
+        doc = self._measure(reader_source=SCENE_CROSS_READER_LITERALS_ONLY)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_NO_DECISION)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+    def test_a_reader_checking_parity_with_a_rebuild_is_excluded_with_a_reason(self):
+        doc = self._measure(reader_source=SCENE_CROSS_READER_PARITY)
+        self.assertEqual(_cross_verdict(doc), C.CROSS_PARITY)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+
+
+class TheTwoPairAxesDoNotOverlap(unittest.TestCase):
+    """`reads - writes` против `writes & reads`: общего элемента нет по построению.
+
+    Утверждение не декоративное: если бы перекрёстная ось брала просто «все чтения»,
+    каждая пара главной оси оказалась бы посчитана дважды, и сумма одной из осей
+    перестала бы равняться её населению МОЛЧА — отказ формы ловит только расхождение
+    внутри оси, а не двойной счёт между осями.
+    """
+
+    def test_a_self_carousel_module_never_enters_the_cross_population(self):
+        scene = _Scene(SCENE_SELF_CAROUSEL_ONLY, track=CROSS_TRACK)
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        cross_readers = {
+            row["reader"]
+            for key in ("findings", "named_sample", "excluded_sample")
+            for row in doc["cross_axis"][key]
+        }
+        self.assertNotIn("scripts/guard.py", cross_readers)
+        self.assertEqual(doc["cross_axis"]["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+        # ...и при этом ГЛАВНАЯ ось эту пару видит: иначе сцена доказывала бы лишь
+        # собственную пустоту, а не разделение осей.
+        self.assertEqual(_verdict_of(doc, artifact="producer_out.json"),
+                         C.OUT_CONST_TRUSTED)
+
+    def test_the_cross_population_counts_the_reader_only_once_per_artifact(self):
+        scene = _cross_scene()
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        cross = doc["cross_axis"]
+        self.assertEqual(cross["outcomes"][C.CROSS_CONST_TRUSTED], 1)
+        self.assertEqual(sum(cross["outcomes"].values()), cross["population"])
+
+
+class TheCrossOutcomeFormIsClosed(unittest.TestCase):
+    """Сумма равна населению, каждый ноль ОБЪЯВЛЕН (инв. #17)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scene = _cross_scene()
+        cls.doc = cls.scene.measure()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.scene.close()
+
+    def test_the_sum_of_cross_outcomes_equals_the_cross_population(self):
+        cross = self.doc["cross_axis"]
+        self.assertEqual(sum(cross["outcomes"].values()), cross["population"])
+        self.assertEqual(cross["notes"], [], cross["notes"])
+
+    def test_every_declared_cross_outcome_is_present_even_at_zero(self):
+        cross = self.doc["cross_axis"]
+        for name in C.CROSS_OUTCOMES:
+            self.assertIn(name, cross["outcomes"], name)
+
+    def test_the_report_prints_every_cross_outcome_name_including_the_zeros(self):
+        text = C.format_report(self.doc)
+        for name in C.CROSS_OUTCOMES:
+            self.assertIn(name, text, name)
+
+    def test_the_report_says_HOW_the_zero_was_obtained(self):
+        """Ноль без названной причины читался бы как «класса нет»."""
+        self.assertIn("ЧЕМ ДОБЫТ НОЛЬ", C.format_report(self.doc))
+
+    def test_the_order_number_of_the_axis_is_declared(self):
+        self.assertEqual(self.doc["cross_axis"]["order"], "G104.1")
+
+
+class TheCrossAxisAbsentObservationIsItsOwnOutcome(unittest.TestCase):
+    """«Не измерено» перекрёстной оси — ГРОМКО, с названной причиной, и никогда не ноль."""
+
+    def test_an_unparsable_module_is_counted_cross_unmeasured_with_its_reason(self):
+        scene = _cross_scene()
+        try:
+            (scene.root / "spa_core" / "broken.py").write_text(
+                "def (:\n", encoding="utf-8")
+            doc = scene.measure()
+        finally:
+            scene.close()
+        cross = doc["cross_axis"]
+        self.assertEqual(cross["outcomes"][C.CROSS_UNMEASURED], 1)
+        self.assertTrue(
+            any(r.startswith("unparsed:") for r in cross["unmeasured_reasons"]),
+            cross["unmeasured_reasons"])
+        self.assertEqual(sum(cross["outcomes"].values()), cross["population"])
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_two_tracked_paths_with_one_name_are_cross_unmeasured_and_loud(self):
+        """Имя не есть адрес (ADR-465): выбрать один из двух значило бы догадаться."""
+        scene = _cross_scene(
+            track=("data/producer_out.json", "landing/src/data/producer_out.json"))
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        cross = doc["cross_axis"]
+        self.assertEqual(cross["outcomes"][C.CROSS_UNMEASURED], 1)
+        self.assertTrue(
+            any(r.startswith("artifact_name_ambiguous_in_repo:")
+                for r in cross["unmeasured_reasons"]),
+            cross["unmeasured_reasons"])
+        self.assertEqual(cross["outcomes"][C.CROSS_CONST_TRUSTED], 0)
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_a_document_without_the_cross_axis_is_unmeasured_not_clean(self):
+        """Отсутствие оси в документе — третий исход, а не пустой раздел."""
+        scene = _cross_scene(workflow=WORKFLOW_SILENT)
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        doc.pop("cross_axis")
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+        self.assertIn("НЕ ИЗМЕРЕНО", C.format_report(doc))
+        self.assertIn("G104 п. 1", C.format_report(doc))
+
+    def test_a_cross_form_refusal_makes_the_verdict_unmeasured_not_clean(self):
+        scene = _cross_scene(workflow=WORKFLOW_SILENT)
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        doc["cross_axis"]["notes"] = ["сумма перекрёстных исходов 1 != 2 — ОТКАЗ формы"]
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+        self.assertIn("[ОТКАЗ]", C.format_report(doc))
+
+
+def _cross_counts(doc):
+    """Ненулевые перекрёстные счётчики. Читается СЧЁТЧИК, а не образец строки.
+
+    Отдельный помощник нужен потому, что ``_cross_verdict`` при наличии образца
+    возвращает `row["why"]` и до счётчиков не доходит ВОВСЕ. Прицельная мутация это и
+    показала: подмена ИМЕНИ ключа в `counts[...] += 1` переживала батарею у трёх ног
+    (`producer_reachable_from_ci`, `parity`, `no_decision`) — сумма исходов не меняется
+    (один счётчик вверх, другой вниз), а образец строки к счётчику не привязан. Это
+    дословно урок #786: равные счёты двух исходов делают подмену имени невидимой.
+    """
+    return {k: v for k, v in doc["cross_axis"]["outcomes"].items() if v}
+
+
+class TheCrossCountersAreReadByNameNotByCoincidence(unittest.TestCase):
+    """У КАЖДОЙ ноги проверяется СЧЁТЧИК, а не только образец строки.
+
+    Население каждой сцены — ровно одна значащая пара, поэтому «ненулевой счётчик ровно
+    один, и он именно этот» есть полная проверка привязки имени к ноге.
+    """
+
+    def _counts(self, **kw):
+        scene = _cross_scene(**kw)
+        try:
+            return _cross_counts(scene.measure())
+        finally:
+            scene.close()
+
+    def test_the_finding_increments_the_finding_counter_and_no_other(self):
+        self.assertEqual(self._counts(), {C.CROSS_CONST_TRUSTED: 1})
+
+    def test_a_reader_unreachable_from_ci_increments_its_own_counter(self):
+        self.assertEqual(self._counts(workflow=WORKFLOW_SILENT),
+                         {C.CROSS_NOT_IN_CI: 1})
+
+    def test_an_untracked_artifact_increments_its_own_counter(self):
+        self.assertEqual(self._counts(track=()), {C.CROSS_ABSENT_IN_CI: 1})
+
+    def test_a_missing_producer_increments_its_own_counter(self):
+        self.assertEqual(self._counts(producer_source=None),
+                         {C.CROSS_NO_PRODUCER: 1})
+
+    def test_an_artifact_committed_back_increments_its_own_counter(self):
+        self.assertEqual(self._counts(workflow=WORKFLOW_COMMITS_CROSS_ARTIFACT),
+                         {C.CROSS_COMMITTED_BACK: 1})
+
+    def test_a_producer_in_the_same_job_increments_its_own_counter(self):
+        self.assertEqual(self._counts(workflow=WORKFLOW_CALLS_READER_AND_PRODUCER),
+                         {C.CROSS_PRODUCER_IN_CI: 1})
+
+    def test_asking_the_age_increments_the_named_counter(self):
+        self.assertEqual(self._counts(reader_source=SCENE_CROSS_READER_ASKS_AGE),
+                         {C.CROSS_CONST_NAMED: 1})
+
+    def test_comparing_only_with_literals_increments_the_no_decision_counter(self):
+        self.assertEqual(self._counts(reader_source=SCENE_CROSS_READER_LITERALS_ONLY),
+                         {C.CROSS_NO_DECISION: 1})
+
+    def test_parity_with_a_rebuild_increments_the_parity_counter(self):
+        self.assertEqual(self._counts(reader_source=SCENE_CROSS_READER_PARITY),
+                         {C.CROSS_PARITY: 1})
+
+    def test_the_reader_count_is_the_difference_not_the_union(self):
+        """`reads - writes`, а не `reads | writes`: производитель читателем НЕ является.
+
+        Прицельная мутация переживала батарею, потому что живое дерево проверялось лишь
+        порядком величины (`> 50`). На сцене производитель ровно один, поэтому союз дал
+        бы ДВА читателя вместо одного — различимо точным числом, и только им.
+        """
+        scene = _cross_scene()
+        try:
+            cross = scene.measure()["cross_axis"]
+        finally:
+            scene.close()
+        self.assertEqual(cross["readers"], 1)
+        self.assertEqual(cross["population"], 1)
+
+
+class TheReportLineThatSaysHowTheZeroWasObtainedCarriesItsNUMBERS(unittest.TestCase):
+    """Строка «ЧЕМ ДОБЫТ НОЛЬ» обязана нести ЧИСЛА, а не только заголовок.
+
+    Прицельная мутация переживала батарею пять раз: тесты требовали лишь ПРИСУТСТВИЯ
+    подстроки «ЧЕМ ДОБЫТ НОЛЬ», поэтому подмена любого имени исхода внутри самой строки
+    была невидима. А строка эта — главное утверждение решения: без её чисел ноль находки
+    снова читается как «класса нет».
+
+    Проверяется на ЧЕТЫРЁХ сценах намеренно: на сцене находки `parity` и `no_decision`
+    оба нули, и подмена одного другим там неразличима ПО ПОСТРОЕНИЮ (урок #786). Каждая
+    сцена названа вместе с тем, что именно она и только она различает.
+    """
+
+    def _line(self, **kw):
+        scene = _cross_scene(**kw)
+        try:
+            text = C.format_report(scene.measure())
+        finally:
+            scene.close()
+        got = [l for l in text.splitlines() if "ЧЕМ ДОБЫТ НОЛЬ" in l]
+        self.assertEqual(len(got), 1, text)
+        return got[0]
+
+    def test_on_the_finding_scene_one_pair_reached_and_none_were_excluded(self):
+        """Различает `constant_trusted` в сумме: подмена дала бы «дошло 0»."""
+        line = self._line()
+        self.assertIn("дошло 1 пар(ы)", line)
+        self.assertIn("и 0 из них исключены", line)
+
+    def test_on_the_named_scene_one_pair_reached_and_none_were_excluded(self):
+        """Различает `constant_named` в сумме — на сцене находки он ноль."""
+        line = self._line(reader_source=SCENE_CROSS_READER_ASKS_AGE)
+        self.assertIn("дошло 1 пар(ы)", line)
+        self.assertIn("и 0 из них исключены", line)
+
+    def test_on_the_literals_scene_the_excluded_number_is_the_one_excluded(self):
+        """Различает ОБА вхождения `no_decision`: и в сумме, и в «из них»."""
+        line = self._line(reader_source=SCENE_CROSS_READER_LITERALS_ONLY)
+        self.assertIn("дошло 1 пар(ы)", line)
+        self.assertIn("и 1 из них исключены", line)
+
+    def test_on_the_parity_scene_the_pair_reached_but_was_not_the_excluded_one(self):
+        """Различает `parity` в сумме — на сцене литералов он ноль."""
+        line = self._line(reader_source=SCENE_CROSS_READER_PARITY)
+        self.assertIn("дошло 1 пар(ы)", line)
+        self.assertIn("и 0 из них исключены", line)
+
+
+class TheExcludedSampleIsCappedAndTheRemainderIsNamedByNUMBER(unittest.TestCase):
+    """Остаток перечня назван ЧИСЛОМ, а не многоточием — и это ветвь, а не украшение.
+
+    Ветвь `rest > 0` на живом дереве и на всех сценах недостижима (исключённых 19 и 1
+    против предела 20), поэтому прицельная мутация переживала её трижды. Форматтер
+    принимает ДОКУМЕНТ, значит документ и есть вход этой проверки: население
+    синтезируется, а не выдумывается поведение прибора.
+    """
+
+    def _doc_with(self, n_excluded):
+        scene = _cross_scene(workflow=WORKFLOW_SILENT)
+        try:
+            doc = scene.measure()
+        finally:
+            scene.close()
+        doc["cross_axis"]["excluded_sample"] = [
+            {"reader": f"scripts/r{i}.py", "artifact": f"data/a{i}.json",
+             "read_lines": [i], "why": C.CROSS_NO_DECISION}
+            for i in range(n_excluded)
+        ]
+        return doc
+
+    def test_a_remainder_beyond_the_cap_is_reported_as_a_number(self):
+        text = C.format_report(self._doc_with(C.CROSS_SAMPLE + 5))
+        self.assertIn(f"ещё {5} исключённ", text)
+
+    def test_exactly_the_cap_is_printed_without_a_remainder_line(self):
+        """Контроль в ОБРАТНУЮ сторону: без него `rest > 0` → `rest <= 0` выжил бы."""
+        text = C.format_report(self._doc_with(C.CROSS_SAMPLE))
+        self.assertNotIn("исключённ(ая/ых) пар(а/ы) (полный перечень", text)
+
+    def test_the_printed_sample_never_exceeds_the_cap(self):
+        text = C.format_report(self._doc_with(C.CROSS_SAMPLE + 5))
+        printed = [l for l in text.splitlines() if "[ИСКЛЮЧЁН с причиной]" in l]
+        self.assertEqual(len(printed), C.CROSS_SAMPLE)
+
+
+class TheNEIGHBOURINGAxesRefusalLegsAlsoRaiseTheCode(unittest.TestCase):
+    """Четыре ноги отказа у СОСЕДНИХ осей (ADR-621/622) — контролей у них не было.
+
+    Найдено прицельной мутацией ЭТОГО цикла: `return RC_UNMEASURED` у «хостовой оси
+    нет», «хостовая ось отказала», «артефактной оси нет», «артефактная ось отказала»
+    переживал батарею — ни одна сцена не приводила соседние оси к отказу. Тесты
+    ДОБАВЛЕНЫ (инв. #16 запрещает ослаблять, а не усиливать): форма у этих ног ровно та
+    же, что у двух моих новых, и те мутантом убиты — значит молчали именно контроли.
+    """
+
+    def _doc(self):
+        scene = _cross_scene(workflow=WORKFLOW_SILENT)
+        try:
+            return scene.measure()
+        finally:
+            scene.close()
+
+    def test_a_document_without_the_host_axis_is_unmeasured_not_clean(self):
+        doc = self._doc()
+        doc.pop("host_axis")
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_a_host_axis_form_refusal_is_unmeasured_not_clean(self):
+        doc = self._doc()
+        doc["host_axis"]["notes"] = ["сумма хостовых исходов 1 != 2 — ОТКАЗ формы"]
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_a_document_without_the_artifact_axis_is_unmeasured_not_clean(self):
+        doc = self._doc()
+        doc.pop("artifact_axis")
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_an_artifact_axis_form_refusal_is_unmeasured_not_clean(self):
+        doc = self._doc()
+        doc["artifact_axis"]["notes"] = ["сумма артефактных исходов 1 != 2 — ОТКАЗ формы"]
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+    def test_a_host_axis_unmeasured_count_is_unmeasured_not_clean(self):
+        doc = self._doc()
+        doc["host_axis"]["outcomes"][C.HOST_UNMEASURED] = 1
+        self.assertEqual(C.verdict(doc), C.RC_UNMEASURED)
+
+
+class TheCrossAxisOnTheLiveTree(unittest.TestCase):
+    """Храповик заказа G104 п. 1: новый читатель ЧУЖОЙ константы = КРАСНЫЙ сразу.
+
+    База — НОЛЬ (замер 07.10, дерево `bf7a40ba8`), и списка исключений у проверки нет
+    намеренно: население находки пусто, а список исключений на пустом населении был бы
+    ровно тем дефектом, против которого проверка написана (инв. #16).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = pathlib.Path(__file__).resolve().parents[2]
+        cls.doc = C.measure(cls.root)
+
+    def test_the_cross_axis_was_measured_at_all(self):
+        self.assertIn("cross_axis", self.doc)
+        self.assertTrue(self.doc["measured"])
+
+    def test_no_guard_silently_trusts_a_FOREIGN_committed_prior_run(self):
+        cross = self.doc["cross_axis"]
+        self.assertEqual(
+            cross["outcomes"][C.CROSS_CONST_TRUSTED], 0,
+            "в дереве появился сторож, читающий прошлый вывод ЧУЖОГО производителя из "
+            f"git-tracked артефакта и не спрашивающий его возраста: {cross['findings']}")
+
+    def test_the_cross_form_holds_on_the_live_tree_too(self):
+        cross = self.doc["cross_axis"]
+        self.assertEqual(sum(cross["outcomes"].values()), cross["population"])
+        self.assertEqual(cross["notes"], [], cross["notes"])
+
+    def test_the_cross_population_is_not_empty(self):
+        """Пустое население ответило бы на свой вопрос ноль, ничего не измерив.
+
+        Утверждается ПОРЯДОК величины, а не точное число: точное пришпиливание краснело
+        бы от любой чужой правки дерева, то есть мерило бы календарь, а не класс.
+        """
+        cross = self.doc["cross_axis"]
+        self.assertGreater(cross["population"], 100, cross["population"])
+        self.assertGreater(cross["readers"], 50, cross["readers"])
+
+    def test_the_known_excluded_members_are_still_named_in_not_reported(self):
+        """Цена ноля названа РУКАМИ, и пропасть она молча не имеет права.
+
+        Сравнение чужого операнда с ПОРОГОМ-литералом в находку не идёт — этим и добыт
+        весь ноль. Если строка исчезнет, ноль снова станет выглядеть чистым ответом.
+        """
+        text = " ".join(self.doc["not_reported"])
+        self.assertIn("ПОРОГОМ-ЛИТЕРАЛОМ", text)
+        self.assertIn("readiness_audit.py", text)
+
+    def test_the_old_one_sidedness_note_is_gone_because_it_is_now_measured(self):
+        """Строка «не измерен вовсе» обязана была уйти: вопрос ЗАКРЫТ этой осью."""
+        text = " ".join(self.doc["not_reported"])
+        self.assertNotIn("не измерен вовсе, это следующий вопрос", text)
+
+
 class TheLiveTreeHasNoSilentlyTrustedConstant(unittest.TestCase):
     """Храповик заказа G86 п. 3: новый сторож этого класса = КРАСНЫЙ тест сразу.
 
@@ -748,6 +1413,30 @@ class TheLiveTreeHasNoSilentlyTrustedConstant(unittest.TestCase):
 
     def test_the_live_verdict_is_a_measured_one(self):
         self.assertIn(C.verdict(self.doc), (C.RC_MEASURED, C.RC_FINDING))
+
+    def test_the_not_reported_clause_renders_its_number_and_does_not_print_a_literal(self):
+        """Собственный отчёт прибора не вправе печатать число КОНСТАНТОЙ.
+
+        Доставка #796 нашла в `not_reported` литерал `1009` — замер дерева
+        `bf7a40ba8`, пока на `02bd142f8` та же нога давала уже 1010. Это дословно
+        предмет всего ряда ADR-475…623: напечатанное число перестаёт быть правдой
+        молча, и сказать об этом некому. Контроль в ОБЕ стороны: оговорка обязана
+        нести РОВНО измеренное число оси, и ни одного числа мимо него.
+        """
+        measured = self.doc["cross_axis"]["outcomes"][C.CROSS_NOT_IN_CI]
+        clause = [n for n in self.doc["not_reported"] if "хостового вопроса G104" in n]
+        self.assertEqual(
+            len(clause), 1,
+            f"оговорка про хостовой вопрос перекрёстной оси не найдена: {self.doc['not_reported']}")
+        numbers = {int(t) for t in re.findall(r"\d+", clause[0])}
+        self.assertIn(
+            measured, numbers,
+            f"оговорка не несёт измеренного числа {measured}: {clause[0]!r}")
+        # Обратная сторона: мимо измеренного в строке не стои́т НИ ОДНОГО числа,
+        # кроме номеров заказа/пункта — иначе литерал вернулся бы рядом с замером.
+        self.assertEqual(
+            numbers - {measured, 104, 2}, set(),
+            f"в оговорке есть число, которое ничего не мерит: {clause[0]!r}")
 
 
 if __name__ == "__main__":
