@@ -1,6 +1,6 @@
 # ARCHITECT_DECISION_INDEX — generated index over canonical decisions (not a decision store)
 
-> Generated 2026-10-07T02:41:09Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
+> Generated 2026-10-07T03:59:18Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
 
 ## CURRENT
 
