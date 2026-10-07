@@ -1,6 +1,6 @@
 ---
-// site-numbers: illustrative — «20% APY» здесь ЗАГОЛОВОК статьи («почему 20% = хвостовой риск»), а не число нашей доходности
-// SiteFooter.astro — canonical footer (V2 §3, IA fix). Rendered by Layout on every page.
+// SiteFooter.astro — canonical footer. PRODUCT-UX-01 candidate: 15 links in three groups (was ~45 in six);
+// research desks, academy pages and other depth pages stay reachable from /research and /how-it-works.
 // Columns: Product · Research · Proof · Company/Support · Legal. The link set is a
 // superset of the header groups AND surfaces every orphan page (FAQ, Fees, Security,
 // Status, Blog, Emergency withdrawal, Playground, Certificate) so nothing is unreachable.
@@ -11,72 +11,35 @@
       <div class="footer-brand">
         <div class="fb-top">
           <img src="/favicon.svg" alt="" aria-hidden="true" />
-          <span class="wm">SPA</span>
+          <span class="wm">Earn DeFi</span>
         </div>
-        <p data-ru="Систематическая ончейн-доходность по стейблкоинам. Исследовательский проект в бумажной валидации; трек-запись с 22 июня 2026.">Systematic onchain stablecoin yield. Research project in paper validation; evidenced track since June 22, 2026.</p>
+        <p data-ru="Исследование доходности стейблкоинов: стратегии в симуляции, у каждой цифры — тип, дата и источник. Бумажная стадия, не оферта.">Stablecoin yield research: strategies in simulation, every number with its type, date and source. Paper stage, not an offer.</p>
         <span class="footer-status"><span class="d" aria-hidden="true"></span><span data-ru="Режим бумажной торговли">Paper Trading Mode</span></span>
       </div>
 
       <div class="footer-col">
         <h2 data-ru="Продукт">Product</h2>
-        <a href="/dashboard" data-ru="Дашборд">Dashboard</a>
-        <a href="/board" data-ru="Риск-борд (DFB)">Risk Board (DFB)</a>
+        <a href="/" data-ru="Обзор">Overview</a>
         <a href="/strategies" data-ru="Стратегии">Strategies</a>
-        <a href="/track-record" data-ru="Трек-рекорд">Track Record</a>
-        <a href="/methodology" data-ru="Методология">Methodology</a>
-        <a href="/academy" data-ru="Академия">Academy</a>
-        <a href="/academy/playground" data-ru="Песочница">Playground</a>
-        <a href="/academy/certificate" data-ru="Сертификат">Certificate</a>
-      </div>
-
-      <div class="footer-col">
-        <h2 data-ru="Исследование и доказательства">Research &amp; Proof</h2>
-        <a href="/structural-desk" data-ru="Структурный стол">Structural Desk</a>
-        <a href="/rates-desk" data-ru="Rates Desk">Rates Desk</a>
-        <a href="/rwa-backstop" data-ru="RWA-бэкстоп">RWA Backstop</a>
-        <a href="/research" data-ru="Журнал исследований">Research journal</a>
-        <a href="/protection-lab" data-ru="Лаборатория защиты">Protection Lab</a>
-        <a href="/competitive-position" data-ru="Конкурентная позиция">Competitive position</a>
-        <a href="/verify" data-ru="Проверить нас">Verify us</a>
-        <a href="/refusals" data-ru="Лог отказов">Refusal log</a>
-        <a href="/exit-nav" data-ru="Ликвидационный NAV">Liquidation-NAV</a>
-        <a href="/proof-of-reserves" data-ru="Доказательство резервов">Proof of Reserves</a>
-        <a href="/fundability" data-ru="Фандабилити">Fundability</a>
-        <a href="/due-diligence" data-ru="Дью-дилидженс">Due diligence</a>
-        <a href="/pilot" data-ru="Пилот с дизайн-партнёром">Design-partner pilot</a>
-      </div>
-
-      <div class="footer-col">
-        <h2 data-ru="Компания и поддержка">Company &amp; Support</h2>
-        <a href="/faq" data-ru="Частые вопросы">FAQ</a>
-        <a href="/fees" data-ru="Комиссии">Fees</a>
-        <a href="/status" data-ru="Статус системы">Status</a>
-        <a href="/system" data-ru="Хаб системы">System hub</a>
-        <a href="/blog" data-ru="Блог">Blog</a>
-        <a href="/emergency-withdrawal" data-ru="Экстренный вывод">Emergency withdrawal</a>
-      </div>
-
-      <div class="footer-col">
-        <!-- E1/C2/C6 (redesign): the honest-guides + no-wallet entry, discoverable in-site (not only via search). -->
-        <h2 data-ru="Разобраться">Learn</h2>
-        <a href="/snapshot" data-ru="Снимок безопасности (60с)">Safety snapshot (60s)</a>
-        <a href="/how-we-think" data-ru="Как мы честно думаем о доходности">How we think about yield</a>
-        <a href="/learn/is-usdt-safe-2026" data-ru="Безопасен ли USDT в 2026?">Is USDT safe in 2026?</a>
-        <a href="/learn/why-20-apy-means-tail-risk" data-ru="Почему 20% = хвостовой риск">Why 20% APY = tail risk</a>
-        <a href="/learn/what-is-a-stablecoin-depeg" data-ru="Что такое депег стейблкоина?">What is a stablecoin depeg?</a>
-        <a href="/learn/stablecoin-risk-checklist" data-ru="Чек-лист риска (10 проверок)">Risk checklist (10 checks)</a>
-        <a href="/learn/cex-vs-self-custody-stablecoins" data-ru="Биржа vs самокастоди">CEX vs self-custody</a>
-      </div>
-
-      <div class="footer-col">
-        <!-- Q3-7 coherence: all trust/risk/legal pages grouped in ONE column (were scattered across
-             Company & Legal). Pages are unchanged + still reachable — just a coherent spine. -->
-        <h2 data-ru="Доверие и правовое">Trust &amp; Legal</h2>
-        <a href="/trust" data-ru="Доверие и безопасность">Trust</a>
-        <a href="/security" data-ru="Безопасность">Security</a>
+        <a href="/track-record" data-ru="Результаты">Performance</a>
         <a href="/risk" data-ru="Риск">Risk</a>
-        <a href="/risk-disclosure" data-ru="Раскрытие рисков">Risk Disclosure</a>
+        <a href="/how-it-works" data-ru="Как это работает">How it works</a>
+        <a href="/dashboard" data-ru="Бумажный дашборд">Paper dashboard</a>
+      </div>
+      <div class="footer-col">
+        <h2 data-ru="Проверить и узнать">Check &amp; learn</h2>
+        <a href="/verify" data-ru="Проверьте сами">Verify it yourself</a>
+        <a href="/refusals" data-ru="Журнал отказов">Refusal log</a>
+        <a href="/research" data-ru="Исследования">Research</a>
+        <a href="/learn" data-ru="Объяснения">Learn</a>
+        <a href="/faq" data-ru="Частые вопросы">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <h2 data-ru="Правовое">Legal</h2>
+        <a href="/risk-disclosure" data-ru="Раскрытие рисков">Risk disclosure</a>
         <a href="/disclaimer" data-ru="Отказ от ответственности">Disclaimer</a>
+        <a href="/fees" data-ru="Комиссии">Fees</a>
+        <a href="/security" data-ru="Безопасность">Security</a>
       </div>
     </div>
 
@@ -90,7 +53,7 @@
 <style>
   .site-footer{border-top:1px solid var(--border); padding:64px 0 40px; background:var(--bg-base)}
   .footer-wrap{max-width:1152px; margin:0 auto; padding:0 24px}
-  .footer-grid{display:grid; grid-template-columns:1.5fr repeat(4,1fr); gap:40px; margin-bottom:48px}
+  .footer-grid{display:grid; grid-template-columns:1.5fr repeat(3,1fr); gap:40px; margin-bottom:48px}
   .footer-brand .fb-top{display:flex; align-items:center; gap:10px; margin-bottom:14px}
   .footer-brand .fb-top img{width:24px; height:24px}
   .footer-brand .fb-top .wm{font-weight:700; color:var(--text-primary)}

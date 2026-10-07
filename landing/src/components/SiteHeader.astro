@@ -22,51 +22,26 @@ import TIER_BANDS from '../lib/tier_bands.json';
 // the public top nav — they move to the /admin Operator Console (Phase 3). They are NOT deleted:
 // their URLs still resolve and they remain reachable from the footer until the admin move.
 // A group is either a DIRECT link (`direct:true` + `href`, no dropdown) or a dropdown (`items`).
+// PRODUCT-UX-01 candidate IA: product first — Overview · Strategies · Performance · Risk · How it works · Research,
+// plus the paper dashboard. Research desks, academy and the safety snapshot moved to the Research hub (/research)
+// and How it works (/how-it-works); no page was deleted. Menu items describe the profile, not its target.
+import { maturityShort } from '../lib/profile_view.js';
+const msC = maturityShort('conservative'), msB = maturityShort('balanced'), msA = maturityShort('aggressive');
 const groups = [
-  // 2026-08-22 (owner decision 22.08 — ADR-122, variant 1 "bury"): this used to be a dropdown group
-  // named after the DeFi Checkup. The product is closed: the whole checkup.earn-defi.com host answers
-  // 404 since mid-August, its homepage sections came off on 2026-08-20 (ADR-089 §5), and the owner has
-  // now closed the product itself. What survived the removals was ONE live item — /snapshot — inside a
-  // group still carrying the dead product's name, on every one of the 119 pages (the header is shared).
-  // A menu section named after a product that does not exist is the same untruth as a dead link, only
-  // quieter. It is now a direct link named after the page it actually opens.
-  // The `track` beacon keeps its old id ON PURPOSE: the visible name changed, the metric series must
-  // stay continuous — renaming it would silently split the funnel history at this commit.
-  { id: 'snapshot', en: 'Safety snapshot', ru: 'Снимок безопасности', direct: true, href: '/snapshot', track: 'nav_checkup_snapshot' },
+  { id: 'overview', en: 'Overview', ru: 'Обзор', direct: true, href: '/' },
   {
-    id: 'strategy', en: 'Strategy Lab', ru: 'Strategy Lab',
+    id: 'strategy', en: 'Strategies', ru: 'Стратегии',
     items: [
-      { href: '/strategies', en: 'Strategy Lab', ru: 'Strategy Lab', desc: 'Three risk profiles, paper-tested', descRu: 'Три профиля риска, paper-tested' },
-      { href: '/strategies/conservative', en: TIER_BANDS.conservative.en, ru: TIER_BANDS.conservative.ru, desc: TIER_BANDS.conservative.nav_band_en, descRu: TIER_BANDS.conservative.nav_band_ru },
-      { href: '/strategies/balanced', en: TIER_BANDS.balanced.en, ru: TIER_BANDS.balanced.ru, desc: TIER_BANDS.balanced.nav_band_en, descRu: TIER_BANDS.balanced.nav_band_ru },
-      { href: '/strategies/aggressive', en: TIER_BANDS.aggressive.en, ru: TIER_BANDS.aggressive.ru, desc: TIER_BANDS.aggressive.nav_band_en, descRu: TIER_BANDS.aggressive.nav_band_ru },
-      { href: '/packages', en: 'Packages', ru: 'Пакеты', desc: 'The three tiers side by side', descRu: 'Три тира рядом', track: 'tier_compare' },
-      { href: '/aggressive-lab', en: 'Aggressive Lab', ru: 'Лаборатория агрессивных', desc: 'Unstable strategies, live paper', descRu: 'Нестабильные стратегии, живой бумажный трек', track: 'aggressive_lab_nav' },
+      { href: '/strategies', en: 'Compare all three', ru: 'Сравнить все три', desc: 'Same questions for each', descRu: 'Одинаковые вопросы к каждой', track: 'tier_compare' },
+      { href: '/strategies/conservative', en: TIER_BANDS.conservative.en, ru: TIER_BANDS.conservative.ru, desc: `Lending, no leverage · ${msC.en}`, descRu: `Кредитование без плеча · ${msC.ru}` },
+      { href: '/strategies/balanced', en: TIER_BANDS.balanced.en, ru: TIER_BANDS.balanced.ru, desc: `Adds a fixed rate · ${msB.en}`, descRu: `Плюс фиксированная ставка · ${msB.ru}` },
+      { href: '/strategies/aggressive', en: TIER_BANDS.aggressive.en, ru: TIER_BANDS.aggressive.ru, desc: `Simulated leverage · research only · ${msA.en}`, descRu: `Симулированное плечо · только исследование · ${msA.ru}` },
     ],
   },
-  { id: 'track', en: 'Track Record', ru: 'Трек-рекорд', direct: true, href: '/track-record' },
-  {
-    id: 'academy', en: 'Academy', ru: 'Академия',
-    items: [
-      { href: '/academy', en: 'Academy', ru: 'Академия', desc: 'Learn the desk from zero', descRu: 'Изучите деск с нуля' },
-      { href: '/academy/onboarding', en: 'Onboarding', ru: 'Практика', desc: 'Practice before real money', descRu: 'Практика перед реальными деньгами' },
-      { href: '/academy/playground', en: 'Playground', ru: 'Песочница', desc: 'Interactive trainers', descRu: 'Интерактивные тренажёры' },
-      { href: '/academy/certificate', en: 'Certificate', ru: 'Сертификат', desc: 'Your analyst certificate', descRu: 'Ваш сертификат аналитика' },
-    ],
-  },
-  {
-    id: 'research', en: 'Research', ru: 'Исследование',
-    items: [
-      { href: '/research', en: 'Research notes', ru: 'Заметки исследований', desc: 'The public research arc', descRu: 'Публичная research-арка' },
-      { href: '/protection-lab', en: 'Protection Lab', ru: 'Лаборатория защиты', desc: '16 crises replayed against the risk system', descRu: '16 кризисов через систему защиты', track: 'nav_protection_lab' },
-      // 2026-08-22 (ADR-122): was "Checkup vs trackers" / "Чекап vs трекеры" — named after the closed
-      // product, while the page it opens never mentioned the checkup at all. Renamed to the page's own
-      // h1 ("Competitive position — the white space, each claim shipped"); href and desc unchanged.
-      { href: '/competitive-position', en: 'Competitive position', ru: 'Конкурентная позиция', desc: 'A decision layer, not a tracker', descRu: 'Слой решений, а не трекер' },
-      { href: '/methodology', en: 'Methodology', ru: 'Методология', desc: 'How the daily cycle works', descRu: 'Как работает дневной цикл' },
-    ],
-  },
-  { id: 'trust', en: 'Trust', ru: 'Доверие', direct: true, href: '/trust' },
+  { id: 'track', en: 'Performance', ru: 'Результаты', direct: true, href: '/track-record' },
+  { id: 'risk', en: 'Risk', ru: 'Риск', direct: true, href: '/risk' },
+  { id: 'how', en: 'How it works', ru: 'Как это работает', direct: true, href: '/how-it-works' },
+  { id: 'research', en: 'Research', ru: 'Исследования', direct: true, href: '/research' },
 ];
 
 const groupActive = (g) => {
@@ -79,9 +54,9 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
 
 <header class="site-header">
   <div class="header-inner">
-    <a class="brand" href="/" aria-label="SPA home">
+    <a class="brand" href="/" aria-label="Earn DeFi home">
       <img src="/favicon.svg" alt="" aria-hidden="true" />
-      <span class="wordmark">SPA</span>
+      <span class="wordmark">Earn DeFi</span>
       <span class="domain">earn-defi.com</span>
     </a>
 
@@ -124,8 +99,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
     <div class="header-right">
       <!-- J1 (customer-journey-map): the Dashboard was only reachable from the footer — a user couldn't
            find "show me the desk working". Persistent header link now, as the file's own comment promised. -->
-      <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
-      <a class="cta-outline cta-analyze" href="/snapshot" data-track="analyze_wallet" data-ru="60-секундный снимок">60-second check</a>
+      <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Бумажный дашборд">Paper dashboard</a>
       <div id="spa-lang-toggle" class="lang-toggle" role="group" aria-label="Language">
         <button type="button" data-lang="en" aria-pressed="true">EN</button>
         <button type="button" data-lang="ru" aria-pressed="false">RU</button>
@@ -147,8 +121,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
         ))}
       </details>
     )))}
-    <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
-    <a class="cta-outline cta-analyze" href="/snapshot" data-track="analyze_wallet" data-ru="60-секундный снимок">60-second check</a>
+    <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Бумажный дашборд">Paper dashboard</a>
   </div>
 </header>
 
@@ -223,7 +196,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
   .m-group summary::-webkit-details-marker{display:none}
   .m-group summary::after{content:'+'; float:right; color:var(--text-muted); font-family:var(--font-mono)}
   .m-group[open] summary::after{content:'–'}
-  .m-group a{display:block; color:var(--text-secondary); font-size:.875rem; padding:9px 0 9px 14px}
+  .m-group a{display:block; color:var(--text-secondary); font-size:.9375rem; padding:12px 0 12px 14px; min-height:44px}
   .m-group a:hover{color:var(--text-primary)}
   .m-group a[aria-current='page']{color:var(--accent)}
   .mobile-panel .cta-outline{margin-top:14px; justify-content:center}

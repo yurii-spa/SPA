@@ -1,0 +1,61 @@
+---
+// How it works — PRODUCT-UX-01 candidate hub: the method in plain words, how to read numbers,
+// how to verify, and links to the deeper pages (which stay as they are).
+import Layout from '../layouts/Layout.astro';
+import UxStyles from '../components/ux/UxStyles.astro';
+import NumberTypes from '../components/ux/NumberTypes.astro';
+import { GO_LIVE } from '../lib/profile_view.js';
+import '../lib/realized_rate.js';
+const steps = [
+  { en: 'Observe', ru: 'Наблюдаем', d_en: 'Every day the system reads current rates and market sizes of whitelisted stablecoin protocols from public market data and on-chain reads.', d_ru: 'Каждый день система читает текущие ставки и размеры рынков разрешённых протоколов стейблкоинов из публичных рыночных данных и чтения блокчейна.' },
+  { en: 'Check the rules', ru: 'Проверяем правила', d_en: 'Fixed, written rules decide what is allowed: minimum market size, a cap per protocol, a cash buffer, stop rules. If data is missing or sources disagree, it holds instead of guessing.', d_ru: 'Решают заранее записанные правила: минимальный размер рынка, лимит на протокол, кэш-резерв, правила остановки. Если данных нет или источники расходятся — держит позицию, а не угадывает.' },
+  { en: 'Rebalance on paper', ru: 'Перекладываем на бумаге', d_en: 'The simulated portfolio moves only when the rules allow and the gain beats the modelled cost of moving. No real money moves.', d_ru: 'Симулированный портфель двигается, только если правила разрешают и выгода больше расчётной стоимости перекладки. Реальные деньги не двигаются.' },
+  { en: 'Publish with evidence', ru: 'Публикуем с доказательствами', d_en: 'Results are published weekly, each figure typed (realized, target, backtest, observed) and dated. AI helps with research; deterministic rules gate every decision.', d_ru: 'Результаты публикуются раз в неделю, у каждой цифры есть тип (факт, цель, бэктест, наблюдение) и дата. ИИ помогает в исследовании; каждое решение проходит через детерминированные правила.' },
+];
+const deeper = [
+  { href: '/verify/', en: 'Verify it yourself', ru: 'Проверьте сами' },
+  { href: '/refusals/', en: 'Refusal log', ru: 'Журнал отказов' },
+  { href: '/methodology/', en: 'Methodology in detail', ru: 'Методология подробно' },
+  { href: '/due-diligence/', en: 'Evidence for due diligence', ru: 'Доказательства для проверки' },
+  { href: '/security/', en: 'Security model', ru: 'Модель безопасности' },
+  { href: '/trust/', en: 'Trust architecture', ru: 'Архитектура доверия' },
+  { href: '/system/', en: 'How the machine runs', ru: 'Как работает система' },
+  { href: '/faq/', en: 'FAQ', ru: 'Частые вопросы' },
+];
+---
+<Layout title="How Earn DeFi works — method, numbers, verification | Earn DeFi"
+        description="How Earn DeFi measures stablecoin strategies on paper: daily observation, fixed rules, paper rebalancing and weekly publication with typed, dated numbers.">
+  <UxStyles />
+  <main id="main-content">
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Как это работает">How it works</p>
+        <h1 class="ux-h1" data-ru="Четыре шага, каждый день">Four steps, every day</h1>
+        <div class="ux-grid2">
+          {steps.map((s, i) => (
+            <div class="ux-card">
+              <p class="ux-eyebrow">{String(i + 1).padStart(2, '0')}</p>
+              <h3 class="ux-h3" data-ru={s.ru}>{s.en}</h3>
+              <p class="ux-p" data-ru={s.d_ru}>{s.d_en}</p>
+            </div>
+          ))}
+        </div>
+        <p class="ux-small" style="margin-top:14px" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>
+      </div>
+    </section>
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <h2 class="ux-h2" data-ru="Как читать цифры">How to read the numbers</h2>
+        <NumberTypes />
+      </div>
+    </section>
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <h2 class="ux-h2" data-ru="Глубже">Go deeper</h2>
+        <div class="ux-grid2">
+          {deeper.map((d) => <a class="ux-btn" href={d.href} data-ru={d.ru}>{d.en}</a>)}
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>

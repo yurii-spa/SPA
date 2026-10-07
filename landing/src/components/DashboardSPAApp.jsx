@@ -89,31 +89,31 @@ function FleetChip({ fl }) {
   });
 
   if (!fl || fl.available === false)
-    return <span style={style('var(--text-muted)')}>Fleet: —</span>;
+    return <span style={style('var(--text-muted)')}>System: —</span>;
 
   /* STALE = data-freshness issue, not an operational alert — show as dim warning, not ERROR */
   if (fl.stale)
     return (
       <span style={{ ...style('var(--warn)'), opacity: 0.75, fontStyle: 'italic' }}>
-        Fleet: STALE
+        System: stale
       </span>
     );
 
   if ((fl.critical || 0) > 0)
     return (
       <span style={style('var(--danger)')}>
-        Fleet: CRIT {fl.critical}
+        System: critical {fl.critical}
       </span>
     );
 
   if ((fl.warning || 0) > 0)
     return (
       <span style={style('var(--warn)')}>
-        Fleet: WARN {fl.warning}
+        System: warnings {fl.warning}
       </span>
     );
 
-  return <span style={style('var(--ok)')}>Fleet: OK</span>;
+  return <span style={style('var(--ok)')}>System: OK</span>;
 }
 
 /* ── research view ───────────────────────────────────────────────────────── */
@@ -299,7 +299,8 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
     { label: tr('NAV (paper)', 'NAV (бумага)'), value: fmtUsd(nav), ok: false },
     { label: tr(`Paper APY (realized, annualised) · measured ${apyAsOf ?? '—'}`, `Бумажная доходность (годовых, факт) · замер ${apyAsOf ?? '—'}`), value: apyText, ok: true },
     { label: tr('Track days', 'Дней трека'), value: (trackDays ?? '—') + ' / 30', ok: false },
-    { label: tr('Go-live gates', 'Гейты go-live'), value: (gatesPassed ?? '—') + ' / ' + (gatesTotal ?? '—'), ok: false },
+    // PRODUCT-UX-01: «Go-live gates 29/29» read as «ready»; live capital is not open regardless of the gate count.
+    { label: tr('Live capital', 'Реальный капитал'), value: tr('not open', 'не принимается'), ok: false },
   ];
 
   /* ── view content ────────────────────────────────────────────────────── */
@@ -341,6 +342,16 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
           .spa-nav{flex-direction:row;overflow-x:auto;gap:4px}
           .spa-navbtn{white-space:nowrap}
         }
+        /* PRODUCT-UX-01: phones — nothing wider than the screen (was 906 px at 375) */
+        @media(max-width:600px){
+          .spa-root,.spa-body{max-width:100vw}
+          .spa-body main,.spa-body main *{min-width:0}
+          .spa-body main [style*="grid-template-columns"]{grid-template-columns:repeat(auto-fit,minmax(140px,1fr)) !important}
+          .spa-body main table{display:block;overflow-x:auto;max-width:100%}
+          .spa-topbar{height:auto;min-height:52px;flex-wrap:wrap;padding:8px 16px}
+          .spa-kpi{padding:12px 16px;grid-template-columns:repeat(2,minmax(0,1fr))}
+          .spa-kpi-label{font-size:.75rem}
+        }
       `}</style>
 
       <div className="spa-root">
@@ -354,7 +365,7 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             {!collapsed && (
               <a href="/" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700, fontSize: '.9375rem', lineHeight: 1 }}>
-                SPA <span style={{ color: 'var(--accent)', fontSize: '.75rem', fontWeight: 400 }}>earn-defi</span>
+                Earn DeFi <span style={{ color: 'var(--accent)', fontSize: '.75rem', fontWeight: 400 }}>paper</span>
               </a>
             )}
             <button
@@ -398,13 +409,7 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
           {!collapsed && (
             <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <a href="/dashboard" style={{ display: 'block', fontSize: '.75rem', color: 'var(--text-faint)', textDecoration: 'none', padding: '3px 0' }}>
-                {tr('← Live dashboard', '← Живой дашборд')}
-              </a>
-              {/* was checkup.earn-defi.com/check — that service is not deployed (all routes 404,
-                  measured 2026-08-16); the live no-wallet entry is /snapshot on this domain. */}
-              <a href="/snapshot"
-                style={{ display: 'block', fontSize: '.75rem', color: 'var(--accent)', textDecoration: 'none', padding: '3px 0', marginTop: 4 }}>
-                {tr('60-second snapshot →', '60-секундный снимок →')}
+                {tr('← Paper dashboard', '← Бумажный дашборд')}
               </a>
             </div>
           )}
@@ -419,22 +424,7 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <FleetChip fl={fleet} />
-              {/* was checkup.earn-defi.com/check — service not deployed, all routes 404 (2026-08-16) */}
-              <a
-                href={`/snapshot?utm_source=dashboard-preview&utm_campaign=spa-topbar`}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: 'var(--r-sm)',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: '.8125rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {tr('60-second snapshot →', '60-секундный снимок →')}
-              </a>
+              {/* PRODUCT-UX-01: the «60-second snapshot» button led to an e-mail form — removed from the paper dashboard */}
             </div>
           </header>
 
@@ -452,7 +442,7 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
             <div className="spa-kpi-cell" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div className="spa-kpi-label">{tr('Last updated', 'Обновлено')}</div>
               <div className="spa-kpi-value" style={{ fontSize: '.9375rem', color: live ? 'var(--ok)' : 'var(--text-faint)' }}>
-                {lastUpdated ? fmtTime(lastUpdated) : tr('connecting…', 'подключение…')}
+                {lastUpdated ? fmtTime(lastUpdated) : tr('published snapshot', 'опубликованный снимок')}
               </div>
               {!live && initialFacts && (
                 <div style={{ fontSize: '.5625rem', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>

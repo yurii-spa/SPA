@@ -2,6 +2,7 @@
 // site-numbers: illustrative — числа страницы — ЦЕЛИ исследовательских стратегий (18,2 % проекция, 29,24 % брутто до IL) и критерии промоушена (Sharpe ≥ 1.5, ≥ 7 дней, APY ≥ 3 %, просадка ≥ −15 %) из landing/src/data/strategy_config.json; это лабораторные рамки, а не доходность книги
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import UxStyles from '../components/ux/UxStyles.astro';
 
 // Field notes — pull the blog entries (the research journal). Keep newest first.
 const posts = [
@@ -23,6 +24,54 @@ const posts = [
   canonical="https://earn-defi.com/research"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+  <UxStyles />
+  <!-- PRODUCT-UX-01: research hub — the internal research desks moved out of the main menu and footer;
+       they stay reachable from here. Pages are unchanged. -->
+  <section class="ux-section" style="padding-top:28px">
+    <div class="ux-wrap">
+      <p class="ux-eyebrow" data-ru="Исследование">Research</p>
+      <h1 class="ux-h1" data-ru="Исследования за стратегиями">The research behind the strategies</h1>
+      <p class="ux-lead" data-ru="Здесь — рабочие материалы: учебные курсы, журнал исследования и исследовательские столы. Это не продукты и не предложения.">Working material: courses, the research journal and the internal research desks. These are not products or offers.</p>
+      <div class="ux-grid2">
+        <div class="ux-card">
+          <h3 class="ux-h3" data-ru="Учиться">Learn</h3>
+          <div class="ux-btnrow">
+            <a class="ux-btn" href="/learn/" data-ru="Объяснения">Explainers</a>
+            <a class="ux-btn" href="/academy/" data-ru="Академия">Academy</a>
+          </div>
+        </div>
+        <div class="ux-card">
+          <h3 class="ux-h3" data-ru="Проверка устойчивости">Stress testing</h3>
+          <div class="ux-btnrow">
+            <a class="ux-btn" href="/protection-lab/" data-ru="Кризисы прошлого">Past crises replayed</a>
+            <a class="ux-btn" href="/annual-contrast/" data-ru="Цена погони за доходностью">The cost of chasing yield</a>
+          </div>
+        </div>
+        <div class="ux-card">
+          <h3 class="ux-h3" data-ru="Исследовательские столы">Research desks</h3>
+          <div class="ux-btnrow">
+            <a class="ux-btn" href="/rates-desk/" data-ru="Исследование процентных ставок">Rates desk</a>
+            <a class="ux-btn" href="/structural-desk/" data-ru="Исследование структурной доходности">Structural desk</a>
+            <a class="ux-btn" href="/rwa-backstop/" data-ru="Подстраховка токенизированными гособлигациями">RWA backstop</a>
+            <a class="ux-btn" href="/tournament/" data-ru="Турнир стратегий">Strategy tournament</a>
+            <a class="ux-btn" href="/aggressive-lab/" data-ru="Лаборатория агрессивных стратегий">Aggressive lab</a>
+            <a class="ux-btn" href="/yield-lab/" data-ru="Лаборатория доходности">Yield lab</a>
+          </div>
+        </div>
+        <div class="ux-card">
+          <h3 class="ux-h3" data-ru="Доказательства и состояние">Evidence and status</h3>
+          <div class="ux-btnrow">
+            <a class="ux-btn" href="/exit-nav/" data-ru="Стоимость при срочной продаже">Liquidation value</a>
+            <a class="ux-btn" href="/proof-of-reserves/" data-ru="Доказательство резервов">Proof of reserves</a>
+            <a class="ux-btn" href="/competitive-position/" data-ru="Конкурентная позиция">Competitive position</a>
+            <a class="ux-btn" href="/status/" data-ru="Статус системы">System status</a>
+            <a class="ux-btn" href="/blog/" data-ru="Журнал (блог)">Journal (blog)</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
@@ -30,9 +79,9 @@ const posts = [
         <span class="w-1.5 h-1.5 rounded-full bg-accent-400" aria-hidden="true"></span>
         <span data-ru="Открытая лабораторная тетрадь">An open lab notebook</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Исследование">
+      <h2 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Исследование">
         Research
-      </h1>
+      </h2>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Журнал работы над честным треком в реальном времени, детерминированная методология и стратегии в стадии исследования. Транспарентность — это и есть продукт.">
         The journal of building an honest track in public, the deterministic methodology,
         and strategies still in research. Transparency is the product.

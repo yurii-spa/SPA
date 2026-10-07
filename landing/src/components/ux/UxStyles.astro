@@ -1,0 +1,76 @@
+---
+// UxStyles.astro — the few shared styles of the PRODUCT-UX-01 surfaces (metric hierarchy, maturity,
+// evidence labels, profile comparison, risk list). Global on purpose: the components are used across
+// pages and the i18n runtime swaps innerHTML, which drops Astro's scoped attributes on swapped nodes.
+---
+<style is:global>
+  .ux-wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  .ux-section{padding:36px 0}
+  .ux-section + .ux-section{border-top:1px solid var(--border)}
+  .ux-eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}
+  .ux-h1{font-size:clamp(28px,6vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:750;color:var(--text-primary);margin:0 0 14px}
+  .ux-h2{font-size:clamp(22px,4.5vw,30px);line-height:1.2;font-weight:700;color:var(--text-primary);margin:0 0 12px}
+  .ux-h3{font-size:18px;font-weight:650;color:var(--text-primary);margin:0 0 8px}
+  .ux-lead{font-size:17px;line-height:1.55;color:var(--text-secondary);margin:0 0 16px;max-width:62ch}
+  .ux-p{font-size:15px;line-height:1.6;color:var(--text-secondary);margin:0 0 12px}
+  .ux-small{font-size:13px;line-height:1.5;color:var(--text-muted)}
+  .ux-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
+  .ux-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .ux-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media (max-width:860px){.ux-grid3,.ux-grid2{grid-template-columns:1fr}}
+  .ux-btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .ux-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:var(--r-md);border:1px solid var(--border-strong);color:var(--text-primary);font-weight:600;font-size:15px;text-decoration:none;background:var(--bg-surface-2)}
+  .ux-btn:hover{border-color:var(--accent-border)}
+  .ux-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .ux-btn.primary:hover{background:var(--accent-hover)}
+
+  /* metric hierarchy: PRIMARY measured · SECONDARY target · RESEARCH backtest (collapsed) */
+  .ux-metric{display:flex;flex-direction:column;gap:10px}
+  .ux-metric-primary{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+  .ux-metric-value{font-family:var(--font-mono);font-size:clamp(34px,8vw,48px);font-weight:700;color:var(--text-primary);letter-spacing:-.02em;line-height:1}
+  .ux-metric-unit{font-size:15px;color:var(--text-secondary)}
+  .ux-metric-dd{font-family:var(--font-mono);font-size:15px;color:var(--text-secondary)}
+  .ux-metric-meta{font-size:13px;color:var(--text-muted);line-height:1.5}
+  .ux-metric-pending{font-size:18px;font-weight:650;color:var(--text-primary)}
+  .ux-metric-secondary{font-size:14px;color:var(--text-muted);border-top:1px dashed var(--border);padding-top:10px}
+  .ux-metric-secondary strong{color:var(--text-secondary);font-weight:600}
+  details.ux-research{font-size:14px;color:var(--text-muted)}
+  details.ux-research > summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--text-secondary);list-style:none}
+  details.ux-research > summary::-webkit-details-marker{display:none}
+  details.ux-research > summary::before{content:'+';font-family:var(--font-mono);margin-right:8px;color:var(--text-faint)}
+  details.ux-research[open] > summary::before{content:'–'}
+  details.ux-research > div{padding:4px 0 8px;line-height:1.55}
+
+  /* labels */
+  .ux-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;line-height:1;padding:6px 9px;border-radius:var(--r-full);border:1px solid var(--border-strong);color:var(--text-secondary);background:var(--bg-surface-2);white-space:nowrap}
+  .ux-tag.realized{color:var(--data-teal);border-color:var(--teal-border);background:var(--teal-bg)}
+  .ux-tag.target{color:var(--text-muted)}
+  .ux-tag.backtest{color:var(--warn);border-color:var(--warn-border);background:var(--warn-bg)}
+  .ux-tag.observed{color:var(--info);border-color:var(--accent-border);background:var(--accent-bg)}
+  .ux-tag.mature{color:var(--ok);border-color:var(--ok-border);background:var(--ok-bg)}
+  .ux-tag.accumulating{color:var(--warn);border-color:var(--warn-border);background:var(--warn-bg)}
+  .ux-tag.research{color:var(--text-muted)}
+  .ux-tag.risk-low{color:var(--ok);border-color:var(--ok-border)}
+  .ux-tag.risk-mid{color:var(--warn);border-color:var(--warn-border)}
+  .ux-tag.risk-high{color:var(--danger);border-color:var(--danger-border)}
+
+  /* profile comparison: identical rows in every card; stacked under 860px */
+  .ux-profile h3{font-size:20px;margin:0 0 4px;color:var(--text-primary)}
+  .ux-profile dl{margin:14px 0 0;display:grid;grid-template-columns:1fr;gap:0}
+  .ux-profile dl > div{padding:10px 0;border-top:1px solid var(--border)}
+  .ux-profile dt{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint);margin:0 0 4px}
+  .ux-profile dd{margin:0;font-size:15px;line-height:1.5;color:var(--text-secondary)}
+  .ux-profile dd .big{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text-primary)}
+
+  /* risks */
+  .ux-risk{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:14px 0;border-top:1px solid var(--border)}
+  .ux-risk-rank{font-family:var(--font-mono);font-size:13px;color:var(--text-faint);padding-top:2px}
+  .ux-risk h4{margin:0 0 4px;font-size:16px;color:var(--text-primary)}
+  .ux-risk p{margin:0 0 6px;font-size:15px;line-height:1.55;color:var(--text-secondary)}
+  .ux-risk .applies{display:flex;flex-wrap:wrap;gap:6px}
+
+  .ux-list{margin:0;padding:0 0 0 18px;color:var(--text-secondary);font-size:15px;line-height:1.6}
+  .ux-kv{display:grid;grid-template-columns:minmax(120px,38%) 1fr;gap:8px 14px;font-size:15px}
+  .ux-kv dt{color:var(--text-muted)} .ux-kv dd{margin:0;color:var(--text-secondary)}
+  @media (max-width:520px){.ux-kv{grid-template-columns:1fr}.ux-kv dd{margin-bottom:6px}}
+</style>

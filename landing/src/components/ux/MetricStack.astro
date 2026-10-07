@@ -1,0 +1,59 @@
+---
+// MetricStack — the performance hierarchy (PRODUCT-UX-01 §6), from lib/profile_view.js (on top of the
+// canonical card model, lib/package_card.js). Never equal weight:
+//   PRIMARY  mature profile: realized paper rate + drawdown + date + days; immature: «n of need days» only;
+//   SECONDARY research target — ONLY for a mature profile, and never without its tail (Conservative's tail
+//            is its realized drawdown, shown in the primary line; the card has no backtest tail for it);
+//   RESEARCH immature profile: target + the tail of an EARLIER version, collapsed and labelled at the number.
+import { profileView, GLOSSARY } from '../../lib/profile_view.js';
+interface Props { profile: 'conservative' | 'balanced' | 'aggressive'; compact?: boolean }
+const { profile, compact = false } = Astro.props;
+const v = profileView(profile);
+const m = v.measured;
+const mat = v.maturity;
+---
+<div class="ux-metric">
+  {m ? (
+    <>
+      <div class="ux-metric-primary"><span class="ux-tag realized" data-ru="факт · бумага">realized · paper</span></div>
+      <div class="ux-metric-primary">
+        <span class="ux-metric-value" data-ru={m.rate_ru}>{m.rate_en}</span>
+        <span class="ux-metric-unit" data-ru="годовых">annualised</span>
+        {m.dd_en && <span class="ux-metric-dd" data-ru={`просадка ${m.dd_ru}`}>drawdown {m.dd_en}</span>}
+      </div>
+      <div class="ux-metric-meta"
+           data-ru={`Замер ${m.date ?? '—'} · ${m.days ?? '—'} подтверждённых дней · бумага, не реальные деньги · не гарантия`}>
+        Measured {m.date ?? '—'} · {m.days ?? '—'} evidenced days · paper, not live money · not a guarantee
+      </div>
+      {!compact && <div class="ux-small" data-ru={GLOSSARY.evidenced_days.ru}>{GLOSSARY.evidenced_days.en}</div>}
+      {v.target_shown && v.target_en && (
+        <div class="ux-metric-secondary">
+          <span class="ux-tag target" data-ru="цель исследования">research target</span>{' '}
+          <strong data-ru={v.target_ru}>{v.target_en}</strong>
+          <span data-ru=" — ориентир, не результат и не прогноз."> — a goal, not a result or a forecast.</span>
+          {!compact && <div class="ux-small" style="margin-top:6px" data-ru={GLOSSARY.target_vs_realized.ru}>{GLOSSARY.target_vs_realized.en}</div>}
+        </div>
+      )}
+    </>
+  ) : (
+    <>
+      <div class="ux-metric-primary"><span class="ux-tag accumulating" data-ru="результат накапливается">result accumulating</span></div>
+      <div class="ux-metric-pending"
+           data-ru={mat.n != null ? `Набрано ${mat.n} из ${mat.need} дней — ставку пока не публикуем` : 'История не измерена — ставку не публикуем'}>
+        {mat.n != null ? `${mat.n} of ${mat.need} days collected — no rate published yet` : 'History not measured — no rate published'}
+      </div>
+      <div class="ux-metric-meta" data-ru={GLOSSARY.thirty_days.ru}>{GLOSSARY.thirty_days.en}</div>
+      {!compact && (v.target_en || v.tail_en) && (
+        <details class="ux-research">
+          <summary data-ru="Исследование: цель и хвост прежней версии">Research: target and an earlier version's tail</summary>
+          <div>
+            {v.target_en && <p class="ux-p"><span class="ux-tag target" data-ru="цель исследования">research target</span>{' '}
+              <span data-ru={`${v.target_ru} — ориентир, не результат.`}>{v.target_en} — a goal, not a result.</span></p>}
+            {v.tail_en && <p class="ux-p"><span class="ux-tag backtest" data-ru="прежняя версия, не эта стратегия">earlier version, not this strategy</span>{' '}
+              <span data-ru={v.tail_ru}>{v.tail_en}</span></p>}
+          </div>
+        </details>
+      )}
+    </>
+  )}
+</div>

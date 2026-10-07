@@ -36,11 +36,16 @@ const initialFacts = {
 ---
 
 <Layout
-  title="Command Center — Live Dashboard | earn-defi.com"
-  description="The SPA command center: paper track + go-live, the parallel Strategy-Lab sleeves, the strategy tournament, and the BTC/ETH/RWA research desks — all live from api.earn-defi.com in one navigable hub. Paper / research, not investment advice."
+  title="Paper dashboard — simulated portfolios | Earn DeFi"
+  description="Earn DeFi paper dashboard: the simulated portfolios, their evidenced history, risk limits and research — paper only, not investment advice."
   canonical="https://earn-defi.com/dashboard"
   app={true}
 >
+  <!-- PRODUCT-UX-01: entry label — this is a paper (simulated) dashboard; no balances belong to any visitor. -->
+  <div style="background:rgba(242,181,60,.10);border-bottom:1px solid rgba(242,181,60,.25);color:rgba(242,181,60,.9);font-size:14px;line-height:1.5;padding:10px 16px;text-align:center">
+    <span data-ru="Бумажный дашборд: симулированные портфели Earn DeFi. Ваших средств здесь нет — депозитов не принимаем.">Paper dashboard: Earn DeFi's simulated portfolios. None of this is your money — no deposits are accepted.</span>
+    <a href="/" style="color:inherit;text-decoration:underline;margin-left:8px" data-ru="← на сайт">← back to site</a>
+  </div>
   <!-- SPA island: one React root manages sidebar + topbar + hash-routing + shared KPI/Fleet poll. -->
   <DashboardSPAApp publishedRate={publishedRate} client:load initialFacts={initialFacts} />
 

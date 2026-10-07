@@ -1,0 +1,28 @@
+---
+// RiskList — plain-language first, technical detail second (PRODUCT-UX-01 §7). No fake scores.
+import { RISKS, PROFILE_NAMES } from '../../lib/risk_copy.js';
+interface Props { limit?: number; profile?: 'conservative' | 'balanced' | 'aggressive' }
+const { limit, profile } = Astro.props;
+let list = profile ? RISKS.filter((r) => r.applies.includes(profile)) : RISKS;
+if (limit) list = list.slice(0, limit);
+---
+<div>
+  {list.map((r, i) => (
+    <div class="ux-risk">
+      <div class="ux-risk-rank">{String(i + 1).padStart(2, '0')}</div>
+      <div>
+        <h4 data-ru={r.ru}>{r.en}</h4>
+        <p data-ru={r.plain_ru}>{r.plain_en}</p>
+        {!profile && (
+          <div class="applies">
+            {r.applies.map((k) => <span class="ux-tag" data-ru={PROFILE_NAMES[k].ru}>{PROFILE_NAMES[k].en}</span>)}
+          </div>
+        )}
+        <details class="ux-research">
+          <summary data-ru="Подробнее">More detail</summary>
+          <div data-ru={r.detail_ru}>{r.detail_en}</div>
+        </details>
+      </div>
+    </div>
+  ))}
+</div>

@@ -1,0 +1,90 @@
+---
+// StrategyDetail — one template for the three profile pages (PRODUCT-UX-01 §4/§6/§7).
+// Order: who it is for → result (MetricStack) → what it holds → risks in plain words → limits →
+// how it works → evidence → research. Internal identifiers live only inside «technical detail».
+import { profileView, GO_LIVE, GLOSSARY, termsIn } from '../../lib/profile_view.js';
+import MetricStack from './MetricStack.astro';
+import MaturityBadge from './MaturityBadge.astro';
+import RiskList from './RiskList.astro';
+interface Props { profile: 'conservative' | 'balanced' | 'aggressive' }
+const { profile } = Astro.props;
+const v = profileView(profile);
+const h = v.holdings;
+const terms = termsIn(v.objective_en, h && h.protocols.join(' '), h && h.unresolved.join(' '), v.tail_en);
+---
+<section class="ux-section">
+  <div class="ux-wrap">
+    <p class="ux-eyebrow"><a href="/strategies/" data-ru="← Все стратегии" style="color:inherit">← All strategies</a></p>
+    <h1 class="ux-h1" data-ru={v.name_ru}>{v.name_en}</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      <span class:list={['ux-tag', `risk-${v.risk_tone}`]} data-ru={`риск: ${v.risk_ru.toLowerCase()}`}>risk: {v.risk_en.toLowerCase()}</span>
+      <MaturityBadge profile={profile} />
+      <span class="ux-tag" data-ru="бумага, не реальные деньги">paper, not live</span>
+    </div>
+    <p class="ux-lead" data-ru={v.for_ru}>{v.for_en}</p>
+    <p class="ux-p" data-ru={`<strong>Цель:</strong> ${v.objective_ru}`}><strong>Objective:</strong> {v.objective_en}</p>
+  </div>
+</section>
+
+<section class="ux-section">
+  <div class="ux-wrap">
+    <h2 class="ux-h2" data-ru="Результат">Result</h2>
+    <div class="ux-card"><MetricStack profile={profile} /></div>
+  </div>
+</section>
+
+<section class="ux-section">
+  <div class="ux-wrap">
+    <h2 class="ux-h2" data-ru="Что сейчас в портфеле">What it holds now</h2>
+    {h ? (
+      <div class="ux-card">
+        <p class="ux-p" data-ru="Протоколы в книге (доли не публикуются):">Protocols held (weights are not published):</p>
+        <ul class="ux-list">{h.protocols.map((p) => <li>{p}</li>)}</ul>
+        {h.unresolved.length > 0 && (
+          <p class="ux-small" data-ru={`Ещё в книге, классификация не завершена: ${h.unresolved.join(', ')}`}>Also held, classification not finished: {h.unresolved.join(', ')}</p>
+        )}
+        {v.position_en && (
+          <p class="ux-small" style="margin-top:10px" data-ru={`Позиция на ${v.position_date ?? '—'}: ${v.position_ru}`}>Position on {v.position_date ?? '—'}: {v.position_en}</p>
+        )}
+        {profile === 'aggressive' && <p class="ux-small" data-ru={GLOSSARY.health_factor.ru}>{GLOSSARY.health_factor.en}</p>}
+        {terms.map((g) => <p class="ux-small" data-ru={g.ru}>{g.en}</p>)}
+        <details class="ux-research"><summary data-ru="Технические подробности">Technical detail</summary><div>{h.tech_en}</div></details>
+      </div>
+    ) : (
+      <div class="ux-card"><p class="ux-p" data-ru="Состав пока не опубликован.">Holdings are not published yet.</p></div>
+    )}
+  </div>
+</section>
+
+<section class="ux-section">
+  <div class="ux-wrap">
+    <h2 class="ux-h2" data-ru="Что может пойти не так">What can go wrong</h2>
+    <RiskList profile={profile} />
+    <p class="ux-small" style="margin-top:12px"><a href="/risk/" data-ru="Все риски по всем стратегиям →">All risks across strategies →</a></p>
+  </div>
+</section>
+
+<section class="ux-section">
+  <div class="ux-wrap">
+    <h2 class="ux-h2" data-ru="Защита и границы">Limits and protection</h2>
+    <div class="ux-card">
+      <p class="ux-p" data-ru={v.stop.ru}>{v.stop.en}</p>
+      <p class="ux-p" data-ru={v.liquidity_ru}>{v.liquidity_en}</p>
+      {v.maturity.research_only
+        ? <p class="ux-small" data-ru={v.live_ru}>{v.live_en}</p>
+        : <p class="ux-small" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>}
+    </div>
+  </div>
+</section>
+
+<section class="ux-section">
+  <div class="ux-wrap">
+    <h2 class="ux-h2" data-ru="Как это работает">How it works</h2>
+    <p class="ux-p" data-ru={v.mechanism_ru ?? 'не измерено'}>{v.mechanism_en ?? 'not measured'}</p>
+    <div class="ux-btnrow">
+      <a class="ux-btn" href="/how-it-works/" data-ru="Как мы измеряем">How we measure</a>
+      <a class="ux-btn" href="/track-record/" data-ru="Результаты по дням">Day-by-day results</a>
+      <a class="ux-btn" href="/verify/" data-ru="Проверить самостоятельно">Verify it yourself</a>
+    </div>
+  </div>
+</section>

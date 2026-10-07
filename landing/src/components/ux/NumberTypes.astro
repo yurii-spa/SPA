@@ -1,0 +1,23 @@
+---
+// NumberTypes — «How we measure»: the four kinds of number on this site, one line each.
+import { maturity } from '../../lib/profile_view.js';
+const need = maturity('conservative').need;   // the reporting threshold, from the snapshot — never typed
+---
+<div class="ux-grid2">
+  <div class="ux-card">
+    <span class="ux-tag realized" data-ru="факт · бумага">realized · paper</span>
+    <p class="ux-p" style="margin-top:10px" data-ru={`Что на самом деле получилось у симулированного портфеля за подтверждённые дни. Годовая ставка публикуется только после ${need ?? "—"} дней истории.`}>What the simulated portfolio actually earned over its evidenced days. An annual rate is published only after {need ?? "—"} days of history.</p>
+  </div>
+  <div class="ux-card">
+    <span class="ux-tag target" data-ru="цель исследования">research target</span>
+    <p class="ux-p" style="margin-top:10px" data-ru="Ориентир, который проверяет исследование. Не результат и не обещание.">The goal the research is testing. Not a result and not a promise.</p>
+  </div>
+  <div class="ux-card">
+    <span class="ux-tag backtest" data-ru="бэктест">backtest</span>
+    <p class="ux-p" style="margin-top:10px" data-ru="Прогон правил на прошлых данных. Показывает возможный хвост риска; реальным результатом не является.">Rules replayed on past data. Shows a possible risk tail; it is not a real result.</p>
+  </div>
+  <div class="ux-card">
+    <span class="ux-tag observed" data-ru="наблюдение">observed</span>
+    <p class="ux-p" style="margin-top:10px" data-ru="Короткое измерение (например, за сутки). Только в подробностях дашборда — годовым результатом не является.">A short measurement (for example one day). Only in dashboard detail — never an annual result.</p>
+  </div>
+</div>

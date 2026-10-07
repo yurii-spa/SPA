@@ -1,0 +1,16 @@
+---
+// MaturityBadge — how much evidence a profile has, kept SEPARATE from the process-status colour
+// (a process can run perfectly while its statistics are still too short to report).
+import { maturity } from '../../lib/profile_view.js';
+interface Props { profile: 'conservative' | 'balanced' | 'aggressive' }
+const m = maturity(Astro.props.profile);
+const cls = m.state === 'MATURE' ? 'mature' : m.state === 'ACCUMULATING' ? 'accumulating' : 'research';
+const en = m.state === 'MATURE' ? `Mature · ${m.n} days`
+  : m.state === 'ACCUMULATING' ? `Accumulating · ${m.n}/${m.need} days`
+  : 'Not measured';
+const ru = m.state === 'MATURE' ? `Зрелый · ${m.n} дн.`
+  : m.state === 'ACCUMULATING' ? `Накапливается · ${m.n}/${m.need} дн.`
+  : 'Не измерено';
+---
+<span class:list={['ux-tag', cls]} data-ru={ru}>{en}</span>
+{m.research_only && <span class="ux-tag research" data-ru="только исследование">research only</span>}

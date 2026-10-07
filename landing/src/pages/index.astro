@@ -1,732 +1,90 @@
 ---
-// Homepage — Direction C "Console" (spec §7-C). Canonical chrome (header, paper
-// strip, footer) comes from Layout; this page is just the Console body + sections.
+// Homepage — PRODUCT-UX-01 candidate. Five sections, product first:
+//   (a) what Earn DeFi is + the one measured result (shelf, typed, dated)
+//   (b) the three strategies with identical rows
+//   (c) how to read the numbers (realized · target · backtest · observed)
+//   (d) the main risks in plain words
+//   (e) why you can check it, and what to do next
+// Every figure comes from lib/profile_view.js → lib/site_numbers.js / realized_rate.js (the weekly shelf)
+// and the daily snapshot; nothing is typed here. No calculator, no sign-up: the product is in paper stage.
 import Layout from '../layouts/Layout.astro';
-import snap from '../lib/snapshot_view.js';
-import PackageStatusRows from '../components/PackageStatusRows.astro';
-// WalletCheck (the paste-an-address hero widget) is NOT imported any more: it cross-navigated to
-// checkup.earn-defi.com, and that service is gone — every route of the domain answers 404 (Railway
-// edge fallback, measured 2026-08-16). An entry form that leads to a 404 is worse than no form.
-// Entry now goes to /snapshot (live, no wallet needed). Component file kept for the day the service
-// returns; scripts/funnel_link_check.py fails if anything links to the dead host again.
-
-// Build-time honest static fallback (last evidenced snapshot) — mirrors the pattern
-// track-record.astro uses. Live values from api.earn-defi.com override these client-side;
-// this keeps the hero + track glance readable (real last-evidenced numbers, not bare "—")
-// when the API is offline. Numbers are NOT hardcoded — they come from the committed
-// snapshot derived from data/golive_status.json + data/equity_curve_daily.json.
-// ONE source (FIX-2): every hero number comes from track_snapshot.json (built from the committed
-// golive_status + equity_curve + paper_trading_status — the same authority the API serves). NO
-// hardcoded fallback: a missing value renders an honest em-dash, never a stale/invented number.
-const snapDays = snap.real_track_days != null ? snap.real_track_days : '—';
-const snapGates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
-const snapBars = Array.isArray(snap.bars) ? snap.bars : [];
-import { publishedRateFigure } from '../lib/realized_rate.js';
-const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
-const snapApy = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
-import { drawdownMagnitudeText as _ddMag } from '../lib/realized_rate.js';
-// PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
-const _ddm = _ddMag(snap.max_drawdown_pct);
-const snapDd = _ddm == null ? '—' : (Number(_ddm) > 0 ? '−' : '') + _ddm + '%';
-// Snapshot freshness label ("as of <date>") — the JS island flips it to live when the API answers.
-const snapAsOf = snap.as_of || snap.generated_at || null;
-// Site-Custodian kill-rule (ADR-YL-011): when degraded, show a plaque instead of a possibly-wrong number
-// (refusal-first — honest absence beats a false figure).
-const degraded = snap.degraded === true;
-// ADR-537: the package cards no longer carry a backtest blend or backtest drawdown fallback — they
-// render from the one status record and the one shelf (components/PackageStatusRows.astro).
-import { researchTarget } from '../lib/package_card.js';
-import TIER_BANDS from '../lib/tier_bands.json';
-// The calculator scenario's rate is the canonical band's own number («up to 20%» → 20), never typed here.
-const _aggT = researchTarget('aggressive', false);
-const aggTargetPct = (_aggT && /(\d+(?:\.\d+)?)\s*%/.test(_aggT)) ? Number(_aggT.match(/(\d+(?:\.\d+)?)\s*%/)[1]) : null;
-const aggDays = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive
-  && snap.package_status.packages.aggressive.history && snap.package_status.packages.aggressive.history.valid_periods) ?? '—';
-const aggStart = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive && snap.package_status.packages.aggressive.experiment_start_date) || '—';
-import snapRR from '../lib/snapshot_view.js';
-// ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, realizedApyPct as realizedPctRR, measuredAt as measuredAtRR, drawdownPhrase as drawdownPhraseRR, drawdownPctText as ddPctRR } from '../lib/realized_rate.js';
-const ddPctEn = ddPctRR() ?? 'not measured';
-const ddPctRu = ddPctRR(true) ?? 'не измерена';
-// PRODUCT-TRUTH-02: the realized drawdown tile renders the shelf value (never a typed «0.0%» that hides a loss).
-const realizedEn = realizedPhraseRR(snapRR);
-const realizedRu = realizedPhraseRR(snapRR, true);
-const realizedNumEn = realizedLabelRR(snapRR);
-const realizedNumRu = realizedLabelRR(snapRR, true);
-// ADR-531 / P0-4 item 6: ONE Conservative rate on the page — the realized paper rate, with its date.
-const realizedPctRaw = realizedPctRR(snapRR);
-// PRODUCT-TRUTH-02 / ADR-563: the calculator multiplies by the SAME floored rate its label prints
-// (was the unrounded 4.9165 % next to «4.9%», i.e. $2,458 for a rate shown as 4.9 %).
-const realizedPctNum = _pr ? _pr.value : null;
-const realizedAt = measuredAtRR();
-const calcInit = (typeof realizedPctNum === 'number') ? Math.round(50000 * realizedPctNum / 100).toLocaleString('en-US') : '—';
-// Equity series for the offline spark fallback (build-time, last snapshot).
-// P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
-// so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
-// data + the /track-record ledger table, just not on the curve.
-const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
+import UxStyles from '../components/ux/UxStyles.astro';
+import MetricStack from '../components/ux/MetricStack.astro';
+import ProfileCompare from '../components/ux/ProfileCompare.astro';
+import NumberTypes from '../components/ux/NumberTypes.astro';
+import RiskList from '../components/ux/RiskList.astro';
+import TrustBlock from '../components/ux/TrustBlock.astro';
+import { headline, GO_LIVE, matureProfiles, TIER_NAMES } from '../lib/profile_view.js';
+import '../lib/realized_rate.js';
+const h = headline();
+const lead = matureProfiles()[0] || 'conservative';   // the profile with a published result (derived)
+const nMature = matureProfiles().length;
 ---
-
-<Layout
-  title="SPA — systematic onchain stablecoin yield | earn-defi.com"
-  description="Personal research project: a deterministic, LLM-free DeFi stablecoin-yield optimizer in paper validation, evidenced track anchored June 22, 2026. Not raising capital."
->
-  <!-- ============ HERO (Direction C — Console, institutional) ============ -->
-  <section class="hero" id="analyze">
-    <div class="hero-inner">
-      <span class="hero-eyebrow" data-ru="Некастодиально · пока на бумаге · каждую цифру можно проверить самому">Non-custodial · paper-stage · every number auditable block-by-block</span>
-      <h1>
-        <span data-ru="Доходность на стейблкоинах,">A stablecoin yield desk that</span>
-        <span class="accent" data-ru="где доказана каждая цифра.">proves every number.</span>
-      </h1>
-      {/* ADR-537 change record CR-537-3: this lead (owner wish J3, 2026-07-12 «брать максимум»,
-           docs/CUSTOMER_JOURNEY_MAP.md) was replaced on 02.10 by a session's own reading of the owner's
-           card instruction and is RESTORED here: the framing is subject №2 and the choice between it and
-           the mechanics-first lead is in the owner package, not decided by an agent.
-           The closing sentence used to say "start with a free wallet check" — that check lived on
-           checkup.earn-defi.com, which is no longer deployed. Every NUMBER in this line is unchanged
-           (owner-gated); only the dead call-to-action was repointed at the live snapshot. */}
-      <p class="sub" data-ru={`Три бумажных портфеля с разной механикой: кредитование без плеча, фиксированная ставка Pendle PT и симулированная петля на Morpho Blue. Фактический бумажный результат Conservative — ${realizedNumRu} годовых (замер ${realizedAt ?? "—"}; ${drawdownPhraseRR(snapRR, true)}). У Balanced и Aggressive статистика текущих версий накапливается. Реального капитала нет. Начните с бесплатного 60-секундного снимка безопасности.`}>
-        Three paper portfolios with different mechanics: unlevered lending, a Pendle PT fixed rate and a
-        simulated loop on Morpho Blue. The Conservative book’s realized paper result is {realizedNumEn} annualised
-        (measured {realizedAt ?? "—"}; {drawdownPhraseRR(snapRR)}). Balanced and Aggressive are accumulating the
-        statistics of their current versions. No real capital. Start with the free 60-second safety snapshot.
-      </p>
-
-      {/* Top-of-funnel. Was the paste-an-address widget to the checkup service; that service is
-           gone (whole domain 404s, measured 2026-08-16), so the entry is now the live 60-second
-           snapshot on this domain. C2 (redesign): the "no wallet to scan" path. */}
-      <div style="margin-top:18px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <a class="btn btn-primary" href="/snapshot" data-track="hero_snapshot" data-ru="Пройти 60-секундный снимок безопасности →">Take the 60-second safety snapshot →</a>
-        <a class="btn btn-ghost" href="/track-record" data-track="hero_see_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
-      </div>
-
-      <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные данные.">No wallet connection. No email required. Public data only.</p>
-      {/* 2026-08-20 (owner decision 19.08, variant 1 — ADR-089 §5): the "See a sample analysis" CTA
-           and the six-bullet "what you get" list both described the free wallet CHECKUP report
-           (portfolio value, idle capital, estimated APY, risk score…). That product is not deployed
-           and is not coming back, so the list was a promise with nothing behind it. The entry that
-           REMAINS is real and lives on this domain: /snapshot (four questions, no wallet, no email)
-           and /track-record. Nothing here that is still true was removed. */}
-
-      <div class="hero-secondary">
-        <a class="btn-ghost" href="/strategies" data-track="view_strategy_lab" data-ru="Смотреть Strategy Lab →">View Strategy Lab →</a>
-      </div>
-
-      <p class="hero-powered" data-ru="На базе SPA Strategy Lab — публичной системы исследования доходности на стейблкоинах, проверенной на бумаге.">
-        Powered by <b>SPA Strategy Lab</b> — a public, paper-tested stablecoin yield research system.
-      </p>
-    </div>
-  </section>
-
-  <!-- ============ M2: PAPER BOOKS AT A GLANCE (bank / T-bill reference rates removed 2026-10-07 by owner decision: unsourced; may return only with source, date, provenance and metric type) ============ -->
-  <section class="band" style="padding-top:32px;padding-bottom:8px">
-    <div style="max-width:1080px;margin:0 auto;padding:0 24px">
-      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 16px" data-ru="Бумажные книги SPA — где они сейчас">SPA paper books — where they stand</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">
-        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
-          <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru={realizedNumRu}>{realizedNumEn}</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru={`годовых, фактически на бумаге · замер ${realizedAt ?? "—"} · исследовательская цель ${researchTarget('conservative', true) ?? "—"} — не прогноз`}>annualised, realized on paper · measured {realizedAt ?? "—"} · research target {researchTarget('conservative', false) ?? "—"} — not a forecast</div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru={`проверяемо · ${drawdownPhraseRR(snapRR, true)} · за вычетом расчётных газа и проскальзывания собственных ходов книги (с 10.09.2026); реальные издержки исполнения не учтены · не гарантия`}>auditable · {drawdownPhraseRR(snapRR)} · net of modelled gas and slippage of the book’s own moves (since 2026-09-10); real execution costs not included · not a guarantee</div>
+<Layout title="Earn DeFi — stablecoin yield research where every number shows its evidence"
+        description="Earn DeFi measures stablecoin yield strategies on paper and publishes every number with its type, date and source. Paper stage: no deposits, not an offer.">
+  <UxStyles />
+  <main id="main-content">
+    <section class="ux-section" style="padding-top:28px">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow">Earn DeFi</p>
+        <h1 class="ux-h1" data-ru="Исследование доходности стейблкоинов, где у каждой цифры есть доказательство">Stablecoin yield research where every number shows its evidence</h1>
+        <p class="ux-lead" data-ru="Earn DeFi держит три стратегии на стейблкоинах в симуляции и публикует, что они реально заработали — с датой, источником и рисками. Деньги не принимаются: это бумажная стадия.">Earn DeFi runs three stablecoin strategies in simulation and publishes what they actually earned — with the date, the source and the risks. No money is accepted: this is the paper stage.</p>
+        <div class="ux-card" style="margin-top:6px">
+          <p class="ux-small" style="margin:0 0 10px"
+             data-ru={nMature === 1 ? `${TIER_NAMES[lead].ru} — пока единственная стратегия, у которой накопилось достаточно дней для результата` : `${TIER_NAMES[lead].ru} — результат`}>
+            {nMature === 1 ? `${TIER_NAMES[lead].en} — so far the only strategy with enough days for a published result` : `${TIER_NAMES[lead].en} — result`}
+          </p>
+          <MetricStack profile={lead} compact />
         </div>
-        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (исследование)">Aggressive (research)</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text-secondary);padding:6px 0" data-ru="результат накапливается">result accumulating</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru={`новая версия с ${aggStart} · исследовательская цель ${researchTarget('aggressive', true) ?? "—"} — не результат и не прогноз`}>new version since {aggStart} · research target {researchTarget('aggressive', false) ?? "—"} — not a result, not a forecast</div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="бумага · симулированная петля · реальный капитал не допускается">paper · simulated loop · refused for live capital</div>
+        <div class="ux-btnrow">
+          <a class="ux-btn primary" href="/strategies/" data-ru="Сравнить стратегии">Compare strategies</a>
+          <a class="ux-btn" href="/track-record/" data-ru="Результаты по дням">Day-by-day results</a>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ============ M4+M12: GO-LIVE COUNTDOWN + TRUST STRIP ============ -->
-  <section class="band" style="padding-top:8px;padding-bottom:34px">
-    <div style="max-width:1080px;margin:0 auto;padding:0 24px">
-      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:9px">
-          <span style="font-size:13px;font-weight:700;color:var(--text-primary)" data-ru="Валидация go-live">Go-live validation</span>
-          <span style="font-size:13px;font-family:var(--font-mono);color:#34d399"><span id="m12-day">—</span> <span data-ru="из 30 подтверждённых дней">of 30 evidenced days</span></span>
-        </div>
-        <div style="height:10px;border-radius:6px;background:var(--border);overflow:hidden">
-          <div id="m12-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#34d399,#10b981);transition:width .6s"></div>
-        </div>
-        <div style="margin-top:10px;font-size:12px;color:var(--text-faint)">
-          <span data-ru="Реальный капитал не подключаем, пока трек не пройдёт 30 дней и реальное событие волатильности.">Live capital doesn't open until the track clears 30 days + a real vol event.</span>
-          <a href="/track-record" data-track="m12_follow_countdown" style="color:var(--accent-400);text-decoration:underline" data-ru="Следить за отсчётом →">Follow the countdown →</a>
-        </div>
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Три стратегии">Three strategies</p>
+        <h2 class="ux-h2" data-ru="Одинаковые вопросы к каждой">The same questions for each</h2>
+        <ProfileCompare compact />
+        <p class="ux-small" style="margin-top:14px" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#34d399">{snapDd}</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="реализованной просадки">realized drawdown</div>
-        </div>
-        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)"><span id="m4-day">—</span>/30</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="подтверждённых дней">evidenced days</div>
-        </div>
-        <a href="/refusals" data-track="m4_refusals" style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);text-decoration:none;display:block">
-          <!-- M6 (redesign): live refusal-count badge — the moat as a real number from
-               /api/rates-desk/decisions counts.REFUSAL. Static fallback = an honest em-dash, never a
-               baked count (a baked "20" stood here while the live counter read 0). -->
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308"><span id="m4-refusals">—</span></div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="отказов · все опубликованы →">refusals · all published →</div>
-        </a>
-        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru="Некастод.">Non-custodial</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="автономный мониторинг 24/7">autonomous monitors 24/7</div>
-        </div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ============ M3: YIELD CALCULATOR (dual-line, tail in the calculator) ============ -->
-  <section class="band alt" style="padding-top:34px;padding-bottom:34px">
-    <div style="max-width:720px;margin:0 auto;padding:0 24px;text-align:center">
-      <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 6px" data-ru="Посчитайте свою доходность">Estimate your yield</p>
-      <h2 style="font-size:24px;font-weight:800;color:var(--text-primary);margin:0 0 20px" data-ru="Сколько могут заработать ваши стейблкоины">What your stablecoins could earn</h2>
-      <div style="font-size:15px;color:var(--text-secondary);margin-bottom:8px"><span data-ru="Сумма">Amount</span>: <span id="calc-amt" style="font-family:var(--font-mono);font-weight:800;color:var(--text-primary)">$50,000</span></div>
-      <input id="calc-slider" data-rate={realizedPctNum ?? ""} data-scenario-pct={aggTargetPct ?? ""} type="range" min="1000" max="500000" step="1000" value="50000" aria-label="Amount" style="width:100%;max-width:520px;accent-color:#34d399" />
-      {/* ADR-537, change record CR-537-1. The calculator (redesign task M3, owner-commissioned brief
-           2026-07-12, docs/redesign/01_PHASE0_SELL_SPRINT_SPEC.md) exists so a visitor can size the
-           realized result for an amount of their own AND see what a research target would mean — with its
-           tail inside the component. Kept: both. Changed on purpose: (1) the target's 20% was typed into the
-           script — it now comes from the canonical band (tier_bands.json); (2) the scenario sat beside the
-           measured result at the same size and colour, as if the two were the same kind of number — it is
-           now a separate, smaller block labelled «scenario, not a result» with its assumptions named;
-           (3) its tail is the band's own tail string, which names the book it was measured on. The
-           two-column grid that overflowed 375 px (scrollWidth 396, measured) is one column. */}
-      <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-top:22px;max-width:520px;margin-left:auto;margin-right:auto">
-        <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:12px;color:var(--text-muted)" data-ru="По фактической бумажной ставке Conservative">At the realized Conservative paper rate</div>
-          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)">~$<span id="calc-real">{calcInit}</span><small style="font-size:13px;font-weight:600" data-ru=" в год"> /yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint);overflow-wrap:anywhere" data-ru={`${realizedNumRu} годовых, замер ${realizedAt ?? "—"} · ${drawdownPhraseRR(snapRR, true)} · за вычетом расчётных газа и проскальзывания собственных ходов книги (с 10.09.2026); реальные издержки исполнения не учтены`}>{realizedNumEn} annualised, measured {realizedAt ?? "—"} · {drawdownPhraseRR(snapRR)} · net of modelled gas and slippage of the book’s own moves (since 2026-09-10); real execution costs not included</div>
-        </div>
-        {aggTargetPct != null && (
-          <div style="padding:14px 16px;border-radius:12px;background:transparent;border:1px dashed var(--border);text-align:left">
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)" data-ru="Сценарий, а не результат">Scenario, not a result</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;overflow-wrap:anywhere">
-              <span data-ru={`Если бы исследовательская цель Aggressive (${researchTarget('aggressive', true)} годовых) была достигнута: до`}>{`If the Aggressive research target (${researchTarget('aggressive', false)} a year) were reached: up to`}</span> <span style="font-family:var(--font-mono)">$<span id="calc-scn">—</span></span><span data-ru=" в год"> /yr</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:4px;overflow-wrap:anywhere" data-ru={`Допущения: ставка цели на всю сумму, до реальных издержек исполнения; у текущей версии Aggressive валидных дней ${aggDays} из 30 — отчётного результата ещё нет. Хвост исследования: ${TIER_BANDS.aggressive.tail_ru}. Не прогноз и не оферта.`}>{`Assumptions: the target rate on the whole amount, before real execution costs; the current Aggressive version has ${aggDays} of 30 valid days — no reportable result yet. Research tail: ${TIER_BANDS.aggressive.tail_en}. Not a forecast, not an offer.`}</div>
-          </div>
-        )}
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Как мы измеряем">How we measure</p>
+        <h2 class="ux-h2" data-ru="Четыре вида чисел — и они не смешиваются">Four kinds of number — never mixed</h2>
+        <NumberTypes />
+        <p class="ux-small" style="margin-top:12px"
+           data-ru={`Опубликовано ${h.published ?? '—'}, следующее обновление ${h.next ?? '—'}. Цифры обновляются раз в неделю.`}>
+          Published {h.published ?? '—'}, next update {h.next ?? '—'}. Figures update weekly.
+        </p>
       </div>
-      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация — не обещание и не оферта. Первая строка — фактический бумажный результат Conservative; сценарий ниже — исследовательская цель, а не результат. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative — not a promise and not an offer. The first line is the Conservative book’s realized paper result; the scenario below is a research target, not a result. Past paper results don't guarantee future returns.</p>
-    </div>
-    <script is:inline>
-      (function(){
-        var s=document.getElementById('calc-slider'); if(!s) return;
-        function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
-        function upd(){
-          var a=+s.value;
-          document.getElementById('calc-amt').textContent='$'+fmt(a);
-          var rr=parseFloat(s.dataset.rate); document.getElementById('calc-real').textContent=isFinite(rr)?fmt(a*rr/100):'—';
-          var tp=parseFloat(s.dataset.scenarioPct), sc=document.getElementById('calc-scn');
-          if(sc) sc.textContent=isFinite(tp)?fmt(a*tp/100):'—';
-        }
-        // F1 (redesign): fire calc_interact ONCE when the user first engages the yield calculator
-        // (a funnel-depth signal), then keep updating. Throttled to a single event to avoid flooding.
-        var calcFired=false;
-        s.addEventListener('input',function(){ upd(); if(!calcFired){ calcFired=true; try{ if(window.spaTrack) window.spaTrack('calc_interact'); }catch(e){} } });
-        upd();
-      })();
-    </script>
-  </section>
+    </section>
 
-  <!-- ============ M7: EARLY-ACCESS LIST (built-in scarcity from our own gate) ============ -->
-  <section class="band" style="padding:34px 0">
-    <div style="max-width:560px;margin:0 auto;padding:0 24px;text-align:center">
-      <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#eab308;font-family:var(--font-mono);margin:0 0 6px" data-ru="Ранний доступ">Early access</p>
-      <h2 style="font-size:22px;font-weight:800;color:var(--text-primary);margin:0 0 10px" data-ru="30-дневный отчёт paper-теста — когда текущая версия портфеля наберёт 30 валидных дней">30-day paper report — when the current portfolio version reaches 30 valid days</h2>
-      <p style="font-size:14px;color:var(--text-secondary);margin:0 0 18px" data-ru="Оставьте адрес, чтобы получить отчёт бумажного исследования. Это отчёт paper-теста — не инвестиционное предложение, не обещание доходности и не обещание выхода в live.">Leave an address to get the paper research report. It is a paper report — not an investment offer, no promise of yield and no promise of going live.</p>
-      <form id="ea-form" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <input id="ea-email" type="email" required placeholder="you@example.com" aria-label="Email" style="flex:1;min-width:220px;max-width:320px;padding:11px 16px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary)" />
-        <button type="submit" style="padding:11px 22px;border-radius:10px;background:#eab308;color:#000;font-weight:700;border:none;cursor:pointer" data-ru="Вступить">Join the list</button>
-      </form>
-      <p id="ea-status" style="font-size:12px;color:var(--text-faint);margin-top:12px;min-height:1em" role="status" aria-live="polite"></p>
-    </div>
-    <script is:inline>
-      (function(){
-        var f=document.getElementById('ea-form'); if(!f) return;
-        var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
-        var isRu=(document.documentElement.getAttribute('data-lang')==='ru'||document.documentElement.lang==='ru');
-        f.addEventListener('submit',function(e){
-          e.preventDefault();
-          var email=(document.getElementById('ea-email').value||'').trim();
-          var st=document.getElementById('ea-status'); st.textContent=isRu?'Отправляем…':'Joining…';
-          fetch(API+'/api/pilot/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email,source:'early_access',tier:'aggressive'})})
-            .then(function(r){return r.json();}).then(function(d){
-              if(d&&d.ok){ var p=d.position?(' — '+(isRu?'вы №':"you're #")+d.position):''; st.textContent=(isRu?'Готово! Отчёт о валидации пришлём первым':"Done! We'll send you the validation report first")+p; f.reset(); try{ if(window.spaTrack) window.spaTrack('early_access_submit'); }catch(e){} }
-              else st.textContent=(d&&d.error)||(isRu?'Введите корректный email':'Enter a valid email');
-            }).catch(function(){ st.textContent=isRu?'Ошибка сети':'Network error'; });
-        });
-      })();
-    </script>
-  </section>
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Риск">Risk</p>
+        <h2 class="ux-h2" data-ru="Что может пойти не так — главное">What can go wrong — the main points</h2>
+        <RiskList limit={4} />
+        <div class="ux-btnrow"><a class="ux-btn" href="/risk/" data-ru="Все риски простыми словами">All risks in plain words</a></div>
+      </div>
+    </section>
 
-  {/* 2026-08-20 (owner decision 19.08, variant 1 — ADR-089 §5) — three sections were removed here:
-       "DASHBOARD PREVIEW / #sample-report" (an illustrative wallet report), "WHAT YOUR CHECKUP
-       INCLUDES" (the five deliverables of the free checkup) and "NOT ANOTHER TRACKER" (a feature
-       table positioning "DeFi Checkup" against portfolio trackers). All three described a product
-       that is not deployed: the service lived on checkup.earn-defi.com, the whole host answers 404
-       (measured 2026-08-16) and the Etherscan key never reached prod (own-06). A description of a
-       product nobody can reach is a promise without a product — the same class of untruth as a
-       stale number, only slower to notice. What stays on this page is what exists: /snapshot,
-       the live track, the tiers. Restore the day a checkup service is actually deployed — that
-       will be a fact, not an advance. */}
-
-  <!-- ============ STRATEGIES — tier cards (main content) ============ -->
-  <section class="band" id="strategies">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Стратегии">Strategies</span>
-        <h2 data-ru="Три бумажных портфеля, три разные механики">Three paper portfolios, three different mechanics</h2>
-        <p data-ru="Только бумага, реального капитала нет. Статус работы обновляется по живому расписанию; результат показывается только для текущей версии стратегии и только когда статистики достаточно. Доходность переменная и не гарантирована.">Paper only, no real capital. The operating status follows the live schedule; a result is shown only for the current strategy version and only once it has enough statistics. Yield is variable and not guaranteed.</p>
-        <div class="pkg-meta-row">
-          <span class="pkg-meta-chip" id="pkgMetaChip">
-            <span class="dot" aria-hidden="true"></span>
-            <span id="pkgMetaText" data-ru="Зелёный статус значит «процесс работает и данные свежие» — это не оценка риска, не доходность и не допуск к реальным деньгам">A green status means “the process runs and its data is fresh” — not a risk grade, not a return and not approval for real money</span>
-          </span>
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Доверие">Trust</p>
+        <h2 class="ux-h2" data-ru="Не верьте нам — проверьте">Don't take our word — check</h2>
+        <TrustBlock />
+        <div class="ux-btnrow">
+          <a class="ux-btn primary" href="/track-record/" data-ru="Смотреть результаты по дням">See the day-by-day track</a>
+          <a class="ux-btn" href="/how-it-works/" data-ru="Как это устроено">How it works</a>
+          <a class="ux-btn" href="/dashboard/" data-ru="Бумажный дашборд">Paper dashboard</a>
         </div>
+        <p class="ux-small" style="margin-top:18px" data-ru="Не оферта и не инвестиционный совет. Доходность переменная и не гарантирована; возможна потеря средств. Бумажные результаты — не результаты реальных клиентов.">Not an offer or investment advice. Returns are variable and not guaranteed; loss of funds is possible. Paper results are not real client results.</p>
       </div>
-      <div class="tier-grid" id="tierGrid">
-        <div class="tier-card t-preserve" data-pkg="conservative">
-          <h3>Conservative</h3>
-          <PackageStatusRows pkg="conservative" part="status" />
-          <PackageStatusRows pkg="conservative" part="live" />
-          <PackageStatusRows pkg="conservative" part="body" />
-          <a class="btn-card" href="/strategies/conservative" data-track="tier_view_conservative" data-ru="Подробнее и доказательства →">Details and evidence →</a>
-        </div>
-        <div class="tier-card t-core" data-pkg="balanced">
-          <h3>Balanced</h3>
-          <PackageStatusRows pkg="balanced" part="status" />
-          <PackageStatusRows pkg="balanced" part="live" />
-          <PackageStatusRows pkg="balanced" part="body" />
-          <a class="btn-card" href="/strategies/balanced" data-track="tier_view_balanced" data-ru="Подробнее и доказательства →">Details and evidence →</a>
-        </div>
-        <div class="tier-card t-max" data-pkg="aggressive">
-          <h3>Aggressive</h3>
-          <PackageStatusRows pkg="aggressive" part="status" />
-          <PackageStatusRows pkg="aggressive" part="live" />
-          <PackageStatusRows pkg="aggressive" part="body" />
-          <a class="btn-card" href="/strategies/aggressive" data-track="tier_view_aggressive" data-ru="Подробнее и доказательства →">Details and evidence →</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ TRACK-RECORD GLANCE ============ -->
-  <section class="band" id="track">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Прозрачность">Transparency</span>
-        <h2 data-ru="Публичный трек-рекорд, а не маркетинг доходности.">Public track record, not yield marketing.</h2>
-        <p data-ru="Каждое обновление стратегии логируется. Каждая проверка правил видна. Бумажное тестирование — раньше реального капитала.">Every strategy update is logged. Every rule check is visible. Paper testing comes before real capital.</p>
-      </div>
-      <div class="track-band">
-        <div class="track-metrics">
-          <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">{snapDays}</div></div>
-          <div class="metric-card"><div class="lbl" data-ru={`Бумажная доходность, годовых · замер ${realizedAt ?? "—"}`}>{`Paper APY, annualised · measured ${realizedAt ?? "—"}`}</div><div class="val teal" id="m-apy">{snapApy}</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">{snapDd}</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">{snapGates}</div></div>
-        </div>
-        <div class="spark-wrap">
-          <div class="sh">
-            <span class="eyebrow" data-ru="Кривая капитала">Equity curve</span>
-            <span class="sh-right">
-              {snapAsOf && <span class="src" id="sl-asof" data-ru={`на дату ${snapAsOf}`}>as of {snapAsOf}</span>}
-              <span class="src" id="spark-src" data-ru="снимок">snapshot</span>
-            </span>
-          </div>
-          <svg id="spark" viewBox="0 0 400 120" preserveAspectRatio="none" role="img" aria-label="Paper equity curve" data-points={JSON.stringify(snapEquity)}></svg>
-          <div class="spark-foot" data-ru="Виртуальный портфель $100,000 USDC · считаются только дни с логом цикла (мы сбросили трек) · реестр на /track-record">Virtual $100,000 USDC portfolio · only cycle-logged days count (we reset the track) · ledger at /track-record</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ HOW IT WORKS (compact) ============ -->
-  <section class="band" id="how">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Методология">Methodology</span>
-        <h2 data-ru="Как система защищает дисциплину">How the system protects discipline</h2>
-      </div>
-      <div class="steps">
-        <div class="step">
-          <div class="n">01</div>
-          <h3 data-ru="Сканирует рынок">Scans the market</h3>
-          <p data-ru="Отслеживает APY, TVL, ликвидность, риск протоколов, концентрацию и экспозицию стейблкоинов.">Tracks APY, TVL, liquidity, protocol risk, concentration, and stablecoin exposure.</p>
-        </div>
-        <div class="step">
-          <div class="n">02</div>
-          <h3 data-ru="Применяет строгие правила">Applies strict rules</h3>
-          <p data-ru="Стратегии следуют заранее заданным риск-политикам, а не эмоциям или чёрному ящику AI.">Strategies follow predefined risk policies instead of emotional decisions or black-box AI calls.</p>
-        </div>
-        <div class="step">
-          <div class="n">03</div>
-          <h3 data-ru="Логирует каждое изменение">Logs every change</h3>
-          <p data-ru="Каждая крупная ребалансировка, отклонённая возможность и риск-событие записаны для проверки.">Every major rebalance, rejected opportunity, and risk event is recorded for review.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ BACKED BY A PUBLIC STRATEGY LAB ============ -->
-  <section class="band alt">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Исследование">Research</span>
-        {/* 2026-08-20 (ADR-089 §5): this section was framed as "backed by / behind the CHECKUP".
-             The strategy lab is real and unchanged; only the reference to the undeployed checkup
-             product was dropped. Not a single claim about the lab was altered. */}
-        <h2 data-ru="Публичный strategy lab">A public strategy lab</h2>
-        <p data-ru="SPA Strategy Lab — публичная исследовательская система, где мы paper-тестируем стратегии доходности по стейблкоинам, прежде чем рисковать реальным капиталом.">SPA Strategy Lab is a public research system where we paper-test stablecoin yield strategies before risking real capital.</p>
-      </div>
-      <p style="color:var(--text-secondary); max-width:680px; margin:0 auto; text-align:center; font-size:.9375rem">
-        <span data-ru="SPA Strategy Lab показывает, как можно структурировать и отслеживать разные профили риска — каждое обновление залогировано, каждая проверка правил видна.">The SPA Strategy Lab shows how different risk profiles can be structured and tracked over time — every update logged, every rule check visible.</span>
-      </p>
-    </div>
-  </section>
-
-  <!-- ============ TRUST BY DESIGN ============ -->
-  <section class="band">
-    <div class="container">
-      <div class="sec-head">
-        <span class="eyebrow" data-ru="Доверие по дизайну">Trust by design</span>
-        <h2 data-ru="Построено так, чтобы не верить нам на слово">Built so you never have to trust us blindly</h2>
-      </div>
-      <div class="trust-grid">
-        <div class="trust-card"><h3 data-ru="Без депозитов">No deposits</h3><p data-ru="Мы никогда не просим вносить средства или подключать кошелёк для подписи.">We never ask you to deposit funds or connect a wallet for signing.</p></div>
-        {/* 2026-08-20 (ADR-089 §5): the card said "the checkup works with public onchain data" —
-             it described the address-scanning product, which is not deployed. What is true today is
-             narrower and stronger: nothing on this site asks for an address at all. */}
-        <div class="trust-card"><h3 data-ru="Адрес кошелька не нужен">No wallet address needed</h3><p data-ru="Мы не просим ни адрес, ни ключ, ни email — только публичные данные.">We ask for no address, no key and no email — public data only.</p></div>
-        <div class="trust-card"><h3 data-ru="Без гарантий доходности">No guaranteed yield</h3><p data-ru="Все цифры APY — оценочные, целевые или протестированные на бумаге.">All APY figures are estimated, target-based, or paper-tested.</p></div>
-        <div class="trust-card"><h3 data-ru="Прозрачное исследование">Transparent research</h3><p data-ru="Обновления стратегий, проверки риска и paper-результаты логируются публично.">Strategy updates, risk checks, and paper results are logged publicly.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ M11: ASSET-ENTRY CARDS (entry by situation, not tier taxonomy) ============ -->
-  <section class="band alt" style="padding:34px 0">
-    <div style="max-width:1000px;margin:0 auto;padding:0 24px">
-      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 18px" data-ru="Начните с того, что у вас есть">Start from what you hold</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
-        <a href="/packages" data-track="m11_usdc" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Есть USDC / USDT?">Holding USDC / USDT?</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru={`Смотрите консервативный тир — ${realizedNumRu} фактических, проверяемо, ${ddPctRu} просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) →`}>See the conservative tier — {realizedNumEn} realized, auditable, {ddPctEn} drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) →</div>
-        </a>
-        {/* 2026-08-20 (ADR-089 §5): these two cards pointed at /#analyze — the hero, which used to
-             hold the paste-an-address widget of the checkup. The widget went with the service
-             (2026-08-16); landing on the hero delivered nothing for the promise on the card. Both
-             now point at /snapshot, which really does answer "what are idle stables leaving on the
-             table" (four questions, no wallet, no email). Copy unchanged — it is deliverable there. */}
-        <a href="/snapshot" data-track="m11_idle" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Стейблы простаивают под 0%?">Idle stables earning 0%?</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Бесплатно посчитаем, сколько вы недополучаете →">Free — we'll show what you're leaving on the table →</div>
-        </a>
-        <a href="/snapshot" data-track="m11_defi" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Уже в DeFi (Aave, LP…)?">Already in DeFi (Aave, LP…)?</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Проверьте риск вашей позиции бесплатно →">Check your position's real risk, free →</div>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ FINAL CTA ============ -->
-  <section class="band">
-    <div class="container final-cta">
-      {/* The wallet-paste instruction here could not be followed after 2026-08-16: the checkup service
-          that resolved addresses is not deployed and the hero input went with it. An instruction the
-          site cannot carry out is a defect, not copy — repointed at the live 60-second snapshot.
-          2026-08-20: the sections that DESCRIBED the checkup product are now gone too — the owner
-          made that call (variant 1 on `owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k`,
-          ADR-089 §5). This CTA was already honest and is unchanged. */}
-      <h2 data-ru="Начните с 60-секундного снимка">Start with the 60-second snapshot</h2>
-      <p data-ru="Четыре вопроса, без кошелька и без email — честный снимок риска и сколько ваши стейблы оставляют «на столе».">Four questions, no wallet and no email — an honest risk snapshot and what your idle stables leave on the table.</p>
-      <a class="btn btn-primary" href="/snapshot" data-track="analyze_wallet" data-ru="Пройти снимок">Take the snapshot</a>
-      <p class="hero-trust" data-ru="Без email. Без подключения кошелька. Без депозитов.">No email required. No wallet connection. No deposits.</p>
-    </div>
-  </section>
+    </section>
+  </main>
 </Layout>
-
-<style is:global>
-  /* Console homepage styles — consume global tokens from Layout (spec §3). */
-  .container{max-width:1152px; margin:0 auto; padding:0 24px}
-  .eyebrow{font-family:var(--font-mono); font-size:.75rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint)}
-
-  /* Hero */
-  .hero{
-    min-height:calc(100vh - 64px - 42px); display:flex; flex-direction:column; justify-content:center;
-    padding:80px 0; position:relative; overflow:hidden;
-  }
-  .hero::before{
-    content:""; position:absolute; inset:0; pointer-events:none;
-    background:radial-gradient(ellipse 70% 55% at 50% 38%, rgba(91,141,239,.08), transparent 70%);
-  }
-  .hero-inner{position:relative; max-width:920px; margin:0 auto; padding:0 24px; text-align:center}
-  .hero-eyebrow{display:inline-block; font-family:var(--font-mono); font-size:.75rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-bottom:18px}
-  .hero h1{font-size:clamp(2rem,6vw,3.5rem); line-height:1.05; font-weight:700; color:var(--text-primary); letter-spacing:-.02em; margin-bottom:20px}
-  .hero h1 .accent{color:var(--accent)}
-  .hero .sub{font-size:clamp(1rem,2.2vw,1.1875rem); color:var(--text-secondary); max-width:620px; margin:0 auto 28px; line-height:1.6}
-  .btn{display:inline-flex; align-items:center; gap:8px; border-radius:var(--r-sm); font-weight:600; font-size:.9375rem; transition:all 120ms var(--ease); cursor:pointer; text-decoration:none}
-  .btn-primary{background:var(--accent); color:#fff; padding:14px 26px; box-shadow:var(--shadow-cta)}
-  .btn-primary:hover{background:var(--accent-hover); color:#fff; transform:translateY(-2px)}
-
-  /* The .walletcheck / .wc-* rules dressed the paste-an-address hero widget; both the widget and
-     its destination (checkup.earn-defi.com) are gone as of 2026-08-16, so the rules went with them
-     — no element on the site carries these classes any more. */
-  .status-line{display:inline-flex; align-items:center; gap:0; flex-wrap:wrap; justify-content:center; font-family:var(--font-mono); font-size:.8125rem; color:var(--text-muted); margin-bottom:36px}
-  .status-line .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-right:8px; animation:pulse 3s cubic-bezier(.4,0,.6,1) infinite}
-  .status-line .seg{color:var(--text-secondary)}
-  .status-line .div{color:var(--text-faint); margin:0 8px}
-  .status-line .num{color:var(--data-teal)}
-
-  /* Journey chooser — three lenses (Investor / Analyst / Skeptic) */
-  .journey{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:820px; margin:0 auto 32px; text-align:left}
-  .jc{display:flex; flex-direction:column; gap:8px; padding:22px; border-radius:var(--r-lg); border:1px solid var(--border); background:var(--bg-surface); text-decoration:none; transition:border-color 120ms var(--ease), transform 200ms var(--ease)}
-  .jc:hover{border-color:var(--border-strong); transform:translateY(-3px)}
-  .jc-role{font-size:1rem; font-weight:600; color:var(--text-primary)}
-  .jc-desc{font-size:.8125rem; color:var(--text-secondary); line-height:1.5; flex:1}
-  .jc-links{font-family:var(--font-mono); font-size:.6875rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; flex-wrap:wrap}
-  .jc-arrow{color:var(--accent); margin-left:auto; transition:transform 120ms var(--ease)}
-  .jc:hover .jc-arrow{transform:translateX(3px); color:var(--accent-hover)}
-
-  .hero-tail{display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap}
-  .por-chip{display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:var(--r-full); border:1px solid var(--border); background:var(--bg-surface); font-family:var(--font-mono); font-size:.75rem; color:var(--text-secondary); text-decoration:none; transition:all 120ms var(--ease)}
-  .por-chip:hover{border-color:var(--border-strong); color:var(--text-primary)}
-  .por-chip .por-dot{width:7px; height:7px; border-radius:50%; background:var(--text-faint)}
-  .por-chip.ok .por-dot{background:var(--data-teal); box-shadow:0 0 8px rgba(54,194,180,.6)}
-  .por-chip.warn .por-dot{background:var(--warn)}
-  .por-chip .por-state{color:var(--text-muted)}
-  .por-chip.ok .por-state{color:var(--data-teal)}
-  .por-chip.warn .por-state{color:var(--warn)}
-  .por-chip .por-arrow{color:var(--text-faint); transition:transform 120ms var(--ease)}
-  .por-chip:hover .por-arrow{transform:translateX(2px); color:var(--text-secondary)}
-
-  /* Section scaffold */
-  section.band{padding:96px 0; border-top:1px solid var(--border)}
-  .sec-head{text-align:center; margin-bottom:48px}
-  .sec-head .eyebrow{display:block; margin-bottom:12px}
-  .sec-head h2{font-size:1.5rem; font-weight:600; color:var(--text-primary); line-height:1.25; letter-spacing:-.01em}
-  .sec-head p{color:var(--text-secondary); max-width:560px; margin:12px auto 0; font-size:.9375rem}
-
-  /* Honesty chip (tier packages = validated backtest, not realized) */
-  .pkg-meta-row{margin-top:16px; display:flex; justify-content:center}
-  .pkg-meta-chip{display:inline-flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.04em; padding:5px 12px; border-radius:var(--r-full); background:rgba(242,181,60,.08); color:var(--warn); border:1px solid rgba(242,181,60,.28)}
-  .pkg-meta-chip .dot{width:6px; height:6px; border-radius:var(--r-full); background:var(--warn); opacity:.85}
-
-  /* Tier cards */
-  .tier-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:24px; align-items:stretch}
-  .tier-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); border-top:3px solid var(--border); padding:32px; display:flex; flex-direction:column; transition:border-color 120ms var(--ease), transform 200ms var(--ease)}
-  .tier-card:hover{border-color:var(--border-strong); transform:translateY(-3px)}
-  .tier-card.t-preserve{border-top-color:var(--data-teal)}
-  .tier-card.t-core{border-top-color:var(--accent)}
-  .tier-card.t-max{border-top-color:var(--warn)}
-  .tier-card h3{font-size:1.25rem; font-weight:600; color:var(--text-primary); margin-bottom:10px}
-  .pill{display:inline-flex; align-items:center; gap:6px; align-self:flex-start; font-family:var(--font-mono); font-size:.6875rem; font-weight:600; letter-spacing:.04em; padding:4px 10px; border-radius:var(--r-full); margin-bottom:20px; text-transform:uppercase}
-  .pill.ok{background:rgba(52,211,153,.12); color:var(--ok); border:1px solid rgba(52,211,153,.25)}
-  .pill.wait{background:rgba(242,181,60,.10); color:var(--warn); border:1px solid rgba(242,181,60,.22)}
-  .tier-apy{font-family:var(--font-mono); font-size:2.5rem; line-height:1; font-weight:700; color:var(--text-primary); margin-bottom:6px}
-  .tier-apy small{font-size:.8125rem; font-weight:500; color:var(--text-muted); letter-spacing:0}
-  .tier-cap{font-size:.6875rem; color:var(--text-muted); margin-bottom:24px}
-  .tier-dl{list-style:none; margin:0 0 24px; padding:0}
-  .tier-dl li{display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--border); font-size:.8125rem}
-  .tier-dl li:last-child{border-bottom:none}
-  .tier-dl .k{color:var(--text-muted)}
-  .tier-dl .v{font-family:var(--font-mono); color:var(--text-secondary)}
-  .tier-who{font-size:.8125rem; color:var(--text-secondary); margin-bottom:24px; line-height:1.5; flex:1}
-  .tier-card .btn-card{margin-top:auto; display:flex; align-items:center; justify-content:center; gap:6px; padding:12px; border-radius:var(--r-sm); border:1px solid var(--border); color:var(--text-secondary); font-size:.8125rem; font-weight:600; text-decoration:none; transition:all 120ms var(--ease)}
-  .tier-card .btn-card:hover{border-color:var(--border-strong); color:var(--text-primary)}
-
-  /* Track-record glance */
-  .track-band{display:grid; grid-template-columns:1.1fr 1fr; gap:48px; align-items:center}
-  .track-metrics{display:grid; grid-template-columns:repeat(2,1fr); gap:16px}
-  .metric-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-md); padding:20px}
-  .metric-card .lbl{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:8px}
-  .metric-card .val{font-family:var(--font-mono); font-size:1.75rem; font-weight:700; color:var(--text-primary); line-height:1}
-  .metric-card .val.teal{color:var(--data-teal)}
-  .spark-wrap{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:24px}
-  .spark-wrap .sh{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
-  .spark-wrap .sh .eyebrow{color:var(--accent)}
-  .spark-wrap .sh .src{font-family:var(--font-mono); font-size:.6875rem; color:var(--text-muted)}
-  .spark-wrap .sh .sh-right{display:inline-flex; align-items:center; gap:10px}
-  .spark-wrap .sh .sh-right #sl-asof{color:var(--text-faint)}
-  #spark{width:100%; height:120px; display:block}
-  .spark-foot{font-size:.6875rem; color:var(--text-muted); margin-top:12px; text-align:center}
-
-  /* How it works */
-  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:24px}
-  .step{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:28px; transition:border-color 120ms var(--ease)}
-  .step:hover{border-color:var(--border-strong)}
-  .step .n{font-family:var(--font-mono); font-size:.75rem; color:var(--accent); margin-bottom:14px; letter-spacing:.1em}
-  .step h3{font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:8px}
-  .step p{font-size:.875rem; color:var(--text-secondary); line-height:1.55}
-
-  /* Final CTA */
-  .final-cta{text-align:center}
-  .final-cta h2{font-size:1.75rem; font-weight:700; color:var(--text-primary); margin-bottom:14px; letter-spacing:-.01em}
-  .final-cta p{color:var(--text-secondary); max-width:480px; margin:0 auto 28px}
-
-  /* Research / Structural Desk card */
-  .research-card{display:block; max-width:760px; margin:0 auto; padding:28px 32px; border-radius:var(--r-lg); border:1px solid var(--border); background:var(--bg-surface); transition:all 120ms var(--ease); text-decoration:none}
-  .research-card:hover{border-color:var(--border-strong); transform:translateY(-2px)}
-  .research-card .rc-lead{color:var(--text-secondary); font-size:.9375rem; line-height:1.65; margin:0 0 18px}
-  .research-card .rc-cta{display:inline-flex; align-items:center; gap:6px; color:var(--accent); font-weight:600; font-size:.9375rem}
-  .research-card:hover .rc-cta{color:var(--accent-hover)}
-
-  @media (max-width:900px){
-    .tier-grid,.steps,.journey{grid-template-columns:1fr}
-    .track-band{grid-template-columns:1fr; gap:32px}
-    section.band{padding:64px 0}
-  }
-  @media (max-width:520px){
-    section.band{padding:48px 0}
-    .track-metrics{grid-template-columns:1fr 1fr}
-  }
-
-  /* ── Phase 1 redesign: checkup-first hero + new sections ─────────────── */
-  .band.alt{background:var(--bg-surface)}
-  .hero-trust{font-size:.8125rem; color:var(--text-muted); margin:14px 0 0}
-  .hero-secondary{margin-top:22px}
-  .btn-ghost{display:inline-flex; align-items:center; font-size:.9375rem; font-weight:600; color:var(--text-secondary); border:1px solid var(--border); border-radius:var(--r-sm); padding:11px 20px; transition:all 120ms var(--ease)}
-  .btn-ghost:hover{border-color:var(--border-strong); color:var(--text-primary)}
-  .hero-powered{margin-top:26px; font-size:.8125rem; color:var(--text-muted)}
-  .hero-powered b{color:var(--text-secondary)}
-
-
-  /* trust cards */
-  /* 2026-08-20 (ADR-089 §5): the .hero-bullets / .dash-preview+.dp-* / .feat-* / .cmp-table rules
-     dressed the checkup sections that came off this page — no element on the site carries these
-     classes any more (verified across landing/src). Removed for the same reason .walletcheck was:
-     dead CSS outlives the memory of why it is there. */
-  .trust-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
-  @media(max-width:820px){.trust-grid{grid-template-columns:1fr 1fr}}
-  .trust-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px}
-  .trust-card h3{font-size:.9375rem; color:var(--text-primary); margin:0 0 6px}
-  .trust-card p{font-size:.8125rem; color:var(--text-secondary); margin:0; line-height:1.5}
-</style>
-
-<script is:inline>
-  /* Live data (api.earn-defi.com, localhost fallback, graceful offline). */
-  (function(){
-    var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-      ? 'http://localhost:8765'
-      : 'https://api.earn-defi.com';
-    var LANG = function(){ try{ return localStorage.getItem('spa_lang') || 'en'; }catch(e){ return 'en'; } };
-    function setText(id, txt){ var el = document.getElementById(id); if(el){ el.textContent = txt; } }
-
-    function loadHealth(){
-      fetch(API + '/api/health-public').then(function(r){ return r.json(); }).then(function(d){
-        if(!d) return;
-        // NOTE: day count comes from loadGoLive() (honest evidenced count), NOT
-        // from d.track_days here (that counts raw/backfill bars).
-        // PRODUCT-TRUTH-02: the rate and drawdown tiles show the PUBLISHED weekly figures (the shelf,
-        // with their measurement date) and are NOT overwritten in the browser. A live overwrite put a
-        // second rate on the page next to the hero (first a one-day OBSERVED rate, ADR-580 C2) and
-        // bypassed the weekly publication cadence (ADR-357). The live rate lives on /dashboard, labelled.
-      }).catch(function(){});
-    }
-
-    // Honest evidenced day count + gates straight from GoLiveChecker output.
-    function loadGoLive(){
-      fetch(API + '/api/v1/golive').then(function(r){ return r.json(); }).then(function(d){
-        if(!d) return;
-        var day = d.real_track_days != null ? d.real_track_days : '—';
-        var pass = d.passed != null ? d.passed : d.risk_gates_passed;
-        var total = d.total != null ? d.total : d.risk_gates_total;
-        var gates = (pass != null && total != null) ? (pass + '/' + total) : '—/—';
-        setText('sl-day', day);
-        setText('m-days', day);
-        // M4+M12: go-live countdown progress bar + evidenced-days counters
-        setText('m12-day', day);
-        setText('m4-day', day);
-        var dn = (typeof day === 'number') ? day : parseInt(day, 10);
-        if (!isNaN(dn)) { var bar = document.getElementById('m12-bar'); if (bar) bar.style.width = Math.min(100, Math.round(dn / 30 * 100)) + '%'; }
-        setText('sl-gates', gates);
-        setText('m-gates', gates);
-        // P0-2: the API answered → flip the "as of <date>" static-snapshot label to live.
-        var ru = (document.documentElement.getAttribute('data-lang') === 'ru' || document.documentElement.lang === 'ru');
-        setText('sl-asof', ru ? 'вживую' : 'live');
-      }).catch(function(){});
-    }
-
-    // M6 (redesign): live refusal-count badge on the homepage proof strip — the moat as a real number.
-    function loadRefusalCount(){
-      fetch(API + '/api/rates-desk/decisions').then(function(r){ return r.json(); }).then(function(d){
-        var c = (d && d.counts && d.counts.REFUSAL != null) ? d.counts.REFUSAL : null;
-        if (c != null) setText('m4-refusals', c);
-      }).catch(function(){});
-    }
-
-    // ADR-537: the package cards are rendered and refreshed by PackageStatusRows from the one status
-    // record (/api/v1/packages/status) and the one shelf; nothing here overwrites them any more —
-    // the old loadPackages() wrote a BACKTEST blend and a backtest drawdown into the cards.
-
-    function drawSpark(points){
-      var svg = document.getElementById('spark'); if(!svg || !points || points.length < 2) return;
-      var W = 400, H = 120, pad = 6;
-      var min = Math.min.apply(null, points), max = Math.max.apply(null, points);
-      var range = (max - min) || 1;
-      var n = points.length;
-      var coords = points.map(function(v, i){
-        var x = pad + (i / (n - 1)) * (W - 2 * pad);
-        var y = H - pad - ((v - min) / range) * (H - 2 * pad);
-        return x.toFixed(1) + ',' + y.toFixed(1);
-      });
-      var line = 'M' + coords.join(' L');
-      var area = line + ' L' + (W - pad).toFixed(1) + ',' + (H - pad) + ' L' + pad + ',' + (H - pad) + ' Z';
-      svg.innerHTML =
-        '<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0%" stop-color="rgba(54,194,180,.25)"/>' +
-        '<stop offset="100%" stop-color="rgba(54,194,180,0)"/></linearGradient></defs>' +
-        '<path d="' + area + '" fill="url(#sg)"/>' +
-        '<path d="' + line + '" fill="none" stroke="var(--data-teal)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-    }
-    function loadEvidence(){
-      fetch(API + '/api/v1/evidence').then(function(r){ return r.json(); }).then(function(resp){
-        var data = resp && resp.data;
-        var daily = (data && data.daily) || (Array.isArray(data) ? data : null);
-        if(!daily || !daily.length) return;
-        var pts = daily.map(function(row){
-          return row.close_equity != null ? row.close_equity
-               : row.equity != null ? row.equity
-               : row.nav != null ? row.nav : null;
-        }).filter(function(v){ return v != null; });
-        if(pts.length >= 2){ drawSpark(pts); setText('spark-src', 'live'); }
-      }).catch(function(){});
-    }
-
-    function loadNav(){
-      fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
-        if(!d || d.reconciliation_ok == null) return;
-        var chip = document.getElementById('porChip');
-        var state = document.getElementById('porChipState');
-        if(!chip || !state) return;
-        var ru = LANG() === 'ru';
-        var ok = d.reconciliation_ok === true;
-        chip.classList.remove('ok','warn');
-        chip.classList.add(ok ? 'ok' : 'warn');
-        state.textContent = ok ? (ru ? '✓ сверено' : '✓ reconciled') : (ru ? '⚠ расхождение' : '⚠ delta');
-      }).catch(function(){});
-    }
-
-    // Build-time snapshot fallback: draw the last evidenced equity curve immediately so
-    // the spark is never blank when the API is offline. loadEvidence() overrides on success.
-    function drawSnapshot(){
-      var svg = document.getElementById('spark'); if(!svg) return;
-      try{
-        var pts = JSON.parse(svg.getAttribute('data-points') || '[]');
-        if(pts && pts.length >= 2){ drawSpark(pts); }
-      }catch(e){}
-    }
-
-    // UX-09 focus helper removed with the hero widget (2026-08-16); #analyze still scrolls.
-
-    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadEvidence(); loadNav(); loadRefusalCount(); }
-    if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
-    else { init(); }
-  })();
-</script>

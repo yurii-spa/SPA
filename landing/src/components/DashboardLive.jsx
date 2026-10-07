@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { TONES } from './ui/tokens.js';
 import { goLiveLabel } from '../lib/golive_label.js';
 import { publishedRateFigure, measuredAt as shelfMeasuredAt } from '../lib/realized_rate.js';
+import CONSTITUTION from '../lib/constitution.json';
 
 /*
  * DashboardLive — the COMMAND CENTER for earn-defi.com.
@@ -52,8 +53,8 @@ export const T = {
   },
   live: { en: 'Live', ru: 'Вживую' },
   offline: { en: 'Offline', ru: 'Офлайн' },
-  snapshot: { en: 'static snapshot — connecting to live…', ru: 'статичный снимок — подключение к live…' },
-  connecting: { en: 'static snapshot — connecting to live…', ru: 'статичный снимок — подключение к live…' },
+  snapshot: { en: 'published snapshot shown · loads live data when JavaScript runs', ru: 'показан опубликованный снимок · живые данные загрузятся с JavaScript' },
+  connecting: { en: 'published snapshot shown · loading live data…', ru: 'показан опубликованный снимок · загружаем живые данные…' },
   updated: { en: 'Updated', ru: 'Обновлено' },
   refresh: { en: 'Refresh', ru: 'Обновить' },
 
@@ -69,19 +70,19 @@ export const T = {
   tabHelp: { en: 'How to use', ru: 'Как пользоваться' },
 
   /* overview */
-  heroEyebrow: { en: 'The road to go-live', ru: 'Путь к go-live' },
+  heroEyebrow: { en: 'Evidence collected', ru: 'Собранные доказательства' },
   heroTitle: { en: 'Evidenced track days', ru: 'Подтверждённые дни трека' },
   heroSub: {
-    en: 'Only days backed by a real daily-cycle log count. Target: 30 honest days, then owner review.',
-    ru: 'Считаются только дни с реальным логом ежедневного цикла. Цель: 30 честных дней, затем ревью владельца.',
+    en: 'Only days backed by a real daily-cycle log count. A rate is published after 30 such days. Live capital is a separate decision by the project owner and a legal review — not just a day count.',
+    ru: 'Считаются только дни с реальным логом ежедневного цикла. Ставка публикуется после 30 таких дней. Реальный капитал — отдельное решение владельца проекта и юридическая проверка, а не только счёт дней.',
   },
   anchor: { en: 'Evidence anchor', ru: 'Якорь подтверждения' },
-  target: { en: 'Go-live target', ru: 'Цель go-live' },
+  target: { en: 'Live capital', ru: 'Реальный капитал' },
   daysLeft: { en: 'days remaining', ru: 'дней осталось' },
-  golive: { en: 'Go-live criteria', ru: 'Критерии go-live' },
+  golive: { en: 'Live capital', ru: 'Реальный капитал' },
   goliveSub: {
-    en: 'Deterministic checks (ADR-002). All must pass for 7+ consecutive days.',
-    ru: 'Детерминированные проверки (ADR-002). Все должны пройти 7+ дней подряд.',
+    en: 'Paper stage. Live capital is not open; opening it requires a decision by the project owner and a legal review — not just a day count.',
+    ru: 'Бумажная стадия. Реальный капитал не принимается; для этого нужны решение владельца проекта и юридическая проверка, а не только счёт дней.',
   },
   portfolio: { en: 'Paper portfolio', ru: 'Бумажный портфель' },
   equity: { en: 'Equity', ru: 'Капитал' },
@@ -91,7 +92,7 @@ export const T = {
   regime: { en: 'Market regime', ru: 'Рыночный режим' },
   totalReturn: { en: 'Total return', ru: 'Совокупная доходность' },
   nav: { en: 'NAV (reconciled)', ru: 'NAV (сверено)' },
-  fleet: { en: 'Agent fleet', ru: 'Парк агентов' },
+  fleet: { en: 'System health', ru: 'Состояние системы' },
   fleetSub: {
     en: 'Autonomous launchd agents — daily cycle, monitors, autopush.',
     ru: 'Автономные launchd-агенты — дневной цикл, мониторы, автопуш.',
@@ -99,7 +100,7 @@ export const T = {
   healthy: { en: 'Healthy', ru: 'Здоровы' },
   warning: { en: 'Warning', ru: 'Внимание' },
   critical: { en: 'Critical', ru: 'Критич.' },
-  safety: { en: 'Safety state', ru: 'Состояние защиты' },
+  safety: { en: 'Safety state · Conservative', ru: 'Состояние защиты · Консервативный' },
   ofNeeded: { en: 'of 30 needed', ru: 'из 30 нужных' },
 
   /* parallel strategies */
@@ -393,10 +394,14 @@ export const T = {
     en: 'The autonomous fleet that keeps the daily cycle, monitors and autopush running — and the deterministic safety ladder that governs the book (RiskPolicy v1.0, LLM-free).',
     ru: 'Автономный парк, который держит дневной цикл, мониторы и автопуш — и детерминированная лестница защиты, управляющая портфелем (RiskPolicy v1.0, без LLM).',
   },
-  ladderTitle: { en: 'Safety ladder', ru: 'Лестница защиты' },
-  ladderDl: { en: 'Drift watch (DL-01) · 2% drawdown', ru: 'Наблюдение за дрейфом (DL-01) · 2% просадки' },
-  ladderSoft: { en: 'Soft de-risk · 5% drawdown — halt new allocations', ru: 'Soft de-risk · 5% просадки — стоп новых аллокаций' },
-  ladderHard: { en: 'Hard kill · 10% drawdown — all to cash', ru: 'Hard kill · 10% просадки — всё в кэш' },
+  ladderTitle: { en: 'Safety ladder · Conservative', ru: 'Лестница защиты · Консервативный' },
+  ladderDl: { en: 'Early warning · 2% drawdown', ru: 'Раннее предупреждение · 2% просадки' },
+  ladderSoft: { en: 'Soft risk reduction · {pct}% drawdown — no new positions (technical: SOFT_DERISK)', ru: 'Мягкое снижение риска · {pct}% просадки — новых позиций нет (технически: SOFT_DERISK)' },
+  ladderHard: { en: 'Full stop · {pct}% drawdown — everything to cash (technical: HARD_KILL)', ru: 'Полная остановка · {pct}% просадки — всё в кэш (технически: HARD_KILL)' },
+  ladderScope: {
+    en: 'This ladder governs Conservative — the portfolio with a measured track. Balanced and Aggressive are research portfolios with their own stops: Balanced stops at {bal}% drawdown, Aggressive at {agg}%.',
+    ru: 'Эта лестница управляет Консервативным — портфелем с измеренным треком. Сбалансированный и Агрессивный — исследовательские портфели со своими стопами: Сбалансированный останавливается при просадке {bal}%, Агрессивный — при {agg}%.',
+  },
   ladderState: { en: 'Current safety state', ru: 'Текущее состояние защиты' },
   deepSystem: { en: 'System hub →', ru: 'Хаб системы →' },
   deepStatus: { en: 'System status →', ru: 'Статус системы →' },
@@ -430,11 +435,11 @@ export const T = {
   },
   ladderCurrentDd: { en: 'Live drawdown', ru: 'Живая просадка' },
   ladderRungDl1: { en: 'DL-01 · daily loss', ru: 'DL-01 · дневной убыток' },
-  ladderRungSoft: { en: 'SOFT de-risk', ru: 'SOFT de-risk' },
-  ladderRungHard: { en: 'HARD kill', ru: 'HARD kill' },
+  ladderRungSoft: { en: 'Soft risk reduction', ru: 'Мягкое снижение риска' },
+  ladderRungHard: { en: 'Full stop', ru: 'Полная остановка' },
   ladderRungDl2: { en: 'DL-02 · peak DD', ru: 'DL-02 · peak DD' },
   ladderDl1Action: { en: 'HALT allocation (daily loss)', ru: 'HALT аллокации (дневной убыток)' },
-  ladderSoftAction: { en: 'halt NEW allocations, hold book', ru: 'стоп НОВЫХ аллокаций, держим книгу' },
+  ladderSoftAction: { en: 'no new positions, existing ones are kept', ru: 'новых позиций нет, текущие сохраняются' },
   ladderHardAction: { en: 'all to cash', ru: 'всё в кэш' },
   ladderDl2Action: { en: 'HALT allocation (peak drawdown)', ru: 'HALT аллокации (peak просадка)' },
   ladderGovOffline: { en: 'Governance policy unavailable — /api/governance offline; ladder thresholds shown from the canonical RiskPolicy literals.', ru: 'Политика governance недоступна — /api/governance офлайн; пороги лестницы показаны из канонических литералов RiskPolicy.' },
@@ -1001,13 +1006,12 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
                   <div style={{ ...card, padding: '10px 12px', background: 'var(--bg-base)' }}>
                     <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-faint)', marginBottom: 4 }}>{tr('target')}</p>
                     <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--data-teal)' }}>
-                      {target ?? (lang === 'ru' ? goLive.shortRu : goLive.shortEn)}
-                      {target != null && targetDaysLeft != null && <span style={{ color: 'var(--text-muted)' }}> · {targetDaysLeft} {tr('daysLeft')}</span>}
+                      {lang === 'ru' ? 'не принимается' : 'not open'}
                     </p>
                   </div>
                   <div style={{ ...card, padding: '10px 12px', background: 'var(--bg-base)' }}>
                     <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-faint)', marginBottom: 4 }}>{lang === 'ru' ? 'Осталось' : 'Remaining'}</p>
-                    <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{remaining == null ? NA : (remaining === 0 ? (lang === 'ru' ? 'порог пройден' : 'gate passed') : `${remaining} ${tr('ofNeeded')}`)}</p>
+                    <p style={{ ...mono, fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{remaining == null ? NA : (remaining === 0 ? (lang === 'ru' ? 'минимум для публикации набран' : 'reporting minimum reached') : `${remaining} ${tr('ofNeeded')}`)}</p>
                   </div>
                 </div>
               </div>
@@ -1018,12 +1022,8 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
             <Panel>
               <Eyebrow>{tr('golive')}</Eyebrow>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 10 }}>
-                <span style={{ ...mono, fontSize: '2.5rem', fontWeight: 700, color: 'var(--warn)', lineHeight: 1 }}>{gatesPass ?? NA}</span>
-                <span style={{ ...mono, fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: 4 }}>/ {gatesTotal}</span>
-              </div>
-              <Bar value={gatesPass || 0} max={gatesTotal} color="var(--warn)" />
-              <p style={{ ...SUBTEXT, marginTop: 10 }}>{tr('goliveSub')}</p>
+              {/* PRODUCT-UX-01: no «29/29» count — it read as «ready»; the decided statement instead. */}
+              <p style={{ ...SUBTEXT, marginTop: 4, fontSize: '.9375rem', color: 'var(--text-secondary)' }}>{tr('goliveSub')}</p>
               {criteria && (
                 <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                   {criteria.map((c) => {
@@ -1052,9 +1052,10 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
               </p>
               <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <SafetyRung tone={safeState === 'CLEAR' ? 'muted' : 'muted'} active={false} label={tr('ladderDl')} color="var(--text-faint)" />
-                <SafetyRung active={safeState === 'SOFT_DERISK'} label={tr('ladderSoft')} color="var(--warn)" />
-                <SafetyRung active={safeState === 'HARD_KILL'} label={tr('ladderHard')} color="var(--danger)" />
+                <SafetyRung active={safeState === 'SOFT_DERISK'} label={ladderRungText(tr('ladderSoft'), 'soft')} color="var(--warn)" />
+                <SafetyRung active={safeState === 'HARD_KILL'} label={ladderRungText(tr('ladderHard'), 'hard')} color="var(--danger)" />
               </div>
+              <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 12 }}>{ladderText(tr('ladderScope'))}</p>
             </Panel>
           </div>
 
@@ -1165,6 +1166,19 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
       )}
     </div>
   );
+}
+
+/* ── thresholds: rendered from constitution.json only (no printed numbers) ── */
+const _pct = (v) => (typeof v === 'number' ? String(+v.toFixed(2)) : '—');
+function ladderText(str) {
+  const ss = CONSTITUTION.sleeve_stops || {};
+  return str
+    .replace('{bal}', _pct(ss.balanced_stop_pct))
+    .replace('{agg}', _pct(ss.aggressive_stop_pct));
+}
+function ladderRungText(str, kind) {
+  const ks = CONSTITUTION.kill_switch || {};
+  return str.replace('{pct}', _pct(kind === 'soft' ? ks.soft_derisk_pct : ks.hard_kill_pct));
 }
 
 /* ── safety ladder rung ── */
@@ -2105,10 +2119,11 @@ function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <SafetyRung active={false} label={tr('ladderDl')} color="var(--text-faint)" />
-            <SafetyRung active={safeState === 'SOFT_DERISK'} label={tr('ladderSoft')} color="var(--warn)" />
-            <SafetyRung active={safeState === 'HARD_KILL'} label={tr('ladderHard')} color="var(--danger)" />
+            <SafetyRung active={safeState === 'SOFT_DERISK'} label={ladderRungText(tr('ladderSoft'), 'soft')} color="var(--warn)" />
+            <SafetyRung active={safeState === 'HARD_KILL'} label={ladderRungText(tr('ladderHard'), 'hard')} color="var(--danger)" />
           </div>
-          <p style={{ ...SUBTEXT, marginTop: 14 }}>
+          <p style={{ ...SUBTEXT, marginTop: 14 }}>{ladderText(tr('ladderScope'))}</p>
+          <p style={{ ...SUBTEXT, marginTop: 8 }}>
             {lang === 'ru' ? 'Детерминированная RiskPolicy v1.0 — без LLM. approved=False не переопределить. Полная лестница с маркером живой просадки + scorecard cutover — во вкладке «Риск».' : 'Deterministic RiskPolicy v1.0 — LLM-free. approved=False can be overridden by no one. The full ladder with the live-drawdown marker + the cutover scorecard live in the "Risk" tab.'}
           </p>
         </Panel>

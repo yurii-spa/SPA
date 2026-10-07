@@ -1,0 +1,46 @@
+---
+// ProfileCompare — three profiles with IDENTICAL rows (PRODUCT-UX-01 §4), from lib/profile_view.js
+// (on top of lib/package_card.js). A target is shown only for a mature profile, next to its result;
+// an immature profile shows its day count, and its target/earlier-version tail stay on the detail page.
+import { PROFILES, profileView, matureProfiles, termsIn } from '../../lib/profile_view.js';
+import MaturityBadge from './MaturityBadge.astro';
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;   // compact = the homepage: for · measured · status
+const rows = PROFILES.map(profileView);
+---
+<div class="ux-grid3">
+  {rows.map((v) => (
+    <article class="ux-card ux-profile">
+      <h3 data-ru={v.name_ru}>{v.name_en}</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+        <span class:list={['ux-tag', `risk-${v.risk_tone}`]} data-ru={`риск: ${v.risk_ru.toLowerCase()}`}>risk: {v.risk_en.toLowerCase()}</span>
+        <MaturityBadge profile={v.key} />
+      </div>
+      <dl>
+        <div><dt data-ru="Для кого">For</dt><dd data-ru={v.for_ru}>{v.for_en}</dd></div>
+        {!compact && <div><dt data-ru="Цель">Objective</dt><dd data-ru={v.objective_ru}>{v.objective_en}</dd></div>}
+        <div>
+          <dt data-ru="Результат (бумага)">Result (paper)</dt>
+          {v.measured ? (
+            <dd>
+              <span class="big" data-ru={v.measured.rate_ru}>{v.measured.rate_en}</span>{' '}
+              <span data-ru={`годовых · просадка ${v.measured.dd_ru ?? 'не измерена'} · замер ${v.measured.date ?? '—'}`}>annualised · drawdown {v.measured.dd_en ?? 'not measured'} · measured {v.measured.date ?? '—'}</span>
+              {v.target_shown && v.target_en && (
+                <div class="ux-small" style="margin-top:4px" data-ru={`Цель исследования ${v.target_ru} — не результат`}>Research target {v.target_en} — not a result</div>
+              )}
+            </dd>
+          ) : (
+            <dd data-ru={v.maturity.n != null ? `Накапливается: ${v.maturity.n} из ${v.maturity.need} дней — ставки пока нет` : 'не измерено'}>
+              {v.maturity.n != null ? `Accumulating: ${v.maturity.n} of ${v.maturity.need} days — no rate yet` : 'not measured'}
+            </dd>
+          )}
+        </div>
+        {!compact && <div><dt data-ru="Как работает">How it works</dt><dd data-ru={v.mechanism_ru ?? 'не измерено'}>{v.mechanism_en ?? 'not measured'}</dd></div>}
+        {!compact && termsIn(v.objective_en, v.mechanism_en).map((g) => <div class="ux-small" data-ru={g.ru}>{g.en}</div>)}
+        {!compact && <div><dt data-ru="Ликвидность">Liquidity</dt><dd data-ru={v.liquidity_ru}>{v.liquidity_en}</dd></div>}
+        <div><dt data-ru="Статус">Status</dt><dd data-ru={v.maturity.research_only ? (v.live_ru ?? 'только исследование') : 'Только бумага — реальный капитал не принимается'}>{v.maturity.research_only ? (v.live_en ?? 'research only') : 'Paper only — live capital is not open'}</dd></div>
+      </dl>
+      <div class="ux-btnrow"><a class="ux-btn" href={`/strategies/${v.key}/`} data-ru="Подробнее">Details</a></div>
+    </article>
+  ))}
+</div>

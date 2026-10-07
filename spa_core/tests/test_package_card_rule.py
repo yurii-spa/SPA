@@ -132,10 +132,17 @@ def test_a_research_target_always_travels_with_its_tail_and_tiers_and_code_are_s
 
 
 def test_the_home_calculator_takes_its_scenario_rate_from_the_band_not_a_literal():
+    """PRODUCT-UX-01 candidate (owner preview gate): the homepage calculator is REMOVED — it was the
+    closest thing on the site to solicitation. The rule it guarded stays: no literal scenario rate may
+    come back on the homepage, and if a calculator ever returns it must take its rate from the band."""
     src = (ROOT / "landing/src/pages/index.astro").read_text(encoding="utf-8")
     assert "a*0.20" not in src and "a*0.2" not in src, "the July literal must not come back"
-    assert "data-scenario-pct={aggTargetPct" in src and "researchTarget('aggressive'" in src
-    assert "Scenario, not a result" in src and "Сценарий, а не результат" in src
+    has_calculator = any(tok in src for tok in ('type="range"', 'id="calc-', "data-scenario-pct"))
+    if has_calculator:   # a calculator is back ⇒ the original rule applies in full
+        assert "data-scenario-pct={aggTargetPct" in src and "researchTarget('aggressive'" in src
+        assert "Scenario, not a result" in src and "Сценарий, а не результат" in src
+    else:                # no calculator input of any kind on the homepage
+        assert 'type="range"' not in src and 'id="calc-' not in src
 
 
 def test_a_paused_book_is_never_green_on_the_card():

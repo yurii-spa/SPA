@@ -1,0 +1,29 @@
+---
+// /learn/ — index of the explainers (was a 404 while the footer linked six of them). PRODUCT-UX-01.
+import Layout from '../../layouts/Layout.astro';
+import UxStyles from '../../components/ux/UxStyles.astro';
+const items = [
+  { href: '/learn/what-is-a-stablecoin-depeg/', en: 'What is a stablecoin depeg — and how fast does it happen?', ru: 'Что такое депег стейблкоина и как быстро он происходит?' },
+  { href: '/learn/is-usdt-safe-2026/', en: 'Is USDT safe? An honest risk breakdown', ru: 'Безопасен ли USDT? Честный разбор рисков' },
+  { href: '/learn/stablecoin-risk-checklist/', en: 'The stablecoin holder\'s risk checklist', ru: 'Чек-лист рисков для держателя стейблкоинов' },
+  { href: '/learn/why-20-apy-means-tail-risk/', en: 'Why very high stablecoin yields usually mean tail risk', ru: 'Почему очень высокая доходность на стейблкоинах обычно означает хвостовой риск' },
+  { href: '/learn/cex-vs-self-custody-stablecoins/', en: 'Exchange vs self-custody for stablecoins', ru: 'Биржа или самостоятельное хранение стейблкоинов' },
+  { href: '/how-we-think/', en: 'How we think about stablecoin yield', ru: 'Как мы думаем о доходности стейблкоинов' },
+];
+---
+<Layout title="Learn — stablecoin yield and risk explained | Earn DeFi"
+        description="Plain-language explainers on stablecoins, depegs, yield and risk, plus the Earn DeFi Academy.">
+  <UxStyles />
+  <main id="main-content">
+    <section class="ux-section">
+      <div class="ux-wrap">
+        <p class="ux-eyebrow" data-ru="Разобраться">Learn</p>
+        <h1 class="ux-h1" data-ru="Стейблкоины, доходность и риск — простыми словами">Stablecoins, yield and risk — in plain words</h1>
+        <div class="ux-grid2">
+          {items.map((it) => <a class="ux-card" href={it.href} style="text-decoration:none"><h3 class="ux-h3" data-ru={it.ru}>{it.en}</h3></a>)}
+        </div>
+        <div class="ux-btnrow"><a class="ux-btn" href="/academy/" data-ru="Академия: курс с нуля">Academy: a course from zero</a></div>
+      </div>
+    </section>
+  </main>
+</Layout>

@@ -1,4 +1,7 @@
 ---
+import UxStyles from '../components/ux/UxStyles.astro';
+import MetricStack from '../components/ux/MetricStack.astro';
+import { GO_LIVE } from '../lib/profile_view.js';
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import Tier1ProofPanel from '../components/Tier1ProofPanel.jsx';
@@ -24,6 +27,25 @@ const bars = snap.bars ?? [];
 const snapAsOf = snap.as_of || snap.generated_at || null;   // snapshot freshness for the "as of <date>" label
 // P1-5: the CHART plots only evidenced + reconstructed bars (drops synthetic warmup/backfill) so there
 // is no cross-series seam. The full bar set (incl. warmup/backfill) stays in the ledger table + data.
+// PRODUCT-UX-01: a missing day is shown as a missing day — computed from the bar dates, never filled in.
+const _dayMs = 86400000;
+const barRows = (() => {
+  const out = [];
+  const asc = bars.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  for (let i = 0; i < asc.length; i++) {
+    out.push({ kind: 'bar', b: asc[i] });
+    const next = asc[i + 1];
+    if (!next) continue;
+    const d0 = Date.parse(asc[i].date + 'T00:00:00Z'), d1 = Date.parse(next.date + 'T00:00:00Z');
+    const missing = Number.isFinite(d0) && Number.isFinite(d1) ? Math.round((d1 - d0) / _dayMs) - 1 : 0;
+    if (missing > 0) {
+      const first = new Date(d0 + _dayMs).toISOString().slice(0, 10);
+      const last = new Date(d1 - _dayMs).toISOString().slice(0, 10);
+      out.push({ kind: 'gap', first, last, n: missing });
+    }
+  }
+  return out.reverse();
+})();
 const chartPoints = bars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
 // P1-6: key metrics rendered STATICALLY from the snapshot so crawlers / no-JS see real numbers (not "—");
 // the JS island overrides them with live values from api.earn-defi.com.
@@ -56,6 +78,16 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
   canonical="https://earn-defi.com/track-record"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+  <UxStyles />
+  <!-- PRODUCT-UX-01: the result first, in the site-wide hierarchy (measured · target · research), then the story. -->
+  <section class="ux-section" style="padding-top:28px">
+    <div>
+      <p class="ux-eyebrow" data-ru="Результаты · Консервативный">Performance · Conservative</p>
+      <div class="ux-card"><MetricStack profile="conservative" /></div>
+      <p class="ux-small" style="margin-top:12px" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>
+    </div>
+  </section>
+
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
@@ -99,12 +131,12 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
             <p class="text-sm font-mono text-data-teal"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/50" data-ru="дней">days</span></p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
-            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1">Go-live</p>
-            <p class="text-sm font-mono text-white/80" id="tr-reset-target" data-ru={goLive.shortRu}>{goLiveTarget}</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Реальный капитал">Live capital</p>
+            <p class="text-sm font-mono text-white/80" data-ru="не принимается">not open</p>
           </div>
         </div>
         <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="Бумажный/исследовательский трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз. Метки источника на каждом баре ниже — видно, какие дни реальные.">
-          Paper / research track on a virtual $100k book. Not investment advice, not a
+          Paper / research track on a virtual $100k portfolio. Not investment advice, not a
           forecast. Per-bar source labels are shown below — you can see which days are real.
         </p>
       </div>
@@ -123,11 +155,6 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
           <p class="text-2xl font-mono font-bold text-white" id="tr-equity">{eqTxt}</p>
           <p class="text-xs text-white/50 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
-        </div>
-        <div class="rounded-xl border border-border bg-bg-surface p-5">
-          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
-          <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">{apyTxt}</p>
-          <p class="text-xs text-white/50 mt-1" data-ru={`фактически на бумаге, годовых · замер ${snap.as_of ?? "—"} · переменный, не гарантирован`}>{`realized on paper, annualised · measured ${snap.as_of ?? "—"} · variable, not guaranteed`}</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
@@ -167,14 +194,19 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <span data-ru="источник:">source:</span> <span id="tr-bars-src">static fallback</span>
         </p>
       </div>
-      <p class="text-sm text-white/45 leading-relaxed mb-4 max-w-2xl" data-ru="Каждый бар помечен своим источником. Только бары «цикл» подтверждены логом и засчитываются в go-live. «Бэкфилл» и «прогрев» приглушены — они показаны для прозрачности, но не считаются.">
+      <p class="text-sm text-white/45 leading-relaxed mb-4 max-w-2xl" data-ru="Каждый бар помечен своим источником. Только бары «цикл» подтверждены логом и засчитываются в подтверждённую историю. «Бэкфилл» и «прогрев» приглушены — они показаны для прозрачности, но не считаются.">
         Each bar is tagged with its source. Only <span class="text-data-teal font-medium">cycle</span>
-        bars are evidenced by a log and count toward go-live. <span class="text-white/55">Backfill</span>
+        bars are evidenced by a log and count toward the evidenced history. <span class="text-white/55">Backfill</span>
         and <span class="text-white/55">warmup</span> bars are dimmed — shown for transparency, but not counted.
       </p>
       <div class="rounded-xl border border-border-strong bg-bg-surface overflow-hidden">
         <div id="tr-bars" class="divide-y divide-border">
-          {bars.slice().reverse().map((b) => (
+          {barRows.map((r) => r.kind === 'gap' ? (
+            <div class="flex items-center gap-3 px-4 py-2.5">
+              <span class="w-2 h-2 rounded-full shrink-0 bg-white/20" aria-hidden="true"></span>
+              <span class="font-mono text-sm text-white/55" data-ru={r.n === 1 ? `${r.first} — запись за день отсутствует` : `${r.first} … ${r.last} — записей за ${r.n} дн. нет`}>{r.n === 1 ? `${r.first} — no bar recorded` : `${r.first} … ${r.last} — no bars recorded (${r.n} days)`}</span>
+            </div>
+          ) : ((b) => (
             <div class={`flex items-center gap-3 px-4 py-2.5 ${b.evidenced ? '' : 'opacity-50'}`}>
               <span class={`w-2 h-2 rounded-full shrink-0 ${meta(b.source).dot}`} aria-hidden="true"></span>
               <span class="font-mono text-sm text-white/70 w-24 shrink-0">{b.date}</span>
@@ -184,7 +216,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
                 <span data-ru={meta(b.source).ru}>{meta(b.source).en}</span>
               </span>
             </div>
-          ))}
+          ))(r.b))}
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-xs text-white/55 font-mono">
@@ -218,7 +250,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- Proof of Reserves -->
     <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Сверка NAV (бумажная)">NAV reconciliation (paper)</p>
         <p class="text-xs text-white/25 font-mono">
           <span data-ru="источник:">source:</span> <span id="por-src">static fallback</span>
         </p>
@@ -227,16 +259,16 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div>
-            <p class="text-lg font-semibold text-white mb-1" data-ru="Каждый доллар учтён — криптографически проверяемо">Every dollar accounted for, cryptographically verifiable</p>
+            <p class="text-lg font-semibold text-white mb-1" data-ru="Из чего складывается NAV — сверка частей с капиталом">What the NAV is made of — parts reconciled against equity</p>
             <p class="text-sm text-white/45 max-w-xl leading-relaxed" data-ru="NAV пересчитывается из своих частей (вложено + кэш + начислено) и сверяется с заявленным капиталом. Это бумажное доказательство резервов: проверяемая методология на виртуальном портфеле $100k, не реальное кастоди.">
               The NAV is recomputed from its parts (deployed + cash + accrued) and reconciled
               against the reported equity. This is a paper proof-of-reserves: the verifiable
-              methodology on the virtual $100k book, not real custody.
+              methodology on the virtual $100k portfolio, not real custody.
             </p>
           </div>
           <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-surface-2 border border-border-strong text-xs font-mono text-white/55 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
-            <span data-ru="статичный снимок — подключение к live…">static snapshot — connecting to live…</span>
+            <span data-ru="загрузится, когда сработает JavaScript — в опубликованном снимке полей сверки нет">loads when JavaScript runs — published snapshot does not include reconciliation fields</span>
           </div>
         </div>
 
@@ -288,28 +320,23 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </p>
         </div>
 
-        <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="NAV = Σ(позиции по протоколам) + кэш + начисленный доход. components_hash = sha256 канонического JSON отсортированных позиций; nav_hash связывает NAV с его компонентами и временем. Любой может пересчитать опубликованный NAV из компонентов через nav_proof.verify_proof().">
-          NAV = Σ(per-protocol positions) + cash + accrued yield. components_hash = sha256 of the
-          canonical JSON of the sorted positions; nav_hash binds the NAV to its components and timestamp.
-          Anyone can recompute the published NAV from its components via nav_proof.verify_proof().
+        <p class="text-sm text-white/60 mt-4 leading-relaxed" data-ru="Стоимость портфеля = сумма позиций в протоколах + кэш + начисленный доход. У каждой опубликованной стоимости есть отпечаток её состава и времени, поэтому любой может пересчитать её сам и убедиться, что цифру не подправили.">
+          Portfolio value = positions in the protocols + cash + accrued yield. Every published value carries a
+          fingerprint of what it is made of and when, so anyone can recompute it and check the figure was not edited.
         </p>
+        <details class="ux-research"><summary data-ru="Технические подробности">Technical detail</summary>
+          <div class="text-xs text-white/50">components_hash = sha256 of the canonical JSON of the sorted positions; nav_hash binds the value to its components and timestamp; recompute with nav_proof.verify_proof().</div>
+        </details>
       </div>
     </section>
 
     <!-- Go-live progress -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус">Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
-          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
-          <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-mono font-bold text-warn" id="tr-gates-pass">—</span>
-            <span class="text-2xl text-white/50 mb-1">/ <span id="tr-gates-total">29</span></span>
-          </div>
-          <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-            <div class="h-full bg-warn rounded-full transition-all" id="tr-gates-bar" style="width:0%"></div>
-          </div>
-          <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
+          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Реальный капитал">Live capital</div>
+          <p class="text-white/80 text-base leading-relaxed" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>
         </div>
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
           <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Подтверждённые дни трека">Evidenced track days</div>
@@ -320,7 +347,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div class="h-full bg-data-teal rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
           </div>
-          <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} <span data-ru="· go-live:">· go-live:</span> <span id="tr-days-target" data-ru={goLive.shortRu}>{goLiveTarget}</span></p>
+          <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} </p>
         </div>
       </div>
     </section>
@@ -343,10 +370,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
             <span class="text-white/80 font-semibold" data-ru="Заметка о реконструированном дне.">Reconstructed-day note.</span>
-            <span data-ru="Если автономный цикл пропустил день (например, при перезагрузке хоста), пропуск фиксируется gap_monitor, а пробел заполняется реконструированным баром — он помечается, а не выдаётся за живой. Непрерывность за 30 дней — отдельный критерий go-live.">
+            <span data-ru="Если автономный цикл пропустил день (например, при перезагрузке хоста), пропуск фиксируется сторожем пропусков, а пробел обычно заполняется реконструированным баром — он помечается, а не выдаётся за живой; если нет — день показан как пропущенный.">
               If the autonomous cycle missed a day (e.g. during a host restart), the gap is recorded
-              by gap_monitor and the hole is filled with a reconstructed bar — which is flagged, not
-              passed off as live. 30-day continuity is itself a separate go-live criterion.</span>
+              by the gap monitor and the hole is usually filled with a reconstructed bar — which is flagged, not
+              passed off as live; where it is not, the day is shown as missing.</span>
           </p>
         </div>
         <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
@@ -368,12 +395,12 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4 mt-10" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
       <div class="rounded-xl border border-teal-border bg-gradient-to-b from-teal-bg to-transparent p-6 sm:p-8">
-        <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
+        <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Сверка NAV выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
           The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.
           The evidenced equity series itself is committed to a single-genesis hash chain
           (<code class="text-data-teal">equity_track.jsonl</code>); the decisions behind it are
           committed to their own chain (<code class="text-data-teal">decision_log</code>, head-checkpoint
-          anchors), and each day's NAV reconciles (see Proof of Reserves above). Don't trust us — check
+          anchors), and each day's NAV reconciles (see NAV reconciliation above). Don't trust us — check
           us: one zero-dependency verifier (it does not import our code) re-derives every hash of
           <strong class="text-white/85">both</strong> chains and reports the exact
           <code class="text-data-teal">broken_at</code> if a single byte of history — an evidenced
@@ -549,7 +576,21 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         var host = document.getElementById('tr-bars'); if(!host) return;
         var ru = isRu();
         var tail = rows.slice(-18).reverse();
-        var html = tail.map(function(b){
+        // PRODUCT-UX-01: a missing day is rendered as missing, computed from the dates (never filled in)
+        var withGaps = [];
+        for (var gi = 0; gi < tail.length; gi++){
+          withGaps.push(tail[gi]);
+          var nx = tail[gi + 1]; if(!nx) continue;
+          var a = Date.parse(String(tail[gi].date) + 'T00:00:00Z'), z = Date.parse(String(nx.date) + 'T00:00:00Z');
+          var miss = (isFinite(a) && isFinite(z)) ? Math.round((a - z) / 86400000) - 1 : 0;
+          if (miss > 0) withGaps.push({ __gap: true, last: new Date(a - 86400000).toISOString().slice(0,10), first: new Date(z + 86400000).toISOString().slice(0,10), n: miss });
+        }
+        var html = withGaps.map(function(b){
+          if (b.__gap){
+            var gt = b.n === 1 ? (ru ? (b.first + ' — запись за день отсутствует') : (b.first + ' — no bar recorded'))
+                               : (ru ? (b.first + ' … ' + b.last + ' — записей за ' + b.n + ' дн. нет') : (b.first + ' … ' + b.last + ' — no bars recorded (' + b.n + ' days)'));
+            return '<div class="flex items-center gap-3 px-4 py-2.5"><span class="w-2 h-2 rounded-full shrink-0 bg-white/20" aria-hidden="true"></span><span class="font-mono text-sm text-white/55">' + esc(gt) + '</span></div>';
+          }
           var src = b.source || 'warmup';
           var ev = b.evidenced === true;
           var m = srcMeta(src);
