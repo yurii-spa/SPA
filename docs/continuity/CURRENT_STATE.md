@@ -1,23 +1,23 @@
 ---
 {
- "adr_listing_sha256": "6528c7160f36ba51e208f20a4b5b8a7ad7465543b44ed713121da6b2da173677",
- "adr_max_considered": 641,
+ "adr_listing_sha256": "98606bc1a55c8cb79fa18df1ed652cf864ebc47283211f230cbe10851e22188f",
+ "adr_max_considered": 642,
  "authority": "DERIVED",
  "context_version": "arb-continuity/2",
  "copy_role": "COMMITTED_SNAPSHOT",
- "generated_at": "2026-10-07T18:36:07Z",
+ "generated_at": "2026-10-07T21:55:25Z",
  "generator_version": "arb-continuity/2+8cd366e83d35",
  "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
- "origin_commit": "2e07eaba9df128a3d2ead34a3f8fe8a2ff39d018",
- "production_release": "2e07eaba9df128a3d2ead34a3f8fe8a2ff39d018",
- "production_release_verified_at": "2026-10-07T18:35:18Z",
- "repo_commit": "2e07eaba9df128a3d2ead34a3f8fe8a2ff39d018",
+ "origin_commit": "b263d032c82f5d9524dce4ef1106a286f9c35fe3",
+ "production_release": "f1ab7165060fa65bffdd783dc021b42c05944b64",
+ "production_release_verified_at": "2026-10-07T21:46:59Z",
+ "repo_commit": "b263d032c82f5d9524dce4ef1106a286f9c35fe3",
  "root_dirty_inputs": [],
- "runtime_truth_computed_at": "2026-10-07T18:29:05Z",
+ "runtime_truth_computed_at": "2026-10-07T21:48:03Z",
  "source_snapshot_ids": [
-  "inputs:09a98a9744c084c03d619fdb8bf39a9edbea95b358e93d26aa9455f9c34b595c",
-  "mission:81a13cfb90d5431a0812aa9b3eb33041edddf722c8957671bddd4c0b26cf4dfa",
-  "receipt:aa7995bdd8372926574d5663c38ab3436dda0213f1c8e3e24364f666e462bae0"
+  "inputs:1142ac0f91703e21c18a5cce611b95c6b8223758564046fa34bb88911d005a50",
+  "mission:8a20f61d5bd1f1616de182ad47edfb9049a021d132f5d78efe81db9b45430950",
+  "receipt:7b1efdbef8a2f4ca15e43c8eba42ed5b0b9e2e4465a9e107f4cacad6aff3acba"
  ],
  "verdict_at_generation": "CONTEXT_FRESH"
 }
@@ -31,7 +31,7 @@
 ## Active epic / current wave
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)
-- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T18:29:05Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
+- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T21:48:03Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
 
 ## Latest accepted epic
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -39,14 +39,14 @@
 - RM-TRUTH-01 · Company truth reconciliation + Director OS recovery (ADR-580, ACCEPTED)
 
 ## Current origin
-- **status:** MEASURED · **as of:** 2026-10-07T18:36:07Z · **authority:** CANONICAL
+- **status:** MEASURED · **as of:** 2026-10-07T21:55:25Z · **authority:** CANONICAL
 - **source:** git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)
-- canonical root HEAD 2e07eaba9df1 · origin main on the server 2e07eaba9df1
+- canonical root HEAD b263d032c82f · origin main on the server b263d032c82f
 
 ## Production code identity
-- **status:** MEASURED · **as of:** 2026-10-07T18:35:18Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:46:59Z · **authority:** RUNTIME
 - **source:** runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)
-- production code = origin 2e07eaba9df1 (code sync SYNCED, at 2026-10-07T18:35:18Z)
+- production code = origin f1ab7165060f (code sync IN_SYNC, at 2026-10-07T21:46:59Z)
 
 ## Real capital
 - **status:** MEASURED · **as of:** 2026-10-07T06:00:15Z · **authority:** RUNTIME
@@ -64,12 +64,12 @@
 - Консервативный: 4.8 % годовых · худшая просадка -0.04 % · 106 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.
 
 ## Trading Lab
-- **status:** MEASURED · **as of:** 2026-10-07T18:33:09Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:48:49Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)
-- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age -4.1 min
+- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age -0.8 min
 
 ## BTC (directional research)
-- **status:** MEASURED · **as of:** 2026-10-07T18:33:09Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:48:49Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)
 - research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h нейтрально
 
@@ -89,19 +89,19 @@
 - usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564)
 
 ## Studio OS
-- **status:** MEASURED · **as of:** 2026-10-07T17:43:09Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:43:43Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.{fleet,tasks,self_heal}
-- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 348 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
+- в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 350 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0
 
 ## Director OS / Mission Control
-- **status:** MEASURED · **as of:** 2026-10-07T18:29:05Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:48:03Z · **authority:** RUNTIME
 - **source:** runtime: published Mission Control bundle (current.json → mission.json)
-- Mission Control bundle b-20261007T182905Z-71254e18, Company Truth computed 2026-10-07T18:29:05Z (age 0.12 h at generation); read model only (ADR-592)
+- Mission Control bundle b-20261007T214803Z-62ceeb78, Company Truth computed 2026-10-07T21:48:03Z (age 0.12 h at generation); read model only (ADR-592)
 
 ## Memory
-- **status:** MEASURED_ZERO · **as of:** 2026-10-07T18:16:27Z · **authority:** RUNTIME
+- **status:** MEASURED_ZERO · **as of:** 2026-10-07T21:47:22Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)
-- index lag 0 ADRs · newest indexed 641 · truth overrides 12
+- index lag 0 ADRs · newest indexed 642 · truth overrides 12
 
 ## Product / publication
 - **status:** MEASURED · **as of:** 2026-10-07T17:04:04+00:00 · **authority:** RUNTIME
@@ -109,7 +109,7 @@
 - published 2026-10-07 (measured 2026-10-07), next 2026-10-14 · site health сайт: данные от 2026-10-07 · publication candidate is an Owner Gate (see owner_gates)
 
 ## Active problems
-- **status:** MEASURED · **as of:** 2026-10-07T17:43:18.643731+00:00 · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-10-07T21:43:49.733574+00:00 · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.studio.problems (canon: data/problems.json)
 - открыто: 4 · утихли без причины: 4 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded
 
@@ -134,9 +134,9 @@
 - ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates
 
 ## Last verification evidence
-- **status:** MEASURED · **as of:** 2026-10-07T18:36:07Z · **authority:** DERIVED
+- **status:** MEASURED · **as of:** 2026-10-07T21:55:25Z · **authority:** DERIVED
 - **source:** this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)
-- generated 2026-10-07T18:36:07Z · code-sync receipt 2026-10-07T18:35:18Z · Company Truth 2026-10-07T18:29:05Z
+- generated 2026-10-07T21:55:25Z · code-sync receipt 2026-10-07T21:46:59Z · Company Truth 2026-10-07T21:48:03Z
 
 ## Public profile mapping (public ↔ internal ↔ decision ↔ track ↔ metric type)
 
@@ -169,5 +169,5 @@ Metric types are never collapsed into a generic «APY» (ADR-580 C2): TARGET_RET
 
 ## Freshness inputs
 
-35 canonical inputs hashed (`state.json` → `inputs`); runtime: receipt (code sync SYNCED), Mission Control bundle (read).
+35 canonical inputs hashed (`state.json` → `inputs`); runtime: receipt (code sync IN_SYNC), Mission Control bundle (read).
 
