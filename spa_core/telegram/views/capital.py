@@ -68,10 +68,101 @@ def _research_latest(data_dir: Path) -> Dict:
     return rf_read.latest(data_dir)
 
 
+def _capital_sources(data_dir: Path, now: datetime) -> Dict:
+    """CAPITAL-SOURCES-01 §14: the SAME projection Director OS shows (``investment_cio.sources_summary`` over
+    ``investment_cio.read.capital_sources`` — the Oracle ledger's stored view). Nothing is computed here."""
+    from spa_core.investment_cio import read as cio_read, sources_summary
+    return sources_summary.summarize(cio_read.capital_sources(data_dir, now=now))
+
+
 READERS: Dict[str, Callable[..., Any]] = {
-    "lab": _lab_view, "cio": _cio_latest, "research": _research_latest,
+    "lab": _lab_view, "cio": _cio_latest, "research": _research_latest, "sources": _capital_sources,
     "data_dir": _data_dir, "now": _now,
 }
+
+
+# ── capital sources (CAPITAL-SOURCES-01 §14) — strings come ready from the shared projection ─────────────
+def _sources_doc(now: datetime) -> Tuple[Optional[Dict], Optional[str]]:
+    try:
+        doc = READERS["sources"](READERS["data_dir"](), now)
+    except Exception as exc:  # noqa: BLE001
+        return None, "источники не прочитаны ({})".format(type(exc).__name__)
+    if not isinstance(doc, dict) or doc.get("state") != "MEASURED":
+        reason = (doc or {}).get("reason") if isinstance(doc, dict) else None
+        return None, B_safe(reason or "рекомендации Oracle с разбором источников ещё не было")
+    return doc, None
+
+
+def _view_age_line(summary: Optional[Dict]) -> str:
+    """«🕒 Разбор Oracle: 3 ч назад» + the SAME stale verdict Director shows (one constant, review P1-2)."""
+    if not isinstance(summary, dict):
+        return ""
+    age = ((summary.get("view_age_text") or {}).get("ru")) or "возраст неизвестен"
+    st = summary.get("view_stale")
+    flag = " · ⚠️ УСТАРЕЛО" if st is True else (" · свежесть не проверена" if st is None else "")
+    return "🕒 Разбор Oracle: {}{}".format(age, flag)
+
+
+def _plain_blockers(row: Dict, limit: int = 3) -> List[str]:
+    from spa_core.studio_os import owner_language as ol
+    seen: List[str] = []
+    for b in row.get("blockers") or []:
+        t = ol.capital_blocker_plain(b)["text"]
+        if t not in seen:
+            seen.append(t)
+    more = len(seen) - limit
+    return seen[:limit] + (["…и ещё {}".format(more)] if more > 0 else [])
+
+
+def trading_alpha_lines(summary: Optional[Dict], lab_doc: Optional[Dict], why: Optional[str] = None) -> List[str]:
+    """The §14 block: Trading Alpha · PAPER ONLY · evidence · forward observations · champions · net · DD ·
+    Oracle eligible · reason. Every value printed verbatim from the shared projection / the Lab read model."""
+    lines = ["💹 Трейдинг-альфа · ТОЛЬКО БУМАГА"]
+    ta = (summary or {}).get("trading_alpha") if isinstance(summary, dict) else None
+    if not isinstance(ta, dict):
+        lines.append("Рукав: {}".format(_nm(why or "нет в рекомендации Oracle")))
+        return lines
+    lines.append(_view_age_line(summary))
+    tx = (ta.get("text") or {}).get("ru") or {}
+    lines.append("Доказательства: {}".format(tx.get("evidence") or NOT_MEASURED))
+    if isinstance(lab_doc, dict):
+        fwd, _f = _cell_value(lab_doc, "forward_paper_active")
+        champ, _c = _cell_value(lab_doc, "champions")
+        lines.append("На форварде: {} · чемпионов: {}".format(_count(fwd), _count(champ)))
+    lines.append("Чистая доходность: {}".format(tx.get("net") or NOT_MEASURED))
+    lines.append("Макс. просадка: {}".format(tx.get("drawdown") or NOT_MEASURED))
+    if tx.get("freshness"):
+        lines.append("⚠️ {}".format(tx["freshness"]))
+    el = ta.get("eligible")
+    lines.append("Допуск Oracle: {}".format("ДА (бумага)" if el is True else "НЕТ" if el is False else NOT_MEASURED))
+    reasons = _plain_blockers(ta)
+    if reasons:
+        lines.append("Почему: " + "; ".join(reasons))
+    return lines
+
+
+def sources_lines(summary: Optional[Dict], why: Optional[str] = None) -> List[str]:
+    """Compact /capital block: one line per source + the paper portfolio + the 10–15 % research answer."""
+    if not isinstance(summary, dict):
+        return ["📊 Источники доходности: {}".format(_nm(why))]
+    out = ["📊 Источники доходности (бумага) — " + _view_age_line(summary).replace("🕒 ", "")]
+    for g in summary.get("groups") or []:
+        for r in g.get("sources") or []:
+            tx = (r.get("text") or {}).get("ru") or {}
+            out.append("  • {}: {} · {} · вес {}".format(r.get("name_ru"), tx.get("net") or NOT_MEASURED,
+                                                         tx.get("eligibility") or NOT_MEASURED,
+                                                         tx.get("paper_weight") or NOT_MEASURED))
+    pf = ((summary.get("portfolio") or {}).get("text") or {}).get("ru") or {}
+    out.append("Бумажный портфель: {}".format(pf.get("headline") or NOT_MEASURED)
+               + (" — {}".format(pf["detail"]) if pf.get("detail") else ""))
+    rq = summary.get("research_question") or {}
+    if rq.get("state") != "MEASURED":
+        ans = "не измерено — вопрос не оценивался"
+    else:
+        ans = {"NO": "нет — доказательства этого не показывают", "YES": "да — по подтверждённым данным"}.get(
+            rq.get("answer"), "ответа пока нет: доказательств слишком мало")
+    out.append("Вопрос 10–15 % годовых: {} (исследование, не обещание)".format(ans))
+    return out
 
 
 def _mc_stale_after_min(path: str) -> Optional[float]:
@@ -289,6 +380,8 @@ def _render_lab(lang: str) -> Tuple[str, Dict]:
             body.append("Последнее наблюдение: бар закрыт {}".format(_age_text((now - last_dt).total_seconds() / 60.0)))
     elif obs is None:
         body.append("Последнее наблюдение: {}".format(_nm(o_why)))
+    sdoc, s_why = _sources_doc(now)
+    body += [""] + trading_alpha_lines(sdoc, doc, s_why)
     return _screen("capital.lab", "бумага · исследование", body,
                    freshness_line(_lab_as_of(doc), now, _lab_stale_after_min(), src), lang)
 
@@ -338,6 +431,8 @@ def _render_btc(lang: str) -> Tuple[str, Dict]:
 # ── Oracle (CIO) ────────────────────────────────────────────────────────────────────────────────
 _STANCE_RU = {
     "INSUFFICIENT_EVIDENCE": "доказательств пока недостаточно — рекомендации нет",
+    "NO_RECOMMENDATION": "ни один рискованный источник не допущен — рекомендации нет",
+    "RECOMMEND": "есть рекомендация весов (только бумага)",
     "HOLD": "держать как есть", "HOLD_CASH": "держать в кэше",
     "REBALANCE": "перераспределить (на бумаге)", "DERISK": "снизить риск (на бумаге)",
 }
@@ -387,6 +482,16 @@ def _render_oracle(lang: str) -> Tuple[str, Dict]:
     executes = rec.get("executes")
     body.append("Исполняет сам: {}".format("нет" if executes is False else "ДА — это нарушение границы" if executes else NOT_MEASURED))
     body.append("Реальный капитал по его журналу: {}".format(_capital_text(rec.get("real_capital_usd"))))
+    sdoc, s_why = _sources_doc(now)
+    if sdoc is None:
+        body += ["", "Источники доходности: {}".format(_nm(s_why))]
+    else:
+        body += ["", "Источники доходности, допущенные к бумажному портфелю: {} из {}".format(
+            _count(sdoc.get("eligible_count")), _count(sdoc.get("risk_total"))), _view_age_line(sdoc)]
+        ta = sdoc.get("trading_alpha") or {}
+        el = ta.get("eligible")
+        body.append("Трейдинг-альфа: {}".format("допущена (бумага)" if el is True else "не допущена" if el is False else NOT_MEASURED)
+                    + ("" if el is not False else " — " + "; ".join(_plain_blockers(ta, 2))))
     return _screen("capital.oracle", "советник · бумага", body,
                    freshness_line(_parse_iso(rec.get("generated_at")), now, stale, src), lang)
 
@@ -496,6 +601,8 @@ def _render_menu(lang: str) -> Tuple[str, Dict]:
             body.append("🔎 Sherlock: с готовыми доказательствами {}".format(_count(sh.get("evidence_ready"))))
     except Exception as exc:  # noqa: BLE001
         body.append("🔎 Sherlock: {} ({})".format(NOT_MEASURED, type(exc).__name__))
+    sdoc, s_why = _sources_doc(now)
+    body += [""] + sources_lines(sdoc, s_why)
     body += ["", "Реальный капитал по журналу лаборатории: {}".format(_capital_text(live_cap))]
     body.append("Кнопки ниже только открывают экраны — действий с деньгами здесь нет.")
     return _screen("capital", "только чтение", body,

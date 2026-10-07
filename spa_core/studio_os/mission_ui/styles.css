@@ -921,3 +921,10 @@ main {
 .tone--unknown { color: var(--unknown-fg); }
 .tech-details .mono-wrap { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8em;
   overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
+
+/* CAPITAL-SOURCES-01 §13 — the four return sources (one row per source; wraps on phones, no horizontal scroll) */
+.group-title { font-size: 0.95rem; margin: 14px 0 4px; }
+.source-row { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; min-width: 0; overflow-wrap: anywhere; }
+.source-title { font-size: 0.9rem; margin: 0 0 6px; }
+.source-row .kv-row .v { overflow-wrap: anywhere; }
+.plain-list li.tone-unknown { opacity: 0.85; }

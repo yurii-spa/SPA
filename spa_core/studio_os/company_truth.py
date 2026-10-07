@@ -971,9 +971,77 @@ def capital_readiness(live_readiness: Optional[dict], investment_scope: Optional
                inventory_passed=inv_passed, inventory_total=inv_total, blockers=blockers)
 
 
+def capital_sources_card(section: Optional[dict], trading_lab_cell: Optional[dict]) -> dict:
+    """CAPITAL-SOURCES-01 §13 — the four return sources + Trading Alpha funnel + PAPER portfolio + the 10–15 %
+    research question. RAW rows from ``mission_control._capital_sources_section`` (itself the shared
+    ``investment_cio.sources_summary`` projection); this function adds only the owner-language for blockers
+    and the funnel's research/forward/champion counts from the Trading Lab cell. Nothing is computed."""
+    canon = ("spa_core.investment_cio.read.capital_sources → sources_summary.summarize (ADR-641); "
+             "Research/Forward/Champions ← trading_research.read_model.trading_lab_view")
+    sec = section or {}
+    meta = sec.get("_meta") or {}
+    summ = sec.get("summary") if isinstance(sec.get("summary"), dict) else {}
+    fr = freshness(meta.get("age_min"), meta.get("stale_after_min"), "declared:manifest")
+    if meta.get("state") == "CRITICAL":
+        return cell(value=None, display_ru=None, display_en=None, metric_type="DECISION", state=NOT_MEASURED,
+                    as_of=meta.get("observed_at"), canon=canon, fresh=fr,
+                    unknown_ru="Источники капитала отозваны — цепочка решений Oracle нарушена")
+    if summ.get("state") != "MEASURED":
+        why = _redact(meta.get("reason") or summ.get("reason")) or "нет рекомендации Oracle с разбором источников"
+        return unknown(canon, "DECISION", f"Источники капитала не измерены — {why}")
+    _ol = owner_language
+    rows = []
+    for r in summ.get("rows") or []:
+        r = dict(r)
+        r["blockers_plain"] = [{**_ol.capital_blocker_plain(b), "raw": b} for b in (r.get("blockers") or [])]
+        rows.append(r)
+    by_id = {r.get("source_id"): r for r in rows}
+    groups = [{**g, "sources": [by_id[x["source_id"]] for x in (g.get("sources") or []) if x.get("source_id") in by_id]}
+              for g in (summ.get("groups") or [])]
+    ta = by_id.get((summ.get("trading_alpha") or {}).get("source_id"))
+    tl = trading_lab_cell or {}
+    tl_ok = tl.get("state") in (MEASURED, MEASURED_ZERO)
+    funnel = {"research": tl.get("candidates") if tl_ok else None,
+              "forward": tl.get("forward") if tl_ok else None,
+              "champions": tl.get("champions") if tl_ok else None,
+              "lab_state": tl.get("state") or NOT_MEASURED,
+              "sleeve": ta, "oracle_eligible": (ta or {}).get("eligible")}
+    state = STALE if meta.get("state") == "STALE" else MEASURED
+    # Each sub-card's badge reflects ITS OWN content, never just the feed's health (no false green):
+    # a fresh Oracle view of stale sources is still stale sources.
+    def _worst(*states: str) -> str:
+        order = {MEASURED: 0, MEASURED_ZERO: 0, NOT_ENOUGH_HISTORY: 1, STALE: 2, NOT_MEASURED: 3, CORRUPT: 4}
+        return max(states, key=lambda x: order.get(x, 3))
+    risky_rows = [r for r in rows if r.get("source_type") != "TREASURY_CASH"]
+    any_stale = any(r.get("freshness_state") == "STALE" for r in risky_rows)
+    # review P2: the «sources» card is measured only if at least one risk source has a MEASURED return
+    any_return = any((r.get("net_return") or {}).get("state") == MEASURED
+                     or (r.get("annualized_return") or {}).get("state") == MEASURED for r in risky_rows)
+    pf = summ.get("portfolio") or {}
+    rq = summ.get("research_question") or {}
+    sub_states = {
+        "sources": _worst(state, STALE if any_stale else MEASURED, MEASURED if any_return else NOT_MEASURED),
+        "trading_alpha": _worst(state, STALE if (ta or {}).get("freshness_state") == "STALE" else MEASURED,
+                                MEASURED if ta else NOT_MEASURED),
+        "portfolio": _worst(state, MEASURED if pf.get("state") == "MEASURED" else NOT_MEASURED),
+        "research_question": _worst(state, NOT_MEASURED if rq.get("state") != MEASURED else
+                                    (MEASURED if rq.get("answer") in ("YES", "NO") else NOT_ENOUGH_HISTORY)),
+    }
+    return cell(value=None, display_ru=None, display_en=None, metric_type="DECISION", state=state,
+                sub_states=sub_states,
+                as_of=meta.get("observed_at"), canon=canon, fresh=fr,
+                unknown_ru="Источники капитала устарели — рекомендация Oracle старше суток",
+                groups=groups, rows=rows, trading_alpha=funnel, portfolio=summ.get("portfolio"),
+                research_question=summ.get("research_question"), correlation=summ.get("correlation"),
+                oracle_stance=summ.get("oracle_stance"), recommendation_date=summ.get("recommendation_date"),
+                view_stale=summ.get("view_stale"), view_age_text=summ.get("view_age_text"),
+                eligible_count=summ.get("eligible_count"), risk_total=summ.get("risk_total"),
+                executes=False, real_capital_usd=0)
+
+
 def capital_cards(*, packages_section, hy_doc, lp_doc, data_dir: Path, mirror: Path, research_universe,
                   investment_cio, live_readiness, investment_scope, current_positions=None,
-                  yield_cell: dict, now: datetime) -> dict:
+                  yield_cell: dict, now: datetime, capital_sources: Optional[dict] = None) -> dict:
     tl = capital_trading_lab(data_dir, now)
     defi = capital_defi(packages_section, hy_doc, lp_doc, mirror, yield_cell)
     return {"defi": defi, "trading_lab": tl,
@@ -981,7 +1049,8 @@ def capital_cards(*, packages_section, hy_doc, lp_doc, data_dir: Path, mirror: P
            "treasury_rwa": capital_treasury(research_universe, current_positions),
            "sherlock": capital_sherlock(research_universe),
            "oracle": capital_oracle(investment_cio),
-           "readiness": capital_readiness(live_readiness, investment_scope)}
+           "readiness": capital_readiness(live_readiness, investment_scope),
+           "sources": capital_sources_card(capital_sources, tl)}
 
 
 # ── §2.3 STUDIO OS ───────────────────────────────────────────────────────────────────────────────
@@ -1567,7 +1636,8 @@ def build(inp: TruthInputs) -> dict:
                        mirror=Path(inp.mirror), research_universe=capital.get("research_universe"),
                        investment_cio=capital.get("investment_cio"), live_readiness=capital.get("live_readiness"),
                        investment_scope=scopes_by_name.get("INVESTMENT_ENGINE_READINESS"),
-                       current_positions=current_positions, yield_cell=yield_cell, now=now)
+                       current_positions=current_positions, yield_cell=yield_cell, now=now,
+                       capital_sources=capital.get("capital_sources"))
 
     home_doc = home(fleet=fleet, yield_cell=yield_cell, defi_books=cap["defi"]["books"],
                    publication_scope=scopes_by_name.get("PUBLICATION_HEALTH"), site_doc=site_doc,

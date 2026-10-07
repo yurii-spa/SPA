@@ -39,12 +39,12 @@
   var REFRESH_MS = 60000;
   var STALE_AFTER_MIN = 15;
   var TELEGRAM_PREFIX = "https://t.me/";
-  var CAPITAL_TABS = ["defi", "trading_lab", "btc", "basis", "treasury", "sherlock", "oracle", "readiness"];
+  var CAPITAL_TABS = ["sources", "defi", "trading_lab", "btc", "basis", "treasury", "sherlock", "oracle", "readiness"];
 
   var currentModel = null;
   var fetchFailed = false;
   var staleFlag = false;
-  var capitalSubTab = "defi";
+  var capitalSubTab = "sources";
 
   // ── tiny DOM builder — createElement + textContent only ──────────────────────────────────
   function h(tag, opts, children) {
@@ -582,8 +582,142 @@
     });
   }
 
+  // ── CAPITAL-SOURCES-01 §13: four return sources · Trading Alpha funnel · PAPER portfolio · 10–15 % question ──
+  // Every string below is printed VERBATIM from the model (investment_cio.sources_summary — the same
+  // projection the Telegram bot prints); nothing is computed or rounded here. Absent ⇒ «не измерено».
+  function sourceText(row, key) {
+    var tx = (row && row.text) || {};
+    return bi(get(tx, "ru." + key, null), get(tx, "en." + key, null));
+  }
+
+  function renderSourceRow(row) {
+    var box = h("div", { class: "source-row" });
+    box.appendChild(h("h3", { class: "source-title" }, [bi(row.name_ru, row.name_en)]));
+    var fresh = sourceText(row, "freshness");
+    if (fresh) box.appendChild(h("div", { class: "warning-chip" }, [fresh]));
+    box.appendChild(kvPlain(t("capital.sources.net"), sourceText(row, "net")));
+    box.appendChild(kvPlain(t("capital.sources.drawdown"), sourceText(row, "drawdown")));
+    box.appendChild(kvPlain(t("capital.sources.evidence"), sourceText(row, "evidence")));
+    box.appendChild(kvPlain(t("capital.sources.confidence"), sourceText(row, "confidence")));
+    box.appendChild(kvPlain(t("capital.sources.eligibility"), sourceText(row, "eligibility")));
+    box.appendChild(kvPlain(t("capital.sources.paper_weight"), sourceText(row, "paper_weight")));
+    var bl = row.blockers_plain || [];
+    if (bl.length) {
+      var ul = h("ul", { class: "plain-list" });
+      bl.forEach(function (b) { ul.appendChild(h("li", { class: "tone-" + toneClass(b.tone) }, [b.text])); });
+      box.appendChild(h("p", { class: "note" }, [t("capital.sources.blockers")]));
+      box.appendChild(ul);
+    }
+    var raw = bl.map(function (b) { return b.raw; });
+    if (row.statement) raw.unshift(row.statement);
+    var td = techDetails(raw);
+    if (td) box.appendChild(td);
+    return box;
+  }
+
+  // A sub-card's badge is its OWN content's state (model ``sub_states``), not the feed's health: a fresh
+  // Oracle view of stale sources must not be green. The body still renders (rows carry their own words).
+  function subCell(cell, key) {
+    cell = cell || {};
+    var sub = get(cell, "sub_states." + key, null);
+    var out = {};
+    Object.keys(cell).forEach(function (k) { out[k] = cell[k]; });
+    out.badge_state = sub || cell.state;
+    return out;
+  }
+
+  function subCard(titleKey, cell, key, builder) {
+    var sc = subCell(cell, key);
+    var c = card(t(titleKey), stateBadge({ state: (cell && cell.state && isUnknownState(cell.state)) ? cell.state : sc.badge_state }));
+    var mc = metricChip(cell);
+    if (mc) c.appendChild(h("div", { class: "chip-row" }, [mc]));
+    if (!cell || isUnknownState(cell.state)) {
+      c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(cell)]));
+    } else if (builder) {
+      builder(c, cell);
+    }
+    var ev = evidenceDrawer(cell);
+    if (ev) c.appendChild(ev);
+    return c;
+  }
+
+  function renderSources(cell) {
+    return subCard("capital.tab.sources", cell, "sources", function (c, cell) {
+      c.appendChild(h("p", { class: "note warning-chip" }, [t("capital.sources.boundary")]));
+      var age = bi(get(cell, "view_age_text.ru", null), get(cell, "view_age_text.en", null));
+      c.appendChild(h("p", { class: "note" + (cell.view_stale === true ? " warning-chip" : "") },
+        [tf("capital.sources.view_age", { age: age }) + (cell.view_stale === true ? " · " + t("state.STALE") : "")]));
+      c.appendChild(h("p", { class: "note" }, [tf("capital.sources.eligible_count", { n: cell.eligible_count, total: cell.risk_total })]));
+      (cell.groups || []).forEach(function (g) {
+        c.appendChild(h("h3", { class: "group-title" }, [bi(g.name_ru, g.name_en)]));
+        var rows = g.sources || [];
+        if (!rows.length) c.appendChild(h("p", { class: "note" }, [t("common.not_measured")]));
+        rows.forEach(function (r) { c.appendChild(renderSourceRow(r)); });
+      });
+    });
+  }
+
+  function renderTradingAlphaFunnel(cell) {
+    return subCard("capital.sources.ta.title", cell, "trading_alpha", function (c, cell) {
+      var f = cell.trading_alpha || {};
+      var row = h("div", { class: "chip-row" });
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.sources.ta.research", { n: f.research })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.sources.ta.forward", { n: f.forward })]));
+      row.appendChild(h("span", { class: "chip" }, [tf("capital.sources.ta.champions", { n: f.champions })]));
+      c.appendChild(row);
+      var sl = f.sleeve;
+      if (sl) {
+        c.appendChild(kvPlain(t("capital.sources.ta.sleeve"), sourceText(sl, "net")));
+        c.appendChild(kvPlain(t("capital.sources.drawdown"), sourceText(sl, "drawdown")));
+        c.appendChild(kvPlain(t("capital.sources.evidence"), sourceText(sl, "evidence")));
+      } else {
+        c.appendChild(kvPlain(t("capital.sources.ta.sleeve"), null));
+      }
+      var el = f.oracle_eligible === true ? t("capital.sources.ta.eligible_yes")
+        : (f.oracle_eligible === false ? t("capital.sources.ta.eligible_no") : t("common.not_measured"));
+      c.appendChild(kvPlain(t("capital.sources.ta.oracle"), el));
+      c.appendChild(h("p", { class: "note" }, [t("capital.sources.ta.paper_only")]));
+    });
+  }
+
+  function renderSourcesPortfolio(cell) {
+    return subCard("capital.sources.pf.title", cell, "portfolio", function (c, cell) {
+      var pf = cell.portfolio || {};
+      c.appendChild(h("p", { class: "cell-text" }, [bi(get(pf, "text.ru.headline", null), get(pf, "text.en.headline", null)) || t("common.not_measured")]));
+      var det = bi(get(pf, "text.ru.detail", null), get(pf, "text.en.detail", null));
+      if (det) c.appendChild(h("p", { class: "note" }, [det]));
+      var ul = h("ul", { class: "plain-list" });
+      (cell.rows || []).forEach(function (r) {
+        ul.appendChild(h("li", {}, [bi(r.name_ru, r.name_en) + " — " + sourceText(r, "paper_weight")]));
+      });
+      c.appendChild(h("p", { class: "note" }, [t("capital.sources.pf.weights")]));
+      c.appendChild(ul);
+      var td = techDetails([pf.basis, pf.reconstruction, pf.reason]);
+      if (td) c.appendChild(td);
+    });
+  }
+
+  function renderResearchQuestion(cell) {
+    return subCard("capital.sources.rq.title", cell, "research_question", function (c, cell) {
+      var rq = cell.research_question || {};
+      c.appendChild(h("p", { class: "cell-text" }, [t("capital.sources.rq.question")]));
+      var key = rq.state === "MEASURED" ? "capital.sources.rq.answer." + (rq.answer || "UNKNOWN")
+        : "capital.sources.rq.answer.NOT_MEASURED";
+      var ans = t(key);
+      c.appendChild(h("p", { class: "cell-text" }, [ans === key ? t("capital.sources.rq.answer.UNKNOWN") : ans]));
+      c.appendChild(h("p", { class: "note" }, [bi(rq.note_ru, rq.note_en)]));
+      var td = techDetails([rq.question, rq.verdict]);
+      if (td) c.appendChild(td);
+    });
+  }
+
   function renderCapitalPanel(panel, tabKey, cap) {
-    if (tabKey === "defi") {
+    if (tabKey === "sources") {
+      panel.appendChild(renderSources(cap.sources));
+      panel.appendChild(renderTradingAlphaFunnel(cap.sources));
+      panel.appendChild(renderSourcesPortfolio(cap.sources));
+      panel.appendChild(renderResearchQuestion(cap.sources));
+    } else if (tabKey === "defi") {
       var defi = cap.defi || {};
       var books = defi.books || {};
       ["conservative", "balanced", "aggressive"].forEach(function (k) { panel.appendChild(renderDefiBook(k, books[k])); });

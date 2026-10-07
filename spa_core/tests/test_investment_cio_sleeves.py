@@ -335,7 +335,12 @@ def test_every_sleeve_has_all_fields(tmp_path):
             cell = sleeve[f]
             assert isinstance(cell, dict) and "state" in cell, f"{sid}.{f} is not a cell: {cell!r}"
             assert cell["state"] in contract.CELL_STATES
-            if cell["state"] != contract.MEASURED:
+            if cell["state"] == contract.DEFINITIONAL:
+                # true by definition, not observed (CAPITAL-SOURCES-01 review): value kept for display, the
+                # definition named, and value_of() refuses it as a measurement
+                assert cell.get("note") and cell["source"] == "definitional"
+                assert contract.value_of(cell) is None
+            elif cell["state"] != contract.MEASURED:
                 assert cell["value"] is None
                 assert cell.get("reason")
         assert isinstance(sleeve["regime_fit"], dict) and sleeve["regime_fit"]
@@ -511,9 +516,13 @@ def test_cash_sleeve_look_through_cash_unknown_when_any_book_cash_unmeasured(tmp
     out = sleeves.build_sleeves(data_dir, NOW)
     cash = out["sleeves"]["cash"]
     assert cash["current_equity"]["state"] == contract.NOT_MEASURED
-    assert cash["expected_return"] == contract.measured(
-        0.0, unit="pct_annualized", source="definitional", as_of=cash["expected_return"]["as_of"],
-        note="no accrual exists for idle cash (ADR-554 audit)")
+    # CAPITAL-SOURCES-01 review: idle cash's 0 % is DEFINITIONAL, not a measurement (inv. #17)
+    assert cash["expected_return"] == contract.definitional(
+        0.0, unit="pct_annualized", basis="no accrual exists for idle cash (ADR-554 audit)",
+        as_of=cash["expected_return"]["as_of"])
+    assert contract.value_of(cash["expected_return"]) is None
+    for f in ("realized_return", "volatility", "max_drawdown", "confidence"):
+        assert cash[f]["state"] == contract.DEFINITIONAL, f
 
 
 # ── T7: correlation NOT_ENOUGH_HISTORY / UNDEFINED / measured with n ────────────────────────────

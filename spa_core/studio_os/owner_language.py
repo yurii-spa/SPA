@@ -306,3 +306,75 @@ def age_ru(age_min: Optional[float]) -> Optional[str]:
     if age_min < 48 * 60:
         return f"{age_min / 60:.0f} ч назад"
     return f"{age_min / 1440:.0f} дн назад"
+
+
+# ── capital sources (CAPITAL-SOURCES-01 §13): Oracle / Trading Alpha eligibility blockers ───────────────
+#: the raw blocker strings are produced by investment_cio.capital_sources / sources_portfolio and
+#: trading_research.alpha_sleeve; each pattern below is a producer TEMPLATE, and
+#: spa_core/tests/test_company_truth_capital_sources.py enumerates the templates — a new template without a phrase is red.
+COST_COMPONENT_RU = {
+    "maker_fee": "комиссия мейкера",
+    "spread": "спред",
+    "latency": "задержка исполнения",
+    "partial_fills": "частичное исполнение заявок",
+    "min_trade_size": "минимальный размер сделки",
+    "capacity": "ёмкость — сколько денег выдержит стратегия",
+    "perp_mark_basis": "разница цены фьючерса и спота",
+    "rebalance_costs": "издержки перебалансировки рукава",
+}
+GATE_RU = {
+    "data_fresh": "данные свежие",
+    "data_healthy": "данные исправны",
+    "work_running": "работа идёт по расписанию",
+    "stop_not_active": "стоп-кран не сработал",
+    "worst_case_loss_known": "известен худший возможный убыток",
+}
+def _days_ru(x: str) -> str:
+    """«7,4» — one decimal, Russian comma (the raw value stays in the evidence layer)."""
+    try:
+        return f"{float(x):.1f}".replace(".", ",")
+    except ValueError:
+        return str(x)
+
+
+_CAPITAL_BLOCKER_PATTERNS: tuple = (
+    (re.compile(r"^not allocatable in the ADR-554 contract"),
+     lambda m: "пока только исследование — по правилам Oracle этот источник нельзя включать в портфель"),
+    (re.compile(r"^cost component (\w+) is UNKNOWN"),
+     lambda m: f"не известна статья издержек: {COST_COMPONENT_RU.get(m.group(1), m.group(1))}"),
+    (re.compile(r"^trading data is STALE"), lambda m: "данные лаборатории устарели"),
+    (re.compile(r"^(\d+) evidence anomaly"), lambda m: f"в журнале доказательств найдены аномалии: {m.group(1)}"),
+    (re.compile(r"^([\d.]+) calendar days < (\d+)"),
+     lambda m: f"истории {_days_ru(m.group(1))} календарных дн. — нужно не меньше {m.group(2)}"),
+    (re.compile(r"^diversification not measured"),
+     lambda m: "диверсификация не измерена: у стратегий меньше 30 общих дней наблюдений"),
+    (re.compile(r"^only (\d+)% of sleeve weight sits in forward-robust"),
+     lambda m: f"только {m.group(1)} % веса рукава — у стратегий, доказавших устойчивость на форварде (нужно ≥ 50 %)"),
+    (re.compile(r"^gate (\w+): FAIL"),
+     lambda m: f"не выполнено условие «{GATE_RU.get(m.group(1), m.group(1))}»"),
+    (re.compile(r"^gate (\w+): UNKNOWN"),
+     lambda m: f"не проверено условие «{GATE_RU.get(m.group(1), m.group(1))}»"),
+    (re.compile(r"^maturity \w+: fewer than"), lambda m: "мало истории: меньше 30 подтверждённых периодов"),
+    (re.compile(r"^evidence duration NOT_MEASURED"), lambda m: "длительность доказательств не измерена"),
+    (re.compile(r"^immature: ([\d.]+) days of evidence < (\d+)"),
+     lambda m: f"истории {_days_ru(m.group(1))} дн. — нужно не меньше {m.group(2)}"),
+    (re.compile(r"^net return not measured"),
+     lambda m: "чистая доходность не измерена (валовую Oracle не использует)"),
+    (re.compile(r"labelled gross"), lambda m: "доходность подана как чистая, но помечена как валовая — отклонено"),
+    (re.compile(r"exceeds (annualised )?gross"),
+     lambda m: "«чистая» доходность больше валовой — отклонено как ошибка данных"),
+    (re.compile(r"^net return value not numeric"), lambda m: "чистая доходность — не число, отклонено"),
+    (re.compile(r"^freshness STALE"), lambda m: "данные источника устарели"),
+    (re.compile(r"^drawdown (\w+)"), lambda m: "просадка не измерена"),
+)
+
+
+def capital_blocker_plain(raw: Any) -> dict:
+    """One eligibility blocker in words. A blocker is never ``ok``: a known template is ``warn``, an
+    unrecognised one ``unknown`` with the raw text left for the evidence layer."""
+    text = str(raw or "")
+    for rx, say in _CAPITAL_BLOCKER_PATTERNS:
+        m = rx.search(text)
+        if m:
+            return {"tone": "warn", "text": say(m)}
+    return {"tone": "unknown", "text": f"причина недопуска: {UNKNOWN_CODE_RU}"}

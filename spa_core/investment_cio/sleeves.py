@@ -1026,14 +1026,12 @@ def _build_cash_sleeve(books_doc: dict, regime_fit: dict, now: datetime) -> dict
             "(ADR-554 WP-A03 §5)", source="defi_engine/status.json books.*.cash_usd")
 
     note0 = "no accrual exists for idle cash (ADR-554 audit)"
-    out["expected_return"] = contract.measured(0.0, unit="pct_annualized", source="definitional", as_of=nowiso,
-                                                note=note0)
-    out["realized_return"] = contract.measured(0.0, unit="pct_annualized", source="definitional", as_of=nowiso,
-                                                note=note0)
-    out["volatility"] = contract.measured(0.0, unit="pct_stdev", source="definitional", as_of=nowiso,
-                                           note="idle cash, no price variance")
-    out["max_drawdown"] = contract.measured(0.0, unit="pct", source="definitional", as_of=nowiso,
-                                             note="idle cash; no drawdown possible by construction")
+    out["expected_return"] = contract.definitional(0.0, unit="pct_annualized", basis=note0, as_of=nowiso)
+    out["realized_return"] = contract.definitional(0.0, unit="pct_annualized", basis=note0, as_of=nowiso)
+    out["volatility"] = contract.definitional(0.0, unit="pct_stdev", basis="idle cash, no price variance",
+                                              as_of=nowiso)
+    out["max_drawdown"] = contract.definitional(0.0, unit="pct", basis="idle cash; no drawdown possible by construction",
+                                                as_of=nowiso)
     out["liquidity"] = contract.measured(1.0, unit="share_of_nav_24h", source="definitional", as_of=nowiso,
                                           note="cash is immediately exitable by definition")
     out["time_to_exit"] = contract.measured(0.0, unit="hours", source="definitional", as_of=nowiso)
@@ -1053,8 +1051,8 @@ def _build_cash_sleeve(books_doc: dict, regime_fit: dict, now: datetime) -> dict
     out["evidence_state"] = contract.measured("definitional", unit=None, source="ADR-554 audit", as_of=nowiso,
                                                note="no evidence track; defined by policy, not observed")
     out["regime_fit"] = dict(regime_fit)
-    out["confidence"] = contract.measured("HIGH", unit=None, source="definitional", as_of=nowiso,
-                                           note="cash's 0% accrual is definitional, not estimated")
+    out["confidence"] = contract.definitional("HIGH", unit=None, basis="cash's 0% accrual is definitional, not estimated",
+                                              as_of=nowiso)
     out["capacity"] = _not_measured("no capacity constraint modelled for cash (buffer, not a deployed position)")
     out["risk"] = {
         "PROTOCOL": {"level": "LOW", "evidence": "idle USDC, no protocol exposure", "source": None},

@@ -30,7 +30,11 @@ NOT_MEASURED = "NOT_MEASURED"
 NOT_ENOUGH_HISTORY = "NOT_ENOUGH_HISTORY"
 UNDEFINED = "UNDEFINED"          # mathematically undefined (e.g. correlation of a constant-accrual series)
 STALE = "STALE"
-CELL_STATES = (MEASURED, NOT_MEASURED, NOT_ENOUGH_HISTORY, UNDEFINED, STALE)
+#: a value that holds BY DEFINITION, not by observation (idle cash accrues 0 %, cannot draw down) —
+#: CAPITAL-SOURCES-01 review: shown as «по определению», never as «измерено»; ``value_of`` returns None
+#: for it, so no consumer can mistake it for a measurement (inv. #17).
+DEFINITIONAL = "DEFINITIONAL"
+CELL_STATES = (MEASURED, NOT_MEASURED, NOT_ENOUGH_HISTORY, UNDEFINED, STALE, DEFINITIONAL)
 
 
 def measured(value: Any, *, unit: Optional[str], source: str, as_of: Optional[str], n: Optional[int] = None,
@@ -39,11 +43,19 @@ def measured(value: Any, *, unit: Optional[str], source: str, as_of: Optional[st
     return {"state": MEASURED, "value": value, "unit": unit, "source": source, "as_of": as_of, "n": n, "note": note}
 
 
+def definitional(value: Any, *, unit: Optional[str], basis: str, as_of: Optional[str] = None) -> dict:
+    """A value true by definition (not observed). Carries its value for display only; ``value_of`` → None."""
+    if not basis:
+        raise ValueError("a definitional cell must name the definition it rests on")
+    return {"state": DEFINITIONAL, "value": value, "unit": unit, "source": "definitional", "as_of": as_of,
+            "n": None, "note": basis}
+
+
 def absent(state: str, *, reason: str, source: Optional[str] = None, as_of: Optional[str] = None,
            n: Optional[int] = None) -> dict:
     """An absent cell: never carries a value. ``state`` ∈ NOT_MEASURED / NOT_ENOUGH_HISTORY / UNDEFINED / STALE."""
-    if state == MEASURED or state not in CELL_STATES:
-        raise ValueError(f"absent() needs a non-measured state, got {state!r}")
+    if state in (MEASURED, DEFINITIONAL) or state not in CELL_STATES:
+        raise ValueError(f"absent() needs a non-measured, non-definitional state, got {state!r}")
     if not reason:
         raise ValueError("an absent cell must name its reason")
     return {"state": state, "value": None, "unit": None, "source": source, "as_of": as_of, "n": n, "reason": reason}

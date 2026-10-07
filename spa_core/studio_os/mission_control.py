@@ -67,6 +67,9 @@ AREAS = {
 #: WP-A02 field contract. One row per section path; every emitted value lives under exactly one row.
 #: source = canonical source · stale_after_min = freshness · unknown = behaviour without data ·
 #: redaction = what is stripped · mobile = shown on the phone · alert = may raise an owner alert.
+#: one freshness contract for the capital-sources view, owned by the shared projection (Telegram reads the same)
+from spa_core.investment_cio.sources_summary import VIEW_STALE_AFTER_MIN as _CAPITAL_SOURCES_STALE_MIN  # noqa: E402
+
 CONTRACT: list[dict] = [
     {"path": "overview.system", "source": "director_report.collect (agent_health + launchctl + resource_health + kill switch)",
      "stale_after_min": 90, "unknown": "NOT_MEASURED", "redaction": "safe_text on alerts", "mobile": True, "alert": True},
@@ -90,6 +93,10 @@ CONTRACT: list[dict] = [
     {"path": "capital.investment_cio", "source": "spa_core.investment_cio.read.latest (ledger.jsonl + latest.json, ADR-554)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no recommendation yet)", "redaction": "safe_text on every string",
      "mobile": True, "alert": False},
+    {"path": "capital.capital_sources", "source": "spa_core.investment_cio.read.capital_sources → sources_summary.summarize "
+     "(Oracle ledger capital_sources_view, ADR-641; CAPITAL-SOURCES-01)",
+     "stale_after_min": _CAPITAL_SOURCES_STALE_MIN, "unknown": "NOT_MEASURED (no recommendation with the view yet); REFUSED view ⇒ NOT_MEASURED "
+     "with the refusal reason", "redaction": "safe_text on every string", "mobile": True, "alert": False},
     {"path": "capital.research_universe", "source": "spa_core.research_factory.read.latest (ADR-560, RESEARCH/PAPER only)",
      "stale_after_min": 1560, "unknown": "NOT_MEASURED (no research_factory run yet); BROKEN ledger ⇒ CRITICAL; "
      "STALE when the last run's generated_at is older than ~26h (contract.CIO_READ_MODEL_MAX_AGE_H)",
@@ -691,6 +698,41 @@ def _investment_cio_section(data: Path, now: datetime) -> dict:
     return out
 
 
+def _scrub(obj: Any, limit: int = 300) -> Any:
+    """safe_text on every string of a nested structure (no path / secret reaches the model)."""
+    if isinstance(obj, str):
+        return safe_text(obj, limit)
+    if isinstance(obj, dict):
+        return {k: _scrub(v, limit) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_scrub(v, limit) for v in obj]
+    return obj
+
+
+def _capital_sources_section(data: Path, now: datetime) -> dict:
+    """CAPITAL-SOURCES-01 §13: the four return sources, the Trading Alpha sleeve, the PAPER portfolio and the
+    10–15 % research question — exactly as the Oracle's daily run stored them (ADR-641). Read through the ONE
+    projection shared with Telegram (``investment_cio.sources_summary``); nothing is computed here.
+    Colour = health of the feed (verified ledger, fresh), never the quality of the sources."""
+    src = ["data/investment_cio/ledger.jsonl (capital_sources_view)"]
+    try:
+        from spa_core.investment_cio import read as cio_read, sources_summary
+        summary = sources_summary.summarize(cio_read.capital_sources(data, now=now))
+    except Exception as exc:  # noqa: BLE001 — an unreadable feed is NOT_MEASURED, never a crash
+        return _nm(src, now, f"capital sources read failed: {type(exc).__name__}")
+    if summary.get("state") != "MEASURED":
+        return {**_nm(src, now, safe_text(summary.get("reason") or "no capital-sources view yet", 300)),
+                "summary": _scrub(summary)}
+    age_h = summary.get("age_hours")
+    observed = (now - timedelta(hours=float(age_h))) if isinstance(age_h, (int, float)) and not isinstance(age_h, bool) else None
+    chain_ok = summary.get("ledger_chain_ok")
+    st = "HEALTHY" if chain_ok else "CRITICAL"
+    return {"_meta": _meta(st, src, observed, now, _CAPITAL_SOURCES_STALE_MIN,
+                          reason=None if chain_ok else "decision ledger hash chain is broken"),
+            "summary": _scrub(summary),
+            "boundary": "PAPER only — the Oracle recommends, nothing executes; real capital $0"}
+
+
 #: ADR-560 WP-S08: shown always, whatever the section's own state — a boundary notice, not a
 #: measured fact, so it must not disappear just because the factory has not run yet.
 RESEARCH_UNIVERSE_BANNER = ("RESEARCH ≠ APPROVED · PAPER ≠ LIVE · CIO_ELIGIBLE ≠ REAL-MONEY APPROVED · "
@@ -1118,6 +1160,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     investment_cio = _investment_cio_section(data, now)
     live_readiness = _live_readiness_section(data, now)
     research_universe = _research_universe_section(data, now)
+    capital_sources = _capital_sources_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
@@ -1125,6 +1168,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                "investment_cio": investment_cio,
                "live_readiness": live_readiness,
                "research_universe": research_universe,
+               "capital_sources": capital_sources,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────
