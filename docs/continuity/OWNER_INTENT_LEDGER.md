@@ -14,8 +14,8 @@
 - **first_known_evidence:** docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md (Studio OS hybrid shell cockpit); ADR-552 lists «ADR-469 / ADR-492 / ADR-493 (Director OS …)», but `docs/decisions/ADR-469-*` is an unrelated census ADR — that citation is a number collision, so the earliest Director OS decision file is UNKNOWN.
 - **current_implementation:** Mission Control evolved in place = Director OS v2 (`spa_core/studio_os/mission_control.py` + Company Truth computed on read); desktop `127.0.0.1:8790`, phone `https://mc.earn-defi.com` behind Cloudflare Access.
 - **current_status:** DELIVERED (ADR-592, 2026-10-06); owner iPhone acceptance through Cloudflare Access NOT YET done by the owner.
-- **known_gaps:** owner-facing reasons partly technical (ARB-CONTINUITY-01 §9); retired cockpits' LaunchAgents unloading is an owner action (ADR-592).
-- **relevant_decisions:** ADR-552, ADR-592, ADR-580
+- **known_gaps:** owner-facing reasons are plain Russian since 2026-10-07 (ADR-612; technical evidence behind «Технические подробности»), owner card titles are still as written; retired cockpits' LaunchAgents unloading is an owner action (ADR-592).
+- **relevant_decisions:** ADR-552, ADR-592, ADR-580, ADR-612
 - **superseded_implementations:** Director OS web cockpit `:8788`; Studio Shell `:8778` (ADR-492); repo dashboard `:8767` — presentation superseded by ADR-592.
 - **last_verified:** 2026-10-07
 
@@ -91,8 +91,8 @@
 - **first_known_evidence:** docs/decisions/ADR-521-telegram-owner-control-plane.md (owner directive «Telegram / Owner Control Plane», 2026-09-30).
 - **current_implementation:** SPA bot `com.spa.telegram_bot`; Bridge bot `com.studiobridge.telegram` (separate repo `studio_bridge`).
 - **current_status:** DELIVERED (docs/ROADMAP.md «Closed epics»; Bridge `b19.6.32`, `b19.6.33`).
-- **known_gaps:** read-only Capital commands (BTC / Lab / Oracle / Sherlock) — ARB-CONTINUITY-01 Wave C.
-- **relevant_decisions:** ADR-521
+- **known_gaps:** none for read-only Capital: `/capital /btc /lab /oracle /sherlock` delivered 2026-10-07 (ADR-612, `2b8887cb`) — read-only, same readers as Mission Control, money-order phrases refused. Voice phrases are not routed to the Capital screens (ADR-612 remainder).
+- **relevant_decisions:** ADR-521, ADR-612
 - **superseded_implementations:** OpenClaw Telegram gateway — REMOVED / RETIRED (ADR-599), never a dependency of either bot.
 - **last_verified:** 2026-10-07
 

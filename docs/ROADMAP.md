@@ -58,17 +58,21 @@
     Owner gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi
     INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on
     iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through
-    Cloudflare Access. Remaining debt: two archive producers share the `spa_state_` prefix (full daily vs
-    DR-critical; closed by ADR-611); the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from
-    2026-07-31); Telegram read-only Capital commands; plain-language readiness reasons; LOGOS log rotation and
-    failure alert; truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED.
+    Cloudflare Access. Remaining debt: the public site cannot be rebuilt from origin (`track_snapshot.json`
+    on origin is from 2026-07-31); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's);
+    truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since
+    (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language
+    readiness reasons (ADR-612).
 11. **ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening** — in progress (owner
     directive 2026-10-07, autonomous overnight macro-epic; ADR-610): a fresh AI session recovers the company from
     `docs/continuity/` (curated ARCHITECT_CONTEXT, OWNER_INTENT_LEDGER, BOOTSTRAP; generated, freshness-checked
-    CURRENT_STATE and ARCHITECT_DECISION_INDEX); waves B (backup archive classes) and C (Telegram Capital surface,
-    Director plain language). Real capital $0; no live execution. Owner gates: the six RM-TRUTH-01 gates above are
-    frozen, not executed. Next safe action: deliver waves A–C with independent reviews, then an independent
-    fresh-session LLM run from `docs/continuity/FRESH_SESSION_PROMPT.md`.
+    CURRENT_STATE and ARCHITECT_DECISION_INDEX). Delivered 2026-10-07 with independent reviews: wave A continuity
+    (ADR-610, `4794f185`), wave B backup archive classes FULL vs CRITICAL (ADR-611, `53c5a59e`; first FULL copy to
+    iCloud complete, restore drill ALL OK), wave C read-only Telegram Capital commands /capital /btc /lab /oracle
+    /sherlock + plain-Russian Director reasons (ADR-612, `2b8887cb`). Real capital $0; no live execution. Owner
+    gates: the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability
+    patch to the live project. Next safe action: pass the independent fresh-session LLM run from
+    `docs/continuity/FRESH_SESSION_PROMPT.md` (first run 07.10 failed on stale curated text; fixed and re-run).
 12. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints

@@ -56,9 +56,29 @@ is rebuilt at each epic delivery, after production sync.
   asked at check time (no network). Decisions that depend on such a section need a scoped read-only audit first.
 - **CONTEXT_FRESH** — proceed; still cite sources, still treat runtime numbers as «as of» their timestamp.
 
-Without a machine (e.g. a ChatGPT session reading GitHub): treat the context as **CONTEXT_STALE** when
-`generated_at` is older than 24 h or `origin_commit` is not the current origin head, and say so in the
-answer. A moved commit whose canonical inputs did not change is not stale — but only `check` can prove it.
+Without a machine (a session reading GitHub or a clone), judge the COMMITTED_SNAPSHOT in four steps.
+A commit cannot contain its own hash, so the snapshot's `origin_commit` is always at least its own
+regeneration commit behind the head — commit inequality alone is NOT staleness.
+
+1. `generated_at` more than 24 h before now ⇒ **CONTEXT_STALE**.
+2. Let B = header `origin_commit`, H = current origin `main` head. If B ≠ H, list the paths changed in
+   `B..H` (GitHub compare `B...H`, or `git diff --name-only B H`). Every changed path under
+   `docs/continuity/` ⇒ step passes (snapshot-only commits). Any other path ⇒ **CONTEXT_STALE**; name it.
+3. Canon check: list `docs/decisions/ADR-*.md` at H. An ADR numbered higher than the newest ADR the
+   snapshot cites, or dated after `generated_at`, must be read; where it contradicts a snapshot section
+   or a curated file, the ADR wins (source hierarchy, ARCHITECT_CONTEXT §5) and that section is STALE.
+4. Otherwise the snapshot carries its `verdict_at_generation` — never better — and every runtime number
+   is reported «as of» its own timestamp.
+
+A negative claim («X is not delivered / missing / not decided») is allowed only after step 3 was run for X.
+
+## Recovery after losing the Mac
+
+Canonical runbook: `docs/DISASTER_RECOVERY.md` (CANONICAL DR, v3.0, 2026-06-27). Its archive section
+predates ADR-611: which archive to restore and how to prove it complete is `docs/decisions/ADR-611-backup-archive-classes.md`
+(FULL daily archive `spa_state_YYYY-MM-DD.tar.gz`, copied to iCloud Drive `SPA_backups/dr_offsite/`, verified by
+`scripts/drill_restore.py --archive <file>`). Code, decisions and tasks come back with `git clone`; upload of the
+iCloud copy to Apple's servers is NOT_MEASURED from the Mac.
 
 ## Answering rules
 
