@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import sys
 import types
 from datetime import datetime, timedelta, timezone
@@ -1019,3 +1020,23 @@ def test_sherlock_decision_row_carries_unknown_gates():
     assert row["unknown_gates"] == ["data_fresh", "custody_understood"]
     app = (Path(mc.__file__).parent / "mission_ui" / "app.js").read_text(encoding="utf-8")
     assert "research.candidate.unknown_gates" in app
+
+
+def test_real_capital_observation_time_only_on_the_measured_fact(tmp_path):
+    """ARB-CONTINUITY-01 wave D: the $0 fact carries WHEN it was observed — the cycle's own
+    `last_cycle_ts` in paper_trading_status.json, never the file mtime (a git checkout rewrites
+    mtime without a new observation; review 07.10). UNKNOWN carries none (inv. #17)."""
+    s = _scene(tmp_path)
+    p = s.data / "paper_trading_status.json"
+    doc = json.loads(p.read_text())
+    doc["last_cycle_ts"] = "2026-10-05T11:22:33+00:00"
+    p.write_text(json.dumps(doc))
+    rc = _build(s)["capital"]["real_capital"]
+    assert rc["state"] == "LIVE_NOT_APPROVED" and rc["observed_at"] == "2026-10-05T11:22:33Z"
+    # negative control: fresh mtime, no cycle stamp ⇒ no observation time (mtime is not an observation)
+    doc.pop("last_cycle_ts")
+    p.write_text(json.dumps(doc))
+    os.utime(p, None)
+    assert _build(s)["capital"]["real_capital"].get("observed_at") is None
+    m2 = _build(_scene(tmp_path / "live", mode="live"))
+    assert "observed_at" not in m2["capital"]["real_capital"]

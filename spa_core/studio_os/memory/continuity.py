@@ -164,7 +164,7 @@ INTENT_FIELDS = ("owner_intent", "why_it_matters", "first_known_evidence", "curr
 
 SECTION_ORDER = ("active_epic", "latest_accepted_epic", "current_origin", "production_code", "real_capital",
                  "live_execution", "capital_summary", "trading_lab", "btc", "defi_paper", "oracle", "sherlock",
-                 "studio_os", "director_os", "memory", "product_publication", "active_problems", "owner_gates",
+                 "studio_os", "director_os", "memory", "product_publication", "active_problems", "test_health", "owner_gates",
                  "technical_debt", "next_safe_action", "last_verification")
 
 
@@ -183,6 +183,13 @@ def _stamp(s: str) -> datetime:
     if d.tzinfo is None:
         raise ValueError("timestamp without timezone")
     return d.astimezone(timezone.utc)
+
+
+def _stamp_or_none(s: Any) -> Optional[datetime]:
+    try:
+        return _stamp(s) if isinstance(s, str) and s.strip() else None
+    except ValueError:
+        return None
 
 
 def _iso(d: datetime) -> str:
@@ -262,6 +269,13 @@ def _adr_files(root: Path, registry: str = "docs/decisions") -> Dict[str, List[s
         if aid:
             out.setdefault(aid, []).append(f"{registry}/{p.name}")
     return out
+
+
+def adr_max_considered(listing: List[str]) -> Optional[int]:
+    """Highest ADR number present in either registry at generation — the line a no-machine reader
+    compares the current registry against (BOOTSTRAP step 3); ``None`` when no ADR was listed."""
+    nums = [int(m.group(1)) for x in listing for m in [re.match(r"ADR-(\d+)", x.rsplit("/", 1)[-1])] if m]
+    return max(nums) if nums else None
 
 
 def _adr_listing(root: Path) -> List[str]:
@@ -548,6 +562,64 @@ def _profile_rows(truth: Optional[dict], resolved: Dict[str, Dict[str, Any]]) ->
 
 COPY_ROLES = ("PRODUCTION", "COMMITTED_SNAPSHOT")
 
+#: A machine record of a FULL test run on origin/main: ``junit.xml`` written by pytest itself plus
+#: ``meta.json`` {"commit": <40-hex>, "as_of": <ISO>}. Read through the existing three-outcome reader
+#: ``scripts/ci_verdict.py`` (ADR-474) — never ADR prose, never a hand-typed count.
+TEST_RECORD_DEFAULT = CODE_REPO / "data" / "ci" / "origin_main"
+TEST_HEALTH_POINTER = "see ADR-613 (a pointer to where the measurement is discussed — not a measurement)"
+
+
+def _ci_verdict_module():
+    import importlib.util
+    path = CODE_REPO / "scripts" / "ci_verdict.py"
+    spec = importlib.util.spec_from_file_location("spa_ci_verdict_for_continuity", str(path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+def _failed_names(junit: Path, limit: int = 20) -> List[str]:
+    import xml.etree.ElementTree as ET
+    names: List[str] = []
+    for tc in ET.parse(junit).getroot().iter("testcase"):
+        if any(ch.tag in ("failure", "error") for ch in tc):
+            names.append(clean(f"{tc.get('classname') or ''}::{tc.get('name') or ''}", 200))
+    return sorted(names)[:limit]
+
+
+def test_health_section(record: Optional[Path]) -> Dict[str, Any]:
+    """origin/main test health — three outcomes (inv. #17): MEASURED (N failed + names) ·
+    MEASURED_ZERO · NOT_MEASURED (with the reason). Absence of the record is NOT «green»."""
+    src = "runtime: machine record of a full origin/main run (junit.xml + meta.json, read by scripts/ci_verdict.py)"
+    if record is None:
+        return _section(f"not measured: no test record was given to this build — {TEST_HEALTH_POINTER}",
+                        src, "NOT_MEASURED", None, None)
+    rec = Path(record)
+    junit, meta_p = rec / "junit.xml", rec / "meta.json"
+    if not junit.is_file() or not meta_p.is_file():
+        return _section(f"not measured: no machine record of a full origin/main test run at {rec.name}/ — "
+                        f"{TEST_HEALTH_POINTER}", src, "NOT_MEASURED", None, None)
+    try:
+        meta = json.loads(meta_p.read_text(encoding="utf-8"))
+        commit, as_of = meta.get("commit"), meta.get("as_of")
+        if not (isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit)) or _stamp_or_none(as_of) is None:
+            raise ValueError("meta.json lacks a 40-hex commit or an ISO as_of")
+        v = _ci_verdict_module().read_verdict(junit)
+    except Exception as exc:  # noqa: BLE001 — an unreadable record is NOT_MEASURED with its reason
+        return _section(f"not measured: test record unreadable ({type(exc).__name__}: {clean(str(exc), 160)})",
+                        src, "NOT_MEASURED", None, None)
+    if not v.measured:
+        return _section(f"not measured: {clean(v.reason, 300)}", src, "NOT_MEASURED", None,
+                        dict(commit=commit))
+    bad = (v.failures or 0) + (v.errors or 0)
+    if bad == 0:
+        return _section(f"0 failed of {v.tests} on origin {commit[:12]}", src, "MEASURED_ZERO", _iso(_stamp(as_of)),
+                        dict(commit=commit, tests=v.tests, failed=0, names=[]))
+    names = _failed_names(junit)
+    return _section(f"{bad} failed of {v.tests} on origin {commit[:12]}: " + "; ".join(names[:5])
+                    + (" …" if bad > 5 else ""), src, "MEASURED", _iso(_stamp(as_of)),
+                    dict(commit=commit, tests=v.tests, failed=bad, names=names))
+
 
 def _dirty_inputs(root: Path, paths: List[str]) -> Optional[List[str]]:
     """Inputs whose working-tree bytes differ from the root's HEAD (None = not a git root)."""
@@ -562,7 +634,7 @@ def _dirty_inputs(root: Path, paths: List[str]) -> Optional[List[str]]:
 
 
 def build(root: Path, generated_at: str, receipt: Optional[Path] = None, mission: Optional[Path] = None,
-          copy_role: str = "PRODUCTION") -> Dict[str, Any]:
+          copy_role: str = "PRODUCTION", test_record: Optional[Path] = None) -> Dict[str, Any]:
     if copy_role not in COPY_ROLES:
         raise ContinuityError(f"REFUSED: unknown copy role {copy_role!r}")
     gen_at = _stamp(generated_at)
@@ -723,6 +795,7 @@ def build(root: Path, generated_at: str, receipt: Optional[Path] = None, mission
     nsa = (act or {}).get("next_safe_action")
     S["next_safe_action"] = _section(nsa, "docs/ROADMAP.md «Next safe action:» of the active epic",
                                      "MEASURED" if nsa else UNKNOWN, None, None, "CANONICAL")
+    S["test_health"] = test_health_section(test_record)
     S["last_verification"] = _section(
         f"generated {_iso(gen_at)} · code-sync receipt {rec['verified_at']} · Company Truth {mmeta.get('computed_at')}",
         "this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)", "MEASURED",
@@ -734,6 +807,11 @@ def build(root: Path, generated_at: str, receipt: Optional[Path] = None, mission
             sec["status"] = "PARTIAL"
             sec["display"] = clean(f"{sec['display']} (the source records no observation time)", 600)
     dirty = _dirty_inputs(root, sorted(p for p in hashes if not p.startswith("derived:")))
+    if copy_role == "COMMITTED_SNAPSHOT" and (dirty is None or dirty):
+        # off the machine nobody can prove which bytes an uncommitted input had — commit the sources
+        # first, then build the snapshot from a clean tree (ADR-610 delivery order)
+        raise ContinuityError("REFUSED: a COMMITTED_SNAPSHOT needs a clean canonical root; uncommitted "
+                              f"inputs: {dirty if dirty is not None else 'NOT MEASURED'}")
     behind = refs0[1] is None or refs0[0] != refs0[1]
     partial = [k for k, x in S.items() if x["status"] in (UNKNOWN, "PARTIAL")]
     verdict_at_gen = "CONTEXT_PARTIAL" if (partial or behind or dirty or dirty is None or truth is None) \
@@ -748,7 +826,9 @@ def build(root: Path, generated_at: str, receipt: Optional[Path] = None, mission
                                                f"mission:{mmeta['sha256']}" if mmeta.get("sha256") else None) if x),
         generator_version=gen_version, authority="DERIVED", runtime_truth_computed_at=mmeta.get("computed_at"),
         production_release_verified_at=rec["verified_at"], copy_role=copy_role,
-        verdict_at_generation=verdict_at_gen, root_dirty_inputs=dirty if dirty is not None else [UNKNOWN])
+        verdict_at_generation=verdict_at_gen, root_dirty_inputs=dirty if dirty is not None else [UNKNOWN],
+        adr_max_considered=adr_max_considered(_adr_listing(root)),
+        adr_listing_sha256=hashes["derived:adr_registry_listing"])
     state = dict(header=header, inputs=dict(sorted(hashes.items())),
                  runtime=dict(receipt=dict(reason=rec["reason"], sha256=rec["sha256"]),
                               mission=dict(bundle=mmeta.get("bundle"), computed_at=mmeta.get("computed_at"),
@@ -828,7 +908,7 @@ _TITLES = dict(active_epic="Active epic / current wave", latest_accepted_epic="L
                trading_lab="Trading Lab", btc="BTC (directional research)", defi_paper="DeFi paper",
                oracle="Oracle (CIO)", sherlock="Sherlock (Head of Research)", studio_os="Studio OS",
                director_os="Director OS / Mission Control", memory="Memory", product_publication="Product / publication",
-               active_problems="Active problems", owner_gates="Pending Owner Gates", technical_debt="Known technical debt",
+               active_problems="Active problems", test_health="origin/main test health", owner_gates="Pending Owner Gates", technical_debt="Known technical debt",
                next_safe_action="Next safe architectural action", last_verification="Last verification evidence")
 
 
@@ -838,8 +918,9 @@ def render(state: Dict[str, Any]) -> Dict[str, str]:
           "# CURRENT_STATE — generated read model (authority: DERIVED, never canonical)", "",
           "> Generated by `spa_core/studio_os/memory/continuity.py` (ADR-610). Do not edit: a hand edit is detected "
           "as tampering. Before deciding architecture run `python -m spa_core.studio_os.memory continuity check`; "
-          "without a machine, treat this file as **CONTEXT_STALE** if `generated_at` is older than 24 h or "
-          "`origin_commit` is not the current origin head. UNKNOWN is an answer, not a gap to fill.", "",
+          "without a machine, judge freshness by the four-step no-machine rule in `docs/continuity/BOOTSTRAP.md` "
+          "(«Freshness gate»; ADRs above `adr_max_considered` must be read). UNKNOWN is an answer, not a gap to "
+          "fill.", "",
           f"**Copy:** {h['copy_role']} · **verdict at generation:** {h['verdict_at_generation']}"
           + (f" · inputs not committed at generation: {', '.join(h['root_dirty_inputs'])}"
              if h["root_dirty_inputs"] else "")
@@ -1060,12 +1141,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--at", default=None, help="UTC ISO time (default: now)")
     ap.add_argument("--receipt", type=Path, default=d["receipt"])
     ap.add_argument("--mission", type=Path, default=d["mission"])
+    ap.add_argument("--test-record", type=Path, default=TEST_RECORD_DEFAULT,
+                    help="machine record of a full origin/main run (junit.xml + meta.json)")
     a = ap.parse_args(argv)
     at = a.at or _iso(datetime.now(timezone.utc))
     try:
         if a.command == "build":
             committed = a.out.resolve() == (a.root.resolve() / CONTRACT_DIR)
-            st = build(a.root, at, a.receipt, a.mission, "COMMITTED_SNAPSHOT" if committed else "PRODUCTION")
+            st = build(a.root, at, a.receipt, a.mission, "COMMITTED_SNAPSHOT" if committed else "PRODUCTION",
+                       a.test_record)
             write(st, a.out, a.root)
             print(json.dumps({"built": True, "out": a.out.name, "header": st["header"]}, ensure_ascii=False, indent=1))
             return 0

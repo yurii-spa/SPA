@@ -1093,8 +1093,14 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     else:
         trading = _nm(["data/trading_research/status.json"], now, "trading research status not readable")
 
-    pts = _read_json(data / "paper_trading_status.json")
+    pts_path = data / "paper_trading_status.json"
+    pts = _read_json(pts_path)
     mode = (pts or {}).get("execution_mode")
+    # observation time of the execution-mode fact = the cycle's own stamp `last_cycle_ts` written by
+    # cycle_runner into the same file. NOT the file mtime: the file is git-tracked, and a checkout /
+    # clone / sync rewrites mtime without a new observation (review 07.10). Absent ⇒ None (inv. #17).
+    _pts_ts = _ts((pts or {}).get("last_cycle_ts"))
+    pts_observed = _pts_ts.strftime("%Y-%m-%dT%H:%M:%SZ") if _pts_ts else None
     live_vals = [v for v in ((pv or {}).get("live_capital_usd") if isinstance(pv, dict) else None,
                              (tr or {}).get("live_capital_usd") if isinstance(tr, dict) else None) if v is not None]
     if mode is None and not live_vals:
@@ -1105,6 +1111,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         real = {"state": "LIVE_NOT_APPROVED" if ok else "UNKNOWN",
                 "usd": 0 if ok else None,
                 "basis": f"execution_mode={mode}; live_capital_usd reported by the paper engines={live_vals}"}
+        if ok:
+            real["observed_at"] = pts_observed   # only a measured fact has an observation time
     _rank = {"HEALTHY": 0, "DEGRADED": 1, "STALE": 1, "NOT_MEASURED": 2, "CRITICAL": 3}
     cap_state = max((packages["_meta"]["state"], trading["_meta"]["state"]), key=lambda s: _rank.get(s, 2))
     investment_cio = _investment_cio_section(data, now)

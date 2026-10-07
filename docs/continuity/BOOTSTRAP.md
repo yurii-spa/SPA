@@ -8,7 +8,8 @@
 1. `docs/continuity/ARCHITECT_CONTEXT.md` — identity, three worlds, roles, permissions, source hierarchy.
 2. `docs/continuity/CURRENT_STATE.md` — GENERATED read model. Its header (JSON between the `---` lines)
    carries `context_version`, `generated_at`, `repo_commit`, `origin_commit`, `production_release`,
-   `latest_accepted_epic`, `source_snapshot_ids`, `generator_version`. `authority` must be `DERIVED`.
+   `latest_accepted_epic`, `source_snapshot_ids`, `generator_version`, `adr_max_considered`,
+   `adr_listing_sha256`. `authority` must be `DERIVED`.
 3. `docs/ROADMAP.md` — the single canonical roadmap (active epic, closed epics, standing constraints).
 4. The latest accepted epic's closeout: the ADR named in `CURRENT_STATE.md` «Latest accepted epic»,
    and for RM-TRUTH-01 also `docs/rm_truth/MASTER_CURRENT_STATE_MAP.md`.
@@ -64,9 +65,15 @@ regeneration commit behind the head — commit inequality alone is NOT staleness
 2. Let B = header `origin_commit`, H = current origin `main` head. If B ≠ H, list the paths changed in
    `B..H` (GitHub compare `B...H`, or `git diff --name-only B H`). Every changed path under
    `docs/continuity/` ⇒ step passes (snapshot-only commits). Any other path ⇒ **CONTEXT_STALE**; name it.
-3. Canon check: list `docs/decisions/ADR-*.md` at H. An ADR numbered higher than the newest ADR the
-   snapshot cites, or dated after `generated_at`, must be read; where it contradicts a snapshot section
-   or a curated file, the ADR wins (source hierarchy, ARCHITECT_CONTEXT §5) and that section is STALE.
+3. Canon check: list `docs/decisions/ADR-*.md` and `docs/adr/ADR-*.md` at H. Every ADR numbered higher
+   than the header's `adr_max_considered` (the highest ADR present in either registry when the snapshot
+   was generated; `adr_listing_sha256` hashes that name list) is new to the snapshot and must be read;
+   where it contradicts a snapshot section or a curated file, the ADR wins (source hierarchy,
+   ARCHITECT_CONTEXT §5) and that section is STALE. ADRs at or below `adr_max_considered` were already
+   in the registry the snapshot was built from — not cited ≠ not considered. Two exceptions still need a
+   read: an ADR file that step 2 lists as changed in `B..H` (amended or superseded since), and a NEW name at
+   or below `adr_max_considered` (a gap filled, or one of the `docs/adr` ↔ `docs/decisions` number
+   collisions) — if the listing at H differs from the one the snapshot hashed, read every name that is new.
 4. Otherwise the snapshot carries its `verdict_at_generation` — never better — and every runtime number
    is reported «as of» its own timestamp.
 

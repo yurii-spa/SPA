@@ -506,3 +506,82 @@ def test_diverged_root_judges_only_the_server_side_changes(env):
     scene.git(root, "fetch", "-q", "origin")
     res = _check(env)
     assert res["verdict"] == "CONTEXT_STALE" and any(c.CONTEXT_FILE in r for r in res["reasons"]), res
+
+
+# ── wave D: grader findings on fresh-session run #2 ─────────────────────────────────────────────
+
+def test_current_state_blurb_defers_to_the_bootstrap_four_step_rule(env):
+    """Finding 1: the generated header blurb stated the OLD no-machine rule («stale if origin_commit is
+    not the current origin head»), contradicting BOOTSTRAP's four steps (a commit cannot contain its
+    own hash). The blurb must point to BOOTSTRAP and carry none of the old wording."""
+    _build(env)
+    md = (env["out"] / "CURRENT_STATE.md").read_text(encoding="utf-8")
+    assert "is not the current origin head" not in md
+    assert "four-step no-machine rule in `docs/continuity/BOOTSTRAP.md`" in md
+    boot = (scene.REPO / "docs/continuity/BOOTSTRAP.md").read_text(encoding="utf-8")
+    assert "commit inequality alone is NOT staleness" in boot and "adr_max_considered" in boot
+
+
+def test_committed_snapshot_refuses_a_dirty_root_and_writes_nothing(env):
+    """Finding 2: «inputs not committed at generation» cannot be proven off the machine."""
+    p = env["root"] / c.CONTEXT_FILE
+    p.write_text(p.read_text(encoding="utf-8") + "\nuncommitted\n", encoding="utf-8")
+    with pytest.raises(c.ContinuityError, match="clean canonical root"):
+        c.build(env["root"], scene.AT, env["receipt"], env["mission"], "COMMITTED_SNAPSHOT")
+    snap = env["root"] / c.CONTRACT_DIR
+    before = {q.name for q in snap.iterdir()}
+    rc = c.main(["build", "--root", str(env["root"]), "--out", str(snap), "--receipt", str(env["receipt"]),
+                 "--mission", str(env["mission"]), "--at", scene.AT])
+    assert rc == 2 and {q.name for q in snap.iterdir()} == before and not (snap / "state.json").exists()
+    st = _build(env)                                  # a PRODUCTION build still works, flagged PARTIAL
+    assert st["header"]["verdict_at_generation"] == "CONTEXT_PARTIAL"
+
+
+def test_header_names_the_highest_adr_considered_and_the_listing_hash(env):
+    """Finding 3: «newer than the newest CITED ADR» fired forever on uncited ADRs; the reader needs the
+    highest ADR the generator SAW."""
+    (env["root"] / "docs/decisions/ADR-777-uncited-but-present.md").write_text("# ADR-777 x\n", encoding="utf-8")
+    scene.git(env["root"], "add", "-A")
+    scene.git(env["root"], "commit", "-q", "-m", "adr 777")
+    scene.publish(env["root"])
+    st = _build(env)
+    h = st["header"]
+    assert h["adr_max_considered"] == 777
+    assert h["adr_listing_sha256"] == st["inputs"]["derived:adr_registry_listing"]
+    assert c.adr_max_considered(["docs/decisions/ADR-012-a.md", "docs/adr/ADR-31-b.md"]) == 31
+    assert c.adr_max_considered([]) is None
+
+
+def _record(d: Path, junit: str, commit: str = "c" * 40, as_of: str = scene.AT) -> Path:
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "junit.xml").write_text(junit, encoding="utf-8")
+    (d / "meta.json").write_text(json.dumps({"commit": commit, "as_of": as_of}), encoding="utf-8")
+    return d
+
+
+_SUITE = ('<testsuites><testsuite name="s" tests="{t}" failures="{f}" errors="0" skipped="0">{cases}'
+          '</testsuite></testsuites>')
+
+
+def test_origin_main_test_health_has_three_outcomes(env):
+    """Finding 4: MEASURED (N + names) · MEASURED_ZERO · NOT_MEASURED (reason) — from a machine record
+    only; no record ⇒ NOT_MEASURED with a POINTER to ADR-613, never a number taken from prose."""
+    sec = c.test_health_section(None)
+    assert sec["status"] == "NOT_MEASURED" and "ADR-613" in sec["display"] and sec["value"] is None
+    sec = c.test_health_section(env["tmp"] / "absent")
+    assert sec["status"] == "NOT_MEASURED" and "no machine record" in sec["display"]
+    red = _record(env["tmp"] / "red", _SUITE.format(t=3, f=1, cases=(
+        '<testcase classname="a.b" name="t_ok"/><testcase classname="a.b" name="t_bad"><failure/></testcase>'
+        '<testcase classname="a.c" name="t_ok2"/>')))
+    sec = c.test_health_section(red)
+    assert sec["status"] == "MEASURED" and sec["value"]["failed"] == 1
+    assert sec["value"]["names"] == ["a.b::t_bad"] and sec["as_of"] == scene.AT
+    green = _record(env["tmp"] / "green", _SUITE.format(t=2, f=0, cases='<testcase classname="a" name="x"/>' * 2))
+    sec = c.test_health_section(green)
+    assert sec["status"] == "MEASURED_ZERO" and sec["value"]["failed"] == 0 and sec["as_of"] == scene.AT
+    cut = _record(env["tmp"] / "cut", "<testsuites><testsuite name='s'")      # killed mid-write
+    assert c.test_health_section(cut)["status"] == "NOT_MEASURED"
+    nometa = _record(env["tmp"] / "nometa", _SUITE.format(t=1, f=0, cases='<testcase name="x"/>'), commit="HEAD")
+    assert c.test_health_section(nometa)["status"] == "NOT_MEASURED"
+    st = c.build(env["root"], scene.AT, env["receipt"], env["mission"], test_record=red)
+    assert st["sections"]["test_health"]["status"] == "MEASURED"

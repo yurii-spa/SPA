@@ -31,7 +31,9 @@
     "production_release_verified_at",
     "copy_role",
     "verdict_at_generation",
-    "root_dirty_inputs"
+    "root_dirty_inputs",
+    "adr_max_considered",
+    "adr_listing_sha256"
    ],
    "properties": {
     "context_version": {
@@ -108,6 +110,16 @@
      "items": {
       "type": "string"
      }
+    },
+    "adr_max_considered": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "adr_listing_sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
     }
    }
   },
@@ -146,6 +158,7 @@
     "memory",
     "product_publication",
     "active_problems",
+    "test_health",
     "owner_gates",
     "technical_debt",
     "next_safe_action",
@@ -1093,6 +1106,53 @@
      }
     },
     "last_verification": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "display",
+      "source",
+      "status",
+      "as_of",
+      "value",
+      "authority"
+     ],
+     "properties": {
+      "display": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "MEASURED",
+        "MEASURED_ZERO",
+        "NOT_ENOUGH_HISTORY",
+        "PARTIAL",
+        "UNKNOWN",
+        "STALE",
+        "NOT_MEASURED"
+       ]
+      },
+      "as_of": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "value": {},
+      "authority": {
+       "type": "string",
+       "enum": [
+        "CANONICAL",
+        "RUNTIME",
+        "DERIVED"
+       ]
+      }
+     }
+    },
+    "test_health": {
      "type": "object",
      "additionalProperties": false,
      "required": [

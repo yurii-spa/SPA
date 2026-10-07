@@ -290,7 +290,9 @@ def typed_fleet(manifest: Optional[dict], launchctl_map: Optional[dict], agent_h
         headline = cell(value={"ok": ok, "declared": declared_total, "critical": crit, "warning": warn},
                         display_ru=f"в норме {ok} из {declared_total} объявленных{suffix}",
                         display_en=f"{ok} of {declared_total} declared OK", metric_type="COUNT",
-                        state=(MEASURED_ZERO if declared_total == 0 else MEASURED), as_of=None, canon=canon,
+                        state=(MEASURED_ZERO if declared_total == 0 else MEASURED),
+                        # observation time = the health monitor's own stamp; none ⇒ None (inv. #17)
+                        as_of=_iso(_parse_ts((agent_health_doc or {}).get("timestamp"))), canon=canon,
                         fresh=freshness(None, None, "n/a"), unknown_ru="")
     agent_by_label = {a.get("label"): a for a in agents}
     failing_labels = sorted(lbl for lbl in declared_labels if (ah_by_label.get(lbl) or {}).get("status") == "CRITICAL")
@@ -511,7 +513,7 @@ def money_chip(real_capital: Optional[dict]) -> dict:
     rc = real_capital or {}
     if rc.get("state") == "LIVE_NOT_APPROVED":
         return cell(value=0, display_ru=None, display_en=None, metric_type="POLICY", state=MEASURED,
-                    as_of=None, canon="paper_trading_status.execution_mode",
+                    as_of=rc.get("observed_at"), canon="paper_trading_status.execution_mode",
                     fresh=freshness(None, None, "n/a"), unknown_ru="Реальные деньги: не измерено",
                     usd=0)
     return unknown("paper_trading_status.execution_mode", "POLICY", "Реальные деньги: не измерено")
@@ -911,7 +913,9 @@ def capital_sherlock(research_universe: Optional[dict]) -> dict:
     total = sh.get("facts_total") if isinstance(sh.get("facts_total"), int) else None
     usable = usable if isinstance(usable, int) and not isinstance(usable, bool) else None
     awaiting = (total - usable) if isinstance(usable, int) and isinstance(total, int) else None
-    return cell(value=sh, display_ru=None, display_en=None, metric_type="COUNT", state=MEASURED, as_of=None,
+    # observation time = the factory's last run row (mission_control _meta.observed_at), not render time
+    return cell(value=sh, display_ru=None, display_en=None, metric_type="COUNT", state=MEASURED,
+               as_of=(ru.get("_meta") or {}).get("observed_at"),
                canon=canon, fresh=freshness(None, None, "n/a"), unknown_ru="Реестр фактов не прочитан",
                usable=usable, total=total, awaiting_review=awaiting)
 
@@ -1112,6 +1116,14 @@ def studio_memory(repo: Path, mirror: Path) -> dict:
     try:
         con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         try:
+            built_at = None
+            try:
+                row = con.execute("SELECT value FROM manifest WHERE key = 'built_at'").fetchone()
+                v = json.loads(row[0]) if row else None
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    built_at = datetime.fromtimestamp(v, tz=timezone.utc)
+            except Exception:  # noqa: BLE001 — no build stamp ⇒ as_of None, the count still stands
+                built_at = None
             adrs_indexed = set()
             for row in con.execute("SELECT DISTINCT path FROM chunks WHERE path LIKE '%ADR-%'"):
                 for m in re.findall(r"ADR-(\d+)", row[0] or ""):
@@ -1140,7 +1152,7 @@ def studio_memory(repo: Path, mirror: Path) -> dict:
     return cell(value={"lag": lag, "newest_indexed": newest_indexed, "newest_origin": newest_origin or None,
                       "truth_overrides": len((truth_doc or {}).get("overrides") or []) if truth_doc else None},
                display_ru=None, display_en=None, metric_type="OPERATIONAL",
-               state=(MEASURED_ZERO if lag == 0 else MEASURED), as_of=None, canon=canon,
+               state=(MEASURED_ZERO if lag == 0 else MEASURED), as_of=_iso(built_at), canon=canon,
                fresh=freshness(None, None, "n/a"), unknown_ru="Индекс памяти не прочитан", lag=lag)
 
 
