@@ -28,7 +28,8 @@ def _load(name: str, rel: str):
     return mod
 
 
-def run(*, published_at=None, published=None, out=None, bsn=None, ssp=None, message=None) -> int:
+def run(*, published_at=None, published=None, out=None, bsn=None, ssp=None, message=None,
+        dry_run: bool = False) -> int:
     bsn = bsn or _load("_bsn_publish", "scripts/build_site_numbers.py")
     ssp = ssp or _load("_ssp_publish", "scripts/safe_site_push.py")
     try:
@@ -49,6 +50,9 @@ def run(*, published_at=None, published=None, out=None, bsn=None, ssp=None, mess
     msg = message or ("chore(site numbers): weekly shelf (ADR-630)" if outcome.get("published")
                       else "chore(site numbers): owner-approved weekly shelf (ADR-630)")
     print(("собрана новая витрина" if outcome.get("published") else "одобренная витрина") + f" → {shelf}")
+    if dry_run:
+        print(f"DRY-RUN: витрина НЕ публикуется (был бы пуш {shelf} через safe_site_push.py)")
+        return 0
     return ssp.main(["--files", str(shelf), "-m", msg])
 
 
@@ -56,8 +60,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--published-at", default=None)
     ap.add_argument("--published", default=None, help="the PUBLISHED shelf (default: the origin mirror)")
-    a = ap.parse_args(argv)
-    return run(published_at=a.published_at, published=Path(a.published) if a.published else None)
+    ap.add_argument("--dry-run", action="store_true",
+                    help="build and gate as usual, but publish NOTHING (no push)")
+    a = ap.parse_args(argv)   # --help / -h ⇒ prints and exits 0 HERE, before any build or push;
+    #                           an unknown argument ⇒ exits 2 here, before any write (CAPITAL-SOURCES-01 §0)
+    return run(published_at=a.published_at, published=Path(a.published) if a.published else None,
+               dry_run=a.dry_run)
 
 
 if __name__ == "__main__":

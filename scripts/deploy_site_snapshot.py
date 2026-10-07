@@ -134,8 +134,21 @@ def _differs_from_origin(path: Path) -> bool:
         return True
 
 
-def main() -> int:
+def _parse_args(argv: list) -> "argparse.Namespace":
+    """CAPITAL-SOURCES-01 §0 (07.10): this script used to IGNORE its arguments, so `--help` ran a real
+    publication. Parsing happens BEFORE any write: --help/-h ⇒ exit 0, unknown argument ⇒ exit 2."""
+    import argparse
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    ap.add_argument("--dry-run", action="store_true",
+                    help="regenerate and compare with origin, but push NOTHING")
+    return ap.parse_args(argv)
+
+
+def main(argv: "list | None" = None) -> int:
+    """`argv=None` = the daily cycle's call (no arguments) — unchanged behaviour; sys.argv is NOT read
+    here (pytest and other in-process callers must never have their own argv parsed as ours)."""
     import json
+    args = _parse_args([] if argv is None else list(argv))
 
     # 0. конституция сайта из своего источника (ADR-315). Отказ здесь НЕ валит деплой
     #    снимка: это разные числа с разной природой, и уронить свежий замер из-за
@@ -177,6 +190,9 @@ def main() -> int:
     origin = _origin_snapshot()
     if origin is not None and _meaningful(origin) == _meaningful(local):
         print("deploy_site_snapshot: snapshot matches origin/main (data identical) — no deploy needed")
+        return 0
+    if args.dry_run:
+        print("deploy_site_snapshot: DRY-RUN — snapshot differs from origin; would push, pushing NOTHING")
         return 0
     # 3. push ONLY the snapshot -> deploy-landing.yml rebuilds the site (landing/** trigger).
     #    Через safe_site_push.py: owner-гейт + ресит доставки. `--allow-overwrite` объявляет
@@ -223,4 +239,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
