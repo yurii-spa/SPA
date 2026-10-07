@@ -219,6 +219,69 @@ SOURCE_LEG_ID_ABSENT = "unmeasured:id_absent"
 SOURCE_LEG_PLACEHOLDER = "unmeasured:id_present_value_unreadable"
 
 
+#: ИСХОД ПО ОДНОМУ ОБЪЯВЛЕННОМУ ИСТОЧНИКУ — запись, которой у отчёта не было
+#: (заказ G103 п. 1, поставлен ADR-523 30.09).
+#:
+#: ПОЧЕМУ ОТДЕЛЬНО ОТ `number_legs`. Та строка отвечает на вопрос «с какой страницы
+#: взят ОПЕРАНД сверки», и отвечает честно: взят он у ПЕРВОГО источника, который дал
+#: число (`hits[0]`). Из этого следует молчание, которое ни один сторож не называет:
+#: объявленный источник, который живая страница БОЛЬШЕ НЕ НЕСЁТ, в отчёт не попадает
+#: вовсе, пока хоть один его сосед по тому же label отвечает. Замер 06.10 на живом
+#: сайте: из 11 объявленных источников страница подтверждает 7, ОПРОВЕРГАЕТ 3
+#: (`sl-day`, `sl-gates`, `sl-apy` — историчные id главной, которых нет уже и на CDN),
+#: одного не даёт как заглушку; `number_legs` называл ТРИ источника из 11, и ни одного
+#: опровергнутого. Реестр `SITE_NUMBER_SOURCES` есть УТВЕРЖДЕНИЕ о живой разметке, и
+#: до этой записи его верность не спрашивалась у сайта ни одним числом.
+#:
+#: Запись ДОБАВЛЕНА, а не заменяет `number_legs`: вердикт кустодиана, его severity и
+#: состав `fails` не меняются ни на одну ветку. Судит запись перепись
+#: `spa_core/monitoring/declared_source_live_parity.py` (ADVISORY, applied=False) —
+#: отдельным прибором намеренно: кустодиан живой и трогает предмет №2 границы ADR-285,
+#: а новый вердикт внутри него был бы изменением живого гейта, а не наблюдением.
+SOURCE_LEG_PAGE_ABSENT = "unmeasured:page_not_fetched"
+
+
+def probe_declared_sources(pages, sources=None):
+    """Исход КАЖДОГО объявленного источника реестра на отданном сайтом HTML.
+
+    Отличие от :func:`locate_site_number` — в ВОПРОСЕ, а не в разборе: та отвечает
+    «откуда взять операнд» и останавливается на первом годном, эта отвечает «что
+    живая страница говорит о КАЖДОМ объявленном источнике» и не останавливается
+    никогда. Возвращает список словарей по одному на объявленный источник:
+
+      ``{label, page, elem_id, leg, value, id_occurrences, why}``
+
+    ``id_occurrences`` спрашивается ОТДЕЛЬНО от присутствия: два элемента с одним id
+    делают ответ регекспа зависимым от порядка в документе, а не от объявления, и это
+    НЕ то же самое, что «источник подтверждён». Ноль ⇒ `SOURCE_LEG_ID_ABSENT`.
+    """
+    table = SITE_NUMBER_SOURCES if sources is None else sources
+    rows = []
+    for label, srcs in table.items():
+        for page, elem_id, pattern, why in srcs:
+            html = (pages or {}).get(page)
+            row = {"label": label, "page": page, "elem_id": elem_id, "why": why,
+                   "value": None, "id_occurrences": None}
+            if not html:
+                row["leg"] = SOURCE_LEG_PAGE_ABSENT
+                rows.append(row)
+                continue
+            row["id_occurrences"] = html.count(f'id="{elem_id}"')
+            if row["id_occurrences"] == 0:
+                row["leg"] = SOURCE_LEG_ID_ABSENT
+                rows.append(row)
+                continue
+            m = re.search(pattern, html)
+            value = _num(m.group(1)) if m else None
+            if value is None:
+                row["leg"] = SOURCE_LEG_PLACEHOLDER
+            else:
+                row["leg"] = SOURCE_LEG_MEASURED
+                row["value"] = value
+            rows.append(row)
+    return rows
+
+
 def locate_site_number(label, pages, sources=None):
     """Найти операнд `label` в отданном сайтом HTML и НАЗВАТЬ, откуда он взят.
 
@@ -764,6 +827,13 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         # `measured:<стр>#<id>=<знач>` · `unmeasured:site:<след по всем источникам>` ·
         # `unmeasured:shelf_has_no_value|site:<…>`.
         "number_legs": number_legs,
+        # ИСХОД КАЖДОГО объявленного источника реестра на живой странице (заказ
+        # G103 п. 1). `number_legs` выше называет только тот источник, который
+        # ОТВЕТИЛ, и потому опровергнутое объявление в нём невидимо: `hits[0]`
+        # побеждает, пока хоть один сосед по label жив. Эта запись ничего не
+        # решает и ни одного вердикта не меняет — её читает ADVISORY-перепись
+        # `declared_source_live_parity`.
+        "declared_source_probes": probe_declared_sources(site_pages),
         "snapshot": {k: snap.get(k) for k in ("as_of", "real_track_days", "paper_apy_pct", "gates_passed", "end_equity")},
         # ДВА производителя рядом: снимок ежедневный, витрина недельная. Разность между
         # ними — НОРМА по установке владельца, а не находка; находкой её читал сторож до

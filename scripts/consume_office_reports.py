@@ -872,6 +872,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # выдуманную находку — ровно ту, которую сняла арифметика замера 05.10
     # (189 «падений», которых не было). `record_routes` обязателен по той же
     # причине: без него «не измерено» у дороги записи неотличимо от «чисто».
+    # Заказ G103 п. 1 (ADR-594). `refuted_silently` и `refuted_loudly`
+    # объявлены ОБА и по отдельности намеренно: у молчаливого опровержения
+    # (сосед по label отвечает, кустодиан зелёный) и у громкого (кустодиан
+    # краснеет сам) РАЗНОЕ лекарство, и сумма их прячет ровно то, что заказ
+    # просил найти. `operand_age_hours` обязателен, потому что ответ есть
+    # утверждение о мгновении, когда кустодиан скачивал страницу.
+    "declared_source_live_parity.json": (
+        "status", "invoked_by", "order", "population", "recorded_probes",
+        "outcomes", "label_outcomes", "refuted", "refuted_silently",
+        "refuted_loudly", "ambiguous_duplicate_ids",
+        "record_names_a_source_the_registry_no_longer_declares",
+        "operand_age_hours", "rows", "what_it_does_not_prove"),
     "unknown_class_in_the_artifact.json": (
         "status", "invoked_by", "order", "population",
         "published_population", "outcomes", "unmeasured_reasons",
@@ -1212,6 +1224,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unknown_class_in_the_artifact.py",
     "reachability_of_the_rest.json":
         "spa_core/monitoring/reachability_of_the_rest.py",
+    "declared_source_live_parity.json":
+        "spa_core/monitoring/declared_source_live_parity.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
     "keep_dominance_census.json":
@@ -3210,6 +3224,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.reachability_of_the_rest import format_report as _ror_report
         out.extend(_ror_report(data))
+    elif name == "declared_source_live_parity.json":
+        # Заказ G103 п. 1 (ADR-594). Без этой ветки артефакт читается ВХОЛОСТУЮ.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.declared_source_live_parity import format_report as _dslp_report
+        out.extend(_dslp_report(data))
     elif name == "book_oscillation_census.json":
         # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
         # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется

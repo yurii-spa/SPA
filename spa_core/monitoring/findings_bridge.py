@@ -271,6 +271,12 @@ PRODUCES = (
     # стои́т ПОСЛЕ него: прочитав прошлый такт, она сверяла бы своё население с
     # позавчерашним числом.
     "data/unknown_class_in_the_artifact.json",
+    # Ступень G103 п. 1 (ADR-594): верность реестра `SITE_NUMBER_SOURCES`,
+    # спрошенная у ЖИВОЙ страницы. Операнд — отчёт кустодиана
+    # (`com.spa.site_freshness`, такт 6ч), а НЕ продукт моста: ступень в сеть
+    # не ходит, поэтому порядка относительно других ступеней у неё нет. Цена
+    # ИЗМЕРЕНА — чтение одного JSON плюс разбор модуля кустодиана.
+    "data/declared_source_live_parity.json",
     # Ступень G98 п. 2 (ADR-566): стык двух осей — читателя и писателя — у
     # ОСТАЛЬНЫХ открытых счётчиков, которых шаг достижимости не спрашивал.
     # Цена ИЗМЕРЕНА — 24.8 с (три соседских обхода одним проходом дерева);
@@ -442,6 +448,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unresolved_path_census",
     "unknown_class_in_the_artifact",
     "reachability_of_the_rest",
+    "declared_source_live_parity",
     "book_oscillation_census",
     "keep_dominance_census",
     "policy_binding_census",
@@ -722,6 +729,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "reachability_of_the_rest": {
         "module": "spa_core/monitoring/reachability_of_the_rest.py",
         "artifact": "data/reachability_of_the_rest.json"},
+    "declared_source_live_parity": {
+        "module": "spa_core/monitoring/declared_source_live_parity.py",
+        "artifact": "data/declared_source_live_parity.json"},
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
@@ -2924,6 +2934,31 @@ def main(argv=None) -> int:
                   f"{_ror['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "reachability_of_the_rest", e)
+
+    # Ступень G103 п. 1 (ADR-594): реестр `SITE_NUMBER_SOURCES` есть
+    # УТВЕРЖДЕНИЕ о живой разметке, и верность его не спрашивалась у сайта ни
+    # одним числом. Операнд — отчёт кустодиана (`com.spa.site_freshness`), а не
+    # продукт моста: ступень в сеть не ходит, поэтому порядка относительно
+    # соседних ступеней у неё нет, а возраст отчёта есть ПОЛЕ её ответа.
+    # Заголовочное число — опровергнутых объявлений; рядом, и НЕ складываясь с
+    # ним, — их разделение на молчаливые (сосед по label отвечает, кустодиан
+    # зелёный) и громкие (кустодиан краснеет сам).
+    try:
+        from spa_core.monitoring import declared_source_live_parity
+        _dslp = declared_source_live_parity.run(root=args.root)
+        if _dslp.get("measured"):
+            _ref = observed_number(_dslp["doc"], "refuted")
+            _sil = observed_number(_dslp["doc"], "refuted_silently")
+            print(f"declared_source_live_parity: "
+                  f"{_dslp['doc'].get('status')} — живая страница опровергает "
+                  f"{'НЕ ИЗМЕРЕНО' if _ref is None else int(_ref)} "
+                  f"объявленн(ый/ых) источник(ов), из них МОЛЧА "
+                  f"{'НЕ ИЗМЕРЕНО' if _sil is None else int(_sil)}")
+        else:
+            print(f"declared_source_live_parity: НЕ ИЗМЕРЕНО — "
+                  f"{_dslp['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "declared_source_live_parity", e)
 
     # Ступень §49 `Anti-churn` приказа CIO (ADR-480): прыгала ли книга между
     # одними и теми же opportunities. Читает журнал ходов и ничего не чинит;
