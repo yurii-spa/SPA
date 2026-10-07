@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-07T09:30:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-07T17:50:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f32679413) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (beef691d5).
 >
-> Всего карточек: **1255** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1256** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -44,7 +44,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (352)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (353)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
@@ -246,6 +246,7 @@
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить  ·  `owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes.md` · 2026-09-14
 - Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»  ·  `owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot.md` · 2026-09-08
+- Подписать публикацию недельной витрины чисел сайта (уже одобрено в чате 07.10)  ·  `owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c.md` · 2026-10-07
 - Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги  ·  `owner-decision-podpisyvayuschie-adaptery-delayut-chetyre.md` · 2026-09-07
 - Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает  ·  `owner-decision-poisk-novyh-protokolov-ne-idet-programmu.md` · 2026-08-18
 - Понижение тира при ухудшении: правило обещает «агент немедленно», исполнителя нет  ·  `owner-decision-ponizhenie-tira-pri-uhudshenii-pravilo-o.md` · 2026-09-11
