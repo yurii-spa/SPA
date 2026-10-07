@@ -1,6 +1,6 @@
 # ARCHITECT_DECISION_INDEX — generated index over canonical decisions (not a decision store)
 
-> Generated 2026-10-07T03:59:18Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
+> Generated 2026-10-07T04:08:01Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
 
 ## CURRENT
 
@@ -22,6 +22,7 @@
 | single-roadmap-and-memory-v1 | Memory & Context Architecture v1; docs/ROADMAP.md is the single roadmap | [ADR-527](../../docs/decisions/ADR-527-memory-and-context-architecture-v1.md) ACCEPTED · 2026-10-01 | Five memory layers; chat is never canonical. |
 | memory-hybrid | Memory = HYBRID_BORROW_COMPONENTS (stdlib FTS5 + two borrowed ideas) | [ADR-591](../../docs/decisions/ADR-591-memory-hybrid-borrow-components.md) ACCEPTED · 2026-10-05<br>[ADR-527](../../docs/decisions/ADR-527-memory-and-context-architecture-v1.md) ACCEPTED · 2026-10-01 | — |
 | backup-offsite | DR: typed archive classes FULL / CRITICAL (never chosen by age across classes) + verified off-device copy to iCloud Drive | [ADR-580](../../docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md) ACCEPTED · 2026-10-05<br>[ADR-611](../../docs/decisions/ADR-611-backup-archive-classes.md) ACCEPTED · 2026-10-07 | C10 DR coverage; ADR-611 archive classes; commits 1c5445d3 (iCloud default) and fe0534b5 (CIO *.json.gz). Upload to Apple servers is NOT_MEASURED from the Mac. |
+| telegram-capital-readonly | Telegram Capital surface /capital /btc /lab /oracle /sherlock — read-only, same readers as Mission Control; Director OS reasons in plain Russian | [ADR-612](../../docs/decisions/ADR-612-telegram-capital-surface-and-plain-owner-language.md) ACCEPTED · 2026-10-07<br>[ADR-521](../../docs/decisions/ADR-521-telegram-owner-control-plane.md) ACCEPTED · 2026-09-30 | Delivered 2026-10-07 (2b8887cb). nav-only buttons, no act: verb; free-text money orders refused before the classifier; REAL CAPITAL $0, no execution. |
 | strict-promotion-guard | Guarded promotion only: push_to_github.py --expected-base <sha>, STOP on drift, no --allow-overwrite, no force | [ADR-610](../../docs/decisions/ADR-610-arb-continuity.md) ACCEPTED · 2026-10-07 | Owner decisions 2026-10-06 (no --allow-overwrite; fix the guard); review trail docs/rm_truth/REVIEW_PUSHER_FIX_*.md. |
 | arb-continuity | ARB continuity: curated context + intent ledger + generated, freshness-checked CURRENT_STATE | [ADR-610](../../docs/decisions/ADR-610-arb-continuity.md) ACCEPTED · 2026-10-07 | Generated files are DERIVED (authority 0), never a second state store. |
 

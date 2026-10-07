@@ -460,6 +460,33 @@
    "cls": "CURRENT",
    "declared": "CURRENT",
    "disposition": null,
+   "note": "Delivered 2026-10-07 (2b8887cb). nav-only buttons, no act: verb; free-text money orders refused before the classifier; REAL CAPITAL $0, no execution.",
+   "refs": [
+    {
+     "adr": "ADR-612",
+     "effective": "2026-10-07",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-612-telegram-capital-surface-and-plain-owner-language.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    },
+    {
+     "adr": "ADR-521",
+     "effective": "2026-09-30",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-521-telegram-owner-control-plane.md",
+     "status": "ACCEPTED",
+     "superseded_by": null
+    }
+   ],
+   "title": "Telegram Capital surface /capital /btc /lab /oracle /sherlock — read-only, same readers as Mission Control; Director OS reasons in plain Russian",
+   "topic": "telegram-capital-readonly"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
    "note": "Owner decisions 2026-10-06 (no --allow-overwrite; fix the guard); review trail docs/rm_truth/REVIEW_PUSHER_FIX_*.md.",
    "refs": [
     {
@@ -498,19 +525,25 @@
   "authority": "DERIVED",
   "context_version": "arb-continuity/2",
   "copy_role": "COMMITTED_SNAPSHOT",
-  "generated_at": "2026-10-07T03:59:18Z",
-  "generator_version": "arb-continuity/2+7e571a06a723",
+  "generated_at": "2026-10-07T04:08:01Z",
+  "generator_version": "arb-continuity/2+6e2294ea0612",
   "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
-  "origin_commit": "4794f18522643d3321c473df6476ff5e7924b599",
-  "production_release": "4794f18522643d3321c473df6476ff5e7924b599",
-  "production_release_verified_at": "2026-10-07T03:54:32Z",
-  "repo_commit": "4794f18522643d3321c473df6476ff5e7924b599",
-  "root_dirty_inputs": [],
-  "runtime_truth_computed_at": "2026-10-07T03:50:52Z",
+  "origin_commit": "6189f13ac8833bdd8769c5bb744c69d58e21846a",
+  "production_release": "3106fdc78bad3eeedc3cd08abe5b281b7c849acc",
+  "production_release_verified_at": "2026-10-07T04:04:47Z",
+  "repo_commit": "6189f13ac8833bdd8769c5bb744c69d58e21846a",
+  "root_dirty_inputs": [
+   "docs/ROADMAP.md",
+   "docs/STATE.md",
+   "docs/continuity/BOOTSTRAP.md",
+   "docs/continuity/OWNER_INTENT_LEDGER.md",
+   "spa_core/studio_os/memory/continuity.py"
+  ],
+  "runtime_truth_computed_at": "2026-10-07T03:59:21Z",
   "source_snapshot_ids": [
-   "inputs:9043c6d0077c0156e86777ca73bf0ec1f62c6f41ef153dfd22b5f922fd5af1eb",
-   "mission:26f9682e75aa6a32e5fbd50cb64ae930f4ce4458ac2641a54364f25f3d3d3778",
-   "receipt:596c86e3780c5acfdd4c4d34de25b52b0cb93510fa673c11daad809380d7f21e"
+   "inputs:608535335c44ef0b48839b1c934d792df1a1768622a6c152591cf9b16da58bf9",
+   "mission:c90f4954b8844e37b711c7c5d93aeee842c7a317c2156d116382daa1527fd44c",
+   "receipt:fe397ff9d8dbcddc7f52888cee6daa14dcb595e9d0098afe31ea61f6caa8f391"
   ],
   "verdict_at_generation": "CONTEXT_PARTIAL"
  },
@@ -519,13 +552,13 @@
   "architecture/memory_truth.json": "62b2c3c4de89a17fc03b45b00a05c2bf36d041ad667adbaa6358b827fc9a7702",
   "architecture/roles.json": "a170823dd247fa34db2942bfc2541539dd480c98e1f9d4e22d021187f1076f0c",
   "derived:adr_registry_listing": "59110e38d671375b95be99dae686428cf2d3f49f14d9127717afd97ff540e16c",
-  "derived:supersession_of_cited_adrs": "b9998ebac27fdfed855995c41078711783b5c97ea103128eba86e679b80b48f0",
-  "docs/ROADMAP.md": "376be8e3f5c7ba574be67ead69391fd1cd11390c71ea012ab8d4eb16385c16ff",
-  "docs/STATE.md": "8572993ff1c0a038be58d0c4c28a4c6257b517d05c3b6106a6d80f1ba7c3eb68",
+  "derived:supersession_of_cited_adrs": "d0053278d515c63ff1934fbd65f3c75d8b9776c1faa2edd7defa959ed7658f08",
+  "docs/ROADMAP.md": "141606cf497ccfb5e806281b0cb0d9463971800d4044be98093c5e6c1c21fd80",
+  "docs/STATE.md": "a26d85919d51bf59a9fdd8f4d584a018d75b5a1a92e4d0d5107b3643af34413e",
   "docs/continuity/ARCHITECT_CONTEXT.md": "61a52614a233b8226b3133e0b7e47afb1b53dbc508e88fb842881566c2fa33c6",
-  "docs/continuity/BOOTSTRAP.md": "de2af3e339641d823b959541b5a35e8f63f08591794d4d0b99baa3dca48d2b98",
+  "docs/continuity/BOOTSTRAP.md": "308fe3d0d8dcb026e8934de1d4813a1c70d817d2de53f407ab41e6cb3bcb4b4d",
   "docs/continuity/CURRENT_STATE.schema.json": "27bfa7257f5e22ce56ed597937dfbc31edc1690a4758f9fa8865953ef3a41fb9",
-  "docs/continuity/OWNER_INTENT_LEDGER.md": "fbd2dfa7ada5f4d812b954ef87809525923cae018f579030489c8c64d2493584",
+  "docs/continuity/OWNER_INTENT_LEDGER.md": "c457f2cd6d142da6b1659703514dab3b3d9e6bebe5e274ea081ca847e996e88f",
   "docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md": "bc231b35dea65a27fd73de1565f5839858a5a4776a22dc88d7bc9a96a1165136",
   "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md": "e65fa7ed1abdeadb0f2b39a073eeedd74567d39970babf94e8c9dad59a7f031a",
   "docs/decisions/ADR-521-telegram-owner-control-plane.md": "918cad9a74731b4f94e99e103f47bc5bf46e0844162ec221b149cb2069d55cf5",
@@ -547,8 +580,9 @@
   "docs/decisions/ADR-599-openclaw-removed.md": "90ca9222b201dc23ac2a1c5ae3379eacc9333c0810a5d9afc8efd25a03ea509b",
   "docs/decisions/ADR-610-arb-continuity.md": "ea3d6e36d16780d38597bbcc3a6851433d00b43c86724ada515c109771a29958",
   "docs/decisions/ADR-611-backup-archive-classes.md": "721231c836139a2c7ae635960dbc55564d178facf5d16ddff13b7490f517c9db",
+  "docs/decisions/ADR-612-telegram-capital-surface-and-plain-owner-language.md": "daa100eb8a22bef76827a0d9409a3ac810794ca646e06422ca387030f64af9b2",
   "docs/decisions/INDEX.md": "7ca701ce749e632ef1d84bae2f99c61f650098d8b5046bf680958a2fa3aa111e",
-  "spa_core/studio_os/memory/continuity.py": "7e571a06a723d9d74e7a488810575da0511c0ae4930a673414bd2b3ee9dceb57"
+  "spa_core/studio_os/memory/continuity.py": "6e2294ea061290a5f17673dbe065417ca67839b69cec7f8bee1939621d7d4a45"
  },
  "intents": [
   {
@@ -557,7 +591,8 @@
    "decisions": [
     "ADR-552",
     "ADR-580",
-    "ADR-592"
+    "ADR-592",
+    "ADR-612"
    ],
    "flags": [],
    "intent_id": "INT-01",
@@ -643,7 +678,8 @@
    "curated_status": "DELIVERED (docs/ROADMAP.md «Closed epics»; Bridge `b19.6.32`, `b19.6.33`).",
    "decision_status": "DECISIONS_CURRENT",
    "decisions": [
-    "ADR-521"
+    "ADR-521",
+    "ADR-612"
    ],
    "flags": [],
    "intent_id": "INT-08",
@@ -777,14 +813,14 @@
  "runtime": {
   "mission": {
    "age_h_at_generation": 0.14,
-   "bundle": "b-20261007T035052Z-6a54320d",
-   "computed_at": "2026-10-07T03:50:52Z",
+   "bundle": "b-20261007T035921Z-80bb76b5",
+   "computed_at": "2026-10-07T03:59:21Z",
    "reason": "read",
-   "sha256": "26f9682e75aa6a32e5fbd50cb64ae930f4ce4458ac2641a54364f25f3d3d3778"
+   "sha256": "c90f4954b8844e37b711c7c5d93aeee842c7a317c2156d116382daa1527fd44c"
   },
   "receipt": {
    "reason": "code sync SYNCED",
-   "sha256": "596c86e3780c5acfdd4c4d34de25b52b0cb93510fa673c11daad809380d7f21e"
+   "sha256": "fe397ff9d8dbcddc7f52888cee6daa14dcb595e9d0098afe31ea61f6caa8f391"
   }
  },
  "sections": {
@@ -815,7 +851,7 @@
    }
   },
   "btc": {
-   "as_of": "2026-10-07T03:44:09Z",
+   "as_of": "2026-10-07T03:59:11Z",
    "authority": "RUNTIME",
    "display": "research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h лонг",
    "source": "runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)",
@@ -847,12 +883,12 @@
    "value": null
   },
   "current_origin": {
-   "as_of": "2026-10-07T03:59:18Z",
+   "as_of": "2026-10-07T04:08:01Z",
    "authority": "CANONICAL",
-   "display": "canonical root HEAD 4794f1852264 · origin main on the server 4794f1852264",
+   "display": "canonical root HEAD 6189f13ac883 · origin main on the server 6189f13ac883",
    "source": "git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)",
    "status": "MEASURED",
-   "value": "4794f18522643d3321c473df6476ff5e7924b599"
+   "value": "6189f13ac8833bdd8769c5bb744c69d58e21846a"
   },
   "defi_paper": {
    "as_of": "2026-10-06T10:50:36Z",
@@ -863,17 +899,17 @@
    "value": null
   },
   "director_os": {
-   "as_of": "2026-10-07T03:50:52Z",
+   "as_of": "2026-10-07T03:59:21Z",
    "authority": "RUNTIME",
-   "display": "Mission Control bundle b-20261007T035052Z-6a54320d, Company Truth computed 2026-10-07T03:50:52Z (age 0.14 h at generation); read model only (ADR-592)",
+   "display": "Mission Control bundle b-20261007T035921Z-80bb76b5, Company Truth computed 2026-10-07T03:59:21Z (age 0.14 h at generation); read model only (ADR-592)",
    "source": "runtime: published Mission Control bundle (current.json → mission.json)",
    "status": "MEASURED",
-   "value": "b-20261007T035052Z-6a54320d"
+   "value": "b-20261007T035921Z-80bb76b5"
   },
   "last_verification": {
-   "as_of": "2026-10-07T03:59:18Z",
+   "as_of": "2026-10-07T04:08:01Z",
    "authority": "DERIVED",
-   "display": "generated 2026-10-07T03:59:18Z · code-sync receipt 2026-10-07T03:54:32Z · Company Truth 2026-10-07T03:50:52Z",
+   "display": "generated 2026-10-07T04:08:01Z · code-sync receipt 2026-10-07T04:04:47Z · Company Truth 2026-10-07T03:59:21Z",
    "source": "this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)",
    "status": "MEASURED",
    "value": null
@@ -910,7 +946,7 @@
   "next_safe_action": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "deliver waves A–C with independent reviews, then an independent fresh-session LLM run from `docs/continuity/FRESH_SESSION_PROMPT.md`",
+   "display": "pass the independent fresh-session LLM run from `docs/continuity/FRESH_SESSION_PROMPT.md` (first run 07.10 failed on stale curated text; fixed and re-run)",
    "source": "docs/ROADMAP.md «Next safe action:» of the active epic",
    "status": "MEASURED",
    "value": null
@@ -926,13 +962,13 @@
   "owner_gates": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "epic gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access / the six RM-TRUTH-01 gates above are frozen, not executed · owner queue: {\"accepted\": 5, \"answered\": 3, \"owner\": 3, \"prod_only\": 7, \"undeclared\": 11} · owner cards: Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей маши…",
+   "display": "epic gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access / the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability patch to the live project · owner queue: {\"accepted\": 5, \"answered\": 3, \"owner\": 3, \"prod_only\": 7, \"undeclared\": 11} · owner cards: Диск Mac Mini забит под н…",
    "source": "docs/ROADMAP.md «Owner gates:» of the latest/active epic + runtime truth.decisions (one owner queue, ADR-580 C5)",
    "status": "MEASURED",
    "value": {
     "epic": [
      "publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access",
-     "the six RM-TRUTH-01 gates above are frozen, not executed"
+     "the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability patch to the live project"
     ],
     "queue": {
      "accepted": 5,
@@ -952,12 +988,12 @@
    "value": null
   },
   "production_code": {
-   "as_of": "2026-10-07T03:54:32Z",
+   "as_of": "2026-10-07T04:04:47Z",
    "authority": "RUNTIME",
-   "display": "production code = origin 4794f1852264 (code sync SYNCED, at 2026-10-07T03:54:32Z)",
+   "display": "production code = origin 3106fdc78bad (code sync SYNCED, at 2026-10-07T04:04:47Z)",
    "source": "runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)",
    "status": "MEASURED",
-   "value": "4794f18522643d3321c473df6476ff5e7924b599"
+   "value": "3106fdc78bad3eeedc3cd08abe5b281b7c849acc"
   },
   "real_capital": {
    "as_of": null,
@@ -986,15 +1022,15 @@
   "technical_debt": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "two archive producers share the `spa_state_` prefix (full daily vs DR-critical; closed by ADR-611); the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from 2026-07-31); Telegram read-only Capital commands; plain-language readiness reasons; LOGOS log rotation and failure alert; truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED",
+   "display": "the public site cannot be rebuilt from origin (`track_snapshot.json` on origin is from 2026-07-31); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's); truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language readiness reasons (ADR-612)",
    "source": "docs/ROADMAP.md «Remaining debt:» of the latest accepted epic",
    "status": "MEASURED",
    "value": null
   },
   "trading_lab": {
-   "as_of": "2026-10-07T03:44:09Z",
+   "as_of": "2026-10-07T03:59:11Z",
    "authority": "RUNTIME",
-   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 6.7 min",
+   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 0.2 min",
    "source": "runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)",
    "status": "MEASURED",
    "value": {
