@@ -85,6 +85,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from spa_core.dr import archive_names  # noqa: E402 — needs the sys.path insert above
+from spa_core.dr import archive_class, full_archive_verify  # noqa: E402 — ADR-611
 
 _DATA = os.path.realpath(os.path.join(_REPO_ROOT, "data"))
 _BACKUPS = os.path.join(_DATA, "backups")
@@ -479,6 +480,7 @@ def _drill_one(archive: str, keep: bool = False) -> dict:
     files_validated = []
     all_ok = True
     db_snapshot = ""
+    archive_class_note = {"class": None, "reason": "not_reached"}
     db_source_label = None
     try:
         members = safe_extract(archive, sandbox)
@@ -531,6 +533,26 @@ def _drill_one(archive: str, keep: bool = False) -> dict:
                 ok2, detail2 = False, f"validator error: {exc}"
             files_validated.append({"file": label, "ok": ok2, "detail": detail2})
             all_ok = all_ok and ok2
+
+        # 4) ADR-611: WHICH class this is, proven (name format + embedded manifest schema), and
+        #    — for a proven FULL archive — whether it is complete: declared ledgers, sqlite
+        #    integrity, manifest hashes, CIO replay snapshots. An archive whose class cannot be
+        #    proven (legacy/hand-made, no manifest) is NAMED as such in `archive_class`, never
+        #    silently assumed FULL; its critical-file checks above still decide the drill.
+        proof = archive_class.prove_class(archive)
+        archive_class_note = {"class": proof.get("class"), "reason": proof.get("reason")}
+        if proof.get("class") == archive_class.CLASS_FULL:
+            try:
+                rep = full_archive_verify.verify_extracted(sandbox, members)
+                ok3 = bool(rep.get("ok"))
+                detail3 = ("complete: {} required, {} sqlite, {} replay snapshot(s)".format(
+                    rep.get("required"), rep.get("sqlite_checked"),
+                    rep.get("replay_snapshots_referenced")) if ok3
+                    else "INCOMPLETE: " + "; ".join(rep.get("findings") or []))
+            except Exception as exc:  # noqa: BLE001 — a verifier crash is a fail-closed FAIL
+                ok3, detail3 = False, f"verifier error: {exc}"
+            files_validated.append({"file": "full_archive_completeness", "ok": ok3, "detail": detail3})
+            all_ok = all_ok and ok3
     finally:
         if keep:
             sandbox_note = sandbox
@@ -541,6 +563,7 @@ def _drill_one(archive: str, keep: bool = False) -> dict:
     return {
         "archive": os.path.basename(archive),
         "archive_path": archive,
+        "archive_class": archive_class_note,
         "db_snapshot": db_source_label,
         "sandbox": sandbox_note,
         "files_validated": files_validated,
@@ -587,6 +610,7 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False,
             "archive_path": result["archive_path"],
             "age_h": round(_age_hours(path, now), 2),
             "status": "ok" if result["all_ok"] else "failed",
+            "archive_class": result.get("archive_class"),
             "all_ok": result["all_ok"],
             "files_validated": result["files_validated"],
         })

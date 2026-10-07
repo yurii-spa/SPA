@@ -427,9 +427,11 @@ def _recovery_items(production, sources, now):
             recovery_status='UNKNOWN',
             recovery_evidence=[_evidence(
                 'offsite',
-                f"вынос {off.get('last_offsite_ts')}, сверен={off.get('verified')}, "
+                f"вынос {off.get('last_offsite_ts')}, класс={off.get('archive_class')}, "
+                f"полный={off.get('complete')}, контрольная сумма копии совпала "
+                f"(сырое поле, НЕ доказательство полноты)={off.get('verified')}, "
                 f"хранится копий {off.get('n_offsite_kept')}, реально удалённое "
-                f"хранилище={off.get('is_real_remote')}",
+                f"хранилище={off.get('is_real_remote')}, выгрузка={off.get('remote_upload')}",
                 'data/dr_offsite_status.json')],
             last_verified_at=off.get('last_offsite_ts'),
             evidence=[_evidence(

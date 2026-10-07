@@ -71,7 +71,7 @@ OFFSITE_SAME_HOST = "SAME_HOST"
 OFFSITE_VERIFIED_REMOTE = "OFFSITE_VERIFIED"
 
 # Freshness windows, derived from each proof's expected cadence (fail-honest).
-OFFSITE_STALE_DAYS = 2.0   # offsite copy is a daily job → >2d means it skipped a day
+from spa_core.dr.archive_class import OFFSITE_STALE_DAYS  # noqa: E402 — ONE source (ADR-611)
 DRILL_STALE_DAYS = 8.0     # drills run ~weekly → >8d means a weekly slot was missed
 
 
@@ -148,11 +148,19 @@ def _derive_offsite(now: Optional[datetime] = None) -> Dict[str, Any]:
     last_ts = d.get("last_offsite_ts")
     age = _age_days(last_ts, now)
     stale = _is_stale(age, OFFSITE_STALE_DAYS)
-    verified = bool(d.get("verified", False))
+    # ADR-611: "verified" means the FULL archive is off the Mac, sha-checked and complete —
+    # one reading shared with Mission Control / Company Truth (archive_class.full_offsite_proven).
+    from spa_core.dr.archive_class import full_offsite_proven
+    proven, why_not = full_offsite_proven(d, now=now)
+    verified = proven is True
     is_real_remote = bool(d.get("is_real_remote", False))
     return {
         "last_ts": last_ts,
         "verified": verified,
+        "not_proven_reason": why_not,
+        "archive_class": d.get("archive_class"),
+        "complete": d.get("complete"),
+        "remote_upload": d.get("remote_upload"),
         "is_real_remote": is_real_remote,
         "stale": stale,
         "never_run": False,

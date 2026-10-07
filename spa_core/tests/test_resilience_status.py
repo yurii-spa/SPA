@@ -64,6 +64,9 @@ def _fresh_offsite(verified=True, real_remote=True, days_ago=0.5) -> dict:
         "verified": verified,
         "is_real_remote": real_remote,
         "archive_name": "spa_state_2026-06-27.tar.gz",
+        # ADR-611: a proven-healthy offsite copy is the FULL class and complete.
+        "archive_class": "full",
+        "complete": True,
     }
 
 

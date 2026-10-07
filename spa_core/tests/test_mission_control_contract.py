@@ -95,7 +95,9 @@ def _scene(tmp_path: Path, *, resources="OK", res_age_min=4, kill=False, mode="r
     _w(data / "orphan_report.json", {"generated_at": NOW.strftime(ISO), "total": 3, "counts": {"UNKNOWN_PURPOSE": 3}})
     _w(data / "paper_trading_status.json", {"execution_mode": mode})
     _w(data / "telegram" / "push_state.json", {"updated_at": NOW.strftime(ISO), "events": {}})
-    _w(data / "dr_offsite_status.json", {"verified": True, "is_real_remote": False})
+    _w(data / "dr_offsite_status.json", {"verified": True, "is_real_remote": False,
+                                         "archive_class": "full", "complete": True,  # ADR-611
+                                         "last_offsite_ts": NOW.strftime(ISO)})
     _w(data / "resilience_status.json", {"restore_drill": {"all_ok": True, "stale": False, "never_run": False,
                                                            "last_ts": NOW.strftime(ISO)}})
     (data / "backups").mkdir(parents=True, exist_ok=True)

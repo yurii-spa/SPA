@@ -51,7 +51,8 @@ def test_same_host_offsite_is_never_green_even_with_local_and_drill_ok(tmp_path)
 def test_real_offsite_copy_is_green(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
-    _w(data / "dr_offsite_status.json", {"verified": True, "is_real_remote": True, "last_offsite_ts": NOW.isoformat()})
+    _w(data / "dr_offsite_status.json", {"verified": True, "is_real_remote": True, "last_offsite_ts": NOW.isoformat(),
+                                         "archive_class": "full", "complete": True})  # ADR-611
     out = ct.studio_backups(data, NOW)
     assert out["off_host_backup"]["value"] is True
     assert out["off_host_backup"]["state"] == ct.MEASURED
@@ -95,3 +96,26 @@ def test_local_backup_age_goes_stale_past_its_threshold(tmp_path):
     os.utime(old, (old_ts, old_ts))
     out = ct.studio_backups(data, NOW, manifest=None)
     assert out["local_backup"]["state"] == ct.STALE
+
+
+def test_a_critical_or_pre_adr611_offsite_copy_is_not_the_backup(tmp_path):
+    """ADR-611: a sha-verified copy of the 29-member CRITICAL archive (or a status written before
+    the class existed) must not read as the off-host backup — only the FULL, complete class does."""
+    data = tmp_path / "data"
+    data.mkdir()
+    for doc in ({"verified": True, "is_real_remote": True, "archive_class": "critical", "complete": None},
+                {"verified": True, "is_real_remote": True},
+                {"verified": True, "is_real_remote": True, "archive_class": "full", "complete": False}):
+        _w(data / "dr_offsite_status.json", dict(doc, last_offsite_ts=NOW.isoformat()))
+        assert ct.studio_backups(data, NOW)["off_host_backup"]["value"] is False, doc
+
+
+
+def test_a_stale_proven_offsite_copy_is_not_the_backup(tmp_path):
+    """ADR-611 review P1-a: a FULL/complete copy older than OFFSITE_STALE_DAYS is not proof."""
+    from datetime import timedelta
+    data = tmp_path / "data"
+    data.mkdir()
+    _w(data / "dr_offsite_status.json", {"verified": True, "is_real_remote": True, "archive_class": "full",
+                                         "complete": True, "last_offsite_ts": (NOW - timedelta(days=3)).isoformat()})
+    assert ct.studio_backups(data, NOW)["off_host_backup"]["value"] is False

@@ -36,7 +36,7 @@ PY = sys.executable
 # Order matters: exercise the three drills first, then roll their fresh statuses
 # up. Each runs with a hard timeout so a wedged drill can't hang the agent.
 STEPS: list[tuple[str, list[str]]] = [
-    ("R6 offsite-copy", [PY, "-m", "spa_core.dr.offsite_copy"]),
+    ("R6 offsite-copy", [PY, "-m", "spa_core.dr.offsite_copy", "--class", "full"]),  # ADR-611
     # --require declares the PRODUCER CONTRACT of this host: two backup producers write
     # data/backups/ (tier1 dr_backup → "dr", scripts/daily_backup.py → "daily"). Without
     # it the drill validates whatever series it finds and cannot tell "this producer is

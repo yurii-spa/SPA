@@ -1172,14 +1172,18 @@ def studio_backups(data_dir: Path, now: datetime, manifest: Optional[dict] = Non
         off_host = unknown("data/dr_offsite_status.json", "OPERATIONAL", "Бэкап не измерен")
     else:
         is_real = dro.get("is_real_remote")
-        ok = is_real is True and dro.get("verified")
+        # ADR-611: "verified" alone allowed the 29-member CRITICAL archive to read as the backup;
+        # one shared reading now requires the FULL class, sha-verified AND complete.
+        from spa_core.dr.archive_class import full_offsite_proven
+        ok = is_real is True and full_offsite_proven(dro, now=now)[0] is True
         # NEVER green/healthy when the "offsite" copy is on the same disk (the live C3 defect) —
         # `is_real_remote` is carried RAW so the UI's own badge-colour rule (never green unless
         # `is_real_remote`) decides, not a pre-picked state here.
         off_host = cell(value=ok, display_ru=None, display_en=None, metric_type="OPERATIONAL",
                        state=(MEASURED if ok else MEASURED_ZERO), as_of=dro.get("last_offsite_ts"),
                        canon="data/dr_offsite_status.json", fresh=freshness(None, None, "n/a"),
-                       unknown_ru="Бэкап не измерен", is_real_remote=bool(is_real))
+                       unknown_ru="Бэкап не измерен", is_real_remote=bool(is_real),
+                       remote_upload=dro.get("remote_upload"))
 
     rd = (res or {}).get("restore_drill") if isinstance(res, dict) else None
     if not isinstance(rd, dict):

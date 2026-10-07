@@ -18,11 +18,20 @@ from spa_core.dr import offsite_copy
 
 
 def _make_archive(backup_dir: Path, name: str, payload: bytes = b"state-data") -> Path:
-    """Write a real tiny .tar.gz so sha256 over real bytes is meaningful."""
+    """Write a real tiny .tar.gz so sha256 over real bytes is meaningful.
+
+    ADR-611: carries the producer's ``backup_manifest.json`` (schema by name class) — the
+    offsite copy refuses an archive whose class it cannot prove.
+    """
     backup_dir.mkdir(parents=True, exist_ok=True)
     path = backup_dir / name
+    schema = "spa_daily_backup/v2" if "-" in name else "spa_dr_backup/v2"
+    manifest = json.dumps({"schema": schema, "files": []}).encode()
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w") as tar:
+        m = tarfile.TarInfo("backup_manifest.json")
+        m.size = len(manifest)
+        tar.addfile(m, io.BytesIO(manifest))
         info = tarfile.TarInfo("state.json")
         info.size = len(payload)
         tar.addfile(info, io.BytesIO(payload))
@@ -40,6 +49,10 @@ def _run(tmp_path, dest=None, keep=14, backup_dir=None):
         dest_dir=Path(dest),
         status_path=status,
         keep=keep,
+        # ADR-611: class declared; completeness is covered by test_backup_archive_classes.py —
+        # these tests are about the copy mechanics, so a complete FULL archive is stipulated.
+        archive_class_="full",
+        verify_full=lambda p: {"ok": True, "findings": []},
     )
     data = json.loads(status.read_text()) if status.exists() else None
     return code, data
@@ -152,7 +165,8 @@ def test_env_var_dest_honored(tmp_path, monkeypatch):
     monkeypatch.setenv("SPA_OFFSITE_DEST", str(env_dest))
     status = tmp_path / "dr_offsite_status.json"
     # dest_dir=None → run() reads SPA_OFFSITE_DEST
-    code = offsite_copy.run(backup_dir=backup_dir, dest_dir=None, status_path=status)
+    code = offsite_copy.run(backup_dir=backup_dir, dest_dir=None, status_path=status,
+                            archive_class_="full", verify_full=lambda p: {"ok": True, "findings": []})
     assert code == 0
     data = json.loads(status.read_text())
     assert os.path.basename(data["dest"]) == "via_env"

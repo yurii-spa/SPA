@@ -28,11 +28,15 @@ def test_env_and_explicit_still_win(tmp_path, monkeypatch):
 def test_unresponsive_dest_is_recorded_refusal(tmp_path, monkeypatch):
     import json
     import spa_core.persistence.backup as pb
+    import io, tarfile
     src = tmp_path / "src"; src.mkdir()
-    (src / "spa_state_2026-10-07.tar.gz").write_bytes(b"x" * 64)
+    man = json.dumps({"schema": "spa_daily_backup/v2", "files": []}).encode()  # ADR-611: provable FULL
+    with tarfile.open(src / "spa_state_2026-10-07.tar.gz", "w:gz") as tar:
+        ti = tarfile.TarInfo("backup_manifest.json"); ti.size = len(man); tar.addfile(ti, io.BytesIO(man))
     monkeypatch.setattr(pb, "_probe_backup_root", lambda root, t: "backup root did not respond within 20s")
     status = tmp_path / "st.json"
-    code = offsite_copy.run(backup_dir=src, dest_dir=tmp_path / "d", status_path=status)
+    code = offsite_copy.run(backup_dir=src, dest_dir=tmp_path / "d", status_path=status,
+                            archive_class_="full", verify_full=lambda p: {"ok": True, "findings": []})
     doc = json.loads(status.read_text())
     assert code != 0 and doc["verified"] is False and doc["error"].startswith("dest_unresponsive")
     assert not (tmp_path / "d" / "spa_state_2026-10-07.tar.gz").exists()

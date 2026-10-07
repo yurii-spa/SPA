@@ -23,8 +23,8 @@
 #   --> DR runbook follow-up: provision a real SPA_OFFSITE_DEST (owner decision).
 #
 # RUN MODES:
-#   standalone:        bash scripts/dr_offsite_copy.sh
-#   real remote:       SPA_OFFSITE_DEST=/Volumes/Backup/spa bash scripts/dr_offsite_copy.sh
+#   standalone:        bash scripts/dr_offsite_copy.sh --class full    (ADR-611: class REQUIRED)
+#   real remote:       SPA_OFFSITE_DEST=/Volumes/Backup/spa bash scripts/dr_offsite_copy.sh --class full
 #   backup-agent tail: the daily/weekly backup script calls this after the archive is built
 #                      (see scripts/daily_backup.sh tail step). Idempotent + fail-CLOSED.
 #

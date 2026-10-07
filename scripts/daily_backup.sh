@@ -28,7 +28,7 @@ echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) daily_backup exit=$STATUS ===" >> "$LOG
 # let an offsite hiccup mask a successful local backup — the helper's status JSON is the
 # source of truth for offsite health (surfaced separately).
 echo "--- $(date -u +%Y-%m-%dT%H:%M:%SZ) dr_offsite_copy tail step ---" >> "$LOG"
-bash "$REPO/scripts/dr_offsite_copy.sh" >> "$LOG" 2>&1
+bash "$REPO/scripts/dr_offsite_copy.sh" --class full >> "$LOG" 2>&1  # ADR-611: the FULL archive, never "newest of any class"
 OFFSITE_STATUS=$?
 echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) dr_offsite_copy exit=$OFFSITE_STATUS ===" >> "$LOG"
 

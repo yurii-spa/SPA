@@ -939,7 +939,9 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         drill = (None if not isinstance(rd, dict) else "NEVER_RUN" if rd.get("never_run") else
                  "STALE" if rd.get("stale") else "OK" if rd.get("all_ok") is True else
                  "FAILED" if rd.get("all_ok") is False else None)
-        bad = [why for ok, why in ((isinstance(dro, dict) and dro.get("verified"), "offsite copy not verified"),
+        from spa_core.dr.archive_class import full_offsite_proven  # ADR-611: one reading
+        off_ok, off_why = full_offsite_proven(dro, now=now)
+        bad = [why for ok, why in ((off_ok is True, off_why or "offsite copy not verified"),
                                    (bool(arch), "no local archive"),
                                    (drill == "OK", f"restore drill {drill or 'not measured'}")) if not ok]
         bstate = "HEALTHY" if not bad else "DEGRADED"
@@ -947,8 +949,16 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                                            "data/resilience_status.json"], last_arch, now, 1800,
                                   reason="; ".join(bad) or None),
                    "last_local_archive": last_arch.strftime("%Y-%m-%dT%H:%M:%SZ") if last_arch else None,
-                   "offsite_verified": (dro or {}).get("verified"),
+                   # ADR-611: the label «Офсайт проверен» means PROVEN (FULL + sha + complete +
+                   # fresh), not the raw sha flag, which is carried separately and named so.
+                   "offsite_verified": off_ok,
+                   "offsite_not_proven_reason": off_why,
+                   "offsite_sha_verified_raw": (dro or {}).get("verified"),
                    "offsite_is_real_remote": (dro or {}).get("is_real_remote"),
+                   "offsite_archive_class": (dro or {}).get("archive_class"),
+                   "offsite_complete": (dro or {}).get("complete"),
+                   # local presence in iCloud Drive ≠ uploaded; NOT_MEASURED is carried raw
+                   "offsite_remote_upload": (dro or {}).get("remote_upload"),
                    "offsite_at": (dro or {}).get("last_offsite_ts"),
                    "restore_drill": drill, "restore_drill_at": safe_text((rd or {}).get("last_ts"), 40) if isinstance(rd, dict) else None,
                    "note": ("the 'offsite' copy is on the same disk (is_real_remote=false); the only copy that leaves "
