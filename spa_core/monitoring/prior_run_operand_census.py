@@ -93,6 +93,26 @@
 исход; в сумму главных исходов она не входит и кода возврата не повышает (почему именно —
 в докстринге ``verdict``). Ноги у осей ОДНИ И ТЕ ЖЕ функции: второй копии правила нет.
 
+## Третья ось: АРТЕФАКТНАЯ (заказ G104 п. 3, ADR-622)
+
+Две оси выше считают ПАРЫ «читатель × свой же артефакт»: единица там — читатель, и
+писателя спрашивают только у самокарусельных. Заказ G104 п. 3 ставит вопрос о другой
+единице — о самом ФАЙЛЕ: сколько git-tracked артефактов производится в рантайме, а
+обратно их не кладёт никакая объявленная автоматика. Такой файл есть константа для
+ЛЮБОГО своего читателя, а не только для того, кто его же и пишет.
+
+Вред измерен ЭТИМ ЖЕ циклом, и по случайности. Обязательный шаг цикла «вторая запись о
+деньгах» (`scripts/book_second_record.py`, ADR-350), запущенный из свежего одноразового
+worktree, доложил **«7 ходов»** и расхождение на T007; на боевом дереве тот же код в тот
+же день доложил **«34 хода»** и расхождение на T008/T034. Разным был ОПЕРАНД: в worktree
+журнал денег — закоммиченный канон (`data/trades.json`, 7 записей, последняя 2026-06-20),
+на боевом диске — живой журнал на 34 записи. Прибор напечатал имя каталога и ответил о
+деньгах по константе, не сказав об этом ни слова.
+
+Исходы артефактной оси (``ARTIFACT_OUTCOMES``) — своя ЗАКРЫТАЯ форма, своя сумма, свой
+третий исход. В суммы двух осей выше она не входит и складыванию с ними НЕ подлежит:
+единицы населения разные (пара против пути), и одно дерево попадает в обе.
+
 ADVISORY: прибор только ЧИТАЕТ (`applied=False`). Ни строки risk-логики, стоп-крана
 просадки, аллокатора, гейта исполнения, живого трека, `landing/**` или флота он не
 меняет и менять не может.
@@ -200,6 +220,70 @@ HOST_OUTCOMES = (
     HOST_NOTICES_BY_AGE,
     HOST_SILENTLY_TRUSTS,
 )
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# Артефактная ось (заказ G104 п. 3): у скольких git-tracked артефактов НЕТ писателя
+# ─────────────────────────────────────────────────────────────────────────────────────
+#
+# Обе оси выше считают ПАРЫ «читатель × свой же артефакт»: единицей там является
+# читатель, а писателя спрашивают только у самокарусельных пар. Заказ G104 п. 3 ставит
+# вопрос ШИРЕ и о другой единице — о самом ФАЙЛЕ:
+#
+#   «Файл, лежащий в репозитории и производимый в рантайме, у которого никакая
+#    объявленная автоматика не кладёт результат обратно, есть константа для ЛЮБОГО
+#    своего читателя, а не только для того, кто его же и пишет.»
+#
+# Поэтому населением этой оси служат git-tracked ПУТИ, а не пары, и ноги спрашиваются
+# у ПИСАТЕЛЯ — ровно как требует заказ. Самокарусельность здесь не нужна вовсе: вред не
+# зависит от того, читает ли файл его собственный производитель.
+#
+# Вред не гипотеза и измерен ЭТИМ ЖЕ циклом по случайности. Обязательный шаг цикла
+# «вторая запись о деньгах» (`scripts/book_second_record.py`, ADR-350), запущенный из
+# свежего одноразового worktree, доложил «7 ходов» и расхождение на T007, а на боевом
+# дереве — «34 хода» и расхождение на T008/T034. Код один, день один; разным был
+# ОПЕРАНД: в worktree журнал денег есть закоммиченный канон (`data/trades.json`, 7
+# записей, последняя 2026-06-20), а на диске боевого дерева — живой журнал на 34
+# записи. Прибор об этом не сказал ни слова: он напечатал имя каталога и ответил о
+# деньгах по константе.
+ART_UNMEASURED = "artifact_unmeasured"
+ART_NO_RUNTIME_WRITER = "artifact_not_produced_in_runtime"
+ART_WRITER_DECLARED = "artifact_writer_declared"
+ART_NO_WRITER_UNREAD = "no_declared_writer_and_unread_in_tree"
+ART_NO_WRITER_READ = "no_declared_writer_and_read"
+
+#: Форма артефактного исхода ЗАКРЫТА так же, как у двух соседних осей: сумма равна
+#: артефактному населению, каждый ноль объявлен (инв. #17). Порядок — часть утверждения,
+#: и первым после третьего исхода спрашивается «производится ли файл в рантайме ВООБЩЕ»:
+#: без этого вопроса перепись объявила бы дефектом каждый курируемый конфиг в дереве.
+ARTIFACT_OUTCOMES = (
+    ART_UNMEASURED,
+    ART_NO_RUNTIME_WRITER,
+    ART_WRITER_DECLARED,
+    ART_NO_WRITER_UNREAD,
+    ART_NO_WRITER_READ,
+)
+
+#: **Ноги «а заметил бы кто-нибудь» у этой оси НЕТ, и это РЕШЕНИЕ с замером, а не
+#: недосмотр.** Ось отвечает ровно на вопрос заказа — про ПИСАТЕЛЯ файла. Вопрос «пусть
+#: писателя нет, но покраснеет ли объявленная сверка канона с пересборкой» — ДРУГОЙ, и
+#: попытка померить его ногой провалилась ИЗМЕРИМО, поэтому нога снята, а не оставлена
+#: тихой:
+#:
+#: · подстрочный признак «в шаге есть `--check`» дал ложное срабатывание на
+#:   `scripts/kanban_health.py --check-only`, где флаг значит «не писать», а не «сверить»
+#:   (ADR-333: проба не проходит подстрокой);
+#: · строгий признак — ``_parity_with_own_regeneration`` у производителя — дал ложный
+#:   ПРОПУСК: `scripts/fill_agent_passports.py --check` сверяет паспорта с выводом из
+#:   источников и выходит НЕНУЛЕВЫМ на расхождении, но писателем `manifest.json` прибор
+#:   его не видит вовсе (запись идёт через `atomic_save_text`, которого нет в
+#:   ``WRITE_PRIMITIVES``), а метка прочитанного не доходит до тела цикла `for a in agents`;
+#: · ослабление метки (цель `for` — связывание) раздувает её с 5 имён до 58 на том же
+#:   модуле и объявляет «сверкой» 35 сравнений из них. Нога, которая тише находки,
+#:   опаснее находки: она гасит класс молча.
+#:
+#: Поэтому известный член исхода ``no_declared_writer_and_read``, у которого расхождение
+#: ВСЁ ЖЕ покраснеет, назван РУКАМИ — `architecture/manifest.json` — и живёт в
+#: ``not_reported``. Это нижняя граница точности исхода, объявленная вслух.
 
 #: Радиус дословной команды аварии #361. Пара, чей артефакт лежит вне `data/`, подмене
 #: ЭТОЙ командой не подвержена — но подвержена `git checkout -- .`, поэтому из населения
@@ -800,9 +884,19 @@ def _addressable(paths):
 
 
 def _population(root):
-    """Пары (читатель, артефакт), где модуль ПИШЕТ и ЧИТАЕТ один и тот же путь."""
+    """Пары (читатель, артефакт), где модуль ПИШЕТ и ЧИТАЕТ один и тот же путь.
+
+    Отдаёт ЧЕТВЁРТЫМ значением перечень разобранных модулей — по одной записи на файл
+    с его деревом, разрешателем и ПОЛНЫМИ наборами мест записи и чтения. Пары есть
+    пересечение этих двух наборов, то есть сужение; артефактной оси (заказ G104 п. 3)
+    нужны они целиком, потому что её вопрос — о писателе файла, а не о самокарусельном
+    читателе. Второго обхода дерева для этого не делается намеренно: два обхода видят
+    разные множества молча (урок §49, «обход теста и обход графа»), и расхождение
+    читалось бы как свойство дерева.
+    """
     pairs = []
     unparsed = []
+    modules = []
     commit_calls = collections.defaultdict(list)
     for base in SOURCE_ROOTS:
         base_dir = root / base
@@ -822,6 +916,13 @@ def _population(root):
             for artifact, calls in _commit_calls(tree, resolver, rel).items():
                 commit_calls[artifact].extend(calls)
             writes, reads = _sites(tree, resolver)
+            modules.append({
+                "rel": rel,
+                "writes": {a: sorted(lines) for a, lines in writes.items()},
+                "reads": {a: sorted(lines) for a, lines in reads.items()},
+                "_tree": tree,
+                "_resolver": resolver,
+            })
             for artifact in sorted(set(writes) & set(reads)):
                 pairs.append({
                     "reader": rel,
@@ -831,7 +932,7 @@ def _population(root):
                     "_tree": tree,
                     "_resolver": resolver,
                 })
-    return pairs, unparsed, commit_calls
+    return pairs, unparsed, commit_calls, modules
 
 
 def _host_axis(pairs, tracked_by_name, workflows, plists, commit_calls, in_ci):
@@ -940,6 +1041,128 @@ def _host_axis(pairs, tracked_by_name, workflows, plists, commit_calls, in_ci):
     }
 
 
+def _artifact_axis(modules, tracked_by_name, workflows, plists, commit_calls):
+    """У скольких git-tracked артефактов ВООБЩЕ нет объявленного писателя (G104 п. 3).
+
+    Единица населения — git-tracked ПУТЬ, а не пара: заказ спрашивает про файл. Ноги
+    в объявленном порядке, и порядок — часть утверждения:
+
+    1. ``artifact_unmeasured`` — ГРОМКИЙ третий исход с названной причиной. Имя лежит в
+       репозитории по НЕСКОЛЬКИМ адресуемым путям, и какой из них имеет в виду рантайм —
+       неизвестно (имя не есть адрес, ADR-465). Считается по ПУТЯМ, а не по именам:
+       иначе сумма исходов перестала бы равняться числу файлов.
+    2. ``artifact_not_produced_in_runtime`` — в дереве нет ни одного места записи этого
+       файла. Курируемый файл (вайтлист, критерии, фикстура) — законная константа: он
+       и не выдаёт себя за результат прогона. Спрашивать это ВТОРЫМ обязательно, иначе
+       перепись объявила бы дефектом каждый конфиг репозитория.
+    3. ``artifact_writer_declared`` — объявленная автоматика кладёт результат обратно.
+       Тогда закоммиченная копия есть наблюдение (пусть на шаг старое) — ровно то, чего
+       заказ и хочет от остальных.
+    4. ``no_declared_writer_and_unread_in_tree`` — писателя нет, и в дереве файл не
+       читает никто. Вред ЛАТЕНТЕН: подменённый канон сегодня не вводит в заблуждение
+       ни одного читателя. Назван отдельным исходом, а не слит в находку.
+    5. ``no_declared_writer_and_read`` — **ОТВЕТ заказа**: файл производится в рантайме,
+       его читают, и обратно не кладёт его никто. В любом дереве, которое производителя
+       не запускало — CI, свежий клон, новый worktree, развёрнутый резерв — каждый его
+       читатель получает закоммиченные байты, то есть КОНСТАНТУ.
+
+    Имя исхода названо по ЗАМЕРУ, а не по следствию, и это существенно: ось НЕ
+    утверждает, что подмену никто бы не заметил. «Заметил бы» — вопрос двух осей выше
+    (там он задаётся читателю) и честно названный остаток: известный член исхода, у
+    которого расхождение ВСЁ ЖЕ покраснеет, — `architecture/manifest.json`. Почему ноги
+    на это у оси нет, сказано замером над ``ARTIFACT_OUTCOMES``.
+
+    Односторонность названа заранее: ``artifact_not_produced_in_runtime`` есть ВЕРХНЯЯ
+    граница курируемых файлов, потому что место записи видно на один уровень помощника
+    (та же оговорка, что у главной оси) — значит ``no_declared_writer_and_read`` есть
+    НИЖНЯЯ граница находки, а не точное число.
+    """
+    writes_by_name = collections.defaultdict(list)
+    reads_by_name = collections.defaultdict(list)
+    for mod in modules:
+        for artifact, lines in mod["writes"].items():
+            writes_by_name[artifact].extend(f"{mod['rel']}:{ln}" for ln in lines)
+        for artifact, lines in mod["reads"].items():
+            reads_by_name[artifact].extend(f"{mod['rel']}:{ln}" for ln in lines)
+    counts = {name: 0 for name in ARTIFACT_OUTCOMES}
+    reasons = collections.Counter()
+    findings, declared = [], []
+    population = 0
+    under_radius = 0
+
+    for artifact, paths in sorted(tracked_by_name.items()):
+        # Имя БЕЗ адреса — вход, которого `measure` не производит (`_addressable` отдаёт
+        # непустой перечень по построению), но ось получает перечень ПАРАМЕТРОМ, а
+        # инъектированный вход двери чтения не касается (урок ADR-594). Без этой ветви
+        # такой вход давал `IndexError` — то есть прибор падал там, где обязан громко
+        # сказать «не измерено». Единица населения при этом ОДНА: имя, которое мы не
+        # сумели адресовать, есть один неотвеченный вопрос, а не ноль вопросов.
+        if not paths:
+            population += 1
+            counts[ART_UNMEASURED] += 1
+            reasons[f"artifact_name_without_an_address:{artifact}"] += 1
+            continue
+        population += len(paths)
+        if len(paths) > 1:
+            counts[ART_UNMEASURED] += len(paths)
+            reasons[
+                f"artifact_name_ambiguous_in_repo:{artifact}:{len(paths)}"
+            ] += len(paths)
+            continue
+        path = paths[0]
+        writers = writes_by_name.get(artifact, [])
+        if not writers:
+            counts[ART_NO_RUNTIME_WRITER] += 1
+            continue
+        writer_modules = sorted({w.split(":")[0] for w in writers})
+        committed = _committed_back(
+            artifact, path, workflows, plists, commit_calls.get(artifact, ()),
+        )
+        if committed:
+            counts[ART_WRITER_DECLARED] += 1
+            declared.append({
+                "artifact": path, "writers": writer_modules, "declared": committed,
+            })
+            continue
+        readers = sorted({r.split(":")[0] for r in reads_by_name.get(artifact, ())})
+        if not readers:
+            counts[ART_NO_WRITER_UNREAD] += 1
+            continue
+        counts[ART_NO_WRITER_READ] += 1
+        if path.startswith(CANON_SUBSTITUTION_RADIUS):
+            under_radius += 1
+        findings.append({
+            "artifact": path,
+            "writers": writer_modules,
+            "readers": readers,
+            "reader_count": len(readers),
+        })
+
+    notes = []
+    # САМОПРОВЕРКА, а не третий исход — и это ИЗМЕРЕНО, а не предположено: прицельный
+    # мутант, снимающий эту ветвь целиком, ПЕРЕЖИЛ батарею (ADR-622), потому что по
+    # построению каждый путь увеличивает ровно один счётчик и сумма разойтись не может.
+    # Ветвь оставлена как тревожная нить против будущей правки и ради единой формы с
+    # двумя соседними осями, у которых та же самопроверка. Настоящий третий исход оси —
+    # `ART_UNMEASURED`, он достижим и закреплён контролями в обе стороны.
+    total = sum(counts.values())
+    if total != population:
+        notes.append(
+            f"сумма артефактных исходов {total} != артефактному населению {population}"
+            " — ОТКАЗ формы"
+        )
+    return {
+        "order": "G104.3",
+        "population": population,
+        "under_substitution_radius": under_radius,
+        "outcomes": counts,
+        "unmeasured_reasons": dict(reasons),
+        "findings": sorted(findings, key=lambda r: (-r["reader_count"], r["artifact"])),
+        "declared": sorted(declared, key=lambda r: r["artifact"]),
+        "notes": notes,
+    }
+
+
 def measure(root, tracked=None, workflows=None, plists=None):
     """Замер. Внешние двери приходят ВХОДОМ — иначе тест судил бы о живой машине."""
     root = pathlib.Path(root)
@@ -992,7 +1215,7 @@ def measure(root, tracked=None, workflows=None, plists=None):
     if plists is None:
         plists = _plist_texts(root)
 
-    pairs, unparsed, commit_calls = _population(root)
+    pairs, unparsed, commit_calls, modules = _population(root)
     outcomes = {name: 0 for name in OUTCOMES}
     reasons = collections.Counter()
     findings, named_sample, committed_sample, excluded_sample = [], [], [], []
@@ -1005,7 +1228,13 @@ def measure(root, tracked=None, workflows=None, plists=None):
     # редакция звала правило дважды — в главном цикле и у хостовой цифры рядом, — и две
     # копии одного правила расходятся молча (порядок ADR-460: одно правило — один
     # читатель). Контроль на это расхождение есть в батарее хостовой оси.
-    in_ci_by_reader = {p["reader"]: _reader_in_ci(p["reader"], workflows) for p in pairs}
+    # Радиус кэша — ВСЕ разобранные модули, а не только читатели пар: артефактной оси
+    # (G104 п. 3) нужен ответ про ПРОИЗВОДИТЕЛЯ файла, который самокарусельным читателем
+    # быть не обязан. Для пар ответ при этом тот же самый, и это существенно: второй
+    # кэш был бы вторым читателем одного правила.
+    in_ci_by_reader = {
+        mod["rel"]: _reader_in_ci(mod["rel"], workflows) for mod in modules
+    }
 
     for pair in pairs:
         reader, artifact = pair["reader"], pair["artifact"]
@@ -1067,6 +1296,14 @@ def measure(root, tracked=None, workflows=None, plists=None):
     )
     host_only_but_tracked = host["population"]
 
+    # Третья ось спрашивает про ФАЙЛ, а не про пару: у скольких git-tracked артефактов
+    # вообще нет объявленного писателя (заказ G104 п. 3). В суммы двух осей выше она не
+    # входит и складыванию с ними НЕ подлежит — у них разные единицы населения (пара
+    # против пути), и одно и то же дерево попадает в обе.
+    artifact = _artifact_axis(
+        modules, tracked_by_name, workflows, plists, commit_calls,
+    )
+
     population = len(pairs) + len(unparsed)
     total = sum(outcomes.values())
     if total != population:
@@ -1079,6 +1316,7 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "readers": len({p["reader"] for p in pairs}),
         "host_only_but_git_tracked": host_only_but_tracked,
         "host_axis": host,
+        "artifact_axis": artifact,
         "outcomes": outcomes,
         "unmeasured_reasons": dict(reasons),
         "findings": sorted(findings, key=lambda r: (r["reader"], r["artifact"])),
@@ -1089,7 +1327,19 @@ def measure(root, tracked=None, workflows=None, plists=None):
         "why_unmeasured": None,
         "notes": notes,
         "not_reported": [
-            "читатель ЧУЖОГО прошлого прогона — не измерен вовсе, это следующий вопрос",
+            "читатель ЧУЖОГО прошлого прогона — не измерен вовсе, это следующий "
+            "вопрос (заказ G104 п. 1)",
+            "артефактная ось судит ПИСАТЕЛЯ файла, а не поведение его читателей: "
+            "курируемость видна на один уровень помощника, поэтому "
+            f"{ART_NO_RUNTIME_WRITER} есть ВЕРХНЯЯ граница, а {ART_NO_WRITER_READ} — "
+            "НИЖНЯЯ",
+            "артефактная ось НЕ спрашивает «а заметил бы кто-нибудь»: ноги сверки "
+            "канона с пересборкой у неё нет, и это решение с ЗАМЕРОМ (комментарий над "
+            "ARTIFACT_OUTCOMES). Известные члены исхода "
+            f"{ART_NO_WRITER_READ}, у которых расхождение ВСЁ ЖЕ покраснеет, названы "
+            "руками: architecture/manifest.json ← scripts/fill_agent_passports.py "
+            "--check · landing/src/lib/constitution.json ← scripts/tests/"
+            "test_site_constitution_parity.py",
             "хостовая ось видит ПРИЗНАК замечания (пересборка, возраст, встреча с "
             "наблюдением), а не верность порога и ветвления у замечающего",
             "точный радиус подменяющей команды доложен числом под data/; подменить "
@@ -1115,6 +1365,26 @@ def verdict(doc):
 
     А вот «не измерено» хостовой оси код ПОВЫШАЕТ: неразобранная пара и отказ формы —
     это провал замера, а не свойство дерева (инв. #17).
+
+    **Артефактная ось (G104 п. 3) кода тоже НЕ повышает — и причина у неё СВОЯ, не
+    переписанная у соседа.** У хостовой оси причина в том, что вред возникает только от
+    запрещённой команды; здесь вред возникает от обычного `git clone` и живёт в дереве
+    постоянно. Причина другая: лекарств у каждой клетки ТРИ (объявить писателя · снять
+    файл с отслеживания · научить читателя спрашивать возраст), выбор между ними
+    по-файлово, а у самых дорогих клеток — `data/equity_curve_daily.json`,
+    `data/trades.json` — он задевает предмет №1 границы ADR-285 и принадлежит владельцу.
+    Красный навсегда на таком населении приучил бы гасить прибор — ровно то, против чего
+    инв. #16. Число докладывается и называется находкой В ОТЧЁТЕ, а не кодом возврата.
+
+    **Её «не измерено» код тоже не повышает, а ОТКАЗ ФОРМЫ — повышает.** Различие
+    измеримое, а не вкусовое: артефактное «не измерено» есть свойство ДЕРЕВА — два
+    git-tracked файла носят одно имя, и какой из них пишет модуль, по имени неизвестно
+    (имя не есть адрес, ADR-465). Таких путей 9 из 475, они посчитаны и названы
+    поимённо, и остальные 466 ответов от этого менее измеренными не становятся. Поднять
+    на них код значило бы навсегда поставить 2 из-за `package-lock.json` и ЗАМАСКИРОВАТЬ
+    тем самым сигнал главной оси: «в дереве появился НОВЫЙ сторож класса ADR-475» (код 1)
+    стал бы неотличим от «замер не удался». Отказ формы (сумма != населению) — другое: это
+    провал прибора, и он код поднимает.
     """
     if not doc.get("measured"):
         return RC_UNMEASURED
@@ -1126,6 +1396,11 @@ def verdict(doc):
     if host is None:
         return RC_UNMEASURED
     if host["notes"] or host["outcomes"][HOST_UNMEASURED]:
+        return RC_UNMEASURED
+    artifact = doc.get("artifact_axis")
+    if artifact is None:
+        return RC_UNMEASURED
+    if artifact["notes"]:
         return RC_UNMEASURED
     return RC_FINDING if doc["outcomes"][OUT_CONST_TRUSTED] else RC_MEASURED
 
@@ -1183,6 +1458,55 @@ def _host_lines(doc):
     return lines
 
 
+#: Сколько находок артефактной оси печатать поимённо. Население — сотни файлов, и
+#: полный перечень утопил бы соседние секции шага 0-офис; остаток назван ЧИСЛОМ, а не
+#: многоточием, и целиком доступен через `--json`. Порядок печати — по числу читателей
+#: убывающе: дороже всего клетка, чью константу читают из многих мест.
+ARTIFACT_SAMPLE = 10
+
+
+def _artifact_lines(doc):
+    """Раздел артефактной оси. Отсутствие раздела — третий исход, а не пустота."""
+    art = doc.get("artifact_axis")
+    if art is None:
+        return [
+            "  [НЕ ИЗМЕРЕНО] артефактная ось (заказ G104 п. 3) не считалась: документ "
+            "замера её не несёт"
+        ]
+    out = art["outcomes"]
+    lines = [
+        f"  — артефактная ось (заказ G104 п. 3): у скольких git-tracked артефактов НЕТ "
+        f"объявленного писателя — население {art['population']} файл(ов), находок в "
+        f"радиусе дословной команды аварии #361 "
+        f"(`git checkout -- {CANON_SUBSTITUTION_RADIUS}`) {art['under_substitution_radius']}",
+        "    " + " · ".join(f"{name} {out[name]}" for name in ARTIFACT_OUTCOMES),
+    ]
+    for row in art["findings"][:ARTIFACT_SAMPLE]:
+        lines.append(
+            f"    [ПИСАТЕЛЯ НЕ ОБЪЯВЛЕНО, а читают] {row['artifact']} — пишут в рантайме "
+            f"{len(row['writers'])}, читают {row['reader_count']}; обратно не кладёт "
+            "его никакая объявленная автоматика"
+        )
+    rest = len(art["findings"]) - ARTIFACT_SAMPLE
+    if rest > 0:
+        lines.append(
+            f"    … ещё {rest} артефакт(ов) того же вида (полный перечень — `--json`)"
+        )
+    for row in art["declared"]:
+        lines.append(
+            f"    [писатель ОБЪЯВЛЕН] {row['artifact']} — {row['declared']}"
+        )
+    for reason, count in sorted(art["unmeasured_reasons"].items()):
+        lines.append(f"    [НЕ ИЗМЕРЕНО] {reason}: {count}")
+    for note in art["notes"]:
+        lines.append(f"    [ОТКАЗ] {note}")
+    lines.append(
+        "    ось считает ПУТИ, а не пары, и с двумя осями выше складыванию НЕ подлежит: "
+        "единицы населения разные, и одно дерево попадает в обе"
+    )
+    return lines
+
+
 def format_report(doc):
     lines = []
     if not doc.get("measured"):
@@ -1209,6 +1533,7 @@ def format_report(doc):
             f" — возраст прошлого артефакта спрашивается"
         )
     lines.extend(_host_lines(doc))
+    lines.extend(_artifact_lines(doc))
     for row in doc.get("excluded_sample", ()):
         lines.append(
             f"  [ИСКЛЮЧЁН со причиной] {row['reader']} :: {row['artifact']} — {row['why']}"
