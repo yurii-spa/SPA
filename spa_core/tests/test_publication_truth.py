@@ -702,3 +702,24 @@ class FinalReviewP2(_Scene):
         kept_inputs = {p.stem for p in store.glob("*.json") if len(p.stem) == 64}
         self.assertTrue(pub_hashes <= kept_inputs, "inputs of the PUBLISHED shelf were pruned")
         self.assertLessEqual(len(kept_inputs), 2 + 2 * (bsn.KEEP_SUPERSEDED + 1))
+
+
+def test_decision_dates_come_from_the_canonical_decisions_not_the_prod_tree(tmp_path, monkeypatch):
+    """Publication 2026-10-07: the prod tree does not sync docs/, so a shelf built there carried
+    decision_date «UNKNOWN» and differed (sha) from the same shelf built from origin — the Mac pipeline
+    could never verify the owner-approved shelf. Decision headers are read from $SPA_DECISIONS_DIR /
+    the origin mirror; a tree without the files must not degrade the mapping when a canonical copy exists."""
+    from spa_core.publication import product_map as pm
+    canon = tmp_path / "mirror_decisions"
+    canon.mkdir()
+    (canon / "ADR-533-three-paper-portfolios.md").write_text("# ADR-533\n\n**Date:** 2026-10-01\n**Status:** Accepted\n")
+    empty_tree = tmp_path / "prod_docs_decisions"
+    empty_tree.mkdir()
+    # positive control: the prod-tree reading (no ADR file there) is exactly the defect
+    assert pm.adr_date("ADR-533", empty_tree) == pm.UNKNOWN
+    monkeypatch.setenv("SPA_DECISIONS_DIR", str(canon))
+    assert pm.decisions_dir_default() == canon
+    assert pm.adr_date("ADR-533") == "2026-10-01"
+    monkeypatch.delenv("SPA_DECISIONS_DIR")
+    monkeypatch.setattr("spa_core.publication.cadence.DEFAULT_MIRROR", tmp_path / "no_mirror_here")
+    assert pm.decisions_dir_default() == pm.DECISIONS_DIR   # no mirror (CI) ⇒ this tree

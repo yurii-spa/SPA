@@ -28,6 +28,21 @@ from spa_core.paper_trading.strategy_mandates import MANDATES
 ROOT = Path(__file__).resolve().parents[2]
 TIER_BANDS = ROOT / "landing" / "src" / "lib" / "tier_bands.json"
 DECISIONS_DIR = ROOT / "docs" / "decisions"
+
+
+def decisions_dir_default() -> Path:
+    """Where decision headers are read. The production tree does NOT sync ``docs/`` (CLAUDE.md, ADR-152),
+    so reading its own ``docs/decisions`` made a shelf built on the Mac differ from the same shelf built
+    from origin (decision dates «UNKNOWN» there) — and the Mac pipeline could never verify a shelf the
+    owner approved (found at publication 2026-10-07). Same operand rule as the cadence: ``$SPA_DECISIONS_DIR``
+    → the origin mirror (``cadence.DEFAULT_MIRROR``) when present → this tree."""
+    import os
+    env = os.environ.get("SPA_DECISIONS_DIR")
+    if env:
+        return Path(env)
+    from spa_core.publication.cadence import DEFAULT_MIRROR
+    mirror = DEFAULT_MIRROR / "docs" / "decisions"
+    return mirror if mirror.is_dir() else DECISIONS_DIR
 PROFILES = ("conservative", "balanced", "aggressive")
 NAMING_DECISION = "ADR-OWN-2026-07"
 #: the deciding ADR of each profile's CURRENT book (the claim of this module)
@@ -47,10 +62,10 @@ def _read_json(p: Path) -> Optional[dict]:
     return d if isinstance(d, dict) else None
 
 
-def adr_date(adr_id: str, decisions_dir: Path = DECISIONS_DIR) -> str:
+def adr_date(adr_id: str, decisions_dir: Optional[Path] = None) -> str:
     """Decision date from the ADR header (continuity's parser — one parser for both readers)."""
     from spa_core.studio_os.memory.continuity import adr_effective
-    hits = sorted(Path(decisions_dir).glob(f"{adr_id}-*.md"))
+    hits = sorted(Path(decisions_dir if decisions_dir is not None else decisions_dir_default()).glob(f"{adr_id}-*.md"))
     if len(hits) != 1:
         return UNKNOWN
     return adr_effective(hits[0].read_text(encoding="utf-8", errors="replace"))
@@ -63,7 +78,7 @@ def _start_from_experiment(exp_id) -> Optional[str]:
 
 
 def build(package_status: Optional[dict], *, evidenced_anchor: Optional[str] = None,
-          tier_bands: Optional[dict] = None, decisions_dir: Path = DECISIONS_DIR) -> list[dict]:
+          tier_bands: Optional[dict] = None, decisions_dir: Optional[Path] = None) -> list[dict]:
     """One row per public profile. Unreadable inputs ⇒ the field is None/UNKNOWN, never a guess."""
     bands = tier_bands if tier_bands is not None else (_read_json(TIER_BANDS) or {})
     pk = (package_status or {}).get("packages") if isinstance(package_status, dict) else None
