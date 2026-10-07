@@ -34,6 +34,8 @@ Only stdlib + the already-existing sibling primitives named in ``work_packages.j
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import math
+
 import importlib.util
 import json
 import re
@@ -549,7 +551,9 @@ def tile_yield(equity_doc: Optional[dict], now: datetime) -> dict:
     state, fr = _staleness(as_of, now, slo_min, rule)
     if apy is None:
         state = NOT_ENOUGH_HISTORY if state == MEASURED else state
-    text_ru = (f"Консервативный: {apy:.1f} % годовых · худшая просадка {dd:.2f} % · {len(bars)} дн. (бумага)"
+    # ADR-563: a shown rate rounds DOWN — the cockpit prints the same figure as the public site (PRODUCT-TRUTH-02)
+    apy_shown = math.floor(apy * 10 + 1e-9) / 10 if apy is not None else None
+    text_ru = (f"Консервативный: {apy_shown:.1f} % годовых · худшая просадка {dd:.2f} % · {len(bars)} дн. (бумага)"
               if apy is not None else "Консервативный: копится история")
     unknown_ru = _stale_or_absent(
         state, fr.get("age_min"),

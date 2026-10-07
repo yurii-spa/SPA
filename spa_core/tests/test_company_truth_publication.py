@@ -62,3 +62,13 @@ class DirectorReadsTheSameRules(_Scene):
 
     def test_the_api_canonical_rate_is_typed_realized_paper(self):
         self.assertIn("REALIZED_PAPER", (ROOT / "spa_core" / "governance" / "ssot.py").read_text(encoding="utf-8"))
+
+
+def test_cockpit_yield_line_rounds_down_like_the_site():
+    """PRODUCT-TRUTH-02 (07.10): the cockpit printed «4.9 %» for 4.8943 while the public site printed
+    «4.8 %» (ADR-563 rounds a shown rate DOWN). One book, one figure on every surface."""
+    import inspect
+    from spa_core.studio_os import company_truth as ct
+    src = inspect.getsource(ct)
+    assert "apy_shown = math.floor(apy * 10 + 1e-9) / 10" in src
+    assert 'Консервативный: {apy:.1f}' not in src   # positive control: the nearest-rounding form is gone
