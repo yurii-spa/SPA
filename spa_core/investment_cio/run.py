@@ -28,6 +28,35 @@ def _parse_now(value: Optional[str]) -> datetime:
     return dt
 
 
+def _capital_sources_inputs(data_dir: Path, sleeves_doc: dict, now: datetime, previous_entry: Optional[dict]) -> dict:
+    """Never raises: a failure here is recorded in the document, the Oracle's own recommendation still runs.
+    The reset/reseed check needs the previous sleeve: if its snapshot was pruned or is unreadable, that is
+    RECORDED (previous_sleeve_check NOT_MEASURED), never a silent rebuild without the check."""
+    try:
+        from spa_core.investment_cio import sources_portfolio
+        previous_alpha, check = None, {"state": "NOT_MEASURED", "reason": "no previous recommendation"}
+        if previous_entry is not None:
+            digest = previous_entry.get("snapshot_digest")
+            prev_doc = ledger.load_snapshot(data_dir, digest) if digest else None
+            if prev_doc is None:
+                check = {"state": "NOT_MEASURED",
+                         "reason": f"previous snapshot {str(digest)[:12]}… not readable (pruned?) — the reset/"
+                                   "reseed comparison against the previous sleeve was NOT run"}
+            else:
+                previous_alpha = (prev_doc.get("capital_sources") or {}).get("trading_alpha")
+                check = ({"state": "MEASURED", "against": str(digest)[:12]} if previous_alpha else
+                         {"state": "NOT_MEASURED", "reason": "previous snapshot carries no Trading Alpha sleeve "
+                                                            "(predates ADR-641 or the sleeve was refused)"})
+        # only the ledger rows inside the portfolio window, compacted to weight CHANGES (bounded snapshot)
+        since = sources_portfolio.series_start(data_dir, sleeves_doc.get("sleeves") or {})
+        history = sources_portfolio.weight_history_from_ledger(ledger.read_all(data_dir), since=since)
+        return sources_portfolio.load_inputs(data_dir, sleeves_doc.get("sleeves") or {}, now,
+                                             previous_alpha=previous_alpha, previous_check=check,
+                                             weight_history=history)
+    except Exception as exc:  # noqa: BLE001 — named, never a traceback, never a stop of the Oracle run
+        return {"state": "REFUSED", "reason": f"{type(exc).__name__}: {exc}"}
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m spa_core.investment_cio.run")
     ap.add_argument("--data-dir", default=None, help="defaults to the live data/ dir")
@@ -96,6 +125,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         previous = previous_entry["recommendation"] if previous_entry else None
         sleeves_doc = sleeves.build_sleeves(data_dir, now)
+        # ADR-641 (CAPITAL-SOURCES-01): the capital-sources inputs (Trading Alpha sleeve from evidence.db,
+        # Capital Sources registry, each source's daily returns) ride INSIDE the snapshotted sleeves document,
+        # so the multi-source view in the recommendation is reproducible from the snapshot alone.
+        sleeves_doc["capital_sources"] = _capital_sources_inputs(data_dir, sleeves_doc, now, previous_entry)
         rec = policy.recommend(sleeves_doc, previous, now)
         snap_digest = ledger.save_snapshot(data_dir, sleeves_doc)
         code_id = ledger.code_identity()

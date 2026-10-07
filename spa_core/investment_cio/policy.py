@@ -814,6 +814,24 @@ def recommend(sleeves_doc: dict, previous: Optional[dict], now: datetime) -> dic
         "executes": False,
         "real_capital_usd": real_capital_usd,
     }
+    # ADR-641: the multi-source view (capital sources, Trading Alpha eligibility, paper portfolio, frontier) —
+    # present only when the sleeves document carries the snapshotted capital-sources inputs. Additive field;
+    # it is inside the recommendation hash, it never changes `recommended_weights`, it never executes.
+    cs_inputs = sleeves_doc.get("capital_sources")
+    if isinstance(cs_inputs, dict):
+        if cs_inputs.get("state") == "REFUSED":
+            rec["capital_sources_view"] = {"state": "REFUSED", "reason": cs_inputs.get("reason"),
+                                           "executes": False, "real_capital_usd": 0}
+        else:
+            try:
+                from spa_core.investment_cio import sources_portfolio
+                # as_of = the recommendation DATE, not the clock: the view enters the recommendation hash and the
+                # same evidence must give the same recommendation_id whatever hour the run happened (review P1-2)
+                rec["capital_sources_view"] = sources_portfolio.view(cs_inputs, recommended_weights, stance,
+                                                                     alternatives_considered, as_of=date)
+            except Exception as exc:  # noqa: BLE001 — named in the record, never a failed recommendation
+                rec["capital_sources_view"] = {"state": "REFUSED", "reason": f"{type(exc).__name__}: {exc}",
+                                               "executes": False, "real_capital_usd": 0}
     missing = [f for f in contract.REC_FIELDS if f not in rec]
     assert not missing, f"recommend() missing contract.REC_FIELDS: {missing}"
 

@@ -95,3 +95,27 @@ def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
         "age_hours": age_hours,
         "research_universe": research_universe_view,
     }
+
+
+def capital_sources(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
+    """ADR-641: THE read for Director OS / Telegram — the capital-sources view (sources, Trading Alpha
+    eligibility, paper portfolio, correlation, frontier) of the Oracle's latest VERIFIED recommendation.
+    No computation here (no duplicate truth): a broken/missing ledger or an older recommendation without
+    the view is reported as NOT_MEASURED with a reason, never as an empty success."""
+    doc = latest(data_dir, now=now)
+    if doc.get("state") != contract.MEASURED:
+        return {"state": contract.NOT_MEASURED, "reason": doc.get("reason") or "no verified recommendation",
+                "integrity": doc.get("integrity")}
+    rec = doc.get("recommendation") or {}
+    view = rec.get("capital_sources_view")
+    if not isinstance(view, dict):
+        return {"state": contract.NOT_MEASURED,
+                "reason": "the latest recommendation predates the capital-sources view (ADR-641)",
+                "recommendation_date": rec.get("date")}
+    out = dict(view)
+    out["recommendation_id"] = rec.get("recommendation_id")
+    out["recommendation_date"] = rec.get("date")
+    out["oracle_stance"] = rec.get("stance")
+    out["age_hours"] = doc.get("age_hours")
+    out["ledger_chain_ok"] = (doc.get("ledger") or {}).get("chain_ok")
+    return out

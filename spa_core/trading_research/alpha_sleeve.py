@@ -529,7 +529,7 @@ def _finish(doc: Dict, s: Optional[Dict]) -> Dict:
         doc.update({k: _a("NOT_MEASURED", "no sleeve: nothing admitted") for k in (
             "net_return", "gross_return", "annualized_return", "max_drawdown", "volatility", "sharpe", "sortino",
             "turnover", "estimated_costs", "realized_costs", "exposure", "pnl")})
-        doc["members"], doc["clusters"] = [], []
+        doc["members"], doc["clusters"], doc["daily_nav"] = [], [], []
         doc["eligibility"] = {"state": "NOT_ELIGIBLE", "blockers": eligibility_blockers + ["no admitted members"]}
         return doc
 
@@ -544,6 +544,11 @@ def _finish(doc: Dict, s: Optional[Dict]) -> Dict:
         mdd = min(mdd, v / peak - 1.0 if peak > 0 else 0.0)
     cost_total = s["fees"] + s["slippage"] + s["funding"]
     daily = _daily(path, s["inception_ms"], as_of_ms)
+    first_end = (s["inception_ms"] // DAY_MS + 1) * DAY_MS
+    # end-of-UTC-day NAV per COMPLETE day (the date is the day that ended) — the series the portfolio of
+    # sources and the correlation matrix read (ADR-641); never a partial day
+    doc["daily_nav"] = [{"date": _iso(first_end + i * DAY_MS - DAY_MS)[:10], "nav": _r(v)}
+                        for i, v in enumerate(daily)]
     rets = [daily[0] - 1.0] + [daily[i] / daily[i - 1] - 1.0 for i in range(1, len(daily))] if daily else []
     mature = days >= MIN_CALENDAR_DAYS_FOR_RATE
     short = f"{days:.1f} calendar days < {MIN_CALENDAR_DAYS_FOR_RATE} (ADR-590 §4: no annualised figure)"
