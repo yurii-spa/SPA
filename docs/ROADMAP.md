@@ -63,7 +63,7 @@
     truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since
     (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language
     readiness reasons (ADR-612).
-11. **ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening** — in progress (owner
+11. **ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening** — in progress: delivered, awaiting ARB review (owner
     directive 2026-10-07, autonomous overnight macro-epic; ADR-610): a fresh AI session recovers the company from
     `docs/continuity/` (curated ARCHITECT_CONTEXT, OWNER_INTENT_LEDGER, BOOTSTRAP; generated, freshness-checked
     CURRENT_STATE and ARCHITECT_DECISION_INDEX). Delivered 2026-10-07 with independent reviews: wave A continuity
@@ -71,8 +71,12 @@
     iCloud complete, restore drill ALL OK), wave C read-only Telegram Capital commands /capital /btc /lab /oracle
     /sherlock + plain-Russian Director reasons (ADR-612, `2b8887cb`). Real capital $0; no live execution. Owner
     gates: the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability
-    patch to the live project. Next safe action: pass the independent fresh-session LLM run from
-    `docs/continuity/FRESH_SESSION_PROMPT.md` (first run 07.10 failed on stale curated text; fixed and re-run).
+    patch to the live project. Wave D `b58f63b1`: observation times on the runtime cells; production
+    `continuity check` = CONTEXT_FRESH (05:43Z 07.10); fresh-session run 2 PASS (34 correct, 2 honest UNKNOWN,
+    0 wrong; `docs/continuity/acceptance/2026-10-07-fresh-session.md`). Remaining debt: no writer yet for the
+    origin/main test-health record (`data/ci/origin_main/`, section shows NOT_MEASURED); shelf `next_publication`
+    vs site freshness monitor disagree (10-08 vs 10-12); Sherlock reader falls back to the wall clock on an empty
+    ledger. Next safe action: ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates.
 12. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
