@@ -233,6 +233,20 @@ def main():
     # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)
     # any landing/ push MUST have passed the owner-gate guard via safe_site_push.py
     # (SPA_SITE_PUSH_VERIFIED=1). Otherwise re-run the guard and FAIL CLOSED.
+    # ── PUBLICATION GATE (ADR-630) — ANY context: the shelf of public numbers never leaves unverified.
+    #    safe_site_push.py runs the same gate and marks SPA_SITE_PUSH_VERIFIED=1; a direct push is checked here.
+    if not args.dry_run and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1":
+        _shelf = [f for f in all_files
+                  if str(f).replace("\\", "/").endswith("landing/src/data/site_numbers.json")]
+        if _shelf:
+            _vp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "verify_publication.py")
+            _vrc = subprocess.run([sys.executable, _vp, "--shelf", str(_shelf[0]), "--pages", "",
+                                   "--find-approval"]).returncode
+            if _vrc != 0:
+                print(f"BLOCKED (publication gate rc={_vrc}): the site-numbers shelf goes public only "
+                      f"through scripts/safe_site_push.py with an owner approval. Not pushing.", file=sys.stderr)
+                sys.exit(3)
+
     if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
             and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):
         _site = [f for f in all_files if "landing/" in str(f).replace("\\", "/")]

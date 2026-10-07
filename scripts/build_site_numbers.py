@@ -40,19 +40,34 @@
 сказал, где какие. Отдельные ЗНАЧЕНИЯ, которых нет в замере, остаются ``None`` с названной
 причиной — страница обязана напечатать «данные недоступны», а не последнее известное число.
 
-Коды возврата: 0 — витрина собрана · 2 — НЕ ИЗМЕРЕНО.
+Коды возврата: 0 — витрина собрана (или срок не пришёл) · 2 — НЕ ИЗМЕРЕНО · 3 — гейт последовательности · 4 — собранная витрина ждёт одобрения владельца · 5 — одобренная витрина готова к доставке (ADR-630).
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:  # launched as a script by path (ADR-148 class) — make spa_core importable
+    sys.path.insert(0, str(ROOT))
+from spa_core.publication import cadence as _cadence  # noqa: E402
+from spa_core.publication import metric_types as _mt  # noqa: E402
+from spa_core.publication import product_map as _pmap  # noqa: E402
+from spa_core.defi_engine.package_status import REPORTABLE_AFTER  # noqa: E402
+
+#: ADR-630 (PRODUCT-TRUTH-02): the shelf carries its own provenance; bumped on every shape change.
+SCHEMA_VERSION = "site_numbers/2"
 SNAPSHOT = ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 CONSTITUTION = ROOT / "landing" / "src" / "lib" / "constitution.json"
 OUT = ROOT / "landing" / "src" / "data" / "site_numbers.json"
+#: ADR-630: the exact input bytes of every written shelf, content-addressed (sha256 → file). A shelf
+#: approved days after its build verifies against THESE, not against today's regenerated snapshot.
+INPUTS_STORE = ROOT / "data" / "publication_inputs"
 
 #: Род числа. ADR-580 (RM-TRUTH-01, C2) РАСШИРЯЕТ, а не отменяет правило `site-numbers.md`:
 #: третьего МЕСТА для чисел всё ещё нет, но честных РОДОВ теперь пять, не два. BACKTEST —
@@ -82,6 +97,15 @@ ANNUALISATION = ("сложный процент от якоря доказанн
 #: находок, тем же порядком, что остальные списки-исключения этого дома.
 _BACKTEST_SOURCE_MARKERS = ("tier1_packages",)
 
+
+
+def _package_field(snap: dict, name: str, field: str):
+    """A package aggregate, or None when the snapshot does not carry it — absence stays absence
+    (inv. #17): ``figure`` then publishes «unavailable», never a number read off an empty dict."""
+    from spa_core.utils.observation import observed
+    packages = observed(snap, "packages", kind=dict)
+    row = observed(packages, name, kind=dict) if packages is not None else None
+    return observed(row, field) if row is not None else None
 
 def validate_shelf(doc: dict) -> "list[str]":
     """Гейт последовательности публикации (C12, ADR-580). Пустой список ⇒ витрину
@@ -176,7 +200,8 @@ def figure(value: object, *, unit: str, kind: str, source: str,
            annualised: bool = False, evidence: "str | None" = None,
            unavailable_reason: "str | None" = None,
            window_days: "float | None" = None, window_days_reason: "str | None" = None,
-           reportable: "bool | None" = None, reportable_after: "float | None" = None) -> dict:
+           reportable: "bool | None" = None, reportable_after: "float | None" = None,
+           basis: "str | None" = None) -> dict:
     """Одно число витрины со всем, что о нём обязан знать автор страницы.
 
     C2 (ADR-580) — обязательные поля для КАЖДОЙ СТАВКИ (``annualised=True``):
@@ -219,12 +244,31 @@ def figure(value: object, *, unit: str, kind: str, source: str,
                 f"ставка ниже порога зрелости"
                 f"{f' ({reportable_after} дн.)' if reportable_after is not None else ''} — "
                 f"печатать «идёт paper-тест», не число")
+    # ADR-630: every RETURN carries its typed name; every drawdown carries its basis. Derived from the
+    # kind and the maturity verdict above — never chosen by the page, never left implicit.
+    if annualised:
+        out["metric_type"] = _metric_type(kind, out["reportable"])
+    if basis is not None:
+        out["basis"] = basis
     if evidence:
         out["evidence"] = evidence
     if v is None:
         out["unavailable_reason"] = (
             unavailable_reason or "значения нет в источнике — печатать «данные недоступны»")
     return out
+
+
+def _metric_type(kind: str, reportable: bool) -> str:
+    """kind (+ maturity) ⇒ typed return. A measurement below maturity is an OBSERVATION, not a result."""
+    if kind == BACKTEST:
+        return _mt.BACKTEST_RETURN
+    if kind == TARGET:
+        return _mt.TARGET_RETURN
+    if kind == MODELLED:
+        return _mt.MODELLED_RETURN
+    if kind == MEASUREMENT:
+        return _mt.REALIZED_PAPER_RETURN if reportable else _mt.OBSERVED_RETURN
+    raise SequencingViolation(f"род {kind!r} не может нести доходность (ADR-630): тип не определён")
 
 
 def _evidence_split(days: "float | None", observed_since: object,
@@ -288,20 +332,29 @@ def _book(track: dict, key: str, label: str, measured_at: object = None) -> dict
                       # честно выводит их как None/производное — её гейт за пределами этой
                       # задачи (см. отчёт сессии).
                       window_days=days,
-                      reportable=b.get("reportable"), reportable_after=b.get("reportable_after"),
+                      # ADR-630: a short history is never reportable by default. The snapshot's own
+                      # verdict wins when present; absent ⇒ the canonical maturity rule, not «has a value».
+                      reportable=(b.get("reportable") if isinstance(b.get("reportable"), bool)
+                                  else (days is not None and days >= REPORTABLE_AFTER)),
+                      reportable_after=(b.get("reportable_after")
+                                        if b.get("reportable_after") is not None else REPORTABLE_AFTER),
                       unavailable_reason="книга ещё не дала годовой ставки — "
                                          "печатать «идёт paper-тест», не число"),
         # Хвост публикуется РЯДОМ со ставкой намеренно: инвариант #8 и
         # `.claude/rules/site-copy.md` требуют показывать просадку вместе с доходностью.
         # Разнести их по разным местам страницы — то же, что не показать.
-        "drawdown": figure(b.get("dd_pct"), unit="%", kind=MEASUREMENT,
+        "drawdown": figure(b.get("dd_pct"), unit="%", kind=MEASUREMENT, basis=_mt.PAPER,
                            source="landing/src/data/track_snapshot.json → paper_tracks"),
         "nav": figure(b.get("nav_usd"), unit="USD", kind=MEASUREMENT,
                       source="landing/src/data/track_snapshot.json → paper_tracks"),
     }
 
 
-def build(*, published_at: "str | None" = None) -> dict:
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def build(*, published_at: "str | None" = None, source_commit: "str | None" = None) -> dict:
     snap = _load(SNAPSHOT)
     const = _load(CONSTITUTION)
 
@@ -315,6 +368,10 @@ def build(*, published_at: "str | None" = None) -> dict:
     track = snap.get("paper_tracks") if isinstance(snap.get("paper_tracks"), dict) else {}
 
     pub = published_at or date.today().isoformat()
+    try:
+        profiles = _pmap.checked(snap.get("package_status"), evidenced_anchor=snap.get("evidenced_anchor"))
+    except _pmap.MappingConflict as exc:
+        raise SequencingViolation(f"сопоставление профилей противоречиво: {exc}") from exc
     return {
         "_note": ("ВИТРИНА, а не источник: собрана из двух источников правды. Править руками "
                   "запрещено — пересобирается scripts/build_site_numbers.py."),
@@ -326,8 +383,25 @@ def build(*, published_at: "str | None" = None) -> dict:
         # ДВЕ даты, и обе видны читателю: наблюдение ежедневное, публикация недельная.
         "measured_at": snap.get("as_of"),
         "published_at": pub,
-        "cadence": "weekly",
-        "next_publication": (date.fromisoformat(pub) + timedelta(days=7)).isoformat(),
+        "cadence": _cadence.CADENCE,
+        "next_publication": _cadence.next_publication(pub),
+        # ADR-630: provenance of THIS artifact. Deterministic from its inputs (no wall clock): the
+        # generation time is the snapshot's own; the commit is recorded only when the publisher passes it.
+        "_provenance": {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": snap.get("generated_at"),
+            "measurement_as_of": snap.get("as_of"),
+            "source_commit": source_commit,
+            "source_commit_reason": (None if source_commit else
+                                     "not passed by the builder — bind by source_hashes"),
+            "source_hashes": {
+                "landing/src/data/track_snapshot.json": _sha256(SNAPSHOT),
+                "landing/src/lib/constitution.json": _sha256(CONSTITUTION),
+            },
+            "cadence_rule": "spa_core/publication/cadence.py (weekly from the PUBLISHED shelf)",
+            "product_map_rule": "spa_core/publication/product_map.py (ADR-OWN-2026-07, ADR-593, ADR-533)",
+        },
+        "profiles": profiles,
         "rates_are_annualised": True,
         "annualisation": ANNUALISATION,
 
@@ -335,8 +409,10 @@ def build(*, published_at: "str | None" = None) -> dict:
             "apy": figure(snap.get("paper_apy_pct"), unit="%", kind=MEASUREMENT,
                           annualised=True, evidence="paper",
                           window_days=snap.get("real_track_days"),
+                          reportable=(_num(snap.get("real_track_days")) or 0) >= REPORTABLE_AFTER,
+                          reportable_after=REPORTABLE_AFTER,
                           source="landing/src/data/track_snapshot.json → paper_apy_pct"),
-            "drawdown": figure(snap.get("max_drawdown_pct"), unit="%", kind=MEASUREMENT,
+            "drawdown": figure(snap.get("max_drawdown_pct"), unit="%", kind=MEASUREMENT, basis=_mt.PAPER,
                                source="landing/src/data/track_snapshot.json"),
             "nav": figure(snap.get("nav_usd"), unit="USD", kind=MEASUREMENT,
                           source="landing/src/data/track_snapshot.json"),
@@ -380,7 +456,7 @@ def build(*, published_at: "str | None" = None) -> dict:
         # не выдуманное число.
         "packages": {
             name: {
-                "apy": figure((snap.get("packages") or {}).get(name, {}).get("apy_pct"),
+                "apy": figure(_package_field(snap, name, "apy_pct"),
                               unit="%", kind=BACKTEST, annualised=True,
                               source="track_snapshot.json → packages (← data/tier1_packages.json, "
                                      "blended_net_apy_pct — s61/s27/s62/s77, "
@@ -389,8 +465,8 @@ def build(*, published_at: "str | None" = None) -> dict:
                                                 "tier1_packages.json (только итоговые агрегаты)",
                               unavailable_reason="ставка пакета не измерена — печатать "
                                                  "«идёт paper-тест», не число"),
-                "drawdown": figure((snap.get("packages") or {}).get(name, {}).get("dd_pct"),
-                                   unit="%", kind=BACKTEST,
+                "drawdown": figure(_package_field(snap, name, "dd_pct"),
+                                   unit="%", kind=BACKTEST, basis=_mt.BACKTEST,
                                    source="track_snapshot.json → packages (← data/tier1_packages.json, "
                                           "worst_dd_pct)"),
             }
@@ -436,34 +512,167 @@ def build(*, published_at: "str | None" = None) -> dict:
     }
 
 
-def publication_due(*, today: "str | None" = None,
-                    out: "Path | None" = None) -> "tuple[bool, str]":
-    """Пора ли публиковать: прошла ли неделя со дня прошлой публикации.
+def _verifier():
+    import importlib.util as _u
+    spec = _u.spec_from_file_location("_verify_publication_from_bsn", ROOT / "scripts" / "verify_publication.py")
+    mod = _u.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
-    Такт недельный ПО РЕШЕНИЮ владельца, поэтому решение о сроке принимает файл, а
-    не расписание запуска: агент может быть запущен чаще или реже, а неделя от этого
-    не меняется. Витрины нет ⇒ пора (первая публикация). Дата в ней не разобрана ⇒
-    тоже пора: «не смогли прочитать, когда публиковали» не имеет права означать
-    «публиковали недавно» (инв. #17 — тише молчать, чем показать прошлое за
-    настоящее).
+
+class _ThisModule:
+    """This module as an object, whatever name it was loaded under (scripts are loaded by path, not
+    registered in ``sys.modules``): the verifier reads and temporarily swaps its globals."""
+
+    def __getattr__(self, k):
+        try:
+            return globals()[k]
+        except KeyError as exc:
+            raise AttributeError(k) from exc
+
+    def __setattr__(self, k, v):
+        globals()[k] = v
+
+
+def _judge_candidate(target: Path, published: Path, today: "str | None") -> dict:
+    """READY (passes the gate with an owner approval) · WAITING (only the approval is missing) ·
+    SUPERSEDE (fails for a reason no approval can clear, or cannot be verified at all)."""
+    vp = _verifier()
+    me = _ThisModule()
+    try:
+        doc = json.loads(target.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"state": "SUPERSEDE", "reason": "candidate unreadable"}
+    approval = vp.find_approval(doc, _sha256(target))
+    res = vp.verify(shelf=target, published=published, today=today or date.today().isoformat(),
+                    approval=approval, bsn=me)
+    if res["outcome"] == vp.PASS:
+        return {"state": "READY", "approval": approval}
+    if vp.approval_only(res):
+        return {"state": "WAITING", "findings": res["findings"]}
+    return {"state": "SUPERSEDE", "reason": res.get("reason"), "findings": res.get("findings")}
+
+
+def inputs_store_for(target: Path) -> Path:
+    """The canonical shelf keeps its inputs in ``data/publication_inputs``; a shelf elsewhere (scenes,
+    sandboxes) keeps them beside itself — tests never write into the repository's data/."""
+    try:
+        canonical = Path(target).resolve() == OUT.resolve()
+    except OSError:
+        canonical = False
+    return INPUTS_STORE if canonical else Path(target).parent / ".publication_inputs"
+
+
+#: superseded candidates (and the inputs they reference) kept for forensics; older ones are pruned
+KEEP_SUPERSEDED = 8
+
+
+def _atomic_text(path: Path, text: str) -> None:
+    from spa_core.utils.atomic import atomic_save_text
+    atomic_save_text(text, str(path))
+
+
+def _supersede(target: Path, verdict: dict, published: "Path | None" = None) -> None:
+    """Keep the old candidate as a named superseded record (never silently overwritten). Atomic writes;
+    the log is rewritten whole (atomic), one line per superseded sha — a re-run adds no duplicate."""
+    store = inputs_store_for(target)
+    store.mkdir(parents=True, exist_ok=True)
+    text = target.read_text(encoding="utf-8")
+    sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    rec = store / f"superseded-shelf-{sha}.json"
+    if not rec.is_file():
+        _atomic_text(rec, text)
+    log = store / "superseded.jsonl"
+    lines = log.read_text(encoding="utf-8").splitlines() if log.is_file() else []
+    if not any(f'"sha256": "{sha}"' in ln for ln in lines):
+        lines.append(json.dumps({"sha256": sha, "reason": verdict.get("reason"),
+                                 "findings": (verdict.get("findings") or [])[:10]}, ensure_ascii=False))
+        _atomic_text(log, "\n".join(lines) + "\n")
+    _prune_store(store, target, published)
+
+
+def _preserve_inputs(target: Path) -> None:
+    """Content-addressed copy of the inputs of a shelf being written (ADR-630), atomically."""
+    store = inputs_store_for(target)
+    store.mkdir(parents=True, exist_ok=True)
+    for src in (SNAPSHOT, CONSTITUTION):
+        dst = store / f"{_sha256(src)}.json"
+        if not dst.is_file():
+            _atomic_text(dst, src.read_text(encoding="utf-8"))
+
+
+def _hashes_of(doc) -> set:
+    prov = doc.get("_provenance") if isinstance(doc, dict) else None
+    return set(((prov or {}).get("source_hashes") or {}).values()) if isinstance(prov, dict) else set()
+
+
+def _prune_store(store: Path, target: Path, published: "Path | None" = None) -> None:
+    """Bound the store: keep the inputs referenced by the PUBLISHED shelf, the current candidate and the
+    last ``KEEP_SUPERSEDED`` superseded candidates; drop the rest. The published shelf must be NAMED by the
+    caller; unknown ⇒ keep every input (never delete what might still verify the public copy)."""
+    def _doc(p: Path):
+        try:
+            return json.loads(Path(p).read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return None
+    log = store / "superseded.jsonl"
+    shas = []
+    if log.is_file():
+        for ln in log.read_text(encoding="utf-8").splitlines():
+            try:
+                shas.append(json.loads(ln)["sha256"])
+            except Exception:  # noqa: BLE001
+                continue
+    keep_sup = set(shas[-KEEP_SUPERSEDED:])
+    for p in store.glob("superseded-shelf-*.json"):
+        if p.stem.replace("superseded-shelf-", "") not in keep_sup:
+            p.unlink(missing_ok=True)
+    if len(shas) > KEEP_SUPERSEDED:
+        kept = [ln for ln in log.read_text(encoding="utf-8").splitlines()
+                if any(f'"sha256": "{h}"' in ln for h in keep_sup)]
+        _atomic_text(log, "\n".join(kept) + "\n")
+    pub_doc = _doc(published) if published else None
+    if pub_doc is None:
+        return
+    keep = _hashes_of(pub_doc) | _hashes_of(_doc(target))
+    for h in keep_sup:
+        keep |= _hashes_of(_doc(store / f"superseded-shelf-{h}.json"))
+    for p in store.glob("*.json"):
+        if p.name.startswith("superseded-shelf-"):
+            continue
+        if len(p.stem) == 64 and p.stem not in keep:
+            p.unlink(missing_ok=True)
+
+
+def publication_due(*, today: "str | None" = None,
+                    out: "Path | None" = None, published: "Path | None" = None) -> "tuple[bool, str]":
+    """Пора ли публиковать — по ЕДИНОМУ правилу `spa_core/publication/cadence.py` (ADR-630).
+
+    Срок считается от ОПУБЛИКОВАННОЙ витрины (``published`` — копия на origin/зеркале), а не от
+    локально собранной: витрина, собранная на Маке и не доехавшая до origin, не публикация
+    (аудит 07.10: локальная 10-05 давала «следующая 10-12», сайт и Director — «10-08»).
+    ``published`` не передан ⇒ читается ``out``/``OUT`` (сцены тестов и CLI без зеркала).
+    Витрины нет ⇒ пора. Дата не разобрана ⇒ тоже пора (инв. #17).
     """
-    path = out or OUT
+    path = published or out or OUT
     if not path.is_file():
         return True, "витрины ещё нет — первая публикация"
     try:
-        prev = json.loads(path.read_text(encoding="utf-8")).get("published_at")
-        last = date.fromisoformat(str(prev))
+        doc = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
         return True, f"дата прошлой публикации не прочитана ({exc}) — публикуем"
-    now = date.fromisoformat(today) if today else date.today()
-    age = (now - last).days
-    if age >= 7:
-        return True, f"со дня публикации {last.isoformat()} прошло {age} дн"
-    return False, f"со дня публикации {last.isoformat()} прошло {age} дн из 7"
+    st = _cadence.status(doc if isinstance(doc, dict) else None, today=today)
+    if not st["measured"]:
+        return True, "дата прошлой публикации не прочитана — публикуем"
+    last, age = st["published_at"], st["age_days"]
+    if st["due"]:
+        return True, f"со дня публикации {last} прошло {age} дн"
+    return False, f"со дня публикации {last} прошло {age} дн из 7"
 
 
 def run(*, published_at: "str | None" = None, if_due: bool = False,
-        write: bool = True, out: "Path | None" = None) -> dict:
+        write: bool = True, out: "Path | None" = None, published: "Path | None" = None,
+        source_commit: "str | None" = None) -> dict:
     """Один ТАКТ публикации витрины: собрать и записать, если срок пришёл.
 
     Гейт такта живёт ЗДЕСЬ, а не в ``main`` (заказ **G40 п. 1** приказа
@@ -488,10 +697,39 @@ def run(*, published_at: "str | None" = None, if_due: bool = False,
     """
     target = Path(out) if out is not None else OUT
     if if_due:
-        due, why = publication_due(today=published_at, out=target)
+        # ADR-630: the operand is the PUBLISHED shelf. An explicit ``out`` names its own operand (scenes);
+        # otherwise the one shared resolver — and no location ⇒ NOT MEASURED, never the local copy.
+        if published is None and out is None:
+            published = _cadence.published_shelf_path()
+            if published is None:
+                raise NotMeasured("опубликованная витрина не найдена (нет зеркала origin и "
+                                  "$SPA_PUBLISHED_SHELF) — срок публикации НЕ ИЗМЕРЕН, локальная "
+                                  "копия операндом не служит (ADR-630)")
+        if published is not None and Path(published).resolve() != target.resolve() and target.is_file():
+            try:
+                local_doc = json.loads(target.read_text(encoding="utf-8"))
+                pub_doc = json.loads(Path(published).read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001 — unreadable ⇒ the due-check below decides
+                local_doc = pub_doc = None
+            if _cadence.built_not_delivered(local_doc, pub_doc):
+                # Built, not delivered. Judge the candidate by the gate itself: approved ⇒ ready to ship;
+                # only the approval missing ⇒ wait (no daily rebuild loop); anything approval cannot
+                # clear (stale, inputs lost, rebuild differs) ⇒ supersede it ONCE and build anew.
+                verdict = _judge_candidate(target, Path(published), published_at)
+                if verdict["state"] == "READY":
+                    return {"published": False, "ready": True, "artifact": str(target),
+                            "approval": verdict.get("approval"),
+                            "reason": f"витрина от {local_doc.get('published_at')} одобрена владельцем — к доставке"}
+                if verdict["state"] == "WAITING":
+                    return {"published": False, "not_delivered": True, "artifact": str(target),
+                            "reason": (f"SHELF_NOT_DELIVERED: собрана витрина от {local_doc.get('published_at')}, "
+                                       f"на публике {pub_doc.get('published_at')} — ждёт ворот владельца, "
+                                       f"не пересобираем")}
+                _supersede(target, verdict, Path(published))
+        due, why = publication_due(today=published_at, out=target, published=published)
         if not due:
             return {"published": False, "reason": why, "artifact": str(target)}
-    doc = build(published_at=published_at)
+    doc = build(published_at=published_at, source_commit=source_commit)
     # C12 (ADR-580): гейт последовательности публикации — ПЕРЕД записью байт, не после.
     # «Собрали» и «можно показывать посетителю» — разные вопросы; если второй отвечен
     # «нет», файл не трогаем вовсе (то же disciplина, что у `if_due` выше).
@@ -502,7 +740,9 @@ def run(*, published_at: "str | None" = None, if_due: bool = False,
             " наруш.): " + "; ".join(problems))
     text = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
     if write:
-        target.write_text(text, encoding="utf-8")
+        _preserve_inputs(target)
+        _atomic_text(target, text)
+        _prune_store(inputs_store_for(target), target, published)
     return {"published": True, "doc": doc, "text": text, "artifact": str(target)}
 
 
@@ -514,14 +754,19 @@ def main(argv: "list[str] | None" = None) -> int:
                     help="собрать и сравнить с файлом, не записывая (для CI)")
     ap.add_argument("--if-due", action="store_true",
                     help="пересобрать, только если со дня публикации прошла НЕДЕЛЯ")
+    ap.add_argument("--published", default=None,
+                    help="путь к ОПУБЛИКОВАННОЙ витрине (умолчание: $SPA_PUBLISHED_SHELF или зеркало origin)")
+    ap.add_argument("--source-commit", default=None,
+                    help="коммит origin, из которого взяты входы (записывается в _provenance)")
     args = ap.parse_args(argv)
+    published = _cadence.published_shelf_path(args.published) if args.published else None
 
     # Гейт такта живёт в ОДНОМ месте (`run`) — вторая его копия здесь означала
     # бы, что рука цикла и любой будущий звавший судят о неделе по разным
     # правилам, а расходились бы они молча.
     try:
         outcome = run(published_at=args.published_at, if_due=args.if_due,
-                      write=not args.check)
+                      write=not args.check, published=published, source_commit=args.source_commit)
     except NotMeasured as exc:
         print(f"НЕ ИЗМЕРЕНО — {exc}")
         return 2
@@ -532,7 +777,9 @@ def main(argv: "list[str] | None" = None) -> int:
         return 3
     if not outcome["published"]:
         print(f"публикация не назначена: {outcome['reason']}")
-        return 0
+        if outcome.get("ready"):
+            return 5
+        return 4 if outcome.get("not_delivered") else 0
     doc, text = outcome["doc"], outcome["text"]
     if args.check:
         cur = OUT.read_text(encoding="utf-8") if OUT.is_file() else ""

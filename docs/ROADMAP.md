@@ -58,8 +58,9 @@
     Owner gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi
     INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on
     iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through
-    Cloudflare Access. Remaining debt: the public site cannot be rebuilt from origin (`track_snapshot.json`
-    on origin is from 2026-07-31); LOGOS log rotation and failure alert (patch prepared, live apply is the owner's);
+    Cloudflare Access. Remaining debt: daily site publication blocked by the owner-gate false refusal (ADR-630;
+    corrected 07.10 — origin DOES rebuild the live site, the «snapshot from 07-31» was a wrong-ref reading);
+    LOGOS log rotation and failure alert (patch prepared, live apply is the owner's);
     truncated weekly archives unverified; upload of the iCloud copy to Apple servers NOT_MEASURED. Closed since
     (ARB-CONTINUITY-01): archive classes (ADR-611), Telegram read-only Capital commands and plain-language
     readiness reasons (ADR-612).

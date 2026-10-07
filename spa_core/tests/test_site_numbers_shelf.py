@@ -314,7 +314,10 @@ class TheWeeklyCadenceLivesInTheFileNotTheSchedule(_Scene):
         self.write()
         bsn.OUT.write_text(json.dumps({"published_at": "2026-09-13"}), encoding="utf-8")
         before = bsn.OUT.read_text(encoding="utf-8")
-        self.assertEqual(bsn.main(["--if-due", "--published-at", "2026-09-15"]), 0)
+        # ADR-630: операнд срока называется явно — неявный откат на локальный файл снят (на Маке без
+        # этого тест молча судил бы по зеркалу origin, на CI без зеркала — отказ «не измерено»).
+        self.assertEqual(bsn.main(["--if-due", "--published-at", "2026-09-15",
+                                   "--published", str(bsn.OUT)]), 0)
         self.assertEqual(bsn.OUT.read_text(encoding="utf-8"), before,
                          "витрина переписана раньше срока — такт держится не файлом")
 

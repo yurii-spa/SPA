@@ -193,7 +193,7 @@ CONTRACT: list[dict] = [
      "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
     {"path": "truth.product.backlog", "source": "company_truth.product_backlog ← tracker cards (declared domain/tags)",
      "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "safe_text on titles", "mobile": True, "alert": False},
-    {"path": "truth.product.next_release", "source": "company_truth.product_next_release ← landing/src/data/site_numbers.json.next_publication",
+    {"path": "truth.product.next_release", "source": "company_truth.product_next_release ← spa_core/publication/cadence.py over the PUBLISHED site_numbers.json (ADR-630)",
      "stale_after_min": None, "unknown": "NOT_MEASURED", "redaction": "-", "mobile": True, "alert": False},
 ]
 

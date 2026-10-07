@@ -45,6 +45,8 @@ PRODUCES = (
 )
 
 _ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:  # launched by path (ADR-148 class): the cadence rule lives in spa_core
+    sys.path.insert(0, str(_ROOT))
 #: Место снимка ВНУТРИ репозитория. Вынесено отдельно от `_SNAP` не для красоты:
 #: публикация идёт из свежей копии (ADR-098), и адрес файла в НЕЙ — это факт репозитория,
 #: а не свойство того, куда сейчас показывает `_SNAP`.
@@ -405,7 +407,8 @@ def api_headline(golive, facts, equity_chain):
 # ─────────────────────────────── the pure evaluator ───────────────────────────────
 def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier_sha, pin_sha,
              now, prev_report=None, site_numbers=None, shelf_fetch_leg=None,
-             local_site_numbers=None):
+             local_site_numbers=None, published_snapshot=None, published_snapshot_leg=None,
+             published_shelf=None, published_shelf_leg=None):
     """Pure Site-Custodian evaluation. Returns the report dict. No I/O.
 
     ``site_numbers`` — ВИТРИНА (`landing/src/data/site_numbers.json`), И С ADR-580 (C12,
@@ -491,6 +494,23 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         fail("MISSING_ASOF", "snapshot has no parseable as_of")
     elif snap_age > STALE_HOURS:
         fail("STALE_SNAPSHOT", f"snapshot as_of {snap.get('as_of')} is {snap_age:.1f}h old (> {STALE_HOURS}h)")
+
+    # 1b. ADR-630: freshness of what is PUBLISHED, not of the local regenerated copy. The local snapshot
+    #     is rewritten daily on the Mac even when its push is refused (owner gate, 07.10), so its age said
+    #     «23 h, OK» while origin — what Cloudflare builds — was stuck since 10-02. ALERT only: this check
+    #     never triggers the degrade path (degrading is itself a public change).
+    pub_snap_age = None
+    if isinstance(published_snapshot, dict):
+        pub_snap_age = _hours_since(published_snapshot.get("as_of"), now)
+        if pub_snap_age is None:
+            fail("PUBLISHED_SNAPSHOT_STALE", "published (origin) snapshot has no parseable as_of — NOT MEASURED")
+        elif pub_snap_age > STALE_HOURS:
+            fail("PUBLISHED_SNAPSHOT_STALE",
+                 f"published (origin) snapshot as_of {published_snapshot.get('as_of')} is {pub_snap_age:.1f}h old "
+                 f"(> {STALE_HOURS}h) while the local one is {snap_age if snap_age is None else round(snap_age, 1)}h — "
+                 f"the daily push is not reaching origin")
+    # not measured (git/network) is RECORDED (`published_snapshot_leg`), not paged: a fetch hiccup is not
+    # a publication incident (review 07.10, P2). «Not measured» is never reported as «fresh» either.
 
     # 2. API last-bar freshness
     api_age = _hours_since(apih.get("last_bar"), now)
@@ -717,32 +737,63 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     #     сайт годами показывал бы одно и то же число, а все сверки были бы зелёными.
     #     Поэтому вопрос задаётся отдельно и СВОИМ операндом: сроком, который витрина
     #     объявила сама (`next_publication`). Срок решает ФАЙЛ, а не расписание запуска.
-    # Операнд — ПРОД-ЛОКАЛЬНАЯ копия (`local_shelf`), не origin: вопрос здесь «сделал ли
-    # ПРОИЗВОДИТЕЛЬ свою работу в срок», а `build_site_numbers.py` пишет на диск прод-дерева,
-    # не на origin. Спрашивать это у origin смешало бы «не произвела» с «не доставлена» —
-    # ровно те два разных вопроса, которые C12 (ADR-580) требует различать.
-    local_shelf_as_of = local_shelf.get("measured_at") or None
-    local_shelf_leg = ("measured" if (local_shelf and local_shelf_as_of)
-                       else "unmeasured:no_shelf_file" if not local_shelf
-                       else "unmeasured:shelf_has_no_measured_at")
-    shelf_next = local_shelf.get("next_publication") or None
-    shelf_overdue_days = _days_between(shelf_next, now.strftime("%Y-%m-%d"))
-    if local_shelf_leg != "measured":
-        shelf_cadence_leg = local_shelf_leg    # уже несёт префикс `unmeasured:` и свою причину
-    elif not shelf_next:
-        shelf_cadence_leg = "unmeasured:shelf_declares_no_next_publication"
-    elif shelf_overdue_days is None:
-        shelf_cadence_leg = f"unmeasured:next_publication_unparseable:{shelf_next}"
+    # ADR-630 (PRODUCT-TRUTH-02): срок публикации — ОДНО правило (`spa_core/publication/cadence.py`)
+    # над ОПУБЛИКОВАННОЙ витриной (origin, её и строит Cloudflare Pages). До ADR-630 операндом была
+    # прод-локальная копия, и собранная 05.10, но НЕ доставленная витрина давала «следующая 10-12»,
+    # пока сайт и Director честно говорили «10-08». Прод-локальная копия остаётся вторым операндом —
+    # но только чтобы НАЗВАТЬ «собрано, не доставлено» (это дверь владельца, предмет №2), а не
+    # чтобы подменить им срок.
+    from spa_core.publication import cadence as _cadence  # noqa: E402 — ленивый импорт: монитор зовётся как скрипт
+    # ONE operand for the date (review 07.10): `run()` passes the shared resolver's copy
+    # (`cadence.read_published`, the origin mirror) — the same file the builder and Director read. Scenes
+    # that pass no resolver leg keep the origin shelf (`site_numbers`) as before.
+    if published_shelf_leg is not None:
+        cad_shelf = published_shelf if isinstance(published_shelf, dict) else None
+        cad_leg = published_shelf_leg
     else:
-        shelf_cadence_leg = "measured"
+        cad_shelf = shelf if shelf else None
+        cad_leg = shelf_leg if str(shelf_leg).startswith("unmeasured:") else "unmeasured:published_shelf_unreadable"
+    local_shelf_as_of = local_shelf.get("measured_at") or None
+    if not cad_shelf:
+        shelf_cadence_leg = cad_leg if str(cad_leg).startswith("unmeasured:") else "unmeasured:published_shelf_unreadable"
+        shelf_next = None
+    elif not cad_shelf.get("measured_at"):
+        shelf_cadence_leg = "unmeasured:shelf_has_no_measured_at"
+        shelf_next = cad_shelf.get("next_publication") or None
+    else:
+        shelf_next = cad_shelf.get("next_publication") or None
+        if not shelf_next:
+            shelf_cadence_leg = "unmeasured:shelf_declares_no_next_publication"
+        elif _days_between(shelf_next, now.strftime("%Y-%m-%d")) is None:
+            shelf_cadence_leg = f"unmeasured:next_publication_unparseable:{shelf_next}"
+        else:
+            shelf_cadence_leg = "measured"
+            rule = _cadence.next_publication(_cadence.published_at(cad_shelf))
+            if rule is not None and rule != shelf_next:
+                fail("CADENCE_CONFLICT",
+                     f"витрина объявляет next_publication={shelf_next}, единое правило даёт {rule} "
+                     f"(published_at={cad_shelf.get('published_at')} + {_cadence.CADENCE_DAYS} дн, ADR-630)")
+    shelf_overdue_days = (_days_between(shelf_next, now.strftime("%Y-%m-%d"))
+                          if shelf_cadence_leg == "measured" else None)
+    local_pub = _cadence.published_at(local_shelf) if local_site_numbers is not None else None
+    origin_pub = _cadence.published_at(cad_shelf) if cad_shelf else None
+    built_not_delivered = _cadence.built_not_delivered(local_shelf if local_site_numbers is not None else None,
+                                                       cad_shelf)
     if shelf_cadence_leg == "measured" and shelf_overdue_days >= SHELF_OVERDUE_FAIL_DAYS:
         crit = shelf_overdue_days >= SHELF_OVERDUE_CRITICAL_DAYS
-        fail("SHELF_OVERDUE",
-             f"витрина просрочила свой же такт на {shelf_overdue_days} дн: объявлено "
-             f"next_publication={shelf_next}, замер всё ещё {local_shelf_as_of}. Лекарство ВНУТРИ "
-             f"репозитория — `scripts/build_site_numbers.py`; Cloudflare тут ни при чём "
-             f"(публичные числа = предмет №2, ADR-285)",
-             severity="CRITICAL" if crit else "FAIL")
+        if built_not_delivered:
+            fail("SHELF_NOT_DELIVERED",
+                 f"витрина собрана на Маке (опубликовать от {local_pub}), но на origin всё ещё "
+                 f"{origin_pub}: срок {shelf_next} прошёл {shelf_overdue_days} дн назад. Доставка "
+                 f"публичных чисел — ворота владельца (предмет №2, ADR-285/630), Cloudflare ни при чём",
+                 severity="CRITICAL" if crit else "FAIL")
+        else:
+            fail("SHELF_OVERDUE",
+                 f"витрина просрочила свой же такт на {shelf_overdue_days} дн: объявлено "
+                 f"next_publication={shelf_next}, замер всё ещё {cad_shelf.get('measured_at')}. Лекарство ВНУТРИ "
+                 f"репозитория — `scripts/build_site_numbers.py`; Cloudflare тут ни при чём "
+                 f"(публичные числа = предмет №2, ADR-285)",
+                 severity="CRITICAL" if crit else "FAIL")
     elif shelf_cadence_leg != "measured":
         fail("SHELF_OVERDUE",
              f"такт витрины НЕ ИЗМЕРЕН ({shelf_cadence_leg}) — «не измерено» не выдаётся за «в такте»")
@@ -796,6 +847,8 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "fails": fails,
         "n_fails": len(fails),
         "snapshot_age_h": round(snap_age, 2) if snap_age is not None else None,
+        "published_snapshot_age_h": round(pub_snap_age, 2) if pub_snap_age is not None else None,
+        "published_snapshot_leg": ("measured" if isinstance(published_snapshot, dict) else published_snapshot_leg),
         "api_age_h": round(api_age, 2) if api_age is not None else None,
         "stale_48h": stale_48,
         "site_as_of": site_as_of,                    # дата, которую читает ПОСЕТИТЕЛЬ (самая старая из страниц)
@@ -804,7 +857,10 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "publisher_leg": publisher_leg,              # measured | unmeasured:<причина>
         "shelf_as_of": shelf_as_of,                  # замер, который витрина ОБЕЩАЕТ посетителю
         "shelf_leg": shelf_leg,                      # measured | unmeasured:<причина> — витрина прочитана или нет
-        "shelf_next_publication": shelf_next,        # срок, объявленный самой витриной
+        "shelf_next_publication": shelf_next,        # срок ОПУБЛИКОВАННОЙ витрины (ADR-630: одно правило)
+        "local_shelf_published_at": local_pub,
+        "cadence_operand_leg": (published_shelf_leg if published_shelf_leg is not None else "origin_fetch"),       # собранная на Маке, ещё не доставленная — только для называния
+        "shelf_built_not_delivered": built_not_delivered,
         "shelf_overdue_days": shelf_overdue_days,    # просрочка такта в днях; None — не измерено
         "shelf_cadence_leg": shelf_cadence_leg,      # measured | unmeasured:<причина>
         "publisher_stuck": publisher_stuck,          # публикатор не публикует > PUBLISH_LAG_HOURS
@@ -1775,6 +1831,9 @@ def run():
     # доставлять). Третий исход назван явно — `shelf_fetch_leg` — а не растворён в
     # пустом ``site_numbers``.
     site_numbers, shelf_fetch_leg = _origin_shelf_json(_ROOT, _SHELF_REL)
+    published_snapshot, published_snapshot_leg = _origin_shelf_json(_ROOT, _SNAP_REL)
+    from spa_core.publication import cadence as _cadence
+    published_shelf, published_shelf_leg = _cadence.read_published()
     if site_numbers is None:
         print(f"site_freshness_monitor: origin-витрина не прочитана ({shelf_fetch_leg})",
               file=sys.stderr)
@@ -1803,7 +1862,9 @@ def run():
     report = evaluate(snapshot=snapshot, home_html=home_html, track_html=track_html, api=api,
                       sitemap_statuses=sitemap_statuses, verifier_sha=verifier_sha, pin_sha=pin,
                       now=now, prev_report=prev, site_numbers=site_numbers,
-                      shelf_fetch_leg=shelf_fetch_leg, local_site_numbers=local_site_numbers)
+                      shelf_fetch_leg=shelf_fetch_leg, local_site_numbers=local_site_numbers,
+                      published_snapshot=published_snapshot, published_snapshot_leg=published_snapshot_leg,
+                      published_shelf=published_shelf, published_shelf_leg=published_shelf_leg)
     # C12 (ADR-580): PUBLISHER_STUCK — edge-triggered, БЕЗУСЛОВНО (и когда стоит, и
     # когда отпустило) — ``resolve()`` сам решает, слать ли «✅ RESOLVED», опрашивая
     # СВОЙ durable state; молчаливый no-op на «уже было ok» здесь норма, не брешь.

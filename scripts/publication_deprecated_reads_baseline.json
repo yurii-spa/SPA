@@ -1,0 +1,10 @@
+{
+ "_note": "PRODUCT-TRUTH-02 (ADR-630): every OCCURRENCE (file + normalised line) of a landing page reading a 1-day / untyped rate under a mature label, measured 2026-10-07. May only SHRINK — fixing them is the owner publication gate; adding an entry to silence a new offender is forbidden (inv. #16).",
+ "offenders": [
+  "landing/src/components/CockpitDashboard.jsx :: const blendedApy = P.apy_pct ?? P.apy_today_pct_annualized ?? null; (a rate falls back to the 1-day apy_today_pct (shown under the mature label))",
+  "landing/src/components/DashboardSPAApp.jsx :: const apy = facts?.paper_apy_pct ?? facts?.apy_today_pct ?? null; (a rate falls back to the 1-day apy_today_pct (shown under the mature label))",
+  "landing/src/pages/admin/system-health.astro :: set('s-apy',d.ytd_apy_pct!=null?'~'+Number(d.ytd_apy_pct).toFixed(1)+'%':'—'); (ytd_apy_pct (1-day observation) read by a page)",
+  "landing/src/pages/index.astro :: var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null; (ytd_apy_pct (1-day observation) read by a page)",
+  "landing/src/pages/track-record.astro :: var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null; (ytd_apy_pct (1-day observation) read by a page)"
+ ]
+}

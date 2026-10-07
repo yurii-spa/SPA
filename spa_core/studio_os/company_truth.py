@@ -1279,15 +1279,35 @@ def product_website_health(publication_scope: Optional[dict], site_doc: Optional
     return tile_product(publication_scope, site_doc)
 
 
-def product_profiles(books: dict) -> dict:
+def product_profiles(books: dict, mirror: Optional[Path] = None) -> dict:
     """``renderProfiles`` reads ``profiles[conservative|balanced|aggressive]`` as a CELL with the
     same raw ``rate_ru``/``dd_ru``/``accumulating_days`` shape as ``capital.defi.books`` — it IS
-    that data, shown under the Продукт tab, not a second computation over the same canons."""
+    that data, shown under the Продукт tab, not a second computation over the same canons.
+
+    ADR-630: each profile also carries its PUBLIC ↔ INTERNAL mapping (``mapping``) from the ONE rule
+    `spa_core/publication/product_map.py`, computed over the PUBLISHED snapshot (mirror = origin) —
+    the public name, the historical name (no history attributed to it), the internal book, the track
+    start, maturity and the decisions. A conflicting mapping is shown as UNKNOWN with its reason."""
     canon = "package_status.public_view + landing/src/lib/tier_bands.json"
     if not books:
-        return {k: unknown(canon, "REALIZED_PAPER", "Профиль не прочитан") for k in
+        out = {k: unknown(canon, "REALIZED_PAPER", "Профиль не прочитан") for k in
                ("conservative", "balanced", "aggressive")}
-    return dict(books)
+    else:
+        out = {k: (dict(v) if isinstance(v, dict) else v) for k, v in books.items()}
+    if mirror is not None:
+        from spa_core.publication import product_map as _pmap
+        snap = _read_json(Path(mirror) / "landing" / "src" / "data" / "track_snapshot.json")
+        bands = _read_json(Path(mirror) / "landing" / "src" / "lib" / "tier_bands.json")
+        rows = _pmap.build((snap or {}).get("package_status") if isinstance(snap, dict) else None,
+                           evidenced_anchor=(snap or {}).get("evidenced_anchor") if isinstance(snap, dict) else None,
+                           tier_bands=bands if isinstance(bands, dict) else None)
+        bad = _pmap.conflicts(rows)
+        for r in rows:
+            cellv = out.get(r["profile"])
+            if isinstance(cellv, dict):
+                cellv["mapping"] = (r if not bad else
+                                    {"state": "UNKNOWN", "reason": "сопоставление противоречиво: " + "; ".join(bad)})
+    return out
 
 
 #: label + metric_type per ``site_numbers.json`` headline key — the file itself carries no RU/EN
@@ -1373,22 +1393,31 @@ def product_backlog(cards: Optional[dict]) -> dict:
 
 
 def product_next_release(mirror: Path) -> dict:
-    canon = "landing/src/data/site_numbers.json (next_publication)"
+    """ADR-630: the date comes from the ONE cadence rule (`spa_core/publication/cadence.py`) over the
+    PUBLISHED shelf (mirror = origin), not from whatever the file declares — the monitor, the shelf
+    builder and this cell give the same date for the same input."""
+    from spa_core.publication import cadence as _cadence
+    canon = "spa_core/publication/cadence.py ← landing/src/data/site_numbers.json (published_at, origin)"
     doc = _read_json(Path(mirror) / "landing" / "src" / "data" / "site_numbers.json")
-    if doc is None or not doc.get("next_publication"):
+    st = _cadence.status(doc if isinstance(doc, dict) else None)
+    if doc is None or not st["measured"]:
         return unknown(canon, "TIMESTAMP", "Дата следующей публикации не записана")
-    nxt = doc["next_publication"]
-    return cell(value={"next_publication": nxt}, display_ru=None, display_en=None, metric_type="TIMESTAMP",
-               state=MEASURED, as_of=nxt, canon=canon, fresh=freshness(None, None, "n/a"),
+    nxt = st["next_publication"]
+    gate = st.get("declared_conflict")
+    return cell(value={"next_publication": nxt, "published_at": st["published_at"], "rule": _cadence.CADENCE},
+               display_ru=None, display_en=None, metric_type="TIMESTAMP",
+               state=MEASURED, as_of=st["published_at"], canon=canon, fresh=freshness(None, None, "n/a"),
                unknown_ru="Дата следующей публикации не записана",
-               date_ru=nxt, date_en=nxt, gate_ru=None, gate_en=None)
+               date_ru=nxt, date_en=nxt,
+               gate_ru=(f"витрина объявляет другую дату — {gate}" if gate else None),
+               gate_en=(gate if gate else None))
 
 
 def product_cards(*, mirror: Path, defi_books: dict, publication_scope: Optional[dict],
                   data_dir: Path, now: datetime, cards: Optional[dict], site_doc: Optional[dict] = None) -> dict:
     return {"public_release": product_public_release(mirror),
            "website_health": product_website_health(publication_scope, site_doc),
-           "profiles": product_profiles(defi_books), "public_metrics": product_public_metrics(mirror),
+           "profiles": product_profiles(defi_books, mirror), "public_metrics": product_public_metrics(mirror),
            "truth_incidents": product_truth_incidents(data_dir, now), "backlog": product_backlog(cards),
            "next_release": product_next_release(mirror)}
 

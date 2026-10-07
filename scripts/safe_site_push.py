@@ -293,7 +293,8 @@ def _card_title(blocked: list[str]) -> str:
             f"нужно решение")
 
 
-def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> bool:
+def _route_to_owner_card(site_files: list[str], report: dict, message: str,
+                         extra_lines: "list[str] | None" = None) -> bool:
     """Create a needs-owner card for the blocked change and notify (best-effort).
 
     Карточка несёт `approves:` — ТОЧНЫЙ перечень файлов, которые гейт заблокировал.
@@ -345,6 +346,8 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> b
     for v in violations[:20]:
         lines.append(f"  - [{v.get('klass')}] {v.get('file')} · {v.get('rule')} · "
                      f"{v.get('matched_text', '')[:120]}")
+    if extra_lines:
+        lines += [""] + list(extra_lines)
     lines += [
         "",
         "## Как понять, что готово",
@@ -421,6 +424,59 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> b
     return True
 
 
+_SHELF_REL = "landing/src/data/site_numbers.json"
+_VERIFY = _REPO_ROOT / "scripts" / "verify_publication.py"
+
+
+def _find_publication_approval(shelf: Path) -> "str | None":
+    """An owner-closed card that names THIS shelf (path + published_at + sha256), or None — the ONE
+    lookup in `verify_publication.find_approval` (also used by both pushers and the publisher)."""
+    try:
+        import hashlib
+        import importlib.util as _u
+        spec = _u.spec_from_file_location("_vp_ssp", _VERIFY)
+        vp = _u.module_from_spec(spec)
+        spec.loader.exec_module(vp)
+        doc = json.loads(shelf.read_text(encoding="utf-8"))
+        return vp.find_approval(doc, hashlib.sha256(shelf.read_bytes()).hexdigest())
+    except Exception:  # noqa: BLE001 — no approval found is the fail-closed answer
+        return None
+
+
+def _verify_publication(shelf: Path) -> tuple[int, dict]:
+    """ADR-630: the shelf may reach origin only through the publication gate. Pages are not scanned here
+    (their ratchet lives in the test suite); the SHELF is judged. Returns (outcome, result)."""
+    approval = _find_publication_approval(shelf)
+    cmd = [sys.executable, str(_VERIFY), "--shelf", str(shelf), "--pages", "", "--json"]
+    if approval:
+        cmd += ["--approval", approval]
+    try:
+        cp = subprocess.run(cmd, cwd=str(_REPO_ROOT), capture_output=True, text=True, timeout=180)
+        res = json.loads(cp.stdout)
+        return int(res.get("outcome", 2)), res
+    except Exception as exc:  # noqa: BLE001 — a gate that did not answer is NOT a pass
+        return 2, {"outcome": 2, "reason": f"verify_publication did not answer ({type(exc).__name__})",
+                   "findings": []}
+
+
+def _publication_card_lines(shelf: Path, res: dict) -> list[str]:
+    import hashlib
+    try:
+        doc = json.loads(shelf.read_text(encoding="utf-8"))
+        line = (f"publication-approves: {_SHELF_REL} {doc.get('published_at')} "
+                f"sha256:{hashlib.sha256(shelf.read_bytes()).hexdigest()}")
+    except Exception:  # noqa: BLE001
+        line = None
+    out = ["Ворота публикации (ADR-630) не пропустили витрину чисел сайта:"]
+    if res.get("reason"):
+        out.append(f"- НЕ ИЗМЕРЕНО: {res['reason']}")
+    out += [f"- {f}" for f in (res.get("findings") or [])[:20]]
+    if line:
+        out += ["", "Одобрение относится ровно к этой витрине (строка ниже — её отпечаток; другую "
+                "витрину оно не пропустит):", "", line]
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Guarded site push (owner-gate + card routing).")
     ap.add_argument("--files", nargs="+", required=True)
@@ -439,6 +495,22 @@ def main(argv: list[str] | None = None) -> int:
 
     files = [str(Path(f)) for f in args.files]
     site_files = [f for f in files if "landing/" in f.replace("\\", "/")]
+
+    shelf_files = [f for f in site_files if f.replace("\\", "/").endswith(_SHELF_REL)]
+    if shelf_files:
+        shelf = Path(shelf_files[0])
+        shelf = shelf if shelf.is_absolute() else (_REPO_ROOT / shelf)
+        outcome, res = _verify_publication(shelf)
+        if outcome != 0:
+            verdict = "NOT MEASURED" if outcome == 2 else "FAIL"
+            print(f"safe_site_push: publication gate {verdict} for {_SHELF_REL} — NOT pushing.",
+                  file=sys.stderr)
+            findings = list(res.get("findings") or []) or [str(res.get("reason") or "not measured")]
+            report = {"violations": [{"file": _SHELF_REL, "klass": "P", "rule": "publication.gate",
+                                      "matched_text": f} for f in findings[:20]]}
+            _route_to_owner_card(site_files, report, args.message,
+                                 extra_lines=_publication_card_lines(shelf, res))
+            return 2
 
     if site_files:
         rc, report = _run_guard(site_files, args.message)

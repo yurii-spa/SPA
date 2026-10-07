@@ -201,12 +201,14 @@ class TheHandAndTheProducerAnswerWithOneRule(_Stand):
     def test_the_cli_prints_the_reason_the_producer_returned(self):
         today = str(json.loads(self.shelf.read_text(encoding="utf-8"))["published_at"])
 
-        outcome = bsn.run(published_at=today, if_due=True)
+        # ADR-630: операнд срока — ОПУБЛИКОВАННАЯ витрина, и он называется явно (здесь — та же копия);
+        # неявный откат на локальный файл снят: на CI без зеркала он судил бы о сроке по неотгруженному.
+        outcome = bsn.run(published_at=today, if_due=True, published=self.shelf)
         self.assertFalse(outcome["published"], "витрина опубликована в день публикации")
 
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            code = bsn.main(["--if-due", "--published-at", today])
+            code = bsn.main(["--if-due", "--published-at", today, "--published", str(self.shelf)])
         self.assertEqual(code, 0)
         self.assertIn(outcome["reason"], buf.getvalue())
         self.assertEqual(self.shelf.read_bytes(), self.live,

@@ -2732,6 +2732,20 @@ def main():
     # have passed the owner-gate guard via scripts/safe_site_push.py (which sets
     # SPA_SITE_PUSH_VERIFIED=1). If not, re-run the guard here and FAIL CLOSED. Attended
     # sessions and the deterministic custodian run WITHOUT SPA_AUTONOMOUS → unaffected.
+    # ── PUBLICATION GATE (ADR-630) — ANY context: the shelf of public numbers never leaves unverified.
+    #    safe_site_push.py runs the same gate and marks SPA_SITE_PUSH_VERIFIED=1; a direct push is checked here.
+    if not args.dry_run and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1":
+        _shelf = [f for f in all_files
+                  if str(f).replace("\\", "/").endswith("landing/src/data/site_numbers.json")]
+        if _shelf:
+            _vp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "verify_publication.py")
+            _vrc = subprocess.run([sys.executable, _vp, "--shelf", str(_shelf[0]), "--pages", "",
+                                   "--find-approval"]).returncode
+            if _vrc != 0:
+                print(f"BLOCKED (publication gate rc={_vrc}): the site-numbers shelf goes public only "
+                      f"through scripts/safe_site_push.py with an owner approval. Not pushing.", file=sys.stderr)
+                sys.exit(3)
+
     if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
             and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):
         _site = [f for f in all_files if "landing/" in str(f).replace("\\", "/")]
