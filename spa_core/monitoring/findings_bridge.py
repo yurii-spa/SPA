@@ -277,6 +277,13 @@ PRODUCES = (
     # не ходит, поэтому порядка относительно других ступеней у неё нет. Цена
     # ИЗМЕРЕНА — чтение одного JSON плюс разбор модуля кустодиана.
     "data/declared_source_live_parity.json",
+    # Ступень G103 п. 2 (ADR-620): тот же вопрос, заданный ВСЕМ читателям
+    # чужой разметки, а не одному кустодиану. Ступень в сеть НЕ ходит —
+    # оракулом ей служит само дерево, — поэтому порядка относительно других
+    # ступеней у неё нет. Цена ИЗМЕРЕНА — 87 с (разбор ~5 000 модулей плюс
+    # обход ~2 700 файлов разметки одним проходом); SLO 24ч, по такту
+    # дерева: реестр личностей меняется пушем, а не часами.
+    "data/foreign_markup_reader_census.json",
     # Ступень G98 п. 2 (ADR-566): стык двух осей — читателя и писателя — у
     # ОСТАЛЬНЫХ открытых счётчиков, которых шаг достижимости не спрашивал.
     # Цена ИЗМЕРЕНА — 24.8 с (три соседских обхода одним проходом дерева);
@@ -449,6 +456,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unknown_class_in_the_artifact",
     "reachability_of_the_rest",
     "declared_source_live_parity",
+    "foreign_markup_reader_census",
     "book_oscillation_census",
     "keep_dominance_census",
     "policy_binding_census",
@@ -732,6 +740,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "declared_source_live_parity": {
         "module": "spa_core/monitoring/declared_source_live_parity.py",
         "artifact": "data/declared_source_live_parity.json"},
+    "foreign_markup_reader_census": {
+        "module": "spa_core/monitoring/foreign_markup_reader_census.py",
+        "artifact": "data/foreign_markup_reader_census.json"},
     "book_oscillation_census": {
         "module": "spa_core/monitoring/book_oscillation_census.py",
         "artifact": "data/book_oscillation_census.json"},
@@ -2959,6 +2970,32 @@ def main(argv=None) -> int:
                   f"{_dslp['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "declared_source_live_parity", e)
+
+    # Ступень G103 п. 2 (ADR-620): КЛАСС ШИРЕ КУСТОДИАНА. Сосед выше спросил
+    # верность ОДНОГО реестра у живой страницы; эта ступень спрашивает ту же
+    # претензию у ВСЕХ читателей дерева, которые ищут конкретную личность
+    # элемента в разметке, которую пишет кто-то другой. Оракул — дерево, не
+    # сеть, поэтому порядка относительно соседних ступеней у неё нет.
+    # Заголовочное число — претензий, не подтверждённых ничем, кроме себя;
+    # рядом, и НЕ складываясь с ним, — остаток «происхождение стога не
+    # свёрнуто», который в класс не зачтён.
+    try:
+        from spa_core.monitoring import foreign_markup_reader_census
+        _fmrc = foreign_markup_reader_census.run(root=args.root)
+        if _fmrc.get("measured"):
+            _uns = observed_number(_fmrc["doc"], "unsupported")
+            _rem = observed_number(_fmrc["doc"], "origin_unresolved")
+            print(f"foreign_markup_reader_census: "
+                  f"{_fmrc['doc'].get('status')} — претензий к чужой "
+                  f"разметке, не подтверждённых ничем кроме себя, "
+                  f"{'НЕ ИЗМЕРЕНО' if _uns is None else int(_uns)}; "
+                  f"остаток «происхождение стога не свёрнуто» "
+                  f"{'НЕ ИЗМЕРЕНО' if _rem is None else int(_rem)}")
+        else:
+            print(f"foreign_markup_reader_census: НЕ ИЗМЕРЕНО — "
+                  f"{_fmrc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "foreign_markup_reader_census", e)
 
     # Ступень §49 `Anti-churn` приказа CIO (ADR-480): прыгала ли книга между
     # одними и теми же opportunities. Читает журнал ходов и ничего не чинит;

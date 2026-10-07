@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-07T02:56:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-07T05:09:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9b482969c).
+> Сверено с `origin/main` (b58f63b1c) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1253** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1254** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -403,7 +403,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (659)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (660)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -942,6 +942,7 @@
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
 - Одиннадцать агентов обходят существующее поле governed_by: их ADR лежит в заметке, где его не читает никто  ·  `inbox-odinnadtsat-agentov-obhodyat-suschestvuy.md` · 2026-10-03
 - Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос  ·  `inbox-ofis-zovet-artefakt-prochitannym-vholost.md` · 2026-10-05
+- Охрана честности дашборда не переехала на каноническую /dashboard — 8 проверок (18 утверждений) не исполняются ни разу  ·  `inbox-ohrana-chestnosti-dashborda-ne-pereehala.md` · 2026-10-07
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - origin/main красен ещё восемью тестами: три из них — сторожа сторожей, и их вердикты недействительны  ·  `inbox-origin-main-krasen-esche-vosemyu-testami.md` · 2026-10-07
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08

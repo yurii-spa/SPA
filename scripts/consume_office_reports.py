@@ -884,6 +884,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
         "refuted_loudly", "ambiguous_duplicate_ids",
         "record_names_a_source_the_registry_no_longer_declares",
         "operand_age_hours", "rows", "what_it_does_not_prove"),
+    # Заказ G103 п. 2 (ADR-620). Обязательны ОБА числа вреда по отдельности
+    # («нигде в дереве» и «только своя сцена») — слить их значило бы потерять,
+    # что у второго подтверждение ЕСТЬ и оно поддельное, — И остаток
+    # `origin_unresolved`, который в класс НЕ зачтён: молчание о нём читалось
+    # бы как чистота.
+    "foreign_markup_reader_census.json": (
+        "status", "invoked_by", "order", "population", "foreign_population",
+        "judged", "unsupported", "refuted", "echoed_by_own_scene",
+        "origin_unresolved", "parity_outcomes", "identity_outcomes",
+        "loudness_outcomes", "behind_a_module_level_skip",
+        "enumerators_out_of_class", "oracle_own_scene_files_excluded",
+        "readers", "refuted_rows", "rows", "what_it_does_not_prove"),
     "unknown_class_in_the_artifact.json": (
         "status", "invoked_by", "order", "population",
         "published_population", "outcomes", "unmeasured_reasons",
@@ -1226,6 +1238,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/reachability_of_the_rest.py",
     "declared_source_live_parity.json":
         "spa_core/monitoring/declared_source_live_parity.py",
+    "foreign_markup_reader_census.json":
+        "spa_core/monitoring/foreign_markup_reader_census.py",
     "book_oscillation_census.json":
         "spa_core/monitoring/book_oscillation_census.py",
     "keep_dominance_census.json":
@@ -3230,6 +3244,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.declared_source_live_parity import format_report as _dslp_report
         out.extend(_dslp_report(data))
+    elif name == "foreign_markup_reader_census.json":
+        # Заказ G103 п. 2 (ADR-620). Без этой ветки артефакт читается
+        # ВХОЛОСТУЮ. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз
+        # ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы двух форм).
+        from spa_core.monitoring.foreign_markup_reader_census import format_report as _fmrc_report
+        out.extend(_fmrc_report(data))
     elif name == "book_oscillation_census.json":
         # Критерий §49 `Anti-churn` приказа CIO (ADR-480). Без этой ветки
         # артефакт читается ВХОЛОСТУЮ. Правило отрисовки делегируется
