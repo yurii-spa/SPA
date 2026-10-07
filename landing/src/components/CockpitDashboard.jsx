@@ -244,7 +244,7 @@ export default function CockpitDashboard() {
     : (P.current_equity != null ? Number(P.current_equity) : null);
   const dayPnlUsd = P.daily_yield_usd ?? P.day_pnl_usd ?? null;
   const totalReturn = P.total_return_pct;
-  const blendedApy = P.apy_pct ?? P.apy_today_pct_annualized ?? null;
+  const blendedApy = P.apy_pct ?? null; // PRODUCT-TRUTH-02: no fallback to the 1-day rate under the «Blended APY 30d» label
 
   // aggregate delta — β-weighted directional exposure. The desk targets ~0 (market neutral).
   // We surface it from the strategy list's β where available; UNKNOWN otherwise (never faked 0).

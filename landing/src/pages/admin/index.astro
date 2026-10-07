@@ -8,9 +8,14 @@ import Layout from '../../layouts/Layout.astro';
 import snap from '../../lib/snapshot_view.js';
 
 const days = snap.real_track_days ?? '—';
-const apy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
+import { publishedRateFigure } from '../../lib/realized_rate.js';
+const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
+const apy = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
 const gates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
-const dd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+import { drawdownMagnitudeText as _ddMag } from '../../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
+const _ddm = _ddMag(snap.max_drawdown_pct);
+const dd = _ddm == null ? '—' : (Number(_ddm) > 0 ? '−' : '') + _ddm + '%';
 
 // Snapshot freshness (operator monitoring — the build no longer BLOCKS on staleness, so surface it
 // here instead). Computed at build time from as_of vs build date; > 2 days = stale.

@@ -96,12 +96,38 @@ export function evidencedDays(_ignoredSnap) {
  * so the zero is a property of the model, not measured resilience. Saying "0.0% drawdown"
  * alone reads as "we have never lost money" — which the number does not support.
  */
+/** |drawdown| as text, rounded AWAY from zero (2 decimals under 1 %, else 1) — never «0.0» for a loss. */
+export function drawdownMagnitudeText(dd) {
+  const m = Math.abs(Number(dd));
+  if (!Number.isFinite(m)) return null;
+  const d = m < 1 ? 2 : 1;
+  const f = Math.pow(10, d);
+  return (Math.ceil(m * f - 1e-9) / f).toFixed(d);
+}
+
 export function drawdownPhrase(_ignoredSnap, ru = false) {
   const dd = Number(NUMBERS && NUMBERS.headline && NUMBERS.headline.drawdown
                     && NUMBERS.headline.drawdown.value);
   if (!Number.isFinite(dd)) return ru ? 'наблюдавшаяся просадка не измерена' : 'observed drawdown not measured';
-  const shown = Math.abs(dd).toFixed(1);
+  // PRODUCT-TRUTH-02: a drawdown is never rounded toward zero — «0.0%» hid a measured −0.04 %.
+  // Magnitude rounded UP (the safe side for a loss), two decimals below 1 %.
+  const shown = drawdownMagnitudeText(dd);
   return ru
     ? `наблюдавшаяся просадка ${shown.replace('.', ',')}% — прошлое наблюдение, не предел убытка: кредитное начисление редко уходит в минус, а депег или сбой протокола в этой истории не встречались`
     : `observed drawdown ${shown}% — a past observation, not a loss limit: lending accrual rarely falls, and a depeg or protocol failure has not occurred in this history`;
+}
+
+/** Published track drawdown as «0.04%» / «0,04%» (magnitude, rounded away from zero), or null. */
+export function drawdownPctText(ru = false) {
+  const dd = NUMBERS && NUMBERS.headline && NUMBERS.headline.drawdown && NUMBERS.headline.drawdown.value;
+  const m = drawdownMagnitudeText(dd);
+  if (m == null) return null;
+  return (ru ? m.replace('.', ',') : m) + '%';
+}
+
+/** The ONE published realized rate as a typed figure for client code: {value (floored), as_of} or null. */
+export function publishedRateFigure() {
+  const v = realizedApyPct();
+  const f = floorTo(v, 1);
+  return f == null ? null : { value: f, as_of: measuredAt(), metric_type: 'REALIZED_PAPER' };
 }

@@ -148,7 +148,10 @@ function resultFor(key, p, ru) {
     return {
       main: ru ? 'Статистика текущей версии накапливается' : 'Statistics of the current version are accumulating',
       sub: (typeof n === 'number' && typeof need === 'number')
-        ? (ru ? `валидных дней: ${n} из ${need} — результат не публикуется до ${need}` : `${n} of ${need} valid days — no result is published before ${need}`)
+        // PRODUCT-TRUTH-02: the count carries its own date — the daily status and the weekly shelf
+        // run on different clocks, so an undated «1 of 30» next to a live «6» read as a contradiction.
+        ? (ru ? `валидных дней: ${n} из ${need}${h.last_period ? ` (по ${h.last_period})` : ''} — результат не публикуется до ${need}`
+              : `${n} of ${need} valid days${h.last_period ? ` (through ${h.last_period})` : ''} — no result is published before ${need}`)
         : (ru ? 'число валидных дней не измерено' : 'valid days not measured'),
       measured: false,
     };
@@ -280,8 +283,8 @@ export function cardModel(key, rec, nowMs, lang, ci) {
     costs: ru ? COSTS[key].ru : COSTS[key].en,
     history: { state: p.history && p.history.state,
       label: (ru ? hi.ru : hi.en) + ((p.history && typeof p.history.valid_periods === 'number' && typeof p.history.reportable_after === 'number')
-        ? (ru ? ` — валидных дней текущей версии: ${p.history.valid_periods} (отчёт с ${p.history.reportable_after})`
-              : ` — ${p.history.valid_periods} valid days of the current version (report from ${p.history.reportable_after})`)
+        ? (ru ? ` — валидных дней текущей версии: ${p.history.valid_periods}${p.history.last_period ? ` по ${p.history.last_period}` : ''} (отчёт с ${p.history.reportable_after})`
+              : ` — ${p.history.valid_periods} valid days of the current version${p.history.last_period ? ` through ${p.history.last_period}` : ''} (report from ${p.history.reportable_after})`)
         : ''),
       n: p.history && p.history.valid_periods, need: p.history && p.history.reportable_after,
       since: p.history && p.history.first_period, earlier: p.history && p.history.earlier_rows_kept },

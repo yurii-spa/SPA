@@ -28,8 +28,13 @@ const chartPoints = bars.filter((b) => b.evidenced === true || b.source === 'rec
 // P1-6: key metrics rendered STATICALLY from the snapshot so crawlers / no-JS see real numbers (not "—");
 // the JS island overrides them with live values from api.earn-defi.com.
 const eqTxt  = snap.end_equity != null ? '$' + Number(snap.end_equity).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
-const apyTxt = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
-const ddTxt  = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+import { publishedRateFigure } from '../lib/realized_rate.js';
+const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
+const apyTxt = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
+import { drawdownMagnitudeText as _ddMag } from '../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
+const _ddm = _ddMag(snap.max_drawdown_pct);
+const ddTxt = _ddm == null ? '—' : (Number(_ddm) > 0 ? '−' : '') + _ddm + '%';
 const navTxt = snap.nav_usd != null ? '$' + Number(snap.nav_usd).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
 // Site-Custodian kill-rule (ADR-YL-011): degraded => show a plaque instead of numbers (refusal-first).
 const degraded = snap.degraded === true;
@@ -122,7 +127,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
           <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">{apyTxt}</p>
-          <p class="text-xs text-white/50 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
+          <p class="text-xs text-white/50 mt-1" data-ru={`фактически на бумаге, годовых · замер ${snap.as_of ?? "—"} · переменный, не гарантирован`}>{`realized on paper, annualised · measured ${snap.as_of ?? "—"} · variable, not guaranteed`}</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
@@ -434,9 +439,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       function loadHealth(){
         fetch(API + '/api/health-public').then(function(r){ return r.json(); }).then(function(d){
           if(!d) return;
-          var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null;
-          setText('tr-apy', apy != null ? apy + '%' : '—');
-          setText('tr-dd', d.max_drawdown_pct != null ? Number(d.max_drawdown_pct).toFixed(2) + '%' : '—');
+          // PRODUCT-TRUTH-02: the rate/drawdown tiles keep the PUBLISHED weekly figures (shelf + its
+          // measurement date); no live browser overwrite (one rate per page, ADR-357 cadence).
         }).catch(function(){});
       }
 

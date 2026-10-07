@@ -16,11 +16,13 @@
 import Layout from '../layouts/Layout.astro';
 import DashboardSPAApp from '../components/DashboardSPAApp.jsx';
 import snap from '../lib/snapshot_view.js';
+import { publishedRateFigure } from '../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: ONE rate site-wide on the weekly cadence — the published shelf rate, floored, dated.
+const publishedRate = publishedRateFigure();
 
 // Build-time snapshot seed — live poll overrides immediately on hydration.
 const initialFacts = {
   nav_usd:        snap.nav_usd ?? snap.end_equity ?? null,
-  paper_apy_pct:  snap.paper_apy_pct ?? null,
   track_days:     snap.real_track_days ?? null,
   golive_passed:  snap.gates_passed ?? null,
   golive_total:   snap.gates_total ?? null,
@@ -48,5 +50,5 @@ const initialFacts = {
   </div>
 
   <!-- SPA island: one React root, manages its own sidebar+topbar+routing+KPI -->
-  <DashboardSPAApp client:load initialFacts={initialFacts} />
+  <DashboardSPAApp publishedRate={publishedRate} client:load initialFacts={initialFacts} />
 </Layout>

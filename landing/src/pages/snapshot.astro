@@ -10,7 +10,11 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
 import snap from '../lib/snapshot_view.js';
-import { realizedApyPct, realizedApyLabel } from '../lib/realized_rate.js';
+import { realizedApyPct, realizedApyLabel, drawdownMagnitudeText } from '../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: drawdown rendered from the shelf, rounded away from zero (was a typed «0.0%»).
+const ddMagEn = drawdownMagnitudeText(snap.max_drawdown_pct);
+const ddEn = ddMagEn == null ? 'drawdown not measured' : ddMagEn + '% drawdown';
+const ddRu = ddMagEn == null ? 'просадка не измерена' : ddMagEn.replace('.', ',') + '% просадки';
 const rrPct = realizedApyPct(snap);          // число или null
 const rrEn = realizedApyLabel(snap);         // «5.3%» / «data unavailable»
 const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных»
@@ -107,15 +111,15 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         <a href="/track-record?src=snapshot" data-track="snapshot_to_track" class="text-accent-400 underline" data-ru="Смотреть живой трек →">See the live track →</a></p>
       <!-- C8: trust band — reinforces "why trust us" at the conversion moment. -->
       <div class="mt-6"><TrustBand /></div>
-      <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru={`Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация на нашей реализованной paper-ставке ~${rrRu} (0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены), проверяемо), не гарантия. Не инвестиционный совет.`}>
+      <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru={`Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация на нашей реализованной paper-ставке ~${rrRu} (${ddRu} (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены), проверяемо), не гарантия. Не инвестиционный совет.`}>
         Estimated from your answers, not a wallet scan. The "on the table" figure is illustrative at our
-        ~{rrEn} realized paper rate (0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included), auditable) — not a guarantee. Not investment advice.
+        ~{rrEn} realized paper rate ({ddEn} (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included), auditable) — not a guarantee. Not investment advice.
       </p>
     </section>
   </main>
   <Disclaimer />
 
-  <span id="sn-rate" hidden data-pct={rrPct == null ? '' : String(rrPct)} data-en={rrEn} data-ru-label={rrRu}></span>
+  <span id="sn-rate" hidden data-pct={rrPct == null ? '' : String(rrPct)} data-en={rrEn} data-ru-label={rrRu} data-dd-en={ddEn} data-dd-ru={ddRu}></span>
   <script is:inline>
     (function(){
       var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
@@ -160,6 +164,8 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         var rEl=document.getElementById('sn-rate');
         var RPCT=parseFloat(rEl.getAttribute('data-pct'));
         var RLBL=ru?rEl.getAttribute('data-ru-label'):rEl.getAttribute('data-en');
+        // PRODUCT-TRUTH-02: the drawdown phrase comes from the shelf (rounded away from zero), never a typed «0.0%»
+        var DDT=ru?rEl.getAttribute('data-dd-ru'):rEl.getAttribute('data-dd-en');
         // нет измеренного числа ⇒ фраза идёт без ставки, а не с «нет данных» внутри предложения
         var RTXT=isFinite(RPCT)?('~'+RLBL):(ru?'консервативная':'a conservative');
         var mid=MID[ans[1]]||0;
@@ -169,7 +175,7 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
           var perYr=mid*(RPCT/100);
           gapEl.innerHTML='<div style="font-size:13px;color:var(--text-muted)">'+(ru?'Простаивающие стейблы оставляют «на столе»':'Idle stables leave on the table')+'</div>'+
             '<div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:#34d399">~'+fmtUsd(perYr)+(ru?'/год':'/yr')+'</div>'+
-            '<div style="font-size:11px;color:var(--text-faint)">'+(ru?('на нашей реализованной paper-ставке ~'+RLBL+' · проверяемо · 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) · не гарантия'):('at our ~'+RLBL+' realized paper rate · auditable · 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) · not a guarantee'))+'</div>';
+            '<div style="font-size:11px;color:var(--text-faint)">'+(ru?('на нашей реализованной paper-ставке ~'+RLBL+' · проверяемо · '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) · не гарантия'):('at our ~'+RLBL+' realized paper rate · auditable · '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) · not a guarantee'))+'</div>';
         } else { gapEl.style.display='none'; }
         // risk notes per answer combo (deterministic)
         var notes=[];
@@ -183,7 +189,7 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         // matched next step
         var goal=ans[4], nx=document.getElementById('sn-next');
         var step;
-        if(goal==='safe') step={t:ru?'Ваш приоритет — сохранность':'Your priority is safety',d:ru?(isFinite(RPCT)?('Консервативный тир: T1/T2 стейбл-кредитование, ~'+RLBL+' реализованных, 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):'Консервативный тир: T1/T2 стейбл-кредитование, 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):(isFinite(RPCT)?('The Conservative tier: T1/T2 stablecoin lending, ~'+RLBL+' realized, 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'):'The Conservative tier: T1/T2 stablecoin lending, 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'),h:'/packages',c:ru?'Смотреть консервативный тир →':'See the Conservative tier →'};
+        if(goal==='safe') step={t:ru?'Ваш приоритет — сохранность':'Your priority is safety',d:ru?(isFinite(RPCT)?('Консервативный тир: T1/T2 стейбл-кредитование, ~'+RLBL+' реализованных, '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):'Консервативный тир: T1/T2 стейбл-кредитование, '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):(isFinite(RPCT)?('The Conservative tier: T1/T2 stablecoin lending, ~'+RLBL+' realized, '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'):'The Conservative tier: T1/T2 stablecoin lending, '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'),h:'/packages',c:ru?'Смотреть консервативный тир →':'See the Conservative tier →'};
         else if(goal==='income') step={t:ru?'Ваш приоритет — стабильный доход':'Your priority is steady income',d:ru?'Три бумажных портфеля с разной механикой; статус работы, результат текущей версии, правило остановки и исследовательская цель показаны отдельно — цель не результат.':'Three paper portfolios with different mechanics; operating status, the current version’s result, the stop rule and the research target are shown separately — a target is not a result.',h:'/packages',c:ru?'Смотреть пакеты →':'See the packages →'};
         else step={t:ru?'Ваш приоритет — рост':'Your priority is growth',d:ru?'Aggressive — бумажный эксперимент: концентрированное кредитование стейблкоинов и симулированная петля sUSDe/PYUSD на Morpho Blue. Статистика текущей версии накапливается; реальный капитал не допускается. Исследовательская цель — не результат; хвост прежнего исследования (Aggressive Lab) показан отдельно.':'Aggressive is a paper experiment: concentrated stablecoin lending plus a simulated sUSDe/PYUSD loop on Morpho Blue. The current version is accumulating statistics; it is refused for live capital. A research target is not a result; the tail of the earlier research (Aggressive Lab) is shown separately.',h:'/strategies/aggressive',c:ru?'Смотреть Aggressive →':'See Aggressive →'};
         nx.innerHTML='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">'+step.t+'</div>'+

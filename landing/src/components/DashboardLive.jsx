@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { TONES } from './ui/tokens.js';
 import { goLiveLabel } from '../lib/golive_label.js';
+import { publishedRateFigure, measuredAt as shelfMeasuredAt } from '../lib/realized_rate.js';
 
 /*
  * DashboardLive — the COMMAND CENTER for earn-defi.com.
@@ -84,7 +85,8 @@ export const T = {
   },
   portfolio: { en: 'Paper portfolio', ru: 'Бумажный портфель' },
   equity: { en: 'Equity', ru: 'Капитал' },
-  apyToday: { en: 'APY today', ru: 'APY сегодня' },
+  apyToday: { en: 'Rate over the last day (annualised)', ru: 'Ставка за сутки (в годовых)' },
+  apyRealized: { en: 'Paper APY (realized, annualised)', ru: 'Бумажная доходность (годовых, факт)' },
   dailyYield: { en: 'Daily yield', ru: 'Доход за день' },
   regime: { en: 'Market regime', ru: 'Рыночный режим' },
   totalReturn: { en: 'Total return', ru: 'Совокупная доходность' },
@@ -188,26 +190,26 @@ export const T = {
     ru: 'Агрессивная лаборатория недоступна — /api/aggressive-lab/scorecard офлайн.',
   },
 
-  /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady ~4.5%, dated) */
-  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s steady ~4.5%', ru: 'Сколько на самом деле стоит погоня за 15% — против стабильных ~4.5% деска' },
+  /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady realized rate, dated) */
+  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s realized paper rate', ru: 'Сколько на самом деле стоит погоня за 15% — против фактической бумажной ставки деска' },
   acEyebrow: { en: 'A year, dated · advisory · paper-only', ru: 'Год, с датами · advisory · только бумага' },
   acIntro: {
     en: 'Same start date, same notional, same window for both sides. The aggressive curve is a 10–15% book the desk REFUSES (its real 2024–2026 backtest). The steady line compounds the desk’s REAL conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are dated and labelled by event, and split into realized (real peak-to-trough in the equity) and dated stress overlay (modeled by risk shape) — never blended, never invented.',
     ru: 'Одна дата старта, один notional, одно окно для обеих сторон. Агрессивная кривая — 10–15% книга, которую деск ОТКЛОНЯЕТ (реальный бэктест 2024–2026). Стабильная линия компаундит РЕАЛЬНУЮ ставку консервативной книги — честный baseline, не заниженный. Просадки датированы и подписаны событием, разделены на realized и modeled — никогда не смешиваются.',
   },
-  acStableLegend: { en: 'Steady ~4.5% (the desk)', ru: 'Стабильные ~4.5% (деск)' },
+  acStableLegend: { en: 'Desk’s realized paper rate, compounded (modelled line)', ru: 'Фактическая бумажная ставка деска, сложным процентом (расчётная линия)' },
   acAggLegend: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
   acRealizedLegend: { en: 'Realized dip (in the equity)', ru: 'Realized просадка (в equity)' },
   acModeledLegend: { en: 'Modeled stress (by risk shape)', ru: 'Modeled стресс (по shape)' },
-  acStableSrc: { en: 'Steady baseline source', ru: 'Источник baseline' },
+  acStableSrc: { en: 'Steady line', ru: 'Стабильная линия' },
   acPickStrat: { en: 'Aggressive book', ru: 'Агрессивная книга' },
   acColCagr: { en: 'CAGR', ru: 'CAGR' },
   acColMaxDd: { en: 'Max drawdown', ru: 'Макс. просадка' },
   acColUnderwater: { en: 'Days underwater', ru: 'Дней под водой' },
   acColCost: { en: 'Cost of chasing', ru: 'Цена погони' },
   acColSide: { en: '', ru: '' },
-  acAggSide: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
-  acStableSide: { en: 'Steady ~4.5%', ru: 'Стабильные ~4.5%' },
+  acAggSide: { en: 'Aggressive 15% — BACKTEST 2024–2026', ru: 'Агрессивные 15% — БЭКТЕСТ 2024–2026' },
+  acStableSide: { en: 'Desk — MODELLED year at the realized paper rate (no drawdown history of its own)', ru: 'Деск — РАСЧЁТНЫЙ год по фактической бумажной ставке (своей истории просадок нет)' },
   acDdHead: { en: 'The drawdown timeline, dated', ru: 'Таймлайн просадок, с датами' },
   acDdDate: { en: 'Date', ru: 'Дата' },
   acDdEvent: { en: 'Event', ru: 'Событие' },
@@ -725,7 +727,7 @@ function sleeveDesc(id, lang) {
 }
 
 /* ─────────────────────────────────────────────────────── component ──────────────── */
-export default function DashboardLive({ initialFacts = null }) {
+export default function DashboardLive({ initialFacts = null, publishedRate = null }) {
   const lang = useLang();
   const tr = (k) => (T[k] ? T[k][lang] : k);
 
@@ -760,7 +762,7 @@ export default function DashboardLive({ initialFacts = null }) {
   const [day30, setDay30] = useState(undefined);
   /* Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the strategies the desk REFUSES */
   const [aggressive, setAggressive] = useState(undefined);
-  /* Annual Contrast (the owner's sales surface — 15% aggressive vs the steady ~4.5%, dated) */
+  /* Annual Contrast (the owner's sales surface — 15% aggressive vs the steady realized rate, dated) */
   const [contrast, setContrast] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
@@ -968,7 +970,11 @@ export default function DashboardLive({ initialFacts = null }) {
             <Eyebrow>{tr('portfolio')}</Eyebrow>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 8 }}>
               <Metric loading={phase === 'connecting'} label={tr('equity')} value={fmtUsd0(f.current_equity)} sub={lang === 'ru' ? 'база $100k' : '$100k base'} />
-              <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={fmtPct(f.apy_today_pct, 2)} accent="var(--data-teal)" sub={lang === 'ru' ? 'переменный' : 'variable'} />
+              {/* PRODUCT-TRUTH-02: typed rates (ADR-580 C2). The track rate is REALIZED_PAPER, floored
+                  to 1 decimal (ADR-563); the one-day rate is OBSERVED over 1 day and says so. A rate whose
+                  type the API does not declare is not shown (—), never presented as the other kind. */}
+              <Metric label={tr('apyRealized')} value={publishedRate && typeof publishedRate.value === 'number' ? publishedRate.value.toFixed(1) + '%' : NA} accent="var(--data-teal)" sub={lang === 'ru' ? `опубликовано еженедельно · замер ${(publishedRate && publishedRate.as_of) || '—'} · бумага, не live` : `published weekly · measured ${(publishedRate && publishedRate.as_of) || '—'} · paper, not live`} />
+              <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={f.apy_today_pct_metric_type === 'OBSERVED' && f.apy_today_pct_window_days === 1 ? fmtPct(f.apy_today_pct, 2) : NA} sub={lang === 'ru' ? 'наблюдение за 1 день — не ставка трека' : 'observed over 1 day — not the track rate'} />
               <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
               <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
               <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
@@ -1659,14 +1665,14 @@ function AggressiveLabSection({ aggressive, contrast, lang, tr }) {
         </>
       )}
 
-      {/* ── THE ANNUAL CONTRAST — the owner's sales surface (15% aggressive vs the steady ~4.5%) ── */}
+      {/* ── THE ANNUAL CONTRAST — the owner's sales surface (15% aggressive vs the steady realized rate) ── */}
       <AnnualContrastView contrast={contrast} lang={lang} tr={tr} />
     </div>
   );
 }
 
 /* ───────────────────────── ANNUAL CONTRAST (the owner's sales tool) ───────────────────
-   Two equity curves over a year — the 10-15% aggressive book vs the desk's REAL steady ~4.5%
+   Two equity curves over a year — the 10-15% aggressive book vs the desk's REAL steady realized rate
    book — with the aggressive book's drawdowns DATED + labelled by event. Two kinds of dip are
    visually DISTINCT and never blended: a REALIZED dip (real peak-to-trough in the backtest
    equity, solid danger marker) vs a MODELED stress marker (the tail a book of this shape would
@@ -1709,7 +1715,19 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
 
   // The trailing-12m window is the headline; fall back to the first window present.
   const win = (chosen.windows || []).find((w) => w.window === 'trailing_12m') || (chosen.windows || [])[0];
-  const stableApy = Number(contrast.stable_apy_pct);
+  // PRODUCT-TRUTH-02: ONE rate for the desk's book on the whole site — the published REALIZED_PAPER
+  // rate from the shelf, floored (ADR-563), with its measurement date. The contrast artifact's own
+  // `stable_apy_pct` was a single-day rate from 2026-06-25 (a second, stale rate for the same book).
+  // The steady line is that rate compounded over the window: MODELLED, and labelled so; it has no
+  // drawdown or days-underwater of its own, so those cells say «—» rather than a flattering 0.
+  const _pr = publishedRateFigure();
+  const stableApy = _pr ? _pr.value : NaN;
+  const stableM = Number.isFinite(stableApy) ? { cagr_pct: stableApy, max_drawdown_pct: null, days_underwater: null } : null; // null ⇒ every cell «—» (data unavailable)
+  const stableSrc = Number.isFinite(stableApy)
+    ? (lang === 'ru'
+        ? `фактическая бумажная ставка ${stableApy.toFixed(1).replace('.', ',')}% годовых (замер ${shelfMeasuredAt() || '—'}), сложным процентом на то же окно — расчёт, не прожитый год`
+        : `realized paper rate ${stableApy.toFixed(1)}% annualised (measured ${shelfMeasuredAt() || '—'}), compounded over the same window — a model, not a lived year`)
+    : (lang === 'ru' ? 'ставка недоступна' : 'rate unavailable');
   const notional = Number((win && win.notional_usd) || contrast.notional_usd || 100000);
   const overlay = (chosen.dated_drawdown_timeline && chosen.dated_drawdown_timeline.dated_stress_overlay) || [];
   const realized = (chosen.dated_drawdown_timeline && chosen.dated_drawdown_timeline.realized_drawdowns) || [];
@@ -1721,7 +1739,7 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
         {!embedded && <SourceTag live lang={lang} />}
       </div>
 
-      {/* book picker + proof + steady-baseline source (proves the ~4.5% is REAL, not a strawman) */}
+      {/* book picker + proof + steady-baseline source (proves the steady rate is REAL, not a strawman) */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <label style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{tr('acPickStrat')}:</label>
         <select
@@ -1736,7 +1754,7 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
           ))}
         </select>
         {contrast.proof_hash && <Chip tone="muted">{tr('acProof')} {String(contrast.proof_hash).slice(0, 12)}…</Chip>}
-        <Chip tone="muted">{tr('acStableSrc')}: {contrast.stable_apy_source || NA}</Chip>
+        <Chip tone="muted">{tr('acStableSrc')}: {stableSrc}</Chip>
       </div>
 
       {/* THE TWO CURVES + dated drawdown annotations */}
@@ -1767,7 +1785,7 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
             </thead>
             <tbody>
               <ContrastRow side={tr('acAggSide')} tone="var(--danger)" m={win && win.aggressive} cost={win && win.cost_of_chasing_dd_pct} />
-              <ContrastRow side={tr('acStableSide')} tone="var(--ok)" m={win && win.stable} cost={0} />
+              <ContrastRow side={tr('acStableSide')} tone="var(--ok)" m={stableM} cost={null} />
             </tbody>
           </table>
         </div>
@@ -1855,7 +1873,9 @@ function ContrastChart({ aggressive, stableApyPct, notional, overlay, realized, 
 
   const aggStart = Number((aggressive && aggressive.start_equity_usd) || notional);
   const aggEnd = Number((aggressive && aggressive.end_equity_usd) || aggStart);
-  const stableEnd = notional * (1 + (Number(stableApyPct) || 0) / 100);
+  // PRODUCT-TRUTH-02: no rate ⇒ no steady line (was `|| 0`, which drew a flat «0 %» line — fail-open).
+  const hasStable = Number.isFinite(Number(stableApyPct));
+  const stableEnd = hasStable ? notional * (1 + Number(stableApyPct) / 100) : notional;
 
   // y-domain: from a little below notional to a little above the higher endpoint.
   const yMax = Math.max(aggStart, aggEnd, stableEnd, notional) * 1.04;
@@ -1907,7 +1927,7 @@ function ContrastChart({ aggressive, stableApyPct, notional, overlay, realized, 
         <text x={W - PADR} y={H - PADB + 18} textAnchor="end" fontSize="9" fill="var(--text-faint)" fontFamily="var(--font-mono)">{dateTo || ''}</text>
 
         {/* the two curves */}
-        <polyline points={path(notional, stableEnd)} fill="none" stroke="var(--ok)" strokeWidth="2.5" strokeLinejoin="round" />
+        {hasStable && <polyline points={path(notional, stableEnd)} fill="none" stroke="var(--ok)" strokeWidth="2.5" strokeLinejoin="round" />}
         <polyline points={path(aggStart, aggEnd)} fill="none" stroke="var(--danger)" strokeWidth="2.5" strokeLinejoin="round" />
 
         {/* REALIZED drawdown markers — solid filled danger dots (real dips in the equity) */}

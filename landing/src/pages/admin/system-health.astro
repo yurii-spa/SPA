@@ -1,5 +1,9 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { publishedRateFigure } from '../../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: the one published weekly rate, with its measurement date (no live overwrite).
+const pr = publishedRateFigure();
+const prText = pr ? '~' + pr.value.toFixed(1) + '%' : '—';
 ---
 <Layout title="Operator · System Health" admin={true}>
   <main class="ac"><div class="ac-wrap">
@@ -9,7 +13,7 @@ import Layout from '../../layouts/Layout.astro';
       <div class="ac-tiles">
         <div class="ac-tile"><div class="k">API</div><div class="v" id="s-api">—</div></div>
         <div class="ac-tile"><div class="k">Evidenced days</div><div class="v" id="s-days">—</div></div>
-        <div class="ac-tile"><div class="k">Current APY</div><div class="v" id="s-apy">—</div></div>
+        <div class="ac-tile"><div class="k">{`Paper APY · measured ${pr ? pr.as_of : "—"}`}</div><div class="v" id="s-apy">{prText}</div></div>
         <div class="ac-tile"><div class="k">Last update</div><div class="v" id="s-upd" style="font-size:.95rem">—</div></div>
       </div></section>
     <section class="ac-sec"><div class="ac-sec-h">Deep pages</div><div class="ac-pg"><a href="/system" style="color:var(--accent)">Full system hub →</a></div><div class="ac-pg"><a href="/status" style="color:var(--accent)">Go-live status →</a></div><div class="ac-pg"><a href="/monitoring" style="color:var(--accent)">RTMR monitoring →</a></div></section>
@@ -21,7 +25,7 @@ import Layout from '../../layouts/Layout.astro';
     function set(id,v,c){var e=document.getElementById(id);if(e){e.textContent=v;if(c)e.className='v '+c;}}
     fetch(API+'/api/health-public').then(function(r){return r.json();}).then(function(d){
       set('s-api','online','ok');set('s-days',d.real_track_days!=null?d.real_track_days+'/30':'—');
-      set('s-apy',d.ytd_apy_pct!=null?'~'+Number(d.ytd_apy_pct).toFixed(1)+'%':'—');
+      // PRODUCT-TRUTH-02: #s-apy keeps the published weekly rate (server-rendered); no live overwrite.
       set('s-upd',(d.generated_at||'').slice(0,16).replace('T',' '));
       document.getElementById('s-state').textContent='live';
     }).catch(function(){set('s-api','OFFLINE','bad');document.getElementById('s-state').textContent='API offline';});

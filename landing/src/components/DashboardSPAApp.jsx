@@ -47,7 +47,6 @@ const getLang = () => {
 
 const fmtUsd = (n) =>
   n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
-const fmtPct = (n) => (n == null ? '—' : Number(n).toFixed(2) + '%');
 const fmtTime = (d) =>
   d
     ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -214,7 +213,7 @@ function ResearchView({ lang }) {
 }
 
 /* ── main SPA app ────────────────────────────────────────────────────────── */
-export default function DashboardSPAApp({ initialFacts = null }) {
+export default function DashboardSPAApp({ initialFacts = null, publishedRate = null }) {
   const [view, setView] = useState(readHash);
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('spa-shell-collapsed') === '1'; } catch (_) { return false; }
@@ -285,14 +284,20 @@ export default function DashboardSPAApp({ initialFacts = null }) {
 
   /* ── KPI strip (shared live-data: single source) ─────────────────────── */
   const nav = facts?.nav_usd ?? facts?.current_equity ?? null;
-  const apy = facts?.paper_apy_pct ?? facts?.apy_today_pct ?? null;
+  // PRODUCT-TRUTH-02: «Paper APY» is the PUBLISHED weekly REALIZED_PAPER rate (shelf, floored, with
+  // its measurement date) — the same number every other page shows. It is not replaced by the live API
+  // value after hydration (that would put a second «realized» rate on the site), and never by the
+  // one-day OBSERVED rate (ADR-580 C2). Missing ⇒ «—».
+  const apyText = (publishedRate && typeof publishedRate.value === 'number')
+    ? publishedRate.value.toFixed(1) + '%' : '—';
+  const apyAsOf = (publishedRate && publishedRate.as_of) || null;
   const trackDays = facts?.track_days ?? facts?.real_track_days ?? null;
   const gatesPassed = facts?.golive_passed ?? null;
   const gatesTotal = facts?.golive_total ?? null;
 
   const kpis = [
     { label: tr('NAV (paper)', 'NAV (бумага)'), value: fmtUsd(nav), ok: false },
-    { label: tr('Paper APY', 'Paper APY'), value: fmtPct(apy), ok: true },
+    { label: tr(`Paper APY (realized, annualised) · measured ${apyAsOf ?? '—'}`, `Бумажная доходность (годовых, факт) · замер ${apyAsOf ?? '—'}`), value: apyText, ok: true },
     { label: tr('Track days', 'Дней трека'), value: (trackDays ?? '—') + ' / 30', ok: false },
     { label: tr('Go-live gates', 'Гейты go-live'), value: (gatesPassed ?? '—') + ' / ' + (gatesTotal ?? '—'), ok: false },
   ];
@@ -300,11 +305,11 @@ export default function DashboardSPAApp({ initialFacts = null }) {
   /* ── view content ────────────────────────────────────────────────────── */
   const renderView = () => {
     switch (view) {
-      case 'overview':   return <DashboardLive initialFacts={facts} />;
+      case 'overview':   return <DashboardLive initialFacts={facts} publishedRate={publishedRate} />;
       case 'positions':  return <DfbScreener />;
       case 'monitoring': return <RtmrMonitor />;
       case 'research':   return <ResearchView lang={lang} />;
-      default:           return <DashboardLive initialFacts={facts} />;
+      default:           return <DashboardLive initialFacts={facts} publishedRate={publishedRate} />;
     }
   };
 

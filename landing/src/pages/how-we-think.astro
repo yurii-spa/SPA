@@ -8,7 +8,9 @@ import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, drawdownPctText } from '../lib/realized_rate.js';
+const ddPctEn = drawdownPctText() ?? 'not measured';
+const ddPctRu = drawdownPctText(true) ?? 'не измерена';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -51,8 +53,8 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
 
     <section class="mb-10">
       <h2 class="text-xl font-semibold text-white mb-3" data-ru="3. Проверенный пол против показанного хвоста">3. The proven floor vs the shown tail</h2>
-      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru={`Наш живой консервативный paper-трек даёт ${realizedNumRu} реализованных при 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) — реально, подтверждено, проверяемо. Цели до ~20% существуют в исследовательских стратегиях — но это бумага, и мы ВСЕГДА показываем их хвост (одна книга теряла ~50% на обвале ETH). Мы не подаём бумагу как live и не обещаем доходность. Вы выбираете осознанно.`}>
-        Our live conservative paper track runs at {realizedNumEn} realized with 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) — real, evidenced,
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru={`Наш живой консервативный paper-трек даёт ${realizedNumRu} реализованных при ${ddPctRu} просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) — реально, подтверждено, проверяемо. Цели до ~20% существуют в исследовательских стратегиях — но это бумага, и мы ВСЕГДА показываем их хвост (одна книга теряла ~50% на обвале ETH). Мы не подаём бумагу как live и не обещаем доходность. Вы выбираете осознанно.`}>
+        Our live conservative paper track runs at {realizedNumEn} realized with {ddPctEn} drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) — real, evidenced,
         checkable. Up-to-~20% targets exist in the research strategies — but that is paper, and we ALWAYS
         show the tail (one book lost ~50% through the ETH crash). We never present paper as live and never
         promise a return. You choose with your eyes open.

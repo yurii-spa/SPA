@@ -6,7 +6,8 @@
 // (paper, tail shown). Bilingual.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR, drawdownPctText } from '../../lib/realized_rate.js';
+const ddPctEnL = drawdownPctText() ?? 'not measured';
 // ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
 const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
 const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
@@ -26,7 +27,7 @@ const faq = [
   },
   {
     q: 'What return does earn-defi target?',
-    a: `Our live conservative paper track runs at ${realizedEn} with 0.0% drawdown — real, evidenced, checkable. Up-to-20% targets exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.`,
+    a: `Our live conservative paper track runs at ${realizedEn} with ${ddPctEnL} drawdown — real, evidenced, checkable. Up-to-20% targets exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.`,
   },
 ];
 const faqLd = {

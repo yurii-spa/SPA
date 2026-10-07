@@ -21,8 +21,13 @@ import PackageStatusRows from '../components/PackageStatusRows.astro';
 const snapDays = snap.real_track_days != null ? snap.real_track_days : '—';
 const snapGates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
 const snapBars = Array.isArray(snap.bars) ? snap.bars : [];
-const snapApy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
-const snapDd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+import { publishedRateFigure } from '../lib/realized_rate.js';
+const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
+const snapApy = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
+import { drawdownMagnitudeText as _ddMag } from '../lib/realized_rate.js';
+// PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
+const _ddm = _ddMag(snap.max_drawdown_pct);
+const snapDd = _ddm == null ? '—' : (Number(_ddm) > 0 ? '−' : '') + _ddm + '%';
 // Snapshot freshness label ("as of <date>") — the JS island flips it to live when the API answers.
 const snapAsOf = snap.as_of || snap.generated_at || null;
 // Site-Custodian kill-rule (ADR-YL-011): when degraded, show a plaque instead of a possibly-wrong number
@@ -40,13 +45,19 @@ const aggDays = (snap.package_status && snap.package_status.packages && snap.pac
 const aggStart = (snap.package_status && snap.package_status.packages && snap.package_status.packages.aggressive && snap.package_status.packages.aggressive.experiment_start_date) || '—';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, realizedApyPct as realizedPctRR, measuredAt as measuredAtRR, drawdownPhrase as drawdownPhraseRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, realizedApyPct as realizedPctRR, measuredAt as measuredAtRR, drawdownPhrase as drawdownPhraseRR, drawdownPctText as ddPctRR } from '../lib/realized_rate.js';
+const ddPctEn = ddPctRR() ?? 'not measured';
+const ddPctRu = ddPctRR(true) ?? 'не измерена';
+// PRODUCT-TRUTH-02: the realized drawdown tile renders the shelf value (never a typed «0.0%» that hides a loss).
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
 const realizedNumRu = realizedLabelRR(snapRR, true);
 // ADR-531 / P0-4 item 6: ONE Conservative rate on the page — the realized paper rate, with its date.
-const realizedPctNum = realizedPctRR(snapRR);
+const realizedPctRaw = realizedPctRR(snapRR);
+// PRODUCT-TRUTH-02 / ADR-563: the calculator multiplies by the SAME floored rate its label prints
+// (was the unrounded 4.9165 % next to «4.9%», i.e. $2,458 for a rate shown as 4.9 %).
+const realizedPctNum = _pr ? _pr.value : null;
 const realizedAt = measuredAtRR();
 const calcInit = (typeof realizedPctNum === 'number') ? Math.round(50000 * realizedPctNum / 100).toLocaleString('en-US') : '—';
 // Equity series for the offline spark fallback (build-time, last snapshot).
@@ -108,20 +119,11 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </div>
   </section>
 
-  <!-- ============ M2: YIELD COMPARISON BAR (anchor against banks/T-bills) ============ -->
+  <!-- ============ M2: PAPER BOOKS AT A GLANCE (bank / T-bill reference rates removed 2026-10-07 by owner decision: unsourced; may return only with source, date, provenance and metric type) ============ -->
   <section class="band" style="padding-top:32px;padding-bottom:8px">
     <div style="max-width:1080px;margin:0 auto;padding:0 24px">
-      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 16px" data-ru="Куда положить стейблкоины — честное сравнение">Where to park stablecoins — an honest comparison</p>
+      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 16px" data-ru="Бумажные книги SPA — где они сейчас">SPA paper books — where they stand</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">
-        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text-muted)" data-ru="Банковский вклад">Bank savings</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-secondary)">~0.4%</div>
-        </div>
-        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text-muted)" data-ru="Гособлигации США">US T-bills</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-secondary)">~3.5%</div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="нельзя проверить в блокчейне">can't audit on-chain</div>
-        </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
           <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru={realizedNumRu}>{realizedNumEn}</div>
@@ -156,7 +158,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#34d399">0.0%</div>
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#34d399">{snapDd}</div>
           <div style="font-size:11px;color:var(--text-muted)" data-ru="реализованной просадки">realized drawdown</div>
         </div>
         <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
@@ -325,7 +327,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div class="track-band">
         <div class="track-metrics">
           <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">{snapDays}</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Текущий APY">Current APY</div><div class="val teal" id="m-apy">{snapApy}</div></div>
+          <div class="metric-card"><div class="lbl" data-ru={`Бумажная доходность, годовых · замер ${realizedAt ?? "—"}`}>{`Paper APY, annualised · measured ${realizedAt ?? "—"}`}</div><div class="val teal" id="m-apy">{snapApy}</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">{snapDd}</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">{snapGates}</div></div>
         </div>
@@ -414,7 +416,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
         <a href="/packages" data-track="m11_usdc" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Есть USDC / USDT?">Holding USDC / USDT?</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru={`Смотрите консервативный тир — ${realizedNumRu} фактических, проверяемо, 0,0% просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) →`}>See the conservative tier — {realizedNumEn} realized, auditable, 0.0% drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) →</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru={`Смотрите консервативный тир — ${realizedNumRu} фактических, проверяемо, ${ddPctRu} просадки (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) →`}>See the conservative tier — {realizedNumEn} realized, auditable, {ddPctEn} drawdown (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) →</div>
         </a>
         {/* 2026-08-20 (ADR-089 §5): these two cards pointed at /#analyze — the hero, which used to
              hold the paste-an-address widget of the checkup. The widget went with the service
@@ -621,10 +623,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         if(!d) return;
         // NOTE: day count comes from loadGoLive() (honest evidenced count), NOT
         // from d.track_days here (that counts raw/backfill bars).
-        var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null;
-        setText('sl-apy', apy != null ? '~' + apy + '%' : '~—%');
-        setText('m-apy', apy != null ? apy + '%' : '—');
-        setText('m-dd', d.max_drawdown_pct != null ? Number(d.max_drawdown_pct).toFixed(2) + '%' : '—');
+        // PRODUCT-TRUTH-02: the rate and drawdown tiles show the PUBLISHED weekly figures (the shelf,
+        // with their measurement date) and are NOT overwritten in the browser. A live overwrite put a
+        // second rate on the page next to the hero (first a one-day OBSERVED rate, ADR-580 C2) and
+        // bypassed the weekly publication cadence (ADR-357). The live rate lives on /dashboard, labelled.
       }).catch(function(){});
     }
 

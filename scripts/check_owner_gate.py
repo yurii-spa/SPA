@@ -402,6 +402,24 @@ def _snapshot_custodian_equivalence(
             f"снимок as_of={c_as_of}) — воспроизвести этот снимок каноном НЕЛЬЗЯ"
         )
 
+    # ADR-630 (PRODUCT-TRUTH-02): `package_status` is a projection of the books AT A MOMENT (ages, «stale
+    # at», code-sync receipt age are functions of `now`). Two regenerations seconds apart never agree, so the
+    # comparison above always said «РАСХОДИТСЯ по полям: package_status» and every daily snapshot lost the
+    # ADR-116 standing approval (measured 2026-10-07). Regenerate that section AT THE MOMENT the artifact
+    # itself records, from the same data/ canon — anything still different is a real difference.
+    cur_ps = current.get("package_status")
+    ps_at = cur_ps.get("generated_at") if isinstance(cur_ps, dict) else None
+    if isinstance(ps_at, str) and "package_status" in regenerated:
+        try:
+            from datetime import datetime as _dt
+            from spa_core.defi_engine.package_status import build_all as _ps_build, public_view as _ps_view
+            moment = _dt.fromisoformat(ps_at.replace("Z", "+00:00"))
+            regenerated = dict(regenerated)
+            regenerated["package_status"] = _ps_view(_ps_build(repo / "data", now=moment))
+        except Exception as exc:
+            return None, (f"package_status не регенерируется на момент артефакта ({type(exc).__name__}) — "
+                          f"освобождение нечем проверить")
+
     a = {k: v for k, v in regenerated.items() if k not in _VOLATILE_SNAPSHOT_FIELDS}
     b = {k: v for k, v in current.items() if k not in _VOLATILE_SNAPSHOT_FIELDS}
     if a == b:

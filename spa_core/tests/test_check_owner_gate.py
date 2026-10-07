@@ -663,3 +663,34 @@ def test_git_range_judges_the_COMMITTED_head_not_the_working_tree(tmp_path):
     texts = " ".join(str(v.get("matched_text", "")) for v in rep["violations"])
     assert "777777" not in texts, "git-range обязан судить КОММИТ, а не рабочее дерево"
     assert "200.0" in texts, "судить обязан именно закоммиченное изменение"
+
+
+# ── ADR-630 (PRODUCT-TRUTH-02): package_status is judged AT THE ARTIFACT'S MOMENT ───────────────
+def _package_status_at(repo: Path, moment: str) -> dict:
+    from datetime import datetime as _dt
+    from spa_core.defi_engine.package_status import build_all, public_view
+    (repo / "data").mkdir(parents=True, exist_ok=True)
+    return public_view(build_all(repo / "data", now=_dt.fromisoformat(moment.replace("Z", "+00:00"))))
+
+
+def test_custodian_regenerates_package_status_at_the_artifacts_own_moment(tmp_path):
+    """Measured 2026-10-07: every daily snapshot was «disproved» on package_status alone (render-time
+    ages), so ADR-116's standing approval was withdrawn and the daily push was refused. Same canon,
+    regenerated at the moment the artifact records ⇒ proved equal."""
+    artifact_ps = _package_status_at(tmp_path, "2026-10-07T06:00:00Z")
+    later_ps = _package_status_at(tmp_path, "2026-10-07T06:00:41Z")   # what a regeneration «now» yields
+    assert artifact_ps != later_ps, "precondition: the section is time-dependent"
+    snap = {"as_of": "2026-10-07", "nav_usd": 100.0, "package_status": artifact_ps}
+    _fake_generator(tmp_path, {**snap, "package_status": later_ps})
+    _write_snapshot(tmp_path, snap)
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is True, reason
+
+
+def test_a_real_difference_beside_package_status_is_still_disproved(tmp_path):
+    artifact_ps = _package_status_at(tmp_path, "2026-10-07T06:00:00Z")
+    _fake_generator(tmp_path, {"as_of": "2026-10-07", "nav_usd": 100.0,
+                               "package_status": _package_status_at(tmp_path, "2026-10-07T06:00:41Z")})
+    _write_snapshot(tmp_path, {"as_of": "2026-10-07", "nav_usd": 999.0, "package_status": artifact_ps})
+    verdict, reason = G._snapshot_custodian_equivalence(tmp_path)
+    assert verdict is False and "nav_usd" in reason

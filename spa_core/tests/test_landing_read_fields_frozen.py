@@ -31,9 +31,18 @@ LANDING_SRC = REPO_ROOT / "landing" / "src"
 #: `paper_apy_snapshot()` feeds. Each is checked both ways: (a) a landing file still
 #: reads it today (so the freeze is still meaningful) and (b) the producer's dict
 #: never emits it under this exact name.
-FROZEN_FIELDS = {
+FROZEN_FIELDS = {}
+
+#: PRODUCT-TRUTH-02 (2026-10-07, owner-gated publication candidate): `/dashboard` no longer reads
+#: `facts.paper_apy_pct` — that read was the fallback chain `paper_apy_pct ?? apy_today_pct`, which
+#: showed a one-day OBSERVED rate as «Paper APY» (ADR-580 C2). The page now reads the typed
+#: `paper_apy_canonical`. The bare name is RETIRED, not forgotten: the producer must still never
+#: emit it (test below), and landing must never read it again (a re-introduced fallback is red).
+RETIRED_READ_FIELDS = {
     "paper_apy_pct": ["facts?.paper_apy_pct", "facts.paper_apy_pct"],
-    "max_drawdown_pct": ["max_drawdown_pct"],
+    # PRODUCT-TRUTH-02: `#m-dd` (index) and `#tr-dd` (track-record) no longer overwrite the published
+    # drawdown with `/api/health-public`'s `d.max_drawdown_pct`; the bare name is retired the same way.
+    "max_drawdown_pct": ["d.max_drawdown_pct"],
 }
 
 
@@ -57,6 +66,12 @@ def test_landing_still_reads_each_frozen_field_by_this_exact_name():
     if text is None:
         import pytest
         pytest.skip("landing/src not present in this checkout — cannot measure")
+    if not FROZEN_FIELDS:
+        # Nothing is frozen any more — but that must be an explicit, measured state, not a silent pass:
+        # both formerly frozen names are retired (and checked below never to be read again).
+        assert set(RETIRED_READ_FIELDS) >= {"paper_apy_pct", "max_drawdown_pct"}, (
+            "FROZEN_FIELDS is empty but the retired set is incomplete — re-measure the guard's premise")
+        return
     for field, needles in FROZEN_FIELDS.items():
         assert any(n in text for n in needles), (
             f"landing/ no longer reads {field!r} by any known pattern — this "
@@ -70,7 +85,7 @@ def test_paper_apy_snapshot_never_emits_a_frozen_bare_name():
     name a landing page already reads off the SAME endpoints it feeds
     (`/api/ssot/facts` via `key_facts()`, `/api/health-public` via `**snap`)."""
     snap = paper_apy_snapshot(REPO_ROOT / "data")
-    collision = set(snap.keys()) & set(FROZEN_FIELDS)
+    collision = set(snap.keys()) & (set(FROZEN_FIELDS) | set(RETIRED_READ_FIELDS))
     assert not collision, (
         f"paper_apy_snapshot() emits frozen landing-read field name(s) {collision} "
         "— this silently changes a public number through the API without owner "
@@ -78,3 +93,66 @@ def test_paper_apy_snapshot_never_emits_a_frozen_bare_name():
     )
     assert "paper_apy_canonical" in snap
     assert "max_drawdown_track_pct" in snap
+
+
+def _retired_access_pattern(field):
+    """Any property access to the bare name: `<identifier>.<field>`, `<identifier>?.<field>`,
+    `["<field>"]` / `['<field>']` — not only the one spelling that existed when it was retired."""
+    import re as _re
+    return _re.compile(r"(?:[A-Za-z_$][\w$]*\s*\??\.\s*" + _re.escape(field) + r"\b)"
+                       r"|(?:\[\s*['\"]" + _re.escape(field) + r"['\"]\s*\])")
+
+
+#: Landing files that fetch the two endpoints `paper_apy_snapshot()` feeds.
+_GUARDED_ENDPOINTS = ("/api/health-public", "/api/ssot/facts")
+
+#: Receivers in those files whose `.max_drawdown_pct` is NOT a read of the guarded endpoints (the name is
+#: generic: many payloads carry it). Each is declared with what it IS; any other receiver is a finding.
+NON_ENDPOINT_RECEIVERS = {
+    "snap": "landing/src/lib/snapshot_view.js — the published weekly shelf, the intended source",
+    "s": "DashboardLive sleeve rows (/api/sleeves), a per-sleeve drawdown",
+    "r": "DashboardLive backtest/tournament rows, a per-strategy BACKTEST drawdown",
+    "mm": "DashboardLive annual-contrast metrics (BACKTEST aggressive side)",
+}
+
+
+def _guarded_files():
+    out = []
+    for ext in ("*.astro", "*.jsx", "*.js"):
+        for p in LANDING_SRC.rglob(ext):
+            t = p.read_text(encoding="utf-8", errors="ignore")
+            if any(e in t for e in _GUARDED_ENDPOINTS):
+                out.append((p, t))
+    return out
+
+
+def test_landing_never_reads_a_retired_field_again():
+    """PRODUCT-TRUTH-02: a retired bare read (one-day-rate fallback, API drawdown overwrite) must not come back.
+    Scope: every file that fetches a guarded endpoint; every access spelling; only declared non-endpoint
+    receivers are exempt, so a new `d.`/`facts.`/`x["…"]` read is red."""
+    if not LANDING_SRC.is_dir():
+        import pytest
+        pytest.skip("landing/src not present in this checkout — cannot measure")
+    files = _guarded_files()
+    assert files, "no landing file fetches the guarded endpoints — the guard's premise needs re-measuring"
+    import re as _re
+    findings = []
+    for p, t in files:
+        for field in RETIRED_READ_FIELDS:
+            for m in _retired_access_pattern(field).finditer(t):
+                recv = _re.match(r"([A-Za-z_$][\w$]*)", m.group(0))
+                if recv and recv.group(1) in NON_ENDPOINT_RECEIVERS and not m.group(0).startswith("["):
+                    continue
+                findings.append(f"{p.relative_to(REPO_ROOT)}: {m.group(0)}")
+    assert not findings, f"landing/ reads a retired field off a guarded endpoint again: {findings}"
+
+
+def test_retired_access_pattern_catches_every_spelling():
+    """Positive and negative control for the matcher itself."""
+    pat = _retired_access_pattern("max_drawdown_pct")
+    for bad in ("d.max_drawdown_pct", "facts?.max_drawdown_pct", "s . max_drawdown_pct",
+                "x['max_drawdown_pct']", 'x["max_drawdown_pct"]'):
+        assert pat.search(bad), bad
+    for ok in ("max_drawdown_track_pct", "realized_max_drawdown_pct", "const max_drawdown_pct_note = 1",
+               "max_drawdown_pct_as_of"):
+        assert not pat.search(ok), ok
