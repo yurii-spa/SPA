@@ -91,7 +91,14 @@
     `owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c` (agents never record an owner answer, inv. #14); unsigned,
     the regular weekly step builds and asks again on its due date. Remaining debt: «RWA floor ~3.4 %» on /yield-lab,
     /how-we-think and the academy has no source/date (same class, not in the package).
-13. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+13. **CAPITAL-SOURCES-01 · Trading Alpha sleeve + portfolio of return sources** — delivered 2026-10-07 in waves
+    A–D with independent reviews (ADR-640, ADR-641; `9b09e7d0`, `02bd142f`, `e62469d1`): Capital Sources = the
+    Oracle sleeve contract extended (DEFI_YIELD / TRADING_ALPHA / MARKET_NEUTRAL_BASIS / TREASURY_CASH); Trading Alpha =
+    causal PAPER sleeve derived from the canonical Trading Lab (no new engine); Oracle consumes all sources
+    (net only, recommendation-only); causal paper portfolio; 10–15 % research question answered NO on current
+    evidence. Remaining: 30 days of forward evidence, an execution-cost model (8 unknown components), cross-asset
+    data (BTC only), first ledger line with the view at the Oracle run of 2026-10-08.
+14. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
 

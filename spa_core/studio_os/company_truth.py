@@ -987,7 +987,8 @@ def capital_sources_card(section: Optional[dict], trading_lab_cell: Optional[dic
                     as_of=meta.get("observed_at"), canon=canon, fresh=fr,
                     unknown_ru="Источники капитала отозваны — цепочка решений Oracle нарушена")
     if summ.get("state") != "MEASURED":
-        why = _redact(meta.get("reason") or summ.get("reason")) or "нет рекомендации Oracle с разбором источников"
+        why = (summ.get("reason_ru") or _redact(meta.get("reason") or summ.get("reason"))
+               or "нет рекомендации Oracle с разбором источников")
         return unknown(canon, "DECISION", f"Источники капитала не измерены — {why}")
     _ol = owner_language
     rows = []

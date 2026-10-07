@@ -88,8 +88,9 @@ def _sources_doc(now: datetime) -> Tuple[Optional[Dict], Optional[str]]:
     except Exception as exc:  # noqa: BLE001
         return None, "источники не прочитаны ({})".format(type(exc).__name__)
     if not isinstance(doc, dict) or doc.get("state") != "MEASURED":
+        from spa_core.investment_cio.sources_summary import reason_ru
         reason = (doc or {}).get("reason") if isinstance(doc, dict) else None
-        return None, B_safe(reason or "рекомендации Oracle с разбором источников ещё не было")
+        return None, B_safe(reason_ru(reason) if reason else "рекомендации Oracle с разбором источников ещё не было")
     return doc, None
 
 

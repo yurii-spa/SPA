@@ -365,3 +365,14 @@ def test_seam_through_mission_control_build_and_the_real_telegram_screens(tmp_pa
         for key in ("net", "eligibility", "paper_weight"):
             assert tx[key] in line, (row["source_id"], key)
     assert all(b.get("callback_data", "").startswith("nav:") for r in kb.get("inline_keyboard", []) for b in r)
+
+
+def test_absent_view_reason_is_plain_russian_on_both_surfaces():
+    """Production 07.10: before the first Oracle run with the view, both surfaces printed the English
+    reason «the latest recommendation predates the capital-sources view (ADR-641)» inside Russian text."""
+    from spa_core.investment_cio import sources_summary as ss
+    s = ss.summarize({"state": "NOT_MEASURED",
+                      "reason": "the latest recommendation predates the capital-sources view (ADR-641)"})
+    assert "следующего ежедневного запуска Oracle" in s["reason_ru"]
+    assert "predates" in s["reason"]                         # the technical reason is kept for the details
+    assert ss.reason_ru("something new") == "разбор источников недоступен (причина — в технических подробностях)"

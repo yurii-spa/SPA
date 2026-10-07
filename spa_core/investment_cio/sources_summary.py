@@ -269,12 +269,31 @@ def _age_en(age_min: Optional[float]) -> str:
     return f"{age_min / 1440:.0f} d ago"
 
 
+#: plain-Russian owner text for the known «view absent» reasons; the technical reason stays in ``reason``
+_ABSENT_REASON_RU = (
+    ("predates the capital-sources view", "последний разбор Oracle сделан до появления разбора источников — "
+                                          "он появится после следующего ежедневного запуска Oracle"),
+    ("no verified recommendation", "у Oracle пока нет проверенной рекомендации"),
+    ("no capital-sources view", "разбора источников у Oracle пока нет"),
+)
+
+
+def reason_ru(reason: Any) -> str:
+    """Owner-facing Russian for an absent view; an unknown reason is NOT guessed — it says so."""
+    text = str(reason or "")
+    for needle, ru in _ABSENT_REASON_RU:
+        if needle in text:
+            return ru
+    return "разбор источников недоступен (причина — в технических подробностях)"
+
+
 def summarize(view: Any) -> Dict:
     """The capital-sources view (as served by ``investment_cio.read.capital_sources``) → owner rows."""
     if not isinstance(view, dict) or view.get("state") != "MEASURED":
         st = (view or {}).get("state") if isinstance(view, dict) else None
         return {"schema": SCHEMA, "state": st if st in ("REFUSED", _ABSENT) else _ABSENT,
                 "reason": (view or {}).get("reason") if isinstance(view, dict) else "no capital-sources view",
+                "reason_ru": reason_ru((view or {}).get("reason") if isinstance(view, dict) else "no capital-sources view"),
                 "executes": False, "real_capital_usd": 0}
     by_source = ((view.get("assessment") or {}).get("by_source") or {}) if isinstance(view.get("assessment"), dict) else {}
     portfolio = _portfolio(view.get("paper_portfolio"))
