@@ -84,8 +84,13 @@
     (from the published shelf), typed shelf `site_numbers/2` with provenance, fail-closed
     `scripts/verify_publication.py` on every push path, owner approval bound to the shelf sha, Director profile
     mapping, freshness monitor judges the published shelf. Origin DOES rebuild the live site (verified).
-    Publication waits for ONE owner gate: candidate `pt02/publication-candidate-v2` (one dated site-wide rate,
-    drawdown −0.04 %, no one-day rate under mature labels), the daily-snapshot owner-gate fix, first typed shelf.
+    PUBLISHED 2026-10-07 by owner decision (one adjustment: unsourced bank ~0.4 % / T-bills ~3.4 % comparison removed):
+    pages `0fd8c24e` live and verified page by page; owner-gate fix live — daily snapshot published again under
+    ADR-116 (`b53416d3`, 106 days). First typed shelf `site_numbers/2` (measured 2026-10-07, Conservative 4.8943 %
+    REALIZED_PAPER → ~4.8 % shown, ADR-563 floor) waits only for the owner's own signature in the card
+    `owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c` (agents never record an owner answer, inv. #14); unsigned,
+    the regular weekly step builds and asks again on its due date. Remaining debt: «RWA floor ~3.4 %» on /yield-lab,
+    /how-we-think and the academy has no source/date (same class, not in the package).
 13. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Standing constraints
