@@ -175,14 +175,25 @@ def test_portfolio_corrupt_file_isolated(client):
 def test_system_empty_dir(client):
     r = client.get("/api/live/system")
     assert r.status_code == 200
-    assert set(r.json().keys()) == {"_fetched_at"}
+    assert set(r.json().keys()) == {"_fetched_at", "detail"}
 
 
-def test_system_with_health(client):
-    _write(client, "system_health.json", {"overall": "OK", "domains": 7})
-    body = client.get("/api/live/system").json()
-    assert body["system_health"] == {"overall": "OK", "domains": 7}
-    assert "_fetched_at" in body
+def test_system_health_is_operator_only(client):
+    """ADR-661: the public bundle (TestClient = a non-loopback peer) must not carry
+    system_health / watcher / auto-fixer detail; the in-host caller still gets it."""
+    import asyncio
+    import json as _json
+    from spa_core.api.routers import live as L
+    _write(client, "system_health.json", {"overall": "OK", "domains": 7, "x": "com.spa.secret"})
+    _write(client, "telegram_watcher_status.json", {"w": "/tmp/spa_x.log"})
+    public = client.get("/api/live/system")
+    assert "system_health" not in public.json() and "telegram_watcher_status" not in public.json()
+    assert "com.spa.secret" not in public.text and "/tmp/" not in public.text
+    spoofed = client.get("/api/live/system", headers={"X-Forwarded-For": "127.0.0.1"})
+    assert "system_health" not in spoofed.json()
+    resp = asyncio.run(L.live_system(None))          # in-process = in-host operator
+    body = _json.loads(resp.body)
+    assert body["system_health"]["domains"] == 7
 
 
 def test_system_includes_golive(client):

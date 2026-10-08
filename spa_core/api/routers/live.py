@@ -586,12 +586,24 @@ async def live_books_brief():
     )
 
 
+# Files of the /api/live/system bundle that a PUBLIC caller may see. The other three carry
+# launchd labels, local log paths and process detail (P1 2026-10-08, ADR-661: the bundle served
+# system_health.json verbatim through the tunnel); their only reader is the in-host
+# ``dashboard_watcher``, which still gets them (``_is_operator_request``).
+_SYSTEM_PUBLIC_FILES = ("golive_status.json",)
+
+
 @router.get("/api/live/system")
-async def live_system():
-    """Live system-health bundle — merges available health/watcher/log files."""
+async def live_system(request: Request = None):
+    """Live system-health bundle — merges available health/watcher/log files.
+    Public callers get only ``_SYSTEM_PUBLIC_FILES``."""
     result: dict[str, Any] = {}
-    for fname in ["system_health.json", "telegram_watcher_status.json",
-                  "auto_fixer_log.json", "golive_status.json"]:
+    names = ["system_health.json", "telegram_watcher_status.json",
+             "auto_fixer_log.json", "golive_status.json"]
+    if not _is_operator_request(request):
+        names = [n for n in names if n in _SYSTEM_PUBLIC_FILES]
+        result["detail"] = "system health detail is internal (operator console only)"
+    for fname in names:
         p = data_dir() / fname
         if not await aio_exists(p):
             continue
