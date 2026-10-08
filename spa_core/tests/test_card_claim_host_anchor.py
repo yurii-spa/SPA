@@ -231,13 +231,33 @@ class TestNotAWeakening:
         assert guard.exit_code(r) == 1
 
     def test_unmeasured_still_wins_over_stale(self, guard, sibling, tracker, log):
-        """fail-CLOSED не тронут: «занятость не измерена» по-прежнему перебивает и даёт 2."""
+        """fail-CLOSED не тронут: «занятость не измерена» по-прежнему перебивает и даёт 2.
+
+        СЦЕНА ИСПРАВЛЕНА (цикл #803, ADR-647), инв. #16 — утверждение то же, операнд
+        настоящий. Прежняя сцена несла ОДНУ запись (`cycle-no-anchor`, якоря нет) и
+        прецедентность не мерила вообще: сравнивать было нечего, а `ps` никто не звал —
+        pid'а в ярлыке нет. Теперь в журнале ДВА захвата: один измеримо осиротевший
+        (якорь есть, процесс мёртв ⇒ `stale`) и один по-настоящему НЕ измеренный (якорь
+        есть, `ps` не отработал ⇒ `unchecked`). Вердикт обязан взять худшее.
+        """
         write_card(tracker, CARD)
-        write_log(log, [entry("cycle-no-anchor", NOW - timedelta(hours=3.5), card=CARD)])
-        r = run(guard, sibling, tracker, log, ps=lambda pid: (127, ""))
+        broken_pid = int(ANCHOR["session_pid"]) + 1
+        write_log(log, [
+            entry(DESKTOP_LABEL, NOW - timedelta(hours=3.5), anchor=ANCHOR, card=CARD),
+            entry("cycle-probe-broke", NOW - timedelta(hours=3.5), card=CARD,
+                  anchor={"session_pid": broken_pid,
+                          "session_pid_start": ANCHOR["session_pid_start"]}),
+        ])
+
+        def ps(pid):
+            return (127, "") if int(pid) == broken_pid else (1, "")
+
+        r = run(guard, sibling, tracker, log, ps=ps)
 
         assert r["verdict"] == guard.UNCHECKED
         assert guard.exit_code(r) == 2
+        assert any(c["state"] == "stale" for c in r["claims"]), (
+            "в сцене обязан быть и `stale`, иначе прецедентность не измерена")
 
     def test_fresh_claim_of_a_dead_session_is_still_stale(self, guard, sibling, tracker, log):
         """Починка #238 цела: свежий захват измеримо мёртвой сессии — `stale`, не `claimed`."""

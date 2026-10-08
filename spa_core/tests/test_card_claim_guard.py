@@ -1257,14 +1257,39 @@ class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
         assert guard.exit_code(r) == 1
         assert r["claims"][0]["strength"] == guard.WEAK
 
-    def test_old_strong_card_field_by_pidless_session_stays_unchecked(
+    def test_old_strong_card_field_by_pidless_session_is_stale_not_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
-        """fail-CLOSED НЕ ослаблен: заявленный захват — не обмолвка в тексте."""
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16 — объявлено, не молча.
+
+        **Что тест утверждал и почему это отменено.** Он назывался
+        `test_old_strong_card_field_by_pidless_session_stays_unchecked` и пиннил границу
+        правки #61: слабое упоминание состарили, СИЛЬНЫЙ признак — нет. Под этим лежало
+        допущение, что вечное «не измерено» на сильном признаке безвредно.
+
+        **Замер 08.10 показал цену.** `session_state` отдаёт `UNKNOWN` для ярлыка без pid
+        необратимо, а подъём (`--takeover`) разрешён только на `stale` ⇒ карточка,
+        тронутая таким захватом, становилась неберущейся НАВСЕГДА. На живой очереди так
+        были заперты ЧЕТЫРЕ карточки (возраст 654…1561 ч), и одна из них — критический
+        ПРИКАЗ ВЛАДЕЛЬЦА `inbox-task-portfolio-cio-dynamic-capital-alloc`, который шаг
+        0a-голод называл первым 634 цикла подряд, не давая ни одному его взять.
+
+        **Ассерт не ослаблен, а перенацелен на измеренную границу:** исход `stale`, то
+        есть «кандидат на ручной подъём». «Свободна» здесь не говорится, `claim` без
+        `--takeover` с письменной причиной по-прежнему ОТКАЗЫВАЕТ — это проверено ниже в
+        том же тесте и отдельной батареей
+        `test_strong_claim_without_anchor_ages.py`. Стареет РОВНО ОДНА из шести причин
+        `UNKNOWN` — «личность не объявлена нигде»; сбой `ps`, пустой ответ `ps`,
+        неразобранный старт, неразобранная метка времени и опровергнутый ярлык остаются
+        `unchecked` (их контроли в этом же файле и в
+        `test_check_card_claim_frontmatter_identity.py` — зелёные).
+        """
         write_card(tracker, "agent-x")
         write_log(log, [announce("cycle49", NOW - timedelta(hours=9), card="agent-x")])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
-        assert r["verdict"] == guard.UNCHECKED
-        assert guard.exit_code(r) == 2
+        assert r["verdict"] == guard.STALE
+        assert guard.exit_code(r) == 1
+        assert r["verdict"] != guard.FREE, "«свободна» здесь не говорится никогда"
+        assert "не объявлена НИГДЕ" in r["claims"][0]["session_state"]
 
     def test_old_strong_file_ownership_by_pidless_session_stays_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
@@ -1283,15 +1308,24 @@ class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
             "cycle49", NOW - timedelta(hours=9),
             files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
-        assert r["verdict"] == guard.UNCHECKED
+        # ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16 — тот же разбор, что у
+        # соседа выше: вечное «не измерено» на сильном признаке запирало карточку
+        # навсегда, исход перенацелен на `stale` («кандидат на ручной подъём»).
+        assert r["verdict"] == guard.STALE
+        assert r["verdict"] != guard.FREE
 
     def test_old_strong_frontmatter_claim_by_pidless_session_stays_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
-        """Третий сильный признак — `claimed_by` во frontmatter самой карточки."""
+        """Третий сильный признак — `claimed_by` во frontmatter самой карточки.
+
+        ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16 — тот же разбор, что у двух
+        соседей выше; исход `stale`, «свободна» не говорится.
+        """
         write_card(tracker, "agent-x", claimed_by="cycle49",
                    claimed_at=_fmt(NOW - timedelta(hours=9)))
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
-        assert r["verdict"] == guard.UNCHECKED
+        assert r["verdict"] == guard.STALE
+        assert r["verdict"] != guard.FREE
 
     def test_old_weak_mention_does_not_mask_a_strong_claim_in_the_same_log(
             self, guard, sibling, tracker, log, ps_dead):
@@ -1441,14 +1475,22 @@ class TestFreshWeakMentionDoesNotDeadlockTheQueue:
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
         assert r["verdict"] == guard.CLAIMED
 
-    def test_old_strong_signal_with_unmeasurable_activity_stays_unchecked(
+    def test_old_strong_signal_without_a_declared_identity_is_stale_not_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
-        """fail-CLOSED на сильном признаке не тронут: «не измерено» (код 2), не «свободна»."""
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16.
+
+        Утверждение «код 2, не свободна» распалось на два, и верно из них второе:
+        «свободна» не говорится (код 1, взять молча нельзя), но и вечного «не измерено»
+        больше нет — оно запирало карточку навсегда, см. разбор у
+        `TestWeakMentionAgesOutEvenWhenActivityUnmeasurable`. Контроль кода 2 там, где
+        мерить ДЕЙСТВИТЕЛЬНО нечем (сбой `ps`), остался на месте и зелёный.
+        """
         write_card(tracker, "agent-x")
         write_log(log, [announce("cycle49", NOW - timedelta(hours=9), card="agent-x")])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
-        assert r["verdict"] == guard.UNCHECKED
-        assert guard.exit_code(r) == 2
+        assert r["verdict"] == guard.STALE
+        assert guard.exit_code(r) == 1
+        assert r["verdict"] != guard.FREE
 
 
 class TestFileOverlapStillBlocksWithoutStrongSignal:

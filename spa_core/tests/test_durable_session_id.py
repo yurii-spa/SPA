@@ -358,12 +358,28 @@ class TestStep0bSeesTheDurableProcess:
                       ps=ps_reused)
         assert r["verdict"] == claim_guard.STALE
 
-    def test_claim_without_durable_process_behaves_exactly_as_before(self, claim_guard,
-                                                                     tmp_path):
-        """Положительный контроль: без новых полей вердикт прежний (fail-CLOSED сохранён)."""
+    def test_claim_without_a_declared_identity_ages_into_stale(self, claim_guard, tmp_path):
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16 — объявлено, не молча.
+
+        Тест назывался `test_claim_without_durable_process_behaves_exactly_as_before` и
+        пиннил границу правки #146: без новых полей якоря вердикт ПРЕЖНИЙ, то есть
+        `unchecked` код 2. Под этим лежало допущение, что вечное «не измерено» безвредно.
+
+        **Цена измерена 08.10:** `session_state` отдаёт `UNKNOWN` для ярлыка без pid
+        необратимо, а подъём (`--takeover`) разрешён только на `stale` ⇒ карточка,
+        тронутая таким захватом, становилась неберущейся НАВСЕГДА. На живой очереди так
+        были заперты ЧЕТЫРЕ карточки, и одна из них — критический приказ владельца,
+        который шаг 0a-голод называл первым 634 цикла подряд.
+
+        **Ассерт перенацелен, а не ослаблен:** `stale` — «кандидат на ручной подъём»,
+        `claim` без письменной причины по-прежнему ОТКАЗЫВАЕТ, «свободна» не говорится.
+        Сосед ниже (`test_unmeasurable_ps_keeps_fail_closed`) держит ровно ту границу,
+        которую правка НЕ двигает: сбой `ps` — это «не измерено», код 2, и он зелёный.
+        """
         r = self._run(claim_guard, tmp_path, [self._claim(9, session="cycle49")], ps=ps_alive)
-        assert r["verdict"] == claim_guard.UNCHECKED
-        assert claim_guard.exit_code(r) == 2
+        assert r["verdict"] == claim_guard.STALE
+        assert r["verdict"] != claim_guard.FREE
+        assert claim_guard.exit_code(r) == 1
 
     def test_unmeasurable_ps_keeps_fail_closed(self, claim_guard, tmp_path):
         r = self._run(claim_guard, tmp_path, [self._claim(9, pid=4242, start=STARTED_BEFORE)],

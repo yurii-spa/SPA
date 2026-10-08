@@ -214,16 +214,28 @@ class TestDeadHolderIsMeasuredNotLocked:
 # ── контроль в обратную сторону: fail-CLOSED там, где мерить нечем ───────────
 
 class TestUnmeasurableStaysUnmeasured:
-    def test_holder_without_identity_in_log_stays_unmeasured(self, guard, sibling, tracker,
-                                                             log, now):
-        """Личности в журнале нет ⇒ поведение прежнее: «не измерено», код 2."""
+    def test_holder_without_identity_in_log_is_stale_not_unmeasured(self, guard, sibling,
+                                                                    tracker, log, now):
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #803, ADR-647), инв. #16.
+
+        «Личности в журнале нет» и «измерить не смогли» — РАЗНЫЕ утверждения, и до #803
+        они давали один исход. Первое необратимо: `session_state` отдаёт `UNKNOWN` для
+        ярлыка без pid навсегда, а подъём разрешён только на `stale` ⇒ карточка запиралась
+        НАСОВСЕМ (замер живой очереди: 4 карточки, среди них критический приказ владельца).
+        Теперь молчащая безымянная сессия стареет в `stale` — «свободна» по-прежнему не
+        говорится, и `claim` без `--takeover` отказывает.
+
+        Два соседних контроля этого класса — противоречащие якоря и сбой `ps` — остались
+        `unchecked` с кодом 2 и зелёные: там мерить ДЕЙСТВИТЕЛЬНО нечем.
+        """
         write_card(tracker, "inbox-x", claimed_by=HOLDER,
                    claimed_at=_fmt(now - timedelta(hours=8.7)))
         write_log(log, [claim_entry(HOLDER, now - timedelta(hours=8.7))])  # без pid/старта
         r = run(guard, sibling, tracker, log, "inbox-x", now=now, ps=lambda pid: (1, ""))
 
-        assert r["unmeasured"], "молчаливого «свободна» здесь быть не должно"
-        assert guard.exit_code(r) == 2
+        assert r["verdict"] == guard.STALE
+        assert r["verdict"] != guard.FREE, "молчаливого «свободна» здесь быть не должно"
+        assert guard.exit_code(r) == 1
 
     def test_contradicting_identities_stay_unmeasured(self, guard, sibling, tracker, log, now):
         """Один ярлык — два РАЗНЫХ процесса: угадывать держателя инструмент не станет."""
