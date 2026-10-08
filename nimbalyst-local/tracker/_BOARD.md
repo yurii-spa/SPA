@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-08T03:06:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-08T05:37:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2d82f4297).
+> Сверено с `origin/main` (9b15e4126) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1262** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1265** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -404,7 +404,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (667)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (670)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -599,6 +599,7 @@
 - Находка петли: data/journal_population_backfill.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-journal-population-ba.md` · 2026-09-11
 - Находка петли: data/rebalance_trigger.json: возраст 39.0ч > SLO 26ч (класс agent_regi  ·  `inbox-nahodka-petli-data-rebalance-trigger-jso.md` · 2026-09-29
 - Находка петли: data/resource_health.json: consumer_required, но НИ ОДНОГО ресита потр  ·  `inbox-nahodka-petli-data-resource-health-json.md` · 2026-10-04
+- Находка петли: data/run_identity_key_price.json: возраст 7.0ч > SLO 7ч (класс agent_r  ·  `inbox-nahodka-petli-data-run-identity-key-pric.md` · 2026-10-05
 - Находка петли: data/tier_curator_report.json: возраст 39.0ч > SLO 26ч (класс agent_re  ·  `inbox-nahodka-petli-data-tier-curator-report-j.md` · 2026-09-29
 - Находка петли: data/unobserved_leg_remedy_class.json: активный артефакт отсутствует н  ·  `inbox-nahodka-petli-data-unobserved-leg-remedy.md` · 2026-09-14
 - Находка петли: data/unobserved_turnover_dependence.json: возраст 13.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-unobserved-turnover-d.md` · 2026-09-14
@@ -968,6 +969,7 @@
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
+- Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
@@ -978,6 +980,7 @@
 - Подмена реестра может исчезнуть молча внутри теста — квитанция нужна поимённая, а не общая  ·  `inbox-podmena-reestra-mozhet-ischeznut-molcha.md` · 2026-10-03
 - Положительный контроль зелен при любом отказе прибора — он не отличает свою аварию от чужой  ·  `inbox-polozhitelnyi-kontrol-zelen-pri-lyubom-o.md` · 2026-10-02
 - Пометить аварийную подстановку в книге и убрать числа отвергнутой аллокации (решение владельца, вариант 1)  ·  `inbox-pometit-avariinuyu-podstanovku-v-knige-i.md` · 2026-09-08
+- Порог свежести дневного цикла у монитора доступности спорит с его тактом — сторож красен 22 часа из 24 по построению  ·  `inbox-porog-svezhesti-dnevnogo-tsikla-u-monito.md` · 2026-10-08
 - Порог выборки hit_rate считает ПРОГОНЫ, а сосед — ДНИ: после ADR-395 оси разошлись  ·  `inbox-porog-vyborki-hit-rate-schitaet-progony.md` · 2026-09-15
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
 - Поздний «принято» воскрешает карточку, закрытую замером — и предъявляет агенту ОТМЕНЁННУЮ разрушительную команду  ·  `inbox-pozdnii-prinyato-voskreshaet-kartochku-z.md` · 2026-08-30

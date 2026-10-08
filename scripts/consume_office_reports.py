@@ -193,6 +193,37 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "tracker_status_sentinel.json": ("verdict", "critical", "warn", "unchecked",
                                      "unattributed", "cards_seen", "transitions",
                                      "vanished"),
+    # ADR-645, заказ владельца G145 п. 1 (хвост ADR-644) — ПОСЛЕДНИЙ из перечня
+    # непрочитанных производителей находок ADR-526, и заказ сам предупредил, что
+    # замер пункт ПОВЕРНЁТ. Так и вышло: перечень называл
+    # `data/uptime_prev_state.json`, а это служебное состояние ПИСАТЕЛЯ
+    # (дедуп-отметки тревог; единственный его законный читатель — сам писатель
+    # на следующем такте, и объявить его потребителем значило бы завести цикл
+    # `producer == consumer`). Непрочитанным оказался ОТЧЁТ агента —
+    # `data/uptime_status.json`, которого не было в `artifacts[]` конституции
+    # ВООБЩЕ, то есть шаг 0-офис его не открывал ни разу.
+    #
+    # Перечень ВЫМЕРЕН у производителя (`run_all_checks()` в
+    # `spa_core/monitoring/uptime_monitor.py`, сборка `result`), а не списан с
+    # живого файла: у отчёта ровно три верхних ключа, и все три читаются.
+    #   * `all_ok` — вердикт производителя. Объявлен ВМЕСТЕ со знаменателями
+    #     ниже намеренно: он посчитан НЕ по всем проверкам (см. `checks`), и
+    #     печатать его одного значило бы выдать «всё хорошо» о населении,
+    #     которое читатель не видел;
+    #   * `ts` — отметка времени производства. Это ЕДИНСТВЕННАЯ отметка файла
+    #     (`generated_at` производитель не пишет вовсе) И она в ЭПОХЕ, а не в
+    #     ISO — поэтому у артефакта есть и строка `_TS_FIELD`, и строка
+    #     `_TS_UNIT`; обе вымерены у производителя, см. комментарии там;
+    #   * `checks` — сами проверки, 23 штуки на замер 08.10. Находка живёт
+    #     ИМЕННО здесь и поимённо: `running: false` у launchd-агента и
+    #     `ok: false` у не-launchd проверки. Вложенные ключи (`running`, `ok`,
+    #     `method`, `error`, `age_seconds`, `stale_hours`) в перечень
+    #     путями НЕ вносятся, и это ЗАМЕР, а не недосмотр: набор ключей
+    #     `checks` ДИНАМИЧЕСКИЙ (одно имя на каждую наблюдаемую службу,
+    #     `LAUNCHD_SERVICES`), поэтому путь `checks.launchd_weekly_backup`
+    #     краснел бы от переименования службы, а не от дрейфа схемы — то есть
+    #     сторож сообщал бы о другом событии, чем называется.
+    "uptime_status.json": ("all_ok", "ts", "checks"),
     # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
     # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
     # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
@@ -1181,6 +1212,7 @@ _PRODUCER: dict[str, str] = {
     "artifact_freshness.json": "spa_core/monitoring/artifact_freshness.py",
     "watchdog_status.json": "spa_core/monitoring/watchdog.py",
     "tracker_status_sentinel.json": "spa_core/monitoring/tracker_status_sentinel.py",
+    "uptime_status.json": "spa_core/monitoring/uptime_monitor.py",
     "_health.json": "spa_core/investment_os/health.py",
     "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
@@ -1401,7 +1433,42 @@ _TS_FIELD: dict[str, str] = {
     # Предыдущие три шага этого ряда (ADR-642/643) строку ставили, потому что
     # их производители пишут `ts` и `generated_at` у них нет вовсе; здесь
     # спрошен ПРОИЗВОДИТЕЛЬ, а не предыдущий шаг ряда.
+    #
+    # Монитор доступности пишет `ts` (ADR-645, заказ G145 п. 1), и
+    # `generated_at` у него нет ни одного — то есть без этой строки возраст был
+    # бы «НЕ ИЗМЕРЕН» ПО ПОСТРОЕНИЮ. Производитель спрошен тем же порядком, что
+    # и у трёх предыдущих шагов ряда: `run_all_checks()` собирает
+    # `result = {"all_ok": …, "ts": ts_now, "checks": …}`.
+    "uptime_status.json": "ts",
 }
+
+#: В каких ЕДИНИЦАХ записана отметка времени. Вопрос ОТДЕЛЬНЫЙ от `_TS_FIELD`
+#: («какое поле»), и до ADR-645 его не задавал никто, потому что все объявленные
+#: производители писали ISO-строку.
+#:
+#: Зачем понадобилось. `uptime_monitor.run_all_checks()` пишет `ts = time.time()`
+#: — секунды эпохи, а `_parse_ts` разбирает только ISO. Объявить одно поле и
+#: промолчать о единице значило бы получить «возраст НЕ ИЗМЕРЕН: ts не разобран
+#: (1791432752.24)» на отчёте, которому четыре минуты, — ложный третий исход о
+#: величине, которую производитель исправно пишет каждые 300 с. Урок ADR-643
+#: сказан дословно: ложное «не измерено» ничуть не лучше ложного нуля.
+#:
+#: Почему не «разбирать похожее на число везде»: число в поле времени может
+#: означать не время (например `20261008` — это дата, записанная целым, и в
+#: эпохе она значила бы 1970 год). Поэтому единица ОБЪЯВЛЕНА поимённо и сверена
+#: с исходником производителя (тест `test_ts_unit_matches_producer` доказывает
+#: AST-ом, что значение ключа происходит от `time.time()`), а разбор эпохи вне
+#: объявленного окна правдоподобия отказывает ТРЕТЬИМ ИСХОДОМ, а не считает
+#: уверенно неверный возраст.
+_TS_UNIT: dict[str, str] = {
+    "uptime_status.json": "epoch_seconds",
+}
+
+#: Окно правдоподобия для секунд эпохи: 2001-09-09 … 5138-11-16. Границы здесь
+#: не для красоты — они и есть защита от «числа, которое не время»: любое
+#: календарное число вида `20261008` или счётчик вида `42` окажутся ВНЕ окна и
+#: получат честное «не разобран», а не уверенный возраст в полвека.
+_EPOCH_MIN, _EPOCH_MAX = 1_000_000_000.0, 100_000_000_000.0
 
 
 def _produced_at(name: str, data):
@@ -1665,7 +1732,7 @@ def _absent_block(name: str, data, key: str, *, root: str | None,
     """
     is_finding, why = _block_absent_is_a_finding(
         name, key, root=root or REPO_ROOT,
-        art_ts=_parse_ts(_produced_at(name, data)), now=now)
+        art_ts=_produced_moment(name, data), now=now)
     return _finding_mark(is_finding), why
 
 
@@ -1695,7 +1762,7 @@ def _subject_drift(name: str, data, *, root: str | None = None,
     if not subjects:
         return []
     root = root or REPO_ROOT
-    art_ts = _parse_ts(_produced_at(name, data))
+    art_ts = _produced_moment(name, data)
     recorded = {r.get("path"): r for r in (data.get("inputs") or [])
                 if isinstance(r, dict)}
     lines: list[str] = []
@@ -1900,7 +1967,7 @@ def _schema_drift(name: str, data, *, root: str | None = None) -> list[str]:
     src = os.path.join(root, rel) if rel else None
     keys = _source_keys(src) if src else None
     mtime = _mtime(src) if src else None
-    art_ts = _parse_ts(_produced_at(name, data))
+    art_ts = _produced_moment(name, data)
 
     if rel is None:
         why = "производитель не объявлен в _PRODUCER"
@@ -1981,7 +2048,71 @@ def _num(container, key):
     return _UNMEASURED if v is None else v
 
 
-def _parse_ts(value):
+#: Что в отчёте монитора доступности есть утверждение об ИЗМЕРИТЕЛЕ, а не о
+#: системе. Перечень короткий и каждая строка — ЗАМЕР, а не догадка: гасить
+#: находку нельзя (сенсор может и не врать), но и молчать о известной причине
+#: нельзя — цикл погонится за фантомом, а потом перестанет верить всей ветке.
+_UPTIME_SENSOR_CAVEATS: dict[str, str] = {
+    "git_push": ("мерится возраст ЛОКАЛЬНОГО git-индекса, а доставка идёт в "
+                 "origin через API, минуя индекс (CLAUDE.md §1, ADR-152) — "
+                 "отставание здесь ШТАТНО и не означает, что не пушили"),
+    "cycle_freshness": ("порог производителя STALE_CYCLE_HOURS = 2.0 ч против "
+                        "такта дневного цикла calendar:08:00 (раз в сутки) — "
+                        "проверка может быть зелёной 2 ч из 24 ПО ПОСТРОЕНИЮ, "
+                        "поэтому её `ok=false` почти не несёт сведений; порог "
+                        "и такт разошлись, и это предмет отдельной карточки"),
+}
+
+
+def _uptime_detail(key: str, chk: dict) -> str:
+    """Почему проверка монитора доступности в таком исходе — словами производителя.
+
+    Ни одно число не подставляется: отсутствующее поле печатается как
+    «НЕ ИЗМЕРЕНО», потому что «возраст 0м» и «возраста нет» — разные
+    утверждения (инв. #17), и первое из них здесь читалось бы как «только что».
+    """
+    method = chk.get("method") or _UNMEASURED
+    if method == "output_file_age":
+        age, mx = chk.get("age_seconds"), chk.get("max_age")
+        age_s = f"{age / 60:.0f}м" if isinstance(age, (int, float)) else _UNMEASURED
+        mx_s = f"{mx / 60:.0f}м" if isinstance(mx, (int, float)) else _UNMEASURED
+        return f"файл {chk.get('file') or _UNMEASURED} возрастом {age_s} при потолке {mx_s}"
+    if method in ("no_output_file", "output_file_missing"):
+        exit_code = chk.get("last_exit")
+        tail = "" if exit_code is None else f", последний код выхода {exit_code}"
+        return f"файла вывода нет ({chk.get('file') or 'файл не назван'}){tail}"
+    if method == "tcp_port":
+        return f"порт {chk.get('port') or _UNMEASURED}"
+    if not key.startswith("launchd_"):
+        stale = chk.get("stale_hours")
+        if isinstance(stale, (int, float)):
+            return f"отстал на {stale:.1f}ч"
+        if chk.get("error"):
+            return str(chk["error"])[:160]
+        return f"метод {method}"
+    return str(chk.get("error") or f"метод {method}")[:160]
+
+
+def _parse_ts(value, *, unit: str = "iso8601"):
+    """Отметка времени → момент. Единица приходит ОБЪЯВЛЕНИЕМ, не угадывается.
+
+    `unit="epoch_seconds"` берётся только у артефактов, перечисленных в
+    `_TS_UNIT` (единица сверена с исходником производителя). Угадывать единицу
+    по виду значения ЗАПРЕЩЕНО тем же доводом, которым запрещено угадывать поле:
+    число, не являющееся временем, дало бы уверенно НЕВЕРНЫЙ возраст — хуже,
+    чем честно неизмеренный.
+    """
+    if unit == "epoch_seconds":
+        # Отдельной двери для `bool` здесь НЕТ, и это ЗАМЕР, а не недосмотр:
+        # `isinstance(True, int)` в питоне истинно, но `True` есть 1.0, то есть
+        # он отвергается ОКНОМ ниже. Проверка типа на `bool` не меняла вердикт
+        # ни на одном входе — а ворот, не меняющий вердикт, снимается потом
+        # молча, потому что его снятие ничем не наблюдаемо.
+        if not isinstance(value, (int, float)):
+            return None
+        if not (_EPOCH_MIN <= float(value) < _EPOCH_MAX):
+            return None
+        return dt.datetime.fromtimestamp(float(value), dt.timezone.utc)
     try:
         parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception:  # noqa: BLE001
@@ -1989,7 +2120,19 @@ def _parse_ts(value):
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
 
 
-def _age_line(ts_value, now: dt.datetime, *, field: str = "generated_at") -> str:
+def _produced_moment(name: str, data):
+    """Момент производства артефакта — одно место, где единица берётся по объявлению.
+
+    Единица спрашивается ЗДЕСЬ, а не у каждого вызывающего: четыре места,
+    самостоятельно заглядывающие в `_TS_UNIT`, разошлись бы молча, и один и тот
+    же `ts` читался бы в одном месте как время, а в другом как мусор — ровно тот
+    второй дом величины, против которого написан ADR-513.
+    """
+    return _parse_ts(_produced_at(name, data), unit=_TS_UNIT.get(name, "iso8601"))
+
+
+def _age_line(ts_value, now: dt.datetime, *, field: str = "generated_at",
+              unit: str = "iso8601") -> str:
     """Возраст артефакта — безусловно, для КАЖДОГО артефакта.
 
     Отдельная строка, а не свойство generic-ветки: до #176 возраст печатался
@@ -1999,12 +2142,17 @@ def _age_line(ts_value, now: dt.datetime, *, field: str = "generated_at") -> str
     """
     if ts_value is None:
         return f"   ⚠️ возраст НЕ ИЗМЕРЕН: производитель не пишет {field}"
-    parsed = _parse_ts(ts_value)
+    parsed = _parse_ts(ts_value, unit=unit)
     if parsed is None:
         return f"   ⚠️ возраст НЕ ИЗМЕРЕН: {field} не разобран ({ts_value!r})"
     hours = (now - parsed).total_seconds() / 3600.0
     mark = "  ⚠️ старше суток" if hours >= STALE_HOURS else ""
-    return f"   {field}: {ts_value} (возраст {hours:.1f}ч){mark}"
+    # У отметки в эпохе рядом печатается ЧЕЛОВЕЧЕСКИЙ вид: «ts: 1791432752.24»
+    # не позволяет читателю ни проверить возраст, ни заметить подмену файла, а
+    # прятать сырое значение нельзя — именно оно лежит в артефакте.
+    shown = (f"{ts_value} = {parsed:%Y-%m-%dT%H:%M:%S}Z"
+             if unit == "epoch_seconds" else f"{ts_value}")
+    return f"   {field}: {shown} (возраст {hours:.1f}ч){mark}"
 
 
 def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
@@ -2025,7 +2173,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         return [f"   (не-dict JSON, {type(data).__name__})"]
     now = now or dt.datetime.now(dt.timezone.utc)
     head: list[str] = _schema_drift(name, data, root=root)
-    head.append(_age_line(_produced_at(name, data), now, field=_TS_FIELD.get(name, "generated_at")))
+    head.append(_age_line(_produced_at(name, data), now,
+                          field=_TS_FIELD.get(name, "generated_at"),
+                          unit=_TS_UNIT.get(name, "iso8601")))
     # ПОСЛЕ возраста и ДО вердикта: читатель должен узнать, что предмет сменился,
     # раньше, чем прочтёт вердикт о нём.
     head.extend(_subject_drift(name, data, root=(artifact_root or root), now=now))
@@ -2236,6 +2386,82 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                            f"{str(f['writer'])[:160]}")
         if len(unattributed) > 6:
             out.append(f"   …и ещё {len(unattributed) - 6} находок не напечатано")
+    elif name == "uptime_status.json":
+        # Монитор доступности 24/7 (ADR-645, заказ G145 п. 1; хвост
+        # ADR-644/ADR-526 — ПОСЛЕДНИЙ из перечня). ЗАЧЕМ ЭТА ВЕТКА: артефакта
+        # не было в `artifacts[]` ВООБЩЕ, то есть шаг 0-офис не открывал его ни
+        # разу. Находка доезжала только тревогой в Телеграм, и только про
+        # ПЕРЕХОД running→down (`_process_agent_alerts`): устойчиво лежащая
+        # служба тревогу уже не производит, а внутри цикла не звучала вовсе.
+        # Замер 08.10 на живом дереве: `all_ok=false`, ШЕСТЬ launchd-служб
+        # лежат, `cycle_freshness` протух на 22.2 ч — и ни одна из этих строк
+        # до сегодня в цикл не попадала.
+        checks = data.get("checks")
+        if not isinstance(checks, dict) or not checks:
+            # Третий исход ЦЕЛИКОМ: без `checks` вердикт `all_ok` не о чем —
+            # печатать его одного значило бы выдать «всё хорошо» о пустоте.
+            out.append(f"   {_UNMEASURED}: производитель не положил в `checks` "
+                       f"ни одной проверки — `all_ok` при этом не о чём, и "
+                       f"читать его как состояние системы нельзя")
+        else:
+            # Исходы РАЗВЕДЕНЫ по тому, как их судит САМ производитель:
+            # launchd-проверка отвечает `running`, остальные — `ok`, и
+            # `running is None` значит «судить не по чему» (производитель
+            # исключает такую проверку из `all_ok` явно). Слить None с False
+            # значило бы выдать отсутствие наблюдения за аварией, а слить его с
+            # True — за спокойствие; инв. #17 требует третьего значения.
+            down, unchecked, judged = [], [], 0
+            for key in sorted(checks):
+                chk = checks[key]
+                if not isinstance(chk, dict):
+                    unchecked.append((key, f"проверка не-словарь ({type(chk).__name__})"))
+                    continue
+                verdict_key = "running" if key.startswith("launchd_") else "ok"
+                if verdict_key not in chk or chk[verdict_key] is None:
+                    unchecked.append((key, _uptime_detail(key, chk)))
+                    continue
+                judged += 1
+                if not chk[verdict_key]:
+                    down.append((key, _uptime_detail(key, chk)))
+            # ДВА ЗНАМЕНАТЕЛЯ, и они отвечают на РАЗНЫЕ вопросы. `проверок`
+            # даёт масштаб находке («6 лежит» из шести или из двадцати трёх —
+            # разные вещи). `судимых` — население, по которому производитель
+            # ВООБЩЕ считал `all_ok`: оно меньше на число неизмеренных, и без
+            # этого числа `all_ok=true` читался бы как «все живы», хотя
+            # означает «все, о ком было чем судить».
+            flag = data.get("all_ok")
+            verdict = ("все судимые проверки прошли" if flag is True
+                       else "ЕСТЬ ЛЕЖАЩИЕ СЛУЖБЫ" if flag is False
+                       else f"{_UNMEASURED} (производитель не написал `all_ok`)")
+            out.append(f"   вердикт: {verdict} · проверок {len(checks)} · "
+                       f"судимых {judged} · лежит {len(down)} · "
+                       f"не измерено {len(unchecked)}")
+            # НЕ ИЗМЕРЕНО печатается ПЕРВЫМ, и у ЭТОГО производителя причина
+            # прямая: он исключает такую проверку из `all_ok` САМ, то есть
+            # «всё хорошо» о ней не говорит РОВНО НИЧЕГО. Задвинь эти строки в
+            # хвост — и агент, о котором нечем судить, читался бы как живой.
+            for key, why in unchecked[:6]:
+                out.append(f"   [{_UNMEASURED}] {key}: {why} — `all_ok` об этой "
+                           f"службе не говорит ничего")
+            if len(unchecked) > 6:
+                out.append(f"   …и ещё {len(unchecked) - 6} неизмеренных не напечатано")
+            # Порядок — порядок ТЯЖЕСТИ, а не порядок словаря производителя:
+            # `checks` собирается в порядке `LAUNCHD_SERVICES`, поэтому без
+            # сортировки лежащая служба оказывалась бы где попало среди живых.
+            for key, why in down[:10]:
+                out.append(f"   [CRITICAL] {key}: НЕ РАБОТАЕТ — {why}")
+            if len(down) > 10:
+                out.append(f"   …и ещё {len(down) - 10} лежащих служб не напечатано")
+            # Оговорка про ИЗМЕРИТЕЛЬ, а не про систему. Без неё цикл погнался
+            # бы за фантомом: доставка идёт в origin через API, минуя локальный
+            # индекс (CLAUDE.md, ADR-152), поэтому `git_push` честно мерит
+            # ВОЗРАСТ ЛОКАЛЬНОГО индекса и его `ok=false` — утверждение о
+            # сенсоре. Гасить находку нельзя (сенсор мог бы и не врать), но и
+            # молчать о известной причине — значит ронять доверие ко всей ветке.
+            named = [k for k, _ in down if k in _UPTIME_SENSOR_CAVEATS]
+            for key in named:
+                out.append(f"      оговорка об ИЗМЕРИТЕЛЕ {key}: "
+                           f"{_UPTIME_SENSOR_CAVEATS[key]}")
     elif name == "_health.json":
         # Схема ВЫМЕРЕНА по производителю (`investment_os/health.py`): счётчики
         # лежат в `counts`, а строки аналитиков — в `analysts`. Прежняя ветка
