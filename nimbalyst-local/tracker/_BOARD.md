@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-08T00:47:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-08T00:57:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (78a0db657) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (87abe591c).
 >
-> Всего карточек: **1260** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1261** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -404,7 +404,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (665)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (666)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -920,6 +920,7 @@
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
+- manifest.json уехал с indent=2 вместо канонического indent=1 — следующая регенерация выдаст 10 000 строк диффа за чужой счёт  ·  `inbox-manifest-json-uehal-s-indent-2-vmesto-ka.md` · 2026-10-08
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
