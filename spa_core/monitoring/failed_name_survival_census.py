@@ -100,10 +100,20 @@ yaml`` уронил бы сборкой весь шаг 0-офис на хост
   вреда, и число распознанных форм печатается рядом с вердиктом.
 * Покрытие пути решается только на литералах. Путь или ``path:`` с
   ``${{ … }}`` ⇒ ``unmeasured``, а не «покрыто» и не «не покрыто».
-* Ось читателей (вторая, в сумму НЕ входит) измеряется по УПОМИНАНИЮ в
-  ``scripts/`` и ``spa_core/`` вне тестов. Упоминание не есть чтение, и число
+* Ось читателей (вторая, в сумму НЕ входит) измеряется по УПОМИНАНИЮ, и
+  население её УЗКОЕ: ровно ``*.py`` каталогов ``scripts/`` и
+  ``spa_core/monitoring/`` вне тестов. Упоминание не есть чтение, и число
   просмотренных файлов печатается — чтобы «ни один читатель» было числом, а не
   словом.
+* **Ноль узкой оси есть НИЖНЯЯ ГРАНИЦА, и с ADR-650 это печатает сам прибор.**
+  Заказ G106 п. 3 потребовал спросить с другой стороны, и вторая половина оси
+  (ниже, ``_wide_reader_axis``) ходит по четырём родам площадок ВНЕ узкого
+  населения: python вне двух каталогов · ``*.sh`` (их фильтр ``.py`` не видит
+  даже в объявленных каталогах) · воркфлоу · документы ПРОТОКОЛА. У каждой
+  площадки объявлено, ГДЕ лежит метка (исполняемый текст против прозы) и какова
+  РОЛЬ (читает лог против зовёт писателя) — иначе слово в комментарии и команда
+  в протоколе считались бы одним и тем же. Цены оставшейся односторонности
+  названы заранее (``LOWER_BOUND_PRICES``).
 
 Прибор только ЧИТАЕТ: ни один тест не запускается, не правится и не ослабляется
 (инв. #16); RiskPolicy, стоп-кран, аллокатор, живой трек и ``landing/`` не
@@ -351,6 +361,13 @@ def measure(root: str, workflows: dict | None = None) -> dict:
         try:
             workflows = load_workflows(root)
         except Unmeasured as exc:
+            # Воркфлоу не разобраны ⇒ писательская ось НЕ ИЗМЕРЕНА. Вторая ось
+            # от этого не умирает: она ходит по дереву, а не по воркфлоу, и
+            # отдать её нулями значило бы выдать «не измерено» за «читателя
+            # нет» у ОСТАЛЬНЫХ трёх родов (инв. #17).
+            wide, wide_scanned, wide_sites_unmeasured, wide_kinds = \
+                _wide_reader_axis(root, workflows={})
+            wide_kinds[KIND_WORKFLOW] = str(exc)
             return {
                 "population": 0,
                 "rows": [],
@@ -358,6 +375,11 @@ def measure(root: str, workflows: dict | None = None) -> dict:
                 "readers": [],
                 "reader_counts": {name: 0 for name in READER_CHANNELS},
                 "reader_files_scanned": None,
+                "wide_sites": wide,
+                "wide_counts": wide_counts(wide),
+                "wide_scanned": wide_scanned,
+                "wide_site_unmeasured": wide_sites_unmeasured,
+                "wide_kind_unmeasured": wide_kinds,
                 "names_shown": names_shown(root),
                 "record_forms": list(RECORD_FORMS),
                 "unmeasured_reason": str(exc),
@@ -377,6 +399,10 @@ def measure(root: str, workflows: dict | None = None) -> dict:
         counts[row["outcome"]] += 1
 
     readers, reader_counts, scanned = _reader_axis(root)
+    # Те же воркфлоу подаются и второй оси: один вход — один операнд, иначе
+    # тест, подавший сцену писателю, мерил бы у читателя ЖИВОЕ `.github/`.
+    wide, wide_scanned, wide_sites_unmeasured, wide_kinds = \
+        _wide_reader_axis(root, workflows=workflows)
     return {
         "population": len(rows),
         "rows": rows,
@@ -384,6 +410,11 @@ def measure(root: str, workflows: dict | None = None) -> dict:
         "readers": readers,
         "reader_counts": reader_counts,
         "reader_files_scanned": scanned,
+        "wide_sites": wide,
+        "wide_counts": wide_counts(wide),
+        "wide_scanned": wide_scanned,
+        "wide_site_unmeasured": wide_sites_unmeasured,
+        "wide_kind_unmeasured": wide_kinds,
         "names_shown": names_shown(root),
         "record_forms": list(RECORD_FORMS),
         "unmeasured_reason": unmeasured_reason,
@@ -533,6 +564,334 @@ def _channel_of(text: str):
     return None
 
 
+# ── ось читателей ВНЕ узкого населения: ноль есть НИЖНЯЯ ГРАНИЦА (G106 п. 3) ─
+#
+# Узкая ось выше ходит ровно по ``*.py`` двух каталогов (``scripts/`` и
+# ``spa_core/monitoring/``) и про всё остальное дерево не говорит НИЧЕГО. Её
+# ноль поэтому есть НИЖНЯЯ ГРАНИЦА, а не ответ «читателя нет»: за населением
+# остаются воркфлоу, shell (каталог ``scripts/`` объявлен, но фильтр ``.py``
+# половины его не видит), python вне двух каталогов и — то, что заказ назвал
+# прямо, — сам человек в ПРОТОКОЛЕ. Заказ G106 п. 3 требует спросить с другой
+# стороны и назвать ноль нижней границей.
+
+#: Род площадки, на которой читателя искали. Перечень ЗАКРЫТ.
+KIND_CODE = "code_py_outside"
+KIND_SHELL = "shell"
+KIND_WORKFLOW = "workflow_run"
+KIND_DOC = "protocol_doc"
+WIDE_KINDS: tuple[str, ...] = (KIND_CODE, KIND_SHELL, KIND_WORKFLOW, KIND_DOC)
+
+#: Чем доказано, что метка канала стои́т не в прозе. Проза, НАЗЫВАЮЩАЯ предмет,
+#: его читателем не делает — и это не умозрительная тонкость: единственного
+#: читателя лога шага, которого видит узкая ось, она числит таковым по слову
+#: ``ci_verdict`` в КОММЕНТАРИИ. Поэтому у каждой площадки здесь объявлено, где
+#: метка лежит, и «в прозе» считается ОТДЕЛЬНО от «в исполняемом тексте».
+EV_EXEC = "mark_in_executable_text"
+EV_PROSE = "mark_in_prose_only"
+EV_UNMEASURED = "evidence_unmeasured"
+WIDE_EVIDENCE: tuple[str, ...] = (EV_EXEC, EV_PROSE, EV_UNMEASURED)
+
+#: Документы ПРОТОКОЛА — объявленный перечень, а не весь ``docs/**``: инструкция,
+#: которую сессия ОБЯЗАНА исполнить, живёт ровно здесь. Остальной markdown —
+#: запись о прошлом (журнал, ADR, идея), и человек по нему не действует. Заказ
+#: спрашивает про человека в ПРОТОКОЛЕ, а не в архиве; выбор населения назван
+#: причиной, потому что «и так понятно» причиной не является.
+PROTOCOL_DOCS: tuple[str, ...] = ("CLAUDE.md", "docs/ORCHESTRATOR_PROTOCOL.md")
+PROTOCOL_DOC_GLOBS: tuple[str, ...] = (".claude/rules/*.md",)
+
+#: Каталоги, которые обход не открывает вовсе. ``tests`` — тем же правилом, что
+#: у узкой оси: тест не есть читатель вердикта.
+_WIDE_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "tests",
+                             "__pycache__", ".mypy_cache", ".pytest_cache"})
+
+#: Цены нижней границы — названы ЗАРАНЕЕ и каждая со стороной ошибки.
+LOWER_BOUND_PRICES: tuple[str, ...] = (
+    "`#` внутри кавычек у shell уходит в прозу — ошибка в сторону ЗАНИЖЕНИЯ "
+    "читателя, никогда в сторону выдуманного",
+    "комментарий YAML отброшен разборщиком: упоминание канала в нём не видно "
+    "вовсе — у рода `workflow_run` прозы нет по построению",
+    "человек, читающий лог глазами в UI GitHub без команды в протоколе, не "
+    "наблюдаем ни одним признаком дерева",
+    "имя инструмента, собранное в рантайме, меткой не ловится (та же цена, "
+    "что у узкой оси)",
+    "markdown вне объявленного перечня протокола не просматривался — ВЫБОР "
+    "с причиной, а не свойство дерева",
+)
+
+
+#: Чем площадка ТРОГАЕТ канал. Перечень ЗАКРЫТ, сумма равна числу площадок.
+#: Различение существенно: шаг воркфлоу, зовущий `ci_verdict.py`, СОЗДАЁТ
+#: усечённый лог, а не читает его, — и посчитать его читателем было бы ровно
+#: той подменой («упоминание не есть чтение»), против которой написан заказ.
+ROLE_READS = "role_reads_the_log"
+ROLE_INVOKES = "role_invokes_the_writer"
+ROLE_UNMEASURED = "role_unmeasured"
+WIDE_ROLES: tuple[str, ...] = (ROLE_READS, ROLE_INVOKES, ROLE_UNMEASURED)
+
+#: Форма КОМАНДЫ, чей вход есть лог. Проверяется ПЕРВОЙ: площадка, которая и
+#: зовёт писателя, и читает его лог, есть читатель — зов тут не отменяет чтения.
+_LOG_READ_FORMS: tuple[re.Pattern, ...] = (
+    re.compile(r"\b(grep|egrep|rg|cat|tail|head|less|awk|sed)\b[^\n]{0,80}"
+               r"(лог|log)", re.IGNORECASE),
+    re.compile(r"run\s+view[^\n]{0,80}--log"),
+    re.compile(r"--log-failed"),
+    re.compile(r"(jobs|runs)/\S{0,40}/logs"),
+)
+
+#: Форма ЗОВА писателя: файл вердикта запускается как программа либо грузится
+#: по пути. Это не чтение лога, и своего исхода он не теряет.
+_INVOKE_FORMS: tuple[re.Pattern, ...] = (
+    re.compile(r"ci_verdict\.py"),
+    re.compile(r"ci_verdict\s*\.\s*(read_verdict|main|_NAMES_SHOWN)"),
+)
+
+
+def _role_of(text: str) -> str:
+    """Роль площадки по ФОРМЕ, а не по присутствию имени. Третий исход обязателен."""
+    if any(form.search(text) for form in _LOG_READ_FORMS):
+        return ROLE_READS
+    if any(form.search(text) for form in _INVOKE_FORMS):
+        return ROLE_INVOKES
+    return ROLE_UNMEASURED
+
+
+class _Unparsed(Exception):
+    """Разобрать площадку нечем — ТРЕТИЙ исход, а не ноль и не проза."""
+
+
+def _narrow_population(rel: str) -> bool:
+    """Файл, который УЖЕ прошёл узкую ось (``*.py`` двух её каталогов)."""
+    return rel.endswith(".py") and (rel.startswith("scripts/")
+                                    or rel.startswith("spa_core/monitoring/"))
+
+
+def _channels_in(text: str) -> tuple[tuple[str, str], ...]:
+    """ВСЕ каналы, чьи метки есть в тексте — без маскировки узкой лестницей.
+
+    Узкая ось отдаёт ОДИН канал на файл (первый по лестнице), и у файла,
+    читающего два канала, второй теряется молча. Для вопроса «есть ли читатель
+    лога шага вообще» это ошибка в сторону занижения, поэтому перечень полный.
+    """
+    found: list[tuple[str, str]] = []
+    for channel, marks in _READER_MARKS:
+        hit = next((mark for mark in marks if mark in text), None)
+        if hit is not None:
+            found.append((channel, hit))
+    return tuple(found)
+
+
+def _python_text(src: str) -> tuple[str, str]:
+    """``(исполняемый текст, проза)`` для ``.py`` — по ТОКЕНАМ.
+
+    Проза — комментарии и строки-ОПЕРАТОРЫ (докстринг модуля, класса, функции).
+    Позиции узлов ``ast`` для этого не годятся: ``col_offset`` там считается в
+    БАЙТАХ utf-8, а токенайзер — в символах, и на кириллице (её здесь
+    большинство) смешение двух шкал резало бы строку не там. Правило токена
+    позиций не требует вовсе: строка, стоящая первым токеном логической строки
+    и сразу закрытая ``NEWLINE``, есть строка-оператор.
+    """
+    import io  # noqa: PLC0415
+    import tokenize  # noqa: PLC0415
+
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, SyntaxError, IndentationError) as exc:
+        raise _Unparsed(f"{type(exc).__name__}: {exc}") from exc
+
+    prose = [t.string for t in toks if t.type == tokenize.COMMENT]
+    # Соседство считается БЕЗ комментариев и без `NL`: комментарий между
+    # `NEWLINE` и строкой не обязан прятать докстринг.
+    sig = [t for t in toks if t.type not in (tokenize.COMMENT, tokenize.NL)]
+    starts = (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT,
+              tokenize.ENCODING)
+    executed: list[str] = []
+    for i, tok in enumerate(sig):
+        if tok.type == tokenize.STRING:
+            prev = sig[i - 1].type if i else tokenize.ENCODING
+            nxt = sig[i + 1].type if i + 1 < len(sig) else tokenize.NEWLINE
+            if prev in starts and nxt == tokenize.NEWLINE:
+                prose.append(tok.string)
+                continue
+        executed.append(tok.string)
+    return "\n".join(executed), "\n".join(prose)
+
+
+_SH_COMMENT = re.compile(r"(?m)#.*$")
+
+
+def _shell_text(src: str) -> tuple[str, str]:
+    """``(исполняемый текст, проза)`` для ``*.sh``: ``#`` до конца строки — проза."""
+    prose = "\n".join(m.group(0) for m in _SH_COMMENT.finditer(src))
+    return _SH_COMMENT.sub("", src), prose
+
+
+_MD_FENCE = re.compile(r"(?s)```.*?```|~~~.*?~~~")
+_MD_INLINE = re.compile(r"`[^`\n]+`")
+
+
+def _doc_text(src: str) -> tuple[str, str]:
+    """``(исполняемый текст, проза)`` для markdown-протокола.
+
+    Исполняемое у документа — КОМАНДА: ограждённый блок и строчный код в
+    обратных кавычках. Всё прочее есть проза, и она читателем не делает: это
+    тот же водораздел, что у комментария в ``.py``, только в другом рендере.
+    """
+    executed: list[str] = []
+    rest = src
+    for pattern in (_MD_FENCE, _MD_INLINE):
+        executed.extend(m.group(0) for m in pattern.finditer(rest))
+        rest = pattern.sub(" ", rest)
+    return "\n".join(executed), rest
+
+
+def _yaml_strings(node) -> list[str]:
+    """Все строковые скаляры разобранного воркфлоу (``run``, ``env``, ``with``…)."""
+    out: list[str] = []
+    if isinstance(node, str):
+        out.append(node)
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(key, str):
+                out.append(key)
+            out.extend(_yaml_strings(value))
+    elif isinstance(node, (list, tuple)):
+        for item in node:
+            out.extend(_yaml_strings(item))
+    return out
+
+
+def _wide_reader_axis(root: str, workflows: dict | None = None):
+    """Читатели вердикта ВНЕ узкого населения: площадки, роды, доказательства.
+
+    Возвращает ``(sites, scanned, site_unmeasured, kind_unmeasured)``.
+    «Не измерена ПЛОЩАДКА» и «не измерен РОД» — разные исходы: первое печатается
+    строкой, второе означает, что про род вопрос остался без ответа вовсе, и
+    поднимает код возврата. Род с ПУСТЫМ населением объявляется неизмеренным, а
+    не чистым: нули на пустом населении и есть ``vacuous_guard_census``.
+    """
+    sites: list[dict] = []
+    scanned = {kind: 0 for kind in WIDE_KINDS}
+    site_unmeasured: list[dict] = []
+    kind_unmeasured: dict[str, str] = {}
+
+    def _add(kind: str, site: str, executed: str, prose: str) -> None:
+        seen = set()
+        for channel, mark in _channels_in(executed):
+            seen.add(channel)
+            sites.append({"kind": kind, "site": site, "channel": channel,
+                          "evidence": EV_EXEC, "mark": mark,
+                          "role": _role_of(executed)})
+        for channel, mark in _channels_in(prose):
+            if channel in seen:
+                continue
+            sites.append({"kind": kind, "site": site, "channel": channel,
+                          "evidence": EV_PROSE, "mark": mark,
+                          "role": _role_of(prose)})
+
+    # ── python вне двух каталогов + shell по всему дереву ────────────────────
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in sorted(dirnames) if d not in _WIDE_SKIP_DIRS]
+        for filename in sorted(filenames):
+            if filename.endswith(".py"):
+                kind = KIND_CODE
+            elif filename.endswith(".sh"):
+                kind = KIND_SHELL
+            else:
+                continue
+            path = os.path.join(dirpath, filename)
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            if kind == KIND_CODE and _narrow_population(rel):
+                continue
+            if rel in READER_EXCLUSIONS:
+                continue
+            scanned[kind] += 1
+            try:
+                text = open(path, encoding="utf-8").read()
+            except (OSError, UnicodeDecodeError) as exc:
+                site_unmeasured.append({"kind": kind, "site": rel,
+                                        "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            raw = _channels_in(text)
+            if not raw:
+                continue  # ни одной метки — разбирать нечего, и это не находка
+            if kind == KIND_CODE:
+                try:
+                    executed, prose = _python_text(text)
+                except _Unparsed as exc:
+                    for channel, mark in raw:
+                        sites.append({"kind": kind, "site": rel, "channel": channel,
+                                      "evidence": EV_UNMEASURED, "mark": mark,
+                                      "role": ROLE_UNMEASURED})
+                    site_unmeasured.append({"kind": kind, "site": rel,
+                                            "reason": f"разобрать нечем: {exc}"})
+                    continue
+            else:
+                executed, prose = _shell_text(text)
+            _add(kind, rel, executed, prose)
+
+    # ── воркфлоу: разобранные документы, комментариев в них разборщик не даёт ─
+    if workflows is None:
+        try:
+            workflows = load_workflows(root)
+        except Unmeasured as exc:
+            kind_unmeasured[KIND_WORKFLOW] = str(exc)
+            workflows = {}
+    for name, doc in sorted((workflows or {}).items()):
+        scanned[KIND_WORKFLOW] += 1
+        _add(KIND_WORKFLOW, f".github/workflows/{name}",
+             "\n".join(_yaml_strings(doc)), "")
+
+    # ── документы протокола: объявленный перечень ────────────────────────────
+    docs = list(PROTOCOL_DOCS)
+    for pattern in PROTOCOL_DOC_GLOBS:
+        head, _, tail = pattern.rpartition("/")
+        base = os.path.join(root, head) if head else root
+        if not os.path.isdir(base):
+            site_unmeasured.append({"kind": KIND_DOC, "site": pattern,
+                                    "reason": f"каталога нет: {base}"})
+            continue
+        docs.extend((f"{head}/{n}" if head else n)
+                    for n in sorted(os.listdir(base)) if fnmatch.fnmatch(n, tail))
+    for rel in docs:
+        path = os.path.join(root, *rel.split("/"))
+        try:
+            text = open(path, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as exc:
+            site_unmeasured.append({"kind": KIND_DOC, "site": rel,
+                                    "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        scanned[KIND_DOC] += 1
+        _add(KIND_DOC, rel, *_doc_text(text))
+
+    for kind in WIDE_KINDS:
+        if kind in kind_unmeasured:
+            continue
+        if not scanned[kind]:
+            kind_unmeasured[kind] = ("населения рода нет: ни одной площадки не "
+                                     "просмотрено, и ноль находок на пустом "
+                                     "населении не есть «читателя нет»")
+    return sites, scanned, site_unmeasured, kind_unmeasured
+
+
+def wide_counts(sites) -> dict:
+    """``{канал: {доказательство: сколько}}``. Каждый ноль объявлен (инв. #17)."""
+    counts = {channel: {ev: 0 for ev in WIDE_EVIDENCE}
+              for channel in READER_CHANNELS}
+    for site in sites:
+        counts[site["channel"]][site["evidence"]] += 1
+    return counts
+
+
+def wide_roles(sites, channel: str = "") -> dict:
+    """``{роль: сколько}`` — по каналу либо по всем площадкам, если он пуст."""
+    roles = {role: 0 for role in WIDE_ROLES}
+    for site in sites:
+        if channel and site["channel"] != channel:
+            continue
+        roles[site.get("role") or ROLE_UNMEASURED] += 1
+    return roles
+
+
 # ── вердикт и отчёт ──────────────────────────────────────────────────────────
 
 def verdict(doc: dict) -> str:
@@ -547,17 +906,73 @@ def verdict(doc: dict) -> str:
     return "names_die_with_the_runner"
 
 
+def _wide_lines(doc: dict) -> list[str]:
+    """Строки второй оси: НИЖНЯЯ ГРАНИЦА узкого числа, роды, доказательства.
+
+    Печатается во ВСЕХ ветках отчёта, включая «писательская ось не измерена»:
+    вторая ось ходит по дереву и от разбора воркфлоу не зависит, а молчание о
+    ней читалось бы как её ноль.
+    """
+    sites = doc.get("wide_sites") or []
+    counts = doc.get("wide_counts") or wide_counts(sites)
+    scanned = doc.get("wide_scanned") or {}
+    kinds_unmeasured = doc.get("wide_kind_unmeasured") or {}
+    narrow = (doc.get("reader_counts") or {}).get(CH_STEP_LOG)
+    narrow_text = narrow if isinstance(narrow, int) else "НЕ ИЗМЕРЕНО"
+    narrow_scanned = doc.get("reader_files_scanned")
+
+    lines = ["  ось читателей ВНЕ узкого населения (заказ G106 п. 3; узкое — "
+             f"{narrow_scanned if narrow_scanned is not None else 'НЕ ИЗМЕРЕНО'}"
+             " файл(ов) .py каталогов scripts/ и spa_core/monitoring/): "
+             + " · ".join(f"{kind} {scanned.get(kind, 0)}" for kind in WIDE_KINDS)]
+    for channel in READER_CHANNELS:
+        row = counts.get(channel) or {ev: 0 for ev in WIDE_EVIDENCE}
+        lines.append(f"    {channel}: "
+                     + " · ".join(f"{ev} {row.get(ev, 0)}" for ev in WIDE_EVIDENCE))
+    roles = wide_roles(sites, CH_STEP_LOG)
+    lines.append(f"    роль площадки у {CH_STEP_LOG} (зов писателя чтением НЕ "
+                 "является): " + " · ".join(f"{role} {roles[role]}"
+                                            for role in WIDE_ROLES))
+    for site in sites:
+        if site["channel"] != CH_STEP_LOG:
+            continue
+        lines.append(f"    [{site['evidence']} · {site.get('role')}] {site['kind']}"
+                     f" :: {site['site']} — метка «{site['mark']}»")
+    step = counts.get(CH_STEP_LOG) or {}
+    found = sum(step.get(ev, 0) for ev in WIDE_EVIDENCE)
+    executed = step.get(EV_EXEC, 0)
+    if found:
+        lines.append(f"    ВЫВОД ЗАКАЗА: узкое число канала {CH_STEP_LOG} "
+                     f"({narrow_text}) ЕСТЬ НИЖНЯЯ ГРАНИЦА — вне узкого населения "
+                     f"найдено площадок {found}, из них метка в исполняемом "
+                     f"тексте у {executed}; лог ЧИТАЕТ "
+                     f"{roles[ROLE_READS]}, писателя ЗОВЁТ {roles[ROLE_INVOKES]}, "
+                     f"форма не разобрана у {roles[ROLE_UNMEASURED]}")
+    else:
+        lines.append(f"    ВЫВОД ЗАКАЗА: вне узкого населения площадок канала "
+                     f"{CH_STEP_LOG} не найдено; это НЕ подтверждает ноль — "
+                     "односторонность остаётся, и цены её названы ниже")
+    for kind, reason in sorted(kinds_unmeasured.items()):
+        lines.append(f"    [НЕ ИЗМЕРЕН РОД] {kind}: {reason}")
+    for row in doc.get("wide_site_unmeasured") or []:
+        lines.append(f"    [НЕ ИЗМЕРЕНА ПЛОЩАДКА] {row['kind']} :: {row['site']}"
+                     f": {row['reason']}")
+    for price in LOWER_BOUND_PRICES:
+        lines.append(f"    ЦЕНА НИЖНЕЙ ГРАНИЦЫ: {price}")
+    return lines
+
+
 def format_report(doc: dict) -> str:
     """Отчёт для шага 0-офис. Каждый ноль объявлен (инв. #17)."""
     if doc.get("unmeasured_reason"):
-        return ("НЕ ИЗМЕРЕНО: имена упавших тестов — "
-                f"{doc['unmeasured_reason']}")
+        return "\n".join(["НЕ ИЗМЕРЕНО: имена упавших тестов (ось ПИСАТЕЛЯ) — "
+                          f"{doc['unmeasured_reason']}"] + _wide_lines(doc))
     if not doc.get("population"):
         # Пустое население печаталось бы как «все нули», то есть как ЧИСТО —
         # это класс `vacuous_guard_census`, и он fail-OPEN тише красного.
-        return ("НЕ ИЗМЕРЕНО: имена упавших тестов — ни одного шага, "
-                "запускающего pytest, не найдено; ноль исходов на пустом "
-                "населении не есть «чисто»")
+        return "\n".join(["НЕ ИЗМЕРЕНО: имена упавших тестов — ни одного шага, "
+                           "запускающего pytest, не найдено; ноль исходов на "
+                           "пустом населении не есть «чисто»"] + _wide_lines(doc))
     counts = doc["counts"]
     lines = [f"имена упавших тестов переживают раннер (заказ G87 п. 1): "
              f"население {doc['population']} шаг(ов), запускающих pytest"]
@@ -576,6 +991,7 @@ def format_report(doc: dict) -> str:
     lines.append("  ось читателей (в сумму НЕ входит; упоминание не есть чтение, "
                  f"просмотрено файлов {scanned if scanned is not None else 'НЕ ИЗМЕРЕНО'}): "
                  + " · ".join(f"{name} {counts_r.get(name, 0)}" for name in READER_CHANNELS))
+    lines.extend(_wide_lines(doc))
     if counts[SURVIVES] == 0 and doc["population"]:
         lines.append("  ВЫВОД: раннер не покидает НИ ОДНА запись имён ⇒ доступа к "
                      f"полному перечню нет ни у одного из {len(doc.get('readers') or ())} "
@@ -600,8 +1016,15 @@ def main(argv=None) -> int:
     else:
         print(format_report(doc))
     label = verdict(doc)
-    return {"unmeasured": 2, "names_die_with_the_runner": 1,
-            "names_outlive_the_runner": 0}[label]
+    writer_rc = {"unmeasured": 2, "names_die_with_the_runner": 1,
+                 "names_outlive_the_runner": 0}[label]
+    # Худший из двух осей, а не только писательский: род, про который вопрос
+    # остался без ответа ВОВСЕ, обязан быть отличим от успеха (инв. #17).
+    # Неизмеренная ПЛОЩАДКА кода не поднимает — она печатается строкой, и
+    # поднимать из-за одного нечитаемого файла вердикт обо всей оси значило бы
+    # потерять разницу между «рода не видно» и «один файл не разобран».
+    reader_rc = 2 if doc.get("wide_kind_unmeasured") else 0
+    return max(writer_rc, reader_rc)
 
 
 if __name__ == "__main__":

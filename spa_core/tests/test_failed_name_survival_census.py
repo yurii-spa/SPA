@@ -553,6 +553,14 @@ class MutationsFoundTheseGaps(unittest.TestCase):
                 "      - name: writer without any record\n"
                 "        run: python -m pytest tests/\n",
                 encoding="utf-8")
+            # Население ВТОРОЙ оси (G106 п. 3): код возврата теперь ХУДШИЙ из
+            # двух, и на дереве без площадок второй оси сцена отвечала бы 2 —
+            # то есть перестала бы мерить таблицу ПИСАТЕЛЯ. Ни одной метки
+            # канала в этих файлах нет: сцена даёт население, а не находку.
+            _tree(tmp, {"a/x.py": "x = 1\n", "a/x.sh": "echo ok\n",
+                        "CLAUDE.md": "протокол\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "протокол\n",
+                        ".claude/rules/r.md": "правило\n"})
             self.assertEqual(1, c.main(["--root", tmp]), "есть находка ⇒ код 1")
         self.assertEqual(0, c.main(["--root", _REPO_ROOT]),
                          "на живом дереве находок нет ⇒ код 0")
@@ -600,3 +608,320 @@ class MutationsFoundTheseGaps(unittest.TestCase):
         report = c.format_report(doc)
         self.assertIn("НЕ ИЗМЕРЕНО", report)
         self.assertNotIn("record_survives_as_artifact 0", report)
+
+
+# ── ось читателей ВНЕ узкого населения (заказ G106 п. 3, ADR-650) ────────────
+
+def _tree(tmp: str, files: dict) -> str:
+    """Одноразовое дерево-сцена: сцена есть ВХОД, а не живое дерево репозитория."""
+    for rel, text in files.items():
+        path = Path(tmp, *rel.split("/"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return tmp
+
+
+class WhereTheMarkLives(unittest.TestCase):
+    """Проза, НАЗЫВАЮЩАЯ канал, читателем не делает — и это измеряется."""
+
+    def test_a_python_mark_in_a_comment_is_prose_and_not_executable_text(self):
+        """Порванное звено: суждение по ПОДСТРОКЕ.
+
+        Ровно эта форма и числится у узкой оси единственным читателем лога
+        шага — слово в комментарии.
+        """
+        executed, prose = c._python_text("# имена читает ci_verdict\nx = 1\n")
+        self.assertEqual((), c._channels_in(executed))
+        self.assertEqual(c.CH_STEP_LOG, c._channels_in(prose)[0][0])
+
+    def test_a_python_mark_in_a_docstring_is_prose(self):
+        executed, prose = c._python_text('"""Читатель — ci_verdict."""\nx = 1\n')
+        self.assertEqual((), c._channels_in(executed))
+        self.assertTrue(c._channels_in(prose))
+
+    def test_a_function_docstring_is_prose_too_and_the_body_stays_executable(self):
+        src = 'def f():\n    """про ci_verdict"""\n    return "--junitxml"\n'
+        executed, prose = c._python_text(src)
+        self.assertEqual((c.CH_LOCAL_RECORD,),
+                         tuple(ch for ch, _ in c._channels_in(executed)))
+        self.assertEqual((c.CH_STEP_LOG,),
+                         tuple(ch for ch, _ in c._channels_in(prose)))
+
+    def test_a_cyrillic_docstring_does_not_shift_the_cut(self):
+        """Порванное звено: резать по `col_offset` узлов ``ast``.
+
+        Там шкала БАЙТОВАЯ, а у токенайзера символьная; на кириллице (её здесь
+        большинство) смешение двух шкал отрезало бы строку не там и утащило
+        исполняемый текст в прозу. Правило токена позиций не требует вовсе.
+        """
+        src = ('"""Очень длинная кириллическая шапка модуля про вердикт."""\n'
+               'URL = "/actions/runs?branch=main"\n')
+        executed, prose = c._python_text(src)
+        self.assertIn("/actions/runs", executed)
+        self.assertNotIn("/actions/runs", prose)
+
+    def test_a_string_passed_to_a_call_is_executable_not_prose(self):
+        """Строка-АРГУМЕНТ прозой не является: прозой объявлены только
+        строки-ОПЕРАТОРЫ. Именно так читает запись настоящий читатель."""
+        executed, _ = c._python_text('open("reports/junitxml")\n')
+        self.assertTrue(c._channels_in(executed))
+
+    def test_an_unparsable_python_file_is_the_third_outcome(self):
+        """Не ноль и не проза: разобрать нечем ⇒ названная причина (инв. #17)."""
+        with self.assertRaises(c._Unparsed):
+            c._python_text("def f(:\n")
+
+    def test_a_shell_comment_is_prose_and_a_command_is_executable(self):
+        executed, prose = c._shell_text('# зовём ci_verdict\ngh run view --log\n')
+        self.assertIn("--log", executed)
+        self.assertIn("ci_verdict", prose)
+
+    def test_a_markdown_code_span_is_a_command_and_the_prose_is_not(self):
+        executed, prose = c._doc_text(
+            "судить по сводке, а не по коду: `grep \" passed\" <лог>`\n")
+        self.assertIn("grep", executed)
+        self.assertNotIn("grep", prose)
+
+    def test_a_doc_that_only_NAMES_the_channel_is_prose_and_not_a_reader(self):
+        """Выживший мутант: сцена проверяла исход, а не РАЗЛИЧИЕ.
+
+        Если `_doc_text` отдаст весь документ исполняемым, прежние проверки
+        остались бы зелёными (команда-то в нём есть). Различение даёт только
+        документ, где метка стои́т ТОЛЬКО в прозе: он читателем не является.
+        Это та же подмена, что «проза, называющая предмет, не есть его
+        производитель».
+        """
+        executed, prose = c._doc_text("вердикт печатает ci_verdict, и это важно\n")
+        self.assertEqual((), c._channels_in(executed))
+        self.assertTrue(c._channels_in(prose))
+
+    def test_a_fenced_block_is_executable_text_too(self):
+        executed, _ = c._doc_text("текст\n```\ngh run view --log\n```\n")
+        self.assertIn("--log", executed)
+
+    def test_a_workflow_is_read_through_its_parsed_strings(self):
+        self.assertIn("python3 scripts/ci_verdict.py",
+                      c._yaml_strings({"jobs": {"t": {"steps": [
+                          {"run": "python3 scripts/ci_verdict.py r.xml"}]}}})[-1]
+                      if False else
+                      "\n".join(c._yaml_strings({"jobs": {"t": {"steps": [
+                          {"run": "python3 scripts/ci_verdict.py r.xml"}]}}})))
+
+
+class RoleIsNotMention(unittest.TestCase):
+    """Зов писателя и чтение лога — разные вещи, и исход у каждого свой."""
+
+    def test_invoking_the_writer_is_not_reading_the_log(self):
+        self.assertEqual(c.ROLE_INVOKES,
+                         c._role_of("python3 scripts/ci_verdict.py reports/j.xml"))
+
+    def test_a_command_whose_input_is_a_log_is_a_reader(self):
+        self.assertEqual(c.ROLE_READS, c._role_of('grep " passed" <лог>'))
+
+    def test_the_api_log_endpoint_is_a_reader_too(self):
+        self.assertEqual(c.ROLE_READS, c._role_of("GET /actions/jobs/42/logs"))
+
+    def test_a_site_that_both_invokes_and_reads_is_a_reader(self):
+        """Порядок проверки есть часть утверждения: зов не отменяет чтения."""
+        self.assertEqual(c.ROLE_READS,
+                         c._role_of("python3 scripts/ci_verdict.py j.xml\n"
+                                    "gh run view 1 --log | grep ' passed'"))
+
+    def test_an_unknown_form_is_the_third_outcome_not_a_reader(self):
+        self.assertEqual(c.ROLE_UNMEASURED, c._role_of("слово ci-verdict рядом"))
+
+
+class WidePopulation(unittest.TestCase):
+    """Население четырёх родов: что в него входит и что ОБЪЯВЛЕНО вне него."""
+
+    def test_the_narrow_population_is_not_scanned_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"scripts/a.py": "x = 'ci_verdict'\n",
+                        "spa_core/monitoring/b.py": "x = 'ci_verdict'\n",
+                        "spa_core/ci/c.py": "x = 'ci_verdict'\n"})
+            sites, scanned, _, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(1, scanned[c.KIND_CODE])
+            self.assertEqual(["spa_core/ci/c.py"], [s["site"] for s in sites])
+
+    def test_shell_in_the_declared_dirs_is_counted_because_the_py_filter_missed_it(self):
+        """Каталог ``scripts/`` узкой осью объявлен, а ``*.sh`` она не видит —
+        это и есть одна из цен её нуля, и здесь она закрыта числом."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"scripts/hook.sh": 'gh run view "$1" --log | grep " passed"\n'})
+            sites, scanned, _, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(1, scanned[c.KIND_SHELL])
+            self.assertEqual([(c.KIND_SHELL, c.ROLE_READS)],
+                             [(s["kind"], s["role"]) for s in sites])
+
+    def test_tests_directories_are_skipped_in_the_wide_axis_as_well(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"spa_core/tests/t.py": "x = 'ci_verdict'\n"})
+            sites, scanned, _, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(0, scanned[c.KIND_CODE])
+            self.assertEqual([], sites)
+
+    def test_the_instrument_and_the_writer_stay_out_of_their_own_population(self):
+        """Сверять прибор сам с собой — тавтология (ADR-504); у узкой оси это
+        объявлено исключениями, и вторая ось обязана держать те же.
+
+        Сцена объявляет исключение ВНЕ двух узких каталогов НАМЕРЕННО: оба
+        сегодняшних исключения — ``.py`` внутри них, то есть широкая ось до
+        ветки исключений на них не доходит вовсе (её снимает фильтр узкого
+        населения). Мутация этой ветки на прежней сцене ВЫЖИЛА — сцена
+        проверяла исход, не различая его причину.
+        """
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/mine.py": "x = 'ci_verdict'\n",
+                        "a/other.py": "y = 'ci_verdict'\n"})
+            with mock.patch.dict(c.READER_EXCLUSIONS,
+                                 {"a/mine.py": "сам прибор"}, clear=False):
+                sites, scanned, _, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(["a/other.py"], [s["site"] for s in sites])
+            self.assertEqual(1, scanned[c.KIND_CODE],
+                             "исключённая площадка не входит и в просмотренные")
+
+    def test_all_channels_of_one_site_are_reported_without_ladder_masking(self):
+        """Узкая ось отдаёт ОДИН канал на файл, и второй теряется молча."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "A = '--junitxml'\nB = 'ci_verdict'\n"})
+            sites, _, _, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual({c.CH_LOCAL_RECORD, c.CH_STEP_LOG},
+                             {s["channel"] for s in sites})
+
+    def test_a_kind_with_no_population_is_unmeasured_and_not_clean(self):
+        """Класс ``vacuous_guard_census``: нули на пустом населении fail-OPEN."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _, scanned, _, kinds = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(set(c.WIDE_KINDS), set(kinds))
+            for kind in c.WIDE_KINDS:
+                self.assertEqual(0, scanned[kind])
+                self.assertTrue(kinds[kind].strip(), kind)
+
+    def test_a_missing_protocol_doc_is_an_unmeasured_site_with_its_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"CLAUDE.md": "`grep \" passed\" <лог>`\n"})
+            _, scanned, site_unmeasured, _ = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual(1, scanned[c.KIND_DOC])
+            missing = {row["site"] for row in site_unmeasured}
+            self.assertIn("docs/ORCHESTRATOR_PROTOCOL.md", missing)
+            for row in site_unmeasured:
+                self.assertTrue(row["reason"].strip(), row["site"])
+
+    def test_an_unparsable_site_is_named_and_does_not_become_prose(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "def f(:\n    'ci_verdict'\n"})
+            sites, _, site_unmeasured, kinds = c._wide_reader_axis(tmp, workflows={})
+            self.assertEqual([c.EV_UNMEASURED], [s["evidence"] for s in sites])
+            self.assertIn("a/x.py", [r["site"] for r in site_unmeasured])
+            self.assertNotIn(c.KIND_CODE, kinds,
+                             "одна неразобранная площадка не есть неизмеренный РОД")
+
+    def test_every_declared_protocol_doc_entry_is_a_declared_choice(self):
+        self.assertTrue(c.PROTOCOL_DOCS)
+        self.assertTrue(c.PROTOCOL_DOC_GLOBS)
+        for price in c.LOWER_BOUND_PRICES:
+            self.assertTrue(price.strip())
+
+
+class WideReportAndExitCode(unittest.TestCase):
+    """Отчёт обязан печатать КАЖДЫЙ ноль, а «не измерено» — быть отличимым."""
+
+    def _doc(self, tmp, steps=None):
+        workflows = _wf(steps) if steps is not None else {}
+        return c.measure(tmp, workflows=workflows)
+
+    def test_every_kind_and_every_evidence_and_every_role_is_printed_at_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = c.format_report(self._doc(tmp))
+            for name in c.WIDE_KINDS + c.WIDE_EVIDENCE + c.WIDE_ROLES:
+                self.assertIn(name, report, name)
+
+    def test_the_conclusion_says_lower_bound_even_with_nothing_found_outside(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "x = 1\n"})
+            report = c.format_report(self._doc(tmp))
+            self.assertIn("НЕ подтверждает ноль", report)
+
+    def test_the_conclusion_calls_the_narrow_number_a_lower_bound_when_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = 'scripts/ci_verdict.py'\n"})
+            report = c.format_report(self._doc(tmp))
+            self.assertIn("НИЖНЯЯ ГРАНИЦА", report)
+            self.assertIn("role_invokes_the_writer 1", report)
+
+    def test_the_wide_axis_is_printed_even_when_the_writer_axis_is_unmeasured(self):
+        """Молчание о второй оси читалось бы как её ноль: воркфлоу не разобраны,
+        но дерево-то измерено, и у трёх родов ответ есть."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = 'scripts/ci_verdict.py'\n"})
+            doc = c.measure(tmp)          # воркфлоу нет ⇒ ось писателя НЕ ИЗМЕРЕНА
+            self.assertTrue(doc["unmeasured_reason"])
+            self.assertEqual(c.KIND_WORKFLOW,
+                             next(iter(k for k in doc["wide_kind_unmeasured"]
+                                       if k == c.KIND_WORKFLOW)))
+            report = c.format_report(doc)
+            self.assertIn("ось ПИСАТЕЛЯ", report)
+            self.assertIn("a/x.py", report)
+
+    def test_the_exit_code_is_the_worse_of_the_two_axes(self):
+        """Положительный контроль на проводку кода возврата: писательская ось
+        в порядке, а род второй оси не измерен ⇒ успехом это быть не вправе."""
+        import contextlib
+        import io
+        import yaml  # noqa: PLC0415 — тест-домен, не рантайм (инв. #4)
+        with tempfile.TemporaryDirectory() as tmp:
+            wf = {"jobs": {"test": {"steps": [
+                {"name": "p", "run": "python3 -m pytest --junitxml=reports/j.xml"},
+                {"name": "u", "uses": "actions/upload-artifact@v4",
+                 "if": "!cancelled()", "with": {"path": "reports/"}}]}}}
+            _tree(tmp, {".github/workflows/w.yml": yaml.safe_dump(wf)})
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = c.main(["--root", tmp])
+            self.assertEqual("names_outlive_the_runner",
+                             c.verdict(c.measure(tmp)),
+                             "ось писателя обязана быть зелёной в этой сцене")
+            self.assertEqual(2, rc, "неизмеренный РОД обязан быть отличим от успеха")
+            self.assertIn("НЕ ИЗМЕРЕН РОД", buf.getvalue())
+
+    def test_counts_of_the_wide_axis_sum_to_the_number_of_sites(self):
+        doc = c.measure(_REPO_ROOT)
+        total = sum(sum(row.values()) for row in doc["wide_counts"].values())
+        self.assertEqual(len(doc["wide_sites"]), total)
+        self.assertEqual(len(doc["wide_sites"]),
+                         sum(c.wide_roles(doc["wide_sites"]).values()))
+
+
+class RealTreeWideAxis(unittest.TestCase):
+    """Предмет этих тестов — НАСТОЯЩЕЕ дерево, и это объявлено в имени класса."""
+
+    def test_real_tree_the_human_protocol_reads_the_step_log(self):
+        """Ответ заказа G106 п. 3 на этом дереве: читатель лога шага есть, и он
+        ЧЕЛОВЕК в протоколе — то есть ровно то население, которого узкая ось не
+        видит по построению."""
+        doc = c.measure(_REPO_ROOT)
+        reading = [s for s in doc["wide_sites"]
+                   if s["channel"] == c.CH_STEP_LOG and s["role"] == c.ROLE_READS]
+        self.assertTrue(reading, "в CLAUDE.md стои́т команда чтения лога джобы")
+        self.assertIn(c.KIND_DOC, {s["kind"] for s in reading})
+
+    def test_real_tree_the_only_narrow_step_log_reader_carries_its_mark_in_prose(self):
+        """Обратная сторона того же замера: единственный «читатель» лога шага
+        внутри узкого населения держит метку в КОММЕНТАРИИ, то есть узкая
+        единица сама не доказана исполняемым текстом."""
+        doc = c.measure(_REPO_ROOT)
+        narrow = [r["reader"] for r in doc["readers"]
+                  if r["channel"] == c.CH_STEP_LOG]
+        self.assertTrue(narrow)
+        for rel in narrow:
+            executed, prose = c._python_text(
+                open(os.path.join(_REPO_ROOT, rel), encoding="utf-8").read())
+            self.assertEqual((), c._channels_in(executed), rel)
+            self.assertTrue(c._channels_in(prose), rel)
+
+    def test_real_tree_every_kind_has_a_population(self):
+        doc = c.measure(_REPO_ROOT)
+        self.assertEqual({}, doc["wide_kind_unmeasured"])
+        for kind in c.WIDE_KINDS:
+            self.assertGreater(doc["wide_scanned"][kind], 0, kind)
