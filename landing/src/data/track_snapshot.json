@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-10-08",
-  "generated_at": "2026-10-08T06:50:44Z",
+  "generated_at": "2026-10-08T07:01:34Z",
   "degraded": false,
   "real_track_days": 107,
   "go_live_target": null,
@@ -130,14 +130,14 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-08T06:50:44Z",
-    "generated_at": "2026-10-08T06:50:44Z",
+    "published_at": "2026-10-08T07:01:34Z",
+    "generated_at": "2026-10-08T07:01:34Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "code_identity": {
       "state": "IN_SYNC",
-      "origin_commit": "3c0d3671f99f",
-      "checked_at": "2026-10-08T06:49:38.696069+00:00",
+      "origin_commit": "1074fbd1a0e5",
+      "checked_at": "2026-10-08T07:00:24.122009+00:00",
       "age_h": 0.02
     },
     "status_colour_is_not_a_risk_grade": true,
@@ -158,14 +158,14 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-08T06:49:38.795905+00:00",
+          "last_run_at": "2026-10-08T07:00:24.218642+00:00",
           "age_h": 0.02
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-08T06:49:38.795905+00:00",
+          "last_observation_at": "2026-10-08T07:00:24.218642+00:00",
           "missed_runs_24h": null,
           "observations": null
         },
@@ -215,9 +215,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e (\u0446\u0438\u043a\u043b \u0432 08:00 \u043f\u043e \u043c\u0435\u0441\u0442\u043d\u043e\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)",
           "expected_every_h": 24.0,
           "stale_after_h": 26.0,
-          "last_successful_run_at": "2026-10-08T06:49:38.795905+00:00",
-          "source_observed_at": "2026-10-08T06:49:38.795905+00:00",
-          "stale_at": "2026-10-09T08:49:38Z"
+          "last_successful_run_at": "2026-10-08T07:00:24.218642+00:00",
+          "source_observed_at": "2026-10-08T07:00:24.218642+00:00",
+          "stale_at": "2026-10-09T09:00:24Z"
         }
       },
       "balanced": {
@@ -237,7 +237,7 @@
           "reason_en": null,
           "reason_ru": null,
           "last_run_at": "2026-10-08T06:05:37.269222Z",
-          "age_h": 0.75
+          "age_h": 0.93
         },
         "data": {
           "state": "HEALTHY",
@@ -316,7 +316,7 @@
           "reason_en": null,
           "reason_ru": null,
           "last_run_at": "2026-10-08T06:05:45.188327Z",
-          "age_h": 0.75
+          "age_h": 0.93
         },
         "data": {
           "state": "HEALTHY",
