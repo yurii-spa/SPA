@@ -125,6 +125,34 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # «агент → артефакт» в конституции. Число без знаменателя неоспоримо.
     "artifact_freshness.json": ("any_stale", "n_stale", "n_unchecked",
                                 "n_artifacts", "stale"),
+    # ADR-643, заказ владельца G143 п. 1 (хвост ADR-642) — ВТОРОЙ из перечня
+    # непрочитанных производителей находок ADR-526. Перечень ВЫМЕРЕН у
+    # производителя (`run_watchdog()` в `spa_core/monitoring/watchdog.py`,
+    # сборка `report` на строке 346), а не списан с живого файла: у отчёта
+    # двенадцать верхних ключей, объявлять надо то, что РЕАЛЬНО читает ветка.
+    # Четыре счётчика объявлены ВМЕСТЕ, и это не подача:
+    #   * `failures` — та самая находка, из-за которой заказ назвал артефакт;
+    #   * `unchecked` — ТРЕТИЙ ИСХОД производителя (`launchctl list` не измерен),
+    #     и он у этого сторожа не теоретический: сам docstring watchdog.py
+    #     запрещает читать неизмеренный launchd как «страж не загружен». Ветка
+    #     без него слила бы «измерено и равно нулю» с «не измерено» (инв. #17);
+    #   * `actions` — вмешательство ЕСТЬ находка: `healthy` определён у
+    #     производителя как `not actions and not failures and not unchecked`,
+    #     поэтому ветка, печатающая одни `failures`, назвала бы спокойным цикл,
+    #     в котором план самолечения дважды поднимали из мёртвых;
+    #   * `guardians` — ЗНАМЕНАТЕЛЬ: «отказов 0» без числа стражей не имеет
+    #     масштаба, а стражей у этого сторожа ровно два (`GUARDIANS`), то есть
+    #     один отказ есть половина плана самолечения, а не «один из многих».
+    # `alerts_attempted`/`alerts_delivered`/`alerts_undelivered`/
+    # `alerts_delivery_unmeasured` — трёхзначность ДОСТАВКИ, которую
+    # производитель завёл собственным разбором: отказанный политикой push
+    # («владельца предупредили») раньше списывался как доставленный. Находка,
+    # о которой владелец не узнал, внутри цикла обязана звучать иначе, чем
+    # доставленная.
+    "watchdog_status.json": ("healthy", "failures", "unchecked", "actions",
+                             "guardians", "alerts_attempted", "alerts_delivered",
+                             "alerts_undelivered", "alerts_delivery_unmeasured",
+                             "stale_minutes_threshold"),
     # ADR-240. `should_rebalance` объявлен НАМЕРЕННО рядом с `verdict` и
     # `unmeasured`: до цикла #500 файл нёс ТОЛЬКО первое поле, и `false` в нём
     # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
@@ -1111,6 +1139,7 @@ _PRODUCER: dict[str, str] = {
     "chief_investment.json": "spa_core/investment_os/agents/chief_investment.py",
     "site_freshness_report.json": "scripts/site_freshness_monitor.py",
     "artifact_freshness.json": "spa_core/monitoring/artifact_freshness.py",
+    "watchdog_status.json": "spa_core/monitoring/watchdog.py",
     "_health.json": "spa_core/investment_os/health.py",
     "architecture_conformance.json": "spa_core/monitoring/architecture_conformance.py",
     "house_view_gap.json": "spa_core/monitoring/house_view_gap.py",
@@ -1317,6 +1346,12 @@ _TS_FIELD: dict[str, str] = {
     # его отчёта был бы «НЕ ИЗМЕРЕН» по построению — и объявление артефакта в
     # офисе стало бы ровно тем украшением, против которого написан заказ G86 п. 4.
     "site_freshness_report.json": "ts",
+    # Сторож-над-сторожами пишет `ts` (ADR-643, заказ G143 п. 1). Без этой
+    # строки возраст был бы «НЕ ИЗМЕРЕН» ПО ПОСТРОЕНИЮ — то есть шаг 0-офис
+    # печатал бы третий исход о величине, которую производитель исправно
+    # пишет. Ложное «не измерено» ничуть не лучше ложного нуля: оно учит
+    # читателя не верить именно той строке, ради которой всё и объявлено.
+    "watchdog_status.json": "ts",
 }
 
 
@@ -2005,6 +2040,91 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         if len(order) > 8:
             # Умолчание об усечении превратило бы перечень в «вот и всё».
             out.append(f"   …и ещё {len(order) - 8} протухших не напечатано")
+    elif name == "watchdog_status.json":
+        # Сторож-над-сторожами (ADR-643, заказ владельца G143 п. 1; хвост
+        # ADR-642/ADR-526). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
+        # ВХОЛОСТУЮ — файл открыт, ресит не пишется, и в контекст оркестратора
+        # не попадает ни одно число. Предмет здесь особый: `com.spa.watchdog` —
+        # ПОСЛЕДНЕЕ звено плана самолечения, единственный, кто спрашивает, живы
+        # ли сами `self_heal` и `threat_reactor`. Его собственная находка
+        # доезжала только тревогой в Телеграм, причём ПОД ПОТОЛКОМ ЗАЩИТЫ ОТ
+        # ФЛУДА (`FLOOD_WINDOW` = 1 ч на стража): устойчиво мёртвый страж
+        # производит одну тревогу в час и больше ничего, а внутри цикла не
+        # звучал вовсе. Иными словами, план самолечения мог лежать, и ни один
+        # цикл не обязан был об этом узнать.
+        guardians = data.get("guardians")
+        guardians = guardians if isinstance(guardians, dict) else {}
+        failures = [str(x) for x in (data.get("failures") or [])]
+        unchecked = [str(x) for x in (data.get("unchecked") or [])]
+        actions = [str(x) for x in (data.get("actions") or [])]
+        # ЗНАМЕНАТЕЛЬ в той же строке, что числители: стражей ровно два, и
+        # «отказов 1» без этого читается как «один из многих», тогда как это
+        # половина плана самолечения. Пустой `guardians` — сам третий исход:
+        # знаменателя нет, и выдавать его за ноль нельзя.
+        denom = len(guardians) if guardians else None
+        denom_txt = str(denom) if denom is not None else _UNMEASURED
+        verdict = "ПЛАН САМОЛЕЧЕНИЯ ЦЕЛ" if data.get("healthy") else "ЕСТЬ НАХОДКА"
+        out.append(f"   вердикт: {verdict} · стражей {denom_txt} · отказов "
+                   f"{len(failures)} · вмешательств {len(actions)} · "
+                   f"не измерено {len(unchecked)}")
+        # Порядок строк — порядок тяжести исхода, а не порядок словаря.
+        # НЕ ИЗМЕРЕНО печатается ПЕРВЫМ и БЕЗ возраста: у стража, чей launchd не
+        # измерен, числа нет вовсе, и сортировка по возрасту задвинула бы самый
+        # тяжёлый исход в хвост (урок ADR-642 про MISSING).
+        def _rank(item):
+            label, st = item
+            st = st if isinstance(st, dict) else {}
+            if st.get("unchecked") is not None or st.get("loaded") is None:
+                return 0
+            if st.get("loaded") is False:
+                return 1
+            if st.get("stale"):
+                return 2
+            return 3
+        for label, st in sorted(guardians.items(), key=_rank):
+            st = st if isinstance(st, dict) else {}
+            age = st.get("status_age_min")
+            # Возраст `None` означает «отметки времени у стража не добыть» —
+            # это НЕ ноль и не «свежо»; подстановка числа здесь и была бы
+            # ровно тем дефектом, против которого писан инв. #17.
+            age_txt = (f"{age:.1f}мин" if isinstance(age, (int, float))
+                       and not isinstance(age, bool) else _UNMEASURED)
+            if st.get("unchecked") is not None or st.get("loaded") is None:
+                out.append(f"   {_UNMEASURED}: {label} — launchd не измерен, "
+                           f"действий не предпринято (пульс {age_txt})")
+                continue
+            if st.get("loaded") is False:
+                where = "НЕ ЗАГРУЖЕН ВО ФЛОТЕ"
+            elif st.get("stale"):
+                where = (f"пульс протух ({age_txt} при пороге "
+                         f"{_num(data, 'stale_minutes_threshold')}мин)")
+            else:
+                where = f"жив, пульс {age_txt}"
+            act = st.get("action")
+            alert = st.get("alert")
+            tail = f" · вмешательство: {act}" if act else ""
+            tail += f" · тревога: {alert}" if alert else ""
+            out.append(f"   {label} — {where}{tail}")
+        for f in failures[:4]:
+            out.append(f"   ОТКАЗ ПОЧИНКИ: {f[:160]}")
+        if len(failures) > 4:
+            out.append(f"   …и ещё {len(failures) - 4} отказов не напечатано")
+        # Доставка печатается ТОЛЬКО когда тревогу вообще пытались слать: при
+        # целом плане посылать нечего, и строка «доставлено 0» читалась бы как
+        # находка. А вот попытка, которая НЕ дошла, обязана звучать иначе, чем
+        # дошедшая, — иначе «владельца предупредили» остаётся предположением.
+        attempted = [str(x) for x in (data.get("alerts_attempted") or [])]
+        if attempted:
+            undelivered = [str(x) for x in (data.get("alerts_undelivered") or [])]
+            dl_unmeasured = [str(x) for x in
+                             (data.get("alerts_delivery_unmeasured") or [])]
+            out.append(f"   тревога владельцу: попыток {len(attempted)} · "
+                       f"доставлено {len(data.get('alerts_delivered') or [])} · "
+                       f"отказано политикой {len(undelivered)} · "
+                       f"{_UNMEASURED} {len(dl_unmeasured)}")
+            if undelivered or dl_unmeasured:
+                out.append("   ⚠️ о находке выше владелец НЕ узнал по названным "
+                           "адресам: " + ", ".join(undelivered + dl_unmeasured))
     elif name == "_health.json":
         # Схема ВЫМЕРЕНА по производителю (`investment_os/health.py`): счётчики
         # лежат в `counts`, а строки аналитиков — в `analysts`. Прежняя ветка

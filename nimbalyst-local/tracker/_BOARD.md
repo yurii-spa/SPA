@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-07T19:53:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-08T00:47:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c0497d4ea) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (78a0db657) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1258** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1260** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -404,7 +404,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (663)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (665)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -857,6 +857,7 @@
 - ADR-110: личность актива в общем фиде — доставка ТОЛЬКО после показа владельцу списка потерь  ·  `inbox-adr-110-lichnost-aktiva-v-obschem-fide-d.md` · 2026-08-21
 - ADR называет карточку-носителя, которой не существует: обещание в тексте никто не сверяет с трекером  ·  `inbox-adr-nazyvaet-kartochku-nositelya-kotoroi.md` · 2026-10-07
 - adr_number не видит соседние worktree и выдаёт занятый номер как свободный  ·  `inbox-adr-number-ne-vidit-sosednie-worktree-i.md` · 2026-09-13
+- Агент com.spa.mission_tick объявлен активным, а его обёртки нет ни в git, ни в проде  ·  `inbox-agent-com-spa-mission-tick-obyavlen-akti.md` · 2026-10-08
 - scripts/agent_quarantine.py вызывается РУКАМИ по построению — объяснение для храповика несвязанных скриптов  ·  `inbox-agent-quarantine-zapuskaetsya-rukami-po-postroeniyu.md` · 2026-08-28
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
 - Артефакт переписи No regression никто не переписывает: через 192 ч критерий §49 станет «не измерено»  ·  `inbox-artefakt-no-regression-nikto-ne-perepisyv.md` · 2026-09-28
@@ -1061,6 +1062,7 @@
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
 - Цикл заканчивается раньше своего прогона — вердикт теряется, а работа лежит недоставленной  ·  `inbox-tsikl-zakanchivaetsya-ranshe-svoego-prog.md` · 2026-10-06
+- Тяжёлый прогон из необъявленного дерева занимает слот допуска, и заказчика назвать нечем  ·  `inbox-tyazhelyi-progon-iz-neobyavlennogo-derev.md` · 2026-10-07
 - У AST-сторожа инварианта №3 нет своей ступени: артефакт есть, наблюдения за ним нет  ·  `inbox-u-ast-storozha-invarianta-3-net-svoei-st.md` · 2026-10-07
 - Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
