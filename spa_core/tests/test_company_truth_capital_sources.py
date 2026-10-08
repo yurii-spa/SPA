@@ -274,7 +274,7 @@ def _cash_definitional_view():
 def test_cash_zero_is_said_as_definitional_not_as_a_measurement():
     cash = next(r for r in ss.summarize(_cash_definitional_view())["rows"] if r["source_id"] == "cash")
     tx = cash["text"]["ru"]
-    assert tx["net"] == "0 % по определению (кэш не начисляет доход)"
+    assert tx["net"] == "0,00\u00a0% по определению (кэш не начисляет доход)"
     assert "по определению" in tx["drawdown"] and "по определению" in tx["confidence"]
     # positive control: the same zero stamped MEASURED would read as a measured rate
     measured = next(r for r in ss.summarize(_view())["rows"] if r["source_id"] == "cash")
@@ -362,8 +362,11 @@ def test_seam_through_mission_control_build_and_the_real_telegram_screens(tmp_pa
     for row in card["rows"]:
         tx = row["text"]["ru"]
         line = next(x for x in text.splitlines() if x.strip().startswith("• " + row["name_ru"] + ":"))
+        # ADR-660 prints «4,89 %» with a NO-BREAK space; the Director path's whitespace
+        # normalisation turns it into a plain space. Same visible text — compare it as seen.
+        seen = line.replace("\u00a0", " ")
         for key in ("net", "eligibility", "paper_weight"):
-            assert tx[key] in line, (row["source_id"], key)
+            assert tx[key].replace("\u00a0", " ") in seen, (row["source_id"], key)
     assert all(b.get("callback_data", "").startswith("nav:") for r in kb.get("inline_keyboard", []) for b in r)
 
 

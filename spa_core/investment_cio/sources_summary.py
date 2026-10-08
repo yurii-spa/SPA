@@ -180,8 +180,9 @@ def row_text(row: Dict, lang: str) -> Dict[str, str]:
     net, ann = _measured(row["net_return"]), _measured(row["annualized_return"])
     definitional = row["annualized_return"].get("state") == _DEF and net is None
     if definitional:
-        net_t = ("0 % по определению (кэш не начисляет доход)" if lang == "ru"
-                 else "0% by definition (idle cash earns nothing)")
+        zero = _fmt_pct(0.0, lang, signed=False)
+        net_t = (f"{zero} по определению (кэш не начисляет доход)" if lang == "ru"
+                 else f"{zero} by definition (idle cash earns nothing)")
     elif net is not None:
         net_t = _fmt_pct(net, lang) + _since(row, lang)
         if ann is not None:
@@ -203,14 +204,15 @@ def row_text(row: Dict, lang: str) -> Dict[str, str]:
     elig = row.get("eligible")
     mw = _num(row.get("max_paper_weight"))
     if elig is True:
-        elig_t = (f"допущен до {mw * 100:.0f} % (бумага)" if lang == "ru" else f"eligible up to {mw * 100:.0f}% (paper)") \
+        elig_t = (f"допущен до {_fmt_pct(mw, lang, signed=False)} (бумага)" if lang == "ru"
+                  else f"eligible up to {_fmt_pct(mw, lang, signed=False)} (paper)") \
             if mw is not None else ("допущен (бумага)" if lang == "ru" else "eligible (paper)")
     elif elig is False:
         elig_t = "не допущен" if lang == "ru" else "not eligible"
     else:
         elig_t = "не оценено" if lang == "ru" else "not assessed"
     w = row.get("paper_weight")
-    w_t = (f"{w * 100:.0f} %" if lang == "ru" else f"{w * 100:.0f}%") if isinstance(w, float) else nm
+    w_t = _fmt_pct(w, lang, signed=False) if isinstance(w, (int, float)) and not isinstance(w, bool) else nm
     conf_cell = row["confidence"]
     conf = conf_cell.get("value") if conf_cell.get("state") in ("MEASURED", _DEF) else None
     conf_t = {"ru": {"LOW": "низкая", "MEDIUM": "средняя", "HIGH": "высокая"},
