@@ -407,3 +407,14 @@ class TestOffHostBackupDoesNotOverclaim(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertIn("не измерено", rows[0])
         self.assertIn("not measured", rows[1])
+
+
+class TestRecoveryDrillStampIsOwnerTime(unittest.TestCase):
+    """ADR-660: the restore-drill stamp printed raw UTC ISO («2026-…T10:56:25.1365») on Studio;
+    a full stamp must go through ownerTime (Europe/Madrid), a bare date stays a date."""
+
+    def test_recovery_ok_uses_owner_time_for_a_stamp(self):
+        js = _read("app.js")
+        line = next(l for l in js.splitlines() if '"studio.backups.recovery_ok"' in l)
+        self.assertIn("ownerTime(cell.date)", line)
+        self.assertIn("T\\d", line)

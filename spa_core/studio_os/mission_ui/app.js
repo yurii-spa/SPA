@@ -1298,7 +1298,7 @@
     cell = cell || {};
     if (isUnknownState(cell.state) && cell.drill_result === undefined) return backupRow(stateBadge(cell), unknownText(cell), cell);
     var text;
-    if (cell.drill_result === "OK") text = tf("studio.backups.recovery_ok", { date: cell.date });
+    if (cell.drill_result === "OK") text = tf("studio.backups.recovery_ok", { date: /T\d/.test(String(cell.date || "")) ? ownerTime(cell.date) : cell.date });  // a full stamp ⇒ Madrid (ADR-660); a bare date stays a date
     else if (cell.drill_result === "STALE") text = t("studio.backups.recovery_stale");
     else if (cell.drill_result === "FAILED") text = t("studio.backups.recovery_failed");
     else if (cell.drill_result === "NEVER_RUN") text = t("studio.backups.recovery_never");
