@@ -91,11 +91,16 @@ export const T = {
   dailyYield: { en: 'Daily yield', ru: 'Доход за день' },
   regime: { en: 'Market regime', ru: 'Рыночный режим' },
   totalReturn: { en: 'Total return', ru: 'Совокупная доходность' },
-  nav: { en: 'NAV (reconciled)', ru: 'NAV (сверено)' },
+  // NAV proof (tier1_nav_proof) — a cross-check, not the track's equity. It is labelled
+  // «reconciled» ONLY when the proof verifies against the CURRENT book; otherwise the
+  // figure is withheld (P1 2026-10-08: «$101,600 · NAV (reconciled)» sat next to equity
+  // $101,564 while the proof itself said MISMATCH $50.15).
+  nav: { en: 'NAV cross-check', ru: 'Сверка NAV' },
+  navNotReconciled: { en: 'not reconciled with the current book — figure withheld', ru: 'не сверена с текущей книгой — число не показываем' },
   fleet: { en: 'System health', ru: 'Состояние системы' },
   fleetSub: {
-    en: 'Autonomous launchd agents — daily cycle, monitors, autopush.',
-    ru: 'Автономные launchd-агенты — дневной цикл, мониторы, автопуш.',
+    en: 'Automated background jobs — the daily cycle and its monitors.',
+    ru: 'Автоматические фоновые задачи — дневной цикл и его мониторы.',
   },
   healthy: { en: 'Healthy', ru: 'Здоровы' },
   warning: { en: 'Warning', ru: 'Внимание' },
@@ -405,8 +410,11 @@ export const T = {
   ladderState: { en: 'Current safety state', ru: 'Текущее состояние защиты' },
   deepSystem: { en: 'System hub →', ru: 'Хаб системы →' },
   deepStatus: { en: 'System status →', ru: 'Статус системы →' },
-  problemAgents: { en: 'Agents needing attention', ru: 'Агенты, требующие внимания' },
-  allHealthy: { en: 'All agents healthy.', ru: 'Все агенты здоровы.' },
+  problemAgents: { en: 'Needing attention', ru: 'Требуют внимания' },
+  allHealthy: { en: 'All background jobs healthy.', ru: 'Все фоновые задачи в порядке.' },
+  // Public page: counts only. Service names, failure reasons and operator commands are
+  // internal and live in the private operator console (P1 2026-10-08).
+  problemCount: { en: '{n} background job(s) need attention — handled in the private operator console.', ru: 'Фоновых задач, требующих внимания: {n} — разбираются в закрытой консоли оператора.' },
 
   /* day-30 readiness (overview) */
   day30Title: { en: 'Day-30 readiness', ru: 'Готовность к 30 дням' },
@@ -983,7 +991,7 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
               <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
               <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
               <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
-              <Metric loading={phase === 'connecting'} label={tr('nav')} value={fmtUsd0(f.nav)} accent="var(--data-teal)" sub={f.nav_reconciliation_ok ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : undefined} />
+              <Metric loading={phase === 'connecting'} label={tr('nav')} value={f.nav_reconciliation_ok === true ? fmtUsd0(f.nav) : NA} accent="var(--data-teal)" sub={f.nav_reconciliation_ok === true ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : (phase === 'connecting' ? undefined : tr('navNotReconciled'))} />
             </div>
           </Panel>
 
@@ -2075,7 +2083,8 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, exit
 
 /* ───────────────────────────────────── SYSTEM SECTION ───────────────────────────── */
 function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
-  const problems = (fl && Array.isArray(fl.agents)) ? fl.agents : [];
+  // Counts only (never names / reasons / commands on the public page). Unknown ⇒ «—», not 0 (inv #17).
+  const problemN = (fl && typeof fl.warning === 'number' && typeof fl.critical === 'number') ? fl.warning + fl.critical : null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <SectionHead eyebrow={tr('sysEyebrow')} title={tr('sysTitle')} intro={tr('sysIntro')} />
@@ -2094,18 +2103,12 @@ function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
           </div>
           <div style={{ marginTop: 16 }}>
             <p style={{ ...mono, fontSize: '.6875rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 8 }}>{tr('problemAgents')}</p>
-            {problems.length === 0 ? (
-              <p style={{ fontSize: '.8125rem', color: 'var(--ok)' }}>{fl ? tr('allHealthy') : NA}</p>
+            {problemN == null ? (
+              <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{NA}</p>
+            ) : problemN === 0 ? (
+              <p style={{ fontSize: '.8125rem', color: 'var(--ok)' }}>{tr('allHealthy')}</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {problems.slice(0, 8).map((a, i) => (
-                  <div key={a.name || i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.75rem' }}>
-                    <Chip tone={(a.status || '').toUpperCase().startsWith('CRIT') ? 'danger' : 'warn'}>{a.status}</Chip>
-                    <span style={{ ...mono, color: 'var(--text-secondary)' }}>{a.name}</span>
-                    {a.reason && <span style={{ color: 'var(--text-muted)' }}>· {a.reason}</span>}
-                  </div>
-                ))}
-              </div>
+              <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{tr('problemCount').replace('{n}', String(problemN))}</p>
             )}
           </div>
         </Panel>
@@ -2699,7 +2702,6 @@ function ExecutionReadinessPanel({ execRead, lang, tr }) {
                       <span style={{ width: 78, flexShrink: 0 }}><Chip tone={tone}>{lbl}</Chip></span>
                       <span style={{ ...mono, color: 'var(--text-primary)', width: 200, flexShrink: 0, fontSize: '.75rem' }}>{name.replace(/_/g, ' ')}</span>
                       {c.blocker && <Chip tone="muted">owner</Chip>}
-                      {c.detail && <span style={{ color: 'var(--text-muted)', fontSize: '.6875rem' }}>{c.detail}</span>}
                     </div>
                   );
                 })}

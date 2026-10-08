@@ -369,6 +369,47 @@ def risk_class(fm: dict) -> str:
     return _subject.mission_control_label(fm)
 
 
+#: ADR-285 subject order for the home attention line: money first, then public numbers/naming/legal,
+#: then irreversible; a declared physical action (owner must act himself) last.
+_ATTENTION_SUBJECT_RANK = {"MONEY": 0, "PUBLIC_NUMBERS_NAMING_LEGAL": 1, "IRREVERSIBLE": 2, "PHYSICAL_ACTION": 3}
+OLD_OWNER_ITEM_MIN_DAYS = 7
+
+
+def owner_attention_items(decisions: dict, cards: Optional[dict], now: datetime,
+                          min_days: int = OLD_OWNER_ITEM_MIN_DAYS) -> list[dict]:
+    """The «Вопрос ждёт вас N дн.» lines of the home attention block.
+
+    Only a question that really waits for the OWNER qualifies: state ``NEEDS_OWNER`` (not
+    ``ACCEPTED`` — the owner already said yes and an agent executes it; not ``ANSWERED`` — the
+    answer is on its way to origin) AND a DECLARED ADR-285 subject (an undeclared card is a queue
+    defect the agent triages, ADR-285 «Проверка»). Order: subject rank, then oldest first.
+
+    Defect fixed 2026-10-08 (measured on the live bundle): the old rule took every pending card
+    ≥7 d sorted by creation date, so the three lines were two owner-ACCEPTED loop findings (36 d)
+    and one undeclared card, while the three real money/irreversible questions never reached
+    the home screen.
+    """
+    if "pending" not in decisions or cards is None:
+        return []
+    from spa_core.owner_queue import subject as _subject
+
+    rows = []
+    for d in decisions.get("pending") or []:
+        if d.get("state") != "NEEDS_OWNER":
+            continue
+        card = cards.get(f"{d.get('id')}.md") or {}
+        rank = _ATTENTION_SUBJECT_RANK.get(_subject.subject_of(card.get("fm") or {}))
+        created = _ts(d.get("created_at"))
+        if rank is None or not created:
+            continue
+        days = (now - created).days
+        if days < min_days:
+            continue
+        rows.append((rank, -days, d.get("id") or "", {"days": days, "title": d["title"]}))
+    rows.sort(key=lambda r: r[:3])
+    return [r[3] for r in rows]
+
+
 def _section(body: str, heading: str) -> Optional[str]:
     m = re.search(r"^##\s*" + re.escape(heading) + r"[^\n]*\n(.*?)(?=^##\s|\Z)", body, re.M | re.S)
     return m.group(1).strip() if m else None
@@ -1345,11 +1386,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     except Exception:  # noqa: BLE001 — a broken scope reader is NOT_MEASURED per scope, never a crash here
         scopes = []
 
-    old_owner_items = [
-        {"days": (now - _ts(d["created_at"])).days, "title": d["title"]}
-        for d in (decisions.get("pending") or [])
-        if _ts(d.get("created_at")) and (now - _ts(d["created_at"])).days >= 7
-    ] if "pending" in decisions else []
+    old_owner_items = owner_attention_items(decisions, cards, now)
 
     truth = ct.build(ct.TruthInputs(
         data=data, mirror=Path(inp.mirror), repo=Path(inp.repo), now=now, measure_host=inp.measure_host,

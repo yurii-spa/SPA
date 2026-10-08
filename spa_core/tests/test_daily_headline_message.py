@@ -129,7 +129,8 @@ def test_headline_is_short_russian_and_ordered_most_important_first(repo):
     # Домен назван словами, техническое имя проверки — рядом, в скобках.
     assert "целостность кода" in head and "d5.security.secrets" in head
     assert "агенты 74 из 77 в порядке" in head
-    assert "цикл 08.09 07:27 UTC" in head
+    # ADR-660: owner time is Europe/Madrid (CEST in September) — 07:27 UTC is 09:27 in Madrid
+    assert "цикл 08.09 09:27 Мадрид" in head
     assert "стоп-кран не включён" in head and "аварий нет" in head
 
 
@@ -221,8 +222,9 @@ def test_owner_queue_counts_frontmatter_status_and_names_the_newest(repo):
 def test_track_block_uses_evidenced_days_and_marks_advisory_books_paper(repo):
     head = _headline(repo)
     assert "Бумажный трек" in head and "капитал виртуальный" in head
-    assert "$101,251 · +$14 за день · +1.12% за 77 подтверждённых дн. (с 2026-06-22)" in head
-    assert "APY сегодня 5.06%" in head
+    # ADR-660: two decimals, ROUND_HALF_UP, RU locale («1,12 %») — same numbers, owner presentation rule
+    assert "$101,251 · +$14 за день · +1,12\u00a0% за 77 подтверждённых дн. (с 2026-06-22)" in head
+    assert "APY сегодня 5,06\u00a0%" in head
     assert "Советующие пакеты (paper, капитал не двигают): Σ $201,038" in head
 
 

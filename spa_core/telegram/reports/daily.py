@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from spa_core.utils.observation import observed, observed_number
+from spa_core.utils.presentation import fmt_pct as _canon_pct
 
 from spa_core.reporting.daily_telegram_report import (
     _fmt_money,
@@ -323,7 +324,7 @@ def _build_oversight_section(ddir: Path) -> str:
         raw = json.loads((ddir / "apy_evidence.json").read_text(encoding="utf-8"))
         counts = observed(raw, "counts", kind=dict) or {}
         pct = raw.get("quotable_pct")
-        pct_s = f"{float(pct):.0f}%" if isinstance(pct, (int, float)) else "не измерено"
+        pct_s = _canon_pct(pct, "ru", unknown="не измерено")
         lines.append(
             f"📐 Доказанность APY: цитировать можно <b>{_esc(pct_s)}</b> чисел "
             f"(наблюдено {_esc(counts.get('L2', 0))} · косвенно {_esc(counts.get('L1', 0))} · "
@@ -370,7 +371,7 @@ def _build_oversight_section(ddir: Path) -> str:
             lines.append("⚡ Скачки APY: порогов никто не превысил")
         else:
             named = ", ".join(
-                f"{s.protocol} {s.current_apy:.2f}% > {s.threshold:.2f}%"
+                f"{s.protocol} {_canon_pct(s.current_apy, 'ru', unknown='?')} > {_canon_pct(s.threshold, 'ru', unknown='?')}"
                 for s in spikes[:3])
             more = f" +{len(spikes) - 3}" if len(spikes) > 3 else ""
             lines.append(f"⚡ Скачки APY: <b>{len(spikes)}</b> — {_esc(named)}{_esc(more)}")
@@ -509,14 +510,14 @@ def _clip(text: str, limit: int) -> str:
 
 
 def _fmt_ts(iso: Any) -> str:
-    """'2026-09-08T17:27:38+00:00' → '08.09 17:27 UTC'; непарсибельное — как есть."""
-    try:
-        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        if dt.tzinfo is not None:
-            dt = dt.astimezone(timezone.utc)
-        return dt.strftime("%d.%m %H:%M UTC")
-    except (TypeError, ValueError):
+    """'2026-09-08T17:27:38+00:00' → '08.09 19:27 Мадрид'; непарсибельное — как есть.
+
+    Время для владельца — Europe/Madrid, CET/CEST сами (ADR-660); в данных отметка остаётся UTC."""
+    from spa_core.utils.presentation import to_owner_time
+    local = to_owner_time(iso) if isinstance(iso, str) else None
+    if local is None:
         return _clip(str(iso), 25)
+    return local.strftime("%d.%m %H:%M") + " Мадрид"
 
 
 def _system_line(ddir: Path, compact: bool = False) -> str:
@@ -737,7 +738,7 @@ def _track_lines(data: dict, ddir: Path) -> list[str]:
     """«💰 Бумажный трек» — те же числа, что в подробностях, только короче."""
     lines = ["💰 <b>Бумажный трек</b> (paper, капитал виртуальный)"]
     ev = _evidenced_return(ddir)
-    cum = (f"{ev[0]:+.2f}% за {ev[1]} подтверждённых дн. (с {_esc(ev[2])})" if ev
+    cum = (f"{_canon_pct(ev[0], 'ru', signed=True)} за {ev[1]} подтверждённых дн. (с {_esc(ev[2])})" if ev
            else f"накопленный % за подтверждённые дни: {_UNMEASURED}")
     lines.append(f"{_fmt_money(data.get('equity_usd'))} · "
                  f"{_fmt_money(data.get('daily_pnl_usd'), signed=True)} за день · {cum}")

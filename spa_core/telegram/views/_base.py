@@ -43,13 +43,14 @@ def fmt_usd(value: Any, signed: bool = False) -> str:
     return "{}${:,.2f}".format(s, abs(v) if signed else v)
 
 
-def fmt_pct(value: Any, signed: bool = True, dp: int = 2) -> str:
-    try:
-        v = float(value or 0.0)
-    except (TypeError, ValueError):
-        return "—%"
-    sign = "+" if (signed and v >= 0) else ("-" if (signed and v < 0) else "")
-    return "{}{:.{dp}f}%".format(sign, abs(v) if signed else v, dp=dp)
+def fmt_pct(value: Any, signed: bool = True, dp: int = 2, lang: str = "en") -> str:
+    """Owner presentation policy (ADR-660): two decimals, ROUND_HALF_UP, locale-aware.
+
+    ``dp`` is kept for callers' signatures and IGNORED — the owner fixed the precision at two.
+    Absent ⇒ «—%», never «+0.00%» (inv. #17: the old ``float(value or 0.0)`` turned a missing
+    number into a measured zero)."""
+    from spa_core.utils.presentation import fmt_pct as _canon
+    return _canon(value, lang, signed=signed, unknown="—%")
 
 
 def arrow(value: Any) -> str:
@@ -60,9 +61,16 @@ def arrow(value: Any) -> str:
 
 
 def short_ts(ts: Any) -> str:
-    """``2026-06-26T06:00:02+00:00`` → ``06:00 UTC``. Tolerant."""
+    """``2026-06-26T06:00:02+00:00`` → ``08:00 Мадрид``. Tolerant.
+
+    Owner-facing time is Europe/Madrid (ADR-660, CET/CEST automatic); the machine stamp
+    stays UTC in the data. Unparseable ⇒ shown as is, never a guessed time."""
+    from spa_core.utils.presentation import fmt_owner_time
     s = str(ts or "")
     if "T" in s and len(s) >= 16:
+        local = fmt_owner_time(s, "ru", with_date=False, label=False)
+        if local is not None:
+            return local + " Мадрид"
         return s[11:16] + " UTC"
     return s[:16] if s else "—"
 
@@ -72,7 +80,7 @@ def date_part(ts: Any) -> str:
 
 
 def freshness(ts: Any, lang: str = "en", suffix: str = "") -> str:
-    """Freshness footer line: ``updated 06:00 UTC · <suffix>`` or stale."""
+    """Freshness footer line: ``updated 08:00 Мадрид · <suffix>`` or stale."""
     base = "{} {}".format(t("lbl.updated", lang), short_ts(ts))
     if suffix:
         base += " · " + suffix

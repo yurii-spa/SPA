@@ -1,6 +1,6 @@
 # ADR-563 — Публичная ставка доходности округляется ВНИЗ (решение владельца)
 
-- **Статус:** принято
+- **Статус:** принято; **правило представления заменено ADR-660** (решение владельца 2026-10-08: два знака, ROUND_HALF_UP) — см. [ADR-660](ADR-660-owner-presentation-policy-pct-two-decimals-madrid-time.md)
 - **Дата:** 2026-10-04 (цикл #772)
 - **Решение владельца:** 2026-10-04T16:03:36Z, Telegram, **вариант 1**
 - **Карточка:** `nimbalyst-local/tracker/owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md`

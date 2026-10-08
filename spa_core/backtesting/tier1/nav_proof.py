@@ -5,7 +5,8 @@ PARALLEL MODEL — reads the live paper state read-only and produces a SELF-VERI
 snapshot. Does not touch RiskPolicy, the cycle, or any canonical module.
 
 Institutional trust requirement: anyone can recompute the published NAV from its components.
-  1. NAV = sum(position_usd) + cash_usd — the published equity is rebuilt from its parts.
+  1. NAV = sum(position_usd) + cash_usd + accrued_yield − costs_paid — the published equity is
+     rebuilt from its parts.
   2. RECONCILE the computed NAV against the REPORTED current_equity → delta + tolerance flag.
      This proves the headline equity number equals the sum of the parts (no hidden value).
   3. FINGERPRINT the inputs: components_hash = sha256 of canonical JSON of the sorted
@@ -168,6 +169,27 @@ def _load_accrued_yield() -> float:
         return 0.0
 
 
+def _load_costs_paid() -> Optional[float]:
+    """costs_paid_usd from current_positions.json — the modelled switching costs the cycle has
+    already charged against equity. ``None`` when the field is absent (not measured — inv #17),
+    which the NAV then treats as zero and the reconciliation will expose if it mattered.
+
+    Why this exists (P1 2026-10-08): the proof summed positions + cash + accrued yield and left
+    the costs out, so every proof after the 2026-09-11 rebalance (cost $50.15) reported
+    «MISMATCH $50.15» against an equity that was correct, and the public dashboard printed the
+    uncosted $101,600 as «NAV (reconciled)»."""
+    try:
+        raw = _read_json(_POSITIONS).get("costs_paid_usd")
+    except Exception:
+        return None
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def compute_nav() -> dict:
     """NAV = sum(position_usd) + cash, reconciled against reported current_equity.
 
@@ -179,7 +201,9 @@ def compute_nav() -> dict:
     # Positions/cash are at COST BASIS; accrued yield is an explicit component so NAV
     # reconciles to the headline equity without re-marking positions each cycle.
     accrued_yield = round(_load_accrued_yield(), 8)
-    computed_nav = round(deployed + cash_usd + accrued_yield, 8)
+    costs = _load_costs_paid()
+    costs_paid = round(costs, 8) if costs is not None else None
+    computed_nav = round(deployed + cash_usd + accrued_yield - (costs_paid if costs_paid is not None else 0.0), 8)
     reported = _load_reported_equity()
     rec = _reconcile(computed_nav, reported)
     return {
@@ -187,6 +211,7 @@ def compute_nav() -> dict:
         "cash_usd": cash_usd,
         "deployed_usd": deployed,
         "accrued_yield_usd": accrued_yield,
+        "costs_paid_usd": costs_paid,
         "computed_nav_usd": computed_nav,
         "reported_equity_usd": reported,
         **rec,
@@ -210,6 +235,7 @@ def build_proof(write: bool = True) -> dict:
         "cash_usd": nav["cash_usd"],
         "deployed_usd": nav["deployed_usd"],
         "accrued_yield_usd": nav["accrued_yield_usd"],
+        "costs_paid_usd": nav["costs_paid_usd"],
         "computed_nav_usd": nav["computed_nav_usd"],
         "reported_equity_usd": nav["reported_equity_usd"],
         "reconciliation_delta_usd": nav["reconciliation_delta_usd"],
@@ -248,9 +274,12 @@ def verify_proof(proof: dict) -> bool:
         if _components_hash(positions_map, cash_usd) != proof.get("components_hash"):
             return False
 
-        # 2) NAV equals sum of parts incl. accrued yield (catches a tampered computed_nav_usd)
+        # 2) NAV equals sum of parts incl. accrued yield minus paid costs (catches a tampered
+        #    computed_nav_usd). Proofs written before costs_paid_usd existed carry no such key ⇒ 0.
         accrued_yield = float(proof.get("accrued_yield_usd", 0.0) or 0.0)
-        recomputed_nav = round(recomputed_sum + cash_usd + accrued_yield, 8)
+        costs_raw = proof.get("costs_paid_usd")
+        costs_paid = float(costs_raw) if costs_raw is not None else 0.0
+        recomputed_nav = round(recomputed_sum + cash_usd + accrued_yield - costs_paid, 8)
         claimed_nav = round(float(proof.get("computed_nav_usd")), 8)
         if abs(recomputed_nav - claimed_nav) > 1e-6:
             return False

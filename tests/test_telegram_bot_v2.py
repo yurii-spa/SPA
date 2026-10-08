@@ -123,7 +123,7 @@ def test_cmd_portfolio_shows_allocations(bot):
     text = _last_text(bot)
     assert "Portfolio" in text
     assert "Compound V3" in text
-    assert "38.0%" in text  # 38000 / 100000
+    assert "38.00%" in text  # 38000 / 100000 — ADR-660: two decimals
     assert "Cash" in text
 
 

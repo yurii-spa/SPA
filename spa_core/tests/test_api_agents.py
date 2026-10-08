@@ -76,3 +76,53 @@ def test_fail_safe_when_registry_absent(monkeypatch, tmp_path):
     assert d["total_loaded"] == 0
     assert d["roles"] == AG._ROLES
     assert "note" in d and "build_agent_registry" in d["note"]
+
+
+# ─── ADR-661: the public (tunnelled) caller gets counts only ─────────────────────────
+class _Req:
+    """Minimal stand-in for starlette Request: peer host + headers (Starlette lower-cases)."""
+
+    def __init__(self, host, headers=None):
+        from types import SimpleNamespace
+        from starlette.datastructures import Headers
+        self.client = SimpleNamespace(host=host)
+        self.headers = Headers(headers or {})
+
+
+def _fresh_registry(monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+    reg = _fixture(datetime.now(timezone.utc).isoformat())
+    p = tmp_path / "agent_registry.json"
+    p.write_text(json.dumps(reg, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(AG, "_REGISTRY", p)
+    return reg
+
+
+def test_tunnelled_caller_gets_counts_only(monkeypatch, tmp_path):
+    reg = _fresh_registry(monkeypatch, tmp_path)
+    d = AG.agents_registry(_Req("127.0.0.1", {"CF-Connecting-IP": "203.0.113.9", "CF-Ray": "x"}))
+    assert d["agents"] == []
+    assert d["problem_count"] == reg["problem_count"]
+    assert "com.spa" not in json.dumps(d)
+
+
+def test_spoofed_forwarded_header_is_public_not_operator(monkeypatch, tmp_path):
+    _fresh_registry(monkeypatch, tmp_path)
+    d = AG.agents_registry(_Req("127.0.0.1", {"X-Forwarded-For": "127.0.0.1"}))
+    assert d["agents"] == []
+
+
+def test_public_caller_never_triggers_a_live_rebuild(monkeypatch, tmp_path):
+    reg = _fixture("2020-01-01T00:00:00+00:00")  # stale ⇒ an operator call would rebuild
+    p = tmp_path / "agent_registry.json"
+    p.write_text(json.dumps(reg, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(AG, "_REGISTRY", p)
+    monkeypatch.setattr(AG, "_regenerate", lambda: (_ for _ in ()).throw(AssertionError("public rebuild")))
+    d = AG.agents_registry(_Req("198.51.100.7"))
+    assert d["agents"] == [] and d["problem_count"] == reg["problem_count"]
+
+
+def test_in_host_caller_still_gets_detail(monkeypatch, tmp_path):
+    _fresh_registry(monkeypatch, tmp_path)
+    d = AG.agents_registry(_Req("127.0.0.1"))
+    assert {a["short"] for a in d["agents"]} == {"apiserver", "resilience"}

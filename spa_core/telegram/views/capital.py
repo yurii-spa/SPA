@@ -215,10 +215,17 @@ def _count(v: Any) -> str:
     return str(n) if n is not None else NOT_MEASURED
 
 
+def _owner_hhmm(now: Any) -> str:
+    """«09:30 Мадрид» — owner-facing time is Europe/Madrid (ADR-660); data stays UTC."""
+    from spa_core.utils.presentation import fmt_owner_time
+    return fmt_owner_time(now, "ru", with_date=False, label=False, unknown="?") + " Мадрид"
+
+
 def _pct(v: Any) -> str:
     if isinstance(v, bool) or not isinstance(v, (int, float)):
         return NOT_MEASURED
-    return "{:+.2f}%".format(v * 100.0)
+    from spa_core.utils.presentation import fmt_pct  # ADR-660: two decimals, half-up, RU locale
+    return fmt_pct(v, "ru", input="fraction", signed=True, unknown=NOT_MEASURED)
 
 
 def _age_text(age_min: Optional[float]) -> str:
@@ -607,4 +614,4 @@ def _render_menu(lang: str) -> Tuple[str, Dict]:
     body += ["", "Реальный капитал по журналу лаборатории: {}".format(_capital_text(live_cap))]
     body.append("Кнопки ниже только открывают экраны — действий с деньгами здесь нет.")
     return _screen("capital", "только чтение", body,
-                   "🕒 Сводка собрана {} UTC".format(now.strftime("%H:%M")), lang)
+                   "🕒 Сводка собрана {}".format(_owner_hhmm(now)), lang)

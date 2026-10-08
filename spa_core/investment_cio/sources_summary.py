@@ -139,14 +139,12 @@ def _num(x: Any) -> Optional[float]:
 
 
 def _fmt_pct(fraction: float, lang: str, *, digits: int = 2, signed: bool = True, floor: bool = False) -> str:
-    v = fraction * 100.0
-    if floor:
-        import math
-        q = 10 ** digits
-        v = math.floor(v * q + 1e-9) / q
-    s = f"{v:+.{digits}f}" if signed else f"{v:.{digits}f}"
-    s = s.replace("-", "−")
-    return (s.replace(".", ",") + " %") if lang == "ru" else (s + "%")
+    """Presentation only (ADR-660, owner 2026-10-08): two decimals, ROUND_HALF_UP, one formatter
+    for every owner surface. ``digits``/``floor`` (ADR-563's round-down) are kept in the signature
+    and no longer read — the owner superseded both; the underlying number is untouched."""
+    from spa_core.utils.presentation import fmt_pct
+    s = fmt_pct(fraction, "ru" if lang == "ru" else "en", input="fraction", signed=signed, unknown="?")
+    return s.replace("-", "−")
 
 
 def _ddmm(v: Any) -> Optional[str]:

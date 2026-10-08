@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import RETIRED from '../../lib/retired_events.json';
 ---
 <Layout title="Operator · Product Analytics" admin={true}>
   <main class="ac"><div class="ac-wrap">
@@ -16,15 +17,24 @@ import Layout from '../../layouts/Layout.astro';
     <section class="ac-sec"><div class="ac-sec-h">Top pages</div><div class="ac-pages" id="a-pages"></div></section>
   </div></main>
 </Layout>
-<script is:inline>
+<script is:inline define:vars={{ RETIRED }}>
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
     function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+    // inv #17: a retired event is NOT MEASURED after RETIRED.retired_at — its counter is a frozen
+    // historical total, a missing key is unknown. Neither is a live 0 (GOVERNANCE-UX-RECOVERY-01 F2).
+    var RET=(RETIRED&&RETIRED.events)||[];
+    function evCount(ev,k){
+      var has=ev&&Object.prototype.hasOwnProperty.call(ev,k)&&typeof ev[k]==='number';
+      if(RET.indexOf(k)>=0) return (has?ev[k]+' until '+RETIRED.retired_at+' · ':'')+'not measured since '+RETIRED.retired_at;
+      return has?ev[k]:'not measured';
+    }
+
     fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
       set('a-today',d.views_today);set('a-7d',d.views_7d);set('a-total',d.total_views);
-      var ev=d.events||{};set('a-aw',ev.analyze_wallet||0);set('an-state','live');
+      var ev=d.events||{};set('a-aw',evCount(ev,'analyze_wallet'));set('an-state','live');
       var ec=document.getElementById('a-events');
-      if(ec)ec.innerHTML=Object.keys(ev).map(function(k){return '<div class="ac-pg"><span>'+k+'</span><b>'+ev[k]+'</b></div>';}).join('')||'<div class="ac-pg"><span>no events yet</span></div>';
+      if(ec)ec.innerHTML=Object.keys(ev).map(function(k){return '<div class="ac-pg"><span>'+k+'</span><b>'+evCount(ev,k)+'</b></div>';}).join('')||'<div class="ac-pg"><span>no events yet</span></div>';
       var pg=document.getElementById('a-pages');
       if(pg&&d.top_pages)pg.innerHTML=d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('')||'<div class="ac-pg"><span>—</span></div>';
     }).catch(function(){set('an-state','offline');});

@@ -14,6 +14,12 @@ import logging
 from typing import Callable, Dict
 
 from spa_core.utils.atomic import atomic_load
+from spa_core.utils.presentation import fmt_pct as _canon_pct
+
+
+def _fmt_pct(value, input: str = "percent") -> str:
+    """ADR-660: two decimals, ROUND_HALF_UP; absent ⇒ «n/a», never «0.00%»."""
+    return _canon_pct(value, "en", input=input, unknown="n/a")
 
 log = logging.getLogger("spa.telegram.command_handler")
 
@@ -78,7 +84,7 @@ class CommandHandler:
             f"Done: {done} tasks\n"
             f"Sprint: {sprint}\n"
             f"Capital: ${capital:,.0f}\n"
-            f"PnL: {pnl_sign}{pnl_pct:.2f}%\n"
+            f"PnL: {pnl_sign}{_fmt_pct(pnl_pct)}\n"
             f"Paper Trading: IN_PROGRESS"
         )
 
@@ -126,12 +132,12 @@ class CommandHandler:
             apys = [p.get("current_apy", 0) for p in positions]
             w_apy = sum(apys) / len(apys) if apys else 0
 
-        lines = [f"📈 Current APY (weighted avg: {w_apy:.2f}%)\n"]
+        lines = [f"📈 Current APY (weighted avg: {_fmt_pct(w_apy)})\n"]
         for p in positions[:5]:
             name = p.get("protocol_key", p.get("protocol", "?"))
             val = p.get("current_value_usd", 0)
             apy = p.get("current_apy", 0)
-            lines.append(f"  • {name}: ${val:,.0f} @{apy:.2f}%")
+            lines.append(f"  • {name}: ${val:,.0f} @{_fmt_pct(apy)}")
 
         if len(positions) > 5:
             lines.append(f"  ... and {len(positions) - 5} more")
@@ -183,7 +189,7 @@ class CommandHandler:
         for i, (sid, data) in enumerate(sorted_strats[:5], 1):
             sharpe = data.get("sharpe", 0) if isinstance(data, dict) else 0
             apy = data.get("apy", 0) if isinstance(data, dict) else 0
-            lines.append(f"  {i}. {sid}: Sharpe={sharpe:.2f} APY={apy:.1%}")
+            lines.append(f"  {i}. {sid}: Sharpe={sharpe:.2f} APY={_fmt_pct(apy, input='fraction')}")
 
         return "\n".join(lines)
 

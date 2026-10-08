@@ -499,8 +499,11 @@ def _short(sha) -> str:
 
 
 def _hm(iso) -> str:
+    """Owner time = Europe/Madrid (ADR-660), not whatever zone the host happens to run in."""
+    from spa_core.utils.presentation import to_owner_time
     dt = _parse_ts(iso)
-    return dt.astimezone().strftime("%d.%m %H:%M") if dt else "—"
+    local = to_owner_time(dt) if dt else None
+    return local.strftime("%d.%m %H:%M") if local else "—"
 
 
 def _age_days(created: str, now: datetime) -> Optional[int]:
@@ -754,7 +757,8 @@ def _usd_or_nm(v) -> str:
 
 
 def _pct_or_nm(v) -> str:
-    return NOT_MEASURED if v is None else f"{v:.0%}"
+    from spa_core.utils.presentation import fmt_pct  # ADR-660: two decimals, half-up
+    return fmt_pct(v, "ru", input="fraction", unknown=NOT_MEASURED)
 
 
 def render_trading(rep: dict) -> List[str]:

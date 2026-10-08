@@ -34,7 +34,6 @@ Only stdlib + the already-existing sibling primitives named in ``work_packages.j
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import math
 
 import importlib.util
 import json
@@ -46,6 +45,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from spa_core.studio_os import owner_language
+from spa_core.utils.presentation import fmt_pct
 
 SCHEMA = "company-truth/1"
 
@@ -551,10 +551,12 @@ def tile_yield(equity_doc: Optional[dict], now: datetime) -> dict:
     state, fr = _staleness(as_of, now, slo_min, rule)
     if apy is None:
         state = NOT_ENOUGH_HISTORY if state == MEASURED else state
-    # ADR-563: a shown rate rounds DOWN — the cockpit prints the same figure as the public site (PRODUCT-TRUTH-02)
-    apy_shown = math.floor(apy * 10 + 1e-9) / 10 if apy is not None else None
-    text_ru = (f"Консервативный: {apy_shown:.1f} % годовых · худшая просадка {dd:.2f} % · {len(bars)} дн. (бумага)"
-              if apy is not None else "Консервативный: копится история")
+    # ADR-660 (owner 2026-10-08, supersedes ADR-563's round-down): every shown percentage has
+    # exactly two decimals, ROUND_HALF_UP — ONE formatter (spa_core.utils.presentation) for the
+    # cockpit, the books tile and Telegram, so one measurement prints one string everywhere.
+    text_ru = (f"Консервативный: {fmt_pct(apy, 'ru')} годовых · худшая просадка "
+               f"{fmt_pct(dd, 'ru', unknown='не измерена')} · {len(bars)} дн. (бумага)"
+               if apy is not None else "Консервативный: копится история")
     unknown_ru = _stale_or_absent(
         state, fr.get("age_min"),
         "Доходность устарела: последняя кривая капитала записана {age} назад",
@@ -715,15 +717,16 @@ def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc
     conservative_src = pk.get("conservative") or {}
     v = yield_cell.get("value") or {}
     apy, dd = v.get("apy_pct"), v.get("max_drawdown_pct")
-    cons_rate_ru = f"{apy:.1f} %" if isinstance(apy, (int, float)) else None
-    cons_dd_ru = f"{dd:.2f} %" if isinstance(dd, (int, float)) else None
+    # ADR-660: the SAME formatter as tile_yield's line above — one measurement, one string
+    cons_rate_ru = fmt_pct(apy, "ru")
+    cons_dd_ru = fmt_pct(dd, "ru")
     out = {"conservative": cell(
         value=conservative_src or None, display_ru=None, display_en=None, metric_type="REALIZED_PAPER",
         state=yield_cell.get("state", NOT_MEASURED), as_of=yield_cell.get("as_of"),
         canon=yield_cell.get("canon") or "data/equity_curve_daily.json",
         fresh=yield_cell.get("freshness") or freshness(None, None, "n/a"),
         unknown_ru=yield_cell.get("unknown_ru") or "Книга не прочитана — состояние неизвестно",
-        rate_ru=cons_rate_ru, rate_en=cons_rate_ru, dd_ru=cons_dd_ru, dd_en=cons_dd_ru,
+        rate_ru=cons_rate_ru, rate_en=fmt_pct(apy, "en"), dd_ru=cons_dd_ru, dd_en=fmt_pct(dd, "en"),
         evidenced_days=v.get("evidenced_days"),
         accumulating_days=(v.get("evidenced_days") or 0) if yield_cell.get("state") == NOT_ENOUGH_HISTORY else None,
         work=conservative_src.get("work"), data=conservative_src.get("data"))}
@@ -740,13 +743,14 @@ def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc
                              unknown_ru="Книга не прочитана — состояние неизвестно",
                              accumulating_days=view.get("days_with_positions") or 0)
         else:
-            rate_ru = f"{view.get('apy_pct')} %"
-            dd_ru = f"{view.get('dd_pct')} %"
+            rate_ru = fmt_pct(view.get("apy_pct"), "ru")   # ADR-660; absent ⇒ None, never «None %»
+            dd_ru = fmt_pct(view.get("dd_pct"), "ru")
             out[book] = cell(value=view, display_ru=None, display_en=None, metric_type="REALIZED_PAPER",
                              state=MEASURED, as_of=view.get("observed_accrual_since"), canon=canon,
                              fresh=freshness(None, None, "n/a"),
                              unknown_ru="Книга не прочитана — состояние неизвестно",
-                             rate_ru=rate_ru, rate_en=rate_ru, dd_ru=dd_ru, dd_en=dd_ru,
+                             rate_ru=rate_ru, rate_en=fmt_pct(view.get("apy_pct"), "en"), dd_ru=dd_ru,
+                             dd_en=fmt_pct(view.get("dd_pct"), "en"),
                              evidenced_days=view.get("evidenced_days"))
     return out
 
@@ -778,7 +782,7 @@ def _defi_targets(mirror: Path) -> dict:
     bands = {k: _band_target_pct(doc.get(k)) for k in ("conservative", "balanced", "aggressive")}
     if not any(v is not None for v in bands.values()):
         return unknown(canon, "TARGET", "Ориентир не записан")
-    parts = [f"{label} {bands[k]} %" for k, label in
+    parts = [f"{label} {fmt_pct(bands[k], 'ru')}" for k, label in
             (("conservative", "Консервативный"), ("balanced", "Сбалансированный"), ("aggressive", "Агрессивный"))
             if bands.get(k) is not None]
     text_ru = text_en = " · ".join(parts)
@@ -1555,6 +1559,11 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
             accepted_rows.append(row)
         elif status == "needs-owner":
             (owner_rows if s != subj.UNKNOWN else undeclared_rows).append(row)
+    # ADR-285 order inside the owner group: money → public numbers/naming/legal → irreversible →
+    # physical action, oldest first within a subject (was: alphabetical by file name, 2026-10-08).
+    _rank = {subj.MONEY: 0, subj.PUBLIC_NUMBERS_NAMING_LEGAL: 1, subj.IRREVERSIBLE: 2, subj.PHYSICAL_ACTION: 3}
+    owner_rows.sort(key=lambda r: (_rank.get(r["subject"], 9),
+                                   -(r["age_days"] if r["age_days"] is not None else -1), r["id"]))
     for d in (decisions_v1 or {}).get("recently_resolved") or []:
         if not isinstance(d, dict):
             continue

@@ -451,7 +451,9 @@ def _fmt_money(value: Any, signed: bool = False) -> str:
 
 
 def _fmt_pct(value: Any) -> str:
-    return f"{value:.2f}%" if isinstance(value, (int, float)) else "—"
+    """ADR-660: два знака, ROUND_HALF_UP, русская запись «4,89 %»; нет числа — «—»."""
+    from spa_core.utils.presentation import fmt_pct
+    return fmt_pct(value, "ru", unknown="—")
 
 
 # Советательные книги: ведут paper-трек, но капитал не двигают (IS_ADVISORY,

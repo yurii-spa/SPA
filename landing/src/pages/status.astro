@@ -44,33 +44,40 @@ const blockerCount = blockers.length;
 const blockersEn = (n) => n === 0 ? 'no open blockers' : `${n} blocker${n === 1 ? '' : 's'} remaining`;
 const blockersRu = (n) => n === 0 ? 'открытых блокеров нет' : `осталось ${n} ${n === 1 ? 'блокер' : (n < 5 ? 'блокера' : 'блокеров')}`;
 
-type CheckStatus = "pass" | "warn" | "fail";
+type CheckStatus = "pass" | "warn" | "fail" | "info";
 
 const checks: { label: string; labelRu: string; status: CheckStatus; detail: string }[] = [
   { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: gatesAllPass ? "pass" : "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — ${blockersEn(blockerCount)}` },
   { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: trackGatePassed ? "pass" : "warn", detail: trackGatePassed ? `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} · ${evidenceTarget}-day gate passed${gateClosed ? ' on ' + gateClosed : ''}` : `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (${goLive.en})` },
-  { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 06:00 UTC" },
-  { label: "HTTP API", labelRu: "HTTP API", status: "pass", detail: "com.spa.apiserver on port 8765 (FastAPI, api.earn-defi.com)" },
-  { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
-  { label: "Risk Policy Gate", labelRu: "Риск-гейт", status: "pass", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
-  { label: "Adapter Health", labelRu: "Здоровье адаптеров", status: "pass", detail: "Aave V3, Compound V3, Morpho Steakhouse — all responding" },
-  { label: "Auto-Push (GitHub)", labelRu: "Auto-Push (GitHub)", status: "pass", detail: "com.spa.autopush installed — pushes every 90 min" },
+  // The rows below are DESCRIPTIONS, not measurements: this static page cannot observe them, so it
+  // must not print «pass» for them (P1 2026-10-08: six hard-coded ✅ with internal service names —
+  // `com.spa.*`, port 8765 — sat here unchanged while the fleet reported warnings). Status «info»
+  // = not measured on this page (inv #17); the live counts are on /dashboard → System.
+  { label: "Daily Cycle", labelRu: "Ежедневный цикл", status: "info", detail: "scheduled once a day — live state: /dashboard → System" },
+  { label: "HTTP API", labelRu: "HTTP API", status: "info", detail: "serves api.earn-defi.com — not measured on this page" },
+  { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "info", detail: "connects the API to the internet — not measured on this page" },
+  { label: "Risk Policy Gate", labelRu: "Риск-гейт", status: "info", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
+  { label: "Adapter Health", labelRu: "Здоровье адаптеров", status: "info", detail: "protocol data feeds — not measured on this page" },
+  { label: "Auto-Push (GitHub)", labelRu: "Auto-Push (GitHub)", status: "info", detail: "publishes the evidence snapshot — not measured on this page" },
 ];
 
 const statusColor: Record<CheckStatus, string> = {
   pass: "text-ok",
   warn: "text-warn",
   fail: "text-danger",
+  info: "text-white/55",
 };
 const statusIcon: Record<CheckStatus, string> = {
   pass: "✅",
   warn: "⚠️",
   fail: "❌",
+  info: "ℹ️",
 };
 const statusBg: Record<CheckStatus, string> = {
   pass: "border-ok-border bg-ok-bg",
   warn: "border-warn-border bg-warn-bg",
   fail: "border-danger-border bg-danger-bg",
+  info: "border-border-strong bg-bg-surface",
 };
 ---
 
@@ -177,8 +184,8 @@ const statusBg: Record<CheckStatus, string> = {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-white" data-ru={c.labelRu}>{c.label}</span>
-                  <span class={`text-xs font-semibold uppercase ${statusColor[c.status]}`}>
-                    {c.status}
+                  <span class={`text-xs font-semibold uppercase ${statusColor[c.status]}`} data-ru={c.status === 'info' ? 'здесь не измеряется' : c.status}>
+                    {c.status === 'info' ? 'not measured here' : c.status}
                   </span>
                 </div>
                 <p class="text-white/50 text-sm mt-0.5">{c.detail}</p>

@@ -272,8 +272,12 @@ def _na_usd(value) -> str:
 
 
 def _na_pct(value, digits: int = 2) -> str:
-    """Процент для владельца. Нет числа — «н/д», а не «0.00 %»."""
-    return f"{float(value):.{digits}f}%" if value is not None else "н/д"
+    """Процент для владельца. Нет числа — «н/д», а не «0.00 %».
+
+    ADR-660: ровно два знака, ROUND_HALF_UP; ``digits`` сохранён в сигнатуре и не читается.
+    Знак «+» ставит вызывающий (``_pct_sign``), минус печатается здесь."""
+    from spa_core.utils.presentation import fmt_pct
+    return fmt_pct(value, "en", unknown="н/д")
 
 
 def _pct_sign(value: float) -> str:
@@ -748,7 +752,8 @@ class TelegramBot:
             ks_active = bool(ks.get("active", False)) if isinstance(ks, dict) else False
             ks_line = "ACTIVE ⛔" if ks_active else "INACTIVE ✅"
 
-            now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            from spa_core.utils.presentation import fmt_owner_time  # ADR-660: owner sees Madrid time
+            now_str = fmt_owner_time(datetime.now(timezone.utc), "ru")
             text = (
                 "📊 <b>SPA Status</b> · {now}\n\n"
                 "💰 Equity: {eq} ({sgn}{pnl} / {tsgn}{tot})\n"
@@ -828,16 +833,16 @@ class TelegramBot:
                 usd_f = float(usd or 0.0)
                 pct = usd_f / capital * 100.0 if capital else 0.0
                 tier_badge = "[{}]".format(_tier_labels[proto]) if proto in _tier_labels else ""
-                lines.append("• {name} {tier}: {amt} ({pct:.1f}%)".format(
+                lines.append("• {name} {tier}: {amt} ({pct})".format(
                     name=_proto_label(proto), tier=tier_badge,
-                    amt=_fmt_usd(usd_f), pct=pct))
+                    amt=_fmt_usd(usd_f), pct=_na_pct(pct)))
             if cash is None:
                 lines.append("💵 Наличные: н/д — в снимке нет `cash_usd` "
                              "(проверка политики считала по нулю)")
             if cash:
-                lines.append("• Cash: {amt} ({pct:.1f}%)".format(
+                lines.append("• Cash: {amt} ({pct})".format(
                     amt=_na_usd(cash),
-                    pct=(cash / capital * 100.0) if (cash is not None and capital) else 0.0))
+                    pct=_na_pct((cash / capital * 100.0) if (cash is not None and capital) else None)))
             lines.append("\n💰 Total: {}".format(_fmt_usd(capital)))
             self.send_message("\n".join(lines), chat_id)
         except Exception as exc:  # noqa: BLE001
@@ -904,14 +909,14 @@ class TelegramBot:
                 "📅 <b>Week</b> · {df} → {dt}\n\n"
                 "💰 Equity: {ef} → {en}\n"
                 "📈 Return: {wsgn}{wk}\n"
-                "🏆 Best day: {bd} ({bsgn}{bp:.3f}%)\n"
+                "🏆 Best day: {bd} ({bsgn}{bp})\n"
                 "✅ Profitable: {prof}/{n} days"
             ).format(
                 df=date_from, dt=date_to,
                 ef=_na_usd(eq_from), en=_na_usd(eq_now),
                 wsgn="" if week_pct is None else _pct_sign(week_pct),
                 wk=_na_pct(week_pct, 3),
-                bd=best_date, bsgn=_pct_sign(best_pct), bp=best_pct,
+                bd=best_date, bsgn=_pct_sign(best_pct), bp=_na_pct(best_pct),
                 prof=profitable, n=len(window),
             )
             self.send_message(text, chat_id)

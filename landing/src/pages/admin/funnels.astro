@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import RETIRED from '../../lib/retired_events.json';
 ---
 <Layout title="Operator · Funnels" admin={true}>
   <main class="ac"><div class="ac-wrap">
@@ -40,15 +41,25 @@ import Layout from '../../layouts/Layout.astro';
     </section>
   </div></main>
 </Layout>
-<script is:inline>
+<script is:inline define:vars={{ RETIRED }}>
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
     function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
     function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    // inv #17: a retired event is NOT MEASURED after RETIRED.retired_at — its counter is a frozen
+    // historical total, a missing key is unknown. Neither is a live 0 (GOVERNANCE-UX-RECOVERY-01 F2).
+    var RET=(RETIRED&&RETIRED.events)||[];
+    function evCount(ev,k){
+      var has=ev&&Object.prototype.hasOwnProperty.call(ev,k)&&typeof ev[k]==='number';
+      if(RET.indexOf(k)>=0) return (has?ev[k]+' until '+RETIRED.retired_at+' · ':'')+'not measured since '+RETIRED.retired_at;
+      return has?ev[k]:'not measured';
+    }
+
     fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
-      var ev=d.events||{};var views=d.total_views||0;var aw=ev.analyze_wallet||0;
-      set('f-views',views);set('f-aw',aw);set('f-sl',ev.view_strategy_lab||0);
-      set('f-conv',views>0?((aw/views*100).toFixed(1)+'%'):'—');
+      var ev=d.events||{};var views=(typeof d.total_views==='number')?d.total_views:null;
+      set('f-views',views!=null?views:'not measured');set('f-aw',evCount(ev,'analyze_wallet'));set('f-sl',evCount(ev,'view_strategy_lab'));
+      // the analyze step is retired ⇒ the conversion is not measured, not a live ratio of a frozen counter
+      set('f-conv',RET.indexOf('analyze_wallet')>=0?'not measured since '+RETIRED.retired_at:'—');
       set('f-state','live');
       // Checkup → earn-defi campaign attribution (top_campaigns = [{campaign, hits}]).
       var cl=document.getElementById('c-list'); var camps=d.top_campaigns||[];

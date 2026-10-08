@@ -17,7 +17,9 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+
+from spa_core.api.routers.live import _is_operator_request
 
 router = APIRouter(tags=["agents"])
 
@@ -77,12 +79,31 @@ def _regenerate() -> dict | None:
         return None
 
 
+# Public callers (anything that is not an in-host request — see ``live._is_operator_request``)
+# get the fleet COUNTS only, and never trigger the live ``launchctl`` rebuild. P1 2026-10-08
+# (ADR-661): this route served every ``com.spa.*`` label with pid / last_exit / problems to the
+# internet through the tunnel, the same leak class as /api/live/agents.
+_PUBLIC_KEYS = ("model", "generated_at", "total_loaded", "total_known", "by_role",
+                "problem_count", "roles")
+
+
+def _public_view(reg: dict) -> dict:
+    out = {k: reg[k] for k in _PUBLIC_KEYS if k in reg}
+    out["agents"] = []
+    out["detail"] = "per-agent detail is internal (operator console only)"
+    return out
+
+
 @router.get("/api/agents/registry")
-def agents_registry() -> dict:
+def agents_registry(request: Request = None) -> dict:
     """The full agent fleet registry: fleet counts, per-role rollup, problem_count, and the
     per-agent list (label/short/role/schedule/loaded/pid/last_exit/retired/reboot_safe/problems).
 
-    Serves the cached snapshot while fresh, else rebuilds live; fail-safe to an empty fleet."""
+    In-host callers: cached snapshot while fresh, else a live rebuild; fail-safe to an empty
+    fleet. Public callers: counts from the cached snapshot only (no rebuild)."""
+    if not _is_operator_request(request):
+        cached = _read_cached()
+        return _public_view(cached if isinstance(cached, dict) else dict(_FAILSAFE))
     cached = _read_cached()
     age = _age_sec(cached)
     if cached is not None and age is not None and age < _MAX_AGE_SEC:

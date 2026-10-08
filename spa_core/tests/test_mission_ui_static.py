@@ -161,9 +161,40 @@ class TestI18nParity(unittest.TestCase):
         self.assertRegex(self.js, r"try\s*{\s*\n\s*localStorage\.setItem")
 
 
+def _hidden_attribute_wins(css: str) -> bool:
+    """True iff a top-level ``[hidden]`` rule forces ``display: none !important``.
+
+    The UA stylesheet's ``[hidden]{display:none}`` loses to any author ``display`` value, so
+    without this rule ``.area{display:flex}`` kept every area the router had hidden on screen
+    (reproduced live on :8790 (GOVERNANCE-UX-RECOVERY-01 audit): opening "Решения" stacked ~5,650 px of the other
+    tabs above it). Comments are stripped first so a commented-out rule does not count.
+    """
+    no_comments = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    for m in re.finditer(r"(?m)^\[hidden\]\s*\{([^}]*)\}", no_comments):
+        if re.search(r"display\s*:\s*none\s*!important", m.group(1)):
+            return True
+    return False
+
+
 class TestStylesCss(unittest.TestCase):
     def setUp(self):
         self.css = _read("styles.css")
+
+    def test_hidden_attribute_beats_author_display(self):
+        # app.js hides areas (and other nodes) by setting `.hidden`; styles.css gives `.area`
+        # (and many classes) an explicit `display`, which defeats the UA rule.
+        self.assertIn("sec.hidden = a !== area", _read("app.js"))
+        self.assertRegex(self.css, r"(?m)^\.area\s*\{[^}]*display\s*:\s*flex")
+        self.assertTrue(_hidden_attribute_wins(self.css),
+                        "styles.css must carry a top-level [hidden]{display:none !important}")
+
+    def test_hidden_guard_control_both_ways(self):
+        # positive control: the shipped (buggy) shape — no [hidden] rule — is refused,
+        # a commented-out rule is refused, a rule without !important is refused.
+        self.assertFalse(_hidden_attribute_wins(".area {\n  display: flex;\n}\n"))
+        self.assertFalse(_hidden_attribute_wins("/*\n[hidden] { display: none !important; }\n*/"))
+        self.assertFalse(_hidden_attribute_wins("[hidden] {\n  display: none;\n}\n"))
+        self.assertTrue(_hidden_attribute_wins("[hidden] {\n  display: none !important;\n}\n"))
 
     def test_prefers_color_scheme_block_present(self):
         self.assertRegex(self.css, r"@media\s*\(\s*prefers-color-scheme:\s*light\s*\)")
@@ -354,3 +385,25 @@ class TestFixtureFirstLevelHygiene(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOffHostBackupDoesNotOverclaim(unittest.TestCase):
+    """P1 recovery: the Studio card said «Копия вне Мака: есть, проверена» while the producer
+    (spa_core/dr/offsite_copy.py) records ``remote_upload: NOT_MEASURED`` — the copy is verified
+    inside the iCloud sync FOLDER, which lives on this Mac; reaching the servers is not observed.
+    The renderer must read ``remote_upload`` and pick the «not measured» wording for it (inv. #17)."""
+
+    def test_renderer_reads_remote_upload(self):
+        js = _read("app.js")
+        m = re.search(r"function renderBackupOffHost\(cell\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertIn('cell.remote_upload === "NOT_MEASURED"', body)
+        self.assertIn("studio.backups.off_host_upload_unmeasured", body)
+
+    def test_unmeasured_wording_exists_in_both_languages_and_says_so(self):
+        i18n = _read("i18n.js")
+        rows = re.findall(r'"studio\.backups\.off_host_upload_unmeasured":\s*"([^"]+)"', i18n)
+        self.assertEqual(len(rows), 2)
+        self.assertIn("не измерено", rows[0])
+        self.assertIn("not measured", rows[1])

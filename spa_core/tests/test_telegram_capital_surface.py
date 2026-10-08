@@ -90,7 +90,8 @@ def test_every_capital_screen_renders_with_boundary_source_and_nav_only_keyboard
 def test_screens_print_what_the_readers_measured(readers):
     lab, _ = _render("capital.lab")
     assert "Стратегий исследовано: 138" in lab and "На бумажном форвард-тесте: 5" in lab
-    assert "+0.89%" in lab and "-0.88%" in lab and "10 мин назад" in lab
+    # ADR-660: two decimals, ROUND_HALF_UP, RU locale for the owner's Russian screen
+    assert "+0,89\u00a0%" in lab and "-0,88\u00a0%" in lab and "10 мин назад" in lab
     btc, _ = _render("capital.btc")
     assert "НЕ приказ на сделку" in btc and "лонг 38" in btc
     oracle, _ = _render("capital.oracle")

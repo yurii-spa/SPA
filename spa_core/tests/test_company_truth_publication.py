@@ -64,11 +64,23 @@ class DirectorReadsTheSameRules(_Scene):
         self.assertIn("REALIZED_PAPER", (ROOT / "spa_core" / "governance" / "ssot.py").read_text(encoding="utf-8"))
 
 
-def test_cockpit_yield_line_rounds_down_like_the_site():
-    """PRODUCT-TRUTH-02 (07.10): the cockpit printed «4.9 %» for 4.8943 while the public site printed
-    «4.8 %» (ADR-563 rounds a shown rate DOWN). One book, one figure on every surface."""
-    import inspect
+def test_cockpit_yield_line_uses_the_one_owner_formatter():
+    """PRODUCT-TRUTH-02 (07.10) found the cockpit printing «4.9 %» for 4.8943 while the site printed
+    «4.8 %». ADR-563's round-down was then SUPERSEDED by the owner (ADR-660, 08.10): every shown
+    percentage has two decimals, ROUND_HALF_UP. The property kept is the same — one measurement,
+    one string on every cockpit surface — now measured by OUTCOME on real cells, not by source text."""
     from spa_core.studio_os import company_truth as ct
-    src = inspect.getsource(ct)
-    assert "apy_shown = math.floor(apy * 10 + 1e-9) / 10" in src
-    assert 'Консервативный: {apy:.1f}' not in src   # positive control: the nearest-rounding form is gone
+    from spa_core.utils.presentation import fmt_pct
+    bars = [{"date": f"2026-06-{d:02d}", "evidenced": True,
+             "equity": 100_000.0 * (1 + 0.000131) ** i * (0.9996 if d == 15 else 1.0)}
+            for i, d in enumerate(range(1, 31))]
+    from spa_core.reporting.compound_apy import compound_annualized_pct, max_drawdown_pct
+    apy = compound_annualized_pct(bars[0]["equity"], bars[-1]["equity"], len(bars))
+    cell = ct.tile_yield({"generated_at": "2026-06-30T06:00:00Z", "bars": bars},
+                         now=ct._parse_ts("2026-06-30T07:00:00Z"))
+    shown = fmt_pct(apy, "ru")
+    assert shown and shown in cell["display_ru"], (shown, cell["display_ru"])
+    books = ct._defi_books({}, None, None, cell)
+    assert books["conservative"]["rate_ru"] == shown          # tile and books agree to the character
+    assert books["conservative"]["rate_en"] == fmt_pct(apy, "en")
+    assert books["conservative"]["dd_ru"] == fmt_pct(max_drawdown_pct(bars), "ru")

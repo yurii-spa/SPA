@@ -485,8 +485,12 @@ def test_seam_fleet_surface_shape(sandbox, api_server):
     assert body["critical"] == written["critical_count"]
     assert body["total"] == written["total_agents"]
     assert "stale" in body and isinstance(body["stale"], bool)
-    # Only the warn/crit agents are surfaced, with name/status/reason.
-    assert any(p["name"] == "com.spa.morning_digest" for p in body["agents"])
+    # Only the warn/crit agents are COUNTED; their names/reasons are internal and are not
+    # served on this public surface (P1 2026-10-08 — the old assertion required the leak).
+    assert body["problem_count"] == sum(
+        1 for a in written["agents"]
+        if str(a.get("status", "")).upper() in ("WARNING", "WARN", "CRITICAL", "CRIT", "ERROR"))
+    assert "agents" not in body and "com.spa." not in json.dumps(body)
 
 
 def test_seam_live_agents_verbatim(sandbox, api_server):

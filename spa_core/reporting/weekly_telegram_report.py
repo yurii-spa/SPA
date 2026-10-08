@@ -297,12 +297,12 @@ def _fmt_money(value: Any, signed: bool = False) -> str:
 
 
 def _fmt_pct(value: Any, signed: bool = False) -> str:
-    if not isinstance(value, (int, float)):
+    """ADR-660: two decimals, ROUND_HALF_UP, EN locale; absent ⇒ «—»."""
+    from spa_core.utils.presentation import fmt_pct
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return "—"
-    if signed:
-        sign = "+" if value >= 0 else "−"
-        return f"{sign}{abs(value):.2f}%"
-    return f"{value:.2f}%"
+    s = fmt_pct(value, "en", signed=signed, unknown="—")
+    return s.replace("-", "−", 1) if signed and s.startswith("-") else s
 
 
 def format_weekly_message(data: dict) -> str:

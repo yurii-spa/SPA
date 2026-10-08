@@ -213,6 +213,26 @@
     ]);
   }
 
+  // ── owner time (ADR-660): a stamp is SHOWN in Europe/Madrid, CET/CEST automatic; data stays UTC.
+  // Unparseable ⇒ the raw value, never a guessed time.
+  function ownerTime(iso) {
+    if (iso === null || iso === undefined || iso === "") return iso;
+    var d = new Date(String(iso));
+    if (isNaN(d.getTime())) return iso;
+    try {
+      var parts = {};
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short",
+      }).formatToParts(d).forEach(function (x) { parts[x.type] = x.value; });
+      var city = (window.MC_I18N && window.MC_I18N.getLang() === "en") ? "Madrid" : "Мадрид";
+      return parts.year + "-" + parts.month + "-" + parts.day + " " + parts.hour + ":" + parts.minute +
+        " " + city + (parts.timeZoneName ? " (" + parts.timeZoneName + ")" : "");
+    } catch (e) {
+      return iso;
+    }
+  }
+
   // ── evidence drawer — every card's only place for canon / as_of / freshness rule (§2.5) ────
   function evRow(label, value) {
     return h("div", { class: "kv-row evidence-row" }, [
@@ -227,7 +247,7 @@
     det.appendChild(h("summary", {}, [t("common.evidence")]));
     var body = h("div", { class: "evidence-body" });
     body.appendChild(evRow(t("common.canon"), cell.canon));
-    body.appendChild(evRow(t("common.as_of"), cell.as_of));
+    body.appendChild(evRow(t("common.as_of"), ownerTime(cell.as_of)));
     var fr = cell.freshness || {};
     var ruleText = fr.rule === "fallback" ? t("common.fallback_rule") : (fr.rule || null);
     var extra = [];
@@ -898,7 +918,7 @@
     var lr = lang === "ru" ? (p.live_reason_ru || p.live_reason) : (p.live_reason || p.live_reason_ru);
     if (lr) c.appendChild(h("p", { class: "note" }, [lr]));
     c.appendChild(kv("capital.package.composition", p.composition));
-    c.appendChild(kv("capital.package.last_run_at", p.last_run_at));
+    c.appendChild(kv("capital.package.last_run_at", ownerTime(p.last_run_at)));
     return c;
   }
 
@@ -1264,9 +1284,13 @@
     cell = cell || {};
     if (isUnknownState(cell.state)) return backupRow(stateBadge(cell), unknownText(cell), cell);
     // is_real_remote=false is amber, never green, even though the fact itself was measured.
-    var cls = cell.is_real_remote ? "ok" : "warn";
+    // A copy verified only inside the sync folder (remote_upload NOT_MEASURED) is amber too: the
+    // folder lives on this Mac, and reaching the provider's servers was never observed (inv. #17).
+    var uploadUnmeasured = cell.is_real_remote && (cell.remote_upload == null || cell.remote_upload === "NOT_MEASURED");
+    var cls = cell.is_real_remote && !uploadUnmeasured ? "ok" : "warn";
     var badge = h("span", { class: "badge badge--" + cls }, [t("state." + cell.state)]);
-    var text = cell.is_real_remote ? t("studio.backups.off_host_ok") : t("studio.backups.same_host");
+    var text = !cell.is_real_remote ? t("studio.backups.same_host")
+      : (uploadUnmeasured ? t("studio.backups.off_host_upload_unmeasured") : t("studio.backups.off_host_ok"));
     return backupRow(badge, text, cell);
   }
 
@@ -1496,7 +1520,7 @@
     p.appendChild(document.createTextNode(bi(d.owner_answer_ru, d.owner_answer_en) || t("state.NOT_MEASURED")));
     if (d.answered_at) {
       p.appendChild(h("br"));
-      p.appendChild(document.createTextNode(d.answered_at));
+      p.appendChild(document.createTextNode(ownerTime(d.answered_at)));
     }
     dc.appendChild(p);
     return dc;

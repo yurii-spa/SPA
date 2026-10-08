@@ -64,12 +64,56 @@ def test_reconciliation_no_reported_equity():
 
 # ----------------------------- verify_proof ----------------------------- #
 
-def _synthetic_proof(monkeypatch, positions, cash, reported, accrued=0.0):
+def _synthetic_proof(monkeypatch, positions, cash, reported, accrued=0.0, costs=None):
     monkeypatch.setattr(np, "_load_positions", lambda: dict(positions))
     monkeypatch.setattr(np, "_load_cash", lambda: cash)
     monkeypatch.setattr(np, "_load_accrued_yield", lambda: accrued)
+    monkeypatch.setattr(np, "_load_costs_paid", lambda: costs)
     monkeypatch.setattr(np, "_load_reported_equity", lambda: reported)
     return np.build_proof(write=False)
+
+
+# ---------------- paid costs are a NAV component (P1 2026-10-08 replay) ---------------- #
+# The figures below are the production proof of 8 Oct 2026 (the incident); no clock is read.
+
+_BOOK_2026_10_08 = {"aave_v3": 5000.0, "compound_v3": 40000.0, "fluid_fusdc": 20000.0,
+                    "maple": 20000.0, "morpho_blue_base": 10000.0}
+
+
+def test_paid_costs_close_the_50_dollar_mismatch(monkeypatch):
+    # Positive control, the real incident: accrued 1600.27, costs 50.15 (2026-09-11 rebalance),
+    # reported equity 101,550.12. Without the cost component the proof said MISMATCH $50.15.
+    proof = _synthetic_proof(monkeypatch, _BOOK_2026_10_08, 5000.0, 101550.12,
+                             accrued=1600.27, costs=50.15)
+    assert proof["computed_nav_usd"] == pytest.approx(101550.12)
+    assert proof["costs_paid_usd"] == pytest.approx(50.15)
+    assert proof["reconciliation_ok"] is True
+    assert np.verify_proof(proof) is True
+
+
+def test_dropping_the_cost_component_reproduces_the_mismatch(monkeypatch):
+    # Negative control: the same book with costs unknown (None ⇒ 0) is NOT reconciled — the
+    # proof must keep exposing a real gap, not hide it.
+    proof = _synthetic_proof(monkeypatch, _BOOK_2026_10_08, 5000.0, 101550.12,
+                             accrued=1600.27, costs=None)
+    assert proof["costs_paid_usd"] is None
+    assert proof["computed_nav_usd"] == pytest.approx(101600.27)
+    assert proof["reconciliation_ok"] is False
+
+
+def test_verify_proof_catches_tampered_costs(monkeypatch):
+    proof = _synthetic_proof(monkeypatch, _BOOK_2026_10_08, 5000.0, 101550.12,
+                             accrued=1600.27, costs=50.15)
+    bad = copy.deepcopy(proof)
+    bad["costs_paid_usd"] = 0.0
+    assert np.verify_proof(bad) is False
+
+
+def test_load_costs_paid_absent_is_none_not_zero(monkeypatch):
+    monkeypatch.setattr(np, "_read_json", lambda path: {"accrued_yield_usd": 1.0})
+    assert np._load_costs_paid() is None
+    monkeypatch.setattr(np, "_read_json", lambda path: {"costs_paid_usd": 50.15})
+    assert np._load_costs_paid() == pytest.approx(50.15)
 
 
 def test_verify_proof_true_for_fresh_proof(monkeypatch):
@@ -156,6 +200,7 @@ def test_missing_files_do_not_raise(monkeypatch, tmp_path):
     assert np._load_positions() == {}
     assert np._load_cash() == 0.0
     assert np._load_reported_equity() is None
+    assert np._load_costs_paid() is None
     proof = np.build_proof(write=False)
     assert proof["computed_nav_usd"] == 0.0
     assert np.verify_proof(proof) is True

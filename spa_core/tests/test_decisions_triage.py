@@ -83,3 +83,20 @@ def test_only_needs_owner_and_owner_decision_type_cards_are_considered():
     cards = {"inbox-unrelated.md": _card("Задача агента", "in-progress", type_="agent-task")}
     out = ct.decisions_triage(cards, None, None)
     assert out["counts"]["owner"] == 0 and out["counts"]["undeclared"] == 0
+
+
+def test_owner_group_is_ordered_subject_then_oldest_first():
+    """P1 recovery: the owner group was alphabetical by file name, so the order of real owner
+    questions on the Решения tab said nothing about which matters first. ADR-285 order now:
+    money → public numbers/naming/legal → irreversible → physical, oldest first within one."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    spec = {"own-a-disk": ("irreversible", 20), "own-b-cash": ("money", 19), "own-c-base": ("money", 17),
+            "own-d-site": ("public", 12), "own-e-app": ("physical_action", 30)}
+    cards = {f"{k}.md": _card(k, "needs-owner", subject=s) for k, (s, _) in spec.items()}
+    v1 = {"pending": [{"id": k, "title": k, "created_at": (now - timedelta(days=d)).isoformat()}
+                      for k, (_, d) in spec.items()]}
+    out = ct.decisions_triage(cards, None, now, v1)
+    assert [r["id"] for r in out["groups"]["owner"]] == [
+        "own-b-cash", "own-c-base", "own-d-site", "own-a-disk", "own-e-app"]

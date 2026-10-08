@@ -1,0 +1,14 @@
+{
+  "note": "Analytics events the public site STOPPED emitting. Their counters in /api/analytics/summary are historical totals up to retired_at; after it the event is NOT MEASURED (inv #17) — an operator page must never read a missing or frozen counter as a live 0. Source: GOVERNANCE-UX-RECOVERY-01 audit B (F1/F2), diff of data-track/track:/spaTrack ids before 424479cea vs after.",
+  "retired_at": "2026-10-07",
+  "retired_by": "424479cea PRODUCT-UX-01 publication (Change-Record docs/rm_truth/CHANGE_RECORDS.md#CR-UX01-001)",
+  "events": [
+    "aggressive_lab_nav", "aggressive_to_packages", "aggressive_to_strategies_balanced",
+    "aggressive_to_strategies_conservative", "analyze_wallet", "calc_interact",
+    "conservative_to_pilot", "conservative_to_strategies_balanced", "early_access_submit",
+    "hero_see_live_track", "hero_snapshot", "index_to_packages", "index_to_strategies_btc",
+    "index_to_strategies_leverage_loops", "m11_defi", "m11_idle", "m11_usdc",
+    "m12_follow_countdown", "m4_refusals", "nav_checkup_snapshot", "nav_protection_lab",
+    "tier_view_aggressive", "tier_view_balanced", "tier_view_conservative", "view_strategy_lab"
+  ]
+}

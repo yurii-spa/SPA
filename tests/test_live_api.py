@@ -84,10 +84,57 @@ def test_agents_corrupt_json_degrades_not_500(client):
 
 
 def test_agents_list_payload_wrapped(client):
+    # In-host (operator) caller: an unexpected list payload is wrapped verbatim.
+    from spa_core.api.routers import live as _live
+    import asyncio as _asyncio
     _write(client, "agent_health.json", [{"a": 1}, {"b": 2}])
-    body = client.get("/api/live/agents").json()
+    body = json.loads(_asyncio.run(_live.live_agents(None)).body)
     assert body["data"] == [{"a": 1}, {"b": 2}]
     assert "_fetched_at" in body
+
+
+# P1 2026-10-08: the PUBLIC /api/live/agents served the whole fleet verbatim (launchd labels,
+# pids, failure reasons, `launchctl bootout …`). Public callers now get counts only; the
+# in-host watcher (loopback, no proxy header) still gets the file verbatim.
+_FLEET_WITH_DETAIL = {
+    "overall_status": "WARNING", "total_agents": 2, "healthy_count": 1, "warning_count": 1,
+    "critical_count": 0,
+    "agents": [{"label": "com.spa.weekly_backup", "status": "WARNING", "pid": 4242,
+                "issue": "retired_but_loaded (owner: launchctl bootout gui/501/com.spa.weekly_backup)"}],
+}
+
+
+def test_agents_public_caller_gets_counts_only(client):
+    _write(client, "agent_health.json", _FLEET_WITH_DETAIL)
+    body = client.get("/api/live/agents").json()   # TestClient peer = "testclient": not in-host
+    assert body["total_agents"] == 2 and body["warning_count"] == 1
+    assert "agents" not in body
+    text = json.dumps(body)
+    assert "com.spa." not in text and "launchctl" not in text and "4242" not in text
+
+
+def test_agents_tunnel_request_is_public_even_from_loopback():
+    # cloudflared connects from loopback; the Cloudflare header is what marks it public.
+    from types import SimpleNamespace
+    from spa_core.api.routers import live as _live
+    tunnel = SimpleNamespace(client=SimpleNamespace(host="127.0.0.1"),
+                             headers={"cf-connecting-ip": "203.0.113.7"})
+    local = SimpleNamespace(client=SimpleNamespace(host="127.0.0.1"), headers={})
+    stranger = SimpleNamespace(client=SimpleNamespace(host="198.51.100.2"), headers={})
+    assert _live._is_operator_request(tunnel) is False
+    assert _live._is_operator_request(stranger) is False
+    assert _live._is_operator_request(local) is True
+
+
+def test_agents_in_host_caller_still_gets_detail(client):
+    # The internal dashboard_watcher must keep its per-agent view (positive control).
+    from types import SimpleNamespace
+    from spa_core.api.routers import live as _live
+    import asyncio as _asyncio
+    _write(client, "agent_health.json", _FLEET_WITH_DETAIL)
+    local = SimpleNamespace(client=SimpleNamespace(host="127.0.0.1"), headers={})
+    body = json.loads(_asyncio.run(_live.live_agents(local)).body)
+    assert body["agents"][0]["label"] == "com.spa.weekly_backup"
 
 
 # ─── portfolio ───────────────────────────────────────────────────────────────
@@ -148,10 +195,29 @@ def test_system_includes_golive(client):
 
 def test_data_file_served_verbatim(client):
     payload = {"hello": "world", "n": [1, 2, 3]}
-    _write(client, "system_health.json", payload)
-    r = client.get("/api/live/data/system_health.json")
+    _write(client, "golive_status.json", payload)
+    r = client.get("/api/live/data/golive_status.json")
     assert r.status_code == 200
     assert r.json() == payload
+
+
+def test_system_health_is_not_public(client):
+    """ADR-661: system_health.json carries com.spa.* labels and local paths — 404 publicly."""
+    _write(client, "system_health.json", {"checks": [{"detail": "com.spa.x /tmp/y"}]})
+    assert client.get("/api/live/data/system_health.json").status_code == 404
+
+
+def test_agents_route_hides_detail_for_mixed_case_cloudflare_header(client):
+    """Starlette headers are case-insensitive: a real TestClient request carrying a mixed-case
+    CF-Connecting-IP header must get counts only, never agent names."""
+    _write(client, "agent_health.json", {"overall_status": "WARNING", "healthy_count": 1,
+                                         "warning_count": 1, "critical_count": 0, "total_agents": 2,
+                                         "agents": [{"name": "com.spa.secret_agent", "pid": 42}]})
+    r = client.get("/api/live/agents", headers={"Cf-Connecting-Ip": "203.0.113.9"})
+    assert r.status_code == 200
+    body = r.text
+    assert "com.spa.secret_agent" not in body and '"pid"' not in body
+    assert r.json().get("warning_count") == 1
 
 
 def test_internal_operational_files_are_not_public(client):
@@ -309,8 +375,8 @@ def test_data_file_rejects_traversal(client):
 
 
 def test_data_file_corrupt_502(client):
-    (client._data_dir / "system_health.json").write_text("not json{", encoding="utf-8")
-    r = client.get("/api/live/data/system_health.json")
+    (client._data_dir / "golive_status.json").write_text("not json{", encoding="utf-8")
+    r = client.get("/api/live/data/golive_status.json")
     assert r.status_code == 502
 
 
@@ -474,10 +540,14 @@ def test_fleet_fresh_snapshot_not_stale(client):
     assert body["total"] == 47
     assert body["overall_status"] == "WARNING"
     assert body["snapshot_age_min"] is not None and body["snapshot_age_min"] < 35
-    # only the warn/crit agents are surfaced (the OK one is filtered out)
-    names = {a["name"] for a in body["agents"]}
-    assert names == {"com.spa.daily_cycle", "com.spa.weekly_backup"}
-    assert all(a["reason"] for a in body["agents"])
+    # only the warn/crit agents are COUNTED (the OK one is filtered out) — and the public
+    # API serves no service label, reason or operator command (P1 2026-10-08: the public
+    # /dashboard printed `launchctl bootout …` verbatim). Stronger, not weaker: the old
+    # assertion required the leak.
+    assert body["problem_count"] == 2
+    assert "agents" not in body
+    assert "com.spa." not in json.dumps(body)
+    assert "never ran" not in json.dumps(body)
 
 
 def test_fleet_old_snapshot_is_stale(client):
@@ -517,9 +587,10 @@ def test_fleet_critical_agents_surfaced(client):
                            overall="CRITICAL", agents=agents))
     body = client.get("/api/live/fleet").json()
     assert body["overall_status"] == "CRITICAL"
-    assert len(body["agents"]) == 1
-    assert body["agents"][0]["name"] == "com.spa.daily_cycle"
-    assert body["agents"][0]["status"] == "CRITICAL"
+    assert body["problem_count"] == 1
+    assert body["critical"] == 1
+    assert "com.spa.daily_cycle" not in json.dumps(body)
+    assert "dead" not in json.dumps(body)
 
 
 # ─── safety (two-tier kill/de-risk state, D3-T3 / ADR-034) ────────────────────

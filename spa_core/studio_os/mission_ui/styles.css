@@ -297,6 +297,13 @@ a {
 }
 
 /* ── layout ─────────────────────────────────────────────────────────────────────────── */
+/* The UA rule [hidden]{display:none} loses to ANY author `display` (e.g. `.area{display:flex}`),
+   so a tab hidden by the router stayed on screen and every visited area stacked above the
+   current one (measured live 2026-10-08: "Решения" opened under ~5,650 px of other tabs). */
+[hidden] {
+  display: none !important;
+}
+
 main {
   padding: 12px 16px calc(84px + env(safe-area-inset-bottom)) 16px;
   min-width: 0;

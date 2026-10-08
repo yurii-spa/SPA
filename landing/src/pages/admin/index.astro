@@ -5,6 +5,7 @@
 // honest "coming soon" scaffolds — never faked. Access control is Phase 5 (no auth yet — do not
 // link publicly). Not in the public nav.
 import Layout from '../../layouts/Layout.astro';
+import RETIRED from '../../lib/retired_events.json';
 import snap from '../../lib/snapshot_view.js';
 
 const days = snap.real_track_days ?? '—';
@@ -99,17 +100,24 @@ const sections = [
         <div class="ac-pages" id="an-pages"></div>
         <p class="ac-note">Views &amp; CTA clicks are live from our own privacy-friendly counter (page + event + coarse time, no IP/cookies/PII). Leads, funnels, bounce and returning-user metrics need deeper event tracking — honest placeholders until then, never fabricated.</p>
       </section>
-      <script is:inline>
+      <script is:inline define:vars={{ RETIRED }}>
         (function(){
           var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
           function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+          // inv #17: retired event ⇒ NOT MEASURED after retired_at; missing key ⇒ unknown — never a live 0.
+          var RET=(RETIRED&&RETIRED.events)||[];
+          function evCount(ev,k){
+            var has=ev&&Object.prototype.hasOwnProperty.call(ev,k)&&typeof ev[k]==='number';
+            if(RET.indexOf(k)>=0) return (has?ev[k]+' until '+RETIRED.retired_at+' · ':'')+'not measured since '+RETIRED.retired_at;
+            return has?ev[k]:'not measured';
+          }
           fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
             if(!d) return;
             set('an-today', d.views_today!=null?d.views_today:'—');
             set('an-7d', d.views_7d!=null?d.views_7d:'—');
             var ev=d.events||{};
-            set('an-analyze', ev.analyze_wallet!=null?ev.analyze_wallet:0);
-            set('an-strat', ev.view_strategy_lab!=null?ev.view_strategy_lab:0);
+            set('an-analyze', evCount(ev,'analyze_wallet'));
+            set('an-strat', evCount(ev,'view_strategy_lab'));
             set('an-state','live');
             var pg=document.getElementById('an-pages');
             if(pg && d.top_pages && d.top_pages.length){

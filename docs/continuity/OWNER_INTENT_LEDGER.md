@@ -75,14 +75,14 @@
 - **last_verified:** 2026-10-07
 
 ## INT-07 · Public product semantics — numbers the visitor can trust
-- **owner_intent:** «все цифры на сайте должны браться консолидированно с одного и того же места» (owner idea 2026-09-10, `.claude/rules/site-numbers.md`); the published rate rounds DOWN (ADR-563, owner option 1); Conservative is the evidenced book (ADR-593, owner 2026-07-11); public numbers, tier naming and legal wording are owner subject №2 (ADR-285).
+- **owner_intent:** «все цифры на сайте должны браться консолидированно с одного и того же места» (owner idea 2026-09-10, `.claude/rules/site-numbers.md`); every user-visible percentage has exactly two decimals, ROUND_HALF_UP, locale-aware «4,89 %» / «4.89%» (ADR-660, owner 2026-10-08 — supersedes the presentation-only round-down of ADR-563, owner option 1, 2026-10-04); Conservative is the evidenced book (ADR-593, owner 2026-07-11); public numbers, tier naming and legal wording are owner subject №2 (ADR-285).
 - **why_it_matters:** a public yield number is a promise to a visitor; overstatement violates invariant #8.
 - **first_known_evidence:** docs/decisions/ADR-593-conservative-is-the-evidenced-book-backfill.md (decision 2026-07-11); `.claude/rules/site-numbers.md`.
 - **current_implementation:** one shelf `landing/src/data/site_numbers.json` built from two sources (track snapshot, constitution); typed metrics (ADR-580 C2); weekly publication cadence (ADR-357 п. 5).
 - **current_status:** publication candidate `rmtruth/pubtruth` waits for the owner (Owner Gate).
 - **known_gaps:** public alt names Preserve / Core / Max Yield vs primary Conservative / Balanced / Aggressive: primary chosen 2026-07-11, alt set is «owner choice #6» (`landing/src/lib/tier_bands.json` `_note`); Core is ambiguous (`architecture/memory_aliases.json`).
-- **relevant_decisions:** ADR-563, ADR-593, ADR-285, ADR-580
-- **superseded_implementations:** hand-printed rates on pages (16 literals of «~3,3 %», `.claude/rules/site-numbers.md`).
+- **relevant_decisions:** ADR-660, ADR-563, ADR-593, ADR-285, ADR-580
+- **superseded_implementations:** hand-printed rates on pages (16 literals of «~3,3 %», `.claude/rules/site-numbers.md`); one-decimal round-down `floorTo` presentation (ADR-563, superseded by ADR-660 2026-10-08; site switch waits for the owner publication gate).
 - **last_verified:** 2026-10-07
 
 ## INT-08 · Telegram Owner Control
@@ -150,3 +150,14 @@
 - **relevant_decisions:** ADR-610, ADR-527
 - **superseded_implementations:** root `CURRENT_STATE.md` as the session entry point (kept as legacy history; ADR-610).
 - **last_verified:** 2026-10-07
+
+## INT-14 · Owner presentation policy — how numbers and times are shown to the owner
+- **owner_intent:** «All user-visible percentages must show exactly TWO digits after the decimal separator. Rounding: ROUND_HALF_UP at the third decimal digit.» and «Default Owner-facing timezone: Europe/Madrid» (owner assignment «Presentation Policy + P1 Truth & Safety Recovery», 2026-10-08, sections A and B; recorded in ADR-660).
+- **why_it_matters:** one measurement printed as 4,8 / 4,9 / 4,8943 % on three surfaces read as three different numbers; UTC times made the owner convert every timestamp in his head.
+- **first_known_evidence:** docs/decisions/ADR-660-owner-presentation-policy-pct-two-decimals-madrid-time.md (owner decision 2026-10-08).
+- **current_implementation:** Python `spa_core/utils/presentation.py` (`fmt_pct`, `fmt_owner_time`), JS `landing/src/lib/site_numbers.js::fmtPct2`; Director OS (`company_truth.py`, `director_report.py`, `mission_ui/app.js`) and Telegram owner surfaces switched.
+- **current_status:** owner surfaces DELIVERED in the change that introduced ADR-660; public-site switch PREPARED, waits for the owner publication gate (public numbers = ADR-285 subject №2).
+- **known_gaps:** remaining owner-facing formatters outside Director OS / Telegram (PDF / monthly reports, `spa_core/reporting/pdf_*`, `monthly_report`) still use their own precision; the site keeps ADR-563's one-decimal round-down until publication is approved.
+- **relevant_decisions:** ADR-660, ADR-563, ADR-285
+- **superseded_implementations:** ADR-563 presentation-only round-down (`floorTo`, `floor_pct` for display); per-module `"%.Nf"` percentage formatting in Director OS / Telegram; «HH:MM UTC» owner-facing timestamps.
+- **last_verified:** 2026-10-08

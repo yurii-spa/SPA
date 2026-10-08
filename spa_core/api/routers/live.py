@@ -16,7 +16,7 @@ import time as _time
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from spa_core.api._shared import (
@@ -40,17 +40,55 @@ async def live_ping():
     )
 
 
+# ─── who may see per-agent detail ───────────────────────────────────────────────
+# The API is public through the Cloudflare Tunnel (api.earn-defi.com). cloudflared connects
+# from loopback, so the peer address alone cannot tell the public from the operator; what
+# can is that Cloudflare stamps every proxied request with CF-Connecting-IP / CF-Ray, which
+# a client cannot remove. Per-agent detail (launchd labels, pids, failure reasons, operator
+# commands such as ``launchctl bootout …``) is served only to an in-host caller: loopback
+# peer AND no proxy header. Anything else — including an unknown peer — gets counts only
+# (fail-CLOSED). P1 2026-10-08: the public /api/live/agents served the whole fleet verbatim.
+_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+_PROXY_HEADERS = ("cf-connecting-ip", "cf-ray", "x-forwarded-for", "forwarded")
+_FLEET_COUNT_KEYS = ("timestamp", "cadence_minutes", "stale_after_minutes", "overall_status",
+                     "healthy_count", "warning_count", "critical_count", "total_agents")
+
+
+def _is_operator_request(request: "Request | None") -> bool:
+    """True only for an in-host caller (loopback peer, no proxy header). ``None`` = a direct
+    in-process call (no HTTP request at all), which is in-host by construction."""
+    if request is None:
+        return True
+    try:
+        host = request.client.host if request.client else None
+    except Exception:  # noqa: BLE001
+        return False
+    if host not in _LOOPBACK:
+        return False
+    return not any(h in request.headers for h in _PROXY_HEADERS)
+
+
 @router.get("/api/live/agents")
-async def live_agents():
-    """Live agent heartbeat — reads data/agent_health.json directly."""
+async def live_agents(request: Request = None):
+    """Live agent heartbeat — reads data/agent_health.json directly.
+
+    In-host callers (``dashboard_watcher`` on 127.0.0.1) get the file verbatim; public
+    callers get the fleet COUNTS only (see ``_is_operator_request``)."""
     path = data_dir() / "agent_health.json"
     if not await aio_exists(path):
         return JSONResponse({"status": "no_data", "ts": _time.time()}, headers=NO_CACHE_HEADERS)
     try:
         data = await aio_read_json(path)
+        operator = _is_operator_request(request)
         if isinstance(data, dict):
+            if not operator:
+                data = {k: data[k] for k in _FLEET_COUNT_KEYS if k in data}
+                data["detail"] = "per-agent detail is internal (operator console only)"
             data["_fetched_at"] = _time.time()
             return JSONResponse(data, headers=NO_CACHE_HEADERS)
+        if not operator:
+            return JSONResponse({"status": "error", "error": "unexpected snapshot shape",
+                                 "_fetched_at": _time.time()}, headers=NO_CACHE_HEADERS)
         return JSONResponse({"data": data, "_fetched_at": _time.time()}, headers=NO_CACHE_HEADERS)
     except asyncio.TimeoutError:
         return JSONResponse(
@@ -89,7 +127,12 @@ async def live_fleet():
 
         {overall_status, healthy, warning, critical, total,
          snapshot_age_min, stale (bool, >35min OR unparseable),
-         agents: [{name, status, reason}]  # warn/crit agents only}
+         problem_count}  # warn/crit agents — a COUNT only
+
+    Public surface (api.earn-defi.com): service labels, failure reasons and operator
+    commands (e.g. ``launchctl bootout …``) are internal and are NOT served here —
+    P1 2026-10-08, the public /dashboard printed them verbatim. The per-agent detail
+    lives in data/agent_health.json and the private operator console (Director OS).
 
     Fail-CLOSED: a missing/corrupt/unparseable-timestamp snapshot is reported as
     ``available: false`` (honest unavailable) or ``stale: true`` — NEVER as a
@@ -127,18 +170,14 @@ async def live_fleet():
     # Unparseable/missing timestamp → fail-CLOSED to stale.
     stale = (age is None) or (age > FLEET_STALE_MIN)
 
-    # Surface only the warn/crit agents + their reasons (the actionable ones).
-    problem_agents: list[dict[str, Any]] = []
+    # Count the warn/crit agents; names and reasons stay private (see docstring).
+    problem_count = 0
     for a in data.get("agents", []) or []:
         if not isinstance(a, dict):
             continue
         status = str(a.get("status", "")).upper()
         if status in ("WARNING", "WARN", "CRITICAL", "CRIT", "ERROR"):
-            problem_agents.append({
-                "name": a.get("label") or a.get("name") or "unknown",
-                "status": a.get("status"),
-                "reason": a.get("issue") or a.get("reason") or "",
-            })
+            problem_count += 1
 
     return JSONResponse(
         {
@@ -152,7 +191,7 @@ async def live_fleet():
             "stale": stale,
             "stale_threshold_min": FLEET_STALE_MIN,
             "timestamp": data.get("timestamp"),
-            "agents": problem_agents,
+            "problem_count": problem_count,
             "_fetched_at": _time.time(),
         },
         headers=NO_CACHE_HEADERS,
@@ -661,8 +700,9 @@ _LIVE_FILE_RE = re.compile(r"^[A-Za-z0-9_.-]+\.json$")
 #: tool consumes the route (measured by grep across landing/, studio_shell/, the Bridge and scripts/).
 #: It now serves ONLY files that are already public through their own routes; everything else is 404,
 #: indistinguishable from «absent» so the route no longer enumerates internal files.
+#: ``system_health.json`` left the list 2026-10-08 (ADR-661): it carries ``com.spa.*`` labels and
+#: local paths in its check details, and no public page reads it.
 PUBLIC_DATA_FILES = frozenset({
-    "system_health.json",
     "paper_trading_status.json",
     "current_positions.json",
     "equity_curve_daily.json",

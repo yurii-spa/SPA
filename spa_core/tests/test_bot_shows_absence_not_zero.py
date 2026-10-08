@@ -27,7 +27,9 @@ class Formatters(unittest.TestCase):
     def test_a_measured_zero_still_renders_as_zero(self):
         self.assertEqual(B._na_usd(0.0), "$0.00")
         self.assertEqual(B._na_pct(0.0), "0.00%")
-        self.assertEqual(B._na_pct(0.0, 3), "0.000%")
+        # ADR-660: exactly two decimals for every owner-visible percentage; `digits` is no longer read
+        self.assertEqual(B._na_pct(0.0, 3), "0.00%")
+        self.assertEqual(B._na_pct(0.004, 3), "<0.01%")   # nonzero never shown as an exact zero
 
 
 class StatusAndToday(unittest.TestCase):
