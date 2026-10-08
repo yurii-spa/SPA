@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-08T00:57:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-08T03:01:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (87abe591c).
+> Сверено с `origin/main` (28903f2b4) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1261** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1262** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -404,7 +404,7 @@
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (666)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (667)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1033,6 +1033,7 @@
 - Сторож брошенных прогонов теряет заказчика, если сессия объявила пути относительно — третий исход прячет настоящую сироту  ·  `inbox-storozh-broshennyh-progonov-teryaet-zaka.md` · 2026-09-10
 - Сторож читает регистр вытеснения только на стороне origin — второе нажатие после доставки снова зовёт человека  ·  `inbox-storozh-chitaet-registr-vytesneniya-tolk.md` · 2026-08-30
 - Сторож голых RuntimeError снова красный: три строки в spa_core/ гасят шаг tests/ (рецидив класса)  ·  `inbox-storozh-golyh-runtimeerror-snova-krasnyi.md` · 2026-10-02
+- Сторож инварианта #17 красный на origin/main — три новых места «отсутствие наблюдения = благополучие»  ·  `inbox-storozh-invarianta-17-krasnyi-na-origin.md` · 2026-10-08
 - Сторож номеров ADR: читать все три папки (решение владельца, вариант 1)  ·  `inbox-storozh-nomerov-adr-chitat-vse-tri-papki.md` · 2026-09-07
 - Сторож отсутствующего артефакта сравнивает не с тем файлом — карточки на исправную проводку  ·  `inbox-storozh-otsutstvuyuschego-artefakta-srav.md` · 2026-09-27
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`

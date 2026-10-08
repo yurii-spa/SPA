@@ -35,7 +35,8 @@ PRODUCER_AGENT = "com.spa.watchdog"
 PRODUCER_SRC = "spa_core/monitoring/watchdog.py"
 CYCLE_CONSUMER = "orchestrator_protocol"
 
-# Якорь сцены. FROZEN-DATE-OK: injected-clock — ветка выжимки принимает часы
+# Якорь сцены.
+# FROZEN-DATE-OK: injected-clock — ветка выжимки принимает часы
 # входом `_summarize_json(..., now=NOW)`, все отметки документов сцены вычислены
 # от этого якоря, стенных часов в батарее нет ни одних. Якорь намеренно уведён от
 # стенных часов на месяцы: совпадение с сегодняшним днём делало бы батарею

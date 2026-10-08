@@ -23,7 +23,8 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 ARTIFACT = "data/artifact_freshness.json"
 PRODUCER_AGENT = "com.spa.artifact_freshness"
 
-# Якорь сцены. FROZEN-DATE-OK: injected-clock — ветка выжимки принимает часы входом
+# Якорь сцены.
+# FROZEN-DATE-OK: injected-clock — ветка выжимки принимает часы входом
 # `_summarize_json(..., now=NOW)`, все отметки документов сцены вычислены от этого
 # якоря, стенных часов в батарее нет ни одних. Якорь намеренно уведён от стенных
 # часов на месяцы: совпадение с сегодняшним днём делало бы батарею зелёной и тогда,
