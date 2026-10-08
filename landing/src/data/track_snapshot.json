@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-10-08",
-  "generated_at": "2026-10-08T06:19:24Z",
+  "generated_at": "2026-10-08T06:39:54Z",
   "degraded": false,
   "real_track_days": 107,
   "go_live_target": null,
@@ -12,11 +12,11 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101564.25,
-  "nav_usd": 101564.25,
-  "paper_apy_pct": 4.8973,
+  "end_equity": 101564.19,
+  "nav_usd": 101564.19,
+  "paper_apy_pct": 4.8971,
   "max_drawdown_pct": -0.0393,
-  "total_return_pct": 1.5643,
+  "total_return_pct": 1.5642,
   "packages": {
     "conservative": {
       "apy_pct": 5.4,
@@ -38,7 +38,7 @@
       "days_funded": 107,
       "apy_pct": 4.9,
       "dd_pct": -0.0393,
-      "nav_usd": 101564.25,
+      "nav_usd": 101564.19,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -130,14 +130,14 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-08T06:19:24Z",
-    "generated_at": "2026-10-08T06:19:24Z",
+    "published_at": "2026-10-08T06:39:54Z",
+    "generated_at": "2026-10-08T06:39:54Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "code_identity": {
       "state": "IN_SYNC",
-      "origin_commit": "b0bcaf4cc9cf",
-      "checked_at": "2026-10-08T06:18:19.376767+00:00",
+      "origin_commit": "ccf5fb63ed5c",
+      "checked_at": "2026-10-08T06:38:51.018338+00:00",
       "age_h": 0.02
     },
     "status_colour_is_not_a_risk_grade": true,
@@ -158,14 +158,14 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-08T06:18:19.483038+00:00",
+          "last_run_at": "2026-10-08T06:38:51.119326+00:00",
           "age_h": 0.02
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-08T06:18:19.483038+00:00",
+          "last_observation_at": "2026-10-08T06:38:51.119326+00:00",
           "missed_runs_24h": null,
           "observations": null
         },
@@ -215,9 +215,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e (\u0446\u0438\u043a\u043b \u0432 08:00 \u043f\u043e \u043c\u0435\u0441\u0442\u043d\u043e\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)",
           "expected_every_h": 24.0,
           "stale_after_h": 26.0,
-          "last_successful_run_at": "2026-10-08T06:18:19.483038+00:00",
-          "source_observed_at": "2026-10-08T06:18:19.483038+00:00",
-          "stale_at": "2026-10-09T08:18:19Z"
+          "last_successful_run_at": "2026-10-08T06:38:51.119326+00:00",
+          "source_observed_at": "2026-10-08T06:38:51.119326+00:00",
+          "stale_at": "2026-10-09T08:38:51Z"
         }
       },
       "balanced": {
@@ -237,7 +237,7 @@
           "reason_en": null,
           "reason_ru": null,
           "last_run_at": "2026-10-08T06:05:37.269222Z",
-          "age_h": 0.23
+          "age_h": 0.57
         },
         "data": {
           "state": "HEALTHY",
@@ -316,7 +316,7 @@
           "reason_en": null,
           "reason_ru": null,
           "last_run_at": "2026-10-08T06:05:45.188327Z",
-          "age_h": 0.23
+          "age_h": 0.57
         },
         "data": {
           "state": "HEALTHY",
@@ -4064,20 +4064,20 @@
     {
       "date": "2026-10-08",
       "open_equity": 101550.12,
-      "close_equity": 101564.25,
-      "high_equity": 101564.25,
+      "close_equity": 101564.19,
+      "high_equity": 101564.19,
       "low_equity": 101550.12,
       "snapshots": 1,
-      "daily_return_pct": 0.01391,
-      "cumulative_return_pct": 1.564245,
+      "daily_return_pct": 0.013852,
+      "cumulative_return_pct": 1.564186,
       "drawdown_pct": 0.0,
-      "equity": 101564.25,
-      "apy_today": 5.0771,
-      "apy_expected_pct": 5.0764,
-      "daily_yield_usd": 14.1254,
+      "equity": 101564.19,
+      "apy_today": 5.0558,
+      "apy_expected_pct": 5.0551,
+      "daily_yield_usd": 14.0662,
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
-      "net_pnl_usd": 14.1254,
+      "net_pnl_usd": 14.0662,
       "unobservable_pools": [],
       "yield_forgone_usd": 0.0,
       "positions": {
