@@ -309,8 +309,33 @@ def _py_files(root: pathlib.Path) -> list[str]:
     return sorted(out)
 
 
-def build_graph(repo_root: str) -> dict:
-    """Граф импортов дерева + ось ИМЕНИ. Единственный вход — путь дерева."""
+def _module_level_imports(tree: ast.Module) -> ast.Module:
+    """Дерево, в котором остались ТОЛЬКО импорты ВЕРХНЕГО УРОВНЯ без охраны.
+
+    Нужно второму роду графа (``module_level_only``): дуга, лежащая внутри
+    функции или под ``try/except ImportError``, при импорте файла НЕ
+    исполняется, и считать её исполнением значило бы заменить замер словом —
+    ровно односторонность в сторону ЗАВЫШЕНИЯ, названную ADR-529 п. 2.
+
+    Отбор идёт по ``tree.body``, а не обходом: ``ast.Try``, ``ast.If``
+    (``TYPE_CHECKING``) и телá функций — отдельные типы узлов, поэтому
+    охранённый импорт отсекается самим правилом отбора, а не перечнем
+    исключений.
+    """
+    body = [node for node in tree.body
+            if isinstance(node, (ast.Import, ast.ImportFrom))]
+    return ast.Module(body=body, type_ignores=[])
+
+
+def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
+    """Граф импортов дерева + ось ИМЕНИ. Единственный вход — путь дерева.
+
+    ``module_level_only=True`` даёт ВТОРОЙ род графа: дуги только от импортов
+    верхнего уровня без охраны, то есть те, что исполняются САМИМ фактом
+    импорта файла. Умолчание ``False`` сохраняет прежнее поведение дословно.
+    Род объявлен в возвращаемом документе (``module_level_only``): два графа
+    одной формы, отличимые только происхождением, читатель спутал бы молча.
+    """
     root = pathlib.Path(repo_root)
     if not root.is_dir():
         raise Unmeasured(f"дерева нет по пути {repo_root}")
@@ -333,7 +358,11 @@ def build_graph(repo_root: str) -> dict:
         except (OSError, SyntaxError, UnicodeDecodeError, ValueError) as exc:
             unparsed[rel] = f"{type(exc).__name__}: {exc}"
             continue
-        names = _imported_modules(tree)
+        edge_tree = _module_level_imports(tree) if module_level_only else tree
+        names = _imported_modules(edge_tree)
+        # Формы имён спрашиваются у ПОЛНОГО дерева в обоих родах: ось ИМЕНИ —
+        # вопрос о написании, а не о месте импорта, и сужать её вместе с дугами
+        # значило бы менять второй замер заодно с первым.
         attributes = frozenset(_attribute_candidates(tree))
         targets: set[str] = set()
         for dotted in sorted(names):
@@ -345,7 +374,7 @@ def build_graph(repo_root: str) -> dict:
             if target is not None:
                 targets.add(target)
         declared = set(names)
-        for target in _relative_edges(tree, rel, root):
+        for target in _relative_edges(edge_tree, rel, root):
             relative_edges_resolved += 1
             targets.add(target)
             # Имя выводится из ПУТИ файла, а не выдумывается: сопоставление с
@@ -364,6 +393,7 @@ def build_graph(repo_root: str) -> dict:
         "unparsed": unparsed,
         "relative_edges_resolved": relative_edges_resolved,
         "top_levels": sorted(top_levels),
+        "module_level_only": module_level_only,
     }
 
 
@@ -377,19 +407,33 @@ def _distances(graph: dict, prefixes: tuple[str, ...]) -> tuple[dict[str, int],
     измерения, выданным за «дороги нет».
     """
     declares = graph["declares"]
-    edges = graph["edges"]
+    seeds = [rel for rel, names in declares.items()
+             if _matches(set(names), prefixes)]
+    return reverse_bfs(graph, seeds)
+
+
+def reverse_bfs(graph: dict, seeds) -> tuple[dict[str, int], dict[str, str]]:
+    """Кратчайшее число дуг до ЛЮБОГО из семян + первый шаг дороги.
+
+    Вынесено из :func:`_distances` одной копией: семена бывают не только
+    «файл объявляет имя поверхности». Сосед
+    ``scripts/forbidden_reach_census.py`` спрашивает тот же граф о ДРУГИХ
+    семенах (файл ввозит запрещённую библиотеку), и вторая копия обхода
+    разошлась бы с этой при первой же правке.
+    """
     reverse: dict[str, list[str]] = collections.defaultdict(list)
-    for src, targets in edges.items():
+    for src, targets in graph["edges"].items():
         for dst in targets:
             reverse[dst].append(src)
 
     dist: dict[str, int] = {}
     hop: dict[str, str] = {}
     queue: collections.deque[str] = collections.deque()
-    for rel, names in declares.items():
-        if _matches(set(names), prefixes):
-            dist[rel] = 0
-            queue.append(rel)
+    for rel in seeds:
+        if rel in dist:
+            continue
+        dist[rel] = 0
+        queue.append(rel)
     while queue:
         node = queue.popleft()
         for parent in reverse.get(node, ()):
