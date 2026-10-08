@@ -76,6 +76,20 @@ class _Scene:
         full.write_text(source, encoding="utf-8")
         return self
 
+    def wrapper(self, program, target):
+        """Обёртка агента в ФОРМЕ живого дерева: режим B, цель — второй аргумент.
+
+        Форма взята с `scripts/agent_intraday_equity.sh` дословно; разбор её делает
+        `entrypoint_import_probe.resolve_wrapper_target`, а не вторая копия правила.
+        """
+        full = self.root / "scripts" / program
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(
+            "#!/bin/bash\n"
+            f"exec /bin/bash {self.root}/scripts/agent_template.sh lbl {target} --run\n",
+            encoding="utf-8")
+        return self
+
     def measure(self):
         return frc.measure(self.root, data_dir=str(self.root / "data"), now=NOW)
 
@@ -573,6 +587,287 @@ class TheClosureOfTheOrderIsPinnedToTheRealTree(unittest.TestCase):
         """Проводка: секция обязана быть позвана из шага 0-офис, а не существовать рядом."""
         src = (REPO / "scripts" / "consume_office_reports.py").read_text(encoding="utf-8")
         self.assertIn("finding_reader_census", src)
+
+
+class TheDeclarationAxisAsksTheCode(unittest.TestCase):
+    """Заказ **G105 п. 3**: исходы «объявлен другим потребителем» и «объявлен другим
+    агентом» суть ОБЪЯВЛЕНИЯ — спросить у кода, читает ли названный потребитель путь.
+
+    Крайние значения оси обязаны быть ДОКАЗАТЕЛЬСТВАМИ, а вся неуверенность — уходить
+    в середину с названной причиной. Поэтому у каждого теста ниже порвано ровно одно
+    звено, и оно названо в имени.
+    """
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.scene = _Scene(self._tmp.name)
+        self.scene.artifact("data/x.json", {"ok": True}, age_hours=1.0)
+
+    def _declare(self, consumers, agents=None):
+        self.scene.manifest(
+            agents=agents or [_agent("com.spa.x", "data/x.json")],
+            artifacts=[{"path": "data/x.json", "status": "active",
+                        "consumers": list(consumers)}])
+        return self
+
+    def _claim(self, artifact="data/x.json"):
+        row = _row(self.scene.measure(), artifact)
+        self.assertIn(row["verdict"], frc.DECLARATION_VERDICTS,
+                      "сцена обязана давать именно ОБЪЯВЛЕНИЕ, иначе ось не спрашивается")
+        return row
+
+    # ── доказательство «читает» ─────────────────────────────────────────────────────
+    def test_a_consumer_whose_own_file_reads_the_path_is_confirmed(self):
+        self._declare(["reader"]).scene.module(
+            "spa_core/reader.py",
+            'import json\n'
+            'def go():\n'
+            '    return json.load(open("data/x.json"))\n')
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_confirmed")
+        self.assertEqual(row["claim_pairs"][0]["detail"], "spa_core/reader.py")
+
+    def test_an_agent_label_is_resolved_through_its_wrapper_to_the_module_it_runs(self):
+        """Ярлык агента адресом не является: адрес даёт РАЗБОР ОБЁРТКИ (переиспользован)."""
+        agents = [_agent("com.spa.x", "data/x.json"),
+                  {"label": "com.spa.y", "intent": "active", "produces": [],
+                   "consumes": ["data/x.json"], "program": "agent_y.sh"}]
+        self.scene.manifest(agents=agents)
+        self.scene.wrapper("agent_y.sh", "spa_core.ymod")
+        self.scene.module("spa_core/ymod.py",
+                          'import json\n'
+                          'def go():\n'
+                          '    return json.load(open("data/x.json"))\n')
+        row = _row(self.scene.measure(), "data/x.json")
+        self.assertEqual(row["verdict"], "read_by_another_agent")
+        self.assertEqual(row["claim"], "declaration_confirmed")
+
+    # ── доказательство «не читает» = находка заказа ─────────────────────────────────
+    def test_a_consumer_that_never_names_the_path_anywhere_is_the_finding(self):
+        """Живая форма находки 08.10: `data/fleet_economics.json` объявлен за
+        `telegram_daily_digest`, а тот — модуль БЕЗ репозиторных импортов, и имени
+        файла в нём нет вовсе. Читать нечем, и объявление пусто."""
+        self._declare(["reader"]).scene.module(
+            "spa_core/reader.py",
+            'import json\n'
+            'def go():\n'
+            '    return json.load(open("data/other.json"))\n')
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unbacked")
+        doc = self.scene.measure()
+        self.assertEqual([r["artifact"] for r in doc["claim_findings"]], ["data/x.json"])
+        self.assertIn("ОБЪЯВЛЕНИЕ ПУСТО", frc.format_report(doc))
+
+    def test_a_reader_unreachable_from_the_declared_consumer_still_leaves_it_empty(self):
+        """Длинный ход того же ответа: читатель в дереве ЕСТЬ, но из названного
+        потребителя он не достижим импортом — значит ЭТОТ потребитель не читает.
+        Короткий ход (путь не упомянут нигде) сюда не доходит, и ветка своя."""
+        self._declare(["deaf"])
+        self.scene.module("spa_core/deaf.py", "VALUE = 1\n")
+        self.scene.module("spa_core/stranger.py",
+                          'import json\n'
+                          'def go():\n'
+                          '    return json.load(open("data/x.json"))\n')
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unbacked")
+
+    def test_the_empty_declaration_raises_the_lower_bound_of_the_missing_reader(self):
+        """Находка оси обязана ВОЙТИ в границу снизу, иначе вред остаётся за объявлением."""
+        self._declare(["reader"]).scene.module("spa_core/reader.py", "VALUE = 2\n")
+        doc = self.scene.measure()
+        self.assertEqual(doc["verdicts"]["no_reader_found"], 0)
+        self.assertEqual(doc["no_reader_lower_bound"], 1)
+        self.assertEqual(frc.verdict(doc), 1, "пустое объявление обязано краснить вердикт")
+
+    def test_without_the_axis_the_same_scene_would_be_called_clean(self):
+        """Отрицательный контроль САМОГО заказа: до оси этот ряд считался прочитанным."""
+        self._declare(["reader"]).scene.module("spa_core/reader.py", "VALUE = 2\n")
+        doc = self.scene.measure()
+        self.assertFalse(doc["findings"], "главная ось эту форму не видит — в этом и заказ")
+        self.assertTrue(doc["claim_findings"])
+
+    # ── третий исход: причина названа, находкой не объявляется ──────────────────────
+    def test_a_read_only_inside_the_import_closure_is_unmeasured_not_confirmed(self):
+        """Импорт не есть вызов. Замыкание входа агента в живом дереве — 600+ файлов,
+        и «кто-то в замыкании читает» отвечало бы «да» почти на любой артефакт."""
+        self._declare(["reader"])
+        self.scene.module("spa_core/reader.py", "import spa_core.deep\nVALUE = 1\n")
+        self.scene.module("spa_core/deep.py",
+                          'import json\n'
+                          'def go():\n'
+                          '    return json.load(open("data/x.json"))\n')
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unmeasured")
+        self.assertTrue(row["claim_pairs"][0]["detail"].startswith(
+            "read_reachable_only_through_the_import_closure:"))
+
+    def test_a_path_named_but_with_no_parsed_read_site_is_unmeasured_not_a_finding(self):
+        """Живая форма: `_load_json(ddir / "equity_curve_daily.json")` — помощник, которого
+        разбор не опознал. Назвать это находкой значило бы оболгать настоящего читателя."""
+        self._declare(["reader"]).scene.module(
+            "spa_core/reader.py",
+            'NAME = "x.json"\n'
+            'def go(fetch):\n'
+            '    return fetch(NAME)\n')
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unmeasured")
+        self.assertTrue(row["claim_pairs"][0]["detail"].startswith(
+            "named_in_code_but_no_read_site_parsed:"))
+
+    def test_a_filename_inside_prose_is_not_a_mention_and_the_row_stays_a_finding(self):
+        """Обратная сторона предыдущего: `f"копится (outcomes.jsonl)"` упоминанием НЕ
+        является — хвост литерала там не есть имя файла. Иначе любая прозаическая
+        строка закрывала бы находку."""
+        self._declare(["reader"]).scene.module(
+            "spa_core/reader.py",
+            'def go(n):\n'
+            '    return f"копится (x.json) — {n} дн."\n')
+        self.assertEqual(self._claim()["claim"], "declaration_unbacked")
+
+    def test_a_confirmation_by_an_ambiguous_file_name_is_not_proof(self):
+        """Заказ G105 п. 2 числом: разбор опознаёт ИМЯ ФАЙЛА, и `latest.json` в живом
+        дереве носят трое. Попадание по такому имени этот путь не доказывает."""
+        agents = [_agent("com.spa.x", "data/a/latest.json"),
+                  _agent("com.spa.z", "data/b/latest.json")]
+        self.scene.artifact("data/a/latest.json", {"ok": True}, age_hours=1.0)
+        self.scene.artifact("data/b/latest.json", {"ok": True}, age_hours=1.0)
+        self.scene.manifest(agents=agents, artifacts=[
+            {"path": "data/a/latest.json", "status": "active", "consumers": ["reader"]}])
+        self.scene.module("spa_core/reader.py",
+                          'import json\n'
+                          'def go():\n'
+                          '    return json.load(open("data/a/latest.json"))\n')
+        doc = self.scene.measure()
+        row = _row(doc, "data/a/latest.json")
+        self.assertEqual(row["claim"], "declaration_unmeasured")
+        self.assertIn("confirmed_only_by_an_ambiguous_basename",
+                      row["claim_pairs"][0]["detail"])
+        self.assertEqual(doc["ambiguity"]["ambiguous_names"], 1)
+        self.assertEqual(doc["ambiguity"]["rows_sharing_a_name"], 2)
+
+    def test_the_same_name_in_one_place_only_lets_the_confirmation_stand(self):
+        """Контроль в обратную сторону: неоднозначность, а не само имя, гасит ответ."""
+        self._declare(["reader"]).scene.module(
+            "spa_core/reader.py",
+            'import json\n'
+            'def go():\n'
+            '    return json.load(open("data/x.json"))\n')
+        self.assertEqual(self._claim()["claim"], "declaration_confirmed")
+
+    def test_prose_in_the_consumer_field_is_not_a_code_address(self):
+        """Живая форма: потребитель `owner audit (append-only removal log)` — человек."""
+        self._declare(["owner audit (append-only removal log)"])
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unmeasured")
+        self.assertEqual(row["claim_pairs"][0]["detail"],
+                         "consumer_name_is_not_a_code_address")
+
+    def test_one_word_naming_two_files_is_unmeasured_and_not_the_first_match(self):
+        """Живая форма: `cycle_health_monitor` лежит и в `monitoring/`, и в `analytics/`."""
+        self._declare(["twin"])
+        self.scene.module("spa_core/twin.py", "VALUE = 1\n")
+        self.scene.module("scripts/twin.py", "VALUE = 2\n")
+        row = self._claim()
+        self.assertEqual(row["claim"], "declaration_unmeasured")
+        self.assertEqual(row["claim_pairs"][0]["detail"],
+                         "consumer_name_resolves_to_2_code_addresses")
+
+    def test_a_declared_module_path_that_does_not_exist_is_unmeasured(self):
+        self._declare(["spa_core/gone.py"])
+        self.assertEqual(self._claim()["claim_pairs"][0]["detail"],
+                         "consumer_path_absent:spa_core/gone.py")
+
+    def test_an_agent_label_absent_from_the_constitution_is_unmeasured(self):
+        self._declare(["com.spa.nowhere"])
+        self.assertEqual(self._claim()["claim_pairs"][0]["detail"],
+                         "consumer_agent_absent_from_the_constitution")
+
+    def test_an_agent_without_a_wrapper_file_is_unmeasured_not_unbacked(self):
+        agents = [_agent("com.spa.x", "data/x.json"),
+                  {"label": "com.spa.y", "intent": "active", "produces": [],
+                   "consumes": [], "program": "agent_missing.sh"}]
+        self._declare(["com.spa.y"], agents=agents)
+        self.assertEqual(self._claim()["claim_pairs"][0]["detail"],
+                         "consumer_wrapper_absent:agent_missing.sh")
+
+    def test_a_directory_artifact_is_unmeasured_on_this_axis_too(self):
+        """Разбор читателей каталога не видит ВОВСЕ (ADR-526) — и здесь тоже."""
+        self.scene.artifact("data/dir/a.json", {"ok": True}, age_hours=1.0)
+        self.scene.manifest(
+            agents=[_agent("com.spa.x", "data/dir")],
+            artifacts=[{"path": "data/dir", "status": "active", "consumers": ["reader"]}])
+        self.scene.module("spa_core/reader.py", "VALUE = 1\n")
+        row = _row(self.scene.measure(), "data/dir")
+        self.assertEqual(row["claim_pairs"][0]["detail"],
+                         "code_reader_not_measurable_for_a_directory")
+
+    # ── сведение пар в ряд ──────────────────────────────────────────────────────────
+    def test_one_confirmed_consumer_confirms_the_row(self):
+        """«Читает хоть кто-то из названных» и есть вопрос ряда."""
+        self._declare(["reader", "deaf"])
+        self.scene.module("spa_core/reader.py",
+                          'import json\n'
+                          'def go():\n'
+                          '    return json.load(open("data/x.json"))\n')
+        self.scene.module("spa_core/deaf.py", "VALUE = 1\n")
+        doc = self.scene.measure()
+        row = _row(doc, "data/x.json")
+        self.assertEqual(row["claim"], "declaration_confirmed")
+        self.assertEqual(doc["claim_pairs"]["declaration_unbacked"], 1,
+                         "пара остаётся пустой, даже когда ряд закрыт соседом")
+        self.assertFalse(doc["claim_findings"], "ряд закрыт — находкой он не объявляется")
+
+    def test_a_row_is_called_empty_only_when_every_declaration_is_empty(self):
+        self._declare(["deaf", "mute"])
+        self.scene.module("spa_core/deaf.py", "VALUE = 1\n")
+        self.scene.module("spa_core/mute.py", "VALUE = 2\n")
+        self.assertEqual(self._claim()["claim"], "declaration_unbacked")
+
+    def test_a_mixed_row_of_empty_and_unmeasured_is_unmeasured_not_a_finding(self):
+        self._declare(["deaf", "owner audit (append-only removal log)"])
+        self.scene.module("spa_core/deaf.py", "VALUE = 1\n")
+        self.assertEqual(self._claim()["claim"], "declaration_unmeasured")
+
+    # ── свойства оси как оси ────────────────────────────────────────────────────────
+    def test_the_axis_names_are_pinned_to_literals_not_to_the_modules_own_tuple(self):
+        self.assertEqual(frc.CLAIMS, ("declaration_confirmed", "declaration_unbacked",
+                                      "declaration_unmeasured"))
+        self.assertEqual(frc.DECLARATION_VERDICTS,
+                         ("read_by_another_declared_consumer", "read_by_another_agent"))
+
+    def test_the_axis_is_not_a_summand_and_the_verdict_sum_still_equals_the_population(self):
+        self._declare(["reader"]).scene.module("spa_core/reader.py", "VALUE = 1\n")
+        doc = self.scene.measure()
+        self.assertEqual(sum(doc["verdicts"].values()), doc["population"])
+        self.assertEqual(sum(doc["claims"].values()), 1)
+
+    def test_every_axis_outcome_is_declared_even_at_zero(self):
+        """Инв. #17: «такого исхода нет» и «исход не считался» — разное."""
+        self._declare([frc.CYCLE_CONSUMER])
+        doc = self.scene.measure()
+        self.assertEqual(set(doc["claims"]), set(frc.CLAIMS))
+        self.assertEqual(sum(doc["claims"].values()), 0)
+
+    def test_a_row_that_is_not_a_declaration_is_never_asked(self):
+        self.scene.manifest(agents=[_agent("com.spa.x", "data/x.json")])
+        doc = self.scene.measure()
+        self.assertEqual(_row(doc, "data/x.json")["verdict"], "no_reader_found")
+        self.assertNotIn("claim", _row(doc, "data/x.json"))
+
+    def test_the_report_prints_the_axis_and_the_ambiguity_number(self):
+        self._declare(["reader"]).scene.module("spa_core/reader.py", "VALUE = 1\n")
+        text = frc.format_report(self.scene.measure())
+        self.assertIn("объявление против кода", text)
+        self.assertIn("заказ G105 п. 2", text)
+        self.assertIn("граница снизу", text)
+
+    def test_the_old_disclaimer_about_the_declared_consumer_is_gone(self):
+        """Прибор больше не вправе говорить «не докладываю», когда он докладывает."""
+        self._declare(["reader"]).scene.module("spa_core/reader.py", "VALUE = 1\n")
+        text = frc.format_report(self.scene.measure())
+        self.assertNotIn("читает ли объявленный потребитель файл на самом деле", text)
 
 
 if __name__ == "__main__":
