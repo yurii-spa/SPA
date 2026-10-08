@@ -557,7 +557,14 @@ class MutationsFoundTheseGaps(unittest.TestCase):
             # двух, и на дереве без площадок второй оси сцена отвечала бы 2 —
             # то есть перестала бы мерить таблицу ПИСАТЕЛЯ. Ни одной метки
             # канала в этих файлах нет: сцена даёт население, а не находку.
-            _tree(tmp, {"a/x.py": "x = 1\n", "a/x.sh": "echo ok\n",
+            # ТРЕТЬЯ ось (возраст записи, G106 п. 1) добавила к коду возврата
+            # своё слагаемое, и её пустое население честно отвечает 2 (класс
+            # `vacuous_guard_census`). Поэтому сцена усилена НАСЕЛЕНИЕМ третьей
+            # оси — один читатель записи своего прогона; проверка не понижена:
+            # предмет теста (таблица кодов ПИСАТЕЛЯ) мерится по-прежнему, а
+            # сцена перестала молча зависеть от пустоты соседней оси
+            # (намеренная правка теста, инв. #16 — в журнале W41).
+            _tree(tmp, {"a/x.py": "P = '--junitxml'\n", "a/x.sh": "echo ok\n",
                         "CLAUDE.md": "протокол\n",
                         "docs/ORCHESTRATOR_PROTOCOL.md": "протокол\n",
                         ".claude/rules/r.md": "правило\n"})
@@ -925,3 +932,468 @@ class RealTreeWideAxis(unittest.TestCase):
         self.assertEqual({}, doc["wide_kind_unmeasured"])
         for kind in c.WIDE_KINDS:
             self.assertGreater(doc["wide_scanned"][kind], 0, kind)
+
+
+# ── ось ВОЗРАСТА записи (заказ G106 п. 1, ADR-651) ───────────────────────────
+#
+# Заказ запретил спрашивать настройку («поставить ли больше») и велел спросить
+# СПРОС — у читателя. Поэтому у батареи две половины: предложение (срок у
+# шага выгрузки, замером у воркфлоу) и спрос (какое ХРАНИЛИЩЕ читатель
+# спрашивает). Третий исход у каждой половины свой, и подмена одного другим
+# проверяется отдельным тестом: «возраст ноль» и «срока в дереве нет» — не
+# одно и то же, хотя оба печатаются без большого числа.
+
+
+def _ret(name, path, retention=None, cond="!cancelled()"):
+    """Шаг выгрузки с объявленным (или НЕ объявленным) сроком."""
+    step = {"name": name, "uses": "actions/upload-artifact@v4",
+            "if": cond, "with": {"path": path}}
+    if retention is not None:
+        step["with"]["retention-days"] = retention
+    return step
+
+
+class RetentionIsMeasuredNotReprinted(unittest.TestCase):
+    """Предложение: срок читается у ВОРКФЛОУ, и у него три исхода."""
+
+    def _rows(self, steps):
+        rows, counts = c._retention_axis(_wf(steps))
+        return rows, counts
+
+    def test_a_literal_retention_is_read_as_a_number(self):
+        rows, counts = self._rows([_ret("u", "reports/", 14)])
+        self.assertEqual(c.RET_DECLARED, rows[0]["outcome"])
+        self.assertEqual(14, rows[0]["days"])
+        self.assertEqual(1, counts[c.RET_DECLARED])
+
+    def test_a_missing_retention_is_the_third_outcome_and_never_the_number_90(self):
+        """Порванное звено: подставить умолчание GitHub (90 дн.) за замер.
+
+        Настройки репозитория в дереве нет НИ ОДНОЙ строкой, поэтому «срок не
+        объявлен» обязано быть отдельным значением, а не числом из памяти
+        (инв. #17 и дословный урок `.claude/rules/site-numbers.md`).
+        """
+        rows, counts = self._rows([_ret("u", "reports/")])
+        self.assertEqual(c.RET_NOT_DECLARED, rows[0]["outcome"])
+        self.assertIsNone(rows[0]["days"])
+        self.assertIn("РЕПОЗИТОРИЯ", rows[0]["why"])
+        self.assertEqual(1, counts[c.RET_NOT_DECLARED])
+        self.assertNotIn("90", rows[0]["why"])
+
+    def test_an_expression_retention_is_unmeasured_not_a_number(self):
+        rows, _ = self._rows([_ret("u", "reports/", "${{ env.KEEP }}")])
+        self.assertEqual(c.RET_UNMEASURED, rows[0]["outcome"])
+        self.assertIsNone(rows[0]["days"])
+        self.assertIn("выражение", rows[0]["why"])
+
+    def test_a_non_numeric_retention_is_unmeasured_and_the_axis_does_not_raise(self):
+        rows, _ = self._rows([_ret("u", "reports/", "fourteen")])
+        self.assertEqual(c.RET_UNMEASURED, rows[0]["outcome"])
+        self.assertIn("не число", rows[0]["why"])
+
+    def test_only_an_upload_that_covers_a_record_path_carries_the_record(self):
+        """Порванное звено: считать несущим запись ЛЮБОЙ шаг выгрузки.
+
+        Тогда срок у выгрузки чужого артефакта (отчёт свежести сайта) попал бы
+        в сравнение со спросом на ЗАПИСЬ ИМЁН — сравнение разнородного.
+        """
+        rows, _ = self._rows([_step("p", run=PYTEST_WITH_JUNIT),
+                              _ret("other", "data/site_freshness_report.json", 3),
+                              _ret("records", "reports/", 14)])
+        by_step = {row["step"]: row for row in rows}
+        self.assertEqual([], by_step["other"]["carries_record"])
+        self.assertEqual(["reports/junit-x.xml"],
+                         by_step["records"]["carries_record"])
+
+    def test_the_shortest_retention_is_taken_over_record_carrying_uploads_only(self):
+        """Порванное звено: минимум по ВСЕМ выгрузкам.
+
+        Сцена различающая: чужая выгрузка объявляет срок КОРОЧЕ (3 дн.), и
+        наивный минимум доложил бы 3 вместо 14 — то есть сравнил бы спрос на
+        запись имён со сроком чужого файла.
+        """
+        doc = c.measure(_REPO_ROOT, workflows=_wf(
+            [_step("p", run=PYTEST_WITH_JUNIT),
+             _ret("other", "data/x.json", 3),
+             _ret("records", "reports/", 14)]))
+        answer = c.age_answer(doc)
+        self.assertEqual(14, answer["shortest_record_retention_days"])
+        self.assertEqual(1, answer["record_carrying_uploads"])
+
+    def test_an_undecidable_coverage_is_counted_and_not_called_carried(self):
+        rows, _ = self._rows([_step("p", run=PYTEST_WITH_JUNIT),
+                              _ret("u", "${{ env.DIR }}/reports", 14)])
+        row = next(r for r in rows if r["step"] == "u")
+        self.assertEqual([], row["carries_record"])
+        self.assertEqual(1, row["coverage_undecided"])
+
+    def test_a_record_carrying_upload_without_a_declared_term_is_named_as_supply_unmeasured(self):
+        doc = c.measure(_REPO_ROOT, workflows=_wf(
+            [_step("p", run=PYTEST_WITH_JUNIT), _ret("u", "reports/")]))
+        answer = c.age_answer(doc)
+        self.assertEqual(1, answer["supply_unmeasured"])
+        self.assertIsNone(answer["shortest_record_retention_days"])
+        self.assertIn("короткий срок НЕ ИЗМЕРЕН", c.format_report(doc))
+
+    def test_the_codomain_of_coverage_is_exactly_three_values(self):
+        """Почему мутант `covered is True` → `covered` ЭКВИВАЛЕНТЕН, а не выжил
+        на дыре сцены.
+
+        Замер мутаций цикла #807 оставил ровно одного «выжившего», и прежде чем
+        называть его дырой, у функции спрошена ОБЛАСТЬ ЗНАЧЕНИЙ: она ровно
+        ``{True, False, None}``. На таком множестве `x is True` и `x`
+        различаются только если существует истинное значение, не равное
+        ``True``, — а его нет, и теперь это ЗАКРЕПЛЕНО. Если область значений
+        однажды расширится (скажем, числом совпавших путей), тест покраснеет
+        первым, и форма `covered is True` вернёт свой смысл.
+        """
+        cases = [("reports/", "reports/j.xml"), ("reports/", "../reports/j.xml"),
+                 ("reports/", "other/j.xml"), ("rep*/", "reports/j.xml"),
+                 ("${{ e }}/r", "reports/j.xml"), ("reports/", "${{ e }}/j.xml"),
+                 ("", "reports/j.xml"), ("reports/", "")]
+        seen = {c._covers(up, rec) for up, rec in cases}
+        self.assertEqual({True, False, None}, seen)
+        for value in seen:
+            self.assertIn(value, (True, False, None))
+
+    def test_the_retention_outcomes_sum_to_the_number_of_upload_steps(self):
+        rows, counts = self._rows([_ret("a", "reports/", 14), _ret("b", "x/"),
+                                   _ret("c", "y/", "${{ e }}")])
+        self.assertEqual(len(rows), sum(counts.values()))
+        self.assertEqual(set(c.RETENTIONS), set(counts))
+
+
+class AgeDemandIsMeasuredAtTheReader(unittest.TestCase):
+    """Спрос: какое ХРАНИЛИЩЕ спрашивает читатель. Три исхода различимы."""
+
+    def _rows(self, tmp, workflows=None):
+        doc = c.measure(tmp, workflows=workflows if workflows is not None else {})
+        return doc, {row["site"]: row for row in doc["age_demand_rows"]}
+
+    def test_a_reader_handed_the_record_of_its_own_run_demands_age_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = '--junitxml'\n"})
+            doc, by_site = self._rows(tmp)
+            row = by_site["a/x.py"]
+            self.assertEqual(c.DEMAND_LOCAL, row["demand"])
+            self.assertEqual(c.STORE_LOCAL, row["store"])
+            self.assertEqual(0, row["age_days"])
+
+    def test_a_reader_of_the_run_log_has_NO_number_and_that_is_not_the_same_as_zero(self):
+        """Порванное звено: склеить «возраст ноль» и «срока в дереве нет».
+
+        Это ровно подмена, запрещённая инв. #17: первое ИЗМЕРЕНО и равно нулю,
+        второе не измерено вовсе, и чинится оно в другом месте (настройка
+        репозитория, а не `retention-days`).
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "CMD = 'ci_verdict'\n",
+                        "a/y.py": "P = '--junitxml'\n"})
+            _doc, by_site = self._rows(tmp)
+            log_row, own_row = by_site["a/x.py"], by_site["a/y.py"]
+            self.assertEqual(c.DEMAND_RUN_LOG, log_row["demand"])
+            self.assertIsNone(log_row["age_days"])
+            self.assertIn("РЕПОЗИТОРИЯ", log_row["why"])
+            self.assertEqual(0, own_row["age_days"])
+            self.assertIsNot(log_row["age_days"], own_row["age_days"])
+
+    def test_a_reader_of_the_api_conclusion_asks_the_run_log_store_too(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "URL = '/actions/runs?head_sha=x'\n"})
+            _doc, by_site = self._rows(tmp)
+            self.assertEqual(c.DEMAND_RUN_LOG, by_site["a/x.py"]["demand"])
+            self.assertEqual(c.STORE_RUN_LOG, by_site["a/x.py"]["store"])
+
+    def test_a_site_that_downloads_the_artifact_asks_the_artifact_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "CMD = 'gh run download 123'\nP = '--junitxml'\n"})
+            _doc, by_site = self._rows(tmp)
+            row = by_site["a/x.py"]
+            self.assertEqual(c.DEMAND_ARTIFACT, row["demand"])
+            self.assertEqual(c.STORE_ARTIFACT, row["store"])
+            self.assertEqual(["gh run download"], row["fetch_marks"])
+
+    def test_the_download_overrides_the_channel_because_only_it_is_governed_by_retention(self):
+        """Порванное звено: решать спрос ТОЛЬКО по карте каналов.
+
+        Файл, который и берёт `conclusion`, и тянет артефакт, по карте ушёл бы
+        в `run_log_store` — и единственный спрос, который `retention-days`
+        действительно связывает, стал бы невидим.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "U = '/actions/runs'\nC = 'gh run download'\n"})
+            _doc, by_site = self._rows(tmp)
+            self.assertEqual(c.DEMAND_ARTIFACT, by_site["a/x.py"]["demand"])
+
+    def test_a_download_mark_in_a_comment_asks_nothing(self):
+        """Порванное звено: суждение по ПОДСТРОКЕ. Проза ничего не скачивает."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "# когда-то звали gh run download\nP = '--junitxml'\n"})
+            doc, by_site = self._rows(tmp)
+            self.assertEqual(c.DEMAND_LOCAL, by_site["a/x.py"]["demand"])
+            self.assertEqual(0, doc["age_demand_counts"][c.DEMAND_ARTIFACT])
+            self.assertEqual([c.EV_PROSE],
+                             [s["evidence"] for s in doc["fetch_sites"]])
+
+    def test_a_prose_only_reader_site_is_excluded_from_the_population_and_counted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "# читает ci_verdict\nx = 1\n"})
+            doc, by_site = self._rows(tmp)
+            self.assertEqual({}, by_site)
+            self.assertEqual(1, doc["age_excluded"]["prose_only"])
+
+    def test_an_unparsed_reader_site_is_the_third_outcome_of_demand(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "def f(:\n    'ci_verdict'\n"})
+            doc, by_site = self._rows(tmp)
+            self.assertEqual(c.DEMAND_UNMEASURED, by_site["a/x.py"]["demand"])
+            self.assertEqual(c.ANSWER_UNMEASURED, c.age_answer(doc)["label"])
+
+    def test_the_demand_outcomes_sum_to_the_population(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = '--junitxml'\n",
+                        "a/y.py": "C = 'ci_verdict'\n",
+                        "a/z.py": "U = '/actions/runs'\n"})
+            doc, _ = self._rows(tmp)
+            self.assertEqual(len(doc["age_demand_rows"]),
+                             sum(doc["age_demand_counts"].values()))
+            self.assertEqual(set(c.DEMANDS), set(doc["age_demand_counts"]))
+
+    def test_one_site_is_not_counted_twice_for_the_same_channel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "A = '--junitxml'\nB = '<testsuite'\n"})
+            doc, _ = self._rows(tmp)
+            self.assertEqual(1, len(doc["age_demand_rows"]))
+
+    def test_the_fetch_axis_does_not_skip_the_narrow_population(self):
+        """Выбор с причиной: скачивающий может жить и в узких каталогах, и ось
+        читателей его бы не увидела — там он уже «пройден»."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"scripts/dl.py": "C = 'gh run download'\n"})
+            sites, scanned, _ = c._fetch_axis(tmp, {})
+            self.assertEqual(["scripts/dl.py"], [s["site"] for s in sites])
+            self.assertEqual(1, scanned[c.KIND_CODE])
+
+    def test_an_unreadable_fetch_site_is_named_and_does_not_vanish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "def f(:\n    'gh run download'\n"})
+            sites, _scanned, unmeasured = c._fetch_axis(tmp, {})
+            self.assertEqual([c.EV_UNMEASURED], [s["evidence"] for s in sites])
+            row = next(r for r in unmeasured if r["site"] == "a/x.py")
+            self.assertIn("разобрать нечем", row["reason"])
+            for other in unmeasured:
+                self.assertTrue(other["reason"].strip(), other["site"])
+
+
+class TheProducerOfTheRecordIsNotItsReader(unittest.TestCase):
+    """Порванное звено: считать воркфлоу, ОБЪЯВИВШИЙ запись, её читателем."""
+
+    def _doc(self, run, tmp):
+        return c.measure(tmp, workflows=_wf([_step("p", run=run)]))
+
+    def test_a_workflow_declaring_the_record_is_a_writer_and_leaves_the_population(self):
+        """Сцена РАЗЛИЧАЮЩАЯ: без этой ветки воркфлоу попадал бы в спрос как
+        читатель записи своего прогона, и население оси раздувалось бы ровно
+        на производителей — то есть ноль спроса считался бы на неверном
+        знаменателе."""
+        with tempfile.TemporaryDirectory() as tmp:
+            doc = self._doc(PYTEST_WITH_JUNIT, tmp)
+            self.assertEqual([], doc["age_demand_rows"])
+            self.assertEqual(1, doc["age_excluded"]["writer_sites"])
+            self.assertIn("воркфлоу-ПИСАТЕЛЕЙ записи 1", c.format_report(doc))
+
+    def test_a_workflow_that_READS_a_ready_record_stays_in_the_population(self):
+        """Обратная сторона: ``<testsuite`` есть чтение готовой записи, а не её
+        объявление, и в перечень меток писателя он не входит НАМЕРЕННО. Без
+        этого различения ветка исключения съела бы настоящего читателя."""
+        with tempfile.TemporaryDirectory() as tmp:
+            doc = self._doc("grep '<testsuite' reports/j.xml", tmp)
+            self.assertEqual([".github/workflows/w.yml"],
+                             [row["site"] for row in doc["age_demand_rows"]])
+            self.assertEqual(0, doc["age_excluded"]["writer_sites"])
+
+    def test_the_same_mark_in_python_is_NOT_a_writer_exclusion(self):
+        """Исключение привязано к РОДУ площадки, а не к метке: ``--junitxml`` в
+        питоне есть чтение записи своего прогона (так читает настоящий
+        `no_regression_census`), и вынести его значило бы потерять единственный
+        измеренный спрос с нулевым возрастом."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = '--junitxml'\n"})
+            doc = c.measure(tmp, workflows={})
+            self.assertEqual([c.DEMAND_LOCAL],
+                             [row["demand"] for row in doc["age_demand_rows"]])
+            self.assertEqual(0, doc["age_excluded"]["writer_sites"])
+
+
+class AgeAnswerAndExitCode(unittest.TestCase):
+    """Вердикт оси, оба числа рядом и ХРАПОВИК на появление спроса."""
+
+    def _main(self, tmp, steps):
+        import contextlib
+        import io
+        import yaml  # noqa: PLC0415 — тест-домен, не рантайм (инв. #4)
+        _tree(tmp, {".github/workflows/w.yml":
+                    yaml.safe_dump({"jobs": {"test": {"steps": steps}}})})
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = c.main(["--root", tmp])
+        return rc, buf.getvalue()
+
+    _GOOD = [{"name": "p", "run": PYTEST_WITH_JUNIT},
+             {"name": "u", "uses": "actions/upload-artifact@v4",
+              "if": "!cancelled()",
+              "with": {"path": "reports/", "retention-days": 14}}]
+
+    def test_nobody_asking_the_artifact_store_is_code_zero_and_the_setting_is_called_a_choice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"CLAUDE.md": "`grep \" passed\" <лог>`\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "x\n",
+                        ".claude/rules/r.md": "x\n", "a/t.sh": "echo ok\n",
+                        "a/x.py": "P = '--junitxml'\n"})
+            rc, out = self._main(tmp, self._GOOD)
+            self.assertEqual(0, rc)
+            self.assertIn(c.ANSWER_NOBODY,
+                          [c.ANSWER_NOBODY])          # имя исхода объявлено
+            self.assertIn("не связывает никого", out)
+            self.assertIn("ИЗМЕРЕН и равен нулю", out)
+
+    def test_the_first_downloader_makes_the_question_live_and_raises_the_code_to_one(self):
+        """ХРАПОВИК: ноль спроса держится ровно до появления скачивающего.
+
+        Сцена отличается от предыдущей ровно одним файлом — и этого обязано
+        хватить, чтобы вердикт и код возврата сменились.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"CLAUDE.md": "x\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "x\n",
+                        ".claude/rules/r.md": "x\n", "a/t.sh": "echo ok\n",
+                        "a/x.py": "P = '--junitxml'\n",
+                        "a/dl.py": "C = 'gh run download'\nP = '<testsuite'\n"})
+            rc, out = self._main(tmp, self._GOOD)
+            self.assertEqual(1, rc)
+            self.assertIn("спрашивают поимённо", out)
+            self.assertIn("a/dl.py", out)
+
+    def test_unmeasured_demand_is_code_two_and_never_reads_as_nobody(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"CLAUDE.md": "x\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "x\n",
+                        ".claude/rules/r.md": "x\n", "a/t.sh": "echo ok\n",
+                        "a/x.py": "def f(:\n    'ci_verdict'\n"})
+            rc, out = self._main(tmp, self._GOOD)
+            self.assertEqual(2, rc)
+            self.assertIn("ОТВЕТ ЗАКАЗА: НЕ ИЗМЕРЕНО", out)
+            self.assertNotIn("не связывает никого", out)
+
+    def test_an_empty_reader_population_is_unmeasured_and_not_nobody(self):
+        """Класс `vacuous_guard_census`: «спроса нет» на пустом населении
+        читалось бы как ответ, а он не измерялся."""
+        with tempfile.TemporaryDirectory() as tmp:
+            doc = c.measure(tmp, workflows=_wf(self._GOOD))
+            self.assertEqual([], doc["age_demand_rows"])
+            self.assertEqual(c.ANSWER_UNMEASURED, c.age_answer(doc)["label"])
+
+    def test_the_report_prints_both_numbers_demand_and_supply(self):
+        """Односторонний ответ: спрос без объявленного срока сравнивать не с чем."""
+        doc = c.measure(_REPO_ROOT, workflows=_wf(self._GOOD))
+        report = c.format_report(doc)
+        for name in c.DEMANDS + c.RETENTIONS:
+            self.assertIn(name, report, name)
+        self.assertIn("несут запись имён", report)
+        self.assertIn("короткий срок", report)
+
+    def test_every_price_of_this_axis_is_declared_in_advance(self):
+        self.assertTrue(c.AGE_PRICES)
+        for price in c.AGE_PRICES:
+            self.assertTrue(price.strip())
+
+    def test_a_fetch_site_outside_the_reader_population_is_named_as_a_finding_about_the_population(self):
+        """Площадка скачивает артефакт, но ни одна ось читателей её не видит:
+        это находка о НАСЕЛЕНИИ, и молчать о ней значило бы выдать неполное
+        население за полное."""
+        with tempfile.TemporaryDirectory() as tmp:
+            # `gh run download` содержит подстроку `gh run `, то есть МЕТКУ
+            # канала `conclusion`, — такая площадка в население читателей
+            # попадает сама. Различающая сцена поэтому берёт признак
+            # скачивания, каналом не являющийся вовсе.
+            _tree(tmp, {"a/dl.py": "U = '/actions/artifacts/12'\n"})
+            doc = c.measure(tmp, workflows=_wf(self._GOOD))
+            self.assertEqual(["a/dl.py"], doc["fetch_outside_population"])
+            self.assertIn("ЧИТАТЕЛЕМ НЕ ЗОВЁТСЯ", c.format_report(doc))
+
+    def test_the_age_axis_is_printed_even_when_the_workflows_are_unmeasured(self):
+        """Молчание об оси читалось бы как её ноль. Предложение при этом честно
+        пусто (сроки живут в воркфлоу), а спрос измерен — он про дерево."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"a/x.py": "P = '--junitxml'\n"})
+            doc = c.measure(tmp)                   # воркфлоу нет вовсе
+            self.assertTrue(doc["unmeasured_reason"])
+            self.assertEqual(1, doc["age_demand_counts"][c.DEMAND_LOCAL])
+            self.assertEqual([], doc["retention_rows"])
+            report = c.format_report(doc)
+            self.assertIn("ось ВОЗРАСТА записи", report)
+
+
+class ProtocolDocListHasOneHome(unittest.TestCase):
+    """Правило населения документов — ОДНА копия на обе оси (класс «два дома»)."""
+
+    def test_both_axes_see_the_same_protocol_docs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _tree(tmp, {"CLAUDE.md": "`gh run download 1` и `grep \" passed\" <лог>`\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "x\n",
+                        ".claude/rules/a.md": "x\n",
+                        ".claude/rules/b.md": "x\n"})
+            _s, wide_scanned, _u, _k = c._wide_reader_axis(tmp, workflows={})
+            _s2, fetch_scanned, _u2 = c._fetch_axis(tmp, {})
+            self.assertEqual(4, wide_scanned[c.KIND_DOC])
+            self.assertEqual(wide_scanned[c.KIND_DOC], fetch_scanned[c.KIND_DOC])
+
+    def test_a_missing_glob_directory_is_the_third_outcome_not_an_empty_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            unmeasured: list[dict] = []
+            docs = c._protocol_docs(tmp, unmeasured)
+            self.assertEqual(list(c.PROTOCOL_DOCS), docs)
+            self.assertEqual([p for p in c.PROTOCOL_DOC_GLOBS],
+                             [r["site"] for r in unmeasured])
+            for row in unmeasured:
+                self.assertTrue(row["reason"].strip())
+
+
+class RealTreeAgeAxis(unittest.TestCase):
+    """Предмет — НАСТОЯЩЕЕ дерево; ответ заказа G106 п. 1 на нём."""
+
+    def setUp(self):
+        self.doc = c.measure(_REPO_ROOT)
+        self.answer = c.age_answer(self.doc)
+
+    def test_real_tree_no_code_here_asks_the_artifact_store(self):
+        """Ответ замера: срок выгрузки не связывает НИ ОДНОГО читателя дерева.
+
+        Храповик в обе стороны: появится скачивающий — тест покраснеет и вопрос
+        «достаточно ли срока» станет живым, как и требует заказ.
+        """
+        self.assertEqual(0, self.doc["age_demand_counts"][c.DEMAND_ARTIFACT],
+                         f"скачивают: {self.answer['asking_sites']}")
+        self.assertEqual(c.ANSWER_NOBODY, self.answer["label"])
+
+    def test_real_tree_every_record_carrying_upload_declares_its_term(self):
+        self.assertEqual(0, self.answer["supply_unmeasured"])
+        self.assertTrue(self.answer["record_carrying_uploads"])
+        self.assertIsInstance(self.answer["shortest_record_retention_days"], int)
+
+    def test_real_tree_the_demand_is_not_an_empty_population(self):
+        self.assertTrue(self.doc["age_demand_rows"])
+        self.assertEqual(len(self.doc["age_demand_rows"]),
+                         sum(self.doc["age_demand_counts"].values()))
+
+    def test_real_tree_someone_does_ask_the_run_log_store_whose_term_is_not_in_the_tree(self):
+        """Вторая половина ответа: спрос на запись СТАРШЕ своего прогона есть, и
+        хранилище у него другое — лог прогона, чей срок в дереве не объявлен."""
+        self.assertTrue(self.doc["age_demand_counts"][c.DEMAND_RUN_LOG])
+        self.assertIn(c.RUN_LOG_WHY, c.format_report(self.doc))
+
+    def test_real_tree_the_fetch_axis_scanned_more_than_the_reader_axis(self):
+        """Население оси скачивания ШИРЕ по построению (узкие каталоги она не
+        пропускает) — и это число, а не обещание."""
+        self.assertGreater(self.doc["fetch_scanned"][c.KIND_CODE],
+                           self.doc["wide_scanned"][c.KIND_CODE])

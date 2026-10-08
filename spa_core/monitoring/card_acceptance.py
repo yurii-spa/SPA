@@ -4590,6 +4590,94 @@ def _probe_series_denominator_measured(arg: str | None) -> tuple[str, str]:
         f"число доехало до читателя (артефакт держит то же население)")
 
 
+def _probe_owner_control_plane_reachable(
+        arg: str | None, *, data_dir: str | None = None,
+        now: "datetime | None" = None,
+        beacon_path: str | None = None) -> tuple[str, str]:
+    """Критерий: владелец МОЖЕТ сейчас управлять системой через Telegram.
+
+    Предмет пробы — ИСХОД, а не модуль: у бота есть живой маячок умений, и
+    названное умение (``arg``, по умолчанию ``alert_actions``) в нём ОБЪЯВЛЕНО.
+    «Модуль есть и тесты зелёные» этого не доказывает — именно поэтому проба
+    спрашивает артефакт, который пишет ЖИВОЙ бот каждые ~30 с.
+
+    **Порог берётся У МОДУЛЯ и не равняется порогу живости сторожа.** Кнопки
+    гейтит ``alert_actions.BEACON_MAX_AGE_S`` (6 ч), а живость сторожа —
+    ``telegram_health`` (300 с); это два РАЗНЫХ вопроса, и сравнять их значило
+    бы вернуть «⚠️ Кнопки сейчас недоступны» на каждом перезапуске бота
+    (ADR-400, строка ловушек `CLAUDE.md`). Число здесь не перепечатано: оно
+    читается из модуля, и его изменение переедет в пробу само.
+
+    Три исхода (инв. #17):
+
+    * маячка нет · не разобран · нет отметки времени ⇒ ``unmeasured``
+      (отсутствие маячка НЕ читается ни как «кнопки есть», ни как «их нет»);
+    * отметка есть, но умение не объявлено ЛИБО возраст вне окна ⇒
+      ``not_satisfied``;
+    * умение объявлено и возраст в окне ⇒ ``satisfied``.
+
+    Умение сравнивается ТОЧНО, а не подстрокой (ADR-333): ``alert_action`` не
+    есть ``alert_actions``.
+
+    Вердикт сверяется с ТЕМ ЖЕ гейтом, который вешает кнопки
+    (``alert_actions.handler_available``). Проба обязана мерить исход, а не свой
+    пересчёт того же условия: расхождение двух ⇒ ``unmeasured`` с названной
+    причиной, потому что тогда неизвестно, какой из двух ответов верен.
+    """
+    capability = arg or "alert_actions"
+    try:
+        from spa_core.telegram import alert_actions
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «кнопки есть»
+        return UNMEASURED, f"alert_actions не импортирован: {type(exc).__name__}: {exc}"
+    if beacon_path:
+        path = _pathlib.Path(beacon_path)
+    elif data_dir:
+        path = _pathlib.Path(data_dir) / "telegram_bot_capabilities.json"
+    else:
+        path = _pathlib.Path(alert_actions.BEACON_PATH)
+    try:
+        doc = json.loads(path.read_text())
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"маячок {path} не прочитан: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"маячок {path} не объект — НЕ ИЗМЕРЕНО"
+    stamp = doc.get("updated_at")
+    if not stamp:
+        return UNMEASURED, (f"у маячка {path} нет отметки `updated_at` — возраст "
+                            "НЕ ИЗМЕРЕН, и это не «свежо»")
+    try:
+        stamped = datetime.fromisoformat(str(stamp))
+    except ValueError as exc:
+        return UNMEASURED, f"отметка маячка не разобрана: {stamp!r} ({exc})"
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=timezone.utc)
+    moment = now or datetime.now(timezone.utc)
+    age = (moment - stamped).total_seconds()
+    declared = doc.get("capabilities")
+    declared = list(declared) if isinstance(declared, list) else []
+    gate = alert_actions.handler_available(
+        capability=capability, now=moment, beacon_path=path)
+    window = (-alert_actions.BEACON_FUTURE_TOLERANCE_S
+              <= age <= alert_actions.BEACON_MAX_AGE_S)
+    mine = bool(capability in declared and window)
+    if mine != gate:
+        return UNMEASURED, (f"проба и гейт кнопок расходятся (проба {mine}, "
+                            f"handler_available {gate}) — неизвестно, какой ответ "
+                            "верен, и выдавать один из них за замер нельзя")
+    if capability not in declared:
+        return NOT_SATISFIED, (f"умение {capability!r} в маячке НЕ объявлено "
+                               f"(объявлены: {declared or '—'}) — кнопок этого "
+                               "класса владельцу не предложат")
+    if not window:
+        return NOT_SATISFIED, (f"маячок вне окна: возраст {age / 3600:.2f} ч при "
+                               f"пределе {alert_actions.BEACON_MAX_AGE_S / 3600:.0f} ч "
+                               f"(порог кнопок, НЕ 300-секундный порог сторожа)")
+    return SATISFIED, (f"умение {capability!r} объявлено, маячок возрастом "
+                       f"{age / 60:.1f} мин при пределе "
+                       f"{alert_actions.BEACON_MAX_AGE_S / 3600:.0f} ч — владелец "
+                       "может управлять системой через Telegram")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -4643,6 +4731,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
     "curated_facts_usable": _probe_curated_facts_usable,
     "problem_absent": _probe_problem_absent,
+    "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
 }
 
 

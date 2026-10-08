@@ -521,6 +521,39 @@ def entry_hit(entry, cid, *, card_claimed=None) -> tuple:
     return "", ""
 
 
+def releases_for_card(entries, cid, parse_ts, *, card_claimed=None) -> dict:
+    """Сессия → время её ПОСЛЕДНЕГО ``card_state: done`` **ПО ЭТОЙ КАРТОЧКЕ**.
+
+    Близнец :func:`releases_by_session`, и разница между ними — предмет вопроса, а не
+    стиль. Тот отвечает «когда сессия вообще закончила работу» (этого достаточно, чтобы
+    перестать держать ЕЁ ФАЙЛЫ: файлы отпускаются вместе с сессией). Здесь вопрос другой —
+    «сняла ли сессия захват ИМЕННО ЭТОЙ карточки», и ответ по карточке обязан быть
+    card-scoped: сессия закрывает одну карточку и в тот же час берёт другую, и
+    card-слепой ответ снял бы захват со второй словами про первую.
+
+    Поэтому относимость измеряется ровно тем же прибором, которым её мерит журнальная
+    ветка, — :func:`entry_hit` (второй копии правила «что считается этой карточкой» тут
+    не заводится; расхождение двух ответов на один вопрос и есть дефект).
+
+    Максимум, а не первый: ``done`` в 10:00 и повторный ``claim`` в 10:05 — это живой
+    захват, и вызывающий сравнивает время снятия со временем ЗАХВАТА сам.
+    """
+    out: dict = {}
+    for entry in entries or []:
+        if not is_release(entry):
+            continue
+        strength, _detail = entry_hit(entry, cid, card_claimed=card_claimed)
+        if not strength:
+            continue
+        session = str(entry.get("session") or "")
+        ts = parse_ts(entry.get("ts"))
+        if not session or ts is None:
+            continue
+        if session not in out or ts > out[session]:
+            out[session] = ts
+    return out
+
+
 # ── сборка отчёта ────────────────────────────────────────────────────────────
 
 def _fmt_ts(dt: datetime) -> str:
@@ -590,6 +623,11 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
 
     report = {
         "card": cid,
+        # Держатели, чей захват во frontmatter снят ИХ ЖЕ объявлением `card_state: done`
+        # по этой карточке: ярлык → отметка `claimed_at`, на которой снятие измерено.
+        # Отметка — часть ответа, а не украшение: писатель перечитывает карточку под
+        # замком и обязан отличить «тот же снятый захват» от «тот же ярлык взял заново».
+        "released_frontmatter": {},
         "card_path": str(path) if path else None,
         # Откуда прочитана карточка: None — из рабочего дерева; строка `<ref>:<путь>` —
         # с базового ref, потому что в дереве её НЕТ (это факт о доставке, и он говорится вслух).
@@ -829,6 +867,20 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                 rec["unmeasured_activity"] = why
             report["history"].append(rec)
 
+    # Прямой ответ САМОЙ карточки на «взята ли она» — вход для `entry_hit` (цикл #457).
+    # None = не измерено (карточка не прочиталась) ⇒ там прежний СИЛЬНЫЙ признак,
+    # fail-CLOSED. Читается ОДИН раз: значение одно на весь журнал. Поднято ВЫШЕ разбора
+    # карточки (цикл #808), потому что снятие frontmatter-захвата спрашивает журнал, а
+    # журнал спрашивает это значение: порядок «сначала карточка, потом журнал» и прятал
+    # ответ сессии о себе самой от той ветки, которая его обязана читать.
+    card_claimed = (None if card_error
+                    else bool(str((card_meta or {}).get("claimed_by") or "").strip()))
+    # Сессия → когда она сама объявила `card_state: done` ПО ЭТОЙ карточке. Нужен и
+    # frontmatter-ветке (ниже), и журнальной: один и тот же вопрос обязан иметь один ответ.
+    done_for_card = ({} if log_error
+                     else releases_for_card(entries or [], cid, sibling._parse_ts,
+                                            card_claimed=card_claimed))
+
     # 1. карточка ────────────────────────────────────────────────────────────
     if card_error:
         _unmeasured("card", card_error)
@@ -846,10 +898,50 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                               f"— работа закрыта"})
             else:
                 ts = sibling._parse_ts(at_raw)
+                done_at = done_for_card.get(holder)
                 if ts is None:
                     _unmeasured("frontmatter",
                                 f"claimed_by={holder!r}, но claimed_at не разобран: "
                                 f"{at_raw!r} — возраст захвата не измерен")
+                elif done_at is not None and done_at >= ts:
+                    # ── ЗАХВАТ, КОТОРЫЙ ДЕРЖАЛСЯ ПОСЛЕ СЛОВ САМОГО ДЕРЖАТЕЛЯ (цикл #808) ──
+                    # `card_state: done` снимало ДВЕ записи из трёх: журнальный захват
+                    # (ветка ниже) и пересечение по файлам. Третья — `claimed_by` во
+                    # frontmatter — этого объявления не читала ВОВСЕ и спрашивала только
+                    # статус карточки. Один и тот же приговор сессии о себе самой снимал
+                    # две её записи и не снимал третью.
+                    #
+                    # Цена измерена на ПРИКАЗЕ ВЛАДЕЛЬЦА. 08.10 `cycle-806` взял
+                    # `inbox-task-portfolio-cio-dynamic-capital-alloc` (frontmatter, 15:17Z),
+                    # отработал и ДВАЖДЫ объявил `card_state: done` по ЭТОЙ карточке (16:18Z,
+                    # 16:22Z) — его журнальный захват сняло, frontmatter-захват остался. Ярлык
+                    # `cycle-806` pid не содержит, поэтому ветка `UNKNOWN`+`STRONG` ниже
+                    # отдала `unmeasured` (личность объявлена в журнале ⇒ старение ADR-647
+                    # не применяется), `unmeasured` перебил вердикт в `unchecked`, а
+                    # `--takeover` поднимает ТОЛЬКО `stale`. С 18:17Z (голос + окно) приказ
+                    # стал НЕБЕРУЩИМСЯ инструментом НАВСЕГДА: `release` тут не помогает
+                    # (чужой захват), времени не поможет (не измерено не стареет), флага нет.
+                    # Шаг 0a-голод называл приказ первым и требовал взять, инструмент
+                    # отказывал — цикл #808 получил ОТКАЗ и пришёл сюда.
+                    #
+                    # Ослаблением это НЕ является и нового доверия не выдаёт: та же запись
+                    # того же вида уже снимает журнальный захват той же сессии и её
+                    # пересечение по файлам. Меняется ровно один исход — третья запись
+                    # начинает читать то, что две другие читают с самого начала.
+                    # Относимость — card-scoped (`releases_for_card`): `done` по ДРУГОЙ
+                    # карточке этот захват НЕ снимает, и `done` РАНЬШЕ захвата тоже
+                    # (повторное взятие живо).
+                    report["history"].append({
+                        "source": "frontmatter", "session": holder, "ts": at_raw or None,
+                        "state": "released", "strength": STRONG,
+                        "detail": f"поле claimed_by в карточке; захват снят: сессия "
+                                  f"объявила `card_state: done` по ЭТОЙ карточке в "
+                                  f"{_fmt_ts(done_at)} — работа закрыта её же словами"})
+                    # Писателю (`claim_card`) нужен не только вердикт, но и ИМЯ снятого
+                    # держателя вместе с отметкой, на которой снятие измерено: вторая
+                    # дверь замка читает frontmatter заново под замком, и без этих двух
+                    # значений она противоречила бы вердикту (см. там же).
+                    report["released_frontmatter"][holder] = at_raw
                 else:
                     _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке",
                               _anchor_for(holder, at_raw))
@@ -869,11 +961,6 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         # Сессия, объявившая `card_state: done`, работу закончила — её файлы больше не
         # «держатся» до конца окна свежести (карточка agent-card-claim-file-overlap-ignores-done).
         released_at = releases_by_session(rows, sibling._parse_ts)
-        # Прямой ответ САМОЙ карточки на «взята ли она» — вход для `entry_hit` (цикл #457).
-        # None = не измерено (карточка не прочиталась) ⇒ там прежний СИЛЬНЫЙ признак,
-        # fail-CLOSED. Читается ОДИН раз: значение одно на весь журнал.
-        card_claimed = (None if card_error
-                        else bool(str((card_meta or {}).get("claimed_by") or "").strip()))
         for entry in rows:
             session = str(entry.get("session") or "")
             strength, detail = entry_hit(entry, cid, card_claimed=card_claimed)
@@ -1482,6 +1569,22 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         # говорит «СВОБОДНА», а запись отказывает «успела взять» — измерено 31.07 на этой самой
         # карточке (status `done`, `claimed_by` умершей pid94637).
         if str(meta.get("status") or "").strip() in TERMINAL_STATUSES:
+            holder = ""
+        if holder and report["released_frontmatter"].get(holder) == str(
+                meta.get("claimed_at") or "").strip():
+            # ── ВТОРАЯ ДВЕРЬ ТОГО ЖЕ ЗАМКА (цикл #808) ──
+            # Комментарий выше требует: правило «держит ли кто-то карточку» здесь ДОЛЖНО
+            # совпадать с вердиктом `gather`, иначе функция противоречит сама себе —
+            # «вердикт СВОБОДНА, а запись отказывает „успела взять"». Ровно это и
+            # вернулось, другим входом: `gather` теперь читает собственное
+            # `card_state: done` держателя и снимает его frontmatter-захват, а писатель
+            # по-прежнему видел непустой `claimed_by` и отказывал. Приказ владельца
+            # остался бы неберущимся, только с другим текстом отказа.
+            #
+            # Сравнение отметки — не формальность: оно и есть защита от гонки, которую
+            # ветка подъёма ниже обеспечивает принадлежностью к `stale_holders`. Тот же
+            # ярлык, взявший карточку ЗАНОВО между проверкой и правкой, несёт ДРУГОЙ
+            # `claimed_at` ⇒ сюда не попадает и честно отказывает ниже.
             holder = ""
         if holder and lifting and holder in stale_holders:
             # Подъём перебивает ИМЕННО тот захват, который отчёт назвал осиротевшим, и

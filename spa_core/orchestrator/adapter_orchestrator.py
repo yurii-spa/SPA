@@ -202,6 +202,12 @@ def _run_one_adapter(
         # причины при пустом `pool_id` означает «адаптер про пулы не отвечает
         # вовсе» — это ДРУГОЙ исход, чем «спросили и честно не смогли».
         "pool_id_refused": None,
+        # ADR-671: ПРИЧИНА пустой ставки, если адаптер её назвал. Поле присутствует
+        # ВСЕГДА, в том числе на удачных путях (`None` = ставка есть либо причина не
+        # названа). Отсутствие причины при пустой ставке означает «адаптер про свои
+        # отказы не отвечает вовсе» — это ДРУГОЙ исход, чем «спросили и честно
+        # отказали»; та же граница, что у `pool_id_refused` строкой выше (ADR-239).
+        "apy_refused": None,
         "status": "error",
         "last_updated": run_ts,
         "error": None,
@@ -259,12 +265,33 @@ def _run_one_adapter(
             _declared = getattr(info, "tvl_source", None)
             record["tvl_source"] = "live" if _declared == "live" else "static"
 
+        _apy_refused = getattr(info, "apy_refused", None)
+        record["apy_refused"] = (str(_apy_refused) if isinstance(_apy_refused, str)
+                                 and _apy_refused else None)
         if not isinstance(raw_apy, (int, float)):
             # SPA-V398: no live APY → honest "no live data" error, never a mock.
             record["apy_pct"] = None
             record["status"] = "error"
-            record["error"] = "live_feed_unavailable"
             record["live_data"] = False
+            # ── ADR-671: «ФИД НЕ ОТВЕТИЛ» И «ПОЛИТИКА НЕ ПРОПУСТИЛА» — РАЗНЫЕ ИСХОДЫ ──
+            # Здесь стоял один литерал `live_feed_unavailable` на ВСЕ причины пустой
+            # ставки, и это не стилистика: два истока требуют ПРОТИВОПОЛОЖНЫХ действий, а
+            # цена ошибки несимметрична. Замер 08.10 на живом хосте: Pendle API ОТВЕТИЛ —
+            # три подходящих PT-рынка, — и фильтр допуска ADR-332 верно отбросил все три
+            # (PT-USD3 15.08 %, PT-reUSD 11.79 %, PT-siUSD 10.14 % — базовые активы вне
+            # белого списка). Снимок при этом сообщил `status=error`,
+            # `error=live_feed_unavailable`, `health_score=0.0`, а оркестратор — grade A
+            # при `error_count=1`. То есть НАСТОЯЩИЙ отказ фида Pendle выглядел бы в
+            # точности как этот здоровый день: сигнал «фид сломался» уже горит по
+            # политической причине, и действовать по нему нельзя. Это fail-OPEN, и он
+            # дороже красного.
+            #
+            # Поведение НЕ меняется (`status`/`live_data`/`apy_pct` те же, протокол
+            # по-прежнему не финансируется) — меняется ПРЕДСТАВЛЕНИЕ: инвариант #17
+            # требует, чтобы три исхода были различимы у любого производителя числа.
+            # Адаптер, который про свои отказы не отвечает, по-прежнему даёт
+            # `live_feed_unavailable` — это честное «причина не названа», а не догадка.
+            record["error"] = record["apy_refused"] or "live_feed_unavailable"
         else:
             # YieldInfo.apy — десятичная доля (0.083); приводим к процентам.
             apy_pct = round(float(raw_apy) * 100.0, 4)

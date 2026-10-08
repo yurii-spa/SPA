@@ -101,11 +101,20 @@ def compute_overall_health(
           "partial_count": int,
           "stale_count": int,
           "error_count": int,
+          # ADR-671: ПОДМНОЖЕСТВО `error_count` — отказы, причину которых адаптер НАЗВАЛ
+          # сам (`apy_refused`): фид ответил, а допуск не пропустил ни один инструмент.
+          # Отдельное число, а не поправка к `error_count`: ни один существующий порог не
+          # сдвинут, зато «фид сломался» и «политика отказала» стали различимы у ЧИТАТЕЛЯ,
+          # а не только в снимке. Решение «должен ли grade считать политический отказ
+          # неисправностью» — отдельное, и это замер, а не его подмена.
+          "refused_by_policy_count": int,
+          "refused_by_policy": list[str],
         }
     """
     results = list(adapter_results)
     scores: list[float] = []
     ok = partial = stale = error = 0
+    refused: list[str] = []
 
     for r in results:
         score = r.get("health_score")
@@ -116,6 +125,11 @@ def compute_overall_health(
         status = str(r.get("status") or "").lower()
         if r.get("error") or status in {"error", "timeout", "exception", "failed"}:
             error += 1
+            # Причина, НАЗВАННАЯ адаптером, — единственный признак политического отказа.
+            # Литерал `error` признаком не является: он совпадает с названной причиной по
+            # построению, и считать по нему значило бы спрашивать одно поле дважды.
+            if isinstance(r.get("apy_refused"), str) and r["apy_refused"]:
+                refused.append(str(r.get("protocol") or "?"))
         elif status == "stale" or _is_stale(r, now=now):
             stale += 1
         elif status == "partial" or r.get("warning"):
@@ -134,4 +148,6 @@ def compute_overall_health(
         "partial_count": partial,
         "stale_count": stale,
         "error_count": error,
+        "refused_by_policy_count": len(refused),
+        "refused_by_policy": sorted(refused),
     }

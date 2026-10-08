@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте"
-status: owner-accepted
+status: ingested
 source: nimbalyst
 created: 2026-09-02
 finding_key: "B1:dead:com.spa.tier1_digest"
@@ -13,6 +13,7 @@ owner_answered_by: 258651137
 owner_answer_kind: ack
 status_trail:
   - "2026-09-03T10:10:44.758506+00:00 needs-owner -> owner-accepted · owner_answer.record_owner_answer"
+  - "2026-10-08T17:31:47.248724+00:00 owner-accepted -> ingested · queue.set_status · cycle-53970"
 ---
 
 ## Что случилось и почему это важно
@@ -37,3 +38,31 @@ _finding_key: `B1:dead:com.spa.tier1_digest` · источник: architecture_c
 **Принято — беру в работу**
 
 _Ответ владельца получен 2026-09-03T10:10:44.757936+00:00 (telegram). Поручение ПРИНЯТО владельцем — карточка остаётся открытой (`owner-accepted`), пока агент не выполнит её критерий приёмки и не отчитается. Закрыть её в `ingested` может только этот отчёт._
+
+---
+
+## Отчёт агента (цикл #807, 2026-10-08) — критерий приёмки ВЫПОЛНЕН
+
+**Критерий карточки:** «Находка исчезает из `data/architecture_conformance.json` при
+следующем прогоне».
+
+**Замер 2026-10-08 на живом артефакте прода** (`generated_at
+2026-10-08T16:57:00Z`, `overall=CRITICAL`, `critical=1`, находок 8): ключа
+`B1:dead:com.spa.tier1_digest` в артефакте НЕТ. Вторая, независимая дверь — живой флот:
+`launchctl list | grep -w com.spa.tier1_digest` отвечает строкой, то есть агент
+загружен, и именно это утверждение находки («intent=active, но НЕ загружен во флоте»)
+больше не верно.
+
+**Почему карточка лежала, хотя находка ушла.** Мост (`findings_bridge`) отработал
+гистерезис закрытия (`absent_count=2` при `REQUIRED_ABSENCES=2`) ещё **2026-09-03T23:47:59Z**,
+но закрыть карточку не смог — владелец к тому моменту ответил «Принято — беру в работу»,
+статус стал `owner-accepted`, и мост честно поставил себе `resolved_untouched`
+(«взята в работу — решит человек», `findings_bridge.py:1382`). Это НЕ дефект моста:
+`owner-accepted` снимает только отчёт об исполнении (протокол, шаг 2а; инв. #14).
+Человека у этой ветки не было ни одного цикла — отчёт пишется впервые.
+
+**Что НЕ утверждается.** Что агент работает ПРАВИЛЬНО: «загружен» и «исполняет
+полезное» — разные вопросы, и второй ведут `agent_health` / `agent_code_freshness`.
+Закрыт ровно предмет находки.
+
+→ `ingested` (цикл #807).

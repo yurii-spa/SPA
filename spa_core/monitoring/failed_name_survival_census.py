@@ -368,6 +368,13 @@ def measure(root: str, workflows: dict | None = None) -> dict:
             wide, wide_scanned, wide_sites_unmeasured, wide_kinds = \
                 _wide_reader_axis(root, workflows={})
             wide_kinds[KIND_WORKFLOW] = str(exc)
+            # Ось возраста ходит по ДЕРЕВУ (скачивающие площадки) и по
+            # ЧИТАТЕЛЯМ, а не по воркфлоу: отдать её нулями значило бы выдать
+            # «не измерено» у предложения за «спроса нет» у читателей.
+            # Предложение при этом честно пусто — сроки живут в воркфлоу.
+            fetch, fetch_scanned, fetch_unmeasured = _fetch_axis(root, {})
+            age_rows, age_counts, age_excluded, age_outside = _age_demand_axis(
+                [], wide, fetch)
             return {
                 "population": 0,
                 "rows": [],
@@ -375,6 +382,15 @@ def measure(root: str, workflows: dict | None = None) -> dict:
                 "readers": [],
                 "reader_counts": {name: 0 for name in READER_CHANNELS},
                 "reader_files_scanned": None,
+                "retention_rows": [],
+                "retention_counts": {name: 0 for name in RETENTIONS},
+                "age_demand_rows": age_rows,
+                "age_demand_counts": age_counts,
+                "age_excluded": age_excluded,
+                "fetch_sites": fetch,
+                "fetch_scanned": fetch_scanned,
+                "fetch_unmeasured": fetch_unmeasured,
+                "fetch_outside_population": age_outside,
                 "wide_sites": wide,
                 "wide_counts": wide_counts(wide),
                 "wide_scanned": wide_scanned,
@@ -403,6 +419,14 @@ def measure(root: str, workflows: dict | None = None) -> dict:
     # тест, подавший сцену писателю, мерил бы у читателя ЖИВОЕ `.github/`.
     wide, wide_scanned, wide_sites_unmeasured, wide_kinds = \
         _wide_reader_axis(root, workflows=workflows)
+    # Ось ВОЗРАСТА (заказ G106 п. 1). Порядок ног объявлен: предложение — у
+    # воркфлоу (там живёт `retention-days`), спрос — у читателей, уже
+    # измеренных двумя осями выше. Обратный порядок прочитался бы как вопрос
+    # о настройке, а заказ запретил спрашивать настройку.
+    retention_rows, retention_counts = _retention_axis(workflows)
+    fetch, fetch_scanned, fetch_unmeasured = _fetch_axis(root, workflows)
+    age_rows, age_counts, age_excluded, age_outside = _age_demand_axis(
+        readers, wide, fetch)
     return {
         "population": len(rows),
         "rows": rows,
@@ -410,6 +434,15 @@ def measure(root: str, workflows: dict | None = None) -> dict:
         "readers": readers,
         "reader_counts": reader_counts,
         "reader_files_scanned": scanned,
+        "retention_rows": retention_rows,
+        "retention_counts": retention_counts,
+        "age_demand_rows": age_rows,
+        "age_demand_counts": age_counts,
+        "age_excluded": age_excluded,
+        "fetch_sites": fetch,
+        "fetch_scanned": fetch_scanned,
+        "fetch_unmeasured": fetch_unmeasured,
+        "fetch_outside_population": age_outside,
         "wide_sites": wide,
         "wide_counts": wide_counts(wide),
         "wide_scanned": wide_scanned,
@@ -760,6 +793,28 @@ def _yaml_strings(node) -> list[str]:
     return out
 
 
+def _protocol_docs(root: str, unmeasured: list[dict]) -> list[str]:
+    """Объявленный перечень документов ПРОТОКОЛА, одной копией на обе оси.
+
+    Правило населения здесь одно (``PROTOCOL_DOCS`` + ``PROTOCOL_DOC_GLOBS``), и
+    зовут его две оси — читателей и возраста записи. Вторая копия правила
+    разошлась бы с первой МОЛЧА: ровно тот класс «два дома у одного порога»,
+    который ведётся заказом G151 п. 2. Отсутствующий каталог шаблона — третий
+    исход (строка в ``unmeasured``), а не пустой список.
+    """
+    docs = list(PROTOCOL_DOCS)
+    for pattern in PROTOCOL_DOC_GLOBS:
+        head, _, tail = pattern.rpartition("/")
+        base = os.path.join(root, head) if head else root
+        if not os.path.isdir(base):
+            unmeasured.append({"kind": KIND_DOC, "site": pattern,
+                               "reason": f"каталога нет: {base}"})
+            continue
+        docs.extend((f"{head}/{n}" if head else n)
+                    for n in sorted(os.listdir(base)) if fnmatch.fnmatch(n, tail))
+    return docs
+
+
 def _wide_reader_axis(root: str, workflows: dict | None = None):
     """Читатели вердикта ВНЕ узкого населения: площадки, роды, доказательства.
 
@@ -842,17 +897,7 @@ def _wide_reader_axis(root: str, workflows: dict | None = None):
              "\n".join(_yaml_strings(doc)), "")
 
     # ── документы протокола: объявленный перечень ────────────────────────────
-    docs = list(PROTOCOL_DOCS)
-    for pattern in PROTOCOL_DOC_GLOBS:
-        head, _, tail = pattern.rpartition("/")
-        base = os.path.join(root, head) if head else root
-        if not os.path.isdir(base):
-            site_unmeasured.append({"kind": KIND_DOC, "site": pattern,
-                                    "reason": f"каталога нет: {base}"})
-            continue
-        docs.extend((f"{head}/{n}" if head else n)
-                    for n in sorted(os.listdir(base)) if fnmatch.fnmatch(n, tail))
-    for rel in docs:
+    for rel in _protocol_docs(root, site_unmeasured):
         path = os.path.join(root, *rel.split("/"))
         try:
             text = open(path, encoding="utf-8").read()
@@ -890,6 +935,447 @@ def wide_roles(sites, channel: str = "") -> dict:
             continue
         roles[site.get("role") or ROLE_UNMEASURED] += 1
     return roles
+
+
+# ── ось ВОЗРАСТА записи: что СПРАШИВАЕТ читатель (заказ G106 п. 1) ───────────
+#
+# Заказ ADR-528 поставлен дословно так:
+#
+#     **`retention-days` есть выбор, а не замер.** Запись теперь переживает
+#     раннер и не переживает 14 дней. Спросить надо не «поставить ли больше»,
+#     а **какой возраст записи реально спрашивает хоть один читатель** — и
+#     мерить это у читателя, а не у настройки. Три исхода обязательны.
+#
+# Соблазн здесь тот же, что у предела печати: поднять `retention-days` с 14 до
+# 90 и считать дело сделанным. Вопрос «поставить ли больше» задан настройке, а
+# отвечать на него может только СПРОС, и спрос живёт у читателя.
+#
+# ## Хранилищ ТРИ, и срок жизни у них разный — это и есть суть замера
+#
+# ============================= ==============================================
+# `local_filesystem_of_the_run` живёт ровно прогон. `retention-days` не
+#                               governs ничего: читатель получает запись,
+#                               которую сам же и произвёл ⇒ спрашиваемый
+#                               возраст ИЗМЕРЕН и равен нулю
+# `artifact_store`              единственное хранилище, чей срок жизни и ЕСТЬ
+#                               `retention-days`. Обращение к нему видно
+#                               признаком (`_FETCH_MARKS`)
+# `run_log_store`               лог шага и `conclusion` прогона. Их срок
+#                               назначает настройка РЕПОЗИТОРИЯ, которой в
+#                               дереве нет ВОВСЕ ⇒ НЕ ИЗМЕРЕНО с названной
+#                               причиной, а не «90 дней» по памяти
+# ============================= ==============================================
+#
+# Склеить их значило бы потерять ровно то различие, ради которого заказ и
+# написан: мы крутим ОДИН винт (`retention-days`), а читают из ДРУГИХ двух
+# хранилищ, и у одного из них винта в дереве нет.
+#
+# ## Три исхода обязательны (инв. #17)
+#
+# «Возраст ИЗМЕРЕН и равен нулю» (читатель берёт запись своего прогона),
+# «возраст спрашивается у хранилища артефактов» и «срок хранилища в дереве не
+# объявлен» — три РАЗНЫХ ответа. Четвёртый, `demand_unmeasured`, — площадка не
+# разобрана.
+#
+# ## Ноль спроса есть ХРАПОВИК, а не вечная зелень
+#
+# Сегодня хранилище артефактов не спрашивает НИ ОДИН читатель дерева, и вердикт
+# `nobody_asks_the_artifact_store` стои́т с кодом 0. Появление первого
+# скачивающего (`gh run download` и родня) переводит вердикт в
+# `a_named_reader_asks_the_artifact_store` и ПОДНИМАЕТ код до 1: с этого дня
+# вопрос «14 дней — достаточно ли» становится живым и обязан быть задан
+# замером, а не выбран. Красный тут значит «появился спрос», а не «стало хуже».
+
+#: Исходы спроса. Перечень ЗАКРЫТ, сумма равна населению оси.
+DEMAND_ARTIFACT = "asks_the_artifact_store"
+DEMAND_LOCAL = "asks_the_record_of_its_own_run"
+DEMAND_RUN_LOG = "asks_the_run_log_store"
+DEMAND_UNMEASURED = "demand_unmeasured"
+DEMANDS: tuple[str, ...] = (DEMAND_ARTIFACT, DEMAND_LOCAL, DEMAND_RUN_LOG,
+                            DEMAND_UNMEASURED)
+
+#: Хранилище, у которого читатель спрашивает запись. Перечень ЗАКРЫТ.
+STORE_LOCAL = "local_filesystem_of_the_run"
+STORE_ARTIFACT = "artifact_store"
+STORE_RUN_LOG = "run_log_store"
+STORE_UNMEASURED = "store_unmeasured"
+
+#: Канал → (исход спроса, хранилище). Карта ОБЪЯВЛЕНА, а не выведена по ходу:
+#: канал уже измерен двумя осями выше, и второй раз о нём не судят.
+_CHANNEL_DEMAND: dict[str, tuple[str, str]] = {
+    CH_LOCAL_RECORD: (DEMAND_LOCAL, STORE_LOCAL),
+    CH_STEP_LOG: (DEMAND_RUN_LOG, STORE_RUN_LOG),
+    CH_API: (DEMAND_RUN_LOG, STORE_RUN_LOG),
+    CH_UNMEASURED: (DEMAND_UNMEASURED, STORE_UNMEASURED),
+}
+
+#: Признак обращения к ХРАНИЛИЩУ АРТЕФАКТОВ — к тому единственному, чей срок
+#: жизни назначает `retention-days`. Форма, а не намёк: каждая из этих строк
+#: есть команда или действие, скачивающее артефакт прогона.
+_FETCH_MARKS: tuple[str, ...] = (
+    "gh run download",
+    "/actions/artifacts",
+    "actions/download-artifact",
+    "dawidd6/action-download-artifact",
+)
+
+#: Метки, которыми ПИСАТЕЛЬ объявляет путь записи. В воркфлоу они стоят ровно у
+#: шага, который запись и создаёт (``record_paths`` ищет их там же), поэтому
+#: площадка-воркфлоу с такой меткой есть ПИСАТЕЛЬ, а не читатель: спрашивать у
+#: производителя, какой возраст он спрашивает, значило бы считать спрос у того,
+#: кто его не предъявляет. ``<testsuite`` в этот перечень не входит намеренно —
+#: это чтение готовой записи, а не её объявление.
+_WRITER_DECLARATION_MARKS: tuple[str, ...] = ("junitxml", "SPA_PYTEST_STREAM")
+
+#: Почему `run_log_store` не несёт числа. Причина называется ОДИН раз и
+#: печатается у каждой строки исхода: «не измерено» без причины и есть то
+#: молчание, которое инв. #17 запрещает.
+RUN_LOG_WHY = ("срок жизни лога и метаданных прогона назначает настройка "
+               "РЕПОЗИТОРИЯ (retention period), которой в дереве нет ни одной "
+               "строкой — это НЕ ИЗМЕРЕНО, а не 90 дн. по памяти")
+
+#: Исходы объявленного СРОКА у шага выгрузки. Перечень ЗАКРЫТ.
+RET_DECLARED = "retention_declared"
+RET_NOT_DECLARED = "retention_not_declared"
+RET_UNMEASURED = "retention_unmeasured"
+RETENTIONS: tuple[str, ...] = (RET_DECLARED, RET_NOT_DECLARED, RET_UNMEASURED)
+
+#: Вердикт оси. Перечень ЗАКРЫТ.
+ANSWER_NOBODY = "nobody_asks_the_artifact_store"
+ANSWER_ASKED = "a_named_reader_asks_the_artifact_store"
+ANSWER_UNMEASURED = "demand_unmeasured"
+ANSWERS: tuple[str, ...] = (ANSWER_NOBODY, ANSWER_ASKED, ANSWER_UNMEASURED)
+
+#: Цены односторонности ЭТОЙ оси — названы заранее и каждая со стороной ошибки.
+AGE_PRICES: tuple[str, ...] = (
+    "человек, скачавший артефакт кнопкой в UI GitHub, не наблюдаем ни одним "
+    "признаком дерева — ошибка в сторону ЗАНИЖЕНИЯ спроса, никогда в сторону "
+    "выдуманного читателя",
+    "срок хранения лога и метаданных прогона есть настройка РЕПОЗИТОРИЯ: в "
+    "дереве её нет, и числа у этого хранилища поэтому нет — НЕ ИЗМЕРЕНО",
+    "`retention-days` читается только литералом: `${{ … }}` даёт "
+    "`retention_unmeasured`, а не число и не «по умолчанию»",
+    "запись, пришедшая к читателю через промежуточного помощника, числится по "
+    "метке ЕГО файла: через границу вызова ось не ходит — та же цена, что у "
+    "узкой оси читателей",
+    "покрытие пути выгрузки решается на литералах (цена главной оси), поэтому "
+    "«несёт запись» у шага выгрузки есть НИЖНЯЯ граница",
+)
+
+
+def _retention_axis(workflows: dict | None):
+    """Объявленный срок у КАЖДОГО шага выгрузки + несёт ли он запись имён.
+
+    Возвращает ``(rows, counts)``. Срок меряется у ВОРКФЛОУ, а не
+    перепечатывается из текста правила: число 14 в заказе есть замер своего
+    дня, и перепечатать его было бы ровно тем дефектом, на котором
+    ``.claude/rules/site-numbers.md`` поймала саму себя.
+    """
+    rows: list[dict] = []
+    for wf_name, doc in sorted((workflows or {}).items()):
+        for job_name, steps in _steps_of(doc):
+            records: list[str] = []
+            for step in steps:
+                if _is_pytest_step(step):
+                    records.extend(path for _form, path in record_paths(step))
+            for index, step in enumerate(steps):
+                if not _is_upload_step(step):
+                    continue
+                raw = (step.get("with") or {}).get("retention-days")
+                if raw is None:
+                    outcome, days = RET_NOT_DECLARED, None
+                    why = ("срока в шаге нет ⇒ его назначает настройка "
+                           "РЕПОЗИТОРИЯ, которой в дереве нет — НЕ ИЗМЕРЕНО")
+                elif _EXPRESSION.search(str(raw)):
+                    outcome, days, why = RET_UNMEASURED, None, f"выражение: {raw}"
+                else:
+                    try:
+                        days, outcome, why = int(str(raw).strip()), RET_DECLARED, ""
+                    except ValueError:
+                        outcome, days = RET_UNMEASURED, None
+                        why = f"срок не число: {raw!r}"
+                carries: list[str] = []
+                undecided = 0
+                for upload_path in _upload_paths(step):
+                    for record in records:
+                        covered = _covers(upload_path, record)
+                        if covered is True:
+                            carries.append(record)
+                        elif covered is None:
+                            undecided += 1
+                rows.append({
+                    "workflow": wf_name, "job": job_name,
+                    "step": str(step.get("name") or f"#{index}"),
+                    "outcome": outcome, "days": days, "why": why,
+                    "carries_record": sorted(set(carries)),
+                    "coverage_undecided": undecided,
+                })
+    counts = {name: 0 for name in RETENTIONS}
+    for row in rows:
+        counts[row["outcome"]] += 1
+    return rows, counts
+
+
+def _fetch_axis(root: str, workflows: dict | None):
+    """Площадки, обращающиеся к ХРАНИЛИЩУ АРТЕФАКТОВ, по всему дереву.
+
+    Отдельный обход, а не поле соседней оси, и это ВЫБОР с причиной: соседняя
+    ось отбрасывает файл без метки канала (``if not raw: continue``), а
+    скачивающий артефакт может не читать вердикт вовсе — тогда он для неё не
+    существует. Цена выбора — второй проход по дереву; плата за совмещение
+    была бы слепота ровно к тому, о чём спрашивает заказ.
+
+    Возвращает ``(sites, scanned, unmeasured)``. Проза отделена от исполняемого
+    текста ТЕМ ЖЕ правилом, что у оси читателей: упоминание команды в
+    комментарии ничего не скачивает.
+    """
+    sites: list[dict] = []
+    scanned = {kind: 0 for kind in WIDE_KINDS}
+    unmeasured: list[dict] = []
+
+    def _marks(text: str) -> tuple[str, ...]:
+        return tuple(mark for mark in _FETCH_MARKS if mark in text)
+
+    def _add(kind: str, rel: str, executed: str, prose: str) -> None:
+        seen = set()
+        for mark in _marks(executed):
+            seen.add(mark)
+            sites.append({"kind": kind, "site": rel, "mark": mark,
+                          "evidence": EV_EXEC})
+        for mark in _marks(prose):
+            if mark in seen:
+                continue
+            sites.append({"kind": kind, "site": rel, "mark": mark,
+                          "evidence": EV_PROSE})
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in sorted(dirnames) if d not in _WIDE_SKIP_DIRS]
+        for filename in sorted(filenames):
+            if filename.endswith(".py"):
+                kind = KIND_CODE
+            elif filename.endswith(".sh"):
+                kind = KIND_SHELL
+            else:
+                continue
+            path = os.path.join(dirpath, filename)
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            if rel in READER_EXCLUSIONS:
+                continue
+            scanned[kind] += 1
+            try:
+                text = open(path, encoding="utf-8").read()
+            except (OSError, UnicodeDecodeError) as exc:
+                unmeasured.append({"kind": kind, "site": rel,
+                                   "reason": f"{type(exc).__name__}: {exc}"})
+                continue
+            if not _marks(text):
+                continue
+            if kind == KIND_CODE:
+                try:
+                    executed, prose = _python_text(text)
+                except _Unparsed as exc:
+                    for mark in _marks(text):
+                        sites.append({"kind": kind, "site": rel, "mark": mark,
+                                      "evidence": EV_UNMEASURED})
+                    unmeasured.append({"kind": kind, "site": rel,
+                                       "reason": f"разобрать нечем: {exc}"})
+                    continue
+            else:
+                executed, prose = _shell_text(text)
+            _add(kind, rel, executed, prose)
+
+    for name, doc in sorted((workflows or {}).items()):
+        scanned[KIND_WORKFLOW] += 1
+        _add(KIND_WORKFLOW, f".github/workflows/{name}",
+             "\n".join(_yaml_strings(doc)), "")
+
+    for rel in _protocol_docs(root, unmeasured):
+        path = os.path.join(root, *rel.split("/"))
+        try:
+            text = open(path, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError) as exc:
+            unmeasured.append({"kind": KIND_DOC, "site": rel,
+                               "reason": f"{type(exc).__name__}: {exc}"})
+            continue
+        scanned[KIND_DOC] += 1
+        _add(KIND_DOC, rel, *_doc_text(text))
+    return sites, scanned, unmeasured
+
+
+def _age_demand_axis(readers, wide_sites, fetch_sites):
+    """Что СПРАШИВАЕТ каждый измеренный читатель: возраст и ХРАНИЛИЩЕ.
+
+    Население оси НЕ изобретается заново: это читатели, уже измеренные двумя
+    осями выше, — узкая целиком плюс те площадки широкой, у которых метка стои́т
+    в ИСПОЛНЯЕМОМ тексте. Площадка, у которой метка только в прозе, спроса не
+    предъявляет (проза ничего не читает), и число таких печатается — ноль без
+    знаменателя был бы утверждением о приборе, а не о дереве.
+    """
+    fetch_by_site: dict[str, list[str]] = {}
+    for site in fetch_sites:
+        if site["evidence"] != EV_EXEC:
+            continue
+        fetch_by_site.setdefault(site["site"], []).append(site["mark"])
+
+    rows: list[dict] = []
+    prose_only = 0
+    writer_sites = 0
+    seen: set[tuple[str, str]] = set()
+
+    def _row(site: str, channel: str, kind: str) -> None:
+        key = (site, channel)
+        if key in seen:
+            return
+        seen.add(key)
+        fetched = sorted(set(fetch_by_site.get(site, ())))
+        if fetched:
+            # Скачивание ПЕРЕБИВАЕТ канал: файл может читать `conclusion` И
+            # тянуть артефакт, и спрос к хранилищу артефактов тут главный —
+            # именно его срок назначает `retention-days`.
+            demand, store, age_days, why = (DEMAND_ARTIFACT, STORE_ARTIFACT,
+                                            None, "")
+        else:
+            demand, store = _CHANNEL_DEMAND.get(
+                channel, (DEMAND_UNMEASURED, STORE_UNMEASURED))
+            if demand == DEMAND_LOCAL:
+                age_days, why = 0, ("запись своего прогона: `retention-days` "
+                                    "её не касается вовсе")
+            elif demand == DEMAND_RUN_LOG:
+                age_days, why = None, RUN_LOG_WHY
+            else:
+                age_days, why = None, f"канал не разобран: {channel}"
+        rows.append({"site": site, "kind": kind, "channel": channel,
+                     "demand": demand, "store": store, "age_days": age_days,
+                     "why": why, "fetch_marks": fetched})
+
+    for reader in readers or ():
+        _row(reader["reader"], reader["channel"], KIND_CODE)
+    for site in wide_sites or ():
+        if site["evidence"] == EV_PROSE:
+            prose_only += 1
+            continue
+        if (site["kind"] == KIND_WORKFLOW
+                and site.get("mark") in _WRITER_DECLARATION_MARKS):
+            writer_sites += 1   # производитель записи: спроса не предъявляет
+            continue
+        if site["evidence"] == EV_UNMEASURED:
+            _row(site["site"], CH_UNMEASURED, site["kind"])
+            continue
+        _row(site["site"], site["channel"], site["kind"])
+
+    counts = {name: 0 for name in DEMANDS}
+    for row in rows:
+        counts[row["demand"]] += 1
+    # Скачивающая площадка ВНЕ населения читателей — находка о самом населении:
+    # она спрашивает хранилище артефактов, а ни одна ось её читателем не зовёт.
+    outside = sorted({site for site in fetch_by_site
+                      if site not in {row["site"] for row in rows}})
+    return rows, counts, {"prose_only": prose_only,
+                          "writer_sites": writer_sites}, outside
+
+
+def age_answer(doc: dict) -> dict:
+    """Вердикт оси возраста + оба числа, которые обязаны стоять рядом.
+
+    «Спроса нет» без объявленного СРОКА было бы утверждением ни о чём: сравнить
+    нечего. Поэтому рядом всегда печатаются и спрос, и предложение, и у каждого
+    свой третий исход.
+    """
+    counts = doc.get("age_demand_counts") or {}
+    rows = doc.get("age_demand_rows") or []
+    retention = doc.get("retention_rows") or []
+    carrying = [row for row in retention if row["carries_record"]]
+    declared = [row["days"] for row in carrying
+                if row["outcome"] == RET_DECLARED and row["days"] is not None]
+    shortest = min(declared) if declared else None
+    unmeasured_supply = [row for row in carrying
+                         if row["outcome"] != RET_DECLARED]
+    if not rows or counts.get(DEMAND_UNMEASURED):
+        label = ANSWER_UNMEASURED
+    elif counts.get(DEMAND_ARTIFACT):
+        label = ANSWER_ASKED
+    else:
+        label = ANSWER_NOBODY
+    return {
+        "label": label,
+        "shortest_record_retention_days": shortest,
+        "record_carrying_uploads": len(carrying),
+        "supply_unmeasured": len(unmeasured_supply),
+        "asking_sites": sorted(row["site"] for row in rows
+                               if row["demand"] == DEMAND_ARTIFACT),
+        "outside_population": list(doc.get("fetch_outside_population") or ()),
+    }
+
+
+def _age_lines(doc: dict) -> list[str]:
+    """Строки оси возраста. Каждый ноль объявлен, оба числа стоят РЯДОМ."""
+    counts = doc.get("age_demand_counts") or {name: 0 for name in DEMANDS}
+    rows = doc.get("age_demand_rows") or []
+    answer = age_answer(doc)
+    ret_counts = doc.get("retention_counts") or {name: 0 for name in RETENTIONS}
+    scanned = doc.get("fetch_scanned") or {}
+    lines = [
+        "  ось ВОЗРАСТА записи (заказ G106 п. 1; спрос мерится у ЧИТАТЕЛЯ, а не "
+        f"у настройки): население {len(rows)} читател(ь/я/ей); исключены с "
+        "причиной — площадок только с прозой "
+        f"{(doc.get('age_excluded') or {}).get('prose_only', 0)}, "
+        "воркфлоу-ПИСАТЕЛЕЙ записи "
+        f"{(doc.get('age_excluded') or {}).get('writer_sites', 0)}",
+        "    " + " · ".join(f"{name} {counts.get(name, 0)}" for name in DEMANDS),
+        "    предложение (объявленный срок у шагов выгрузки, ЗАМЕРОМ у воркфлоу): "
+        + " · ".join(f"{name} {ret_counts.get(name, 0)}" for name in RETENTIONS)
+        + f"; из них несут запись имён {answer['record_carrying_uploads']}, "
+        + (f"короткий срок {answer['shortest_record_retention_days']} дн."
+           if answer["shortest_record_retention_days"] is not None
+           else "короткий срок НЕ ИЗМЕРЕН")
+        + f"; срок не измерен у {answer['supply_unmeasured']} несущ(его/их) запись",
+        "    скачивающих площадок просмотрено: "
+        + " · ".join(f"{kind} {scanned.get(kind, 0)}" for kind in WIDE_KINDS),
+    ]
+    for row in rows:
+        if row["demand"] == DEMAND_LOCAL:
+            continue  # ноль возраста уже назван счётчиком; строка не добавляет
+        lines.append(f"    [{row['demand']} · {row['store']}] {row['site']}"
+                     + (f" — {row['why']}" if row["why"] else "")
+                     + (f" — скачивает: {', '.join(row['fetch_marks'])}"
+                        if row["fetch_marks"] else ""))
+    if answer["label"] == ANSWER_NOBODY:
+        lines.append(
+            "    ОТВЕТ ЗАКАЗА: хранилище артефактов не спрашивает НИ ОДИН "
+            f"измеренный читатель (из {len(rows)}), поэтому "
+            + (f"срок {answer['shortest_record_retention_days']} дн. "
+               if answer["shortest_record_retention_days"] is not None
+               else "объявленный срок ")
+            + "не связывает никого из них: это ВЫБОР, а не замер. Возраст, "
+            "который спрос действительно предъявляет, ИЗМЕРЕН и равен нулю — "
+            f"{counts.get(DEMAND_LOCAL, 0)} читател(ь/я/ей) берут запись своего "
+            "же прогона; у "
+            f"{counts.get(DEMAND_RUN_LOG, 0)} спрос есть, но его хранилище — "
+            "лог прогона, и его срок в дереве НЕ ОБЪЯВЛЕН вовсе")
+    elif answer["label"] == ANSWER_ASKED:
+        lines.append(
+            "    ОТВЕТ ЗАКАЗА: хранилище артефактов спрашивают поимённо — "
+            + ", ".join(answer["asking_sites"])
+            + ". С этого дня вопрос «достаточно ли "
+            + (f"{answer['shortest_record_retention_days']} дн."
+               if answer["shortest_record_retention_days"] is not None
+               else "объявленного срока")
+            + "» ЖИВОЙ и обязан быть отвечен замером спроса, а не выбран")
+    else:
+        lines.append("    ОТВЕТ ЗАКАЗА: НЕ ИЗМЕРЕНО — спрос не разобран "
+                     f"({counts.get(DEMAND_UNMEASURED, 0)} читател(ь/я/ей) "
+                     "без разобранного канала либо население пусто); «никто не "
+                     "спрашивает» о них НЕ сказано")
+    for site in answer["outside_population"]:
+        lines.append(f"    [СКАЧИВАЕТ, НО ЧИТАТЕЛЕМ НЕ ЗОВЁТСЯ] {site} — "
+                     "площадка спрашивает хранилище артефактов, а ни одна ось "
+                     "читателей её не видит: находка о НАСЕЛЕНИИ, не о сроке")
+    for row in doc.get("fetch_unmeasured") or ():
+        lines.append(f"    [НЕ ИЗМЕРЕНА ПЛОЩАДКА СКАЧИВАНИЯ] {row['kind']} :: "
+                     f"{row['site']}: {row['reason']}")
+    for price in AGE_PRICES:
+        lines.append(f"    ЦЕНА ОДНОСТОРОННОСТИ: {price}")
+    return lines
 
 
 # ── вердикт и отчёт ──────────────────────────────────────────────────────────
@@ -966,13 +1452,15 @@ def format_report(doc: dict) -> str:
     """Отчёт для шага 0-офис. Каждый ноль объявлен (инв. #17)."""
     if doc.get("unmeasured_reason"):
         return "\n".join(["НЕ ИЗМЕРЕНО: имена упавших тестов (ось ПИСАТЕЛЯ) — "
-                          f"{doc['unmeasured_reason']}"] + _wide_lines(doc))
+                          f"{doc['unmeasured_reason']}"]
+                         + _wide_lines(doc) + _age_lines(doc))
     if not doc.get("population"):
         # Пустое население печаталось бы как «все нули», то есть как ЧИСТО —
         # это класс `vacuous_guard_census`, и он fail-OPEN тише красного.
         return "\n".join(["НЕ ИЗМЕРЕНО: имена упавших тестов — ни одного шага, "
                            "запускающего pytest, не найдено; ноль исходов на "
-                           "пустом населении не есть «чисто»"] + _wide_lines(doc))
+                           "пустом населении не есть «чисто»"]
+                          + _wide_lines(doc) + _age_lines(doc))
     counts = doc["counts"]
     lines = [f"имена упавших тестов переживают раннер (заказ G87 п. 1): "
              f"население {doc['population']} шаг(ов), запускающих pytest"]
@@ -992,13 +1480,16 @@ def format_report(doc: dict) -> str:
                  f"просмотрено файлов {scanned if scanned is not None else 'НЕ ИЗМЕРЕНО'}): "
                  + " · ".join(f"{name} {counts_r.get(name, 0)}" for name in READER_CHANNELS))
     lines.extend(_wide_lines(doc))
+    lines.extend(_age_lines(doc))
     if counts[SURVIVES] == 0 and doc["population"]:
         lines.append("  ВЫВОД: раннер не покидает НИ ОДНА запись имён ⇒ доступа к "
                      f"полному перечню нет ни у одного из {len(doc.get('readers') or ())} "
                      "измеренных читателей, и от предела печати это не зависит")
     lines.append("  НЕ ДОКЛАДЫВАЕТ: читает ли названный читатель канал на самом деле · "
                  "pytest, позванный из скрипта-обёртки · четвёртую форму записи · "
-                 "сохранность самого артефакта после retention-days")
+                 "исполнил ли GitHub объявленный срок (это свойство сервиса, не "
+                 "дерева) · срок хранения лога и метаданных прогона — настройки "
+                 "репозитория в дереве нет ни одной строкой")
     lines.append("  ADVISORY: прибор только ЧИТАЕТ (applied=False)")
     return "\n".join(lines)
 
@@ -1024,7 +1515,16 @@ def main(argv=None) -> int:
     # поднимать из-за одного нечитаемого файла вердикт обо всей оси значило бы
     # потерять разницу между «рода не видно» и «один файл не разобран».
     reader_rc = 2 if doc.get("wide_kind_unmeasured") else 0
-    return max(writer_rc, reader_rc)
+    # Третья ось (возраст записи, заказ G106 п. 1) ПОВЫШАЕТ код своим исходом, и
+    # ноль спроса здесь работает ХРАПОВИКОМ: пока хранилище артефактов не
+    # спрашивает никто, объявленный срок никого не связывает (код 0); первая же
+    # появившаяся скачивающая площадка делает вопрос «достаточно ли срока»
+    # живым (код 1). Неразобранный спрос — 2: «никто не спрашивает» о нём не
+    # сказано. Площадка, не прочитанная по одной ошибке ввода-вывода, кода не
+    # поднимает — она печатается строкой (то же правило, что у соседней оси).
+    age_rc = {ANSWER_NOBODY: 0, ANSWER_ASKED: 1, ANSWER_UNMEASURED: 2}[
+        age_answer(doc)["label"]]
+    return max(writer_rc, reader_rc, age_rc)
 
 
 if __name__ == "__main__":

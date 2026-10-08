@@ -185,6 +185,10 @@ class PendleAdapter(BaseAdapter):
         self._cache: list[PendleMarketData] = []
         # Timestamp of the last successful fetch (monotonic).
         self._cache_ts: float = 0.0
+        # ADR-671: причина пустой ставки ПОСЛЕДНЕГО опроса. Объявлена здесь, а не
+        # создаётся по пути: читатель поля обязан различать «опроса не было» (None до
+        # первого вызова) и «опрос был и отказал с названной причиной».
+        self._apy_refused: Optional[str] = None
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
@@ -196,6 +200,12 @@ class PendleAdapter(BaseAdapter):
         Populates ``self._cache`` on success; on failure returns the cache.
         Never raises.
         """
+        # ADR-671: причина пустого набора — ЗНАЧЕНИЕ, а не только строка лога. Строки
+        # «пустой набор из-за фильтра и пустой набор из-за сети — разные исходы» стояли
+        # здесь с ADR-332, и различие ЧЕСТНО печаталось в лог — но лога не читает ни один
+        # артефакт, поэтому за границей адаптера оба исхода снова становились одним
+        # `live_feed_unavailable`. Названное в комментарии различие обязано ехать полем.
+        self._apy_refused = None
         try:
             markets = self._pt.get_top_markets(
                 min_tvl_usd=PENDLE_MIN_TVL_USD,
@@ -208,17 +218,24 @@ class PendleAdapter(BaseAdapter):
                 self._cache_ts = time.monotonic()
             # ADR-332: только PT на допустимые базовые стейблкоины — в ОДНОЙ точке,
             # чтобы get_yield_info / get_markets / get_best_pt видели один набор.
-            # Отброшенные НАЗЫВАЮТСЯ в логе: пустой набор из-за фильтра и пустой
-            # набор из-за сети — разные исходы.
             kept = [m for m in self._cache if is_admissible_underlying(m.underlying_asset)]
             dropped = [f"{m.name}({m.underlying_asset}, {m.implied_apy:.2f}%)"
                        for m in self._cache if not is_admissible_underlying(m.underlying_asset)]
             if dropped:
                 logger.info("%s: ADR-332 отброшены PT на недопустимые стейблы: %s",
                             self.PROTOCOL, ", ".join(dropped))
+            if not kept:
+                # Набор пуст, и причина РАЗНАЯ: политика допуска отбросила всё, что
+                # предъявил фид (чинить нечего — отказ верный), либо фид не предъявил
+                # ничего вовсе (это уже вопрос к фиду, но НЕ «фид недоступен»: он
+                # ответил). Третий исход — недоступность — ниже, в ветке исключения.
+                self._apy_refused = ("no_admissible_underlying" if dropped
+                                     else "no_eligible_market")
             return kept
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s: fetch_eligible raised %s — using cache", self.PROTOCOL, exc)
+            if not self._cache:
+                self._apy_refused = "feed_unreachable"
             return list(self._cache)
 
     def _market_to_dict(self, m: PendleMarketData) -> dict:
@@ -301,6 +318,8 @@ class PendleAdapter(BaseAdapter):
                 tier=self.tier,
                 risk_score=self.RISK_SCORE,
                 exit_latency_hours=self.EXIT_LATENCY_HOURS,
+                # ADR-671: пустая ставка объяснена там, где решение принято.
+                apy_refused=self._apy_refused,
             )
 
         # ADR-159 reversal (2026-08-29): `_fetch_eligible()` only enforces the
@@ -321,6 +340,10 @@ class PendleAdapter(BaseAdapter):
                 tier=self.tier,
                 risk_score=self.RISK_SCORE,
                 exit_latency_hours=self.EXIT_LATENCY_HOURS,
+                # ADR-671: допустимые рынки ЕСТЬ, но ни один не проходит собственный
+                # порог тира Pendle ($20M T3 / $100M T2) — это третья причина пустой
+                # ставки, и она тоже не «фид недоступен».
+                apy_refused="below_own_tier_floor",
             )
 
         best = tiered[0]  # still APY-sorted — filtering preserves order
