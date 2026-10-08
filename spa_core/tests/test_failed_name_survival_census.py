@@ -8,8 +8,10 @@
 **Сцена — ВХОД, а не окружение.** Разобранные воркфлоу подаются аргументом
 (`measure(root, workflows=…)`), поэтому ни один тест здесь не ходит в живой
 GitHub и не зависит от того, что сегодня лежит в `.github/`. Исключение —
-два теста, чей ПРЕДМЕТ есть именно настоящее дерево: они названы словом
-`real_tree` и объявлены таковыми.
+тесты, чей ПРЕДМЕТ есть именно настоящее дерево: они названы словом
+`real_tree` и объявлены таковыми. С заказом G106 п. 2 их стало больше: каждый
+из пяти шагов, закрытых поимённо, получил СВОЙ контроль — вред закрывался не
+пакетом, и проверяться он обязан так же.
 
 Литеральных дат и литеральных pid здесь нет вовсе — предмет не про время и не
 про личность процесса.
@@ -339,6 +341,119 @@ class RealTree(unittest.TestCase):
         doc = c.measure(_REPO_ROOT)
         self.assertGreaterEqual(doc["population"], 5, doc["rows"])
 
+    # ── пять шагов заказа G106 п. 2: у КАЖДОГО свой контроль ────────────────
+    # Заказ (хвост ADR-528) запретил закрывать эти пять пакетом, и проверка
+    # обязана быть такой же: один общий тест «на дереве всё зелено» покраснел
+    # бы ОДНИМ именем на любую из пяти потерь, а чинить пришлось бы угадывая.
+    # Каждый метод ниже называет свой шаг и падает за него.
+
+    def _real_row(self, workflow: str, step: str) -> dict:
+        doc = c.measure(_REPO_ROOT)
+        rows = [r for r in doc["rows"]
+                if r["workflow"] == workflow and r["step"] == step]
+        self.assertEqual(1, len(rows),
+                         f"в {workflow} ожидался ровно один шаг «{step}», "
+                         f"найдено {len(rows)}: переименование шага НЕ есть "
+                         f"его исправность")
+        return rows[0]
+
+    def test_real_tree_ci_spa_core_step_record_outlives_the_runner(self):
+        row = self._real_row("ci.yml", "Run spa_core/tests (unit)")
+        self.assertEqual(c.SURVIVES, row["outcome"], row["why"])
+
+    def test_real_tree_ci_tests_root_step_record_outlives_the_runner(self):
+        row = self._real_row("ci.yml", "Run tests/ root (integration)")
+        self.assertEqual(c.SURVIVES, row["outcome"], row["why"])
+
+    def test_real_tree_ci_scripts_step_record_outlives_the_runner(self):
+        row = self._real_row("ci.yml", "Run scripts/ gate tests + colocated suites")
+        self.assertEqual(c.SURVIVES, row["outcome"], row["why"])
+
+    def test_real_tree_proof_gate_dd_pack_step_record_outlives_the_runner(self):
+        row = self._real_row("proof-gate.yml", "DD_PACK head staleness test")
+        self.assertEqual(c.SURVIVES, row["outcome"], row["why"])
+
+    def test_real_tree_proof_gate_proof_chain_step_record_outlives_the_runner(self):
+        row = self._real_row("proof-gate.yml", "Proof-chain + equity-track unit tests")
+        self.assertEqual(c.SURVIVES, row["outcome"], row["why"])
+
+    def test_real_tree_both_branches_of_the_dd_pack_step_declare_the_record(self):
+        """Ветка `else` без записи оставила бы вред ровно на своём пути.
+
+        Прибор судит шаг ЦЕЛИКОМ и обеих ветвей не различает: одной записи в
+        `run` ему достаточно. Поэтому утверждение «запись объявлена в КАЖДОЙ
+        ветке» мерится здесь, а не там.
+        """
+        import yaml  # noqa: PLC0415 — тест-домен, не рантайм (инв. #4)
+        doc = yaml.safe_load(
+            Path(_REPO_ROOT, ".github", "workflows", "proof-gate.yml")
+            .read_text(encoding="utf-8"))
+        steps = doc["jobs"]["proof-gate"]["steps"]
+        run = [s for s in steps if s.get("name") == "DD_PACK head staleness test"][0]["run"]
+        # Продолжения строк СКЛЕИВАЮТСЯ до подсчёта: иначе один прогон, разбитый
+        # `\` на две строки, считался бы двумя ветками, и тест мерил бы перенос
+        # строки вместо ветвления (замерено на собственной правке этого цикла).
+        unfolded = run.replace("\\\n", " ")
+        real = [line for line in unfolded.splitlines()
+                if "pytest" in line and "--collect-only" not in line]
+        self.assertEqual(2, len(real), f"ожидались две ветки прогона, видно: {real}")
+        self.assertEqual(
+            2, run.count("--junitxml="),
+            "одна из ветвей `if/else` не объявляет junit-записи: исполнится "
+            "ровно одна, и без записи останется именно тот путь, которым "
+            f"прогон и пойдёт. run:\n{run}")
+
+
+class RecordPathSurvivesTheWorkingDirectory(unittest.TestCase):
+    """ЧЕГО ПРИБОР НЕ ВИДИТ: рабочий каталог шага (заказ G106 п. 2).
+
+    `_covers` сравнивает СТРОКИ: `path: reports/` покрывает
+    `reports/junit-x.xml` при любом рабочем каталоге шага. Но шаг
+    `ci.yml::Run spa_core/tests (unit)` делает `cd spa_core`, и запись,
+    объявленная там как `reports/junit-x.xml`, легла бы в
+    `spa_core/reports/` — выгрузка от корня её НЕ забрала бы, а прибор всё
+    равно сказал бы `record_survives_as_artifact`. То есть собственная правка
+    заказа опирается на свойство, которого мера не измеряет, — и поэтому
+    свойство измеряется ОТДЕЛЬНО, а не считается очевидным.
+
+    Проверка идёт по всем воркфлоу, а не по одному известному шагу: следующий
+    шаг с `cd` попадёт в неё сам.
+    """
+
+    _UPLOAD_ROOTS = ("reports",)
+
+    def test_a_step_that_changes_directory_declares_a_record_outside_it(self):
+        import re  # noqa: PLC0415
+        import yaml  # noqa: PLC0415
+        wf_dir = Path(_REPO_ROOT, ".github", "workflows")
+        checked = 0
+        for path in sorted(wf_dir.glob("*.yml")):
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            for job_name, job in (doc.get("jobs") or {}).items():
+                for step in (job.get("steps") or []):
+                    if not isinstance(step, dict) or not c._is_pytest_step(step):
+                        continue
+                    run = step.get("run") or ""
+                    cds = re.findall(r"^\s*cd\s+([^\s;&|]+)", run, re.M)
+                    if not cds:
+                        continue
+                    cwd = os.path.normpath(os.path.join(*cds))
+                    for form, rec in c.record_paths(step):
+                        checked += 1
+                        effective = os.path.normpath(os.path.join(cwd, rec))
+                        self.assertTrue(
+                            effective.split(os.sep)[0] in self._UPLOAD_ROOTS,
+                            f"{path.name}::{job_name} :: {step.get('name')}: "
+                            f"запись {form} «{rec}» при рабочем каталоге «{cwd}» "
+                            f"ляжет в «{effective}» — выгрузка объявляет "
+                            f"{self._UPLOAD_ROOTS} от КОРНЯ рабочей копии и этот "
+                            f"путь не заберёт; прибор этого не видит по построению")
+        self.assertGreater(checked, 0,
+                           "ни одного шага с `cd` и записью не найдено — "
+                           "предпосылка теста НЕ ОБЕСПЕЧЕНА, и это третий "
+                           "исход, а не зелёный: шаг `cd spa_core` в ci.yml "
+                           "есть, значит сцена или разбор сломались")
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -417,12 +532,30 @@ class MutationsFoundTheseGaps(unittest.TestCase):
     def test_cli_return_code_is_the_verdict_and_not_a_constant(self):
         """Выжившие мутации: таблица кодов возврата у `main` не звалась ни раз.
 
-        Корень подаётся ВХОДОМ (`--root`), поэтому тест не зовёт прибор на живом
-        дереве и не зависит от того, что лежит в `.github/` прода.
+        Все ТРИ кода добываются СЦЕНОЙ в одноразовом дереве, и это не придирка
+        к чистоте: до заказа G106 п. 2 код 1 брался у живого `.github/` прода —
+        то есть тест держался на том, что в репозитории ЕСТЬ незакрытая находка.
+        Пять находок закрыты, живое дерево отвечает 0, и прежняя строка
+        покраснела бы ОТ ИСПРАВЛЕНИЯ вреда. Чинить это понижением проверки
+        («ну пусть будет 0») значило бы перестать мерить таблицу вовсе: 0 она
+        теперь отдаёт и на пустом населении. Поэтому 1 добывается порванным
+        контуром на входе, 2 — отсутствием воркфлоу, 0 — живым деревом.
         """
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(2, c.main(["--root", tmp]))
-        self.assertEqual(1, c.main(["--root", _REPO_ROOT]))
+            self.assertEqual(2, c.main(["--root", tmp]), "нет воркфлоу ⇒ НЕ ИЗМЕРЕНО")
+        with tempfile.TemporaryDirectory() as tmp:
+            wf = Path(tmp, ".github", "workflows")
+            wf.mkdir(parents=True)
+            Path(wf, "w.yml").write_text(
+                "jobs:\n"
+                "  test:\n"
+                "    steps:\n"
+                "      - name: writer without any record\n"
+                "        run: python -m pytest tests/\n",
+                encoding="utf-8")
+            self.assertEqual(1, c.main(["--root", tmp]), "есть находка ⇒ код 1")
+        self.assertEqual(0, c.main(["--root", _REPO_ROOT]),
+                         "на живом дереве находок нет ⇒ код 0")
 
     def test_cli_json_mode_prints_the_measurement(self):
         """Выжившая мутация: ветка `--json` не исполнялась ни раз."""

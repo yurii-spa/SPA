@@ -92,22 +92,49 @@ jobs:
       # ── (2) DD_PACK head staleness + the proof-chain unit tests ──────────────
       # Prefer the dedicated head-staleness test the DD_PACK suite ships; fall back
       # to the whole DD_PACK head check if the named test is not present yet.
+      # ── Имена упавших тестов обязаны ПЕРЕЖИТЬ раннер (ADR-528 → заказ G106 п. 2) ──
+      # Своя причина у ЭТОГО шага, и она не та, что у ci.yml: здесь над джобой
+      # висит `timeout-minutes: 5`, то есть граница — ВНЕШНИЙ топор, а не таймер
+      # внутри pytest. Снятая им сессия не пишет ни сводки, ни junit-записи, и
+      # перечень имён не существует НИГДЕ: `-k` выбирает тесты по подстроке, так
+      # что даже СОСТАВ прогона по имени шага не восстановить.
+      # Запись объявлена в ОБЕИХ ветках `if/else` намеренно: исполняется ровно
+      # одна, и ветка без записи оставила бы вред ровно на том пути, которым
+      # прогон и пойдёт, когда у `test_dd_pack.py` не окажется поимённого теста.
+      # Пробный `--collect-only` выше плагин НЕ грузит, поэтому в потоковую
+      # запись он не попадает (без `-p …` плагин инертен даже при заданной
+      # переменной) — иначе перечень собранных имён смешался бы с прогоном.
       - name: DD_PACK head staleness test
         run: |
           if python3 -m pytest spa_core/tests/test_dd_pack.py --collect-only -q 2>/dev/null \
                | grep -q "test_dd_pack_head_live"; then
-            python3 -m pytest spa_core/tests/test_dd_pack.py -k "dd_pack_head_live or head_matches_verifier" -p no:randomly -q
+            python3 -m pytest spa_core/tests/test_dd_pack.py -k "dd_pack_head_live or head_matches_verifier" -p no:randomly -q \
+              -p spa_core.ci.pytest_stream_record --junitxml=reports/junit-dd-pack-head.xml
           else
-            python3 -m pytest spa_core/tests/test_dd_pack.py -k "head" -p no:randomly -q
+            python3 -m pytest spa_core/tests/test_dd_pack.py -k "head" -p no:randomly -q \
+              -p spa_core.ci.pytest_stream_record --junitxml=reports/junit-dd-pack-head.xml
           fi
+        env:
+          SPA_PYTEST_STREAM: reports/stream-dd-pack-head.jsonl
 
+      # ── Запись имён: своя причина у ЭТОГО шага (ADR-528 → заказ G106 п. 2) ──
+      # Шаг гоняет ТРИ файла одной командой, и предмет у них один — публичное
+      # обещание «не верьте нам, проверьте нас» (цепочка решений, exit-nav,
+      # якоря, трек equity). Красный шаг без записи не говорит, КАКОЕ из трёх
+      # доказательств перестало воспроизводиться, а это разные утверждения с
+      # разными последствиями. `-q` печатает точки, а не имена, поэтому у
+      # снятой топором сессии (джоба — 5 мин) не остаётся и лога.
       - name: Proof-chain + equity-track unit tests
         run: |
           python3 -m pytest \
             spa_core/tests/test_verify_spa_standalone.py \
             spa_core/tests/test_equity_proof_chain.py \
             spa_core/tests/test_portfolio_exit_nav_and_anchors.py \
-            -p no:randomly -q
+            -p no:randomly -q \
+            -p spa_core.ci.pytest_stream_record \
+            --junitxml=reports/junit-proof-chain.xml
+        env:
+          SPA_PYTEST_STREAM: reports/stream-proof-chain.jsonl
 
       # ── (3) stdlib-only + LLM-forbidden contract guards ──────────────────────
       - name: stdlib-only contract guard
@@ -115,3 +142,19 @@ jobs:
 
       - name: LLM-forbidden guard
         run: python3 scripts/lint_llm_forbidden.py
+
+      # ── Выгрузка записей этой джобы (заказ G106 п. 2) ────────────────────────
+      # Выгрузка в ЧУЖОЙ джобе запись не спасает (`test.yml` не покрывает
+      # `proof-gate`), поэтому шаг стои́т здесь, а не переиспользуется.
+      # `if: !cancelled()` — по тем же двум причинам, что в `ci.yml`: без
+      # условия GitHub пропустит шаг после упавшего, а `always()` доигрывал бы
+      # ОТМЕНЁННУЮ джобу и сломал `cancel-in-progress: true` выше — у этого
+      # гейта он включён безусловно, то есть цена ошибки здесь выше.
+      - name: Upload test records (junit + stream)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-gate-test-records-${{ github.run_number }}
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn

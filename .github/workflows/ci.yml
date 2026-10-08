@@ -90,13 +90,35 @@ jobs:
       # ничем себя не выдавал. Возврат тестов проверен реальным прогоном Actions
       # (+43 passed ровно, py3.11 и py3.12). Новые сужения набора тестов гейтит
       # spa_core/tests/test_ci_test_exclusions.py — карточка agent-ci-ignores-golive-gate-tests.
+      # ── Имена упавших тестов обязаны ПЕРЕЖИТЬ раннер (ADR-528 → заказ G106 п. 2) ──
+      # ЭТОТ шаг — самый тяжёлый в репозитории (~100 000 тестов) и самый уязвимый
+      # к обрыву: `--timeout` ci.yml не передаёт НИКОГДА (намеренно, см. комментарий
+      # к `pip install` выше), поэтому единственная граница над ним — внешняя
+      # граница джобы. Замер ADR-474 (прогон 36119204905): сессия снята на `[ 10%]`,
+      # и ни сводки pytest, ни junit-записи не появилось — junit пишется В КОНЦЕ
+      # сессии, а конца не было. До сего дня у шага не было объявлено НИ ОДНОГО пути
+      # записи: имена жили только в логе, то есть у оборванной сессии — нигде.
+      # ⚠️ Путь записи ВЫВЕДЕН ИЗ ПОДКАТАЛОГА нарочно (`../reports/`): шаг работает
+      # из `cd spa_core`, а шаг выгрузки ниже объявляет `path: reports/` от КОРНЯ
+      # рабочей копии. Запись, положенная в `reports/` относительно `spa_core/`,
+      # уехала бы в `spa_core/reports/` — выгрузка её не покрыла бы, и исход сменился
+      # бы с «записи нет» на «запись умирает с раннером», то есть вред остался бы.
+      # Потоковая запись (`-p spa_core.ci.pytest_stream_record`) инертна без
+      # переменной `SPA_PYTEST_STREAM` и кладёт имя теста на диск ДО того, как он
+      # побежал, — поэтому «начался и не кончился» становится наблюдаемым; junit
+      # этого не умеет по построению. Плагин грузится `-p` ДО вставки `pythonpath`
+      # из `pytest.ini` — проверено на дереве, где `python3 -c "import spa_core"`
+      # из `spa_core/` падает, а прогон с этим флагом проходит.
       - name: Run spa_core/tests (unit)
         run: |
           cd spa_core
-          python -m pytest tests/ -q --tb=short -p no:randomly
+          python -m pytest tests/ -q --tb=short -p no:randomly \
+            -p spa_core.ci.pytest_stream_record \
+            --junitxml=../reports/junit-spa_core.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: ../reports/stream-spa_core.jsonl
 
       # Мета-проверка (WS-6.3): доказывает, что тесты money-path ПОЙМАЮТ настоящую
       # регрессию. Обычные наборы показывают, что код верен на пробованных входах;
@@ -115,12 +137,23 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # ── Запись имён: своя причина у ЭТОГО шага (ADR-528 → заказ G106 п. 2) ──
+      # Здесь стоит `-x`: прогон останавливается на ПЕРВОМ падении, то есть имя,
+      # ради которого шаг и красен, ровно одно — и до сего дня оно существовало
+      # только в логе шага. Это тот самый случай, где «поднять предел печати»
+      # не лечит ничего: из измеренных читателей вердикта CI лог не читает
+      # программно ни один (ADR-528), а при обрыве сессии лога ещё и не хватает.
+      # Запись пишется от КОРНЯ рабочей копии (шаг не делает `cd`), поэтому
+      # `reports/` здесь — тот же каталог, что объявляет выгрузка ниже.
       - name: Run tests/ root (integration)
         run: |
-          python -m pytest tests/ -q --tb=short -x -p no:randomly
+          python -m pytest tests/ -q --tb=short -x -p no:randomly \
+            -p spa_core.ci.pytest_stream_record \
+            --junitxml=reports/junit-tests.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: reports/stream-tests.jsonl
 
       # NOTE (цикл #74, 2026-08-01): каталог `scripts/tests/` добавлен в CI впервые —
       # до этого его не запускал НИ ОДИН workflow, т.е. 191 тест (репетиция стоп-крана,
@@ -132,13 +165,22 @@ jobs:
       # Карточка: agent-ci-never-runs-scripts-tests-dir.
       # Тем же измерением нашлись ещё два невидимых каталога — оба ЗЕЛЁНЫЕ и быстрые:
       # spa_core/analytics/gross_of/ (295 тестов, 0.2с) и research/cards/ (7).
+      # ── Запись имён: своя причина у ЭТОГО шага (ADR-528 → заказ G106 п. 2) ──
+      # Шаг гоняет ЧЕТЫРЕ каталога одной командой, и именно здесь живут гейты,
+      # чей отказ ничего не говорит о себе по имени шага: репетиция стоп-крана,
+      # страж инварианта #3, гейт деплоя агентов (инв. #12), преflight go-live.
+      # Без записи «шаг красный» не называет ни один из четырёх — а шаг стои́т
+      # ПОСЛЕ двух тяжёлых, то есть именно его лог чаще всего и обрывается.
       - name: Run scripts/ gate tests + colocated suites
         run: |
           python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ studio_shell/ \
-            -q --tb=short -p no:randomly
+            -q --tb=short -p no:randomly \
+            -p spa_core.ci.pytest_stream_record \
+            --junitxml=reports/junit-scripts.xml
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: reports/stream-scripts.jsonl
 
       # --- Перепись дверей доставки (ADR-352) ---------------------------------
       # Спрашивает ОДНО: не появилось ли двери, которая пишет в origin, не зовёт
@@ -298,3 +340,27 @@ jobs:
 
       - name: Stdlib Contract Guard
         run: python3 scripts/stdlib_contract_guard.py
+
+      # ── Выгрузка записей: без неё писатель выше бесполезен (заказ G106 п. 2) ──
+      # Три шага выше теперь ПИШУТ перечень имён, но запись, не покинувшая раннер,
+      # уничтожается вместе с ним — это другой исход того же вреда
+      # (`record_dies_with_the_runner`), а не половина лекарства.
+      # `if: !cancelled()`, а НЕ `always()` и НЕ отсутствие условия:
+      #   * без условия GitHub ПРОПУСКАЕТ шаг после упавшего — ровно в том
+      #     единственном случае, ради которого выгрузка нужна (исход
+      #     `upload_declared_but_not_on_failure`, он измеряется отдельно);
+      #   * `always()` исполнялся бы и при ОТМЕНЕ джобы, то есть вытесненный пуш
+      #     доигрывал бы прогон и `cancel-in-progress` выше перестал бы разгружать
+      #     очередь (та же причина, что у шагов вердикта в `test.yml`).
+      # `if-no-files-found: warn` намеренно: отсутствие записи — не находка
+      # выгрузки, и второй дом одному утверждению здесь не заводится.
+      # Держит spa_core/tests/test_failed_name_survival_census.py — контроль на
+      # РЕАЛЬНОМ дереве, ПОИМЁННО на каждый из трёх шагов этой джобы.
+      - name: Upload test records (junit + stream)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-test-records-${{ github.run_number }}
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn
