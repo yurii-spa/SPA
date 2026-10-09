@@ -330,6 +330,11 @@ PRODUCES = (
     # ADR-498). Ступень читает журнал объявлений (живой `data/`) и дерево
     # базового ref, поэтому такт у неё суточный, как у самого журнала.
     "data/duplicate_subject_census.json",
+    # Виден ли ДВЕРИ шага 0a/0b предмет захвата — НОМЕР ЗАКАЗА, а не путь
+    # карточки — заказ G109 п. 2 (ADR-534, измерен ADR-678). Ступень читает
+    # журнал объявлений (живой `data/`), дерево базового ref и поднимает
+    # одноразовые сцены, поэтому такт у неё суточный, как у соседа.
+    "data/order_subject_census.json",
     # Кто окажется ЧИТАТЕЛЕМ квитанции read-only проверки захвата — заказ G88 п. 1
     # (ADR-498, измерен ADR-535). Ступень поднимает одноразовые сцены и читает
     # ЖИВОЕ дерево (кто грузит сторожа), поэтому такт у неё суточный, как у соседа.
@@ -464,6 +469,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "pre_trade_recheck_census",
     "owner_visibility_census",
     "duplicate_subject_census",
+    "order_subject_census",
     "claim_guard_receipt_readers",
     "claim_release_census",
     "capital_evidence_coverage",
@@ -764,6 +770,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "duplicate_subject_census": {
         "module": "spa_core/monitoring/duplicate_subject_census.py",
         "artifact": "data/duplicate_subject_census.json"},
+    "order_subject_census": {
+        "module": "spa_core/monitoring/order_subject_census.py",
+        "artifact": "data/order_subject_census.json"},
     "claim_guard_receipt_readers": {
         "module": "spa_core/monitoring/claim_guard_receipt_readers.py",
         "artifact": "data/claim_guard_receipt_readers.json"},
@@ -3125,6 +3134,31 @@ def main(argv=None) -> int:
                   f"{_dsc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "duplicate_subject_census", e)
+
+    # Ступень заказа G109 п. 2 (ADR-534, измерена ADR-678): виден ли ДВЕРИ шага
+    # 0a/0b предмет захвата — НОМЕР ЗАКАЗА, а не путь карточки. Предмет у этой
+    # ступени ДРУГОЙ, чем у соседа выше: тот меряет цену в КООРДИНАТАХ и
+    # намеренно не считает сессии на карточке (стоячий приказ по инв. #14
+    # остаётся `in-progress` вечно), а внутри одной карточки работа нарезана на
+    # ЗАКАЗЫ, и предмет работы есть номер заказа. Прибор только ЧИТАЕТ;
+    # заголовочное число — видит ли дверь предмет, измеренное ИСХОДОМ.
+    try:
+        from spa_core.monitoring import order_subject_census
+        _osc = order_subject_census.run(root=args.root)
+        if _osc.get("measured"):
+            # `... or {}` здесь был бы ровно тем, что запрещает инв. #17:
+            # «раздела нет» склеилось бы с «дверь предмет видит».
+            _door = observed(_osc["doc"], "door", kind=dict)
+            _sees = None if _door is None else _door.get("door_sees_order")
+            print(f"order_subject_census: {_osc['doc'].get('status')} — дверь "
+                  f"предмет (номер заказа) "
+                  f"{'НЕ ИЗМЕРЕНО' if _sees is None else ('ВИДИТ' if _sees else 'НЕ ВИДИТ')}"
+                  f"; пересечений {_osc['doc'].get('intersections_total')}")
+        else:
+            print(f"order_subject_census: НЕ ИЗМЕРЕНО — "
+                  f"{_osc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "order_subject_census", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
