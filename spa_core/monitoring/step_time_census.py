@@ -352,6 +352,193 @@ def at_or_beyond_limit(census: Census) -> tuple[int, int]:
     return (at, over)
 
 
+# --- сравнение ДВУХ переписей по ОБЩИМ случаям (заказ G108 п. 3, ADR-677) -----
+#
+# Зачем отдельная ось. ADR-534 измерил ОДНУ сессию ноги 3.12, не нашёл у неё строки
+# `end` и честно назвал её размах (245 мин) НИЖНЕЙ ГРАНИЦЕЙ. Соблазн, который заказ
+# G108 п. 3 и запрещает, — прочитать эту границу как «ноге нужно больше 245 мин».
+# Замер цикла #815 по пятнадцати сессиям той же ноги говорит обратное: у четырёх
+# ДОШЕДШИХ размах 194,2…229,1 мин, то есть нога помещается в границу 240 мин, а
+# одиннадцать оборванных стоя́т НЕ на своей длительности, а на самой границе.
+#
+# Отличить «работы стало больше» от «раннер был медленнее» одним размахом нельзя:
+# у сессий разное население (оборванная не дошла до конца списка). Поэтому мера
+# берётся по ПЕРЕСЕЧЕНИЮ имён: одни и те же случаи, две сессии, два числа. Вопрос
+# «медленнее ли раннер» становится замером, а не догадкой о причине.
+#
+# И второй вопрос, на который одно отношение не отвечает: замедление РАЗМАЗАНО или
+# сидит в нескольких клиньях. Это разные дефекты с разным лечением, поэтому прибор
+# печатает и долю первых по избытку случаев, и МЕДИАННОЕ отношение по случаям.
+# Высокая медиана при низкой доле первых ста = замедление общее; обратное = клин.
+
+COMPARE_OK = "compared"
+COMPARE_REFERENCE_UNREADABLE = "reference_unreadable"
+COMPARE_OTHER_UNREADABLE = "other_unreadable"
+COMPARE_REFERENCE_NOT_ENDED = "reference_not_ended"
+COMPARE_TOO_FEW_COMMON = "too_few_common"
+
+#: Ниже этого числа общих случаев отношение не печатается ВОВСЕ. Порог — объявленный
+#: ВХОД, а не вкус: на сотне случаев отношение есть шум, и назвать его замедлением
+#: раннера значило бы выдать не-измерение за ответ (инв. #17).
+MIN_COMMON_CASES = 1_000
+
+#: Пол эталонной длительности для МЕДИАННОГО отношения. Случай, у которого эталон
+#: шёл 3 мс, даёт отношение из частного двух шумов; делить на почти-ноль и звать
+#: результат медианой — тот же дефект. Значение объявлено здесь и печатается рядом.
+MEDIAN_FLOOR_S = 0.05
+
+
+class Comparison(NamedTuple):
+    """Две переписи, сложенные по ОБЩИМ случаям. ``read`` != COMPARE_OK ⇒ чисел нет.
+
+    Знаменатель — ЭТАЛОН, и он обязан быть ДОШЕДШЕЙ сессией: у оборванной размах
+    есть нижняя граница (ADR-534), и отношение к ней было бы отношением к границе.
+    """
+
+    read: str
+    reason: str
+    common_cases: int
+    other_cases_without_reference: int   # запас сверки: чего у эталона не нашлось
+    reference_s: float                   # Σ наблюдённых фаз ОБЩИХ случаев у эталона
+    other_s: float
+    ratio: float | None                  # other / reference; None ⇒ знаменатель ноль
+    excess_s: float                      # other − reference; ОТРИЦАТЕЛЬНЫЙ значит быстрее
+    top1_share: float | None             # доли в ИЗБЫТКЕ; избытка нет ⇒ None, не ноль
+    top10_share: float | None
+    top100_share: float | None
+    median_case_ratio: float | None      # медиана по случаям с эталоном ≥ MEDIAN_FLOOR_S
+    median_population: int
+    cases_slower_than_twice: int
+    heaviest: tuple[tuple[str, float, float, float], ...]  # nodeid, эталон, прогон, Δ
+
+    @property
+    def slower(self) -> bool | None:
+        """Медленнее ли прогон эталона. Нет отношения ⇒ None, а не False."""
+        if self.read != COMPARE_OK or self.ratio is None:
+            return None
+        return self.ratio > 1.0
+
+
+def _no_comparison(kind: str, reason: str) -> Comparison:
+    return Comparison(
+        read=kind, reason=reason, common_cases=0, other_cases_without_reference=0,
+        reference_s=0.0, other_s=0.0, ratio=None, excess_s=0.0,
+        top1_share=None, top10_share=None, top100_share=None,
+        median_case_ratio=None, median_population=0,
+        cases_slower_than_twice=0, heaviest=(),
+    )
+
+
+def compare_common(
+    reference: Census,
+    other: Census,
+    *,
+    min_common: int = MIN_COMMON_CASES,
+    median_floor_s: float = MEDIAN_FLOOR_S,
+    shown: int = _NAMES_SHOWN,
+) -> Comparison:
+    """Сложить две переписи по общим именам случаев.
+
+    Случай входит в сравнение только когда у НЕГО ЕСТЬ наблюдённая фаза в ОБЕИХ
+    сессиях: случай без исхода наблюдённой фазы не имеет вовсе, и подставлять ему
+    ноль значило бы считать отсутствие наблюдения наблюдением (инв. #17) — то же
+    правило, по которому живёт ``at_or_beyond_limit``.
+    """
+    if reference.read != READ_OK:
+        return _no_comparison(COMPARE_REFERENCE_UNREADABLE,
+                              f"эталон не прочитан: {reference.reason}")
+    if other.read != READ_OK:
+        return _no_comparison(COMPARE_OTHER_UNREADABLE,
+                              f"сравниваемая запись не прочитана: {other.reason}")
+    if not reference.ended:
+        return _no_comparison(
+            COMPARE_REFERENCE_NOT_ENDED,
+            "эталон — ОБОРВАННАЯ сессия (строки `end` нет): её размах есть нижняя "
+            "граница, и отношение к ней было бы отношением к границе, а не к бюджету",
+        )
+
+    ref_time = {c.nodeid: c.to_outcome for c in reference.cases if c.to_outcome is not None}
+    pairs: list[tuple[float, str, float, float]] = []   # Δ, nodeid, эталон, прогон
+    missing = 0
+    for case in other.cases:
+        if case.to_outcome is None:
+            continue
+        base = ref_time.get(case.nodeid)
+        if base is None:
+            missing += 1
+            continue
+        pairs.append((case.to_outcome - base, case.nodeid, base, case.to_outcome))
+
+    if len(pairs) < min_common:
+        return _no_comparison(
+            COMPARE_TOO_FEW_COMMON,
+            f"общих случаев с наблюдённой фазой {len(pairs)} < {min_common}: "
+            f"отношение на таком населении есть шум, а не замедление",
+        )._replace(common_cases=len(pairs), other_cases_without_reference=missing)
+
+    reference_s = sum(p[2] for p in pairs)
+    other_s = sum(p[3] for p in pairs)
+    excess = other_s - reference_s
+    ratio = (other_s / reference_s) if reference_s > 0 else None
+
+    # Доли считаются ОТ ИЗБЫТКА и только когда избыток положителен: у прогона,
+    # прошедшего быстрее эталона, «доля первого случая в избытке» смысла не имеет,
+    # и ноль был бы здесь выдумкой, а не наблюдением.
+    pairs.sort(reverse=True)
+    if excess > 0:
+        share = lambda n: sum(p[0] for p in pairs[:n]) / excess
+        top1, top10, top100 = share(1), share(10), share(100)
+    else:
+        top1 = top10 = top100 = None
+
+    ratios = sorted(p[3] / p[2] for p in pairs if p[2] >= median_floor_s)
+    median = ratios[len(ratios) // 2] if ratios else None
+    twice = sum(1 for p in pairs if p[2] >= median_floor_s and p[3] > 2 * p[2])
+
+    return Comparison(
+        read=COMPARE_OK, reason="сравнено по общим случаям",
+        common_cases=len(pairs), other_cases_without_reference=missing,
+        reference_s=reference_s, other_s=other_s, ratio=ratio, excess_s=excess,
+        top1_share=top1, top10_share=top10, top100_share=top100,
+        median_case_ratio=median, median_population=len(ratios),
+        cases_slower_than_twice=twice,
+        heaviest=tuple((p[1], p[2], p[3], p[0]) for p in pairs[:shown]),
+    )
+
+
+def format_comparison(comparison: Comparison, *, shown: int = _NAMES_SHOWN) -> str:
+    """Выжимка сравнения для лога. Вердикта не выносит и кода возврата не трогает."""
+    if comparison.read != COMPARE_OK:
+        return f"   сравнение с эталоном: {comparison.reason}"
+    c = comparison
+    lines = [
+        f"   сравнение с эталоном по ОБЩИМ случаям: {c.common_cases} случа(ев) · "
+        f"эталон {c.reference_s / 60:.1f} мин против {c.other_s / 60:.1f} мин",
+        f"   отношение {c.ratio:.2f}× " + ("(МЕДЛЕННЕЕ эталона)" if c.slower else "(быстрее эталона)")
+        + f" · избыток {c.excess_s / 60:+.1f} мин · случаев прогона, которых у эталона нет: "
+        + str(c.other_cases_without_reference),
+    ]
+    if c.top100_share is None:
+        lines.append("   распределение избытка: избытка нет — прогон не медленнее эталона")
+    else:
+        lines.append(
+            f"   избыток сидит: в 1 случае {c.top1_share:.1%} · в 10 {c.top10_share:.1%} · "
+            f"в 100 {c.top100_share:.1%} — остальное РАЗМАЗАНО по населению"
+        )
+    if c.median_case_ratio is None:
+        lines.append(f"   медианное отношение по случаям: НЕ ИЗМЕРЕНО "
+                     f"(ни одного случая с эталоном ≥ {MEDIAN_FLOOR_S:g} с)")
+    else:
+        lines.append(
+            f"   медианное отношение по случаям (эталон ≥ {MEDIAN_FLOOR_S:g} с, "
+            f"население {c.median_population}): {c.median_case_ratio:.2f}× · "
+            f"случаев медленнее ВДВОЕ: {c.cases_slower_than_twice}"
+        )
+    for nodeid, base, run, delta in c.heaviest[:shown]:
+        lines.append(f"   Δ{delta:+8.1f} с  ({base:6.1f} → {run:6.1f})  {nodeid}")
+    return "\n".join(lines)
+
+
 def format_census(census: Census, *, label: str = "шаг тестов", shown: int = _NAMES_SHOWN) -> str:
     """Выжимка для лога. Вердикта не выносит и кода возврата не трогает."""
     if census.read != READ_OK:
@@ -428,10 +615,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--label", default="spa_core/tests/")
     parser.add_argument("--top", type=int, default=_NAMES_SHOWN)
     parser.add_argument("--by-file", action="store_true", help="перепись по файлам теста")
+    parser.add_argument(
+        "--against", type=Path, default=None,
+        help="ЭТАЛОННАЯ запись ДОШЕДШЕЙ сессии: сложить обе по общим случаям и "
+             "сказать, медленнее ли раннер (заказ G108 п. 3, ADR-677)",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     census = census_from_path(args.record)
+    comparison = None
+    if args.against is not None:
+        comparison = compare_common(census_from_path(args.against), census, shown=args.top)
     if args.json:
         print(json.dumps({
             "read": census.read, "reason": census.reason,
@@ -448,6 +643,21 @@ def main(argv: list[str] | None = None) -> int:
             "sessions_in_record": census.sessions_in_record,
             "timeout_s": census.timeout_s,
             "identity_holds": census.identity_holds(),
+            "comparison": None if comparison is None else {
+                "read": comparison.read, "reason": comparison.reason,
+                "common_cases": comparison.common_cases,
+                "other_cases_without_reference": comparison.other_cases_without_reference,
+                "reference_s": round(comparison.reference_s, 3),
+                "other_s": round(comparison.other_s, 3),
+                "ratio": comparison.ratio, "excess_s": round(comparison.excess_s, 3),
+                "top1_share": comparison.top1_share,
+                "top10_share": comparison.top10_share,
+                "top100_share": comparison.top100_share,
+                "median_case_ratio": comparison.median_case_ratio,
+                "median_population": comparison.median_population,
+                "cases_slower_than_twice": comparison.cases_slower_than_twice,
+                "slower": comparison.slower,
+            },
             "top": [
                 {"nodeid": c.nodeid, "span_s": round(c.span, 3),
                  "to_outcome_s": None if c.to_outcome is None else round(c.to_outcome, 3),
@@ -458,6 +668,8 @@ def main(argv: list[str] | None = None) -> int:
         }, ensure_ascii=False, indent=2))
     else:
         print(format_census(census, label=args.label, shown=args.top))
+        if comparison is not None:
+            print(format_comparison(comparison, shown=args.top))
         if args.by_file:
             print("   — по файлам —")
             for name, total in by_file(census).most_common(args.top):
