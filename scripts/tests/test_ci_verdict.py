@@ -239,3 +239,47 @@ def test_reads_the_xml_a_real_pytest_actually_writes_red(tmp_path: Path) -> None
     verdict = cv.read_verdict(junit)
     assert verdict.rc == cv.RC_RED, f"живой pytest + падение ⇒ красно, а не {verdict}"
     assert verdict.failures == 1
+
+# ── ПРИЧИНЫ: третий вопрос к той же записи (ADR-675, заказ G108 п. 1) ──────────
+#
+# Порванное звено: перепись причин не позвана. Тогда «провалов 80» уезжает в лог
+# одиноким числом, и множитель между провалами и ДЕФЕКТАМИ снова живёт в голове
+# читателя — то самое состояние, которое заказ G108 п. 1 велел закрыть (у фазы
+# установки тот же прогон давал 19 провалов на ЧЕТЫРЁХ дефектах).
+
+_CAUSE_TB = "spa_core/tests/test_x.py:1: in t\nE   KeyError: 'identity'\n"
+
+
+def _junit_with_two_keyerrors(tmp_path: Path) -> Path:
+    cases = "".join(
+        f'<testcase classname="m" name="t{i}" time="0.1">'
+        f'<failure message="KeyError: &apos;{key}&apos;">{_CAUSE_TB}</failure></testcase>'
+        for i, key in enumerate(("identity", "verdict")))
+    path = tmp_path / "junit-causes.xml"
+    path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<testsuites><testsuite name="pytest" tests="2" failures="2" errors="0" '
+        f'skipped="0">{cases}</testsuite></testsuites>', encoding="utf-8")
+    return path
+
+
+def test_the_fork_of_defects_reaches_the_log_of_the_step(tmp_path: Path) -> None:
+    out = cv.format_causes(_junit_with_two_keyerrors(tmp_path), None)
+    assert "ВИЛКА ДЕФЕКТОВ" in out
+    assert "НЕ МЕНЬШЕ 1" in out        # грубый ключ склеил имя ключа
+    assert "НЕ БОЛЬШЕ 2" in out        # точный ключ его различил
+
+
+def test_the_causes_are_printed_by_the_entry_point_not_only_available(
+        tmp_path: Path, capsys) -> None:
+    """Проводка мерится ВЫЗОВОМ: функция, которую никто не зовёт, — не читатель."""
+    rc = cv.main([str(_junit_with_two_keyerrors(tmp_path)), "--label", "стенд"])
+    out = capsys.readouterr().out
+    assert rc == cv.RC_RED
+    assert "ВИЛКА ДЕФЕКТОВ" in out
+
+
+def test_an_absent_record_says_NOT_MEASURED_and_claims_no_zero(tmp_path: Path) -> None:
+    out = cv.format_causes(tmp_path / "нет-такого.xml", None)
+    assert "НЕ ИЗМЕРЕНО" in out
+    assert "провалов 0" not in out

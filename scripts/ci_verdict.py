@@ -302,6 +302,29 @@ def format_time(path: Path | None, *, label: str) -> str:
     return format_census(census_from_path(path), label=label)
 
 
+def format_causes(junit: Path, stream: Path | None) -> str:
+    """Сколько ДЕФЕКТОВ стои́т за провалами фазы `call` (ADR-675, заказ G108 п. 1).
+
+    Третий вопрос к той же записи, и он не арифметический: «80 провалов» читается
+    как «80 поломок», а у фазы установки тот же прогон давал девятнадцать провалов
+    на ЧЕТЫРЁХ дефектах (ADR-534). Ответ печатается ВИЛКОЙ — слияние занижает,
+    дробление завышает, и оба края считаются, а не объявляются.
+
+    Ввоз внутри функции и по той же причине, что у ``format_time``: скрипт обязан
+    оставаться запускаемым оттуда, где пакета нет на пути ввоза, а отсутствие
+    переписи — НАЗВАННЫЙ третий исход, не молчание.
+    """
+    root = str(Path(__file__).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from spa_core.monitoring.failure_cause_census import census_from_path, format_census
+    except ImportError as exc:                               # pragma: no cover - среда
+        return (f"   причины: НЕ ИЗМЕРЕНЫ — перепись не ввезена "
+                f"(spa_core.monitoring.failure_cause_census): {exc}")
+    return format_census(census_from_path(junit, stream=stream))
+
+
 def format_verdict(verdict: Verdict, *, label: str) -> str:
     """Человекочитаемая строка для лога Actions. Исход — первым словом."""
     head = f"{verdict.label} — {label}"
@@ -368,6 +391,11 @@ def main(argv: list[str] | None = None) -> int:
     timing = format_time(args.stream, label=args.label)
     if timing:
         print(timing)
+    # Третий вопрос: за скольки ДЕФЕКТАМИ стоят названные провалы. Печатается
+    # всегда, рядом с их числом — иначе множитель между провалами и поломками
+    # остаётся у читателя в голове, а решение «брать ли красный набор» он
+    # принимает по первому числу (ADR-675).
+    print(format_causes(args.junit, args.stream))
     # Код возврата берётся у ОДНОГО источника. Потоковая запись его не трогает ни в
     # какую сторону: иначе «успели 80 тысяч, все зелёные» стало бы вердиктом о наборе.
     return verdict.rc
