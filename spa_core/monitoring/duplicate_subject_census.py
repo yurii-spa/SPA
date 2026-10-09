@@ -23,7 +23,23 @@ A     ЦЕНА: сколько работы сделано      координа
 B     ПОЧЕМУ никто не остановил:        взятия предмета (``card_state: claim``)
       наблюдаемо ли обращение к         против квитанций сторожа захвата
       сторожу захвата?                  (``[check_card_claim]`` в журнале)
+C     КАКОЙ ДВЕРЬЮ объявлено взятие     те же взятия, разложенные на закрытое
+      (заказ G110 п. 2)                 разбиение «только сторож · обе ·
+                                        только писатель», с опровержимым
+                                        тождеством против числа оси B
+D     НАЗЫВАЕТ ли дверь-квитанцию       литерал ``check_card_claim.py claim``
+      сама ИНСТРУКЦИЯ (G110 п. 2)       в ТЕЛЕ промпта цикла и в документе
+                                        протокола
 ===== ================================ ==========================================
+
+## Почему ось C не есть ось B другими словами
+
+Ось B печатает ОДНО число, и заголовочным оно читается как «сторожа не
+спрашивали». Квитанцию оставляет только подкоманда ``claim``; read-only
+``check`` не оставляет ничего — замерено исходом (ADR-535, ответ 3). Значит
+«без квитанции» есть ровно «объявлено НЕ дверью сторожа»: замер ДВЕРИ, а не
+вопроса. Ось C называет это двумя числами, ось D спрашивает, чьё это свойство —
+сессий или инструкции, которая дверь-квитанцию может и не называть.
 
 Ось A отвечает «сколько это стоило», ось B — «что именно не сработало».
 Одной оси мало в обе стороны: ось A без оси B назвала бы цену, не назвав
@@ -680,6 +696,351 @@ def measure_receipts(records: Sequence[Dict[str, Any]], *,
     }
 
 
+# ───────── ось C: какой ДВЕРЬЮ объявлено взятие (заказ G110 п. 2) ─────────
+
+#: Двери объявления взятия. Перечень ЗАКРЫТ и состоит из ДВУХ: подкоманда
+#: ``claim`` сторожа захвата (``scripts/check_card_claim.py``), чей след в
+#: журнале и есть квитанция, и писатель журнала НАПРЯМУЮ
+#: (``scripts/log_session_change.py --card-state claim``). Третьей двери нет
+#: ПО ПОСТРОЕНИЮ: писатель журнала ровно один (докстринг ``log_session_change``),
+#: а сторож пишет через него же — поэтому дверь различима РОВНО приставкой
+#: :data:`_RECEIPT_PREFIX`, и «дверь не распознана» обязано быть НЕВОЗМОЖНО, а
+#: не редко. Ненулевой счёт такого класса есть поломка разбора, и ось от него
+#: отказывается (ниже), а не докладывает долю.
+DOOR_GUARD = "guard"
+DOOR_WRITER = "writer"
+
+
+def door_of(summary: str) -> Optional[str]:
+    """Дверь, которой оставлена запись, по её приставке. ``None`` = не распознана.
+
+    Настоящее правило ТОТАЛЬНО по построению — ``None`` оно не возвращает
+    никогда, и это закреплено контролем. Отказ прибора на нераспознанной двери
+    всё равно нужен, потому что правило передаётся ВХОДОМ: тотальность есть
+    свойство ПРАВИЛА, а не прибора, и прибор, уверенный в чужом свойстве,
+    поделил бы население на неполном разбиении молча.
+    """
+    return DOOR_GUARD if summary.startswith(_RECEIPT_PREFIX) else DOOR_WRITER
+
+
+def measure_taking_doors(records: Sequence[Dict[str, Any]], *,
+                         receipts: Dict[str, Any],
+                         now: Optional[datetime] = None,
+                         window_days: int = _WINDOW_DAYS,
+                         door: Optional[Any] = None) -> Dict[str, Any]:
+    """Ось C: какой ДВЕРЬЮ объявлено взятие предмета — сторожа или писателя.
+
+    Ось B отвечает ОДНИМ числом (``window_takings_without_receipt``), и
+    заголовочным оно читается как «сторожа не спрашивали». Это не то, что она
+    меряет. Квитанцию оставляет только подкоманда ``claim``; read-only ``check``
+    не оставляет НИЧЕГО — замерено исходом (ADR-535, ответ 3: одноразовая сцена,
+    sha256 до и после настоящего вызова двери, вердикт ``no_trace``). Значит
+    «без квитанции» есть ровно «объявлено НЕ дверью сторожа», то есть замер
+    ДВЕРИ, а обращение к сторожу не наблюдаемо ни одним числом ни одной оси.
+
+    Заказ **G110 п. 2** требует назвать это ДВУМЯ числами, и вот они:
+    ``through_guard_door`` и ``by_writer_door_only``.
+
+    Ось СОЗНАТЕЛЬНО пересчитывает население взятий, уже посчитанное осью B, и
+    это второй экземпляр мерки — тот самый класс, что молча расходится
+    (ADR-220). Противоядие здесь не доверие, а **опровержимое тождество**:
+    число писательской двери обязано СОВПАСТЬ с ``window_takings_without_receipt``
+    соседней оси, иначе ось отказывается (третий исход с названной причиной).
+    Поэтому отчёт соседа передаётся ВХОДОМ, а не читается заново.
+
+    Время — ВХОД, а не окружение: окно считается от переданного ``now``.
+    """
+    now = now or datetime.now(timezone.utc)
+    edge = now - timedelta(days=window_days)
+    door = door or door_of
+
+    # Сторона сторожа берётся по ВСЕЙ истории журнала — ровно так, как её берёт
+    # ось B: квитанция, оставленная за минуту до края окна, квитанцией быть не
+    # перестаёт. Сузить её до окна значило бы разойтись с соседом молча.
+    guard_keys: set[Tuple[Tuple[int, str], str]] = set()
+    for record in records:
+        summary = str(observed(record, "summary", kind=str) or "")
+        anchor = anchor_of(record)
+        subject = subject_of(record)
+        if anchor is not None and subject is not None and door(summary) == DOOR_GUARD:
+            guard_keys.add((anchor, subject))
+
+    writer_keys: set[Tuple[Tuple[int, str], str]] = set()
+    order: List[Tuple[Tuple[Tuple[int, str], str], str]] = []
+    seen: set[Tuple[Tuple[int, str], str]] = set()
+    unparsed_ts = 0
+    without_subject = 0
+    subject_without_anchor = 0
+    for record in records:
+        if str(observed(record, "card_state", kind=str) or "claim") != "claim":
+            continue
+        stamp = _parse_ts(record["ts"])
+        if stamp is None:
+            unparsed_ts += 1
+            continue
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        if stamp < edge:
+            continue
+        subject = subject_of(record)
+        anchor = anchor_of(record)
+        # ДВА пропуска, и складывать их запрещено. Запись без предмета —
+        # обычное объявление владения файлами без карточки: взятием ПРЕДМЕТА
+        # она не является ПО ПОСТРОЕНИЮ, и в знаменателе ей делать нечего.
+        # Запись с предметом, но без пары долгоживущего процесса, — настоящее
+        # взятие, чью дверь приписать НЕКОМУ: личность не измерена (докстринг
+        # `anchor_of`). Слить их в одно «не опознано» значило бы спрятать
+        # второе за объёмом первого (здесь — 14 за 125).
+        if subject is None:
+            without_subject += 1
+            continue
+        if anchor is None:
+            subject_without_anchor += 1
+            continue
+        key = (anchor, subject)
+        if key not in seen:
+            seen.add(key)
+            order.append((key, str(record["ts"])))
+        summary = str(observed(record, "summary", kind=str) or "")
+        if door(summary) == DOOR_WRITER:
+            writer_keys.add(key)
+
+    guard_only = writer_only = both = unrecognised = 0
+    unrecognised_examples: List[Dict[str, Any]] = []
+    for key, at in order:
+        in_guard = key in guard_keys
+        in_writer = key in writer_keys
+        if in_guard and in_writer:
+            both += 1
+        elif in_guard:
+            guard_only += 1
+        elif in_writer:
+            writer_only += 1
+        else:
+            unrecognised += 1
+            if len(unrecognised_examples) < 20:
+                unrecognised_examples.append({"subject": key[1], "anchor_pid": key[0][0],
+                                              "at": at})
+
+    takings = len(order)
+    report: Dict[str, Any] = {
+        "window_days": window_days,
+        "window_from": edge.isoformat().replace("+00:00", "Z"),
+        "measured": False,
+        "reason": None,
+        "window_takings": takings,
+        # ДВА числа вместо одного — предмет заказа G110 п. 2. Доля НЕ заменяет
+        # ни одно из них: 17 из 280 и 17 из 18 суть разные утверждения.
+        "through_guard_door": guard_only + both,
+        "by_writer_door_only": writer_only,
+        "through_guard_door_pct": None,
+        "by_door": {"guard_only": guard_only, "writer_only": writer_only,
+                    "both": both, "door_unrecognised": unrecognised},
+        "timestamps_unparsed": unparsed_ts,
+        "records_without_subject": without_subject,
+        "takings_without_measured_identity": subject_without_anchor,
+        "axis_b_identity": None,
+        "door_unrecognised_examples": unrecognised_examples,
+        "measures": ("КАКОЙ дверью объявлено взятие, а НЕ спрашивали ли сторожа: "
+                     "read-only `check` следа не оставляет вовсе (ADR-535, ответ 3 — "
+                     "замер следа `no_trace`), поэтому обращение к сторожу "
+                     "НЕ НАБЛЮДАЕМО ни одним числом ни одной оси"),
+    }
+
+    if takings == 0:
+        report["reason"] = (f"в окне {window_days} дн. ни одного взятия предмета с "
+                            f"измеренной личностью (записей без предмета "
+                            f"{without_subject}, взятий без измеренной личности "
+                            f"{subject_without_anchor}, метка не разобрана у "
+                            f"{unparsed_ts}) — дверь НЕ ИЗМЕРЕНА, а не одна")
+        return report
+    if unrecognised:
+        report["reason"] = (f"у {unrecognised} из {takings} взятий дверь НЕ РАСПОЗНАНА, "
+                            f"хотя у настоящего правила это невозможно — переданное "
+                            f"правило двери не тотально; доля двери была бы вычислена "
+                            f"по неполному населению")
+        return report
+    # Отдельной проверки «классы складываются в население» здесь НЕТ, и это
+    # решение, а не упущение: цикл выше увеличивает РОВНО ОДИН счётчик на
+    # каждый ключ, поэтому сумма четырёх классов равна населению по построению,
+    # а отказ выше ловит единственный класс, который может быть ненулевым.
+    # Ветвь, которая не может сработать, — не сторож, а украшение: мутационный
+    # замер пережил её целиком (пять мутантов в ней не меняли ни одного числа),
+    # и это тот же дефект «мёртвой ветви», что нашёл цикл #818 в своей оси 1.
+
+    # Опровержимое тождество с соседней осью: «без квитанции» и «объявлено
+    # писательской дверью» обязаны быть ОДНИМ И ТЕМ ЖЕ числом. Разошлись ⇒
+    # один из двух экземпляров мерки неверен, и который — не угадывается.
+    expected = receipts.get("window_takings_without_receipt") if isinstance(receipts, dict) else None
+    neighbour_takings = receipts.get("window_takings") if isinstance(receipts, dict) else None
+    report["axis_b_identity"] = {"neighbour_without_receipt": expected,
+                                 "neighbour_window_takings": neighbour_takings,
+                                 "my_writer_door_only": writer_only,
+                                 "my_window_takings": takings,
+                                 "holds": (expected == writer_only
+                                           and neighbour_takings == takings)}
+    if not isinstance(expected, int) or not isinstance(neighbour_takings, int):
+        report["reason"] = ("отчёт оси B не несёт чисел взятий — сверить второй "
+                            "экземпляр мерки нечем, и расхождение осталось бы молчаливым")
+        return report
+    if not report["axis_b_identity"]["holds"]:
+        report["reason"] = (f"тождество с осью B НЕ держится: «без квитанции» "
+                            f"{expected} при моих {writer_only} писательских, взятий "
+                            f"{neighbour_takings} при моих {takings} — два экземпляра "
+                            f"мерки разошлись")
+        return report
+
+    report["through_guard_door_pct"] = round(100.0 * (guard_only + both) / takings, 2)
+    report["measured"] = True
+    return report
+
+
+# ──── ось D: называет ли ИНСТРУКЦИЯ дверь, оставляющую квитанцию (G110 п. 2) ────
+
+#: Поверхности инструкции. Перечень ЗАКРЫТ, каждая названа путём-литералом и
+#: СПОСОБОМ чтения: ``prompt`` — тело присваивания ``PROMPT="…"`` (ровно тот
+#: текст, который сессия получает на вход), ``whole`` — файл целиком (документ,
+#: который сессии предписано прочитать).
+_INSTRUCTION_SURFACES: Tuple[Tuple[str, str, str], ...] = (
+    ("prompt_orchestrator", "scripts/agent_orchestrator.sh", "prompt"),
+    ("protocol_document", "docs/ORCHESTRATOR_PROTOCOL.md", "whole"),
+)
+
+#: Литералы дверей. У сторожа — именно подкоманда ``claim``.
+_DOOR_TOKENS: Dict[str, str] = {DOOR_GUARD: "check_card_claim.py claim",
+                                DOOR_WRITER: "log_session_change.py"}
+
+#: Отдельно — read-only подкоманда сторожа. Она квитанции НЕ оставляет, поэтому
+#: дверью квитанции не является и в классы не идёт; считается, чтобы «названа
+#: только `check`» не читалось как «дверь сторожа названа».
+_GUARD_CHECK_TOKEN = "check_card_claim.py check"
+
+
+def _prompt_body(text: str, *,
+                 max_steps: Optional[int] = None) -> Tuple[Optional[str], Optional[str]]:
+    """Тело присваивания ``PROMPT="…"`` — или причина, по которой его нет.
+
+    Файл целиком на этот вопрос НЕ отвечает: ``scripts/agent_orchestrator.sh``
+    называет писателя журнала ещё и в КОММЕНТАРИИ (абзац про долгоживущую
+    личность сессии), а комментарий сессии не достаётся. Прибор, считающий
+    вхождения в файле, объявил бы дверь названной там, где цикл её не видит —
+    ровно «проза, называющая предмет, не есть его производитель».
+    """
+    offset = 0
+    start: Optional[int] = None
+    for line in text.splitlines(keepends=True):
+        if line.startswith('PROMPT="'):
+            start = offset + len('PROMPT="')
+            break
+        offset += len(line)
+    if start is None:
+        return None, 'в файле нет строки, начинающейся с `PROMPT="`'
+
+    # Шаг разбора обязан идти ВПЕРЁД, и это ПРОВЕРЯЕТСЯ, а не предполагается.
+    # Цикл, чей прогресс лишь подразумевается, мутант не краснит, а ПОДВЕШИВАЕТ:
+    # мутационный замер этого прибора дал ровно такой исход на обоих `i += 2`
+    # (урок #817 — беззащитная пагинация; урок #465 — в дифференциальном замере
+    # такой тест не падает и не проходит, он ИСЧЕЗАЕТ). Потолок — ВХОД, по
+    # умолчанию длина самого текста: больше шагов, чем символов, честный разбор
+    # сделать не может, а достижение потолка есть третий исход с причиной.
+    ceiling = len(text) + 1 if max_steps is None else max_steps
+    out: List[str] = []
+    i = start
+    steps = 0
+    while i < len(text):
+        steps += 1
+        if steps > ceiling:
+            return None, (f'разбор `PROMPT="…"` не продвигается: {steps} шагов при '
+                          f'потолке {ceiling} — тело промпта НЕ ИЗМЕРЕНО')
+        ch = text[i]
+        if ch == "\\" and i + 1 < len(text):
+            nxt = text[i + 1]
+            # Продолжение строки оболочки текстом промпта НЕ является.
+            if nxt == "\n":
+                i += 2
+                continue
+            out.append(nxt)
+            i += 2
+            continue
+        if ch == '"':
+            return "".join(out), None
+        out.append(ch)
+        i += 1
+    return None, 'присваивание `PROMPT="…"` не закрыто кавычкой'
+
+
+def measure_instruction_doors(repo_root: Path, *,
+                              max_steps: Optional[int] = None) -> Dict[str, Any]:
+    """Ось D: называет ли ИНСТРУКЦИЯ дверь, которая оставляет квитанцию.
+
+    Отвечает на вопрос «НАЗВАНА ли дверь литералом в тексте», а НЕ «предписана
+    ли она»: намерения прозы прибор не меряет и не притворяется, что меряет.
+    Для заказа этого довольно — он спрашивает, ЧЬЁ это свойство, и разница
+    между «сессии не спрашивают сторожа» и «инструкция его не называет» видна
+    уже на наличии литерала.
+
+    Третий исход у каждой поверхности свой: файл не прочитан · присваивания
+    промпта в нём нет · оно не закрыто. Любой из них — ``measured=False`` у
+    поверхности и у оси целиком: «инструкция называет дверь» без одной из двух
+    поверхностей НЕ ИЗМЕРЕНО, а не «названа».
+    """
+    # Форма записи о поверхности ПОСТОЯННА: «не вычислено» представлено `None`,
+    # а не отсутствием ключа (инв. #17) — иначе читатель не отличит «поверхность
+    # не прочитана» от «производитель перестал писать это поле».
+    def _unmeasured(rel: str, how: str, reason: str) -> Dict[str, Any]:
+        return {"path": rel, "read": how, "measured": False, "reason": reason,
+                "verdict": None, "names_guard_claim": None, "names_writer": None,
+                "names_guard_check_readonly": None, "chars": None}
+
+    surfaces: Dict[str, Any] = {}
+    for name, rel, how in _INSTRUCTION_SURFACES:
+        path = repo_root / rel
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            surfaces[name] = _unmeasured(rel, how,
+                                         f"не прочитан: {type(exc).__name__}: {exc}")
+            continue
+        if how == "prompt":
+            body, reason = _prompt_body(text, max_steps=max_steps)
+            if body is None:
+                # Причина передаётся КАК ЕСТЬ. Подстановка по умолчанию
+                # (`reason or "…"`) была бы ровно тем, что инвариант #17
+                # запрещает: неназванная причина обязана остаться `None`, а не
+                # притвориться текстом, которого никто не измерял.
+                surfaces[name] = _unmeasured(rel, how, reason)
+                continue
+            text = body
+        names = {door: (token in text) for door, token in _DOOR_TOKENS.items()}
+        if names[DOOR_GUARD] and names[DOOR_WRITER]:
+            verdict = "names_both"
+        elif names[DOOR_GUARD]:
+            verdict = "names_guard_claim_only"
+        elif names[DOOR_WRITER]:
+            verdict = "names_writer_only"
+        else:
+            verdict = "names_neither"
+        surfaces[name] = {"path": rel, "read": how, "measured": True, "reason": None,
+                          "verdict": verdict,
+                          "names_guard_claim": names[DOOR_GUARD],
+                          "names_writer": names[DOOR_WRITER],
+                          "names_guard_check_readonly": _GUARD_CHECK_TOKEN in text,
+                          "chars": len(text)}
+    measured = sum(1 for s in surfaces.values() if s["measured"])
+    return {
+        "measured": measured == len(_INSTRUCTION_SURFACES) and bool(surfaces),
+        "reason": (None if measured == len(_INSTRUCTION_SURFACES) and surfaces else
+                   f"прочитано {measured} из {len(_INSTRUCTION_SURFACES)} поверхностей "
+                   f"инструкции — «инструкция называет дверь» НЕ ИЗМЕРЕНО целиком"),
+        "surfaces": surfaces,
+        "surfaces_declared": len(_INSTRUCTION_SURFACES),
+        "measures": ("НАЗВАНА ли дверь литералом в тексте, а НЕ предписана ли она: "
+                     "намерение прозы не меряется. И прибор НЕ судит, доходит ли "
+                     "поверхность до сессии: у промпта это верно по построению (его "
+                     "текст и есть вход цикла), у документа — нет"),
+    }
+
+
 def measure_guard_wiring(repo_root: Path) -> Dict[str, Any]:
     """Проводка сторожа захвата, измеренная по ФОРМЕ ВЫЗОВА, а не по имени.
 
@@ -806,6 +1167,12 @@ def run_census(data_dir: Path, *, repo_root: Path,
         "price": None,
         "receipts": None,
         "guard_wiring": None,
+        # Оси C и D объявлены ОТДЕЛЬНО от `receipts` намеренно: ось B отвечает
+        # ОДНИМ числом «без квитанции», а это число меряет ДВЕРЬ, не вопрос
+        # (заказ G110 п. 2). Сложить их в одно поле значило бы вернуть ту самую
+        # склейку, ради разведения которой заказ и поставлен.
+        "doors": None,
+        "instruction_doors": None,
     }
 
     journal = load_journal(data_dir / JOURNAL_NAME)
@@ -837,9 +1204,14 @@ def run_census(data_dir: Path, *, repo_root: Path,
         report["price"] = price
         return report
     receipts = measure_receipts(journal["records"], now=now, window_days=window_days)
+    doors = measure_taking_doors(journal["records"], receipts=receipts, now=now,
+                                 window_days=window_days)
+    instruction = measure_instruction_doors(repo_root)
     wiring = measure_guard_wiring(repo_root)
     report["price"] = price
     report["receipts"] = receipts
+    report["doors"] = doors
+    report["instruction_doors"] = instruction
     report["guard_wiring"] = wiring
 
     if receipts["window_takings"] == 0:
@@ -905,6 +1277,44 @@ def format_report(report: Dict[str, Any]) -> List[str]:
         f"{receipts['window_takings_without_receipt']}; квитанций в журнале всего "
         f"{receipts['receipts_in_journal']}")
     lines.append(f"[ОСЬ B] {receipts['absence_means']}")
+    doors = report.get("doors") or {}
+    if not doors.get("measured"):
+        lines.append(f"[ОСЬ C] дверь взятия НЕ ИЗМЕРЕНА — {doors.get('reason')}")
+    else:
+        by = doors["by_door"]
+        lines.append(
+            f"[ОСЬ C] ДВА числа вместо одного (заказ G110 п. 2): из "
+            f"{doors['window_takings']} взятий за {doors['window_days']} дн. дверью "
+            f"СТОРОЖА объявлено {doors['through_guard_door']} "
+            f"({doors['through_guard_door_pct']} %), ПИСАТЕЛЕМ напрямую "
+            f"{doors['by_writer_door_only']}; только сторож {by['guard_only']} · "
+            f"обе {by['both']} · только писатель {by['writer_only']}")
+        lines.append(f"[ОСЬ C] {doors['measures']}")
+        if doors.get("takings_without_measured_identity") or doors.get("timestamps_unparsed"):
+            lines.append(
+                f"[ОСЬ C · ДВЕРЬ НЕ ПРИПИСАНА] взятий предмета без измеренной личности "
+                f"{doors['takings_without_measured_identity']} · метка времени не "
+                f"разобрана у {doors['timestamps_unparsed']} — дверь у них НЕ ИЗМЕРЕНА, "
+                f"а не «писательская»; записей без предмета вовсе "
+                f"{doors['records_without_subject']} (взятием предмета не являются по "
+                f"построению и в знаменатель не идут)")
+    instruction = report.get("instruction_doors") or {}
+    if not instruction.get("measured"):
+        lines.append(f"[ОСЬ D] инструкция НЕ ИЗМЕРЕНА целиком — {instruction.get('reason')}")
+    for sname, surface in sorted((instruction.get("surfaces") or {}).items()):
+        if not surface.get("measured"):
+            lines.append(f"[ОСЬ D] {sname} ({surface['path']}): НЕ ИЗМЕРЕНО — "
+                         f"{surface.get('reason')}")
+            continue
+        lines.append(
+            f"[ОСЬ D] {sname} ({surface['path']}, {surface['read']}): "
+            f"{surface['verdict']} — дверь-квитанция `claim` "
+            f"{'названа' if surface['names_guard_claim'] else 'НЕ НАЗВАНА'}, "
+            f"писатель {'назван' if surface['names_writer'] else 'НЕ НАЗВАН'}, "
+            f"read-only `check` "
+            f"{'назван' if surface['names_guard_check_readonly'] else 'не назван'}")
+    if instruction.get("measures"):
+        lines.append(f"[ОСЬ D] {instruction['measures']}")
     if not wiring["measured"]:
         lines.append(f"[ПРОВОДКА] НЕ ИЗМЕРЕНО — {wiring['reason']}")
     else:

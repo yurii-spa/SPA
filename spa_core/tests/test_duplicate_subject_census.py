@@ -931,3 +931,609 @@ class TestProductionPathAlwaysAsks:
         assert got["retirement_unmeasured"] == 1
         assert got["liftability"] == {"tree_gone": 1}
         assert got["findings"][0]["trees"] == ["/tmp/spa_cGONE"]
+
+
+# ─────────── ось C: КАКОЙ ДВЕРЬЮ объявлено взятие (заказ G110 п. 2) ───────────
+
+def guard(*, ts_: str, pid: int, card: str = "inbox-card", files=()) -> dict:
+    """Запись, оставленная дверью СТОРОЖА: приставка — литерал прибора."""
+    return rec(ts_=ts_, pid=pid, card=card, files=files,
+               summary=f"{M._RECEIPT_PREFIX} захват карточки {card}")
+
+
+#: Отчёт оси B, собранный ТЕМ ЖЕ прибором. Тождество между осями обязано
+#: держаться на настоящем входе, а не на подогнанном словаре.
+def axis_b(records) -> dict:
+    return M.measure_receipts(records, now=NOW)
+
+
+class TestTakingDoors:
+    def test_two_numbers_instead_of_one(self):
+        """Предмет заказа: дверь сторожа и дверь писателя — РАЗНЫЕ числа.
+
+        Сцена несёт все три класса разбиения сразу, иначе «через сторожа» и
+        «обе» было бы нечем различить: равные счёты сделали бы подмену одного
+        класса другим невидимой.
+        """
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),             # только сторож
+                rec(ts_=ts(26), pid=2, card="inbox-b"),               # только писатель
+                rec(ts_=ts(27), pid=3, card="inbox-c"),               # обе…
+                guard(ts_=ts(27, 13), pid=3, card="inbox-c")]         # …вторая дверь
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["measured"] is True
+        assert got["window_takings"] == 3
+        assert got["through_guard_door"] == 2
+        assert got["by_writer_door_only"] == 1
+        assert got["by_door"] == {"guard_only": 1, "writer_only": 1, "both": 1,
+                                  "door_unrecognised": 0}
+
+    def test_the_headline_number_of_axis_b_is_the_writer_door(self):
+        """Ровно то утверждение, ради которого заказ поставлен: «без квитанции»
+        и «объявлено писательской дверью» — ОДНО И ТО ЖЕ число."""
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(26), pid=2, card="inbox-b"),
+                guard(ts_=ts(27), pid=3, card="inbox-c")]
+        b = axis_b(recs)
+        got = M.measure_taking_doors(recs, receipts=b, now=NOW)
+        assert b["window_takings_without_receipt"] == 2
+        assert got["by_writer_door_only"] == b["window_takings_without_receipt"]
+        assert got["axis_b_identity"]["holds"] is True
+
+    def test_the_axis_refuses_when_the_two_copies_of_the_measure_disagree(self):
+        """Второй экземпляр мерки обязан расходиться ГРОМКО (ADR-220).
+
+        Снять сверку — и ось напечатала бы свои числа рядом с чужими, не имея
+        права утверждать, что они про одно и то же население.
+        """
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        tampered = dict(axis_b(recs))
+        tampered["window_takings_without_receipt"] = 99
+        got = M.measure_taking_doors(recs, receipts=tampered, now=NOW)
+        assert got["measured"] is False
+        assert got["reason"] == (
+            "тождество с осью B НЕ держится: «без квитанции» 99 при моих 1 "
+            "писательских, взятий 1 при моих 1 — два экземпляра мерки разошлись")
+        assert got["axis_b_identity"]["holds"] is False
+
+    def test_a_disagreeing_population_is_caught_too(self):
+        """Расхождение бывает не только в находке, но и в ЗНАМЕНАТЕЛЕ."""
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        tampered = dict(axis_b(recs))
+        tampered["window_takings"] = 7
+        got = M.measure_taking_doors(recs, receipts=tampered, now=NOW)
+        assert got["measured"] is False
+        assert got["reason"] == (
+            "тождество с осью B НЕ держится: «без квитанции» 1 при моих 1 "
+            "писательских, взятий 7 при моих 1 — два экземпляра мерки разошлись")
+
+    def test_axis_b_without_numbers_is_the_third_outcome(self):
+        """Сосед не дал чисел ⇒ сверить нечем, и это НЕ «сошлось»."""
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts={}, now=NOW)
+        assert got["measured"] is False
+        assert "не несёт чисел взятий" in got["reason"]
+
+    def test_an_empty_window_is_not_one_door(self):
+        """Ноль взятий ⇒ «вся дверь писательская» верно ПО ПОСТРОЕНИЮ."""
+        recs = [rec(ts_=OLD, pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["measured"] is False
+        # Сообщение сверяется ЦЕЛИКОМ: проверка по подстроке переживает любую
+        # правку соседнего куска, и числа, которыми третий исход объясняется,
+        # могут из него молча уйти.
+        assert got["reason"] == (
+            "в окне 30 дн. ни одного взятия предмета с измеренной личностью "
+            "(записей без предмета 0, взятий без измеренной личности 0, метка "
+            "не разобрана у 0) — дверь НЕ ИЗМЕРЕНА, а не одна")
+
+    def test_a_rule_that_is_not_total_makes_the_axis_refuse(self):
+        """Правило двери — ВХОД, и его тотальность прибор не предполагает.
+
+        Контроль нераспознанной двери: без отказа ось поделила бы население на
+        НЕПОЛНОМ разбиении и напечатала бы долю, которой не меряла.
+        """
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(27), pid=2, card="inbox-b")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW,
+                                     door=lambda summary: None)
+        assert got["measured"] is False
+        assert got["reason"] == (
+            "у 2 из 2 взятий дверь НЕ РАСПОЗНАНА, хотя у настоящего правила это "
+            "невозможно — переданное правило двери не тотально; доля двери была бы "
+            "вычислена по неполному населению")
+        assert got["by_door"]["door_unrecognised"] == 2
+        assert len(got["door_unrecognised_examples"]) == 2
+        assert got["through_guard_door_pct"] is None
+
+    def test_the_real_rule_is_total(self):
+        """Обратная сторона: НАСТОЯЩЕЕ правило `None` не отдаёт никогда.
+
+        Иначе отказ выше краснел бы на боевом пути, и его пришлось бы снять.
+        """
+        for summary in ("", "работа", M._RECEIPT_PREFIX,
+                        f"{M._RECEIPT_PREFIX} захват", f" {M._RECEIPT_PREFIX}",
+                        "[check_card_claim]х", "цикл #819 берёт заказ"):
+            assert M.door_of(summary) in {M.DOOR_GUARD, M.DOOR_WRITER}
+
+    def test_a_release_is_not_a_taking(self):
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a", state="done")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["window_takings"] == 0 and got["measured"] is False
+
+    def test_a_guard_receipt_outside_the_window_still_names_the_door(self):
+        """Сторона сторожа берётся по ВСЕЙ истории — как у оси B.
+
+        Сузить её до окна значило бы разойтись с соседом молча: квитанция,
+        оставленная за минуту до края, квитанцией быть не перестаёт.
+        """
+        recs = [guard(ts_=OLD, pid=1, card="inbox-a"),
+                rec(ts_=ts(27), pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["measured"] is True
+        assert got["by_door"]["both"] == 1 and got["by_writer_door_only"] == 0
+
+    def test_a_record_without_a_subject_is_not_a_taking_of_one(self):
+        """Объявление владения файлами БЕЗ карточки взятием предмета не
+        является по построению — и в знаменатель идти не вправе."""
+        recs = [rec(ts_=ts(26), card=None), rec(ts_=ts(27), pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["records_without_subject"] == 1
+        assert got["takings_without_measured_identity"] == 0
+        assert got["window_takings"] == 1
+
+    def test_a_taking_whose_identity_is_not_measured_is_its_own_number(self):
+        """Обратная сторона той же пары: предмет назван, а личности нет.
+
+        Это НАСТОЯЩЕЕ взятие, чью дверь приписать некому. Слить его с записями
+        без предмета — и четырнадцать таких спрятались бы за ста двадцатью
+        пятью (замер на живом журнале 09.10).
+        """
+        recs = [rec(ts_=ts(26), pid=None, start=None, card="inbox-a"),
+                rec(ts_=ts(27), pid=1, card="inbox-b")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["takings_without_measured_identity"] == 1
+        assert got["records_without_subject"] == 0
+        assert got["window_takings"] == 1
+
+    def test_an_unparsed_timestamp_is_its_own_number(self):
+        recs = [rec(ts_=ts(27), pid=1, card="inbox-a")]
+        recs.append({"ts": "не дата", "card": "inbox-b", "card_state": "claim",
+                     "session_pid": 2, "session_pid_start": "Mon Sep 28 10:00:00 2026",
+                     "summary": "работа", "files": []})
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["timestamps_unparsed"] == 1 and got["window_takings"] == 1
+
+    def test_the_share_is_computed_on_the_window_population(self):
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(26), pid=2, card="inbox-b"),
+                rec(ts_=ts(26), pid=3, card="inbox-c"),
+                rec(ts_=ts(26), pid=4, card="inbox-d")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["through_guard_door_pct"] == 25.0
+
+
+# ──────── ось D: называет ли дверь-квитанцию сама ИНСТРУКЦИЯ (G110 п. 2) ───────
+
+def _instruction_tree(tmp_path: Path, *, prompt: str | None,
+                      around: str = "", protocol: str = "") -> Path:
+    """Дерево с двумя поверхностями инструкции. ``prompt=None`` — присваивания нет."""
+    root = tmp_path / "tree"
+    (root / "scripts").mkdir(parents=True)
+    (root / "docs").mkdir(parents=True)
+    body = around if prompt is None else f'{around}PROMPT="{prompt}"\n'
+    (root / "scripts" / "agent_orchestrator.sh").write_text(body, encoding="utf-8")
+    (root / "docs" / "ORCHESTRATOR_PROTOCOL.md").write_text(protocol, encoding="utf-8")
+    return root
+
+
+class TestInstructionDoors:
+    def test_the_prompt_body_is_read_and_not_the_whole_file(self, tmp_path):
+        """Положительный контроль ловушки «проза, называющая предмет».
+
+        Комментарий скрипта сессии НЕ достаётся. Прибор, считающий вхождения в
+        ФАЙЛЕ, объявил бы дверь названной там, где цикл её не видит.
+        """
+        root = _instruction_tree(
+            tmp_path,
+            around="# см. scripts/check_card_claim.py claim — дверь квитанции\n",
+            prompt="объяви владение (scripts/log_session_change.py) до правок")
+        got = M.measure_instruction_doors(root)
+        surface = got["surfaces"]["prompt_orchestrator"]
+        assert surface["measured"] is True
+        assert surface["verdict"] == "names_writer_only"
+        assert surface["names_guard_claim"] is False
+
+    def test_the_guard_door_in_the_prompt_is_seen(self, tmp_path):
+        """Обратная сторона: дверь, названная В ПРОМПТЕ, прибор видит."""
+        root = _instruction_tree(
+            tmp_path,
+            prompt="взяв карточку — scripts/check_card_claim.py claim <карточка>")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_guard_claim_only"
+
+    def test_read_only_check_is_not_the_receipt_door(self, tmp_path):
+        """`check` квитанции НЕ оставляет (ADR-535, ответ 3) — значит дверью
+        квитанции он не является, и назвать его не значит назвать её."""
+        root = _instruction_tree(
+            tmp_path, prompt="перед взятием — scripts/check_card_claim.py check <карточка>")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_neither"
+        assert surface["names_guard_check_readonly"] is True
+        assert surface["names_guard_claim"] is False
+
+    def test_both_doors_named_is_its_own_class(self, tmp_path):
+        root = _instruction_tree(
+            tmp_path,
+            prompt="scripts/check_card_claim.py claim, затем scripts/log_session_change.py")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_both"
+
+    def test_neither_door_named_is_its_own_class(self, tmp_path):
+        root = _instruction_tree(tmp_path, prompt="сделай что-нибудь полезное")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_neither"
+
+    def test_a_shell_line_continuation_is_not_text_of_the_prompt(self, tmp_path):
+        r"""Оболочка склеивает строку по `\` + перевод — и прибор обязан тоже.
+
+        Иначе литерал, разорванный переносом, читался бы как ненайденный, и
+        дверь объявлялась бы неназванной там, где она названа.
+        """
+        root = _instruction_tree(
+            tmp_path, prompt="взяв карточку: scripts/check_card_claim.py cl\\\naim")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_guard_claim_only"
+
+    def test_an_escaped_quote_does_not_end_the_prompt(self, tmp_path):
+        root = _instruction_tree(
+            tmp_path,
+            prompt='скажи \\"готово\\" и зови scripts/check_card_claim.py claim')
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["verdict"] == "names_guard_claim_only"
+
+    def test_a_file_without_a_prompt_assignment_is_the_third_outcome(self, tmp_path):
+        root = _instruction_tree(tmp_path, prompt=None,
+                                 around="echo 'переписали скрипт'\n")
+        got = M.measure_instruction_doors(root)
+        surface = got["surfaces"]["prompt_orchestrator"]
+        assert surface["measured"] is False and surface["verdict"] is None
+        assert "нет строки" in surface["reason"]
+        assert got["measured"] is False
+
+    def test_an_unclosed_prompt_assignment_is_the_third_outcome(self, tmp_path):
+        root = tmp_path / "tree"
+        (root / "scripts").mkdir(parents=True)
+        (root / "docs").mkdir(parents=True)
+        (root / "scripts" / "agent_orchestrator.sh").write_text(
+            'PROMPT="зови scripts/check_card_claim.py claim\n', encoding="utf-8")
+        (root / "docs" / "ORCHESTRATOR_PROTOCOL.md").write_text("x\n", encoding="utf-8")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["measured"] is False and "не закрыто" in surface["reason"]
+
+    def test_a_missing_surface_is_unmeasured_not_clean(self, tmp_path):
+        root = tmp_path / "empty"
+        root.mkdir()
+        got = M.measure_instruction_doors(root)
+        assert got["measured"] is False
+        assert "прочитано 0 из 2" in got["reason"]
+        assert all(s["measured"] is False for s in got["surfaces"].values())
+        for surface in got["surfaces"].values():
+            assert surface["reason"].startswith("не прочитан: FileNotFoundError: ")
+
+    def test_one_surface_alone_does_not_measure_the_instruction(self, tmp_path):
+        """Одной поверхности мало: промпт и документ — РАЗНЫЕ утверждения."""
+        root = tmp_path / "half"
+        (root / "scripts").mkdir(parents=True)
+        (root / "scripts" / "agent_orchestrator.sh").write_text(
+            'PROMPT="scripts/log_session_change.py"\n', encoding="utf-8")
+        got = M.measure_instruction_doors(root)
+        assert got["measured"] is False and "прочитано 1 из 2" in got["reason"]
+
+    def test_the_document_is_read_whole(self, tmp_path):
+        """У документа тела промпта нет — он читается целиком, и это объявлено."""
+        root = _instruction_tree(
+            tmp_path, prompt="x",
+            protocol="Взяв карточку: `python3 scripts/check_card_claim.py claim <карточка>`\n")
+        surface = M.measure_instruction_doors(root)["surfaces"]["protocol_document"]
+        assert surface["read"] == "whole"
+        assert surface["verdict"] == "names_guard_claim_only"
+
+    def test_the_real_tree_reaches_both_surfaces(self):
+        """Боевой контроль ПРОВОДКИ, а не вердикта.
+
+        Утверждать здесь «промпт двери не называет» значило бы покраснеть от
+        ПОЧИНКИ промпта — то есть запретить ровно тот исход, которого заказ и
+        добивается. Поэтому меряется достижимость обеих поверхностей и
+        закрытость перечня классов.
+        """
+        root = Path(M.__file__).resolve().parents[2]
+        got = M.measure_instruction_doors(root)
+        assert got["measured"] is True, got["reason"]
+        assert set(got["surfaces"]) == {"prompt_orchestrator", "protocol_document"}
+        for surface in got["surfaces"].values():
+            assert surface["verdict"] in {"names_both", "names_guard_claim_only",
+                                          "names_writer_only", "names_neither"}
+
+
+class TestDoorsInTheReport:
+    def test_both_axes_reach_the_report_and_the_reader(self, tmp_path):
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(27), pid=2, card="inbox-b", files=["/t/scripts/keep.py"])]
+        root, data = _scene(tmp_path, recs, {
+            "scripts/keep.py": "x\n",
+            "scripts/agent_orchestrator.sh": 'PROMPT="scripts/log_session_change.py"\n',
+            "docs/ORCHESTRATOR_PROTOCOL.md": "scripts/check_card_claim.py claim\n"})
+        report = M.run_census(data, repo_root=root, base_ref="main", now=NOW)
+        assert report["doors"]["measured"] is True
+        assert report["doors"]["through_guard_door"] == 1
+        assert report["doors"]["by_writer_door_only"] == 1
+        assert report["instruction_doors"]["measured"] is True
+        text = "\n".join(M.format_report(report))
+        assert "[ОСЬ C]" in text and "[ОСЬ D]" in text
+        assert "дверью СТОРОЖА объявлено 1" in text
+        assert "ПИСАТЕЛЕМ напрямую 1" in text
+
+    def test_the_keys_are_declared_even_on_the_unmeasured_path(self, tmp_path):
+        """Инв. #17: «не вычислено» представлено `None`, а не отсутствием ключа —
+        иначе шаг 0-офис не отличит уехавшего производителя от пустого такта."""
+        root = _repo(tmp_path, {"scripts/a.py": "x\n"})
+        report = M.run_census(root / "data", repo_root=root, base_ref="main", now=NOW)
+        assert report["measured"] is False
+        assert report["doors"] is None and report["instruction_doors"] is None
+
+    def test_an_unmeasured_door_axis_is_named_by_the_reader(self, tmp_path):
+        """Третий исход оси C обязан ДОЕХАТЬ до читателя словами, а не молчанием."""
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(27), pid=2, card="inbox-b", files=["/t/scripts/keep.py"])]
+        root, data = _scene(tmp_path, recs, {"scripts/keep.py": "x\n"})
+        report = M.run_census(data, repo_root=root, base_ref="main", now=NOW)
+        assert report["measured"] is True
+        report["doors"] = {"measured": False, "reason": "сцена отказа"}
+        text = "\n".join(M.format_report(report))
+        assert "[ОСЬ C] дверь взятия НЕ ИЗМЕРЕНА — сцена отказа" in text
+
+    def test_the_status_of_the_class_is_not_touched_by_the_new_axes(self, tmp_path):
+        """Оси C и D ОБЪЯСНЯЮТ число, а не судят по нему: вердикт класса
+        остаётся на осях A и B (инв. #16 — усиливать нечего, ослаблять нельзя)."""
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a",
+                      files=["/t/scripts/keep.py"]),
+                guard(ts_=ts(27), pid=2, card="inbox-a",
+                      files=["/t/scripts/keep.py"])]
+        root, data = _scene(tmp_path, recs, {"scripts/keep.py": "x\n"})
+        report = M.run_census(data, repo_root=root, base_ref="main", now=NOW)
+        assert report["receipts"]["window_takings_without_receipt"] == 0
+        assert report["doors"]["by_writer_door_only"] == 0
+        assert report["status"] == M.STATUS_CLOSED
+
+
+# ───── разбор тела промпта: мутанты требуют СОДЕРЖИМОГО, а не вердикта ─────
+
+class TestPromptBody:
+    """Вердикт оси D грубее разбора: мутант, сдвинувший тело на символ, вердикта
+    не меняет, потому что литерал двери всё равно остаётся внутри. Поэтому
+    тело сверяется ДОСЛОВНО — иначе звенья разбора проверены не были."""
+
+    def test_the_body_is_exactly_the_assignment(self):
+        assert M._prompt_body('PROMPT="возьми карточку"\n') == ("возьми карточку", None)
+
+    def test_lines_before_the_assignment_do_not_shift_the_body(self):
+        """Контроль смещения: `offset` обязан считаться ВПЕРЁД по длине строк."""
+        text = "#!/bin/sh\n# комментарий\nexport X=1\nPROMPT=\"тело\"\n"
+        assert M._prompt_body(text) == ("тело", None)
+
+    def test_the_first_assignment_wins(self):
+        """Контроль выхода из поиска: берётся ПЕРВОЕ присваивание.
+
+        Без выхода решал бы ПОСЛЕДНИЙ, и отладочный `PROMPT=` в хвосте скрипта
+        подменил бы собой текст, который цикл получает.
+        """
+        text = 'PROMPT="первое"\necho x\nPROMPT="второе"\n'
+        assert M._prompt_body(text) == ("первое", None)
+
+    def test_a_shell_continuation_is_dropped_from_the_body(self):
+        assert M._prompt_body('PROMPT="ле\\\nво"\n') == ("лево", None)
+
+    def test_an_escaped_character_enters_the_body_without_its_backslash(self):
+        assert M._prompt_body('PROMPT="скажи \\"да\\""\n') == ('скажи "да"', None)
+
+    def test_an_escape_at_the_very_end_is_still_an_escape(self):
+        assert M._prompt_body('PROMPT="a\\""') == ('a"', None)
+
+    def test_the_escape_look_ahead_is_exactly_one_character(self):
+        r"""Край, который только и отличает `i + 1` от `i + 2`: косая стои́т на
+        предпоследнем символе ТЕКСТА, то есть экранирует последний.
+
+        Заглянув на символ дальше, разбор сочтёт косую обычным символом, съест
+        её в тело и объявит присваивание ЗАКРЫТЫМ на той самой кавычке, которую
+        она экранирует — то есть вернёт тело вместо честного отказа. Мутационный
+        замер пережил прежнюю сцену именно потому, что в ней обе проверки
+        совпадали.
+        """
+        text = 'PROMPT="a\\"'
+        assert len(text) == 11 and text[-2] == "\\"
+        assert M._prompt_body(text) == (None, 'присваивание `PROMPT="…"` не закрыто кавычкой')
+
+    def test_a_body_that_does_not_advance_is_the_third_outcome(self):
+        """Положительный контроль ограничителя: потолок — ВХОД.
+
+        Мутационный замер подвесил батарею на обоих `i += 2`; цикл без
+        ограничителя не краснеет, а ИСЧЕЗАЕТ из вердикта.
+        """
+        body, reason = M._prompt_body('PROMPT="длинное тело"\n', max_steps=2)
+        assert body is None
+        assert reason == ('разбор `PROMPT="…"` не продвигается: 3 шагов при '
+                          'потолке 2 — тело промпта НЕ ИЗМЕРЕНО')
+
+    def test_the_default_ceiling_does_not_bite_the_real_text(self):
+        """Обратная сторона: потолок по умолчанию настоящий разбор НЕ трогает."""
+        root = Path(M.__file__).resolve().parents[2]
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert surface["measured"] is True, surface.get("reason")
+
+    def test_the_ceiling_reaches_the_axis_as_an_input(self):
+        """Ограничитель обязан ДОЕЗЖАТЬ до оси: иначе контроль не достаёт до
+        читателя, и третий исход остаётся недостижимым на боевом пути."""
+        root = Path(M.__file__).resolve().parents[2]
+        got = M.measure_instruction_doors(root, max_steps=1)
+        surface = got["surfaces"]["prompt_orchestrator"]
+        assert surface["measured"] is False and got["measured"] is False
+        assert "не продвигается" in surface["reason"]
+
+
+# ───── звенья оси C, которых не доставали сцены первого прогона мутаций ─────
+
+class TestTakingDoorsLinks:
+    def test_a_naive_timestamp_is_still_in_the_window(self):
+        """Отметка без зоны обязана читаться как UTC, а не ронять сравнение."""
+        recs = [rec(ts_=f"{ts(27)[:-1]}", pid=1, card="inbox-a")]
+        assert not recs[0]["ts"].endswith("Z")
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["window_takings"] == 1 and got["by_writer_door_only"] == 1
+
+    def test_axis_b_with_only_the_finding_is_still_the_third_outcome(self):
+        """Половина чисел соседа — не половина сверки, а её отсутствие."""
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts={"window_takings_without_receipt": 1},
+                                     now=NOW)
+        assert got["measured"] is False and "не несёт чисел взятий" in got["reason"]
+
+    def test_axis_b_with_only_the_population_is_still_the_third_outcome(self):
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        got = M.measure_taking_doors(recs, receipts={"window_takings": 1}, now=NOW)
+        assert got["measured"] is False and "не несёт чисел взятий" in got["reason"]
+
+    def test_the_share_is_rounded_to_two_places(self):
+        """Точность доли объявлена, а не случайна: 1 из 3 обязана печататься
+        как 33.33, иначе «6,41 %» в решении не воспроизводимо."""
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(26), pid=2, card="inbox-b"),
+                rec(ts_=ts(26), pid=3, card="inbox-c")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW)
+        assert got["through_guard_door_pct"] == 33.33
+
+    def test_the_examples_name_the_subject_and_the_anchor(self):
+        """Пример обязан называть ПРЕДМЕТ и ЛИЧНОСТЬ, а не любые два поля пары."""
+        recs = [rec(ts_=ts(26), pid=77, card="inbox-я")]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW,
+                                     door=lambda summary: None)
+        assert got["door_unrecognised_examples"] == [
+            {"subject": "inbox-я", "anchor_pid": 77, "at": ts(26)}]
+
+    def test_the_examples_are_capped_and_the_cap_is_the_declared_one(self):
+        """Потолок примеров — 20, и он проверен ПЕРЕПОЛНЕНИЕМ, а не доверием."""
+        recs = [rec(ts_=ts(26), pid=n, card=f"inbox-{n}") for n in range(1, 22)]
+        got = M.measure_taking_doors(recs, receipts=axis_b(recs), now=NOW,
+                                     door=lambda summary: None)
+        assert got["by_door"]["door_unrecognised"] == 21
+        assert len(got["door_unrecognised_examples"]) == 20
+
+
+# ──── форма отчёта: ключи сверяются с ЛИТЕРАЛАМИ, а не сами с собой ────
+
+#: Полный набор ключей раздела `doors` — ЛИТЕРАЛ, а не вычисленный из кода.
+#: Мутационный замер назвал класс: ключ, переименованный в НАЧАЛЬНОМ словаре,
+#: тесты по значению ПЕРЕЖИВАЕТ (позднее присваивание создаёт верный), а третий
+#: исход остаётся без поля — и читатель больше не отличит «производитель уехал»
+#: от «в этот раз не считалось» (инв. #17). Сверка с перечнем это ловит.
+DOORS_KEYS = {
+    "window_days", "window_from", "measured", "reason", "window_takings",
+    "through_guard_door", "by_writer_door_only", "through_guard_door_pct",
+    "by_door", "timestamps_unparsed", "records_without_subject",
+    "takings_without_measured_identity", "axis_b_identity",
+    "door_unrecognised_examples", "measures",
+}
+BY_DOOR_KEYS = {"guard_only", "writer_only", "both", "door_unrecognised"}
+IDENTITY_KEYS = {"neighbour_without_receipt", "neighbour_window_takings",
+                 "my_writer_door_only", "my_window_takings", "holds"}
+INSTRUCTION_KEYS = {"measured", "reason", "surfaces", "surfaces_declared", "measures"}
+SURFACE_KEYS = {"path", "read", "measured", "reason", "verdict", "names_guard_claim",
+                "names_writer", "names_guard_check_readonly", "chars"}
+
+
+class TestReportShapeIsConstant:
+    #: Часовой `or`-ловушки в СВОЁМ помощнике: пустой словарь соседа ложен, и
+    #: `kw.pop(...) or axis_b(...)` подменил бы его настоящим отчётом — третий
+    #: исход стал бы недостижим из теста (инв. #17 в миниатюре).
+    _NOT_GIVEN = object()
+
+    def _doors(self, **kw):
+        recs = kw.pop("recs")
+        receipts = kw.pop("receipts", self._NOT_GIVEN)
+        if receipts is self._NOT_GIVEN:
+            receipts = axis_b(recs)
+        return M.measure_taking_doors(recs, receipts=receipts, now=NOW, **kw)
+
+    def test_the_measured_section_declares_exactly_these_keys(self):
+        recs = [guard(ts_=ts(26), pid=1, card="inbox-a"),
+                rec(ts_=ts(27), pid=2, card="inbox-b")]
+        got = self._doors(recs=recs)
+        assert got["measured"] is True
+        assert set(got) == DOORS_KEYS
+        assert set(got["by_door"]) == BY_DOOR_KEYS
+        assert set(got["axis_b_identity"]) == IDENTITY_KEYS
+
+    def test_an_empty_window_declares_the_same_keys(self):
+        got = self._doors(recs=[rec(ts_=OLD, pid=1, card="inbox-a")])
+        assert got["measured"] is False and set(got) == DOORS_KEYS
+
+    def test_a_non_total_rule_declares_the_same_keys(self):
+        got = self._doors(recs=[rec(ts_=ts(26), pid=1, card="inbox-a")],
+                          door=lambda summary: None)
+        assert got["measured"] is False and set(got) == DOORS_KEYS
+
+    def test_a_disagreeing_neighbour_declares_the_same_keys(self):
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        got = self._doors(recs=recs, receipts={"window_takings": 1,
+                                               "window_takings_without_receipt": 9})
+        assert got["measured"] is False and set(got) == DOORS_KEYS
+        assert set(got["axis_b_identity"]) == IDENTITY_KEYS
+
+    def test_a_numberless_neighbour_declares_the_same_keys(self):
+        got = self._doors(recs=[rec(ts_=ts(26), pid=1, card="inbox-a")], receipts={})
+        assert got["measured"] is False and set(got) == DOORS_KEYS
+
+    def test_the_instruction_axis_declares_exactly_these_keys(self, tmp_path):
+        root = _instruction_tree(tmp_path, prompt="scripts/log_session_change.py")
+        got = M.measure_instruction_doors(root)
+        assert set(got) == INSTRUCTION_KEYS
+        assert set(got["surfaces"]["prompt_orchestrator"]) == SURFACE_KEYS
+
+    def test_an_unread_surface_declares_the_same_keys_with_none(self, tmp_path):
+        """Поверхность, которой нет, обязана нести ТОТ ЖЕ набор ключей со `None`:
+        иначе «не прочитана» и «поле не пишется» слипаются (инв. #17)."""
+        root = tmp_path / "empty"
+        root.mkdir()
+        got = M.measure_instruction_doors(root)
+        for surface in got["surfaces"].values():
+            assert set(surface) == SURFACE_KEYS
+            assert surface["names_guard_claim"] is None
+            assert surface["names_writer"] is None
+            assert surface["names_guard_check_readonly"] is None
+            assert surface["chars"] is None
+
+    def test_a_prompt_without_an_assignment_declares_the_same_keys(self, tmp_path):
+        root = _instruction_tree(tmp_path, prompt=None, around="echo x\n")
+        surface = M.measure_instruction_doors(root)["surfaces"]["prompt_orchestrator"]
+        assert set(surface) == SURFACE_KEYS and surface["verdict"] is None
+
+    def test_the_declared_surface_count_is_the_closed_list(self, tmp_path):
+        root = _instruction_tree(tmp_path, prompt="x")
+        got = M.measure_instruction_doors(root)
+        assert got["surfaces_declared"] == len(M._INSTRUCTION_SURFACES) == 2
+        assert set(got["surfaces"]) == {name for name, _, _ in M._INSTRUCTION_SURFACES}
+
+    def test_the_door_rule_names_are_the_declared_two(self):
+        """Ярлыки дверей — контракт отчёта, и их значения сверены с литералами."""
+        assert (M.DOOR_GUARD, M.DOOR_WRITER) == ("guard", "writer")
+        assert set(M._DOOR_TOKENS) == {M.DOOR_GUARD, M.DOOR_WRITER}
+        assert M._DOOR_TOKENS[M.DOOR_GUARD] == "check_card_claim.py claim"
+        assert M._DOOR_TOKENS[M.DOOR_WRITER] == "log_session_change.py"
+        assert M._GUARD_CHECK_TOKEN == "check_card_claim.py check"
+
+    def test_the_window_edge_is_reported_as_the_stamp_it_was_cut_at(self):
+        """`window_from` — не украшение: без края читатель не воспроизведёт
+        население, а значит и долю двери."""
+        recs = [rec(ts_=ts(26), pid=1, card="inbox-a")]
+        got = self._doors(recs=recs)
+        assert got["window_from"] == "2026-08-29T12:00:00Z"
+        assert got["window_days"] == 30

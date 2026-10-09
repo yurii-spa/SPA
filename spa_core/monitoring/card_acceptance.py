@@ -4050,10 +4050,35 @@ def _probe_subject_taking_leaves_a_guard_receipt(
         return UNMEASURED, (f"в окне {receipts.get('window_days')} дн. ни одного взятия "
                             f"предмета: «квитанция есть у всех» верно по построению")
     price = report.get("price") if isinstance(report.get("price"), dict) else {}
+    # Вердикт пробы НЕ меняется (инв. #16) — к нему добавляется то, что число
+    # `without` РЕАЛЬНО меряет. Заказ G110 п. 2: «не оставили квитанции» есть
+    # замер ДВЕРИ объявления, а не вопроса «спрашивали ли сторожа» — read-only
+    # `check` следа не оставляет вовсе. Без этой приписки проба обвиняет сессии
+    # в том, что предписывает им инструкция.
+    doors = report.get("doors") if isinstance(report.get("doors"), dict) else {}
+    instruction = (report.get("instruction_doors")
+                   if isinstance(report.get("instruction_doors"), dict) else {})
+    if doors.get("measured"):
+        prompt = ((instruction.get("surfaces") or {}).get("prompt_orchestrator")
+                  if isinstance(instruction.get("surfaces"), dict) else None)
+        if isinstance(prompt, dict) and prompt.get("measured"):
+            named = ("НАЗЫВАЕТ" if prompt.get("names_guard_claim") else "НЕ НАЗЫВАЕТ")
+            instruction_note = (f"; промпт цикла ({prompt.get('path')}) дверь-квитанцию "
+                                f"`claim` {named}")
+        else:
+            instruction_note = ("; называет ли дверь-квитанцию промпт цикла — "
+                                "НЕ ИЗМЕРЕНО")
+        door_note = (f" (дверью сторожа объявлено {doors.get('through_guard_door')}, "
+                     f"писателем напрямую {doors.get('by_writer_door_only')} — число "
+                     f"ниже меряет ДВЕРЬ объявления, а не обращение к сторожу"
+                     f"{instruction_note})")
+    else:
+        door_note = (f" (какой ДВЕРЬЮ объявлены взятия — НЕ ИЗМЕРЕНО: "
+                     f"{doors.get('reason')})")
     if without > 0:
         return NOT_SATISFIED, (
             f"{without} из {takings} взятий предмета за {receipts.get('window_days')} дн. "
-            f"не оставили квитанции сторожа захвата; цена класса на сегодня — "
+            f"не оставили квитанции сторожа захвата{door_note}; цена класса на сегодня — "
             f"{price.get('lost_coordinates')} координат(ы), сделанных двумя и более "
             f"сессиями и не доехавших ни до одной, {price.get('sessions_on_lost_coordinates')} "
             f"сессий(я)")
