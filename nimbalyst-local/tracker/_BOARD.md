@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-09T04:50:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-09T11:27:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c497689be) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e91b2c61a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1280** · ждёт владельца: **14** · занято сессиями: **14**.
+> Всего карточек: **1283** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -406,7 +406,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (684)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (687)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -882,6 +882,7 @@
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23
 - Девять красных в CI с разными причинами: разобрать поимённо, числа в базы не дописывать  ·  `inbox-devyat-krasnyh-v-ci-s-raznymi-prichinami.md` · 2026-09-26
 - Девять мутантов в печати сводки §49 выжили: тесты проверяют наличие строки, а не её значение  ·  `inbox-devyat-mutantov-v-pechati-svodki-49-vyzh.md` · 2026-10-04
+- Девять случаев набора идут без срока: зонд часов гасит ITIMER_REAL прогона (заказ G676 п. 1)  ·  `inbox-devyat-sluchaev-nabora-idut-bez-sroka-zo.md` · 2026-10-09
 - Девять сторожей зелены без своего входа — чинить по одному  ·  `inbox-devyat-storozhei-zeleny-bez-svoego-vhoda.md` · 2026-09-19
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
@@ -975,6 +976,7 @@
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07
+- Перепись читателей не укладывается в порог шага: два срока в одной дороге спорят (900 с против 180 с)  ·  `inbox-perepis-chitatelei-ne-ukladyvaetsya-v-po.md` · 2026-10-09
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
@@ -1084,6 +1086,7 @@
 - Тяжёлый прогон из необъявленного дерева занимает слот допуска, и заказчика назвать нечем  ·  `inbox-tyazhelyi-progon-iz-neobyavlennogo-derev.md` · 2026-10-07
 - У AST-сторожа инварианта №3 нет своей ступени: артефакт есть, наблюдения за ним нет  ·  `inbox-u-ast-storozha-invarianta-3-net-svoei-st.md` · 2026-10-07
 - У журналов агентов в /tmp нет предела размера — один снова вырос до 2,3 ГБ  ·  `inbox-u-zhurnalov-agentov-v-tmp-net-predela-ra.md` · 2026-10-08
+- Убитый прогон переписи оставляет МУТАНТ чужого модуля в рабочем дереве: форсированный исходник пишется сквозь символическую ссылку  ·  `inbox-ubityi-progon-perepisi-ostavlyaet-mutant.md` · 2026-10-09
 - Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30

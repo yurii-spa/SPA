@@ -325,6 +325,34 @@ def format_causes(junit: Path, stream: Path | None) -> str:
     return format_census(census_from_path(junit, stream=stream))
 
 
+def format_doors(stream: Path | None) -> str:
+    """Какие случаи ПЕРЕЖИЛИ порог `--timeout` и чем (ADR-676, заказ G108 п. 2).
+
+    Четвёртый вопрос к той же записи, и он не про бюджет: случай, закончившийся
+    `ok` дольше порога, и случай, не вернувшийся ВОВСЕ, — это два разных отказа
+    механизма срока, и ни один из них не виден ни в вердикте шага, ни в раскладке
+    времени. Печатается рядом с ними, потому что «шаг не дошёл до конца» и «один
+    случай съел срок и не отдал его» читаются по одному и тому же логу.
+
+    Ввоз внутри функции и по той же причине, что у ``format_time``: скрипт обязан
+    оставаться запускаемым оттуда, где пакета нет на пути ввоза, а отсутствие
+    переписи — НАЗВАННЫЙ третий исход, не молчание.
+    """
+    if stream is None:
+        return ("   дверь срока: НЕ ИЗМЕРЕНА — потоковой записи не передано "
+                "(`--stream`), а порог объявлен только в ней")
+    root = str(Path(__file__).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from spa_core.monitoring.timeout_door_census import (
+            format_population, population_from_stream)
+    except ImportError as exc:                               # pragma: no cover - среда
+        return (f"   дверь срока: НЕ ИЗМЕРЕНА — перепись не ввезена "
+                f"(spa_core.monitoring.timeout_door_census): {exc}")
+    return format_population(population_from_stream(stream))
+
+
 def format_verdict(verdict: Verdict, *, label: str) -> str:
     """Человекочитаемая строка для лога Actions. Исход — первым словом."""
     head = f"{verdict.label} — {label}"
@@ -396,6 +424,11 @@ def main(argv: list[str] | None = None) -> int:
     # остаётся у читателя в голове, а решение «брать ли красный набор» он
     # принимает по первому числу (ADR-675).
     print(format_causes(args.junit, args.stream))
+    # Четвёртый вопрос: действовал ли вообще порог `--timeout` на те случаи, что
+    # его достигли. Печатается ВСЕГДА и рядом с раскладкой времени: «шаг не влез»
+    # и «срок у случая был снят его же кодом» дают один и тот же лог, а лечатся
+    # по-разному (ADR-676).
+    print(format_doors(args.stream))
     # Код возврата берётся у ОДНОГО источника. Потоковая запись его не трогает ни в
     # какую сторону: иначе «успели 80 тысяч, все зелёные» стало бы вердиктом о наборе.
     return verdict.rc

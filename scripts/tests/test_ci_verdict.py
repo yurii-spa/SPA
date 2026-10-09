@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 import textwrap
@@ -283,3 +284,40 @@ def test_an_absent_record_says_NOT_MEASURED_and_claims_no_zero(tmp_path: Path) -
     out = cv.format_causes(tmp_path / "нет-такого.xml", None)
     assert "НЕ ИЗМЕРЕНО" in out
     assert "провалов 0" not in out
+
+
+# ── ADR-676 (заказ G108 п. 2): дверь срока печатается ТЕМ ЖЕ логом ────────────
+# Шаг, у которого один случай съел срок и не вернул его, и шаг, не влезший в
+# бюджет, дают один и тот же лог Actions — а лечатся они по-разному. Поэтому
+# четвёртый вопрос стои́т рядом с раскладкой времени, а не в отдельном приборе,
+# который никто не зовёт.
+
+def _stream_with_a_case_that_never_returned(tmp_path: Path) -> Path:
+    rows = [
+        {"e": "session", "args": ["--timeout=180", "--timeout-method=signal"],
+         "t": 0.0},
+        {"e": "start", "n": "spa_core/tests/t.py::fast", "t": 1.0},
+        {"e": "ok", "n": "spa_core/tests/t.py::fast", "t": 1.5, "d": 0.5},
+        {"e": "start", "n": "spa_core/tests/t.py::hung", "t": 2.0},
+    ]
+    path = tmp_path / "stream-doors.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    return path
+
+
+def test_the_door_of_the_deadline_is_printed_by_the_entry_point(
+        tmp_path: Path, capsys) -> None:
+    """Проводка мерится ВЫЗОВОМ, а не ввозом: ввезённая и не позванная перепись
+    числа в лог не кладёт, и шаг молчит ровно о том, ради чего она написана."""
+    cv.main([str(_junit_with_two_keyerrors(tmp_path)), "--label", "стенд",
+             "--stream", str(_stream_with_a_case_that_never_returned(tmp_path))])
+    out = capsys.readouterr().out
+    assert "не вернулись 1" in out
+    assert "t.py::hung" in out
+
+
+def test_without_a_stream_the_door_is_NOT_MEASURED_rather_than_zero(
+        tmp_path: Path) -> None:
+    out = cv.format_doors(None)
+    assert "НЕ ИЗМЕРЕНА" in out
+    assert "не вернулись 0" not in out

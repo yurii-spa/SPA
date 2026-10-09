@@ -151,6 +151,7 @@ from typing import (Callable, Dict, List, Optional, Sequence, Set, Tuple,
                     Union)
 
 from spa_core.monitoring._http_reader_probe import UNREAD_RESPONSE
+from spa_core.monitoring.timeout_door_census import is_foreign_failure
 from spa_core.utils import live_paths
 from spa_core.utils.observation import observed
 
@@ -1361,6 +1362,8 @@ def classify_reader(module_name: str, stands: dict, *,
     try:
         mod = importlib.import_module(module_name)
     except BaseException as exc:  # noqa: BLE001 — любой отказ = «не измерено»
+        if not is_foreign_failure(exc):
+            raise                  # СРОК прогона, а не отказ модуля (ADR-676)
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_IMPORT_FAILED,
                    reason=f"импорт не удался: {type(exc).__name__}")
         return row
@@ -1390,6 +1393,8 @@ def classify_reader(module_name: str, stands: dict, *,
         raw2 = call(stands["s2"])
         raw3 = call(stands["s3"])
     except BaseException as exc:  # noqa: BLE001
+        if not is_foreign_failure(exc):
+            raise                  # СРОК прогона, а не отказ модуля (ADR-676)
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_ENTRY_RAISED,
                    reason=f"{entry}() упал: {type(exc).__name__}")
         return row
@@ -1511,7 +1516,9 @@ def http_modules(names: Sequence[str]) -> List[str]:
             continue
         try:
             mod = importlib.import_module(name)
-        except BaseException:                                  # noqa: BLE001
+        except BaseException as exc:                           # noqa: BLE001
+            if not is_foreign_failure(exc):
+                raise              # СРОК прогона, а не отказ модуля (ADR-676)
             continue
         if _http_surface(mod):
             out.append(name)
