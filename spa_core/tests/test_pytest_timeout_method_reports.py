@@ -272,7 +272,7 @@ def test_every_step_after_the_first_suite_carries_the_resume_condition() -> None
 
     naked = [
         names[i] for i, s in enumerate(steps[first_suite + 1:], start=first_suite + 1)
-        if "cancelled()" not in str(s.get("if", ""))
+        if not _resumes_after_failure(s.get("if"))
     ]
     assert not naked, (
         "шаг после первого набора без условия возобновления будет ПРОПУЩЕН при "
@@ -282,25 +282,126 @@ def test_every_step_after_the_first_suite_carries_the_resume_condition() -> None
     )
 
 
-def test_steps_resume_after_failure_but_not_after_cancellation() -> None:
-    """`!cancelled()`, а НЕ `always()` — и различие здесь не стилистическое.
+#: Условия, при которых шаг исполняется ПОСЛЕ ПАДЕНИЯ предыдущего. Перечень
+#: ЗАКРЫТ литералом: подстрочная сверка («есть слово cancelled») приняла бы любое
+#: выражение с этим токеном, в том числе `cancelled()` без отрицания (ADR-333).
+_RESUME_CONDITIONS: tuple[str, ...] = ("!cancelled()", "always()")
 
-    Шаги с `always()` исполняются и при ОТМЕНЕ джобы, поэтому вытесненный пуш
-    доигрывал бы 120-минутный прогон, и `cancel-in-progress` перестал бы разгружать
-    очередь — тот самый затор из 166 прогонов (замер 12.09, описан в шапке test.yml).
-    `!cancelled()` даёт ровно нужное: «после ПАДЕНИЯ да, после ОТМЕНЫ нет».
+#: Шаг, которому `always()` РАЗРЕШЁН, — ровно один и назван ИМЕНЕМ, не подстрокой.
+#: Разрешение куплено замером, а не доводом (ADR-679, заказ G109 п. 1): цена этого
+#: шага 0…7 с, медиана 2 (36 наблюдений), запись в хранилище 0,7…5,3 МБ сжатой,
+#: а доля уцелевшей записи на пути ОТМЕНЫ — 2 из 150 при 16 из 16 на пути отказа.
+#: Отмена есть ГЛАВНЫЙ путь прогона (215 из 300), и `!cancelled()` не покрывает
+#: его ПО ПОСТРОЕНИЮ. Добавление второго имени сюда — отдельное решение с
+#: отдельным замером цены, а не правка списка.
+_ALWAYS_ALLOWED_STEPS: tuple[str, ...] = ("Upload test records (junit + stream)",)
+
+
+def _normalise_if(raw: object) -> str:
+    """Условие без обёртки `${{ }}` и пробелов. Пустая строка — условия нет."""
+    text = str(raw or "").strip()
+    if text.startswith("${{") and text.endswith("}}"):
+        text = text[3:-2].strip()
+    return "".join(text.split())
+
+
+def _resumes_after_failure(raw: object) -> bool:
+    return _normalise_if(raw) in _RESUME_CONDITIONS
+
+
+def test_only_the_record_upload_may_carry_always_and_working_steps_may_not() -> None:
+    """`always()` запрещён ПОШАГОВО, а не по токену на весь файл.
+
+    **Что здесь изменилось и почему (цикл #817, ADR-679, инв. #16 — правка теста
+    намеренная и обоснована здесь же).** Прежняя редакция запрещала `always()`
+    где угодно в `test.yml` с доводом: такой шаг доигрывал бы 120-минутный прогон
+    и `cancel-in-progress` перестал бы разгружать очередь (затор из 166 прогонов,
+    замер 12.09). Довод ВЕРЕН для шагов, которые ДЕЛАЮТ РАБОТУ, и ПУСТ для шага
+    выгрузки записи: его цена измерена и равна 0…7 с, медиана 2 с (36 наблюдений)
+    против ноги тестов 194…229 мин. Доигрывать там нечего, а под прежним запретом
+    запись теряли 148 отменённых прогонов из 150.
+
+    Запрет поэтому не снят, а СУЖЕН до предмета, и проверка стала СИЛЬНЕЕ: раньше
+    она вообще не отличала шаг работы от шага выгрузки, теперь называет оба.
+    Контроль в обе стороны — ниже и в `test_always_on_a_working_step_is_caught`.
     """
-    text = (_WORKFLOWS / "test.yml").read_text(encoding="utf-8")
-    conditions = re.findall(r"^\s+if: (.+)$", text, flags=re.M)
-    assert conditions, "НЕ ИЗМЕРЕНО: условий `if:` в test.yml не нашлось вовсе"
-    always = [c for c in conditions if "always()" in c]
-    assert not always, (
-        "`always()` исполняет шаг и при отмене джобы, отменяя смысл "
-        f"`cancel-in-progress`; нужно `!cancelled()`. Найдено: {always}"
+    steps = _load_test_job_steps()
+    offenders = []
+    for step in steps:
+        if _normalise_if(step.get("if")) != "always()":
+            continue
+        name = str(step.get("name") or step.get("uses") or "<без имени>").strip()
+        does_work = "run" in step or name not in _ALWAYS_ALLOWED_STEPS
+        if does_work:
+            offenders.append(name)
+    assert not offenders, (
+        "`always()` исполняет шаг и при отмене джобы. Работающему шагу это "
+        "возвращает затор очереди (замер 12.09, 166 прогонов): он доигрывал бы "
+        "вытесненный прогон целиком. Разрешён он РОВНО на шаге выгрузки записи, "
+        f"чья цена измерена секундами. Найдено на работающих шагах: {offenders}"
     )
-    assert all("cancelled()" in c for c in conditions), (
-        f"условие, не выражающее «после падения да, после отмены нет»: {conditions}"
+    # Обратная сторона того же утверждения: разрешение не должно оказаться пустым.
+    # Если шага выгрузки с `always()` в воркфлоу нет, значит запись снова теряется
+    # на пути отмены — и тест обязан сказать это, а не промолчать (ADR-679).
+    allowed = [str(s.get("name") or "").strip() for s in steps
+               if _normalise_if(s.get("if")) == "always()"]
+    assert allowed == list(_ALWAYS_ALLOWED_STEPS), (
+        "шаг выгрузки записи обязан нести `always()`: под `!cancelled()` запись "
+        "не покидает раннер на пути ОТМЕНЫ (измерено: 2 прогона из 150), а отмена "
+        f"есть главный путь прогона. Найдено: {allowed}"
     )
+
+
+def test_every_other_condition_resumes_after_failure_but_not_after_cancellation() -> None:
+    """У всех прочих шагов условие остаётся `!cancelled()` — и это проверяется.
+
+    Сужение запрета выше не должно превратиться в «условие может быть любым»:
+    шаг без условия возобновления после падения ПРОПУСКАЕТСЯ, и его вердикт
+    становится не красным, а отсутствующим (ADR-474).
+    """
+    steps = _load_test_job_steps()
+    conditions = [(str(s.get("name") or s.get("uses") or "<без имени>").strip(),
+                   _normalise_if(s.get("if")))
+                  for s in steps if s.get("if") is not None]
+    assert conditions, "НЕ ИЗМЕРЕНО: условий `if:` в джобе `test` не нашлось вовсе"
+    wrong = [(n, c) for n, c in conditions if c not in _RESUME_CONDITIONS]
+    assert not wrong, (
+        f"условие, не выражающее «после падения исполнись»: {wrong}"
+    )
+    # Все, кроме разрешённого шага, несут именно `!cancelled()`.
+    stray = [(n, c) for n, c in conditions
+             if c == "always()" and n not in _ALWAYS_ALLOWED_STEPS]
+    assert not stray, f"`always()` просочился на чужой шаг: {stray}"
+
+
+def test_always_on_a_working_step_is_caught() -> None:
+    """Положительный контроль СУЖЕНИЯ: `always()` на шаге с `run:` обязан краснеть.
+
+    Без этого теста сужение запрета было бы неотличимо от его снятия.
+    """
+    scene = [
+        {"name": "Run spa_core unit tests", "if": "${{ always() }}",
+         "run": "python -m pytest spa_core/tests/"},
+        {"name": "Upload test records (junit + stream)", "if": "${{ always() }}",
+         "uses": "actions/upload-artifact@v4"},
+    ]
+    offenders = [str(s.get("name")) for s in scene
+                 if _normalise_if(s.get("if")) == "always()"
+                 and ("run" in s or str(s.get("name")) not in _ALWAYS_ALLOWED_STEPS)]
+    assert offenders == ["Run spa_core unit tests"], (
+        "правило обязано ловить `always()` на работающем шаге и пропускать его "
+        f"на шаге выгрузки записи; найдено: {offenders}"
+    )
+    # И обратно: шаг выгрузки БЕЗ `always()` обязан быть находкой.
+    without = [s for s in scene if s.get("name") in _ALWAYS_ALLOWED_STEPS
+               and _normalise_if(s.get("if")) != "always()"]
+    assert not without
+    renamed = [{"name": "Upload coverage", "if": "${{ always() }}",
+                "uses": "actions/upload-artifact@v4"}]
+    assert [str(s.get("name")) for s in renamed
+            if _normalise_if(s.get("if")) == "always()"
+            and str(s.get("name")) not in _ALWAYS_ALLOWED_STEPS] == ["Upload coverage"], (
+        "разрешение привязано к ИМЕНИ шага, а не к подстроке «Upload»")
 
 
 def test_the_heavy_step_has_an_outer_wedge_bound() -> None:

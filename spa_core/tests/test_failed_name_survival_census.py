@@ -569,8 +569,35 @@ class MutationsFoundTheseGaps(unittest.TestCase):
                         "docs/ORCHESTRATOR_PROTOCOL.md": "протокол\n",
                         ".claude/rules/r.md": "правило\n"})
             self.assertEqual(1, c.main(["--root", tmp]), "есть находка ⇒ код 1")
-        self.assertEqual(0, c.main(["--root", _REPO_ROOT]),
-                         "на живом дереве находок нет ⇒ код 0")
+        # НУЛЬ берётся СЦЕНОЙ, а не живым деревом (правка цикла #817, ADR-679;
+        # намеренная, инв. #16, запись в `docs/journal/2026-W41.md`). Прежняя
+        # строка брала его у прода, и её хрупкость объявлена в докстринге выше:
+        # «тест держался на том, что в репозитории ЕСТЬ незакрытая находка».
+        # Сегодня сработала та же хрупкость с другой стороны — у живого дерева
+        # появился ЧИТАТЕЛЬ хранилища артефактов (`record_survival_census`,
+        # заказ G109 п. 1), ось возраста честно ответила `ANSWER_ASKED`, и код
+        # стал 1 ОТ СДВИГА ХРАПОВИКА, а не от поломки. Поэтому нуль переносится
+        # в сцену, где контур полон и скачивающего нет, а живое дерево проверяется
+        # отдельной строкой — за свой, НАЗВАННЫЙ, код.
+        with tempfile.TemporaryDirectory() as tmp:
+            wf = Path(tmp, ".github", "workflows")
+            wf.mkdir(parents=True)
+            import yaml  # noqa: PLC0415 — тест-домен, не рантайм (инв. #4)
+            Path(wf, "w.yml").write_text(
+                yaml.safe_dump({"jobs": {"test": {"steps": [
+                    {"name": "p", "run": PYTEST_WITH_JUNIT},
+                    {"name": "u", "uses": "actions/upload-artifact@v4",
+                     "if": "!cancelled()",
+                     "with": {"path": "reports/", "retention-days": 14}}]}}}),
+                encoding="utf-8")
+            _tree(tmp, {"CLAUDE.md": "`grep \" passed\" <лог>`\n",
+                        "docs/ORCHESTRATOR_PROTOCOL.md": "x\n",
+                        ".claude/rules/r.md": "x\n", "a/t.sh": "echo ok\n",
+                        "a/x.py": "P = '--junitxml'\n"})
+            self.assertEqual(0, c.main(["--root", tmp]),
+                             "контур полон и скачивающего нет ⇒ код 0")
+        self.assertEqual(1, c.main(["--root", _REPO_ROOT]),
+                         "на живом дереве ось возраста нашла скачивающего ⇒ код 1")
 
     def test_cli_json_mode_prints_the_measurement(self):
         """Выжившая мутация: ветка `--json` не исполнялась ни раз."""
@@ -1366,15 +1393,43 @@ class RealTreeAgeAxis(unittest.TestCase):
         self.doc = c.measure(_REPO_ROOT)
         self.answer = c.age_answer(self.doc)
 
-    def test_real_tree_no_code_here_asks_the_artifact_store(self):
-        """Ответ замера: срок выгрузки не связывает НИ ОДНОГО читателя дерева.
+    def test_real_tree_the_artifact_store_now_has_exactly_one_named_asker(self):
+        """ХРАПОВИК СДВИНУЛСЯ — ровно так, как был задуман (цикл #817, ADR-679).
 
-        Храповик в обе стороны: появится скачивающий — тест покраснеет и вопрос
-        «достаточно ли срока» станет живым, как и требует заказ.
+        Прежняя редакция утверждала «не связывает НИ ОДНОГО читателя» и сама
+        объявляла условие своего покраснения: «появится скачивающий — тест
+        покраснеет и вопрос „достаточно ли срока“ станет живым, как и требует
+        заказ». Скачивающий появился: `spa_core/monitoring/record_survival_census.py`
+        (заказ G109 п. 1) спрашивает `/actions/artifacts`, чтобы мерить долю
+        прогонов, у которых запись уцелела.
+
+        Правка теста НАМЕРЕННАЯ и проверка не понижена, а УСИЛЕНА (инв. #16, запись
+        в `docs/journal/2026-W41.md`): прежде утверждался НОЛЬ и имя не называлось
+        ни одно, теперь пришпилены и ЧИСЛО, и САМО ИМЯ. Появление второго
+        скачивающего покраснит этот тест так же, как первое покраснило прежний, —
+        храповик остался храповиком и считать умеет в обе стороны.
         """
-        self.assertEqual(0, self.doc["age_demand_counts"][c.DEMAND_ARTIFACT],
+        self.assertEqual(1, self.doc["age_demand_counts"][c.DEMAND_ARTIFACT],
                          f"скачивают: {self.answer['asking_sites']}")
-        self.assertEqual(c.ANSWER_NOBODY, self.answer["label"])
+        self.assertEqual(["spa_core/monitoring/record_survival_census.py"],
+                         sorted(self.answer["asking_sites"]))
+        self.assertEqual(c.ANSWER_ASKED, self.answer["label"])
+
+    def test_real_tree_the_term_of_the_record_covers_the_askers_window(self):
+        """Вопрос, который сделал живым сам сдвиг храповика: ХВАТАЕТ ли срока.
+
+        Отвечается замером, а не выбором: окно переписи-скачивающего объявлено
+        числом прогонов, а срок записи — числом дней у шага выгрузки. Срок короче
+        окна означает, что хвост собственного окна переписи неизмерим по
+        построению, и перепись обязана называть этот класс отдельным исходом
+        (`absent_beyond_retention_term`), а не считать его отсутствием записи.
+        """
+        from spa_core.monitoring import record_survival_census as rsc  # noqa: PLC0415
+
+        term = self.answer["shortest_record_retention_days"]
+        self.assertIsInstance(term, int)
+        self.assertIn(rsc.OUT_BEYOND_TERM, rsc.OUTCOMES,
+                      "перепись обязана нести исход «старше срока хранения»")
 
     def test_real_tree_every_record_carrying_upload_declares_its_term(self):
         self.assertEqual(0, self.answer["supply_unmeasured"])

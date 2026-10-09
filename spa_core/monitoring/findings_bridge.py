@@ -335,6 +335,11 @@ PRODUCES = (
     # журнал объявлений (живой `data/`), дерево базового ref и поднимает
     # одноразовые сцены, поэтому такт у неё суточный, как у соседа.
     "data/order_subject_census.json",
+    # Переживает ли запись прогона ОТМЕНУ — заказ G109 п. 1 (ADR-534, измерен
+    # ADR-679). Ступень спрашивает GitHub API (население прогонов, строки записей,
+    # длительность шага выгрузки) и локальный клон (воркфлоу того sha, на котором
+    # шёл прогон), поэтому такт у неё суточный, как у соседей.
+    "data/record_survival_census.json",
     # Кто окажется ЧИТАТЕЛЕМ квитанции read-only проверки захвата — заказ G88 п. 1
     # (ADR-498, измерен ADR-535). Ступень поднимает одноразовые сцены и читает
     # ЖИВОЕ дерево (кто грузит сторожа), поэтому такт у неё суточный, как у соседа.
@@ -470,6 +475,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "owner_visibility_census",
     "duplicate_subject_census",
     "order_subject_census",
+    "record_survival_census",
     "claim_guard_receipt_readers",
     "claim_release_census",
     "capital_evidence_coverage",
@@ -773,6 +779,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "order_subject_census": {
         "module": "spa_core/monitoring/order_subject_census.py",
         "artifact": "data/order_subject_census.json"},
+    "record_survival_census": {
+        "module": "spa_core/monitoring/record_survival_census.py",
+        "artifact": "data/record_survival_census.json"},
     "claim_guard_receipt_readers": {
         "module": "spa_core/monitoring/claim_guard_receipt_readers.py",
         "artifact": "data/claim_guard_receipt_readers.json"},
@@ -3159,6 +3168,30 @@ def main(argv=None) -> int:
                   f"{_osc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "order_subject_census", e)
+
+    # Ступень заказа G109 п. 1 (ADR-534, измерена ADR-679): переживает ли ЗАПИСЬ
+    # прогона отмену. Предмет ДРУГОЙ, чем у соседа `failed_name_survival_census`
+    # (ADR-528): тот спрашивает про путь ОТКАЗА и отвечает зелёным верно, а
+    # отмена есть ГЛАВНЫЙ путь прогона, и среди его исходов её нет вовсе.
+    # Прибор только ЧИТАЕТ; заголовочное число — доля уцелевшей записи на пути
+    # отмены. Сеть есть ВХОД: её отсутствие — третий исход с названной причиной.
+    try:
+        from spa_core.monitoring import record_survival_census
+        _rsc = record_survival_census.run(root=args.root)
+        if _rsc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «уцелело ноль» (инв. #17).
+            _surv = observed(_rsc["doc"], "survival", kind=dict)
+            _cancel = None if _surv is None else observed(_surv, "cancellation_path",
+                                                          kind=dict)
+            _share = None if _cancel is None else _cancel.get("share_pct")
+            print(f"record_survival_census: {_rsc['doc'].get('status')} — запись "
+                  f"переживает ОТМЕНУ у "
+                  f"{'НЕ ИЗМЕРЕНО' if _share is None else f'{_share} %'} прогонов")
+        else:
+            print(f"record_survival_census: НЕ ИЗМЕРЕНО — "
+                  f"{_rsc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "record_survival_census", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
