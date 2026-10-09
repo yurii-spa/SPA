@@ -87,6 +87,14 @@ NO_REGRESSION = "NO_REGRESSION"
 REGRESSION = "REGRESSION"
 UNMEASURED = "UNMEASURED"
 
+#: Два РАЗНЫХ третьих исхода у члена населения, и склеивать их нельзя (инв. #17):
+#: «файла нет в записи» чинится у прогона (сессию сняли, тест не собрался), «все
+#: случаи пропущены» — у самого теста либо у условия среды. До заказа G107 п. 1
+#: различить их можно было только по ПРОЗЕ строки `reason`, то есть подстрокой, —
+#: а разбор исхода подстрокой запрещён (ADR-333). Теперь у исхода есть имя.
+ABSENT_FROM_RECORD = "absent_from_the_record"
+ALL_CASES_SKIPPED = "all_cases_skipped"
+
 #: Каталоги, которые гейтит CI, — ровно предписанный `CLAUDE.md` прогон. Список
 #: не сокращается «до своего набора»: именно так восемь коммитов подряд уехали на
 #: красный `main` (цикл #189).
@@ -410,6 +418,80 @@ def read_record(paths: list[str], repo_root: str = REPO_ROOT) -> dict:
 
 # ───────────────────────────────── вердикт ────────────────────────────────────
 
+def judge(population_by_surface: dict[str, list[str]], record: dict) -> dict:
+    """Вердикт по ЛЮБОМУ населению при ОДНОЙ записи прогона.
+
+    Вынесено из :func:`measure` ОДНОЙ копией, а не скопировано: заказ G107 п. 1
+    требует спросить, **меняет ли расширение населения сам вердикт**, — то есть
+    приложить ту же мерку к ДРУГОМУ населению. Вторая копия правила разошлась бы
+    с этой при первой же правке и дала бы два разных вердикта у одного критерия
+    (ровно дефект, который ловит ADR-522), а население самого критерия расширять
+    замером ЗАПРЕЩЕНО: это отдельное решение, потому что сдвигает вердикт
+    критерия владельца.
+
+    Население подаётся ВХОДОМ (``{поверхность: [файлы]}``) и здесь не считается:
+    кто его посчитал — вопрос вызывающего, а не мерки.
+
+    Три исхода у члена населения (инв. #17) и ни одной склейки между ними:
+    файла нет в записи ⇒ НЕ ИЗМЕРЕНО С ИМЕНЕМ · все случаи ПРОПУЩЕНЫ ⇒ НЕ
+    ИЗМЕРЕНО С ИМЕНЕМ · есть хоть одна поломка ⇒ поломка. ``verdict_by_surface``
+    отдаётся отдельным полем, а не внутри ``surfaces``: форма ``surfaces``
+    принадлежит :func:`measure` и её читателям, и дописывать в неё ключ значило
+    бы менять чужой документ заодно со своим.
+    """
+    surfaces: dict[str, dict] = {}
+    verdict_by_surface: dict[str, str] = {}
+    total_failed: list[dict] = []
+    total_unmeasured: list[dict] = []
+    for name, files in population_by_surface.items():
+        passed, failed, unmeasured, cases = [], [], [], 0
+        for rel in files:
+            row = record["files"].get(rel)
+            if row is None:
+                unmeasured.append({"file": rel, "kind": ABSENT_FROM_RECORD,
+                                   "reason": "в записи прогона файла нет — тест не "
+                                             "дошёл до вердикта (сессия снята, тест "
+                                             "не собран или не запускался)"})
+                continue
+            cases += row["passed"] + row["skipped"] + len(row["bad"])
+            if row["bad"]:
+                failed.append({"file": rel, "cases": row["bad"]})
+            elif row["passed"] == 0:
+                # Пропущенный тест НЕ «проходит»: файл, все случаи которого
+                # скипнуты, исхода не дал. Сложить его к зелёным значило бы
+                # сделать «не измерено» неотличимым от успеха ровно там, где
+                # скип и ставится — на условии среды (инв. #17).
+                unmeasured.append({"file": rel, "kind": ALL_CASES_SKIPPED,
+                                   "reason": f"все {row['skipped']} случа(й/ев) файла "
+                                             f"ПРОПУЩЕНЫ — исход не наблюдён"})
+            else:
+                passed.append(rel)
+        surfaces[name] = {
+            "cases_seen": cases,
+            # Список, а не счётчик: читателю пробы нужно знать, ПРО КАКОЙ файл
+            # запись говорит «зелен». Со счётчиком пришлось бы выводить это из
+            # разности множеств, то есть заводить вторую копию мерки.
+            "files_passed": passed,
+            "files_failed": failed,
+            "files_unmeasured": unmeasured,
+        }
+        verdict_by_surface[name] = REGRESSION if failed else (
+            NO_REGRESSION if not unmeasured else UNMEASURED)
+        total_failed += [{"surface": name, **f} for f in failed]
+        total_unmeasured += [{"surface": name, **u} for u in unmeasured]
+
+    complete = not total_unmeasured
+    return {
+        "surfaces": surfaces,
+        "verdict_by_surface": verdict_by_surface,
+        "failed": total_failed,
+        "unmeasured_members": total_unmeasured,
+        "complete": complete,
+        "verdict": REGRESSION if total_failed else (
+            NO_REGRESSION if complete else UNMEASURED),
+    }
+
+
 def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None) -> dict:
     """Вердикт критерия §49 ``No regression``.
 
@@ -471,51 +553,22 @@ def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None) ->
                 "reason": reason,
                 "population_total": sum(len(s["files"]) for s in pop["surfaces"].values())}
 
-    surfaces: dict[str, dict] = {}
-    total_failed: list[dict] = []
-    total_unmeasured: list[dict] = []
-    for name, s in pop["surfaces"].items():
-        passed, failed, unmeasured, cases = [], [], [], 0
-        for rel in s["files"]:
-            row = record["files"].get(rel)
-            if row is None:
-                unmeasured.append({"file": rel,
-                                   "reason": "в записи прогона файла нет — тест не "
-                                             "дошёл до вердикта (сессия снята, тест "
-                                             "не собран или не запускался)"})
-                continue
-            cases += row["passed"] + row["skipped"] + len(row["bad"])
-            if row["bad"]:
-                failed.append({"file": rel, "cases": row["bad"]})
-            elif row["passed"] == 0:
-                # Пропущенный тест НЕ «проходит»: файл, все случаи которого
-                # скипнуты, исхода не дал. Сложить его к зелёным значило бы
-                # сделать «не измерено» неотличимым от успеха ровно там, где
-                # скип и ставится — на условии среды (инв. #17).
-                unmeasured.append({"file": rel,
-                                   "reason": f"все {row['skipped']} случа(й/ев) файла "
-                                             f"ПРОПУЩЕНЫ — исход не наблюдён"})
-            else:
-                passed.append(rel)
-        surfaces[name] = {
+    judged = judge({name: list(s["files"]) for name, s in pop["surfaces"].items()},
+                   record)
+    surfaces = {
+        name: {
             "why": DECLARED_SURFACES[name]["why"],
             "population": len(s["files"]),
             "by_import": len(s["by_import"]),
             "by_declaration": list(s["by_declaration"]),
-            "cases_seen": cases,
-            # Список, а не счётчик: читателю пробы нужно знать, ПРО КАКОЙ файл
-            # запись говорит «зелен». Со счётчиком пришлось бы выводить это из
-            # разности множеств, то есть заводить вторую копию мерки.
-            "files_passed": passed,
-            "files_failed": failed,
-            "files_unmeasured": unmeasured,
+            **judged["surfaces"][name],
         }
-        total_failed += [{"surface": name, **f} for f in failed]
-        total_unmeasured += [{"surface": name, **u} for u in unmeasured]
-
-    complete = not total_unmeasured
-    verdict = REGRESSION if total_failed else (
-        NO_REGRESSION if complete else UNMEASURED)
+        for name, s in pop["surfaces"].items()
+    }
+    total_failed = judged["failed"]
+    total_unmeasured = judged["unmeasured_members"]
+    complete = judged["complete"]
+    verdict = judged["verdict"]
 
     return {
         **base,
