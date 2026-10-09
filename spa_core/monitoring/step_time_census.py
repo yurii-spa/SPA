@@ -116,6 +116,20 @@ class Census(NamedTuple):
     sessions_in_record: int
     timeout_s: float | None           # прочитан из args сессии
     args: tuple[str, ...]
+    # --- абсолютные часы записи (заказ G109 п. 3: ось отметки топора) ---
+    #: Отметки нужны именно АБСОЛЮТНЫЕ: вопрос «годна ли отметка раннера» есть
+    #: вопрос о порядке двух СОБЫТИЙ в одних часах, а разностями он не решается.
+    session_t: float | None = None
+    last_event_t: float | None = None
+    # --- что запись объявила о себе САМА (строка `end`) ---
+    #: Их не читает НИКТО: `ci_verdict` считает своё население заново. Объявление
+    #: без читателя неотличимо от верного, поэтому ось 3 сверяет его с реконструкцией.
+    declared_started: int | None = None
+    declared_finished: int | None = None
+    # --- структура исходов: у случая их может быть несколько (фазы) ---
+    outcome_events: int = 0
+    cases_with_many_outcomes: int = 0
+    extra_outcome_events: int = 0
 
     @property
     def measured_budget(self) -> bool:
@@ -215,6 +229,8 @@ def census_from_events(events: list[dict], *, torn_lines: int = 0) -> Census:
     starts: list[tuple[int, str, float]] = []
     outcomes: dict[str, list[tuple[float, str, float | None]]] = {}
     ended = False
+    declared_started: int | None = None
+    declared_finished: int | None = None
     backwards = 0
     last_t = t_session
     t_last_event = t_session
@@ -238,6 +254,12 @@ def census_from_events(events: list[dict], *, torn_lines: int = 0) -> Census:
                 outcomes.setdefault(node, []).append((t, str(kind), _as_float(ev.get("d"))))
         elif kind == "end":
             ended = True
+            # Счётчики писателя — ОБЪЯВЛЕНИЕ записи о себе. Берём как есть, включая
+            # ноль: «объявлено 0» и «не объявлено» суть разные исходы (инв. #17).
+            if isinstance(ev.get("started"), int) and not isinstance(ev.get("started"), bool):
+                declared_started = int(ev["started"])
+            if isinstance(ev.get("finished"), int) and not isinstance(ev.get("finished"), bool):
+                declared_finished = int(ev["finished"])
 
     span = t_last_event - t_session
     if not starts:
@@ -252,6 +274,11 @@ def census_from_events(events: list[dict], *, torn_lines: int = 0) -> Census:
             declared_d_s=0.0, cases=(), ended=ended, torn_lines=torn_lines,
             cases_without_outcome=0, backwards_clock=backwards,
             sessions_in_record=len(heads), timeout_s=_timeout_from_args(args), args=args,
+            session_t=t_session, last_event_t=t_last_event,
+            declared_started=declared_started, declared_finished=declared_finished,
+            outcome_events=sum(len(v) for v in outcomes.values()),
+            cases_with_many_outcomes=sum(1 for v in outcomes.values() if len(v) > 1),
+            extra_outcome_events=sum(len(v) - 1 for v in outcomes.values()),
         )
 
     before_first = starts[0][2] - t_session
@@ -290,6 +317,11 @@ def census_from_events(events: list[dict], *, torn_lines: int = 0) -> Census:
         torn_lines=torn_lines, cases_without_outcome=without_outcome,
         backwards_clock=backwards, sessions_in_record=len(heads),
         timeout_s=_timeout_from_args(args), args=args,
+        session_t=t_session, last_event_t=t_last_event,
+        declared_started=declared_started, declared_finished=declared_finished,
+        outcome_events=sum(len(v) for v in outcomes.values()),
+        cases_with_many_outcomes=sum(1 for v in outcomes.values() if len(v) > 1),
+        extra_outcome_events=sum(len(v) - 1 for v in outcomes.values()),
     )
 
 
@@ -350,6 +382,287 @@ def at_or_beyond_limit(census: Census) -> tuple[int, int]:
     at = sum(1 for c in census.cases if c.to_outcome is not None and c.to_outcome >= census.timeout_s)
     over = sum(1 for c in census.cases if c.to_outcome is not None and c.to_outcome >= 2 * census.timeout_s)
     return (at, over)
+
+
+# --- ТРИ ОСИ, ПЕРЕНЕСЁННЫЕ ПО ЗАКАЗУ G109 п. 3 (ADR-534) ---------------------
+#
+# Все три существовали в приборе `step_time_budget_census.py`, который цикл #747
+# построил ПАРАЛЛЕЛЬНО этому и намеренно НЕ доставил как дубль (решение записано
+# через `log_session_change --dropped`). Дублем он был по двум осям из пяти; три
+# ниже дублем не были, и заказ G109 п. 3 требует перенести их ВМЕСТЕ с контролями.
+# Дерево того прибора с тех пор убрано, поэтому оси восстановлены по их ЧИСЛАМ,
+# опубликованным в дополнениях 1–3 ADR-534, и перемерены на РЕАЛЬНЫХ записях.
+#
+# Ни одно существующее утверждение ниже не изменено и не сужено (инв. #16):
+# `at_or_beyond_limit` остаётся как есть, ось 1 стои́т РЯДОМ и отвечает на свой
+# вопрос. Прибор по-прежнему только ЧИТАЕТ.
+
+# --- ОСЬ 1: «связывает ли порог» — по ИСХОДУ случая, а не по его длительности --
+#
+# Что `at_or_beyond_limit` сказать не может. Он считает случаи ДЛИТЕЛЬНОСТЬЮ
+# (`to_outcome >= порог`) и вторым числом называет тех, кто прожил вдвое дольше,
+# читая это как улику клина. Исход случая он не смотрит ВООБЩЕ — а именно исход и
+# отвечает на вопрос «порог сработал или нет»:
+#
+#   * исход `fail` на пороге  ⇒ порог СРАБОТАЛ и снял случай. Улика у junit
+#     дословно: `Failed: Timeout (>180.0s) from pytest-timeout`;
+#   * исход `ok` выше порога  ⇒ порог случай НЕ СВЯЗЫВАЛ: случай дошёл сам и
+#     отчитался успехом, то есть ни одна его ФАЗА порога не перешла (порог
+#     pytest-timeout действует на фазу, а наблюдённое время покрывает setup+call).
+#
+# Замер на реальной записи прогона 37769228666 (08.10) показывает, что обе
+# популяции непусты и ответы у них ПРОТИВОПОЛОЖНЫЕ: нога 3.12 — 11 случаев на
+# пороге 180 с, из них `fail` 9 и `ok` 2; единственный случай «вдвое выше порога»
+# имеет исход `ok` (504,7 с, в junit без элемента failure). То есть число, которое
+# существующая ось печатает как «порог их не взял», на реальных данных состоит
+# из случаев, которые порог и не должен был брать. Поэтому ось стои́т рядом, а не
+# вместо: длительность задаёт ПОДОЗРЕНИЕ, исход выносит ВЕРДИКТ.
+
+BIND_OK = "measured"
+BIND_NO_THRESHOLD = "threshold_unmeasured"
+BIND_UNREADABLE = "record_unreadable"
+
+
+class ThresholdBinding(NamedTuple):
+    """Связал ли порог `--timeout` хоть один случай — ПО ИСХОДУ."""
+
+    read: str
+    reason: str
+    threshold_s: float | None
+    at_or_beyond: int          # на пороге или выше, по наблюдённой фазе
+    bound: int                 # из них исход `fail` — порог сработал
+    unbound: int               # из них исход `ok` — случай дошёл САМ
+    skipped: int               # из них исход `skip`
+    unjudged_without_outcome: int   # размах ≥ порога, но исхода НЕТ — судить нечем
+    beyond_twice: int
+    beyond_twice_bound: int
+    beyond_twice_unbound: int
+
+    @property
+    def binds(self) -> bool | None:
+        """``None`` = не измерено. Иначе: сработал ли порог хоть раз."""
+        if self.read != BIND_OK:
+            return None
+        return self.bound > 0
+
+
+def _no_binding(kind: str, reason: str) -> ThresholdBinding:
+    return ThresholdBinding(
+        read=kind, reason=reason, threshold_s=None, at_or_beyond=0, bound=0,
+        unbound=0, skipped=0, unjudged_without_outcome=0, beyond_twice=0,
+        beyond_twice_bound=0, beyond_twice_unbound=0,
+    )
+
+
+def threshold_binding(census: Census) -> ThresholdBinding:
+    """Разложить случаи на пороге по ИСХОДУ: связал порог или не связывал.
+
+    Порога нет в args ⇒ ``BIND_NO_THRESHOLD``, а не нули: подставить сюда 180 из
+    текста воркфлоу значило бы судить о клине по чужой константе (та же ошибка,
+    на которой `.claude/rules/site-numbers.md` поймала саму себя).
+
+    Случай БЕЗ исхода считается ОТДЕЛЬНЫМ числом, а не отбрасывается молча: у
+    него нет наблюдённой фазы, поэтому в вопрос «связал ли порог» он не входит,
+    но его существование обязано быть видно (инв. #17).
+    """
+    if census.read != READ_OK:
+        return _no_binding(BIND_UNREADABLE, census.reason)
+    if census.timeout_s is None:
+        return _no_binding(
+            BIND_NO_THRESHOLD,
+            "порога `--timeout` в args сессии нет: связывал он что-нибудь или нет — "
+            "НЕ ИЗМЕРЕНО",
+        )
+    limit = census.timeout_s
+    at = [c for c in census.cases if c.to_outcome is not None and c.to_outcome >= limit]
+    # `at` уже отфильтрован по наличию исхода — повторять проверку здесь
+    # значило бы держать мёртвую ветвь (нашёл мутационный замер: подмена
+    # `and`→`or` не меняла ни одного числа).
+    twice = [c for c in at if c.to_outcome >= 2 * limit]
+    blind = sum(
+        1 for c in census.cases if c.to_outcome is None and c.span >= limit
+    )
+    return ThresholdBinding(
+        read=BIND_OK, reason="", threshold_s=limit, at_or_beyond=len(at),
+        bound=sum(1 for c in at if c.outcome == "fail"),
+        unbound=sum(1 for c in at if c.outcome == "ok"),
+        skipped=sum(1 for c in at if c.outcome == "skip"),
+        unjudged_without_outcome=blind,
+        beyond_twice=len(twice),
+        beyond_twice_bound=sum(1 for c in twice if c.outcome == "fail"),
+        beyond_twice_unbound=sum(1 for c in twice if c.outcome == "ok"),
+    )
+
+
+# --- ОСЬ 2: ОТКАЗ от негодной отметки топора --------------------------------
+#
+# Соблазн, который ось закрывает. Сессия без строки `end` оставляет бюджет шага
+# НЕ ИЗМЕРЕННЫМ (размах есть лишь нижняя граница). Рядом лежит отметка раннера
+# («шаг завершён в …»), и подставить её кажется бесплатным. Замер говорит, что
+# подставлять нельзя: отметка раннера бывает РАНЬШЕ последней активности записи,
+# то есть не является даже ВЕРХНЕЙ границей.
+#
+#   * ADR-534, дополнение 3: раннер — 15:05:06Z, запись — до 15:09:51Z, на 285,9 с
+#     позже;
+#   * воспроизведено НЕЗАВИСИМО на другом прогоне (37769228666, нога 3.11):
+#     раннер — 15:28:29Z, запись — до 15:31:32Z, на 183,3 с позже. Нижняя граница
+#     записи 243,3 мин при шаге раннера 240,2 мин: подстановка УМЕНЬШИЛА бы
+#     измеренное и вступила бы в спор с самой записью.
+#
+# Поэтому ось ОТКАЗЫВАЕТ fail-CLOSED и называет разрыв числом. Годная отметка
+# (не раньше последней активности) даёт ВЕРХНЮЮ границу — и только её: длительностью
+# шага она не становится никогда, потому что часы записи принадлежат плагину и
+# включаются в `pytest_configure` (односторонность объявлена в ADR-534).
+
+AXE_USABLE = "usable_upper_bound"
+AXE_NOT_NEEDED = "budget_already_measured"
+AXE_REFUSED_EARLIER = "refused_earlier_than_record"
+AXE_REFUSED_NO_STAMP = "no_stamp"
+AXE_REFUSED_UNREADABLE = "record_unreadable"
+AXE_REFUSED_NO_CLOCK = "record_without_clock"
+
+
+class AxeStamp(NamedTuple):
+    """Вердикт о годности отметки раннера как границы бюджета шага."""
+
+    kind: str
+    reason: str
+    stamp_t: float | None
+    last_event_t: float | None
+    gap_s: float | None          # отметка − последняя активность; < 0 ⇒ НЕГОДНА
+    lower_bound_s: float | None  # размах записи (всегда лишь нижняя граница)
+    upper_bound_s: float | None  # session → отметка; только у ГОДНОЙ отметки
+
+    @property
+    def usable(self) -> bool:
+        return self.kind in (AXE_USABLE, AXE_NOT_NEEDED)
+
+
+def axe_stamp_verdict(census: Census, stamp_t: float | None) -> AxeStamp:
+    """Годна ли отметка раннера, чтобы ограничить бюджет шага сверху.
+
+    Отказ — ИСХОД, а не исключение: негодную отметку прибор НАЗЫВАЕТ вместе с
+    разрывом в секундах, а не тихо игнорирует и не тихо подставляет.
+    """
+    lower = census.span_s if census.read == READ_OK else None
+    if census.read != READ_OK:
+        return AxeStamp(AXE_REFUSED_UNREADABLE, census.reason, stamp_t, None,
+                        None, None, None)
+    if census.last_event_t is None or census.session_t is None:
+        return AxeStamp(
+            AXE_REFUSED_NO_CLOCK,
+            "у записи нет абсолютных отметок: сравнить её с часами раннера нечем",
+            stamp_t, census.last_event_t, None, lower, None)
+    if stamp_t is None:
+        return AxeStamp(
+            AXE_REFUSED_NO_STAMP,
+            "отметки раннера не передано — верхняя граница бюджета НЕ ИЗМЕРЕНА",
+            None, census.last_event_t, None, lower, None)
+    gap = stamp_t - census.last_event_t
+    if gap < 0:
+        return AxeStamp(
+            AXE_REFUSED_EARLIER,
+            f"отметка раннера РАНЬШЕ последней активности записи на {-gap:.1f} с — "
+            f"она не является даже верхней границей; подставлять её ЗАПРЕЩЕНО",
+            stamp_t, census.last_event_t, gap, lower, None)
+    upper = stamp_t - census.session_t
+    if census.ended:
+        return AxeStamp(
+            AXE_NOT_NEEDED,
+            f"бюджет шага измерен самой записью (строка `end` есть); отметка раннера "
+            f"согласна с ней и лежит на {gap:.1f} с позже последней активности",
+            stamp_t, census.last_event_t, gap, lower, upper)
+    return AxeStamp(
+        AXE_USABLE,
+        f"строки `end` нет, но отметка раннера ГОДНА: она на {gap:.1f} с позже "
+        f"последней активности записи — бюджет шага лежит между границами",
+        stamp_t, census.last_event_t, gap, lower, upper)
+
+
+# --- ОСЬ 3: СЧЁТ шума записи — и сверка её объявления с реконструкцией -------
+#
+# Зачем счёт, если третьи исходы и так печатаются. Печатаются они СПИСКОМ, и
+# пустой список читается как «чисто» — то есть чистота записи сегодня есть
+# МОЛЧАНИЕ, а не замер. Ось превращает её в вердикт: `clean` — измеренное
+# свойство, у которого каждая составляющая названа своим числом.
+#
+# И второе, чего не делал никто. Строка `end` НЕСЁТ собственные счётчики писателя
+# (`started` / `finished`), и их не читает НИ ОДИН потребитель: `ci_verdict`
+# считает население заново, а эта перепись строила его из событий. Объявление без
+# читателя неотличимо от верного — ровно класс ADR-526/547. Сверка объявления с
+# независимой реконструкцией есть ОПРОВЕРЖИМОЕ тождество учёта (инв. #17), и на
+# реальной записи 3.12 оно СОШЛОСЬ до единицы: объявлено 115 980 / 118 019,
+# восстановлено 115 980 / 118 019. На ноге 3.11 строки `end` нет вовсе ⇒ сверка
+# НЕ ИЗМЕРЕНА, и это третий исход, а не «сошлось».
+#
+# Чем шум НЕ является. У случая бывает НЕСКОЛЬКО событий исхода — это фазы
+# (setup / call / teardown), то есть структура, а не порча: на 3.12 таких случаев
+# 277 и лишних событий 2 039. Записать их в шум значило бы объявить дефектом
+# устройство pytest-а, поэтому они стоя́т отдельным числом со своим именем.
+
+NOISE_DECLARED_AGREES = "declared_agrees"
+NOISE_DECLARED_DISAGREES = "declared_disagrees"
+NOISE_DECLARED_ABSENT = "declared_absent"
+NOISE_UNREADABLE = "record_unreadable"
+
+
+class RecordNoise(NamedTuple):
+    """Счёт шума записи. Каждая составляющая — своё число, без сложения разнородного."""
+
+    read: str
+    torn_lines: int
+    cases_without_outcome: int
+    backwards_clock: int
+    extra_sessions: int
+    # структура, НЕ шум — названа рядом, чтобы её не приняли за порчу
+    cases_with_many_outcomes: int
+    extra_outcome_events: int
+    # сверка объявления записи с независимой реконструкцией
+    declared_check: str
+    declared_started: int | None
+    declared_finished: int | None
+    rebuilt_started: int
+    rebuilt_finished: int
+
+    @property
+    def clean(self) -> bool | None:
+        """``None`` = не измерено. Иначе: нет ни одной составляющей шума."""
+        if self.read != READ_OK:
+            return None
+        return (self.torn_lines == 0 and self.cases_without_outcome == 0
+                and self.backwards_clock == 0 and self.extra_sessions == 0)
+
+
+def record_noise(census: Census) -> RecordNoise:
+    """Сосчитать шум записи и сверить её собственное объявление с реконструкцией."""
+    if census.read != READ_OK:
+        return RecordNoise(
+            read=NOISE_UNREADABLE, torn_lines=census.torn_lines,
+            cases_without_outcome=0, backwards_clock=0, extra_sessions=0,
+            cases_with_many_outcomes=0, extra_outcome_events=0,
+            declared_check=NOISE_UNREADABLE, declared_started=None,
+            declared_finished=None, rebuilt_started=0, rebuilt_finished=0,
+        )
+    rebuilt_started = len(census.cases)
+    rebuilt_finished = census.outcome_events
+    if census.declared_started is None and census.declared_finished is None:
+        check = NOISE_DECLARED_ABSENT
+    elif (census.declared_started == rebuilt_started
+            and census.declared_finished == rebuilt_finished):
+        check = NOISE_DECLARED_AGREES
+    else:
+        check = NOISE_DECLARED_DISAGREES
+    return RecordNoise(
+        read=READ_OK, torn_lines=census.torn_lines,
+        cases_without_outcome=census.cases_without_outcome,
+        backwards_clock=census.backwards_clock,
+        extra_sessions=max(0, census.sessions_in_record - 1),
+        cases_with_many_outcomes=census.cases_with_many_outcomes,
+        extra_outcome_events=census.extra_outcome_events,
+        declared_check=check, declared_started=census.declared_started,
+        declared_finished=census.declared_finished,
+        rebuilt_started=rebuilt_started, rebuilt_finished=rebuilt_finished,
+    )
 
 
 # --- сравнение ДВУХ переписей по ОБЩИМ случаям (заказ G108 п. 3, ADR-677) -----
@@ -539,8 +852,14 @@ def format_comparison(comparison: Comparison, *, shown: int = _NAMES_SHOWN) -> s
     return "\n".join(lines)
 
 
-def format_census(census: Census, *, label: str = "шаг тестов", shown: int = _NAMES_SHOWN) -> str:
-    """Выжимка для лога. Вердикта не выносит и кода возврата не трогает."""
+def format_census(census: Census, *, label: str = "шаг тестов", shown: int = _NAMES_SHOWN,
+                  axe_stamp: float | None = None) -> str:
+    """Выжимка для лога. Вердикта не выносит и кода возврата не трогает.
+
+    ``axe_stamp`` — отметка раннера о конце шага. Её НЕТ в записи по построению
+    (запись знает только свои часы), поэтому строка про топор печатается лишь
+    когда отметку ПЕРЕДАЛИ: выдумать её прибор не вправе.
+    """
     if census.read != READ_OK:
         return f"   время {label}: {census.reason}"
     if not census.cases:
@@ -595,6 +914,69 @@ def format_census(census: Census, *, label: str = "шаг тестов", shown: 
         third.append(f"сессий в записи {census.sessions_in_record} — взята ПОСЛЕДНЯЯ")
     lines.append("   третьи исходы: " + ("; ".join(third) if third else "нет"))
 
+    # --- ось 1: связал ли порог, ПО ИСХОДУ (заказ G109 п. 3) ---
+    bind = threshold_binding(census)
+    if bind.read != BIND_OK:
+        lines.append(f"   порог СВЯЗАЛ: не измерено — {bind.reason}")
+    else:
+        verdict = "ДА" if bind.binds else "НЕТ"
+        lines.append(
+            f"   порог СВЯЗАЛ: {verdict} · на пороге {bind.at_or_beyond} ⇒ "
+            f"снято порогом (исход fail) {bind.bound} · дошли САМИ (исход ok) "
+            f"{bind.unbound} · пропущено {bind.skipped}"
+        )
+        if bind.beyond_twice:
+            lines.append(
+                f"   из них вдвое выше порога {bind.beyond_twice}: снято порогом "
+                f"{bind.beyond_twice_bound} · дошли САМИ {bind.beyond_twice_unbound} "
+                f"(дошедший САМ порога не переходил ни одной ФАЗОЙ — порог ему не клин)"
+            )
+        if bind.unjudged_without_outcome:
+            lines.append(
+                f"   случаев длиннее порога БЕЗ исхода {bind.unjudged_without_outcome} — "
+                f"судить о пороге по ним нечем, в счёт выше они не входят"
+            )
+
+    # --- ось 3: счёт шума и сверка объявления записи с реконструкцией ---
+    noise = record_noise(census)
+    if noise.read == READ_OK:
+        parts = [f"рваных строк {noise.torn_lines}",
+                 f"случаев без исхода {noise.cases_without_outcome}",
+                 f"ход часов назад {noise.backwards_clock}",
+                 f"лишних сессий {noise.extra_sessions}"]
+        lines.append(
+            f"   шум записи: {'ЧИСТО' if noise.clean else 'ЕСТЬ'} · " + " · ".join(parts)
+        )
+        if noise.declared_check == NOISE_DECLARED_AGREES:
+            lines.append(
+                f"   запись объявила о себе {noise.declared_started}/{noise.declared_finished} "
+                f"(начато/завершено) — СОШЛОСЬ с независимой реконструкцией"
+            )
+        elif noise.declared_check == NOISE_DECLARED_DISAGREES:
+            lines.append(
+                f"   объявление записи СПОРИТ с реконструкцией: объявлено "
+                f"{noise.declared_started}/{noise.declared_finished}, восстановлено "
+                f"{noise.rebuilt_started}/{noise.rebuilt_finished}"
+            )
+        else:
+            lines.append("   счётчиков в строке `end` нет — сверить объявление не с чем")
+        if noise.cases_with_many_outcomes:
+            lines.append(
+                f"   случаев с несколькими событиями исхода {noise.cases_with_many_outcomes} "
+                f"(лишних событий {noise.extra_outcome_events}) — это ФАЗЫ, а не порча"
+            )
+
+    # --- ось 2: годна ли отметка топора (печатается только если передана) ---
+    if axe_stamp is not None:
+        axe = axe_stamp_verdict(census, axe_stamp)
+        mark = "ГОДНА" if axe.usable else "ОТКАЗ"
+        lines.append(f"   отметка топора: {mark} — {axe.reason}")
+        if axe.upper_bound_s is not None:
+            lines.append(
+                f"   бюджет шага между границами: не меньше {axe.lower_bound_s / 60:.1f} мин "
+                f"(запись) и не больше {axe.upper_bound_s / 60:.1f} мин (раннер)"
+            )
+
     top = sorted(census.cases, key=lambda c: c.span, reverse=True)[:shown]
     for case in top:
         mark = "⏳" if case.outcome is None else "🔝"
@@ -603,6 +985,29 @@ def format_census(census: Census, *, label: str = "шаг тестов", shown: 
         rest = len(census.cases) - shown
         lines.append(f"   … и ещё {rest} случа(ев) дешевле перечисленных")
     return "\n".join(lines)
+
+
+def parse_stamp(raw: str | None) -> float | None:
+    """Отметка раннера: ISO ``…Z`` или epoch-число. Неразобранная ⇒ ``None``.
+
+    ``None`` — третий исход: ось топора откажет и НАЗОВЁТ причину, вместо того
+    чтобы подставить ноль и объявить шаг мгновенным.
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    import datetime as _dt
+    try:
+        parsed = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=_dt.timezone.utc).timestamp()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -620,9 +1025,19 @@ def main(argv: list[str] | None = None) -> int:
         help="ЭТАЛОННАЯ запись ДОШЕДШЕЙ сессии: сложить обе по общим случаям и "
              "сказать, медленнее ли раннер (заказ G108 п. 3, ADR-677)",
     )
+    parser.add_argument(
+        "--axe-stamp", default=None,
+        help="отметка раннера о КОНЦЕ шага (ISO …Z или epoch): годна ли она как "
+             "верхняя граница бюджета (заказ G109 п. 3). В записи её нет по "
+             "построению — её передают",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
+    stamp = parse_stamp(args.axe_stamp)
+    if args.axe_stamp is not None and stamp is None:
+        print(f"   отметка топора: ОТКАЗ — '{args.axe_stamp}' не разобрана "
+              f"ни как ISO (…Z), ни как epoch; подставлять её нельзя")
     census = census_from_path(args.record)
     comparison = None
     if args.against is not None:
@@ -643,6 +1058,36 @@ def main(argv: list[str] | None = None) -> int:
             "sessions_in_record": census.sessions_in_record,
             "timeout_s": census.timeout_s,
             "identity_holds": census.identity_holds(),
+            "threshold_binding": (lambda b: {
+                "read": b.read, "reason": b.reason, "threshold_s": b.threshold_s,
+                "at_or_beyond": b.at_or_beyond, "bound": b.bound,
+                "unbound": b.unbound, "skipped": b.skipped,
+                "unjudged_without_outcome": b.unjudged_without_outcome,
+                "beyond_twice": b.beyond_twice,
+                "beyond_twice_bound": b.beyond_twice_bound,
+                "beyond_twice_unbound": b.beyond_twice_unbound,
+                "binds": b.binds,
+            })(threshold_binding(census)),
+            "record_noise": (lambda n: {
+                "read": n.read, "clean": n.clean, "torn_lines": n.torn_lines,
+                "cases_without_outcome": n.cases_without_outcome,
+                "backwards_clock": n.backwards_clock,
+                "extra_sessions": n.extra_sessions,
+                "cases_with_many_outcomes": n.cases_with_many_outcomes,
+                "extra_outcome_events": n.extra_outcome_events,
+                "declared_check": n.declared_check,
+                "declared_started": n.declared_started,
+                "declared_finished": n.declared_finished,
+                "rebuilt_started": n.rebuilt_started,
+                "rebuilt_finished": n.rebuilt_finished,
+            })(record_noise(census)),
+            "axe_stamp": (lambda a: None if a is None else {
+                "kind": a.kind, "reason": a.reason, "usable": a.usable,
+                "stamp_t": a.stamp_t, "last_event_t": a.last_event_t,
+                "gap_s": None if a.gap_s is None else round(a.gap_s, 3),
+                "lower_bound_s": None if a.lower_bound_s is None else round(a.lower_bound_s, 3),
+                "upper_bound_s": None if a.upper_bound_s is None else round(a.upper_bound_s, 3),
+            })(None if stamp is None else axe_stamp_verdict(census, stamp)),
             "comparison": None if comparison is None else {
                 "read": comparison.read, "reason": comparison.reason,
                 "common_cases": comparison.common_cases,
@@ -667,7 +1112,7 @@ def main(argv: list[str] | None = None) -> int:
             ],
         }, ensure_ascii=False, indent=2))
     else:
-        print(format_census(census, label=args.label, shown=args.top))
+        print(format_census(census, label=args.label, shown=args.top, axe_stamp=stamp))
         if comparison is not None:
             print(format_comparison(comparison, shown=args.top))
         if args.by_file:

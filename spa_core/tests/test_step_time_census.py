@@ -21,19 +21,34 @@ import unittest
 from pathlib import Path
 
 from spa_core.monitoring.step_time_census import (
+    AXE_NOT_NEEDED,
+    AXE_REFUSED_EARLIER,
+    AXE_REFUSED_NO_STAMP,
+    AXE_REFUSED_UNREADABLE,
+    AXE_USABLE,
+    BIND_NO_THRESHOLD,
+    BIND_OK,
+    BIND_UNREADABLE,
     DEFAULT_BUCKETS_S,
     READ_ABSENT,
     READ_EMPTY,
     READ_NO_SESSION,
     READ_OK,
+    NOISE_DECLARED_ABSENT,
+    NOISE_DECLARED_AGREES,
+    NOISE_DECLARED_DISAGREES,
     READ_UNREADABLE,
     at_or_beyond_limit,
+    axe_stamp_verdict,
     by_file,
     census_from_events,
     census_from_path,
     concentration,
     format_census,
     parse_lines,
+    parse_stamp,
+    record_noise,
+    threshold_binding,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -63,8 +78,22 @@ def _fail(node: str, t: float, when: str = "call", d: float = 0.0) -> dict:
     return {"e": "fail", "n": node, "t": t, "w": when, "d": d, "msg": "-"}
 
 
-def _end(t: float, status: int = 0) -> dict:
-    return {"e": "end", "t": t, "status": status, "started": 0, "finished": 0}
+def _end(t: float, status: int = 0, started: int | None = None,
+         finished: int | None = None) -> dict:
+    """Строка `end`. Счётчики писателя ОПУСКАЮТСЯ, если их не назвали явно.
+
+    Прежняя редакция ставила ``started=0, finished=0`` всегда, и сцена, ничего
+    о себе не объявлявшая, выглядела объявившей НОЛЬ. Для оси 3 (заказ G109 п. 3)
+    это разные исходы: «не объявлено» и «объявлено 0» (инв. #17). Ни одно
+    утверждение существующих тестов этим не ослаблено — ни один из них счётчики
+    не читал (проверено ввозом: их читателем был только писатель плагина).
+    """
+    event: dict = {"e": "end", "t": t, "status": status}
+    if started is not None:
+        event["started"] = started
+    if finished is not None:
+        event["finished"] = finished
+    return event
 
 
 def _scene_two_cases() -> list[dict]:
@@ -834,3 +863,602 @@ class HolesFoundByMutatingMyOwnBattery(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# J. ОСЬ 1 (заказ G109 п. 3): «связывает ли порог» — по ИСХОДУ, не по длительности
+#
+# Положительный контроль здесь — РЕАЛЬНЫЙ случай прогона 37769228666 (нога 3.12):
+# `test_the_instrument_excludes_itself_by_naming_the_reason` шёл 504,7 с при пороге
+# 180 с и завершился ИСХОДОМ `ok`, в junit — без элемента failure. Существующая ось
+# считает его в «прожили ВДВОЕ дольше порога» и печатает «порог их не взял», что
+# читается как улика клина; по ИСХОДУ же это случай, который порог и не связывал.
+# Рядом — его противоположность, тоже реальная: восемь случаев ноги 3.11 с исходом
+# `fail` на 180,7…182,7 с, у которых junit говорит дословно
+# `Failed: Timeout (>180.0s) from pytest-timeout`.
+# ---------------------------------------------------------------------------
+class TheThresholdBindsOrItDoesNot(unittest.TestCase):
+
+    def test_a_failure_at_the_threshold_counts_as_bound(self):
+        """Порог СРАБОТАЛ: исход `fail` на пороге — это снятый случай."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::slow", BASE_T),
+            _fail(f"{_FILE_A}::slow", BASE_T + 10, d=10.0),
+            _end(BASE_T + 10),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.read, BIND_OK)
+        self.assertEqual((bind.at_or_beyond, bind.bound, bind.unbound), (1, 1, 0))
+        self.assertIs(bind.binds, True)
+
+    def test_a_pass_above_the_threshold_counts_as_unbound(self):
+        """Реальный случай 504,7 с с исходом `ok`: порог его НЕ связывал.
+
+        Это ровно тот случай, которого существующая ось не различает: она считает
+        его «пережившим порог», то есть уликой клина, — а он просто дошёл сам.
+        """
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::long", BASE_T),
+            _ok(f"{_FILE_A}::long", BASE_T + 30, d=30.0),
+            _end(BASE_T + 30),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual((bind.at_or_beyond, bind.bound, bind.unbound), (1, 0, 1))
+        self.assertIs(bind.binds, False)
+        # и существующая ось на той же сцене не различает его вовсе
+        self.assertEqual(at_or_beyond_limit(c), (1, 1))
+
+    def test_the_two_populations_are_never_merged(self):
+        """Мутант `c.outcome == "fail"` → `is not None` слил бы их в одно число."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::killed", BASE_T),
+            _fail(f"{_FILE_A}::killed", BASE_T + 11),
+            _start(f"{_FILE_B}::survived", BASE_T + 11),
+            _ok(f"{_FILE_B}::survived", BASE_T + 40),
+            _end(BASE_T + 40),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.at_or_beyond, 2)
+        self.assertEqual(bind.bound, 1)
+        self.assertEqual(bind.unbound, 1)
+
+    def test_a_skip_at_the_threshold_is_its_own_number(self):
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::skipped", BASE_T),
+            {"e": "skip", "n": f"{_FILE_A}::skipped", "t": BASE_T + 12, "d": 12.0},
+            _end(BASE_T + 12),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual((bind.bound, bind.unbound, bind.skipped), (0, 0, 1))
+        self.assertIs(bind.binds, False)
+
+    def test_without_a_threshold_the_question_is_unmeasured_not_answered_no(self):
+        """Порога нет ⇒ `binds is None`. Ответить «не связывал» значило бы выдать
+        отсутствие наблюдения за наблюдение (инв. #17)."""
+        c = census_from_events([
+            _session(BASE_T, args=["-q"]),
+            _start(f"{_FILE_A}::a", BASE_T),
+            _ok(f"{_FILE_A}::a", BASE_T + 99),
+            _end(BASE_T + 99),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.read, BIND_NO_THRESHOLD)
+        self.assertIsNone(bind.binds)
+        self.assertEqual((bind.bound, bind.unbound), (0, 0))
+
+    def test_a_long_case_without_an_outcome_is_counted_apart(self):
+        """У случая без исхода наблюдённой фазы нет — судить о пороге по нему
+        нечем, но его существование обязано быть ВИДНО числом."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::hung", BASE_T),
+            _start(f"{_FILE_B}::next", BASE_T + 50),
+            _ok(f"{_FILE_B}::next", BASE_T + 51),
+            _end(BASE_T + 51),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.unjudged_without_outcome, 1)
+        self.assertEqual((bind.at_or_beyond, bind.bound, bind.unbound), (0, 0, 0))
+
+    def test_twice_the_threshold_is_also_split_by_outcome(self):
+        """Мутант, считавший «вдвое выше» без исхода, выживал: именно это число
+        существующая ось печатает как «порог их не взял»."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::passed_far", BASE_T),
+            _ok(f"{_FILE_A}::passed_far", BASE_T + 25),
+            _start(f"{_FILE_B}::killed_far", BASE_T + 25),
+            _fail(f"{_FILE_B}::killed_far", BASE_T + 55),
+            _end(BASE_T + 55),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.beyond_twice, 2)
+        self.assertEqual(bind.beyond_twice_unbound, 1)
+        self.assertEqual(bind.beyond_twice_bound, 1)
+
+    def test_an_unreadable_record_answers_none_not_false(self):
+        bind = threshold_binding(census_from_path(None))
+        self.assertEqual(bind.read, BIND_UNREADABLE)
+        self.assertIsNone(bind.binds)
+
+    def test_the_verdict_is_printed_in_both_directions(self):
+        killed = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::k", BASE_T), _fail(f"{_FILE_A}::k", BASE_T + 11),
+            _end(BASE_T + 11),
+        ])
+        self.assertIn("порог СВЯЗАЛ: ДА", format_census(killed))
+        quiet = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::q", BASE_T), _ok(f"{_FILE_A}::q", BASE_T + 1),
+            _end(BASE_T + 1),
+        ])
+        self.assertIn("порог СВЯЗАЛ: НЕТ", format_census(quiet))
+
+
+# ---------------------------------------------------------------------------
+# K. ОСЬ 2 (заказ G109 п. 3): ОТКАЗ от негодной отметки топора
+#
+# Положительный контроль воспроизводит ИЗМЕРЕННУЮ аварию, причём дважды и на
+# разных прогонах: ADR-534 дополнение 3 — отметка раннера на 285,9 с РАНЬШЕ
+# последней активности записи; прогон 37769228666 нога 3.11 — на 183,3 с раньше.
+# Отметка, которая раньше наблюдённой активности, не является даже ВЕРХНЕЙ
+# границей, и подстановка её вместо неизмеренного бюджета УМЕНЬШИЛА бы измеренное.
+#
+# Смещения ниже — безразмерные сдвиги от ``BASE_T``, а не даты: предметом здесь
+# является ПОРЯДОК двух событий, и календарь на него не влияет.
+# ---------------------------------------------------------------------------
+_GAP_ADR534 = 285.9      # дополнение 3 ADR-534
+_GAP_RUN_3_11 = 183.3    # прогон 37769228666, нога 3.11
+
+
+def _unended_scene(last_at: float) -> list[dict]:
+    """Сессия БЕЗ строки `end`: бюджет шага не измерен, соблазн подставить топор."""
+    return [
+        _session(BASE_T, args=["--timeout=180"]),
+        _start(f"{_FILE_A}::a", BASE_T + 1),
+        _ok(f"{_FILE_A}::a", last_at),
+    ]
+
+
+class TheAxeStampIsRefusedWhenItIsUnusable(unittest.TestCase):
+
+    def test_a_stamp_earlier_than_the_record_is_refused(self):
+        """Авария ADR-534 дополнение 3 и её независимое повторение на 3.11."""
+        for gap in (_GAP_ADR534, _GAP_RUN_3_11):
+            with self.subTest(gap=gap):
+                last = BASE_T + 1000
+                c = census_from_events(_unended_scene(last))
+                axe = axe_stamp_verdict(c, last - gap)
+                self.assertEqual(axe.kind, AXE_REFUSED_EARLIER)
+                self.assertFalse(axe.usable)
+                self.assertIsNone(axe.upper_bound_s)
+                self.assertAlmostEqual(axe.gap_s, -gap, places=3)
+                self.assertIn(f"{gap:.1f} с", axe.reason)
+
+    def test_a_stamp_after_the_last_activity_bounds_the_budget_from_above(self):
+        last = BASE_T + 1000
+        c = census_from_events(_unended_scene(last))
+        axe = axe_stamp_verdict(c, last + 60)
+        self.assertEqual(axe.kind, AXE_USABLE)
+        self.assertTrue(axe.usable)
+        self.assertAlmostEqual(axe.lower_bound_s, last - BASE_T, places=3)
+        self.assertAlmostEqual(axe.upper_bound_s, last + 60 - BASE_T, places=3)
+
+    def test_when_the_record_reached_its_end_the_stamp_is_not_needed(self):
+        """Бюджет измерен самой записью ⇒ отметка не нужна, но согласие с ней
+        НАЗЫВАЕТСЯ числом (на реальной 3.12 оно 73,2 с)."""
+        c = census_from_events(_scene_two_cases())
+        axe = axe_stamp_verdict(c, BASE_T + 20)
+        self.assertEqual(axe.kind, AXE_NOT_NEEDED)
+        self.assertTrue(axe.usable)
+        self.assertAlmostEqual(axe.gap_s, 3.0, places=3)
+
+    def test_a_missing_stamp_is_a_named_refusal_not_a_zero(self):
+        """Мутант `stamp_t is None` → `stamp_t == 0` подставил бы ноль и объявил
+        шаг завершившимся до собственного начала."""
+        c = census_from_events(_unended_scene(BASE_T + 1000))
+        axe = axe_stamp_verdict(c, None)
+        self.assertEqual(axe.kind, AXE_REFUSED_NO_STAMP)
+        self.assertFalse(axe.usable)
+        self.assertIsNone(axe.gap_s)
+        self.assertIsNone(axe.upper_bound_s)
+
+    def test_an_unreadable_record_refuses_the_stamp_too(self):
+        axe = axe_stamp_verdict(census_from_path(None), BASE_T)
+        self.assertEqual(axe.kind, AXE_REFUSED_UNREADABLE)
+        self.assertFalse(axe.usable)
+
+    def test_the_boundary_is_not_off_by_one_second(self):
+        """Мутант `gap < 0` → `gap <= 0` объявлял бы отказ на РОВНО совпавшей
+        отметке, то есть отказывал годной."""
+        last = BASE_T + 1000
+        c = census_from_events(_unended_scene(last))
+        self.assertEqual(axe_stamp_verdict(c, last).kind, AXE_USABLE)
+
+    def test_the_refusal_and_the_brackets_are_printed(self):
+        last = BASE_T + 1000
+        c = census_from_events(_unended_scene(last))
+        refused = format_census(c, axe_stamp=last - _GAP_RUN_3_11)
+        self.assertIn("отметка топора: ОТКАЗ", refused)
+        self.assertNotIn("между границами", refused)
+        usable = format_census(c, axe_stamp=last + 60)
+        self.assertIn("отметка топора: ГОДНА", usable)
+        self.assertIn("между границами", usable)
+
+    def test_no_stamp_means_no_axe_line_at_all(self):
+        """Прибор не вправе выдумывать отметку: в записи её нет по построению."""
+        self.assertNotIn("отметка топора",
+                         format_census(census_from_events(_scene_two_cases())))
+
+    def test_a_stamp_is_read_as_iso_or_epoch_and_junk_is_none(self):
+        self.assertEqual(parse_stamp("1000"), 1000.0)
+        self.assertIsNone(parse_stamp(None))
+        self.assertIsNone(parse_stamp(""))
+        self.assertIsNone(parse_stamp("не отметка"))
+        # ISO разбирается и даёт РАЗНИЦУ в секундах, равную названной
+        a = parse_stamp("2026-10-08T15:28:29Z")
+        b = parse_stamp("2026-10-08T15:16:09Z")
+        self.assertIsNotNone(a)
+        self.assertIsNotNone(b)
+        self.assertAlmostEqual(a - b, 12 * 60 + 20, places=3)
+
+
+# ---------------------------------------------------------------------------
+# L. ОСЬ 3 (заказ G109 п. 3): СЧЁТ шума и сверка объявления записи
+#
+# Положительный контроль сверки — авария ADR-534 дополнение 2: собственный тест
+# плагина выключал писателя посреди сессии, и запись несла 416 стартов против 588
+# тестов своего же junit. Внутри записи этот вред неотличим от снятого топором
+# шага; то, что внутри записи ИЗМЕРИМО, — спор её собственного объявления
+# (`started`/`finished` в строке `end`) с независимой реконструкцией. На реальной
+# ноге 3.12 объявление СОШЛОСЬ до единицы (115 980 / 118 019), и это единственная
+# форма, в которой у объявления вообще появился читатель.
+# ---------------------------------------------------------------------------
+class TheNoiseOfTheRecordIsCountedNotAssumed(unittest.TestCase):
+
+    def test_a_clean_record_says_clean_as_a_measurement(self):
+        noise = record_noise(census_from_events(_scene_two_cases()))
+        self.assertIs(noise.clean, True)
+        self.assertEqual(
+            (noise.torn_lines, noise.cases_without_outcome,
+             noise.backwards_clock, noise.extra_sessions), (0, 0, 0, 0))
+        self.assertIn("шум записи: ЧИСТО",
+                      format_census(census_from_events(_scene_two_cases())))
+
+    def test_a_torn_line_flips_the_verdict_and_is_counted(self):
+        events, torn = parse_lines(
+            [json.dumps(e) for e in _scene_two_cases()] + ["{оборвано"])
+        noise = record_noise(census_from_events(events, torn_lines=torn))
+        self.assertEqual(noise.torn_lines, 1)
+        self.assertIs(noise.clean, False)
+
+    def test_a_case_without_an_outcome_flips_the_verdict(self):
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::hung", BASE_T + 1),
+            _start(f"{_FILE_B}::next", BASE_T + 5),
+            _ok(f"{_FILE_B}::next", BASE_T + 6),
+            _end(BASE_T + 6),
+        ])
+        noise = record_noise(c)
+        self.assertEqual(noise.cases_without_outcome, 1)
+        self.assertIs(noise.clean, False)
+
+    def test_a_backwards_clock_flips_the_verdict(self):
+        c = census_from_events([
+            _session(BASE_T + 100),
+            _start(f"{_FILE_A}::a", BASE_T + 101),
+            _ok(f"{_FILE_A}::a", BASE_T + 50),
+            _end(BASE_T + 102),
+        ])
+        self.assertGreaterEqual(record_noise(c).backwards_clock, 1)
+        self.assertIs(record_noise(c).clean, False)
+
+    def test_an_extra_session_in_the_record_is_counted_as_noise(self):
+        c = census_from_events(
+            [_session(BASE_T), _start(f"{_FILE_A}::a", BASE_T + 1),
+             _ok(f"{_FILE_A}::a", BASE_T + 2), _end(BASE_T + 3)]
+            + [_session(BASE_T + 100), _start(f"{_FILE_B}::b", BASE_T + 101),
+               _ok(f"{_FILE_B}::b", BASE_T + 102), _end(BASE_T + 103)])
+        noise = record_noise(c)
+        self.assertEqual(noise.extra_sessions, 1)
+        self.assertIs(noise.clean, False)
+
+    def test_a_declaration_that_agrees_is_said_to_agree(self):
+        """Реальная 3.12: объявлено 115 980 / 118 019 и столько же восстановлено."""
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::a", BASE_T + 1),
+            _ok(f"{_FILE_A}::a", BASE_T + 2),
+            _end(BASE_T + 3, started=1, finished=1),
+        ])
+        noise = record_noise(c)
+        self.assertEqual(noise.declared_check, NOISE_DECLARED_AGREES)
+        self.assertEqual((noise.rebuilt_started, noise.rebuilt_finished), (1, 1))
+        self.assertIn("СОШЛОСЬ", format_census(c))
+
+    def test_a_declaration_that_disagrees_is_named_with_both_pairs(self):
+        """Авария дополнения 2 ADR-534 в измеримой внутри записи форме: писатель
+        выключен посреди сессии ⇒ объявление и реконструкция расходятся."""
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::a", BASE_T + 1),
+            _ok(f"{_FILE_A}::a", BASE_T + 2),
+            _end(BASE_T + 3, started=588, finished=588),
+        ])
+        noise = record_noise(c)
+        self.assertEqual(noise.declared_check, NOISE_DECLARED_DISAGREES)
+        self.assertEqual(noise.declared_started, 588)
+        self.assertEqual(noise.rebuilt_started, 1)
+        text = format_census(c)
+        self.assertIn("СПОРИТ", text)
+        self.assertIn("588", text)
+
+    def test_a_record_without_an_end_line_leaves_the_declaration_unjudged(self):
+        """Третий исход: «не объявлено» не есть ни согласие, ни спор."""
+        c = census_from_events(_unended_scene(BASE_T + 100))
+        noise = record_noise(c)
+        self.assertEqual(noise.declared_check, NOISE_DECLARED_ABSENT)
+        self.assertIsNone(noise.declared_started)
+
+    def test_declaring_zero_is_not_the_same_as_declaring_nothing(self):
+        """Мутант, читавший `started` через `or`, слил бы 0 и отсутствие."""
+        zero = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::a", BASE_T + 1),
+            _ok(f"{_FILE_A}::a", BASE_T + 2),
+            _end(BASE_T + 3, started=0, finished=0),
+        ])
+        self.assertEqual(record_noise(zero).declared_check, NOISE_DECLARED_DISAGREES)
+        self.assertEqual(record_noise(zero).declared_started, 0)
+        silent = census_from_events(_scene_two_cases())
+        self.assertEqual(record_noise(silent).declared_check, NOISE_DECLARED_ABSENT)
+
+    def test_several_outcome_events_on_one_case_are_structure_not_noise(self):
+        """На реальной 3.12 таких случаев 277 (лишних событий 2 039) — это ФАЗЫ.
+        Записать их в шум значило бы объявить дефектом устройство pytest-а."""
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::two_phases", BASE_T + 1),
+            _ok(f"{_FILE_A}::two_phases", BASE_T + 2, d=1.0),
+            _ok(f"{_FILE_A}::two_phases", BASE_T + 3, d=1.0),
+            _end(BASE_T + 3, started=1, finished=2),
+        ])
+        noise = record_noise(c)
+        self.assertEqual(noise.cases_with_many_outcomes, 1)
+        self.assertEqual(noise.extra_outcome_events, 1)
+        self.assertIs(noise.clean, True)
+        self.assertEqual(noise.declared_check, NOISE_DECLARED_AGREES)
+        self.assertIn("это ФАЗЫ, а не порча", format_census(c))
+
+    def test_an_unreadable_record_does_not_claim_to_be_clean(self):
+        self.assertIsNone(record_noise(census_from_path(None)).clean)
+
+
+# ---------------------------------------------------------------------------
+# M. Три оси обязаны быть ВИДНЫ потребителю, а не только существовать
+# ---------------------------------------------------------------------------
+class ThePortedAxesHaveAReader(unittest.TestCase):
+
+    def test_the_json_output_carries_all_three_axes(self):
+        """Прибор зовут и машинно; ось, которой нет в `--json`, для машины
+        не перенесена (ADR-526: читатель без входа есть тот же разрыв)."""
+        from spa_core.monitoring import step_time_census as mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            record = Path(tmp) / "stream.jsonl"
+            record.write_text(
+                "\n".join(json.dumps(e) for e in _scene_two_cases()) + "\n",
+                encoding="utf-8")
+            import contextlib
+            import io
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                code = mod.main([str(record), "--json",
+                                 "--axe-stamp", str(BASE_T + 20)])
+        self.assertEqual(code, 0)
+        doc = json.loads(buf.getvalue())
+        self.assertEqual(doc["threshold_binding"]["read"], BIND_OK)
+        self.assertIs(doc["record_noise"]["clean"], True)
+        self.assertEqual(doc["axe_stamp"]["kind"], AXE_NOT_NEEDED)
+
+    def test_an_unparsed_stamp_is_refused_out_loud_by_the_entry_point(self):
+        """Негодная отметка не становится молча `None`: цикл обязан увидеть отказ."""
+        from spa_core.monitoring import step_time_census as mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            record = Path(tmp) / "stream.jsonl"
+            record.write_text(
+                "\n".join(json.dumps(e) for e in _scene_two_cases()) + "\n",
+                encoding="utf-8")
+            import contextlib
+            import io
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                mod.main([str(record), "--axe-stamp", "вчера"])
+        out = buf.getvalue()
+        self.assertIn("отметка топора: ОТКАЗ", out)
+        self.assertIn("не разобрана", out)
+
+
+# ---------------------------------------------------------------------------
+# N. ДЫРЫ СЦЕН, найденные мутационным замером САМИХ новых осей
+#
+# Замер: 56 мутантов по пяти новым функциям, убито 34, выжило 22 — и все 22
+# оказались дырами СЦЕН, а не дефектами прибора (урок #752–#754). Каждый тест
+# ниже закрывает названный мутант и краснеет на нём.
+#
+# Среди них — ровно та ловушка, которой учит замер ADR-581: РАВНЫЕ счёты двух
+# исходов делают подмену ИМЕНИ ключа невидимой. На сцене «один fail и один ok»
+# мутант `outcome == "fail"` → `!=` даёт то же число 1, и сцена его не видит;
+# различимость появляется только при НЕРАВНЫХ счётах.
+# ---------------------------------------------------------------------------
+class HolesFoundByMutatingTheNewAxes(unittest.TestCase):
+
+    def test_an_unmeasured_binding_is_zero_in_EVERY_field(self):
+        """Мутанты `const 0->1` в `_no_binding` выживали шестью штуками: сцена
+        читала только `bound`/`unbound`, а полей там десять."""
+        bind = threshold_binding(census_from_events(
+            [_session(BASE_T, args=["-q"]), _end(BASE_T + 1)]))
+        self.assertEqual(bind.read, BIND_NO_THRESHOLD)
+        self.assertIsNone(bind.threshold_s)
+        self.assertEqual(
+            (bind.at_or_beyond, bind.bound, bind.unbound, bind.skipped,
+             bind.unjudged_without_outcome, bind.beyond_twice,
+             bind.beyond_twice_bound, bind.beyond_twice_unbound),
+            (0, 0, 0, 0, 0, 0, 0, 0))
+
+    def test_a_case_EXACTLY_at_the_threshold_is_counted(self):
+        """Мутант `>= порог` → `> порог` выживал: ни одна сцена не стояла РОВНО
+        на пороге, а реальные снятые случаи стоя́т именно там (180,005 с)."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::exact", BASE_T),
+            _fail(f"{_FILE_A}::exact", BASE_T + 10),
+            _end(BASE_T + 10),
+        ])
+        self.assertEqual(threshold_binding(c).at_or_beyond, 1)
+
+    def test_a_case_EXACTLY_at_twice_the_threshold_is_counted(self):
+        """Мутант `>= 2 * порог` → `> 2 * порог` выживал по той же причине."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::exact2", BASE_T),
+            _fail(f"{_FILE_A}::exact2", BASE_T + 20),
+            _end(BASE_T + 20),
+        ])
+        self.assertEqual(threshold_binding(c).beyond_twice, 1)
+
+    def test_the_outcome_name_is_read_and_not_merely_present(self):
+        """Мутанты `outcome == "fail"` → `!=` и `== "skip"` → `!=` выживали на
+        симметричной сцене. Счёты здесь НЕРАВНЫЕ (1 fail · 2 ok · 1 skip),
+        поэтому подмена имени меняет число и видна."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::killed", BASE_T),
+            _fail(f"{_FILE_A}::killed", BASE_T + 11),
+            _start(f"{_FILE_A}::ok1", BASE_T + 11),
+            _ok(f"{_FILE_A}::ok1", BASE_T + 22),
+            _start(f"{_FILE_A}::ok2", BASE_T + 22),
+            _ok(f"{_FILE_A}::ok2", BASE_T + 33),
+            _start(f"{_FILE_B}::skipped", BASE_T + 33),
+            {"e": "skip", "n": f"{_FILE_B}::skipped", "t": BASE_T + 44},
+            _end(BASE_T + 44),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.at_or_beyond, 4)
+        self.assertEqual(bind.bound, 1)      # при `!=` стало бы 3
+        self.assertEqual(bind.unbound, 2)    # при `!=` стало бы 2 — поэтому и fail, и skip
+        self.assertEqual(bind.skipped, 1)    # при `!=` стало бы 3
+
+    def test_a_case_WITH_an_outcome_is_never_counted_as_unjudged(self):
+        """Мутант `to_outcome is None and span >= порог` → `or` выживал: в сцене
+        не было случая, у которого исход ЕСТЬ и размах при этом больше порога."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::long_but_judged", BASE_T),
+            _ok(f"{_FILE_A}::long_but_judged", BASE_T + 50),
+            _end(BASE_T + 50),
+        ])
+        self.assertEqual(threshold_binding(c).unjudged_without_outcome, 0)
+
+    def test_a_record_with_only_one_absolute_clock_refuses_the_stamp(self):
+        """Мутант `last_event_t is None or session_t is None` → `and` выживал:
+        через запись оба поля ставятся вместе, поэтому сцена строится прямо."""
+        from spa_core.monitoring.step_time_census import AXE_REFUSED_NO_CLOCK
+
+        base = census_from_events(_scene_two_cases())
+        for broken in (base._replace(session_t=None),
+                       base._replace(last_event_t=None)):
+            with self.subTest(missing=broken):
+                axe = axe_stamp_verdict(broken, BASE_T + 20)
+                self.assertEqual(axe.kind, AXE_REFUSED_NO_CLOCK)
+                self.assertFalse(axe.usable)
+
+    def test_an_unreadable_noise_ledger_is_zero_in_EVERY_field(self):
+        """Мутанты `const 0->1` в ветви нечитаемой записи выживали семью штуками."""
+        noise = record_noise(census_from_path(None))
+        self.assertIsNone(noise.clean)
+        self.assertEqual(
+            (noise.cases_without_outcome, noise.backwards_clock,
+             noise.extra_sessions, noise.cases_with_many_outcomes,
+             noise.extra_outcome_events, noise.rebuilt_started,
+             noise.rebuilt_finished), (0, 0, 0, 0, 0, 0, 0))
+        self.assertIsNone(noise.declared_started)
+        self.assertIsNone(noise.declared_finished)
+
+    def test_half_a_declaration_is_not_silence(self):
+        """Мутант `started is None and finished is None` → `or` выживал: сцены с
+        ОДНИМ объявленным счётчиком не было. Объявлена половина ⇒ это уже
+        объявление, и сверять его надо, а не звать молчанием."""
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::a", BASE_T + 1),
+            _ok(f"{_FILE_A}::a", BASE_T + 2),
+            _end(BASE_T + 3, started=1),
+        ])
+        self.assertEqual(record_noise(c).declared_check, NOISE_DECLARED_DISAGREES)
+        self.assertEqual(record_noise(c).declared_started, 1)
+        self.assertIsNone(record_noise(c).declared_finished)
+
+    def test_one_matching_counter_out_of_two_is_still_a_disagreement(self):
+        """Мутант `started == rebuilt and finished == rebuilt` → `or` выживал:
+        сцены, где сходится РОВНО ОДИН счётчик, не было."""
+        c = census_from_events([
+            _session(BASE_T),
+            _start(f"{_FILE_A}::a", BASE_T + 1),
+            _ok(f"{_FILE_A}::a", BASE_T + 2),
+            _end(BASE_T + 3, started=1, finished=999),
+        ])
+        self.assertEqual(record_noise(c).declared_check, NOISE_DECLARED_DISAGREES)
+
+
+    def test_a_case_EXACTLY_at_the_threshold_without_an_outcome_is_unjudged(self):
+        """Мутант `c.span >= limit` → `>` в счёте неподсудных выживал: сцены с
+        размахом РОВНО в порог у случая без исхода не было."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::hung_exact", BASE_T),
+            _start(f"{_FILE_B}::next", BASE_T + 10),
+            _ok(f"{_FILE_B}::next", BASE_T + 11),
+            _end(BASE_T + 11),
+        ])
+        self.assertEqual(threshold_binding(c).unjudged_without_outcome, 1)
+
+    def test_beyond_twice_is_a_SUBSET_of_at_the_threshold(self):
+        """Мутант, снявший фильтр «вдвое выше», давал twice == at и выживал,
+        пока в сцене эти два числа были РАВНЫ."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::at_only", BASE_T),
+            _fail(f"{_FILE_A}::at_only", BASE_T + 11),
+            _start(f"{_FILE_B}::far", BASE_T + 11),
+            _fail(f"{_FILE_B}::far", BASE_T + 42),
+            _end(BASE_T + 42),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.at_or_beyond, 2)
+        self.assertEqual(bind.beyond_twice, 1)
+
+    def test_the_outcome_name_is_read_INSIDE_the_twice_population_too(self):
+        """Мутанты `== "fail"` / `== "ok"` в счёте «вдвое выше» выживали: там
+        счёты были РАВНЫ (1 и 1). Здесь они НЕРАВНЫ — 1 fail против 2 ok."""
+        c = census_from_events([
+            _session(BASE_T, args=["--timeout=10"]),
+            _start(f"{_FILE_A}::far_killed", BASE_T),
+            _fail(f"{_FILE_A}::far_killed", BASE_T + 25),
+            _start(f"{_FILE_A}::far_ok1", BASE_T + 25),
+            _ok(f"{_FILE_A}::far_ok1", BASE_T + 55),
+            _start(f"{_FILE_B}::far_ok2", BASE_T + 55),
+            _ok(f"{_FILE_B}::far_ok2", BASE_T + 90),
+            _end(BASE_T + 90),
+        ])
+        bind = threshold_binding(c)
+        self.assertEqual(bind.beyond_twice, 3)
+        self.assertEqual(bind.beyond_twice_bound, 1)     # при `!=` стало бы 2
+        self.assertEqual(bind.beyond_twice_unbound, 2)   # при `!=` стало бы 1
