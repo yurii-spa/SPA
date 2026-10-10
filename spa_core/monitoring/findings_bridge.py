@@ -348,6 +348,7 @@ PRODUCES = (
     # измерен ADR-682). Ступень грузит двери живого дерева и зовёт их на закрытом
     # словаре форм; сети нет, такт суточный, как у соседей.
     "data/announce_clock_door_census.json",
+    "data/receipt_channel_cost.json",
     # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
@@ -482,6 +483,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "record_survival_census",
     "claim_guard_receipt_readers",
     "announce_clock_door_census",
+    "receipt_channel_cost",
     "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -793,6 +795,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "announce_clock_door_census": {
         "module": "spa_core/monitoring/announce_clock_door_census.py",
         "artifact": "data/announce_clock_door_census.json"},
+    "receipt_channel_cost": {
+        "module": "spa_core/monitoring/receipt_channel_cost.py",
+        "artifact": "data/receipt_channel_cost.json"},
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
@@ -3220,6 +3225,26 @@ def main(argv=None) -> int:
                   f"{_acdc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "announce_clock_door_census", e)
+
+    # Ступень заказа G110 п. 1 (ADR-684): во что обходится КАНАЛ квитанции у её
+    # ЧИТАТЕЛЯ. Прибор только ЧИТАЕТ и поднимает одноразовые сцены в `mkdtemp`;
+    # заголовочное число — вердикт по двум кандидатам канала (третье состояние
+    # записи журнала против второго файла).
+    try:
+        from spa_core.monitoring import receipt_channel_cost
+        _rcc = receipt_channel_cost.run(root=args.root)
+        if _rcc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «вреда нет» (инв. #17).
+            _ans = observed(_rcc["doc"], "answer", kind=dict)
+            _out = None if _ans is None else _ans.get("journal_state_door_outcome")
+            print(f"receipt_channel_cost: {_rcc['doc'].get('status')} — третье "
+                  f"состояние записи у двери сторожа "
+                  f"{'НЕ ИЗМЕРЕНО' if _out is None else _out}")
+        else:
+            print(f"receipt_channel_cost: НЕ ИЗМЕРЕНО — "
+                  f"{_rcc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "receipt_channel_cost", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые

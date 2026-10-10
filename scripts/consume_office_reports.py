@@ -1117,6 +1117,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # «равенство литералов = связанность» согласие дверей и держалось.
     "announce_clock_door_census.json": ("status", "measured", "order", "applied",
                                         "answer", "doors", "writers", "binding"),
+    # Заказ G110 п. 1 (ADR-684). Перечень взят у ПРОИЗВОДИТЕЛЯ (`build_report`),
+    # а не придуман: три оси объявлены ОТДЕЛЬНО, потому что «видит ли читатель
+    # канал», «что читатель требует от квитанции» и «во что канал обходится у
+    # двери» — три разных утверждения, и подменять одно другим запрещено.
+    "receipt_channel_cost.json": ("status", "measured", "order", "applied",
+                                  "reader", "reader_field", "answer",
+                                  "visibility", "contract", "door"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1418,6 +1425,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/claim_guard_receipt_readers.py",
     "announce_clock_door_census.json":
         "spa_core/monitoring/announce_clock_door_census.py",
+    "receipt_channel_cost.json":
+        "spa_core/monitoring/receipt_channel_cost.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3760,6 +3769,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.announce_clock_door_census import format_report as _acdc_report
         out.extend(_acdc_report(data))
+    elif name == "receipt_channel_cost.json":
+        # Заказ G110 п. 1 (ADR-684). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.receipt_channel_cost import format_report as _rcc_report
+        out.extend(_rcc_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

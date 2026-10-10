@@ -203,7 +203,9 @@ _WRITER_STAMP = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def _write_sandbox(root: Path, subject: str, *, announcer,
-                   receipt_anchor: Optional[Dict[str, Any]] = None) -> Tuple[Path, Path]:
+                   receipt_anchor: Optional[Dict[str, Any]] = None,
+                   receipt_state: str = "claim",
+                   receipt_log: Optional[Path] = None) -> Tuple[Path, Path]:
     """Одноразовая сцена: карточка + журнал, НАПИСАННЫЙ НАСТОЯЩИМ ПИСАТЕЛЕМ.
 
     Журнал не собирается строками: его пишет ``log_session_change.record`` — тот самый
@@ -218,6 +220,19 @@ def _write_sandbox(root: Path, subject: str, *, announcer,
 
     Свежесть записи здесь — ПО ПОСТРОЕНИЮ (её только что написали), а не литеральная
     дата: тот же приём, что ``os.getpid()`` у личности процесса.
+
+    ``receipt_state`` и ``receipt_log`` добавлены заказом **G110 п. 1** (ADR-684) и
+    УМОЛЧАНИЕМ сохраняют поведение оси D байт в байт. Они существуют потому, что
+    заказ спрашивает цену ДВУХ кандидатов канала, а не одного: третье состояние
+    записи (``receipt_state="asked"``) и второй файл (``receipt_log=<путь>``). Копию
+    этой сцены заводить было нельзя — второй экземпляр мерки расходится с первым
+    молча (ADR-220), и расхождение пришлось бы на форму записи, то есть ровно на то,
+    что сцена и обязана воспроизводить точно.
+
+    Про ``receipt_state`` важно, что валидации у писателя НЕТ: ``card_state``
+    записывается как пришёл (``log_session_change.record``), а ограничение
+    ``{claim,done}`` живёт только в разборе аргументов CLI. Поэтому «третье состояние»
+    здесь не выдумано сценой — оно ИЗМЕРИМО настоящим вызовом настоящего писателя.
     """
     tracker = root / "tracker"
     tracker.mkdir(parents=True, exist_ok=True)
@@ -232,8 +247,9 @@ def _write_sandbox(root: Path, subject: str, *, announcer,
     if receipt_anchor is not None:
         announcer.record(
             f"[check_card_claim] проверка захвата карточки {subject} — вердикт free",
-            [], "квитанция read-only проверки", card=subject, card_state="claim",
-            log=str(log), session=f"pid{receipt_anchor['pid']}",
+            [], "квитанция read-only проверки", card=subject,
+            card_state=receipt_state,
+            log=str(receipt_log or log), session=f"pid{receipt_anchor['pid']}",
             process=({"session_pid": receipt_anchor["pid"],
                       "session_pid_start": receipt_anchor["start"]},
                      "личность чужой живой сессии, измеренная у двери `ps`"))
