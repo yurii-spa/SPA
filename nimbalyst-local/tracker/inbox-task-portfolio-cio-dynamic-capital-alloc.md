@@ -8,9 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-39866
-claimed_at: 2026-10-10T20:02:24Z
-claim_takeover_reason: вердикт stale: держатель cycle-77133 мёртв (ps пуст), его работа (ADR-685) УЖЕ на origin как ADR-685..688; локальная копия карточки отстала. Личность захвата ambient: SPA_SESSION_ID=cycle-39866, pid 39866
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
