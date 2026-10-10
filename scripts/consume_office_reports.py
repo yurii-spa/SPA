@@ -1139,6 +1139,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # прибора одно население».
     "empty_release_causes.json": ("status", "measured", "order", "applied",
                                   "population", "causes", "cross_check"),
+    # ADR-687 (заказ G111 п. 3). Перечень взят у ПРОИЗВОДИТЕЛЯ (`build_report`), а не
+    # придуман: `doors` несёт исходы по дверям и по ПРИЧИНАМ «не измерено», `spans` —
+    # распределение и атрибуцию, `ladder` — ступени, `sources` — чем именно спрашивали.
+    # Четыре раздела объявлены ОТДЕЛЬНО, потому что отвечают на разные вопросы, и
+    # подменять один другим запрещено.
+    "unannounced_span.json": ("status", "measured", "order", "applied",
+                              "population", "doors", "spans", "ladder", "sources"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1446,6 +1453,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/foreign_done_cost.py",
     "empty_release_causes.json":
         "spa_core/monitoring/empty_release_causes.py",
+    "unannounced_span.json":
+        "spa_core/monitoring/unannounced_span.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3809,6 +3818,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.empty_release_causes import format_report as _erc_report
         out.extend(_erc_report(data))
+    elif name == "unannounced_span.json":
+        # Заказ G111 п. 3 (ADR-687). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.unannounced_span import format_report as _uas_report
+        out.extend(_uas_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

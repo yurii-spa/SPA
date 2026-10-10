@@ -358,6 +358,10 @@ PRODUCES = (
     # ADR-686). Ступень читает журнал объявлений (живой `data/`) и КАРТОЧКИ
     # трекера, поэтому такт у неё суточный, как у соседей того же ряда.
     "data/empty_release_causes.json",
+    # Вторая сторона цены оси D — заказ G111 п. 3 (ADR-536, измерен ADR-687).
+    # Ступень читает журнал объявлений (живой `data/`), деревья на диске, архив
+    # уборщика и реестр git, поэтому такт у неё суточный, как у соседей ряда.
+    "data/unannounced_span.json",
     # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
@@ -495,6 +499,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "receipt_channel_cost",
     "foreign_done_cost",
     "empty_release_causes",
+    "unannounced_span",
     "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -815,6 +820,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "empty_release_causes": {
         "module": "spa_core/monitoring/empty_release_causes.py",
         "artifact": "data/empty_release_causes.json"},
+    "unannounced_span": {
+        "module": "spa_core/monitoring/unannounced_span.py",
+        "artifact": "data/unannounced_span.json"},
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
@@ -3304,6 +3312,28 @@ def main(argv=None) -> int:
                   f"{_erc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "empty_release_causes", e)
+
+    # Ступень заказа G111 п. 3 (ADR-687): ВТОРАЯ сторона цены оси D — работа,
+    # оборванная ДО объявления закрытия. Прибор только ЧИТАЕТ: журнал объявлений,
+    # деревья, архив уборщика и реестр git. Заголовочное число — доля незакрытых
+    # захватов, у которых span вообще ИЗМЕРИМ, против доли, объявленной неизмеримой.
+    try:
+        from spa_core.monitoring import unannounced_span
+        _uas = unannounced_span.run(root=args.root)
+        if _uas.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «дверей нет» (инв. #17).
+            _doors = observed(_uas["doc"], "doors", kind=dict)
+            _ok = None if _doors is None else _doors.get("measured")
+            _no = None if _doors is None else _doors.get("unmeasured")
+            print(f"unannounced_span: {_uas['doc'].get('status')} — span измерим у "
+                  f"{'НЕ ИЗМЕРЕНО' if _ok is None else _ok} незакрытых захватов, "
+                  f"объявлено неизмеримым "
+                  f"{'НЕ ИЗМЕРЕНО' if _no is None else _no}")
+        else:
+            print(f"unannounced_span: НЕ ИЗМЕРЕНО — "
+                  f"{_uas['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "unannounced_span", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
