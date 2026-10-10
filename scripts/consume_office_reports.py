@@ -1146,6 +1146,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # подменять один другим запрещено.
     "unannounced_span.json": ("status", "measured", "order", "applied",
                               "population", "doors", "spans", "ladder", "sources"),
+    # ADR-688 (заказ G112 п. 1). Разделы объявлены ОТДЕЛЬНО, потому что отвечают на
+    # разные вопросы: `doors` — проба и цена КАЖДОЙ двери (включая слепую), `chosen` —
+    # какую выбрал прибор, `effective` — какой ступень пойдёт ФАКТИЧЕСКИ, `false_zero` —
+    # сколько потерянных координат слепая дверь ПРЯЧЕТ, `declaration` — прочитано ли
+    # объявление вообще. Склеить «выбрана» с «фактическая» значило бы потерять случай
+    # «объявление не доехало», ровно тот, который и был живым замером.
+    "history_door_price.json": ("status", "measured", "order", "applied",
+                                "declaration", "doors", "chosen", "effective",
+                                "false_zero"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1455,6 +1464,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/empty_release_causes.py",
     "unannounced_span.json":
         "spa_core/monitoring/unannounced_span.py",
+    "history_door_price.json":
+        "spa_core/monitoring/history_door_price.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3825,6 +3836,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.unannounced_span import format_report as _uas_report
         out.extend(_uas_report(data))
+    elif name == "history_door_price.json":
+        # Заказ G112 п. 1 (ADR-688). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.history_door_price import format_report as _hdp_report
+        out.extend(_hdp_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

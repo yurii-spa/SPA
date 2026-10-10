@@ -661,8 +661,13 @@ def report(doc: dict) -> List[str]:
     out.append(f"  ❗ОТВЕТ: раскол ДОКАЗАН, писатель МОЛЧИТ, достижимость не "
                f"спрашивал никто — {cross.get(CELL_HARM_REACHABLE)}; из них "
                f"громких (писатель падает) {cross.get(CELL_HARM_UNREACHABLE)}")
-    own = doc.get("own_counters") or {}
-    if own:
+    # `or {}` склеивал «раздела нет» с «накопителей нет», и обе ветви МОЛЧАЛИ —
+    # то есть пропавшее поле производителя выглядело как измеренный ноль (инв. #17).
+    own = observed(doc, "own_counters", kind=dict)
+    if own is None:
+        out.append("  САМ ПРИБОР в населении: НЕ ИЗМЕРЕНО — отчёт не несёт "
+                   "раздела `own_counters`")
+    elif own:
         out.append(f"  САМ ПРИБОР в населении: {own.get('count')} "
                    f"накопитель(ей), из них в головной клетке "
                    f"{own.get('in_the_head_cell')} ⇒ головное число без "

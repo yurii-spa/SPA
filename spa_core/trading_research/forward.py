@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.utils.observation import observed
+
 from . import backtest as bt
 from . import evidence as ev
 from . import lifecycle as lc
@@ -141,9 +143,14 @@ def _qualification_snapshot(r: Optional[Dict]) -> Dict:
     BACKTEST_QUALIFIED — the daily backtest refresh keeps recomputing these numbers, but this
     snapshot is never overwritten, so a later drift is visible by DIFFERENCE, not by memory."""
     r = r or {}
+    # Раздела НЕТ и раздел ПУСТ — разные ответы: `or {}` склеивал их, и оба
+    # приходили как `None` без признака, который из двух (инв. #17). Значение
+    # прежнее, различимость восстановлена.
+    _is = observed(r, "in_sample", kind=dict)
+    _oos = observed(r, "out_of_sample", kind=dict)
     return {
-        "is_sharpe": (r.get("in_sample") or {}).get("sharpe"),
-        "oos_sharpe": (r.get("out_of_sample") or {}).get("sharpe"),
+        "is_sharpe": None if _is is None else _is.get("sharpe"),
+        "oos_sharpe": None if _oos is None else _oos.get("sharpe"),
         "oos_sharpe_3x_costs": ((r.get("cost_sensitivity") or {}).get("3x") or {}).get("oos_sharpe"),
         "full_max_drawdown": (r.get("full") or {}).get("max_drawdown"),
     }

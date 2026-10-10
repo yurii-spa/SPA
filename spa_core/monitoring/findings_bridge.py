@@ -366,6 +366,10 @@ PRODUCES = (
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
     "data/claim_release_census.json",
+    # Откуда ступень берёт ИСТОРИЮ и чего стоит каждая дверь — заказ G112 п. 1
+    # (ADR-538, измерен ADR-688). Ступень читает объявление, окружение и git-деревья
+    # (живой `data/` для населения), поэтому такт у неё суточный, как у соседей ряда.
+    "data/history_door_price.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -501,6 +505,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "empty_release_causes",
     "unannounced_span",
     "claim_release_census",
+    "history_door_price",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -826,6 +831,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
+    "history_door_price": {
+        "module": "spa_core/monitoring/history_door_price.py",
+        "artifact": "data/history_door_price.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -3334,6 +3342,29 @@ def main(argv=None) -> int:
                   f"{_uas['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "unannounced_span", e)
+
+    # Ступень заказа G112 п. 1 (ADR-688): откуда ступень моста берёт ИСТОРИЮ и чего
+    # стоит каждая из трёх дверей заказа. Прибор только ЧИТАЕТ: объявление
+    # `architecture/history_roots.json`, окружение и git-деревья. Заголовочное
+    # число — сколько потерянных координат ПРЯЧЕТ слепая дверь (замер 10.10: пять
+    # против нуля), и слепа ли ступень сейчас.
+    try:
+        from spa_core.monitoring import history_door_price
+        _hdp = history_door_price.run(root=args.root)
+        if _hdp.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «дверь не выбрана» (инв. #17).
+            _eff = observed(_hdp["doc"], "effective", kind=dict)
+            _fz = observed(_hdp["doc"], "false_zero", kind=dict)
+            _door = None if _eff is None else _eff.get("door")
+            _hidden = None if _fz is None else _fz.get("hidden")
+            print(f"history_door_price: {_hdp['doc'].get('status')} — дверь ступени "
+                  f"{_door or 'НЕТ (ступень слепа)'}, слепая дверь прячет потерянных "
+                  f"координат {'НЕ ИЗМЕРЕНО' if _hidden is None else _hidden}")
+        else:
+            print(f"history_door_price: НЕ ИЗМЕРЕНО — "
+                  f"{_hdp['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "history_door_price", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые

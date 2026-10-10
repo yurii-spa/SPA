@@ -1347,7 +1347,23 @@ def run(root: Optional[str] = None, *, now: Optional[datetime] = None) -> Dict[s
     """
     repo_root = Path(root) if root else Path(__file__).resolve().parents[2]
     data_dir = repo_root / "data"
-    report = run_census(data_dir, repo_root=repo_root, now=now)
+    # Историю удалений спрашиваем через ОБЪЯВЛЕННУЮ дверь (ADR-688, заказ G112 п. 1).
+    # Ввоз локальный, потому что сосед ввозит этот модуль: верхний ввоз замкнул бы
+    # кольцо. Непригодны все двери ⇒ `root=None`, и перепись остаётся при своём
+    # честном третьем исходе — подставлять обрезанное дерево как «ну хоть что-то»
+    # значило бы вернуть НОЛЬ в заголовок (`lost_coordinates` 0 против 5, замер 10.10).
+    history_root = None
+    history_door = None
+    try:
+        from spa_core.monitoring.history_door_price import resolve_history_root
+        resolution = resolve_history_root(repo_root)
+        history_root, history_door = resolution["root"], resolution["door"]
+    except Exception as exc:  # noqa: BLE001 — дверь не смеет валить перепись
+        history_door = f"НЕ РАЗРЕШЕНА: {type(exc).__name__}: {exc}"
+    report = run_census(data_dir, repo_root=repo_root, now=now,
+                        history_root=history_root)
+    report = dict(report)
+    report["history_door"] = history_door
     try:
         save_artifact(report, data_dir)
     except Exception as exc:  # noqa: BLE001 — перепись не смеет валить мост
