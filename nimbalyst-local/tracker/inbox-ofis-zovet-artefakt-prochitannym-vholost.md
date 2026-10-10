@@ -2,15 +2,16 @@
 trackerStatus:
   type: inbox
 title: Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-05
 acceptance_probe: office_hollow_counter_means_harm
-status_trail:
-  - "2026-10-10T01:35:43.480471+00:00 new -> in-progress · queue.set_status · cycle-86878"
 claimed_by: cycle-97509
 claimed_at: 2026-10-10T05:09:16Z
 claim_takeover_reason: работа мёртвого цикла #821 найдена целиком в /tmp/spa_c821 (без держателя, lsof -d cwd = 0, pid86878 мёртв): ADR-683 + батарея 107 passed перемерена МНОЙ, доставка этим циклом
+status_trail:
+  - "2026-10-10T01:35:43.480471+00:00 new -> in-progress · queue.set_status · cycle-86878"
+  - "2026-10-10T05:25:36.069578+00:00 in-progress -> done · queue.set_status/closed_by:cycle-97509/evidence:ADR-683 на origin/main d3b7dede4; проба office_hollow_counter_means_harm = satisfied (4 звена, меряет запуском); замер до/после на живом прод-дереве: «ВХОЛОСТУЮ 1» -> OK с числами; батарея 107 passed, · cycle-97509"
 ---
 
 ## Что случилось и почему это важно
