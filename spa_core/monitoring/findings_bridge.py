@@ -349,6 +349,11 @@ PRODUCES = (
     # словаре форм; сети нет, такт суточный, как у соседей.
     "data/announce_clock_door_census.json",
     "data/receipt_channel_cost.json",
+    # Цена ветви «освобождение по КАРТОЧКЕ» — заказ G111 п. 1 (ADR-536,
+    # измерен ADR-685). Ступень перепроигрывает журнал объявлений (живой
+    # `data/`) и поднимает одноразовую сцену двери, поэтому такт у неё
+    # суточный, как у соседа ADR-536.
+    "data/foreign_done_cost.json",
     # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
@@ -484,6 +489,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "claim_guard_receipt_readers",
     "announce_clock_door_census",
     "receipt_channel_cost",
+    "foreign_done_cost",
     "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -798,6 +804,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "receipt_channel_cost": {
         "module": "spa_core/monitoring/receipt_channel_cost.py",
         "artifact": "data/receipt_channel_cost.json"},
+    "foreign_done_cost": {
+        "module": "spa_core/monitoring/foreign_done_cost.py",
+        "artifact": "data/foreign_done_cost.json"},
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
@@ -3245,6 +3254,27 @@ def main(argv=None) -> int:
                   f"{_rcc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "receipt_channel_cost", e)
+
+    # Ступень заказа G111 п. 1 (ADR-685): чего стоит ветвь «освобождение по
+    # КАРТОЧКЕ» — сколько ЖИВЫХ захватов снял бы чужой `done` задним числом.
+    # Прибор только ЧИТАЕТ: перепроигрывает журнал объявлений и поднимает
+    # одноразовую сцену двери в `mkdtemp`; заголовочное число — засвидетельствованный
+    # вред ветви против её пользы, измеренной соседом ADR-536.
+    try:
+        from spa_core.monitoring import foreign_done_cost
+        _fdc = foreign_done_cost.run(root=args.root)
+        if _fdc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «вреда нет» (инв. #17).
+            _harm = observed(_fdc["doc"], "harm", kind=dict)
+            _witnessed = None if _harm is None else _harm.get("witnessed_harm")
+            print(f"foreign_done_cost: {_fdc['doc'].get('status')} — чужой `done` снял "
+                  f"бы живых захватов "
+                  f"{'НЕ ИЗМЕРЕНО' if _witnessed is None else _witnessed}")
+        else:
+            print(f"foreign_done_cost: НЕ ИЗМЕРЕНО — "
+                  f"{_fdc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "foreign_done_cost", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
