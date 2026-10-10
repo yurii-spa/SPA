@@ -1155,6 +1155,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "history_door_price.json": ("status", "measured", "order", "applied",
                                 "declaration", "doors", "chosen", "effective",
                                 "false_zero"),
+    # Перечень взят у ПРОИЗВОДИТЕЛЯ (`build_report`), а не придуман: `population` —
+    # население по причине конца, `observation` — окно наблюдения (аптайм, объявление
+    # системной уборки), `survival` — род числа у каждого дерева, `remaining_window` —
+    # вердикт об остатке (НАМЕРЕННО не число), `silent_loss` — такт потери без следа.
+    # Склеить `remaining_window` с `silent_loss` значило бы потерять различие «остаток
+    # назвать нечем» и «деревья теряются» — это два разных вреда.
+    "tree_lifetime_census.json": ("status", "measured", "order", "applied",
+                                  "population", "observation", "survival",
+                                  "remaining_window", "silent_loss"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1466,6 +1475,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/unannounced_span.py",
     "history_door_price.json":
         "spa_core/monitoring/history_door_price.py",
+    "tree_lifetime_census.json":
+        "spa_core/monitoring/tree_lifetime_census.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3843,6 +3854,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.history_door_price import format_report as _hdp_report
         out.extend(_hdp_report(data))
+    elif name == "tree_lifetime_census.json":
+        # Заказ G112 п. 2 (ADR-538) + G688 п. 4. Без этой ветки артефакт читается
+        # ВХОЛОСТУЮ — находка без читателя внутри цикла (ADR-526/ADR-683). Правило
+        # отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож
+        # достижимости вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.tree_lifetime_census import format_report as _tlc_report
+        out.extend(_tlc_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

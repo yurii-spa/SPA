@@ -370,6 +370,11 @@ PRODUCES = (
     # (ADR-538, измерен ADR-688). Ступень читает объявление, окружение и git-деревья
     # (живой `data/` для населения), поэтому такт у неё суточный, как у соседей ряда.
     "data/history_door_price.json",
+    # Срок годности объявления владения: наблюдённый срок жизни одноразовых деревьев и
+    # такт их потери — заказ G112 п. 2 (ADR-538) + G688 п. 4. Ступень читает журнал
+    # объявлений, журнал квитанций и каталоги `/tmp` (живой `data/`), поэтому такт у неё
+    # суточный, как у соседей ряда.
+    "data/tree_lifetime_census.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -506,6 +511,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "unannounced_span",
     "claim_release_census",
     "history_door_price",
+    "tree_lifetime_census",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -834,6 +840,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "history_door_price": {
         "module": "spa_core/monitoring/history_door_price.py",
         "artifact": "data/history_door_price.json"},
+    "tree_lifetime_census": {
+        "module": "spa_core/monitoring/tree_lifetime_census.py",
+        "artifact": "data/tree_lifetime_census.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -3365,6 +3374,32 @@ def main(argv=None) -> int:
                   f"{_hdp['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "history_door_price", e)
+
+    # Ступень заказа G112 п. 2 (ADR-538) + G688 п. 4: срок годности объявления
+    # владения. Прибор только ЧИТАЕТ журнал объявлений, журнал квитанций уборщика и
+    # каталоги `/tmp`. Заголовочных чисел ДВА, и они про разное: такт молчаливой
+    # потери деревьев (число, которого не было) и вердикт об остатке срока — он
+    # НАМЕРЕННО не число, а третий исход с измеренными причинами.
+    try:
+        from spa_core.monitoring import tree_lifetime_census
+        _tlc = tree_lifetime_census.run(root=args.root)
+        if _tlc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «такт не измерен» (инв. #17).
+            _loss = observed(_tlc["doc"], "silent_loss", kind=dict)
+            _rem = observed(_tlc["doc"], "remaining_window", kind=dict)
+            _per_day = None if _loss is None else _loss.get("per_day")
+            _blocking = [] if _rem is None else (_rem.get("blocking_reasons") or [])
+            print(f"tree_lifetime_census: {_tlc['doc'].get('status')} — деревьев "
+                  f"потеряно без следа "
+                  f"{'НЕ ИЗМЕРЕНО' if _loss is None else _loss.get('trees')}"
+                  f"{'' if _per_day is None else f' ({_per_day}/сутки)'}, "
+                  f"остаток срока НЕ ИЗМЕРИМ по причинам: "
+                  f"{', '.join(r.get('reason', '?') for r in _blocking) or 'НЕ НАЗВАНЫ'}")
+        else:
+            print(f"tree_lifetime_census: НЕ ИЗМЕРЕНО — "
+                  f"{_tlc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "tree_lifetime_census", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
