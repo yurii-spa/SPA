@@ -4703,6 +4703,139 @@ def _probe_owner_control_plane_reachable(
                        "может управлять системой через Telegram")
 
 
+def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
+    """Счётчик «ПРОЧИТАН ВХОЛОСТУЮ» шага 0-офис снова значит ВРЕД, а не порядок.
+
+    Предмет карточки `inbox-ofis-zovet-artefakt-prochitannym-vholost` (замер
+    05.10, цикл #781): шаг 0-офис в ОДНОМ прогоне печатал числа
+    `data/artifact_stamp_clock_doors.json` отдельной секцией хвоста И звал тот
+    же файл «⚠️ ПРОЧИТАН ВХОЛОСТУЮ (ресит НЕ пишется)». Дорог было две, реестр
+    знал про одну, квитанция не писалась — а на квитанции стоит проверка B3
+    сторожа архитектуры. Вред был не в потерянном числе (оно доезжало), а в
+    том, что одна и та же единица счётчика значила и вред, и порядок: гейтить
+    такой счёт нельзя.
+
+    Меряется ИСХОД — ЗАПУСКОМ разбора, а не подстрокой (ADR-333). Четыре
+    звена, любое одно порванное даёт `not_satisfied` с ИМЕНЕМ звена:
+
+    1. **разбор НЕ вхолостую** — `_summarize_json` на документе в форме
+       производителя не возвращает `_HOLLOW_MARK` и печатает числа находок;
+    2. **счётчик ещё КУСАЕТСЯ** — ветка вырезается из одноразовой копии
+       исходника шага, и тот же документ становится «РАЗОБРАТЬ НЕЧЕМ». Без
+       этого контроля п. 1 зеленел бы и у сторожа, который не краснеет ни на
+       чём: «вхолостую 0» означало бы «проверка снята», а не «порядок»;
+    3. **дорога ОДНА** — в исходнике шага ровно один зов отрисовщика. Вернётся
+       вторая секция — вернётся и неоднозначность счёта;
+    4. **схема объявлена ПРАВДИВО** — ключи `_READ_SCHEMA` суть подмножество
+       того, что `build_report` действительно кладёт. Объявить ключ, которого
+       отчёт не несёт, значит выдумать расхождение схемы.
+
+    Проба НЕ утверждает, что находок в самом артефакте нет: их число — предмет
+    ADR-562, а не этой пробы. Третий исход назван: нет исходника шага, не
+    грузится модуль, не читается форма ⇒ `unmeasured` с причиной, никогда не
+    «чисто».
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — счётчик шага целиком, пофайловой формы "
+                            "у него нет")
+    import datetime as _dt
+    import importlib.util as _ilu
+    import tempfile as _tf
+
+    office_src_path = os.path.join(REPO_ROOT, "scripts",
+                                   "consume_office_reports.py")
+    if not os.path.isfile(office_src_path):
+        return UNMEASURED, (f"исходника шага {office_src_path} нет в дереве — "
+                            "счётчик НЕ ИЗМЕРЕН")
+    try:
+        from spa_core.monitoring import artifact_stamp_clock_doors as _doors
+    except Exception as exc:                                  # noqa: BLE001
+        return UNMEASURED, (f"производитель не ввозится ({type(exc).__name__}: "
+                            f"{exc}) — счётчик НЕ ИЗМЕРЕН")
+    name = _doors.ARTIFACT
+    office_src = open(office_src_path, encoding="utf-8").read()
+
+    def _load(text: str, tag: str):
+        with _tf.TemporaryDirectory() as box:
+            path = os.path.join(box, f"office_{tag}.py")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            spec = _ilu.spec_from_file_location(f"_office_probe_{tag}", path)
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+
+    # Момент — ВХОД, а не стенные часы: иначе вердикт пробы менялся бы от
+    # календаря машины, то есть ровно от того, что меряет сам ADR-562.
+    now = _dt.datetime(2035, 1, 1, tzinfo=_dt.timezone.utc)
+    doc = {"generated_at": now.isoformat(),
+           "counts": {_doors.REACHES: 48, _doors.WALL_CLOCK: 1},
+           "rows": [{"artifact": "data/x.json", "module": "spa_core.x",
+                     "verdict": _doors.WALL_CLOCK}]}
+    try:
+        whole = _load(office_src, "whole")
+        lines = whole._summarize_json(f"data/{name}", doc, now=now,
+                                      root=REPO_ROOT)
+    except Exception as exc:                                  # noqa: BLE001
+        return UNMEASURED, (f"разбор не выполнен ({type(exc).__name__}: {exc}) "
+                            "— счётчик НЕ ИЗМЕРЕН")
+    if any(str(ln).startswith(whole._HOLLOW_MARK) for ln in lines):
+        return NOT_SATISFIED, (f"звено 1: {name} читается ВХОЛОСТУЮ — ни ветки "
+                               "в `_summarize_json`, ни строки в `_READ_SCHEMA`; "
+                               "квитанция не пишется, и проверка B3 считает "
+                               "артефакт непрочитанным")
+    if not any("находок" in str(ln) for ln in lines):
+        return NOT_SATISFIED, ("звено 1: разбор не вхолостую, но числа находок "
+                               "в контекст не попали — читать было нечего")
+
+    # ── звено 2: а счётчик вообще кусается? ──────────────────────────────────
+    head = office_src.find(f'    elif name == "{name}":')
+    tail = office_src.find("    elif name == ", head + 10) if head >= 0 else -1
+    if head < 0 or tail < 0:
+        return UNMEASURED, ("ветку не удалось вырезать из копии исходника — "
+                            "кусается ли счётчик, НЕ ИЗМЕРЕНО")
+    try:
+        torn = _load(office_src[:head] + office_src[tail:], "torn")
+        torn_lines = torn._summarize_json(f"data/{name}", doc, now=now,
+                                          root=REPO_ROOT)
+    except Exception as exc:                                  # noqa: BLE001
+        return UNMEASURED, (f"копия без ветки не загрузилась "
+                            f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+    if not any(str(ln).startswith(torn._HOLLOW_MARK) for ln in torn_lines):
+        return NOT_SATISFIED, ("звено 2: ветку вырезали, а счётчик промолчал — "
+                               "«вхолостую 0» значит «проверка снята», а не "
+                               "«порядок»")
+
+    # ── звено 3: дорога ОДНА ─────────────────────────────────────────────────
+    import ast as _ast
+    roads = [n for n in _ast.walk(_ast.parse(office_src))
+             if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)
+             and n.func.id in ("_ascd_report", "office_section")]
+    if len(roads) != 1:
+        return NOT_SATISFIED, (f"звено 3: дорог отрисовки {len(roads)}, а не "
+                               f"одна ({[n.func.id for n in roads]}) — счёт "
+                               "снова значит и вред, и порядок")
+
+    # ── звено 4: схема объявлена правдиво ────────────────────────────────────
+    declared = tuple(whole._READ_SCHEMA.get(name, ()))
+    if not declared:
+        return NOT_SATISFIED, (f"звено 4: {name} не объявлен в `_READ_SCHEMA` — "
+                               "переименование ключа пройдёт молча")
+    carried = set(_doors.build_report({"rows": [], "counts": {}, "planned": 0},
+                                      now))
+    invented = [k for k in declared if k not in carried]
+    if invented:
+        return NOT_SATISFIED, (f"звено 4: объявлены ключи, которых отчёт не "
+                               f"несёт ({', '.join(invented)}) — расхождение "
+                               "схемы выдумано, а не измерено")
+    return SATISFIED, (f"{name}: разбор не вхолостую (находки напечатаны), "
+                       f"счётчик кусается на вырезанной ветке, дорога одна, "
+                       f"схема {len(declared)} ключ(а/ей) — все несомые "
+                       "производителем. Единица счётчика «ВХОЛОСТУЮ» снова "
+                       "значит ровно вред")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -4757,6 +4890,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "curated_facts_usable": _probe_curated_facts_usable,
     "problem_absent": _probe_problem_absent,
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
+    "office_hollow_counter_means_harm":
+        _probe_office_hollow_counter_means_harm,
 }
 
 

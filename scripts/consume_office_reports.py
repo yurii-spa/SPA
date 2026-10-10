@@ -1117,6 +1117,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # «равенство литералов = связанность» согласие дверей и держалось.
     "announce_clock_door_census.json": ("status", "measured", "order", "applied",
                                         "answer", "doors", "writers", "binding"),
+    # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
+    # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
+    # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
+    # ВХОЛОСТУЮ» и не писал квитанцию. Перечень взят у ПРОИЗВОДИТЕЛЯ
+    # (`build_report`), а не придуман: ключа `status`/`measured` этот отчёт не
+    # несёт вовсе — объявить их значило бы выдумать расхождение схемы.
+    "artifact_stamp_clock_doors.json": ("adr", "order", "applied", "counts",
+                                        "rows", "population", "findings_total",
+                                        "unmeasured_total", "arms"),
     # Заказ G88 п. 2 (ADR-536): кто и когда ЗАКРЫВАЕТ захват. Четыре оси объявлены
     # ОТДЕЛЬНО намеренно: «кто закрывает», «когда закрывает», «почему остался
     # открытым» и «чего стоил бы срок» — четыре разных утверждения, и подменять
@@ -1409,6 +1418,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/claim_guard_receipt_readers.py",
     "announce_clock_door_census.json":
         "spa_core/monitoring/announce_clock_door_census.py",
+    "artifact_stamp_clock_doors.json":
+        "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
         "spa_core/monitoring/claim_release_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
@@ -3749,6 +3760,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.announce_clock_door_census import format_report as _acdc_report
         out.extend(_acdc_report(data))
+    elif name == "artifact_stamp_clock_doors.json":
+        # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
+        # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не
+        # гипотеза: числа печатала отдельная секция хвоста шага, реестр про неё
+        # не знал, квитанция не писалась, и один и тот же счёт «ВХОЛОСТУЮ 1»
+        # значил и вред, и порядок. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости вырезает ввозы
+        # двух объявленных форм).
+        from spa_core.monitoring.artifact_stamp_clock_doors import format_report as _ascd_report
+        out.extend(_ascd_report(data, now=now))
     elif name == "claim_guard_receipt_readers.json":
         # Заказ G88 п. 1 (ADR-535). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # и это был бы тот же дефект, что ловит сам заказ: находка без читателя
@@ -5418,28 +5439,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
               f"{type(_exc).__name__}: {_exc}")
     print()
 
-    # ── доходит ли инъекция часов до САМОЙ отметки (ADR-562, заказ G97 п. 3) ──
-    # Вопрос СВОЙ: соседи выше спрашивают, читает ли находку кто-нибудь и чья
-    # мера произвела вердикт, а этот — ПРАВДА ЛИ ВОЗРАСТ артефакта. Подмена
-    # часов у такого производителя проходит все контроли вердикта и врёт только
-    # в отметке, то есть ровно там, где её читает сторож свежести.
-    #
-    # Здесь читается АРТЕФАКТ, а не зовётся прибор, и это не экономия: цена
-    # зова ИЗМЕРЕНА (ADR-562) и она в часах — плечо обходит сотню чужих
-    # производителей по процессу на плечо. Производит артефакт ЦИКЛ в своём
-    # одноразовом дереве (производители ПИШУТ); эта секция краснеет на
-    # возрасте, и молчание прибора становится видно.
-    try:
-        from spa_core.monitoring.artifact_stamp_clock_doors import office_section
-        _stamp_data_dir = data_dir or os.path.join(receipt_root, "data")
-        for _line in office_section(_stamp_data_dir,
-                                    dt.datetime.now(dt.timezone.utc)):
-            print(_line)
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— отметка артефакта: доходит ли до неё инъекция часов (ADR-562) —")
-        print(f"   [{_UNMEASURED}] секция не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
-    print()
+    # ── вторая дорога отрисовки ADR-562 СНЯТА (ADR-683) ────────────────────
+    # Здесь стояла отдельная секция, звавшая `office_section` производителя
+    # напрямую. Она печатала числа `data/artifact_stamp_clock_doors.json` — и
+    # ровно поэтому реестр артефактов, который про эту дорогу не знал, звал тот
+    # же файл «⚠️ ПРОЧИТАН ВХОЛОСТУЮ (ресит НЕ пишется)» в ТОМ ЖЕ прогоне.
+    # Теперь дорога ОДНА: поимённая ветка `_summarize_json` + `_READ_SCHEMA` +
+    # `_PRODUCER`, как у всех соседей-переписей. Квитанция пишется там, где
+    # напечатано число, и единица счётчика «ВХОЛОСТУЮ» снова значит ровно вред.
+    # Возраст и просрочку такта печатает та же ветка (`format_report`);
+    # «производился ли артефакт вообще» отвечает `_absent_verdict` по
+    # объявлению ступени моста (`findings_bridge.CENSUS_STAGE`), а не по дате
+    # файла, — то есть различение «не мерил никто» / «ещё не отработал»
+    # не потеряно, а передано тому, кто умеет его объявить.
 
     # ── порог сенсора против ТАКТА предмета (ADR-646, заказ G146 п. 2) ──
     # Вопрос СВОЙ, и к соседям он не сводится. Ряд ADR-526…645 спрашивал, читает

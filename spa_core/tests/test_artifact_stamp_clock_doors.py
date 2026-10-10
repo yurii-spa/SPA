@@ -813,75 +813,134 @@ def test_sandbox_mode_writes_the_report_to_the_source_tree_not_the_copy(tmp_path
     assert report["counts"][doors.PRODUCER_UNRESOLVED] == 1
 
 
-# ── читатель: секция шага 0-офис ────────────────────────────────────────────────
+# ── читатель: поимённая ветка реестра артефактов шага 0-офис ───────────────────
+#
+# ADR-683, карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`. Дорога
+# отрисовки здесь была ВТОРОЙ: числа печатала отдельная секция хвоста шага,
+# звавшая `office_section(data_dir, now)`, а в реестре артефактов у этого
+# артефакта не было ни ветки, ни схемы, ни писателя. Реестр про вторую дорогу не
+# знал, квитанцию не писал и в ТОМ ЖЕ прогоне звал файл «ПРОЧИТАН ВХОЛОСТУЮ» при
+# напечатанных числах. Тесты ниже меряют ИСХОД (что напечатано и пишется ли
+# квитанция), и каждый имеет обратный контроль с поимённо порванным звеном.
 
-def test_office_section_says_unmeasured_when_the_artifact_is_absent(tmp_path):
-    """«Никто не мерил» обязано отличаться от «измерено, находок нет»."""
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("НЕ ИЗМЕРЕНО" in ln for ln in lines)
-    assert any("--sandbox" in ln for ln in lines)
+def _office_module():
+    """Шаг 0-офис — СКРИПТ, поэтому грузится по пути (у него нет пакета)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_office_probe_ascd",
+        Path(doors._ROOT) / "scripts" / "consume_office_reports.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def test_office_section_reddens_on_an_overdue_measurement(tmp_path):
+def _doc(**over):
+    """Документ в форме, которую РЕАЛЬНО пишет `build_report`, а не выдуманной."""
+    doc = {"generated_at": _anchor().isoformat(),
+           "counts": {doors.REACHES: 48, doors.WALL_CLOCK: 1}}
+    doc.update(over)
+    return doc
+
+
+def test_format_report_says_unmeasured_when_the_stamp_cannot_be_parsed():
+    lines = doors.format_report(_doc(generated_at="позавчера"), now=_anchor())
+    assert any("возраст назвать нечем" in ln for ln in lines), lines
+
+
+def test_format_report_reddens_on_an_overdue_measurement():
     stamp = _anchor() - dt.timedelta(days=doors.MEASUREMENT_TACT_DAYS + 2)
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": stamp.isoformat(),
-        "counts": {doors.REACHES: 90}}), encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("ПРОСРОЧЕН" in ln for ln in lines)
+    lines = doors.format_report(_doc(generated_at=stamp.isoformat()),
+                                now=_anchor())
+    assert any("ПРОСРОЧЕН" in ln for ln in lines), lines
 
 
-def test_office_section_is_quiet_about_the_age_inside_the_tact(tmp_path):
+def test_format_report_is_quiet_about_the_age_inside_the_tact():
     stamp = _anchor() - dt.timedelta(hours=3)
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": stamp.isoformat(),
-        "counts": {doors.REACHES: 90}}), encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert not any("ПРОСРОЧЕН" in ln for ln in lines)
-    assert any("✅" in ln for ln in lines)
+    lines = doors.format_report(_doc(generated_at=stamp.isoformat()),
+                                now=_anchor())
+    assert not any("ПРОСРОЧЕН" in ln for ln in lines), lines
+    assert any("✅" in ln for ln in lines), lines
 
 
-def test_office_section_says_so_when_the_rows_list_is_unreadable(tmp_path):
+def test_format_report_says_so_when_the_rows_list_is_unreadable():
     """Находки назвать поимённо нечем — отдельная строка, а не пустой перечень."""
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": _anchor().isoformat(),
-        "counts": {doors.WALL_CLOCK: 1}, "rows": "НЕ СПИСОК"}), encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("нет читаемого списка rows" in ln for ln in lines)
+    lines = doors.format_report(_doc(rows="НЕ СПИСОК"), now=_anchor())
+    assert any("нет читаемого списка rows" in ln for ln in lines), lines
 
 
-def test_office_section_names_each_finding_by_artifact_and_module(tmp_path):
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": _anchor().isoformat(),
-        "counts": {doors.WALL_CLOCK: 1, doors.REACHES: 2},
-        "rows": [{"artifact": "data/liar.json", "module": "spa_core.x",
-                  "verdict": doors.WALL_CLOCK},
-                 {"artifact": "data/ok.json", "module": "spa_core.y",
-                  "verdict": doors.REACHES}]}), encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("data/liar.json" in ln for ln in lines)
-    assert not any("data/ok.json" in ln for ln in lines)
+def test_format_report_names_each_finding_by_artifact_and_module():
+    lines = doors.format_report(_doc(rows=[
+        {"artifact": "data/liar.json", "module": "spa_core.x",
+         "verdict": doors.WALL_CLOCK},
+        {"artifact": "data/ok.json", "module": "spa_core.y",
+         "verdict": doors.REACHES}]), now=_anchor())
+    assert any("data/liar.json" in ln for ln in lines), lines
+    assert not any("data/ok.json" in ln for ln in lines), lines
 
 
-def test_office_section_says_unmeasured_when_the_stamp_cannot_be_parsed(tmp_path):
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": "позавчера", "counts": {}}), encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("возраст назвать нечем" in ln for ln in lines)
-
-
-def test_office_section_does_not_read_a_missing_counts_block_as_zeroes(tmp_path):
+def test_format_report_does_not_read_a_missing_counts_block_as_zeroes():
     """Отсутствие счётчиков — не ноль находок (инв. #17): строка о находках
     обязана строиться из ЧИТАЕМОГО блока, а не из подставленного словаря."""
-    (tmp_path / doors.ARTIFACT).write_text(json.dumps({
-        "generated_at": _anchor().isoformat(), "counts": "НЕ СЛОВАРЬ"}),
-        encoding="utf-8")
-    lines = doors.office_section(tmp_path, _anchor())
-    assert any("нет читаемого блока counts" in ln for ln in lines)
-    assert not any("находок 0" in ln for ln in lines)
+    lines = doors.format_report(_doc(counts="НЕ СЛОВАРЬ"), now=_anchor())
+    assert any("нет читаемого блока counts" in ln for ln in lines), lines
+    assert not any("находок 0" in ln for ln in lines), lines
 
 
-def test_the_office_step_CALLS_the_section_and_not_merely_imports_it():
+def test_format_report_takes_the_moment_as_an_INPUT_not_from_the_wall():
+    """Прибор о часах обязан сам принимать часы входом — иначе его собственный
+    возраст считался бы стенными часами шага, то есть ровно тем дефектом,
+    который он и меряет."""
+    stamp = _anchor() - dt.timedelta(days=doors.MEASUREMENT_TACT_DAYS + 5)
+    early = doors.format_report(_doc(generated_at=stamp.isoformat()),
+                                now=stamp + dt.timedelta(hours=1))
+    late = doors.format_report(_doc(generated_at=stamp.isoformat()),
+                               now=_anchor())
+    assert not any("ПРОСРОЧЕН" in ln for ln in early), early
+    assert any("ПРОСРОЧЕН" in ln for ln in late), late
+
+
+# ── проводка: ОДНА дорога, и она объявлена всеми тремя строками реестра ────────
+
+def test_the_office_step_declares_the_artifact_in_all_three_registries():
+    """Порванное звено: артефакт объявлен, а читателя внутри цикла нет.
+
+    Три строки — три РАЗНЫХ утверждения, и подменять одно другим нельзя:
+    ветка `_summarize_json` печатает числа, `_READ_SCHEMA` сверяет ключи
+    (переименуй ключ молча — и артефакт снова ВХОЛОСТУЮ), `_PRODUCER` называет
+    писателя, без которого сверка схемы и разбор пропажи не состоятся.
+    """
+    src = (Path(doors._ROOT) / "scripts" / "consume_office_reports.py") \
+        .read_text(encoding="utf-8")
+    assert f'elif name == "{doors.ARTIFACT}"' in src
+    assert "artifact_stamp_clock_doors import format_report" in src
+    assert f'"{doors.ARTIFACT}": ("adr", "order"' in src
+    assert f'"{doors.ARTIFACT}":\n        "{doors.PRODUCER}"' in src
+
+
+def test_the_office_declares_the_keys_the_report_actually_carries():
+    """Перечень берётся у ЧИТАТЕЛЯ и сверяется с тем, что производитель КЛАДЁТ.
+
+    Объявить ключ, которого отчёт не несёт, значило бы выдумать расхождение
+    схемы; не объявить несомый — оставить переименование ключа незамеченным.
+    """
+    import re
+
+    src = (Path(doors._ROOT) / "scripts" / "consume_office_reports.py") \
+        .read_text(encoding="utf-8")
+    head = src.index(f'"{doors.ARTIFACT}": (')
+    tail = src.index(")", head)
+    declared = tuple(re.findall(r'"([a-z_]+)"',
+                                src[head + len(doors.ARTIFACT) + 4:tail]))
+    assert declared == ("adr", "order", "applied", "counts", "rows",
+                        "population", "findings_total", "unmeasured_total",
+                        "arms"), declared
+    report = doors.build_report({"rows": [], "counts": {}, "planned": 0},
+                                _anchor())
+    assert set(declared) <= set(report), set(declared) - set(report)
+
+
+def test_the_office_step_CALLS_format_report_and_not_merely_imports_it():
     """Импорт не есть вызов (урок ADR-547): храповик проводки зеленеет от одного
     импорта ради чужого правила, а читателя при этом нет. Проверяется ФОРМА
     ВЫЗОВА в теле шага, а не упоминание имени."""
@@ -892,21 +951,84 @@ def test_the_office_step_CALLS_the_section_and_not_merely_imports_it():
     calls = [n for n in _ast.walk(_ast.parse(src))
              if isinstance(n, _ast.Call)
              and isinstance(n.func, _ast.Name)
-             and n.func.id == "office_section"]
-    assert calls, "шаг 0-офис не ЗОВЁТ office_section — читателя нет"
+             and n.func.id == "_ascd_report"]
+    assert calls, "шаг 0-офис не ЗОВЁТ format_report — читателя нет"
+    assert all(any(k.arg == "now" for k in c.keywords) for c in calls), \
+        "момент не передан входом: возраст считался бы стенными часами шага"
 
 
-def test_the_office_step_feeds_the_section_a_data_dir_and_a_moment():
-    """Два аргумента, и оба существенны: без каталога секция прочла бы чужой
-    артефакт, без момента возраст считался бы от стенных часов шага."""
+def test_there_is_EXACTLY_ONE_road_of_rendering():
+    """Предмет карточки: дорог было ДВЕ, и счётчик перестал значить вред.
+
+    Положительный контроль НА ЗАПРЕТ второй дороги: вернётся отдельная секция
+    хвоста — и красным станет этот тест, а не чужая батарея через пять суток.
+    """
     import ast as _ast
 
     src = (Path(doors._ROOT) / "scripts" / "consume_office_reports.py").read_text(
         encoding="utf-8")
-    calls = [n for n in _ast.walk(_ast.parse(src))
-             if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)
-             and n.func.id == "office_section"]
-    assert all(len(c.args) == 2 for c in calls), [len(c.args) for c in calls]
+    tree = _ast.parse(src)
+    renderers = [n for n in _ast.walk(tree)
+                 if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)
+                 and n.func.id in ("_ascd_report", "office_section")]
+    assert len(renderers) == 1, [n.func.id for n in renderers]
+    # Снятая функция не вернулась в производителя чёрным ходом.
+    assert not hasattr(doors, "office_section"), \
+        "office_section вернулась — это вторая дорога, см. ADR-683"
+
+
+# ── ИСХОД: ветка есть ⇒ читается НЕ вхолостую; снята ⇒ счётчик краснеет ────────
+
+def test_the_branch_exists_so_the_read_is_NOT_hollow():
+    """Объявить артефакт и не уметь его разобрать = `ПРОЧИТАН ВХОЛОСТУЮ`."""
+    office = _office_module()
+    lines = office._summarize_json(f"data/{doors.ARTIFACT}", _doc(),
+                                   now=_anchor(), root=str(doors._ROOT))
+    assert not any(ln.startswith(office._HOLLOW_MARK) for ln in lines), lines
+    assert any("инъекция доходит до отметки 48" in ln for ln in lines), lines
+
+
+def test_WITHOUT_the_branch_the_same_document_is_read_hollow():
+    """Обратный контроль с ПОИМЁННО порванным звеном.
+
+    Ветка вырезается из ИСХОДНИКА шага (одноразовая копия), и тот же документ
+    становится «РАЗОБРАТЬ НЕЧЕМ». Без этого контроля проверка выше никогда не
+    видела настоящей поломки — а она была живой пять суток.
+    """
+    import importlib.util
+    import tempfile
+
+    src = (Path(doors._ROOT) / "scripts" / "consume_office_reports.py").read_text(
+        encoding="utf-8")
+    head = src.index(f'    elif name == "{doors.ARTIFACT}":')
+    tail = src.index("    elif name == ", head + 10)
+    torn = src[:head] + src[tail:]
+    assert f'elif name == "{doors.ARTIFACT}"' not in torn, "звено не порвано"
+    with tempfile.TemporaryDirectory() as box:
+        path = Path(box) / "office_torn.py"
+        path.write_text(torn, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("_office_torn_ascd", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        lines = mod._summarize_json(f"data/{doors.ARTIFACT}", _doc(),
+                                    now=_anchor(), root=str(doors._ROOT))
+    assert any(ln.startswith(mod._HOLLOW_MARK) for ln in lines), lines
+
+
+def test_a_hollow_read_writes_NO_receipt_so_the_counter_means_harm():
+    """ЗАЧЕМ предмет вообще важен: на квитанции стоит проверка B3 сторожа
+    архитектуры. Пока дорог было две, числа печатались, а квитанции не было —
+    то есть B3 считал читаемый артефакт НЕПРОЧИТАННЫМ, и единица счётчика
+    «ВХОЛОСТУЮ» значила порядок, а не вред."""
+    office = _office_module()
+    src = (Path(doors._ROOT) / "scripts" / "consume_office_reports.py").read_text(
+        encoding="utf-8")
+    # Правило шага дословно: ресит пишется ТОЛЬКО когда разбор НЕ вхолостую.
+    assert "if ok and any(ln.startswith(_HOLLOW_MARK) for ln in lines):" in src
+    assert office._HOLLOW_MARK.strip().startswith("⚠️")
+    lines = office._summarize_json(f"data/{doors.ARTIFACT}", _doc(),
+                                   now=_anchor(), root=str(doors._ROOT))
+    assert not any(ln.startswith(office._HOLLOW_MARK) for ln in lines), lines
 
 
 # ── исход, найденный замером: артефакт без отметки вовсе ────────────────────────
