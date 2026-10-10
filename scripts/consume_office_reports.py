@@ -1133,6 +1133,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "foreign_done_cost.json": ("status", "measured", "order", "applied",
                                "population", "benefit", "harm", "cross_check",
                                "door"),
+    # ADR-686 (заказ G111 п. 2). Перечень взят у ПРОИЗВОДИТЕЛЯ (`build_report`),
+    # а не придуман: `causes` несёт доли по ПРИЧИНАМ и по ПИСАТЕЛЮ, `cross_check`
+    # объявлен отдельно, потому что отвечает на другой вопрос — «читают ли оба
+    # прибора одно население».
+    "empty_release_causes.json": ("status", "measured", "order", "applied",
+                                  "population", "causes", "cross_check"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1438,6 +1444,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/receipt_channel_cost.py",
     "foreign_done_cost.json":
         "spa_core/monitoring/foreign_done_cost.py",
+    "empty_release_causes.json":
+        "spa_core/monitoring/empty_release_causes.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3794,6 +3802,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.foreign_done_cost import format_report as _fdc_report
         out.extend(_fdc_report(data))
+    elif name == "empty_release_causes.json":
+        # Заказ G111 п. 2 (ADR-686). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.empty_release_causes import format_report as _erc_report
+        out.extend(_erc_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

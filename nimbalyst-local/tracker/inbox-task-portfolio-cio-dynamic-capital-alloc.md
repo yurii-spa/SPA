@@ -8,9 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-77133
-claimed_at: 2026-10-10T09:40:56Z
-claim_takeover_reason: вердикт stale: прежний держатель cycle-84743 (#824) УМЕР до доставки — pid84743 мёртв (ps пуст), его работа (ADR-685 + прибор foreign_done_cost + проводка) лежит НЕДОСТАВЛЕННОЙ в /tmp/spa_c824, origin/main (e14858235) её не несёт. Беру не переделывать, а ПРОВЕРИТЬ и ДОСТАВИТЬ. Личность захвата живая и ambient: SPA_SESSION_ID=cycle-77133, SPA_SESSION_PID=77133, долгоживущий процесс pid77133 жив (старт 11:37:55)
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ

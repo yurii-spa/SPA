@@ -354,6 +354,10 @@ PRODUCES = (
     # `data/`) и поднимает одноразовую сцену двери, поэтому такт у неё
     # суточный, как у соседа ADR-536.
     "data/foreign_done_cost.json",
+    # ПОЧЕМУ освобождение не сняло ничего — заказ G111 п. 2 (ADR-536, измерен
+    # ADR-686). Ступень читает журнал объявлений (живой `data/`) и КАРТОЧКИ
+    # трекера, поэтому такт у неё суточный, как у соседей того же ряда.
+    "data/empty_release_causes.json",
     # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
@@ -490,6 +494,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "announce_clock_door_census",
     "receipt_channel_cost",
     "foreign_done_cost",
+    "empty_release_causes",
     "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -807,6 +812,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "foreign_done_cost": {
         "module": "spa_core/monitoring/foreign_done_cost.py",
         "artifact": "data/foreign_done_cost.json"},
+    "empty_release_causes": {
+        "module": "spa_core/monitoring/empty_release_causes.py",
+        "artifact": "data/empty_release_causes.json"},
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
@@ -3275,6 +3283,27 @@ def main(argv=None) -> int:
                   f"{_fdc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "foreign_done_cost", e)
+
+    # Ступень заказа G111 п. 2 (ADR-686): ПОЧЕМУ освобождение не сняло ничего.
+    # Прибор только ЧИТАЕТ: журнал объявлений и карточки трекера; заголовочное
+    # число — доля, у которой причина НАЗВАНА, против доли НЕИЗМЕРЕННЫХ.
+    try:
+        from spa_core.monitoring import empty_release_causes
+        _erc = empty_release_causes.run(root=args.root)
+        if _erc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «пустых нет» (инв. #17).
+            _causes = observed(_erc["doc"], "causes", kind=dict)
+            _empty = None if _causes is None else _causes.get("empty_releases")
+            _unmeasured = None if _causes is None else _causes.get("unmeasured")
+            print(f"empty_release_causes: {_erc['doc'].get('status')} — впустую "
+                  f"{'НЕ ИЗМЕРЕНО' if _empty is None else _empty} освобождений, "
+                  f"причина не названа у "
+                  f"{'НЕ ИЗМЕРЕНО' if _unmeasured is None else _unmeasured}")
+        else:
+            print(f"empty_release_causes: НЕ ИЗМЕРЕНО — "
+                  f"{_erc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "empty_release_causes", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
