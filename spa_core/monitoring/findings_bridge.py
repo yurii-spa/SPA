@@ -375,6 +375,10 @@ PRODUCES = (
     # объявлений, журнал квитанций и каталоги `/tmp` (живой `data/`), поэтому такт у неё
     # суточный, как у соседей ряда.
     "data/tree_lifetime_census.json",
+    # Цена ШИРИНЫ двери родни: что именно прячет «тот же каталог» — заказ G112 п. 3
+    # (ADR-538), измерен ADR-690. Ступень читает журнал объявлений (живой `data/`) и
+    # дерево базового ref, поэтому такт у неё суточный, как у соседей ряда.
+    "data/kin_breadth_price.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -512,6 +516,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "claim_release_census",
     "history_door_price",
     "tree_lifetime_census",
+    "kin_breadth_price",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -843,6 +848,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "tree_lifetime_census": {
         "module": "spa_core/monitoring/tree_lifetime_census.py",
         "artifact": "data/tree_lifetime_census.json"},
+    "kin_breadth_price": {
+        "module": "spa_core/monitoring/kin_breadth_price.py",
+        "artifact": "data/kin_breadth_price.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -3400,6 +3408,30 @@ def main(argv=None) -> int:
                   f"{_tlc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "tree_lifetime_census", e)
+
+    # Ступень заказа G112 п. 3 (ADR-538, измерена ADR-690): цена ШИРИНЫ двери родни.
+    # Два разных числа, и смешивать их нельзя: ТИШИНА (сколько честных потерь
+    # расширение объявило бы роднёй) и ПЕРЕБИТИЕ ДОКАЗАТЕЛЬСТВА (сколько вердиктов
+    # со sha коммита оно подменило бы подозрением). Прибор дверь НЕ правит.
+    try:
+        from spa_core.monitoring import kin_breadth_price
+        _kbp = kin_breadth_price.run(root=args.root)
+        if _kbp.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «ось не считалась» (инв. #17).
+            _asked = observed(_kbp["doc"], "verdict", kind=dict)
+            _named = observed(_kbp["doc"], "named_case", kind=dict)
+            print(f"kin_breadth_price: {_kbp['doc'].get('status')} — ось заказа "
+                  f"«{'НЕ ИЗМЕРЕНО' if _asked is None else _asked.get('asked_axis')}» "
+                  f"заглушила бы потерь "
+                  f"{'НЕ ИЗМЕРЕНО' if _asked is None else _asked.get('asked_axis_silences_losses')}"
+                  f", перебила бы доказательств "
+                  f"{'НЕ ИЗМЕРЕНО' if _asked is None else _asked.get('asked_axis_preempts_evidence')}"
+                  f"; названный заказом случай лежит в ТОМ ЖЕ каталоге: "
+                  f"{'НЕ ИЗМЕРЕНО' if _named is None else _named.get('same_directory')}")
+        else:
+            print(f"kin_breadth_price: НЕ ИЗМЕРЕНО — {_kbp['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "kin_breadth_price", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые

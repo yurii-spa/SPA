@@ -1164,6 +1164,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "tree_lifetime_census.json": ("status", "measured", "order", "applied",
                                   "population", "observation", "survival",
                                   "remaining_window", "silent_loss"),
+    # Заказ G112 п. 3 (ADR-538), измерен ADR-690. Поля объявлены ПО ПРОИЗВОДИТЕЛЮ:
+    # `named_case` — названный заказом случай (и лежит ли он в том же каталоге),
+    # `axes` — цена каждой оси ПОРОЗНЬ, `verdict` — ответ на сам заказ. Склеить
+    # `axes` с `verdict` значило бы потерять различие «что стоит каждая ось» и
+    # «что из этого следует»: первое замер, второе решение.
+    "kin_breadth_price.json": ("status", "measured", "order", "reason",
+                               "population", "named_case", "axes", "verdict"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1477,6 +1484,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/history_door_price.py",
     "tree_lifetime_census.json":
         "spa_core/monitoring/tree_lifetime_census.py",
+    "kin_breadth_price.json":
+        "spa_core/monitoring/kin_breadth_price.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3861,6 +3870,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.tree_lifetime_census import format_report as _tlc_report
         out.extend(_tlc_report(data))
+    elif name == "kin_breadth_price.json":
+        # Заказ G112 п. 3 (ADR-538). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.kin_breadth_price import format_report as _kbp_report
+        out.extend(_kbp_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не
