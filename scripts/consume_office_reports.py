@@ -1110,6 +1110,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "claim_guard_receipt_readers.json": ("status", "measured", "order", "applied",
                                         "trace", "verdict_readers",
                                         "receipt_reader", "naive_channel"),
+    # Заказ G110 п. 3 (ADR-682): согласны ли ДВЕРИ ЧАСОВ одного поля между собой.
+    # Три оси объявлены ОТДЕЛЬНО намеренно: «какие формы принимает каждая дверь»,
+    # «кто производит форму записи» и «своя копия формата или взята у двери» —
+    # три разных утверждения. Подменять одно другим запрещено: ровно на подмене
+    # «равенство литералов = связанность» согласие дверей и держалось.
+    "announce_clock_door_census.json": ("status", "measured", "order", "applied",
+                                        "answer", "doors", "writers", "binding"),
     # Заказ G88 п. 2 (ADR-536): кто и когда ЗАКРЫВАЕТ захват. Четыре оси объявлены
     # ОТДЕЛЬНО намеренно: «кто закрывает», «когда закрывает», «почему остался
     # открытым» и «чего стоил бы срок» — четыре разных утверждения, и подменять
@@ -1400,6 +1407,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/record_survival_census.py",
     "claim_guard_receipt_readers.json":
         "spa_core/monitoring/claim_guard_receipt_readers.py",
+    "announce_clock_door_census.json":
+        "spa_core/monitoring/announce_clock_door_census.py",
     "claim_release_census.json":
         "spa_core/monitoring/claim_release_census.py",
     "evidence_staleness.json": "spa_core/monitoring/evidence_staleness_monitor.py",
@@ -3733,6 +3742,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (сторож достижимости вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.record_survival_census import format_report as _rsc_report
         out.extend(_rsc_report(data))
+    elif name == "announce_clock_door_census.json":
+        # Заказ G110 п. 3 (ADR-682). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.announce_clock_door_census import format_report as _acdc_report
+        out.extend(_acdc_report(data))
     elif name == "claim_guard_receipt_readers.json":
         # Заказ G88 п. 1 (ADR-535). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # и это был бы тот же дефект, что ловит сам заказ: находка без читателя

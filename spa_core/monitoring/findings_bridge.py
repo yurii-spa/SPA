@@ -344,6 +344,10 @@ PRODUCES = (
     # (ADR-498, измерен ADR-535). Ступень поднимает одноразовые сцены и читает
     # ЖИВОЕ дерево (кто грузит сторожа), поэтому такт у неё суточный, как у соседа.
     "data/claim_guard_receipt_readers.json",
+    # Согласны ли ДВЕРИ ЧАСОВ одного поля между собой — заказ G110 п. 3 (ADR-535,
+    # измерен ADR-682). Ступень грузит двери живого дерева и зовёт их на закрытом
+    # словаре форм; сети нет, такт суточный, как у соседей.
+    "data/announce_clock_door_census.json",
     # Кто и когда ЗАКРЫВАЕТ захват, и чего стоил бы срок годности — заказ G88 п. 2
     # (ADR-498, измерен ADR-536). Ступень читает журнал объявлений (живой `data/`) и
     # спрашивает ОС о живости держателей, поэтому такт у неё суточный, как у соседа.
@@ -477,6 +481,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "order_subject_census",
     "record_survival_census",
     "claim_guard_receipt_readers",
+    "announce_clock_door_census",
     "claim_release_census",
     "capital_evidence_coverage",
     "apy_composition",
@@ -785,6 +790,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "claim_guard_receipt_readers": {
         "module": "spa_core/monitoring/claim_guard_receipt_readers.py",
         "artifact": "data/claim_guard_receipt_readers.json"},
+    "announce_clock_door_census": {
+        "module": "spa_core/monitoring/announce_clock_door_census.py",
+        "artifact": "data/announce_clock_door_census.json"},
     "claim_release_census": {
         "module": "spa_core/monitoring/claim_release_census.py",
         "artifact": "data/claim_release_census.json"},
@@ -3192,6 +3200,26 @@ def main(argv=None) -> int:
                   f"{_rsc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "record_survival_census", e)
+
+    # Ступень заказа G110 п. 3 (ADR-682): согласны ли ДВЕРИ ЧАСОВ одного поля
+    # между собой. Прибор только ЧИТАЕТ: двери живого дерева грузятся и зовутся
+    # на закрытом словаре форм, ни одна строка сторожа не правится. Заголовочное
+    # число — сколько дверей ШИРЕ или УЖЕ той, что гейтит взятие карточки.
+    try:
+        from spa_core.monitoring import announce_clock_door_census
+        _acdc = announce_clock_door_census.run(root=args.root)
+        if _acdc.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «расхождений ноль» (инв. #17).
+            _ans = observed(_acdc["doc"], "answer", kind=dict)
+            _dis = None if _ans is None else _ans.get("doors_disagreeing")
+            print(f"announce_clock_door_census: {_acdc['doc'].get('status')} — "
+                  f"дверей ШИРЕ/УЖЕ эталона "
+                  f"{'НЕ ИЗМЕРЕНО' if _dis is None else _dis}")
+        else:
+            print(f"announce_clock_door_census: НЕ ИЗМЕРЕНО — "
+                  f"{_acdc['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "announce_clock_door_census", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
