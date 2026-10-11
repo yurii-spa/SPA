@@ -34,6 +34,7 @@ from pathlib import Path
 
 from spa_core.monitoring import identity_field_kind as field_kind
 from spa_core.monitoring import candidate_denominator as cand_denom
+from spa_core.monitoring import finding_address_price as addr_price
 from spa_core.monitoring import list_identity_census as census
 from spa_core.tests._freshness import ts
 
@@ -535,6 +536,24 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
             [{"outcome": "unnamed_candidate_outside", "n": 9, "module": "m.one",
               "coord": ".items", cand_denom.COMPOSITION_KEY: {"alpha": ""}}],
             {"alpha": 2})
+        # Заказ G115 п. 1 (ADR-696). Раздел АДРЕСА добавлен в фикстуру по тому
+        # же правилу и ровно по той же причине, что три раздела над ним: шаг
+        # 0-офис сверяет mtime ПРОИЗВОДИТЕЛЯ с датой отчёта и на документе без
+        # объявленного раздела печатает «отчёт СТАРОГО ОБРАЗЦА» — верно, но
+        # предмет ЭТОЙ сцены (род рядом с кандидатом) тогда заслоняется чужим
+        # сообщением, и `assertNotIn("СТАРОГО ОБРАЗЦА")` краснеет не о роде.
+        # Замерено #837: без этой строки сцена КРАСНА на доставленном коде —
+        # #836 раздел объявил, а соседу значения не дал. Ни одно утверждение
+        # сцены не ослаблено: добавлено ЗНАЧЕНИЕ, посчитанное НАСТОЯЩИМ
+        # прибором (цена и род — на том же одноразовом дереве, что у оси рода),
+        # а не словарь из головы.
+        addr_tree = _tree(**{"spa_core/p.py": PRODUCER})
+        address = addr_price.tally(
+            [{"outcome": "unnamed_candidate_outside", "n": 9, "module": "m.one",
+              "coord": ".items", cand_denom.COMPOSITION_KEY: {"alpha": ""}}],
+            denominator, census.probe.IDENTITY_FIELDS,
+            price=addr_price.reader_price(addr_tree),
+            kind_census=lambda names: field_kind.census(names, addr_tree))
         return {
             "schema": census.SCHEMA, "status": "FINDING",
             # Отметка и раздел дня — чтобы тревога о ФОРМЕ не заслоняла предмет
@@ -569,6 +588,7 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
                 "candidate_kind": copy.deepcopy(axis),
                 "candidate_reader_axis": copy.deepcopy(readers),
                 "candidate_denominator": copy.deepcopy(denominator),
+                "finding_address": copy.deepcopy(address),
             },
         }
 

@@ -80,6 +80,10 @@ from spa_core.monitoring import field_readers  # noqa: E402
 # у него ДВА операнда разной природы, и вторая копия расходилась бы с первой
 # молча — ровно тот класс, который эта семья ловит у читателей.
 from spa_core.monitoring import candidate_denominator as cand_denom  # noqa: E402,E501
+# Заказ G115 п. 1. Правило «чем разрешается находка — именем или местом» живёт
+# у себя: население уезжает туда ВХОДОМ (готовой осью соседа), и вторая копия
+# правила населения здесь расходилась бы с первой молча.
+from spa_core.monitoring import finding_address_price as addr_price  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -974,6 +978,12 @@ def tally(rows: Dict[str, dict], *,
     # вердикта не печатала.
     grid = threshold_grid(candidate_fields, strength)
     readers_by_field = field_readers.tally_readers(reader_contributions)
+    # Разница «поле ЕСТЬ против поле ГОДНО» считается ОДИН раз и уезжает в ДВА
+    # ключа: раздел знаменателя печатает её читателю, а раздел адреса (заказ
+    # G115 п. 1) судит по ней, подпёрто ли ИМЯ населением. Второй зов дал бы
+    # второй объект — и вердикт адреса относился бы к числу, которого в отчёте
+    # нет.
+    denominator_axis = cand_denom.tally(denominator_rows, candidate_fields)
     return {
         # Списки ОДНИХ скаляров: получившие личность плюс отказанные за
         # повтор значений. Смешанные и вложенные сюда не входят — они не
@@ -1025,8 +1035,31 @@ def tally(rows: Dict[str, dict], *,
         # вопрос «не узко ли мерило», и подменить одно другим значило бы
         # напечатать два разных утверждения под одним именем. Население уезжает
         # ВХОДОМ — пересчёт был бы второй копией правила.
-        "candidate_denominator": cand_denom.tally(denominator_rows,
-                                                  candidate_fields),
+        "candidate_denominator": denominator_axis,
+        # Заказ G115 п. 1: чем разрешается находка — дописанным ИМЕНЕМ или
+        # адресом МЕСТА, и чего стои́л бы второй адрес читателям. Отдельный
+        # ключ, а не поправка к числам выше: те отвечают «какие поля годны», а
+        # этот — «какой КООРДИНАТОЙ находка адресуема».
+        #
+        # Ось населения уезжает сюда ВХОДОМ и считается ОДИН раз (тот же приём,
+        # что у сетки порогов): второй зов дал бы ВТОРОЙ объект, и напечатанная
+        # разница могла бы разойтись с той, по которой вынесен вердикт адреса,
+        # — то есть два утверждения уехали бы под одним именем.
+        "finding_address": addr_price.tally(
+            denominator_rows, denominator_axis, probe.IDENTITY_FIELDS,
+            # Дерева не дали ⇒ цена читателям остаётся ТРЕТЬИМ ИСХОДОМ с
+            # причиной (её меряет AST дерева, и выдумать её нельзя), а не
+            # нулевой ценой: тот же довод, что у оси РОДА строкой выше.
+            price=(addr_price.reader_price(Path(tree_root))
+                   if tree_root is not None else None),
+            # РОД спрашивается у того же прибора, что и ось рода выше
+            # (``identity_field_kind``), и ВХОДОМ-вызываемым: имена, у которых
+            # род нужно спросить, известны только ПОСЛЕ разбора находок, а
+            # вторая копия правила рода расходилась бы с первой молча. Дерева
+            # нет ⇒ род остаётся третьим исходом с причиной.
+            kind_census=((lambda names: field_kind.census(names,
+                                                          Path(tree_root)))
+                         if tree_root is not None else None)),
     }
 
 
@@ -1476,6 +1509,21 @@ def report(doc: dict, *, max_rows: int = 20,
         denom_lines = [f"[ЗНАМЕНАТЕЛЬ ИМЕНИ] {line}"
                        for line in cand_denom.report(denom,
                                                      max_rows=max_fields)]
+    # Заказ G115 п. 1. Строки АДРЕСА собираются ОДИН раз и печатаются в ОБЕИХ
+    # ветках ниже — по тому же доводу, что у осей РОДА, ЧИТАТЕЛЕЙ и
+    # ЗНАМЕНАТЕЛЯ: на документе без кандидатов адрес отвечает своим третьим
+    # исходом, и промолчать о нём значило бы сделать отсутствие раздела
+    # неотличимым от «местом не разрешается ничего».
+    address = observed(c, "finding_address", kind=dict)
+    if address is None:
+        address_lines = ["[АДРЕС НАХОДКИ] НЕ ИЗМЕРЕНО: раздела «место против "
+                         "имени» у документа нет вовсе (заказ G115 п. 1) — "
+                         "отчёт СТАРОГО ОБРАЗЦА, а не «местом не разрешается "
+                         "ни одна находка»"]
+    else:
+        address_lines = [f"[АДРЕС НАХОДКИ] {line}"
+                         for line in addr_price.report(address,
+                                                       max_rows=max_fields)]
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
@@ -1532,6 +1580,12 @@ def report(doc: dict, *, max_rows: int = 20,
         # хвост значило бы дать прочитать население как замер, не узнав, что у
         # того же предиката на широком знаменателе число другое.
         out.extend(denom_lines)
+        # И АДРЕС НАХОДКИ — там же (заказ G115 п. 1): он отвечает, разрешима ли
+        # находка дописанным ИМЕНЕМ (решение, которое читатель и принимает по
+        # трём числам выше) или только адресом МЕСТА, которому населения не
+        # нужно вовсе. Унести это в хвост значило бы дать принять решение о
+        # дописывании имени, не узнав, что у части находок имя тут ни при чём.
+        out.extend(address_lines)
 
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
@@ -1563,6 +1617,7 @@ def report(doc: dict, *, max_rows: int = 20,
         out.extend(kind_lines)
         out.extend(reader_lines)
         out.extend(denom_lines)
+        out.extend(address_lines)
     if c.get("truncated_readers"):
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "

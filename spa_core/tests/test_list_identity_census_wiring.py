@@ -258,6 +258,67 @@ def _finding_doc() -> dict:
                 "verdict_reasons": ["у 1 имён ТОТ ЖЕ предикат даёт БОЛЬШЕЕ"],
                 "what_it_does_not_prove": ["присутствие не есть годность"],
             },
+            # Заказ G115 п. 1 (ADR-696). Раздел НЕПУСТ по тому же правилу, что и
+            # вся фикстура (см. докстринг): поле, объявленное в `_READ_SCHEMA` и
+            # не несущее здесь значения, сделало бы дифференциальную проверку
+            # ниже слепой ровно к себе — удалять из фикстуры нечего, и
+            # «объявлено и не читается» покраснело бы на целой проводке. Ни одно
+            # утверждение не ослаблено: добавлено значение для НОВОГО
+            # объявленного поля.
+            "finding_address": {
+                "status": "MEASURED", "findings_total": 3,
+                "findings_without_length": [], "identity_fields_today": 17,
+                "global_evidence_min": 2, "place_only": 1,
+                "verdicts": {"place_only": 1, "name_addressable": 1,
+                             "no_candidate": 1},
+                "verdicts_narrow_reading": {"place_only": 2,
+                                            "name_addressable": 1},
+                "reading_disagreement": {"place_only_broad": 1,
+                                         "place_only_narrow": 2, "gap": 1,
+                                         "places_only_narrow_says":
+                                             ["m.two.c"]},
+                "population_histogram": {"eligible_anywhere": {"1": 1, "5+": 1},
+                                         "counted": {"1": 2, "5+": 1}},
+                "place_key": {"rows_needed": 1, "producers_touched": 1,
+                              "key_positional": [
+                                  {"module": "m.one", "coord": ".a[3].b",
+                                   "positional_links": ["[3]"]}],
+                              "key_unmeasured": []},
+                "kind_at_place": {
+                    "status": "MEASURED",
+                    "verdicts": {"place_resolves": 1},
+                    "imported_refusals": 1,
+                    "rows": [{"module": "m.one", "coord": ".a.b",
+                              "verdict": "place_resolves",
+                              "candidates": {"source": {
+                                  "outcome": "imported_refusal",
+                                  "why": "часы есть, но в ДРУГИХ файлах"}}}],
+                },
+                "place_only_rows": [
+                    {"module": "m.one", "coord": ".a.b", "n": 9,
+                     "outcome": "unnamed_candidate_outside",
+                     "verdict": "place_only", "candidates": ["source"],
+                     "unsupported_names": ["source"],
+                     "population_unmeasured": [], "reason": ""}],
+                "unmeasured_rows": [],
+                "reader_price": {
+                    "status": "MEASURED", "files_parsed": 4718,
+                    "files_unmeasured": {}, "sites_total": 44,
+                    "sites_in_tests": 35, "sites_runtime": 9,
+                    "place_available": {"coord_only": 7, "neither": 2},
+                    "runtime_sites": [
+                        {"door": "indexed", "line": 1093,
+                         "function": "_stable_leaves", "coord_in_scope": True,
+                         "producer_in_scope": False,
+                         "place_available": "coord_only",
+                         "module": "spa_core/monitoring/run_identity_key_price.py",
+                         "in_tests": False}],
+                    "one_sidedness": "цена есть ВЕРХНЯЯ граница",
+                },
+                "verdict": "PLACE_RESOLVES_WHAT_A_NAME_CANNOT",
+                "verdict_reasons": ["1 находок разрешимы ТОЛЬКО адресом места"],
+                "what_it_does_not_prove": ["замер, а не правило"],
+            },
         },
     }
 
