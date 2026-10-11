@@ -65,6 +65,9 @@ from spa_core.monitoring.python_reader_clock_doors import (  # noqa: E402
 from spa_core.monitoring.run_identity_key_price import (  # noqa: E402
     build_stands, ensure_faithful_stand,
 )
+# Заказ G113 п. 2. Правило «ряд ли это» живёт у себя; здесь только свод и печать.
+from spa_core.monitoring.list_day_axis import report as day_axis_report  # noqa: E402,E501
+from spa_core.monitoring.list_day_axis import tally as day_axis_tally  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -431,6 +434,36 @@ def tally(rows: Dict[str, dict]) -> dict:
                                      "n": item.get("n"),
                                      "candidates": item.get("candidates")})
 
+    # Ось дня (заказ G113 п. 2) — свод по тем же спискам, но СВОИМ прибором.
+    # Население берётся ТОЛЬКО у читателей, чей обход дошёл до конца и кого
+    # удалось позвать: доля, посчитанная от недосмотренного населения, есть
+    # «не измерено», выданное за ответ (тот же довод, что у знаменателя ниже).
+    # Исключённые читатели СЧИТАЮТСЯ, а не отбрасываются молча.
+    day_axis_rows: List[dict] = []
+    day_axis_excluded = 0
+    for module, row in sorted(rows.items()):
+        if row.get("cause"):
+            continue
+        if row.get("truncated"):
+            day_axis_excluded += 1
+            continue
+        for item in (row.get("lists") or []):
+            axis = item.get("day_axis")
+            if not isinstance(axis, dict):
+                # Строка без оси. Живой зонд её не производит (`classify_list`
+                # ставит ось всегда), но сложить такую строку «никуда» значило бы
+                # дать ей исчезнуть из свода молча — а именно так выглядит
+                # расхождение зонда со сводом, если оно однажды случится.
+                day_axis_rows.append({"outcome": "unmeasured", "n": item.get("n"),
+                                      "reason": "зонд не поставил ось дня",
+                                      "module": module,
+                                      "coord": item.get("coord")})
+                continue
+            day_axis_rows.append(dict(axis, module=module,
+                                      coord=item.get("coord")))
+    day_axis = day_axis_tally(day_axis_rows)
+    day_axis["readers_excluded_truncated"] = day_axis_excluded
+
     # Знаменатель считается ТОЛЬКО по читателям, чей обход дошёл до конца.
     # Усечённый обход даёт находки (они наблюдены), но не даёт знаменателя:
     # доля, посчитанная от недосмотренного населения, есть «не измерено»,
@@ -503,6 +536,10 @@ def tally(rows: Dict[str, dict]) -> dict:
         "threshold_grid": threshold_grid(candidate_fields, strength),
         "denominator_of_finding": unnamed_dicts_multi,
         "finding_rows": finding_rows,
+        # Заказ G113 п. 2: «ряд ли это». Отдельный ключ, а не слагаемое чисел
+        # выше — это ответ на ДРУГОЙ вопрос: не «назвал ли себя элемент полем»,
+        # а «различает ли его ДЕНЬ». Правила «ряд ⇒ годность» здесь нет.
+        "day_axis": day_axis,
     }
 
 
@@ -695,6 +732,21 @@ def report(doc: dict, *, max_rows: int = 20,
     out.append(f"[ПОЗВАНО] читателей ответило: "
                f"{called if called is not None else 'НЕ ИЗМЕРЕНО'} — "
                f"неотвечавшие названы ниже ПРИЧИНОЙ, а не нулём (инв. #17)")
+    # Заказ G113 п. 2 — «ряд ли это». Печатается ОТДЕЛЬНЫМ блоком, а не
+    # вмешивается в числа выше: вопрос другой, и сложить его с годностью
+    # значило бы напечатать ответ, не относящийся ни к одному из двух.
+    day_axis = observed(c, "day_axis", kind=dict)
+    if day_axis is None:
+        out.append("[ОСЬ ДНЯ] НЕ ИЗМЕРЕНО: у документа нет раздела оси дня "
+                   "(заказ G113 п. 2) — отчёт СТАРОГО ОБРАЗЦА, а не «рядов "
+                   "ноль»")
+    else:
+        for line in day_axis_report(day_axis):
+            out.append(f"[ОСЬ ДНЯ] {line}")
+        excluded = day_axis.get("readers_excluded_truncated")
+        if excluded:
+            out.append(f"[ОСЬ ДНЯ] читателей вне населения оси (обход усечён): "
+                       f"{excluded} — их списки в знаменатель НЕ идут")
     for key in sorted(c.get("outcomes") or {}):
         out.append(f"[ПО ИСХОДАМ] {key}: {(c.get('outcomes') or {})[key]}")
     fields = c.get("candidate_fields_outside") or {}

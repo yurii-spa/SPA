@@ -34,6 +34,11 @@ from spa_core.monitoring.run_identity_key_price import (  # noqa: E402
     _IDENTITY_FIELDS, element_identity, indexed,
     module_driver, no_entry_cause, scalar_refusal,
 )
+# Заказ G113 п. 2. Правило «ряд ли это» НЕ копируется сюда, как не копируется и
+# правило личности: у него свой дом, свои контроли и свой отказ от порога.
+# Спрашивается оно ЗДЕСЬ потому, что здесь живут ЗНАЧЕНИЯ — в артефакт переписи
+# они не попадают, и второй зов населения ради них стоил бы ещё один такт.
+from spa_core.monitoring.list_day_axis import day_axis_of_list  # noqa: E402
 
 #: Каталог стенда (его подкаталог ``data/`` получает читатель).
 STAND_ENV = "SPA_READER_STAND"
@@ -135,6 +140,11 @@ def classify_list(items) -> dict:
       честен: обход остаётся позиционным не от недосмотра.
     """
     row: dict = {"n": len(items) if isinstance(items, list) else 0}
+    # Ось дня (заказ G113 п. 2) ставится КАЖДОМУ списку, а не только тем, у
+    # которых есть личность: вопрос «ряд ли это» независим от вопроса «назвал
+    # ли себя элемент полем», и считать его только у названных значило бы
+    # мерить население, отобранное ЧУЖИМ признаком.
+    row["day_axis"] = day_axis_of_list(items)
     if not isinstance(items, list) or not items:
         row["outcome"] = "unnamed_empty"
         return row

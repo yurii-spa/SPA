@@ -113,6 +113,30 @@ def _finding_doc() -> dict:
             "unmeasured_causes": {"no_entry_point": 4},
             "readers_measured": 50,
             "named_fields": {"protocol": 3},
+            # Заказ G113 п. 2 (ADR-692). Раздел НЕПУСТ по тому же правилу, что
+            # и вся фикстура (см. докстринг): поле, объявленное в `_READ_SCHEMA`
+            # и не несущее здесь значения, сделало бы дифференциальную проверку
+            # ниже слепой ровно к себе — она и покраснела, когда ключ объявили,
+            # а фикстуру не дополнили. Ни одно утверждение не ослаблено:
+            # добавлено значение для НОВОГО объявленного поля.
+            "day_axis": {
+                "lists_seen": 9, "answered_yes": 2,
+                "denominator_of_finding": 5, "day_series_by_value": 1,
+                "trivial_singletons": 2, "not_applicable": 1,
+                "outcomes": {"day_series": 2, "not_day_series": 3,
+                             "day_series_by_value": 1,
+                             "day_series_trivial_singleton": 2,
+                             "not_applicable": 1},
+                "axis_fields": {"cycle_date": 2},
+                "axis_field_readers": {"cycle_date": 2},
+                "axis_field_strength": {"cycle_date": 11},
+                "refusal_reasons": {"day_repeats": 3},
+                "mixed_awareness_axes": 1, "non_contiguous_axes": 1,
+                "unmeasured_causes": {"зонд не поставил ось дня": 1},
+                "series_rows": [{"module": "m.one", "coord": ".days",
+                                 "n": 11, "fields": ["cycle_date"]}],
+                "readers_excluded_truncated": 1,
+            },
         },
     }
 

@@ -794,6 +794,9 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # ветка отрисовки, и объявление здесь — единственное, что покраснеет, если
     # проводку признака у производителя однажды снимут. `generated_by` рядом НЕ
     # объявлен намеренно: это константа с именем модуля, она не наблюдение.
+    # `counts.day_axis` объявлен ЧИТАЕМЫМ (заказ G113 п. 2, ADR-692): «ряд ли
+    # это» печатает та же ветка отрисовки, и объявление здесь — единственное,
+    # что покраснеет, если раздел у производителя однажды снимут.
     "list_identity_census.json": ("status", "reason", "invoked_by",
                                   "counts.lists_total",
                                   "counts.outcomes", "counts.singletons",
@@ -804,6 +807,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "counts.finding_rows",
                                   "counts.truncated_readers",
                                   "counts.unmeasured_causes",
+                                  "counts.day_axis",
                                   "counts.readers_measured", "advisory"),
     # Заказ G37 п. 2 (ADR-414). `invoked_by` объявлен ЧИТАЕМЫМ по тому же
     # доводу, что у соседа: наблюдение 25.09 идёт ИМЕННО по `entry`, и это
