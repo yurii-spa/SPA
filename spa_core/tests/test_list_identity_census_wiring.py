@@ -178,6 +178,48 @@ def _finding_doc() -> dict:
                                  "why": "импликация ложна в обе стороны"},
                 "what_it_does_not_prove": ["род спрошен у ДЕРЕВА"],
             },
+            # Заказ G114 пп. 1, 2 (ADR-694). Раздел НЕПУСТ по тому же правилу,
+            # что и вся фикстура (см. докстринг): поле, объявленное в
+            # `_READ_SCHEMA` и не несущее здесь значения, сделало бы
+            # дифференциальную проверку ниже слепой ровно к себе — удалять из
+            # фикстуры нечего, и «объявлено и не читается» покраснело бы на
+            # целой проводке. Ни одно утверждение не ослаблено: добавлено
+            # значение для НОВОГО объявленного поля.
+            "candidate_reader_axis": {
+                "status": "MEASURED", "names": 2,
+                "single_reader_names": ["forward_date"],
+                "multi_reader_names": ["source"],
+                "readers_unmeasured": [],
+                "population_overstated": [
+                    {"field": "forward_date", "population": 7, "readers": 1}],
+                "rows": [
+                    {"field": "source", "population": 1, "readers": 2,
+                     "readers_unmeasured": False,
+                     "reader_names": ["m.one", "m.two"],
+                     "contributions_nameless": 0},
+                    {"field": "forward_date", "population": 7, "readers": 1,
+                     "readers_unmeasured": False,
+                     "reader_names": ["m.two"],
+                     "contributions_nameless": 0},
+                ],
+                "classes": {
+                    "status": "MEASURED", "classes_total": 1,
+                    "classes_split": 1, "classes_intact": 0,
+                    "classes_unmeasured": 0,
+                    "names_freed": ["forward_date", "source"],
+                    "names_still_blind": [],
+                    "rows": [{"population": 1, "max_length": 7,
+                              "names": ["forward_date", "source"],
+                              "readers_by_name": {"forward_date": 1,
+                                                  "source": 2},
+                              "groups": [["forward_date"], ["source"]],
+                              "verdict": "split",
+                              "names_freed": ["forward_date", "source"]}],
+                },
+                "axis_verdict": "NEEDED",
+                "axis_verdict_reasons": ["третья ось РАЗБИВАЕТ 1 из 1 класс(ов)"],
+                "what_it_does_not_prove": ["читатель — питоний МОДУЛЬ"],
+            },
         },
     }
 

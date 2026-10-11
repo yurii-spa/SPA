@@ -71,6 +71,11 @@ from spa_core.monitoring.list_day_axis import tally as day_axis_tally  # noqa: E
 # Заказ G113 п. 1. Признак РОДА живёт у себя (ADR-539); здесь только свод и
 # печать — вторая копия правила рода расходилась бы с первой молча.
 from spa_core.monitoring import identity_field_kind as field_kind  # noqa: E402
+# Заказ G114 п. 1. Правило «сколько РАЗНЫХ читателей подпирают имя» живёт у
+# себя: его вторая копия уже существовала бы (сосед `list_day_axis` считает
+# читателей у СВОЕГО населения), и разойдись они — «читателей один» значило бы
+# в двух разделах одного отчёта разное.
+from spa_core.monitoring import field_readers  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -159,7 +164,14 @@ _NO_GATE_NAMES = ("apply_threshold", "chosen_pair", "reject_field", "is_fit",
                   # единственное, что покраснеет, если гейт однажды вернут
                   # тихой правкой под новым именем.
                   "kind_gate", "admit_by_kind", "reject_by_kind",
-                  "fit_by_kind")
+                  "fit_by_kind",
+                  # Заказ G114 п. 1: у оси ЧИТАТЕЛЕЙ свои запрещённые имена.
+                  # Правило «много читателей ⇒ годно» не отвергнуто замером и не
+                  # принято — оно не ставилось вовсе: заказ велел ЗАМЕРИТЬ ось,
+                  # а не назначить по ней порог. Пин состава — то единственное,
+                  # что покраснеет, если гейт однажды завести тихой правкой.
+                  "readers_gate", "admit_by_readers", "reject_by_readers",
+                  "fit_by_readers")
 
 #: Исходы оси ЧАСОВ и оси АРИФМЕТИКИ признака рода. Перечни берутся у самого
 #: признака (ADR-539), а не перепечатываются: вторая копия состава исходов
@@ -580,6 +592,219 @@ def distinct_taken_sets(grid: dict, reading: str = "both") -> List[dict]:
                                                  row["n_min"], row["l_min"]))
 
 
+def reader_axis(freq: Dict[str, int], strength: Dict[str, int],
+                readers: Optional[Dict[str, dict]],
+                grid: Optional[dict]) -> dict:
+    """ТРЕТЬЯ ось кандидата — число РАЗНЫХ ЧИТАТЕЛЕЙ (заказ G114 пп. 1, 2).
+
+    Заказ дословно: «население сегодня считает списки; ``message×3`` может
+    означать три находки одного прибора и три разных подсистемы, и это разные
+    свидетельства. Замерить, у скольких имён население собрано из одного
+    читателя, — и только после замера решать, нужна ли ось». Поэтому вердикт
+    ``axis_verdict`` ВЫЧИСЛЯЕТСЯ из двух наблюдаемых условий (ниже), а не
+    объявляется строкой: исчезнут условия — он сменится сам, и нужда в оси будет
+    пересмотрена решением, а не истлеет молча. Тот же приём, что у
+    ``rule_verdict`` соседней сетки (ADR-540).
+
+    Второе условие — заказ G114 п. 2: «класс совпадения — предмет, а не побочный
+    счёт. Замерить, сколько классов РАСПАДАЕТСЯ, если в координату добавить
+    третью ось». Класс берётся у сетки (``collisions``), а не пересчитывается
+    здесь: вторая копия правила «одинаковая координата» разошлась бы с первой
+    молча, и «распалось» считалось бы по другим классам, чем те, о которых
+    сетка печатает вердикт.
+
+    Население у оси РОВНО то же, что у оси населения: те же вклады тех же
+    ответивших читателей, включая усечённых. Считать читателей по одному
+    населению, а списки по другому значило бы напечатать два числа об разных
+    предметах под одной координатой.
+
+    Чего ось НЕ доказывает — и названо это не из осторожности:
+
+    * **Разные читатели ≠ разные подсистемы** (полностью — в докстринге
+      ``field_readers``): измеряется число разных МОДУЛЕЙ.
+    * **Ось не закрывает слепое пятно пары.** Сколько имён остаётся
+      неразличимыми ПОСЛЕ добавления третьего числа — отдельная величина
+      (``names_still_blind``), и без неё «ось распадается» читалось бы как
+      «слепого пятна больше нет».
+    * **Правила «много читателей ⇒ годно» нет.** Ось — наблюдение, а не гейт;
+      запрет пинится составом публичных имён модуля (``_NO_GATE_NAMES``).
+    """
+    if not freq:
+        return {"status": "UNMEASURED",
+                "reason": ("кандидатов нет — читателей считать не у чего; это "
+                           "не «у всех имён по одному читателю»")}
+    if not isinstance(readers, dict):
+        return {"status": "UNMEASURED",
+                "reason": ("свода читателей нет вовсе — число читателей не "
+                           "измерено НИ У ОДНОГО имени, и единицы читались бы "
+                           "как замер")}
+    # Порядок строк — ОДНОЙ копией (`_ranked_by_length`), той же, что у перечня
+    # кандидатов и у оси РОДА: все три укорачиваются одним числом, и разойдись
+    # порядки, читатель, видящий только головы, получил бы разные утверждения о
+    # том, какое свидетельство сильнее. Длина поэтому и есть ВХОД этой оси, хотя
+    # сама она длину не считает: своя копия порядка здесь (хоть бы и «по
+    # населению») дала бы третью голову под тем же утверждением.
+    names = [name for name, _ in _ranked_by_length(freq, strength)]
+    rows: List[dict] = []
+    single: List[str] = []
+    multi: List[str] = []
+    unmeasured: List[dict] = []
+    overstated: List[dict] = []
+    count_of: Dict[str, Optional[int]] = {}
+    for name in names:
+        seen = field_readers.readers_of(readers, name)
+        count_of[name] = seen
+        raw = readers.get(name)
+        row: dict = raw if isinstance(raw, dict) else {}
+        nameless = int(row.get(field_readers.NAMELESS_KEY) or 0)
+        population = int(freq[name])
+        if seen is None:
+            # Третий исход у ИМЕНИ. Причина называется той же мерой, которая её
+            # произвела: «вкладов без названного читателя N» есть наблюдение, а
+            # «читателей 0» было бы выдумкой.
+            why = (f"вкладов без названного читателя: {nameless} — названных "
+                   f"читателей {len(row.get('readers') or [])}, и это нижняя "
+                   f"граница, а не замер"
+                   if nameless else
+                   "имени не пришло ни одного вклада — в своде читателей его нет")
+            unmeasured.append({"field": name, "why": why})
+        elif seen == 1:
+            single.append(name)
+            # ВОТ ответ заказа: население больше единицы, а читатель один ⇒ эти
+            # N списков суть N находок ОДНОГО прибора. Пара «население × длина»
+            # об этом молчит по построению.
+            if population > 1:
+                overstated.append({"field": name, "population": population,
+                                   "readers": 1})
+        else:
+            multi.append(name)
+        rows.append({
+            "field": name,
+            "population": population,
+            "readers": seen,
+            "readers_unmeasured": seen is None,
+            "reader_names": list(row.get("readers") or []),
+            "contributions_nameless": nameless,
+        })
+
+    classes = _split_classes(grid, count_of)
+    reasons: List[str] = []
+    split = classes.get("classes_split")
+    if split:
+        reasons.append(
+            f"третья ось РАЗБИВАЕТ {split} из {classes.get('classes_total')} "
+            f"класс(ов) совпадающей координаты и делает различимыми "
+            f"{len(classes.get('names_freed') or [])} имён — работу, которой "
+            f"пара чисел не делает ни при каком пороге")
+    if overstated:
+        reasons.append(
+            f"у {len(overstated)} имён население больше единицы, а читатель "
+            f"ОДИН (сильнейшее: "
+            f"{max(overstated, key=lambda r: r['population'])['field']}×"
+            f"{max(r['population'] for r in overstated)}) — ось населения "
+            f"называет шириной свидетельства то, что шириной не является")
+    return {
+        "status": "MEASURED",
+        "names": len(names),
+        # Главное число заказа: «у скольких имён население собрано из ОДНОГО
+        # читателя». Печатается рядом со знаменателем всегда.
+        "single_reader_names": single,
+        "multi_reader_names": multi,
+        "readers_unmeasured": unmeasured,
+        "population_overstated": overstated,
+        "rows": rows,
+        "classes": classes,
+        "axis_verdict": "NEEDED" if reasons else "NOT_NEEDED",
+        "axis_verdict_reasons": reasons,
+        "what_it_does_not_prove": [
+            "читатель — питоний МОДУЛЬ, а не подсистема: два модуля одной "
+            "подсистемы считаются двумя, и числа подсистем здесь нет вовсе",
+            "ось не закрывает слепое пятно пары: сколько имён остаётся "
+            "неразличимыми ПОСЛЕ третьего числа — отдельная величина",
+            "число читателей — наблюдение ОДНОГО ответа, как население и "
+            "длина: оно меняется со скоростью кода",
+            "ни одно имя не дописано в _IDENTITY_FIELDS и ни один порог не "
+            "назначен: ось — наблюдение, а не гейт",
+        ],
+    }
+
+
+def _split_classes(grid: Optional[dict],
+                   count_of: Dict[str, Optional[int]]) -> dict:
+    """Распадается ли класс совпадающей координаты от третьего числа (G114 п. 2).
+
+    Классы берутся у сетки, а не пересчитываются: правило «одинаковая
+    координата» живёт одной копией. Исходов у класса ТРИ, и третий назван —
+    класс, в котором у хотя бы одного имени число читателей не измерено, не
+    есть ни «распался», ни «цел»: судить о нём нечем.
+
+    «Распался» значит, что имена класса разошлись по числу читателей хотя бы на
+    две группы. «Освобождено» — имя, оставшееся в группе ОДНО: только оно стало
+    различимым третьим числом от ВСЕХ прочих имён класса. Имя, ушедшее в группу
+    из двух, различимо от одной половины класса и по-прежнему слепо к другой —
+    считать его освобождённым значило бы завысить работу оси.
+    """
+    if not isinstance(grid, dict) or str(grid.get("status")) != "MEASURED":
+        return {"status": "UNMEASURED",
+                "reason": ("сетки пары чисел нет или она не измерена — классов "
+                           "совпадения не из чего брать, и «распалось 0» "
+                           "читалось бы как замер")}
+    collisions = observed(grid, "collisions", kind=list)
+    if collisions is None:
+        return {"status": "UNMEASURED",
+                "reason": ("перечня классов совпадения в сетке нет вовсе — это "
+                           "не «совпадающих координат нет»")}
+    rows: List[dict] = []
+    freed: List[str] = []
+    still_blind: List[str] = []
+    split = intact = unmeasured = 0
+    for cls in collisions:
+        names = sorted(str(n) for n in (cls.get("names") or []))
+        groups: Dict[int, List[str]] = {}
+        seen_of: Dict[str, int] = {}
+        blind_here = False
+        for name in names:
+            seen = count_of.get(name)
+            if seen is None:
+                blind_here = True
+                break
+            seen_of[name] = int(seen)
+            groups.setdefault(int(seen), []).append(name)
+        if blind_here:
+            unmeasured += 1
+            rows.append({"population": cls.get("population"),
+                         "max_length": cls.get("max_length"),
+                         "names": names, "verdict": "unmeasured",
+                         "why": "у имени класса число читателей не измерено"})
+            continue
+        splits = len(groups) > 1
+        here_freed = sorted(n for g in groups.values() if len(g) == 1 for n in g)
+        here_blind = sorted(n for g in groups.values() if len(g) > 1 for n in g)
+        freed.extend(here_freed)
+        still_blind.extend(here_blind)
+        if splits:
+            split += 1
+        else:
+            intact += 1
+        rows.append({"population": cls.get("population"),
+                     "max_length": cls.get("max_length"),
+                     "names": names,
+                     "readers_by_name": seen_of,
+                     "groups": [groups[k] for k in sorted(groups)],
+                     "verdict": "split" if splits else "intact",
+                     "names_freed": here_freed})
+    return {
+        "status": "MEASURED",
+        "classes_total": len(collisions),
+        "classes_split": split,
+        "classes_intact": intact,
+        "classes_unmeasured": unmeasured,
+        "names_freed": sorted(freed),
+        "names_still_blind": sorted(still_blind),
+        "rows": rows,
+    }
+
+
 def tally(rows: Dict[str, dict], *,
           tree_root: Optional[Path] = None) -> dict:
     """Свод по СПИСКАМ, а не по читателям: предмет заказа — список.
@@ -602,6 +827,10 @@ def tally(rows: Dict[str, dict], *,
     singletons = 0
     truncated_readers: List[str] = []
     finding_rows: List[dict] = []
+    # Заказ G114 п. 1: ВКЛАДЫ, а не сразу счётчик. Разница между «сколько
+    # списков подпёрли имя» и «сколько РАЗНЫХ читателей их дали» теряется, если
+    # свернуть вход в число до замера, — а она и есть предмет заказа.
+    reader_contributions: List[Tuple[str, Optional[str]]] = []
     total_lists = 0
     readers_measured = 0
     unmeasured: Dict[str, int] = {}
@@ -633,6 +862,11 @@ def tally(rows: Dict[str, dict], *,
                     # лучшее наблюдение в пользу поля.
                     prev = strength.get(str(field), 0)
                     strength[str(field)] = max(prev, int(item.get("n") or 0))
+                    # Вклад записывается РЯДОМ с инкрементом населения — тем же
+                    # условием и в том же проходе: ось читателей обязана стоять
+                    # на ТОМ ЖЕ населении, что ось списков, иначе два числа
+                    # координаты говорили бы о разных предметах.
+                    reader_contributions.append((str(field), module or None))
                 finding_rows.append({"module": module,
                                      "coord": item.get("coord"),
                                      "n": item.get("n"),
@@ -715,6 +949,12 @@ def tally(rows: Dict[str, dict], *,
     cause_unmeasured = _count(
         lambda item: str(item.get("outcome")) == "unnamed_not_dicts"
         and str(item.get("scalar_refused")) not in ("not_unique", "not_scalar"))
+    # Сетка считается ОДИН раз и уезжает в ДВА ключа: ось читателей берёт классы
+    # совпадения у неё, а не пересчитывает их (G114 п. 2). Второй зов дал бы
+    # второй объект, и «распалось» считалось бы по классам, о которых сетка
+    # вердикта не печатала.
+    grid = threshold_grid(candidate_fields, strength)
+    readers_by_field = field_readers.tally_readers(reader_contributions)
     return {
         # Списки ОДНИХ скаляров: получившие личность плюс отказанные за
         # повтор значений. Смешанные и вложенные сюда не входят — они не
@@ -737,7 +977,11 @@ def tally(rows: Dict[str, dict], *,
         # наблюдённых значений. Складывать её в одно число с полями выше
         # нельзя — это ответ на другой вопрос: не «какие поля годны», а «что
         # взяла бы каждая пара порогов, если бы её назначили».
-        "threshold_grid": threshold_grid(candidate_fields, strength),
+        "threshold_grid": grid,
+        # Заказ G114 п. 1: кто именно подпёр каждое имя. Перечень лежит РЯДОМ со
+        # сводом оси намеренно — свод печатает числа, а спор об имени решается
+        # поимённым составом его читателей.
+        "candidate_readers": readers_by_field,
         "denominator_of_finding": unnamed_dicts_multi,
         "finding_rows": finding_rows,
         # Заказ G113 п. 2: «ряд ли это». Отдельный ключ, а не слагаемое чисел
@@ -749,6 +993,13 @@ def tally(rows: Dict[str, dict], *,
         # имени, тогда как население и длина суть наблюдения ОТВЕТА читателей.
         # Правила «род ⇒ годность» здесь нет — оно отвергнуто замером (ADR-539).
         "candidate_kind": kind_axis(candidate_fields, strength, tree_root),
+        # Заказ G114 пп. 1, 2: ЧИСЛО РАЗНЫХ ЧИТАТЕЛЕЙ — третья ось рядом с
+        # населением и длиной, и замер, сколько классов совпадающей координаты
+        # от неё распадается. Отдельный ключ, а не слагаемое: сложить число
+        # читателей с числом списков значило бы выбрать вес на глаз — ровно то,
+        # что заказ G91 п. 2 запретил паре (ADR-540).
+        "candidate_reader_axis": reader_axis(candidate_fields, strength,
+                                             readers_by_field, grid),
     }
 
 
@@ -985,6 +1236,123 @@ def kind_axis_report(axis: dict, *, max_rows: Optional[int] = None) -> List[str]
     return out
 
 
+def reader_axis_report(axis: dict, *,
+                       max_rows: Optional[int] = None) -> List[str]:
+    """Строки оси ЧИТАТЕЛЕЙ. Знаменатель — рядом с числителем, как везде.
+
+    ``max_rows`` укорачивает ОДИН перечень — поимённые строки; числа и вердикт
+    печатаются всегда и целиком. Перечни «население завышено» и «классы
+    распались» не укорачиваются вовсе: в них единицы имён, и спрятать хвост
+    значило бы спрятать находку.
+    """
+    if not isinstance(axis, dict) or not axis:
+        return ["ось ЧИТАТЕЛЕЙ: НЕ ИЗМЕРЕНО — свода нет вовсе"]
+    if str(axis.get("status")) != "MEASURED":
+        return [f"ось ЧИТАТЕЛЕЙ · НЕ ИЗМЕРЕНО: {axis.get('reason')}"]
+    # `or 0` здесь было бы инв. #17 наизнанку: свод без числа имён напечатал бы
+    # «имён 0», то есть выдумку. Нашла это МУТАЦИЯ (мутант `0 → 1` выжил, ибо
+    # ветку не исполняла ни одна сцена) — и правка чинит ЧТЕНИЕ, как в #753.
+    total = observed_number(axis, "names")
+    if total is None:
+        return ["ось ЧИТАТЕЛЕЙ · НЕ ИЗМЕРЕНО: свод не сказал, скольким именам "
+                "он отвечает — «имён 0» тут было бы выдумкой"]
+    single = observed(axis, "single_reader_names", kind=list)
+    multi = observed(axis, "multi_reader_names", kind=list)
+    unmeasured = observed(axis, "readers_unmeasured", kind=list)
+    if single is None or multi is None or unmeasured is None:
+        return ["ось ЧИТАТЕЛЕЙ · НЕ ИЗМЕРЕНО: свод не назвал все три исхода "
+                "имени — доля по такому ответу была бы выдумкой"]
+    out = [f"ось ЧИТАТЕЛЕЙ (заказ G114 п. 1): имён {int(total)} · население собрано "
+           f"из ОДНОГО читателя у {len(single)} · из нескольких у {len(multi)} "
+           f"· НЕ ИЗМЕРЕНО у {len(unmeasured)}"]
+    overstated = observed(axis, "population_overstated", kind=list)
+    if overstated is None:
+        out.append("  НЕ ИЗМЕРЕНО: перечня имён с завышенным населением в своде "
+                   "нет вовсе — это не «таких имён ноль»")
+    elif overstated:
+        out.append("  НАСЕЛЕНИЕ НАЗЫВАЕТ ШИРИНОЙ НЕ ШИРИНУ: " + " · ".join(
+            f"{row.get('field')}×{row.get('population')} списк. у ОДНОГО "
+            f"читателя" for row in overstated))
+    else:
+        out.append("  имён, у которых население больше единицы при одном "
+                   "читателе, не нашлось — на ЭТОМ ответе ось населения "
+                   "ширину свидетельства не завышает")
+    for row in unmeasured:
+        out.append(f"  НЕ ИЗМЕРЕНО у {row.get('field')}: {row.get('why')}")
+    classes = observed(axis, "classes", kind=dict)
+    if classes is None:
+        out.append("  КЛАССЫ (G114 п. 2) · НЕ ИЗМЕРЕНО: раздела классов в своде "
+                   "нет вовсе — это не «ни один класс не распался»")
+    elif str(classes.get("status")) != "MEASURED":
+        out.append(f"  КЛАССЫ (G114 п. 2) · НЕ ИЗМЕРЕНО: {classes.get('reason')}")
+    else:
+        # Перечни освобождённых и оставшихся слепыми читаются ТРЕТЬИМ исходом:
+        # `or []` печатало бы «различимыми стали 0 · слепыми 0» на своде, который
+        # об этом не сказал ни слова, — и ровно эти две подстановки переживали
+        # мутацию, потому что сцены с их отсутствием не было.
+        freed = observed(classes, "names_freed", kind=list)
+        blind = observed(classes, "names_still_blind", kind=list)
+        if freed is None or blind is None:
+            out.append("  КЛАССЫ (G114 п. 2) · НЕ ИЗМЕРЕНО: свод классов не "
+                       "назвал, какие имена стали различимыми и какие остались "
+                       "слепыми — доля без них была бы выдумкой")
+        else:
+            out.append(
+                f"  КЛАССЫ (G114 п. 2): классов совпадающей координаты "
+                f"{classes.get('classes_total')} ⇒ РАСПАЛОСЬ "
+                f"{classes.get('classes_split')} · цело "
+                f"{classes.get('classes_intact')} · НЕ ИЗМЕРЕНО "
+                f"{classes.get('classes_unmeasured')}; различимыми стали "
+                f"{len(freed)} имён, СЛЕПЫМИ ОСТАЛИСЬ {len(blind)}")
+        class_rows = observed(classes, "rows", kind=list)
+        if class_rows is None:
+            out.append("  КЛАССЫ (G114 п. 2) · НЕ ИЗМЕРЕНО: поимённых строк "
+                       "классов в своде нет вовсе — это не «классов ноль»")
+            class_rows = []
+        for row in class_rows:
+            if str(row.get("verdict")) == "intact":
+                continue
+            names_here = observed(row, "names", kind=list)
+            out.append(f"    ({row.get('population')}, {row.get('max_length')}) "
+                       f"{row.get('verdict')}: "
+                       + (", ".join(names_here) if names_here is not None
+                          else "состав класса НЕ ИЗМЕРЕН")
+                       + (f" ⇒ читателей {row.get('readers_by_name')}"
+                          if row.get("readers_by_name") else
+                          f" — {row.get('why')}"))
+    rows = observed(axis, "rows", kind=list)
+    if rows is None:
+        out.append("  НЕ ИЗМЕРЕНО: поимённых строк оси в своде нет вовсе, а "
+                   "имена есть — свод неполон")
+    else:
+        shown = rows if max_rows is None else rows[:max_rows]
+        out.append("  поимённо (порядок — тот же, что у перечня кандидатов): "
+                   + " · ".join(
+                       f"{row.get('field')}×{row.get('population')} у "
+                       + (f"{row.get('readers')} читател."
+                          if row.get("readers") is not None else "НЕ ИЗМЕРЕНО")
+                       for row in shown)
+                   + ("" if len(shown) == len(rows) else
+                      f"; … ещё {len(rows) - len(shown)} — полный перечень "
+                      f"в {ARTIFACT}"))
+    # Причин НЕТ ВОВСЕ и причин НОЛЬ — разные ответы: второе есть вердикт
+    # NOT_NEEDED (ни одно условие не предъявлено), первое — отсутствие замера.
+    # `or` склеивал их в одну строку, и подмена ключа оставалась невидимой.
+    why_list = observed(axis, "axis_verdict_reasons", kind=list)
+    if why_list is None:
+        tail = "; перечня причин у вердикта нет вовсе — это НЕ «причин ноль»"
+    elif why_list:
+        tail = "".join(f"; {why}" for why in why_list)
+    else:
+        tail = "; ни одно из двух условий не предъявлено этим населением"
+    out.append(f"  ВЕРДИКТ ОСИ (вычислен, не объявлен): "
+               f"{axis.get('axis_verdict')}{tail}")
+    out.append("  ГЕЙТА НЕТ: порог по числу читателей не назначен, ни одно имя "
+               "не дописано в _IDENTITY_FIELDS; и читатель здесь — питоний "
+               "МОДУЛЬ, а не подсистема")
+    return out
+
+
 def report(doc: dict, *, max_rows: int = 20,
            max_fields: Optional[int] = None,
            max_cells: int = 12) -> List[str]:
@@ -1055,6 +1423,19 @@ def report(doc: dict, *, max_rows: int = 20,
     else:
         kind_lines = [f"[РОД] {line}"
                       for line in kind_axis_report(kind, max_rows=max_fields)]
+    # Заказ G114 пп. 1, 2. Строки оси ЧИТАТЕЛЕЙ собираются ОДИН раз и печатаются
+    # в ОБЕИХ ветках ниже — по тому же доводу, что у оси РОДА: на документе без
+    # кандидатов ось отвечает «кандидатов нет», и промолчать о нём значило бы
+    # сделать отсутствие раздела неотличимым от отсутствия кандидатов.
+    readers = observed(c, "candidate_reader_axis", kind=dict)
+    if readers is None:
+        reader_lines = ["[ЧИТАТЕЛИ] НЕ ИЗМЕРЕНО: раздела читателей у документа "
+                        "нет вовсе (заказ G114 п. 1) — отчёт СТАРОГО ОБРАЗЦА, а "
+                        "не «у всех имён по одному читателю»"]
+    else:
+        reader_lines = [f"[ЧИТАТЕЛИ] {line}"
+                        for line in reader_axis_report(readers,
+                                                       max_rows=max_fields)]
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
@@ -1102,6 +1483,10 @@ def report(doc: dict, *, max_rows: int = 20,
         # населением и длиной (заказ G113 п. 1), а не отдельным разделом в
         # хвосте: решение о дописывании имени принимается по всем трём числам.
         out.extend(kind_lines)
+        # И ЧИСЛО ЧИТАТЕЛЕЙ — там же (заказ G114 п. 1): оно поправляет ровно то
+        # население, которое напечатано двумя строками выше, и разнести их
+        # значило бы заставить читателя сшивать поправку с числом глазами.
+        out.extend(reader_lines)
 
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
@@ -1131,6 +1516,7 @@ def report(doc: dict, *, max_rows: int = 20,
         out.append("[ОПОРА] годных полей вне списка имён не нашлось — нынешний "
                    "список имён не занижает личность ни у одного списка населения")
         out.extend(kind_lines)
+        out.extend(reader_lines)
     if c.get("truncated_readers"):
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "

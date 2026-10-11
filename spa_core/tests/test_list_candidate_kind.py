@@ -376,7 +376,15 @@ class TheFoldInstallsNoGate(unittest.TestCase):
         self.assertEqual(set(census._NO_GATE_NAMES), {
             "apply_threshold", "chosen_pair", "reject_field", "is_fit",
             "admit_field", "unfit_for_identity", "threshold_gate",
-            "kind_gate", "admit_by_kind", "reject_by_kind", "fit_by_kind"})
+            "kind_gate", "admit_by_kind", "reject_by_kind", "fit_by_kind",
+            # Заказ G114 п. 1 (ADR-694): имена гейта по ЧИСЛУ ЧИТАТЕЛЕЙ.
+            # Правка этого пина намеренна и УСИЛИВАЕТ запрет (инв. #16): состав
+            # сверяется дословно, поэтому новые запрещённые имена обязаны
+            # приехать сюда — иначе пин перестал бы быть полным, а проверка
+            # соседа (пересечение с публичными именами) этого не заметила бы:
+            # она краснеет только на имени, УЖЕ стоящем в пине.
+            "readers_gate", "admit_by_readers", "reject_by_readers",
+            "fit_by_readers"})
 
     def test_the_fold_takes_no_argument_that_would_select_a_kind(self):
         params = set(inspect.signature(census.kind_axis).parameters)
@@ -477,17 +485,37 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
         office = _office()
         doc = self._doc()
         doc["counts"].pop("candidate_kind")
-        text = "\n".join(office._summarize_json(ARTIFACT_REL, doc,
-                                                root=str(REPO),
-                                                artifact_root=str(REPO)))
-        self.assertIn("СТАРОГО ОБРАЗЦА", text)
-        self.assertNotIn("alpha×2", text.split("[РОД]")[-1])
+        lines = office._summarize_json(ARTIFACT_REL, doc, root=str(REPO),
+                                       artifact_root=str(REPO))
+        # Предмет сцены — РАЗДЕЛ РОДА, поэтому и мерится он, а не «всё, что
+        # напечатано после него». Прежняя редакция резала отчёт по метке
+        # `[РОД]` и смотрела ХВОСТ — то есть заодно утверждала, что НИ ОДИН
+        # сосед ниже не печатает `alpha×2`. Утверждение это ложно и к предмету
+        # не относится: ось ЧИТАТЕЛЕЙ (G114 п. 1) печатает имя кандидата со
+        # своим числом ровно так же, как ось РОДА, и встала она ниже. Правка
+        # СУЖАЕТ сцену до её предмета и потому проверку УСИЛИВАЕТ: раздел рода
+        # теперь обязан назвать себя СТАРЫМ ОБРАЗЦОМ сам, а не «где-нибудь в
+        # отчёте» (инв. #16 — намеренно, с обоснованием).
+        kind = "\n".join(line for line in lines if "[РОД]" in line)
+        self.assertIn("СТАРОГО ОБРАЗЦА", kind)
+        self.assertNotIn("alpha×2", kind)
 
     @staticmethod
     def _doc() -> dict:
         axis = census.kind_axis(
             {"alpha": 2}, {"alpha": 11},
             _tree(**{"spa_core/p.py": PRODUCER}))
+        # Заказ G114 пп. 1, 2 (ADR-694). Раздел читателей добавлен в фикстуру
+        # по тому же правилу, что и раздел дня до него: шаг 0-офис сверяет
+        # mtime ПРОИЗВОДИТЕЛЯ с датой отчёта и на документе без объявленного
+        # раздела печатает «отчёт СТАРОГО ОБРАЗЦА» — верно, но предмет ЭТОЙ
+        # сцены (род рядом с кандидатом) тогда заслоняется чужим сообщением.
+        # Значение считает НАСТОЯЩАЯ ось, а не словарь из головы: фикстура
+        # остаётся произведённым документом.
+        readers = census.reader_axis(
+            {"alpha": 2}, {"alpha": 11},
+            {"alpha": {"readers": ["m.one"], "nameless": 0}},
+            census.threshold_grid({"alpha": 2}, {"alpha": 11}))
         return {
             "schema": census.SCHEMA, "status": "FINDING",
             # Отметка и раздел дня — чтобы тревога о ФОРМЕ не заслоняла предмет
@@ -520,6 +548,7 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
                              "axis_field_strength": {}, "refusal_reasons": {},
                              "unmeasured_causes": {}, "series_rows": []},
                 "candidate_kind": copy.deepcopy(axis),
+                "candidate_reader_axis": copy.deepcopy(readers),
             },
         }
 
