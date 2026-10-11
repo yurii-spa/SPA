@@ -220,6 +220,44 @@ def _finding_doc() -> dict:
                 "axis_verdict_reasons": ["третья ось РАЗБИВАЕТ 1 из 1 класс(ов)"],
                 "what_it_does_not_prove": ["читатель — питоний МОДУЛЬ"],
             },
+            # Заказ G115 п. 3 (ADR-695). Раздел НЕПУСТ по тому же правилу, что и
+            # вся фикстура (см. докстринг): поле, объявленное в `_READ_SCHEMA` и
+            # не несущее здесь значения, сделало бы дифференциальную проверку
+            # ниже слепой ровно к себе — удалять из фикстуры нечего, и
+            # «объявлено и не читается» покраснело бы на целой проводке. Ни одно
+            # утверждение не ослаблено: добавлено значение для НОВОГО
+            # объявленного поля.
+            "candidate_denominator": {
+                "status": "MEASURED", "lists_seen": 9,
+                "dict_lists_multi": 7, "lists_unmeasured": [], "names": 2,
+                "rows": [
+                    {"field": "source", "counted": 1,
+                     "counted_unmeasured": False, "eligible_anywhere": 3,
+                     "present": 5, "eligible_on_named_lists": 2,
+                     "eligible_singletons": 1, "present_singletons": 1,
+                     "refused_causes": {"not_unique": 2}},
+                    {"field": "forward_date", "counted": 7,
+                     "counted_unmeasured": False, "eligible_anywhere": 7,
+                     "present": 7, "eligible_on_named_lists": 0,
+                     "eligible_singletons": 0, "present_singletons": 0,
+                     "refused_causes": {}},
+                ],
+                "counted_understates": [
+                    {"field": "source", "counted": 1, "eligible_anywhere": 3,
+                     "hidden_by_named_lists": 2}],
+                "names_invisible_to_the_census": [],
+                "gap_is_unfitness": [
+                    {"field": "source", "present": 5, "eligible_anywhere": 3,
+                     "refused_causes": {"not_unique": 2}}],
+                "probe_contradictions": [],
+                "counted_disagrees": [],
+                "adjudicated": [
+                    {"field": "message", "absent_today": True,
+                     "why": "имени нет в сегодняшнем замере вовсе"}],
+                "verdict": "DENOMINATOR_ARTIFACT",
+                "verdict_reasons": ["у 1 имён ТОТ ЖЕ предикат даёт БОЛЬШЕЕ"],
+                "what_it_does_not_prove": ["присутствие не есть годность"],
+            },
         },
     }
 

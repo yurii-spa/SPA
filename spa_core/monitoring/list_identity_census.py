@@ -76,6 +76,10 @@ from spa_core.monitoring import identity_field_kind as field_kind  # noqa: E402
 # читателей у СВОЕГО населения), и разойдись они — «читателей один» значило бы
 # в двух разделах одного отчёта разное.
 from spa_core.monitoring import field_readers  # noqa: E402
+# Заказ G115 п. 3. Правило разницы «поле ЕСТЬ» против «поле ГОДНО» живёт у себя:
+# у него ДВА операнда разной природы, и вторая копия расходилась бы с первой
+# молча — ровно тот класс, который эта семья ловит у читателей.
+from spa_core.monitoring import candidate_denominator as cand_denom  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -171,7 +175,16 @@ _NO_GATE_NAMES = ("apply_threshold", "chosen_pair", "reject_field", "is_fit",
                   # а не назначить по ней порог. Пин состава — то единственное,
                   # что покраснеет, если гейт однажды завести тихой правкой.
                   "readers_gate", "admit_by_readers", "reject_by_readers",
-                  "fit_by_readers")
+                  "fit_by_readers",
+                  # Заказ G115 п. 3: у разницы «ЕСТЬ против ГОДНО» свои
+                  # запрещённые имена, и запрет здесь нужнее, чем у соседей.
+                  # Разница УВЕЛИЧИВАЕТ число у имени, то есть выглядит доводом
+                  # ЗА него, — и половина этой разницы (`present − eligible`)
+                  # свидетельствует ПРОТИВ. Гейт, заведённый по широкому числу,
+                  # продвигал бы имя наблюдением, которое его опровергает.
+                  "denominator_gate", "admit_by_denominator",
+                  "reject_by_denominator", "fit_by_denominator",
+                  "admit_by_presence", "reject_by_presence")
 
 #: Исходы оси ЧАСОВ и оси АРИФМЕТИКИ признака рода. Перечни берутся у самого
 #: признака (ADR-539), а не перепечатываются: вторая копия состава исходов
@@ -831,6 +844,11 @@ def tally(rows: Dict[str, dict], *,
     # списков подпёрли имя» и «сколько РАЗНЫХ читателей их дали» теряется, если
     # свернуть вход в число до замера, — а она и есть предмет заказа.
     reader_contributions: List[Tuple[str, Optional[str]]] = []
+    # Заказ G115 п. 3: строки СЛОВАРНЫХ списков с их составом. Отбирает их сам
+    # сосед (`DICT_OUTCOMES`) — его перечень шире нашего `_DICT_OUTCOMES` ровно
+    # на `named`, и эта разница есть предмет заказа; решать её здесь значило бы
+    # завести вторую копию правила отбора.
+    denominator_rows: List[dict] = []
     total_lists = 0
     readers_measured = 0
     unmeasured: Dict[str, int] = {}
@@ -847,6 +865,7 @@ def tally(rows: Dict[str, dict], *,
             total_lists += 1
             outcome = str(item.get("outcome"))
             outcomes[outcome] = outcomes.get(outcome, 0) + 1
+            denominator_rows.append(dict(item, module=module))
             if int(item.get("n") or 0) == 1:
                 singletons += 1
             if outcome == "named":
@@ -1000,6 +1019,14 @@ def tally(rows: Dict[str, dict], *,
         # что заказ G91 п. 2 запретил паре (ADR-540).
         "candidate_reader_axis": reader_axis(candidate_fields, strength,
                                              readers_by_field, grid),
+        # Заказ G115 п. 3: РАЗНИЦА между «поле ЕСТЬ» и «поле ГОДНО». Отдельный
+        # ключ, а не поправка к населению выше: население печатается читателю
+        # как есть (оно и есть мерило ADR-503), а широкое число отвечает на
+        # вопрос «не узко ли мерило», и подменить одно другим значило бы
+        # напечатать два разных утверждения под одним именем. Население уезжает
+        # ВХОДОМ — пересчёт был бы второй копией правила.
+        "candidate_denominator": cand_denom.tally(denominator_rows,
+                                                  candidate_fields),
     }
 
 
@@ -1436,6 +1463,19 @@ def report(doc: dict, *, max_rows: int = 20,
         reader_lines = [f"[ЧИТАТЕЛИ] {line}"
                         for line in reader_axis_report(readers,
                                                        max_rows=max_fields)]
+    # Заказ G115 п. 3. Строки разницы собираются ОДИН раз и печатаются в ОБЕИХ
+    # ветках ниже — по тому же доводу, что у осей РОДА и ЧИТАТЕЛЕЙ: на документе
+    # без кандидатов разница отвечает своим третьим исходом, и промолчать о нём
+    # значило бы сделать отсутствие раздела неотличимым от отсутствия разницы.
+    denom = observed(c, "candidate_denominator", kind=dict)
+    if denom is None:
+        denom_lines = ["[ЗНАМЕНАТЕЛЬ ИМЕНИ] НЕ ИЗМЕРЕНО: раздела разницы «поле "
+                       "ЕСТЬ против поле ГОДНО» у документа нет вовсе (заказ "
+                       "G115 п. 3) — отчёт СТАРОГО ОБРАЗЦА, а не «разницы нет»"]
+    else:
+        denom_lines = [f"[ЗНАМЕНАТЕЛЬ ИМЕНИ] {line}"
+                       for line in cand_denom.report(denom,
+                                                     max_rows=max_fields)]
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
@@ -1487,6 +1527,11 @@ def report(doc: dict, *, max_rows: int = 20,
         # население, которое напечатано двумя строками выше, и разнести их
         # значило бы заставить читателя сшивать поправку с числом глазами.
         out.extend(reader_lines)
+        # И РАЗНИЦА ЗНАМЕНАТЕЛЯ — там же (заказ G115 п. 3): она про ТО ЖЕ
+        # население и отвечает на вопрос, не узко ли оно считано. Унести её в
+        # хвост значило бы дать прочитать население как замер, не узнав, что у
+        # того же предиката на широком знаменателе число другое.
+        out.extend(denom_lines)
 
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
@@ -1517,6 +1562,7 @@ def report(doc: dict, *, max_rows: int = 20,
                    "список имён не занижает личность ни у одного списка населения")
         out.extend(kind_lines)
         out.extend(reader_lines)
+        out.extend(denom_lines)
     if c.get("truncated_readers"):
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "

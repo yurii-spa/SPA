@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-11T07:38:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-11T13:43:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e9ddb612c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (4341c6e8a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1290** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1292** · ждёт владельца: **15** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -408,7 +408,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (693)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (695)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -893,6 +893,7 @@
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
 - Два прибора написаны и не позваны: храповики проводки красны на чистой вершине  ·  `inbox-dva-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-02
+- Два сторожа никто не зовёт, а вычет сторожа сторожей перевалил половину — оба красные на чистом origin/main  ·  `inbox-dva-storozha-nikto-ne-zovet-a-vychet-sto.md` · 2026-10-11
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Два теста падают на чистой главной ветке: перепись кодов возврата и три исхода выполнимости сроков  ·  `inbox-dva-testa-padayut-na-chistoi-glavnoi-vet.md` · 2026-10-09
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
@@ -1033,6 +1034,7 @@
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31
 - Шаг 0-офис идёт 5 минут при пределе 180 с — два его теста красны на main постоянно  ·  `inbox-shag-0-ofis-idet-5-minut-pri-predele-180.md` · 2026-10-09
+- Шаг 0-офис: три артефакта несут не те поля, что объявлены — «СХЕМА РАЗОШЛАСЬ» без карточки  ·  `inbox-shag-0-ofis-tri-artefakta-nesut-ne-te-po.md` · 2026-10-11
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шесть карточек заперты пустым claimed_at — «измерено и пусто» неотличимо от «не измерено»  ·  `inbox-shest-kartochek-zaperty-pustym-claimed-a.md` · 2026-10-08

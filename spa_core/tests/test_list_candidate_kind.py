@@ -33,6 +33,7 @@ import unittest
 from pathlib import Path
 
 from spa_core.monitoring import identity_field_kind as field_kind
+from spa_core.monitoring import candidate_denominator as cand_denom
 from spa_core.monitoring import list_identity_census as census
 from spa_core.tests._freshness import ts
 
@@ -377,6 +378,12 @@ class TheFoldInstallsNoGate(unittest.TestCase):
             "apply_threshold", "chosen_pair", "reject_field", "is_fit",
             "admit_field", "unfit_for_identity", "threshold_gate",
             "kind_gate", "admit_by_kind", "reject_by_kind", "fit_by_kind",
+            # Заказ G115 п. 3 (ADR-695): имена гейта по РАЗНИЦЕ знаменателя.
+            # Правка пина намеренна и УСИЛИВАЕТ запрет (инв. #16) — тем же
+            # порядком, каким его усилил ADR-694 строкой ниже.
+            "denominator_gate", "admit_by_denominator",
+            "reject_by_denominator", "fit_by_denominator",
+            "admit_by_presence", "reject_by_presence",
             # Заказ G114 п. 1 (ADR-694): имена гейта по ЧИСЛУ ЧИТАТЕЛЕЙ.
             # Правка этого пина намеренна и УСИЛИВАЕТ запрет (инв. #16): состав
             # сверяется дословно, поэтому новые запрещённые имена обязаны
@@ -516,6 +523,18 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
             {"alpha": 2}, {"alpha": 11},
             {"alpha": {"readers": ["m.one"], "nameless": 0}},
             census.threshold_grid({"alpha": 2}, {"alpha": 11}))
+        # Заказ G115 п. 3 (ADR-695). Раздел разницы добавлен в фикстуру по тому
+        # же правилу и ровно по той же причине, что раздел читателей над ним:
+        # шаг 0-офис сверяет mtime ПРОИЗВОДИТЕЛЯ с датой отчёта и на документе
+        # без объявленного раздела печатает «отчёт СТАРОГО ОБРАЗЦА» — верно, но
+        # предмет ЭТОЙ сцены (род рядом с кандидатом) тогда заслоняется чужим
+        # сообщением, и `assertNotIn("СТАРОГО ОБРАЗЦА")` краснеет не о роде. Ни
+        # одно утверждение сцены не ослаблено: добавлено ЗНАЧЕНИЕ, посчитанное
+        # НАСТОЯЩИМ прибором, а не словарь из головы.
+        denominator = cand_denom.tally(
+            [{"outcome": "unnamed_candidate_outside", "n": 9, "module": "m.one",
+              "coord": ".items", cand_denom.COMPOSITION_KEY: {"alpha": ""}}],
+            {"alpha": 2})
         return {
             "schema": census.SCHEMA, "status": "FINDING",
             # Отметка и раздел дня — чтобы тревога о ФОРМЕ не заслоняла предмет
@@ -549,6 +568,7 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
                              "unmeasured_causes": {}, "series_rows": []},
                 "candidate_kind": copy.deepcopy(axis),
                 "candidate_reader_axis": copy.deepcopy(readers),
+                "candidate_denominator": copy.deepcopy(denominator),
             },
         }
 
