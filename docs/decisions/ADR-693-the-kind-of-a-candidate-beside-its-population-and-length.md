@@ -196,9 +196,9 @@ ADR-692 сделал п. 1 дешевле: прогон стендов и зон
 
 ## Приёмка
 
-* батарея предмета — **64 passed** (`spa_core/tests/test_list_candidate_kind.py`),
+* батарея предмета — **67 passed** (`spa_core/tests/test_list_candidate_kind.py`),
   у каждого звена обратная сторона с НАЗВАННЫМ звеном;
-* соседи и проводка — **211 passed + 15 subtests** (`test_list_identity_census`,
+* соседи и проводка — **205 passed + 58 subtests** (`test_list_identity_census`,
   `…_thresholds`, `…_wiring`, `test_list_day_axis`), батарея читателя
   (`test_consume_office_reports`) — **198 passed**;
 * **дифференциальный сторож объявленной формы отработал как задуман:** объявив
