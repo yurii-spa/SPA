@@ -68,6 +68,9 @@ from spa_core.monitoring.run_identity_key_price import (  # noqa: E402
 # Заказ G113 п. 2. Правило «ряд ли это» живёт у себя; здесь только свод и печать.
 from spa_core.monitoring.list_day_axis import report as day_axis_report  # noqa: E402,E501
 from spa_core.monitoring.list_day_axis import tally as day_axis_tally  # noqa: E402
+# Заказ G113 п. 1. Признак РОДА живёт у себя (ADR-539); здесь только свод и
+# печать — вторая копия правила рода расходилась бы с первой молча.
+from spa_core.monitoring import identity_field_kind as field_kind  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -149,7 +152,46 @@ def run_probe(names: Sequence[str], stand: Path, tree_root: Path,
 #: «гейта нет» проверяется СОСТАВОМ имён модуля, иначе гейт однажды появится
 #: тихой правкой, а прозаическая оговорка в докстринге останется.
 _NO_GATE_NAMES = ("apply_threshold", "chosen_pair", "reject_field", "is_fit",
-                  "admit_field", "unfit_for_identity", "threshold_gate")
+                  "admit_field", "unfit_for_identity", "threshold_gate",
+                  # Заказ G113 п. 1: у оси РОДА свои запрещённые имена. Правило
+                  # «род ⇒ годность» отвергнуто ЗАМЕРОМ (ADR-539, обе стороны
+                  # с названным примером на живом коде), и пин СОСТАВА — то
+                  # единственное, что покраснеет, если гейт однажды вернут
+                  # тихой правкой под новым именем.
+                  "kind_gate", "admit_by_kind", "reject_by_kind",
+                  "fit_by_kind")
+
+#: Исходы оси ЧАСОВ и оси АРИФМЕТИКИ признака рода. Перечни берутся у самого
+#: признака (ADR-539), а не перепечатываются: вторая копия состава исходов
+#: разошлась бы с первой молча, и «не измерено» тихо выпало бы из суммы.
+_CLOCK_VERDICTS = (field_kind.NOT_DERIVED, field_kind.WALL_CLOCK,
+                   field_kind.CLOCK_NAMED_READ, field_kind.UNMEASURED)
+_ARITH_VERDICTS = (field_kind.NOT_ARITH, field_kind.ARITH_DERIVED,
+                   field_kind.ARITH_FORMATTED, field_kind.UNMEASURED)
+
+
+def _ranked_by_length(freq: Dict[str, int],
+                      strength: Dict[str, int]) -> List[Tuple[str, int]]:
+    """Порядок по ДЛИНЕ подпирающего списка — то есть по силе свидетельства.
+
+    Правило порядка (ADR-410) держится ОДНОЙ копией намеренно. До заказа G113
+    п. 1 оно жило замыканием внутри ``report``, и это было безвредно, пока
+    порядок читал один перечень. Теперь их два — перечень кандидатов и строки
+    оси РОДА, — и оба укорачиваются одним и тем же числом; разойдись порядки,
+    читатель, видящий только головы, получил бы ДВА разных утверждения о том,
+    какое свидетельство сильнее. Вторая копия правила порядка расходится с
+    первой молча — ровно тот класс, который эта семья ловит у читателей.
+    """
+    def _key(item: Tuple[str, int]):
+        field, pop = item
+        length = observed_number(strength, field)
+        # НЕИЗМЕРЕННАЯ длина — не нулевая (инв. #17): такое поле уходит в хвост
+        # ОТДЕЛЬНОЙ группой, а не притворяется слабейшим из измеренных, иначе
+        # «силы нет» и «сила мала» слились бы в одно.
+        return (0 if length is not None else 1,
+                -length if length is not None else 0, -pop, field)
+
+    return sorted(freq.items(), key=_key)
 
 
 def _ranked_by_population(freq: Dict[str, int],
@@ -180,6 +222,161 @@ def _ranked_by_population(freq: Dict[str, int],
         return (-pop, -length if length is not None else 0, field)
 
     return sorted(freq.items(), key=_key)
+
+
+def kind_axis(freq: Dict[str, int], strength: Dict[str, int],
+              tree_root: Optional[Path] = None) -> dict:
+    """РОД кандидата — ТРЕТЬЕ число рядом с населением и длиной (G113 п. 1).
+
+    Заказ дословно: «``list_identity_census`` печатает кандидату длину и
+    население; рода у него нет, а решение о дописывании имени принимается по
+    всем трём». Здесь ровно свод и ничего больше: правило рода живёт у себя
+    (``identity_field_kind``, ADR-539), и спрашивается оно у КОДА производителя,
+    а не у значения.
+
+    Чего этот свод НЕ доказывает — и названо это не из осторожности, а потому
+    что каждое из трёх измерено или измеримо:
+
+    * **Род спрошен у ДЕРЕВА, а не у производителя ЭТОГО списка.** Признак
+      находит каждое присвоение имени в ``spa_core``/``scripts``; список же
+      пришёл из ответа одного читателя, и кто написал его элементы, здесь не
+      измеряется ВОВСЕ. Поэтому вывод односторонний: «род у имени один» —
+      наблюдение о дереве, а не об этом списке.
+    * **Ярлык имени СКРЫВАЕТ расхождение площадок.** Вердикт признака выбран
+      СТАРШИНСТВОМ (стенные часы → чтение имени часов → не производное), и имя,
+      у которого разные производители дают разный род, получает один ярлык.
+      Расхождение поэтому считается ОТДЕЛЬНЫМ числом: без него «род известен»
+      читалось бы там, где родов два.
+    * **Гейта нет ни одного.** Правило «род ⇒ годность» ОТВЕРГНУТО замером
+      (ADR-539, обе стороны с названным примером на живом коде), и его вердикт
+      везётся В ДОКУМЕНТ, а не остаётся в чужом ADR: потребитель, не прочитавший
+      причину, иначе возьмёт ось за гейт. Состав публичных имён этого модуля
+      пинится (``_NO_GATE_NAMES``).
+
+    Три исхода у самого свода различимы (инв. #17): кандидатов нет · дерево не
+    названо · дерево названо и не разобрано. Ни один из них не есть «род ни у
+    кого не измерен», и ни один не выдаётся за ноль.
+    """
+    if not freq:
+        return {"status": "UNMEASURED",
+                "reason": ("кандидатов нет — род спрашивать не у чего; это не "
+                           "«род ни у кого не измерен»")}
+    if tree_root is None:
+        return {"status": "UNMEASURED",
+                "reason": ("дерево не названо: род есть утверждение о КОДЕ "
+                           "производителя, и без дерева спросить его не у кого")}
+    # Порядок имён — тот же, что у перечня кандидатов (`_ranked_by_length`):
+    # оба перечня укорачиваются одним числом, и разный порядок дал бы две
+    # разные головы под одним утверждением о силе свидетельства.
+    names = [name for name, _ in _ranked_by_length(freq, strength)]
+    try:
+        doc = field_kind.census(names, Path(tree_root))
+    except OSError as exc:
+        return {"status": "UNMEASURED",
+                "reason": f"род не спрошен: дерево не прочитано ({type(exc).__name__})"}
+    parsed = observed_number(doc, "files_parsed")
+    if parsed is None:
+        return {"status": "UNMEASURED",
+                "reason": ("признак рода не сказал, сколько файлов разобрал — "
+                           "судить о родах по такому ответу нельзя")}
+    # Число НЕРАЗОБРАННЫХ файлов: перечня нет вовсе ⇒ число есть `None`, а не
+    # ноль (инв. #17). `… or {}` здесь давало бы «не разобрано 0» на ответе,
+    # который об этом не сказал ни слова, — и храповик класса верно покраснел
+    # на этой самой строке.
+    unparsed = observed(doc, "files_unmeasured", kind=dict)
+    unparsed_count = None if unparsed is None else len(unparsed)
+    if not int(parsed):
+        return {"status": "UNMEASURED",
+                "reason": ("ни один файл дерева не разобран — род не измерен ни "
+                           "у одного имени, и четыре нуля читались бы как ответ"),
+                "files_unmeasured": unparsed_count}
+
+    fields = observed(doc, "fields", kind=dict) or {}
+    rows: List[dict] = []
+    by_clock: Dict[str, int] = {v: 0 for v in _CLOCK_VERDICTS}
+    by_arith: Dict[str, int] = {v: 0 for v in _ARITH_VERDICTS}
+    causes: Dict[str, int] = {}
+    disagreeing: List[str] = []
+    disagreement_unmeasured: List[str] = []
+    for name in names:
+        info = observed(fields, name, kind=dict)
+        length = observed_number(strength, name)
+        if info is None:
+            # Признак не вернул строку по имени, которое ему НАЗВАЛИ. Живой
+            # признак так не делает (`census` заводит ключ каждому имени), но
+            # сложить такое имя «никуда» значило бы дать ему исчезнуть из обоих
+            # перечней молча — а именно так выглядит расхождение признака со
+            # сводом, если оно однажды случится.
+            clock = arith = field_kind.UNMEASURED
+            why = "признак рода не вернул строку по названному имени"
+            sites: Dict[str, Optional[int]] = {v: None for v in
+                                               (field_kind.WALL_CLOCK,
+                                                field_kind.CLOCK_NAMED_READ,
+                                                field_kind.NOT_DERIVED)}
+        else:
+            clock = str(info.get("verdict"))
+            arith = str(info.get("arithmetic_verdict"))
+            why = str(info.get("why_unmeasured") or "")
+            sites = {}
+            for verdict, key in ((field_kind.WALL_CLOCK, "wall_clock_count"),
+                                 (field_kind.CLOCK_NAMED_READ,
+                                  "clock_named_read_count"),
+                                 (field_kind.NOT_DERIVED, "not_derived_count")):
+                seen = observed_number(info, key)
+                sites[verdict] = None if seen is None else int(seen)
+        # Расхождение площадок. Счётчика НЕТ ⇒ судить нечем, и это третий исход,
+        # а не «не расходится»: `or 0` здесь был бы инв. #17 наизнанку.
+        if any(v is None for v in sites.values()):
+            disagree: Optional[bool] = None
+            disagreement_unmeasured.append(name)
+        else:
+            disagree = sum(1 for v in sites.values() if v) > 1
+            if disagree:
+                disagreeing.append(name)
+        by_clock[clock] = by_clock.get(clock, 0) + 1
+        by_arith[arith] = by_arith.get(arith, 0) + 1
+        if clock == field_kind.UNMEASURED:
+            cause = why or "причина не названа"
+            causes[cause] = causes.get(cause, 0) + 1
+        rows.append({
+            "field": name,
+            # ТРИ числа лежат в одной строке намеренно: решение о дописывании
+            # имени принимается по всем трём, и разнести их по трём разделам
+            # значило бы заставить читателя сшивать их глазами.
+            "population": int(freq[name]),
+            "max_length": int(length) if length is not None else None,
+            "max_length_unmeasured": length is None,
+            "clock_verdict": clock,
+            "arithmetic_verdict": arith,
+            "producer_sites": sites,
+            "kinds_disagree": disagree,
+            "why_unmeasured": why,
+        })
+    return {
+        "status": "MEASURED",
+        "names": len(names),
+        "files_parsed": int(parsed),
+        "files_unmeasured": unparsed_count,
+        "by_clock_verdict": by_clock,
+        "by_arithmetic_verdict": by_arith,
+        "clock_unmeasured_causes": causes,
+        "disagreeing_names": sorted(disagreeing),
+        "disagreement_unmeasured": sorted(disagreement_unmeasured),
+        "rows": rows,
+        # Вердикт правила годности везётся В ДОКУМЕНТ, а не остаётся ссылкой на
+        # чужой ADR: потребитель, не прочитавший причину отказа, взял бы ось за
+        # гейт. `observed` — потому что отсутствие вердикта есть третий исход,
+        # а не «правило принято».
+        "fitness_rule": observed(doc, "fitness_rule", kind=dict),
+        "what_it_does_not_prove": [
+            "род спрошен у ДЕРЕВА, а не у производителя ЭТОГО списка: кто "
+            "написал его элементы, здесь не измеряется вовсе",
+            "ярлык имени выбран СТАРШИНСТВОМ и скрывает расхождение площадок — "
+            "оно считается отдельным числом",
+            "ни одно имя не дописано в _IDENTITY_FIELDS и ни один порог не "
+            "назначен: ось — наблюдение, а не гейт",
+        ],
+    }
 
 
 def threshold_grid(freq: Dict[str, int], strength: Dict[str, int]) -> dict:
@@ -383,8 +580,15 @@ def distinct_taken_sets(grid: dict, reading: str = "both") -> List[dict]:
                                                  row["n_min"], row["l_min"]))
 
 
-def tally(rows: Dict[str, dict]) -> dict:
+def tally(rows: Dict[str, dict], *,
+          tree_root: Optional[Path] = None) -> dict:
     """Свод по СПИСКАМ, а не по читателям: предмет заказа — список.
+
+    ``tree_root`` — вход оси РОДА (заказ G113 п. 1): род есть утверждение о КОДЕ
+    производителя, и спросить его можно только у дерева. Дерева не дали ⇒ ось
+    честно отвечает «НЕ ИЗМЕРЕНО» с названной причиной, а не нулями по четырём
+    исходам — звать свод без дерева вправе кто угодно, выдавать это за замер
+    родов не вправе никто (инв. #17).
 
     Знаменатель находки назван явно и он УЖЕ полного населения: из него
     вычтены синглтоны (годность в них тривиальна) и списки не-словарей (полем
@@ -540,6 +744,11 @@ def tally(rows: Dict[str, dict]) -> dict:
         # выше — это ответ на ДРУГОЙ вопрос: не «назвал ли себя элемент полем»,
         # а «различает ли его ДЕНЬ». Правила «ряд ⇒ годность» здесь нет.
         "day_axis": day_axis,
+        # Заказ G113 п. 1: РОД кандидата — третье число рядом с населением и
+        # длиной. Отдельный ключ, а не слагаемое: это ответ о КОДЕ производителя
+        # имени, тогда как население и длина суть наблюдения ОТВЕТА читателей.
+        # Правила «род ⇒ годность» здесь нет — оно отвергнуто замером (ADR-539).
+        "candidate_kind": kind_axis(candidate_fields, strength, tree_root),
     }
 
 
@@ -596,7 +805,7 @@ def measure(data_dir: Path, tree_root: Path, *,
 
     rows = answer.get("__modules__") or {}
     doc["readers"] = rows
-    doc["counts"] = tally(rows)
+    doc["counts"] = tally(rows, tree_root=Path(tree_root))
     if not doc["counts"]["readers_measured"]:
         doc["status"] = "UNMEASURED"
         doc["reason"] = ("ни один читатель не позван — знаменателя нет, и ноль "
@@ -691,6 +900,91 @@ def grid_report(grid: dict, *, max_cells: int = 12) -> List[str]:
     return out
 
 
+def kind_axis_report(axis: dict, *, max_rows: Optional[int] = None) -> List[str]:
+    """Строки оси РОДА (заказ G113 п. 1). Знаменатель — рядом с числителем.
+
+    Укорочение перечня строк идёт ТЕМ ЖЕ числом, которым укорочен перечень
+    кандидатов, и в ТОМ ЖЕ порядке: два перечня об одних и тех же именах,
+    укороченные по-разному, читались бы как два разных ответа.
+    """
+    if str(axis.get("status")) != "MEASURED":
+        return [f"НЕ ИЗМЕРЕНО: {axis.get('reason')}"]
+    unparsed = observed_number(axis, "files_unmeasured")
+    out = [f"кандидатов, у которых спрошен род: {axis.get('names')} · файлов "
+           f"дерева разобрано {axis.get('files_parsed')}, не разобрано "
+           f"{int(unparsed) if unparsed is not None else 'НЕ ИЗМЕРЕНО'}"]
+    for title, key in (("ось ЧАСОВ", "by_clock_verdict"),
+                       ("ось АРИФМЕТИКИ", "by_arithmetic_verdict")):
+        by = observed(axis, key, kind=dict)
+        if by is None:
+            out.append(f"{title}: НЕ ИЗМЕРЕНО — перечня исходов нет вовсе, и "
+                       f"это не «исходов ноль»")
+            continue
+        shown = " · ".join(f"{name}: {num}" for name, num in sorted(by.items()))
+        total = sum(int(num) for num in by.values())
+        # Сумма печатается РЯДОМ с перечнем: перечень закрыт, и расхождение
+        # суммы с числом кандидатов есть дефект свода, а не оттенок печати.
+        out.append(f"{title}: {shown} (перечень закрыт, сумма {total} из "
+                   f"{axis.get('names')})")
+    rows = observed(axis, "rows", kind=list)
+    if rows is None:
+        out.append("НЕ ИЗМЕРЕНО: перечня строк у оси нет вовсе, а кандидаты "
+                   "есть — это не «родов ноль»")
+        rows = []
+    shown_rows = rows if max_rows is None else rows[:max_rows]
+    for row in shown_rows:
+        length = row.get("max_length")
+        disagree = row.get("kinds_disagree")
+        mark = ("" if disagree is False else
+                " · РОД РАСХОДИТСЯ у площадок" if disagree else
+                " · расхождение площадок НЕ ИЗМЕРЕНО")
+        out.append(f"   {row.get('field')}×{row.get('population')} "
+                   f"(макс. длина "
+                   f"{length if length is not None else 'НЕ ИЗМЕРЕНА'}, "
+                   f"род: {row.get('clock_verdict')} / "
+                   f"{row.get('arithmetic_verdict')}){mark}")
+    if len(shown_rows) < len(rows):
+        out.append(f"   … ещё {len(rows) - len(shown_rows)} имён(и) — полный "
+                   f"перечень в {ARTIFACT}")
+    disagreeing = observed(axis, "disagreeing_names", kind=list)
+    if disagreeing is None:
+        out.append("НЕ ИЗМЕРЕНО: перечня имён с расхождением площадок нет "
+                   "вовсе — это не «род нигде не расходится»")
+    elif disagreeing:
+        out.append(f"РАСХОЖДЕНИЕ ПЛОЩАДОК: у {len(disagreeing)} имён род РАЗНЫЙ "
+                   f"у разных производителей ({', '.join(disagreeing)}) — "
+                   f"ярлык имени выбран старшинством и это скрывает")
+    else:
+        out.append("РАСХОЖДЕНИЕ ПЛОЩАДОК: ни у одного имени род у разных "
+                   "производителей не расходится")
+    blind = observed(axis, "disagreement_unmeasured", kind=list)
+    if blind is None:
+        out.append("НЕ ИЗМЕРЕНО: перечня имён, у которых расхождение площадок "
+                   "нечем судить, в документе нет вовсе — это не «таких имён "
+                   "ноль»")
+        blind = []
+    if blind:
+        out.append(f"НЕ ИЗМЕРЕНО: расхождение площадок нечем судить у "
+                   f"{len(blind)} имён ({', '.join(blind)}) — счётчика площадок "
+                   f"признак не дал")
+    causes = observed(axis, "clock_unmeasured_causes", kind=dict)
+    if causes is None:
+        out.append("НЕ ИЗМЕРЕНО: перечня причин у имён без измеренного рода в "
+                   "документе нет — их отсутствие не есть «род измерен у всех»")
+        causes = {}
+    for cause, num in sorted(causes.items()):
+        out.append(f"НЕ ИЗМЕРЕНО: {cause}: {num} имён(и)")
+    rule = observed(axis, "fitness_rule", kind=dict)
+    if rule is None:
+        out.append("ГЕЙТА НЕТ · НЕ ИЗМЕРЕНО: вердикта правила годности в "
+                   "документе нет вовсе — а без него ось читается как гейт")
+    else:
+        out.append(f"ГЕЙТА НЕТ: правило «род ⇒ годность» — {rule.get('verdict')}"
+                   f" ({rule.get('why')}); ни одно имя не дописано в "
+                   f"_IDENTITY_FIELDS, выбор имени есть решение")
+    return out
+
+
 def report(doc: dict, *, max_rows: int = 20,
            max_fields: Optional[int] = None,
            max_cells: int = 12) -> List[str]:
@@ -749,6 +1043,18 @@ def report(doc: dict, *, max_rows: int = 20,
                        f"{excluded} — их списки в знаменатель НЕ идут")
     for key in sorted(c.get("outcomes") or {}):
         out.append(f"[ПО ИСХОДАМ] {key}: {(c.get('outcomes') or {})[key]}")
+    # Заказ G113 п. 1. Строки оси РОДА собираются ОДИН раз и печатаются в
+    # ОБЕИХ ветках ниже: на документе без кандидатов ось отвечает «кандидатов
+    # нет» — это её собственный третий исход, и промолчать о нём значило бы
+    # сделать отсутствие раздела неотличимым от отсутствия кандидатов.
+    kind = observed(c, "candidate_kind", kind=dict)
+    if kind is None:
+        kind_lines = ["[РОД] НЕ ИЗМЕРЕНО: раздела рода у документа нет вовсе "
+                      "(заказ G113 п. 1) — отчёт СТАРОГО ОБРАЗЦА, а не «род ни "
+                      "у кого не спрошен»"]
+    else:
+        kind_lines = [f"[РОД] {line}"
+                      for line in kind_axis_report(kind, max_rows=max_fields)]
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
@@ -759,16 +1065,10 @@ def report(doc: dict, *, max_rows: int = 20,
         # как только у него появился читатель с укорочением (`max_fields`,
         # заказ G35 п. 5), порядок стал утверждением — и он обязан совпадать с
         # тем, что сам же прибор говорит про силу свидетельства.
-        def _rank(item):
-            field, freq = item
-            length = observed_number(strength, field)
-            # НЕИЗМЕРЕННАЯ длина — не нулевая (инв. #17): такое поле уходит в
-            # хвост ОТДЕЛЬНОЙ группой, а не притворяется слабейшим из
-            # измеренных, иначе «силы нет» и «сила мала» слились бы в одно.
-            return (0 if length is not None else 1,
-                    -length if length is not None else 0, -freq, field)
-
-        ranked = sorted(fields.items(), key=_rank)
+        # Правило порядка — ОДНОЙ копией (`_ranked_by_length`): тем же порядком
+        # печатаются строки оси РОДА (заказ G113 п. 1), и расхождение двух
+        # копий сделало бы две головы перечней разными утверждениями.
+        ranked = _ranked_by_length(fields, strength)
         shown = ranked if max_fields is None else ranked[:max_fields]
         named_fields = ", ".join(
             f"{k}×{v} (макс. длина {strength.get(k, '?')})" for k, v in shown)
@@ -798,6 +1098,10 @@ def report(doc: dict, *, max_rows: int = 20,
                    f"{pop_line}"
                    + (f"; порядком по длине скрыто: {', '.join(hidden)}"
                       if hidden else "; голова та же, что по длине"))
+        # РОД печатается РЯДОМ с кандидатом — там, где его читают вместе с
+        # населением и длиной (заказ G113 п. 1), а не отдельным разделом в
+        # хвосте: решение о дописывании имени принимается по всем трём числам.
+        out.extend(kind_lines)
 
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
@@ -826,6 +1130,7 @@ def report(doc: dict, *, max_rows: int = 20,
     else:
         out.append("[ОПОРА] годных полей вне списка имён не нашлось — нынешний "
                    "список имён не занижает личность ни у одного списка населения")
+        out.extend(kind_lines)
     if c.get("truncated_readers"):
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "

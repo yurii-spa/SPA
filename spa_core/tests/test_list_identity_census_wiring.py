@@ -137,6 +137,47 @@ def _finding_doc() -> dict:
                                  "n": 11, "fields": ["cycle_date"]}],
                 "readers_excluded_truncated": 1,
             },
+            # Заказ G113 п. 1 (ADR-693). Раздел НЕПУСТ по тому же правилу, что
+            # и вся фикстура (см. докстринг): поле, объявленное в `_READ_SCHEMA`
+            # и не несущее здесь значения, сделало бы дифференциальную проверку
+            # ниже слепой ровно к себе — она и краснеет, когда ключ объявлен, а
+            # фикстура не дополнена. Ни одно утверждение не ослаблено: добавлено
+            # значение для НОВОГО объявленного поля.
+            "candidate_kind": {
+                "status": "MEASURED", "names": 2,
+                "files_parsed": 2451, "files_unmeasured": 0,
+                "by_clock_verdict": {"not_derived": 1,
+                                     "wall_clock_derived": 1,
+                                     "clock_named_read": 0, "unmeasured": 0},
+                "by_arithmetic_verdict": {"not_arithmetic": 2,
+                                          "arithmetic_derived": 0,
+                                          "arithmetic_formatted": 0,
+                                          "unmeasured": 0},
+                "clock_unmeasured_causes": {},
+                "disagreeing_names": ["forward_date"],
+                "disagreement_unmeasured": [],
+                "rows": [
+                    {"field": "source", "population": 1, "max_length": 210,
+                     "max_length_unmeasured": False,
+                     "clock_verdict": "not_derived",
+                     "arithmetic_verdict": "not_arithmetic",
+                     "producer_sites": {"wall_clock_derived": 0,
+                                        "clock_named_read": 0,
+                                        "not_derived": 3},
+                     "kinds_disagree": False, "why_unmeasured": ""},
+                    {"field": "forward_date", "population": 7,
+                     "max_length": 7, "max_length_unmeasured": False,
+                     "clock_verdict": "wall_clock_derived",
+                     "arithmetic_verdict": "not_arithmetic",
+                     "producer_sites": {"wall_clock_derived": 1,
+                                        "clock_named_read": 0,
+                                        "not_derived": 2},
+                     "kinds_disagree": True, "why_unmeasured": ""},
+                ],
+                "fitness_rule": {"verdict": "REFUSED",
+                                 "why": "импликация ложна в обе стороны"},
+                "what_it_does_not_prove": ["род спрошен у ДЕРЕВА"],
+            },
         },
     }
 
