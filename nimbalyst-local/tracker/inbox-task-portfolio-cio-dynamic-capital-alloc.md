@@ -8,9 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-25587
-claimed_at: 2026-10-11T20:29:47Z
-claim_takeover_reason: вердикт stale: ТРИ держателя подряд мертвы (ps -p 51961 / 78259 / 1801 — процессов нет), их общая работа #836/#837/#838 (ADR-696, заказ G115 п.1) лежит целиком в worktree /tmp/spa_c836 и на origin/main d6f53dbfb ОТСУТСТВУЕТ; номер ADR-696 на origin свободен, строка INDEX.md на месте; живых соседних claude -p нет. Беру на ПЕРЕМЕР своим набором и ДОСТАВКУ, не на переделку
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
