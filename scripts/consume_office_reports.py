@@ -1171,6 +1171,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # «что из этого следует»: первое замер, второе решение.
     "kin_breadth_price.json": ("status", "measured", "order", "reason",
                                "population", "named_case", "axes", "verdict"),
+    # Заказ G113 п. 3 (ADR-539, измерен ADR-691). Перечень взят у ПРОИЗВОДИТЕЛЯ,
+    # а не придуман: `tally` — счёты трёх исходов, `share_pct` — доли с НАЗВАННЫМ
+    # знаменателем, `admitted_names` — что ось говорит про принятые имена,
+    # `named_cases` — перемер двух случаев, проверенных ADR-539 человеком.
+    # Склеить `tally` с `share_pct` значило бы потерять различие «сколько» и
+    # «из скольких»: доля без знаменателя и есть напечатанное число.
+    "weak_axis_mapping_origin.json": ("status", "measured", "order", "reason",
+                                      "population", "tally", "share_pct",
+                                      "admitted_names", "named_cases", "verdict"),
     # ADR-683 (карточка `inbox-ofis-zovet-artefakt-prochitannym-vholost`):
     # у этого артефакта не было НИ ОДНОЙ из трёх строк реестра, поэтому его
     # числа печатала отдельная секция хвоста, а реестр звал файл «ПРОЧИТАН
@@ -1486,6 +1495,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/tree_lifetime_census.py",
     "kin_breadth_price.json":
         "spa_core/monitoring/kin_breadth_price.py",
+    "weak_axis_mapping_origin.json":
+        "spa_core/monitoring/weak_axis_mapping_origin.py",
     "artifact_stamp_clock_doors.json":
         "spa_core/monitoring/artifact_stamp_clock_doors.py",
     "claim_release_census.json":
@@ -3877,6 +3888,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # вырезает ввозы двух объявленных форм).
         from spa_core.monitoring.kin_breadth_price import format_report as _kbp_report
         out.extend(_kbp_report(data))
+    elif name == "weak_axis_mapping_origin.json":
+        # Заказ G113 п. 3 (ADR-539). Без этой ветки артефакт читается ВХОЛОСТУЮ —
+        # находка без читателя внутри цикла (ADR-526/ADR-683). Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм).
+        from spa_core.monitoring.weak_axis_mapping_origin import format_report as _wamo_report
+        out.extend(_wamo_report(data))
     elif name == "artifact_stamp_clock_doors.json":
         # Заказ G97 п. 3 (ADR-562), сведение дорог к одной — ADR-683. Без этой
         # ветки артефакт читается ВХОЛОСТУЮ, и это был НАСТОЯЩИЙ замер, а не

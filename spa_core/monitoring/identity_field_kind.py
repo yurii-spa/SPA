@@ -623,11 +623,18 @@ def scope_derived(scope_node: ast.AST, outer: _Scope, derive=None) -> _Scope:
 
 # ── чтение имени из CLOCK_FIELDS (слабая ось) ────────────────────────────────
 
-def clock_named_read(node: Optional[ast.AST]) -> Optional[str]:
-    """Значение — ЧТЕНИЕ имени из ``CLOCK_FIELDS`` у отображения?
+def clock_named_read_site(node: Optional[ast.AST]
+                          ) -> Optional[Tuple[ast.AST, str, str]]:
+    """``(ОТОБРАЖЕНИЕ, имя, как записано)`` — или ``None``, если это не оно.
 
-    Ось, названная заказом дословно. Слабая по построению: отображение бывает
-    ВХОДОМ, и один такой случай измерен поимённо (см. модульную справку).
+    Правило слабой оси живёт ЗДЕСЬ в единственном экземпляре, и отдаёт оно не
+    только запись, но и САМО ОТОБРАЖЕНИЕ. Нужно это соседу
+    (``weak_axis_mapping_origin``, заказ **G113 п. 3**): его вопрос — откуда
+    отображение взялось, и спросить его можно только об узле, а не о строке.
+
+    Вторая копия этого правила была бы ровно тем дефектом, которым проект
+    мерит работу: «одно правило — один дом» (урок ADR-502). Поэтому
+    :func:`clock_named_read` ниже не повторяет разбор, а зовёт этот.
     """
     if node is None:
         return None
@@ -635,16 +642,31 @@ def clock_named_read(node: Optional[ast.AST]) -> Optional[str]:
         if node.func.attr == "get" and node.args:
             key = node.args[0]
             if isinstance(key, ast.Constant) and key.value in CLOCK_FIELDS:
-                return f'.get("{key.value}")'
-        inner = clock_named_read(node.func.value)
+                return (node.func.value, key.value, f'.get("{key.value}")')
+        inner = clock_named_read_site(node.func.value)
         if inner:
             return inner
     if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
         if node.slice.value in CLOCK_FIELDS:
-            return f'["{node.slice.value}"]'
+            return (node.value, node.slice.value, f'["{node.slice.value}"]')
     if isinstance(node, (ast.Attribute,)):
-        return clock_named_read(node.value)
+        return clock_named_read_site(node.value)
     return None
+
+
+def clock_named_read(node: Optional[ast.AST]) -> Optional[str]:
+    """Значение — ЧТЕНИЕ имени из ``CLOCK_FIELDS`` у отображения?
+
+    Ось, названная заказом дословно. Слабая по построению: отображение бывает
+    ВХОДОМ, и один такой случай измерен поимённо (см. модульную справку).
+
+    Разбор не повторяется: ответ берётся у :func:`clock_named_read_site`, и
+    здесь остаётся только ЗАПИСЬ. Расхождение двух копий правила молчаливо, и
+    держит их от расхождения храповик
+    ``test_identity_field_kind.py::test_clock_named_read_delegates_to_the_site``.
+    """
+    site = clock_named_read_site(node)
+    return None if site is None else site[2]
 
 
 # ── места, где поле получает значение ────────────────────────────────────────

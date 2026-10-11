@@ -379,6 +379,10 @@ PRODUCES = (
     # (ADR-538), измерен ADR-690. Ступень читает журнал объявлений (живой `data/`) и
     # дерево базового ref, поэтому такт у неё суточный, как у соседей ряда.
     "data/kin_breadth_price.json",
+    # Отображение СЛАБОЙ оси: вход или свои часы — заказ G113 п. 3 (ADR-539),
+    # измерен ADR-691. Ступень читает только ИСХОДНИКИ дерева, поэтому такт у неё
+    # суточный, как у соседей ряда; живого `data/` она не касается.
+    "data/weak_axis_mapping_origin.json",
 )
 
 # Запись есть, продуктом не является (ADR-154): собственная память моста между
@@ -517,6 +521,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "history_door_price",
     "tree_lifetime_census",
     "kin_breadth_price",
+    "weak_axis_mapping_origin",
     "capital_evidence_coverage",
     "apy_composition",
     "pool_identity_collision",
@@ -851,6 +856,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "kin_breadth_price": {
         "module": "spa_core/monitoring/kin_breadth_price.py",
         "artifact": "data/kin_breadth_price.json"},
+    "weak_axis_mapping_origin": {
+        "module": "spa_core/monitoring/weak_axis_mapping_origin.py",
+        "artifact": "data/weak_axis_mapping_origin.json"},
     "capital_evidence_coverage": {
         "module": "spa_core/monitoring/capital_evidence_coverage.py",
         "artifact": "data/capital_evidence_coverage.json"},
@@ -3432,6 +3440,31 @@ def main(argv=None) -> int:
             print(f"kin_breadth_price: НЕ ИЗМЕРЕНО — {_kbp['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "kin_breadth_price", e)
+
+    # Ступень заказа G113 п. 3 (ADR-539, измерена ADR-691): откуда взялось
+    # ОТОБРАЖЕНИЕ, у которого слабая ось читает имя часов. Три исхода, и доля
+    # печатается с НАЗВАННЫМ знаменателем: «не измерено» из него не вычёркивается.
+    try:
+        from spa_core.monitoring import weak_axis_mapping_origin
+        _wamo = weak_axis_mapping_origin.run(root=args.root)
+        if _wamo.get("measured"):
+            # `... or {}` здесь склеило бы «раздела нет» с «доля не считалась» (инв. #17).
+            _tally = observed(_wamo["doc"], "tally", kind=dict)
+            _wverdict = observed(_wamo["doc"], "verdict", kind=dict)
+            print(f"weak_axis_mapping_origin: {_wamo['doc'].get('status')} — "
+                  f"вход "
+                  f"{'НЕ ИЗМЕРЕНО' if _tally is None else _tally.get('input_mapping')}"
+                  f" · свои часы "
+                  f"{'НЕ ИЗМЕРЕНО' if _tally is None else _tally.get('own_clock_mapping')}"
+                  f" · НЕ ИЗМЕРЕНО "
+                  f"{'НЕ ИЗМЕРЕНО' if _tally is None else _tally.get('unmeasured')}"
+                  f"; случаев ADR-539 достигнуто машиной "
+                  f"{'НЕ ИЗМЕРЕНО' if _wverdict is None else _wverdict.get('named_cases_resolved')}")
+        else:
+            print(f"weak_axis_mapping_origin: НЕ ИЗМЕРЕНО — "
+                  f"{_wamo['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "weak_axis_mapping_origin", e)
 
     # Ступень заказа G88 п. 1 (ADR-535): у кого квитанция read-only проверки
     # захвата окажется ЧИТАТЕЛЕМ. Прибор только ЧИТАЕТ и поднимает одноразовые
