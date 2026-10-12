@@ -505,6 +505,7 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
         """Обратная сторона: отсутствие раздела — ОБРАЗЕЦ, а не «родов ноль»."""
         office = _office()
         doc = self._doc()
+        # SCHEMA-GAP-OK: раздел снят НАРОЧНО — предмет сцены в том, что его отсутствие называется ОБРАЗЦОМ, а не «родов ноль»; вернуть ключ значило бы отменить предмет
         doc["counts"].pop("candidate_kind")
         lines = office._summarize_json(ARTIFACT_REL, doc, root=str(REPO),
                                        artifact_root=str(REPO))

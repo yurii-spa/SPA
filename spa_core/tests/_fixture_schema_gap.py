@@ -52,6 +52,7 @@ ADR-697:
 | НЕ ИЗМЕРЕНО | имя артефакта не разрешается (переменная, которой нет в файле) | причина `artifact_name_unresolved` |
 | НЕ ИЗМЕРЕНО | документ не разрешается до словаря | причина `doc_unresolved:<почему>` |
 | НЕ ИЗМЕРЕНО | файл не разобран | причина `file_unparsed:<ошибка>` |
+| НЕ ИЗМЕРЕНО | документ МУТИРОВАН формой, которой статике не дано | `mutation_unmodelled` со своей причиной |
 | вне предмета | имя разрешено, но в `_READ_SCHEMA` его нет | `name_not_declared` — стеречь нечего |
 
 «НЕ ИЗМЕРЕНО» никогда не сворачивается в «путей не хватает 0»: это ровно та
@@ -74,6 +75,16 @@ generic-ветка, сцена «раздела нет ⇒ отчёт старо
   печатается без находки. Население здесь — ЛАТЕНТНОЕ: оно обращается в
   красный тест только у сцен, пришпиливающих вывод целиком (так и покраснели
   #832/#834/#837/#841).
+* **Мутацию связанного имени мера ВИДИТ, но не всякую** (заказ G699 п. 3,
+  ADR-705). `del d[k]`, `d.pop("k")`, `d["k"] = v`, `d.update(БАЗА)` и
+  `d.setdefault("k", v)` применяются к скелету, если порядок дан статике —
+  то есть мутация написана выше ТОЧКИ ВЫХОДА значения из своей области.
+  Ветвление, нелитеральный ключ, `clear()`, неразрешённое добавляемое
+  значение и нераскрытый родитель уводят площадку в СВОЙ третий исход
+  (`census.mutation_unmodelled`, потолок в базе храповика), а не в «чисто».
+  Замер 12.10: мутируют документ **27 площадок из 78**, вердикт меняется у
+  **трёх** — у двух объявленный путь до двери не доезжает (понижение), у
+  третьей обвинение было ЛОЖНЫМ (повышение).
 * **Не мерит артефакты без площадки.** Производитель, чей документ в тестах
   собирается прогоном самого производителя, в население не входит: фикстуры у
   него нет, и объявлять ей нечего.
@@ -119,6 +130,22 @@ _BUILT_BY_CALL = frozenset({"call_unresolved", "helper_returns_no_dict",
 #: Каталоги тестов — предмет замера. Передаются ВХОДОМ, здесь только умолчание.
 DEFAULT_TEST_DIRS = ("spa_core/tests", "tests", "scripts/tests")
 
+#: Мутация СВЯЗАННОГО имени после присваивания (заказ G699 п. 3).
+#:
+#: Копия фикстуры есть ТА ЖЕ фикстура — дословное правило ADR-698, и оно верно
+#: про ПРОИСХОЖДЕНИЕ документа. Но `del d[k]` после копии отдаёт двери УЖЕ
+#: ДРУГОЙ документ, и для вопроса «несёт ли фикстура объявленный путь» это
+#: разница по предмету, а не косметика: у `test_consume_office_reports.py:252`
+#: строка `del drifted["house_view"]["top_opportunities"]` и ЕСТЬ площадка, у
+#: которой объявленный путь до двери не доезжает.
+_REMOVE_CALLS = frozenset({"pop", "popitem", "clear"})
+_ADD_CALLS = frozenset({"update", "setdefault"})
+
+#: Ветвление: тело исполняется НЕ ВСЕГДА, поэтому документ у двери статике не
+#: дан. `with` сюда не входит намеренно — его тело исполняется безусловно.
+_BRANCHING = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try,
+              ast.ExceptHandler)
+
 
 @dataclass(frozen=True)
 class Site:
@@ -148,6 +175,17 @@ class Census:
     #: разбором не раскрыт (его собрал вызов): `(где, артефакт, путь, родитель)`.
     #: Это НЕ «фикстура не несёт путь» и НЕ «документа нет» — см. ADR-701.
     nested_unresolved: list[tuple[str, str, str, str]] = field(
+        default_factory=list)
+    #: Площадки, у которых документ МУТИРОВАН после присваивания и мутация
+    #: СМОДЕЛИРОВАНА: `(где, артефакт, формы)`. Это население ФОРМЫ, а не
+    #: население класса: вердикт у такой площадки обычный.
+    mutated: list[tuple[str, str, tuple[str, ...]]] = field(
+        default_factory=list)
+    #: Площадки, у которых мутация есть, а статике НЕ ДАНА (ветвление,
+    #: нелитеральный ключ, `clear`, чужое тело): документ у двери неизвестен,
+    #: и вердикт о нём НЕ ИЗМЕРЕН — свой третий исход со своим потолком
+    #: (урок ADR-701: новый исход без потолка есть лазейка наружу).
+    mutation_unmodelled: list[tuple[str, str, tuple[str, ...]]] = field(
         default_factory=list)
 
     @property
@@ -267,6 +305,131 @@ def _assigns_of(scope: ast.AST) -> dict[str, list[ast.AST]]:
     return out
 
 
+@dataclass(frozen=True)
+class _Mutation:
+    """Одна мутация связанного имени: что сделано, где написано, чем дано.
+
+    `scope_id` — область, в ТЕЛЕ которой мутация написана (`None` = уровень
+    модуля). Она нужна затем же, зачем области понадобились присваиваниям
+    (ADR-699): порядок «мутация против вызова двери» сравним только внутри
+    ОДНОГО тела, а уровень модуля исполняется на импорте, то есть раньше
+    любой сцены.
+    """
+
+    name: str
+    kind: str                      # "remove" | "add"
+    form: str                      # del · pop · clear · subscript_assign · update · setdefault
+    line: int
+    path: tuple[str, ...] | None   # None ⇒ ключ не литерал либо снято ВСЁ
+    scope_id: int | None = None
+    value: ast.AST | None = None
+    conditional: bool = False
+
+
+def _chain(node: ast.AST) -> tuple[str, tuple[str, ...] | None] | None:
+    """`d["a"]["b"]` → `("d", ("a", "b"))`; нелитеральный ключ ⇒ путь `None`.
+
+    База обязана быть ИМЕНЕМ: `self.doc["k"]` статике здесь не дан — вопрос
+    той же природы, что `receiver_not_self` у двери вызова, и угадывать
+    получателя значило бы одалживать (урок заказа G699 п. 2).
+    """
+    parts: list[str] = []
+    unknown = False
+    cur = node
+    while isinstance(cur, ast.Subscript):
+        key = cur.slice
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            parts.append(key.value)
+        else:
+            unknown = True
+        cur = cur.value
+    if not isinstance(cur, ast.Name):
+        return None
+    return cur.id, (None if unknown else tuple(reversed(parts)))
+
+
+def _mutations_of(scope: ast.AST, scope_id: int | None) -> dict[str, list[_Mutation]]:
+    """Мутации имён СВОЕЙ области: `del d[k]`, `d.pop(k)`, `d["k"] = v`, …
+
+    Граница области — та же, что у `_assigns_of`, и по той же причине: обход,
+    спускающийся во вложенные тела, выдал бы за видимое то, что из `scope`
+    голым именем не видно.
+
+    Ветвление ПОМЕЧАЕТСЯ, а не игнорируется и не применяется молча: `del` под
+    `if` исполняется не всегда, и какой документ доедет до двери — статике не
+    дано. Такая мутация объявляется немоделируемой (инв. #17).
+    """
+    out: dict[str, list[_Mutation]] = {}
+
+    def record(target: ast.AST, kind: str, form: str, line: int,
+               tail: tuple[str, ...] | None, value: ast.AST | None,
+               conditional: bool) -> None:
+        chain = _chain(target)
+        if chain is None:
+            return
+        name, path = chain
+        full = None if (path is None or tail is None) else path + tail
+        out.setdefault(name, []).append(_Mutation(
+            name=name, kind=kind, form=form, line=line, path=full,
+            scope_id=scope_id, value=value, conditional=conditional))
+
+    def literal_key(call: ast.Call) -> tuple[str, ...] | None:
+        """Первый аргумент как литеральный ключ; не литерал ⇒ `None`."""
+        if call.args:
+            arg = call.args[0]
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                return (arg.value,)
+        return None
+
+    def classify(node: ast.AST, conditional: bool) -> None:
+        line = getattr(node, "lineno", 0)
+        if isinstance(node, ast.Delete):
+            for tgt in node.targets:
+                # `del d` снимает САМУ привязку, а не ключ документа — это
+                # другой предмет, и в мутации содержимого он не идёт.
+                if isinstance(tgt, ast.Subscript):
+                    record(tgt, "remove", "del", line, (), None, conditional)
+            return
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Subscript):
+                    record(tgt, "add", "subscript_assign", line, (),
+                           node.value, conditional)
+            return
+        if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Subscript):
+            record(node.target, "add", "aug_assign", line, (), None, conditional)
+            return
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            attr, base = node.func.attr, node.func.value
+            if attr in _REMOVE_CALLS:
+                tail = None if attr in ("clear", "popitem") else literal_key(node)
+                record(base, "remove", attr if attr != "pop" else "pop",
+                       line, tail, None, conditional)
+            elif attr == "update":
+                record(base, "add", "update", line, (),
+                       node.args[0] if node.args else None, conditional)
+            elif attr == "setdefault":
+                record(base, "add", "setdefault", line, literal_key(node),
+                       node.args[1] if len(node.args) > 1 else None, conditional)
+
+    def walk(node: ast.AST, conditional: bool) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                  ast.ClassDef, ast.Lambda)):
+                continue
+            classify(child, conditional)
+            walk(child, conditional or isinstance(child, _BRANCHING))
+
+    walk(scope, False)
+    return out
+
+
+def _deep_copy(doc: dict) -> dict:
+    """Своя копия скелета: мутация площадки не вправе задеть соседнюю."""
+    return {k: _deep_copy(v) if isinstance(v, dict) else v
+            for k, v in doc.items()}
+
+
 def _enclosing_funcs(tree: ast.Module) -> dict[int, ast.AST]:
     """Строка → ближайшая объемлющая функция (самая внутренняя из объемлющих)."""
     owner: dict[int, ast.AST] = {}
@@ -321,8 +484,13 @@ def _parents(tree: ast.Module) -> dict[int, ast.AST]:
 class _ModuleFlow:
     """Разрешение выражения в скелет словаря — по потоку значения внутри файла."""
 
-    def __init__(self, tree: ast.Module, aliases: dict[str, str]):
+    def __init__(self, tree: ast.Module, aliases: dict[str, str], *,
+                 model_mutation: bool = True):
         self.aliases = aliases
+        #: Моделировать ли мутацию имени после присваивания. ВХОД, а не
+        #: зашитое поведение: цена слепоты к ней мерится ПОДСТАНОВКОЙ в эту
+        #: дверь (заказ G699 п. 3), а не сравнением двух копий разбора.
+        self.model_mutation = model_mutation
         # Определения разводятся по ВЛАДЕЛЬЦУ, а не по имени (заказ G699 п. 2):
         # метод живёт у пары «класс × имя», свободная функция — у имени.
         parents = _parents(tree)
@@ -340,12 +508,30 @@ class _ModuleFlow:
                 else:
                     self._free_funcs.setdefault(node.name, []).append(node)
         self._module_assigns = _assigns_of(tree)
+        self._module_muts = _mutations_of(tree, None)
         self._func_assigns: dict[int, dict[str, list[ast.AST]]] = {}
+        self._func_muts: dict[int, dict[str, list[_Mutation]]] = {}
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 self._func_assigns[id(node)] = _assigns_of(node)
+                self._func_muts[id(node)] = _mutations_of(node, id(node))
         self.assigns: dict[str, list[ast.AST]] = dict(self._module_assigns)
+        self.mutations: dict[str, list[_Mutation]] = dict(self._module_muts)
         self._scope_func: ast.AST | None = None
+        #: ТОЧКА ВЫХОДА текущей области — строка, на которой значение эту
+        #: область покидает: вызов двери у площадки, `return` у помощника,
+        #: строка зова у вызывающего. Мутация, написанная НИЖЕ неё, документа
+        #: за пределами области уже не меняет. Привязывать порядок к строке
+        #: ПЛОЩАДКИ было бы неверно: тела разные, и номера строк в них не
+        #: сравнимы (первая редакция этого замера так объявила 19 площадок
+        #: «чужой областью», хотя мутация стои́т в ТОЙ ЖЕ области, что и
+        #: присваивание, которое она правит).
+        self._exit_line: int | None = None
+        #: Мутации, которых статике НЕ ДАНО, и те, что применены. Два списка,
+        #: а не один счётчик: «применено» есть население формы, «не дано» —
+        #: третий исход, и складывать их значило бы ответить на третий вопрос.
+        self.mutation_unmodelled: list[str] = []
+        self.mutation_applied: list[str] = []
         self._owners = _enclosing_funcs(tree)
         #: КОНКРЕТНОЕ определение → его вызовы вместе с областью зова.
         #: Нужен, чтобы ПАРАМЕТР разрешался у ВЫЗЫВАЮЩЕГО (заказ G698 п. 2).
@@ -434,7 +620,8 @@ class _ModuleFlow:
             return None, "call_unresolved"
         return None, "receiver_not_self"
 
-    def scope_to(self, func: ast.AST | None) -> None:
+    def scope_to(self, func: ast.AST | None,
+                 exit_line: int | None = None) -> None:
         """Связать имена так, как их связывает PYTHON — не весь файл.
 
         Прежняя редакция собирала `assigns` обходом ВСЕГО модуля, и имя `doc`
@@ -451,11 +638,19 @@ class _ModuleFlow:
         вернуть то же одалживание под другим именем.
         """
         self.assigns = dict(self._module_assigns)
+        self.mutations = dict(self._module_muts)
         self._scope_func = func
+        self._exit_line = exit_line
         own = self._func_assigns.get(id(func)) if func is not None else None
         if own:
             for name, values in own.items():
                 self.assigns[name] = values
+        own_muts = self._func_muts.get(id(func)) if func is not None else None
+        if own_muts:
+            # Имя, присвоенное в теле, затеняет модульное — и мутации тоже
+            # принадлежат ТОМУ имени, которое тело связывает.
+            for name, muts in own_muts.items():
+                self.mutations[name] = muts
 
     def _params(self, func: ast.AST) -> list[str]:
         a = func.args
@@ -491,14 +686,16 @@ class _ModuleFlow:
         merged: dict = {}
         why: str | None = None
         got = False
-        saved_assigns, saved_func = self.assigns, self._scope_func
+        saved = (self.assigns, self.mutations, self._scope_func,
+                 self._exit_line)
         try:
             for call, caller in sites:
                 bound = self._argument(call, index, params)
                 if bound is None:
                     why = why or "param_not_bound_at_call"
                     continue
-                self.scope_to(caller)
+                # Значение покидает область вызывающего НА СТРОКЕ ЗОВА.
+                self.scope_to(caller, exit_line=call.lineno)
                 sub, sub_why = self.skeleton(
                     bound, depth + 1, seen + ((id(func), param),))
                 if sub is not None:
@@ -507,7 +704,8 @@ class _ModuleFlow:
                 elif why is None:
                     why = sub_why
         finally:
-            self.assigns, self._scope_func = saved_assigns, saved_func
+            (self.assigns, self.mutations, self._scope_func,
+             self._exit_line) = saved
         if got:
             return merged, why
         return None, why or "param_unresolved"
@@ -677,7 +875,120 @@ class _ModuleFlow:
                 got = True
             elif why is None:
                 why = sub_why
-        return (merged, why) if got else (None, why or "name_unresolved")
+        if not got:
+            return None, why or "name_unresolved"
+        if self.model_mutation:
+            merged = self._mutated(node.id, merged, depth, seen)
+        return merged, why
+
+    def _mutated(self, name: str, doc: dict, depth: int,
+                 seen: tuple) -> dict:
+        """Скелет ПОСЛЕ мутаций этого имени — либо честное «статике не дано».
+
+        Правило порядка объявлено, а не угадано:
+
+        | где написана мутация | когда исполняется | что делает мера |
+        |---|---|---|
+        | та же область, ВЫШЕ точки выхода | до выхода значения | применяет |
+        | та же область, НИЖЕ точки выхода | после выхода | не применяет |
+        | уровень модуля, область — функция | на импорте, раньше сцены | применяет |
+        | иное тело | порядок не сравним | третий исход (по построению пуст) |
+
+        Всё, чего статике не дано — ветвление, нелитеральный ключ, снятие
+        ВСЕГО (`clear`), неразрешённый родитель, неразрешённое добавляемое
+        значение, — уводит площадку в СВОЙ третий исход, а не применяется
+        молча и не замалчивается (инв. #17).
+        """
+        muts = self.mutations.get(name)
+        if not muts:
+            return doc
+        current = self._scope_func
+        out = doc
+        for mut in muts:
+            if mut.scope_id is not None and mut.scope_id != id(current):
+                # По построению недостижимо: `self.mutations` несёт мутации
+                # уровня модуля и ТЕКУЩЕЙ области, и ничьи больше. Исход
+                # оставлен и ПЕЧАТАЕТСЯ: претензия «недостижимо» обязана быть
+                # измеримой, а не объявленной.
+                self._unmodelled(mut, "foreign_scope")
+                continue
+            if mut.scope_id is None and current is not None:
+                if name in (self._func_assigns.get(id(current)) or {}):
+                    # Имя связано В ТЕЛЕ и затеняет модульное: мутация
+                    # модульной привязки к ЭТОМУ объекту не относится. То же
+                    # правило, по которому `scope_to` затеняет присваивания, —
+                    # иначе мера применила бы к документу площадки чужую
+                    # правку, а это ровно одалживание ADR-699.
+                    continue
+                pass          # импорт раньше любой сцены — порядок известен
+            elif self._exit_line is not None and mut.line >= self._exit_line:
+                continue      # написана НИЖЕ точки выхода значения
+            if mut.conditional:
+                self._unmodelled(mut, "conditional")
+                continue
+            if mut.path is None:
+                self._unmodelled(
+                    mut, "whole_doc" if mut.form in ("clear", "popitem")
+                    else "key_not_literal")
+                continue
+            out = self._apply(out, mut, depth, seen)
+        return out
+
+    def _unmodelled(self, mut: _Mutation, why: str) -> None:
+        path = ".".join(mut.path) if mut.path else "*"
+        self.mutation_unmodelled.append(
+            f"{mut.name}[{path}] {mut.form}@{mut.line}: {why}")
+
+    @staticmethod
+    def _walk_to(doc: dict, path: tuple[str, ...]) -> dict | None:
+        cur: object = doc
+        for part in path:
+            if not isinstance(cur, dict):
+                return None
+            cur = cur.get(part)
+        return cur if isinstance(cur, dict) else None
+
+    def _apply(self, doc: dict, mut: _Mutation, depth: int,
+               seen: tuple) -> dict:
+        """Применить ОДНУ мутацию к копии скелета.
+
+        Копия своя (`_deep_copy`): вложенные словари скелета приходят из
+        подчинённых разрешений, и править их на месте значило бы задеть
+        соседнюю площадку — ровно та авария «мутация на месте», которой стоил
+        живой реестр в #763.
+        """
+        path = mut.path or ()
+        out = _deep_copy(doc)
+        if mut.kind == "remove":
+            parent = self._walk_to(out, path[:-1])
+            if parent is None:
+                self._unmodelled(mut, "parent_not_resolved")
+                return doc
+            parent.pop(path[-1], None)
+            self.mutation_applied.append(f"{mut.name}[{'.'.join(path)}] {mut.form}")
+            return out
+        value: dict | None = None
+        if mut.value is not None:
+            value, _why = self.skeleton(mut.value, depth + 1, seen)
+        if mut.form == "update":
+            if value is None:
+                self._unmodelled(mut, "value_unresolved")
+                return doc
+            parent = self._walk_to(out, path)
+            if parent is None:
+                self._unmodelled(mut, "parent_not_resolved")
+                return doc
+            _merge(parent, value)
+        else:
+            parent = self._walk_to(out, path[:-1])
+            if parent is None:
+                self._unmodelled(mut, "parent_not_resolved")
+                return doc
+            # Значение не разрешилось ⇒ ЛИСТ: ключ есть, внутрь не видно. Это
+            # ровно то различение, которое `_absent_because` и несёт.
+            parent[path[-1]] = value if value is not None else LEAF
+        self.mutation_applied.append(f"{mut.name}[{'.'.join(path)}] {mut.form}")
+        return out
 
     def _comprehension_skeleton(self, node: ast.DictComp, depth: int,
                                 seen: tuple[str, ...]
@@ -715,8 +1026,13 @@ class _ModuleFlow:
         name = func.id if isinstance(func, ast.Name) else (
             func.attr if isinstance(func, ast.Attribute) else None)
         if name in ("deepcopy", "copy") and node.args:
-            # Копия фикстуры ЕСТЬ та же фикстура: мутации после копии — это
-            # отрицательные контроли, а не другой документ.
+            # Копия фикстуры ЕСТЬ та же фикстура — это верно про
+            # ПРОИСХОЖДЕНИЕ документа, и затем идиом и опознаётся. Вторая
+            # половина прежнего комментария («мутации после копии — это
+            # отрицательные контроли, а не другой документ») была неверна
+            # ВДВОЁМ и снята заказом G699 п. 3: мутация отдаёт двери другой
+            # документ, и контролем она является не всегда (ADR-705).
+            # Моделирует мутацию `_mutated`, а не этот идиом.
             return self.skeleton(node.args[0], depth + 1, seen)
         inner = self._json_round_trip(node)
         if inner is not None:
@@ -758,7 +1074,8 @@ class _ModuleFlow:
             merged: dict = {}
             why = None
             got = False
-            saved_assigns, saved_func = self.assigns, self._scope_func
+            saved = (self.assigns, self.mutations, self._scope_func,
+                     self._exit_line)
             try:
                 for fdef in defs:
                     # Выражение `return` принадлежит ПОМОЩНИКУ, и связывать
@@ -766,9 +1083,11 @@ class _ModuleFlow:
                     # одалживание, против которого введена область:
                     # `_health_with_house_view` строит документ в своём
                     # локальном `doc`, которого у сцены нет вовсе.
-                    self.scope_to(fdef)
                     for ret in ast.walk(fdef):
                         if isinstance(ret, ast.Return) and ret.value is not None:
+                            # Значение покидает помощника НА СВОЁМ `return`,
+                            # и порядок мутаций считается до него.
+                            self.scope_to(fdef, exit_line=ret.lineno)
                             sub, sub_why = self.skeleton(ret.value, depth + 1,
                                                          seen + (name,))
                             if sub is not None:
@@ -777,7 +1096,8 @@ class _ModuleFlow:
                             elif why is None:
                                 why = sub_why
             finally:
-                self.assigns, self._scope_func = saved_assigns, saved_func
+                (self.assigns, self.mutations, self._scope_func,
+                 self._exit_line) = saved
             if got:
                 return merged, why
             return None, why or "helper_returns_no_dict"
@@ -855,12 +1175,18 @@ def _span_of(spans: list[tuple[int, int]], line: int) -> tuple[int, int] | None:
 
 
 def measure(*, schema: dict, has_path, root: str,
-            test_dirs: tuple[str, ...] = DEFAULT_TEST_DIRS) -> Census:
+            test_dirs: tuple[str, ...] = DEFAULT_TEST_DIRS,
+            model_mutation: bool = True) -> Census:
     """Перепись класса.
 
     `schema` и `has_path` приезжают ВХОДОМ — это правило шага 0-офис, и второй
     его копии здесь нет: пересчёт «что значит ЕСТЬ поле» был бы вторым
     правилом, расходящимся с первым молча.
+
+    `model_mutation` — та же дверь ВХОДОМ (заказ G699 п. 3): цена слепоты к
+    мутации после копии мерится ПОДСТАНОВКОЙ в сам прибор, двумя прогонами, а
+    разница ответов и есть население класса. Вторая копия разбора ради замера
+    расходилась бы с первой молча (урок #820).
     """
     census = Census()
     files: list[str] = []
@@ -885,7 +1211,7 @@ def measure(*, schema: dict, has_path, root: str,
             census.unmeasured.append((rel, f"file_unparsed:{exc!r}"))
             continue
         lines = source.splitlines()
-        flow = _ModuleFlow(tree, _aliases(tree))
+        flow = _ModuleFlow(tree, _aliases(tree), model_mutation=model_mutation)
         spans = _enclosing_spans(tree)
         owners = _enclosing_funcs(tree)
         for node in ast.walk(tree):
@@ -907,7 +1233,21 @@ def measure(*, schema: dict, has_path, root: str,
             if artifact not in schema:
                 census.out_of_subject.append((rel, node.lineno, artifact))
                 continue
+            # Точка выхода площадки — строка вызова двери: мутация ниже неё
+            # документа у двери уже не меняет.
+            flow.scope_to(owners.get(node.lineno), exit_line=node.lineno)
+            flow.mutation_unmodelled = []
+            flow.mutation_applied = []
             doc, why = flow.skeleton(node.args[1])
+            if doc is not None and flow.mutation_unmodelled:
+                # Документ у двери статике не дан: вердикт о нём НЕ ИЗМЕРЕН.
+                # Ни в население, ни в «путей не хватает 0» (инв. #17).
+                census.mutation_unmodelled.append(
+                    (where, artifact, tuple(dict.fromkeys(flow.mutation_unmodelled))))
+                continue
+            if doc is not None and flow.mutation_applied:
+                census.mutated.append(
+                    (where, artifact, tuple(dict.fromkeys(flow.mutation_applied))))
             if doc is None:
                 if why in _BUILT_BY_CALL:
                     # Документ собран ВЫЗОВОМ (прогон производителя, чтение

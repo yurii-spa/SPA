@@ -249,6 +249,7 @@ def test_schema_drift_sees_nested_fields(tmp_path) -> None:
         rel="spa_core/investment_os/agents/chief_investment.py")
     _stamp(src, "2026-08-08T00:00:00+00:00")
     drifted = json.loads(json.dumps(CHIEF_REAL))
+    # SCHEMA-GAP-OK: сцена СНИМАЕТ `house_view.top_opportunities` нарочно — её предмет в том, что дрейф виден на ВТОРОМ уровне; вернуть ключ значило бы отменить положительный контроль
     del drifted["house_view"]["top_opportunities"]
     out = _text(MOD._summarize_json("data/investment_os/chief_investment.json",
                                     drifted, now=NOW, root=str(tmp_path)))

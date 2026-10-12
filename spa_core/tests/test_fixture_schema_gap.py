@@ -151,19 +151,51 @@ class TheClassIsNotFoundWhereItIsNot(_SceneCase):
         census = self.scene.measure({"g.json": ("counts.a", "counts.b")})
         self.assertEqual(census.population, [])
 
-    def test_a_deliberate_removal_after_the_fixture_is_not_population(self):
-        """`doc["counts"].pop(...)` — сцена «раздела нет», а не дыра фикстуры."""
+    def test_a_deliberate_removal_declared_by_a_MARKER_is_an_exemption(self):
+        """Намеренное снятие раздела выходит из класса ПОМЕТКОЙ, а не слепотой.
+
+        ИЗМЕНЁН НАМЕРЕННО, цикл #849 (ADR-705, заказ G699 п. 3), инв. #16.
+        Прежде этот тест пришпиливал обратное утверждение —
+        «`doc["counts"].pop(...)` населением НЕ является», дословное правило
+        ADR-698 («копия с мутациями считается той же фикстурой»). Заказ
+        потребовал замерить ЦЕНУ этого правила, и она измерена: у ТРЁХ
+        площадок живого дерева вердикт от него неверен — у двух объявленный
+        путь до двери не доезжает вовсе (`del drifted["house_view"]
+        ["top_opportunities"]`, `doc["counts"].pop("candidate_kind")`), у
+        третьей, наоборот, обвинение было ЛОЖНЫМ (зовущие дописывают раздел
+        присваиванием по ключу). Поэтому проверка УСИЛЕНА, а не ослаблена:
+        площадка класса теперь ВИДНА, и честный выход из него — тот же, что у
+        остальных 30 освобождений: пометка с причиной. Слепота давала тот же
+        зелёный вердикт, только без причины и без следа.
+        """
         self.scene.write("test_h.py", '''
             def _doc():
                 return {"counts": {"day_axis": {}}}
 
             def t():
                 doc = _doc()
+                # SCHEMA-GAP-OK: предмет сцены — отсутствие раздела
                 doc["counts"].pop("day_axis")
                 return office._summarize_json("data/h.json", doc)
         ''')
         census = self.scene.measure({"h.json": ("counts.day_axis",)})
         self.assertEqual(census.population, [])
+        self.assertEqual(len(census.exempt), 1, "освобождение обязано СЧИТАТЬСЯ")
+
+    def test_the_same_removal_WITHOUT_a_marker_is_the_population(self):
+        """Обратная сторона той же правки: без причины это население."""
+        self.scene.write("test_h2.py", '''
+            def _doc():
+                return {"counts": {"day_axis": {}}}
+
+            def t():
+                doc = _doc()
+                doc["counts"].pop("day_axis")
+                return office._summarize_json("data/h2.json", doc)
+        ''')
+        census = self.scene.measure({"h2.json": ("counts.day_axis",)})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.day_axis",)])
 
     def test_a_copy_of_the_fixture_is_the_same_fixture(self):
         self.scene.write("test_i.py", '''
@@ -1163,3 +1195,349 @@ class ANestedContainerBuiltByACallIsNotAnAbsentPath(_SceneCase):
                                     has_path=lambda doc, path: True)
         self.assertEqual(census.nested_unresolved, [])
         self.assertEqual(census.population, [])
+
+
+class TheMutationAfterTheCopyIsTheDocumentAtTheDoor(_SceneCase):
+    """Заказ G699 п. 3: `del d[k]` после копии отдаёт двери ДРУГОЙ документ.
+
+    Копия фикстуры есть та же фикстура (ADR-698) — и это верно про
+    ПРОИСХОЖДЕНИЕ. Но вопрос меры не «откуда документ», а «несёт ли он
+    объявленный путь У ДВЕРИ», и отвечает на него документ ПОСЛЕ мутаций.
+    Класс измерен подстановкой в сам прибор (`model_mutation=`), и каждая
+    сцена ниже рвёт ОДНО звено.
+    """
+
+    def test_a_removal_above_the_door_is_seen(self):
+        self.scene.write("test_m1.py", '''
+            BASE = {"counts": {"a": 1, "b": 2}}
+
+            def t():
+                doc = dict(BASE)
+                del doc["counts"]
+                return office._summarize_json("data/m1.json", doc)
+        ''')
+        census = self.scene.measure({"m1.json": ("counts.a",)})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.a",)])
+        self.assertEqual(len(census.mutated), 1, "форма обязана СЧИТАТЬСЯ")
+
+    def test_a_removal_BELOW_the_door_does_not_touch_it(self):
+        """Порядок — часть вопроса: ниже вызова мутация документа не меняет."""
+        self.scene.write("test_m2.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t():
+                doc = dict(BASE)
+                out = office._summarize_json("data/m2.json", doc)
+                del doc["counts"]
+                return out
+        ''')
+        census = self.scene.measure({"m2.json": ("counts.a",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.mutated, [], "мутация ниже двери НЕ применена")
+
+    def test_a_nested_pop_is_followed_to_its_depth(self):
+        self.scene.write("test_m3.py", '''
+            BASE = {"counts": {"a": 1, "b": 2}}
+
+            def t():
+                doc = dict(BASE)
+                doc["counts"].pop("b")
+                return office._summarize_json("data/m3.json", doc)
+        ''')
+        census = self.scene.measure({"m3.json": ("counts.a", "counts.b")})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.b",)], "снят ровно ОДИН путь, не раздел")
+
+    def test_an_ADDED_key_is_not_an_accusation(self):
+        """Вторая сторона той же формы — промах в сторону НАХОДКИ.
+
+        Прибор видел только базу, поэтому раздел, дописанный площадкой
+        присваиванием по ключу, числился ненесомым, то есть обвинение было
+        ЛОЖНЫМ. На живом дереве такое одно (`test_outcomes_completeness.py`),
+        и освобождение там оказалось выдано ровно под эту ошибку.
+        """
+        self.scene.write("test_m4.py", '''
+            BASE = {"status": "CLEAN"}
+
+            def t():
+                doc = dict(BASE)
+                doc["counts"] = {"a": 1}
+                return office._summarize_json("data/m4.json", doc)
+        ''')
+        census = self.scene.measure({"m4.json": ("status", "counts.a")})
+        self.assertEqual(census.population, [])
+
+    def test_a_resolvable_update_carries_what_it_adds(self):
+        self.scene.write("test_m5.py", '''
+            BASE = {"status": "CLEAN"}
+            MORE = {"counts": {"a": 1}}
+
+            def t():
+                doc = dict(BASE)
+                doc.update(MORE)
+                return office._summarize_json("data/m5.json", doc)
+        ''')
+        census = self.scene.measure({"m5.json": ("status", "counts.a")})
+        self.assertEqual(census.population, [])
+
+    def test_a_setdefault_adds_the_key_it_names(self):
+        self.scene.write("test_m6.py", '''
+            BASE = {"status": "CLEAN"}
+
+            def t():
+                doc = dict(BASE)
+                doc.setdefault("counts", {"a": 1})
+                return office._summarize_json("data/m6.json", doc)
+        ''')
+        census = self.scene.measure({"m6.json": ("counts.a",)})
+        self.assertEqual(census.population, [])
+
+    def test_a_module_level_mutation_applies_even_if_written_BELOW(self):
+        """Уровень модуля исполняется на ИМПОРТЕ — раньше любой сцены, и номер
+        строки тут ничего не решает."""
+        self.scene.write("test_m7.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t():
+                return office._summarize_json("data/m7.json", BASE)
+
+            del BASE["counts"]
+        ''')
+        census = self.scene.measure({"m7.json": ("counts.a",)})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.a",)])
+
+    def test_a_mutation_in_the_HELPER_body_counts_before_its_return(self):
+        """Порядок считается до ТОЧКИ ВЫХОДА значения, а не до строки двери.
+
+        Привязка к строке площадки объявила бы «чужой областью» 19 площадок
+        живого дерева, у которых мутация стои́т в том же теле, что и
+        присваивание, — первая редакция этого замера так и ошиблась.
+        """
+        self.scene.write("test_m8.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def _doc():
+                doc = dict(BASE)
+                del doc["counts"]
+                return doc
+
+            def t():
+                return office._summarize_json("data/m8.json", _doc())
+        ''')
+        census = self.scene.measure({"m8.json": ("counts.a",)})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.a",)])
+
+    def test_a_removal_after_the_FIRST_return_leaves_that_branch_carrying(self):
+        """Объединение ветвей — правило ВСЕЙ меры, и мутация его не отменяет."""
+        self.scene.write("test_m9.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def _doc(flag):
+                doc = dict(BASE)
+                if flag:
+                    return doc
+                del doc["counts"]
+                return doc
+
+            def t():
+                return office._summarize_json("data/m9.json", _doc(True))
+        ''')
+        census = self.scene.measure({"m9.json": ("counts.a",)})
+        self.assertEqual(census.population, [])
+
+    def test_the_mutation_of_one_site_does_not_leak_into_its_neighbour(self):
+        """Копия своя: правка скелета на месте задела бы соседнюю площадку."""
+        self.scene.write("test_m10.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t_poor():
+                doc = dict(BASE)
+                del doc["counts"]
+                return office._summarize_json("data/m10.json", doc)
+
+            def t_rich():
+                return office._summarize_json("data/m10.json", dict(BASE))
+        ''')
+        census = self.scene.measure({"m10.json": ("counts.a",)})
+        self.assertEqual(len(census.sites), 2)
+        self.assertEqual(sorted(s.missing for s in census.sites),
+                         [(), ("counts.a",)])
+
+    def test_a_module_level_mutation_does_not_reach_a_SHADOWING_local(self):
+        """Имя, связанное в теле, затеняет модульное — и его мутацию тоже.
+
+        То же правило, по которому `scope_to` затеняет присваивания: иначе
+        мера применила бы к документу площадки ЧУЖУЮ правку, а это ровно
+        одалживание, против которого ADR-699 и вводил области.
+        """
+        self.scene.write("test_m11.py", '''
+            BASE = {"counts": {"a": 1}}
+            del BASE["counts"]
+
+            def t():
+                BASE = {"counts": {"a": 1}}
+                return office._summarize_json("data/m11.json", BASE)
+        ''')
+        census = self.scene.measure({"m11.json": ("counts.a",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.mutated, [], "чужая мутация НЕ применена")
+
+
+class TheUnmodellableMutationIsItsOwnOutcome(_SceneCase):
+    """Чего статике не дано — третий исход, а не «чисто» и не население.
+
+    Инвариант #17 дословно: измерено · измерено и равно нулю · НЕ ИЗМЕРЕНО
+    обязаны быть различимы. Мутация, которой статике не дано, делает документ
+    у двери неизвестным, и вердикта о нём не существует.
+    """
+
+    def _only_outcome(self, census) -> str:
+        self.assertEqual(census.sites, [], "площадка не вправе быть замерена")
+        self.assertEqual(len(census.mutation_unmodelled), 1)
+        return census.mutation_unmodelled[0][2][0]
+
+    def test_a_mutation_under_a_BRANCH_is_not_applied_and_not_ignored(self):
+        self.scene.write("test_u1.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t(flag):
+                doc = dict(BASE)
+                if flag:
+                    del doc["counts"]
+                return office._summarize_json("data/u1.json", doc)
+        ''')
+        census = self.scene.measure({"u1.json": ("counts.a",)})
+        self.assertIn("conditional", self._only_outcome(census))
+
+    def test_a_removal_by_a_NON_LITERAL_key_is_not_guessed(self):
+        self.scene.write("test_u2.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t(which):
+                doc = dict(BASE)
+                del doc[which]
+                return office._summarize_json("data/u2.json", doc)
+        ''')
+        census = self.scene.measure({"u2.json": ("counts.a",)})
+        self.assertIn("key_not_literal", self._only_outcome(census))
+
+    def test_clearing_the_whole_document_is_its_own_reason(self):
+        self.scene.write("test_u3.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t():
+                doc = dict(BASE)
+                doc.clear()
+                return office._summarize_json("data/u3.json", doc)
+        ''')
+        census = self.scene.measure({"u3.json": ("counts.a",)})
+        self.assertIn("whole_doc", self._only_outcome(census))
+
+    def test_an_update_whose_VALUE_is_unresolved_is_unmeasured(self):
+        """Самый населённый исход живого дерева: 14 площадок из 18.
+
+        `doc.update(over)` с `over` из `**kwargs` может и дописать раздел, и
+        ЗАТЕРЕТЬ вложенный контейнер листом — обе стороны статике не даны.
+        """
+        self.scene.write("test_u4.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def _doc(**over):
+                doc = dict(BASE)
+                doc.update(over)
+                return doc
+
+            def t():
+                return office._summarize_json("data/u4.json", _doc(x=1))
+        ''')
+        census = self.scene.measure({"u4.json": ("counts.a",)})
+        self.assertIn("value_unresolved", self._only_outcome(census))
+
+    def test_a_removal_under_an_UNRESOLVED_parent_is_unmeasured(self):
+        self.scene.write("test_u5.py", '''
+            import json
+
+            def t(raw):
+                doc = {"counts": json.loads(raw)}
+                doc["counts"].pop("a")
+                return office._summarize_json("data/u5.json", doc)
+        ''')
+        census = self.scene.measure({"u5.json": ("counts.a",)})
+        self.assertIn("parent_not_resolved", self._only_outcome(census))
+
+    def test_the_outcomes_of_the_door_have_UNEQUAL_tallies(self):
+        """Равные счёты сделали бы подмену ИМЕНИ исхода невидимой (урок #786)."""
+        self.scene.write("test_u6.py", '''
+            BASE = {"counts": {"a": 1}}
+
+            def t_seen():
+                doc = dict(BASE)
+                del doc["counts"]
+                return office._summarize_json("data/u6.json", doc)
+
+            def t_blind(which):
+                doc = dict(BASE)
+                del doc[which]
+                return office._summarize_json("data/u6.json", doc)
+
+            def t_blind2(flag):
+                doc = dict(BASE)
+                if flag:
+                    doc.clear()
+                return office._summarize_json("data/u6.json", doc)
+
+            def t_clean():
+                return office._summarize_json("data/u6.json", dict(BASE))
+        ''')
+        census = self.scene.measure({"u6.json": ("counts.a",)})
+        self.assertEqual(len(census.population), 1)
+        self.assertEqual(len(census.mutated), 1)
+        self.assertEqual(len(census.mutation_unmodelled), 2)
+        self.assertEqual(len(census.sites), 2)
+
+
+class TheMutationModelArrivesAsAnInput(_SceneCase):
+    """Цена измерена ПОДСТАНОВКОЙ в дверь, а не второй копией разбора.
+
+    Положительный контроль самого МЕТОДА: на одной и той же сцене прибор
+    обязан дать ДВА разных ответа — иначе «разница ответов есть население»
+    было бы заявлением, а не замером (тот же приём, что `drop_shadowed=` у
+    ADR-702 и `rounds=` у ADR-703).
+    """
+
+    SCENE = '''
+        BASE = {"counts": {"a": 1}}
+
+        def t():
+            doc = dict(BASE)
+            del doc["counts"]
+            return office._summarize_json("data/in.json", doc)
+    '''
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.scene.write("test_in.py", self.SCENE)
+        self.schema = {"in.json": ("counts.a",)}
+
+    def _run(self, **kw):
+        return gap.measure(schema=self.schema, has_path=_has_path,
+                           root=str(self.scene.root), test_dirs=("t",), **kw)
+
+    def test_the_door_closed_reproduces_the_OLD_answer(self):
+        census = self._run(model_mutation=False)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.mutated, [])
+
+    def test_the_door_open_is_the_NEW_answer(self):
+        census = self._run(model_mutation=True)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.a",)])
+
+    def test_the_default_is_the_HONEST_one(self):
+        """Умолчание — модель ВКЛЮЧЕНА: иначе прибор отвечал бы о документе,
+        которого у двери нет (решение ADR-705)."""
+        self.assertEqual([s.missing for s in self._run().population],
+                         [("counts.a",)])
