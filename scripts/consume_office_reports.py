@@ -1717,14 +1717,34 @@ def _sha256(path: str) -> str | None:
 _NOT_DUE = "ЕЩЁ НЕ ДОЛЖЕН БЫЛ ПЕРЕМЕРИТЬ"
 
 
+def office_targets(manifest: dict, consumer: str = CONSUMER) -> list[str]:
+    """ЧТО офис обязан прочитать — по конституции, а не по списку в голове.
+
+    Вынесено в своё имя заказом G698 п. 3: перечень нужен не только `main()`,
+    но и переписи дверей объявления (`spa_core/tests/_office_declaration_doors.py`),
+    а второй копии правила отбора здесь быть не должно — разошлись бы молча,
+    и перепись мерила бы НЕ ТОТ операнд, которым работает шаг (урок ADR-502).
+    """
+    return [a["path"] for a in manifest.get("artifacts", [])
+            if a.get("status") == "active" and consumer in (a.get("consumers") or [])]
+
+
 def _producer_tick_hours(name: str, root: str) -> tuple[float | None, str]:
     """Как часто производитель `data/<name>` ОБЯЗАН перемерять свой предмет.
 
     Возвращает `(часы, чем измерено)`. `None` — такт НЕ ИЗМЕРЕН, и вторым
-    элементом идёт причина ИМЕННО та, что случилась: их четыре, и они разные
-    (манифест не прочитан · артефакта нет в `artifacts[]` · его производителя
-    нет в `agents[]` · расписание в такт не переводится). Одна общая причина
-    «не смог» соврала бы читателю о том, где именно оборвалось объявление.
+    элементом идёт причина ИМЕННО та, что случилась: их ПЯТЬ, и они разные
+    (манифест не прочитан · артефакта нет в `artifacts[]` · имя объявлено в
+    `artifacts[]` НЕСКОЛЬКО раз и какое из них читает офис, сказать нечем ·
+    его производителя нет в `agents[]` · расписание в такт не переводится).
+    Одна общая причина «не смог» соврала бы читателю о том, где именно
+    оборвалось объявление.
+
+    Адрес артефакта берётся у САМОЙ конституции, а не склеивается из имени:
+    офис зовёт артефакт базовым именем файла, а объявляет его конституция
+    путём, и совпадают они не всегда (см. замер в теле). Быстрый путь
+    `data/<имя>` оставлен первым — там, где он попадает, ответ тот же,
+    и платить обходом перечня незачем.
 
     Разбор строки расписания берётся у
     `architecture_conformance.producer_tick_hours` — второго определения того
@@ -1742,9 +1762,38 @@ def _producer_tick_hours(name: str, root: str) -> tuple[float | None, str]:
         return None, f"конституция не прочитана ({type(exc).__name__})"
     if not isinstance(manifest, dict):
         return None, "конституция не разобрана как объект"
+    arts = [a for a in (manifest.get("artifacts") or []) if isinstance(a, dict)]
     rel = f"data/{name}"
-    art = next((a for a in (manifest.get("artifacts") or [])
-                if isinstance(a, dict) and a.get("path") == rel), None)
+    art = next((a for a in arts if a.get("path") == rel), None)
+    if art is None:
+        # Объявление ЕСТЬ, а адрес у него свой: офис зовёт артефакт ИМЕНЕМ
+        # файла (`_READ_SCHEMA`, `_PRODUCER`, `_TS_FIELD` — все ключи
+        # базовые), а конституция объявляет его ПУТЁМ, и 13 из 133
+        # артефактов офиса лежат не в `data/`, а глубже
+        # (`data/investment_os/*.json` — двенадцать, `docs/SYSTEM_BRIEFING.md`
+        # — тринадцатый). Склейка `f"data/{name}"` для всех тринадцати
+        # отвечала «не объявлен в `artifacts[]` конституции» — причину ЛОЖНУЮ:
+        # объявление в конституции есть, такт его производителя объявлен
+        # (замер 12.10, заказ G698 п. 3: после разрешения по объявленному
+        # пути такт измерим у 13 из 13 — от 0.5 ч у брифинга до 24 ч у
+        # аналитиков `io_*`), и третий исход здесь был не «нечем измерить», а
+        # «искал не по тому адресу» — ровно инвариант #17 наизнанку, да ещё с
+        # обвинением конституции в пробеле, которого у неё нет.
+        same = [a for a in arts
+                if os.path.basename(str(a.get("path") or "")) == name]
+        if len(same) > 1:
+            # Неоднозначность — СВОЙ третий исход, а не выбор первого.
+            # В конституции сегодня одно такое имя (`latest.json`:
+            # `data/investment_cio/` и `data/capital_shadow/`), и офис его не
+            # читает — но угадать «наверное этот» значило бы вернуть на то же
+            # место уверенно неверный ответ вместо честно неизмеренного.
+            where = ", ".join(sorted(str(a.get("path")) for a in same))
+            return None, (f"имя {name} объявлено в `artifacts[]` конституции "
+                          f"{len(same)} раз(а) ({where}) — какое из объявлений "
+                          f"читает офис, сказать нечем")
+        if len(same) == 1:
+            art = same[0]
+            rel = str(art.get("path"))
     if art is None:
         return None, f"{rel} не объявлен в `artifacts[]` конституции"
     label = art.get("producer")
@@ -5292,8 +5341,7 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         print(f"❌ манифест не прочитан ({manifest_path}): {e} — шаг НЕ выполнен")
         return 1
 
-    targets = [a["path"] for a in manifest.get("artifacts", [])
-               if a.get("status") == "active" and args.consumer in (a.get("consumers") or [])]
+    targets = office_targets(manifest, args.consumer)
     if not targets:
         print(f"❌ в манифесте нет active-артефактов с потребителем {args.consumer!r} — "
               f"проверить конституцию")

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-12T09:15:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-12T12:57:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a32ababc6) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (174d2924d).
 >
-> Всего карточек: **1292** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1293** · ждёт владельца: **15** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -408,7 +408,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (695)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (696)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1067,6 +1067,7 @@
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож публичной цепи ПОДСТАВЛЯЕТ фикстуру вместо настоящего журнала — оба исхода passed  ·  `inbox-storozh-publichnoi-tsepi-podstavlyaet-fi.md` · 2026-09-19
 - Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
+- Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
 - Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29

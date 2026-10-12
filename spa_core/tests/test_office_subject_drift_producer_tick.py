@@ -385,3 +385,113 @@ def test_every_outcome_agrees_with_its_own_mark(tmp_path):
         else:
             assert out.lstrip().startswith("⏳"), (label, out)
             assert "карточка НЕ нужна" in out, (label, out)
+
+
+# ── 9. АДРЕС объявления: офис зовёт артефакт ИМЕНЕМ, конституция — ПУТЁМ ─────
+#
+# Заказ G698 п. 3 (ADR-704). Склейка `f"data/{name}"` отвечала «не объявлен в
+# `artifacts[]` конституции» на 13 артефактов офиса из 133 — причину ЛОЖНУЮ:
+# объявление есть, такт его производителя объявлен, и третий исход был не
+# «нечем измерить», а «искал не по тому адресу». На `origin/main` 174d2924d
+# первые две сцены ниже КРАСНЫ, последние три зелены в обоих состояниях —
+# это и есть контроль в обе стороны.
+
+_NESTED = "data/investment_os/chief_investment.json"
+_NESTED_NAME = "chief_investment.json"
+_NESTED_LABEL = "com.spa.io_chief_investment"
+
+
+def _nested_tree(root: Path, *, extra_artifacts=(), agents=None) -> Path:
+    body = {
+        "agents": list(agents if agents is not None else
+                       [{"label": _NESTED_LABEL, "schedule": "interval:3600s"}]),
+        "artifacts": [{"path": _NESTED, "producer": _NESTED_LABEL,
+                       "status": "active",
+                       "consumers": ["orchestrator_protocol"]},
+                      *extra_artifacts],
+    }
+    return _tree(root, body=body)
+
+
+def test_an_artifact_declared_deeper_than_data_is_still_found(tmp_path):
+    """Объявление ЕСТЬ, адрес у него свой — такт обязан быть ИЗМЕРЕН."""
+    _nested_tree(tmp_path)
+    tick, why = MOD._producer_tick_hours(_NESTED_NAME, str(tmp_path))
+    assert tick == 1.0, (tick, why)
+    # Причина называет НАЙДЕННЫЙ путь, а не склейку: читателю важно, по какому
+    # объявлению посчитан такт.
+    assert _NESTED_LABEL in why and "interval:3600s" in why, why
+
+
+def test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads():
+    """Храповик на ЖИВОЙ конституции: 13 из 133 были «не объявлены» ложно.
+
+    Операнд берётся у самого офиса (`office_targets`), а не перечисляется
+    здесь: второй список артефактов разошёлся бы с первым молча.
+    """
+    manifest = json.loads((_REPO / "architecture" / "manifest.json").read_text())
+    targets = MOD.office_targets(manifest)
+    assert targets, "артефактов офиса в конституции нет — операнд НЕ ИЗМЕРЕН"
+    unmeasured = []
+    for rel in targets:
+        tick, why = MOD._producer_tick_hours(os.path.basename(rel), str(_REPO))
+        if tick is None:
+            unmeasured.append((rel, why))
+    assert not unmeasured, (
+        f"такт НЕ ИЗМЕРИМ у {len(unmeasured)} из {len(targets)} артефактов "
+        f"офиса: {unmeasured[:5]}")
+
+
+def test_an_artifact_declared_nowhere_is_still_absent(tmp_path):
+    """Отрицательный контроль: разрешение по имени не делает отсутствие находкой."""
+    _nested_tree(tmp_path)
+    tick, why = MOD._producer_tick_hours("no_such_artifact.json", str(tmp_path))
+    assert tick is None
+    assert "не объявлен в `artifacts[]`" in why, why
+
+
+def test_two_declarations_of_one_name_are_their_own_third_outcome(tmp_path):
+    """Неоднозначность НАЗЫВАЕТСЯ, а не разрешается выбором первого.
+
+    В живой конституции такое имя одно (`latest.json` — `data/investment_cio/`
+    и `data/capital_shadow/`), и офис его не читает; но угадать «наверное
+    этот» значило бы вернуть уверенно неверный ответ вместо честно
+    неизмеренного.
+    """
+    _nested_tree(tmp_path, extra_artifacts=[
+        {"path": "data/other_dir/chief_investment.json",
+         "producer": _NESTED_LABEL, "status": "active", "consumers": []}])
+    tick, why = MOD._producer_tick_hours(_NESTED_NAME, str(tmp_path))
+    assert tick is None, (tick, why)
+    assert "2 раз" in why and _NESTED in why, why
+    assert "other_dir" in why, why
+
+
+def test_the_exact_address_wins_over_a_same_named_sibling(tmp_path):
+    """Быстрый путь `data/<имя>` остаётся первым — и он однозначен."""
+    _tree(tmp_path, body={
+        "agents": [{"label": LABEL, "schedule": "interval:21600s"},
+                   {"label": _NESTED_LABEL, "schedule": "interval:3600s"}],
+        "artifacts": [
+            {"path": f"data/{NAME}", "producer": LABEL, "status": "active",
+             "consumers": ["orchestrator_protocol"]},
+            {"path": f"data/deeper/{NAME}", "producer": _NESTED_LABEL,
+             "status": "active", "consumers": []}],
+    })
+    tick, why = MOD._producer_tick_hours(NAME, str(tmp_path))
+    assert tick == 6.0, (tick, why)
+    assert LABEL in why, why
+
+
+def test_office_targets_is_the_only_rule_of_what_the_office_reads(tmp_path):
+    """Отбор артефактов живёт в ОДНОМ доме — иначе перепись мерит не тот операнд."""
+    manifest = {"artifacts": [
+        {"path": "data/a.json", "status": "active",
+         "consumers": ["orchestrator_protocol"]},
+        {"path": "data/b.json", "status": "retired",
+         "consumers": ["orchestrator_protocol"]},
+        {"path": "data/c.json", "status": "active", "consumers": ["someone"]},
+        {"path": "data/d.json", "status": "active", "consumers": None},
+    ]}
+    assert MOD.office_targets(manifest) == ["data/a.json"]
+    assert MOD.office_targets(manifest, "someone") == ["data/c.json"]
