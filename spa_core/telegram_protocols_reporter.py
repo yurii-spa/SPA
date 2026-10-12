@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from spa_core.adapters.status_reader import observed_apy_pct_from_block
 from spa_core.utils.errors import ConfigError
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "split_message",
     "send_protocols_report",
     "load_adapter_data",
+    "unparsed_adapter_entries",
 ]
 
 log = logging.getLogger("spa.telegram_protocols_reporter")
@@ -126,6 +128,118 @@ def _get_best_apy(adapter: dict) -> Optional[float]:
     return None
 
 
+def _get_apy_str(adapter: dict) -> Optional[str]:
+    """APY словами — и РОД числа рядом, когда это не наблюдение (ADR-709).
+
+    Сестра :func:`_get_tvl_str` (ADR-708) на СОСЕДНЕЙ оси и у ТОГО ЖЕ читателя.
+    ADR-708 назвал эту ось остатком вслух (заказ G708 п. 4): ``_get_best_apy``
+    читает ``apy_pct`` / ``apy`` / ``mock_apy`` и рода не спрашивает НИ ОДНИМ
+    полем, поэтому число печаталось одинаково, пришло ли оно из фида или из
+    литерала ``fallback_apy`` в коде производителя.
+
+    **Правило «что есть наблюдение» здесь НЕ ВЫВОДИТСЯ ЗАНОВО.** Оно живёт одной
+    копией в :func:`spa_core.adapters.status_reader.observed_apy_pct_from_block`
+    (контракт ADR-063): у современной записи ``adapters[<p>]`` наблюдение
+    доказывает ТОЛЬКО поле ``live_apy``, а соседнее ``apy`` при ненаблюдении
+    эхом повторяет ``fallback_apy`` и отличить замер от литерала не способно.
+    Второй вывод того же рода и был бы ровно тем дефектом, которым ADR-063
+    разошёлся по дереву.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17), и различает их род, а не величина:
+
+      * наблюдение (``live_apy``)            ⇒ «4.4%»
+      * род объявлен и это НЕ наблюдение     ⇒ «8.0% (оценка)» — сюда же
+        попадает число, которое производитель САМ объявил эхом литерала
+        (напечатанное значение совпало с его ``fallback_apy``), и объявленный
+        ADR-707 ``apy_source`` со значением вне наблюдённых;
+      * рода нет вовсе                       ⇒ «3.1% (род не объявлен)» —
+        ТРЕТИЙ исход, а не молчание: «род не объявлен» и «объявлен литералом»
+        суть разные факты, и склеить их значило бы повторить дефект ADR-708.
+
+    ЗАМЕР на живом ``data/adapter_status.json`` (2026-10-12), ради которого
+    правка и сделана: из 34 современных записей с напечатанным числом **23**
+    несут ``live_apy`` (наблюдение), а **11** его не несут И печатают ровно свой
+    ``fallback_apy`` — то есть литерал. Владелец читал «APY: 14.0%» у
+    ``pendle_yt_susde`` и «12.0%» у ``ethena_susde`` неотличимо от замера.
+
+    ЦЕНА ОДНОСТОРОННОСТИ, названная замером, а не выведенная: у ЛЕГАСИ-записи
+    верхнего уровня (теневой блок) поля ``live_apy`` нет по построению, и
+    ``status_reader`` в своей легаси-ветке считает чтением её собственное
+    ``apy``. Этот читатель секции не различает и потому назовёт такую запись
+    «род не объявлен» даже тогда, когда число есть замер (``aave_arbitrum``
+    3.1293 — ``read_live_apy_pct`` отдаёт его как наблюдение). Ошибка идёт в
+    сторону ЗАНИЖЕНИЯ доверия и НИКОГДА в сторону выдуманного наблюдения;
+    обратное направление было бы ровно закрываемым дефектом. Чинить это здесь
+    значило бы завести ВТОРУЮ копию контракта ADR-063 у читателя, который кормит
+    гейт, — остаток назван заказом, а не погашен молча.
+
+    Число НЕ гасится: отчёт о протоколах — обзорная сводка, а не гейт, и
+    спрятать число значило бы ответить владельцу молчанием. Гейт отказывает сам
+    и отдельно (``status_reader.read_live_apy_pct`` ⇒ ``None``).
+    """
+    if not isinstance(adapter, dict):
+        return None
+    apy = _get_best_apy(adapter)
+    if apy is None:
+        return None
+    shown = f"{apy:.1f}%"
+
+    # Наблюдение — единственная копия правила, контракт ADR-063.
+    if observed_apy_pct_from_block(adapter) is not None:
+        return shown
+
+    # Род объявлен полем ADR-707 и это не наблюдение.
+    source = adapter.get("apy_source")
+    if isinstance(source, str) and source.strip():
+        return f"{shown} (оценка)"
+
+    # Производитель САМ объявил, что печатает эхо литерала: напечатанное
+    # значение совпало с его ``fallback_apy``. Это объявление рода, а не догадка.
+    fallback = adapter.get("fallback_apy")
+    if (
+        isinstance(fallback, (int, float))
+        and not isinstance(fallback, bool)
+        and abs(float(fallback) - apy) < 1e-9
+    ):
+        return f"{shown} (оценка)"
+
+    return f"{shown} (род не объявлен)"
+
+
+def unparsed_adapter_entries(data: dict) -> Optional[int]:
+    """Сколько записей раздела ``adapters`` читатель НЕ РАЗОБРАЛ (ADR-709).
+
+    Третий исход у ПОПУЛЯЦИИ отчёта, а не у числа (инв. #17): у «разобрано N»
+    обязана быть отличимая изнутри пара «не разобрано M», иначе пустой отчёт
+    неотличим от спокойного дня.
+
+    ЗАМЕР 2026-10-12, ради которого функция и появилась: :func:`_get_all_adapters`
+    обходит ``data["adapters"]`` КАК СПИСОК (``for a in data.get("adapters") or []``),
+    а живой ``adapter_status.json`` несёт этот раздел СЛОВАРЁМ. Обход словаря
+    отдаёт КЛЮЧИ (строки), ``isinstance(a, dict)`` на строке ложен — и все **34**
+    современные записи отбрасывались МОЛЧА. Восполнить их вторым проходом тоже
+    нечем: ``"adapters"`` стои́т в :data:`_SKIP_KEYS`. Владелец читал
+    «Total adapters: 2» и видел ДВЕ легаси-записи верхнего уровня из 36 — те самые
+    ``aave_arbitrum`` и ``pendle_pt``, которые ADR-708 нашёл у себя в читателях.
+
+    Возвращает ``None``, когда вопрос НЕ ИЗМЕРЕН (раздела нет, он не той формы
+    вовсе), и число — когда измерен. Ноль есть измеренный ноль.
+
+    Эта функция числа протоколов НЕ ПЕЧАТАЕТ и population отчёта не расширяет:
+    поднять 34 записи значило бы напечатать владельцу 34 НОВЫХ числа доходности,
+    а это публикация, а не представление (та же граница, по которой ADR-708
+    СОЗНАТЕЛЬНО не ввёл ось TVL у ``pendle_pt``). Здесь названа только ЦЕНА
+    молчания.
+    """
+    if not isinstance(data, dict):
+        return None
+    section = data.get("adapters")
+    if not isinstance(section, dict):
+        # Список (ожидаемая читателем форма) или раздела нет — ронять нечего.
+        return None
+    return sum(1 for v in section.values() if isinstance(v, dict))
+
+
 def _compute_health(adapter: dict) -> tuple[str, str]:
     """Return (emoji, label) for protocol health derived from adapter fields."""
     if not isinstance(adapter, dict):
@@ -216,8 +330,7 @@ def _format_adapter_line(adapter: dict) -> str:
         or "Unknown"
     )
 
-    apy = _get_best_apy(adapter)
-    apy_str = f"{apy:.1f}%" if apy is not None else "n/a"
+    apy_str = _get_apy_str(adapter) or "n/a"
 
     tvl_str = _get_tvl_str(adapter)
     health_emoji, health_label = _compute_health(adapter)
@@ -390,6 +503,15 @@ def format_protocols_message(data: dict) -> str:
     if isinstance(cash, (int, float)):
         sys_parts.append(f"Cash: ${float(cash):,.0f}")
     sys_parts.append(f"Total adapters: {total_adapters}")
+    # Третий исход у ПОПУЛЯЦИИ: «не разобрано» обязано быть отличимо от
+    # спокойного дня (инв. #17, ADR-709). Числа 34 записей здесь НЕ печатаются —
+    # это была бы публикация; названа только цена молчания.
+    unparsed = unparsed_adapter_entries(data)
+    if isinstance(unparsed, int) and unparsed > 0:
+        sys_parts.append(
+            f"НЕ РАЗОБРАНО записей раздела `adapters`: {unparsed} "
+            f"(раздел пришёл словарём, читатель ждёт список)"
+        )
     if active_count:
         sys_parts.append(f"Active positions: {active_count}")
     if isinstance(cov_pct, (int, float)):
