@@ -107,7 +107,14 @@ _EXEMPT_BARE_RE = re.compile(r"#\s*SCHEMA-GAP-OK\s*:?\s*$")
 
 #: Причины, по которым документ до словаря-литерала не доводится ПО ПРИРОДЕ
 #: выражения, а не из-за слабости разбора: его собрал ВЫЗОВ.
-_BUILT_BY_CALL = frozenset({"call_unresolved", "helper_returns_no_dict"})
+#:
+#: `receiver_not_self` и `self_outside_class` добавлены заказом G699 п. 2 и
+#: суть та же природа: тело зовомого в этом файле не опознаётся, значит
+#: словаря-фикстуры у площадки нет. Причины НАЗВАНЫ врозь нарочно — так цена
+#: отказа от одалживания считается в `census.built_by_call`, а не растворяется
+#: в общем «вызов не разрешён».
+_BUILT_BY_CALL = frozenset({"call_unresolved", "helper_returns_no_dict",
+                            "receiver_not_self", "self_outside_class"})
 
 #: Каталоги тестов — предмет замера. Передаются ВХОДОМ, здесь только умолчание.
 DEFAULT_TEST_DIRS = ("spa_core/tests", "tests", "scripts/tests")
@@ -238,15 +245,62 @@ def _enclosing_funcs(tree: ast.Module) -> dict[int, ast.AST]:
     return owner
 
 
+def _enclosing_classes(tree: ast.Module) -> dict[int, ast.ClassDef]:
+    """Строка → ближайший объемлющий КЛАСС (самый внутренний из объемлющих).
+
+    Нужен затем же, зачем `_enclosing_funcs` понадобился присваиваниям: имя
+    метода принадлежит КЛАССУ, и разрешать его по файлу значит одалживать
+    (заказ G699 п. 2).
+    """
+    owner: dict[int, ast.ClassDef] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for inner in ast.walk(node):
+            line = getattr(inner, "lineno", None)
+            if line is None:
+                continue
+            prev = owner.get(line)
+            if prev is None or node.lineno > prev.lineno:
+                owner[line] = node
+    return owner
+
+
+def _parents(tree: ast.Module) -> dict[int, ast.AST]:
+    """Узел → его НЕПОСРЕДСТВЕННЫЙ родитель.
+
+    Метод отличается от вложенной функции именно родителем, а не объемлющим
+    классом: `def _h()` внутри метода класса `C` объемлется `C`, но методом
+    `C` НЕ является и голым именем из соседнего метода не виден.
+    """
+    out: dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            out[id(child)] = node
+    return out
+
+
 class _ModuleFlow:
     """Разрешение выражения в скелет словаря — по потоку значения внутри файла."""
 
     def __init__(self, tree: ast.Module, aliases: dict[str, str]):
         self.aliases = aliases
-        self.funcs: dict[str, list[ast.AST]] = {}
+        # Определения разводятся по ВЛАДЕЛЬЦУ, а не по имени (заказ G699 п. 2):
+        # метод живёт у пары «класс × имя», свободная функция — у имени.
+        parents = _parents(tree)
+        self._classes = _enclosing_classes(tree)
+        self._class_by_name: dict[str, ast.ClassDef] = {}
+        self._methods: dict[tuple[int, str], list[ast.AST]] = {}
+        self._free_funcs: dict[str, list[ast.AST]] = {}
         for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                self.funcs.setdefault(node.name, []).append(node)
+            if isinstance(node, ast.ClassDef):
+                self._class_by_name.setdefault(node.name, node)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                owner = parents.get(id(node))
+                if isinstance(owner, ast.ClassDef):
+                    self._methods.setdefault((id(owner), node.name), []).append(node)
+                else:
+                    self._free_funcs.setdefault(node.name, []).append(node)
         self._module_assigns = _assigns_of(tree)
         self._func_assigns: dict[int, dict[str, list[ast.AST]]] = {}
         for node in ast.walk(tree):
@@ -255,18 +309,92 @@ class _ModuleFlow:
         self.assigns: dict[str, list[ast.AST]] = dict(self._module_assigns)
         self._scope_func: ast.AST | None = None
         self._owners = _enclosing_funcs(tree)
-        #: Имя функции → её вызовы вместе с областью, из которой её зовут.
+        #: КОНКРЕТНОЕ определение → его вызовы вместе с областью зова.
         #: Нужен, чтобы ПАРАМЕТР разрешался у ВЫЗЫВАЮЩЕГО (заказ G698 п. 2).
-        self.calls: dict[str, list[tuple[ast.Call, ast.AST | None]]] = {}
+        #:
+        #: Ключ — определение, а НЕ имя: прежняя редакция спрашивала
+        #: `self.calls.get(func.name)`, и это было ТО ЖЕ объединение по имени,
+        #: что у `self.funcs`, только у второй двери (заказ G699 п. 2 назвал
+        #: одну из двух; вторая найдена этим ходом). У `setUp`, определённого
+        #: в файле семь раз, параметр помощника разрешался аргументами ВСЕХ
+        #: семи вызовов — ровно одалживание, против которого введена область.
+        self.calls: dict[int, list[tuple[ast.Call, ast.AST | None]]] = {}
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            func = node.func
-            name = func.id if isinstance(func, ast.Name) else (
-                func.attr if isinstance(func, ast.Attribute) else None)
-            if name:
-                self.calls.setdefault(name, []).append(
+            defs, _why = self.target_defs(node)
+            for fdef in defs or ():
+                self.calls.setdefault(id(fdef), []).append(
                     (node, self._owners.get(node.lineno)))
+
+    def _lookup_method(self, cls: ast.ClassDef, name: str,
+                       seen: tuple[int, ...] = ()) -> list[ast.AST] | None:
+        """Метод по паре «класс × имя», затем по базам, объявленным В ФАЙЛЕ.
+
+        Строгое «только свой класс» потеряло бы наследование: сцена-потомок
+        зовёт `self._doc()`, определённый у базы, и объявить его ненайденным
+        значило бы купить исправление потерей зрения. База вне файла
+        (`unittest.TestCase`) честно не находится — документ собрал вызов.
+        """
+        if id(cls) in seen:
+            return None
+        defs = self._methods.get((id(cls), name))
+        if defs:
+            return defs
+        for base in cls.bases:
+            bname = base.id if isinstance(base, ast.Name) else (
+                base.attr if isinstance(base, ast.Attribute) else None)
+            parent = self._class_by_name.get(bname) if bname else None
+            if parent is None:
+                continue
+            found = self._lookup_method(parent, name, seen + (id(cls),))
+            if found:
+                return found
+        return None
+
+    def target_defs(self, node: ast.Call) -> tuple[list[ast.AST] | None, str | None]:
+        """Определения, которые ДЕЙСТВИТЕЛЬНО зовёт этот вызов.
+
+        Одно правило на обе двери (разрешение зовомого и разрешение
+        вызывающего), и второй его копии нет: две копии разошлись бы молча.
+
+        | форма вызова | чем разрешается |
+        |---|---|
+        | `f(...)` | свободные функции файла — метод голым именем не виден |
+        | `self.f(...)` / `cls.f(...)` | пара «класс площадки × имя» + базы в файле |
+        | `C.f(...)`, `C` — класс ФАЙЛА | пара «этот класс × имя» |
+        | `mod.f(...)`, `mod` — импорт | тело вне файла ⇒ `call_unresolved` |
+        | `other.f(...)` | получатель неизвестен ⇒ `receiver_not_self` |
+
+        Последние две строки РАЗВЕДЕНЫ нарочно, и это не косметика: модуль —
+        это «тела здесь нет по природе» (так `json.loads(raw)` и
+        `producer.run()` отвечали с ADR-698), а неизвестный объект — «тело,
+        может быть, и здесь, но КОТОРОЕ из одноимённых, статике не дано».
+        Свернуть их в одну причину значило бы потерять различие между
+        отсутствием предмета и отказом одалживать. Одалживать же
+        неизвестному получателю любой одноимённый метод файла — ровно тот
+        вред, который мерит заказ G699 п. 2, поэтому исход НАЗВАН, чтобы
+        цена считалась в `census.built_by_call`, а не растворилась.
+        """
+        func = node.func
+        if isinstance(func, ast.Name):
+            return self._free_funcs.get(func.id), None
+        if not isinstance(func, ast.Attribute):
+            return None, "call_unresolved"
+        receiver = func.value
+        if not isinstance(receiver, ast.Name):
+            return None, "receiver_not_self"
+        if receiver.id in ("self", "cls"):
+            cls = self._classes.get(node.lineno)
+            if cls is None:
+                return None, "self_outside_class"
+            return self._lookup_method(cls, func.attr), None
+        own = self._class_by_name.get(receiver.id)
+        if own is not None:
+            return self._lookup_method(own, func.attr), None
+        if receiver.id in self.aliases:
+            return None, "call_unresolved"
+        return None, "receiver_not_self"
 
     def scope_to(self, func: ast.AST | None) -> None:
         """Связать имена так, как их связывает PYTHON — не весь файл.
@@ -318,7 +446,8 @@ class _ModuleFlow:
         if param not in params:
             return None, "name_unbound"
         index = params.index(param)
-        sites = self.calls.get(func.name) or []
+        # Вызовы ЭТОГО определения, а не всех одноимённых (заказ G699 п. 2).
+        sites = self.calls.get(id(func)) or []
         if not sites:
             return None, "param_no_call_site"
         merged: dict = {}
@@ -581,9 +710,13 @@ class _ModuleFlow:
                     out[kw.arg] = sub if sub is not None else LEAF
             return out, why
         if name and name not in seen:
-            defs = self.funcs.get(name)
+            # Разрешение по ВЛАДЕЛЬЦУ, а не по имени (заказ G699 п. 2): три
+            # `_doc` в трёх классах `test_list_day_axis.py` зовутся каждый
+            # своей сценой, а объединение по имени сливало их возвраты, и
+            # богатый сосед ОПРАВДЫВАЛ куцую площадку.
+            defs, why_target = self.target_defs(node)
             if not defs:
-                return None, "call_unresolved"
+                return None, why_target or "call_unresolved"
             merged: dict = {}
             why = None
             got = False

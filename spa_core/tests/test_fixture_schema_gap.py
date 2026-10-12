@@ -449,8 +449,20 @@ class TheContractIsPinnedLiterally(unittest.TestCase):
                          ("spa_core/tests", "tests", "scripts/tests"))
 
     def test_the_reasons_that_mean_built_by_a_call_are_named(self):
+        """Пин РАСШИРЕН заказом G699 п. 2 — это усиление, а не ослабление.
+
+        Обоснование (инв. #16 требует его в теле изменения): две причины
+        ДОБАВЛЕНЫ, ни одна не убрана и ни одна не переименована. Прежний набор
+        целиком входит в новый, поэтому ни один прежний исход не сменил
+        корзину. Новые причины отвечают формам, которых до этого хода у меры
+        не было вовсе: `receiver_not_self` — отказ одолжить одноимённый метод
+        неизвестному получателю, `self_outside_class` — `self.f()` вне класса.
+        Пин остаётся РАВЕНСТВОМ, а не вхождением: вырасти набору молча
+        по-прежнему нельзя.
+        """
         self.assertEqual(sorted(gap._BUILT_BY_CALL),
-                         ["call_unresolved", "helper_returns_no_dict"])
+                         ["call_unresolved", "helper_returns_no_dict",
+                          "receiver_not_self", "self_outside_class"])
 
     def test_the_depth_limit_is_its_own_outcome_not_an_absence(self):
         """Упёрлись в предел ⇒ причина, а не «полей нет»."""
@@ -841,3 +853,209 @@ class TheStdlibCopyIdiomIsTheSameFixture(_SceneCase):
         self.assertEqual(census.unmeasured, [])
         self.assertEqual([row[1] for row in census.built_by_call],
                          ["call_unresolved"])
+
+
+class DefinitionsAreResolvedByOwnerNotByName(_SceneCase):
+    """Заказ G699 п. 2: ВТОРОЕ объединение того же рода — по ИМЕНИ функции.
+
+    ADR-699 развёл присваивания по ОБЛАСТИ, но определения остались в плоском
+    наборе `funcs[имя]`, а вызовы — в плоском `calls[имя]`. Одноимённые методы
+    разных классов одалживали друг другу возвраты и места зова ровно так же,
+    как это делали присваивания до #843.
+
+    Каждая сцена здесь — контроль в ОБЕ стороны: куцая площадка не оправдана
+    богатой однофамилицей И богатая не обвинена за куцую; наследование при
+    этом не потеряно, а неизвестный получатель НАЗВАН, а не одолжен.
+    """
+
+    _SCHEMA = {"z.json": ("status", "counts.total")}
+
+    # --- дверь первая: разрешение ЗОВОМОГО (`funcs`) ----------------------
+
+    def test_a_poor_method_is_not_exonerated_by_a_rich_namesake(self):
+        """Настоящая форма вреда: `_doc` определён в файле ТРИЖДЫ.
+
+        Замер #844 на `test_list_day_axis.py`: каждый из 16 зовов `self._doc()`
+        и `self._rows()` получал по 2–3 определения вместо одного. Там вердикт
+        не сменился лишь потому, что две одолживавшие однофамилицы сами
+        разрешались в НОЛЬ ключей, — то есть класс латентный, а не пустой.
+        """
+        self.scene.write("test_z20.py", '''
+            class Poor:
+                def _doc(self):
+                    return {"status": "CLEAN"}
+
+                def t(self):
+                    return office._summarize_json("data/z.json", self._doc())
+
+            class Rich:
+                def _doc(self):
+                    return {"status": "CLEAN", "counts": {"total": 1}}
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)],
+                         "пробел площадки погашен возвратом ОДНОИМЁННОГО "
+                         "метода чужого класса")
+
+    def test_a_rich_method_is_not_blamed_for_a_poor_namesake(self):
+        """Обратная сторона: исправление не смещает вину на соседа."""
+        self.scene.write("test_z21.py", '''
+            class Rich:
+                def _doc(self):
+                    return {"status": "CLEAN", "counts": {"total": 1}}
+
+                def t(self):
+                    return office._summarize_json("data/z.json", self._doc())
+
+            class Poor:
+                def _doc(self):
+                    return {"status": "CLEAN"}
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [], census.sites)
+        self.assertEqual(len(census.sites), 1, census.sites)
+
+    def test_a_method_inherited_from_an_in_file_base_is_still_resolved(self):
+        """Охват не куплен слепотой: база, объявленная В ФАЙЛЕ, разрешается.
+
+        Строгое «только свой класс» потеряло бы сцену-потомка, и это была бы
+        та же потеря зрения, которой ADR-699 избежал.
+        """
+        self.scene.write("test_z22.py", '''
+            class Base:
+                def _doc(self):
+                    return {"status": "CLEAN"}
+
+            class Child(Base):
+                def t(self):
+                    return office._summarize_json("data/z.json", self._doc())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)],
+                         "метод базы того же файла не найден — площадка "
+                         "выпала из населения вместо того, чтобы мериться")
+
+    def test_a_base_outside_the_file_is_the_FOURTH_outcome_not_a_gap(self):
+        """База вне файла (`unittest.TestCase`) честно не находится."""
+        self.scene.write("test_z23.py", '''
+            import unittest
+
+            class S(unittest.TestCase):
+                def t(self):
+                    return office._summarize_json("data/z.json", self._doc())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual([row[1] for row in census.built_by_call],
+                         ["call_unresolved"])
+
+    def test_a_bare_name_does_not_see_a_method_of_the_same_name(self):
+        """Правило берётся у ЯЗЫКА: метод голым именем не виден (`NameError`)."""
+        self.scene.write("test_z24.py", '''
+            class S:
+                def _doc(self):
+                    return {"status": "CLEAN", "counts": {"total": 1}}
+
+            def t():
+                return office._summarize_json("data/z.json", _doc())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.built_by_call],
+                         ["call_unresolved"],
+                         "голое имя одолжило себе МЕТОД чужого класса")
+
+    def test_a_free_function_is_still_seen_by_a_bare_name(self):
+        """Обратная сторона: свободная функция голым именем видна."""
+        self.scene.write("test_z25.py", '''
+            def _doc():
+                return {"status": "CLEAN"}
+
+            def t():
+                return office._summarize_json("data/z.json", _doc())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+
+    def test_an_unknown_receiver_is_NAMED_not_lent_a_namesake(self):
+        """`other.f()` — тип получателя статике не дан.
+
+        Одолжить ему любой одноимённый метод файла значило бы вернуть вред
+        под другим именем. Исход назван ДОСЛОВНО, чтобы цена считалась.
+        """
+        self.scene.write("test_z26.py", '''
+            class Rich:
+                def _doc(self):
+                    return {"status": "CLEAN", "counts": {"total": 1}}
+
+            def t(other):
+                return office._summarize_json("data/z.json", other._doc())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual([row[1] for row in census.built_by_call],
+                         ["receiver_not_self"])
+
+    # --- дверь вторая: разрешение ВЫЗЫВАЮЩЕГО (`calls`) -------------------
+
+    def test_a_parameter_is_resolved_from_the_callers_of_ITS_OWN_definition(self):
+        """То же объединение у ВТОРОЙ двери — её заказ G699 п. 2 не называл.
+
+        `_from_callers` спрашивал `calls[имя помощника]`, поэтому у помощника,
+        определённого в файле дважды, параметр разрешался аргументами вызовов
+        ОБОИХ. Поверхность формы в наборе — `setUp×7`, `tearDown×6`, `_doc×3`.
+        """
+        self.scene.write("test_z27.py", '''
+            class Poor:
+                def _render(self, doc):
+                    return office._summarize_json("data/z.json", doc)
+
+                def t(self):
+                    return self._render({"status": "CLEAN"})
+
+            class Rich:
+                def _render(self, doc):
+                    return office._summarize_json("data/z.json", doc)
+
+                def t(self):
+                    return self._render({"status": "CLEAN",
+                                         "counts": {"total": 1}})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(sorted(s.missing for s in census.population),
+                         [("counts.total",)],
+                         "параметр куцего помощника разрешён аргументами "
+                         "вызовов ОДНОИМЁННОГО помощника чужого класса")
+        self.assertEqual(len(census.sites), 2, census.sites)
+
+    def test_a_parameter_still_resolves_when_the_helper_is_unique(self):
+        """Обратная сторона: заслуга G698 п. 2 не отменена исправлением."""
+        self.scene.write("test_z28.py", '''
+            class S:
+                def _render(self, doc):
+                    return office._summarize_json("data/z.json", doc)
+
+                def t(self):
+                    return self._render({"status": "CLEAN"})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)],
+                         "параметр единственного помощника перестал "
+                         "разрешаться у вызывающего")
+
+    def test_the_reasons_of_the_two_new_outcomes_are_pinned_VERBATIM(self):
+        """Причины — строки контракта: их читает шаг 0-офис и этот набор.
+
+        Пришпилены дословно, потому что `_BUILT_BY_CALL` сверяется ПО СТРОКЕ,
+        и переименование молча перевело бы исход в «НЕ ИЗМЕРЕНО».
+        """
+        self.assertIn("receiver_not_self", gap._BUILT_BY_CALL)
+        self.assertIn("self_outside_class", gap._BUILT_BY_CALL)
+        self.assertIn("call_unresolved", gap._BUILT_BY_CALL)
+        self.assertIn("helper_returns_no_dict", gap._BUILT_BY_CALL)
