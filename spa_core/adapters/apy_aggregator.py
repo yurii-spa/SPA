@@ -422,22 +422,40 @@ class APYAggregator:
         # живой замер. Значение строки не трогаем — снимаем только ложную метку.
         _LEGACY_SRC = APY_SOURCE_UNCHECKED
 
+        def _legacy_apy(block: dict, field: str = "apy") -> Optional[float]:
+            """Число теневого блока — или ``None``, если его нет.
+
+            ADR-707: писатель (`adapter_status_generator`) больше не подставляет
+            в теневой блок литерал, когда записи в ``adapters`` нет, — он пишет
+            ``None`` (инв. #17: отсутствие наблюдения есть отдельное значение).
+            Прежний ``float(block.get("apy", 4.1))`` на таком документе упал бы
+            `TypeError: float(None)` и уронил бы ВЕСЬ разбор рейтинга, то есть
+            честное «числа нет» стоило бы дороже тихой выдумки. Строки без числа
+            здесь не ранжируются ВОВСЕ: ряд рейтинга без ставки — не строка.
+            """
+            v = block.get(field)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return float(v)
+            return None
+
         # ── 2. Morpho Blue Steakhouse vault ───────────────────────────────
         # Специальный T1-vault с фиксированным APY; не входит в основной массив
         morpho: dict = raw.get("morpho_steakhouse", {})
         if morpho:
             # Приоритет: поле "apy" → baseline + bps_gain/100
-            morpho_apy: float = float(morpho.get("apy", 0.0))
+            _ms = _legacy_apy(morpho)
+            morpho_apy: float = _ms if _ms is not None else 0.0
             if morpho_apy <= 0.0:
-                # Вычисляем из bps_gain: Aave mainnet baseline 3.2% + gain
-                bps_gain: float = float(morpho.get("bps_gain", 0))
-                morpho_apy = 3.2 + bps_gain / 100.0
+                # Вычисляем из bps_gain: Aave mainnet baseline 3.2% + gain.
+                # `bps_gain` писатель тоже гасит в `None`, когда ставки нет.
+                _bg = _legacy_apy(morpho, "bps_gain")
+                morpho_apy = (3.2 + _bg / 100.0) if _bg is not None else 0.0
 
             # Строим уникальный ключ для Steakhouse vault
             base_key: str = morpho.get("protocol_key", "morpho-blue")
             morpho_key: str = _canonical_key(base_key + "-steakhouse")
 
-            if morpho_key not in seen_protocols:
+            if morpho_key not in seen_protocols and morpho_apy > 0.0:
                 snap = AdapterSnapshot(
                     protocol=morpho_key,
                     tier="T1",  # TVL > $500M → классифицируется как T1
@@ -456,12 +474,13 @@ class APYAggregator:
         arb: dict = raw.get("aave_arbitrum", {})
         if arb:
             arb_key = _canonical_key("aave-v3-arbitrum")
-            if arb_key not in seen_protocols:
+            _arb = _legacy_apy(arb)
+            if arb_key not in seen_protocols and _arb is not None:
                 tier = str(arb.get("tier", "T1"))
                 snap = AdapterSnapshot(
                     protocol=arb_key,
                     tier=tier,
-                    apy_pct=float(arb.get("apy", 4.1)),
+                    apy_pct=_arb,
                     network=str(arb.get("network", "arbitrum")),
                     tvl_usd=float(arb.get("tvl_usd", 0.0)),
                     last_updated=str(arb.get("added_at", generated_at)),
@@ -477,12 +496,13 @@ class APYAggregator:
         pendle: dict = raw.get("pendle_pt", {})
         if pendle:
             pendle_key: str = _canonical_key(str(pendle.get("protocol_key", "pendle-pt")))
-            if pendle_key not in seen_protocols:
+            _pdl = _legacy_apy(pendle)
+            if pendle_key not in seen_protocols and _pdl is not None:
                 tier = str(pendle.get("tier", "T2"))
                 snap = AdapterSnapshot(
                     protocol=pendle_key,
                     tier=tier,
-                    apy_pct=float(pendle.get("apy", 8.0)),
+                    apy_pct=_pdl,
                     network=str(pendle.get("chain", "ethereum")),
                     tvl_usd=0.0,
                     last_updated=str(pendle.get("updated_at", generated_at)),

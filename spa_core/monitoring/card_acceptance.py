@@ -452,6 +452,102 @@ def _probe_apy_provenance_declared_in_the_door(arg: str | None) -> tuple[str, st
         f"подставить молча не может ни один")
 
 
+#: Имя переписи ПИСАТЕЛЕЙ второго артефакта в `sys.modules` (ADR-707). Скрипт
+#: лежит в `scripts/` (не пакет) — грузится по пути; имя ФИКСИРОВАНО, чтобы
+#: положительный контроль мог подменить модуль и увидеть: проба читает ПЕРЕПИСЬ,
+#: а не собственную копию её правил.
+WRITER_CENSUS_MODULE_NAME = "_spa_adapter_status_writer_census_under_probe"
+
+
+def _writer_census_module():
+    """Перепись писателей `adapter_status.json` как модуль: один раз на процесс."""
+    import importlib.util
+    mod = sys.modules.get(WRITER_CENSUS_MODULE_NAME)
+    if mod is not None:
+        return mod
+    path = os.path.join(REPO_ROOT, "scripts", "adapter_status_writer_census.py")
+    spec = importlib.util.spec_from_file_location(WRITER_CENSUS_MODULE_NAME, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"{path} не загружается как модуль")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[WRITER_CENSUS_MODULE_NAME] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(WRITER_CENSUS_MODULE_NAME, None)
+        raise
+    return mod
+
+
+def _probe_adapter_status_number_has_a_writer(arg: str | None) -> tuple[str, str]:
+    """Критерий: ни одно ОПУБЛИКОВАННОЕ число второго артефакта не может быть
+    литералом производителя, выданным за наблюдение.
+
+    Предмет — пункт 1 карточки `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym`
+    (29.08): «выяснить, откуда `adapter_status.json` получает запись
+    `aave_arbitrum` — кто и когда её пишет (константа в коде производителя или
+    ручная правка)». Ответ замером ADR-707: КОНСТАНТА, и ровно в производителе —
+    теневой блок брал число как ``entry.get("apy", 4.1)`` (и ``6.5`` / ``8.0`` у
+    двух соседей), а `aave_arbitrum_adapter.get_apy()` читал его назад, обещая в
+    докстринге «наблюдения нет ⇒ None» со ссылкой на решение владельца
+    2026-08-08, которым эта самая подстановка из адаптера и была УДАЛЕНА.
+
+    **Проба судит ИСХОД, а не структуру:** сколько литералов способно доехать до
+    опубликованного числа (потолок НОЛЬ — это предмет решения владельца) и
+    сколько опубликованных чисел едут без рода (`*_source`). Классы «писатель не
+    объявляет себя» и «писатель в запрещённом домене» ИЗМЕРЕНЫ тем же прибором,
+    но пробу не гейтят: их радиус больше этого заказа, они названы карточкой, и
+    у каждого свой потолок в самом приборе.
+
+    **Возраста у этого вопроса НЕТ, и это не упущение** (тот же довод, что у
+    `apy_provenance_declared_in_the_door`): операнд — ДЕРЕВО КОДА, а не артефакт,
+    протухнуть ему нечем. Проба только читает исходники: ни сети, ни живого
+    `data/`, ни вызова адаптеров.
+    """
+    try:
+        census = _writer_census_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не загружена: {type(exc).__name__}: {exc}"
+    try:
+        rep = census.measure()
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+
+    c = rep.get("counts") or {}
+    cl = rep.get("ceilings") or {}
+    if not c.get("writers"):
+        return UNMEASURED, ("писателей не найдено ВОВСЕ — у артефакта есть "
+                            "`generated_by`, значит писатель существует; ноль "
+                            "здесь есть отказ меры, а не чистота")
+    for key, label in (("writer_unmeasured", "цель записи не раскрыта"),
+                       ("literal_unmeasured", "значение числа не разобрано"),
+                       ("caller_supplied", "цель приходит от вызывающего")):
+        if c.get(key, 0) > cl.get(key, 0):
+            return UNMEASURED, (f"НЕ ИЗМЕРЕНО ({label}): {c[key]} > потолок "
+                                f"{cl.get(key)}")
+
+    if c.get("literal_substitution", 0) > cl.get("literal_substitution", 0):
+        names = " · ".join(
+            f"{s['file']}:{s['line']} поле {s['field']} = .get({s['source_key']!r}, "
+            f"{s['literal']})" for s in (rep.get("substitutions") or [])[:4])
+        return NOT_SATISFIED, (
+            f"ЛИТЕРАЛ производителя доезжает до опубликованного числа у "
+            f"{c['literal_substitution']} площадки(ок): {names}")
+    if c.get("provenance_absent", 0) > cl.get("provenance_absent", 0):
+        names = " · ".join(f"{s['file']}:{s['line']}"
+                           for s in (rep.get("provenance_absent") or [])[:4])
+        return NOT_SATISFIED, (
+            f"опубликованное число едет БЕЗ рода (`*_source`) у "
+            f"{c['provenance_absent']} словаря(ей) при потолке "
+            f"{cl.get('provenance_absent')}: {names}")
+
+    return SATISFIED, (
+        f"писателей {c['writers']} (объявляется "
+        f"{c['writers'] - c.get('undeclared', 0)}), литерал до опубликованного "
+        f"числа не доезжает ни у одной площадки, чисел без рода "
+        f"{c.get('provenance_absent')} при потолке {cl.get('provenance_absent')}")
+
+
 #: Имя переписи доминирования KEEP в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
 #: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
 #: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
@@ -4934,6 +5030,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
     "apy_provenance_declared_in_the_door":
         _probe_apy_provenance_declared_in_the_door,
+    "adapter_status_number_has_a_writer":
+        _probe_adapter_status_number_has_a_writer,
     "economics_net_return_dominates_keep":
         _probe_economics_net_return_dominates_keep,
     "persistence_advantage_outlives_horizon":

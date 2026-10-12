@@ -46,6 +46,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from spa_core.utils.atomic import atomic_save
+
 log = logging.getLogger(__name__)
 
 # Repo root: spa_core/execution/adapter_status.py → parent.parent.parent.
@@ -397,9 +399,13 @@ def write_status_json(path: str | os.PathLike[str] | None = None) -> str:
     out_path = Path(path) if path is not None else _DEFAULT_OUTPUT
     out_path.parent.mkdir(parents=True, exist_ok=True)
     document = build_status_document()
-    with out_path.open("w", encoding="utf-8") as fh:
-        json.dump(document, fh, indent=2)
-        fh.write("\n")
+    # ADR-707: инв. #5 — state-файл пишется tmp + os.replace, НИКОГДА прямым
+    # `open(..., "w")`. Прежняя форма рвала `adapter_status.json` на половине при
+    # любом сбое записи, а читают его шесть потребителей, включая отчёт владельцу
+    # и `golive_checker`; порванный JSON они видят как «артефакта нет».
+    # Перепись `scripts/adapter_status_writer_census.py` назвала этот writer
+    # единственным неатомарным из пяти.
+    atomic_save(document, str(out_path))
     log.info("adapter status written to %s", out_path)
     return str(out_path)
 

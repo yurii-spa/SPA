@@ -1003,6 +1003,45 @@ def _merge_gsm_hours(adapters: dict, data_dir: Path) -> None:
             row["gsm_witnesses"] = doc.get("witnesses") or []
 
 
+def _shadow_apy(entry: dict) -> tuple[Optional[float], Optional[str]]:
+    """Ставка теневого верхнеуровневого блока и её РОД. Одна копия правила.
+
+    Теневые блоки (`morpho_steakhouse` / `aave_arbitrum` / `pendle_pt`) дублируют
+    число из ``adapters[key]`` для потребителей, не переехавших на вложенный
+    формат. До ADR-707 дубль брался как ``entry.get("apy", <литерал>)``, и у трёх
+    блоков литералы были ``6.5``, ``4.1``, ``8.0``.
+
+    **Почему это был дефект, а не удобство.** Литерал подставлялся ровно тогда,
+    когда записи в ``adapters`` НЕТ — то есть когда `adapter_registry.json` не
+    прочитан (`generate` ставит ``adapters_meta = {}`` на любой `OSError` /
+    `JSONDecodeError`), а значит в момент, когда система знает МЕНЬШЕ всего.
+    И его читали назад: `aave_arbitrum_adapter._load_apy_from_status()` берёт
+    ``doc["aave_arbitrum"]["apy"]`` и отдаёт как ``get_apy()``, чей докстринг
+    обещает «наблюдения нет ⇒ ``None``» со ссылкой на решение владельца
+    2026-08-08, которым подстановка ``APY_FALLBACK = 4.1`` из адаптера и была
+    УДАЛЕНА. Удаление исполнили у читателя и проиграли одним хопом выше:
+    то же число лежало у писателя, и путь замыкался через файл.
+
+    **Три исхода различимы (инв. #17):**
+      * запись есть и в ней живое наблюдение ⇒ ``(число, "live")``;
+      * запись есть, число — ``fallback_pct`` реестра ⇒ ``(число, "static")``;
+      * записи нет ВОВСЕ ⇒ ``(None, None)`` — отсутствие наблюдения есть
+        отдельное значение, а не литерал. Оба читателя-адаптера уже устроены
+        верно (``isinstance(apy, (int, float))``), поэтому ``None`` доезжает до
+        них как «наблюдения нет», то есть как решение владельца и требовало.
+
+    Род называется словарём ADR-706 (``live`` / ``static``), а не своим: вопрос
+    «наблюдение это или постоянная» в системе ОДИН, и ответов на него не должно
+    быть двух.
+    """
+    if not isinstance(entry, dict) or "apy" not in entry:
+        return None, None
+    apy = entry.get("apy")
+    if not isinstance(apy, (int, float)) or isinstance(apy, bool):
+        return None, None
+    return float(apy), ("live" if entry.get("live_apy") is not None else "static")
+
+
 def generate(
     registry_path: Path = _REGISTRY_FILE,
     output_path: Path = _STATUS_FILE,
@@ -1218,14 +1257,18 @@ def generate(
     # aave_arbitrum_adapter.py      → doc["aave_arbitrum"]["apy"]
     # apy_aggregator.py sections 2-4 → doc.get("morpho_steakhouse" / "aave_arbitrum" / "pendle_pt")
 
+    # Число теневого блока и его РОД — одной копией правила (`_shadow_apy`).
+    # До ADR-707 здесь стояли три литерала (`6.5`, `4.1`, `8.0`) вторым аргументом
+    # `.get`, и это был прямой ответ на вопрос карточки 29.08 «константа в коде
+    # производителя или ручная правка»: константа, и ровно в этом файле.
     ms_entry = adapters.get("morpho_steakhouse", {})
-    ms_apy = ms_entry.get("apy", 6.5)
+    ms_apy, ms_apy_source = _shadow_apy(ms_entry)
 
     arb_entry = adapters.get("aave_arbitrum", {})
-    arb_apy = arb_entry.get("apy", 4.1)
+    arb_apy, arb_apy_source = _shadow_apy(arb_entry)
 
     pendle_entry = adapters.get("pendle_pt", adapters.get("pendle", {}))
-    pendle_apy = pendle_entry.get("apy", 8.0)
+    pendle_apy, pendle_apy_source = _shadow_apy(pendle_entry)
 
     doc: dict[str, Any] = {
         "schema_version":   SCHEMA_VERSION,
@@ -1242,19 +1285,23 @@ def generate(
         # been migrated to the new nested format.
         "morpho_steakhouse": {
             "apy":          ms_apy,
+            "apy_source":   ms_apy_source,
             "protocol_key": "morpho-blue",
-            "bps_gain":     round(max(0.0, ms_apy - 3.2) * 100.0, 1),
+            "bps_gain":     (round(max(0.0, ms_apy - 3.2) * 100.0, 1)
+                             if ms_apy is not None else None),
             "tier":         "T1",
             "tvl_usd":      ms_entry.get("tvl_usd", _TVL_ESTIMATES.get("morpho_steakhouse", 0.0)),
         },
         "aave_arbitrum": {
-            "apy":      arb_apy,
-            "tier":     "T1",
-            "network":  "arbitrum",
-            "tvl_usd":  arb_entry.get("tvl_usd", _TVL_ESTIMATES.get("aave_arbitrum", 0.0)),
+            "apy":        arb_apy,
+            "apy_source": arb_apy_source,
+            "tier":       "T1",
+            "network":    "arbitrum",
+            "tvl_usd":    arb_entry.get("tvl_usd", _TVL_ESTIMATES.get("aave_arbitrum", 0.0)),
         },
         "pendle_pt": {
             "apy":          pendle_apy,
+            "apy_source":   pendle_apy_source,
             "tier":         "T2",
             "chain":        "ethereum",
             "protocol_key": "pendle-pt",
