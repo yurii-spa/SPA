@@ -836,9 +836,23 @@ def _office_module():
 
 
 def _doc(**over):
-    """Документ в форме, которую РЕАЛЬНО пишет `build_report`, а не выдуманной."""
-    doc = {"generated_at": _anchor().isoformat(),
-           "counts": {doors.REACHES: 48, doors.WALL_CLOCK: 1}}
+    """Документ в форме, которую РЕАЛЬНО пишет `build_report`.
+
+    ИЗМЕНЕНО НАМЕРЕННО (цикл #845, ADR-701, заказ G699 п. 1; инв. #16 —
+    обоснование здесь и в `docs/journal/2026-W42.md`): прежняя редакция ЭТУ
+    ЖЕ форму ОБЕЩАЛА строкой докстринга, а несла 1 объявленный путь из 9 —
+    `build_report` пишет `adr`, `order`, `applied`, `population`,
+    `findings_total`, `unmeasured_total`, `arms` и `rows` БЕЗУСЛОВНО, литералом
+    словаря. Проза, называющая форму, её не производит, поэтому форма теперь
+    СОБИРАЕТСЯ производителем и разойтись с ним не может по построению.
+    Переопределения (`rows="НЕ СПИСОК"`, `counts="НЕ СЛОВАРЬ"`) работают как
+    прежде — они накладываются ПОСЛЕ и ни одно утверждение сцен не тронуто.
+    """
+    doc = doors.build_report(
+        {"measured_in": "sandbox", "planned": 99, "arms": {}, "rows": [],
+         "population_reason": None,
+         "counts": {doors.REACHES: 48, doors.WALL_CLOCK: 1}},
+        _anchor())
     doc.update(over)
     return doc
 

@@ -98,6 +98,7 @@ class TestOfficeStepPrintsTheNames(unittest.TestCase):
             "_cor_under_test", root / "scripts" / "consume_office_reports.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
+        # SCHEMA-GAP-OK: фикстура — ДОСЛОВНЫЕ байты прод-снимка loop_health, написанные до доставки ключа closure_drift; дописать ключ значило бы отменить положительный контроль на тех самых байтах
         return "\n".join(mod._summarize_json("loop_health.json", doc))
 
     def _doc(self, **over):

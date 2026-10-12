@@ -936,6 +936,7 @@ class OfficeStepReaderTest(unittest.TestCase):
 
     def _lines(self, block):
         m = self._consume()
+        # SCHEMA-GAP-OK: предмет ФАЙЛА — слышимость блока `owner_answer_delivery`, и сцена подаёт его отсутствие НАРОЧНО (`if block is not None`); `censuses` производитель пишет условно
         return m._summarize_json("data/findings_bridge_report.json", self._report(block),
                                  now=NOW)
 

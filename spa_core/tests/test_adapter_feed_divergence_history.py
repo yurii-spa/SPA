@@ -322,6 +322,7 @@ class TestWiring(unittest.TestCase):
             "_cor2", os.path.join(repo, "scripts", "consume_office_reports.py"))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
+        # SCHEMA-GAP-OK: отчёт СТАРОГО образца — предмет сцены ровно в том, что блока history.* в нём НЕТ, и различает это один `_schema_gap`
         text = "\n".join(mod._summarize_json("data/adapter_feed_divergence.json", {
             "overall": "OK", "counts": {"critical": 0, "warn": 0, "info": 0, "unchecked": 0},
             "compared_protocols": ["aave_v3"], "unchecked": [], "findings": []}))

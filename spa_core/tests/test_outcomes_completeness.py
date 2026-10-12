@@ -264,6 +264,7 @@ class OfficeStepReadsRetro(unittest.TestCase):
             os.path.join(REPO_ROOT, "scripts", "consume_office_reports.py"))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
+        # SCHEMA-GAP-OK: общий помощник сцен, часть которых НАМЕРЕННО снимает раздел (контроль «СТАРОГО ОБРАЗЦА»): объединение зовущих законно без него
         return "\n".join(mod._summarize_json(
             "data/loop_retro.json", data,
             now=dt.datetime(2026, 8, 16, 9, 30, tzinfo=dt.timezone.utc),

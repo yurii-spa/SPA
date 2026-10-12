@@ -220,6 +220,20 @@ class TestTheOfficeStepReadsThem(unittest.TestCase):
             "history": {"status": "OK", "books_measured": 2, "coverage_pct_min": 75.0,
                         "coverage_pct_max": 100.0, "window_truncated": False,
                         "covered_days": 30.0, "window_days": 30.0, "books_unmeasured": 0},
+            # ДОБАВЛЕНО НАМЕРЕННО (цикл #845, ADR-701, заказ G699 п. 1; инв. #16
+            # — обоснование здесь и в `docs/journal/2026-W42.md`): производитель
+            # пишет эти ключи БЕЗУСЛОВНО (`capital_evidence_coverage.py`,
+            # литерал отчёта + `report["books"]`/`report["all_books"]`), а
+            # фикстура от схемы отстала и несла 19 объявленных путей из 26.
+            # Ни одно утверждение сцены ниже не тронуто: предмет её — что у
+            # доли КАПИТАЛА есть ИМЕННАЯ ветка, а не generic-ветка.
+            "population": "conservative (current_positions.json)",
+            "verdict_live_track": "UNCHECKED",
+            "books": [],
+            "all_books": {"books_declared": ["conservative"],
+                          "books_measured": ["conservative"],
+                          "books_unmeasured": [], "coverage_pct": 75.0,
+                          "verdict": "UNCHECKED"},
         }
         text = "\n".join(
             mod._summarize_json("data/capital_evidence_coverage.json", report, now=NOW)

@@ -140,6 +140,7 @@ def test_house_view_gap_counts_come_from_the_real_keys() -> None:
 def test_missing_counter_is_named_unmeasured_never_none() -> None:
     """Отсутствующий счётчик — НЕ ноль и не `None`, а «НЕ ИЗМЕРЕНО» (fail-CLOSED)."""
     broken = dict(HOUSE_VIEW_GAP_REAL, counts={"warn": 0})  # info/unchecked пропали
+    # SCHEMA-GAP-OK: счётчики сняты НАМЕРЕННО — предмет сцены в том, что отсутствующий счётчик зовётся «НЕ ИЗМЕРЕНО», а не нулём и не `None`
     out = _text(MOD._summarize_json("data/house_view_gap.json", broken, now=NOW))
     assert "info=НЕ ИЗМЕРЕНО" in out, out
     assert "unchecked=НЕ ИЗМЕРЕНО" in out, out
@@ -592,11 +593,13 @@ def test_main_still_names_a_missing_file(tmp_path) -> None:
 
 def test_old_positional_call_still_works() -> None:
     """Соседний тест (`test_card_delivery`) зовёт выжимку двумя аргументами."""
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json", {
         "generated_at": "2026-08-09T01:02:56.598582+00:00",
         "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
         "escalated": [], "sources_unread": [], "open_cards": 0,
         "delivery": {"status": "IDLE", "delivered": []},
+        "owner_answer_delivery": {"status": "IDLE", "delivered": [], "already_on_origin": [], "pending": [], "conflicts": [], "unmeasured": []},
     }))
     assert "мост находка→карточка" in out, out
     assert "доставка карточек: IDLE" in out, out
@@ -610,10 +613,14 @@ def test_cards_already_on_origin_are_named_not_swallowed() -> None:
     Долг чинится в самой доставке, но исход обязан быть СЛЫШЕН и здесь — иначе
     доказанное покрытие неотличимо от прогона, которому нечего было везти.
     """
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json", {
         "generated_at": "2026-08-17T01:03:50.692720+00:00",
         "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
         "escalated": [], "sources_unread": [], "open_cards": 0,
+        "owner_answer_delivery": {"status": "IDLE", "delivered": [],
+                                  "already_on_origin": [], "pending": [],
+                                  "conflicts": [], "unmeasured": []},
         "delivery": {"status": "IDLE", "delivered": [], "covered_by_origin": [
             {"path": "nimbalyst-local/tracker/inbox-nahodka.md", "reason": "…"}]},
     }))
@@ -622,10 +629,14 @@ def test_cards_already_on_origin_are_named_not_swallowed() -> None:
 
 def test_a_run_with_nothing_to_carry_gains_no_extra_words() -> None:
     """ОБРАТНЫЙ КОНТРОЛЬ: без покрытия строка остаётся прежней."""
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json", {
         "generated_at": "2026-08-17T01:03:50.692720+00:00",
         "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
         "escalated": [], "sources_unread": [], "open_cards": 0,
+        "owner_answer_delivery": {"status": "IDLE", "delivered": [],
+                                  "already_on_origin": [], "pending": [],
+                                  "conflicts": [], "unmeasured": []},
         "delivery": {"status": "IDLE", "delivered": [], "covered_by_origin": []},
     }))
     assert "доставка карточек: IDLE (0 на origin)" in out, out
@@ -650,6 +661,7 @@ def _bridge(delivery: dict, owner_answers: dict | None = None) -> str:
     # не тронуто; отсутствие блока по-прежнему обязано быть СЛЫШНО, и это
     # проверяется отдельно (`test_owner_answer_delivery.py::OfficeStepReaderTest`),
     # то есть здешняя правка ничего не заглушает.
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     return _text(MOD._summarize_json("data/findings_bridge_report.json", {
         "generated_at": "2026-08-12T19:03:13.159157+00:00",
         "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
@@ -989,6 +1001,7 @@ def _lh(**over) -> dict:
 
 def test_loop_health_prod_snapshot_is_no_longer_rendered_as_empty() -> None:
     """Положительный контроль: ТЕ ЖЕ байты, что дали «(пусто)» 28.08."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
                                     now=NOW_LH))
     assert "(пусто)" not in out, out
@@ -1000,6 +1013,7 @@ def test_loop_health_recurrences_reach_the_session_context() -> None:
 
     Три находки вернулись после закрытия, и обязательный шаг молчал об этом.
     """
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
                                     now=NOW_LH))
     assert "🔴 РЕЦИДИВ: 3" in out, out
@@ -1011,6 +1025,7 @@ def test_loop_health_unreadable_cards_are_named_unmeasured_not_summed() -> None:
     Сложить его с любой из двух долей значит выдать неизмеренное за
     благополучие — ровно тот fail-OPEN, ради которого заведён весь файл.
     """
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
                                     now=NOW_LH))
     assert "статус 4 карточк(и) моста НЕ ИЗМЕРЕНО" in out, out
@@ -1019,6 +1034,7 @@ def test_loop_health_unreadable_cards_are_named_unmeasured_not_summed() -> None:
 
 def test_loop_health_latency_tail_is_printed_not_just_the_median() -> None:
     """Максимум 66ч — это хвост, ради которого метрику и завели."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_PROD,
                                     now=NOW_LH))
     assert "латентность карточка→закрытие: медиана 12.02ч · максимум 66.01ч" in out, out
@@ -1030,6 +1046,7 @@ def test_loop_health_producer_caveat_is_not_swallowed() -> None:
 
     Без неё числа читаются увереннее, чем их написал автор.
     """
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json(
         "data/loop_health.json",
         _lh(note="мало истории — медианы по n<5 не интерпретировать",
@@ -1040,6 +1057,7 @@ def test_loop_health_producer_caveat_is_not_swallowed() -> None:
 
 def test_loop_health_quiet_loop_is_not_narrated_as_alarm() -> None:
     """Обратный контроль: здоровая петля не должна печатать ни 🔴, ни НЕ ИЗМЕРЕНО."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json(
         "data/loop_health.json",
         _lh(recurrences_total=0,
@@ -1057,6 +1075,7 @@ def test_loop_health_old_report_without_cards_fate_says_unmeasured() -> None:
     doc = _lh()
     doc.pop("cards_fate")
     doc.pop("recurrences_total")
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH))
     assert "судьба карточек петли НЕ ИЗМЕРЕНО" in out, out
     assert "рецидивы НЕ ИЗМЕРЕНО" in out, out
@@ -1065,6 +1084,7 @@ def test_loop_health_old_report_without_cards_fate_says_unmeasured() -> None:
 
 def test_loop_health_empty_latency_says_nothing_to_measure() -> None:
     """n=0 — «измерять нечего», а не «мгновенно»: ноль ≠ отсутствие."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json(
         "data/loop_health.json",
         _lh(latency_card_to_close={"median_h": None, "max_h": None, "n": 0}),
@@ -1122,6 +1142,7 @@ NOW_LH_TODAY = at("2026-08-29T07:15:00+00:00")
 
 def test_loop_health_out_of_enumeration_status_is_not_called_unmeasured() -> None:
     """Положительный контроль: `ingested` — измеренное состояние, а не слепое пятно."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
                                     now=NOW_LH_TODAY))
     assert "НЕ ИЗМЕРЕНО" not in out, out
@@ -1129,6 +1150,7 @@ def test_loop_health_out_of_enumeration_status_is_not_called_unmeasured() -> Non
 
 
 def test_loop_health_out_of_enumeration_cards_are_named_with_their_status() -> None:
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
                                     now=NOW_LH_TODAY))
     assert "owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md (ingested)" in out, out
@@ -1137,6 +1159,7 @@ def test_loop_health_out_of_enumeration_cards_are_named_with_their_status() -> N
 
 def test_loop_health_live_recurrence_is_told_apart_from_historical() -> None:
     """Настоящее время — только для находок, которые СЕЙЧАС на доске."""
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", LOOP_HEALTH_TODAY,
                                     now=NOW_LH_TODAY))
     assert "РЕЦИДИВ ЖИВОЙ: 2" in out, out
@@ -1148,6 +1171,7 @@ def test_loop_health_no_live_recurrence_stops_demanding_action() -> None:
     doc = _clone(LOOP_HEALTH_TODAY)
     doc["recurrence_liveness"] = {"live": 0, "historical": 4,
                                   "historical_last_seen": "2026-08-26T19:13:52+00:00"}
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
     assert "рецидивов на доске СЕЙЧАС нет" in out, out
     assert "🔴" not in out, out
@@ -1158,6 +1182,7 @@ def test_loop_health_old_report_says_liveness_is_unmeasured_not_silent() -> None
     это вслух, а не молчать. Красный на старом читателе — он такого слова не знал."""
     doc = _clone(LOOP_HEALTH_TODAY)
     doc.pop("recurrence_liveness")
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
     assert "🔴 РЕЦИДИВ: 4" in out, out
     assert "живой рецидив от исторического НЕ ИЗМЕРЕНО" in out, out
@@ -1170,6 +1195,7 @@ def test_loop_health_genuinely_unreadable_card_is_still_loud_and_named() -> None
     doc["cards_fate"] = dict(doc["cards_fate"], other_status=0, unreadable=1)
     doc["cards_other_status"] = []
     doc["cards_unreadable"] = [{"key": "B1:zombie:com.spa.x", "card": "/x/inbox-propala.md"}]
+    # SCHEMA-GAP-OK: `LOOP_HEALTH_PROD`/`LOOP_HEALTH_TODAY` — ДОСЛОВНЫЕ байты прод-снимков 27–29.08, написанные до доставки ключа `closure_drift`; дописать ключ значило бы отменить положительный контроль, который на ИМЕННО ЭТИХ байтах и стои́т
     out = _text(MOD._summarize_json("data/loop_health.json", doc, now=NOW_LH_TODAY))
     assert "статус 1 карточк(и) моста НЕ ИЗМЕРЕНО" in out, out
     assert "inbox-propala.md" in out, out
@@ -1397,14 +1423,25 @@ def test_ratchet_baseline_is_not_stale() -> None:
 # моста, воспроизведённая одним уровнем выше.
 
 def _bridge_report_c417(**extra):
+    # ДОБАВЛЕНО НАМЕРЕННО (цикл #845, ADR-701, заказ G699 п. 1; инв. #16 —
+    # обоснование здесь и в `docs/journal/2026-W42.md`): ключ
+    # `owner_answer_delivery` производитель (`findings_bridge.py`) пишет
+    # БЕЗУСЛОВНО литералом отчёта, и фикстура без него есть отчёт, которого не
+    # пишет НИКТО. Приводится к форме производителя — тот же порядок, что у
+    # `_bridge` в #247 и у блока `debt` в #204. Ни одно утверждение сцен,
+    # зовущих этот помощник, не тронуто: они про `closing_hysteresis`.
     return dict({"generated_at": "2026-08-28T17:31:40.867625+00:00",
                  "created": [], "closed": [], "deferred": [], "waiting_hysteresis": [],
                  "escalated": [], "sources_unread": [], "open_cards": 1,
+                 "owner_answer_delivery": {"status": "IDLE", "delivered": [],
+                                           "already_on_origin": [], "pending": [],
+                                           "conflicts": [], "unmeasured": []},
                  "delivery": {"status": "IDLE", "delivered": []}}, **extra)
 
 
 def test_closing_hysteresis_is_named_with_the_card_and_the_streak() -> None:
     """Ждущая закрытия карточка НАЗВАНА, и назван счёт прогонов подряд."""
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json", _bridge_report_c417(
         closing_hysteresis=[{"key": "gap:opportunity_unnamed:spark_susds",
                              "card": "nimbalyst-local/tracker/inbox-spark.md",
@@ -1420,6 +1457,7 @@ def test_report_written_before_adr_161_raises_no_schema_alarm() -> None:
     Отчёты, написанные до ADR-161, законно не имеют `closing_hysteresis`.
     Внести его в `_READ_SCHEMA` значило бы поднять «СХЕМА РАЗОШЛАСЬ» на
     собственной доставке — класс «сторож краснеет на нашей же правке»."""
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json", _bridge_report_c417()))
     assert "СХЕМА РАЗОШЛАСЬ" not in out, out
     assert "ждут ЗАКРЫТИЯ" not in out, out
@@ -1427,6 +1465,7 @@ def test_report_written_before_adr_161_raises_no_schema_alarm() -> None:
 
 def test_empty_closing_list_stays_silent() -> None:
     """Пустой список — измеренный ноль, а не повод печатать строку ожидания."""
+    # SCHEMA-GAP-OK: `censuses` производитель пишет УСЛОВНО (`if censuses is not None`; ступень переписей ведёт `main()`, а не `run_bridge`) — прямой зов моста ступени не исполняет, и отсутствие ключа есть его ЗАКОННАЯ форма, а не отставание фикстуры
     out = _text(MOD._summarize_json("data/findings_bridge_report.json",
                                     _bridge_report_c417(closing_hysteresis=[])))
     assert "ждут ЗАКРЫТИЯ" not in out, out

@@ -1059,3 +1059,107 @@ class DefinitionsAreResolvedByOwnerNotByName(_SceneCase):
         self.assertIn("self_outside_class", gap._BUILT_BY_CALL)
         self.assertIn("call_unresolved", gap._BUILT_BY_CALL)
         self.assertIn("helper_returns_no_dict", gap._BUILT_BY_CALL)
+
+
+class ANestedContainerBuiltByACallIsNotAnAbsentPath(_SceneCase):
+    """Заказ G699 п. 1 / ADR-701: ЧЕТВЁРТАЯ форма объединения — вложенность.
+
+    ADR-699 связал имена ОБЛАСТЬЮ, ADR-700 развёл определения и вызовы по
+    ВЛАДЕЛЬЦУ. Осталась дверь, которой не было названо ни одной: документ
+    разрешён до словаря, а его ВЛОЖЕННЫЙ контейнер собран вызовом. Разбор
+    ставит там `LEAF`, и `has_path(doc, "counts.x")` отвечает `False` — не
+    потому, что фикстура ключа не несёт, а потому что заглянуть внутрь не
+    удалось. Замер #845: 34 пары из 199 (ключ
+    `test_list_candidate_readers.py::list_identity_census.json`, 17 путей на
+    двух площадках) были обвинены ЛОЖНО — и именно там фикстура несёт пути
+    НАСТОЯЩИМ помощником производителя (`census.tally(ROWS)`), то есть
+    обвинение падало на самую честную форму фикстуры из возможных.
+    """
+
+    SCHEMA = {"q.json": ("status", "counts.lists_total", "counts.day_axis")}
+
+    BY_CALL = '''
+        import producer
+
+        def t():
+            counts = producer.tally(ROWS)
+            return office._summarize_json("data/q.json", {
+                "status": "FINDING", "counts": counts})
+    '''
+
+    def test_an_unresolved_nested_container_is_a_named_third_outcome(self):
+        self.scene.write("test_q.py", self.BY_CALL)
+        census = self.scene.measure(self.SCHEMA)
+        # НЕ население: путей, которых фикстура не несёт, здесь не измерено.
+        self.assertEqual(census.population, [])
+        # И НЕ «НЕ ИЗМЕРЕНО» двери: документ-то разрешён, площадка есть.
+        self.assertEqual(census.unmeasured, [])
+        paths = sorted(row[2] for row in census.nested_unresolved)
+        self.assertEqual(paths, ["counts.day_axis", "counts.lists_total"])
+
+    def test_the_outcome_names_the_container_where_resolution_stopped(self):
+        """Причина обязана быть действенной: назван РОДИТЕЛЬ, а не просто путь."""
+        self.scene.write("test_q.py", self.BY_CALL)
+        census = self.scene.measure(self.SCHEMA)
+        # Утверждение о НАСЕЛЕНИИ стои́т первым нарочно: оно выразимо в ОБЕИХ
+        # редакциях прибора, поэтому на прежнем операнде этот контроль краснеет
+        # ПОВЕДЕНЧЕСКИ, а не падает об отсутствующее поле исхода.
+        self.assertEqual(census.population, [])
+        self.assertEqual({row[3] for row in census.nested_unresolved},
+                         {"counts"})
+        self.assertEqual({row[1] for row in census.nested_unresolved},
+                         {"q.json"})
+
+    def test_a_nested_literal_that_really_lacks_the_key_is_STILL_population(self):
+        """ОБРАТНЫЙ КОНТРОЛЬ: раскрытый контейнер судится как прежде.
+
+        Без этой проверки новый исход был бы лазейкой: «вложено ⇒ не мой
+        предмет» сняло бы класс целиком, а он измерен и живой.
+        """
+        self.scene.write("test_q.py", '''
+            def t():
+                return office._summarize_json("data/q.json", {
+                    "status": "FINDING", "counts": {"lists_total": 3}})
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.nested_unresolved, [])
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.day_axis",)])
+
+    def test_an_absent_top_level_container_is_population_not_unresolved(self):
+        """«Контейнера нет вовсе» и «контейнер не раскрыт» — разные ответы."""
+        self.scene.write("test_q.py", '''
+            def t():
+                return office._summarize_json("data/q.json", {"status": "OK"})
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.nested_unresolved, [])
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.lists_total", "counts.day_axis")])
+
+    def test_a_resolved_nested_container_loses_no_coverage(self):
+        """Исправление не куплено слепотой: несомый путь по-прежнему несом."""
+        self.scene.write("test_q.py", '''
+            def t():
+                return office._summarize_json("data/q.json", {
+                    "status": "OK",
+                    "counts": {"lists_total": 3, "day_axis": {"status": "OK"}}})
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.nested_unresolved, [])
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual(len(census.sites), 1)
+
+    def test_the_container_is_asked_of_the_OFFICE_rule_not_re_implemented(self):
+        """Правило «ЕСТЬ ли поле» остаётся ОДНО — чужое, приведённое входом.
+
+        Новый исход лишь классифицирует УЖЕ полученный отрицательный ответ.
+        Контроль: подменяем правило на «всё есть» — и тогда отрицательных
+        ответов нет вовсе, значит и третьего исхода быть не может.
+        """
+        self.scene.write("test_q.py", self.BY_CALL)
+        census = self.scene.measure(self.SCHEMA,
+                                    has_path=lambda doc, path: True)
+        self.assertEqual(census.nested_unresolved, [])
+        self.assertEqual(census.population, [])

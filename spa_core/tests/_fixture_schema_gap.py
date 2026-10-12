@@ -144,6 +144,11 @@ class Census:
     built_by_call: list[tuple[str, str]] = field(default_factory=list)
     unmeasured: list[tuple[str, str]] = field(default_factory=list)
     marker_without_reason: list[tuple[str, int]] = field(default_factory=list)
+    #: Пара «площадка × объявленный путь», у которой ПРОМЕЖУТОЧНЫЙ контейнер
+    #: разбором не раскрыт (его собрал вызов): `(где, артефакт, путь, родитель)`.
+    #: Это НЕ «фикстура не несёт путь» и НЕ «документа нет» — см. ADR-701.
+    nested_unresolved: list[tuple[str, str, str, str]] = field(
+        default_factory=list)
 
     @property
     def population(self) -> list[Site]:
@@ -178,6 +183,39 @@ class Census:
         for s in self.population:
             out.setdefault(s.key, set()).update(s.missing)
         return {k: tuple(sorted(v)) for k, v in sorted(out.items())}
+
+
+def _absent_because(doc: dict, path: str) -> str | None:
+    """ПОЧЕМУ объявленного пути в документе нет: отсутствует или НЕ РАСКРЫТ.
+
+    Мера НЕ переспрашивает «есть ли путь» — на это отвечает `has_path` шага
+    0-офис, и второй копии правила здесь нет (то же основание, что у
+    `measure`). Эта функция классифицирует УЖЕ полученный отрицательный
+    ответ, и различение не косметическое: «фикстура ключа не несёт» и «я не
+    смог заглянуть внутрь контейнера» — разные утверждения, и второе есть
+    третий исход (инв. #17).
+
+    Замер ADR-701: у `test_list_candidate_readers.py` документ собран
+    литералом, но его `counts` — результат `census.tally(ROWS)`, то есть
+    вызов ПРОИЗВОДИТЕЛЬСКОГО помощника вне файла. Разбор ставит там `LEAF`,
+    и `has_path(doc, "counts.candidate_kind")` отвечает `False` — не потому,
+    что фикстура ключа не несёт (она несёт его настоящим `tally`), а потому
+    что заглянуть внутрь не удалось. 34 пары из 199 были обвинены ЛОЖНО.
+
+    Возвращает путь-родителя, на котором разбор упёрся в лист, либо `None`,
+    если путь ОТСУТСТВУЕТ по-настоящему.
+    """
+    cur = doc
+    walked: list[str] = []
+    for part in path.split("."):
+        if cur == LEAF:
+            # Контейнер есть, но он не раскрыт: вопрос НЕ ИЗМЕРЕН.
+            return ".".join(walked)
+        if not isinstance(cur, dict) or part not in cur:
+            return None
+        walked.append(part)
+        cur = cur[part]
+    return None
 
 
 def _merge(dst: dict, src: dict) -> None:
@@ -883,7 +921,19 @@ def measure(*, schema: dict, has_path, root: str,
                 else:
                     census.unmeasured.append((where, f"doc_unresolved:{why}"))
                 continue
-            missing = tuple(p for p in schema[artifact] if not has_path(doc, p))
+            missing_paths: list[str] = []
+            for p in schema[artifact]:
+                if has_path(doc, p):
+                    continue
+                parent = _absent_because(doc, p)
+                if parent is not None:
+                    # Третий исход: родитель собран ВЫЗОВОМ и не раскрыт.
+                    # В население не входит и нулём не становится — он НАЗВАН.
+                    census.nested_unresolved.append(
+                        (where, artifact, p, parent))
+                    continue
+                missing_paths.append(p)
+            missing = tuple(missing_paths)
             reason, bare = _exemption(lines, node.lineno,
                                       _span_of(spans, node.lineno))
             if bare and reason is None and missing:

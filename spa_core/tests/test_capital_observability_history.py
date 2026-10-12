@@ -572,6 +572,7 @@ class WiredAtBirth(unittest.TestCase):
                          "spa_core/monitoring/capital_observability_history.py")
         sentinel = "СТРОКА-МАЯК ФОРМАТТЕРА"
         with mock.patch.object(coh, "format_report", return_value=[sentinel]):
+            # SCHEMA-GAP-OK: документ-заглушка при ПОДМЕНЁННОМ форматтере — предмет сцены в том, КОГО зовёт диспетчер; содержимое документа ей безразлично по построению
             out = office._summarize_json(f"/tmp/{name}", {"status": "OK"},
                                          root=str(root))
         self.assertIn(sentinel, out)

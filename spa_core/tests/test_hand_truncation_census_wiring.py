@@ -146,6 +146,7 @@ class OfficeReadsTheNumberNotJustTheFile(unittest.TestCase):
     def test_an_unmeasured_document_is_not_rendered_as_clean(self):
         """ОБРАТНАЯ СТОРОНА: третий исход обязан дойти до читателя третьим."""
         doc = {"status": "UNMEASURED", "reason": "корень дерева не прочитан: /нет"}
+        # SCHEMA-GAP-OK: документ ТРЕТЬЕГО исхода (status=UNMEASURED) — предмет сцены в том, что «НЕ ИЗМЕРЕНО» доходит до читателя третьим; полную схему на документе НАСТОЯЩЕГО производителя проверяет соседняя сцена того же файла
         lines = _office()._summarize_json(ARTIFACT_REL, doc)
         self.assertTrue(any("НЕ ИЗМЕРЕНО" in line for line in lines), lines)
 

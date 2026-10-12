@@ -827,6 +827,7 @@ class TheOfficeActuallyRENDERSTheAxis(unittest.TestCase):
         return doc
 
     def _render(self, doc: dict) -> str:
+        # SCHEMA-GAP-OK: сцена про ОСЬ ДНЯ — прочие оси того же артефакта суть предмет своих файлов, и их отсутствие здесь не отставание фикстуры
         return "\n".join(self.office._summarize_json(
             "list_identity_census.json", doc,
             now=dt.datetime(2026, 10, 11, 5, 0, tzinfo=dt.timezone.utc),
