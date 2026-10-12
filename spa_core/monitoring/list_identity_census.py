@@ -84,6 +84,10 @@ from spa_core.monitoring import candidate_denominator as cand_denom  # noqa: E40
 # у себя: население уезжает туда ВХОДОМ (готовой осью соседа), и вторая копия
 # правила населения здесь расходилась бы с первой молча.
 from spa_core.monitoring import finding_address_price as addr_price  # noqa: E402,E501
+# Заказ G115 п. 2. Население класса «модульная числовая постоянная как операнд»
+# живёт у себя и мерится ПОДСТАНОВКОЙ в настоящую ось: правила «что здесь
+# арифметика» здесь нет ни строки — вторая копия расходилась бы с осью молча.
+from spa_core.monitoring import modular_constant_operand as const_operand  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils import live_paths  # noqa: E402
 from spa_core.utils.observation import observed, observed_number  # noqa: E402
@@ -1060,6 +1064,20 @@ def tally(rows: Dict[str, dict], *,
             kind_census=((lambda names: field_kind.census(names,
                                                           Path(tree_root)))
                          if tree_root is not None else None)),
+        # Заказ G115 п. 2: НАСЕЛЕНИЕ третьей односторонности оси рода —
+        # модульной числовой постоянной в роли операнда. Отдельный ключ, а не
+        # поправка к оси рода: ось печатает род ИМЕНИ, а этот раздел отвечает,
+        # сколько МЕСТ кода ось не видит вовсе и задето ли ими хоть одно имя из
+        # тех, о которых перепись спрашивает. Если не задето ни одно — заказ
+        # велел записать это и закрыть, а не расширять ось на всякий случай, и
+        # число здесь — единственное, чем такое решение проверяемо.
+        #
+        # Перечень кандидатов и список имён уезжают ВХОДОМ (тот же приём, что у
+        # сетки порогов и адреса находки): пересчёт был бы второй копией
+        # правила. Дерева нет ⇒ население остаётся ТРЕТЬИМ ИСХОДОМ с причиной.
+        "constant_operand": const_operand.tally(
+            candidate_fields, probe.IDENTITY_FIELDS,
+            Path(tree_root) if tree_root is not None else None),
     }
 
 
@@ -1524,6 +1542,21 @@ def report(doc: dict, *, max_rows: int = 20,
         address_lines = [f"[АДРЕС НАХОДКИ] {line}"
                          for line in addr_price.report(address,
                                                        max_rows=max_fields)]
+    # Заказ G115 п. 2. Строки НАСЕЛЕНИЯ односторонности собираются ОДИН раз и
+    # печатаются в ОБЕИХ ветках ниже — тот же довод, что у четырёх разделов
+    # выше: на документе без кандидатов население отвечает своим третьим
+    # исходом, и промолчать о нём значило бы сделать отсутствие раздела
+    # неотличимым от «ось не видит ни одного места».
+    const_block = observed(c, "constant_operand", kind=dict)
+    if const_block is None:
+        const_lines = ["[ПОСТОЯННАЯ-ОПЕРАНД] НЕ ИЗМЕРЕНО: раздела населения "
+                       "третьей односторонности оси у документа нет вовсе "
+                       "(заказ G115 п. 2) — отчёт СТАРОГО ОБРАЗЦА, а не «ось "
+                       "не пропускает ни одного места»"]
+    else:
+        const_lines = [f"[ОСЬ·ОДНОСТОРОННОСТЬ] {line}"
+                       for line in const_operand.report(const_block,
+                                                        max_rows=max_fields)]
     fields = c.get("candidate_fields_outside") or {}
     if fields:
         strength = c.get("candidate_field_strength") or {}
@@ -1586,6 +1619,11 @@ def report(doc: dict, *, max_rows: int = 20,
         # нужно вовсе. Унести это в хвост значило бы дать принять решение о
         # дописывании имени, не узнав, что у части находок имя тут ни при чём.
         out.extend(address_lines)
+        # И НАСЕЛЕНИЕ ОДНОСТОРОННОСТИ — там же (заказ G115 п. 2): оно отвечает,
+        # сколько мест ось рода выше не видит ВООБЩЕ и задето ли ими хоть одно
+        # из имён, о которых идёт спор. Унести это в хвост значило бы дать
+        # прочитать род как полный ответ о коде, не узнав цены его слепоты.
+        out.extend(const_lines)
 
         rows = observed(c, "finding_rows", kind=list)
         if rows is None:
@@ -1618,6 +1656,7 @@ def report(doc: dict, *, max_rows: int = 20,
         out.extend(reader_lines)
         out.extend(denom_lines)
         out.extend(address_lines)
+        out.extend(const_lines)
     if c.get("truncated_readers"):
         out.append(f"[НЕ ДОСМОТРЕНО] обход упёрся в потолок у читателей: "
                    f"{', '.join(c['truncated_readers'])} — их списки в знаменатель "

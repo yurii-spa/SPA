@@ -50,6 +50,7 @@ from pathlib import Path
 
 from spa_core.monitoring import findings_bridge as fb
 from spa_core.monitoring import list_identity_census as census
+from spa_core.monitoring import modular_constant_operand as const_operand
 
 REPO = Path(__file__).resolve().parents[2]
 OFFICE = REPO / "scripts" / "consume_office_reports.py"
@@ -319,8 +320,36 @@ def _finding_doc() -> dict:
                 "verdict_reasons": ["1 находок разрешимы ТОЛЬКО адресом места"],
                 "what_it_does_not_prove": ["замер, а не правило"],
             },
+            # Заказ G115 п. 2 (ADR-697). Раздел НЕПУСТ по тому же правилу, что и
+            # вся фикстура (см. докстринг): поле, объявленное в `_READ_SCHEMA` и
+            # не несущее здесь значения, сделало бы дифференциальную проверку
+            # ниже слепой ровно к себе — удалять из фикстуры нечего, и
+            # «объявлено и не читается» покраснело бы на целой проводке. Ни одно
+            # утверждение не ослаблено: добавлено значение для НОВОГО
+            # объявленного поля, и считает его НАСТОЯЩИЙ прибор на одноразовом
+            # дереве, а не словарь из головы (урок #837).
+            "constant_operand": _const_operand_block(),
         },
     }
+
+
+def _const_operand_block() -> dict:
+    """Раздел населения односторонности — НАСТОЯЩИМ прибором, на своём дереве.
+
+    Дерево одноразовое и несёт ОБА объявленных прибором корня: отсутствие корня
+    есть его собственный третий исход («каталога нет в дереве»), и фикстура,
+    забывшая второй корень, печатала бы «НЕ ИЗМЕРЕНО» вместо замера — то есть
+    мерила бы не то, что объявлено читаемым.
+    """
+    root = Path(tempfile.mkdtemp(prefix="spa_g115p2_wiring_"))
+    for declared in const_operand.DEFAULT_ROOTS:
+        (root / declared).mkdir(parents=True, exist_ok=True)
+    (root / "spa_core" / "p.py").write_text(
+        "_HOUR = 3600.0\n\n\n"
+        "def rows(now, stamp):\n"
+        '    return {"source": (now - stamp).total_seconds() / _HOUR}\n',
+        encoding="utf-8")
+    return const_operand.tally({"source": 1}, ["id"], root)
 
 
 def _unmeasured_doc() -> dict:

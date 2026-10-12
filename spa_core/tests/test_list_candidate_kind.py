@@ -35,6 +35,7 @@ from pathlib import Path
 from spa_core.monitoring import identity_field_kind as field_kind
 from spa_core.monitoring import candidate_denominator as cand_denom
 from spa_core.monitoring import finding_address_price as addr_price
+from spa_core.monitoring import modular_constant_operand as const_operand
 from spa_core.monitoring import list_identity_census as census
 from spa_core.tests._freshness import ts
 
@@ -45,6 +46,18 @@ ARTIFACT_REL = "data/list_identity_census.json"
 #: Производитель, у которого род КАЖДОГО имени разный и названный. Это не
 #: выдумка стенда: все три формы сняты с живого кода (ADR-539 перечисляет их
 #: поимённо), и именно по ним признак отвечает.
+#: Производитель с площадкой класса «постоянная ⊕ значение» (заказ G115 п. 2):
+#: `_HOUR` числовая по построению, но ось рода её не видит, потому что она ИМЯ.
+#: Форма взята с живого кода (`claim_release_census.py:404`).
+CONST_PRODUCER = '''\
+_HOUR = 3600.0
+
+
+def rows(now, stamp):
+    return {"alpha": (now - stamp).total_seconds() / _HOUR}
+'''
+
+
 PRODUCER = '''\
 import datetime as dt
 
@@ -554,6 +567,18 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
             denominator, census.probe.IDENTITY_FIELDS,
             price=addr_price.reader_price(addr_tree),
             kind_census=lambda names: field_kind.census(names, addr_tree))
+        # Заказ G115 п. 2 (ADR-697). Раздел объявлен ЧИТАЕМЫМ у шага 0-офис, и
+        # соседу обязано быть дано ЗНАЧЕНИЕ — ровно по тому правилу и ровно по
+        # той причине, что четыре раздела над ним (замерено #837: без значения
+        # сцена КРАСНА, потому что офис печатает «отчёт СТАРОГО ОБРАЗЦА», и
+        # широкое утверждение сцены покраснело бы не о своём предмете).
+        # Значение считает НАСТОЯЩИЙ прибор на одноразовом дереве, где площадка
+        # класса ЕСТЬ и она задевает `alpha` — то же имя, о котором спорит ось
+        # рода в этой сцене; словарь из головы здесь был бы второй копией
+        # правила.
+        const_block = const_operand.tally(
+            {"alpha": 2}, census.probe.IDENTITY_FIELDS,
+            _tree(**{"spa_core/p.py": CONST_PRODUCER}))
         return {
             "schema": census.SCHEMA, "status": "FINDING",
             # Отметка и раздел дня — чтобы тревога о ФОРМЕ не заслоняла предмет
@@ -589,6 +614,7 @@ class TheFoldIsWiredIntoTheCensusAndItsReader(unittest.TestCase):
                 "candidate_reader_axis": copy.deepcopy(readers),
                 "candidate_denominator": copy.deepcopy(denominator),
                 "finding_address": copy.deepcopy(address),
+                "constant_operand": copy.deepcopy(const_block),
             },
         }
 
