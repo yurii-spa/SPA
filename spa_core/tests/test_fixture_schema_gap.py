@@ -1,0 +1,515 @@
+"""Батарея прибора `_fixture_schema_gap`: контроль в ОБЕ стороны.
+
+# LLM_FORBIDDEN
+
+Заказ G697 п. 2 (ADR-698). Правило приёмки ADR-333: проба меряет ИСХОД, и у
+неё есть контроль в обе стороны — класс находится там, где он есть, и НЕ
+находится там, где его нет, с НАЗВАННЫМ звеном. Три исхода различены РАЗНЫМИ
+сценами с НЕРАВНЫМИ счётами, иначе подмена одного исхода другим невидима
+(урок #786).
+
+Дат в фикстурах нет ВОВСЕ: предметом здесь является форма документа, и
+календарь к ней отношения не имеет.
+"""
+from __future__ import annotations
+
+import sys
+import textwrap
+import unittest
+from pathlib import Path
+
+from spa_core.tests import _fixture_schema_gap as gap
+
+
+def _has_path(data, path: str) -> bool:
+    """Правило шага 0-офис, приведённое ВХОДОМ.
+
+    Это дословная копия `consume_office_reports._has_path`, и она здесь не
+    вторым правилом, а МАТЕРИАЛОМ контроля: отдельный тест ниже доказывает,
+    что прибор зовёт именно переданную функцию, а не считает «есть ли поле»
+    сам. Для батареи важно лишь, что вход — спрашиваемый.
+    """
+    cur = data
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return True
+
+
+class _Scene:
+    """Одноразовое дерево тестов: каталог `t/` с написанными файлами."""
+
+    def __init__(self, tmp: Path):
+        self.root = tmp
+        (self.root / "t").mkdir(parents=True, exist_ok=True)
+
+    def write(self, name: str, body: str) -> None:
+        (self.root / "t" / name).write_text(textwrap.dedent(body),
+                                            encoding="utf-8")
+
+    def measure(self, schema: dict, has_path=_has_path) -> gap.Census:
+        return gap.measure(schema=schema, has_path=has_path,
+                           root=str(self.root), test_dirs=("t",))
+
+
+class _SceneCase(unittest.TestCase):
+    def setUp(self) -> None:
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.scene = _Scene(Path(self._tmp.name))
+        self.addCleanup(self._tmp.cleanup)
+
+
+class TheClassIsFoundWhereItIs(_SceneCase):
+    """Прямая сторона: объявленный путь, которого фикстура не несёт."""
+
+    def test_a_flat_declared_key_absent_from_the_fixture_is_the_population(self):
+        self.scene.write("test_a.py", '''
+            def t():
+                doc = {"status": "CLEAN"}
+                return office._summarize_json("data/a.json", doc)
+        ''')
+        census = self.scene.measure({"a.json": ("status", "counts")})
+        self.assertEqual(len(census.population), 1, census.sites)
+        self.assertEqual(census.population[0].missing, ("counts",))
+        self.assertEqual(census.pairs, 1)
+
+    def test_a_nested_declared_path_absent_under_a_present_parent_is_found(self):
+        """`counts` есть, `counts.day_axis` нет — именно этим платили четыре цикла."""
+        self.scene.write("test_b.py", '''
+            def t():
+                doc = {"counts": {"lists_total": 3}}
+                return office._summarize_json("data/b.json", doc)
+        ''')
+        census = self.scene.measure(
+            {"b.json": ("counts.lists_total", "counts.day_axis")})
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.day_axis",)])
+
+    def test_the_document_is_followed_through_a_helper_of_the_same_file(self):
+        """Документ почти никогда не стои́т в аргументе литералом."""
+        self.scene.write("test_c.py", '''
+            def _doc():
+                return {"status": "CLEAN"}
+
+            def t():
+                return office._summarize_json("data/c.json", _doc())
+        ''')
+        census = self.scene.measure({"c.json": ("status", "order")})
+        self.assertEqual([s.missing for s in census.population], [("order",)])
+
+    def test_the_document_is_followed_through_a_method_of_the_same_class(self):
+        self.scene.write("test_d.py", '''
+            class S:
+                def _doc(self):
+                    return {"status": "CLEAN"}
+
+                def t(self):
+                    return office._summarize_json("data/d.json", self._doc())
+        ''')
+        census = self.scene.measure({"d.json": ("status", "order")})
+        self.assertEqual([s.missing for s in census.population], [("order",)])
+
+    def test_the_key_of_the_ratchet_is_file_and_artifact_not_the_line(self):
+        """Два вызова одного артефакта из файла — ОДИН ключ, а не два."""
+        self.scene.write("test_e.py", '''
+            def t():
+                office._summarize_json("data/e.json", {"status": 1})
+                office._summarize_json("data/e.json", {"status": 2})
+        ''')
+        census = self.scene.measure({"e.json": ("status", "order")})
+        self.assertEqual(census.by_key(), {"t/test_e.py::e.json": 1})
+        self.assertEqual(len(census.population), 2,
+                         "площадок две, а ключ один — это РАЗНЫЕ числа")
+
+
+class TheClassIsNotFoundWhereItIsNot(_SceneCase):
+    """Обратная сторона: каждое звено порвано по отдельности и НАЗВАНО."""
+
+    def test_a_fixture_carrying_every_declared_path_is_not_population(self):
+        self.scene.write("test_f.py", '''
+            def t():
+                doc = {"status": "CLEAN", "counts": {"day_axis": {}}}
+                return office._summarize_json("data/f.json", doc)
+        ''')
+        census = self.scene.measure(
+            {"f.json": ("status", "counts", "counts.day_axis")})
+        self.assertEqual(census.population, [])
+        self.assertEqual(len(census.sites), 1, "площадка обязана быть ЗАМЕРЕНА")
+
+    def test_a_declared_path_present_only_in_one_branch_counts_as_carried(self):
+        """Объединение присваиваний, а не пересечение: иначе отрицательный
+        контроль («документ БЕЗ раздела») объявлялся бы находкой."""
+        self.scene.write("test_g.py", '''
+            def t(flag):
+                counts = {"a": 1}
+                if flag:
+                    counts = {"a": 1, "b": 2}
+                return office._summarize_json("data/g.json", {"counts": counts})
+        ''')
+        census = self.scene.measure({"g.json": ("counts.a", "counts.b")})
+        self.assertEqual(census.population, [])
+
+    def test_a_deliberate_removal_after_the_fixture_is_not_population(self):
+        """`doc["counts"].pop(...)` — сцена «раздела нет», а не дыра фикстуры."""
+        self.scene.write("test_h.py", '''
+            def _doc():
+                return {"counts": {"day_axis": {}}}
+
+            def t():
+                doc = _doc()
+                doc["counts"].pop("day_axis")
+                return office._summarize_json("data/h.json", doc)
+        ''')
+        census = self.scene.measure({"h.json": ("counts.day_axis",)})
+        self.assertEqual(census.population, [])
+
+    def test_a_copy_of_the_fixture_is_the_same_fixture(self):
+        self.scene.write("test_i.py", '''
+            import copy
+            BASE = {"status": "CLEAN", "order": 1}
+
+            def t():
+                degraded = copy.deepcopy(BASE)
+                degraded["status"] = "STALE"
+                return office._summarize_json("data/i.json", degraded)
+        ''')
+        census = self.scene.measure({"i.json": ("status", "order")})
+        self.assertEqual(census.population, [])
+
+    def test_a_dict_comprehension_resolves_to_its_base(self):
+        self.scene.write("test_j.py", '''
+            BASE = {"status": "CLEAN", "order": 1}
+
+            def t():
+                noden = {k: v for k, v in BASE.items() if k != "order"}
+                return office._summarize_json("data/j.json", noden)
+        ''')
+        census = self.scene.measure({"j.json": ("status", "order")})
+        self.assertEqual(census.population, [])
+
+    def test_a_star_spread_carries_the_base(self):
+        self.scene.write("test_k.py", '''
+            BASE = {"status": "CLEAN", "order": 1}
+
+            def t():
+                return office._summarize_json("data/k.json", {**BASE, "x": 2})
+        ''')
+        census = self.scene.measure({"k.json": ("status", "order")})
+        self.assertEqual(census.population, [])
+
+    def test_an_artifact_the_schema_does_not_declare_is_out_of_subject(self):
+        """Не объявлено ⇒ стеречь нечего. Это НЕ находка и НЕ «не измерено»."""
+        self.scene.write("test_l.py", '''
+            def t():
+                return office._summarize_json("data/stranger.json", {"x": 1})
+        ''')
+        census = self.scene.measure({"l.json": ("status",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual([row[2] for row in census.out_of_subject],
+                         ["stranger.json"])
+
+    def test_a_file_without_the_door_is_not_scanned_at_all(self):
+        self.scene.write("test_m.py", '''
+            def t():
+                doc = {"status": "CLEAN"}
+                return doc
+        ''')
+        census = self.scene.measure({"m.json": ("status", "order")})
+        self.assertEqual(census.files_scanned, 0)
+        self.assertEqual(census.population, [])
+
+
+class TheThirdOutcomeIsItsOwnAnswer(_SceneCase):
+    """НЕ ИЗМЕРЕНО не сворачивается ни в находку, ни в чистоту (инв. #17)."""
+
+    def test_an_unresolvable_artifact_name_is_named_not_counted_as_clean(self):
+        self.scene.write("test_n.py", '''
+            def t(name):
+                return office._summarize_json(name, {"x": 1})
+        ''')
+        census = self.scene.measure({"n.json": ("status",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["artifact_name_unresolved"])
+
+    def test_an_unresolvable_document_is_named_not_counted_as_clean(self):
+        self.scene.write("test_o.py", '''
+            def t(report):
+                return office._summarize_json("data/o.json", report)
+        ''')
+        census = self.scene.measure({"o.json": ("status",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["doc_unresolved:name_unbound"])
+
+    def test_a_document_built_by_a_call_is_a_FOURTH_outcome_not_unmeasured(self):
+        """Документ собрал прогон производителя — у класса тут нет предмета."""
+        self.scene.write("test_p.py", '''
+            import producer
+
+            def t():
+                return office._summarize_json("data/p.json",
+                                              producer.run(write=False)["doc"])
+        ''')
+        census = self.scene.measure({"p.json": ("status",)})
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [],
+                         "«собран вызовом» — не слабость разбора")
+        self.assertEqual([row[1] for row in census.built_by_call],
+                         ["call_unresolved"])
+
+    def test_an_unparsed_file_is_reported_as_unmeasured_with_the_reason(self):
+        (self.scene.root / "t" / "test_q.py").write_text(
+            "def t(:\n    office._summarize_json('data/q.json', {})\n",
+            encoding="utf-8")
+        census = self.scene.measure({"q.json": ("status",)})
+        self.assertEqual(census.files_scanned, 1)
+        self.assertEqual(census.population, [])
+        self.assertEqual(len(census.unmeasured), 1)
+        self.assertTrue(census.unmeasured[0][1].startswith("file_unparsed:"),
+                        census.unmeasured)
+
+    def test_the_three_outcomes_have_UNEQUAL_tallies_in_one_scene(self):
+        """Равные счёты сделали бы подмену исхода невидимой (урок #786)."""
+        self.scene.write("test_r.py", '''
+            import producer
+
+            def t(name, report):
+                office._summarize_json("data/r.json", {"status": 1})
+                office._summarize_json("data/r.json", {"order": 1})
+                office._summarize_json("data/r.json", {"x": 1})
+                office._summarize_json(name, {"status": 1})
+                office._summarize_json("data/stranger.json", {"status": 1})
+                office._summarize_json("data/stranger2.json", {"status": 1})
+                office._summarize_json("data/r.json", report)
+                office._summarize_json("data/r.json", producer.run()["doc"])
+        ''')
+        census = self.scene.measure({"r.json": ("status", "order")})
+        self.assertEqual(len(census.population), 3)
+        self.assertEqual(len(census.out_of_subject), 2)
+        self.assertEqual(len(census.unmeasured), 2)
+        self.assertEqual(len(census.built_by_call), 1)
+
+
+class TheExemptionIsVisibleAndCounted(_SceneCase):
+    """Намеренно куцый документ выходит из класса ПОМЕТКОЙ С ПРИЧИНОЙ."""
+
+    def test_a_marker_with_a_reason_takes_the_site_out_of_the_population(self):
+        self.scene.write("test_s.py", '''
+            def t():
+                # SCHEMA-GAP-OK: предмет сцены — ветка третьего исхода
+                doc = {"status": "UNMEASURED"}
+                return office._summarize_json("data/s.json", doc)
+        ''')
+        census = self.scene.measure({"s.json": ("status", "order")})
+        self.assertEqual(census.population, [])
+        self.assertEqual([s.exempt_reason for s in census.exempt],
+                         ["предмет сцены — ветка третьего исхода"])
+        self.assertEqual(census.by_key(), {})
+
+    def test_a_marker_WITHOUT_a_reason_is_not_an_exemption(self):
+        """Записка не есть объявление: причина — его часть."""
+        self.scene.write("test_t.py", '''
+            def t():
+                # SCHEMA-GAP-OK
+                doc = {"status": "UNMEASURED"}
+                return office._summarize_json("data/t.json", doc)
+        ''')
+        census = self.scene.measure({"t.json": ("status", "order")})
+        self.assertEqual(len(census.population), 1)
+        self.assertEqual([row[0] for row in census.marker_without_reason],
+                         ["t/test_t.py"])
+
+    def test_the_marker_in_a_docstring_is_NOT_seen(self):
+        """Урок #829: пометка обязана быть `#`-комментарием."""
+        self.scene.write("test_u.py", '''
+            def t():
+                """SCHEMA-GAP-OK: это докстринг, а не объявление."""
+                return office._summarize_json("data/u.json", {"status": 1})
+        ''')
+        census = self.scene.measure({"u.json": ("status", "order")})
+        self.assertEqual(len(census.population), 1)
+        self.assertEqual(census.exempt, [])
+
+    def test_a_marker_in_a_neighbour_function_does_not_free_this_site(self):
+        """Освобождение действует в СВОЕЙ функции, а не во всём файле."""
+        self.scene.write("test_v.py", '''
+            def neighbour():
+                # SCHEMA-GAP-OK: предмет соседней сцены
+                return office._summarize_json("data/v.json", {"status": 1})
+
+            def t():
+                return office._summarize_json("data/v.json", {"status": 1})
+        ''')
+        census = self.scene.measure({"v.json": ("status", "order")})
+        self.assertEqual(len(census.population), 1)
+        self.assertEqual(len(census.exempt), 1)
+
+
+class TheRuleOfWhatCountsAsPresentArrivesAsInput(_SceneCase):
+    """Второй копии правила «ЕСТЬ ли поле» в приборе нет."""
+
+    def test_the_passed_predicate_is_the_one_actually_asked(self):
+        self.scene.write("test_w.py", '''
+            def t():
+                return office._summarize_json("data/w.json", {"status": 1})
+        ''')
+        schema = {"w.json": ("status", "order", "counts")}
+        all_present = self.scene.measure(schema, has_path=lambda d, p: True)
+        none_present = self.scene.measure(schema, has_path=lambda d, p: False)
+        self.assertEqual(all_present.population, [],
+                         "прибор считает наличие сам — правило не входом")
+        self.assertEqual(none_present.pairs, 3)
+
+    def test_the_schema_arrives_as_input_too(self):
+        """Перечень артефактов не пересчитывается прибором (урок ADR-697)."""
+        self.scene.write("test_x.py", '''
+            def t():
+                return office._summarize_json("data/x.json", {"status": 1})
+        ''')
+        self.assertEqual(self.scene.measure({}).out_of_subject,
+                         [("t/test_x.py", 3, "x.json")])
+
+
+class TheArtifactNameIsResolvedByValueNotByGuess(_SceneCase):
+    """Имя артефакта берётся у НАСТОЯЩЕГО модуля, а не угадывается."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        (self.scene.root / "c842mod.py").write_text(
+            'ARTIFACT = "data/y.json"\n', encoding="utf-8")
+        sys.path.insert(0, str(self.scene.root))
+        self.addCleanup(lambda: sys.path.remove(str(self.scene.root)))
+        sys.modules.pop("c842mod", None)
+        self.addCleanup(lambda: sys.modules.pop("c842mod", None))
+
+    def test_a_module_constant_is_resolved_by_importing_that_module(self):
+        self.scene.write("test_y.py", '''
+            import c842mod
+
+            def t():
+                return office._summarize_json(c842mod.ARTIFACT, {"status": 1})
+        ''')
+        census = self.scene.measure({"y.json": ("status", "order")})
+        self.assertEqual([s.artifact for s in census.population], ["y.json"])
+
+    def test_an_f_string_over_a_module_constant_is_resolved(self):
+        (self.scene.root / "c842mod.py").write_text(
+            'ARTIFACT = "y.json"\n', encoding="utf-8")
+        self.scene.write("test_z.py", '''
+            import c842mod as M
+
+            def t():
+                return office._summarize_json(f"data/{M.ARTIFACT}",
+                                              {"status": 1})
+        ''')
+        census = self.scene.measure({"y.json": ("status", "order")})
+        self.assertEqual([s.artifact for s in census.population], ["y.json"])
+
+    def test_a_constant_of_an_UNIMPORTED_name_is_not_guessed(self):
+        """Догадка по каталогу уже рождала выдуманную находку (урок #774)."""
+        self.scene.write("test_zz.py", '''
+            def t():
+                return office._summarize_json(stranger.ARTIFACT, {"status": 1})
+        ''')
+        census = self.scene.measure({"y.json": ("status", "order")})
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["artifact_name_unresolved"])
+
+
+class TheContractIsPinnedLiterally(unittest.TestCase):
+    """Строки контракта пришпилены (урок #819: дописывающий мутант их не убьёт)."""
+
+    def test_the_door_is_the_office_reader(self):
+        self.assertEqual(gap.DOOR, "_summarize_json")
+
+    def test_the_depth_limit_is_declared_and_finite(self):
+        self.assertEqual(gap.MAX_DEPTH, 12)
+
+    def test_the_default_test_dirs_are_the_prescribed_three(self):
+        self.assertEqual(gap.DEFAULT_TEST_DIRS,
+                         ("spa_core/tests", "tests", "scripts/tests"))
+
+    def test_the_reasons_that_mean_built_by_a_call_are_named(self):
+        self.assertEqual(sorted(gap._BUILT_BY_CALL),
+                         ["call_unresolved", "helper_returns_no_dict"])
+
+    def test_the_depth_limit_is_its_own_outcome_not_an_absence(self):
+        """Упёрлись в предел ⇒ причина, а не «полей нет»."""
+        flow = gap._ModuleFlow.__new__(gap._ModuleFlow)
+        self.assertEqual(flow.skeleton(None, depth=gap.MAX_DEPTH + 1),
+                         (None, "depth_limit"))
+
+
+class TheRatchetRedensOnTheRealIncident(_SceneCase):
+    """Положительный контроль: авария #832/#834/#837/#841, воспроизведённая.
+
+    Каждый из четырёх циклов объявлял новый раздел в `_READ_SCHEMA` и не давал
+    ему ЗНАЧЕНИЯ в фикстуре соседа. Сверка обязана покраснеть именно на этом
+    и НЕ краснеть на починке.
+    """
+
+    def _scene(self) -> None:
+        self.scene.write("test_neighbour.py", '''
+            def _doc():
+                return {"counts": {"lists_total": 3, "day_axis": {}}}
+
+            def t():
+                return office._summarize_json("data/census.json", _doc())
+        ''')
+
+    def test_a_newly_declared_section_without_a_fixture_value_reddens(self):
+        self._scene()
+        before = self.scene.measure(
+            {"census.json": ("counts.lists_total", "counts.day_axis")})
+        self.assertEqual(gap.compare(before, {}), [],
+                         "фикстура несёт всё объявленное — краснеть нечему")
+
+        after = self.scene.measure(
+            {"census.json": ("counts.lists_total", "counts.day_axis",
+                             "counts.constant_operand")})
+        report = gap.compare(after, {})
+        self.assertEqual(len(report), 1, report)
+        self.assertIn("counts.constant_operand", report[0])
+        self.assertIn("НОВЫЙ t/test_neighbour.py::census.json: 1", report[0])
+
+    def test_a_key_that_GREW_against_the_baseline_is_named_as_grown(self):
+        self._scene()
+        census = self.scene.measure(
+            {"census.json": ("counts.a", "counts.b", "counts.c")})
+        report = gap.compare(census, {"t/test_neighbour.py::census.json": 1})
+        self.assertEqual(len(report), 1, report)
+        self.assertIn("ВЫРОС t/test_neighbour.py::census.json: 1 \u2192 3",
+                      report[0])
+
+    def test_a_key_that_SHRANK_is_silent_because_the_base_may_only_fall(self):
+        self._scene()
+        census = self.scene.measure({"census.json": ("counts.a",)})
+        self.assertEqual(
+            gap.compare(census, {"t/test_neighbour.py::census.json": 9}), [])
+
+    def test_a_key_that_VANISHED_is_silent_too(self):
+        self._scene()
+        census = self.scene.measure(
+            {"census.json": ("counts.lists_total", "counts.day_axis")})
+        self.assertEqual(
+            gap.compare(census, {"t/test_neighbour.py::census.json": 4}), [])
+
+    def test_the_cure_by_fixture_value_closes_the_finding(self):
+        """Обратная сторона: дали фикстуре значение — сверка молчит."""
+        self.scene.write("test_neighbour.py", '''
+            def _doc():
+                return {"counts": {"lists_total": 3, "day_axis": {},
+                                   "constant_operand": {}}}
+
+            def t():
+                return office._summarize_json("data/census.json", _doc())
+        ''')
+        census = self.scene.measure(
+            {"census.json": ("counts.lists_total", "counts.day_axis",
+                             "counts.constant_operand")})
+        self.assertEqual(gap.compare(census, {}), [])
