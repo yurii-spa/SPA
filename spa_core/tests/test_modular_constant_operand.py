@@ -532,6 +532,345 @@ class TheVerdictsAreDiscriminatedByTheScene(unittest.TestCase):
         self.assertEqual(doc["population"], doc["direct"] + doc["transitive"])
 
 
+#: Цепочка в ДВА шага: ``SPAN`` считается из постоянных, ``WIDE`` — из
+#: ``SPAN``. Литерала рядом нет НАМЕРЕННО: любой литерал в выражении сделал бы
+#: имя посчитанным сразу, и сцена мерила бы один шаг вместо двух.
+TWO_HOPS = """
+    HI = 300
+    LO = 60
+    SPAN = HI - LO
+    WIDE = SPAN + SPAN
+
+    def view():
+        return {"span": WIDE}
+"""
+
+#: Шаг НЕ ПО ИМЕНИ: значение приходит из ОБЁРТКИ, чьи привязки ось ищет своей
+#: отдельной петлёй. Форма взята с живого кода — `s2_lp_stable.py:163`.
+WRAPPER_HOP = """
+    RATE = 2.0
+
+    def _scaled(x):
+        return x * RATE
+
+    def view(y):
+        return {"scaled": _scaled(y)}
+"""
+
+#: Выражение ГЛУБЖЕ предела оси: ответ есть, но обход до него не доходит и
+#: возвращает `None`, то есть говорит «арифметики нет». Площадка пропадает из
+#: населения МОЛЧА — ровно тот третий исход, про который спросил заказ.
+DEEPER_THAN_THE_LIMIT = (
+    "LIMIT = 5\n\n"
+    "def view(x):\n"
+    "    return {\"gap\": " + "-(" * 20 + "LIMIT - x" + ")" * 20 + "}\n")
+
+#: Цепочка ДЛИННЕЕ предела раундов: девять шагов при пределе восемь. Петля
+#: кончается исчерпанным пределом, и последнее имя остаётся без рода — то же
+#: молчание, что у предела глубины, но от другой двери.
+LONGER_THAN_THE_ROUNDS = ("C = 5\n" + "a1 = C - C\n"
+                          + "".join(f"a{i} = a{i - 1} + a{i - 1}\n"
+                                    for i in range(2, 10))
+                          + "\ndef view():\n    return {\"f\": a9}\n")
+
+
+class TheStepsFromTheConstantToTheFieldAreCounted(unittest.TestCase):
+    """Заказ G697 п. 3 — СКОЛЬКО ШАГОВ лежит между постоянной и полем.
+
+    Мера — подстановка в дверь самой оси (``rounds=k``), а не второй разбор
+    цепочки: при каком ``k`` ответ ПОЯВЛЯЕТСЯ, столько шагов в кратчайшей
+    цепочке и есть. Один раунд петли добавляет ровно один шаг по имени.
+    """
+
+    def _rows(self, source: str):
+        sites, _consts, why = mco.module_sites(source)
+        self.assertEqual(why, "")
+        rows, reason = mco.module_chain(source, sites)
+        return rows, reason
+
+    def test_one_hop_through_a_name_is_one_step(self):
+        rows, reason = self._rows(_src(TRANSITIVE))
+        self.assertEqual(reason, "")
+        self.assertEqual([(r.field, r.steps) for r in rows], [("span", 1)])
+
+    def test_two_hops_through_names_are_two_steps(self):
+        """Положительный контроль ДЛИНЫ: сцена, где шагов заведомо два."""
+        rows, reason = self._rows(_src(TWO_HOPS))
+        self.assertEqual(reason, "")
+        self.assertEqual([(r.field, r.steps) for r in rows], [("span", 2)])
+
+    def test_a_step_through_a_wrapper_is_not_a_step_by_name(self):
+        """``steps == 0`` — не «шагов нет», а шаг НЕ ПО ИМЕНИ (обёртка)."""
+        rows, reason = self._rows(_src(WRAPPER_HOP))
+        self.assertEqual(reason, "")
+        self.assertEqual([(r.field, r.steps) for r in rows], [("scaled", 0)])
+
+    def test_a_direct_site_has_no_chain_to_measure(self):
+        """Отрицательная сторона: постоянная в самом выражении цепочки не имеет."""
+        rows, reason = self._rows(_src(DIRECT))
+        self.assertEqual((rows, reason), ([], ""),
+                         "«мерить нечего» не есть третий исход")
+
+    def test_a_forged_site_is_the_THIRD_outcome_not_zero_steps(self):
+        """Площадки, о которой ось молчит, шагов нет — и это НЕ ноль.
+
+        Единственный путь к этому исходу — спросить о площадке, которой нет:
+        площадка, найденная прибором, по построению отвечает при полном
+        пределе. Контроль нужен затем, чтобы ``steps=None`` не оказался
+        недостижимой веткой, которую никто никогда не проверял.
+        """
+        forged = mco.Site(module="", line=999, field="нет-такого", how="",
+                          consts=())
+        rows, reason = mco.module_chain(_src(TRANSITIVE), [forged])
+        self.assertEqual(reason, "")
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0].steps, "ноль шагов и НЕТ ответа — разные вещи")
+        self.assertIn("полном пределе", rows[0].reason)
+
+    def test_an_unparsable_module_refuses_the_chain_with_a_named_reason(self):
+        rows, reason = mco.module_chain("def (:", [])
+        self.assertEqual(rows, [])
+        self.assertIn("не разобрано", reason)
+
+    def test_the_census_prints_the_spread_not_an_average(self):
+        """Заказ спросил «сколько шагов в КАЖДОМ случае» — среднее не ответ."""
+        doc = mco.tally(None, None, _tree(**{"spa_core/a.py": TRANSITIVE,
+                                             "spa_core/b.py": TWO_HOPS,
+                                             "spa_core/c.py": WRAPPER_HOP}))
+        chain = doc["chain"]
+        self.assertEqual(chain["steps_histogram"], {"0": 1, "1": 1, "2": 1})
+        self.assertEqual(chain["max_steps"], 2)
+        self.assertEqual(chain["without_name_hop"], 1)
+        self.assertEqual(chain["steps_unmeasured"], 0)
+
+    def test_the_report_prints_the_steps_next_to_the_population(self):
+        """Цена предела и длина цепочки нужны ТАМ, где читатель видит население."""
+        doc = mco.tally(None, None, _tree(**{"spa_core/a.py": TWO_HOPS}))
+        lines = mco.report(doc)
+        pop = [i for i, l in enumerate(lines) if l.startswith("  население ")]
+        steps = [i for i, l in enumerate(lines) if "ШАГИ до поля" in l]
+        self.assertTrue(pop and steps, lines)
+        self.assertLess(steps[0] - pop[0], 4,
+                        "строка шагов обязана стоять РЯДОМ с населением")
+
+    def test_an_old_format_document_says_the_steps_are_unmeasured(self):
+        lines = mco.chain_report({"population": 3})
+        self.assertEqual(len(lines), 1)
+        self.assertIn("НЕ ИЗМЕРЕНЫ", lines[0])
+        self.assertIn("СТАРОГО ОБРАЗЦА", lines[0])
+
+    def test_a_tree_without_a_transitive_site_says_zero_not_unmeasured(self):
+        doc = mco.tally(None, None, _tree(**{"spa_core/p.py": DIRECT}))
+        self.assertEqual(doc["chain"]["rows"], [])
+        self.assertEqual(doc["chain"]["unmeasured"], {})
+        self.assertTrue(any("равно нулю" in l
+                            for l in mco.chain_report(doc)),
+                        "«мерить нечего» обязано отличаться от «не измерено»")
+
+
+class TheAxisOwnLimitsHaveAMeasuredPrice(unittest.TestCase):
+    """Заказ G697 п. 3 — ПРЕДЕЛ, в который упёрся обход, есть свой третий исход.
+
+    Оба предела оси возвращают ``None``, то есть говорят «арифметики нет» там,
+    где верный ответ «НЕ ИЗМЕРЕНО». Пока цены нет, население класса есть
+    нижняя граница неизвестной глубины — ровно та болезнь, которую ADR-702
+    вылечил у двери затенения. Двери РАЗВЕДЕНЫ: глубина спуска в одном
+    выражении и длина цепочки между именами — разные вопросы.
+    """
+
+    def test_a_shallow_converged_module_pays_nothing(self):
+        cost = mco.axis_limit_cost(_src(TRANSITIVE))
+        self.assertFalse(cost.depth_door)
+        self.assertFalse(cost.rounds_door)
+        self.assertEqual((cost.depth_hidden, cost.rounds_hidden), ((), ()))
+        self.assertEqual(cost.reason, "", "третий исход тут не наступал")
+
+    def test_the_shortcut_is_sound_where_neither_door_fired(self):
+        """Контроль СОКРАЩЕНИЯ: без сработавшей двери ответ обязан быть тот же.
+
+        Второй прогон делается только там, где дверь сработала. Без этого
+        контроля сокращение держалось бы на рассуждении, а не на тесте.
+        """
+        for name, source in (("TRANSITIVE", TRANSITIVE), ("TWO_HOPS", TWO_HOPS),
+                             ("DIRECT", DIRECT), ("WRAPPER_HOP", WRAPPER_HOP)):
+            with self.subTest(scene=name):
+                tree = ast.parse(_src(source))
+                consts = mco.module_constants(tree)
+                clone, _done = mco.substituted(tree, consts)
+                tight = mco._axis_answers(clone)
+                loose = mco._axis_answers(clone, depth=mco._DEPTH_HEADROOM)
+                wide = mco._axis_answers(clone, rounds=64)
+                self.assertEqual(tight, loose)
+                self.assertEqual(tight, wide)
+
+    def test_the_depth_limit_HIDES_a_site_and_the_price_names_it(self):
+        """Положительный контроль: предел глубины съедает настоящую площадку."""
+        sites, _consts, why = mco.module_sites(DEEPER_THAN_THE_LIMIT)
+        self.assertEqual(why, "")
+        self.assertEqual(sites, [],
+                         "сцена построена так, что ось МОЛЧИТ — в этом и вред")
+        cost = mco.axis_limit_cost(DEEPER_THAN_THE_LIMIT)
+        self.assertTrue(cost.depth_door)
+        self.assertEqual(cost.depth_hidden, ("gap:4",))
+        self.assertEqual(cost.rounds_hidden, (),
+                         "вторая дверь тут не при чём — числа РАЗНЫЕ")
+
+    def test_the_rounds_limit_HIDES_a_site_and_the_price_names_it(self):
+        """Положительный контроль ВТОРОЙ двери: цепочка длиннее предела раундов."""
+        sites, _consts, why = mco.module_sites(LONGER_THAN_THE_ROUNDS)
+        self.assertEqual(why, "")
+        self.assertEqual(sites, [], "девять шагов при пределе восемь ⇒ молчание")
+        cost = mco.axis_limit_cost(LONGER_THAN_THE_ROUNDS)
+        self.assertTrue(cost.rounds_door)
+        self.assertEqual(len(cost.rounds_hidden), 1, cost.rounds_hidden)
+        self.assertTrue(cost.rounds_hidden[0].startswith("f:"),
+                        cost.rounds_hidden)
+        self.assertEqual(cost.depth_hidden, ())
+
+    def test_the_two_doors_are_separate_numbers_in_the_census(self):
+        doc = mco.tally(None, None, _tree(**{
+            "spa_core/deep.py": DEEPER_THAN_THE_LIMIT,
+            "spa_core/long.py": LONGER_THAN_THE_ROUNDS}))
+        lim = doc["axis_limits"]
+        self.assertEqual(lim["depth_doors_fired"], 1)
+        self.assertEqual(lim["rounds_doors_fired"], 1)
+        self.assertEqual(lim["depth_hidden_sites"], 1)
+        self.assertEqual(lim["rounds_hidden_sites"], 1)
+        self.assertEqual(lim["depth_hidden_named"], ["spa_core/deep.py:gap:4"])
+        self.assertTrue(lim["rounds_hidden_named"][0]
+                        .startswith("spa_core/long.py:f:"),
+                        lim["rounds_hidden_named"])
+
+    def test_the_margin_is_a_NUMBER_not_the_word_enough(self):
+        """Запас печатается числом: «хватает» верно в обе стороны сразу."""
+        doc = mco.tally(None, None, _tree(**{"spa_core/a.py": TWO_HOPS}))
+        lim = doc["axis_limits"]
+        self.assertEqual(lim["depth_limit"], field_kind.DEPTH_LIMIT)
+        self.assertEqual(lim["rounds_limit"], field_kind.DERIVE_ROUNDS)
+        self.assertEqual(lim["depth_margin"],
+                         field_kind.DEPTH_LIMIT - lim["deepest_value_expression"])
+        self.assertEqual(lim["longest_chain"], 2)
+        self.assertEqual(lim["rounds_margin"], field_kind.DERIVE_ROUNDS - 2)
+        self.assertTrue(lim["deepest_named"].startswith("spa_core/a.py:"),
+                        lim["deepest_named"])
+
+    def test_a_module_outside_the_operand_is_its_own_number(self):
+        """«Не спрашивали» и «спросили и ноль» обязаны быть различимы (инв. #17)."""
+        doc = mco.tally(None, None, _tree(**{"spa_core/a.py": TRANSITIVE,
+                                             "spa_core/b.py": ALREADY_SEEN}))
+        lim = doc["axis_limits"]
+        self.assertEqual(lim["modules_measured"], 1)
+        self.assertEqual(lim["modules_outside_the_operand"], 1,
+                         "модуль без постоянных операнда класса не несёт")
+
+    def test_a_finite_headroom_that_runs_out_is_the_THIRD_outcome(self):
+        """Нехватка запаса молчит так же, как сам предел — значит это отказ.
+
+        Выдать её за «спрятанных площадок столько» значило бы повторить ровно
+        тот дефект, который прибор мерит.
+        """
+        # Глубина берётся ЧУТЬ выше запаса, а не вдвое: окно этого исхода
+        # узкое с ДВУХ сторон. Сверху его режет не прибор, а сам Python —
+        # разборщик отказывает примерно на 200 вложенных скобках, а
+        # `copy.deepcopy` в :func:`substituted` падает `RecursionError`
+        # около 250 уровней (измерено этим же контролем, вынесено в заказ
+        # G703 п. 5). Поэтому сцена строится унарными минусами БЕЗ скобок и
+        # держится в окне 145…240.
+        over = field_kind.DEPTH_LIMIT - mco._DEPTH_HEADROOM + 20
+        source = ("LIMIT = 5\n\ndef view(x):\n    return {\"gap\": "
+                  + "- " * over + "(LIMIT - x)}\n")
+        cost = mco.axis_limit_cost(source)
+        self.assertTrue(cost.depth_door)
+        self.assertEqual(cost.depth_hidden, (), "ноль тут был бы ложью")
+        self.assertIn("запаса по глубине не хватает", cost.reason)
+
+    def test_an_unparsable_module_refuses_the_price_with_a_named_reason(self):
+        cost = mco.axis_limit_cost("def (:")
+        self.assertEqual((cost.depth_hidden, cost.rounds_hidden), ((), ()))
+        self.assertIn("не разобрано", cost.reason)
+
+    def test_an_old_format_document_says_the_price_is_unmeasured(self):
+        lines = mco.limit_report({"population": 3})
+        self.assertEqual(len(lines), 1)
+        self.assertIn("НЕ ИЗМЕРЕНА", lines[0])
+        self.assertIn("СТАРОГО ОБРАЗЦА", lines[0])
+
+    def test_the_report_names_both_limits_and_both_hidden_sites(self):
+        doc = mco.tally(None, None, _tree(**{
+            "spa_core/deep.py": DEEPER_THAN_THE_LIMIT,
+            "spa_core/long.py": LONGER_THAN_THE_ROUNDS}))
+        lines = "\n".join(mco.limit_report(doc))
+        for needle in ("ПРЕДЕЛ ГЛУБИНЫ", "ПРЕДЕЛ РАУНДОВ",
+                       "спрятано ГЛУБИНОЙ", "спрятано РАУНДАМИ"):
+            self.assertTrue(needle in lines, (needle, lines))
+
+    def test_the_price_unmeasured_module_is_named_in_the_report(self):
+        lines = mco.limit_report({"axis_limits": {
+            "depth_limit": 16, "deepest_value_expression": 3,
+            "deepest_named": "spa_core/a.py:1", "depth_margin": 13,
+            "depth_doors_fired": 0, "depth_hidden_sites": 0,
+            "depth_hidden_named": [], "rounds_limit": 8, "longest_chain": 1,
+            "rounds_margin": 7, "rounds_doors_fired": 0,
+            "rounds_hidden_sites": 0, "rounds_hidden_named": [],
+            "modules_measured": 1, "modules_outside_the_operand": 0,
+            "unmeasured": {"spa_core/x.py": "не разобрано: SyntaxError"}}})
+        self.assertTrue(any("[ПРЕДЕЛЫ НЕ ИЗМЕРЕНЫ] spa_core/x.py" in l
+                            for l in lines), lines)
+
+
+class TheAxisLimitsAreDeclaredInputs(unittest.TestCase):
+    """Оба предела оси объявлены ИМЕНАМИ и ВХОДАМИ, а петля живёт в одном доме.
+
+    Без этого цену предела пришлось бы мерить вторым разбором правила, а
+    второй поиск предмета, уже раскрытого соседом, РАСХОДИТСЯ (урок #820).
+    """
+
+    def test_the_wrapper_returns_exactly_what_the_single_home_returns(self):
+        tree = ast.parse(_src(TWO_HOPS))
+        outer = field_kind._Scope(frozenset(), field_kind.arith_wrappers(tree))
+        got = field_kind.scope_derived(tree, outer, field_kind.arith_derivation)
+        same, used, converged = field_kind.scope_derived_steps(
+            tree, outer, field_kind.arith_derivation)
+        self.assertEqual(got, same, "вторая копия петли расходилась бы молча")
+        self.assertTrue(converged)
+        self.assertGreaterEqual(used, 1)
+
+    def test_the_default_round_limit_is_the_named_constant(self):
+        tree = ast.parse(_src(TWO_HOPS))
+        wrappers = field_kind.arith_wrappers(tree)
+        table = field_kind._scope_table(tree, field_kind.arith_derivation,
+                                        wrappers)
+        same, _conv = field_kind.scope_table_steps(
+            tree, field_kind.arith_derivation, wrappers,
+            rounds=field_kind.DERIVE_ROUNDS)
+        self.assertEqual({k: v for k, v in table.items()},
+                         {k: v for k, v in same.items()})
+
+    def test_zero_rounds_means_NOT_converged_not_a_fixed_point(self):
+        """Предел, исчерпанный на нулевом раунде, — не неподвижная точка."""
+        tree = ast.parse(_src(TWO_HOPS))
+        outer = field_kind._Scope(frozenset(), field_kind.arith_wrappers(tree))
+        scope, used, converged = field_kind.scope_derived_steps(
+            tree, outer, field_kind.arith_derivation, rounds=0)
+        self.assertEqual(used, 0)
+        self.assertFalse(converged)
+        self.assertEqual(scope.derived, frozenset())
+
+    def test_the_depth_limit_number_is_the_one_the_axis_uses(self):
+        """Контроль ДВЕРИ: с одного шага до предела ответ есть, за ним — нет."""
+        tree = ast.parse(DEEPER_THAN_THE_LIMIT)
+        consts = mco.module_constants(tree)
+        clone, _done = mco.substituted(tree, consts)
+        scopes = field_kind._scope_table(clone, field_kind.arith_derivation,
+                                         field_kind.arith_wrappers(clone))
+        value = field_kind.field_assignments(clone)[0][1]
+        scope = scopes[id(clone)]
+        self.assertIsNone(field_kind.arith_derivation(value, scope, 0),
+                          "сцена обязана УПИРАТЬСЯ в предел, иначе она не та")
+        self.assertIsNotNone(field_kind.arith_derivation(
+            value, scope, -field_kind.DEPTH_LIMIT))
+
+
 class TheContractIsPinnedVerbatim(unittest.TestCase):
     """Имена ключей и вердиктов — ЛИТЕРАЛЫ (урок #832/#819).
 
@@ -549,7 +888,23 @@ class TheContractIsPinnedVerbatim(unittest.TestCase):
                 "population", "direct", "transitive", "candidate_hits",
                 "candidate_sites", "identity_hits", "identity_sites",
                 "candidate_denominator", "what_it_does_not_prove",
-                "shadow_cost"}
+                "shadow_cost",
+                # Пин РАСШИРЕН заказом G697 п. 3 тем же порядком: ключи
+                # `chain` и `axis_limits` ДОБАВЛЕНЫ, ни один прежний не убран
+                # и не переименован, пин остаётся РАВЕНСТВОМ (инв. #16).
+                "chain", "axis_limits"}
+
+    CHAIN_KEYS = {"rows", "steps_histogram", "max_steps", "without_name_hop",
+                  "steps_unmeasured", "unmeasured"}
+
+    CHAIN_ROW_KEYS = {"module", "line", "field", "how", "steps", "reason"}
+
+    LIMIT_KEYS = {"depth_limit", "deepest_value_expression", "deepest_named",
+                  "depth_margin", "depth_doors_fired", "depth_hidden_sites",
+                  "depth_hidden_named", "rounds_limit", "longest_chain",
+                  "rounds_margin", "rounds_doors_fired", "rounds_hidden_sites",
+                  "rounds_hidden_named", "modules_measured",
+                  "modules_outside_the_operand", "unmeasured"}
 
     COST_KEYS = {"dropped_constants", "dropped_modules", "lost_sites",
                  "lost_modules", "dropped_named", "lost_named", "unmeasured"}
@@ -585,6 +940,36 @@ class TheContractIsPinnedVerbatim(unittest.TestCase):
 
     def test_the_cost_block_carries_exactly_these_keys(self):
         self.assertEqual(set(self.doc["shadow_cost"]), self.COST_KEYS)
+
+    def test_the_chain_block_carries_exactly_these_keys(self):
+        self.assertEqual(set(self.doc["chain"]), self.CHAIN_KEYS)
+
+    def test_the_limit_block_carries_exactly_these_keys(self):
+        self.assertEqual(set(self.doc["axis_limits"]), self.LIMIT_KEYS)
+
+    def test_a_chain_row_carries_exactly_these_keys(self):
+        doc = mco.tally(None, None, _tree(**{"spa_core/a.py": TWO_HOPS}))
+        self.assertEqual(set(doc["chain"]["rows"][0]), self.CHAIN_ROW_KEYS)
+
+    def test_both_axis_limits_are_named_in_what_it_does_not_prove(self):
+        """Заказ дословно: предел — СВОЙ третий исход, а не «арифметики нет»."""
+        clause = [s for s in self.doc["what_it_does_not_prove"]
+                  if "предел ГЛУБИНЫ" in s]
+        self.assertEqual(len(clause), 1, clause)
+        self.assertIn("предел РАУНДОВ", clause[0],
+                      "вторая дверь обязана быть названа там же, где первая")
+        self.assertIn("СЛАБЕЕ", clause[0],
+                      "утверждения двух дверей разной силы, и это сказано")
+
+    def test_the_limit_clause_says_unmeasured_on_an_old_format_document(self):
+        clause = mco._limit_clause({})
+        self.assertIn("НЕ ИЗМЕРЕНА", clause)
+        self.assertNotIn("по СТРУКТУРЕ", clause)
+
+    def test_the_chain_clause_says_what_the_spread_does_NOT_say(self):
+        clause = mco._chain_clause(self.doc)
+        self.assertIn("КРАТЧАЙШЕЙ", clause,
+                      "расклад не говорит «других путей нет»")
 
     def test_the_caveat_carries_the_measured_number_not_only_prose(self):
         """Заказ G697 п. 1: «если выброшенных единицы — оговорку сократить до числа»."""

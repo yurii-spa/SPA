@@ -171,6 +171,23 @@ NOT_ARITH = "not_arithmetic"
 _ARITH_CALLS = frozenset({"sum", "len", "round", "abs", "mean", "median",
                           "fmean", "stdev", "variance"})
 
+#: ПРЕДЕЛ ГЛУБИНЫ спуска обеих осей. Был литералом ``16`` в трёх телах сразу, и
+#: это не оформление: достигнутый предел возвращает ``None``, то есть
+#: НЕОТЛИЧИМ от «арифметики нет» (инв. #17). Имя заводится затем, чтобы цену
+#: предела можно было измерить, не копируя число:
+#: :func:`spa_core.monitoring.modular_constant_operand.axis_limit_cost`
+#: спрашивает запас «самое глубокое выражение-значение дерева против этого
+#: предела» и подставляет САМУ дверь (``depth``), а не свой разбор глубины.
+DEPTH_LIMIT = 16
+
+#: ПРЕДЕЛ РАУНДОВ распространения привязок (:func:`scope_derived_steps`). Тоже
+#: был литералом (``range(8)``), и исчерпание его тоже молчаливо: имя, до
+#: которого цепочка не дотянулась за восемь шагов, выглядит как имя, не
+#: происходящее от счёта. Предел объявлен ВХОДОМ (``rounds=``) — тем же
+#: порядком, которым ADR-702 объявил входом ``drop_shadowed``: цена двери
+#: мерится подстановкой в саму дверь, а не вторым разбором правила.
+DERIVE_ROUNDS = 8
+
 #: Узлы, у которых значение происходит от детей НА ЭТОЙ оси. Короче, чем
 #: `_TRANSPARENT`: ``Attribute`` здесь нет (``obj.name`` числом от числового
 #: ``obj`` не становится), ``Subscript`` нет (ключ отображения своим значением
@@ -363,7 +380,7 @@ def derivation(node: Optional[ast.AST], scope: _Scope, depth: int = 0) -> Option
     он их потребитель, и считать иначе значило бы объявить стенным всякий
     результат, к которому часы когда-либо прикасались.
     """
-    if node is None or depth > 16:
+    if node is None or depth > DEPTH_LIMIT:
         return None
     direct = door_call(node)
     if direct:
@@ -441,7 +458,7 @@ def arith_derivation(node: Optional[ast.AST], scope: "_Scope",
     Литерал-число, стоящий ОДИН, находкой не является: постоянная не переезжает.
     Находкой его делает только соседство с оператором, то есть ВЫЧИСЛЕНИЕ.
     """
-    if node is None or depth > 16:
+    if node is None or depth > DEPTH_LIMIT:
         return None
     direct = arith_door(node)
     if direct:
@@ -493,7 +510,7 @@ def arith_formatted(node: Optional[ast.AST], scope: "_Scope",
     поддерево: обход всем деревом утащил бы и числа из вложенного словаря, а
     контейнер привязкой не является.
     """
-    if node is None or depth > 16:
+    if node is None or depth > DEPTH_LIMIT:
         return None
     if isinstance(node, ast.JoinedStr):
         for piece in node.values:
@@ -588,20 +605,45 @@ def _own_body(scope_node: ast.AST) -> Iterable[ast.AST]:
         stack.extend(ast.iter_child_nodes(node))
 
 
-def scope_derived(scope_node: ast.AST, outer: _Scope, derive=None) -> _Scope:
-    """Привязки ЭТОЙ области: внешние минус затенённые плюс свои, до неподвижной точки.
+def scope_derived_steps(scope_node: ast.AST, outer: _Scope, derive=None, *,
+                        rounds: Optional[int] = None
+                        ) -> Tuple[_Scope, int, bool]:
+    """Привязки области до неподвижной точки — И СКОЛЬКО ШАГОВ это заняло.
+
+    Единственный дом петли распространения. :func:`scope_derived` ниже её не
+    повторяет, а зовёт: вторая копия расходилась бы молча (урок ADR-502 «одно
+    правило — один дом»).
 
     ``derive`` — та же область видимости, но для другой оси. Параметр, а не
     вторая копия функции: правило «параметр затеняет внешнюю привязку» должно
     быть одно на обе оси, иначе ложная находка, закрытая на одной оси, вернётся
     на другой (это и была первая ложная находка меры — имя ``p`` из одной
     функции, обвинявшее ``{"protocol": p}`` в другой).
+
+    ``rounds`` — ПРЕДЕЛ числа шагов, объявленный ВХОДОМ (умолчание
+    :data:`DERIVE_ROUNDS`, то есть прежнее поведение байт в байт). Заказ
+    **G697 п. 3** спросил, сколько шагов лежит между постоянной и полем, и
+    упирается ли счёт в предел. Ответить на это, не копируя петлю, можно
+    ровно одним способом — подстановкой в саму дверь: прогнать петлю с
+    ``rounds=k`` и смотреть, при каком ``k`` ответ ПОЯВЛЯЕТСЯ. Тот же порядок,
+    которым ADR-702 мерил цену ``drop_shadowed``.
+
+    Третьим значением — СОШЛАСЬ ли петля: ``True`` только тогда, когда она
+    кончилась неподвижной точкой, а не исчерпанным пределом. Это не
+    украшение: исчерпанный предел даёт имя БЕЗ рода, то есть молчание,
+    неотличимое от «счёта здесь нет» (инв. #17). Знак «не сошлась» и есть
+    дверь, у которой цену предела спрашивает
+    :func:`spa_core.monitoring.modular_constant_operand.axis_limit_cost`.
     """
     derive = derivation if derive is None else derive
+    limit = DERIVE_ROUNDS if rounds is None else rounds
     shadow = _shadowed(scope_node)
     derived: Set[str] = set(outer.derived) - shadow
     body = list(_own_body(scope_node))
-    for _ in range(8):
+    used = 0
+    converged = False
+    for _ in range(limit):
+        used += 1
         grew = False
         probe = _Scope(frozenset(derived), outer.wrappers)
         for node in body:
@@ -617,8 +659,15 @@ def scope_derived(scope_node: ast.AST, outer: _Scope, derive=None) -> _Scope:
                         derived.add(name)
                         grew = True
         if not grew:
+            converged = True
             break
-    return _Scope(frozenset(derived), outer.wrappers)
+    return _Scope(frozenset(derived), outer.wrappers), used, converged
+
+
+def scope_derived(scope_node: ast.AST, outer: _Scope, derive=None, *,
+                  rounds: Optional[int] = None) -> _Scope:
+    """Те же привязки, БЕЗ счёта шагов — обёртка над единственным домом петли."""
+    return scope_derived_steps(scope_node, outer, derive, rounds=rounds)[0]
 
 
 # ── чтение имени из CLOCK_FIELDS (слабая ось) ────────────────────────────────
@@ -760,13 +809,32 @@ def _scope_table(tree: ast.Module, derive, wrappers: FrozenSet[str]
     от счёта, — разные множества, и слить их значило бы объявить стенным всё,
     что посчитано, и посчитанным всё, что стенное.
     """
+    return scope_table_steps(tree, derive, wrappers)[0]
+
+
+def scope_table_steps(tree: ast.Module, derive, wrappers: FrozenSet[str], *,
+                      rounds: Optional[int] = None
+                      ) -> Tuple[Dict[int, _Scope], bool]:
+    """Та же таблица — и СОШЛИСЬ ЛИ ВСЕ её области за отведённые раунды.
+
+    Второе значение ``False`` означает, что хотя бы одна область модуля
+    кончила счёт исчерпанным пределом, а не неподвижной точкой: имена, до
+    которых цепочка не дотянулась, остались БЕЗ рода, и молчание о них
+    неотличимо от «счёта нет» (инв. #17). Цену этого исчерпания спрашивает
+    сосед (заказ G697 п. 3), и спрашивает подстановкой в ту же дверь —
+    тем же ``rounds``, но бо́льшим.
+    """
     table: Dict[int, _Scope] = {}
-    root = scope_derived(tree, _Scope(frozenset(), wrappers), derive)
+    root, _used, converged = scope_derived_steps(
+        tree, _Scope(frozenset(), wrappers), derive, rounds=rounds)
     table[id(tree)] = root
     for scope_node in _scopes(tree):
         if id(scope_node) not in table:
-            table[id(scope_node)] = scope_derived(scope_node, root, derive)
-    return table
+            scope, _u, scope_converged = scope_derived_steps(
+                scope_node, root, derive, rounds=rounds)
+            table[id(scope_node)] = scope
+            converged = converged and scope_converged
+    return table, converged
 
 
 # ── перепись по дереву ───────────────────────────────────────────────────────

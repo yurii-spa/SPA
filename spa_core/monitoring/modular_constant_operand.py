@@ -84,6 +84,25 @@
   в САМОМ выражении поля постоянной нет — поэтому ``direct`` и ``transitive``
   печатаются раздельно и не складываются в одно число.
 
+  **ДЛИНА такой цепочки измерена (заказ G697 п. 3)**, а не оговорена:
+  :func:`module_chain` ставит пределом раундов оси ``k = 0, 1, 2 …`` и
+  спрашивает, при каком ``k`` ответ об этой площадке ПОЯВЛЯЕТСЯ. Один раунд
+  петли оси добавляет ровно один шаг по имени, поэтому ``k`` и есть длина
+  кратчайшей цепочки. ``steps == 0`` — шаг НЕ ПО ИМЕНИ (через обёртку), и
+  различать это обязательно: обёртки ось ищет своей отдельной петлёй.
+
+Два ПРЕДЕЛА самой оси — и их цена (заказ G697 п. 3)
+------------------------------------------------------------------------------
+Обход оси кончается на ``depth > DEPTH_LIMIT``, а петля привязок — на
+``DERIVE_ROUNDS`` раундах. Оба предела возвращают ``None``, то есть говорят
+«арифметики нет» там, где верный ответ — «НЕ ИЗМЕРЕНО» (инв. #17), и население
+класса под таким молчанием есть нижняя граница НЕИЗВЕСТНОЙ глубины. Цена обоих
+мерится :func:`axis_limit_cost` подстановкой в САМИ двери (отрицательный
+стартовый ``depth`` даёт запас; бо́льший ``rounds`` — больше шагов), и печатается
+РЯДОМ с населением (:func:`limit_report`). Утверждения двух дверей РАЗНОЙ СИЛЫ,
+и это сказано вслух: про глубину говорит структура дерева (самое глубокое
+выражение-значение против предела), про раунды — только измеренные цепочки.
+
 Три исхода различимы на каждом уровне (инв. #17)
 ------------------------------------------------------------------------------
 ======================= ============================================
@@ -97,6 +116,10 @@
                         молчаливое спаривание не тех мест
 население кандидатов    перечень кандидатов не дан ⇒ ``None``, а не
                         «ни одного кандидата не задето»
+длина цепочки           ось не отвечает о площадке и при полном пределе
+                        ⇒ ``steps=None`` с причиной, а не ноль шагов
+цена пределов           запаса по глубине не хватает ⇒ отказ с
+                        названной причиной, а не «спрятано 0»
 ======================= ============================================
 
 ADVISORY: прибор только ЧИТАЕТ исходники. ``_IDENTITY_FIELDS``, координаты,
@@ -319,7 +342,8 @@ def substituted(tree: ast.Module, consts: Dict[str, str]
     return clone, sub.done
 
 
-def _axis_answers(tree: ast.Module) -> List[Tuple[str, int, str]]:
+def _axis_answers(tree: ast.Module, *, rounds: Optional[int] = None,
+                  depth: int = 0) -> List[Tuple[str, int, str]]:
     """``(поле, строка, что ось сказала)`` для каждой площадки — НАСТОЯЩЕЙ осью.
 
     Прогон повторяет ровно то, что делает ``identity_field_kind.module_kinds``
@@ -327,17 +351,41 @@ def _axis_answers(tree: ast.Module) -> List[Tuple[str, int, str]]:
     сильное и слабое прочтения. Правило здесь не живёт ни одной строкой —
     иначе прибор и ось разошлись бы молча. Верность повторения проверяется
     контролем (``test_the_today_answer_equals_the_axis_itself``).
+
+    ``rounds`` и ``depth`` — ДВА предела самой оси, объявленные входами
+    (заказ **G697 п. 3**). Умолчания дают ответ оси байт в байт, а подстановка
+    в них и есть мера: при ``rounds=k`` видно, за сколько ШАГОВ ответ
+    появляется, а при отрицательном ``depth`` — не прячет ли предел глубины
+    площадку под словом «арифметики нет». Второго разбора ни одного правила
+    здесь нет, подставляется сама дверь (тот же приём, что у ``drop_shadowed``
+    в ADR-702).
     """
-    scopes = field_kind._scope_table(tree, field_kind.arith_derivation,
-                                     field_kind.arith_wrappers(tree))
+    return _axis_answers_converged(tree, rounds=rounds, depth=depth)[0]
+
+
+def _axis_answers_converged(tree: ast.Module, *, rounds: Optional[int] = None,
+                            depth: int = 0
+                            ) -> Tuple[List[Tuple[str, int, str]], bool]:
+    """Ответы оси И сходимость её петли — ОДНИМ проходом таблицы областей.
+
+    Два вопроса сразу не ради краткости: таблица областей и есть вся цена
+    прохода, и спрашивать её дважды (раз за ответами, раз за сходимостью)
+    значило бы заплатить втрое за один и тот же разбор. Ответ площадок —
+    первым значением, сходимость — вторым; смешать их нельзя, это разные
+    утверждения (``False`` вторым означает «предел раундов исчерпан», а не
+    «площадок нет»).
+    """
+    scopes, converged = field_kind.scope_table_steps(
+        tree, field_kind.arith_derivation, field_kind.arith_wrappers(tree),
+        rounds=rounds)
     out: List[Tuple[str, int, str]] = []
     for name, value, line, scope_node in field_kind.field_assignments(tree):
         scope = scopes.get(id(scope_node), scopes[id(tree)])
-        how = field_kind.arith_derivation(value, scope)
+        how = field_kind.arith_derivation(value, scope, depth)
         if not how:
-            how = field_kind.arith_formatted(value, scope) or ""
+            how = field_kind.arith_formatted(value, scope, depth) or ""
         out.append((name, line, how))
-    return out
+    return out, converged
 
 
 def _consts_in(value: ast.AST, consts: Dict[str, str]) -> Tuple[str, ...]:
@@ -449,6 +497,229 @@ def module_shadow_cost(source: str) -> ShadowCost:
     return ShadowCost("", dropped, lost, "")
 
 
+@dataclasses.dataclass(frozen=True)
+class ChainRow:
+    """Сколько ШАГОВ лежит между постоянной и полем — заказ G697 п. 3.
+
+    ``steps`` — РАУНДЫ распространения, за которые ось начинает отвечать об
+    этой площадке, и мерены они подстановкой в саму дверь оси (``rounds=k``),
+    а не вторым разбором цепочки. Один раунд петли добавляет ровно один шаг по
+    имени: снимок привязок берётся ПЕРЕД обходом тела, поэтому порядок строк
+    в модуле на счёт не влияет.
+
+    ``steps == 0`` — не «шагов нет», а шаг НЕ ПО ИМЕНИ: ответ пришёл через
+    обёртку (``_effective_apy()``), чьи привязки ось ищет своей петлёй
+    (``_wrappers``, предел ``len(funcs) + 1`` — исчерпать его нельзя по
+    построению, функций в модуле меньше). Различать эти два случая обязательно:
+    иначе «через имя» и «через обёртку» слились бы в одно число, а цепочку
+    удлиняет только первое.
+
+    ``steps is None`` — третий исход с НАЗВАННОЙ причиной. Никогда не ноль.
+    """
+
+    module: str
+    line: int
+    field: str
+    how: str
+    steps: Optional[int]
+    reason: str
+
+    def __str__(self) -> str:
+        where = "НЕ ИЗМЕРЕНО" if self.steps is None else f"шагов {self.steps}"
+        tail = f" ({self.reason})" if self.reason else ""
+        return f"{self.module}:{self.line} {self.field} ← {self.how} [{where}]{tail}"
+
+
+def module_chain(source: str, sites: Sequence[Site]) -> Tuple[List[ChainRow], str]:
+    """Длина цепочки для КАЖДОЙ транзитивной площадки модуля. Вторым — причина.
+
+    Площадки приходят ВХОДОМ, а не считаются заново: их уже посчитал
+    :func:`module_sites`, и второй счёт того же предмета расходился бы молча
+    (урок #820). Прибор добавляет к ним ровно одно — расстояние.
+
+    Мера: предел раундов оси ставится ``k = 0, 1, 2 …`` и спрашивается, при
+    каком ``k`` ответ об этой площадке ПОЯВЛЯЕТСЯ. Это и есть длина кратчайшей
+    цепочки от постоянной (ставшей литералом) до поля. Больше
+    :data:`field_kind.DERIVE_ROUNDS` шагов ось не делает вовсе, поэтому
+    «ответа нет и при полном пределе» есть третий исход, а не длина.
+    """
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError) as exc:
+        return [], f"не разобрано: {type(exc).__name__}"
+    wanted = [s for s in sites if s.transitive]
+    if not wanted:
+        return [], ""
+    consts = module_constants(tree)
+    for name in shadowed_anywhere(tree):
+        consts.pop(name, None)
+    if not consts:
+        return [], "постоянных нет — транзитивной площадки быть не может"
+    clone, _done = substituted(tree, consts)
+    steps: Dict[Tuple[str, int], int] = {}
+    for k in range(field_kind.DERIVE_ROUNDS + 1):
+        answers = {(n, l): how for n, l, how in _axis_answers(clone, rounds=k)}
+        for site in wanted:
+            key = (site.field, site.line)
+            if key not in steps and answers.get(key):
+                steps[key] = k
+        if len(steps) == len(wanted):
+            break
+    rows = [ChainRow(module="", line=s.line, field=s.field, how=s.how,
+                     steps=steps.get((s.field, s.line)),
+                     reason="" if (s.field, s.line) in steps else
+                     (f"ответ не появился и при полном пределе "
+                      f"{field_kind.DERIVE_ROUNDS} раунд(ов)"))
+            for s in wanted]
+    return rows, ""
+
+
+#: Запас, с которым прибор спрашивает у оси «а если бы предела глубины не
+#: было». Отрицательная НАЧАЛЬНАЯ глубина — это и есть подстановка в саму
+#: дверь: условие оси ``depth > DEPTH_LIMIT`` при старте с ``-N`` пропускает
+#: ``DEPTH_LIMIT + N`` уровней вместо ``DEPTH_LIMIT``. Множитель взят с запасом
+#: к самому глубокому выражению дерева, а не «на всякий случай»: глубина
+#: выражения МЕРИТСЯ рядом (:func:`deepest_value`), и запас обязан её
+#: перекрывать.
+_DEPTH_HEADROOM = -8 * field_kind.DEPTH_LIMIT
+
+
+@dataclasses.dataclass(frozen=True)
+class LimitCost:
+    """Цена ДВУХ пределов самой оси — заказ G697 п. 3.
+
+    Предел, в который обход упёрся, возвращает ``None``, то есть говорит
+    «арифметики нет» там, где верный ответ — «НЕ ИЗМЕРЕНО» (инв. #17). Пока
+    цены нет, оба предела молчат одинаково, и население класса есть нижняя
+    граница неизвестной глубины — ровно та болезнь, которую ADR-702 вылечил у
+    двери затенения.
+
+    Две двери РАЗВЕДЕНЫ, как разведены там выброшенная постоянная и потерянная
+    площадка: глубина спуска в ОДНОМ выражении и длина цепочки МЕЖДУ именами —
+    разные вопросы, и ноль у одной не говорит ничего о другой.
+    """
+
+    module: str
+    #: Самое глубокое выражение-значение модуля (ВЕРХНЯЯ оценка глубины обхода).
+    deepest_value: int
+    #: Где оно: ``строка``. Называется, чтобы запас можно было перепроверить.
+    deepest_line: int
+    #: Дверь глубины сработала: выражение глубже предела оси ЕСТЬ.
+    depth_door: bool
+    #: Площадки, которые видно ТОЛЬКО с запасом по глубине («поле:строка»).
+    depth_hidden: Tuple[str, ...]
+    #: Дверь раундов сработала: петля хоть одной области НЕ сошлась за предел.
+    rounds_door: bool
+    #: Площадки, которые видно ТОЛЬКО при бо́льшем пределе раундов.
+    rounds_hidden: Tuple[str, ...]
+    #: Третий исход. Никогда не «цены нет».
+    reason: str
+
+
+def deepest_value(tree: ast.Module) -> Tuple[int, int]:
+    """Самое глубокое выражение-ЗНАЧЕНИЕ модуля: ``(глубина, строка)``.
+
+    Это ВЕРХНЯЯ оценка глубины, на которую может спуститься обход оси: счётчик
+    ``depth`` растёт ровно на один уровень вложенности узла, а в контейнеры и
+    в условие развилки ось не ходит вовсе. Поэтому запас «предел минус эта
+    глубина» больше нуля ДОКАЗЫВАЕТ, что предел глубины сегодня связать
+    ничего не может, — и доказывает структурой дерева, а не выборкой.
+
+    Спрашиваются ровно те выражения, о которых ось судит: значения привязок
+    (операнд петли распространения) и значения названных полей.
+    """
+
+    def depth_of(node: ast.AST) -> int:
+        best = 1
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.expr, ast.comprehension)):
+                best = max(best, 1 + depth_of(child))
+        return best
+
+    best, line = 0, 0
+    for node in ast.walk(tree):
+        if (isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+                and getattr(node, "value", None) is not None):
+            got = depth_of(node.value)
+            if got > best:
+                best, line = got, getattr(node, "lineno", 0)
+    for _name, value, line_no, _scope in field_kind.field_assignments(tree):
+        got = depth_of(value)
+        if got > best:
+            best, line = got, line_no
+    return best, line
+
+
+def _round_ceiling(tree: ast.Module) -> int:
+    """Предел раундов, исчерпать который НЕЛЬЗЯ: привязок в модуле плюс один.
+
+    Каждый раунд петли добавляет хотя бы одно имя, иначе петля кончается
+    неподвижной точкой. Значит раундов не может потребоваться больше, чем в
+    модуле привязок. Тот же приём, которым ``_wrappers`` берёт
+    ``len(funcs) + 1``: это не «побольше на всякий случай», а потолок по
+    построению.
+    """
+    return 1 + sum(1 for node in ast.walk(tree)
+                   if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)))
+
+
+def axis_limit_cost(source: str) -> LimitCost:
+    """Цена двух пределов оси В ОДНОМ модуле — подстановкой в сами двери.
+
+    Второй прогон делается ТОЛЬКО там, где соответствующая дверь СРАБОТАЛА, и
+    это не экономия на замере, а доказанное тождество — то же правило, по
+    которому ADR-702 сократил второй прогон цены затенения:
+
+    * выражений глубже предела в модуле нет ⇒ счётчик ``depth`` не может
+      дойти до предела ни на одной площадке, и ответы с запасом и без
+      совпадают ПО ПОСТРОЕНИЮ;
+    * петля сошлась неподвижной точкой ⇒ бо́льший предел раундов добавить
+      нечему, и ответы совпадают ПО ПОСТРОЕНИЮ.
+
+    Оба тождества закреплены контролем, а не рассуждением.
+    """
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError) as exc:
+        return LimitCost("", 0, 0, False, (), False, (),
+                         f"не разобрано: {type(exc).__name__}")
+    depth, line = deepest_value(tree)
+    consts = module_constants(tree)
+    for name in shadowed_anywhere(tree):
+        consts.pop(name, None)
+    operand = tree
+    if consts:
+        operand, _done = substituted(tree, consts)
+    rows, converged = _axis_answers_converged(operand)
+    base = {(n, l): how for n, l, how in rows}
+    depth_door = depth > field_kind.DEPTH_LIMIT
+    rounds_door = not converged
+    depth_hidden: List[str] = []
+    rounds_hidden: List[str] = []
+    if depth_door and depth > field_kind.DEPTH_LIMIT - _DEPTH_HEADROOM:
+        # Запас КОНЕЧЕН, и выдать его нехватку за «спрятанных площадок столько»
+        # значило бы повторить ровно тот дефект, который прибор и мерит:
+        # недостающий запас молчит так же, как достигнутый предел (инв. #17).
+        return LimitCost("", depth, line, depth_door, (), rounds_door, (),
+                         f"запаса по глубине не хватает: выражение {depth} при "
+                         f"запасе {field_kind.DEPTH_LIMIT - _DEPTH_HEADROOM}")
+    for door, kind, bucket in ((depth_door, "depth", depth_hidden),
+                               (rounds_door, "rounds", rounds_hidden)):
+        if not door:
+            continue
+        loose = (_axis_answers(operand, depth=_DEPTH_HEADROOM) if kind == "depth"
+                 else _axis_answers(operand, rounds=_round_ceiling(operand)))
+        if len(loose) != len(base):
+            return LimitCost("", depth, line, depth_door, (), rounds_door, (),
+                             "состав площадок разошёлся между прогонами: "
+                             f"{len(base)} против {len(loose)}")
+        for name, line_no, how in loose:
+            if how and not base.get((name, line_no)):
+                bucket.append(f"{name}:{line_no}")
+    return LimitCost("", depth, line, depth_door, tuple(depth_hidden),
+                     rounds_door, tuple(rounds_hidden), "")
+
+
 def census(tree_root: Path,
            roots: Sequence[str] = DEFAULT_ROOTS) -> dict:
     """Население класса по всему дереву. Тесты исключены — как у оси."""
@@ -456,6 +727,11 @@ def census(tree_root: Path,
     unmeasured: Dict[str, str] = {}
     costs: List[ShadowCost] = []
     cost_unmeasured: Dict[str, str] = {}
+    chain: List[ChainRow] = []
+    chain_unmeasured: Dict[str, str] = {}
+    limits: List[LimitCost] = []
+    limit_unmeasured: Dict[str, str] = {}
+    limits_outside = 0
     modules_with_consts = 0
     constants_seen = 0
     files_parsed = 0
@@ -490,6 +766,31 @@ def census(tree_root: Path,
                 cost_unmeasured[rel] = cost.reason
             elif cost.dropped:
                 costs.append(dataclasses.replace(cost, module=rel))
+            # Заказ G697 п. 3 — ДЛИНА цепочки у транзитивных площадок. Счёт
+            # идёт только там, где такая площадка есть: у модуля без неё
+            # измерять нечего, и прогон ради ноля был бы платой за тишину.
+            if any(s.transitive for s in found):
+                rows, why_chain = module_chain(source, found)
+                if why_chain:
+                    chain_unmeasured[rel] = why_chain
+                else:
+                    chain.extend(dataclasses.replace(r, module=rel)
+                                 for r in rows)
+            # Заказ G697 п. 3 — цена ДВУХ пределов самой оси. Дверь
+            # спрашивается у модуля с постоянными и НЕ спрашивается у модуля
+            # без них, и это ВЫБОР с причиной, а не свойство дерева: класс
+            # живёт только там, где постоянная есть, а прогон стои́т таблицу
+            # областей (цена названа числом в ADR). Исключённые модули
+            # посчитаны отдельной строкой — «не спрашивали» и «спросили и
+            # ноль» обязаны быть различимы (инв. #17).
+            if consts:
+                limit = axis_limit_cost(source)
+                if limit.reason:
+                    limit_unmeasured[rel] = limit.reason
+                else:
+                    limits.append(dataclasses.replace(limit, module=rel))
+            else:
+                limits_outside += 1
     doc = {
         "schema": SCHEMA,
         "files_parsed": files_parsed,
@@ -514,12 +815,80 @@ def census(tree_root: Path,
             "lost_named": [f"{c.module}:{n}" for c in costs for n in c.lost],
             "unmeasured": cost_unmeasured,
         },
+        # Заказ G697 п. 3. Шаги печатаются РАСКЛАДОМ, а не средним: заказ
+        # спросил «сколько шагов в КАЖДОМ случае», и среднее на этот вопрос
+        # не отвечает. `without_name_hop` отделён нарочно — шаг через обёртку
+        # цепочку по именам не удлиняет (см. :class:`ChainRow`).
+        "chain": {
+            "rows": [dataclasses.asdict(r) for r in chain],
+            "steps_histogram": _histogram(chain),
+            "max_steps": max([r.steps for r in chain if r.steps is not None],
+                             default=None),
+            "without_name_hop": sum(1 for r in chain if r.steps == 0),
+            "steps_unmeasured": sum(1 for r in chain if r.steps is None),
+            "unmeasured": chain_unmeasured,
+        },
+        # Заказ G697 п. 3. Два предела оси и запас до каждого. Двери РАЗВЕДЕНЫ:
+        # глубина спуска в одном выражении и длина цепочки между именами —
+        # разные вопросы, и ноль у одной ничего не говорит о другой.
+        "axis_limits": _limit_summary(limits, limit_unmeasured, chain,
+                                      outside=limits_outside),
     }
     if not files_parsed:
         doc["status"] = UNMEASURED
         doc["reason"] = ("ни один файл дерева не разобран — ноль мест читался "
                          "бы как ответ")
     return doc
+
+
+def _histogram(rows: Sequence[ChainRow]) -> Dict[str, int]:
+    """Расклад шагов: ``«шагов» → сколько площадок``. Третий исход — отдельно."""
+    out: Dict[str, int] = {}
+    for row in rows:
+        if row.steps is None:
+            continue
+        out[str(row.steps)] = out.get(str(row.steps), 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
+
+
+def _limit_summary(limits: Sequence[LimitCost], unmeasured: Dict[str, str],
+                   chain: Sequence[ChainRow], *, outside: int) -> dict:
+    """Свод цены двух пределов оси. Запас — число, а не слово «хватает».
+
+    Запас по ГЛУБИНЕ есть ``предел − самое глубокое выражение дерева``: пока
+    он положителен, предел глубины не может связать НИ ОДНОЙ площадки, и это
+    свойство структуры дерева, а не выборки. Запас по РАУНДАМ есть
+    ``предел − самая длинная измеренная цепочка``: он говорит лишь о том, что
+    измерено сегодня, и обязан читаться слабее первого.
+    """
+    deepest = max((c.deepest_value for c in limits), default=0)
+    at = next((f"{c.module}:{c.deepest_line}" for c in limits
+               if c.deepest_value == deepest), "")
+    longest = max([r.steps for r in chain if r.steps is not None], default=None)
+    return {
+        "depth_limit": field_kind.DEPTH_LIMIT,
+        "deepest_value_expression": deepest or None,
+        "deepest_named": at,
+        "depth_margin": (None if not deepest
+                         else field_kind.DEPTH_LIMIT - deepest),
+        "depth_doors_fired": sum(1 for c in limits if c.depth_door),
+        "depth_hidden_sites": sum(len(c.depth_hidden) for c in limits),
+        "depth_hidden_named": [f"{c.module}:{s}" for c in limits
+                               for s in c.depth_hidden],
+        "rounds_limit": field_kind.DERIVE_ROUNDS,
+        "longest_chain": longest,
+        "rounds_margin": (None if longest is None
+                          else field_kind.DERIVE_ROUNDS - longest),
+        "rounds_doors_fired": sum(1 for c in limits if c.rounds_door),
+        "rounds_hidden_sites": sum(len(c.rounds_hidden) for c in limits),
+        "rounds_hidden_named": [f"{c.module}:{s}" for c in limits
+                                for s in c.rounds_hidden],
+        "modules_measured": len(limits),
+        # «Не спрашивали» — своё число, а не ноль в графе «сработало»: модуль
+        # без постоянных операнда класса не несёт, и дверь у него не задавалась.
+        "modules_outside_the_operand": outside,
+        "unmeasured": unmeasured,
+    }
 
 
 def tally(candidate_fields: Optional[Dict[str, int]],
@@ -616,9 +985,42 @@ def _not_proven(doc: Optional[dict] = None) -> List[str]:
         "односторонность, заказом G697 п. 1 не названная",
         "постоянная функции постоянной здесь не считается: заказ назвал класс "
         "МОДУЛЬНЫМ",
+        _chain_clause(doc),
+        _limit_clause(doc),
         "«поле-кандидат задето» говорит о МЕСТЕ в коде, а не о годности поля в "
         "личность — годность меряет перепись, и правила от этого числа у неё нет",
     ]
+
+
+def _chain_clause(doc: Optional[dict] = None) -> str:
+    """Что говорит РАСКЛАД шагов — и чего он не говорит (заказ G697 п. 3)."""
+    chain = (doc or {}).get("chain")
+    if not isinstance(chain, dict):
+        return ("длина цепочки «постоянная → поле» НЕ ИЗМЕРЕНА (раздела "
+                "`chain` у документа нет — отчёт старого образца)")
+    return (f"расклад шагов говорит о КРАТЧАЙШЕЙ цепочке, которой хватает оси: "
+            f"самая длинная измеренная — {chain.get('max_steps')} шаг(ов), и "
+            "это не «других путей к полю нет», а «столько раундов ось делает, "
+            "прежде чем ответить»")
+
+
+def _limit_clause(doc: Optional[dict] = None) -> str:
+    """Цена двух пределов оси — числами и с НАЗВАННОЙ разницей силы."""
+    lim = (doc or {}).get("axis_limits")
+    if not isinstance(lim, dict):
+        return ("цена пределов самой оси НЕ ИЗМЕРЕНА (раздела `axis_limits` у "
+                "документа нет — отчёт старого образца)")
+    if lim.get("unmeasured"):
+        return ("цена пределов оси измерена ЧАСТИЧНО: "
+                f"{len(lim['unmeasured'])} модул(ей) в третьем исходе")
+    return (
+        f"предел ГЛУБИНЫ ({lim.get('depth_limit')}) связать сегодня ничего не "
+        f"может по СТРУКТУРЕ дерева — самое глубокое выражение-значение "
+        f"{lim.get('deepest_value_expression')} ({lim.get('deepest_named')}), "
+        f"запас {lim.get('depth_margin')}; предел РАУНДОВ "
+        f"({lim.get('rounds_limit')}) не упёрся ни в одной области "
+        f"({lim.get('rounds_doors_fired')} дверей сработало), и это утверждение "
+        "СЛАБЕЕ первого: оно про измеренные цепочки, а не про структуру")
 
 
 def cost_report(doc: dict, *, max_rows: int = 6) -> List[str]:
@@ -648,6 +1050,59 @@ def cost_report(doc: dict, *, max_rows: int = 6) -> List[str]:
     return out
 
 
+def chain_report(doc: dict, *, max_rows: int = 6) -> List[str]:
+    """Строки РАСКЛАДА шагов. Третий исход — вслух, не «шагов нет»."""
+    chain = doc.get("chain")
+    if not isinstance(chain, dict):
+        return ["  ШАГИ до поля: НЕ ИЗМЕРЕНЫ — раздела `chain` у документа нет "
+                "вовсе (отчёт СТАРОГО ОБРАЗЦА, а не «цепочек нет»)"]
+    hist = chain.get("steps_histogram") or {}
+    rows = chain.get("rows") or []
+    if not rows:
+        return ["  ШАГИ до поля: транзитивных площадок нет — мерить нечего "
+                "(измерено и равно нулю, а не «не измерено»)"]
+    spread = " · ".join(f"{k} шаг(ов) у {v}" for k, v in hist.items())
+    out = [f"  ШАГИ до поля ИЗМЕРЕНЫ у {len(rows)} транзитивн(ых): {spread}"
+           f" · самая длинная {chain.get('max_steps')} · без шага ПО ИМЕНИ "
+           f"(через обёртку) {chain.get('without_name_hop')} · НЕ ИЗМЕРЕНО "
+           f"{chain.get('steps_unmeasured')}"]
+    for row in rows[:max_rows]:
+        out.append(f"    шаги · {ChainRow(**row)}")
+    extra = len(rows) - max_rows
+    if extra > 0:
+        out.append(f"    … ещё {extra} цепочк(и)")
+    for rel, why in (chain.get("unmeasured") or {}).items():
+        out.append(f"    [ШАГИ НЕ ИЗМЕРЕНЫ] {rel}: {why}")
+    return out
+
+
+def limit_report(doc: dict, *, max_rows: int = 6) -> List[str]:
+    """Строки цены ДВУХ пределов оси. Запас — число, а не слово «хватает»."""
+    lim = doc.get("axis_limits")
+    if not isinstance(lim, dict):
+        return ["  ПРЕДЕЛЫ оси: цена НЕ ИЗМЕРЕНА — раздела `axis_limits` у "
+                "документа нет вовсе (отчёт СТАРОГО ОБРАЗЦА, а не «пределы не "
+                "жмут»)"]
+    out = [
+        f"  ПРЕДЕЛ ГЛУБИНЫ {lim.get('depth_limit')}: самое глубокое "
+        f"выражение-значение {lim.get('deepest_value_expression')} "
+        f"({lim.get('deepest_named')}) ⇒ запас {lim.get('depth_margin')} · "
+        f"дверей сработало {lim.get('depth_doors_fired')} · площадок спрятано "
+        f"{lim.get('depth_hidden_sites')}",
+        f"  ПРЕДЕЛ РАУНДОВ {lim.get('rounds_limit')}: самая длинная измеренная "
+        f"цепочка {lim.get('longest_chain')} ⇒ запас {lim.get('rounds_margin')} "
+        f"· дверей сработало {lim.get('rounds_doors_fired')} · площадок "
+        f"спрятано {lim.get('rounds_hidden_sites')} · модулей измерено "
+        f"{lim.get('modules_measured')}"]
+    for name in (lim.get("depth_hidden_named") or [])[:max_rows]:
+        out.append(f"    спрятано ГЛУБИНОЙ · {name}")
+    for name in (lim.get("rounds_hidden_named") or [])[:max_rows]:
+        out.append(f"    спрятано РАУНДАМИ · {name}")
+    for rel, why in (lim.get("unmeasured") or {}).items():
+        out.append(f"    [ПРЕДЕЛЫ НЕ ИЗМЕРЕНЫ] {rel}: {why}")
+    return out
+
+
 def report(doc: dict, *, max_rows: int = 8) -> List[str]:
     """Строки отчёта. Знаменатель рядом с числителем, третий исход — вслух."""
     status = doc.get("status")
@@ -666,6 +1121,11 @@ def report(doc: dict, *, max_rows: int = 8) -> List[str]:
     # читателя отчёта не достаёт, а именно он решает, точный перед ним ответ
     # или нижняя граница.
     out.extend(cost_report(doc))
+    # Заказ G697 п. 3: шаги и ПРЕДЕЛЫ печатаются там же, где население — иначе
+    # читатель отчёта не узнает, что «33» могло быть ограничено не кодом, а
+    # пределом обхода, и прочтёт молчание предела как «арифметики нет».
+    out.extend(chain_report(doc))
+    out.extend(limit_report(doc))
     hits = doc.get("candidate_hits")
     denom = doc.get("candidate_denominator")
     out.append("  полей-кандидатов задето: "
