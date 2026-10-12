@@ -369,6 +369,89 @@ def _probe_second_artifact_tvl_agrees(arg: str | None, *,
     return NOT_SATISFIED, " · ".join(details)
 
 
+#: Имя переписи провенанса ставки в `sys.modules` (ADR-706). Скрипт лежит в `scripts/`
+#: (не пакет) — грузится по пути; имя ФИКСИРОВАНО, чтобы положительный контроль мог
+#: подменить модуль и увидеть: проба читает ПЕРЕПИСЬ, а не собственную копию её правил.
+APY_PROVENANCE_MODULE_NAME = "_spa_apy_provenance_census_under_probe"
+
+
+def _apy_provenance_module():
+    """Перепись провенанса оси APY как модуль: один раз на процесс."""
+    import importlib.util
+    mod = sys.modules.get(APY_PROVENANCE_MODULE_NAME)
+    if mod is not None:
+        return mod
+    path = os.path.join(REPO_ROOT, "scripts", "apy_provenance_census.py")
+    spec = importlib.util.spec_from_file_location(APY_PROVENANCE_MODULE_NAME, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"{path} не загружается как модуль")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[APY_PROVENANCE_MODULE_NAME] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(APY_PROVENANCE_MODULE_NAME, None)
+        raise
+    return mod
+
+
+def _probe_apy_provenance_declared_in_the_door(arg: str | None) -> tuple[str, str]:
+    """Критерий: ни один ОПРАШИВАЕМЫЙ адаптер не может подставить постоянную МОЛЧА.
+
+    Предмет — пункт 2 карточки `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym`
+    (29.08): «адаптер, чьё число пришло из статической записи, обязан считаться
+    `static`, а не `live`; показатель "100 % живое" должен уметь быть неполным».
+    Разобрано решением ADR-706: у оси TVL контракт провенанса был с ADR-053, у оси
+    APY — не было ВООБЩЕ, поэтому «живость» ставки назначалась догадкой на трёх
+    дверях, а приёмка владельца (ADR-364) читала по этой оси ровно тот штамп,
+    который система ставит безусловно, — и её 100 % не могло упасть никогда.
+
+    **Дверь одна намеренно** — опрашиваемый набор оркестратора: ровно оттуда
+    приходит капитал книги (замер 12.10: все пять протоколов с деньгами, $95 000,
+    приходят путём снимка) и ровно там провенанс не спрашивают. Справочная
+    поверхность всех классов `adapters/*` — другой вопрос (адаптер попадает в дверь
+    решением цикла, а не свойством кода), и у неё свой потолок в самом приборе.
+
+    **Возраста у этого вопроса НЕТ, и это не упущение.** Операнд — ДЕРЕВО КОДА, а не
+    артефакт: протухнуть ему нечем, и подставлять сюда проверку свежести значило бы
+    задать вопрос, которого предмет не содержит. Проба только ЧИТАЕТ исходники:
+    перепись не зовёт адаптеры и в сеть не ходит.
+    """
+    try:
+        census = _apy_provenance_module()
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не загружена: {type(exc).__name__}: {exc}"
+
+    try:
+        rep = census.measure()
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+
+    door = rep.get("door") or {}
+    if rep.get("door_refused"):
+        return UNMEASURED, f"дверь не прочитана: {rep['door_refused']}"
+    if not door.get("population"):
+        return UNMEASURED, ("в двери НИ ОДНОГО адаптера — опрашиваемый набор не "
+                            "прочитан, и доля у нуля не существует")
+    rows = rep.get("door_rows") or []
+    if door.get("unmeasured"):
+        names = ", ".join(
+            f"{r['class']}: {'; '.join(r['notes'])[:120]}"
+            for r in rows if r.get("verdict") == "unmeasured")
+        return UNMEASURED, f"выражение ставки НЕ РАЗОБРАНО у {door['unmeasured']}: {names}"
+    if door.get("can_substitute"):
+        names = ", ".join(
+            f"{r['class']} ({'; '.join(r['notes'])[:80]})"
+            for r in rows if r.get("verdict") == "can_substitute")
+        return NOT_SATISFIED, (
+            f"постоянная может ранжировать капитал под ярлыком наблюдения у "
+            f"{door['can_substitute']} из {door['population']}: {names}")
+    return SATISFIED, (
+        f"в двери {door['population']} адаптер(ов): объявляют провенанс "
+        f"{door['declared']}, постоянную до поля не допускают {door['live_only']}, "
+        f"подставить молча не может ни один")
+
+
 #: Имя переписи доминирования KEEP в `sys.modules`. Модуль ПАКЕТНЫЙ, поэтому его
 #: подмена в `sys.modules` доходит до пробы — контроль этим и пользуется, чтобы
 #: увидеть: проба читает ПРИБОР, а не собственную копию его логики.
@@ -4849,6 +4932,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
     "series_denominator_measured": _probe_series_denominator_measured,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
+    "apy_provenance_declared_in_the_door":
+        _probe_apy_provenance_declared_in_the_door,
     "economics_net_return_dominates_keep":
         _probe_economics_net_return_dominates_keep,
     "persistence_advantage_outlives_horizon":

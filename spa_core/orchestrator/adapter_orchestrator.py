@@ -220,6 +220,19 @@ def _run_one_adapter(
         # "static" (fail-closed: the RiskPolicy gate will not let it satisfy
         # the TVL floor). No TVL at all → None.
         "tvl_source": None,
+        # ADR-706: ПРОВЕНАНС СТАВКИ — та же дисциплина, что у `tvl_source` строкой
+        # выше, но для оси APY. Поле присутствует ВСЕГДА, в том числе на отказных
+        # путях. Три исхода различимы: "live" (адаптер объявил, что снял ставку в
+        # этом вызове) · "static" (объявил подстановку: классовая постоянная или
+        # число, перенесённое из другого артефакта) · None (НЕ ОБЪЯВЛЕН).
+        #
+        # `live_data` на этот вопрос НЕ отвечает и отвечать не может: он True по
+        # одному факту «вернулось число». Поэтому «100 % капитала на наблюдённых
+        # числах» по оси APY (приёмка ADR-364) до этого поля было верно ПО
+        # ПОСТРОЕНИЮ. Замер 12.10: declared 0 из 11 опрашиваемых, и один из них
+        # (`fluid_fusdc`) подставляет постоянную `SPIKE_NORM_PCT = 9.0`
+        # (`scripts/apy_provenance_census.py`).
+        "apy_source": None,
     }
     try:
         adapter = adapter_cls()
@@ -264,6 +277,15 @@ def _run_one_adapter(
         if tvl_usd is not None:
             _declared = getattr(info, "tvl_source", None)
             record["tvl_source"] = "live" if _declared == "live" else "static"
+
+        # ADR-706: ставку спрашиваем о происхождении ТАК ЖЕ, как TVL строкой выше, и
+        # НЕ ДОГАДЫВАЕМСЯ за адаптера. Незаявленный провенанс остаётся `None` —
+        # «не объявлен» и «объявлен постоянной» суть разные болезни с разным
+        # лечением, и сливать их в одно слово значило бы потерять ту самую
+        # разницу, ради которой поле добавлено.
+        _apy_declared = getattr(info, "apy_source", None)
+        record["apy_source"] = (
+            str(_apy_declared) if _apy_declared in ("live", "static") else None)
 
         _apy_refused = getattr(info, "apy_refused", None)
         record["apy_refused"] = (str(_apy_refused) if isinstance(_apy_refused, str)
@@ -345,6 +367,7 @@ def _collect_adapter_statuses(
                     "warning": None,
                     "live_data": False,
                     "tvl_source": None,
+                    "apy_source": None,   # ADR-706: поле есть и на отказном пути
                 }
                 record["health_score"] = compute_health_score(record, now=now)
                 results.append(record)
@@ -362,6 +385,7 @@ def _collect_adapter_statuses(
                     "warning": None,
                     "live_data": False,
                     "tvl_source": None,
+                    "apy_source": None,   # ADR-706: поле есть и на отказном пути
                 }
                 record["health_score"] = compute_health_score(record, now=now)
                 results.append(record)

@@ -138,13 +138,36 @@ class FluidFUSDCAdapter(BaseAdapter):
 
         Реализует контракт BaseAdapter.get_apy() (здесь в процентах,
         а не как decimal — специфика SPA T2 адаптеров с pct-интерфейсом).
+
+        ADR-706: правило подстановки живёт в :meth:`apy_with_provenance` — ОДНОЙ
+        копией, иначе значение и его провенанс считались бы по двум правилам и
+        однажды разошлись бы.
+        """
+        return self.apy_with_provenance()[0]
+
+    def apy_with_provenance(self) -> tuple[Optional[float], Optional[str]]:
+        """APY (%) И его ПРОВЕНАНС: ``(значение, "live" | "static" | None)``.
+
+        ADR-706. Spike-защита подставляет вместо наблюдения классовую постоянную
+        ``SPIKE_NORM_PCT`` (9.0), и до этого метода отличить её от наблюдения было
+        нельзя НИКОМУ: `YieldInfo` не имел поля для провенанса ставки, оркестратор
+        ставил ``live_data=True`` по факту «вернулось число», аллокатор —
+        ``apy_source="live"`` безусловно. Постоянная 9.0 лежит внутри полосы допуска
+        RiskPolicy (1…30 %), поэтому гейт её пропускал, и приёмка владельца
+        («доля капитала на наблюдённых числах», ADR-364) считала такой капитал
+        наблюдённым. На 12.10 в этом протоколе лежало $20 000 книги.
+
+        ПОВЕДЕНИЕ НЕ МЕНЯЕТСЯ: при spike наружу уходит та же 9.0 — защита от
+        перекоса портфеля на аномалии DEX-активности остаётся. Меняется
+        ПРЕДСТАВЛЕНИЕ: подстановка называется подстановкой (инв. #17).
         """
         raw = self.get_raw_apy()
         if raw is None:
-            return None
+            # Наблюдения нет — и это НЕ «статика»: значения нет вовсе.
+            return None, None
         if raw > self.SPIKE_THRESHOLD_PCT:
-            return self.SPIKE_NORM_PCT
-        return raw
+            return self.SPIKE_NORM_PCT, "static"
+        return raw, "live"
 
     def get_apy_pct(self) -> Optional[float]:
         """Возвращает APY в процентах (алиас get_apy для совместимости с BaseAdapter).
@@ -165,7 +188,7 @@ class FluidFUSDCAdapter(BaseAdapter):
         литерал живым не штампуется (ADR-053). Нет наблюдения ⇒ прежнее поведение:
         литерал без метки источника, гейт его не засчитывает.
         """
-        _apy_pct = self.get_apy()
+        _apy_pct, _apy_source = self.apy_with_provenance()
         _tvl_live = read_live_tvl_usd(self.PROTOCOL, self._data_dir)
         _pool = None
         if _tvl_live is not None:
@@ -176,6 +199,9 @@ class FluidFUSDCAdapter(BaseAdapter):
             asset=self.asset,
             # ADR-063: None пробрасывается как None (контракт YieldInfo SPA-V398).
             apy=(_apy_pct / 100.0) if _apy_pct is not None else None,   # BaseAdapter convention: decimal (0.065)
+            # ADR-706: ставка, снятая в этом вызове, называется живой; подставленная
+            # spike-постоянная — статикой. Ровно та же дисциплина, что у tvl_source.
+            apy_source=_apy_source,
             tvl_usd=float(_tvl_live) if _tvl_live is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,

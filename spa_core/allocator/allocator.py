@@ -838,6 +838,16 @@ class StrategyAllocator:
         # WS1.1: per-protocol provenance, populated during _load_adapters and
         # surfaced on AllocationResult. protocol → "live" | "fallback_stale".
         self._apy_sources: dict[str, str] = {}
+        # ADR-706: ОБЪЯВЛЕННЫЙ провенанс ставки, отдельно от ``_apy_sources``.
+        # Это РАЗНЫЕ вопросы, и путать их нельзя: ``_apy_sources`` отвечает «каким
+        # ПУТЁМ аллокатор добыл число» (живой фид против помеченного литерала
+        # реестра) и на пути снимка равен "live" БЕЗУСЛОВНО; ``_apy_declared`` —
+        # «что о происхождении ставки сказал ЕЁ ПРОИЗВОДИТЕЛЬ»: "live" (снял в этом
+        # вызове) · "static" (подставил постоянную) · None (не объявил вовсе).
+        # Второй вопрос до ADR-706 не задавал никто, поэтому приёмка владельца
+        # (ADR-364, «доля капитала на наблюдённых числах») читала по оси APY
+        # собственную догадку аллокатора и не могла упасть ниже 100 % никогда.
+        self._apy_declared: dict[str, str | None] = {}
         self._apy_used: dict[str, float] = {}  # protocol → apy_pct actually ranked on
         self._as_of: dict[str, str] = {}       # protocol → ISO ts of the value used
         # ADR-053 (allocator side): per-protocol TVL provenance. "live" ONLY when
@@ -982,6 +992,7 @@ class StrategyAllocator:
         # WS1.1: reset per-call provenance, then fetch the live point-in-time APY
         # map ONCE (decimal per protocol). live[name] WINS over the stale literal.
         self._apy_sources = {}
+        self._apy_declared = {}
         self._apy_used = {}
         self._as_of = {}
         self._tvl_sources = {}
@@ -1178,6 +1189,28 @@ class StrategyAllocator:
                         break
                 adapters.append(_row)
                 self._apy_sources[protocol] = "live"
+                # ADR-706: ОБЪЯВЛЕНИЕ производителя, а не наша догадка. Строка
+                # выше («apy_source": "live"») говорит о ПУТИ и остаётся как
+                # есть — её читают рационале и взвод ADR-060; это поле говорит о
+                # ПРОИСХОЖДЕНИИ и может быть None («адаптер не объявил»).
+                #
+                # Объявление относится к ТОМУ ЧИСЛУ, на котором ранжируют. Когда
+                # число снимка перебито наблюдением из ``evidence`` (ветвь выше,
+                # ADR-061), провенанс берётся у наблюдения — но ТОЛЬКО если
+                # свидетель НЕЗАВИСИМЫЙ, то есть `adapter_status.live_apy`
+                # (производитель ставит его лишь на разрешённый пул) либо
+                # инъекция теста. Свидетельство с ярлыком `orchestrator_live`
+                # сюда НЕ годится: это ровно тот же флаг `live_data`, который
+                # ставится по одному факту «вернулось число», и зачесть его за
+                # наблюдение значило бы вернуть догадку через вторую дверь —
+                # тот самый дефект, ради которого ADR-706 и написан.
+                _ev_src = evidence_src.get(protocol)
+                if protocol in evidence and _ev_src in ("adapter_status_live", "injected"):
+                    self._apy_declared[protocol] = "live"
+                else:
+                    _declared_apy = a.get("apy_source")
+                    self._apy_declared[protocol] = (
+                        str(_declared_apy) if _declared_apy in ("live", "static") else None)
                 self._apy_used[protocol] = apy_pct
                 self._as_of[protocol] = a.get("last_updated", now_iso)
                 self._tvl_sources[protocol] = tvl_source
@@ -1281,6 +1314,12 @@ class StrategyAllocator:
                         }
                     )
                     self._apy_sources[name] = apy_source
+                    # ADR-706: на ЭТОМ пути производителем объявления выступает сам
+                    # аллокатор, и объявление ИЗМЕРЕНО: "live" ставится только по
+                    # наблюдению из ``evidence`` (прибитый пул), а помеченный
+                    # литерал реестра честно идёт статикой.
+                    self._apy_declared[name] = (
+                        "live" if apy_source == "live" else "static")
                     self._apy_used[name] = apy_pct
                     self._as_of[name] = as_of
                     self._tvl_sources[name] = reg_tvl_source
@@ -1313,6 +1352,18 @@ class StrategyAllocator:
             "live_adapters": live,
             "fallback_stale_adapters": stale,
             "apy_sources": dict(self._apy_sources),
+            # ADR-706: ОБЪЯВЛЕННЫЙ провенанс ставки — три исхода, различимые по
+            # инв. #17. ``apy_sources`` рядом отвечает на ДРУГОЙ вопрос (путь
+            # добычи) и на пути снимка равен "live" безусловно, поэтому читать
+            # его как «наблюдение» нельзя: ровно эта подмена держала приёмку
+            # ADR-364 на недостижимых 100 % по оси APY.
+            "apy_declared": dict(self._apy_declared),
+            "apy_declared_live": sum(
+                1 for v in self._apy_declared.values() if v == "live"),
+            "apy_declared_static": sum(
+                1 for v in self._apy_declared.values() if v == "static"),
+            "apy_undeclared": sum(
+                1 for v in self._apy_declared.values() if v is None),
             "apy_used_pct": {p: round(v, 4) for p, v in self._apy_used.items()},
             "as_of": dict(self._as_of),
             # ADR-053 (allocator side): TVL provenance — "live" only when the
