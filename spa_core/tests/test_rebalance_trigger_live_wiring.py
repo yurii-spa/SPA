@@ -413,6 +413,9 @@ class TestOfficeStepNamesTheThirdOutcome(unittest.TestCase):
         mod = self._reader()
         doc = {"should_rebalance": False, "triggered": [],
                "checked_at": ts(hours_ago=0.5), "checks": {}}
+        # SCHEMA-GAP-OK: отсутствие `unmeasured`/`verdict` и ЕСТЬ предмет сцены
+        # — файл до ADR-240, лежавший в проде 06.09; дать их фикстуре значило бы
+        # проверять не тот документ
         text = "\n".join(mod._summarize_json("rebalance_trigger.json", doc))
         self.assertIn("СЛЕПОТА", text)
 

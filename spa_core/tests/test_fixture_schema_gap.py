@@ -242,6 +242,20 @@ class TheThirdOutcomeIsItsOwnAnswer(_SceneCase):
         ''')
         census = self.scene.measure({"o.json": ("status",)})
         self.assertEqual(census.population, [])
+        # Причина НАЗВАНА точнее, чем «имя не связано»: имя есть ПАРАМЕТР, а
+        # вызовов у его функции нет ни одного, и спросить у вызывающего не у
+        # кого (ADR-699). Два разных отказа — две разных причины.
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["doc_unresolved:param_no_call_site"])
+
+    def test_a_name_that_is_neither_assigned_nor_a_parameter_stays_unbound(self):
+        """Обратная сторона предыдущего: «не параметр» — своя причина."""
+        self.scene.write("test_o2.py", '''
+            def t():
+                return office._summarize_json("data/o2.json", report)
+        ''')
+        census = self.scene.measure({"o2.json": ("status",)})
+        self.assertEqual(census.population, [])
         self.assertEqual([row[1] for row in census.unmeasured],
                          ["doc_unresolved:name_unbound"])
 
@@ -513,3 +527,317 @@ class TheRatchetRedensOnTheRealIncident(_SceneCase):
             {"census.json": ("counts.lists_total", "counts.day_axis",
                              "counts.constant_operand")})
         self.assertEqual(gap.compare(census, {}), [])
+
+
+class NamesAreBoundByScopeNotByTheFile(_SceneCase):
+    """ADR-699: прежняя редакция связывала имена обходом ВСЕГО файла.
+
+    Вред у формы двусторонний, и каждая сторона здесь — отдельная сцена,
+    воспроизводящая НАСТОЯЩУЮ аварию замера #842.
+    """
+
+    _SCHEMA = {"z.json": ("status", "counts.total")}
+
+    def test_a_rich_sibling_does_not_take_the_blame_for_a_poor_neighbour(self):
+        """ЛОЖНАЯ НАХОДКА: три площадки `_health.json` числились «не несёт 7 из 7»,
+        а их настоящая фикстура несёт все семь — документ приехал из ЧУЖОЙ функции.
+        """
+        self.scene.write("test_z1.py", '''
+            def rich():
+                doc = {"status": "CLEAN", "counts": {"total": 1}}
+                return office._summarize_json("data/z.json", doc)
+
+            def poor():
+                doc = {"status": "CLEAN"}
+                return doc
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [],
+                         "богатая площадка обвинена документом соседней функции")
+        self.assertEqual(len(census.sites), 1, census.sites)
+
+    def test_a_poor_site_does_not_borrow_the_keys_of_a_rich_sibling(self):
+        """СКРЫТЫЙ ПРОБЕЛ: обратная сторона той же формы — сосед ОДАЛЖИВАЛ ключи,
+        и настоящий пробел не находился вовсе (так прятались `note`,
+        `closure_drift`, `history.*`, `verdict`).
+        """
+        self.scene.write("test_z2.py", '''
+            def poor():
+                doc = {"status": "CLEAN"}
+                return office._summarize_json("data/z.json", doc)
+
+            def rich():
+                doc = {"status": "CLEAN", "counts": {"total": 1}}
+                return doc
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)],
+                         "пробел площадки погашен ключами соседней функции")
+
+    def test_a_name_assigned_in_a_class_body_is_not_visible_in_a_method(self):
+        """Правило берётся у ЯЗЫКА: голое имя из тела класса в методе — `NameError`.
+
+        Считать его видимым значило бы вернуть то же одалживание под другим
+        именем.
+        """
+        self.scene.write("test_z3.py", '''
+            class S:
+                doc = {"status": "CLEAN", "counts": {"total": 1}}
+
+                def t(self):
+                    return office._summarize_json("data/z.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["doc_unresolved:name_unbound"])
+
+    def test_a_local_assignment_shadows_the_module_level_name(self):
+        """Своя область ПЕРЕКРЫВАЕТ модульную — как в языке, а не складывается."""
+        self.scene.write("test_z4.py", '''
+            doc = {"status": "CLEAN", "counts": {"total": 1}}
+
+            def t():
+                doc = {"status": "CLEAN"}
+                return office._summarize_json("data/z.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)],
+                         "локальное имя не перекрыло модульное")
+
+    def test_the_module_level_name_is_still_visible_when_not_shadowed(self):
+        """Обратный контроль: область не ОТРЕЗАЕТ лишнего."""
+        self.scene.write("test_z5.py", '''
+            DOC = {"status": "CLEAN", "counts": {"total": 1}}
+
+            def t():
+                return office._summarize_json("data/z.json", DOC)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [], census.sites)
+        self.assertEqual(len(census.sites), 1)
+
+    def test_a_helper_return_is_resolved_in_the_scope_of_the_HELPER(self):
+        """Та же граница с другой стороны: `return doc` принадлежит помощнику.
+
+        Форма взята с живого места — `_health_with_house_view` строит документ
+        в своём локальном `doc`, которого у сцены нет вовсе.
+        """
+        self.scene.write("test_z6.py", '''
+            REAL = {"status": "CLEAN", "counts": {"total": 1}}
+
+            def _build():
+                doc = dict(REAL)
+                return doc
+
+            def t():
+                doc = {"status": "CLEAN"}
+                return office._summarize_json("data/z.json", _build())
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [],
+                         "документ помощника подменён локальным именем сцены")
+
+
+class BranchesAreUnitedDEEPLY(_SceneCase):
+    """ADR-699: плоский `dict.update` СТИРАЛ раздел соседней ветки.
+
+    Вопрос меры — «несёт ли путь ХОТЬ ОДНА ветка», и ответ не вправе зависеть
+    от порядка ветвей. Обе сцены ниже отличаются ТОЛЬКО порядком.
+    """
+
+    _SCHEMA = {"m.json": ("counts.total", "counts.day_axis")}
+
+    def test_a_poor_branch_does_not_erase_a_rich_branch(self):
+        self.scene.write("test_m1.py", '''
+            def t(flag):
+                doc = {"counts": {"total": 1, "day_axis": {}}}
+                doc = {"counts": {}}
+                return office._summarize_json("data/m.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [],
+                         "ветка с пустым разделом стёрла богатую")
+
+    def test_the_answer_does_not_depend_on_the_order_of_branches(self):
+        self.scene.write("test_m2.py", '''
+            def t(flag):
+                doc = {"counts": {}}
+                doc = {"counts": {"total": 1, "day_axis": {}}}
+                return office._summarize_json("data/m.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+
+    def test_a_path_no_branch_carries_is_still_found(self):
+        """Обратная сторона: глубокое слияние не ослепляет меру."""
+        self.scene.write("test_m3.py", '''
+            def t(flag):
+                doc = {"counts": {}}
+                doc = {"counts": {"total": 1}}
+                return office._summarize_json("data/m.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.day_axis",)])
+
+
+class TheValueOfAParameterIsAskedOfTheCaller(_SceneCase):
+    """Заказ G698 п. 2: документ приходит ПАРАМЕТРОМ, и решает вызывающий."""
+
+    _SCHEMA = {"k.json": ("status", "counts.total")}
+
+    def test_the_argument_at_the_call_site_resolves_the_parameter(self):
+        self.scene.write("test_k1.py", '''
+            def _render(doc):
+                return office._summarize_json("data/k.json", doc)
+
+            def t():
+                return _render({"status": "CLEAN"})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+
+    def test_self_does_not_shift_the_argument_of_a_method(self):
+        """Смещение читается из ФОРМЫ вызова, а не угадывается."""
+        self.scene.write("test_k2.py", '''
+            class S:
+                def _render(self, doc):
+                    return office._summarize_json("data/k.json", doc)
+
+                def t(self):
+                    return self._render({"status": "CLEAN"})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+
+    def test_several_callers_are_united_so_one_carrying_branch_is_enough(self):
+        self.scene.write("test_k3.py", '''
+            def _render(doc):
+                return office._summarize_json("data/k.json", doc)
+
+            def t1():
+                return _render({"status": "CLEAN"})
+
+            def t2():
+                return _render({"status": "CLEAN", "counts": {"total": 1}})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [], census.sites)
+
+    def test_the_argument_is_resolved_in_the_scope_of_the_CALLER(self):
+        """Аргумент написан у вызывающего — связывать его именами помощника
+        значило бы повторить одалживание, против которого введена область."""
+        self.scene.write("test_k4.py", '''
+            def _render(doc):
+                payload = {"status": "CLEAN"}
+                return office._summarize_json("data/k.json", doc)
+
+            def t():
+                payload = {"status": "CLEAN", "counts": {"total": 1}}
+                return _render(payload)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [],
+                         "аргумент связан именем ПОМОЩНИКА, а не вызывающего")
+
+    def test_a_keyword_argument_binds_the_parameter_by_name(self):
+        self.scene.write("test_k5.py", '''
+            def _render(doc):
+                return office._summarize_json("data/k.json", doc)
+
+            def t():
+                return _render(doc={"status": "CLEAN"})
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+
+    def test_a_starred_argument_is_not_guessed(self):
+        """`_render(*args)` параметра не связывает — и это НЕ «полей нет»."""
+        self.scene.write("test_k6.py", '''
+            def _render(doc):
+                return office._summarize_json("data/k.json", doc)
+
+            def t(args):
+                return _render(*args)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual([row[1] for row in census.unmeasured],
+                         ["doc_unresolved:param_not_bound_at_call"])
+
+    def test_passing_the_parameter_onward_is_not_called_a_cycle(self):
+        """Петля ищется по ПАРЕ «область × имя»: у локального имени вызывающего
+        то же написание, что у параметра помощника, и проверка по одному имени
+        объявляла бы петлёй обычную передачу аргумента."""
+        self.scene.write("test_k7.py", '''
+            def _render(doc):
+                return office._summarize_json("data/k.json", doc)
+
+            def t():
+                doc = {"status": "CLEAN"}
+                return _render(doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+        self.assertEqual(census.unmeasured, [])
+
+
+class TheStdlibCopyIdiomIsTheSameFixture(_SceneCase):
+    """`json.loads(json.dumps(X))` — тот же идиом глубокой копии, что `deepcopy`,
+    только написанный stdlib-ом (инв. #4). Не узнав его, мера теряла площадку."""
+
+    _SCHEMA = {"j.json": ("status", "counts.total")}
+
+    def test_a_json_round_trip_resolves_to_the_copied_fixture(self):
+        self.scene.write("test_j1.py", '''
+            import json
+
+            REAL = {"status": "CLEAN", "counts": {"total": 1}}
+
+            def t():
+                doc = json.loads(json.dumps(REAL))
+                return office._summarize_json("data/j.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [], census.sites)
+
+    def test_a_round_trip_of_a_POOR_fixture_is_still_found(self):
+        """Обратная сторона: идиом не ослепляет меру."""
+        self.scene.write("test_j2.py", '''
+            import json
+
+            REAL = {"status": "CLEAN"}
+
+            def t():
+                doc = json.loads(json.dumps(REAL))
+                return office._summarize_json("data/j.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual([s.missing for s in census.population],
+                         [("counts.total",)])
+
+    def test_a_foreign_loads_is_not_mistaken_for_the_idiom(self):
+        """`json.loads(<строка>)` копией фикстуры НЕ является.
+
+        Исход тут ЧЕТВЁРТЫЙ, а не «НЕ ИЗМЕРЕНО»: документ собрал ВЫЗОВ, и
+        фикстуры, которой можно объявить поле, в этом месте нет вовсе.
+        """
+        self.scene.write("test_j3.py", '''
+            import json
+
+            def t(raw):
+                doc = json.loads(raw)
+                return office._summarize_json("data/j.json", doc)
+        ''')
+        census = self.scene.measure(self._SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual([row[1] for row in census.built_by_call],
+                         ["call_unresolved"])

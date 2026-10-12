@@ -315,7 +315,7 @@ def test_office_step_prints_the_finding() -> None:
     """Шаг 0-офис обязан НАЗВАТЬ находку, а не проглотить её в «прочитано N»."""
     doc = {"cards_fate": {"new": 0, "in_progress": 0, "done_by_human": 0,
                           "auto_closed": 1, "other_status": 0, "unreadable": 0},
-           "open_cards": 0, "recurrences_total": 0,
+           "open_cards": 0, "recurrences_total": 0, "note": "",
            "latency_finding_to_card": {"median_h": None, "max_h": None, "n": 0},
            "latency_card_to_close": {"median_h": None, "max_h": None, "n": 0},
            "closure_drift": {"verdict": "findings", "unmeasured_reason": None,
@@ -336,7 +336,7 @@ def test_office_step_says_unmeasured_out_loud() -> None:
     """«Не измерено» обязано быть слышно: молчание читается как «расхождений нет»."""
     doc = {"cards_fate": {"new": 0, "in_progress": 0, "done_by_human": 0,
                           "auto_closed": 0, "other_status": 0, "unreadable": 0},
-           "open_cards": 0, "recurrences_total": 0,
+           "open_cards": 0, "recurrences_total": 0, "note": "",
            "latency_finding_to_card": {"median_h": None, "max_h": None, "n": 0},
            "latency_card_to_close": {"median_h": None, "max_h": None, "n": 0},
            "closure_drift": {"verdict": "unmeasured",
@@ -366,6 +366,8 @@ def test_office_step_stays_silent_about_a_missing_block() -> None:
            "latency_finding_to_card": {"median_h": None, "max_h": None, "n": 0},
            "latency_card_to_close": {"median_h": None, "max_h": None, "n": 0}}
 
+    # SCHEMA-GAP-OK: отсутствие `closure_drift` и ЕСТЬ предмет сцены — отчёт
+    # СТАРОГО образца; дать фикстуре этот блок значило бы стереть проверку
     out = "\n".join(OFFICE._summarize_json("data/loop_health.json", doc))
 
     assert "origin/main" not in out, (

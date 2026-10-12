@@ -173,23 +173,196 @@ class Census:
         return {k: tuple(sorted(v)) for k, v in sorted(out.items())}
 
 
+def _merge(dst: dict, src: dict) -> None:
+    """Объединение ветвей — ГЛУБОКОЕ: «несёт хотя бы одна ветка».
+
+    Плоский `dict.update` отвечал на другой вопрос: ветка с `counts: {}`
+    СТИРАЛА богатый `counts` соседней ветки, и ответ зависел от ПОРЯДКА
+    присваиваний, а не от предмета (замер ADR-699: у
+    `test_list_identity_census_wiring.py::_text` так исчезали все 17 путей
+    `counts.*`, которые полная фикстура несёт). Вопрос меры — «есть ли поле
+    хоть у одной ветки», и глубокое слияние есть ровно он.
+
+    Лист против словаря: словарь богаче и остаётся — он несёт пути глубже.
+    """
+    for key, value in src.items():
+        have = dst.get(key)
+        if isinstance(have, dict) and isinstance(value, dict):
+            _merge(have, value)
+        elif isinstance(have, dict):
+            continue
+        else:
+            dst[key] = value
+
+
+def _assigns_of(scope: ast.AST) -> dict[str, list[ast.AST]]:
+    """Присваивания СВОЕЙ области: тело `scope` без вложенных функций и классов.
+
+    Граница области и есть предмет: обход, спускающийся во вложенные тела,
+    выдаёт за видимое то, что из `scope` голым именем не видно.
+    """
+    out: dict[str, list[ast.AST]] = {}
+
+    def walk(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                  ast.ClassDef, ast.Lambda)):
+                continue
+            if isinstance(child, ast.Assign):
+                for tgt in child.targets:
+                    if isinstance(tgt, ast.Name):
+                        out.setdefault(tgt.id, []).append(child.value)
+            elif (isinstance(child, ast.AnnAssign)
+                  and isinstance(child.target, ast.Name)
+                  and child.value is not None):
+                out.setdefault(child.target.id, []).append(child.value)
+            walk(child)
+
+    walk(scope)
+    return out
+
+
+def _enclosing_funcs(tree: ast.Module) -> dict[int, ast.AST]:
+    """Строка → ближайшая объемлющая функция (самая внутренняя из объемлющих)."""
+    owner: dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for inner in ast.walk(node):
+            line = getattr(inner, "lineno", None)
+            if line is None:
+                continue
+            prev = owner.get(line)
+            if prev is None or node.lineno > prev.lineno:
+                owner[line] = node
+    return owner
+
+
 class _ModuleFlow:
     """Разрешение выражения в скелет словаря — по потоку значения внутри файла."""
 
     def __init__(self, tree: ast.Module, aliases: dict[str, str]):
         self.aliases = aliases
         self.funcs: dict[str, list[ast.AST]] = {}
-        self.assigns: dict[str, list[ast.AST]] = {}
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 self.funcs.setdefault(node.name, []).append(node)
-            elif isinstance(node, ast.Assign):
-                for tgt in node.targets:
-                    if isinstance(tgt, ast.Name):
-                        self.assigns.setdefault(tgt.id, []).append(node.value)
-            elif (isinstance(node, ast.AnnAssign)
-                  and isinstance(node.target, ast.Name) and node.value is not None):
-                self.assigns.setdefault(node.target.id, []).append(node.value)
+        self._module_assigns = _assigns_of(tree)
+        self._func_assigns: dict[int, dict[str, list[ast.AST]]] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                self._func_assigns[id(node)] = _assigns_of(node)
+        self.assigns: dict[str, list[ast.AST]] = dict(self._module_assigns)
+        self._scope_func: ast.AST | None = None
+        self._owners = _enclosing_funcs(tree)
+        #: Имя функции → её вызовы вместе с областью, из которой её зовут.
+        #: Нужен, чтобы ПАРАМЕТР разрешался у ВЫЗЫВАЮЩЕГО (заказ G698 п. 2).
+        self.calls: dict[str, list[tuple[ast.Call, ast.AST | None]]] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else (
+                func.attr if isinstance(func, ast.Attribute) else None)
+            if name:
+                self.calls.setdefault(name, []).append(
+                    (node, self._owners.get(node.lineno)))
+
+    def scope_to(self, func: ast.AST | None) -> None:
+        """Связать имена так, как их связывает PYTHON — не весь файл.
+
+        Прежняя редакция собирала `assigns` обходом ВСЕГО модуля, и имя `doc`
+        объединяло присваивания из ВСЕХ функций файла. У той формы два вреда,
+        и оба измерены (ADR-699): чужой словарь объявлялся документом площадки,
+        которая его не видит (ЛОЖНАЯ находка — три площадки `_health.json`
+        числились «не несёт 7 из 7», тогда как их настоящая фикстура
+        `HEALTH_REAL` несёт все семь), и наоборот — богатый сосед ОДАЛЖИВАЛ
+        куцей площадке свои ключи, пряча настоящий пробел.
+
+        Область берётся по правилам языка: своя функция плюс уровень модуля.
+        Тело класса СЮДА НЕ ВХОДИТ — имя, присвоенное в теле класса, из метода
+        голым именем не видно (`NameError`), и считать его видимым значило бы
+        вернуть то же одалживание под другим именем.
+        """
+        self.assigns = dict(self._module_assigns)
+        self._scope_func = func
+        own = self._func_assigns.get(id(func)) if func is not None else None
+        if own:
+            for name, values in own.items():
+                self.assigns[name] = values
+
+    def _params(self, func: ast.AST) -> list[str]:
+        a = func.args
+        return [arg.arg for arg in (*a.posonlyargs, *a.args)]
+
+    def _from_callers(self, param: str, depth: int, seen: tuple[str, ...]
+                      ) -> tuple[dict | None, str | None]:
+        """Значение ПАРАМЕТРА решает ВЫЗЫВАЮЩИЙ — спросить у него (G698 п. 2).
+
+        Документ редко стои́т у двери литералом: сцена зовёт помощника
+        (`self._render(self._doc())`), и внутри помощника имя — параметр,
+        не присваивание. Областное связывание такое имя честно объявляет
+        несвязанным, и остановиться здесь значило бы назвать «НЕ ИЗМЕРЕНО»
+        ровно то, что статике ДАЁТСЯ: у помощника вызовов одна-две, и
+        аргумент в них стои́т явно.
+
+        Разрешение идёт в области ВЫЗЫВАЮЩЕГО, а не помощника: аргумент
+        написан там, и связать его именами помощника значило бы повторить
+        одалживание, против которого введена область.
+        """
+        func = self._scope_func
+        if func is None or not isinstance(func, (ast.FunctionDef,
+                                                 ast.AsyncFunctionDef)):
+            return None, "name_unbound"
+        params = self._params(func)
+        if param not in params:
+            return None, "name_unbound"
+        index = params.index(param)
+        sites = self.calls.get(func.name) or []
+        if not sites:
+            return None, "param_no_call_site"
+        merged: dict = {}
+        why: str | None = None
+        got = False
+        saved_assigns, saved_func = self.assigns, self._scope_func
+        try:
+            for call, caller in sites:
+                bound = self._argument(call, index, params)
+                if bound is None:
+                    why = why or "param_not_bound_at_call"
+                    continue
+                self.scope_to(caller)
+                sub, sub_why = self.skeleton(
+                    bound, depth + 1, seen + ((id(func), param),))
+                if sub is not None:
+                    _merge(merged, sub)
+                    got = True
+                elif why is None:
+                    why = sub_why
+        finally:
+            self.assigns, self._scope_func = saved_assigns, saved_func
+        if got:
+            return merged, why
+        return None, why or "param_unresolved"
+
+    @staticmethod
+    def _argument(call: ast.Call, index: int, params: list[str]) -> ast.AST | None:
+        """Аргумент, вставший на место параметра №`index`.
+
+        `self` при вызове методом не передаётся позиционно, поэтому смещение
+        читается из ФОРМЫ вызова, а не угадывается: `X.f(a)` связывает `a` со
+        вторым параметром, `f(a)` — с первым.
+        """
+        offset = 1 if (isinstance(call.func, ast.Attribute)
+                       and params and params[0] in ("self", "cls")) else 0
+        position = index - offset
+        if 0 <= position < len(call.args):
+            arg = call.args[position]
+            return None if isinstance(arg, ast.Starred) else arg
+        for kw in call.keywords:
+            if kw.arg == params[index]:
+                return kw.value
+        return None
 
     # --- имя артефакта ---------------------------------------------------
     def text(self, node: ast.AST, depth: int = 0) -> str | None:
@@ -290,7 +463,7 @@ class _ModuleFlow:
             if key is None:                               # {**base, …}
                 sub, sub_why = self.skeleton(value, depth + 1, seen)
                 if sub:
-                    out.update(sub)
+                    _merge(out, sub)
                 elif why is None:
                     why = sub_why or "star_unresolved"
                 continue
@@ -315,19 +488,25 @@ class _ModuleFlow:
         return None
 
     def _name_skeleton(self, node: ast.Name, depth: int,
-                       seen: tuple[str, ...]) -> tuple[dict | None, str | None]:
-        if node.id in seen:
+                       seen: tuple) -> tuple[dict | None, str | None]:
+        # Петля ищется по ПАРЕ «область × имя», а не по одному имени: после
+        # перехода к вызывающему (G698 п. 2) у его локального `doc` то же
+        # написание, что у параметра помощника, и проверка по одному имени
+        # объявляла бы петлёй ОБЫЧНУЮ передачу аргумента (замер: 9 площадок
+        # из 33 неизмеренных вместо 5).
+        mark = (id(self._scope_func), node.id)
+        if mark in seen:
             return None, "cycle"
         values = self.assigns.get(node.id)
         if not values:
-            return None, "name_unbound"
+            return self._from_callers(node.id, depth, seen)
         merged: dict = {}
         why: str | None = None
         got = False
         for value in values:
-            sub, sub_why = self.skeleton(value, depth + 1, seen + (node.id,))
+            sub, sub_why = self.skeleton(value, depth + 1, seen + (mark,))
             if sub is not None:
-                merged.update(sub)
+                _merge(merged, sub)
                 got = True
             elif why is None:
                 why = sub_why
@@ -347,6 +526,22 @@ class _ModuleFlow:
                 return sub, why
         return None, "comprehension_unresolved"
 
+    @staticmethod
+    def _json_round_trip(node: ast.Call) -> ast.AST | None:
+        """`json.loads(json.dumps(X))` → `X`, иначе `None`."""
+        def dotted(call: ast.Call, attr: str) -> bool:
+            func = call.func
+            return (isinstance(func, ast.Attribute) and func.attr == attr
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "json")
+
+        if not (dotted(node, "loads") and len(node.args) == 1):
+            return None
+        arg = node.args[0]
+        if isinstance(arg, ast.Call) and dotted(arg, "dumps") and arg.args:
+            return arg.args[0]
+        return None
+
     def _call_skeleton(self, node: ast.Call, depth: int,
                        seen: tuple[str, ...]) -> tuple[dict | None, str | None]:
         func = node.func
@@ -356,6 +551,12 @@ class _ModuleFlow:
             # Копия фикстуры ЕСТЬ та же фикстура: мутации после копии — это
             # отрицательные контроли, а не другой документ.
             return self.skeleton(node.args[0], depth + 1, seen)
+        inner = self._json_round_trip(node)
+        if inner is not None:
+            # `json.loads(json.dumps(X))` — тот же идиом глубокой копии, что и
+            # `deepcopy`, только написанный stdlib-ом (инв. #4). Не узнав его,
+            # мера объявляла документ «собранным вызовом» и площадку теряла.
+            return self.skeleton(inner, depth + 1, seen)
         if (name == "copy" and not node.args
                 and isinstance(func, ast.Attribute)):
             return self.skeleton(func.value, depth + 1, seen)
@@ -365,14 +566,14 @@ class _ModuleFlow:
             for arg in node.args:
                 sub, sub_why = self.skeleton(arg, depth + 1, seen)
                 if sub:
-                    out.update(sub)
+                    _merge(out, sub)
                 elif why is None:
                     why = sub_why or "star_unresolved"
             for kw in node.keywords:
                 if kw.arg is None:
                     sub, sub_why = self.skeleton(kw.value, depth + 1, seen)
                     if sub:
-                        out.update(sub)
+                        _merge(out, sub)
                     elif why is None:
                         why = sub_why or "star_unresolved"
                 else:
@@ -386,16 +587,26 @@ class _ModuleFlow:
             merged: dict = {}
             why = None
             got = False
-            for fdef in defs:
-                for ret in ast.walk(fdef):
-                    if isinstance(ret, ast.Return) and ret.value is not None:
-                        sub, sub_why = self.skeleton(ret.value, depth + 1,
-                                                     seen + (name,))
-                        if sub is not None:
-                            merged.update(sub)
-                            got = True
-                        elif why is None:
-                            why = sub_why
+            saved_assigns, saved_func = self.assigns, self._scope_func
+            try:
+                for fdef in defs:
+                    # Выражение `return` принадлежит ПОМОЩНИКУ, и связывать
+                    # его имена областью ЗОВУЩЕГО значило бы то же
+                    # одалживание, против которого введена область:
+                    # `_health_with_house_view` строит документ в своём
+                    # локальном `doc`, которого у сцены нет вовсе.
+                    self.scope_to(fdef)
+                    for ret in ast.walk(fdef):
+                        if isinstance(ret, ast.Return) and ret.value is not None:
+                            sub, sub_why = self.skeleton(ret.value, depth + 1,
+                                                         seen + (name,))
+                            if sub is not None:
+                                _merge(merged, sub)
+                                got = True
+                            elif why is None:
+                                why = sub_why
+            finally:
+                self.assigns, self._scope_func = saved_assigns, saved_func
             if got:
                 return merged, why
             return None, why or "helper_returns_no_dict"
@@ -505,6 +716,7 @@ def measure(*, schema: dict, has_path, root: str,
         lines = source.splitlines()
         flow = _ModuleFlow(tree, _aliases(tree))
         spans = _enclosing_spans(tree)
+        owners = _enclosing_funcs(tree)
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
@@ -514,6 +726,8 @@ def measure(*, schema: dict, has_path, root: str,
             if name != DOOR or len(node.args) < 2:
                 continue
             where = f"{rel}:{node.lineno}"
+            # Имена связываются ОБЛАСТЬЮ площадки, а не файлом (ADR-699).
+            flow.scope_to(owners.get(node.lineno))
             raw = flow.text(node.args[0])
             if raw is None:
                 census.unmeasured.append((where, "artifact_name_unresolved"))

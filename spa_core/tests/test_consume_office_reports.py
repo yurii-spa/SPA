@@ -1495,6 +1495,10 @@ AFD_PROD_UNCHECKED = {
 
 
 def _afd(data) -> str:
+    # SCHEMA-GAP-OK: фикстуры этой двери — СНИМКИ прода от 31.08, а раздел
+    # `history.*` объявлен позже; дописать его снимку значило бы выдать за
+    # наблюдение то, чего в тот день не наблюдали. О самом разделе судит
+    # отдельная сцена — `test_adapter_feed_divergence_history.py`
     return _text(MOD._summarize_json("data/adapter_feed_divergence.json",
                                      data, now=_AFD_NOW))
 
