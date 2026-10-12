@@ -20,11 +20,29 @@
   дословно: «Адаптеры НИКОГДА не пишут в data/adapter_status.json»).
 
   **ось L (литерал в опубликованном числе).** Внутри писателя — словарь, который
-  уезжает в документ и несёт ключ-число (`apy`), чьё значение приходит из
-  `<что-то>.get(<ключ>, <числовой литерал>)`. Это прямой ответ заказа: «константа
+  уезжает в документ и несёт ключ-число, чьё значение приходит из
+  `<что-то>.get(<ключ>, <литерал>)`. Это прямой ответ заказа: «константа
   в коде производителя», с файлом, строкой и самим числом. Рядом мерится,
-  объявлен ли у словаря род числа (`*_source`): число без рода читатель не
-  отличит от замера.
+  объявлен ли род ЭТОГО числа: число без рода читатель не отличит от замера.
+
+  **Ось L смотрит ДВА числа, а не одно (ADR-708).** `apy` РАНЖИРУЕТ, `tvl_usd`
+  ДОПУСКАЕТ — порог RiskPolicy $5 млн/пул, и ADR-053 разрешает мерить его только
+  живым TVL. ADR-707 мерил одну ось, и три вещи делали прибор зелёным и неправым
+  ровно о второй:
+    1. `PUBLISHED_NUMBER_KEYS` был кортежем из одного элемента — `tvl_usd` лежал
+       вне предмета по КОРТЕЖУ, а не по природе;
+    2. умолчание `.get` требовалось `ast.Constant`, а литерал приезжал через
+       МОДУЛЬНЫЙ словарь (`_TVL_ESTIMATES.get(key, 0.0)`): `ast.Call` числился
+       «разобранным значением» и пропускался МОЛЧА — ни находки, ни третьего
+       исхода;
+    3. род спрашивался У СЛОВАРЯ («есть ли хоть один ключ на `_source`»), а не у
+       ЧИСЛА, поэтому `apy_source`, добавленный ADR-707, начал ручаться за
+       соседний `tvl_usd`, у которого рода не было. Починка одной оси ОСЛЕПИЛА
+       сторожа на другой.
+  Замер на чистой копии origin/main 00b0d461d после починки прибора:
+  подстановок литерала **2** ($800 000 000 и $1 200 000 000 — то самое число
+  карточки 29.08), чисел без рода **4**. Прежняя редакция прибора показывала
+  на том же дереве **0** и **1**.
 
 **Писатель опознаётся по ЦЕЛИ записи, а не по соседству слов.** Первая редакция
 прибора считала писателем любой модуль, который где-то УПОМИНАЕТ имя артефакта и
@@ -75,12 +93,45 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: (`.claude/rules/deployment.md` п. 2).
 SEARCH_ROOTS = ("spa_core", "scripts")
 
-#: Ключи документа, несущие ОПУБЛИКОВАННОЕ ЧИСЛО про доходность. Ось L смотрит
-#: только на них: `apy` — то число, за которое заказ и спрашивает.
-PUBLISHED_NUMBER_KEYS = ("apy",)
+#: Ключи документа, несущие ОПУБЛИКОВАННОЕ ЧИСЛО, по которому РАНЖИРУЮТ или
+#: ДОПУСКАЮТ. Осей две, и обе гейтят: `apy` ранжирует (ADR-706), `tvl_usd`
+#: ДОПУСКАЕТ — порог RiskPolicy $5 млн/пул, и ADR-053 разрешает мерить его
+#: только живым TVL.
+#:
+#: ADR-707 мерил ОДНУ ось, и кортеж был односоставным. Это и есть дефект,
+#: найденный ADR-708: `tvl_usd` лежал вне предмета прибора по кортежу, а не по
+#: природе, и ось, которая ДОПУСКАЕТ, не мерилась вовсе.
+PUBLISHED_NUMBER_KEYS = ("apy", "tvl_usd")
 
-#: Суффикс ключа-провенанса. ADR-053 ввёл `tvl_source`, ADR-706 — `apy_source`;
-#: род числа объявляется именно так, и прибор ищет ФОРМУ, а не два имени.
+#: Род числа объявляется ПОИМЁННО, а не суффиксом. ADR-053 назвал поле оси TVL
+#: `tvl_source` — НЕ `tvl_usd_source`, — поэтому правило «имя числа + суффикс»
+#: на этой оси не работает вовсе, а правило «в словаре есть ХОТЬ ОДИН ключ на
+#: `_source`» отвечает на другой вопрос.
+#:
+#: Именно это и был дефект (ADR-708): проверка стояла НА СЛОВАРЕ, а не на
+#: ЧИСЛЕ, поэтому `apy_source`, добавленный ADR-707, начал ручаться ЗА ОБА
+#: числа теневого блока — и `tvl_usd` без рода стал невидим для сторожа. Замер:
+#: у блоков `morpho_steakhouse` и `aave_arbitrum` рода у TVL не было, а
+#: `_dict_declares_provenance` отвечал `True`. Починка чужой оси ОСЛЕПИЛА
+#: сторожа на соседней — ровно та форма, против которой весь прибор и написан.
+#: ЗНАЧЕНИЕ — МНОЖЕСТВО форм, любая из которых объявляет род ЭТОГО числа.
+#: Форм у оси APY действительно две, и это ФАКТ системы, а не послабление:
+#: `apy_source` ввёл ADR-706, а `live_apy` — контракт ADR-063, и ровно его
+#: читает `status_reader.observed_apy_pct_from_block` («live_apy is the only
+#: field that proves observation»). Вложенная запись генератора объявляет род
+#: именно так. Первая редакция этой проверки знала одну форму и ОБВИНИЛА
+#: вложенную запись ложно (замер: `adapter_status_generator.py:1242`) — та же
+#: ошибка, что три ошибки прибора ADR-707, и найдена тем же способом: глазами
+#: по каждой строке вывода, а не доверием к числу.
+#: У оси TVL форма ОДНА — `tvl_source` (ADR-053). Второй ей не изобретать.
+PROVENANCE_KEY: dict[str, frozenset[str]] = {
+    "apy": frozenset({"apy_source", "live_apy"}),
+    "tvl_usd": frozenset({"tvl_source"}),
+}
+
+#: Прежнее имя. Оставлено ТОЛЬКО как якорь: суффикс остаётся верным способом
+#: спросить «а вообще род в словаре упомянут», и этот вопрос прибор больше не
+#: задаёт — он спрашивает про КАЖДОЕ число.
 PROVENANCE_SUFFIX = "_source"
 
 #: Домен, которому писать этот артефакт запрещено ПРАВИЛОМ, а не вкусом.
@@ -130,15 +181,34 @@ NON_ATOMIC_WRITER_MAX = 1
 #: тестов), поэтому класс ИЗМЕРЕН и НАЗВАН карточкой, а не правлен молча.
 FORBIDDEN_DOMAIN_WRITER_MAX = 2
 
-#: ЛИТЕРАЛ в опубликованном числе — предмет заказа. Замер 0 (был 3: `6.5`/`4.1`/
-#: `8.0` в теневом блоке производителя). Потолок НОЛЬ: подстановка постоянной под
-#: видом наблюдения — ровно то, что решением владельца 2026-08-08 запрещено.
+#: ЛИТЕРАЛ в опубликованном числе — предмет заказа. Замер 0.
+#: Ось APY: было 3 (`6.5`/`4.1`/`8.0`), снято ADR-707.
+#: Ось TVL: было 2 — `_TVL_ESTIMATES[morpho_steakhouse]` = $800 000 000 и
+#: `_TVL_ESTIMATES[aave_arbitrum]` = $1 200 000 000 (то самое число карточки
+#: 29.08), снято ADR-708. Потолок НОЛЬ: подстановка постоянной под видом
+#: наблюдения — ровно то, что решением владельца 2026-08-08 запрещено.
 LITERAL_SUBSTITUTION_MAX = 0
 
-#: Опубликованное число БЕЗ рода (`*_source`) рядом. Замер 1 (был 4): остался
-#: `adapters/adapter_registry.py:261` — другой писатель, другой радиус, назван
-#: карточкой вместе с его доменом.
-PROVENANCE_ABSENT_MAX = 1
+#: Опубликованное число БЕЗ СВОЕГО рода. Замер **2**.
+#:
+#: ⚠️ ЧИСЛО ВЫРОСЛО С 1 ДО 2, И ЭТО НЕ ПОСЛАБЛЕНИЕ — СМЕНИЛАСЬ МЕРА (инв. #16,
+#: обоснование обязано стоять здесь и в журнале, и стои́т).
+#: Прежняя мера (ADR-707) отвечала на вопрос «есть ли в СЛОВАРЕ хоть один ключ
+#: на `_source`» и смотрела ОДНУ ось (`PUBLISHED_NUMBER_KEYS = ("apy",)`).
+#: Новая (ADR-708) отвечает на вопрос «объявлен ли род У ЭТОГО ЧИСЛА» и смотрит
+#: ОБЕ оси. Новое население — НАДМНОЖЕСТВО прежнего: тот же замер на чистой
+#: копии origin/main 00b0d461d даёт **4**, а не 1, и двух из них прежняя мера
+#: не видела ПО ПОСТРОЕНИЮ (`adapter_status_generator.py:1286` и `:1295` —
+#: `tvl_usd` без `tvl_source`, прикрытые `apy_source`, который там появился
+#: ADR-707: починка одной оси ОСЛЕПИЛА сторожа на соседней).
+#:
+#: Оба остатка — ПОИМЁННО, и оба в домене, которому писать этот артефакт
+#: запрещено правилом (карточка `inbox-vtoroi-artefakt-pisateli-iz-zapreschenno`):
+#:   * `spa_core/adapters/adapter_registry.py:261`      — ось APY (был и прежде);
+#:   * `spa_core/adapters/fluid_fusdc_adapter.py:445`   — ось TVL, НОВАЯ находка:
+#:     прежняя мера не могла её увидеть, потому что не смотрела эту ось вовсе.
+#: Любая ТРЕТЬЯ запись краснит прибор. Дописывать сюда ЗАПРЕЩЕНО.
+PROVENANCE_ABSENT_MAX = 2
 
 
 # ───────────────────────────── обход дерева ─────────────────────────────────
@@ -481,12 +551,29 @@ def _published_dicts(tree: ast.Module) -> list[ast.Dict]:
     return out
 
 
-def _dict_declares_provenance(d: ast.Dict) -> bool:
-    for k in d.keys:
-        if isinstance(k, ast.Constant) and isinstance(k.value, str) \
-                and k.value.endswith(PROVENANCE_SUFFIX):
-            return True
-    return False
+def _dict_string_keys(d: ast.Dict) -> set[str]:
+    return {k.value for k in d.keys
+            if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+
+
+def _number_declares_provenance(d: ast.Dict, number_key: str) -> bool:
+    """Объявлен ли род У ЭТОГО ЧИСЛА (а не «упомянут ли род в словаре»).
+
+    ADR-708: прежняя редакция спрашивала про СЛОВАРЬ («есть ключ на
+    ``_source``?») и потому считала объявленным ЛЮБОЕ число в словаре, где род
+    объявлен хотя бы у одного. После ADR-707, добавившего теневым блокам
+    ``apy_source``, это ручательство распространилось на ``tvl_usd``, у которого
+    рода не было, — и сторож замолчал ровно о том числе, за которым пришёл
+    следующий заказ.
+
+    Имя поля рода берётся из объявленного словаря ``PROVENANCE_KEY``, а не
+    склеивается суффиксом: ось TVL называет его ``tvl_source``, и склейка
+    ``tvl_usd`` + ``_source`` не нашла бы его никогда.
+    """
+    want = PROVENANCE_KEY.get(number_key)
+    if not want:
+        return False
+    return bool(want & _dict_string_keys(d))
 
 
 _RESOLVED_VALUE_NODES = (ast.Constant, ast.Name, ast.Attribute, ast.Subscript,
@@ -494,27 +581,149 @@ _RESOLVED_VALUE_NODES = (ast.Constant, ast.Name, ast.Attribute, ast.Subscript,
                          ast.BoolOp, ast.Compare, ast.Tuple, ast.List, ast.Dict)
 
 
+def _module_literal_dicts(tree: ast.Module) -> dict[str, dict[str, float]]:
+    """Модульные словари вида ``NAME = {"k": <число>, ...}`` → их содержимое.
+
+    ADR-708: литерал доезжал до опубликованного числа НЕ вторым аргументом
+    ``.get``, а через такой словарь — ``_TVL_ESTIMATES.get(key, 0.0)``, где
+    ``_TVL_ESTIMATES["aave_arbitrum"] == 1_200_000_000.0``. Прежняя редакция
+    требовала у умолчания ``ast.Constant``, получала ``ast.Call`` и МОЛЧА шла
+    дальше (``ast.Call`` входит в ``_RESOLVED_VALUE_NODES``) — ни находки, ни
+    третьего исхода. Прибор был зелёным и неправым ровно о том числе, за которым
+    пришёл заказ.
+
+    Раскрываются только словари, у которых КЛЮЧ — строковый литерал, а ЗНАЧЕНИЕ
+    — числовой литерал. Словарь, собранный вызовом или ``update``, здесь не
+    появляется: это третий исход у вызывающего, а не молчание.
+    """
+    out: dict[str, dict[str, float]] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if len(targets) != 1 or not isinstance(targets[0], ast.Name):
+            continue
+        value = node.value
+        if not isinstance(value, ast.Dict):
+            continue
+        table: dict[str, float] = {}
+        for k, v in zip(value.keys, value.values):
+            if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+                continue
+            if isinstance(v, ast.Constant) and isinstance(v.value, (int, float)) \
+                    and not isinstance(v.value, bool):
+                table[k.value] = float(v.value)
+        if table:
+            out[targets[0].id] = table
+    return out
+
+
+def _resolve_literal(node: ast.AST,
+                     tables: dict[str, dict[str, float]]) -> Optional[tuple[str, float]]:
+    """Числовой литерал, до которого раскрывается ``node`` — или ``None``.
+
+    Три формы, и все три встречаются у писателей артефакта:
+      * ``3.2``                        → ("", 3.2)         — просто литерал;
+      * ``TABLE.get("k", 0.0)``        → ("TABLE[k]", lit)  — модульный словарь;
+      * ``TABLE["k"]``                 → ("TABLE[k]", lit)  — он же индексом.
+
+    Ключ, которого в словаре НЕТ, раскрывается до умолчания самого ``.get``
+    (``_TVL_ESTIMATES.get(key, 0.0)`` при неизвестном ключе даёт ``0.0``) — и это
+    тоже литерал в опубликованном числе, просто равный нулю. Инвариант #17
+    ровно про него: «оценки нет» и «оценка ноль» обязаны быть различимы, а
+    ``0.0`` склеивает их.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) \
+            and not isinstance(node.value, bool):
+        return "", float(node.value)
+
+    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) \
+            and node.value.id in tables \
+            and isinstance(node.slice, ast.Constant) \
+            and isinstance(node.slice.value, str):
+        table = tables[node.value.id]
+        key = node.slice.value
+        if key in table:
+            return f"{node.value.id}[{key}]", table[key]
+        return None
+
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+            and node.func.attr == "get" and len(node.args) == 2 \
+            and isinstance(node.func.value, ast.Name) \
+            and node.func.value.id in tables:
+        table = tables[node.func.value.id]
+        name = node.func.value.id
+        key_node, default = node.args
+        if isinstance(key_node, ast.Constant) and isinstance(key_node.value, str) \
+                and key_node.value in table:
+            return f"{name}[{key_node.value}]", table[key_node.value]
+        # Ключ не литерал (переменная цикла) либо его в словаре нет ⇒ значением
+        # станет умолчание `.get`. Оно литерал — значит число всё равно литеральное.
+        inner = _resolve_literal(default, tables)
+        if inner is not None:
+            return f"{name}.get(…, {inner[1]!r})", inner[1]
+        return None
+
+    return None
+
+
+def _get_default_literal(node: ast.AST,
+                         tables: dict[str, dict[str, float]]
+                         ) -> Optional[tuple[str, float, str]]:
+    """``X.get("ключ", <раскрываемое до литерала>)`` ⇒ (ключ, литерал, как).
+
+    Расширение ``_get_literal_default`` (ADR-707) на умолчание, которое само
+    является модульным словарём: это и есть дверь ADR-708.
+    """
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return None
+    if node.func.attr != "get" or len(node.args) != 2:
+        return None
+    key, default = node.args
+    if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+        return None
+    resolved = _resolve_literal(default, tables)
+    if resolved is None:
+        return None
+    via = "inline" if resolved[0] == "" else f"module_dict:{resolved[0]}"
+    return key.value, resolved[1], via
+
+
+def _is_two_arg_get(node: ast.AST) -> bool:
+    """Является ли узел формой ``X.get(k, default)`` — у неё умолчание ЕСТЬ."""
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get" and len(node.args) == 2)
+
+
 def _literal_axis(path: str, tree: ast.Module,
                   root_dir: Optional[str] = None) -> dict[str, Any]:
     bound = _assigned_literal_gets(tree)
+    tables = _module_literal_dicts(tree)
     findings: list[dict[str, Any]] = []
     unmeasured: list[dict[str, Any]] = []
     no_provenance: list[dict[str, Any]] = []
     dicts = _published_dicts(tree)
 
     for d in dicts:
-        if not _dict_declares_provenance(d):
-            no_provenance.append({"file": _rel(path, root_dir), "line": d.lineno})
         for key, value in zip(d.keys, d.values):
             if not (isinstance(key, ast.Constant)
                     and key.value in PUBLISHED_NUMBER_KEYS):
                 continue
-            direct = _get_literal_default(value)
+
+            # Род спрашивается У ЧИСЛА, а не у словаря (ADR-708).
+            if not _number_declares_provenance(d, key.value):
+                no_provenance.append({
+                    "file": _rel(path, root_dir), "line": d.lineno,
+                    "field": key.value,
+                    "want": sorted(PROVENANCE_KEY.get(key.value) or ()),
+                })
+
+            direct = _get_default_literal(value, tables)
             if direct is not None:
                 findings.append({
                     "file": _rel(path, root_dir), "line": value.lineno,
                     "field": key.value, "source_key": direct[0],
-                    "literal": direct[1], "via": "inline",
+                    "literal": direct[1], "via": direct[2],
                 })
                 continue
             if isinstance(value, ast.Name) and value.id in bound:
@@ -523,6 +732,17 @@ def _literal_axis(path: str, tree: ast.Module,
                     "file": _rel(path, root_dir), "line": ln,
                     "field": key.value, "source_key": k,
                     "literal": lit, "via": f"name:{value.id}",
+                })
+                continue
+            # Умолчание У ФОРМЫ ЕСТЬ, а до литерала оно не раскрылось ⇒ ТРЕТИЙ
+            # ИСХОД. Прежняя редакция здесь молчала, и именно так пропускался
+            # `_TVL_ESTIMATES`: `ast.Call` числился «разобранным значением».
+            if _is_two_arg_get(value):
+                unmeasured.append({
+                    "file": _rel(path, root_dir), "line": value.lineno,
+                    "field": key.value,
+                    "reason": ("умолчание `.get` до литерала не раскрыто: "
+                               f"{type(value.args[1]).__name__}"),
                 })
                 continue
             if isinstance(value, _RESOLVED_VALUE_NODES):
@@ -538,6 +758,7 @@ def _literal_axis(path: str, tree: ast.Module,
         "substitutions": findings,
         "no_provenance": no_provenance,
         "unmeasured": unmeasured,
+        "literal_tables": sorted(tables),
     }
 
 
@@ -763,8 +984,9 @@ def report(rep: dict[str, Any]) -> str:
         out.append(f"  [литерал] {s['file']}:{s['line']} → поле {s['field']!r} "
                    f"= .get({s['source_key']!r}, {s['literal']}) [{s['via']}]")
     for s in rep["provenance_absent"]:
-        out.append(f"  [без рода] {s['file']}:{s['line']} — словарь публикует "
-                   f"число и не объявляет `*_source`")
+        out.append(f"  [без рода] {s['file']}:{s['line']} → поле {s['field']!r} "
+                   f"опубликовано, а род не объявлен ни одним из "
+                   f"{s.get('want') or []}")
     for r in rep["name_from_elsewhere"]:
         out.append(f"  [имя извне] {r['file']} ← {r['from']}.{r['imports']}")
     code, lines = verdict(rep)

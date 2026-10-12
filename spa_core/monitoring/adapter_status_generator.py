@@ -1042,6 +1042,56 @@ def _shadow_apy(entry: dict) -> tuple[Optional[float], Optional[str]]:
     return float(apy), ("live" if entry.get("live_apy") is not None else "static")
 
 
+def _shadow_tvl(entry: dict) -> tuple[Optional[float], Optional[str]]:
+    """TVL теневого верхнеуровневого блока и её РОД. Одна копия правила.
+
+    Сестра :func:`_shadow_apy` на ВТОРОЙ оси. ADR-707 закрыл ось APY и назвал
+    эту дверь остатком (заказ G707 п. 4): теневые блоки публиковали ``tvl_usd``
+    с ОТОРВАННЫМ родом, а литерал брали из модульного словаря
+    ``_TVL_ESTIMATES``.
+
+    **Почему это был дефект, а не удобство.** Три обстоятельства, и каждое уже
+    разбиралось на оси APY:
+
+    1. **Род терялся при зеркалировании.** Вложенная запись несёт ``tvl_source``
+       (ADR-053), теневая — не несла. Замер 2026-10-12: оба блока, публикующих
+       ось (``morpho_steakhouse`` $111 619 336, ``aave_arbitrum`` $20 924 515),
+       зеркалили запись с ``tvl_source == "live"`` — то есть ЖИВОЕ наблюдение
+       доезжало до читателя неотличимым от константы. Сегодня верно, завтра нет:
+       отличить их читателю было НЕЧЕМ.
+    2. **Литерал подставлялся в точке максимального незнания.**
+       ``entry.get("tvl_usd", _TVL_ESTIMATES.get(key, 0.0))`` срабатывал ровно
+       тогда, когда записи в ``adapters`` НЕТ, то есть при нечитаемом
+       ``adapter_registry.json`` — fail-OPEN. Для ``aave_arbitrum`` подставлялся
+       ``$1 200 000 000``, и это ТО САМОЕ число, которым карточка 29.08 и
+       возмущалась.
+    3. **Отсутствие оценки печаталось НУЛЁМ.** Последнее умолчание ``0.0``
+       означало «оценки нет вовсе», а выглядело как «$0» (инв. #17).
+
+    А порог TVL — ГЕЙТ: RiskPolicy допускает пул от $5 млн, и ADR-053 разрешает
+    мерить его ТОЛЬКО живым TVL. Литерал не наблюдение, чем бы он ни был
+    подписан; ``$1.2B`` прошёл бы порог в 240 раз.
+
+    **Три исхода различимы (инв. #17):**
+      * запись есть, число есть, вложенный род ``"live"`` ⇒ ``(число, "live")``;
+      * запись есть, число есть, род НЕ ``"live"`` ⇒ ``(число, "static")``;
+      * записи нет / число не число ⇒ ``(None, None)`` — отсутствие наблюдения
+        есть отдельное значение, а не литерал и не ноль.
+
+    Род называется тем же словарём, что у вложенной записи (``live`` / ``static``,
+    ADR-053/706), а не своим: вопрос «наблюдение это или постоянная» в системе
+    ОДИН. ``"live"`` НЕ пересчитывается здесь заново — он ЗЕРКАЛИТСЯ у записи,
+    которая его заслужила пином пула (ADR-064); второй вывод того же рода и был
+    бы вторым ответом на один вопрос.
+    """
+    if not isinstance(entry, dict):
+        return None, None
+    tvl = entry.get("tvl_usd")
+    if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
+        return None, None
+    return float(tvl), ("live" if entry.get("tvl_source") == "live" else "static")
+
+
 def generate(
     registry_path: Path = _REGISTRY_FILE,
     output_path: Path = _STATUS_FILE,
@@ -1263,9 +1313,11 @@ def generate(
     # производителя или ручная правка»: константа, и ровно в этом файле.
     ms_entry = adapters.get("morpho_steakhouse", {})
     ms_apy, ms_apy_source = _shadow_apy(ms_entry)
+    ms_tvl, ms_tvl_source = _shadow_tvl(ms_entry)
 
     arb_entry = adapters.get("aave_arbitrum", {})
     arb_apy, arb_apy_source = _shadow_apy(arb_entry)
+    arb_tvl, arb_tvl_source = _shadow_tvl(arb_entry)
 
     pendle_entry = adapters.get("pendle_pt", adapters.get("pendle", {}))
     pendle_apy, pendle_apy_source = _shadow_apy(pendle_entry)
@@ -1290,16 +1342,30 @@ def generate(
             "bps_gain":     (round(max(0.0, ms_apy - 3.2) * 100.0, 1)
                              if ms_apy is not None else None),
             "tier":         "T1",
-            "tvl_usd":      ms_entry.get("tvl_usd", _TVL_ESTIMATES.get("morpho_steakhouse", 0.0)),
+            # Ось TVL — через `_shadow_tvl`: число И род, литерала нет (ADR-708).
+            "tvl_usd":      ms_tvl,
+            "tvl_source":   ms_tvl_source,
         },
         "aave_arbitrum": {
             "apy":        arb_apy,
             "apy_source": arb_apy_source,
             "tier":       "T1",
             "network":    "arbitrum",
-            "tvl_usd":    arb_entry.get("tvl_usd", _TVL_ESTIMATES.get("aave_arbitrum", 0.0)),
+            # Ось TVL — через `_shadow_tvl`: число И род, литерала нет (ADR-708).
+            # Здесь стоял `_TVL_ESTIMATES["aave_arbitrum"]` = $1 200 000 000 —
+            # ровно то число, которым возмущалась карточка 29.08.
+            "tvl_usd":    arb_tvl,
+            "tvl_source": arb_tvl_source,
         },
         "pendle_pt": {
+            # Оси TVL у этого блока НЕТ и она СОЗНАТЕЛЬНО не вводится (ADR-708).
+            # Вложенная запись несёт `tvl_usd 500 000 000` с `tvl_source
+            # "static"` — то есть литерал `_TVL_ESTIMATES`, честно помеченный
+            # литералом. Зазеркалить его сюда значило бы НАПЕЧАТАТЬ владельцу
+            # новое число (отчёт о протоколах читает теневые блоки и показал бы
+            # «TVL: $500M»), а цикл чинит ПРЕДСТАВЛЕНИЕ, а не публикует замеры.
+            # Отсутствие ключа и есть честное «наблюдения здесь не предлагают».
+            # Третья форма одного вопроса НАЗВАНА остатком, а не погашена молча.
             "apy":          pendle_apy,
             "apy_source":   pendle_apy_source,
             "tier":         "T2",

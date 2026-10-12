@@ -193,18 +193,31 @@ class TestComputeHealth(unittest.TestCase):
 
 
 class TestGetTvlStr(unittest.TestCase):
+    """Предмет этих четырёх — МАСШТАБ (B/M/K/единицы), и он НЕ ослаблен.
+
+    ADR-708 добавил к строке РОД числа, и фикстуры здесь рода не объявляли
+    вовсе — поэтому четыре теста масштаба стали получать хвост
+    «(род не объявлен)». Правка НАМЕРЕННА (инв. #16, запись в журнале цикла
+    #852): в фикстуры добавлено ``tvl_source: "live"``, то есть они теперь
+    говорят, ЧТО за число подают, а утверждения о масштабе остались БАЙТ В БАЙТ
+    теми же. Вопрос про род спрашивают отдельные тесты ниже — класс не погашен,
+    а разделён на два вопроса, у каждого свой тест.
+    """
 
     def test_billions(self):
-        self.assertEqual(_get_tvl_str({"tvl_usd": 2_800_000_000}), "$2.8B")
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 2_800_000_000, "tvl_source": "live"}), "$2.8B")
 
     def test_millions(self):
-        self.assertEqual(_get_tvl_str({"tvl_usd": 500_000_000}), "$500M")
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 500_000_000, "tvl_source": "live"}), "$500M")
 
     def test_thousands(self):
-        self.assertEqual(_get_tvl_str({"tvl_usd": 30_000}), "$30K")
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 30_000, "tvl_source": "live"}), "$30K")
 
     def test_small(self):
-        result = _get_tvl_str({"tvl_usd": 999})
+        result = _get_tvl_str({"tvl_usd": 999, "tvl_source": "live"})
         self.assertEqual(result, "$999")
 
     def test_missing_tvl(self):
@@ -212,6 +225,45 @@ class TestGetTvlStr(unittest.TestCase):
 
     def test_non_numeric_tvl(self):
         self.assertIsNone(_get_tvl_str({"tvl_usd": "big"}))
+
+    # ── РОД числа: три исхода обязаны быть РАЗЛИЧИМЫ (инв. #17, ADR-708) ────
+
+    def test_live_tvl_is_shown_bare(self):
+        """Наблюдение печатается как есть — хвоста у него нет."""
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 20_924_515, "tvl_source": "live"}), "$21M")
+
+    def test_static_tvl_is_named_an_estimate(self):
+        """Положительный контроль аварии: $1.2B `aave_arbitrum` — КОНСТАНТА.
+
+        Это ровно то число (`_TVL_ESTIMATES["aave_arbitrum"]`), которое карточка
+        29.08 нашла в `adapter_status.json`, и ровно та строка, которой владелец
+        читал его как замер. Порог TVL — гейт $5 млн; литерал прошёл бы его в
+        240 раз.
+        """
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 1_200_000_000.0, "tvl_source": "static"}),
+            "$1.2B (оценка)")
+
+    def test_absent_provenance_is_its_own_outcome(self):
+        """«рода нет» ≠ «род — литерал»: третий исход назван отдельно."""
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 1_200_000_000.0}), "$1.2B (род не объявлен)")
+        self.assertEqual(
+            _get_tvl_str({"tvl_usd": 1_200_000_000.0, "tvl_source": None}),
+            "$1.2B (род не объявлен)")
+
+    def test_three_outcomes_are_pairwise_distinct(self):
+        """Ни одна пара исходов не склеивается — иначе сторож бесполезен."""
+        live = _get_tvl_str({"tvl_usd": 1_200_000_000.0, "tvl_source": "live"})
+        static = _get_tvl_str({"tvl_usd": 1_200_000_000.0, "tvl_source": "static"})
+        absent = _get_tvl_str({"tvl_usd": 1_200_000_000.0})
+        self.assertEqual(len({live, static, absent}), 3,
+                         f"исходы склеились: {live!r} / {static!r} / {absent!r}")
+
+    def test_bool_is_not_a_tvl(self):
+        """`True` не число — «да» не есть замер (контракт `observed`)."""
+        self.assertIsNone(_get_tvl_str({"tvl_usd": True, "tvl_source": "live"}))
 
 
 # ══════════════════════════════════════════════════════════════════════════

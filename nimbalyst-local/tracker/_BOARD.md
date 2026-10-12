@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-12T19:09:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-12T21:32:56Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (12b063cd0) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (00b0d461d) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1294** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1295** · ждёт владельца: **15** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -408,7 +408,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (697)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (698)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -975,6 +975,7 @@
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
+- Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08

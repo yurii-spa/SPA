@@ -153,20 +153,53 @@ def _compute_health(adapter: dict) -> tuple[str, str]:
 
 
 def _get_tvl_str(adapter: dict) -> Optional[str]:
-    """Return a human-readable TVL string, e.g. '$2.8B', '$500M', '$30K'."""
+    """TVL словами — и РОД числа рядом, когда это не наблюдение (ADR-708).
+
+    Порог TVL есть ГЕЙТ: RiskPolicy допускает пул от $5 млн, и ADR-053 разрешает
+    мерить его ТОЛЬКО живым TVL (``tvl_source == "live"``, который производитель
+    ставит лишь на пул, прибитый UUID). Литерал не наблюдение, чем бы он ни был
+    подписан.
+
+    Эта строка идёт ВЛАДЕЛЬЦУ, и до ADR-708 она рода не читала вовсе: число
+    печаталось одинаково, пришло ли оно из фида или из константы
+    ``_TVL_ESTIMATES`` в коде производителя. При сбое фида владелец читал
+    «TVL: $1.2B» у `aave_arbitrum` — оценку в коде, неотличимую от замера
+    (`aave_arbitrum` и `pendle_pt` не попали в ``_SKIP_KEYS``, поэтому их
+    теневые блоки отчёт видит как протоколы).
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17), и различает их род, а не величина:
+      * ``tvl_source == "live"``    ⇒ «$21M»            — наблюдение;
+      * род есть, но не ``live``    ⇒ «$1.2B (оценка)»  — постоянная, названная;
+      * рода нет вовсе              ⇒ «$1.2B (род не объявлен)» — и это ТРЕТИЙ
+        исход, а не молчание: «не объявлен» и «объявлен литералом» — разные
+        факты, и склеивать их значило бы повторить ровно тот дефект, который
+        ADR-708 и закрывает.
+
+    Числа здесь НЕ гасятся: отчёт о протоколах — обзорная сводка, а не гейт, и
+    спрятать число значило бы ответить на вопрос владельца молчанием. Гейт
+    отказывает сам и отдельно (`status_reader.tvl_floor_verdict`).
+    """
     if not isinstance(adapter, dict):
         return None
     tvl = adapter.get("tvl_usd")
-    if not isinstance(tvl, (int, float)):
+    if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
         return None
     tvl_f = float(tvl)
     if tvl_f >= 1_000_000_000:
-        return f"${tvl_f / 1_000_000_000:.1f}B"
-    if tvl_f >= 1_000_000:
-        return f"${tvl_f / 1_000_000:.0f}M"
-    if tvl_f >= 1_000:
-        return f"${tvl_f / 1_000:.0f}K"
-    return f"${tvl_f:.0f}"
+        shown = f"${tvl_f / 1_000_000_000:.1f}B"
+    elif tvl_f >= 1_000_000:
+        shown = f"${tvl_f / 1_000_000:.0f}M"
+    elif tvl_f >= 1_000:
+        shown = f"${tvl_f / 1_000:.0f}K"
+    else:
+        shown = f"${tvl_f:.0f}"
+
+    source = adapter.get("tvl_source")
+    if source == "live":
+        return shown
+    if isinstance(source, str) and source:
+        return f"{shown} (оценка)"
+    return f"{shown} (род не объявлен)"
 
 
 def _format_adapter_line(adapter: dict) -> str:
