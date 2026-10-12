@@ -175,6 +175,216 @@ class TheClassIsNotFoundWhereItIsNot(unittest.TestCase):
         self.assertEqual(sites, [])
 
 
+#: Модульное СОСТОЯНИЕ, а не постоянная: единственная модульная привязка —
+#: числовой литерал, но имя объявлено ``global`` и ПЕРЕ-СВЯЗАНО в функции.
+#: Форма взята с живого кода — `pendle_adapter._LLAMA_FAILED_AT` и
+#: `allocator._live_apy_cache_ts`, оба названы в ADR-702 поимённо.
+GLOBAL_STATE = """
+    _FAILED_AT = 0.0
+
+    def note(now, spent):
+        global _FAILED_AT
+        _FAILED_AT = now
+        return {"gap": _FAILED_AT - spent}
+"""
+
+#: Та же форма БЕЗ ``global`` — и постоянная здесь НАСТОЯЩАЯ. Отрицательный
+#: контроль второй двери: без него правило «не постоянная» нечем отличить от
+#: «любое имя, присвоенное в функции».
+GLOBAL_FREE = """
+    _FAILED_AT = 0.0
+
+    def note(spent):
+        return {"gap": _FAILED_AT - spent}
+"""
+
+#: Выброс стои́т ПОСТОЯННОЙ, но НИ ОДНОЙ площадки — расклад живого дерева на
+#: 2026-10-12 (1 постоянная, 0 площадок). Форма взята с единственного живого
+#: случая, `yield_ladder_builder.capital`: имя есть параметр функции, и в
+#: арифметике, пишущей поле, не участвует НИГДЕ.
+DROP_COSTS_NO_SITE = """
+    TIMEOUT = 300
+
+    def a(TIMEOUT):
+        return TIMEOUT
+"""
+
+#: Выброс затенения ТЕРЯЕТ площадку: имя затенено параметром в `a`, но в `b`
+#: оно читается как настоящая модульная постоянная. Живое дерево таких
+#: модулей на 2026-10-12 не содержит ни одного (цена = 0 площадок), поэтому
+#: положительный контроль обязан быть собран здесь — иначе измеренный ноль
+#: был бы неотличим от неработающей меры.
+DROP_LOSES_A_SITE = """
+    TIMEOUT = 300
+
+    def a(TIMEOUT, spent):
+        return {"shaded": TIMEOUT - spent}
+
+    def b(spent):
+        return {"left": TIMEOUT - spent}
+"""
+
+
+class TheSecondOneSidednessIsClosed(unittest.TestCase):
+    """Дверь ``global`` — заказом G697 п. 1 НЕ названная, промах в сторону НАХОДКИ.
+
+    ``_shadowed`` оси перечисляет привязки НЕ присваиванием. ``global X`` имя
+    не ЗАТЕНЯЕТ — он пере-связывает ТУ ЖЕ модульную привязку, поэтому такое
+    имя проходило и `module_constants`, и `shadowed_anywhere`, а подстановка
+    его литералом неверна ВЕЗДЕ, включая модульную область.
+    """
+
+    def test_a_global_declared_name_is_not_a_constant(self):
+        sites, consts, why = mco.module_sites(_src(GLOBAL_STATE))
+        self.assertEqual(why, "")
+        self.assertEqual(consts, {},
+                         "объявленное `global` имя есть модульное СОСТОЯНИЕ")
+        self.assertEqual(sites, [])
+
+    def test_the_same_shape_without_global_is_a_real_constant(self):
+        """Отрицательный контроль: правило режет ``global``, а не присваивание."""
+        sites, consts, why = mco.module_sites(_src(GLOBAL_FREE))
+        self.assertEqual(why, "")
+        self.assertEqual(consts, {"_FAILED_AT": "0.0"})
+        self.assertEqual([s.field for s in sites], ["gap"])
+
+    def test_shadowing_alone_would_have_let_the_state_through(self):
+        """Почему дверь ВТОРАЯ, а не та же: затенения у этого имени НЕТ."""
+        tree = ast.parse(_src(GLOBAL_STATE))
+        self.assertNotIn("_FAILED_AT", mco.shadowed_anywhere(tree),
+                         "`global` не есть затенение — направления промаха "
+                         "у двух дверей ОБРАТНЫЕ, и слить их нельзя")
+        self.assertIn("_FAILED_AT", mco.globals_declared(tree))
+
+    def test_globals_declared_is_empty_where_there_is_no_global(self):
+        self.assertEqual(mco.globals_declared(ast.parse(_src(GLOBAL_FREE))),
+                         set())
+
+    def test_a_global_declared_name_is_dropped_in_the_module_scope_too(self):
+        """Промах был бы ВЕЗДЕ: площадка в модульной области тоже ложная."""
+        sites, consts, _why = mco.module_sites(_src("""
+            _TS = 0.0
+
+            def bump(now):
+                global _TS
+                _TS = now
+
+            def view(spent):
+                return {"age": _TS - spent}
+        """))
+        self.assertEqual(consts, {})
+        self.assertEqual(sites, [])
+
+
+class ThePriceOfTheOwnOneSidednessIsMeasured(unittest.TestCase):
+    """Заказ G697 п. 1 — ЦЕНА выброса затенённых имён, подстановкой в сам прибор.
+
+    Две величины РАЗВЕДЕНЫ: выброшенная постоянная (ОПЕРАНД) и потерянная
+    площадка (ОТВЕТ). Ноль у второй не отменяет ненулевой первой — правило
+    ADR-700 п. 3, и на живом дереве 2026-10-12 расклад ровно такой: 1 и 0.
+    """
+
+    def test_no_drop_means_no_cost_and_no_reason(self):
+        cost = mco.module_shadow_cost(_src(DIRECT))
+        self.assertEqual(cost.dropped, ())
+        self.assertEqual(cost.lost, ())
+        self.assertEqual(cost.reason, "", "третий исход тут не наступал")
+
+    def test_the_shortcut_is_sound_where_the_door_did_not_fire(self):
+        """Контроль СОКРАЩЕНИЯ: без выброса ответ обязан быть тот же.
+
+        Второй прогон делается только там, где дверь сработала. Без этого
+        контроля сокращение держалось бы на рассуждении, а не на тесте.
+        """
+        for name, src in (("DIRECT", DIRECT), ("TRANSITIVE", TRANSITIVE),
+                          ("LONE", LONE), ("ALREADY_SEEN", ALREADY_SEEN)):
+            with self.subTest(scene=name):
+                tight, _c, _w = mco.module_sites(_src(src))
+                loose, _c2, _w2 = mco.module_sites(_src(src),
+                                                   drop_shadowed=False)
+                self.assertEqual([(s.field, s.line) for s in tight],
+                                 [(s.field, s.line) for s in loose])
+
+    def test_the_cost_names_the_dropped_constant_without_losing_a_site(self):
+        """Расклад ЖИВОГО дерева: постоянная выброшена, площадка не потеряна."""
+        cost = mco.module_shadow_cost(_src(DROP_COSTS_NO_SITE))
+        self.assertEqual(cost.dropped, ("TIMEOUT",))
+        self.assertEqual(cost.lost, (),
+                         "имя не участвует в арифметике, пишущей поле")
+        self.assertEqual(cost.reason, "")
+
+    def test_the_cost_names_a_LOST_site_when_one_is_lost(self):
+        """Положительный контроль ОТВЕТА: сцена, где выброс РЕАЛЬНО стои́т площадки."""
+        cost = mco.module_shadow_cost(_src(DROP_LOSES_A_SITE))
+        self.assertEqual(cost.dropped, ("TIMEOUT",))
+        self.assertIn("left:7", cost.lost)
+        self.assertEqual(cost.reason, "")
+
+    def test_the_loose_answer_is_an_UPPER_bound_not_the_truth(self):
+        """Сказано вслух: без выброса в ЗАТЕНЁННОЙ области площадка ложная.
+
+        Поэтому расстояние между двумя ответами есть цена, а не поправка:
+        верхняя граница содержит и настоящую потерю (`left`), и ложную
+        (`shaded`, где `TIMEOUT` — параметр).
+        """
+        cost = mco.module_shadow_cost(_src(DROP_LOSES_A_SITE))
+        self.assertEqual(sorted(cost.lost), ["left:7", "shaded:4"])
+
+    def test_dropped_and_lost_are_separate_numbers(self):
+        """Слить их в одно число значило бы потерять половину вопроса заказа."""
+        doc = mco.tally(None, None, _tree(**{
+            "spa_core/a.py": DROP_COSTS_NO_SITE}))
+        self.assertEqual(doc["shadow_cost"]["dropped_constants"], 1)
+        self.assertEqual(doc["shadow_cost"]["dropped_modules"], 1)
+        self.assertEqual(doc["shadow_cost"]["lost_sites"], 0)
+        self.assertEqual(doc["shadow_cost"]["lost_modules"], 0)
+
+    def test_the_cost_is_named_by_module_and_name(self):
+        doc = mco.tally(None, None, _tree(**{
+            "spa_core/a.py": DROP_LOSES_A_SITE}))
+        self.assertEqual(doc["shadow_cost"]["dropped_named"],
+                         ["spa_core/a.py:TIMEOUT"])
+        self.assertIn("spa_core/a.py:left:7", doc["shadow_cost"]["lost_named"])
+
+    def test_a_tree_without_any_drop_reports_zero_cost_not_silence(self):
+        doc = mco.tally(None, None, _tree(**{"spa_core/p.py": DIRECT}))
+        self.assertEqual(doc["shadow_cost"]["dropped_constants"], 0)
+        self.assertEqual(doc["shadow_cost"]["lost_sites"], 0)
+        self.assertEqual(doc["shadow_cost"]["unmeasured"], {})
+
+    def test_an_unparsable_module_refuses_the_cost_with_a_named_reason(self):
+        cost = mco.module_shadow_cost("def (:")
+        self.assertEqual(cost.dropped, ())
+        self.assertIn("не разобрано", cost.reason)
+        self.assertNotEqual(cost.reason, "", "«цены нет» тут было бы ложью")
+
+    def test_the_report_prints_the_cost_next_to_the_population(self):
+        """Заказ дословно: «это надо сказать там, где печатается 33»."""
+        doc = mco.tally(None, None, _tree(**{
+            "spa_core/a.py": DROP_LOSES_A_SITE}))
+        lines = mco.report(doc)
+        pop = [i for i, l in enumerate(lines) if l.startswith("  население ")]
+        cost = [i for i, l in enumerate(lines) if "ЦЕНА односторонности" in l]
+        self.assertTrue(pop and cost, lines)
+        self.assertEqual(cost[0], pop[0] + 1,
+                         "цена обязана стоять СТРОКОЙ НИЖЕ населения")
+
+    def test_an_old_format_document_says_the_cost_is_unmeasured(self):
+        """Раздела нет ⇒ третий исход, а не «цены нет» (инв. #17)."""
+        lines = mco.cost_report({"population": 3})
+        self.assertEqual(len(lines), 1)
+        self.assertIn("НЕ ИЗМЕРЕНА", lines[0])
+        self.assertIn("СТАРОГО ОБРАЗЦА", lines[0])
+
+    def test_the_cost_unmeasured_module_is_named_in_the_report(self):
+        lines = mco.cost_report({"shadow_cost": {
+            "dropped_constants": 0, "dropped_modules": 0, "lost_sites": 0,
+            "lost_modules": 0, "dropped_named": [], "lost_named": [],
+            "unmeasured": {"spa_core/x.py": "не разобрано: SyntaxError"}}})
+        self.assertTrue(any("[ЦЕНА НЕ ИЗМЕРЕНА] spa_core/x.py" in l
+                            for l in lines), lines)
+
+
 class TheTodayAnswerIsTheAxisItself(unittest.TestCase):
     """Прибор НЕ несёт второй копии правила — он зовёт ось.
 
@@ -329,11 +539,20 @@ class TheContractIsPinnedVerbatim(unittest.TestCase):
     меняет обе половины вместе. Поэтому состав пришпилен словами.
     """
 
+    # Пин РАСШИРЕН заказом G697 п. 1, и это усиление, а не ослабление: ключ
+    # `shadow_cost` ДОБАВЛЕН, ни один прежний не убран и не переименован,
+    # прежний набор целиком входит в новый, и пин остаётся РАВЕНСТВОМ —
+    # лишний ключ по-прежнему краснеет (инв. #16, обоснование в теле
+    # изменения; тот же порядок, которым ADR-700 расширял `_BUILT_BY_CALL`).
     DOC_KEYS = {"schema", "status", "reason", "files_parsed", "files_unmeasured",
                 "modules_with_constants", "constants_seen", "sites",
                 "population", "direct", "transitive", "candidate_hits",
                 "candidate_sites", "identity_hits", "identity_sites",
-                "candidate_denominator", "what_it_does_not_prove"}
+                "candidate_denominator", "what_it_does_not_prove",
+                "shadow_cost"}
+
+    COST_KEYS = {"dropped_constants", "dropped_modules", "lost_sites",
+                 "lost_modules", "dropped_named", "lost_named", "unmeasured"}
 
     SITE_KEYS = {"module", "line", "field", "how", "consts"}
 
@@ -363,6 +582,29 @@ class TheContractIsPinnedVerbatim(unittest.TestCase):
         self.assertTrue(self.doc["what_it_does_not_prove"])
         self.assertTrue(any("не расширена" in s or "ЗАНИЖЕНО" in s
                             for s in self.doc["what_it_does_not_prove"]))
+
+    def test_the_cost_block_carries_exactly_these_keys(self):
+        self.assertEqual(set(self.doc["shadow_cost"]), self.COST_KEYS)
+
+    def test_the_caveat_carries_the_measured_number_not_only_prose(self):
+        """Заказ G697 п. 1: «если выброшенных единицы — оговорку сократить до числа»."""
+        clause = [s for s in self.doc["what_it_does_not_prove"]
+                  if "ЗАНИЖЕНО" in s]
+        self.assertEqual(len(clause), 1, clause)
+        self.assertIn("ВЕЛИЧИНА промаха ИЗМЕРЕНА", clause[0],
+                      "оговорка без числа была верна в обе стороны сразу")
+        self.assertIn("нижняя граница", clause[0])
+
+    def test_the_caveat_says_unmeasured_on_an_old_format_document(self):
+        """Третий исход оговорки: раздела нет ⇒ «НЕ ИЗМЕРЕНА», не возврат к прозе."""
+        clause = mco._cost_clause({})
+        self.assertIn("НЕ ИЗМЕРЕНА", clause)
+        self.assertNotIn("ВЕЛИЧИНА промаха ИЗМЕРЕНА", clause)
+
+    def test_the_second_one_sidedness_is_named_in_what_it_does_not_prove(self):
+        self.assertTrue(any("`global`" in s
+                            for s in self.doc["what_it_does_not_prove"]),
+                        "вторая дверь обязана быть названа там же, где первая")
 
 
 class TheTestsAreExcludedLikeTheAxisDoes(unittest.TestCase):

@@ -51,11 +51,33 @@
   промах в сторону «чисто» (ЗАНИЖАЕТ население), и выбор сделан по той же
   причине, что у самой оси, — население не есть гейт, поэтому цена промаха
   есть недостающая строка отчёта, а не отвергнутое имя.
+
+  **Цена этой односторонности ИЗМЕРЕНА (заказ G697 п. 1), а не оговорена.**
+  До ADR-702 здесь стояло «население ЗАНИЖЕНО» без числа — то есть «33»
+  могло быть как точным ответом, так и нижней границей, далёкой от правды, и
+  различить это было нечем. Мера та же, что у самого прибора: прогнать его
+  ДВАЖДЫ, подменив ровно одну дверь (``drop_shadowed``), и считать ценой то,
+  у чего сменился вердикт (:func:`module_shadow_cost`, :func:`census`
+  раздел ``shadow_cost``). Число печатается РЯДОМ с населением — там, где
+  читатель видит «33», а не в одной справке.
 * **Постоянная вне модульной области не считается постоянной.**
   ``def f(): LIMIT = 5`` — привязка функции, а не модуля; заказ назвал класс
   МОДУЛЬНЫМ, и расширять его здесь значило бы мерить не тот класс.
 * **Имя, пере-связанное в модуле хоть раз с не-числом, постоянной не является.**
   ``X = 300`` … ``X = load()`` — по построению уже не число.
+* **Имя, объявленное ``global``, постоянной не является ВОВСЕ** — и это вторая
+  односторонность, заказом G697 п. 1 НЕ названная, с ОБРАТНЫМ направлением
+  ошибки. ``_shadowed`` оси ловит параметры, циклы, ``with``, ``except``,
+  импорт и включения, но НЕ присваивание: ``global X`` с ``X = time.time()``
+  внутри функции имя не ЗАТЕНЯЕТ, а пере-связывает ТУ ЖЕ модульную привязку,
+  и подстановка такого имени его литералом неверна не в одной области, а
+  ВЕЗДЕ. Промах здесь в сторону НАХОДКИ (ложное обвинение), то есть опаснее
+  названного, и признак у него механический: объявление ``global`` само и
+  означает «модульная привязка ЗАПИСЫВАЕМА» (:func:`globals_declared`).
+  Население на 2026-10-12 — **2** имени (``pendle_adapter._LLAMA_FAILED_AT``,
+  ``allocator._live_apy_cache_ts``, оба ``= 0.0`` с ``global`` и присваиванием
+  в функции), площадок сменило вердикт **0**. Ноль исправление НЕ отменяет:
+  форма жива, и правило ADR-700 п. 3 на этот случай названо прямо.
 * **Транзитивный случай назван ОТДЕЛЬНЫМ числом.** ``HALF = LIMIT / 2`` на
   модульном уровне делает ``HALF`` посчитанным, и поле, читающее ``HALF``,
   ось тоже не видит. Это тот же класс (значение происходит от постоянной), но
@@ -196,6 +218,35 @@ def _module_bindings(tree: ast.Module) -> Dict[str, List[Optional[ast.AST]]]:
     return out
 
 
+def globals_declared(tree: ast.Module) -> Set[str]:
+    """Имена, объявленные ``global`` ХОТЬ ГДЕ в модуле: привязка ЗАПИСЫВАЕМА.
+
+    Вторая односторонность прибора, заказом G697 п. 1 НЕ названная, и
+    направление ошибки у неё ОБРАТНОЕ названному — в сторону находки.
+
+    ``_shadowed`` оси перечисляет привязки НЕ присваиванием: параметры, циклы,
+    ``with``, ``except``, импорт, включения. Присваивания там нет намеренно —
+    для оси важна видимость имени в чужой области. Но ``global X`` с
+    ``X = time.time()`` внутри функции имя не ЗАТЕНЯЕТ: он пере-связывает ТУ
+    ЖЕ модульную привязку. Поэтому такое имя проходит и ``module_constants``
+    (единственная модульная привязка — числовой литерал), и
+    ``shadowed_anywhere`` (затенения нет), а подстановка его литералом неверна
+    не в одной области, а ВЕЗДЕ, включая саму модульную.
+
+    Признак механический и ложных срабатываний не имеет по построению:
+    объявление ``global`` само и есть утверждение «эту модульную привязку
+    пишут». Поэтому проверка живёт ЗДЕСЬ, а не рядом с
+    :func:`shadowed_anywhere`: затенение — свойство ДРУГИХ областей, а
+    записываемость — свойство ЭТОЙ привязки, и смешать их значило бы потерять
+    разницу направлений промаха.
+    """
+    out: Set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Global):
+            out.update(node.names)
+    return out
+
+
 def module_constants(tree: ast.Module) -> Dict[str, str]:
     """Имя → литерал: модульные имена, связанные ТОЛЬКО числовыми литералами.
 
@@ -203,9 +254,16 @@ def module_constants(tree: ast.Module) -> Dict[str, str]:
     числом по построению не является, и считать его таким значило бы мерить
     догадку. Затенение проверяется ОТДЕЛЬНО (:func:`shadowed_anywhere`): оно
     свойство других областей, а не этой привязки.
+
+    Объявленное ``global`` имя отбрасывается ЗДЕСЬ (:func:`globals_declared`):
+    записываемость модульной привязки есть свойство САМОЙ привязки, и
+    постоянной такое имя не является ни в одной области.
     """
+    writable = globals_declared(tree)
     out: Dict[str, str] = {}
     for name, values in _module_bindings(tree).items():
+        if name in writable:
+            continue
         literals = [_numeric_literal(v) for v in values]
         if literals and all(lit is not None for lit in literals):
             out[name] = str(literals[0])
@@ -292,21 +350,32 @@ def _consts_in(value: ast.AST, consts: Dict[str, str]) -> Tuple[str, ...]:
     return tuple(sorted(found))
 
 
-def module_sites(source: str) -> Tuple[Optional[List[Site]], Dict[str, str], str]:
+def module_sites(source: str, *, drop_shadowed: bool = True
+                 ) -> Tuple[Optional[List[Site]], Dict[str, str], str]:
     """Площадки класса в ОДНОМ модуле. Вторым — постоянные, третьим — причина.
 
     ``(None, {}, причина)`` — третий исход: файл не разобран либо два прогона
     дали РАЗНЫЙ состав площадок. Второе означает, что подстановка задела
     структуру, а не только операнд; спарить тогда «что было» и «что стало»
     нельзя, и молчаливое спаривание не тех мест было бы хуже отказа.
+
+    ``drop_shadowed=False`` — ЕДИНСТВЕННАЯ дверь, которую подменяет мера цены
+    односторонности (:func:`module_shadow_cost`, заказ G697 п. 1). Это не
+    режим работы и не ослабление: с закрытым выбросом ответ есть ВЕРХНЯЯ
+    граница класса (подстановка в затенённой области заведомо неверна),
+    тогда как ответ по умолчанию — НИЖНЯЯ. Цена односторонности и есть
+    расстояние между ними, и мерить его обязана подстановка в САМ прибор, а
+    не второй разбор правила видимости (урок #820: второй поиск предмета,
+    уже раскрытого соседом, РАСХОДИТСЯ).
     """
     try:
         tree = ast.parse(source)
     except (SyntaxError, ValueError) as exc:
         return None, {}, f"не разобрано: {type(exc).__name__}"
     consts = module_constants(tree)
-    for name in shadowed_anywhere(tree):
-        consts.pop(name, None)
+    if drop_shadowed:
+        for name in shadowed_anywhere(tree):
+            consts.pop(name, None)
     if not consts:
         return [], {}, ""
     clone, _ = substituted(tree, consts)
@@ -330,11 +399,63 @@ def module_sites(source: str) -> Tuple[Optional[List[Site]], Dict[str, str], str
     return sites, consts, ""
 
 
+@dataclasses.dataclass(frozen=True)
+class ShadowCost:
+    """Цена односторонности В ОДНОМ модуле — заказ G697 п. 1.
+
+    Две величины РАЗВЕДЕНЫ, и это не украшение: выброшенная постоянная и
+    потерянная площадка — разные ответы, и ноль у второй не отменяет
+    ненулевой первой (урок ADR-700 п. 3). Заказ спросил ровно их обе:
+    «сколько постоянных выброшено затенением и у скольких модулей от этого
+    исчезает хотя бы одна площадка».
+    """
+
+    module: str
+    #: Постоянные, которые выброс затенения убрал из операнда.
+    dropped: Tuple[str, ...]
+    #: Площадки, которые от этого выброса НЕ попали в население («поле:строка»).
+    lost: Tuple[str, ...]
+    #: Третий исход: разобрать или спарить не вышло. Никогда не «цены нет».
+    reason: str
+
+
+def module_shadow_cost(source: str) -> ShadowCost:
+    """Цена выброса затенённых имён в ОДНОМ модуле — подстановкой в сам прибор.
+
+    Второй прогон делается ТОЛЬКО там, где дверь выброса сработала. Это не
+    приближение и не экономия на замере: при пустом ``dropped`` оба прогона
+    получают БАЙТ В БАЙТ один и тот же ``consts`` (единственная разница ветки
+    — что из него вычесть), поэтому их ответы тождественны ПО ПОСТРОЕНИЮ.
+    Тождество закреплено контролем (сцена, где дверь не сработала, обязана
+    давать равные ответы обоими способами) — иначе сокращение держалось бы на
+    рассуждении, а не на тесте.
+    """
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError) as exc:
+        return ShadowCost("", (), (), f"не разобрано: {type(exc).__name__}")
+    dropped = tuple(sorted(set(module_constants(tree)) & shadowed_anywhere(tree)))
+    if not dropped:
+        return ShadowCost("", (), (), "")
+    tight, _c, why_tight = module_sites(source)
+    loose, _c2, why_loose = module_sites(source, drop_shadowed=False)
+    if tight is None or loose is None:
+        return ShadowCost("", dropped, (),
+                          why_tight or why_loose
+                          or "спарить прогоны не вышло")
+    seen = {(s.field, s.line) for s in tight}
+    lost = tuple(f"{s.field}:{s.line}" for s in loose
+                 if (s.field, s.line) not in seen)
+    return ShadowCost("", dropped, lost, "")
+
+
 def census(tree_root: Path,
            roots: Sequence[str] = DEFAULT_ROOTS) -> dict:
     """Население класса по всему дереву. Тесты исключены — как у оси."""
     sites: List[Site] = []
     unmeasured: Dict[str, str] = {}
+    costs: List[ShadowCost] = []
+    cost_unmeasured: Dict[str, str] = {}
     modules_with_consts = 0
     constants_seen = 0
     files_parsed = 0
@@ -361,6 +482,14 @@ def census(tree_root: Path,
                 modules_with_consts += 1
                 constants_seen += len(consts)
             sites.extend(dataclasses.replace(s, module=rel) for s in found)
+            # Заказ G697 п. 1 — цена СВОЕЙ односторонности, замером. Считается
+            # в том же проходе: отдельный проход по дереву был бы вторым
+            # прочтением тех же файлов, а разойтись им не дало бы ничто.
+            cost = module_shadow_cost(source)
+            if cost.reason:
+                cost_unmeasured[rel] = cost.reason
+            elif cost.dropped:
+                costs.append(dataclasses.replace(cost, module=rel))
     doc = {
         "schema": SCHEMA,
         "files_parsed": files_parsed,
@@ -371,6 +500,20 @@ def census(tree_root: Path,
         "population": len(sites),
         "direct": sum(1 for s in sites if not s.transitive),
         "transitive": sum(1 for s in sites if s.transitive),
+        # Заказ G697 п. 1. Две величины РАЗВЕДЕНЫ: выброшенная постоянная
+        # (операнд) и потерянная площадка (ответ). Ноль у второй не отменяет
+        # ненулевой первой, и слить их в одно число значило бы потерять ровно
+        # тот вопрос, который заказ задал двумя половинами.
+        "shadow_cost": {
+            "dropped_constants": sum(len(c.dropped) for c in costs),
+            "dropped_modules": len(costs),
+            "lost_sites": sum(len(c.lost) for c in costs),
+            "lost_modules": sum(1 for c in costs if c.lost),
+            "dropped_named": [f"{c.module}:{n}"
+                              for c in costs for n in c.dropped],
+            "lost_named": [f"{c.module}:{n}" for c in costs for n in c.lost],
+            "unmeasured": cost_unmeasured,
+        },
     }
     if not files_parsed:
         doc["status"] = UNMEASURED
@@ -397,12 +540,12 @@ def tally(candidate_fields: Optional[Dict[str, int]],
             "population": None,
             "candidate_hits": None,
             "identity_hits": None,
-            "what_it_does_not_prove": _NOT_PROVEN,
+            "what_it_does_not_prove": _not_proven(),
         }
     doc = census(Path(tree_root))
     if doc.get("status") == UNMEASURED:
         doc.update({"candidate_hits": None, "identity_hits": None,
-                    "what_it_does_not_prove": _NOT_PROVEN})
+                    "what_it_does_not_prove": _not_proven(doc)})
         return doc
     sites = [Site(**s) for s in doc["sites"]]
     cand = set(candidate_fields or {}) if candidate_fields is not None else None
@@ -431,20 +574,78 @@ def tally(candidate_fields: Optional[Dict[str, int]],
         doc["reason"] = (
             f"население класса {len(sites)}, но ни одно место не пишет поле, "
             "о котором перепись спрашивает — заказ велел записать и закрыть")
-    doc["what_it_does_not_prove"] = _NOT_PROVEN
+    doc["what_it_does_not_prove"] = _not_proven(doc)
     return doc
 
 
-_NOT_PROVEN = [
-    "население НЕ есть правило: ось не расширена ни на одно имя, и «род ⇒ "
-    "годность» остаётся отвергнутым замером (ADR-539/503)",
-    "затенённое хоть в одной области имя не подставляется ВОВСЕ — промах в "
-    "сторону «чисто», население ЗАНИЖЕНО",
-    "постоянная функции постоянной здесь не считается: заказ назвал класс "
-    "МОДУЛЬНЫМ",
-    "«поле-кандидат задето» говорит о МЕСТЕ в коде, а не о годности поля в "
-    "личность — годность меряет перепись, и правила от этого числа у неё нет",
-]
+def _cost_clause(doc: Optional[dict]) -> str:
+    """Оговорка про занижение — ЧИСЛОМ, когда число есть (заказ G697 п. 1).
+
+    До ADR-702 здесь стояла проза «население ЗАНИЖЕНО», и она была верна в
+    обе стороны сразу: «33» могло быть и точным ответом, и нижней границей,
+    далёкой от правды. Теперь направление промаха названо ВМЕСТЕ с его
+    величиной, а когда цену измерить не вышло — это третий исход, а не
+    возврат к прозе (инв. #17).
+    """
+    cost = (doc or {}).get("shadow_cost")
+    head = ("затенённое хоть в одной области имя не подставляется ВОВСЕ — "
+            "промах в сторону «чисто», население ЗАНИЖЕНО")
+    if not isinstance(cost, dict):
+        return (f"{head}; ВЕЛИЧИНА промаха НЕ ИЗМЕРЕНА (раздела "
+                "`shadow_cost` у документа нет — отчёт старого образца)")
+    if cost.get("unmeasured"):
+        return (f"{head}; величина промаха измерена ЧАСТИЧНО: "
+                f"{len(cost['unmeasured'])} модул(ей) в третьем исходе")
+    return (f"{head} — но ВЕЛИЧИНА промаха ИЗМЕРЕНА и она "
+            f"{cost.get('dropped_constants')} постоянн(ых) в "
+            f"{cost.get('dropped_modules')} модул(ях), от которых теряется "
+            f"{cost.get('lost_sites')} площад(ок) в {cost.get('lost_modules')} "
+            "модул(ях): население есть нижняя граница, и расстояние до верхней "
+            "названо числом, а не оговоркой")
+
+
+def _not_proven(doc: Optional[dict] = None) -> List[str]:
+    """Чего прибор НЕ доказывает. Цена односторонности — числом, не прозой."""
+    return [
+        "население НЕ есть правило: ось не расширена ни на одно имя, и «род ⇒ "
+        "годность» остаётся отвергнутым замером (ADR-539/503)",
+        _cost_clause(doc),
+        "имя, объявленное `global`, постоянной не считается ВОВСЕ: `global X` "
+        "не ЗАТЕНЯЕТ имя, а пере-связывает ТУ ЖЕ модульную привязку, и промах "
+        "здесь был бы в сторону НАХОДКИ (ложное обвинение) — вторая "
+        "односторонность, заказом G697 п. 1 не названная",
+        "постоянная функции постоянной здесь не считается: заказ назвал класс "
+        "МОДУЛЬНЫМ",
+        "«поле-кандидат задето» говорит о МЕСТЕ в коде, а не о годности поля в "
+        "личность — годность меряет перепись, и правила от этого числа у неё нет",
+    ]
+
+
+def cost_report(doc: dict, *, max_rows: int = 6) -> List[str]:
+    """Строки ЦЕНЫ односторонности. Третий исход — вслух, не «цены нет»."""
+    cost = doc.get("shadow_cost")
+    if not isinstance(cost, dict):
+        return ["  ЦЕНА односторонности: НЕ ИЗМЕРЕНА — раздела `shadow_cost` "
+                "у документа нет вовсе (отчёт СТАРОГО ОБРАЗЦА, а не «цены "
+                "нет»)"]
+    out = [
+        f"  ЦЕНА односторонности ИЗМЕРЕНА: затенением выброшено "
+        f"{cost.get('dropped_constants')} постоянн(ых) из "
+        f"{doc.get('constants_seen')} в {cost.get('dropped_modules')} "
+        f"модул(ях) · площадок от этого теряется {cost.get('lost_sites')} "
+        f"в {cost.get('lost_modules')} модул(ях) ⇒ население "
+        f"{doc.get('population')} есть НИЖНЯЯ граница, и расстояние до "
+        "верхней названо"]
+    for name in (cost.get("dropped_named") or [])[:max_rows]:
+        out.append(f"    выброшено · {name}")
+    extra = len(cost.get("dropped_named") or []) - max_rows
+    if extra > 0:
+        out.append(f"    … ещё {extra} выброшенн(ых)")
+    for name in (cost.get("lost_named") or [])[:max_rows]:
+        out.append(f"    потеряна площадка · {name}")
+    for rel, why in (cost.get("unmeasured") or {}).items():
+        out.append(f"    [ЦЕНА НЕ ИЗМЕРЕНА] {rel}: {why}")
+    return out
 
 
 def report(doc: dict, *, max_rows: int = 8) -> List[str]:
@@ -460,6 +661,11 @@ def report(doc: dict, *, max_rows: int = 8) -> List[str]:
         f"{doc.get('modules_with_constants')} · постоянных "
         f"{doc.get('constants_seen')} · файлов разобрано "
         f"{doc.get('files_parsed')}")
+    # Заказ G697 п. 1: цена односторонности печатается ТАМ, ГДЕ ПЕЧАТАЕТСЯ
+    # НАСЕЛЕНИЕ — строкой ниже самого числа. Оговорка в модульной справке
+    # читателя отчёта не достаёт, а именно он решает, точный перед ним ответ
+    # или нижняя граница.
+    out.extend(cost_report(doc))
     hits = doc.get("candidate_hits")
     denom = doc.get("candidate_denominator")
     out.append("  полей-кандидатов задето: "
