@@ -2,21 +2,21 @@
   "generated_from": "data/golive_status.json + data/equity_curve_daily.json + data/paper_trading_status.json",
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
-  "as_of": "2026-10-12",
-  "generated_at": "2026-10-12T06:01:27Z",
+  "as_of": "2026-10-13",
+  "generated_at": "2026-10-13T06:01:15Z",
   "degraded": false,
-  "real_track_days": 111,
+  "real_track_days": 112,
   "go_live_target": null,
   "go_live_state": "gate_passed_owner_decision_pending",
   "evidenced_anchor": "2026-06-22",
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101620.52,
-  "nav_usd": 101620.52,
-  "paper_apy_pct": 4.9076,
+  "end_equity": 101633.73,
+  "nav_usd": 101633.73,
+  "paper_apy_pct": 4.9072,
   "max_drawdown_pct": -0.0393,
-  "total_return_pct": 1.6205,
+  "total_return_pct": 1.6337,
   "packages": {
     "conservative": {
       "apy_pct": 5.4,
@@ -34,18 +34,18 @@
   "paper_tracks": {
     "conservative": {
       "status": "paper_test_running",
-      "days_with_positions": 111,
-      "days_funded": 111,
+      "days_with_positions": 112,
+      "days_funded": 112,
       "apy_pct": 4.91,
       "dd_pct": -0.0393,
-      "nav_usd": 101620.52,
+      "nav_usd": 101633.73,
       "positions_count": null,
       "evidence": "paper"
     },
     "balanced": {
       "status": "paper_test_running",
-      "days_with_positions": 11,
-      "days_funded": 11,
+      "days_with_positions": 12,
+      "days_funded": 12,
       "apy_pct": null,
       "reportable": false,
       "reportable_after": 30,
@@ -75,9 +75,9 @@
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
-        "days": 11,
+        "days": 12,
         "first_date": "2026-10-02",
-        "apy_pct": 0.19,
+        "apy_pct": 0.66,
         "reportable": false,
         "reportable_after": 30,
         "pre_fix_days": 39
@@ -87,8 +87,8 @@
     },
     "aggressive": {
       "status": "paper_test_running",
-      "days_with_positions": 11,
-      "days_funded": 11,
+      "days_with_positions": 12,
+      "days_funded": 12,
       "apy_pct": null,
       "reportable": false,
       "reportable_after": 30,
@@ -118,9 +118,9 @@
       },
       "post_fix": {
         "model": "sleeve-econ-v2",
-        "days": 11,
+        "days": 12,
         "first_date": "2026-10-02",
-        "apy_pct": 5.29,
+        "apy_pct": 5.97,
         "reportable": false,
         "reportable_after": 30,
         "pre_fix_days": 39
@@ -130,14 +130,14 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-12T06:01:27Z",
-    "generated_at": "2026-10-12T06:01:27Z",
+    "published_at": "2026-10-13T06:01:15Z",
+    "generated_at": "2026-10-13T06:01:15Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "code_identity": {
       "state": "IN_SYNC",
-      "origin_commit": "911884cf93e0",
-      "checked_at": "2026-10-12T06:00:18.271485+00:00",
+      "origin_commit": "61492769b0e6",
+      "checked_at": "2026-10-13T06:00:05.831937+00:00",
       "age_h": 0.02
     },
     "status_colour_is_not_a_risk_grade": true,
@@ -150,22 +150,22 @@
         "experiment_id": "conservative-lending-v1@2026-06-22",
         "experiment_start_date": "2026-06-22",
         "new_version_pending": null,
-        "headline_en": "Paper test running \u00b7 111 valid days of the current version",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0438\u0434\u0451\u0442 \u00b7 \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d\u0435\u0439 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438: 111",
+        "headline_en": "Paper test running \u00b7 112 valid days of the current version",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0438\u0434\u0451\u0442 \u00b7 \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d\u0435\u0439 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438: 112",
         "mechanic_short_en": "unlevered stablecoin lending",
         "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 \u0431\u0435\u0437 \u043f\u043b\u0435\u0447\u0430",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-12T06:00:12.836032+00:00",
+          "last_run_at": "2026-10-13T06:00:05.938301+00:00",
           "age_h": 0.02
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-12T06:00:12.836032+00:00",
+          "last_observation_at": "2026-10-13T06:00:05.938301+00:00",
           "missed_runs_24h": null,
           "observations": null
         },
@@ -175,15 +175,15 @@
           "position_ru": "\u043f\u043e\u0437\u0438\u0446\u0438\u0439 \u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u044f: 5, \u043a\u044d\u0448 $5\u00a0000",
           "reason_en": "no rebalance: the gain does not beat the cost band",
           "reason_ru": "\u0431\u0435\u0437 \u0440\u0435\u0431\u0430\u043b\u0430\u043d\u0441\u0430: \u0432\u044b\u0438\u0433\u0440\u044b\u0448 \u043d\u0435 \u043f\u0435\u0440\u0435\u043a\u0440\u044b\u0432\u0430\u0435\u0442 \u043f\u043e\u0440\u043e\u0433 \u0438\u0437\u0434\u0435\u0440\u0436\u0435\u043a",
-          "decision_date": "2026-10-12",
+          "decision_date": "2026-10-13",
           "defect_en": null,
           "defect_ru": null
         },
         "history": {
           "state": "REPORTABLE",
-          "valid_periods": 111,
+          "valid_periods": 112,
           "first_period": "2026-06-22",
-          "last_period": "2026-10-12",
+          "last_period": "2026-10-13",
           "reportable_after": 30,
           "earlier_rows_kept": 0
         },
@@ -215,9 +215,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e (\u0446\u0438\u043a\u043b \u0432 08:00 \u043f\u043e \u043c\u0435\u0441\u0442\u043d\u043e\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)",
           "expected_every_h": 24.0,
           "stale_after_h": 26.0,
-          "last_successful_run_at": "2026-10-12T06:00:12.836032+00:00",
-          "source_observed_at": "2026-10-12T06:00:12.836032+00:00",
-          "stale_at": "2026-10-13T08:00:12Z"
+          "last_successful_run_at": "2026-10-13T06:00:05.938301+00:00",
+          "source_observed_at": "2026-10-13T06:00:05.938301+00:00",
+          "stale_at": "2026-10-14T08:00:05Z"
         }
       },
       "balanced": {
@@ -228,40 +228,40 @@
         "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
-        "headline_en": "Paper test running. Statistics of the current version are accumulating (11 valid days so far)",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 11)",
+        "headline_en": "Paper test running. Statistics of the current version are accumulating (12 valid days so far)",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 12)",
         "mechanic_short_en": "stablecoin lending + Pendle PT fixed rate held to maturity",
         "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 + \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 Pendle PT \u0434\u043e \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u044f",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-12T05:08:35.606083Z",
-          "age_h": 0.88
+          "last_run_at": "2026-10-13T05:09:11.280710Z",
+          "age_h": 0.87
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-12T05:08:35Z",
+          "last_observation_at": "2026-10-13T05:09:11Z",
           "missed_runs_24h": 0,
-          "observations": 247
+          "observations": 271
         },
         "decision": {
           "state": "OPEN",
-          "position_en": "1 PT leg(s) held to maturity, $24,864",
-          "position_ru": "PT \u0432 \u043a\u043d\u0438\u0433\u0435: 1, \u0434\u0435\u0440\u0436\u0430\u0442\u0441\u044f \u0434\u043e \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u044f, $24\u00a0864",
-          "reason_en": "the PT fixed rate (5.044 %) clears the floor (4.226 %) set by the floating benchmark",
-          "reason_ru": "\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 PT (5,044 %) \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u043f\u043e\u0440\u043e\u0433 (4,226 %), \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u043f\u043b\u0430\u0432\u0430\u044e\u0449\u0435\u0439 \u0441\u0442\u0430\u0432\u043a\u043e\u0439",
-          "decision_date": "2026-10-12",
+          "position_en": "1 PT leg(s) held to maturity, $24,867",
+          "position_ru": "PT \u0432 \u043a\u043d\u0438\u0433\u0435: 1, \u0434\u0435\u0440\u0436\u0430\u0442\u0441\u044f \u0434\u043e \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u044f, $24\u00a0867",
+          "reason_en": "the PT fixed rate (5.042 %) clears the floor (4.232 %) set by the floating benchmark",
+          "reason_ru": "\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u0441\u0442\u0430\u0432\u043a\u0430 PT (5,042 %) \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u043f\u043e\u0440\u043e\u0433 (4,232 %), \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u043f\u043b\u0430\u0432\u0430\u044e\u0449\u0435\u0439 \u0441\u0442\u0430\u0432\u043a\u043e\u0439",
+          "decision_date": "2026-10-13",
           "defect_en": null,
           "defect_ru": null
         },
         "history": {
           "state": "ACCUMULATING",
-          "valid_periods": 11,
+          "valid_periods": 12,
           "first_period": "2026-10-02",
-          "last_period": "2026-10-12",
+          "last_period": "2026-10-13",
           "reportable_after": 30,
           "earlier_rows_kept": 39
         },
@@ -294,9 +294,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-12T05:08:35.606083Z",
-          "source_observed_at": "2026-10-12T05:08:35Z",
-          "stale_at": "2026-10-12T07:38:35Z"
+          "last_successful_run_at": "2026-10-13T05:09:11.280710Z",
+          "source_observed_at": "2026-10-13T05:09:11Z",
+          "stale_at": "2026-10-13T07:39:11Z"
         }
       },
       "aggressive": {
@@ -307,40 +307,40 @@
         "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
         "experiment_start_date": "2026-10-02",
         "new_version_pending": null,
-        "headline_en": "Paper test running. Statistics of the current version are accumulating (11 valid days so far)",
-        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 11)",
+        "headline_en": "Paper test running. Statistics of the current version are accumulating (12 valid days so far)",
+        "headline_ru": "\u0411\u0443\u043c\u0430\u0436\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u0437\u0430\u043f\u0443\u0449\u0435\u043d. \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f (\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0445 \u0434\u043d.: 12)",
         "mechanic_short_en": "stablecoin lending + a simulated sUSDe/PYUSD loop on Morpho Blue",
         "mechanic_short_ru": "\u043a\u0440\u0435\u0434\u0438\u0442\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u0435\u0439\u0431\u043b\u043a\u043e\u0438\u043d\u043e\u0432 + \u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f sUSDe/PYUSD \u043d\u0430 Morpho Blue",
         "work": {
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-12T05:09:58.812730Z",
-          "age_h": 0.86
+          "last_run_at": "2026-10-13T05:10:52.295006Z",
+          "age_h": 0.84
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-12T05:09:58Z",
+          "last_observation_at": "2026-10-13T05:10:52Z",
           "missed_runs_24h": 0,
-          "observations": 247
+          "observations": 271
         },
         "decision": {
           "state": "OPEN",
-          "position_en": "simulated loop open \u00b7 debt $116,826 \u00b7 health factor 1.307 at the last check",
-          "position_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u00b7 \u0434\u043e\u043b\u0433 $116\u00a0826 \u00b7 \u0444\u0430\u043a\u0442\u043e\u0440 \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f 1,307 \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0435",
+          "position_en": "simulated loop open \u00b7 debt $116,839 \u00b7 health factor 1.307 at the last check",
+          "position_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u00b7 \u0434\u043e\u043b\u0433 $116\u00a0839 \u00b7 \u0444\u0430\u043a\u0442\u043e\u0440 \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f 1,307 \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0435",
           "reason_en": "position open; carry re-checked",
           "reason_ru": "\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430; \u0434\u043e\u0445\u043e\u0434\u043d\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u0430",
-          "decision_date": "2026-10-12",
+          "decision_date": "2026-10-13",
           "defect_en": null,
           "defect_ru": null
         },
         "history": {
           "state": "ACCUMULATING",
-          "valid_periods": 11,
+          "valid_periods": 12,
           "first_period": "2026-10-02",
-          "last_period": "2026-10-12",
+          "last_period": "2026-10-13",
           "reportable_after": 30,
           "earlier_rows_kept": 39
         },
@@ -367,9 +367,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043f\u0435\u0442\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u043a\u0430\u0436\u0434\u044b\u0439 \u0437\u0430\u043f\u0443\u0441\u043a, \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-12T05:09:58.812730Z",
-          "source_observed_at": "2026-10-12T05:09:58Z",
-          "stale_at": "2026-10-12T07:39:58Z"
+          "last_successful_run_at": "2026-10-13T05:10:52.295006Z",
+          "source_observed_at": "2026-10-13T05:10:52Z",
+          "stale_at": "2026-10-13T07:40:52Z"
         }
       }
     }
@@ -4198,6 +4198,36 @@
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
       "net_pnl_usd": 15.9531,
+      "unobservable_pools": [],
+      "yield_forgone_usd": 0.0,
+      "positions": {
+        "maple": 20000.0,
+        "fluid_fusdc": 20000.0,
+        "morpho_blue_base": 10000.0,
+        "compound_v3": 40000.0,
+        "aave_v3": 5000.0
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "live"
+    },
+    {
+      "date": "2026-10-13",
+      "open_equity": 101620.52,
+      "close_equity": 101633.73,
+      "high_equity": 101633.73,
+      "low_equity": 101620.52,
+      "snapshots": 1,
+      "daily_return_pct": 0.012996,
+      "cumulative_return_pct": 1.633727,
+      "drawdown_pct": 0.0,
+      "equity": 101633.73,
+      "apy_today": 4.7435,
+      "apy_expected_pct": 4.7435,
+      "daily_yield_usd": 13.2066,
+      "cost_usd": 0.0,
+      "turnover_usd": 0.0,
+      "net_pnl_usd": 13.2066,
       "unobservable_pools": [],
       "yield_forgone_usd": 0.0,
       "positions": {
