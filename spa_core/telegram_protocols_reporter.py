@@ -25,6 +25,7 @@ from spa_core.utils.errors import ConfigError
 
 __all__ = [
     "format_protocols_message",
+    "protocols_report_parts",
     "split_message",
     "send_protocols_report",
     "load_adapter_data",
@@ -597,9 +598,10 @@ def format_protocols_message(data: dict) -> str:
 # ──────────────────────────── public: message splitting ────────────────────
 
 
-def split_message(text: str, max_len: int = _TELEGRAM_MAX_LEN) -> list[str]:
+def split_message(text: str, max_len: int = _TELEGRAM_MAX_LEN,
+                  *, measure=len) -> list[str]:
     """
-    Split a Telegram message into parts each ≤ *max_len* characters.
+    Split a Telegram message into parts each ≤ *max_len* units of *measure*.
 
     Splits on newlines to avoid breaking mid-line.  A single line that
     itself exceeds *max_len* is hard-split at the character boundary.
@@ -607,15 +609,28 @@ def split_message(text: str, max_len: int = _TELEGRAM_MAX_LEN) -> list[str]:
     Parameters
     ----------
     text    : the full message string.
-    max_len : maximum chars per chunk (default: 4096).
+    max_len : maximum units per chunk (default: 4096).
+    measure : чем мерить длину. По умолчанию — КОДОВЫЕ ТОЧКИ (``len``), и для
+        прежних звателей ничего не меняется.
+
+        **Зачем ручка вообще.** Telegram считает длину в единицах UTF-16, а Python —
+        в кодовых точках, и у отчёта о протоколах в каждой строке эмодзи: «📊» стоит
+        ДВЕ единицы при одной кодовой точке. Поэтому кусок, влезающий в 4096 по
+        ``len``, может перешагнуть 4096 у Bot API — и тогда ступень, которая режет
+        текст перед отправкой (``bot._fit_telegram``), усекает его С ХВОСТА, то есть
+        убивает блок ``*System*`` первым. Дверь обязана делить ТОЙ ЖЕ мерой, которой
+        судит режущая ступень; две меры одного контракта расходятся молча. Дефект
+        найден пробой ``owner_protocols_report_reaches_the_owner`` на раздутом входе
+        в том же цикле, что и сама дверь (ADR-711): на живом населении он латентен,
+        потому что сегодняшний отчёт в одно сообщение влезает.
 
     Returns
     -------
-    list[str] — one or more chunks, each ≤ max_len chars.
+    list[str] — one or more chunks, each ≤ max_len units of *measure*.
     """
     if not text:
         return [text]
-    if len(text) <= max_len:
+    if measure(text) <= max_len:
         return [text]
 
     chunks: list[str] = []
@@ -623,7 +638,7 @@ def split_message(text: str, max_len: int = _TELEGRAM_MAX_LEN) -> list[str]:
     current_len = 0
 
     for line in text.split("\n"):
-        line_cost = len(line) + 1  # +1 for the joining newline
+        line_cost = measure(line) + 1  # +1 for the joining newline
 
         if line_cost > max_len:
             # Flush current buffer first
@@ -648,6 +663,40 @@ def split_message(text: str, max_len: int = _TELEGRAM_MAX_LEN) -> list[str]:
         chunks.append("\n".join(current_lines))
 
     return chunks or [text[:max_len]]
+
+
+def protocols_report_parts(data: dict, *, max_len: int = _TELEGRAM_MAX_LEN,
+                           measure=len, render=None) -> list[str]:
+    """Куски, которыми отчёт доезжает до владельца — ОДНО правило деления (ADR-711).
+
+    Правило «как этот отчёт переходит предел одного сообщения Telegram» обязано
+    жить в одном месте. До сегодня его знал только :func:`send_protocols_report`
+    (отставленный пуш), а у новой двери бота оно было бы ВТОРОЙ копией — ровно тот
+    класс, который ADR-710 вылечил у формы раздела ``adapters``: два читателя
+    одного контракта расходятся по построению, и расходятся МОЛЧА.
+
+    Блок ``*System*`` стоит в сообщении ПОСЛЕДНИМ, а в нём ``Capital``/``Deployed``/
+    ``Cash``/``Total adapters`` и строка «НЕ РАЗОБРАНО», которой ADR-709 сделал
+    молчание отличимым (инв. #17). Поэтому любое усечение С ХВОСТА убивает сводку
+    ПЕРВОЙ, и деление — не косметика: это единственная форма доставки, при которой
+    третий исход доживает до владельца при ЛЮБОМ населении отчёта.
+
+    Предел и МЕРА длины — вход, а не константа этого модуля: делить обязано тем же,
+    чем судит режущая ступень двери (см. ``split_message``, параметр ``measure``).
+
+    ``render`` — перевод разметки, если дверь говорит не на Markdown производителя.
+    Он применяется ДО деления, и это не порядок ради порядка: экранирование ТОЛЬКО
+    удлиняет текст (``&`` → ``&amp;``, плюс теги ``<b>``), поэтому кусок, нарезанный
+    до перевода, может перешагнуть предел ПОСЛЕ него — и режущая ступень снимет
+    хвост, то есть сводку. Дефект найден пробой на раздутом входе уже ПОСЛЕ того,
+    как мера длины была сведена к одной (ADR-711): первая правка вылечила одну из
+    двух причин одного усечения, и вторая нашлась только потому, что проба мерит
+    ИСХОД у двери, а не согласие двух констант.
+    """
+    message = format_protocols_message(data)
+    if render is not None:
+        message = render(message)
+    return split_message(message, max_len, measure=measure)
 
 
 # ──────────────────────────── public: data loading ─────────────────────────
@@ -790,8 +839,10 @@ def send_protocols_report(
     if data is None:
         data = load_adapter_data(data_dir)
 
-    message = format_protocols_message(data)
-    parts = split_message(message)
+    # Правило деления — ОДНА копия на обе двери (ADR-711). До сегодня эта
+    # функция знала его сама, и у новой двери бота оно стало бы вторым: ровно тот
+    # класс, который ADR-710 вылечил у формы раздела `adapters`.
+    parts = protocols_report_parts(data)
 
     responses: list[dict] = []
     errors: list[str] = []

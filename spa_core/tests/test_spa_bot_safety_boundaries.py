@@ -102,5 +102,14 @@ def test_menu_advertises_only_commands_that_do_what_they_say(monkeypatch):
     assert not {"pause", "resume", "why", "help"} & set(names)
     assert len(names) == len(set(names))                  # /status was registered twice
     from spa_core.telegram.router import COMMAND_TO_PATH
+    # ПРАВКА ADR-711, намеренная (инв. #16) и УСИЛИВАЮЩАЯ, а не ослабляющая: набор
+    # перехваченных команд читается теперь ИЗ КОДА (`TelegramBot._INTERCEPTED_COMMANDS`),
+    # а не из литеральной пары `("status", "task")`, стоявшей здесь. Литерал был ВТОРЫМ
+    # объявлением того же контракта: третий перехват (`/protocols`) расходился бы с ним
+    # молча — сторож покраснел бы на ВЕРНОЙ двери, а исчезнувший перехват остался бы
+    # незамеченным. Проверка не снята и не сужена: правило то же, источник — один.
+    # Что объявление не лжёт, мерит TestInterceptDeclaration в
+    # spa_core/tests/test_protocols_report_door.py.
+    intercepted = {c.lstrip("/") for c in B.TelegramBot._INTERCEPTED_COMMANDS}
     for n in names:
-        assert n in ("status", "task") or f"/{n}" in COMMAND_TO_PATH, n
+        assert n in intercepted or f"/{n}" in COMMAND_TO_PATH, n

@@ -47,6 +47,7 @@ import html
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -245,6 +246,28 @@ def _fit_telegram(text: str, parse_mode: Optional[str]) -> str:
             esc = html.escape(_cut_utf16(plain, _FIT_TO))
         return esc.rstrip() + "\n… (сокращено)"
     return _cut_utf16(text, _FIT_TO).rstrip() + "\n… (сокращено)"
+
+
+#: Разметка производителя отчёта `/protocols` — Markdown (`*жирный*`, `` `код` ``), а
+#: остальной бот говорит HTML. Перевод идёт ПОСЛЕ экранирования, поэтому любое `<`, `&`
+#: или кавычка в имени протокола безопасны по построению, а НЕПАРНАЯ звёздочка остаётся
+#: обычным символом вместо того, чтобы уронить разбор. Это не косметика: Bot API отвечает
+#: на битую разметку 400, `_api_call` возвращает None — и владелец не видит НИЧЕГО,
+#: молча. Markdown-дверь была бы fail-OPEN в тишину.
+_MD_BOLD = re.compile(r"\*([^*\n]+)\*")
+_MD_CODE = re.compile(r"`([^`\n]+)`")
+
+
+def _md_to_html(text: str) -> str:
+    """Markdown производителя → HTML бота. Экранирование ПЕРВЫМ, разметка второй.
+
+    Число переводов строки не меняется НИ ОДНОЙ ветвью — на этом стоит замер двери
+    (проба `owner_protocols_report_reaches_the_owner` сверяет строки числом, а не
+    текстом, и потому безразлична к разметке, но не к потере строк).
+    """
+    esc = html.escape(text or "")
+    esc = _MD_CODE.sub(r"<code>\1</code>", esc)
+    return _MD_BOLD.sub(r"<b>\1</b>", esc)
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -733,6 +756,88 @@ class TelegramBot:
     # /menu → same output as /help
     cmd_menu = cmd_help
 
+    # ── /protocols: статус whitelisted-протоколов, КУСКАМИ (ADR-711) ──────
+    @staticmethod
+    def _is_protocols_command(text: str) -> bool:
+        """Первый токен сообщения — именно `/protocols` (в т.ч. `/protocols@bot`)."""
+        head = (text or "").strip().split()
+        if not head:
+            return False
+        return head[0].split("@")[0].lower() == "/protocols"
+
+    def _handle_protocols_command(self, text: str, chat_id: str) -> bool:
+        """Перехват типизированной `/protocols` ДО Router'а. True — ответили здесь.
+
+        **Почему не экран Router'а.** `handle_command` отдаёт РОВНО ОДНО сообщение
+        (`transport.send_message`), а `send_message` кладёт текст в `_fit_telegram`:
+        всё сверх предела усекается с ХВОСТА и помечается «… (сокращено)». Блок
+        `*System*` стоит в отчёте последним, и в нём `Capital`/`Deployed`/`Cash`/
+        `Total adapters` плюс строка «НЕ РАЗОБРАНО», которой ADR-709 сделал молчание
+        отличимым (инв. #17). То есть экран Router'а убивал бы третий исход ПЕРВЫМ —
+        ровно то, что отставленная дверь-дайджест уже делала пределом 500 символов
+        (ADR-710). Отчёт поэтому едет КУСКАМИ, и ни один из них предела не касается.
+
+        **Владелец проверяется здесь же, fail-CLOSED.** Не владелец ⇒ `False`, и
+        отвечает обычный путь (`Router.handle_command` → `auth.denied`): перехват не
+        имеет права быть дырой в обход того гейта, мимо которого он встал.
+        """
+        if not self._is_protocols_command(text):
+            return False
+        try:
+            if not self._get_router().is_owner(chat_id):
+                return False  # не владелец → ответит обычный путь (fail-closed)
+        except Exception as exc:  # noqa: BLE001 — сломанный гейт НЕ открывает дверь
+            log.warning("protocols owner gate failed: %s", exc)
+            return False
+        self.cmd_protocols(chat_id)
+        return True
+
+    def cmd_protocols(self, chat_id: str, *, data: Optional[dict] = None) -> Optional[int]:
+        """Отчёт `/protocols` владельцу — целиком, КУСКАМИ.
+
+        Возврат — ТРИ исхода, различимые (инв. #17): ``None`` — отчёт собрать НЕ
+        УДАЛОСЬ (наблюдения нет вовсе), число — сколько кусков доехало, и ноль есть
+        ИЗМЕРЕННЫЙ ноль. Ноль на месте отказа сделал бы «не измерено» неотличимым от
+        «отчёт пуст»; поймано храповиком `test_absent_observation_ratchet` на этой же
+        правке.
+
+        **Данные — ВХОД, а не окружение** (`data`): тот же порядок, что у часов в
+        `.claude/rules/deployment.md`. Без этого шва испытание двери населением
+        (проба `owner_protocols_report_reaches_the_owner`) мерило бы ту единственную
+        популяцию, которая лежит в `data/` сегодня, — а она в одно сообщение влезает,
+        и разница между делением и усечением на ней НЕ НАБЛЮДАЕМА. Это и была
+        латентность, названная ADR-710.
+
+        Деление считает ОДНА функция (`reporter.protocols_report_parts`) — та же, что
+        у отставленного пуша: два читателя одного контракта расходятся по построению.
+
+        Отчёт не собрался ⇒ владелец получает ПРИЧИНУ, а не тишину: пустой ответ он
+        справедливо прочтёт как поломку бота, а не как поломку артефакта.
+        """
+        from spa_core import telegram_protocols_reporter as reporter
+        try:
+            doc = data if data is not None else reporter.load_adapter_data(DATA_DIR)
+            # Мера длины — ТА ЖЕ, которой судит режущая ступень `_fit_telegram`
+            # (UTF-16, как считает Bot API), и предел — тот же `TG_TEXT_LIMIT`.
+            # Делить кодовыми точками, а резать единицами UTF-16 = две меры одного
+            # контракта: у отчёта в каждой строке эмодзи, и кусок, влезший по `len`,
+            # терял хвост у фитера. Найдено пробой на раздутом входе (ADR-711).
+            # Перевод разметки идёт ДО деления: экранирование только удлиняет текст,
+            # и кусок, нарезанный до перевода, перешагнул бы предел после него.
+            parts = reporter.protocols_report_parts(
+                doc, max_len=TG_TEXT_LIMIT, measure=_utf16_len, render=_md_to_html)
+        except Exception as exc:  # noqa: BLE001 — причина обязана быть названа владельцу
+            log.warning("cmd_protocols: report not built (%s)", exc)
+            self.send_message(
+                "⚠️ Статус протоколов сейчас не собрать: "
+                + html.escape(f"{type(exc).__name__}: {exc}"), chat_id)
+            return None
+        sent = 0
+        for part in parts:
+            self.send_message(part, chat_id)
+            sent += 1
+        return sent
+
     def cmd_status(self, chat_id: str) -> None:
         try:
             st = _read_json(DATA_DIR / "paper_trading_status.json", {})
@@ -1169,6 +1274,9 @@ class TelegramBot:
             {"command": "oracle",     "description": "Oracle — советник, без права исполнения"},
             {"command": "sherlock",   "description": "Sherlock — проверка доказательств"},
             {"command": "task",       "description": "Задание в inbox (текст или голосовое)"},
+            # ADR-711: отчёт о протоколах едет КУСКАМИ мимо Router'а — у него
+            # единственное сообщение, и сводка `System` не доживала бы до владельца.
+            {"command": "protocols",  "description": "Статус протоколов: ставка, TVL, род числа"},
         ]
         result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
         if result and result.get("ok"):
@@ -1179,9 +1287,22 @@ class TelegramBot:
 
     # ── Routing ───────────────────────────────────────────────────────────
 
+    #: Команды, на которые отвечает ПЕРЕХВАТ в :meth:`handle_update`, а не экран
+    #: Router'а. Объявление существует потому, что сторож меню
+    #: (`test_spa_bot_safety_boundaries.test_menu_advertises_only_commands_that_do_what_they_say`)
+    #: обязан отличать «команда делает то, что обещает» от «команды нет вовсе», а
+    #: набор перехватов до ADR-711 жил ДВАЖДЫ: кодом в `handle_update` и литеральной
+    #: парой `("status", "task")` в самом стороже. Два объявления одного контракта
+    #: расходятся молча — третий перехват прошёл бы мимо сторожа или покрасил бы его
+    #: безо всякой вины. Объявление не есть доказательство: что каждый названный
+    #: здесь перехват ДЕЙСТВИТЕЛЬНО перехватывает, мерит
+    #: `test_protocols_report_door.TestInterceptDeclaration`.
+    _INTERCEPTED_COMMANDS = ("/status", "/task", "/protocols")
+
     _COMMANDS = (
         "/start", "/help", "/menu", "/status", "/portfolio", "/today",
         "/week", "/agents", "/alerts", "/pause", "/resume", "/why",
+        "/protocols",
     )
 
     def _dispatch(self, text: str, chat_id: str) -> None:
@@ -1209,6 +1330,7 @@ class TelegramBot:
             "/pause":     self.cmd_pause,
             "/resume":    self.cmd_resume,
             "/why":       self.cmd_why,
+            "/protocols": self.cmd_protocols,
         }
         handler = handlers.get(cmd)
         if handler is None:
@@ -1263,6 +1385,10 @@ class TelegramBot:
                 # decision with its buttons — the same canonical sender as «что на мне?». The web UI
                 # stays read-only; the answer is given here, by the owner, with the owner check.
                 if self._handle_decision_deeplink(text, chat_id):
+                    return
+                # ADR-711: `/protocols` отвечает ЗДЕСЬ, кусками. Через Router он поехал
+                # бы одним сообщением и усечённым с хвоста — то есть без сводки.
+                if self._handle_protocols_command(text, chat_id):
                     return
                 # Any command or bare text (re)spawns the Home panel as a new message.
                 router.handle_command(text if text.startswith("/") else "/menu", chat_id)

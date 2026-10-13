@@ -419,6 +419,253 @@ def _probe_owner_protocols_report_carries_every_record(
     return SATISFIED, detail
 
 
+def _live_adapter_status_for_the_door(
+    now: "datetime | None", data_dir: str | None
+) -> "tuple[dict, float, str] | tuple[None, None, str]":
+    """Живой `adapter_status.json` под тем же возрастным гейтом, что у соседней пробы.
+
+    Общей здесь сделана РУЧКА (`ADAPTER_STATUS_MAX_AGE_H`) — она и была одной копией
+    до сегодня. Текст отказа у соседа (`_probe_owner_protocols_report_carries_every_record`)
+    оставлен его собственным НАМЕРЕННО: его батарея пинит формулировки дословно, и
+    переписать их прицепом к чужой правке значило бы менять чужой тест без своего
+    обоснования (инв. #16). Разъехаться эти копии не могут молча в том, что решает
+    вердикт: порог — одна константа на обе.
+
+    Возврат: ``(doc, age_h, rel)`` когда артефакт жив, иначе ``(None, None, причина)``.
+    """
+    root = data_dir or os.path.join(REPO_ROOT, "data")
+    path = os.path.join(root, "adapter_status.json")
+    rel = os.path.relpath(path, REPO_ROOT) if path.startswith(REPO_ROOT) else path
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return None, None, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return None, None, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return None, None, f"форма {rel} не разобрана ({type(doc).__name__})"
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return None, None, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return None, None, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > ADAPTER_STATUS_MAX_AGE_H:
+        return None, None, (
+            f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+            f"{ADAPTER_STATUS_MAX_AGE_H:.0f}ч (замороженный канон, не наблюдение) — "
+            f"мерить надо из дерева с живым data/"
+        )
+    return doc, age_h, rel
+
+
+#: Потолок раздувания синтетического артефакта в испытании населением. Нужен не
+#: ради скорости, а ради ТРЕТЬЕГО ИСХОДА: если за столько удвоений сообщение так и
+#: не перешагнуло предел одного сообщения, предпосылка испытания НЕ ОБЕСПЕЧЕНА, и
+#: сказать об этом надо вслух, а не судить по неразогнанному входу.
+_DOOR_STRESS_ROUNDS = 24
+
+
+def _grown_adapter_doc(doc: dict, reporter) -> "tuple[dict | None, int, str]":
+    """Копия артефакта, раздутая до сообщения, которое НЕ влезает в одно сообщение.
+
+    Зачем вообще раздувать. Сегодняшний отчёт — 2501 символ, то есть один кусок, и
+    дверь, которая УСЕКАЕТ вместо деления, на нём зелена. Ровно так и выглядела
+    латентность, названная ADR-710: «сегодня не видно» ≠ «нет». Испытание подаёт
+    двери население, при котором разница между делением и усечением НАБЛЮДАЕМА.
+
+    Население растёт КОПИЯМИ живых записей под НОВЫМИ ключами раздела: ключ и есть
+    последняя личность записи (`_adapter_section_records`), поэтому копии не
+    сливаются дедупликацией, а сами числа остаются теми же — испытание меряет
+    ДВЕРЬ, а не пересчитывает ставки.
+    """
+    section = doc.get("adapters")
+    base = dict(section) if isinstance(section, dict) else {}
+    if not base:
+        return None, 0, "в живом артефакте нет раздела `adapters` словарём — раздувать нечего"
+    grown = dict(doc)
+    adapters: dict = dict(base)
+    for round_no in range(1, _DOOR_STRESS_ROUNDS + 1):
+        grown["adapters"] = adapters
+        if len(reporter.split_message(reporter.format_protocols_message(grown))) > 1:
+            return grown, len(adapters), ""
+        for key, value in list(base.items()):
+            adapters[f"{key}__door{round_no}"] = value
+    grown["adapters"] = adapters
+    if len(reporter.split_message(reporter.format_protocols_message(grown))) > 1:
+        return grown, len(adapters), ""
+    return None, len(adapters), (
+        f"за {_DOOR_STRESS_ROUNDS} удвоений сообщение не перешагнуло предел одного "
+        f"сообщения ({len(adapters)} записей) — предпосылка испытания НЕ ОБЕСПЕЧЕНА"
+    )
+
+
+def _probe_owner_protocols_report_reaches_the_owner(
+    arg: str | None,
+    *,
+    now: "datetime | None" = None,
+    data_dir: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: отчёт `/protocols` ДОЕЗЖАЕТ до владельца целиком, включая сводку.
+
+    Предмет карточки `inbox-otchet-protocols-pochinen-u-proizvoditel`: цикл #854
+    поднял население отчёта с 2 записей до 34 и проверил это у ПРОИЗВОДИТЕЛЯ, а
+    вопрос «кто это читает» задал после. Замер 13.10: читателя не было ни одного —
+    ни planового звателя, ни команды бота (у типизированной команды мимо
+    `COMMAND_TO_PATH` вердикт один: открыть домашнюю панель, то есть МОЛЧА), а
+    единственная живая дверь (`_post_message` → дайджест) обрезала текст до 500
+    символов, и блок `*System*` — последний в сообщении — переставал доживать вовсе.
+    В нём `Capital`/`Deployed`/`Cash`/`Total adapters` и строка «НЕ РАЗОБРАНО»,
+    которой ADR-709 сделал молчание отличимым (инв. #17).
+
+    **Проба меряет ИСХОД у ДВЕРИ, а не наличие функции.** Она зовёт НАСТОЯЩИЙ
+    обработчик бота (`TelegramBot.cmd_protocols`) и считает, сколько строк отчёта
+    доезжает до отправки. Числитель берётся у двери, знаменатель — у производителя
+    (`format_protocols_message` по сырому артефакту): знаменатель, взятый у
+    измеряемой двери, равен числителю по построению и зелен на любой сломанной двери.
+
+    **Усечение входит в замер, а не предполагается отсутствующим.** Каждый кусок
+    прогоняется через НАСТОЯЩИЙ `bot._fit_telegram` — ту самую ступень, которая
+    режет текст внутри `send_message`. Дверь, отдавшая отчёт ОДНИМ куском сверх
+    предела, теряет на ней строки, и проба это видит ЧИСЛОМ.
+
+    **Замеров ТРИ, и у каждого свой вопрос.**
+
+    * `живой` — артефакт, названный `data_dir`, подан двери ВХОДОМ: доезжает ли
+      сегодняшний отчёт целиком;
+    * `раздутый` — тот же артефакт, раздутый до сообщения за пределом одного
+      (`_grown_adapter_doc`). Без него критерий ЛАТЕНТЕН: сегодняшние 2501 символ
+      влезают в одно сообщение, и разница между делением и усечением на них не
+      наблюдаема — ровно та латентность, которую назвал ADR-710. Не удалось
+      раздуть ⇒ `unmeasured` с причиной, НИКОГДА не `satisfied`;
+    * `по умолчанию` — дверь зовётся БЕЗ подсказки и читает свой собственный
+      источник (`bot.DATA_DIR`); знаменатель берётся у ТОГО ЖЕ источника. Разделить
+      это с первым замером пришлось потому, что иначе числитель и знаменатель
+      читали бы РАЗНЫЕ файлы, когда `data_dir` указывает на другое дерево, и
+      «потеряно 14 строк» значило бы лишь «сравнили два разных артефакта». Дефект
+      найден контролем этой же пробы, а не рассуждением.
+
+    **Подстрокой проба не проходит (ADR-333):** все ветки считают СТРОКИ и КУСКИ;
+    ни одна не ищет текст в сообщении. Поэтому она безразлична к разметке —
+    дверь вправе печатать HTML там, где производитель дал Markdown, пока ни одна
+    строка не исчезла.
+
+    **Чего проба НЕ меряет** (сказано вслух, чтобы её зелёный не читался шире):
+    дошло ли сообщение до чата Telegram (сеть не трогается по построению — это
+    инертный замер), нажимал ли владелец команду хоть раз, и верны ли сами числа
+    отчёта — последнее мерит соседняя проба
+    `owner_protocols_report_carries_every_record`.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17): артефакта нет / он протух / дверь не ввезена
+    ⇒ `unmeasured`. Время — вход (`now`), каталог данных — вход (`data_dir`).
+    Проба только ЧИТАЕТ: ни файла, ни сети, ни состояния бота она не меняет.
+    """
+    doc, age_h, rel = _live_adapter_status_for_the_door(now, data_dir)
+    if doc is None:
+        return UNMEASURED, rel
+
+    try:
+        from spa_core import telegram_protocols_reporter as reporter
+    except ImportError as exc:
+        return UNMEASURED, f"производитель отчёта не ввезён: {type(exc).__name__}: {exc}"
+    try:
+        from spa_core.telegram import bot as bot_mod
+    except ImportError as exc:
+        return UNMEASURED, f"дверь (бот) не ввезена: {type(exc).__name__}: {exc}"
+
+    door_cls = getattr(bot_mod, "TelegramBot", None)
+    if door_cls is None:
+        return UNMEASURED, "в модуле бота нет класса TelegramBot — дверь не измерена"
+    if not hasattr(door_cls, "cmd_protocols"):
+        return NOT_SATISFIED, (
+            "у бота НЕТ обработчика cmd_protocols: типизированная команда вне "
+            "COMMAND_TO_PATH открывает домашнюю панель, то есть отчёт не доезжает "
+            "до владельца НИКАК и молчание неотличимо от ответа"
+        )
+    try:
+        # Инертно: конструктор читает смещение опроса с диска и НИЧЕГО не отправляет.
+        door = door_cls(token="probe", chat_id="probe")
+    except Exception as exc:  # noqa: BLE001 — вердикт обязан быть третьим исходом
+        return UNMEASURED, f"дверь не построена: {type(exc).__name__}: {exc}"
+
+    def _deliver(payload: dict | None) -> "tuple[list[str], str]":
+        """Что доезжает до отправки. Перехват — на экземпляре, модуль не трогается."""
+        seen: list[str] = []
+
+        def _capture(text, chat_id=None, parse_mode="HTML", **_kw):
+            seen.append(bot_mod._fit_telegram(text or "", parse_mode))
+            return {"ok": True}
+
+        door.send_message = _capture  # type: ignore[method-assign]
+        try:
+            if payload is None:
+                door.cmd_protocols("probe")
+            else:
+                door.cmd_protocols("probe", data=payload)
+        except Exception as exc:  # noqa: BLE001
+            return [], f"{type(exc).__name__}: {exc}"
+        return seen, ""
+
+    def _lines(text: str) -> int:
+        return len(text.split("\n"))
+
+    # Три замера, и у каждого СВОЙ вопрос. Разделены они потому, что иначе
+    # знаменатель и числитель читали бы РАЗНЫЕ артефакты: половина «по умолчанию»
+    # берёт источник у самой двери (`bot.DATA_DIR`), а `data_dir` пробы может
+    # указывать на другое дерево — и тогда «потеряно 14 строк» означало бы лишь,
+    # что сравнили два разных файла. Дефект найден контролем этой же пробы.
+    grown, population, why = _grown_adapter_doc(doc, reporter)
+    if grown is None:
+        return UNMEASURED, f"испытание населением не поставлено: {why}"
+    try:
+        own = reporter.load_adapter_data(bot_mod.DATA_DIR)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (
+            f"источник самой двери ({bot_mod.DATA_DIR}) не прочитан: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+    rows: list[str] = []
+    verdicts: list[str] = []
+    plan: list[tuple[str, dict | None, dict, str]] = [
+        ("живой", doc, doc, f"{len(reporter.split_message(reporter.format_protocols_message(doc)))} куск(ов)"),
+        ("раздутый", grown, grown, f"{population} записей"),
+        ("по умолчанию", None, own, "источник самой двери"),
+    ]
+    for label, payload_doc, source_doc, pop_note in plan:
+        produced = reporter.format_protocols_message(source_doc)
+
+        parts, failure = _deliver(payload_doc)
+        if failure:
+            return UNMEASURED, f"дверь упала на {label} входе: {failure}"
+        want = _lines(produced)
+        got = sum(_lines(p) for p in parts)
+        clipped = sum(1 for p in parts if p.endswith("… (сокращено)"))
+        rows.append(
+            f"{label} вход ({pop_note}, {len(produced)} симв.): дверь отдала "
+            f"{len(parts)} куск(ов), строк {got} из {want}, усечено куск(ов) {clipped}"
+        )
+        if not parts:
+            verdicts.append(f"{label}: дверь не отдала НИ ОДНОГО куска")
+        elif clipped:
+            verdicts.append(f"{label}: усечено куск(ов) {clipped} — сводка не доживает")
+        elif got != want:
+            verdicts.append(
+                f"{label}: потеряно строк {want - got}" if got < want
+                else f"{label}: лишних строк {got - want}"
+            )
+
+    detail = f"{rel} (возраст {age_h:.1f}ч) · " + " · ".join(rows)
+    if verdicts:
+        return NOT_SATISFIED, f"{detail} — {'; '.join(verdicts)}"
+    return SATISFIED, detail
+
+
 def _probe_second_artifact_tvl_agrees(arg: str | None, *,
                                       now: "datetime | None" = None,
                                       data_dir: str | None = None) -> tuple[str, str]:
@@ -5182,6 +5429,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
     "owner_protocols_report_carries_every_record":
         _probe_owner_protocols_report_carries_every_record,
+    "owner_protocols_report_reaches_the_owner":
+        _probe_owner_protocols_report_reaches_the_owner,
     "apy_provenance_declared_in_the_door":
         _probe_apy_provenance_declared_in_the_door,
     "adapter_status_number_has_a_writer":

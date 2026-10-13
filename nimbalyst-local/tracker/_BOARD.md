@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-13T01:01:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-13T03:48:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7df0596bf).
+> Сверено с `origin/main` (41e83b573) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1297** · ждёт владельца: **15** · занято сессиями: **15**.
+> Всего карточек: **1300** · ждёт владельца: **15** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -43,7 +43,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-854` · с 2026-10-13T00:32:01Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-62018` · с 2026-10-13T02:19:32Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (355)
@@ -409,7 +409,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (700)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (703)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -429,7 +429,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-854`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-62018`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -652,6 +652,7 @@
 - Осиротела R&D-итерация #73 ACL: скрипт и тест лежат в /private/tmp/spa_rnd73, замеров и записи реестра нет — сессия умерла ПОСРЕДИ работы  ·  `inbox-osirotela-r-d-iteratsiya-73-acl-skript-i.md` · 2026-08-23
 - Осиротевшая работа cycle-13765: второй артефакт TVL (остаток G1) лежит в /private/tmp/spa-cio-14737, и её номер ADR уже занят  ·  `inbox-osirotevshaya-rabota-cycle-13765-vtoroi.md` · 2026-09-16
 - Осиротевший сторож свежести кода агентов (цикл #177) — 1136 строк лежат в /tmp, не проверены  ·  `inbox-osirotevshii-storozh-svezhesti-koda-agentov.md` · 2026-08-09
+- Отчёт /protocols починен у производителя, а единственная живая дверь усекает его до 500 символов — сводка владельцу перестала доживать  ·  `inbox-otchet-protocols-pochinen-u-proizvoditel.md` · 2026-10-13
 - Отчёт тир-куратора никем не читается — дать ему читателей (брифинг + карточка на held-DEMOTE)  ·  `inbox-otchet-tir-kuratora-nikem-ne-chitaetsya.md` · 2026-09-11
 - Отказ замка цикла неотличим от аварии: last_exit=2 означает и 'защитил трек', и 'сломался'  ·  `inbox-otkaz-zamka-tsikla-neotlichim-ot-avarii.md` · 2026-08-08
 - Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
@@ -894,6 +895,7 @@
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
+- Два объявления команд бота расходятся: прибор органов владельца считает 13, Telegram показывает 16  ·  `inbox-dva-obyavleniya-komand-bota-rashodyatsya.md` · 2026-10-13
 - Два прибора написаны и не позваны: храповики проводки красны на чистой вершине  ·  `inbox-dva-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-02
 - Два сторожа никто не зовёт, а вычет сторожа сторожей перевалил половину — оба красные на чистом origin/main  ·  `inbox-dva-storozha-nikto-ne-zovet-a-vychet-sto.md` · 2026-10-11
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
@@ -933,6 +935,7 @@
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
 - Консолидация четырёх стресс-движков + дрейф порога в stress_engine v1  ·  `inbox-konsolidatsiya-chetyreh-stress-dvizhkov.md` · 2026-08-22
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
+- Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
@@ -976,7 +979,6 @@
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
-- Отчёт /protocols починен у производителя, а единственная живая дверь усекает его до 500 символов — сводка владельцу перестала доживать  ·  `inbox-otchet-protocols-pochinen-u-proizvoditel.md` · 2026-10-13
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
@@ -1111,6 +1113,7 @@
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Второй артефакт: писатели из запрещённой папки и рукописные списки-исключения в двух отчётах  ·  `inbox-vtoroi-artefakt-pisateli-iz-zapreschenno.md` · 2026-10-12
+- Ярлыки тиров в отчёте /protocols называют владельцу «1», «2», «3» вместо T1/T2/T3 — и канонический порядок не действует на 33 записи из 34  ·  `inbox-yarlyki-tirov-v-otchete-protocols-nazyva.md` · 2026-10-13
 - Закрепить morpho_blue_base за конкретным хранилищем (сейчас берётся «крупнейшее сегодня»)  ·  `inbox-zakrepit-morpho-blue-base-za-konkretnym.md` · 2026-08-26
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
