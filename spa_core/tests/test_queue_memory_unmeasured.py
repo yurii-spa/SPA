@@ -236,12 +236,36 @@ def test_link7_neither_spelling_can_be_read_as_loss_or_as_agreement() -> None:
 def test_link8_unresolvable_repo_root_states_the_axis(
     scene: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Звено 8: находки есть, разложить их нечем ⇒ ось памяти со СВОЕЙ причиной."""
-    def _no_root(_path):
+    """Звено 8: находки есть, разложить их нечем ⇒ ось памяти со СВОЕЙ причиной.
+
+    АДРЕС ДВЕРИ ПЕРЕНАВЕДЁН циклом #862, и это НЕ ослабление (инв. #16): утверждение
+    теста не изменилось ни на слово — та же дверь, тот же ожидаемый исход, — изменился
+    только способ в неё попасть. Прежняя редакция ломала `repo_root_of` НА ВСЕ ЗОВЫ, а
+    его зовёт и сам `analyze` (`check_tracker_drift.py`), поэтому прогон уходил в ПЕРВУЮ
+    дверь («сверка не состоялась») и третью не трогал вовсе: тест, думавший, что мерит
+    третью, мерил первую второй раз.
+
+    ИЗМЕРЕНО, а не выведено (#862): при полностью ослеплённой ТРЕТЬЕЙ двери — обе оси
+    погашены — эта батарея была ЗЕЛЕНОЙ 11 из 11. Теперь ломается РОВНО зов читателя
+    (первый зов, тот, что делает `analyze`, проходит), и попадание в третью дверь
+    закреплено её собственной строкой stderr.
+    """
+    real_root = drift.repo_root_of
+    calls = {"n": 0}
+
+    def _no_root(path):
+        calls["n"] += 1
+        if calls["n"] == 1:          # этот зов делает сам `analyze`
+            return real_root(path)
         raise drift.Unmeasured("корень репозитория не определяется (замер звена 8)")
 
     monkeypatch.setattr(drift, "repo_root_of", _no_root)
     _rc, cards, err = _ask(_Args(scene, SCENE_REF))
+    assert calls["n"] >= 2, (
+        "предпосылка звена НЕ ОБЕСПЕЧЕНА: читатель до своего зова `repo_root_of` не "
+        f"дошёл (зовов {calls['n']}) — измерена НЕ та дверь")
+    assert "версию с origin взять неоткуда" in err, (
+        f"предпосылка звена НЕ ОБЕСПЕЧЕНА: прогон ушёл в другую дверь — {err}")
     card = _only(cards)
     assert card["origin_check"] == oq.VERDICT_UNMEASURED, card
     assert card["origin_memory"] == drift.MEMORY_UNMEASURED, card

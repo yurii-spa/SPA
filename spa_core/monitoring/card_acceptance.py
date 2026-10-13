@@ -6188,6 +6188,188 @@ def _probe_queue_reader_names_unmeasured_memory(
         f"`{other.get('origin_memory')}` — отказ и замер различимы в обе стороны")
 
 
+def _probe_queue_reader_names_uncompared_order(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ЧИТАТЕЛЬ ОЧЕРЕДИ называет НЕ СПРОШЕННЫЙ порядок копий СВОИМ словом.
+
+    Предмет — остаток заказа G717 п. 3 (ADR-718). Цикл #861 дал третий исход со своей
+    причиной оси ПАМЯТИ копий и сам же назвал, что население класса «ось гаснет вместе
+    с соседом» измерено ровно на ОДНОЙ оси из ТРЁХ: порядок по ОТМЕТКАМ (`mark_order`,
+    ADR-220) и порядок по СЛЕДУ ПЕРЕХОДОВ (`trail_order`, ADR-544) не проверялся вовсе.
+
+    ЗАМЕР ДО ПРАВКИ (одноразовый репозиторий, копии карточки расходятся, статусы разные,
+    на состоявшейся сверке порядок УСТАНАВЛИВАЕТСЯ): дверей отказа ЧЕТЫРЕ, ось памяти
+    назвала себя в 4 из 4, ось порядка — в 0 из 4. На живой популяции (прод-трекер, 779
+    карточек, та же команда шага 1 с неразрешимым ref): `origin_order` несут 0 из 779.
+
+    ЧЕМ ВРЕДНО. ОТСУТСТВИЕ `origin_order` в контракте читателя означает «порядок НЕ
+    МЕРИЛСЯ» — так у `agrees`/`stale`/`hidden`/`undelivered`, где второй копии для
+    упорядочивания не существует. Значит «упорядочить было что, да спросить не удалось»
+    печаталось как «упорядочивать нечего».
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ, а не наличие функции.** Проба собирает одноразовый
+    репозиторий, зовёт НАСТОЯЩУЮ команду шага 1 (`cmd_list --json`) ДВАЖДЫ — с
+    неразрешимым ref и с разрешимым — и читает оба ответа. Подстрокой не проходит
+    (ADR-333): требуется ПОЛЕ вердикта, не равное ни одному имени порядка у прибора, и
+    причина про СВОЙ вопрос («какая копия дальше продвинулась»), а не фраза.
+
+    **Контроль в обе стороны внутри самой пробы.** Читатель, штампующий третий исход на
+    ЧЁМ УГОДНО, бесполезен так же, как молчащий: на СОСТОЯВШЕЙСЯ сверке той же пары
+    копий он обязан дать вердикт ИЗ ИМЁН ПРИБОРА, а не третий исход.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): читателя нет / не ввезён / предпосылка
+    репозитория не обеспечена ⇒ `unmeasured` с причиной, а не `not_satisfied` и уж
+    точно не `satisfied`.
+
+    Оговорка названа вслух (та же, что у соседних проб #860/#861): `orchestrator_queue`
+    ввозится из `repo_root`, а пакет `spa_core` остаётся того дерева, в котором идёт
+    сама проба. Измеряемое свойство живёт в самом читателе, поэтому дискриминация на
+    двух деревьях от этого не страдает.
+    """
+    import contextlib as _ctx
+    import hashlib as _hl
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = repo_root or REPO_ROOT
+    reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
+    if not os.path.exists(reader_path):
+        return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
+    for _p in (root, os.path.join(root, "scripts")):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    mod_name = "_probe_queue_order_" + _hl.sha256(root.encode()).hexdigest()[:12]
+    try:
+        spec = _ilu.spec_from_file_location(mod_name, reader_path)
+        reader = _ilu.module_from_spec(spec)
+        sys.modules[mod_name] = reader
+        try:
+            spec.loader.exec_module(reader)
+        except BaseException:
+            sys.modules.pop(mod_name, None)
+            raise
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"читатель очереди не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    try:
+        import check_tracker_drift as _drift        # вокабуляр порядка — у прибора
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"прибор расхождения не ввезён ({exc}) — НЕ ИЗМЕРЕНО"
+
+    #: Полный набор имён порядка У ПРИБОРА — собирается обходом, а не парой из головы:
+    #: заведут четвёртое имя, и проба увидит его без правки.
+    asked = {v for k, v in vars(_drift).items()
+             if k.startswith("ORDER_") and isinstance(v, str)}
+    if not asked:
+        return UNMEASURED, ("вокабуляр порядка у прибора не найден — предпосылка пробы "
+                            "НЕ ОБЕСПЕЧЕНА, об оси порядка судить нечем")
+
+    # Имя ветки сцены — ВХОД, а не умолчание хоста (`init.defaultBranch` на
+    # `ubuntu-latest` даёт `master`): фикстура, назвавшая потом `main`, была бы зелена
+    # на Маке и красна в CI (`.claude/rules/deployment.md`).
+    ref = "scene-main"
+    missing_ref = "refs/heads/no-such-ref-for-this-probe"
+    # Отметки — ПРЕДМЕТ оси (`mark_order` сравнивает именно их), поэтому литеральные и к
+    # настенным часам не привязаны ничем.
+    earlier, later = "2026-09-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00"
+
+    def _git(cwd, *args):
+        return _sp.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                       timeout=60)
+
+    def _card(records, status, trail):
+        head = ["---", "type: inbox", f"status: {status}",
+                'title: "TASK — стоячий приказ владельца"', "status_trail:"]
+        head += [f'  - "{t}"' for t in trail]
+        head += ["---", "", "тело приказа", ""]
+        return "\n".join(head) + "".join(
+            f"\n## Цикл #{n} (замер цикла {n})\n\nчто сделано в цикле {n}\n"
+            for n in records)
+
+    def _ask(tracker, which_ref):
+        argv = ["list", "--tracker-dir", tracker, "--ref", which_ref, "--json"]
+        out, err = _io.StringIO(), _io.StringIO()
+        with _ctx.redirect_stdout(out), _ctx.redirect_stderr(err):
+            reader.cmd_list(reader.build_parser().parse_args(argv))
+        return {c["id"]: c for c in _json.loads(out.getvalue())}, err.getvalue()
+
+    try:
+        with _tf.TemporaryDirectory() as tmp:
+            rroot = os.path.join(tmp, "repo")
+            tracker = os.path.join(rroot, _drift.TRACKER_REL)
+            os.makedirs(tracker)
+            r = _git(tmp, "init", "-q", "-b", ref, rroot)
+            if r.returncode != 0:
+                raise RuntimeError(f"git init: {r.stderr.strip()}")
+            for a in (["config", "user.email", "probe@example.com"],
+                      ["config", "user.name", "probe"]):
+                r = _git(rroot, *a)
+                if r.returncode != 0:
+                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+            card = os.path.join(tracker, "inbox-order.md")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write(_card([716, 717, 718], "new",
+                               [f"{earlier} new -> new · queue.set_status · cycle-1"]))
+            for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
+                r = _git(rroot, *a)
+                if r.returncode != 0:
+                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write(_card([716], "in-progress",
+                               [f"{earlier} new -> new · queue.set_status · cycle-1",
+                                f"{later} new -> in-progress · queue.set_status · cycle-2"]))
+            refused, refused_err = _ask(tracker, missing_ref)
+            measured, _measured_err = _ask(tracker, ref)
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"предпосылка пробы НЕ ОБЕСПЕЧЕНА ({type(exc).__name__}: {exc}) — "
+                            f"вердикт читателя очереди НЕ ИЗМЕРЕН")
+
+    card = refused.get("inbox-order")
+    if card is None:
+        return UNMEASURED, ("читатель не вернул карточку вовсе — предпосылка пробы НЕ "
+                            "ОБЕСПЕЧЕНА, об оси порядка судить нечем")
+    other = measured.get("inbox-order") or {}
+    if other.get("origin_order") not in asked:
+        return UNMEASURED, (
+            f"на СОСТОЯВШЕЙСЯ сверке порядок не устанавливается вовсе "
+            f"(`{other.get('origin_order')}`) — предпосылка пробы НЕ ОБЕСПЕЧЕНА: "
+            f"контроль в обратную сторону был бы пустым")
+    if "origin_order" not in card:
+        return NOT_SATISFIED, (
+            "при ОТКАЗЕ сверки у читателя очереди НЕТ оси порядка: в вердикте только "
+            f"`origin_check={card.get('origin_check')}` — «упорядочить было что, да "
+            "спросить не удалось» неотличимо от «упорядочивать нечего»")
+    if card["origin_order"] in asked:
+        return NOT_SATISFIED, (
+            f"при отказе сверки читатель выдаёт имя ПРИБОРА `{card['origin_order']}` — "
+            f"потребитель прочтёт «спросили и не решили» вместо «не спрашивали вовсе»")
+    why = str(card.get("origin_order_detail") or "")
+    if "ДАЛЬШЕ ПРОДВИНУЛАСЬ" not in why:
+        return NOT_SATISFIED, (
+            f"у оси порядка нет СВОЕЙ причины — она не говорит о своём вопросе: "
+            f"{why[:200] or '(причины нет вовсе)'}")
+    if "НЕ ИЗМЕРЕНО" not in why:
+        return NOT_SATISFIED, f"причина не называет третий исход словами: {why[:200]}"
+    if "ось ПОРЯДКА" not in refused_err:
+        return NOT_SATISFIED, (
+            "вердикт есть в JSON, но человек у терминала его не видит: в stderr нет ни "
+            "строки про ось порядка — два выхода одного читателя разошлись")
+    if why == str(card.get("origin_memory_detail") or ""):
+        return NOT_SATISFIED, (
+            "причина оси порядка дословно совпала с причиной оси памяти — это и есть "
+            "наследование от соседа, только теперь с текстом")
+    return SATISFIED, (
+        f"при ОТКАЗЕ сверки шаг 1 называет третий исход оси порядка СВОИМ словом "
+        f"(`{card['origin_order']}`, ни одно из имён прибора: {sorted(asked)}) и СВОЕЙ "
+        f"причиной (о том, какая копия дальше продвинулась; видно и в JSON, и в stderr), "
+        f"а на СОСТОЯВШЕЙСЯ сверке той же пары копий даёт вердикт прибора "
+        f"`{other.get('origin_order')}` — отказ и замер различимы в обе стороны")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -6236,6 +6418,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_queue_reader_names_record_memory_loss,
     "queue_reader_names_unmeasured_memory":
         _probe_queue_reader_names_unmeasured_memory,
+    "queue_reader_names_uncompared_order":
+        _probe_queue_reader_names_uncompared_order,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "forbidden_import_gate_single_instrument":
