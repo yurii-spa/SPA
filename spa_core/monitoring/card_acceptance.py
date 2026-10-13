@@ -5596,6 +5596,136 @@ def _probe_owner_protocols_report_groups_by_canonical_tier(
     return SATISFIED, detail
 
 
+def _probe_delivery_door_refuses_cycle_record_loss(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ДВЕРЬ ДОСТАВКИ отказывает доставке, стирающей записи цикла.
+
+    Предмет — находка цикла #858 и ADR-714. Стоячий приказ владельца
+    ``inbox-task-portfolio-cio-dynamic-capital-alloc`` — тетрадь, в которую каждый
+    цикл дописывает запись о своей работе; по ней судят, что сделано. ЗАМЕР
+    13.10 по всей истории трекера (1302 карточки, 2133 перехода): доставка
+    ``359ce9406`` (08.10) принесла свою копию приказа поверх УСТАРЕВШЕЙ и унесла
+    **56 записей** (#716…#806, 205 → 151); ``af88d6bfc`` (25.09) тем же способом
+    унесла **9**. Ни одна проверка у двери об этом не сказала: карточки не
+    входили ни в один охраняемый класс.
+
+    **Меряется ИСХОД У ДВЕРИ, а не наличие функции.** Проба зовёт настоящую
+    ``push_to_github.guard_content_loss`` на настоящей паре байт той аварии и
+    смотрит, ОТКАЗЫВАЕТ ли она, называя пропавшие номера.
+
+    **Контроль в обе стороны внутри самой пробы.** Сторож, отказывающий на
+    ЧЁМ УГОДНО, пробу бы удовлетворил — поэтому второе условие обязательно:
+    на ЧИСТОМ ДОПИСЫВАНИИ (та же пара в обратном порядке, объединением) дверь
+    обязана МОЛЧАТЬ. Зелёный даётся только за оба свойства сразу.
+
+    **Источник пары НАЗВАН** (инв. #17): сначала история git (``cat-file blob``);
+    если её нет (CI клонирует на глубину 1), берутся фикстуры батареи
+    ``spa_core/tests/fixtures/cycle_record_loss`` — заголовки записей оттуда
+    побайтово из тех же блобов. Какой источник сработал, печатается в detail:
+    зелёный на фикстуре не должен читаться как зелёный на истории.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: пушер не ввезён / пары байт нет ни в истории, ни в
+    фикстурах / в паре нет той самой потери ⇒ ``unmeasured`` с причиной, а не
+    «выполнено».
+    """
+    import importlib.util as _ilu
+    import subprocess as _sp
+
+    root = repo_root or REPO_ROOT
+    pusher_path = os.path.join(root, "push_to_github.py")
+    if not os.path.exists(pusher_path):
+        return UNMEASURED, f"{pusher_path} не найден — дверь доставки НЕ ИЗМЕРЕНА"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_pusher", pusher_path)
+        pusher = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(pusher)
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"пушер не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+
+    card = ("nimbalyst-local/tracker/"
+            "inbox-task-portfolio-cio-dynamic-capital-alloc.md")
+    incident = "359ce9406"
+    source = ""
+    before = after = None
+    try:
+        r0 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}^:{card}"],
+                     capture_output=True, timeout=30)
+        r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
+                     capture_output=True, timeout=30)
+        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+            before, after, source = r0.stdout, r1.stdout, "история git"
+    except Exception:                               # noqa: BLE001 — источник не единственный
+        before = after = None
+    if before is None:
+        fix = os.path.join(root, "spa_core", "tests", "fixtures", "cycle_record_loss")
+        try:
+            with open(os.path.join(fix, f"order_{incident}_before.md"), "rb") as fh:
+                before = fh.read()
+            with open(os.path.join(fix, f"order_{incident}_after.md"), "rb") as fh:
+                after = fh.read()
+            source = "фикстуры батареи (истории git нет — глубина клона)"
+        except OSError as exc:
+            return UNMEASURED, (f"пары байт аварии {incident} нет ни в истории git, ни в "
+                                f"фикстурах ({exc}) — отказ двери НЕ ИЗМЕРЕН")
+
+    # Предпосылка: в паре и правда лежит та потеря. Иначе зелёный был бы вакуумным.
+    try:
+        lost, _renamed = pusher.classify_missing_entries(
+            before, after, pusher.CYCLE_RECORD_RE)
+    except AttributeError as exc:
+        return NOT_SATISFIED, (f"у пушера нет меры записей цикла ({exc}): дверь не может "
+                               f"отказать тому, чего не умеет мерить — источник {source}")
+    if len(lost) != 56:
+        return UNMEASURED, (f"в паре байт {incident} потеряно {len(lost)} записей, а авария "
+                            f"была на 56 — предпосылка пробы НЕ ОБЕСПЕЧЕНА (источник {source})")
+
+    refused = ""
+    try:
+        note = pusher.guard_content_loss(card, before, after, f"{incident}aa")
+        return NOT_SATISFIED, (f"дверь доставки ПРОПУСКАЕТ потерю 56 записей цикла приказа "
+                               f"(нота: {note or 'пусто'}; источник {source})")
+    except Exception as exc:                        # noqa: BLE001 — любой отказ двери
+        refused = str(exc)
+    if "#716" not in refused:
+        return NOT_SATISFIED, (f"дверь отказала, но НЕ НАЗВАЛА пропавшие записи — по такому "
+                               f"отказу не рассудить, потеря это или переименование "
+                               f"(источник {source})")
+
+    # Обратная сторона: чистое дописывание дверь обязана пропустить.
+    union = _cycle_record_union(pusher, after, before)
+    try:
+        back = pusher.guard_content_loss(card, after, union, f"{incident}aa")
+    except Exception as exc:                        # noqa: BLE001
+        return NOT_SATISFIED, (f"дверь отказывает и ЧИСТОМУ ДОПИСЫВАНИЮ "
+                               f"({type(exc).__name__}: {str(exc)[:160]}) — сторож, который "
+                               f"говорит «нет» всему, не отличает потерю от работы")
+    if back:
+        return NOT_SATISFIED, (f"на чистом дописывании дверь не молчит: {back[:200]}")
+    return SATISFIED, (f"дверь ОТКАЗЫВАЕТ доставке, стирающей 56 записей цикла "
+                       f"(названы поимённо), и МОЛЧИТ на возврате тех же записей "
+                       f"объединением; источник пары — {source}")
+
+
+def _cycle_record_union(pusher, current: bytes, older: bytes) -> bytes:
+    """``current`` + блоки записей цикла, которые есть только в ``older``.
+
+    Одна копия операции восстановления: её же применяет цикл #858, возвращая
+    записи, унесённые доставкой 08.10. Возврат СТАРОЙ копии вместо объединения
+    восстановлением не является — он стирает запись, которую авария добавила
+    (замер: доставка 25.09 унесла девять записей и добавила #697).
+    """
+    have = {int(x) for x in pusher.entry_headers(current, pusher.CYCLE_RECORD_RE)}
+    heads = list(pusher.CYCLE_RECORD_RE.finditer(older))
+    out = [current]
+    for i, m in enumerate(heads):
+        if int(m.group("id")) in have:
+            continue
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(older)
+        out.append(b"\n" + older[m.start():end].rstrip() + b"\n")
+    return b"".join(out)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -5636,6 +5766,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_journal_reader_census_reaches_http_routes,
     "journal_reader_census_verdict_under_injected_clock":
         _probe_journal_reader_census_verdict_under_injected_clock,
+    "delivery_door_refuses_cycle_record_loss":
+        _probe_delivery_door_refuses_cycle_record_loss,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "forbidden_import_gate_single_instrument":
