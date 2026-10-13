@@ -31,10 +31,27 @@
 Дверь ищется в канале ВЛАДЕЛЬЦА, а не в дереве
 ===============================================
 «Орган остановки» — это не функция в модуле, а то, что владелец может нажать.
-Поэтому поверхность перечисляется не списком из головы, а разбором того, что
-бот ПУБЛИКУЕТ владельцу как меню (``TelegramBot._COMMANDS`` + карта
-``_dispatch``), и для каждой команды измеряется, пишет ли она файл состояния и
-КАКОЙ (``spa_core/telegram/bot.py``, разбор дерева, не подстрока).
+Поэтому поверхность перечисляется не списком из головы, а разбором карты
+«команда → метод» внутри ``_dispatch`` (``spa_core/telegram/bot.py``, разбор
+дерева, не подстрока), и для каждой команды измеряется, пишет ли она файл
+состояния и КАКОЙ.
+
+**Поправка 13.10 (ADR-712): перечислялось не то, что сказано здесь.** До этой
+даты набор снимался с ``TelegramBot._COMMANDS``, а строка выше утверждала, что
+это «то, что бот ПУБЛИКУЕТ владельцу как меню». Публикует бот другое — нагрузку
+``setMyCommands`` (16 команд против 13), и ``_COMMANDS`` был побайтовой КОПИЕЙ
+ключей карты ``_dispatch``, которую в самом боте не читал никто. Копия снята;
+перечисление идёт по САМОЙ карте, потому что по ней идёт настоящая отправка.
+Вердикты от поправки не изменились ни одним полем — множества были равны, и это
+ИЗМЕРЕНО, а не предположено.
+
+**Что здесь перечисляется и что НЕТ.** Карта диспетчера — это кнопки панели
+(``_dispatch`` зовётся из ветви ``callback_query``; набранный текст уходит в
+Router и сюда не попадает никогда). Это ровно та поверхность, где живут
+``/pause`` и ``/resume``, то есть предмет §42. Набранные команды и меню ☰ —
+соседние вопросы, и их согласие мерит отдельный прибор
+``owner_command_surfaces`` (ADR-712): равнять их с этой картой значило бы
+вытереть аварийную остановку из переписи органов — её в меню ☰ нет намеренно.
 
 Дальше — главное: **чем дверь ОКАЗАЛАСЬ, решает опыт, а не её название.**
 Извлечённая полезная нагрузка подставляется настоящему пути решения, и эффект
@@ -223,29 +240,28 @@ def _owner_doors(root: str) -> dict:
     doors: list[dict] = []
 
     for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
-        published: list[str] = []
-        for node in ast.walk(cls):
-            if (isinstance(node, ast.Assign)
-                    and any(getattr(t, "id", "") == "_COMMANDS" for t in node.targets)
-                    and isinstance(node.value, (ast.Tuple, ast.List))):
-                published = [e.value for e in node.value.elts
-                             if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-        if not published:
-            continue
-        commands.extend(published)
-
         # Карта «команда → метод»: словарь, чьи ключи — команды, а значения —
         # `self.<метод>`. Форма вызова, а не имя переменной: переименование
         # `handlers` не должно ослеплять замер.
+        #
+        # ЭТА КАРТА И ЕСТЬ ПЕРЕЧЕНЬ (ADR-712). До 13.10 перечень брался из
+        # отдельного кортежа `_COMMANDS`, а карта читалась только ради имени
+        # метода — то есть одно и то же множество снималось ДВАЖДЫ, и второй
+        # раз с копии, которую в боте не читал никто. Копия снята; множества
+        # были равны, поэтому ни один вердикт от поправки не изменился.
         handlers: dict[str, str] = {}
         for node in ast.walk(cls):
             if not isinstance(node, ast.Dict):
                 continue
             for key, value in zip(node.keys, node.values):
                 if (isinstance(key, ast.Constant) and isinstance(key.value, str)
-                        and key.value.startswith("/")
+                        and key.value.startswith("/") and len(key.value) > 1
                         and isinstance(value, ast.Attribute)):
                     handlers[key.value] = value.attr
+        if not handlers:
+            continue
+        published = sorted(handlers)
+        commands.extend(published)
 
         methods = {f.name: f for f in cls.body if isinstance(f, ast.FunctionDef)}
         for command in published:
@@ -700,7 +716,10 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
                     "healthy_scene": healthy},
         "owner_channel": {
             "source": OWNER_CHANNEL_REL,
-            "commands_published": channel["commands"],
+            # ADR-712: имя названо по ТОМУ, что измерено. «Опубликовано»
+            # означало бы нагрузку `setMyCommands` (меню ☰, 16 команд), а
+            # здесь перечень кнопочной поверхности — карта `_dispatch`.
+            "commands_on_the_button_surface": channel["commands"],
             "doors": [{"command": d["command"], "state_file": d["state_file"],
                        "payload": d["payload"],
                        "payload_keys_not_literal": d["payload_keys_not_literal"]}
@@ -764,9 +783,9 @@ def _findings(controls: list[dict], channel: dict,
             "message": (
                 f"из {len(OWNER_CONTROLS)} названных владельцем органов остановки "
                 f"есть {len(present)}; подменены другим эффектом {len(conflated)}; "
-                f"отсутствуют {len(absent)}. Всего команд опубликовано владельцу "
-                f"{len(channel['commands'])}, из них пишут состояние "
-                f"{len(channel['doors'])}"),
+                f"отсутствуют {len(absent)}. Всего команд на КНОПОЧНОЙ "
+                f"поверхности (карта `_dispatch`) {len(channel['commands'])}, "
+                f"из них пишут состояние {len(channel['doors'])}"),
         })
 
     if decision.get("approved"):

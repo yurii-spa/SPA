@@ -5414,6 +5414,62 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
                        "значит ровно вред")
 
 
+def _probe_owner_command_surfaces_declared_once(
+    arg: str | None,
+    *,
+    data_dir: str | None = None,
+    now: "datetime | None" = None,
+) -> tuple[str, str]:
+    """Критерий: набор команд владельца объявлен РОВНО ОДИН раз, расхождения названы.
+
+    Предмет — карточка `inbox-dva-obyavleniya-komand-bota-rashodyatsya` и
+    пятый пункт заказа **G711** приказа
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`. Замер 13.10 (цикл #856):
+    набор команд жил в дереве ТРИЖДЫ — `TelegramBot._COMMANDS` (13), карта
+    `handlers` в `_dispatch` (13, побайтово то же множество) и нагрузка
+    `setMyCommands` (16). Прибор органов владельца
+    `cio_kill_switch_controls` читал ПЕРВОЕ и называл его «то, что бот
+    публикует владельцу как меню» — а владелец видит ТРЕТЬЕ.
+
+    **Проба НЕ требует, чтобы все три множества совпали, и это важно.**
+    «Обещано» (меню ☰) и «достижимо» (набор ∪ перехват ∪ кнопка) — РАЗНЫЕ
+    вопросы: `/pause` 30.09 намеренно убрали из меню и оставили кнопкой.
+    Потребовать равенства значило бы вытереть `/pause` из переписи органов
+    владельца — то есть ПОГАСИТЬ настоящую находку (вердикт `CONFLATED` у
+    органа PAUSE) слепотой, а не исправностью. Сводить надо КОПИИ одного
+    ответа; поэтому критерий — три условия:
+
+    1. ни одно объявление не повторяет множество другой поверхности (копий 0);
+    2. у каждой достижимой, но не обещанной команды названа ПРИЧИНА
+       (`TelegramBot._UNADVERTISED_BY_DESIGN`), и ни одна причина не пережила
+       свою дверь;
+    3. в карте диспетчера нет записи, до которой не доходит ни кнопка, ни
+       набор, ни перехват (мёртвых дверей 0).
+
+    **Подстрокой проба не проходит (ADR-333):** вердикт считается по ЧИСЛАМ
+    множеств, ни одна ветка не ищет текст в коде. Сама перепись снимает
+    поверхности разбором дерева (`ast`), а не поиском подстроки.
+
+    Третий исход РАЗЛИЧИМ (инв. #17): файл канала владельца или карты
+    маршрутов не прочитан/не разобран ⇒ `unmeasured` с названной причиной,
+    НИКОГДА `not_satisfied`. Дерево — вход (`root` переписи равен дереву этого
+    модуля), поэтому в worktree проба судит о worktree, а в проде — о проде.
+    """
+    del arg, data_dir, now  # предмет — дерево, а не артефакт и не часы
+    from spa_core.monitoring import owner_command_surfaces as ocs
+
+    measurement = ocs.measure(REPO_ROOT)
+    if measurement.get("unmeasured"):
+        return UNMEASURED, f"перепись поверхностей не состоялась: {measurement['unmeasured']}"
+    found = ocs.findings(measurement)
+    if found:
+        return NOT_SATISFIED, "; ".join(found)
+    return SATISFIED, (
+        f"объявлений-копий 0 · мёртвых дверей 0 · достижимо "
+        f"{len(measurement['reachable'])}, обещано "
+        f"{len(measurement['advertised'])}, из расхождения "
+        f"{len(measurement['reachable_not_advertised'])} у каждой названа причина")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -5431,6 +5487,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_protocols_report_carries_every_record,
     "owner_protocols_report_reaches_the_owner":
         _probe_owner_protocols_report_reaches_the_owner,
+    "owner_command_surfaces_declared_once":
+        _probe_owner_command_surfaces_declared_once,
     "apy_provenance_declared_in_the_door":
         _probe_apy_provenance_declared_in_the_door,
     "adapter_status_number_has_a_writer":

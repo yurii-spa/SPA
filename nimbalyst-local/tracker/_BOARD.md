@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-13T03:48:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-13T08:12:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (41e83b573) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (373aa2821) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1300** · ждёт владельца: **15** · занято сессиями: **15**.
 
@@ -43,7 +43,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-62018` · с 2026-10-13T02:19:32Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-39710` · с 2026-10-13T08:12:39Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (355)
@@ -429,7 +429,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-62018`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-39710`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -524,6 +524,7 @@
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Доставка объявляет ВЕЧНЫЙ долг о закрытии, которое УЖЕ на origin: «доехало ли моё изменение» решается побайтовым равенством всего файла  ·  `inbox-dostavka-obyavlyaet-vechnyi-dolg-o-zakry.md` · 2026-08-17
+- Два объявления команд бота расходятся: прибор органов владельца считает 13, Telegram показывает 16  ·  `inbox-dva-obyavleniya-komand-bota-rashodyatsya.md` · 2026-10-13
 - Два предписанных прогона рядом морят друг друга: приёмка «мой vs контроль» параллельно почти не движется  ·  `inbox-dva-predpisannyh-progona-ryadom-drug-druga-morya.md` · 2026-08-14
 - Два разных реестра адаптеров носят ОДНО имя ADAPTER_REGISTRY: 36 кортежей против 22-dict, пересечение 13, aave_v3 против aave_usdc  ·  `inbox-dva-raznyh-reestra-adapterov-nosyat-odno.md` · 2026-08-12
 - Двенадцать ответов владельца стоят в owner-done и не доехали до канона: шаг 2 по ним не отработал  ·  `inbox-dvenadtsat-otvetov-vladeltsa-stoyat-v-ow.md` · 2026-10-01
@@ -895,7 +896,6 @@
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
-- Два объявления команд бота расходятся: прибор органов владельца считает 13, Telegram показывает 16  ·  `inbox-dva-obyavleniya-komand-bota-rashodyatsya.md` · 2026-10-13
 - Два прибора написаны и не позваны: храповики проводки красны на чистой вершине  ·  `inbox-dva-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-02
 - Два сторожа никто не зовёт, а вычет сторожа сторожей перевалил половину — оба красные на чистом origin/main  ·  `inbox-dva-storozha-nikto-ne-zovet-a-vychet-sto.md` · 2026-10-11
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19

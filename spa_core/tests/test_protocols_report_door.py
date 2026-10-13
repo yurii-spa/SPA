@@ -179,9 +179,20 @@ class TestOwnerGate(unittest.TestCase):
 
 
 class TestWiring(unittest.TestCase):
-    def test_command_is_in_the_published_registry(self):
-        """`_COMMANDS` читает прибор органов владельца (cio_kill_switch_controls)."""
-        self.assertIn("/protocols", bot_mod.TelegramBot._COMMANDS)
+    def test_command_is_on_the_surface_the_owner_organs_instrument_reads(self):
+        """Перечень прибора органов владельца несёт `/protocols`.
+
+        НАМЕРЕННАЯ правка 13.10 (ADR-712, инв. #16 — усиление, не ослабление).
+        Было: `assertIn("/protocols", TelegramBot._COMMANDS)` — утверждение о
+        КОПИИ набора, которую в боте не читал никто. Копия снята, и проверять
+        надо то, что прибор читает СЕЙЧАС: перечень, снятый с карты
+        `_dispatch` его собственным разбором дерева. Прежняя форма зеленела бы
+        и при карте, из которой команда выпала, — а эта нет.
+        """
+        from spa_core.monitoring import cio_kill_switch_controls as organs
+        channel = organs._owner_doors(organs.REPO_ROOT)
+        self.assertIsNone(channel["unchecked"], channel["unchecked"])
+        self.assertIn("/protocols", channel["commands"])
 
     def test_command_is_offered_in_the_telegram_menu(self):
         captured: list[dict] = []

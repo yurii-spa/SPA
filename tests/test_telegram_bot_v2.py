@@ -270,7 +270,23 @@ def test_callback_query_answered_and_dispatched(bot):
 
 
 def test_all_commands_respond_without_crash(bot):
-    for cmd in TelegramBot._COMMANDS:
+    """Каждая команда КАРТЫ диспетчера отвечает, не падая.
+
+    НАМЕРЕННАЯ правка 13.10 (ADR-712, инв. #16 — усиление, не ослабление).
+    Перечень брался из `TelegramBot._COMMANDS` — копии ключей этой же карты,
+    набранной руками; копия снята, потому что два объявления одного контракта
+    расходятся МОЛЧА. Теперь перечень — САМА карта, то есть источник, по
+    которому идёт настоящая отправка: команда, добавленная в диспетчер, попадает
+    под проверку автоматически, а прежняя форма пропустила бы её до тех
+    пор, пока автор не вспомнит про второй список.
+    """
+    from spa_core.monitoring import owner_command_surfaces as ocs
+
+    measurement = ocs.measure(ocs.REPO_ROOT)
+    assert not measurement["unmeasured"], measurement["unmeasured"]
+    commands = measurement["dispatched"]
+    assert commands, "карта диспетчера не снята — перечень не измерен, а пуст"
+    for cmd in commands:
         bot.sent = []
         bot._dispatch(cmd, "999")
         assert any(s["method"] == "sendMessage" for s in bot.sent), cmd
