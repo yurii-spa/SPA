@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-13T00:49:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-13T01:01:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f9a36a17d) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (7df0596bf).
 >
-> Всего карточек: **1296** · ждёт владельца: **15** · занято сессиями: **15**.
+> Всего карточек: **1297** · ждёт владельца: **15** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -409,7 +409,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (699)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (700)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -976,6 +976,7 @@
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
+- Отчёт /protocols починен у производителя, а единственная живая дверь усекает его до 500 символов — сводка владельцу перестала доживать  ·  `inbox-otchet-protocols-pochinen-u-proizvoditel.md` · 2026-10-13
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
