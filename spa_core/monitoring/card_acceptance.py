@@ -280,6 +280,145 @@ def _census_module():
     return mod
 
 
+def _probe_owner_protocols_report_carries_every_record(
+    arg: str | None,
+    *,
+    data_dir: str | None = None,
+    now: "datetime | None" = None,
+) -> tuple[str, str]:
+    """Критерий: отчёт владельцу `/protocols` несёт КАЖДУЮ запись артефакта.
+
+    Предмет — карточка `inbox-otchet-vladeltsu-protocols-pokazyvaet-2` и заказ
+    **G709 п. 1** приказа `inbox-task-portfolio-cio-dynamic-capital-alloc`:
+    «читатель обязан принимать и словарь, и список, а третий исход (раздел не
+    той формы вовсе) остаться различимым». Замер 2026-10-12 (ADR-709): отчёт
+    показывал **2 записи из 36**, потому что `_get_all_adapters` обходил
+    `data["adapters"]` как СПИСОК, а живой артефакт несёт раздел СЛОВАРЁМ.
+
+    **Меряется ИСХОД, а не структура.** Проба не спрашивает «принимает ли
+    читатель словарь» — на этот вопрос можно ответить взглядом в код, и ровно
+    такой взгляд три недели давал «да» у `unparsed_adapter_entries`, пока отчёт
+    ронял всё. Она зовёт НАСТОЯЩИЙ `format_protocols_message` и считает строки
+    протоколов в его выдаче.
+
+    **Знаменатель независим от читателя — в этом вся проба.** Сколько записей
+    ДОЛЖНО быть, считается здесь по сырому JSON (члены-записи раздела плюс
+    легаси-блоки верхнего уровня без современного близнеца), а НЕ вызовом
+    `_get_all_adapters`. Знаменатель, взятый у измеряемого читателя, равен
+    числителю по построению: такая проба зелена и на полностью сломанном
+    читателе — она сравнивает его с собой.
+
+    **Подстрокой проба не проходит (ADR-333):** вердикт считается по ЧИСЛАМ,
+    ни одна ветка не ищет текст в сообщении.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17): артефакта нет / он не разобран / он протух
+    (порог `ADAPTER_STATUS_MAX_AGE_H`, тот же, что у `adapter_status_live_apy`,
+    и по той же причине — `data/` частично лежит в git, поэтому в worktree и на
+    CI это ЗАМОРОЖЕННЫЙ канон, а не наблюдение) ⇒ `unmeasured`, НИКОГДА
+    `not_satisfied`. Время — вход (`now`), каталог — вход (`data_dir`).
+    """
+    root = data_dir or os.path.join(REPO_ROOT, "data")
+    path = os.path.join(root, "adapter_status.json")
+    rel = os.path.relpath(path, REPO_ROOT) if path.startswith(REPO_ROOT) else path
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > ADAPTER_STATUS_MAX_AGE_H:
+        return UNMEASURED, (
+            f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+            f"{ADAPTER_STATUS_MAX_AGE_H:.0f}ч (замороженный канон, не наблюдение) — "
+            f"мерить надо из дерева с живым data/"
+        )
+
+    # ── знаменатель: СЫРОЙ артефакт, без участия измеряемого читателя ──────
+    section = doc.get("adapters")
+    if isinstance(section, dict):
+        members: list[object] = list(section.values())
+        section_ids = {
+            str(k).strip().lower().replace("-", "_")
+            for k, v in section.items()
+            if isinstance(v, dict)
+        }
+    elif isinstance(section, list):
+        members = list(section)
+        section_ids = {
+            str(
+                v.get("protocol_key") or v.get("adapter_id") or v.get("name") or ""
+            ).strip().lower().replace("-", "_")
+            for v in section
+            if isinstance(v, dict)
+        }
+    else:
+        return UNMEASURED, (
+            f"{rel}: раздел `adapters` не той формы вовсе "
+            f"({type(section).__name__}) — население не измерено"
+        )
+
+    section_records = [m for m in members if isinstance(m, dict)]
+    dropped = len(members) - len(section_records)
+
+    legacy_ids: set[str] = set()
+    for key, value in doc.items():
+        if key == "adapters" or not isinstance(value, dict):
+            continue
+        if "tier" not in value and "apy" not in value and "apy_pct" not in value:
+            continue
+        ident = str(
+            value.get("adapter_id") or value.get("protocol_key") or key
+        ).strip().lower().replace("-", "_")
+        if ident not in section_ids:
+            legacy_ids.add(ident)
+    expected = len(section_records) + len(legacy_ids)
+
+    # ── числитель: НАСТОЯЩИЙ отчёт владельцу ──────────────────────────────
+    try:
+        from spa_core import telegram_protocols_reporter as reporter
+    except ImportError as exc:  # pragma: no cover - модуль в дереве есть
+        return UNMEASURED, f"читатель отчёта не ввезён: {type(exc).__name__}: {exc}"
+    try:
+        message = reporter.format_protocols_message(doc)
+    except Exception as exc:  # noqa: BLE001 - вердикт обязан быть третьим исходом
+        return UNMEASURED, (
+            f"{reporter.__name__}.format_protocols_message упал: "
+            f"{type(exc).__name__}: {exc} — отчёт не измерен"
+        )
+    shown = sum(1 for line in str(message).splitlines() if line.startswith("•"))
+
+    detail = (
+        f"{rel} (возраст {age_h:.1f}ч): записей раздела {len(section_records)} + "
+        f"легаси без близнеца {len(legacy_ids)} = ждём {expected}; "
+        f"отчёт печатает {shown}; уронено разделом {dropped}"
+    )
+    if dropped:
+        return NOT_SATISFIED, (
+            f"{detail} — члены раздела, не являющиеся записями, не доходят до владельца"
+        )
+    if shown != expected:
+        return NOT_SATISFIED, (
+            f"{detail} — отчёт владельцу теряет {expected - shown} запис(ей)"
+            if shown < expected
+            else f"{detail} — отчёт владельцу печатает лишние {shown - expected} строк(и)"
+        )
+    return SATISFIED, detail
+
+
 def _probe_second_artifact_tvl_agrees(arg: str | None, *,
                                       now: "datetime | None" = None,
                                       data_dir: str | None = None) -> tuple[str, str]:
@@ -5041,6 +5180,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
     "series_denominator_measured": _probe_series_denominator_measured,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
+    "owner_protocols_report_carries_every_record":
+        _probe_owner_protocols_report_carries_every_record,
     "apy_provenance_declared_in_the_door":
         _probe_apy_provenance_declared_in_the_door,
     "adapter_status_number_has_a_writer":

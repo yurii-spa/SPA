@@ -25,6 +25,7 @@ import unittest
 
 from spa_core.adapters.status_reader import observed_apy_pct_from_block
 from spa_core.telegram_protocols_reporter import (
+    _get_all_adapters,
     _get_apy_str,
     _get_best_apy,
     format_protocols_message,
@@ -135,11 +136,16 @@ class TestTheObservationRuleHasONECopy(unittest.TestCase):
 class TestUnparsedPopulationIsNamedNotSilent(unittest.TestCase):
     """Третий исход у ПОПУЛЯЦИИ отчёта (инв. #17).
 
-    ЗАМЕР 2026-10-12: ``_get_all_adapters`` обходит ``data["adapters"]`` как
-    СПИСОК, а живой артефакт несёт его СЛОВАРЁМ — обход словаря отдаёт ключи,
-    ``isinstance(str, dict)`` ложен, и 34 из 36 записей падали МОЛЧА. Владелец
-    читал «Total adapters: 2» и не имел ни одного признака, что остальные
-    существуют.
+    ЗАМЕР 2026-10-12 (ADR-709): ``_get_all_adapters`` обходил
+    ``data["adapters"]`` как СПИСОК, а живой артефакт несёт его СЛОВАРЁМ — обход
+    словаря отдаёт ключи, ``isinstance(str, dict)`` ложен, и 34 из 36 записей
+    падали МОЛЧА. Владелец читал «Total adapters: 2» и не имел ни одного
+    признака, что остальные существуют.
+
+    ЗАМЕР 2026-10-13 (ADR-710): записи ПОДНЯТЫ — читатель принимает обе формы,
+    отчёт несёт 34 строки вместо 2, уронено ноль. Поэтому часть утверждений
+    этого класса сменила предмет; каждая такая правка названа в своём тесте
+    (инв. #16), и ни одна не ослабила проверку.
     """
 
     def _doc(self):
@@ -151,13 +157,52 @@ class TestUnparsedPopulationIsNamedNotSilent(unittest.TestCase):
             "aave_arbitrum": dict(SHADOW, tier="T1", name="aave-arb"),
         }
 
-    def test_dict_section_counts_its_unparsed_entries(self):
-        self.assertEqual(unparsed_adapter_entries(self._doc()), 2)
+    def _doc_with_a_non_record(self):
+        """Тот же артефакт, но один член раздела — НЕ запись.
 
-    def test_list_section_is_NOT_MEASURED_rather_than_zero(self):
-        # Список — форма, которую читатель разбирает; ронять нечего. Третий
-        # исход (None) отличим от измеренного нуля.
-        self.assertIsNone(unparsed_adapter_entries({"adapters": [OBSERVED]}))
+        После ADR-710 это единственная причина, по которой член раздела может
+        быть уронен: форму читатель принимает любую из двух.
+        """
+        doc = self._doc()
+        doc["adapters"]["сломанный_член"] = "строка вместо записи"
+        return doc
+
+    def test_dict_section_records_are_PARSED_now_so_the_drop_is_zero(self):
+        """ПРАВКА НАМЕРЕННА (ADR-710, инв. #16) — и это УСИЛЕНИЕ, не ослабление.
+
+        Здесь стояло `assertEqual(..., 2)`: тест закреплял ЗАМЕР ДЕФЕКТА —
+        «обе записи раздела уронены», потому что цикл #853 сознательно сделал
+        молчание отличимым, но записи НЕ ПОДНЯЛ (заказ G709 п. 1). ADR-710
+        записи поднял, и те же два члена теперь ДОХОДЯТ до владельца, поэтому
+        уронено ноль. Оставить «2» значило бы требовать от читателя ронять
+        записи, то есть закрепить аварию тестом.
+
+        Обратная сторона идёт рядом (:meth:`test_a_non_record_member_is_still_counted`):
+        проверка стала ДВУСТОРОННЕЙ там, где была односторонней.
+        """
+        self.assertEqual(unparsed_adapter_entries(self._doc()), 0)
+        self.assertEqual(len(_get_all_adapters(self._doc())), 3)
+
+    def test_a_non_record_member_is_still_counted(self):
+        """Обратная сторона: уронить можно только то, что не запись."""
+        self.assertEqual(unparsed_adapter_entries(self._doc_with_a_non_record()), 1)
+
+    def test_list_section_is_a_MEASURED_zero_now_that_the_reader_parses_it(self):
+        """ПРАВКА НАМЕРЕННА (ADR-710, инв. #16) — и это УСИЛЕНИЕ.
+
+        Здесь стояло `assertIsNone`, с причиной «список — форма, которую
+        читатель разбирает; ронять нечего». Причина верна, вывод — нет:
+        «ронять нечего» есть ИЗМЕРЕННЫЙ НОЛЬ, а `None` означает «не измерено».
+        Выдавать измеренный ноль за третий исход — ровно инвариант #17
+        НАИЗНАНКУ, и до ADR-710 это не вредило лишь потому, что словарную форму
+        читатель не разбирал вовсе.
+
+        Настоящий третий исход закреплён ниже, и он остался третьим исходом:
+        раздела нет / раздел не той формы ВОВСЕ.
+        """
+        self.assertEqual(unparsed_adapter_entries({"adapters": [OBSERVED]}), 0)
+        self.assertIsNone(unparsed_adapter_entries({"adapters": "не раздел"}))
+        self.assertIsNone(unparsed_adapter_entries({"adapters": 17}))
 
     def test_missing_section_is_NOT_MEASURED(self):
         self.assertIsNone(unparsed_adapter_entries({}))
@@ -169,9 +214,16 @@ class TestUnparsedPopulationIsNamedNotSilent(unittest.TestCase):
         self.assertIsNone(unparsed_adapter_entries({"adapters": None}))
 
     def test_the_owner_MESSAGE_names_the_drop(self):
-        msg = format_protocols_message(self._doc())
+        """ПРАВКА НАМЕРЕННА (ADR-710, инв. #16): предмет тот же, повод другой.
+
+        Прежний артефakt (`_doc`) ронял записи ФОРМОЙ раздела; с ADR-710 форма
+        роняющим поводом быть перестала, поэтому строку надо проверять на
+        поводе, который остался РЕАЛЬНЫМ, — член, не являющийся записью.
+        Иначе тест зеленел бы на отсутствии строки и перестал мерить предмет.
+        """
+        msg = format_protocols_message(self._doc_with_a_non_record())
         self.assertIn("НЕ РАЗОБРАНО", msg)
-        self.assertIn("2", msg)
+        self.assertIn("1", msg)
 
     def test_the_message_stays_SILENT_when_nothing_was_dropped(self):
         # Обратная сторона предыдущего: вечно печатаемая строка есть шум, а не
@@ -179,12 +231,31 @@ class TestUnparsedPopulationIsNamedNotSilent(unittest.TestCase):
         msg = format_protocols_message({"adapters": [], "aave_arbitrum": dict(SHADOW, tier="T1")})
         self.assertNotIn("НЕ РАЗОБРАНО", msg)
 
-    def test_the_drop_line_does_NOT_publish_the_numbers(self):
-        # Поднять 34 записи значило бы напечатать владельцу 34 НОВЫХ числа —
-        # публикация, а не представление (та же граница, что у ADR-708/pendle_pt).
+    def test_every_published_number_carries_its_rod(self):
+        """ПРАВКА НАМЕРЕННА (ADR-710, инв. #16) — и это УСИЛЕНИЕ, не ослабление.
+
+        Здесь стояло `assertNotIn("14.0%")` с причиной «поднять 34 записи
+        значило бы напечатать владельцу 34 НОВЫХ числа — публикация, а не
+        представление». Цикл #853 так решил СОЗНАТЕЛЬНО, и решение было верным
+        для своего хода: смешать подъём населения с правкой рода значило бы
+        потерять оба дифференциала.
+
+        ADR-710 решает этот вопрос СВОИМ ходом — и решает ЗА публикацию, с
+        причиной: род печатается РЯДОМ с каждым числом (замер живого артефакта
+        13.10: 23 наблюдения · 11 оценок · 0 «род не объявлен»), поэтому
+        публикация честна по построению, а спрятать 11 оценок значило бы
+        ответить на вопрос владельца МОЛЧАНИЕМ — ровно то, что докстринги
+        `_get_apy_str` и `_get_tvl_str` отвергают прямым текстом.
+
+        Проверка поэтому не ослабла, а поменяла предмет: было «числа не
+        видно», стало «каждое видимое число названо своим родом» — и ни одно
+        наблюдение не подписано оценкой, ни одна оценка не выдана за замер.
+        """
         msg = format_protocols_message(self._doc())
-        self.assertNotIn("14.0%", msg, "число непрочитанной записи утекло в отчёт")
-        self.assertNotIn("4.4%", msg, "число непрочитанной записи утекло в отчёт")
+        self.assertIn("14.0% (оценка)", msg)
+        self.assertIn("4.4%", msg)
+        self.assertNotIn("4.4% (оценка)", msg)
+        self.assertNotIn("4.4% (род не объявлен)", msg)
 
 
 class TestTheOwnerFacingLineCarriesTheRod(unittest.TestCase):

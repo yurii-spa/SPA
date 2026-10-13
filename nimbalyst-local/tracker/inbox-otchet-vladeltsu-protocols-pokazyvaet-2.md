@@ -2,9 +2,12 @@
 trackerStatus:
   type: inbox
 title: Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-10-12
+acceptance_probe: owner_protocols_report_carries_every_record
+status_trail:
+  - "2026-10-13T00:49:55.045578+00:00 new -> in-progress · queue.set_status · cycle-854"
 ---
 
 ## Что измерено (цикл #853, ADR-709)
