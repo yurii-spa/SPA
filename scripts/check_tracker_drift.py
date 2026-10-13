@@ -46,6 +46,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
@@ -270,6 +271,153 @@ class Unmeasured(RuntimeError):
     """Сверка не выполнилась. Вердикт — «не измерено» (код 2), а не «расхождений нет»."""
 
 
+# ── ПАМЯТЬ копии — сколько ЗАПИСЕЙ ЦИКЛА она несёт (ADR-715, цикл #859) ──────
+#
+# Ось выше спрашивает «какая копия НОВЕЕ». Это НЕ тот вопрос, который защищает
+# память, и доказательство тому — авария 08.10 (ADR-714): доставка `359ce9406`
+# принесла копию стоячего приказа владельца, которая была новее по отметке и
+# БЕДНЕЕ на 56 записей цикла (#716…#806, 205 → 151). «Новее» и «богаче памятью» —
+# две независимые величины, и из первой вторая не следует ни в какую сторону.
+#
+# До этой правки прибор на такой карточке печатал ровно одну строку: «кто новее —
+# не измерено, нужна ручная сверка». Строка верна и бесполезна: она стои́т в общем
+# списке `РАЗОШЛИСЬ` рядом с сотней карточек, у которых вся разница — сессионное
+# поле захвата, и читатель пролистывает её так же, как их (урок #243 — сторожа
+# глохнут шумом). А направление здесь ИЗМЕРИМО и односторонне.
+#
+# ЗАМЕР 13.10 на живом трекере хоста (200 находок расхождения, из них обе копии в
+# руках у 187): тетрадей циклов **2**, и у обеих копия дерева строго беднее —
+# `inbox-task-portfolio-cio-dynamic-capital-alloc` несёт 153 записи против 247 на
+# origin (не хватает 94, обратных НЕТ НИ ОДНОЙ), `inbox-ozhivit-fidy-vne-ethereum-put-k-snyatiyu`
+# — 0 против 6. Остальные 185 тетрадями не являются: записей цикла нет ни в одной
+# копии. Поэтому новая ось добавляет к выводу ДВЕ названные строки, а не 185:
+# цена ошибки измерена на той же популяции, что и находка (тот же порядок, что у
+# `guard_cycle_record_loss`, где мера общей тетради дала бы 538 отказов из 2133).
+#
+# МЕРА БЕРЁТСЯ ИЗ ДВЕРИ ДОСТАВКИ, а не переписывается сюда. `push_to_github`
+# решает тот же вопрос («не стираем ли мы запись цикла») у двери, и две копии
+# одного правила в этом репозитории уже трижды разъезжались молча (#143–#145,
+# и ровно поэтому выше ввезены `_CLAIM_KEYS` и `latest_change_at`). Прибор и
+# дверь обязаны понимать под записью цикла ОДНО И ТО ЖЕ: иначе прибор назовёт
+# расхождение, которого дверь не видит, и наоборот.
+#
+# ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): содержимое origin-копии не прочитано ⇒
+# `records_unmeasured` с причиной, а НЕ «записи совпали» и не «тетрадь не тетрадь».
+# Самое успокоительное из значений выдумывать запрещено.
+MEMORY_EQUAL = "records_equal"              # набор номеров совпал — разница не в памяти
+MEMORY_TREE_POORER = "tree_poorer"          # дереву не хватает записей, origin — ни одной
+MEMORY_ORIGIN_POORER = "origin_poorer"      # обратное: запись дерева не доставлена
+MEMORY_FORKED = "records_forked"            # каждой копии не хватает чужих записей
+MEMORY_NOT_A_NOTEBOOK = "not_a_notebook"    # записей цикла нет ни в одной копии
+MEMORY_UNMEASURED = "records_unmeasured"    # НЕ измерено, и причина названа
+
+#: Вердикты, при которых память копий РАЗОШЛАСЬ и это надо назвать поимённо.
+MEMORY_FINDINGS = frozenset({MEMORY_TREE_POORER, MEMORY_ORIGIN_POORER, MEMORY_FORKED})
+
+
+def door_record_measure():
+    """Мера записи цикла — ИЗ ДВЕРИ ДОСТАВКИ → ``(pattern, entry_headers)``.
+
+    Не «похожая» мера и не её копия: ровно те объекты, которыми
+    ``push_to_github.guard_cycle_record_loss`` отказывает доставке. Дверь не
+    ввезлась ⇒ :class:`Unmeasured` с причиной; вызывающий обязан превратить это
+    в третий исход, а не в «записи совпали».
+    """
+    try:
+        import push_to_github as _door           # корень репо уже на sys.path (см. выше)
+    except Exception as exc:                     # noqa: BLE001 — любой отказ ввоза двери
+        raise Unmeasured(f"дверь доставки (push_to_github) не ввезена "
+                         f"({type(exc).__name__}: {exc}) — мера записи цикла НЕ ИЗМЕРЕНА") from exc
+    try:
+        return _door.CYCLE_RECORD_RE, _door.entry_headers
+    except AttributeError as exc:
+        raise Unmeasured(f"у двери доставки нет меры записей цикла ({exc}) — прибор не вправе "
+                         f"судить о памяти копий своей мерой") from exc
+
+
+class RecordMemory(NamedTuple):
+    """Вердикт оси памяти + ЧИСЛА, а не только проза.
+
+    Числа нужны читателю отчёта (чья копия беднее и НА СКОЛЬКО) и порядку вывода:
+    выпарсивать их обратно из строки значило бы завести вторую мерку одного факта.
+    """
+    verdict: str
+    detail: str
+    missing_tree: int = 0
+    missing_origin: int = 0
+
+
+def record_memory(tree_text: str | None, origin_text: str | None,
+                  ref: str = DEFAULT_REF) -> RecordMemory:
+    """Память двух копий по ЗАПИСЯМ ЦИКЛА → (вердикт, причина словами).
+
+    Кратность значима и берётся из двери (``entry_headers`` сравнивает
+    мультимножеством): пропажа одного из двух одинаково пронумерованных блоков —
+    тоже пропажа записи.
+    """
+    try:
+        pattern, headers = door_record_measure()
+    except Unmeasured as exc:
+        return RecordMemory(MEMORY_UNMEASURED, str(exc))
+    if tree_text is None or origin_text is None:
+        which = "дерева" if tree_text is None else ref
+        return RecordMemory(MEMORY_UNMEASURED,
+                            f"содержимое копии {which} не прочитано — «записей цикла "
+                            f"столько же» сказать нечем; это не «совпало»")
+    ours = headers(tree_text.encode("utf-8"), pattern)
+    theirs = headers(origin_text.encode("utf-8"), pattern)
+    if not ours and not theirs:
+        return RecordMemory(MEMORY_NOT_A_NOTEBOOK,
+                            "записей цикла нет ни в одной копии — карточка-задание, "
+                            "а не тетрадь; эту ось у неё не спрашивают")
+    miss_tree = _missing(theirs, ours)
+    miss_origin = _missing(ours, theirs)
+    counts = (f"записей: дерево {len(ours)} · {ref} {len(theirs)}")
+    if miss_tree and miss_origin:
+        return RecordMemory(MEMORY_FORKED,
+                            f"память РАЗОШЛАСЬ в обе стороны: дереву не хватает "
+                            f"{len(miss_tree)} ({_names(miss_tree)}), {ref} — "
+                            f"{len(miss_origin)} ({_names(miss_origin)}); {counts}. "
+                            f"Ни одна копия не является надмножеством другой — "
+                            f"восстановление только ОБЪЕДИНЕНИЕМ",
+                            len(miss_tree), len(miss_origin))
+    if miss_tree:
+        return RecordMemory(MEMORY_TREE_POORER,
+                            f"дереву не хватает {len(miss_tree)} запис(и/ей) цикла "
+                            f"({_names(miss_tree)}), а {ref} — НИ ОДНОЙ ⇒ копия "
+                            f"дерева строго БЕДНЕЕ памятью; {counts}",
+                            len(miss_tree), 0)
+    if miss_origin:
+        return RecordMemory(MEMORY_ORIGIN_POORER,
+                            f"на {ref} не хватает {len(miss_origin)} "
+                            f"запис(и/ей) цикла ({_names(miss_origin)}), а дереву — "
+                            f"НИ ОДНОЙ ⇒ запись дерева не доставлена; {counts}",
+                            0, len(miss_origin))
+    return RecordMemory(MEMORY_EQUAL,
+                        f"набор номеров записей цикла совпал ({len(ours)}) — разница двух "
+                        f"копий НЕ в памяти")
+
+
+def _missing(theirs: list, ours: list) -> list:
+    """Чего из ``theirs`` не хватает в ``ours`` — мультимножеством, как у двери."""
+    rest = list(ours)
+    out = []
+    for key in theirs:
+        if key in rest:
+            rest.remove(key)
+        else:
+            out.append(key)
+    return out
+
+
+def _names(keys: list, cap: int = 8) -> str:
+    def one(key) -> str:
+        raw = key.decode("utf-8", "replace") if isinstance(key, bytes) else str(key)
+        return f"#{raw}"
+    shown = ", ".join(one(k) for k in keys[:cap])
+    return shown + (f" … и ещё {len(keys) - cap}" if len(keys) > cap else "")
+
+
 @dataclass
 class Finding:
     kind: str
@@ -285,6 +433,15 @@ class Finding:
     #: а не «спросили и не узнали»: второе — это `ORDER_UNMEASURED` с причиной.
     order: str = ""
     order_detail: str = ""
+    #: Память копий по записям цикла (см. :func:`record_memory`). Спрашивается у
+    #: `diverged` и `stale` — только у них обе копии в руках. У `hidden`/`undelivered`/
+    #: `deleted_on_origin` второй копии нет вовсе, и пустая строка здесь означает
+    #: «эту ось у класса не спрашивают», а не «спросили и не узнали»: второе —
+    #: `MEMORY_UNMEASURED` с причиной.
+    memory: str = ""
+    memory_detail: str = ""
+    memory_missing_tree: int = 0
+    memory_missing_origin: int = 0
 
     def as_dict(self) -> dict:
         return {
@@ -296,6 +453,10 @@ class Finding:
             "tracker_type": self.tracker_type,
             "order": self.order,
             "order_detail": self.order_detail,
+            "memory": self.memory,
+            "memory_detail": self.memory_detail,
+            "memory_missing_tree": self.memory_missing_tree,
+            "memory_missing_origin": self.memory_missing_origin,
         }
 
 
@@ -315,6 +476,20 @@ class Report:
     def stale_ids(self) -> set[str]:
         return {f.card_id for f in self.of_kind(KIND_STALE)}
 
+    @property
+    def memory_findings(self) -> list[Finding]:  # noqa: D401
+        """Находки, у которых разошлась ПАМЯТЬ копий, — в порядке «насколько беднее»."""
+        return sorted((f for f in self.findings if f.memory in MEMORY_FINDINGS),
+                      key=lambda f: -(f.memory_missing_tree + f.memory_missing_origin))
+
+    def memory_tally(self) -> dict:
+        """Перепись оси памяти: сколько карточек в каждом вердикте."""
+        out: dict = {}
+        for f in self.findings:
+            if f.memory:
+                out[f.memory] = out.get(f.memory, 0) + 1
+        return out
+
     def as_dict(self) -> dict:
         return {
             "ref": self.ref,
@@ -323,6 +498,7 @@ class Report:
             "tree_count": self.tree_count,
             "origin_count": self.origin_count,
             "findings": [f.as_dict() for f in self.findings],
+            "memory_tally": self.memory_tally(),
         }
 
 
@@ -650,12 +826,19 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
             continue  # совпадает байт-в-байт — не находка
 
         origin_card = read_origin_card(root, ref, rel_path, origin_texts.get(origin[card_id]))
+        # Память копий меряется и у `stale`, и у `diverged`: класс говорит, ОТСТАЁТ ли
+        # копия дерева, и молчит о том, СКОЛЬКО записей цикла при этом не хватает
+        # читателю прод-дерева. Второй из двух найденных 13.10 тетрадей — именно `stale`.
+        mem = record_memory(tree_text, origin_texts.get(origin[card_id]), ref)
         proven, why = _proven_behind(root, rel_path, ref, path, tree_sha, index)
         if proven:
             report.findings.append(Finding(
                 kind=KIND_STALE, card_id=card_id, detail=why,
                 tree_status=tree_card.status, origin_status=origin_card.status,
-                tracker_type=origin_card.tracker_type))
+                tracker_type=origin_card.tracker_type,
+                memory=mem.verdict, memory_detail=mem.detail,
+                memory_missing_tree=mem.missing_tree,
+                memory_missing_origin=mem.missing_origin))
         else:
             # Тексты обеих копий уже в руках — порядок отметок меряется ЗДЕСЬ, без
             # второго прохода git. Цена сторожа однажды уже выключила сторожа (#454:
@@ -668,7 +851,10 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
                 kind=KIND_DIVERGED, card_id=card_id, detail=why,
                 tree_status=tree_card.status, origin_status=origin_card.status,
                 tracker_type=origin_card.tracker_type,
-                order=order, order_detail=order_detail))
+                order=order, order_detail=order_detail,
+                memory=mem.verdict, memory_detail=mem.detail,
+                memory_missing_tree=mem.missing_tree,
+                memory_missing_origin=mem.missing_origin))
     return report
 
 
@@ -725,8 +911,37 @@ def format_report(report: Report) -> str:
                 status = f" [дерево: {f.tree_status or '—'} · {report.ref}: {f.origin_status or '—'}]"
             lines.append(f"  - {f.card_id}{status}")
             lines.append(f"      {f.detail}")
+            if f.memory in MEMORY_FINDINGS:
+                lines.append(f"      🧠 {f.memory_detail}")
+    lines.extend(_memory_section(report))
     lines.append("\nЭто находки, а не декорация: очередь этого дерева отвечает не на тот вопрос.")
     return "\n".join(lines)
+
+
+def _memory_section(report: Report) -> list[str]:
+    """Отдельный раздел про ПАМЯТЬ копий — чтобы тетрадь не утонула в общем списке.
+
+    Почему отдельно, а не только строкой внутри класса: находка про память — две
+    позиции на двести, и в списке `РАЗОШЛИСЬ` из 185 карточек её не видно (урок
+    #243 — сторожа глохнут шумом). Перепись печатается ВСЕГДА, в том числе когда
+    тетрадей среди находок нет: по ней читатель отличает «память цела» от
+    «мерить было нечем».
+    """
+    tally = report.memory_tally()
+    if not tally:
+        return []
+    out = ["", ("🧠 ПАМЯТЬ копий (записи цикла — мера взята у двери доставки "
+                "`push_to_github.CYCLE_RECORD_RE`):")]
+    order = (MEMORY_TREE_POORER, MEMORY_ORIGIN_POORER, MEMORY_FORKED,
+             MEMORY_EQUAL, MEMORY_NOT_A_NOTEBOOK, MEMORY_UNMEASURED)
+    out.append("   " + " · ".join(f"{k} {tally[k]}" for k in order if k in tally))
+    for f in report.memory_findings:
+        out.append(f"   - {f.card_id}: {f.memory_detail}")
+    if not report.memory_findings:
+        out.append("   ✅ ни у одной тетради циклов память копий не разошлась")
+    out.append("   «кто новее» и «у кого записей больше» — РАЗНЫЕ вопросы: 08.10 копия, "
+               "бывшая новее по отметке, была беднее на 56 записей (ADR-714).")
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

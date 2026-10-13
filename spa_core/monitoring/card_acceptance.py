@@ -5707,6 +5707,128 @@ def _probe_delivery_door_refuses_cycle_record_loss(
                        f"объединением; источник пары — {source}")
 
 
+def _probe_drift_names_direction_of_record_loss(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ПРИБОР расхождения копий называет НАПРАВЛЕНИЕ потери записей цикла.
+
+    Предмет — находка цикла #859 и ADR-715, остаток заказа G714 п. 3. Дверь
+    доставки с #858 не даёт СТЕРЕТЬ записи цикла (проба
+    ``delivery_door_refuses_cycle_record_loss``), но УЖЕ СТОЯЩЕЕ расхождение двух
+    копий дверь не видит по построению: она стои́т у доставки, а не у состояния.
+    Прибор ``check_tracker_drift`` это состояние мерил и о памяти молчал — на
+    тетради с 94 потерянными записями он печатал «кто новее — не измерено, нужна
+    ручная сверка», строку из общего списка `РАЗОШЛИСЬ` длиной 185 позиций.
+
+    **Меряется ИСХОД У ПРИБОРА, а не наличие функции.** Проба зовёт настоящую
+    ``check_tracker_drift.record_memory`` на настоящей паре байт аварии 08.10 и
+    смотрит, НАЗЫВАЕТ ли она направление и номера.
+
+    **Контроль в обе стороны внутри самой пробы.** Прибор, объявляющий потерю
+    памяти на ЧЁМ УГОДНО, был бы бесполезен так же, как слепой: почти вся разница
+    двух копий — штатная переписка тела и поле захвата. Поэтому второе условие:
+    на том же тексте с ДОПИСАННЫМ телом (набор номеров записей цел) вердикт обязан
+    быть «память совпала» и находкой НЕ быть.
+
+    **Источник пары НАЗВАН** (инв. #17) — история git, иначе фикстуры батареи;
+    зелёный на фикстуре не должен читаться как зелёный на истории.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: прибор не ввезён / пары байт нет ни в истории, ни в
+    фикстурах / в паре нет той самой потери ⇒ ``unmeasured`` с причиной.
+    """
+    import hashlib as _hl
+    import importlib.util as _ilu
+    import subprocess as _sp
+
+    root = repo_root or REPO_ROOT
+    tool = os.path.join(root, "scripts", "check_tracker_drift.py")
+    if not os.path.exists(tool):
+        return UNMEASURED, f"{tool} не найден — прибор расхождения НЕ ИЗМЕРЕН"
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    scripts_dir = os.path.join(root, "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    # Имя уникально по дереву НАМЕРЕННО: проба обязана мерить прибор ИЗ `repo_root`,
+    # иначе на двух деревьях она дала бы один и тот же вердикт и ничего не
+    # дискриминировала. Регистрация в `sys.modules` обязательна — у модуля есть
+    # `@dataclass`, а он ищет своё пространство имён именно там.
+    mod_name = "_probe_drift_" + _hl.sha256(root.encode()).hexdigest()[:12]
+    try:
+        spec = _ilu.spec_from_file_location(mod_name, tool)
+        drift = _ilu.module_from_spec(spec)
+        sys.modules[mod_name] = drift
+        try:
+            spec.loader.exec_module(drift)
+        except BaseException:
+            sys.modules.pop(mod_name, None)
+            raise
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"прибор не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+
+    if not hasattr(drift, "record_memory"):
+        return NOT_SATISFIED, ("у прибора расхождения нет оси памяти (`record_memory`): "
+                               "о потере записей цикла он сказать не может, и на тетради с "
+                               "94 пропавшими записями печатает «кто новее — не измерено»")
+
+    card = ("nimbalyst-local/tracker/"
+            "inbox-task-portfolio-cio-dynamic-capital-alloc.md")
+    incident = "359ce9406"
+    before = after = None
+    source = ""
+    try:
+        r0 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}^:{card}"],
+                     capture_output=True, timeout=30)
+        r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
+                     capture_output=True, timeout=30)
+        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+            before = r0.stdout.decode("utf-8", "replace")
+            after = r1.stdout.decode("utf-8", "replace")
+            source = "история git"
+    except Exception:                               # noqa: BLE001 — источник не единственный
+        before = after = None
+    if before is None:
+        fix = os.path.join(root, "spa_core", "tests", "fixtures", "cycle_record_loss")
+        try:
+            with open(os.path.join(fix, f"order_{incident}_before.md"), encoding="utf-8") as fh:
+                before = fh.read()
+            with open(os.path.join(fix, f"order_{incident}_after.md"), encoding="utf-8") as fh:
+                after = fh.read()
+            source = "фикстуры батареи (истории git нет — глубина клона)"
+        except OSError as exc:
+            return UNMEASURED, (f"пары байт аварии {incident} нет ни в истории git, ни в "
+                                f"фикстурах ({exc}) — вердикт прибора НЕ ИЗМЕРЕН")
+
+    # Копия дерева здесь — АМПУТИРОВАННАЯ (`after`): именно её принесла доставка.
+    lost = drift.record_memory(after, before, "origin/main")
+    if lost.missing_tree != 56:
+        return UNMEASURED, (f"в паре байт {incident} копии дерева не хватает "
+                            f"{lost.missing_tree} записей, а авария была на 56 — предпосылка "
+                            f"пробы НЕ ОБЕСПЕЧЕНА (источник {source})")
+    if lost.verdict not in getattr(drift, "MEMORY_FINDINGS", frozenset()):
+        return NOT_SATISFIED, (f"прибор не считает потерю 56 записей расхождением памяти: "
+                               f"вердикт `{lost.verdict}` — {lost.detail[:200]} "
+                               f"(источник {source})")
+    if "#716" not in lost.detail:
+        return NOT_SATISFIED, (f"прибор назвал расхождение, но НЕ НАЗВАЛ пропавшие записи — "
+                               f"по такой строке читатель не отличит её от сотни других в "
+                               f"списке `РАЗОШЛИСЬ` (источник {source})")
+
+    # Обратная сторона: штатная переписка тела карточки памятью НЕ является.
+    kept = drift.record_memory(before + "\nштатная приписка к телу карточки\n",
+                               before, "origin/main")
+    if kept.verdict in getattr(drift, "MEMORY_FINDINGS", frozenset()):
+        return NOT_SATISFIED, (f"прибор объявляет потерю памяти на ЧИСТОЙ ПРИПИСКЕ к телу "
+                               f"(`{kept.verdict}`) — сторож, который говорит «нет» всему, "
+                               f"не отличает потерю от работы")
+    if kept.verdict != getattr(drift, "MEMORY_EQUAL", "records_equal"):
+        return NOT_SATISFIED, (f"на чистой приписке вердикт `{kept.verdict}`, а обязан быть "
+                               f"«память совпала»: {kept.detail[:200]}")
+    return SATISFIED, (f"прибор НАЗЫВАЕТ направление потери: `{lost.verdict}`, дереву не "
+                       f"хватает 56 записей (поимённо), origin — {lost.missing_origin}; "
+                       f"и МОЛЧИТ на чистой приписке к телу; источник пары — {source}")
+
+
 def _cycle_record_union(pusher, current: bytes, older: bytes) -> bytes:
     """``current`` + блоки записей цикла, которые есть только в ``older``.
 
@@ -5768,6 +5890,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_journal_reader_census_verdict_under_injected_clock,
     "delivery_door_refuses_cycle_record_loss":
         _probe_delivery_door_refuses_cycle_record_loss,
+    "drift_names_direction_of_record_loss":
+        _probe_drift_names_direction_of_record_loss,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "forbidden_import_gate_single_instrument":
