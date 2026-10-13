@@ -185,6 +185,47 @@ def _card_dict(c, verdict: dict | None = None) -> dict:
     return d
 
 
+#: Ось ПАМЯТИ копий (ADR-715) у ЧИТАТЕЛЯ очереди — шаг 1 протокола.
+#:
+#: Прибор расхождения мерит её с цикла #859 и печатает в СВОЙ stdout. Читателя у этого
+#: вывода нет: артефакта прибор не пишет, а шаги протокола читают очередь. Замер 13.10
+#: на прод-дереве (origin/main 6f8895373): у карточки стоячего приказа владельца, копии
+#: которой расходятся на 94 ЗАПИСИ ЦИКЛА (#716…#858, ADR-714), шаг 1 отвечал
+#: `origin_check=diverged_unmeasured`, `origin_order=unmeasured` — и ни одного упоминания
+#: памяти ни в JSON, ни в девяти строках stderr. «Назвать расхождение» и «довести его до
+#: того, кто читает очередь» — два разных действия, и второго не делал никто.
+def _memory_verdict(f, drift) -> dict:
+    """Поля оси памяти из находки прибора → в вердикт читателя, БЕЗ второй мерки.
+
+    Членство «это потеря» берётся у прибора ОДНОЙ копией (``drift.MEMORY_FINDINGS``):
+    второй перечень имён вердиктов здесь был бы вторым объявлением одного контракта, а
+    две копии одного правила в этом репозитории уже трижды разъезжались молча
+    (#143–#145, ADR-220).
+
+    Ось НЕ СПРАШИВАЛИ (поле находки пусто — так у `hidden`/`undelivered`, где второй
+    копии для сравнения нет) ⇒ полей нет вовсе. Это «не спрашивают», а НЕ «память
+    совпала»: пустое поле, читаемое как согласие, и есть ровно тот класс, ради которого
+    `origin_check` вообще появился (ADR-166, инв. #17). Три исхода различимы:
+    потеря (`origin_memory` ∈ `MEMORY_FINDINGS`) · измерено и совпало (`records_equal`)
+    · НЕ измерено с причиной (`records_unmeasured`).
+    """
+    if not f.memory:
+        return {}
+    out = {
+        "origin_memory": f.memory,
+        "origin_memory_detail": f.memory_detail,
+        "origin_memory_missing_tree": f.memory_missing_tree,
+        "origin_memory_missing_origin": f.memory_missing_origin,
+    }
+    if f.memory in drift.MEMORY_FINDINGS:
+        out["origin_memory_note"] = (
+            f"🧠 ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ (`{f.memory}`): {f.memory_detail}"
+        )
+    elif f.memory == drift.MEMORY_UNMEASURED:
+        out["origin_memory_note"] = f"❓ память копий НЕ ИЗМЕРЕНА: {f.memory_detail}"
+    return out
+
+
 def _origin_read_through(cards: list, tracker_dir=None,
                          ref: str | None = None) -> tuple[list, dict[str, dict], list[str], bool]:
     """Сверить читаемый трекер с `origin/main` и ГРОМКО назвать расхождение (шаг 1-пред).
@@ -397,6 +438,18 @@ def _origin_read_through(cards: list, tracker_dir=None,
                 already_ingested.append(f.card_id)
         verdicts[f.card_id] = verdict
 
+    # ── ось ПАМЯТИ прикладывается ОДНОЙ точкой, по ВСЕМ находкам сразу ─────────────
+    #
+    # Поимённо по классам (`stale`, `diverged`, …) было бы ЧЕТЫРЕ копии одного действия, и
+    # три из них сегодня мертвы: прибор спрашивает ось только там, где есть ВТОРАЯ копия
+    # для сравнения. Мёртвую ветку не убивает ни один мутант — она и есть то «всегда
+    # зелёное поле», которое проект уже снимал как ложное успокоение (#810). Одна точка
+    # вместо четырёх значит и другое: начни прибор мерить память у нового класса — читатель
+    # понесёт её БЕЗ правки, а не промолчит.
+    for f in report.findings:
+        if f.card_id in verdicts:
+            verdicts[f.card_id].update(_memory_verdict(f, drift))
+
     def _ids(kind):
         return ", ".join(sorted(x.card_id for x in report.of_kind(kind))) or "—"
 
@@ -437,6 +490,30 @@ def _origin_read_through(cards: list, tracker_dir=None,
             # Сторож о порядке не спросили вовсе — это НЕ «не установлен».
             print(f"        · порядок не мерился ({len(unordered)}): "
                   f"{', '.join(unordered)}", file=sys.stderr)
+    # ── ось ПАМЯТИ: тетрадь, у которой пропали ЗАПИСИ ЦИКЛА ────────────────────────
+    #
+    # Членство и ПОРЯДОК (первым — тот, кто потерял больше) берутся у прибора ОДНОЙ
+    # копией: `report.memory_findings`. Переписать фильтр здесь значило бы завести
+    # вторую мерку одного факта (ADR-220).
+    #
+    # Цена в строках ИЗМЕРЕНА на живой популяции, а не оценена (замер #859): из 185
+    # находок `РАЗОШЛИСЬ` тетрадей цикла ДВЕ, поэтому раздел добавляет к выводу две
+    # строки, а не 185. Сторож, кричащий на каждой находке, выключают (урок #243).
+    mem_lost = report.memory_findings
+    if mem_lost:
+        print(f"    · 🔴 ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ ({len(mem_lost)}) — у карточки-ТЕТРАДИ "
+              f"пропали ЗАПИСИ ЦИКЛА, и это НЕ переписка тела: дописывать в беднейшую "
+              f"копию значит стереть то, чего в ней нет (ADR-714/715). Чинить — "
+              f"ОБЪЕДИНЕНИЕМ, возврат старой копии восстановлением не является:",
+              file=sys.stderr)
+        for f in mem_lost:
+            print(f"        · {f.card_id}: {f.memory_detail}", file=sys.stderr)
+    mem_unmeasured = sorted(f.card_id for f in report.findings
+                            if f.memory == drift.MEMORY_UNMEASURED)
+    if mem_unmeasured:
+        # Третий исход виден ОТДЕЛЬНО от «совпала» (инв. #17): причина у находки своя.
+        print(f"    · ❓ память копий НЕ ИЗМЕРЕНА ({len(mem_unmeasured)}) — это не "
+              f"«записи совпали»: {', '.join(mem_unmeasured)}", file=sys.stderr)
     if undelivered_closure:
         # Формулировка НАМЕРЕННО не говорит «довезите». Замер 04.09 на первой же живой
         # находке (`inbox-task-portfolio-cio-dynamic-capital-alloc`): прод-копия закрыта
@@ -607,6 +684,10 @@ def cmd_list(args) -> int:
             mark = "" if v == VERDICT_AGREES else f"  ⚠️ origin_check={v}"
             if extra.get("cross_tree_check") == CROSS_FOUND:
                 mark += f"  🔴 {CROSS_FOUND} ({extra.get('source_tree')})"
+            # Готовая строка приходит из `_memory_verdict`, где и живёт ЕДИНСТВЕННАЯ копия
+            # членства «это потеря памяти»; здесь её не перерешивают (ADR-220).
+            if extra.get("origin_memory_note"):
+                mark += f"  {extra['origin_memory_note']}"
             print(f"[{c.status:<11}] {c.tracker_type:<14} {c.id}  —  {c.title}{mark}")
 
     # ПУСТОЙ и НЕ ИЗМЕРЕННЫЙ список — это не «решений нет». Единственный оставшийся канал,
