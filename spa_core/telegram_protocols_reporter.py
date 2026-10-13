@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -30,6 +31,8 @@ __all__ = [
     "send_protocols_report",
     "load_adapter_data",
     "unparsed_adapter_entries",
+    "canonical_tier",
+    "tier_grouping_census",
 ]
 
 log = logging.getLogger("spa.telegram_protocols_reporter")
@@ -51,6 +54,78 @@ _TIER_LABEL: dict[str, str] = {
     "T3-SPEC": "T3-SPEC (Speculative / Advisory Only)",
     "T3": "T3 Protocols",
 }
+
+
+def _build_tier_forms(order: "list[str]") -> dict[str, str]:
+    """Формы ярлыка тира, встречающиеся в артефакте → канонический тир.
+
+    **Таблица ПРОИЗВОДИТСЯ из `_TIER_ORDER`, а не объявляется рядом.** Второй
+    литеральный перечень тиров был бы вторым объявлением одного контракта — тем
+    самым классом, который ADR-710 вылечил у формы раздела `adapters`, а ADR-712
+    — у набора команд бота: две копии расходятся молча, и расходятся в сторону
+    слепоты. Поэтому здесь нет ни одного имени тира: всё, что знает эта функция
+    — «канонический ярлык сам себе форма» и «`T<цифра>` встречается ещё и голой
+    цифрой».
+
+    Голая цифра — не догадка, а ЗАМЕР живого артефакта 2026-10-13: из 34 записей
+    `data/adapter_status.json` поле `tier` несло целое `1` у 6, `2` у 23, `3` у 4
+    и строку `"T1"` ровно у ОДНОЙ (теневой легаси-блок `sky_susds`). То есть 33
+    записи из 34 падали мимо канонического набора, и владелец читал заголовки
+    `*1*`, `*2*`, `*3*` — без названия тира и вне канонического порядка; тир T1
+    при этом печатался ДВАЖДЫ (один раз каноническим ярлыком, второй — цифрой).
+
+    Столкновение форм (две разные канонические строки притязают на одну форму)
+    — ОТКАЗ, а не последняя победившая запись: молчаливый победитель решал бы,
+    под каким заголовком владелец читает протокол, порядком строк в литерале.
+    """
+    forms: dict[str, str] = {}
+
+    def _claim(form: str, tier: str) -> None:
+        key = form.strip().upper()
+        previous = forms.get(key)
+        if previous is not None and previous != tier:
+            raise ValueError(
+                f"форма тира {key!r} притязает на два канонических тира: "
+                f"{previous!r} и {tier!r} — выбор победителя порядком литерала "
+                f"решал бы заголовок владельцу молча"
+            )
+        forms[key] = tier
+
+    for tier in order:
+        _claim(tier, tier)
+        bare = re.fullmatch(r"T(\d+)", tier.strip().upper())
+        if bare:
+            _claim(bare.group(1), tier)
+    return forms
+
+
+_TIER_FORMS: dict[str, str] = _build_tier_forms(_TIER_ORDER)
+
+# Отсутствие поля `tier` — САМОСТОЯТЕЛЬНЫЙ исход, а не значение по умолчанию.
+_TIER_ABSENT = object()
+
+
+def canonical_tier(raw: object) -> Optional[str]:
+    """Канонический тир записи, либо ``None`` — ОДНО правило в одном месте.
+
+    До сегодня правила не было вовсе: группировка брала `str(запись["tier"])`
+    как есть, а отсутствие поля подставляла строкой `"T2"` — то есть запись без
+    объявленного тира читалась владельцу как протокол второго тира (инв. #17:
+    отсутствие наблюдения обязано быть представлено отдельным значением, а не
+    тихой подстановкой).
+
+    Чего функция НАМЕРЕННО не делает: не принимает форм, которых никто не
+    измерял. Дробное `2.0`, список, `None`, `True` — всё это даёт ``None``, то
+    есть уходит в громкий раздел «вне канона», а не угадывается в пользу тира.
+    Принять форму можно только после замера, который её нашёл.
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return _TIER_FORMS.get(str(raw))
+    if isinstance(raw, str):
+        return _TIER_FORMS.get(raw.strip().upper())
+    return None
 
 # Top-level keys in adapter_status.json that are NOT adapter entries
 _SKIP_KEYS = frozenset(
@@ -404,15 +479,58 @@ def _format_adapter_line(adapter: dict) -> str:
     return f"• *{name}* — " + " | ".join(parts)
 
 
-def _group_by_tier(adapters: list[dict]) -> dict[str, list[dict]]:
-    """Group adapter dicts by tier string."""
-    groups: dict[str, list[dict]] = {}
+def tier_grouping_census(data: dict) -> dict:
+    """Перепись: под каким заголовком тира владелец прочитает каждую запись.
+
+    ОДНА копия группировки: её зовёт и сам отчёт
+    (:func:`format_protocols_message`), и проба приёмки
+    ``owner_protocols_report_groups_by_canonical_tier``. Прежняя группировка
+    жила внутри форматирования, и спросить её «сколько записей осталось вне
+    канона» было нельзя ниоткуда — ноль такого вопроса не был измерен ни разу.
+
+    Возврат (числа, не проза — вердикт подстрокой не считается, ADR-333):
+
+    ``records``
+        сколько записей артефакта вообще дошло до группировки.
+    ``sections``
+        список ``(тир, [записи])`` в КАНОНИЧЕСКОМ порядке ``_TIER_ORDER`` —
+        порядок приходит из канона, а не из порядка обхода словаря.
+    ``undeclared``
+        список ``(форма, запись)`` для записей, чей ярлык канон не читает.
+    ``undeclared_count`` / ``forms_outside_canon``
+        число и перечень таких форм — «ноль» обязан быть ИЗМЕРЕННЫМ нулём.
+    """
+    adapters = _get_all_adapters(data)
+
+    sections: dict[str, list[dict]] = {tier: [] for tier in _TIER_ORDER}
+    undeclared: list[tuple[str, dict]] = []
+    records = 0
+
     for adapter in adapters:
         if not isinstance(adapter, dict):
             continue
-        tier = str(adapter.get("tier", "T2"))
-        groups.setdefault(tier, []).append(adapter)
-    return groups
+        records += 1
+        raw = adapter.get("tier", _TIER_ABSENT)
+        tier = None if raw is _TIER_ABSENT else canonical_tier(raw)
+        if tier is None:
+            undeclared.append((_tier_form_name(raw), adapter))
+        else:
+            sections[tier].append(adapter)
+
+    return {
+        "records": records,
+        "sections": [(t, recs) for t, recs in sections.items() if recs],
+        "undeclared": undeclared,
+        "undeclared_count": len(undeclared),
+        "forms_outside_canon": sorted({form for form, _ in undeclared}),
+    }
+
+
+def _tier_form_name(raw: object) -> str:
+    """Имя формы для владельца: отсутствие поля НЕ выдаётся за пустую строку."""
+    if raw is _TIER_ABSENT:
+        return "поля `tier` нет"
+    return repr(raw)
 
 
 def _dedup_identity(raw: object) -> str:
@@ -508,34 +626,37 @@ def format_protocols_message(data: dict) -> str:
         data = {}
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    adapters = _get_all_adapters(data)
-    total_adapters = len(adapters)
-    grouped = _group_by_tier(adapters)
+    census = tier_grouping_census(data)
+    total_adapters = census["records"]
 
     lines: list[str] = [
         f"📊 *SPA Protocol Status* — {now_str}",
         "",
     ]
 
-    # Tiers in canonical order
-    rendered_tiers: set[str] = set()
-    for tier in _TIER_ORDER:
-        tier_adapters = grouped.get(tier)
-        if not tier_adapters:
-            continue
-        rendered_tiers.add(tier)
-        label = _TIER_LABEL.get(tier, tier)
-        lines.append(f"*{label}*")
+    # Канонические тиры — в каноническом порядке, который задаёт перепись.
+    for _tier, tier_adapters in census["sections"]:
+        lines.append(f"*{_TIER_LABEL[_tier]}*")
         for adapter in tier_adapters:
             lines.append(_format_adapter_line(adapter))
         lines.append("")
 
-    # Any leftover tiers not in the canonical list
-    for tier, tier_adapters in grouped.items():
-        if tier in rendered_tiers:
-            continue
-        lines.append(f"*{tier}*")
-        for adapter in tier_adapters:
+    # Записи вне канона — ОДНИМ названным разделом, а не ярлыком-сырьём.
+    #
+    # Прежний код печатал каждую непрочитанную форму отдельным заголовком
+    # (`*1*`, `*2*`, `*3*`), и у такой строки два дефекта сразу: заголовок не
+    # называет тир, а порядок таких разделов — порядок обхода словаря, то есть
+    # канонический порядок на них не действует вовсе. Здесь раздел ОДИН, он
+    # назван словами, несёт ЧИСЛО записей и перечень форм — то есть говорит
+    # владельцу, что именно не прочитано, вместо того чтобы молча выдать сырьё
+    # за название тира.
+    if census["undeclared"]:
+        forms = ", ".join(census["forms_outside_canon"])
+        lines.append(
+            f"*⚠️ Вне канонического набора тиров: "
+            f"{census['undeclared_count']} (формы: {forms})*"
+        )
+        for _form, adapter in census["undeclared"]:
             lines.append(_format_adapter_line(adapter))
         lines.append("")
 
@@ -572,6 +693,12 @@ def format_protocols_message(data: dict) -> str:
     if isinstance(cash, (int, float)):
         sys_parts.append(f"Cash: ${float(cash):,.0f}")
     sys_parts.append(f"Total adapters: {total_adapters}")
+    # Третий исход у ГРУППИРОВКИ печатается ВСЕГДА, включая ноль (инв. #17).
+    # Раздел, появляющийся только при находке, оставляет «никто не мерил»
+    # неотличимым от «измерено и равно нулю» — а именно так дефект и жил: 33
+    # записи из 34 печатались заголовками-сырьём, и ни один сторож, ни одна
+    # строка отчёта об этом не говорили.
+    sys_parts.append(f"Тиры вне канона: {census['undeclared_count']}")
     # Третий исход у ПОПУЛЯЦИИ: «не разобрано» обязано быть отличимо от
     # спокойного дня (инв. #17, ADR-709). Причина НЕ называется литералом:
     # прежняя строка печатала «раздел пришёл словарём», и с ADR-710 это стало

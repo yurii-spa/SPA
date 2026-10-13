@@ -5470,6 +5470,132 @@ def _probe_owner_command_surfaces_declared_once(
         f"{len(measurement['advertised'])}, из расхождения "
         f"{len(measurement['reachable_not_advertised'])} у каждой названа причина")
 
+def _probe_owner_protocols_report_groups_by_canonical_tier(
+    arg: str | None,
+    *,
+    data_dir: str | None = None,
+    now: "datetime | None" = None,
+) -> tuple[str, str]:
+    """Критерий: КАЖДАЯ запись отчёта `/protocols` стоит под КАНОНИЧЕСКИМ тиром.
+
+    Предмет — карточка `inbox-yarlyki-tirov-v-otchete-protocols-nazyva` и заказ
+    **G712 п. 3** приказа `inbox-task-portfolio-cio-dynamic-capital-alloc`.
+    Замер 2026-10-13 (цикл #855): поле `tier` живого артефакта несёт ЦЕЛОЕ `1`
+    у 6 записей, `2` у 23, `3` у 4 и строку `"T1"` ровно у одной — то есть 33
+    записи из 34 печатались владельцу заголовками `*1*`, `*2*`, `*3*`: без
+    названия тира и ВНЕ канонического порядка (их порядок — порядок обхода
+    словаря). Тир T1 при этом печатался ДВУМЯ разделами сразу.
+
+    **Меряется ИСХОД у двери владельца, а не структура.** Проба зовёт
+    настоящий `format_protocols_message` и разбирает ЕГО ВЫДАЧУ: заголовки
+    (строка целиком в звёздочках) и строки записей (ведущая «•»). Вердикт
+    считается ЧИСЛАМИ — сколько записей стои́т под неканоническим заголовком и
+    совпадает ли порядок заголовков с `_TIER_ORDER`; ни одна ветка не ищет в
+    сообщении текст (ADR-333).
+
+    **Канон читается у производителя одной копией** (`_TIER_LABEL`/`_TIER_ORDER`
+    модуля отчёта). Второй перечень тиров здесь был бы вторым объявлением того
+    же контракта — он разошёлся бы с первым молча.
+
+    **Население — одной копией, у соседней пробы.** Группировку записей,
+    которые до владельца вообще не доехали, судить нечем: если
+    `owner_protocols_report_carries_every_record` не `satisfied`, эта проба
+    отвечает `unmeasured` её причиной, а не зелёным нулём по дошедшему остатку.
+
+    **Чего проба НЕ меряет** (сказано вслух, чтобы зелёный не читался шире):
+    верность РАЗМЕЩЕНИЯ записи (тот ли тир у протокола по сути) — это вопрос о
+    самом ярлыке в артефакте и о канонe тиров (ADR, владелец), а не о
+    группировке; и верность НАЗВАНИЙ тиров — переименуй `_TIER_LABEL`, и проба
+    останется зелёной, потому что её вопрос про группировку и порядок. Правило
+    чтения формы проверяет батарея `test_protocols_report_tier_grouping.py`.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17): артефакта нет / он не разобран / он протух
+    (порог `ADAPTER_STATUS_MAX_AGE_H`, одна константа с соседями) ⇒ `unmeasured`.
+    Записей ноль ⇒ тоже `unmeasured`: ноль вне канона обязан быть ИЗМЕРЕННЫМ, а
+    не полученным из пустого артефакта. Время и каталог — входы.
+    """
+    doc, age_h, rel = _live_adapter_status_for_the_door(now, data_dir)
+    if doc is None:
+        return UNMEASURED, rel
+
+    population, population_detail = (
+        _probe_owner_protocols_report_carries_every_record(
+            arg, data_dir=data_dir, now=now
+        )
+    )
+    if population != SATISFIED:
+        return UNMEASURED, (
+            f"население отчёта не подтверждено ({population}): {population_detail}"
+            f" — группировку записей, которые до владельца не доехали, судить нечем"
+        )
+
+    try:
+        from spa_core import telegram_protocols_reporter as reporter
+    except ImportError as exc:  # pragma: no cover - модуль в дереве есть
+        return UNMEASURED, f"читатель отчёта не ввезён: {type(exc).__name__}: {exc}"
+    try:
+        message = str(reporter.format_protocols_message(doc))
+    except Exception as exc:  # noqa: BLE001 - вердикт обязан быть третьим исходом
+        return UNMEASURED, (
+            f"{reporter.__name__}.format_protocols_message упал: "
+            f"{type(exc).__name__}: {exc} — группировка не измерена"
+        )
+
+    tier_of_label = {
+        label: tier for tier, label in reporter._TIER_LABEL.items()
+    }
+    canonical_seen: list[str] = []
+    outside: list[tuple[str, int]] = []
+    current: str | None = None
+    counted = 0
+    for line in message.splitlines():
+        stripped = line.strip()
+        if len(stripped) > 2 and stripped.startswith("*") and stripped.endswith("*"):
+            heading = stripped[1:-1]
+            if heading == "System":
+                current = None
+                continue
+            tier = tier_of_label.get(heading)
+            if tier is None:
+                outside.append((heading, 0))
+                current = None
+            else:
+                canonical_seen.append(tier)
+                current = tier
+            continue
+        if not stripped.startswith("•"):
+            continue
+        counted += 1
+        if current is None and outside:
+            heading, count = outside[-1]
+            outside[-1] = (heading, count + 1)
+
+    outside_records = sum(count for _heading, count in outside)
+    order_expected = [t for t in reporter._TIER_ORDER if t in set(canonical_seen)]
+    detail = (
+        f"{rel} (возраст {age_h:.1f}ч): записей в отчёте {counted}; "
+        f"канонических разделов {len(canonical_seen)} "
+        f"({', '.join(canonical_seen) or 'нет'}); вне канона записей "
+        f"{outside_records} в {len(outside)} раздел(ах)"
+    )
+    if counted == 0:
+        return UNMEASURED, (
+            f"{detail} — записей нет вовсе, ноль вне канона НЕ ИЗМЕРЕН"
+        )
+    if outside_records or outside:
+        forms = ", ".join(f"{h!r}:{c}" for h, c in outside)
+        return NOT_SATISFIED, (
+            f"{detail} — заголовки вне канона: {forms}; владелец читает ярлык-сырьё "
+            f"вместо названия тира, и канонический порядок на эти разделы не действует"
+        )
+    if canonical_seen != order_expected:
+        return NOT_SATISFIED, (
+            f"{detail} — порядок разделов {canonical_seen} не равен каноническому "
+            f"{order_expected}"
+        )
+    return SATISFIED, detail
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -5489,6 +5615,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_protocols_report_reaches_the_owner,
     "owner_command_surfaces_declared_once":
         _probe_owner_command_surfaces_declared_once,
+    "owner_protocols_report_groups_by_canonical_tier":
+        _probe_owner_protocols_report_groups_by_canonical_tier,
     "apy_provenance_declared_in_the_door":
         _probe_apy_provenance_declared_in_the_door,
     "adapter_status_number_has_a_writer":
