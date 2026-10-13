@@ -5,18 +5,18 @@
     "замер": "landing/src/data/track_snapshot.json",
     "решение": "landing/src/lib/constitution.json"
   },
-  "measured_at": "2026-10-07",
-  "published_at": "2026-10-07",
+  "measured_at": "2026-10-13",
+  "published_at": "2026-10-14",
   "cadence": "weekly",
-  "next_publication": "2026-10-14",
+  "next_publication": "2026-10-21",
   "_provenance": {
     "schema_version": "site_numbers/2",
-    "generated_at": "2026-10-07T11:20:00Z",
-    "measurement_as_of": "2026-10-07",
-    "source_commit": "b53416d34d7cb7feff52f5b116b1f06040d6eb9e",
-    "source_commit_reason": null,
+    "generated_at": "2026-10-13T06:01:15Z",
+    "measurement_as_of": "2026-10-13",
+    "source_commit": null,
+    "source_commit_reason": "not passed by the builder — bind by source_hashes",
     "source_hashes": {
-      "landing/src/data/track_snapshot.json": "1110c5f770f4a2af0c76464f0075d828662979481951116456dff5a382ecd67b",
+      "landing/src/data/track_snapshot.json": "393dd8e80b16beb72fa765afcb31627394c00d6134f7485ae9777a832649dd65",
       "landing/src/lib/constitution.json": "ab4e2fe6b9719a91773a7a662eaae7e21ed509be17b7dea29456c688e5079ecd"
     },
     "cadence_rule": "spa_core/publication/cadence.py (weekly from the PUBLISHED shelf)",
@@ -45,7 +45,7 @@
       "experiment_id": "conservative-lending-v1@2026-06-22",
       "track_start": "2026-06-22",
       "evidenced_anchor": "2026-06-22",
-      "valid_periods": 106,
+      "valid_periods": 112,
       "reportable_after": 30,
       "maturity": "REPORTABLE",
       "result_metric_type": "REALIZED_PAPER_RETURN",
@@ -70,7 +70,7 @@
       "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
       "track_start": "2026-10-02",
       "evidenced_anchor": null,
-      "valid_periods": 6,
+      "valid_periods": 12,
       "reportable_after": 30,
       "maturity": "ACCUMULATING",
       "result_metric_type": null,
@@ -95,7 +95,7 @@
       "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
       "track_start": "2026-10-02",
       "evidenced_anchor": null,
-      "valid_periods": 6,
+      "valid_periods": 12,
       "reportable_after": 30,
       "maturity": "ACCUMULATING",
       "result_metric_type": null,
@@ -106,13 +106,13 @@
   "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
   "headline": {
     "apy": {
-      "value": 4.8943,
+      "value": 4.9072,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → paper_apy_pct",
       "annualised": true,
       "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
-      "window_days": 106.0,
+      "window_days": 112.0,
       "reportable": true,
       "reportable_after": 30.0,
       "metric_type": "REALIZED_PAPER_RETURN",
@@ -126,13 +126,13 @@
       "basis": "PAPER"
     },
     "nav": {
-      "value": 101550.12,
+      "value": 101633.73,
       "unit": "USD",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
     },
     "evidenced_days": {
-      "value": 106.0,
+      "value": 112.0,
       "unit": "дней",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
@@ -152,14 +152,14 @@
       "source": "track_snapshot.json → days_needed (порог 30 дней, ADR-002; в снимок приходит из гейта)"
     },
     "end_equity": {
-      "value": 101550.12,
+      "value": 101633.73,
       "unit": "USD",
       "kind": "замер",
       "source": "track_snapshot.json → end_equity"
     },
     "go_live_target": null,
     "degraded": false,
-    "snapshot_generated_at": "2026-10-07T11:20:00Z"
+    "snapshot_generated_at": "2026-10-13T06:01:15Z"
   },
   "packages": {
     "conservative": {
@@ -234,7 +234,7 @@
     "conservative": {
       "label": "Conservative",
       "status": "paper_test_running",
-      "days": 106.0,
+      "days": 112.0,
       "evidence_split": {
         "observed_days": null,
         "literal_days": null,
@@ -244,13 +244,13 @@
       "positions": null,
       "pre_fix_period": null,
       "apy": {
-        "value": 4.89,
+        "value": 4.91,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
-        "window_days": 106.0,
+        "window_days": 112.0,
         "reportable": true,
         "reportable_after": 30.0,
         "metric_type": "REALIZED_PAPER_RETURN",
@@ -264,7 +264,7 @@
         "basis": "PAPER"
       },
       "nav": {
-        "value": 101550.12,
+        "value": 101633.73,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -273,9 +273,9 @@
     "balanced": {
       "label": "Balanced",
       "status": "paper_test_running",
-      "days": 6.0,
+      "days": 12.0,
       "evidence_split": {
-        "observed_days": 6,
+        "observed_days": 12,
         "literal_days": 0,
         "caveat": null,
         "observed_since": "2026-10-02"
@@ -294,7 +294,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
-        "window_days": 6.0,
+        "window_days": 12.0,
         "reportable": false,
         "reportable_after": 30.0,
         "metric_type": "OBSERVED_RETURN",
@@ -319,9 +319,9 @@
     "aggressive": {
       "label": "Aggressive",
       "status": "paper_test_running",
-      "days": 6.0,
+      "days": 12.0,
       "evidence_split": {
-        "observed_days": 6,
+        "observed_days": 12,
         "literal_days": 0,
         "caveat": null,
         "observed_since": "2026-10-02"
@@ -340,7 +340,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "сложный процент от якоря доказанного трека: (NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1",
-        "window_days": 6.0,
+        "window_days": 12.0,
         "reportable": false,
         "reportable_after": 30.0,
         "metric_type": "OBSERVED_RETURN",
@@ -348,7 +348,7 @@
         "unavailable_reason": "книга ещё не дала годовой ставки — печатать «идёт paper-тест», не число"
       },
       "drawdown": {
-        "value": -0.01,
+        "value": -0.03,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
