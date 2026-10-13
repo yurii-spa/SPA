@@ -217,13 +217,108 @@ def _memory_verdict(f, drift) -> dict:
         "origin_memory_missing_tree": f.memory_missing_tree,
         "origin_memory_missing_origin": f.memory_missing_origin,
     }
-    if f.memory in drift.MEMORY_FINDINGS:
-        out["origin_memory_note"] = (
-            f"🧠 ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ (`{f.memory}`): {f.memory_detail}"
-        )
-    elif f.memory == drift.MEMORY_UNMEASURED:
-        out["origin_memory_note"] = f"❓ память копий НЕ ИЗМЕРЕНА: {f.memory_detail}"
+    note = _memory_note(f.memory, f.memory_detail, drift)
+    if note:
+        out["origin_memory_note"] = note
     return out
+
+
+def _memory_note(verdict: str, detail: str, drift) -> str:
+    """Строка оси памяти для ЧЕЛОВЕКА → одна копия членства «это потеря».
+
+    Её зовут из двух мест (находка прибора и блок «сверка НЕ СОСТОЯЛАСЬ»), и писать
+    условие дважды здесь нельзя по той же причине, по которой членство взято у прибора:
+    две копии одного правила в этом репозитории уже трижды разъезжались молча
+    (#143–#145, ADR-220).
+    """
+    if verdict in drift.MEMORY_FINDINGS:
+        return f"🧠 ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ (`{verdict}`): {detail}"
+    if verdict == drift.MEMORY_UNMEASURED:
+        return f"❓ память копий НЕ ИЗМЕРЕНА: {detail}"
+    return ""
+
+
+#: Ось ПАМЯТИ, когда сверка с origin НЕ СОСТОЯЛАСЬ ВОВСЕ (ADR-717, заказ G716 п. 3).
+#:
+#: Находка цикла #861 — на СВОЕЙ же правке #860. Ось памяти доехала до читателя, но
+#: только ПО ЗАПРОСУ прибора: все три ветки отказа `_origin_read_through` (прибор не
+#: ввезён · `analyze` отказал · корень репозитория не найден) возвращают вердикты, в
+#: которых полей памяти НЕТ ВОВСЕ. А «полей нет» в контракте #860 означает ровно одно —
+#: «ось НЕ СПРАШИВАЛИ» (так у `hidden`/`undelivered`, где второй копии не существует).
+#: Значит два РАЗНЫХ состояния печатаются одинаково: «не спрашивали» и «спросили, и
+#: узнать не удалось».
+#:
+#: ЗАМЕР 13.10 (одноразовый репозиторий, дерево беднее на одну запись цикла, ref
+#: неразрешим): stderr читателя — три строки про СОСТАВ списка и НОЛЬ про память,
+#: в JSON `origin_check=unmeasured` и ни одного ключа `origin_memory*`. Сессия, пришедшая
+#: дописать свою запись в прод-копию приказа, узнала бы ровно то же, что узнаёт у
+#: карточки-задания без второй копии, — то есть ничего, и дописала бы вслепую.
+#:
+#: Это инвариант #17 в чистом виде: «не измерено» обязано быть ОТДЕЛЬНЫМ значением СО
+#: СВОЕЙ причиной, а не наследоваться молчанием от соседней оси. Причина соседа («ref не
+#: разрешается») отвечает на вопрос о СОСТАВЕ списка; на вопрос «сколько записей цикла не
+#: хватает этой копии» она не отвечает ничего.
+def _memory_unmeasured(cards: list, reason: str, drift, ref: str) -> dict[str, dict]:
+    """Вердикты ВСЕХ карточек: ось памяти — третий исход со СВОЕЙ причиной.
+
+    `origin_check` остаётся `unmeasured` ровно как раньше (ветки отказа и прежде
+    отвечали так — две из трёх через умолчание `_card_dict`): правка добавляет ось, а не
+    меняет вердикт состава.
+
+    ЦЕНА В СТРОКАХ. Поля идут в JSON у каждой карточки (машинный контракт: `origin_check`
+    тоже у каждой), а `origin_memory_note` — НЕТ: он приписывается к КАЖДОЙ строке списка
+    глазами, и на живом трекере это 244 строки шума вместо одной. Человеку та же находка
+    говорится ОДИН раз отдельной строкой stderr (урок #243 — сторожа, кричащего на каждой
+    находке, выключают).
+    """
+    detail = (f"ось памяти НЕ СПРОШЕНА У ПРИБОРА, хотя спрашивать было у кого: сверка с "
+              f"{ref} не состоялась ({reason}). Сколько ЗАПИСЕЙ ЦИКЛА не хватает этой "
+              f"копии — НЕ ИЗМЕРЕНО; дописывать запись в копию вслепую значит закрепить "
+              f"возможную потерю (ADR-714/716). Это не «записи совпали» и не «ось не "
+              f"спрашивают»")
+    return _memory_unmeasured_rows(cards, drift.MEMORY_UNMEASURED, detail)
+
+
+def _memory_unmeasured_rows(cards: list, verdict: str, detail: str) -> dict[str, dict]:
+    """Единственное место, где третий исход оси памяти уезжает в ОБА выхода читателя.
+
+    Выходов у шага 1 два — машинный (`--json`) и человеческий (stderr), — и они «не
+    имеют права расходиться» (ADR-716). Печатать строку на стороне вызывающего значило бы
+    два места, которые разъедутся: одно поправят, второе забудут. Поэтому поля и строка
+    собираются здесь, из ОДНОЙ причины.
+
+    Строка ОДНА на весь список, а не на карточку: `origin_memory_note` (который
+    приписывается к каждой строке списка глазами) здесь намеренно НЕ ставится — на живом
+    трекере это 244 строки шума вместо одной (урок #243).
+    """
+    print(f"❓ ось ПАМЯТИ копий (ЗАПИСИ ЦИКЛА) НЕ ИЗМЕРЕНА, и причина у неё СВОЯ: {detail}",
+          file=sys.stderr)
+    return {c.id: {"origin_check": VERDICT_UNMEASURED,
+                   "origin_memory": verdict,
+                   "origin_memory_detail": detail} for c in cards}
+
+
+def _memory_unmeasured_without_instrument(cards: list, reason: str) -> dict[str, dict]:
+    """То же, но ПРИБОРА НЕТ ВОВСЕ — и это другой отказ, потому что чинится другим.
+
+    Ветка «``check_tracker_drift`` не ввезён» — единственная, где у читателя нет и
+    ВОКАБУЛЯРА оси: имена вердиктов (`MEMORY_UNMEASURED`, `MEMORY_FINDINGS`) живут в
+    приборе, и взять их негде по той самой причине, о которой идёт речь. Переписать
+    `"records_unmeasured"` сюда литералом значило бы завести вторую копию контракта —
+    ровно то, от чего трижды молча разъезжались #143–#145.
+
+    Поэтому значение берётся из СВОЕГО вокабуляра читателя (`VERDICT_UNMEASURED` — то же
+    слово, которым он отвечает про состав списка), а причина это НАЗЫВАЕТ вслух. Ни одно
+    из двух написаний не попадает ни в `MEMORY_FINDINGS`, ни в `records_equal`, поэтому
+    потребитель не прочтёт ни «потеря», ни «совпало»; а отличить «прибора нет» от
+    «прибор отказал» он может по самой причине, где это сказано дословно.
+    """
+    detail = (f"мера ЗАПИСИ ЦИКЛА живёт в приборе расхождения, а он не ввезён ({reason}) — "
+              f"спросить «сколько записей цикла не хватает этой копии» НЕ У КОГО. Значение "
+              f"здесь — слово самого читателя (`{VERDICT_UNMEASURED}`), а не имя вердикта "
+              f"прибора: вокабуляр оси живёт в нём же, которого нет. Это не «записи "
+              f"совпали» и не «ось не спрашивают»")
+    return _memory_unmeasured_rows(cards, VERDICT_UNMEASURED, detail)
 
 
 def _origin_read_through(cards: list, tracker_dir=None,
@@ -281,14 +376,17 @@ def _origin_read_through(cards: list, tracker_dir=None,
         import check_tracker_drift as drift
     except Exception as exc:  # noqa: BLE001 — сторож не должен ломать саму очередь
         print(f"❓ сверка с origin НЕ ИЗМЕРЕНА: сторож не импортировался ({exc})", file=sys.stderr)
-        return cards, verdicts, [], False
+        # Ось памяти здесь не просто не измерена — её НЕЧЕМ мерить: и мера записи цикла,
+        # и вокабуляр вердиктов живут в приборе, которого нет (ADR-717).
+        return cards, _memory_unmeasured_without_instrument(cards, str(exc)), [], False
     try:
         report = drift.analyze(tracker_dir, ref or drift.DEFAULT_REF)
     except drift.Unmeasured as exc:
         print(f"❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — {exc}\n"
               f"    список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.",
               file=sys.stderr)
-        return cards, verdicts, [], False
+        return cards, _memory_unmeasured(cards, str(exc), drift,
+                                         ref or drift.DEFAULT_REF), [], False
     # Сверка состоялась ⇒ у всех карточек вердикт по умолчанию «совпало»; ниже он
     # уточняется поимённо для тех, у кого есть находка.
     verdicts = {c.id: {"origin_check": VERDICT_AGREES} for c in cards}
@@ -302,7 +400,9 @@ def _origin_read_through(cards: list, tracker_dir=None,
         # Сторож не имеет права уронить саму очередь: сверка — довесок к списку, а не его условие.
         print(f"❓ расхождение найдено, но версию с origin взять неоткуда ({exc})", file=sys.stderr)
         # Расхождение ЕСТЬ, а разобрать его нечем ⇒ «совпало» здесь было бы враньём.
-        return cards, {c.id: {"origin_check": VERDICT_UNMEASURED} for c in cards}, [], False
+        # То же и у оси памяти, и причина у неё СВОЯ (ADR-717): прибор её ИЗМЕРИЛ, но
+        # разложить находки поимённо нечем, поэтому до читателя не доходит ни одна.
+        return cards, _memory_unmeasured(cards, str(exc), drift, report.ref), [], False
     by_id = {c.id: c for c in cards}
     for f in report.of_kind(drift.KIND_STALE):
         local = by_id.get(f.card_id)
@@ -637,6 +737,23 @@ def cmd_list(args) -> int:
         # «запрет в лоб покрасил бы половину набора, научив всех его отключать».
         print("❓ сверка с origin ОТКЛЮЧЕНА флагом --no-origin-check: список не подтверждён",
               file=sys.stderr)
+        # ВТОРАЯ ДВЕРЬ того же класса (ADR-717). Ось памяти молчала и здесь, причём
+        # неотличимо от карточки, у которой второй копии не существует. Разница
+        # существенна: там ось НЕ СПРАШИВАЮТ (сравнивать нечего), а здесь её НЕ СПРОСИЛИ
+        # — выключив сверку, вызывающий выключил и ответ на вопрос «не амнезирована ли
+        # копия, в которую я собираюсь дописать запись цикла».
+        #
+        # Код возврата остаётся 0 — решение ADR-166 выше (красный код на заказанное
+        # вызывающим состояние учит гасить сигнал) правка не трогает: она добавляет ось,
+        # а не вердикт состава.
+        try:
+            import check_tracker_drift as _drift_for_memory
+        except Exception as exc:  # noqa: BLE001 — прибора нет ⇒ и вокабуляра оси нет
+            verdicts = _memory_unmeasured_without_instrument(cards, str(exc))
+        else:
+            verdicts = _memory_unmeasured(
+                cards, "сверка выключена флагом --no-origin-check", _drift_for_memory,
+                getattr(args, "ref", None) or _drift_for_memory.DEFAULT_REF)
 
     cross_verdict, foreign, cross_reason = _cross_tree_owner_answers(
         _tracker_dir_of(args), now=getattr(args, "now", None))

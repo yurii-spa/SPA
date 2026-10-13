@@ -6019,6 +6019,175 @@ def _probe_queue_reader_names_record_memory_loss(
         f"(`{other.get('origin_memory')}`)")
 
 
+def _probe_queue_reader_names_unmeasured_memory(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ЧИТАТЕЛЬ ОЧЕРЕДИ называет НЕ ИЗМЕРЕННУЮ память СВОЕЙ причиной.
+
+    Предмет — находка цикла #861 и ADR-717, остаток заказа G716 п. 3. Цикл #860
+    довёл ось памяти копий до шага 1 протокола, но ТОЛЬКО ПО ЗАПРОСУ прибора: во
+    всех ветках, где сверка с `origin` не состоялась, вердикт уезжал БЕЗ полей
+    ``origin_memory*``. А «полей нет» в контракте #860 означает ровно одно — «ось
+    НЕ СПРАШИВАЛИ» (так у `hidden`/`undelivered`, где второй копии не существует).
+    Два РАЗНЫХ состояния печатались одинаково, и самое тихое из них — «спросили, и
+    узнать не удалось» — было неотличимо от штатного.
+
+    ЗАМЕР ДО ПРАВКИ (одноразовый репозиторий, `--ref` неразрешим): stderr читателя —
+    три строки про СОСТАВ списка и НОЛЬ про память; в JSON ``origin_check=unmeasured``
+    и ни одного ключа ``origin_memory*``. Сессия, пришедшая дописать свою запись в
+    прод-копию приказа, узнала бы столько же, сколько у карточки-задания без второй
+    копии, — то есть ничего. Так уже дважды терялась память приказа (ADR-714: 56
+    записей 08.10 и 9 записей 25.09).
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ, а не наличие функции.** Проба собирает одноразовый
+    репозиторий с карточкой-ТЕТРАДЬЮ, зовёт НАСТОЯЩУЮ команду шага 1
+    (``orchestrator_queue.cmd_list`` с ``--json``) ДВАЖДЫ — с неразрешимым ref и с
+    разрешимым — и читает оба ответа. Подстрокой проба не проходит (ADR-333):
+    требуются ПОЛЕ вердикта и причина, говорящая о ЗАПИСЯХ ЦИКЛА, а не фраза.
+
+    **Контроль в обе стороны внутри самой пробы.** Читатель, который штампует «не
+    измерено» на ЧЁМ УГОДНО, бесполезен так же, как молчащий: он снова сделал бы
+    неотличимыми состоявшийся замер и отказ. Поэтому второе условие: на СОСТОЯВШЕЙСЯ
+    сверке тот же читатель обязан дать вердикт памяти ИЗ ИЗМЕРЕННЫХ (`MEMORY_FINDINGS`
+    или `records_equal`), а не третий исход.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): читателя нет / не ввезён / предпосылка
+    репозитория не обеспечена ⇒ ``unmeasured`` с причиной, а не ``not_satisfied`` и
+    уж точно не ``satisfied``.
+
+    Оговорка названа вслух (та же, что у соседней пробы #860): ``orchestrator_queue``
+    ввозится из ``repo_root``, а пакет ``spa_core`` остаётся того дерева, в котором
+    идёт сама проба. Измеряемое свойство живёт в самом читателе, поэтому дискриминация
+    на двух деревьях от этого не страдает.
+    """
+    import contextlib as _ctx
+    import hashlib as _hl
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = repo_root or REPO_ROOT
+    reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
+    if not os.path.exists(reader_path):
+        return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
+    for _p in (root, os.path.join(root, "scripts")):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    mod_name = "_probe_queue_unmeas_" + _hl.sha256(root.encode()).hexdigest()[:12]
+    try:
+        spec = _ilu.spec_from_file_location(mod_name, reader_path)
+        reader = _ilu.module_from_spec(spec)
+        sys.modules[mod_name] = reader
+        try:
+            spec.loader.exec_module(reader)
+        except BaseException:
+            sys.modules.pop(mod_name, None)
+            raise
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"читатель очереди не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    try:
+        import check_tracker_drift as _drift        # вокабуляр оси — у прибора, одной копией
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"прибор расхождения не ввезён ({exc}) — НЕ ИЗМЕРЕНО"
+
+    # Имя ветки сцены — ВХОД, а не умолчание хоста (`init.defaultBranch` на
+    # `ubuntu-latest` даёт `master`): фикстура, назвавшая потом `main`, была бы зелена
+    # на Маке и красна в CI (`.claude/rules/deployment.md`).
+    ref = "scene-main"
+    missing_ref = "refs/heads/no-such-ref-for-this-probe"
+
+    def _git(cwd, *args):
+        return _sp.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                       timeout=60)
+
+    def _notebook(records, body="тело приказа"):
+        head = ("---\ntype: inbox\nstatus: in-progress\n"
+                "title: \"TASK — стоячий приказ владельца\"\n---\n\n"
+                f"{body}\n")
+        return head + "".join(
+            f"\n## Цикл #{n} (замер цикла {n})\n\nчто сделано в цикле {n}\n" for n in records)
+
+    def _ask(tracker, which_ref):
+        argv = ["list", "--tracker-dir", tracker, "--ref", which_ref, "--json"]
+        out, err = _io.StringIO(), _io.StringIO()
+        with _ctx.redirect_stdout(out), _ctx.redirect_stderr(err):
+            reader.cmd_list(reader.build_parser().parse_args(argv))
+        return {c["id"]: c for c in _json.loads(out.getvalue())}, err.getvalue()
+
+    try:
+        with _tf.TemporaryDirectory() as tmp:
+            rroot = os.path.join(tmp, "repo")
+            tracker = os.path.join(rroot, _drift.TRACKER_REL)
+            os.makedirs(tracker)
+            r = _git(tmp, "init", "-q", "-b", ref, rroot)
+            if r.returncode != 0:
+                raise RuntimeError(f"git init: {r.stderr.strip()}")
+            for a in (["config", "user.email", "probe@example.com"],
+                      ["config", "user.name", "probe"]):
+                r = _git(rroot, *a)
+                if r.returncode != 0:
+                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+            card = os.path.join(tracker, "inbox-order.md")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write(_notebook([716, 717, 718]))
+            for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
+                r = _git(rroot, *a)
+                if r.returncode != 0:
+                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write(_notebook([716]))          # дереву не хватает #717 и #718
+            refused, refused_err = _ask(tracker, missing_ref)
+            measured, _measured_err = _ask(tracker, ref)
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"предпосылка пробы НЕ ОБЕСПЕЧЕНА ({type(exc).__name__}: {exc}) — "
+                            f"вердикт читателя очереди НЕ ИЗМЕРЕН")
+
+    card = refused.get("inbox-order")
+    if card is None:
+        return UNMEASURED, ("читатель не вернул карточку-тетрадь вовсе — предпосылка пробы "
+                            "НЕ ОБЕСПЕЧЕНА, об оси памяти судить нечем")
+    if "origin_memory" not in card:
+        return NOT_SATISFIED, (
+            "при ОТКАЗЕ сверки у читателя очереди НЕТ оси памяти: в вердикте только "
+            f"`origin_check={card.get('origin_check')}` — «спросили и не узнали» "
+            "неотличимо от «не спрашивали», то есть от карточки без второй копии")
+    measured_verdicts = set(getattr(_drift, "MEMORY_FINDINGS", frozenset())) | {
+        getattr(_drift, "MEMORY_EQUAL", "records_equal"),
+        getattr(_drift, "MEMORY_NOT_A_NOTEBOOK", "not_a_notebook")}
+    if card["origin_memory"] in measured_verdicts:
+        return NOT_SATISFIED, (
+            f"при отказе сверки читатель выдаёт ИЗМЕРЕННЫЙ вердикт "
+            f"`{card['origin_memory']}` — самое успокоительное из значений выдумано, "
+            f"а мерить было нечем")
+    why = str(card.get("origin_memory_detail") or "")
+    if "ЗАПИСЕЙ ЦИКЛА" not in why and "ЗАПИСИ ЦИКЛА" not in why:
+        return NOT_SATISFIED, (
+            f"у оси памяти нет СВОЕЙ причины — она пересказывает соседа и о записях "
+            f"цикла не говорит: {why[:200] or '(причины нет вовсе)'}")
+    if "НЕ ИЗМЕРЕНО" not in why:
+        return NOT_SATISFIED, (
+            f"причина не называет третий исход словами: {why[:200]}")
+    if "ось ПАМЯТИ" not in refused_err:
+        return NOT_SATISFIED, (
+            "вердикт есть в JSON, но человек у терминала его не видит: в stderr нет ни "
+            "строки про ось памяти — два выхода одного читателя разошлись")
+
+    other = measured.get("inbox-order") or {}
+    if other.get("origin_memory") not in measured_verdicts:
+        return NOT_SATISFIED, (
+            f"на СОСТОЯВШЕЙСЯ сверке читатель тоже отвечает «не измерено» "
+            f"(`{other.get('origin_memory')}`) — сторож, штампующий третий исход на всё, "
+            f"снова делает отказ неотличимым от замера, только с другой стороны")
+    return SATISFIED, (
+        f"при ОТКАЗЕ сверки шаг 1 называет третий исход СВОЕЙ причиной "
+        f"(`{card['origin_memory']}`: о записях цикла, «НЕ ИЗМЕРЕНО», видно и в JSON, и "
+        f"в stderr), а на СОСТОЯВШЕЙСЯ сверке той же тетради даёт измеренный вердикт "
+        f"`{other.get('origin_memory')}` — отказ и замер различимы в обе стороны")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
@@ -6065,6 +6234,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_drift_names_direction_of_record_loss,
     "queue_reader_names_record_memory_loss":
         _probe_queue_reader_names_record_memory_loss,
+    "queue_reader_names_unmeasured_memory":
+        _probe_queue_reader_names_unmeasured_memory,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "forbidden_import_gate_single_instrument":
