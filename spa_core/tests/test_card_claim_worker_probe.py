@@ -155,10 +155,16 @@ def test_passing_unmeasured_off_as_an_answer_reddens(tree):
 
 
 def test_ignoring_the_worker_budget_freezes_the_queue(tree):
-    """Звено 7: бюджет не ограничивает ⇒ повисший работник держит приказ навсегда."""
-    _patch(tree, "        over = (None if (w_ttl is None or age_sec is None) "
-                 "else age_sec > w_ttl)",
-           "        over = (None if (w_ttl is None or age_sec is None) else False)")
+    """Звено 7: бюджет не ограничивает ⇒ повисший работник держит приказ навсегда.
+
+    ЯКОРЬ ПРАВКИ ПЕРЕНЕСЁН НАМЕРЕННО (цикл #867, ADR-723), инв. #16: границу бюджета
+    меряют теперь ДВЕ двери — захват и пересечение по объявленным файлам, — и выражение
+    вынесено в единственную `over_worker_budget`. Прежний якорь
+    (`over = (None if (w_ttl is None …) else age_sec > w_ttl)`) перестал быть
+    единственным в файле, и `_patch` ЧЕСТНО отказал «найдено 2» вместо того чтобы
+    порвать половину звена. Ни один ассерт не ослаблен: тот же разрыв теперь краснит
+    ОБЕ пробы вместо одной, то есть проверка УСИЛЕНА."""
+    _patch(tree, "    return age_sec > ttl", "    return False")
     verdict, why = _run(tree)
     assert verdict == ca.NOT_SATISFIED, (verdict, why)
     assert "очередь заморожена" in why, why

@@ -7069,9 +7069,300 @@ def _probe_journal_claim_measures_the_worker(
         f"подстрокой проба не проходит")
 
 
+def _probe_file_overlap_claim_measures_the_worker(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ТРЕТЬЯ запись захвата — пересечение по ФАЙЛАМ — мерит РАБОТНИКА (ADR-723).
+
+    Предмет — карточка `inbox-tretya-zapis-zahvata-peresechenie-po-fai` (находка цикла
+    #866). ADR-720 довёл ось РАБОТНИКА до ЗАМКА цикла, ADR-721 — до `claimed_by` во
+    frontmatter, ADR-722 — до записи ЖУРНАЛА. Захват живёт в ТРЁХ записях, и третья —
+    пересечение по объявленным файлам — судила о живости ТОЛЬКО через
+    `sibling.durable_process_gone`, то есть по pid ЗАПУСКАТЕЛЯ, и метки работника не
+    спрашивала вовсе. Цена: сессия, объявившая файлы и НЕ взявшая карточку ни одним из
+    двух захватов, читалась по мёртвой оси, и две сессии могли править одни файлы.
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ на сцене, где захвата НЕТ НИ ОДНОГО** — ни во
+    frontmatter, ни записью `card:` в журнале. Только объявление ФАЙЛОВ. Иначе проба
+    отвечала бы на вопрос ADR-721/722, а не на свой: вердикт пришёл бы от соседней
+    записи, и порванное звено пересечения выглядело бы целым. Сцена собирается ПЯТЬ раз,
+    каждый раз зовётся НАСТОЯЩИЙ `gather` шага 0b с `planned_files`, и критерий выполнен
+    только если ответы РАЗЛИЧАЮТСЯ в нужную сторону:
+
+      живой носитель метки ⇒ `claimed` и пересечение НЕ осиротевшее ·
+      измеренное отсутствие ⇒ `stale` и осиротевшее (как до правки) ·
+      неизмеримость ⇒ `unchecked` (инв. #17) ·
+      за бюджетом работника ⇒ `stale` ·
+      запись БЕЗ метки ⇒ `stale` с осью `not_declared`, то есть прежнее поведение.
+
+    **Ярлык сцены МЁРТВ по оси запускателя во всех пяти прогонах** (`ps` отвечает rc=1 на
+    любой pid), поэтому различие вердиктов не может прийти ниоткуда, кроме оси
+    РАБОТНИКА. Это и есть предмет: до правки все пять сцен давали один и тот же `stale`.
+
+    **Решение «чья метка» проверяется ОТДЕЛЬНО, а не подразумевается.** Метка обязана
+    браться из ТОЙ ЖЕ записи, где объявлены файлы: сцена кладёт живую метку на
+    РОДСТВЕННУЮ запись того же ярлыка (и НЕ кладёт на запись с файлами) — пересечение
+    обязано остаться осиротевшим. Иначе переиспользованный ярлык отдавал бы живую метку
+    мёртвой сессии (fail-OPEN внутри fail-CLOSED-сторожа), а у метки нет сужения
+    `borrow_durable` «процесс стартовал не позже записи» — времени старта у неё нет.
+
+    **Подстрокой не проходит (ADR-333):** требуется ПОЛЕ `worker_axis` со значением из
+    вокабуляра ЧИТАТЕЛЯ, собранного ОБХОДОМ (`W_*`), и проза того же вердикта не вправе
+    содержать слово оси.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: читателя/прибора нет или не ввезли ⇒ `unmeasured` с названной
+    причиной, и никогда `satisfied`.
+
+    Оговорка названа вслух: живость работника здесь ВХОД (`worker=`), а не живая ОС —
+    иначе проба меняла бы вердикт от того, кто сегодня занял номер
+    (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ ПРОЦЕССА»).
+    """
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    paths = {"guard": os.path.join(root, "scripts", "check_card_claim.py"),
+             "lock": os.path.join(root, "scripts", "orchestrator_cycle_lock.py"),
+             "writer": os.path.join(root, "scripts", "log_session_change.py")}
+    for name, pth in paths.items():
+        if not os.path.exists(pth):
+            return UNMEASURED, f"{pth} не найден — ось пересечения по файлам НЕ ИЗМЕРИТЬ"
+    mods = {}
+    try:
+        for name, pth in paths.items():
+            spec = _ilu.spec_from_file_location(f"_probe_c867_{name}", pth)
+            mod = _ilu.module_from_spec(spec)        # type: ignore[arg-type]
+            spec.loader.exec_module(mod)             # type: ignore[union-attr]
+            mods[name] = mod
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"модуль не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+    guard, lock, writer = mods["guard"], mods["lock"], mods["writer"]
+
+    #: Имя поля — у ПИСАТЕЛЯ схемы, своей копии строки у пробы нет (та же причина, что
+    #: у читателя: вторая копия переживёт переименование и молча вернёт `not_declared`).
+    field = str(getattr(writer, "RUN_ID_FIELD", "") or "").strip()
+    if not field:
+        return NOT_SATISFIED, ("писатель журнала не объявил имя поля метки работника "
+                               "(`RUN_ID_FIELD`) — пересечение по файлам мерить нечем")
+    reader_field, reader_why = guard.run_id_field(announcer=writer)
+    if reader_field != field:
+        return NOT_SATISFIED, (
+            f"читатель и писатель называют поле по-разному: {reader_field!r} против "
+            f"{field!r} ({reader_why}) — вторая копия строки переживёт переименование молча")
+
+    axes = {v for k, v in vars(guard).items()
+            if k.startswith("W_") and isinstance(v, str)}
+    if not axes:
+        return NOT_SATISFIED, (
+            "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив, "
+            "запускатель или работник» не производит никто")
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
+    if ttl <= 0.0:
+        return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
+                               "РАБОТНИКА стала бы вечным замком, а не защитой")
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    label, mark = "cycle-31337", "orchestrator-31337-PROBE"
+    mine = "/abs/tree/spa_core/overlap_scene.py"
+    _SCENE_WHY = "проба приёмки: состояние носителя метки задано входом сцены"
+
+    def _ask(axis):
+        def _probe(run_id):
+            if not str(run_id or "").strip():
+                return "not_declared", "метки нет", None
+            return axis, _SCENE_WHY, ttl
+        return _probe
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c867_") as tmp:
+            tracker = os.path.join(tmp, "tracker")
+            os.makedirs(tracker)
+            # Карточка БЕЗ захвата во frontmatter: предмет пробы — объявление ФАЙЛОВ.
+            card = os.path.join(tracker, "inbox-scene.md")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write("---\ntrackerStatus:\n  type: inbox\ntitle: сцена приёмки\n"
+                         "status: in-progress\n---\n\nтело\n")
+
+            def _verdict(axis, age_sec, *, with_mark=True, mark_on_kin=False,
+                         grace_hours=None):
+                """Один прогон сцены. `mark_on_kin` — метка на РОДСТВЕННОЙ записи."""
+                at = (now - _td(seconds=age_sec)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                # Запись объявляет ФАЙЛЫ и НЕ объявляет карточку: ни поля `card:`, ни
+                # файла карточки в списке — иначе это был бы захват, то есть предмет
+                # ADR-722, и вердикт пришёл бы от него.
+                entry = {"ts": at, "session": label, "summary": "сцена приёмки: файлы",
+                         "files": [mine], "verified": "", "session_pid": 31337,
+                         "session_pid_start": "Wed Oct 14 00:00:00 2026"}
+                if with_mark and not mark_on_kin:
+                    entry[field] = mark
+                rows = [entry]
+                if mark_on_kin:
+                    # Родственная запись ТОГО ЖЕ ярлыка с ЖИВОЙ меткой, но БЕЗ файлов.
+                    kin_row = dict(entry)
+                    kin_row["files"] = []
+                    kin_row["summary"] = "сцена приёмки: родственная запись"
+                    kin_row[field] = mark
+                    rows.append(kin_row)
+                log = os.path.join(
+                    tmp, f"log_{axis}_{int(age_sec)}_{with_mark}_{mark_on_kin}.jsonl")
+                with open(log, "w", encoding="utf-8") as fh:
+                    for row in rows:
+                        fh.write(_json.dumps(row, ensure_ascii=False) + "\n")
+                kw = ({} if grace_hours is None else {"grace_hours": grace_hours})
+                return guard.gather("inbox-scene", log=log, tracker_dir=tracker,
+                                    sibling=sibling, self_session="probe-c867", now=now,
+                                    ps=lambda _pid: (1, ""), self_anchor=(41867, ""),
+                                    shared_trees=(), worker=_ask(axis),
+                                    planned_files=(mine,), **kw)
+
+            fresh_age = 60.0
+            alive = _verdict(guard.W_ALIVE, fresh_age)
+            gone = _verdict(guard.W_GONE, fresh_age)
+            unmeas = _verdict(guard.W_UNMEASURED, fresh_age)
+            # ── ГРАНИЦА БЮДЖЕТА РАБОТНИКА ДОСТИЖИМА ТОЛЬКО С ПОДНЯТЫМ ОКНОМ ──────
+            # Пересечение по файлам рассматривается ТОЛЬКО внутри окна свежести, и по
+            # умолчанию это окно (3.00ч) КОРОЧЕ бюджета работника (4.17ч) ⇒ запись старше
+            # бюджета в отчёт не попадает вовсе, и сцена отдаёт `free`, а не `stale`.
+            # Это ИЗМЕРЕНО собственным прогоном пробы, а не предположено, и проверка
+            # границы поэтому зовётся с поднятым окном: окно — флаг (`--grace-hours`),
+            # значит при поднятом окне бюджет становится действующим, и сторож обязан
+            # ответить ровно на этот случай. Молча опустить проверку значило бы оставить
+            # повисшего работника без срока ровно там, где срок единственно и нужен.
+            over = _verdict(guard.W_ALIVE, ttl + 1.0, grace_hours=ttl / 3600.0 + 1.0)
+            plain = _verdict(guard.W_ALIVE, fresh_age, with_mark=False)
+            kin_only = _verdict(guard.W_ALIVE, fresh_age, mark_on_kin=True)
+            # Та же запись в том же поднятом окне, но ВНУТРИ бюджета ⇒ держит. Без этой
+            # половины «за бюджетом ⇒ stale» прошло бы и от того, что ось не работает
+            # вовсе в поднятом окне (контроль границы с ДВУХ сторон).
+            under = _verdict(guard.W_ALIVE, ttl - 60.0, grace_hours=ttl / 3600.0 + 1.0)
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена пересечения не собралась ({type(exc).__name__}: "
+                            f"{exc}) — НЕ ИЗМЕРЕНО")
+
+    def _row(report):
+        rows = report.get("overlaps") or []
+        return rows[0] if len(rows) == 1 else None
+
+    def _no_claims(report):
+        """Находок-ЗАХВАТОВ на сцене быть не должно: иначе предмет пробы подменён."""
+        return not (report.get("claims") or [])
+
+    rec = _row(alive)
+    if rec is None:
+        return NOT_SATISFIED, ("шаг 0b не выдал ровно одного пересечения по файлам на "
+                               "сцене «объявлены файлы, карточка не взята» — предмет "
+                               "пробы не найден")
+    for name, report in (("живой работник", alive), ("работника нет", gone),
+                         ("не измерено", unmeas), ("за бюджетом", over),
+                         ("в бюджете", under), ("без метки", plain),
+                         ("метка у родни", kin_only)):
+        if not _no_claims(report):
+            return NOT_SATISFIED, (
+                f"на сцене «{name}» появилась находка-ЗАХВАТ — вердикт пришёл бы от "
+                f"записи захвата (предмет ADR-721/722), а не от пересечения по файлам")
+    if alive["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"ЖИВОЙ работник не держит ОБЪЯВЛЕННЫЕ ИМ ФАЙЛЫ: вердикт "
+            f"`{alive['verdict']}` вместо `{guard.CLAIMED}` — две сессии правят одни "
+            f"файлы, и шаг 0b об этом не говорит")
+    if rec.get("orphaned") is not False:
+        return NOT_SATISFIED, (
+            f"пересечение живого работника помечено `orphaned`={rec.get('orphaned')!r} — "
+            f"вердикт читает именно это поле, и через него «ЗАНЯТА» не доедет")
+    # ── МАШИННОСТЬ ОТВЕТА спрашивается СРАЗУ за главным исходом ────────────────
+    # Порядок не косметика: читатель, пересказывающий ось ПРОЗОЙ, портит ВСЕ сцены
+    # разом, и при проверке в конце проба краснела бы на первой попавшейся из них —
+    # верный отказ с неверной причиной. Предмет этих двух строк — «ответ есть поле из
+    # закрытого перечня, а не слово в тексте» (ADR-333), и сказать это обязана та
+    # сцена, которая и есть главный исход.
+    axis_value = rec.get("worker_axis")
+    if axis_value not in axes:
+        return NOT_SATISFIED, (
+            f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
+            f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
+    if str(axis_value) in str(rec.get("worker_detail") or ""):
+        return NOT_SATISFIED, (
+            "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
+            "то есть не проверяла бы поле (ADR-333)")
+    if gone["verdict"] != guard.STALE or (_row(gone) or {}).get("orphaned") is not True:
+        return NOT_SATISFIED, (
+            f"работника измеренно НЕТ, а пересечение не осиротевшее: вердикт "
+            f"`{gone['verdict']}`, orphaned={(_row(gone) or {}).get('orphaned')!r} — "
+            f"это вечный замок на чужих файлах, а не защита")
+    if unmeas["verdict"] != guard.UNCHECKED:
+        return NOT_SATISFIED, (
+            f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
+            f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
+    if over["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"повисший работник держит чужие файлы дольше своего бюджета "
+            f"({ttl / 3600.0:.2f}ч) при поднятом окне: вердикт `{over['verdict']}` — "
+            f"очередь заморожена")
+    if under["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"в ТОМ ЖЕ поднятом окне работник ВНУТРИ бюджета файлы не держит: вердикт "
+            f"`{under['verdict']}` вместо `{guard.CLAIMED}` — «за бюджетом ⇒ stale» "
+            f"прошло бы и от неработающей оси (граница проверена с одной стороны)")
+    # Запись БЕЗ метки судится осью ЗАПУСКАТЕЛЯ: ярлык сцены объявил якорь, `ps` его не
+    # нашёл ⇒ пересечение ОСИРОТЕВШЕЕ ⇒ вердикт `stale`, и это ровно поведение до правки.
+    plain_row = _row(plain)
+    if plain_row is None or plain_row.get("worker_axis") != guard.W_NOT_DECLARED:
+        return NOT_SATISFIED, (
+            "пересечение без метки не помечено `not_declared` — «ось не мерилась» "
+            "неотличима от «спросили и работника нет»")
+    if plain_row.get("orphaned") is not True or plain["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"запись БЕЗ метки ведёт себя иначе, чем до правки: вердикт "
+            f"`{plain['verdict']}`, orphaned={plain_row.get('orphaned')!r} вместо "
+            f"`{guard.STALE}`/True — правка не дополняющая")
+    kin_row = _row(kin_only)
+    if kin_row is None or kin_row.get("orphaned") is not True:
+        return NOT_SATISFIED, (
+            f"метка лежит на РОДСТВЕННОЙ записи, а пересечение прочиталось живым "
+            f"(orphaned={None if kin_row is None else kin_row.get('orphaned')!r}): "
+            f"метка заимствуется у соседней записи, а сужения «процесс стартовал не "
+            f"позже» у неё нет — переиспользованный ярлык отдаст живую метку мёртвой "
+            f"сессии (fail-OPEN внутри fail-CLOSED-сторожа)")
+    if kin_row.get("worker_axis") != guard.W_NOT_DECLARED:
+        return NOT_SATISFIED, (
+            f"ось пересечения при метке у родни — `{kin_row.get('worker_axis')}` вместо "
+            f"`{guard.W_NOT_DECLARED}`: решение «метка берётся из ТОЙ ЖЕ записи» не "
+            f"объявлено полем, и читателю нечем проверить, чью метку спросили")
+    if rec.get("worker_run_id") != mark:
+        return NOT_SATISFIED, (
+            f"метка из ЗАПИСИ С ФАЙЛАМИ не доехала до пересечения: `worker_run_id`="
+            f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
+    if rec.get("launcher_orphaned") is not True:
+        return NOT_SATISFIED, (
+            f"вывод оси РАБОТНИКА затёр ИЗМЕРЕНИЕ оси запускателя "
+            f"(`launcher_orphaned`={rec.get('launcher_orphaned')!r}) — отчёт выдал бы "
+            f"вывод оси за замер pid, которого никто не делал")
+    return SATISFIED, (
+        f"пересечение по ФАЙЛАМ мерит РАБОТНИКА: на сцене «файлы объявлены, карточка НЕ "
+        f"взята, ярлык `{label}` мёртв по оси запускателя» живой носитель метки даёт "
+        f"`{alive['verdict']}` и orphaned=False (ось `{rec.get('worker_axis')}`, метка "
+        f"`{rec.get('worker_run_id')}` из ТОЙ ЖЕ записи, замер запускателя сохранён в "
+        f"`launcher_orphaned`), измеренное отсутствие — `{gone['verdict']}`/orphaned=True, "
+        f"неизмеримость — `{unmeas['verdict']}`, за бюджетом {ttl / 3600.0:.2f}ч — "
+        f"`{over['verdict']}`, запись без метки — `{plain['verdict']}` (ось "
+        f"`{guard.W_NOT_DECLARED}`), метка у РОДСТВЕННОЙ записи пересечения НЕ оживляет; "
+        f"захватов на сцене нет ни одного ⇒ вердикт пришёл от пересечения, а не от "
+        f"соседней записи; вокабуляр {sorted(axes)} собран обходом, подстрокой проба не "
+        f"проходит")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
+    "file_overlap_claim_measures_the_worker":
+        _probe_file_overlap_claim_measures_the_worker,
     "queue_reader_names_which_order_axis_spoke":
         _probe_queue_reader_names_which_order_axis_spoke,
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
