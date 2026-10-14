@@ -7589,10 +7589,212 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
         f"замка, вокабуляр {sorted(axes)} собран обходом, подстрокой проба не проходит")
 
 
+def _probe_card_claim_carries_the_launcher_anchor(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: якорь ЗАПУСКАТЕЛЯ доезжает до вердикта ИЗ САМОЙ КАРТОЧКИ (#869).
+
+    Предмет — карточка `inbox-yakor-zapuskatelya-ne-doezzhaet-do-kar`. ADR-721 довёл до
+    frontmatter метку РАБОТНИКА (`claimed_run_id`), и из двух осей захвата измеримой из
+    карточки стала ровно одна. Якорь ЗАПУСКАТЕЛЯ (`session_pid` + `session_pid_start`)
+    писатель захвата ИЗМЕРЯЕТ и без него работать ОТКАЗЫВАЕТСЯ
+    (`measure_self_anchor` ⇒ `UnmeasurableClaim`), после чего не записывает его никуда:
+    читатель берёт якорь ВЗАЙМЫ из журнала по ярлыку держателя (`_anchor_for` →
+    `durable_by_session`).
+
+    **Заём опирается на то, чего у карточки нет по построению.** Карточка уезжает на
+    `origin`, журнал объявлений — НЕТ, и это сказано вслух в самом писателе (там же, где
+    он пишет `claim_takeover_reason`: «карточка уезжает на origin, журнал — нет»).
+    ЗАМЕР 14.10 по живому трекеру: из **192** захватов во frontmatter якорь не доезжает
+    до **48** (25.0 %), а на ОТКРЫТЫХ карточках — до **6 из 15** (40.0 %).
+
+    **Что ровно меняется — ИЗМЕРЕНО, а не выведено.** Внутри окна свежести свежий
+    СИЛЬНЫЙ захват даёт `claimed`, и перебить его может ТОЛЬКО измеренная смерть
+    запускателя (`durable_process_gone`). Без якоря такой смерти не измерить ничем, и
+    карточка заперта все `DEFAULT_GRACE_HOURS` часа — ровно цена, которую заплатил #868.
+    Контрольный замер той же сцены показал и ГРАНИЦУ правки: форма ярлыка (`cycle-$$`
+    против `cycle-$$-pid$$`) вердикт НЕ меняет ни в одну сторону — pid из ярлыка
+    смертью намеренно не считается (`durable_process_gone`: «это НЕ „`ps` не нашёл
+    pid“»), поэтому лечить надо ЯКОРЬ, а не ярлык.
+
+    **Адрес якоря проба НЕ знает литералом (ADR-333).** Она его ИЗМЕРЯЕТ: гоняет
+    настоящий `claim_card` на одноразовой карточке с инъектированным якорем и смотрит,
+    какие поля frontmatter появились и несут ли они измеренную пару. Поля, названного
+    писателем, нет ⇒ `not_satisfied` с дословным «измерил и выбросил». Затем ТЕМИ ЖЕ
+    именами собираются сцены читателя — то есть утверждение проверяется у обоих концов
+    проводки, а совпадение имён не может разойтись с кодом.
+
+    **Новой двери к «свободна» проба не принимает:** исход измеренной смерти — `stale`
+    («кандидат на РУЧНОЙ подъём»), и отдельное звено требует, чтобы он не был `free`.
+    Границы: якоря в карточке нет ⇒ вердикт прежний БАЙТ В БАЙТ (это 190+ существующих
+    захватов) · якорь есть и запускатель ЖИВ ⇒ `claimed` (измеренная жизнь сильнее) ·
+    pid переиспользован (старт ПОЗЖЕ захвата) ⇒ защита не выдаётся живому чужому
+    процессу.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: читателя/писателя нет, не ввезён, вокабуляра нет ⇒
+    `unmeasured` либо `not_satisfied` с названной причиной, и никогда `satisfied`.
+
+    Оговорка названа вслух: живость запускателя здесь ВХОД (`ps=`), а не живая ОС, —
+    иначе проба судила бы о том, кто сегодня занял номер (`.claude/rules/deployment.md`
+    § «ЛИЧНОСТЬ ПРОЦЕССА»). Единственная сцена, доходящая до живой ОС за РОДОМ якоря
+    (`_anchor_verdict`), берёт `os.getpid()` — он жив на любой машине по построению и
+    не является процессом-таймером.
+    """
+    import importlib.util as _ilu
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    guard_path = os.path.join(root, "scripts", "check_card_claim.py")
+    if not os.path.exists(guard_path):
+        return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c869_card_claim", guard_path)
+        guard = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        spec.loader.exec_module(guard)               # type: ignore[union-attr]
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"шаг 0b не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    #: Вокабуляр якоря — у ЧИТАТЕЛЯ (`DURABLE_KEYS`), а не парой из головы.
+    durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
+    if len(durable_keys) != 2:
+        return NOT_SATISFIED, (
+            f"у шага 0a НЕТ вокабуляра якоря (`DURABLE_KEYS` = {durable_keys!r}) — "
+            f"«кто запускатель» не производит никто, и сцену задать нечем")
+    grace_h = float(getattr(guard, "DEFAULT_GRACE_HOURS", 0.0) or 0.0)
+    if grace_h <= 0.0:
+        return NOT_SATISFIED, ("окно свежести шага 0b не объявлено — сцену «внутри окна» "
+                               "задать нечем, а она и есть предмет пробы")
+    for attr in ("claim_card", "gather", "frontmatter", "STALE", "CLAIMED", "FREE"):
+        if not hasattr(guard, attr):
+            return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    #: Старт запускателя ЗАВЕДОМО раньше захвата: иначе сцена «жив» измеряла бы
+    #: переиспользованный pid, а это ОТДЕЛЬНОЕ звено ниже.
+    start_dt = now - _td(hours=2)
+    START = start_dt.strftime("%a %b %d %H:%M:%S %Y")
+    LATER = (now + _td(hours=1)).strftime("%a %b %d %H:%M:%S %Y")
+    ALIVE_PID = os.getpid()
+    DEAD_PID = 999_001
+
+    def _dead(_pid):
+        return (1, "")
+
+    def _alive(_pid):
+        return (0, START)
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c869_") as tmp:
+            # ── (1) ПИСАТЕЛЬ: куда он кладёт измеренный якорь ────────────────
+            w_tracker = os.path.join(tmp, "w_tracker")
+            os.makedirs(w_tracker)
+            w_card = os.path.join(w_tracker, "inbox-scene-writer.md")
+            with open(w_card, "w", encoding="utf-8") as fh:
+                fh.write("---\ntrackerStatus:\n  type: inbox\ntitle: сцена писателя\n"
+                         "status: new\n---\n\nтело\n")
+            w_log = os.path.join(tmp, "w_log.jsonl")
+            open(w_log, "w", encoding="utf-8").close()
+            before = set(guard.frontmatter(
+                open(w_card, encoding="utf-8").read()) or {})
+            try:
+                guard.claim_card("inbox-scene-writer", log=w_log, session="cycle-probe869",
+                                 tracker_dir=w_tracker, now=now, sibling=sibling,
+                                 ps=_dead, self_anchor=(ALIVE_PID, START))
+            except Exception as exc:                 # noqa: BLE001
+                return UNMEASURED, (f"писатель захвата не отработал на одноразовой сцене "
+                                    f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+            after_meta = guard.frontmatter(open(w_card, encoding="utf-8").read()) or {}
+            fresh = {k: str(after_meta.get(k) or "") for k in set(after_meta) - before}
+            #: Адрес якоря ИЗМЕРЕН: поле, чьё значение несёт измеренный pid, и поле,
+            #: несущее его verbatim-старт. Литерала имени у пробы нет.
+            pid_field = next((k for k, v in fresh.items() if v.strip() == str(ALIVE_PID)), None)
+            start_field = next((k for k, v in fresh.items() if v.strip() == START), None)
+            if pid_field is None or start_field is None:
+                return NOT_SATISFIED, (
+                    f"писатель захвата ИЗМЕРИЛ якорь запускателя (pid{ALIVE_PID}, старт "
+                    f"{START!r}) — и ВЫБРОСИЛ его: во frontmatter появились только "
+                    f"{sorted(fresh)}, поля с pid{'' if pid_field else ' НЕТ'}"
+                    f"{'' if start_field else ', поля со стартом НЕТ'}. Читателю остаётся "
+                    f"заём из журнала, а журнал на origin не уезжает — замер 14.10: якорь "
+                    f"не доезжает до 48 из 192 захватов (25.0 %), на открытых карточках — "
+                    f"6 из 15")
+
+            # ── (2) ЧИТАТЕЛЬ: теми же именами, ИЗМЕРЕННЫМИ у писателя ───────
+            r_tracker = os.path.join(tmp, "r_tracker")
+            os.makedirs(r_tracker)
+
+            def _verdict(anchor, ps):
+                """Сцена: захват во frontmatter ВНУТРИ окна, журнал ПУСТ (заём невозможен)."""
+                at = (now - _td(seconds=grace_h * 3600.0 / 2.0)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ")
+                rows = ["---\n", "trackerStatus:\n", "  type: inbox\n",
+                        "title: сцена читателя\n", "status: in-progress\n",
+                        "claimed_by: cycle-869000\n", f"claimed_at: {at}\n"]
+                for key, value in (anchor or {}).items():
+                    rows.append(f"{key}: {value}\n")
+                rows += ["---\n", "\nтело\n"]
+                with open(os.path.join(r_tracker, "inbox-scene-reader.md"), "w",
+                          encoding="utf-8") as fh:
+                    fh.write("".join(rows))
+                log = os.path.join(tmp, "r_log.jsonl")
+                open(log, "w", encoding="utf-8").close()
+                return guard.gather("inbox-scene-reader", log=log, tracker_dir=r_tracker,
+                                    sibling=sibling, self_session="probe-c869", now=now,
+                                    ps=ps, self_anchor=None, shared_trees=())
+
+            dead_anchor = {pid_field: DEAD_PID, start_field: START}
+            gone = _verdict(dead_anchor, _dead)
+            live = _verdict({pid_field: ALIVE_PID, start_field: START}, _alive)
+            bare = _verdict(None, _dead)
+            reused = _verdict({pid_field: ALIVE_PID, start_field: LATER}, _alive)
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    if gone["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"запускатель ИЗМЕРЕННО МЁРТВ, а его якорь объявлен В КАРТОЧКЕ — и вердикт "
+            f"всё равно `{gone['verdict']}` вместо `{guard.STALE}`: из карточки ось "
+            f"запускателя не измеряется, карточка заперта все {grace_h}ч (цена #868)")
+    if gone["verdict"] == guard.FREE:
+        return NOT_SATISFIED, ("измеренная смерть запускателя отдала карточку как "
+                               "`free` — это новая дверь к авто-захвату, а не подъём")
+    if live["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"запускатель ЖИВ (якорь в карточке, старт сошёлся), а карточка отдаётся: "
+            f"вердикт `{live['verdict']}` вместо `{guard.CLAIMED}` — измеренная жизнь "
+            f"обязана быть сильнее")
+    if bare["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"захват БЕЗ якоря в карточке изменил вердикт: `{bare['verdict']}` вместо "
+            f"`{guard.CLAIMED}` — правка обязана быть дополняющей, а это 190+ "
+            f"существующих захватов живого трекера")
+    if reused["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"pid запускателя ПЕРЕИСПОЛЬЗОВАН (старт {LATER!r} позже захвата), а вердикт "
+            f"`{reused['verdict']}` вместо `{guard.STALE}` — защита выдана чужому живому "
+            f"процессу по совпадению номера")
+    return SATISFIED, (
+        f"якорь запускателя доезжает до вердикта ИЗ КАРТОЧКИ: писатель кладёт его в "
+        f"`{pid_field}`/`{start_field}` (адрес ИЗМЕРЕН у писателя, не литерал), и внутри "
+        f"окна {grace_h}ч при ПУСТОМ журнале измеренная смерть даёт "
+        f"`{gone['verdict']}`, измеренная жизнь — `{live['verdict']}`, захват без якоря — "
+        f"`{bare['verdict']}` (прежнее поведение), переиспользованный pid — "
+        f"`{reused['verdict']}`; вокабуляр {list(durable_keys)} взят у шага 0a, живость "
+        f"запускателя — вход сцены")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
         _probe_card_claim_absent_worker_reaches_the_verdict,
+    "card_claim_carries_the_launcher_anchor":
+        _probe_card_claim_carries_the_launcher_anchor,
     "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
     "file_overlap_claim_measures_the_worker":
         _probe_file_overlap_claim_measures_the_worker,

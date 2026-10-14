@@ -171,11 +171,18 @@ def test_ignoring_the_worker_budget_freezes_the_queue(tree):
 
 
 def test_a_mark_outside_the_claim_keys_outlives_the_claim(tree):
-    """Звено 8: метка не в строках захвата ⇒ уцелеет после подъёма, и проба это видит."""
+    """Звено 8: метка не в строках захвата ⇒ уцелеет после подъёма, и проба это видит.
+
+    Литерал кортежа обновлён циклом #869 (ADR-725 добавил в него якорь запускателя):
+    утверждение и разрыв те же — из строк захвата убирается РОВНО `claimed_run_id`.
+    Якорь мутация не трогает намеренно: его уцелевание — предмет соседней батареи.
+    Контроль `_patch` отказал громко, а не позеленел молча, и это он и должен делать.
+    """
     _patch(tree,
            '_CLAIM_KEYS = ("claimed_by", "claimed_at", "claimed_run_id", '
-           '"claim_takeover_reason")',
-           '_CLAIM_KEYS = ("claimed_by", "claimed_at", "claim_takeover_reason")')
+           '"claim_takeover_reason",\n               "claimed_pid", "claimed_pid_start")',
+           '_CLAIM_KEYS = ("claimed_by", "claimed_at", "claim_takeover_reason",\n'
+           '               "claimed_pid", "claimed_pid_start")')
     verdict, why = _run(tree)
     assert verdict == ca.NOT_SATISFIED, (verdict, why)
     assert "_CLAIM_KEYS" in why, why

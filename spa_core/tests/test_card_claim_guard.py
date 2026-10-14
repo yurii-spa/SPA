@@ -653,7 +653,7 @@ class TestClaimAndRelease:
             "поэтому это КРАСНЫЙ, а не skip")
     def test_claim_writes_fields_and_preserves_the_rest(self, guard, sibling, tracker, log,
                                                         monkeypatch):
-        """Форма захвата БЕЗ метки работника: ровно две новые строки.
+        """Форма захвата БЕЗ метки работника: ровно четыре новые строки.
 
         Окружение ОБЪЯВЛЕНО, а не унаследовано (цикл #865): с ADR-721 захват пишет
         третью строку `claimed_run_id`, когда метка работника есть в окружении. Тест о
@@ -662,6 +662,16 @@ class TestClaimAndRelease:
         от окружения, а не от кода (`.claude/rules/deployment.md` § «GIT-ОКРУЖЕНИЕ»,
         тот же класс). Форма С меткой проверяется своей батареей
         (`test_card_claim_worker_identity.py`), и обе стороны закреплены.
+
+        **Правка #869 (ADR-725), намеренная — инв. #16.** Было «ровно две новые строки».
+        С ADR-725 захват пишет ещё и ЯКОРЬ ЗАПУСКАТЕЛЯ (`claimed_pid` /
+        `claimed_pid_start`), и в отличие от метки работника его нельзя убрать
+        объявлением окружения: `claim_card` ОТКАЗЫВАЕТСЯ работать без измеренного якоря
+        (`UnmeasurableClaim`), то есть у ОБЫЧНОГО захвата пара есть ВСЕГДА. Ослаблением
+        это не является: число строк названо точно (четыре, а не «хотя бы две»), имена
+        проверяются поимённо, и главное утверждение файла — «всё остальное байт-в-байт»
+        — осталось нетронутым. Предмет пары закреплён своей батареей
+        (`test_card_claim_launcher_anchor.py`).
         """
         monkeypatch.delenv(guard.RUN_ID_VAR, raising=False)
         p = write_card(tracker, "agent-x", extra_body="## Тело\n\nстрока 1\nстрока 2\n")
@@ -673,9 +683,11 @@ class TestClaimAndRelease:
         assert res["claimed_by"] == "pid1"
         meta = guard.frontmatter(after)
         assert meta["claimed_by"] == "pid1" and meta["claimed_at"] == _fmt(NOW)
-        # ровно две новые строки, всё остальное байт-в-байт
+        # ровно четыре новые строки, всё остальное байт-в-байт
         assert [ln for ln in after.splitlines() if ln not in before.splitlines()] == [
-            "claimed_by: pid1", f"claimed_at: {_fmt(NOW)}"]
+            "claimed_by: pid1", f"claimed_at: {_fmt(NOW)}",
+            f"{guard.CLAIM_ANCHOR_KEYS[0]}: {MY_ANCHOR[0]}",
+            f"{guard.CLAIM_ANCHOR_KEYS[1]}: {MY_ANCHOR[1]}"]
         assert after.split("---", 2)[2] == before.split("---", 2)[2]
 
     def test_claim_refuses_when_held_by_another(self, guard, sibling, tracker, log):

@@ -324,12 +324,18 @@ def test_a_free_card_is_claimed_plainly_and_carries_no_takeover_trace(guard, sib
 
 def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracker, log,
                                                           monkeypatch):
-    """Обратный контроль: без подъёма форма захвата не изменилась ни на строку.
+    """Обратный контроль: без подъёма форма захвата несёт ТОЛЬКО свои строки.
 
     Окружение ОБЪЯВЛЕНО, а не унаследовано (цикл #865): с ADR-721 захват пишет третью
     строку `claimed_run_id`, когда метка работника есть в окружении, и без этой строки
     тест менял бы вердикт от хоста, а не от кода. Форма С меткой закреплена своей
     батареей (`test_card_claim_worker_identity.py`).
+
+    **Правка #869 (ADR-725), намеренная — инв. #16.** Было «ровно две строки». С ADR-725
+    обычный захват пишет ещё и ЯКОРЬ ЗАПУСКАТЕЛЯ, и убрать его объявлением окружения
+    нельзя: без измеренного якоря `claim_card` ОТКАЗЫВАЕТ вовсе. Предмет теста
+    (`claim_takeover_reason` НЕ появляется без подъёма) не ослаблен — он проверяется
+    точным перечнем строк, а не их числом.
     """
     monkeypatch.delenv(guard.RUN_ID_VAR, raising=False)
     card = _card(tracker, "agent-x")
@@ -340,7 +346,9 @@ def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracke
 
     after = card.read_text(encoding="utf-8").splitlines()
     assert [ln for ln in after if ln not in before] == [
-        "claimed_by: pid1", f"claimed_at: {_fmt(NOW)}"]
+        "claimed_by: pid1", f"claimed_at: {_fmt(NOW)}",
+        f"{guard.CLAIM_ANCHOR_KEYS[0]}: {SELF_ANCHOR[0]}",
+        f"{guard.CLAIM_ANCHOR_KEYS[1]}: {SELF_ANCHOR[1]}"]
 
 
 # ── проводка CLI: флаг, который не дошёл до `claim_card`, — украшение ─────────
