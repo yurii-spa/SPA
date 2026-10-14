@@ -111,6 +111,10 @@ DEFAULT_LOG = ROOT / "data" / "session_changes.jsonl"
 DEFAULT_TRACKER = ROOT / "nimbalyst-local" / "tracker"
 SIBLING = ROOT / "scripts" / "check_undelivered_work.py"
 ANNOUNCER = ROOT / "scripts" / "log_session_change.py"
+#: Прибор ОСИ РАБОТНИКА (ADR-720) — у замка цикла. Второй копии здесь нет намеренно:
+#: «кого считать ещё работающим» обязано решаться ОДНИМ кодом с тем, кто это решает у
+#: замка и у таймаута прогона, иначе замок и захват разошлись бы молча.
+LOCK = ROOT / "scripts" / "orchestrator_cycle_lock.py"
 
 _UNMEASURABLE_CLAIM_TEXT = (
     "захват НЕ записан: у ярлыка {session!r} нет объявленного долгоживущего процесса, "
@@ -146,7 +150,25 @@ TERMINAL_STATUSES = {"done", "ingested", "owner-done"}
 #: (`claim_takeover_reason`) стоит здесь, а не рядом: оно ставится вместе с захватом и
 #: обязано сниматься вместе с ним — иначе на карточке навсегда осталось бы объяснение
 #: подъёма, которого больше нет (утверждение без предмета — тот самый класс).
-_CLAIM_KEYS = ("claimed_by", "claimed_at", "claim_takeover_reason")
+#: `claimed_run_id` (ADR-721) — по той же причине: метка владения РАБОТНИКА описывает
+#: ровно этот захват, и чужая метка, уцелевшая после подъёма, читалась бы как живой
+#: держатель — ложная занятость вместо ложной свободы, но всё равно ложь.
+_CLAIM_KEYS = ("claimed_by", "claimed_at", "claimed_run_id", "claim_takeover_reason")
+
+#: Имя переменной окружения с меткой владения РАБОТНИКА. Значение `RUN_ID_VAR` живёт у
+#: прибора (`orchestrator_cycle_lock`), но ЧИТАТЬ окружение нужно до его загрузки — на
+#: записи захвата, где прибор не нужен вовсе. Расхождение двух имён краснит сторож
+#: `test_card_claim_worker_identity.py` (сверяет эту строку с `RUN_ID_VAR` прибора).
+RUN_ID_VAR = "SPA_RUN_ID"
+
+#: Слова ОСИ РАБОТНИКА в отчёте шага 0b. Это словарь ЧИТАТЕЛЯ, а не копия словаря замка:
+#: у прибора состояние `worker_not_declared` означает «замок не назвал метку», а здесь —
+#: «КАРТОЧКА не назвала метку», и это разные факты о разных записях (урок #863: дом слова
+#: — читатель; у прибора оно было бы всегда мёртвым, у читателя оно единственно верное).
+W_NOT_DECLARED, W_ALIVE, W_GONE, W_UNMEASURED = (
+    "not_declared", "alive", "gone", "unmeasured")
+#: Полный перечень — закрытый: сторож обходит его, а не ищет подстроку (ADR-333).
+WORKER_AXES = (W_NOT_DECLARED, W_ALIVE, W_GONE, W_UNMEASURED)
 
 # «Якорь не передан» ≠ «якоря нет»: умолчание меряет свой долгоживущий процесс из окружения,
 # явный None выключает опознание собственных объявлений (герметичные тесты). См. `self_identities`.
@@ -223,6 +245,62 @@ def load_sibling(path=SIBLING):
         if not hasattr(mod, attr):
             raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
     return mod
+
+
+def load_lock(path=LOCK):
+    """Модуль `orchestrator_cycle_lock` по явному пути — ось РАБОТНИКА (ADR-720).
+
+    Своей копии «жив ли работник с этой меткой» здесь НЕТ по той же причине, по которой
+    нет копии «жива ли сессия»: два расходящихся ответа на один вопрос хуже отсутствия
+    второго. Не загрузился — это «не измерено», а не «работника нет»."""
+    p = Path(path)
+    if not p.exists():
+        raise ImportError(f"нет прибора оси РАБОТНИКА: {p}")
+    spec = importlib.util.spec_from_file_location("_card_claim_lock", p)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"не удалось загрузить {p}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for attr in ("worker_axis", "RUN_ID_KEY", "RUN_ID_VAR", "WORKER_ALIVE", "WORKER_GONE",
+                 "WORKER_UNMEASURED", "DEFAULT_WORKER_TTL_SEC"):
+        if not hasattr(mod, attr):
+            raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
+    return mod
+
+
+def measure_worker(run_id, *, lock_path=LOCK, loader=None):
+    """Метка владения → (ось РАБОТНИКА словом, измерение прозой, бюджет работника в сек).
+
+    Три исхода оси различимы (инв. #17) и это главное свойство функции:
+
+    * ``alive`` — ЖИВОЙ процесс несёт эту метку. Держатель карточки работает, и то, что
+      его ЗАПУСКАТЕЛЬ умер, про работу не говорит ничего: работник поднят
+      ``start_new_session=True``, то есть переживает запускателя по построению;
+    * ``gone`` — метку не несёт НИ ОДИН живой процесс. Измеренное отсутствие;
+    * ``unmeasured`` — спросить не удалось (прибор не ввезён, окружение процессов не
+      читается). Это НЕ «работника нет»: выдать второе за первое значило бы отдать
+      карточку из-под идущей работы по причине «прибор не ответил».
+
+    Бюджет возвращается ТЕМ ЖЕ прибором, что и живость: порог «сколько работник вправе
+    держать карточку» обязан быть одним числом с тем, по которому таймаут прогона
+    работника завершает. ``None`` — бюджет неизвестен, потому что прибора нет."""
+    if not str(run_id or "").strip():
+        return W_NOT_DECLARED, "карточка не назвала метку работника — ось НЕ МЕРИЛАСЬ", None
+    try:
+        lock = (loader or load_lock)(lock_path)
+    except (ImportError, OSError, SyntaxError) as exc:
+        return (W_UNMEASURED,
+                f"прибор оси РАБОТНИКА не ввезён ({exc.__class__.__name__}: {exc}) — "
+                f"ось НЕ ИЗМЕРЕНА", None)
+    ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC"))
+    state, why = lock.worker_axis({lock.RUN_ID_KEY: str(run_id).strip()})
+    if state == lock.WORKER_ALIVE:
+        return W_ALIVE, why, ttl
+    if state == lock.WORKER_GONE:
+        return W_GONE, why, ttl
+    # `worker_unmeasured` прибора — и ЛЮБОЙ незнакомый ответ: неизвестное состояние есть
+    # «не измерено», а не молчаливое «работника нет» (перечень закрыт у ЧИТАТЕЛЯ).
+    return W_UNMEASURED, why, ttl
 
 
 def load_announcer(path=ANNOUNCER):
@@ -564,15 +642,21 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
                  card_error=None, self_anchor=None, card_source=None, repo_root=ROOT,
-                 shared_trees=None):
+                 shared_trees=None, worker=None):
     """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
 
     `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
     None. Через неё записи, сделанные этой же сессией под другими ярлыками, опознаются как свои
-    (`self_identities`); None ⇒ «своей» считается ровно одна строка, как было до 01.08."""
+    (`self_identities`); None ⇒ «своей» считается ровно одна строка, как было до 01.08.
+
+    `worker` — ПРОБА оси РАБОТНИКА: `run_id → (ось словом, проза, бюджет сек)`. Умолчание
+    меряет живые процессы (`measure_worker`); проба — ВХОД, а не живая ОС, иначе сторож
+    менял бы вердикт от того, кто сегодня занял номер (`.claude/rules/deployment.md`
+    § «ЛИЧНОСТЬ ПРОЦЕССА»)."""
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     ps = ps or getattr(sibling, "_ps_lstart")
+    worker = worker or measure_worker
     # Считается ОДИН раз и по ВСЕМУ журналу: и захваты, и пересечение по файлам должны отвечать
     # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
     # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
@@ -650,8 +734,11 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     def _unmeasured(source, reason):
         report["unmeasured"].append({"source": source, "reason": reason})
 
-    def _classify(session, ts, source, strength, detail, process=None):
+    def _classify(session, ts, source, strength, detail, process=None, run_id=""):
         """Захват → находка / история / «не измерено». Одинаково для карточки и журнала.
+
+        `run_id` — метка владения РАБОТНИКА из ТОЙ ЖЕ записи (`claimed_run_id` карточки).
+        Пустая ⇒ ось РАБОТНИКА не мерилась и всё ведёт себя как до ADR-721.
 
         `process` — поля долгоживущего процесса ИЗ ТОЙ ЖЕ записи журнала (`session_pid` /
         `session_pid_start`). Запись сюда приходит разобранной на (session, ts), поэтому без
@@ -758,6 +845,69 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         silent_h = (now - voice).total_seconds() / 3600.0 if voice else None
         rec["silent_hours"] = round(silent_h, 2) if silent_h is not None else None
         speaking = voice is not None and (now - voice) <= grace
+
+        # ── ОСЬ РАБОТНИКА: спрашивается ПЕРВОЙ и перебивает ось ЗАПУСКАТЕЛЯ (ADR-721) ──
+        # Все измерения выше — про ЗАПУСКАТЕЛЯ (`cycle-$$` из `agent_orchestrator.sh`) и
+        # про его голос в журнале. Работу же делает РАБОТНИК (headless `claude`), поднятый
+        # `start_new_session=True`: он ЛИДЕР СВОЕЙ СЕССИИ и переживает запускателя по
+        # построению. Замер 14.10 (цикл #864), дословно: держатель `cycle-69075` МЁРТВ,
+        # его работник pid 69661 ЖИВ (`ppid=1`), правил свои файлы за 4 с до замера — а
+        # шаг 0a-ГОЛОД отвечал `stale` «держателя НЕТ» и выдавал ЖИВОЙ приказ владельца
+        # второй сессии. ADR-720 закрыл эту ось у ЗАМКА; здесь — вторая защита, стоявшая
+        # на той же мёртвой оси.
+        #
+        # Правка строго ДОПОЛНЯЮЩАЯ и ограниченная с двух сторон:
+        #   * метки нет (запись старого образца, ручной `claim` без окружения) ⇒ ось
+        #     `not_declared`, решает ось ЗАПУСКАТЕЛЯ, как раньше, байт в байт;
+        #   * метка есть, но захват СТАРШЕ бюджета работника ⇒ ось не решает: повисший
+        #     работник не вправе запирать очередь дольше своего срока (п. 4 карточки,
+        #     то же рассуждение, что у `worker_ttl` ADR-720 и у `unmeasured_ttl`).
+        #     «Не измерено» без срока есть вечный замок, а не порог;
+        #   * прибора нет ⇒ бюджета нет ⇒ ось НАЗЫВАЕТСЯ `unmeasured` в отчёте, но
+        #     вердикта не меняет: неограниченный отказ — ровно та вечная блокировка,
+        #     которую эта функция снимала трижды (#61 слабое упоминание, #412 живой
+        #     якорь, #803 безымянный захват).
+        w_axis, w_why, w_ttl = worker(run_id)
+        rec["worker_axis"] = w_axis
+        rec["worker_run_id"] = str(run_id or "").strip() or None
+        rec["worker_detail"] = w_why
+        # Возраст для границы бюджета берётся В СЕКУНДАХ прямо у разницы отметок, а не
+        # обратным переводом из часов: `age * 3600` на ровно 15000 с даёт
+        # 15000.000000000002, и «ровно бюджет» молча превращалось бы в «бюджет плюс
+        # чуть-чуть». Нашёл это собственный контроль границы с двух сторон — проверка,
+        # сравнивавшая бы только «заметно больше», этого не увидела бы никогда.
+        age_sec = None if ts is None else (now - ts).total_seconds()
+        over = (None if (w_ttl is None or age_sec is None) else age_sec > w_ttl)
+        rec["worker_over_budget"] = over
+        # `w_ttl is not None` — не украшение к `over is False`, а его ПРЕДПОСЫЛКА,
+        # названная вслух: без бюджета окно не вычисляется, и решать оси нечем.
+        if w_axis != W_NOT_DECLARED and w_ttl is not None and over is False:
+            if w_axis == W_ALIVE:
+                # Карточку держит ЖИВАЯ работа. Это `claimed`, а не `stale`: подъём здесь
+                # был бы ровно кражей работы, ради предотвращения которой шаг 0b и написан.
+                rec["state"] = "fresh"
+                rec["session_state"] = (
+                    f"ось ЗАПУСКАТЕЛЯ: {why}; НО ось РАБОТНИКА: {w_why} — работу делает "
+                    f"работник, и он переживает запускателя по построению "
+                    f"(`start_new_session=True`). Карточка ЗАНЯТА; подъём запрещён, пока "
+                    f"метка жива либо не истёк бюджет работника "
+                    f"({w_ttl / 3600.0:.2f}ч, захвату {rec['age_hours']}ч)")
+                report["claims"].append(rec)
+                return
+            if w_axis == W_UNMEASURED:
+                _unmeasured(source,
+                            f"{session}: ось РАБОТНИКА НЕ ИЗМЕРЕНА — {w_why}; метка "
+                            f"{rec['worker_run_id']}, захвату {rec['age_hours']}ч при "
+                            f"бюджете работника {w_ttl / 3600.0:.2f}ч ⇒ работник может "
+                            f"работать ПРЯМО СЕЙЧАС. «Держателя нет» здесь не говорится: "
+                            f"это третий исход, а не отсутствие держателя (инв. #17)")
+                return
+            # `gone` — работника с меткой измеренно НЕТ. Это не вердикт сам по себе:
+            # ось ЗАПУСКАТЕЛЯ ниже и так решит (и чаще всего скажет `stale`), а
+            # измеренное отсутствие работника лишь УСИЛИВАЕТ её вывод. Своего исхода
+            # здесь не вводится намеренно: новая дверь к «свободна» — последнее, чего
+            # этому сторожу не хватает.
+
         if (state == sibling.ACTIVE and speaking) or (fresh and strength == STRONG
                                                       and not orphaned):
             rec["state"] = "fresh"
@@ -943,8 +1093,15 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     # значений она противоречила бы вердикту (см. там же).
                     report["released_frontmatter"][holder] = at_raw
                 else:
+                    # Метка владения РАБОТНИКА берётся из ТОЙ ЖЕ записи, что и ярлык:
+                    # захват её и пишет (`claim_card`). Журнальным захватам она пока не
+                    # доезжает — `log_session_change` её не пишет; это НАЗВАННЫЙ остаток
+                    # (п. 3 карточки `inbox-zahvat-kartochki-merit-zapuskatelya-a-ne`),
+                    # а не умолчание: до тех пор у журнальной записи ось `not_declared`,
+                    # то есть прежнее поведение.
                     _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке",
-                              _anchor_for(holder, at_raw))
+                              _anchor_for(holder, at_raw),
+                              run_id=str(meta.get("claimed_run_id") or "").strip())
 
     # 2. журнал объявлений ───────────────────────────────────────────────────
     if log_error:
@@ -1083,6 +1240,14 @@ def render(report) -> str:
             out.append(f"  - [{mark}] {c['session']} ({c['ts']}{age}) — {c['detail']} "
                        f"[{'сильный' if c['strength'] == STRONG else 'слабый'} признак]")
             out.append(f"      активность: {c['session_state']}")
+            # Ось РАБОТНИКА печатается ВСЕГДА, когда метка названа, — в том числе когда
+            # вердикта она не изменила: «не измерено» и «измерено и работника нет» обязаны
+            # быть видны по отдельности, иначе молчание читается как «спросили и всё чисто».
+            if c.get("worker_run_id"):
+                out.append(f"      ось РАБОТНИКА [{c.get('worker_axis')}]: "
+                           f"{c.get('worker_detail')}"
+                           + ("" if c.get("worker_over_budget") is not True
+                              else "; захват СТАРШЕ бюджета работника — ось не решает"))
             if c.get("orphaned") and c.get("fresh"):
                 out.append("      окно свежести не действует: ждать некого — объявленный "
                            "долгоживущий процесс завершился (порядок подъёма — шаг 0a)")
@@ -1308,7 +1473,8 @@ def _log_entries(log, sibling=None, last=None):
 def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
            planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR,
-           base_ref=DEFAULT_BASE_REF, repo_root=ROOT, shared_trees=_MEASURE_TREES):
+           base_ref=DEFAULT_BASE_REF, repo_root=ROOT, shared_trees=_MEASURE_TREES,
+           worker=None):
     """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
 
     `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
@@ -1345,7 +1511,7 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
                         log_error=log_error, malformed_lines=malformed,
                         card_meta=meta, card_error=card_error, self_anchor=self_anchor,
                         card_source=card_source, repo_root=repo_root,
-                        shared_trees=shared_trees)
+                        shared_trees=shared_trees, worker=worker)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────
@@ -1390,6 +1556,12 @@ def _set_claim_fields(text: str, values) -> str:
     end = next(i for i in range(1, len(kept)) if kept[i].strip() == "---")
     insert = [f"claimed_by: {values['claimed_by']}\n",
               f"claimed_at: {values['claimed_at']}\n"]
+    run_id = str(values.get("claimed_run_id") or "").strip()
+    if run_id:
+        # Метка пишется ТОЛЬКО когда она есть в окружении. Пустая строка здесь была бы
+        # хуже отсутствия поля: читатель отличает «ось не мерилась» от «метку назвали»
+        # по НАЛИЧИЮ значения, и пустое значение превратило бы третий исход в молчание.
+        insert.append(f"claimed_run_id: {run_id}\n")
     reason = str(values.get("claim_takeover_reason") or "").strip()
     if reason:
         # Однострочно и без переводов строки: frontmatter здесь разбирается построчно,
@@ -1475,7 +1647,7 @@ def _unannounce_claim(cid, path, session, log, announcer=None):
 
 def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
                grace_hours=DEFAULT_GRACE_HOURS, sibling=None, ps=None,
-               announcer=None, self_anchor=_ENV_ANCHOR, takeover_reason=""):
+               announcer=None, self_anchor=_ENV_ANCHOR, takeover_reason="", worker=None):
     """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена.
 
     Захват всегда сопровождается записью в общем журнале объявлений: «взял, но не объявил» —
@@ -1527,7 +1699,7 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         raise UnmeasurableClaim(_UNMEASURABLE_CLAIM_TEXT.format(session=session, card=card))
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,
                     self_session=session, now=now, grace_hours=grace_hours, ps=ps,
-                    self_anchor=self_anchor)
+                    self_anchor=self_anchor, worker=worker)
     selves = set(report.get("self_sessions") or [session])
     takeover_reason = str(takeover_reason or "").strip()
     stale_holders = {c.get("session") for c in report.get("claims") or []
@@ -1597,7 +1769,13 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
             # ярлыком (`self_identities`), и тогда это не гонка, а собственный захват.
             _unannounce_claim(card_id(path), path, session, log, announcer)
             raise ClaimError(f"карточку успела взять сессия {holder} — не перезаписываю")
-        fields = {"claimed_by": session, "claimed_at": _fmt_ts(now)}
+        fields = {"claimed_by": session, "claimed_at": _fmt_ts(now),
+                  # Метка владения РАБОТНИКА (ADR-721). Берётся из ОКРУЖЕНИЯ, потому что
+                  # это единственная личность, которая переживает запускателя: её наследуют
+                  # все потомки, она не теряется при `setsid` и при переподчинении к init.
+                  # Нет метки ⇒ поля нет ⇒ следующий читатель честно скажет «ось не
+                  # мерилась» и будет судить по запускателю, как до этой правки.
+                  "claimed_run_id": os.environ.get(RUN_ID_VAR, "")}
         if lifting:
             # Основание подъёма живёт В КАРТОЧКЕ, а не только в журнале: карточка уезжает
             # на origin, журнал — нет. Без этой строки следующий читатель видит смену
@@ -1608,7 +1786,10 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     finally:
         _release_lock(fd, lock)
     out = {"card": card_id(path), "path": str(path), "claimed_by": session,
-           "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor)}
+           "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor),
+           # Названа ли метка работника — часть ответа, а не украшение: без неё следующий
+           # цикл будет судить этот захват по МЁРТВОЙ оси, и об этом надо знать сразу.
+           "worker_run_id": fields.get("claimed_run_id") or None}
     if lifting:
         out["takeover_from"] = sorted(h for h in stale_holders if h)
         out["takeover_reason"] = takeover_reason

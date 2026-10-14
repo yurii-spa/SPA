@@ -322,8 +322,16 @@ def test_a_free_card_is_claimed_plainly_and_carries_no_takeover_trace(guard, sib
     assert "claim_takeover_reason" not in card.read_text(encoding="utf-8")
 
 
-def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracker, log):
-    """Обратный контроль: без подъёма форма захвата не изменилась ни на строку."""
+def test_an_ordinary_claim_still_writes_exactly_two_lines(guard, sibling, tracker, log,
+                                                          monkeypatch):
+    """Обратный контроль: без подъёма форма захвата не изменилась ни на строку.
+
+    Окружение ОБЪЯВЛЕНО, а не унаследовано (цикл #865): с ADR-721 захват пишет третью
+    строку `claimed_run_id`, когда метка работника есть в окружении, и без этой строки
+    тест менял бы вердикт от хоста, а не от кода. Форма С меткой закреплена своей
+    батареей (`test_card_claim_worker_identity.py`).
+    """
+    monkeypatch.delenv(guard.RUN_ID_VAR, raising=False)
     card = _card(tracker, "agent-x")
     before = card.read_text(encoding="utf-8").splitlines()
 

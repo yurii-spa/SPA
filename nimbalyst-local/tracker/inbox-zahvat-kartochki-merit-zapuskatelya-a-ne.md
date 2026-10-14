@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Захват карточки мерит ЗАПУСКАТЕЛЯ, а не работника: живой приказ владельца выдан второй сессии как stale"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-14
+acceptance_probe: card_claim_measures_the_worker
+status_trail:
+  - "2026-10-14T12:49:58.762384+00:00 new -> in-progress · queue.set_status · cycle-67211"
+  - "2026-10-14T13:04:40.767925+00:00 in-progress -> done · queue.set_status/closed_by:cycle-67211/evidence:ADR-721: проба приёмки card_claim_measures_the_worker даёт satisfied (шаг 0b на сцене «держатель мёртв, работник с меткой жив» отвечает claimed, обратная сторона отдаёт карточку, неизмеримость -> unch · cycle-67211"
 ---
 
 ## Находка (измерена циклом #864, 2026-10-14)

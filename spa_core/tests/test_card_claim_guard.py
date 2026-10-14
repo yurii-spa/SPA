@@ -651,7 +651,19 @@ class TestClaimAndRelease:
             "предусловие не выполнено: долгоживущий процесс не измерен "
             f"({why!r}) — без него класс проверял бы отказ гейта вместо своей механики, "
             "поэтому это КРАСНЫЙ, а не skip")
-    def test_claim_writes_fields_and_preserves_the_rest(self, guard, sibling, tracker, log):
+    def test_claim_writes_fields_and_preserves_the_rest(self, guard, sibling, tracker, log,
+                                                        monkeypatch):
+        """Форма захвата БЕЗ метки работника: ровно две новые строки.
+
+        Окружение ОБЪЯВЛЕНО, а не унаследовано (цикл #865): с ADR-721 захват пишет
+        третью строку `claimed_run_id`, когда метка работника есть в окружении. Тест о
+        прежней форме обязан сказать, в каком окружении он её мерит, — иначе он зелен на
+        хосте без метки и красен на том, где идёт настоящий цикл, то есть меняет вердикт
+        от окружения, а не от кода (`.claude/rules/deployment.md` § «GIT-ОКРУЖЕНИЕ»,
+        тот же класс). Форма С меткой проверяется своей батареей
+        (`test_card_claim_worker_identity.py`), и обе стороны закреплены.
+        """
+        monkeypatch.delenv(guard.RUN_ID_VAR, raising=False)
         p = write_card(tracker, "agent-x", extra_body="## Тело\n\nстрока 1\nстрока 2\n")
         before = p.read_text(encoding="utf-8")
         res = guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
