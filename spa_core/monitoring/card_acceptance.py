@@ -6370,7 +6370,278 @@ def _probe_queue_reader_names_uncompared_order(
         f"`{other.get('origin_order')}` — отказ и замер различимы в обе стороны")
 
 
+def _probe_queue_reader_names_which_order_axis_spoke(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ЧИТАТЕЛЬ ОЧЕРЕДИ называет, КАКАЯ из двух осей порядка говорила.
+
+    Предмет — заказ G718 п. 1 (ADR-719). Осей порядка две и они независимы: отметка о
+    движении (`mark_order`, ADR-220) и след переходов (`trail_order`, ADR-544). До цикла
+    #863 до читателя доезжал ОДИН вердикт, а «какая мерка говорила, а какая молчала»
+    читалось только из ПРОЗЫ `order_detail` — то есть разбором подстроки, который
+    запрещён (ADR-333).
+
+    ЗАМЕР ДО ПРАВКИ (живой прод-трекер, origin/main 55eb3db5c, 787 карточек, расошедшихся
+    пар 170): вердикт `unmeasured` несли 112 карточек, и под ним стояли ДВА РАЗНЫХ
+    состояния — `neither_decided` 108 (штатная тишина) и `axes_disagree` 4 (тревога
+    fail-CLOSED, предмет ADR-544; одна из четырёх — карточка РЕШЕНИЯ ВЛАДЕЛЬЦА). Все 27
+    вердиктов `tree_newer` стояли на `mark_only`, то есть на одной оси, и именно той,
+    которая на 8 живых парах дала неверный `tree_newer` из джиттера писателя 68–175 мкс.
+    Полей, называющих ось поимённо, не было ни одного.
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ, а не наличие функции.** Проба собирает одноразовый
+    репозиторий ДВАЖДЫ — на паре копий, где оси РАСХОДЯТСЯ, и на паре, где не решает ни
+    одна, — зовёт НАСТОЯЩУЮ команду шага 1 (`cmd_list --json`) и сверяет два ответа.
+
+    **Подстрокой не проходит (ADR-333):** требуется ПОЛЕ, значение которого — точный член
+    вокабуляра базиса у прибора (вокабуляр собирается ОБХОДОМ, а не парой из головы), и
+    это значение обязано НЕ содержаться в прозе того же вердикта.
+
+    **Контроль в обе стороны внутри самой пробы.** Мало чтобы поле было: на двух парах с
+    ОДНИМ вердиктом `unmeasured` базисы обязаны РАЗЛИЧАТЬСЯ (иначе поле есть, а ответа
+    нет), и обратно — за дверью отказа сверки базис обязан быть словом ЧИТАТЕЛЯ, а не
+    именем прибора (иначе «не спрашивали» снова читается как «спросили и не узнали»).
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): читателя нет / не ввезён / предпосылка репозитория
+    не обеспечена ⇒ `unmeasured` с причиной, а не `not_satisfied` и уж точно не
+    `satisfied`.
+
+    Оговорка названа вслух (та же, что у соседних проб #860…#862): `orchestrator_queue`
+    ввозится из `repo_root`, а пакет `spa_core` остаётся того дерева, в котором идёт сама
+    проба. Измеряемое свойство живёт в самом читателе, поэтому дискриминация на двух
+    деревьях от этого не страдает.
+    """
+    import hashlib as _hl
+    import importlib.util as _ilu
+
+    root = repo_root or REPO_ROOT
+    reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
+    if not os.path.exists(reader_path):
+        return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
+    drift_path = os.path.join(root, "scripts", "check_tracker_drift.py")
+    if not os.path.exists(drift_path):
+        return UNMEASURED, f"{drift_path} не найден — прибор расхождения НЕ ИЗМЕРИТЬ"
+    for _p in (root, os.path.join(root, "scripts")):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    mod_name = "_probe_queue_basis_" + _hl.sha256(root.encode()).hexdigest()[:12]
+
+    # ── ПРИБОР — ИЗ ИЗМЕРЯЕМОГО ДЕРЕВА, а не тот, что уже в `sys.modules` ──────────
+    #
+    # Контур пробы — ДВА файла: читатель очереди и прибор расхождения (вокабуляр базиса
+    # живёт у второго). Читателя проба грузит ПО ПУТИ, а прибор до цикла #863 ввозила
+    # по ИМЕНИ — и этим мерила СОСЕДНЮЮ дверь: `import check_tracker_drift` отдаёт
+    # копию, попавшую в `sys.modules` первой, то есть прибор ТОГО дерева, где идёт сама
+    # проба. Дефект нашёл контроль собственной батареи (звенья 4, 7, 12 были зелены при
+    # ПОЛНОСТЬЮ ослеплённом приборе) — ровно класс «тест мерит соседнюю дверь, потому
+    # что в целевую ведёт тот же зов».
+    #
+    # Подменяется ИМЕННО имя `check_tracker_drift`: читатель ввозит прибор по нему же,
+    # поэтому иначе проба и читатель смотрели бы на РАЗНЫЕ приборы. Прежнее значение
+    # возвращается в `finally` — проба меряет, а не меняет окружение зовущего.
+    _saved_drift = sys.modules.get("check_tracker_drift")
+    try:
+        try:
+            _spec_d = _ilu.spec_from_file_location("check_tracker_drift", drift_path)
+            _drift = _ilu.module_from_spec(_spec_d)
+            sys.modules["check_tracker_drift"] = _drift
+            _spec_d.loader.exec_module(_drift)
+        except Exception as exc:                    # noqa: BLE001
+            return UNMEASURED, (f"прибор расхождения не ввезён "
+                                f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+        try:
+            spec = _ilu.spec_from_file_location(mod_name, reader_path)
+            reader = _ilu.module_from_spec(spec)
+            sys.modules[mod_name] = reader
+            try:
+                spec.loader.exec_module(reader)
+            except BaseException:
+                sys.modules.pop(mod_name, None)
+                raise
+        except Exception as exc:                    # noqa: BLE001
+            return UNMEASURED, (f"читатель очереди не ввезён ({type(exc).__name__}: {exc}) — "
+                                f"НЕ ИЗМЕРЕНО")
+
+        #: Полный вокабуляр БАЗИСА у прибора — обходом, а не парой из головы: заведут
+        #: шестое слово, и проба увидит его без правки.
+        bases = {v for k, v in vars(_drift).items()
+                 if k.startswith("BASIS_") and isinstance(v, str)}
+        if not bases:
+            return NOT_SATISFIED, (
+                "у прибора расхождения НЕТ вокабуляра базиса (`BASIS_*`) — значит ответ на "
+                "«какая из двух осей говорила» не производит никто, и читателю его взять "
+                "негде: ровно замер до ADR-719")
+        return _queue_order_basis_outcome(_drift, reader, bases)
+    finally:
+        if _saved_drift is None:
+            sys.modules.pop("check_tracker_drift", None)
+        else:
+            sys.modules["check_tracker_drift"] = _saved_drift
+
+
+def _queue_order_basis_outcome(_drift, reader, bases: set) -> tuple[str, str]:
+    """Исход у читателя на ДВУХ парах копий + за дверью отказа (тело пробы ADR-719).
+
+    Отдельная функция ровно затем, чтобы подмена прибора в `sys.modules` снималась
+    `finally` у зовущего, а не повторялась на каждом `return` замера.
+    """
+    import contextlib as _ctx
+    import io as _io
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    ref = "scene-main"
+    missing_ref = "refs/heads/no-such-ref-for-this-probe"
+    # Отметки — ПРЕДМЕТ оси (`mark_order` сравнивает именно их), поэтому литеральные и к
+    # настенным часам не привязаны ничем.
+    earlier, later = "2026-09-01T00:00:00+00:00", "2026-10-01T00:00:00+00:00"
+
+    def _git(cwd, *args):
+        return _sp.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                       timeout=60)
+
+    def _card(status, trail, body):
+        head = ["---", "type: inbox", f"status: {status}",
+                'title: "TASK — карточка сцены"']
+        if trail:
+            head.append("status_trail:")
+            head += [f'  - "{t}"' for t in trail]
+        head += ["---", "", body, ""]
+        return "\n".join(head)
+
+    #: Две пары копий, дающие ОДИН вердикт `unmeasured` и РАЗНЫЙ базис. Пары подобраны по
+    #: самим мерам: оси расходятся, когда отметка дерева позже, а след говорит «впереди
+    #: origin»; не решает ни одна, когда у копии ref отметок нет и статусы совпадают.
+    scenes = {
+        "РАСХОДЯТСЯ": (
+            _card("in-progress",
+                  [f"{later} new -> in-progress · queue.set_status · c1"], "дерево"),
+            _card("done", [f"{earlier} new -> done · queue.set_status · c2"], "ref")),
+        "НЕ РЕШИЛА НИ ОДНА": (
+            _card("new", [f"{earlier} new -> new · queue.set_status · c1"], "дерево"),
+            _card("new", [], "ref")),
+    }
+
+    def _ask(tracker, which_ref):
+        argv = ["list", "--tracker-dir", tracker, "--ref", which_ref, "--json"]
+        out, err = _io.StringIO(), _io.StringIO()
+        with _ctx.redirect_stdout(out), _ctx.redirect_stderr(err):
+            reader.cmd_list(reader.build_parser().parse_args(argv))
+        return {c["id"]: c for c in _json.loads(out.getvalue())}, err.getvalue()
+
+    answers: dict[str, dict] = {}
+    errs: dict[str, str] = {}
+    refused_card: dict = {}
+    try:
+        for name, (tree_text, origin_text) in scenes.items():
+            with _tf.TemporaryDirectory() as tmp:
+                rroot = os.path.join(tmp, "repo")
+                tracker = os.path.join(rroot, _drift.TRACKER_REL)
+                os.makedirs(tracker)
+                r = _git(tmp, "init", "-q", "-b", ref, rroot)
+                if r.returncode != 0:
+                    raise RuntimeError(f"git init: {r.stderr.strip()}")
+                for a in (["config", "user.email", "probe@example.com"],
+                          ["config", "user.name", "probe"]):
+                    r = _git(rroot, *a)
+                    if r.returncode != 0:
+                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                card_path = os.path.join(tracker, "inbox-order.md")
+                with open(card_path, "w", encoding="utf-8") as fh:
+                    fh.write(origin_text)
+                for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
+                    r = _git(rroot, *a)
+                    if r.returncode != 0:
+                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                with open(card_path, "w", encoding="utf-8") as fh:
+                    fh.write(tree_text)
+                got, err = _ask(tracker, ref)
+                answers[name] = got.get("inbox-order") or {}
+                errs[name] = err
+                if name == "РАСХОДЯТСЯ":
+                    door, _door_err = _ask(tracker, missing_ref)
+                    refused_card = door.get("inbox-order") or {}
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"предпосылка пробы НЕ ОБЕСПЕЧЕНА ({type(exc).__name__}: {exc}) — "
+                            f"вердикт читателя очереди НЕ ИЗМЕРЕН")
+
+    for name, card in answers.items():
+        if not card:
+            return UNMEASURED, (f"на сцене «{name}» читатель не вернул карточку вовсе — "
+                                f"предпосылка пробы НЕ ОБЕСПЕЧЕНА")
+        if card.get("origin_order") != _drift.ORDER_UNMEASURED:
+            return UNMEASURED, (
+                f"на сцене «{name}» вердикт порядка не `{_drift.ORDER_UNMEASURED}`, а "
+                f"`{card.get('origin_order')}` — предпосылка пробы НЕ ОБЕСПЕЧЕНА: "
+                f"различать базисом под ОДНИМ вердиктом было бы нечего")
+
+    for name, card in answers.items():
+        if "origin_order_basis" not in card:
+            return NOT_SATISFIED, (
+                f"на сцене «{name}» у читателя НЕТ поля `origin_order_basis`: вердикт "
+                f"`{card.get('origin_order')}` один на «обе оси решили и РАСХОДЯТСЯ» и "
+                f"«ни одна не решила» — чем он добыт, машинно не читается (замер 14.10: "
+                f"112 карточек = 108 тишин + 4 тревоги)")
+        if card["origin_order_basis"] not in bases:
+            return NOT_SATISFIED, (
+                f"на сцене «{name}» базис `{card['origin_order_basis']}` не входит в "
+                f"вокабуляр прибора {sorted(bases)} — значение не объявлено, читать его "
+                f"машинно нельзя")
+        for axis in ("origin_order_mark", "origin_order_trail"):
+            if axis not in card:
+                return NOT_SATISFIED, (
+                    f"на сцене «{name}» нет поля `{axis}` — базис есть, а вердикт самой "
+                    f"оси назвать нечем")
+
+    clash, quiet = answers["РАСХОДЯТСЯ"], answers["НЕ РЕШИЛА НИ ОДНА"]
+    if clash["origin_order_basis"] == quiet["origin_order_basis"]:
+        return NOT_SATISFIED, (
+            f"базис ОДИН И ТОТ ЖЕ (`{clash['origin_order_basis']}`) на расхождении осей и "
+            f"на их молчании — поле есть, а ответа на «какая мерка говорила» нет: тот же "
+            f"дефект, только под новым именем")
+    if clash["origin_order_mark"] == clash["origin_order_trail"]:
+        return NOT_SATISFIED, (
+            f"на сцене расхождения оси названы ОДНИМ вердиктом "
+            f"(`{clash['origin_order_mark']}`) — расходиться им тогда нечем, значит поля "
+            f"не несут вердикт КАЖДОЙ оси")
+    if clash["origin_order_basis"] in str(clash.get("origin_order_detail") or ""):
+        return NOT_SATISFIED, (
+            "базис читается как подстрока прозы — значит носитель ответа по-прежнему "
+            "проза, а её разбор запрещён (ADR-333)")
+    if not refused_card:
+        return UNMEASURED, ("за дверью отказа сверки читатель не вернул карточку — "
+                            "обратный контроль НЕ ИЗМЕРЕН")
+    door_basis = refused_card.get("origin_order_basis")
+    if door_basis is None:
+        return NOT_SATISFIED, (
+            "за дверью отказа сверки базиса нет вовсе — отсутствие поля читается как "
+            "«ось не спрашивают у этого класса», то есть как штатная тишина (ADR-718)")
+    if door_basis in bases:
+        return NOT_SATISFIED, (
+            f"за дверью отказа читатель выдаёт базис ПРИБОРА `{door_basis}` — «ни одну "
+            f"ось не спрашивали» прочтётся как «спросили обе и не узнали»")
+    if "ОСИ РАСХОДЯТСЯ" not in errs["РАСХОДЯТСЯ"]:
+        return NOT_SATISFIED, (
+            "расхождение осей есть в JSON, но человек у терминала его не видит: в stderr "
+            "нет строки про расхождение — два выхода одного читателя разошлись")
+    if "ОСИ РАСХОДЯТСЯ" in errs["НЕ РЕШИЛА НИ ОДНА"]:
+        return NOT_SATISFIED, (
+            "строка про расхождение осей печатается и там, где оси не расходятся — "
+            "сторож, кричащий всегда, молчит и тогда, когда тревога настоящая (урок #243)")
+    return SATISFIED, (
+        f"шаг 1 называет ЧЕМ добыт вердикт порядка: под одним `{_drift.ORDER_UNMEASURED}` "
+        f"базисы РАЗНЫЕ (`{clash['origin_order_basis']}` против "
+        f"`{quiet['origin_order_basis']}`, оба из вокабуляра прибора {sorted(bases)}), "
+        f"вердикт каждой оси назван отдельно "
+        f"(`{clash['origin_order_mark']}` / `{clash['origin_order_trail']}`), за дверью "
+        f"отказа стои́т слово ЧИТАТЕЛЯ `{door_basis}`, а расхождение осей видно и в "
+        f"stderr — и только там, где оно есть")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "queue_reader_names_which_order_axis_spoke":
+        _probe_queue_reader_names_which_order_axis_spoke,
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,

@@ -194,9 +194,89 @@ def trail_order(tree_text: str, tree_status: str, origin_status: str) -> tuple[s
         f"её '{tree_status}') — впереди origin")
 
 
-def combined_order(tree_text: str, origin_text: str,
-                   tree_status: str, origin_status: str) -> tuple[str, str]:
-    """Две независимые оси порядка, сведённые FAIL-CLOSED → (вердикт, причина словами).
+# ---------------------------------------------------------------------------
+# БАЗИС вердикта порядка — КАКАЯ из двух мерок говорила (ADR-719, цикл #863)
+# ---------------------------------------------------------------------------
+#
+# Находка цикла #862 (заказ G718 п. 1), закрытая здесь. Оси порядка две и они
+# независимы, а до читателя очереди доезжал ОДИН вердикт: «какая из двух мерок молчит»
+# читалось только из ПРОЗЫ `order_detail`, а разбор подстрокой запрещён (ADR-333).
+#
+# ЗАМЕР ДО ПРАВКИ (14.10, живой прод-трекер, origin/main 55eb3db5c, 787 карточек,
+# расошедшихся пар 170; базис пересчитан ТОЛЬКО для замера):
+#
+#     вердикт `unmeasured`  112 = neither_decided 108 + axes_disagree   4
+#     вердикт `tree_newer`   27 = mark_only        27
+#     вердикт `origin_newer` 31 = trail_only       19 + mark_only 10 + both_agree 2
+#     полей Finding, называющих ОСЬ поимённо: НИ ОДНОГО
+#
+# Два следствия, и оба про РЕШЕНИЯ, а не про оформление:
+#
+# 1. `unmeasured` несёт ДВА РАЗНЫХ состояния под одним именем — «обе оси спросили, и ни
+#    одна не решила» (108, штатная тишина) и «обе решили и РАСХОДЯТСЯ» (4, тревога
+#    fail-CLOSED, предмет ADR-544). Ровно тот дефект, который ADR-718 снял уровнем выше
+#    («не сверяли» против «сверили и не решили») — здесь он остался НЕ СНЯТЫМ внутри
+#    самого `unmeasured`.
+# 2. Все **27** вердиктов `tree_newer` стоят на `mark_only` — то есть на ОДНОЙ оси, и
+#    именно той, которая на 8 живых парах выдала неверный `tree_newer` из джиттера
+#    писателя в 68–175 мкс (ADR-544). Сессия, читающая `origin_order=tree_newer`, не
+#    может отличить «обе оси согласны» (так получены 2 вердикта) от «говорила только
+#    склонная к джиттеру» (27) — а цена ложного `tree_newer` названа в ADR-544: запись
+#    `owner-done` поверх `ingested`, то есть РАСКРЫТИЕ решения владельца.
+#
+# Базис ВЫВОДИТСЯ ИЗ ПАРЫ вердиктов в одном месте (:func:`_order_basis`) и едет готовым
+# словом. Выводить его у каждого читателя значило бы столько мерок одного факта, сколько
+# читателей, — ADR-220 уже про это. Пара осей едет РЯДОМ с базисом: базис отвечает «как
+# добыт вердикт», пара — «что сказала каждая», и второй вопрос мельче первого.
+BASIS_BOTH_AGREE = "both_agree"            # обе оси решили и СОГЛАСНЫ
+BASIS_AXES_DISAGREE = "axes_disagree"      # обе решили и РАСХОДЯТСЯ — тревога ADR-544
+BASIS_MARK_ONLY = "mark_only"              # решила только ось отметок
+BASIS_TRAIL_ONLY = "trail_only"            # решила только ось следа переходов
+BASIS_NEITHER_DECIDED = "neither_decided"  # обе СПРОШЕНЫ, ни одна не решила
+
+#: Полный вокабуляр базиса ПРИБОРА. Нужен тем, кто проверяет свойство обходом словаря, а
+#: не парой значений из головы (урок #862): пара из головы не падает от нового слова.
+#: Слова читателя (`not_asked` — «ось не спрашивали вовсе») здесь НЕТ намеренно: прибор
+#: его не производит никогда, и объявить его тут значило бы завести всегда мёртвое
+#: значение (#810 снимал такое как ложное успокоение). Тот же довод, что у
+#: `ORDER_NOT_COMPARED`, живущего у читателя.
+ORDER_BASES = frozenset({BASIS_BOTH_AGREE, BASIS_AXES_DISAGREE, BASIS_MARK_ONLY,
+                         BASIS_TRAIL_ONLY, BASIS_NEITHER_DECIDED})
+
+#: Исходы, которые СЧИТАЮТСЯ ответом оси. Одно определение на весь модуль: два списка
+#: «что значит решила» разъехались бы молча.
+ORDER_DECIDED = frozenset({ORDER_TREE_NEWER, ORDER_ORIGIN_NEWER})
+
+
+def _order_basis(by_time: str, by_trail: str) -> str:
+    """Пара вердиктов осей → базис одним словом. Единственное место этого вывода."""
+    time_said, trail_said = by_time in ORDER_DECIDED, by_trail in ORDER_DECIDED
+    if time_said and trail_said:
+        return BASIS_BOTH_AGREE if by_time == by_trail else BASIS_AXES_DISAGREE
+    if time_said:
+        return BASIS_MARK_ONLY
+    if trail_said:
+        return BASIS_TRAIL_ONLY
+    return BASIS_NEITHER_DECIDED
+
+
+@dataclass(frozen=True)
+class OrderVerdict:
+    """Вердикт порядка ВМЕСТЕ с тем, чем он добыт.
+
+    Разделять «вердикт» и «чем добыт» по двум вызовам нельзя: мерки пришлось бы
+    приложить дважды, а два экземпляра одной мерки расходятся молча (ADR-220).
+    """
+    verdict: str
+    detail: str
+    mark: str
+    trail: str
+    basis: str
+
+
+def combined_order_axes(tree_text: str, origin_text: str,
+                        tree_status: str, origin_status: str) -> OrderVerdict:
+    """Две независимые оси порядка, сведённые FAIL-CLOSED, + БАЗИС вердикта.
 
     * обе молчат ⇒ НЕ ИЗМЕРЕНО (обе причины названы);
     * говорит одна ⇒ её вердикт;
@@ -209,21 +289,42 @@ def combined_order(tree_text: str, origin_text: str,
     восьми уверенных и неверных `tree_newer` на восемь честных «не измерено» — уже
     всё, ради чего сторож существует; выбирать между двумя осями, которых мера не
     умеет рассудить, она не вправе.
+
+    Сведение НЕ МЕНЯЕТСЯ этой правкой ни в одной ветке — добавляется только ответ на
+    вопрос «чем вердикт добыт» (ADR-719). Проверено обратным контролем: вердикт и проза
+    совпадают с прежними побайтово на всех пяти базисах.
     """
     by_time, time_why = mark_order(tree_text, origin_text)
     by_trail, trail_why = trail_order(tree_text, tree_status, origin_status)
-    decided = {ORDER_TREE_NEWER, ORDER_ORIGIN_NEWER}
-    if by_time in decided and by_trail in decided:
-        if by_time == by_trail:
-            return by_time, f"обе оси согласны: {time_why}; след: {trail_why}"
-        return ORDER_UNMEASURED, (
+    basis = _order_basis(by_time, by_trail)
+    if basis == BASIS_BOTH_AGREE:
+        verdict, detail = by_time, f"обе оси согласны: {time_why}; след: {trail_why}"
+    elif basis == BASIS_AXES_DISAGREE:
+        verdict, detail = ORDER_UNMEASURED, (
             f"ОСИ РАСХОДЯТСЯ, вердикта нет (fail-CLOSED). "
             f"по отметкам — {by_time}: {time_why}. по следу переходов — {by_trail}: {trail_why}")
-    if by_time in decided:
-        return by_time, f"по отметкам: {time_why} (след порядка не установил: {trail_why})"
-    if by_trail in decided:
-        return by_trail, f"по следу переходов: {trail_why} (отметки порядка не установили: {time_why})"
-    return ORDER_UNMEASURED, f"ни одна ось не установила порядок. отметки: {time_why}. след: {trail_why}"
+    elif basis == BASIS_MARK_ONLY:
+        verdict, detail = by_time, (
+            f"по отметкам: {time_why} (след порядка не установил: {trail_why})")
+    elif basis == BASIS_TRAIL_ONLY:
+        verdict, detail = by_trail, (
+            f"по следу переходов: {trail_why} (отметки порядка не установили: {time_why})")
+    else:
+        verdict, detail = ORDER_UNMEASURED, (
+            f"ни одна ось не установила порядок. отметки: {time_why}. след: {trail_why}")
+    return OrderVerdict(verdict=verdict, detail=detail,
+                        mark=by_time, trail=by_trail, basis=basis)
+
+
+def combined_order(tree_text: str, origin_text: str,
+                   tree_status: str, origin_status: str) -> tuple[str, str]:
+    """Прежняя форма (вердикт, причина) — тонкая обёртка над :func:`combined_order_axes`.
+
+    Сведение живёт в ОДНОМ месте: вторая реализация «только для старых вызывающих»
+    и есть тот самый молча расходящийся экземпляр мерки.
+    """
+    got = combined_order_axes(tree_text, origin_text, tree_status, origin_status)
+    return got.verdict, got.detail
 
 
 def mark_order(tree_text: str, origin_text: str) -> tuple[str, str]:
@@ -433,6 +534,13 @@ class Finding:
     #: а не «спросили и не узнали»: второе — это `ORDER_UNMEASURED` с причиной.
     order: str = ""
     order_detail: str = ""
+    #: ЧЕМ вердикт порядка добыт (ADR-719): базис одним словом из :data:`ORDER_BASES` и
+    #: вердикт КАЖДОЙ из двух осей отдельно. До #863 это читалось только из прозы
+    #: `order_detail`, то есть разбором подстроки, который запрещён (ADR-333). Пустая
+    #: строка здесь — то же, что у `order`: «этот класс о порядке не спрашивают».
+    order_basis: str = ""
+    order_mark: str = ""
+    order_trail: str = ""
     #: Память копий по записям цикла (см. :func:`record_memory`). Спрашивается у
     #: `diverged` и `stale` — только у них обе копии в руках. У `hidden`/`undelivered`/
     #: `deleted_on_origin` второй копии нет вовсе, и пустая строка здесь означает
@@ -453,6 +561,9 @@ class Finding:
             "tracker_type": self.tracker_type,
             "order": self.order,
             "order_detail": self.order_detail,
+            "order_basis": self.order_basis,
+            "order_mark": self.order_mark,
+            "order_trail": self.order_trail,
             "memory": self.memory,
             "memory_detail": self.memory_detail,
             "memory_missing_tree": self.memory_missing_tree,
@@ -844,14 +955,15 @@ def analyze(tracker_dir: Path | None = None, ref: str = DEFAULT_REF) -> Report:
             # второго прохода git. Цена сторожа однажды уже выключила сторожа (#454:
             # доска гоняла сверку с `--no-origin-check`, потому что та стоила 84 с),
             # и платить процессом на карточку ради этой строки нельзя.
-            order, order_detail = combined_order(
+            got = combined_order_axes(
                 tree_text, origin_texts.get(origin[card_id]) or "",
                 tree_card.status, origin_card.status)
             report.findings.append(Finding(
                 kind=KIND_DIVERGED, card_id=card_id, detail=why,
                 tree_status=tree_card.status, origin_status=origin_card.status,
                 tracker_type=origin_card.tracker_type,
-                order=order, order_detail=order_detail,
+                order=got.verdict, order_detail=got.detail,
+                order_basis=got.basis, order_mark=got.mark, order_trail=got.trail,
                 memory=mem.verdict, memory_detail=mem.detail,
                 memory_missing_tree=mem.missing_tree,
                 memory_missing_origin=mem.missing_origin))

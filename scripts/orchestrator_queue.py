@@ -351,6 +351,17 @@ def _memory_unmeasured_without_instrument(cards: list, reason: str) -> dict[str,
 #: читателя: вокабуляр порядка у читателя СВОЙ, и отнять его нечему.
 ORDER_NOT_COMPARED = "not_compared"
 
+#: БАЗИС вердикта порядка в дверях отказа — слово ЧИТАТЕЛЯ (ADR-719, цикл #863).
+#:
+#: Прибор несёт пять базисов (`drift.ORDER_BASES`), и все пять описывают состоявшийся
+#: вопрос: «обе решили и согласны», «обе решили и расходятся», «решила одна», «обе
+#: спрошены и ни одна не решила». В дверях отказа не спрошена НИ ОДНА, и подставить сюда
+#: `neither_decided` прибора значило бы воспроизвести чинимый дефект на уровень ниже —
+#: «не спрашивали» под именем «спросили и не узнали». Дом слова — ЧИТАТЕЛЬ, по тому же
+#: доводу, что у `ORDER_NOT_COMPARED`: прибор его не производит никогда, и объявить имя
+#: у прибора значило бы завести всегда мёртвое значение (#810).
+BASIS_NOT_ASKED = "not_asked"
+
 
 def _order_unmeasured_detail(reason: str, ref: str) -> str:
     """Причина оси ПОРЯДКА — своя, про СВОЙ вопрос, а не пересказ соседа.
@@ -379,11 +390,19 @@ def _order_unmeasured_rows(cards: list, detail: str) -> dict[str, dict]:
     Строка ОДНА на весь список: `origin_order` приписан к каждой карточке (машинный
     контракт — как `origin_check` и `origin_memory`), а человеку отказ говорится один раз
     (урок #243 — сторожа, кричащего на каждой находке, выключают).
+
+    БАЗИС (ADR-719) уезжает той же точкой и тем же словом для всех: не спрошена ни одна
+    ось, поэтому и `origin_order_mark`, и `origin_order_trail` несут `not_compared`.
+    Отсутствие этих полей здесь читалось бы как «ось не спрашивают у этого класса» — то
+    есть как штатная тишина, ровно та подмена, против которой написан ADR-718.
     """
     print(f"❓ ось ПОРЯДКА копий (КТО ДАЛЬШЕ ПРОДВИНУЛСЯ) НЕ ИЗМЕРЕНА, и причина у неё "
           f"СВОЯ: {detail}", file=sys.stderr)
     return {c.id: {"origin_order": ORDER_NOT_COMPARED,
-                   "origin_order_detail": detail} for c in cards}
+                   "origin_order_detail": detail,
+                   "origin_order_basis": BASIS_NOT_ASKED,
+                   "origin_order_mark": ORDER_NOT_COMPARED,
+                   "origin_order_trail": ORDER_NOT_COMPARED} for c in cards}
 
 
 def _axes_unmeasured(cards: list, reason: str, drift, ref: str) -> dict[str, dict]:
@@ -571,6 +590,10 @@ def _origin_read_through(cards: list, tracker_dir=None,
     proven_ingested: list[str] = []
     #: Разошедшиеся карточки по ПОРЯДКУ ОТМЕТОК — имена раскладываются по исходу в stderr.
     by_order: dict[str, list[str]] = {}
+    #: Те же карточки по БАЗИСУ вердикта (ADR-719) — ЧЕМ порядок добыт. Нужен ровно одной
+    #: группе: `axes_disagree` — это тревога fail-CLOSED (ADR-544), и до #863 она пряталась
+    #: внутри общей строки «порядок НЕ УСТАНОВЛЕН» (замер 14.10: 4 из 112).
+    by_basis: dict[str, list[str]] = {}
     #: Закрыто у нас, открыто на ref, И наша отметка ИЗМЕРЕННО позже ⇒ закрытие есть только
     #: здесь. Единственная группа, у которой этот сторож называет ДЕЙСТВИЕ, а не только исход.
     undelivered_closure: list[str] = []
@@ -584,7 +607,14 @@ def _origin_read_through(cards: list, tracker_dir=None,
         if f.order:
             verdict["origin_order"] = f.order
             verdict["origin_order_detail"] = f.order_detail
+            # ЧЕМ вердикт добыт — тоже ИЗ СТОРОЖА, одной копией (ADR-719). Выводить базис
+            # здесь из пары осей значило бы второй экземпляр вывода: сторож и читатель
+            # разошлись бы молча, как уже расходились две мерки порядка (ADR-220).
+            verdict["origin_order_basis"] = f.order_basis
+            verdict["origin_order_mark"] = f.order_mark
+            verdict["origin_order_trail"] = f.order_trail
             by_order.setdefault(f.order, []).append(f.card_id)
+            by_basis.setdefault(f.order_basis, []).append(f.card_id)
             if f.order == drift.ORDER_TREE_NEWER:
                 verdict["origin_check"] = VERDICT_DIVERGED_TREE_NEWER
             elif f.order == drift.ORDER_ORIGIN_NEWER:
@@ -685,6 +715,17 @@ def _origin_read_through(cards: list, tracker_dir=None,
             if group:
                 print(f"        · {name} ({len(group)}): {', '.join(sorted(group))}",
                       file=sys.stderr)
+        # ТРЕВОГА, которая пряталась внутри «порядок НЕ УСТАНОВЛЕН» (ADR-719). «Обе оси
+        # решили и РАСХОДЯТСЯ» и «обе спрошены, ни одна не решила» — два разных события
+        # под одним вердиктом, и первое есть расхождение ДВУХ мерок одного порядка, то
+        # есть предмет ADR-544, а не штатная тишина. Строка ОДНА и только когда группа
+        # НЕ ПУСТА: кричать на каждой находке — способ выключить сторожа (урок #243).
+        clash = by_basis.get(drift.BASIS_AXES_DISAGREE)
+        if clash:
+            print(f"        · 🔴 из них ОСИ РАСХОДЯТСЯ ({len(clash)}) — две мерки порядка "
+                  f"дали ПРОТИВОПОЛОЖНЫЕ ответы, вердикта нет по fail-CLOSED (ADR-544), "
+                  f"а не «нечего упорядочивать»: {', '.join(sorted(clash))}",
+                  file=sys.stderr)
         unordered = sorted(f.card_id for f in diverged if not f.order)
         if unordered:
             # Сторож о порядке не спросили вовсе — это НЕ «не установлен».

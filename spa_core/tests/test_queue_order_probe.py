@@ -94,8 +94,16 @@ def test_link3_unimportable_reader_is_unmeasured(tmp_path: Path) -> None:
 def test_link4_silent_reader_is_not_satisfied(tmp_path: Path) -> None:
     """Звено 4: читатель, не ставящий ось порядка при отказе сверки, пробу НЕ проходит."""
     root = _tree_with_patched_reader(tmp_path, [(
+        # ЯКОРЬ ПЕРЕНАВЕДЁН циклом #863: тот же оператор `return` вырос с двух строк
+        # до пяти — ADR-719 добавил в него поля БАЗИСА (`origin_order_basis` и
+        # вердикт каждой оси). Утверждение теста НЕ ИЗМЕНЕНО ни на слово: мутант
+        # по-прежнему убирает из вердикта ВСЮ ось порядка. Прежний якорь стал
+        # отсутствующим, и сторож единственности честно падал (инв. #16 цел).
         '    return {c.id: {"origin_order": ORDER_NOT_COMPARED,\n'
-        '                   "origin_order_detail": detail} for c in cards}',
+        '                   "origin_order_detail": detail,\n'
+        '                   "origin_order_basis": BASIS_NOT_ASKED,\n'
+        '                   "origin_order_mark": ORDER_NOT_COMPARED,\n'
+        '                   "origin_order_trail": ORDER_NOT_COMPARED} for c in cards}',
         '    return {c.id: {} for c in cards}')])
     verdict, why = _run(root)
     assert verdict == ca.NOT_SATISFIED, f"{verdict}: {why}"
@@ -175,8 +183,16 @@ def test_link8_reader_stamping_third_outcome_on_everything_is_unmeasured(
 def test_link9_probe_does_not_pass_on_a_phrase(tmp_path: Path) -> None:
     """Звено 9: напечатать нужные слова и не поставить поле — пробу не удовлетворяет."""
     root = _tree_with_patched_reader(tmp_path, [(
+        # ЯКОРЬ ПЕРЕНАВЕДЁН циклом #863: тот же оператор `return` вырос с двух строк
+        # до пяти — ADR-719 добавил в него поля БАЗИСА (`origin_order_basis` и
+        # вердикт каждой оси). Утверждение теста НЕ ИЗМЕНЕНО ни на слово: мутант
+        # по-прежнему убирает из вердикта ВСЮ ось порядка. Прежний якорь стал
+        # отсутствующим, и сторож единственности честно падал (инв. #16 цел).
         '    return {c.id: {"origin_order": ORDER_NOT_COMPARED,\n'
-        '                   "origin_order_detail": detail} for c in cards}',
+        '                   "origin_order_detail": detail,\n'
+        '                   "origin_order_basis": BASIS_NOT_ASKED,\n'
+        '                   "origin_order_mark": ORDER_NOT_COMPARED,\n'
+        '                   "origin_order_trail": ORDER_NOT_COMPARED} for c in cards}',
         '    print("ось ПОРЯДКА: какая копия ДАЛЬШЕ ПРОДВИНУЛАСЬ — НЕ ИЗМЕРЕНО",\n'
         '          file=sys.stderr)\n'
         '    return {c.id: {} for c in cards}')])
