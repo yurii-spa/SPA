@@ -213,6 +213,112 @@ def _inst_run_id(snap: Snapshot, child_pid: int, run_id: str) -> set:
     return {p for p, (_, _, _, tail) in snap.rows.items() if needle in tail}
 
 
+#: ОТКУДА в строке `ps` взялось совпадение метки. `-Ewww` печатает командную строку и
+#: окружение ОДНИМ полем, поэтому прибор выше не различает «метка унаследована работником»
+#: (окружение) и «метка передана аргументом» (обёртка `--run-id …`, да и сам замер
+#: `grep <метка>`). Замер 14.10 на рабочем Маке: из ЧЕТЫРЁХ живых носителей метки идущего
+#: цикла ДВА оказались самим прибором замера — python, задавший вопрос, и `ps`, которого он
+#: для этого позвал; оба несут метку в ОКРУЖЕНИИ по наследству. Вердикт это не меняет
+#: (носитель метки найден — работа идёт), но ЧИСЛО в прозе вердикта — не население
+#: работников, и пока происхождение не названо, этого по прозе не видно.
+MATCH_ENV, MATCH_CMDLINE, MATCH_UNMEASURED = "env", "cmdline", "unmeasured"
+
+
+def _ps_argv() -> str:
+    """Та же таблица БЕЗ `-E`: только командная строка. Отдельная дверь к ОС (инъектируема)."""
+    return _ps(["-A", "-wwwo", "pid=,command="])
+
+
+def argv_rows(probe=None) -> dict:
+    """pid → командная строка БЕЗ окружения. Поднимает `PsUnavailable` как и снимок."""
+    out = (probe or _ps_argv)()
+    rows = {}
+    for line in out.splitlines():
+        fields = line.split(None, 1)
+        if len(fields) < 2:
+            continue
+        try:
+            rows[int(fields[0])] = fields[1]
+        except ValueError:
+            raise PsUnavailable(f"строку ps (без -E) не разобрать: {line[:120]!r}")
+    if not rows:
+        raise PsUnavailable("ps (без -E) вернул пустую таблицу процессов")
+    return rows
+
+
+def match_origin(snap: "Snapshot", run_id: str, argv=None, probe=None) -> dict:
+    """pid-носитель метки → (`env` | `cmdline` | `unmeasured`, причина).
+
+    Как мерится. В выводе `-Ewww` окружение ДОПИСАНО за командной строкой, поэтому строка
+    без `-E` есть ПРЕФИКС строки с `-E` (замер 14.10: свойство держится у 649 строк из 649).
+    Смещение совпадения меньше длины префикса ⇒ метка в КОМАНДНОЙ строке, иначе ⇒ в
+    ОКРУЖЕНИИ. Префикс не совпал или pid в одной таблице есть, а в другой нет (замер: 1 pid
+    из 650 — таблицы снимаются не в один миг) ⇒ **третий исход** `unmeasured` с причиной:
+    выдать его за `env` значило бы объявить обёртку работником (инв. #17).
+
+    `argv` (готовая таблица) и `probe` (дверь к ОС, которой её добыть) — ВХОДЫ ровно по
+    тем же причинам, по которым инъектируемы обе дверцы `census`: сторож, спрашивающий у
+    живой ОС, меняет вердикт от того, кто сегодня занял номер. Сцена «вторую таблицу снять
+    не удалось» достижима ТОЛЬКО через `probe`, поэтому без него третий исход остался бы
+    необъявленным по существу.
+    """
+    needle = f"{RUN_ID_VAR}={run_id}"
+    try:
+        rows = argv if argv is not None else argv_rows(probe=probe)
+    except PsUnavailable as exc:
+        rows = None
+        why_all = f"командная строка без окружения не снята ({exc})"
+    out = {}
+    for pid, (_, _, _, tail) in snap.rows.items():
+        at = tail.find(needle)
+        if at < 0:
+            continue
+        if rows is None:
+            out[pid] = (MATCH_UNMEASURED, why_all)
+            continue
+        argv_line = rows.get(pid)
+        if argv_line is None:
+            out[pid] = (MATCH_UNMEASURED,
+                        "процесса нет во второй таблице — снимки не в один миг")
+        elif not tail.startswith(argv_line):
+            out[pid] = (MATCH_UNMEASURED,
+                        "строка без окружения не является префиксом строки с окружением — "
+                        "границу командной строки не определить")
+        # Граница СТРОГАЯ, и равенство здесь недостижимо по построению: `ps -E`
+        # отделяет окружение от командной строки ПРОБЕЛОМ, а игла начинается с `S`,
+        # поэтому смещение `len(argv_line)` пришлось бы на сам разделитель. Мутант
+        # `<=` этим и ВЫЖИЛ в прогоне #866 — равносильность названа, а не замолчана;
+        # граница закреплена с ДОСТИЖИМЫХ сторон (`test_run_id_match_origin`:
+        # игла, упирающаяся в конец argv ⇒ `cmdline`; игла с первого символа
+        # окружения ⇒ `env`).
+        elif at < len(argv_line):
+            out[pid] = (MATCH_CMDLINE, "метка стоит в КОМАНДНОЙ строке (обёртка, замер, "
+                                       "ручной запуск) — работником это не доказано")
+        else:
+            out[pid] = (MATCH_ENV, "метка в ОКРУЖЕНИИ — унаследована от запуска")
+    return out
+
+
+def origin_census(snap: "Snapshot", run_id: str, *, argv=None, probe=None,
+                  self_pid=None) -> dict:
+    """Население носителей метки по происхождению + сколько из них — сам прибор замера.
+
+    `self_pid` считается ОТДЕЛЬНО, а не вычитается: вычитание изменило бы ВЕРДИКТ, а в
+    единственной сцене, где прибор видит собственную метку, он спрашивает о СВОЕЙ работе
+    (`already_mine` у замка, `self_identities` у захвата) — там вердикт и так короткий.
+    Вычесть «на всякий случай» значило бы отдать карточку живого работника, потому что
+    работник оказался предком замерщика (так он и устроен: python зовут из его дерева).
+    """
+    org = match_origin(snap, run_id, argv=argv, probe=probe)
+    me = os.getpid() if self_pid is None else self_pid
+    kin = {me} | set(snap.children_of(me))
+    counts = {MATCH_ENV: 0, MATCH_CMDLINE: 0, MATCH_UNMEASURED: 0}
+    for pid, (kind, _why) in org.items():
+        counts[kind] += 1
+    return {"origin": org, "counts": counts,
+            "self": sorted(p for p in org if p in kin), "total": len(org)}
+
+
 #: Порядок не важен, важна полнота. Тест выключает приборы ПОШТУЧНО и обязан краснеть
 #: на выключении `run_id` — иначе «объединение приборов» недоказуемо.
 INSTRUMENTS = {

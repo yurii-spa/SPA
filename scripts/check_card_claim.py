@@ -247,6 +247,40 @@ def load_sibling(path=SIBLING):
     return mod
 
 
+#: Имя поля метки работника в записи журнала НЕ объявляется здесь: его объявляет
+#: писатель схемы (`log_session_change.RUN_ID_FIELD`). Это значение — третий исход на
+#: случай, когда писателя не удалось спросить: читать ПО ЭТОМУ имени нельзя (вторая
+#: копия строки переживёт переименование молча), поэтому значение — `None`, и ветка
+#: чтения обязана сказать «НЕ ИЗМЕРЕНО».
+RUN_ID_FIELD_UNKNOWN = None
+
+#: «Спроси писателя сам» — умолчание `build_report`. Нужен ИМЕННО сентинел, а не `None`:
+#: без него сцену «имя поля НЕ ИЗВЕСТНО» нельзя передать входом, и третий исход остался
+#: бы недостижимым из теста, то есть необъявленным по существу.
+RESOLVE_FIELD = object()
+
+
+def run_id_field(announcer=None):
+    """(`имя поля метки работника`, "") либо (`None`, причина).
+
+    Своей копии строки нет намеренно (`.claude/rules/adapters.md` § «одно имя — один
+    объект»): вторая копия переживает переименование и молча отдаёт `not_declared`, то
+    есть ПРЕЖНЕЕ поведение — а оно выглядит ровно как «так и было задумано». Не
+    спросили писателя ⇒ третий исход, а не угаданная строка (инв. #17)."""
+    try:
+        mod = announcer or load_announcer()
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError) as exc:
+        return RUN_ID_FIELD_UNKNOWN, (f"имя поля метки работника не спрошено у писателя "
+                                      f"журнала ({exc.__class__.__name__}: {exc}) — ось "
+                                      f"РАБОТНИКА журнальных захватов НЕ ИЗМЕРЕНА")
+    name = str(getattr(mod, "RUN_ID_FIELD", "") or "").strip()
+    if not name:
+        return RUN_ID_FIELD_UNKNOWN, ("писатель журнала не объявил имя поля метки работника "
+                                      "(`RUN_ID_FIELD`) — ось РАБОТНИКА журнальных захватов "
+                                      "НЕ ИЗМЕРЕНА")
+    return name, ""
+
+
 def load_lock(path=LOCK):
     """Модуль `orchestrator_cycle_lock` по явному пути — ось РАБОТНИКА (ADR-720).
 
@@ -316,8 +350,13 @@ def load_announcer(path=ANNOUNCER):
         raise ImportError(f"не удалось загрузить {p}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    if not hasattr(mod, "record"):
-        raise ImportError(f"{p}: нет ожидаемого символа 'record'")
+    for attr in ("record", "RUN_ID_FIELD"):
+        # `RUN_ID_FIELD` — ИМЯ поля метки работника в записи журнала (ADR-722). Своей копии
+        # строки здесь нет намеренно: писатель схемы один, и переименование обязано падать
+        # громко, а не тихо превращать ось РАБОТНИКА журнальных записей в `not_declared`
+        # (то есть в прежнее поведение, которое выглядит как «так и было»).
+        if not hasattr(mod, attr):
+            raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
     return mod
 
 
@@ -642,7 +681,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
                  card_error=None, self_anchor=None, card_source=None, repo_root=ROOT,
-                 shared_trees=None, worker=None):
+                 shared_trees=None, worker=None, field_name=RESOLVE_FIELD):
     """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
 
     `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
@@ -657,6 +696,14 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     grace = timedelta(hours=grace_hours)
     ps = ps or getattr(sibling, "_ps_lstart")
     worker = worker or measure_worker
+    # Имя поля метки работника в записи журнала. По умолчанию спрашивается у ПИСАТЕЛЯ
+    # схемы — тот же порядок, что у `ps` и `worker` выше: умолчание меряет, вход
+    # подменяет. Своей копии строки нет намеренно (`run_id_field`), а `None` в ответе —
+    # третий исход: читать нечем, и это НЕ «метки в записи нет» (инв. #17).
+    field_name, field_why = (
+        run_id_field() if field_name is RESOLVE_FIELD
+        else (field_name, "" if field_name
+              else "имя поля метки работника НЕ ИЗВЕСТНО (задано входом)"))
     # Считается ОДИН раз и по ВСЕМУ журналу: и захваты, и пересечение по файлам должны отвечать
     # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
     # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
@@ -1094,11 +1141,9 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     report["released_frontmatter"][holder] = at_raw
                 else:
                     # Метка владения РАБОТНИКА берётся из ТОЙ ЖЕ записи, что и ярлык:
-                    # захват её и пишет (`claim_card`). Журнальным захватам она пока не
-                    # доезжает — `log_session_change` её не пишет; это НАЗВАННЫЙ остаток
-                    # (п. 3 карточки `inbox-zahvat-kartochki-merit-zapuskatelya-a-ne`),
-                    # а не умолчание: до тех пор у журнальной записи ось `not_declared`,
-                    # то есть прежнее поведение.
+                    # захват её и пишет (`claim_card`). Журнальным захватам она доезжает
+                    # с ADR-722 (`log_session_change.RUN_ID_FIELD`), так что обе записи
+                    # захвата из трёх мерят теперь ОДНУ живую личность.
                     _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке",
                               _anchor_for(holder, at_raw),
                               run_id=str(meta.get("claimed_run_id") or "").strip())
@@ -1109,6 +1154,12 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     else:
         rows = entries or []
         report["entries_scanned"] = len(rows)
+        if not field_name:
+            # Имени поля метки нет ⇒ ось РАБОТНИКА журнальных захватов читать НЕЧЕМ.
+            # Молча вернуться к оси ЗАПУСКАТЕЛЯ нельзя: это прежнее поведение, и оно
+            # выглядит как «так и было», то есть «не измерено» выдаётся за ответ —
+            # ровно класс инв. #17 и урок `pyflakes` из `.claude/rules/deployment.md`.
+            _unmeasured("announce-log", field_why or "имя поля метки работника не известно")
         if malformed_lines:
             _unmeasured("announce-log",
                         f"{malformed_lines} нечитаемых строк журнала — часть объявлений "
@@ -1135,9 +1186,16 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                         "state": "released", "strength": strength,
                         "detail": "объявление `card_state: done` — захват снят"})
                 else:
+                    # Метка РАБОТНИКА берётся из ТОЙ ЖЕ записи, что и ярлык, — ровно как
+                    # `claimed_run_id` берётся из того же frontmatter, что `claimed_by`.
+                    # Писатель ставит её только на СВОЮ запись (`log_session_change.record`),
+                    # поэтому чужая запись приходит сюда без метки ⇒ ось `not_declared` ⇒
+                    # прежнее поведение.
                     latest[session] = (session, ts, strength, detail,
                                        sibling.durable_fields(entry)
-                                       or _anchor_for(session, entry.get("ts")))
+                                       or _anchor_for(session, entry.get("ts")),
+                                       str(entry.get(field_name) or "").strip()
+                                       if field_name else "")
             # пересечение по файлам — отдельное измерение, не зависит от карточки
             if planned_files and session and session not in selves and ts is not None:
                 if (now - ts) <= grace:
@@ -1173,7 +1231,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                                 "session": session, "ts": _fmt_ts(ts), "files": shared,
                                 "orphaned": bool(sibling.durable_process_gone(kin_entry, ps=ps)),
                                 "summary": str(entry.get("summary") or "")[:160]})
-        for session, ts, strength, detail, process in latest.values():
+        for session, ts, strength, detail, process, run_id in latest.values():
             if report["card_status"] in TERMINAL_STATUSES:
                 # Закрытую карточку взять нельзя по определению ⇒ «занятость» по ней —
                 # шум, который учит игнорировать вердикт. Снятие захвата объявлением
@@ -1186,7 +1244,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     "detail": f"{detail}; захват не действует: статус карточки "
                               f"`{report['card_status']}` — работа закрыта"})
                 continue
-            _classify(session, ts, "announce-log", strength, detail, process)
+            _classify(session, ts, "announce-log", strength, detail, process,
+                      run_id=run_id)
 
     # 3. вердикт ─────────────────────────────────────────────────────────────
     verdict = FREE
@@ -1474,7 +1533,7 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
            planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR,
            base_ref=DEFAULT_BASE_REF, repo_root=ROOT, shared_trees=_MEASURE_TREES,
-           worker=None):
+           worker=None, field_name=RESOLVE_FIELD):
     """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
 
     `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
@@ -1511,7 +1570,8 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
                         log_error=log_error, malformed_lines=malformed,
                         card_meta=meta, card_error=card_error, self_anchor=self_anchor,
                         card_source=card_source, repo_root=repo_root,
-                        shared_trees=shared_trees, worker=worker)
+                        shared_trees=shared_trees, worker=worker,
+                        field_name=field_name)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────

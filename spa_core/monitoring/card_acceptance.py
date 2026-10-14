@@ -6831,8 +6831,247 @@ def _probe_card_claim_measures_the_worker(
         f"проба не проходит")
 
 
+def _probe_journal_claim_measures_the_worker(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ЖУРНАЛЬНЫЙ захват мерит РАБОТНИКА, а не запускателя (ADR-722, G721 п. 1).
+
+    Предмет — карточка `inbox-zhurnal-obyavlenii-merit-zapuskatelya-vt` (находка цикла
+    #865). ADR-721 довёл ось РАБОТНИКА до `claimed_run_id` во frontmatter, но захват
+    живёт в ТРЁХ записях, и третья — строка журнала объявлений — метки не несла вовсе:
+    `log_session_change.record` её не писал. ЗАМЕР ДО ПРАВКИ: объявление цикла #864 легло
+    как `[cycle-27063]` — pid ЗАПУСКАТЕЛЯ, хотя писал его работник 27717; объявление
+    цикла #866 — `[cycle-24396]` при работнике 24942. Сессия, взявшая карточку объявлением
+    (а такой захват инструмент читает как сильный), оставалась на мёртвой оси.
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ на сцене, где захват есть ТОЛЬКО в журнале** (во
+    frontmatter метки нет вовсе — иначе проба отвечала бы на вопрос ADR-721). Сцена
+    собирается ПЯТЬ раз и каждый раз зовётся НАСТОЯЩИЙ `gather` шага 0b; критерий
+    выполнен, только если ответы РАЗЛИЧАЮТСЯ в нужную сторону:
+
+      живой носитель метки ⇒ `claimed` · измеренное отсутствие ⇒ `stale` ·
+      неизмеримость ⇒ `unchecked` (инв. #17) · за бюджетом работника ⇒ `stale` ·
+      запись БЕЗ метки ⇒ `stale` с осью `not_declared`, то есть прежнее поведение.
+
+    **Писатель проверяется отдельно от читателя.** Мало, чтобы читатель УМЕЛ читать поле:
+    если его никто не пишет, ось журнальных записей навсегда `not_declared`. Поэтому
+    проба зовёт настоящий `log_session_change.record` и требует (а) метку на СВОЕЙ записи
+    и (б) ОТСУТСТВИЕ метки на записи от имени ЧУЖОЙ сессии — штамп своей личности поверх
+    чужого ярлыка уже стоил этому репозиторию выключенной защиты от коллизий
+    (`agent-claim-guard-blind-when-session-pid-is-set`).
+
+    **Имя поля — ОДНО.** Проба берёт его у писателя (`RUN_ID_FIELD`) и требует, чтобы
+    читатель отдавал ровно его (`run_id_field()`): две копии строки переживут
+    переименование молча, и ось тихо вернётся к прежнему поведению, которое выглядит как
+    «так и было задумано».
+
+    **Подстрокой не проходит (ADR-333):** требуется ПОЛЕ `worker_axis` со значением из
+    вокабуляра ЧИТАТЕЛЯ, собранного ОБХОДОМ (`W_*`), и проза того же вердикта не вправе
+    содержать слово оси.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: читателя/писателя нет или не ввезли ⇒ `unmeasured` с названной
+    причиной, и никогда `satisfied`.
+
+    Оговорка названа вслух: живость работника здесь ВХОД (`worker=`), а не живая ОС —
+    иначе проба меняла бы вердикт от того, кто сегодня занял номер
+    (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ ПРОЦЕССА»). Сцену с настоящим живым
+    носителем метки воспроизвести нельзя по ИЗМЕРЕННОЙ причине: окружение в `ps -A -Ewww`
+    читается у 74 строк из 651 (замер 14.10, `scripts/worker_axis_census.py`), и у
+    специально поднятого `/bin/sleep` метка не видна.
+    """
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    paths = {"guard": os.path.join(root, "scripts", "check_card_claim.py"),
+             "lock": os.path.join(root, "scripts", "orchestrator_cycle_lock.py"),
+             "writer": os.path.join(root, "scripts", "log_session_change.py")}
+    for name, pth in paths.items():
+        if not os.path.exists(pth):
+            return UNMEASURED, f"{pth} не найден — ось журнального захвата НЕ ИЗМЕРИТЬ"
+    mods = {}
+    try:
+        for name, pth in paths.items():
+            spec = _ilu.spec_from_file_location(f"_probe_c866_{name}", pth)
+            mod = _ilu.module_from_spec(spec)        # type: ignore[arg-type]
+            spec.loader.exec_module(mod)             # type: ignore[union-attr]
+            mods[name] = mod
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"модуль не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+    guard, lock, writer = mods["guard"], mods["lock"], mods["writer"]
+
+    #: Имя поля — у ПИСАТЕЛЯ схемы. Своей копии строки у пробы нет по той же причине,
+    #: по которой её нет у читателя.
+    field = str(getattr(writer, "RUN_ID_FIELD", "") or "").strip()
+    if not field:
+        return NOT_SATISFIED, ("писатель журнала не объявил имя поля метки работника "
+                               "(`RUN_ID_FIELD`) — журнальный захват мерить нечем")
+    reader_field, reader_why = guard.run_id_field(announcer=writer)
+    if reader_field != field:
+        return NOT_SATISFIED, (
+            f"читатель и писатель называют поле по-разному: {reader_field!r} против "
+            f"{field!r} ({reader_why}) — вторая копия строки переживёт переименование молча")
+
+    axes = {v for k, v in vars(guard).items()
+            if k.startswith("W_") and isinstance(v, str)}
+    if not axes:
+        return NOT_SATISFIED, (
+            "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив, "
+            "запускатель или работник» не производит никто")
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
+    if ttl <= 0.0:
+        return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
+                               "РАБОТНИКА стала бы вечным замком, а не защитой")
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    label, mark = "cycle-27063", "orchestrator-27063-PROBE"
+    _SCENE_WHY = "проба приёмки: состояние носителя метки задано входом сцены"
+
+    def _ask(axis):
+        def _probe(run_id):
+            if not str(run_id or "").strip():
+                return "not_declared", "метки нет", None
+            return axis, _SCENE_WHY, ttl
+        return _probe
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c866_") as tmp:
+            tracker = os.path.join(tmp, "tracker")
+            os.makedirs(tracker)
+            # Карточка БЕЗ захвата во frontmatter: предмет пробы — журнальная запись.
+            card = os.path.join(tracker, "inbox-scene.md")
+            with open(card, "w", encoding="utf-8") as fh:
+                fh.write("---\ntrackerStatus:\n  type: inbox\ntitle: сцена приёмки\n"
+                         "status: in-progress\n---\n\nтело\n")
+
+            def _verdict(axis, age_sec, with_mark=True):
+                at = (now - _td(seconds=age_sec)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                entry = {"ts": at, "session": label, "summary": "сцена приёмки",
+                         "files": [], "verified": "", "card": "inbox-scene",
+                         "card_state": "claim", "session_pid": 27063,
+                         "session_pid_start": "Wed Oct 14 00:00:00 2026"}
+                if with_mark:
+                    entry[field] = mark
+                log = os.path.join(tmp, f"log_{axis}_{int(age_sec)}_{with_mark}.jsonl")
+                with open(log, "w", encoding="utf-8") as fh:
+                    fh.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+                return guard.gather("inbox-scene", log=log, tracker_dir=tracker,
+                                    sibling=sibling, self_session="probe-c866", now=now,
+                                    ps=lambda _pid: (1, ""), self_anchor=(41866, ""),
+                                    shared_trees=(), worker=_ask(axis))
+
+            stale_age = float(guard.DEFAULT_GRACE_HOURS) * 3600.0 + 1800.0
+            alive = _verdict(guard.W_ALIVE, stale_age)
+            gone = _verdict(guard.W_GONE, stale_age)
+            unmeas = _verdict(guard.W_UNMEASURED, stale_age)
+            over = _verdict(guard.W_ALIVE, ttl + 1.0)
+            plain = _verdict(guard.W_ALIVE, stale_age, with_mark=False)
+
+            # ── ПИСАТЕЛЬ: метка на своей записи и НИКОГДА на чужой ──────────────
+            # ОКРУЖЕНИЕ СЦЕНЫ ОБЪЯВЛЕНО, а не унаследовано от хоста, и это не
+            # аккуратность, а условие осмысленности замера: у писателя решение «ставить
+            # метку» зависит от наличия `SPA_RUN_ID`, которого в CI нет. Унаследуй проба
+            # окружение — порванное звено «писатель метит ЧУЖУЮ запись» на машине БЕЗ
+            # метки выглядело бы целым (метки нет ни на одной записи), то есть проба
+            # меняла бы вердикт от хоста, а не от кода (`.claude/rules/deployment.md`
+            # § «GIT-ОКРУЖЕНИЕ в тестах»). Найдено собственным прогоном в голом
+            # окружении, а не рассуждением.
+            wlog = os.path.join(tmp, "writer.jsonl")
+            _saved = os.environ.get(writer.RUN_ID_VAR)
+            os.environ[writer.RUN_ID_VAR] = mark
+            try:
+                own = writer.record("проба приёмки: своя запись", [], "", log=wlog)
+                foreign = writer.record("проба приёмки: чужая запись", [], "", log=wlog,
+                                        session="cycle-SOMEBODY-ELSE")
+            finally:
+                if _saved is None:
+                    os.environ.pop(writer.RUN_ID_VAR, None)
+                else:
+                    os.environ[writer.RUN_ID_VAR] = _saved
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    def _row(report):
+        rows = [c for c in report.get("claims") or []
+                if c.get("source") == "announce-log"]
+        return rows[0] if len(rows) == 1 else None
+
+    rec = _row(alive)
+    if rec is None:
+        return NOT_SATISFIED, ("шаг 0b не выдал ровно одной находки по журналу на сцене "
+                               "«захват только в журнале» — предмет пробы не найден")
+    if alive["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"ЖИВОЙ работник не держит карточку, взятую ОБЪЯВЛЕНИЕМ: вердикт "
+            f"`{alive['verdict']}` вместо `{guard.CLAIMED}` — идущая работа отдаётся "
+            f"второй сессии ровно так же, как до ADR-721 отдавалась по frontmatter")
+    if gone["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"работника измеренно НЕТ, а карточка не отдаётся: вердикт "
+            f"`{gone['verdict']}` вместо `{guard.STALE}` — это вечный замок, а не защита")
+    if unmeas["verdict"] != guard.UNCHECKED:
+        return NOT_SATISFIED, (
+            f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
+            f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
+    if over["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"повисший работник держит карточку дольше своего бюджета "
+            f"({ttl / 3600.0:.2f}ч): вердикт `{over['verdict']}` — очередь заморожена")
+    if plain["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"запись БЕЗ метки ведёт себя иначе, чем до правки: вердикт "
+            f"`{plain['verdict']}` вместо `{guard.STALE}` — правка не дополняющая")
+    axis_value = rec.get("worker_axis")
+    if axis_value not in axes:
+        return NOT_SATISFIED, (
+            f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
+            f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
+    if str(axis_value) in str(rec.get("worker_detail") or ""):
+        return NOT_SATISFIED, (
+            "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
+            "то есть не проверяла бы поле (ADR-333)")
+    if rec.get("worker_run_id") != mark:
+        return NOT_SATISFIED, (
+            f"метка из ЗАПИСИ ЖУРНАЛА не доехала до находки: `worker_run_id`="
+            f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
+    writer_row = _row(plain)
+    if writer_row is None or writer_row.get("worker_axis") != guard.W_NOT_DECLARED:
+        return NOT_SATISFIED, (
+            "запись без метки не помечена `not_declared` — «ось не мерилась» неотличима "
+            "от «спросили и работника нет»")
+    if own.get(field) != mark:
+        return NOT_SATISFIED, (
+            f"ПИСАТЕЛЬ не поставил метку на свою запись (`{field}`={own.get(field)!r}) — "
+            f"читать будет нечего, и ось журнальных записей останется `not_declared`")
+    if field in foreign:
+        return NOT_SATISFIED, (
+            f"писатель поставил метку на запись от имени ЧУЖОЙ сессии "
+            f"(`{field}`={foreign.get(field)!r}) — читатель верит личности, а не ярлыку, "
+            f"и прочтёт чужой захват как МОЙ (замер `agent-claim-guard-blind-when-"
+            f"session-pid-is-set`)")
+    return SATISFIED, (
+        f"журнальный захват мерит РАБОТНИКА: на сцене «захват только в объявлении, ярлык "
+        f"`{label}` мёртв» живой носитель метки даёт `{alive['verdict']}` (ось "
+        f"`{rec.get('worker_axis')}`, метка `{rec.get('worker_run_id')}` из записи), "
+        f"измеренное отсутствие — `{gone['verdict']}`, неизмеримость — "
+        f"`{unmeas['verdict']}`, за бюджетом {ttl / 3600.0:.2f}ч — `{over['verdict']}`, "
+        f"запись без метки — `{plain['verdict']}` (ось `{guard.W_NOT_DECLARED}`); писатель "
+        f"ставит поле `{field}` на свою запись и НЕ ставит на чужую; имя поля одно "
+        f"(читатель и писатель согласны); вокабуляр {sorted(axes)} собран обходом, "
+        f"подстрокой проба не проходит")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
+    "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
     "queue_reader_names_which_order_axis_spoke":
         _probe_queue_reader_names_which_order_axis_spoke,
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,

@@ -276,11 +276,21 @@ def test_an_absolute_only_announcement_stays_byte_identical_to_the_old_shape(mod
     самим. Правильно оформленное объявление обязано остаться байт в байт прежним — этот
     контракт держат ещё `test_card_claim_guard::TestAnnounceLogField` и
     `test_durable_session_id::TestWriterEntrySchema`, и «покрасить» их, перестав писать поле
-    ВООБЩЕ, нельзя: тесты выше требуют его на относительном пути."""
+    ВООБЩЕ, нельзя: тесты выше требуют его на относительном пути.
+
+    **Обновлено циклом #866 НЕ МОЛЧА (инв. #16, причина в журнале):** предусловие «старая
+    форма» включает теперь и ВТОРУЮ производную от окружения — метку РАБОТНИКА
+    (`SPA_RUN_ID`, ADR-722). Без объявления шва тест краснел бы на машине С меткой и был бы
+    зелен в CI, то есть менял бы вердикт от ХОСТА, а не от кода
+    (`.claude/rules/deployment.md` § «GIT-ОКРУЖЕНИЕ в тестах»). Ассерт не ослаблен: метку
+    требуют `test_journal_claim_worker_identity` и парный контроль в
+    `test_card_claim_guard::TestAnnounceLogField`."""
     monkeypatch.chdir(tmp_path)
-    e = mod.record("работа", ["/abs/a.py", "/abs/b.py"], "", process=({}, "нет"))
+    e = mod.record("работа", ["/abs/a.py", "/abs/b.py"], "", process=({}, "нет"),
+                   worker=({}, "метку работника сессия не объявила"))
     assert set(e) == {"ts", "session", "summary", "files", "verified"}
-    e2 = mod.record("без файлов вовсе", [], "", process=({}, "нет"))
+    e2 = mod.record("без файлов вовсе", [], "", process=({}, "нет"),
+                    worker=({}, "метку работника сессия не объявила"))
     assert "cwd" not in e2
 
 

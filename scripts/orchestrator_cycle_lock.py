@@ -197,7 +197,38 @@ def default_run_id_probe(run_id, *, wrapper_path=WRAPPER):
                       "нечем; это «не измерено», а не «работника нет»")
     found = set(wrapper._inst_run_id(snap, 0, run_id))
     return found, (f"живых процессов с меткой {run_id}: {len(found)}"
-                   f" (окружение читаемо у {snap.env_readable})")
+                   f" (окружение читаемо у {snap.env_readable}"
+                   f"{origin_words(wrapper, snap, run_id)})")
+
+
+def origin_words(wrapper, snap, run_id, *, argv=None) -> str:
+    """Прозой: ОТКУДА взялись совпадения метки. Пусто — только если спросить было нечем.
+
+    Происхождение — ДОПОЛНИТЕЛЬНОЕ сведение, поэтому его неизмеримость НЕ делает
+    неизмеримой саму ось: вернуть здесь третий исход за всю ось значило бы на частичной
+    доставке (старая копия прибора рядом) превратить каждый вердикт о занятости в
+    `unchecked` — ту самую вечную блокировку, которую сторож снимал трижды (#61, #412,
+    #803). Поэтому прибор берётся `getattr`-ом, а не требуется `load_wrapper`.
+
+    Зачем вообще. Число «живых процессов с меткой N» читается как население РАБОТНИКОВ, а
+    замер 14.10 на идущем цикле дал 4 носителя, из которых ДВА — сам прибор замера (python,
+    задавший вопрос, и `ps`, которого он позвал): метку они несут по наследству в
+    окружении. Вердикт от этого не меняется (о своей же метке спрашивают только там, где
+    ответ короткий — `already_mine` у замка, `self_identities` у захвата), но прозе вердикта
+    нельзя давать звучать как измерение, которого никто не делал."""
+    probe = getattr(wrapper, "origin_census", None)
+    if probe is None:
+        return "; происхождение совпадений НЕ ИЗМЕРЕНО (в приборе нет `origin_census`)"
+    try:
+        oc = probe(snap, run_id, argv=argv)
+    except (OSError, ValueError, RuntimeError, TypeError, AttributeError,
+            KeyError) as exc:                                   # pragma: no cover
+        return f"; происхождение совпадений НЕ ИЗМЕРЕНО ({exc.__class__.__name__})"
+    c = oc.get("counts") or {}
+    me = oc.get("self") or []
+    tail = f", из них сам прибор замера: {len(me)}" if me else ""
+    return (f"; по происхождению — окружение {c.get('env', 0)}, командная строка "
+            f"{c.get('cmdline', 0)}, не определено {c.get('unmeasured', 0)}{tail}")
 
 
 def worker_axis(holder, *, procs_with_run_id=None):

@@ -196,6 +196,44 @@ def durable_process(env=None, ps=None, cmd_probe=None):
     return {"session_pid": pid, "session_pid_start": str(out).strip()}, ""
 
 
+#: Имя переменной окружения с меткой владения РАБОТНИКА и имя поля записи журнала.
+#: Писатель схемы здесь ОДИН (`record`), поэтому и строка одна; читатели берут её
+#: ОТСЮДА (`check_card_claim.load_announcer` требует символ `RUN_ID_FIELD` и падает
+#: громко при переименовании) — своей копии строки у читателя нет намеренно, это тот
+#: же порядок «одно имя — один объект», что у `ADAPTER_REGISTRY` в `.claude/rules/adapters.md`.
+RUN_ID_VAR = "SPA_RUN_ID"
+RUN_ID_FIELD = "session_run_id"
+
+
+def worker_label(env=None) -> tuple:
+    """``({"session_run_id": "<метка>"}, "")`` либо ``({}, причина)``.
+
+    ЗАЧЕМ. Ярлык сессии (`session`) и якорь (`session_pid`) оба производны от pid
+    ЗАПУСКАТЕЛЯ, а работу делает РАБОТНИК, поднятый `start_new_session=True` и
+    переживающий запускателя по построению (ADR-720/721). Замер 14.10: объявление цикла
+    #864 легло как `[cycle-27063]` — pid запускателя, хотя писал его работник 27717;
+    объявление ЭТОГО цикла — `[cycle-24396]` при работнике 24942. Метка `SPA_RUN_ID`
+    живёт в ОКРУЖЕНИИ и наследуется работником, то есть она — единственная личность
+    записи, которую можно потом спросить о живости.
+
+    Метка НЕ проверяется на живость при записи — в отличие от якоря, и это осознанно:
+    якорь хранит ОТМЕТКУ СТАРТА, которую позже не восстановить, а метка сама себе
+    удостоверение (её живость меряется читателем в момент чтения, `worker_axis`).
+    Тот же порядок уже действует у `claimed_run_id` во frontmatter карточки (ADR-721).
+    """
+    env = os.environ if env is None else env
+    raw = str(env.get(RUN_ID_VAR) or "").strip()
+    if not raw:
+        return {}, (f"{RUN_ID_VAR} не задан — метку работника сессия не объявила; ось "
+                    f"РАБОТНИКА у этой записи останется `not_declared`")
+    if any(ch.isspace() for ch in raw):
+        # Прибор ищет метку подстрокой в выводе `ps`, где поля разделены пробелами:
+        # метка с пробелом не нашлась бы НИКОГДА, то есть записалась бы личность,
+        # заведомо не измеримая. Отказ громче молчаливо бесполезного поля.
+        return {}, f"{RUN_ID_VAR}={raw!r} — в метке пробел, прибор её не найдёт; поле не записано"
+    return {RUN_ID_FIELD: raw}, ""
+
+
 CARD_STATES = ("claim", "done")
 
 
@@ -321,7 +359,7 @@ def normalize_dropped(pairs) -> list:
 
 def record(summary: str, files: list, verified: str,
            card: str = "", card_state: str = "", log=None, session: str = "",
-           process=None, dropped=()) -> dict:
+           process=None, dropped=(), worker=None) -> dict:
     """Append ONE announce entry. ``log`` overrides the shared journal (tests, explicit --log);
     ``session`` overrides the writer's own id (a caller announcing on behalf of a session whose
     id it was given — otherwise the entry would carry this process's pid instead); ``process``
@@ -386,6 +424,20 @@ def record(summary: str, files: list, verified: str,
         proc, _why = {}, (f"объявление от имени другой сессии ({label!r} ≠ {own_id!r}) — "
                           f"долгоживущий процесс ЭТОЙ команды в чужую запись не пишется")
     entry.update(proc)
+    # Метка РАБОТНИКА — по ТОМУ ЖЕ правилу, что якорь: только на СВОЮ запись. Довод тот
+    # же и он измерен (`agent-claim-guard-blind-when-session-pid-is-set`): смысл
+    # переопределения `session` — «запись не моя, я лишь записываю», а штамп моей
+    # личности поверх чужого ярлыка говорит в той же строке обратное, и читатель верит
+    # личности, а не ярлыку. Чужая запись остаётся без метки ⇒ ось `not_declared` ⇒
+    # прежнее поведение (fail-CLOSED), а не ложное «работник жив».
+    if worker is not None:
+        wlabel, _wwhy = worker
+    elif label == own_id:
+        wlabel, _wwhy = worker_label()
+    else:
+        wlabel, _wwhy = {}, (f"объявление от имени другой сессии ({label!r} ≠ {own_id!r}) — "
+                             f"метка работника ЭТОЙ команды в чужую запись не пишется")
+    entry.update(wlabel)
     line = json.dumps(entry, ensure_ascii=False) + "\n"
     target = Path(log) if log else _LOG
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -501,6 +553,13 @@ def main(argv=None) -> int:
               f"другим ярлыком. Перед первым объявлением: "
               f"export SPA_SESSION_ID=<имя> SPA_SESSION_PID=<pid долгоживущего процесса>",
               file=sys.stderr)
+    # Метка РАБОТНИКА печатается РЯДОМ с якорем намеренно: это две РАЗНЫЕ личности ОДНОЙ
+    # записи, и сессия, видящая только якорь, думает, что её активность измерима — а
+    # измеряется личность ЗАПУСКАТЕЛЯ, которая умирает раньше работы (ADR-720/721/722).
+    if e.get(RUN_ID_FIELD):
+        print(f"    метка РАБОТНИКА: {e[RUN_ID_FIELD]} — эта личность переживёт запускателя")
+    else:
+        print(f"    ⚠️  метки РАБОТНИКА в записи нет: {worker_label()[1]}", file=sys.stderr)
     return 0
 
 
