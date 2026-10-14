@@ -7358,8 +7358,241 @@ def _probe_file_overlap_claim_measures_the_worker(
         f"проходит")
 
 
+def _probe_card_claim_absent_worker_reaches_the_verdict(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ИЗМЕРЕННОЕ отсутствие работника доезжает до вердикта ВНУТРИ окна (#868).
+
+    Предмет — карточка `inbox-izmerennoe-otsutstvie-rabotnika-ne-doezz`. ADR-721 дал шагу
+    0b ось РАБОТНИКА, но спрашивалась она только там, где ответ уже ничего не решал:
+    внутри окна свежести свежий СИЛЬНЫЙ захват блокирует карточку ветвью ВЫШЕ, а
+    измеренное отсутствие работника в вердикт не попадало вовсе.
+
+    **ЗАМЕР ДО ПРАВКИ, живая очередь 14.10 19:45Z.** Приказ владельца
+    `inbox-task-portfolio-cio-dynamic-capital-alloc`, держатель `cycle-79433` (#867),
+    захвату 2.79ч. Обе измеримые оси говорят «мёртв»: `ps -p 79433` rc=1, `ps -p 79986`
+    rc=1, живых носителей метки `orchestrator-79433-…` НОЛЬ при читаемом окружении у 73
+    процессов. Вердикт шага 0b: `⛔ ЗАНЯТА — НЕ бери эту карточку`. Шаг 0a-ГОЛОД требовал
+    взять приказ ПЕРВЫМ. Циклы идут раз в час, окно — 3ч ⇒ так заперт каждый цикл,
+    стартовавший раньше трёх часов после мёртвого предшественника.
+
+    **Почему ось ЗАПУСКАТЕЛЯ «и так не решит».** Довод, стоявший в коде («чаще всего
+    скажет `stale`»), ИЗМЕРЕН по живому трекеру: из 192 захватов во frontmatter ярлык
+    пид-измерим у 54 и НЕИЗМЕРИМ у 138 — и неизмерим именно у той формы, которую пишет
+    сам оркестратор (`SPA_SESSION_ID=cycle-$$`: цифры есть, токена `pid` нет).
+
+    **Меряется ИСХОД У ЧИТАТЕЛЯ.** Проба собирает одноразовые сцены ВНУТРИ окна свежести
+    (это и есть предмет: снаружи окна ось уже спрашивалась) и зовёт НАСТОЯЩИЙ `gather`.
+    Критерий выполнен, только если ответы РАЗЛИЧАЮТСЯ в нужную сторону: живой носитель
+    метки — `claimed`, измеренное отсутствие — `stale`, неизмеримость — `unchecked`,
+    запись БЕЗ метки — `claimed` (прежнее поведение, правка дополняющая), а измеренная
+    ЖИЗНЬ оси запускателя перебивает отсутствие работника и держит карточку.
+
+    **Новой двери к «свободна» проба НЕ принимает:** `stale` — «кандидат на ручной
+    подъём», и отдельное звено требует, чтобы вердикт сцены «работника нет» не был
+    `free`. `claim` на `stale` по-прежнему отказывает без письменной причины.
+
+    **Подстрокой не проходит (ADR-333):** требуется ПОЛЕ `worker_axis` со значением из
+    вокабуляра ЧИТАТЕЛЯ, собранного ОБХОДОМ (`W_*`), и слово оси не должно встречаться в
+    прозе того же вердикта.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: читателя нет / не ввезён / нет вокабуляра ⇒ `unmeasured` или
+    `not_satisfied` с названной причиной, и никогда `satisfied`.
+
+    Оговорка названа вслух: живость работника здесь ВХОД (`worker=`), а не живая ОС, —
+    иначе проба меняла бы вердикт от того, кто сегодня занял номер
+    (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ ПРОЦЕССА»). Сторона `orphaned` (ось
+    запускателя измерила СМЕРТЬ) здесь НЕ сцена намеренно: там вердикт `stale` и до
+    правки, её держит существующая батарея шага 0b.
+    """
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    guard_path = os.path.join(root, "scripts", "check_card_claim.py")
+    if not os.path.exists(guard_path):
+        return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
+    lock_path = os.path.join(root, "scripts", "orchestrator_cycle_lock.py")
+    if not os.path.exists(lock_path):
+        return UNMEASURED, f"{lock_path} не найден — бюджет работника НЕ ИЗМЕРИТЬ"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c868_card_claim", guard_path)
+        guard = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        spec.loader.exec_module(guard)               # type: ignore[union-attr]
+        spec_l = _ilu.spec_from_file_location("_probe_c868_cycle_lock", lock_path)
+        lock = _ilu.module_from_spec(spec_l)         # type: ignore[arg-type]
+        spec_l.loader.exec_module(lock)              # type: ignore[union-attr]
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"шаг 0b не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    #: Вокабуляр оси — ОБХОДОМ у читателя, а не парой из головы.
+    axes = {v for k, v in vars(guard).items()
+            if k.startswith("W_") and isinstance(v, str)}
+    if not axes:
+        return NOT_SATISFIED, (
+            "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив» не "
+            "производит никто: замер до ADR-721")
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
+    if ttl <= 0.0:
+        return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
+                               "РАБОТНИКА стала бы вечным замком, а не защитой")
+    grace_h = float(getattr(guard, "DEFAULT_GRACE_HOURS", 0.0) or 0.0)
+    if grace_h <= 0.0:
+        return NOT_SATISFIED, ("окно свежести шага 0b не объявлено — сцену «внутри окна» "
+                               "задать нечем, а она и есть предмет пробы")
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    #: Ярлык НАМЕРЕННО без токена `pid`: ровно та форма, которую пишет оркестратор
+    #: (`SPA_SESSION_ID=cycle-$$`), и ровно на ней ось ЗАПУСКАТЕЛЯ неизмерима.
+    label, mark = "cycle-79433", "orchestrator-79433-PROBE"
+    live_pid, live_start = 42868, "Wed Oct 14 10:00:00 2026"
+
+    _SCENE_WHY = "проба приёмки: состояние носителя метки задано входом сцены"
+
+    def _ask(axis):
+        def _probe(run_id):
+            if not str(run_id or "").strip():
+                return "not_declared", "метки нет", None
+            return axis, _SCENE_WHY, ttl
+        return _probe
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c868_") as tmp:
+            tracker = os.path.join(tmp, "tracker")
+            os.makedirs(tracker)
+
+            def _scene(age_sec, with_mark=True, anchored=False):
+                at = (now - _td(seconds=age_sec)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                rows = ["---\n", "trackerStatus:\n", "  type: inbox\n",
+                        "title: сцена приёмки\n", "status: in-progress\n",
+                        f"claimed_by: {label}\n", f"claimed_at: {at}\n"]
+                if with_mark:
+                    rows.append(f"claimed_run_id: {mark}\n")
+                rows += ["---\n", "\nтело\n"]
+                with open(os.path.join(tracker, "inbox-scene.md"), "w",
+                          encoding="utf-8") as fh:
+                    fh.write("".join(rows))
+                log = os.path.join(tmp, f"log_{int(age_sec)}_{int(anchored)}.jsonl")
+                with open(log, "w", encoding="utf-8") as fh:
+                    if anchored:
+                        # Личность ЗАПУСКАТЕЛЯ объявлена и ЖИВА (`ps` ниже подтвердит):
+                        # эта сцена проверяет, что измеренная жизнь сильнее измеренного
+                        # отсутствия соседней оси.
+                        fh.write(_json.dumps({
+                            "ts": at, "session": label,
+                            "summary": "сцена приёмки: голос держателя",
+                            "files": [], "session_pid": live_pid,
+                            "session_pid_start": live_start}, ensure_ascii=False) + "\n")
+                return log
+
+            def _verdict(axis, age_sec, with_mark=True, anchored=False):
+                log = _scene(age_sec, with_mark, anchored)
+                return guard.gather("inbox-scene", log=log, tracker_dir=tracker,
+                                    sibling=sibling, self_session="probe-c868", now=now,
+                                    ps=(lambda _pid: (0, live_start)) if anchored
+                                    else (lambda _pid: (1, "")),
+                                    self_anchor=(41868, ""), shared_trees=(),
+                                    worker=_ask(axis))
+
+            #: ВНУТРИ окна свежести — предмет пробы. Половина окна, а не «чуть меньше»:
+            #: граница окна проверяется соседней батареей, здесь нужна заведомая середина.
+            inside = grace_h * 3600.0 / 2.0
+            alive = _verdict(guard.W_ALIVE, inside)
+            gone = _verdict(guard.W_GONE, inside)
+            unmeas = _verdict(guard.W_UNMEASURED, inside)
+            plain = _verdict(guard.W_ALIVE, inside, with_mark=False)
+            gone_live_launcher = _verdict(guard.W_GONE, inside, anchored=True)
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    def _front(report):
+        rows = [c for c in report.get("claims") or []
+                if c.get("source") == "frontmatter"]
+        return rows[0] if len(rows) == 1 else None
+
+    rec = _front(gone)
+    if rec is None:
+        return NOT_SATISFIED, ("шаг 0b не выдал ровно одной находки по frontmatter на "
+                               "сцене «работника измеренно нет» — предмет пробы не найден")
+    if gone["verdict"] != guard.STALE:
+        return NOT_SATISFIED, (
+            f"работника ИЗМЕРЕННО НЕТ, а карточка внутри окна не отдаётся: вердикт "
+            f"`{gone['verdict']}` вместо `{guard.STALE}` — снятый замер не доезжает до "
+            f"вердикта, и мёртвый держатель держит приказ владельца все {grace_h}ч "
+            f"(живой замер 14.10 19:45Z на `cycle-79433`)")
+    if gone["verdict"] == guard.FREE:
+        return NOT_SATISFIED, (
+            "сцена «работника нет» отдала `free` — это АВТО-захват, а не находка: подъём "
+            "обязан требовать письменной причины (`claim --takeover`)")
+    if alive["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"ЖИВОЙ работник не держит карточку: вердикт `{alive['verdict']}` вместо "
+            f"`{guard.CLAIMED}` — живая работа отдаётся второй сессии (замер 14.10)")
+    if unmeas["verdict"] != guard.UNCHECKED:
+        return NOT_SATISFIED, (
+            f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
+            f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
+    if plain["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"захват БЕЗ метки работника внутри окна ведёт себя иначе, чем до правки: "
+            f"вердикт `{plain['verdict']}` вместо `{guard.CLAIMED}` — правка не "
+            f"дополняющая, а меняет поведение 138 из 192 захватов живого трекера")
+    if gone_live_launcher["verdict"] != guard.CLAIMED:
+        return NOT_SATISFIED, (
+            f"ось ЗАПУСКАТЕЛЯ измерила ЖИЗНЬ, а карточка отдана: вердикт "
+            f"`{gone_live_launcher['verdict']}` вместо `{guard.CLAIMED}` — измеренная "
+            f"жизнь обязана быть сильнее измеренного отсутствия соседней оси")
+    axis_value = rec.get("worker_axis")
+    if axis_value not in axes:
+        return NOT_SATISFIED, (
+            f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
+            f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
+    if axis_value != guard.W_GONE:
+        return NOT_SATISFIED, (
+            f"находка сцены «работника нет» помечена осью {axis_value!r}, а не "
+            f"{guard.W_GONE!r} — вердикт пришёл не от того измерения")
+    if str(axis_value) in str(rec.get("worker_detail") or ""):
+        return NOT_SATISFIED, (
+            "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
+            "то есть не проверяла бы поле (ADR-333)")
+    if rec.get("worker_run_id") != mark:
+        return NOT_SATISFIED, (
+            f"метка держателя не доехала до находки: `worker_run_id`="
+            f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
+    if rec.get("fresh") is not True:
+        return NOT_SATISFIED, (
+            f"сцена оказалась СНАРУЖИ окна свежести (`fresh`={rec.get('fresh')!r}) — "
+            f"тогда проба отвечает на вопрос, уже закрытый ADR-721, а не на свой")
+    if rec.get("orphaned") is not False:
+        return NOT_SATISFIED, (
+            f"ось ЗАПУСКАТЕЛЯ на сцене измерила смерть (`orphaned`="
+            f"{rec.get('orphaned')!r}) — вердикт `stale` пришёл бы от неё, и предмет "
+            f"пробы остался бы непроверенным")
+    return SATISFIED, (
+        f"измеренное отсутствие работника доезжает до вердикта ВНУТРИ окна ({grace_h}ч): "
+        f"на сцене «ярлык `{label}` пид-неизмерим, захвату {rec.get('age_hours')}ч, "
+        f"свежий (`fresh`={rec.get('fresh')}), ось запускателя смерти НЕ измерила "
+        f"(`orphaned`={rec.get('orphaned')})» живой носитель метки даёт "
+        f"`{alive['verdict']}`, измеренное отсутствие — `{gone['verdict']}` (ось "
+        f"`{axis_value}`, метка `{rec.get('worker_run_id')}` из карточки), неизмеримость "
+        f"— `{unmeas['verdict']}` (инв. #17), запись БЕЗ метки — `{plain['verdict']}` (то "
+        f"есть прежнее поведение), а измеренная ЖИЗНЬ оси запускателя — "
+        f"`{gone_live_launcher['verdict']}`; бюджет работника {ttl / 3600.0:.2f}ч взят у "
+        f"замка, вокабуляр {sorted(axes)} собран обходом, подстрокой проба не проходит")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
+    "card_claim_absent_worker_reaches_the_verdict":
+        _probe_card_claim_absent_worker_reaches_the_verdict,
     "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
     "file_overlap_claim_measures_the_worker":
         _probe_file_overlap_claim_measures_the_worker,
