@@ -81,18 +81,53 @@ DEFAULT_UNMEASURED_TTL_SEC = 3 * 3600.0
 ETA_WINDOW = 12
 ETA_MIN_SAMPLES = 3
 
+# ── ось РАБОТНИКА: чью жизнь замок обязан пережить (ADR-720) ────────────────
+# Держатель замка — ЗАПУСКАТЕЛЬ (`agent_orchestrator.sh`, его `$$`), а работу делает
+# РАБОТНИК (headless `claude`), которого `claude_run_with_timeout.py` поднимает
+# `start_new_session=True`, то есть ЛИДЕРОМ СВОЕЙ СЕССИИ. Сигнал, снимающий группу
+# запускателя, работника не достаёт: запускатель умирает, `trap release_lock EXIT`
+# снимает замок, работник продолжает писать, и следующий цикл стартует поверх идущей
+# работы. Это не гипотеза — замер 2026-10-14 (цикл #864): **19 взятий замка, 0 отказов**,
+# и в момент замера ЖИВОЙ осиротевший работник (pid 69661, ppid=1, sid=69661) правил
+# своё дерево, пока следующий цикл получал ту же голодающую карточку владельца и
+# объявлял её `stale`. Обе защиты — и замок, и захват карточки — мерили ЗАПУСКАТЕЛЯ.
+#
+# Личность, переживающая запускателя, ровно одна: `SPA_RUN_ID` в ОКРУЖЕНИИ. Её наследуют
+# все потомки, она не теряется ни при `setsid`, ни при переподчинении к init, и ею же
+# `claude_run_with_timeout` решает, кого завершать по сроку. Прибор берётся оттуда ОДНОЙ
+# копией: второй расходящийся ответ на тот же вопрос хуже отсутствия второго.
+RUN_ID_VAR = "SPA_RUN_ID"
+RUN_ID_KEY = "run_id"
+WRAPPER = ROOT / "scripts" / "claude_run_with_timeout.py"
+
+# Работник не держит замок дольше СВОЕГО срока: бюджет прогона (14400с) + grace. Без
+# этой границы повисший работник запер бы очередь навсегда — «не измерено» без срока
+# есть вечный замок, а не порог (то же рассуждение, что у `unmeasured_ttl`).
+DEFAULT_WORKER_TTL_SEC = 4 * 3600.0 + 600.0
+
 ACQUIRED, ALREADY_MINE, BUSY, STALE_TAKEN, UNPROTECTED, FREE = (
     "acquired", "already_mine", "busy", "stale_taken", "unprotected", "free")
 RELEASED, NOT_MINE, NOT_HELD = "released", "not_mine", "not_held"
+# Снятие отклонено не потому, что замок чужой, а потому, что РАБОТА ещё идёт.
+WORKER_STILL_ALIVE = "worker_alive"
+
+# Состояния оси РАБОТНИКА. `not_declared` — третий исход «ось не мерилась»: запись
+# старого образца или ручной acquire без метки; он НЕ выдаётся за «работника нет».
+WORKER_ALIVE, WORKER_GONE, WORKER_UNMEASURED, WORKER_NOT_DECLARED = (
+    "worker_alive", "worker_gone", "worker_unmeasured", "worker_not_declared")
 
 # Внутренние состояния существующего замка (вход для `acquire`/`status`).
 MINE, HELD_ALIVE, HELD_UNMEASURED, HELD_WRITING, ABANDONED_DEAD, ABANDONED_TTL, ABANDONED_JUNK = (
     "mine", "held_alive", "held_unmeasured", "held_writing",
     "abandoned_dead", "abandoned_ttl", "abandoned_junk")
+# Замок держит ЖИВОЙ работник, хотя запускатель мёртв. Отдельное имя от `held_alive`
+# намеренно: это разные ОСИ, и сливать их значило бы снова не различать, кто именно жив.
+HELD_WORKER_ALIVE = "held_worker_alive"
+ABANDONED_WORKER_TTL = "abandoned_worker_ttl"
 
-_ABANDONED = {ABANDONED_DEAD, ABANDONED_TTL, ABANDONED_JUNK}
+_ABANDONED = {ABANDONED_DEAD, ABANDONED_TTL, ABANDONED_JUNK, ABANDONED_WORKER_TTL}
 
-EXIT_OK, EXIT_USAGE, EXIT_BUSY, EXIT_NOT_MINE = 0, 2, 3, 4
+EXIT_OK, EXIT_USAGE, EXIT_BUSY, EXIT_NOT_MINE, EXIT_WORKER_ALIVE = 0, 2, 3, 4, 5
 
 _CYCLE_SESSION_RE = re.compile(r"^cycle-\d+$")
 
@@ -119,6 +154,72 @@ def load_sibling(path=SIBLING):
         if not hasattr(mod, attr):
             raise LockUnavailable(f"{p}: нет ожидаемого символа {attr!r}")
     return mod
+
+
+def load_wrapper(path=WRAPPER):
+    """Прибор владения по метке (`claude_run_with_timeout`) — по явному пути.
+
+    Копии прибора здесь НЕТ намеренно: кого считать «ещё работающим» обязано решаться
+    ОДНИМ кодом с тем, кого прибор завершает по сроку. Разошлись бы — получили бы замок,
+    снятый с того, кого таймаут ещё считает своим."""
+    pth = Path(path)
+    if not pth.exists():
+        raise LockUnavailable(f"нет прибора владения: {pth}")
+    spec = importlib.util.spec_from_file_location("_cycle_lock_wrapper", pth)
+    if spec is None or spec.loader is None:
+        raise LockUnavailable(f"не удалось загрузить {pth}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for attr in ("Snapshot", "_inst_run_id", "RUN_ID_VAR"):
+        if not hasattr(mod, attr):
+            raise LockUnavailable(f"{pth}: нет ожидаемого символа {attr!r}")
+    return mod
+
+
+def default_run_id_probe(run_id, *, wrapper_path=WRAPPER):
+    """(множество живых pid с этой меткой | **None**, измерение словами).
+
+    `None` — третий исход «НЕ ИЗМЕРЕНО», и он намеренно отличён от пустого множества:
+    пустое значит «работника нет», None — «спросить не удалось». Выдать второе за первое
+    значило бы снять замок с идущей работы по причине «прибор не ответил» (инв. #17)."""
+    try:
+        wrapper = load_wrapper(wrapper_path)
+    except LockUnavailable as exc:
+        return None, f"прибор владения не ввезён ({exc}) — ось РАБОТНИКА НЕ ИЗМЕРЕНА"
+    try:
+        snap = wrapper.Snapshot.take()
+    except (OSError, ValueError, RuntimeError) as exc:
+        return None, f"снимок процессов не снят ({exc}) — ось РАБОТНИКА НЕ ИЗМЕРЕНА"
+    # Метка живёт в ОКРУЖЕНИИ. Не прочиталось окружение НИ У ОДНОГО процесса — искать
+    # нечем, и «не нашли» здесь означает слепоту прибора, а не отсутствие работника.
+    if not getattr(snap, "env_readable", 0):
+        return None, ("окружение не читается ни у одного процесса — метку владения искать "
+                      "нечем; это «не измерено», а не «работника нет»")
+    found = set(wrapper._inst_run_id(snap, 0, run_id))
+    return found, (f"живых процессов с меткой {run_id}: {len(found)}"
+                   f" (окружение читаемо у {snap.env_readable})")
+
+
+def worker_axis(holder, *, procs_with_run_id=None):
+    """(состояние оси РАБОТНИКА, измерение словами). Чистая при инъекции пробы.
+
+    Проба — ВХОД, а не живая ОС: сторож, спрашивающий о живости настоящие процессы,
+    меняет вердикт от того, кто сегодня занял номер, и краснеет на чужом хосте
+    (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ ПРОЦЕССА»)."""
+    run_id = ""
+    if isinstance(holder, dict):
+        run_id = str(holder.get(RUN_ID_KEY) or "").strip()
+    if not run_id:
+        return WORKER_NOT_DECLARED, ("держатель не назвал метку работника — ось РАБОТНИКА "
+                                     "НЕ МЕРИЛАСЬ (запись старого образца либо ручной "
+                                     "acquire); сужу по оси ЗАПУСКАТЕЛЯ, как раньше")
+    probe = procs_with_run_id or default_run_id_probe
+    found, why = probe(run_id)
+    if found is None:
+        return WORKER_UNMEASURED, why
+    if found:
+        return WORKER_ALIVE, f"РАБОТНИК ЖИВ: {why}"
+    return WORKER_GONE, f"работника с этой меткой нет: {why}"
 
 
 def lock_dir(sibling, start=ROOT):
@@ -155,7 +256,8 @@ def slot_lock_dir(sibling, slot: int, start=ROOT):
 
 def acquire_any_slot(max_concurrent: int, record: dict, self_session, self_pid, sibling, *,
                      now, self_pid_start="", ps=None,
-                     unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC, entries=(), start=ROOT):
+                     unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC, entries=(), start=ROOT,
+                     procs_with_run_id=None, worker_ttl_sec=DEFAULT_WORKER_TTL_SEC):
     """Взять ПЕРВЫЙ свободный (или уже свой) слот из ``max_concurrent``.
 
     (вердикт, сообщение, номер_слота|None, путь|None). Слот пробуется по порядку — 0, 1, …
@@ -171,7 +273,9 @@ def acquire_any_slot(max_concurrent: int, record: dict, self_session, self_pid, 
                     f"только этой сессии; цикл идёт БЕЗ защиты", None, path)
         verdict, msg = acquire(path, record, self_session, self_pid, sibling, now=now,
                                self_pid_start=self_pid_start, ps=ps,
-                               unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries)
+                               unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries,
+                               procs_with_run_id=procs_with_run_id,
+                               worker_ttl_sec=worker_ttl_sec)
         if verdict != BUSY:
             return verdict, msg, slot, path
         last_verdict, last_msg = verdict, msg
@@ -179,7 +283,7 @@ def acquire_any_slot(max_concurrent: int, record: dict, self_session, self_pid, 
 
 
 def release_any_slot(max_concurrent: int, self_session, self_pid, sibling, *,
-                     self_pid_start="", start=ROOT):
+                     self_pid_start="", start=ROOT, procs_with_run_id=None):
     """Снять ТОТ слот (из ``max_concurrent``), который держит эта сессия.
 
     Проходит все слоты (дёшево — их не больше нескольких единиц) и снимает ровно тот,
@@ -192,7 +296,10 @@ def release_any_slot(max_concurrent: int, self_session, self_pid, sibling, *,
         path, shared_err = slot_lock_dir(sibling, slot, start)
         if shared_err:
             continue
-        verdict, msg = release(path, self_session, self_pid, self_pid_start)
+        verdict, msg = release(path, self_session, self_pid, self_pid_start,
+                               procs_with_run_id=procs_with_run_id)
+        if verdict == WORKER_STILL_ALIVE:
+            return WORKER_STILL_ALIVE, msg       # отказ важнее тишины по остальным слотам
         if verdict == RELEASED:
             released_any = True
             last_msg = msg
@@ -201,7 +308,8 @@ def release_any_slot(max_concurrent: int, self_session, self_pid, sibling, *,
 
 def status_all(max_concurrent: int, self_session, self_pid, sibling, *, now,
               self_pid_start="", ps=None, unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC,
-              entries=(), start=ROOT):
+              entries=(), start=ROOT, procs_with_run_id=None,
+              worker_ttl_sec=DEFAULT_WORKER_TTL_SEC):
     """[(слот, вердикт, сообщение, путь), …] — по каждому слоту, без единой мутации."""
     out = []
     for slot in range(max(1, int(max_concurrent))):
@@ -211,7 +319,9 @@ def status_all(max_concurrent: int, self_session, self_pid, sibling, *, now,
             continue
         verdict, msg = status(path, self_session, self_pid, sibling, now=now,
                               self_pid_start=self_pid_start, ps=ps,
-                              unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries)
+                              unmeasured_ttl_sec=unmeasured_ttl_sec, entries=entries,
+                              procs_with_run_id=procs_with_run_id,
+                              worker_ttl_sec=worker_ttl_sec)
         out.append((slot, verdict, msg, path))
     return out
 
@@ -355,7 +465,8 @@ def dir_age_seconds(path: Path, now: datetime):
 
 
 def classify(holder, holder_err, age_sec, self_session, self_pid, sibling, *,
-             self_pid_start="", ps=None, unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC):
+             self_pid_start="", ps=None, unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC,
+             procs_with_run_id=None, worker_ttl_sec=DEFAULT_WORKER_TTL_SEC):
     """(состояние, измерение словами) для СУЩЕСТВУЮЩЕГО замка. Чистая функция.
 
     Порядок намеренный: «это я» → «holder не прочитан» → живость держателя. Своё владение
@@ -373,6 +484,23 @@ def classify(holder, holder_err, age_sec, self_session, self_pid, sibling, *,
         return ABANDONED_JUNK, (f"{holder_err}; каталогу {age_sec / 60.0:.0f} мин — держатель "
                                 f"не назван, замок брошен")
 
+    # Ось РАБОТНИКА — ПЕРЕД осью запускателя, и порядок здесь содержательный: запускатель
+    # мёртв ПО ПОСТРОЕНИЮ во всех интересных случаях (его снял тот же сигнал, что не достал
+    # работника). Спроси мы сначала запускателя, вердикт был бы `abandoned_dead` и замок
+    # ушёл бы из-под идущей работы — ровно авария 2026-10-14.
+    w_state, w_why = worker_axis(holder, procs_with_run_id=procs_with_run_id)
+    if w_state == WORKER_ALIVE:
+        if age_sec is not None and age_sec > worker_ttl_sec:
+            return ABANDONED_WORKER_TTL, (
+                f"{w_why}; но замку {age_sec / 3600.0:.1f}ч — дольше срока работника "
+                f"{worker_ttl_sec / 3600.0:.1f}ч, считаю брошенным")
+        return HELD_WORKER_ALIVE, w_why
+    if w_state == WORKER_UNMEASURED:
+        if age_sec is not None and age_sec > unmeasured_ttl_sec:
+            return ABANDONED_TTL, (f"{w_why}; замку {age_sec / 3600.0:.1f}ч — дольше окна "
+                                   f"{unmeasured_ttl_sec / 3600.0:.1f}ч, считаю брошенным")
+        return HELD_UNMEASURED, f"{w_why} — блокирую до истечения окна"
+    # WORKER_GONE / WORKER_NOT_DECLARED ⇒ прежняя ось ЗАПУСКАТЕЛЯ, ничего не тронуто.
     ps = ps or getattr(sibling, "_ps_lstart")
     # self_session="" намеренно: короткое замыкание «это текущая сессия» внутри session_state
     # здесь вредно — своё владение уже разобрано выше ПО ЛИЧНОСТИ, а не по ярлыку.
@@ -414,7 +542,7 @@ def _take_over(path: Path, record: dict):
 
 def acquire(path: Path, record: dict, self_session, self_pid, sibling, *, now,
             self_pid_start="", ps=None, unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC,
-            entries=()):
+            entries=(), procs_with_run_id=None, worker_ttl_sec=DEFAULT_WORKER_TTL_SEC):
     """(вердикт, сообщение). Не бросает на занятом замке — занятость это исход, не авария."""
     path = Path(path)
     for attempt in (1, 2):
@@ -434,7 +562,9 @@ def acquire(path: Path, record: dict, self_session, self_pid, sibling, *, now,
         state, why = classify(holder, holder_err, dir_age_seconds(path, now),
                               self_session, self_pid, sibling,
                               self_pid_start=self_pid_start, ps=ps,
-                              unmeasured_ttl_sec=unmeasured_ttl_sec)
+                              unmeasured_ttl_sec=unmeasured_ttl_sec,
+                              procs_with_run_id=procs_with_run_id,
+                              worker_ttl_sec=worker_ttl_sec)
         if state == MINE:
             return ALREADY_MINE, why
         if state in _ABANDONED:
@@ -449,8 +579,13 @@ def acquire(path: Path, record: dict, self_session, self_pid, sibling, *, now,
     return BUSY, "замок перехватывается другим процессом — уступаю"
 
 
-def release(path: Path, self_session, self_pid, self_pid_start=""):
-    """(вердикт, сообщение). Чужой замок НЕ снимаем — иначе он не замок."""
+def release(path: Path, self_session, self_pid, self_pid_start="",
+            *, procs_with_run_id=None):
+    """(вердикт, сообщение). Чужой замок НЕ снимаем — иначе он не замок.
+
+    И СВОЙ не снимаем, пока жив работник, которого мы же и запустили: запускатель умирает
+    раньше работника по построению, а `trap release_lock EXIT` срабатывает именно на его
+    смерти. Снять здесь замок значит открыть дверь следующему циклу поверх идущей работы."""
     path = Path(path)
     if not path.exists():
         return NOT_HELD, "замка нет — снимать нечего"
@@ -458,6 +593,12 @@ def release(path: Path, self_session, self_pid, self_pid_start=""):
     if holder is not None and not same_identity(holder, self_session, self_pid, self_pid_start):
         return NOT_MINE, (f"замок держит {holder.get('session')!r}, а не "
                           f"{self_session!r} — чужой не снимаю")
+    if holder is not None:
+        w_state, w_why = worker_axis(holder, procs_with_run_id=procs_with_run_id)
+        if w_state == WORKER_ALIVE:
+            return WORKER_STILL_ALIVE, (
+                f"замок мой, но РАБОТА ещё идёт — {w_why}. Не снимаю: следующий цикл "
+                f"стартовал бы поверх неё (авария 2026-10-14, цикл #864)")
     if holder is None:
         # Огрызок без держателя: снять его вправе кто угодно — он никого не представляет.
         pass
@@ -469,7 +610,8 @@ def release(path: Path, self_session, self_pid, self_pid_start=""):
 
 
 def status(path: Path, self_session, self_pid, sibling, *, now, self_pid_start="", ps=None,
-           unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC, entries=()):
+           unmeasured_ttl_sec=DEFAULT_UNMEASURED_TTL_SEC, entries=(),
+           procs_with_run_id=None, worker_ttl_sec=DEFAULT_WORKER_TTL_SEC):
     """(вердикт, сообщение) без единой мутации — для ручного запуска и мониторинга."""
     path = Path(path)
     if not path.exists():
@@ -478,7 +620,9 @@ def status(path: Path, self_session, self_pid, sibling, *, now, self_pid_start="
     age = dir_age_seconds(path, now)
     state, why = classify(holder, holder_err, age, self_session, self_pid, sibling,
                           self_pid_start=self_pid_start, ps=ps,
-                          unmeasured_ttl_sec=unmeasured_ttl_sec)
+                          unmeasured_ttl_sec=unmeasured_ttl_sec,
+                          procs_with_run_id=procs_with_run_id,
+                          worker_ttl_sec=worker_ttl_sec)
     if state == MINE:
         return ALREADY_MINE, why
     if state in _ABANDONED:
@@ -494,7 +638,7 @@ def status(path: Path, self_session, self_pid, sibling, *, now, self_pid_start="
 _EXIT_BY_VERDICT = {
     ACQUIRED: EXIT_OK, ALREADY_MINE: EXIT_OK, STALE_TAKEN: EXIT_OK,
     UNPROTECTED: EXIT_OK, FREE: EXIT_OK, RELEASED: EXIT_OK, NOT_HELD: EXIT_OK,
-    BUSY: EXIT_BUSY, NOT_MINE: EXIT_NOT_MINE,
+    BUSY: EXIT_BUSY, NOT_MINE: EXIT_NOT_MINE, WORKER_STILL_ALIVE: EXIT_WORKER_ALIVE,
 }
 
 
@@ -520,6 +664,12 @@ def main(argv=None) -> int:
     ap.add_argument("--pid", default=None, help="долгоживущий pid (умолчание — SPA_SESSION_PID)")
     ap.add_argument("--unmeasured-ttl-hours", type=float,
                     default=DEFAULT_UNMEASURED_TTL_SEC / 3600.0)
+    ap.add_argument("--run-id", default=None,
+                    help=(f"метка владения работником (умолчание — {RUN_ID_VAR} из окружения). "
+                          f"Записывается в holder.json и ею же меряется, идёт ли ещё работа"))
+    ap.add_argument("--worker-ttl-hours", type=float,
+                    default=DEFAULT_WORKER_TTL_SEC / 3600.0,
+                    help="сколько живой работник вправе держать замок (его собственный срок)")
     ap.add_argument(
         "--max-concurrent", type=int,
         default=int(os.environ.get(MAX_CONCURRENT_ENV, "1") or "1"),
@@ -546,6 +696,11 @@ def main(argv=None) -> int:
         entries = ()                     # без оценки времени, но замок работает
 
     ttl = max(0.0, args.unmeasured_ttl_hours) * 3600.0
+    worker_ttl = max(0.0, args.worker_ttl_hours) * 3600.0
+    # Метку НЕ выдумываем: нет её ни в аргументе, ни в окружении — ось РАБОТНИКА просто
+    # не мерится (`worker_not_declared`), и замок ведёт себя ровно как до этой правки.
+    run_id = str(args.run_id or os.environ.get(RUN_ID_VAR) or "").strip()
+    extra = {RUN_ID_KEY: run_id} if run_id else None
 
     # max_concurrent == 1 (умолчание) — путь НЕ ТРОНУТ: тот же вызов `lock_dir`/
     # `acquire`/`release`/`status` на тот же путь, что и до этой правки, буквально.
@@ -557,20 +712,23 @@ def main(argv=None) -> int:
                          f"общий каталог замка не разрешён ({shared_err}) — замок был бы виден "
                          f"только этой сессии; цикл идёт БЕЗ защиты", str(path))
         if args.command == "acquire":
-            verdict, msg = acquire(path, holder_record(session, pid, start, now),
+            verdict, msg = acquire(path, holder_record(session, pid, start, now, extra),
                                    session, pid, sibling, now=now, self_pid_start=start,
-                                   unmeasured_ttl_sec=ttl, entries=entries)
+                                   unmeasured_ttl_sec=ttl, entries=entries,
+                                   worker_ttl_sec=worker_ttl)
         elif args.command == "release":
             verdict, msg = release(path, session, pid, start)
         else:
             verdict, msg = status(path, session, pid, sibling, now=now, self_pid_start=start,
-                                  unmeasured_ttl_sec=ttl, entries=entries)
+                                  unmeasured_ttl_sec=ttl, entries=entries,
+                                  worker_ttl_sec=worker_ttl)
         return _emit(args, verdict, msg, str(path))
 
     if args.command == "acquire":
         verdict, msg, slot, path = acquire_any_slot(
-            max_concurrent, holder_record(session, pid, start, now), session, pid, sibling,
-            now=now, self_pid_start=start, unmeasured_ttl_sec=ttl, entries=entries)
+            max_concurrent, holder_record(session, pid, start, now, extra), session, pid,
+            sibling, now=now, self_pid_start=start, unmeasured_ttl_sec=ttl, entries=entries,
+            worker_ttl_sec=worker_ttl)
         extra = {"slot": slot} if args.json else None
         return _emit(args, verdict, msg, str(path) if path else None, extra=extra)
     if args.command == "release":
@@ -579,7 +737,7 @@ def main(argv=None) -> int:
         return _emit(args, verdict, msg, None)
 
     rows = status_all(max_concurrent, session, pid, sibling, now=now, self_pid_start=start,
-                      unmeasured_ttl_sec=ttl, entries=entries)
+                      unmeasured_ttl_sec=ttl, entries=entries, worker_ttl_sec=worker_ttl)
     if args.json:
         print(json.dumps({"slots": [
             {"slot": s, "verdict": v, "message": m, "lock": str(p) if p else None}

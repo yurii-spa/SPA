@@ -80,6 +80,21 @@ export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
 # launchd/com.spa.orchestrator2.plist), а не переписывание замка: safety-ревью 26.08
 # нашло и починило единственную незакрытую гонку (дубли в Telegram — telegram_client.
 # outbound_lock), карточкам/STATE/пушу уже ничего не грозит при двух держателях.
+# ── МЕТКА ВЛАДЕНИЯ (ADR-720) ───────────────────────────────────────────────────────────
+# Замок держит ЗАПУСКАТЕЛЬ (этот скрипт), а работу делает РАБОТНИК (headless claude),
+# которого обёртка поднимает лидером СВОЕЙ сессии. Сигнал, снимающий нашу группу, его не
+# достаёт: мы умираем, `trap release_lock EXIT` снимает замок, работник продолжает писать,
+# и следующий цикл стартует поверх идущей работы. Замер 2026-10-14: 19 взятий замка, 0
+# отказов, живой осиротевший работник (pid 69661) правил своё дерево, пока следующий цикл
+# получал ту же голодающую карточку владельца.
+# Поэтому метка рождается ЗДЕСЬ, до взятия замка, и отдаётся ОБЕИМ сторонам: замок пишет
+# её в holder.json, обёртка ставит в ОКРУЖЕНИЕ работника (там её наследуют все потомки и
+# она переживает осиротение). Один вопрос «идёт ли ещё работа» — один ответ.
+# НЕ экспортируем: иначе метку нёс бы и сам запускатель, и его жизнь снова читалась бы
+# как жизнь работника — ровно та подмена, которую правка и убирает.
+RUN_SUFFIX="$( { uuidgen 2>/dev/null || od -An -tx1 -N16 /dev/urandom 2>/dev/null || date +%s; } | tr -dc 'a-zA-Z0-9' )"
+CYCLE_RUN_ID="orchestrator-$$-${RUN_SUFFIX:-$(date +%s)}"
+
 LOCK_PY="$REPO_ROOT/scripts/orchestrator_cycle_lock.py"
 MAX_CONCURRENT="${SPA_ORCHESTRATOR_MAX_CONCURRENT:-1}"
 if [ ! -f "$LOCK_PY" ]; then
@@ -88,7 +103,8 @@ if [ ! -f "$LOCK_PY" ]; then
     echo "[$(ts)] lock: ⚠️ нет $LOCK_PY — цикл идёт БЕЗ защиты от одновременного прогона" >> "$LOG"
 else
     LOCK_OUT="$("$PYTHON" "$LOCK_PY" acquire --max-concurrent "$MAX_CONCURRENT" \
-                --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" 2>&1)"
+                --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" \
+                --run-id "$CYCLE_RUN_ID" 2>&1)"
     LOCK_RC=$?
     echo "[$(ts)] lock: $LOCK_OUT" >> "$LOG"
     if [ "$LOCK_RC" -eq 3 ]; then
@@ -205,7 +221,7 @@ echo "[$(ts)] ARMED: invoking headless Claude (governed autonomy, skip-permissio
 nice -n 10 "$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --timeout-s "${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}" \
     --grace-s "${SPA_ORCHESTRATOR_KILL_GRACE_S:-120}" \
-    --log "$LOG" --label orchestrator \
+    --log "$LOG" --label orchestrator --run-id "$CYCLE_RUN_ID" \
     -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 echo "[$(ts)] === orchestrator cycle END (claude exit $RC) ===" >> "$LOG"

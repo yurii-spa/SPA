@@ -346,7 +346,7 @@ def _terminate(owned: list, sig: int, log: Log, run_id: str, child_pid: int,
 
 
 def run(cmd: list, *, timeout_s: float, grace_s: float, log_path, label: str,
-        poll_s: float = DEFAULT_POLL_S, instruments=None) -> int:
+        poll_s: float = DEFAULT_POLL_S, instruments=None, run_id=None) -> int:
     """`instruments` ограничивает набор приборов ДЛЯ ВЫСТРЕЛА, но НЕ для вердикта.
 
     Разделение найдено собственным тестом (канарейка 18.09) и оно не косметическое.
@@ -360,7 +360,10 @@ def run(cmd: list, *, timeout_s: float, grace_s: float, log_path, label: str,
     """
     log = Log(log_path)
     kill_instruments = INSTRUMENTS if instruments is None else instruments
-    run_id = f"{label}-{os.getpid()}-{uuid.uuid4().hex}"
+    # `run_id` может прийти СНАРУЖИ: замок цикла записывает его в holder.json ДО запуска,
+    # чтобы живость РАБОТНИКА измерялась той же меткой, которой здесь меряется владение
+    # (см. ADR-720). Не передали — генерируем, как и раньше: поведение не меняется.
+    run_id = str(run_id or "").strip() or f"{label}-{os.getpid()}-{uuid.uuid4().hex}"
     self_pid = os.getpid()
     self_sid = _safe_sid(self_pid)
 
@@ -510,6 +513,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--grace-s", type=float, default=DEFAULT_GRACE_S)
     ap.add_argument("--log", default=None)
     ap.add_argument("--label", required=True)
+    ap.add_argument("--run-id", default=None,
+                    help="готовая метка владения (умолчание — сгенерировать). Нужна, когда\nметку уже записал замок цикла, чтобы обе стороны мерили ОДНУ личность")
     ap.add_argument("--poll-s", type=float, default=DEFAULT_POLL_S)
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     return ap
@@ -522,7 +527,7 @@ def main(argv=None) -> int:
     if not cmd:
         ap.error("после -- обязана быть команда")
     return run(cmd, timeout_s=ns.timeout_s, grace_s=ns.grace_s, log_path=ns.log,
-               label=ns.label, poll_s=ns.poll_s)
+               label=ns.label, poll_s=ns.poll_s, run_id=ns.run_id)
 
 
 if __name__ == "__main__":
