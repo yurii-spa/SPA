@@ -1,0 +1,84 @@
+{
+  "title": "ADR-761 — дельта цикла #876 (перечень классов потери содержимого против вызовов двери)",
+  "tests": [
+    "spa_core/tests/test_content_loss_class_parity.py",
+    "spa_core/tests/test_card_section_loss_guard.py",
+    "spa_core/tests/test_tracker_cycle_record_loss_guard.py",
+    "spa_core/tests/test_rules_section_loss_guard.py",
+    "spa_core/tests/test_journal_entry_loss_guard.py"
+  ],
+  "mutations": [
+    {
+      "name": "ось СИГНАТУРЫ слепа: население классов всегда пусто (мера есть, не мерит)",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    classes = carriers - {CONTENT_DOOR}\n",
+      "new": "    classes = set()\n"
+    },
+    {
+      "name": "третий исход ЗАМОЛЧАН: пушер не разобран ⇒ пустое население вместо отказа",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    except SyntaxError as exc:\n        raise Unmeasured(f\"НЕ ИЗМЕРЕНО: пушер не разобран ({exc})\") from exc\n",
+      "new": "    except SyntaxError:\n        return {}\n"
+    },
+    {
+      "name": "двери нет ⇒ ЧИСТО вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    if CONTENT_DOOR not in carriers:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "ноль классов ⇒ ЧИСТО вместо НЕ ИЗМЕРЕНО (подделка доказательства, ADR-468)",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    classes = carriers - {CONTENT_DOOR}\n    if not classes:\n",
+      "new": "    classes = carriers - {CONTENT_DOOR}\n    if False:\n"
+    },
+    {
+      "name": "пустое население оси ИМЕНИ ⇒ ЧИСТО вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    if not names:\n        raise Unmeasured(",
+      "new": "    if False:\n        raise Unmeasured("
+    },
+    {
+      "name": "корня нет ⇒ достижимость «измерена» от пустоты",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    if root not in funcs:\n",
+      "new": "    if False and root not in funcs:\n"
+    },
+    {
+      "name": "достижимость НЕ транзитивна — классы за дверью объявляются недостижимыми",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "            if called in funcs and called not in seen:\n                seen.add(called)\n                queue.append(called)\n",
+      "new": "            if called in funcs and called not in seen and name == root:\n                seen.add(called)\n"
+    },
+    {
+      "name": "ось ИМЕНИ сужена до контракта — класс иной формы невидим обеим осям",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    names = {n for n in _functions(source)\n             if n.startswith(\"guard_\") and n.endswith(\"_loss\")}\n",
+      "new": "    names = {n for n in contract_classes(source)}\n"
+    },
+    {
+      "name": "контракт объявлен ВТОРОЙ копией, разошедшейся с живой дверью",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "CONTRACT_ARGS = (\"repo_path\", \"remote_bytes\", \"content_bytes\", \"remote_sha\",\n                 \"allow_overwrite\")",
+      "new": "CONTRACT_ARGS = (\"repo_path\", \"remote_bytes\", \"content_bytes\", \"remote_sha\")"
+    },
+    {
+      "name": "вызов мерится ПОДСТРОКОЙ docstring'а двери, а не разбором (урок #467)",
+      "file": "spa_core/tests/_pusher_wiring.py",
+      "old": "    return {c.func.id for c in ast.walk(node)\n            if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}",
+      "new": "    import re as _re\n    body = (source if source is not None\n            else PUSHER.read_text(encoding=\"utf-8\"))\n    return {m for m in _re.findall(r\"guard_\\w+\", body)}"
+    },
+    {
+      "name": "дверь не зовёт класс разделов карточки — тот самый забытый вызов",
+      "file": "push_to_github.py",
+      "old": "             guard_card_section_loss(repo_path, remote_bytes, content_bytes,\n                                     remote_sha, allow_overwrite=allow_overwrite)]",
+      "new": "             ]"
+    },
+    {
+      "name": "ось СИГНАТУРЫ спрашивает НЕ ТУ дверь — класс мимо диспетчера проходит",
+      "file": "spa_core/tests/test_content_loss_class_parity.py",
+      "old": "    return contract_classes(source) - calls_of(CONTENT_DOOR, source)",
+      "new": "    return contract_classes(source) - calls_of(LOSS_ROOT, source)"
+    }
+  ]
+}
