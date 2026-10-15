@@ -2,13 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии"
-status: in-progress
+status: done
 source: cycle-755
 created: 2026-10-02
 priority: high
 acceptance_probe: tier_guard_judges_code_not_prose
 status_trail:
   - "2026-10-15T14:57:35.375267+00:00 new -> in-progress · queue.set_status · cycle-90989"
+  - "2026-10-15T15:22:25.140829+00:00 in-progress -> done · queue.set_status/closed_by:cycle-90989/evidence:проба tier_guard_judges_code_not_prose ЗЕЛЕНА на доставленной вершине 448a3400 (satisfied: прибор молчит на 2 живых читателях, кусается на всех 11 формах, молчит на прозе 02.10, неразбираемое называет · cycle-90989"
 ---
 
 ## Что случилось

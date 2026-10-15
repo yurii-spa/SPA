@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-15T14:57:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-15T15:22:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fe5ab084c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (448a34008) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1330** · ждёт владельца: **17** · занято сессиями: **14**.
 
@@ -432,7 +432,6 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
@@ -750,6 +749,7 @@
 - Сторож приёмки карточек читает только своё дерево — в проде он видит 583 карточки из 865  ·  `inbox-storozh-priemki-kartochek-chitaet-tolko.md` · 2026-09-02
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
+- Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - Сторож вопросов владельца говорит «не измерено» там, где ответ лежит на origin — механика (origin_view) уже есть  ·  `inbox-storozh-voprosov-vladeltsa-govorit-ne-iz.md` · 2026-08-17
 - Сторож «вопросы владельца на ветке» не знает слова «прочитано и осознанно не везём» — счёт не дойдёт до нуля никогда  ·  `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn.md` · 2026-08-23
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
