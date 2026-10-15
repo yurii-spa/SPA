@@ -567,7 +567,11 @@ def tile_yield(equity_doc: Optional[dict], now: datetime) -> dict:
         "Доходность не измерена — дневной цикл не записал кривую капитала")
     return cell(value={"apy_pct": apy, "max_drawdown_pct": dd, "evidenced_days": len(bars),
                        "period_return_pct": period_ret, "days_act": days_act,
-                       "apy_convention": tpv.get("convention")},
+                       "apy_convention": tpv.get("convention"),
+                       # DIRECTOR-OS-UX-02 over Wave 2: the period's own boundaries, read-only from the
+                       # SAME track_period_view (no second formula) — the cockpit prints them verbatim.
+                       "period_start": tpv.get("start_date"), "period_end": tpv.get("end_date"),
+                       "method": tpv.get("method")},
                display_ru=text_ru, display_en=text_ru, metric_type="REALIZED_PAPER", state=state,
                as_of=_iso(as_of), canon=canon, fresh=fr, unknown_ru=unknown_ru)
 
@@ -734,6 +738,12 @@ def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc
         unknown_ru=yield_cell.get("unknown_ru") or "Книга не прочитана — состояние неизвестно",
         rate_ru=cons_rate_ru, rate_en=fmt_pct(apy, "en"), dd_ru=cons_dd_ru, dd_en=fmt_pct(dd, "en"),
         evidenced_days=v.get("evidenced_days"),
+        # The period return is the PRIMARY figure (owner/ARB 2026-10-08/09); rate_ru above is only the
+        # estimated annualised equivalent (ACT/365 Fixed by valuation dates). Same yield cell, read-only.
+        period_return_ru=fmt_pct(v.get("period_return_pct"), "ru", signed=True),
+        period_return_en=fmt_pct(v.get("period_return_pct"), "en", signed=True),
+        period_start=v.get("period_start"), period_end=v.get("period_end"), days_act=v.get("days_act"),
+        apy_convention=v.get("apy_convention"),
         accumulating_days=(v.get("evidenced_days") or 0) if yield_cell.get("state") == NOT_ENOUGH_HISTORY else None,
         work=conservative_src.get("work"), data=conservative_src.get("data"))}
     from spa_core.paper_trading.sleeve_track import sleeve_track_view
@@ -1088,6 +1098,12 @@ def studio_tasks(board: Optional[dict], orphans: Optional[dict]) -> dict:
     in_progress = counts.get("in-progress", 0)
     stale = (orphans or {}).get("counts", {}).get("stale_in_progress") if isinstance(orphans, dict) else None
     blocked = counts.get("blocked", 0)
+    # DIRECTOR-OS-UX-02 (ARB 09.10): WHICH tasks are stopped and what the card says about it —
+    # a read-only projection of ``board.blocked``; None = the board did not list them (older model).
+    rows = board.get("blocked")
+    blocked_items = ([{"card": r.get("id"), "title": r.get("title"), "last_transition": r.get("last_transition"),
+                       "created": r.get("created"), "reason": r.get("blocked_by"), "next_step": r.get("next_step")}
+                      for r in rows[:10] if isinstance(r, dict)] if isinstance(rows, list) else None)
     text_ru = f"в очереди: {queued} · в статусе «в работе»: {in_progress}" + (f" (залежались: {stale})" if stale else "")
     return cell(value={"queued": queued, "in_progress": in_progress, "blocked": blocked, "stale": stale},
                display_ru=text_ru, display_en=text_ru, metric_type="COUNT", state=MEASURED, as_of=None,
@@ -1095,7 +1111,8 @@ def studio_tasks(board: Optional[dict], orphans: Optional[dict]) -> dict:
                # bare fields — ``renderTasks`` composes its own chip row via ``tf()`` from
                # ``cell.queued``/``cell.in_progress``/``cell.in_progress_stale``/``cell.blocked``
                # (chips rendered blank before this fix: Wave 2 round-2 review, 2026-10-06).
-               queued=queued, in_progress=in_progress, in_progress_stale=stale, blocked=blocked)
+               queued=queued, in_progress=in_progress, in_progress_stale=stale, blocked=blocked,
+               blocked_items=blocked_items)
 
 
 def studio_incidents(push_state_section: Optional[dict], now: Optional[datetime] = None) -> dict:
@@ -1559,6 +1576,8 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
               "done_when_ru": _na(v1.get("done_when")), "done_when_en": _na(v1.get("done_when")),
               "age_days": age_days, "subject_key": (s if s != subj.UNKNOWN else None),
               "telegram_link": v1.get("telegram_link"),
+              # the whole canonical card body, read-only (DIRECTOR-OS-UX-02, ARB 09.10)
+              "full_sections_ru": v1.get("full_sections") if isinstance(v1.get("full_sections"), list) else None,
               # legacy fields some earlier callers of this function still read:
               "title": title, "subject": s, "status": status}
         if status == "owner-accepted":

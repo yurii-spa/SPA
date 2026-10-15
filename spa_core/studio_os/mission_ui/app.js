@@ -33,8 +33,18 @@
 (function () {
   var t = window.MC_I18N.t;
   var tf = window.MC_I18N.tf;
-  var AREAS = ["home", "capital", "studio", "product", "decisions"];
-  var NAV_ICON = { home: "⌂", capital: "◈", studio: "⚙", product: "◉", decisions: "✉" };
+  // DIRECTOR-OS-UX-02 (RFC-690): five owner sections. The v2 areas live on as «Технические
+  // подробности» inside them, and their old hashes still resolve (LEGACY_AREA) — nothing removed.
+  var AREAS = ["overview", "decisions", "work", "money", "protection"];
+  var LEGACY_AREA = { home: "overview", capital: "money", studio: "work", product: "work", system: "protection" };
+  // Simple line icons (stroke only), always shown WITH a text label.
+  var NAV_ICON_PATH = {
+    overview: "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1z",
+    decisions: "M8 12l3 3 5-6M12 3a9 9 0 1 0 0.01 0",
+    work: "M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1",
+    money: "M3 7h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7l12-4v4M16 13h2",
+    protection: "M12 3l8 3v6c0 5-3.5 8-8 9c-4.5-1-8-4-8-9V6z",
+  };
   var STAGE_KEYS = ["IDEA", "TASK", "ASSIGNED", "RUN", "ARTIFACT", "REVIEW", "DECISION", "RELEASE", "OUTCOME", "MEMORY"];
   var REFRESH_MS = 60000;
   var STALE_AFTER_MIN = 15;
@@ -307,12 +317,25 @@
   }
 
   // ── time / staleness (reader's clock, per ADR-552) ─────────────────────────────────────────
+  // ONE clock for every staleness judgement on the page. In production it is the clock of the reader.
+  // A fixture/preview page may pin it with <meta name="dos-fixed-now" content="ISO"> so the header
+  // and the sections judge freshness against the SAME instant (DIRECTOR-OS-UX-02 E). The production
+  // index.html carries no such meta (guarded by test_mission_ui_static), so the pin cannot reach prod.
+  function readerNowMs() {
+    var meta = document.querySelector("meta[name=dos-fixed-now]");
+    if (meta) {
+      var pinned = new Date(meta.getAttribute("content") || "").getTime();
+      if (!isNaN(pinned)) return pinned;
+    }
+    return Date.now();
+  }
+
   function dataAgeMin(model) {
     var gen = get(model, "generated_at", null);
     if (!gen) return null;
     var ts = new Date(gen).getTime();
     if (isNaN(ts)) return null;
-    return (Date.now() - ts) / 60000;
+    return (readerNowMs() - ts) / 60000;
   }
 
   function isStaleGlobal() {
@@ -331,13 +354,13 @@
         fetchFailed = false;
         var age = dataAgeMin(currentModel);
         staleFlag = age === null || age > STALE_AFTER_MIN;
-        renderAll();
+        renderAll({ keepState: true });
       })
       .catch(function () {
         fetchFailed = true;
         currentModel = null;
         staleFlag = true;
-        renderAll();
+        renderAll({ keepState: true });
       });
   }
 
@@ -348,27 +371,78 @@
   // ── routing ─────────────────────────────────────────────────────────────────────────────
   function currentArea() {
     var hsh = (location.hash || "").replace("#", "").split("/")[0];
-    return AREAS.indexOf(hsh) >= 0 ? hsh : "home";
+    if (AREAS.indexOf(hsh) >= 0) return hsh;
+    if (hsh.indexOf("dev-") === 0) return "dev";   // DIRECTOR-OS-UX-04: a mockup section «в разработке»
+    return LEGACY_AREA[hsh] || "overview";
+  }
+
+  function devKey() {
+    var hsh = (location.hash || "").replace("#", "").split("/")[0];
+    return hsh.indexOf("dev-") === 0 ? hsh.slice(4) : null;
   }
 
   function showArea(area) {
-    AREAS.forEach(function (a) {
+    AREAS.concat(["dev"]).forEach(function (a) {
       var sec = document.getElementById("area-" + a);
       if (sec) sec.hidden = a !== area;
     });
   }
 
+  function navIcon(a) {
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("class", "nav-icon");
+    var path = document.createElementNS(ns, "path");
+    path.setAttribute("d", NAV_ICON_PATH[a] || NAV_ICON_PATH.overview);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  // DIRECTOR-OS-UX-04 (owner mockup): on a phone the bar shows ONLY the five sections; on a desktop the
+  // same element is the mockup's sidebar — brand, grouped sections with count badges, and the mockup's
+  // other sections marked «в разработке» (from owner_view.in_development — one registry, no invention).
   function renderNav() {
     var nav = document.getElementById("bottom-nav");
     clear(nav);
     var active = currentArea();
+    var counts = get(currentModel, "owner_view.nav_counts", {}) || {};
+    nav.appendChild(h("div", { class: "nav-brand", "aria-hidden": "true" }, [
+      h("span", { class: "nav-brandmark" }, ["E"]),
+      h("span", { class: "nav-brandtext" }, [h("b", {}, [t("v4.brand")]), h("small", {}, [t("v4.brand_sub")])]),
+    ]));
+    nav.appendChild(h("p", { class: "nav-group-title" }, [t("v4.group.command")]));
     AREAS.forEach(function (a) {
-      var link = h("a", { class: "nav-item" + (a === active ? " active" : ""), href: "#" + a }, [
-        h("span", { class: "nav-icon", "aria-hidden": "true" }, [NAV_ICON[a] || "•"]),
+      var n = counts[a];
+      var link = h("a", { class: "nav-item" + (a === active ? " active" : ""), href: "#" + a,
+                          "aria-current": a === active ? "page" : null }, [
+        navIcon(a),
         h("span", { class: "nav-label" }, [t("nav." + a)]),
+        (typeof n === "number" && n > 0) ? h("span", { class: "nav-badge", "aria-label": String(n) }, [String(n)]) : null,
       ]);
       nav.appendChild(link);
     });
+    var dev = (get(currentModel, "owner_view.in_development", []) || []).filter(function (d) { return d.nav; });
+    var groups = {};
+    dev.forEach(function (d) { (groups[d.nav_group] = groups[d.nav_group] || []).push(d); });
+    Object.keys(groups).forEach(function (g) {
+      nav.appendChild(h("p", { class: "nav-group-title nav-dev-only" }, [g]));
+      groups[g].forEach(function (d) {
+        var on = active === "dev" && devKey() === d.key;
+        nav.appendChild(h("a", { class: "nav-item nav-item--dev nav-dev-only" + (on ? " active" : ""), href: "#dev-" + d.key,
+                                 "aria-current": on ? "page" : null,
+                                 "aria-label": d.nav_title + " — " + t("v4.in_dev_badge") }, [
+          h("span", { class: "nav-dot", "aria-hidden": "true" }, []),
+          h("span", { class: "nav-label" }, [d.nav_title]),
+          h("span", { class: "nav-soon" }, [t("v4.in_dev_badge")]),
+        ]));
+      });
+    });
+    nav.appendChild(h("div", { class: "nav-safebox nav-dev-only" }, [
+      h("p", { class: "nav-safehead" }, [h("span", { class: "dot dot--ok", "aria-hidden": "true" }, []), t("v4.safe_title")]),
+      h("p", {}, [t("v4.safe_text")]),
+    ]));
   }
 
   function renderHeaderStaticText() {
@@ -376,8 +450,9 @@
     if (title) title.textContent = t("header.title");
   }
 
-  function renderIntake() {
-    var nav = document.getElementById("intake-actions");
+  function renderIntake(nav) {
+    nav = nav || document.getElementById("intake-actions");
+    if (!nav) return;
     clear(nav);
     var intake = get(currentModel, "intake", {}) || {};
     nav.appendChild(telegramButton(intake.ask, t("intake.ask")));
@@ -397,18 +472,29 @@
     el.appendChild(h("p", { class: "legend-note" }, [t("legend.colour")]));
   }
 
-  // Header money chip — permanent on every tab (design §2.1). Source: truth.home.money_chip.
+  // Header money chip — permanent on every section. Source: owner_view (ADR-762 §3) which reads
+  // ONLY capital.real_capital; the legacy truth.home.money_chip is the fallback. No literal sum here:
+  // an absent sum is «не измерено», never "$0" (the v2 fallback that printed "$0" is gone).
   function renderMoneyChip() {
     var el = document.getElementById("money-chip");
     if (!el) return;
     clear(el);
-    var mc = get(truth(), "home.money_chip", null);
+    if (currentArea() === "money") return;   // owner 15.10: «Настоящие деньги: $0» once per screen
+    var real = get(currentModel, "owner_view.sections.money.real", null);
     var text;
-    if (!mc || isUnknownState(mc.state)) {
-      text = (mc && bi(mc.unknown_ru, mc.unknown_en)) || t("header.money_chip.unknown");
+    if (real && real.confidence === "MEASURED" && typeof real.text === "string") {
+      var st = get(real, "technical.state", null);
+      text = t("ux.real_money") + ": " + real.text.split(" — ")[0] +
+        (st === "LIVE_NOT_APPROVED" ? " · " + t("ux.not_approved") : "");
+    } else if (real) {
+      text = t("ux.real_money") + ": " + (real.confidence_ru || t("state.NOT_MEASURED")).toLowerCase();
     } else {
-      var usd = "$" + (mc.usd === null || mc.usd === undefined ? "0" : mc.usd);
-      text = tf("header.money_chip", { usd: usd });
+      var mc = get(truth(), "home.money_chip", null);
+      if (!mc || isUnknownState(mc.state) || typeof mc.usd !== "number") {
+        text = (mc && bi(mc.unknown_ru, mc.unknown_en)) || t("header.money_chip.unknown");
+      } else {
+        text = tf("header.money_chip", { usd: "$" + mc.usd });
+      }
     }
     el.appendChild(h("span", { class: "chip chip--money" }, [text]));
   }
@@ -524,8 +610,14 @@
     } else if (isUnknownState(book.state)) {
       c.appendChild(h("p", { class: "cell-text cell-text--unknown" }, [unknownText(book)]));
     } else {
-      c.appendChild(h("p", { class: "cell-text" }, [tf("home.tile.yield.value", { rate: bi(book.rate_ru, book.rate_en), dd: bi(book.dd_ru, book.dd_en) })]));
-      if (book.evidenced_days !== undefined) c.appendChild(h("p", { class: "note" }, [tf("capital.book.evidenced_days", { n: book.evidenced_days })]));
+      if (book.period_return_ru) {
+        // Wave 2 method (same Company Truth cell): the period return first; the annualised figure is
+        // only an estimated equivalent — never a bar-count explanation (ARB 09.10).
+        c.appendChild(h("p", { class: "cell-text" }, [tf("capital.book.period", { ret: bi(book.period_return_ru, book.period_return_en), start: book.period_start || "—", end: book.period_end || "—", dd: bi(book.dd_ru, book.dd_en) })]));
+        if (book.rate_ru) c.appendChild(h("p", { class: "note" }, [tf("capital.book.equivalent", { rate: bi(book.rate_ru, book.rate_en) })]));
+      } else {
+        c.appendChild(h("p", { class: "cell-text" }, [tf("home.tile.yield.value", { rate: bi(book.rate_ru, book.rate_en), dd: bi(book.dd_ru, book.dd_en) })]));
+      }
       c.appendChild(h("p", { class: "note" }, [t("capital.book.live_not_approved")]));
     }
     var ev = evidenceDrawer(book);
@@ -631,6 +723,11 @@
     var fresh = sourceText(row, "freshness");
     if (fresh) box.appendChild(h("div", { class: "warning-chip" }, [fresh]));
     box.appendChild(kvPlain(t("capital.sources.net"), sourceText(row, "net")));
+    // ARB 09.10 round 5: Oracle's annualised figure is a DIFFERENT method from the site/«Деньги»
+    // estimate (bar count vs valuation dates) — say so next to the number, not elsewhere.
+    if (get(row, "annualized_return.state", null) === "MEASURED") {
+      box.appendChild(h("p", { class: "note ux-oracle-method" }, [t("capital.sources.oracle_method")]));
+    }
     box.appendChild(kvPlain(t("capital.sources.drawdown"), sourceText(row, "drawdown")));
     box.appendChild(kvPlain(t("capital.sources.evidence"), sourceText(row, "evidence")));
     box.appendChild(kvPlain(t("capital.sources.confidence"), sourceText(row, "confidence")));
@@ -774,7 +871,10 @@
       var btn = h("button", { type: "button", class: "subtab-chip" + (key === capitalSubTab ? " active" : "") }, [t("capital.tab." + key)]);
       btn.addEventListener("click", function () {
         capitalSubTab = key;
-        renderArea("capital");
+        // UX-02: the capital tabs now live inside «Деньги → Подробно»; re-render just this block
+        // so the open details stay open (the old renderArea("capital") target no longer exists).
+        clear(root);
+        renderCapital(root);
       });
       tabsRow.appendChild(btn);
     });
@@ -1506,7 +1606,7 @@
     return s.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*|__|`/g, "").replace(/^\s*>\s?/gm, "").trim();
   }
 
-  function renderDecisionItem(d) {
+  function renderDecisionItem(d, gated) {
     d = d || {};
     var dc = h("div", { class: "decision-card" });
     dc.appendChild(h("h3", { class: "decision-title" }, [bi(d.title_ru, d.title_en) || d.id || t("state.NOT_MEASURED")]));
@@ -1519,7 +1619,15 @@
     dc.appendChild(kvPlain(t("decisions.action"), plain(bi(d.action_ru, d.action_en))));
     dc.appendChild(kvPlain(t("decisions.done_when"), plain(bi(d.done_when_ru, d.done_when_en))));
     var href = safeLink(d.telegram_link);
-    if (href) {
+    if (gated) {
+      // DIRECTOR-OS-UX-02 E: an owner-queue question is answered ONLY from its card in «Решения», where
+      // the version, readiness and an earlier answer are checked. The previous view must not offer a
+      // second, unchecked way in — it points there instead (the function moved, it was not removed).
+      dc.appendChild(h("p", { class: "ux-note" }, [t("ux.dec.answer_in_card")]));
+    } else if (href) {
+      // ARB 09.10: every answer path the cockpit offers carries the SAME honest sentence — no path
+      // promises a version-bound confirmation the system does not have.
+      dc.appendChild(h("p", { class: "ux-note" }, [t("ux.dec.honest_path")]));
       dc.appendChild(h("a", { class: "btn btn-primary", href: safeLink(d.telegram_link), target: "_blank", rel: "noopener noreferrer" }, [t("common.open_telegram")]));
     } else {
       dc.appendChild(h("button", { class: "btn btn-disabled", disabled: true, type: "button" }, [t("common.open_telegram")]));
@@ -1549,7 +1657,7 @@
     return dc;
   }
 
-  function renderDecisions(root) {
+  function renderDecisions(root, gateOwnerQueue) {
     var dec = get(truth(), "decisions", null) || {};
     root.appendChild(h("p", { class: "area-label" }, [t("decisions.autonomy")]));
     root.appendChild(h("p", { class: "area-label" }, [t("decisions.how")]));
@@ -1569,7 +1677,7 @@
         items.forEach(function (d) {
           if (key === "answered") list.appendChild(renderAnsweredItem(d));
           else if (key === "accepted") list.appendChild(renderAcceptedItem(d));
-          else list.appendChild(renderDecisionItem(d));
+          else list.appendChild(renderDecisionItem(d, !!gateOwnerQueue && key === "owner"));
         });
         sec.appendChild(list);
       }
@@ -1577,6 +1685,765 @@
     });
   }
 
+  // ════════════════════════════════════════════════════════════════════════════════════════
+  // DIRECTOR-OS-UX-02 — owner sections rendered from `owner_view` (ADR-762). The browser does not
+  // decide what a number means: it draws the view's text, names the confidence in WORDS, and
+  // keeps source / time / unit / raw codes behind «Технические подробности».
+  // ════════════════════════════════════════════════════════════════════════════════════════
+  var CONF_CLASS = { MEASURED: "ok", STALE: "warn", PARTIAL: "warn", NOT_MEASURED: "unknown", INTERPRETATION_PROBLEM: "alert" };
+
+  function ov() {
+    return get(currentModel, "owner_view.sections", null);
+  }
+
+  function techLines(m) {
+    var lines = [];
+    if (m.source) lines.push(t("ux.source") + ": " + m.source);
+    if (m.measured_at_ru) lines.push(t("ux.measured_at") + ": " + m.measured_at_ru);
+    if (m.updated_at) lines.push(t("ux.updated_at") + ": " + ownerTime(m.updated_at));
+    if (m.unit) lines.push(t("ux.unit") + ": " + m.unit);
+    if (m.confidence_ru) lines.push(t("ux.confidence") + ": " + m.confidence_ru);
+    var tech = m.technical || {};
+    Object.keys(tech).forEach(function (k) {
+      var v = tech[k];
+      if (v === null || v === undefined || v === "") return;
+      lines.push(k + ": " + (typeof v === "object" ? JSON.stringify(v) : String(v)));
+    });
+    return lines;
+  }
+
+  // ``context`` names WHICH card the details belong to for screen readers (ARB 09.10 keyboard check:
+  // a row of identical «Технические подробности» names was ambiguous); the visible text is unchanged.
+  function uxDetails(lines, title, context) {
+    lines = (lines || []).filter(function (x) { return x !== null && x !== undefined && x !== ""; });
+    if (!lines.length) return null;
+    var det = h("details", { class: "ux-details" });
+    var label = title || t("ux.tech_details");
+    var sattrs = context ? { "aria-label": label + ": " + context } : {};
+    det.appendChild(h("summary", sattrs, [label]));
+    var body = h("div", { class: "ux-details-body" });
+    lines.forEach(function (l) { body.appendChild(h("p", { class: "ux-tech-line" }, [String(l)])); });
+    det.appendChild(body);
+    return det;
+  }
+
+  function confWord(m) {
+    if (!m || m.confidence === "MEASURED") return null;
+    return h("span", { class: "ux-state ux-state--" + (CONF_CLASS[m.confidence] || "alert") }, [m.confidence_ru || t("ux.interp")]);
+  }
+
+  function metricRow(m, opts) {
+    opts = opts || {};
+    if (!m) return null;
+    var row = h("div", { class: "ux-metric ux-metric--" + (CONF_CLASS[m.confidence] || "alert") + (opts.strong ? " ux-metric--strong" : "") });
+    var head = h("div", { class: "ux-metric-head" }, [h("span", { class: "ux-metric-label" }, [m.label || ""])]);
+    var w = confWord(m);
+    if (w) head.appendChild(w);
+    row.appendChild(head);
+    row.appendChild(h("p", { class: "ux-metric-text" }, [m.text || t("state.NOT_MEASURED")]));
+    // ARB 09.10: a secondary figure (the estimated annualised equivalent) is one short line; its
+    // honest explanation opens on tap — never a wall of text, never hidden.
+    if (m.secondary_short) {
+      var sd = h("details", { class: "ux-details ux-secondary" });
+      sd.appendChild(h("summary", { "aria-label": m.secondary_short + ": " + t("ux.explain") }, [m.secondary_short]));
+      sd.appendChild(h("p", { class: "ux-note" }, [m.secondary || ""]));
+      row.appendChild(sd);
+    }
+    if (m.data_date_ru) row.appendChild(h("p", { class: "ux-snapshot" }, [m.data_date_ru]));
+    var d = uxDetails(techLines(m), null, m.label);
+    if (d) row.appendChild(d);
+    return row;
+  }
+
+  function uxCard(title, extraClass) {
+    var c = h("section", { class: "ux-card" + (extraClass ? " " + extraClass : "") });
+    if (title) c.appendChild(h("h2", { class: "ux-card-title" }, [title]));
+    return c;
+  }
+
+  function legacyDetails(title, builder) {
+    var det = h("details", { class: "ux-details ux-legacy" });
+    det.appendChild(h("summary", {}, [title]));
+    var body = h("div", { class: "ux-legacy-body" });
+    builder(body);
+    det.appendChild(body);
+    return det;
+  }
+
+  function viewMissing(root) {
+    root.appendChild(h("p", { class: "ux-banner ux-banner--warn" }, [t("ux.view_missing")]));
+  }
+
+  function snapshotLine() {
+    var at = get(currentModel, "owner_view.snapshot_generated_at_ru", null);
+    return h("p", { class: "ux-snapshot" }, [at ? tf("ux.data_as_of", { time: at }) : t("ux.data_as_of_unknown")]);
+  }
+
+  // ── KPI tile (DIRECTOR-OS-UX-03): a big number, one caption, a status pill in WORDS, and a bar only
+  // when the owner view carries a measurable denominator. The whole tile is the link to its section.
+  var PILL_TONE = { ok: "ok", info: "info", warn: "warn", problem: "alert", unknown: "unknown" };
+
+  function kpiTile(m, extraClass) {
+    if (!m) return null;
+    var unknown = m.confidence !== "MEASURED" && m.confidence !== "STALE" && m.confidence !== "PARTIAL";
+    var label = (m.label || "") + ": " + (unknown ? (m.text || t("state.NOT_MEASURED")) : ((m.big || "") + ", " + (m.text || "")));
+    var cls = "kpi" + (extraClass ? " " + extraClass : "") + (unknown ? " kpi--unknown" : "");
+    var area = AREAS.indexOf(m.link_area) >= 0 ? m.link_area : null;   // only our own sections
+    var tile = area ? h("a", { class: cls, href: "#" + area, "aria-label": label })
+                    : h("div", { class: cls, "aria-label": label });
+    var head = h("div", { class: "kpi-head" }, [h("span", { class: "kpi-label" }, [m.label || ""])]);
+    if (m.state_pill) head.appendChild(h("span", { class: "pill pill--" + (PILL_TONE[m.state_pill.tone] || "unknown") }, [m.state_pill.text]));
+    else if (unknown) head.appendChild(h("span", { class: "pill pill--unknown" }, [m.confidence_ru || t("state.NOT_MEASURED")]));
+    tile.appendChild(head);
+    tile.appendChild(h("p", { class: "kpi-value" }, [unknown ? "—" : (m.big || "—")]));
+    tile.appendChild(h("p", { class: "kpi-caption" }, [m.text || t("state.NOT_MEASURED")]));
+    if (m.bar && typeof m.bar.ratio === "number") {
+      var bar = h("div", { class: "kpi-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(m.bar.max),
+                           "aria-valuenow": String(m.bar.value), "aria-label": m.bar.text || "" });
+      bar.appendChild(h("span", { style: "width:" + Math.round(m.bar.ratio * 100) + "%" }));
+      tile.appendChild(bar);
+      if (m.bar.text) tile.appendChild(h("p", { class: "kpi-bar-text" }, [m.bar.text]));
+    }
+    return tile;
+  }
+
+  function kpiGrid(list, cls) {
+    var g = h("div", { class: "kpi-grid" + (cls ? " " + cls : "") });
+    list.forEach(function (m) { var tl = kpiTile(m); if (tl) g.appendChild(tl); });
+    return g;
+  }
+
+  // ── DIRECTOR-OS-UX-04: the owner's mockup («SPA Director OS», 30.08) as the spec ──────────────────────
+  // hero → «напиши или продиктуй» → 4 KPI tiles → «что сейчас происходит» | «модельные пакеты» →
+  // «требует твоего внимания» | «в разработке». Every number comes from owner_view; a mockup block with
+  // no data is shown with the badge «в разработке» and its reason — never hidden, never a demo number.
+  var TILE_ICON = { total: "◆", health: "✚", trading: "↗", decisions: "!" };
+  var TILE_TONE = { total: "violet", health: "green", trading: "teal", decisions: "amber" };
+
+  function mockKpi(m, key) {
+    if (!m) return null;
+    var unknown = m.confidence !== "MEASURED" && m.confidence !== "STALE" && m.confidence !== "PARTIAL";
+    var area = AREAS.indexOf(m.link_area) >= 0 ? m.link_area : null;
+    var label = (m.label || "") + ": " + (unknown ? (m.text || t("state.NOT_MEASURED")) : ((m.big || "") + ", " + (m.text || "")));
+    var tile = area ? h("a", { class: "mk-kpi mk-kpi--" + TILE_TONE[key] + (unknown ? " mk-kpi--unknown" : ""), href: "#" + area, "aria-label": label })
+                    : h("div", { class: "mk-kpi mk-kpi--" + TILE_TONE[key], "aria-label": label });
+    tile.appendChild(h("span", { class: "mk-kpi-icon", "aria-hidden": "true" }, [TILE_ICON[key] || "•"]));
+    tile.appendChild(h("p", { class: "mk-kpi-label" }, [m.label || ""]));
+    tile.appendChild(h("p", { class: "mk-kpi-value" }, [unknown ? "—" : (m.big || "—")]));
+    var cap = h("p", { class: "mk-kpi-caption" }, [m.text || t("state.NOT_MEASURED")]);
+    tile.appendChild(cap);
+    if (m.state_pill) tile.appendChild(h("span", { class: "pill pill--" + (PILL_TONE[m.state_pill.tone] || "unknown") }, [m.state_pill.text]));
+    else if (unknown) tile.appendChild(h("span", { class: "pill pill--unknown" }, [m.confidence_ru || t("state.NOT_MEASURED")]));
+    if (m.bar && typeof m.bar.ratio === "number") {
+      var bar = h("div", { class: "mk-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(m.bar.max),
+                           "aria-valuenow": String(m.bar.value), "aria-label": m.bar.text || "" });
+      bar.appendChild(h("span", { style: "width:" + Math.round(m.bar.ratio * 100) + "%" }));
+      tile.appendChild(bar);
+    }
+    return tile;
+  }
+
+  function mkCard(title, sub, linkText, linkArea, extra) {
+    var c = h("section", { class: "mk-card" + (extra ? " " + extra : "") });
+    var head = h("div", { class: "mk-card-head" }, [
+      h("div", {}, [h("h2", { class: "mk-card-title" }, [title]), sub ? h("p", { class: "mk-card-sub" }, [sub]) : null]),
+    ]);
+    if (linkText && linkArea) head.appendChild(h("a", { class: "mk-btn mk-btn--small", href: "#" + linkArea }, [linkText]));
+    c.appendChild(head);
+    return c;
+  }
+
+  function mkRow(r, leadNode) {
+    var area = AREAS.indexOf(r.link_area) >= 0 ? r.link_area : null;
+    var row = area ? h("a", { class: "mk-row", href: "#" + area }) : h("div", { class: "mk-row" });
+    row.appendChild(leadNode);
+    row.appendChild(h("div", { class: "mk-row-main" }, [
+      h("p", { class: "mk-row-title" }, [r.title || ""]),
+      r.sub ? h("p", { class: "mk-row-sub" }, [r.sub]) : null,
+    ]));
+    var side = h("div", { class: "mk-row-side" });
+    if (r.pill) side.appendChild(h("span", { class: "pill pill--" + (PILL_TONE[r.pill.tone] || "unknown") }, [r.pill.text]));
+    if (r.meta) side.appendChild(h("span", { class: "mk-row-meta" }, [r.meta]));
+    row.appendChild(side);
+    return row;
+  }
+
+  function quickCreate() {
+    var bar = h("div", { class: "mk-quick", role: "group", "aria-label": t("v4.quick_label") });
+    var input = h("input", { class: "mk-quick-input", type: "text", id: "quick-text", placeholder: t("v4.quick_placeholder"),
+                             "aria-label": t("v4.quick_label"), autocomplete: "off" });
+    var mic = h("button", { class: "mk-iconbtn", type: "button", "aria-label": t("v4.quick_mic"), title: t("v4.quick_mic") }, ["🎙"]);
+    var go = h("button", { class: "mk-btn mk-btn--primary", type: "button" }, [t("v4.quick_go")]);
+    mic.addEventListener("click", function () { openComposer({ text: input.value, startRecording: true }); });
+    go.addEventListener("click", function () { openComposer({ text: input.value }); });
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") openComposer({ text: input.value }); });
+    bar.appendChild(input);
+    bar.appendChild(mic);
+    bar.appendChild(go);
+    return bar;
+  }
+
+  function devCard(items, title, sub) {
+    // phone: folded (one line + count) so the first screen stays short; desktop: open, like the mockup
+    var c = h("section", { class: "mk-card mk-card--dev" });
+    var fold = h("details", { class: "mk-devfold" });
+    if (window.innerWidth >= 1024) fold.open = true;
+    fold.appendChild(h("summary", { "aria-label": (title || t("v4.in_dev")) + ": " + (items || []).length }, [
+      h("div", {}, [h("h2", { class: "mk-card-title" }, [(title || t("v4.in_dev")) + " · " + (items || []).length]),
+                    h("p", { class: "mk-card-sub" }, [sub || t("v4.in_dev_sub")])]),
+    ]));
+    c.appendChild(fold);
+    var list = h("div", { class: "mk-list" });
+    (items || []).forEach(function (d) {
+      list.appendChild(h("div", { class: "mk-dev" }, [
+        h("div", { class: "mk-dev-head" }, [h("p", { class: "mk-row-title" }, [d.title]),
+                                             h("span", { class: "pill pill--dev" }, [t("v4.in_dev_badge")])]),
+        h("p", { class: "mk-row-sub" }, [d.line]),
+      ]));
+    });
+    fold.appendChild(list);
+    return c;
+  }
+
+  function renderOverview(root) {
+    var s = ov();
+    var o = s && s.overview;
+    if (!o) { viewMissing(root); legacyHomeDetails(root); return; }
+    var hl = o.headline || {};
+    var head = h("div", { class: "mk-pagehead" }, [
+      h("div", {}, [
+        h("h1", { class: "mk-hero-title" }, [t("v4.hero_title")]),
+        h("p", { class: "mk-hero-sub" }, [hl.mode_line || t("state.NOT_MEASURED")]),
+        h("p", { class: "mk-hero-next" }, [h("b", {}, [hl.main || t("state.NOT_MEASURED")]), " · ",
+                                           h("span", {}, [t("ux.next_step") + ": " + (hl.next || t("state.NOT_MEASURED"))])]),
+      ]),
+    ]);
+    root.appendChild(head);
+    root.appendChild(quickCreate());
+
+    var k = o.kpis || {};
+    var grid = h("div", { class: "mk-kpis" });
+    [["total", k.total], ["health", k.health], ["trading", k.trading], ["decisions", k.decisions]].forEach(function (x) {
+      var tile = mockKpi(x[1], x[0]);
+      if (tile) grid.appendChild(tile);
+    });
+    root.appendChild(grid);
+
+    var two = h("div", { class: "mk-two" });
+    var hp = o.happening || {};
+    var c1 = mkCard(t("v4.happening"), t("v4.happening_sub"), t("v4.all_work"), "work");
+    var l1 = h("div", { class: "mk-list" });
+    (hp.rows || []).filter(function (r) { return (r.title || "").indexOf("Пакет «") !== 0; }).forEach(function (r) {
+      l1.appendChild(mkRow(r, h("span", { class: "mk-avatar mk-avatar--" + (r.tone || "violet"), "aria-hidden": "true" }, [r.abbr || "•"])));
+    });
+    c1.appendChild(l1);
+    two.appendChild(c1);
+
+    var c2 = mkCard(t("v4.packages"), t("v4.packages_sub"), t("v4.to_money"), "money");
+    var l2 = h("div", { class: "mk-list" });
+    (k.packages || []).forEach(function (m) {
+      var abbr = { "Консервативный": "КС", "Сбалансированный": "СБ", "Агрессивный": "АГ" }[m.label] || "•";
+      l2.appendChild(mkRow({ title: m.label, sub: m.text || t("state.NOT_MEASURED"), pill: m.state_pill,
+                             meta: m.big && m.big !== "—" ? m.big : null, link_area: "money" },
+                           h("span", { class: "mk-avatar mk-avatar--" + ((m.state_pill || {}).tone === "ok" ? "green" : "teal"), "aria-hidden": "true" }, [abbr])));
+    });
+    c2.appendChild(l2);
+    if (k.note) c2.appendChild(h("p", { class: "mk-note" }, [k.note]));
+    two.appendChild(c2);
+    root.appendChild(two);
+
+    var three = h("div", { class: "mk-two mk-two--equal" });
+    var at = o.attention || {};
+    var c3 = mkCard(at.title || t("v4.attention_open"), at.sub, t("v4.attention_open"), "decisions");
+    var l3 = h("div", { class: "mk-list" });
+    var maxRows = window.innerWidth < 600 ? 4 : 6;   // phone: the first four; the rest is one tap away
+    var shown = (at.rows || []).slice(0, maxRows);
+    var hiddenN = (at.rows || []).length - shown.length + (at.more || 0);
+    shown.forEach(function (r) {
+      l3.appendChild(mkRow(r, h("span", { class: "mk-numbadge mk-numbadge--" + (r.tone || "amber"),
+                                           "aria-label": r.badge + " " + (r.badge_hint || "") }, [r.badge])));
+    });
+    if (!(at.rows || []).length) l3.appendChild(h("p", { class: "mk-note" }, [at.sub || t("state.NOT_MEASURED")]));
+    c3.appendChild(l3);
+    if (hiddenN > 0) c3.appendChild(h("p", { class: "mk-note" }, [tf("v4.more", { n: hiddenN })]));
+    if ((o.questions || {}).note) c3.appendChild(h("p", { class: "mk-note" }, [o.questions.note]));
+    three.appendChild(c3);
+    three.appendChild(devCard(o.in_development));
+    root.appendChild(three);
+    root.appendChild(snapshotLine());
+    legacyHomeDetails(root);
+  }
+
+  function renderDevArea(root) {
+    var key = devKey();
+    var all = get(currentModel, "owner_view.in_development", []) || [];
+    var d = all.filter(function (x) { return x.key === key; })[0];
+    root.appendChild(h("h1", { class: "ux-area-title" }, [d ? (d.nav_title || d.title) : t("v4.dev_title")]));
+    root.appendChild(h("p", { class: "mk-hero-sub" }, [t("v4.dev_lead")]));
+    if (!d) { root.appendChild(h("p", { class: "ux-banner ux-banner--warn" }, [t("state.NOT_MEASURED")])); return; }
+    var c = mkCard(d.title, null, null, null, "mk-card--dev");
+    c.appendChild(h("span", { class: "pill pill--dev" }, [t("v4.in_dev_badge")]));
+    c.appendChild(h("p", { class: "mk-row-sub" }, [d.line]));
+    c.appendChild(h("p", { class: "mk-dev-k" }, [t("v4.needs") + ": " + d.needs]));
+    c.appendChild(h("p", { class: "mk-dev-k" }, [t("v4.priority") + ": " + d.priority]));
+    root.appendChild(c);
+  }
+
+  function legacyHomeDetails(root) {
+    root.appendChild(legacyDetails(t("ux.legacy_title"), function (b) {
+      renderHome(b);
+      b.appendChild(h("p", { class: "legend-note" }, [t("legend.colour")]));
+      var dict = get(currentModel, "owner_view.dictionary", []) || [];
+      if (dict.length) {
+        b.appendChild(h("h3", { class: "ux-sub" }, [t("ux.dictionary")]));
+        var ul = h("ul", { class: "ux-list" });
+        dict.forEach(function (d) { ul.appendChild(h("li", {}, [d.term + " → " + d.owner + " — " + d.explain])); });
+        b.appendChild(ul);
+      }
+    }));
+  }
+
+  function renderWorkArea(root) {
+    var s = ov();
+    var w = s && s.work;
+    if (!w) { viewMissing(root); }
+    else {
+      var c1 = uxCard((w.now && w.now.title) || "");
+      ((w.now && w.now.items) || []).forEach(function (m) { c1.appendChild(metricRow(m)); });
+      root.appendChild(c1);
+      var c2 = uxCard(w.blocking && w.blocking.title, w.blocking && !w.blocking.known_reason ? "ux-card--quiet" : "");
+      c2.appendChild(h("p", { class: "ux-metric-text" }, [(w.blocking && w.blocking.text) || t("state.NOT_MEASURED")]));
+      // ARB 09.10: WHICH tasks are stopped and what their card says — reason / next step in words,
+      // «не указано в карточке» when the card is silent; card ids only in technical details.
+      var stopped = (w.blocking && w.blocking.stopped) || [];
+      if (stopped.length) {
+        var sl = h("ul", { class: "ux-list ux-stopped" });
+        stopped.forEach(function (x) {
+          var li = h("li", { class: "ux-stopped-item" }, [
+            h("p", { class: "ux-item-title" }, [x.title]),
+            h("p", { class: "ux-metric-text" }, [x.reason_text]),
+            h("p", { class: "ux-metric-text" }, [x.next_text]),
+            h("p", { class: "ux-note" }, [x.updated_ru])]);
+          var xd = uxDetails(techLines(x), null, x.title);
+          if (xd) li.appendChild(xd);
+          sl.appendChild(li);
+        });
+        c2.appendChild(sl);
+      }
+      var btd = w.blocking ? uxDetails(techLines(w.blocking), null, w.blocking.title) : null;
+      if (btd) c2.appendChild(btd);
+      c2.appendChild(h("h3", { class: "ux-sub" }, [(w.next && w.next.title) || ""]));
+      c2.appendChild(h("p", { class: "ux-metric-text" }, [(w.next && w.next.text) || t("state.NOT_MEASURED")]));
+      root.appendChild(c2);
+      var plan = w.plan || {};
+      var c3 = uxCard(plan.title);
+      if (plan.groups && plan.groups.length) {
+        c3.appendChild(h("p", { class: "ux-note" }, [t("ux.plan.groups") + ": " + plan.groups.map(function (g) { return g.title + " — " + g.count; }).join(" · ")]));
+      }
+      var ul = h("ul", { class: "ux-list ux-plan" });
+      (plan.rows || []).forEach(function (r) {
+        var li = h("li", { class: "ux-plan-row" }, [
+          h("span", { class: "ux-plan-state ux-plan-state--" + (r.state_known ? "ok" : "alert") }, [r.state]),
+          h("span", { class: "ux-plan-title" }, [r.title]),
+        ]);
+        ul.appendChild(li);
+      });
+      var orig = [];
+      (plan.rows || []).forEach(function (r) { var tl = techLines(r); if (tl.length) orig = orig.concat([r.title + ":"], tl); });
+      var od = uxDetails(orig, null, plan.title);
+      c3.appendChild(ul);
+      if (plan.note) c3.appendChild(h("p", { class: "ux-note" }, [plan.note]));
+      if (od) c3.appendChild(od);
+      root.appendChild(c3);
+      var done = w.done || {};
+      var c4 = uxCard(done.title);
+      if (done.summary) c4.appendChild(metricRow(done.summary));
+      var dl = h("ul", { class: "ux-list" });
+      (done.items || []).forEach(function (it) {
+        var li = h("li", { class: "ux-done" }, [h("span", { class: "ux-done-at" }, [it.at_ru || t("state.NOT_MEASURED")]), h("span", {}, [it.title])]);
+        var itd = uxDetails(techLines(it), null, it.title);   // the original (possibly English) description lives here
+        if (itd) li.appendChild(itd);
+        dl.appendChild(li);
+      });
+      c4.appendChild(dl);
+      root.appendChild(c4);
+    }
+    root.appendChild(legacyDetails(t("ux.legacy_work"), function (b) {
+      var studio = get(truth(), "studio", {}) || {};
+      var grid = h("div", { class: "grid" });
+      grid.appendChild(renderClaudeWork(studio.claude_work));
+      grid.appendChild(renderRoadmap(studio.roadmap));
+      grid.appendChild(renderTasks(studio.tasks));
+      grid.appendChild(renderReleases(studio.releases));
+      grid.appendChild(renderDecisionsSummary(studio.decisions_summary));
+      b.appendChild(grid);
+    }));
+    root.appendChild(legacyDetails(t("ux.legacy_product"), function (b) { renderProduct(b); }));
+  }
+
+  function renderMoneyArea(root) {
+    var s = ov();
+    var m = s && s.money;
+    if (!m) { viewMissing(root); }
+    else {
+      // ARB 09.10 round 5: two plain lines first — «Настоящие деньги: $0» and the mode; the mode's
+      // explanation is said ONCE, behind a tap, together with the real-money and readiness metrics
+      // (their source/time/confidence stay reachable there, nothing removed).
+      var hd = m.head || {};
+      var c1 = uxCard(null, "ux-card--hero");
+      c1.appendChild(h("p", { class: "ux-hero-money" }, [hd.real_line || t("state.NOT_MEASURED")]));
+      c1.appendChild(h("p", { class: "ux-hero-mode" }, [hd.mode_line || t("state.NOT_MEASURED")]));
+      var md = h("details", { class: "ux-details ux-more" });
+      md.appendChild(h("summary", { "aria-label": t("ux.money.mode_more") }, [t("ux.money.mode_more")]));
+      if (hd.mode_detail) md.appendChild(h("p", { class: "ux-note" }, [hd.mode_detail]));
+      // the limitation is said once (mode_detail); the two canonical metrics keep only their
+      // provenance here — source, measurement time, confidence — not a second copy of the sentence
+      [m.real, m.readiness].forEach(function (x) {
+        if (!x) return;
+        var d = uxDetails([x.text ? t("ux.money.value_at_source") + ": " + x.text : null].concat(techLines(x)),
+                          t("ux.money.source_of") + " «" + (x.label || "") + "»", x.label);
+        if (d) md.appendChild(d);
+      });
+      c1.appendChild(md);
+      root.appendChild(c1);
+      var sm = m.summary || null;
+      if (sm) {
+        var cs = uxCard(sm.title, "ux-card--flat");
+        cs.appendChild(kpiGrid([sm.total].concat(sm.packages || []).filter(Boolean), "kpi-grid--packages kpi-grid--money"));
+        if (sm.total && sm.total.secondary_short) {
+          var td = h("details", { class: "ux-details ux-secondary" });
+          td.appendChild(h("summary", { "aria-label": sm.total.secondary_short + ": " + t("ux.explain") }, [sm.total.secondary_short]));
+          td.appendChild(h("p", { class: "ux-note" }, [sm.total.secondary || ""]));
+          cs.appendChild(td);
+        }
+        root.appendChild(cs);
+      }
+      var p = m.paper || {};
+      var c2 = uxCard(p.title);
+      // the «virtual capital» limitation is already said once in the head (round 5) — not repeated here
+      (p.items || []).forEach(function (x) { c2.appendChild(metricRow(x)); });
+      if (p.limitations && p.limitations.length) {
+        c2.appendChild(h("h3", { class: "ux-sub" }, [t("ux.limitations")]));
+        var ul = h("ul", { class: "ux-list" });
+        p.limitations.forEach(function (l) { ul.appendChild(h("li", {}, [l])); });
+        c2.appendChild(ul);
+      }
+      root.appendChild(c2);
+      var r = m.research || {};
+      var c3 = uxCard(r.title, "ux-card--quiet");
+      if (r.note) c3.appendChild(h("p", { class: "ux-note ux-note--lead" }, [r.note]));
+      if (sm && sm.trading) c3.appendChild(kpiGrid([sm.trading], "kpi-grid--single"));
+      (r.items || []).forEach(function (x) { c3.appendChild(metricRow(x)); });
+      root.appendChild(c3);
+      root.appendChild(snapshotLine());
+    }
+    root.appendChild(legacyDetails(t("ux.legacy_capital"), function (b) { renderCapital(b); }));
+  }
+
+  function renderProtectionArea(root) {
+    var s = ov();
+    var p = s && s.protection;
+    if (!p) { viewMissing(root); }
+    else {
+      // Phone-first order (task E): the verdict, then what to do, then backups — all visible; the
+      // individual checks and the problems beyond the first few fold into named details.
+      var c1 = uxCard(t("ux.prot.checks"), "ux-card--hero");
+      if (p.level) c1.appendChild(h("p", { class: "ux-hero-main" }, [p.level]));
+      c1.appendChild(metricRow(p.verdict, { strong: true }));
+      if (p.check_groups && p.check_groups.length) {
+        var gl = h("ul", { class: "ux-list ux-check-groups", "aria-label": t("ux.prot.groups") });
+        p.check_groups.forEach(function (g) {
+          gl.appendChild(h("li", { class: "ux-check-group ux-check-group--" + g.key }, [
+            h("span", { class: "ux-check-group-title" }, [g.title + ": " + g.count]),
+            h("span", { class: "ux-note" }, [g.items.length ? " — " + g.items.join(", ") : ""]),
+          ]));
+        });
+        c1.appendChild(gl);
+      }
+      var checks = p.checks || [];
+      if (checks.length) {
+        var cd = h("details", { class: "ux-details ux-more" });
+        cd.appendChild(h("summary", {}, [tf("ux.prot.all_checks", { n: checks.length })]));
+        checks.forEach(function (m) { cd.appendChild(metricRow(m)); });
+        c1.appendChild(cd);
+      }
+      root.appendChild(c1);
+      var pr = p.problems || {};
+      var c3 = uxCard(t("ux.prot.problems"));
+      if (pr.counts_ru && pr.summary && pr.summary.confidence === "MEASURED") {
+        c3.appendChild(h("p", { class: "ux-hero-next" }, [h("b", {}, [pr.summary.text]), " · " + pr.counts_ru]));
+      } else if (pr.summary) c3.appendChild(metricRow(pr.summary));
+      if (pr.actions_note) {
+        // write actions are NOT approved (owner 14.10): shown disabled, with the reason in words
+        var acts = h("div", { class: "ux-actions-row" }, [
+          h("button", { class: "ux-btn ux-btn--disabled", type: "button", disabled: true, "aria-disabled": "true" }, [t("ux.prot.check")]),
+          h("button", { class: "ux-btn ux-btn--disabled", type: "button", disabled: true, "aria-disabled": "true" }, [t("ux.prot.fix")]),
+        ]);
+        c3.appendChild(acts);
+        c3.appendChild(h("p", { class: "ux-note" }, [pr.actions_note]));
+      }
+      var PROBLEMS_VISIBLE = 3;
+      var SEV_TONE = { critical: "alert", important: "warn", info: "info" };
+      function problemItem(r) {
+        var li = h("li", { class: "ux-problem ux-problem--" + (r.severity || "important") }, [
+          h("div", { class: "ux-problem-head" }, [
+            r.severity_ru ? h("span", { class: "pill pill--" + (SEV_TONE[r.severity] || "warn") }, [r.severity_ru]) : null,
+            r.status_ru ? h("span", { class: "ux-problem-status" }, [r.status_ru]) : null,
+          ].filter(Boolean)),
+          h("p", { class: "ux-problem-what" }, [r.what]),
+          r.threat ? h("p", { class: "ux-problem-threat" }, [h("span", { class: "ux-hero-next-label" }, [t("ux.prot.threat") + ": "]), r.threat]) : null,
+          h("p", { class: "ux-problem-action" }, [h("span", { class: "ux-hero-next-label" }, [t("ux.prot.what_to_do") + ": "]), r.action]),
+        ].filter(Boolean));
+        var d = uxDetails(techLines(r), t("ux.prot.view_details"), r.what);
+        if (d) li.appendChild(d);
+        return li;
+      }
+      var rows = pr.rows || [];
+      var ul = h("ul", { class: "ux-list" });
+      rows.slice(0, PROBLEMS_VISIBLE).forEach(function (r) { ul.appendChild(problemItem(r)); });
+      c3.appendChild(ul);
+      if (rows.length > PROBLEMS_VISIBLE) {
+        var more = h("details", { class: "ux-details ux-more" });
+        more.appendChild(h("summary", {}, [tf("ux.prot.more_problems", { n: rows.length - PROBLEMS_VISIBLE })]));
+        var ul2 = h("ul", { class: "ux-list" });
+        rows.slice(PROBLEMS_VISIBLE).forEach(function (r) { ul2.appendChild(problemItem(r)); });
+        more.appendChild(ul2);
+        c3.appendChild(more);
+      }
+      root.appendChild(c3);
+      var b = p.backups || {};
+      var c2 = uxCard(t("ux.prot.backups"));
+      ["local", "off_host", "recovery"].forEach(function (k) { if (b[k]) c2.appendChild(metricRow(b[k])); });
+      root.appendChild(c2);
+      if (p.in_development && p.in_development.length) root.appendChild(devCard(p.in_development));
+      root.appendChild(snapshotLine());
+    }
+    root.appendChild(legacyDetails(t("ux.prot.legacy"), function (b2) {
+      var studio = get(truth(), "studio", {}) || {};
+      var grid = h("div", { class: "grid" });
+      grid.appendChild(renderBackups(studio.backups));
+      grid.appendChild(renderProblems(studio.problems));
+      grid.appendChild(renderIncidents(studio.incidents));
+      grid.appendChild(renderFleet(studio.fleet));
+      grid.appendChild(renderScopes(studio.scopes));
+      grid.appendChild(cellCard("studio.selfheal.title", studio.self_heal));
+      grid.appendChild(renderMachine(studio.machine));
+      grid.appendChild(renderMemory(studio.memory));
+      grid.appendChild(cellCard("product.health.title", get(truth(), "product.website_health", null)));
+      b2.appendChild(grid);
+    }));
+  }
+
+  // ── decisions: the version the owner READ is remembered per viewer (a convenience, never an approval) ──
+  var SEEN_KEY = "dos_decision_seen";
+
+  function readSeen() {
+    try {
+      var raw = localStorage.getItem(SEEN_KEY);
+      var v = raw ? JSON.parse(raw) : {};
+      return v && typeof v === "object" ? v : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeSeen(id, fp) {
+    try {
+      var v = readSeen();
+      v[id] = fp;
+      localStorage.setItem(SEEN_KEY, JSON.stringify(v));
+    } catch (e) { /* storage unavailable: the conflict check simply cannot remember — answering stays possible */ }
+  }
+
+  function decField(label, text) {
+    if (text === null || text === undefined || text === "") return null;
+    return h("div", { class: "ux-dec-field" }, [h("p", { class: "ux-dec-label" }, [label]), h("p", { class: "ux-dec-text" }, [text])]);
+  }
+
+  // The canonical card text, presented — not rewritten (ARB 09.10): hard-wrapped lines of one paragraph
+  // are joined, blank lines split paragraphs, «1.»/«-» lines become list items, **…** bold and `…` code.
+  // Built with text nodes only (no HTML parsing at all), so the card text cannot inject markup.
+  function inlineMd(text) {
+    var out = [];
+    String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/).forEach(function (part) {
+      if (!part) return;
+      if (/^\*\*[^*]+\*\*$/.test(part)) out.push(h("b", {}, [part.slice(2, -2)]));
+      else if (/^`[^`]+`$/.test(part)) out.push(h("code", { class: "ux-dec-code" }, [part.slice(1, -1)]));
+      else out.push(part);
+    });
+    return out;
+  }
+
+  function canonicalText(text) {
+    var box = h("div", { class: "ux-dec-text" });
+    var para = [], list = null;
+    function flushPara() { if (para.length) { box.appendChild(h("p", {}, inlineMd(para.join(" ")))); para = []; } }
+    function flushList() { if (list) { box.appendChild(list); list = null; } }
+    String(text || "").split("\n").forEach(function (raw) {
+      var ln = raw.trim();
+      if (!ln) { flushPara(); flushList(); return; }
+      var m = ln.match(/^(\d+\.|[-*•])\s+(.*)$/);
+      if (m) {
+        flushPara();
+        if (!list) list = h(/^\d/.test(m[1]) ? "ol" : "ul", { class: "ux-dec-list" });
+        list.appendChild(h("li", {}, inlineMd(m[2])));
+        return;
+      }
+      if (list && list.lastChild && /^\s/.test(raw)) {   // an indented continuation of a list item
+        list.lastChild.appendChild(document.createTextNode(" "));
+        inlineMd(ln).forEach(function (n) { list.lastChild.appendChild(typeof n === "string" ? document.createTextNode(n) : n); });
+        return;
+      }
+      if (list && list.lastChild && !para.length) {        // an unindented wrap of the last item
+        list.lastChild.appendChild(document.createTextNode(" "));
+        inlineMd(ln).forEach(function (n) { list.lastChild.appendChild(typeof n === "string" ? document.createTextNode(n) : n); });
+        return;
+      }
+      para.push(ln);
+    });
+    flushPara(); flushList();
+    return box;
+  }
+
+  function renderDecisionCard(it) {
+    var det = h("details", { class: "ux-dec", "data-decision-id": it.id || "" });
+    var sum = h("summary", { class: "ux-dec-summary" }, [
+      h("span", { class: "ux-q-title" }, [it.title]),
+      h("span", { class: "ux-q-meta" + (it.subject_known ? "" : " ux-q-meta--warn") }, [it.subject + (it.age_days !== null && it.age_days !== undefined ? " · " + tf("ux.age_days", { days: it.age_days }) : "")]),
+      it.short_why ? h("span", { class: "ux-dec-short" }, [h("b", {}, [t("ux.dec.why") + ": "]), it.short_why]) : null,
+      it.short_next ? h("span", { class: "ux-dec-short" }, [h("b", {}, [t("ux.next_step") + ": "]), it.short_next]) : null,
+    ].filter(Boolean));
+    det.appendChild(sum);
+    var body = h("div", { class: "ux-dec-body" });
+    if (it.full_available && it.full && it.full.length) {
+      // owner 13.10: the meaning first, in plain words (the owner view's cleaned fields); the WHOLE
+      // canonical card — exactly as written, with file names and document numbers — one tap further
+      // (ARB 09.10: never shortened or rewritten, only moved behind «Полный текст»).
+      // the whole card in plain words — complete, never cut mid-sentence
+      var plainBox = h("div", { class: "ux-dec-full", role: "region", "aria-label": t("ux.dec.plain") + ": " + it.title });
+      (it.full_plain || []).forEach(function (sec) {
+        if (sec.heading) plainBox.appendChild(h("h3", { class: "ux-dec-h" }, [sec.heading]));
+        plainBox.appendChild(canonicalText(sec.text));
+      });
+      body.appendChild(plainBox);
+      var fullDet = h("details", { class: "ux-details ux-dec-fulldet" });
+      fullDet.appendChild(h("summary", { "aria-label": t("ux.dec.full_open") + ": " + it.title }, [t("ux.dec.full_open")]));
+      var fullBox = h("div", { class: "ux-dec-full", role: "region", "aria-label": t("ux.dec.full") + ": " + it.title });
+      it.full.forEach(function (sec) {
+        if (sec.heading) fullBox.appendChild(h("h3", { class: "ux-dec-h" }, [sec.heading]));
+        fullBox.appendChild(canonicalText(sec.text));
+      });
+      fullDet.appendChild(fullBox);
+      body.appendChild(fullDet);
+    } else {
+      [["ux.dec.proposal", it.proposal], ["ux.dec.why", it.why]].forEach(function (p) { var f = decField(t(p[0]), p[1]); if (f) body.appendChild(f); });
+    }
+    if (!(it.full_available) && it.options && it.options.length) {
+      var ol = h("ol", { class: "ux-dec-options" });
+      it.options.forEach(function (o) { ol.appendChild(h("li", {}, [String(o.n) + ". " + o.text])); });
+      body.appendChild(h("div", { class: "ux-dec-field" }, [h("p", { class: "ux-dec-label" }, [t("ux.dec.options")]), ol]));
+    }
+    // with the full text on screen only what the text cannot say stays as a field (what blocks the
+    // answer); the fingerprint wording lives in technical details — no repeated warnings
+    (it.full_available ? [["ux.dec.blocking", it.blocking]] :
+     [["ux.dec.alternatives", it.alternatives], ["ux.dec.consequences", it.consequences], ["ux.dec.checked", it.checked],
+      ["ux.dec.blocking", it.blocking], ["ux.dec.scope", it.scope], ["ux.dec.limitations", it.limitations],
+      ["ux.dec.rollback", it.rollback], ["ux.dec.version", it.version && it.version.text]]).forEach(function (p) {
+      var f = decField(t(p[0]), p[1]); if (f) body.appendChild(f);
+    });
+    var ans = it.answer || {};
+    var fp = it.version && it.version.fingerprint;
+    var box = h("div", { class: "ux-dec-answer" });
+    function paintAnswer() {
+      clear(box);
+      if (ans.kind === "READY") {
+        var seen = readSeen()[it.id];
+        if (fp && seen && seen !== fp) {
+          box.appendChild(h("p", { class: "ux-banner ux-banner--warn", role: "status" }, [t("ux.dec.changed")]));
+          box.appendChild(h("button", { class: "ux-btn ux-btn--disabled", type: "button", disabled: true, "aria-disabled": "true" }, [ans.text]));
+          var re = h("button", { class: "ux-btn", type: "button" }, [t("ux.dec.reread")]);
+          re.addEventListener("click", function () { writeSeen(it.id, fp); paintAnswer(); });
+          box.appendChild(re);
+          return;
+        }
+        if (fp) box.appendChild(h("p", { class: "ux-note" }, [tf("ux.dec.answering_version", { v: it.version.short })]));
+        if (safeLink(ans.link)) box.appendChild(h("a", { class: "ux-btn ux-btn--primary", href: safeLink(ans.link), target: "_blank", rel: "noopener noreferrer" }, [ans.text]));
+        if (ans.reason) box.appendChild(h("p", { class: "ux-note" }, [ans.reason]));
+      } else {
+        box.appendChild(h("p", { class: "ux-state ux-state--" + (ans.kind === "ANSWERED" ? "ok" : "alert") }, [ans.text || t("ux.interp")]));
+        box.appendChild(h("button", { class: "ux-btn ux-btn--disabled", type: "button", disabled: true, "aria-disabled": "true" }, [ans.kind === "ANSWERED" ? ans.text : t("ux.dec.blocking")]));
+        if (ans.reason) box.appendChild(h("p", { class: "ux-note" }, [ans.reason]));
+      }
+    }
+    paintAnswer();
+    body.appendChild(box);
+    var techs = [];
+    if (it.id) techs.push("id: " + it.id);
+    if (it.version && it.version.text) techs.push(it.version.text);
+    if (fp) techs.push("отпечаток (sha256): " + fp);
+    if (it.version && it.version.fields) techs.push("поля отпечатка: " + it.version.fields.join(", ") + " (это не версия полного решения)");
+    var td = uxDetails(techs.concat(it.summary ? techLines(it.summary) : []), null, it.title);
+    if (td) body.appendChild(td);
+    det.appendChild(body);
+    // Opening = reading. The FIRST read remembers the version; a later different version is never
+    // overwritten silently — the owner has to press «перечитал(а)».
+    det.addEventListener("toggle", function () {
+      if (det.open && fp && !readSeen()[it.id]) { writeSeen(it.id, fp); }
+    });
+    return det;
+  }
+
+  function renderDecisionsArea(root) {
+    var s = ov();
+    var d = s && s.decisions;
+    if (!d) { viewMissing(root); }
+    else {
+      var counted = d.summary && d.summary.confidence === "MEASURED";
+      var c1 = uxCard(counted ? d.summary.text : null, "ux-card--hero");
+      if (d.summary && !counted) c1.appendChild(metricRow(d.summary, { strong: true }));
+      if (d.note) c1.appendChild(h("p", { class: "ux-note" }, [d.note]));
+      if (d.owner && d.owner.length) d.owner.forEach(function (it) { c1.appendChild(renderDecisionCard(it)); });
+      // «Вопросов нет» only when the queue was actually read — an unread queue is «не измерено», never zero (inv #17).
+      else if (d.summary && d.summary.confidence === "MEASURED") c1.appendChild(h("p", { class: "ux-note" }, [t("ux.dec.none")]));
+      root.appendChild(c1);
+      var c2 = uxCard(t("ux.dec.other_groups"), "ux-card--quiet");
+      if (!(d.groups && d.groups.length)) c2.appendChild(h("p", { class: "ux-note" }, [t("state.NOT_MEASURED")]));
+      (d.groups || []).forEach(function (g) {
+        var det = h("details", { class: "ux-details" });
+        det.appendChild(h("summary", {}, [g.title + " · " + g.count]));
+        var b = h("div", { class: "ux-details-body" });
+        b.appendChild(h("p", { class: "ux-note" }, [g.explain]));
+        var ul = h("ul", { class: "ux-list" });
+        (g.items || []).forEach(function (x) { ul.appendChild(h("li", {}, [x.title])); });
+        b.appendChild(ul);
+        det.appendChild(b);
+        c2.appendChild(det);
+      });
+      root.appendChild(c2);
+      var c3 = uxCard(t("ux.dec.history"));
+      if (d.history && d.history.length) {
+        var hl = h("ul", { class: "ux-list" });
+        d.history.forEach(function (x) {
+          hl.appendChild(h("li", { class: "ux-done" }, [h("span", { class: "ux-done-at" }, [x.at_ru]), h("span", {}, [x.title + " — " + x.answer + " · " + x.version])]));
+        });
+        c3.appendChild(hl);
+      } else if (d.summary && d.summary.confidence === "MEASURED") c3.appendChild(h("p", { class: "ux-note" }, [t("ux.dec.history_empty")]));
+      else c3.appendChild(h("p", { class: "ux-note" }, [t("state.NOT_MEASURED")]));
+      root.appendChild(c3);
+      root.appendChild(snapshotLine());
+    }
+    root.appendChild(legacyDetails(t("ux.dec.legacy"), function (b2) { renderDecisions(b2, true); }));
+  }
+
+  function initWriteButton() {
+    var btn = document.getElementById("write-btn");
+    if (!btn) return;
+    btn.textContent = t("v4.write");
+    btn.setAttribute("aria-label", t("intake.title"));
+    btn.addEventListener("click", function () { openComposer({}); });
+  }
+
+  // ── theme: owner 15.10 — dark only («белая тема вообще не нужна»); no toggle, nothing stored ──
   // ── top-level render ───────────────────────────────────────────────────────────────────
   // ── ADR-760: the ONE write action — a new inbox record, typed or dictated ─────────────────────────────
   // Voice is recorded in the browser, transcribed on the owner's Mac by the SAME offline whisper the
@@ -1808,23 +2675,74 @@
       container.appendChild(h("p", { class: "empty-note" }, [t("state.NOT_MEASURED")]));
       return;
     }
-    if (area === "home") renderHome(container);
-    else if (area === "capital") renderCapital(container);
-    else if (area === "studio") renderStudio(container);
-    else if (area === "product") renderProduct(container);
-    else if (area === "decisions") renderDecisions(container);
+    if (area !== "overview" && area !== "dev") container.appendChild(h("h1", { class: "ux-area-title" }, [t("nav." + area)]));
+    if (window.MC_I18N.getLang() === "en") {
+      container.appendChild(h("p", { class: "ux-banner ux-banner--warn", role: "note" }, [t("ux.ru_only")]));
+    }
+    if (area === "overview") renderOverview(container);
+    else if (area === "decisions") renderDecisionsArea(container);
+    else if (area === "work") renderWorkArea(container);
+    else if (area === "money") renderMoneyArea(container);
+    else if (area === "protection") renderProtectionArea(container);
+    else if (area === "dev") renderDevArea(container);
   }
 
-  function renderAll() {
+  // ── keep what the owner opened (owner 13.10: «карточка сворачивается во время чтения») ──────────
+  // The 60-s refresh re-renders the area. Before it, every open <details> is remembered by a STABLE key
+  // (decision id, else its summary text + occurrence) together with its text; after it, the same keys
+  // are re-opened and the scroll position is restored. If an open card's text changed, a quiet note
+  // «Данные обновились» is shown inside it — the owner is never moved silently.
+  function detailsKeys(container) {
+    var seen = {};
+    var out = [];
+    Array.prototype.forEach.call(container.querySelectorAll("details"), function (d) {
+      var id = d.getAttribute("data-decision-id");
+      var sum = d.querySelector("summary");
+      var base = id ? "dec:" + id : "sum:" + (sum ? sum.textContent.trim() : "");
+      seen[base] = (seen[base] || 0) + 1;
+      out.push({ key: base + "#" + seen[base], el: d });
+    });
+    return out;
+  }
+
+  function captureState(area) {
+    var container = document.getElementById("area-" + area);
+    var st = { area: area, scrollY: window.scrollY || 0, open: {} };
+    if (!container) return st;
+    detailsKeys(container).forEach(function (x) {
+      if (x.el.open) st.open[x.key] = x.el.textContent;
+    });
+    return st;
+  }
+
+  function restoreState(st) {
+    if (!st) return;
+    var container = document.getElementById("area-" + st.area);
+    if (!container) return;
+    detailsKeys(container).forEach(function (x) {
+      if (!Object.prototype.hasOwnProperty.call(st.open, x.key)) return;
+      x.el.open = true;
+      if (st.open[x.key] !== x.el.textContent) {
+        var sum = x.el.querySelector("summary");
+        var note = h("p", { class: "ux-updated", role: "status" }, [t("ux.updated")]);
+        if (sum && sum.nextSibling) x.el.insertBefore(note, sum.nextSibling);
+        else x.el.appendChild(note);
+      }
+    });
+    window.scrollTo(0, st.scrollY);
+  }
+
+  function renderAll(opts) {
+    opts = opts || {};
+    var area = currentArea();
+    var st = opts.keepState ? captureState(area) : null;
     renderHeaderStaticText();
     renderMoneyChip();
-    renderIntake();
     renderStatusStrip();
     renderNav();
-    renderLegend();
-    var area = currentArea();
     showArea(area);
     renderArea(area);
+    if (st) restoreState(st);
   }
 
   function initLangToggle() {
@@ -1839,13 +2757,20 @@
       window.MC_I18N.setLang(lang === "ru" ? "en" : "ru");
       document.documentElement.setAttribute("lang", window.MC_I18N.getLang());
       paint();
-      renderAll();
+      renderAll({ keepState: true });
     });
     paint();
   }
 
-  window.addEventListener("hashchange", renderAll);
+  window.addEventListener("hashchange", function () { if (composer) closeComposer(); renderAll(); window.scrollTo(0, 0); });
+  initWriteButton();
   initLangToggle();
   loadModel();
-  setInterval(loadModel, REFRESH_MS);
+  // A test/preview page may shorten the refresh with <meta name="dos-refresh-ms" content="N"> (≥ 200) to
+  // prove the open-card state survives several refreshes; production index.html carries no such meta.
+  (function () {
+    var meta = document.querySelector("meta[name=dos-refresh-ms]");
+    var n = meta ? parseInt(meta.getAttribute("content") || "", 10) : NaN;
+    setInterval(loadModel, !isNaN(n) && n >= 200 ? n : REFRESH_MS);
+  })();
 })();

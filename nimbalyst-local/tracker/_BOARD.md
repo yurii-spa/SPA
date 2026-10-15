@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-15T16:55:37Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-15T19:56:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a3e3b38c6).
+> Сверено с `origin/main` (efc68b179).
 >
-> Всего карточек: **1331** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1337** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -47,7 +47,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (357)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (358)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
@@ -409,10 +409,12 @@
 - Уточнение по заметке: Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `owner-decision-utochnenie-po-zametke-tier-c-pyat-nastoy.md` · 2026-08-11
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
+### · owner-done
+- Опубликовать волну 2 сайта: доходность за период 22.06–15.10.2026 (+1,51 %), 17 исправленных утверждений  ·  `owner-decision-opublikovat-volnu-2-saita-dohodnost-za-p.md` · 2026-10-15
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (732)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (737)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -429,6 +431,10 @@
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
 - Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
+- Пульт UX-02 · B: навигация и визуальная основа «Рабочий стол»  ·  `inbox-pult-ux-02-b-navigatsiya-i-vizualnaya-os.md` · 2026-10-09
+- Пульт UX-02 · C: Обзор, Работа и Деньги  ·  `inbox-pult-ux-02-c-obzor-rabota-i-dengi.md` · 2026-10-09
+- Пульт UX-02 · D: Решения и Защита  ·  `inbox-pult-ux-02-d-resheniya-i-zaschita.md` · 2026-10-09
+- Пульт UX-02 · E: проверка сценариев и отчёт для ARB  ·  `inbox-pult-ux-02-e-proverka-stsenariev-i-otche.md` · 2026-10-09
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
@@ -1053,6 +1059,7 @@
 - Проверка мандата автономии падает по 180-секундному сроку чужого шага, а не по коду  ·  `inbox-proverka-mandata-avtonomii-padaet-po-180.md` · 2026-10-11
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
+- Пульт UX-02 · A: аудит и словарь интерфейса  ·  `inbox-pult-ux-02-a-audit-i-slovar-interfeisa.md` · 2026-10-09
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
 - Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца  ·  `inbox-rabota-dvuh-pr-ne-doehala-do-main-50-i-4.md` · 2026-09-25
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04

@@ -189,12 +189,23 @@ def board(tdir: Optional[Path] = None, *, recent: int = 10) -> dict:
         if p.name.startswith("_"):
             continue
         try:
-            fm, trail, _ = _frontmatter(p.read_text(encoding="utf-8"))
+            fm, trail, body = _frontmatter(p.read_text(encoding="utf-8"))
         except OSError:
             continue
         last = trail[-1][:25] if trail else None
-        rows.append({"card": p.stem, "type": fm.get("type"), "status": fm.get("status"),
-                     "title": fm.get("title", "")[:120], "last_transition": last})
+        row = {"card": p.stem, "type": fm.get("type"), "status": fm.get("status"),
+               "title": fm.get("title", "")[:120], "last_transition": last}
+        if fm.get("status") == "blocked":
+            # DIRECTOR-OS-UX-02 (ARB 09.10): what the CARD itself says about the stop, read-only.
+            # The tracker has no dedicated reason field; ``blocked_by`` is the only frontmatter key
+            # that carries one, and «## Следующий шаг» is the house section for the next step.
+            # Absent ⇒ None (the cockpit says «не указано в карточке»), never a guess.
+            bb = fm.get("blocked_by")
+            row["blocked_by"] = str(bb)[:200] if bb not in (None, "") else None
+            m = re.search(r"^##\s*Следующий шаг[^\n]*\n(.*?)(?=^##\s|\Z)", body or "", re.M | re.S)
+            row["next_step"] = m.group(1).strip()[:200] if m and m.group(1).strip() else None
+            row["created"] = str(fm.get("created"))[:25] if fm.get("created") else None
+        rows.append(row)
     by = lambda s: [r for r in rows if r["status"] == s]
     closed = sorted([r for r in rows if r["status"] in CLOSED and r["last_transition"]],
                     key=lambda r: r["last_transition"], reverse=True)[:recent]

@@ -3,34 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07101d">
 <title>Пульт</title>
-<meta name="description" content="SPA Director OS — owner read-only remote">
+<meta name="description" content="Earn DeFi — пульт владельца (просмотр и запись во входящие)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a class="skip-link" href="#main">К содержанию</a>
 <header class="app-header">
   <div class="header-row">
     <h1 class="app-title">Пульт</h1>
-    <button id="lang-toggle" class="lang-toggle" type="button">EN</button>
+    <div id="money-chip" class="money-chip-wrap" aria-live="polite"></div>
+    <div class="header-actions">
+      <button id="write-btn" class="write-btn" type="button">+ Записать</button>
+      <button id="lang-toggle" class="lang-toggle" type="button">EN</button>
+    </div>
   </div>
-  <div id="money-chip" class="money-chip-wrap" aria-live="polite"></div>
   <div id="status-strip" class="status-strip" aria-live="polite"></div>
-  <nav id="intake-actions" class="intake-actions" aria-label="Intake"></nav>
 </header>
 
-<main id="main">
-  <section id="area-home" class="area" data-area="home"></section>
-  <section id="area-capital" class="area" data-area="capital" hidden></section>
-  <section id="area-studio" class="area" data-area="studio" hidden></section>
-  <section id="area-product" class="area" data-area="product" hidden></section>
+<nav id="bottom-nav" class="bottom-nav" aria-label="Разделы"></nav>
+
+<main id="main" tabindex="-1">
+  <section id="area-overview" class="area" data-area="overview"></section>
   <section id="area-decisions" class="area" data-area="decisions" hidden></section>
+  <section id="area-work" class="area" data-area="work" hidden></section>
+  <section id="area-money" class="area" data-area="money" hidden></section>
+  <section id="area-protection" class="area" data-area="protection" hidden></section>
+  <section id="area-dev" class="area" data-area="dev" hidden></section>
 </main>
 
-<footer id="legend" class="legend"></footer>
-
-<nav id="bottom-nav" class="bottom-nav" aria-label="Sections"></nav>
+<div id="composer-root"></div>
 
 <div id="composer-root"></div>
 

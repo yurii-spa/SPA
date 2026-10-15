@@ -100,3 +100,34 @@ def test_owner_group_is_ordered_subject_then_oldest_first():
     out = ct.decisions_triage(cards, None, now, v1)
     assert [r["id"] for r in out["groups"]["owner"]] == [
         "own-b-cash", "own-c-base", "own-d-site", "own-a-disk", "own-e-app"]
+
+
+def test_full_card_text_passes_through_read_only_end_to_end():
+    """ARB 09.10 (DIRECTOR-OS-UX-02 round 4): tracker card body → mission_control.decision_item →
+    decisions_triage row: the WHOLE card, section by section, unchanged and not truncated at 400."""
+    from spa_core.studio_os import mission_control as mc
+    long_reason = "Длинное объяснение. " * 60
+    body = f"## Что случилось и почему это важно\n{long_reason}\n\n## Что от тебя нужно\n1. да\n2. нет\n"
+    card = {"fm": {"title": "T", "status": "needs-owner", "type": "owner-decision", "subject": "money"},
+            "body": body, "trail": []}
+    v1 = mc.decision_item("own-x.md", card, None, None, None)
+    assert len(v1["reason"]) <= 400 and len(v1["full_sections"][0]["text"]) > 400
+    out = ct.decisions_triage({"own-x.md": card}, None, None, decisions_v1={"pending": [v1], "recently_resolved": []})
+    row = out["groups"]["owner"][0]
+    assert row["full_sections_ru"] == v1["full_sections"]
+    assert row["full_sections_ru"][1] == {"heading": "Что от тебя нужно", "text": "1. да\n2. нет"}
+
+
+# moved from test_owner_view.py (ARB 09.10 round 4): company_truth may only be imported by its own
+# allow-listed tests (test_company_truth_import_ratchet) — the seam test belongs here.
+def test_company_truth_passes_the_board_rows_read_only():
+    """The model seam: mission_control's board rows → studio_tasks.blocked_items, unchanged and without invention."""
+    board = {"counts": {"blocked": 2}, "queued": 0,
+             "blocked": [{"id": "a", "title": "A", "last_transition": None, "created": "2026-09-01",
+                          "blocked_by": "ждёт ключ", "next_step": "получить ключ"},
+                         {"id": "b", "title": "B", "last_transition": None, "created": None,
+                          "blocked_by": None, "next_step": None}]}
+    cell = ct.studio_tasks(board, None)
+    assert [x["card"] for x in cell["blocked_items"]] == ["a", "b"]
+    assert cell["blocked_items"][0]["reason"] == "ждёт ключ" and cell["blocked_items"][1]["reason"] is None
+    assert ct.studio_tasks({"counts": {"blocked": 1}}, None)["blocked_items"] is None   # older board: not invented

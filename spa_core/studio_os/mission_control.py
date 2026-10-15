@@ -101,6 +101,11 @@ CONTRACT: list[dict] = [
      "stale_after_min": 1560, "unknown": "NOT_MEASURED (no research_factory run yet); BROKEN ledger ⇒ CRITICAL; "
      "STALE when the last run's generated_at is older than ~26h (contract.CIO_READ_MODEL_MAX_AGE_H)",
      "redaction": "safe_text on every string", "mobile": True, "alert": True},
+    {"path": "capital.package_values", "source": "data/defi_engine/status.json books.*.nav_usd (virtual NAV per package) + "
+     "seed capital: data/hy_paper_trading.json / data/lp_paper_trading.json seed_equity + v2 boundary, "
+     "data/equity_curve_daily.json summary.start_equity (Conservative) — read-only",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED per package (never 0)", "redaction": "numbers + dates only",
+     "mobile": True, "alert": False},
     {"path": "capital.real_capital", "source": "paper_trading_status.execution_mode + package live_capital_usd + trading live_capital_usd",
      "stale_after_min": None, "unknown": "UNKNOWN (never 0 by default)", "redaction": "-", "mobile": True, "alert": True},
     {"path": "studio.epics", "source": "docs/ROADMAP.md (owner-confirmed order; ~~struck~~ = done)",
@@ -139,6 +144,11 @@ CONTRACT: list[dict] = [
      "stale_after_min": None, "unknown": "-", "redaction": "-", "mobile": True, "alert": False},
     {"path": "release_feed", "source": "git origin/main (mirror): subject, ADR/cycle/card refs; production containment via code_sync_status",
      "stale_after_min": None, "unknown": "null", "redaction": "safe_text on subjects", "mobile": True, "alert": False},
+    # DIRECTOR-OS-UX-02 (ADR-762): the owner's plain-language view — a PURE function of this same
+    # model (truth + overview + capital.real_capital + release_feed), no store of its own.
+    {"path": "owner_view", "source": "spa_core.studio_os.owner_view.build(model) — deterministic view over truth",
+     "stale_after_min": None, "unknown": "NOT_MEASURED with a named reason per metric", "redaction": "plain() on every free text",
+     "mobile": True, "alert": False},
     # ── Company Truth (RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592 number reserved) ──────
     # Additive bundle key, computed by spa_core.studio_os.company_truth.build() — ONE row per
     # truth.* card; every cell under it carries its own `canon` field too (design §2.0).
@@ -337,6 +347,54 @@ def _nm(sources: list, now: datetime, reason: str) -> dict:
     return {"_meta": _meta("NOT_MEASURED", sources, None, now, reason=reason)}
 
 
+# ── virtual capital per paper package (DIRECTOR-OS-UX-03, owner 13.10: «сколько виртуальных денег на каждом
+# пакете и общий результат»). Read-only projection of files the engines already write — no new formula: the
+# NAV is the engine's own ``nav_usd``; the seed is the sleeve's own ``seed_equity`` (reseeded at the v2
+# economics boundary, ADR-531) or the paper start of the Conservative curve. Absent ⇒ None (inv #17).
+def _package_values_section(data: Path, now: datetime) -> dict:
+    st = _read_json(data / "defi_engine" / "status.json")
+    books = st.get("books") if isinstance(st, dict) and isinstance(st.get("books"), dict) else None
+    if books is None:
+        return _nm(["data/defi_engine/status.json"], now, "defi engine status not readable")
+    gen = _ts(st.get("generated_at"))
+    out = {}
+    seeds = {}
+    curve = _read_json(data / "equity_curve_daily.json")
+    summ = curve.get("summary") if isinstance(curve, dict) and isinstance(curve.get("summary"), dict) else {}
+    pts = _read_json(data / "paper_trading_status.json")
+    pstart = pts.get("paper_start_date") if isinstance(pts, dict) and isinstance(pts.get("paper_start_date"), str) else None
+    cpos = _read_json(data / "current_positions.json")
+    ccost = cpos.get("costs_paid_usd") if isinstance(cpos, dict) else None
+    seeds["conservative"] = {"costs_paid_usd": ccost if isinstance(ccost, (int, float)) and not isinstance(ccost, bool) else None,
+                             "seed_usd": summ.get("start_equity") if isinstance(summ.get("start_equity"), (int, float)) else None,
+                             "seed_date": pstart, "comparable_from": None,
+                             "seed_source": "data/equity_curve_daily.json summary.start_equity + "
+                                            "paper_trading_status.paper_start_date"}
+    for key, fname in (("balanced", "hy_paper_trading.json"), ("aggressive", "lp_paper_trading.json")):
+        doc = _read_json(data / fname)
+        doc = doc if isinstance(doc, dict) else {}
+        b = doc.get("economics_model_boundary") if isinstance(doc.get("economics_model_boundary"), dict) else {}
+        # the seed is the sleeve's own start; rows before ``first_v2_date`` were valued by the defective v1
+        # economics (ADR-531) — so «NAV − seed» is a change of value, never a return (said by the owner view)
+        cst = doc.get("costs_paid_usd")
+        seeds[key] = {"costs_paid_usd": cst if isinstance(cst, (int, float)) and not isinstance(cst, bool) else None,
+                      "seed_usd": doc.get("seed_equity") if isinstance(doc.get("seed_equity"), (int, float)) else None,
+                      "seed_date": doc.get("start_date") if isinstance(doc.get("start_date"), str) else None,
+                      "comparable_from": b.get("first_v2_date") if isinstance(b.get("first_v2_date"), str) else None,
+                      "seed_source": f"data/{fname} seed_equity + start_date + economics_model_boundary.first_v2_date"}
+    for key in ("conservative", "balanced", "aggressive"):
+        bk = books.get(key) if isinstance(books.get(key), dict) else {}
+        nav = bk.get("nav_usd")
+        out[key] = {"nav_usd": nav if isinstance(nav, (int, float)) and not isinstance(nav, bool) else None,
+                    "cash_usd": bk.get("cash_usd") if isinstance(bk.get("cash_usd"), (int, float)) else None,
+                    **seeds.get(key, {})}
+    state = "HEALTHY" if all(v["nav_usd"] is not None for v in out.values()) else "DEGRADED"
+    return {"_meta": _meta(state, ["data/defi_engine/status.json", "data/hy_paper_trading.json",
+                                   "data/lp_paper_trading.json", "data/equity_curve_daily.json",
+                                   "data/current_positions.json"], gen, now, 1560),
+            "items": out, "virtual": True, "real_money": False}
+
+
 # ── tracker (origin cards + production-tree owner answers) ─────────────────────────────────────
 def _cards(tdir: Path) -> Optional[dict]:
     from spa_core.studio_os import build_loop as bl
@@ -415,6 +473,23 @@ def _section(body: str, heading: str) -> Optional[str]:
     return m.group(1).strip() if m else None
 
 
+# DIRECTOR-OS-UX-02 (ARB 09.10): the owner must be able to read the WHOLE canonical card inside the
+# cockpit — the 400-char `reason`/`requested_action` above stay as short list text, and this is the
+# full body, section by section, never shortened or rewritten. Each line still passes the same
+# `safe_text()` redaction (secrets, local paths, e-mails, long ids) — the only edit ever made.
+FULL_TEXT_LINE_LIMIT = 100_000
+
+
+def full_sections(body: str) -> list:
+    """Every ``## …`` section of the card body in order: ``[{"heading", "text"}]``; line breaks kept."""
+    out = []
+    for m in re.finditer(r"^##\s*([^\n]*)\n(.*?)(?=^##\s|\Z)", body or "", re.M | re.S):
+        heading = safe_text(m.group(1).strip(), 200) or ""
+        lines = [safe_text(ln, FULL_TEXT_LINE_LIMIT) if ln.strip() else "" for ln in m.group(2).strip().split("\n")]
+        out.append({"heading": heading, "text": "\n".join(x or "" for x in lines).strip()})
+    return out
+
+
 def _link_slug(name: str, prod_names: Optional[set]) -> tuple[Optional[str], Optional[str]]:
     """The deep-link payload the bot will resolve to EXACTLY this card, or (None, why) — WP-A05 #10.
     The bot reads the production tracker: exact file name first, else a unique prefix."""
@@ -469,6 +544,7 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
         "telegram_link": f"https://t.me/{bot}?start=od_{slug}" if (bot and slug) else None,
         "telegram_link_note": None if (bot and slug) else (why or "SPA bot username unknown"),
         "last_transition": safe_text(trail[-1], 160) if trail else None,
+        "full_sections": full_sections(body),
     }
 
 
@@ -1202,6 +1278,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     live_readiness = _live_readiness_section(data, now)
     research_universe = _research_universe_section(data, now)
     capital_sources = _capital_sources_section(data, now)
+    package_values = _package_values_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
@@ -1210,6 +1287,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                "live_readiness": live_readiness,
                "research_universe": research_universe,
                "capital_sources": capital_sources,
+               "package_values": package_values,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────
@@ -1236,7 +1314,10 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                         "last_transition": (r.get("last_transition") or "")[:20] or None}
             board = {"_meta": _meta("HEALTHY", ["build_loop.board (origin tracker)"], msync, now, MIRROR_STALE_MIN),
                      "counts": b["counts"], "in_progress": [_row(r) for r in b["active"][:30]],
-                     "blocked": [_row(r) for r in b["blocked"][:30]],
+                     "blocked": [dict(_row(r), blocked_by=safe_text(r.get("blocked_by"), 200) if r.get("blocked_by") else None,
+                                      next_step=safe_text(r.get("next_step"), 200) if r.get("next_step") else None,
+                                      created=r.get("created"))
+                                 for r in b["blocked"][:30]],
                      "review": None, "review_note": "the card lifecycle has no REVIEW status; review evidence is a lineage stage",
                      "recently_done": [_row(r) for r in b["recently_closed"][:15]],
                      "queued": b["counts"].get("new", 0) + b["counts"].get("backlog", 0)}
@@ -1400,12 +1481,20 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         decisions_v1=decisions if isinstance(decisions, dict) else None,
     ))
 
-    return {"schema": SCHEMA, "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "areas": AREAS, "intake": intake,
+    model = {"schema": SCHEMA, "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "areas": AREAS, "intake": intake,
             "vocabulary": {"operational": OPERATIONAL, "health": HEALTH, "work": WORK, "decision": DECISION,
                            "capital_mode": CAPITAL_MODE, "evidence": EVIDENCE,
                            "colour_rule": "colour follows HEALTH only — never profit, risk or approval for real money"},
             "contract": CONTRACT, "overview": overview, "capital": capital, "studio": studio,
             "decisions": decisions, "system": system, "release_feed": feed, "truth": truth}
+    # ADR-762: the owner view is derived from the model above and nothing else; a failure to derive
+    # it is named (NOT_MEASURED) instead of breaking the bundle or showing a stale view.
+    try:
+        from spa_core.studio_os import owner_view as _ov
+        model["owner_view"] = _ov.build(model, now)
+    except Exception as exc:  # noqa: BLE001 — the page then says «представление не построено»
+        model["owner_view"] = {"schema": "owner-view/1", "error": f"{type(exc).__name__}", "sections": None}
+    return model
 
 
 def main(argv: Optional[list] = None) -> int:

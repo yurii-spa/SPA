@@ -196,8 +196,14 @@ class TestStylesCss(unittest.TestCase):
         self.assertFalse(_hidden_attribute_wins("[hidden] {\n  display: none;\n}\n"))
         self.assertTrue(_hidden_attribute_wins("[hidden] {\n  display: none !important;\n}\n"))
 
-    def test_prefers_color_scheme_block_present(self):
-        self.assertRegex(self.css, r"@media\s*\(\s*prefers-color-scheme:\s*light\s*\)")
+    def test_dark_only_no_light_theme_anywhere(self):
+        # owner 15.10 (journaled inv. #16): «белая тема вообще не нужна» — the light theme and its
+        # toggle are gone; this replaces the UX-02 «both themes» checks with their opposite.
+        self.assertNotRegex(self.css, r"prefers-color-scheme")
+        self.assertNotIn('data-theme="light"', self.css)
+        html = _read("index.html")
+        self.assertNotIn("theme-toggle", html)
+        self.assertIn('<meta name="color-scheme" content="dark">', html)
 
     def test_desktop_breakpoint_media_query_present(self):
         self.assertRegex(self.css, r"@media\s*\(\s*min-width:\s*\d+px\s*\)")
@@ -277,11 +283,16 @@ class TestV2Areas(unittest.TestCase):
         self.html = _read("index.html")
         self.js = _read("app.js")
 
-    def test_five_v2_area_sections_present(self):
-        for area in ("home", "capital", "studio", "product", "decisions"):
+    def test_five_owner_sections_present(self):
+        # DIRECTOR-OS-UX-02 (RFC-690 §3, journaled inv. #16): the five owner sections replaced the
+        # v2 areas; the v2 areas live on inside them as «Технические подробности», and their old
+        # hashes still resolve through LEGACY_AREA (asserted below), so no link dies.
+        for area in ("overview", "decisions", "work", "money", "protection"):
             self.assertIn(f'id="area-{area}"', self.html)
-        self.assertNotIn('id="area-overview"', self.html)
-        self.assertNotIn('id="area-system"', self.html)
+        for gone in ("home", "capital", "studio", "product", "system"):
+            self.assertNotIn(f'id="area-{gone}"', self.html)
+        for old, new in (("home", "overview"), ("capital", "money"), ("studio", "work"), ("product", "work")):
+            self.assertRegex(self.js, rf'{old}:\s*"{new}"')
 
     def test_money_chip_container_present_and_rendered(self):
         self.assertIn('id="money-chip"', self.html)
@@ -294,7 +305,7 @@ class TestV2Areas(unittest.TestCase):
         m = re.search(r'var AREAS = \[([^\]]*)\]', self.js)
         self.assertIsNotNone(m, "AREAS array not found")
         areas = [a.strip().strip('"') for a in m.group(1).split(",")]
-        self.assertEqual(areas, ["home", "capital", "studio", "product", "decisions"])
+        self.assertEqual(areas, ["overview", "decisions", "work", "money", "protection"])
         self.assertIn('t("nav." + a)', self.js)
 
 
@@ -435,3 +446,263 @@ class TestVoiceRecorderNeverPostsAnEmptyRecording(unittest.TestCase):
     def test_empty_recording_message_exists_in_both_languages(self):
         i18n = _read("i18n.js")
         self.assertEqual(i18n.count('"intake.empty_recording"'), 2)
+class TestUx02OwnerSections(unittest.TestCase):
+    """DIRECTOR-OS-UX-02 (ADR-762): the page draws `owner_view`; technical fields stay in the
+    details helper; no money literal; nav labelled; theme choice stored only as a convenience."""
+
+    def setUp(self):
+        self.js = _read("app.js")
+        self.html = _read("index.html")
+        self.css = _read("styles.css")
+
+    def _span(self, name):
+        start = self.js.index("function " + name)
+        end = _matching_brace(self.js, self.js.index("{", start))
+        return start, end
+
+    def test_owner_view_technical_fields_read_only_in_tech_lines(self):
+        # Scope: the UX-02 owner layer (the legacy v2 cards keep their own techDetails() path).
+        lo = self.js.index("DIRECTOR-OS-UX-02 — owner sections")
+        hi = self.js.index("// ── top-level render")
+        start, end = self._span("techLines")
+        for token in (".source", ".measured_at_ru", ".technical", ".unit"):
+            pos = [m.start() for m in re.finditer(re.escape(token) + r"\b", self.js) if lo <= m.start() <= hi]
+            outside = [p for p in pos if not (start <= p <= end)]
+            self.assertEqual(outside, [], f"{token} read outside techLines() at {outside}")
+
+    def test_money_chip_has_no_zero_fallback(self):
+        start, end = self._span("renderMoneyChip")
+        body = self.js[start:end]
+        self.assertNotIn('"0"', body)
+        self.assertIn("owner_view.sections.money.real", body)
+        # positive control: the v2 fallback that printed "$0" would be caught by the same check
+        self.assertIn('"0"', 'var usd = "$" + (mc.usd === null ? "0" : mc.usd);')
+
+    def test_nav_is_labelled_and_marks_the_current_section(self):
+        self.assertIn('aria-current', self.js)
+        self.assertIn('aria-label="Разделы"', self.html)
+        self.assertIn('h("span", { class: "nav-label" }', self.js)
+
+    def test_no_theme_choice_is_stored(self):
+        # dark only since 15.10 — nothing about a theme is read or written
+        self.assertNotIn("THEME_KEY", self.js)
+        self.assertNotIn("dos_theme", self.js)
+
+    def test_touch_targets_are_declared_at_least_44px(self):
+        for sel in (".nav-item", ".icon-toggle", ".ux-btn", ".ux-details > summary"):
+            m = re.search(re.escape(sel) + r"[^{]*\{[^}]*min-height:\s*(\d+)px", self.css)
+            self.assertIsNotNone(m, sel)
+            self.assertGreaterEqual(int(m.group(1)), 44, sel)
+
+    def test_safe_area_insets_on_header_nav_and_main(self):
+        self.assertGreaterEqual(self.css.count("env(safe-area-inset-bottom)"), 2)
+        self.assertIn("env(safe-area-inset-top)", self.css)
+
+    def test_desktop_sidebar(self):
+        m = re.search(r"@media\s*\(min-width:\s*1024px\)\s*\{(.*)\Z", self.css, re.S)
+        self.assertIsNotNone(m)
+        self.assertRegex(m.group(1), r"\.bottom-nav\s*\{[^}]*flex-direction:\s*column")
+
+
+class TestUx02DecisionsAndProtection(unittest.TestCase):
+    """DIRECTOR-OS-UX-02 · D (ADR-762 §4): opening a card is not approval; the only answer route is
+    the existing Telegram link; a changed card blocks the answer until the owner re-reads it; the
+    page records nothing (the last-seen version is a per-viewer convenience in wrapped storage)."""
+
+    def setUp(self):
+        self.js = _read("app.js")
+        self.i18n = _read("i18n.js")
+        start = self.js.index("function renderDecisionCard")
+        self.card = self.js[start:_matching_brace(self.js, self.js.index("{", start))]
+
+    def test_answer_link_only_when_ready_and_version_not_changed(self):
+        self.assertIn('ans.kind === "READY"', self.card)
+        self.assertIn("seen !== fp", self.card)
+        self.assertIn('t("ux.dec.changed")', self.card)
+        # the blocked branches render a DISABLED button, never a link
+        self.assertGreaterEqual(self.card.count("disabled: true"), 2)
+
+    def test_reread_is_explicit_and_first_read_never_overwrites_a_different_version(self):
+        self.assertIn('t("ux.dec.reread")', self.card)
+        self.assertIn("!readSeen()[it.id]", self.card)
+
+    def test_seen_storage_is_wrapped_and_not_an_approval(self):
+        self.assertRegex(self.js, r"function readSeen\(\) \{\s*try \{")
+        self.assertRegex(self.js, r"function writeSeen\(id, fp\) \{\s*try \{")
+        for bad in ("fetch(", "XMLHttpRequest", "method:"):
+            self.assertNotIn(bad, self.card)
+
+    def test_not_approval_wording_in_both_languages(self):
+        rows = re.findall(r'"ux\.dec\.not_approval":\s*"([^"]+)"', self.i18n)
+        self.assertEqual(len(rows), 2)
+        self.assertIn("не одобрение", rows[0])
+        self.assertIn("not approval", rows[1])
+
+    def test_protection_and_decisions_keep_the_previous_cards_in_details(self):
+        self.assertIn('legacyDetails(t("ux.prot.legacy")', self.js)
+        # task E: the previous view stays reachable, with the owner-queue answer links gated (see TestUx02TaskE)
+        self.assertIn('legacyDetails(t("ux.dec.legacy"), function (b2) { renderDecisions(b2, true); })', self.js)
+        for fn in ("renderBackups(", "renderProblems(", "renderIncidents(", "renderFleet(", "renderScopes(",
+                   "renderMachine(", "renderMemory("):
+            self.assertIn(fn, self.js)
+
+    def test_old_redesign_notes_are_gone(self):
+        self.assertNotIn("ux.section_note", self.js)
+
+
+class TestUx02TaskE(unittest.TestCase):
+    """DIRECTOR-OS-UX-02 task E: one injectable clock, honest EN mode, no unchecked answer path,
+    a phone-first Защита, and room under the content for the tab bar at any text size."""
+
+    def test_one_reader_clock_and_the_pin_never_reaches_production(self):
+        js = _read("app.js")
+        self.assertEqual(js.count("Date.now()"), 1, "every staleness judgement goes through readerNowMs()")
+        m = re.search(r"function readerNowMs\(\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('meta[name=dos-fixed-now]', m.group(1))
+        self.assertIn("readerNowMs() - ts", js)
+        self.assertNotIn("dos-fixed-now", _read("index.html"), "the production shell must not pin the clock")
+
+    def test_previous_decision_view_offers_no_unchecked_answer_for_the_owner_queue(self):
+        js = _read("app.js")
+        self.assertIn("renderDecisions(b2, true)", js)
+        m = re.search(r"function renderDecisionItem\(d, gated\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertLess(body.index("if (gated)"), body.index('h("a"'),
+                        "the gate must be checked before any answer link is drawn")
+        self.assertIn('t("ux.dec.answer_in_card")', body)
+        self.assertIn('key === "owner"', js)
+
+    def test_en_mode_says_the_sections_are_russian_only(self):
+        js = _read("app.js")
+        self.assertIn('getLang() === "en"', js)
+        self.assertIn('t("ux.ru_only")', js)
+        i18n = _read("i18n.js")
+        rows = re.findall(r'"ux\.ru_only":\s*"([^"]+)"', i18n)
+        self.assertEqual(len(rows), 2)
+        self.assertIn("Russian only", rows[1])
+
+    def test_protection_keeps_verdict_actions_and_backups_visible_and_folds_the_rest(self):
+        js = _read("app.js")
+        m = re.search(r"function renderProtectionArea\(root\) \{(.*?)\n  \}\n", js, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertIn("ux.prot.all_checks", body)          # the individual checks fold
+        self.assertIn("PROBLEMS_VISIBLE = 3", body)          # first problems with «что делать» stay open
+        self.assertLess(body.index("p.verdict"), body.index("ux.prot.problems"))
+        self.assertLess(body.index("ux.prot.problems"), body.index("ux.prot.backups"))
+
+    def test_space_under_the_content_grows_with_the_text_size(self):
+        css = _read("styles.css")
+        self.assertRegex(css, r"main \{[^}]*max\(96px, 2\.5rem \+ 40px\)")
+
+
+class TestArb0910HonestAnswerPaths(unittest.TestCase):
+    """ARB 09.10: no cockpit text promises a version-bound confirmation; every Telegram answer path the
+    cockpit offers carries the same honest sentence."""
+
+    def test_i18n_has_no_version_binding_claims(self):
+        i18n = _read("i18n.js")
+        for claim in ("Вы отвечаете на версию", "проверяются версия", "Ответ заблокирован, пока вы не подтвердите",
+                      "Версия карточки", "You are answering version"):
+            self.assertNotIn(claim, i18n)
+        self.assertEqual(i18n.lower().count("пульт не проверяет ответ в телеграме"), 4)
+
+    def test_every_telegram_answer_anchor_is_next_to_the_honest_sentence(self):
+        js = _read("app.js")
+        anchors = [m.start() for m in re.finditer(r'common\.open_telegram"\)\]\)\);', js)]
+        anchors += [m.start() for m in re.finditer(r'\[ans\.text\]\)\);', js)]
+        self.assertTrue(anchors)
+        for pos in anchors:
+            window = js[max(0, pos - 900):pos + 400]
+            line = js[js.rfind("\n", 0, pos) + 1:pos]
+            if "disabled: true" in line:          # a disabled button is not an answer path
+                continue
+            self.assertTrue("ux.dec.honest_path" in window or "ans.reason" in window,
+                            f"answer link at {pos} without the honest sentence")
+
+
+class TestUnreadQueueIsNotZero(unittest.TestCase):
+    """ARB 09.10 preview: an unread decision queue printed «Вопросов к вам сейчас нет» under «Не измерено»."""
+
+    def test_no_questions_line_requires_a_measured_queue(self):
+        js = _read("app.js")
+        i = js.index('t("ux.dec.none")')
+        self.assertIn('d.summary.confidence === "MEASURED"', js[max(0, i - 200):i])
+
+    def test_empty_history_line_requires_a_measured_queue(self):
+        js = _read("app.js")
+        i = js.index('t("ux.dec.history_empty")')
+        self.assertIn('d.summary.confidence === "MEASURED"', js[max(0, i - 200):i])
+
+
+class TestRound4FirstScreenMoneyAndFullDecisionText(unittest.TestCase):
+    """ARB 09.10 round 4 (DIRECTOR-OS-UX-02 over Wave 2)."""
+
+    def test_first_screen_opens_with_real_money_and_mode(self):
+        # UX-04 (owner 15.10: «Настоящие деньги: $0» once per screen): on the overview the real-money
+        # line is the header chip (rendered on every section except «Деньги», whose own block says it);
+        # the hero then opens with the mode, before the main event.
+        js = _read("app.js")
+        m = re.search(r"function renderOverview\(root\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertNotIn("hl.real_line", body)
+        self.assertLess(body.index("hl.mode_line"), body.index("hl.main"))
+        chip = re.search(r"function renderMoneyChip\(\) \{(.*?)\n  \}", js, re.S).group(1)
+        self.assertIn('if (currentArea() === "money") return;', chip)
+        self.assertIn("owner_view.sections.money.real", chip)
+
+    def test_full_card_text_rendered_without_html_parsing(self):
+        js = _read("app.js")
+        self.assertIn("canonicalText(sec.text)", js)
+        m = re.search(r"function canonicalText\(text\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        self.assertNotIn("innerHTML", m.group(1))
+        self.assertNotIn("insertAdjacentHTML", js)
+
+    def test_legacy_book_uses_the_period_return_not_a_day_count(self):
+        js = _read("app.js")
+        self.assertIn('tf("capital.book.period"', js)
+        self.assertNotIn('tf("capital.book.evidenced_days"', js)
+        i18n = _read("i18n.js")
+        self.assertIn("не прогноз", i18n)
+        self.assertNotIn("4,90", js + i18n)
+
+
+
+class TestOracleRateIsLabelledAsAnotherMethod(unittest.TestCase):
+    """ARB 09.10 round 5: Oracle's annualised figure (defi_engine apy_contract: (end/start)^(365/bars) − 1,
+    days = number of measured BARS) sits next to an explicit «другой метод» note and the comparison
+    limit vs the «Деньги» estimate; Oracle's method itself is not changed."""
+
+    def test_source_row_adds_the_method_note_for_a_measured_annual_rate(self):
+        js = _read("app.js")
+        m = re.search(r"function renderSourceRow\(row\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('annualized_return.state', m.group(1))
+        self.assertIn('capital.sources.oracle_method', m.group(1))
+
+    def test_note_names_the_method_and_the_comparison_limit_in_both_languages(self):
+        i18n = _read("i18n.js")
+        rows = re.findall(r'"capital\.sources\.oracle_method":\s*"([^"]+)"', i18n)
+        self.assertEqual(len(rows), 2)
+        self.assertIn("метод Oracle", rows[0])
+        self.assertIn("засчитанных дней", rows[0])
+        self.assertIn("один к одному", rows[0])
+        self.assertIn("not comparable one-to-one", rows[1])
+
+    def test_money_area_says_the_mode_once_behind_a_tap(self):
+        js = _read("app.js")
+        m = re.search(r"function renderMoneyArea\(root\) \{(.*?)\n  \}", js, re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertIn("hd.real_line", body)
+        self.assertIn("hd.mode_line", body)
+        self.assertIn("ux.money.mode_more", body)
+        self.assertNotIn("p.note", body)
+        # the limitation sentence is not repeated by full metric rows inside the mode details
+        self.assertNotIn("metricRow(m.real)", body)
+        self.assertNotIn("metricRow(m.readiness)", body)
+        self.assertIn("ux.money.source_of", body)

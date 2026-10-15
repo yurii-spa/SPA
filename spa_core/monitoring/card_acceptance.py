@@ -8700,6 +8700,300 @@ def _probe_tier_guard_judges_code_not_prose(
                        f"копии перечня не держа")
 
 
+#: DIRECTOR-OS-UX-02 (ADR-762): the fixed scene the owner-view probe is judged on — a read-only
+#: snapshot of one real bundle, never re-read from production at probe time.
+OWNER_VIEW_FIXTURE = os.path.join(REPO_ROOT, "spa_core", "tests", "fixtures", "owner_view",
+                                  "mission_fixture.json")
+OWNER_VIEW_SECTIONS = ("overview", "work", "money", "decisions", "protection")
+_OWNER_VIEW_NOW = datetime(2026, 10, 9, 7, 15, tzinfo=timezone.utc)
+
+
+def _probe_director_os_owner_view_section(arg: str | None, *,
+                                          fixture: str | None = None) -> tuple[str, str]:
+    """Критерий задач B/C DIRECTOR-OS-UX-02: раздел пульта `arg` (overview | work | money)
+    ДОНОСИТ правду владельцу. Меряется ИСХОД на фиксированной сцене и фиксированных часах,
+    а не наличие модуля:
+
+    1. раздел построен из `owner_view.build` (нет раздела ⇒ не выполнено);
+    2. у КАЖДОГО показателя есть source · measured_at · updated_at · unit · confidence, и
+       confidence из закрытого словаря;
+    3. в основных текстах нет жаргона (`owner_view.JARGON_PATTERNS`);
+    4. «не измерено» не становится нулём: ячейка, объявленная NOT_MEASURED, читается
+       словами «Не измерено», а не числом;
+    5. (overview, money) реальные деньги берутся ТОЛЬКО из `capital.real_capital`: подставленная
+       в канон метка-сумма видна в тексте, а убранный канон даёт «Не измерено», а не «$0».
+    """
+    sec = (arg or "").strip()
+    if sec == "scenarios":
+        return _probe_owner_view_scenarios(fixture=fixture)
+    if sec not in OWNER_VIEW_SECTIONS:
+        return UNMEASURED, (f"проба меряет раздел из {OWNER_VIEW_SECTIONS} или «scenarios», дано "
+                            f"{arg!r} — вердикт без названного раздела был бы о чём-то другом")
+    path = fixture or OWNER_VIEW_FIXTURE
+    try:
+        with open(path, encoding="utf-8") as fh:
+            scene = json.load(fh)
+    except Exception as exc:  # noqa: BLE001 — нет сцены ⇒ не измерено, а не «прошло»
+        return UNMEASURED, f"сцена не прочитана ({type(exc).__name__}: {path})"
+    try:
+        from spa_core.studio_os import owner_view as ov
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"owner_view не импортируется ({type(exc).__name__})"
+    import copy
+
+    def _section(model):
+        return (ov.build(model, _OWNER_VIEW_NOW).get("sections") or {}).get(sec)
+
+    view = _section(copy.deepcopy(scene))
+    if not isinstance(view, dict):
+        return NOT_SATISFIED, f"раздел «{sec}» не построен"
+    ms = ov.metrics(view)
+    if not ms:
+        return NOT_SATISFIED, f"в разделе «{sec}» нет ни одного показателя"
+    need = ("source", "measured_at", "updated_at", "unit", "confidence")
+    bad = [m.get("label") for m in ms if any(k not in m for k in need) or m.get("confidence") not in ov.CONFIDENCE]
+    if bad:
+        return NOT_SATISFIED, f"показатели без источника/времени/единиц/достоверности: {bad[:5]}"
+    jar = [(p, ov.jargon_hits(t)) for p, t in ov.main_texts(view) if ov.jargon_hits(t)]
+    if jar:
+        return NOT_SATISFIED, f"жаргон в основных текстах: {jar[:3]}"
+    # 4 — unknown never becomes a number: blank the book/tasks cells and look at the words
+    sc = copy.deepcopy(scene)
+    truth = sc.get("truth") or {}
+    for cell in ((truth.get("capital") or {}).get("defi") or {}).get("books", {}).values():
+        if isinstance(cell, dict):
+            cell["state"] = "NOT_MEASURED"
+    tasks = (truth.get("studio") or {}).get("tasks")
+    if isinstance(tasks, dict):
+        tasks["state"] = "NOT_MEASURED"
+    for key in ("fleet", "machine", "problems"):          # protection reads these
+        cell = (truth.get("studio") or {}).get(key)
+        if isinstance(cell, dict):
+            cell["state"] = "NOT_MEASURED"
+    if sec == "decisions":                                  # decisions reads the queue itself
+        (truth.get("decisions") or {}).pop("groups", None)
+    v2 = _section(sc) or {}
+    unk = [m for m in ov.metrics(v2) if m.get("confidence") == ov.NOT_MEASURED]
+    if not unk or any(not str(m.get("text", "")).startswith("Не измерено") or re.search(r"\d+[,.]\d\d", str(m.get("text")))
+                      for m in unk):
+        return NOT_SATISFIED, "объявленное «не измерено» не дошло словами (или стало числом)"
+    if sec in ("overview", "money"):
+        sc = copy.deepcopy(scene)
+        sc.setdefault("capital", {})["real_capital"] = {"state": "LIVE_NOT_APPROVED", "usd": 4242,
+                                                       "basis": "probe", "observed_at": "2026-10-09T06:00:00Z"}
+        real = (_section(sc) or {}).get("real") or ((_section(sc) or {}).get("money") or {}).get("real") or {}
+        if "4\u00a0242" not in str(real.get("text")):
+            return NOT_SATISFIED, "сумма реальных денег не взята из capital.real_capital"
+        sc = copy.deepcopy(scene)
+        sc.get("capital", {}).pop("real_capital", None)
+        (sc.get("overview") or {}).get("capital", {}).pop("real_capital", None)
+        real = (_section(sc) or {}).get("real") or ((_section(sc) or {}).get("money") or {}).get("real") or {}
+        if real.get("confidence") != ov.NOT_MEASURED or "$" in str(real.get("text")):
+            return NOT_SATISFIED, "без канона реальных денег показана сумма, а не «не измерено»"
+    if sec == "decisions":
+        bad = _owner_view_decisions_contour(ov, scene, _section)
+        if bad:
+            return NOT_SATISFIED, bad
+    if sec == "protection":
+        bad = _owner_view_protection_contour(ov, scene, _section)
+        if bad:
+            return NOT_SATISFIED, bad
+    extra = {"overview": "; реальные деньги только из capital.real_capital",
+             "money": "; реальные деньги только из capital.real_capital",
+             "decisions": "; у вопросов есть версия, ответ только через действующий механизм, "
+                          "неподготовленная и уже отвеченная карточка без кнопки",
+             "protection": "; частично проверенное не называется «в порядке», есть резервная копия "
+                           "и дата проверки восстановления"}.get(sec, "")
+    return SATISFIED, (f"раздел «{sec}»: показателей {len(ms)}, у всех источник/время/единицы/"
+                       "достоверность; жаргона нет; «не измерено» словами" + extra)
+
+
+def _probe_owner_view_scenarios(*, fixture: str | None = None) -> tuple[str, str]:
+    """Критерий задачи E DIRECTOR-OS-UX-02: пять сценариев владельца выполнимы на фиксированной
+    сцене и фиксированных часах — меряется ИСХОД (что прочтёт человек), а не наличие полей."""
+    path = fixture or OWNER_VIEW_FIXTURE
+    try:
+        with open(path, encoding="utf-8") as fh:
+            scene = json.load(fh)
+    except Exception as exc:  # noqa: BLE001 — нет сцены ⇒ не измерено, а не «прошло»
+        return UNMEASURED, f"сцена не прочитана ({type(exc).__name__}: {path})"
+    try:
+        from spa_core.studio_os import owner_view as ov
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"owner_view не импортируется ({type(exc).__name__})"
+    sections = ov.build(scene, _OWNER_VIEW_NOW).get("sections") or {}
+    bad = owner_view_scenarios_contour(ov, sections)
+    if bad:
+        return NOT_SATISFIED, bad
+    return SATISFIED, ("пять сценариев выполнимы: состояние студии и следующий шаг; вопрос владельцу "
+                       "с последствиями и версией; реальные деньги отдельно от модели; причина остановки "
+                       "работы или «не измерено»; резервные копии и дата проверки восстановления")
+
+
+def owner_view_scenarios_contour(ov, s: dict) -> "str | None":
+    """None = все пять сценариев выполнимы; иначе — НАЗВАННОЕ порванное звено."""
+    def words(x):
+        return isinstance(x, str) and x.strip() != "" and not ov.jargon_hits(x)
+    o = s.get("overview") or {}
+    # 1 — состояние студии: главное событие и следующий шаг словами, со временем
+    hl = o.get("headline") or {}
+    if not (words(hl.get("main")) and words(hl.get("next"))):
+        return "сценарий 1: нет главного события или следующего шага словами"
+    if not hl.get("updated_at_ru"):
+        return "сценарий 1: у главного события нет времени обновления"
+    # 2 — вопрос владельцу: из очереди, с предложением, последствиями, версией и ответом
+    q_ids = [i.get("id") for i in ((o.get("questions") or {}).get("items") or [])]
+    owner = (s.get("decisions") or {}).get("owner") or []
+    if q_ids != [i.get("id") for i in owner]:
+        return "сценарий 2: вопросы на обзоре не совпадают с очередью владельца"
+    for it in owner:
+        if not (words(it.get("proposal")) and words(it.get("consequences"))):
+            return f"сценарий 2: у вопроса {it.get('id')} нет предложения или последствий словами"
+        ver = it.get("version") or {}
+        if not (ver.get("fingerprint") or ver.get("measured") is False):
+            return f"сценарий 2: у вопроса {it.get('id')} нет версии"
+        if (it.get("answer") or {}).get("kind") not in ("READY", "BLOCKED_UNPREPARED", "ANSWERED"):
+            return f"сценарий 2: у вопроса {it.get('id')} не определено, можно ли отвечать"
+    # 3 — реальные деньги отдельно от модели
+    m = s.get("money") or {}
+    real, paper, research = m.get("real") or {}, m.get("paper") or {}, m.get("research") or {}
+    if not str(real.get("source") or "").startswith("capital.real_capital"):
+        return "сценарий 3: реальные деньги взяты не из capital.real_capital"
+    if "модел" not in str(paper.get("note") or "").lower():
+        return "сценарий 3: расчётный портфель не назван моделью"
+    if "не деньги" not in str(research.get("note") or "").lower():
+        return "сценарий 3: исследования и бэктест не отделены от денег"
+    # 4 — почему работа остановилась: причина или честное «не измерено», и следующий шаг
+    w = s.get("work") or {}
+    bl, nx = w.get("blocking") or {}, w.get("next") or {}
+    if not words(bl.get("text")) or not words(nx.get("text")):
+        return "сценарий 4: нет ответа «что мешает» или «что дальше» словами"
+    stopped = bl.get("stopped") or []
+    if bl.get("known_reason") is False and not stopped and "не измерено" not in bl["text"].lower():
+        return "сценарий 4: неизвестная причина остановки не названа «не измерено»"
+    # ARB 09.10: each stopped task says what its card says — the reason or «не указана в карточке»
+    for x in stopped:
+        if not words(x.get("title")):
+            return "сценарий 4: у остановленной задачи нет названия словами"
+        if x.get("reason") and x.get("reason") not in str(x.get("reason_text") or ""):
+            return "сценарий 4: причина из карточки не показана"
+        if not x.get("reason") and "не указана в карточке" not in str(x.get("reason_text") or ""):
+            return "сценарий 4: отсутствие причины в карточке не названо"
+    if stopped and bl.get("reason_state") == "known" and not all(x.get("reason") for x in stopped):
+        return "сценарий 4: причина объявлена известной, хотя в карточке её нет"
+    # 5 — резервные копии и проверка восстановления с датой
+    b = (s.get("protection") or {}).get("backups") or {}
+    for k in ("local", "off_host", "recovery"):
+        if not words((b.get(k) or {}).get("text")):
+            return f"сценарий 5: нет сведений о копии «{k}»"
+    rec = b.get("recovery") or {}
+    if rec.get("confidence") == ov.MEASURED and not rec.get("measured_at_ru"):
+        return "сценарий 5: у проверки восстановления нет даты"
+    return None
+
+
+def _owner_view_decisions_contour(ov, scene, section) -> "str | None":
+    """Решения (задача D): исход, а не наличие полей. None = контур цел, иначе — порванное звено."""
+    import copy
+    view = section(copy.deepcopy(scene)) or {}
+    items = view.get("owner") or []
+    groups = ((scene.get("truth") or {}).get("decisions") or {}).get("groups") or {}
+    if len(items) != len([d for d in (groups.get("owner") or []) if isinstance(d, dict)]):
+        return "в разделе не все вопросы из очереди владельца"
+    for it in items:
+        ver = it.get("version") or {}
+        if not (re.fullmatch(r"[0-9a-f]{64}", str(ver.get("fingerprint") or "")) or ver.get("measured") is False):
+            return f"у вопроса {it.get('id')} нет версии (и не сказано, что она не измерена)"
+        ans = it.get("answer") or {}
+        if ans.get("kind") == "READY" and not str(ans.get("link") or "").startswith("https://t.me/"):
+            return "готовый к ответу вопрос ведёт не в действующий механизм ответа"
+        if ans.get("kind") != "READY" and ans.get("link"):
+            return "у неготового или отвеченного вопроса осталась кнопка ответа"
+    if not groups.get("owner"):
+        return None
+    # 1 — version follows content: a changed card has a different fingerprint
+    sc = copy.deepcopy(scene)
+    first = sc["truth"]["decisions"]["groups"]["owner"][0]
+    first["action_ru"] = str(first.get("action_ru") or "") + " (изменено)"
+    # the cockpit now reads the WHOLE card (ARB 09.10): change the full text too — the same outcome
+    # («a changed card has a different fingerprint»), measured on the content the owner reads
+    for sec in (first.get("full_sections_ru") or [])[:1]:
+        if isinstance(sec, dict):
+            sec["text"] = str(sec.get("text") or "") + " (изменено)"
+    a = (items[0].get("version") or {}).get("fingerprint")
+    changed = [i for i in ((section(sc) or {}).get("owner") or []) if i.get("id") == first.get("id")]
+    if not changed or (changed[0].get("version") or {}).get("fingerprint") == a:
+        return "изменение карточки не меняет её версию"
+    # 2 — unprepared (no proposal) ⇒ blocked, in words
+    sc = copy.deepcopy(scene)
+    first = sc["truth"]["decisions"]["groups"]["owner"][0]
+    first["action_ru"] = None
+    got = [i for i in ((section(sc) or {}).get("owner") or []) if i.get("id") == first.get("id")]
+    if not got or (got[0].get("answer") or {}).get("kind") != "BLOCKED_UNPREPARED" or \
+            not (got[0].get("answer") or {}).get("reason"):
+        return "неподготовленная карточка не заблокирована словами"
+    # 3 — already answered ⇒ no second confirmation
+    sc = copy.deepcopy(scene)
+    g = sc["truth"]["decisions"]["groups"]
+    first = g["owner"][0]
+    g.setdefault("answered", []).append({"id": first.get("id"), "title_ru": first.get("title_ru"),
+                                          "owner_answer_ru": "1", "answered_at": "2026-10-09T06:00:00+00:00"})
+    got = [i for i in ((section(sc) or {}).get("owner") or []) if i.get("id") == first.get("id")]
+    if not got or (got[0].get("answer") or {}).get("kind") != "ANSWERED" or (got[0].get("answer") or {}).get("link"):
+        return "уже отвеченная карточка предлагает ответить повторно"
+    return None
+
+
+def _owner_view_protection_contour(ov, scene, section) -> "str | None":
+    """Защита (задача D): частичное ≠ «в порядке»; копии и проверка восстановления с датой."""
+    import copy
+    view = section(copy.deepcopy(scene)) or {}
+    verdict = view.get("verdict") or {}
+    checks = ov.metrics(view.get("checks") or [])
+    if not checks or not verdict:
+        return "нет итога или проверок доступности"
+    if any(c.get("confidence") != ov.MEASURED or c.get("tone") not in ("ok", "neutral") for c in checks):
+        if "в порядке" in str(verdict.get("text")).lower() or verdict.get("confidence") == ov.MEASURED:
+            return "частично проверенная система названа «в порядке»"
+    b = view.get("backups") or {}
+    rec = b.get("recovery") or {}
+    if rec.get("confidence") == ov.MEASURED and not rec.get("measured_at_ru"):
+        return "у проверки восстановления нет даты"
+    if not b.get("local") or not b.get("off_host") or not rec:
+        return "нет сведений о резервных копиях и восстановлении"
+    off = b.get("off_host") or {}
+    if off.get("confidence") == ov.MEASURED and "не измерено" not in str(off.get("text")).lower():
+        sc_remote = (((scene.get("truth") or {}).get("studio") or {}).get("backups") or {}).get("off_host") or {}
+        if sc_remote.get("remote_upload") == "NOT_MEASURED":
+            return "доставка копии на серверы iCloud не измерена, а показана как проверенная"
+    # control: an all-healthy scene must be able to say «в порядке»
+    sc = _owner_view_all_healthy(copy.deepcopy(scene))
+    v2 = section(sc) or {}
+    if "в порядке" not in str((v2.get("verdict") or {}).get("text")).lower():
+        return "даже полностью проверенная система не может быть «в порядке» — итог сломан"
+    return None
+
+
+def _owner_view_all_healthy(sc: dict) -> dict:
+    """The control scene: every check the protection section reads is measured and healthy."""
+    sc.setdefault("overview", {}).setdefault("system", {}).update({"state": "HEALTHY", "reason": "", "alerts": []})
+    st = sc.setdefault("truth", {}).setdefault("studio", {})
+    fl = st.get("fleet") or {}
+    fl.update({"state": "MEASURED", "ok": fl.get("declared", 1), "value": {"ok": fl.get("declared", 1),
+               "declared": fl.get("declared", 1), "critical": 0, "warning": 0}, "failing": []})
+    st["fleet"] = fl
+    pr = st.get("problems") or {}
+    pr.update({"state": "MEASURED", "open": 0, "items": [], "value": {"open": [], "open_count": 0}})
+    st["problems"] = pr
+    off = (st.get("backups") or {}).get("off_host")
+    if isinstance(off, dict):
+        off["remote_upload"] = "VERIFIED"
+    wh = ((sc["truth"].get("product") or {}).get("website_health"))
+    if isinstance(wh, dict):
+        wh["value"] = {"status": "OK"}
+    sc["generated_at"] = "2026-10-09T07:10:00Z"
+    return sc
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -8715,6 +9009,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_file_overlap_claim_measures_the_worker,
     "queue_reader_names_which_order_axis_spoke":
         _probe_queue_reader_names_which_order_axis_spoke,
+    "director_os_owner_view_section": _probe_director_os_owner_view_section,
     "carried_release_is_one_condition": _probe_carried_release_is_one_condition,
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
