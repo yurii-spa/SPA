@@ -57,6 +57,7 @@ REQUIRED_MEMBERS = (
     "paper_evidence_history.json",
     "current_positions.json",
     "track.db",
+    "spa.db",                       # paper records + evidence rows (ADR-763 package 3, 2026-10-16)
     "trading_research/evidence.db",
     "trading_research/market.db",
 )

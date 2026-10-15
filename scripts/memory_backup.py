@@ -48,6 +48,12 @@ STATE_SETS = {
     "mission_state": (HOME / "studio-os-scratch" / "mission-state", ()),
     "spa_lineage": (SPA / "data", None),          # only task_links/ and handoffs/ — see _spa_lineage_files
     "claude_memory": (HOME / ".claude" / "projects", None),
+    # Audit 2026-10-16 (ADR-763 package 3): owner cards / decisions and local docs existed only in the weekly
+    # whole-tree archive (same Mac, 2 of the last 4 archives truncated); ~47 cards were not on origin at all.
+    "spa_owner_files": (SPA, None),               # only nimbalyst-local/ and docs/ — see _files
+    # launchd definitions (5 of 92 differ from launchd/ on origin, 1 exists only here) and the cockpit's
+    # serve-root settings (current bundle pointer, access config). Credential-shaped content is screened as usual.
+    "host_settings": (HOME, None),                # only the paths named in _files
 }
 SECRET = re.compile(r"ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|(?<![A-Za-z0-9])sk-(ant-)?[A-Za-z0-9_-]{20,}|"
                     r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----")
@@ -70,13 +76,19 @@ def bundle_repo(name: str, repo: Path, store: Path, *, refs=("--all",), extra=()
     Unchanged repos are not re-uploaded every night; every day's MANIFEST names the bundle to restore."""
     if not (repo / ".git").exists():
         return {"name": name, "ok": False, "error": "not a git repository"}
-    tips = _git(repo, "rev-parse", *[r for r in refs if not r.startswith("--")] or ["--all"])
+    # The tip hash covers exactly the ref selection the bundle uses (rev-parse understands --all/--branches/
+    # --not/--remotes): before 2026-10-16 option-style refs were dropped here, so a bundle of «--branches»
+    # would have been keyed by nothing and REUSED although the branches had moved.
+    tips = _git(repo, "rev-parse", *refs, *extra)
     tip = hashlib.sha256((tips.stdout if tips.returncode == 0 else time.time().hex()).encode()).hexdigest()[:12]
     dst = store / f"{name}-{tip}.bundle"
     reused = dst.exists() and _git(repo, "bundle", "verify", str(dst)).returncode == 0
     if not reused:
         tmp = dst.with_suffix(".tmp")
         p = _git(repo, "bundle", "create", str(tmp), *refs, *extra)
+        if p.returncode != 0 and "empty bundle" in (p.stderr or ""):
+            tmp.unlink(missing_ok=True)       # measured: nothing local-only to carry — a value, not a failure
+            return {"name": name, "ok": True, "empty": True, "bytes": 0}
         if p.returncode != 0 or not tmp.exists():
             tmp.unlink(missing_ok=True)
             return {"name": name, "ok": False, "error": (p.stderr or "").strip()[-300:]}
@@ -100,6 +112,24 @@ def _files(name: str, base: Path, excl):
             d = base / sub
             if d.is_dir():
                 yield from (p for p in d.rglob("*") if p.is_file())
+        return
+    if name == "spa_owner_files":
+        for sub in ("nimbalyst-local", "docs"):
+            d = base / sub
+            if d.is_dir():
+                yield from (p for p in d.rglob("*") if p.is_file() and p.name != ".DS_Store")
+        return
+    if name == "host_settings":
+        la = base / "Library" / "LaunchAgents"
+        if la.is_dir():
+            yield from sorted(la.glob("com.spa.*.plist*"))
+        serve = base / "studio-os-serve"
+        if serve.is_dir():
+            yield from sorted(p for p in serve.glob("*.json") if p.is_file())
+            for d in ("mission", "director"):
+                cur = serve / d / "current.json"
+                if cur.is_file():
+                    yield cur
         return
     if name == "claude_memory":
         for d in base.glob("*/memory"):
@@ -155,6 +185,11 @@ def run(dest: Path, *, retention: int = 14, today: str | None = None) -> dict:
     # commits that live only in the shadow worktree's branch (not on origin)
     if _git(SPA, "rev-parse", "--verify", SHADOW_BRANCH).returncode == 0:
         res["bundles"].append(bundle_repo("spa_shadow_branch", SPA, store, refs=(SHADOW_BRANCH,), extra=("--not", "origin/main")))
+    # every local SPA branch and the stash whose commits are not on origin (audit 2026-10-16: 64 branch tips
+    # and 11 stash entries existed only in this Mac's .git, which no backup scheme carried)
+    if (SPA / ".git").exists():
+        refs = ("--branches",) + (("refs/stash",) if _git(SPA, "rev-parse", "--verify", "-q", "refs/stash").returncode == 0 else ())
+        res["bundles"].append(bundle_repo("spa_local_branches", SPA, store, refs=refs, extra=("--not", "--remotes=origin")))
     for name, (base, excl) in STATE_SETS.items():
         res["states"].append(archive_state(name, base, excl, out))
     res["ok"] = all(b["ok"] for b in res["bundles"]) and all(s["ok"] for s in res["states"])

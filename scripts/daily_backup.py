@@ -74,7 +74,9 @@ MUST_HAVE = [
 # from the exchange after a host loss is slow and some venues rate-limit/rotate history, and a
 # restore that drops it silently breaks `evidence.db`'s foreign references to it until the
 # re-fetch catches up — cheap to carry, so carried.
-_SQLITE_FILES = ("track.db", "academy.db", "trading_research/evidence.db", "trading_research/market.db")
+# spa.db (paper records + evidence rows; audit 2026-10-16, ADR-763 package 3) was covered ONLY by the
+# weekly whole-tree archive, which lives on the same Mac and produced truncated archives on 09-26 and 10-03.
+_SQLITE_FILES = ("track.db", "academy.db", "spa.db", "trading_research/evidence.db", "trading_research/market.db")
 
 
 class BackupIncompleteError(RuntimeError):

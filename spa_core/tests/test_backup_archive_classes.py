@@ -63,7 +63,7 @@ def _full_members(tmp: Path) -> dict:
         "current_positions.json": b"[]",
         f"investment_cio/snapshots/{digest}.json.gz": gzip.compress(snap_doc),
     }
-    for db in ("track.db", "trading_research/evidence.db", "trading_research/market.db"):
+    for db in ("track.db", "spa.db", "trading_research/evidence.db", "trading_research/market.db"):
         m[db] = _sqlite_bytes(tmp, db)
     for led in full_archive_verify.declared_ledgers():
         if led.endswith(".jsonl"):
@@ -209,7 +209,7 @@ def test_remote_upload_is_never_claimed(tmp_path, monkeypatch):
 def test_complete_full_archive_verifies(tmp_path):
     rep = full_archive_verify.verify_archive(_write_archive(tmp_path / "a.tar.gz", _full_members(tmp_path)))
     assert rep["ok"] is True, rep["findings"]
-    assert rep["replay_snapshots_referenced"] == 1 and rep["sqlite_checked"] == 3
+    assert rep["replay_snapshots_referenced"] == 1 and rep["sqlite_checked"] == 4  # track, spa, evidence, market
 
 
 @pytest.mark.parametrize("mutate,finding", [
