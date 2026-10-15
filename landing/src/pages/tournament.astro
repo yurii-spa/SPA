@@ -6,7 +6,7 @@ import CockpitNav from '../components/cockpit/CockpitNav.astro';
 import TournamentCockpit from '../components/cockpit/TournamentCockpit.jsx';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -49,8 +49,8 @@ const RWA_FLOOR_PCT = 4.5;
 const CRITERIA = [
   { key: 'sharpe', en: 'Sharpe ≥ 1.5',      ru: 'Sharpe ≥ 1.5',        note_en: 'risk-adjusted return', note_ru: 'доходность с поправкой на риск' },
   { key: 'days',   en: '≥ 7 days paper',    ru: '≥ 7 дней в paper',    note_en: 'enough live samples',  note_ru: 'достаточно живых наблюдений' },
-  { key: 'apy',    en: 'APY ≥ 3%',          ru: 'APY ≥ 3%',            note_en: 'clears a floor',        note_ru: 'выше пола' },
-  { key: 'dd',     en: 'Drawdown ≥ −15%',   ru: 'Просадка ≥ −15%',     note_en: 'survivable loss',       note_ru: 'переживаемый убыток' },
+  { key: 'apy',    en: 'APY ≥ 3.00%',          ru: 'APY ≥ 3,00 %',            note_en: 'clears a floor',        note_ru: 'выше пола' },
+  { key: 'dd',     en: 'Drawdown ≥ −15.00%',   ru: 'Просадка ≥ −15,00 %',     note_en: 'survivable loss',       note_ru: 'переживаемый убыток' },
 ];
 
 // The pipeline stages (mirror PHASES). Each is a rung a strategy must earn.
@@ -62,7 +62,7 @@ const LADDER = [
   },
   {
     id: 'paper', en: 'Paper (Nd)', ru: 'Paper (N дн.)',
-    desc_en: 'The top strategies shadow-trade live paper daily — no capital. Accruing a real forward track.',
+    desc_en: 'The top strategies shadow-trade on simulated paper daily — no capital. Accruing a real forward track.',
     desc_ru: 'Топ-стратегии живут в shadow-paper ежедневно — без капитала. Копят реальный форвардный трек.',
   },
   {
@@ -91,8 +91,8 @@ const LADDER = [
       eyebrowTone="accent"
       title="Strategy Tournament"
       titleRu="Турнир стратегий"
-      lede={`Strategies compete backtest → paper → live, ranked by net return and Sharpe. Only credible-data winners promote. This is how the desk VETS candidates — not a yield promise. The desk itself holds a steady RWA-anchored conservative book — ${realizedNumEn} realized track-to-date.`}
-      ledeRu={`Стратегии соревнуются backtest → paper → live, ранжируются по net-доходности и Sharpe. Промоушен получают только победители на достоверных данных. Так десk ОТБИРАЕТ кандидатов — это не обещание доходности. Сам десk держит стабильную консервативную книгу на якоре RWA — ${realizedNumRu} realized track-to-date.`}
+      lede={`Strategies compete backtest → paper → live, ranked by net return and Sharpe. Only credible-data winners promote. This is how the desk VETS candidates — not a yield promise. The desk itself holds a steady RWA-anchored conservative book — ${realizedNumEn} on the simulated paper track to date.`}
+      ledeRu={`Стратегии соревнуются backtest → paper → live, ранжируются по net-доходности и Sharpe. Промоушен получают только победители на достоверных данных. Так десk ОТБИРАЕТ кандидатов — это не обещание доходности. Сам десk держит стабильную консервативную книгу на якоре RWA — ${realizedNumRu} на модельном бумажном треке на сегодня.`}
       max="46rem"
     >
       <span class="inline-flex items-center gap-2 text-[11px] font-mono" style="color:var(--text-faint)">
@@ -328,9 +328,9 @@ const LADDER = [
       function lbRow(s, i, datasetTrustworthy, datasetDegenerate) {
         var ru = isRu();
         var apy = num(s.net_annual_return_pct != null ? s.net_annual_return_pct : s.paper_apy);
-        var apyTxt = apy == null ? '—' : apy.toFixed(2) + '%';
+        var apyTxt = apy == null ? '—' : spaPct(apy);
         var dd = num(s.max_dd_pct != null ? s.max_dd_pct : (s.max_drawdown != null ? s.max_drawdown * 100 : null));
-        var ddTxt = dd == null ? '—' : '−' + Math.abs(dd).toFixed(2) + '%';
+        var ddTxt = dd == null ? '—' : '−' + spaPct(Math.abs(dd));
         var cls = riskClass(s);
         var clsCell = cls
           ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-mono ' + CLASS_BADGE[cls] + '">' + cls + '</span>'
@@ -514,10 +514,10 @@ const LADDER = [
             ? '0 промоушенов — ни один кандидат пока не выполнил все четыре критерия'
             : '0 промоушенов — гейт ОТКАЗАЛ на недостоверных данных (это правильно)';
           bodyEn = trustworthy
-            ? 'The data is credible but no strategy meets Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3% and DD ≥ −15% simultaneously. Zero promotions is the honest state, not an error.'
+            ? 'The data is credible but no strategy meets Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3.00% and DD ≥ −15.00% simultaneously. Zero promotions is the honest state, not an error.'
             : 'The tournament ran and ranked strategies, but the dataset is degenerate / untrustworthy (locked-vol → Sharpe explodes). The fail-closed gate refuses every promotion. This is the CORRECT honest outcome — not a failure and not an empty state.';
           bodyRu = trustworthy
-            ? 'Данные достоверны, но ни одна стратегия не выполняет одновременно Sharpe ≥ 1.5, ≥ 7 дней paper, APY ≥ 3% и DD ≥ −15%. Ноль промоушенов — честное состояние, а не ошибка.'
+            ? 'Данные достоверны, но ни одна стратегия не выполняет одновременно Sharpe ≥ 1.5, ≥ 7 дней paper, APY ≥ 3,00 % и DD ≥ −15,00 %. Ноль промоушенов — честное состояние, а не ошибка.'
             : 'Турнир отработал и отранжировал стратегии, но датасет вырожден / недостоверен (locked-vol → Sharpe взрывается). Fail-closed гейт отказывает во всех промоушенах. Это ПРАВИЛЬНЫЙ честный результат — не сбой и не пустая страница.';
         }
 

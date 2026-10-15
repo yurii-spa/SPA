@@ -25,12 +25,12 @@ const questions = [
     q: 'ПОЧЕМУ edge не масштабируется через yield?',
     options: [
       'Растут комиссии',
-      'Оптимизатор концентрируется в высокодоходных МЕЛКИХ пулах; на $1M+ доля превышает cap 1% TVL, и большая часть капитала «выпадает» в кэш (earns 0)',
+      'Оптимизатор концентрируется в высокодоходных МЕЛКИХ пулах; на $1M+ доля превышает cap 1,00 % TVL, и большая часть капитала «выпадает» в кэш (earns 0)',
       'APY падает с инфляцией',
       'Нейросеть ошибается',
     ],
     correct: 1,
-    explanation: 'CARRY_TRUTH.md WS-1.3: оптимизатор концентрируется в small-TVL пулах (euler_v2 ~$14M, pendle ~$7M). На $1M слуг 20% превышает 1%-of-TVL cap (MP-209/ADR-009) → capacity-capped капитал = idle cash, earns 0. В данных: на $1M optimized capped-out $700k.',
+    explanation: 'CARRY_TRUTH.md WS-1.3: оптимизатор концентрируется в small-TVL пулах (euler_v2 ~$14M, pendle ~$7M). На $1M слуг 20,00 % превышает 1,00 %-of-TVL cap (MP-209/ADR-009) → capacity-capped капитал = idle cash, earns 0. В данных: на $1M optimized capped-out $700k.',
   },
   {
     q: 'До какого размера ограничен carry (FixedCarry venue-cap)?',
@@ -48,7 +48,7 @@ const questions = [
     options: [
       'Как доказанный масштабируемый edge',
       'Как артефакт малого масштаба: реален на $100k, но НЕ переносится на fundable-размер ($100M-тезис) — сегодняшняя вселенная его не выдерживает',
-      'Как гарантию 1.08% сверх floor навсегда',
+      'Как гарантию 1,08 % сверх floor навсегда',
       'Как ошибку измерения',
     ],
     correct: 1,
@@ -68,16 +68,16 @@ const questions = [
   <h2>Кривая (data/edge_at_scale.json)</h2>
   <p>
     Модель <code>edge_at_scale.py</code> пересчитывает uplift оптимизатора на трёх уровнях капитала,
-    <strong>после</strong> того как срабатывают реальные pool-capacity caps (1% от TVL пула, 3% для
+    <strong>после</strong> того как срабатывают реальные pool-capacity caps (1,00 % от TVL пула, 3,00 % для
     T1 &gt; $1B — MP-209/ADR-009), на живом TVL пулов. Capacity-capped капитал становится idle cash
     (earns 0 — честная, консервативная просадка):
   </p>
   <table>
     <thead><tr><th>AUM</th><th>Legacy yield</th><th>Optimizer yield</th><th>Uplift</th><th>Capped-out в кэш</th></tr></thead>
     <tbody>
-      <tr><td>$100k</td><td>4.50%</td><td>5.58%</td><td><strong>+1.08pp</strong></td><td>$0</td></tr>
-      <tr><td>$1M</td><td>3.38%</td><td>1.38%</td><td><strong>−2.00pp</strong></td><td>$700k</td></tr>
-      <tr><td>$10M</td><td>1.83%</td><td>0.84%</td><td><strong>−0.99pp</strong></td><td>$7.9M</td></tr>
+      <tr><td>$100k</td><td>4,50 %</td><td>5,58 %</td><td><strong>+1.08pp</strong></td><td>$0</td></tr>
+      <tr><td>$1M</td><td>3,38 %</td><td>1,38 %</td><td><strong>−2.00pp</strong></td><td>$700k</td></tr>
+      <tr><td>$10M</td><td>1,83 %</td><td>0,84 %</td><td><strong>−0.99pp</strong></td><td>$7.9M</td></tr>
     </tbody>
   </table>
   <p>
@@ -88,7 +88,7 @@ const questions = [
 
   <Callout type="key" titleRu="Ключевое — ПОЧЕМУ так">
     Оптимизатор концентрируется в высокодоходных <strong>мелких</strong> пулах (euler_v2 ~$14M,
-    pendle ~$7M…). На $1M слуг весом 20% уже превышает cap 1%-of-TVL → большая часть концентрированной
+    pendle ~$7M…). На $1M слуг весом 20,00 % уже превышает cap 1,00 %-of-TVL → большая часть концентрированной
     книги <strong>выпадает в кэш и зарабатывает 0</strong>, пока более широкий спред legacy-эвристики
     выживает под caps лучше. <em>Чем больше денег — тем меньше edge.</em>
   </Callout>

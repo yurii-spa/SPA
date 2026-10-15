@@ -354,7 +354,7 @@ def _chain_rows(equity_chain):
 
 def track_apy_from_chain(rows, anchor, real_days):
     """LIKE-FOR-LIKE track APY: the same formula ``generate_track_snapshot.py`` commits to the site
-    (compound-annualize anchor→latest evidenced equity over the real evidenced days).
+    (the annualised equivalent of the period return, ACT/365 on valuation dates — P1 Wave 2).
 
     Returns ``(apy_pct | None, source)``. ``source`` names WHY it is None — a third outcome, not a
     silent zero (2026-09-08 lesson: the custodian degraded the public site because it compared this
@@ -373,7 +373,18 @@ def track_apy_from_chain(rows, anchor, real_days):
         return None, "unmeasured:chain_bars_have_no_equity"
     if not days or days <= 0:
         return None, "unmeasured:real_track_days_missing"
-    return round(((l / a) ** (365.0 / days) - 1.0) * 100.0, 4), "evidenced_chain"
+    # P1 Wave 2 (owner/ARB 2026-10-08): the site now commits the annualised EQUIVALENT of the period
+    # return on ACT/365 valuation dates (spa_core.paper_trading.track_period_return) — compare like
+    # for like, or the custodian would call every honest snapshot «overstated/understated».
+    try:
+        from spa_core.paper_trading.track_period_return import period_return as _pr
+    except ImportError:
+        return None, "unmeasured:track_period_return_not_importable"
+    tp = _pr([dict(r, evidenced=True) for r in ev])
+    ann = tp.get("annualised_equivalent_pct") if tp.get("state") == "MEASURED" else None
+    if ann is None:
+        return None, "unmeasured:" + str(tp.get("reason") or "period_return_unmeasured")
+    return round(float(ann), 4), "evidenced_chain"
 
 
 def api_headline(golive, facts, equity_chain):

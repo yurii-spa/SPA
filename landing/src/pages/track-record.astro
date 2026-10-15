@@ -49,15 +49,19 @@ const barRows = (() => {
 const chartPoints = bars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
 // P1-6: key metrics rendered STATICALLY from the snapshot so crawlers / no-JS see real numbers (not "—");
 // the JS island overrides them with live values from api.earn-defi.com.
-const eqTxt  = snap.end_equity != null ? '$' + Number(snap.end_equity).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
-import { publishedRateFigure } from '../lib/realized_rate.js';
-const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
-const apyTxt = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
+const eqTxt  = snap.end_equity != null ? '$' + Number(snap.end_equity).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+import { publishedRateFigure, rateReconciliation, totalReturnSinceStart, usdCents } from '../lib/realized_rate.js';
+const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, dated; ADR-660 two decimals half-up
+const apyTxt = _pr ? _pr.text_en : '—';   // a measurement, not an estimate — no «~» (P1 2026-10-08)
+// P1 C4: the rate, its window, both NAVs and the cumulative over the SAME window — one line; and the
+// «total return» with ITS base ($100k from the paper start). Missing part ⇒ the line is not printed.
+const recEn = rateReconciliation(false), recRu = rateReconciliation(true);
+const totEn = totalReturnSinceStart(false).text, totRu = totalReturnSinceStart(true).text;
 import { drawdownMagnitudeText as _ddMag } from '../lib/realized_rate.js';
 // PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
 const _ddm = _ddMag(snap.max_drawdown_pct);
-const ddTxt = _ddm == null ? '—' : (Number(_ddm) > 0 ? '−' : '') + _ddm + '%';
-const navTxt = snap.nav_usd != null ? '$' + Number(snap.nav_usd).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
+const ddTxt = _ddm == null ? '—' : (_ddm !== '0.00' ? '−' : '') + _ddm + '%';
+const navTxt = usdCents(snap.nav_usd) ?? '—';   // cents: the NAV is reconciled to the cent, not to the thousand
 // Site-Custodian kill-rule (ADR-YL-011): degraded => show a plaque instead of numbers (refusal-first).
 const degraded = snap.degraded === true;
 
@@ -84,6 +88,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <div>
       <p class="ux-eyebrow" data-ru="Результаты · Консервативный">Performance · Conservative</p>
       <div class="ux-card"><MetricStack profile="conservative" /></div>
+      {recEn && <p class="ux-small" style="margin-top:12px" data-ru={`Как получена ставка: ${recRu}.`}>How the rate is computed: {recEn}.</p>}
+      {totEn && <p class="ux-small" style="margin-top:6px" data-ru={`Совокупная доходность — другая база: ${totRu}.`}>Total return has a different base: {totEn}.</p>}
       <p class="ux-small" style="margin-top:12px" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</p>
     </div>
   </section>
@@ -272,8 +278,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </div>
         </div>
 
-        <!-- NAV breakdown: deployed + cash + accrued = equity -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <!-- NAV breakdown: deployed + cash + accrued − costs paid = equity (P1 2026-10-08: the $50.15
+             switching cost of 2026-09-11 is part of the proof; without it the sum missed by exactly that) -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
           <div class="rounded-lg border border-border bg-bg-surface p-4">
             <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Вложено">Deployed</p>
             <p class="text-xl font-mono font-bold text-white" id="por-deployed">—</p>
@@ -285,6 +292,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <div class="rounded-lg border border-border bg-bg-surface p-4">
             <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
             <p class="text-xl font-mono font-bold text-white" id="por-accrued">—</p>
+          </div>
+          <div class="rounded-lg border border-border bg-bg-surface p-4">
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Издержки уплачены">Costs paid</p>
+            <p class="text-xl font-mono font-bold text-white" id="por-costs">—</p>
           </div>
           <div class="rounded-lg border border-teal-border bg-teal-bg p-4">
             <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-2" data-ru="NAV (= капитал)">NAV (= equity)</p>
@@ -637,6 +648,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
       function fmtUsd(v){ return '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
 
+
       function loadNav(){
         fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
           if(!d || d.computed_nav_usd == null) return;
@@ -644,6 +656,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           if(d.cash_usd != null) setText('por-cash', fmtUsd(d.cash_usd));
           if(d.accrued_yield_usd != null) setText('por-accrued', fmtUsd(d.accrued_yield_usd));
           if(d.computed_nav_usd != null) setText('por-nav', fmtUsd(d.computed_nav_usd));
+          // costs paid is a measured component; an absent key is «not measured», never 0 (inv. #17)
+          setText('por-costs', d.costs_paid_usd != null ? '−' + fmtUsd(d.costs_paid_usd) : (isRu() ? 'не измерено' : 'not measured'));
 
           // reconciliation chip
           var chip = document.getElementById('por-recon');
@@ -659,7 +673,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           }
 
           if(d.reconciliation_delta_usd != null){
-            var dp = d.reconciliation_delta_pct != null ? ' (' + Number(d.reconciliation_delta_pct).toFixed(4) + '%)' : '';
+            var dp = d.reconciliation_delta_pct != null ? ' (' + spaPct(Number(d.reconciliation_delta_pct)) + ')' : '';
             setText('por-delta', fmtUsd(d.reconciliation_delta_usd) + dp);
           }
           if(Array.isArray(d.positions)) setText('por-positions', String(d.positions.length));

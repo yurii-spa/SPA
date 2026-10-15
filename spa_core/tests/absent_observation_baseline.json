@@ -6,8 +6,6 @@
     "or_falsy": {
       "_what": "d.get('<наблюдение>') or 0.0 / {} / [] — «ключа нет» неотличимо от «измерено и равно нулю»",
       "places": [
-        "scripts/check_owner_gate.py:464:baa1ece17522#0",
-        "scripts/check_owner_gate.py:463:f7ae169790db#0",
         "scripts/fix_fabricated_evidence.py:33:a36b6fd30cf1#0",
         "spa_core/agents/alpha_agent.py:475:1a4189c9aaec#0",
         "spa_core/agents/alpha_agent.py:509:1a4189c9aaec#1",

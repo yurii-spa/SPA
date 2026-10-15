@@ -31,7 +31,9 @@ def test_snapshot_has_all_key_fields_from_one_source(tmp_path):
     # bar (SPA-3 / generate_track_snapshot 7fd71ad9) — deliberately NOT the volatile single-day
     # apy_today_pct. For this synthetic 2-bar curve (+0.1% over 2 evidenced days) the formula
     # annualizes high (~20%); on the real ~30-day track it lands near the honest few-percent band.
-    expected_apy = round(((100100.0 / 100000.0) ** (365.0 / 2) - 1.0) * 100.0, 4)
+    # P1 Wave 2 (2026-10-08): the exponent is the ACT/365 day count between the two valuation
+    # dates (1 day here), not the number of bars (2) — the bar count overstated the duration.
+    expected_apy = round(((100100.0 / 100000.0) ** (365.0 / 1) - 1.0) * 100.0, 4)
     assert snap["paper_apy_pct"] == expected_apy
     assert snap["paper_apy_pct"] != 3.6701       # explicitly NOT the volatile apy_today_pct
     assert snap["real_track_days"] == 2           # evidenced bars only

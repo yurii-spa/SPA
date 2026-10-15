@@ -8,6 +8,7 @@
  * the ModuleRunner island layers on live progress + verification + notes.
  */
 import Layout from '../../../layouts/Layout.astro';
+import ApproxNote from '../../../components/ApproxNote.astro';
 import ModuleRunner from '../../../components/academy/onboarding/ModuleRunner.jsx';
 import manifest from '../../../data/onboarding_modules.json';
 
@@ -24,6 +25,7 @@ const pageTitle = `M${moduleId}: ${moduleData.title_ru} — SPA Академия
 ---
 <Layout title={pageTitle} description={moduleData.description_ru}>
   <main class="obm-page">
+    <ApproxNote lesson />
     <ModuleRunner moduleId={moduleId} moduleData={moduleData} client:load />
   </main>
 </Layout>

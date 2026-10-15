@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLang, recordStudyDay } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * IntuitionPrompt.jsx — "guess before the reveal" micro-mechanic island.
@@ -34,6 +35,9 @@ export default function IntuitionPrompt({
   explain_ru = '', explain_en = '',
 }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
+  // a «%» unit is a percentage: two decimals, ROUND_HALF_UP (ADR-660); any other unit prints as is
+  const shown = (x) => (unit.trim() === '%' ? pctL(x) : `${x}${unit}`);
   const [val, setVal] = useState(typeof answer === 'number' ? (min + max) / 2 : 0);
   const [pick, setPick] = useState(null);
   const [revealed, setRevealed] = useState(false);
@@ -83,7 +87,7 @@ export default function IntuitionPrompt({
             onChange={(e) => setVal(parseFloat(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--accent)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>
-            <span>{tr('yourGuess')}: <strong style={{ color: 'var(--text-primary)' }}>{val}{unit}</strong></span>
+            <span>{tr('yourGuess')}: <strong style={{ color: 'var(--text-primary)' }}>{shown(val)}</strong></span>
           </div>
         </div>
       )}
@@ -117,7 +121,7 @@ export default function IntuitionPrompt({
             <span style={{ fontWeight: 700, color: verdictColor }}>{verdict}</span>
             {mode === 'numeric' && (
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text-secondary)' }}>
-                {tr('actual')}: <strong style={{ color: 'var(--text-primary)' }}>{answer}{unit}</strong>
+                {tr('actual')}: <strong style={{ color: 'var(--text-primary)' }}>{shown(answer)}</strong>
               </span>
             )}
           </div>

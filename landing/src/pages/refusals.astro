@@ -340,7 +340,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           '</div></details>';
 
         var metaBits = [];
-        if (netEdge != null) metaBits.push((ru ? 'net edge ' : 'net edge ') + (netEdge * 100).toFixed(2) + '%');
+        if (netEdge != null) metaBits.push((ru ? 'net edge ' : 'net edge ') + spaPct((netEdge * 100)));
         metaBits.push((ru ? 'advisory-размер ' : 'advisory size ') + (size != null ? '$' + esc(size) : '$0'));
         if (x.shape) metaBits.push(esc(x.shape));
 
@@ -430,7 +430,7 @@ import Disclaimer from '../components/Disclaimer.astro';
             return '<div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">'
               + '<div class="text-sm font-semibold" style="color:var(--text-primary)">' + esc(e.underlying || '?') + '</div>'
               + '<div class="text-2xl font-bold font-mono" style="color:var(--ok)">~$' + (av != null ? Math.round(av).toLocaleString('en-US') : '—') + '</div>'
-              + '<div class="text-[11px]" style="color:var(--text-faint)">' + (isRu() ? 'депег пега ' : 'peg drawdown ') + (dd != null ? dd.toFixed(1) + '%' : '—') + ' · ' + esc(e.worst_date || '') + '</div>'
+              + '<div class="text-[11px]" style="color:var(--text-faint)">' + (isRu() ? 'депег пега ' : 'peg drawdown ') + (dd != null ? spaPct(dd) : '—') + ' · ' + esc(e.worst_date || '') + '</div>'
               + '</div>';
           }).join('');
         }).catch(function () { /* fail-closed: leave the "—" placeholder */ });

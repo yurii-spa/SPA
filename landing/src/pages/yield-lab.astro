@@ -1,6 +1,7 @@
 ---
 // site-numbers: illustrative — числа страницы — ЧУЖОЙ рынок стейбл-доходности 2026 (пол RWA ~3,4 %, Steakhouse $6,6M под 6,5 %, Maple, Notional, Resolv) и учебный блендинг четырёх источников; это ландшафт рынка, а не ставки деска — наши живут в снимке трека
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 
 // Yield Lab decisions — sourced research candidates run through the ADR-YL-008 mandate
@@ -9,19 +10,19 @@ import Disclaimer from '../components/Disclaimer.astro';
 // Verdict tone: ok=ADVANCE/paper, warn=WATCH/conditional, danger=REFUSE, muted=NO-EDGE.
 const decisions = [
   { id: 'PT-sUSDe', mech: 'Pendle fixed carry', mechRu: 'Pendle фикс-carry',
-    yield: '~11.2%', spread: '~780 bps', tone: 'ok', verdict: 'ADVANCE → paper', verdictRu: 'ADVANCE → пейпер',
+    yield: '~11.20%', spread: '~780 bps', tone: 'ok', verdict: 'ADVANCE → paper', verdictRu: 'ADVANCE → пейпер',
     why: 'Fixed-to-maturity removes the funding-flip tail; USDe solvency stress-validated (Oct-2025 crash: overcollateralized throughout). Capacity ~single-digit $M/maturity.',
     whyRu: 'Фиксация до погашения убирает funding-хвост; платёжеспособность USDe прошла стресс окт-2025 (оставался overcollateralized). Ёмкость ~single-digit $M/срок.' },
   { id: 'PT-USDe', mech: 'Pendle fixed carry', mechRu: 'Pendle фикс-carry',
-    yield: '~8.8%', spread: '~540 bps', tone: 'ok', verdict: 'ADVANCE (capped)', verdictRu: 'ADVANCE (с cap)',
-    why: 'Same fundable structure, but same Ethena underlying as PT-sUSDe → shares one cap, not extra diversification (~70% of Pendle TVL is Ethena).',
-    whyRu: 'Та же fundable-структура, но тот же Ethena-underlying, что и PT-sUSDe → общий cap, не доп. диверсификация (~70% TVL Pendle = Ethena).' },
+    yield: '~8.80%', spread: '~540 bps', tone: 'ok', verdict: 'ADVANCE (capped)', verdictRu: 'ADVANCE (с cap)',
+    why: 'Same fundable structure, but same Ethena underlying as PT-sUSDe → shares one cap, not extra diversification (~70.00% of Pendle TVL is Ethena).',
+    whyRu: 'Та же fundable-структура, но тот же Ethena-underlying, что и PT-sUSDe → общий cap, не доп. диверсификация (~70,00 % TVL Pendle = Ethena).' },
   { id: 'Maple syrupUSDC', mech: 'Institutional credit', mechRu: 'Институц. кредит',
-    yield: '~9–12%', spread: '~180 bps+', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
-    why: 'Bounded credit — loans overcollateralized 120–170% at qualified custody (Anchorage/BitGo/Copper), ~3yr zero-loss. DD-gated (v1 lost $50M in 2022).',
-    whyRu: 'Ограниченный кредит — займы overcollateralized 120–170% в qualified-custody, ~3 года без потерь. Под DD (v1 потерял $50M в 2022).' },
+    yield: '~9.00–12.00%', spread: '~180 bps+', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
+    why: 'Bounded credit — loans overcollateralized 120.00–170.00% at qualified custody (Anchorage/BitGo/Copper), ~3yr zero-loss. DD-gated (v1 lost $50M in 2022).',
+    whyRu: 'Ограниченный кредит — займы overcollateralized 120,00–170,00 % в qualified-custody, ~3 года без потерь. Под DD (v1 потерял $50M в 2022).' },
   { id: 'Centrifuge DROP', mech: 'RWA senior tranche', mechRu: 'RWA senior-транш',
-    yield: '~8%', spread: '~460 bps', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
+    yield: '~8.00%', spread: '~460 bps', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
     why: 'Senior tranche bounded by a real junior (TIN) first-loss buffer + real RWA cash flows. Per-pool off-chain DD required (buffer depth, asset quality).',
     whyRu: 'Senior-транш ограничен реальным junior (TIN) first-loss буфером + реальные RWA-cashflow. Нужен per-pool off-chain DD (глубина буфера, качество активов).' },
   { id: 'Aave V3 USDC', mech: 'Blue-chip lending', mechRu: 'Blue-chip кредит',
@@ -29,21 +30,21 @@ const decisions = [
     why: 'The safest, deepest DeFi lending pays ≈ the floor — no spread to underwrite. Hold the T-bill floor instead. Proof that spread must be earned by risk.',
     whyRu: 'Самый безопасный/глубокий DeFi-кредит платит ≈ floor — нет спреда для андеррайтинга. Держи T-bill floor. Доказательство: спред покупается риском.' },
   { id: 'Ethena sUSDe (spot)', mech: 'Funding carry', mechRu: 'Funding-carry',
-    yield: '~3.9% (was 9–11%)', spread: '~46 bps', tone: 'danger', verdict: 'lean-REFUSE', verdictRu: 'lean-REFUSE',
-    why: 'Floating funding carry is an unbounded tail (funding-flip, CEX-counterparty, ~1.1% reserve). Thin spread today does not pay for the tail.',
-    whyRu: 'Плавающий funding-carry — неограниченный хвост (funding-flip, CEX-контрагент, резерв ~1.1%). Тонкий спред сегодня не окупает хвост.' },
+    yield: '~3.90% (was 9.00–11.00%)', spread: '~46 bps', tone: 'danger', verdict: 'lean-REFUSE', verdictRu: 'lean-REFUSE',
+    why: 'Floating funding carry is an unbounded tail (funding-flip, CEX-counterparty, ~1.10% reserve). Thin spread today does not pay for the tail.',
+    whyRu: 'Плавающий funding-carry — неограниченный хвост (funding-flip, CEX-контрагент, резерв ~1,10 %). Тонкий спред сегодня не окупает хвост.' },
   { id: 'Curve/Convex LP', mech: 'Stable LP + emissions', mechRu: 'Stable-LP + эмиссии',
-    yield: '~4–10%', spread: 'mostly emissions', tone: 'danger', verdict: 'REFUSE', verdictRu: 'REFUSE',
+    yield: '~4.00–10.00%', spread: 'mostly emissions', tone: 'danger', verdict: 'REFUSE', verdictRu: 'REFUSE',
     why: 'The attractive part is CRV/CVX token emissions — a subsidy, not risk-comp. Strip emissions → base fees ≈ floor-parity. Value what you keep if rewards → 0.',
     whyRu: 'Привлекательная часть — эмиссии CRV/CVX, субсидия, не risk-comp. Убери эмиссии → базовые комиссии ≈ floor. Оцени, что останется при rewards → 0.' },
   { id: 'Goldfinch Senior', mech: 'Uncollat. EM credit', mechRu: 'Uncollat EM-кредит',
-    yield: '~10–14%', spread: '~660–1060 bps', tone: 'danger', verdict: 'REFUSE (dead)', verdictRu: 'REFUSE (мёртв)',
+    yield: '~10.00–14.00%', spread: '~660–1060 bps', tone: 'danger', verdict: 'REFUSE (dead)', verdictRu: 'REFUSE (мёртв)',
     why: 'The tail fired at scale — protocol formally winding down after ~$50M of defaults stranded depositors ~3 years. A "senior" label does not bound a thin first-loss buffer.',
     whyRu: 'Хвост сработал в масштабе — протокол сворачивается после ~$50M дефолтов, депозиторы застряли ~3 года. Ярлык «senior» не ограничивает тонкий first-loss буфер.' },
   { id: 'Resolv RLP', mech: 'First-loss tranche', mechRu: 'First-loss транш',
-    yield: '~20–30%', spread: '~1700–2700 bps', tone: 'danger', verdict: 'REFUSE (hard)', verdictRu: 'REFUSE (жёстко)',
-    why: 'The yield is payment to absorb first loss with self-balancing leverage — and the tail already fired: a 2026 mint exploit (~$25M extracted, USDe −39% depeg, TVL $400M→$9M).',
-    whyRu: 'Доход — плата за поглощение first-loss с самобалансирующимся плечом — и хвост уже сработал: эксплойт минта 2026 (~$25M, депег −39%, TVL $400M→$9M).' },
+    yield: '~20.00–30.00%', spread: '~1700–2700 bps', tone: 'danger', verdict: 'REFUSE (hard)', verdictRu: 'REFUSE (жёстко)',
+    why: 'The yield is payment to absorb first loss with self-balancing leverage — and the tail already fired: a 2026 mint exploit (~$25M extracted, USDe −39.00% depeg, TVL $400M→$9M).',
+    whyRu: 'Доход — плата за поглощение first-loss с самобалансирующимся плечом — и хвост уже сработал: эксплойт минта 2026 (~$25M, депег −39,00 %, TVL $400M→$9M).' },
 ];
 const toneClass = {
   ok:     'text-ok border-ok-border bg-ok-bg',
@@ -59,6 +60,7 @@ const toneClass = {
   canonical="https://earn-defi.com/yield-lab"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- Hero -->
     <section class="pt-20 pb-8">
@@ -69,8 +71,8 @@ const toneClass = {
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Йилд-лаб">
         Yield Lab
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы оцениваем живую доходность стейблкоинов против RWA-floor (~3.4%). Каждый базисный пункт спреда должен объясняться измеримым, принятым риском — иначе отказ. Публикуем и отказы: это и есть продукт.">
-        We judge live stablecoin yield against the RWA floor (~3.4%). Every basis point of spread must
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы оцениваем живую доходность стейблкоинов против RWA-floor (~3,40 %). Каждый базисный пункт спреда должен объясняться измеримым, принятым риском — иначе отказ. Публикуем и отказы: это и есть продукт.">
+        We judge live stablecoin yield against the RWA floor (~3.40%). Every basis point of spread must
         be explained by a measurable, accepted risk — or it is refused. We publish the refusals too:
         that discipline is the product.
       </p>
@@ -98,8 +100,8 @@ const toneClass = {
     <section class="pb-2">
       <div class="rounded-xl p-5 bg-white/[0.02] border border-white/10">
         <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Карта целиком">The whole map</p>
-        <p class="text-sm text-white/70 leading-relaxed" data-ru="Честный ландшафт доходности стейблкоинов 2026 в одном чтении — floor, ADVANCE-руги, вопрос 8-12%, REFUSE-архетипы, правило «выбери два». Синтез всех решений: docs/yield_landscape_2026.md в публичном репозитории.">
-          The honest 2026 stablecoin-yield landscape in one read — the floor, the ADVANCE rungs, the 8-12%
+        <p class="text-sm text-white/70 leading-relaxed" data-ru="Честный ландшафт доходности стейблкоинов 2026 в одном чтении — floor, ADVANCE-руги, вопрос 8,00-12,00 %, REFUSE-архетипы, правило «выбери два». Синтез всех решений: docs/yield_landscape_2026.md в публичном репозитории.">
+          The honest 2026 stablecoin-yield landscape in one read — the floor, the ADVANCE rungs, the 8.00-12.00%
           question, the REFUSE archetypes, and the pick-two rule. Whole-map synthesis of every decision:
           <code class="text-accent-300">docs/yield_landscape_2026.md</code> in the public repo.
         </p>
@@ -135,27 +137,27 @@ const toneClass = {
     <!-- The non-Ethena ladder -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Не-Ethena лестница">The non-Ethena ladder</p>
-      <p class="text-base text-white/60 leading-relaxed max-w-2xl mb-6" data-ru="Настоящие 8-12% на стейблах структурно доминируются Ethena (funding-carry). Диверсификация — по КЛАССУ АКТИВА, не по цепи (уход на Base просто возвращает к Ethena). Вот честная лестница без Ethena-концентрации:">
-        The real 8-12% in stablecoins is structurally dominated by Ethena (funding-carry). You diversify
+      <p class="text-base text-white/60 leading-relaxed max-w-2xl mb-6" data-ru="Настоящие 8,00-12,00 % на стейблах структурно доминируются Ethena (funding-carry). Диверсификация — по КЛАССУ АКТИВА, не по цепи (уход на Base просто возвращает к Ethena). Вот честная лестница без Ethena-концентрации:">
+        The real 8.00-12.00% in stablecoins is structurally dominated by Ethena (funding-carry). You diversify
         by <strong class="text-white/85">asset class</strong>, not by chain (hopping to Base just re-routes to Ethena). Here is the
         honest ladder without Ethena concentration:
       </p>
       <div class="space-y-2 mb-6">
         <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
           <div class="min-w-0"><span class="text-sm text-white font-medium" data-ru="RWA floor (T-bill)">RWA floor (T-bill)</span><span class="text-xs text-white/55 ml-2" data-ru="глубина ~$15B">~$15B deep</span></div>
-          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~3.4%</span><span class="text-xs text-white/55 px-2 py-0.5 rounded-full border border-white/10">BASELINE</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~3.40%</span><span class="text-xs text-white/55 px-2 py-0.5 rounded-full border border-white/10">BASELINE</span></div>
         </div>
         <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
           <div class="min-w-0"><span class="text-sm text-white font-medium">Steakhouse overcollat</span><span class="text-xs text-white/55 ml-2" data-ru="immutable Morpho Blue, глубина ~$6.6B">immutable Morpho Blue, ~$6.6B</span></div>
-          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.5–6.5%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg">ADVANCE · Core</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.50–6.50%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg">ADVANCE · Core</span></div>
         </div>
         <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
-          <div class="min-w-0"><span class="text-sm text-white font-medium">Maple syrupUSDC</span><span class="text-xs text-white/55 ml-2" data-ru="кредит, 160%+ overcollat, 0 дефолтов >$600M">credit, 160%+ collat, 0 defaults >$600M</span></div>
-          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.7%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg" data-ru="ADVANCE · Core (cap)">ADVANCE · Core</span></div>
+          <div class="min-w-0"><span class="text-sm text-white font-medium">Maple syrupUSDC</span><span class="text-xs text-white/55 ml-2" data-ru="кредит, 160,00 %+ overcollat, 0 дефолтов >$600M">credit, 160.00%+ collat, 0 defaults >$600M</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.70%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg" data-ru="ADVANCE · Core (cap)">ADVANCE · Core</span></div>
         </div>
         <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
           <div class="min-w-0"><span class="text-sm text-white font-medium">Centrifuge DROP</span><span class="text-xs text-white/55 ml-2" data-ru="RWA senior-транш, junior first-loss">RWA senior, junior first-loss</span></div>
-          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~8%</span><span class="text-xs text-warn px-2 py-0.5 rounded-full border border-warn-border bg-warn-bg">WATCH</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~8.00%</span><span class="text-xs text-warn px-2 py-0.5 rounded-full border border-warn-border bg-warn-bg">WATCH</span></div>
         </div>
         <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3 opacity-60">
           <div class="min-w-0"><span class="text-sm text-white font-medium">Notional fCash</span><span class="text-xs text-white/55 ml-2" data-ru="правильный класс, TVL схлопнулся ~$3M">right class, TVL collapsed ~$3M</span></div>
@@ -164,10 +166,10 @@ const toneClass = {
       </div>
       <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
         <p class="text-xs text-white/55 uppercase tracking-wider font-mono mb-3" data-ru="Правило «выбери два»">The pick-two rule</p>
-        <p class="text-sm text-white/65 leading-relaxed" data-ru="Нельзя одновременно {8-12% · диверсифицировано · не-Ethena · в масштабе}. Диверсифицированная не-Ethena книга (40% floor / 30% overcollat / 20% Maple / 10% Centrifuge) даёт ≈4.75% — bounded, ~135 bps над floor, но НЕ 8-12%. Чтобы получить 8-12% без Ethena — нужна концентрация в higher-risk кредите. Уход от Ethena — правильное риск-решение, и он стоит доходности. Этот озвученный trade-off и есть продукт.">
-          You can't have all four at once — 8-12%, diversified, non-Ethena, and at scale. A diversified non-Ethena book
-          (40% floor / 30% overcollat / 20% Maple / 10% Centrifuge) blends to <strong class="text-white/85">≈4.75%</strong> — bounded,
-          ~135 bps over the floor, but <strong class="text-white/85">not</strong> 8-12%. To reach 8-12% without Ethena you must
+        <p class="text-sm text-white/65 leading-relaxed" data-ru="Нельзя одновременно {8,00-12,00 % · диверсифицировано · не-Ethena · в масштабе}. Диверсифицированная не-Ethena книга (40,00 % floor / 30,00 % overcollat / 20,00 % Maple / 10,00 % Centrifuge) даёт ≈4,75 % — bounded, ~135 bps над floor, но НЕ 8,00-12,00 %. Чтобы получить 8,00-12,00 % без Ethena — нужна концентрация в higher-risk кредите. Уход от Ethena — правильное риск-решение, и он стоит доходности. Этот озвученный trade-off и есть продукт.">
+          You can't have all four at once — 8.00-12.00%, diversified, non-Ethena, and at scale. A diversified non-Ethena book
+          (40.00% floor / 30.00% overcollat / 20.00% Maple / 10.00% Centrifuge) blends to <strong class="text-white/85">≈4.75%</strong> — bounded,
+          ~135 bps over the floor, but <strong class="text-white/85">not</strong> 8.00-12.00%. To reach 8.00-12.00% without Ethena you must
           concentrate in higher-risk credit. Diversifying away from Ethena is the right risk decision, and it
           costs yield. That stated trade-off is the product. Full analysis: <code class="text-accent-300">docs/non_ethena_ladder.md</code>.
         </p>
@@ -177,8 +179,8 @@ const toneClass = {
     <!-- The one principle -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Один принцип">The one principle</p>
-      <p class="text-lg text-white/75 leading-relaxed max-w-2xl" data-ru="Доходность ⟂ фандабилити. Самый большой заголовочный процент (Resolv 20–30%) получил самый жёсткий отказ — хвост уже сработал. Самый маленький объяснённый спред (~160–780 bps) — единственные fundable. Спред покупается принятым риском, никогда не бесплатен.">
-        Yield is inverse to fundability. The biggest headline number (Resolv 20–30%) drew the hardest
+      <p class="text-lg text-white/75 leading-relaxed max-w-2xl" data-ru="Доходность ⟂ фандабилити. Самый большой заголовочный процент (Resolv 20,00–30,00 %) получил самый жёсткий отказ — хвост уже сработал. Самый маленький объяснённый спред (~160–780 bps) — единственные fundable. Спред покупается принятым риском, никогда не бесплатен.">
+        Yield is inverse to fundability. The biggest headline number (Resolv 20.00–30.00%) drew the hardest
         refusal — its tail already fired. The smallest <em>explained</em> spreads (~160–780 bps) are the
         only fundable ones. Spread is bought with accepted risk; it is never free.
       </p>

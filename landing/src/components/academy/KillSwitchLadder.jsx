@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * KillSwitchLadder.jsx — the two-tier drawdown ladder (ADR-048).
@@ -18,8 +19,8 @@ const HARD = 10.0;
 const T = {
   title: { ru: 'Лестница kill-switch (ADR-048)', en: 'Kill-switch ladder (ADR-048)' },
   intro: {
-    ru: 'Двигай просадку (drawdown) от пика. Два уровня реакции: мягкий de-risk при ≥5%, жёсткий all-cash при ≥10%. Границы inclusive.',
-    en: 'Slide the peak-to-current drawdown. Two tiers: soft de-risk at ≥5%, hard all-cash at ≥10%. Inclusive boundaries.',
+    ru: 'Двигай просадку (drawdown) от пика. Два уровня реакции: мягкий de-risk при ≥5,00 %, жёсткий all-cash при ≥10,00 %. Границы inclusive.',
+    en: 'Slide the peak-to-current drawdown. Two tiers: soft de-risk at ≥5.00%, hard all-cash at ≥10.00%. Inclusive boundaries.',
   },
   drawdown: { ru: 'Просадка от пика (evidenced)', en: 'Peak-to-current drawdown (evidenced)' },
   tier: { ru: 'Текущий уровень', en: 'Current tier' },
@@ -28,18 +29,19 @@ const T = {
   hard: { ru: 'HARD_KILL — жёсткий kill', en: 'HARD_KILL — hard kill' },
   effect: { ru: 'Эффект', en: 'Effect' },
   effNone: { ru: 'Торгуем штатно. Все гейты активны, новые позиции разрешены.', en: 'Trading normally. All gates active, new positions allowed.' },
-  effSoft: { ru: 'HALT новых аллокаций / запрет на УВЕЛИЧЕНИЕ экспозиции (hold + reduce OK). Edge-triggered WARNING. НЕ ликвидирует — 5% часто восстановимый депег/волатильность.', en: 'Halt new allocations / no INCREASE (hold + reduce OK). Edge-triggered WARNING. Does NOT liquidate — 5% is often a recoverable wobble.' },
-  effHard: { ru: 'Полный kill → всё в кэш {"cash": 1.0}. 10% просадки на стейбл-книге = реальный коллапс протокола, не шум. approved=False нельзя переопределить.', en: 'Full kill → all-cash {"cash": 1.0}. A 10% drawdown on a stablecoin book = real collapse, not noise. approved=False is final.' },
+  effSoft: { ru: 'HALT новых аллокаций / запрет на УВЕЛИЧЕНИЕ экспозиции (hold + reduce OK). Edge-triggered WARNING. НЕ ликвидирует — 5,00 % часто восстановимый депег/волатильность.', en: 'Halt new allocations / no INCREASE (hold + reduce OK). Edge-triggered WARNING. Does NOT liquidate — 5.00% is often a recoverable wobble.' },
+  effHard: { ru: 'Полный kill → всё в кэш {"cash": 1.0}. 10,00 % просадки на стейбл-книге = реальный коллапс протокола, не шум. approved=False нельзя переопределить.', en: 'Full kill → all-cash {"cash": 1.0}. A 10.00% drawdown on a stablecoin book = real collapse, not noise. approved=False is final.' },
 };
 
 const RUNGS = [
   { key: 'none', from: 0, to: SOFT, color: 'var(--ok)', bg: 'rgba(52,211,153,0.12)', label: 'NONE' },
-  { key: 'soft', from: SOFT, to: HARD, color: 'var(--warn)', bg: 'rgba(242,179,60,0.12)', label: 'SOFT_DERISK ≥5%' },
-  { key: 'hard', from: HARD, to: 15, color: 'var(--danger)', bg: 'rgba(242,109,109,0.12)', label: 'HARD_KILL ≥10%' },
+  { key: 'soft', from: SOFT, to: HARD, color: 'var(--warn)', bg: 'rgba(242,179,60,0.12)', label: 'SOFT_DERISK ≥5.00%' },
+  { key: 'hard', from: HARD, to: 15, color: 'var(--danger)', bg: 'rgba(242,109,109,0.12)', label: 'HARD_KILL ≥10.00%' },
 ];
 
 export default function KillSwitchLadder() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [dd, setDd] = useState(11);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function KillSwitchLadder() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
         <span style={{ color: 'var(--text-secondary)' }}>{tr('drawdown')}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', color: tierColor, fontSize: 18, fontWeight: 700, transition: 'color 220ms var(--ease)' }}>−{dd.toFixed(1)}%</span>
+        <span style={{ fontFamily: 'var(--font-mono)', color: tierColor, fontSize: 18, fontWeight: 700, transition: 'color 220ms var(--ease)' }}>−{pctL(dd)}</span>
       </div>
       <input type="range" min={0} max={15} step={0.1} value={dd}
         onChange={(e) => { recordPlaygroundTried('KillSwitchLadder'); setDd(parseFloat(e.target.value)); }}

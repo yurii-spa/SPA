@@ -39,19 +39,19 @@ const CATS = {
 
 const SOURCES = [
   {
-    id: 'tbill', label_ru: 'Токенизированные T-bills 3.4% (BUIDL/USYC)', label_en: 'Tokenized T-bills 3.4% (BUIDL/USYC)',
+    id: 'tbill', label_ru: 'Токенизированные T-bills 3,40 % (BUIDL/USYC)', label_en: 'Tokenized T-bills 3.40% (BUIDL/USYC)',
     answer: 'B',
     explain_ru: 'Это safe risk-free floor — чистая beta к ставке ФРС. Не alpha и не плата за хвост: именно с этим floor SPA сравнивает все sleeve\'ы.',
     explain_en: 'A safe risk-free floor — pure beta to the policy rate. The benchmark every SPA sleeve must beat.',
   },
   {
-    id: 'susde', label_ru: 'sUSDe 12% (Ethena, funding-carry)', label_en: 'sUSDe 12% (Ethena funding carry)',
+    id: 'susde', label_ru: 'sUSDe 12.00% (Ethena, funding-carry)', label_en: 'sUSDe 12.00% (Ethena funding carry)',
     answer: 'C',
     explain_ru: 'Высокий APY = компенсация за funding-flip / depeg-хвост. Когда funding уходит в минус, доходность исчезает, а риск остаётся. Refusal-first это вычисляет.',
     explain_en: 'High APY = compensation for the funding-flip / depeg tail. When funding flips negative the yield vanishes but the risk stays.',
   },
   {
-    id: 'aave', label_ru: 'Aave V3 supply 5% (USDC)', label_en: 'Aave V3 supply 5% (USDC)',
+    id: 'aave', label_ru: 'Aave V3 supply 5.00% (USDC)', label_en: 'Aave V3 supply 5.00% (USDC)',
     answer: 'B',
     explain_ru: 'Базовая lending-ставка от утилизации — рыночная beta. Скромный спред над floor, без структурного хвоста при низкой утилизации.',
     explain_en: 'Base lending rate from utilization — market beta. Modest spread over the floor, no structural tail at low utilization.',
@@ -69,7 +69,7 @@ const SOURCES = [
     explain_en: 'Real structural alpha: the market mispriced the fixed rate; the fair-value engine harvests the spread. The validated live-paper edge.',
   },
   {
-    id: 'loop', label_ru: 'Leverage looping 18% (рекурсивный займ)', label_en: 'Leverage looping 18% (recursive borrow)',
+    id: 'loop', label_ru: 'Leverage looping 18,00 % (рекурсивный займ)', label_en: 'Leverage looping 18.00% (recursive borrow)',
     answer: 'C',
     explain_ru: 'Плечо умножает базовую ставку И хвост ликвидации. APY — компенсация за liquidation-каскад. Высокий structural хейркат → отказ.',
     explain_en: 'Leverage multiplies the base rate AND the liquidation tail. The APY is compensation for a liquidation cascade — refused.',

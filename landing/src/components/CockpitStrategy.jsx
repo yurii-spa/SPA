@@ -33,6 +33,7 @@ import {
   fmtUsd0, fmtUsd2, fmtPct, fmtSigned, fmtNum, usdCompact, deriveFreshness, pick, NA,
 } from './cockpit/lib.js';
 import { MONO } from './ui/tokens.js';
+import { pctLang } from '../lib/pct_live.js';
 
 /* ── live API base (mirrors DashboardLive / CockpitDashboard) ────────────────────── */
 const API =
@@ -289,7 +290,7 @@ function killConditionsToGauges(conds, snap, lang) {
 }
 function LABEL_FOR(name) {
   const M = {
-    drawdown: { en: 'Max drawdown vs −15% rung', ru: 'Просадка vs порог −15%' },
+    drawdown: { en: 'Max drawdown vs −15.00% rung', ru: 'Просадка vs порог −15,00 %' },
     depeg: { en: 'Depeg tail', ru: 'Depeg-хвост' },
     kill: { en: 'Realised kill', ru: 'Сработавший kill' },
     sharpe: { en: 'Sharpe floor', ru: 'Пол Sharpe' },
@@ -385,6 +386,7 @@ function windowSeries(raw, win) {
 /* ── main ─────────────────────────────────────────────────────────────────────────── */
 export default function CockpitStrategy() {
   const lang = useLang();
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const reduced = usePrefersReducedMotion();
   const ru = lang === 'ru';
   const [win, setWin] = useState('30D');

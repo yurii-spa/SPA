@@ -59,7 +59,7 @@ import Layout from '../../layouts/Layout.astro';
     // места вызова (verdict и numbers_missing приходят из журнала решений через API).
     function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]||c;});}
     function fmtUsd(n){return (n==null)?'—':'$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0});}
-    function fmtPct(n){return (n==null)?'—':(n>=0?'+':'')+Number(n).toFixed(2)+'%';}
+    function fmtPct(n){return (n==null)?'—':(n>=0?'+':'')+spaPct(Number(n));}
     // Ставка аллокации — процентные пункты ГОДОВОЙ ставки. Нет значения ⇒ «данные
     // недоступны», не «0,00 пп»: ноль здесь бывает настоящим (книга без материальных ног
     // честно даёт Yield Gap = 0), поэтому подставить его под пропажу нельзя (инв. #17).

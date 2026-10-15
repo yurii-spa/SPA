@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * DepegEventPlayer.jsx — ▶ PLAY a REAL dated event and watch the aggressive
@@ -46,14 +47,14 @@ const STATIC = {
 const T = {
   title: { ru: 'Плеер реальных депег-событий', en: 'Real depeg-event player' },
   intro: {
-    ru: 'Нажми ▶ — таймлайн проигрывает РЕАЛЬНЫЕ датированные события. На каждой реальной дате агрессивная «15% delta-neutral» книга проседает на реальную глубину, а устойчивая ~4.5% книга остаётся плоской. Вот что 15% реально стоит.',
-    en: 'Press ▶ — the timeline plays REAL dated events. On each real date the aggressive «15% delta-neutral» book drops by its real depth while the steady ~4.5% book stays flat. This is what 15% really costs.',
+    ru: 'Нажми ▶ — таймлайн проигрывает РЕАЛЬНЫЕ датированные события. На каждой реальной дате агрессивная «15,00 % delta-neutral» книга проседает на реальную глубину, а устойчивая ~4,50 % книга остаётся плоской. Вот что 15,00 % реально стоит.',
+    en: 'Press ▶ — the timeline plays REAL dated events. On each real date the aggressive «15.00% delta-neutral» book drops by its real depth while the steady ~4.50% book stays flat. This is what 15.00% really costs.',
   },
   play: { ru: '▶ Играть', en: '▶ Play' },
   pause: { ru: '⏸ Пауза', en: '⏸ Pause' },
   reset: { ru: '↻ Сброс', en: '↻ Reset' },
-  aggressive: { ru: 'Агрессивная книга (15%)', en: 'Aggressive book (15%)' },
-  steady: { ru: 'Устойчивая книга (~5%)', en: 'Steady book (~5%)' },
+  aggressive: { ru: 'Агрессивная книга (15,00 %)', en: 'Aggressive book (15.00%)' },
+  steady: { ru: 'Устойчивая книга (~5,00 %)', en: 'Steady book (~5.00%)' },
   live: { ru: 'Живой API', en: 'Live API' },
   static: { ru: 'Статика (API офлайн)', en: 'Static (API offline)' },
   now: { ru: 'Текущая дата', en: 'Current date' },
@@ -67,6 +68,7 @@ function fmtMoney(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
 
 export default function DepegEventPlayer() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [model, setModel] = useState(STATIC);
   const [isLive, setIsLive] = useState(false);
   const [step, setStep] = useState(0);     // 0 = before any event; N events → step 0..N
@@ -195,7 +197,7 @@ export default function DepegEventPlayer() {
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>{tr('event')} · {curEvent.date}</div>
           <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: 15 }}>
             {(lang === 'ru' ? curEvent.label_ru : curEvent.label_en)}
-            <span style={{ marginLeft: 10, fontFamily: 'var(--font-mono)' }}>{tr('drop')}: {curEvent.depth_pct.toFixed(1)}%</span>
+            <span style={{ marginLeft: 10, fontFamily: 'var(--font-mono)' }}>{tr('drop')}: {pctL(curEvent.depth_pct)}</span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.55 }}>{lang === 'ru' ? curEvent.detail_ru : curEvent.detail_en}</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>{tr('modeled')}</div>
@@ -217,7 +219,7 @@ function Book({ label, val, pct, color, start }) {
         <div style={{ width: '100%', height: h + '%', background: color, opacity: 0.85, borderRadius: '4px 4px 0 0', transition: 'height 600ms ease' }} />
       </div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginTop: 8 }}>{fmtMoney(val)}</div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color, fontWeight: 600 }}>{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color, fontWeight: 600 }}>{pct >= 0 ? '+' : ''}{pctL(pct)}</div>
     </div>
   );
 }

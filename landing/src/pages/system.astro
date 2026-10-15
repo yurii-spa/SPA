@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
 // ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
 const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
 const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
@@ -37,7 +38,7 @@ const planes = [
 // (folded into /dashboard tabs + /strategies); these deep-link to the cohesive
 // equivalent instead of a separate-entity HTML page.
 const surfaces = [
-  { href: '/packages', en: 'Yield packages', ru: 'Доходные пакеты', desc_en: `Three paper portfolios with different mechanics — Conservative (unlevered lending, ~${rrEn} realized paper result${rrNoteEn}), Balanced (Pendle PT fixed rate) and Aggressive (simulated loop on Morpho Blue), both accumulating statistics and refused for live; research targets are not results`, desc_ru: `Три бумажных портфеля с разной механикой — Conservative (кредитование без плеча, фактический бумажный результат ${realizedRu}), Balanced (фиксированная ставка Pendle PT) и Aggressive (симулированная петля на Morpho Blue): у обоих статистика накапливается, оба отказаны для live; исследовательская цель — не результат` },
+  { href: '/packages', en: 'Yield packages', ru: 'Доходные пакеты', desc_en: `Three paper portfolios with different mechanics — Conservative (unlevered lending, ${rrEn} on paper${rrNoteEn}), Balanced (Pendle PT fixed rate) and Aggressive (simulated loop on Morpho Blue), both accumulating statistics and refused for live; research targets are not results`, desc_ru: `Три бумажных портфеля с разной механикой — Conservative (кредитование без плеча, фактический бумажный результат ${realizedRu}), Balanced (фиксированная ставка Pendle PT) и Aggressive (симулированная петля на Morpho Blue): у обоих статистика накапливается, оба отказаны для live; исследовательская цель — не результат` },
   { href: '/monitoring', en: 'Live risk monitoring (RTMR)', ru: 'Живой мониторинг риска (RTMR)', desc_en: 'The real-time watchman — depeg/TVL/oracle/liquidity every 45s across 5-10 sources, deterministic de-risk (paper)', desc_ru: 'Сторож реального времени — депег/TVL/оракул/ликвидность каждые 45с по 5-10 источникам, детерминированный де-риск (paper)' },
   { href: '/dashboard', en: 'Live dashboard', ru: 'Живой дашборд', desc_en: 'Canonical command center — equity, positions, go-live', desc_ru: 'Канонический командный центр — капитал, позиции, go-live' },
   { href: '/dashboard#system', en: 'Agent fleet', ru: 'Парк агентов', desc_en: 'The autonomous launchd agents that run the machine (dashboard · System tab)', desc_ru: 'Автономные launchd-агенты, управляющие системой (дашборд · вкладка System)' },
@@ -53,6 +54,7 @@ const surfaces = [
   canonical="https://earn-defi.com/system"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
@@ -163,9 +165,9 @@ const surfaces = [
         <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-warn-bg border border-warn-border flex items-center justify-center text-xs text-warn" aria-hidden="true">!</span>
         <div>
           <p class="text-sm font-semibold text-warn mb-1" data-ru="Бумажное исследование · advisory · не в проде. Честный вывод:">Paper research · advisory · not live. The honest finding:</p>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Только стабильные sleeve'ы достигают PAPER_CANDIDATE. Крипто-sleeve'ы (ETH/BTC) ОТКЛОНЕНЫ — они не обыгрывают безрисковый порог ~3.4% с поправкой на риск. Промоушен детерминирован: чистая арифметика по критериям, без LLM, не переопределяется.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Только стабильные sleeve'ы достигают PAPER_CANDIDATE. Крипто-sleeve'ы (ETH/BTC) ОТКЛОНЕНЫ — они не обыгрывают безрисковый порог ~3,40 % с поправкой на риск. Промоушен детерминирован: чистая арифметика по критериям, без LLM, не переопределяется.">
             Only the stable sleeves reach PAPER_CANDIDATE. The crypto (ETH/BTC) sleeves are REJECTED — they
-            do not beat the ~3.4% risk-free floor on a risk-adjusted basis. The gate is deterministic: pure
+            do not beat the ~3.40% risk-free floor on a risk-adjusted basis. The gate is deterministic: pure
             arithmetic over the criteria, no LLM, cannot be overridden.
           </p>
         </div>
@@ -403,8 +405,8 @@ const surfaces = [
         var meta = STAGE_META[s.stage] || { border: 'border-white/10' };
         var crits = '';
         CRIT_ORDER.forEach(function(k){ if(s.criteria && s.criteria[k]) crits += critChip(k, s.criteria[k]); });
-        var napy = (s.net_apy_pct != null) ? Number(s.net_apy_pct).toFixed(2) + '%' : '—';
-        var dd = (s.max_drawdown_pct != null) ? Number(s.max_drawdown_pct).toFixed(2) + '%' : '—';
+        var napy = (s.net_apy_pct != null) ? spaPct(Number(s.net_apy_pct)) : '—';
+        var dd = (s.max_drawdown_pct != null) ? spaPct(Number(s.max_drawdown_pct)) : '—';
         var score = (s.score != null && s.max_score != null) ? s.score + '/' + s.max_score : '—';
         return '<div class="rounded-xl border ' + meta.border + ' bg-white/[0.02] p-4">' +
           '<div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">' +
@@ -422,7 +424,7 @@ const surfaces = [
 
       function renderPromotion(d){
         var ru = isRu();
-        var floor = (d.rwa_floor_pct != null) ? Number(d.rwa_floor_pct).toFixed(2) + '%' : '—';
+        var floor = (d.rwa_floor_pct != null) ? spaPct(Number(d.rwa_floor_pct)) : '—';
         setText('promo-floor', floor);
         var counts = d.stage_counts || {};
         setText('promo-cnt-paper', counts.PAPER_CANDIDATE != null ? counts.PAPER_CANDIDATE : 0);
@@ -481,7 +483,7 @@ const surfaces = [
         var scoreLbl = score != null ? score.toFixed(2) : '—';
         var m = u.metrics || {};
         var metricBits = [];
-        if(m.depeg_pct != null) metricBits.push((ru ? 'депег ' : 'depeg ') + Number(m.depeg_pct).toFixed(2) + '%');
+        if(m.depeg_pct != null) metricBits.push((ru ? 'депег ' : 'depeg ') + spaPct(Number(m.depeg_pct)));
         if(m.dd_vol != null) metricBits.push((ru ? 'downside-vol ' : 'downside-vol ') + Number(m.dd_vol).toFixed(2));
         if(m.funding_regime != null) metricBits.push((ru ? 'фондирование: ' : 'funding: ') + esc(m.funding_regime));
         var metricStr = metricBits.length ? metricBits.join(' · ') : '—';

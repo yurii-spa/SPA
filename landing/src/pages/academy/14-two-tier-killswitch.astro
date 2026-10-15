@@ -9,10 +9,11 @@ import Quiz from '../../components/academy/Quiz.astro';
 import KillSwitchLadder from '../../components/academy/KillSwitchLadder.jsx';
 // site-numbers: лестница стоп-крана рендерится из конституции (её источник — spa_core/governance/kill_switch.py); числовой пример ниже — учебный
 import constitution from '../../lib/constitution.json';
+import { fmtPct2 } from '../../lib/pct_format.js';
 
 const questions = [
   {
-    q: 'Что делает SOFT_DERISK tier при просадке в диапазоне [5%, 10%)?',
+    q: 'Что делает SOFT_DERISK tier при просадке в диапазоне [5,00 %, 10,00 %)?',
     options: [
       'Ликвидирует всё в кэш',
       'De-risk: запрещает новые входы и любое УВЕЛИЧЕНИЕ позиций (hold + reduce разрешены), шлёт WARNING. НЕ ликвидирует.',
@@ -20,29 +21,29 @@ const questions = [
       'Ничего',
     ],
     correct: 1,
-    explanation: 'kill_switch.py: SOFT_DERISK_THRESHOLD_PCT=5.0. Гейт apply_soft_derisk_gate ограничивает target_usd → min(target, held), новый протокол → 0. Не ликвидирует: просадка 5% чаще всего — восстановимая волатильность/depeg-wobble.',
+    explanation: 'kill_switch.py: SOFT_DERISK_THRESHOLD_PCT=5.0. Гейт apply_soft_derisk_gate ограничивает target_usd → min(target, held), новый протокол → 0. Не ликвидирует: просадка 5,00 % чаще всего — восстановимая волатильность/depeg-wobble.',
   },
   {
     q: 'При какой просадке срабатывает HARD_KILL и что он делает?',
     options: [
-      'При −5%, переводит в 50% кэш',
-      'При просадке ≥ 10% (граница inclusive), переводит ВСЁ в кэш {"cash": 1.0}',
-      'При −20%, шлёт alert',
+      'При −5,00 %, переводит в 50,00 % кэш',
+      'При просадке ≥ 10,00 % (граница inclusive), переводит ВСЁ в кэш {"cash": 1.0}',
+      'При −20,00 %, шлёт alert',
       'Никогда',
     ],
     correct: 1,
     explanation: 'kill_switch.py: DRAWDOWN_THRESHOLD_PCT=10.0; check_drawdown_trigger использует >= (inclusive), get_kill_switch_allocation возвращает {"cash":1.0, все протоколы:0.0}. ADR-048 снизил порог 15→10.',
   },
   {
-    q: 'Почему 5% — это de-risk, а не полная ликвидация?',
+    q: 'Почему 5,00 % — это de-risk, а не полная ликвидация?',
     options: [
       'Чтобы сэкономить на комиссиях',
-      'Потому что 5%-просадка на стейбл-книге чаще всего — восстановимый wobble; паническая ликвидация кристаллизует убыток, который иначе откатился бы',
+      'Потому что 5,00 %-просадка на стейбл-книге чаще всего — восстановимый wobble; паническая ликвидация кристаллизует убыток, который иначе откатился бы',
       'Это ошибка в коде',
       'Чтобы пройти go-live',
     ],
     correct: 1,
-    explanation: 'kill_switch.py комментарий: «a 5% drawdown is most often a recoverable depeg/vol wobble; panic-liquidating it crystallises a loss that would otherwise mean-revert». Два уровня = соразмерный ответ.',
+    explanation: 'kill_switch.py комментарий: «a 5,00 % drawdown is most often a recoverable depeg/vol wobble; panic-liquidating it crystallises a loss that would otherwise mean-revert». Два уровня = соразмерный ответ.',
   },
   {
     q: 'Как считается просадка для kill-switch?',
@@ -62,42 +63,42 @@ const questions = [
   <p>
     RiskPolicy (модуль 13) решает, что можно <em>открыть</em>. Kill-switch решает, что делать, когда
     книга уже <em>проседает</em>. Деск не использует один грубый «выключатель» — он применяет
-    <strong>лестницу из двух уровней</strong> (ADR-034 + ADR-048), потому что просадка 5% и просадка
-    15% требуют разного ответа.
+    <strong>лестницу из двух уровней</strong> (ADR-034 + ADR-048), потому что просадка 5,00 % и просадка
+    15,00 % требуют разного ответа.
   </p>
 
   <h2>Лестница (kill_switch.py)</h2>
   <table>
     <thead><tr><th>Tier</th><th>Порог просадки</th><th>Эффект</th></tr></thead>
     <tbody>
-      <tr><td><strong>NONE</strong></td><td>&lt; {constitution.kill_switch.soft_derisk_pct}%</td><td>Никаких действий</td></tr>
+      <tr><td><strong>NONE</strong></td><td>&lt; {fmtPct2(constitution.kill_switch.soft_derisk_pct, true)}</td><td>Никаких действий</td></tr>
       <tr>
         <td><strong>SOFT_DERISK</strong></td>
-        <td>[{constitution.kill_switch.soft_derisk_pct}%, {constitution.kill_switch.hard_kill_pct}%)</td>
+        <td>[{fmtPct2(constitution.kill_switch.soft_derisk_pct, true)}, {fmtPct2(constitution.kill_switch.hard_kill_pct, true)})</td>
         <td>De-risk: <strong>halt new / no INCREASE</strong> (hold + reduce OK), edge-triggered WARNING. <strong>НЕ ликвидирует.</strong></td>
       </tr>
       <tr>
         <td><strong>HARD_KILL</strong></td>
-        <td>≥ {constitution.kill_switch.hard_kill_pct}% (inclusive)</td>
+        <td>≥ {fmtPct2(constitution.kill_switch.hard_kill_pct, true)} (inclusive)</td>
         <td>Полный kill → <strong>всё в кэш</strong> <code>{`{ cash: 1.0 }`}</code></td>
       </tr>
     </tbody>
   </table>
 
   <Callout type="key" titleRu="Ключевое">
-    Границы <strong>монотонные и полуоткрытые</strong>, верхняя — inclusive: ровно {constitution.kill_switch.soft_derisk_pct.toFixed(1)}% → SOFT, ровно
-    10.0% → HARD. Это закрывает 0-ширину «дыры» между классификатором (<code>&gt;=</code>) и триггером
+    Границы <strong>монотонные и полуоткрытые</strong>, верхняя — inclusive: ровно {fmtPct2(constitution.kill_switch.soft_derisk_pct, true)} → SOFT, ровно
+    10,00 % → HARD. Это закрывает 0-ширину «дыры» между классификатором (<code>&gt;=</code>) и триггером
     (раньше был <code>&gt;</code>) — ADR-048 сделал <code>check_drawdown_trigger</code> тоже
     <code>&gt;=</code>.
   </Callout>
 
-  <h2>Почему 5% не ликвидирует</h2>
+  <h2>Почему 5,00 % не ликвидирует</h2>
   <p>
-    Комментарий прямо в коде объясняет логику SOFT-уровня: <em>«a 5% drawdown is most often a
+    Комментарий прямо в коде объясняет логику SOFT-уровня: <em>«a 5,00 % drawdown is most often a
     recoverable depeg/vol wobble; panic-liquidating it crystallises a loss that would otherwise
-    mean-revert»</em>. На стейбл-книге просадка 5% — обычно временная (depeg-wobble, волатильность), и
+    mean-revert»</em>. На стейбл-книге просадка 5,00 % — обычно временная (depeg-wobble, волатильность), и
     <strong>паническая распродажа превратила бы временный минус в окончательный убыток</strong>.
-    Поэтому SOFT останавливает рост экспозиции, но держит. А 10% на стейблах — это уже сигнал реального
+    Поэтому SOFT останавливает рост экспозиции, но держит. А 10,00 % на стейблах — это уже сигнал реального
     коллапса протокола, и полный выход в кэш корректен.
   </p>
 
@@ -111,14 +112,14 @@ const questions = [
   <h2>Поиграй: KillSwitchLadder</h2>
   <p>
     Двигай просадку и смотри, в какой tier попадаешь и какой эффект сработает. Обрати внимание на
-    точные границы {constitution.kill_switch.soft_derisk_pct.toFixed(1)}% и {constitution.kill_switch.hard_kill_pct.toFixed(1)}%.
+    точные границы {fmtPct2(constitution.kill_switch.soft_derisk_pct, true)} и {fmtPct2(constitution.kill_switch.hard_kill_pct, true)}.
   </p>
 
   <KillSwitchLadder client:load />
 
   <Callout type="example" titleRu="Пример">
-    Книга на пике $100,000 просела до $94,000 → drawdown 6% → <strong>SOFT_DERISK</strong>: новые входы
-    заблокированы, увеличивать нельзя, но позиции держим. Просела до $89,500 → drawdown 10.5% ≥ 10% →
+    Книга на пике $100,000 просела до $94,000 → drawdown 6,00 % → <strong>SOFT_DERISK</strong>: новые входы
+    заблокированы, увеличивать нельзя, но позиции держим. Просела до $89,500 → drawdown 10,50 % ≥ 10,00 % →
     <strong>HARD_KILL</strong>: аллокация становится <code>{`{ cash: 1.0, ...protocols: 0.0 }`}</code>.
   </Callout>
 

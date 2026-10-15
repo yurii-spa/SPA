@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiGet, ApiError, getLang, onLangChange, explorerTxUrl } from './api.js';
 import AuthForm from './AuthForm.jsx';
+import { pctL, pctLang } from '../../../lib/pct_live.js';
 
 /*
  * CertificateView — the onboarding completion certificate.
@@ -38,6 +39,7 @@ const T = {
 
 export default function CertificateView() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   useEffect(() => { setLang(getLang()); return onLangChange(setLang); }, []);
   const tr = (k) => (T[k] ? T[k][lang] ?? T[k].ru : k);
 
@@ -155,7 +157,7 @@ export default function CertificateView() {
                 {quizzes.map((q, i) => (
                   <tr key={i}>
                     <td style={td}>M{q.lesson_id ?? q.module ?? i}</td>
-                    <td style={td}>{q.score != null ? `${Math.round(q.score)}%` : tr('none')}</td>
+                    <td style={td}>{q.score != null ? `${pctL(Math.round(q.score))}` : tr('none')}</td>
                   </tr>
                 ))}
               </tbody>

@@ -6,6 +6,8 @@
 // publish. Static (getStaticPaths) → server-rendered → indexable. Numbers are backtest-labelled, never
 // presented as realized; absent data is stated, never fabricated.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
+import { fmtPct2, pctText } from '../../lib/pct_format.js';
 import Disclaimer from '../../components/Disclaimer.astro';
 import data from '../../lib/protocol_verdicts.json';
 
@@ -29,11 +31,12 @@ const dotCls = refused ? 'w-1.5 h-1.5 rounded-full bg-rose-400' : 'w-1.5 h-1.5 r
 
 <Layout
   title={`${p.question_en} — SPA structural verdict`}
-  description={`${p.answer_en} ${m ? `Measured peg drawdown ${m.peg_drawdown_pct}% (backtest).` : ''}`}
+  description={`${p.answer_en} ${m ? `Measured peg drawdown ${fmtPct2(m.peg_drawdown_pct, false)} (backtest).` : ''}`}
   canonical={canonical}
   article={{ headline: p.question_en, datePublished: "2026-07-11", description: p.answer_en }}
 >
   <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+    <ApproxNote />
     <section class="pb-8">
       <div class={badgeCls}>
         <span class={dotCls} aria-hidden="true"></span>
@@ -41,7 +44,7 @@ const dotCls = refused ? 'w-1.5 h-1.5 rounded-full bg-rose-400' : 'w-1.5 h-1.5 r
       </div>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-3" data-ru={p.question_ru}>{p.question_en}</h1>
       <p class="text-sm text-slate-500 font-mono mb-6">{p.full}</p>
-      <p class="text-lg text-slate-300 leading-relaxed" data-ru={p.answer_ru}>{p.answer_en}</p>
+      <p class="text-lg text-slate-300 leading-relaxed" data-ru={pctText(p.answer_ru, true)}>{pctText(p.answer_en, false)}</p>
     </section>
 
     <section class="grid gap-4 sm:grid-cols-2 pb-8">
@@ -53,9 +56,9 @@ const dotCls = refused ? 'w-1.5 h-1.5 rounded-full bg-rose-400' : 'w-1.5 h-1.5 r
         <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru={refused ? 'Измеренный хвост' : 'Безопаснее — не безрисково'}>{refused ? 'Measured tail' : 'Safer is not risk-free'}</p>
         {refused ? (m ? (
           <ul class="text-sm text-slate-300 space-y-1 font-mono">
-            <li>Peg drawdown: <span class="text-rose-300">{m.peg_drawdown_pct}%</span> ({m.worst_date})</li>
+            <li>Peg drawdown: <span class="text-rose-300">{fmtPct2(m.peg_drawdown_pct, false)}</span> ({m.worst_date})</li>
             <li>Avoided loss: <span class="text-emerald-300">${m.avoided_loss_usd_per_100k.toLocaleString()}</span> / $100k</li>
-            <li>Advertised yield: <span class="text-amber-300">{m.advertised_implied_yield_pct}%</span> (tail-comp)</li>
+            <li>Advertised yield: <span class="text-amber-300">{fmtPct2(m.advertised_implied_yield_pct, false)}</span> (tail-comp)</li>
             <li class="text-[11px] text-slate-500 pt-1">{m.evidence}</li>
           </ul>
         ) : (

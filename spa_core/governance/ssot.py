@@ -250,7 +250,7 @@ def paper_apy_snapshot(
     owner authorisation. New consumers read the new names; the old names keep
     serving whatever they served before this function existed.
     """
-    from spa_core.reporting.compound_apy import compound_annualized_pct, evidenced_bars, max_drawdown_pct
+    from spa_core.reporting.compound_apy import evidenced_bars, max_drawdown_pct
 
     ddir = _data_dir(data_dir)
     now_dt = now or datetime.now(timezone.utc)
@@ -263,9 +263,12 @@ def paper_apy_snapshot(
     real_days = len(bars) if bars else golive.get("real_track_days")
     as_of = (bars[-1].get("date") if bars else None) or golive.get("as_of")
 
-    apy = None
-    if bars and isinstance(real_days, int) and real_days >= 2:
-        apy = compound_annualized_pct(bars[0].get("equity"), bars[-1].get("equity"), real_days)
+    # Owner/ARB 2026-10-08 (P1 Wave 2): this field's declared contract is «the same method as
+    # scripts/generate_track_snapshot.py» — that method is now the annualised EQUIVALENT of the period
+    # return on ACT/365 valuation dates (spa_core.reporting.compound_apy.track_period_view).
+    from spa_core.reporting.compound_apy import track_period_view
+    tpv = track_period_view(equity)
+    apy = tpv.get("apy_pct") if tpv.get("state") == "MEASURED" else None
 
     stale = None
     if isinstance(as_of, str) and as_of:
@@ -287,8 +290,10 @@ def paper_apy_snapshot(
         "paper_apy_canonical": {
             "value": value,
             "metric_type": "REALIZED_PAPER",
-            "window_days": real_days if isinstance(real_days, int) else None,
-            "annualisation": "compound",
+            "window_days": tpv.get("days_act"),
+            "evidenced_bars": real_days if isinstance(real_days, int) else None,
+            "annualisation": "compound, ACT/365 Fixed on valuation dates — annualised EQUIVALENT of the period return",
+            "period_return_pct": tpv.get("period_return_pct") if value is not None else None,
             "as_of": as_of,
             "source": (
                 "data/equity_curve_daily.json (evidenced bars) + data/golive_status.json — "

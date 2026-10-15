@@ -1,7 +1,7 @@
 ---
 // MetricStack — the performance hierarchy (PRODUCT-UX-01 §6), from lib/profile_view.js (on top of the
 // canonical card model, lib/package_card.js). Never equal weight:
-//   PRIMARY  mature profile: realized paper rate + drawdown + date + days; immature: «n of need days» only;
+//   PRIMARY  mature profile: period return on paper + drawdown + date + days; immature: «n of need days» only;
 //   SECONDARY research target — ONLY for a mature profile, and never without its tail (Conservative's tail
 //            is its realized drawdown, shown in the primary line; the card has no backtest tail for it);
 //   RESEARCH immature profile: target + the tail of an EARLIER version, collapsed and labelled at the number.
@@ -18,12 +18,13 @@ const mat = v.maturity;
       <div class="ux-metric-primary"><span class="ux-tag realized" data-ru="факт · бумага">realized · paper</span></div>
       <div class="ux-metric-primary">
         <span class="ux-metric-value" data-ru={m.rate_ru}>{m.rate_en}</span>
-        <span class="ux-metric-unit" data-ru="годовых">annualised</span>
+        <span class="ux-metric-unit" data-ru={m.unit_ru ?? 'годовых'}>{m.unit_en ?? 'annualised'}</span>
         {m.dd_en && <span class="ux-metric-dd" data-ru={`просадка ${m.dd_ru}`}>drawdown {m.dd_en}</span>}
       </div>
+      {m.ann_en && <div class="ux-small" data-ru={m.ann_ru}>{m.ann_en}</div>}
       <div class="ux-metric-meta"
-           data-ru={`Замер ${m.date ?? '—'} · ${m.days ?? '—'} подтверждённых дней · бумага, не реальные деньги · не гарантия`}>
-        Measured {m.date ?? '—'} · {m.days ?? '—'} evidenced days · paper, not live money · not a guarantee
+           data-ru={`Замер ${m.date ?? '—'} · ${m.days ?? '—'} подтверждённых дней${m.from_ru ? ` с ${m.from_ru}` : ''} · бумага, не реальные деньги · не гарантия`}>
+        Measured {m.date ?? '—'} · {m.days ?? '—'} evidenced days{m.from_en ? ` from ${m.from_en}` : ''} · paper, not live money · not a guarantee
       </div>
       {!compact && <div class="ux-small" data-ru={GLOSSARY.evidenced_days.ru}>{GLOSSARY.evidenced_days.en}</div>}
       {v.target_shown && v.target_en && (

@@ -3,20 +3,21 @@
 // (10 checks, 10 minutes)". Practical, actionable, leads straight into the snapshot. FAQ JSON-LD,
 // snapshot CTA mid+end, funnel links. No fabricated numbers, no promised returns. Bilingual.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import snap from '../../lib/snapshot_view.js';
-import { realizedApyLabel } from '../../lib/realized_rate.js';
-const rrEn = realizedApyLabel(snap);
-const rrRu = realizedApyLabel(snap, true);
+import { realizedApyQualified } from '../../lib/realized_rate.js';
+const rrEn = realizedApyQualified(snap);
+const rrRu = realizedApyQualified(snap, true);
 
 const checks = [
   { en: 'Do you actually hold the keys?', ru: 'Ключи реально у вас?', den: 'If it sits on an exchange, they control it, not you. Test a small withdrawal.', dru: 'Если на бирже — контролирует она, не вы. Проверьте вывод небольшой суммы.' },
   { en: 'Are you concentrated in one issuer?', ru: 'Не сконцентрированы ли в одном эмитенте?', den: 'One USDx being your whole balance is one break condition away from a bad day.', dru: 'Один USDx как весь баланс — это один сценарий поломки до плохого дня.' },
   { en: 'Do you know each stablecoin’s break condition?', ru: 'Знаете ли механизм поломки каждого стейбла?', den: 'Fiat-backed vs algo vs LST-collateralised fail in different ways. Know which you hold.', dru: 'Фиат / алго / LST-обеспеченные ломаются по-разному. Знайте, что держите.' },
-  { en: 'Are any of your stables idle at 0%?', ru: 'Есть ли простаивающие под 0%?', den: `Idle money is a silent cost. Even a safe ~${rrEn} is real over a year.`, dru: `Простаивающие деньги — тихий убыток. Даже безопасные ~${rrRu} реальны за год.` },
+  { en: 'Are any of your stables idle at 0.00%?', ru: 'Есть ли простаивающие под 0,00 %?', den: `Idle money is a silent cost. Even a safe ${rrEn} is real over a year.`, dru: `Простаивающие деньги — тихий убыток. Даже безопасные ${rrRu} реальны за год.` },
   { en: 'Have you checked your token approvals?', ru: 'Проверяли ли approvals (разрешения)?', den: 'Unlimited allowances are the most common drain vector. Revoke stale ones.', dru: 'Безлимитные разрешения — самый частый вектор слива. Отзовите старые.' },
   { en: 'Do you know your exit liquidity?', ru: 'Знаете ли ликвидность на выход?', den: 'A big position can move its own exit price. Book value ≠ exit value.', dru: 'Крупная позиция двигает свою же цену выхода. Балансовая ≠ выходная.' },
-  { en: 'Are you being paid for a hidden tail?', ru: 'Не платят ли вам за скрытый хвост?', den: 'Yield far above ~3.4% is compensation for a risk. What is it?', dru: 'Доход сильно выше ~3,4% — компенсация за риск. За какой?' },
+  { en: 'Are you being paid for a hidden tail?', ru: 'Не платят ли вам за скрытый хвост?', den: 'Yield far above ~3.40% is compensation for a risk. What is it?', dru: 'Доход сильно выше ~3,40 % — компенсация за риск. За какой?' },
   { en: 'Can you react to a depeg in time?', ru: 'Успеете ли среагировать на депег?', den: 'Depegs happen in hours (USDC 2023). Do you monitor, or find out from a headline?', dru: 'Депеги за часы (USDC 2023). Мониторите или узнаёте из заголовка?' },
   { en: 'Do you understand the bridge/wrap risk?', ru: 'Понимаете ли риск моста/wrap?', den: 'A wrapped or bridged stable adds a second smart-contract risk on top of the issuer.', dru: 'Wrapped/bridged-стейбл добавляет второй смарт-контрактный риск поверх эмитента.' },
   { en: 'Can you verify the numbers you’re shown?', ru: 'Можете ли проверить показанные числа?', den: 'If a yield or a track can’t be re-derived, treat it as a claim, not a fact.', dru: 'Если доход или трек нельзя пересчитать — это заявление, а не факт.' },
@@ -33,6 +34,7 @@ const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <ApproxNote />
     <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Чек-лист">The checklist</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Чек-лист риска для держателя стейблкоинов (10 проверок, 10 минут)">The stablecoin holder's risk checklist (10 checks, 10 minutes)</h1>
     <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="Десять честных вопросов к своим стейблам. Пройдите их за 10 минут — или доверьте нашему 60-секундному снимку (без кошелька, без email). Не инвестиционный совет.">

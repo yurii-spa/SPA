@@ -18,6 +18,7 @@
  */
 import { TABULAR, MONO, toneColor } from '../ui/tokens.js';
 import { pick, fmtPct, fmtSigned, NA } from './lib.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 const isNum = (v) => v != null && isFinite(Number(v));
 
@@ -33,6 +34,7 @@ function Cell({ label, value, tone = 'muted', sub, lang }) {
 
 export default function RiskStrip({ delta, drawdown, deployment, margin, lang = 'en' }) {
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
 
   // delta band
   let dTone = 'muted', dVal = NA, dSub = null;
@@ -41,7 +43,7 @@ export default function RiskStrip({ delta, drawdown, deployment, margin, lang = 
     const out = Math.abs(Number(delta.value)) > band;
     dTone = out ? 'warn' : 'ok';
     dVal = fmtSigned(delta.value, 2);
-    dSub = { en: `target ±${band}%`, ru: `цель ±${band}%` };
+    dSub = { en: `target ±${pctL(band)}`, ru: `цель ±${pctL(band)}` };
   }
 
   // drawdown
@@ -52,7 +54,7 @@ export default function RiskStrip({ delta, drawdown, deployment, margin, lang = 
     const v = Math.abs(Number(drawdown.value));
     ddTone = v >= hard ? 'danger' : v >= soft ? 'warn' : 'ok';
     ddVal = fmtPct(-v, 2);
-    ddSub = { en: `soft ${soft}% · hard ${hard}%`, ru: `soft ${soft}% · hard ${hard}%` };
+    ddSub = { en: `soft ${pctL(soft)} · hard ${pctL(hard)}`, ru: `soft ${pctL(soft)} · hard ${pctL(hard)}` };
   }
 
   // deployment / idle — idle is POSITIVE
@@ -63,7 +65,7 @@ export default function RiskStrip({ delta, drawdown, deployment, margin, lang = 
     depVal = fmtPct(dep, 1);
     depTone = 'teal';
     depSub = idle > 0
-      ? { en: `${idle.toFixed(1)}% parked ✓`, ru: `${idle.toFixed(1)}% припарк. ✓` }
+      ? { en: `${pctL(idle)} parked ✓`, ru: `${pctL(idle)} припарк. ✓` }
       : { en: 'fully deployed', ru: 'полностью размещён' };
   }
 

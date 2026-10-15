@@ -2,11 +2,12 @@
 // E1 (redesign spec 04) — SEO / answer-engine page #5: "Why '20% APY on stables' usually means tail
 // risk". OUR refusal thesis as content — the most on-brand piece. One honest expert answer, the
 // snapshot CTA embedded mid + end, FAQ schema, internal links to aggressive-lab + refusal log + packages.
-// No promised returns, no fabricated numbers; the canonical ~3.3% realized floor + up-to-20% target
+// No promised returns, no fabricated numbers; the canonical ~3.3% realized floor + up-to-20.00% target
 // (paper, tail shown). Bilingual.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR, drawdownPctText } from '../../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR, measuredNote as measuredNoteRR, drawdownPctText } from '../../lib/realized_rate.js';
 const ddPctEnL = drawdownPctText() ?? 'not measured';
 // ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
 const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
@@ -18,16 +19,16 @@ const realizedRu = realizedPhraseRR(null, true);
 
 const faq = [
   {
-    q: 'Is 20% APY on stablecoins safe?',
-    a: 'No yield near 20% on a stablecoin is "safe" in the risk-free sense. Tokenized T-bills pay ~3.4% at almost no risk; anything far above that is paying you for a specific risk — leverage, a depeg tail, points/emissions that end, or smart-contract risk. It can be a reasonable bet if you can see and size the risk, but it is never free.',
+    q: 'Is 20.00% APY on stablecoins safe?',
+    a: 'No yield near 20.00% on a stablecoin is "safe" in the risk-free sense. Tokenized T-bills pay ~3.40% at almost no risk; anything far above that is paying you for a specific risk — leverage, a depeg tail, points/emissions that end, or smart-contract risk. It can be a reasonable bet if you can see and size the risk, but it is never free.',
   },
   {
     q: 'What is the tail risk of high-yield stablecoin strategies?',
-    a: 'The "tail" is the rare-but-severe loss the headline rate is compensating you for: a depeg (a "stablecoin" trading at $0.80), a liquidation cascade on a levered loop, or an incentive program ending. One unhedged directional book in our own research lost ~50% through the 2024 ETH crash — the same book that showed a high headline.',
+    a: 'The "tail" is the rare-but-severe loss the headline rate is compensating you for: a depeg (a "stablecoin" trading at $0.80), a liquidation cascade on a levered loop, or an incentive program ending. In our own research, in a backtest on historical prices, one unhedged directional book (eth_directional) fell 42.07% in the mid-2024 ETH sell-off and 66.35% from August 2025 to June 2026 — the same book that showed a high headline.',
   },
   {
     q: 'What return does earn-defi target?',
-    a: `Our live conservative paper track runs at ${realizedEn} with ${ddPctEnL} drawdown — real, evidenced, checkable. Up-to-20% targets exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.`,
+    a: `Our simulated conservative paper track (virtual capital) runs at ${realizedEn} with ${ddPctEnL} drawdown — real, evidenced, checkable. Targets of up to 20.00% exist only in our research strategies, are labelled paper, are always shown with their drawdown, and are refused for live capital until validated. We never present paper as live and never promise a return.`,
   },
 ];
 const faqLd = {
@@ -37,23 +38,24 @@ const faqLd = {
 };
 ---
 <Layout
-  title="Why '20% APY on stablecoins' usually means tail risk | earn-defi.com"
-  description={`A 20% APY on a stablecoin is not free money — it is the price of a risk. Here is the honest breakdown of where high stablecoin yields come from, the tail they carry, and how a refusal-first desk thinks about them. ${realizedEn} on the live paper track; up-to-20% targets are paper, shown with their drawdown. Not investment advice.`}
+  title="Why '20.00% APY on stablecoins' usually means tail risk | earn-defi.com"
+  description={`A 20.00% APY on a stablecoin is not free money — it is the price of a risk. Here is the honest breakdown of where high stablecoin yields come from, the tail they carry, and how a refusal-first desk thinks about them. ${realizedEn} on the simulated paper track (virtual capital); up-to-20.00% targets are paper, shown with their drawdown. Not investment advice.`}
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <ApproxNote />
     <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Разбор">The breakdown</p>
-    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Почему «20% годовых на стейблкоинах» обычно означает хвостовой риск">Why "20% APY on stablecoins" usually means tail risk</h1>
-    <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="20% на стейблкоине — это не бесплатные деньги. Это цена конкретного риска. Разберём честно: откуда берётся высокая доходность на стейблах, какой хвост она несёт, и как об этом думает деск, который сначала ОТКАЗЫВАЕТ.">
-      A 20% yield on a stablecoin is not free money. It is the price of a specific risk. Let's break it
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Почему «20,00 % годовых на стейблкоинах» обычно означает хвостовой риск">Why "20.00% APY on stablecoins" usually means tail risk</h1>
+    <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="20,00 % на стейблкоине — это не бесплатные деньги. Это цена конкретного риска. Разберём честно: откуда берётся высокая доходность на стейблах, какой хвост она несёт, и как об этом думает деск, который сначала ОТКАЗЫВАЕТ.">
+      A 20.00% yield on a stablecoin is not free money. It is the price of a specific risk. Let's break it
       down honestly: where high stablecoin yields come from, the tail they carry, and how a desk that
       REFUSES first thinks about them.
     </p>
 
     <section class="mb-8">
       <h2 class="text-xl font-semibold text-white mb-3" data-ru="Откуда вообще берётся доходность на стейблах">Where stablecoin yield actually comes from</h2>
-      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Есть безрисковый «пол»: токенизированные US Treasuries дают ~3,4% почти без риска. Всё, что выше, приходит из четырёх источников, и у каждого — своя цена:">
-        There is a risk-free floor: tokenized US Treasuries pay ~3.4% at almost no risk. Everything above
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Есть безрисковый «пол»: токенизированные US Treasuries дают ~3,40 % почти без риска. Всё, что выше, приходит из четырёх источников, и у каждого — своя цена:">
+        There is a risk-free floor: tokenized US Treasuries pay ~3.40% at almost no risk. Everything above
         that comes from four sources, and each has a price:
       </p>
       <ul class="space-y-2 text-sm text-slate-300 leading-relaxed mb-3">
@@ -74,15 +76,15 @@ const faqLd = {
     </div>
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Что «хвост» делает с 20% на самом деле">What the tail actually does to a 20%</h2>
-      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Хедлайн-цифра — это доход в ХОРОШИЕ месяцы. Реализованная доходность — после того, как хвост случается. В нашем собственном исследовании одна нехеджированная directional-книга показывала высокий хедлайн — и потеряла ~50% на обвале ETH 2024. Плечевые PT-петли несут ликвидационный каскад. «20% годовых», пережившее одно такое событие, — это часто убыток за год.">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Что «хвост» делает с 20,00 % на самом деле">What the tail actually does to a 20.00%</h2>
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Хедлайн-цифра — это доход в ХОРОШИЕ месяцы. Реализованная доходность — после того, как хвост случается. В нашем собственном исследовании в бэктесте на исторических ценах одна нехеджированная направленная книга (eth_directional) упала на 42,07 % в распродаже ETH середины 2024 года и на 66,35 % с августа 2025 по июнь 2026 — при высоком хедлайне. Плечевые PT-петли несут ликвидационный каскад. «20,00 % годовых», пережившее одно такое событие, — это часто убыток за год.">
         The headline is your yield in the GOOD months. Realized return is what's left after the tail lands.
-        In our own research, one unhedged directional book showed a high headline — and lost ~50% through
-        the 2024 ETH crash. Levered PT loops carry liquidation-cascade risk. A "20% APY" that lives through
+        In our own research, in a backtest on historical prices, one unhedged directional book (eth_directional) fell 42.07% in the mid-2024 ETH sell-off and 66.35% from August 2025 to June 2026 —
+        despite a high headline. Levered PT loops carry liquidation-cascade risk. A "20.00% APY" that lives through
         one such event is often a loss for the year.
       </p>
       <div class="flex flex-wrap gap-3 mt-3">
-        <a href="/annual-contrast" data-track="learn_to_annual" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15% против ~${rrRu}${rrNoteRu} →`}>The tail in numbers: 15% vs ~{rrEn}{rrNoteEn} →</a>
+        <a href="/annual-contrast" data-track="learn_to_annual" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15,00 % против ${rrRu}${rrNoteRu} →`}>The tail in numbers: 15.00% vs {rrEn}{rrNoteEn} →</a>
       </div>
     </section>
 

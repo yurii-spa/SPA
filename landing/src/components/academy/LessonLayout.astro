@@ -47,6 +47,7 @@ const summary = mod ? mod.summary_ru : '';
 const order = mod ? mod.order : '';
 const totalInTrack = mod ? modules.filter((m) => m.track === mod.track).length : 0;
 const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order <= mod.order).length : 0;
+import ApproxNote from '../ApproxNote.astro';
 ---
 <Layout title={`${title} · SPA Академия`} description={description ?? summary}>
   <main class="ac-lesson" style={`--track-accent:${trackColor};`}>
@@ -67,6 +68,7 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
       <div class="ac-lesson-status">
         <ModuleProgress moduleId={id} client:load />
       </div>
+      <ApproxNote lesson />
     </header>
 
     <article class="ac-lesson-body">

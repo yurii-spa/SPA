@@ -13,6 +13,7 @@
 // Advisory / read-only / paper-project — static content, no API dependency, so it
 // never goes stale and never fabricates a number.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 
 // The verdict vocabulary the engine ACTUALLY emits today (risk_overlay.overlay()).
@@ -21,7 +22,7 @@ import Disclaimer from '../../components/Disclaimer.astro';
 // Colors track the ONE canonical risk map (V2 §3.3): A=teal, B=accent, C=warn, D=danger,
 // UNKNOWN=text-muted — identical to the screener, dashboard, and academy.
 const classes = [
-  { c: 'A', fg: 'var(--data-teal)', en: 'alpha', enDesc: 'Desk would enter; structurally clean, harvestable edge over the ~3.4% RWA floor.', ruDesc: 'Стол вошёл бы; структурно чисто, edge выше ~3.4% RWA-флора.', cond: 'approved · net_edge > rwa_floor' },
+  { c: 'A', fg: 'var(--data-teal)', en: 'alpha', enDesc: 'Desk would enter; structurally clean, harvestable edge over the ~3.40% RWA floor.', ruDesc: 'Стол вошёл бы; структурно чисто, edge выше ~3,40 % RWA-флора.', cond: 'approved · net_edge > rwa_floor' },
   { c: 'B', fg: 'var(--accent)', en: 'beta-floor', enDesc: 'Desk would enter; ~baseline yield ("own-the-floor", no real edge).', ruDesc: 'Стол вошёл бы; ~базовая доходность (без реального edge).', cond: 'approved · net_edge ≤ rwa_floor' },
   { c: 'C', fg: 'var(--warn)', en: 'risk-comp', enDesc: 'Desk refuses — the yield is mostly risk compensation, or unexitable at size.', ruDesc: 'Стол отказывается — доходность это в основном компенсация риска / не выйти на размере.', cond: 'REFUSED · economics / size' },
   { c: 'D', fg: 'var(--danger)', en: 'incentive', enDesc: 'Desk REFUSES on structural toxicity — at ANY size (the tail-veto; cannot be sized around).', ruDesc: 'Стол ОТКАЗЫВАЕТ на структурной токсичности — на ЛЮБОМ размере (tail-veto, не обойти размером).', cond: 'REFUSED · structural tail-veto' },
@@ -35,6 +36,7 @@ const classes = [
   canonical="https://earn-defi.com/board/methodology"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- breadcrumb -->
     <section class="pt-14 pb-2">
@@ -88,8 +90,8 @@ const classes = [
               Breadth grows <strong style="color:var(--text-primary)">behind the identical overlay</strong> —
               breadth never relaxes the grade.</span></li>
           <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
-            <span data-ru="DFB на 100% read-only, advisory, paper-проект: не двигает капитал и не трогает go-live трек.">
-              DFB is 100% read-only, advisory, a paper-project: it moves
+            <span data-ru="DFB на 100,00 % read-only, advisory, paper-проект: не двигает капитал и не трогает go-live трек.">
+              DFB is 100.00% read-only, advisory, a paper-project: it moves
               <strong style="color:var(--text-primary)">no capital</strong> and never touches the go-live track.</span></li>
         </ul>
       </div>
@@ -151,10 +153,10 @@ structural_haircut = peg + funding_flip + oracle + protocol      (EXCLUDES the s
             <strong style="color:var(--text-primary)">any</strong> size — sizing down only shrinks the
             liquidity haircut, never the toxicity verdict.</span></li>
         <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
-          <span data-ru="TAIL_VETO (экономика, зависит от размера): total_haircut > 0.12. Затем UNDERLYING_DEPEG (peg > 1%), ORACLE_STALE (> 1ч), STABLE_DEPEG (> 0.5%), FUNDING_FLIP (стрик ≥ 5), ECONOMICS, SIZE.">
+          <span data-ru="TAIL_VETO (экономика, зависит от размера): total_haircut > 0.12. Затем UNDERLYING_DEPEG (peg > 1,00 %), ORACLE_STALE (> 1ч), STABLE_DEPEG (> 0,50 %), FUNDING_FLIP (стрик ≥ 5), ECONOMICS, SIZE.">
             <strong style="color:var(--text-primary)">TAIL_VETO (economics, size-aware):</strong>
-            <span class="font-mono">total_haircut &gt; 0.12</span>. Then UNDERLYING_DEPEG (peg &gt; 1%),
-            ORACLE_STALE (&gt; 1h), STABLE_DEPEG (&gt; 0.5%), FUNDING_FLIP (streak ≥ 5), ECONOMICS, SIZE.</span></li>
+            <span class="font-mono">total_haircut &gt; 0.12</span>. Then UNDERLYING_DEPEG (peg &gt; 1.00%),
+            ORACLE_STALE (&gt; 1h), STABLE_DEPEG (&gt; 0.50%), FUNDING_FLIP (streak ≥ 5), ECONOMICS, SIZE.</span></li>
       </ul>
     </section>
 

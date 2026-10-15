@@ -63,7 +63,7 @@ const questions = [
     ],
     correct: 1,
     explanation:
-      'FixedCarry (тип A, PT-to-maturity) — единственная валидированная/live-paper trade-shape Rates Desk: реальный, предсказуемый carry, плюс refusal-first гейт, который отказывается от mispriced/токсичного yield. Доход реален → fundable; риск контролируется отказом, а не оптимизмом.',
+      'FixedCarry (тип A, PT-to-maturity) — единственная валидированная trade-shape модельного (бумажного) теста Rates Desk: реальный, предсказуемый carry, плюс refusal-first гейт, который отказывается от mispriced/токсичного yield. Доход реален → fundable; риск контролируется отказом, а не оптимизмом.',
   },
 ];
 ---
@@ -96,7 +96,7 @@ const questions = [
    Доходный токен  =  PT  +  YT     (до даты maturity)
 
    PT  ── купил с дисконтом $0.95 ─▶ к maturity гасится в $1.00
-         фиксированная ставка ≈ 5% (если додержать)  → БЕЗОПАСНАЯ нога
+         фиксированная ставка ≈ 5,00 % (если додержать)  → БЕЗОПАСНАЯ нога
 
    YT  ── платишь вперёд за ВЕСЬ будущий доход ──▶
          если доход высокий — выигрыш; если упал — к нулю
@@ -138,7 +138,7 @@ const questions = [
     структурных хейркатов и получает «справедливую» implied-доходность. Затем refusal-first гейт
     <strong>отказывается</strong> от PT-книг, где избыток над справедливой ставкой — лишь плата
     за хвостовой риск (токсичные LRT-PT отвергаются structural-причинами). Единственная
-    валидированная и работающая в live-paper trade-shape — <strong>FixedCarry</strong> (тип A,
+    валидированная и работающая в модельном (бумажном) тесте trade-shape — <strong>FixedCarry</strong> (тип A,
     PT-to-maturity): реальный, предсказуемый carry → fundable. YT-плечо и levered carry остаются
     research-only.
   </Callout>

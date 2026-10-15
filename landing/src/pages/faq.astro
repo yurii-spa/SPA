@@ -3,14 +3,14 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import snap from '../lib/snapshot_view.js';
 import { goLiveLabel } from '../lib/golive_label.js';
-import { realizedApyLabel } from '../lib/realized_rate.js';
+import { realizedApyQualified } from '../lib/realized_rate.js';
 // Launch answer — measured values from the committed snapshot + the ONE honest go-live wording
 // (src/lib/golive_label.js). The old answer said "still accumulating the 30 days … go live around
 // 2026-07-21" while the snapshot read 77/30 evidenced days.
 const goLive = goLiveLabel(snap);
 // ADR-292: реализованная ставка НЕ печатается в ответе — одна точка правды.
-const rrEn = realizedApyLabel(snap);
-const rrRu = realizedApyLabel(snap, true);
+const rrEn = realizedApyQualified(snap);
+const rrRu = realizedApyQualified(snap, true);
 const trackDays = snap.real_track_days != null ? snap.real_track_days : '—';
 const trackNeeded = snap.days_needed != null ? snap.days_needed : 30;
 const trackAnchor = snap.evidenced_anchor ?? '—';
@@ -40,8 +40,8 @@ const faqs = [
     id: 'faq-returns',
     q: 'What is the expected return?',
     qRu: 'Каков ожидаемый доход?',
-    a: `Earn DeFi is NOT a high-yield product. The Conservative strategy has a research target of up to 6% a year — a goal, not a result; its measured result is ~${rrEn} a year, realized on paper to date. We deliberately REFUSE the 10–15% opportunities others chase: on our own analysis those returns are compensation for tail risk (depeg, unwind, liquidation), not free yield. The edge is honest risk measurement, not chasing the highest number. APY is variable and not guaranteed; past paper performance does not guarantee future returns. During market stress or yield compression the deterministic risk gate halts new entries and position increases, and, at deeper drawdown, moves to cash.`,
-    aRu: `Earn DeFi — НЕ высокодоходный продукт. У Консервативной стратегии исследовательская цель — до 6% годовых, это ориентир, а не результат; измеренный результат — ~${rrRu} годовых, фактически на бумаге на сегодня. Мы осознанно ОТКАЗЫВАЕМСЯ от возможностей на 10–15%, за которыми гонятся другие: по нашему анализу такая доходность — это компенсация за хвостовой риск (депег, unwind, ликвидация), а не «бесплатный» доход. Эдж — в честном измерении риска, а не в погоне за максимальной цифрой. APY переменный и не гарантирован; прошлые бумажные результаты не гарантируют будущих. В периоды рыночного стресса или сжатия доходностей детерминированный риск-гейт запрещает новые входы и наращивание позиций, а при более глубокой просадке уходит в кэш.`,
+    a: `Earn DeFi is NOT a high-yield product. The Conservative strategy has a research target of up to 6.00% a year — a goal, not a result; its paper result to date, expressed as an annual rate, is ${rrEn}. We deliberately REFUSE the 10.00–15.00% opportunities others chase: on our own analysis those returns are compensation for tail risk (depeg, unwind, liquidation), not free yield. The edge is honest risk measurement, not chasing the highest number. APY is variable and not guaranteed; past paper performance does not guarantee future returns. During market stress or yield compression the deterministic risk gate halts new entries and position increases, and, at deeper drawdown, moves to cash.`,
+    aRu: `Earn DeFi — НЕ высокодоходный продукт. У Консервативной стратегии исследовательская цель — до 6,00 % годовых, это ориентир, а не результат; результат на бумаге на сегодня в пересчёте на год — ${rrRu}. Мы осознанно ОТКАЗЫВАЕМСЯ от возможностей на 10,00–15,00 %, за которыми гонятся другие: по нашему анализу такая доходность — это компенсация за хвостовой риск (депег, unwind, ликвидация), а не «бесплатный» доход. Эдж — в честном измерении риска, а не в погоне за максимальной цифрой. APY переменный и не гарантирован; прошлые бумажные результаты не гарантируют будущих. В периоды рыночного стресса или сжатия доходностей детерминированный риск-гейт запрещает новые входы и наращивание позиций, а при более глубокой просадке уходит в кэш.`,
     label: 'Returns',
     labelRu: 'Доход',
     labelColor: 'text-accent-400',
@@ -78,10 +78,10 @@ const faqs = [
   },
   {
     id: 'faq-cash',
-    q: 'Why do you hold 86.97% cash in the backtest?',
-    qRu: 'Почему у вас 86.97% кэша в бэктесте?',
-    a: 'In 2022–2023 most DeFi protocols did not yet exist or had no verified on-chain history. Our strict Point-in-Time methodology reflects this honestly: we do not use retrospective data, we do not extrapolate, and we make no assumptions. Capital that cannot be allocated to a CLEAN_INCLUDED protocol is held as USDC. This is more honest than showing unrealistic returns by retroactively including protocols that did not yet exist.',
-    aRu: 'В 2022–2023 большинство DeFi-протоколов ещё не существовали или не имели верифицированной on-chain истории. Наша строгая Point-in-Time методология честно отражает это: мы не используем ретроспективные данные, не экстраполируем и не делаем допущений. Капитал, который нельзя разместить в CLEAN_INCLUDED-протокол, хранится как USDC. Это честнее, чем показывать нереалистичную доходность, задним числом включая протоколы, которых ещё не было.',
+    q: 'Why did the strict backtest hold 86.97% cash?',
+    qRu: 'Почему в строгом бэктесте 86,97 % кэша?',
+    a: 'This is a historical backtest figure (strict point-in-time run over 2022–2026, run 2026-06-19, ADR-030), not the simulated paper track. In 2022–2023 most DeFi protocols did not yet exist or had no verified on-chain history. Our strict Point-in-Time methodology reflects this honestly: we do not use retrospective data, we do not extrapolate, and we make no assumptions. Capital that cannot be allocated to a CLEAN_INCLUDED protocol is held as USDC. This is more honest than showing unrealistic returns by retroactively including protocols that did not yet exist.',
+    aRu: 'Это цифра исторического бэктеста (строгий point-in-time прогон за 2022–2026, прогон 19.06.2026, ADR-030), а не модельного (бумажного) трека. В 2022–2023 большинство DeFi-протоколов ещё не существовали или не имели верифицированной on-chain истории. Наша строгая Point-in-Time методология честно отражает это: мы не используем ретроспективные данные, не экстраполируем и не делаем допущений. Капитал, который нельзя разместить в CLEAN_INCLUDED-протокол, хранится как USDC. Это честнее, чем показывать нереалистичную доходность, задним числом включая протоколы, которых ещё не было.',
     label: 'Methodology',
     labelRu: 'Методология',
     labelColor: 'text-accent-400',
@@ -90,8 +90,8 @@ const faqs = [
     id: 'faq-security',
     q: 'How is the book protected?',
     qRu: 'Как защищена книга?',
-    a: 'A Gnosis Safe (multisig) is used — no transaction goes through without confirmation from multiple signers. A built-in two-tier kill switch responds to peak-to-current drawdown: at ≥5% (SOFT) the desk halts new entries and any position increase (holds and reductions still allowed), without liquidating; at ≥10% (HARD) it moves the whole book to cash. Daily monitoring of all positions is logged to an immutable JSON journal. Access to the execution domain is isolated from read-only analytics.',
-    aRu: 'Используется Gnosis Safe (multisig) — ни одна транзакция не проходит без подтверждения нескольких подписантов. Встроен двухуровневый kill switch, реагирующий на просадку от пика к текущему: при ≥5% (SOFT) деск останавливает новые входы и любое увеличение позиций (удержание и сокращение разрешены), не ликвидируя; при ≥10% (HARD) вся книга переводится в кэш. Ежедневный мониторинг всех позиций логируется в неизменяемый JSON-журнал. Доступ к execution-домену изолирован от read-only аналитики.',
+    a: 'Today it is a paper book: no real capital, no custody and no on-chain transactions. For the live phase a Gnosis Safe multisig is planned; the signers and threshold will be set before go-live (see Trust, Q7). A built-in two-tier kill switch responds to peak-to-current drawdown: at ≥5.00% (SOFT) the desk halts new entries and any position increase (holds and reductions still allowed), without liquidating; at ≥10.00% (HARD) it moves the whole book to cash. Daily monitoring of all positions is logged to an immutable JSON journal. Access to the execution domain is isolated from read-only analytics.',
+    aRu: 'Сейчас это бумажная книга: реального капитала, хранения средств и транзакций в сети нет. Для live-этапа запланирован мультисиг Gnosis Safe; состав подписантов и порог будут определены до go-live (см. «Доверие», вопрос 7). Встроен двухуровневый kill switch, реагирующий на просадку от пика к текущему: при ≥5,00 % (SOFT) деск останавливает новые входы и любое увеличение позиций (удержание и сокращение разрешены), не ликвидируя; при ≥10,00 % (HARD) вся книга переводится в кэш. Ежедневный мониторинг всех позиций логируется в неизменяемый JSON-журнал. Доступ к execution-домену изолирован от read-only аналитики.',
     label: 'Security',
     labelRu: 'Безопасность',
     labelColor: 'text-ok',

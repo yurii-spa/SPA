@@ -36,6 +36,7 @@ import {
 } from './index.js';
 import { useLang, usePrefersReducedMotion } from './hooks.js';
 import { MONO, TABULAR, toneStyle, toneColor } from '../ui/tokens.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 const API_BASE = () =>
   (typeof location !== 'undefined' &&
@@ -163,6 +164,7 @@ function reconstructSeries(s) {
 export default function TournamentCockpit() {
   const lang = useLang();
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const reduced = usePrefersReducedMotion();
 
   const [payload, setPayload] = useState(null);   // /api/tournament
@@ -485,8 +487,8 @@ function HeadToHead({ a, b, lang, reduced }) {
 
       {/* metric compare (honest — from served fields only) */}
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-        <CompareStat label={{ en: 'Net APY', ru: 'Net APY' }} a={a} b={b} fmt={(s) => { const v = apyOf(s); return v == null ? NA : v.toFixed(2) + '%'; }} lang={lang} />
-        <CompareStat label={{ en: 'Max drawdown', ru: 'Макс. просадка' }} a={a} b={b} fmt={(s) => { const v = ddOf(s); return v == null ? NA : '−' + v.toFixed(2) + '%'; }} lang={lang} />
+        <CompareStat label={{ en: 'Net APY', ru: 'Net APY' }} a={a} b={b} fmt={(s) => { const v = apyOf(s); return v == null ? NA : pctL(v); }} lang={lang} />
+        <CompareStat label={{ en: 'Max drawdown', ru: 'Макс. просадка' }} a={a} b={b} fmt={(s) => { const v = ddOf(s); return v == null ? NA : '−' + pctL(v); }} lang={lang} />
         <CompareStat label={{ en: 'Days in paper', ru: 'Дней в paper' }} a={a} b={b} fmt={(s) => (isNum(s.days_active) ? String(Math.round(s.days_active)) : NA)} lang={lang} />
         <CompareStat label={{ en: 'Sharpe (flagged?)', ru: 'Sharpe (флаг?)' }} a={a} b={b} fmt={(s) => { const v = sharpeOf(s); if (v == null) return NA; return (Math.abs(v) > DEGENERATE_SHARPE_CEILING ? '⚠ ' : '') + v.toFixed(1); }} lang={lang} />
       </div>
@@ -558,7 +560,7 @@ function PromotionFeed({ strategies, trustworthy, degenerate, promotions, lang, 
   } else if (!trustworthy || degenerate) {
     events.push({ tone: 'danger', icon: '⛔', en: `0 promotions — the gate REFUSED every candidate on degenerate data (locked-vol → Sharpe explodes). This is the CORRECT honest outcome.`, ru: `0 промоушенов — гейт ОТКАЗАЛ каждому кандидату на вырожденных данных (locked-vol → Sharpe взрывается). Это ПРАВИЛЬНЫЙ честный результат.` });
   } else {
-    events.push({ tone: 'warn', icon: '◷', en: `0 promotions — data credible, but no strategy meets Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3% and DD ≥ −15% simultaneously yet.`, ru: `0 промоушенов — данные достоверны, но ни одна стратегия пока не выполняет одновременно Sharpe ≥ 1.5, ≥ 7 дней paper, APY ≥ 3% и DD ≥ −15%.` });
+    events.push({ tone: 'warn', icon: '◷', en: `0 promotions — data credible, but no strategy meets Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3.00% and DD ≥ −15.00% simultaneously yet.`, ru: `0 промоушенов — данные достоверны, но ни одна стратегия пока не выполняет одновременно Sharpe ≥ 1.5, ≥ 7 дней paper, APY ≥ 3,00 % и DD ≥ −15,00 %.` });
   }
   // Per-strategy shadow status (honest: no fabricated demotions/kills — none happened).
   strategies.forEach((s) => {
@@ -589,7 +591,7 @@ function allocSummary(s) {
   const a = s.allocation;
   if (!a || typeof a !== 'object') return '—';
   const parts = Object.entries(a).filter(([, v]) => isNum(v)).sort((x, y) => y[1] - x[1]).slice(0, 2);
-  return parts.map(([k, v]) => `${k} ${Math.round(v * 100)}%`).join(', ') || '—';
+  return parts.map(([k, v]) => `${k} ${pctL(Math.round(v * 100))}`).join(', ') || '—';
 }
 
 /* Capital-flow — hand-rolled SVG flow (challengers → champion book). Honest: shadow. */
@@ -606,7 +608,7 @@ function CapitalFlow({ strategies, trustworthy, degenerate, lang }) {
   const champTone = trustworthy ? toneStyle('ok') : toneStyle('warn');
   const champLabel = trustworthy
     ? (ru ? 'Чемпион (live)' : 'Champion (live)')
-    : (ru ? 'Книга десkа (RWA ~4.5%)' : 'Desk book (RWA ~4.5%)');
+    : (ru ? 'Книга десkа (RWA ~4,50 %)' : 'Desk book (RWA ~4.50%)');
   const flowColor = degenerate ? 'var(--text-muted)' : 'var(--accent-hover)';
   let acc = 0;
   const champY0 = 30, champH = H - 60;
@@ -653,8 +655,8 @@ function RulesPanel({ lang, metric }) {
     : (metric || (ru ? 'net-of-cost APY' : 'net-of-cost APY'));
   const rules = [
     { k: ru ? 'Метрика-победитель' : 'Winning metric', v: ru ? `Ранжирование по ${metricTxt}. Sharpe — вторичный и ОТБРАСЫВАЕТСЯ, если вырожден (locked-vol) — иначе mock-число стало бы трофеем.` : `Ranked by ${metricTxt}. Sharpe is secondary and DISCARDED when degenerate (locked-vol) — else a mock number would become a trophy.` },
-    { k: ru ? 'Критерии промоушена' : 'Promotion criteria', v: ru ? 'ВСЕ четыре: Sharpe ≥ 1.5 · ≥ 7 дней paper · APY ≥ 3% · просадка ≥ −15% — И на ДОСТОВЕРНЫХ данных.' : 'ALL four: Sharpe ≥ 1.5 · ≥ 7 paper days · APY ≥ 3% · drawdown ≥ −15% — AND on CREDIBLE data.' },
-    { k: ru ? 'Критерий убийства (kill)' : 'Kill criteria', v: ru ? 'Стратегия убивается gate-ом при пробое просадки; на уровне десkа — two-tier kill: SOFT −5% de-risk / HARD −10% all-cash.' : 'A strategy is killed by the gate on a drawdown breach; at the desk level — two-tier kill: SOFT −5% de-risk / HARD −10% all-cash.' },
+    { k: ru ? 'Критерии промоушена' : 'Promotion criteria', v: ru ? 'ВСЕ четыре: Sharpe ≥ 1.5 · ≥ 7 дней paper · APY ≥ 3,00 % · просадка ≥ −15,00 % — И на ДОСТОВЕРНЫХ данных.' : 'ALL four: Sharpe ≥ 1.5 · ≥ 7 paper days · APY ≥ 3.00% · drawdown ≥ −15.00% — AND on CREDIBLE data.' },
+    { k: ru ? 'Критерий убийства (kill)' : 'Kill criteria', v: ru ? 'Стратегия убивается gate-ом при пробое просадки; на уровне десkа — two-tier kill: SOFT −5,00 % de-risk / HARD −10,00 % all-cash.' : 'A strategy is killed by the gate on a drawdown breach; at the desk level — two-tier kill: SOFT −5.00% de-risk / HARD −10.00% all-cash.' },
     { k: ru ? 'Частота ре-баланса' : 'Rebalance cadence', v: ru ? 'Ежедневный цикл (06:00 UTC): live APY/TVL → детерминированный RiskPolicy → ре-ранжирование. Турнир — 07:00 UTC.' : 'Daily cycle (06:00 UTC): live APY/TVL → deterministic RiskPolicy → re-rank. The tournament runs 07:00 UTC.' },
     { k: ru ? 'Fail-closed гейт' : 'Fail-closed gate', v: ru ? 'На недостоверных данных гейт ОТКАЗЫВАЕТ во всех промоушенах. «0 промоушенов» — правильный честный результат, а не сбой.' : 'On untrustworthy data the gate REFUSES all promotions. "0 promotions" is the correct honest outcome, not a failure.' },
   ];

@@ -13,6 +13,7 @@
  * Free navigation — proceed in any order; the path is motivational, not a lock.
  */
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import JourneyMap from '../../components/academy/JourneyMap.jsx';
 import Badges from '../../components/academy/Badges.jsx';
 import IntuitionPrompt from '../../components/academy/IntuitionPrompt.astro';
@@ -29,6 +30,7 @@ const trackIds = {
 ---
 <Layout title="SPA Академия — обучение аналитика от нуля" description="Интерактивный курс-путешествие: DeFi с нуля + всё, что изобрели в SPA. XP, ранги, награды, сертификат. RU-first, живые данные и тренажёры.">
   <main class="ac-index">
+    <ApproxNote />
     <header class="ac-hero">
       <div class="ac-eyebrow">SPA АКАДЕМИЯ</div>
       <h1 class="ac-h1">От нуля до структурного андеррайтинга</h1>
@@ -70,8 +72,8 @@ const trackIds = {
         question_ru="Угадай honest risk-free floor токенизированных T-bills (RWA), % годовых — планку, которую обязан побить любой sleeve:"
         question_en="Guess the honest risk-free floor of tokenized T-bills (RWA), % APR — the bar every sleeve must beat:"
         mode="numeric" answer={3.4} unit="%" min={0} max={10} step={0.1}
-        explain_ru="≈3.4% — живой TVL-взвешенный floor по токенизированным T-bills (BUIDL/USYC/USDY). Доходность ниже floor при большем риске не имеет смысла."
-        explain_en="≈3.4% — the live TVL-weighted floor across tokenized T-bills. Yield below the floor at higher risk makes no sense."
+        explain_ru="≈3,40 % — живой TVL-взвешенный floor по токенизированным T-bills (BUIDL/USYC/USDY). Доходность ниже floor при большем риске не имеет смысла."
+        explain_en="≈3,40 % — the live TVL-weighted floor across tokenized T-bills. Yield below the floor at higher risk makes no sense."
       />
       <IntuitionPrompt
         question_ru="Был ли депег у алго-стейбла UST (Terra) в мае 2022?"

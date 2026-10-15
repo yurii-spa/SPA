@@ -67,7 +67,7 @@ export default function StaleGuard({
       <div aria-busy="true" style={{ display: 'grid', gap: 8 }}>
         {[0, 1, 2].map((i) => (
           <div key={i} className="ck-skel" style={{
-            height: i === 0 ? 20 : 12, width: i === 0 ? '55%' : i === 1 ? '85%' : '40%',
+            height: i === 0 ? 20 : 12, width: i === 0 ? '55.00%' : i === 1 ? '85.00%' : '40.00%',
             borderRadius: 'var(--r-sm)', background: 'var(--bg-surface-2)',
           }} />
         ))}

@@ -5,6 +5,7 @@
 // JSON-LD, snapshot CTA mid+end, internal links to monitoring/refusals/snapshot/packages. No fabricated
 // numbers, no promised returns. Bilingual.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 
 const faq = [
@@ -33,6 +34,7 @@ const faqLd = {
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <ApproxNote />
     <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Разбор">The breakdown</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Что такое депег стейблкоина — и как быстро он происходит">What is a stablecoin depeg — and how fast does it happen?</h1>
     <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="Депег — это когда «стейблкоин» торгуется в стороне от своего $1: например, по $0,95 или $0,88. И происходит это за часы, а не недели. Разберём, что это такое, почему случается и как за этим следит риск-деск в реальном времени.">

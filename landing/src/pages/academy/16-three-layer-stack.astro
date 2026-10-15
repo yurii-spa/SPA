@@ -75,14 +75,14 @@ const quiz = [
     Базовый слой — глубокий, ёмкий beta: tokenized T-bills (RWA) + крупное lending. В combined-capacity
     модели (<code>docs/STRUCTURAL_DESK.md</code>) RWA-семья имеет <strong>~$592M deployable</strong> —
     но при этом приносит <strong>~$0 над floor</strong> (она <em>и есть</em> floor). Это не баг: задача
-    L1 — <strong>безопасно держать огромный капитал у floor</strong> (~3.4%/yr), а не генерировать
+    L1 — <strong>безопасно держать огромный капитал у floor</strong> (~3,40 %/yr), а не генерировать
     alpha. Ёмкость почти безгранична; spread над floor — нулевой.
   </p>
 
   <h2>L2 — Carry-alpha: тонкая, но реальная, с потолком</h2>
   <p>
     Над шасси — тонкий слой carry-alpha (Rates Desk). В модели он даёт единственный
-    <strong>above-floor edge</strong>: ~$64,779/yr при APY ~22.9% на ~$330k deployable. Но он
+    <strong>above-floor edge</strong>: ~$64,779/yr при APY ~22,90 % на ~$330k deployable. Но он
     venue-capped (модуль 15). Ключевая идея масштабирования L2:
   </p>
   <Callout type="key" titleRu="Ключевое">
@@ -103,7 +103,7 @@ const quiz = [
   <Callout type="trap" titleRu="Ловушка">
     Не путай L1-ёмкость с L1-доходностью. L1 может держать сотни миллионов — но <strong>у floor</strong>.
     Combined-capacity модель честно показывает: даже весь book (~$592M deployable) даёт лишь
-    <strong>$33,956/yr над floor</strong> — 0.34% от цели $10M, gap ~$9.97M. Binding constraint:
+    <strong>$33,956/yr над floor</strong> — 0,34 % от цели $10M, gap ~$9.97M. Binding constraint:
     <code>RWA_YIELD_TOO_LOW</code>. Глубина — не проблема; проблема в том, что глубокий слой у floor.
   </Callout>
 
@@ -116,7 +116,7 @@ const quiz = [
   </p>
 
   <Callout type="example" titleRu="Пример">
-    $5M под управлением: L1 держит ~$4.5M в RWA/lending у floor (~3.4%); L2 раскладывает ~$0.5M по
+    $5M под управлением: L1 держит ~$4.5M в RWA/lending у floor (~3,40 %); L2 раскладывает ~$0.5M по
     нескольким gated carry-книгам на разных venue (decorrelated) → скромный spread; L3 продаёт
     доказуемое измерение/отказ (без потолка). Итог — floor + ~50–150bps, честно и устойчиво.
   </Callout>

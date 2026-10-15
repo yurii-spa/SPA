@@ -1,14 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import AnnualContrast from '../components/AnnualContrast.jsx';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
 const realizedNumRu = realizedLabelRR(snapRR, true);
+import { measuredDrawdownWindow } from '../lib/realized_rate.js';
+const ddWinEn = measuredDrawdownWindow(false), ddWinRu = measuredDrawdownWindow(true);
 
 /*
  * Annual Contrast — the owner's SHAREABLE sales one-pager.
@@ -36,11 +39,12 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
 ---
 
 <Layout
-  title={`The cost of chasing 15% — vs the desk's steady ${realizedNumEn} | earn-defi.com`}
-  description={`A full year, dated: the 10-15% aggressive strategies the desk REFUSES, shown with their real drawdowns labelled by event (the 2025-10 USDe unwind, the 2026-04 rsETH depeg), against the desk's REAL steady ${realizedNumEn} live paper book (near the ~3.4% RWA floor) conservative book over the same window. Paper / advisory / outside RiskPolicy — the strategies we refuse, shown with their real risk. Never live-allocated.`}
+  title={`The cost of chasing 15.00% — vs the desk's steady ${realizedNumEn} | earn-defi.com`}
+  description={`A full year, dated: the 10.00-15.00% aggressive strategies the desk REFUSES, shown with their real drawdowns labelled by event (the 2025-10 USDe unwind, the 2026-04 rsETH depeg), against the desk's steady ${realizedNumEn} simulated paper book (virtual capital) (near the ~3.40% RWA floor) conservative book over the same window. Paper / advisory / outside RiskPolicy — the strategies we refuse, shown with their real risk. Never live-allocated.`}
   canonical="https://earn-defi.com/annual-contrast"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- ===================================================== a. THE PITCH (static, SSR) -->
     <section class="pt-20 pb-8">
@@ -51,16 +55,15 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
       </div>
 
       <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
-          data-ru={`Сколько на самом деле стоит погоня за 15% — против стабильных ${realizedNumRu} деска`}>
-        What chasing 15% actually costs — vs the desk's steady {realizedNumEn}
+          data-ru={`Сколько на самом деле стоит погоня за 15,00 % — против стабильных ${realizedNumRu} деска`}>
+        What chasing 15.00% actually costs — vs the desk's steady {realizedNumEn}
       </h1>
 
       <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Полный год, с датами. Каждая 10-15% стратегия, о которой спрашивают, показана с датированным −X%, который она несёт. Стабильная книга деска за тот же год: макс. просадка ~0%. Этот разрыв — и есть весь продукт.">
-        A full year, dated. Every 10-15% strategy the desk gets asked about, shown with the dated
-        <strong style="color:var(--text-primary)">−X%</strong> it carries. The desk's steady book over
-        the same year: <strong style="color:var(--text-primary)">max-drawdown ~0%</strong>. That gap is
-        the whole product.
+         data-ru={`Полный год, с датами — по бэктесту. Каждая 10,00-15,00 % стратегия, о которой спрашивают, показана с датированным −X%, который она несёт в бэктесте. Для сравнения — ${ddWinRu}. Окна разные, и это сказано прямо.`}>
+        A full year, dated — from a backtest. Every 10.00-15.00% strategy the desk gets asked about, shown with the dated
+        <strong style="color:var(--text-primary)">−X%</strong> it carries in the backtest. For comparison:
+        <strong style="color:var(--text-primary)">{ddWinEn}</strong>. The windows differ, and we say so.
       </p>
 
       <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -102,13 +105,11 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
       <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)"
          data-ru="Честный итог">The honest bottom line</p>
       <p class="text-base leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru={`Каждая агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками: unwind USDe в 2025-10 и депег rsETH в 2026-04 проявляются на 15% стороне с реальными датами и реальной глубиной. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — никакого датированного обрыва, нечего объяснять клиенту среди квартала. Вот в чём размен: можно гнаться за 15% и владеть его хвостом, или взять осознанные ${realizedNumRu} фактических (с начала трека, рядом с ~3,4% RWA-полом) и владеть своим сном. Мы запустим любой из них с открытыми глазами — эта страница для того, чтобы выбор был информированным.`}>
-        Across every aggressive book, the year ends higher — that is what the headline buys. But the
+         data-ru={`В бэктесте каждая агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками: unwind USDe в 2025-10 и депег rsETH в 2026-04 проявляются на 15,00 % стороне с датами и глубиной из бэктеста. Для сравнения — ${ddWinRu}. Размен такой: погоня за 15,00 % несёт свой хвост; ${realizedNumRu} на бумаге — с начала трека, рядом с ~3,40 % RWA-полом (ориентир). Это исследование, не оферта: реальный капитал не принимается.`}>
+        In the backtest, every aggressive book ends the year higher — that is what the headline buys. But the
         path is paid for in dated drawdowns: the 2025-10 USDe unwind and the 2026-04 rsETH depeg show
-        up on the 15% side with real dates and real depths. The desk's steady book walks the same year
-        with max-drawdown ~0% — no dated cliff, nothing to explain to a client mid-quarter. That is the
-        trade: you can chase 15% and own its tail, or take the deliberate {realizedNumEn} realized (track-to-date, near the ~3.4% RWA floor) and own your sleep. We will
-        run either with eyes open — this page is so the choice is informed.
+        up on the 15.00% side with dates and depths from the backtest. For comparison: {ddWinEn}. The
+        trade-off: chasing 15.00% carries its tail; {realizedNumEn} on paper (track-to-date, near the ~3.40% RWA floor, a reference) is the measured alternative. This is research, not an offer: live capital is not open.
       </p>
     </section>
 

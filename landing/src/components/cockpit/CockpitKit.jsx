@@ -16,6 +16,7 @@ import { useLang, usePrefersReducedMotion } from './hooks.js';
 import { useState } from 'react';
 import { fmtUsd0, fmtPct, fmtSigned, usdCompact } from './lib.js';
 import { MONO } from '../ui/tokens.js';
+import { pctLang } from '../../lib/pct_live.js';
 
 const now = Date.now();
 
@@ -58,8 +59,8 @@ const REFUSALS = [
     plain_ru: 'Fixed carry до погашения проходит RWA-пол после комиссий.',
     net_edge: 0.038, fee_drag: 0.003, advisory_size_usd: 500000, entry_hash: '77b1…4de', prev_hash: '55c0…9ab', proof_hash: 'bb13…7c2', verified: true },
   { seq: 810, as_of: '2026-06-29', desk: 'dfb', kind: 'ALERT', underlying: 'USDC/Aave', verdict: 'WATCH',
-    plain_en: 'Utilization spiked above 92% — monitoring exit liquidity.',
-    plain_ru: 'Utilization выше 92% — мониторим ликвидность на выход.',
+    plain_en: 'Utilization spiked above 92.00% — monitoring exit liquidity.',
+    plain_ru: 'Utilization выше 92,00 % — мониторим ликвидность на выход.',
     net_edge: null, advisory_size_usd: 0 },
 ];
 const CHAIN_OK = { verified: true, head_hash: 'aa02f…9f1', chain_length: 812 };
@@ -93,7 +94,7 @@ const TOURNEY = [
   { rank: 1, name: 'FixedCarry-sUSDe', metric: 5.8, capital_usd: 500000, trend: [1, 1.2, 1.15, 1.4, 1.6], status: 'CHAMPION' },
   { rank: 2, name: 'eth_lst_neutral', metric: 4.1, capital_usd: 250000, trend: [1, 0.9, 1.1, 1.2], status: 'CHALLENGER' },
   { rank: 3, name: 'RWA-floor', metric: 3.4, capital_usd: 0, trend: 0.1, status: 'PAPER' },
-  { rank: 4, name: 'LRT-carry-degen', metric: null, capital_usd: 0, trend: [1, 0.8, 0.5], status: 'KILLED', kill_reason: 'depeg tail exceeded −15% in stress replay' },
+  { rank: 4, name: 'LRT-carry-degen', metric: null, capital_usd: 0, trend: [1, 0.8, 0.5], status: 'KILLED', kill_reason: 'depeg tail exceeded −15.00% in stress replay' },
 ];
 
 /* ── layout helpers ───────────────────────────────────────────────────────────────── */
@@ -116,6 +117,7 @@ const grid = (min = 240) => ({ display: 'grid', gap: 12, gridTemplateColumns: `r
 
 export default function CockpitKit() {
   const lang = useLang();
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const reduced = usePrefersReducedMotion();
   const [win, setWin] = useState('7D');
   const [filter, setFilter] = useState('ALL');
@@ -142,8 +144,8 @@ export default function CockpitKit() {
       <Section title="2 · MetricStat" note="Number + label + Δ + trend, tabular figures. Null → '—' (never 0). idle → POSITIVE teal.">
         <div style={grid(200)}>
           <div><StateLabel>healthy + Δ + trend</StateLabel><MetricStat label={{ en: 'Total return', ru: 'Доходность' }} value={fmtSigned(2.14)} delta={{ value: '+0.18%' }} trend={[1, 1.1, 1.05, 1.2, 1.3, 1.28]} tone="ok" lang={lang} /></div>
-          <div><StateLabel>degraded (down)</StateLabel><MetricStat label="APY today" value={fmtPct(3.1)} delta="-0.4%" tone="warn" lang={lang} /></div>
-          <div><StateLabel>killed / breach</StateLabel><MetricStat label={{ en: 'Drawdown', ru: 'Просадка' }} value={fmtPct(-10.4)} delta="-2.1%" tone="danger" lang={lang} /></div>
+          <div><StateLabel>degraded (down)</StateLabel><MetricStat label="APY today" value={fmtPct(3.1)} delta="−0.40%" tone="warn" lang={lang} /></div>
+          <div><StateLabel>killed / breach</StateLabel><MetricStat label={{ en: 'Drawdown', ru: 'Просадка' }} value={fmtPct(-10.4)} delta="−2.10%" tone="danger" lang={lang} /></div>
           <div><StateLabel>idle-POSITIVE</StateLabel><MetricStat label={{ en: 'Cash buffer', ru: 'Кэш' }} value={fmtPct(38)} idle lang={lang} /></div>
           <div><StateLabel>fail-closed (null)</StateLabel><MetricStat label="Sharpe" value={null} sub={{ en: 'THIN — n/a', ru: 'THIN — н/д' }} lang={lang} /></div>
           <div><StateLabel>stale</StateLabel><MetricStat label="Equity" value={fmtUsd0(100180)} stale lang={lang} /></div>
@@ -200,7 +202,7 @@ export default function CockpitKit() {
       </Section>
 
       {/* 8. RiskStrip */}
-      <Section title="8 · RiskStrip" note="delta-band (±0.5%) · drawdown vs ladder · deployed vs idle (idle POSITIVE) · margin health.">
+      <Section title="8 · RiskStrip" note="delta-band (±0.50%) · drawdown vs ladder · deployed vs idle (idle POSITIVE) · margin health.">
         <StateLabel>healthy</StateLabel>
         <RiskStrip delta={{ value: 0.12, band: 0.5 }} drawdown={{ value: 1.2 }} deployment={{ deployed_pct: 62 }} margin={{ health: 1.9 }} lang={lang} />
         <StateLabel>degraded</StateLabel>
@@ -222,9 +224,9 @@ export default function CockpitKit() {
       {/* 10. RegimeBadge */}
       <Section title="10 · RegimeBadge" note="Funding regime + streak + vol + cycle. Unknown → muted, never fabricated STABLE.">
         <div style={grid(300)}>
-          <div><StateLabel>stable</StateLabel><RegimeBadge regime="STABLE" streak={12} vol="8.2%" note={{ en: 'carry favorable', ru: 'carry благоприятен' }} lang={lang} /></div>
-          <div><StateLabel>high yield</StateLabel><RegimeBadge regime="HIGH_YIELD" streak={3} vol="14%" lang={lang} /></div>
-          <div><StateLabel>volatile</StateLabel><RegimeBadge regime="VOLATILE" streak={1} vol="31%" lang={lang} /></div>
+          <div><StateLabel>stable</StateLabel><RegimeBadge regime="STABLE" streak={12} vol="8.20%" note={{ en: 'carry favorable', ru: 'carry благоприятен' }} lang={lang} /></div>
+          <div><StateLabel>high yield</StateLabel><RegimeBadge regime="HIGH_YIELD" streak={3} vol="14.00%" lang={lang} /></div>
+          <div><StateLabel>volatile</StateLabel><RegimeBadge regime="VOLATILE" streak={1} vol="31.00%" lang={lang} /></div>
           <div><StateLabel>fail-closed unknown</StateLabel><RegimeBadge regime={null} lang={lang} /></div>
         </div>
       </Section>

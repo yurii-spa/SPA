@@ -36,8 +36,9 @@
 // factor) — never a yield figure. A sleeve's rate and drawdown appear only when the shelf carries
 // them (REPORTABLE); before that the card says the statistics are accumulating.
 
-import NUMBERS, { value, pct as figPct, pctDown as figPctDown, usd as figUsd, headlineApy, book, threshold } from './site_numbers.js';
+import NUMBERS, { value, pct as figPct, pctDown as figPctDown, usd as figUsd, headlineApy, book, threshold, fmtPct2 } from './site_numbers.js';
 import C from './constitution.json';
+import { pctText } from './pct_format.js';
 import TIER_BANDS from './tier_bands.json';
 
 export const PACKAGES = ['conservative', 'balanced', 'aggressive'];
@@ -140,6 +141,30 @@ function shelfFigures(key) {
     since: null };
 }
 
+// Owner/ARB 2026-10-08 (P1 Wave 2): the main track's period return, read from the shelf
+// (headline.period) — the same block realized_rate.js::periodReturn reads; kept local so this rule
+// module stays importable on its own (its node harness strips imports).
+function _periodOfMainTrack() {
+  const P = NUMBERS && NUMBERS.headline && NUMBERS.headline.period;
+  if (!P || P.state !== 'MEASURED' || !P.period) return null;
+  const ret = P.return && typeof P.return.value === 'number' ? P.return.value : null;
+  const days = typeof P.period.days_act === 'number' ? P.period.days_act : null;
+  if (ret == null || days == null) return null;
+  return { ret, days, bars: typeof P.period.evidenced_bars === 'number' ? P.period.evidenced_bars : null,
+           start: P.period.start_date || null, end: P.period.end_date || null };
+}
+function _dmy(iso, ru) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return ru ? `${d}.${m}.${y}` : `${y}-${m}-${d}`;
+}
+function _annualisedNote(ru) {
+  const a = NUMBERS && NUMBERS.headline && NUMBERS.headline.apy;
+  if (!a || a.display === 'hidden' || typeof a.value !== 'number') return '';
+  return ru ? `${fmtPct2(a.value, true)} — оценочный годовой эквивалент (ACT/365 Fixed по датам оценки; время начальной оценки не записано), не прогноз`
+            : `${fmtPct2(a.value, false)} — estimated annualised equivalent (ACT/365 Fixed on valuation dates; start valuation time not recorded), not a forecast`;
+}
+
 function resultFor(key, p, ru) {
   const h = (p && p.history) || {};
   const n = h.valid_periods;
@@ -168,8 +193,23 @@ function resultFor(key, p, ru) {
   const navTxt = value(f.nav) != null
     ? (ru ? ` · стоимость книги ${figUsd(f.nav, true)} при стартовых ${figUsd(start, true)}` : ` · book value ${figUsd(f.nav)} on a ${figUsd(start)} start`)
     : '';
+  // Owner/ARB 2026-10-08: the main track leads with the paper return over the actual period; the
+  // annualised equivalent follows in the sub-line, labelled (absent when the owner hides it).
+  const pr = key === 'conservative' ? _periodOfMainTrack() : null;
+  if (pr) {
+    const ann = _annualisedNote(ru);
+    return {
+      main: fmtPct2(pr.ret, ru, true),
+      unit: ru ? `за ${pr.days} дн. на бумаге, ACT/365${pr.bars != null ? `, ${pr.bars} дн. с записью цикла` : ''} (${_dmy(pr.start, true)}–${_dmy(pr.end, true)})`
+               : `over ${pr.days} days on paper, ACT/365${pr.bars != null ? `, ${pr.bars} with a cycle record` : ''} (${_dmy(pr.start, false)} to ${_dmy(pr.end, false)})`,
+      sub: (ann ? ann + ' · ' : '') + (ru
+        ? `${navTxt.replace(/^ · /, '')} · замер ${NUMBERS.measured_at || '—'} (публикация раз в неделю)`
+        : `${navTxt.replace(/^ · /, '')} · measured ${NUMBERS.measured_at || '—'} (published weekly)`),
+      measured: true,
+    };
+  }
   return {
-    main: figPctDown(f.apy, ru),   // ADR-563: a published rate rounds DOWN — one site-wide figure (PRODUCT-TRUTH-02)
+    main: figPctDown(f.apy, ru),   // ADR-660: two decimals, ROUND_HALF_UP — one site-wide figure (PRODUCT-TRUTH-02)
     unit: ru ? 'годовых, фактически на бумаге' : 'annualised, realized on paper',
     sub: ru
       ? `${f.days} дн. с ${since}${navTxt} · замер ${NUMBERS.measured_at || '—'} (публикация раз в неделю)`
@@ -186,7 +226,7 @@ function drawdownFor(key, p, ru) {
   }
   const f = shelfFigures(key);
   if (value(f.drawdown) == null) return ru ? 'наблюдавшаяся просадка не измерена' : 'observed drawdown not measured';
-  const s = figPct({ value: Math.abs(value(f.drawdown)) }, ru, 2);
+  const s = figPct({ value: Math.abs(value(f.drawdown)) }, ru);
   return ru
     ? `${s} за ${f.days} дн. текущей версии — прошлое наблюдение, не предел убытка`
     : `${s} over ${f.days} days of the current version — a past observation, not a loss limit`;
@@ -199,17 +239,17 @@ function stopFor(key, ru) {
   if (key === 'conservative') {
     if (soft == null || hard == null) return ru ? 'порог не прочитан из витрины' : 'threshold not read from the shelf';
     return ru
-      ? `−${soft}% от пика → новые позиции не открываются (держит и сокращает); −${hard}% → всё в кэш`
-      : `−${soft}% from peak → no new positions (hold and reduce only); −${hard}% → all to cash`;
+      ? `−${fmtPct2(soft, true)} от пика → новые позиции не открываются (держит и сокращает); −${fmtPct2(hard, true)} → всё в кэш`
+      : `−${fmtPct2(soft, false)} from peak → no new positions (hold and reduce only); −${fmtPct2(hard, false)} → all to cash`;
   }
   if (key === 'balanced') {
     return ru
-      ? `−${ss.balanced_stop_pct}% от пика текущей версии → книга прекращает сделки, позиции сохраняются (порог остановки, не гарантия максимального убытка)`
-      : `−${ss.balanced_stop_pct}% from the current version’s peak → the book stops trading; positions are kept (a stop trigger, not a maximum-loss guarantee)`;
+      ? `−${fmtPct2(ss.balanced_stop_pct, true)} от пика текущей версии → книга прекращает сделки, позиции сохраняются (порог остановки, не гарантия максимального убытка)`
+      : `−${fmtPct2(ss.balanced_stop_pct, false)} from the current version’s peak → the book stops trading; positions are kept (a stop trigger, not a maximum-loss guarantee)`;
   }
   return ru
-    ? `−${ss.aggressive_stop_pct}% от пика текущей версии → петля закрывается, книга прекращает сделки; раньше петля сама сокращается и закрывается по фактору здоровья и цене USDe (порог остановки, не гарантия максимального убытка)`
-    : `−${ss.aggressive_stop_pct}% from the current version’s peak → the loop is unwound and the book stops trading; before that the loop deleverages and unwinds on its own health-factor and USDe-price triggers (a stop trigger, not a maximum-loss guarantee)`;
+    ? `−${fmtPct2(ss.aggressive_stop_pct, true)} от пика текущей версии → петля закрывается, книга прекращает сделки; раньше петля сама сокращается и закрывается по фактору здоровья и цене USDe (порог остановки, не гарантия максимального убытка)`
+    : `−${fmtPct2(ss.aggressive_stop_pct, false)} from the current version’s peak → the loop is unwound and the book stops trading; before that the loop deleverages and unwinds on its own health-factor and USDe-price triggers (a stop trigger, not a maximum-loss guarantee)`;
 }
 
 /**
@@ -257,7 +297,8 @@ export function cardModel(key, rec, nowMs, lang, ci) {
   const hi = L(HISTORY, p.history && p.history.state);
   const lv = L(LIVE, p.mode && p.mode.live);
   const f = p.freshness || {};
-  const pick = (o, k) => (o ? (ru ? o[k + '_ru'] : o[k + '_en']) : null);
+  // generated prose (package_status reasons) may carry a percentage — printed by the ADR-660 rule
+  const pick = (o, k) => (o ? pctText(ru ? o[k + '_ru'] : o[k + '_en'], ru) : null);
   return {
     key,
     expired: !!p.expired,

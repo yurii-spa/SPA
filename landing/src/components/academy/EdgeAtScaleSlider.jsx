@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
 import AnimatedChart from './AnimatedChart.jsx';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * EdgeAtScaleSlider.jsx — the «$1M cliff» visualizer.
@@ -32,8 +33,8 @@ const STATIC_CURVE = [
 const T = {
   title: { ru: 'Edge на масштабе: обрыв $1M', en: 'Edge at scale: the $1M cliff' },
   intro: {
-    ru: 'Двигай AUM. Оптимизаторный uplift положителен на малом капитале, но схлопывается после ~$1M: pool-capacity cap\'ы (1% TVL, 3% T1>$1B) бьют — лишний капитал становится idle cash под 0%.',
-    en: 'Slide AUM. The optimizer uplift is positive at small size but collapses past ~$1M: pool-capacity caps bind and excess capital becomes idle cash at 0%.',
+    ru: 'Двигай AUM. Оптимизаторный uplift положителен на малом капитале, но схлопывается после ~$1M: pool-capacity cap\'ы (1,00 % TVL, 3,00 % T1>$1B) бьют — лишний капитал становится idle cash под 0,00 %.',
+    en: 'Slide AUM. The optimizer uplift is positive at small size but collapses past ~$1M: pool-capacity caps bind and excess capital becomes idle cash at 0.00%.',
   },
   aum: { ru: 'AUM (капитал под управлением)', en: 'AUM (assets under management)' },
   uplift: { ru: 'Uplift оптимизатора', en: 'Optimizer uplift' },
@@ -77,6 +78,7 @@ function interp(curve, aum) {
 
 export default function EdgeAtScaleSlider() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [curve, setCurve] = useState(STATIC_CURVE);
   const [isLive, setIsLive] = useState(false);
   // slider is a log position 0..1000 mapped to $100k..$10M
@@ -186,11 +188,11 @@ export default function EdgeAtScaleSlider() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
         <div style={miniCard}>
           <div style={miniLabel}>{tr('optimized')}</div>
-          <div style={{ ...miniVal, color: 'var(--accent)' }}>{p.optimized_yield_on_capital_pct.toFixed(2)}%</div>
+          <div style={{ ...miniVal, color: 'var(--accent)' }}>{pctL(p.optimized_yield_on_capital_pct)}</div>
         </div>
         <div style={miniCard}>
           <div style={miniLabel}>{tr('legacy')}</div>
-          <div style={{ ...miniVal, color: 'var(--text-secondary)' }}>{p.legacy_yield_on_capital_pct.toFixed(2)}%</div>
+          <div style={{ ...miniVal, color: 'var(--text-secondary)' }}>{pctL(p.legacy_yield_on_capital_pct)}</div>
         </div>
       </div>
 

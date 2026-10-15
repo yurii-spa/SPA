@@ -45,12 +45,9 @@ export function unavailable(fig) {
   return (fig && fig.unavailable_reason) || null;
 }
 
-/** «5,0 %» / «5.0%» — одна цифра после запятой; null-safe. */
-export function pct(fig, ru = false, digits = 1) {
-  const n = value(fig);
-  if (n == null) return ru ? 'данные недоступны' : 'data unavailable';
-  const s = n.toFixed(digits);
-  return (ru ? s.replace('.', ',') : s) + '%';
+/** «4,89 %» / «4.89%» — ADR-660: два знака, ROUND_HALF_UP; `digits` не читается; null-safe. */
+export function pct(fig, ru = false, digits = 2) {
+  return pct2(fig, ru);
 }
 
 /**
@@ -78,67 +75,17 @@ export function floorTo(n, digits = 1) {
   return Math.floor(n * scale + 1e-9) / scale;
 }
 
-/** Ставка, округлённая ВНИЗ: «4,9%» — никогда больше измеренного. */
-export function pctDown(fig, ru = false, digits = 1) {
-  const n = value(fig);
-  if (n == null) return ru ? 'данные недоступны' : 'data unavailable';
-  const floored = floorTo(n, digits);
-  if (floored == null) return ru ? 'данные недоступны' : 'data unavailable';
-  const s = floored.toFixed(digits);
-  return (ru ? s.replace('.', ',') : s) + '%';
-}
-
 /**
- * Политика владельца 2026-10-08 (ADR-660, заменяет округление вниз ADR-563): процент —
- * РОВНО два знака, ROUND_HALF_UP на третьем знаке, по-русски «4,89 %», по-английски «4.89%».
- *
- * Округляется ДЕСЯТИЧНАЯ запись числа, а не его двоичная дробь: 2.675 лежит в памяти как
- * 2.67499999…, и `toFixed(2)` дал бы 2.67 — политика требует 2.68. `String(n)` в JS — самая
- * короткая запись, возвращающая то же число (как `repr` в Python), поэтому округляется то,
- * что производитель числа написал. Близнец — `spa_core/utils/presentation.py::fmt_pct`;
- * совпадение двух копий меряет `spa_core/tests/test_owner_presentation_policy_js.py`.
- *
- * Нет числа ⇒ null (страница говорит «данные недоступны»), никогда «0,00 %». Ненулевое
- * число, округлившееся в ноль, печатается с оговоркой «<0,01 %», а не как точный ноль.
+ * Ставка — с 2026-10-08 (ADR-660, решение владельца) тем же правилом, что любой процент:
+ * два знака, ROUND_HALF_UP. Имя сохранено ради вызывающих; округления ВНИЗ (ADR-563) больше нет.
  */
-function _plainDecimal(abs) {
-  const s = String(abs);
-  const m = /^(\d+)(?:\.(\d+))?e([+-]\d+)$/i.exec(s);
-  if (!m) return s;
-  const digits = m[1] + (m[2] || '');
-  const point = m[1].length + Number(m[3]);
-  if (point <= 0) return '0.' + '0'.repeat(-point) + digits;
-  if (point >= digits.length) return digits + '0'.repeat(point - digits.length);
-  return digits.slice(0, point) + '.' + digits.slice(point);
+export function pctDown(fig, ru = false, digits = 2) {
+  return pct2(fig, ru);
 }
 
-/** Сотые доли процента как BigInt (ROUND_HALF_UP по десятичной записи) или null. */
-export function centsHalfUp(n) {
-  if (typeof n !== 'number' || !Number.isFinite(n)) return null;
-  const neg = n < 0;
-  const [ip, fp = ''] = _plainDecimal(Math.abs(n)).split('.');
-  const d3 = (fp + '000').slice(0, 3);
-  let cents = BigInt(ip) * 100n + BigInt(d3.slice(0, 2));
-  if (d3[2] >= '5') cents += 1n;
-  return neg ? -cents : cents;
-}
-
-export function fmtPct2(n, ru = false, signed = false) {
-  const c = centsHalfUp(n);
-  if (c == null) return null;
-  const suffix = ru ? '\u00a0%' : '%';
-  const num = (x) => {
-    const a = x < 0n ? -x : x;
-    const s = (a / 100n).toString() + '.' + (a % 100n).toString().padStart(2, '0');
-    return ru ? s.replace('.', ',') : s;
-  };
-  if (c === 0n) {
-    if (n === 0) return num(0n) + suffix;
-    return n > 0 ? '<' + num(1n) + suffix : '>-' + num(1n) + suffix;
-  }
-  const sign = c < 0n ? '-' : (signed ? '+' : '');
-  return sign + num(c) + suffix;
-}
+// ADR-660: the one percentage formatter lives in pct_format.js (also used by live inline scripts).
+import { fmtPct2, centsHalfUp } from './pct_format.js';
+export { fmtPct2, centsHalfUp };
 
 /** Поле витрины → «4,89 %» / «4.89%»; нет значения — «данные недоступны». */
 export function pct2(fig, ru = false, signed = false) {
@@ -190,7 +137,7 @@ export function rateWithTail(id, ru = false) {
   return {
     apy: a,
     drawdown: dd,
-    // Ставка — ВНИЗ (решение владельца, ADR-563); просадка — к ближайшему.
+    // ADR-660: ставка и просадка — одним правилом (два знака, ROUND_HALF_UP).
     text: ru ? `${pctDown(b.apy, true)} годовых · ${ddText}` : `${pctDown(b.apy)} annualised · ${ddText}`,
   };
 }

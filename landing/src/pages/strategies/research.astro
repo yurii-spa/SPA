@@ -1,18 +1,28 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import strategies from '../../data/strategy_config.json';
 
 const global = strategies.global;
+// P1-9 (2026-10-08): the comparison cards read the ONE band source (tier_bands.json) and the shelf
+// (realized rate, book composition) — the typed «~6.00% / 6.00–14.00% / 14.00–28.00% · T1 only»
+// contradicted both, and paper profiles were called «Live Strategies».
+import BANDS from '../../lib/tier_bands.json';
+import { realizedPhrase } from '../../lib/realized_rate.js';
+import { tierSummary } from '../../lib/book_exposure.js';
+const consRealEn = realizedPhrase(null, false), consRealRu = realizedPhrase(null, true);
+const consMixEn = tierSummary(false) || 'composition not measured', consMixRu = tierSummary(true) || 'состав не измерен';
 ---
 
 <Layout
   title="Research Strategies — RS-001 Anti-Crisis & RS-002 Cashflow | SPA earn-defi.com"
-  description="Research-stage strategies RS-001 (Anti-Crisis, 18.2% target) and RS-002 (Cashflow / Concentrated LP, 29.24% gross target). Not in strict evidence mode. Due diligence overview."
+  description="Research-stage strategies RS-001 (Anti-Crisis, 18.20% target) and RS-002 (Cashflow / Concentrated LP, 29.24% gross target). Not in strict evidence mode. Due diligence overview."
 >
 
   <!-- Nav -->
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- 1. Hero -->
     <section class="pt-20 pb-12">
@@ -23,8 +33,8 @@ const global = strategies.global;
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Исследовательские стратегии">
         Research Strategies
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Сначала честно: показанные ниже цели (18,2% / 29,24%) — это ровно тот класс 10–15%+ доходности, который основной деск ОТКАЗЫВАЕТСЯ держать, потому что это компенсация за хвостовой риск. RS-001 и RS-002 — только смоделированные исследовательские проекции: они требуют point-in-time исторических данных перед строгим бэктестом и никогда не удерживаются и не обещаются.">
-        Honest first: the targets shown below (18.2% / 29.24%) are exactly the 10–15%+
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Сначала честно: показанные ниже цели (18,20 % / 29,24 %) — это ровно тот класс 10,00–15,00 %+ доходности, который основной деск ОТКАЗЫВАЕТСЯ держать, потому что это компенсация за хвостовой риск. RS-001 и RS-002 — только смоделированные исследовательские проекции: они требуют point-in-time исторических данных перед строгим бэктестом и никогда не удерживаются и не обещаются.">
+        Honest first: the targets shown below (18.20% / 29.24%) are exactly the 10.00–15.00%+
         return class the core desk REFUSES to hold, because that yield is compensation for
         tail risk. RS-001 and RS-002 are modelled research projections only — they require
         point-in-time historical data before strict backtest, and are never held or promised.
@@ -37,11 +47,11 @@ const global = strategies.global;
         <span class="text-warn text-xl flex-shrink-0 mt-0.5" aria-hidden="true">⚠</span>
         <div>
           <p class="text-sm font-semibold text-warn mb-1" data-ru="Исследовательские проекции — не исторические доказательства, не обещания">Research Projections — Not Historical Evidence, Not Promises</p>
-          <p class="text-sm text-white/50 leading-relaxed" data-ru="Эти стратегии используют заглушки APY для компонентов без point-in-time исторических данных. Целевые доходности (18,2% / 29,24%) — это смоделированные исследовательские проекции, а не реализованный и не обещанный трек-рекорд. Важно: это ровно тот класс 10–15%+ доходностей, который основной деск ОТКАЗЫВАЕТСЯ размещать в live-книге, потому что такая доходность — компенсация за хвостовой риск. Не используйте для принятия решений об аллокации капитала.">
+          <p class="text-sm text-white/50 leading-relaxed" data-ru="Эти стратегии используют заглушки APY для компонентов без point-in-time исторических данных. Целевые доходности (18,20 % / 29,24 %) — это смоделированные исследовательские проекции, а не реализованный и не обещанный трек-рекорд. Важно: это ровно тот класс 10,00–15,00 %+ доходностей, который основной деск ОТКАЗЫВАЕТСЯ размещать в live-книге, потому что такая доходность — компенсация за хвостовой риск. Не используйте для принятия решений об аллокации капитала.">
             These strategies use placeholder APYs for components without point-in-time
-            historical data. The target returns (18.2% / 29.24%) are modelled research
+            historical data. The target returns (18.20% / 29.24%) are modelled research
             projections — not realized, not promised, not a verified track record. Note: these
-            are exactly the 10–15%+ return class the core desk REFUSES to run in its live book,
+            are exactly the 10.00–15.00%+ return class the core desk REFUSES to run in its live book,
             because that yield is compensation for tail risk. Do not use for capital allocation decisions.
           </p>
         </div>
@@ -71,7 +81,7 @@ const global = strategies.global;
       <div class="mb-6">
         <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
         <div class="flex items-baseline gap-2">
-          <span class="text-4xl font-mono font-bold text-orange-400">18.2%</span>
+          <span class="text-4xl font-mono font-bold text-orange-400">18.20%</span>
           <span class="text-sm text-white/50 font-mono" data-ru="исследовательская проекция">research projection</span>
         </div>
       </div>
@@ -91,48 +101,48 @@ const global = strategies.global;
           <tbody class="divide-y divide-white/5">
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Экспозиция GMX BTC">GMX BTC Exposure</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">20%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">20.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15,00 % APY">15.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Экспозиция GMX ETH">GMX ETH Exposure</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">10.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15,00 % APY">15.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Стабильный пул BTC">BTC Stable Pool</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">35%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 25% APY">25% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">35.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 25,00 % APY">25.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Агрессивный пул ETH">ETH Aggressive Pool</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">5%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 45% APY">45% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">5.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 45,00 % APY">45.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Прокси на золото">Gold Proxy</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15% APY">15% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">15.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 15,00 % APY">15.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Стейблкоин T1">Stablecoin T1</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">15%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 3% APY">3% APY target</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">15.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="цель 3,00 % APY">3.00% APY target</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-bg border border-teal-border text-xs text-data-teal font-mono" data-ru="ЖИВЫЕ ДАННЫЕ">LIVE DATA</span>
               </td>
@@ -145,15 +155,15 @@ const global = strategies.global;
       <div class="space-y-3">
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-orange-400 font-semibold" data-ru="Подходит для строгого режима: 15%">Strict eligible: 15%</span> <span data-ru="(только Стейблкоин T1). 85% аллокации не имеют point-in-time исторических данных и не могут быть протестированы в строгом режиме.">(Stablecoin T1 only).
-            85% of allocation has no point-in-time historical data and cannot be backtested in strict mode.</span>
+            <span class="text-orange-400 font-semibold" data-ru="Подходит для строгого режима: 15,00 %">Strict eligible: 15.00%</span> <span data-ru="(только Стейблкоин T1). 85,00 % аллокации не имеют point-in-time исторических данных и не могут быть протестированы в строгом режиме.">(Stablecoin T1 only).
+            85.00% of allocation has no point-in-time historical data and cannot be backtested in strict mode.</span>
           </p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-orange-400 font-semibold" data-ru="Оговорка по названию:">Label caveat:</span> <span data-ru="название «Антикризисная» требует валидации — 70% этой стратегии составляет крипто-экспозиция (GMX BTC/ETH, пул BTC, пул ETH). Прокси на золото (15%) обеспечивает частичный хедж в кризис; стейблкоин T1 (15%) — единственный гарантированно стабильный компонент. При сильном обвале крипторынка ожидается, что эта стратегия будет показывать результат хуже, чем подразумевает её «антикризисное» название.">"Anti-Crisis" requires validation —
-            70% of this strategy is crypto exposure (GMX BTC/ETH, BTC pool, ETH pool).
-            Gold proxy (15%) provides partial crisis hedge; stablecoin T1 (15%) provides
+            <span class="text-orange-400 font-semibold" data-ru="Оговорка по названию:">Label caveat:</span> <span data-ru="название «Антикризисная» требует валидации — 70,00 % этой стратегии составляет крипто-экспозиция (GMX BTC/ETH, пул BTC, пул ETH). Прокси на золото (15,00 %) обеспечивает частичный хедж в кризис; стейблкоин T1 (15,00 %) — единственный гарантированно стабильный компонент. При сильном обвале крипторынка ожидается, что эта стратегия будет показывать результат хуже, чем подразумевает её «антикризисное» название.">"Anti-Crisis" requires validation —
+            70.00% of this strategy is crypto exposure (GMX BTC/ETH, BTC pool, ETH pool).
+            Gold proxy (15.00%) provides partial crisis hedge; stablecoin T1 (15.00%) provides
             the only guaranteed stable component. In a severe crypto crash, this strategy
             is expected to underperform relative to its "anti-crisis" label.</span>
           </p>
@@ -188,15 +198,15 @@ const global = strategies.global;
             <span class="text-4xl font-mono font-bold text-danger">29.24%</span>
             <span class="text-sm text-white/50 font-mono" data-ru="брутто, до учёта IL">gross, before IL</span>
           </div>
-          <p class="text-xs text-white/25 mt-1" data-ru="Оценка нетто: 12–18% в боковике · 3% в тренде · отрицательная при обвале">
-            Net estimate: 12–18% sideways · 3% trending · negative in crash
+          <p class="text-xs text-white/25 mt-1" data-ru="Оценка нетто: 12,00–18,00 % в боковике · 3,00 % в тренде · отрицательная при обвале">
+            Net estimate: 12.00–18.00% sideways · 3.00% trending · negative in crash
           </p>
         </div>
         <div class="rounded-xl border border-danger-border bg-danger-bg p-4 flex items-start gap-3">
           <span class="text-danger flex-shrink-0 mt-0.5 text-sm" aria-hidden="true">⚠</span>
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-danger font-semibold" data-ru="Предупреждение об IL:">IL Warning:</span> <span data-ru="концентрированный LP при 40% APY брутто теряет 15–25% на непостоянных потерях (impermanent loss) при типичной волатильности BTC. Чистый APY значительно ниже заявленной цифры.">Concentrated LP at 40% APY gross
-            loses 15–25% to impermanent loss at typical BTC volatility.
+            <span class="text-danger font-semibold" data-ru="Предупреждение об IL:">IL Warning:</span> <span data-ru="концентрированный LP при 40,00 % APY брутто теряет 15,00–25,00 % на непостоянных потерях (impermanent loss) при типичной волатильности BTC. Чистый APY значительно ниже заявленной цифры.">Concentrated LP at 40.00% APY gross
+            loses 15.00–25.00% to impermanent loss at typical BTC volatility.
             Net APY is significantly lower than the headline figure.</span>
           </p>
         </div>
@@ -217,32 +227,32 @@ const global = strategies.global;
           <tbody class="divide-y divide-white/5">
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Концентрированный LP BTC/USD">BTC/USD Concentrated LP</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">60%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="40% APY брутто">40% gross APY</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">60.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="40,00 % APY брутто">40.00% gross APY</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Концентрированный LP RWA">RWA Concentrated LP</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">10%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="18% APY">18% APY</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">10.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="18,00 % APY">18.00% APY</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Хранилище убытков трейдеров">Trader Losses Vault</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">14%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="20% APY">20% APY</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">14.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="20,00 % APY">20.00% APY</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-danger-bg border border-danger-border text-xs text-danger font-mono" data-ru="НУЖЕН ИСТОЧНИК">SOURCE NEEDED</span>
               </td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/70 font-mono" data-ru="Депозит в стейблкоине">Stablecoin Deposit</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">16%</td>
-              <td class="px-5 py-3 text-white/60 font-mono" data-ru="4% APY">4% APY</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">16.00%</td>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="4,00 % APY">4.00% APY</td>
               <td class="px-5 py-3">
                 <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-teal-bg border border-teal-border text-xs text-data-teal font-mono" data-ru="ЖИВЫЕ ДАННЫЕ">LIVE DATA</span>
               </td>
@@ -255,15 +265,15 @@ const global = strategies.global;
       <div class="space-y-3">
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
-            <span class="text-danger font-semibold" data-ru="Подходит для строгого режима: 16%">Strict eligible: 16%</span> <span data-ru="(только Депозит в стейблкоине). Позиция концентрированного LP BTC/USD на 60% не имеет point-in-time исторического ряда с поправкой на IL.">(Stablecoin Deposit only).
-            The 60% BTC/USD Concentrated LP position has no IL-adjusted point-in-time historical series.</span>
+            <span class="text-danger font-semibold" data-ru="Подходит для строгого режима: 16,00 %">Strict eligible: 16.00%</span> <span data-ru="(только Депозит в стейблкоине). Позиция концентрированного LP BTC/USD на 60,00 % не имеет point-in-time исторического ряда с поправкой на IL.">(Stablecoin Deposit only).
+            The 60.00% BTC/USD Concentrated LP position has no IL-adjusted point-in-time historical series.</span>
           </p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-white/8 px-5 py-4">
           <p class="text-xs text-white/50 leading-relaxed">
             <span class="text-danger font-semibold" data-ru="Сценарии чистого APY:">Net APY scenarios:</span>
-            <span data-ru="цифра 29,24% — это брутто-смешанный APY до непостоянных потерь (impermanent loss) и издержек исполнения. Типичная волатильность BTC (40% годовых) съедает 10–15% у позиций концентрированного LP. На трендовых рынках BTC (обвал или сильное ралли) позиции концентрированного LP выходят из диапазона, и доход от комиссий прекращается — позиция фактически держит один актив, пока другой уходит в сторону. При сильных движениях чистый APY может быть отрицательным.">The 29.24% figure is gross blended APY before impermanent loss and execution costs.
-            Typical BTC volatility (40% annualized) erodes 10–15% from concentrated LP positions.
+            <span data-ru="цифра 29,24 % — это брутто-смешанный APY до непостоянных потерь (impermanent loss) и издержек исполнения. Типичная волатильность BTC (40,00 % годовых) съедает 10,00–15,00 % у позиций концентрированного LP. На трендовых рынках BTC (обвал или сильное ралли) позиции концентрированного LP выходят из диапазона, и доход от комиссий прекращается — позиция фактически держит один актив, пока другой уходит в сторону. При сильных движениях чистый APY может быть отрицательным.">The 29.24% figure is gross blended APY before impermanent loss and execution costs.
+            Typical BTC volatility (40.00% annualized) erodes 10.00–15.00% from concentrated LP positions.
             In trending BTC markets (crash or strong rally), concentrated LP positions
             go out-of-range and fee income stops — the position effectively holds one asset
             while the other moves away. Net APY can be negative in severe moves.</span>
@@ -296,7 +306,7 @@ const global = strategies.global;
             </div>
             <div class="flex justify-between">
               <span data-ru="Просадка от IL">IL drag</span>
-              <span class="text-white font-mono" data-ru="0% (без LP)">0% (no LP)</span>
+              <span class="text-white font-mono" data-ru="0,00 % (без LP)">0.00% (no LP)</span>
             </div>
             <div class="flex justify-between">
               <span data-ru="Крайние случаи">Edge cases</span>
@@ -317,7 +327,7 @@ const global = strategies.global;
             </div>
             <div class="flex justify-between">
               <span data-ru="Просадка от IL">IL drag</span>
-              <span class="text-white font-mono" data-ru="применяется к 70% веса LP">applied to 70% LP weight</span>
+              <span class="text-white font-mono" data-ru="применяется к 70,00 % веса LP">applied to 70.00% LP weight</span>
             </div>
             <div class="flex justify-between">
               <span data-ru="Крайние случаи">Edge cases</span>
@@ -373,8 +383,8 @@ const global = strategies.global;
           <span class="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-xs text-white/55 font-mono">4</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Принятие владельцем классификации риска каждой стратегии">Owner acceptance of each strategy's risk classification</p>
-            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Название «Антикризисная» у RS-001 требует явного подтверждения того, что 70% аллокации коррелировано с криптовалютой. Разрыв между брутто и нетто у RS-002 должен быть признан письменно до аллокации.">
-              RS-001's "Anti-Crisis" label requires explicit acknowledgement that 70%
+            <p class="text-xs text-white/35 mt-1 leading-relaxed" data-ru="Название «Антикризисная» у RS-001 требует явного подтверждения того, что 70,00 % аллокации коррелировано с криптовалютой. Разрыв между брутто и нетто у RS-002 должен быть признан письменно до аллокации.">
+              RS-001's "Anti-Crisis" label requires explicit acknowledgement that 70.00%
               of the allocation is crypto-correlated. RS-002's gross/net gap must be
               acknowledged in writing before allocation.
             </p>
@@ -397,29 +407,29 @@ const global = strategies.global;
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- Compare with live strategies -->
+    <!-- Compare with the paper profiles (P1-9: names/bands from tier_bands.json, measured line from the shelf) -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Сравнить с действующими стратегиями">Compare with Live Strategies</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Если вы ищете стратегии, которые сейчас находятся в бумажном треке с проверенными данными, см. страницы действующих стратегий ниже.">
-        If you're looking for strategies currently in paper tracking with verified data,
-        see the live strategy pages below.
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Сравнить с бумажными профилями">Compare with the paper profiles</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Три профиля ведутся на бумаге (без реального капитала). Цифры ниже — исследовательские цели; измеренный результат есть только у Консервативного.">
+        The three profiles run on paper (no real capital). The figures below are research targets;
+        only Conservative has a measured result.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <a data-track="research_to_strategies_conservative" href="/strategies/conservative" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-data-teal font-mono uppercase tracking-wider mb-2" data-ru="Conservative">Conservative</p>
-          <p class="text-white font-medium mb-1 group-hover:text-white/90">~6% APY</p>
-          <p class="text-xs text-white/35" data-ru="Сохранение капитала · только T1 · пониженный риск">Capital-preservation · T1 only · Lower risk</p>
+          <p class="text-xs text-data-teal font-mono uppercase tracking-wider mb-2" data-ru={BANDS.conservative.ru}>{BANDS.conservative.en}</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru={BANDS.conservative.nav_band_ru}>{BANDS.conservative.nav_band_en}</p>
+          <p class="text-xs text-white/35" data-ru={`${consRealRu} · ${consMixRu}`}>{consRealEn} · {consMixEn}</p>
         </a>
         <a data-track="research_to_strategies_balanced" href="/strategies/balanced" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-accent-400/70 font-mono uppercase tracking-wider mb-2" data-ru="Balanced">Balanced</p>
-          <p class="text-white font-medium mb-1 group-hover:text-white/90">6–14% APY</p>
-          <p class="text-xs text-white/35" data-ru="Бумажный трек · T1+T2 · средний риск">Paper tracked · T1+T2 · Medium risk</p>
+          <p class="text-xs text-accent-400/70 font-mono uppercase tracking-wider mb-2" data-ru={BANDS.balanced.ru}>{BANDS.balanced.en}</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru={BANDS.balanced.nav_band_ru}>{BANDS.balanced.nav_band_en}</p>
+          <p class="text-xs text-white/35" data-ru={BANDS.balanced.evidence_ru}>{BANDS.balanced.evidence_en}</p>
         </a>
         <a data-track="research_to_strategies_aggressive" href="/strategies/aggressive" class="group rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
-          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2" data-ru="Aggressive">Aggressive</p>
-          <p class="text-white font-medium mb-1 group-hover:text-white/90">14–28% APY</p>
-          <p class="text-xs text-white/35" data-ru="Повышенная доходность · оптимизировано турниром">Higher yield · Tournament-optimised</p>
+          <p class="text-xs text-orange-400/70 font-mono uppercase tracking-wider mb-2" data-ru={BANDS.aggressive.ru}>{BANDS.aggressive.en}</p>
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru={BANDS.aggressive.nav_band_ru}>{BANDS.aggressive.nav_band_en}</p>
+          <p class="text-xs text-white/35" data-ru={BANDS.aggressive.evidence_ru}>{BANDS.aggressive.evidence_en}</p>
         </a>
       </div>
     </section>

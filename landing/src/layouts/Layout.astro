@@ -236,6 +236,24 @@ const schemaData = JSON.stringify({
     <!-- i18n runtime INLINED (external /i18n.js was shadowed by the CF soft-404 → served
          HTML instead of JS, which broke the toggle). Inlining guarantees it always runs.
          Toggle now lives inside SiteHeader (#spa-lang-toggle); same runtime wires it. -->
+    <!-- ADR-660: the ONE percentage formatter for live inline scripts (two decimals, ROUND_HALF_UP).
+         A script that runs before this module loads prints «—», never a toFixed() approximation. -->
+    <script is:inline>
+      // ADR-660: live inline scripts print percentages through ONE formatter (pct_format.js, loaded as a
+      // module below). Called before it loads ⇒ «—», never a toFixed() approximation. Language at call time.
+      window.spaPct = function (v, signed) {
+        var f = window.spaFmtPct2; if (!f) return '—';
+        if (v == null || v === '' || typeof v === 'boolean') return '—';
+        var n = Number(v); if (!isFinite(n)) return '—';
+        var ru = false; try { ru = (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) {}
+        return f(n, ru, !!signed) || '—';
+      };
+    </script>
+    <script>
+      import { fmtPct2, pctText } from '../lib/pct_format.js';
+      window.spaFmtPct2 = fmtPct2;
+      window.spaPctText = pctText;   // prose we do not write (generated blurbs): same rule
+    </script>
     <script is:inline>
       (function () {
         "use strict";

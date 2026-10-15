@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getLang } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * LiveAcademyData.jsx — pulls REAL system data so lessons show reality, not theory.
@@ -34,7 +35,7 @@ const T = {
   loading: { ru: 'Загрузка…', en: 'Loading…' },
   refusalsTitle: { ru: 'Реальный лог отказов (refusal-first)', en: 'Real refusal log (refusal-first)' },
   goliveTitle: { ru: 'Живой go-live трек', en: 'Live go-live track' },
-  contrastTitle: { ru: '15% против реальных 5% — датированные drawdown\'ы', en: '15% vs real 5% — dated drawdowns' },
+  contrastTitle: { ru: '15,00 % против реальных 5,00 % — датированные drawdown\'ы', en: '15.00% vs real 5.00% — dated drawdowns' },
   refused: { ru: 'ОТКАЗ', en: 'REFUSED' },
   approved: { ru: 'допущено', en: 'approved' },
   reason: { ru: 'причина', en: 'reason' },
@@ -47,6 +48,7 @@ const T = {
 
 export default function LiveAcademyData({ feed, limit = 6 }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [state, setState] = useState('loading'); // loading | live | offline
   const [data, setData] = useState(null);
 
@@ -155,9 +157,9 @@ function Contrast({ data, tr }) {
   if (steady == null && aggr == null) return <div style={emptyBox}>{tr('noData')}</div>;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-      <div style={miniCard}><div style={miniLabel}>{tr('steady')}</div><div style={{ ...miniVal, color: 'var(--ok)' }}>{steady != null ? Number(steady).toFixed(1) + '%' : '—'}</div></div>
-      <div style={miniCard}><div style={miniLabel}>{tr('aggressive')}</div><div style={{ ...miniVal, color: 'var(--warn)' }}>{aggr != null ? Number(aggr).toFixed(1) + '%' : '—'}</div></div>
-      <div style={miniCard}><div style={miniLabel}>{tr('maxdd')}</div><div style={{ ...miniVal, color: 'var(--danger)' }}>{maxdd != null ? '−' + Math.abs(Number(maxdd)).toFixed(1) + '%' : '—'}</div></div>
+      <div style={miniCard}><div style={miniLabel}>{tr('steady')}</div><div style={{ ...miniVal, color: 'var(--ok)' }}>{steady != null ? pctL(Number(steady)) : '—'}</div></div>
+      <div style={miniCard}><div style={miniLabel}>{tr('aggressive')}</div><div style={{ ...miniVal, color: 'var(--warn)' }}>{aggr != null ? pctL(Number(aggr)) : '—'}</div></div>
+      <div style={miniCard}><div style={miniLabel}>{tr('maxdd')}</div><div style={{ ...miniVal, color: 'var(--danger)' }}>{maxdd != null ? '−' + pctL(Math.abs(Number(maxdd))) : '—'}</div></div>
     </div>
   );
 }

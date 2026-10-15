@@ -41,6 +41,7 @@ import {
   fmtUsd0, fmtUsd2, fmtPct, fmtSigned, usdCompact, deriveFreshness, pick, NA,
 } from './cockpit/lib.js';
 import { MONO, TABULAR, toneColor } from './ui/tokens.js';
+import { pctLang } from '../lib/pct_live.js';
 
 /* ── live API base (mirrors DashboardLive / CockpitStrategy) ─────────────────────── */
 const API =
@@ -382,7 +383,7 @@ function TimelineLegend({ events, lang }) {
     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
       {kinds.map((k) => (
         <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: '.6875rem', color: 'var(--text-muted)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: k === 'accrual' ? 1 : '50%', background: toneColor(EV_TONE[k]) }} aria-hidden="true" />
+          <span style={{ width: 8, height: 8, borderRadius: k === 'accrual' ? 1 : '50.00%', background: toneColor(EV_TONE[k]) }} aria-hidden="true" />
           {pick(LBL[k], lang)} <span style={{ color: 'var(--text-faint)' }}>({evs.filter((e) => e.kind === k).length})</span>
         </span>
       ))}
@@ -393,6 +394,7 @@ function TimelineLegend({ events, lang }) {
 /* ── main ─────────────────────────────────────────────────────────────────────────── */
 export default function CockpitPosition() {
   const lang = useLang();
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const reduced = usePrefersReducedMotion();
   const ru = lang === 'ru';
   const [{ id, strategy }] = useState(paramsFromUrl());

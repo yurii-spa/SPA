@@ -4,6 +4,7 @@
  * Contract: LessonLayout id · Callout type/titleRu · Quiz [{q,options,correct,explanation}].
  */
 import LessonLayout from '../../components/academy/LessonLayout.astro';
+import { fmtPct2 } from '../../lib/pct_format.js';
 import Callout from '../../components/academy/Callout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 // site-numbers: пороги таблицы рендерятся из конституции сайта
@@ -13,9 +14,9 @@ const questions = [
   {
     q: 'Какие лимиты концентрации задаёт RiskPolicy?',
     options: [
-      '40% на любой T1, 20% на любой T2, T2 суммарно ≤ 50%',
-      '100% в один протокол разрешено',
-      '10% на всё',
+      '40,00 % на любой T1, 20,00 % на любой T2, T2 суммарно ≤ 50,00 %',
+      '100,00 % в один протокол разрешено',
+      '10,00 % на всё',
       'Нет лимитов — решает LLM',
     ],
     correct: 0,
@@ -23,15 +24,15 @@ const questions = [
   },
   {
     q: 'Какой минимальный TVL и кэш-буфер требует политика?',
-    options: ['TVL ≥ $5M, кэш ≥ 5%', 'TVL ≥ $100K, кэш 0%', 'TVL ≥ $1B, кэш 50%', 'Нет требований'],
+    options: ['TVL ≥ $5M, кэш ≥ 5,00 %', 'TVL ≥ $100K, кэш 0,00 %', 'TVL ≥ $1B, кэш 50,00 %', 'Нет требований'],
     correct: 0,
-    explanation: 'policy.py: min_tvl_usd = 5_000_000 ($5M floor на пул), min_cash_pct = 0.05 (5% всегда в кэше).',
+    explanation: 'policy.py: min_tvl_usd = 5_000_000 ($5M floor на пул), min_cash_pct = 0.05 (5,00 % всегда в кэше).',
   },
   {
     q: 'Какой диапазон APY допускается для НОВОЙ позиции?',
-    options: ['1% … 30%', '0% … 100%', '5% … 15%', 'Любой'],
+    options: ['1,00 % … 30,00 %', '0,00 % … 100,00 %', '5,00 % … 15,00 %', 'Любой'],
     correct: 0,
-    explanation: 'policy.py: min_apy_for_new_position=1.0 (ниже — неинтересно), max_apy_for_new_position=30.0 (выше — слишком рискованно). APY > 30% сам по себе — стоп-сигнал.',
+    explanation: 'policy.py: min_apy_for_new_position=1.0 (ниже — неинтересно), max_apy_for_new_position=30.0 (выше — слишком рискованно). APY > 30,00 % сам по себе — стоп-сигнал.',
   },
   {
     q: 'Может ли агент (или LLM) переопределить approved=False от RiskPolicy?',
@@ -71,14 +72,14 @@ const questions = [
   <table>
     <thead><tr><th>Параметр</th><th>Значение</th><th>Поле в коде</th></tr></thead>
     <tbody>
-      <tr><td>Concentration T1</td><td>≤ {constitution.max_per_protocol_t1_pct}%</td><td><code>max_concentration_t1 = 0.40</code></td></tr>
-      <tr><td>Concentration T2</td><td>≤ {constitution.max_per_protocol_t2_pct}%</td><td><code>max_concentration_t2 = 0.20</code></td></tr>
-      <tr><td>Single protocol</td><td>≤ {constitution.max_per_protocol_t1_pct}%</td><td><code>max_single_protocol = 0.40</code></td></tr>
-      <tr><td>T2 суммарно</td><td>≤ {constitution.max_t2_total_pct}%</td><td><code>max_total_t2_allocation = 0.50</code> (ADR-019)</td></tr>
-      <tr><td>Min cash buffer</td><td>≥ {constitution.min_cash_buffer_pct}%</td><td><code>min_cash_pct = 0.05</code></td></tr>
+      <tr><td>Concentration T1</td><td>≤ {fmtPct2(constitution.max_per_protocol_t1_pct, true)}</td><td><code>max_concentration_t1 = 0.40</code></td></tr>
+      <tr><td>Concentration T2</td><td>≤ {fmtPct2(constitution.max_per_protocol_t2_pct, true)}</td><td><code>max_concentration_t2 = 0.20</code></td></tr>
+      <tr><td>Single protocol</td><td>≤ {fmtPct2(constitution.max_per_protocol_t1_pct, true)}</td><td><code>max_single_protocol = 0.40</code></td></tr>
+      <tr><td>T2 суммарно</td><td>≤ {fmtPct2(constitution.max_t2_total_pct, true)}</td><td><code>max_total_t2_allocation = 0.50</code> (ADR-019)</td></tr>
+      <tr><td>Min cash buffer</td><td>≥ {fmtPct2(constitution.min_cash_buffer_pct, true)}</td><td><code>min_cash_pct = 0.05</code></td></tr>
       <tr><td>Min TVL на пул</td><td>≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M</td><td><code>min_tvl_usd = 5_000_000</code></td></tr>
-      <tr><td>APY-band (новый вход)</td><td>{constitution.apy_floor_pct}% … {constitution.apy_ceiling_pct}%</td><td><code>min/max_apy_for_new_position</code></td></tr>
-      <tr><td>Base chain суммарно</td><td>≤ {constitution.chain_caps.base_chain_pct}%</td><td><code>BASE_CHAIN_CAP = 0.20</code> (ADR-025)</td></tr>
+      <tr><td>APY-band (новый вход)</td><td>{fmtPct2(constitution.apy_floor_pct, true)} … {fmtPct2(constitution.apy_ceiling_pct, true)}</td><td><code>min/max_apy_for_new_position</code></td></tr>
+      <tr><td>Base chain суммарно</td><td>≤ {fmtPct2(constitution.chain_caps.base_chain_pct, true)}</td><td><code>BASE_CHAIN_CAP = 0.20</code> (ADR-025)</td></tr>
     </tbody>
   </table>
 

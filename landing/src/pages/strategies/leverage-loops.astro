@@ -17,11 +17,13 @@
  * /api/aggressive-lab/strategy/leverage_loop, fail-closed — the honest committed numbers render offline.
  */
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import { fmtPct2 } from '../../lib/pct_format.js';
 import { PageHeader, Section, Card, Badge, StatusPill, Table, Th, Td } from '../../components/ui';
 import snapRR from '../../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -50,10 +52,11 @@ const LL = {
 
 <Layout
   title="Leverage loops, visualized — N× yield, N× liquidation | SPA earn-defi.com"
-  description="What a leverage loop actually is: deposit → borrow → redeposit ×N. It multiplies the yield by N AND the liquidation risk by N. The real dated cost from our advisory aggressive lab: a -35% liquidation-tail during the 2025-10 USDe unwind, NOT recovered. Risk-class C. The desk REFUSES this for live capital."
+  description="What a leverage loop actually is: deposit → borrow → redeposit ×N. It multiplies the yield by N AND the liquidation risk by N. The real dated cost from our advisory aggressive lab: a −35.00% liquidation-tail during the 2025-10 USDe unwind, NOT recovered. Risk-class C. The desk REFUSES this for live capital."
   canonical="https://earn-defi.com/strategies/leverage-loops"
 >
   <main>
+    <ApproxNote />
     <Section width="doc" pad="none">
       <PageHeader
         eyebrow="Beyond stablecoins · refused for live"
@@ -100,8 +103,8 @@ const LL = {
         <Card variant="status" tone="accent" padding="md">
           <p class="k" data-ru="Что растёт вместе с N — привлекательное">Grows with N — the attractive side</p>
           <p class="amp mono accent">N× <span class="amp-lab" data-ru="доходность">yield</span></p>
-          <p class="sub" data-ru="3-й оборот превращает ~5% в двузначные заявленные цифры — это и есть приманка.">
-            A 3rd turn can turn ~5% into a double-digit headline — that is the lure.
+          <p class="sub" data-ru="3-й оборот превращает ~5,00 % в двузначные заявленные цифры — это и есть приманка.">
+            A 3rd turn can turn ~5.00% into a double-digit headline — that is the lure.
           </p>
         </Card>
         <Card variant="status" tone="danger" padding="md">
@@ -170,19 +173,19 @@ const LL = {
       <div class="grid-3 mt-6">
         <Card variant="status" tone="warn" padding="md">
           <p class="k" data-ru="Заявленный APY (приманка)">Headline APY (the lure)</p>
-          <p class="metric-lg mono warn" id="ll-headline">{LL.headline_apy_pct.toFixed(1)}%</p>
+          <p class="metric-lg mono warn" id="ll-headline" data-ru={fmtPct2(LL.headline_apy_pct, true)}>{fmtPct2(LL.headline_apy_pct, false)}</p>
           <p class="sub" data-ru="То, что рекламирует петля.">What the loop advertises.</p>
         </Card>
         <Card variant="status" tone="danger" padding="md">
           <p class="k danger" data-ru="Реализовано в бэктесте (правда)">Backtest realized (the truth)</p>
-          <p class="metric-lg mono danger" id="ll-realized">{LL.bt_realized_apy_pct.toFixed(2)}%</p>
+          <p class="metric-lg mono danger" id="ll-realized" data-ru={fmtPct2(LL.bt_realized_apy_pct, true)}>{fmtPct2(LL.bt_realized_apy_pct, false)}</p>
           <p class="sub" data-ru="За 2024-07 → 2026-05: доходность отрицательная. Sharpe ≈ -0.67.">
             2024-07 → 2026-05: the return was negative. Sharpe ≈ {LL.bt_sharpe.toFixed(2)}.
           </p>
         </Card>
         <Card variant="status" tone="danger" padding="md">
           <p class="k danger" data-ru="Макс. просадка">Max drawdown</p>
-          <p class="metric-lg mono danger" id="ll-maxdd">{LL.bt_max_dd_pct.toFixed(2)}%</p>
+          <p class="metric-lg mono danger" id="ll-maxdd" data-ru={fmtPct2(LL.bt_max_dd_pct, true)}>{fmtPct2(LL.bt_max_dd_pct, false)}</p>
           <p class="sub" data-ru="Реализованная просадка от пика в бэктесте.">Realized peak-to-trough in the backtest.</p>
         </Card>
       </div>
@@ -196,14 +199,14 @@ const LL = {
         <div class="ev-body">
           <div class="ev-num">
             <p class="k danger" data-ru="Худший хвост ликвидации (стресс)">Worst liquidation tail (stress)</p>
-            <p class="metric-xl mono danger" id="ll-tail">{LL.worst_tail_dd_pct.toFixed(2)}%</p>
+            <p class="metric-xl mono danger" id="ll-tail" data-ru={fmtPct2(LL.worst_tail_dd_pct, true)}>{fmtPct2(LL.worst_tail_dd_pct, false)}</p>
           </div>
           <div class="ev-text">
-            <p class="body" data-ru="В окне развязки плеча USDe (октябрь 2025) — датированный, худший тест для петли — просадка in-sample достигла -13.02%, а моделируемый шок обрушил позицию на -35% и НЕ восстановился. Это цена, которую заплатила петля за заявленные 15%.">
+            <p class="body" data-ru="В окне развязки плеча USDe (октябрь 2025) — датированный, худший тест для петли — просадка in-sample достигла −13,02 %, а моделируемый шок обрушил позицию на −35,00 % и НЕ восстановился. Это цена, которую заплатила петля за заявленные 15,00 %.">
               During the USDe leverage-unwind window (October 2025) — the dated, worst test for the loop —
-              the in-sample drawdown reached {LL.worst_insample_loss_pct.toFixed(2)}%, and the modeled
-              shock crashed the position by ~35% and <strong>did not recover</strong>. That is the price
-              the loop paid for its 15% headline.
+              the in-sample drawdown reached {fmtPct2(LL.worst_insample_loss_pct, false)}, and the modeled
+              shock crashed the position by ~35.00% and <strong>did not recover</strong>. That is the price
+              the loop paid for its 15.00% headline.
             </p>
           </div>
         </div>
@@ -257,8 +260,8 @@ const LL = {
 
       <Card variant="status" tone="ok" padding="md" class="mt-6">
         <p class="k" data-ru="Что деск держит вместо этого">What the desk holds instead</p>
-        <p class="body" data-ru={`Живой капитал деска — это консервативное стейбл-кредитование (до 6% цель, ${realizedNumRu} реализовано) без открытого риска ликвидации. Плечевые петли мы ОЦЕНИВАЕМ в advisory-лаборатории с открытыми глазами на хвост — и не держим их.`}>
-          The desk's live capital is conservative stablecoin lending — up to 6% target, {realizedNumEn} realized so far — with no open liquidation risk. Leverage loops
+        <p class="body" data-ru={`Реального капитала у деска нет (бумажная стадия). Его бумажная книга — консервативное стейбл-кредитование без плеча (исследовательская цель до 6,00 %, ${realizedNumRu} на бумаге) без открытого риска ликвидации. Плечевые петли мы ОЦЕНИВАЕМ в advisory-лаборатории с открытыми глазами на хвост — и не держим их.`}>
+          The desk has no real capital (paper stage). Its paper book is unlevered conservative stablecoin lending — research target up to 6.00%, {realizedNumEn} on paper — with no open liquidation risk. Leverage loops
           are something we <strong>assess</strong> in the advisory lab, eyes open on the tail — and do not hold.
         </p>
       </Card>
@@ -289,16 +292,16 @@ const LL = {
         var bt = row.backtest || {};
         var tail = row.tail || {};
         // headline
-        var h = num(row.headline_apy_pct); if (h != null) setText('ll-headline', h.toFixed(1) + '%');
+        var h = num(row.headline_apy_pct); if (h != null) setText('ll-headline', spaPct(h));
         // backtest realized (the honest one)
         var rz = num(bt.realized_apy_pct != null ? bt.realized_apy_pct : row.realized_apy_pct);
         if (rz != null) setText('ll-realized', signedPct(rz));
         // max dd — file emits positive magnitude; render as signed loss
         var dd = num(bt.max_dd_pct != null ? bt.max_dd_pct : row.max_dd_pct);
-        if (dd != null) setText('ll-maxdd', '-' + Math.abs(dd).toFixed(2) + '%');
+        if (dd != null) setText('ll-maxdd', '\u2212' + spaPct(Math.abs(dd)));
         // worst tail — positive magnitude → signed loss
         var wt = num(tail.worst_tail_dd_pct != null ? tail.worst_tail_dd_pct : tail.worst_shape_shock_dd_pct);
-        if (wt != null) setText('ll-tail', '-' + Math.abs(wt).toFixed(2) + '%');
+        if (wt != null) setText('ll-tail', '\u2212' + spaPct(Math.abs(wt)));
         setText('ll-src', 'live (aggressive-lab scorecard)');
       }).catch(function () { /* fail-closed: honest committed numbers stay */ });
     })();

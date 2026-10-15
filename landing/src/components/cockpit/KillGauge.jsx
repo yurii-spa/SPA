@@ -71,7 +71,8 @@ export default function KillGauge({
 
   const hr = headroom != null ? Number(headroom) : (known ? Number(threshold) - Number(value) : null);
   const suffix = unit === '$' ? '' : unit;
-  const fmtV = (v) => (isNum(v) ? (unit === '$' ? '$' + fmtNum(v, 2) : fmtNum(v, 2) + suffix) : NA);
+  // Site typography: a negative value prints U+2212, not the hyphen-minus (P1 Wave 2 r2).
+  const fmtV = (v) => (isNum(v) ? (unit === '$' ? '$' + fmtNum(v, 2) : fmtNum(v, 2) + suffix).replace(/^-/, '\u2212') : NA);
 
   // needle
   const np = arcPoint(dim.cx, dim.cy, dim.r - 2, fill);

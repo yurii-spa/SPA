@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * PortfolioBuilder.jsx — «собери книгу сам» → RiskPolicy гейт оценивает её ВЖИВУЮ.
@@ -42,7 +43,7 @@ const CAP = {
 const UNIVERSE = [
   { id: 'aave',     ru: 'Aave V3 (USDC)',       en: 'Aave V3 (USDC)',       tier: 'T1', apy: 4.6,  tvl: 1_200_000_000 },
   { id: 'compound', ru: 'Compound V3 (USDC)',   en: 'Compound V3 (USDC)',   tier: 'T1', apy: 4.3,  tvl: 480_000_000 },
-  { id: 'morpho',   ru: 'Morpho Steakhouse',    en: 'Morpho Steakhouse',    tier: 'T1', apy: 5.1,  tvl: 210_000_000 },
+  { id: 'morpho',   ru: 'Morpho Steakhouse',    en: 'Morpho Steakhouse',    tier: 'T2', apy: 5.1,  tvl: 210_000_000 },  // T2 in ADAPTER_REGISTRY (P1-13)
   { id: 'spark',    ru: 'Spark sUSDS',          en: 'Spark sUSDS',          tier: 'T1', apy: 4.8,  tvl: 1_900_000_000 },
   { id: 'maple',    ru: 'Maple (private credit)', en: 'Maple (private credit)', tier: 'T2', apy: 9.4, tvl: 95_000_000 },
   { id: 'euler',    ru: 'Euler V2',             en: 'Euler V2',             tier: 'T2', apy: 6.2,  tvl: 38_000_000 },
@@ -58,8 +59,8 @@ const UNIVERSE = [
 const T = {
   title: { ru: 'Собери книгу → RiskPolicy гейт', en: 'Build a book → RiskPolicy gate' },
   intro: {
-    ru: 'Добавляй протоколы и задавай аллокацию. Гейт RiskPolicy (policy.py) проверяет КАЖДЫЙ cap вживую: T1≤40%, любой T2≤20%, T2 суммарно≤50%, кэш≥5%, TVL≥$5M, APY входа 1–30%. Любое нарушение → книга ОТКЛОНЕНА (approved=False, никем не переопределимо).',
-    en: 'Add protocols and set allocations. The RiskPolicy gate (policy.py) checks EVERY cap live: T1≤40%, any T2≤20%, total T2≤50%, cash≥5%, TVL≥$5M, entry APY 1–30%. Any violation → the book is REJECTED (approved=False, un-overridable).',
+    ru: 'Добавляй протоколы и задавай аллокацию. Гейт RiskPolicy (policy.py) проверяет КАЖДЫЙ cap вживую: T1≤40,00 %, любой T2≤20,00 %, T2 суммарно≤50,00 %, кэш≥5,00 %, TVL≥$5M, APY входа 1,00–30,00 %. Любое нарушение → книга ОТКЛОНЕНА (approved=False, никем не переопределимо).',
+    en: 'Add protocols and set allocations. The RiskPolicy gate (policy.py) checks EVERY cap live: T1≤40.00%, any T2≤20.00%, total T2≤50.00%, cash≥5.00%, TVL≥$5M, entry APY 1.00–30.00%. Any violation → the book is REJECTED (approved=False, un-overridable).',
   },
   add: { ru: 'Добавить протокол', en: 'Add protocol' },
   cash: { ru: 'Кэш (1 − Σ аллокаций)', en: 'Cash (1 − Σ allocations)' },
@@ -75,27 +76,29 @@ const T = {
   pass: { ru: 'PASS', en: 'PASS' },
   fail: { ru: 'REJECT', en: 'REJECT' },
   presets: { ru: 'Пресеты:', en: 'Presets:' },
-  presetReal: { ru: 'Реальная книга (~4.5% T1)', en: 'Real book (~4.5% T1)' },
-  presetGreedy: { ru: 'Жадная (50% Aave)', en: 'Greedy (50% Aave)' },
+  presetReal: { ru: 'Пример: книга в основном из T1 (иллюстрация)', en: 'Example: mostly-T1 book (illustrative)' },
+  presetGreedy: { ru: 'Жадная (50,00 % Aave)', en: 'Greedy (50.00% Aave)' },
   presetToxic: { ru: 'Yield-chase (LRT/loop)', en: 'Yield-chase (LRT/loop)' },
   lessonReal: {
-    ru: 'Вот почему живая книга сидит на ~4.5% в простых T1-кредиторах: это единственная аллокация, которая проходит ВСЕ cap\'ы без нарушения. Доходность — следствие гейта, а не цель.',
-    en: 'This is why the live book sits at ~4.5% in plain T1 lenders: it\'s the only allocation that clears EVERY cap. The yield is a consequence of the gate, not a target.',
+    ru: 'Такая книга проходит ВСЕ cap\'ы без нарушения: доходность — следствие гейта, а не цель. APY здесь учебные ориентиры, не живой фид. Настоящая бумажная книга деска устроена иначе (T2 до потолка 50,00 %) — её состав и измеренная ставка на странице «Методика и доказательства».',
+    en: 'A book like this clears EVERY cap: the yield is a consequence of the gate, not a target. The APYs here are teaching marks, not a live feed. The desk\'s actual paper book is different (T2 up to the 50.00% cap) — its composition and measured rate are on the due-diligence page.',
   },
+
 };
 
 // Preset allocations {protocolId: pct(0..100)}
 const PRESETS = {
-  real: { aave: 35, compound: 25, spark: 20, morpho: 15 },        // cash 5%, all T1≤40, ok
+  real: { aave: 35, compound: 25, spark: 20, morpho: 15 },        // cash 5%, T1≤40, morpho is T2 (15% ≤ 20, T2 total 15% ≤ 50) → ok
   greedy: { aave: 50, compound: 25, spark: 20 },                  // aave 50% > 40 T1 cap → REJECT
   toxic: { lrt: 25, loop: 20, susde: 18, pendle: 15, aave: 17 },  // T2-total>50, T2 caps, APY>30 → REJECT
 };
 
-function pct(v) { return (v).toFixed(1) + '%'; }
+function pct(v) { return pctL((v)); }
 function fmtTvl(v) { return v >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'B' : '$' + (v / 1e6).toFixed(0) + 'M'; }
 
 export default function PortfolioBuilder() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   // book: { protocolId: allocPct(0..100) }
   const [book, setBook] = useState(PRESETS.real);
   const [toAdd, setToAdd] = useState(UNIVERSE.find((u) => !PRESETS.real[u.id])?.id || UNIVERSE[0].id);
@@ -131,15 +134,15 @@ export default function PortfolioBuilder() {
 
   // cash buffer
   const cashOk = cashPct >= CAP.CASH_MIN * 100 - 1e-9;
-  checks.push({ k: lang === 'ru' ? `Кэш ≥ ${CAP.CASH_MIN * 100}%` : `Cash ≥ ${CAP.CASH_MIN * 100}%`, val: pct(cashPct), ok: cashOk });
+  checks.push({ k: lang === 'ru' ? `Кэш ≥ ${pctL(CAP.CASH_MIN * 100)}` : `Cash ≥ ${pctL(CAP.CASH_MIN * 100)}`, val: pct(cashPct), ok: cashOk });
   if (!cashOk) violations.push(lang === 'ru'
-    ? `Кэш-буфер ${pct(cashPct)} < минимума ${CAP.CASH_MIN * 100}%`
-    : `Cash buffer ${pct(cashPct)} < minimum ${CAP.CASH_MIN * 100}%`);
+    ? `Кэш-буфер ${pct(cashPct)} < минимума ${pctL(CAP.CASH_MIN * 100)}`
+    : `Cash buffer ${pct(cashPct)} < minimum ${pctL(CAP.CASH_MIN * 100)}`);
 
   // over-allocation (can't deploy >100%)
   if (deployedPct > 100 + 1e-9) violations.push(lang === 'ru'
-    ? `Размещено ${pct(deployedPct)} > 100% капитала`
-    : `Deployed ${pct(deployedPct)} > 100% of capital`);
+    ? `Размещено ${pct(deployedPct)} > 100,00 % капитала`
+    : `Deployed ${pct(deployedPct)} > 100.00% of capital`);
 
   // per-protocol concentration (T1≤40 / T2≤20) + TVL + APY-band per added book member
   entries.forEach(([id, v]) => {
@@ -147,11 +150,11 @@ export default function PortfolioBuilder() {
     const cap = (m.tier === 'T1' ? CAP.T1 : CAP.T2) * 100;
     const concOk = v <= cap + 1e-9;
     checks.push({
-      k: `${m[lang] ?? m.ru} — ${m.tier} ≤ ${cap}%`, val: pct(v), ok: concOk,
+      k: `${m[lang] ?? m.ru} — ${m.tier} ≤ ${pctL(cap)}`, val: pct(v), ok: concOk,
     });
     if (!concOk) violations.push(lang === 'ru'
-      ? `Концентрация ${m.ru} ${pct(v)} > ${m.tier}-лимита ${cap}%`
-      : `Concentration ${m.en} ${pct(v)} > ${m.tier} cap ${cap}%`);
+      ? `Концентрация ${m.ru} ${pct(v)} > ${m.tier}-лимита ${pctL(cap)}`
+      : `Concentration ${m.en} ${pct(v)} > ${m.tier} cap ${pctL(cap)}`);
 
     // TVL floor
     if (m.tvl < CAP.TVL_MIN) violations.push(lang === 'ru'
@@ -160,21 +163,21 @@ export default function PortfolioBuilder() {
 
     // APY band (entry)
     if (m.apy > CAP.APY_MAX) violations.push(lang === 'ru'
-      ? `${m.ru}: APY ${m.apy}% > потолка входа ${CAP.APY_MAX}% (риск слишком высок)`
-      : `${m.en}: APY ${m.apy}% > entry ceiling ${CAP.APY_MAX}% (risk too high)`);
+      ? `${m.ru}: APY ${pctL(m.apy)} > потолка входа ${pctL(CAP.APY_MAX)} (риск слишком высок)`
+      : `${m.en}: APY ${pctL(m.apy)} > entry ceiling ${pctL(CAP.APY_MAX)} (risk too high)`);
     else if (m.apy < CAP.APY_MIN) violations.push(lang === 'ru'
-      ? `${m.ru}: APY ${m.apy}% < минимума входа ${CAP.APY_MIN}%`
-      : `${m.en}: APY ${m.apy}% < entry minimum ${CAP.APY_MIN}%`);
+      ? `${m.ru}: APY ${pctL(m.apy)} < минимума входа ${pctL(CAP.APY_MIN)}`
+      : `${m.en}: APY ${pctL(m.apy)} < entry minimum ${pctL(CAP.APY_MIN)}`);
   });
 
   // total T2 ≤ 50%
   const t2Total = entries.filter(([id]) => meta(id).tier === 'T2').reduce((s, [, v]) => s + v, 0);
   const t2Ok = t2Total <= CAP.T2_TOTAL * 100 + 1e-9;
   if (entries.some(([id]) => meta(id).tier === 'T2')) {
-    checks.push({ k: lang === 'ru' ? `T2 суммарно ≤ ${CAP.T2_TOTAL * 100}%` : `Total T2 ≤ ${CAP.T2_TOTAL * 100}%`, val: pct(t2Total), ok: t2Ok });
+    checks.push({ k: lang === 'ru' ? `T2 суммарно ≤ ${pctL(CAP.T2_TOTAL * 100)}` : `Total T2 ≤ ${pctL(CAP.T2_TOTAL * 100)}`, val: pct(t2Total), ok: t2Ok });
     if (!t2Ok) violations.push(lang === 'ru'
-      ? `T2 суммарно ${pct(t2Total)} > лимита ${CAP.T2_TOTAL * 100}%`
-      : `Total T2 ${pct(t2Total)} > cap ${CAP.T2_TOTAL * 100}%`);
+      ? `T2 суммарно ${pct(t2Total)} > лимита ${pctL(CAP.T2_TOTAL * 100)}`
+      : `Total T2 ${pct(t2Total)} > cap ${pctL(CAP.T2_TOTAL * 100)}`);
   }
 
   // dedup violations (TVL/APY can repeat across members but message is per-protocol; keep unique)
@@ -212,7 +215,7 @@ export default function PortfolioBuilder() {
                   {m.risky && <span aria-hidden="true" style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--danger)' }}>▲</span>}
                 </span>
                 <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>APY {m.apy}% · TVL {fmtTvl(m.tvl)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>APY {pctL(m.apy)} · TVL {fmtTvl(m.tvl)}</span>
                   <button style={removeBtn} onClick={() => remove(id)}>{tr('remove')}</button>
                 </span>
               </div>
@@ -231,7 +234,7 @@ export default function PortfolioBuilder() {
       {available.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <select value={toAdd} onChange={(e) => setToAdd(e.target.value)} style={selectBox}>
-            {available.map((u) => <option key={u.id} value={u.id}>{(u[lang] ?? u.ru)} · {u.tier} · {u.apy}%</option>)}
+            {available.map((u) => <option key={u.id} value={u.id}>{(u[lang] ?? u.ru)} · {u.tier} · {pctL(u.apy)}</option>)}
           </select>
           <button style={{ ...presetBtn, marginLeft: 0, borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={add}>+ {tr('add')}</button>
         </div>
@@ -241,7 +244,7 @@ export default function PortfolioBuilder() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 18 }}>
         <div style={miniCard}><div style={miniLabel}>{tr('deployed')}</div><div style={{ ...miniVal, color: deployedPct > 100 ? 'var(--danger)' : 'var(--text-primary)' }}>{pct(deployedPct)}</div></div>
         <div style={miniCard}><div style={miniLabel}>{tr('cash')}</div><div style={{ ...miniVal, color: cashPct < 5 ? 'var(--danger)' : 'var(--ok)' }}>{pct(cashPct)}</div></div>
-        <div style={miniCard}><div style={miniLabel}>{tr('blended')}</div><div style={{ ...miniVal, color: 'var(--accent)' }}>{blendedApy.toFixed(2)}%</div></div>
+        <div style={miniCard}><div style={miniLabel}>{tr('blended')}</div><div style={{ ...miniVal, color: 'var(--accent)' }}>{pctL(blendedApy)}</div></div>
       </div>
 
       {/* gate checks */}

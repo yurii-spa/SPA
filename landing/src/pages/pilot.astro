@@ -8,7 +8,7 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -27,9 +27,9 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
         <span data-ru="Черновик для разговора — не оферта">Draft for a conversation — not an offer</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Поговорите с тем, кто это построил">Talk to the person who built this</h1>
-      <p class="text-lg text-slate-300 leading-relaxed" data-ru={`30 минут, без питча, без обязательств. Спросите что угодно: как деск меряет риск, почему отказывается от того, от чего отказывается, и как выглядит честный ${realizedNumRu} трек. Research-деск в paper-валидации — не оферта и не инвестсовет.`}>
+      <p class="text-lg text-slate-300 leading-relaxed" data-ru={`30 минут, без питча, без обязательств. Спросите что угодно: как деск меряет риск, почему отказывается от того, от чего отказывается, и как выглядит честный модельный бумажный трек с результатом ${realizedNumRu}. Research-деск в paper-валидации — не оферта и не инвестсовет.`}>
         30 minutes, no pitch, no obligation. Ask anything — how the desk measures risk, why it refuses
-        what it refuses, and what an honest {realizedNumEn} realized track actually looks like. A research desk in
+        what it refuses, and what an honest simulated paper track at {realizedNumEn} actually looks like. A research desk in
         paper validation — not an offer or investment advice.
       </p>
     </section>
@@ -47,7 +47,7 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
       <h2 class="text-lg font-semibold text-white mb-3" data-ru="Что УЖЕ доказано (проверяемо, не заявлено)">What is already PROVEN (checkable, not asserted)</h2>
       <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
         <li data-ru="«Не верьте — проверьте.» Zero-dependency верификатор воспроизводит каждую опубликованную proof-поверхность."><strong>"Don't trust us, check us."</strong> A zero-dependency verifier reproduces every published proof surface.</li>
-        <li data-ru="Защитная машинерия ДОКАЗАННО срабатывает — 11/11 защит через тот же production-код цикла (two-tier kill SOFT −5% / HARD −10%)."><strong>The safety machinery is proven to FIRE</strong> — 11/11 defenses through the same production governance code (two-tier kill: SOFT −5% / HARD −10%).</li>
+        <li data-ru="Защитная машинерия ДОКАЗАННО срабатывает — 11/11 защит через тот же production-код цикла (two-tier kill SOFT −5,00 % / HARD −10,00 %)."><strong>The safety machinery is proven to FIRE</strong> — 11/11 defenses through the same production governance code (two-tier kill: SOFT −5.00% / HARD −10.00%).</li>
         <li data-ru="Публичный журнал отказов + proof-цепочка (hash-anchored, tamper-evident) — всю цепочку можно отдать скептику без ручного запроса."><strong>Public refusal log + proof chain</strong> (hash-anchored, tamper-evident).</li>
       </ul>
       <div class="mt-4 flex flex-wrap gap-3">
@@ -99,7 +99,7 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
         <span data-ru="Честные ограничения — прочтите ДО того, как решитесь">The honest constraints — read before you commit</span>
       </summary>
       <ul class="space-y-2 text-sm text-slate-300 leading-relaxed mt-4">
-        <li><span class="font-mono text-amber-300"><span id="pilot-days">21</span>/30</span><span data-ru=" подтверждённых дней честного бумажного трека (виртуальные $100k, $0 реальных). Вердикт Day-30: NOT_READY, hash-anchored."> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</span></li>
+        <li><span class="font-mono text-amber-300"><span id="pilot-days">{snapRR.real_track_days ?? '—'}</span>/30</span><span data-ru=" подтверждённых дней честного бумажного трека (виртуальные $100k, $0 реальных). Реальный капитал не открыт: нужно решение владельца и юридическая проверка."> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Live capital not open: needs an owner decision and a legal review.</span></li>
         <li data-ru="Реализованный форвардный edge пока НЕ бьёт RWA-пол на fundable-масштабе. Uplift оптимизатора — артефакт ~$100k; sleeves читаются INSUFFICIENT_DATA. Мы НЕ заявляем single-strategy alpha.">The realized forward edge does not yet beat the RWA floor at fundable scale. We do <strong>not</strong> claim single-strategy alpha.</li>
         <li data-ru="Ёмкость ограничена — честный адресуемый рынок сегодня мал (~менее $100k/год net). Это игра масштаба-через-много-книг и доверия на годы, не ставка на сегодня.">Capacity is bounded — honest addressable is small today. A scale-across-many-books + trust play over years, not a today-rate play.</li>
       </ul>

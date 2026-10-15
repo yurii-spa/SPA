@@ -86,8 +86,9 @@ def _tier_packages() -> dict:
         apy = p.get("blended_net_apy_pct") if isinstance(p, dict) else None
         dd = p.get("worst_dd_pct") if isinstance(p, dict) else None
         out[key] = {
-            "apy_pct": round(float(apy), 1) if isinstance(apy, (int, float)) and not isinstance(apy, bool) else None,
-            "dd_pct": round(float(dd), 1) if isinstance(dd, (int, float)) and not isinstance(dd, bool) else None,
+            # ADR-660: the source keeps its precision; rounding happens once, at display (two decimals).
+            "apy_pct": round(float(apy), 4) if isinstance(apy, (int, float)) and not isinstance(apy, bool) else None,
+            "dd_pct": round(float(dd), 4) if isinstance(dd, (int, float)) and not isinstance(dd, bool) else None,
         }
     return out
 
@@ -176,6 +177,55 @@ def _package_status() -> dict:
 
 
 
+POSITIONS = ROOT / "data" / "current_positions.json"
+
+
+def _book_exposure(positions_path: Path = POSITIONS) -> dict:
+    """What the main (Conservative) book HOLDS, per protocol — for /due-diligence.
+
+    Replaces a hand-typed «protocol whitelist» that drifted from the book (P1 2026-10-08: it lacked
+    fluid_fusdc and maple — 20 % of the book each — and labelled Morpho T1 where the registry says
+    T2). Amounts come from the cycle's own positions snapshot; tiers from the canonical registry
+    (``concentration_monitor._tier_map`` — the same map ``package_status._composition`` uses).
+    The share is of allocated paper capital (positions + cash), the base the RiskPolicy caps use.
+    Unreadable source ⇒ ``state: UNMEASURED`` with a reason — never an empty table read as «nothing held».
+    """
+    doc = _load(positions_path)
+    pos = doc.get("positions") if isinstance(doc, dict) else None
+    cash = doc.get("cash_usd") if isinstance(doc, dict) else None
+    if not isinstance(pos, dict) or not pos or not isinstance(cash, (int, float)) or isinstance(cash, bool):
+        return {"state": "UNMEASURED", "reason": "positions snapshot unreadable or empty", "rows": None}
+    try:
+        from spa_core.risk.concentration_monitor import _tier_map
+        tmap = _tier_map() or {}
+    except Exception:  # noqa: BLE001 — absent registry is a named outcome, not «T1»
+        tmap = {}
+    try:
+        from spa_core.defi_engine.package_status import IDENTITY_UNRESOLVED
+    except Exception:  # noqa: BLE001
+        IDENTITY_UNRESOLVED = {}
+    amounts = {str(k): float(v) for k, v in pos.items()
+               if isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) > 0}
+    base = sum(amounts.values()) + float(cash)
+    if base <= 0:
+        return {"state": "UNMEASURED", "reason": "allocated capital is zero", "rows": None}
+    rows = []
+    for proto, usd in sorted(amounts.items(), key=lambda kv: (-kv[1], kv[0])):
+        tier = "unresolved" if proto in IDENTITY_UNRESOLVED else (tmap.get(proto) or "unlabelled")
+        rows.append({"protocol": proto, "tier": tier, "usd": round(usd, 2),
+                     "share_pct": round(usd / base * 100.0, 4)})
+    return {
+        "state": "MEASURED",
+        "as_of": doc.get("generated_at"),
+        "base": "allocated paper capital = positions + cash",
+        "base_usd": round(base, 2),
+        "cash_usd": round(float(cash), 2),
+        "cash_share_pct": round(float(cash) / base * 100.0, 4),
+        "rows": rows,
+        "source": "data/current_positions.json (daily cycle) + ADAPTER_REGISTRY tiers",
+    }
+
+
 def _go_live_target(golive: dict):
     """The gate's calendar target — VERBATIM, null included.
 
@@ -229,10 +279,32 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
     # SAME formula /api/health-public and /api/ssot/facts now use for paper_apy_pct.
     from spa_core.reporting.compound_apy import compound_annualized_pct as _shared_apy
     paper_apy = None
+    anchor_eq = latest_eq = None
     if len(evidenced) >= 2 and real_days > 0:
         anchor_eq = float(evidenced[0].get("equity") or 0)
         latest_eq = float(evidenced[-1].get("equity") or 0)
         paper_apy = _shared_apy(anchor_eq, latest_eq, real_days)
+    # P1 2026-10-08 (C4): the rate's OWN cumulative — same two NAVs, same window — so a page can show
+    # «+x % over N days» next to the annualised rate and the two visibly reconcile. Not the
+    # «total return» (that one is on the $100k base from paper_start_date, pre-anchor days included).
+    track_return = ((latest_eq / anchor_eq - 1.0) * 100.0) if anchor_eq and latest_eq else None
+
+    # P1 Wave 2 (owner/ARB 2026-10-08, step 3): the return over the ACTUAL period, proven from the
+    # ledger — flows tested bar by bar, ACT/365 on valuation dates, provenance counted. The primary
+    # public metric is its period return; the annualised equivalent is separate and needs the
+    # owner's approval. The anchor NAV / track return below are read FROM it (one definition).
+    from spa_core.paper_trading.track_period_return import period_return as _period_return
+    _end_ts = pts.get("last_cycle_ts") or pts.get("last_updated")
+    if not (isinstance(_end_ts, str) and evidenced and _end_ts[:10] == str(evidenced[-1].get("date"))):
+        _end_ts = None          # a run time that is not the end bar's own is not its timestamp
+    track_period = _period_return(bars, end_ts=_end_ts)
+    if track_period.get("state") == "MEASURED":
+        anchor_eq = track_period["nav_start"]
+        track_return = track_period["period_return_pct"]
+        # ONE annualised number in the snapshot: the equivalent of the period return on ACT/365
+        # valuation-date days (the bar-count exponent understated the duration by the days the
+        # ledger has no bar for). Owner approval of the annualised display is still required.
+        paper_apy = track_period["annualised_equivalent_pct"]
 
     # as_of = freshness of the underlying evidenced data (last evidenced bar date), NOT build time.
     as_of = (evidenced[-1].get("date") if evidenced else last.get("date")) or golive.get("as_of")
@@ -264,6 +336,14 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         "paper_apy_pct": round(float(paper_apy), 4) if paper_apy is not None else None,
         "max_drawdown_pct": _max_drawdown_pct(evidenced or bars),
         "total_return_pct": round((end_equity / 100000.0 - 1.0) * 100.0, 4),
+        # Base of total_return_pct: $100k from the paper start (pre-anchor days INCLUDED).
+        "paper_start_date": pts.get("paper_start_date"),
+        # The rate's own window: NAV at the close of the anchor bar → NAV of the last evidenced bar.
+        "anchor_equity": round(anchor_eq, 2) if anchor_eq else None,
+        "track_end_date": evidenced[-1].get("date") if evidenced else None,
+        "track_return_pct": round(track_return, 4) if track_return is not None else None,
+        # The whole proof of that return: window, day count, flows, costs, provenance, gaps.
+        "track_period": track_period,
         "packages": _tier_packages(),   # tier-card net-APY static fallback (Preserve/Core/Max), null if uncomputed
         # ── ADR-103: живые paper-треки трёх пакетов (факт positions_count>0 — правило
         # владельца 19.08). Conservative — главная evidenced-книга; Balanced/Aggressive —
@@ -274,7 +354,7 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
                 "status": "paper_test_running" if real_days > 0 else "not_started",
                 "days_with_positions": real_days,
                 "days_funded": real_days,
-                "apy_pct": round(float(paper_apy), 2) if paper_apy is not None else None,
+                "apy_pct": round(float(paper_apy), 4) if paper_apy is not None else None,   # ADR-660: display rounds
                 "dd_pct": _max_drawdown_pct(evidenced or bars),
                 "nav_usd": round(end_equity, 2),
                 "positions_count": None,   # главная книга ведёт позиции в своём снимке
@@ -286,6 +366,9 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         # ADR-533: the ONE read model of the three paper portfolios — work / data / history state,
         # the running strategy version and the version waiting to start. A status, not a figure.
         "package_status": _package_status(),
+        # What the main book holds, per protocol, with registry tiers (P1 2026-10-08 — replaces the
+        # hand-typed whitelist on /due-diligence). A holding, not a recommendation.
+        "book_exposure": _book_exposure(),
         "bars": bars,
     }
     return snap

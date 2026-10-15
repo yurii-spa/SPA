@@ -4,6 +4,7 @@ import {
 } from './api.js';
 import AuthForm from './AuthForm.jsx';
 import SiweBinder from './SiweBinder.jsx';
+import { pctL, pctLang } from '../../../lib/pct_live.js';
 
 /*
  * ModuleRunner — the per-module page island (/academy/onboarding/[module]).
@@ -71,13 +72,13 @@ const T = {
   quizErr: { ru: 'Не удалось загрузить квиз.', en: 'Failed to load the quiz.' },
   quizSubmit: { ru: 'Проверить ответы', en: 'Grade answers' },
   quizScore: { ru: 'Результат', en: 'Score' },
-  quizPassed: { ru: 'Порог пройден (≥80%)', en: 'Passed (≥80%)' },
-  quizFailed: { ru: 'Порог не пройден (нужно ≥80%)', en: 'Not passed (need ≥80%)' },
+  quizPassed: { ru: 'Порог пройден (≥80,00 %)', en: 'Passed (≥80.00%)' },
+  quizFailed: { ru: 'Порог не пройден (нужно ≥80,00 %)', en: 'Not passed (need ≥80.00%)' },
   quizAnswerAll: { ru: 'Ответьте на все вопросы.', en: 'Answer every question.' },
   quizAttempt: { ru: 'попытка', en: 'attempt' },
   quizThenVerify: {
-    ru: 'Наберите ≥80%, затем нажмите «Проверить квиз», чтобы засчитать модуль.',
-    en: 'Score ≥80%, then press “Verify quiz” to complete the module.',
+    ru: 'Наберите ≥80,00 %, затем нажмите «Проверить квиз», чтобы засчитать модуль.',
+    en: 'Score ≥80.00%, then press “Verify quiz” to complete the module.',
   },
   errBad: { ru: 'Проверьте введённые данные.', en: 'Check your input.' },
   errOffline: { ru: 'API недоступен. Попробуйте позже.', en: 'API unavailable. Try again later.' },
@@ -85,6 +86,7 @@ const T = {
 
 export default function ModuleRunner({ moduleId, moduleData }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   useEffect(() => { setLang(getLang()); return onLangChange(setLang); }, []);
   const tr = (k) => (T[k] ? T[k][lang] ?? T[k].ru : k);
 
@@ -379,7 +381,7 @@ function QuizSection({ moduleId, csrf, lang, tr, onPassed }) {
       {graded && (
         <div style={graded.passed ? okBox : warnBox}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>
-            {tr('quizScore')}: {Math.round(graded.score)}% · {graded.passed ? tr('quizPassed') : tr('quizFailed')}
+            {tr('quizScore')}: {pctL(Math.round(graded.score))} · {graded.passed ? tr('quizPassed') : tr('quizFailed')}
             <span style={{ color: 'var(--text-faint)', fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
               ({tr('quizAttempt')} {graded.attempt_n})
             </span>

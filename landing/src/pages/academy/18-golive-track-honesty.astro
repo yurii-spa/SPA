@@ -34,13 +34,13 @@ const questions = [
   {
     q: 'Какой порог drawdown использует go-live gate и почему именно он?',
     options: [
-      'HARD-kill 10%',
-      'SOFT-derisk tier 5% (GOLIVE_MAX_DRAWDOWN_PCT=5.0): трек обязан держаться под 5%, чтобы считаться go-live-ready',
-      '0% — любая просадка дисквалифицирует',
-      '50%',
+      'HARD-kill 10,00 %',
+      'SOFT-derisk tier 5,00 % (GOLIVE_MAX_DRAWDOWN_PCT=5.0): трек обязан держаться под 5,00 %, чтобы считаться go-live-ready',
+      '0,00 % — любая просадка дисквалифицирует',
+      '50,00 %',
     ],
     correct: 1,
-    explanation: 'golive_checker.py: GOLIVE_MAX_DRAWDOWN_PCT = 5.0 — это SOFT-derisk tier, НЕ kill (10%). Go-live строже kill\'а: трек должен оставаться под 5% drawdown.',
+    explanation: 'golive_checker.py: GOLIVE_MAX_DRAWDOWN_PCT = 5.0 — это SOFT-derisk tier, НЕ kill (10,00 %). Go-live строже kill\'а: трек должен оставаться под 5,00 % drawdown.',
   },
   {
     q: 'Почему два критерия go-live помечены как time-gated, и что это значит?',
@@ -95,8 +95,8 @@ const questions = [
   <h2>Go-live строже kill'а</h2>
   <p>
     Порог просадки для go-live — <code>GOLIVE_MAX_DRAWDOWN_PCT = 5.0</code>, и это намеренно
-    <strong>SOFT-derisk tier (5%)</strong>, а НЕ HARD-kill (10%). То есть трек обязан держаться
-    <strong>под 5%</strong> drawdown, чтобы считаться готовым к реальному капиталу — планка строже, чем
+    <strong>SOFT-derisk tier (5,00 %)</strong>, а НЕ HARD-kill (10,00 %). То есть трек обязан держаться
+    <strong>под 5,00 %</strong> drawdown, чтобы считаться готовым к реальному капиталу — планка строже, чем
     та, что просто останавливает торговлю.
   </p>
 

@@ -10,18 +10,18 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
 import snap from '../lib/snapshot_view.js';
-import { realizedApyPct, realizedApyLabel, drawdownMagnitudeText } from '../lib/realized_rate.js';
+import { realizedApyPct, realizedApyQualified, drawdownMagnitudeText } from '../lib/realized_rate.js';
 // PRODUCT-TRUTH-02: drawdown rendered from the shelf, rounded away from zero (was a typed «0.0%»).
 const ddMagEn = drawdownMagnitudeText(snap.max_drawdown_pct);
 const ddEn = ddMagEn == null ? 'drawdown not measured' : ddMagEn + '% drawdown';
-const ddRu = ddMagEn == null ? 'просадка не измерена' : ddMagEn.replace('.', ',') + '% просадки';
+const ddRu = ddMagEn == null ? 'просадка не измерена' : ddMagEn.replace('.', ',') + '\u00a0% просадки';   // ADR-660 RU form
 const rrPct = realizedApyPct(snap);          // число или null
-const rrEn = realizedApyLabel(snap);         // «5.3%» / «data unavailable»
-const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных»
+const rrEn = realizedApyQualified(snap);         // «5.3%» / «data unavailable»
+const rrRu = realizedApyQualified(snap, true);   // «5,3%» / «нет данных»
 ---
 <Layout
   title="Stablecoin Safety Snapshot — 60-second check, no wallet | earn-defi.com"
-  description={`A free 60-second stablecoin safety check for non-technical holders — no wallet connection, no scan. Four questions → a personalized, honest risk snapshot + how much yield your idle stables leave on the table at our ~${rrEn} realized paper rate. Not investment advice.`}
+  description={`A free 60-second stablecoin safety check for non-technical holders — no wallet connection, no scan. Four questions → a personalized, honest risk snapshot + how much yield your idle stables leave on the table, illustrated with the estimated annualised equivalent of our simulated paper track (${rrEn}). Not investment advice.`}
 >
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
     <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
@@ -111,9 +111,9 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         <a href="/track-record?src=snapshot" data-track="snapshot_to_track" class="text-accent-400 underline" data-ru="Смотреть живой трек →">See the live track →</a></p>
       <!-- C8: trust band — reinforces "why trust us" at the conversion moment. -->
       <div class="mt-6"><TrustBand /></div>
-      <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru={`Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация на нашей реализованной paper-ставке ~${rrRu} (${ddRu} (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены), проверяемо), не гарантия. Не инвестиционный совет.`}>
-        Estimated from your answers, not a wallet scan. The "on the table" figure is illustrative at our
-        ~{rrEn} realized paper rate ({ddEn} (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included), auditable) — not a guarantee. Not investment advice.
+      <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru={`Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация по оценочному годовому эквиваленту нашего модельного бумажного трека ${rrRu} (${ddRu} (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены), проверяемо), не гарантия. Не инвестиционный совет.`}>
+        Estimated from your answers, not a wallet scan. The "on the table" figure is illustrative, using the estimated annualised equivalent of our simulated paper track:
+        {rrEn} ({ddEn} (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included), auditable) — not a guarantee. Not investment advice.
       </p>
     </section>
   </main>
@@ -157,9 +157,11 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
 
       function fmtUsd(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
       var MID={lt10k:5000, '10_50k':30000, '50_250k':150000, gt250k:250000};
-      function finish(){
+      // rerender=true: the language was switched after the result was shown — rebuild the same
+      // result in the new locale (Layout.setLang calls window.__renderLive), without re-tracking/scrolling.
+      function finish(rerender){
         var ru=isRu();
-        // yield-gap: band midpoint × the realized rate FROM THE SNAPSHOT (never a typed literal),
+        // yield-gap: band midpoint × the estimated annualised equivalent FROM THE SNAPSHOT (never a typed literal),
         // only if idle/CEX (money not earning). Нет числа в снимке ⇒ блок не показывается вовсе.
         var rEl=document.getElementById('sn-rate');
         var RPCT=parseFloat(rEl.getAttribute('data-pct'));
@@ -167,7 +169,7 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         // PRODUCT-TRUTH-02: the drawdown phrase comes from the shelf (rounded away from zero), never a typed «0.0%»
         var DDT=ru?rEl.getAttribute('data-dd-ru'):rEl.getAttribute('data-dd-en');
         // нет измеренного числа ⇒ фраза идёт без ставки, а не с «нет данных» внутри предложения
-        var RTXT=isFinite(RPCT)?('~'+RLBL):(ru?'консервативная':'a conservative');
+        var RTXT=isFinite(RPCT)?(RLBL):(ru?'консервативная':'a conservative');
         var mid=MID[ans[1]]||0;
         var earning = ans[2].indexOf('defi')>=0;
         var gapEl=document.getElementById('sn-yieldgap');
@@ -175,21 +177,21 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
           var perYr=mid*(RPCT/100);
           gapEl.innerHTML='<div style="font-size:13px;color:var(--text-muted)">'+(ru?'Простаивающие стейблы оставляют «на столе»':'Idle stables leave on the table')+'</div>'+
             '<div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:#34d399">~'+fmtUsd(perYr)+(ru?'/год':'/yr')+'</div>'+
-            '<div style="font-size:11px;color:var(--text-faint)">'+(ru?('на нашей реализованной paper-ставке ~'+RLBL+' · проверяемо · '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) · не гарантия'):('at our ~'+RLBL+' realized paper rate · auditable · '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) · not a guarantee'))+'</div>';
+            '<div style="font-size:11px;color:var(--text-faint)">'+(ru?('по оценочному годовому эквиваленту нашего модельного бумажного трека '+RLBL+' · проверяемо · '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены) · не гарантия'):('using the estimated annualised equivalent of our simulated paper track, '+RLBL+' · auditable · '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included) · not a guarantee'))+'</div>';
         } else { gapEl.style.display='none'; }
         // risk notes per answer combo (deterministic)
         var notes=[];
         if(ans[2].indexOf('cex')>=0) notes.push(ru?'Биржа (CEX): вы НЕ держите ключи — это custody-риск. Проверьте вывод небольшой суммы, пока не срочно.':'Exchange (CEX): you do NOT hold the keys — that is custody risk. Test a small withdrawal while it is not urgent.');
         if(ans[3].indexOf('usdt')>=0) notes.push(ru?'USDT: крупнейший стейбл, но резервы менее прозрачны, чем у некоторых. Депеги случались кратко — это хвостовой риск, не паника.':'USDT: the largest stable, but its reserves are less transparent than some. Brief depegs have happened — a tail risk, not a panic.');
         if(ans[3].indexOf('algo')>=0) notes.push(ru?'Алго/прочие стейблы: исторически САМЫЙ хрупкий класс (см. UST-2022). Держите долю малой и знайте механизм пега.':'Algo/other stables: historically the MOST fragile class (see UST-2022). Keep the share small and know the peg mechanism.');
-        if(ans[2].indexOf('idle')>=0) notes.push(ru?('Простаивают в кошельке: под 0%. Даже безопасная '+RTXT+' ставка — это реальные деньги за год.'):('Idle in a wallet: earning 0%. Even '+RTXT+' safe rate is real money over a year.'));
+        if(ans[2].indexOf('idle')>=0) notes.push(ru?('Простаивают в кошельке: под 0,00 %. Даже безопасная '+RTXT+' ставка — это реальные деньги за год.'):('Idle in a wallet: earning 0.00%. Even '+RTXT+' safe rate is real money over a year.'));
         if(ans[2].indexOf('defi')>=0) notes.push(ru?'В DeFi: проверьте approvals (безлимитные разрешения) и здоровье протокола — самый частый скрытый риск.':'In DeFi: check your approvals (unlimited allowances) and protocol health — the most common hidden risk.');
         if(!notes.length) notes.push(ru?'По вашим ответам явных красных флагов нет — но проверяемость важнее ощущений.':'No obvious red flags from your answers — but verifiability beats a feeling.');
         var ul=document.getElementById('sn-notes'); ul.innerHTML=notes.map(function(n){ return '<li>• '+n+'</li>'; }).join('');
         // matched next step
         var goal=ans[4], nx=document.getElementById('sn-next');
         var step;
-        if(goal==='safe') step={t:ru?'Ваш приоритет — сохранность':'Your priority is safety',d:ru?(isFinite(RPCT)?('Консервативный тир: T1/T2 стейбл-кредитование, ~'+RLBL+' реализованных, '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):'Консервативный тир: T1/T2 стейбл-кредитование, '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):(isFinite(RPCT)?('The Conservative tier: T1/T2 stablecoin lending, ~'+RLBL+' realized, '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'):'The Conservative tier: T1/T2 stablecoin lending, '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'),h:'/packages',c:ru?'Смотреть консервативный тир →':'See the Conservative tier →'};
+        if(goal==='safe') step={t:ru?'Ваш приоритет — сохранность':'Your priority is safety',d:ru?(isFinite(RPCT)?('Консервативный тир: T1/T2 стейбл-кредитование, '+RLBL+', '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):'Консервативный тир: T1/T2 стейбл-кредитование, '+DDT+' (бумажный трек; с 10.09.2026 списываются расчётные газ и проскальзывание собственных ходов книги; реальные издержки исполнения не учтены). То, что деск реально ведёт.'):(isFinite(RPCT)?('The Conservative tier: T1/T2 stablecoin lending, '+RLBL+', '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'):'The Conservative tier: T1/T2 stablecoin lending, '+DDT+' (paper; modelled gas and slippage of the book’s own moves charged since 2026-09-10; real execution costs not included). What the desk actually runs.'),h:'/packages',c:ru?'Смотреть консервативный тир →':'See the Conservative tier →'};
         else if(goal==='income') step={t:ru?'Ваш приоритет — стабильный доход':'Your priority is steady income',d:ru?'Три бумажных портфеля с разной механикой; статус работы, результат текущей версии, правило остановки и исследовательская цель показаны отдельно — цель не результат.':'Three paper portfolios with different mechanics; operating status, the current version’s result, the stop rule and the research target are shown separately — a target is not a result.',h:'/packages',c:ru?'Смотреть пакеты →':'See the packages →'};
         else step={t:ru?'Ваш приоритет — рост':'Your priority is growth',d:ru?'Aggressive — бумажный эксперимент: концентрированное кредитование стейблкоинов и симулированная петля sUSDe/PYUSD на Morpho Blue. Статистика текущей версии накапливается; реальный капитал не допускается. Исследовательская цель — не результат; хвост прежнего исследования (Aggressive Lab) показан отдельно.':'Aggressive is a paper experiment: concentrated stablecoin lending plus a simulated sUSDe/PYUSD loop on Morpho Blue. The current version is accumulating statistics; it is refused for live capital. A research target is not a result; the tail of the earlier research (Aggressive Lab) is shown separately.',h:'/strategies/aggressive',c:ru?'Смотреть Aggressive →':'See Aggressive →'};
         nx.innerHTML='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">'+step.t+'</div>'+
@@ -199,7 +201,7 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         var gapTitle, gapBody;
         if(ans[2].indexOf('cex')>=0){ gapTitle=ru?'Что мы НЕ можем починить за вас: кастоди':'The one we can\'t fix for you: custody'; gapBody=ru?'Пока стейблы на бирже, ключи держит она, а не вы. Мы некастодиальны — мы не можем взять на себя этот риск, только помочь думать о нём.':'While stables sit on an exchange, it holds the keys, not you. We are non-custodial — we cannot take that risk on for you, only help you think about it.'; }
         else if(ans[3].indexOf('algo')>=0){ gapTitle=ru?'Что мы НЕ можем починить: механизм пега':'The one we can\'t fix: the peg mechanism'; gapBody=ru?'Алго/прочие стейблы держатся на механизме, который может сломаться (UST-2022). Никакая доходность это не компенсирует — только меньший размер и понимание.':'Algo/other stables rely on a mechanism that can break (UST-2022). No yield compensates for that — only a smaller size and understanding do.'; }
-        else if(ans[2].indexOf('idle')>=0){ gapTitle=ru?'Что мы НЕ можем починить: за вас нажать кнопку':'The one we can\'t fix: taking the step for you'; gapBody=ru?'Простаивающие деньги под 0% — это выбор бездействия. Мы можем показать честный путь, но некастодиально — решаете и исполняете вы.':'Idle money at 0% is the choice to do nothing. We can show an honest path, but non-custodially — you decide and execute.'; }
+        else if(ans[2].indexOf('idle')>=0){ gapTitle=ru?'Что мы НЕ можем починить: за вас нажать кнопку':'The one we can\'t fix: taking the step for you'; gapBody=ru?'Простаивающие деньги под 0,00 % — это выбор бездействия. Мы можем показать честный путь, но некастодиально — решаете и исполняете вы.':'Idle money at 0.00% is the choice to do nothing. We can show an honest path, but non-custodially — you decide and execute.'; }
         else { gapTitle=ru?'Что мы НЕ можем починить: доверие':'The one we can\'t fix: trust'; gapBody=ru?'Проверку нельзя аутсорсить. Но её можно СДЕЛАТЬ — каждое наше число пересчитывается одним верификатором.':'Verification can\'t be outsourced. But it CAN be done — every number we publish is re-derivable with one verifier.'; }
         document.getElementById('sn-gap').innerHTML='<div style="font-size:13px;font-weight:600;color:#f2b53c;margin-bottom:4px">'+gapTitle+'</div>'+
           '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">'+gapBody+'</div>'+
@@ -208,9 +210,16 @@ const rrRu = realizedApyLabel(snap, true);   // «5,3%» / «нет данных
         document.querySelectorAll('.sn-q').forEach(function(s){ s.hidden=true; });
         document.getElementById('sn-dots').style.display='none';
         document.getElementById('sn-result').hidden=false;
+        if(rerender) return;
         try{ if(window.spaTrack) window.spaTrack('snapshot_complete'); }catch(e){}
         try{ document.getElementById('sn-result').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
       }
+      var prevRenderLive=window.__renderLive;
+      window.__renderLive=function(){
+        try{ if(prevRenderLive) prevRenderLive(); }catch(e){}
+        var res=document.getElementById('sn-result');
+        if(res && !res.hidden && ans[4]) finish(true);
+      };
       // email capture → /api/pilot/request source=snapshot
       var ef=document.getElementById('sn-email-form');
       ef.addEventListener('submit', function(e){

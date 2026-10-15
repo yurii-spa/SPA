@@ -10,6 +10,7 @@ import Disclaimer from '../components/Disclaimer.astro';
 import LAB from '../data/protection_lab.json';
 // site-numbers: виртуальный капитал — из конституции; проценты в стилях и подписях реплея числами-претензиями не являются
 import constitution from '../lib/constitution.json';
+import { fmtPct2 } from '../lib/pct_format.js';
 
 const S = LAB.summary;
 const LAB_JSON = JSON.stringify(LAB);
@@ -22,7 +23,13 @@ const verdictMeta = {
   unexecutable: { en: 'could not execute',      ru: 'исполнить было нельзя',  cls: 'text-danger border-danger-border bg-danger-bg' },
 };
 const fmtSaved = (v) => (v >= 0 ? '+$' : '−$') + Math.abs(Math.round(v)).toLocaleString('en-US');
-const fmtDd = (v) => '−' + v.toFixed(1) + '%';
+// ADR-660: two decimals, one formatter. A drawdown magnitude: exact zero has no minus sign
+// («−0.00%» read as a tiny loss), a tiny nonzero keeps the formatter's «<0.01%», absent ⇒ «not measured».
+const fmtDd = (v, ru = false) => {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return ru ? 'не измерено' : 'not measured';
+  if (v === 0) return fmtPct2(0, ru);
+  return '−' + fmtPct2(Math.abs(v), ru);
+};
 ---
 
 <Layout
@@ -72,10 +79,10 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
       </div>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <div class="text-2xl font-bold font-mono text-ok">{S.survived_hard}/{S.replayed}</div>
-        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="прогонов без жёсткой (−10%) просадки защищённой корзины">replays without a hard (−10%) drawdown of the protected basket</div>
+        <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="прогонов без жёсткой (−10,00 %) просадки защищённой корзины">replays without a hard (−10.00%) drawdown of the protected basket</div>
       </div>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <div class="text-2xl font-bold font-mono text-danger">{fmtDd(S.worst_prot_dd)}</div>
+        <div class="text-2xl font-bold font-mono text-danger" data-ru={fmtDd(S.worst_prot_dd, true)}>{fmtDd(S.worst_prot_dd)}</div>
         <div class="text-xs text-white/50 mt-1 leading-snug" data-ru="худшая просадка под защитой — кредитные/заморозочные каналы без ценового сигнала">worst protected drawdown — credit/freeze channels with no price signal</div>
       </div>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
@@ -95,10 +102,10 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
             <div class="font-semibold text-white text-sm leading-snug mb-0.5" data-ru={s.nameRu}>{s.nameEn}</div>
             <div class="font-mono text-[11px] text-white/35 mb-2">{s.window}</div>
             <div class="flex justify-between text-xs font-mono text-white/60">
-              <span data-ru="пассив DD">passive DD</span><span>{fmtDd(s.metrics.bench_dd)}</span>
+              <span data-ru="пассив DD">passive DD</span><span data-ru={fmtDd(s.metrics.bench_dd, true)}>{fmtDd(s.metrics.bench_dd)}</span>
             </div>
             <div class="flex justify-between text-xs font-mono text-white/60">
-              <span data-ru="защита DD">protected DD</span><span>{fmtDd(s.metrics.prot_dd)}</span>
+              <span data-ru="защита DD">protected DD</span><span data-ru={fmtDd(s.metrics.prot_dd, true)}>{fmtDd(s.metrics.prot_dd)}</span>
             </div>
             <div class="flex justify-between text-xs font-mono mb-2">
               <span class="text-white/60">saved</span>
@@ -208,7 +215,7 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
       var html =
         '<h3 class="text-xl font-semibold text-white mb-1">' + esc(ru ? s.nameRu : s.nameEn) + '</h3>' +
         '<p class="text-xs font-mono text-white/35 mb-3">' + esc(s.fullName).slice(0, 120) + (s.window ? ' · ' + s.window : '') + '</p>' +
-        '<p class="text-sm text-white/60 leading-relaxed max-w-2xl mb-4">' + esc(ru ? s.blurbRu : s.blurbEn) + '</p>' +
+        '<p class="text-sm text-white/60 leading-relaxed max-w-2xl mb-4">' + esc(window.spaPctText ? window.spaPctText(ru ? s.blurbRu : s.blurbEn, ru) : (ru ? s.blurbRu : s.blurbEn)) + '</p>' +
         '<div class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-sm mb-3">' +
           kpi(t('finalP'), fmt$(m.bench_final), 'text-white/80') +
           kpi(t('finalPr'), fmt$(m.prot_final), 'text-white/80') +
@@ -237,7 +244,7 @@ const fmtDd = (v) => '−' + v.toFixed(1) + '%';
           '<span class="text-danger font-medium">' + t('fails') + ': ' + s.fails + '</span> — ' + t('failsNote') + '</div>';
       }
       html += '<p class="mt-4 text-xs text-white/40 max-w-2xl"><span class="font-mono uppercase tracking-wider">' + t('note') + ':</span> ' +
-        esc(ru ? s.noteRu : s.noteEn) + '</p>';
+        esc(window.spaPctText ? window.spaPctText(ru ? s.noteRu : s.noteEn, ru) : (ru ? s.noteRu : s.noteEn)) + '</p>';
       html += dayTable(s);
       host.innerHTML = html;
       drawChart(s);

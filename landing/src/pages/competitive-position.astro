@@ -3,6 +3,10 @@ import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 // site-numbers: наш капитал рендерится из конституции; полоса рынка ($100K–$5M) и цель $10M — рамка тезиса, не наши ставки
 import constitution from '../lib/constitution.json';
+import snap from '../lib/snapshot_view.js';
+import { trackGateSentence } from '../lib/golive_label.js';
+// P1-7/8: the 30-day gate sentence comes from the snapshot, never «THIN, accruing to 30» typed in.
+const gateEn = trackGateSentence(snap, false), gateRu = trackGateSentence(snap, true);
 
 /*
  * Competitive Position (Workstream D / D3) — the white-space positioning, PUBLIC version.
@@ -115,10 +119,8 @@ const diffs = [
          data-ru="Честные ограничения">Honest constraints</p>
       <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
         <ul class="space-y-3 text-sm leading-relaxed" style="color:var(--text-secondary)">
-          <li data-ru="Трек ТОНКИЙ — накапливается к 30 подтверждённым дням; доверительные метрики приходят ближе к 30-му дню и до этого помечены THIN, а не выдуманы.">
-            <strong style="color:var(--text-primary)">The track is THIN</strong> — accruing to 30
-            evidenced days; risk-adjusted ratios land near day 30 and read <span class="font-mono">THIN</span>
-            until then, never fabricated.
+          <li data-ru={gateRu}>
+            <strong style="color:var(--text-primary)">The track:</strong> {gateEn}
           </li>
           <li data-ru="Ёмкость ограничена — carry над флором реален, но ограничен глубиной; $10M = масштаб + декорреляция + AUM, не достижимо сегодня.">
             <strong style="color:var(--text-primary)">Capacity is bounded</strong> — carry above the

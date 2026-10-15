@@ -1,7 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import TrustBand from '../components/TrustBand.astro';
+import { fmtPct2 } from '../lib/pct_format.js';
 import PackageStatusRows from '../components/PackageStatusRows.astro';
 import snap from '../lib/snapshot_view.js';
 // ВИТРИНА (ADR-365) — единственный адрес чисел. Снимок выше остаётся только для
@@ -12,7 +14,9 @@ import { book as shelfBook, value as shelfValue } from '../lib/site_numbers.js';
 // /packages 2–6% bug). Rich per-tier copy (what/caveat/status) stays inline; band/name/tone/live come
 // from the shared source below.
 import BANDS from '../lib/tier_bands.json';
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
+// P1-5: what the book holds — generated from the shelf exposure, never a typed protocol list.
+import { holdingsSentence } from '../lib/book_exposure.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR, measuredNote as measuredNoteRR } from '../lib/realized_rate.js';
 // ADR-292 / P0-4 (одобрено владельцем 2026-10-01): ставка — из витрины, с датой замера, не литерал.
 const rrEn = realizedLabelRR(null);           // «4.9%» / «data unavailable»
 const rrRu = realizedLabelRR(null, true);     // «4,9%» / «нет данных»
@@ -38,8 +42,8 @@ const tiers = [
     status_en: 'PAPER · evidenced track', status_ru: 'PAPER · подтверждённый трек',
     tone: 'green',
     live: true,
-    what_en: 'T1/T2 stablecoin lending — Aave, Compound, Morpho, Spark. Deterministic RiskPolicy gate, ≥$5M TVL floor, per-protocol caps. This is the book the desk actually runs on paper today.',
-    what_ru: 'T1/T2 стейбл-кредитование — Aave, Compound, Morpho, Spark. Детерминированный гейт RiskPolicy, порог TVL ≥$5M, cap\'ы на протокол. Это книга, которую деск реально ведёт на бумаге сегодня.',
+    what_en: `T1/T2 stablecoin lending — ${holdingsSentence(false)}. Deterministic RiskPolicy gate, ≥$5M TVL floor, per-protocol caps. This is the book the desk actually runs on paper today.`,
+    what_ru: `T1/T2 стейбл-кредитование — ${holdingsSentence(true)}. Детерминированный гейт RiskPolicy, порог TVL ≥$5M, cap'ы на протокол. Это книга, которую деск реально ведёт на бумаге сегодня.`,
     caveat_en: 'The real, evidenced number. No leverage, no tail-compensation yield. This is what "safe" honestly means here.',
     caveat_ru: 'Реальное, подтверждённое число. Без плеча, без yield-компенсации за хвост. Это и есть честный смысл слова «безопасно» здесь.',
   },
@@ -54,10 +58,10 @@ const tiers = [
     status_en: 'RESEARCH · not live-allocated', status_ru: 'ИССЛЕДОВАНИЕ · без live-аллокации',
     tone: 'amber',
     live: false,
-    what_en: 'The Balanced paper book combines floating stablecoin supply with a fixed-rate part: Pendle principal tokens (today PT-sUSDS) bought at a discount and held to maturity, up to 40% of the book and 25% per market. The fixed rate is locked at purchase. No leverage.',
-    what_ru: 'Бумажная книга Balanced сочетает плавающее кредитование стейблкоинов с фиксированной частью: принципал-токены Pendle (сейчас PT-sUSDS), купленные с дисконтом и удерживаемые до погашения, — до 40% книги и до 25% на один рынок. Ставка фиксируется при покупке. Без плеча.',
-    caveat_en: 'Our engine already found this — and its tail. It stays in paper until it clears 30 forward days + a real vol event; that discipline IS the product. Real in the good months, measured in the bad. Join early-access to get in the day it clears.',
-    caveat_ru: 'Наш движок уже нашёл это — и его хвост. Оно остаётся на бумаге, пока не пройдёт 30 форвардных дней и реальное событие волатильности; эта дисциплина И ЕСТЬ продукт. Реально в хорошие месяцы, измерено в плохие. Вступи в ранний доступ, чтобы войти в день, когда оно пройдёт.',
+    what_en: 'The Balanced paper book combines floating stablecoin supply with a fixed-rate part: Pendle principal tokens (today PT-sUSDS) bought at a discount and held to maturity, up to 40.00% of the book and 25.00% per market. The fixed rate is locked at purchase. No leverage.',
+    what_ru: 'Бумажная книга Balanced сочетает плавающее кредитование стейблкоинов с фиксированной частью: принципал-токены Pendle (сейчас PT-sUSDS), купленные с дисконтом и удерживаемые до погашения, — до 40,00 % книги и до 25,00 % на один рынок. Ставка фиксируется при покупке. Без плеча.',
+    caveat_en: 'Our engine already found this — and its tail. It stays in paper and outside the path to live capital at least until it clears 30 forward days and a real volatility event; live capital is not open for any profile. Real in the good months, measured in the bad. Research, not an offer.',
+    caveat_ru: 'Наш движок уже нашёл это — и его хвост. Оно остаётся на бумаге и вне пути к реальному капиталу как минимум до 30 форвардных дней и реального события волатильности; реальный капитал не принимается ни в один профиль. Реально в хорошие месяцы, измерено в плохие. Исследование, не оферта.',
   },
   {
     key: 'aggressive',
@@ -67,8 +71,8 @@ const tiers = [
     live: false,
     what_en: 'The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market\u2019s own data (oracle price, debt rate, liquidation threshold, health factor). The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.',
     what_ru: 'Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка (цена оракула, ставка долга, порог ликвидации, коэффициент здоровья). Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.',
-    caveat_en: 'This is the 12–20% advertised elsewhere as "yield". Our engine found it AND its ~50% tail — so it REFUSES live capital until it is proven. That refusal is what you are buying: nobody else publishes what they will not touch. Want the validation report first?',
-    caveat_ru: 'Это те 12–20%, что рекламируются в других местах как «доходность». Наш движок нашёл их И их ~50% хвост — поэтому ОТКАЗЫВАЕТ для live-капитала, пока они не доказаны. Этот отказ и есть то, что вы покупаете: никто больше не публикует то, чего не трогает. Хотите первым получить отчёт о валидации?',
+    caveat_en: 'This is the 12.00–20.00% advertised elsewhere as "yield". Our engine found it AND its tail (the tail line on this card) — so it is refused for live capital by design. We publish what we will not touch; this is research, not an offer.',
+    caveat_ru: 'Это те 12,00–20,00 %, что рекламируются в других местах как «доходность». Наш движок нашёл их И их хвост (строка хвоста на этой карточке) — поэтому реальный капитал сюда не допускается осознанно. Мы публикуем то, чего не трогаем; это исследование, не оферта.',
   },
 ];
 
@@ -91,8 +95,8 @@ for (const t of tiers) {
     t.evidence_en = b.evidence_en; t.evidence_ru = b.evidence_ru;
     const dd = snapPkg[t.key] && snapPkg[t.key].dd_pct;
     if (t.key === 'conservative' && typeof dd === 'number') {
-      t.tail_en = `Worst drawdown: ${dd.toFixed(1)}% realized to date (paper track)`;
-      t.tail_ru = `Макс. просадка: ${dd.toFixed(1)}% реализованная на сегодня (бумажный трек)`;
+      t.tail_en = `Worst drawdown: ${fmtPct2(dd, false)} realized to date (paper track)`;
+      t.tail_ru = `Макс. просадка: ${fmtPct2(dd, true)} реализованная на сегодня (бумажный трек)`;
     } else {
       t.tail_en = b.tail_en; t.tail_ru = b.tail_ru;
     }
@@ -134,9 +138,10 @@ const toneMap = {
 ---
 <Layout
   title="Yield packages — honest tiers | earn-defi.com"
-  description={`Three paper portfolios with different mechanics: unlevered stablecoin lending (Conservative, ~${rrEn} realized paper result so far${rrNoteEn}), a Pendle PT fixed rate (Balanced) and a simulated loop on Morpho Blue (Aggressive). Status and results of the current versions; research targets are not results. Balanced and Aggressive are refused for live capital. No real capital.`}
+  description={`Three paper portfolios with different mechanics: unlevered stablecoin lending (Conservative, ${rrEn} on paper so far${rrNoteEn}), a Pendle PT fixed rate (Balanced) and a simulated loop on Morpho Blue (Aggressive). Status and results of the current versions; research targets are not results. Balanced and Aggressive are refused for live capital. No real capital.`}
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+    <ApproxNote />
     <section class="pb-8">
       <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
         <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
@@ -214,7 +219,7 @@ const toneMap = {
         A package is offered ONLY when its strategies pass the DSR gate on real data + the full Yield-Lab lifecycle (yield-source → protocol → liquidity → risk → Red Team → paper test → human approval). Today Conservative is real and evidenced; Balanced and Aggressive are research/paper, shown with the tail, and are NOT live-allocated.
       </p>
       <div class="flex flex-wrap gap-3 mt-4">
-        <a href="/annual-contrast" data-track="packages_to_annual_contrast" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15% против фактических бумажных ~${rrRu}${rrNoteRu} →`}>The tail in numbers: 15% vs the realized paper ~{rrEn}{rrNoteEn} →</a>
+        <a href="/annual-contrast" data-track="packages_to_annual_contrast" class="text-sm text-accent-400 underline" data-ru={`Хвост в цифрах: 15,00 % против модельного бумажного трека: ${rrRu}${rrNoteRu} →`}>The tail in numbers: 15.00% vs the simulated paper track: {rrEn}{rrNoteEn} →</a>
         <a href="/monitoring" data-track="packages_to_monitoring" class="text-sm text-accent-400 underline" data-ru="Живой мониторинг риска →">Live risk monitoring →</a>
         <a href="/status" data-track="packages_to_status" class="text-sm text-accent-400 underline" data-ru="Живой трек и go-live →">Live track & go-live →</a>
       </div>

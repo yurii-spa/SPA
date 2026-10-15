@@ -65,7 +65,7 @@ export function observeInView(el, cb, opts = {}) {
         }
       }
     },
-    { threshold: opts.threshold ?? 0.15, rootMargin: opts.rootMargin ?? '0px 0px -8% 0px' }
+    { threshold: opts.threshold ?? 0.15, rootMargin: opts.rootMargin ?? '0px 0px -8.00% 0px' }
   );
   io.observe(el);
   return () => io.disconnect();
@@ -115,7 +115,7 @@ export function countUp(el, to, opts = {}) {
   const fmt =
     typeof opts.format === 'function'
       ? opts.format
-      : (v) => prefix + v.toFixed(decimals) + suffix;
+      : (v) => prefix + (opts.decimalSep ? v.toFixed(decimals).replace('.', opts.decimalSep) : v.toFixed(decimals)) + suffix;
 
   const write = (v) => {
     el.textContent = fmt(v);
@@ -171,6 +171,7 @@ export function initMotion(root) {
       decimals: el.hasAttribute('data-countup-decimals')
         ? parseInt(el.getAttribute('data-countup-decimals'), 10)
         : undefined,
+      decimalSep: el.getAttribute('data-countup-decimal-sep') || undefined,
     });
   });
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { classStyle, verdictStyle } from './ui/riskStyles.js';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /*
  * DfbPortfolio.jsx — the DFB READ-ONLY portfolio risk lens (Lane-C / WS-2.4).
@@ -44,7 +45,7 @@ function usd(x) {
   if (Math.abs(n) >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
   return '$' + n.toFixed(0);
 }
-function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(1) + '%'; }
+function pct(x) { const n = num(x); return n == null ? '—' : pctL(n); }
 
 // One badge geometry, shared across all DFB islands (matches ui/Badge.astro §3.4).
 function Badge({ style, children, title }) {
@@ -59,6 +60,7 @@ function Badge({ style, children, title }) {
 
 export default function DfbPortfolio() {
   const [ru, setRu] = useState(false);
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const T = useCallback((en, rux) => (ru ? rux : en), [ru]);
 
   const [address, setAddress] = useState('');

@@ -250,8 +250,8 @@ import Disclaimer from '../components/Disclaimer.astro';
         if (Math.abs(n) >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
         return '$' + n.toFixed(0);
       }
-      function pctOf(x) { var n = num(x); return n == null ? '—' : (n).toFixed(2) + '%'; }
-      function fracPct(x) { var n = num(x); return n == null ? '—' : (n * 100).toFixed(2) + '%'; }
+      function pctOf(x) { var n = num(x); return n == null ? '—' : spaPct((n)); }
+      function fracPct(x) { var n = num(x); return n == null ? '—' : spaPct((n * 100)); }
 
       var LAST = null;
 

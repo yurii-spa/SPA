@@ -4,8 +4,16 @@
 // All required disclaimer blocks from EU MiCA + best practices
 
 import Layout from '../layouts/Layout.astro';
+import { fmtPct2 } from '../lib/pct_format.js';
 // site-numbers: капитал и пороги раскрытия рендерятся из конституции сайта (один источник чисел-решений)
 import constitution from '../lib/constitution.json';
+// P1-1 (2026-10-08): go-live wording from the ONE source (golive_label.js over the snapshot +
+// profile_view.GO_LIVE), never a typed date. the typed date there was the gate's old
+// calendar ETA, three months stale, and it omitted the legal review.
+import snap from '../lib/snapshot_view.js';
+import { goLiveLabel } from '../lib/golive_label.js';
+import { GO_LIVE } from '../lib/profile_view.js';
+const goLive = goLiveLabel(snap);
 ---
 
 <Layout
@@ -21,8 +29,8 @@ import constitution from '../lib/constitution.json';
     <div class="mb-12">
       <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Юридическое · Регуляторное">Legal · Regulatory</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4" data-ru="Раскрытие рисков">Risk Disclosure</h1>
-      <p class="text-white/55 text-sm" data-ru="Последнее обновление: 18 июня 2026 · SPA · earn-defi.com">
-        Last updated: June 18, 2026 · SPA · earn-defi.com
+      <p class="text-white/55 text-sm" data-ru="Последнее обновление: 8 октября 2026 · SPA · earn-defi.com">
+        Last updated: October 8, 2026 · SPA · earn-defi.com
       </p>
     </div>
 
@@ -60,10 +68,8 @@ import constitution from '../lib/constitution.json';
           <li data-ru="Сбои или задержки оракулов в реальном времени">Real-time oracle failures or delays</li>
         </ul>
         <p class="mt-3">
-          <span data-ru="Целевая дата go-live —">The target go-live date is</span> <strong class="text-white/80" data-ru="приблизительно 21 июля 2026">approximately July 21, 2026</strong><span data-ru=", при условии, что все 29 критериев GoLiveChecker будут выполнены и накоплено 30 подтверждённых дней трека с непрерывностью gap_monitor, после чего обязателен ручной обзор владельцем платформы (ADR-002). До этого момента реальный капитал на этой платформе не подвергается риску.">,
-          contingent on all 29 GoLiveChecker criteria being satisfied and 30 evidenced track days
-          accumulated with gap_monitor continuity, followed by a mandatory manual review by the
-          platform owner (ADR-002). Until that point, no real capital is at risk on this platform.</span>
+          <span data-ru={GO_LIVE.ru}>{GO_LIVE.en}</span>
+          <span data-ru={`Статус: ${goLive.shortRu}. Дата не назначена: go-live — решение владельца после ручного обзора (ADR-002) и юридической проверки, а не календарная дата. До этого момента реальный капитал на этой платформе не подвергается риску.`}>Status: {goLive.shortEn}. No date is set: go-live is an owner decision after a manual review (ADR-002) and a legal review, not a calendar item. Until that point, no real capital is at risk on this platform.</span>
         </p>
       </section>
 
@@ -79,8 +85,8 @@ import constitution from '../lib/constitution.json';
           over short time periods. Past performance, whether simulated or live, is not indicative
           of future results.</span>
         </p>
-        <p class="mt-3" data-ru="Размещайте только тот капитал, потерю которого вы можете себе позволить полностью. Диверсификация по классам активов и стратегиям не устраняет риск.">
-          You should only allocate capital that you can afford to lose entirely. Diversification
+        <p class="mt-3" data-ru="Сейчас продукт работает только на виртуальном капитале: реальные средства не принимаются. Диверсификация по классам активов и стратегиям не устраняет риск.">
+          The product currently runs on virtual capital only: no real funds are accepted. Diversification
           across asset classes and strategies does not eliminate risk.
         </p>
       </section>
@@ -94,9 +100,9 @@ import constitution from '../lib/constitution.json';
         <div class="mt-4 space-y-4">
           <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск смарт-контрактов">Smart Contract Risk</h3>
-            <p data-ru="DeFi-протоколы управляются смарт-контрактами, которые могут содержать ошибки, уязвимости или непредвиденные взаимодействия. Даже проаудированные контракты подвергались эксплойтам. SPA отслеживает только протоколы с несколькими независимыми аудитами, но это не гарантирует безопасность.">DeFi protocols are governed by smart contracts which may contain bugs, vulnerabilities,
-            or unforeseen interactions. Even audited contracts have been exploited. SPA monitors
-            only protocols with multiple independent audits, but this does not guarantee safety.</p>
+            <p data-ru="DeFi-протоколы управляются смарт-контрактами, которые могут содержать ошибки, уязвимости или непредвиденные взаимодействия. Даже проаудированные контракты подвергались эксплойтам: аудит не гарантирует безопасность.">DeFi protocols are governed by smart contracts which may contain bugs, vulnerabilities,
+            or unforeseen interactions. Even audited contracts have been exploited: an audit does not
+            guarantee safety.</p>
           </div>
           <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Риск оракулов">Oracle Risk</h3>
@@ -122,9 +128,9 @@ import constitution from '../lib/constitution.json';
           </div>
           <div class="rounded-lg bg-bg-surface border border-border p-4">
             <h3 class="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2" data-ru="Волатильность APY">APY Volatility</h3>
-            <p data-ru="Доходность в DeFi сильно изменчива и зависит от рыночных условий, утилизации протокола и стимулирующих вознаграждений. Историческая или смоделированная APY не предсказывает будущую доходность. RiskPolicy SPA ограничивает APY диапазоном от 1% до 30%, чтобы избежать экстремальных выбросов, но доходность внутри этого диапазона может быстро меняться.">DeFi yields are highly variable and depend on market conditions, protocol utilization,
+            <p data-ru="Доходность в DeFi сильно изменчива и зависит от рыночных условий, утилизации протокола и стимулирующих вознаграждений. Историческая или смоделированная APY не предсказывает будущую доходность. RiskPolicy SPA ограничивает APY диапазоном от 1,00 % до 30,00 %, чтобы избежать экстремальных выбросов, но доходность внутри этого диапазона может быстро меняться.">DeFi yields are highly variable and depend on market conditions, protocol utilization,
             and reward incentives. Historical or simulated APY does not predict future yields.
-            SPA's RiskPolicy gates APY between {constitution.apy_floor_pct}% and {constitution.apy_ceiling_pct}% to avoid extreme outliers, but yields
+            SPA's RiskPolicy gates APY between {fmtPct2(constitution.apy_floor_pct, false)} and {fmtPct2(constitution.apy_ceiling_pct, false)} to avoid extreme outliers, but yields
             within this range can change rapidly.</p>
           </div>
           <div class="rounded-lg bg-bg-surface border border-border p-4">
@@ -147,11 +153,11 @@ import constitution from '../lib/constitution.json';
         </p>
         <ul class="mt-4 space-y-2 pl-4 list-disc list-outside marker:text-white/20">
           <li><strong class="text-white/70" data-ru="Минимум TVL:">TVL floor:</strong> <span data-ru={`≥$${Math.round(constitution.tvl_floor_usd / 1e6)}M на пул — исключает протоколы с низкой ликвидностью, потенциально подверженные манипуляциям`}>≥${Math.round(constitution.tvl_floor_usd / 1e6)}M per pool — excludes low-liquidity, potentially manipulable protocols</span></li>
-          <li><strong class="text-white/70" data-ru="Лимит на протокол:">Per-protocol cap:</strong> <span data-ru={`максимум ${constitution.max_per_protocol_t1_pct}% для Tier 1, максимум ${constitution.max_per_protocol_t2_pct}% для Tier 2 — обеспечивает диверсификацию`}>{constitution.max_per_protocol_t1_pct}% max for Tier 1, {constitution.max_per_protocol_t2_pct}% max for Tier 2 — enforces diversification</span></li>
-          <li><strong class="text-white/70" data-ru="Общий лимит Tier 2:">Tier 2 total cap:</strong> <span data-ru={`≤${constitution.max_t2_total_pct}% портфеля — ограничивает экспозицию на менее проаудированные протоколы`}>≤{constitution.max_t2_total_pct}% of portfolio — limits exposure to less-audited protocols</span></li>
-          <li><strong class="text-white/70" data-ru="Границы APY:">APY bounds:</strong> <span data-ru={`${constitution.apy_floor_pct}%–${constitution.apy_ceiling_pct}% — исключает неустойчивые выбросы доходности`}>{constitution.apy_floor_pct}%–{constitution.apy_ceiling_pct}% — excludes unsustainable yield outliers</span></li>
-          <li><strong class="text-white/70" data-ru="Денежный буфер:">Cash buffer:</strong> <span data-ru={`≥${constitution.min_cash_buffer_pct}% — поддерживает ликвидность для ребалансировки`}>≥{constitution.min_cash_buffer_pct}% — maintains liquidity for rebalancing</span></li>
-          <li><strong class="text-white/70" data-ru="Двухуровневый kill switch:">Two-tier kill switch:</strong> <span data-ru={`просадка от пика ≥${constitution.kill_switch.soft_derisk_pct}% (SOFT) → де-риск: стоп новых входов и увеличения позиций, без ликвидации; ≥${constitution.kill_switch.hard_kill_pct}% (HARD) → весь портфель в кэш — не может быть переопределено`}>peak-to-current drawdown ≥5% (SOFT) → de-risk: halt new entries and position increases, no liquidation; ≥{constitution.kill_switch.hard_kill_pct}% (HARD) → whole portfolio to cash — non-overridable</span></li>
+          <li><strong class="text-white/70" data-ru="Лимит на протокол:">Per-protocol cap:</strong> <span data-ru={`максимум ${fmtPct2(constitution.max_per_protocol_t1_pct, true)} для Tier 1, максимум ${fmtPct2(constitution.max_per_protocol_t2_pct, true)} для Tier 2 — обеспечивает диверсификацию`}>{fmtPct2(constitution.max_per_protocol_t1_pct, false)} max for Tier 1, {fmtPct2(constitution.max_per_protocol_t2_pct, false)} max for Tier 2 — enforces diversification</span></li>
+          <li><strong class="text-white/70" data-ru="Общий лимит Tier 2:">Tier 2 total cap:</strong> <span data-ru={`≤${fmtPct2(constitution.max_t2_total_pct, true)} портфеля — ограничивает экспозицию на менее проаудированные протоколы`}>≤{fmtPct2(constitution.max_t2_total_pct, false)} of portfolio — limits exposure to less-audited protocols</span></li>
+          <li><strong class="text-white/70" data-ru="Границы APY:">APY bounds:</strong> <span data-ru={`${fmtPct2(constitution.apy_floor_pct, true)}–${fmtPct2(constitution.apy_ceiling_pct, true)} — исключает неустойчивые выбросы доходности`}>{fmtPct2(constitution.apy_floor_pct, false)}–{fmtPct2(constitution.apy_ceiling_pct, false)} — excludes unsustainable yield outliers</span></li>
+          <li><strong class="text-white/70" data-ru="Денежный буфер:">Cash buffer:</strong> <span data-ru={`≥${fmtPct2(constitution.min_cash_buffer_pct, true)} — поддерживает ликвидность для ребалансировки`}>≥{fmtPct2(constitution.min_cash_buffer_pct, false)} — maintains liquidity for rebalancing</span></li>
+          <li><strong class="text-white/70" data-ru="Двухуровневый kill switch:">Two-tier kill switch:</strong> <span data-ru={`просадка от пика ≥${fmtPct2(constitution.kill_switch.soft_derisk_pct, true)} (SOFT) → де-риск: стоп новых входов и увеличения позиций, без ликвидации; ≥${fmtPct2(constitution.kill_switch.hard_kill_pct, true)} (HARD) → весь портфель в кэш — не может быть переопределено`}>peak-to-current drawdown ≥5.00% (SOFT) → de-risk: halt new entries and position increases, no liquidation; ≥{fmtPct2(constitution.kill_switch.hard_kill_pct, false)} (HARD) → whole portfolio to cash — non-overridable</span></li>
           <li><strong class="text-white/70" data-ru="T3 только рекомендательно:">T3 advisory-only:</strong> <span data-ru="спекулятивные стратегии (Pendle YT) никогда не открывают позиции автоматически">Speculative strategies (Pendle YT) never open positions automatically</span></li>
         </ul>
         <p class="mt-4 text-white/35 text-xs">
@@ -241,7 +247,7 @@ import constitution from '../lib/constitution.json';
       <!-- Signature -->
       <div class="pt-8 border-t border-border text-white/25 text-xs">
         <p>SPA · earn-defi.com</p>
-        <p class="mt-1" data-ru="Версия документа 1.0 · Действует с 18 июня 2026">Document version 1.0 · Effective June 18, 2026</p>
+        <p class="mt-1" data-ru="Версия документа 1.1 · Действует с 8 октября 2026 (1.0 — с 18 июня 2026; 1.1 убрала устаревшую дату go-live, добавила условие юридической проверки, сняла неподтверждённое заявление об аудитах протоколов и призыв размещать капитал)">Document version 1.1 · Effective October 8, 2026 (1.0 effective June 18, 2026; 1.1 removed the stale go-live date, added the legal-review condition, and removed an unverified claim about protocol audits and the call to allocate capital)</p>
       </div>
 
     </div>

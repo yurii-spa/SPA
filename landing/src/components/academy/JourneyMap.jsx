@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getProgress, getGameState, onProgressChange, getLang, isDone } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * JourneyMap.jsx — the academy home dashboard: a visual LEARNING PATH.
@@ -39,6 +40,7 @@ const TRACK_COLOR = { 1: 'var(--data-teal)', 2: 'var(--accent)', 3: 'var(--warn)
 
 export default function JourneyMap({ modules = [], tracksMeta = {} }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [, force] = useState(0);
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function JourneyMap({ modules = [], tracksMeta = {} }) {
             <div style={statLbl}>{tr('streak')} ({tr('days')})</div>
           </div>
           <div style={stat}>
-            <div style={statNum}>{gs.overallMastery}%</div>
+            <div style={statNum}>{pctL(gs.overallMastery)}</div>
             <div style={statLbl}>{tr('mastery')}</div>
           </div>
           <div style={stat}>

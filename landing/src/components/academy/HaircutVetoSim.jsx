@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * HaircutVetoSim.jsx — the «токсичность нельзя обойти размером» simulator.
@@ -47,8 +48,8 @@ const T = {
   tailVeto: { ru: 'ОТКАЗ — TAIL_VETO (структурный cap пробит)', en: 'REFUSED — TAIL_VETO (structural cap breached)' },
   totalVeto: { ru: 'ОТКАЗ — TAIL_VETO (полный хейркат > cap)', en: 'REFUSED — TAIL_VETO (total > cap)' },
   lessonRefused: {
-    ru: 'Двигай размер вниз до 1% — вердикт НЕ меняется. Структурный хейркат size-independent: токсичность нельзя обойти размером.',
-    en: 'Drag size down to 1% — the verdict does NOT change. The structural haircut is size-independent: toxicity cannot be sized around.',
+    ru: 'Двигай размер вниз до 1,00 % — вердикт НЕ меняется. Структурный хейркат size-independent: токсичность нельзя обойти размером.',
+    en: 'Drag size down to 1.00% — the verdict does NOT change. The structural haircut is size-independent: toxicity cannot be sized around.',
   },
   lessonApproved: {
     ru: 'Структурный хвост ниже cap — книга проходит refusal-first гейт. Дальше её ещё проверит экономика и глобальный RiskPolicy.',
@@ -72,7 +73,7 @@ function Slider({ label, value, max, onChange, color }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
         <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
         <span style={{ fontFamily: 'var(--font-mono)', color: color || 'var(--text-primary)' }}>
-          {(value * 100).toFixed(2)}%
+          {pctL((value * 100))}
         </span>
       </div>
       <input type="range" min={0} max={max} step={max / 200} value={value}
@@ -84,6 +85,7 @@ function Slider({ label, value, max, onChange, color }) {
 
 export default function HaircutVetoSim() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [peg, setPeg] = useState(PRESETS.toxic.peg);
   const [funding, setFunding] = useState(PRESETS.toxic.funding);
   const [oracle, setOracle] = useState(PRESETS.toxic.oracle);
@@ -152,7 +154,7 @@ export default function HaircutVetoSim() {
       <div style={{ borderTop: '1px solid var(--border)', margin: '18px 0', paddingTop: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
           <span style={{ color: 'var(--text-secondary)' }}>{tr('size')}</span>
-          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)' }}>{sizePct.toFixed(0)}%</span>
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)' }}>{pctL(sizePct)}</span>
         </div>
         <input type="range" min={1} max={100} step={1} value={sizePct}
           onChange={(e) => { tried(); setSizePct(parseFloat(e.target.value)); }}
@@ -165,7 +167,7 @@ export default function HaircutVetoSim() {
           <div style={metricRow}>
             <span>{tr('structural')}</span>
             <span style={{ fontFamily: 'var(--font-mono)', color: structuralBreach ? 'var(--danger)' : 'var(--text-primary)' }}>
-              {(structural * 100).toFixed(2)}% / {tr('cap')} {(MAX_STRUCTURAL * 100).toFixed(0)}%
+              {pctL((structural * 100))} / {tr('cap')} {pctL((MAX_STRUCTURAL * 100))}
             </span>
           </div>
           {bar(structural, MAX_STRUCTURAL, structuralBreach ? 'var(--danger)' : 'var(--ok)')}
@@ -173,7 +175,7 @@ export default function HaircutVetoSim() {
         <div>
           <div style={metricRow}>
             <span>{tr('liquidity')}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)' }}>{(liquidityHc * 100).toFixed(2)}%</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)' }}>{pctL((liquidityHc * 100))}</span>
           </div>
           {bar(liquidityHc, CAP.liquidity, 'var(--data-teal)')}
         </div>
@@ -181,7 +183,7 @@ export default function HaircutVetoSim() {
           <div style={metricRow}>
             <span>{tr('total')}</span>
             <span style={{ fontFamily: 'var(--font-mono)', color: totalBreach ? 'var(--danger)' : 'var(--text-primary)' }}>
-              {(total * 100).toFixed(2)}% / {tr('cap')} {(MAX_TOTAL * 100).toFixed(0)}%
+              {pctL((total * 100))} / {tr('cap')} {pctL((MAX_TOTAL * 100))}
             </span>
           </div>
           {bar(total, MAX_TOTAL, totalBreach ? 'var(--danger)' : 'var(--text-secondary)')}

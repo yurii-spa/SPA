@@ -182,7 +182,9 @@ NOW_2026_09_08 = datetime.datetime(2026, 9, 8, 21, 38, tzinfo=datetime.timezone.
 
 def test_api_headline_apy_is_the_track_apy_from_the_chain_not_apy_today():
     h = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, _CHAIN_2026_09_08)
-    assert h["paper_apy_pct"] == 5.3177, h            # same formula as generate_track_snapshot.py
+    # P1 Wave 2 (owner/ARB 09.10): same formula as generate_track_snapshot.py — the period NAV ratio on
+    # ACT/365 Fixed between valuation DATES (06-22 → 09-08 = 78 days), no longer 365/77 bars (was 5.3177).
+    assert h["paper_apy_pct"] == 5.2478, h
     assert h["apy_today_pct"] == 5.0586               # the volatile number is kept, but NOT under paper_apy_pct
     assert h["apy_source"] == "evidenced_chain"
     assert h["last_bar"] == "2026-09-08" and h["evidenced_days"] == 77 and h["gates_passed"] == 29
@@ -191,9 +193,9 @@ def test_api_headline_apy_is_the_track_apy_from_the_chain_not_apy_today():
 def test_snapshot_equal_to_the_chain_apy_is_not_overstated_and_not_degraded():
     """Positive control of the 2026-09-08 false plaque: with like-for-like numbers the custodian is quiet."""
     api = mon.api_headline(_GOLIVE_2026_09_08, _FACTS_2026_09_08, _CHAIN_2026_09_08)
-    r = mon.evaluate(snapshot=_snap(days=77, apy=5.3177, gates=29, asof="2026-09-08", equity=101251.32),
-                     home_html=_home(days=77, apy="5.3", gates="29", asof="2026-09-08"),
-                     track_html=_track(equity="101,251", apy="5.3", asof="2026-09-08"),
+    r = mon.evaluate(snapshot=_snap(days=77, apy=5.2478, gates=29, asof="2026-09-08", equity=101251.32),
+                     home_html=_home(days=77, apy="5.2", gates="29", asof="2026-09-08"),
+                     track_html=_track(equity="101,251", apy="5.2", asof="2026-09-08"),
                      api=api, sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW_2026_09_08)
     codes = {f["code"] for f in r["fails"]}
     assert "OVERSTATED_METRIC" not in codes, r["fails"]
@@ -238,7 +240,7 @@ def test_jsonl_chain_is_parsed_and_bad_lines_are_skipped():
 def test_pre_anchor_bars_are_excluded_from_the_track_apy():
     rows = [{"date": "2026-05-21", "close_equity": 100000.0, "evidenced": False}] + _CHAIN_2026_09_08
     apy, src = mon.track_apy_from_chain(rows, "2026-06-22", 77)
-    assert (apy, src) == (5.3177, "evidenced_chain")
+    assert (apy, src) == (5.2478, "evidenced_chain")   # ACT/365 on dates (P1 Wave 2); was 5.3177 per 77 bars
 
 
 # ── ADR-296: пин сверяется с ЖИВОЙ страницей, а не с локальным исходником ────────────

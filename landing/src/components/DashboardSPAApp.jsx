@@ -15,6 +15,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLive from './DashboardLive.jsx';
+import { periodReturnFigure } from '../lib/realized_rate.js';
 import DfbScreener from './DfbScreener.jsx';
 import RtmrMonitor from './RtmrMonitor.jsx';
 
@@ -125,7 +126,7 @@ const DESKS = [
     tag: 'GO',
     tagColor: 'var(--ok)',
     descEn:
-      'Refusal-first fair-value engine: harvests mispriced carry, refuses tail-risk compensation. FixedCarry validated → live paper track.',
+      'Refusal-first fair-value engine: harvests mispriced carry, refuses tail-risk compensation. FixedCarry validated → simulated paper track.',
     descRu:
       'Refusal-first fair-value: харвест mispriced carry, отказывает tail-comp. FixedCarry валидирован → live-paper трек.',
     href: '/rates-desk',
@@ -288,8 +289,9 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
   // its measurement date) — the same number every other page shows. It is not replaced by the live API
   // value after hydration (that would put a second «realized» rate on the site), and never by the
   // one-day OBSERVED rate (ADR-580 C2). Missing ⇒ «—».
-  const apyText = (publishedRate && typeof publishedRate.value === 'number')
-    ? publishedRate.value.toFixed(1) + '%' : '—';
+  // ADR-660: two decimals, ROUND_HALF_UP — the same text realized_rate.js renders everywhere.
+  const apyText = (publishedRate && publishedRate.text_en)
+    ? tr(publishedRate.text_en, publishedRate.text_ru) : '—';
   const apyAsOf = (publishedRate && publishedRate.as_of) || null;
   const trackDays = facts?.track_days ?? facts?.real_track_days ?? null;
   const gatesPassed = facts?.golive_passed ?? null;
@@ -297,7 +299,10 @@ export default function DashboardSPAApp({ initialFacts = null, publishedRate = n
 
   const kpis = [
     { label: tr('NAV (paper)', 'NAV (бумага)'), value: fmtUsd(nav), ok: false },
-    { label: tr(`Paper APY (realized, annualised) · measured ${apyAsOf ?? '—'}`, `Бумажная доходность (годовых, факт) · замер ${apyAsOf ?? '—'}`), value: apyText, ok: true },
+    // Owner/ARB 2026-10-08: the PRIMARY figure is the paper return over the actual period; the
+    // annualised equivalent is a separate, labelled tile (absent when the owner hides it).
+    ...(() => { const pr = periodReturnFigure(); return [{ label: pr ? tr(`Paper return ${pr.start} to ${pr.end} (${pr.days} days)`, `Доходность на бумаге ${pr.start} – ${pr.end} (${pr.days} дн.)`) : tr('Paper return over the period', 'Доходность на бумаге за период'), value: pr ? tr(pr.text_en, pr.text_ru) : '—', ok: true }]; })(),
+    ...(publishedRate && publishedRate.text_en ? [{ label: tr(`Estimated annualised equivalent (ACT/365 Fixed on valuation dates; start time not recorded), not a forecast · measured ${apyAsOf ?? '—'}`, `Оценочный годовой эквивалент (ACT/365 Fixed по датам оценки; время начала не записано), не прогноз · замер ${apyAsOf ?? '—'}`), value: apyText, ok: false }] : []),
     { label: tr('Track days', 'Дней трека'), value: (trackDays ?? '—') + ' / 30', ok: false },
     // PRODUCT-UX-01: «Go-live gates 29/29» read as «ready»; live capital is not open regardless of the gate count.
     { label: tr('Live capital', 'Реальный капитал'), value: tr('not open', 'не принимается'), ok: false },

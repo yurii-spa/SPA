@@ -1,10 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import AggressiveLabLive from '../components/AggressiveLabLive.jsx';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -20,18 +21,19 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
  */
 ---
 <Layout
-  title="Aggressive Lab — live paper tests | earn-defi.com"
+  title="Aggressive Lab — simulated paper tests | earn-defi.com"
   description="We paper-test several unstable aggressive DeFi strategies in parallel — each on its own $100k, each with its live P&L, days accrued, risk verdict and DATED tail. None is live-allocated (advisory / outside RiskPolicy v1.0). See what the yield really costs.">
   <main class="mx-auto max-w-6xl px-4 py-12">
+    <ApproxNote />
     <div class="mb-2 flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider" style="color:var(--text-faint)">
       <span data-ru="Вне RiskPolicy · advisory · только бумага">Outside RiskPolicy · advisory · paper-only</span>
     </div>
     <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
-        data-ru="Лаборатория агрессивных: живой paper-тест">Aggressive Lab — live paper tests</h1>
+        data-ru="Лаборатория агрессивных: модельный (бумажный) тест">Aggressive Lab — simulated paper tests</h1>
     <p class="text-base leading-relaxed mb-8 max-w-3xl" style="color:var(--text-secondary)"
-       data-ru="Вместо одного усреднённого «Агрессивный ~20%» (это было бы враньём — стратегии нестабильны и разные) мы показываем КАЖДУЮ вживую: свой $100k, текущий paper-P&L, дни N/30, вердикт по риску и хвост с датами. Ни одна не идёт в live-капитал.">
-      Instead of one smoothed &ldquo;Aggressive ~20%&rdquo; number (which would be dishonest — these
-      strategies are unstable and different), we show each one live: its own $100k paper book, current
+       data-ru="Вместо одного усреднённого «Агрессивный ~20,00 %» (это было бы враньём — стратегии нестабильны и разные) мы показываем КАЖДУЮ вживую: свой $100k, текущий paper-P&L, дни N/30, вердикт по риску и хвост с датами. Ни одна не идёт в live-капитал.">
+      Instead of one smoothed &ldquo;Aggressive ~20.00%&rdquo; number (which would be dishonest — these
+      strategies are unstable and different), we show each one with live-updated data: its own simulated $100k paper book, current
       P&amp;L, days N/30, its risk verdict, and its dated tail. None is allocated live capital.
     </p>
 
@@ -39,7 +41,7 @@ const realizedNumRu = realizedLabelRR(snapRR, true);
 
     <div class="mt-10">
       <a data-track="aggressive_lab_to_annual_contrast" href="/annual-contrast" class="text-sm underline" style="color:var(--accent-400)"
-         data-ru={`Хвост в цифрах: 15% против фактических бумажных ${realizedNumRu} →`}>The tail in numbers: 15% vs the realized paper {realizedNumEn} →</a>
+         data-ru={`Хвост в цифрах: 15,00 % против модельного бумажного трека: ${realizedNumRu} →`}>The tail in numbers: 15.00% vs the simulated paper track: {realizedNumEn} →</a>
       <span class="mx-2" style="color:var(--text-faint)">·</span>
       <a data-track="aggressive_lab_to_packages" href="/packages" class="text-sm underline" style="color:var(--accent-400)"
          data-ru="Три тира →">The three tiers →</a>

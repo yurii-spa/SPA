@@ -68,7 +68,7 @@ function showRevealCard(message, big, reduced) {
   Object.assign(card.style, {
     position: 'fixed',
     left: '50%',
-    top: big ? '34%' : '20%',
+    top: big ? '34.00%' : '20.00%',
     transform: 'translate(-50%,-50%)',
     background: 'var(--bg-elevated, #1E232C)',
     border: '1px solid var(--accent-border, rgba(91,141,239,0.30))',

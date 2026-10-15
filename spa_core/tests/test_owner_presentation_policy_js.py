@@ -42,6 +42,9 @@ def _js_print(tmp_path: Path, values: list) -> list:
     text = (_LIB / "site_numbers.js").read_text(encoding="utf-8").replace(_JSON_IMPORT, _JSON_IMPORT_NODE)
     assert _JSON_IMPORT_NODE in text, "the shelf import line changed — scene no longer loads the real module"
     (lib / "site_numbers.js").write_text(text, encoding="utf-8")
+    # P1 wave 2: the arithmetic lives in pct_format.js (site_numbers.js re-exports it) — copy the REAL file,
+    # so the scene still runs the module the site runs, not a stub.
+    (lib / "pct_format.js").write_text((_LIB / "pct_format.js").read_text(encoding="utf-8"), encoding="utf-8")
     (data / "site_numbers.json").write_text("{}", encoding="utf-8")
     (lib / "ask.mjs").write_text(
         "import { fmtPct2 } from './site_numbers.js';\n"
@@ -58,8 +61,18 @@ def test_js_and_python_agree_on_ties_and_random_values(tmp_path):
     values = TIES + [round(rng.uniform(-50, 50), rng.randint(0, 6)) for _ in range(400)]
     got = _js_print(tmp_path, values)
     want = [[fmt_pct(v, "ru"), fmt_pct(v, "en"), fmt_pct(v, "en", signed=True)] for v in values]
-    mismatches = [(v, g, w) for v, g, w in zip(values, got, want) if g != w]
+    # The public site prints the typographic minus U+2212 (P1 Wave 2 r2); the Python twin prints
+    # the hyphen-minus. The NUMBER must agree digit for digit, so only that one glyph is mapped.
+    norm = lambda row: [None if x is None else x.replace("\u2212", "-") for x in row]
+    mismatches = [(v, g, w) for v, g, w in zip(values, got, want) if norm(g) != w]
     assert not mismatches, mismatches[:10]
+
+
+def test_js_negative_values_print_the_typographic_minus(tmp_path):
+    """Site typography: a negative percentage never starts with a hyphen-minus."""
+    got = _js_print(tmp_path, [-1.225, -0.004, 4.895])
+    assert got[0] == ["\u22121,23\u00a0%", "\u22121.23%", "\u22121.23%"], got[0]
+    assert got[1][1] == ">\u22120.01%" and got[2][1] == "4.90%"
 
 
 def test_js_absence_is_null_not_zero(tmp_path):

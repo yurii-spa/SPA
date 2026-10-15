@@ -3,7 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import { publishedRateFigure } from '../../lib/realized_rate.js';
 // PRODUCT-TRUTH-02: the one published weekly rate, with its measurement date (no live overwrite).
 const pr = publishedRateFigure();
-const prText = pr ? '~' + pr.value.toFixed(1) + '%' : '—';
+const prText = pr ? pr.text_en : '—';   // a measurement — no «~» (P1 2026-10-08)
 ---
 <Layout title="Operator · System Health" admin={true}>
   <main class="ac"><div class="ac-wrap">
@@ -13,7 +13,7 @@ const prText = pr ? '~' + pr.value.toFixed(1) + '%' : '—';
       <div class="ac-tiles">
         <div class="ac-tile"><div class="k">API</div><div class="v" id="s-api">—</div></div>
         <div class="ac-tile"><div class="k">Evidenced days</div><div class="v" id="s-days">—</div></div>
-        <div class="ac-tile"><div class="k">{`Paper APY · measured ${pr ? pr.as_of : "—"}`}</div><div class="v" id="s-apy">{prText}</div></div>
+        <div class="ac-tile"><div class="k">{`Estimated annualised equivalent (ACT/365 Fixed on valuation dates; start time not recorded), not a forecast · measured ${pr ? pr.as_of : "—"}`}</div><div class="v" id="s-apy">{prText}</div></div>
         <div class="ac-tile"><div class="k">Last update</div><div class="v" id="s-upd" style="font-size:.95rem">—</div></div>
       </div></section>
     <section class="ac-sec"><div class="ac-sec-h">Deep pages</div><div class="ac-pg"><a href="/system" style="color:var(--accent)">Full system hub →</a></div><div class="ac-pg"><a href="/status" style="color:var(--accent)">Go-live status →</a></div><div class="ac-pg"><a href="/monitoring" style="color:var(--accent)">RTMR monitoring →</a></div></section>

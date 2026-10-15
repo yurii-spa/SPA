@@ -10,7 +10,7 @@
  * USAGE (Agents B+C reuse verbatim):
  *   <KeyStat value="12.85" suffix="%" tone="ok" labelRu="Variant N побил RWA-floor" />
  *   <KeyStat value="66.3" prefix="−" suffix="%" tone="danger"
- *            labelRu="реальная просадка eth_directional (2025→2026)" />
+ *            labelRu="просадка eth_directional в бэктесте (2025→2026)" />
  *
  * PROPS:
  *   value      number|string  REQUIRED — the final number to count up to.
@@ -21,6 +21,7 @@
  *   labelRu    string  REQUIRED — the RU label (data-ru aware via label/labelEn)
  *   labelEn?   string  optional EN label (shown when site is EN)
  */
+import { fmtPct2 } from '../../lib/pct_format.js';
 interface Props {
   value: string | number;
   prefix?: string;
@@ -30,7 +31,13 @@ interface Props {
   labelRu: string;
   labelEn?: string;
 }
-const { value, prefix = '', suffix = '', decimals, tone = 'teal', labelRu, labelEn } = Astro.props;
+const { value, prefix = '', suffix: rawSuffix = '', decimals: rawDecimals, tone = 'teal', labelRu, labelEn } = Astro.props;
+// ADR-660: a percentage is printed with exactly two decimals, ROUND_HALF_UP, in the lesson's language (RU):
+// «3,40 %». The count-up animates to the same text; the final frame is the formatter's string.
+const isPct = rawSuffix === '%';
+const decimals = isPct ? 2 : rawDecimals;
+const suffix = isPct ? '\u00a0%' : rawSuffix;
+const finalText = isPct ? (fmtPct2(Number(value), true) || String(value)).replace(/\u00a0%$/, '') : String(value);
 const toneClass =
   tone === 'danger' ? 'is-danger' : tone === 'ok' ? 'is-ok' : tone === 'accent' ? 'is-accent' : '';
 ---
@@ -41,6 +48,7 @@ const toneClass =
     data-countup-prefix={prefix}
     data-countup-suffix={suffix}
     {...(decimals != null ? { 'data-countup-decimals': String(decimals) } : {})}
-  >{prefix}{value}{suffix}</span>
+    {...(isPct ? { 'data-countup-decimal-sep': ',' } : {})}
+  >{prefix}{finalText}{suffix}</span>
   <span class="ac-keystat-label" data-ru={labelRu}>{labelEn ?? labelRu}</span>
 </div>

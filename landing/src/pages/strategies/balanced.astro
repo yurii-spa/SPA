@@ -2,6 +2,7 @@
 // PRODUCT-UX-01 candidate: one template for the three profiles (components/ux/StrategyDetail.astro).
 // Every figure comes from lib/profile_view.js (shelf + snapshot + tier_bands + constitution) — none typed here.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 import UxStyles from '../../components/ux/UxStyles.astro';
 import StrategyDetail from '../../components/ux/StrategyDetail.astro';
@@ -10,6 +11,7 @@ import '../../lib/realized_rate.js';
 <Layout title="Balanced — fixed-rate stablecoin research portfolio | Earn DeFi" description="Balanced: stablecoin lending plus a Pendle PT fixed rate held to maturity. History still accumulating — no rate published yet. Paper stage, not an offer.">
   <UxStyles />
   <main id="main-content">
+    <ApproxNote />
     <StrategyDetail profile="balanced" />
     <div class="ux-wrap" style="padding-bottom:32px"><Disclaimer /></div>
   </main>

@@ -1,5 +1,6 @@
 ---
 import LessonLayout from '../../components/academy/LessonLayout.astro';
+import { fmtPct2 } from '../../lib/pct_format.js';
 import Quiz from '../../components/academy/Quiz.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Diagram from '../../components/academy/Diagram.astro';
@@ -77,11 +78,11 @@ const questions = [
 
   <Diagram caption="Один и тот же номинал, разный итог">
     <pre>{`
-Номинальная ставка 10% годовых на $1000:
+Номинальная ставка 10,00 % годовых на $1000:
 
-APR (без реинвестирования)      → $1100  (ровно +10%)
-APY, капитализация ежемесячно   → ~$1105 (≈ +10.47%)
-APY, капитализация ежедневно    → ~$1105 (≈ +10.52%)
+APR (без реинвестирования)      → $1100  (ровно +10,00 %)
+APY, капитализация ежемесячно   → ~$1105 (≈ +10,47 %)
+APY, капитализация ежедневно    → ~$1105 (≈ +10,52 %)
 
 Чем чаще капитализация → тем выше APY при той же ставке.
 ВАЖНО: сравнивайте продукты в ОДНИХ единицах (APY с APY).
@@ -134,7 +135,7 @@ APY, капитализация ежедневно    → ~$1105 (≈ +10.52%)
 
   <Callout type="example">
     Деск кодирует этот скепсис прямо в RiskPolicy: TVL пула должен быть ≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M, APY должен лежать
-    в коридоре примерно {constitution.apy_floor_pct}%–{constitution.apy_ceiling_pct}% (всё, что выше — отбрасывается как нереалистичное/токсичное),
+    в коридоре примерно {fmtPct2(constitution.apy_floor_pct, true)}–{fmtPct2(constitution.apy_ceiling_pct, true)} (всё, что выше — отбрасывается как нереалистичное/токсичное),
     плюс лимиты концентрации и минимальный кэш-буфер. Живые APY/TVL тянутся из DeFiLlama с
     кэшем; ничего не берётся «на слово». Это автоматическая защита от красивых чисел.
   </Callout>

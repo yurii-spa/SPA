@@ -5,6 +5,11 @@ import Callout from '../../components/academy/Callout.astro';
 import Diagram from '../../components/academy/Diagram.astro';
 // site-numbers: наш порог TVL рендерится из конституции; остальные числа урока — рыночные ставки и учебная арифметика загрузки пула
 import constitution from '../../lib/constitution.json';
+// P1-14 (2026-10-08): состав книги и её ставка — из витрины (book_exposure / realized_rate), не литералы.
+import { holdingsSentence } from '../../lib/book_exposure.js';
+import { realizedPhrase } from '../../lib/realized_rate.js';
+const bookRu = holdingsSentence(true);
+const rateRu = realizedPhrase(null, true);
 
 const questions = [
   {
@@ -74,7 +79,7 @@ const questions = [
   <p class="lead">
     Это самый важный модуль с практической точки зрения: <strong>он-чейн кредитование —
     ядро портфеля нашего деска</strong>. Большая часть доходности здесь приходит именно
-    отсюда, со скромной и честной ставкой порядка <strong>~4.5%</strong>. Разберём механику
+    отсюда; измеренная ставка бумажной книги — <strong>{rateRu}</strong>. Разберём механику
     до основания.
   </p>
 
@@ -93,7 +98,7 @@ const questions = [
                                   │ 1000 USDC  │
    ◀── проценты ────────────────  │ занято 600 │  ── платит borrow APY ──▶
                                   └───────────┘
-   utilization = 600 / 1000 = 60%
+   utilization = 600 / 1000 = 60,00 %
    supply APY  <  borrow APY  (спред = резерв + размазывание на весь пул)
 `}</pre>
   </Diagram>
@@ -115,7 +120,7 @@ const questions = [
   <p>
     Ставка не задаётся вручную — её диктует <strong>utilization</strong> = (занято / внесено).
     Чем больше доля занятых средств, тем выше спрос на ликвидность и тем выше ставки. Когда
-    utilization приближается к 100%, ставка резко взлетает (это сигнал «верните средства / внесите
+    utilization приближается к 100,00 %, ставка резко взлетает (это сигнал «верните средства / внесите
     ещё»). При низком utilization ставка падает.
   </p>
 
@@ -134,24 +139,29 @@ const questions = [
     консервативных способов заработка в DeFi.
   </p>
 
-  <h2>Четыре протокола ядра деска</h2>
+  <h2>Кредитные протоколы, которые разбирает урок</h2>
+  <p>
+    Ниже — механика четырёх крупных кредитных протоколов. Это учебная выборка, а не состав
+    книги: что бумажная книга деска держит сейчас, показано ниже по витрине —
+    <strong>{bookRu}</strong>.
+  </p>
   <ul>
     <li>
-      <strong>Aave V3</strong> — крупнейший пуловый кредитный протокол. Деск использует его
-      на нескольких сетях: Ethereum, Arbitrum, Optimism, Polygon, Base. Tier 1.
+      <strong>Aave V3</strong> — крупнейший пуловый кредитный протокол, работает на нескольких
+      сетях: Ethereum, Arbitrum, Optimism, Polygon, Base. В реестре адаптеров — Tier 1.
     </li>
     <li>
       <strong>Compound V3</strong> — другой ветеран пулового кредитования, модель «один базовый
-      актив на рынок». Tier 1.
+      актив на рынок». В реестре адаптеров — Tier 1.
     </li>
     <li>
       <strong>Morpho</strong> — более гранулярная модель: изолированные рынки (Morpho Blue) и
       курируемые vaults (например Morpho Steakhouse). Точнее настраивается риск пары
-      залог/заём.
+      залог/заём. В реестре адаптеров — Tier 2.
     </li>
     <li>
       <strong>Spark (sUSDS)</strong> — связан с экосистемой Sky; доходное размещение стейбла
-      USDS. Tier 1, но с осторожностью (см. правило про GSM Pause Delay из модуля 2).
+      USDS. В реестре адаптеров — Tier 1, с осторожностью (см. правило про GSM Pause Delay из модуля 2).
     </li>
   </ul>
 
@@ -159,8 +169,8 @@ const questions = [
     В дневном цикле деска оркестратор адаптеров (read-only) тянет живые supply APY и TVL из
     этих протоколов через DeFiLlama, RiskPolicy проверяет лимиты (TVL ≥ ${Math.round(constitution.tvl_floor_usd / 1e6)}M, cap на протокол,
     минимальный кэш-буфер), и аллокатор раскладывает виртуальные USDC именно в эти кредитные
-    пулы. Скромные ~4.5% supply APY с верхнего тира — это и есть «скучная, но честная» база
-    портфеля.
+    пулы. Скромная ставка кредитования — это и есть «скучная, но честная» база портфеля
+    (измеренная ставка бумажной книги: {rateRu}).
   </Callout>
 
   <Callout type="trap">
@@ -175,7 +185,7 @@ const questions = [
     <li>Supply = вы даёте ликвидность и получаете ставку; borrow = заёмщик платит под залог.</li>
     <li>Ставку определяет utilization (занято/внесено); supply APY &lt; borrow APY.</li>
     <li>Безопасность держится на over-collateralization и автоматических ликвидациях.</li>
-    <li>Ядро деска — Aave/Compound/Morpho/Spark, ~4.5% supply APY, Tier 1.</li>
+    <li>Что держит бумажная книга деска — по витрине: {bookRu}; ставка — {rateRu}.</li>
   </ul>
 
   <Quiz questions={questions} />

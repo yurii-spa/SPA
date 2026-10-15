@@ -46,8 +46,8 @@
       "id": "05-rwa-tbills-floor",
       "track": 1,
       "order": 5,
-      "title_ru": "RWA: токенизированные T-bills и floor ~3.4%",
-      "summary_ru": "Tokenized T-bills (BUIDL/USYC/USDY), почему ~3.4% — это honest risk-free floor, который обязан побить любой sleeve.",
+      "title_ru": "RWA: токенизированные T-bills и floor ~3,40 %",
+      "summary_ru": "Tokenized T-bills (BUIDL/USYC/USDY), почему ~3,40 % — это honest risk-free floor, который обязан побить любой sleeve.",
       "widget": null
     },
     {
@@ -111,7 +111,7 @@
       "track": 2,
       "order": 13,
       "title_ru": "RiskPolicy: детерминированный гейт",
-      "summary_ru": "TVL floor $5M, cap'ы 40%/20%, T2≤50%, APY 1–30%, cash≥5%. Без LLM. approved=False нельзя переопределить.",
+      "summary_ru": "TVL floor $5M, cap'ы 40,00 %/20,00 %, T2≤50,00 %, APY 1,00–30,00 %, cash≥5,00 %. Без LLM. approved=False нельзя переопределить.",
       "widget": null
     },
     {
@@ -119,7 +119,7 @@
       "track": 2,
       "order": 14,
       "title_ru": "Двухуровневый kill-switch (ADR-048)",
-      "summary_ru": "SOFT de-risk при просадке ≥5%, HARD all-cash при ≥10%. Лестница реакции на drawdown.",
+      "summary_ru": "SOFT de-risk при просадке ≥5,00 %, HARD all-cash при ≥10,00 %. Лестница реакции на drawdown.",
       "widget": "KillSwitchLadder"
     },
     {
@@ -158,8 +158,8 @@
       "id": "19-aggressive-lab-annual-contrast",
       "track": 2,
       "order": 19,
-      "title_ru": "Aggressive Lab: 15% против 5%",
-      "summary_ru": "Контраст агрессивной книги (10–15% с датированными drawdown'ами) против реальной устойчивой ~5%. Что покупает доходность.",
+      "title_ru": "Aggressive Lab: 15,00 % против 5,00 %",
+      "summary_ru": "Контраст агрессивной книги (10,00–15,00 % с датированными drawdown'ами) против реальной устойчивой ~5,00 %. Что покупает доходность.",
       "widget": "LiveAcademyData"
     },
     {

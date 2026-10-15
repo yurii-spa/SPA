@@ -41,6 +41,7 @@ import {
   fmtUsd0, fmtPct, fmtSigned, fmtNum, usdCompact, deriveFreshness, pick, NA,
 } from './cockpit/lib.js';
 import { MONO } from './ui/tokens.js';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /* ── live API base (mirrors DashboardLive / CockpitStrategy) ─────────────────────── */
 const API =
@@ -72,9 +73,10 @@ const T = {
   /* section 1 — NAV / delta / margin */
   q1: { en: '1 · NAV · aggregate delta · margin health', ru: '1 · NAV · совокупная дельта · здоровье маржи' },
   q1sub: {
-    en: 'Portfolio-level vitals. Aggregate net delta targets ±0.5% (a market-neutral book). Margin health is n/a on a ~0-leverage paper desk — shown honestly, not fabricated.',
-    ru: 'Портфельные показатели. Совокупная чистая дельта целится в ±0.5% (рыночно-нейтральная книга). Здоровье маржи н/д на бумажном десске с ~0 плечом — показано честно, не выдумано.',
+    en: 'Portfolio-level vitals. The paper book is unlevered stablecoin lending plus cash — no directional or perp leg, so there is no net delta to manage. Margin health is n/a (no borrowing) — shown honestly, not fabricated.',
+    ru: 'Портфельные показатели. Бумажная книга — кредитование стейблкоинов без плеча плюс кэш: направленной и перп-ноги нет, поэтому управлять чистой дельтой нечем. Здоровье маржи н/д (займов нет) — показано честно, не выдумано.',
   },
+
   mNav: { en: 'Net asset value', ru: 'Стоимость чистых активов' },
   mDeployed: { en: 'Deployed', ru: 'Размещено' },
   mCash: { en: 'Cash / parked', ru: 'Кэш / припарковано' },
@@ -82,11 +84,11 @@ const T = {
   mDrawdown: { en: 'Drawdown (evidenced)', ru: 'Просадка (evidenced)' },
   mPnl: { en: 'Total P&L', ru: 'Итоговый P&L' },
   navNote: { en: 'paper book · $100k virtual capital', ru: 'бумажная книга · $100k виртуального капитала' },
-  deltaNeutral: { en: 'within ±0.5% — market-neutral', ru: 'в пределах ±0.5% — рыночно-нейтрально' },
+  deltaNeutral: { en: 'no directional leg — ≈0 by construction (not a live measurement)', ru: 'направленной ноги нет — ≈0 по построению (не живой замер)' },
   deltaThin: { en: 'no directional book → ≈0', ru: 'нет направленной книги → ≈0' },
   marginNote: {
-    en: 'Margin / liquidation health is n/a: the desk carries ~0 leverage (stablecoin lending + hedged carry). There is no maintenance-margin to breach — the conservative posture IS the answer, not a fabricated ratio.',
-    ru: 'Здоровье маржи / ликвидации — н/д: десск несёт ~0 плеча (stablecoin-кредитование + захеджированный carry). Нет поддерживающей маржи, которую можно пробить — консервативная позиция И ЕСТЬ ответ, а не выдуманное соотношение.',
+    en: 'Margin / liquidation health is n/a: the paper book carries no leverage (unlevered stablecoin lending plus cash). There is no maintenance-margin to breach — the conservative posture IS the answer, not a fabricated ratio.',
+    ru: 'Здоровье маржи / ликвидации — н/д: бумажная книга без плеча (кредитование стейблкоинов без плеча плюс кэш). Нет поддерживающей маржи, которую можно пробить — консервативная позиция И ЕСТЬ ответ, а не выдуманное соотношение.',
   },
   /* section 2 — LiqNAV by tier */
   q2: { en: '2 · Liquidation-NAV by size — the real exit risk', ru: '2 · Ликвидационный-NAV по размеру — реальный риск выхода' },
@@ -110,16 +112,18 @@ const T = {
     en: 'The desk exposes no live stress endpoint, so these are MODELLED transparently from the exit-NAV ladder + the two-tier kill thresholds. Inputs are shown; nothing here is a fabricated live reading. On a ~0-leverage stablecoin book a price gap has near-zero direct NAV impact — the honest bite is on the hedged-carry exit and the funding leg.',
     ru: 'Десск не отдаёт live-эндпоинт стресса, поэтому это МОДЕЛИРУЕТСЯ прозрачно из лестницы exit-NAV + двухуровневых порогов kill. Входные данные показаны; ничто здесь — не выдуманное live-значение. На книге с ~0 плечом и стейблкоинами ценовой гэп почти не влияет на NAV напрямую — честный укус приходится на выход захеджированного carry и на funding-ногу.',
   },
-  scenGap: { en: '20% price gap (ETH/collateral)', ru: 'Ценовой гэп 20% (ETH/залог)' },
+  scenGap: { en: '20.00% price gap (ETH/collateral)', ru: 'Ценовой гэп 20,00 % (ETH/залог)' },
   scenGapWhat: {
-    en: 'Direct NAV impact: ~n/a — the book is stablecoin lending + delta-hedged carry (β≈0), so a spot gap is largely offset by the hedge leg. The real exposure is the DEPEG / basis residual and a thinner forced-unwind: the exit-NAV haircut widens as depth dries up. Gates: below the SOFT 5% rung → no action; a depeg-driven drawdown past 5% arms SOFT de-risk (halt new / no increase), past 10% arms HARD all-cash.',
-    ru: 'Прямое влияние на NAV: ~н/д — книга это stablecoin-кредитование + дельта-хеджированный carry (β≈0), поэтому спот-гэп в основном компенсируется хедж-ногой. Реальная экспозиция — DEPEG / базисный остаток и более тонкий принудительный анвинд: хейркат exit-NAV расширяется по мере иссякания глубины. Гейты: ниже уровня SOFT 5% → без действий; depeg-просадка сверх 5% взводит SOFT de-risk (стоп нового / без увеличения), сверх 10% — HARD all-cash.',
+    en: 'Direct NAV impact of an ETH price gap: ~none — the book holds only stablecoin lending positions and cash, with no ETH, hedge or perp leg. The real exposure is a stablecoin DEPEG, a loss inside a lending market, and a thinner forced exit: the exit-NAV haircut widens as depth dries up. Gates: below the SOFT 5.00% rung → no action; a drawdown past 5.00% arms SOFT de-risk (halt new / no increase), past 10.00% arms HARD all-cash.',
+    ru: 'Прямое влияние ценового гэпа ETH на NAV: ~нет — книга держит только позиции кредитования стейблкоинов и кэш, без ETH, хеджа и перп-ноги. Реальная экспозиция — DEPEG стейблкоина, потеря внутри кредитного рынка и более тонкий принудительный выход: хейркат exit-NAV расширяется по мере иссякания глубины. Гейты: ниже уровня SOFT 5,00\xa0% → без действий; просадка сверх 5,00\xa0% взводит SOFT de-risk (стоп нового / без увеличения), сверх 10,00\xa0% — HARD all-cash.',
   },
+
   scenFunding: { en: 'Funding flip (perp funding turns negative)', ru: 'Разворот funding (funding перпа уходит в минус)' },
   scenFundingWhat: {
-    en: 'On a hedged-carry book a funding flip is a DRAG, not a liquidation: the short-perp hedge starts costing carry instead of earning it. The refusal-first rates-desk gate declines fresh entries whose fair-value carry no longer clears the tail-risk hurdle; existing legs de-risk toward the RWA floor. No margin call (~0 leverage) — the cost is opportunity, not solvency.',
-    ru: 'На захеджированной carry-книге разворот funding — это ДРАГ, а не ликвидация: короткий перп-хедж начинает стоить carry вместо того, чтобы его зарабатывать. Refusal-first гейт rates-desk отклоняет новые входы, чей fair-value carry больше не покрывает планку хвостового риска; существующие ноги де-рискуются к RWA-полу. Нет margin call (~0 плеча) — цена — упущенная выгода, а не платёжеспособность.',
+    en: 'Not applicable to the current book: it has no perp or hedge leg, so a funding flip does not touch it. It would matter only for a hedged-carry strategy, which the rates desk assesses on paper and does not hold.',
+    ru: 'К текущей книге неприменимо: в ней нет перп- и хедж-ноги, поэтому разворот funding её не затрагивает. Это важно только для захеджированной carry-стратегии, которую rates-desk оценивает на бумаге и не держит.',
   },
+
   stressGateLine: { en: 'Gate response under stress', ru: 'Ответ гейта под стрессом' },
   stressInputs: { en: 'Model inputs', ru: 'Входные данные модели' },
   stressWorstNet: { en: 'worst-tier net (largest ticket)', ru: 'нетто худшего уровня (крупнейший тикет)' },
@@ -130,8 +134,8 @@ const T = {
   /* section 4 — kill conditions */
   q4: { en: '4 · Portfolio kill-conditions', ru: '4 · Портфельные условия kill' },
   q4sub: {
-    en: 'The two-tier kill (SOFT 5% de-risk → HARD 10% all-cash, ADR-034/048) plus the sharpe / red-flags / manual conditions, each as a manometer with REAL headroom. THIN conditions (e.g. Sharpe below the min-bar gate on this early track) render UNKNOWN — never a fabricated headroom. approved=False cannot be overridden by anyone.',
-    ru: 'Двухуровневый kill (SOFT 5% de-risk → HARD 10% all-cash, ADR-034/048) плюс условия sharpe / red-flags / manual, каждое — манометр с РЕАЛЬНЫМ запасом. THIN-условия (например Sharpe ниже порога мин-баров на этом раннем треке) показываются UNKNOWN — никогда не выдуманный запас. approved=False никто не может переопределить.',
+    en: 'The two-tier kill (SOFT 5.00% de-risk → HARD 10.00% all-cash, ADR-034/048) plus the sharpe / red-flags / manual conditions, each as a manometer with REAL headroom. THIN conditions (e.g. Sharpe below the min-bar gate on this early track) render UNKNOWN — never a fabricated headroom. approved=False cannot be overridden by anyone.',
+    ru: 'Двухуровневый kill (SOFT 5,00 % de-risk → HARD 10,00 % all-cash, ADR-034/048) плюс условия sharpe / red-flags / manual, каждое — манометр с РЕАЛЬНЫМ запасом. THIN-условия (например Sharpe ниже порога мин-баров на этом раннем треке) показываются UNKNOWN — никогда не выдуманный запас. approved=False никто не может переопределить.',
   },
   overall: { en: 'Overall safety state', ru: 'Общее состояние безопасности' },
   killEmpty: {
@@ -296,6 +300,7 @@ export default function CockpitRisk() {
   const lang = useLang();
   const reduced = usePrefersReducedMotion();
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
 
   const portfolio = useEndpoint('/api/portfolio');
   const killGauge = useEndpoint('/api/kill-gauge');
@@ -309,7 +314,7 @@ export default function CockpitRisk() {
   const cashPct = isNum(p.cash_pct) ? Number(p.cash_pct) * (Number(p.cash_pct) <= 1 ? 100 : 1) : (isNum(nav) && isNum(cash) && nav > 0 ? (cash / nav) * 100 : null);
   const deployedPct = isNum(nav) && isNum(deployed) && nav > 0 ? (deployed / nav) * 100 : (isNum(cashPct) ? 100 - cashPct : null);
   const pnl = isNum(p.total_pnl_usd) ? Number(p.total_pnl_usd) : null;
-  // Aggregate delta: the desk is market-neutral (stablecoin + hedged carry) → ≈0 by mandate.
+  // Aggregate delta: the paper book is unlevered stablecoin lending + cash (no directional/perp leg) → ≈0 by construction.
   // The portfolio endpoint carries no live β field → honest ≈0 for a book with no directional leg.
   const aggDelta = 0;
 
@@ -349,10 +354,10 @@ export default function CockpitRisk() {
         <StaleGuard payload={portfolio.data} loading={portfolio.loading && !portfolio.data} error={portfolio.error && !portfolio.data} freshness={portfolio.freshness} lang={lang} label="portfolio">
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
             <MetricStat label={T.mNav} value={isNum(nav) ? fmtUsd0(nav) : null} sub={T.navNote} size="lg" lang={lang} />
-            <MetricStat label={T.mDeployed} value={isNum(deployed) ? fmtUsd0(deployed) : null} sub={isNum(deployedPct) ? { en: `${deployedPct.toFixed(1)}% of book`, ru: `${deployedPct.toFixed(1)}% книги` } : null} lang={lang} />
-            <MetricStat label={T.mCash} value={isNum(cash) ? fmtUsd0(cash) : null} idle={isNum(cashPct) && cashPct > 0} sub={isNum(cashPct) ? { en: `${cashPct.toFixed(1)}% parked ✓`, ru: `${cashPct.toFixed(1)}% припарк. ✓` } : null} lang={lang} />
+            <MetricStat label={T.mDeployed} value={isNum(deployed) ? fmtUsd0(deployed) : null} sub={isNum(deployedPct) ? { en: `${pctL(deployedPct)} of book`, ru: `${pctL(deployedPct)} книги` } : null} lang={lang} />
+            <MetricStat label={T.mCash} value={isNum(cash) ? fmtUsd0(cash) : null} idle={isNum(cashPct) && cashPct > 0} sub={isNum(cashPct) ? { en: `${pctL(cashPct)} parked ✓`, ru: `${pctL(cashPct)} припарк. ✓` } : null} lang={lang} />
             <MetricStat label={T.mPnl} value={isNum(pnl) ? fmtUsd0(pnl) : null} deltaTone={isNum(pnl) ? (pnl >= 0 ? 'ok' : 'danger') : 'muted'} lang={lang} />
-            <MetricStat label={T.mDrawdown} value={isNum(drawdownVal) ? fmtPct(-Math.abs(drawdownVal)) : null} tone={isNum(drawdownVal) ? (Math.abs(drawdownVal) >= HARD_DD ? 'danger' : Math.abs(drawdownVal) >= SOFT_DD ? 'warn' : 'ok') : undefined} sub={{ en: `SOFT ${SOFT_DD}% · HARD ${HARD_DD}%`, ru: `SOFT ${SOFT_DD}% · HARD ${HARD_DD}%` }} lang={lang} />
+            <MetricStat label={T.mDrawdown} value={isNum(drawdownVal) ? fmtPct(-Math.abs(drawdownVal)) : null} tone={isNum(drawdownVal) ? (Math.abs(drawdownVal) >= HARD_DD ? 'danger' : Math.abs(drawdownVal) >= SOFT_DD ? 'warn' : 'ok') : undefined} sub={{ en: `SOFT ${pctL(SOFT_DD)} · HARD ${pctL(HARD_DD)}`, ru: `SOFT ${pctL(SOFT_DD)} · HARD ${pctL(HARD_DD)}` }} lang={lang} />
             <MetricStat label={T.mDelta} value={fmtSigned(aggDelta, 2)} tone="ok" sub={T.deltaThin} lang={lang} />
           </div>
         </StaleGuard>

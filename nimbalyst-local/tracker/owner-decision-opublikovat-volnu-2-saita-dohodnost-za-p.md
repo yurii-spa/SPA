@@ -2,12 +2,19 @@
 trackerStatus:
   type: owner-decision
 title: "Опубликовать волну 2 сайта: доходность за период 22.06–15.10.2026 (+1,51 %), 17 исправленных утверждений"
-status: needs-owner
+status: owner-done
 source: chat-2026-10-15
 created: 2026-10-15
 subject: PUBLIC_NUMBERS
 subject_source: card_body
 approves: landing/src/pages/learn/why-20-apy-means-tail-risk.astro, landing/src/pages/packages.astro, landing/src/pages/system.astro, landing/src/data/site_numbers.json
+owner_choice: 1
+owner_answered_at: 2026-10-15T19:40:59.523138+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-10-15T19:40:59.523441+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -34,3 +41,11 @@ publication-approves: landing/src/data/site_numbers.json 2026-10-15 sha256:b276a
 ## Что будет после
 Агент выпускает ветку p1/wave2-release строгим пушем, проверяет страницы вживую, перезапускает com.spa.apiserver и
 com.spa.telegram_bot (разрешено владельцем 15.10) и записывает результат в журнал.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Опубликовать
+
+_Ответ владельца получен 2026-10-15T19:40:59.523138+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { TONES } from './ui/tokens.js';
 import { goLiveLabel } from '../lib/golive_label.js';
-import { publishedRateFigure, measuredAt as shelfMeasuredAt } from '../lib/realized_rate.js';
+import { publishedRateFigure, measuredAt as shelfMeasuredAt, rateWindow, shortDate, periodReturnFigure } from '../lib/realized_rate.js';
+import { fmtPct2 } from '../lib/pct_format.js';
 import CONSTITUTION from '../lib/constitution.json';
 
 /*
@@ -87,7 +88,7 @@ export const T = {
   portfolio: { en: 'Paper portfolio', ru: 'Бумажный портфель' },
   equity: { en: 'Equity', ru: 'Капитал' },
   apyToday: { en: 'Rate over the last day (annualised)', ru: 'Ставка за сутки (в годовых)' },
-  apyRealized: { en: 'Paper APY (realized, annualised)', ru: 'Бумажная доходность (годовых, факт)' },
+  apyRealized: { en: 'Estimated annualised equivalent (ACT/365 Fixed on valuation dates; start time not recorded), not a forecast', ru: 'Оценочный годовой эквивалент (ACT/365 Fixed по датам оценки; время начала не записано), не прогноз' },
   dailyYield: { en: 'Daily yield', ru: 'Доход за день' },
   regime: { en: 'Market regime', ru: 'Рыночный режим' },
   totalReturn: { en: 'Total return', ru: 'Совокупная доходность' },
@@ -112,7 +113,7 @@ export const T = {
   sleevesEyebrow: { en: 'Running in parallel · no capital', ru: 'Работают параллельно · без капитала' },
   sleevesTitle: { en: 'Parallel strategies (Strategy Lab)', ru: 'Параллельные стратегии (Strategy Lab)' },
   sleevesIntro: {
-    en: 'Several yield strategies (“sleeves”) run side-by-side through one shared backtest + live paper harness — with NO capital — so they can be compared honestly, risk-adjusted, against a real ~RWA T-bill floor. Each is advisory (it opens no live positions). Risk-adjusted metrics stay honestly UNKNOWN until a track is ~30 days deep.',
+    en: 'Several yield strategies (“sleeves”) run side-by-side through one shared backtest + simulated paper harness — with NO capital — so they can be compared honestly, risk-adjusted, against a real ~RWA T-bill floor. Each is advisory (it opens no live positions). Risk-adjusted metrics stay honestly UNKNOWN until a track is ~30 days deep.',
     ru: 'Несколько yield-стратегий («sleeve’ов») работают рядом через один общий backtest + live-paper харнесс — БЕЗ капитала — чтобы честно сравнить их с поправкой на риск против реального ~RWA-пола T-bills. Каждая — advisory (не открывает live-позиций). Risk-adjusted метрики честно UNKNOWN, пока трек не накопит ~30 дней.',
   },
   sleeveName: { en: 'Sleeve', ru: 'Sleeve' },
@@ -159,8 +160,8 @@ export const T = {
     ru: 'ВНЕ RiskPolicy · только бумага · это стратегии, которые деск ОТКЛОНЯЕТ — показаны с риском, который идёт вместе с доходностью, для выбора владельцем. НИКОГДА не аллоцируются в live, НИКОГДА не на go-live треке.',
   },
   aggIntro: {
-    en: 'The desk paper-tests the 10-15% strategies it normally refuses (sUSDe delta-neutral, LRT carry, leverage loops, points farms) so you can SEE them like the tournament — but the headline yield here is RISK-COMPENSATION, not free alpha. Every row shows the tail (max drawdown, the loss replayed through the 2024-26 stress windows, and the risk class) right next to the return. Promoting one to real capital is owner-gated AND custody-gated.',
-    ru: 'Деск тестирует на бумаге 10-15% стратегии, которые обычно отклоняет (sUSDe delta-neutral, LRT carry, leverage loops, points farms), чтобы вы видели их как турнир — но доходность здесь это КОМПЕНСАЦИЯ ЗА РИСК, а не бесплатная альфа. Каждая строка показывает хвост (макс. просадка, убыток в стресс-окнах 2024-26 и класс риска) рядом с доходностью. Перевод в реальный капитал гейтится владельцем И кастодиальным решением.',
+    en: 'The desk paper-tests the 10.00-15.00% strategies it normally refuses (sUSDe delta-neutral, LRT carry, leverage loops, points farms) so you can SEE them like the tournament — but the headline yield here is RISK-COMPENSATION, not free alpha. Every row shows the tail (max drawdown, the loss replayed through the 2024-26 stress windows, and the risk class) right next to the return. Promoting one to real capital is owner-gated AND custody-gated.',
+    ru: 'Деск тестирует на бумаге 10,00-15,00 % стратегии, которые обычно отклоняет (sUSDe delta-neutral, LRT carry, leverage loops, points farms), чтобы вы видели их как турнир — но доходность здесь это КОМПЕНСАЦИЯ ЗА РИСК, а не бесплатная альфа. Каждая строка показывает хвост (макс. просадка, убыток в стресс-окнах 2024-26 и класс риска) рядом с доходностью. Перевод в реальный капитал гейтится владельцем И кастодиальным решением.',
   },
   aggStrategy: { en: 'Strategy', ru: 'Стратегия' },
   aggReturn: { en: 'Net return', ru: 'Net доходность' },
@@ -197,14 +198,14 @@ export const T = {
   },
 
   /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady realized rate, dated) */
-  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s realized paper rate', ru: 'Сколько на самом деле стоит погоня за 15% — против фактической бумажной ставки деска' },
+  acTitle: { en: 'What chasing 15.00% actually costs — vs the estimated annualised equivalent of the desk’s simulated paper track', ru: 'Сколько на самом деле стоит погоня за 15,00 % — против оценочного годового эквивалента модельного бумажного трека деска' },
   acEyebrow: { en: 'A year, dated · advisory · paper-only', ru: 'Год, с датами · advisory · только бумага' },
   acIntro: {
-    en: 'Same start date, same notional, same window for both sides. The aggressive curve is a 10–15% book the desk REFUSES (its real 2024–2026 backtest). The steady line compounds the desk’s REAL conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are dated and labelled by event, and split into realized (real peak-to-trough in the equity) and dated stress overlay (modeled by risk shape) — never blended, never invented.',
-    ru: 'Одна дата старта, один notional, одно окно для обеих сторон. Агрессивная кривая — 10–15% книга, которую деск ОТКЛОНЯЕТ (реальный бэктест 2024–2026). Стабильная линия компаундит РЕАЛЬНУЮ ставку консервативной книги — честный baseline, не заниженный. Просадки датированы и подписаны событием, разделены на realized и modeled — никогда не смешиваются.',
+    en: 'Same start date, same notional, same window for both sides. The aggressive curve is a 10.00–15.00% book the desk REFUSES (its real 2024–2026 backtest). The steady line compounds the desk’s REAL conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are dated and labelled by event, and split into realized (real peak-to-trough in the equity) and dated stress overlay (modeled by risk shape) — never blended, never invented.',
+    ru: 'Одна дата старта, один notional, одно окно для обеих сторон. Агрессивная кривая — 10,00–15,00 % книга, которую деск ОТКЛОНЯЕТ (реальный бэктест 2024–2026). Стабильная линия компаундит РЕАЛЬНУЮ ставку консервативной книги — честный baseline, не заниженный. Просадки датированы и подписаны событием, разделены на realized и modeled — никогда не смешиваются.',
   },
-  acStableLegend: { en: 'Desk’s realized paper rate, compounded (modelled line)', ru: 'Фактическая бумажная ставка деска, сложным процентом (расчётная линия)' },
-  acAggLegend: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
+  acStableLegend: { en: 'Desk’s estimated annualised equivalent (simulated paper track), compounded (modelled line)', ru: 'Оценочный годовой эквивалент модельного трека деска, сложным процентом (расчётная линия)' },
+  acAggLegend: { en: 'Aggressive 15.00%', ru: 'Агрессивные 15,00 %' },
   acRealizedLegend: { en: 'Realized dip (in the equity)', ru: 'Realized просадка (в equity)' },
   acModeledLegend: { en: 'Modeled stress (by risk shape)', ru: 'Modeled стресс (по shape)' },
   acStableSrc: { en: 'Steady line', ru: 'Стабильная линия' },
@@ -214,8 +215,8 @@ export const T = {
   acColUnderwater: { en: 'Days underwater', ru: 'Дней под водой' },
   acColCost: { en: 'Cost of chasing', ru: 'Цена погони' },
   acColSide: { en: '', ru: '' },
-  acAggSide: { en: 'Aggressive 15% — BACKTEST 2024–2026', ru: 'Агрессивные 15% — БЭКТЕСТ 2024–2026' },
-  acStableSide: { en: 'Desk — MODELLED year at the realized paper rate (no drawdown history of its own)', ru: 'Деск — РАСЧЁТНЫЙ год по фактической бумажной ставке (своей истории просадок нет)' },
+  acAggSide: { en: 'Aggressive 15.00% — BACKTEST 2024–2026', ru: 'Агрессивные 15,00 % — БЭКТЕСТ 2024–2026' },
+  acStableSide: { en: 'Desk — MODELLED year at the estimated annualised equivalent of the simulated paper track (no drawdown history of its own)', ru: 'Деск — РАСЧЁТНЫЙ год по оценочному годовому эквиваленту модельного трека (своей истории просадок нет)' },
   acDdHead: { en: 'The drawdown timeline, dated', ru: 'Таймлайн просадок, с датами' },
   acDdDate: { en: 'Date', ru: 'Дата' },
   acDdEvent: { en: 'Event', ru: 'Событие' },
@@ -225,9 +226,10 @@ export const T = {
   acModeled: { en: 'modeled', ru: 'modeled' },
   acNoRealized: { en: 'No material realized drawdown in this book’s backtest equity (it accrued smoothly — the honest answer; its tail is the dated stress overlay).', ru: 'В backtest-equity этой книги нет существенной realized просадки (она начислялась ровно — честный ответ; хвост — в modeled-overlay).' },
   acBottom: {
-    en: 'Across the year, the aggressive book ends higher — that is what the headline buys. But the path is paid for in dated drawdowns. The desk’s steady book walks the same year with max-drawdown ~0% — no dated cliff to explain to a client mid-quarter. That is the trade.',
-    ru: 'За год агрессивная книга заканчивает выше — это и покупает хедлайн. Но путь оплачен датированными просадками. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — нечего объяснять клиенту среди квартала. Вот в чём размен.',
+    en: 'In the backtest, the aggressive book ends the year higher — that is what the headline buys. But the path is paid for in dated drawdowns. The desk’s paper book is a measurement over a shorter window, not a backtested year — its measured drawdown is on the track record page. That is the trade.',
+    ru: 'В бэктесте агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками. Бумажная книга деска — замер за более короткое окно, а не бэктест года; её измеренная просадка — на странице трек-рекорда. Вот в чём размен.',
   },
+
   acProof: { en: 'proof', ru: 'proof' },
   acShareLink: { en: 'Open the shareable one-pager →', ru: 'Открыть shareable одностраничник →' },
 
@@ -315,8 +317,8 @@ export const T = {
   ratesTitle: { en: 'Rates Desk', ru: 'Rates Desk' },
   ratesVerdict: { en: 'GO · validated', ru: 'GO · валидирован' },
   ratesWhat: {
-    en: 'A refusal-first pricing engine: it harvests genuine mispriced carry and REFUSES yield that is just tail-risk compensation. FixedCarry is validated and runs live in paper.',
-    ru: 'Refusal-first ценовой движок: харвестит реальный mispriced carry и ОТКАЗЫВАЕТСЯ от доходности, которая лишь компенсация хвостового риска. FixedCarry валидирован и работает live в paper.',
+    en: 'A refusal-first pricing engine: it harvests genuine mispriced carry and REFUSES yield that is just tail-risk compensation. FixedCarry is validated and runs in simulated paper mode.',
+    ru: 'Refusal-first ценовой движок: харвестит реальный mispriced carry и ОТКАЗЫВАЕТСЯ от доходности, которая лишь компенсация хвостового риска. FixedCarry валидирован и работает в модельном (бумажном) режиме.',
   },
   ratesSurface: { en: 'Rate surface quotes', ru: 'Котировки ставок' },
   ratesOpps: { en: 'Opportunities', ru: 'Возможности' },
@@ -330,8 +332,8 @@ export const T = {
   },
   btcEthTitle: { en: 'BTC / ETH angle', ru: 'BTC / ETH угол' },
   btcEthWhat: {
-    en: 'BTC lending is read-only advisory at ~0% (BTC is barely borrowed on-chain — honest, not hidden). The recommended ETH approach is eth_lst_neutral: a plain LST (stETH/rETH) hedged with a short perp, β≈0.',
-    ru: 'BTC-кредитование — read-only advisory с ~0% (BTC почти не занимают on-chain — честно, не спрятано). Рекомендуемый ETH-подход — eth_lst_neutral: обычный LST (stETH/rETH), захеджированный коротким перпом, β≈0.',
+    en: 'BTC lending is read-only advisory at ~0.00% (BTC is barely borrowed on-chain — honest, not hidden). The recommended ETH approach is eth_lst_neutral: a plain LST (stETH/rETH) hedged with a short perp, β≈0.',
+    ru: 'BTC-кредитование — read-only advisory с ~0,00 % (BTC почти не занимают on-chain — честно, не спрятано). Рекомендуемый ETH-подход — eth_lst_neutral: обычный LST (stETH/rETH), захеджированный коротким перпом, β≈0.',
   },
   rwaTitle: { en: 'RWA collateral safety board', ru: 'RWA safety board' },
   rwaVerdict: { en: 'measurement-GO', ru: 'measurement-GO' },
@@ -400,12 +402,12 @@ export const T = {
     ru: 'Автономный парк, который держит дневной цикл, мониторы и автопуш — и детерминированная лестница защиты, управляющая портфелем (RiskPolicy v1.0, без LLM).',
   },
   ladderTitle: { en: 'Safety ladder · Conservative', ru: 'Лестница защиты · Консервативный' },
-  ladderDl: { en: 'Early warning · 2% drawdown', ru: 'Раннее предупреждение · 2% просадки' },
-  ladderSoft: { en: 'Soft risk reduction · {pct}% drawdown — no new positions (technical: SOFT_DERISK)', ru: 'Мягкое снижение риска · {pct}% просадки — новых позиций нет (технически: SOFT_DERISK)' },
-  ladderHard: { en: 'Full stop · {pct}% drawdown — everything to cash (technical: HARD_KILL)', ru: 'Полная остановка · {pct}% просадки — всё в кэш (технически: HARD_KILL)' },
+  ladderDl: { en: 'Early warning · 2.00% drawdown', ru: 'Раннее предупреждение · 2,00 % просадки' },
+  ladderSoft: { en: 'Soft risk reduction · {pct}% drawdown — no new positions (technical: SOFT_DERISK)', ru: 'Мягкое снижение риска · {pct}\u00a0% просадки — новых позиций нет (технически: SOFT_DERISK)' },
+  ladderHard: { en: 'Full stop · {pct}% drawdown — everything to cash (technical: HARD_KILL)', ru: 'Полная остановка · {pct}\u00a0% просадки — всё в кэш (технически: HARD_KILL)' },
   ladderScope: {
     en: 'This ladder governs Conservative — the portfolio with a measured track. Balanced and Aggressive are research portfolios with their own stops: Balanced stops at {bal}% drawdown, Aggressive at {agg}%.',
-    ru: 'Эта лестница управляет Консервативным — портфелем с измеренным треком. Сбалансированный и Агрессивный — исследовательские портфели со своими стопами: Сбалансированный останавливается при просадке {bal}%, Агрессивный — при {agg}%.',
+    ru: 'Эта лестница управляет Консервативным — портфелем с измеренным треком. Сбалансированный и Агрессивный — исследовательские портфели со своими стопами: Сбалансированный останавливается при просадке {bal}\u00a0%, Агрессивный — при {agg}\u00a0%.',
   },
   ladderState: { en: 'Current safety state', ru: 'Текущее состояние защиты' },
   deepSystem: { en: 'System hub →', ru: 'Хаб системы →' },
@@ -438,8 +440,8 @@ export const T = {
   },
   ladderVizTitle: { en: 'Kill-switch ladder (two-tier)', ru: 'Лестница kill-switch (два уровня)' },
   ladderVizSub: {
-    en: 'Four deterministic rungs from drawdown. DL-01 (daily-loss 2%) and DL-02 (peak-to-trough 10%) HALT allocation; SOFT de-risk (5%) halts new allocations; HARD kill (10%) moves all to cash. The marker shows the live drawdown — approved=False cannot be overridden by anyone.',
-    ru: 'Четыре детерминированных ступени по просадке. DL-01 (дневной убыток 2%) и DL-02 (peak-to-trough 10%) HALT аллокации; SOFT de-risk (5%) стоп новых аллокаций; HARD kill (10%) всё в кэш. Маркер показывает живую просадку — approved=False никто не может переопределить.',
+    en: 'Four deterministic rungs from drawdown. DL-01 (daily-loss 2.00%) and DL-02 (peak-to-trough 10.00%) HALT allocation; SOFT de-risk (5.00%) halts new allocations; HARD kill (10.00%) moves all to cash. The marker shows the live drawdown — approved=False cannot be overridden by anyone.',
+    ru: 'Четыре детерминированных ступени по просадке. DL-01 (дневной убыток 2,00 %) и DL-02 (peak-to-trough 10,00 %) HALT аллокации; SOFT de-risk (5,00 %) стоп новых аллокаций; HARD kill (10,00 %) всё в кэш. Маркер показывает живую просадку — approved=False никто не может переопределить.',
   },
   ladderCurrentDd: { en: 'Live drawdown', ru: 'Живая просадка' },
   ladderRungDl1: { en: 'DL-01 · daily loss', ru: 'DL-01 · дневной убыток' },
@@ -511,14 +513,20 @@ export const T = {
   unknown: { en: 'UNKNOWN', ru: 'НЕИЗВ.' },
 };
 
+// ADR-660: the module-level percentage helpers below print in the CURRENT page language
+// («4,89 %» / «4.89%»). Kept in step with useLang() so SSR (en) and the first client render agree.
+let _LANG = 'en';
+
 function useLang() {
   const [lang, setLang] = useState('en');
   useEffect(() => {
     function read() {
       try {
         const v = window.localStorage.getItem('spa_lang');
-        setLang(v === 'ru' ? 'ru' : 'en');
+        _LANG = v === 'ru' ? 'ru' : 'en';
+        setLang(_LANG);
       } catch {
+        _LANG = 'en';
         setLang('en');
       }
     }
@@ -539,8 +547,11 @@ function useLang() {
 /* ─────────────────────────────────────────────── formatting helpers ─────────────── */
 const fmtUsd0 = (v) => (v == null ? NA : '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
 const fmtUsd2 = (v) => (v == null ? NA : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const fmtPct = (v, d = 2) => (v == null ? NA : Number(v).toFixed(d) + '%');
-const fmtSigned = (v, d = 2) => (v == null ? NA : (v >= 0 ? '+' : '') + Number(v).toFixed(d) + '%');
+// ADR-660 (owner, 2026-10-08): every percentage — exactly two decimals, ROUND_HALF_UP on the decimal
+// string (not binary toFixed). `d` is kept for the callers and NOT read. Absent ⇒ «—», never 0.00.
+const _num = (v) => (v == null || v === '' || typeof v === 'boolean' ? null : Number(v));
+const fmtPct = (v, d = 2) => { const n = _num(v); return n == null || !Number.isFinite(n) ? NA : (fmtPct2(n, _LANG === 'ru') ?? NA); };
+const fmtSigned = (v, d = 2) => { const n = _num(v); return n == null || !Number.isFinite(n) ? NA : (fmtPct2(n, _LANG === 'ru', true) ?? NA); };
 function usdCompact(v) {
   const n = Number(v);
   if (v == null || !isFinite(n)) return NA;
@@ -731,7 +742,7 @@ const SLEEVE_DESC = {
   variant_d: { en: 'Variant D — pure LRT, no hedge, β≈1 (directional, isolated).', ru: 'Variant D — чистый LRT, без хеджа, β≈1 (directional, изолирован).' },
   eth_lst_neutral: { en: 'eth_lst_neutral — plain LST (stETH/rETH) hedged with short perp, β≈0 (recommended ETH).', ru: 'eth_lst_neutral — обычный LST (stETH/rETH) с коротким перпом, β≈0 (рекоменд. ETH).' },
   eth_lst_staking: { en: 'eth_lst_staking — plain LST staking, directional.', ru: 'eth_lst_staking — обычный LST-стейкинг, directional.' },
-  btc_lending_sleeve: { en: 'BTC lending — read-only advisory, ~0% (BTC barely borrowed on-chain).', ru: 'BTC lending — read-only advisory, ~0% (BTC почти не занимают on-chain).' },
+  btc_lending_sleeve: { en: 'BTC lending — read-only advisory, ~0.00% (BTC barely borrowed on-chain).', ru: 'BTC lending — read-only advisory, ~0,00 % (BTC почти не занимают on-chain).' },
   btc_neutral: { en: 'BTC neutral — hedged BTC research sleeve.', ru: 'BTC neutral — захеджированный BTC research-sleeve.' },
 };
 function sleeveDesc(id, lang) {
@@ -986,10 +997,14 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
               {/* PRODUCT-TRUTH-02: typed rates (ADR-580 C2). The track rate is REALIZED_PAPER, floored
                   to 1 decimal (ADR-563); the one-day rate is OBSERVED over 1 day and says so. A rate whose
                   type the API does not declare is not shown (—), never presented as the other kind. */}
-              <Metric label={tr('apyRealized')} value={publishedRate && typeof publishedRate.value === 'number' ? publishedRate.value.toFixed(1) + '%' : NA} accent="var(--data-teal)" sub={lang === 'ru' ? `опубликовано еженедельно · замер ${(publishedRate && publishedRate.as_of) || '—'} · бумага, не live` : `published weekly · measured ${(publishedRate && publishedRate.as_of) || '—'} · paper, not live`} />
+              <Metric label={tr('apyRealized')} value={publishedRate && publishedRate.text_en ? (lang === 'ru' ? publishedRate.text_ru : publishedRate.text_en) : NA} accent="var(--data-teal)" sub={(() => { const w = rateWindow(); const win = (w.days != null && w.anchor) ? (lang === 'ru' ? ` · ${w.days} дн. с ${shortDate(w.anchor, true)}` : ` · ${w.days} days from ${w.anchor}`) : '';
+                const pr = periodReturnFigure(); const lead = pr ? (lang === 'ru' ? `за период: ${pr.text_ru} · ` : `over the period: ${pr.text_en} · `) : ''; return lang === 'ru' ? `${lead}опубликовано еженедельно · замер ${(publishedRate && publishedRate.as_of) || '—'}${win} · бумага, не live` : `${lead}published weekly · measured ${(publishedRate && publishedRate.as_of) || '—'}${win} · paper, not live`; })()} />
               <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={f.apy_today_pct_metric_type === 'OBSERVED' && f.apy_today_pct_window_days === 1 ? fmtPct(f.apy_today_pct, 2) : NA} sub={lang === 'ru' ? 'наблюдение за 1 день — не ставка трека' : 'observed over 1 day — not the track rate'} />
               <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
-              <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+              {/* Total return is measured on the $100k base from paper_start_date — it INCLUDES the
+                  days before the evidence anchor that the rate excludes, so it is not the rate's
+                  cumulative. Say so at the number (P1 2026-10-08: +1.56 % next to 4.8 % with no base). */}
+              <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} sub={f.paper_start_date ? (lang === 'ru' ? `с ${f.paper_start_date} на базу $100k · включает дни до якоря ${f.evidenced_anchor || '—'}, которые в ставку не входят` : `since ${f.paper_start_date} on the $100k base · includes days before the ${f.evidenced_anchor || '—'} anchor that the rate excludes`) : undefined} />
               <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
               <Metric loading={phase === 'connecting'} label={tr('nav')} value={f.nav_reconciliation_ok === true ? fmtUsd0(f.nav) : NA} accent="var(--data-teal)" sub={f.nav_reconciliation_ok === true ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : (phase === 'connecting' ? undefined : tr('navNotReconciled'))} />
             </div>
@@ -1177,7 +1192,8 @@ export default function DashboardLive({ initialFacts = null, publishedRate = nul
 }
 
 /* ── thresholds: rendered from constitution.json only (no printed numbers) ── */
-const _pct = (v) => (typeof v === 'number' ? String(+v.toFixed(2)) : '—');
+// Threshold number for a «{pct}%» template: two decimals by the one formatter, the template keeps the «%».
+const _pct = (v) => (typeof v === 'number' ? (fmtPct2(v, _LANG === 'ru') || '—').replace(/\u00a0?%$/, '') : '—');
 function ladderText(str) {
   const ss = CONSTITUTION.sleeve_stops || {};
   return str
@@ -1747,8 +1763,8 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
   const stableM = Number.isFinite(stableApy) ? { cagr_pct: stableApy, max_drawdown_pct: null, days_underwater: null } : null; // null ⇒ every cell «—» (data unavailable)
   const stableSrc = Number.isFinite(stableApy)
     ? (lang === 'ru'
-        ? `фактическая бумажная ставка ${stableApy.toFixed(1).replace('.', ',')}% годовых (замер ${shelfMeasuredAt() || '—'}), сложным процентом на то же окно — расчёт, не прожитый год`
-        : `realized paper rate ${stableApy.toFixed(1)}% annualised (measured ${shelfMeasuredAt() || '—'}), compounded over the same window — a model, not a lived year`)
+        ? `оценочный годовой эквивалент модельного бумажного трека ${_pr.text_ru} (замер ${shelfMeasuredAt() || '—'}), сложным процентом на то же окно — расчёт, не прожитый год`
+        : `estimated annualised equivalent of the simulated paper track ${_pr.text_en} (measured ${shelfMeasuredAt() || '—'}), compounded over the same window — a model, not a lived year`)
     : (lang === 'ru' ? 'ставка недоступна' : 'rate unavailable');
   const notional = Number((win && win.notional_usd) || contrast.notional_usd || 100000);
   const overlay = (chosen.dated_drawdown_timeline && chosen.dated_drawdown_timeline.dated_stress_overlay) || [];
@@ -2047,7 +2063,7 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, exit
           <h3 style={{ ...HEADING, fontSize: '1.05rem', marginBottom: 8 }}>{tr('btcEthTitle')}</h3>
           <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{tr('btcEthWhat')}</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-            <Chip tone="muted">BTC lending ~0% · advisory</Chip>
+            <Chip tone="muted">BTC lending ~0.00% · advisory</Chip>
             <Chip tone="teal">eth_lst_neutral · β≈0</Chip>
           </div>
         </Panel>
@@ -2168,8 +2184,8 @@ function HelpSection({ lang, tr }) {
     {
       t: { en: 'Research desks = REFUSAL-FIRST', ru: 'Research desks = REFUSAL-FIRST' },
       b: {
-        en: 'The edge is honest measurement: harvest genuine carry, REFUSE tail-risk dressed as yield. We publish what we refuse, not only what we trade. Rates Desk is a validated GO (live in paper); RWA is measurement-GO; BTC is honestly ~0%.',
-        ru: 'Edge — честное измерение: харвестить реальный carry, ОТКАЗЫВАТЬСЯ от хвостового риска под видом доходности. Публикуем отказы, не только сделки. Rates Desk — валидированный GO (live в paper); RWA — measurement-GO; BTC — честно ~0%.',
+        en: 'The edge is honest measurement: harvest genuine carry, REFUSE tail-risk dressed as yield. We publish what we refuse, not only what we trade. Rates Desk is a validated GO (live in paper); RWA is measurement-GO; BTC is honestly ~0.00%.',
+        ru: 'Edge — честное измерение: харвестить реальный carry, ОТКАЗЫВАТЬСЯ от хвостового риска под видом доходности. Публикуем отказы, не только сделки. Rates Desk — валидированный GO (live в paper); RWA — measurement-GO; BTC — честно ~0,00 %.',
       },
     },
     {
@@ -2182,15 +2198,15 @@ function HelpSection({ lang, tr }) {
     {
       t: { en: 'Risk = the kill-switch ladder', ru: 'Риск = лестница kill-switch' },
       b: {
-        en: 'The deterministic two-tier safety ladder: DL-01 daily-loss 2% and DL-02 peak-drawdown 10% HALT allocation; SOFT de-risk at 5% halts new allocations; HARD kill at 10% moves all to cash. The marker is the live drawdown. The cutover scorecard shows honest CODE-readiness — which is NOT go-live: custody, real capital, audit and the 30-day track are owner-only blockers.',
-        ru: 'Детерминированная двухуровневая лестница защиты: DL-01 дневной убыток 2% и DL-02 peak-просадка 10% HALT аллокации; SOFT de-risk при 5% стоп новых аллокаций; HARD kill при 10% всё в кэш. Маркер — живая просадка. Scorecard cutover показывает честную CODE-готовность — что НЕ есть go-live: custody, реальный капитал, аудит и 30-дневный трек — owner-only блокеры.',
+        en: 'The deterministic two-tier safety ladder: DL-01 daily-loss 2.00% and DL-02 peak-drawdown 10.00% HALT allocation; SOFT de-risk at 5.00% halts new allocations; HARD kill at 10.00% moves all to cash. The marker is the live drawdown. The cutover scorecard shows honest CODE-readiness — which is NOT go-live: custody, real capital, audit and the 30-day track are owner-only blockers.',
+        ru: 'Детерминированная двухуровневая лестница защиты: DL-01 дневной убыток 2,00 % и DL-02 peak-просадка 10,00 % HALT аллокации; SOFT de-risk при 5,00 % стоп новых аллокаций; HARD kill при 10,00 % всё в кэш. Маркер — живая просадка. Scorecard cutover показывает честную CODE-готовность — что НЕ есть go-live: custody, реальный капитал, аудит и 30-дневный трек — owner-only блокеры.',
       },
     },
     {
       t: { en: 'System = the autonomous fleet', ru: 'Система = автономный парк' },
       b: {
-        en: 'launchd agents run the daily cycle, monitors and autopush. The safety ladder is deterministic: drift-watch at 2%, soft de-risk at 5% (halt new allocations), hard kill at 10% (all to cash).',
-        ru: 'launchd-агенты держат дневной цикл, мониторы и автопуш. Лестница защиты детерминирована: drift-watch при 2%, soft de-risk при 5% (стоп новых аллокаций), hard kill при 10% (всё в кэш).',
+        en: 'launchd agents run the daily cycle, monitors and autopush. The safety ladder is deterministic: drift-watch at 2.00%, soft de-risk at 5.00% (halt new allocations), hard kill at 10.00% (all to cash).',
+        ru: 'launchd-агенты держат дневной цикл, мониторы и автопуш. Лестница защиты детерминирована: drift-watch при 2,00 %, soft de-risk при 5,00 % (стоп новых аллокаций), hard kill при 10,00 % (всё в кэш).',
       },
     },
     {
@@ -2277,7 +2293,7 @@ function Waterfall({ schedule, lang, tr }) {
                 {flagged ? NA : usdCompact(net)}
               </p>
               <p style={{ ...mono, fontSize: '.625rem', color: haircutPct == null ? 'var(--text-faint)' : 'var(--danger)' }}>
-                {haircutPct == null ? NA : '−' + haircutPct.toFixed(1) + '%'}
+                {haircutPct == null ? NA : '−' + fmtPct(Math.abs(haircutPct))}
               </p>
               <p style={{ ...mono, fontSize: '.5625rem', color: 'var(--text-faint)' }}>
                 {tte == null ? NA : tte + 'd'}
@@ -2514,7 +2530,7 @@ function Day30Panel({ day30, lang, tr }) {
             <Bar value={day30.readiness_pct || 0} max={100} color="var(--data-teal)" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
-            <Metric label={tr('day30Ready')} value={day30.readiness_pct == null ? NA : day30.readiness_pct.toFixed(1) + '%'} accent="var(--data-teal)" />
+            <Metric label={tr('day30Ready')} value={day30.readiness_pct == null ? NA : fmtPct(day30.readiness_pct)} accent="var(--data-teal)" />
             <Metric label={lang === 'ru' ? 'Дней (evidenced)' : 'Days (evidenced)'} value={ev.evidenced_days == null ? NA : `${ev.evidenced_days} / ${ev.min_track_days ?? DAYS_NEEDED}`} />
             <Metric label={tr('day30Realized')} value={fmtSigned(ev.realized_total_return_pct, 3)} accent={(ev.realized_total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
             <Metric label={tr('day30Dd')} value={fmtPct(ev.realized_max_drawdown_pct, 2)} />
@@ -2593,7 +2609,7 @@ function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr })
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)' }}>{tr('ladderCurrentDd')}</span>
           <span style={{ ...mono, fontSize: '.95rem', fontWeight: 700, color: liveDdPct == null ? 'var(--text-muted)' : liveDdPct >= 5 ? 'var(--danger)' : 'var(--data-teal)' }}>
-            {liveDdPct == null ? NA : liveDdPct.toFixed(2) + '%'}
+            {liveDdPct == null ? NA : fmtPct(liveDdPct)}
           </span>
         </span>
       </div>
@@ -2601,7 +2617,7 @@ function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr })
       {/* horizontal scale with marker */}
       <div style={{ position: 'relative', height: 40, marginBottom: 8 }}>
         {/* gradient track: clear → soft (amber) → hard (red) */}
-        <div style={{ position: 'absolute', top: 16, left: 0, right: 0, height: 8, borderRadius: 'var(--r-full)', background: 'linear-gradient(90deg, rgba(52,211,153,.35) 0%, rgba(242,181,60,.4) 50%, rgba(242,109,109,.55) 100%)' }} />
+        <div style={{ position: 'absolute', top: 16, left: 0, right: 0, height: 8, borderRadius: 'var(--r-full)', background: 'linear-gradient(90deg, rgba(52,211,153,.35) 0%, rgba(242,181,60,.4) 50.00%, rgba(242,109,109,.55) 100.00%)' }} />
         {/* rung ticks */}
         {rungs.filter((r) => r.key !== 'dl2').map((r) => (
           <div key={r.key} style={{ position: 'absolute', top: 8, left: `${(r.pct / SCALE_MAX) * 100}%`, transform: 'translateX(-50%)', textAlign: 'center' }}>
@@ -2610,7 +2626,7 @@ function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr })
         ))}
         {/* live drawdown marker */}
         {markerFrac != null && (
-          <div title={tr('ladderCurrentDd') + ': ' + (liveDdPct != null ? liveDdPct.toFixed(2) + '%' : NA)}
+          <div title={tr('ladderCurrentDd') + ': ' + (liveDdPct != null ? fmtPct(liveDdPct) : NA)}
             style={{ position: 'absolute', top: 4, left: `${markerFrac * 100}%`, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <span style={{ ...mono, fontSize: '.625rem', color: 'var(--text-primary)', fontWeight: 700, whiteSpace: 'nowrap' }}>▼</span>
             <div style={{ width: 3, height: 18, background: 'var(--text-primary)', borderRadius: 2 }} />
@@ -2620,7 +2636,7 @@ function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr })
       {/* x-axis labels */}
       <div style={{ position: 'relative', height: 14, marginBottom: 16 }}>
         {[0, 2, 5, 10].map((p) => (
-          <span key={p} style={{ ...mono, position: 'absolute', left: `${(p / SCALE_MAX) * 100}%`, transform: 'translateX(-50%)', fontSize: '.5625rem', color: 'var(--text-faint)' }}>{p}%</span>
+          <span key={p} style={{ ...mono, position: 'absolute', left: `${(p / SCALE_MAX) * 100}%`, transform: 'translateX(-50%)', fontSize: '.5625rem', color: 'var(--text-faint)' }}>{fmtPct(p)}</span>
         ))}
       </div>
 
@@ -2630,7 +2646,7 @@ function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr })
           <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: r.active ? 'rgba(242,109,109,.06)' : 'var(--bg-base)', border: `1px solid ${r.active ? r.color : 'var(--border)'}` }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.active ? r.color : 'var(--text-faint)', flexShrink: 0, animation: r.active ? 'pulse 3s ease-in-out infinite' : 'none' }} aria-hidden="true" />
             <span style={{ ...mono, fontSize: '.75rem', fontWeight: 600, color: r.active ? 'var(--text-primary)' : 'var(--text-secondary)', width: 132, flexShrink: 0 }}>{r.label}</span>
-            <span style={{ ...mono, fontSize: '.75rem', color: r.color, width: 44, flexShrink: 0 }}>{r.pct}%</span>
+            <span style={{ ...mono, fontSize: '.75rem', color: r.color, width: 44, flexShrink: 0 }}>{fmtPct(r.pct)}</span>
             <span style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{r.action}</span>
           </div>
         ))}
@@ -2684,7 +2700,7 @@ function ExecutionReadinessPanel({ execRead, lang, tr }) {
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-            <Metric label={tr('execCodeReady')} value={codeReadyPct == null ? NA : codeReadyPct.toFixed(0) + '%'} accent="var(--data-teal)" />
+            <Metric label={tr('execCodeReady')} value={codeReadyPct == null ? NA : fmtPct(codeReadyPct)} accent="var(--data-teal)" />
             <Metric label={tr('execPosture')} value={execRead.posture || NA} />
             <Metric label={tr('execReadyForLive')} value={readyForLive ? (lang === 'ru' ? 'ДА' : 'YES') : (lang === 'ru' ? 'НЕТ' : 'NO')} accent={readyForLive ? 'var(--ok)' : 'var(--warn)'} sub={lang === 'ru' ? 'owner-gated' : 'owner-gated'} />
           </div>

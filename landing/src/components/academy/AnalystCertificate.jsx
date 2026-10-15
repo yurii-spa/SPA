@@ -4,6 +4,7 @@ import {
   getAnalystName, setAnalystName, isCapstonePassed,
 } from './progress.js';
 import { evaluateBadges } from './badges.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * AnalystCertificate.jsx — printable / shareable completion certificate.
@@ -47,6 +48,7 @@ function stampOf(str) {
 
 export default function AnalystCertificate({ allIds = [], modules = [], tracks = null }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [name, setName] = useState('');
   const [, force] = useState(0);
 
@@ -109,7 +111,7 @@ export default function AnalystCertificate({ allIds = [], modules = [], tracks =
 
           <div className="ac-cert-grid">
             <div><span>{tr('modulesDone')}</span><strong>{gs.done} / {gs.total}</strong></div>
-            <div><span>{tr('mastery')}</span><strong>{gs.overallMastery}%</strong></div>
+            <div><span>{tr('mastery')}</span><strong>{pctL(gs.overallMastery)}</strong></div>
             <div><span>{tr('rank')}</span><strong>{lang === 'en' ? gs.level.title_en : gs.level.title_ru}</strong></div>
             <div><span>XP</span><strong>{gs.xp}</strong></div>
             <div><span>{tr('badges')}</span><strong>{earnedBadges.length}</strong></div>
@@ -183,7 +185,7 @@ const certCss = `
     .ac-cert { box-shadow:none; }
     body * { visibility:hidden; }
     .ac-cert-wrap, .ac-cert-wrap * { visibility:visible; }
-    .ac-cert-wrap { position:absolute; left:0; top:0; width:100%; }
+    .ac-cert-wrap { position:absolute; left:0; top:0; width:100.00%; }
   }
   @media (max-width:560px) {
     .ac-cert-grid { grid-template-columns:repeat(2,1fr); }

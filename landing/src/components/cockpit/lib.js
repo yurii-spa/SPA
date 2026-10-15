@@ -1,3 +1,4 @@
+import { pctL } from '../../lib/pct_live.js';
 /*
  * cockpit/lib.js — shared helpers for the Desk Cockpit primitives (SPA-004/005, Lane B).
  *
@@ -17,8 +18,8 @@ const isNum = (v) => v != null && isFinite(Number(v));
 
 export const fmtUsd0 = (v) => (isNum(v) ? '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }) : NA);
 export const fmtUsd2 = (v) => (isNum(v) ? '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : NA);
-export const fmtPct = (v, d = 2) => (isNum(v) ? Number(v).toFixed(d) + '%' : NA);
-export const fmtSigned = (v, d = 2) => (isNum(v) ? (Number(v) >= 0 ? '+' : '') + Number(v).toFixed(d) + '%' : NA);
+export const fmtPct = (v, d = 2) => (isNum(v) ? pctL(Number(v)) : NA);   // ADR-660: two decimals, `d` not read
+export const fmtSigned = (v, d = 2) => (isNum(v) ? pctL(Number(v), true) : NA);   // ADR-660: `d` kept, not read
 export const fmtNum = (v, d = 2) => (isNum(v) ? Number(v).toFixed(d) : NA);
 
 export function usdCompact(v) {

@@ -24,7 +24,8 @@ const rows = PROFILES.map(profileView);
           {v.measured ? (
             <dd>
               <span class="big" data-ru={v.measured.rate_ru}>{v.measured.rate_en}</span>{' '}
-              <span data-ru={`годовых · просадка ${v.measured.dd_ru ?? 'не измерена'} · замер ${v.measured.date ?? '—'}`}>annualised · drawdown {v.measured.dd_en ?? 'not measured'} · measured {v.measured.date ?? '—'}</span>
+              <span data-ru={`${v.measured.unit_ru ?? 'годовых'} · просадка ${v.measured.dd_ru ?? 'не измерена'} · ${v.measured.days ?? '—'} дн.${v.measured.from_ru ? ` с ${v.measured.from_ru}` : ''} · замер ${v.measured.date ?? '—'}`}>{v.measured.unit_en ?? 'annualised'} · drawdown {v.measured.dd_en ?? 'not measured'} · {v.measured.days ?? '—'} days{v.measured.from_en ? ` from ${v.measured.from_en}` : ''} · measured {v.measured.date ?? '—'}</span>
+              {v.measured.ann_en && <div class="ux-small" style="margin-top:4px" data-ru={v.measured.ann_ru}>{v.measured.ann_en}</div>}
               {v.target_shown && v.target_en && (
                 <div class="ux-small" style="margin-top:4px" data-ru={`Цель исследования ${v.target_ru} — не результат`}>Research target {v.target_en} — not a result</div>
               )}

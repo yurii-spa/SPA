@@ -3,14 +3,14 @@
     {
       "id": "preserve",
       "name": "Conservative",
-      "tagline": "The desk's real book — a live paper track since June 22, 2026",
+      "tagline": "The desk's model book — a simulated paper track on virtual capital since June 22, 2026",
       "risk_level": "lower",
       "risk_level_label": "Lower Risk",
       "risk_bars": 1,
       "status": "paper-tracked",
       "status_label": "Paper Tracked · evidenced",
       "who_for": "Allocators prioritising capital preservation over yield optimisation.",
-      "taglineRu": "Реальная книга деска — живой бумажный трек с 22 июня 2026",
+      "taglineRu": "Модельная книга деска — бумажный трек на виртуальном капитале с 22 июня 2026",
       "description": "Stablecoin lending in Tier 1 and Tier 2 protocols within per-tier RiskPolicy caps. No leverage, no looping. Evidenced paper track since June 22, 2026 — this is the book the desk actually runs.",
       "descriptionRu": "Кредитование стейблкоинов в протоколах Tier 1 и Tier 2 в пределах лимитов RiskPolicy по уровням. Без плеча, без зацикливания. Подтверждённый бумажный трек с 22 июня 2026 — это книга, которую деск реально ведёт.",
       "yield_sources": [
@@ -25,14 +25,14 @@
         "Allocate to Tier 3 protocols",
         "Bypass RiskPolicy"
       ],
-      "target_apy_note": "Target band up to 6%. This IS the evidenced paper-tracked book; the realized track-to-date rate is rendered live from the snapshot, never typed. Variable, not guaranteed.",
-      "target_apy_note_ru": "Целевая полоса до 6%. Это и есть подтверждённая бумажная книга; фактическая ставка на сегодня подставляется из снимка, а не пишется руками. Переменная, не гарантирована.",
+      "target_apy_note": "Target band up to 6.00%. This IS the evidenced paper-tracked book; the realized track-to-date rate is rendered live from the snapshot, never typed. Variable, not guaranteed.",
+      "target_apy_note_ru": "Целевая полоса до 6,00 %. Это и есть подтверждённая бумажная книга; фактическая ставка на сегодня подставляется из снимка, а не пишется руками. Переменная, не гарантирована.",
       "assets": [
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
       ],
       "path": "/strategies/conservative",
-      "tagline_ru": "Реальная книга деска — живой бумажный трек с 22 июня 2026",
+      "tagline_ru": "Модельная книга деска — бумажный трек на виртуальном капитале с 22 июня 2026",
       "description_ru": "Кредитование стейблкоинов в протоколах Tier 1 и Tier 2 в пределах лимитов RiskPolicy по уровням. Без плеча, без зацикливания. Подтверждённый бумажный трек с 22 июня 2026 — это книга, которую деск реально ведёт."
     },
     {
@@ -46,8 +46,8 @@
       "status_label": "Research / Paper — tail shown",
       "track_record_since": "2026-06-22",
       "who_for": "Family offices and individual allocators seeking systematic, transparent DeFi yield.",
-      "descriptionRu": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
-      "description": "Floating stablecoin lending plus a fixed-rate part: Pendle principal tokens bought at a discount and held to maturity (up to 40% of the book). Research/paper — the evidenced June 22 track belongs to Conservative, not to this tier.",
+      "descriptionRu": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40,00 % книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
+      "description": "Floating stablecoin lending plus a fixed-rate part: Pendle principal tokens bought at a discount and held to maturity (up to 40.00% of the book). Research/paper — the evidenced June 22 track belongs to Conservative, not to this tier.",
       "yield_sources": [
         "Floating stablecoin lending (live APY and TVL)",
         "Pendle PT on sUSDS, bought at a discount and held to maturity"
@@ -72,7 +72,7 @@
       ],
       "path": "/strategies/balanced",
       "tagline_ru": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием",
-      "description_ru": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40% книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
+      "description_ru": "Плавающее кредитование стейблкоинов плюс фиксированная часть: принципал-токены Pendle, купленные с дисконтом и удерживаемые до погашения (до 40,00 % книги). Исследование/бумага — подтверждённый трек с 22 июня принадлежит Conservative, а не этому тиру.",
       "taglineRu": "Исследовательская книга — фиксированная часть рядом с плавающим кредитованием",
       "yield_sources_ru": [
         "Плавающее кредитование стейблкоинов (живые APY и TVL)",
@@ -93,8 +93,8 @@
       "description": "The Aggressive paper book holds concentrated stablecoin lending and runs a separate PAPER experiment: a simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market, modelled from that market’s own data. The loop enters only when its carry beats its costs; until then it holds. No real borrowing, no keys, no transactions.",
       "descriptionRu": "Бумажная книга Aggressive держит концентрированное кредитование стейблкоинов и ведёт отдельный бумажный эксперимент: симулированную петлю «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue, смоделированную по данным самого рынка. Петля входит, только когда доходность перекрывает издержки; до тех пор — удержание. Реальных займов, ключей и транзакций нет.",
       "yield_sources": [
-        "Concentrated stablecoin lending (top-2, ≤60% per protocol)",
-        "Simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market (≤50% of the book)"
+        "Concentrated stablecoin lending (top-2, ≤60.00% per protocol)",
+        "Simulated sUSDe-collateral / PYUSD-debt loop on one Morpho Blue market (≤50.00% of the book)"
       ],
       "does_not": [
         "Move real / live capital (paper-only, refused for live)",
@@ -109,14 +109,14 @@
       ],
       "path": "/strategies/aggressive",
       "yield_sources_ru": [
-        "Концентрированное кредитование стейблкоинов (два лучших рынка, ≤60% на протокол)",
-        "Симулированная петля «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue (≤50% книги)"
+        "Концентрированное кредитование стейблкоинов (два лучших рынка, ≤60,00 % на протокол)",
+        "Симулированная петля «залог sUSDe — долг PYUSD» на одном рынке Morpho Blue (≤50,00 % книги)"
       ]
     }
   ],
   "global": {
     "go_live_target": null,
-    "_go_live_note": "No owner-set go-live date (2026-09-08). Public wording comes from landing/src/lib/golive_label.js over track_snapshot.json; 'July 21, 2026' was the gate's calendar ETA (anchor + 29 d), not a decision.",
+    "_go_live_note": "No owner-set go-live date (2026-09-08). Public wording comes from landing/src/lib/golive_label.js over track_snapshot.json; the old date was the gate's calendar ETA (anchor + 29 d), not a decision.",
     "paper_trading_start": "June 22, 2026",
     "withdrawal_terms": "not set — research paper track (no external capital)",
     "apy_disclaimer": "APY figures are variable and not guaranteed. Past paper performance does not guarantee future results. Possible loss of capital.",

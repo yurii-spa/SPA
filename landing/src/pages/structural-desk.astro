@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 
 /*
@@ -32,8 +33,8 @@ const seats = [
     sub_en: 'On-chain interest-rate & basis', sub_ru: 'On-chain ставки и базис',
     edge_en: 'Price & harvest the disagreement between Pendle implied yield, lending rates and perp funding — and REFUSE books where the high rate is just unpriced tail.',
     edge_ru: 'Оценивать и собирать расхождение между implied-доходностью Pendle, ставками кредитования и funding-ом перпов — и ОТКАЗЫВАТЬСЯ от книг, где высокая ставка — это просто неоценённый хвост.',
-    finding_en: 'Refusal fired early on toxic LRTs (vetoed before the Aug-2024 / Apr-2026 depegs). In the backtest, the validated FixedCarry sleeve clears the 3.4% RWA floor in/out-of-sample and through every stress — ~6.09% net APY is a backtest/candidate figure, NOT realized carry (advisory, reporting-only). The live paper track is still short (~1 week, ~0% net so far) and does not yet beat the floor.',
-    finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). В бэктесте валидированный sleeve FixedCarry обгоняет RWA-пол 3.4% in/out-of-sample и во всех стрессах — ~6.09% net APY это бэктест/кандидат, а НЕ реализованный carry (advisory, только отчётность). Живой paper-трек ещё короткий (~1 неделя, ~0% net) и пока не обгоняет пол.',
+    finding_en: 'Refusal fired early on toxic LRTs (vetoed before the Aug-2024 / Apr-2026 depegs). In the backtest, the validated FixedCarry sleeve clears the 3.40% RWA floor in/out-of-sample and through every stress — ~6.09% net APY is a backtest/candidate figure, NOT realized carry (advisory, reporting-only). The simulated paper track is still short (~1 week, ~0.00% net so far) and does not yet beat the floor.',
+    finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). В бэктесте валидированный sleeve FixedCarry обгоняет RWA-пол 3,40 % in/out-of-sample и во всех стрессах — ~6,09 % net APY это бэктест/кандидат, а НЕ реализованный carry (advisory, только отчётность). Модельный (бумажный) трек ещё короткий (~1 неделя, ~0,00 % net) и пока не обгоняет пол.',
     cta_en: 'Open the Rates Desk', cta_ru: 'Открыть Rates Desk',
     // teal-leaning GO
     card: 'border-teal-border', badge: 'bg-teal-bg border-teal-border text-data-teal', dot: 'bg-data-teal', accent: 'group-hover:text-data-teal', arrow: 'group-hover:text-data-teal',
@@ -77,6 +78,7 @@ const seats = [
   canonical="https://earn-defi.com/structural-desk"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- ============================================================= a. THE THESIS -->
     <section class="pt-20 pb-10">
@@ -222,21 +224,21 @@ const seats = [
             <p class="text-sm font-bold" style="color:var(--text-primary)">FixedCarry</p>
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
-          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6.09% · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6,09 % · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
         </div>
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">LeveredCarry</p>
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
-          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~4.96% · advisory (не реализованный)">backtest net APY ~4.96% · advisory (not realized)</p>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~4,96 % · advisory (не реализованный)">backtest net APY ~4.96% · advisory (not realized)</p>
         </div>
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">RateMatrix</p>
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
-          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6.09% · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6,09 % · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
         </div>
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:rgba(242,109,109,.35)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
@@ -244,7 +246,7 @@ const seats = [
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-danger-bg border-danger-border text-danger">BLOCKED-NO-HEDGE</span>
           </div>
           <p class="text-xs font-mono" style="color:var(--text-muted)"
-             data-ru="нет keyless forward-funding (Boros) · ~4.99% — только бэктест-прокси, live заблокировано">no keyless forward-funding (Boros) · ~4.99% backtest-proxy only, live-blocked</p>
+             data-ru="нет keyless forward-funding (Boros) · ~4,99 % — только бэктест-прокси, live заблокировано">no keyless forward-funding (Boros) · ~4.99% backtest-proxy only, live-blocked</p>
         </div>
       </div>
       <p class="mt-4 text-xs font-mono" style="color:var(--text-faint)">
@@ -431,7 +433,7 @@ const seats = [
         var c = (d && d.counts) || {};
         if (c.ENTRY != null || c.REFUSAL != null) {
           setEl('sd-rd-inputs', (ru ? 'входов ' : 'entered ') + (c.ENTRY || 0) + ' · ' + (ru ? 'отказов ' : 'refused ') + (c.REFUSAL || 0) +
-            ' · ' + (ru ? 'обыгрывает RWA-пол ~3.4%' : 'beats ~3.4% RWA floor'));
+            ' · ' + (ru ? 'обыгрывает RWA-пол ~3,40 %' : 'beats ~3.40% RWA floor'));
         }
         var rows = (d && Array.isArray(d.decisions)) ? d.decisions : [];
         var asof = rows.length ? (rows[rows.length - 1].as_of || (d && d.generated_at)) : (d && d.generated_at);
@@ -467,7 +469,7 @@ const seats = [
       };
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
-      function pct(v) { return (typeof v === 'number') ? ('~' + v.toFixed(2) + '%') : '—'; }
+      function pct(v) { return (typeof v === 'number') ? ('~' + spaPct(v)) : '—'; }
       function rdSleeveCard(s, ru) {
         var stage = (s && s.stage) || '';
         var badge = STAGE_BADGE[stage] || 'bg-white/5 border-white/10 text-gray-300';

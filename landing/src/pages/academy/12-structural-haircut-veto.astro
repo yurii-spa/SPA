@@ -37,7 +37,7 @@ const questions = [
     q: 'Какое значение порога max_structural_haircut в RatePolicyParams?',
     options: ['0.12', '0.06', '0.40', '0.005'],
     correct: 1,
-    explanation: 'RatePolicyParams: max_structural_haircut = 0.06 (≈6%). Для сравнения max_total_haircut = 0.12. Структурный cap строже, потому что он про токсичность, которую нельзя обойти размером.',
+    explanation: 'RatePolicyParams: max_structural_haircut = 0.06 (≈6,00 %). Для сравнения max_total_haircut = 0.12. Структурный cap строже, потому что он про токсичность, которую нельзя обойти размером.',
   },
   {
     q: 'Почему ezETH / rsETH отказаны на любом размере?',
@@ -48,7 +48,7 @@ const questions = [
       'Они не торгуются на Pendle',
     ],
     correct: 1,
-    explanation: 'docs/RATES_DESK_VALIDATION.md: токсичные LRT PT-книги (ezETH/rsETH) отказаны 100% дней по структурным причинам. Их хвост (depeg в кризис, как rsETH-2026-04) не уменьшается, если взять меньший тикет.',
+    explanation: 'docs/RATES_DESK_VALIDATION.md: токсичные LRT PT-книги (ezETH/rsETH) отказаны 100,00 % дней по структурным причинам. Их хвост (depeg в кризис, как rsETH-2026-04) не уменьшается, если взять меньший тикет.',
   },
 ];
 ---
@@ -115,7 +115,7 @@ const questions = [
 
   <Callout type="example" titleRu="Пример">
     ezETH в апреле 2026 (окно rsETH-depeg): его peg + protocol хейркаты дают structural &gt; 0.06 →
-    REFUSE. Ставь размер $1000 или $10M — вердикт один: отказ. Деск отказал таким LRT PT-книгам 100%
+    REFUSE. Ставь размер $1000 или $10M — вердикт один: отказ. Деск отказал таким LRT PT-книгам 100,00 %
     дней на истории (<code>docs/RATES_DESK_VALIDATION.md</code>).
   </Callout>
 

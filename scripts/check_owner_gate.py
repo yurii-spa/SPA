@@ -446,7 +446,7 @@ def _snapshot_self_consistency(
 
         real_track_days   = number of evidenced bars
         as_of             = date of the last evidenced bar
-        paper_apy_pct     = compound-annualized evidenced anchor → latest over real_track_days
+        paper_apy_pct     = annualised equivalent of the period return, ACT/365 on valuation dates
         max_drawdown_pct  = generator's _max_drawdown_pct over the evidenced bars
         total_return_pct  = derived from end_equity
         nav_usd           = end_equity (PoR-NAV mirrors it)
@@ -481,13 +481,17 @@ def _snapshot_self_consistency(
         except Exception:
             pass
         if len(evidenced) >= 2 and real_days > 0:
+            # P1 Wave 2 (owner/ARB 2026-10-08): paper_apy_pct is the annualised EQUIVALENT of the
+            # period return on ACT/365 valuation dates — recomputed with the generator's OWN
+            # definition (spa_core.paper_trading.track_period_return, which the generator imports),
+            # not a bar-count copy that would call every honest snapshot «РАСХОДЯТСЯ».
             try:
-                anchor_eq = float(evidenced[0].get("equity") or 0)
-                latest_eq = float(evidenced[-1].get("equity") or 0)
-                if anchor_eq > 0 and latest_eq > 0:
-                    apy = ((latest_eq / anchor_eq) ** (365.0 / real_days) - 1.0) * 100.0
-                    expected["paper_apy_pct"] = round(apy, 4)
-            except (TypeError, ValueError, ZeroDivisionError, OverflowError):
+                from spa_core.paper_trading.track_period_return import period_return as _pr
+                tp = _pr(evidenced)
+                ann = tp.get("annualised_equivalent_pct") if tp.get("state") == "MEASURED" else None
+                if ann is not None:
+                    expected["paper_apy_pct"] = round(float(ann), 4)
+            except (ImportError, TypeError, ValueError, ZeroDivisionError, OverflowError):
                 pass
 
     end_equity = snap.get("end_equity")

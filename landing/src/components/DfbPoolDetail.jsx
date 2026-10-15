@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import AnimatedChart from './academy/AnimatedChart.jsx';
 import { classStyle, verdictStyle } from './ui/riskStyles.js';
 import { LiveChip } from './DfbScreener.jsx';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /*
  * DfbPoolDetail.jsx — DFB pool detail (Lane-3 / WS-1.4).
@@ -43,8 +44,8 @@ function usd(x) {
   if (Math.abs(n) >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
   return '$' + n.toFixed(0);
 }
-function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(2) + '%'; }
-function fracPct(x) { const n = num(x); return n == null ? '—' : (n * 100).toFixed(1) + '%'; }
+function pct(x) { const n = num(x); return n == null ? '—' : pctL(n); }
+function fracPct(x) { const n = num(x); return n == null ? '—' : pctL((n * 100)); }
 
 // One badge geometry, shared across all DFB islands (matches ui/Badge.astro §3.4).
 function Badge({ style, children, title }) {
@@ -59,6 +60,7 @@ function Badge({ style, children, title }) {
 
 export default function DfbPoolDetail() {
   const [ru, setRu] = useState(false);
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const [poolId] = useState(poolIdFromUrl());
   const [state, setState] = useState('loading'); // loading | live | offline | notfound
   const [pool, setPool] = useState(null);
@@ -279,7 +281,7 @@ export default function DfbPoolDetail() {
           <>
             <AnimatedChart
               series={[{ points: apySeries, color: 'var(--accent)', label: ru ? 'APY всего %' : 'APY total %', fill: true }]}
-              height={200} xLabels={histLabels} yFormat={(v) => v.toFixed(1) + '%'}
+              height={200} xLabels={histLabels} yFormat={(v) => pctL(v)}
               ariaLabel={ru ? 'история APY' : 'APY history'} client:visible />
             {tvlSeries.length >= 2 && (
               <div style={{ marginTop: 16 }}>

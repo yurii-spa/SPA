@@ -74,8 +74,10 @@ def test_cockpit_yield_line_uses_the_one_owner_formatter():
     bars = [{"date": f"2026-06-{d:02d}", "evidenced": True,
              "equity": 100_000.0 * (1 + 0.000131) ** i * (0.9996 if d == 15 else 1.0)}
             for i, d in enumerate(range(1, 31))]
-    from spa_core.reporting.compound_apy import compound_annualized_pct, max_drawdown_pct
-    apy = compound_annualized_pct(bars[0]["equity"], bars[-1]["equity"], len(bars))
+    # P1 Wave 2 (owner/ARB 2026-10-08): the cockpit prints the SAME annualised equivalent as the
+    # site — ACT/365 on valuation dates (track_period_view) — not the bar-count annualisation.
+    from spa_core.reporting.compound_apy import max_drawdown_pct, track_period_view
+    apy = track_period_view({"bars": bars})["apy_pct"]
     cell = ct.tile_yield({"generated_at": "2026-06-30T06:00:00Z", "bars": bars},
                          now=ct._parse_ts("2026-06-30T07:00:00Z"))
     shown = fmt_pct(apy, "ru")

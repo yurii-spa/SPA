@@ -11,12 +11,18 @@ import LiveAcademyData from '../../components/academy/LiveAcademyData.jsx';
 import AnimatedChart from '../../components/academy/AnimatedChart.jsx';
 import Term from '../../components/academy/Term.astro';
 import KeyStat from '../../components/academy/KeyStat.astro';
+// P1-15 (2026-10-08): all eth_directional depths are BACKTEST marks (annual_contrast.json as_of 2026-06-25,
+// realized_backtest_series = historical prices, not live trading) and are labelled so (ADR-580 C2).
+// Our paper book's rate/drawdown come from the shelf, not «~4,50 %».
+import { realizedPhrase, drawdownPctText } from '../../lib/realized_rate.js';
+const rateRu = realizedPhrase(null, true);
+const ddRu = drawdownPctText(true) || 'не измерена';
 
 /*
  * Honest illustrative equity curves for the draw-in chart. The DEPTHS and DATES are the
  * documented realized episodes from data/aggressive_lab/annual_contrast.json
  * (realized_backtest_series), NOT invented:
- *   eth_directional: peak $129,392 (2025-08-24) → trough $43,545 (2026-06-06) = −66.3% realized.
+ *   eth_directional: peak $129,392 (2025-08-24) → trough $43,545 (2026-06-06) = −66.35% in the BACKTEST.
  *   leverage_loop:   −29.7% in one day (2024-08-08 → 09).
  * The steady ~4.5% blended book compounds smoothly (zero dated collapse by construction).
  * x is a month index over ~Jan-2025..Jun-2026; the chart animates presentation only —
@@ -25,7 +31,7 @@ import KeyStat from '../../components/academy/KeyStat.astro';
 const M = (i) => i; // month index
 // steady ~4.5% blended book: smooth ~+4.5%/yr compounding from $100k
 const steadyPts = Array.from({ length: 19 }, (_, i) => ({ x: M(i), y: 100000 * Math.pow(1 + 0.045 / 12, i) }));
-// aggressive book: climbs to the documented peak, then takes the real −66.3% drawdown to trough
+// aggressive book: climbs to the documented peak, then takes the real −66.35% drawdown to trough
 const aggrPts = [
   { x: 0, y: 100000 }, { x: 3, y: 110000 }, { x: 6, y: 122000 },
   { x: 8, y: 129392 },                                  // peak 2025-08-24 (real $)
@@ -34,7 +40,7 @@ const aggrPts = [
 ];
 const ddMarkers = [
   { x: 8, y: 129392, label: 'пик', color: 'var(--warn)' },
-  { x: 17, y: 43545, label: '−66.3%', color: 'var(--danger)' },
+  { x: 17, y: 43545, label: '−66,35 %', color: 'var(--danger)' },
 ];
 
 const questions = [
@@ -42,29 +48,29 @@ const questions = [
     q: 'Зачем деску Aggressive Lab, если он отказывается от этих стратегий?',
     options: [
       'Чтобы тайком торговать ими',
-      'Чтобы paper-тестировать 10–15% стратегии, которые он ОТКАЗЫВАЕТ, на реальных данных с ДАТИРОВАННЫМИ просадками — и видеть, что 15% реально стоит',
+      'Чтобы paper-тестировать 10,00–15,00 % стратегии, которые он ОТКАЗЫВАЕТ, на реальных данных с ДАТИРОВАННЫМИ просадками — и видеть, что 15,00 % реально стоит',
       'Чтобы обучать LLM',
       'Чтобы повысить APY портфеля',
     ],
     correct: 1,
-    explanation: 'roster.py docstring: восемь high-yield (10–15%+) стратегий, которые консервативный RiskPolicy ОТКАЗЫВАЕТ, обёрнуты как Strategy-ABC и прогоняются через общий real-data harness. Работают OUTSIDE RiskPolicy ON PURPOSE, изолированы, НИКОГДА не касаются go-live трека.',
+    explanation: 'roster.py docstring: восемь high-yield (10,00–15,00 %+) стратегий, которые консервативный RiskPolicy ОТКАЗЫВАЕТ, обёрнуты как Strategy-ABC и прогоняются через общий real-data harness. Работают OUTSIDE RiskPolicy ON PURPOSE, изолированы, НИКОГДА не касаются go-live трека.',
   },
   {
-    q: 'Какую реальную (realized) максимальную просадку показал eth_directional?',
-    options: ['−5%', '−66.3% (peak 2025-08-24 → trough 2026-06-06, NOT_RECOVERED)', '+12%', '−2%'],
+    q: 'Какую максимальную просадку показал eth_directional в бэктесте?',
+    options: ['−5,00 %', '−66,35 % (peak 2025-08-24 → trough 2026-06-06, NOT_RECOVERED)', '+12,00 %', '−2,00 %'],
     correct: 1,
-    explanation: 'data/aggressive_lab/annual_contrast.json, worst_realized_episode (source: realized_backtest_series): eth_directional depth −66.3466%, peak $129,392 → trough $43,545, не восстановился. β≈1: реальная цена ETH, не хедж — это market BETA (класс B), а не yield.',
+    explanation: 'data/aggressive_lab/annual_contrast.json, худший эпизод бэктеста (source: realized_backtest_series, annual_contrast.json на 2026-06-25): eth_directional depth −66,35 %, peak $129,392 → trough $43,545, не восстановился. β≈1: реальная цена ETH, не хедж — это market BETA (класс B), а не yield.',
   },
   {
     q: 'Что случилось с leverage_loop и какой это класс/shape риска?',
     options: [
       'Стабильно рос',
-      'Realized drawdown −29.7% (одно-дневный обвал 2024-08-08→09, ликвидация): класс C, shape liquidation, плечо ×2 на stETH/ETH у порога 0.825 LTV',
+      'Realized drawdown −29,70 % (одно-дневный обвал 2024-08-08→09, ликвидация): класс C, shape liquidation, плечо ×2 на stETH/ETH у порога 0.825 LTV',
       'Класс A, alpha',
       'Ничего, это кэш',
     ],
     correct: 1,
-    explanation: 'roster.py + annual_contrast.json: leverage_loop worst realized −29.7125% (peak 2024-08-08 → trough 2024-08-09, NOT_RECOVERED). Mark на реальный stETH/ETH ratio × leverage с liquidation cliff. Class C (risk-compensation), shape liquidation.',
+    explanation: 'roster.py + annual_contrast.json: leverage_loop худший эпизод бэктеста −29,71 % (peak 2024-08-08 → trough 2024-08-09, NOT_RECOVERED). Mark на реальный stETH/ETH ratio × leverage с liquidation cliff. Class C (risk-compensation), shape liquidation.',
   },
   {
     q: 'Как Aggressive Lab отделяет РЕАЛЬНЫЕ просадки от модельных стресс-событий?',
@@ -75,96 +81,96 @@ const questions = [
       'Спрашивает у владельца',
     ],
     correct: 1,
-    explanation: 'annual_contrast.py honesty contract: realized_drawdowns — реальные peak-to-trough в backtest equity (proof-chained); dated_stress_overlay — канонические события 2024–2026 через risk SHAPE, помечены modeled_stress_overlay. «We NEVER inflate a realized 0 into a fake −30%».',
+    explanation: 'annual_contrast.py honesty contract: realized_drawdowns — peak-to-trough в equity бэктеста на исторических ценах (proof-chained); dated_stress_overlay — канонические события 2024–2026 через risk SHAPE, помечены modeled_stress_overlay. «We NEVER inflate a realized 0 into a fake −30,00 %».',
   },
   {
-    q: 'Что покупает «устойчивая ~4.5%» книга по сравнению с агрессивной 15%?',
+    q: 'Что покупает устойчивая кредитная книга по сравнению с агрессивной 15,00 %?',
     options: [
       'Меньше доходности и больше риска',
-      'Отсутствие −66%/−29.7% датированных обвалов: то, что покупает 15% — это вот эти просадки на реальных датах',
+      'Отсутствие −66,35 %/−29,70 % датированных обвалов бэктеста: то, что покупает 15,00 % — это вот эти просадки на исторических датах',
       'Более высокий APY',
       'Плечо',
     ],
     correct: 1,
-    explanation: 'Назначение annual-contrast (owner): положить рядом реальную ~4.5% книгу и агрессивную ~15% с датированными drawdown\'ами, чтобы было видно, ЧТО реально стоит 15%. Это sales-артефакт, где честность важнее презентабельности.',
+    explanation: 'Назначение annual-contrast (owner): положить рядом нашу измеренную бумажную книгу и агрессивную ~15,00 % с датированными просадками бэктеста, чтобы было видно, ЧТО реально стоит 15,00 %. Это sales-артефакт, где честность важнее презентабельности.',
   },
 ];
 ---
 
 <LessonLayout id="19-aggressive-lab-annual-contrast">
   <p>
-    Деск отказывается от стратегий на 10–15%. Но как доказать, что отказ был <em>правильным</em>, а не
+    Деск отказывается от стратегий на 10,00–15,00 %. Но как доказать, что отказ был <em>правильным</em>, а не
     трусливым? Aggressive Lab делает именно это: он <strong>паралельно paper-тестирует ровно те
     стратегии, которые деск отказывает</strong> — на реальных данных, с честными датированными
-    просадками — чтобы каждый увидел, <strong>что 15% реально стоит</strong>.
+    просадками — чтобы каждый увидел, <strong>что 15,00 % реально стоит</strong>.
   </p>
 
   <h2>Восемь книг, от которых деск отказался</h2>
   <p>
-    <code>spa_core/strategy_lab/aggressive_lab/roster.py</code> — восемь high-yield (10–15%+) стратегий,
+    <code>spa_core/strategy_lab/aggressive_lab/roster.py</code> — восемь high-yield (10,00–15,00 %+) стратегий,
     которые консервативный RiskPolicy отвергает, обёрнутые как pluggable Strategy-ABC. Они работают
     <strong>OUTSIDE RiskPolicy ON PURPOSE</strong>, чисто виртуально ($100k notional каждая), пишут
     только в <code>data/aggressive_lab/&lt;id&gt;/</code> и <strong>никогда не касаются go-live трека</strong>.
-    Accrual — только на живых фидах (нет фида → fail-CLOSED, никакого хардкода «12%»).
+    Accrual — только на живых фидах (нет фида → fail-CLOSED, никакого хардкода «12,00 %»).
   </p>
   <p>Каждая книга честно объявляет класс риска (A/B/C/D, модуль 10) и shape хвоста:</p>
   <table>
     <thead><tr><th>id</th><th>Класс</th><th>Shape</th><th>~APY</th></tr></thead>
     <tbody>
-      <tr><td><code>susde_dn</code></td><td>C</td><td>funding_flip</td><td>11%</td></tr>
-      <tr><td><code>pendle_yt_susde</code></td><td>C</td><td>funding_flip</td><td>14%</td></tr>
-      <tr><td><code>pendle_pt_levered</code></td><td>C</td><td>liquidation</td><td>15%</td></tr>
-      <tr><td><code>eth_directional</code></td><td><strong>B</strong></td><td>depeg</td><td>4% + β≈1</td></tr>
-      <tr><td><code>leverage_loop</code></td><td>C</td><td>liquidation</td><td>7.5%</td></tr>
-      <tr><td><code>points_farm</code></td><td><strong>D</strong></td><td>incentive_decay</td><td>14%</td></tr>
+      <tr><td><code>susde_dn</code></td><td>C</td><td>funding_flip</td><td>11,00 %</td></tr>
+      <tr><td><code>pendle_yt_susde</code></td><td>C</td><td>funding_flip</td><td>14,00 %</td></tr>
+      <tr><td><code>pendle_pt_levered</code></td><td>C</td><td>liquidation</td><td>15,00 %</td></tr>
+      <tr><td><code>eth_directional</code></td><td><strong>B</strong></td><td>depeg</td><td>4,00 % + β≈1</td></tr>
+      <tr><td><code>leverage_loop</code></td><td>C</td><td>liquidation</td><td>7,50 %</td></tr>
+      <tr><td><code>points_farm</code></td><td><strong>D</strong></td><td>incentive_decay</td><td>14,00 %</td></tr>
     </tbody>
   </table>
   <p>Обрати внимание: <strong>ни одной книги класса <Term def="alpha">A (alpha)</Term></strong>. Весь «yield» — это <Term def="beta">beta</Term>, risk-comp или <Term def="incentive">incentive</Term>.</p>
 
-  <Callout type="example" titleRu="Пример — что реально стоят 15%">
-    <code>eth_directional</code> (класс B, β≈1, без хеджа): realized drawdown <strong>−66.3%</strong>
+  <Callout type="example" titleRu="Пример — что реально стоят 15,00 %">
+    <code>eth_directional</code> (класс B, β≈1, без хеджа): просадка в бэктесте <strong>−66,35 %</strong>
     (пик $129,392 24-авг-2025 → дно $43,545 06-июн-2026, <strong>не восстановился</strong>). Это
     рыночная BETA, замаскированная под «yield». <code>leverage_loop</code> (класс C, плечо ×2 на
-    stETH/ETH): <strong>−29.7%</strong> за ОДИН день (08→09-авг-2024) — ликвидация на пробое буфера у
-    0.825 LTV. Оба — реальные марки <code>realized_backtest_series</code>, не модель.
+    stETH/ETH): <strong>−29,70 %</strong> за ОДИН день (08→09-авг-2024) — ликвидация на пробое буфера у
+    0.825 LTV. Оба — марки бэктеста на исторических ценах (<code>realized_backtest_series</code>, файл <code>annual_contrast.json</code> на 2026-06-25): не модель стресса, но и не живая торговля.
   </Callout>
 
   <Callout type="trap" titleRu="Ловушка — честность марок">
     Aggressive Lab держит ДВА источника просадки строго раздельно: <code>realized_drawdowns</code>
-    (реальные peak-to-trough в backtest equity, proof-chained) и <code>dated_stress_overlay</code>
+    (peak-to-trough в equity бэктеста на исторических ценах, proof-chained) и <code>dated_stress_overlay</code>
     (канонические события 2024–2026 через risk shape, помечены <code>modeled_stress_overlay</code>).
     Контракт прямо запрещает выдавать модель за реализацию: <em>«We NEVER inflate a realized 0 into a
-    fake −30%»</em>.
+    fake −30,00 %»</em>.
   </Callout>
 
-  <KeyStat value="66.3" prefix="−" suffix="%" tone="danger"
-    labelRu="реальная просадка eth_directional: пик $129 392 (24-авг-2025) → дно $43 545 (06-июн-2026)"
-    labelEn="real eth_directional drawdown: peak $129,392 → trough $43,545" />
+  <KeyStat value="66.35" prefix="−" suffix="%" tone="danger"
+    labelRu="просадка eth_directional в бэктесте: пик $129 392 (24-авг-2025) → дно $43 545 (06-июн-2026)"
+    labelEn="eth_directional backtest drawdown: peak $129,392 → trough $43,545" />
 
   <h2>Картинка датированного обвала</h2>
   <p>
     Ниже — иллюстративные кривые equity обеих книг от $100 000. <strong>Глубины и даты просадок —
-    реальные</strong> (из <code>realized_backtest_series</code>): кривая «рисуется» при прокрутке,
-    а обвал <strong>падает ровно на свою датированную глубину −66.3%</strong>, ни на пункт глубже.
-    Устойчивая ~4.5% книга компаундит гладко — датированных обвалов нет по построению.
+    из бэктеста на исторических ценах</strong> (<code>realized_backtest_series</code>): кривая «рисуется» при прокрутке,
+    а обвал <strong>падает ровно на свою датированную глубину −66,35 %</strong>, ни на пункт глубже.
+    Гладкая кривая — иллюстрация ~4,50 % годовых, а не наш трек; бумажная книга деска: {rateRu}, макс. просадка −{ddRu}.
   </p>
   <AnimatedChart
     client:visible
     height={240}
     series={[
-      { points: steadyPts, color: 'var(--ok)', width: 2.5, label: 'устойчивая ~4.5% книга', fill: false },
+      { points: steadyPts, color: 'var(--ok)', width: 2.5, label: 'иллюстрация: гладкие ~4,50 % в год', fill: false },
       { points: aggrPts, color: 'var(--warn)', width: 2.5, label: 'агрессивная книга (eth_directional)' },
     ]}
     markers={ddMarkers}
     xLabels={['янв-2025', 'авг-2025', 'июн-2026']}
     yFormat={(v) => '$' + (v / 1000).toFixed(0) + 'k'}
-    ariaLabel="Equity: устойчивая 5% против агрессивной книги с датированной просадкой −66.3%"
+    ariaLabel="Equity: иллюстрация гладких ~4,50 % против агрессивной книги с датированной просадкой бэктеста −66,35 %"
   />
 
-  <h2>Живой контраст: 15% против фактических бумажных ~5%</h2>
+  <h2>Живой контраст: 15,00 % (бэктест) против нашей бумажной книги</h2>
   <p>
     Ниже — живой annual-contrast с боевого API (<code>/api/aggressive-lab/annual-contrast</code>):
-    реальная устойчивая ~4.5% книга рядом с агрессивной 10–15% и её датированными drawdown'ами. Это
+    наша бумажная книга ({rateRu}) рядом с агрессивными 10,00–15,00 % книгами и их датированными просадками из бэктеста — окна разные, и это сказано. Это
     sales-артефакт деска, где <strong>честность важнее презентабельности</strong> — отсутствующий/битый
     файл даёт честное «недоступно», а не выдуманную кривую.
   </p>
@@ -172,8 +178,8 @@ const questions = [
   <LiveAcademyData feed="contrast" client:load />
 
   <Callout type="key" titleRu="Ключевое">
-    То, что «покупает» 15% — это <strong>вот эти датированные обвалы</strong> (−66%, −29.7%, …).
-    Устойчивая ~4.5% книга деска не имеет таких просадок по построению. Отказ от 15% (модуль 11) — не
+    То, что «покупает» 15,00 % — это <strong>вот эти датированные обвалы бэктеста</strong> (−66,35 %, −29,70 %, …).
+    Бумажная книга деска (кредитование стейблкоинов без плеча) таких обвалов пока не показала: её измеренная макс. просадка −{ddRu}. Отказ от 15,00 % (модуль 11) — не
     осторожность ради осторожности, а измеренный, доказанный на реальных датах выбор.
   </Callout>
 

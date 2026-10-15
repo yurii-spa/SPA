@@ -20,6 +20,7 @@
  */
 import { TABULAR, MONO, toneColor } from '../ui/tokens.js';
 import { fmtUsd0, fmtPct, NA } from './lib.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 const isNum = (v) => v != null && isFinite(Number(v));
 
@@ -27,6 +28,7 @@ export default function EquityChart({
   series, markers, showDrawdown = true, height = 220, lang = 'en', reducedMotion = false,
 }) {
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const pts = (Array.isArray(series) ? series : []).filter((d) => isNum(d.value));
 
   if (pts.length < 2) {
@@ -116,7 +118,7 @@ export default function EquityChart({
 
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
         <Foot k={ru ? 'последний' : 'latest'} v={fmtUsd0(last.value)} />
-        <Foot k={ru ? 'доходность' : 'return'} v={isNum(totalRet) ? (totalRet >= 0 ? '+' : '') + totalRet.toFixed(2) + '%' : NA} tone={totalRet >= 0 ? 'ok' : 'danger'} />
+        <Foot k={ru ? 'доходность' : 'return'} v={isNum(totalRet) ? (totalRet >= 0 ? '+' : '') + pctL(totalRet) : NA} tone={totalRet >= 0 ? 'ok' : 'danger'} />
         <Foot k={ru ? 'точек' : 'points'} v={`${pts.length}${hasBackfill ? ` (${pts.filter((d) => d.evidenced !== false).length} ev)` : ''}`} />
       </div>
     </div>

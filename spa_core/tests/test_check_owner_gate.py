@@ -346,7 +346,11 @@ def _consistent_snapshot() -> dict:
     bars = _bars(5)
     end = 100500.0
     real_days = len(bars)
-    apy = ((bars[-1]["equity"] / bars[0]["equity"]) ** (365.0 / real_days) - 1.0) * 100.0
+    # P1 Wave 2 (owner/ARB 09.10): the track's annualised EQUIVALENT is the period NAV ratio on
+    # ACT/365 Fixed between the first and last VALUATION DATES — not 365/bar-count.
+    from datetime import date as _d
+    days_act = (_d.fromisoformat(bars[-1]["date"]) - _d.fromisoformat(bars[0]["date"])).days
+    apy = ((bars[-1]["equity"] / bars[0]["equity"]) ** (365.0 / days_act) - 1.0) * 100.0
     return {
         "as_of": bars[-1]["date"],
         "real_track_days": real_days,

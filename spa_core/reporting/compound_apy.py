@@ -102,3 +102,32 @@ def floor_pct(value: Optional[float], digits: int = 1) -> Optional[float]:
         return None
     scale = 10 ** digits
     return math.floor(value * scale + 1e-9) / scale
+
+
+def track_period_view(equity_doc: Any) -> dict:
+    """The MAIN track's period return and its annualised equivalent — ONE definition for every
+    surface (site generator, /api/ssot/facts, /api/live/books, Telegram books, Director OS).
+
+    Owner/ARB 2026-10-08 (P1 Wave 2): the primary metric is the paper return over the actual period
+    (NAV ratio, no external flows; TWR when there are flows); the annualised EQUIVALENT is
+    ``(1 + R) ^ (365 / days_act) − 1`` with ``days_act`` ACT/365 Fixed on valuation dates
+    (``spa_core.paper_trading.track_period_return``). The older bar-count annualisation
+    (``compound_annualized_pct(first, last, len(bars))``) printed a second number (4,90 % against
+    4,85 %) for the same measurement and is no longer used for the main track.
+
+    Returns ``{"state", "period_return_pct", "apy_pct", "days_act", "evidenced_bars", "convention",
+    "method", "start_date", "end_date", "nav_start", "nav_end"}``; unmeasured ⇒ ``state`` with a
+    ``reason`` and every number ``None`` (inv. #17).
+    """
+    from spa_core.paper_trading.track_period_return import period_return
+    tp = period_return(evidenced_bars(equity_doc))
+    per = tp.get("period") if isinstance(tp.get("period"), dict) else {}
+    return {
+        "state": tp.get("state"), "reason": tp.get("reason"),
+        "period_return_pct": tp.get("period_return_pct"),
+        "apy_pct": tp.get("annualised_equivalent_pct"),
+        "days_act": per.get("days_act"), "evidenced_bars": per.get("evidenced_bars"),
+        "convention": per.get("convention"), "method": tp.get("method"),
+        "start_date": per.get("start_date"), "end_date": per.get("end_date"),
+        "nav_start": tp.get("nav_start"), "nav_end": tp.get("nav_end"),
+    }

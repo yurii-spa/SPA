@@ -1,18 +1,23 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import snap from '../lib/snapshot_view.js';
+import { trackGateSentence, remainingBlockers } from '../lib/golive_label.js';
+// P1-6: blockers derived from the snapshot (the 30-day gate passed long ago) — never typed.
+const blkEn = remainingBlockers(snap, false), blkRu = remainingBlockers(snap, true);
+const gateEn = trackGateSentence(snap, false), gateRu = trackGateSentence(snap, true);
 ---
 
 <Layout
   title="Go-Live Readiness — SPA earn-defi.com"
-  description="What the code has proven vs what only the owner can do. Governance + money-path defenses fire (reproducible); the remaining blockers are custody, audit, legal and the 30-day evidenced track — owner-only and time-gated."
+  description={`What the code has proven vs what only the owner can do. Governance + money-path defenses fire (reproducible); what remains is owner-only: ${blkEn}.`}
   canonical="https://earn-defi.com/readiness"
 >
   <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
     <section class="pt-16 pb-8">
       <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Готовность к go-live">Go-Live Readiness</p>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Что доказал код против того, что может только владелец">What the code has proven vs what only the owner can do</h1>
-      <p class="text-white/60 leading-relaxed" data-ru="Честная поверхность готовности. Защиты доказуемо срабатывают (воспроизводимо, детерминированно). Оставшиеся блокеры — кастоди, аудит, легал и 30 evidenced-дней трека — owner-only и time-gated. Ничто здесь не двигает капитал.">
-        An honest readiness surface. The safety defenses are proven to fire — reproducibly, deterministically, through the same governance code the daily cycle uses. The remaining blockers — custody, audit, legal, and 30 evidenced track-days — are owner-only and time-gated. Nothing here moves capital.
+      <p class="text-white/60 leading-relaxed" data-ru={`Честная поверхность готовности. Защиты доказуемо срабатывают (воспроизводимо, детерминированно). Остаётся только то, что может владелец: ${blkRu}. ${gateRu} Ничто здесь не двигает капитал.`}>
+        An honest readiness surface. The safety defenses are proven to fire — reproducibly, deterministically, through the same governance code the daily cycle uses. What remains is owner-only: {blkEn}. {gateEn} Nothing here moves capital.
       </p>
     </section>
 
@@ -22,7 +27,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Governance defenses</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-def">—</span></p>
-          <p class="text-xs text-white/55 mt-1" data-ru="срабатывают на стрессе (SOFT −5% / HARD −10%)">fire on stress (SOFT −5% / HARD −10%)</p>
+          <p class="text-xs text-white/55 mt-1" data-ru="срабатывают на стрессе (SOFT −5,00 % / HARD −10,00 %)">fire on stress (SOFT −5.00% / HARD −10.00%)</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Go-live gate</p>

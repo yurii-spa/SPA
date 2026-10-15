@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { percentComplete, doneCount, onProgressChange, isDone, getLang } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * ModuleProgress.jsx — the portal-wide progress bar island.
@@ -25,6 +26,7 @@ const T = {
 
 export default function ModuleProgress({ moduleIds, moduleId, label_ru }) {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [, force] = useState(0);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function ModuleProgress({ moduleIds, moduleId, label_ru }) {
           {label_ru && lang === 'ru' ? label_ru : tr('progress')}
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>
-          {n} / {ids.length} {tr('done')} · {pct}%
+          {n} / {ids.length} {tr('done')} · {pctL(pct)}
         </span>
       </div>
       <div style={{ height: 10, borderRadius: 'var(--r-full)', background: 'var(--bg-surface-2)', border: '1px solid var(--border)', overflow: 'hidden' }}>

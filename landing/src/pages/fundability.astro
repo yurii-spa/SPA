@@ -1,11 +1,15 @@
 ---
+import snap from '../lib/snapshot_view.js';
+import { trackGateSentence } from '../lib/golive_label.js';
+// P1-7/8: the 30-day gate sentence comes from the snapshot, never «THIN, accruing to 30» typed in.
+const gateEn = trackGateSentence(snap, false), gateRu = trackGateSentence(snap, true);
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 
 /*
  * Fundability (Workstream D / D1) — the auto-generated one-pager (docs/FUNDABILITY.md) mirrored as a
  * live first-class page. The case for $10M as a SCALE + TRUST play, made honestly: the refusal chain
- * and the published NO-GO are the differentiator, the track is THIN, the capital is $0 real (paper).
+ * and the published NO-GO are the differentiator, the track is short (gate sentence from the snapshot), the capital is $0 real (paper).
  *
  * Live surfaces pull from api.earn-defi.com (chain status, capacity, go-live) with a localhost
  * fallback + graceful offline. The honesty constraints are STATIC text (THIN track, capacity bound,
@@ -21,7 +25,7 @@ import Disclaimer from '../components/Disclaimer.astro';
 
 <Layout
   title="Fundability — the honest case, every claim checkable | earn-defi.com"
-  description="SPA's fundability one-pager, live: the edge is honest measurement and refusal, not yield. Rates-carry GO, RWA measurement-GO, Liquidator NO-GO (published). Honest constraints stated up front — the track is THIN (accruing to 30), capacity is bounded, the capital is paper ($0 real). Every number is checkable with one zero-dependency verifier. Paper research, advisory, not investment advice."
+  description="SPA's fundability one-pager, live: the edge is honest measurement and refusal, not yield. Rates-carry GO, RWA measurement-GO, Liquidator NO-GO (published). Honest constraints stated up front — the track is short (see the evidenced-day count), capacity is bounded, the capital is paper ($0 real). Every number is checkable with one zero-dependency verifier. Paper research, advisory, not investment advice."
   canonical="https://earn-defi.com/fundability"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -71,11 +75,8 @@ import Disclaimer from '../components/Disclaimer.astro';
          data-ru="Честные ограничения — впереди, не спрятаны">Honest constraints — up front, not buried</p>
       <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
         <ul class="space-y-3 text-sm leading-relaxed" style="color:var(--text-secondary)">
-          <li data-ru="Трек ТОНКИЙ. Засчитываются только дни, подтверждённые реальным логом цикла; ранний бэкфилл сброшен. Сейчас трек накапливается к 30 дням — честные доверительные метрики приходят ближе к 30-му дню, до этого они помечены THIN, а не выдуманы.">
-            <strong style="color:var(--text-primary)">The track is THIN.</strong> Only days with a real
-            daily-cycle log count; the earlier backfill was reset out. The track is accruing to 30 —
-            trustworthy risk-adjusted ratios land near day 30; until then they read
-            <span class="font-mono">THIN</span>, never a fabricated number.
+          <li data-ru={gateRu}>
+            <strong style="color:var(--text-primary)">The track:</strong> {gateEn}
           </li>
           <li data-ru="Ёмкость ограничена. Standalone rates-desk над флором — порядка десятков тысяч в год при сегодняшней глубине рынка; combined по слив-стратегиям после хейрката на корреляцию — ещё меньше. $10M = масштаб + декорреляция + AUM, НЕ достижимо сегодня.">
             <strong style="color:var(--text-primary)">Capacity is bounded.</strong> The standalone
@@ -119,7 +120,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Подтверждённых дней">Evidenced days</p>
           <p class="text-2xl font-mono font-bold text-warn"><span id="fb-days">—</span><span class="text-sm" style="color:var(--text-faint)"> / 30</span></p>
-          <p class="text-xs mt-1" style="color:var(--text-faint)"><span id="fb-readiness">—</span> <span data-ru="готовности · THIN · накапливается">ready · THIN · accruing</span></p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)"><span id="fb-readiness">—</span> <span data-ru="готовности · трек продолжает накапливаться">ready · the track keeps accruing</span></p>
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Цепочка проверена">Chain verified</p>
@@ -284,7 +285,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           box.innerHTML = '<p class="text-sm" style="color:var(--text-faint)">' + (isRu() ? 'вердикты накапливаются на paper-треке' : 'verdicts accruing on the paper track') + '</p>'; return;
         }
         var fl = document.getElementById('fb-sl-floor');
-        if (fl && d.rwa_floor_apy_pct != null) fl.textContent = 'RWA floor ≈ ' + Number(d.rwa_floor_apy_pct).toFixed(1) + '%';
+        if (fl && d.rwa_floor_apy_pct != null) fl.textContent = 'RWA floor ≈ ' + spaPct(Number(d.rwa_floor_apy_pct));
         var meta = {
           BEATS_FLOOR: { l: isRu() ? 'бьёт флор' : 'beats floor', c: 'var(--ok)', bg: 'rgba(16,185,129,.10)', bd: 'rgba(16,185,129,.30)' },
           THIN_TRACK: { l: isRu() ? 'мало данных' : 'not enough data yet', c: 'var(--text-muted)', bg: 'var(--bg-surface)', bd: 'var(--border)' },

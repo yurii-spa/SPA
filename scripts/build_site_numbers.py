@@ -61,7 +61,7 @@ from spa_core.publication import product_map as _pmap  # noqa: E402
 from spa_core.defi_engine.package_status import REPORTABLE_AFTER  # noqa: E402
 
 #: ADR-630 (PRODUCT-TRUTH-02): the shelf carries its own provenance; bumped on every shape change.
-SCHEMA_VERSION = "site_numbers/2"
+SCHEMA_VERSION = "site_numbers/3"   # /3: anchor NAV, track return, total-return base, book exposure (P1 2026-10-08)
 SNAPSHOT = ROOT / "landing" / "src" / "data" / "track_snapshot.json"
 CONSTITUTION = ROOT / "landing" / "src" / "lib" / "constitution.json"
 OUT = ROOT / "landing" / "src" / "data" / "site_numbers.json"
@@ -87,8 +87,19 @@ KINDS = (MEASUREMENT, DECISION, BACKTEST, TARGET, MODELLED)
 
 #: Как считается годовая ставка. Названо строкой, потому что «годовая» без метода —
 #: не число, а намерение: простая экстраполяция и сложный процент дают разное.
-ANNUALISATION = ("сложный процент от якоря доказанного трека: "
-                 "(NAV_сегодня / NAV_якоря) ^ (365 / дней) − 1")
+# Owner/ARB 2026-10-08: the PRIMARY public metric is the paper return over the actual period
+# (headline.period.return). The annualised EQUIVALENT is shown only as a separately labelled
+# figure and only with the owner's approval. ONE-LINE SWITCH:
+#   "labelled" — the site prints it beside the period return, labelled
+#                «годовой эквивалент (ACT/365), не прогноз» (this candidate; the owner card asks
+#                approval for exactly this);
+#   "hidden"   — the site prints no annualised figure at all (headline.apy.display = "hidden").
+ANNUALISED_DISPLAY = "labelled"
+
+ANNUALISATION = ("годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): "
+                 "(NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки "
+                 "(P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика "
+                 "витрины — доходность за период, headline.period.return)")
 
 #: Провенанс-маркеры (подстроки в ``source``), ОБЯЗАННЫЕ сопровождаться родом
 #: BACKTEST/TARGET/MODELLED — никогда MEASUREMENT/DECISION. Список называет КОНКРЕТНЫЕ
@@ -350,6 +361,79 @@ def _book(track: dict, key: str, label: str, measured_at: object = None) -> dict
     }
 
 
+def _exposure(be: object) -> dict:
+    """Per-protocol holdings of the main book with registry tiers — a holding, not a recommendation.
+    Unmeasured upstream ⇒ ``rows: None`` with the reason (inv. #17), never an empty list read as «nothing»."""
+    src = "landing/src/data/track_snapshot.json → book_exposure (← data/current_positions.json + ADAPTER_REGISTRY)"
+    if not isinstance(be, dict) or be.get("state") != "MEASURED" or not isinstance(be.get("rows"), list):
+        reason = (be or {}).get("reason") if isinstance(be, dict) else None
+        return {"state": "UNMEASURED", "reason": reason or "book exposure not in the snapshot", "rows": None}
+    return {
+        "state": "MEASURED",
+        "as_of": be.get("as_of"),
+        "base": be.get("base"),
+        "base_usd": figure(be.get("base_usd"), unit="USD", kind=MEASUREMENT, source=src),
+        "cash": figure(be.get("cash_usd"), unit="USD", kind=MEASUREMENT, source=src),
+        "cash_share": figure(be.get("cash_share_pct"), unit="%", kind=MEASUREMENT, source=src),
+        "rows": [{"protocol": r.get("protocol"), "tier": r.get("tier"),
+                  "usd": figure(r.get("usd"), unit="USD", kind=MEASUREMENT, source=src),
+                  "share": figure(r.get("share_pct"), unit="%", kind=MEASUREMENT, source=src)}
+                 for r in be["rows"] if isinstance(r, dict)],
+    }
+
+
+def _tp(snap: dict, key: str):
+    tp = snap.get("track_period")
+    return tp.get(key) if isinstance(tp, dict) and tp.get("state") == "MEASURED" else None
+
+
+def _tp_period(snap: dict, key: str):
+    tp = snap.get("track_period")
+    per = tp.get("period") if isinstance(tp, dict) and tp.get("state") == "MEASURED" else None
+    return per.get(key) if isinstance(per, dict) else None
+
+
+def _period_block(snap: dict) -> dict:
+    """The track's return over its ACTUAL period, with its proof (P1 Wave 2, step 3).
+
+    Everything here is read from ``track_snapshot.json → track_period`` (one definition:
+    ``spa_core/paper_trading/track_period_return.py``). Unmeasured ⇒ ``state: UNMEASURED`` and every
+    figure ``None`` with a reason (inv. #17) — never a zero.
+    """
+    tp = snap.get("track_period") if isinstance(snap.get("track_period"), dict) else {}
+    src = "landing/src/data/track_snapshot.json → track_period (spa_core/paper_trading/track_period_return.py)"
+    if tp.get("state") != "MEASURED":
+        why = tp.get("reason") or "track period not in the snapshot"
+        return {"state": "UNMEASURED", "reason": why, "method": None, "period": None,
+                "nav_start": figure(None, unit="USD", kind=MEASUREMENT, source=src, unavailable_reason=why),
+                "nav_end": figure(None, unit="USD", kind=MEASUREMENT, source=src, unavailable_reason=why),
+                "return": figure(None, unit="%", kind=MEASUREMENT, source=src, unavailable_reason=why),
+                "twr": figure(None, unit="%", kind=MEASUREMENT, source=src, unavailable_reason=why),
+                "mwr": figure(None, unit="%", kind=MEASUREMENT, source=src, unavailable_reason=why),
+                "flows": None, "costs_paid_usd": figure(None, unit="USD", kind=MEASUREMENT, source=src,
+                                                         unavailable_reason=why),
+                "provenance": None, "gaps": None}
+    return {
+        "state": "MEASURED",
+        "method": tp.get("method"),
+        "period": tp.get("period"),
+        "nav_start": figure(tp.get("nav_start"), unit="USD", kind=MEASUREMENT, source=src,
+                            basis=tp.get("nav_start_basis")),
+        "nav_end": figure(tp.get("nav_end"), unit="USD", kind=MEASUREMENT, source=src),
+        "return": figure(tp.get("period_return_pct"), unit="%", kind=MEASUREMENT, source=src,
+                         evidence="paper"),
+        "twr": figure(tp.get("twr_pct"), unit="%", kind=MEASUREMENT, source=src),
+        "mwr": figure(tp.get("mwr_pct"), unit="%", kind=MEASUREMENT, source=src),
+        "flows": tp.get("flows"),
+        "costs_paid_usd": figure(tp.get("costs_paid_usd"), unit="USD", kind=MEASUREMENT, source=src,
+                                 basis=tp.get("costs_basis")),
+        "provenance": tp.get("provenance"),
+        "continuity_repaired": tp.get("continuity_repaired"),
+        "gaps": tp.get("gaps"),
+        "annualised_formula": tp.get("annualised_formula"),
+    }
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -406,12 +490,24 @@ def build(*, published_at: "str | None" = None, source_commit: "str | None" = No
         "annualisation": ANNUALISATION,
 
         "headline": {
-            "apy": figure(snap.get("paper_apy_pct"), unit="%", kind=MEASUREMENT,
-                          annualised=True, evidence="paper",
-                          window_days=snap.get("real_track_days"),
-                          reportable=(_num(snap.get("real_track_days")) or 0) >= REPORTABLE_AFTER,
-                          reportable_after=REPORTABLE_AFTER,
-                          source="landing/src/data/track_snapshot.json → paper_apy_pct"),
+            # The annualised EQUIVALENT of the period return (ACT/365 on valuation dates). Not the
+            # primary metric — that is headline.period.return — and it needs the owner's approval.
+            # ``paper_apy_pct`` IS that equivalent: the snapshot generator sets it from track_period
+            # (one annualised number); its window is the period's ACT/365 day count when present.
+            "apy": dict(figure(snap.get("paper_apy_pct"), unit="%", kind=MEASUREMENT,
+                               annualised=True, evidence="paper",
+                               window_days=(_tp_period(snap, "days_act")
+                                            if _tp_period(snap, "days_act") is not None
+                                            else snap.get("real_track_days")),
+                               reportable=(_num(snap.get("real_track_days")) or 0) >= REPORTABLE_AFTER,
+                               reportable_after=REPORTABLE_AFTER,
+                               source="landing/src/data/track_snapshot.json → paper_apy_pct "
+                                      "(= track_period.annualised_equivalent_pct, "
+                                      "spa_core/paper_trading/track_period_return.py)"),
+                        approval_required=True, display=ANNUALISED_DISPLAY,
+                        convention="ACT/365 Fixed on valuation dates"),
+            # PRIMARY public metric (owner/ARB 2026-10-08): the paper return over the actual period.
+            "period": _period_block(snap),
             "drawdown": figure(snap.get("max_drawdown_pct"), unit="%", kind=MEASUREMENT, basis=_mt.PAPER,
                                source="landing/src/data/track_snapshot.json"),
             "nav": figure(snap.get("nav_usd"), unit="USD", kind=MEASUREMENT,
@@ -420,6 +516,15 @@ def build(*, published_at: "str | None" = None, source_commit: "str | None" = No
                                      kind=MEASUREMENT,
                                      source="landing/src/data/track_snapshot.json"),
             "evidenced_anchor": snap.get("evidenced_anchor"),
+            # P1 2026-10-08 (C4): the two NAVs the rate is computed from and the cumulative over the SAME
+            # window — so «4,89 % годовых» and «+1,40 % за 106 дней» visibly reconcile on the page.
+            "anchor_nav": figure(snap.get("anchor_equity"), unit="USD", kind=MEASUREMENT,
+                                 source="landing/src/data/track_snapshot.json → anchor_equity "
+                                        "(NAV at the close of the anchor bar)"),
+            "track_end_date": snap.get("track_end_date"),
+            "track_return": figure(snap.get("track_return_pct"), unit="%", kind=MEASUREMENT,
+                                   source="landing/src/data/track_snapshot.json → track_return_pct "
+                                          "(NAV_end / NAV_anchor − 1, the rate's own window)"),
             "gates": {"passed": _num(snap.get("gates_passed")),
                       "total": _num(snap.get("gates_total")),
                       "state": snap.get("go_live_state")},
@@ -436,6 +541,12 @@ def build(*, published_at: "str | None" = None, source_commit: "str | None" = No
             "end_equity": figure(snap.get("end_equity"), unit="USD", kind=MEASUREMENT,
                                  source="track_snapshot.json → end_equity"),
             "go_live_target": snap.get("go_live_target"),
+            # «Совокупная доходность» has a DIFFERENT base than the rate: $100k from the paper start,
+            # the pre-anchor days included. Published with its base so no page shows it bare (P1 C4).
+            "total_return_since_start": figure(snap.get("total_return_pct"), unit="%", kind=MEASUREMENT,
+                                               source="landing/src/data/track_snapshot.json → total_return_pct "
+                                                      "(equity / $100,000 − 1)"),
+            "paper_start_date": snap.get("paper_start_date"),
             "degraded": bool(snap.get("degraded")),
             # Отметка генератора снимка — НЕ число и не показатель: она говорит,
             # когда снят замер, и живёт рядом с `measured_at` как его источник.
@@ -478,6 +589,9 @@ def build(*, published_at: "str | None" = None, source_commit: "str | None" = No
             "balanced": _book(track, "balanced", "Balanced", snap.get("as_of")),
             "aggressive": _book(track, "aggressive", "Aggressive", snap.get("as_of")),
         },
+
+        # What the main book HOLDS (P1 2026-10-08 — replaces the hand-typed whitelist on /due-diligence).
+        "exposure": _exposure(snap.get("book_exposure")),
 
         "thresholds": {
             "kill_switch_soft": figure(ks.get("soft_derisk_pct"), unit="%", kind=DECISION,

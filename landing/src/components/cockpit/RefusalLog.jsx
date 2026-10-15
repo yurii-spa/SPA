@@ -31,6 +31,7 @@ import {
 } from './index.js';
 import { useLang } from './hooks.js';
 import { MONO, TABULAR, toneStyle } from '../ui/tokens.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /* The contract enum + human labels (EN|RU). MUST match REFUSAL_REASONS in the API. */
 const REASON_META = {
@@ -95,6 +96,7 @@ function toRow(r, lang, chainVerified) {
 export default function RefusalLog() {
   const lang = useLang();
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
 
   const [payload, setPayload] = useState(null);   // /api/refusals body
   const [chain, setChain] = useState(null);        // { verified, head_hash, chain_length }
@@ -249,8 +251,8 @@ export default function RefusalLog() {
       {/* honesty framing */}
       <p style={{ fontSize: '.8125rem', lineHeight: 1.6, color: 'var(--text-muted)', margin: 0, maxWidth: '46rem' }}>
         {ru
-          ? 'Отказ — это и есть эдж стола. Большая часть доходности 10–15% — компенсация за хвостовой риск, от которой стол ОТКАЗЫВАЕТСЯ, а не mispriced carry. «Защищённый капитал» — честная оценка (est), не заявление.'
-          : "Refusal is the desk's edge. Most 10–15% yield is risk-compensation the desk REFUSES, not mispriced carry. “Capital protected” is an honest estimate (est), not a claim."}
+          ? 'Отказ — это и есть эдж стола. Большая часть доходности 10,00–15,00 % — компенсация за хвостовой риск, от которой стол ОТКАЗЫВАЕТСЯ, а не mispriced carry. «Защищённый капитал» — честная оценка (est), не заявление.'
+          : "Refusal is the desk's edge. Most 10.00–15.00% yield is risk-compensation the desk REFUSES, not mispriced carry. “Capital protected” is an honest estimate (est), not a claim."}
       </p>
 
       {/* ── the ledger (RefusalFeed primitive, wrapped in StaleGuard) ───────────── */}
@@ -338,7 +340,7 @@ function ReasonBreakdown({ topReasons, total, lang }) {
               <div key={key} style={{ display: 'grid', gap: 3 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
                   <span style={{ fontSize: '.75rem', color: 'var(--text-secondary)' }}>{ru ? meta.ru : meta.en}</span>
-                  <span style={{ ...TABULAR, fontFamily: MONO, fontSize: '.6875rem', color: 'var(--text-muted)' }}>{n} · {pct}%</span>
+                  <span style={{ ...TABULAR, fontFamily: MONO, fontSize: '.6875rem', color: 'var(--text-muted)' }}>{n} · {pctL(pct)}</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 'var(--r-full)', background: 'var(--bg-surface-2)', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${pct}%`, background: t.fg, opacity: 0.75, borderRadius: 'var(--r-full)' }} />

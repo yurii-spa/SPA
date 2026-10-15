@@ -16,7 +16,7 @@ table{display:block;overflow-x:auto;max-width:100%}code{word-break:break-all}
 <table><tr><th>percentile</th><th>regime</th><th>base BTC weight (before M2 modifier and k)</th></tr><tr><td>&lt; 0.25</td><td>ACCUMULATION</td><td>1.00</td></tr><tr><td>0.25 – 0.75</td><td>NEUTRAL</td><td>0.80</td></tr><tr><td>0.75 – 0.90</td><td>OVERHEATED</td><td>0.50</td></tr><tr><td>≥ 0.90</td><td>EUPHORIA</td><td>0.20</td></tr></table>
 <p>CAPITULATION (price below realized price, see card 2) takes precedence over the percentile. If fewer than 730 days of history are available the signal is null and the engine holds.</p>
 <h2>Data source and frequency</h2>
-<p>Primary: Coin Metrics Community API, metric <code>CapMVRVCur</code>, daily (end of day UTC), free tier. Shadow source (B1): bitcoin-data.com <code>mvrv</code>, daily; divergence above 3% blocks the decision. Updated once per day after the UTC day closes; the engine acts on the last complete day.</p>
+<p>Primary: Coin Metrics Community API, metric <code>CapMVRVCur</code>, daily (end of day UTC), free tier. Shadow source (B1): bitcoin-data.com <code>mvrv</code>, daily; divergence above 3.00% blocks the decision. Updated once per day after the UTC day closes; the engine acts on the last complete day.</p>
 <h2>Version history</h2>
 <ul><li>v0.1 (2026-09-02): rank percentile, window 1460 d, min history 730 d, boundaries 0.25/0.75/0.90.</li><li>v0.2 (2026-09-04): unchanged; shadow reconciliation added.</li></ul>
 <h2>Known limitations</h2>
@@ -33,7 +33,7 @@ table{display:block;overflow-x:auto;max-width:100%}code{word-break:break-all}
 <p><strong>Что измеряет.</strong> MVRV — отношение рыночной стоимости биткоина (цена × предложение) к реализованной стоимости (каждая монета учтена по цене последнего ончейн‑движения). Реализованная стоимость — это совокупная себестоимость держателей, поэтому MVRV показывает, насколько цена выше или ниже того, что заплатили держатели. Исторически MVRV высок у вершин цикла и низок у дна.</p>
 <p>Сырой коэффициент несопоставим между циклами (пики 4–5 в 2013–2017 против ~3 в 2021), поэтому мы берём <strong>ранговую перцентиль сегодняшнего MVRV внутри скользящего окна в четыре года</strong> (один цикл халвинга): «сегодняшний MVRV выше, чем в X % дней за последние четыре года».</p>
 <p><strong>Правило.</strong> Доля дней окна с MVRV ≤ сегодняшнего. Границы режимов (v0.2, предложение): &lt; 0.25 — ACCUMULATION (вес 1.00) · 0.25–0.75 — NEUTRAL (0.80) · 0.75–0.90 — OVERHEATED (0.50) · ≥ 0.90 — EUPHORIA (0.20). CAPITULATION (цена ниже realized price) имеет приоритет. Меньше 730 дней истории — сигнал пуст, движок держит вес.</p>
-<p><strong>Источник.</strong> Coin Metrics Community API (<code>CapMVRVCur</code>), ежедневно; теневая сверка с bitcoin-data.com, расхождение выше 3 % блокирует решение.</p>
+<p><strong>Источник.</strong> Coin Metrics Community API (<code>CapMVRVCur</code>), ежедневно; теневая сверка с bitcoin-data.com, расхождение выше 3,00 % блокирует решение.</p>
 <p><strong>Ограничения.</strong> Медленный сигнал: в долгом боковике перцентиль дрейфует просто от движения окна; реализованная стоимость учитывает потерянные монеты; окно не знает о начале нового цикла — первый выход выше диапазона окна всегда читается как «≥ 0.90».</p><hr><h1>Signal Card 2 · Realized price</h1>
 <p><strong>Version:</strong> v0.2 · first used 2026-09-02 · owner: engine config</p>
 <h2>What it measures and why it relates to the regime</h2>
@@ -43,21 +43,21 @@ table{display:block;overflow-x:auto;max-width:100%}code{word-break:break-all}
 price_below_realized = price &lt; realized_price  →  regime CAPITULATION, base weight 1.00</pre>
 <p>The base weight is still subject to the trend gate (card 3): in a downtrend the engine will not *increase* its weight, so CAPITULATION does not mean buying a falling knife — it means the engine is allowed to be fully weighted once the trend turns.</p>
 <h2>Data source and frequency</h2>
-<p>Primary: Coin Metrics Community API — derived from <code>CapMrktCurUSD</code>, <code>CapMVRVCur</code>, <code>SplyCur</code> (the realized-cap metric itself is not in the free tier; the identity above is exact). Daily. Shadow source: bitcoin-data.com <code>realized-price</code>; divergence above 3% blocks the decision. Measured 2026-09-02: 53,087 (derived) vs 52,680 (bitcoin-data), 0.8% apart — different realized-cap methodologies, well inside tolerance.</p>
+<p>Primary: Coin Metrics Community API — derived from <code>CapMrktCurUSD</code>, <code>CapMVRVCur</code>, <code>SplyCur</code> (the realized-cap metric itself is not in the free tier; the identity above is exact). Daily. Shadow source: bitcoin-data.com <code>realized-price</code>; divergence above 3.00% blocks the decision. Measured 2026-09-02: 53,087 (derived) vs 52,680 (bitcoin-data), 0.80% apart — different realized-cap methodologies, well inside tolerance.</p>
 <h2>Version history</h2>
-<ul><li>v0.1 (2026-09-02): derived realized price, strict "below" rule.</li><li>v0.2 (2026-09-04): unchanged; shadow reconciliation and a 5%/day rate-of-change sanity bound added.</li></ul>
+<ul><li>v0.1 (2026-09-02): derived realized price, strict "below" rule.</li><li>v0.2 (2026-09-04): unchanged; shadow reconciliation and a 5.00%/day rate-of-change sanity bound added.</li></ul>
 <h2>Known limitations</h2>
-<ul><li>Binary rule: a price 1% below realized price and 40% below it are the same regime. The depth is</li></ul>
+<ul><li>Binary rule: a price 1.00% below realized price and 40.00% below it are the same regime. The depth is</li></ul>
 <p>  reported (<code>price_to_realized</code>) but not used in the weight.</p>
 <ul><li>Realized cap methodologies differ between providers by up to a few percent (dormant / lost coin</li></ul>
-<p>  treatment); the shadow check tolerates 3%.</p>
+<p>  treatment); the shadow check tolerates 3.00%.</p>
 <ul><li>Price can cross realized price several times in a bottoming process; each crossing is a regime</li></ul>
 <p>  change and therefore a rebalance trigger (limited by the trend gate and the cost model).</p>
 <hr>
 <h2>RU · Realized price (реализованная цена)</h2>
 <p><strong>Что измеряет.</strong> Реализованная стоимость, делённая на предложение: средняя ончейн‑себестоимость одного биткоина. Когда рыночная цена опускается ниже неё, средний держатель в убытке. Такие периоды (2015, конец 2018 — начало 2019, середина 2022) пока всегда были самой глубокой частью медвежьего рынка. Движок выделяет «цена ниже realized price» в отдельный режим CAPITULATION, который проверяется раньше перцентили MVRV.</p>
 <p><strong>Правило.</strong> realized_price = market cap / MVRV / supply; цена ниже — режим CAPITULATION, базовый вес 1.00. Вес по‑прежнему подчинён trend gate: при нисходящем тренде движок не *увеличивает* вес — это не покупка падающего ножа, а разрешение быть полностью в позиции, когда тренд развернётся.</p>
-<p><strong>Источник.</strong> Coin Metrics Community API (вывод из трёх бесплатных метрик, тождество точное); теневая сверка с bitcoin-data.com (замер 02.09: расхождение 0.8 %).</p>
+<p><strong>Источник.</strong> Coin Metrics Community API (вывод из трёх бесплатных метрик, тождество точное); теневая сверка с bitcoin-data.com (замер 02.09: расхождение 0,80 %).</p>
 <p><strong>Ограничения.</strong> Правило бинарное (глубина фиксируется, но не влияет на вес); методологии реализованной капитализации у провайдеров расходятся на проценты; у дна цена может пересечь уровень несколько раз, и каждое пересечение — смена режима.</p><hr><h1>Signal Card 3 · Trend gate</h1>
 <p><strong>Version:</strong> v0.2 (SMA 200) · first used 2026-09-02 · owner: engine config</p>
 <h2>What it measures and why it relates to the regime</h2>
@@ -98,7 +98,7 @@ modifier  = +0.10 / 0.00 / −0.10 added to the regime&#x27;s base weight, clamp
 <h2>Data source and frequency</h2>
 <p>FRED series <code>M2SL</code> (Board of Governors, billions USD, SA), monthly, published with roughly a three-week lag, downloaded as CSV without an API key. Data errors or a missing series make the state null → modifier 0 (the engine does not guess).</p>
 <h2>Version history</h2>
-<ul><li>v0.1 (2026-09-02): 12-month yoy, 3-month acceleration, deadband 0.25 pp, modifier ±0.10.</li><li>v0.2 (2026-09-04): unchanged; a 5% month-over-month sanity bound added.</li></ul>
+<ul><li>v0.1 (2026-09-02): 12-month yoy, 3-month acceleration, deadband 0.25 pp, modifier ±0.10.</li><li>v0.2 (2026-09-04): unchanged; a 5.00% month-over-month sanity bound added.</li></ul>
 <h2>Known limitations</h2>
 <ul><li>US-only proxy for global liquidity; no China/EU/Japan aggregates in v0.x.</li><li>FRED serves the revised series, not point-in-time vintages: a replay uses today's revised values,</li></ul>
 <p>  which can differ slightly from what was known at the time. Accepted for the paper stage   (DECISIONS D-07); a vintage feed is a candidate for a later config version.</p>

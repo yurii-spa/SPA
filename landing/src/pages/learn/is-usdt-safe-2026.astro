@@ -5,6 +5,7 @@
 // FAQ JSON-LD, snapshot CTA mid+end, internal links to monitoring/refusals/snapshot/packages.
 // No fabricated numbers, no promised returns. Bilingual.
 import Layout from '../../layouts/Layout.astro';
+import ApproxNote from '../../components/ApproxNote.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
 
 const faq = [
@@ -33,6 +34,7 @@ const faqLd = {
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
   <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <ApproxNote />
     <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Разбор">The breakdown</p>
     <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Безопасен ли USDT в 2026? Честный разбор рисков">Is USDT safe in 2026? An honest risk breakdown</h1>
     <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="Короткий ответ: USDT — крупнейший стейблкоин и держал пег через несколько кризисов, но «безопасен» с оговорками. Резервы аттестуются, а не аудируются по банковскому стандарту; краткие депеги под стрессом случались. Это риск, который стоит держать осознанно, измерять и мониторить — а не «гарантированный доллар».">
@@ -59,10 +61,10 @@ const faqLd = {
 
     <section class="mb-8">
       <h2 class="text-xl font-semibold text-white mb-3" data-ru="История депегов — честно">Depeg history — honestly</h2>
-      <p class="text-base text-slate-300 leading-relaxed" data-ru="USDT переживал короткие неглубокие депеги в стресс (например, кратко торговался на несколько центов ниже $1 в контагион 2022) — и каждый раз восстанавливался. Это принципиально отличается от терминального депега (UST в 2022, минус ~100%). Хвост есть, и пока он был переживаемым — но это не обещание про будущее. Именно поэтому мы мониторим пег в реальном времени, а не полагаемся на веру.">
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="USDT переживал короткие неглубокие депеги в стресс (например, кратко торговался на несколько центов ниже $1 в контагион 2022) — и каждый раз восстанавливался. Это принципиально отличается от терминального депега (UST в 2022, минус ~100,00 %). Хвост есть, и пока он был переживаемым — но это не обещание про будущее. Именно поэтому мы мониторим пег в реальном времени, а не полагаемся на веру.">
         USDT has had short, shallow depegs under stress (it briefly traded a few cents below $1 in the 2022
         contagion) — and recovered each time. That is fundamentally different from a terminal depeg (UST in
-        2022, ~-100%). The tail exists and has so far been survivable — but that is not a promise about the
+        2022, ~−100.00%). The tail exists and has so far been survivable — but that is not a promise about the
         future. It is exactly why we monitor the peg in real time rather than rely on faith.
       </p>
       <div class="flex flex-wrap gap-3 mt-3">

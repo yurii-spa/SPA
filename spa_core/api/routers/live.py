@@ -375,7 +375,6 @@ async def live_portfolio():
 from spa_core.defi_engine.package_status import REPORTABLE_AFTER as _MATURITY_DAYS
 from spa_core.paper_trading.sleeve_track import sleeve_track_view as _sleeve_track_view
 from spa_core.reporting.compound_apy import (
-    compound_annualized_pct as _compound_annualized_pct,
     evidenced_bars as _evidenced_bars,
 )
 from spa_core.reporting.typed_numbers import typed_pct as _typed_pct
@@ -449,15 +448,16 @@ def _book_from_equity_curve(label: str, doc: dict) -> dict:
         return {"label": label, "available": False, "reason": "no_summary"}
     ev = _evidenced_bars(doc)
     real_days = len(ev) if ev else None
-    apy = None
-    as_of = None
-    if ev and isinstance(real_days, int) and real_days >= 2:
-        apy = _compound_annualized_pct(ev[0].get("equity"), ev[-1].get("equity"), real_days)
-        as_of = ev[-1].get("date")
+    # Owner/ARB 2026-10-08 (P1 Wave 2): the SAME definition as the site and /api/ssot/facts — the
+    # annualised EQUIVALENT of the period return on ACT/365 valuation dates, not the bar count.
+    from spa_core.reporting.compound_apy import track_period_view
+    tpv = track_period_view(doc)
+    apy = tpv.get("apy_pct") if tpv.get("state") == "MEASURED" else None
+    as_of = tpv.get("end_date") if apy is not None else None
     rate = _typed_rate(
         round(apy, 4) if apy is not None else None,
-        window_days=real_days, as_of=as_of,
-        source="data/equity_curve_daily.json (evidenced bars, compound)",
+        window_days=tpv.get("days_act") if apy is not None else real_days, as_of=as_of,
+        source="data/equity_curve_daily.json (evidenced bars; period return, ACT/365 equivalent)",
         reportable=apy is not None,
     )
     return_pct = summary.get("total_return_pct")
@@ -469,6 +469,8 @@ def _book_from_equity_curve(label: str, doc: dict) -> dict:
         "return_pct": return_pct,
         "annualized_apy_pct": rate["value"],
         "annualized_apy_pct_rate": rate,
+        "period_return_pct": tpv.get("period_return_pct") if apy is not None else None,
+        "period_days_act": tpv.get("days_act") if apy is not None else None,
         "status": "paper_test_running" if real_days else "not_started",
         "start_date": summary.get("first_date"),
         "last_update": summary.get("last_date"),

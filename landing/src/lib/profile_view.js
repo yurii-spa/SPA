@@ -11,8 +11,8 @@
 //   3. every tail is labelled «earlier version, not this strategy» at the number.
 
 import { cardModels, PACKAGES } from './package_card.js';
-import NUMBERS, { value, book } from './site_numbers.js';
-import { drawdownMagnitudeText, measuredAt } from './realized_rate.js';
+import NUMBERS, { value, book, fmtPct2 } from './site_numbers.js';
+import { drawdownMagnitudeText, measuredAt, shortDate, periodReturn, annualisedNote } from './realized_rate.js';
 import SNAP from '../data/track_snapshot.json';
 import TIER_BANDS from './tier_bands.json';   // NAMES only — targets and tails come from package_card.js
 
@@ -111,9 +111,35 @@ export function profileView(key) {
     const m = drawdownMagnitudeText(dd);
     measured = {
       rate_en: en.result.main, rate_ru: ru.result.main,
-      dd_en: m == null ? null : `−${m}%`, dd_ru: m == null ? null : `−${m.replace('.', ',')}%`,
-      date: measuredAt(), days: mat.n,
+      // ADR-660: «−0.04%» / «−0,04 %» — one formatter, magnitude never rounded to zero.
+      dd_en: m == null ? null : `−${m}%`, dd_ru: m == null ? null : `−${fmtPct2(Math.abs(dd), true)}`,
+      // The days of the RATE's own window (shelf, weekly), not the daily card count: the line
+      // reads «Measured <shelf date> · N evidenced days», and mixing the weekly date with the
+      // daily count printed «Measured 2026-10-07 · 107 days» for a rate measured over 106
+      // (P1 2026-10-08). Unknown window ⇒ null («—»), never the other tact's number.
+      date: measuredAt(),
+      days: (b.apy && typeof b.apy.window_days === 'number') ? b.apy.window_days : null,
+      // The window's START (P1 C4: every rate states its base and window). Conservative: the evidenced
+      // anchor of the main track; a sleeve book: its own observed-accrual start, else unknown (null).
+      from_en: shortDate(key === 'conservative' ? (NUMBERS.headline || {}).evidenced_anchor
+                         : (b.evidence_split && b.evidence_split.observed_since) || null, false),
+      from_ru: shortDate(key === 'conservative' ? (NUMBERS.headline || {}).evidenced_anchor
+                         : (b.evidence_split && b.evidence_split.observed_since) || null, true),
     };
+  }
+  // Owner/ARB 2026-10-08: the main track's PRIMARY figure is the paper return over the actual period;
+  // the annualised equivalent is a separate, labelled line (or absent when the owner hides it).
+  if (measured && key === 'conservative') {
+    const pr = periodReturn();
+    if (pr) {
+      measured.rate_en = fmtPct2(pr.ret, false, true);
+      measured.rate_ru = fmtPct2(pr.ret, true, true);
+      measured.unit_en = `over ${pr.days} days on paper, ACT/365${pr.bars != null ? `, ${pr.bars} with a cycle record` : ''} (${shortDate(pr.start, false)} to ${shortDate(pr.end, false)})`;
+      measured.unit_ru = `за ${pr.days} дн. на бумаге, ACT/365${pr.bars != null ? `, ${pr.bars} дн. с записью цикла` : ''} (${shortDate(pr.start, true)}–${shortDate(pr.end, true)})`;
+      measured.days = pr.bars != null ? pr.bars : measured.days;   // «N evidenced days» = cycle records, not the ACT/365 length
+      measured.ann_en = annualisedNote(false) || null;
+      measured.ann_ru = annualisedNote(true) || null;
+    }
   }
   const tail_en = en.tail, tail_ru = ru.tail;   // null for Conservative (canonical)
   return {

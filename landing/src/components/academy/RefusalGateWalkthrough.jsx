@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getLang, recordPlaygroundTried } from './progress.js';
+import { pctL, pctLang } from '../../lib/pct_live.js';
 
 /*
  * RefusalGateWalkthrough.jsx — step a candidate opportunity THROUGH the refusal-first
@@ -31,19 +32,19 @@ const APY_MAX = 30.0, APY_MIN = 1.0, TVL_MIN = 5_000_000;
 // rates-desk haircut model (peg/funding/oracle/protocol), NOT fabricated favourably.
 const EXAMPLES = [
   {
-    id: 'ezeth', ru: 'ezETH 35% (LRT-рестейк, плечо)', en: 'ezETH 35% (LRT restaking, levered)',
+    id: 'ezeth', ru: 'ezETH 35,00 % (LRT-рестейк, плечо)', en: 'ezETH 35.00% (LRT restaking, levered)',
     apy: 35.0, tvl: 140_000_000, tier: 'T2', cls: 'C',
     hc: { peg: 0.040, funding: 0.025, oracle: 0.012, protocol: 0.020 }, // structural ≈ 0.097 > 0.06
     expect: 'REFUSE',
   },
   {
-    id: 'susde', ru: 'sUSDe 12% (Ethena funding carry)', en: 'sUSDe 12% (Ethena funding carry)',
+    id: 'susde', ru: 'sUSDe 12.00% (Ethena funding carry)', en: 'sUSDe 12.00% (Ethena funding carry)',
     apy: 12.0, tvl: 320_000_000, tier: 'T2', cls: 'C',
     hc: { peg: 0.020, funding: 0.018, oracle: 0.006, protocol: 0.010 }, // structural ≈ 0.054 < 0.06, but elevated
     expect: 'WATCH',
   },
   {
-    id: 'aave', ru: 'Aave V3 5% (USDC supply)', en: 'Aave V3 5% (USDC supply)',
+    id: 'aave', ru: 'Aave V3 5.00% (USDC supply)', en: 'Aave V3 5.00% (USDC supply)',
     apy: 5.0, tvl: 1_200_000_000, tier: 'T1', cls: 'B',
     hc: { peg: 0.003, funding: 0.0, oracle: 0.003, protocol: 0.006 }, // structural ≈ 0.012 — tiny
     expect: 'SAFE',
@@ -80,32 +81,33 @@ const T = {
   inputDesc: { ru: 'Доходность и её risk shape поступают в гейт. Высокий APY — не «хорошо», а сигнал: за что платят?', en: 'A yield + its risk shape enter the gate. High APY isn\'t «good» — it\'s a signal: paid for what?' },
   clsDesc: { ru: 'Гейт сперва спрашивает: это alpha (A), beta (B), плата за хвост (C) или incentive (D)? Только A — настоящий edge.', en: 'The gate first asks: is this alpha (A), beta (B), tail-comp (C) or incentive (D)? Only A is real edge.' },
   hcDesc: { ru: 'Считаем четыре структурных хейрката. Их сумма — size-INDEPENDENT хвост: peg + funding + oracle + protocol.', en: 'Compute four structural haircuts. Their sum is the size-INDEPENDENT tail: peg + funding + oracle + protocol.' },
-  vetoDesc: { ru: 'Если структурный хейркат > cap (6%) — TAIL-VETO. Вето на size-independent члене ⇒ уменьшение размера НЕ спасает: отказ при любом размере.', en: 'If the structural haircut > cap (6%) — TAIL-VETO. The veto is on the size-independent term ⇒ sizing down can\'t save it: refused at any size.' },
-  capsDesc: { ru: 'Под refusal-гейтом — глобальный RiskPolicy: APY входа 1–30%, TVL≥$5M, tier-cap\'ы. Логика AND, не OR.', en: 'Under the refusal gate sits the global RiskPolicy: entry APY 1–30%, TVL≥$5M, tier caps. AND-logic, not OR.' },
+  vetoDesc: { ru: 'Если структурный хейркат > cap (6,00 %) — TAIL-VETO. Вето на size-independent члене ⇒ уменьшение размера НЕ спасает: отказ при любом размере.', en: 'If the structural haircut > cap (6.00%) — TAIL-VETO. The veto is on the size-independent term ⇒ sizing down can\'t save it: refused at any size.' },
+  capsDesc: { ru: 'Под refusal-гейтом — глобальный RiskPolicy: APY входа 1,00–30,00 %, TVL≥$5M, tier-cap\'ы. Логика AND, не OR.', en: 'Under the refusal gate sits the global RiskPolicy: entry APY 1.00–30.00%, TVL≥$5M, tier caps. AND-logic, not OR.' },
   structural: { ru: 'Структурный хейркат', en: 'Structural haircut' },
   cap: { ru: 'cap', en: 'cap' },
   vetoFired: { ru: 'TAIL-VETO СРАБОТАЛ — структурный cap пробит', en: 'TAIL-VETO FIRED — structural cap breached' },
   vetoClear: { ru: 'Вето НЕ сработало — структурный хвост ниже cap', en: 'Veto did NOT fire — structural tail below cap' },
-  capApyHi: { ru: 'APY > 30% — потолок входа пробит (риск слишком высок)', en: 'APY > 30% — entry ceiling breached (risk too high)' },
+  capApyHi: { ru: 'APY > 30,00 % — потолок входа пробит (риск слишком высок)', en: 'APY > 30.00% — entry ceiling breached (risk too high)' },
   capOk: { ru: 'Cap\'ы RiskPolicy пройдены (APY-band, TVL, tier)', en: 'RiskPolicy caps cleared (APY-band, TVL, tier)' },
   verdict: { ru: 'Финальный вердикт', en: 'Final verdict' },
   SAFE: { ru: 'SAFE — допущено', en: 'SAFE — admitted' },
   WATCH: { ru: 'WATCH — под наблюдением, не входить агрессивно', en: 'WATCH — monitor, no aggressive entry' },
   REFUSE: { ru: 'REFUSE — отказ', en: 'REFUSE — refused' },
   reason: { ru: 'Причина', en: 'Reason' },
-  rEzeth: { ru: 'Структурный хейркат ~9.7% > 6% → TAIL-VETO (peg+funding LRT-хвост), и APY 35% > 30% потолка. Отказ при любом размере — это ровно паттерн ezETH/over-levered-USDe, от которого деск отказывается.', en: 'Structural haircut ~9.7% > 6% → TAIL-VETO (LRT peg+funding tail), and APY 35% > 30% ceiling. Refused at any size — exactly the ezETH/over-levered-USDe pattern the desk refuses.' },
-  rSusde: { ru: 'Структурный хвост ~5.4% — ниже 6% cap, но повышен (funding-flip риск, класс C). Гейт не отказывает, но и не допускает агрессивно: WATCH. Доходность — компенсация за хвост, а не alpha.', en: 'Structural tail ~5.4% — below the 6% cap but elevated (funding-flip risk, class C). The gate neither refuses nor admits aggressively: WATCH. The yield is tail-comp, not alpha.' },
-  rAave: { ru: 'Структурный хвост ~1.2% — крошечный; APY 5% в band\'е; TVL $1.2B ≫ $5M; чистая T1 beta. Гейт допускает: SAFE.', en: 'Structural tail ~1.2% — tiny; APY 5% in band; TVL $1.2B ≫ $5M; clean T1 beta. The gate admits: SAFE.' },
+  rEzeth: { ru: 'Структурный хейркат ~9,70 % > 6,00 % → TAIL-VETO (peg+funding LRT-хвост), и APY 35,00 % > 30,00 % потолка. Отказ при любом размере — это ровно паттерн ezETH/over-levered-USDe, от которого деск отказывается.', en: 'Structural haircut ~9.70% > 6.00% → TAIL-VETO (LRT peg+funding tail), and APY 35.00% > 30.00% ceiling. Refused at any size — exactly the ezETH/over-levered-USDe pattern the desk refuses.' },
+  rSusde: { ru: 'Структурный хвост ~5,40 % — ниже 6,00 % cap, но повышен (funding-flip риск, класс C). Гейт не отказывает, но и не допускает агрессивно: WATCH. Доходность — компенсация за хвост, а не alpha.', en: 'Structural tail ~5.40% — below the 6.00% cap but elevated (funding-flip risk, class C). The gate neither refuses nor admits aggressively: WATCH. The yield is tail-comp, not alpha.' },
+  rAave: { ru: 'Структурный хвост ~1,20 % — крошечный; APY 5,00 % в band\'е; TVL $1.2B ≫ $5M; чистая T1 beta. Гейт допускает: SAFE.', en: 'Structural tail ~1.20% — tiny; APY 5.00% in band; TVL $1.2B ≫ $5M; clean T1 beta. The gate admits: SAFE.' },
   expectMatch: { ru: 'Ожидаемый вердикт', en: 'Expected verdict' },
 };
 
-function pct(v) { return (v * 100).toFixed(2) + '%'; }
+function pct(v) { return pctL((v * 100)); }
 function fmtTvl(v) { return v >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'B' : '$' + (v / 1e6).toFixed(0) + 'M'; }
 
 const STEPS = ['s_input', 's_classify', 's_haircuts', 's_veto', 's_caps', 's_verdict'];
 
 export default function RefusalGateWalkthrough() {
   const [lang, setLang] = useState('ru');
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const [exId, setExId] = useState(EXAMPLES[0].id);
   const [step, setStep] = useState(0);
 
@@ -177,7 +179,7 @@ export default function RefusalGateWalkthrough() {
         <Panel show={step >= 0} label={tr('s_input')} active={step === 0}>
           <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 15 }}>{ex[lang] ?? ex.ru}</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
-            APY {ex.apy}% · TVL {fmtTvl(ex.tvl)} · {ex.tier}
+            APY {pctL(ex.apy)} · TVL {fmtTvl(ex.tvl)} · {ex.tier}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.55 }}>{tr('inputDesc')}</div>
         </Panel>

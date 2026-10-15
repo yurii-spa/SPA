@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import snap from '../lib/snapshot_view.js';
-import { goLiveLabel, gateClosedOn } from '../lib/golive_label.js';
+import { goLiveLabel, gateClosedOn, remainingBlockers } from '../lib/golive_label.js';
+import { GO_LIVE } from '../lib/profile_view.js';  // P1-2: the one live-capital condition (owner decision + legal review)
 
 // Shows current system status: GoLive score, paper trading progress.
 // SSR values are the last committed evidenced SNAPSHOT (data/golive_status.json +
@@ -13,7 +14,10 @@ import { goLiveLabel, gateClosedOn } from '../lib/golive_label.js';
 // were flat-rate backfill). Anchor 2026-06-22. See /track-record.
 const goLiveChecks = snap.gates_passed != null ? snap.gates_passed : '—';
 const goLiveTotal = snap.gates_total != null ? snap.gates_total : '—';
-const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
+const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);  // bar width only
+// ADR-660: the printed share is exact rational half-up to two decimals (no binary float rounding).
+const pctCents = (p, t) => Math.floor((2 * p * 10000 + t) / (2 * t));
+const pctText = (p, t, ru) => { const c = pctCents(p, t); const s = `${Math.floor(c / 100)}${ru ? ',' : '.'}${String(c % 100).padStart(2, '0')}`; return ru ? `${s}\u00a0%` : `${s}%`; };
 const evidenceDays = snap.real_track_days != null ? snap.real_track_days : '—';  // evidenced days — ONE source, no hardcode (FIX-2)
 const evidenceTarget = snap.days_needed != null ? snap.days_needed : '—';    // 30 honest days required (ADR-002)
 // Go-live wording — ONE honest source (src/lib/golive_label.js). snap.go_live_target is the gate's
@@ -41,8 +45,9 @@ const blockers = [
 ];
 const passedHistory = trackGatePassed ? timeGated.map(t => ({ ...t, detail: `${evidenceDays}/${evidenceTarget}` })) : [];
 const blockerCount = blockers.length;
-const blockersEn = (n) => n === 0 ? 'no open blockers' : `${n} blocker${n === 1 ? '' : 's'} remaining`;
-const blockersRu = (n) => n === 0 ? 'открытых блокеров нет' : `осталось ${n} ${n === 1 ? 'блокер' : (n < 5 ? 'блокера' : 'блокеров')}`;
+// Zero AUTOMATED blockers is not «no blockers»: live capital still needs the owner/legal steps (P1-2 class).
+const blockersEn = (n) => n === 0 ? `all automated criteria pass; still open before live capital: ${remainingBlockers(snap, false)}` : `${n} blocker${n === 1 ? '' : 's'} remaining`;
+const blockersRu = (n) => n === 0 ? `автоматические критерии пройдены; до реального капитала ещё нужны: ${remainingBlockers(snap, true)}` : `осталось ${n} ${n === 1 ? 'блокер' : (n < 5 ? 'блокера' : 'блокеров')}`;
 
 type CheckStatus = "pass" | "warn" | "fail" | "info";
 
@@ -122,7 +127,7 @@ const statusBg: Record<CheckStatus, string> = {
               style={`width: ${goLiveReadinessPct}%`}
             ></div>
           </div>
-          <p class="text-white/50 text-sm"><span id="st-gates-pct">{goLiveReadinessPct}</span><span data-ru={`% критериев пройдено — ${blockersRu(blockerCount)}`}>% criteria pass — {blockersEn(blockerCount)}</span></p>
+          <p class="text-white/50 text-sm"><span id="st-gates-pct" data-ru={pctText(goLiveChecks, goLiveTotal, true)}>{pctText(goLiveChecks, goLiveTotal, false)}</span><span data-ru={` критериев пройдено — ${blockersRu(blockerCount)}`}> criteria pass — {blockersEn(blockerCount)}</span></p>
         </div>
 
         <!-- Paper Track Record -->
@@ -219,7 +224,7 @@ const statusBg: Record<CheckStatus, string> = {
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-white/20 ring-2 ring-white/10"></div>
               <div class="text-white/55 text-sm font-semibold" data-ru={goLive.shortRu}>{goLive.shortEn}</div>
-              <div class="text-white/55 text-sm mt-0.5" data-ru="Go-live: ввод реального капитала после подтверждённого верифицированного трека в 30 дней">Go-live: real capital deployment after confirmed 30-day verified track</div>
+              <div class="text-white/55 text-sm mt-0.5" data-ru={GO_LIVE.ru}>{GO_LIVE.en}</div>
             </div>
           </div>
         </div>
@@ -273,7 +278,11 @@ const statusBg: Record<CheckStatus, string> = {
           if(total != null){ setText('st-gates-total', total); }
           if(pass != null && total != null){
             var pct = Math.round((pass / total) * 100);
-            setText('st-gates-pct', pct);
+            var c = Math.floor((2 * pass * 10000 + total) / (2 * total));   // ADR-660 exact half-up
+            var en = Math.floor(c / 100) + '.' + String(c % 100).padStart(2, '0') + '%';
+            var ru = Math.floor(c / 100) + ',' + String(c % 100).padStart(2, '0') + '\u00a0%';
+            setText('st-gates-pct', isRu() ? ru : en);
+            var pe = document.getElementById('st-gates-pct'); if(pe){ pe.setAttribute('data-ru', ru); }
             setWidth('st-gates-bar', pct);
           }
           // Flip the source label to "live" only once we actually have live data.

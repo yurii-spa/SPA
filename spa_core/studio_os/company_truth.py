@@ -530,14 +530,17 @@ def tile_yield(equity_doc: Optional[dict], now: datetime) -> dict:
     canon = "data/equity_curve_daily.json"
     if equity_doc is None:
         return unknown(canon, "REALIZED_PAPER", "Доходность не измерена — дневной цикл не записал кривую капитала")
-    from spa_core.reporting.compound_apy import compound_annualized_pct, evidenced_bars, max_drawdown_pct
+    from spa_core.reporting.compound_apy import evidenced_bars, max_drawdown_pct, track_period_view
     bars = evidenced_bars(equity_doc)
     if len(bars) < 2:
         return {**unknown(canon, "REALIZED_PAPER",
                           "Доходность не измерена — дневной цикл не записал кривую капитала"),
                 "state": NOT_ENOUGH_HISTORY}
-    first, last = bars[0].get("equity"), bars[-1].get("equity")
-    apy = compound_annualized_pct(first, last, len(bars))
+    # Owner/ARB 2026-10-08 (P1 Wave 2): ONE definition with the site — the period return over the
+    # actual period, and its annualised equivalent on ACT/365 valuation dates (not the bar count).
+    tpv = track_period_view(equity_doc)
+    apy = tpv.get("apy_pct")
+    period_ret, days_act = tpv.get("period_return_pct"), tpv.get("days_act")
     dd = max_drawdown_pct(bars)
     # Prefer the document's OWN `generated_at` for freshness — a bar's `date` is a calendar day
     # with no time-of-day, so comparing IT against a 26h threshold would call a bar written this
@@ -554,14 +557,17 @@ def tile_yield(equity_doc: Optional[dict], now: datetime) -> dict:
     # ADR-660 (owner 2026-10-08, supersedes ADR-563's round-down): every shown percentage has
     # exactly two decimals, ROUND_HALF_UP — ONE formatter (spa_core.utils.presentation) for the
     # cockpit, the books tile and Telegram, so one measurement prints one string everywhere.
-    text_ru = (f"Консервативный: {fmt_pct(apy, 'ru')} годовых · худшая просадка "
-               f"{fmt_pct(dd, 'ru', unknown='не измерена')} · {len(bars)} дн. (бумага)"
-               if apy is not None else "Консервативный: копится история")
+    text_ru = (f"Консервативный: {fmt_pct(period_ret, 'ru', signed=True)} за {days_act} дн. (бумага) · "
+               f"оценочный годовой эквивалент {fmt_pct(apy, 'ru')} (ACT/365 Fixed по датам оценки; время начальной оценки не записано; не прогноз) · худшая просадка "
+               f"{fmt_pct(dd, 'ru', unknown='не измерена')}"
+               if apy is not None and period_ret is not None else "Консервативный: копится история")
     unknown_ru = _stale_or_absent(
         state, fr.get("age_min"),
         "Доходность устарела: последняя кривая капитала записана {age} назад",
         "Доходность не измерена — дневной цикл не записал кривую капитала")
-    return cell(value={"apy_pct": apy, "max_drawdown_pct": dd, "evidenced_days": len(bars)},
+    return cell(value={"apy_pct": apy, "max_drawdown_pct": dd, "evidenced_days": len(bars),
+                       "period_return_pct": period_ret, "days_act": days_act,
+                       "apy_convention": tpv.get("convention")},
                display_ru=text_ru, display_en=text_ru, metric_type="REALIZED_PAPER", state=state,
                as_of=_iso(as_of), canon=canon, fresh=fr, unknown_ru=unknown_ru)
 

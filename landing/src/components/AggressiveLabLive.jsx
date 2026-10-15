@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /*
  * AggressiveLabLive — the honest "we paper-test N unstable aggressive strategies in parallel" board.
@@ -58,10 +59,10 @@ const GUARD = {
 };
 
 function fmtPct(x) {
-  return (typeof x === 'number' && isFinite(x)) ? `${x >= 0 ? '+' : ''}${x.toFixed(2)}%` : '—';
+  return (typeof x === 'number' && isFinite(x)) ? `${x >= 0 ? '+' : ''}${pctL(x)}` : '—';
 }
 function fmtBt(x) {
-  return (typeof x === 'number' && isFinite(x)) ? `${x >= 0 ? '+' : ''}${x.toFixed(1)}%` : '—';
+  return (typeof x === 'number' && isFinite(x)) ? `${x >= 0 ? '+' : ''}${pctL(x)}` : '—';
 }
 
 export default function AggressiveLabLive() {
@@ -100,9 +101,10 @@ export default function AggressiveLabLive() {
   useEffect(() => { poll(); const id = setInterval(poll, POLL_MS); return () => clearInterval(id); }, [poll]);
 
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   if (paper === undefined) return <p style={{ color: 'var(--text-muted)' }}>{ru ? 'Загрузка…' : 'Loading…'}</p>;
   if (!paper || !paper.available) {
-    return <p style={{ color: 'var(--text-muted)' }}>{ru ? 'Живые paper-данные временно недоступны.' : 'Live paper data temporarily unavailable.'}</p>;
+    return <p style={{ color: 'var(--text-muted)' }}>{ru ? 'Данные модельного (бумажного) теста временно недоступны.' : 'Simulated paper data temporarily unavailable.'}</p>;
   }
 
   const rows = (scores && Array.isArray(scores.strategies)) ? scores.strategies : [];
@@ -144,7 +146,7 @@ export default function AggressiveLabLive() {
     <div>
       {/* honest header */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
-        <Stat n={books.length} label={ru ? 'стратегий на живом paper-тесте' : 'strategies on live paper test'} />
+        <Stat n={books.length} label={ru ? 'стратегий на модельном (бумажном) тесте' : 'strategies on a simulated paper test'} />
         <Stat n={nSevere} label={ru ? 'с тяжёлым хвостом' : 'with a severe tail'} color="#f87171" />
         <Stat n="$100k" label={ru ? 'на каждую книгу' : 'per book'} />
         {swarmGuardian ? (
@@ -163,7 +165,7 @@ export default function AggressiveLabLive() {
                       background: REGIME[regime].bg, padding: '5px 12px', borderRadius: '999px' }}>
           <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: REGIME[regime].color }} />
           {REGIME[regime][lang] || REGIME[regime].en}
-          {typeof regimeCarry === 'number' ? <span style={{ fontWeight: 400 }}>· ETH carry ≈ {regimeCarry.toFixed(1)}% ann</span> : null}
+          {typeof regimeCarry === 'number' ? <span style={{ fontWeight: 400 }}>· ETH carry ≈ {pctL(regimeCarry)} ann</span> : null}
         </div>
       ) : null}
       <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.6 }}>
@@ -191,7 +193,7 @@ export default function AggressiveLabLive() {
                   {b.status === 'awaiting_feed' ? '—' : fmtPct(b.ret)}
                 </span>
                 <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
-                  {ru ? 'живой paper' : 'live paper'}
+                  {ru ? 'модельный (бумажный)' : 'simulated paper'}
                 </span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '10px' }}>
@@ -204,7 +206,7 @@ export default function AggressiveLabLive() {
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
                 <div>{ru ? 'Бэктест 2.5г' : 'Backtest 2.5y'}: <b style={{ color: 'var(--text-secondary)' }}>{fmtBt(b.backtest)}</b></div>
                 <div style={{ color: '#f87171' }}>
-                  {ru ? 'Худшая просадка' : 'Worst drawdown'}: <b>{typeof b.maxdd === 'number' ? `−${b.maxdd.toFixed(1)}%` : '—'}</b>
+                  {ru ? 'Худшая просадка' : 'Worst drawdown'}: <b>{typeof b.maxdd === 'number' ? `−${pctL(b.maxdd)}` : '—'}</b>
                   {b.worstEvent ? <span style={{ color: 'var(--text-faint)' }}> · {b.worstEvent}</span> : null}
                 </div>
                 {(() => {

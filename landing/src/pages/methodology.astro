@@ -5,7 +5,7 @@ import snap from '../lib/snapshot_view.js';  // single-source the gate count (no
 import { goLiveLabel } from '../lib/golive_label.js';
 import snapRR from '../lib/snapshot_view.js';
 // ADR-292/286: фактическая ставка НИКОГДА не пишется руками — один источник, из снимка.
-import { realizedPhrase as realizedPhraseRR, realizedApyLabel as realizedLabelRR } from '../lib/realized_rate.js';
+import { realizedPhrase as realizedPhraseRR, realizedApyQualified as realizedLabelRR } from '../lib/realized_rate.js';
 const realizedEn = realizedPhraseRR(snapRR);
 const realizedRu = realizedPhraseRR(snapRR, true);
 const realizedNumEn = realizedLabelRR(snapRR);
@@ -81,7 +81,7 @@ const goLive = goLiveLabel(snap);
         {[
           { label: 'Data source', labelRu: 'Источник данных', value: 'DeFiLlama Yields API — primary APY feed', valueRu: 'DeFiLlama Yields API — основной фид APY' },
           { label: 'Adapters', labelRu: 'Адаптеры', value: 'Dedicated read-only adapter per protocol', valueRu: 'Отдельный read-only адаптер на каждый протокол' },
-          { label: 'Sanity check', labelRu: 'Проверка корректности', value: 'APY bounds [1%, 30%] — anything outside triggers a flag', valueRu: 'Границы APY [1%, 30%] — всё за пределами вызывает флаг' },
+          { label: 'Sanity check', labelRu: 'Проверка корректности', value: 'APY bounds [1.00%, 30.00%] — anything outside triggers a flag', valueRu: 'Границы APY [1,00 %, 30,00 %] — всё за пределами вызывает флаг' },
           { label: 'Schedule', labelRu: 'Расписание', value: 'Daily cycle (automated via scheduler)', valueRu: 'Ежедневный цикл (автоматически через планировщик)' },
           { label: 'Output', labelRu: 'Результат', value: 'Timestamped JSON log per cycle', valueRu: 'JSON-лог с временной меткой на каждый цикл' },
         ].map((row) => (
@@ -170,9 +170,9 @@ const goLive = goLiveLabel(snap);
         ))}
       </div>
       <div class="mt-5 rounded-xl border border-border-strong bg-bg-surface p-5">
-        <p class="text-sm text-white/60 leading-relaxed" data-ru={`Где SPA сейчас: наш evidenced paper-трек — это честный L3 («paper-tracked за N evidenced-дней»), а не L4+. Консервативная планка «${realizedNumRu} real» и Paper APY на /track-record — это L3-числа, помеченные «переменные · не гарантированы». Мы не называем бумагу «validated» или «live-tested»; повышение уровня — по одному за раз.`}>
+        <p class="text-sm text-white/60 leading-relaxed" data-ru={`Где SPA сейчас: наш evidenced paper-трек — это честный L3 («paper-tracked за N evidenced-дней»), а не L4+. Консервативная планка «${realizedNumRu} на бумаге» и Paper APY на /track-record — это L3-числа, помеченные «переменные · не гарантированы». Мы не называем бумагу «validated» или «live-tested»; повышение уровня — по одному за раз.`}>
           <strong class="text-white/85">Where SPA is now:</strong> our evidenced paper track is honest <strong class="text-accent-400">L3</strong>
-          ("paper-tracked over N evidenced days"), not L4+. The conservative "{realizedNumEn} real" baseline and the Paper APY on
+          ("paper-tracked over N evidenced days"), not L4+. The conservative "{realizedNumEn} on paper" baseline and the Paper APY on
           <a data-track="methodology_to_track_record" href="/track-record" class="text-accent-400 hover:underline">/track-record</a> are L3 numbers, labelled
           "variable · not guaranteed". We never call paper "validated" or "live-tested"; promotion is one level at a time.
         </p>
@@ -200,35 +200,35 @@ const goLive = goLiveLabel(snap);
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол (Tier 1)">Per-protocol cap (Tier 1)</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="40% портфеля">40% of portfolio</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="40,00 % портфеля">40.00% of portfolio</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол (Tier 2)">Per-protocol cap (Tier 2)</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="20% портфеля">20% of portfolio</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="20,00 % портфеля">20.00% of portfolio</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Общий лимит Tier 2">Tier 2 total cap</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="≤50% портфеля">≤50% of portfolio</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="≤50,00 % портфеля">≤50.00% of portfolio</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Кэш-буфер">Cash buffer</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">≥5%</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">≥5.00%</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Нижняя граница APY">APY lower bound</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="1% (избегаем пылевых доходностей)">1% (avoid dust yields)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="1,00 % (избегаем пылевых доходностей)">1.00% (avoid dust yields)</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Верхняя граница APY">APY upper bound</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="30% (предел корректности)">30% (sanity cap)</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="30,00 % (предел корректности)">30.00% (sanity cap)</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT (просадка от пика)">Kill switch — SOFT (peak drawdown)</td>
-              <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge;5% → де-риск (стоп новых входов, без ликвидации)">&ge;5% &rarr; de-risk (halt new, no liquidation)</td>
+              <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge;5,00 % → де-риск (стоп новых входов, без ликвидации)">&ge;5.00% &rarr; de-risk (halt new, no liquidation)</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD (просадка от пика)">Kill switch — HARD (peak drawdown)</td>
-              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge;10% → всё в кэш">&ge;10% &rarr; all to cash</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge;10,00 % → всё в кэш">&ge;10.00% &rarr; all to cash</td>
             </tr>
           </tbody>
         </table>
@@ -462,8 +462,8 @@ const goLive = goLiveLabel(snap);
               stage: '04',
               state: 'Live Capital',
               stateRu: 'Живой капитал',
-              desc: `Own capital only. Requires GoLiveChecker all 29 criteria pass (currently ${snap.gates_passed}/${snap.gates_total}) + 7+ consecutive days READY + Owner manual review (ADR-002).`,
-              descRu: `Только собственный капитал. Требуется прохождение всех 29 критериев GoLiveChecker (сейчас ${snap.gates_passed}/${snap.gates_total}) + 7+ последовательных дней READY + ручной обзор владельца (ADR-002).`,
+              desc: `Own capital only. Requires GoLiveChecker all 29 criteria pass (currently ${snap.gates_passed}/${snap.gates_total}) + 7+ consecutive days READY + Owner manual review (ADR-002) + a legal review.`,
+              descRu: `Только собственный капитал. Требуется прохождение всех 29 критериев GoLiveChecker (сейчас ${snap.gates_passed}/${snap.gates_total}) + 7+ последовательных дней READY + ручной обзор владельца (ADR-002) + юридическая проверка.`,
               color: 'border-accent-500/30',
             },
           ].map((gate) => (
@@ -521,7 +521,7 @@ const goLive = goLiveLabel(snap);
 
       <!-- CPA 4: Why 86.97% Cash Drag? -->
       <div class="mb-10">
-        <p class="text-sm text-white/60 font-medium mb-3" data-ru="Почему 86.97% cash drag?">Why 86.97% Cash Drag?</p>
+        <p class="text-sm text-white/60 font-medium mb-3" data-ru="Почему 86,97 % кэша в строгом бэктесте? (бэктест, прогон 19.06.2026, ADR-030 — не живой трек)">Why 86.97% cash in the strict backtest? (backtest run 2026-06-19, ADR-030 — not the live track)</p>
         <div class="rounded-xl bg-bg-surface border border-warn-border p-5">
           <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="В строгом point-in-time режиме за период 2022–2026 большинство DeFi-протоколов ещё не было запущено или у них не было проверяемых ончейн-данных на дату симуляции. CPA не экстраполирует и не предполагает ретроактивную доступность.">
             In strict point-in-time mode across 2022–2026, most DeFi protocols had not yet launched
@@ -536,8 +536,8 @@ const goLive = goLiveLabel(snap);
             simulation date.</span>
           </p>
           <p class="text-xs text-white/50 leading-relaxed">
-            <span data-ru="Средняя размещённая аллокация 13% (86.97% в кэше) — это честный ответ для периода 2022–2026. По мере того как источники CPA проходят аудит и переводятся из статуса">A 13% average deployed allocation (86.97% cash) is the honest answer for the
-            2022–2026 period. As CPA sources are audited and promoted from</span>
+            <span data-ru="Средняя размещённая аллокация 13,03 % (86,97 % в кэше) — это честный ответ для периода 2022–2026 в том прогоне; с тех пор он не пересчитывался. По мере того как источники CPA проходят аудит и переводятся из статуса">A 13.03% average deployed allocation (86.97% cash) is the honest answer for the
+            2022–2026 period in that run; it has not been re-computed since. As CPA sources are audited and promoted from</span>
             <span class="font-mono">PENDING</span> <span data-ru="в">to</span> <span class="font-mono">CLEAN_INCLUDED</span><span data-ru=", доступная вселенная для размещения растёт, а cash drag снижается.">,
             the deployable universe grows and cash drag falls.</span>
           </p>

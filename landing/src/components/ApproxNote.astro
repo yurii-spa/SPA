@@ -1,0 +1,18 @@
+---
+// ApproxNote — ADR-660 (owner, 2026-10-08): approximate educational percentages are marked as such,
+// not silently exempted. On pages that print rounded external references («~3,40 %» T-bills) or
+// teaching examples next to our measured figures, this line says which is which.
+interface Props { lesson?: boolean }
+const { lesson = false } = Astro.props;
+---
+<p class="approx-note" role="note"
+   data-ru={lesson
+     ? 'Числа в уроке со знаком «~» или «≈» — примерные внешние ориентиры и учебные примеры, а не замеры этой системы. Замеры системы подписаны «замер» и датой.'
+     : 'Проценты со знаком «~» или «≈» на этой странице — примерные внешние ориентиры или иллюстрации, а не замеры нашего трека. Замеры подписаны «замер» и датой; все проценты — два знака после запятой.'}>
+  {lesson
+    ? 'Figures marked “~” or “≈” in this lesson are approximate external references and teaching examples, not measurements of this system. System measurements are labelled “measured” with a date.'
+    : 'Percentages marked “~” or “≈” on this page are approximate external references or illustrations, not measurements of our track. Measurements are labelled “measured” with a date; all percentages show two decimals.'}
+</p>
+<style>
+  .approx-note { font-size: 12px; line-height: 1.5; color: var(--text-muted, rgba(255,255,255,.55)); border-left: 2px solid var(--border-strong, rgba(255,255,255,.15)); padding: 6px 10px; margin: 12px 0; max-width: 72ch; }
+</style>

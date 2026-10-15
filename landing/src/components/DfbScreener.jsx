@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { classStyle, verdictStyle } from './ui/riskStyles.js';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /*
  * DfbScreener.jsx — THE DFB risk-first pool screener (Lane-3 / WS-1.4).
@@ -46,7 +47,7 @@ function usd(x) {
   if (Math.abs(n) >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
   return '$' + n.toFixed(0);
 }
-function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(2) + '%'; }
+function pct(x) { const n = num(x); return n == null ? '—' : pctL(n); }
 
 // Risk-class + refusal-verdict colors come from the ONE canonical map
 // (ui/riskStyles.js → ui/tokens.js), so the board renders the risk language
@@ -79,6 +80,7 @@ function Badge({ style, children, title }) {
 
 export default function DfbScreener() {
   const [ru, setRu] = useState(false);
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const [state, setState] = useState('loading'); // loading | live | offline
   const [pools, setPools] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -351,9 +353,9 @@ function ExitCell({ pool, ticket, ru }) {
   const frac = num(row.dex_exit_frac);
   return (
     <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}
-        title={(ru ? 'поглощается ' : 'absorbable ') + usd(row.absorbable_usd) + (frac != null ? ' · ' + (frac * 100).toFixed(0) + '%' : '')}>
+        title={(ru ? 'поглощается ' : 'absorbable ') + usd(row.absorbable_usd) + (frac != null ? ' · ' + pctL((frac * 100)) : '')}>
       {usd(row.absorbable_usd)}
-      {frac != null && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}> · {(frac * 100).toFixed(0)}%</span>}
+      {frac != null && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}> · {pctL((frac * 100))}</span>}
     </td>
   );
 }

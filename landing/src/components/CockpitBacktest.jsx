@@ -38,6 +38,7 @@ import {
   fmtPct, fmtSigned, fmtNum, deriveFreshness, pick, NA,
 } from './cockpit/lib.js';
 import { MONO, TABULAR, toneColor } from './ui/tokens.js';
+import { pctL, pctLang } from '../lib/pct_live.js';
 
 /* ── live API base (mirrors DashboardLive / CockpitStrategy) ─────────────────────── */
 const API =
@@ -138,8 +139,8 @@ const T = {
   /* degenerate flag */
   degTitle: { en: 'Degenerate backtest — NOT a clean number', ru: 'Вырожденный бэктест — НЕ чистое число' },
   degSyntheticBody: {
-    en: 'This backtest ran on SYNTHETIC data. The metrics below describe the model, not the market — a synthetic path produces near-perfect, untrustworthy statistics (win-rate ≈ 100%, Sharpe far above any plausible ceiling). They are shown greyed and tagged, never as a real track record. The evidenced live track is the only honest number (see the strategy deep-dive).',
-    ru: 'Этот бэктест прогнан на СИНТЕТИЧЕСКИХ данных. Метрики ниже описывают модель, а не рынок — синтетический путь даёт почти идеальную, недостоверную статистику (win-rate ≈ 100%, Sharpe далеко за любым разумным потолком). Они показаны серым и помечены, а не как реальный трек. Единственное честное число — evidenced live-трек (см. разбор стратегии).',
+    en: 'This backtest ran on SYNTHETIC data. The metrics below describe the model, not the market — a synthetic path produces near-perfect, untrustworthy statistics (win-rate ≈ 100.00%, Sharpe far above any plausible ceiling). They are shown greyed and tagged, never as a real track record. The evidenced live track is the only honest number (see the strategy deep-dive).',
+    ru: 'Этот бэктест прогнан на СИНТЕТИЧЕСКИХ данных. Метрики ниже описывают модель, а не рынок — синтетический путь даёт почти идеальную, недостоверную статистику (win-rate ≈ 100,00 %, Sharpe далеко за любым разумным потолком). Они показаны серым и помечены, а не как реальный трек. Единственное честное число — evidenced live-трек (см. разбор стратегии).',
   },
   degSharpeBody: {
     en: `Reported Sharpe exceeds the plausibility ceiling (${SHARPE_CEILING.toFixed(1)}) for a real net-of-cost strategy — the tell of mock / degenerate data (the tournament’s trustworthy:false problem). The number is flagged, not trusted.`,
@@ -182,7 +183,7 @@ const T = {
   },
   inSample: { en: 'in-sample (fitted)', ru: 'in-sample (подгонка)' },
   outSample: { en: 'out-of-sample (held-out test)', ru: 'out-of-sample (отложенный тест)' },
-  benchmark: { en: `RWA floor ~${RWA_FLOOR_APY}% (benchmark)`, ru: `RWA-пол ~${RWA_FLOOR_APY}% (бенчмарк)` },
+  benchmark: { en: `RWA floor ~${pctL(RWA_FLOOR_APY)} (benchmark)`, ru: `RWA-пол ~${pctL(RWA_FLOOR_APY)} (бенчмарк)` },
   oosBoundary: { en: 'in / out boundary', ru: 'граница in / out' },
 };
 
@@ -426,6 +427,7 @@ export default function CockpitBacktest() {
   const lang = useLang();
   const reduced = usePrefersReducedMotion();
   const ru = lang === 'ru';
+  pctLang(ru);   // ADR-660: percentages of this render in its language
   const [win, setWin] = useState('ALL');
   const [stratId] = useState(stratFromUrl());
 
@@ -607,7 +609,7 @@ export default function CockpitBacktest() {
               <div>
                 <SubLabel>{pick(T.mcDd, lang)}</SubLabel>
                 <McRangeBar p5={mcBlock.mc.maxdd_p5} p50={mcBlock.mc.maxdd_p50} p95={mcBlock.mc.maxdd_p95} unit="%" tone="warn" lang={lang} />
-                <p style={{ fontSize: '.625rem', color: 'var(--text-faint)', margin: '8px 0 0', fontFamily: MONO }}>coverage {isNum(mcBlock.mc.coverage) ? (mcBlock.mc.coverage * 100).toFixed(0) + '%' : NA}</p>
+                <p style={{ fontSize: '.625rem', color: 'var(--text-faint)', margin: '8px 0 0', fontFamily: MONO }}>coverage {isNum(mcBlock.mc.coverage) ? pctL((mcBlock.mc.coverage * 100)) : NA}</p>
               </div>
             </div>
           ) : (

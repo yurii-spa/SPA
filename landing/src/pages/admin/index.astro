@@ -10,8 +10,8 @@ import snap from '../../lib/snapshot_view.js';
 
 const days = snap.real_track_days ?? '—';
 import { publishedRateFigure } from '../../lib/realized_rate.js';
-const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, floored (ADR-563), dated
-const apy = _pr ? '~' + _pr.value.toFixed(1) + '%' : '—';
+const _pr = publishedRateFigure(); // PRODUCT-TRUTH-02: one helper, dated; ADR-660 two decimals half-up
+const apy = _pr ? _pr.text_en : '—';   // a measurement — no «~» (P1 2026-10-08)
 const gates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
 import { drawdownMagnitudeText as _ddMag } from '../../lib/realized_rate.js';
 // PRODUCT-TRUTH-02: the same drawdown rendering as every other surface — signed, rounded away from zero.
@@ -68,7 +68,7 @@ const sections = [
         <div class="ac-sec-h">Strategy / System Operations</div>
         <div class="ac-tiles">
           <a class="ac-tile" href="/track-record"><div class="k">Evidenced days</div><div class="v">{days}</div></a>
-          <a class="ac-tile" href="/track-record"><div class="k">Current APY</div><div class="v teal">{apy}</div></a>
+          <a class="ac-tile" href="/track-record"><div class="k">Estimated annualised equivalent (ACT/365 Fixed on valuation dates; start time not recorded), not a forecast</div><div class="v teal">{apy}</div></a>
           <a class="ac-tile" href="/track-record"><div class="k">Max drawdown</div><div class="v">{dd}</div></a>
           <a class="ac-tile" href="/status"><div class="k">Go-live gates</div><div class="v">{gates}</div></a>
           <a class="ac-tile" href="/system"><div class="k">System health</div><div class="v" style="font-size:1rem">open →</div></a>

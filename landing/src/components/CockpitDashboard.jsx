@@ -30,6 +30,7 @@ import {
   fmtUsd0, fmtUsd2, fmtPct, fmtSigned, usdCompact, deriveFreshness, pick, NA,
 } from './cockpit/lib.js';
 import { MONO } from './ui/tokens.js';
+import { pctLang } from '../lib/pct_live.js';
 
 /* ── live API base (mirrors DashboardLive) ──────────────────────────────────────── */
 const API =
@@ -223,6 +224,7 @@ function attributionSegments(attr) {
 /* ── main ─────────────────────────────────────────────────────────────────────────── */
 export default function CockpitDashboard() {
   const lang = useLang();
+  pctLang(lang === 'ru');   // ADR-660: percentages of this render in its language
   const reduced = usePrefersReducedMotion();
   const [win, setWin] = useState('30D');
 
@@ -340,7 +342,7 @@ export default function CockpitDashboard() {
       {isIdle && (
         <div style={{ marginTop: 20, padding: '20px 22px', borderRadius: 'var(--r-lg)', background: 'var(--bg-surface)', border: '1px solid var(--teal-border)' }}>
           <p style={{ fontFamily: MONO, fontSize: '.9375rem', fontWeight: 700, color: 'var(--data-teal)', margin: '0 0 8px' }}>
-            {pick(T.idleTitle, lang)} <span style={{ fontVariantNumeric: 'tabular-nums' }}>(100%)</span> ✓
+            {pick(T.idleTitle, lang)} <span style={{ fontVariantNumeric: 'tabular-nums' }}>(100.00%)</span> ✓
           </p>
           <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
             {ru

@@ -27,8 +27,8 @@
       "verdict": "REFUSED",
       "question_en": "Is weETH / eETH safe to hold in a fixed-rate PT book?",
       "question_ru": "Безопасно ли держать weETH / eETH в fixed-rate PT-книге?",
-      "answer_en": "REFUSED on structural grounds: the peg-breakdown tail outweighs the quoted carry. A ~50% advertised implied yield on an LST PT is the price of exactly the peg break that followed, not durable yield.",
-      "answer_ru": "ОТКАЗАН по структурным причинам: хвост разрыва пега перевешивает carry. ~50% implied yield на LST PT — это цена ровно того разрыва пега, что последовал, а не устойчивая доходность.",
+      "answer_en": "REFUSED on structural grounds: the peg-breakdown tail outweighs the quoted carry. A ~50.00% advertised implied yield on an LST PT is the price of exactly the peg break that followed, not durable yield.",
+      "answer_ru": "ОТКАЗАН по структурным причинам: хвост разрыва пега перевешивает carry. ~50,00 % implied yield на LST PT — это цена ровно того разрыва пега, что последовал, а не устойчивая доходность.",
       "reason_en": "Structural PEG-breakdown tail (fair_value_engine PEG haircut).",
       "reason_ru": "Структурный хвост разрыва пега (PEG-хейркат fair_value_engine).",
       "measured": {

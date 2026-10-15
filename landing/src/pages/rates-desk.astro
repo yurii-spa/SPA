@@ -1,6 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ApproxNote from '../components/ApproxNote.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import { fmtPct2 } from '../lib/pct_format.js';
 
 /*
  * Rates Desk — on-chain interest-rate & basis sleeve, surfaced publicly.
@@ -73,6 +75,7 @@ const STAGE_META = {
   canonical="https://earn-defi.com/rates-desk"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <ApproxNote />
 
     <!-- ============================================================= a. WHAT IT IS -->
     <section class="pt-20 pb-10">
@@ -106,9 +109,9 @@ const STAGE_META = {
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
              data-ru="Статус">Status</p>
           <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
-             data-ru="Paper-исследование. Advisory — не открывает live-позиции. Каждый вердикт детерминирован и хеширован (LLM запрещён в risk-гейте). Сравнивается с RWA-полом ~3.4%.">
+             data-ru="Paper-исследование. Advisory — не открывает live-позиции. Каждый вердикт детерминирован и хеширован (LLM запрещён в risk-гейте). Сравнивается с RWA-полом ~3,40 %.">
             Paper research. Advisory — it opens no live positions. Every verdict is deterministic and
-            hashed (LLM forbidden in the risk gate). Benchmarked against the ~3.4% RWA floor.
+            hashed (LLM forbidden in the risk gate). Benchmarked against the ~3.40% RWA floor.
           </p>
         </div>
       </div>
@@ -119,11 +122,11 @@ const STAGE_META = {
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
          data-ru="Четыре формы сделки">The four trade shapes</p>
       <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Стадия и net APY — из бэктест-снимка промоушена (backtest / walk-forward), НЕ реализованный carry. Это цифры кандидата: в бэктесте рабочие формы обыгрывают RWA-пол ~3.4%. Живой paper-трек ещё короткий (~1 неделя) и пока НЕ обыгрывает пол — см. секцию ниже. BasisHedge показан честно заблокированным.">
+         data-ru="Стадия и net APY — из бэктест-снимка промоушена (backtest / walk-forward), НЕ реализованный carry. Это цифры кандидата: в бэктесте рабочие формы обыгрывают RWA-пол ~3,40 %. Модельный (бумажный) трек ещё короткий (~1 неделя) и пока НЕ обыгрывает пол — см. секцию ниже. BasisHedge показан честно заблокированным.">
         Stage and net APY are from the promotion <strong style="color:var(--text-primary)">backtest</strong>
         snapshot (backtest / walk-forward), <strong style="color:var(--text-primary)">not realized carry</strong>.
-        These are candidate figures: in the backtest the working shapes clear the ~{RWA_FLOOR_PCT}% RWA floor.
-        The live paper track is still short (~1 week) and does <strong style="color:var(--text-primary)">not</strong>
+        These are candidate figures: in the backtest the working shapes clear the ~{fmtPct2(RWA_FLOOR_PCT, false)} RWA floor.
+        The simulated paper track is still short (~1 week) and does <strong style="color:var(--text-primary)">not</strong>
         yet beat the floor — see the live section below. BasisHedge is shown honestly blocked.
       </p>
 
@@ -142,12 +145,12 @@ const STAGE_META = {
               </div>
               <div class="flex items-baseline gap-3 mb-3">
                 <span class="text-2xl font-bold font-mono" style={blocked ? 'color:var(--text-muted)' : 'color:var(--ok)'}>
-                  {blocked ? '—' : `${s.net_apy_pct.toFixed(2)}%`}
+                  {blocked ? '—' : fmtPct2(s.net_apy_pct, false)}
                 </span>
                 <span class="text-xs font-mono" style="color:var(--text-muted)" data-ru="net APY (бэктест)">net APY (backtest)</span>
                 {s.beats_floor && (
                   <span class="ml-auto text-[11px] font-mono px-2 py-0.5 rounded-md bg-ok-bg border border-ok-border text-ok"
-                        data-ru={`обыгрывает пол ${RWA_FLOOR_PCT}% (бэктест)`}>beats {RWA_FLOOR_PCT}% floor (backtest)</span>
+                        data-ru={`обыгрывает пол ${fmtPct2(RWA_FLOOR_PCT, true)} (бэктест)`}>beats {fmtPct2(RWA_FLOOR_PCT, false)} floor (backtest)</span>
                 )}
               </div>
               <p class="text-xs leading-relaxed" style="color:var(--text-secondary)" data-ru={s.desc_ru}>{s.desc_en}</p>
@@ -163,11 +166,11 @@ const STAGE_META = {
          data-ru="Валидация">Validated on 2.5 yr + 3 stress events</p>
       <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
         <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
-           data-ru="Движок отказа сработал РАНО: токсичные ezETH / rsETH были завернуты ДО депег-событий (Aug-2024, Apr-2026), а не задним числом. Книга-выживших обыгрывает пол 3.4% через каждый стресс.">
+           data-ru="Движок отказа сработал РАНО: токсичные ezETH / rsETH были завернуты ДО депег-событий (Aug-2024, Apr-2026), а не задним числом. Книга-выживших обыгрывает пол 3,40 % через каждый стресс.">
           The refusal engine fired <strong style="color:var(--text-primary)">early</strong>: toxic
           ezETH / rsETH were vetoed <strong style="color:var(--text-primary)">before</strong> the
           depeg events (Aug-2024, Apr-2026), not in hindsight. In the backtest, the survivor book beats
-          the {RWA_FLOOR_PCT}% floor through every stress (backtest verdict — not the realized live track).
+          the {fmtPct2(RWA_FLOOR_PCT, false)} floor through every stress (backtest verdict — not the realized live track).
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
@@ -187,12 +190,12 @@ const STAGE_META = {
           <p class="text-xs uppercase tracking-wider font-mono mb-1.5" style="color:var(--accent-hover)"
              data-ru="Честная оговорка">Honest caveat</p>
           <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
-             data-ru="Deflated Sharpe вырождается для locked-кэрри (почти нулевая дисперсия по построению), поэтому GO НЕ опирается на Sharpe. GO — это вердикт БЭКТЕСТА: «net APY обыгрывает пол» in-sample, out-of-sample и в стрессе. Это НЕ реализованный трек: живой paper-carry ещё накапливается (см. ниже) и пока не обыгрывает пол. См. методологию.">
+             data-ru="Deflated Sharpe вырождается для locked-кэрри (почти нулевая дисперсия по построению), поэтому GO НЕ опирается на Sharpe. GO — это вердикт БЭКТЕСТА: «net APY обыгрывает пол» in-sample, out-of-sample и в стрессе. Это НЕ реализованный трек: модельный (бумажный) carry ещё накапливается (см. ниже) и пока не обыгрывает пол. См. методологию.">
             Deflated Sharpe is degenerate for locked carry (near-zero variance by construction), so the
             GO does <strong style="color:var(--text-primary)">not</strong> rest on Sharpe. The GO is a
             <strong style="color:var(--text-primary)">backtest</strong> verdict — "net APY beats floor"
             in-sample, out-of-sample <em>and</em> through stress. It is <strong style="color:var(--text-primary)">not</strong>
-            a realized track: the live paper carry is still accumulating (see below) and does not yet beat the floor.
+            a realized track: the simulated paper carry is still accumulating (see below) and does not yet beat the floor.
           </p>
           <a href="/methodology" class="inline-block mt-3 text-xs font-mono hover:underline" style="color:var(--accent)"
              data-ru="Методология и определения гейта →">Methodology &amp; gate definitions →</a>
@@ -204,19 +207,19 @@ const STAGE_META = {
     <section class="py-10 border-t" style="border-color:var(--border)">
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
         <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
-           data-ru="Живой paper-трек — rates desk, накапливается">Live paper track — the rates desk, accruing</p>
+           data-ru="Модельный (бумажный) трек — rates desk, накапливается">Simulated paper track — the rates desk, accruing</p>
         <span class="text-[11px] font-mono" style="color:var(--text-faint)">
           <span data-ru="источник">source</span>: <span id="track-src" data-ru="статика / офлайн">static / offline</span>
           · <span id="track-asof">—</span>
         </span>
       </div>
       <p class="text-sm mb-2 leading-relaxed max-w-2xl" style="color:var(--text-primary)"
-         data-ru="Валидированный sleeve FixedCarry теперь работает live в paper-режиме — накапливает форвардный трек.">
-        <strong>The validated FixedCarry sleeve now runs live in paper — accruing a forward track.</strong>
+         data-ru="Валидированный sleeve FixedCarry теперь работает в модельном (бумажном) режиме — накапливает форвардный трек.">
+        <strong>The validated FixedCarry sleeve now runs in simulated paper mode — accruing a forward track.</strong>
       </p>
       <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Валидированный sleeve FixedCarry работает live в paper-режиме (без капитала) через com.spa.rates_desk_paper, накапливая форвардный трек. Это advisory-исследование — не go-live-трек и не реальный капитал — но это тот же движок, что пойдёт в live, записанный прозрачно. Из /api/rates-desk/track.">
-        The validated FixedCarry sleeve runs live in paper (no capital) via
+         data-ru="Валидированный sleeve FixedCarry работает в модельном (бумажном) режиме (без капитала) через com.spa.rates_desk_paper, накапливая форвардный трек. Это advisory-исследование — не go-live-трек и не реальный капитал — но это тот же движок, что пойдёт в live, записанный прозрачно. Из /api/rates-desk/track.">
+        The validated FixedCarry sleeve runs in simulated paper mode (no capital) via
         <span class="font-mono text-xs">com.spa.rates_desk_paper</span>, accruing a forward track. This
         is advisory research — <strong style="color:var(--text-primary)">not the go-live track, not real
         capital</strong> — but it's the same engine that will run live, recorded transparently. From
@@ -438,7 +441,7 @@ const STAGE_META = {
       function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
       function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
       function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
-      function pct(x) { var n = num(x); return n == null ? '—' : (n * 100).toFixed(2) + '%'; }
+      function pct(x) { var n = num(x); return n == null ? '—' : spaPct((n * 100)); }
       function usd(x) {
         var n = num(x); if (n == null) return '—';
         if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
@@ -450,7 +453,7 @@ const STAGE_META = {
       /* ---- c2. Live paper forward-track (the validated FixedCarry sleeve, accruing) ----- */
       function trackRow(p) {
         var apy = num(p.net_apy_pct);
-        var apyTxt = apy == null ? '—' : apy.toFixed(2) + '%';
+        var apyTxt = apy == null ? '—' : spaPct(apy);
         return '<tr style="border-top:1px solid var(--border)">' +
           '<td class="px-4 py-3 font-mono text-xs" style="color:var(--text-secondary)">' + esc(p.date || '?') + '</td>' +
           '<td class="px-4 py-3 font-mono text-right" style="color:var(--text-primary)">' + usd(p.equity != null ? p.equity : p.nav) + '</td>' +
@@ -495,7 +498,7 @@ const STAGE_META = {
             var retEl = document.getElementById('track-ret');
             var sign = ret > 0 ? '+' : '';
             if (retEl) {
-              retEl.textContent = sign + ret.toFixed(2) + '%';
+              retEl.textContent = sign + spaPct(ret);
               retEl.style.color = ret > 0 ? 'var(--ok)' : (ret < 0 ? '#f87171' : 'var(--text-secondary)');
             }
           }
@@ -561,7 +564,7 @@ const STAGE_META = {
         var size = num(x.approved_size_usd);
         var metaBits = [];
         metaBits.push((ru ? 'актив ' : 'underlying ') + esc(under));
-        if (netEdge != null) metaBits.push((ru ? 'net edge ' : 'net edge ') + (netEdge * 100).toFixed(2) + '%');
+        if (netEdge != null) metaBits.push((ru ? 'net edge ' : 'net edge ') + spaPct((netEdge * 100)));
         metaBits.push((ru ? 'размер ' : 'size ') + (size != null ? usd(size) : '$0'));
         var hashBit = x.proof_hash ? '<span title="' + esc(x.proof_hash) + '" class="font-mono" style="color:var(--text-faint)">#' + esc(String(x.proof_hash).slice(0, 8)) + '</span>' : '';
 
@@ -606,7 +609,7 @@ const STAGE_META = {
           : { badge: 'bg-ok-bg border-ok-border text-ok', dot: 'bg-ok', en: 'ENTERED', ru: 'ВХОД' };
         var reason = x.reason || (refused ? (ru ? 'отказ гейта' : 'gate refusal') : (ru ? 'оценённый кэрри' : 'priced carry'));
         var hc = num(x.haircut_total);
-        var hcTxt = hc == null ? '—' : (hc * 100).toFixed(2) + '%';
+        var hcTxt = hc == null ? '—' : spaPct((hc * 100));
         var ph = x.payload_hash ? String(x.payload_hash) : '';
         var phShort = ph ? '#' + ph.slice(0, 12) : '—';
         return '<tr style="border-top:1px solid var(--border)">' +
@@ -707,7 +710,7 @@ const STAGE_META = {
             if (e != null && (best == null || e > best)) best = e;
           });
           var txt = '· ' + n + (ru ? ' возможностей' : ' opportunities');
-          if (best != null) txt += (ru ? ', лучший net edge ' : ', best net edge ') + (best * 100).toFixed(2) + '%';
+          if (best != null) txt += (ru ? ', лучший net edge ' : ', best net edge ') + spaPct((best * 100));
           setText('opp-summary', txt);
         }).catch(function () {});
       }

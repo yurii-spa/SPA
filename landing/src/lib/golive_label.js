@@ -86,3 +86,29 @@ export function gateClosedOn(snap) {
   if (bars.length < needed || needed < 1) return null;
   return isoDay(bars[needed - 1].date);
 }
+
+/**
+ * P1-6/7/8 (2026-10-08): the ONE sentence about the 30-day time gate and what remains, derived from
+ * the snapshot — never «accruing to 30» / «thin» typed into a page that outlives the gate. While the
+ * gate is open it says so with the live count; once passed it says the minimum is met and names
+ * what still blocks live capital (owner decision + legal review; custody and audit for the live phase).
+ */
+export function trackGateSentence(snap, ru = false) {
+  const g = goLiveLabel(snap);
+  const d = g.days != null ? String(g.days) : '—';
+  if (g.gatePassed) {
+    return ru
+      ? `Минимум в ${g.needed} подтверждённых дней пройден (${d}/${g.needed}); засчитываются только дни с реальным логом ежедневного цикла. Для реального капитала по-прежнему нужны решение владельца и юридическая проверка, а для live-этапа — хранение средств (кастоди) и аудит.`
+      : `The ${g.needed}-evidenced-day minimum is met (${d}/${g.needed}); only days with a real daily-cycle log count. Live capital still needs an owner decision and a legal review, and the live phase needs custody and an audit.`;
+  }
+  return ru
+    ? `Трек накапливается: ${d}/${g.needed} подтверждённых дней; засчитываются только дни с реальным логом ежедневного цикла. До ${g.needed}-го дня метрики риска помечены как предварительные, а не выдуманы.`
+    : `The track is accruing: ${d}/${g.needed} evidenced days; only days with a real daily-cycle log count. Until day ${g.needed} risk-adjusted ratios are marked preliminary, never fabricated.`;
+}
+
+/** Short blocker list for meta descriptions (no numbers that can go stale). */
+export function remainingBlockers(snap, ru = false) {
+  const g = goLiveLabel(snap);
+  if (g.gatePassed) return ru ? 'решение владельца, юридическая проверка, кастоди и аудит' : 'an owner decision, a legal review, custody and an audit';
+  return ru ? `кастоди, аудит, юридическая проверка и ${g.needed}-дневный трек` : `custody, audit, legal review and the ${g.needed}-day evidenced track`;
+}

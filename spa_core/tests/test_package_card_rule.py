@@ -28,12 +28,16 @@ const J = (p) => JSON.parse(readFileSync(path.join(root, p), 'utf8'));
 const strip = (src) => src.split('\n').filter((l) => !/^\s*import\s/.test(l)).join('\n')
   .replace(/export\s+default\s+NUMBERS;?/, '').replace(/export\s+(function|const)/g, '$1');
 const NUMBERS = J('landing/src/data/site_numbers.json');
-const sn = new Function('NUMBERS', strip(readFileSync(path.join(root, 'landing/src/lib/site_numbers.js'), 'utf8'))
-  + '\nreturn { value, pct, pctDown, usd, headlineApy, book, threshold };')(NUMBERS);
-const card = new Function('NUMBERS', 'value', 'figPct', 'figPctDown', 'figUsd', 'headlineApy', 'book', 'threshold', 'C', 'TIER_BANDS',
+// P1 wave 2: the ADR-660 formatter lives in pct_format.js; the real file is loaded and injected.
+const pf = new Function(strip(readFileSync(path.join(root, 'landing/src/lib/pct_format.js'), 'utf8'))
+  + '\nreturn { fmtPct2, centsHalfUp, pctText };')();
+const sn = new Function('NUMBERS', 'fmtPct2', 'centsHalfUp', strip(readFileSync(path.join(root, 'landing/src/lib/site_numbers.js'), 'utf8'))
+  .replace(/export\s*\{[^}]*\};?/g, '')
+  + '\nreturn { value, pct, pctDown, usd, headlineApy, book, threshold };')(NUMBERS, pf.fmtPct2, pf.centsHalfUp);
+const card = new Function('NUMBERS', 'value', 'figPct', 'figPctDown', 'figUsd', 'headlineApy', 'book', 'threshold', 'fmtPct2', 'pctText', 'C', 'TIER_BANDS',
   strip(readFileSync(path.join(root, 'landing/src/lib/package_card.js'), 'utf8'))
   + '\nreturn { effective, cardModel, researchTarget, researchTail };')(
-  NUMBERS, sn.value, sn.pct, sn.pctDown, sn.usd, sn.headlineApy, sn.book, sn.threshold,
+  NUMBERS, sn.value, sn.pct, sn.pctDown, sn.usd, sn.headlineApy, sn.book, sn.threshold, pf.fmtPct2, pf.pctText,
   J('landing/src/lib/constitution.json'), J('landing/src/lib/tier_bands.json'));
 const cases = JSON.parse(readFileSync(process.argv[3], 'utf8'));
 const out = cases.map(([key, rec, now, lang, ci]) => card.cardModel(key, rec, Date.parse(now), lang, ci));
@@ -109,11 +113,18 @@ def test_warmup_shows_no_number_and_reportable_conservative_takes_the_shelf_rate
     assert warm["result"]["measured"] is False and "%" not in warm["result"]["main"]
     assert "not published" in warm["risk"]["drawdown"]
     apy = shelf["headline"]["apy"]["value"]
-    # ADR-563: a published rate rounds DOWN — the card must print the same figure as the headline
+    # ADR-660 (owner 2026-10-08, supersedes ADR-563's round-down): the card prints the shelf's number
+    # through the ONE owner formatter — two decimals, ROUND_HALF_UP — the same string as the headline
     # (PRODUCT-TRUTH-02, 07.10: 4.8943 printed «4.9%» on the card next to «4.8%» in the hero)
-    import math
-    assert rep["result"]["main"] == f"{math.floor(apy * 10 + 1e-9) / 10:.1f}%", \
-        "the card prints the shelf's number rounded down, not its own"
+    from spa_core.utils.presentation import fmt_pct
+    # P1 Wave 2 (owner/ARB 2026-10-08): the main track's card LEADS with the paper return over the
+    # actual period (headline.period.return); the annualised equivalent follows in the sub-line with
+    # its label. Both strings are the shelf's numbers through the one owner formatter.
+    per = shelf["headline"]["period"]
+    assert rep["result"]["main"] == fmt_pct(per["return"]["value"], "en", signed=True), \
+        "the card prints the shelf's period return by the owner rule, not its own"
+    assert fmt_pct(apy, "en") in rep["result"]["sub"] and "estimated annualised equivalent (ACT/365 Fixed on valuation dates; start valuation time not recorded), not a forecast" in rep["result"]["sub"], \
+        "the annualised equivalent travels with its label"
     assert "not a loss limit" in rep["risk"]["drawdown"]
     assert rep["target"] and "not" not in rep["target"]
 
