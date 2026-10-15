@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-20955
-claimed_at: 2026-10-15T12:06:29Z
-claimed_run_id: orchestrator-20354-E0772440032340BC83505490D09D6663
-claimed_pid: 20354
-claimed_pid_start: Thu Oct 15 14:03:37 2026
-claim_takeover_reason: работа предшественника cycle-89535 (#873) СВЕРЕНА на origin/main 600396578: ADR-728 + docs/mutations/ADR-728-c873.json на месте, захват снят самим #873 (5fd3e32a0); терять нечего
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
