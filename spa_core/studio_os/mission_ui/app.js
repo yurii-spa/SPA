@@ -1630,18 +1630,33 @@
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       if (!composer) { stream.getTracks().forEach(function (tr) { tr.stop(); }); return; }
       var type = window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "audio/webm";
-      var rec = new window.MediaRecorder(stream, { mimeType: type });
+      var rec;
+      try { rec = new window.MediaRecorder(stream, { mimeType: type }); }
+      catch (e) { rec = new window.MediaRecorder(stream); }   // Safari may refuse an explicit mimeType
       var chunks = [];
       composer.stream = stream;
       composer.recorder = rec;
       rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      // iPhone Safari (2026-10-15, owner's first real try): a recorder started without a timeslice
+      // can deliver its only data chunk AFTER onstop, so the posted blob was 0 bytes (server: 411
+      // LENGTH «Пустой запрос»). Collect every second, wait a beat for the last chunk, and never
+      // post an empty recording.
       rec.onstop = function () {
+        setTimeout(function () { finishRecording(); }, 300);
+      };
+      function finishRecording() {
         stream.getTracks().forEach(function (tr) { tr.stop(); });
         if (!composer) return;
         clearTimeout(composer.timer);
         composer.rec.textContent = t("intake.record");
         composer.rec.setAttribute("aria-pressed", "false");
-        var blob = new Blob(chunks, { type: type });
+        var sentType = ((rec.mimeType || type).split(";")[0]) || type;
+        var blob = new Blob(chunks, { type: sentType });
+        if (!blob.size) {
+          setComposerStatus(t("intake.empty_recording"), "warn");
+          return;
+        }
+        type = sentType;
         composer.busy = true;
         refreshSendState();
         setComposerStatus(t("intake.transcribing"), "info");
@@ -1665,8 +1680,8 @@
             setComposerStatus(tf("intake.error", { reason: t("header.no_connection") }), "problem");
             refreshSendState();
           });
-      };
-      rec.start();
+      }
+      rec.start(1000);
       composer.rec.textContent = t("intake.stop");
       composer.rec.setAttribute("aria-pressed", "true");
       setComposerStatus(t("intake.recording"), "info");

@@ -418,3 +418,20 @@ class TestRecoveryDrillStampIsOwnerTime(unittest.TestCase):
         line = next(l for l in js.splitlines() if '"studio.backups.recovery_ok"' in l)
         self.assertIn("ownerTime(cell.date)", line)
         self.assertIn("T\\d", line)
+
+
+class TestVoiceRecorderNeverPostsAnEmptyRecording(unittest.TestCase):
+    """2026-10-15, owner's first real iPhone try: Safari delivered the only data chunk after
+    onstop, the page posted a 0-byte blob, the server answered 411 «Пустой запрос». The recorder
+    must collect with a timeslice, wait for the last chunk, and refuse to post an empty blob."""
+
+    def test_recorder_uses_a_timeslice_and_guards_empty_blob(self):
+        js = _read("app.js")
+        self.assertIn("rec.start(1000)", js)
+        self.assertIn("if (!blob.size)", js)
+        self.assertIn('t("intake.empty_recording")', js)
+        self.assertIn("setTimeout(function () { finishRecording(); }", js)
+
+    def test_empty_recording_message_exists_in_both_languages(self):
+        i18n = _read("i18n.js")
+        self.assertEqual(i18n.count('"intake.empty_recording"'), 2)
