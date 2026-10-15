@@ -8,6 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
+claimed_by: cycle-89535
+claimed_at: 2026-10-15T08:31:54Z
+claimed_run_id: orchestrator-89535-C873-1792053102
+claimed_pid: 89535
+claimed_pid_start: Thu Oct 15 10:30:13 2026
+claim_takeover_reason: Цикл #873: шаг 0a на живом журнале — держатель cycle-90504 (#872) осиротел (pid 90504 мёртв, ось РАБОТНИКА gone, 4.77ч назад), и его работа ЕСТЬ на origin/main e291e4d99 (ADR-727 + docs/mutations/ADR-727-c872.json). origin/main 3b417db92 == HEAD моего worktree /tmp/spa_c873. Терять нечего.
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ

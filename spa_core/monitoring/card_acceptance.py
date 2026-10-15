@@ -8081,6 +8081,224 @@ def _probe_card_claim_anchored_reports_the_write(
         f"{'ОТКАЗ ' + type(half_err).__name__ if half_err is not None else 'ни одной строки якоря и `anchored: False`'}")
 
 
+def _probe_card_claim_anchor_contract_guards_every_reader(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: контракт `self_anchor` судит ОДИН, и его спрашивает КАЖДЫЙ читатель (#873).
+
+    Предмет — карточка `inbox-kontrakt-yakorya-storozhit-odnu-dver-iz`. ADR-727 (#872)
+    поставил сторожа контракта у ПИШУЩЕЙ двери (`claim_card`) и сам же назвал остаток
+    вслух (заказ G727 п. 1): тот же `self_anchor` принимают ещё ДВА входа — `gather`
+    (отчёт шага 0b) и `release_card`, — и у них сторожа нет. Замер #873 на чистой
+    вершине `3b417db92` показал, что дверь не теоретическая, а стоит открытой у обоих,
+    и цена у неё ровно та, ради которой написан `self_identities`:
+
+    * `gather` со СЛОВАРЁМ вместо пары: `anchor_of(entry) == anchor` не совпадает НИКОГДА
+      ⇒ опознание собственных объявлений МОЛЧА выключается, и захват, сделанный ЭТОЙ ЖЕ
+      сессией под другим ярлыком, читается как ЧУЖОЙ. Измерено: пара ⇒ `free`
+      (`self_sessions` = мой ярлык + ярлык захвата), словарь ⇒ `claimed` — то же, что
+      `self_anchor=None`, то есть вход вне контракта НЕОТЛИЧИМ от ОБЪЯВЛЕННОГО отключения;
+    * `release_card` со СЛОВАРЁМ: «снять чужой захват можно только с --force» о СВОЕЙ
+      карточке — дословно дефект цикла #70, из-за которого `self_identities` и появился.
+
+    Это зеркало fail-OPEN: не ложная свобода, а ложная занятость — но цена её измерена
+    08.10 (ЧЕТЫРЕ карточки неберущимися, среди них критический приказ владельца, 634
+    цикла мимо), и молчит она так же.
+
+    **Проба меряет ИСХОД и строк отказа не знает литералом (ADR-333).** Сцена: карточка,
+    захваченная ярлыком `HOLDER`, и запись журнала, написанная ТЕМ ЖЕ долгоживущим
+    процессом под тем же ярлыком. По ней гоняются три формы входа, и судит РАЗНИЦА между
+    ними, а не текст:
+
+    * пара (`anchor_of`-форма) — положительный контроль сцены: без неё опознание не
+      работает ни у кого, и судить о дверях не о чем ⇒ `unmeasured`;
+    * `None` — ОБЪЯВЛЕННОЕ отключение опознания (так зовут герметичные тесты): поведение
+      обязано остаться прежним, иначе правка запрещающая, а не дополняющая;
+    * словарь в вокабуляре шага 0a — вход ВНЕ контракта. Он обязан ОТКАЗАТЬ с причиной,
+      ОТЛИЧНОЙ от исхода `None`. Совпал с `None` ⇒ `not_satisfied`: это и есть тихий
+      сброс, при котором «не измерено» выдано за измеренную занятость.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: файла нет, не ввозится, нет `gather`/`release_card`/вокабуляра
+    ⇒ `unmeasured` с названной причиной, и никогда `satisfied`.
+    """
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    guard_path = os.path.join(root, "scripts", "check_card_claim.py")
+    if not os.path.exists(guard_path):
+        return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c873_card_claim", guard_path)
+        guard = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        spec.loader.exec_module(guard)               # type: ignore[union-attr]
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, f"шаг 0b не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    for attr in ("gather", "release_card", "CLAIM_ANCHOR_KEYS"):
+        if not hasattr(guard, attr):
+            return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
+    #: Вокабуляр ВТОРОЙ формы якоря берётся у соседа, а не парой из головы: сцена «вход
+    #: вне контракта» обязана быть той самой формой, что живёт рядом в коде.
+    durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
+    if len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys:
+        return UNMEASURED, (f"вокабуляры якоря разошлись (`DURABLE_KEYS`={durable_keys!r} "
+                            f"против {tuple(guard.CLAIM_ANCHOR_KEYS or ())!r}) — сцену "
+                            f"«вход вне контракта» задать нечем, НЕ ИЗМЕРЕНО")
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    #: pid ЖИВ на любой машине по построению (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ
+    #: ПРОЦЕССА», приём №2); ответ ОС за живость всё равно даёт инъекция `ps=`.
+    PID = os.getpid()
+    START = (now - _td(hours=2)).astimezone().strftime("%a %b %d %H:%M:%S %Y")
+    HOLDER = f"pid{PID}"
+    MINE = f"cycle-probe873-{PID}"
+    AT = (now - _td(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    PAIR = (PID, START)
+    DICT = {durable_keys[0]: PID, durable_keys[1]: START}
+
+    def _dead(_pid):
+        return (1, "")
+
+    class _MuteAnnouncer:
+        """Объявлять снятие захвата НЕКУДА: сцена одноразовая, общий журнал не трогаем."""
+
+        def record(self, *a, **k):
+            return None
+
+        def append(self, *a, **k):
+            return None
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c873_") as tmp:
+            def _scene(name):
+                """Одноразовые карточка + журнал: ТОТ ЖЕ процесс объявил захват под HOLDER."""
+                tracker = os.path.join(tmp, name)
+                os.makedirs(tracker)
+                with open(os.path.join(tracker, "inbox-scene.md"), "w",
+                          encoding="utf-8") as fh:
+                    fh.write("---\ntrackerStatus:\n  type: inbox\ntitle: сцена\n"
+                             f"status: in-progress\nclaimed_by: {HOLDER}\n"
+                             f"claimed_at: {AT}\n---\n\nтело\n")
+                log = os.path.join(tmp, f"{name}.jsonl")
+                with open(log, "w", encoding="utf-8") as fh:
+                    fh.write(_json.dumps({
+                        "ts": AT, "session": HOLDER, "card": "inbox-scene",
+                        "summary": "[check_card_claim] claim inbox-scene",
+                        durable_keys[0]: PID, durable_keys[1]: START}) + "\n")
+                    # ВТОРАЯ запись — БЕЗ якоря и о ДРУГОЙ карточке. Она нужна звену
+                    # (4): при `self_anchor=None` опознание обязано ВЫКЛЮЧАТЬСЯ рано, а
+                    # не сравнивать `anchor_of(entry) == None` — иначе любая запись без
+                    # якоря становится «моей». Без этой строки граница была бы заявлена,
+                    # но не наблюдаема (замер мутациями #873: ветка выживала).
+                    # Карточка намеренно ДРУГАЯ: о `inbox-scene` эта запись молчит,
+                    # поэтому лишнего захвата в сцене не появляется.
+                    fh.write(_json.dumps({
+                        "ts": AT, "session": f"{HOLDER}-anchorless",
+                        "card": "inbox-another",
+                        "summary": "[check_card_claim] claim inbox-another"}) + "\n")
+                return tracker, log
+
+            def _read(name, anchor):
+                """`gather` на сцене: (вердикт либо отказ, опознанные ярлыки)."""
+                tracker, log = _scene(name)
+                try:
+                    r = guard.gather("inbox-scene", log=log, tracker_dir=tracker,
+                                     sibling=sibling, self_session=MINE, now=now,
+                                     ps=_dead, self_anchor=anchor, shared_trees=())
+                except Exception as exc:             # noqa: BLE001
+                    return f"ОТКАЗ:{type(exc).__name__}:{exc}", None
+                return str(r.get("verdict")), sorted(r.get("self_sessions") or [])
+
+            def _free(name, anchor):
+                """`release_card` на сцене: исход словом (отпущена либо текст отказа)."""
+                tracker, log = _scene(name)
+                try:
+                    res = guard.release_card("inbox-scene", log=log, session=MINE,
+                                             tracker_dir=tracker, self_anchor=anchor,
+                                             announcer=_MuteAnnouncer())
+                except Exception as exc:             # noqa: BLE001
+                    return f"ОТКАЗ:{type(exc).__name__}:{exc}"
+                return f"ОТПУЩЕНА:{bool((res or {}).get('released'))}"
+
+            # ── (1) ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ СЦЕНЫ: пара обязана опознавать HOLDER своим ──
+            #
+            # ЗАМЕР #873 про ЭТУ ветку, чтобы её не «чинили» заново: мутация
+            # `if False:` на ней ВЫЖИВАЕТ, и выживший РАВНОСИЛЕН — при порванном
+            # опознании вердикт пробы остаётся `unmeasured`, а состояние называет
+            # соседняя предпосылка сцены снятия («опознание не работает и с
+            # контрактным входом»). Ветка оставлена не для покрытия, а ради ДРУГОГО
+            # исхода: `gather`, сломанный целиком, даёт `pair_selves is None`, и без
+            # этой ветки такой случай ушёл бы в `not_satisfied` — то есть «не
+            # измерено» было бы выдано за измеренный дефект (инв. #17).
+            pair_verdict, pair_selves = _read("read_pair", PAIR)
+            if pair_selves is None or HOLDER not in pair_selves:
+                return UNMEASURED, (
+                    f"сцена не способна двигать вердикт: с ПРАВИЛЬНОЙ парой "
+                    f"`self_sessions`={pair_selves!r} не содержит ярлык захвата "
+                    f"{HOLDER!r} (вердикт {pair_verdict!r}) — опознание не работает и с "
+                    f"контрактным входом, судить о дверях НЕ О ЧЕМ")
+            # Второго контроля «пара и `None` дают разный вердикт» здесь НЕТ
+            # намеренно: он отвечает на тот же вопрос, что звено (1) выше, и замер
+            # мутациями #873 показал ровно обещанное правилом — два условия об одном
+            # МАСКИРУЮТ друг друга, после чего снятие любого перестаёт ловиться.
+            # Опознание `HOLDER` контрактной парой есть ПРЕДПОСЫЛКА, а разность
+            # вердиктов — её следствие (захват жив ⇒ свой не блокирует, чужой мёртвый
+            # блокирует иначе), поэтому оставлен один — специфичный.
+            none_verdict, none_selves = _read("read_none", None)
+
+            # ── (2) ЧИТАЮЩАЯ ДВЕРЬ `gather` ──
+            dict_verdict, dict_selves = _read("read_dict", DICT)
+            if dict_verdict == none_verdict and dict_selves == none_selves:
+                return NOT_SATISFIED, (
+                    f"`gather`: вход вне контракта ({dict.__name__} в вокабуляре "
+                    f"{list(durable_keys)} — ВТОРАЯ форма якоря из того же файла) принят "
+                    f"МОЛЧА и НЕОТЛИЧИМ от объявленного отключения `None`: оба дают "
+                    f"{dict_verdict!r} при `self_sessions`={dict_selves!r}, тогда как "
+                    f"контрактная пара даёт {pair_verdict!r} при {pair_selves!r}. Захват "
+                    f"ЭТОЙ ЖЕ сессии читается как ЧУЖОЙ, и об этом не сказано ни слова")
+
+            # ── (3) ПИШУЩАЯ ДВЕРЬ `release_card` — тот же вход, свой исход ──
+            pair_release = _free("free_pair", PAIR)
+            if not pair_release.startswith("ОТПУЩЕНА"):
+                return UNMEASURED, (
+                    f"сцена снятия не способна двигать исход: с КОНТРАКТНОЙ парой "
+                    f"`release_card` дал {pair_release!r} вместо снятия — опознание не "
+                    f"работает и с контрактным входом, судить о двери НЕ О ЧЕМ")
+            none_release = _free("free_none", None)
+            dict_release = _free("free_dict", DICT)
+            if dict_release == none_release:
+                return NOT_SATISFIED, (
+                    f"`release_card`: вход вне контракта принят МОЛЧА и НЕОТЛИЧИМ от "
+                    f"объявленного отключения `None` — оба дают {dict_release!r}, тогда "
+                    f"как контрактная пара даёт {pair_release!r}. Это дословно дефект "
+                    f"цикла #70: сессия отказывает САМА СЕБЕ в снятии своего захвата, и "
+                    f"единственный выход — `--force`, который снимает и НАСТОЯЩИЙ чужой")
+
+            # ── (4) ГРАНИЦА: объявленное отключение обязано работать как прежде ──
+            if none_selves != [MINE]:
+                return NOT_SATISFIED, (
+                    f"`self_anchor=None` — ОБЪЯВЛЕННОЕ отключение опознания (им зовут "
+                    f"герметичные тесты), а `self_sessions`={none_selves!r} вместо "
+                    f"[{MINE!r}]: сторож контракта обязан быть дополняющим, а не менять "
+                    f"прежнее поведение")
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    return SATISFIED, (
+        f"контракт `self_anchor` спрашивают ОБЕ читающие двери, и обе отвечают ОТЛИЧНО от "
+        f"объявленного отключения: `gather` пара ⇒ {pair_verdict} ({pair_selves}) · `None` "
+        f"⇒ {none_verdict} · словарь {list(durable_keys)} ⇒ {dict_verdict!r}; "
+        f"`release_card` пара ⇒ {pair_release} · `None` ⇒ {none_release!r} · словарь ⇒ "
+        f"{dict_release!r}. Литерала отказа у пробы нет — судит РАЗНИЦА исходов (ADR-333)")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -8089,6 +8307,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_card_claim_carries_the_launcher_anchor,
     "card_claim_anchored_reports_the_write":
         _probe_card_claim_anchored_reports_the_write,
+    "card_claim_anchor_contract_guards_every_reader":
+        _probe_card_claim_anchor_contract_guards_every_reader,
     "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
     "file_overlap_claim_measures_the_worker":
         _probe_file_overlap_claim_measures_the_worker,

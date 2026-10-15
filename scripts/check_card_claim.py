@@ -1834,6 +1834,11 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
 
     if self_anchor is _ENV_ANCHOR:
         self_anchor = measure_self_anchor()
+    # КОНТРАКТ ВХОДА — ДО первого последствия (ADR-728). Отсюда `self_anchor` уходит в
+    # `build_report` → `self_identities`, то есть участвует в ВЕРДИКТЕ; вход вне
+    # контракта молча выключал опознание своих объявлений, и отчёт называл собственный
+    # захват чужим. Судья ОДИН на все три двери — своей копии правила здесь нет.
+    require_anchor_contract(self_anchor, reader="gather")
 
     if shared_trees is _MEASURE_TREES:
         # Главное рабочее дерево общее для ВСЕХ сессий (журнал: 101 ярлык, 17 разных якорей) —
@@ -1884,6 +1889,65 @@ def _anchor_pair(values) -> tuple:
     `anchored: false` — это третий исход (инв. #17), а не тихий успех."""
     pair = tuple(str(values.get(key) or "").strip() for key in CLAIM_ANCHOR_KEYS)
     return pair if all(pair) else ()
+
+
+def require_anchor_contract(self_anchor, *, reader: str):
+    """`self_anchor` по контракту либо пропускается, либо ОТКАЗ с названной причиной (ADR-728).
+
+    **Один судья контракта на весь файл, и его обязан спросить КАЖДЫЙ, кто принимает
+    `self_anchor` извне.** ADR-727 поставил такую проверку у ОДНОЙ двери (`claim_card`,
+    пишущей) и назвал остаток вслух; дверей три, и все три ведут к одному вопросу
+    «это объявление МОЁ?» (`self_identities`):
+
+    * `claim_card` — взятие карточки;
+    * `gather` — отчёт шага 0b (через `build_report` → `self_identities`);
+    * `release_card` — снятие захвата (тот же `self_identities` напрямую).
+
+    **Чем это измерено, а не предположено** (замер #873 на чистой вершине `3b417db92`,
+    сцена: карточка захвачена ярлыком `pidNNN`, запись журнала написана ТЕМ ЖЕ
+    долгоживущим процессом под тем же ярлыком — дословно состояние сессии, у которой
+    `claim` и `release` суть две разные CLI-команды):
+
+        дверь          вход      исход
+        gather         пара      free     · self_sessions = мой ярлык + ярлык захвата
+        gather         СЛОВАРЬ   stale    · self_sessions = ТОЛЬКО мой ярлык
+        gather         None      stale    · то же самое, байт в байт
+        release_card   пара      ОТПУЩЕНА
+        release_card   СЛОВАРЬ   «снять чужой захват можно только с --force»
+
+    Причина у обеих дверей одна: `anchor_of(entry) == anchor` со словарём не совпадает
+    НИКОГДА, поэтому опознание своих объявлений МОЛЧА выключается, и захват ЭТОЙ ЖЕ
+    сессии читается как ЧУЖОЙ. Это дословно дефект цикла #70, ради которого
+    `self_identities` и написан.
+
+    **Вход вне контракта не выдуман.** Якорь живёт ВТОРОЙ формой — СЛОВАРЁМ в вокабуляре
+    шага 0a (`{"session_pid": …, "session_pid_start": …}`), и ровно её отдаёт
+    `log_session_change.durable_process`, прежде чем `anchor_of` сведёт пару. Передать
+    её в `self_anchor=` — естественная ошибка, а не экзотика.
+
+    **Направление ошибки и его цена.** Здесь ложная ЗАНЯТОСТЬ, а не ложная свобода:
+    сторож не обходится, чужая работа не забирается. Но цена ложной занятости измерена
+    08.10 — ЧЕТЫРЕ карточки стали неберущимися, среди них критический приказ владельца,
+    634 цикла мимо. И молчит она так же: ни один ключ отчёта про якорь не говорит, и
+    «вход негоден» неотличимо от «опознание выключено намеренно» (инв. #17).
+
+    `None` остаётся ОБЪЯВЛЕННЫМ отключением опознания (им зовут герметичные тесты) и
+    проходит без слова: сторож дополняющий, а не запрещающий. `reader` — имя двери,
+    попадает в причину отказа: три читателя, и вызвавшего надо НАЗВАТЬ, иначе отказ
+    отправит искать не туда."""
+    if self_anchor is None:
+        return self_anchor
+    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()
+    if len(pair) != len(CLAIM_ANCHOR_KEYS):
+        raise ClaimError(
+            f"якорь запускателя передан вне контракта в `{reader}`: ожидается пара "
+            f"{list(CLAIM_ANCHOR_KEYS)} в форме `anchor_of` — (pid, «старт verbatim») "
+            f"либо None (объявленное отключение опознания), получено "
+            f"{type(self_anchor).__name__} длины {len(pair) if pair else 'нет'}. "
+            f"Молча сузить его значило бы ВЫКЛЮЧИТЬ опознание собственных объявлений: "
+            f"захват ЭТОЙ ЖЕ сессии прочитался бы как чужой (дефект цикла #70), и об "
+            f"этом не было бы сказано ни слова.")
+    return self_anchor
 
 
 def _set_claim_fields(text: str, values) -> str:
@@ -2074,30 +2138,18 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     if not self_anchor:
         raise UnmeasurableClaim(_UNMEASURABLE_CLAIM_TEXT.format(session=session, card=card))
     # КОНТРАКТ ВХОДА — С ОТКАЗОМ, А НЕ С ТИХИМ СБРОСОМ, И ДО ПЕРВОГО ПОСЛЕДСТВИЯ
-    # (ADR-727). `self_anchor` по контракту есть ровно то, что отдаёт `anchor_of`: пара
-    # (pid, «старт verbatim») либо None (а None только что отказал выше). Прежняя
-    # редакция сужала вход МОЛЧА, у самой записи — `isinstance(..., (tuple, list))`
-    # иначе давало `()`, якорь не писался, а ответ всё равно объявлял `anchored: True`.
-    # Вход вне контракта правдоподобен: в ЭТОМ ЖЕ файле якорь живёт и ВТОРОЙ формой —
-    # СЛОВАРЁМ в вокабуляре шага 0a (`card_claim_anchor` → `{"session_pid": …}`), и
-    # передать её сюда значит получить захват без якоря с отчётом «якорь есть». Мутация
-    # сужения переживала весь набор (#869): контракт не проверял никто.
+    # (ADR-727, судья вынесен в `require_anchor_contract` циклом #873). Прежняя редакция
+    # сужала вход МОЛЧА у самой записи: `isinstance(..., (tuple, list))` иначе давало
+    # `()`, якорь не писался, а ответ всё равно объявлял `anchored: True`.
     #
     # Место проверки выбрано РАНЬШЕ `gather` и раньше объявления в журнале намеренно:
     # (а) тот же `self_anchor` идёт в `gather` → `self_identities`, то есть вход вне
     # контракта успел бы поучаствовать в ВЕРДИКТЕ; (б) отказ после `announce_claim`
     # оставил бы в общем журнале захват карточки, которой сессия не владеет, — ровно то
     # состояние, которое компенсирует `_unannounce_claim`. Отказ без последствий
-    # компенсировать нечего.
-    _anchor = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()
-    if len(_anchor) != len(CLAIM_ANCHOR_KEYS):
-        raise ClaimError(
-            f"якорь запускателя передан вне контракта: ожидается пара "
-            f"{list(CLAIM_ANCHOR_KEYS)} в форме `anchor_of` — (pid, «старт verbatim»), "
-            f"получено {type(self_anchor).__name__} длины "
-            f"{len(_anchor) if _anchor else 'нет'}. Карточка НЕ взята: молча выбросить "
-            f"якорь значило бы написать захват, который следующий цикл не сможет "
-            f"измерить ни одной осью, и отчитаться при этом «якорь есть».")
+    # компенсировать нечего. Своей копии правила здесь больше НЕТ: `gather` и
+    # `release_card` спрашивают ТОГО ЖЕ судью, и три копии расходились бы молча.
+    _anchor = require_anchor_contract(self_anchor, reader="claim_card")
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,
                     self_session=session, now=now, grace_hours=grace_hours, ps=ps,
                     self_anchor=self_anchor, worker=worker)
@@ -2267,6 +2319,11 @@ def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=
         raise ClaimError(f"карточки нет: {path}")
     if self_anchor is _ENV_ANCHOR:
         self_anchor = measure_self_anchor()
+    # КОНТРАКТ ВХОДА — ДО чтения журнала и ДО захвата замка (ADR-728): дальше тот же
+    # `self_identities` решает «чужой ли захват», и вход вне контракта давал отказ
+    # «снять чужой захват можно только с --force» о СВОЕЙ карточке (замер #873) —
+    # дословно дефект цикла #70, названный в докстрингe выше как уже закрытый.
+    require_anchor_contract(self_anchor, reader="release_card")
     # Без якоря журнал не читается ВООБЩЕ: опознавать нечем, а лишнее чтение общего файла
     # сделало бы поведение `release` зависящим от чужих записей. Нет якоря ⇒ ровно старый путь.
     selves = ({session} if not self_anchor

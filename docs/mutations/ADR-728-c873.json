@@ -1,0 +1,94 @@
+{
+  "title": "ADR-728 — дельта цикла #873 (контракт якоря: один судья, ТРИ читателя)",
+  "tests": [
+    "spa_core/tests/test_card_claim_anchor_contract.py",
+    "spa_core/tests/test_card_claim_launcher_anchor.py",
+    "spa_core/tests/test_card_claim_guard.py"
+  ],
+  "mutations": [
+    {
+      "name": "судья контракта не судит ВОВСЕ — тихий сброс вернулся всем трём дверям",
+      "file": "scripts/check_card_claim.py",
+      "old": "    if len(pair) != len(CLAIM_ANCHOR_KEYS):",
+      "new": "    if False:"
+    },
+    {
+      "name": "судья контракта пускает словарь (вторая форма якоря из того же файла)",
+      "file": "scripts/check_card_claim.py",
+      "old": "    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()",
+      "new": "    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list, dict)) else ()"
+    },
+    {
+      "name": "судья не отдаёт вход обратно — читатель получает None вместо пары",
+      "file": "scripts/check_card_claim.py",
+      "old": "            f\"этом не было бы сказано ни слова.\")\n    return self_anchor",
+      "new": "            f\"этом не было бы сказано ни слова.\")\n    return None"
+    },
+    {
+      "name": "судья отказывает и на `None` — объявленное отключение сломано",
+      "file": "scripts/check_card_claim.py",
+      "old": "    if self_anchor is None:\n        return self_anchor",
+      "new": "    if False:\n        return self_anchor"
+    },
+    {
+      "name": "отказ НЕ НАЗЫВАЕТ читателя — трёх дверей не различить",
+      "file": "scripts/check_card_claim.py",
+      "old": "            f\"якорь запускателя передан вне контракта в `{reader}`: ожидается пара \"",
+      "new": "            f\"якорь запускателя передан вне контракта: ожидается пара \""
+    },
+    {
+      "name": "читающая дверь `gather` снова без сторожа",
+      "file": "scripts/check_card_claim.py",
+      "old": "    require_anchor_contract(self_anchor, reader=\"gather\")",
+      "new": "    pass"
+    },
+    {
+      "name": "пишущая дверь `release_card` снова без сторожа",
+      "file": "scripts/check_card_claim.py",
+      "old": "    require_anchor_contract(self_anchor, reader=\"release_card\")",
+      "new": "    pass"
+    },
+    {
+      "name": "сторож `release_card` переставлен ПОСЛЕ чтения журнала и опознания",
+      "file": "scripts/check_card_claim.py",
+      "old": "    require_anchor_contract(self_anchor, reader=\"release_card\")\n    # Без якоря журнал не читается ВООБЩЕ",
+      "new": "    # Без якоря журнал не читается ВООБЩЕ"
+    },
+    {
+      "name": "сторож `gather` переставлен ПОСЛЕ `build_report` — вход участвует в вердикте",
+      "file": "scripts/check_card_claim.py",
+      "old": "    require_anchor_contract(self_anchor, reader=\"gather\")\n\n    if shared_trees is _MEASURE_TREES:",
+      "new": "\n    if shared_trees is _MEASURE_TREES:"
+    },
+    {
+      "name": "контракт судит и ПОЛНОТУ пары — два судьи об одном маскируют друг друга",
+      "file": "scripts/check_card_claim.py",
+      "old": "    if len(pair) != len(CLAIM_ANCHOR_KEYS):",
+      "new": "    if len(pair) != len(CLAIM_ANCHOR_KEYS) or not all(pair):"
+    },
+    {
+      "name": "проба слепа к двери `gather`",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if dict_verdict == none_verdict and dict_selves == none_selves:",
+      "new": "            if False:"
+    },
+    {
+      "name": "проба слепа к двери `release_card`",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if dict_release == none_release:",
+      "new": "            if False:"
+    },
+    {
+      "name": "проба слепа к положительному контролю сцены (пара не опознаёт захват)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if pair_selves is None or HOLDER not in pair_selves:",
+      "new": "            if False:"
+    },
+    {
+      "name": "проба слепа к границе: объявленное отключение изменило поведение",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if none_selves != [MINE]:",
+      "new": "            if False:"
+    }
+  ]
+}
