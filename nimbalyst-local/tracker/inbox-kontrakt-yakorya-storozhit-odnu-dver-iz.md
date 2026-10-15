@@ -2,12 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Контракт якоря сторожит одну дверь из трёх: gather и release принимают вход вне контракта молча"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-15
 acceptance_probe: card_claim_anchor_contract_guards_every_reader
 status_trail:
   - "2026-10-15T08:48:32.095317+00:00 new -> in-progress · queue.set_status · cycle-89535"
+  - "2026-10-15T09:41:50.557187+00:00 in-progress -> done · queue.set_status/closed_by:cycle-89535/evidence:проба card_claim_anchor_contract_guards_every_reader: satisfied на доставленном 0ff207098, КРАСНА на 3b417db92 с названной дверью (gather); батарея test_card_claim_anchor_contract.py 24, соседние бата · cycle-89535"
 ---
 
 ## Что измерено (чистая вершина `3b417db92`, цикл #873)
