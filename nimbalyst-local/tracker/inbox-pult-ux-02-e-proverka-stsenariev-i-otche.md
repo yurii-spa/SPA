@@ -9,7 +9,7 @@ owner: "@yurii"
 epic: DIRECTOR-OS-UX-02
 task_id: E
 lifecycle: in-progress
-final_outcome: "кандидат на ARB (не опубликован): проба scenarios — выполнено, 14 порванных звеньев краснят поимённо; матрица приёмки и пять сценариев зафиксированы; целевой набор тестов — 13 падений, те же, что на чистом origin; не измерено: настоящий Safari на iPhone, VoiceOver, вход через Cloudflare Access. Отчёт и превью: scratchpad/ux02_out/ARB_REPORT.md, arb_preview/ · круг ARB 09.10: покрытие 450 кадров (реестр COVERAGE.md), сценарии 1–3 и 5 пройдены, 4 — частично (причина остановки не передаётся); ручная проверка iPhone/Access/VoiceOver подготовлена, не выполнена · круг ARB №3 (09.10): пакет ARB_PACKAGE (файлы + один HTML), IPHONE_CHECK.txt (Safari/вход/VoiceOver — НЕ ПРОВЕРЕНО), покрытие перемерено"
+final_outcome: "ВЫПУЩЕНО 15.10 коммитом 2df987cec (одобрение владельца «1 и 2 бери в работу»; закрытие — ARB): проба scenarios — выполнено, 14 порванных звеньев краснят поимённо; матрица приёмки и пять сценариев зафиксированы; целевой набор тестов — 13 падений, те же, что на чистом origin; не измерено: настоящий Safari на iPhone, VoiceOver, вход через Cloudflare Access. Отчёт и превью: scratchpad/ux02_out/ARB_REPORT.md, arb_preview/ · круг ARB 09.10: покрытие 450 кадров (реестр COVERAGE.md), сценарии 1–3 и 5 пройдены, 4 — частично (причина остановки не передаётся); ручная проверка iPhone/Access/VoiceOver подготовлена, не выполнена · круг ARB №3 (09.10): пакет ARB_PACKAGE (файлы + один HTML), IPHONE_CHECK.txt (Safari/вход/VoiceOver — НЕ ПРОВЕРЕНО), покрытие перемерено"
 acceptance_probe: director_os_owner_view_section:scenarios
 status_trail:
   - "2026-10-09T08:15:06.425879+00:00 new -> in-progress · queue.set_status"
