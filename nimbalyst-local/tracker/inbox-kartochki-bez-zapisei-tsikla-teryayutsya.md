@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Карточки без записей цикла теряются молча: сторож видит 2 из 103"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-15
 acceptance_probe: delivery_door_refuses_card_section_loss
+status_trail:
+  - "2026-10-15T13:14:45.729627+00:00 in-progress -> done · queue.set_status/closed_by:cycle-20955/evidence:проба delivery_door_refuses_card_section_loss зелена на доставленной вершине 3437f0698 (satisfied, источник пары — история git); на вершине 600396578 была красна («меры разделов у пушера НЕТ ВОВСЕ»);  · cycle-20354"
 ---
 
 ## Что случилось и почему это важно
