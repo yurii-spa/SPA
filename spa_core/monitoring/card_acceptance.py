@@ -7919,12 +7919,176 @@ def _probe_delta_mutation_instrument_is_re_measurable(
         f"побайтово то же")
 
 
+def _probe_card_claim_anchored_reports_the_write(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: поле `anchored` отчёта о захвате меряет ЗАПИСЬ, а не пересказывает вход (#872).
+
+    Предмет — карточка `inbox-anchored-pereskazyvaet-vhod-a-ne-meryaet`. ADR-725 довёл
+    якорь ЗАПУСКАТЕЛЯ до frontmatter карточки, и в ответе `claim_card` появилась пара
+    сообщений об одной записи. Одно из них ИЗМЕРЯЕТ запись
+    (`worker_run_id = fields.get("claimed_run_id")`, так сделано с ADR-721), второе —
+    НЕТ: `anchored` считалось как `bool(self_anchor)`, то есть отвечало на вопрос «мне
+    передали якорь», тогда как читает его тот, кому важно «якорь ДОЕХАЛ до карточки».
+
+    **Разойтись они могли молча, и это не умозрение — у входа не было сторожа.**
+    `claim_card` сужал вход выражением `isinstance(self_anchor, (tuple, list))`, и
+    всё, что под сужение не попало, превращалось в пустую пару БЕЗ единого слова:
+    якорь не писался, захват состоялся, а ответ объявлял `anchored: True`. Мутация
+    этого сужения переживала весь набор (замер #869) ровно потому, что контракт входа
+    не проверял никто.
+
+    **Вход вне контракта правдоподобен, а не выдуман.** В ТОМ ЖЕ файле якорь живёт
+    ВТОРОЙ формой — СЛОВАРЁМ в вокабуляре шага 0a (`card_claim_anchor` отдаёт
+    `{"session_pid": …, "session_pid_start": …}`), и именно её естественно передать
+    в `self_anchor=`. Цена ошибки — захват, который следующий цикл не измерит НИ ОДНОЙ
+    осью (ось работника и ось запускателя обе молчат), с отчётом «якорь есть».
+
+    **Проба меряет ИСХОД и адреса полей не знает литералом (ADR-333).** Сначала гоняет
+    настоящий `claim_card` на одноразовой карточке с ПРАВИЛЬНОЙ парой и смотрит, куда
+    писатель её положил; затем теми же именами судит две сцены:
+
+    * вход вне контракта (словарь) ⇒ либо ОТКАЗ, либо якорь в карточке. Тихий успех с
+      `anchored: True` и пустым frontmatter — `not_satisfied`;
+    * пара измерена НЕ ЦЕЛИКОМ (`(pid, "")`) ⇒ пара не пишется (половина личностью не
+      является) И `anchored` обязан быть False. Это третий исход, инв. #17.
+
+    Граница названа отдельным звеном: правильная пара обязана по-прежнему давать
+    `anchored: True` и запись в карточке — правка дополняющая, а не запрещающая.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: файла нет, не ввозится, нет `claim_card`/`CLAIM_ANCHOR_KEYS`
+    ⇒ `unmeasured` с названной причиной, и никогда `satisfied`.
+    """
+    import importlib.util as _ilu
+    import tempfile as _tf
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    root = repo_root or REPO_ROOT
+    guard_path = os.path.join(root, "scripts", "check_card_claim.py")
+    if not os.path.exists(guard_path):
+        return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c872_card_claim", guard_path)
+        guard = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        spec.loader.exec_module(guard)               # type: ignore[union-attr]
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, f"шаг 0b не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    try:
+        sibling = guard.load_sibling()
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    for attr in ("claim_card", "frontmatter", "CLAIM_ANCHOR_KEYS"):
+        if not hasattr(guard, attr):
+            return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
+    #: Вокабуляр ВТОРОЙ формы якоря берётся у соседа, а не парой из головы: сцена
+    #: «вход вне контракта» обязана быть той самой формой, что живёт рядом в коде.
+    durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
+    if len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys:
+        return UNMEASURED, (f"вокабуляры якоря разошлись (`DURABLE_KEYS`={durable_keys!r} "
+                            f"против {tuple(guard.CLAIM_ANCHOR_KEYS or ())!r}) — сцену "
+                            f"«вход вне контракта» задать нечем, НЕ ИЗМЕРЕНО")
+
+    now = _dt.now(_tz.utc).replace(microsecond=0)
+    START = (now - _td(hours=2)).strftime("%a %b %d %H:%M:%S %Y")
+    PID = os.getpid()                 # жив на любой машине по построению, не таймер
+
+    def _dead(_pid):
+        return (1, "")
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c872_") as tmp:
+            def _scene(name, anchor):
+                """Одноразовая карточка + пустой журнал; возвращает (ответ, исключение, поля)."""
+                tracker = os.path.join(tmp, name)
+                os.makedirs(tracker)
+                card = os.path.join(tracker, f"inbox-{name}.md")
+                with open(card, "w", encoding="utf-8") as fh:
+                    fh.write("---\ntrackerStatus:\n  type: inbox\ntitle: сцена\n"
+                             "status: new\n---\n\nтело\n")
+                before = set(guard.frontmatter(open(card, encoding="utf-8").read()) or {})
+                log = os.path.join(tmp, f"{name}.jsonl")
+                open(log, "w", encoding="utf-8").close()
+                res = err = None
+                try:
+                    res = guard.claim_card(f"inbox-{name}", log=log,
+                                           session=f"cycle-probe872-{name}",
+                                           tracker_dir=tracker, now=now, sibling=sibling,
+                                           ps=_dead, self_anchor=anchor)
+                except Exception as exc:             # noqa: BLE001
+                    err = exc
+                meta = guard.frontmatter(open(card, encoding="utf-8").read()) or {}
+                fresh = {k: str(meta.get(k) or "") for k in set(meta) - before}
+                return res, err, fresh
+
+            # ── (1) ГРАНИЦА и АДРЕС: правильная пара, поля ИЗМЕРЯЮТСЯ у писателя ──
+            ok_res, ok_err, ok_fresh = _scene("pair", (PID, START))
+            if ok_err is not None or not isinstance(ok_res, dict):
+                return UNMEASURED, (f"писатель захвата не отработал на ПРАВИЛЬНОЙ паре "
+                                    f"({type(ok_err).__name__}: {ok_err}) — НЕ ИЗМЕРЕНО")
+            pid_field = next((k for k, v in ok_fresh.items() if v.strip() == str(PID)), None)
+            start_field = next((k for k, v in ok_fresh.items() if v.strip() == START), None)
+            if pid_field is None or start_field is None:
+                return NOT_SATISFIED, (
+                    f"писатель не кладёт измеренную пару в карточку вовсе (появились "
+                    f"{sorted(ok_fresh)}) — предмет ADR-725 не выполнен, судить о честности "
+                    f"отчёта не о чем")
+            if ok_res.get("anchored") is not True:
+                return NOT_SATISFIED, (
+                    f"пара ИЗМЕРЕНА и ЗАПИСАНА (`{pid_field}`/`{start_field}`), а ответ "
+                    f"говорит `anchored: {ok_res.get('anchored')!r}` — правка обязана быть "
+                    f"дополняющей, а не запрещающей")
+
+            # ── (2) ВХОД ВНЕ КОНТРАКТА: вторая форма якоря, живущая в том же файле ──
+            bad_res, bad_err, bad_fresh = _scene(
+                "dict", {durable_keys[0]: PID, durable_keys[1]: START})
+            wrote = bool(str(bad_fresh.get(pid_field) or "").strip()
+                         and str(bad_fresh.get(start_field) or "").strip())
+            if bad_err is None and not wrote:
+                return NOT_SATISFIED, (
+                    f"вход вне контракта ({dict.__name__} в вокабуляре "
+                    f"{list(durable_keys)} — ВТОРАЯ форма якоря из того же файла) принят "
+                    f"МОЛЧА: захват состоялся, `{pid_field}`/`{start_field}` в карточке "
+                    f"нет, а ответ объявляет `anchored: "
+                    f"{(bad_res or {}).get('anchored')!r}`. Следующий цикл не измерит этот "
+                    f"захват ни одной осью и будет ждать окно целиком")
+
+            # ── (3) ПАРА НЕ ЦЕЛИКОМ: третий исход вместо тихого успеха (инв. #17) ──
+            half_res, half_err, half_fresh = _scene("half", (PID, ""))
+            if half_err is None:
+                if any(str(half_fresh.get(k) or "").strip()
+                       for k in (pid_field, start_field)):
+                    return NOT_SATISFIED, (
+                        f"половина пары УЕХАЛА в карточку ({ {k: half_fresh.get(k) for k in (pid_field, start_field)} }) "
+                        f"— `{pid_field}` без старта личностью не является, pid "
+                        f"переиспользуется ОС")
+                if (half_res or {}).get("anchored") is not False:
+                    return NOT_SATISFIED, (
+                        f"пара измерена НЕ ЦЕЛИКОМ, в карточку не записана — а ответ всё "
+                        f"равно говорит `anchored: {(half_res or {}).get('anchored')!r}`. "
+                        f"Это пересказ входа, а не замер записи: читатель поля узнаёт "
+                        f"«якорь в карточке» о карточке, где его нет (инв. #17)")
+    except Exception as exc:                         # noqa: BLE001
+        return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    return SATISFIED, (
+        f"`anchored` меряет ЗАПИСЬ: адрес пары измерен у писателя "
+        f"(`{pid_field}`/`{start_field}`, литерала у пробы нет) · правильная пара ⇒ "
+        f"запись + `anchored: True` · вход вне контракта (словарь {list(durable_keys)}) ⇒ "
+        f"{'ОТКАЗ ' + type(bad_err).__name__ if bad_err is not None else 'якорь всё равно записан'} "
+        f"· пара не целиком ⇒ "
+        f"{'ОТКАЗ ' + type(half_err).__name__ if half_err is not None else 'ни одной строки якоря и `anchored: False`'}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
         _probe_card_claim_absent_worker_reaches_the_verdict,
     "card_claim_carries_the_launcher_anchor":
         _probe_card_claim_carries_the_launcher_anchor,
+    "card_claim_anchored_reports_the_write":
+        _probe_card_claim_anchored_reports_the_write,
     "journal_claim_measures_the_worker": _probe_journal_claim_measures_the_worker,
     "file_overlap_claim_measures_the_worker":
         _probe_file_overlap_claim_measures_the_worker,

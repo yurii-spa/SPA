@@ -1865,6 +1865,27 @@ def _atomic_write(path: Path, content: str) -> None:
             os.remove(tmp)
 
 
+def _anchor_pair(values) -> tuple:
+    """Якорь запускателя, ГОТОВЫЙ к записи в карточку, либо `()` (ADR-727).
+
+    **Ровно один судья полноты пары на весь файл, и у него теперь ДВА читателя.** Правило
+    «пара пишется только целиком» жило внутри `_set_claim_fields` (`if all(anchor)`), а
+    `claim_card` отчитывался о записи отдельным выражением `bool(self_anchor)` — то есть
+    пересказывал СВОЙ ВХОД вместо того, чтобы померить ИСХОД. Пока обе стороны совпадали,
+    расхождения не было видно; разойтись они могли молча, и поле `anchored` сказало бы
+    «якорь в карточке», когда писатель его не вывел.
+
+    Сосед по той же записи сделан правильно и служит образцом: `worker_run_id` в ответе
+    берётся из `fields.get("claimed_run_id")`, то есть из того, что УШЛО в карточку
+    (ADR-721). Здесь — та же дисциплина для оси ЗАПУСКАТЕЛЯ.
+
+    Пустая компонента пары не есть отказ: `claimed_pid` без старта личностью не является
+    (pid переиспользуется ОС), поэтому пара не пишется, а ответ честно говорит
+    `anchored: false` — это третий исход (инв. #17), а не тихий успех."""
+    pair = tuple(str(values.get(key) or "").strip() for key in CLAIM_ANCHOR_KEYS)
+    return pair if all(pair) else ()
+
+
 def _set_claim_fields(text: str, values) -> str:
     """Проставить/убрать `claimed_by`/`claimed_at` во frontmatter.
 
@@ -1905,8 +1926,8 @@ def _set_claim_fields(text: str, values) -> str:
     # старта) личностью не является — pid переиспользуется ОС, — поэтому одна строка без
     # другой не выводится ни в одной ветке: читатель отличил бы её от третьего исхода, а
     # измерить по ней не смог бы ничего.
-    anchor = [str(values.get(key) or "").strip() for key in CLAIM_ANCHOR_KEYS]
-    if all(anchor):
+    anchor = _anchor_pair(values)
+    if anchor:
         for key, value in zip(CLAIM_ANCHOR_KEYS, anchor):
             # Старт пишется VERBATIM, и внутренние пробелы НЕ сжимаются: `ps lstart`
             # печатает день месяца через `%e`, то есть для дней 1–9 даёт ДВА пробела
@@ -2052,6 +2073,31 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         self_anchor = measure_self_anchor()
     if not self_anchor:
         raise UnmeasurableClaim(_UNMEASURABLE_CLAIM_TEXT.format(session=session, card=card))
+    # КОНТРАКТ ВХОДА — С ОТКАЗОМ, А НЕ С ТИХИМ СБРОСОМ, И ДО ПЕРВОГО ПОСЛЕДСТВИЯ
+    # (ADR-727). `self_anchor` по контракту есть ровно то, что отдаёт `anchor_of`: пара
+    # (pid, «старт verbatim») либо None (а None только что отказал выше). Прежняя
+    # редакция сужала вход МОЛЧА, у самой записи — `isinstance(..., (tuple, list))`
+    # иначе давало `()`, якорь не писался, а ответ всё равно объявлял `anchored: True`.
+    # Вход вне контракта правдоподобен: в ЭТОМ ЖЕ файле якорь живёт и ВТОРОЙ формой —
+    # СЛОВАРЁМ в вокабуляре шага 0a (`card_claim_anchor` → `{"session_pid": …}`), и
+    # передать её сюда значит получить захват без якоря с отчётом «якорь есть». Мутация
+    # сужения переживала весь набор (#869): контракт не проверял никто.
+    #
+    # Место проверки выбрано РАНЬШЕ `gather` и раньше объявления в журнале намеренно:
+    # (а) тот же `self_anchor` идёт в `gather` → `self_identities`, то есть вход вне
+    # контракта успел бы поучаствовать в ВЕРДИКТЕ; (б) отказ после `announce_claim`
+    # оставил бы в общем журнале захват карточки, которой сессия не владеет, — ровно то
+    # состояние, которое компенсирует `_unannounce_claim`. Отказ без последствий
+    # компенсировать нечего.
+    _anchor = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()
+    if len(_anchor) != len(CLAIM_ANCHOR_KEYS):
+        raise ClaimError(
+            f"якорь запускателя передан вне контракта: ожидается пара "
+            f"{list(CLAIM_ANCHOR_KEYS)} в форме `anchor_of` — (pid, «старт verbatim»), "
+            f"получено {type(self_anchor).__name__} длины "
+            f"{len(_anchor) if _anchor else 'нет'}. Карточка НЕ взята: молча выбросить "
+            f"якорь значило бы написать захват, который следующий цикл не сможет "
+            f"измерить ни одной осью, и отчитаться при этом «якорь есть».")
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,
                     self_session=session, now=now, grace_hours=grace_hours, ps=ps,
                     self_anchor=self_anchor, worker=worker)
@@ -2142,9 +2188,8 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         # целиком, см. там же). Второй проверки здесь НЕТ по той же причине, что и в
         # `card_claim_anchor`: два условия об одном маскируют друг друга, и снятие любого
         # перестаёт ловиться (замер мутациями #869).
-        fields.update(dict(zip(CLAIM_ANCHOR_KEYS, (
-            str(value) for value
-            in (self_anchor if isinstance(self_anchor, (tuple, list)) else ())))))
+        # Пара уже проверена контрактом ВЫШЕ (ADR-727) — здесь её только записывают.
+        fields.update(dict(zip(CLAIM_ANCHOR_KEYS, (str(value) for value in _anchor))))
         if lifting:
             # Основание подъёма живёт В КАРТОЧКЕ, а не только в журнале: карточка уезжает
             # на origin, журнал — нет. Без этой строки следующий читатель видит смену
@@ -2155,9 +2200,16 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     finally:
         _release_lock(fd, lock)
     out = {"card": card_id(path), "path": str(path), "claimed_by": session,
-           "claimed_at": _fmt_ts(now), "anchored": bool(self_anchor),
+           "claimed_at": _fmt_ts(now),
+           # `anchored` — ЗАМЕР ТОГО, ЧТО УШЛО В КАРТОЧКУ, а не пересказ входа (ADR-727).
+           # Раньше здесь стояло `bool(self_anchor)`: поле отвечало на вопрос «мне
+           # передали якорь», тогда как читает его тот, кому важно «якорь ДОЕХАЛ до
+           # карточки» — а это решает `_anchor_pair`, один судья на обоих концах.
+           "anchored": bool(_anchor_pair(fields)),
            # Названа ли метка работника — часть ответа, а не украшение: без неё следующий
            # цикл будет судить этот захват по МЁРТВОЙ оси, и об этом надо знать сразу.
+           # Эта половина ответа ИЗМЕРЯЛА запись с самого начала (ADR-721) и служила
+           # образцом для строки выше.
            "worker_run_id": fields.get("claimed_run_id") or None}
     if lifting:
         out["takeover_from"] = sorted(h for h in stale_holders if h)
@@ -2358,7 +2410,10 @@ def main(argv=None) -> int:
             # может: с цикла #387 такой захват НЕ состоится вовсе (`UnmeasurableClaim`).
             # Совет, который печатали вместо отказа, 26.08 не удержал — карточка с настоящей
             # недоставленной работой стала неберущейся навсегда. Поле `anchored` остаётся в
-            # ответе: оно и есть то самое утверждение, только теперь всегда True.
+            # ответе — но с ADR-727 оно отвечает на ДРУГОЙ вопрос, чем когда эта строка
+            # писалась: не «якорь измерен» (это и правда всегда True, иначе был бы отказ),
+            # а «якорь ДОЕХАЛ до frontmatter карточки». Пара, измеренная не целиком, не
+            # пишется — и тогда поле честно False, а не «всегда True».
         else:
             res = release_card(args.card, session=args.session,
                                tracker_dir=args.tracker_dir, force=args.force, log=log)

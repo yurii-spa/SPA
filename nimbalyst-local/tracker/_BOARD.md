@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-15T02:12:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-15T04:10:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (855a440f0).
+> Сверено с `origin/main` (953cd2b62) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1323** · ждёт владельца: **16** · занято сессиями: **14**.
+> Всего карточек: **1324** · ждёт владельца: **16** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -410,7 +410,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (725)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (726)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -499,6 +499,7 @@
 - ADR-076.3: атрибуция кэша обязана назвать лимит цепочки вместо UNEXPLAINED  ·  `inbox-adr-076-3-atributsiya-kesha-obyazana-naz.md` · 2026-08-08
 - Агент может написать owner_choice — ответ владельца подделывается без единого отказа  ·  `inbox-agent-mozhet-napisat-owner-choice-otvet.md` · 2026-08-31
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
+- «anchored» пересказывает вход, а не меряет запись — и у контракта claim_card нет сторожа  ·  `inbox-anchored-pereskazyvaet-vhod-a-ne-meryaet.md` · 2026-10-15
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06

@@ -1,0 +1,76 @@
+{
+  "title": "ADR-727 — дельта цикла #872 (контракт входа якоря + `anchored` как замер записи)",
+  "tests": [
+    "spa_core/tests/test_card_claim_anchored_reports_write.py",
+    "spa_core/tests/test_card_claim_launcher_anchor.py",
+    "spa_core/tests/test_card_claim_guard.py"
+  ],
+  "mutations": [
+    {
+      "name": "судья полноты принимает ПОЛОВИНУ пары",
+      "file": "scripts/check_card_claim.py",
+      "old": "    return pair if all(pair) else ()",
+      "new": "    return pair if any(pair) else ()"
+    },
+    {
+      "name": "контракт входа не проверяется — тихий сброс якоря вернулся",
+      "file": "scripts/check_card_claim.py",
+      "old": "    if len(_anchor) != len(CLAIM_ANCHOR_KEYS):",
+      "new": "    if False:"
+    },
+    {
+      "name": "контракт входа пускает словарь (вторая форма якоря из того же файла)",
+      "file": "scripts/check_card_claim.py",
+      "old": "    _anchor = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()",
+      "new": "    _anchor = tuple(self_anchor) if isinstance(self_anchor, (tuple, list, dict)) else ()"
+    },
+    {
+      "name": "`anchored` снова пересказывает вход",
+      "file": "scripts/check_card_claim.py",
+      "old": "           \"anchored\": bool(_anchor_pair(fields)),",
+      "new": "           \"anchored\": bool(self_anchor),"
+    },
+    {
+      "name": "`anchored` занижает — всегда False",
+      "file": "scripts/check_card_claim.py",
+      "old": "           \"anchored\": bool(_anchor_pair(fields)),",
+      "new": "           \"anchored\": False,"
+    },
+    {
+      "name": "у писателя frontmatter снова СВОЙ экземпляр правила полноты",
+      "file": "scripts/check_card_claim.py",
+      "old": "    anchor = _anchor_pair(values)\n    if anchor:",
+      "new": "    anchor = tuple(str(values.get(key) or \"\").strip() for key in CLAIM_ANCHOR_KEYS)\n    if any(anchor):"
+    },
+    {
+      "name": "проба слепа к двери «вход вне контракта принят молча»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if bad_err is None and not wrote:",
+      "new": "            if False:"
+    },
+    {
+      "name": "проба слепа к завышению `anchored` на неполной паре",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "                if (half_res or {}).get(\"anchored\") is not False:",
+      "new": "                if False:"
+    },
+    {
+      "name": "проба слепа к границе: записанная пара с `anchored != True`",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if ok_res.get(\"anchored\") is not True:",
+      "new": "            if False:"
+    },
+    {
+      "name": "проба не отличает «вокабуляры разошлись» от «чисто»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба не требует записи половины пары в карточку",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "                if any(str(half_fresh.get(k) or \"\").strip()\n                       for k in (pid_field, start_field)):",
+      "new": "                if False:"
+    }
+  ]
+}
