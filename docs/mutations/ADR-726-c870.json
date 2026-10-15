@@ -1,0 +1,171 @@
+{
+  "title": "ADR-726 — дельта цикла #870 (прибор мутационного замера + проба приёмки)",
+  "tests": [
+    "spa_core/tests/test_delta_mutation_run.py",
+    "spa_core/tests/test_delta_mutation_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "прибор: единственность якоря не проверяется — «не применена» исчезает как исход",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            if found != 1:",
+      "new": "            if False:"
+    },
+    {
+      "name": "прибор: кэш байткода не снимается перед подменой",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "                _invalidate_bytecode(real)\n                _write_atomically(real, source.replace(mut.old, mut.new))",
+      "new": "                _write_atomically(real, source.replace(mut.old, mut.new))"
+    },
+    {
+      "name": "прибор: третий исход не доезжает до кода возврата",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if self.by_outcome(NOT_APPLIED) or self.by_outcome(BROKE_COLLECTION):\n            return RC_PARTIALLY_UNMEASURED",
+      "new": "        if False:\n            return RC_PARTIALLY_UNMEASURED"
+    },
+    {
+      "name": "прибор: выжившие не меняют код возврата",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if self.by_outcome(SURVIVED):\n            return RC_MEASURED_SURVIVORS",
+      "new": "        if False:\n            return RC_MEASURED_SURVIVORS"
+    },
+    {
+      "name": "прибор: слепок после прогона не сверяется",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        drifted = [rel for rel in targets if after.get(rel) != before[rel]]",
+      "new": "        drifted = []"
+    },
+    {
+      "name": "прибор: возврат файла в finally снят",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            finally:\n                _write_atomically(real, source)",
+      "new": "            finally:\n                pass"
+    },
+    {
+      "name": "прибор: запрет data/ снят",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if head == \"data\":",
+      "new": "    if False:"
+    },
+    {
+      "name": "прибор: запрет символической ссылки снят",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if os.path.islink(target):",
+      "new": "    if False:"
+    },
+    {
+      "name": "прибор: запрет выхода за дерево снят",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if real != root and not real.startswith(root + os.sep):",
+      "new": "    if False:"
+    },
+    {
+      "name": "прибор: разбор сводки теряет строки ERROR",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "_FAILED_LINE = re.compile(r\"^(?:FAILED|ERROR)\\s+(\\S+)\", re.M)",
+      "new": "_FAILED_LINE = re.compile(r\"^(?:FAILED)\\s+(\\S+)\", re.M)"
+    },
+    {
+      "name": "прибор: вердикт берёт имена БЕЗ разности с контролем шума",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            fresh = tuple(n for n in parse_failures(m_out) if n not in baseline)",
+      "new": "            fresh = parse_failures(m_out)"
+    },
+    {
+      "name": "прибор: пустое население мутаций принимается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not isinstance(raw, list) or not raw:",
+      "new": "    if not isinstance(raw, list):"
+    },
+    {
+      "name": "прибор: якорь, равный подмене, принимается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if item[\"old\"] == item[\"new\"]:",
+      "new": "        if False:"
+    },
+    {
+      "name": "прибор: контроль шума, ничего не судивший, принимается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if rc in _PYTEST_NOTHING_JUDGED:\n        return Report(spec, (), [], unmeasured_reason=(\n            f\"КОНТРОЛЬ ШУМА не собрался",
+      "new": "    if False:\n        return Report(spec, (), [], unmeasured_reason=(\n            f\"КОНТРОЛЬ ШУМА не собрался"
+    },
+    {
+      "name": "прибор: ошибка употребления pytest у контроля шума не ловится",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if rc == _PYTEST_USAGE_ERROR:",
+      "new": "    if False:"
+    },
+    {
+      "name": "прибор: знаменатель «применено» включает неизмеренные",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        return len(self.by_outcome(KILLED)) + len(self.by_outcome(SURVIVED))",
+      "new": "        return len(self.results)"
+    },
+    {
+      "name": "прибор: закрытость перечня исходов не проверяется",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    assert len(report.results) == len(spec.mutations), (",
+      "new": "    assert True, ("
+    },
+    {
+      "name": "прибор: SPA_ENV не закрепляется у подпроцесса",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "PINNED_ENV = {\"SPA_ENV\": \"ci\", \"PYTHONHASHSEED\": \"0\", \"PYTHONDONTWRITEBYTECODE\": \"1\"}",
+      "new": "PINNED_ENV = {\"PYTHONHASHSEED\": \"0\", \"PYTHONDONTWRITEBYTECODE\": \"1\"}"
+    },
+    {
+      "name": "прибор: «сломал сборку» считается убитым",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            if m_rc in _PYTEST_NOTHING_JUDGED:\n                report.results.append(MutationResult(\n                    mut, BROKE_COLLECTION,",
+      "new": "            if m_rc in _PYTEST_NOTHING_JUDGED:\n                report.results.append(MutationResult(\n                    mut, KILLED,"
+    },
+    {
+      "name": "прибор: отсутствие файла мутации не ловится",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not os.path.isfile(real):",
+      "new": "    if False:"
+    },
+    {
+      "name": "прибор: сводка печатает «убито» и при НЕ ИЗМЕРЕНО",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        lines.append(f\"🚫 НЕ ИЗМЕРЕНО — {report.unmeasured_reason}\")\n        return \"\\n\".join(lines)",
+      "new": "        lines.append(f\"🚫 НЕ ИЗМЕРЕНО — {report.unmeasured_reason}\")"
+    },
+    {
+      "name": "проба: нулевой код у мутации без якоря не ловится",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_none == 0:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба: выживший, неотличимый от чистого, не ловится",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_blind == rc_seen:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба: оставленный в дереве мутант не ловится",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if before != after:\n            raise AssertionError(f\"сцена {name}: дерево НЕ восстановлено после прогона\")",
+      "new": "        if False:\n            raise AssertionError(f\"сцена {name}: дерево НЕ восстановлено после прогона\")"
+    },
+    {
+      "name": "проба: нечестный знаменатель не ловится",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if none_doc.get(\"applied\") != 0:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба: незакрытый перечень исходов не ловится",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not isinstance(counts, dict) or sum(\n            v for v in counts.values() if isinstance(v, int)) != 1:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба: отсутствие прибора объявляется НЕ ИЗМЕРЕНО вместо дефекта",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not os.path.exists(tool):\n        return NOT_SATISFIED, (",
+      "new": "    if not os.path.exists(tool):\n        return UNMEASURED, ("
+    }
+  ]
+}

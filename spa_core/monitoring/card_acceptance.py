@@ -7789,6 +7789,136 @@ def _probe_card_claim_carries_the_launcher_anchor(
         f"запускателя — вход сцены")
 
 
+def _probe_delta_mutation_instrument_is_re_measurable(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: прибор мутационного замера ВВЕЗЁН и перемеряем КОМАНДОЙ (#870).
+
+    Предмет — карточка `inbox-pribor-mutatsionnogo-zamera-vybrasyvaets`. Каждый цикл
+    пишет в ADR строку «применено N · убито M · выжило K», а прибор, которым это
+    измерено, до сегодня писался заново и жил в `/tmp`. ЗАМЕР 15.10: одноразовых
+    приборов в `/tmp` — **25** (3790 строк), ввезено в репозиторий — **0**; ADR с
+    заявкой «убито N» — **40**, из них прибор назван ввезённым у **1**, адресом в
+    `/tmp` — у **1** (файла нет), не назван НИКАК — у **38**; открытых карточек, чья
+    приёмка указывает в `/tmp`, — **3**, и адрес разрешается сегодня у **0**.
+
+    **Проба меряет ИСХОД, а не наличие файла.** Она поднимает прибор КОМАНДОЙ (ровно
+    тем способом, которым его позовёт следующий цикл) на ОДНОРАЗОВОМ дереве и смотрит
+    три сцены, у которых правильные ответы РАЗНЫЕ:
+
+    * мутацию, которую батарея видит, прибор обязан объявить измеренной и чистой;
+    * мутацию, которую батарея НЕ видит, — находкой (код возврата иной);
+    * мутацию, чей якорь отсутствует, — НЕ ИЗМЕРЕННОЙ, и это обязано дойти до
+      НЕНУЛЕВОГО кода возврата (инв. #17). Это и есть дефект, которого не было ни у
+      одного из 25 одноразовых приборов: «не применена» печаталась у десяти, а код
+      возврата от неё не зависел НИ У ОДНОГО.
+
+    **Подстрокой проба не проходит (ADR-333):** исходник прибора она не читает вовсе,
+    а вердикт берёт из машинного вывода (`--json`) и сверяет РАЗЛИЧИЕ трёх ответов, а
+    не их словесные ярлыки. Ярлык можно переименовать, различие — нет.
+
+    Отдельным звеном — инертность: файл одноразового дерева после всех трёх прогонов
+    обязан совпасть ПОБАЙТОВО. Мутант, оставшийся в дереве, уже случался
+    (`inbox-ubityi-progon-perepisi-ostavlyaet-mutant`).
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: прибора нет ⇒ `not_satisfied` (это и есть предмет карточки,
+    а не «не измерено»); прибор есть, но pytest/дерево не отвечают ⇒ `unmeasured` с
+    названной причиной; и никогда `satisfied` без всех трёх сцен.
+    """
+    import hashlib as _hl
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = repo_root or REPO_ROOT
+    tool = os.path.join(root, "scripts", "delta_mutation_run.py")
+    if not os.path.exists(tool):
+        return NOT_SATISFIED, (
+            "прибора мутационного замера по дельте нет в дереве "
+            "(scripts/delta_mutation_run.py) — «убито N» из ADR не перемерит никто: "
+            "замер 15.10 — 25 одноразовых приборов в /tmp, в репозитории 0")
+
+    def _scene(tmp: str, name: str, mutations: list[dict]) -> tuple[int, dict, str]:
+        """Одноразовое дерево + спецификация. Возврат: (код, вердикт, слепок файла)."""
+        tree = os.path.join(tmp, name)
+        os.makedirs(os.path.join(tree, "pkg"))
+        os.makedirs(os.path.join(tree, "t"))
+        mod = os.path.join(tree, "pkg", "mod.py")
+        with open(mod, "w", encoding="utf-8") as fh:
+            fh.write("def value():\n    return 1\n")
+        with open(os.path.join(tree, "pkg", "__init__.py"), "w", encoding="utf-8") as fh:
+            fh.write("")
+        with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
+            fh.write("import sys, os\n"
+                     "sys.path.insert(0, os.path.dirname(os.path.dirname("
+                     "os.path.abspath(__file__))))\n"
+                     "from pkg.mod import value\n\n\n"
+                     "def test_value():\n    assert value() == 1\n")
+        spec = os.path.join(tree, "spec.json")
+        with open(spec, "w", encoding="utf-8") as fh:
+            _json.dump({"title": name, "tests": ["t/test_x.py"],
+                        "mutations": mutations}, fh, ensure_ascii=False)
+        before = _hl.sha256(open(mod, "rb").read()).hexdigest()
+        proc = _sp.run([sys.executable, tool, "--spec", spec, "--repo-root", tree,
+                        "--json"], capture_output=True, text=True, timeout=600)
+        after = _hl.sha256(open(mod, "rb").read()).hexdigest()
+        if before != after:
+            raise AssertionError(f"сцена {name}: дерево НЕ восстановлено после прогона")
+        try:
+            verdict = _json.loads(proc.stdout)
+        except ValueError:
+            verdict = {}
+        return proc.returncode, verdict, (proc.stdout + proc.stderr)
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c870_") as tmp:
+            rc_seen, seen, out_seen = _scene(tmp, "видимая", [
+                {"name": "батарея видит", "file": "pkg/mod.py",
+                 "old": "return 1", "new": "return 2"}])
+            rc_blind, blind, out_blind = _scene(tmp, "невидимая", [
+                {"name": "батарея не видит", "file": "pkg/mod.py",
+                 "old": "def value()", "new": "def value(_=0)"}])
+            rc_none, none_doc, out_none = _scene(tmp, "безякоря", [
+                {"name": "якоря нет", "file": "pkg/mod.py",
+                 "old": "ТАКОГО-ЯКОРЯ-НЕТ", "new": "x"}])
+    except AssertionError as exc:
+        return NOT_SATISFIED, str(exc)
+    except Exception as exc:                          # noqa: BLE001
+        return UNMEASURED, (f"сцену прибора не поднять ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    if not seen or not blind or not none_doc:
+        return UNMEASURED, ("прибор не отдал машинного вердикта — измерять нечем "
+                            f"(видимая: {out_seen.strip()[-200:]!r})")
+    if rc_seen != 0:
+        return NOT_SATISFIED, (
+            f"мутация, которую батарея ВИДИТ, не объявлена измеренной и чистой "
+            f"(код {rc_seen}): {out_seen.strip()[-200:]}")
+    if rc_blind == rc_seen:
+        return NOT_SATISFIED, (
+            f"выжившая мутация даёт ТОТ ЖЕ код {rc_blind}, что убитая — находка цикла "
+            f"неотличима от чистого замера")
+    if rc_none == 0:
+        return NOT_SATISFIED, (
+            "мутация, НЕ НАШЕДШАЯ якоря, даёт код 0 — «не измерено» выдаётся за "
+            "«убито» (инв. #17); ровно этот дефект был у всех 25 одноразовых приборов")
+    counts = none_doc.get("counts") or {}
+    if not isinstance(counts, dict) or sum(
+            v for v in counts.values() if isinstance(v, int)) != 1:
+        return NOT_SATISFIED, (
+            f"перечень исходов не ЗАКРЫТ: при населении 1 сумма исходов {counts!r} — "
+            f"мутация исчезла из вердикта либо посчитана дважды")
+    if none_doc.get("applied") != 0:
+        return NOT_SATISFIED, (
+            f"не применённая мутация вошла в знаменатель «применено» "
+            f"({none_doc.get('applied')!r}) — «убито 1 из 1» врёт о том, что измерено")
+    return SATISFIED, (
+        f"прибор ввезён и перемеряем КОМАНДОЙ: видимая мутация → код {rc_seen}, "
+        f"выжившая → {rc_blind}, без якоря → {rc_none} (три РАЗНЫХ ответа); "
+        f"знаменатель честен (применено 0 из населения 1), дерево после каждой сцены "
+        f"побайтово то же")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -7877,6 +8007,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
     "office_hollow_counter_means_harm":
         _probe_office_hollow_counter_means_harm,
+    "delta_mutation_instrument_is_re_measurable":
+        _probe_delta_mutation_instrument_is_re_measurable,
 }
 
 
