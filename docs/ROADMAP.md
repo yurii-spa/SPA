@@ -4,6 +4,10 @@
 > `architecture/memory_truth.json` (ADR-527). Changing the order or adding a top-level item needs the
 > owner's directive and a line in `docs/decisions/` — the roadmap is not edited from chat.
 > Last confirmed by the owner: **2026-10-01** (directive «THREE DEFI PAPER PORTFOLIOS — STRATEGY MECHANICS, OPERATIONS AND WEBSITE»).
+> Latest owner directive: **2026-10-16** «STUDIO-OS-NEXT-01 — next stage of Earn DeFi Studio OS under the ARB plan»
+> (ADR-763, item 17). Status words used below are kept apart: **implemented** (code on `origin/main`) · **published**
+> (live for the owner or the public) · **owner-verified** (the owner checked the result himself) · **ARB-accepted**.
+> An unfinished acceptance is never closed by an agent.
 
 ## Closed epics (accepted by the owner)
 
@@ -77,7 +81,7 @@
     0 wrong; `docs/continuity/acceptance/2026-10-07-fresh-session.md`). Remaining debt: no writer yet for the
     origin/main test-health record (`data/ci/origin_main/`, section shows NOT_MEASURED); shelf `next_publication`
     vs site freshness monitor disagree (10-08 vs 10-12); Sherlock reader falls back to the wall clock on an empty
-    ledger. Next safe action: ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates.
+    ledger. Next safe action: ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates; current execution work is item 17 (STUDIO-OS-NEXT-01, ADR-763).
 12. **PRODUCT-TRUTH-02 · Reproducible publication & public product truth** — infrastructure delivered
     2026-10-07 (ADR-630, `b39ff06e`; independent reviews CLOSED): one product mapping (Conservative / Balanced /
     Aggressive per ADR-OWN-2026-07; Preserve / Core / Max Yield historical names only), one publication cadence
@@ -87,7 +91,7 @@
     PUBLISHED 2026-10-07 by owner decision (one adjustment: unsourced bank ~0.4 % / T-bills ~3.4 % comparison removed):
     pages `0fd8c24e` live and verified page by page; owner-gate fix live — daily snapshot published again under
     ADR-116 (`b53416d3`, 106 days). First typed shelf `site_numbers/2` (measured 2026-10-07, Conservative 4.8943 %
-    REALIZED_PAPER → ~4.8 % shown, ADR-563 floor) waits only for the owner's own signature in the card
+    REALIZED_PAPER → ~4.8 % shown, ADR-563 floor) (history, dated 2026-10-07 — superseded as the public headline by the Wave 2 period return, item 15) waited for the owner's own signature in the card
     `owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c` (agents never record an owner answer, inv. #14); unsigned,
     the regular weekly step builds and asks again on its due date. Remaining debt: «RWA floor ~3.4 %» on /yield-lab,
     /how-we-think and the academy has no source/date (same class, not in the package).
@@ -101,10 +105,84 @@
 14. **PRODUCT-UX-01 · Earn DeFi product experience** — DONE 2026-10-07: published by owner decision (`424479ce`,
     follow-up `625d3261`; change record CR-UX01-001): «Earn DeFi», 6-item IA, 5-block home, identical-row comparison,
     measured-first hierarchy, plain-language risk, one live-capital statement, FAQ without unsourced rates; live
-    pages verified against the canonical shelf (4.8 % = 4.8943 floored, REALIZED_PAPER, measured 2026-10-07) and at
+    pages verified against the canonical shelf (history, dated 2026-10-07: 4.8 % = 4.8943 floored under ADR-563, since replaced by
+    ADR-660 two decimals and the Wave 2 period return, item 15) and at
     375/390/430 px without horizontal scroll. No benchmark introduced (separate future decision). Debt: deep pages
     (FAQ, research desks) still partly internal vocabulary; no public changelog / factsheet.
-15. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+15. **P1 TRUTH & SAFETY RECOVERY · Wave 1 + Wave 2 (site truth)** — published (ADR-660, ADR-661; ARB acceptance not recorded).
+    **Wave 1** (owner-approved 2026-10-08): two-decimal percentages ROUND_HALF_UP + Europe/Madrid owner time (ADR-660,
+    replaces the ADR-563 round-down); public API no longer exposes service names/pids/paths (ADR-661); NAV proof subtracts
+    paid costs; funnel admin shows «not measured since 2026-10-07» instead of zeros — implemented + published `6f0c7a2b8`,
+    `c33b20dad`, `e32ed8b5e`, `bbfcc9724` (API restarted by owner permission). **Wave 2** (owner-approved and signed in
+    Telegram SPA Monitor 2026-10-15 21:40 Madrid, shelf 2026-10-15 sha256 `b276af9f…`): implemented + published `0dc759eb2`;
+    17 public claims corrected (register `W2_P1_REGISTER.md` of the 15.10 handover). **One return methodology** for site,
+    API, cockpit and Telegram: `spa_core/paper_trading/track_period_return.py` + `spa_core/reporting/compound_apy.track_period_view`
+    — primary metric = paper period return (as of 2026-10-15: +1.51 % for 22.06–15.10.2026, NAV $100,150.66 → $101,662.57),
+    secondary «estimated annual equivalent» 4.87 % ACT/365 labelled «estimate, not a forecast»; Oracle's per-day APY
+    (`defi_engine/apy_contract.py`) unchanged and labelled «different method». Verified by the agent live (11 pages × 2
+    locales); owner-verified: publication signed; post-publication check by the owner not recorded. Remaining debt: track
+    history not declared proven (`anchor_coverage` not measured, `allocation_policy_bounds` has no writer, `schema_sanity`
+    fails on 87 old `*.tmp` in `data/`); P2/P3 site residue (brand «SPA», 2.00 % dashboard level not from the constitution,
+    «35 adapters» vs registry 36, BTC-engine pages owned by the earn-defi repo); next weekly shelf 2026-10-22 needs a new
+    signature if its content changes.
+16. **DIRECTOR-OS-UX-02…04 · owner cockpit on the owner's mockup + voice intake** — published 2026-10-15, **awaiting ARB**
+    (cards `inbox-pult-ux-02-b…e` stay `in-progress` until ARB closes them; card A `new`). Implemented + published
+    `2df987cec` (owner-approved): five sections on the owner's «SPA Director OS» mockup, dark only, «в разработке» with a
+    reason where data is missing, deterministic `spa_core/studio_os/owner_view.py` over Company Truth (ADR-762 part 1).
+    **Voice / text intake** (ADR-760, Accepted 2026-10-15): implemented + published `a3e3b38c6` + iPhone fix `fd2650660` —
+    the cockpit's only write action, a new inbox card. Owner-verified 2026-10-15: Access login, microphone, transcription;
+    **not yet verified: a real «Отправить» from the iPhone**, keyboard at phone width, VoiceOver. **ADR-690 → ADR-762**:
+    the cockpit ADR was renumbered at release (number collision; `ADR-690` belongs to an unrelated ADR); ADR-762 stays
+    **proposed** — its version-bound confirmation part (full decision object, `decision_version`, compare-and-swap, one
+    answer per version) is not implemented and changes the confirmation mechanism, so it needs a separate owner decision.
+17. **STUDIO-OS-NEXT-01 · next stage of Studio OS under the ARB plan** — in progress (owner directive 2026-10-16, ADR-763).
+    Packages in order: (1) this roadmap + the 34-item reconciliation below; (2) Mac resources and cockpit build speed
+    (`findings_bridge` ~5 GB RSS and swap 92.9 % before the 2026-10-15 reboot, `mission_build` 17–22 min, stale
+    `director_*` names in `architecture/resource_policy.json`, RAM/swap/disk told apart in alerts); (3) backup coverage
+    table, gaps closed in a candidate with a restore drill, then a PREPARED (not executed) decision to retire
+    `com.spa.weekly_backup` with rollback; (4) voice path to exactly one card and a plain status for the owner,
+    re-send and connection failure; (5) ADR-762 version-bound confirmation in a separate candidate (not wired into the
+    live confirmation mechanism), then package value history, plain reasons for warnings, read-only check buttons,
+    financial evidence. Real capital $0; no limit or tolerance changes; no new markets; nothing deleted.
+18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+
+## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
+
+Source: `ROADMAP_ITEMS_FOR_ARCHITECT_2026-10-15.md` (15.10 handover attachment, outside the repo). This section is
+part of THIS roadmap, not a second one; it adds no cards. Owner = who decides; «agent» = Claude Code executor;
+acceptance is a machine check where one exists. Priority В/С/Н as in the source. Note: the source's item 1 and 4
+cite «п. 31 (история трека)» — it means item 32; item 31 is VoiceOver.
+
+**Done (no new work):** 10 = duplicate of 29 (one methodology, `track_period_view`, released `0dc759eb2`) · 28 Wave 2
+published `0dc759eb2` (remaining residue moved to item 15 debt) · 29 one methodology done (Oracle's own method stays
+separate and labelled; aligning it is an optional owner decision, Н).
+
+**Duplicates (tracked under their twin):** 22 → 2 · 14 → 30 · 10 → 29.
+
+| # | Item | Status | Depends on | Owner | Acceptance | Next step |
+|---|---|---|---|---|---|---|
+| 23 | Voice intake, first real iPhone send | published, not owner-verified | — | owner (test) / agent | one card per send, visible status in the cockpit | STUDIO-OS-NEXT-01 package 4: phone script |
+| 24 | Who processes `cockpit-voice` cards, feedback | not built | 23 | agent | card leaves `new` with a reason; owner sees the outcome | package 4 |
+| 25 | Long/English voice, retry when Mac busy | not built | 24 | agent | retry keeps the text; no duplicate card | package 4 (re-send/failure only) |
+| 30 / 14 | ADR-762 version-bound answer; answer from cockpit | proposed | owner decision | owner (mechanism) / agent (candidate) | candidate: CAS under one lock, replay-safe, journal + recovery, kill-switch for writes | package 5 candidate, not wired live |
+| 16 | «Проверить ещё раз» (read-only) then «Исправить» | not decided | ADR-760 pattern | owner per action | one ADR per action; read-only first | package 5 after ADR-762 candidate |
+| 32 | Package value history by day | no data in canon | — | agent | `capital.package_values` series with measured_at, read-only from `data/defi_engine/` | package 5 |
+| 1 | Week balance tile | no data | 32 | agent | tile = value − value 7 d ago with both dates | after 32 |
+| 4 | Combined annual figure | too early (owner: wait until all packages have 30 days) | 32, ~2026-11-01 | owner | rule in `owner_view` | after 32 + 30 days |
+| 11 | Package costs measured, not modelled | no data | — | agent | journal of simulated actual costs | package 5 «financial evidence» |
+| 17 | Health tile beyond 5 groups; plain warning reasons | not built | — | agent | every warning has a plain reason + source | package 5 «plain reasons» |
+| 5 | Infrastructure plan (Mac resources, costs) | partial | package 2 | agent | RAM / swap / disk / top consumers with times | package 2 feeds it |
+| 27 | Restart long-lived agents after delivery | partial (named, not restarted) | — | owner (restarts) | procedure with owner confirmation | later |
+| 15 | Off-subject owner questions in the queue | queue defect (ADR-285) | — | agent | `needs-owner` holds only the three subjects | later |
+| 20 | Agents section (read-only) | not built, data exists | — | agent | section over `agent_health` | later |
+| 19 | Throughput («Мощность») | no data | — | agent | cycles/cards/closures per day from the journal | later |
+| 12 / 13 | Strategy readiness stages; Trading screen | not built | ADR for criteria | owner (criteria) / agent | readiness criterion ADR; screen | later |
+| 6 | Live «what is happening now» lines | no data | — | agent | last action per agent with time | later |
+| 3 | Claude load tile | no data, «100 %» undefined | — | owner (definition) | source + definition | later |
+| 2 | Product progress tile | no data | machine status per roadmap item | agent | each item has a probe | later |
+| 9 | Real money | owner subject №1 | GoLive, legal | owner | — | not in scope |
+| 26 | Cockpit without the Mac | not decided | — | owner | — | later |
+| 7, 8, 18, 21, 31, 33, 34 | Search · notifications in cockpit · incident history · repositories · VoiceOver · policies · company memory section | low priority (Н) | — | owner (8, 31, 33) / agent | — | later |
 
 ## Standing constraints
 

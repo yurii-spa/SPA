@@ -13,7 +13,7 @@
 - **why_it_matters:** the owner must see what works, what does not and what needs his decision without reading code; several cockpits had drifted apart (ADR-592 «Supersedes (presentation only)»: Director OS `:8788`, Studio Shell `:8778`, dashboard `:8767`).
 - **first_known_evidence:** docs/decisions/ADR-492-studio-os-hybrid-shell-cockpit.md (Studio OS hybrid shell cockpit); ADR-552 lists «ADR-469 / ADR-492 / ADR-493 (Director OS …)», but `docs/decisions/ADR-469-*` is an unrelated census ADR — that citation is a number collision, so the earliest Director OS decision file is UNKNOWN.
 - **current_implementation:** Mission Control evolved in place = Director OS v2 (`spa_core/studio_os/mission_control.py` + Company Truth computed on read); desktop `127.0.0.1:8790`, phone `https://mc.earn-defi.com` behind Cloudflare Access.
-- **current_status:** DELIVERED (ADR-592, 2026-10-06); owner iPhone acceptance through Cloudflare Access NOT YET done by the owner.
+- **current_status:** DELIVERED (ADR-592, 2026-10-06); new cockpit on the owner's mockup published 2026-10-15 (`2df987cec`, docs/ROADMAP.md item 16), awaiting ARB; owner opened it on the iPhone through Cloudflare Access on 2026-10-15 (login, microphone, transcription — 15.10 handover); a real voice «Отправить» from the iPhone NOT YET done.
 - **known_gaps:** owner-facing reasons are plain Russian since 2026-10-07 (ADR-612; technical evidence behind «Технические подробности»), owner card titles are still as written; retired cockpits' LaunchAgents unloading is an owner action (ADR-592).
 - **relevant_decisions:** ADR-552, ADR-592, ADR-580, ADR-612
 - **superseded_implementations:** Director OS web cockpit `:8788`; Studio Shell `:8778` (ADR-492); repo dashboard `:8767` — presentation superseded by ADR-592.
@@ -161,3 +161,14 @@
 - **relevant_decisions:** ADR-660, ADR-563, ADR-285
 - **superseded_implementations:** ADR-563 presentation-only round-down (`floorTo`, `floor_pct` for display); per-module `"%.Nf"` percentage formatting in Director OS / Telegram; «HH:MM UTC» owner-facing timestamps.
 - **last_verified:** 2026-10-08
+
+## INT-15 · STUDIO-OS-NEXT-01 — next stage under the ARB plan
+- **owner_intent:** «выполнить следующий этап улучшений Earn DeFi Studio OS по плану ARB … Не останавливаться после одного аудита: переходить к обоснованным исправлениям и проверке результата» — roadmap first, then Mac resources and cockpit speed, backup coverage, voice tasks, ADR-762 in a separate candidate (ADR-763).
+- **why_it_matters:** the roadmap had not recorded the 08–15.10 releases; before the 2026-10-15 reboot swap was 92.9 % with one process at ~5 GB, cockpit builds took 17–22 min, the weekly backup was loaded and failing, and the iPhone voice send was never tested.
+- **first_known_evidence:** docs/decisions/ADR-763-studio-os-next-stage-owner-directive-2026-10-16.md
+- **current_implementation:** docs/ROADMAP.md item 17 + «Director OS backlog» section (34 items reconciled, no new cards).
+- **current_status:** IN PROGRESS (docs/ROADMAP.md item 17).
+- **known_gaps:** packages 2–5 not delivered yet; retirement of `com.spa.weekly_backup`, service restarts and wiring ADR-762 into the live confirmation mechanism wait for the owner's existing permissions.
+- **relevant_decisions:** ADR-763, ADR-762, ADR-760, ADR-611
+- **superseded_implementations:** none.
+- **last_verified:** 2026-10-16
