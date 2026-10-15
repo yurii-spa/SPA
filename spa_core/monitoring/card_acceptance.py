@@ -8328,6 +8328,211 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
         f"`release_card` пара ⇒ {pair_release} · `None` ⇒ {none_release!r} · словарь ⇒ "
         f"{dict_release!r}. Литерала отказа у пробы нет — судит РАЗНИЦА исходов (ADR-333)")
 
+def _probe_delivery_door_refuses_card_section_loss(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: дверь доставки отказывает доставке, стирающей РАЗДЕЛЫ карточки.
+
+    Предмет — находка цикла #874 и ADR-729, заказ G728. Сторож записей цикла
+    (#858, ADR-714) закрыл карточки-ТЕТРАДИ: его единица смысла — запись цикла,
+    и тождество у неё НОМЕР. Замер 15.10 поправил заказ в двух местах сразу:
+    сторож на названном файле ЕСТЬ и ОТКАЗЫВАЕТ (заказ утверждал обратное), но
+    его единица смысла живёт у ДВУХ карточек из 103, у которых живая копия
+    короче origin, — на 101 он молчит по построению.
+
+    По всей истории трекера (157 пар, где карточка существовала и в родителе;
+    производная доска исключена) доставка стирала разделы в 14 парах, из них
+    СЕМЬ — настоящая потеря, и прежняя мера видела ОДНУ из семи. Шесть молчащих —
+    карточки ВЛАДЕЛЬЦА, коммит ``2427751a6`` (07.10), и содержимого их на origin
+    нет по сей день.
+
+    **Меряется ИСХОД У ДВЕРИ** на настоящей паре байт той потери, а не наличие
+    функции: проба зовёт ``push_to_github.guard_content_loss``.
+
+    **Предпосылка проверяется и в ОБРАТНУЮ сторону:** если прежняя мера (запись
+    цикла) на этой же сцене уже отказывает, сцена ничего нового не измеряет ⇒
+    ``unmeasured``. Зелёный обязан означать «виден НОВЫЙ класс», а не «виден
+    хоть какой-то».
+
+    **Три обратные стороны внутри самой пробы** (сторож, говорящий «нет» всему,
+    пробу бы удовлетворил):
+
+    * чистое ДОПИСЫВАНИЕ к той же карточке — дверь обязана молчать;
+    * переписанный ЗАГОЛОВОК при ВЫРОСШЕЙ карточке (форма, измеренная в истории
+      7 раз, 5 из них на стоячем приказе) — дверь обязана НЕ отказать, но
+      НАЗВАТЬ: отказ здесь означал бы `--allow-overwrite` каждый цикл, то есть
+      лазейку под рукой, а молчание — потерю, выданную за чистоту (инв. #17);
+    * производная доска ``_BOARD.md`` при той же паре — дверь обязана молчать:
+      в её заголовках стои́т живой счётчик, и тождество нестабильно по
+      построению.
+
+    **Источник пары НАЗВАН** (инв. #17): история git, иначе фикстуры батареи;
+    зелёный на фикстуре не должен читаться как зелёный на истории.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: пушер не ввезён / пары байт нет ни в истории, ни в
+    фикстурах / в паре нет той самой потери либо её видит прежняя мера ⇒
+    ``unmeasured`` с названной причиной, и никогда ``satisfied``.
+    """
+    import importlib.util as _ilu
+    import subprocess as _sp
+
+    root = repo_root or REPO_ROOT
+    pusher_path = os.path.join(root, "push_to_github.py")
+    if not os.path.exists(pusher_path):
+        return UNMEASURED, f"{pusher_path} не найден — дверь доставки НЕ ИЗМЕРЕНА"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_pusher_c874", pusher_path)
+        pusher = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(pusher)
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"пушер не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    #: Спрашивается РОВНО то, без чего не измерить ИСХОД У ДВЕРИ. Меру разделов
+    #: (`CARD_SECTION_RE`) в этот список класть НЕЛЬЗЯ: на чистой вершине её нет
+    #: ПО ОПРЕДЕЛЕНИЮ, и проба объявила бы «не измерено» там, где дефект
+    #: измеряется прямо — дверь зовётся и потерю ПРОПУСКАЕТ. Это ровно подмена,
+    #: против которой написан инв. #17 (урок цикла #465).
+    for attr in ("guard_content_loss", "CYCLE_RECORD_RE", "classify_missing_entries"):
+        if not hasattr(pusher, attr):
+            return UNMEASURED, (f"у пушера нет {attr!r} — исход у двери НЕ ИЗМЕРИТЬ")
+
+    card = ("nimbalyst-local/tracker/"
+            "owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2.md")
+    incident = "2427751a6"
+    before = after = None
+    source = ""
+    try:
+        r0 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}^:{card}"],
+                     capture_output=True, timeout=30)
+        r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
+                     capture_output=True, timeout=30)
+        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+            before, after, source = r0.stdout, r1.stdout, "история git"
+    except Exception:                               # noqa: BLE001 — источник не единственный
+        before = after = None
+    if before is None:
+        fix = os.path.join(root, "spa_core", "tests", "fixtures", "card_section_loss")
+        try:
+            with open(os.path.join(fix, f"owner_{incident}_before.md"), "rb") as fh:
+                before = fh.read()
+            with open(os.path.join(fix, f"owner_{incident}_after.md"), "rb") as fh:
+                after = fh.read()
+            source = "фикстуры батареи (истории git нет — глубина клона)"
+        except OSError as exc:
+            return UNMEASURED, (f"пары байт потери {incident} нет ни в истории git, ни в "
+                                f"фикстурах ({exc}) — отказ двери НЕ ИЗМЕРЕН")
+
+    # Предпосылка №1: пара и правда укорачивает карточку. Число РАЗДЕЛОВ мерится
+    # мерой ПУШЕРА, если она у него есть; её отсутствие — это не «не измерено», а
+    # предмет самой пробы, и вердикт о нём выносится ниже, у двери.
+    has_measure = hasattr(pusher, "CARD_SECTION_RE")
+    lost = []
+    if has_measure:
+        lost, _renamed = pusher.classify_missing_entries(before, after,
+                                                         pusher.CARD_SECTION_RE)
+    delta = after.count(b"\n") - before.count(b"\n")
+    if delta >= 0 or (has_measure and len(lost) != 4):
+        return UNMEASURED, (f"в паре байт {incident} пропало {len(lost)} раздел(ов) при "
+                            f"{delta:+d} строк(и) — потеря 07.10 была на 4 разделах и "
+                            f"-75 строках; предпосылка пробы НЕ ОБЕСПЕЧЕНА "
+                            f"(источник {source})")
+    # Предпосылка №2 (обратная сторона предпосылки): прежняя мера эту сцену НЕ видит.
+    # Иначе зелёный говорил бы «класс виден», не отвечая, НОВОЙ ли мерой.
+    old_lost, _ = pusher.classify_missing_entries(before, after, pusher.CYCLE_RECORD_RE)
+    if old_lost:
+        return UNMEASURED, (f"сцену {incident} видит и ПРЕЖНЯЯ мера (записей цикла "
+                            f"пропало {len(old_lost)}) — новый класс на ней НЕ ИЗМЕРИТЬ "
+                            f"(источник {source})")
+
+    try:
+        note = pusher.guard_content_loss(card, before, after, f"{incident}aa")
+        measure = ("мера разделов у пушера ЕСТЬ" if has_measure
+                   else "меры разделов у пушера НЕТ ВОВСЕ")
+        return NOT_SATISFIED, (f"дверь доставки ПРОПУСКАЕТ потерю разделов карточки "
+                               f"ВЛАДЕЛЬЦА при {delta:+d} строк(и) — {measure} "
+                               f"(нота: {note or 'пусто'}; источник {source})")
+    except Exception as exc:                        # noqa: BLE001 — разбираем ниже
+        #: ОТКАЗ и ПОЛОМКА — разные исходы, и смешать их значило бы зачесть
+        #: падение двери за её защиту. Класс отказов у пушера объявлен
+        #: (`DivergenceRefused`); всё прочее — дверь УПАЛА, ничего не рассудив.
+        refusal_class = getattr(pusher, "DivergenceRefused", None)
+        if refusal_class is None or not isinstance(exc, refusal_class):
+            return NOT_SATISFIED, (f"дверь УПАЛА, а не отказала "
+                                   f"({type(exc).__name__}: {str(exc)[:160]}) — "
+                                   f"поломка защитой не является (источник {source})")
+        refused = str(exc)
+    if not has_measure:
+        return NOT_SATISFIED, (f"дверь отказала, но меры РАЗДЕЛОВ у пушера нет — отказ "
+                               f"пришёл от другого сторожа, и класс {incident} закрыт не "
+                               f"им: {refused[:200]}")
+    if not hasattr(pusher, "GENERATED_TRACKER_DOCS"):
+        return NOT_SATISFIED, ("у пушера нет перечня производных индексов трекера — "
+                               "исключение доски объявлено НИГДЕ, и отказ наступал бы на "
+                               "каждой её перегенерации")
+    #: Имя пропавшего раздела берётся ИЗ ЗАМЕРА, а не литералом (ADR-333).
+    named = lost[0].decode("utf-8", "replace").lstrip("# ").strip()[:40]
+    if named not in refused:
+        return NOT_SATISFIED, (f"дверь отказала, но НЕ НАЗВАЛА пропавшие разделы "
+                               f"(ожидался «{named}») — по такому отказу не рассудить, "
+                               f"потеря это или переименование (источник {source})")
+
+    # Обратная сторона 1: чистое дописывание дверь обязана пропустить.
+    appended = before + "\n## Дописанный раздел\n\nтело\n".encode("utf-8")
+    try:
+        back = pusher.guard_content_loss(card, before, appended, f"{incident}aa")
+    except Exception as exc:                        # noqa: BLE001
+        return NOT_SATISFIED, (f"дверь отказывает и ЧИСТОМУ ДОПИСЫВАНИЮ "
+                               f"({type(exc).__name__}: {str(exc)[:160]}) — сторож, "
+                               f"который говорит «нет» всему, не отличает потерю от работы")
+    if back:
+        return NOT_SATISFIED, f"на чистом дописывании дверь не молчит: {back[:200]}"
+
+    # Обратная сторона 2: переписанный заголовок при ВЫРОСШЕМ файле — нота, не отказ.
+    # Тело тоже меняется: иначе это распознаётся как переименование, а в истории
+    # менялись И заголовок, И тело (`### Что осталось по ТЗ (обновлено циклом #820)`).
+    head = lost[0]
+    #: Меняются И заголовок, И тело — ровно форма истории: `### Что осталось по ТЗ
+    #: (обновлено этим циклом)` → `(обновлено циклом #820)` с новым перечнем внутри.
+    #: Если бы тело совпало побайтово, сцена ушла бы в ветку переименования и о
+    #: ветке «пропал, но файл вырос» не сказала бы ничего.
+    grown = before.replace(
+        head,
+        head + " (обновлено циклом #874)".encode("utf-8")
+        + "\n\nпереписанное тело раздела\n".encode("utf-8"), 1)
+    grown = grown + ("дописанное тело\n" * 30).encode("utf-8")
+    try:
+        rewritten = pusher.guard_content_loss(card, before, grown, f"{incident}aa")
+    except Exception as exc:                        # noqa: BLE001
+        return NOT_SATISFIED, (f"дверь ОТКАЗЫВАЕТ переписанному заголовку при выросшей "
+                               f"карточке ({type(exc).__name__}: {str(exc)[:160]}) — в "
+                               f"истории это 7 случаев из 14, пять из них на стоячем "
+                               f"приказе: такой отказ означает `--allow-overwrite` "
+                               f"каждый цикл, то есть лазейку под рукой")
+    if not rewritten.strip():
+        return NOT_SATISFIED, ("переписанный заголовок при выросшей карточке дверь "
+                               "ПРОМОЛЧАЛА — «не блокирует» не значит «не называть» "
+                               "(инв. #17)")
+
+    # Обратная сторона 3: производная доска — не тетрадь, памяти своей не имеет.
+    board = ("nimbalyst-local/tracker/"
+             + tuple(pusher.GENERATED_TRACKER_DOCS)[0])
+    try:
+        board_note = pusher.guard_content_loss(board, before, after, f"{incident}aa")
+    except Exception as exc:                        # noqa: BLE001
+        return NOT_SATISFIED, (f"дверь ОТКАЗЫВАЕТ производной доске {board} "
+                               f"({type(exc).__name__}) — её заголовки несут живой "
+                               f"счётчик, и отказ наступал бы на каждой перегенерации")
+    if board_note.strip():
+        return NOT_SATISFIED, (f"производная доска не исключена: дверь о ней говорит "
+                               f"{board_note[:160]}")
+
+    return SATISFIED, (f"дверь ОТКАЗЫВАЕТ доставке, стирающей {len(lost)} разделов "
+                       f"карточки владельца при {delta:+d} строк(и) (разделы названы "
+                       f"поимённо), и МОЛЧИТ на дописывании и на производной доске; "
+                       f"переписанный заголовок при выросшей карточке НАЗЫВАЕТ, но не "
+                       f"блокирует. Прежняя мера (записи цикла) на этой сцене молчит — "
+                       f"класс измерен НОВОЙ мерой. Источник пары — {source}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -8384,6 +8589,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_journal_reader_census_verdict_under_injected_clock,
     "delivery_door_refuses_cycle_record_loss":
         _probe_delivery_door_refuses_cycle_record_loss,
+    "delivery_door_refuses_card_section_loss":
+        _probe_delivery_door_refuses_card_section_loss,
     "drift_names_direction_of_record_loss":
         _probe_drift_names_direction_of_record_loss,
     "queue_reader_names_record_memory_loss":

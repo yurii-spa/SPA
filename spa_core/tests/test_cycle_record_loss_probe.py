@@ -62,6 +62,23 @@ class Scene:
         assert text.count(old) == 1, f"звено «{where}»: якорь не единственный"
         self.pusher.write_text(text.replace(old, new, 1), encoding="utf-8")
 
+    def mute_section_guard(self) -> None:
+        """Погасить ВТОРУЮ единицу смысла карточки (разделы, ADR-729).
+
+        После #874 ту же пару байт аварии 08.10 держат ДВЕ проверки: записи
+        цикла и разделы. Тест, который мерит ПЕРВУЮ, обязан гасить вторую —
+        иначе отказ приходит от соседа, звено остаётся ненаблюдаемым, и проба
+        «зелена» не потому, что проверка цела (урок цикла #873 о сцене, где
+        граница заявлена, но не наблюдаема).
+        """
+        self.break_link(
+            '    if allow_overwrite or not is_tracker_card(repo_path):\n'
+            '        return ""\n'
+            "    if is_generated_tracker_doc(repo_path):",
+            '    if True:\n        return ""\n'
+            "    if is_generated_tracker_doc(repo_path):",
+            "вторая единица смысла (разделы) погашена намеренно")
+
     def close(self):
         shutil.rmtree(self.dir, ignore_errors=True)
 
@@ -98,15 +115,22 @@ class EachBrokenLinkIsRed(unittest.TestCase):
     def test_door_does_not_call_the_guard(self):
         scene = Scene()
         self.addCleanup(scene.close)
+        scene.mute_section_guard()
+        # ⚠️ ИНВ. #16, намеренная правка чужого теста (цикл #874, ADR-729).
+        # Якорь обновлён: в списке диспетчера за вызовом цикловой записи теперь
+        # стои́т ВТОРОЙ вызов (разделы карточки), поэтому прежний хвост `)]`
+        # у этой строки больше не стои́т. Разрыв и утверждение те же — дверь
+        # перестаёт звать проверку ЗАПИСЕЙ ЦИКЛА.
         scene.break_link(
             "             guard_cycle_record_loss(repo_path, remote_bytes, content_bytes,\n"
-            "                                     remote_sha, allow_overwrite=allow_overwrite)]",
-            "             ]", "дверь не зовёт проверку")
+            "                                     remote_sha, allow_overwrite=allow_overwrite),",
+            "            ", "дверь не зовёт проверку")
         self._red(scene, "ПРОПУСКАЕТ", "дверь не зовёт проверку")
 
     def test_guard_stays_silent_instead_of_refusing(self):
         scene = Scene()
         self.addCleanup(scene.close)
+        scene.mute_section_guard()
         scene.break_link(
             "    raise CycleRecordLossRefused(\n"
             '        f"{repo_path}: пуш стёр бы {len(nums)} запис(ь/и) ЦИКЛА',
@@ -133,8 +157,13 @@ class EachBrokenLinkIsRed(unittest.TestCase):
     def test_refusal_does_not_name_the_records(self):
         scene = Scene()
         self.addCleanup(scene.close)
+        # ⚠️ ИНВ. #16 (цикл #874): та же строка печаталась и у сторожа разделов,
+        # поэтому якорь перестал быть единственным. У разделов она теперь
+        # `  ! разделы: …`, и этот якорь снова указывает РОВНО на запись цикла.
         scene.break_link(
-            '        f"  ! {shown}{more}\\n"',
+            '        f"  ! {shown}{more}\\n"\n'
+            '        f"  + появилось взамен: {new_named}\\n"\n'
+            '        f"  объём файла: {delta:+d} строк(и) НЕТТО к remote.\\n"',
             '        f"  ! (записи не называем)\\n"',
             "отказ не называет записи")
         self._red(scene, "НЕ НАЗВАЛА", "отказ не называет записи")
@@ -167,6 +196,7 @@ class NotBySubstring(unittest.TestCase):
         self.addCleanup(scene.close)
         (Path(scene.dir) / "DECOY.md").write_text(
             "дверь ОТКАЗЫВАЕТ доставке, стирающей 56 записей цикла\n", encoding="utf-8")
+        scene.mute_section_guard()
         scene.break_link(
             "    raise CycleRecordLossRefused(\n"
             '        f"{repo_path}: пуш стёр бы {len(nums)} запис(ь/и) ЦИКЛА',

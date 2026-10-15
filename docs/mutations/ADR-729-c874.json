@@ -1,0 +1,94 @@
+{
+  "title": "ADR-729 — дельта цикла #874 (раздел карточки как вторая единица смысла у двери доставки)",
+  "tests": [
+    "spa_core/tests/test_card_section_loss_probe.py",
+    "spa_core/tests/test_card_section_loss_guard.py",
+    "spa_core/tests/test_cycle_record_loss_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь не зовёт сторожа разделов — сторож есть, но его нет",
+      "file": "push_to_github.py",
+      "old": "             guard_card_section_loss(repo_path, remote_bytes, content_bytes,\n                                     remote_sha, allow_overwrite=allow_overwrite)]",
+      "new": "             ]"
+    },
+    {
+      "name": "сторож молчит вместо отказа (fail-OPEN)",
+      "file": "push_to_github.py",
+      "old": "    raise CardSectionLossRefused(\n        f\"{repo_path}: пуш стёр бы {len(lost)} раздел(ов) карточки",
+      "new": "    return \"\" if True else RuntimeError(\n        f\"{repo_path}: пуш стёр бы {len(lost)} раздел(ов) карточки"
+    },
+    {
+      "name": "ВТОРАЯ улика не спрашивается — отказ и на выросшей карточке (лазейка каждый цикл)",
+      "file": "push_to_github.py",
+      "old": "    if delta >= 0:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "исход «раздел пропал, но карточка выросла» ЗАМОЛЧАН вместо названного",
+      "file": "push_to_github.py",
+      "old": "        return (f\"🔎 {repo_path}: разделов с remote (sha {remote_sha[:8]}) не найдено в \"",
+      "new": "        return \"\" if True else (f\"🔎 {repo_path}: разделов не найдено в \""
+    },
+    {
+      "name": "отказ НЕ НАЗЫВАЕТ пропавшие разделы — потерю от переименования не рассудить",
+      "file": "push_to_github.py",
+      "old": "        f\"  ! разделы: {shown}{more}\\n\"\n        f\"  + появилось взамен: {new_named}\\n\"\n        f\"Так 07.10 `2427751a6` унёс разделы с ШЕСТИ карточек ВЛАДЕЛЬЦА (у \"",
+      "new": "        f\"  ! (разделы не называем)\\n\"\n        f\"Так 07.10 `2427751a6` унёс разделы с ШЕСТИ карточек ВЛАДЕЛЬЦА (у \""
+    },
+    {
+      "name": "производная доска НЕ исключена — отказ на каждой её перегенерации",
+      "file": "push_to_github.py",
+      "old": "    if is_generated_tracker_doc(repo_path):\n        return \"\"                        # производный индекс",
+      "new": "    if False:\n        return \"\"                        # производный индекс"
+    },
+    {
+      "name": "перечень производных индексов переименован — исключение объявлено нигде",
+      "file": "push_to_github.py",
+      "old": "GENERATED_TRACKER_DOCS = (\"_BOARD.md\",)",
+      "new": "_GENERATED_TRACKER_DOCS_RENAMED = (\"_BOARD.md\",)"
+    },
+    {
+      "name": "мера разделов сужена до `###`/`####` — разделы `##` перестают быть единицей",
+      "file": "push_to_github.py",
+      "old": "CARD_SECTION_RE = re.compile(rb\"^#{2,4}[ \\t]+\\S.*$\", re.M)",
+      "new": "CARD_SECTION_RE = re.compile(rb\"^#{3,4}[ \\t]+\\S.*$\", re.M)"
+    },
+    {
+      "name": "`allow_overwrite` не снимает проверку — осознанного обхода больше нет",
+      "file": "push_to_github.py",
+      "old": "    if allow_overwrite or not is_tracker_card(repo_path):\n        return \"\"\n    if is_generated_tracker_doc(repo_path):",
+      "new": "    if not is_tracker_card(repo_path):\n        return \"\"\n    if is_generated_tracker_doc(repo_path):"
+    },
+    {
+      "name": "«файла на remote нет» перестаёт быть «терять нечего»",
+      "file": "push_to_github.py",
+      "old": "    if remote_sha is None:\n        return \"\"                        # файла на remote нет — терять нечего",
+      "new": "    if False:\n        return \"\"                        # файла на remote нет — терять нечего"
+    },
+    {
+      "name": "переименование раздела замолчано (тело совпало побайтово — а сказать надо)",
+      "file": "push_to_github.py",
+      "old": "        if not renamed:\n            return \"\"",
+      "new": "        if True:\n            return \"\""
+    },
+    {
+      "name": "проба не проверяет, молчит ли ПРЕЖНЯЯ мера — зелёный за чужой класс",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    old_lost, _ = pusher.classify_missing_entries(before, after, pusher.CYCLE_RECORD_RE)\n    if old_lost:",
+      "new": "    old_lost, _ = pusher.classify_missing_entries(before, after, pusher.CYCLE_RECORD_RE)\n    if False:"
+    },
+    {
+      "name": "проба считает ПОЛОМКУ двери её отказом",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if refusal_class is None or not isinstance(exc, refusal_class):",
+      "new": "        if False:"
+    },
+    {
+      "name": "проба не спрашивает обратную сторону «чистое дописывание»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if back:\n        return NOT_SATISFIED, f\"на чистом дописывании дверь не молчит: {back[:200]}\"",
+      "new": "    if False:\n        return NOT_SATISFIED, f\"на чистом дописывании дверь не молчит: {back[:200]}\""
+    }
+  ]
+}
