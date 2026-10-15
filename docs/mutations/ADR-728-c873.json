@@ -19,10 +19,10 @@
       "new": "    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list, dict)) else ()"
     },
     {
-      "name": "судья не отдаёт вход обратно — читатель получает None вместо пары",
+      "name": "судья ПРОПУСКАЕТ вход вместо приведения — список ломается тише словаря",
       "file": "scripts/check_card_claim.py",
-      "old": "            f\"этом не было бы сказано ни слова.\")\n    return self_anchor",
-      "new": "            f\"этом не было бы сказано ни слова.\")\n    return None"
+      "old": "            f\"этом не было бы сказано ни слова.\")\n    return pair",
+      "new": "            f\"этом не было бы сказано ни слова.\")\n    return self_anchor"
     },
     {
       "name": "судья отказывает и на `None` — объявленное отключение сломано",
@@ -39,25 +39,25 @@
     {
       "name": "читающая дверь `gather` снова без сторожа",
       "file": "scripts/check_card_claim.py",
-      "old": "    require_anchor_contract(self_anchor, reader=\"gather\")",
+      "old": "    self_anchor = require_anchor_contract(self_anchor, reader=\"gather\")",
       "new": "    pass"
     },
     {
       "name": "пишущая дверь `release_card` снова без сторожа",
       "file": "scripts/check_card_claim.py",
-      "old": "    require_anchor_contract(self_anchor, reader=\"release_card\")",
+      "old": "    self_anchor = require_anchor_contract(self_anchor, reader=\"release_card\")",
       "new": "    pass"
     },
     {
       "name": "сторож `release_card` переставлен ПОСЛЕ чтения журнала и опознания",
       "file": "scripts/check_card_claim.py",
-      "old": "    require_anchor_contract(self_anchor, reader=\"release_card\")\n    # Без якоря журнал не читается ВООБЩЕ",
+      "old": "    self_anchor = require_anchor_contract(self_anchor, reader=\"release_card\")\n    # Без якоря журнал не читается ВООБЩЕ",
       "new": "    # Без якоря журнал не читается ВООБЩЕ"
     },
     {
       "name": "сторож `gather` переставлен ПОСЛЕ `build_report` — вход участвует в вердикте",
       "file": "scripts/check_card_claim.py",
-      "old": "    require_anchor_contract(self_anchor, reader=\"gather\")\n\n    if shared_trees is _MEASURE_TREES:",
+      "old": "    self_anchor = require_anchor_contract(self_anchor, reader=\"gather\")\n\n    if shared_trees is _MEASURE_TREES:",
       "new": "\n    if shared_trees is _MEASURE_TREES:"
     },
     {
@@ -89,6 +89,13 @@
       "file": "spa_core/monitoring/card_acceptance.py",
       "old": "            if none_selves != [MINE]:",
       "new": "            if False:"
+    },
+    {
+      "name": "проба слепа к списку — контрактной форме, которую сторож пропускает",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if (list_verdict, list_selves) != (pair_verdict, pair_selves):",
+      "new": "            if False:"
     }
-  ]
+  ],
+  "note_c873": "Мутация «судья не отдаёт вход обратно» СНЯТА, а не погашена: её якорь `return self_anchor` перестал существовать — судья теперь возвращает ПРИВЕДЁННУЮ пару (`return pair`), и то же утверждение мерит мутация «судья ПРОПУСКАЕТ вход вместо приведения», которая ЗАМЕНИЛА её и УБИТА. Оставить якорь, встречающийся 0 раз, значило бы печатать «не применена» вечно."
 }

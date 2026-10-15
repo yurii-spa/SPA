@@ -187,7 +187,11 @@ def _take(guard, sibling, tmp_path, name, anchor):
 class TestTheJudge:
     def test_the_contract_form_passes_unchanged(self, guard):
         """Пара `anchor_of` — контракт; судья отдаёт её КАК ЕСТЬ, ничего не пересобирая."""
-        assert guard.require_anchor_contract(PAIR, reader="тест") is PAIR
+        # Сравнение по ЗНАЧЕНИЮ и ТИПУ: `tuple(x)` на тупле возвращает тот же
+        # объект лишь по реализации CPython, и опирать утверждение на это
+        # значило бы проверять интерпретатор, а не контракт.
+        out = guard.require_anchor_contract(PAIR, reader="тест")
+        assert out == PAIR and isinstance(out, tuple)
 
     def test_None_is_a_DECLARED_disabling_and_passes(self, guard):
         """`None` — объявленное отключение опознания (герметичные тесты), не ошибка."""
@@ -206,6 +210,17 @@ class TestTheJudge:
                 guard.require_anchor_contract(dict_form, reader=reader)
             assert reader in str(exc.value)
 
+    def test_a_LIST_is_NORMALISED_to_a_pair(self, guard):
+        """Список контракт ПРОХОДИТ — и обязан выйти пáрой, иначе ломается тише.
+
+        `anchor_of(entry)` отдаёт ТУПЛ, а `tuple != list` в Python никогда не равны:
+        список, пропущенный без приведения, выключал бы опознание так же, как словарь,
+        но БЕЗ отказа — то есть сторож закрывал бы одну половину класса и оставлял
+        вторую незаметнее прежней (замер #873).
+        """
+        out = guard.require_anchor_contract([PID, START], reader="тест")
+        assert out == PAIR and isinstance(out, tuple), out
+
     def test_a_HALF_pair_passes_the_contract_judge(self, guard):
         """РАЗДЕЛЕНИЕ ТРУДА: контракт судит ФОРМУ, полноту пары — `_anchor_pair`.
 
@@ -214,7 +229,7 @@ class TestTheJudge:
         Поэтому половина пары форму ПРОХОДИТ, а не пишется уже у `_anchor_pair`.
         """
         half = (PID, "")
-        assert guard.require_anchor_contract(half, reader="тест") is half
+        assert guard.require_anchor_contract(half, reader="тест") == half
         assert guard._anchor_pair(dict(zip(guard.CLAIM_ANCHOR_KEYS, half))) == ()
 
 
@@ -238,6 +253,14 @@ class TestTheGatherDoor:
         with pytest.raises(guard.ClaimError) as exc:
             _read(guard, sibling, tmp_path, "dict", dict_form)
         assert "gather" in str(exc.value)
+
+    def test_a_LIST_behaves_EXACTLY_like_the_pair(self, guard, sibling, tmp_path):
+        """Исход, не форма: у двери список и туплл обязаны давать одно и то же."""
+        as_pair = _read(guard, sibling, tmp_path, "lpair", PAIR)
+        as_list = _read(guard, sibling, tmp_path, "llist", [PID, START])
+        assert as_list["verdict"] == as_pair["verdict"]
+        assert sorted(as_list.get("self_sessions") or []) == sorted(
+            as_pair.get("self_sessions") or [])
 
     def test_None_keeps_the_PREVIOUS_behaviour(self, guard, sibling, tmp_path):
         """Объявленное отключение: опознан ровно один ярлык — мой, как до 01.08."""
@@ -315,14 +338,21 @@ class TestTheClaimDoorStillHolds:
 #: ввозит. Имя у каждого звена СВОЁ: «красная на чём-нибудь» проба не доказывает ничего.
 _LINKS = {
     "сторожа нет у читающей двери `gather`": (
-        '    require_anchor_contract(self_anchor, reader="gather")',
+        '    self_anchor = require_anchor_contract(self_anchor, reader="gather")',
         "    pass"),
     "сторожа нет у пишущей двери `release_card`": (
-        '    require_anchor_contract(self_anchor, reader="release_card")',
+        '    self_anchor = require_anchor_contract(self_anchor, reader="release_card")',
         "    pass"),
     "судья контракта не судит вовсе": (
         "    if len(pair) != len(CLAIM_ANCHOR_KEYS):",
         "    if False:"),
+    # Вход КОНТРАКТНОЙ формы, но не той, что отдаёт `anchor_of`: список. Сторож его
+    # ПРОПУСКАЕТ (так же, как прежнее сужение `isinstance(..., (tuple, list))`), и без
+    # приведения к пáре `anchor_of(entry) == anchor` не совпадал бы НИКОГДА — тот же
+    # дефект #70, только тише, потому что отказа нет и не будет.
+    "судья пропускает вход вместо приведения": (
+        "            f\"этом не было бы сказано ни слова.\")\n    return pair",
+        "            f\"этом не было бы сказано ни слова.\")\n    return self_anchor"),
     "судья пускает словарь — вторую форму якоря": (
         "    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()",
         "    pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list, dict)) else ()"),

@@ -8254,6 +8254,14 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
             none_verdict, none_selves = _read("read_none", None)
 
             # ── (2) ЧИТАЮЩАЯ ДВЕРЬ `gather` ──
+            #
+            # ЗАМЕР #873 про ЭТУ ветку, чтобы её не «чинили» заново: мутация `if False:`
+            # на ней ВЫЖИВАЕТ, и выживший РАВНОСИЛЕН — снятие сторожа у `gather` ловит
+            # ветка (2б) про СПИСОК (измерено двойной мутацией: вердикт остаётся
+            # `not_satisfied`, причина названа). Ветка оставлена потому, что утверждения
+            # РАЗНЫЕ: здесь «вход вне контракта обязан ОТКАЗАТЬ», там «контрактный, но
+            # не приведённый, обязан дать ТОТ ЖЕ исход». Одна поломка трогает оба, но
+            # поломки бывают и по отдельности.
             dict_verdict, dict_selves = _read("read_dict", DICT)
             if dict_verdict == none_verdict and dict_selves == none_selves:
                 return NOT_SATISFIED, (
@@ -8263,6 +8271,27 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
                     f"{dict_verdict!r} при `self_sessions`={dict_selves!r}, тогда как "
                     f"контрактная пара даёт {pair_verdict!r} при {pair_selves!r}. Захват "
                     f"ЭТОЙ ЖЕ сессии читается как ЧУЖОЙ, и об этом не сказано ни слова")
+
+            # ── (2б) ВХОД КОНТРАКТНОЙ ФОРМЫ, НО НЕ ТОЙ: список ──
+            #
+            # Сторож его ПРОПУСКАЕТ (так же, как прежнее сужение
+            # `isinstance(..., (tuple, list))`), поэтому отказа здесь не будет и быть не
+            # должно — судить надо ИСХОД. `anchor_of(entry)` отдаёт ТУПЛ, а
+            # `tuple != list` в Python никогда не равны: список, пропущенный БЕЗ
+            # приведения к пáре, выключает опознание так же, как словарь, но МОЛЧА и без
+            # отказа — то есть одна половина класса закрыта, а вторая стала незаметнее
+            # прежней. Замер #873 на УЖЕ ИСПРАВЛЕННЫХ дверях: `[pid, старт]` ⇒ `stale`
+            # при `(pid, старт)` ⇒ `free`.
+            list_verdict, list_selves = _read("read_list", list(PAIR))
+            if (list_verdict, list_selves) != (pair_verdict, pair_selves):
+                return NOT_SATISFIED, (
+                    f"`gather`: СПИСОК контрактной длины сторож пропускает, но пáрой не "
+                    f"делает — исход расходится с туплом: список ⇒ {list_verdict!r} при "
+                    f"`self_sessions`={list_selves!r}, тупл ⇒ {pair_verdict!r} при "
+                    f"{pair_selves!r}. Контракт обязан ПРИВОДИТЬ вход, а не только "
+                    f"проверять его форму: `anchor_of` отдаёт тупл, и `tuple != list` "
+                    f"никогда не равны — опознание выключается БЕЗ отказа, то есть тише "
+                    f"словаря")
 
             # ── (3) ПИШУЩАЯ ДВЕРЬ `release_card` — тот же вход, свой исход ──
             pair_release = _free("free_pair", PAIR)

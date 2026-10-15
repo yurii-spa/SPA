@@ -1838,7 +1838,7 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
     # `build_report` → `self_identities`, то есть участвует в ВЕРДИКТЕ; вход вне
     # контракта молча выключал опознание своих объявлений, и отчёт называл собственный
     # захват чужим. Судья ОДИН на все три двери — своей копии правила здесь нет.
-    require_anchor_contract(self_anchor, reader="gather")
+    self_anchor = require_anchor_contract(self_anchor, reader="gather")
 
     if shared_trees is _MEASURE_TREES:
         # Главное рабочее дерево общее для ВСЕХ сессий (журнал: 101 ярлык, 17 разных якорей) —
@@ -1934,7 +1934,16 @@ def require_anchor_contract(self_anchor, *, reader: str):
     `None` остаётся ОБЪЯВЛЕННЫМ отключением опознания (им зовут герметичные тесты) и
     проходит без слова: сторож дополняющий, а не запрещающий. `reader` — имя двери,
     попадает в причину отказа: три читателя, и вызвавшего надо НАЗВАТЬ, иначе отказ
-    отправит искать не туда."""
+    отправит искать не туда.
+
+    **Судья ПРИВОДИТ пару, а не пропускает вход, и это не косметика.** Прежнее сужение
+    `isinstance(self_anchor, (tuple, list))` принимало СПИСОК как контрактный — а
+    `anchor_of(entry)` отдаёт ТУПЛ, и `tuple != list` в Python НИКОГДА не равны. Замер
+    #873 на уже исправленных дверях: `[pid, старт]` даёт `stale` и
+    `self_sessions = [только мой ярлык]` там, где `(pid, старт)` даёт `free` и опознаёт
+    захват, — тот же дефект #70, только для входа, который сторож ПРОПУСКАЕТ. Проверка
+    формы без приведения закрывала бы одну половину класса и оставляла вторую тише
+    прежней. Поэтому читатели обязаны брать ВОЗВРАЩЁННОЕ значение, а не своё."""
     if self_anchor is None:
         return self_anchor
     pair = tuple(self_anchor) if isinstance(self_anchor, (tuple, list)) else ()
@@ -1947,7 +1956,7 @@ def require_anchor_contract(self_anchor, *, reader: str):
             f"Молча сузить его значило бы ВЫКЛЮЧИТЬ опознание собственных объявлений: "
             f"захват ЭТОЙ ЖЕ сессии прочитался бы как чужой (дефект цикла #70), и об "
             f"этом не было бы сказано ни слова.")
-    return self_anchor
+    return pair
 
 
 def _set_claim_fields(text: str, values) -> str:
@@ -2323,7 +2332,7 @@ def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=
     # `self_identities` решает «чужой ли захват», и вход вне контракта давал отказ
     # «снять чужой захват можно только с --force» о СВОЕЙ карточке (замер #873) —
     # дословно дефект цикла #70, названный в докстрингe выше как уже закрытый.
-    require_anchor_contract(self_anchor, reader="release_card")
+    self_anchor = require_anchor_contract(self_anchor, reader="release_card")
     # Без якоря журнал не читается ВООБЩЕ: опознавать нечем, а лишнее чтение общего файла
     # сделало бы поведение `release` зависящим от чужих записей. Нет якоря ⇒ ровно старый путь.
     selves = ({session} if not self_anchor
