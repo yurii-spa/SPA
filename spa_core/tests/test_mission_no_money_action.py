@@ -39,11 +39,19 @@ class TestUiNeverActs:
         assert "<form" not in html.lower()
 
     def test_no_non_get_fetch_or_xhr(self):
+        """ADR-760 (journaled inv. #16): the ONLY non-GET fetches are the two intake POSTs, each
+        addressed by its constant; every other fetch stays GET."""
         js = _read(UI_DIR / "app.js")
         assert "XMLHttpRequest" not in js
-        for m in re.finditer(r"fetch\(([^)]*)\)", js, re.S):
+        posts = []
+        for m in re.finditer(r"fetch\(([^;]*?)\)\s*\n?\s*\.then", js, re.S):
             args = m.group(1)
-            assert not re.search(r"method\s*:\s*['\"](?!GET)", args, re.I), m.group(0)
+            if re.search(r"method\s*:\s*['\"](?!GET)", args, re.I):
+                posts.append(args.split(",", 1)[0].strip())
+        assert sorted(posts) == ["INTAKE_SUBMIT", "INTAKE_TRANSCRIBE"], posts
+        assert 'var INTAKE_TRANSCRIBE = "/api/intake/transcribe";' in js
+        assert 'var INTAKE_SUBMIT = "/api/intake/submit";' in js
+        assert len(re.findall(r'method:\s*"POST"', js)) == 2
 
     def test_no_forbidden_action_tokens_as_literal_paths_or_verbs(self):
         """Forbidden as an ACTION — a quoted string literal that IS one of these tokens or a
@@ -68,11 +76,37 @@ class TestUiNeverActs:
 # ── server layer — structural check only (socket behaviour lives in test_mission_server.py) ─────
 class TestServerRefusesWrites:
     def test_every_write_verb_maps_to_the_one_refusal_handler(self):
+        """ADR-760 (owner 15.10, journaled inv. #16): PUT/PATCH/DELETE stay wired to the one 405
+        handler; POST exists ONLY for the two intake routes and falls through to the same 405 for
+        any other path. The intake writes one thing — a new inbox card — and nothing else."""
         src = _read(SERVER_PATH)
-        m = re.search(r"do_POST\s*=\s*do_PUT\s*=\s*do_PATCH\s*=\s*do_DELETE\s*=\s*(\w+)", src)
-        assert m, "expected the four write verbs wired to one shared handler"
+        m = re.search(r"do_PUT\s*=\s*do_PATCH\s*=\s*do_DELETE\s*=\s*(\w+)", src)
+        assert m, "expected PUT/PATCH/DELETE wired to one shared refusal handler"
         handler = m.group(1)
         assert "405" in src[src.index(f"def {handler}"):src.index(f"def {handler}") + 400]
+        post = src[src.index("def do_POST"):src.index("do_PUT = do_PATCH")]
+        assert "if path not in mission_intake.POST_PATHS:" in post
+        assert "self._method_not_allowed()" in post.split("if path not in mission_intake.POST_PATHS:")[1][:120]
+        from spa_core.studio_os import mission_intake
+        assert mission_intake.POST_PATHS == ("/api/intake/transcribe", "/api/intake/submit")
+
+    def test_intake_module_writes_only_through_the_inbox_intake_path(self):
+        """The intake module's only writer is ``inbox_intake.save_inbox_task`` (status ``new``); it
+        imports nothing from execution, governance, the owner-answer path or the Telegram sender."""
+        src = _read(REPO / "spa_core" / "studio_os" / "mission_intake.py")
+        tree = ast.parse(src)
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                names |= {f"{node.module}.{a.name}" for a in node.names}
+            if isinstance(node, ast.Import):
+                names |= {a.name for a in node.names}
+        spa = {n for n in names if n.startswith("spa_core")}
+        assert spa <= {"spa_core.telegram.inbox_intake.transcribe_voice",
+                       "spa_core.telegram.inbox_intake.save_inbox_task",
+                       "spa_core.telegram.inbox_intake"}, spa
+        for tok in ("record_owner_answer", "set_status", "kill", "execution", "send_message", "act:"):
+            assert tok not in src, tok
 
     def test_server_module_never_imports_execution_or_telegram_writers(self):
         tree = ast.parse(_read(SERVER_PATH))

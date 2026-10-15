@@ -68,6 +68,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.studio_os import access_jwt
+from spa_core.studio_os import mission_intake
 
 LOOPBACK = "127.0.0.1"
 DEFAULT_PORT = 8790
@@ -81,7 +82,7 @@ DEFAULT_ACCESS_CONFIG_PATH = Path.home() / "studio-os-serve" / "mission_access.j
 POINTER_FILE = "current.json"
 #: The pointer is re-checked at most this often; a swap in between is invisible until the next tick.
 POINTER_RECHECK_S = 5.0
-ALLOWED_METHODS = ("GET", "HEAD")
+ALLOWED_METHODS = ("GET", "HEAD")  # + POST on mission_intake.POST_PATHS only (ADR-760)
 #: Hosts the socket itself is allowed to bind to. Naming "0.0.0.0" / "" here would be the exact
 #: 2026-08-30 com.spa.dashboard incident (whole-repo raised to the local network). Finding #9:
 #: AF_INET only — ``ThreadingHTTPServer.address_family`` is ``socket.AF_INET``, so "::1" never
@@ -354,12 +355,19 @@ def load_access_config(env: Optional[dict] = None, config_path=None,
 
 # ── handler ─────────────────────────────────────────────────────────────────────────────────────
 def make_handler(serving: Serving, port: int, listener_kind: str,
-                  access_cfg: Optional[AccessConfig]):
+                  access_cfg: Optional[AccessConfig], intake_tracker_dir=None, intake_transcriber=None):
     """``listener_kind`` is ``"local"`` or ``"public"``. The LOCAL handler is built with
     ``access_cfg=None`` ALWAYS (even if a public host is configured elsewhere) — it has no idea
     the public host exists, so it cannot be tricked into serving it."""
     assert listener_kind in ("local", "public")
     loopback_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+    # ADR-760 — the ONE write action: a new inbox record. Its gate knows only THIS listener's own
+    # origin (loopback for the local socket, the Access-protected host for the public one).
+    if listener_kind == "public":
+        _origins = (f"https://{access_cfg.public_host}",)
+    else:
+        _origins = (f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://[::1]:{port}")
+    intake_gate = mission_intake.IntakeGate(_origins)
 
     class MissionHandler(BaseHTTPRequestHandler):
         server_version = "mission/1"
@@ -430,7 +438,7 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
             v = self.headers.get(name)
             return [v] if v is not None else []
 
-        def _framing_is_suspicious(self) -> bool:
+        def _framing_is_suspicious(self, allow_body: bool = False) -> bool:
             if self.headers.get("Transfer-Encoding") is not None:
                 return True
             # Finding #1 (second review round): TWO Content-Length headers (e.g. "0" then a real
@@ -440,6 +448,9 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
             cls = self._header_all("Content-Length")
             if len(cls) > 1:
                 return True
+            if allow_body:
+                # ADR-760: the two intake routes carry ONE body with ONE plain decimal length.
+                return bool(cls) and not cls[0].strip().isdigit()
             if cls and cls[0].strip() != "0":
                 return True
             return False
@@ -471,10 +482,10 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                     return name
             return None
 
-        def _pre_dispatch_guard(self, head_only: bool) -> bool:
+        def _pre_dispatch_guard(self, head_only: bool, allow_body: bool = False) -> bool:
             """Checks that apply to EVERY method, before any routing decision. Returns True if a
             response was already sent (caller must stop)."""
-            if self._framing_is_suspicious():
+            if self._framing_is_suspicious(allow_body=allow_body):
                 self._log(400, reason="unexpected request body (Content-Length/Transfer-Encoding)")
                 self._text(400, "request body not allowed", head_only)
                 return True
@@ -511,9 +522,10 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                     return "missing Cf-Access-Jwt-Assertion"
                 kid_hint = access_jwt.peek_kid(token)
                 certs = access_cfg.certs_cache.get(kid=kid_hint)
-                access_jwt.verify(token, certs=certs, audience=access_cfg.audience,
-                                   issuer=access_cfg.issuer, allowed_emails=access_cfg.owner_emails,
-                                   now=time.time())
+                claims = access_jwt.verify(token, certs=certs, audience=access_cfg.audience,
+                                           issuer=access_cfg.issuer, allowed_emails=access_cfg.owner_emails,
+                                           now=time.time())
+                self._actor = str((claims or {}).get("email") or "owner")
                 return None
             except Exception as exc:  # noqa: BLE001 — ANY failure in the check is a 403, never a crash
                 return f"{type(exc).__name__}: {exc}"
@@ -535,6 +547,12 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                 return
 
             serving.refresh()
+
+            if path == mission_intake.CSRF_PATH:
+                self._log(200)
+                self._json(200, {"token": intake_gate.csrf_token(), "header": mission_intake.TOKEN_HEADER},
+                           head_only)
+                return
 
             if path == HEALTHZ_PATH:
                 st = serving.state
@@ -587,7 +605,45 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                 self.send_header(name, value)
             self.end_headers()
 
-        do_POST = do_PUT = do_PATCH = do_DELETE = _method_not_allowed
+        # -- ADR-760: POST exists for exactly two intake routes; every other POST is the same 405 --
+        def do_POST(self):
+            path = (self.path or "").split("?", 1)[0].split("#", 1)[0]
+            if path not in mission_intake.POST_PATHS:
+                self._method_not_allowed()
+                return
+            if self._pre_dispatch_guard(head_only=False, allow_body=True):
+                return
+            reason = (self._public_access_denied_reason() if listener_kind == "public"
+                      else self._local_access_denied_reason())
+            if reason is not None:
+                status = 403 if listener_kind == "public" else 421
+                self._log(status, reason=reason)
+                self._text(status, "forbidden" if status == 403 else "unrecognised Host")
+                return
+            cl = self._header_all("Content-Length")
+            length = int(cl[0]) if cl and cl[0].strip().isdigit() else None
+            try:
+                intake_gate.check(path, self.headers, self.headers.get("Content-Type") or "", length)
+                body = self.rfile.read(length) if length else b""
+                if len(body) != length:
+                    raise mission_intake.IntakeRefused(400, "SHORT_BODY", "Запрос оборван — попробуйте ещё раз")
+                if path == mission_intake.TRANSCRIBE_PATH:
+                    out = mission_intake.transcribe(body, self.headers.get("Content-Type") or "",
+                                                    transcriber=intake_transcriber)
+                    self._log(200, reason="intake transcribe")
+                else:
+                    actor = getattr(self, "_actor", None) or ("local" if listener_kind == "local" else "owner")
+                    out = mission_intake.submit(body, actor=actor, tracker_dir=intake_tracker_dir)
+                    self._log(200, reason=out.pop("audit"))
+                self._json(200, out)
+            except mission_intake.IntakeRefused as exc:
+                self._log(exc.status, reason=f"intake {exc.code}")
+                self._json(exc.status, exc.as_json())
+            except Exception as exc:  # noqa: BLE001 — any failure is a refusal, never a crash
+                self._log(500, reason=f"intake {type(exc).__name__}")
+                self._json(500, {"ok": False, "code": "INTERNAL", "message": "Внутренняя ошибка — запись не создана"})
+
+        do_PUT = do_PATCH = do_DELETE = _method_not_allowed
         do_OPTIONS = do_TRACE = do_CONNECT = _method_not_allowed
 
         # -- finding #12: malformed requests that never reach do_* also carry security headers --
@@ -630,7 +686,8 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
 
 
 def serve(root, port: int = DEFAULT_PORT, bind: str = LOOPBACK, serve_forever: bool = True,
-           env: Optional[dict] = None, access_config_path=None, allow_env_config: bool = False):
+           env: Optional[dict] = None, access_config_path=None, allow_env_config: bool = False,
+           intake_tracker_dir=None, intake_transcriber=None):
     """Start serving: the LOCAL listener always, the PUBLIC listener only if configured. Raises
     ``BundleError`` (fail-CLOSED) for a bad bind host, a half-configured Access gate, or a
     public port that collides with the local one — BEFORE any socket is opened. May also raise
@@ -656,14 +713,16 @@ def serve(root, port: int = DEFAULT_PORT, bind: str = LOOPBACK, serve_forever: b
     serving = Serving(root)
     serving.refresh(force=True)
 
-    local_httpd = ThreadingHTTPServer((bind, int(port)), make_handler(serving, port, "local", None))
+    local_httpd = ThreadingHTTPServer((bind, int(port)), make_handler(serving, port, "local", None,
+                                                                      intake_tracker_dir, intake_transcriber))
     local_httpd.daemon_threads = True
 
     public_httpd = None
     if access_cfg is not None:
         public_httpd = ThreadingHTTPServer(
             (bind, int(access_cfg.public_port)),
-            make_handler(serving, access_cfg.public_port, "public", access_cfg),
+            make_handler(serving, access_cfg.public_port, "public", access_cfg,
+                         intake_tracker_dir, intake_transcriber),
         )
         public_httpd.daemon_threads = True
         public_httpd.access_cfg = access_cfg  # test/introspection only — not read by the handler

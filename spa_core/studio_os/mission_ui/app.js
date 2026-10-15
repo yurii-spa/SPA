@@ -479,8 +479,23 @@
     return h("a", { class: "link-item", href: "#" + linkArea }, [text]);
   }
 
+  function renderIntakeBar(root) {
+    // ADR-760: one contained entry point to the composer (a modal outside the areas, so the 60-s
+    // refresh that rebuilds this area never wipes what the owner is typing or dictating).
+    var bar = h("section", { class: "card intake-bar", "aria-labelledby": "intake-bar-title" });
+    bar.appendChild(h("h2", { class: "card-title", id: "intake-bar-title" }, [t("intake.bar.title")]));
+    bar.appendChild(h("p", { class: "intake-bar-lead" }, [t("intake.bar.lead")]));
+    var voice = h("button", { class: "mk-btn mk-btn--primary", type: "button" }, [t("intake.bar.voice")]);
+    voice.addEventListener("click", function () { openComposer({ startRecording: true }); });
+    var text = h("button", { class: "mk-btn", type: "button" }, [t("intake.bar.text")]);
+    text.addEventListener("click", function () { openComposer({}); });
+    bar.appendChild(h("div", { class: "intake-bar-actions" }, [voice, text]));
+    root.appendChild(bar);
+  }
+
   function renderHome(root) {
     var home = get(truth(), "home", {}) || {};
+    renderIntakeBar(root);
     var stripWrap = h("div", { class: "home-strip" });
     (home.strip || []).forEach(function (tile) { stripWrap.appendChild(renderHomeTile(tile)); });
     if (!home.strip || !home.strip.length) {
@@ -1563,6 +1578,209 @@
   }
 
   // ── top-level render ───────────────────────────────────────────────────────────────────
+  // ── ADR-760: the ONE write action — a new inbox record, typed or dictated ─────────────────────────────
+  // Voice is recorded in the browser, transcribed on the owner's Mac by the SAME offline whisper the
+  // Telegram bot uses, shown for editing, and sent ONLY when the owner presses «Отправить» with a kind
+  // chosen. The server creates a NEW inbox card and nothing else (no execution, no answers, no money).
+  var INTAKE_CSRF = "/api/intake/csrf";
+  var INTAKE_TRANSCRIBE = "/api/intake/transcribe";
+  var INTAKE_SUBMIT = "/api/intake/submit";
+  var MAX_RECORD_MS = 120000;
+  var composer = null;
+
+  function intakeHeaders(ct) {
+    var hd = { "Content-Type": ct };
+    if (composer && composer.token) hd["X-Intake-Token"] = composer.token;
+    return hd;
+  }
+
+  function setComposerStatus(text, tone) {
+    if (!composer) return;
+    composer.status.textContent = text || "";
+    composer.status.className = "mk-status" + (tone ? " mk-status--" + tone : "");
+  }
+
+  function refreshSendState() {
+    if (!composer) return;
+    var ok = !composer.unavailable && !composer.busy && composer.kind && composer.text.value.trim().length > 0;
+    composer.send.disabled = !ok;
+  }
+
+  function closeComposer() {
+    if (!composer) return;
+    try { if (composer.recorder && composer.recorder.state !== "inactive") composer.recorder.stop(); } catch (e) { /* already stopped */ }
+    if (composer.stream) composer.stream.getTracks().forEach(function (tr) { tr.stop(); });
+    var back = composer.opener;
+    clear(document.getElementById("composer-root"));
+    document.removeEventListener("keydown", composer.onKey);
+    composer = null;
+    if (back && back.focus) back.focus();
+  }
+
+  function stopRecording() {
+    if (composer && composer.recorder && composer.recorder.state !== "inactive") composer.recorder.stop();
+  }
+
+  function startRecording() {
+    if (!composer) return;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) {
+      setComposerStatus(t("intake.no_mic"), "warn");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      if (!composer) { stream.getTracks().forEach(function (tr) { tr.stop(); }); return; }
+      var type = window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "audio/webm";
+      var rec = new window.MediaRecorder(stream, { mimeType: type });
+      var chunks = [];
+      composer.stream = stream;
+      composer.recorder = rec;
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (tr) { tr.stop(); });
+        if (!composer) return;
+        clearTimeout(composer.timer);
+        composer.rec.textContent = t("intake.record");
+        composer.rec.setAttribute("aria-pressed", "false");
+        var blob = new Blob(chunks, { type: type });
+        composer.busy = true;
+        refreshSendState();
+        setComposerStatus(t("intake.transcribing"), "info");
+        fetch(INTAKE_TRANSCRIBE, { method: "POST", headers: intakeHeaders(type), body: blob, cache: "no-store" })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (!composer) return;
+            composer.busy = false;
+            if (res.ok && res.d && res.d.text) {
+              composer.text.value = (composer.text.value.trim() ? composer.text.value.trim() + "\n" : "") + res.d.text;
+              composer.transcript = res.d.text;
+              setComposerStatus(t("intake.transcribed"), "ok");
+            } else {
+              setComposerStatus(tf("intake.error", { reason: (res.d && res.d.message) || t("state.NOT_MEASURED") }), "problem");
+            }
+            refreshSendState();
+          })
+          .catch(function () {
+            if (!composer) return;
+            composer.busy = false;
+            setComposerStatus(tf("intake.error", { reason: t("header.no_connection") }), "problem");
+            refreshSendState();
+          });
+      };
+      rec.start();
+      composer.rec.textContent = t("intake.stop");
+      composer.rec.setAttribute("aria-pressed", "true");
+      setComposerStatus(t("intake.recording"), "info");
+      composer.timer = setTimeout(stopRecording, MAX_RECORD_MS);
+    }).catch(function () {
+      setComposerStatus(t("intake.mic_denied"), "warn");
+    });
+  }
+
+  function submitComposer() {
+    if (!composer) return;
+    var text = composer.text.value.trim();
+    if (!text) { setComposerStatus(t("intake.need_text"), "warn"); return; }
+    if (!composer.kind) { setComposerStatus(t("intake.need_kind"), "warn"); return; }
+    composer.busy = true;
+    refreshSendState();
+    setComposerStatus(t("intake.sending"), "info");
+    var payload = { text: text, kind: composer.kind };
+    if (composer.transcript) payload.transcript = composer.transcript;
+    fetch(INTAKE_SUBMIT, { method: "POST", headers: intakeHeaders("application/json"), body: JSON.stringify(payload), cache: "no-store" })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!composer) return;
+        composer.busy = false;
+        if (res.ok && res.d && res.d.ok) {
+          setComposerStatus(tf("intake.sent", { title: res.d.title, kind: (res.d.kind_ru || "").toLowerCase() }), "ok");
+          composer.text.value = "";
+          composer.transcript = null;
+          var q = document.getElementById("quick-text");
+          if (q) q.value = "";
+          composer.send.disabled = true;
+          composer.cancel.textContent = t("intake.close");
+        } else {
+          setComposerStatus(tf("intake.error", { reason: (res.d && res.d.message) || t("state.NOT_MEASURED") }), "problem");
+          refreshSendState();
+        }
+      })
+      .catch(function () {
+        if (!composer) return;
+        composer.busy = false;
+        setComposerStatus(tf("intake.error", { reason: t("header.no_connection") }), "problem");
+        refreshSendState();
+      });
+  }
+
+  function openComposer(opts) {
+    opts = opts || {};
+    if (composer) closeComposer();
+    var root = document.getElementById("composer-root");
+    if (!root) return;
+    clear(root);
+    composer = { kind: null, transcript: null, token: null, unavailable: false, busy: false, opener: document.activeElement };
+    var backdrop = h("div", { class: "mk-backdrop" });
+    backdrop.addEventListener("click", closeComposer);
+    var dlg = h("div", { class: "mk-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "composer-title" });
+    var closeBtn = h("button", { class: "mk-iconbtn", type: "button", "aria-label": t("intake.close") }, ["✕"]);
+    closeBtn.addEventListener("click", closeComposer);
+    dlg.appendChild(h("div", { class: "mk-modal-head" }, [h("h2", { id: "composer-title", class: "mk-card-title" }, [t("intake.title")]), closeBtn]));
+    var body = h("div", { class: "mk-modal-body" });
+    body.appendChild(h("p", { class: "mk-card-sub" }, [t("intake.lead")]));
+    composer.text = h("textarea", { class: "mk-textarea", id: "composer-text", rows: "5", maxlength: "4000" });
+    composer.text.value = opts.text || "";
+    composer.text.addEventListener("input", refreshSendState);
+    body.appendChild(h("label", { class: "mk-field-label", for: "composer-text" }, [t("intake.text_label")]));
+    body.appendChild(composer.text);
+    composer.rec = h("button", { class: "mk-btn mk-btn--voice", type: "button", "aria-pressed": "false" }, [t("intake.record")]);
+    composer.rec.addEventListener("click", function () {
+      if (composer.recorder && composer.recorder.state === "recording") stopRecording();
+      else startRecording();
+    });
+    body.appendChild(composer.rec);
+    body.appendChild(h("p", { class: "mk-field-label", id: "composer-kind-label" }, [t("intake.kind_label")]));
+    var kinds = h("div", { class: "mk-kinds", role: "group", "aria-labelledby": "composer-kind-label" });
+    ["idea", "task", "note"].forEach(function (k) {
+      var b = h("button", { class: "mk-kind", type: "button", "aria-pressed": "false", "data-kind": k }, [t("intake.kind." + k)]);
+      b.addEventListener("click", function () {
+        composer.kind = k;
+        Array.prototype.forEach.call(kinds.children, function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        refreshSendState();
+      });
+      kinds.appendChild(b);
+    });
+    body.appendChild(kinds);
+    body.appendChild(h("p", { class: "mk-note" }, [t("intake.privacy")]));
+    dlg.appendChild(body);
+    composer.status = h("p", { class: "mk-status", role: "status", "aria-live": "polite" });
+    composer.cancel = h("button", { class: "mk-btn", type: "button" }, [t("intake.cancel")]);
+    composer.cancel.addEventListener("click", closeComposer);
+    composer.send = h("button", { class: "mk-btn mk-btn--primary", type: "button", disabled: true }, [t("intake.send")]);
+    composer.send.addEventListener("click", submitComposer);
+    dlg.appendChild(h("div", { class: "mk-modal-foot" }, [composer.status, h("div", { class: "mk-modal-actions" }, [composer.cancel, composer.send])]));
+    root.appendChild(backdrop);
+    root.appendChild(dlg);
+    composer.onKey = function (e) { if (e.key === "Escape") closeComposer(); };
+    document.addEventListener("keydown", composer.onKey);
+    composer.text.focus();
+    fetch(INTAKE_CSRF, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(function (d) {
+        if (!composer) return;
+        composer.token = d && d.token;
+        if (!composer.token) throw new Error("no token");
+        if (opts.startRecording) startRecording();
+        refreshSendState();
+      })
+      .catch(function () {
+        if (!composer) return;
+        composer.unavailable = true;
+        composer.rec.disabled = true;
+        setComposerStatus(t("intake.unavailable"), "warn");
+        refreshSendState();
+      });
+  }
+
   function renderArea(area) {
     var container = document.getElementById("area-" + area);
     if (!container) return;

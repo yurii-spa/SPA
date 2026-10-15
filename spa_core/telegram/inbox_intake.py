@@ -54,11 +54,25 @@ def _money_fields(*texts: str | None) -> tuple[dict | None, list[str]]:
     return None, []
 
 
-def save_inbox_task(text: str, source: str = "telegram", transcript: str | None = None) -> tuple[Path, str]:
+#: ADR-760: the owner cockpit's voice/text intake uses THIS function too (one intake path, one card
+#: format). ``kind`` is the owner's own label (idea/task/note) — a hint for the orchestrator's
+#: classification, never an instruction to execute.
+INTAKE_KIND_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
+
+
+def save_inbox_task(text: str, source: str = "telegram", transcript: str | None = None, *,
+                    kind: str | None = None, origin_label: str = "Telegram",
+                    tracker_dir=None) -> tuple[Path, str]:
     """Create an Inbox card from free text. Returns (path, title)."""
     title = _title_from_text(text)
     extra, note = _money_fields(text, transcript)
-    body_parts = note + ["## Задание (из Telegram)", "", text.strip(), ""]
+    if kind in INTAKE_KIND_RU:
+        extra = dict(extra or {})
+        extra["intake_kind"] = kind
+    body_parts = note + [f"## Задание (из {origin_label})", ""]
+    if kind in INTAKE_KIND_RU:
+        body_parts += [f"_Владелец пометил как: {INTAKE_KIND_RU[kind]}._", ""]
+    body_parts += [text.strip(), ""]
     if transcript is not None:
         body_parts += ["## Расшифровка голосового (whisper)", "", transcript.strip(), ""]
     body_parts += [
@@ -68,7 +82,7 @@ def save_inbox_task(text: str, source: str = "telegram", transcript: str | None 
     ]
     path = create_card(
         "inbox", title, "\n".join(body_parts),
-        status="new", source=source, extra_fields=extra,
+        status="new", source=source, extra_fields=extra, tracker_dir=tracker_dir,
     )
     return path, title
 
