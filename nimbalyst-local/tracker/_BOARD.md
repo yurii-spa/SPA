@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-15T13:14:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-15T14:57:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (23ebcfb43) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (fe5ab084c) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1330** · ждёт владельца: **17** · занято сессиями: **14**.
 
@@ -432,6 +432,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
+- Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
@@ -1103,7 +1104,6 @@
 - Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
 - Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
-- Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
 - Сторож запрета utcnow судит ТЕКСТОМ: он красен на main из-за докстроки, объясняющей то же правило  ·  `inbox-storozh-zapreta-utcnow-sudit-tekstom-on.md` · 2026-10-03

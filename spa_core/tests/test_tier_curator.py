@@ -23,6 +23,7 @@ import pytest
 
 from spa_core.analytics import _apy_series
 from spa_core.analytics import tier_curator as tc
+from spa_core.monitoring.tier_touch import describe, tier_touches
 from spa_core.risk.policy import RiskConfig
 
 NOW = datetime(2026, 8, 5, 12, 0, 0, tzinfo=timezone.utc)
@@ -381,7 +382,7 @@ def _is_generated_markup(tree: "ast.AST") -> bool:
     return False
 
 
-def _mentions_curator_in_code(text: str) -> bool:
+def _mentions_curator_in_code(text: str, *, data_names_ok: bool = False) -> bool:
     """Читает ли модуль отчёт куратора / импортирует ли curate() — В КОДЕ.
 
     Раньше здесь стояла проверка подстроки ``"tier_curator" in text``, и она
@@ -409,7 +410,13 @@ def _mentions_curator_in_code(text: str) -> bool:
     # Зубы сохранены и здесь: для разметки по-прежнему ловятся импорт, обращение к
     # атрибуту и строка, называющая ОТЧЁТ (путь, который строят, чтобы его прочесть).
     # Разрешено ровно одно — голое имя модуля как элемент данных.
-    markup = _is_generated_markup(tree)
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875). Сужение «голое имя модуля — ДАННЫЕ»
+    # перестало быть привязанным к ОДНОМУ классу файлов (сгенерированная разметка):
+    # третий такой файл — сам ПРИБОР признака (`tier_touch.py`), у которого имя модуля
+    # стои́т элементом перечня канона, то есть ровно данными. Вход, а не второе
+    # автоопределение: класс файла знает ВЫЗЫВАЮЩИЙ, и угадывать его по содержимому
+    # значило бы заводить второе правило рядом с первым. Умолчание не изменилось.
+    markup = data_names_ok or _is_generated_markup(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             if any("tier_curator" in a.name for a in node.names):
@@ -446,9 +453,15 @@ def test_no_module_consumes_report_to_mutate_tiers():
     # в ОДНОРАЗОВОЕ дерево и меряет, родилась ли карточка. Её чистота проверяется тем же
     # положительным контролем, что у моста, — ниже.
     probe = SPA_CORE / "monitoring" / "card_acceptance.py"
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875): третий разрешённый — сам ПРИБОР
+    # признака. Отчёта он не читает ни строкой: имя модуля стои́т у него ДАННЫМИ,
+    # элементом перечня канона, который он и запрещает трогать. Чистота его
+    # проверяется ниже СТРОЖЕ, чем у двух читателей: читателям отчёт читать положено,
+    # прибору — незачем, поэтому у него запрещено само ИМЯ отчёта в коде.
+    instrument = SPA_CORE / "monitoring" / "tier_touch.py"
     allowed = {SPA_CORE / "analytics" / "tier_curator.py",
                SPA_CORE / "paper_trading" / "cycle_runner.py",
-               reader, probe}
+               reader, probe, instrument}
     offenders = []
     for py in SPA_CORE.rglob("*.py"):
         if py.parts and "tests" in py.parts:
@@ -463,17 +476,35 @@ def test_no_module_consumes_report_to_mutate_tiers():
     assert offenders == [], offenders
     # Разрешённый читатель НЕ вправе трогать тир: ни канон оценок, ни реестр адаптеров,
     # ни разрешатель имён, ни политику — он превращает вердикт в карточку, и только.
+    # ИЗМЕНЕНО ОСОЗНАННО (инв. #16; цикл #875, карточка
+    # `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n`). Здесь стояло
+    # `assert forbidden not in text` по двум спискам имён, и этот признак был НЕВЕРЕН
+    # в обе стороны. Ложный КРАСНЫЙ: с 02.10 сторож падал на верном состоянии —
+    # `RiskConfig` стои́т в `card_acceptance.py` дважды, и оба раза ПРОЗА (докстрока о
+    # ЧУЖОМ приборе и текст сообщения в f-строке). Ложный ЗЕЛЁНЫЙ, который опаснее и
+    # которого не видел никто: настоящий ввоз, записанный иначе — `import
+    # spa_core.risk.policy`, псевдоним `as RC`, `getattr(m, "RiskConfig")`,
+    # `importlib.import_module(...)` — подстрочным списком не ловился ВООБЩЕ.
+    #
+    # Правило сторожа НЕ ослаблено: кому канон трогать нельзя — то же самое, и набор
+    # имён стал ОБЪЕДИНЕНИЕМ двух прежних списков (у моста он был на одно имя длиннее).
+    # Сменился ПРИЗНАК: вопрос «стои́т ли символ в файле» заменён вопросом «стои́т ли он
+    # в КОДЕ» (`spa_core/monitoring/tier_touch.py`, разбор AST). Перечень канона живёт
+    # ОДНОЙ копией — у прибора; держать его список здесь значило бы снова два места для
+    # одного правила. Контроль в обе стороны — `spa_core/tests/test_tier_touch.py`,
+    # приёмка по исходу — проба `tier_guard_judges_code_not_prose`.
     bridge = reader.read_text(encoding="utf-8")
-    assert "tier_curator_report" in bridge, "читатель обязан читать именно отчёт"
-    for forbidden in ("PROTOCOL_RISK_SCORES", "ADAPTER_REGISTRY", "tier_map", "RiskConfig",
-                      "risk.policy", "adapters.registry", "protocol_risk_map",
-                      "from spa_core.analytics.tier_curator import"):
-        assert forbidden not in bridge, f"findings_bridge трогает тир: {forbidden!r}"
+    assert _mentions_curator_in_code(bridge), "читатель обязан читать именно отчёт"
+    assert tier_touches(bridge) == [], describe(str(reader), tier_touches(bridge))
     probe_text = probe.read_text(encoding="utf-8")
-    assert "tier_curator_report" in probe_text, "проба обязана класть именно отчёт куратора"
-    for forbidden in ("PROTOCOL_RISK_SCORES", "tier_map", "RiskConfig", "risk.policy",
-                      "protocol_risk_map", "from spa_core.analytics.tier_curator import"):
-        assert forbidden not in probe_text, f"card_acceptance трогает тир: {forbidden!r}"
+    assert _mentions_curator_in_code(probe_text), (
+        "проба обязана класть именно отчёт куратора")
+    assert tier_touches(probe_text) == [], describe(str(probe), tier_touches(probe_text))
+    inst_text = instrument.read_text(encoding="utf-8")
+    assert not _mentions_curator_in_code(inst_text, data_names_ok=True), (
+        "прибор признака назвал ОТЧЁТ куратора — читать его прибору незачем")
+    assert tier_touches(inst_text) == [], describe(str(instrument),
+                                                  tier_touches(inst_text))
     # cycle_runner: только write_report, самого файла отчёта он не читает
     runner = (SPA_CORE / "paper_trading" / "cycle_runner.py").read_text(
         encoding="utf-8")

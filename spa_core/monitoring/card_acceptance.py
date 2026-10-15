@@ -8533,6 +8533,173 @@ def _probe_delivery_door_refuses_card_section_loss(
                        f"класс измерен НОВОЙ мерой. Источник пары — {source}")
 
 
+#: Разрешённые читатели отчёта тир-куратора — те, чью ЧИСТОТУ и мерит проба ниже.
+#: Правило «кому читать можно» живёт у сторожа (`test_no_module_consumes_report_to_mutate_tiers`);
+#: здесь — только адреса, по которым спрашивается признак.
+TIER_REPORT_READERS = ("spa_core/monitoring/findings_bridge.py",
+                       "spa_core/monitoring/card_acceptance.py")
+
+#: Сторож, чьей мерой прибор обязан БЫТЬ. Прибор без зовущего — отчёт без читателя.
+TIER_GUARD_FILE = "spa_core/tests/test_tier_curator.py"
+
+#: Формы записи настоящего прикосновения к канону тира. Перечень ЗАКРЫТ и проверяется
+#: целиком: подстрочный список ловил ровно первую строку таблицы и ни одной из
+#: остальных — ложный зелёный, который никому не виден (карточка 02.10).
+TIER_TOUCH_FORMS = (
+    ("плоский ввоз модуля", "import spa_core.risk.policy\n"),
+    ("ввоз имени из модуля", "from spa_core.risk.policy import RiskConfig\n"),
+    ("ввоз под псевдонимом", "from spa_core.risk.policy import RiskConfig as RC\n"),
+    ("модуль под псевдонимом", "import spa_core.adapters.registry as reg\n"),
+    ("ввоз куратора", "from spa_core.analytics.tier_curator import curate\n"),
+    # Две формы ниже прежний подстрочный список не ловил ВООБЩЕ: дословного
+    # `risk.policy` / `analytics.tier_curator` в них нет ни разу (замер 15.10,
+    # цикл #875) — это и есть измеренный ложный ЗЕЛЁНЫЙ, а не предположенный.
+    ("ввоз модуля из пакета", "from spa_core.analytics import tier_curator\n"),
+    ("модуль из пакета под псевдонимом", "from spa_core.risk import policy as pol\n"),
+    ("голое имя канона", "x = tier_map[p]\n"),
+    ("обращение к атрибуту", "v = cfg.PROTOCOL_RISK_SCORES\n"),
+    ("динамический доступ строкой", 'c = getattr(mod, "RiskConfig")\n'),
+    ("динамический ввоз строкой",
+     'm = importlib.import_module("spa_core.adapters.registry")\n'),
+)
+
+#: Сцена ложного КРАСНОГО 2026-10-02 — дословная форма, которой сторож краснел
+#: тринадцать суток: докстрока о ЧУЖОМ приборе плюс текст сообщения в f-строке.
+TIER_PROSE_SCENE = (
+    '\"\"\"прибор читает из `RiskConfig` (§22 приказа: «Не hardcode»).\"\"\"\n'
+    'def report(n):\n'
+    '    return f"из RiskConfig ({n} полей)"\n'
+)
+
+
+def _probe_tier_guard_judges_code_not_prose(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Сторож канона тира судит о КОДЕ, а не о наборе байт — по исходу, не по структуре.
+
+    Карточка `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n` (02.10): сторож
+    `test_no_module_consumes_report_to_mutate_tiers` спрашивал `forbidden not in text`
+    и был КРАСЕН на верном состоянии — слово `RiskConfig` стои́т в `card_acceptance.py`
+    дважды, и оба раза проза. У дефекта две стороны, и проба мерит обе: ложный красный
+    видно, ложный зелёный (настоящий ввоз, записанный иначе) не видно никому.
+
+    Пять звеньев; любое одно порванное даёт `not_satisfied` с ИМЕНЕМ звена:
+
+    1. **прибор молчит на ЖИВЫХ разрешённых читателях** — прикосновений к канону у них
+       нет, и это замер, а не доверие списку;
+    2. **кусается на КАЖДОЙ форме записи** (`TIER_TOUCH_FORMS`, перечень закрыт) —
+       прибор, слепой к псевдониму или к `getattr`, есть прежняя подстрока в новой
+       одежде;
+    3. **молчит на ПРОЗЕ** — воспроизводится дословная сцена 02.10;
+    4. **неразбираемый исходник — третий исход, а не «чисто»** (`TierTouchUnmeasured`,
+       инв. #17): прибор, проглотивший опечатку, отдаёт ложный зелёный;
+    5. **сторож ЗОВЁТ прибор и не держит своей копии правила** — ввоз `tier_touch`
+       проверяется разбором, а не подстрокой, и в файле сторожа не должно остаться
+       литерального перечня канона: два перечня на одно правило разъехались бы молча.
+
+    `repo_root` — вход: контроль в обе стороны подаёт одноразовое дерево и рвёт звенья
+    поимённо. Живое дерево ничем не трогается: проба только ЧИТАЕТ.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "сторож канона целиком, пофайловой формы у него нет")
+    import ast as _ast
+    root = repo_root or REPO_ROOT
+    try:
+        from spa_core.monitoring import tier_touch as tt
+    except ImportError as exc:
+        return UNMEASURED, f"прибор tier_touch не ввезён ({exc}) — признак НЕ ИЗМЕРЕН"
+
+    def _read(rel: str) -> "tuple[str | None, str]":
+        path = os.path.join(root, rel)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return fh.read(), ""
+        except OSError as exc:
+            return None, f"{rel} не прочитан ({exc})"
+
+    # 1. живые читатели
+    for rel in TIER_REPORT_READERS:
+        text, why = _read(rel)
+        if text is None:
+            return UNMEASURED, f"{why} — чистота читателя НЕ ИЗМЕРЕНА"
+        try:
+            touches = tt.tier_touches(text)
+        except tt.TierTouchUnmeasured as exc:
+            return UNMEASURED, f"{rel}: {exc} — чистота читателя НЕ ИЗМЕРЕНА"
+        if touches:
+            return NOT_SATISFIED, (f"разрешённый читатель ТРОГАЕТ канон тира — "
+                                   f"{tt.describe(rel, touches)}")
+
+    # 2. кусается на каждой форме
+    for label, source in TIER_TOUCH_FORMS:
+        try:
+            touches = tt.tier_touches(source)
+        except tt.TierTouchUnmeasured as exc:
+            return UNMEASURED, f"форма «{label}» не разобрана ({exc}) — прибор НЕ ИЗМЕРЕН"
+        if not touches:
+            return NOT_SATISFIED, (f"прибор НЕ КУСАЕТСЯ на форме «{label}»: "
+                                   f"{source.strip()!r} прошло как чистое — это та же "
+                                   "подстрока, только с разбором")
+
+    # 3. молчит на прозе
+    try:
+        prose = tt.tier_touches(TIER_PROSE_SCENE)
+    except tt.TierTouchUnmeasured as exc:
+        return UNMEASURED, f"сцена прозы не разобрана ({exc}) — ложный красный НЕ ИЗМЕРЕН"
+    if prose:
+        return NOT_SATISFIED, ("прибор краснеет на ПРОЗЕ — сцена 02.10 не закрыта: "
+                               + tt.describe("<проза>", prose))
+
+    # 4. третий исход
+    try:
+        tt.tier_touches("def broken(:\n    tier_map\n")
+    except tt.TierTouchUnmeasured:
+        pass
+    else:
+        return NOT_SATISFIED, ("неразбираемый исходник НЕ стал третьим исходом — "
+                               "прибор выдаёт опечатку за чистоту (инв. #17)")
+
+    # 5. сторож зовёт прибор и не держит своей копии правила
+    guard, why = _read(TIER_GUARD_FILE)
+    if guard is None:
+        return UNMEASURED, f"{why} — зовущий НЕ ИЗМЕРЕН"
+    try:
+        tree = _ast.parse(guard)
+    except SyntaxError as exc:
+        return UNMEASURED, f"{TIER_GUARD_FILE} не разобран ({exc}) — зовущий НЕ ИЗМЕРЕН"
+    calls_instrument = False
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
+                "monitoring.tier_touch"):
+            calls_instrument = True
+        elif isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
+                "monitoring") and any(a.name == "tier_touch" for a in node.names):
+            calls_instrument = True
+        elif isinstance(node, _ast.Import) and any(
+                a.name.endswith("monitoring.tier_touch") for a in node.names):
+            calls_instrument = True
+    if not calls_instrument:
+        return NOT_SATISFIED, (f"{TIER_GUARD_FILE} не ЗОВЁТ прибор — признак снова "
+                               "живёт у сторожа своей копией, и прибор есть украшение")
+    canon = set(tt.TIER_CANON_NAMES) | set(tt.TIER_CANON_MODULES)
+    for node in _ast.walk(tree):
+        if not isinstance(node, (_ast.Tuple, _ast.List, _ast.Set)):
+            continue
+        literal = {e.value for e in node.elts
+                   if isinstance(e, _ast.Constant) and isinstance(e.value, str)}
+        shared = literal & canon
+        if len(shared) >= 2:
+            return NOT_SATISFIED, (f"{TIER_GUARD_FILE}:{node.lineno} держит свою копию "
+                                   f"перечня канона ({sorted(shared)}) — правило снова "
+                                   "в двух местах, и разъедутся они молча")
+
+    return SATISFIED, (f"сторож судит о коде: прибор молчит на {len(TIER_REPORT_READERS)} "
+                       f"живых читателях, кусается на всех {len(TIER_TOUCH_FORMS)} формах "
+                       f"записи, молчит на дословной прозе 02.10, неразбираемое называет "
+                       f"третьим исходом, и {TIER_GUARD_FILE} зовёт именно его, своей "
+                       f"копии перечня не держа")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -8629,6 +8796,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_office_hollow_counter_means_harm,
     "delta_mutation_instrument_is_re_measurable":
         _probe_delta_mutation_instrument_is_re_measurable,
+    "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
 }
 
 
