@@ -2003,6 +2003,30 @@
     }));
   }
 
+  // ADR-760 «Мои записи»: what became of the owner's cockpit records (production tracker, read-only).
+  // Not measured ⇒ the summary says so in words; card ids live only in the technical details.
+  function renderMyRecords(mr) {
+    mr = mr || {};
+    var c = uxCard(mr.title || t("state.NOT_MEASURED"));
+    if (mr.sub) c.appendChild(h("p", { class: "ux-note" }, [mr.sub]));
+    if (mr.summary) c.appendChild(metricRow(mr.summary));
+    var rows = mr.rows || [];
+    if (rows.length) {
+      var ul = h("ul", { class: "ux-list ux-my-records" });
+      rows.forEach(function (r) {
+        var li = h("li", { class: "ux-done" }, [
+          h("span", { class: "ux-done-at" }, [r.at_ru || t("state.NOT_MEASURED")]),
+          h("span", {}, [r.title + " · " + r.kind + (r.voice ? " · 🎙" : "")]),
+          h("p", { class: "ux-metric-text" + (r.state_known ? "" : " ux-metric--alert") }, [r.state])]);
+        var d = uxDetails(techLines(r), null, r.title);
+        if (d) li.appendChild(d);
+        ul.appendChild(li);
+      });
+      c.appendChild(ul);
+    }
+    return c;
+  }
+
   function renderWorkArea(root) {
     var s = ov();
     var w = s && s.work;
@@ -2011,6 +2035,7 @@
       var c1 = uxCard((w.now && w.now.title) || "");
       ((w.now && w.now.items) || []).forEach(function (m) { c1.appendChild(metricRow(m)); });
       root.appendChild(c1);
+      if (w.my_records) root.appendChild(renderMyRecords(w.my_records));
       var c2 = uxCard(w.blocking && w.blocking.title, w.blocking && !w.blocking.known_reason ? "ux-card--quiet" : "");
       c2.appendChild(h("p", { class: "ux-metric-text" }, [(w.blocking && w.blocking.text) || t("state.NOT_MEASURED")]));
       // ARB 09.10: WHICH tasks are stopped and what their card says — reason / next step in words,
@@ -2455,10 +2480,116 @@
   var MAX_RECORD_MS = 120000;
   var composer = null;
 
+  // Hardening (ADR-760 audit 16.10): an unsent draft survives a backdrop tap, Esc, a reload and a
+  // server restart (localStorage, every access in try/catch — a private window simply has no draft);
+  // every submission carries a submission_id made when the composer opens and kept across retries,
+  // so a retry can never become a second card; requests time out with their own message; a non-JSON
+  // answer (Access login page, 502/524) is named as such, not as «нет связи»; a rotated CSRF token is
+  // fetched once and the same request retried once.
+  var INTAKE_TRANSCRIBE_TIMEOUT_MS = 115000;   // server: ffprobe ≤ 20 s + whisper ≤ 90 s
+  var INTAKE_SUBMIT_TIMEOUT_MS = 30000;
+  var DRAFT_KEY = "spa.mission.intake.draft.v1";
+
+  function newSubmissionId() {
+    try {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch (e) { /* fall through */ }
+    var s = "";
+    for (var i = 0; i < 4; i++) s += Math.floor((1 + Math.random()) * 0x100000000).toString(16).slice(1);
+    return "sid-" + s;
+  }
+
+  function loadDraft() {
+    try {
+      var raw = localStorage.getItem(DRAFT_KEY);
+      var d = raw ? JSON.parse(raw) : null;
+      return d && typeof d === "object" && typeof d.text === "string" ? d : null;
+    } catch (e) { return null; }
+  }
+
+  function saveDraft() {
+    if (!composer) return;
+    var d = { text: composer.text.value, kind: composer.kind, transcript: composer.transcript,
+              submission_id: composer.submissionId };
+    try {
+      if (d.text.trim()) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+      else localStorage.removeItem(DRAFT_KEY);
+    } catch (e) { /* no storage — the draft lives only in this window */ }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing stored */ }
+  }
+
   function intakeHeaders(ct) {
     var hd = { "Content-Type": ct };
     if (composer && composer.token) hd["X-Intake-Token"] = composer.token;
     return hd;
+  }
+
+  // The answer of one intake request, classified: json · not_json (Access login page, 502/524 HTML).
+  function readIntakeResponse(r) {
+    return r.text().then(function (txt) {
+      var d = null;
+      try { d = JSON.parse(txt); } catch (e) { d = null; }
+      if (!d || typeof d !== "object") return { ok: false, status: r.status, d: null, kind: "not_json" };
+      return { ok: r.ok, status: r.status, d: d, kind: "json" };
+    });
+  }
+
+  // One request with a timeout (AbortController); a rejected fetch is timeout · network.
+  function withTimeout(send, timeoutMs) {
+    var ctl = window.AbortController ? new window.AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, timeoutMs) : null;
+    return send(ctl ? ctl.signal : undefined)
+      .catch(function (err) {
+        return { ok: false, status: 0, d: null, kind: (err && err.name === "AbortError") ? "timeout" : "network" };
+      })
+      .then(function (res) { if (timer) clearTimeout(timer); return res; });
+  }
+
+  function intakeErrorText(res) {
+    if (res.kind === "timeout") return t("intake.err_timeout");
+    if (res.kind === "not_json") return t("intake.err_not_json");
+    if (res.kind === "network") return t("header.no_connection");
+    return (res.d && res.d.message) || t("state.NOT_MEASURED");
+  }
+
+  function fetchToken() {
+    return withTimeout(function (signal) {
+      return fetch(INTAKE_CSRF, { cache: "no-store", signal: signal }).then(readIntakeResponse);
+    }, INTAKE_SUBMIT_TIMEOUT_MS).then(function (res) {
+      var tok = res.kind === "json" && res.ok && res.d && res.d.token;
+      if (tok && composer) composer.token = tok;
+      if (composer) composer.tokenFailure = tok ? null : res;
+      return !!tok;
+    });
+  }
+
+  // The two intake POSTs — each addressed by its constant (the static guard counts them).
+  function postTranscribe(blob, ct) {
+    return withTimeout(function (signal) {
+      return fetch(INTAKE_TRANSCRIBE, { method: "POST", headers: intakeHeaders(ct), body: blob, cache: "no-store", signal: signal })
+        .then(readIntakeResponse);
+    }, INTAKE_TRANSCRIBE_TIMEOUT_MS);
+  }
+
+  function postSubmit(json) {
+    return withTimeout(function (signal) {
+      return fetch(INTAKE_SUBMIT, { method: "POST", headers: intakeHeaders("application/json"), body: json, cache: "no-store", signal: signal })
+        .then(readIntakeResponse);
+    }, INTAKE_SUBMIT_TIMEOUT_MS);
+  }
+
+  // A 403 CSRF (the server restarted and rotated its key) ⇒ fetch a fresh key ONCE and send the very
+  // same body again (same submission_id ⇒ never a second card).
+  function withCsrfRetry(send) {
+    return send().then(function (res) {
+      if (res.status === 403 && res.d && res.d.code === "CSRF") {
+        return fetchToken().then(function (ok) { return ok && composer ? send() : res; });
+      }
+      return res;
+    });
   }
 
   function setComposerStatus(text, tone) {
@@ -2471,10 +2602,15 @@
     if (!composer) return;
     var ok = !composer.unavailable && !composer.busy && composer.kind && composer.text.value.trim().length > 0;
     composer.send.disabled = !ok;
+    if (composer.retry) {
+      composer.retry.hidden = !composer.lastAudio;
+      composer.retry.disabled = composer.busy || composer.unavailable;
+    }
   }
 
   function closeComposer() {
     if (!composer) return;
+    saveDraft();
     try { if (composer.recorder && composer.recorder.state !== "inactive") composer.recorder.stop(); } catch (e) { /* already stopped */ }
     if (composer.stream) composer.stream.getTracks().forEach(function (tr) { tr.stop(); });
     var back = composer.opener;
@@ -2484,8 +2620,42 @@
     if (back && back.focus) back.focus();
   }
 
+  // Backdrop tap / Esc: with text in the box the window stays open (the owner closes it with
+  // «Отмена» or ✕; the draft is kept either way).
+  function softClose() {
+    if (!composer) return;
+    if (composer.text.value.trim() || composer.busy) {
+      setComposerStatus(t("intake.unsaved_hint"), "info");
+      return;
+    }
+    closeComposer();
+  }
+
   function stopRecording() {
     if (composer && composer.recorder && composer.recorder.state !== "inactive") composer.recorder.stop();
+  }
+
+  function transcribeAudio() {
+    if (!composer || !composer.lastAudio) return;
+    var audio = composer.lastAudio;
+    composer.busy = true;
+    refreshSendState();
+    setComposerStatus(t("intake.transcribing"), "info");
+    withCsrfRetry(function () { return postTranscribe(audio.blob, audio.type); }).then(function (res) {
+      if (!composer) return;
+      composer.busy = false;
+      if (res.ok && res.d && res.d.text) {
+        composer.text.value = (composer.text.value.trim() ? composer.text.value.trim() + "\n" : "") + res.d.text;
+        composer.transcript = res.d.text;
+        composer.lastAudio = null;   // transcribed — nothing left to retry
+        saveDraft();
+        setComposerStatus(t("intake.transcribed"), "ok");
+      } else {
+        // the recording is KEPT: «Повторить расшифровку» sends the same audio again
+        setComposerStatus(tf("intake.error", { reason: intakeErrorText(res) }), "problem");
+      }
+      refreshSendState();
+    });
   }
 
   function startRecording() {
@@ -2523,30 +2693,8 @@
           setComposerStatus(t("intake.empty_recording"), "warn");
           return;
         }
-        type = sentType;
-        composer.busy = true;
-        refreshSendState();
-        setComposerStatus(t("intake.transcribing"), "info");
-        fetch(INTAKE_TRANSCRIBE, { method: "POST", headers: intakeHeaders(type), body: blob, cache: "no-store" })
-          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-          .then(function (res) {
-            if (!composer) return;
-            composer.busy = false;
-            if (res.ok && res.d && res.d.text) {
-              composer.text.value = (composer.text.value.trim() ? composer.text.value.trim() + "\n" : "") + res.d.text;
-              composer.transcript = res.d.text;
-              setComposerStatus(t("intake.transcribed"), "ok");
-            } else {
-              setComposerStatus(tf("intake.error", { reason: (res.d && res.d.message) || t("state.NOT_MEASURED") }), "problem");
-            }
-            refreshSendState();
-          })
-          .catch(function () {
-            if (!composer) return;
-            composer.busy = false;
-            setComposerStatus(tf("intake.error", { reason: t("header.no_connection") }), "problem");
-            refreshSendState();
-          });
+        composer.lastAudio = { blob: blob, type: sentType };
+        transcribeAudio();
       }
       rec.start(1000);
       composer.rec.textContent = t("intake.stop");
@@ -2566,32 +2714,32 @@
     composer.busy = true;
     refreshSendState();
     setComposerStatus(t("intake.sending"), "info");
-    var payload = { text: text, kind: composer.kind };
+    var payload = { text: text, kind: composer.kind, submission_id: composer.submissionId };
     if (composer.transcript) payload.transcript = composer.transcript;
-    fetch(INTAKE_SUBMIT, { method: "POST", headers: intakeHeaders("application/json"), body: JSON.stringify(payload), cache: "no-store" })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!composer) return;
-        composer.busy = false;
-        if (res.ok && res.d && res.d.ok) {
-          setComposerStatus(tf("intake.sent", { title: res.d.title, kind: (res.d.kind_ru || "").toLowerCase() }), "ok");
-          composer.text.value = "";
-          composer.transcript = null;
-          var q = document.getElementById("quick-text");
-          if (q) q.value = "";
-          composer.send.disabled = true;
-          composer.cancel.textContent = t("intake.close");
-        } else {
-          setComposerStatus(tf("intake.error", { reason: (res.d && res.d.message) || t("state.NOT_MEASURED") }), "problem");
-          refreshSendState();
-        }
-      })
-      .catch(function () {
-        if (!composer) return;
-        composer.busy = false;
-        setComposerStatus(tf("intake.error", { reason: t("header.no_connection") }), "problem");
+    saveDraft();
+    var json = JSON.stringify(payload);
+    withCsrfRetry(function () { return postSubmit(json); }).then(function (res) {
+      if (!composer) return;
+      composer.busy = false;
+      if (res.ok && res.d && res.d.ok) {
+        var key = res.d.duplicate ? "intake.duplicate" : "intake.sent";
+        setComposerStatus(tf(key, { title: res.d.title, kind: (res.d.kind_ru || "").toLowerCase() }), "ok");
+        clearDraft();
+        composer.text.value = "";
+        composer.transcript = null;
+        composer.lastAudio = null;
+        composer.submissionId = newSubmissionId();   // the next record is a new submission
+        var q = document.getElementById("quick-text");
+        if (q) q.value = "";
+        composer.send.disabled = true;
+        composer.cancel.textContent = t("intake.close");
         refreshSendState();
-      });
+      } else {
+        // the text and the submission_id stay — «Отправить» again cannot create a second card
+        setComposerStatus(tf("intake.error", { reason: intakeErrorText(res) }), "problem");
+        refreshSendState();
+      }
+    });
   }
 
   function openComposer(opts) {
@@ -2600,9 +2748,12 @@
     var root = document.getElementById("composer-root");
     if (!root) return;
     clear(root);
-    composer = { kind: null, transcript: null, token: null, unavailable: false, busy: false, opener: document.activeElement };
+    var draft = loadDraft();
+    composer = { kind: null, transcript: null, token: null, unavailable: false, busy: false, opener: document.activeElement,
+                 submissionId: (draft && typeof draft.submission_id === "string" && draft.submission_id) || newSubmissionId(),
+                 lastAudio: null };
     var backdrop = h("div", { class: "mk-backdrop" });
-    backdrop.addEventListener("click", closeComposer);
+    backdrop.addEventListener("click", softClose);
     var dlg = h("div", { class: "mk-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "composer-title" });
     var closeBtn = h("button", { class: "mk-iconbtn", type: "button", "aria-label": t("intake.close") }, ["✕"]);
     closeBtn.addEventListener("click", closeComposer);
@@ -2610,8 +2761,11 @@
     var body = h("div", { class: "mk-modal-body" });
     body.appendChild(h("p", { class: "mk-card-sub" }, [t("intake.lead")]));
     composer.text = h("textarea", { class: "mk-textarea", id: "composer-text", rows: "5", maxlength: "4000" });
-    composer.text.value = opts.text || "";
-    composer.text.addEventListener("input", refreshSendState);
+    var extra = (opts.text || "").trim();
+    var restored = draft && draft.text.trim() ? draft.text : "";
+    composer.text.value = restored ? (extra && restored.indexOf(extra) < 0 ? restored.trim() + "\n" + extra : restored) : (opts.text || "");
+    if (restored) composer.transcript = typeof draft.transcript === "string" ? draft.transcript : null;
+    composer.text.addEventListener("input", function () { saveDraft(); refreshSendState(); });
     body.appendChild(h("label", { class: "mk-field-label", for: "composer-text" }, [t("intake.text_label")]));
     body.appendChild(composer.text);
     composer.rec = h("button", { class: "mk-btn mk-btn--voice", type: "button", "aria-pressed": "false" }, [t("intake.record")]);
@@ -2620,17 +2774,25 @@
       else startRecording();
     });
     body.appendChild(composer.rec);
+    composer.retry = h("button", { class: "mk-btn", type: "button", hidden: true }, [t("intake.retry_transcribe")]);
+    composer.retry.addEventListener("click", transcribeAudio);
+    body.appendChild(composer.retry);
     body.appendChild(h("p", { class: "mk-field-label", id: "composer-kind-label" }, [t("intake.kind_label")]));
     var kinds = h("div", { class: "mk-kinds", role: "group", "aria-labelledby": "composer-kind-label" });
+    function pickKind(k) {
+      composer.kind = k;
+      Array.prototype.forEach.call(kinds.children, function (x) { x.setAttribute("aria-pressed", x.getAttribute("data-kind") === k ? "true" : "false"); });
+    }
     ["idea", "task", "note"].forEach(function (k) {
       var b = h("button", { class: "mk-kind", type: "button", "aria-pressed": "false", "data-kind": k }, [t("intake.kind." + k)]);
       b.addEventListener("click", function () {
-        composer.kind = k;
-        Array.prototype.forEach.call(kinds.children, function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        pickKind(k);
+        saveDraft();
         refreshSendState();
       });
       kinds.appendChild(b);
     });
+    if (restored && (draft.kind === "idea" || draft.kind === "task" || draft.kind === "note")) pickKind(draft.kind);
     body.appendChild(kinds);
     body.appendChild(h("p", { class: "mk-note" }, [t("intake.privacy")]));
     dlg.appendChild(body);
@@ -2642,25 +2804,25 @@
     dlg.appendChild(h("div", { class: "mk-modal-foot" }, [composer.status, h("div", { class: "mk-modal-actions" }, [composer.cancel, composer.send])]));
     root.appendChild(backdrop);
     root.appendChild(dlg);
-    composer.onKey = function (e) { if (e.key === "Escape") closeComposer(); };
+    composer.onKey = function (e) { if (e.key === "Escape") softClose(); };
     document.addEventListener("keydown", composer.onKey);
     composer.text.focus();
-    fetch(INTAKE_CSRF, { cache: "no-store" })
-      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-      .then(function (d) {
-        if (!composer) return;
-        composer.token = d && d.token;
-        if (!composer.token) throw new Error("no token");
-        if (opts.startRecording) startRecording();
-        refreshSendState();
-      })
-      .catch(function () {
-        if (!composer) return;
+    if (restored) setComposerStatus(t("intake.draft_restored"), "info");
+    refreshSendState();
+    fetchToken().then(function (ok) {
+      if (!composer) return;
+      if (!ok) {
         composer.unavailable = true;
         composer.rec.disabled = true;
-        setComposerStatus(t("intake.unavailable"), "warn");
+        // a login page / proxy error is not «not enabled»: name what actually came back
+        var tf0 = composer.tokenFailure;
+        setComposerStatus(tf0 && tf0.kind !== "json" ? intakeErrorText(tf0) : t("intake.unavailable"), "warn");
         refreshSendState();
-      });
+        return;
+      }
+      if (opts.startRecording) startRecording();
+      refreshSendState();
+    });
   }
 
   function renderArea(area) {

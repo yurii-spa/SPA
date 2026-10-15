@@ -733,7 +733,13 @@ var I18N = /*I18N_START*/{
   "intake.bar.title": "Записать идею, задачу или замечание",
   "intake.bar.lead": "Голосом или текстом — запись попадёт во входящие. Голос расшифровывается на вашем Mac.",
   "intake.bar.voice": "🎙 Продиктовать",
-  "intake.bar.text": "✎ Написать"
+  "intake.bar.text": "✎ Написать",
+  "intake.duplicate": "Уже записано: «{title}» ({kind}) — повторная отправка второй карточки не создала",
+  "intake.retry_transcribe": "↻ Повторить расшифровку",
+  "intake.err_timeout": "Сервер не ответил вовремя — текст сохранён, попробуйте ещё раз",
+  "intake.err_not_json": "Нужно заново войти в пульт (Cloudflare Access) или сервер недоступен — текст сохранён",
+  "intake.unsaved_hint": "В окне есть текст — он сохранён как черновик. Закрыть окно: «Отмена» или ✕",
+  "intake.draft_restored": "Восстановлен неотправленный черновик"
 },
 "en": {
   "header.title": "Mission Control",
@@ -1446,7 +1452,13 @@ var I18N = /*I18N_START*/{
   "intake.bar.title": "Record an idea, task or remark",
   "intake.bar.lead": "By voice or text — it lands in the inbox. Voice is transcribed on your Mac.",
   "intake.bar.voice": "🎙 Dictate",
-  "intake.bar.text": "✎ Write"
+  "intake.bar.text": "✎ Write",
+  "intake.duplicate": "Already saved: «{title}» ({kind}) — sending again did not create a second card",
+  "intake.retry_transcribe": "↻ Retry transcription",
+  "intake.err_timeout": "The server did not answer in time — the text is kept, try again",
+  "intake.err_not_json": "Sign in to the console again (Cloudflare Access) or the server is unavailable — the text is kept",
+  "intake.unsaved_hint": "There is text in the window — it is kept as a draft. To close: «Cancel» or ✕",
+  "intake.draft_restored": "An unsent draft was restored"
 }
 }/*I18N_END*/;
 

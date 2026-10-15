@@ -60,16 +60,32 @@ def _money_fields(*texts: str | None) -> tuple[dict | None, list[str]]:
 INTAKE_KIND_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
 
 
+def inbox_tracker_dir() -> Path:
+    """Каталог, куда ``save_inbox_task`` пишет по умолчанию (читается в момент вызова: тесты и
+    прод подменяют ``queue.TRACKER_DIR``). Пульту он нужен для замка и поиска ``submission_id``."""
+    from spa_core.owner_queue import queue as _q
+    return Path(_q.TRACKER_DIR)
+
+
 def save_inbox_task(text: str, source: str = "telegram", transcript: str | None = None, *,
                     kind: str | None = None, origin_label: str = "Telegram",
-                    tracker_dir=None) -> tuple[Path, str]:
-    """Create an Inbox card from free text. Returns (path, title)."""
+                    tracker_dir=None, extra_fields: dict | None = None,
+                    preamble: list[str] | None = None) -> tuple[Path, str]:
+    """Create an Inbox card from free text. Returns (path, title).
+
+    ``extra_fields`` / ``preamble`` — дополнительные поля frontmatter и строки в начале тела
+    (пульт ADR-760: ``submission_id``, ``actor``, строка о границе полномочий). Telegram их
+    не передаёт — его карточки не меняются.
+    """
     title = _title_from_text(text)
     extra, note = _money_fields(text, transcript)
     if kind in INTAKE_KIND_RU:
         extra = dict(extra or {})
         extra["intake_kind"] = kind
-    body_parts = note + [f"## Задание (из {origin_label})", ""]
+    if extra_fields:
+        extra = dict(extra or {})
+        extra.update(extra_fields)
+    body_parts = note + list(preamble or []) + [f"## Задание (из {origin_label})", ""]
     if kind in INTAKE_KIND_RU:
         body_parts += [f"_Владелец пометил как: {INTAKE_KIND_RU[kind]}._", ""]
     body_parts += [text.strip(), ""]
@@ -181,14 +197,26 @@ def save_inbox_document(text: str, provenance: str, source: str = "telegram") ->
     return path, title
 
 
-def transcribe_voice(audio_path: str | Path, language: str | None = None, timeout: int = 300) -> str | None:
-    """Transcribe an audio file with the local whisper CLI. Returns text or None.
+#: Исходы расшифровки (ADR-760, инв. #17): «whisper не успел», «whisper упал» и «речь пустая» —
+#: три РАЗНЫХ наблюдения, а не одно ``None``. Пульт показывает владельцу каждое своими словами.
+TRANSCRIBE_OK = "ok"
+TRANSCRIBE_EMPTY = "empty"
+TRANSCRIBE_TIMEOUT = "timeout"
+TRANSCRIBE_FAILED = "failed"
 
-    ``language=None`` → auto-detect (handles both ru and uk). Offline, no network.
+
+def transcribe_voice_detailed(audio_path: str | Path, language: str | None = None,
+                              timeout: int = 300) -> tuple[str, str | None]:
+    """Transcribe with the local whisper CLI. Returns ``(outcome, text)``.
+
+    ``outcome`` ∈ ``TRANSCRIBE_OK`` (text is non-empty) · ``TRANSCRIBE_EMPTY`` (whisper ran and
+    heard nothing) · ``TRANSCRIBE_TIMEOUT`` (killed after ``timeout`` s) · ``TRANSCRIBE_FAILED``
+    (no input file, could not start, non-zero exit). ``language=None`` → auto-detect (ru and uk).
+    Offline, no network.
     """
     audio_path = Path(audio_path)
     if not audio_path.exists():
-        return None
+        return TRANSCRIBE_FAILED, None
     with tempfile.TemporaryDirectory(prefix="spa_whisper_") as out_dir:
         cmd = [
             _WHISPER_BIN, str(audio_path),
@@ -206,18 +234,31 @@ def transcribe_voice(audio_path: str | Path, language: str | None = None, timeou
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        except subprocess.TimeoutExpired as exc:
+            log.warning("transcribe_voice: whisper timed out after %ss: %s", timeout, exc)
+            return TRANSCRIBE_TIMEOUT, None
+        except (FileNotFoundError, OSError) as exc:
             log.warning("transcribe_voice: whisper failed to run: %s", exc)
-            return None
+            return TRANSCRIBE_FAILED, None
         if proc.returncode != 0:
-            log.warning("transcribe_voice: whisper exit %s: %s", proc.returncode, proc.stderr[-300:])
-            return None
+            log.warning("transcribe_voice: whisper exit %s: %s", proc.returncode, (proc.stderr or "")[-300:])
+            return TRANSCRIBE_FAILED, None
         # whisper writes <stem>.txt in out_dir
         txts = list(Path(out_dir).glob("*.txt"))
         if not txts:
-            return None
+            return TRANSCRIBE_EMPTY, None
         text = txts[0].read_text(encoding="utf-8", errors="replace").strip()
-        return text or None
+        return (TRANSCRIBE_OK, text) if text else (TRANSCRIBE_EMPTY, None)
+
+
+def transcribe_voice(audio_path: str | Path, language: str | None = None, timeout: int = 300) -> str | None:
+    """Transcribe an audio file with the local whisper CLI. Returns text or None.
+
+    The Telegram contract (text or ``None``) is unchanged; the distinguishing outcomes live in
+    :func:`transcribe_voice_detailed`.
+    """
+    _outcome, text = transcribe_voice_detailed(audio_path, language=language, timeout=timeout)
+    return text
 
 
 def download_telegram_file(token: str, file_id: str, dest_dir: str | Path, timeout: int = 30) -> Path | None:

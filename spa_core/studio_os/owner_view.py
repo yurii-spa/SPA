@@ -780,6 +780,64 @@ def recent_releases(model: dict, updated: Optional[str]) -> dict:
             "items": rows}
 
 
+# ── ADR-760 «Мои записи»: что стало с записями владельца из пульта ───────────────────────────────
+RECORD_STATUS_RU = {
+    "new": "записано, ещё не разобрано",
+    "in-progress": "в работе",
+    "blocked": "остановлено",
+    "done": "сделано",
+}
+RECORD_KIND_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
+
+
+def _record_status(r: dict) -> tuple:
+    """(text, known) — a status the dictionary does not know is named, never shown as success."""
+    carried = r.get("carried_to")
+    if carried:
+        return "перенесено: " + (plain(str(carried)) or "куда — в подробностях"), True
+    st = r.get("status")
+    if st in RECORD_STATUS_RU:
+        return RECORD_STATUS_RU[st], True
+    return f"состояние не распознано («{plain(str(st)) or 'пусто'}») — это проблема отображения", False
+
+
+def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
+    """«Мои записи» — the latest cockpit records from the production tracker, read-only."""
+    mr = _get(model, "intake.my_records")
+    title = "Мои записи"
+    sub = "что стало с вашими записями из пульта"
+    if mr is None:
+        # снимок старше этого блока (до ADR-760 «Мои записи») — блока нет, а не «записей нет»
+        return None
+    if not isinstance(mr, dict) or mr.get("state") not in (MEASURED, NOT_MEASURED):
+        m = metric(title, None, confidence=INTERPRETATION_PROBLEM, source=None, measured_at=None,
+                   updated_at=updated, reason="не удалось понять раздел «Мои записи»")
+        return {"title": title, "sub": sub, "summary": m, "rows": [], "empty": None}
+    if mr["state"] == NOT_MEASURED or not isinstance(mr.get("items"), list):
+        m = metric(title, None, confidence=NOT_MEASURED, source=mr.get("source"), measured_at=mr.get("measured_at"),
+                   updated_at=updated, reason=plain(mr.get("reason")) or "причина не названа")
+        return {"title": title, "sub": sub, "summary": m, "rows": [], "empty": None}
+    rows = []
+    for r in mr["items"]:
+        if not isinstance(r, dict):
+            continue
+        status, known = _record_status(r)
+        rows.append({"title": plain(r.get("title")) or "запись без названия",
+                     "at_ru": _madrid(r.get("created_at")) or "время не записано",
+                     "kind": RECORD_KIND_RU.get(r.get("kind"), "без пометки"),
+                     "state": status, "state_known": known,
+                     "voice": bool(r.get("voice")),
+                     "technical": {"карточка": r.get("card"), "статус в трекере": r.get("status"),
+                                   "перенесено в": r.get("carried_to")}})
+    total = mr.get("total")
+    text = (f"Записей из пульта: {total}; ниже последние {len(rows)}" if rows and isinstance(total, int)
+            and total > len(rows) else (f"Записей из пульта: {len(rows)}" if rows else "Записей из пульта пока нет"))
+    m = metric(title, text, confidence=MEASURED, source=mr.get("source"), measured_at=mr.get("measured_at"),
+               updated_at=updated, unit="записей")
+    return {"title": title, "sub": sub, "summary": m, "rows": rows,
+            "empty": None if rows else "Записей из пульта пока нет"}
+
+
 def work(model: dict, updated: Optional[str]) -> dict:
     truth = model.get("truth") if isinstance(model.get("truth"), dict) else {}
     aw = active_work(model, truth, updated)
@@ -821,6 +879,7 @@ def work(model: dict, updated: Optional[str]) -> dict:
         "next": {"title": "Что дальше", "text": nxt or "Следующий шаг в журнале работы не записан"},
         "plan": _plan(truth),
         "done": recent_releases(model, updated),
+        "my_records": my_records(model, updated),
     }
 
 

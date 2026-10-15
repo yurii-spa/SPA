@@ -75,6 +75,20 @@ def _journal_history(dt: datetime, card, verdict: str, response: str) -> None:
         log.warning("_journal_history failed: %s", exc)
 
 
+#: Источники, чья пометка ``intake_kind`` — слово самого владельца (ADR-760, пульт).
+_OWNER_LABELLED_SOURCES = ("cockpit", "cockpit-voice")
+#: Пометка владельца → маршрут приёма. «note» (замечание) маршрута не задаёт.
+_DECLARED_ROUTE = {"idea": "idea", "task": "task"}
+
+
+def _declared_kind(card) -> str | None:
+    """Маршрут, который владелец объявил сам (пульт), или None — тогда решает классификатор."""
+    fields = getattr(card, "fields", None) or {}
+    if str(fields.get("source") or "") not in _OWNER_LABELLED_SOURCES:
+        return None
+    return _DECLARED_ROUTE.get(str(fields.get("intake_kind") or ""))
+
+
 def run_note_intake(now: datetime | None = None) -> dict:
     """Разобрать новые inbox-заметки/карточки.
 
@@ -154,11 +168,18 @@ def run_note_intake(now: datetime | None = None) -> dict:
         partial_tg = (f"\n⚠️ Похоже на уже существующее — проверь: {html.escape(partial_note)}"
                       if partial_note else "")
 
-        try:
-            kind, resp = classify_and_answer(body)
-        except Exception as exc:  # noqa: BLE001 — карточка ждёт обычного цикла
-            log.warning("intake classify failed for %s: %s — leaving as new", card.id, exc)
-            continue
+        # ADR-760: запись из пульта уже несёт пометку владельца (идея/задача) — её не
+        # переспрашиваем у классификатора: владелец сам сказал, что это. «Замечание» и всё
+        # прочее классифицируется как раньше. Классификатор при этом не вызывается вовсе.
+        declared = _declared_kind(card)
+        if declared is not None:
+            kind, resp = declared, ""
+        else:
+            try:
+                kind, resp = classify_and_answer(body)
+            except Exception as exc:  # noqa: BLE001 — карточка ждёт обычного цикла
+                log.warning("intake classify failed for %s: %s — leaving as new", card.id, exc)
+                continue
 
         # Классификатор НЕ ВЫНОСИЛ вердикта (упал / ненулевой выход / пустота). Это НЕ
         # «непонятно»: спросить было не у кого. Единственное честное действие — не решать:

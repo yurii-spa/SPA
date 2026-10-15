@@ -412,6 +412,37 @@ def _cards(tdir: Path) -> Optional[dict]:
     return out
 
 
+#: ADR-760 «Мои записи»: сколько последних записей пульта показать владельцу.
+COCKPIT_RECORDS_LIMIT = 10
+COCKPIT_SOURCES = ("cockpit", "cockpit-voice")
+
+
+def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
+                    limit: int = COCKPIT_RECORDS_LIMIT) -> dict:
+    """The owner's own cockpit records (source cockpit*), newest first, read-only from the PRODUCTION
+    tracker — the tree the mission server writes into (the origin mirror never has them).
+
+    ``prod_cards is None`` (tree absent/unreadable) ⇒ NOT_MEASURED with a reason (inv. #17), never an
+    empty «записей нет». A measured empty list is MEASURED with ``items=[]``.
+    """
+    measured_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if prod_cards is None:
+        return {"state": "NOT_MEASURED", "reason": "рабочий трекер на Mac не прочитан", "items": None,
+                "total": None, "source": source, "measured_at": measured_at}
+    rows = []
+    for name, c in prod_cards.items():
+        fm = c.get("fm") or {}
+        if not name.startswith("inbox-") or fm.get("source") not in COCKPIT_SOURCES:
+            continue
+        rows.append({"card": name, "title": fm.get("title") or name[:-3],
+                     "created_at": fm.get("submitted_at") or fm.get("created") or None,
+                     "kind": fm.get("intake_kind") or None, "status": fm.get("status") or None,
+                     "carried_to": fm.get("carried_to") or None, "voice": fm.get("source") == "cockpit-voice"})
+    rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
+    return {"state": "MEASURED", "reason": None, "items": rows[:limit], "total": len(rows),
+            "source": source, "measured_at": measured_at}
+
+
 def risk_class(fm: dict) -> str:
     """ADR-285 subject of an owner card (C5, ADR-580) — ONE shared classifier, shared with
     Director (``scripts/cartographer/owner_decisions.from_tracker``).
@@ -1410,6 +1441,10 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         "how": ("Ask / Idea / Voice go to the Studio Bridge bot: text or a voice note, classified, then CONFIRMED by "
                 "you before anything is written (ADR-521). Decisions are answered in the SPA bot with its buttons. "
                 "This page writes nothing."),
+        # ADR-760: what became of the owner's own cockpit records (production tracker, read-only)
+        "my_records": cockpit_records(
+            prod_cards if Path(inp.repo) != Path(inp.mirror) else cards, now,
+            source="nimbalyst-local/tracker (рабочее дерево на Mac)"),
     }
 
     # ── TRUTH (Company Truth read model, RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592
