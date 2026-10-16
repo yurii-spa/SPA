@@ -1,0 +1,230 @@
+name: SPA CI control (sharded full suite)
+
+# ── Зачем этот воркфлоу (замер 2026-10-16) ───────────────────────────────────────
+# Из последних 30 прогонов `SPA CI` (ci.yml) ни один не дошёл до вердикта: 28 пушевых
+# сняты следующим пушем (`cancel-in-progress` для push), расписанный 38873867566
+# (джоба 116884127339, 9b7e6442f) шёл 08:28→14:28Z и убит 6-часовым пределом джобы
+# GitHub на `[ 94%]` шага `spa_core/tests/` — 97 знаков `F`, ни одного имени. В
+# `SPA Tests` (test.yml) тот же шаг расписанного прогона 38877303508 снят
+# `timeout-minutes: 240`. Полный набор в ОДНУ джобу не помещается ПО ПОСТРОЕНИЮ:
+# 360 мин — потолок GitHub, и поднимать там нечего.
+#
+# Поэтому этот прогон — ДОБАВОЧНЫЙ, ci.yml и test.yml не тронуты:
+#   1. `manifest` собирает население ровно предписанной команды CLAUDE.md (те же
+#      корни, SPA_ENV=ci, PYTHONHASHSEED=0, -p no:randomly) и режет его по ФАЙЛУ на
+#      шарды детерминированно, по измеренному весу (scripts/ci_control_weights.json);
+#   2. каждый шард гоняет свой список и пишет исход КАЖДОГО теста в момент события
+#      (spa_core.ci.pytest_stream_record) — запись выгружается и при снятии шага;
+#   3. `aggregate` (if: always()) доказывает, что союз шардов == населению и что каждый
+#      шард отчитался; любой пропуск ⇒ INCOMPLETE (никогда не зелёный, инв. #17).
+#
+# Коммит ЗАКРЕПЛЁН: `manifest` разрешает SHA один раз, и все джобы берут именно его.
+# Группа `ci-control` без отмены: пуш этот прогон не снимает (другой воркфлоу, другая
+# группа), а очередь не копится — GitHub держит в группе не больше одного ожидающего.
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"   # каждые 6 ч; оценка прогона ≈ 1 ч (шарды ≈ 30 мин) — следующий не догоняет предыдущий
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to pin (empty = the commit the run was triggered on)"
+        required: false
+        default: ""
+
+concurrency:
+  group: ci-control
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CTL_SHARDS: "12"        # число шардов; план отказывает, если оценка шарда > бюджета
+  CTL_BUDGET_MIN: "75"    # бюджет ОЦЕНКИ шарда; граница зависания шага — 120 мин (ниже)
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      sha: ${{ steps.pin.outputs.sha }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Pin commit
+        id: pin
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
+
+      # Население = то, что СОБЕРЁТ предписанная команда (CLAUDE.md), а не glob по
+      # именам файлов. `--continue-on-collection-errors`: файл, который не собирается,
+      # обязан попасть в перечень как ОШИБКА (красное), а не оборвать перечень целиком.
+      - name: Enumerate population (collect-only, prescribed roots)
+        run: |
+          mkdir -p ctl
+          set +e
+          python -m pytest tests/ spa_core/tests/ scripts/tests/ spa_core/analytics/gross_of/ research/cards/ studio_shell/ \
+            --collect-only -q -p no:randomly \
+            -p spa_core.ci.pytest_collect_manifest \
+            --continue-on-collection-errors > ctl/collect.log 2>&1
+          code=$?
+          tail -n 15 ctl/collect.log
+          echo "collect-only exit: $code"
+          [ "$code" -le 1 ] || exit "$code"
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+          SPA_PYTEST_MANIFEST: ctl/collected.jsonl
+
+      - name: Plan shards
+        id: plan
+        run: |
+          python scripts/ci_control.py plan \
+            --collected ctl/collected.jsonl \
+            --weights scripts/ci_control_weights.json \
+            --shards "$CTL_SHARDS" --budget-min "$CTL_BUDGET_MIN" \
+            --sha "${{ steps.pin.outputs.sha }}" \
+            --roots tests spa_core/tests scripts/tests spa_core/analytics/gross_of research/cards studio_shell \
+            --out-dir ctl --github-output "$GITHUB_OUTPUT"
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
+      - name: Upload manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctl-manifest
+          path: ctl/
+          retention-days: 30
+          if-no-files-found: warn
+
+  shards:
+    needs: manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false          # падение одного шарда не имеет права стереть замер остальных
+      matrix:
+        shard: ${{ fromJSON(needs.manifest.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.manifest.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
+
+      - name: Download manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: ctl-manifest
+          path: ctl
+
+      # Порог на тест тот же, что у самого тяжёлого шага test.yml: `--timeout=180`
+      # и `signal` (ADR-474: `thread` зовёт os._exit и убивает СЕССИЮ — сводки нет).
+      # Замер: самый долгий тест в tests/ — 30 с, в spa_core/tests/ — 182 с (он и
+      # в test.yml упирается в тот же порог), то есть порог вердикт tests/ не меняет.
+      # 120 мин — граница ЗАВИСАНИЯ, а не бюджет: оценка шарда ≈ 30 мин.
+      - name: Run shard
+        timeout-minutes: 120
+        run: |
+          mkdir -p ctl-out
+          echo "{\"shard\": ${{ matrix.shard }}}" > ctl-out/shard.json
+          FILES=$(cat ctl/shard-${{ matrix.shard }}.txt)
+          set +e
+          python -m pytest $FILES -q --tb=short -p no:randomly \
+            -p spa_core.ci.pytest_stream_record \
+            -p spa_core.ci.pytest_collect_manifest \
+            --continue-on-collection-errors \
+            --timeout=180 --timeout-method=signal \
+            --junitxml=ctl-out/junit.xml
+          code=$?
+          echo "{\"exit\": $code}" > ctl-out/exit.json
+          exit "$code"
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+          SPA_PYTEST_STREAM: ctl-out/stream.jsonl
+          SPA_PYTEST_MANIFEST: ctl-out/collected.jsonl
+
+      # `always()`: запись обязана покинуть раннер и при снятии шага, и при отмене
+      # джобы — частичная запись и есть то, что называет «на чём оборвалось». Отмены
+      # пушем здесь не бывает (группа без cancel-in-progress), доигрывать нечего.
+      - name: Upload shard records
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctl-shard-${{ matrix.shard }}
+          path: ctl-out/
+          retention-days: 30
+          if-no-files-found: warn
+
+  aggregate:
+    needs: [manifest, shards]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.manifest.outputs.sha || inputs.sha || github.sha }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Скачивание НЕ имеет права оборвать свод: нет артефакта ⇒ свод обязан сказать
+      # INCOMPLETE словами, а не быть пропущенным вместе с вердиктом.
+      - name: Download manifest
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ctl-manifest
+          path: ctl
+
+      - name: Download shard records
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ctl-shard-*
+          path: shards
+
+      - name: Aggregate verdict (GREEN / RED / INCOMPLETE)
+        run: |
+          mkdir -p ctl-report shards
+          python scripts/ci_control.py aggregate \
+            --manifest-dir ctl --shards-dir shards \
+            --needs-result "${{ needs.shards.result }}" \
+            --out-json ctl-report/report.json --out-md ctl-report/report.md \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-control-report
+          path: ctl-report/
+          retention-days: 90
+          if-no-files-found: warn

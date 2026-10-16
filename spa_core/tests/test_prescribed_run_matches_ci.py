@@ -477,3 +477,99 @@ def test_positive_control_file_target_step_does_not_set_the_bar():
         "        env:\n          SPA_ENV: ci\n"
     )
     assert _coverage.ci_pytest_env({"proof.yml": text}, {"spa_core/tests"}) == {"SPA_ENV": "ci"}
+
+
+# ── ПЯТЫЙ вопрос: контрольный прогон по шардам режет ТО ЖЕ население (2026-10-16) ─
+#
+# Добавлено, а не изменено (инв. #16): ни одна проверка выше не тронута. Причина — замер
+# 16.10: полный набор в одну джобу Actions не помещается (`SPA CI` 38873867566 снят 6-часовым
+# пределом на `[ 94%]`, `SPA Tests` 38877303508 — `timeout-minutes: 240`), поэтому вердикт
+# о наборе теперь выносит `ci-control.yml`, который режет население на шарды. Его вердикт
+# стоит ровно столько, сколько совпадение его населения с предписанной командой: шард,
+# собравший «почти те же» корни, давал бы зелёный ПОДНАБОР. Воркфлоу не гейтит main
+# (расписание + ручной запуск), поэтому вопросы 1–4 его не видят по построению — отсюда
+# отдельный вопрос, а не расширение `_CI_DIRS`.
+
+_CONTROL_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-control.yml"
+_CONTROL_COLLECT_STEP = "Enumerate population (collect-only, prescribed roots)"
+_CONTROL_SHARD_STEP = "Run shard"
+_CONTROL_PLAN_STEP = "Plan shards"
+
+
+def prescribed_full_run_targets(text: str) -> set[str]:
+    """Цели ТОЙ строки, что несёт окружение CI, — то есть предписанного полного прогона.
+
+    ``prescribed_targets`` выше намеренно щедр (берёт любую строку с ``pytest``, включая
+    строки таблиц CLAUDE.md), и для вопроса «покрыто ли» щедрость безвредна: лишняя цель
+    ничего не прячет. Для вопроса «то же ли население» она вредна — сравнивать надо с одной
+    командой, а не с объединением всего текста.
+    """
+    targets: set[str] = set()
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#") or not _PYTEST_RE.search(stripped):
+            continue
+        if prescribed_env(stripped):
+            targets |= prescribed_targets(stripped)
+    return targets
+
+
+_PRESCRIBED_FULL = prescribed_full_run_targets(_CLAUDE_TEXT)
+
+
+def control_population_gaps(text: str, prescribed: set[str], env: dict[str, str]) -> list[str]:
+    """Расхождения населения/окружения контрольного прогона с предписанной командой."""
+    import yaml
+    doc = yaml.safe_load(text) or {}
+    steps = {str(s.get("name")): s for job in (doc.get("jobs") or {}).values()
+             for s in (job.get("steps") or []) if isinstance(s, dict)}
+    gaps: list[str] = []
+    collect = steps.get(_CONTROL_COLLECT_STEP)
+    if collect is None:
+        return [f"шага «{_CONTROL_COLLECT_STEP}» нет — население не перечисляется"]
+    lines = [_coverage.strip_inline_comment(ln) for ln in str(collect.get("run")).splitlines()]
+    targets = _coverage.block_pytest_targets(_coverage._join_continuations(lines))
+    if targets != prescribed:
+        gaps.append(f"корни перечисления {sorted(targets)} ≠ предписанным {sorted(prescribed)}")
+    if "-p no:randomly" not in str(collect.get("run")):
+        gaps.append("перечисление без -p no:randomly")
+    plan = steps.get(_CONTROL_PLAN_STEP)
+    roots = set()
+    if plan is not None:
+        after = str(plan.get("run")).split("--roots", 1)
+        if len(after) == 2:
+            roots = {t.rstrip("/") for t in after[1].split("--", 1)[0].replace("\\", " ").split()}
+    if roots != prescribed:
+        gaps.append(f"план объявляет корни {sorted(roots)} ≠ предписанным {sorted(prescribed)}")
+    for name in (_CONTROL_COLLECT_STEP, _CONTROL_SHARD_STEP):
+        step = steps.get(name)
+        if step is None:
+            gaps.append(f"шага «{name}» нет")
+            continue
+        step_env = {str(k): str(v) for k, v in (step.get("env") or {}).items()}
+        for key, value in env.items():
+            if step_env.get(key) != value:
+                gaps.append(f"шаг «{name}»: {key}={step_env.get(key)!r}, предписано {value!r}")
+    return gaps
+
+
+def test_control_run_enumerates_exactly_the_prescribed_population():
+    assert _CONTROL_WORKFLOW.exists(), f"НЕ ИЗМЕРЕНО: нет {_CONTROL_WORKFLOW}"
+    assert _PRESCRIBED_ENV, "НЕ ИЗМЕРЕНО: предписанная команда не несёт окружения"
+    assert _PRESCRIBED_FULL, "НЕ ИЗМЕРЕНО: строки полного прогона с окружением в CLAUDE.md нет"
+    gaps = control_population_gaps(_CONTROL_WORKFLOW.read_text(encoding="utf-8"),
+                                   _PRESCRIBED_FULL, _PRESCRIBED_ENV)
+    assert not gaps, gaps
+
+
+def test_positive_control_control_run_missing_a_root_is_caught():
+    """Контроль: стоит выпасть одному корню — и расхождение названо."""
+    text = _CONTROL_WORKFLOW.read_text(encoding="utf-8").replace(" studio_shell/ \\", " \\", 1)
+    gaps = control_population_gaps(text, _PRESCRIBED_FULL, _PRESCRIBED_ENV)
+    assert any("корни перечисления" in g and "studio_shell" in g for g in gaps), gaps
+
+
+def test_positive_control_control_run_without_ci_env_is_caught():
+    text = _CONTROL_WORKFLOW.read_text(encoding="utf-8").replace("SPA_ENV: ci", "SPA_ENV: dev")
+    gaps = control_population_gaps(text, _PRESCRIBED_FULL, _PRESCRIBED_ENV)
+    assert any("SPA_ENV" in g for g in gaps), gaps
