@@ -9154,7 +9154,251 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
         shutil.rmtree(root, ignore_errors=True)
 
 
+#: Сквозной путь пульта (ADR-763): текст записи и проблема-предмет одноразовой сцены.
+COCKPIT_LOOP_TEXT = "Сцена пробы: проверить сквозной путь записи из пульта"
+COCKPIT_LOOP_PROBLEM = "probe-cockpit-voice-loop-scene"
+
+
+def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий: сквозной путь «запись из пульта → карточка → исполнитель → ПРОВЕРЕННЫЙ результат →
+    понятное уведомление» ЗАМКНУТ — по ИСХОДУ, на настоящем коде (карточка
+    `inbox-skvoznoi-put-iz-pulta-golos-kartochka-is`, ADR-763).
+
+    Одноразовая сцена (временный трекер, временный корень с исходящими, отправитель — список в
+    памяти; живой трекер, живые исходящие и Telegram НЕ трогаются; `history_check` — шов приёма,
+    за ним локальный `claude`, поэтому в сцене это объявленная заглушка «NEW»):
+
+    1. пульт — настоящий `mission_intake.submit` дважды с ОДНИМ `submission_id` ⇒ ровно одна
+       карточка `source: cockpit`, статус `new`;
+    2. приём — настоящий `intake.run_note_intake` ⇒ метка `intake_seen`, карточка ОСТАЛАСЬ `new`
+       (приём ≠ исполнение), владельцу ровно одно «Создал задачу»; повторный прогон — ни одного;
+    3. исполнитель — взять без пробы ОТКАЗАНО очередью; `cockpit_loop.take_card` с настоящим
+       захватом шага 0b (`check_card_claim.claim_card`) ⇒ `in-progress`; повторная доставка тем
+       же исполнителем — no-op, другим — отказ (второго исполнения нет); повтор отправки и приёма
+       карточку в работе не трогают;
+    4. проверка — собственная проба карточки (`problem_absent` на данных сцены, настоящий
+       `run_probe`) даёт `not_satisfied` ⇒ `close_verified` НЕ закрывает; «Мои записи»
+       (настоящие `cockpit_records` → `my_records`) показывают `not_accepted` с причиной И
+       следующим шагом; уведомление — одно на смену состояния, перемер без смены — ни одного;
+    5. проблема закрыта ⇒ проба `satisfied` ⇒ карточка `done` с `verified_by_probe`, «Мои записи»
+       — `done_verified`, владельцу ровно одно «сделано и проверено пробой <имя>»; повторное
+       закрытие, дочистка и прогон приёма — ни одного дубля; исходящие пусты.
+
+    Проверяются ПОЛЯ (статус, `state_kind`, `reason`, `next_step`, ключи исходящих, число
+    сообщений), а не подстрока отчёта (ADR-333). Порвись звено — `not_satisfied` с его номером.
+    Время — вход (`now`); живость исполнителей для захвата — вход сцены (`ps=`), не живая ОС.
+    """
+    import html as _html
+    import importlib.util as _ilu
+    import shutil
+    import tempfile
+    from datetime import timedelta
+
+    try:
+        from spa_core.owner_queue import cockpit_loop as cl
+    except ImportError as exc:
+        return NOT_SATISFIED, (f"звено 4–5 (закрытие пробой → уведомление) не построено: "
+                               f"нет `spa_core.owner_queue.cockpit_loop` ({exc})")
+    try:
+        from spa_core.owner_queue import intake as oi
+        from spa_core.owner_queue import queue as q
+        from spa_core.studio_os import mission_control as mc
+        from spa_core.studio_os import mission_intake as mi
+        from spa_core.studio_os import owner_view as ov
+        from spa_core.monitoring import problem_store
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"звенья пути не ввезены ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    guard_path = os.path.join(REPO_ROOT, "scripts", "check_card_claim.py")
+    try:
+        spec_g = _ilu.spec_from_file_location("_probe_cockpit_card_claim", guard_path)
+        guard = _ilu.module_from_spec(spec_g)          # type: ignore[arg-type]
+        spec_g.loader.exec_module(guard)               # type: ignore[union-attr]
+        sibling = guard.load_sibling()
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"шаг 0b (захват) не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+
+    t0 = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    start = (t0 - timedelta(hours=2)).strftime("%a %b %d %H:%M:%S %Y")
+    anchors = {"executor-a": (os.getpid(), start), "executor-b": (999_002, start)}
+    spec = f"problem_absent:{COCKPIT_LOOP_PROBLEM}"
+    sent: list = []
+
+    def notify(text):
+        sent.append(text)
+        return True
+
+    def no_history(_body):
+        return {"verdict": "NEW", "response": ""}
+
+    root = tempfile.mkdtemp(prefix="spa_cockpit_loop_probe_")
+    try:
+        tracker = os.path.join(root, "tracker")
+        data = os.path.join(root, "data")
+        os.makedirs(tracker)
+        os.makedirs(data)
+        obox = _pathlib.Path(data) / "intake_outbox.json"
+        log = os.path.join(root, "session_changes.jsonl")
+        open(log, "w", encoding="utf-8").close()
+
+        def put_problem(status):
+            # Писатель — сам `problem_store` (его атомарная запись), а не своя копия здесь.
+            problem_store.save_store(data, {"problems": {COCKPIT_LOOP_PROBLEM: {
+                "problem_id": COCKPIT_LOOP_PROBLEM, "status": status}}})
+
+        def runner(s):
+            return run_probe(s, data_dir=data)
+
+        def claim(path, executor):
+            guard.claim_card(_pathlib.Path(path).stem, log=log, session=executor, tracker_dir=tracker,
+                             now=t0, sibling=sibling, ps=lambda _pid: (0, start),
+                             self_anchor=anchors[executor])
+
+        def intake_run(at):
+            return oi.run_note_intake(at, tracker_dir=tracker, repo_root=root, notify=notify,
+                                      history=no_history, ingest=False)
+
+        def fm_of(p):
+            return parse_frontmatter(open(p, encoding="utf-8").read())
+
+        def row_of(name):
+            rec = mc.cockpit_records(mc._cards(_pathlib.Path(tracker)), t0, source="сцена пробы")
+            view = ov.my_records({"intake": {"my_records": rec}}, None) or {}
+            return next((r for r in view.get("rows") or []
+                         if (r.get("technical") or {}).get("карточка") == name), None)
+
+        # ── 1. пульт → карточка ─────────────────────────────────────────────────────────────
+        body = json.dumps({"text": COCKPIT_LOOP_TEXT, "kind": "task",
+                           "submission_id": "cockpit-loop-probe-0001"}).encode("utf-8")
+        r1 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
+        r2 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
+        cards = sorted(n for n in os.listdir(tracker) if n.startswith("inbox-"))
+        if len(cards) != 1 or not r2.get("duplicate") or r2.get("card") != r1.get("card"):
+            return NOT_SATISFIED, (f"звено 1 (пульт → карточка): повтор отправки с тем же "
+                                   f"submission_id дал карточек {len(cards)} ({cards}) — "
+                                   f"идемпотентности нет")
+        name = cards[0]
+        card = os.path.join(tracker, name)
+        fm = fm_of(card)
+        if fm.get("source") not in mi.COCKPIT_SOURCES or fm.get("status") != "new":
+            return NOT_SATISFIED, (f"звено 1: карточка пульта родилась с source={fm.get('source')!r}, "
+                                   f"status={fm.get('status')!r} — ожидались cockpit* и new")
+        title = fm.get("title") or name
+
+        # ── 2. приём ────────────────────────────────────────────────────────────────────────
+        intake_run(t0)
+        fm = fm_of(card)
+        if fm.get("status") != "new":
+            return NOT_SATISFIED, (f"звено 2 (приём): приём перевёл карточку в {fm.get('status')!r} — "
+                                   f"приём не есть исполнение, карточка обязана остаться new")
+        if not fm.get(oi._INTAKE_SEEN_FIELD):
+            return NOT_SATISFIED, "звено 2 (приём): метки intake_seen нет — следующий прогон примет заново"
+        accepted = [t for t in sent if _html.escape(title) in t]
+        if len(sent) != 1 or len(accepted) != 1:
+            return NOT_SATISFIED, (f"звено 2 (приём): уведомление о приёме не дошло владельцу "
+                                   f"(отправлено {len(sent)}, о карточке {len(accepted)}) — "
+                                   f"потеряно между отметкой и отправкой")
+        intake_run(t0 + timedelta(minutes=1))
+        if len(sent) != 1:
+            return NOT_SATISFIED, (f"звено 2 (приём): повторный прогон приёма прислал ещё "
+                                   f"{len(sent) - 1} сообщ. — повторная доставка не дедуплицирована")
+
+        # ── 3. исполнитель ──────────────────────────────────────────────────────────────────
+        try:
+            q.set_status(card, "in-progress")
+        except q.AcceptanceCriterionMissing:
+            pass
+        else:
+            return NOT_SATISFIED, ("звено 3 (исполнитель): карточку взяли в работу БЕЗ пробы приёмки — "
+                                   "очередь не отказала, «сделано» будет нечем проверить")
+        put_problem("OPEN")
+        try:
+            ta = cl.take_card(card, spec, executor="executor-a", claim=claim)
+        except cl.TakeRefused as exc:
+            return NOT_SATISFIED, f"звено 3 (исполнитель): свободную карточку взять не удалось — {exc}"
+        fm = fm_of(card)
+        if (not ta.get("taken") or fm.get("status") != "in-progress"
+                or fm.get("claimed_by") != "executor-a" or fm.get("acceptance_probe") != spec):
+            return NOT_SATISFIED, (f"звено 3 (исполнитель): после взятия статус {fm.get('status')!r}, "
+                                   f"захват {fm.get('claimed_by')!r}, проба {fm.get('acceptance_probe')!r}")
+        second = []
+        for ex in ("executor-b", "executor-a"):
+            try:
+                res = cl.take_card(card, spec, executor=ex, claim=claim)
+            except cl.TakeRefused:
+                continue
+            if res.get("taken"):
+                second.append(ex)
+        if second:
+            return NOT_SATISFIED, (f"звено 3 (исполнитель): повторная доставка запустила второе "
+                                   f"исполнение той же карточки ({', '.join(second)}) — захват не "
+                                   f"исключает исполнителей")
+        r3 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
+        intake_run(t0 + timedelta(minutes=2))
+        if (not r3.get("duplicate") or len([n for n in os.listdir(tracker) if n.startswith("inbox-")]) != 1
+                or fm_of(card).get("status") != "in-progress" or len(sent) != 1):
+            return NOT_SATISFIED, ("звено 3: повтор отправки/приёма после взятия создал карточку, "
+                                   "сбросил статус или прислал сообщение")
+
+        # ── 4. проверка: проба НЕ выполнена ⇒ не «сделано», причина и шаг видны ─────────────
+        t4 = t0 + timedelta(minutes=3)
+        cl.close_verified(card, now=t4, runner=runner, outbox_path=obox, notify=notify)
+        fm = fm_of(card)
+        if fm.get("status") == "done" or fm.get("verified_by_probe"):
+            return NOT_SATISFIED, (f"звено 4 (проверка): «сделано» поставлено до того, как проба "
+                                   f"подтвердила результат (проба: {runner(spec)[0]}, статус "
+                                   f"{fm.get('status')!r})")
+        row = row_of(name)
+        if (not row or row.get("state_kind") != "not_accepted" or row.get("verified")
+                or not str(row.get("reason") or "").strip() or not str(row.get("next_step") or "").strip()):
+            return NOT_SATISFIED, (f"звено 5 («Мои записи»): непринятый результат показан без причины "
+                                   f"или без следующего шага: {row and {k: row.get(k) for k in ('state_kind', 'reason', 'next_step', 'verified')}}")
+        if len(sent) != 2:
+            return NOT_SATISFIED, (f"звено 5 (уведомление): на «не принято» отправлено "
+                                   f"{len(sent) - 1} сообщ. вместо одного")
+        cl.close_verified(card, now=t4 + timedelta(minutes=1), runner=runner, outbox_path=obox,
+                          notify=notify)
+        if len(sent) != 2:
+            return NOT_SATISFIED, ("звено 5 (уведомление): перемер без смены состояния прислал "
+                                   "сообщение ещё раз — спам владельцу")
+
+        # ── 5. результат достигнут ⇒ проверено ⇒ одно «сделано» ─────────────────────────────
+        put_problem("CLOSED")
+        t5 = t0 + timedelta(minutes=5)
+        rc = cl.close_verified(card, now=t5, runner=runner, outbox_path=obox, notify=notify)
+        fm = fm_of(card)
+        if fm.get("status") != "done" or fm.get("verified_by_probe") != spec or not rc.get("verified"):
+            return NOT_SATISFIED, (f"звено 4 (проверка): проба выполнена, а карточка {fm.get('status')!r}, "
+                                   f"verified_by_probe={fm.get('verified_by_probe')!r}")
+        done_msgs = sent[2:]
+        if len(done_msgs) != 1 or _html.escape(title) not in done_msgs[0] or spec not in done_msgs[0]:
+            return NOT_SATISFIED, (f"звено 5 (уведомление): «сделано и проверено» дошло "
+                                   f"{len(done_msgs)} раз(а) или без названия записи и пробы")
+        cl.close_verified(card, now=t5, runner=runner, outbox_path=obox, notify=notify)
+        cl.sweep_notices(tracker_dir=tracker, outbox_path=obox, now=t5)
+        intake_run(t5 + timedelta(minutes=1))
+        if len(sent) != 3:
+            return NOT_SATISFIED, (f"звено 5 (уведомление): повторное закрытие/дочистка/приём прислали "
+                                   f"ещё {len(sent) - 3} сообщ. «сделано»")
+        row = row_of(name)
+        if not row or row.get("state_kind") != "done_verified" or row.get("verified") is not True:
+            return NOT_SATISFIED, (f"звено 5 («Мои записи»): проверенный результат показан как "
+                                   f"{row and row.get('state_kind')!r}")
+        left = oi._outbox_load(obox)
+        if left:
+            return NOT_SATISFIED, f"звено 5: в исходящих осталось {[i.get('key') for i in left]}"
+    except Exception as exc:  # noqa: BLE001 — сцена не собралась = не измерено, не вердикт
+        return UNMEASURED, f"сцена сквозного пути не собралась ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+    return SATISFIED, (f"путь пульта замкнут: 2 отправки → 1 карточка; приём → new + intake_seen + "
+                       f"1 сообщение; без пробы взять ОТКАЗАНО; повторная доставка второго исполнения "
+                       f"не дала; проба not_satisfied → «не принято» с причиной и шагом, 1 сообщение; "
+                       f"проба satisfied → done + verified_by_probe={spec}, 1 «сделано и проверено»; "
+                       f"дублей нет, исходящие пусты (всего сообщений {len(sent)})")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
         _probe_card_claim_absent_worker_reaches_the_verdict,

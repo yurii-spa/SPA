@@ -117,6 +117,7 @@ cabinet/node_modules/
 
 # ENV_SETUP v3 §6 — runtime inbox note archive (not canonical)
 inbox/.ingested/
+inbox/.cockpit-wake*
 
 # ENV_SETUP v3 §7.4 — Obsidian per-device vault config (not canonical, device-local)
 .obsidian/

@@ -80,8 +80,8 @@ def _outbox_path() -> Path:
     return _REPO / "data" / _OUTBOX_NAME
 
 
-def _outbox_load() -> list[dict]:
-    p = _outbox_path()
+def _outbox_load(path: Path | None = None) -> list[dict]:
+    p = Path(path) if path is not None else _outbox_path()
     if not p.exists():
         return []
     try:
@@ -102,33 +102,66 @@ def _outbox_load() -> list[dict]:
         return []
 
 
-def _outbox_save(items: list[dict]) -> None:
+def _outbox_save(items: list[dict], path: Path | None = None) -> None:
     from spa_core.utils.atomic import atomic_save_text
+    target = Path(path) if path is not None else _outbox_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
     atomic_save_text(json.dumps({"schema": 1, "pending": items}, ensure_ascii=False, indent=1),
-                     str(_outbox_path()))
+                     str(target))
 
 
-def _outbox_put(key: str, text: str, at: datetime) -> None:
-    """Долговечно передать уведомление по карточке ``key``; повторная передача заменяет запись."""
-    items = [i for i in _outbox_load() if i.get("key") != key]
+def _outbox_put(key: str, text: str, at: datetime, path: Path | None = None) -> None:
+    """Долговечно передать уведомление по ключу ``key``; повторная передача заменяет запись.
+
+    Ключ приёма — имя карточки; ключи сквозного пути пульта (``cockpit_loop``) — «карточка#событие»,
+    поэтому «принято» и «сделано и проверено» по одной карточке друг друга не вытесняют."""
+    items = [i for i in _outbox_load(path) if i.get("key") != key]
     items.append({"key": key, "text": text, "queued_at": at.strftime("%Y-%m-%dT%H:%M:%SZ")})
-    _outbox_save(items)
+    _outbox_save(items, path)
 
 
-def _outbox_drop(keys) -> None:
+def _outbox_drop(keys, path: Path | None = None) -> None:
     keys = set(keys)
-    items = _outbox_load()
+    items = _outbox_load(path)
     left = [i for i in items if i.get("key") not in keys]
     if len(left) != len(items):
-        _outbox_save(left)
+        _outbox_save(left, path)
 
 
-def _journal_history(dt: datetime, card, verdict: str, response: str) -> None:
+def flush_outbox(*, notify=None, path: Path | None = None) -> list[str]:
+    """Отправить ВСЁ, что лежит в исходящих; доставленное вычёркивается сразу. Возврат — тексты,
+    которые были в очереди на отправку (не «доставленные»: вернувший ``False`` отправитель оставляет
+    запись до следующего прогона).
+
+    Семантика доставки — НЕ МЕНЕЕ ОДНОГО РАЗА, не «ровно один раз»: падение между отправкой и
+    вычёркиванием, или отправка, о которой Telegram не успел ответить, повторит сообщение следующим
+    прогоном. Дубль по одной карточке и одному событию невозможен только В ИСХОДЯЩИХ (ключ заменяет
+    запись), а не в чате владельца.
+
+    До ``_MAX_INDIVIDUAL_NOTICES`` — по одному; больше — ОДНОЙ сводкой (флуд глушит сигнал)."""
+    send = notify if notify is not None else _notify
+    pending = _outbox_load(path)
+    notices = [i["text"] for i in pending]
+    if len(pending) <= _MAX_INDIVIDUAL_NOTICES:
+        for item in pending:
+            if send(item["text"]) is not False:
+                _outbox_drop([item["key"]], path)
+    else:
+        head = "\n".join(f"• {_strip_tags(t)[:90]}" for t in notices[:_SUMMARY_HEAD])
+        ok = send(f"📥 Разобрал входящих за один прогон: <b>{len(notices)}</b>. "
+                  f"Шлю сводкой, чтобы не завалить чат:\n{head}\n"
+                  f"…и ещё {len(notices) - _SUMMARY_HEAD}. Все — в очереди карточек.")
+        if ok is not False:
+            _outbox_drop([i["key"] for i in pending], path)
+    return notices
+
+
+def _journal_history(dt: datetime, card, verdict: str, response: str, root: Path | None = None) -> None:
     """Дописать результат проверки истории (Шаг 1a) в журнал недели (owner-directive)."""
     try:
         from spa_core.utils.atomic import atomic_save_text
 
-        jdir = _REPO / "docs" / "journal"
+        jdir = (root if root is not None else _REPO) / "docs" / "journal"
         jdir.mkdir(parents=True, exist_ok=True)
         iso = dt.isocalendar()
         jf = jdir / f"{iso[0]}-W{iso[1]:02d}.md"
@@ -210,11 +243,11 @@ def _existing_idea_note(ideas: Path, card) -> Path | None:
 _SOURCE_CARD_FIELD = "intake_source_card"
 
 
-def _existing_owner_question(card) -> Path | None:
+def _existing_owner_question(card, tracker_dir=None) -> Path | None:
     """Карточка-вопрос владельцу, уже заведённая приёмом по ЭТОЙ заметке (любой статус)."""
     from spa_core.owner_queue import queue as _q
     try:
-        for p in sorted(Path(_q.TRACKER_DIR).glob("owner-decision-*.md")):
+        for p in sorted(Path(tracker_dir if tracker_dir is not None else _q.TRACKER_DIR).glob("owner-decision-*.md")):
             try:
                 if str(_q.load_card(p).fields.get(_SOURCE_CARD_FIELD) or "") == card.path.name:
                     return p
@@ -225,19 +258,27 @@ def _existing_owner_question(card) -> Path | None:
     return None
 
 
-def _forget(keys: list[str]) -> None:
+def _forget(keys: list[str], path: Path | None = None) -> None:
     """Снять уведомления, переданные в этом прогоне по карточке, приём которой не закончился."""
     if not keys:
         return
     try:
-        _outbox_drop(keys)
+        _outbox_drop(keys, path)
     except Exception as exc:  # noqa: BLE001 — лишнее уведомление лучше потерянной карточки
         log.warning("intake outbox drop failed for %s: %s", keys, exc)
     keys.clear()
 
 
-def run_note_intake(now: datetime | None = None) -> dict:
+def run_note_intake(now: datetime | None = None, *, tracker_dir=None, repo_root=None,
+                    notify=None, history=None, ingest: bool = True) -> dict:
     """Разобрать новые inbox-заметки/карточки.
+
+    Объявленные ШВЫ (по умолчанию — боевое поведение, байт в байт): ``tracker_dir`` — каталог
+    карточек; ``repo_root`` — корень, от которого лежат ``docs/ideas``, журнал и исходящие
+    (``data/intake_outbox.json``); ``notify`` — отправитель (Telegram); ``history`` — проверка
+    истории (``history_check``, за ней локальный ``claude``); ``ingest=False`` — не сканировать
+    заметки Obsidian. Нужны одноразовой сцене пробы ``cockpit_voice_loop_closed``: живой трекер,
+    живые исходящие и Telegram она не трогает.
 
     Returns ``{'processed': [...], 'unavailable': [...], 'notices': [...], 'urgent': bool}``:
     ``unavailable`` — карточки, по которым классификатор НЕ ОТВЕТИЛ (оставлены `new`,
@@ -258,6 +299,8 @@ def run_note_intake(now: datetime | None = None) -> dict:
     from spa_core.utils.atomic import atomic_save_text
 
     dt = now or datetime.now(timezone.utc)
+    root = Path(repo_root) if repo_root is not None else _REPO
+    obox = (root / "data" / _OUTBOX_NAME) if repo_root is not None else None
     processed: list[str] = []
     unavailable: list[str] = []
     notices: list[str] = []
@@ -273,15 +316,16 @@ def run_note_intake(now: datetime | None = None) -> dict:
         владельцу 46 сообщений подряд. Флуд — это не «много информации», это потеря
         сигнала: среди 46 «создал задачу» тревога о стоп-кране не будет прочитана.
         """
-        _outbox_put(card.path.name, text, dt)
+        _outbox_put(card.path.name, text, dt, obox)
         handed_off.append(card.path.name)
 
-    try:
-        ingest_notes()  # свободные заметки Obsidian → inbox-карточки
-    except Exception as exc:  # noqa: BLE001
-        log.warning("intake ingest_notes failed: %s", exc)
+    if ingest:
+        try:
+            ingest_notes()  # свободные заметки Obsidian → inbox-карточки
+        except Exception as exc:  # noqa: BLE001
+            log.warning("intake ingest_notes failed: %s", exc)
 
-    for card in list_cards(tracker_type="inbox", status="new"):
+    for card in list_cards(tracker_type="inbox", status="new", tracker_dir=tracker_dir):
         if _already_accepted(card):
             continue                     # приём её уже принял: не переспрашивать и не слать повторно
         body = (card.body or card.title).strip()
@@ -296,12 +340,12 @@ def run_note_intake(now: datetime | None = None) -> dict:
         try:
             from spa_core.owner_queue.history_check import history_check, is_duplicate
 
-            hc = history_check(body)
+            hc = (history or history_check)(body)
             verdict = hc.get("verdict", "NEW")
             resp_h = hc.get("response", "")
             if is_duplicate(verdict):
                 icon = {"DONE": "✅", "IN_PROGRESS": "🔧", "REJECTED": "🚫"}.get(verdict, "ℹ️")
-                _journal_history(dt, card, verdict, resp_h)
+                _journal_history(dt, card, verdict, resp_h, root)
                 _queue_notice(card, f"{icon} {html.escape(resp_h or 'нашёл совпадение в памяти — дубль не создаю')}")
                 set_status(card.path, "done", closed_by="owner_queue.intake/history_check",
                            evidence=f"duplicate of existing work (verdict {verdict}): {(resp_h or '')[:160]}")
@@ -309,9 +353,9 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 continue
             if verdict == "PARTIAL" and resp_h:
                 partial_note = resp_h
-                _journal_history(dt, card, "PARTIAL", resp_h)
+                _journal_history(dt, card, "PARTIAL", resp_h, root)
         except Exception as exc:  # noqa: BLE001 — history-check не должен ронять приём
-            _forget(handed_off)
+            _forget(handed_off, obox)
             log.warning("intake history_check failed for %s: %s — продолжаю как NEW", card.id, exc)
 
         # PARTIAL (§1a): карточку СОЗДАТЬ, но пометить «похоже на …, проверь» — и в
@@ -350,7 +394,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
 
         try:
             if kind == "idea":
-                ideas = _REPO / "docs" / "ideas"
+                ideas = root / "docs" / "ideas"
                 ideas.mkdir(parents=True, exist_ok=True)
                 # Повторный разбор после падения не пишет вторую заметку: та же карточка уже
                 # записана (её имя стоит в заметке) — берём ту, что есть.
@@ -366,7 +410,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 # Это и есть его приёмка: заметка существует — проверяемо.
                 # Корень НАЗВАН: заметка лежит в `_REPO/docs/ideas`, и условие
                 # освобождения обязано мерить от того же корня (ADR-501).
-                set_status(card.path, "done", carried_to=fpath, repo_root=_REPO)
+                set_status(card.path, "done", carried_to=fpath, repo_root=root)
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
                 # Дословный текст пишется маркером, ОБЪЯВЛЕННЫМ в history_check: по нему
@@ -375,7 +419,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 # Повтор после падения не заводит второй вопрос: вопрос по ЭТОЙ заметке уже есть
                 # (поле intake_source_card) — берём его, даже если классификатор сформулировал
                 # уточнение иначе (открытый близнец create_card сравнивает тело дословно).
-                _owner_card = _existing_owner_question(card) or create_card(
+                _owner_card = _existing_owner_question(card, tracker_dir) or create_card(
                     "owner-decision",
                     f"Уточнение по заметке: {card.title}",
                     body=(f"## Что случилось и почему это важно\nПришло сообщение, непонятно — вопрос это или задача.\n\n"
@@ -383,6 +427,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                           f"## Как понять, что готово\nТы уточнил.\n\n## Что будет после\nОбработаю по твоему ответу."),
                     status="needs-owner", source="intake",
                     extra_fields={_SOURCE_CARD_FIELD: card.path.name},
+                    **({"tracker_dir": tracker_dir} if tracker_dir is not None else {}),
                 )
                 # Тот же порядок: носитель гасится, назвав карточку владельцу.
                 # `create_card` возвращает путь либо объект с `path` — берём оба вида,
@@ -390,7 +435,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 _target = getattr(_owner_card, "path", _owner_card)
                 # Уведомление передаётся до закрытия носителя.
                 _queue_notice(card, f"❓ Есть вопрос — смотри карточку: {html.escape(q)}{partial_tg}")
-                set_status(card.path, "done", carried_to=_target, repo_root=_REPO)
+                set_status(card.path, "done", carried_to=_target, repo_root=root)
             else:  # task
                 # Уведомление передаётся ДО правки тела: вписанный критерий сам по себе
                 # читается как «уже принята» (_already_accepted, старые карточки), и падение
@@ -419,31 +464,28 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 # мерку объявляет тот, кто возьмёт её в работу. Ровно этого правило и хочет.
             processed.append(card.id)
         except Exception as exc:  # noqa: BLE001 — карточка остаётся new → обычный цикл
-            _forget(handed_off)   # приём не закончен — уведомлять не о чем, следующий прогон повторит
+            _forget(handed_off, obox)   # приём не закончен — уведомлять не о чем, следующий прогон повторит
             log.warning("intake route failed for %s: %s — leaving as new", card.id, exc)
+
+    # Сквозной путь пульта (STUDIO-OS-NEXT-01): уведомление «сделано и проверено», потерянное
+    # падением между закрытием карточки пробой и передачей в исходящие, дочищается здесь —
+    # приём запускается на каждое событие, поэтому окно потери ограничено следующим событием.
+    try:
+        from spa_core.owner_queue import cockpit_loop as _cl
+        _cl.sweep_notices(tracker_dir=tracker_dir, outbox_path=obox, now=dt)
+    except Exception as exc:  # noqa: BLE001 — дочистка не должна ронять приём
+        log.warning("intake cockpit sweep failed: %s", exc)
 
     # Отправка ответов: до _MAX_INDIVIDUAL_NOTICES — как раньше, по одному; больше —
     # ОДНОЙ сводкой (см. _queue_notice: флуд глушит сигнал, а не добавляет его). Отправляется ВСЁ,
     # что лежит в исходящих, — и остаток прошлого прогона; доставленное вычёркивается сразу.
     # ``_notify`` вернул ``False`` ⇒ запись остаётся до следующего прогона (не менее одного раза).
-    pending = _outbox_load()
-    notices = [i["text"] for i in pending]
-    if len(pending) <= _MAX_INDIVIDUAL_NOTICES:
-        for item in pending:
-            if _notify(item["text"]) is not False:
-                _outbox_drop([item["key"]])
-    else:
-        head = "\n".join(f"• {_strip_tags(t)[:90]}" for t in notices[:_SUMMARY_HEAD])
-        ok = _notify(f"📥 Разобрал входящих за один прогон: <b>{len(notices)}</b>. "
-                     f"Шлю сводкой, чтобы не завалить чат:\n{head}\n"
-                     f"…и ещё {len(notices) - _SUMMARY_HEAD}. Все — в очереди карточек.")
-        if ok is not False:
-            _outbox_drop([i["key"] for i in pending])
+    notices = flush_outbox(notify=notify, path=obox)
 
     # ОДНО сообщение на прогон, а не по штуке на карточку: 11.08 недоступность классификатора
     # была молчаливой — владелец видел только её последствия (44 вопроса ниоткуда).
     if unavailable:
-        _notify(f"⚠️ Классификатор недоступен — {len(unavailable)} входящих оставил как есть "
+        (notify if notify is not None else _notify)(f"⚠️ Классификатор недоступен — {len(unavailable)} входящих оставил как есть "
                 f"(статус <b>new</b>), разберу обычным циклом. Вопросов из-за этого не создаю.")
 
     return {"processed": processed, "unavailable": unavailable,

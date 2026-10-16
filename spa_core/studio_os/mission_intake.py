@@ -296,7 +296,33 @@ def _card_field(path: Path, key: str) -> Optional[str]:
     return None
 
 
-def submit(body: bytes, *, actor: str, tracker_dir=None, now=None) -> dict:
+WAKE_FILE = ".cockpit-wake"
+
+
+def wake_intake(notes_dir=None, *, now=None) -> bool:
+    """Разбудить штатный приём заданий после записи из пульта (ADR-763, ARB 16.10).
+
+    Приём (`com.spa.inbox_watch` → `run_note_intake`) запускается launchd по `WatchPaths` каталога `inbox/` —
+    то есть только от заметок Obsidian. Карточка пульта ложится в трекер, и её не разбирал никто: замер 16.10 —
+    после 23:40Z приём не запускался ни разу при новых карточках. Здесь каталог `inbox/` меняется атомарным
+    переименованием служебного файла с точкой: launchd видит изменение каталога, а `ingest_notes` его не берёт
+    (читает только `*.md`/`*.txt`); дребезг и замок уже есть в обёртке приёма. Возврат — удалось ли разбудить;
+    сбой не отменяет уже записанную карточку (её подберёт следующий прогон), но называется в ответе.
+    """
+    from datetime import datetime, timezone
+    from spa_core.owner_queue import queue as _q
+    d = Path(notes_dir) if notes_dir is not None else _q.INBOX_NOTES_DIR
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        tmp = d / (WAKE_FILE + ".tmp")
+        tmp.write_text((now or datetime.now(timezone.utc)).isoformat() + "\n", encoding="utf-8")
+        os.replace(tmp, d / WAKE_FILE)
+        return True
+    except OSError:
+        return False
+
+
+def submit(body: bytes, *, actor: str, tracker_dir=None, now=None, wake_dir=None) -> dict:
     try:
         doc = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
@@ -346,6 +372,8 @@ def submit(body: bytes, *, actor: str, tracker_dir=None, now=None) -> dict:
                                       # новый id) — намеренная, и близнец её не глотает. Без id (старая
                                       # страница) — прежняя защита открытым близнецом.
                                       merge_open_twin=not sid)
+    # живой путь (трекер по умолчанию) будит приём всегда; тест — только если назвал свой каталог
+    woken = wake_intake(wake_dir, now=now) if (tracker_dir is None or wake_dir is not None) else None
     return {"ok": True, "duplicate": False, "card": Path(path).name, "title": title, "kind": kind,
-            "kind_ru": KINDS[kind],
-            "audit": f"intake actor={actor} kind={kind} card={Path(path).name} sha={digest}"}
+            "kind_ru": KINDS[kind], "intake_woken": woken,
+            "audit": f"intake actor={actor} kind={kind} card={Path(path).name} sha={digest} woken={woken}"}

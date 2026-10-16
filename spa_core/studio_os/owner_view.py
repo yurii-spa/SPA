@@ -789,16 +789,67 @@ RECORD_STATUS_RU = {
 }
 RECORD_KIND_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
 
+#: Сквозной путь пульта (ADR-763): исход проверки → (причина, следующий шаг), когда в карточке их нет.
+#: Копия слов исполнителя (``owner_queue.cockpit_loop.REASON_RU``) намеренно НЕ ввозится: пульт читает
+#: снимок модели, а не код исполнителя; расхождение слов безопасно, расхождение смысла держит тест.
+_NOT_ACCEPTED_DEFAULT = {
+    "no_probe": ("проверка результата не объявлена, поэтому «сделано» поставить нельзя",
+                 "исполнитель объявляет проверку и только потом продолжает"),
+    "not_satisfied": ("проверка показала, что результат ещё не достигнут",
+                      "исполнитель доделывает работу и запускает проверку снова"),
+    "unmeasured": ("проверку не удалось провести — результат нечем измерить",
+                   "исполнитель чинит саму проверку и перемеряет"),
+    "executor_failed": ("исполнитель не смог выполнить работу",
+                        "следующий цикл разберёт причину и возьмёт карточку снова"),
+}
+
+
+def _record_outcome(r: dict) -> dict:
+    """Что стало с записью — простыми словами и со структурой, которую проверяет проба.
+
+    ``kind``: carried · done_verified · done_unverified · not_accepted · in_work · accepted · new ·
+    unknown. «Сделано и проверено» — ТОЛЬКО ``done`` с ``verified_by_probe``; закрытая без пробы
+    карточка так не читается никогда (приём и закрытие ≠ проверенный результат)."""
+    def out(kind, text, known=True, verified=False, reason=None, next_step=None):
+        return {"kind": kind, "text": text, "known": known, "verified": verified,
+                "reason": reason, "next_step": next_step}
+
+    carried = r.get("carried_to")
+    if carried:
+        return out("carried", "перенесено: " + (plain(str(carried)) or "куда — в подробностях"))
+    st = r.get("status")
+    verdict = r.get("acceptance_verdict")
+    if st == "done":
+        if r.get("verified_by_probe") and verdict in (None, "satisfied"):
+            when = _madrid(r.get("verified_at"))
+            return out("done_verified", "сделано и проверено автоматической проверкой"
+                       + (f" ({when})" if when else ""), verified=True)
+        return out("done_unverified", "закрыто без проверки результата — не считается проверенным")
+    if st in ("in-progress", "blocked"):
+        head = "в работе" if st == "in-progress" else "остановлено"
+        if not r.get("acceptance_probe"):
+            verdict = "no_probe"
+        if verdict in _NOT_ACCEPTED_DEFAULT:
+            d_reason, d_next = _NOT_ACCEPTED_DEFAULT[verdict]
+            reason = plain(r.get("acceptance_reason")) or d_reason
+            nxt = plain(r.get("acceptance_next")) or d_next
+            return out("not_accepted", f"{head} — не принято: {reason}; следующий шаг: {nxt}",
+                       reason=reason, next_step=nxt)
+        if verdict == "satisfied":
+            return out("in_work", f"{head} — проверка пройдена, закрытие ещё не завершено")
+        return out("in_work", f"{head} — результат ещё не проверялся")
+    if st == "new" and r.get("intake_seen"):
+        return out("accepted", "принято, ждёт исполнителя")
+    if st in RECORD_STATUS_RU:
+        return out(st, RECORD_STATUS_RU[st])
+    return out("unknown", f"состояние не распознано («{plain(str(st)) or 'пусто'}») — это проблема отображения",
+               known=False)
+
 
 def _record_status(r: dict) -> tuple:
     """(text, known) — a status the dictionary does not know is named, never shown as success."""
-    carried = r.get("carried_to")
-    if carried:
-        return "перенесено: " + (plain(str(carried)) or "куда — в подробностях"), True
-    st = r.get("status")
-    if st in RECORD_STATUS_RU:
-        return RECORD_STATUS_RU[st], True
-    return f"состояние не распознано («{plain(str(st)) or 'пусто'}») — это проблема отображения", False
+    o = _record_outcome(r)
+    return o["text"], o["known"]
 
 
 def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
@@ -821,14 +872,20 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
     for r in mr["items"]:
         if not isinstance(r, dict):
             continue
-        status, known = _record_status(r)
+        o = _record_outcome(r)
         rows.append({"title": plain(r.get("title")) or "запись без названия",
                      "at_ru": _madrid(r.get("created_at")) or "время не записано",
                      "kind": RECORD_KIND_RU.get(r.get("kind"), "без пометки"),
-                     "state": status, "state_known": known,
+                     "state": o["text"], "state_known": o["known"],
+                     "state_kind": o["kind"], "verified": o["verified"],
+                     "reason": o["reason"], "next_step": o["next_step"],
                      "voice": bool(r.get("voice")),
                      "technical": {"карточка": r.get("card"), "статус в трекере": r.get("status"),
-                                   "перенесено в": r.get("carried_to")}})
+                                   "перенесено в": r.get("carried_to"),
+                                   "исполнитель": r.get("claimed_by"),
+                                   "проба приёмки": r.get("acceptance_probe"),
+                                   "проверено пробой": r.get("verified_by_probe"),
+                                   "исход проверки": r.get("acceptance_verdict")}})
     total = mr.get("total")
     text = (f"Записей из пульта: {total}; ниже последние {len(rows)}" if rows and isinstance(total, int)
             and total > len(rows) else (f"Записей из пульта: {len(rows)}" if rows else "Записей из пульта пока нет"))

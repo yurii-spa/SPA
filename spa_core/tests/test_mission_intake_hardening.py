@@ -263,7 +263,15 @@ def test_my_records_lists_cockpit_cards_newest_first_with_plain_statuses(tmp_pat
     view = ov.my_records({"generated_at": "2026-10-16T07:30:00Z", "intake": {"my_records": rec}}, "2026-10-16T07:30:00Z")
     states = [r["state"] for r in view["rows"]]
     assert states[0].startswith("перенесено: ")
-    assert states[1:] == ["сделано", "в работе", "записано, ещё не разобрано"]
+    # ИЗМЕНЕНО 16.10 (ADR-763, инв. #16, запись в docs/journal/2026-W42.md): предмет тот же — статус
+    # записи простыми словами, — сменилось ожидаемое. Закрытая БЕЗ пробы карточка больше не читается
+    # как «сделано» (владелец принимал это за проверенный результат), а взятая без пробы — как
+    # «в работе — не принято» с причиной и следующим шагом. Проверенное «сделано» — только из
+    # verified_by_probe (test_cockpit_loop.py).
+    assert states[1] == "закрыто без проверки результата — не считается проверенным"
+    assert states[2].startswith("в работе — не принято: ") and "; следующий шаг: " in states[2]
+    assert states[3] == "записано, ещё не разобрано"
+    assert [r["state_kind"] for r in view["rows"]] == ["carried", "done_unverified", "not_accepted", "new"]
     assert [r["kind"] for r in view["rows"]] == ["идея", "замечание", "задача", "задача"]
     assert view["rows"][0]["at_ru"] == "2026-10-16 09:30 Мадрид (CEST)"
     assert view["rows"][0]["voice"] is True
@@ -513,3 +521,38 @@ def test_telegram_path_keeps_the_open_twin_guard(tmp_path):
     p1, _ = ii.save_inbox_task("Купить зонт", source="telegram", tracker_dir=tmp_path)
     p2, _ = ii.save_inbox_task("Купить зонт", source="telegram", tracker_dir=tmp_path)
     assert p1 == p2 and len(_cards(tmp_path)) == 1
+
+
+# ── ARB 16.10: a cockpit card must wake the intake (it ran only on Obsidian notes in inbox/) ──
+
+def test_submit_wakes_intake_via_inbox_dir_change(tmp_path):
+    import json as _json
+    from spa_core.studio_os import mission_intake as mi
+    notes = tmp_path / "inbox"
+    body = _json.dumps({"text": "проверить будильник приёма", "kind": "task",
+                        "submission_id": "wake-0001-abcd"}).encode()
+    res = mi.submit(body, actor="owner@example", tracker_dir=tmp_path / "tracker", wake_dir=notes)
+    assert res["ok"] and res["intake_woken"] is True
+    wake = notes / mi.WAKE_FILE
+    assert wake.exists() and not list(notes.glob("*.md")) and not list(notes.glob("*.txt"))
+    first = wake.stat().st_ino
+    body2 = _json.dumps({"text": "вторая запись", "kind": "task", "submission_id": "wake-0002-abcd"}).encode()
+    mi.submit(body2, actor="owner@example", tracker_dir=tmp_path / "tracker", wake_dir=notes)
+    assert wake.stat().st_ino != first, "each submit must CHANGE the directory (atomic rename), not just touch"
+
+
+def test_wake_marker_is_not_ingested_as_a_note(tmp_path):
+    from spa_core.owner_queue import queue as Q
+    from spa_core.studio_os import mission_intake as mi
+    notes = tmp_path / "inbox"
+    assert mi.wake_intake(notes) is True
+    assert Q.ingest_notes(notes_dir=notes, tracker_dir=tmp_path / "tracker") in ([], None, 0)
+    assert not (tmp_path / "tracker").exists() or not list((tmp_path / "tracker").glob("*.md"))
+
+
+def test_test_submits_without_wake_dir_do_not_touch_the_real_inbox(tmp_path):
+    import json as _json
+    from spa_core.studio_os import mission_intake as mi
+    body = _json.dumps({"text": "без будильника", "kind": "note", "submission_id": "wake-0003-abcd"}).encode()
+    res = mi.submit(body, actor="t", tracker_dir=tmp_path / "tracker")
+    assert res["intake_woken"] is None

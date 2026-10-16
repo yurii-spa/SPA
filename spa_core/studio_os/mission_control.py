@@ -437,7 +437,16 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
         rows.append({"card": name, "title": fm.get("title") or name[:-3],
                      "created_at": fm.get("submitted_at") or fm.get("created") or None,
                      "kind": fm.get("intake_kind") or None, "status": fm.get("status") or None,
-                     "carried_to": fm.get("carried_to") or None, "voice": fm.get("source") == "cockpit-voice"})
+                     "carried_to": fm.get("carried_to") or None, "voice": fm.get("source") == "cockpit-voice",
+                     # Сквозной путь пульта (ADR-763): кто взял, какой пробой мерится, чем кончилась
+                     # проверка. «Сделано и проверено» читается ТОЛЬКО из verified_by_probe.
+                     "intake_seen": fm.get("intake_seen") or None, "claimed_by": fm.get("claimed_by") or None,
+                     "acceptance_probe": fm.get("acceptance_probe") or None,
+                     "verified_by_probe": fm.get("verified_by_probe") or None,
+                     "verified_at": fm.get("verified_at") or None,
+                     "acceptance_verdict": fm.get("acceptance_verdict") or None,
+                     "acceptance_reason": fm.get("acceptance_reason") or None,
+                     "acceptance_next": fm.get("acceptance_next") or None})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
     return {"state": "MEASURED", "reason": None, "items": rows[:limit], "total": len(rows),
             "source": source, "measured_at": measured_at}
