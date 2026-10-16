@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/adapter_repair_price.json: возраст 9.0ч > SLO 7ч (класс agent_reg"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-16
 finding_key: "B2:stale:data/adapter_repair_price.json"
+status_trail:
+  - "2026-10-16T15:43:55.344649+00:00 new -> done · queue.set_status/closed_by:findings_bridge/evidence:finding B2:stale:data/adapter_repair_price.json absent in the fresh report (ADR-066 C2)"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
