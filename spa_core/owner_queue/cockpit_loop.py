@@ -195,13 +195,32 @@ def _madrid(ts: str) -> str:
     return fmt_owner_time(ts, "ru") or ts
 
 
-def done_notice_text(title: str, probe: str, verified_at: str) -> str:
-    return (f"✅ Ваша запись «{html.escape(title)}» — сделано и проверено пробой "
+#: Автор записи (провенанс пульта): ``author`` ∈ owner · agent · not-established; старые карточки
+#: поля не несут. «Ваша запись» — ТОЛЬКО при ``author: owner``: иначе владелец прочёл бы чужую
+#: (агентскую или неустановленную) запись как свою.
+AUTHOR_OWNER, AUTHOR_AGENT = "owner", "agent"
+
+
+def record_label(fm: Optional[dict]) -> str:
+    """Как назвать запись в уведомлении: чья она — по полю ``author``, без догадок."""
+    fm = fm or {}
+    author = str(fm.get("author") or "").strip()
+    if author == AUTHOR_OWNER:
+        return "Ваша запись"
+    if author == AUTHOR_AGENT:
+        ident = _clean(fm.get("author_identity") or "", 80)
+        return f"Запись агента {ident}" if ident else "Запись агента (имя не установлено)"
+    return "Запись (автор не установлен)"
+
+
+def done_notice_text(title: str, probe: str, verified_at: str, label: str = "Запись (автор не установлен)") -> str:
+    return (f"✅ {html.escape(label)} «{html.escape(title)}» — сделано и проверено пробой "
             f"<code>{html.escape(probe)}</code> ({html.escape(_madrid(verified_at))})")
 
 
-def not_accepted_notice_text(title: str, reason: str, next_step: str) -> str:
-    return (f"🔧 Ваша запись «{html.escape(title)}» — в работе, но ещё не принята: "
+def not_accepted_notice_text(title: str, reason: str, next_step: str,
+                             label: str = "Запись (автор не установлен)") -> str:
+    return (f"🔧 {html.escape(label)} «{html.escape(title)}» — в работе, но ещё не принята: "
             f"{html.escape(reason)}. Следующий шаг: {html.escape(next_step)}.")
 
 
@@ -216,7 +235,7 @@ def _ensure_done_notice(path: Path, now: datetime, outbox_path) -> bool:
         return False
     title = str(fm.get("title") or path.stem)
     intake._outbox_put(f"{path.name}#{EVENT_DONE}",
-                       done_notice_text(title, probe, str(fm.get("verified_at") or _ts(now))), now,
+                       done_notice_text(title, probe, str(fm.get("verified_at") or _ts(now)), record_label(fm)), now,
                        outbox_path)
     _set_fields(path, {"owner_notice": EVENT_DONE, "owner_notice_at": _ts(now)})
     return True
@@ -238,7 +257,7 @@ def _record_not_accepted(path: Path, kind: str, detail: str, now: datetime, outb
     if not is_cockpit(fm) or str(fm.get("owner_notice") or "") == state:
         return False
     intake._outbox_put(f"{path.name}#{EVENT_NOT_ACCEPTED}",
-                       not_accepted_notice_text(str(fm.get("title") or path.stem), reason, nxt), now,
+                       not_accepted_notice_text(str(fm.get("title") or path.stem), reason, nxt, record_label(fm)), now,
                        outbox_path)
     _set_fields(path, {"owner_notice": state, "owner_notice_at": _ts(now)})
     return True
@@ -311,6 +330,22 @@ def report_failure(card, reason: str, *, next_step: Optional[str] = None,
     if flush:
         intake.flush_outbox(notify=notify, path=outbox_path)
     return {"card": path.name, "blocked": True, "noticed": noticed}
+
+
+def record_no_probe(card, detail: str, *, next_step: str, now: Optional[datetime] = None,
+                    outbox_path=None, notify: Optional[Callable] = None, flush: bool = True) -> dict:
+    """Задачу НЕЧЕМ проверить: «не принято» с причиной и следующим шагом, без взятия в работу.
+
+    Карточка остаётся в приёме (``new``): уйти оттуда без машинного критерия ей запрещает очередь
+    (``.claude/rules/acceptance.md`` п. 1), а «сделано» без пробы — инв. #2. Уведомление — одно на
+    смену состояния, как у прочих «не принято»."""
+    from spa_core.owner_queue import intake
+    path = Path(card)
+    now = now or datetime.now(timezone.utc)
+    noticed = _record_not_accepted(path, "no_probe", detail, now, outbox_path, next_step)
+    if flush:
+        intake.flush_outbox(notify=notify, path=outbox_path)
+    return {"card": path.name, "no_probe": True, "noticed": noticed}
 
 
 def sweep_notices(*, tracker_dir=None, outbox_path=None, now: Optional[datetime] = None) -> list[str]:

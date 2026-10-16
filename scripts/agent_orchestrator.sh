@@ -92,6 +92,26 @@ export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
 # она переживает осиротение). Один вопрос «идёт ли ещё работа» — один ответ.
 # НЕ экспортируем: иначе метку нёс бы и сам запускатель, и его жизнь снова читалась бы
 # как жизнь работника — ровно та подмена, которую правка и убирает.
+# ── СТРАХОВКА ПОТЕРЯННОЙ ПОБУДКИ ПРИЁМА (ARB 16.10, запись пульта) ─────────────────
+# Пульт будит приём одним переименованием `inbox/.cockpit-wake` (launchd WatchPaths). Побудка
+# теряется: приём занят (замок) или в дребезге, процесс убит посреди прогона, launchd событие
+# не доставил. Тогда запись лежит `new` без `intake_seen`, и следующей побудки может не быть
+# никогда. Здесь — ДО замка цикла, то есть и в часы, когда цикл «занят»: запись пульта старше
+# 10 мин без отметки приёма ⇒ побудить приём ЕЩЁ раз. Сам приём отсюда НЕ запускается (только
+# штатная дверь launchd, её замок и дребезг), повтор безопасен: принятое помечено `intake_seen`.
+COCKPIT_DISPATCH="$REPO_ROOT/spa_core/owner_queue/cockpit_dispatch.py"
+if [ -f "$COCKPIT_DISPATCH" ]; then
+    REWAKE_OUT="$( ( "$PYTHON" -m spa_core.owner_queue.cockpit_dispatch rewake ) 2>&1 )"
+    REWAKE_RC=$?
+    case "$REWAKE_RC" in
+        0) ;;
+        1) echo "[$(ts)] cockpit-rewake: ⚠️ ПРОБЛЕМА — запись пульта не принята приёмом дольше 10 мин, побудка повторена: $REWAKE_OUT" >> "$LOG" ;;
+        *) echo "[$(ts)] cockpit-rewake: ❌ НЕ ИЗМЕРЕНО/не разбужено (код $REWAKE_RC): $REWAKE_OUT" >> "$LOG" ;;
+    esac
+else
+    echo "[$(ts)] cockpit-rewake: ⚠️ нет $COCKPIT_DISPATCH (прод-дерево отстало) — потерянная побудка приёма НЕ страхуется" >> "$LOG"
+fi
+
 RUN_SUFFIX="$( { uuidgen 2>/dev/null || od -An -tx1 -N16 /dev/urandom 2>/dev/null || date +%s; } | tr -dc 'a-zA-Z0-9' )"
 CYCLE_RUN_ID="orchestrator-$$-${RUN_SUFFIX:-$(date +%s)}"
 
@@ -136,6 +156,35 @@ if [ -f "$REPO_ROOT/scripts/orchestrator_queue.py" ]; then
     echo "[$(ts)] deliver-new: ${DELIVER_OUT:-(нет вывода)}" >> "$LOG"
 else
     echo "[$(ts)] deliver-new: ⚠️ нет $REPO_ROOT/scripts/orchestrator_queue.py — первая доставка вопросов владельцу НЕ выполнялась" >> "$LOG"
+fi
+
+# ── ЗАПИСЬ ИЗ ПУЛЬТА ПОЛУЧАЕТ ИСПОЛНИТЕЛЯ (ARB 16.10: «автономность НЕ доказана») ────
+# Принятая приёмом запись пульта (`new` + `intake_seen`) до сих пор ждала, пока исполнителя
+# назначит человек: каждый цикл начинался с голодающего приказа, шаг 1 до неё не доходил.
+# Детерминированный выбор (без LLM): самая старая принятая запись, проба только ОБЪЯВЛЕННАЯ
+# (поле карточки или «проба: <имя>» в тексте), взятие — `cockpit_loop.take_card` (захват шага
+# 0b на эту сессию → проба → in-progress). Пробы нет ⇒ не берётся: «не принято» с причиной и
+# следующим шагом, одно уведомление владельцу. Взята ⇒ указание идёт в начало промпта (сессия
+# читает только PROMPT), а после сессии обёртка сама перемеряет пробу (settle).
+# Коды: 0 — нечего брать · 3 — взята · 4 — только «пробы нет» · иное — НЕ ИЗМЕРЕНО (в промпт).
+COCKPIT_PREFIX=""
+COCKPIT_CARD=""
+if [ -f "$COCKPIT_DISPATCH" ]; then
+    COCKPIT_CARD_FILE="$(mktemp -t spa_cockpit_card)"
+    COCKPIT_OUT="$("$PYTHON" -m spa_core.owner_queue.cockpit_dispatch dispatch \
+                    --executor "$SPA_SESSION_ID" --card-out "$COCKPIT_CARD_FILE" \
+                    --repo "$REPO_ROOT" --python "$PYTHON" 2>>"$LOG")"
+    COCKPIT_RC=$?
+    case "$COCKPIT_RC" in
+        0|4) echo "[$(ts)] cockpit-dispatch(rc=$COCKPIT_RC): взятой записи пульта нет" >> "$LOG" ;;
+        3) COCKPIT_CARD="$(cat "$COCKPIT_CARD_FILE" 2>/dev/null)"
+           COCKPIT_PREFIX="$COCKPIT_OUT"
+           echo "[$(ts)] cockpit-dispatch(rc=3): взята $COCKPIT_CARD исполнителем $SPA_SESSION_ID" >> "$LOG" ;;
+        *) COCKPIT_PREFIX="ЗАПИСИ ПУЛЬТА: выбор исполнителя НЕ ИЗМЕРЕН (код $COCKPIT_RC) — это НЕ «записей нет». \
+Посмотри принятые записи пульта (source: cockpit*, status new, intake_seen) руками перед выбором задачи. "
+           echo "[$(ts)] cockpit-dispatch: ❌ НЕ ИЗМЕРЕНО (код $COCKPIT_RC)" >> "$LOG" ;;
+    esac
+    rm -f "$COCKPIT_CARD_FILE"
 fi
 
 # ── ШАГ 0a-ГОЛОД (карточка inbox-critical-kartochka-goloda-et-4-dnya-pri-40-tsiklah) ──
@@ -188,7 +237,7 @@ else
 fi
 
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
-PROMPT="${STARVE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
+PROMPT="${COCKPIT_PREFIX}${STARVE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
 (1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl, \
 затем ОБЯЗАТЕЛЬНО python3 scripts/consume_office_reports.py (ADR-066: офис+сторож архитектуры в контекст, \
@@ -224,5 +273,11 @@ nice -n 10 "$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --log "$LOG" --label orchestrator --run-id "$CYCLE_RUN_ID" \
     -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
+# Запись пульта, взятая этим циклом: «сделано» ставит только её проба, а не слово сессии.
+if [ -n "$COCKPIT_CARD" ]; then
+    SETTLE_OUT="$( ( "$PYTHON" -m spa_core.owner_queue.cockpit_dispatch settle \
+                      --card "$COCKPIT_CARD" --executor "$SPA_SESSION_ID" ) 2>&1 )"
+    echo "[$(ts)] cockpit-settle(rc=$?): $SETTLE_OUT" >> "$LOG"
+fi
 echo "[$(ts)] === orchestrator cycle END (claude exit $RC) ===" >> "$LOG"
 exit $RC

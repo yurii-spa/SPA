@@ -839,6 +839,13 @@ def _record_outcome(r: dict) -> dict:
             return out("in_work", f"{head} — проверка пройдена, закрытие ещё не завершено")
         return out("in_work", f"{head} — результат ещё не проверялся")
     if st == "new" and r.get("intake_seen"):
+        if verdict in _NOT_ACCEPTED_DEFAULT:
+            # исполнитель не взял: у записи нет машинной проверки результата (cockpit_dispatch, ARB 16.10)
+            d_reason, d_next = _NOT_ACCEPTED_DEFAULT[verdict]
+            reason = plain(r.get("acceptance_reason")) or d_reason
+            nxt = plain(r.get("acceptance_next")) or d_next
+            return out("not_accepted", f"не взято в работу: {reason}; следующий шаг: {nxt}",
+                       reason=reason, next_step=nxt)
         return out("accepted", "принято, ждёт исполнителя")
     if st in RECORD_STATUS_RU:
         return out(st, RECORD_STATUS_RU[st])

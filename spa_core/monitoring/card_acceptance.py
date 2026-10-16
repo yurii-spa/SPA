@@ -9474,9 +9474,15 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
                              now=t0, sibling=sibling, ps=lambda _pid: (0, start),
                              self_anchor=anchors[executor])
 
+        def no_classifier(_body):
+            # Сцена — запись ВЛАДЕЛЬЦА (`author: owner` ниже), её маршрут — его пометка, и
+            # классификатор не зовётся. Позовут — значит провенанс не прочитан; LLM в пробе
+            # запрещён (инв. #3), поэтому вместо `claude` — детерминированный ответ.
+            return "task", ""
+
         def intake_run(at):
             return oi.run_note_intake(at, tracker_dir=tracker, repo_root=root, notify=notify,
-                                      history=no_history, ingest=False)
+                                      history=no_history, ingest=False, classify=no_classifier)
 
         def fm_of(p):
             return parse_frontmatter(open(p, encoding="utf-8").read())
@@ -9499,6 +9505,8 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
                                    f"идемпотентности нет")
         name = cards[0]
         card = os.path.join(tracker, name)
+        if not fm_of(card).get("author"):        # старый пульт поля не пишет: сцена — запись владельца
+            cl._set_fields(_pathlib.Path(card), {"author": "owner"})
         fm = fm_of(card)
         if fm.get("source") not in mi.COCKPIT_SOURCES or fm.get("status") != "new":
             return NOT_SATISFIED, (f"звено 1: карточка пульта родилась с source={fm.get('source')!r}, "

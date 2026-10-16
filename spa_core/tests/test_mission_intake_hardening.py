@@ -333,6 +333,15 @@ def test_mission_model_carries_my_records_from_the_production_tree(tmp_path):
 
 
 # ── (6) the intake router honours the owner's own label ───────────────────────────────────────────
+def _owner_authored(path):
+    """Провенанс записи (ARB 16.10): пометка — слово владельца только при `author: owner`.
+    Обоснование правки (инв. #16): два теста ниже проверяли «пометка владельца без классификатора»
+    на карточке БЕЗ автора; теперь такая пометка — подсказка, и предпосылка «это владелец» объявлена
+    явно. Проверка не ослаблена: обратная сторона закреплена отдельным тестом."""
+    from spa_core.owner_queue import cockpit_loop as CL
+    CL._set_fields(Path(path), {"author": "owner"})
+
+
 def _wire_router(monkeypatch, tmp_path, card):
     from spa_core.owner_queue import history_check as H
     from spa_core.owner_queue import intake as I
@@ -357,6 +366,7 @@ def test_cockpit_idea_goes_to_ideas_without_the_classifier(tmp_path, monkeypatch
     from spa_core.owner_queue import queue as Q
     res = mi.submit(_body("Идея: сводка по пакетам", sid="abababab-0001", kind="idea"), actor="local",
                     tracker_dir=tmp_path / "tracker", now=NOW)
+    _owner_authored(tmp_path / "tracker" / res["card"])
     card = Q.load_card(tmp_path / "tracker" / res["card"])
     I, Q, calls = _wire_router(monkeypatch, tmp_path, card)
     out = I.run_note_intake(now=NOW)
@@ -369,12 +379,31 @@ def test_cockpit_task_stays_new_without_the_classifier(tmp_path, monkeypatch):
     from spa_core.owner_queue import queue as Q
     res = mi.submit(_body("Задача: починить отчёт", sid="abababab-0002", kind="task"), actor="local",
                     tracker_dir=tmp_path / "tracker", now=NOW)
+    _owner_authored(tmp_path / "tracker" / res["card"])
     card = Q.load_card(tmp_path / "tracker" / res["card"])
     I, Q, calls = _wire_router(monkeypatch, tmp_path, card)
     out = I.run_note_intake(now=NOW)
     assert calls == [] and card.id in out["processed"]
     assert Q.load_card(card.path).status == "new"
     assert not (tmp_path / "docs" / "ideas").exists()
+
+
+@pytest.mark.parametrize("author", [None, "agent", "not-established"])
+def test_cockpit_label_without_owner_authorship_is_a_hint_for_the_classifier(tmp_path, monkeypatch, author):
+    """Обратная сторона `_owner_authored`: пометка «идея» на записи агента / с неустановленным автором /
+    старой карточке без поля — НЕ решение владельца. Маршрут решает классификатор, пометка — подсказка."""
+    from spa_core.owner_queue import cockpit_loop as CL
+    from spa_core.owner_queue import queue as Q
+    res = mi.submit(_body("Идея: сводка по пакетам", sid="abababab-0004", kind="idea"), actor="local",
+                    tracker_dir=tmp_path / "tracker", now=NOW)
+    path = tmp_path / "tracker" / res["card"]
+    if author is not None:
+        CL._set_fields(path, {"author": author})
+    card = Q.load_card(path)
+    I, Q, calls = _wire_router(monkeypatch, tmp_path, card)
+    I.run_note_intake(now=NOW)
+    assert len(calls) == 1 and "подсказка" in calls[0] and "«идея»" in calls[0]
+    assert not (tmp_path / "docs" / "ideas").exists()       # классификатор сказал «unclear» — не идея
 
 
 def test_cockpit_note_and_telegram_cards_still_go_through_the_classifier(tmp_path, monkeypatch):

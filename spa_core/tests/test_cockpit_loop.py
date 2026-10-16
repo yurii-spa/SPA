@@ -81,7 +81,12 @@ def _submit(s, text="Проверить сводку по пакетам", sid="
     if source_voice:
         body["transcript"] = text
     res = mi.submit(json.dumps(body).encode("utf-8"), actor="local", tracker_dir=s.tracker, now=NOW)
-    return s.tracker / res["card"]
+    card = s.tracker / res["card"]
+    # Провенанс (ARB 16.10): пометка записи — слово владельца только при `author: owner`. Сцена этого
+    # файла — записи владельца; без поля приём позвал бы настоящий классификатор (`claude`).
+    if "author" not in _fm(card):
+        cl._set_fields(card, {"author": "owner"})
+    return card
 
 
 def _fm(p):
@@ -330,5 +335,32 @@ def test_non_cockpit_cards_get_no_owner_notice_from_this_path(scene):
 def test_intake_seams_default_to_the_production_paths():
     import inspect
     sig = inspect.signature(oi.run_note_intake)
-    assert [p.default for n, p in sig.parameters.items() if n != "now"] == [None, None, None, None, True]
+    # + шов `classify=None` (провенанс пульта, ARB 16.10): по умолчанию — боевой классификатор.
+    assert [p.default for n, p in sig.parameters.items() if n != "now"] == [None, None, None, None, True, None]
     assert oi._outbox_path() == oi._REPO / "data" / "intake_outbox.json"
+
+
+# ── провенанс: «Ваша запись» — только запись владельца ──────────────────────────────────────────────
+@pytest.mark.parametrize("fields,label", [
+    ({"author": "owner"}, "Ваша запись"),
+    ({"author": "agent", "author_identity": "arb-demo-1"}, "Запись агента arb-demo-1"),
+    ({"author": "not-established"}, "Запись (автор не установлен)"),
+    ({"author": ""}, "Запись (автор не установлен)"),
+])
+def test_notice_names_the_author_and_says_yours_only_for_the_owner(scene, fields, label):
+    card = _taken(scene)
+    cl._set_fields(card, fields)
+    _close(scene, card, ca.NOT_SATISFIED)
+    _close(scene, card, ca.NOT_SATISFIED, at=NOW + timedelta(minutes=5))
+    _close(scene, card, ca.SATISFIED, at=NOW + timedelta(minutes=6))
+    _close(scene, card, ca.SATISFIED, at=NOW + timedelta(minutes=7))
+    assert len(scene.sent) == 2                                     # одно на карточку и событие
+    for text in scene.sent:
+        assert label in text
+        if label != "Ваша запись":
+            assert "Ваша запись" not in text
+
+
+def test_missing_author_field_is_never_read_as_the_owner():
+    assert cl.record_label({}) == "Запись (автор не установлен)"
+    assert cl.record_label({"author": "agent"}) == "Запись агента (имя не установлено)"

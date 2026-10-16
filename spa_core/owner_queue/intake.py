@@ -179,12 +179,36 @@ _OWNER_LABELLED_SOURCES = ("cockpit", "cockpit-voice")
 _DECLARED_ROUTE = {"idea": "idea", "task": "task"}
 
 
-def _declared_kind(card) -> str | None:
-    """Маршрут, который владелец объявил сам (пульт), или None — тогда решает классификатор."""
+#: Провенанс записи пульта: пометка ``intake_kind`` — слово ВЛАДЕЛЬЦА только при ``author: owner``.
+#: Запись агента или с неустановленным автором (и старая карточка без поля) несёт пометку как
+#: ПОДСКАЗКУ: маршрут решает тот же классификатор, что и для всех прочих входящих.
+_AUTHOR_OWNER = "owner"
+_KIND_HINT_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
+
+
+def _cockpit_kind(card) -> str | None:
     fields = getattr(card, "fields", None) or {}
     if str(fields.get("source") or "") not in _OWNER_LABELLED_SOURCES:
         return None
-    return _DECLARED_ROUTE.get(str(fields.get("intake_kind") or ""))
+    return str(fields.get("intake_kind") or "") or None
+
+
+def _declared_kind(card) -> str | None:
+    """Маршрут, который ВЛАДЕЛЕЦ объявил сам (пульт, ``author: owner``), или None — решает классификатор."""
+    fields = getattr(card, "fields", None) or {}
+    if str(fields.get("author") or "").strip() != _AUTHOR_OWNER:
+        return None
+    return _DECLARED_ROUTE.get(_cockpit_kind(card) or "")
+
+
+def _kind_hint(card) -> str:
+    """Пометка записи пульта, не подтверждённая как слово владельца, — подсказка классификатору."""
+    if _declared_kind(card) is not None:
+        return ""
+    kind = _cockpit_kind(card)
+    ru = _KIND_HINT_RU.get(kind or "")
+    return (f"\n\n(Пометка записи — «{ru}»; автор не подтверждён как владелец, это подсказка, "
+            f"а не решение.)") if ru else ""
 
 
 #: Собственная отметка приёма в теле задачи (её вписывает ветка «task» ниже) и поле frontmatter,
@@ -270,13 +294,14 @@ def _forget(keys: list[str], path: Path | None = None) -> None:
 
 
 def run_note_intake(now: datetime | None = None, *, tracker_dir=None, repo_root=None,
-                    notify=None, history=None, ingest: bool = True) -> dict:
+                    notify=None, history=None, ingest: bool = True, classify=None) -> dict:
     """Разобрать новые inbox-заметки/карточки.
 
     Объявленные ШВЫ (по умолчанию — боевое поведение, байт в байт): ``tracker_dir`` — каталог
     карточек; ``repo_root`` — корень, от которого лежат ``docs/ideas``, журнал и исходящие
     (``data/intake_outbox.json``); ``notify`` — отправитель (Telegram); ``history`` — проверка
-    истории (``history_check``, за ней локальный ``claude``); ``ingest=False`` — не сканировать
+    истории (``history_check``, за ней локальный ``claude``); ``classify`` — классификатор маршрута
+    (по умолчанию ``ask_router.classify_and_answer``); ``ingest=False`` — не сканировать
     заметки Obsidian. Нужны одноразовой сцене пробы ``cockpit_voice_loop_closed``: живой трекер,
     живые исходящие и Telegram она не трогает.
 
@@ -378,7 +403,7 @@ def run_note_intake(now: datetime | None = None, *, tracker_dir=None, repo_root=
             kind, resp = declared, ""
         else:
             try:
-                kind, resp = classify_and_answer(body)
+                kind, resp = (classify or classify_and_answer)(body + _kind_hint(card))
             except Exception as exc:  # noqa: BLE001 — карточка ждёт обычного цикла
                 log.warning("intake classify failed for %s: %s — leaving as new", card.id, exc)
                 continue
