@@ -202,6 +202,39 @@ CALL_BUDGET_S = 90.0
 #: читатель ответил бы, не наблюдено.
 CAUSE_OVER_BUDGET = "entry_exceeded_budget"
 
+#: Окно ленты для ПОВТОРНОГО зова тех, кто не уложился в бюджет (ADR-767,
+#: заказ G766 п. 3). Бюджет дал прогону КОНЕЦ, но не дал ОТВЕТА: строка
+#: `entry_exceeded_budget` не говорит о читателе ничего. Предмет вопроса —
+#: сдвиг координаты от ОДНОЙ ЛИШЬ плотности записей — не требует всей ленты:
+#: он виден и на горстке дней, если плотность между стендами та же. Поэтому
+#: второй зов идёт по УРЕЗАННОМУ окну, а не по щедрому бюджету: щедрый бюджет
+#: платит временем за тот же самый неответ, а урезанное окно меняет ЦЕНУ
+#: вопроса.
+#:
+#: Семь дней — вход с названной причиной, а не константа из головы: окно обязано
+#: нести хотя бы один день с подложкой (иначе стенды тождественны и мерить
+#: нечем) и остаться заметно дешевле ленты в 45–72 дня. Число подаётся
+#: аргументом (``short_window_days``) именно потому, что оно спорно.
+SHORT_WINDOW_DAYS = 7
+
+#: Зов не уложился в бюджет И на урезанном окне. Цена читателя лежит НЕ в ленте
+#: (он строит внутри себя свои стенды или копии `data/`), поэтому средство из
+#: заказа G766 п. 3 на него не действует — и это сказано, а не замаскировано
+#: под «дорого, но когда-нибудь измерим».
+CAUSE_OVER_BUDGET_SHORT = "entry_exceeded_budget_on_short_window"
+
+#: Координата с именем дня НЕ сдвинулась — но наблюдение снято на урезанном
+#: окне. Это НЕ «чисто»: «не сдвинулось на 7 днях» не доказывает «не сдвинется
+#: на 45». Читатель с оглядкой назад длиннее окна (30-дневный lookback) на
+#: коротком окне инвариантен ПО ПОСТРОЕНИЮ. Поэтому исход — третий (инв. #17),
+#: а не зачёт; ПОЛОЖИТЕЛЬНАЯ же сторона (сдвиг найден) на коротком окне
+#: полноценна: сдвиг есть сдвиг.
+CAUSE_INVARIANT_SHORT_ONLY = "day_invariant_only_on_short_window"
+
+#: Урезанное окно не построилось (ленты короче окна нечем резать, стенд не
+#: записался). Своя причина, а не общее ведро.
+CAUSE_SHORT_STAND_ABSENT = "short_window_stand_not_built"
+
 #: Бюджет не удалось установить (не главный поток). Записывается ФАКТОМ, потому
 #: что безбюджетный зов и зов под бюджетом — разные наблюдения, и выдать первый
 #: за второй значило бы соврать о том, что прогон ограничен.
@@ -440,20 +473,78 @@ def thicken(rows: Sequence[dict], factor: int) -> Tuple[List[dict], List[dict], 
     }
 
 
-def build_stands(source_data_dir: Path, dest: Path, *, factor: int
-                 ) -> Tuple[Optional[dict], str]:
-    """Два стенда на КОПИИ ``data/``, различающиеся РОВНО плотностью лент."""
+def tail_days(rows: Sequence[dict], window_days: Optional[int]
+              ) -> Tuple[List[dict], dict]:
+    """Хвост ленты в *window_days* ПОСЛЕДНИХ днях — или вся лента при ``None``.
+
+    Режется по ДНЯМ, а не по записям: предмет переписи — сдвиг от плотности при
+    неизменном составе дней, поэтому обрезка записями смешала бы обрезку с тем
+    самым вторым изменением, которое мерить нельзя.
+
+    Берётся ХВОСТ, а не голова: читатель ленты судит о свежем, и окно из начала
+    истории отвечало бы на другой вопрос. «Последние» считаются в порядке ФАЙЛА
+    (лента append-only, порядок файла и есть хронология) — то же допущение, на
+    котором стои́т :func:`thicken`, и оно названо здесь вслух, а не подразумевается.
+
+    Строки без даты остаются В ОБЕИХ лентах целиком: они не день и не прогон дня
+    (см. :func:`thicken`), поэтому окно их не касается — иначе обрезка меняла бы
+    ВТОРУЮ вещь между стендами.
+    """
+    order: List[str] = []
+    for row in rows:
+        raw = row.get("cycle_date")
+        if raw is None or str(raw).strip() == "":
+            continue
+        day = str(raw)
+        if day not in order:
+            order.append(day)
+    note = {"days_before": len(order), "window_days": window_days}
+    if window_days is None:
+        note.update(days_after=len(order), truncated=False,
+                    reason="окно не задано — лента целиком")
+        return list(rows), note
+    if window_days <= 0:
+        note.update(days_after=len(order), truncated=False,
+                    reason=f"окно {window_days} дн не положительно — лента целиком")
+        return list(rows), note
+    if len(order) <= window_days:
+        note.update(days_after=len(order), truncated=False,
+                    reason=(f"дней {len(order)} не больше окна {window_days} — "
+                            "резать нечего"))
+        return list(rows), note
+    keep = set(order[-window_days:])
+    out = [row for row in rows
+           if str(row.get("cycle_date") or "").strip() == ""
+           or str(row.get("cycle_date")) in keep]
+    note.update(days_after=len(keep), truncated=True,
+                reason=f"оставлены {window_days} последних дн из {len(order)}")
+    return out, note
+
+
+def build_stands(source_data_dir: Path, dest: Path, *, factor: int,
+                 window_days: Optional[int] = None,
+                 prefix: str = "") -> Tuple[Optional[dict], str]:
+    """Два стенда на КОПИИ ``data/``, различающиеся РОВНО плотностью лент.
+
+    ``window_days`` режет ленту до последних N дней (:func:`tail_days`) — ОДНО И
+    ТО ЖЕ окно у обоих стендов, поэтому единственная разница между ними остаётся
+    плотностью. ``prefix`` разводит каталоги стендов, когда в одном прогоне их
+    два набора (полное окно и урезанное).
+    """
     source = Path(source_data_dir)
     if not source.is_dir():
         return None, f"каталога {source} нет — стенды не построены"
     tapes: Dict[str, Tuple[List[dict], List[dict], dict]] = {}
     notes: Dict[str, str] = {}
+    windows: Dict[str, dict] = {}
     for name, book_id in BOOKS:
         rows, why = read_book_rows(source, book_id)
         if rows is None:
             notes[name] = why
             continue
-        tapes[name] = thicken(rows, factor)
+        kept, window_note = tail_days(rows, window_days)
+        windows[name] = window_note
+        tapes[name] = thicken(kept, factor)
         if why:
             notes[name] = why
     if not tapes:
@@ -461,7 +552,7 @@ def build_stands(source_data_dir: Path, dest: Path, *, factor: int
                       + "; ".join(f"{k}: {v}" for k, v in sorted(notes.items())))
 
     def _write(stand_name: str, pick: int) -> Path:
-        stand = Path(dest) / stand_name
+        stand = Path(dest) / f"{prefix}{stand_name}"
         data = stand / "data"
         data.mkdir(parents=True, exist_ok=True)
         for item in sorted(source.iterdir()):
@@ -484,10 +575,12 @@ def build_stands(source_data_dir: Path, dest: Path, *, factor: int
 
     return {
         "factor": factor,
+        "window_days": window_days,
         "s_one": _write("s_one", 0),
         "s_many": _write("s_many", 1),
         "tapes": {name: tapes[name][2] for name in sorted(tapes)},
         "tapes_absent": notes,
+        "windows": windows,
     }, ""
 
 
@@ -617,11 +710,114 @@ def verdict_from_probes(row: dict, first, again, many) -> dict:
     return row
 
 
+def merge_short_window_row(full_row: dict, short_row: dict,
+                           window_days: int) -> dict:
+    """Строка читателя, перемеренного на УРЕЗАННОМ окне (ADR-767, G766 п. 3).
+
+    Правило одно и несимметричное НАМЕРЕННО, потому что несимметричен сам
+    предмет:
+
+    * сдвиг НАЙДЕН ⇒ наблюдение полноценно. Координата, сдвинувшаяся от одной
+      лишь плотности на семи днях, сдвигается от неё и на сорока пяти: короткое
+      окно сужает, что мы УСПЕЛИ посмотреть, но не делает увиденное неправдой;
+    * сдвиг НЕ найден ⇒ наблюдение НЕ полноценно и в «чисто» не идёт
+      (:data:`CAUSE_INVARIANT_SHORT_ONLY`). Читатель с оглядкой назад длиннее
+      окна инвариантен на коротком окне ПО ПОСТРОЕНИЮ, и зачесть ему это
+      значило бы выдать слепоту прибора за исправность читателя;
+    * не уложился и тут ⇒ цена лежит НЕ в ленте
+      (:data:`CAUSE_OVER_BUDGET_SHORT`), средство заказа на него не действует.
+
+    Наблюдение полного окна НЕ затирается: оно остаётся в ``full_window``, иначе
+    строка выдавала бы дешёвый замер за тот, которого не было.
+    """
+    row = dict(short_row)
+    row["module"] = full_row.get("module", short_row.get("module"))
+    row["short_window_days"] = window_days
+    row["measured_on_short_window"] = True
+    row["full_window"] = {"outcome": full_row.get("outcome"),
+                          "cause": full_row.get("cause"),
+                          "reason": full_row.get("reason")}
+    outcome = short_row.get("outcome")
+    if outcome == OUT_RECORD_SENSITIVE:
+        return row
+    if outcome == OUT_DAY_INVARIANT:
+        row.update(outcome=OUT_UNMEASURED, cause=CAUSE_INVARIANT_SHORT_ONLY,
+                   reason=(f"на окне {window_days} дн ни одна координата с именем "
+                           "дня не сдвинулась — но полное окно не измерено, и "
+                           "короткое окно инвариантности на нём не доказывает"))
+        return row
+    if short_row.get("cause") == CAUSE_OVER_BUDGET:
+        row.update(outcome=OUT_UNMEASURED, cause=CAUSE_OVER_BUDGET_SHORT,
+                   reason=(f"не уложился в бюджет и на окне {window_days} дн: "
+                           "цена зова лежит не в длине ленты"))
+        return row
+    return row
+
+
+def rescue_over_budget(rows: Sequence[dict], source: Path,
+                       parent: Path, *, factor: int, sweepers: Dict[str, str],
+                       now: Optional[dt.datetime], budget_s: float,
+                       short_window_days: int) -> Tuple[List[dict], dict]:
+    """Перемерить ДЕШЕВЛЕ тех, кто не уложился в бюджет на полной ленте.
+
+    Средство из заказа G766 п. 3: урезанное окно, а не щедрый бюджет. Стенды
+    короткого окна строятся ОДИН раз на всех спасаемых; плотность берётся та же,
+    что у полного окна, — иначе между двумя наблюдениями менялись бы ДВЕ вещи,
+    и сдвиг нельзя было бы отнести ни к одной.
+    """
+    targets = [r for r in rows if r.get("cause") == CAUSE_OVER_BUDGET]
+    report: Dict[str, object] = {
+        "attempted": len(targets),
+        "short_window_days": short_window_days,
+        "modules": [r["module"] for r in targets],
+    }
+    if not targets:
+        report["reason"] = "ни один зов не вышел за бюджет — спасать некого"
+        return list(rows), report
+    stands, why = build_stands(source, parent, factor=factor,
+                               window_days=short_window_days, prefix="w_")
+    if stands is None:
+        report["reason"] = why
+        out = []
+        for row in rows:
+            if row.get("cause") != CAUSE_OVER_BUDGET:
+                out.append(row)
+                continue
+            fixed = dict(row)
+            fixed.update(cause=CAUSE_SHORT_STAND_ABSENT,
+                         reason=f"урезанное окно не построено: {why}")
+            out.append(fixed)
+        return out, report
+    report["stand"] = {"factor": stands["factor"],
+                       "window_days": stands["window_days"],
+                       "windows": stands["windows"],
+                       "tapes": stands["tapes"]}
+    rescued: Dict[str, dict] = {}
+    for row in targets:
+        short = classify_reader(row["module"], stands, sweepers=sweepers,
+                               now=now, budget_s=budget_s)
+        rescued[row["module"]] = merge_short_window_row(row, short,
+                                                        short_window_days)
+    out = [rescued.get(str(r.get("module")), r)
+           if r.get("cause") == CAUSE_OVER_BUDGET else r for r in rows]
+    answered = [r for r in rescued.values()
+                if r.get("outcome") != OUT_UNMEASURED]
+    report["answered"] = len(answered)
+    report["still_unmeasured"] = dict(sorted(collections.Counter(
+        str(r.get("cause")) for r in rescued.values()
+        if r.get("outcome") == OUT_UNMEASURED).items()))
+    report["findings_on_short_window"] = sorted(
+        r["module"] for r in rescued.values()
+        if r.get("outcome") == OUT_RECORD_SENSITIVE and r.get("day_named_moved"))
+    return out, report
+
+
 def measure(data_dir: Path, tree_root: Path, *,
             now: Optional[dt.datetime] = None,
             stand_dest: Optional[Path] = None,
             population: Optional[Sequence[str]] = None,
-            budget_s: float = CALL_BUDGET_S) -> dict:
+            budget_s: float = CALL_BUDGET_S,
+            short_window_days: int = SHORT_WINDOW_DAYS) -> dict:
     """Замер целиком: плотность лент · стенды · вердикт каждому читателю."""
     moment = now or _utcnow()
     source = Path(data_dir)
@@ -635,11 +831,15 @@ def measure(data_dir: Path, tree_root: Path, *,
         "tree_root": str(root),
         "advisory": True,
         "call_budget_s": budget_s,
+        "short_window_days": short_window_days,
         "what_it_does_not_prove": [
             "«day_invariant» НЕ означает, что читатель что-нибудь считает: его "
             "ответ мог не зависеть от ленты ни одним полем",
             "«unmeasured» НЕ есть зачёт: причина названа, читатель остаётся на учёте",
             "перепись не судит ПИСАТЕЛЕЙ ленты и ни одного из них не чинит",
+            "вердикт, снятый на УРЕЗАННОМ окне (`measured_on_short_window`), не "
+            "равен вердикту на полной ленте: сдвиг на нём доказан, а отсутствие "
+            "сдвига — нет, и поэтому второе идёт в «не измерено», а не в «чисто»",
         ],
     }
 
@@ -691,6 +891,13 @@ def measure(data_dir: Path, tree_root: Path, *,
         for name in names:
             rows_out.append(classify_reader(name, stands, sweepers=sweepers,
                                             now=moment, budget_s=budget_s))
+        # Бюджет дал прогону конец, но не дал ответа (ADR-767, заказ G766 п. 3):
+        # перемерить вышедших за него ДЕШЕВЛЕ — урезанным окном ленты.
+        rows_out, rescue = rescue_over_budget(
+            rows_out, source, parent, factor=factor, sweepers=sweepers,
+            now=moment, budget_s=budget_s,
+            short_window_days=short_window_days)
+        doc["short_window_rescue"] = rescue
     finally:
         if holder is not None:
             holder.cleanup()
@@ -707,6 +914,11 @@ def measure(data_dir: Path, tree_root: Path, *,
         {"finding": F_RECORDS_AS_DAYS, "module": r["module"],
          "entry": r.get("entry"),
          "coords": list(r.get("day_named_moved") or []),
+         # Окно наблюдения — часть находки, а не сноска: находка на урезанном
+         # окне полноценна (сдвиг есть сдвиг), но читатель вправе знать, на
+         # скольких днях её видели.
+         "short_window_days": (r.get("short_window_days")
+                               if r.get("measured_on_short_window") else None),
          "detail": ("координаты с именем дня сдвинулись от ОДНОЙ ЛИШЬ плотности "
                     "записей: " + ", ".join(r.get("day_named_moved") or []))}
         for r in rows_out
@@ -757,7 +969,8 @@ def run(root: Optional[str] = None, *, data_dir: Optional[str] = None,
         if_due: bool = False, now: Optional[dt.datetime] = None,
         tact_days: int = MEASUREMENT_TACT_DAYS,
         population: Optional[Sequence[str]] = None,
-        budget_s: float = CALL_BUDGET_S) -> dict:
+        budget_s: float = CALL_BUDGET_S,
+        short_window_days: int = SHORT_WINDOW_DAYS) -> dict:
     """Шаг: внутри такта НЕ мерить и НЕ выдумывать вердикт."""
     tree = Path(root) if root else _ROOT
     source = Path(data_dir) if data_dir is not None else tree / "data"
@@ -767,7 +980,7 @@ def run(root: Optional[str] = None, *, data_dir: Optional[str] = None,
         if not due:
             return {"measured": False, "reason": why, "artifact": str(target)}
     doc = measure(source, tree, now=now, population=population,
-                  budget_s=budget_s)
+                  budget_s=budget_s, short_window_days=short_window_days)
     if write:
         atomic_save(doc, str(target))
     return {"measured": True, "doc": doc, "artifact": str(target)}
@@ -788,6 +1001,24 @@ def format_report(doc: dict) -> List[str]:
                    f"макс {den['records_per_day_max']}")
     out.append(f"  стенд: плотность {doc.get('factor')} — {doc.get('factor_reason')}")
     out.append(f"  бюджет одного зова: {doc.get('call_budget_s')} с")
+    rescue = doc.get("short_window_rescue") or {}
+    if rescue:
+        attempted = rescue.get("attempted") or 0
+        if not attempted:
+            out.append("  урезанное окно: не понадобилось — за бюджет не вышел никто")
+        else:
+            out.append(f"  урезанное окно {rescue.get('short_window_days')} дн: "
+                       f"перемерено {attempted} · получили ОТВЕТ "
+                       f"{rescue.get('answered', 0)}")
+            still = rescue.get("still_unmeasured") or {}
+            if still:
+                out.append("     осталось «не измерено»: "
+                           + " · ".join(f"{k} {v}" for k, v in still.items()))
+            found = rescue.get("findings_on_short_window") or []
+            if found:
+                out.append("     🔴 находки на урезанном окне: " + ", ".join(found))
+            if rescue.get("reason") and not rescue.get("stand"):
+                out.append(f"     НЕ ИЗМЕРЕНО: {rescue['reason']}")
     tally = doc.get("tally") or {}
     out.append("  вердикты: " + " · ".join(f"{k} {v}" for k, v in tally.items()))
     if doc.get("unmeasured_causes"):
@@ -819,9 +1050,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--if-due", action="store_true",
                     help=f"мерить только если со дня прошлого замера прошло "
                          f"{MEASUREMENT_TACT_DAYS} дн (прогон стои́т минуты)")
+    ap.add_argument("--short-window-days", type=int, default=SHORT_WINDOW_DAYS,
+                    help=("окно ленты для ПОВТОРНОГО зова тех, кто не уложился "
+                          f"в бюджет (по умолчанию {SHORT_WINDOW_DAYS}); "
+                          "предмет мерится дешевле, а не бюджетом щедрее"))
     args = ap.parse_args(argv)
     res = run(root=args.tree_root, data_dir=args.data_dir, dest=args.out,
-              write=not args.no_write, if_due=args.if_due)
+              write=not args.no_write, if_due=args.if_due,
+              short_window_days=args.short_window_days)
     if not res.get("measured"):
         print(f"перепись не проводилась: {res.get('reason')}")
         return 0

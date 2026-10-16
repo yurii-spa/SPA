@@ -674,5 +674,285 @@ class ProbeHasBothSides(unittest.TestCase):
         self.assertEqual(verdict, self.ca.NOT_SATISFIED)
 
 
+class LedgerWindowCutsDaysAndNothingElse(unittest.TestCase):
+    """Урезанное окно (ADR-767): дешевле — но та же ОДНА разница между стендами.
+
+    Средство заказа G766 п. 3 работает только если окно режет РОВНО дни. Режь
+    оно записи — обрезка смешалась бы с плотностью, то есть с самим предметом
+    вопроса, и сдвиг нельзя было бы отнести ни к одной из двух причин.
+    """
+
+    def setUp(self) -> None:
+        self.now = _now()
+        self.rows = [_rec(self.now, back, hour)
+                     for back in range(10, 0, -1) for hour in (6, 18)]
+        self.undated = dict(self.rows[0])
+        self.undated.pop("cycle_date")
+        self.rows.append(self.undated)
+
+    def test_window_keeps_the_last_days_not_the_first(self):
+        """Читатель ленты судит о СВЕЖЕМ: окно из начала истории — другой вопрос."""
+        kept, note = cen.tail_days(self.rows, 3)
+        days = sorted({r["cycle_date"] for r in kept if "cycle_date" in r})
+        self.assertEqual(days, sorted(_day(self.now, b) for b in (1, 2, 3)))
+        self.assertTrue(note["truncated"])
+        self.assertEqual((note["days_before"], note["days_after"]), (10, 3))
+
+    def test_undated_rows_stay_in_full_on_both_stands(self):
+        """Порванное звено: выброси их — и между стендами менялась бы ВТОРАЯ вещь."""
+        kept, _ = cen.tail_days(self.rows, 2)
+        self.assertEqual(sum(1 for r in kept if "cycle_date" not in r), 1)
+
+    def test_no_window_leaves_the_tape_whole_and_says_so(self):
+        kept, note = cen.tail_days(self.rows, None)
+        self.assertEqual(len(kept), len(self.rows))
+        self.assertFalse(note["truncated"])
+        self.assertIn("целиком", note["reason"])
+
+    def test_window_wider_than_the_tape_cuts_nothing_and_names_why(self):
+        """«Урезал» на ленте короче окна было бы ложью о наблюдении."""
+        kept, note = cen.tail_days(self.rows, 99)
+        self.assertEqual(len(kept), len(self.rows))
+        self.assertFalse(note["truncated"])
+        self.assertIn("резать нечего", note["reason"])
+
+    def test_a_non_positive_window_is_refused_not_obeyed(self):
+        """Окно 0 дн оставило бы стенд без единого дня — мерить стало бы нечем."""
+        for bad in (0, -5):
+            kept, note = cen.tail_days(self.rows, bad)
+            self.assertEqual(len(kept), len(self.rows), bad)
+            self.assertFalse(note["truncated"], bad)
+
+    def test_stands_on_a_window_still_share_one_day_set(self):
+        """Главный инвариант стендов обязан выжить обрезку — иначе вывод ни о чём."""
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            _write_tape(data, None, self.rows)
+            stands, why = cen.build_stands(data, Path(tmp) / "st", factor=4,
+                                           window_days=3, prefix="w_")
+            self.assertIsNotNone(stands, why)
+            assert stands is not None
+            self.assertEqual(stands["window_days"], 3)
+            one = cen.read_book_rows(stands["s_one"] / "data", None)[0]
+            many = cen.read_book_rows(stands["s_many"] / "data", None)[0]
+            assert one is not None and many is not None
+            self.assertEqual({r["cycle_date"] for r in one if "cycle_date" in r},
+                             {r["cycle_date"] for r in many if "cycle_date" in r})
+            self.assertEqual(len({r["cycle_date"] for r in one
+                                  if "cycle_date" in r}), 3)
+            self.assertLess(len(one), len(many))
+
+    def test_the_prefix_keeps_two_stand_sets_apart(self):
+        """Без него урезанный стенд записался бы ПОВЕРХ полного."""
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            _write_tape(data, None, self.rows)
+            dest = Path(tmp) / "st"
+            full, _ = cen.build_stands(data, dest, factor=4)
+            short, _ = cen.build_stands(data, dest, factor=4, window_days=2,
+                                        prefix="w_")
+            assert full is not None and short is not None
+            self.assertNotEqual(full["s_one"], short["s_one"])
+            whole = cen.read_book_rows(full["s_one"] / "data", None)[0]
+            assert whole is not None
+            self.assertEqual(len({r["cycle_date"] for r in whole
+                                  if "cycle_date" in r}), 10)
+
+
+class ShortWindowAnswerIsNotDressedUpAsAFullOne(unittest.TestCase):
+    """ADR-767: сдвиг на коротком окне ДОКАЗАН, его отсутствие — НЕТ.
+
+    Несимметричность намеренная и есть вся суть правила. Координата, поехавшая
+    от одной лишь плотности на семи днях, едет от неё и на сорока пяти. Обратное
+    неверно: читатель с оглядкой назад длиннее окна инвариантен на коротком окне
+    ПО ПОСТРОЕНИЮ, и зачесть ему это значило бы выдать слепоту прибора за
+    исправность читателя (инв. #17).
+    """
+
+    def setUp(self) -> None:
+        self.full = {"module": "m", "outcome": cen.OUT_UNMEASURED,
+                     "cause": cen.CAUSE_OVER_BUDGET, "reason": "не уложился"}
+
+    def test_a_shift_found_on_the_short_window_counts_as_found(self):
+        row = cen.merge_short_window_row(
+            self.full, {"module": "m", "outcome": cen.OUT_RECORD_SENSITIVE,
+                        "day_named_moved": ["cio.unchanged_days"]}, 7)
+        self.assertEqual(row["outcome"], cen.OUT_RECORD_SENSITIVE)
+        self.assertEqual(row["day_named_moved"], ["cio.unchanged_days"])
+        self.assertTrue(row["measured_on_short_window"])
+        self.assertEqual(row["short_window_days"], 7)
+
+    def test_absence_of_a_shift_on_the_short_window_is_not_clean(self):
+        """Порванное звено: зачти его — и слепота прибора стала бы зачётом."""
+        row = cen.merge_short_window_row(
+            self.full, {"module": "m", "outcome": cen.OUT_DAY_INVARIANT,
+                        "moved_coords": []}, 7)
+        self.assertEqual(row["outcome"], cen.OUT_UNMEASURED)
+        self.assertEqual(row["cause"], cen.CAUSE_INVARIANT_SHORT_ONLY)
+        self.assertNotEqual(row["outcome"], cen.OUT_DAY_INVARIANT)
+        self.assertIn("7", str(row["reason"]))
+
+    def test_still_over_budget_means_the_cost_is_not_the_ledger(self):
+        """Средство заказа на такого читателя НЕ действует — и это сказано."""
+        row = cen.merge_short_window_row(
+            self.full, {"module": "m", "outcome": cen.OUT_UNMEASURED,
+                        "cause": cen.CAUSE_OVER_BUDGET, "reason": "не уложился"}, 7)
+        self.assertEqual(row["cause"], cen.CAUSE_OVER_BUDGET_SHORT)
+        self.assertNotEqual(row["cause"], cen.CAUSE_OVER_BUDGET)
+
+    def test_another_failure_keeps_its_own_cause(self):
+        """Порванное звено: ссыпь всё в бюджет — и причина стала бы ложной."""
+        row = cen.merge_short_window_row(
+            self.full, {"module": "m", "outcome": cen.OUT_UNMEASURED,
+                        "cause": cen.CAUSE_ENTRY_RAISED, "reason": "ValueError"}, 7)
+        self.assertEqual(row["cause"], cen.CAUSE_ENTRY_RAISED)
+
+    def test_the_full_window_observation_is_never_overwritten(self):
+        """Иначе строка выдавала бы дешёвый замер за тот, которого не было."""
+        row = cen.merge_short_window_row(
+            self.full, {"module": "m", "outcome": cen.OUT_RECORD_SENSITIVE,
+                        "day_named_moved": ["a.days"]}, 7)
+        self.assertEqual(row["full_window"]["cause"], cen.CAUSE_OVER_BUDGET)
+        self.assertEqual(row["full_window"]["outcome"], cen.OUT_UNMEASURED)
+
+
+class TheCheaperWindowReachesTheWiring(unittest.TestCase):
+    """Проводка, а не только правило: «половина инъекции — та же бомба».
+
+    `.claude/rules/deployment.md`: проверять надо не наличие параметра, а
+    доходит ли он до того пути, который идёт замер. Поэтому тесты ниже зовут
+    `measure()` целиком — со стендами, импортом и будильником, — и отличаются
+    РОВНО тем, где лежит цена читателя.
+    """
+
+    def setUp(self) -> None:
+        self.now = _now()
+        self.rows = [_rec(self.now, back, hour)
+                     for back in range(20, 0, -1) for hour in (6, 12, 18)]
+
+    def _tree(self, tmp: Path) -> Path:
+        data = tmp / "data"
+        data.mkdir(parents=True, exist_ok=True)
+        for _name, book_id in cen.BOOKS:
+            _write_tape(data, book_id, self.rows)
+        return data
+
+    def _fake(self, name: str, fn):
+        import sys
+        import types
+        mod = types.ModuleType(name)
+        mod.measure = fn
+        sys.modules[name] = mod
+        self.addCleanup(lambda: sys.modules.pop(name, None))
+        return name
+
+    def test_a_reader_whose_cost_is_the_ledger_gets_an_answer(self):
+        """Положительный контроль: бюджет дал бы НЕОТВЕТ, окно даёт НАХОДКУ."""
+        def slow_by_tape(data_dir, *, now=None):            # noqa: ARG001
+            import time as _t
+            rows = cen.read_book_rows(Path(data_dir), None)[0] or []
+            # Цена читателя пропорциональна ДЛИНЕ ленты — ровно тот класс, на
+            # который средство заказа и рассчитано: полное окно (60 строк на
+            # `s_many`) в бюджет не укладывается, урезанное (9) укладывается.
+            _t.sleep(0.02 * len(rows))
+            return {"observed_days": len(rows)}
+
+        name = self._fake("spa_core_fake_tape_priced_reader", slow_by_tape)
+        with TemporaryDirectory() as tmp:
+            data = self._tree(Path(tmp))
+            doc = cen.measure(data, Path(tmp), now=self.now,
+                              stand_dest=Path(tmp) / "st", population=[name],
+                              budget_s=0.9, short_window_days=3)
+        row = doc["readers"][0]
+        self.assertEqual(row["full_window"]["cause"], cen.CAUSE_OVER_BUDGET)
+        self.assertTrue(row["measured_on_short_window"])
+        self.assertEqual(row["outcome"], cen.OUT_RECORD_SENSITIVE)
+        self.assertEqual(row["day_named_moved"], [".observed_days"])
+        self.assertEqual(doc["short_window_rescue"]["attempted"], 1)
+        self.assertEqual(doc["short_window_rescue"]["answered"], 1)
+        self.assertEqual(doc["short_window_rescue"]["findings_on_short_window"],
+                         [name])
+        self.assertEqual(doc["findings"][0]["short_window_days"], 3)
+        self.assertEqual(doc["status"], cen.STATUS_FINDINGS)
+
+    def test_a_reader_priced_elsewhere_is_named_not_rescued(self):
+        """Порванное звено: цена не в ленте ⇒ окно не помогает, и это НАЗВАНО."""
+        def slow_always(data_dir, *, now=None):              # noqa: ARG001
+            import time as _t
+            _t.sleep(3.0)
+            return {"observed_days": 1}
+
+        name = self._fake("spa_core_fake_elsewhere_priced_reader", slow_always)
+        with TemporaryDirectory() as tmp:
+            data = self._tree(Path(tmp))
+            doc = cen.measure(data, Path(tmp), now=self.now,
+                              stand_dest=Path(tmp) / "st", population=[name],
+                              budget_s=0.5, short_window_days=3)
+        row = doc["readers"][0]
+        self.assertEqual(row["outcome"], cen.OUT_UNMEASURED)
+        self.assertEqual(row["cause"], cen.CAUSE_OVER_BUDGET_SHORT)
+        self.assertEqual(doc["short_window_rescue"]["answered"], 0)
+        self.assertEqual(
+            doc["short_window_rescue"]["still_unmeasured"],
+            {cen.CAUSE_OVER_BUDGET_SHORT: 1})
+        self.assertEqual(doc["status"], cen.STATUS_CLEAN)
+        self.assertNotIn(cen.CAUSE_OVER_BUDGET, doc["unmeasured_causes"])
+
+    def test_a_fast_reader_is_never_sent_to_the_short_window(self):
+        """Порванное звено: спасай всех — и вердикты уехали бы на дешёвое окно."""
+        name = self._fake("spa_core_fake_fast_full_window_reader",
+                          lambda data_dir, *, now=None: {"rows": 1})  # noqa: ARG005
+        with TemporaryDirectory() as tmp:
+            data = self._tree(Path(tmp))
+            doc = cen.measure(data, Path(tmp), now=self.now,
+                              stand_dest=Path(tmp) / "st", population=[name],
+                              budget_s=5.0, short_window_days=3)
+        row = doc["readers"][0]
+        self.assertNotIn("measured_on_short_window", row)
+        self.assertEqual(doc["short_window_rescue"]["attempted"], 0)
+        self.assertIn("спасать некого", doc["short_window_rescue"]["reason"])
+
+    def test_the_window_is_an_input_and_the_artifact_records_it(self):
+        """Число, решившее цену вопроса, обязано быть видно читателю отчёта."""
+        name = self._fake("spa_core_fake_window_recorded_reader",
+                          lambda data_dir, *, now=None: {"rows": 1})  # noqa: ARG005
+        with TemporaryDirectory() as tmp:
+            data = self._tree(Path(tmp))
+            doc = cen.measure(data, Path(tmp), now=self.now,
+                              stand_dest=Path(tmp) / "st", population=[name],
+                              budget_s=5.0, short_window_days=5)
+        self.assertEqual(doc["short_window_days"], 5)
+        self.assertEqual(doc["short_window_rescue"]["short_window_days"], 5)
+
+    def test_an_unbuildable_short_stand_is_its_own_cause(self):
+        """Третий исход у самого средства: окно не построено — своя причина."""
+        rows = [{"module": "m", "outcome": cen.OUT_UNMEASURED,
+                 "cause": cen.CAUSE_OVER_BUDGET, "reason": "не уложился"}]
+        with TemporaryDirectory() as tmp:
+            out, report = cen.rescue_over_budget(
+                rows, Path(tmp) / "no_data", Path(tmp) / "st", factor=4,
+                sweepers={}, now=self.now, budget_s=1.0, short_window_days=3)
+        self.assertEqual(out[0]["cause"], cen.CAUSE_SHORT_STAND_ABSENT)
+        self.assertNotEqual(out[0]["outcome"], cen.OUT_DAY_INVARIANT)
+        self.assertIn("reason", report)
+
+    def test_the_report_shows_the_rescue_to_a_human(self):
+        """Исход, которого не видно в отчёте, читателю не достаётся."""
+        doc = {"measured": True, "books": {}, "factor": 4,
+               "call_budget_s": 90.0, "tally": {cen.OUT_UNMEASURED: 1},
+               "short_window_rescue": {
+                   "attempted": 2, "answered": 1, "short_window_days": 7,
+                   "stand": {"factor": 4},
+                   "still_unmeasured": {cen.CAUSE_OVER_BUDGET_SHORT: 1},
+                   "findings_on_short_window": ["mod.a"]}}
+        text = "\n".join(cen.format_report(doc))
+        self.assertIn("урезанное окно 7 дн", text)
+        self.assertIn("получили ОТВЕТ 1", text)
+        self.assertIn(cen.CAUSE_OVER_BUDGET_SHORT, text)
+        self.assertIn("mod.a", text)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

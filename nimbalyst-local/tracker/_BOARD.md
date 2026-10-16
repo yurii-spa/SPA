@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-16T16:22:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-16T18:03:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (520f80dcd) · статусов дочитано оттуда: **5** (копия в дереве — прежняя версия того же файла) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (73262dbf9) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1352** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1353** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -415,7 +415,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (750)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (751)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1061,6 +1061,7 @@
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `inbox-prikaz-vladeltsa-uskolznul-ot-storozha-n.md` · 2026-09-04
 - Проба двери доставки считает ПОЛОМКУ сторожа его отказом (катч-олл в приёмке ADR-714)  ·  `inbox-proba-dveri-dostavki-schitaet-polomku-st.md` · 2026-10-15
+- Проба переписи считает построчное «не измерено» за оценённое — зелёный критерий возможен при ненаблюдённом предмете  ·  `inbox-proba-perepisi-schitaet-postrochnoe-ne-i.md` · 2026-10-16
 - Проба приёмки мерит соседнюю дверь: прибор ввозится по имени, а не из измеряемого дерева (3 из 51)  ·  `inbox-proba-priemki-merit-sosednyuyu-dver-prib.md` · 2026-10-14
 - Проба приёмки объявляет карточку закрытой, не проверив, что подмена применилась  ·  `inbox-proba-priemki-obyavlyaet-kartochku-zakry.md` · 2026-10-04
 - Прод-копии двух карточек-тетрадей беднее origin на 94 и 6 записей цикла — восстановить объединением  ·  `inbox-prod-kopii-dvuh-kartochek-tetradei-bedne.md` · 2026-10-13
