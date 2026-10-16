@@ -525,7 +525,9 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                 claims = access_jwt.verify(token, certs=certs, audience=access_cfg.audience,
                                            issuer=access_cfg.issuer, allowed_emails=access_cfg.owner_emails,
                                            now=time.time())
-                self._actor = str((claims or {}).get("email") or "owner")
+                # ARB 16.10: only the e-mail of a token whose signature/aud/iss/exp/e-mail this server
+                # has just VERIFIED; no fallback name — absent ⇒ the author stays «not established».
+                self._verified_email = str((claims or {}).get("email") or "").strip() or None
                 return None
             except Exception as exc:  # noqa: BLE001 — ANY failure in the check is a 403, never a crash
                 return f"{type(exc).__name__}: {exc}"
@@ -613,6 +615,8 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                 return
             if self._pre_dispatch_guard(head_only=False, allow_body=True):
                 return
+            # keep-alive: a handler instance may serve several requests — identity is per request
+            self._verified_email = None
             reason = (self._public_access_denied_reason() if listener_kind == "public"
                       else self._local_access_denied_reason())
             if reason is not None:
@@ -632,8 +636,13 @@ def make_handler(serving: Serving, port: int, listener_kind: str,
                                                     transcriber=intake_transcriber)
                     self._log(200, reason="intake transcribe")
                 else:
-                    actor = getattr(self, "_actor", None) or ("local" if listener_kind == "local" else "owner")
-                    out = mission_intake.submit(body, actor=actor, tracker_dir=intake_tracker_dir)
+                    # ARB 16.10: provenance from SERVER facts only (which socket, verified JWT e-mail,
+                    # loopback-only agent marker) — never from a body field such as actor/author.
+                    prov = mission_intake.provenance_for(
+                        listener_kind, verified_email=getattr(self, "_verified_email", None),
+                        owner_emails=access_cfg.owner_emails if access_cfg is not None else (),
+                        agent_marker=self.headers.get(mission_intake.AGENT_HEADER))
+                    out = mission_intake.submit(body, provenance=prov, tracker_dir=intake_tracker_dir)
                     self._log(200, reason=out.pop("audit"))
                 self._json(200, out)
             except mission_intake.IntakeRefused as exc:

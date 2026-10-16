@@ -71,12 +71,16 @@ def save_inbox_task(text: str, source: str = "telegram", transcript: str | None 
                     kind: str | None = None, origin_label: str = "Telegram",
                     tracker_dir=None, extra_fields: dict | None = None,
                     preamble: list[str] | None = None,
-                    merge_open_twin: bool = True) -> tuple[Path, str]:
+                    merge_open_twin: bool = True,
+                    kind_by: str = "Владелец пометил как") -> tuple[Path, str]:
     """Create an Inbox card from free text. Returns (path, title).
 
     ``extra_fields`` / ``preamble`` — дополнительные поля frontmatter и строки в начале тела
-    (пульт ADR-760: ``submission_id``, ``actor``, строка о границе полномочий). Telegram их
+    (пульт ADR-760: ``submission_id``, канал/автор/граница полномочий — ARB 16.10). Telegram их
     не передаёт — его карточки не меняются.
+    ``kind_by`` — кто поставил пометку идея/задача. По умолчанию — владелец (Telegram: чат владельца);
+    пульт передаёт «Пометка при отправке», когда автор записи не установлен как владелец: строка
+    «Владелец пометил» в такой карточке была бы утверждением об авторе, которого никто не проверил.
     ``merge_open_twin=False`` — у вызывающего своя идемпотентность по id запроса (пульт,
     ``submission_id``): та же фраза, отправленная заново намеренно, — новая карточка.
     """
@@ -90,7 +94,7 @@ def save_inbox_task(text: str, source: str = "telegram", transcript: str | None 
         extra.update(extra_fields)
     body_parts = note + list(preamble or []) + [f"## Задание (из {origin_label})", ""]
     if kind in INTAKE_KIND_RU:
-        body_parts += [f"_Владелец пометил как: {INTAKE_KIND_RU[kind]}._", ""]
+        body_parts += [f"_{kind_by}: {INTAKE_KIND_RU[kind]}._", ""]
     body_parts += [text.strip(), ""]
     if transcript is not None:
         body_parts += ["## Расшифровка голосового (whisper)", "", transcript.strip(), ""]

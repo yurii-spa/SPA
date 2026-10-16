@@ -2018,6 +2018,10 @@
           h("span", { class: "ux-done-at" }, [r.at_ru || t("state.NOT_MEASURED")]),
           h("span", {}, [r.title + " · " + r.kind + (r.voice ? " · 🎙" : "")]),
           h("p", { class: "ux-metric-text" + (r.state_known ? "" : " ux-metric--alert") }, [r.state])]);
+        // ARB 16.10: channel · established author · authority — three separate lines of fact.
+        if (r.provenance) li.appendChild(h("p", { class: "ux-note" }, [r.provenance]));
+        if (r.provenance_note) li.appendChild(h("p", { class: "ux-note ux-metric--alert" }, [r.provenance_note]));
+        if (r.authority_ru) li.appendChild(h("p", { class: "ux-note" }, [r.authority_ru]));
         var d = uxDetails(techLines(r), null, r.title);
         if (d) li.appendChild(d);
         ul.appendChild(li);

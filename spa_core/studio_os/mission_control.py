@@ -417,6 +417,46 @@ COCKPIT_RECORDS_LIMIT = 10
 COCKPIT_SOURCES = ("cockpit", "cockpit-voice")
 
 
+#: Каналы и авторы записей пульта (копия словаря ``mission_intake``: модель пульта не импортирует
+#: модуль записи; расхождение смысла держит тест ``test_cockpit_provenance``).
+COCKPIT_CHANNELS = ("cockpit-public", "cockpit-local", "agent-local", "unknown")
+COCKPIT_AUTHORS = ("owner", "agent", "not-established")
+_LEGACY_OWNER_LINE = "> Это заметка владельца из пульта"
+#: Машинная строка дописанного уточнения (``provenance_correction: channel=… author=… [identity=…]``).
+_PROVENANCE_CORRECTION_RE = re.compile(
+    r"^provenance_correction: channel=(\S+) author=(\S+)(?: identity=(\S+))?\s*$", re.M)
+
+
+def cockpit_provenance(fm: dict, body: str) -> dict:
+    """Канал/автор записи пульта из её frontmatter (ARB 16.10).
+
+    Новая карточка: ``channel``/``author`` записаны сервером. Старая (до 16.10): автора нет ⇒ ``author``
+    None и ``legacy`` True; канал выводится из прежнего ``actor`` только как КАНАЛ («local» ⇒ локальный,
+    адрес ⇒ публичный), автором он не становится. ``legacy_owner_claim`` — в теле стоит прежняя строка
+    «заметка владельца», которую читатель повторять не должен.
+    """
+    channel = fm.get("channel") if fm.get("channel") in COCKPIT_CHANNELS else None
+    author = fm.get("author") if fm.get("author") in COCKPIT_AUTHORS else None
+    legacy = not fm.get("author")
+    identity = fm.get("author_identity") or None
+    # Дописанное (append-only) уточнение происхождения в теле: история карточки не переписывается,
+    # последняя строка уточнения побеждает.
+    corr = _PROVENANCE_CORRECTION_RE.findall(body or "")
+    if corr:
+        c_channel, c_author, c_identity = corr[-1]
+        if c_channel in COCKPIT_CHANNELS and c_author in COCKPIT_AUTHORS:
+            return {"channel": c_channel, "author": c_author, "author_basis": "correction",
+                    "author_identity": c_identity or None if c_author == "agent" else None,
+                    "provenance_legacy": False, "provenance_corrected": True,
+                    "legacy_owner_claim": _LEGACY_OWNER_LINE in (body or "")}
+    if channel is None and legacy:
+        actor = str(fm.get("actor") or "")
+        channel = "cockpit-local" if actor == "local" else ("cockpit-public" if "@" in actor else None)
+    return {"channel": channel, "author": author, "author_basis": fm.get("author_basis") or None,
+            "author_identity": identity if author == "agent" else None,
+            "provenance_legacy": legacy, "provenance_corrected": False, "legacy_owner_claim": _LEGACY_OWNER_LINE in (body or "")}
+
+
 def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                     limit: int = COCKPIT_RECORDS_LIMIT) -> dict:
     """The owner's own cockpit records (source cockpit*), newest first, read-only from the PRODUCTION
@@ -435,6 +475,9 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
         if not name.startswith("inbox-") or fm.get("source") not in COCKPIT_SOURCES:
             continue
         rows.append({"card": name, "title": fm.get("title") or name[:-3],
+                     # ARB 16.10: канал · установленный автор — как их записал СЕРВЕР при приёме.
+                     # Карточка до 16.10 этих полей не несёт ⇒ author None («не записан»), а не владелец.
+                     **cockpit_provenance(fm, c.get("body") or ""),
                      "created_at": fm.get("submitted_at") or fm.get("created") or None,
                      "kind": fm.get("intake_kind") or None, "status": fm.get("status") or None,
                      "carried_to": fm.get("carried_to") or None, "voice": fm.get("source") == "cockpit-voice",

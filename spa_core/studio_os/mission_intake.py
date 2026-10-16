@@ -13,7 +13,7 @@ Two operations, each guarded by :class:`IntakeGate` (the server calls ``gate.che
   (measured by ``ffprobe`` when present; absent ⇒ the duration is «не измерена» and only the size
   limit applies — said in the answer, never silently). Whisper absent ⇒ a NAMED refusal
   ``WHISPER_UNAVAILABLE``, never an empty transcript.
-* ``submit(text, kind, transcript, actor)`` — one inbox card; ``kind`` ∈ idea/task/note.
+* ``submit(text, kind, transcript; provenance)`` — one inbox card; ``kind`` ∈ idea/task/note.
   ``submission_id`` (made by the page when the composer opens, kept across retries) makes the
   write IDEMPOTENT: a card already carrying that id (any status) is returned with
   ``duplicate: true`` instead of a second card. The check-and-write runs under one lock
@@ -21,8 +21,10 @@ Two operations, each guarded by :class:`IntakeGate` (the server calls ``gate.che
   With an id, idempotency is by that id ONLY: a NEW composer session (new id) with identical text is
   a deliberate second note and becomes a second card (the open-twin merge of ``create_card`` is
   bypassed); without an id (an old page) the open-twin guard stays.
-  Every cockpit card records the Access ``actor`` and the fixed authority-boundary line
-  :data:`AUTHORITY_NOTE` (ADR-285): a note is never a permission.
+  Every cockpit card records its PROVENANCE as three separate things (ARB 16.10, :class:`Provenance`):
+  the channel of arrival, the ESTABLISHED author (only from a server-side verified identity — never a
+  client-supplied field) and the fixed authority-boundary line :data:`AUTHORITY_NOTE` (ADR-285), which
+  never names the author: a record is never a permission, whoever wrote it.
 
 Whisper outcomes are NOT collapsed (inv. #17): timeout ⇒ 504 ``WHISPER_TIMEOUT``, the process failed
 ⇒ 503 ``WHISPER_FAILED``, nothing heard ⇒ 422 ``EMPTY_TRANSCRIPT``, a transcription already running
@@ -75,11 +77,101 @@ SUBMISSION_ID_RE = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 SUBMISSION_FIELD = "submission_id"
 #: Источники карточек пульта (ADR-760) — по ним «Мои записи» и приём узнают запись из пульта.
 COCKPIT_SOURCES = ("cockpit", "cockpit-voice")
-#: Граница полномочий (ADR-285): заметка из пульта — не разрешение. Строка фиксированная,
-#: её ищут дословно (тест), поэтому она живёт в одном месте.
-AUTHORITY_NOTE = ("> Это заметка владельца из пульта, а не разрешение на действия с деньгами, публичными "
-                  "числами или необратимые действия (ADR-285); такие действия — только через owner-gate / "
-                  "карточку владельца.")
+#: Граница полномочий (ADR-285): запись из пульта — не разрешение, КТО БЫ её ни написал. Строка
+#: фиксированная и НЕ называет автора (ARB 16.10: прежняя строка называла любую запись «заметкой
+#: владельца», в том числе запись агента через локальный канал). Её ищут дословно (тест).
+AUTHORITY_NOTE = ("> Полномочия: запись не даёт полномочий на действия с деньгами, публичными числами или "
+                  "необратимые действия (ADR-285) — независимо от того, кто её написал; такие действия — только "
+                  "через owner-gate / карточку владельца.")
+#: Прежняя строка (до 16.10). Карточки с ней остаются в истории; читатель («Мои записи») узнаёт её, чтобы
+#: не повторять её утверждение об авторе.
+LEGACY_AUTHORITY_NOTE = ("> Это заметка владельца из пульта, а не разрешение на действия с деньгами, публичными "
+                         "числами или необратимые действия (ADR-285); такие действия — только через owner-gate / "
+                         "карточку владельца.")
+
+# ── происхождение записи (ARB 16.10): канал · установленный автор · полномочия ───────────────────────
+#: Канал прихода — каким сокетом сервер ПРИНЯЛ запрос (знает только сервер, не тело запроса).
+CHANNEL_PUBLIC = "cockpit-public"      # публичный слушатель :8792 за Cloudflare Access
+CHANNEL_LOCAL = "cockpit-local"        # локальный слушатель :8790 (петля, доступ к самому Mac)
+CHANNEL_AGENT = "agent-local"          # агент/автоматизация через локальный слушатель с маркером агента
+CHANNEL_UNKNOWN = "unknown"            # вызывающий код не назвал канал — ничего не утверждаем
+CHANNEL_RU = {
+    CHANNEL_PUBLIC: "публичный пульт (через Cloudflare Access, слушатель :8792)",
+    CHANNEL_LOCAL: "локальный пульт на Mac (петля 127.0.0.1, слушатель :8790)",
+    CHANNEL_AGENT: "агент / автоматизация через локальный пульт на Mac (слушатель :8790)",
+    CHANNEL_UNKNOWN: "канал не назван",
+}
+#: Установленный автор. «owner» — ТОЛЬКО по проверенной сервером подписи Cloudflare Access
+#: (``access_jwt.verify``: RS256 по ключам команды, aud/iss/exp и e-mail из списка владельца).
+AUTHOR_OWNER = "owner"
+AUTHOR_AGENT = "agent"
+AUTHOR_NOT_ESTABLISHED = "not-established"
+#: Маркер агентского канала. Принимается ТОЛЬКО на локальном слушателе; на публичном — отказ.
+#: Это самообъявление: оно может лишь СНЯТЬ притязание на авторство владельца, но никогда его не даёт.
+AGENT_HEADER = "X-Intake-Agent"
+AGENT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
+
+
+class Provenance:
+    """Канал · установленный автор · основание — вычисляется СЕРВЕРОМ, никогда из тела запроса."""
+
+    __slots__ = ("channel", "author", "basis", "identity")
+
+    def __init__(self, channel: str, author: str, basis: str, identity: Optional[str] = None):
+        self.channel, self.author, self.basis, self.identity = channel, author, basis, identity
+
+    @property
+    def author_ru(self) -> str:
+        if self.author == AUTHOR_OWNER:
+            return "владелец — личность подтверждена подписью Cloudflare Access (проверена сервером)"
+        if self.author == AUTHOR_AGENT:
+            return (f"агент «{self.identity}» — объявил себя сам через локальный канал; подписью не проверено, "
+                    "но это не владелец")
+        return {"access-unverified": "автор не установлен — канал защищён Access, личность не проверена подписью",
+                "loopback": "автор не установлен (локальный доступ к Mac)",
+                }.get(self.basis, "автор не установлен (канал не назван)")
+
+    def fields(self) -> dict:
+        out = {"channel": self.channel, "author": self.author, "author_basis": self.basis}
+        if self.identity:
+            out["author_identity"] = self.identity
+        return out
+
+    def preamble(self) -> list:
+        return [f"> Канал: {CHANNEL_RU.get(self.channel, CHANNEL_RU[CHANNEL_UNKNOWN])}.",
+                f"> Автор: {self.author_ru}.",
+                AUTHORITY_NOTE, ""]
+
+    def audit(self) -> str:
+        return f"channel={self.channel} author={self.author} basis={self.basis}"
+
+
+def provenance_for(listener_kind: Optional[str], *, verified_email: Optional[str] = None,
+                   owner_emails=(), agent_marker: Optional[str] = None) -> Provenance:
+    """Происхождение записи по фактам СЕРВЕРА (ARB 16.10).
+
+    ``listener_kind`` — какой сокет принял запрос (``"public"``/``"local"``); ``verified_email`` — e-mail
+    из ПРОВЕРЕННОГО ``access_jwt.verify`` (не из заголовка как такового); ``owner_emails`` — список владельца
+    из конфигурации сервера; ``agent_marker`` — значение :data:`AGENT_HEADER`. Тело запроса сюда не
+    передаётся вовсе: поле ``actor``/``author`` клиента авторства не устанавливает.
+    """
+    marker = (agent_marker or "").strip() or None
+    if listener_kind == "public":
+        if marker is not None:
+            raise IntakeRefused(400, "AGENT_MARKER_PUBLIC",
+                                "Маркер агента принимается только на локальном пульте")
+        owners = {str(e).strip().lower() for e in (owner_emails or ()) if str(e).strip()}
+        email = (verified_email or "").strip().lower()
+        if email and email in owners:
+            return Provenance(CHANNEL_PUBLIC, AUTHOR_OWNER, "access-jwt-verified", email)
+        return Provenance(CHANNEL_PUBLIC, AUTHOR_NOT_ESTABLISHED, "access-unverified")
+    if listener_kind == "local":
+        if marker is not None:
+            if not AGENT_NAME_RE.match(marker):
+                raise IntakeRefused(400, "BAD_AGENT_MARKER", "Повреждён маркер агента")
+            return Provenance(CHANNEL_AGENT, AUTHOR_AGENT, "agent-marker-loopback", marker)
+        return Provenance(CHANNEL_LOCAL, AUTHOR_NOT_ESTABLISHED, "loopback")
+    return Provenance(CHANNEL_UNKNOWN, AUTHOR_NOT_ESTABLISHED, "unknown")
 
 #: Один whisper за раз: turbo на Mac занимает все ядра, шесть параллельных расшифровок
 #: (лимит частоты — 6 в минуту) уводили каждую за таймаут. Занято ⇒ честный 429, не очередь.
@@ -299,6 +391,14 @@ def _card_field(path: Path, key: str) -> Optional[str]:
 WAKE_FILE = ".cockpit-wake"
 
 
+def inbox_notes_dir() -> Path:
+    """Каталог заметок, за которым следит `com.spa.inbox_watch` — то же правило, что
+    `owner_queue.queue.INBOX_NOTES_DIR` (env `SPA_INBOX_NOTES_DIR`, иначе `<repo>/inbox`). Вычисляется здесь, а не
+    импортом очереди: модуль пульта пишет ТОЛЬКО через путь `inbox_intake` (сторож
+    `test_mission_no_money_action`); равенство двух правил держит `test_cockpit_provenance`-соседний тест."""
+    return Path(os.environ.get("SPA_INBOX_NOTES_DIR", Path(__file__).resolve().parents[2] / "inbox"))
+
+
 def wake_intake(notes_dir=None, *, now=None) -> bool:
     """Разбудить штатный приём заданий после записи из пульта (ADR-763, ARB 16.10).
 
@@ -310,8 +410,7 @@ def wake_intake(notes_dir=None, *, now=None) -> bool:
     сбой не отменяет уже записанную карточку (её подберёт следующий прогон), но называется в ответе.
     """
     from datetime import datetime, timezone
-    from spa_core.owner_queue import queue as _q
-    d = Path(notes_dir) if notes_dir is not None else _q.INBOX_NOTES_DIR
+    d = Path(notes_dir) if notes_dir is not None else inbox_notes_dir()
     try:
         d.mkdir(parents=True, exist_ok=True)
         tmp = d / (WAKE_FILE + ".tmp")
@@ -322,7 +421,13 @@ def wake_intake(notes_dir=None, *, now=None) -> bool:
         return False
 
 
-def submit(body: bytes, *, actor: str, tracker_dir=None, now=None, wake_dir=None) -> dict:
+def submit(body: bytes, *, provenance: Optional[Provenance] = None, actor: Optional[str] = None,
+           tracker_dir=None, now=None, wake_dir=None) -> dict:
+    """Одна новая inbox-карточка. ``provenance`` строит СЕРВЕР (:func:`provenance_for`).
+
+    ``actor`` — прежний параметр (до 16.10); авторства он НЕ устанавливает никогда: без ``provenance``
+    запись получает канал «не назван» и автора «не установлен» (fail-CLOSED), а ``actor`` не пишется.
+    """
     try:
         doc = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
@@ -351,7 +456,8 @@ def submit(body: bytes, *, actor: str, tracker_dir=None, now=None, wake_dir=None
     save_inbox_task = ii.save_inbox_task
     tdir = Path(tracker_dir) if tracker_dir is not None else ii.inbox_tracker_dir()
     stamp = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    extra = {"submitted_at": stamp, "actor": actor}
+    prov = provenance if provenance is not None else provenance_for(None)
+    extra = {"submitted_at": stamp, **prov.fields()}
     if sid:
         extra[SUBMISSION_FIELD] = sid
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
@@ -363,10 +469,12 @@ def submit(body: bytes, *, actor: str, tracker_dir=None, now=None, wake_dir=None
             return {"ok": True, "duplicate": True, "card": existing.name,
                     "title": _card_field(existing, "title") or existing.stem, "kind": ekind,
                     "kind_ru": KINDS[ekind],
-                    "audit": f"intake actor={actor} kind={ekind} card={existing.name} sha={digest} duplicate=1"}
+                    "audit": f"intake {prov.audit()} kind={ekind} card={existing.name} sha={digest} duplicate=1"}
         path, title = save_inbox_task(text, source="cockpit-voice" if transcript else "cockpit",
                                       transcript=transcript, kind=kind, origin_label="пульта",
-                                      tracker_dir=tdir, extra_fields=extra, preamble=[AUTHORITY_NOTE, ""],
+                                      tracker_dir=tdir, extra_fields=extra, preamble=prov.preamble(),
+                                      kind_by=("Владелец пометил как" if prov.author == AUTHOR_OWNER
+                                               else "Пометка при отправке"),
                                       # С id идемпотентность — ТОЛЬКО по нему: повтор того же запроса
                                       # найден выше, а новая отправка той же фразы (новое окно записи ⇒
                                       # новый id) — намеренная, и близнец её не глотает. Без id (старая
@@ -376,4 +484,5 @@ def submit(body: bytes, *, actor: str, tracker_dir=None, now=None, wake_dir=None
     woken = wake_intake(wake_dir, now=now) if (tracker_dir is None or wake_dir is not None) else None
     return {"ok": True, "duplicate": False, "card": Path(path).name, "title": title, "kind": kind,
             "kind_ru": KINDS[kind], "intake_woken": woken,
-            "audit": f"intake actor={actor} kind={kind} card={Path(path).name} sha={digest} woken={woken}"}
+            "channel": prov.channel, "author": prov.author,
+            "audit": f"intake {prov.audit()} kind={kind} card={Path(path).name} sha={digest} woken={woken}"}

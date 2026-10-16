@@ -213,9 +213,13 @@ def test_bot_whisper_call_names_each_outcome_and_keeps_its_old_contract(tmp_path
 
 
 # ── (d) author + authority boundary ────────────────────────────────────────────────────────────────
-def test_every_cockpit_card_carries_actor_and_the_authority_line(tmp_path):
-    mi.submit(_body("Текстовая запись", sid="cccccccc-0001"), actor="owner@example.com", tracker_dir=tmp_path, now=NOW)
-    mi.submit(_body("Голосовая запись", sid="cccccccc-0002", transcript="Голосовая запись"), actor="local",
+def test_every_cockpit_card_carries_provenance_and_the_authority_line(tmp_path):
+    # ARB 16.10 (inv. #16, intentional): `actor:` replaced by channel/author/author_basis written from
+    # SERVER facts; the old test asserted the client-ish `actor` string, which established nothing.
+    owner = mi.provenance_for("public", verified_email="owner@example.com", owner_emails={"owner@example.com"})
+    local = mi.provenance_for("local")
+    mi.submit(_body("Текстовая запись", sid="cccccccc-0001"), provenance=owner, tracker_dir=tmp_path, now=NOW)
+    mi.submit(_body("Голосовая запись", sid="cccccccc-0002", transcript="Голосовая запись"), provenance=local,
               tracker_dir=tmp_path, now=NOW)
     mi.submit(_body("Запись старой страницы", sid=None, kind="idea"), actor="local", tracker_dir=tmp_path, now=NOW)
     cards = _cards(tmp_path)
@@ -223,9 +227,13 @@ def test_every_cockpit_card_carries_actor_and_the_authority_line(tmp_path):
     for p in cards:
         text = p.read_text(encoding="utf-8")
         assert mi.AUTHORITY_NOTE in text, p.name
-        assert re.search(r"^actor: ", text, re.M), p.name
+        assert mi.LEGACY_AUTHORITY_NOTE not in text, p.name
+        for key in ("channel", "author", "author_basis"):
+            assert re.search(rf"^{key}: ", text, re.M), (p.name, key)
+        assert not re.search(r"^actor: ", text, re.M), p.name
         assert re.search(r'^submitted_at: "?2026-10-16T07:30:00Z"?$', text, re.M), p.name
-    assert 'actor: "owner@example.com"' in "".join(p.read_text(encoding="utf-8") for p in cards)
+    joined = "".join(p.read_text(encoding="utf-8") for p in cards)
+    assert re.search(r"^author: owner$", joined, re.M) and re.search(r"^channel: unknown$", joined, re.M)
 
 
 def test_telegram_cards_are_unchanged(tmp_path):
@@ -483,7 +491,8 @@ def test_http_retry_with_same_submission_id_answers_duplicate(tmp_path):
         assert d1["duplicate"] is False and d2["duplicate"] is True and d1["card"] == d2["card"]
         assert "audit" not in d2
         assert len(_cards(tracker)) == 1
-        assert "actor: local" in (tracker / d1["card"]).read_text(encoding="utf-8")
+        card = (tracker / d1["card"]).read_text(encoding="utf-8")
+        assert "channel: cockpit-local" in card and "author: not-established" in card
     finally:
         s.close()
 
@@ -556,3 +565,11 @@ def test_test_submits_without_wake_dir_do_not_touch_the_real_inbox(tmp_path):
     body = _json.dumps({"text": "без будильника", "kind": "note", "submission_id": "wake-0003-abcd"}).encode()
     res = mi.submit(body, actor="t", tracker_dir=tmp_path / "tracker")
     assert res["intake_woken"] is None
+
+
+def test_wake_dir_rule_equals_the_queue_rule(monkeypatch, tmp_path):
+    from spa_core.owner_queue import queue as Q
+    from spa_core.studio_os import mission_intake as mi
+    assert mi.inbox_notes_dir() == Path(Q.INBOX_NOTES_DIR)
+    monkeypatch.setenv("SPA_INBOX_NOTES_DIR", str(tmp_path / "x"))
+    assert mi.inbox_notes_dir() == tmp_path / "x"

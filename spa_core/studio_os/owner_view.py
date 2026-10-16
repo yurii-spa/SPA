@@ -846,6 +846,50 @@ def _record_outcome(r: dict) -> dict:
                known=False)
 
 
+#: ARB 16.10 — три разных вопроса о записи пульта, и ни один не отвечает за другой.
+RECORD_CHANNEL_RU = {
+    "cockpit-public": "через публичный пульт (Cloudflare Access)",
+    "cockpit-local": "через локальный пульт на Mac",
+    "agent-local": "агент / автоматизация через локальный пульт на Mac",
+    "unknown": "канал не назван",
+}
+#: Полномочия — одна строка, не зависящая от автора и не называющая его.
+RECORD_AUTHORITY_RU = ("Полномочий не даёт: ни на деньги, ни на публичные числа, ни на необратимые действия "
+                       "(ADR-285) — кто бы ни написал запись")
+
+
+def _record_author_ru(r: dict) -> str:
+    """Автор — только установленный сервером. Владелец называется ТОЛЬКО при ``author == owner``."""
+    a = r.get("author")
+    if a == "owner":
+        return "автор: владелец (подтверждено подписью Cloudflare Access)"
+    if a == "agent":
+        who = plain(str(r.get("author_identity") or "")) or "без имени"
+        return f"автор: агент «{who}», не владелец"
+    if a == "not-established":
+        return {"access-unverified": "автор не установлен (канал защищён Access, личность не проверена подписью)",
+                "loopback": "автор не установлен (локальный доступ к Mac)"}.get(
+                    r.get("author_basis"), "автор не установлен")
+    if r.get("provenance_legacy"):
+        return "автор не записан (запись сделана до разделения канала и автора, 16.10)"
+    return "автор не распознан — это проблема отображения"
+
+
+def _record_provenance(r: dict) -> dict:
+    channel = r.get("channel")
+    ch = RECORD_CHANNEL_RU.get(channel) or ("канал не записан" if channel is None else "канал не распознан")
+    author = _record_author_ru(r)
+    note = None
+    if r.get("legacy_owner_claim") and r.get("author") != "owner":
+        note = "строка «заметка владельца» в самой карточке не подтверждена — автор не установлен как владелец"
+    return {"channel_ru": ch, "author_ru": author, "authority_ru": RECORD_AUTHORITY_RU,
+            "author_established": r.get("author") in ("owner", "agent"),
+            "by_owner": r.get("author") == "owner",
+            "provenance": f"Пришло {ch}; {author}." + (" Уточнено дописанной строкой." if r.get("provenance_corrected")
+                                                       else ""),
+            "provenance_note": note}
+
+
 def _record_status(r: dict) -> tuple:
     """(text, known) — a status the dictionary does not know is named, never shown as success."""
     o = _record_outcome(r)
@@ -856,7 +900,9 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
     """«Мои записи» — the latest cockpit records from the production tracker, read-only."""
     mr = _get(model, "intake.my_records")
     title = "Мои записи"
-    sub = "что стало с вашими записями из пульта"
+    # ARB 16.10: не «ваши» — автор каждой записи назван в её строке, и владельцем он назван только
+    # по проверенной подписи.
+    sub = "что стало с записями из пульта; у каждой — канал, установленный автор и граница полномочий"
     if mr is None:
         # снимок старше этого блока (до ADR-760 «Мои записи») — блока нет, а не «записей нет»
         return None
@@ -873,7 +919,8 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
         if not isinstance(r, dict):
             continue
         o = _record_outcome(r)
-        rows.append({"title": plain(r.get("title")) or "запись без названия",
+        pv = _record_provenance(r)
+        rows.append({**pv, "title": plain(r.get("title")) or "запись без названия",
                      "at_ru": _madrid(r.get("created_at")) or "время не записано",
                      "kind": RECORD_KIND_RU.get(r.get("kind"), "без пометки"),
                      "state": o["text"], "state_known": o["known"],
@@ -885,7 +932,9 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
                                    "исполнитель": r.get("claimed_by"),
                                    "проба приёмки": r.get("acceptance_probe"),
                                    "проверено пробой": r.get("verified_by_probe"),
-                                   "исход проверки": r.get("acceptance_verdict")}})
+                                   "исход проверки": r.get("acceptance_verdict"),
+                                   "канал": r.get("channel"), "автор": r.get("author"),
+                                   "основание авторства": r.get("author_basis")}})
     total = mr.get("total")
     text = (f"Записей из пульта: {total}; ниже последние {len(rows)}" if rows and isinstance(total, int)
             and total > len(rows) else (f"Записей из пульта: {len(rows)}" if rows else "Записей из пульта пока нет"))
