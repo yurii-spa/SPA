@@ -144,6 +144,16 @@
     re-send and connection failure; (5) ADR-762 version-bound confirmation in a separate candidate (not wired into the
     live confirmation mechanism), then package value history, plain reasons for warnings, read-only check buttons,
     financial evidence. Real capital $0; no limit or tolerance changes; no new markets; nothing deleted.
+    Status 2026-10-16 (each claim with its level): (2) resources — implemented + live-verified: cockpit build
+    1175 s → 14 s in production, CORRUPT cells 0, findings_bridge census peak 7.25 GB → 224 MB, frozen-data
+    equivalence 0 differing fields (`cc98a1ba`); (3) backups — implemented, restore-drilled in scratch and into a
+    clean clone (`2e173313`, `5bc89182`), first nightly run with the new sets not yet observed; iCloud upload to
+    Apple NOT MEASURED; `weekly_backup` stays loaded; (4) voice — implemented (`c7e3b6c0`), page + «Мои записи»
+    live; server part waits for an owner-permitted `mission_server` restart; real iPhone send NOT owner-verified;
+    ARB Telegram card — agent_health judges by success receipts + boot window, live run CRIT 3 → 0, intake no
+    longer re-processes accepted tasks (`ef317cbd`, `68d21f88`), probe `agent_health_reboot_false_alarm_closed`
+    satisfied; (5) ADR-762 — local candidate branch `candidate/adr762-version-bound`, flag OFF, not wired.
+    Not ARB-accepted yet.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
