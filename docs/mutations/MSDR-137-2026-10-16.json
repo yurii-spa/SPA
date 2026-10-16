@@ -1,0 +1,80 @@
+{
+  "title": "#137 MSDR — дельта итерации novel-edge-rnd 2026-10-16 (MSD-KODS и cliff на реальной панели, заказ #133)",
+  "tests": [
+    "spa_core/tests/test_edge_msd_real_panel.py"
+  ],
+  "mutations": [
+    {
+      "name": "честная колонка заполняется из движка: 999.99 УСВАИВАЕТСЯ как Calmar (ровно измеряемый дефект)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    hv = honest_verdict(port)\n",
+      "new": "    hv = honest_verdict(port)\n    hv[\"calmar\"] = row.get(\"calmar\")\n    hv[\"calmar_degenerate\"] = None\n"
+    },
+    {
+      "name": "cliff обнуляет ВСЮ серию, а не хвост с даты",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    return {d: (0.0 if d >= cliff else r) for d, r in series.items()}\n",
+      "new": "    return {d: 0.0 for d, r in series.items()}\n"
+    },
+    {
+      "name": "cliff ВЫДУМЫВАЕТ убыток после даты (модель перестаёт быть самой благоприятной для гипотезы)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    return {d: (0.0 if d >= cliff else r) for d, r in series.items()}\n",
+      "new": "    return {d: (-0.001 if d >= cliff else r) for d, r in series.items()}\n"
+    },
+    {
+      "name": "cliff=NONE перестаёт быть тождеством (контрольная строка молча меняется)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    if cliff is None:\n        return dict(series)\n",
+      "new": "    if cliff is None:\n        return {d: r * 0.5 for d, r in series.items()}\n"
+    },
+    {
+      "name": "замена книги НЕ объявляется в строке (контроль переименован молча)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "        \"substitution\": SUBSTITUTIONS.get(alt),\n",
+      "new": "        \"substitution\": None,\n"
+    },
+    {
+      "name": "отсутствующая книга подменяется молча вместо громкого отказа",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    if missing:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "вердикт считает ВЫРОЖДЕННЫЕ строки измеренными (дефект #129 в чистом виде)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    measured = [r for r in test_rows if r[\"honest\"][\"calmar_degenerate\"] is None\n                and r[\"honest\"][\"calmar\"] is not None]\n",
+      "new": "    measured = list(test_rows)\n"
+    },
+    {
+      "name": "вердикт засчитывает победу по ОТКАЗАННОЙ дельте",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    wins = [r for r in measured if r[\"alt\"] == \"points_farm\"\n            and (r[\"delta_honest\"] or {}).get(\"status\") == \"measured\"\n            and (r[\"delta_honest\"] or {}).get(\"delta_calmar\", 0.0) > 0.0]\n",
+      "new": "    wins = [r for r in measured if r[\"alt\"] == \"points_farm\"]\n"
+    },
+    {
+      "name": "направление дохода всегда «вниз» (находка становится нефальсифицируемой)",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    direction = (\"monotone_down\" if all(d < 0 for d in diffs) else\n",
+      "new": "    direction = (\"monotone_down\" if True else\n"
+    },
+    {
+      "name": "отсутствующий APY подставляется нулём вместо третьего исхода",
+      "file": "scripts/edge_msd_real_panel.py",
+      "old": "    if any(a is None for _l, _w, a in apys) or len(apys) < 2:\n",
+      "new": "    if len(apys) < 2:\n"
+    },
+    {
+      "name": "crisis_loss: окно вне оси отдаёт ноль вместо НЕ ИЗМЕРЕНО",
+      "file": "scripts/edge_sigma_floor_ctac_real.py",
+      "old": "        return {\"loss\": None, \"status\": \"unmeasured_window_off_axis\", \"n_days\": 0,\n",
+      "new": "        return {\"loss\": 0.0, \"status\": \"unmeasured_window_off_axis\", \"n_days\": 0,\n"
+    },
+    {
+      "name": "crisis_loss: «ни одного дня вниз» сливается с «измерено»",
+      "file": "scripts/edge_sigma_floor_ctac_real.py",
+      "old": "    return {\"loss\": abs(worst), \"status\": \"measured\" if down else \"no_down_day\",\n",
+      "new": "    return {\"loss\": abs(worst), \"status\": \"measured\",\n"
+    }
+  ]
+}

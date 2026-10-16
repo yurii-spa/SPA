@@ -1,0 +1,80 @@
+{
+  "title": "#136 SGP — дельта итерации novel-edge-rnd 2026-10-16 (статический периметр оверлея на уровне портфеля)",
+  "tests": [
+    "spa_core/tests/test_edge_static_guardian_perimeter.py"
+  ],
+  "mutations": [
+    {
+      "name": "адаптер приёмки снова теряет знаменатель (ДЕФЕКТ, реально случившийся на первом прогоне)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "        \"maxdd\": row[\"maxdd_frac\"],\n",
+      "new": "        \"maxdd_lost\": None,\n"
+    },
+    {
+      "name": "книга без дней вниз ДОПУСКАЕТСЯ в периметр нулём (нарушение инв. #17)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "        ok = (mdd is not None) and (mdd >= k * price_of_round)\n",
+      "new": "        ok = ((mdd if mdd is not None else 0.0) >= k * price_of_round)\n"
+    },
+    {
+      "name": "выбор периметра смотрит ВПЕРЁД: окно решения растягивается на всю ось",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "        d = book_drawdown(rets, b, lo=lo, hi=seam)\n",
+      "new": "        d = book_drawdown(rets, b, lo=lo, hi=len(rets[b]))\n"
+    },
+    {
+      "name": "пошлина за переключения не берётся вовсе (оверлею выдана скидка, которой нет у нулей)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    weighted_switches = sw_total * w\n",
+      "new": "    weighted_switches = 0.0\n"
+    },
+    {
+      "name": "пошлина не масштабируется долей капитала (круг целиком за движение одной десятой)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    weighted_switches = sw_total * w\n",
+      "new": "    weighted_switches = float(sw_total)\n"
+    },
+    {
+      "name": "оверлей кладётся на ДОПОЛНЕНИЕ периметра (рукава меняются местами молча)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    series = [sum((guarded[b] if b in perimeter else list(rets[b]))[i] for b in u) / n\n",
+      "new": "    series = [sum((guarded[b] if b not in perimeter else list(rets[b]))[i] for b in u) / n\n"
+    },
+    {
+      "name": "выбор K ранжирует и ВЫРОЖДЕННЫЕ клетки (ровно дефект #129)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    usable = [r for r in rows if not r[\"calmar_degenerate\"] and r[\"calmar\"] is not None]\n",
+      "new": "    usable = [r for r in rows if r.get(\"calmar\") is not None]\n"
+    },
+    {
+      "name": "вердикт выносится по ЛЮБОМУ выполненному условию вместо всех четырёх",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    return {\"verdict\": (\"positive\" if all(checks.values()) else \"negative\"),\n",
+      "new": "    return {\"verdict\": (\"positive\" if any(checks.values()) else \"negative\"),\n"
+    },
+    {
+      "name": "контроль INVERSE снят из вердикта (способ смерти #35 и #95 перестаёт судить)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    c3 = (inv_d.get(\"status\") == \"measured\" and d.get(\"status\") == \"measured\"\n          and inv_d.get(\"delta_calmar\") < d.get(\"delta_calmar\"))\n",
+      "new": "    c3 = True\n"
+    },
+    {
+      "name": "книга, измеримая в ОДНОЙ половине, засчитывается как согласие знака",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "            \"sign_agrees\": (None if not both else\n                            (tr[\"delta_calmar\"] > 0) == (te[\"delta_calmar\"] > 0)),\n",
+      "new": "            \"sign_agrees\": (True if not both else\n                            (tr[\"delta_calmar\"] > 0) == (te[\"delta_calmar\"] > 0)),\n"
+    },
+    {
+      "name": "оверлей перезапускается на шве (TEST получает разогрев, которого ни у кого не было)",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "        out[b] = GZ.returns_of(GB.apply_guardian_vol(eq, **GZ.IDEA1_VOL))\n",
+      "new": "        out[b] = list(rets[b])\n"
+    },
+    {
+      "name": "отказ при отсутствии шва снят: in-sample claim выдаётся за out-of-sample",
+      "file": "scripts/edge_static_guardian_perimeter.py",
+      "old": "    if not (lo < seam < hi):\n",
+      "new": "    if False:\n"
+    }
+  ]
+}
