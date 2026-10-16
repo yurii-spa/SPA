@@ -193,6 +193,17 @@ PRODUCES = (
     # намеренно: один его прогон стои́т сотен прогонов pytest, и место ему —
     # рука, а не шестичасовой агент.
     "data/vacuous_guard_census.json",
+    # Заказ G764 п. 2 (ADR-765). Перепись ПУСТОГО совета: тень советника в
+    # книгах Balanced/Aggressive сравнивала книгу С САМОЙ СОБОЙ (цель побайтно
+    # равна держимому на 706 и 707 записях из 725, ноль дней из 45 с ногами),
+    # а выдача владельцу печатала это как взвешенный `HOLD` с нулевым разрывом.
+    # Прибору нужен СТОЯЧИЙ читатель: проба приёмки зовётся шагом 0-офис только
+    # по ОТКРЫТЫМ карточкам, и после закрытия карточки замер перестал бы
+    # делаться вовсе — ровно тот класс «прибор без читателя», которым этот
+    # проект платит чаще всего. Такта у ступени НЕТ намеренно: читаются три
+    # ленты и строится одна выдача, цена зова — доли секунды, поэтому SLO 12ч
+    # как у соседа без такта.
+    "data/vacuous_advice_census.json",
     # Заказ G92 п. 2 (ADR-543) — перепись тестов, зелёных ПО ПОСТРОЕНИЮ.
     # Ступень ДОРОГАЯ (сотни прогонов pytest), поэтому у неё ТАКТ: срок решает
     # ФАЙЛ (`green_by_construction_census.run` -> `measurement_due`), SLO 192ч,
@@ -488,6 +499,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "tact_gate_census",
     "rule_second_copy_census",
     "vacuous_guard_census",
+    "vacuous_advice_census",
     "green_by_construction_census",
     "acceptance_tree_capability",
     "s49_tally_tact",
@@ -757,6 +769,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "vacuous_guard_census": {
         "module": "spa_core/monitoring/vacuous_guard_census.py",
         "artifact": "data/vacuous_guard_census.json"},
+    "vacuous_advice_census": {
+        "module": "spa_core/monitoring/vacuous_advice_census.py",
+        "artifact": "data/vacuous_advice_census.json"},
     "green_by_construction_census": {
         "module": "spa_core/monitoring/green_by_construction_census.py",
         "artifact": "data/green_by_construction_census.json"},
@@ -2756,6 +2771,32 @@ def main(argv=None) -> int:
                   f"{_vgc['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "vacuous_guard_census", e)
+    # Перепись ПУСТОГО совета (заказ G764 п. 2, ADR-765): назван ли у читателя
+    # исход «взвешивать было нечего». Ступень существует потому, что у прибора
+    # иначе НЕТ стоячего читателя: проба приёмки
+    # `shadow_brief_names_the_unweighed_hold` зовётся шагом 0-офис только по
+    # ОТКРЫТЫМ карточкам, а карточка предмета закрыта этим же циклом — замер
+    # перестал бы делаться ровно тогда, когда перестал бы быть очевидным.
+    # Такта НЕТ намеренно: три ленты и одна выдача, цена зова — доли секунды.
+    try:
+        from spa_core.monitoring import vacuous_advice_census as _vac_adv
+        _vad = _vac_adv.run(root=args.root)
+        if _vad.get("measured"):
+            # Знаменатель — ЧЕСТНОЙ формой: отсутствие счётчика не ноль
+            # (инв. #17), иначе «пустых 0» стало бы утверждением о населении,
+            # которого перепись не мерила.
+            _vn = observed_number(_vad["doc"], "vacuous_records")
+            _vt = observed_number(_vad["doc"], "records_total")
+            print(f"vacuous_advice_census: {_vad['doc'].get('status')} — записей, "
+                  f"где советнику было нечего взвешивать, "
+                  f"{'НЕ ИЗМЕРЕНО' if _vn is None else int(_vn)} из "
+                  f"{'НЕ ИЗМЕРЕНО' if _vt is None else int(_vt)}; находок "
+                  f"{len(_vad['doc'].get('findings') or [])}")
+        else:
+            print(f"vacuous_advice_census: НЕ ИЗМЕРЕНО — "
+                  f"{_vad['doc'].get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "vacuous_advice_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

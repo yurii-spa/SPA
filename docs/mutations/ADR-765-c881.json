@@ -1,0 +1,104 @@
+{
+  "title": "ADR-765 — дельта цикла #881 (пустой совет: советник сравнил книгу с самой собой; серия считалась в записях под словом «день»)",
+  "tests": [
+    "spa_core/tests/test_vacuous_shadow_brief.py"
+  ],
+  "mutations": [
+    {
+      "name": "вернуть снятую меру: серия снова считается ЗАПИСЯМИ и печатается словом «день» (регрессия — «323-й день» на 45-дневной ленте)",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "    return len(set(dates))",
+      "new": "    return len(dates)"
+    },
+    {
+      "name": "третий исход серии подменён числом записей: дата не нужна, серия «измерена» всегда",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "    if any(not isinstance(d, str) or not d for d in dates):\n        return None",
+      "new": "    if False:\n        return None"
+    },
+    {
+      "name": "поле серии снято с выдачи: сверить её можно только подстрокой в прозе",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "        \"unchanged_days\": _unchanged_days(records),",
+      "new": "        \"unchanged_days_prose_only\": _unchanged_days(records),"
+    },
+    {
+      "name": "исход совета не объявляется вовсе: выдача снова печатает только HOLD",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "        **weighed,",
+      "new": "        \"weighed_internal_only\": weighed,"
+    },
+    {
+      "name": "«не измерено» выдаётся за пустой совет: запись без gates объявлена невзвешенной",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "        return {\"weighed\": None, \"not_weighed_reason\": WEIGHED_REASON_GATES_UNMEASURED}",
+      "new": "        return {\"weighed\": False, \"not_weighed_reason\": WEIGHED_REASON_GATES_UNMEASURED}"
+    },
+    {
+      "name": "причина не различается: побайтное равенство цели и дрейф на центы слиты в один факт",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "            \"not_weighed_reason\": (WEIGHED_REASON_SELF if cur == tgt\n                                   else WEIGHED_REASON_DRIFT)}",
+      "new": "            \"not_weighed_reason\": WEIGHED_REASON_DRIFT}"
+    },
+    {
+      "name": "причина не доезжает до прозы: владелец видит только «не пройдено: has_legs»",
+      "file": "spa_core/paper_trading/cio_brief.py",
+      "old": "        \"why\": (why[\"text\"] if reason_text is None\n                else f\"{why['text']} {reason_text}.\"),",
+      "new": "        \"why\": why[\"text\"],"
+    },
+    {
+      "name": "перепись ослеплена: исход записи без gates объявлен пустым советом",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "    if \"has_legs\" not in gates:\n        return RECORD_UNMEASURED, REASON_GATES_UNMEASURED",
+      "new": "    if \"has_legs\" not in gates:\n        return SELF_COMPARED, REASON_SELF"
+    },
+    {
+      "name": "перепись не сверяет серию со своим замером: любое объявленное число принимается",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "        elif not isinstance(declared_days, int) or isinstance(declared_days, bool) \\\n                or declared_days != tape[\"streak_days\"]:",
+      "new": "        elif False:"
+    },
+    {
+      "name": "перепись принимает отсутствие поля за зачёт (fail-OPEN главной оси)",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "        if declared_weighed == \"__absent__\" or declared_weighed != expected_weighed:",
+      "new": "        if declared_weighed != expected_weighed and declared_weighed != \"__absent__\":"
+    },
+    {
+      "name": "непрочитанная лента выдаётся за измеренный зачёт вместо третьего исхода",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "    if not tapes:\n        return {\"measured\": False,",
+      "new": "    if False:\n        return {\"measured\": False,"
+    },
+    {
+      "name": "проба не смотрит на возраст ленты: замороженный канон выдаётся за «что владелец видит сегодня»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if age_h > _VACUOUS_ADVICE_MAX_AGE_H:\n            return UNMEASURED, (\n                f\"лента вердиктов книги {book} протухла",
+      "new": "        if False:\n            return UNMEASURED, (\n                f\"лента вердиктов книги {book} протухла"
+    },
+    {
+      "name": "проба объявляет зачёт при непустом списке находок",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    findings = list(report.get(\"findings\") or [])\n    shape = (\"книг измерено {}, записей {}, пустых {}\"",
+      "new": "    findings = []\n    shape = (\"книг измерено {}, записей {}, пустых {}\""
+    },
+    {
+      "name": "ступень моста снята: прибор остаётся без стоячего читателя (карточка закрыта ⇒ проба не зовётся)",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "        _vad = _vac_adv.run(root=args.root)",
+      "new": "        _vad = {\"measured\": False, \"doc\": {\"reason\": \"мутация\"}}"
+    },
+    {
+      "name": "находка слита с третьим исходом: «не измерено» и «есть находка» становятся одним статусом",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "        \"status\": (\"UNMEASURED\" if not report.get(\"measured\")\n                   else (\"FINDING\" if report.get(\"findings\") else \"OK\")),",
+      "new": "        \"status\": (\"UNMEASURED\" if not report.get(\"measured\") else \"OK\"),"
+    },
+    {
+      "name": "артефакт не записывается: ступень считает, а на диск ничего не ложится",
+      "file": "spa_core/monitoring/vacuous_advice_census.py",
+      "old": "    if write:\n        atomic_save(doc, str(target))",
+      "new": "    if False:\n        atomic_save(doc, str(target))"
+    }
+  ]
+}

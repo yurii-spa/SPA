@@ -101,9 +101,65 @@ def _why_text(rec: dict) -> dict:
     return {"text": f"{reasons_text}. Критерии: {gate_text}.", "gates_evidenced": True}
 
 
+def _unchanged_run(records: List[dict]) -> Optional[List[dict]]:
+    """Серия записей подряд с ТЕМ ЖЕ вердиктом и теми же причинами.
+
+    ``None`` — серии нет: сравнивать не с чем (одна запись) либо вердикт/критерий
+    только что изменился, и тогда «сколько дней без изменений» — вопрос не о
+    этой истории. Отдельная функция потому, что по одной и той же серии
+    отвечают ДВА разных читателя (проза и число), и два обхода разошлись бы.
+    """
+    if len(records) < 2:
+        return None
+    latest, prev = records[-1], records[-2]
+    if latest.get("verdict") != prev.get("verdict"):
+        return None
+    lg, pg = latest.get("gates"), prev.get("gates")
+    if isinstance(lg, dict) and isinstance(pg, dict) and lg and pg:
+        if any(k in pg and lg[k] != pg[k] for k in lg):
+            return None
+    run = [latest]
+    baseline_reasons = latest.get("reasons")
+    for rec in reversed(records[:-1]):
+        if rec.get("verdict") == latest.get("verdict") \
+                and rec.get("reasons") == baseline_reasons:
+            run.append(rec)
+        else:
+            break
+    return run
+
+
+def _unchanged_days(records: List[dict]) -> Optional[int]:
+    """Сколько РАЗНЫХ дней длится неизменность. ``None`` = НЕ ИЗМЕРЕНО (ADR-765).
+
+    Уезжает ПОЛЕМ ``unchanged_days`` рядом с прозой: сверять серию подстрокой в
+    тексте — не зачёт (ADR-333), а «не измерено» в прозе неотличимо от нуля.
+
+    **Считаются ДНИ, а не записи.** Лента рукава пишется ≈16 раз за цикл, и
+    прежняя мера, считавшая записи под словом «день», сообщала владельцу
+    «323-й день подряд» на ленте возрастом 45 дней — число больше её
+    собственного возраста в семь раз (замер 16.10: настоящая серия 14 дн.;
+    у `aggressive` 346 против 15; у `conservative` 5 против 1). Мерить по дням
+    требует и сама находка цикла #877 («знаменатель по этим лентам надо брать
+    ПО ДНЯМ»). Запись без ``cycle_date`` даёт ТРЕТИЙ исход — ``None``, а не
+    число записей.
+    """
+    run = _unchanged_run(records)
+    if run is None:
+        return None
+    dates = [rec.get("cycle_date") for rec in run]
+    if any(not isinstance(d, str) or not d for d in dates):
+        return None
+    return len(set(dates))
+
+
 def _why_now_text(records: List[dict]) -> str:
     """Diffs the latest record against the previous one. Grounded only in what the
-    ledger already has — no new state, no fabricated "unchanged"."""
+    ledger already has — no new state, no fabricated "unchanged".
+
+    Проза о серии говорит ровно то, что измерил :func:`_unchanged_days`: если
+    число дней не измерено, текст НАЗЫВАЕТ это, а не подставляет число записей.
+    """
     if len(records) < 2:
         return "первый записанный цикл, сравнивать не с чем."
     latest, prev = records[-1], records[-2]
@@ -116,18 +172,15 @@ def _why_now_text(records: List[dict]) -> str:
                    if k in pg and lg[k] != pg[k]]
         if flipped:
             return "изменился критерий: " + ", ".join(flipped) + "."
-    # Streak: walk backward while verdict+reasons stay identical. Bounded by the
-    # ledger's own cap (HISTORY_MAX_LINES=1000), no separate bound needed.
-    streak = 1
-    baseline_reasons = latest.get("reasons")
-    for rec in reversed(records[:-1]):
-        if rec.get("verdict") == lv and rec.get("reasons") == baseline_reasons:
-            streak += 1
-        else:
-            break
-    if streak <= 1:
-        return "рутинно — без заметных изменений."
-    return f"рутинно — {streak}-й день подряд без изменений."
+    run = _unchanged_run(records) or [latest]
+    days = _unchanged_days(records)
+    if days is None:
+        return ("рутинно — без изменений {} записей подряд; в ДНЯХ не измерено: "
+                "у записи серии нет даты цикла.".format(len(run)))
+    if days <= 1:
+        return ("рутинно — без заметных изменений (всё в пределах одного дня, "
+                "записей {}).".format(len(run)))
+    return f"рутинно — {days}-й день подряд без изменений."
 
 
 #: Три ЧИСЛА критерия §49 `Owner visibility` приказа владельца «Portfolio CIO»
@@ -176,6 +229,66 @@ def _owner_numbers(rec: dict) -> dict:
     return out
 
 
+#: Причина «взвешивать было нечего» — ровно те имена, которыми её называет
+#: перепись (:mod:`spa_core.monitoring.vacuous_advice_census`). Одно имя на один
+#: предмет: две копии разошлись бы, и сверка значения стала бы сверкой опечаток.
+WEIGHED_REASON_SELF = "target_is_the_held_book"
+WEIGHED_REASON_DRIFT = "differences_below_material_leg"
+WEIGHED_REASON_POSITIONS_UNMEASURED = "positions_not_recorded"
+WEIGHED_REASON_GATES_UNMEASURED = "gates_not_recorded"
+
+#: Человеческая расшифровка причины — она и уезжает владельцу в прозе `why`.
+_WEIGHED_REASON_TEXT: Dict[str, str] = {
+    WEIGHED_REASON_SELF: ("Альтернатива НЕ взвешивалась: предложенная цель "
+                          "совпадает с держимой книгой — сравнивать было не с чем"),
+    WEIGHED_REASON_DRIFT: ("Альтернатива не взвешивалась: цель отличается от "
+                           "книги меньше, чем на материальную ногу"),
+    WEIGHED_REASON_POSITIONS_UNMEASURED: (
+        "Взвешивалась ли альтернатива — НЕ ИЗМЕРЕНО: запись не несёт книгу "
+        "и/или цель"),
+    WEIGHED_REASON_GATES_UNMEASURED: (
+        "Взвешивалась ли альтернатива — НЕ ИЗМЕРЕНО: запись не несёт вердикт "
+        "критериев"),
+}
+
+
+def _weighed(rec: dict) -> dict:
+    """Взвесил ли советник АЛЬТЕРНАТИВУ — три исхода, не два (ADR-765, инв. #17).
+
+    ``True`` — ноги были, советник сравнивал книгу с другой книгой.
+    ``False`` — сравнивать было нечего, и причина НАЗВАНА.
+    ``None`` — взвешивал ли, НЕ ИЗМЕРЕНО (запись без ``gates``: схема
+    ``shadow-hist-v1`` их не несёт вовсе).
+
+    Зачем отдельное поле, если ``gates["has_legs"]`` уже в записи: замер 16.10
+    (заказ G764 п. 2) показал, что на лентах Balanced/Aggressive 706 записей из
+    725 сравнивают книгу С САМОЙ СОБОЙ побайтно — цель приходит от ``hy_cycle``/
+    ``lp_cycle`` как УЖЕ РЕШЁННАЯ книга дня (ADR-531), а на повторном прогоне
+    дня решения нет и целью становится держимое. Выдача при этом печатала
+    ``verdict: HOLD``, ``optimal_apy_pp == current_apy_pp``, ``yield_gap_pp: 0.0``
+    при ``numbers_evidenced: true`` — то есть «взвешивать было нечего» читалось
+    как «взвесили, разрыв нулевой». Это ровно те два исхода, которые инвариант
+    #17 требует различать.
+
+    Числа при этом НЕ гасятся: ``gain_pp`` у такой записи равен нулю
+    по-настоящему, и подстановка ``None`` соврала бы в обратную сторону (тот же
+    довод уже записан в :func:`_owner_numbers`). Отличимость даёт отдельное
+    значение, а не стёртое.
+    """
+    gates = rec.get("gates")
+    if not isinstance(gates, dict) or not gates or "has_legs" not in gates:
+        return {"weighed": None, "not_weighed_reason": WEIGHED_REASON_GATES_UNMEASURED}
+    if gates.get("has_legs"):
+        return {"weighed": True, "not_weighed_reason": None}
+    cur, tgt = rec.get("current_positions"), rec.get("target_positions")
+    if not isinstance(cur, dict) or not isinstance(tgt, dict):
+        return {"weighed": False,
+                "not_weighed_reason": WEIGHED_REASON_POSITIONS_UNMEASURED}
+    return {"weighed": False,
+            "not_weighed_reason": (WEIGHED_REASON_SELF if cur == tgt
+                                   else WEIGHED_REASON_DRIFT)}
+
+
 def brief_from_history(records: List[dict]) -> dict:
     """Pure — no I/O. ``records`` must already be date-sorted (as returned by
     :func:`load_history`). Empty history → explicit fail-closed state."""
@@ -183,6 +296,8 @@ def brief_from_history(records: List[dict]) -> dict:
         return {"available": False, "reason": _NO_RECORD_REASON}
     latest = records[-1]
     why = _why_text(latest)
+    weighed = _weighed(latest)
+    reason_text = _WEIGHED_REASON_TEXT.get(str(weighed["not_weighed_reason"] or ""))
     return {
         "available": True,
         **_owner_numbers(latest),
@@ -191,11 +306,14 @@ def brief_from_history(records: List[dict]) -> dict:
         "policy_version": latest.get("policy_version"),
         "mode": latest.get("mode"),
         "verdict": latest.get("verdict"),
+        **weighed,
         "where": _where_text(latest),
         "how_much": _how_much_text(latest),
-        "why": why["text"],
+        "why": (why["text"] if reason_text is None
+                else f"{why['text']} {reason_text}."),
         "gates_evidenced": why["gates_evidenced"],
         "why_now": _why_now_text(records),
+        "unchanged_days": _unchanged_days(records),
     }
 
 

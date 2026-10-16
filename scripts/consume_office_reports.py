@@ -934,6 +934,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                   "door_inside_consumer_loop",
                                   "vacuous_and_reachable", "probe_ledger",
                                   "what_it_does_not_prove"),
+    # Заказ G764 п. 2 (ADR-765). `books` в схеме обязателен: без него «пустых
+    # 1452 из 1588» прочлось бы как свойство всей тени, тогда как у conservative
+    # пустых 4 из 138, а весь вес лежит на двух рукавных книгах — и причина у
+    # него своя (цель приходит уже решённой книгой дня). `unreadable` — потому
+    # что непрочитанная лента есть ТРЕТИЙ исход, а не ноль пустых записей.
+    "vacuous_advice_census.json": ("status", "invoked_by", "books", "findings",
+                                   "books_measured", "records_total",
+                                   "vacuous_records", "unreadable",
+                                   "what_it_does_not_prove"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1488,6 +1497,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/rule_second_copy_census.py",
     "vacuous_guard_census.json":
         "spa_core/monitoring/vacuous_guard_census.py",
+    "vacuous_advice_census.json":
+        "spa_core/monitoring/vacuous_advice_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -3917,6 +3928,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # двух объявленных форм, скобочная многострочная — ни одна из них).
         from spa_core.monitoring.vacuous_guard_census import format_report as _vgc_report
         out.extend(_vgc_report(data))
+    elif name == "vacuous_advice_census.json":
+        # Заказ G764 п. 2 (ADR-765). Без этой ветки артефакт читается ВХОЛОСТУЮ,
+        # и это было бы ровно тем дефектом, который перепись измеряет: она про
+        # исход, не доехавший до читателя. Правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.vacuous_advice_census import format_report as _vac_report
+        out.extend(_vac_report(data))
     elif name == "duplicate_subject_census.json":
         # Заказ G38 п. 3 (ADR-498). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # файл открыт, а в контекст не попадает ни одно число. Правило отрисовки

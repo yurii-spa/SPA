@@ -4323,6 +4323,106 @@ def _probe_portfolio_decision_owner_covers_capital(
         f"${report['uncovered_usd']:,.2f}; " + detail)
 
 
+#: Предел возраста последней записи ленты вердиктов для пробы
+#: `shadow_brief_names_the_unweighed_hold`. Такт писателя — дневной цикл
+#: (объявлено у `allocation_rationale_history*.jsonl`), поэтому 36 ч — сутки
+#: плюс запас на дрожание расписания: без запаса проба краснела бы от задержки
+#: прогона, а не от предмета (`.claude/rules/deployment.md`, замер порогов
+#: ADR-646). Предел нужен потому, что ЗАМОРОЖЕННАЯ лента отвечает на вопрос о
+#: прошлом: «владелец видит исход совета» — утверждение про сегодня.
+_VACUOUS_ADVICE_MAX_AGE_H = 36.0
+
+
+def _probe_shadow_brief_names_the_unweighed_hold(
+        arg: str | None, *, now: "datetime | None" = None,
+        data_dir: str | None = None,
+        brief_fn=None) -> tuple[str, str]:
+    """Критерий: ПУСТОЙ совет назван исходом, а не выдан за взвешенный HOLD.
+
+    Предмет — карточка `inbox-ten-sovetnika-po-perekladke-v-knigah-bal`
+    (заказ G764 п. 2 приказа «Portfolio CIO»). Замер 16.10: на лентах
+    Balanced/Aggressive 706 и 707 записей из 725 сравнивают книгу С САМОЙ СОБОЙ
+    побайтно — цель приходит от `hy_cycle`/`lp_cycle` как УЖЕ РЕШЁННАЯ книга
+    дня (ADR-531). Слой отображения при этом печатал владельцу
+    `verdict: HOLD`, `optimal_apy_pp == current_apy_pp`, `yield_gap_pp: 0.0`
+    при `numbers_evidenced: true` и «323-й день подряд без изменений» на ленте
+    возрастом 45 дней. То есть «взвешивать было нечего» читалось как
+    «взвесили, разрыв нулевой», а серия считалась в ЗАПИСЯХ под словом «день».
+
+    **Меряется ИСХОД у читателя, а не структура.** Проба не спрашивает «есть ли
+    поле в коде» — она зовёт НАСТОЯЩИЙ `build_books_brief` через перепись
+    (`spa_core.monitoring.vacuous_advice_census`) и сверяет ЗНАЧЕНИЕ полей
+    `weighed` / `unchanged_days` со своим замером по ленте. Подстрокой в прозе
+    проба не проходит (ADR-333): проза может сказать «ног нет» и при этом
+    объявить взвешенный HOLD полем, которое читают API и дашборд.
+
+    Три исхода разведены:
+
+    * `satisfied` — у каждой измеренной книги исход совета объявлен полем, у
+      непустого совета названа причина, серия сверена В ДНЯХ;
+    * `not_satisfied` — есть книга, где пустой совет подан как взвешенный, где
+      причина не названа, где `unchanged_days` не объявлен или расходится с
+      замером — это находка;
+    * `unmeasured` — ленты не прочитаны, выдача упала, запись протухла.
+      «Не измерено» не выдаётся ни за находку, ни за разрешение закрыть
+      карточку (инв. #17).
+
+    Часы, каталог данных и САМА выдача (`brief_fn`) — ВХОДЫ, не окружение:
+    иначе красную сторону проверки закрепить нечем, а положительный контроль
+    обязан воспроизводить дособытийную форму выдачи. Проба только ЧИТАЕТ.
+    """
+    try:
+        from spa_core.monitoring import vacuous_advice_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = data_dir or os.path.join(REPO_ROOT, "data")
+    try:
+        report = census.run_census(_pathlib.Path(root), brief_fn=brief_fn)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
+    if not report.get("measured"):
+        return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
+
+    when = now or datetime.now(timezone.utc)
+    for book, data in sorted((report.get("books") or {}).items()):
+        if not data.get("brief_available"):
+            continue
+        stamp = (data.get("tape") or {}).get("latest_generated_at")
+        if not stamp:
+            return UNMEASURED, (f"у последней записи ленты {book} нет "
+                                f"`generated_at` — возраст НЕ измерен, судить "
+                                f"о том, что владелец видит СЕГОДНЯ, нечем")
+        try:
+            made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except ValueError:
+            return UNMEASURED, (f"лента {book}: generated_at {stamp!r} не "
+                                f"разобран — возраст НЕ измерен")
+        if made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        age_h = (when - made).total_seconds() / 3600.0
+        if age_h > _VACUOUS_ADVICE_MAX_AGE_H:
+            return UNMEASURED, (
+                f"лента вердиктов книги {book} протухла: возраст {age_h:.1f}ч "
+                f"при пределе {_VACUOUS_ADVICE_MAX_AGE_H:.0f}ч — это замороженный "
+                f"канон, а не то, что владелец видит сегодня; мерить надо из "
+                f"дерева с живым data/")
+
+    findings = list(report.get("findings") or [])
+    shape = ("книг измерено {}, записей {}, пустых {}"
+             .format(report.get("books_measured"), report.get("records_total"),
+                     report.get("vacuous_records")))
+    if findings:
+        return NOT_SATISFIED, (
+            "исход совета назван не у каждой книги ({}): ".format(len(findings))
+            + "; ".join("[{}] {}: {}".format(f["finding"], f["book"], f["detail"])
+                        for f in findings[:4])
+            + f" · {shape}")
+    return SATISFIED, (
+        "у каждой измеренной книги исход совета объявлен полем `weighed` с "
+        f"названной причиной, серия сверена в ДНЯХ полем `unchanged_days`; {shape}")
+
+
 #: Предел возраста записи прогона для пробы `no_regression_tests_pass`.
 #: Восемь суток — тот же такт, что у соседних недельных приборов. Предел нужен
 #: потому, что население может НЕ измениться, а код под ним — измениться: тогда
@@ -9473,6 +9573,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "pr_work_arrived_on_main": _probe_pr_work_arrived_on_main,
     "owner_visibility_numbers_delivered":
         _probe_owner_visibility_numbers_delivered,
+    "shadow_brief_names_the_unweighed_hold":
+        _probe_shadow_brief_names_the_unweighed_hold,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":
