@@ -288,6 +288,23 @@ class AttributeReadersTest(unittest.TestCase):
         got = J.attribute_readers(self.tmp)
         self.assertTrue(any("broken.py" in u for u in got["unparsed"]))
 
+    def test_copies_of_other_trees_under_hidden_dirs_are_not_the_population(self):
+        """Замер 16.10 (ADR-763 пакет 2): на прод-дереве обход заходил в `.claude/worktrees`
+        (24 717 из 27 217 файлов — копии чужих деревьев) и держал все их AST разом, пик 7,25 ГБ.
+        Копия читателя судьи в скрытом каталоге — не второй читатель."""
+        self._write("direct.py",
+                    "from spa_core.paper_trading import shadow_trigger_eval as ste\n"
+                    "def f(d):\n    return ste.load_history(d)\n")
+        copy = self.tmp / ".claude/worktrees/w1/pkg"
+        copy.mkdir(parents=True)
+        (copy / "direct.py").write_text((self.pkg / "direct.py").read_text(encoding="utf-8"), encoding="utf-8")
+        (self.tmp / ".git").mkdir()
+        (self.tmp / ".git/hook.py").write_text("def f(engine):\n    return engine.load_history()\n",
+                                              encoding="utf-8")
+        got = J.attribute_readers(self.tmp)
+        self.assertEqual(got["via_judge_module"], ["pkg/direct.py"])
+        self.assertEqual(got["unresolved_count"], 0)
+
 
 class CapacityNullControlTest(unittest.TestCase):
     """Нулевой контроль обязан давать НОЛЬ, иначе стенд построен в пользу ответа."""

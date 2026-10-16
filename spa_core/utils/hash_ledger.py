@@ -40,6 +40,83 @@ from typing import Any, List, Optional, Sequence
 
 GENESIS = "0" * 64
 
+# ── per-process read cache for READ-ONLY consumers (ADR-763 package 2, 2026-10-16) ──────────────
+# Measured: one Mission Control build parsed data/research_factory/ledger.jsonl (45 MB, 15 455 lines)
+# 4 336 times — 1 077 s of a 1 175 s build (92 %), while the file changes once a day. The M7 caution on
+# HashLedger.read_all forbids an opportunistic cache keyed by NOTHING; this one is keyed by the file's
+# identity AND size AND mtime, so any append (append-only file ⇒ size grows) is a cache miss and the
+# M7 race cannot occur. It is OFF by default and switched on only by processes that never write a
+# hash ledger (the cockpit builder), so writer semantics are untouched. Callers get a fresh list; the
+# shared row objects are FROZEN (FrozenDict/FrozenList): an in-place change by any reader raises
+# instead of corrupting what the next reader gets (ARB 16.10). Writers must still never enable it.
+_READ_CACHE_ENABLED = False
+_READ_CACHE: dict = {}
+
+
+def _refuse(*_a, **_k):
+    raise TypeError("cached ledger rows are read-only (ADR-763): copy with dict(row)/list(rows) before changing")
+
+
+class FrozenDict(dict):
+    """A dict a cached row is served as: reading, ``dict(x)``, ``json.dumps`` and ``isinstance(x, dict)``
+    behave as before; any in-place change raises instead of silently corrupting the shared cache."""
+    __slots__ = ()
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = __ior__ = _refuse
+
+    def __copy__(self):
+        return dict(self)
+
+    def __deepcopy__(self, memo):
+        return {k: _thaw(v) for k, v in self.items()}
+
+    def __reduce__(self):
+        return (dict, (dict(self),))
+
+
+class FrozenList(list):
+    __slots__ = ()
+    __setitem__ = __delitem__ = append = extend = insert = remove = pop = clear = sort = reverse = _refuse
+    __iadd__ = __imul__ = _refuse
+
+    def __copy__(self):
+        return list(self)
+
+    def __deepcopy__(self, memo):
+        return [_thaw(v) for v in self]
+
+    def __reduce__(self):
+        return (list, (list(self),))
+
+
+def _freeze(v):
+    if isinstance(v, dict):
+        return FrozenDict((k, _freeze(x)) for k, x in v.items())
+    if isinstance(v, list):
+        return FrozenList(_freeze(x) for x in v)
+    return v
+
+
+def _thaw(v):
+    if isinstance(v, dict):
+        return {k: _thaw(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_thaw(x) for x in v]
+    return v
+
+
+def enable_read_cache() -> None:
+    """Opt this READ-ONLY process into the stat-keyed read cache (see the note above)."""
+    global _READ_CACHE_ENABLED
+    _READ_CACHE_ENABLED = True
+
+
+def _file_identity(path) -> Optional[tuple]:
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
 
 class LedgerError(Exception):
     """Chain-integrity or write-contract violation. Nothing is auto-repaired."""
@@ -195,6 +272,20 @@ class HashLedger:
         path = self.ledger_path()
         if not path.exists():
             return []
+        if _READ_CACHE_ENABLED and not self._trusted:
+            ident = _file_identity(path)
+            hit = _READ_CACHE.get(str(path))
+            if ident is not None and hit is not None and hit[0] == ident:
+                return list(hit[1])
+            out = self._parse(path)
+            if ident is not None and _file_identity(path) == ident:   # unchanged while we parsed
+                out = [_freeze(e) for e in out]                        # shared rows cannot be changed in place
+                _READ_CACHE[str(path)] = (ident, out)
+            return list(out)
+        return self._parse(path)
+
+    @staticmethod
+    def _parse(path: Path) -> List[dict]:
         out: List[dict] = []
         with open(path, "r") as f:
             for i, line in enumerate(f, start=1):
@@ -317,8 +408,10 @@ class HashLedger:
         is exactly the operation a stale in-process cache must never be allowed to answer: a
         cache populated before an OUTSIDE writer's perfectly legitimate append would otherwise
         see fewer entries than the (also fresh) anchors file now has, and report a false
-        ``ledger_truncated`` break on a ledger that is actually fine."""
-        entries = self._read_all_from_disk()
+        ``ledger_truncated`` break on a ledger that is actually fine. The opt-in stat-keyed read
+        cache (ADR-763) is bypassed here too: verify parses the file itself, always."""
+        path = self.ledger_path()
+        entries = self._parse(path) if path.exists() else []
         anchors = self.read_anchors()
         seqs = [a.get("seq") for a in anchors]
         if len(seqs) != len(set(seqs)):

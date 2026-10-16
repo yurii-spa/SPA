@@ -628,45 +628,61 @@ def attribute_readers(tree_root: Path) -> dict:
     * ``unresolved`` — третий исход: не привязано ни к чему из перечисленного.
     """
     judge_rel = "spa_core/paper_trading/shadow_trigger_eval.py"
-    files: List[Tuple[str, ast.AST]] = []
+    # Per file only what classification needs — never the whole AST of every file at once.
+    # Замер 2026-10-16 (ADR-763 пакет 2): на прод-дереве обход «от корня» заходил в
+    # `.claude/worktrees` (13 чужих деревьев, 24 717 из 27 217 файлов) и держал ВСЕ их AST
+    # разом — пик 7,25 ГБ в долгом процессе findings_bridge. Скрытые каталоги (`.claude`,
+    # `.git`, …) — не код этого репозитория, а копии других деревьев: их файлы записывались бы
+    # в население переписи дубликатами. Население origin от этого не меняется.
+    files: List[Tuple[str, set, bool, List[Tuple[bool, Optional[str]]]]] = []
     unparsed: List[str] = []
     for path in sorted(Path(tree_root).rglob("*.py")):
         rel = str(path.relative_to(tree_root))
+        if any(part.startswith(".") for part in Path(rel).parts[:-1]):
+            continue
         if "/tests/" in f"/{rel}" or rel.startswith("tests/"):
             continue
         if rel == judge_rel or path.name == Path(__file__).name:
             continue
         try:
-            files.append((rel, ast.parse(path.read_text(encoding="utf-8"))))
+            tree = ast.parse(path.read_text(encoding="utf-8"))
         except (OSError, SyntaxError) as exc:
             unparsed.append(f"{rel}: {type(exc).__name__}")
+            continue
+        has_copy = False
+        refs: List[Tuple[bool, Optional[str]]] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == JUDGE_MODULE \
+                    and any(a.name == "load_history" for a in node.names):
+                has_copy = True
+            if isinstance(node, ast.Attribute) and node.attr == "load_history":
+                refs.append((isinstance(node.value, ast.Name) and node.value.id in ("self", "cls"),
+                             _base_name(node.value)))
+        files.append((rel, _judge_aliases(tree), has_copy, refs))
+        del tree
 
     global_aliases: set = set()
-    for _rel, tree in files:
-        global_aliases |= _judge_aliases(tree)
+    for _rel, file_aliases, _c, _r in files:
+        global_aliases |= file_aliases
 
     direct: List[str] = []
     indirect: List[str] = []
     own_copy: List[str] = []
     own_method: List[str] = []
     unresolved: List[str] = []
-    for rel, tree in files:
-        aliases = _judge_aliases(tree)
+    for rel, aliases, has_copy, refs in files:
         kinds: set = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == JUDGE_MODULE \
-                    and any(a.name == "load_history" for a in node.names):
-                kinds.add("own_copy")
-            if isinstance(node, ast.Attribute) and node.attr == "load_history":
-                base = _base_name(node.value)
-                if isinstance(node.value, ast.Name) and node.value.id in ("self", "cls"):
-                    kinds.add("own_method")
-                elif base is not None and base in aliases:
-                    kinds.add("direct")
-                elif base is not None and base in global_aliases:
-                    kinds.add("indirect")
-                else:
-                    kinds.add("unresolved")
+        if has_copy:
+            kinds.add("own_copy")
+        for is_self, base in refs:
+            if is_self:
+                kinds.add("own_method")
+            elif base is not None and base in aliases:
+                kinds.add("direct")
+            elif base is not None and base in global_aliases:
+                kinds.add("indirect")
+            else:
+                kinds.add("unresolved")
         if "own_copy" in kinds:
             own_copy.append(rel)
         if "direct" in kinds:

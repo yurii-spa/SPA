@@ -80,3 +80,58 @@ def test_memory_without_a_build_stamp_has_no_as_of(tmp_path):
     assert out["state"] in (ct.MEASURED, ct.MEASURED_ZERO) and out["as_of"] is None
     repo2, mirror2 = _memory_repo(tmp_path / "b", True)     # a bool is not a time
     assert ct.studio_memory(repo2, mirror2)["as_of"] is None
+
+
+# ── «time from the future» is judged against the READ moment, not the build start (ADR-763, ARB 16.10) ──
+# Measured 2026-10-15: the 22:12Z build read data/equity_curve_daily.json stamped 22:39:58Z (−28 min vs
+# the build's `now`) and reported the Conservative book CORRUPT. Both clocks are injected here.
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+_BUILD_START = datetime(2026, 10, 15, 22, 12, 1, tzinfo=timezone.utc)
+
+
+def _judge(as_of, read_at):
+    token = ct._READ_CLOCK.set((lambda: read_at) if read_at is not None else None)
+    try:
+        return ct._staleness(as_of, _BUILD_START, 1560.0, "fallback")
+    finally:
+        ct._READ_CLOCK.reset(token)
+
+
+def test_file_updated_after_build_start_but_before_read_is_fresh_not_corrupt():
+    state, fresh = _judge(_BUILD_START + timedelta(minutes=27, seconds=57), _BUILD_START + timedelta(minutes=28))
+    assert state == ct.MEASURED and fresh["age_min"] == 0.0
+
+
+def test_a_real_future_stamp_is_still_corrupt_with_the_read_clock():
+    state, _ = _judge(_BUILD_START + timedelta(minutes=28 + 11), _BUILD_START + timedelta(minutes=28))
+    assert state == ct.CORRUPT
+
+
+def test_without_a_read_clock_the_check_stays_strict_against_now():
+    state, _ = _judge(_BUILD_START + timedelta(minutes=28), None)
+    assert state == ct.CORRUPT
+
+
+def test_build_sets_the_read_clock_only_for_its_own_duration():
+    seen = []
+
+    class _Stop(Exception):
+        pass
+
+    def fake_build(inp):
+        seen.append(ct._READ_CLOCK.get())
+        raise _Stop
+
+    orig = ct._build
+    ct._build = fake_build
+    try:
+        clock = lambda: _BUILD_START  # noqa: E731
+        inp = ct.TruthInputs(data=Path("."), mirror=Path("."), repo=Path("."), now=_BUILD_START, read_clock=clock)
+        try:
+            ct.build(inp)
+        except _Stop:
+            pass
+    finally:
+        ct._build = orig
+    assert seen == [clock] and ct._READ_CLOCK.get() is None

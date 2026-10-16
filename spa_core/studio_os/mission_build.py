@@ -257,6 +257,10 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--root", default=str(DEFAULT_ROOT), help="bundle root (default: %(default)s)")
     ap.add_argument("--keep", type=int, default=DEFAULT_KEEP, help="bundles to keep (default: %(default)s)")
     a = ap.parse_args(argv)
+    # The builder only READS hash ledgers; a stat-keyed read cache turns 4 336 re-parses of the
+    # research ledger per build into one (ADR-763 package 2; see spa_core/utils/hash_ledger.py).
+    from spa_core.utils import hash_ledger as _hash_ledger
+    _hash_ledger.enable_read_cache()
     try:
         result = build_bundle(Path(a.root), keep=a.keep)
     except BuildSkipped as exc:

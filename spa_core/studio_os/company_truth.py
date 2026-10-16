@@ -34,7 +34,7 @@ Only stdlib + the already-existing sibling primitives named in ``work_packages.j
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-
+import contextvars
 import importlib.util
 import json
 import re
@@ -64,6 +64,16 @@ METRIC_TYPES = ("OPERATIONAL", "COUNT", "REALIZED_PAPER", "OBSERVED", "BACKTEST"
 #: Same convention as ``readiness_scopes.FUTURE_SKEW_MINUTES`` — a timestamp more than this far
 #: in the future than ``now`` is CORRUPT (the exact shape of INC-1), never merely "fresh".
 FUTURE_SKEW_MINUTES = 10.0
+
+#: The clock of the moment a source is READ (ADR-763 package 2, ARB 16.10). ``now`` is fixed when the
+#: build STARTS; a build that runs for minutes reads files their writers updated after that start, and
+#: judging those against ``now`` called them «time from the future» ⇒ CORRUPT (measured 2026-10-15: the
+#: 22:12Z build read equity_curve_daily.json stamped 22:39:58Z, −28 min, and the owner saw «не измерено»
+#: for the Conservative book). The future check therefore uses the later of ``now`` and the read clock;
+#: a REAL future stamp (beyond the read moment + skew) is still CORRUPT. Unset (tests with an injected
+#: ``now``, or any caller that does not set it) ⇒ the old strict comparison against ``now``.
+_READ_CLOCK: "contextvars.ContextVar[Optional[Callable[[], datetime]]]" = contextvars.ContextVar(
+    "company_truth_read_clock", default=None)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -132,8 +142,18 @@ def _staleness(as_of: Optional[datetime], now: datetime, stale_after_min: Option
     if as_of is None:
         return NOT_MEASURED, freshness(None, stale_after_min, rule)
     age_min = (now - as_of).total_seconds() / 60.0
-    if age_min < -FUTURE_SKEW_MINUTES:
+    ref = now
+    clock = _READ_CLOCK.get()
+    if clock is not None:
+        read_at = clock()
+        if read_at > ref:
+            ref = read_at
+    ahead_min = (ref - as_of).total_seconds() / 60.0
+    if ahead_min < -FUTURE_SKEW_MINUTES:
         return CORRUPT, freshness(round(age_min, 1), stale_after_min, rule)
+    if age_min < 0 and clock is not None:
+        # updated after the build started and before it was read: fresh, not corrupt; age is 0, not negative
+        age_min = 0.0
     if stale_after_min is not None and age_min > stale_after_min:
         return STALE, freshness(round(age_min, 1), stale_after_min, rule)
     return MEASURED, freshness(round(age_min, 1), stale_after_min, rule)
@@ -1638,9 +1658,19 @@ class TruthInputs:
     push_state_section: Optional[dict] = None
     old_owner_items: list = field(default_factory=list)
     decisions_v1: Optional[dict] = None
+    #: wall clock of the READ moment (see _READ_CLOCK); None ⇒ strict comparison against ``now``
+    read_clock: Optional[Callable[[], datetime]] = None
 
 
 def build(inp: TruthInputs) -> dict:
+    token = _READ_CLOCK.set(inp.read_clock)
+    try:
+        return _build(inp)
+    finally:
+        _READ_CLOCK.reset(token)
+
+
+def _build(inp: TruthInputs) -> dict:
     now = inp.now
     data = Path(inp.data)
     cw = claude_work(inp.log_rows, inp.cards, inp.roadmap, inp.lineage_fn, None, now,

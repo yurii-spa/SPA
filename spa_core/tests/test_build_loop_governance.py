@@ -383,6 +383,43 @@ class TestScenarioDPressure:
         assert "resource_critical" in json.dumps(state)
         rg.notify(ok, data_dir=tmp_path, send=False)
 
+    def test_owner_alert_tells_ram_swap_and_disk_apart(self, tmp_path):
+        """ADR-763 пакет 2: 2026-10-15 20:23Z CRITICAL поднял своп (файл подкачки), а не нехватка RAM —
+        давление было 2, диск 87 ГБ. Текст владельцу обязан это различать, с абсолютными величинами,
+        временем замера и главными потребителями; процент свопа — НЕ «% занятой RAM»."""
+        pol = _policy(tmp_path)
+        sw = "total = 3072,00M  used = 2995,00M  free = 77,00M  (encrypted)"
+
+        def run(cmd, **k):
+            if "pressure" in cmd[-1]:
+                return "2"
+            if "swapusage" in cmd[-1]:
+                return sw
+            if "memsize" in cmd[-1]:
+                return str(16 * 1024 ** 3)
+            if cmd[0] == "ps":
+                return ("  101     1  5306163   0   01:00 /x/python3 -m spa_core.monitoring.findings_bridge --run\n"
+                        "  102     1   600000   0   01:00 /usr/libexec/fseventsd\n")
+            return "PID\tStatus\tLabel\n101\t0\tcom.spa.decision_loop\n"
+        from datetime import datetime, timezone
+        rep = rg.build_report(pol, disk_usage=lambda p: type("U", (), {"free": 87 * rg.GB, "total": 460 * rg.GB})(),
+                              run=run, now=datetime(2026, 10, 15, 20, 23, 6, tzinfo=timezone.utc))
+        assert rep["overall"] == rg.CRITICAL
+        assert rep["memory"]["triggers"] == [{"signal": "pressure", "state": rg.WARN},
+                                             {"signal": "swap", "state": rg.CRITICAL}]
+        body = rg.owner_body(rep)
+        assert "Замер: 2026-10-15 22:23 Мадрид" in body and "2026-10-15T20:23:06Z" in body
+        assert "Оперативная память (RAM): давление 2" in body and "всего RAM 16,0 ГБ" in body
+        assert "Своп (файл подкачки на диске, НЕ оперативная память): занято 2,9 ГБ из 3,0 ГБ" in body
+        assert "% файла подкачки" in body and "swap 97" not in body
+        assert "Диск: свободно 87,0 ГБ из 460,0 ГБ" in body
+        assert "заполнен файл подкачки (своп) (CRITICAL)" in body
+        assert "давление на оперативную память (WARN)" in body
+        assert "findings_bridge (com.spa.decision_loop) 5,1 ГБ" in body
+        rg.notify(rep, data_dir=tmp_path, send=False)
+        state = (tmp_path / "telegram" / "push_state.json").read_text(encoding="utf-8")
+        assert "resource_critical" in state
+
     def test_command_lines_never_carry_secrets(self, tmp_path):
         tok = "eyJ" + "a1B2c3D4e5F6g7H8i9J0" * 4
         line = f"/opt/homebrew/bin/cloudflared tunnel --no-autoupdate run --token {tok}"

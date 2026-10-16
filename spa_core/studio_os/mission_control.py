@@ -1506,6 +1506,9 @@ def build(inp: Optional[MCInputs] = None) -> dict:
 
     truth = ct.build(ct.TruthInputs(
         data=data, mirror=Path(inp.mirror), repo=Path(inp.repo), now=now, measure_host=inp.measure_host,
+        # a live build judges «from the future» against the moment each source is read, not the start
+        # of a build that may run for minutes (ADR-763); an injected `now` (tests) keeps the strict check
+        read_clock=None if inp.now is not None else (lambda: datetime.now(timezone.utc)),
         rep=rep, capital=capital, cards=cards, prod_cards=prod_cards, roadmap=roadmap, board=board,
         orphans=orphans, manifest=manifest_doc, roles=roles_doc, launchctl_map=launchctl_map,
         lineage_fn=_lineage_fn, log_rows=log_rows, log_bad_lines=log_bad, scopes=scopes,

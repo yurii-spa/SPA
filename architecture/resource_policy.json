@@ -31,6 +31,8 @@
       "labels": [
         "com.spa.director_server",
         "com.spa.director_build",
+        "com.spa.mission_server",
+        "com.spa.mission_control",
         "com.spa.telegram_bot",
         "com.studiobridge.telegram",
         "com.studiobridge.coordinator",
@@ -41,7 +43,7 @@
         "com.spa.orchestrator",
         "com.spa.rtmr_sense"
       ],
-      "_why": "Owner surfaces (Director, Telegram), the backup that keeps evidence off-host, Trading Research (must not break), the health and resource monitors themselves, and the autonomous build loop runner (its CHILDREN are disposable, the scheduler is not). RTMR sense loop (ADR-053) feeds the Conservative book's FREEZE reaction."
+      "_why": "Owner surfaces (Director, the Mission Control cockpit — mission_server/mission_control, added 2026-10-16 ADR-763: they ran UNCLASSIFIED although they are the live cockpit; the older director_server/director_build are still loaded and stay listed —, Telegram), the backup that keeps evidence off-host, Trading Research (must not break), the health and resource monitors themselves, and the autonomous build loop runner (its CHILDREN are disposable, the scheduler is not). RTMR sense loop (ADR-053) feeds the Conservative book's FREEZE reaction."
     },
     "DISPOSABLE": {
       "command_patterns": [

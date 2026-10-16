@@ -138,7 +138,21 @@ def measure_memory(policy: dict, *, run: Callable = _run) -> dict:
         states.append(CRITICAL if swap["used_pct"] >= m["swap_critical_pct"] else
                       WARN if swap["used_pct"] >= m["swap_warn_pct"] else OK)
     state = max(states, key=lambda s: _RANK[s])
-    return {"state": state, "pressure_level": level, "swap": swap}
+    # Which signal decided the state — the owner must be able to tell «RAM is short» (kernel pressure)
+    # from «the swap FILE is nearly full» (macOS grows swap in 1-GB files, so used/total of a small swap
+    # is high long before RAM is short). ADR-763 package 2: 2026-10-15 20:23Z was CRITICAL by swap alone
+    # at pressure 2 and 87 GB free disk.
+    triggers = []
+    if level is not None and level >= m["pressure_warn_level"]:
+        triggers.append({"signal": "pressure", "state": states[0]})
+    if swap is not None and swap["total_mb"] > 0 and swap["used_pct"] >= m["swap_warn_pct"]:
+        triggers.append({"signal": "swap", "state": states[-1]})
+    try:
+        ram_gb = round(int(str(run(["sysctl", "-n", "hw.memsize"])).strip()) / GB, 1)
+    except (TypeError, ValueError):
+        ram_gb = None
+    return {"state": state, "pressure_level": level, "swap": swap, "ram_total_gb": ram_gb,
+            "triggers": triggers}
 
 
 def launchd_pids(*, run: Callable = _run) -> dict[int, str]:
@@ -448,11 +462,66 @@ def summary_line(rep: dict) -> str:
     return f"{rep['overall']}: {disk}; {mem}"
 
 
+_PRESSURE_RU = {1: "норма", 2: "предупреждение", 4: "критично"}
+
+
+def _gb(mb: Optional[float]) -> str:
+    return "?" if mb is None else f"{mb / 1024:.1f}".replace(".", ",")
+
+
+def owner_body(rep: dict, top: int = 3) -> str:
+    """Plain-Russian alert body for the owner (ADR-763 package 2): RAM, swap and disk are three different
+    things and are named apart; absolute values, the measurement time and the main memory consumers.
+    The swap percentage is the share of the SWAP FILE in use, never «% of RAM»."""
+    from spa_core.utils.presentation import fmt_owner_time
+    d, m = rep.get("disk") or {}, rep.get("memory") or {}
+    lines = []
+    at = rep.get("generated_at")
+    lines.append(f"Замер: {fmt_owner_time(at, unknown='время не записано')}" + (f" ({at})" if at else ""))
+    if m.get("state") == UNMEASURED:
+        lines.append("Оперативная память (RAM): НЕ ИЗМЕРЕНО")
+    else:
+        lvl = m.get("pressure_level")
+        ram = m.get("ram_total_gb")
+        lvl_txt = "не измерено" if lvl is None else f"{lvl} ({_PRESSURE_RU.get(lvl, 'между уровнями')}; 1 — норма, 2 — предупреждение, 4 — критично)"
+        lines.append(f"Оперативная память (RAM): давление {lvl_txt}" + (f"; всего RAM {str(ram).replace('.', ',')} ГБ" if ram else ""))
+        sw = m.get("swap")
+        if sw and sw.get("total_mb"):
+            lines.append(f"Своп (файл подкачки на диске, НЕ оперативная память): занято {_gb(sw.get('used_mb'))} ГБ "
+                         f"из {_gb(sw.get('total_mb'))} ГБ ({str(sw.get('used_pct')).replace('.', ',')} % файла подкачки)")
+        elif sw is not None:
+            lines.append("Своп (файл подкачки): не используется")
+        else:
+            lines.append("Своп (файл подкачки): не измерено")
+    if d.get("free_gb") is not None:
+        tot = d.get("total_gb")
+        lines.append(f"Диск: свободно {str(d['free_gb']).replace('.', ',')} ГБ" + (f" из {str(tot).replace('.', ',')} ГБ" if tot else ""))
+    else:
+        lines.append(f"Диск: {d.get('state', 'не измерено')}")
+    why = []
+    if d.get("state") in (WARN, CRITICAL):
+        why.append(f"диск ({d['state']})")
+    names = {"pressure": "давление на оперативную память", "swap": "заполнен файл подкачки (своп)"}
+    for tr in m.get("triggers") or []:
+        why.append(f"{names.get(tr.get('signal'), tr.get('signal'))} ({tr.get('state')})")
+    if why:
+        lines.append("Сработало: " + ", ".join(why))
+    procs = (rep.get("processes") or {}).get("top") or []
+    if procs:
+        def name(r: dict) -> str:
+            cmd = r.get("cmd") or ""
+            mod = re.search(r"-m\s+([\w.]+)", cmd)
+            base = mod.group(1).rsplit(".", 1)[-1] if mod else (cmd.split() or ["?"])[0].rsplit("/", 1)[-1]
+            return base + (f" ({r['label']})" if r.get("label") else "")
+        lines.append("Больше всего памяти: " + " · ".join(f"{name(r)} {_gb(r.get('rss_mb'))} ГБ" for r in procs[:top]))
+    return "\n".join(lines)
+
+
 def notify(rep: dict, *, data_dir: Path, send: bool = True) -> Optional[bool]:
     from spa_core.telegram import push_policy
     if rep["overall"] == CRITICAL:
         fp = f"disk:{rep['disk']['state']}|mem:{rep['memory']['state']}"
-        body = summary_line(rep)
+        body = owner_body(rep)
         bl = rep.get("disposable_backlog") or {}
         if bl.get("count"):
             body += f"\nexpired disposable stands: {bl['count']} (daily cleanup removes them; resource_guard --cleanup --apply now)"
@@ -463,10 +532,10 @@ def notify(rep: dict, *, data_dir: Path, send: bool = True) -> Optional[bool]:
         # neither silenced by nor confused with a measured shortage.
         blind = [k for k in ("disk", "memory", "processes") if (rep.get(k) or {}).get("state") == UNMEASURED]
         return push_policy.push_critical(EVENT_KEY, "WARNING", "Ресурсы Мака: замер не удался",
-                                         summary_line(rep) + "\nне измерено: " + ", ".join(blind),
+                                         owner_body(rep) + "\nне измерено: " + ", ".join(blind),
                                          data_dir=data_dir, dedup_key="unmeasured:" + ",".join(blind), send=send)
     if rep["overall"] == OK:
-        return push_policy.resolve(EVENT_KEY, "Ресурсы Мака в норме", summary_line(rep),
+        return push_policy.resolve(EVENT_KEY, "Ресурсы Мака в норме", owner_body(rep),
                                    data_dir=data_dir, send=send)
     return None
 
