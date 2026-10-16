@@ -15,6 +15,17 @@
         intent=active, не загружен           → CRITICAL (мёртвый по конституции)
         intent=active, plist не персистентен → WARN     (не переживёт ребут — 2026-08-05)
         intent=unresolved                    → WARN weak (дрейф без решения; стареет)
+        intent=paused, НЕ загружен, пауза подтверждена замером → НЕ находка (ADR-769:
+              это и есть заданное владельцем состояние)
+        intent=paused, ЗАГРУЖЕН              → CRITICAL (агента оживили против решения
+              владельца — обратная сторона того же вопроса)
+        intent=paused, пауза ОПРОВЕРГНУТА замером (метки нет в `launchctl print-disabled`)
+                                             → CRITICAL (объявление говорит «владелец
+              выключил», ОС говорит «не выключен» — притязание не подтверждено, и
+              `paused` не имеет права быть глушилкой для настоящего отказа)
+        intent=paused, пауза НЕ ИЗМЕРЕНА     → `B1:dead` как у `active` + строка
+              `unchecked`: освобождение не выдаётся по непроверенному притязанию
+              (fail-CLOSED, та же сторона, что у `launchd_disabled_labels`)
   B2  свежесть активных артефактов по SLO (generated_at из содержимого, иначе mtime)
         → WARN (инцидент agent_registry: 19 дней протухания никто не заметил)
         + ВЫПОЛНИМОСТЬ самого SLO: литерал `slo_hours` сверяется с физическим
@@ -188,6 +199,21 @@ def gather_fleet() -> set[str] | None:
         return fleet
     except Exception:
         return None
+
+
+def gather_disabled() -> "frozenset | None":
+    """Метки, которые владелец выключил `launchctl disable`. None = НЕ ИЗМЕРЕНО.
+
+    Правило о паузе живёт в ОДНОЙ копии — `agent_health_monitor.launchd_disabled_labels`
+    (ADR-769): второй разбор `launchctl print-disabled` рядом разъехался бы с первым
+    молча, и два сторожа отвечали бы на один вопрос по-разному. Здесь только зов.
+    Сторона отказа та же, что у соседа: не прочитали ⇒ НИ ОДИН агент не считается
+    намеренно выключенным, то есть `paused` может только пере-докладывать отказ,
+    но не прятать его.
+    """
+    from spa_core.monitoring.agent_health_monitor import launchd_disabled_labels
+
+    return launchd_disabled_labels()
 
 
 def _parse_iso(value) -> dt.datetime | None:
@@ -580,6 +606,7 @@ def run_checks(manifest: dict,
                manifest_parity: dict | None = _NOT_REQUESTED,
                freshness_parity: dict | None = _NOT_REQUESTED,
                prev_contract_labels: list[str] | None = None,
+               disabled_labels: "frozenset | set | None" = None,
                absence_of=None) -> dict:
     # Проба «почему артефакта нет» — ВХОД, а не окружение
     # (`.claude/rules/deployment.md`: у двери к ОС обязан быть параметр, иначе
@@ -618,13 +645,43 @@ def run_checks(manifest: dict,
                 findings.append(_finding(
                     f"B1:unresolved_running:{label}", "B1", "WARN", "weak",
                     f"{label} работает при intent=unresolved — намерение никем не решено"))
+            elif a["intent"] == "paused":
+                # Обратная сторона паузы: владелец погасил агента намеренно, а он
+                # работает. Освобождение `paused` обязано резать в ОБЕ стороны, иначе
+                # оно есть просто способ выключить сторожа (инв. #16).
+                findings.append(_finding(
+                    f"B1:revived:{label}", "B1", "CRITICAL", "strong",
+                    f"{label} ЗАГРУЖЕН при intent=paused — агента оживили против "
+                    f"решения владельца выключить его"))
+        if any(a["intent"] == "paused" for a in agents) and disabled_labels is None:
+            unchecked.append({"check": "B1_paused",
+                              "reason": "`launchctl print-disabled` НЕ ПРОЧИТАН — пауза "
+                                        "не подтверждена замером; освобождение `paused` "
+                                        "не выдаётся, агенты судятся как `active`"})
         for a in agents:
-            if a["intent"] != "active":
+            if a["intent"] == "paused":
+                if a["label"] in fleet:
+                    continue        # загружен — уже назван B1:revived выше, и этим всё
+                # Пауза — ПРИТЯЗАНИЕ записи, и его меряет та же дверь, на которую
+                # ссылается канон (`launchctl print-disabled`, ADR-769 п. 2). Три исхода
+                # различимы: подтверждено · опровергнуто · не измерено.
+                if disabled_labels is None:
+                    pass            # не измерено ⇒ судим как `active` (ниже), fail-CLOSED
+                elif a["label"] in disabled_labels:
+                    continue        # подтверждено ⇒ отсутствие во флоте ОЖИДАЕМО
+                else:
+                    findings.append(_finding(
+                        f"B1:pause_unproven:{a['label']}", "B1", "CRITICAL", "strong",
+                        f"{a['label']}: объявлен intent=paused, но в `launchctl "
+                        f"print-disabled` его НЕТ — притязание «владелец выключил» "
+                        f"опровергнуто замером, а агент при этом не загружен"))
+                    continue
+            elif a["intent"] != "active":
                 continue
             if a["label"] not in fleet:
                 findings.append(_finding(
                     f"B1:dead:{a['label']}", "B1", "CRITICAL", "strong",
-                    f"{a['label']}: intent=active, но НЕ загружен во флоте"))
+                    f"{a['label']}: intent={a['intent']}, но НЕ загружен во флоте"))
             elif not a.get("reboot_safe"):
                 findings.append(_finding(
                     f"B1:reboot_unsafe:{a['label']}", "B1", "WARN", "strong",
@@ -1053,6 +1110,7 @@ def main(argv=None) -> int:
     now = dt.datetime.now(dt.timezone.utc)
     contracts = gather_contracts(manifest)
     report = run_checks(manifest, fleet, artifact_timestamp, receipts, now,
+                        disabled_labels=gather_disabled(),
                         prev_first_seen=_prev_first_seen(args.report),
                         drift_problems=(b5 or {}).get("drift"),
                         drift_measured=b5 is not None,

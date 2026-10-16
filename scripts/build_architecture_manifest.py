@@ -15,9 +15,19 @@
   КУРИРОВАННЫЕ (генератор сохраняет как есть; сеет дефолт только для НОВОГО агента):
     layer          — product | dev | infra
     role           — monitoring | allocation | analytics | reporting | research | swarm | …
-    intent         — active | designed | retired | unresolved
+    intent         — active | paused | designed | retired | unresolved
                      ("unresolved" — честное «никто не решал»: живёт в реестре, не загружен,
                       retired не помечен. Фаза 1 обязана поднимать по нему находку.)
+                     ("paused" — ЧЕТВЁРТОЕ значение, ADR-769: владелец выключил агента
+                      НАМЕРЕННО (`launchctl bootout` + `launchctl disable`, переживает
+                      ребут), программа и паспорт живы, решение обратимо. До него у
+                      намерения было три значения, и ни одно не выражало «намеренно
+                      выключен»: `retired` значит «убран навсегда». Поэтому запись
+                      `com.spa.mission_tick` 46 суток несла `intent=active` рядом с
+                      прозой «paused by the owner», сторож B1 читал ПОЛЕ и честно
+                      краснел CRITICAL, а единственная «починка», закрывающая находку,
+                      отменила бы решение владельца. Отсутствие во флоте у `paused` —
+                      ОЖИДАЕМОЕ состояние; находкой становится обратное.)
     produces       — [{"artifact": path, "slo_hours": N}]
     consumes       — [path, …]
     consumer_required — продукт ОБЯЗАН иметь читателя (ресит потребления, Фаза 2)
@@ -74,7 +84,7 @@ REPO_SRC_PREFIX = "repo:"
 CURATION_REF = "origin/main"
 GIT_TIMEOUT = 10
 
-INTENTS = ("active", "designed", "retired", "unresolved")
+INTENTS = ("active", "paused", "designed", "retired", "unresolved")
 LAYERS = ("product", "dev", "infra")
 CURATION = ("complete", "partial", "none")
 
@@ -248,6 +258,12 @@ def validate(manifest: dict, plists: dict[str, dict]) -> list[str]:
             problems.append(f"{label}: curation={a.get('curation')!r} вне {CURATION}")
         if a.get("intent") == "active" and label not in plist_labels:
             problems.append(f"{label}: intent=active, но plist-файла нет")
+        # `paused` — пауза, которую владелец может СНЯТЬ (ADR-769). Снять её нечем, если
+        # plist'а нет вовсе: тогда это не пауза, а `retired` под другим именем, и держать
+        # запись в обратимом состоянии значило бы обещать возврат, которого не будет.
+        if a.get("intent") == "paused" and label not in plist_labels:
+            problems.append(f"{label}: intent=paused, но plist-файла нет — "
+                            f"возобновить нечем, это retired под другим именем")
         if (a.get("intent") == "retired" and label in plist_labels
                 and plists[label]["plist_source"] == "launch_agents"):
             problems.append(f"{label}: intent=retired, но персистентный plist "

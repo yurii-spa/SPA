@@ -2174,13 +2174,13 @@
       "program": "mission_tick_agent.sh",
       "layer": "product",
       "role": "other",
-      "intent": "active",
+      "intent": "paused",
       "produces": [],
       "consumes": [],
       "consumer_required": false,
       "governed_by": [],
       "curation": "none",
-      "notes": "Studio Mission Fabric shadow tick (studio-os-scratch/v03); paused by the owner (bootout + launchctl disable) — see ADR-521 journal 2026-09-30",
+      "notes": "Studio Mission Fabric shadow tick (studio-os-scratch/v03); PAUSED by the owner (bootout + launchctl disable, persists across reboot) — see ADR-521 journal 2026-09-30; intent=paused per ADR-769. The plist stays in place so the owner can resume it.",
       "passport": {
         "goal": "Periodic SHADOW entry of the Studio Mission Fabric: calls mission_tick.py every 900 s; no scheduling logic of its own.",
         "quality_metric": "запускается по расписанию interval:900s и завершается кодом 0 (data/agent_health.json: loaded=true, last_exit=0)",
@@ -2193,7 +2193,7 @@
           "ADR-473 (shadow worktree studio-os-scratch/v03, not on origin)"
         ],
         "forbidden": "production activation, canonical delivery, Investment Engine, rates, risk limits, capital (plist header)",
-        "last_verified": "2026-10-01"
+        "last_verified": "2026-10-16"
       }
     },
     {

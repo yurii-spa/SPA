@@ -91,3 +91,55 @@ def test_manifest_absent_is_not_measured_not_zero():
 def test_active_workers_carries_announced_and_unannounced_separately():
     f = ct.typed_fleet({"agents": []}, {}, {"agents": []}, {"roles": []}, announced=1, unannounced=3)
     assert f["active_workers"] == {"announced": 1, "unannounced": 3}
+
+
+# ── ADR-769: четвёртое значение `intent` — «намеренно выключен владельцем» ──────────────
+#
+# `paused` не `active` и не `retired`, поэтому без отдельной строки агент выпал бы из
+# «объявленных» МОЛЧА: число на экране владельца уменьшилось бы на единицу, и ни одно слово
+# не сказало бы, что он ушёл РЕШЕНИЕМ, а не потерей. Проверки живут ЗДЕСЬ, а не рядом с
+# остальной батареей ADR-769 (`test_paused_intent_is_not_dead.py`): `company_truth` вправе
+# ввозить только `mission_control` и ПОИМЕНОВАННЫЙ список тестов (ADR-580 §1 правило 3,
+# храповик `test_company_truth_import_ratchet`), и расширять список ради удобства одного
+# файла значило бы ослабить правило архитектуры.
+
+_PAUSED = "com.spa.mission_tick"
+
+
+def _fleet_with(intent):
+    manifest = _manifest(_agent("com.spa.worker"), _agent(_PAUSED, intent=intent))
+    return ct.typed_fleet(manifest, {"com.spa.worker": {"pid": 1, "exit": "0"}},
+                          {"timestamp": "2030-01-15T12:00:00+00:00",  # FROZEN-DATE-OK: отметка-вход сцены, свежести никто не судит
+                           "agents": [{"label": "com.spa.worker", "status": "OK"}]},
+                          {"roles": []}, announced=1, unannounced=0)
+
+
+def test_paused_agent_is_counted_and_named_to_the_owner():
+    f = _fleet_with("paused")
+    assert f["paused"] == {"n": 1, "labels": [_PAUSED]}
+    # счёт упал бы на единицу молча, если этого слова нет в самой сводке
+    assert "намеренно выключено владельцем: 1" in f["headline"]["display_ru"]
+
+
+def test_an_active_agent_produces_neither_the_count_nor_the_words():
+    """ОБРАТНАЯ СТОРОНА: порвано одно звено — значение `intent`.
+
+    Строка-объяснение обязана появляться по ПРЕДМЕТУ, а не стоять всегда."""
+    f = _fleet_with("active")
+    assert f["paused"] == {"n": 0, "labels": []}
+    assert "намеренно выключено" not in f["headline"]["display_ru"]
+
+
+def test_paused_leaves_the_declared_total_and_that_is_why_the_words_are_needed():
+    """`paused` выходит из «объявленных» НАМЕРЕННО — ждать его во флоте неверно.
+
+    Именно поэтому число обязано быть объяснено словом рядом: само по себе его
+    уменьшение неотличимо от потери агента."""
+    assert (_fleet_with("paused")["headline"]["value"]["declared"]
+            == _fleet_with("active")["headline"]["value"]["declared"] - 1)
+
+
+def test_unmeasured_manifest_reports_the_paused_count_as_not_measured():
+    """Третий исход на той же оси: манифест не прочитан ⇒ `None`, а не ноль."""
+    f = ct.typed_fleet(None, None, None, None, announced=0, unannounced=None)
+    assert f["paused"] == {"n": None, "labels": []}

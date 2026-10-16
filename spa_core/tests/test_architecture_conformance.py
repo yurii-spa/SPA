@@ -634,9 +634,17 @@ class LiveAcceptance(unittest.TestCase):
         b5 = ac._manifest_drift_problems()
         drift = (b5 or {}).get("drift")
         unmeas = (b5 or {}).get("unmeasurable")
+        # ИЗМЕНЕНО ОСОЗНАННО (цикл #884, ADR-769, инв. #16 — обоснование здесь и в
+        # журнале W42). Добавлен `disabled_labels=` — ТОТ ЖЕ вход, который подаёт
+        # производственный вызов (`main()`), и без которого этот тест судил бы о
+        # ДРУГОМ прогоне, чем идёт на проде. Это УСИЛЕНИЕ, а не ослабление: живое
+        # утверждение «на проде всё ИЗМЕРЕНО» теперь покрывает и дверь паузы
+        # (`launchctl print-disabled`) — сломайся она, `B1_paused` покрасит здесь.
+        # Расширять перечень допустимых «не измерено» ниже НЕ потребовалось.
+        disabled = ac.gather_disabled()
         r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(), now,
                           drift_problems=drift, drift_measured=b5 is not None,
-                          drift_unmeasurable=unmeas)
+                          drift_unmeasurable=unmeas, disabled_labels=disabled)
         # ИЗМЕНЕНО ОСОЗНАННО (цикл #267, инв. #16 — обоснование здесь и в журнале
         # W33). Было: `unchecked` обязан быть ПУСТ. Стало: пуст ИЛИ содержит
         # только ОДИН названный класс — plist, объявленный манифестом путём в репо,
@@ -655,7 +663,7 @@ class LiveAcceptance(unittest.TestCase):
         # контрфактический позитивный контроль: реситы исчезли ⇒ B3 краснеет
         no_receipts = ac.run_checks(m, fleet, ac.artifact_timestamp, {}, now,
                                     drift_problems=drift, drift_measured=b5 is not None,
-                                    drift_unmeasurable=unmeas)
+                                    drift_unmeasurable=unmeas, disabled_labels=disabled)
         self.assertTrue(
             any(k.startswith("B3:no_consumption:data/investment_os/")
                 for k in keys(no_receipts)),

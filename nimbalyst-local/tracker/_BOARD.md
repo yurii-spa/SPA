@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-16T18:03:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-16T20:56:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (73262dbf9) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (a588aadc0) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1353** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1356** · ждёт владельца: **17** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -39,6 +39,7 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет** — держит `cycle-63347` · с 2026-09-03T16:06:52Z  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
+- **Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца** — держит `cycle-76624` · с 2026-10-16T20:00:58Z  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md`
 - **Осиротевшая работа цикла #474 (ADR-222) НЕ доставлена: её сторож в настоящем вызове не срабатывает никогда — сверяет прод-дерево само с собой** — держит `cycle-17778` · с 2026-09-04T15:24:15Z  ·  `inbox-osirotevshaya-rabota-tsikla-474-adr-222.md`
 - **Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел** — держит `pid87687` · с 2026-09-04T01:12:28Z  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md`
 - **Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется** — держит `cycle-42991` · с 2026-08-31T17:59:54Z  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md`
@@ -67,8 +68,6 @@
 - Уточнение по заметке: Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход  ·  `owner-decision-utochnenie-po-zametke-strazh-provenansa.md` · 2026-10-06
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
-### · owner-accepted
-- Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md` · 2026-09-30
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -223,6 +222,7 @@
 - Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-daily.md` · 2026-09-28
 - Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2.md` · 2026-09-02
 - Критичная находка петли: com.spa.digest_weekly работает при intent=retired  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-digest.md` · 2026-08-08
+- Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2.md` · 2026-09-30
 - Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-site-f.md` · 2026-09-09
 - Критичная находка петли: com.spa.telegram_health загружен, в манифесте ОТСУТСТВУЕТ (класс swarm  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-telegr.md` · 2026-08-08
 - Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте  ·  `owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2.md` · 2026-09-02
@@ -415,7 +415,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (751)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (754)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -427,6 +427,7 @@
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
+- Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15 · 🔒 `cycle-76624`
 - Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список  ·  `inbox-otchet-vladeltsu-protocols-pokazyvaet-2.md` · 2026-10-12
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
@@ -940,6 +941,7 @@
 - Гейт go-live BTC-движка не спрашивает про лицензию на данные — решение владельца 09.09 описано прозой  ·  `inbox-geit-go-live-btc-dvizhka-ne-sprashivaet.md` · 2026-10-07
 - Гейт кнопок судит по ПОДСТРОКЕ, если умения в маячке окажутся строкой  ·  `inbox-geit-knopok-sudit-po-podstroke-esli-umen.md` · 2026-10-08
 - Гейт перед установкой агента КОМПИЛИРУЕТ скрипт вместо импорта — и сказал «PASSED» про агента, который умирает при каждом запуске  ·  `inbox-geit-pered-ustanovkoi-agenta-kompiliruet.md` · 2026-08-27
+- Генератор конституции флота и файл в git разошлись по формату — первая пересборка перепишет 10 402 строки и спрячет в них настоящую правку  ·  `inbox-generator-konstitutsii-flota-i-fail-v-gi.md` · 2026-10-16
 - Go-live: условием перехода — разнесение подписывающих адаптеров (решение владельца, вариант 2)  ·  `inbox-go-live-usloviem-perehoda-raznesenie-pod.md` · 2026-09-07
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
 - Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
@@ -949,6 +951,7 @@
 - Храповик краткости STATE.md зелен, а файл стал в 2,7 раза больше архива, который заменили ради краткости  ·  `inbox-hrapovik-kratkosti-state-md-zelen-a-fail.md` · 2026-10-15
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат КРАСНЫЙ на main: test_act_day_recovery.py вошёл в закрытый класс (замер #602)  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-main.md` · 2026-09-14
+- Храповик литеральных дат КРАСНЫЙ на origin/main — test_cockpit_dispatch.py вошёл в закрытый класс  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-origi.md` · 2026-10-16
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
 - Храповик литеральных дат снова КРАСНЫЙ на main — два ДРУГИХ файла (cio_failure_modes, decision_reproducibility)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na-2.md` · 2026-09-08
 - Храповик населения читателей журнала решений красен на чистом origin/main: keep_dominance_census читает apy_evidenced_pct и не измеряется  ·  `inbox-hrapovik-naseleniya-chitatelei-zhurnala.md` · 2026-09-28
@@ -995,7 +998,6 @@
 - Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявитель пишет безымянный захват и не отказывает — профилактика стоит на одной двери из двух  ·  `inbox-obyavitel-pishet-bezymyannyi-zahvat-i-ne.md` · 2026-10-08
-- Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
 - Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
 - Объявленный артефакт читается ВХОЛОСТУЮ: artifact_stamp_clock_doors.json числится прочитанным и не разбирается  ·  `inbox-obyavlennyi-artefakt-chitaetsya-vholostu.md` · 2026-10-07
@@ -1127,6 +1129,7 @@
 - Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
 - Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
+- Сторож сторожа краснеет на чистом origin — путь в вердикте стал абсолютным, а утверждение ждёт относительный  ·  `inbox-storozh-storozha-krasneet-na-chistom-ori.md` · 2026-10-16
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож запрета utcnow проходит вхолостую при пустом списке каталогов  ·  `inbox-storozh-zapreta-utcnow-prohodit-vholostu.md` · 2026-09-19
 - Сторож запрета utcnow судит ТЕКСТОМ: он красен на main из-за докстроки, объясняющей то же правило  ·  `inbox-storozh-zapreta-utcnow-sudit-tekstom-on.md` · 2026-10-03

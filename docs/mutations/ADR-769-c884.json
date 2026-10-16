@@ -1,0 +1,81 @@
+{
+ "title": "ADR-769 — дельта цикла #884 (четвёртое значение intent=paused: объявление агента обязано уметь сказать «намеренно выключен владельцем»)",
+ "tests": [
+  "spa_core/tests/test_paused_intent_is_not_dead.py",
+  "spa_core/tests/test_typed_fleet_counts.py"
+ ],
+ "mutations": [
+  {
+   "name": "снять освобождение: `paused` снова судится как `active` ⇒ возвращается 46-суточный CRITICAL, советующий отменить решение владельца",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "                elif a[\"label\"] in disabled_labels:\n                    continue        # подтверждено ⇒ отсутствие во флоте ОЖИДАЕМО",
+   "new": "                elif a[\"label\"] in disabled_labels:\n                    pass            # подтверждено ⇒ отсутствие во флоте ОЖИДАЕМО"
+  },
+  {
+   "name": "освобождение режет в ОДНУ сторону: оживлённый против решения владельца агент молчит ⇒ `paused` становится глушилкой сторожа",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "                findings.append(_finding(\n                    f\"B1:revived:{label}\", \"B1\", \"CRITICAL\", \"strong\",",
+   "new": "                _skip = (_finding(\n                    f\"B1:revived:{label}\", \"B1\", \"CRITICAL\", \"strong\","
+  },
+  {
+   "name": "пауза принимается НА СЛОВО: притязание записи не сверяется с `launchctl print-disabled` ⇒ достаточно впечатать `paused`, чтобы любой настоящий отказ замолчал",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "                if disabled_labels is None:\n                    pass            # не измерено ⇒ судим как `active` (ниже), fail-CLOSED\n                elif a[\"label\"] in disabled_labels:",
+   "new": "                if disabled_labels is None:\n                    continue        # не измерено ⇒ судим как `active` (ниже), fail-CLOSED\n                elif a[\"label\"] in disabled_labels:"
+  },
+  {
+   "name": "третий исход подменён молчанием: нечитаемая дверь к ОС не называется строкой `unchecked`",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "            unchecked.append({\"check\": \"B1_paused\",",
+   "new": "            _dropped = ({\"check\": \"B1_paused\","
+  },
+  {
+   "name": "опровергнутая пауза объявляется подтверждённой: ОС говорит «не выключен», сторож соглашается с записью",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "                        f\"B1:pause_unproven:{a['label']}\", \"B1\", \"CRITICAL\", \"strong\",",
+   "new": "                        f\"B1:pause_unproven:{a['label']}\", \"B1\", \"INFO\", \"weak\","
+  },
+  {
+   "name": "строка «не измерено» ставится ВСЕГДА, а не по предмету ⇒ перестаёт что-либо значить",
+   "file": "spa_core/monitoring/architecture_conformance.py",
+   "old": "        if any(a[\"intent\"] == \"paused\" for a in agents) and disabled_labels is None:",
+   "new": "        if disabled_labels is None:"
+  },
+  {
+   "name": "четвёртое значение не объявлено в генераторе конституции ⇒ манифест с `paused` становится невалидным",
+   "file": "scripts/build_architecture_manifest.py",
+   "old": "INTENTS = (\"active\", \"paused\", \"designed\", \"retired\", \"unresolved\")",
+   "new": "INTENTS = (\"active\", \"designed\", \"retired\", \"unresolved\")"
+  },
+  {
+   "name": "пауза без plist принимается за обратимую ⇒ запись обещает возврат, которого нет (это `retired` под другим именем)",
+   "file": "scripts/build_architecture_manifest.py",
+   "old": "        if a.get(\"intent\") == \"paused\" and label not in plist_labels:",
+   "new": "        if False and a.get(\"intent\") == \"paused\" and label not in plist_labels:"
+  },
+  {
+   "name": "paused выпадает из счёта флота МОЛЧА: слова «намеренно выключено владельцем» на экране владельца нет",
+   "file": "spa_core/studio_os/company_truth.py",
+   "old": "            extra.append(f\"намеренно выключено владельцем: {len(paused_labels)}\")",
+   "new": "            pass"
+  },
+  {
+   "name": "счёт paused слит с нулём: третий исход (манифест не прочитан) печатается как «ни одного»",
+   "file": "spa_core/studio_os/company_truth.py",
+   "old": "                \"paused\": {\"n\": None, \"labels\": []},",
+   "new": "                \"paused\": {\"n\": 0, \"labels\": []},"
+  },
+  {
+   "name": "проба читает РАБОЧЕЕ ДЕРЕВО вместо курации с origin ⇒ недоставленная правка объявляется выполненным критерием (класс шага 0a)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        manifest, _prov = ac.reconcile_curation(local, origin, reason=why)",
+   "new": "        manifest, _prov = local, None"
+  },
+  {
+   "name": "непрочитанная конституция на origin выдаётся за доставленную: третий исход подменён продолжением",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if origin is None:\n            return (UNMEASURED, f\"предпосылка НЕ ОБЕСПЕЧЕНА: конституция на \"",
+   "new": "        if False:\n            return (UNMEASURED, f\"предпосылка НЕ ОБЕСПЕЧЕНА: конституция на \""
+  }
+ ]
+}

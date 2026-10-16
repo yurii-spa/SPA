@@ -9375,6 +9375,120 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
         shutil.rmtree(root, ignore_errors=True)
 
 
+def _probe_paused_agent_is_not_a_dead_agent(arg: str | None, *,
+                                            now: "datetime | None" = None,
+                                            manifest_path: str | None = None) -> tuple[str, str]:
+    """Критерий: находка `B1:dead:com.spa.mission_tick` исчезает из вердикта сторожа
+    БЕЗ ЕДИНОГО ДЕЙСТВИЯ НАД ФЛОТОМ — и положительный контроль краснеет в ОБРАТНУЮ
+    сторону (ADR-769, карточка `inbox-obyavlenie-agenta-ne-umeet-skazat-namere`).
+
+    Зачем. С 30.09 сторож 46 суток печатал CRITICAL «intent=active, но НЕ загружен во
+    флоте», и находка была ВЕРНА: запись манифеста несла `active` рядом с прозой
+    «paused by the owner». Единственная резолюция, закрывавшая находку, — загрузить
+    агента, то есть ОТМЕНИТЬ решение владельца, который выключил его намеренно
+    (`bootout` + `disable`). Поэтому критерий здесь двусторонний: мало чтобы находка
+    ушла — её уход обязан происходить ОТ ОБЪЯВЛЕНИЯ ПАУЗЫ, а не от ослабления сторожа.
+
+    Меряется ИСХОД настоящего `run_checks` на ЖИВОМ манифесте дерева, четырьмя
+    сценами; флот и `launchctl` при этом не трогаются — обе двери к ОС поданы ВХОДОМ:
+
+      1. ЖИВОЙ МАНИФЕСТ + измеренная пауза ⇒ ни одной находки B1 про этого агента;
+      2. тот же агент, объявленный `active` ⇒ `B1:dead` CRITICAL возвращается
+         (сторож не ослаблен — иначе сцена 1 ничего не доказывает);
+      3. тот же агент `paused`, но ЗАГРУЖЕН ⇒ `B1:revived` CRITICAL (освобождение
+         режет в обе стороны, то есть не является глушилкой);
+      4. тот же агент `paused`, но ОС его в отключённых НЕ ВИДИТ ⇒ `B1:pause_unproven`
+         CRITICAL (притязание записи сверяется замером, а не принимается на слово).
+
+    Сравниваются ПОЛЯ вердикта (`key`, `severity`, `check`), а не текст (ADR-333).
+    Манифеста нет / агента в нём нет ⇒ UNMEASURED с названной причиной: предпосылка
+    сцены не обеспечена, и судить о ней нельзя.
+
+    **Читается курация ТАК ЖЕ, как её читает прод** — с `origin/main`
+    (`reconcile_curation`, ADR-066 B6: конституция живёт на origin, механика — локальна).
+    Правка `intent` в рабочем дереве сторожа НЕ меняет: он возьмёт значение с origin.
+    Поэтому проба, читавшая дерево, объявляла бы НЕДОСТАВЛЕННУЮ правку выполненным
+    критерием — ровно тот класс, ради которого существует шаг 0a («объявил → доставил?»).
+    Критерий карточки назван по ЖИВОМУ артефакту `data/architecture_conformance.json`,
+    а его производит прод, значит и мерить надо доставленное состояние.
+    """
+    import copy
+    from spa_core.monitoring import architecture_conformance as ac
+
+    label = (arg or "com.spa.mission_tick").strip()
+    t0 = now or datetime.now(timezone.utc)
+    # Путь к конституции — ВХОД, а не окружение: иначе контроль самой пробы судил бы
+    # о живом дереве и не мог бы порвать ни одного звена (правило о дверях,
+    # `.claude/rules/deployment.md`). По умолчанию — настоящая конституция.
+    path = manifest_path or os.path.join(REPO_ROOT, "architecture", "manifest.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            local = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: architecture/manifest.json "
+                            f"не прочитан ({type(exc).__name__}: {exc})")
+    if manifest_path:
+        # сцена контроля: своя копия конституции и есть доставленная
+        manifest, curation_src = local, "сцена"
+    else:
+        origin, why = ac.origin_manifest()
+        if origin is None:
+            return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: конституция на "
+                                f"{ac.CURATION_REF} не прочитана ({why}) — доставлено "
+                                f"объявление или нет, НЕ ИЗМЕРЕНО")
+        manifest, _prov = ac.reconcile_curation(local, origin, reason=why)
+        curation_src = ac.CURATION_REF
+    agents = [a for a in manifest.get("agents") or [] if isinstance(a, dict)]
+    row = next((a for a in agents if a.get("label") == label), None)
+    if row is None:
+        return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: {label} в манифесте нет")
+    if row.get("intent") != "paused":
+        return (NOT_SATISFIED,
+                f"{label}: intent={row.get('intent')!r}, а не 'paused' (курация прочитана "
+                f"с `{curation_src}`) — объявление, которое читает прод, по-прежнему спорит "
+                f"с прозой записи; правка в рабочем дереве сторожа не меняет")
+
+    def verdict(man, fleet, disabled):
+        rep = ac.run_checks(man, fleet, lambda rel: None, {}, t0,
+                            disabled_labels=disabled)
+        return ({(f["key"], f["severity"]) for f in rep["findings"]
+                 if f["check"] == "B1" and f["key"].endswith(label)},
+                {u["check"] for u in rep["unchecked"]
+                 if str(u.get("check")).startswith("B1")})
+
+    # 1. как есть: пауза измерена, агента во флоте нет
+    seen, unchecked = verdict(manifest, set(), frozenset({label}))
+    if seen or unchecked:
+        return (NOT_SATISFIED, f"пауза подтверждена замером, а вердикт не пуст: "
+                               f"находки={sorted(seen)} не измерено={sorted(unchecked)}")
+
+    # 2. ОБРАТНАЯ СТОРОНА: ярлык снят ⇒ сторож обязан краснеть как прежде
+    as_active = copy.deepcopy(manifest)
+    next(a for a in as_active["agents"] if a.get("label") == label)["intent"] = "active"
+    seen, _ = verdict(as_active, set(), frozenset({label}))
+    if seen != {(f"B1:dead:{label}", "CRITICAL")}:
+        return (NOT_SATISFIED, f"сторож ОСЛАБЛЕН: {label} с intent=active и без флота дал "
+                               f"{sorted(seen)}, ожидалось ровно B1:dead/CRITICAL")
+
+    # 3. ОБРАТНАЯ СТОРОНА: агента оживили против решения владельца
+    seen, _ = verdict(manifest, {label}, frozenset({label}))
+    if seen != {(f"B1:revived:{label}", "CRITICAL")}:
+        return (NOT_SATISFIED, f"освобождение режет в одну сторону: {label} ЗАГРУЖЕН при "
+                               f"intent=paused и дал {sorted(seen)}, ожидалось "
+                               f"B1:revived/CRITICAL")
+
+    # 4. ОБРАТНАЯ СТОРОНА: притязание паузы опровергнуто замером
+    seen, _ = verdict(manifest, set(), frozenset())
+    if seen != {(f"B1:pause_unproven:{label}", "CRITICAL")}:
+        return (NOT_SATISFIED, f"пауза принята НА СЛОВО: {label} вне списка отключённых "
+                               f"дал {sorted(seen)}, ожидалось B1:pause_unproven/CRITICAL")
+
+    return (SATISFIED, f"{label}: intent=paused в курации с `{curation_src}` ⇒ находок B1 нет при "
+                       f"измеренной паузе; обратные стороны краснеют все три "
+                       f"(active→B1:dead · загружен→B1:revived · пауза опровергнута→"
+                       f"B1:pause_unproven), флот не тронут")
+
+
 #: Сквозной путь пульта (ADR-763): текст записи и проблема-предмет одноразовой сцены.
 COCKPIT_LOOP_TEXT = "Сцена пробы: проверить сквозной путь записи из пульта"
 COCKPIT_LOOP_PROBLEM = "probe-cockpit-voice-loop-scene"
@@ -9730,6 +9844,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_delta_mutation_instrument_is_re_measurable,
     "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
     "agent_health_reboot_false_alarm_closed": _probe_agent_health_reboot_false_alarm,
+    "paused_agent_is_not_a_dead_agent": _probe_paused_agent_is_not_a_dead_agent,
 }
 
 

@@ -266,11 +266,18 @@ def typed_fleet(manifest: Optional[dict], launchctl_map: Optional[dict], agent_h
                 "configured_roles": {"n": None},
                 "active_workers": {"announced": announced, "unannounced": unannounced},
                 "retired_loaded": {"n": None, "labels": []},
+                "paused": {"n": None, "labels": []},
                 "unknown_orphans": {"n": None, "labels": []}}
 
     agents = [a for a in manifest.get("agents") or [] if isinstance(a, dict)]
     active = [a for a in agents if a.get("intent") == "active"]
     retired = [a for a in agents if a.get("intent") == "retired"]
+    # `intent=paused` (ADR-769) — владелец выключил агента НАМЕРЕННО. Он не `active`
+    # (ждать его во флоте неверно) и не `retired` (решение обратимо), поэтому без
+    # отдельной строки он выпал бы из «объявленных» МОЛЧА: число упало бы на единицу,
+    # и ни одно слово на экране владельца не сказало бы, что ушло решением, а не потерей.
+    paused = [a for a in agents if a.get("intent") == "paused"]
+    paused_labels = sorted(a.get("label") for a in paused if a.get("label"))
     runtime = [a for a in active if a.get("schedule") == "daemon"]
     managed = [a for a in active if a.get("schedule") != "daemon"]
     declared_labels = {a.get("label") for a in agents if a.get("label")}
@@ -304,6 +311,8 @@ def typed_fleet(manifest: Optional[dict], launchctl_map: Optional[dict], agent_h
             extra.append(f"вне учёта (выведено, но запущено): {len(retired_loaded)}")
         if unknown_orphans:
             extra.append(f"вне учёта (не в манифесте): {len(unknown_orphans)}")
+        if paused_labels:
+            extra.append(f"намеренно выключено владельцем: {len(paused_labels)}")
         suffix = ""
         if crit or warn:
             suffix += f" · аварий {crit} · предупреждений {warn}"
@@ -325,6 +334,7 @@ def typed_fleet(manifest: Optional[dict], launchctl_map: Optional[dict], agent_h
         "configured_roles": {"n": roles_n},
         "active_workers": {"announced": announced, "unannounced": unannounced},
         "retired_loaded": {"n": len(retired_loaded), "labels": retired_loaded},
+        "paused": {"n": len(paused_labels), "labels": paused_labels},
         "unknown_orphans": {"n": len(unknown_orphans), "labels": unknown_orphans},
         "failing_labels": failing_labels, "agent_by_label": agent_by_label,
     }
