@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-10-16",
-  "generated_at": "2026-10-16T00:57:42Z",
+  "generated_at": "2026-10-16T02:35:13Z",
   "degraded": false,
   "real_track_days": 115,
   "go_live_target": null,
@@ -12,15 +12,15 @@
   "days_needed": 30,
   "gates_passed": 29,
   "gates_total": 29,
-  "end_equity": 101678.25,
-  "nav_usd": 101678.25,
-  "paper_apy_pct": 4.8784,
+  "end_equity": 101677.38,
+  "nav_usd": 101677.38,
+  "paper_apy_pct": 4.8756,
   "max_drawdown_pct": -0.0393,
-  "total_return_pct": 1.6782,
+  "total_return_pct": 1.6774,
   "paper_start_date": "2026-06-10",
   "anchor_equity": 100150.66,
   "track_end_date": "2026-10-16",
-  "track_return_pct": 1.5253,
+  "track_return_pct": 1.5244,
   "track_period": {
     "state": "MEASURED",
     "method": "NAV_RATIO",
@@ -28,7 +28,7 @@
       "start_date": "2026-06-22",
       "end_date": "2026-10-16",
       "start_ts": null,
-      "end_ts": "2026-10-16T00:56:06.878441+00:00",
+      "end_ts": "2026-10-16T02:33:33.435702+00:00",
       "start_ts_reason": "the ledger records valuation dates, not run times",
       "days_act": 116,
       "convention": "ACT/365 Fixed on valuation dates",
@@ -36,12 +36,12 @@
       "accrual_bars": 114
     },
     "nav_start": 100150.66,
-    "nav_end": 101678.25,
+    "nav_end": 101677.38,
     "nav_start_basis": "close of the first evidenced bar",
-    "period_return_pct": 1.525292,
-    "twr_pct": 1.525292,
-    "mwr_pct": 1.525292,
-    "annualised_equivalent_pct": 4.878438,
+    "period_return_pct": 1.524423,
+    "twr_pct": 1.524423,
+    "mwr_pct": 1.524423,
+    "annualised_equivalent_pct": 4.875614,
     "annualised_formula": "(1 + R) ^ (365 / days_act) \u2212 1",
     "annualised_approval_required": true,
     "flows": {
@@ -93,9 +93,9 @@
       "status": "paper_test_running",
       "days_with_positions": 115,
       "days_funded": 115,
-      "apy_pct": 4.8784,
+      "apy_pct": 4.8756,
       "dd_pct": -0.0393,
-      "nav_usd": 101678.25,
+      "nav_usd": 101677.38,
       "positions_count": null,
       "evidence": "paper"
     },
@@ -187,14 +187,14 @@
     }
   },
   "package_status": {
-    "published_at": "2026-10-16T00:57:42Z",
-    "generated_at": "2026-10-16T00:57:42Z",
+    "published_at": "2026-10-16T02:35:13Z",
+    "generated_at": "2026-10-16T02:35:13Z",
     "mode": "PAPER",
     "live_capital_usd": 0,
     "code_identity": {
       "state": "IN_SYNC",
-      "origin_commit": "cc98a1ba3d42",
-      "checked_at": "2026-10-16T00:56:06.771522+00:00",
+      "origin_commit": "8f91311359fd",
+      "checked_at": "2026-10-16T02:33:33.320223+00:00",
       "age_h": 0.03
     },
     "status_colour_is_not_a_risk_grade": true,
@@ -215,14 +215,14 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-16T00:56:06.878441+00:00",
+          "last_run_at": "2026-10-16T02:33:33.435702+00:00",
           "age_h": 0.03
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-16T00:56:06.878441+00:00",
+          "last_observation_at": "2026-10-16T02:33:33.435702+00:00",
           "missed_runs_24h": null,
           "observations": null
         },
@@ -272,9 +272,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e (\u0446\u0438\u043a\u043b \u0432 08:00 \u043f\u043e \u043c\u0435\u0441\u0442\u043d\u043e\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)",
           "expected_every_h": 24.0,
           "stale_after_h": 26.0,
-          "last_successful_run_at": "2026-10-16T00:56:06.878441+00:00",
-          "source_observed_at": "2026-10-16T00:56:06.878441+00:00",
-          "stale_at": "2026-10-17T02:56:06Z"
+          "last_successful_run_at": "2026-10-16T02:33:33.435702+00:00",
+          "source_observed_at": "2026-10-16T02:33:33.435702+00:00",
+          "stale_at": "2026-10-17T04:33:33Z"
         }
       },
       "balanced": {
@@ -293,16 +293,16 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-16T00:20:17.529123Z",
-          "age_h": 0.62
+          "last_run_at": "2026-10-16T02:20:21.965681Z",
+          "age_h": 0.25
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-16T00:20:17Z",
+          "last_observation_at": "2026-10-16T02:20:21Z",
           "missed_runs_24h": 0,
-          "observations": 338
+          "observations": 340
         },
         "decision": {
           "state": "OPEN",
@@ -351,9 +351,9 @@
           "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-16T00:20:17.529123Z",
-          "source_observed_at": "2026-10-16T00:20:17Z",
-          "stale_at": "2026-10-16T02:50:17Z"
+          "last_successful_run_at": "2026-10-16T02:20:21.965681Z",
+          "source_observed_at": "2026-10-16T02:20:21Z",
+          "stale_at": "2026-10-16T04:50:21Z"
         }
       },
       "aggressive": {
@@ -372,21 +372,21 @@
           "state": "RUNNING",
           "reason_en": null,
           "reason_ru": null,
-          "last_run_at": "2026-10-16T00:20:19.531435Z",
-          "age_h": 0.62
+          "last_run_at": "2026-10-16T02:20:24.158974Z",
+          "age_h": 0.25
         },
         "data": {
           "state": "HEALTHY",
           "reason_en": null,
           "reason_ru": null,
-          "last_observation_at": "2026-10-16T00:20:19Z",
+          "last_observation_at": "2026-10-16T02:20:24Z",
           "missed_runs_24h": 0,
-          "observations": 338
+          "observations": 340
         },
         "decision": {
           "state": "OPEN",
-          "position_en": "simulated loop open \u00b7 debt $116,876 \u00b7 health factor 1.308 at the last check",
-          "position_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u00b7 \u0434\u043e\u043b\u0433 $116\u00a0876 \u00b7 \u0444\u0430\u043a\u0442\u043e\u0440 \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f 1,308 \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0435",
+          "position_en": "simulated loop open \u00b7 debt $116,877 \u00b7 health factor 1.308 at the last check",
+          "position_ru": "\u0441\u0438\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u00b7 \u0434\u043e\u043b\u0433 $116\u00a0877 \u00b7 \u0444\u0430\u043a\u0442\u043e\u0440 \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f 1,308 \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0435",
           "reason_en": "position open; carry re-checked",
           "reason_ru": "\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u043e\u0442\u043a\u0440\u044b\u0442\u0430; \u0434\u043e\u0445\u043e\u0434\u043d\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u0430",
           "decision_date": "2026-10-16",
@@ -424,16 +424,16 @@
           "schedule_ru": "\u0435\u0436\u0435\u0447\u0430\u0441\u043d\u043e; \u043f\u0435\u0442\u043b\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u043a\u0430\u0436\u0434\u044b\u0439 \u0437\u0430\u043f\u0443\u0441\u043a, \u043e\u0434\u043d\u0430 \u0443\u0447\u0451\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432 \u0434\u0435\u043d\u044c",
           "expected_every_h": 1.0,
           "stale_after_h": 2.5,
-          "last_successful_run_at": "2026-10-16T00:20:19.531435Z",
-          "source_observed_at": "2026-10-16T00:20:19Z",
-          "stale_at": "2026-10-16T02:50:19Z"
+          "last_successful_run_at": "2026-10-16T02:20:24.158974Z",
+          "source_observed_at": "2026-10-16T02:20:24Z",
+          "stale_at": "2026-10-16T04:50:24Z"
         }
       }
     }
   },
   "book_exposure": {
     "state": "MEASURED",
-    "as_of": "2026-10-16T00:56:06.878441+00:00",
+    "as_of": "2026-10-16T02:33:33.435702+00:00",
     "base": "allocated paper capital = positions + cash",
     "base_usd": 100000.0,
     "cash_usd": 5000.0,
@@ -4402,20 +4402,20 @@
     {
       "date": "2026-10-16",
       "open_equity": 101662.71,
-      "close_equity": 101678.25,
-      "high_equity": 101678.25,
+      "close_equity": 101677.38,
+      "high_equity": 101677.38,
       "low_equity": 101662.71,
       "snapshots": 1,
-      "daily_return_pct": 0.015286,
-      "cumulative_return_pct": 1.67825,
+      "daily_return_pct": 0.014434,
+      "cumulative_return_pct": 1.677384,
       "drawdown_pct": 0.0,
-      "equity": 101678.25,
-      "apy_today": 5.5794,
-      "apy_expected_pct": 5.5794,
-      "daily_yield_usd": 15.5403,
+      "equity": 101677.38,
+      "apy_today": 5.2686,
+      "apy_expected_pct": 5.2678,
+      "daily_yield_usd": 14.6745,
       "cost_usd": 0.0,
       "turnover_usd": 0.0,
-      "net_pnl_usd": 15.5403,
+      "net_pnl_usd": 14.6745,
       "unobservable_pools": [],
       "yield_forgone_usd": 0.0,
       "positions": {
