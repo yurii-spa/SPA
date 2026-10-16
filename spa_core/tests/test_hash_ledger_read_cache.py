@@ -1,4 +1,4 @@
-"""Stat-keyed read cache of HashLedger (ADR-763 package 2, 2026-10-16).
+"""Stat-keyed read cache of HashLedger (ADR-763 package 2).
 
 Measured before: one Mission Control build parsed data/research_factory/ledger.jsonl 4 336 times
 (1 077 s of 1 175 s). The cache is opt-in per READ-ONLY process and keyed by (dev, inode, size,
@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from spa_core.tests._freshness import ts
 from spa_core.utils import hash_ledger as hl
 
 
@@ -41,7 +42,7 @@ def test_off_by_default_every_read_parses(tmp_path, monkeypatch):
     monkeypatch.setattr(hl, "_READ_CACHE", {})
     assert hl._READ_CACHE_ENABLED is False
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     n = _count_parses(monkeypatch)
     led.read_all(); led.read_all(); led.read_all()
     assert n["parse"] == 3 and hl._READ_CACHE == {}
@@ -49,7 +50,7 @@ def test_off_by_default_every_read_parses(tmp_path, monkeypatch):
 
 def test_repeated_reads_parse_once(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     n = _count_parses(monkeypatch)
     rows = [led.read_all() for _ in range(50)]
     assert n["parse"] == 1
@@ -61,9 +62,9 @@ def test_repeated_reads_parse_once(tmp_path, monkeypatch, cache_on):
 def test_a_sibling_write_is_seen_immediately(tmp_path, monkeypatch, cache_on):
     """The M7 race: a second HashLedger object (another writer) appends after our read."""
     reader, writer = _ledger(tmp_path), _ledger(tmp_path)
-    writer.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    writer.append("run", ["r1"], {"x": 1}, ts(1))
     assert len(reader.read_all()) == 1
-    writer.append("run", ["r2"], {"x": 2}, "2026-10-16T00:01:00Z")
+    writer.append("run", ["r2"], {"x": 2}, ts(0))
     got = reader.read_all()
     assert [e["key"] for e in got] == [["r1"], ["r2"]]
     assert reader.verify()["ok"] is True
@@ -71,7 +72,7 @@ def test_a_sibling_write_is_seen_immediately(tmp_path, monkeypatch, cache_on):
 
 def test_a_rewritten_file_of_equal_size_is_a_miss(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     led.read_all()
     p = led.ledger_path()
     row = json.loads(p.read_text())
@@ -82,7 +83,7 @@ def test_a_rewritten_file_of_equal_size_is_a_miss(tmp_path, monkeypatch, cache_o
 
 def test_trusted_writer_path_keeps_its_own_semantics(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     led.mark_verified()
     hl._READ_CACHE.clear()
     assert len(led.read_all()) == 1
@@ -101,7 +102,7 @@ def test_mission_build_main_opts_in(monkeypatch, tmp_path):
 
 def test_a_reader_cannot_change_nested_cached_objects(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"cells": {"apy": {"value": 1.0}}, "tags": ["a"]}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"cells": {"apy": {"value": 1.0}}, "tags": ["a"]}, ts(1))
     row = led.read_all()[0]
     with pytest.raises(TypeError):
         row["payload"]["cells"]["apy"]["value"] = 99.0
@@ -118,7 +119,7 @@ def test_a_reader_cannot_change_nested_cached_objects(tmp_path, monkeypatch, cac
 
 def test_replaced_file_new_inode_is_a_miss(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     led.read_all()
     p = led.ledger_path()
     row = json.loads(p.read_text())
@@ -133,7 +134,7 @@ def test_replaced_file_new_inode_is_a_miss(tmp_path, monkeypatch, cache_on):
 
 def test_a_file_growing_while_parsed_is_not_cached(tmp_path, monkeypatch, cache_on):
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     writer = _ledger(tmp_path)
     orig = hl.HashLedger._parse
 
@@ -141,7 +142,7 @@ def test_a_file_growing_while_parsed_is_not_cached(tmp_path, monkeypatch, cache_
         out = orig(path)
         if not getattr(parse_then_writer_appends, "done", False):
             parse_then_writer_appends.done = True
-            writer.append("run", ["r2"], {"x": 2}, "2026-10-16T00:01:00Z")
+            writer.append("run", ["r2"], {"x": 2}, ts(0))
         return out
     monkeypatch.setattr(hl.HashLedger, "_parse", staticmethod(parse_then_writer_appends))
     first = led.read_all()
@@ -155,7 +156,7 @@ def test_a_file_growing_while_parsed_is_not_cached(tmp_path, monkeypatch, cache_
 def test_verify_never_answers_from_the_cache(tmp_path, monkeypatch, cache_on):
     """Tamper the file keeping size AND mtime: the cache would still serve the old rows, verify must not."""
     led = _ledger(tmp_path)
-    led.append("run", ["r1"], {"x": 1}, "2026-10-16T00:00:00Z")
+    led.append("run", ["r1"], {"x": 1}, ts(1))
     assert led.verify()["ok"] is True
     led.read_all()                                        # cache is hot
     p = led.ledger_path()

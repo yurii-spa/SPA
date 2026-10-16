@@ -41,6 +41,9 @@ __all__ = ["humanize_title", "humanize_body", "humanize", "SEVERITY_RU"]
 _TITLES: dict[str, str] = {
     "SPA Agent Health — CRITICAL": "Агенты: критическая проблема",
     "SPA Agent Health — recovered": "Агенты: всё восстановилось",
+    # 16.10 (ARB): «всё восстановилось» говорилось и при оставшихся предупреждениях — снятие тревоги
+    # называет ровно то, что снято: критичных сбоев больше нет.
+    "SPA Agent Health — no critical issues": "Агенты: критичных сбоев больше нет",
     "SPA Agent Health Alert": "Проверка агентов",
     "SPA System Health — CRITICAL": "Здоровье системы: критическая проблема",
     "SPA — Cycle Gap Detected": "Пропущен ежедневный цикл",

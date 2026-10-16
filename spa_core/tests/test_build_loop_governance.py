@@ -384,7 +384,7 @@ class TestScenarioDPressure:
         rg.notify(ok, data_dir=tmp_path, send=False)
 
     def test_owner_alert_tells_ram_swap_and_disk_apart(self, tmp_path):
-        """ADR-763 пакет 2: 2026-10-15 20:23Z CRITICAL поднял своп (файл подкачки), а не нехватка RAM —
+        """ADR-763 пакет 2: CRITICAL 15.10 (20:23Z) поднял своп (файл подкачки), а не нехватка RAM —
         давление было 2, диск 87 ГБ. Текст владельцу обязан это различать, с абсолютными величинами,
         временем замера и главными потребителями; процент свопа — НЕ «% занятой RAM»."""
         pol = _policy(tmp_path)
@@ -402,13 +402,16 @@ class TestScenarioDPressure:
                         "  102     1   600000   0   01:00 /usr/libexec/fseventsd\n")
             return "PID\tStatus\tLabel\n101\t0\tcom.spa.decision_loop\n"
         from datetime import datetime, timezone
+        from spa_core.utils.presentation import fmt_owner_time
+        measured_at = datetime.now(timezone.utc).replace(microsecond=0)
+        iso = measured_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         rep = rg.build_report(pol, disk_usage=lambda p: type("U", (), {"free": 87 * rg.GB, "total": 460 * rg.GB})(),
-                              run=run, now=datetime(2026, 10, 15, 20, 23, 6, tzinfo=timezone.utc))
+                              run=run, now=measured_at)
         assert rep["overall"] == rg.CRITICAL
         assert rep["memory"]["triggers"] == [{"signal": "pressure", "state": rg.WARN},
                                              {"signal": "swap", "state": rg.CRITICAL}]
         body = rg.owner_body(rep)
-        assert "Замер: 2026-10-15 22:23 Мадрид" in body and "2026-10-15T20:23:06Z" in body
+        assert f"Замер: {fmt_owner_time(iso)} ({iso})" in body
         assert "Оперативная память (RAM): давление 2" in body and "всего RAM 16,0 ГБ" in body
         assert "Своп (файл подкачки на диске, НЕ оперативная память): занято 2,9 ГБ из 3,0 ГБ" in body
         assert "% файла подкачки" in body and "swap 97" not in body

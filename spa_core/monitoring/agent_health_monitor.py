@@ -2147,6 +2147,39 @@ def format_alert(report: dict, *, problem_records: Optional[dict] = None) -> str
     return "\n".join(lines)
 
 
+def format_resolved(report: dict) -> str:
+    """Снятие тревоги владельцу (ARB 16.10): прежде уходило «All agents healthy again.» по-английски и
+    при оставшихся предупреждениях. Теперь — что именно снято (критичных нет), когда проверено, что
+    осталось по видам, и нужно ли решение."""
+    agents = report.get("agents", [])
+    sys_issues = report.get("system_issues", [])
+    by_class: Dict[str, List[dict]] = {}
+    for a in agents:
+        cls = alert_class(a)
+        if cls is not None:
+            by_class.setdefault(cls, []).append(a)
+    warn = [a for a in agents if a.get("status") not in (OK, CRITICAL)]
+    lines = ["<b>Что случилось:</b> критичных сбоев агентов больше нет.",
+             f"<b>Когда проверено:</b> {_owner_time(report.get('timestamp', ''))}"]
+    rest = []
+    for cls in (ALERT_CLASS_FAILURE, ALERT_CLASS_UNVERIFIED, ALERT_CLASS_CONFIG):
+        rows = [a for a in (by_class.get(cls) or []) if a.get("status") != CRITICAL]
+        if rows:
+            rest.append(f"• {_ALERT_CLASS_RU[cls]}: {len(rows)} (предупреждение)")
+    if sys_issues:
+        rest.append(f"• системные пункты: {len(sys_issues)}")
+    waiting = by_class.get(ALERT_CLASS_WAITING) or []
+    if waiting:
+        rest.append(f"• ждут первого планового запуска после перезагрузки: {len(waiting)} — это не сбой")
+    if rest:
+        lines.append(f"<b>Что осталось (не критично, предупреждений: {len(warn)}):</b>")
+        lines.extend(rest)
+    else:
+        lines.append("<b>Что осталось:</b> замечаний нет.")
+    lines.append("<b>Нужно ли твоё решение:</b> нет. Подробности: /agents.")
+    return "\n".join(lines)
+
+
 def alert_fingerprint(report: dict) -> Optional[str]:
     """Отпечаток СОДЕРЖАНИЯ тревоги для дедупа push_policy.
 
@@ -2253,8 +2286,8 @@ def _push_via_policy(report: dict, data_dir: Optional[Path] = None) -> bool:
     return bool(
         push_policy.resolve(
             "agent_health_critical",
-            "SPA Agent Health — recovered",
-            "All agents healthy again.",
+            "SPA Agent Health — no critical issues",
+            format_resolved(report),
             data_dir=dd,
         )
     )
