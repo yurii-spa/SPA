@@ -27,7 +27,8 @@ def _load(monkeypatch, home: Path):
     sets = dict(mod.STATE_SETS)
     sets["spa_owner_files"] = (spa, None)
     sets["host_settings"] = (home, None)
-    for k in ("bridge_state", "mission_state", "spa_lineage", "claude_memory"):
+    # spa_uncommitted needs a git tree; its own scenes live in test_memory_backup_arb.py
+    for k in ("bridge_state", "mission_state", "spa_lineage", "claude_memory", "spa_uncommitted"):
         sets.pop(k, None)
     monkeypatch.setattr(mod, "STATE_SETS", sets)
     return mod
