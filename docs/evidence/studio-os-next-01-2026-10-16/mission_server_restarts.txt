@@ -1,0 +1,16 @@
+# mission_server restarts (owner-approved, .claude/rules/deployment.md)
+## 1 — 2026-10-16 02:29:03Z: pid 1846 -> 97007; /healthz ok; csrf 200; deployment_acceptance 0 before/after
+live-code proof: POST /api/intake/submit with submission_id 'bad id!' -> HTTP 400 BAD_SUBMISSION_ID; tracker files 830 -> 830
+## 2
+  "origin_main": "f3931465f5fb5b56f51fd9e4bbcf305b80430f16",
+acceptance before rc=0
+before 	pid = 97007
+02:50:41Z
+after 	pid = 29502
+{"ok": true, "bundle": "b-20261016T024813Z-6f13ed1e", "built_at": "2026-10-16T02:48:13Z", "age_s": 149.8}
+csrf 200
+acceptance after rc=0
+mc.earn-defi.com 302
+
+[exited with code 0]
+process start 04:50:41 CEST > mission_intake.py/queue.py mtime 04:50:24 CEST

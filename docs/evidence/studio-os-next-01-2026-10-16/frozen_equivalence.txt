@@ -1,0 +1,16 @@
+# Frozen-data cockpit build equivalence (cache on/on/off), 2026-10-16
+snapshot: APFS clone of prod tree + mirror at 2026-10-15T23:22:51Z; now fixed to that time; measure_host=False; launchctl text frozen
+
+{"mode": "on", "seconds": 11.4, "peak_rss_mb": 388.1}
+{"mode": "on", "seconds": 11.4, "peak_rss_mb": 389.8}
+== on1 vs on2
+differing leaves: 0
+{"mode": "off", "seconds": 992.1, "peak_rss_mb": 313.7}
+== on1 vs off
+differing leaves: 0
+
+[exited with code 0]
+
+fz_on1.json sha256 e9b1778d68b09db12bbec47c46d24785b2bb6262de3c438488dce0a0d1072ca8 bytes 869333
+fz_on2.json sha256 e9b1778d68b09db12bbec47c46d24785b2bb6262de3c438488dce0a0d1072ca8 bytes 869333
+fz_off.json sha256 e9b1778d68b09db12bbec47c46d24785b2bb6262de3c438488dce0a0d1072ca8 bytes 869333

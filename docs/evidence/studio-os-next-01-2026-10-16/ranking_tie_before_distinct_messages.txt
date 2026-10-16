@@ -1,0 +1,18 @@
+503455 MP-011: TVL-floor ($5,000,000) отфильтровал адаптеры: ['euler_v2', 'aave_v3_optimism']
+205242 capacity_cap: no TVL data for moonwell_base — pass-through (fail-safe)
+205242 ADR-053: TVL-floor pass on STATIC (unverified) TVL for ['moonwell_base', 'sfrax'] — литерал не верифицирует floor; ранжирование сохранено, enforcement — RiskPolicy-гейт
+171677 ADR-053: TVL-floor pass on STATIC (unverified) TVL for ['sfrax'] — литерал не верифицирует floor; ранжирование сохранено, enforcement — RiskPolicy-гейт
+124037 ADR-136: сетевые потолки применены: сеть base: 30.00% → 20.00% (излишек честно остался кэшем)
+81044 ADR-136: сетевые потолки применены: сеть base: 40.00% → 20.00% (излишек честно остался кэшем)
+ 999 capacity_cap: no TVL data for aave_arbitrum — pass-through (fail-safe)
+ 927 capacity_cap: no TVL data for aave_v3_polygon — pass-through (fail-safe)
+ 223 capacity_cap: no TVL data for sdai — pass-through (fail-safe)
+ 215 capacity_cap: no TVL data for scrvusd — pass-through (fail-safe)
+ 126 ADR-136: сетевые потолки применены: L2 суммарно: 60.00% → 50.00% (излишек честно остался кэшем)
+ 101 capacity_cap: no TVL data for sfrax — pass-through (fail-safe)
+  75 ADR-136: сетевые потолки применены: L2 суммарно: 70.00% → 50.00% (излишек честно остался кэшем); сеть base: 21.43% → 20.00% (излишек честно остался кэшем)
+  45 ADR-136: сетевые потолки применены: сеть base: 50.00% → 20.00% (излишек честно остался кэшем)
+  31 ADR-136: сетевые потолки применены: L2 суммарно: 55.00% → 50.00% (излишек честно остался кэшем)
+  30 ADR-136: сетевые потолки применены: L2 суммарно: 80.00% → 50.00% (излишек честно остался кэшем); сеть base: 25.00% → 20.00% (излишек честно остался кэшем)
+  18 ADR-136: сетевые потолки применены: L2 суммарно: 55.00% → 50.00% (излишек честно остался кэшем); сеть base: 36.36% → 20.00% (излишек честно остался кэшем)
+  12 ADR-136: сетевые потолки применены: сеть ethereum: 95.00% → 90.00% (излишек честно остался кэшем)

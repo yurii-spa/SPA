@@ -153,7 +153,13 @@
     ARB Telegram card — agent_health judges by success receipts + boot window, live run CRIT 3 → 0, intake no
     longer re-processes accepted tasks (`ef317cbd`, `68d21f88`), probe `agent_health_reboot_false_alarm_closed`
     satisfied; (5) ADR-762 — local candidate branch `candidate/adr762-version-bound`, flag OFF, not wired.
-    Not ARB-accepted yet.
+    Not ARB-accepted yet. Update 2026-10-16 05:00Z (ARB round 3): `mission_server` restarted twice with owner permission
+    (voice server part + «new identical note = new card» live; iPhone NOT owner-verified); intake keeps a durable notice
+    outbox before its stamp (`86fd4e06`); `data/` coverage — 15 necessary subtrees in FULL, scheduled 03:30Z backup and
+    restore verified (`f3931465`); ranking_tie repeats fixed (`39dc0192`, sandbox 455 s → 5 s, log 179 MB → 4 KB; live
+    run pending); ARB Telegram card — deadlines for first runs, swarm_health/site_freshness monitor fixes,
+    RETIRED_LABELS per owner decision own-31, 19 false cards closed with RCA (`cb7aad13`). Evidence:
+    `docs/evidence/studio-os-next-01-2026-10-16/`. Next small task: `inbox-skvoznoi-put-iz-pulta-golos-kartochka-is`.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
