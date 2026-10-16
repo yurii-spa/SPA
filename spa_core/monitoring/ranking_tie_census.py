@@ -304,6 +304,140 @@ def identity_verdict(a: str, b: str, identity_doc: Optional[dict]) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# журнал: повтор ОДНОГО И ТОГО ЖЕ предупреждения сворачивается в счётчик
+# ──────────────────────────────────────────────────────────────────────────
+class RepeatCollapser(logging.Filter):
+    """Пропускает ПЕРВОЕ появление каждого различного сообщения, повторы считает.
+
+    Различие — по (логгер, уровень, ТЕКСТ сообщения целиком): сообщение, которое
+    отличается хоть одним символом (другой ключ, другое число), — новое и
+    печатается. Ничего не теряется молча: повторы сосчитаны и названы итоговой
+    строкой :func:`collapse_repeated_warnings`.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.counts: Dict[Tuple[str, int, str], int] = {}
+        self._last: Optional[logging.LogRecord] = None
+        self._last_verdict = True
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        # Один фильтр стоит на НЕСКОЛЬКИХ обработчиках, и каждый спрашивает его о
+        # той же записи: решение принимается и считается ОДИН раз на запись,
+        # иначе первый обработчик съел бы первое появление у остальных.
+        if record is self._last:
+            return self._last_verdict
+        try:
+            text = record.getMessage()
+        except Exception:  # noqa: BLE001 — неформатируемое сообщение не сворачиваем
+            verdict = True
+        else:
+            key = (record.name, record.levelno, text)
+            n = self.counts.get(key, 0)
+            self.counts[key] = n + 1
+            verdict = (n == 0)
+        self._last, self._last_verdict = record, verdict
+        return verdict
+
+    def repeats(self) -> int:
+        return sum(n - 1 for n in self.counts.values() if n > 1)
+
+
+#: Сколько самых частых повторов назвать поимённо в итоговой строке.
+_REPEAT_SUMMARY_TOP = 10
+
+
+class collapse_repeated_warnings:
+    """Контекст стадии переписи: каждый прогон аллокатора в песочнице печатает
+    те же предупреждения (MP-011, ADR-053, capacity_cap …), и стадия из сотен
+    тысяч прогонов превращала журнал агента в сотни мегабайт повторов.
+
+    Фильтр ставится на обработчики КОРНЕВОГО логгера (туда стекают записи
+    ``spa.*``/``spa_core.*``); если их нет — на время стадии ставится обработчик
+    в stderr с той же формой, что у ``logging.lastResort`` (``%(message)s``,
+    WARNING), то есть вывод туда же и в том же виде. Первое появление каждого
+    РАЗЛИЧНОГО сообщения печатается, как раньше; по выходе — одна строка: сколько
+    повторов свёрнуто, у скольких различных сообщений, и самые частые со счётом.
+    """
+
+    def __init__(self, stage: str) -> None:
+        self.stage = stage
+        self.collapser = RepeatCollapser()
+        self._targets: List[logging.Handler] = []
+        self._added: Optional[logging.Handler] = None
+
+    def __enter__(self) -> RepeatCollapser:
+        root = logging.getLogger()
+        self._targets = list(root.handlers)
+        if not self._targets:
+            self._added = logging.StreamHandler()
+            self._added.setLevel(logging.WARNING)
+            root.addHandler(self._added)
+            self._targets = [self._added]
+        for h in self._targets:
+            h.addFilter(self.collapser)
+        return self.collapser
+
+    def __exit__(self, *_exc) -> bool:
+        for h in self._targets:
+            h.removeFilter(self.collapser)
+        repeats = self.collapser.repeats()
+        if repeats:
+            top = sorted(((n, text) for (_name, _lvl, text), n
+                          in self.collapser.counts.items() if n > 1),
+                         key=lambda nt: (-nt[0], nt[1]))
+            # ×N — ВСЕГО появлений сообщения за стадию (первое из них напечатано)
+            named = "; ".join(f"×{n} «{text[:160]}»"
+                              for n, text in top[:_REPEAT_SUMMARY_TOP])
+            more = len(top) - _REPEAT_SUMMARY_TOP
+            log.warning("%s: свёрнуто %d повтор(ов) %d различных предупреждений "
+                        "(каждое показано выше один раз, при первом появлении): "
+                        "%s%s", self.stage, repeats, len(top), named,
+                        (f"; … и ещё {more}" if more > 0 else ""))
+        if self._added is not None:
+            logging.getLogger().removeHandler(self._added)
+        return False
+
+
+#: Сколько последних прогонов производителя помнит стадия (LRU). Замер 16.10:
+#: из 503 455 прогонов 20-дневной выборки различных входов было 46 925 — один
+#: и тот же сдвиг ставки ``below`` прогонялся заново для КАЖДОГО ``above``.
+_PRODUCE_MEMO_SIZE = 4096
+
+
+def memoized_producer(produce, maxsize: int = _PRODUCE_MEMO_SIZE):
+    """Тот же производитель, но одинаковый вход прогоняется ОДИН раз за стадию.
+
+    Ключ — набор ставок целиком (имя → доля). Песочница и код производителя в
+    пределах одной стадии неизменны, поэтому повтор прогона на том же входе
+    ничего не измеряет. Падение НЕ запоминается: исключение поднимается заново
+    при каждом вызове, как и раньше. Каждый вызов получает свои копии цели и
+    разбора — общий объект между вызывающими не делится.
+    """
+    from collections import OrderedDict
+
+    cache: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+    def produce_memo(provider: Dict[str, float]):
+        key = tuple(sorted((str(k), v) for k, v in provider.items()))
+        hit = cache.get(key)
+        if hit is None:
+            hit = produce(provider)
+            cache[key] = hit
+            if len(cache) > maxsize:
+                cache.popitem(last=False)
+        else:
+            cache.move_to_end(key)
+        target, breakdown, capital = hit
+        return (dict(target),
+                {k: (dict(v) if isinstance(v, dict) else v)
+                 for k, v in breakdown.items()},
+                capital)
+
+    return produce_memo
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # производитель — живой, в песочнице
 # ──────────────────────────────────────────────────────────────────────────
 def _default_producer(sandbox: Path):
@@ -334,6 +468,25 @@ def _default_producer(sandbox: Path):
     return produce
 
 
+_PROBE_FLIP = "flip"
+_PROBE_BELOW = "below"
+_PROBE_ABSENT = "absent"
+_PROBE_ERROR = "error"
+
+
+def flip_grid(quantum: float) -> List[float]:
+    """Сетка сдвигов поиска перестановки, pp — РОВНО та, что обходил исходный
+    линейный поиск (те же числа с плавающей точкой, тот же порядок): шаг кванта
+    до 100 квантов, дальше ×1.3, до ``_FLIP_MAX_PP`` включительно."""
+    step = max(quantum, 1e-12)
+    grid: List[float] = []
+    delta = step
+    while delta <= _FLIP_MAX_PP:
+        grid.append(delta)
+        delta = (delta + step) if delta < 100 * step else delta * 1.3
+    return grid
+
+
 def smallest_flip(produce,
                   provider: Dict[str, float],
                   universe: Sequence[str],
@@ -346,32 +499,89 @@ def smallest_flip(produce,
     для порядка вовсе. Возвращает и точку перестановки, и шаг ПЕРЕД ней —
     отрицательный контроль, без которого ход денег паре не принадлежит.
     """
+    grid = flip_grid(quantum)
     base_pp = float(provider[below]) * 100.0
-    step = max(quantum, 1e-12)
-    delta = step
-    control = 0.0
-    while delta <= _FLIP_MAX_PP:
-        prov = dict(provider)
-        prov[below] = max(1e-12, (base_pp + delta) / 100.0)
-        try:
-            target, breakdown, _cap = produce(prov)
-        except Exception as exc:  # noqa: BLE001 — падение прогона ≠ «не переставилось»
-            log.warning("ranking_tie_census: прогон %s +%.6f pp не удался (%s)",
-                        below, delta, exc)
-            return None
-        order = ranked_order(breakdown, universe)
-        if below in order and above in order and order.index(below) < order.index(above):
-            return {"flip_pp": delta, "control_pp": control,
-                    "target": target, "order": order}
-        control = delta
-        delta = (delta + step) if delta < 100 * step else delta * 1.3
-    return None
+    probes: Dict[int, tuple] = {}
+
+    def probe(i: int) -> tuple:
+        """(состояние, цель, порядок) прогона на ``grid[i]``; память на вызов."""
+        if i not in probes:
+            prov = dict(provider)
+            prov[below] = max(1e-12, (base_pp + grid[i]) / 100.0)
+            try:
+                target, breakdown, _cap = produce(prov)
+            except Exception as exc:  # noqa: BLE001 — падение прогона ≠ «не переставилось»
+                probes[i] = (_PROBE_ERROR, exc, None)
+                return probes[i]
+            order = ranked_order(breakdown, universe)
+            if below in order and above in order:
+                state = (_PROBE_FLIP if order.index(below) < order.index(above)
+                         else _PROBE_BELOW)
+            else:
+                state = _PROBE_ABSENT
+            probes[i] = (state, target, order)
+        return probes[i]
+
+    def found(i: int) -> dict:
+        _s, target, order = probe(i)
+        return {"flip_pp": grid[i], "control_pp": (grid[i - 1] if i else 0.0),
+                "target": target, "order": order}
+
+    def linear() -> Optional[dict]:
+        """Исходный линейный обход сетки — эталон и запасной путь."""
+        for i, delta in enumerate(grid):
+            state, payload, _o = probe(i)
+            if state == _PROBE_ERROR:
+                log.warning("ranking_tie_census: прогон %s +%.6f pp не удался (%s)",
+                            below, delta, payload)
+                return None
+            if state == _PROBE_FLIP:
+                return found(i)
+        return None
+
+    if not grid:
+        return None
+    # БИСЕКЦИЯ по ТОЙ ЖЕ сетке. Счёт ключа зависит только от его собственной
+    # ставки и не убывает с ней (``score = round(apy,4)·mult − λ·var``, var —
+    # свойство адаптера, не ставки), поэтому, пока ОБА ключа в порядке,
+    # «переставилось» монотонно по сетке и первая точка перестановки у бисекции
+    # и у линейного обхода одна и та же. Любой прогон вне этого условия (ключ
+    # выпал из порядка, прогон упал) — бисекция не доказана, и ответ даёт
+    # исходный линейный обход (с памятью уже сделанных прогонов). Равенство
+    # с линейным обходом закреплено тестом и замером на живых входах.
+    last = len(grid) - 1
+    state = probe(last)[0]
+    if state == _PROBE_BELOW:
+        return None
+    if state != _PROBE_FLIP:
+        return linear()
+    lo, hi = -1, last          # lo: «не переставилось» (−1 — точка без сдвига)
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        state = probe(mid)[0]
+        if state == _PROBE_FLIP:
+            hi = mid
+        elif state == _PROBE_BELOW:
+            lo = mid
+        else:
+            return linear()
+    return found(hi)
 
 
 # ──────────────────────────────────────────────────────────────────────────
 # замер
 # ──────────────────────────────────────────────────────────────────────────
-def measure(data_dir: Path,
+def measure(data_dir: Path, **kwargs) -> dict:
+    """Полный замер. Никогда не поднимает исключение; отказ = третий исход.
+
+    Повторы ОДНОГО И ТОГО ЖЕ предупреждения прогонов аллокатора в песочнице
+    сворачиваются в счётчик (первое появление каждого различного печатается).
+    """
+    with collapse_repeated_warnings("ranking_tie_census"):
+        return _measure(data_dir, **kwargs)
+
+
+def _measure(data_dir: Path,
             *,
             now: Optional[datetime] = None,
             producer_factory=None,
@@ -437,7 +647,8 @@ def measure(data_dir: Path,
             src = data_dir / name
             if src.exists():
                 shutil.copyfile(src, sandbox / name)
-        produce = (producer_factory or _default_producer)(sandbox)
+        produce = memoized_producer(
+            (producer_factory or _default_producer)(sandbox))
 
         try:
             base_target, base_breakdown, producer_capital = produce(dict(provider))

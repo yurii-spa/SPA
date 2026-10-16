@@ -378,7 +378,19 @@ def verify_coverage_independence(produce,
 # ──────────────────────────────────────────────────────────────────────────
 # замер
 # ──────────────────────────────────────────────────────────────────────────
-def measure(data_dir: Path,
+def measure(data_dir: Path, **kwargs) -> dict:
+    """Полный замер. Никогда не поднимает исключение; отказ = третий исход.
+
+    Повторы ОДНОГО И ТОГО ЖЕ предупреждения прогонов аллокатора в песочнице
+    сворачиваются в счётчик (первое появление каждого различного печатается).
+    """
+    from spa_core.monitoring import ranking_tie_census as rtc
+
+    with rtc.collapse_repeated_warnings("ranking_tie_persistence"):
+        return _measure(data_dir, **kwargs)
+
+
+def _measure(data_dir: Path,
             *,
             now: Optional[datetime] = None,
             producer_factory=None,
@@ -462,7 +474,8 @@ def measure(data_dir: Path,
             src = data_dir / name
             if src.exists():
                 shutil.copyfile(src, sandbox / name)
-        produce = (producer_factory or rtc._default_producer)(sandbox)
+        produce = rtc.memoized_producer(
+            (producer_factory or rtc._default_producer)(sandbox))
 
         try:
             base_target, base_breakdown, _cap = produce(dict(live))
