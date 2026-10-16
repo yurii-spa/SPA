@@ -9,7 +9,9 @@ a prior corruption lost real data because the last usable backup was stale. This
 is the broad, scheduled safety net: it captures EVERY data/*.json and data/*.jsonl into a
 single integrity-checked gzip tar each day, atomically, with 30-day retention.
 
-Scope (deliberately broad): all of data/*.json and data/*.jsonl at the top level of data/.
+Scope (deliberately broad): all of data/*.json and data/*.jsonl at the top level of data/, the proof
+subtrees (_PROOF_SUBTREES), the evidence subtrees classified NECESSARY by the data-coverage audit
+2026-10-16 (_EVIDENCE_SUBTREES, docs/backup/DATA_COVERAGE_2026-10-16.md) and the sqlite DBs.
 This includes the critical state (equity_curve_daily, golive_status, paper_trading_status,
 trades, current_positions, gap_monitor, paper_evidence_history, strategy_*, tier1_*, etc.)
 plus the audit chain/trail jsonl files. The archive name is DATE-stamped
@@ -142,7 +144,49 @@ _PROOF_SUBTREES = (
                                #     a ledger without its anchor can't prove it wasn't rewritten
     "research_factory",       # ADR-560: candidate lifecycle ledger + index.json/status.json
     "capital_shadow",         # ADR-556: shadow-execution ledger + latest.json
+    # Data-coverage audit 2026-10-16 (docs/backup/DATA_COVERAGE_2026-10-16.md): the two other
+    # SIBLING anchor witnesses — same role as investment_cio_anchors above, but never added when
+    # their ledgers were. Declared in architecture/provenance.json, so FULL verification requires them.
+    "capital_shadow_anchors",    # ADR-556: anchors.jsonl, written on every capital_shadow append
+    "research_factory_anchors",  # ADR-560: ledger.anchors.jsonl (HashLedger sibling dir)
 )
+
+# Data-coverage audit 2026-10-16 (docs/backup/DATA_COVERAGE_2026-10-16.md): data/ subtrees classified
+# NECESSARY (or NECESSARY-UNVERIFIED) that the FULL archive did not carry at all. Unlike the proof
+# subtrees above, EVERY regular file is captured here (md/txt/zip/pdf evidence too), except sqlite
+# files (only consistent copies via _SQLITE_FILES are allowed — a raw copy of a live db is torn),
+# lock/tmp scratch and dotfiles. Captured, NOT required by full_archive_verify: these appear when
+# their agents first run, so their absence on a fresh host is not a broken archive.
+_EVIDENCE_SUBTREES = (
+    "aggressive_lab",      # proof-chained forward realized_series.jsonl per book (aggressive_lab/harness.py)
+    "swarm",               # *_proof.jsonl daily proof chains (strategy_lab/swarm/common.append_daily_proof)
+    "strategy_lab_paper",  # live forward paper series per strategy (strategy_lab/paper.py)
+    "sleeve_aggressive",   # append-only sleeve ledger (strategy_lab/sleeve/composer.py)
+    "investment_os",       # ADR-066 hash-chained analyst verdict archive (investment_os/verdict_archive.py)
+    "dfb",                 # proof-chained per-pool history; the agent stopped 2026-08-30 — cannot be re-collected
+    "monitoring",          # RTMR risk_posture (live de-risk state) + reaction_log (de-risk action record)
+    "telegram",            # owner notification prefs + push dedup state
+    "cmo_drafts",          # draft approval records (status/approved_at, cmo/draft_store.py)
+    "daily_summaries",     # point-in-time daily digests; the agent only ever writes TODAY
+    "statements",          # issued monthly statements (prod copy diverges from git)
+    "dd_snapshot",         # pinned DD snapshot 2026-07-11 (scripts/build_dd_snapshot.py; source ring-buffered)
+    "bee",                 # pinned hash chain + defillama_apy_history (DR CRITICAL_FILES member)
+    "publication_inputs",  # ADR-630 content-addressed exact inputs of every written site shelf
+    "reports",             # point-in-time go-live readiness / monthly reports
+    "dataroom",            # data-room bundles 2026-07 (possibly handed out; NECESSARY-UNVERIFIED)
+    "_corrupt_snapshot_20260625",  # incident forensics, no writer (NECESSARY-UNVERIFIED)
+    "sandbox_sweep",       # no writer found in code (NECESSARY-UNVERIFIED)
+)
+_EVIDENCE_SKIP_SUFFIXES = (".lock", ".tmp", ".db", ".db-wal", ".db-shm", ".db-journal")
+# Single forensic files no glob above reaches (no writer in code; tiny; NECESSARY-UNVERIFIED).
+_EXTRA_GLOBS = (
+    "*.pre_heal_bak",                     # pre-heal copies of track files (2026-07-01)
+    "*.pre_advisory_bak",                 # strategy_lab_config before the advisory switch
+    "rates_desk/anchors.jsonl.orphaned-*",  # orphaned anchor rings of the 2026-07-10/11 re-base
+)
+# Never archived, whatever a list above says: the archives themselves (and their sqlite copies)
+# and the disposable memory index (ADR-527, rebuilt in ~5 s).
+_NEVER_SUBTREES = ("backups", "memory")
 
 
 def _collect_sources() -> list:
@@ -162,7 +206,24 @@ def _collect_sources() -> list:
         # a restored ledger without them cannot be replayed (RM-TRUTH-01 backup audit 07.10).
         for pattern in ("*.json", "*.jsonl", "*.json.gz"):
             files.extend(glob.glob(os.path.join(base, "**", pattern), recursive=True))
-    files = sorted(set(f for f in files if os.path.isfile(f)))
+    for sub in _EVIDENCE_SUBTREES:
+        base = os.path.join(_DATA, sub)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+            for name in filenames:
+                if name.startswith(".") or name.endswith(_EVIDENCE_SKIP_SUFFIXES):
+                    continue
+                files.append(os.path.join(dirpath, name))
+    for pattern in _EXTRA_GLOBS:
+        files.extend(glob.glob(os.path.join(_DATA, pattern)))
+    never = tuple(os.path.join(os.path.realpath(_DATA), s) + os.sep for s in _NEVER_SUBTREES)
+    never += (os.path.realpath(_BACKUPS) + os.sep,)
+    files = sorted(set(
+        f for f in files
+        if os.path.isfile(f) and not os.path.realpath(f).startswith(never)
+    ))
     return files
 
 

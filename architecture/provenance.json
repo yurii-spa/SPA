@@ -31,6 +31,16 @@
         "note": "RM-LIVE-01 shadow-execution ledger, hash-chained."
       },
       {
+        "path": "data/capital_shadow_anchors/anchors.jsonl",
+        "adr": "ADR-556",
+        "note": "External anchor witness for the capital_shadow ledger — SIBLING directory (spa_core/capital_shadow/contract.py ANCHORS_SUBDIR), written on every ledger append; the same role investment_cio_anchors plays for ADR-554. Outside the FULL archive until the data-coverage audit 2026-10-16 (docs/backup/DATA_COVERAGE_2026-10-16.md)."
+      },
+      {
+        "path": "data/research_factory_anchors/ledger.anchors.jsonl",
+        "adr": "ADR-560",
+        "note": "External anchor witness for the Research Factory ledger — SIBLING directory (spa_core/research_factory/contract.py ANCHORS_SUBDIR, HashLedger in _common.py). Outside the FULL archive until the data-coverage audit 2026-10-16."
+      },
+      {
         "path": "data/trading_research/evidence.db",
         "adr": "ADR-525",
         "note": "Trading Research Engine forward-paper evidence (sqlite, append-only, hash-chained) — already covered before C10; listed so this declaration is the complete canon, not a partial one."
