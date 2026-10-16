@@ -160,6 +160,10 @@
     run pending); ARB Telegram card — deadlines for first runs, swarm_health/site_freshness monitor fixes,
     RETIRED_LABELS per owner decision own-31, 19 false cards closed with RCA (`cb7aad13`). Evidence:
     `docs/evidence/studio-os-next-01-2026-10-16/`. Next small task: `inbox-skvoznoi-put-iz-pulta-golos-kartochka-is`.
+    Update 2026-10-16 16:00Z (ARB round 4): first live cockpit task completed end to end (record → card → claimed
+    executor → probe-verified done → one notice → «Мои записи» done_verified; `d5d72f07`, intake wake fix, 3rd
+    owner-permitted `mission_server` restart); findings_bridge log growth ~110× lower live; site_freshness live OK;
+    full-CI verdict still NOT obtained (suite exceeds the GitHub job limit; push runs cancelled). Owner item: iPhone check.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
