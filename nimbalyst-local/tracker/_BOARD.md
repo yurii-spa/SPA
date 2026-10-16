@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-16T15:21:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-16T16:22:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2e5efe91c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (520f80dcd) · статусов дочитано оттуда: **5** (копия в дереве — прежняя версия того же файла) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1352** · ждёт владельца: **17** · занято сессиями: **14**.
 
@@ -428,7 +428,6 @@
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
 - Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список  ·  `inbox-otchet-vladeltsu-protocols-pokazyvaet-2.md` · 2026-10-12
-- Перепись читателей лент вердиктов: кто считает ЗАПИСИ под словом «день» (заказ G765 п. 3)  ·  `inbox-perepis-chitatelei-lent-verdiktov-kto-sc.md` · 2026-10-16
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -457,6 +456,7 @@
 - Хвост стоячего приказа расходится с цепочкой ADR: карточка два цикла звала закрытый гэп  ·  `inbox-hvost-stoyachego-prikaza-rashoditsya-s-t.md` · 2026-09-13
 - L2-мониторы газа молча предъявляют fallback-константу как живое чтение  ·  `inbox-l2-gas-monitory-molcha-predyavlyayut-fallback.md` · 2026-08-30
 - Опознание снимка в snapshot_minute_sensitivity идёт по порядку отметок и отбрасывает собственный снимок прогона  ·  `inbox-opoznanie-snimka-v-snapshot-minute-sensi.md` · 2026-09-10
+- Перепись читателей лент вердиктов: кто считает ЗАПИСИ под словом «день» (заказ G765 п. 3)  ·  `inbox-perepis-chitatelei-lent-verdiktov-kto-sc.md` · 2026-10-16
 - Подключить экономику цеха: артефакт есть в коде, но стоимость цикла не измерена ни разу  ·  `inbox-podklyuchit-ekonomiku-tseha-k-agent-health.md` · 2026-09-09
 - Дать верификатору рецепт для архива входов начисления (поверхность K)  ·  `inbox-poverhnost-k-verifikatora-dlya-arhiva-vhodov.md` · 2026-09-09
 - Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md` · 2026-09-08 · 🔒 `pid20023`
@@ -602,11 +602,16 @@
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
 - Находка петли: com.spa.tracker_status_sentinel работает, но plist не персистентен (re  ·  `inbox-nahodka-petli-com-spa-tracker-status-sen.md` · 2026-08-27
+- Находка петли: data/adapter_repair_price.json: возраст 9.0ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-adapter-repair-price-2.md` · 2026-10-16
 - Находка петли: data/adapter_repair_price.json: возраст 15.9ч > SLO 7ч (класс agent_re  ·  `inbox-nahodka-petli-data-adapter-repair-price.md` · 2026-09-27
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
+- Находка петли: data/apy_composition.json: возраст 8.9ч > SLO 7ч (класс agent_registry  ·  `inbox-nahodka-petli-data-apy-composition-json-2.md` · 2026-10-16
 - Находка петли: data/apy_composition.json: возраст 23.5ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-apy-composition-json.md` · 2026-09-27
+- Находка петли: data/arming_wall_order.json: возраст 9.0ч > SLO 7ч (класс agent_regist  ·  `inbox-nahodka-petli-data-arming-wall-order-jso-2.md` · 2026-10-16
 - Находка петли: data/arming_wall_order.json: возраст 15.9ч > SLO 7ч (класс agent_regis  ·  `inbox-nahodka-petli-data-arming-wall-order-jso.md` · 2026-09-27
+- Находка петли: data/asset_registry_gap_price.json: возраст 9.0ч > SLO 7ч (класс agent  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr-2.md` · 2026-10-16
 - Находка петли: data/asset_registry_gap_price.json: возраст 15.9ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr.md` · 2026-09-27
+- Находка петли: data/audit_trail_rate_input_coverage.json: возраст 9.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu-2.md` · 2026-10-16
 - Находка петли: data/audit_trail_rate_input_coverage.json: возраст 15.9ч > SLO 7ч (кла  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu.md` · 2026-09-27
 - Находка петли: data/candidate_discovery_status.json: возраст 39.0ч > SLO 26ч (класс a  ·  `inbox-nahodka-petli-data-candidate-discovery-s-2.md` · 2026-09-29
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
@@ -975,11 +980,6 @@
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: data/act_day_recovery.json: возраст 8.3ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-act-day-recovery-json.md` · 2026-10-14
-- Находка петли: data/adapter_repair_price.json: возраст 9.0ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-adapter-repair-price-2.md` · 2026-10-16
-- Находка петли: data/apy_composition.json: возраст 8.9ч > SLO 7ч (класс agent_registry  ·  `inbox-nahodka-petli-data-apy-composition-json-2.md` · 2026-10-16
-- Находка петли: data/arming_wall_order.json: возраст 9.0ч > SLO 7ч (класс agent_regist  ·  `inbox-nahodka-petli-data-arming-wall-order-jso-2.md` · 2026-10-16
-- Находка петли: data/asset_registry_gap_price.json: возраст 9.0ч > SLO 7ч (класс agent  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr-2.md` · 2026-10-16
-- Находка петли: data/audit_trail_rate_input_coverage.json: возраст 9.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu-2.md` · 2026-10-16
 - Находка петли: data/capital_observability_history.json: возраст 8.3ч > SLO 7ч (класс  ·  `inbox-nahodka-petli-data-capital-observability.md` · 2026-10-14
 - Находка петли: data/capital_shadow/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-capital-shadow-latest.md` · 2026-10-04
 - Находка петли: data/criterion_population_floor.json: возраст 8.3ч > SLO 7ч (класс age  ·  `inbox-nahodka-petli-data-criterion-population.md` · 2026-10-14
