@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-16T20:56:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-16T21:07:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a588aadc0) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f24de266b) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1356** · ждёт владельца: **17** · занято сессиями: **15**.
+> Всего карточек: **1356** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -39,7 +39,6 @@
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
 - **CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет** — держит `cycle-63347` · с 2026-09-03T16:06:52Z  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
-- **Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца** — держит `cycle-76624` · с 2026-10-16T20:00:58Z  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md`
 - **Осиротевшая работа цикла #474 (ADR-222) НЕ доставлена: её сторож в настоящем вызове не срабатывает никогда — сверяет прод-дерево само с собой** — держит `cycle-17778` · с 2026-09-04T15:24:15Z  ·  `inbox-osirotevshaya-rabota-tsikla-474-adr-222.md`
 - **Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел** — держит `pid87687` · с 2026-09-04T01:12:28Z  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md`
 - **Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется** — держит `cycle-42991` · с 2026-08-31T17:59:54Z  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md`
@@ -427,7 +426,6 @@
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
-- Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15 · 🔒 `cycle-76624`
 - Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список  ·  `inbox-otchet-vladeltsu-protocols-pokazyvaet-2.md` · 2026-10-12
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
@@ -667,6 +665,7 @@
 - Номера ADR сталкиваются: два раза за день, у нумерации нет распределителя  ·  `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md` · 2026-08-08
 - новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
+- Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09

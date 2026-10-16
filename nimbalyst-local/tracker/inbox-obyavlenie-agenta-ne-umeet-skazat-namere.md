@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца
-status: in-progress
+status: done
 created: 2026-10-15
 priority: high
 claimed_by: cycle-76624
@@ -15,6 +15,7 @@ status_trail:
   - "2026-10-16T20:31:36.435083+00:00 new -> in-progress · queue.set_status · cycle-76624"
   - "2026-10-16T20:31:43.889283+00:00 in-progress -> done · queue.set_status/closed_by:cycle-76624/evidence:проба paused_agent_is_not_a_dead_agent = satisfied на живом манифесте: B1:dead:com.spa.mission_tick исчезла БЕЗ действий над флотом (флот 91 метка, пауза подтверждена launchctl print-disabled), и все  · cycle-76624"
   - "2026-10-16T20:40:53.607433+00:00 done -> in-progress · queue.set_status · cycle-76624"
+  - "2026-10-16T21:06:35.984904+00:00 in-progress -> done · queue.set_status/closed_by:cycle-76624/evidence:ЗАМЕР ПОСЛЕ ДОСТАВКИ (f24de266b на origin/main): проба paused_agent_is_not_a_dead_agent = satisfied, курация прочитана с origin/main (как её читает прод); живой прогон сторожа тем же путём, что main() · cycle-76624"
 ---
 
 ## Что измерено (цикл #877, 2026-10-16)
@@ -138,3 +139,24 @@ not_satisfied — com.spa.mission_tick: intent='active', а не 'paused'
 закроет **замер** шага 0-офис (`python3 -m spa_core.monitoring.card_acceptance`), а не проза
 сессии, которая работу делала. Это и есть смысл правила: мерку не выбирают после работы, и
 «готово» не объявляют о том, что ещё не доставлено.
+
+---
+
+## ЗАМЕР ПОСЛЕ ДОСТАВКИ (`f24de266b` на `origin/main`) — критерий ВЫПОЛНЕН
+
+Объявление уехало на origin, и теперь его читает прод. Тот же путь, которым идёт
+производственный `main()` (курация с `origin/main`):
+
+```
+intent на origin/main: paused
+проба paused_agent_is_not_a_dead_agent: satisfied
+живой прогон сторожа: B1 findings = []  ·  unchecked = []
+ключ mission_tick: НЕТ ни в одной находке
+overall: CRITICAL → WARN   (этим CRITICAL и была наша находка)
+```
+
+Флот не тронут ни одной командой — ни `bootstrap`, ни `bootout`, ни `enable`. Агент остался
+выключенным ровно так, как его выключил владелец 30.09.
+
+Карточка закрыта **замером**, а не прозой: закрытие опирается на вердикт машинной пробы и на
+живой прогон сторожа после доставки, и оба названы в поле `evidence`.
