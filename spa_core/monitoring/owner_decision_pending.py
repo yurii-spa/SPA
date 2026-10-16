@@ -1057,18 +1057,39 @@ def check_pending_owner_decisions(*,
     # чужое множество значило бы показывать число, которого нет ни у одного
     # читателя), но и молчать нельзя — молчанием и был потерян `own-34`.
     gap_cards = origin_gap.get("hidden") or []
-    if origin_gap.get("measured") and gap_cards:
-        names = ", ".join(c["card_id"] for c in gap_cards[:3])
-        more = f" (и ещё {len(gap_cards) - 3})" if len(gap_cards) > 3 else ""
-        never_sent = [c for c in gap_cards if not c["delivered"]]
+    # Два РАЗНЫХ утверждения, а не одно (ARB 16.10). Карточка `differs`, которая и в
+    # дереве лежит открытым вопросом, до владельца ДОХОДИТ — её считают здешние
+    # счётчики и шлёт здешний бот, — только в редакции дерева, а не origin. Писать про
+    # неё «НЕ доходят … счётчики про них не знают ВООБЩЕ» было ложью: 16.10 так звучали
+    # пять карточек, у которых в дереве не хватало лишь дописанных на origin строк
+    # (у трёх — одной строки метаданных `subject:`). Лечение тоже разное: там вернуть
+    # вопрос в дерево, здесь — перенести в дерево дополнения origin.
+    stale_text = [c for c in gap_cards
+                  if c.get("kind") == "differs" and c.get("tree_status") == _OPEN_CARD_STATUS]
+    stale_ids = {c["card_id"] for c in stale_text}
+    unseen = [c for c in gap_cards if c["card_id"] not in stale_ids]
+    if origin_gap.get("measured") and unseen:
+        names = ", ".join(c["card_id"] for c in unseen[:3])
+        more = f" (и ещё {len(unseen) - 3})" if len(unseen) > 3 else ""
+        never_sent = [c for c in unseen if not c["delivered"]]
         tail = (f"; из них НИ РАЗУ не отправлены владельцу: {len(never_sent)}"
                 if never_sent else "")
         issues.append(
             f"owner_decision_pending: очередь этого дерева НЕПОЛНА — "
-            f"{len(gap_cards)} вопрос(ов) владельцу `{_OPEN_CARD_STATUS}` живут на "
+            f"{len(unseen)} вопрос(ов) владельцу `{_OPEN_CARD_STATUS}` живут на "
             f"{origin_gap['ref']} ({origin_gap['ref_sha'][:9]}) и до владельца из "
-            f"этого дерева НЕ доходят ({_kinds_summary(gap_cards)}): здешние счётчики "
+            f"этого дерева НЕ доходят ({_kinds_summary(unseen)}): здешние счётчики "
             f"про них не знают ВООБЩЕ{tail}: {names}{more}")
+        status = _worst(status, CRITICAL if halted else WARNING)
+    if origin_gap.get("measured") and stale_text:
+        names = ", ".join(c["card_id"] for c in stale_text[:3])
+        more = f" (и ещё {len(stale_text) - 3})" if len(stale_text) > 3 else ""
+        issues.append(
+            f"owner_decision_pending: {len(stale_text)} вопрос(ов) владельцу доходят из "
+            f"этого дерева в СТАРОЙ редакции ({_kinds_summary(stale_text)}), а не в той, "
+            f"что на {origin_gap['ref']} ({origin_gap['ref_sha'][:9]}): владелец читает и "
+            f"отвечает под текстом дерева, дополнения origin до него не доехали — "
+            f"перенести их в дерево (дописать, не перезаписывая): {names}{more}")
         status = _worst(status, CRITICAL if halted else WARNING)
 
     # --- H9: ОТПРАВЛЕННЫЙ вопрос жив на origin, а файла в дереве нет ---------

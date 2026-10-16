@@ -21,7 +21,13 @@ from pathlib import Path
 
 from spa_core.monitoring import agent_health_monitor as ahm
 
-RETIRED = "com.spa.weekly_backup"
+# НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-10-16 (ARB, инв. #16, журнал W42): субъект сменён с
+# `com.spa.weekly_backup` на `com.spa.checkpoint-7day`. weekly_backup снят из RETIRED_LABELS —
+# его вывод отменён решением владельца 08.08 (own-31), манифест `active`
+# (`test_retired_labels_agree_with_manifest.py`). Утверждения теста НЕ изменены ни одно:
+# проверка та же — retired-и-загруженный обязан быть видимым WARNING, — на агенте, который
+# действительно retired. Предпосылка по-прежнему проверяется громко строкой ниже.
+RETIRED = "com.spa.checkpoint-7day"
 assert RETIRED in ahm.RETIRED_LABELS, "test subject must actually be retired"
 
 LIVE = "com.spa.novel_edge_rnd"  # an ordinary, non-retired resident label for contrast

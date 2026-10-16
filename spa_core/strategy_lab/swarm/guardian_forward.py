@@ -72,7 +72,8 @@ PRODUCES = (
 # ratchet counted it; adding it says the intent in the form pyflakes reads (цикл #74,
 # карточка agent-ci-never-runs-scripts-tests-dir).
 __all__ = ["vol_guardian_trace", "run_forward_guardian", "guardian_applicability",
-           "GUARDIAN_PARAMS", "GENESIS_HASH", "NOTHING_TO_PROTECT"]
+           "GUARDIAN_PARAMS", "GENESIS_HASH", "NOTHING_TO_PROTECT",
+           "GUARDIAN_BOOK_STATES"]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"
@@ -157,6 +158,15 @@ WARMUP_POINTS = 4 * GUARDIAN_PARAMS["lookback"] + GUARDIAN_PARAMS["lookback"] + 
 #: Это НЕ `ARMED` (взведён и ждёт) и НЕ `WARMUP` (данных мало): книга измерена, и измерение
 #: говорит, что круг сторожа дороже всей просадки, от которой он охраняет.
 NOTHING_TO_PROTECT = "NOTHING_TO_PROTECT"
+
+#: ПОЛНЫЙ словарь состояний книги, которые пишет этот модуль (`books[*].state`). ОДИН источник:
+#: его импортирует сторож роя (`swarm_health._contract_check`). До 16.10 там жила своя копия из
+#: четырёх слов без `NOTHING_TO_PROTECT` (ADR-206, 01.09) — и законное состояние девяти ровных
+#: книг полтора месяца читалось как «unknown guardian states», красня `com.spa.swarm_health`
+#: (exit 1, тревога после перезагрузки 15.10). Новое состояние добавляется ЗДЕСЬ — сторож
+#: узнает о нём сам, а не по жалобе.
+GUARDIAN_BOOK_STATES = frozenset({"ARMED", "DERISKED", "WARMUP", "NO_FORWARD",
+                                  NOTHING_TO_PROTECT})
 
 
 def round_trip_cost_pct(roundtrip_cost: float = GUARDIAN_PARAMS["roundtrip_cost"],

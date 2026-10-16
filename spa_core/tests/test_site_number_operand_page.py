@@ -284,7 +284,11 @@ def test_every_declared_source_says_why_that_page():
     for label, sources in mon.SITE_NUMBER_SOURCES.items():
         assert sources, label
         for page, elem_id, pattern, why in sources:
-            assert page in ("home", "track"), (label, page)
+            # НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-10-16 (ARB, инв. #16, журнал W42): к страницам, которые
+            # сторож получает, добавлена /status/ — единственная, где пара гейтов после
+            # PRODUCT-UX-01 (07.10) отрисована сервером. Множество РАСШИРЕНО, не снято:
+            # страница вне того, что `run()` реально получает, по-прежнему красная.
+            assert page in ("home", "track", "status"), (label, page)
             assert isinstance(why, str) and len(why.strip()) >= 20, (label, elem_id, why)
             assert isinstance(pattern, str) and pattern
 

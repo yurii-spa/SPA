@@ -222,21 +222,17 @@ RETIRED_LABELS = frozenset({
     "com.spa.telegram_weekly",
     "com.spa.morning_digest",
     "com.spa.daily-paper-report",
-    # Telegram digest agents consolidated into the single daily report (same
-    # anti-flood intent as the telegram_* retirements above). Both were loaded
-    # but not firing (empty /tmp logs) — delivering nothing — so agent_health
-    # should stop expecting a fresh heartbeat from them. Owner may fully unload
-    # + delete their plists at leisure, or revive if a separate digest is wanted.
-    "com.spa.tier1_digest",
-    "com.spa.digest_weekly",
-    # Q3-1: weekly_backup is a coarse whole-tree tar to a LOCAL folder (~/Documents/SPA_Backups)
-    # — same-host (SPOF, does not survive host loss) and redundant with the real DR path
-    # (com.spa.daily_backup runs daily_backup.py DB snapshot + dr_offsite_copy offsite-verified;
-    # source already lives in git/GitHub). It stood WARNING ("log missing (never ran?)") persistently
-    # → pure alert-fatigue with ~0 DR value beyond daily_backup. Retired so agent_health reaches clean
-    # all-OK. REVERSIBLE: remove this line + re-add to install_all_agents.sh to revive. OWNER: unload the
-    # lingering plist on the prod host (`launchctl bootout gui/$(id -u)/com.spa.weekly_backup`).
-    "com.spa.weekly_backup",
+    # (16.10, ARB) Здесь стояли `com.spa.tier1_digest`, `com.spa.digest_weekly` и
+    # `com.spa.weekly_backup` — вывод own-21 от 15.07 и Q3-1. Его ОТМЕНИЛО более позднее решение
+    # владельца 2026-08-08 («четыре — ставить», own-31, коммит 07f15532b): все три прошли гейт и
+    # загружены с 08.08, манифест несёт `intent: active`, тест реконсиляции
+    # (`test_architecture_conformance.py`) прямо называет локальное «retired» стёртой памятью.
+    # Две записи об одном агенте разошлись, и пульс с 05.10 (C11) слал «retired_but_loaded —
+    # owner: launchctl bootout» про агентов, которых владелец велел ставить. Сторож теперь
+    # держит согласие сам: `test_retired_labels_agree_with_manifest.py` краснит любую метку,
+    # которая здесь `retired`, а в манифесте `active`. weekly_backup к тому же единственный
+    # везёт append-only ledgers (REVIEW_1 #12) — ARB 15.10 п. 5: не выгружать до доказанного
+    # покрытия.
     # own-21 (owner-approved 2026-07-23): checkpoint-7day is a SPENT one-shot — schedule Month:6 Day:19
     # fired once on 2026-06-19 and will not fire again until next June. Left loaded = dead weight.
     # Unloaded + plist moved to data/retired_plists_backup/. REVERSIBLE: remove this line + re-add to
@@ -335,6 +331,9 @@ class AgentHealth:
     # перезагрузки» или «не проверено» — три разных факта, и читатель обязан
     # видеть, какой из них стоит за OK/WARNING, а не угадывать по тексту.
     evidence: str = ""
+    # Срок первого планового запуска после загрузки (UTC ISO, ARB 16.10). Есть у
+    # строки, которая ждёт первого запуска или его пропустила; иначе пусто.
+    due_by: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -349,6 +348,7 @@ class AgentHealth:
             "issue": self.issue,
             "note": self.note,
             "evidence": self.evidence or None,
+            "due_by": self.due_by or None,
         }
 
 
@@ -901,6 +901,111 @@ def first_run_window_min(plist: Optional[dict], threshold_min: float) -> float:
     return window
 
 
+# ---------------------------------------------------------------------------
+# Срок первого запуска после загрузки (ARB 16.10, п. 1 карточки
+# `inbox-arb-razobrat-trevogu-telegram-posle-pere`).
+# ---------------------------------------------------------------------------
+# «Ждёт первого планового запуска» без СРОКА — это обещание без даты: читатель не
+# видит, когда ожидание превращается в пропуск. Поэтому у ожидания есть явный
+# `due_by` (UTC ISO), и он выводится из РАСПИСАНИЯ агента:
+#   * StartInterval — загрузка + окно (`first_run_window_min`: интервал + запас,
+#     не меньше бюджета свежести категории — тот же бюджет, по которому агента
+#     судят и в обычное время);
+#   * StartCalendarInterval — БЛИЖАЙШЕЕ плановое срабатывание после загрузки +
+#     запас (`BOOT_GRACE_MIN`), а не фиксированный бюджет категории: утренний
+#     агент, загрузившийся в 21:17, обязан отработать к утру, а не через 26 ч.
+#     Календарь launchd — МЕСТНОЕ время хоста (`tz=None`), тест передаёт `tz`.
+# Срок прошёл без свидетельства работы ⇒ WARNING с названным сроком; прошло
+# вдвое больше (от загрузки) ⇒ CRITICAL. Расписание не разобрано ⇒ прежнее окно
+# категории (срок всё равно назван).
+_CAL_SEARCH_DAYS = 400   # одноразовый Month+Day — не дальше года вперёд
+
+
+def _cal_day_matches(entry: dict, d) -> bool:
+    month = entry.get("Month")
+    if month is not None and int(month) != d.month:
+        return False
+    day, wd = entry.get("Day"), entry.get("Weekday")
+    if day is None and wd is None:
+        return True
+    hits = []
+    if day is not None:
+        hits.append(int(day) == d.day)
+    if wd is not None:
+        # launchd: 0 и 7 — воскресенье; Python: понедельник = 0.
+        hits.append((int(wd) % 7 - 1) % 7 == d.weekday())
+    # Как в crontab(5): заданы оба — достаточно любого.
+    return any(hits)
+
+
+def next_calendar_run(plist: Optional[dict], after: datetime,
+                      tz=None) -> Optional[datetime]:
+    """Ближайшее срабатывание ``StartCalendarInterval`` СТРОГО после ``after`` (UTC).
+
+    Пропущенный ключ — «любое значение» (семантика launchd). ``tz`` — часовой пояс
+    календаря; ``None`` = местное время хоста. Не разобрали ⇒ ``None``.
+    """
+    from datetime import timedelta
+    cal = plist.get("StartCalendarInterval") if isinstance(plist, dict) else None
+    entries = [cal] if isinstance(cal, dict) else (
+        [e for e in cal if isinstance(e, dict)] if isinstance(cal, list) else [])
+    if not entries or after is None:
+        return None
+    local_after = after.astimezone(tz) if tz is not None else after.astimezone()
+    best: Optional[datetime] = None
+    try:
+        for entry in entries:
+            hours = [int(entry["Hour"])] if entry.get("Hour") is not None else range(24)
+            minutes = ([int(entry["Minute"])] if entry.get("Minute") is not None
+                       else range(60))
+            found = None
+            for off in range(_CAL_SEARCH_DAYS):
+                d = (local_after + timedelta(days=off)).date()
+                if not _cal_day_matches(entry, d):
+                    continue
+                for h in hours:
+                    for m in minutes:
+                        naive = datetime(d.year, d.month, d.day, h, m)
+                        cand = (naive.replace(tzinfo=tz) if tz is not None
+                                else naive.astimezone())
+                        cand = cand.astimezone(timezone.utc)
+                        if cand > after:
+                            found = cand
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            if found is not None and (best is None or found < best):
+                best = found
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return best
+
+
+def first_run_due(plist: Optional[dict], boot_time: Optional[datetime],
+                  threshold_min: float, tz=None) -> Optional[datetime]:
+    """Срок (UTC), к которому агент обязан показать работу после загрузки.
+
+    ``boot_time=None`` ⇒ ``None``: загрузка не измерена, срока «после
+    перезагрузки» нет (и поблажки нет — путь прежний, fail-CLOSED).
+    """
+    from datetime import timedelta
+    if boot_time is None:
+        return None
+    if isinstance(plist, dict) and not (
+            isinstance(plist.get("StartInterval"), int) and plist["StartInterval"] > 0):
+        nxt = next_calendar_run(plist, boot_time, tz)
+        if nxt is not None:
+            return nxt + timedelta(minutes=BOOT_GRACE_MIN)
+    return boot_time + timedelta(minutes=first_run_window_min(plist, threshold_min))
+
+
+def _iso_z(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace(
+        "+00:00", "Z")
+
+
 # ===========================================================================
 # Отказ замка дневного цикла: защита сработала — или трек не пишется?
 # ===========================================================================
@@ -1021,7 +1126,8 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 data_dir: Optional[Path] = None,
                 disabled: bool = False,
                 boot_time: Optional[datetime] = None,
-                receipts: Optional[Dict[str, Tuple[str, str]]] = None) -> AgentHealth:
+                receipts: Optional[Dict[str, Tuple[str, str]]] = None,
+                calendar_tz=None) -> AgentHealth:
     """Classify the health of a single agent. Fail-safe.
 
     ``boot_time`` — момент загрузки хоста (вход, а не окружение). ``None`` = НЕ
@@ -1175,6 +1281,12 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         )
         if since_boot is not None and since_boot < 0:
             since_boot = None  # загрузка «в будущем» — часы врут, поблажки нет
+        due = first_run_due(plist, boot_time, threshold, calendar_tz) \
+            if since_boot is not None else None
+        if due is not None:
+            # Окно = от загрузки до срока ИЗ РАСПИСАНИЯ (календарь — ближайшее
+            # срабатывание после загрузки, а не бюджет категории).
+            window = max((due - boot_time).total_seconds() / 60.0, 0.0)
         receipt = read_success_receipt(label, data_dir, now, receipts)
         # Свидетельств работы ПОСЛЕ загрузки нет: лога нет вовсе, или свежайший
         # из логов старше самой загрузки (domigration logs/<x>.log, 26.06) и при
@@ -1186,6 +1298,9 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         if receipt.state == RECEIPT_MEASURED:
             _judge_by_receipt(health, issues, receipt, age, threshold, window,
                               since_boot)
+            if health.evidence == EVIDENCE_AWAITING_FIRST_RUN and due is not None:
+                health.due_by = _iso_z(due)
+                health.note += f"; срок первого запуска {health.due_by}"
         elif receipt.state == RECEIPT_UNREADABLE:
             # Квитанция объявлена, а прочитать нельзя: о работе агента мы НЕ
             # ЗНАЕМ. Не OK (это было бы угадывание) и не CRITICAL по умолчанию
@@ -1197,19 +1312,26 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             # no log configured — can't assess freshness, leave as-is
             pass
         elif _no_evidence_since_boot:
+            if due is not None:
+                health.due_by = _iso_z(due)
             if since_boot <= window:
                 # Первый плановый срок после загрузки ещё не наступил: ничего не
-                # просрочено. Говорим вслух, проблемой не считаем.
+                # просрочено. Говорим вслух, проблемой не считаем — но со СРОКОМ.
                 health.evidence = EVIDENCE_AWAITING_FIRST_RUN
                 health.note = (
                     f"ждёт первого планового запуска после перезагрузки: загрузка "
                     f"{_fmt_age(since_boot)} назад, окно {_fmt_age(window)}"
+                    + (f"; срок {health.due_by}" if health.due_by else "")
                 )
             else:
-                # Окно после загрузки прошло, а свидетельства работы нет —
-                # настоящий пропуск планового запуска.
+                # Срок после загрузки прошёл, а свидетельства работы нет —
+                # настоящий пропуск планового запуска; срок назван в строке.
+                # (Начало строки стабильно — по нему `problem_store` строит код
+                # причины; дата идёт после 40-го знака.)
                 issues.append(
-                    f"no run since reboot {_fmt_age(since_boot)} (>{_fmt_age(window)})")
+                    f"no run since reboot {_fmt_age(since_boot)} (>{_fmt_age(window)})"
+                    + (f" — missed first scheduled run due by {health.due_by}"
+                       if health.due_by else ""))
                 health.status = _worst(
                     health.status, CRITICAL if since_boot > 2 * window else WARNING)
         elif age is None:

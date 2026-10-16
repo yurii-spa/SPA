@@ -4865,7 +4865,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 for c in (gap.get("hidden") or []))
             out.append(f"   ⚠️ очередь дерева НЕПОЛНА: {gap['count']} вопрос(ов) владельцу "
                        f"есть на {gap.get('ref')} ({str(gap.get('ref_sha'))[:9]}) и до "
-                       f"владельца из этого дерева НЕ доходят — {names}")
+                       # «в редакции origin»: карточка `differs` из дерева ДОХОДИТ, но со
+                       # старым текстом — «НЕ доходят» без оговорки было про неё ложью (16.10)
+                       f"владельца из этого дерева НЕ доходят в редакции origin — {names}")
         else:
             out.append(f"   очередь полна: живые вопросы владельца достижимы из дерева "
                        f"({gap.get('ref')} {str(gap.get('ref_sha'))[:9]})")

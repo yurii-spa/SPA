@@ -29,6 +29,9 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from spa_core.utils.atomic import atomic_save
+# Словарь состояний книги — у ПРОИЗВОДИТЕЛЯ, а не своей копией (16.10: копия из четырёх слов
+# отстала от ADR-206 и красила законный NOTHING_TO_PROTECT как «unknown guardian states»).
+from spa_core.strategy_lab.swarm.guardian_forward import GUARDIAN_BOOK_STATES
 
 __all__ = ["run_swarm_health", "ORGANS"]
 
@@ -93,7 +96,7 @@ def _contract_check(organ: str, doc: dict) -> tuple[bool, str]:
         if not isinstance(books, dict) or not books:
             return False, "no books in guardian output"
         bad = [n for n, b in books.items()
-               if b.get("state") not in ("ARMED", "DERISKED", "WARMUP", "NO_FORWARD")]
+               if b.get("state") not in GUARDIAN_BOOK_STATES]
         return (not bad), (f"unknown guardian states: {bad}" if bad else
                            f"{len(books)} books, states valid")
     if organ == "blend_forward":

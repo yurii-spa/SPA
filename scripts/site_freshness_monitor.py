@@ -190,6 +190,13 @@ SITE_NUMBER_SOURCES = {
         ("track", "tr-gates-pass", r'id="tr-gates-pass"[^>]*>\s*([\d,]+)',
          "/track-record отдаёт ЗАГЛУШКУ `—` и заполняет её клиентом (setText) — объявлена, "
          "чтобы «заглушка» и «id отсутствует» были РАЗНЫМИ исходами, а не общим молчанием"),
+        # 16.10 (ARB, тревога после перезагрузки 15.10): после публикации PRODUCT-UX-01
+        # (одобрена владельцем 07.10) ни главная, ни /track-record пару гейтов в серверном
+        # HTML больше не несут — все три источника выше дают `id_absent`, и сверка стояла
+        # «НЕ ИЗМЕРЕНА» девять дней. Серверный рендер пары остался на /status/
+        # (`st-gates-pass` ← `snapshot_view.js` ← ВИТРИНА, тот же операнд, что `shelf_gates`).
+        ("status", "st-gates-pass", r'id="st-gates-pass"[^>]*>\s*([\d,]+)',
+         "/status/: серверный рендер {goLiveChecks} из витрины (snapshot_view.js)"),
     ),
     "paper_apy_pct": (
         ("home", "m-apy", r'id="m-apy"[^>]*>\s*~?([\d.]+)%',
@@ -331,8 +338,14 @@ def parse_site_numbers(html, page=None):
     for label in SITE_NUMBER_SOURCES:
         hits, _ = locate_site_number(label, pages)
         out[label] = hits[0][2] if hits else None
+    # Главная после PRODUCT-UX-01 (07.10, одобрено владельцем) печатает дату замера
+    # витрины словами «measured YYYY-MM-DD» (`profile_view.js` → `measuredAt()`), а не
+    # «as of» — это ТА ЖЕ дата `measured_at`, с которой сверка ниже её и сравнивает.
+    # Без этого варианта сторож девять дней писал «home page has no as-of label» на
+    # странице, где метка есть (16.10, ARB).
     m = (re.search(r'as of (\d{4}-\d{2}-\d{2})', html)
-         or re.search(r'static snapshot as of (\d{4}-\d{2}-\d{2})', html))
+         or re.search(r'static snapshot as of (\d{4}-\d{2}-\d{2})', html)
+         or re.search(r'\bmeasured (\d{4}-\d{2}-\d{2})', html, re.IGNORECASE))
     out["as_of"] = m.group(1) if m else None
     return out
 
@@ -419,7 +432,7 @@ def api_headline(golive, facts, equity_chain):
 def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier_sha, pin_sha,
              now, prev_report=None, site_numbers=None, shelf_fetch_leg=None,
              local_site_numbers=None, published_snapshot=None, published_snapshot_leg=None,
-             published_shelf=None, published_shelf_leg=None):
+             published_shelf=None, published_shelf_leg=None, status_html=None):
     """Pure Site-Custodian evaluation. Returns the report dict. No I/O.
 
     ``site_numbers`` — ВИТРИНА (`landing/src/data/site_numbers.json`), И С ADR-580 (C12,
@@ -496,7 +509,10 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     # главная молча подбирала id страницы /track-record (заказ G86 п. 1).
     site_home = parse_site_numbers(home_html, page="home")
     site_track = parse_site_numbers(track_html, page="track")
-    site_pages = {"home": home_html, "track": track_html}
+    # /status/ — единственная страница, отдающая пару гейтов в серверном HTML после
+    # PRODUCT-UX-01 (см. `SITE_NUMBER_SOURCES["gates_passed"]`). Не передана ⇒ её источник
+    # честно `page_not_fetched`, а не «равно».
+    site_pages = {"home": home_html, "track": track_html, "status": status_html}
     apih = api or {}
 
     # 1. snapshot freshness
@@ -565,10 +581,20 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         trail = ", ".join(f"{pg}#{el}:{leg}" for pg, el, leg in probes) or "источников не объявлено"
         if not hits:
             number_legs[label] = f"unmeasured:site:{trail}"
+            fetched = [leg for _pg, _el, leg in probes if leg != SOURCE_LEG_PAGE_ABSENT]
+            if fetched and all(leg == SOURCE_LEG_ID_ABSENT for leg in fetched):
+                # Ни на одной полученной странице такого элемента НЕТ вовсе: это не
+                # «страница дорисовывает клиентом» (тогда id был бы, с заглушкой), а
+                # реестр источников, отставший от живой разметки. Слова обязаны
+                # называть ЭТО — иначе чинить пошли бы сайт, а не реестр (16.10).
+                why = ("ни на одной полученной странице объявленного элемента нет — реестр "
+                       "SITE_NUMBER_SOURCES отстал от живой разметки")
+            else:
+                why = ("ненайденное в серверном HTML число посетитель может видеть — "
+                       "страница дорисовывает его клиентом")
             fail("COMPARISON_NOT_MEASURED",
                  f"сверка «{label}» НЕ ИЗМЕРЕНА: ни один объявленный источник не дал числа "
-                 f"({trail}). Это третий исход, а не согласие: ненайденное в серверном HTML "
-                 f"число посетитель может видеть — страница дорисовывает его клиентом")
+                 f"({trail}). Это третий исход, а не согласие: {why}")
             return
         if shelf_v is None:
             number_legs[label] = f"unmeasured:shelf_has_no_value|site:{seen}"
@@ -1851,6 +1877,7 @@ def run():
 
     _, home_html = _get(SITE + "/")
     _, track_html = _get(SITE + "/track-record/")
+    _, status_html = _get(SITE + "/status/")
     api = api_headline(
         _get_json(API + "/api/v1/golive"),
         _get_json(API + "/api/ssot/facts") or _get_json(API + "/api/live/portfolio"),
@@ -1875,7 +1902,8 @@ def run():
                       now=now, prev_report=prev, site_numbers=site_numbers,
                       shelf_fetch_leg=shelf_fetch_leg, local_site_numbers=local_site_numbers,
                       published_snapshot=published_snapshot, published_snapshot_leg=published_snapshot_leg,
-                      published_shelf=published_shelf, published_shelf_leg=published_shelf_leg)
+                      published_shelf=published_shelf, published_shelf_leg=published_shelf_leg,
+                      status_html=status_html)
     # C12 (ADR-580): PUBLISHER_STUCK — edge-triggered, БЕЗУСЛОВНО (и когда стоит, и
     # когда отпустило) — ``resolve()`` сам решает, слать ли «✅ RESOLVED», опрашивая
     # СВОЙ durable state; молчаливый no-op на «уже было ok» здесь норма, не брешь.

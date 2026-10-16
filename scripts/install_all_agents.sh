@@ -290,8 +290,14 @@ install_agent \
     "com.spa.digest_daily" \
     "1"
 
-# 17c. (RETIRED 2026-07-15, owner-decided own-21) com.spa.digest_weekly — было в RETIRED_LABELS,
-#      но всё ещё устанавливалось/грузилось. Выгружен + plist убран. НЕ переустанавливать.
+# 17c. com.spa.digest_weekly — THE one weekly digest (Sun 10:00 local).
+# ВОССТАНОВЛЕН 2026-10-16 (ARB): решение владельца 2026-08-08 («четыре — ставить», own-31,
+#      коммит 07f15532b) отменило вывод own-21 от 15.07; агент загружен с 08.08, манифест
+#      intent=active. Строка «RETIRED — НЕ переустанавливать» осталась от 15.07 и спорила с решением.
+install_agent \
+    "$REPO/scripts/com.spa.digest_weekly.plist" \
+    "com.spa.digest_weekly" \
+    "1"
 
 # 18. Dashboard static server — :8767 (moved off :8766 to avoid familyfund conflict)
 install_agent \
@@ -306,8 +312,14 @@ install_agent \
     "com.spa.mass_tournament" \
     "1"
 
-# 20. (RETIRED 2026-07-15, owner-decided own-21) com.spa.tier1_digest — было в RETIRED_LABELS,
-#      но всё ещё устанавливалось/грузилось. Выгружен + plist убран. НЕ переустанавливать.
+# 20. com.spa.tier1_digest — weekly Tier-1 validation digest (Sun 09:30 local).
+# ВОССТАНОВЛЕН 2026-10-16 (ARB): решение владельца 2026-08-08 («четыре — ставить», own-31,
+#      коммит 07f15532b) отменило вывод own-21 от 15.07; агент загружен с 08.08, манифест
+#      intent=active. Строка «RETIRED — НЕ переустанавливать» осталась от 15.07 и спорила с решением.
+install_agent \
+    "$REPO/scripts/com.spa.tier1_digest.plist" \
+    "com.spa.tier1_digest" \
+    "1"
 
 # 21. Tier-1 governance — daily 07:15 UTC, refreshes SSOT/policy/readiness/DR report JSONs
 install_agent \
@@ -567,10 +579,16 @@ install_agent \
 #     "com.spa.checkpoint-7day" \
 #     "1"
 
-# 40. Weekly backup — RETIRED (Q3-1): coarse whole-tree tar to a LOCAL folder, same-host (SPOF) and
-#     redundant with com.spa.daily_backup (DB snapshot + dr_offsite_copy offsite) + source already in git.
-#     Stood persistently WARNING ("log missing") = alert-fatigue with ~0 DR value. No longer installed
-#     (also in RETIRED_LABELS so agent_health skips it). Owner: bootout the lingering plist on prod.
+# 40. Weekly backup — whole-tree tar to ~/Documents/SPA_Backups (Sat 10:00 local).
+# ВОССТАНОВЛЕН 2026-10-16 (ARB): решение владельца 2026-08-08 («четыре — ставить», own-31,
+#      коммит 07f15532b) отменило вывод own-21 от 15.07; агент загружен с 08.08, манифест
+#      intent=active. Строка «RETIRED — НЕ переустанавливать» осталась от 15.07 и спорила с решением.
+#     ARB 15.10 п. 5: НЕ выгружать, пока не доказано, что ежедневный резерв покрывает то, что везёт
+#     только он (append-only ledgers — spa_core/tests/test_dr_ledger_coverage.py, REVIEW_1 #12).
+install_agent \
+    "$REPO/scripts/com.spa.weekly_backup.plist" \
+    "com.spa.weekly_backup" \
+    "1"
 
 # 41. Daily data/*.json backup (pre-cycle snapshot, 30-day retention)
 install_agent \

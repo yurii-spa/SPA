@@ -32,6 +32,21 @@ def _stale_line(ah: Dict) -> str:
     return "⚠️ snapshot STALE{} — fleet state UNKNOWN".format(age_txt)
 
 
+def _awaiting_words(due_by, lang: str) -> str:
+    """«ждёт первого запуска, срок …» — срок по-мадридски; срока нет ⇒ так и сказано."""
+    when = None
+    if due_by:
+        try:
+            from spa_core.utils.presentation import fmt_owner_time
+            when = fmt_owner_time(due_by, "ru" if lang == "ru" else "en", unknown=None)
+        except Exception:  # noqa: BLE001 — подпись времени не повод уронить экран
+            when = str(due_by)
+    if lang == "ru":
+        return "ждёт первого запуска после перезагрузки, срок {}".format(
+            when or "не назван")
+    return "awaiting first run after reboot, due by {}".format(when or "not stated")
+
+
 def render_menu(arg: str = "", lang: str = "en", page: int = 0,
                 prefs: Dict = None) -> Tuple[str, Dict]:
     ah = _read_agent_health()
@@ -80,6 +95,11 @@ def render_agents(arg: str = "", lang: str = "en", page: int = 0,
         mark = "✅" if a.get("status") == "OK" else "⛔"
         label = str(a.get("label", "?")).replace("com.spa.", "")
         issue = (" — " + a.get("issue", "")) if a.get("status") != "OK" and a.get("issue") else ""
+        if (a.get("status") == "OK" and a.get("evidence") == "awaiting_first_run"):
+            # Ожидание первого запуска после перезагрузки — не «✅ работает», а
+            # ожидание СО СРОКОМ (ARB 16.10): после срока строка станет проблемой.
+            mark = "⏳"
+            issue = " — " + _awaiting_words(a.get("due_by"), lang)
         body.append(" {} {}{}".format(mark, label, issue))
     pgpath = "health.agents"
     extra: List[List[Dict]] = [menus.pager_row(pgpath, page, total_pages, lang)]
