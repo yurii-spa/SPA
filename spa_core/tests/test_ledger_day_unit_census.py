@@ -309,6 +309,20 @@ class RefusalsKeepTheirOwnCause(unittest.TestCase):
         for name, why in sweepers.items():
             self.assertTrue(why.strip(), f"{name} без названной причины отказа")
 
+    def test_the_census_is_on_the_neighbours_never_call_list_too(self):
+        """Иначе отказ соседа стои́т на ФОРМЕ ПОДПИСИ и снимается любой её правкой.
+
+        `run_identity_key_price` зовёт всё население читателей ленты, и эта
+        перепись в его населении есть. До ADR-766 его отказ был случайным:
+        `measure(data_dir, tree_root, …)` требует второй позиционный аргумент,
+        которого привод не передаёт, и зов падал `TypeError`. Перепись внутри
+        переписи — не «не измерено», а рекурсия по населению.
+        """
+        from spa_core.monitoring import run_identity_key_price as g16
+        self.assertIn("spa_core.monitoring.ledger_day_unit_census", g16._NEVER_CALL)
+        self.assertTrue(
+            g16._NEVER_CALL["spa_core.monitoring.ledger_day_unit_census"].strip())
+
     def test_the_money_path_entry_is_refused_with_its_own_reason(self):
         row = cen.classify_reader("spa_core.paper_trading.cycle_runner",
                                   self.stands, sweepers={}, now=self.now)
