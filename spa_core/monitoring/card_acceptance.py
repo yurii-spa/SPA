@@ -4423,6 +4423,127 @@ def _probe_shadow_brief_names_the_unweighed_hold(
         f"названной причиной, серия сверена в ДНЯХ полем `unchanged_days`; {shape}")
 
 
+#: Предел возраста артефакта переписи `ledger_day_unit_census`. Такт переписи —
+#: 8 суток (`MEASUREMENT_TACT_DAYS`), и предел равен ему ровно затем, чтобы
+#: «внутри такта» и «протухло» не наложились друг на друга: порог ниже такта
+#: краснил бы пробу от расписания, а не от предмета; порог выше такта зачитывал
+#: бы замер, пропустивший собственный срок. Предел нужен потому, что население
+#: читателей и их код меняются каждый цикл, а старая перепись говорит о дереве,
+#: которого уже нет.
+_LEDGER_DAY_UNIT_MAX_AGE_H = 192.0
+
+
+def _probe_ledger_day_unit_census_names_the_unit(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None, data_dir: str | None = None,
+        report: dict | None = None) -> tuple[str, str]:
+    """Критерий: ни один читатель ленты не считает ЗАПИСИ под словом «день».
+
+    Предмет — карточка `inbox-perepis-chitatelei-lent-verdiktov-kto-sc`
+    (заказ G765 п. 3 приказа «Portfolio CIO»). Замер 16.10: лента рукава несёт
+    **16.16** записи на день (727 / 45; за 15.10 — 24), лента Conservative —
+    1.92. Цикл #881 починил ОДНОГО читателя, выдачу владельцу, и даже у неё
+    серия осталась записью: на тех же днях с той же решающей строкой дня
+    `unchanged_days` даёт **37** при одном прогоне в дне и **14** при двадцати
+    четырёх.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет `len(` в исходнике — она
+    читает перепись (:mod:`spa_core.monitoring.ledger_day_unit_census`), которая
+    зовёт КАЖДОГО читателя на двух стендах, различающихся РОВНО плотностью
+    записей при тождественном составе дней и побайтно той же последней строке
+    дня. Находка — координата ответа, чьё ИМЯ говорит «день» и чьё ЗНАЧЕНИЕ
+    сдвинулось от одной лишь плотности; подстрокой в прозе проба не проходит
+    (ADR-333).
+
+    **Население пересчитывается ЗАНОВО, у живого дерева.** Записанный замер
+    отвечает о том населении, какое было на его момент; читатель, добавленный
+    после, в записи отсутствует, и зачесть его «наверное, чистым» значило бы
+    сделать пробу fail-OPEN ровно там, где она нужна. Член живого населения без
+    строки в отчёте — `unmeasured` с ИМЕНЕМ.
+
+    Три исхода разведены:
+
+    * `satisfied` — у каждого члена населения есть исход, и ни одна координата
+      с именем дня не движется от плотности;
+    * `not_satisfied` — есть НАЗВАННЫЙ читатель, считающий записи под словом
+      «день» (это находка; гасить её сужением имени координаты запрещено);
+    * `unmeasured` — артефакта нет / он старше предела / население расширилось
+      после замера / перепись не измерила. «Не измерено» не выдаётся ни за
+      находку, ни за разрешение закрыть карточку (инв. #17).
+
+    Часы, корень дерева, каталог данных и сам отчёт — ВХОДЫ, не окружение:
+    иначе красную сторону проверки закрепить нечем.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — ВСЁ население читателей ленты, пофайловой "
+                            "формы у него нет намеренно")
+    try:
+        from spa_core.monitoring import ledger_day_unit_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    root = repo_root or REPO_ROOT
+    if report is None:
+        path = os.path.join(data_dir or os.path.join(root, "data"), census.ARTIFACT)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                report = json.load(fh)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"артефакта переписи нет или он не прочитан "
+                                f"({census.ARTIFACT}): {type(exc).__name__}: {exc} — "
+                                f"единица у читателей НЕ наблюдена")
+    if not isinstance(report, dict) or not report.get("measured"):
+        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+        return UNMEASURED, f"перепись не измерила: {reason}"
+
+    stamp = report.get("generated_at")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return UNMEASURED, (f"у отчёта переписи нет читаемой отметки времени "
+                            f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age > _LEDGER_DAY_UNIT_MAX_AGE_H:
+        return UNMEASURED, (f"перепись старше предела: {age:.1f}ч при пределе "
+                            f"{_LEDGER_DAY_UNIT_MAX_AGE_H:.0f}ч — читатели и их код "
+                            f"менялись, а запись говорит о дереве, которого уже нет")
+
+    try:
+        roads, _stats = census.reader_population(_pathlib.Path(root))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"население живого дерева не разобрано: "
+                            f"{type(exc).__name__}: {exc}")
+    graded = {str(r.get("module")) for r in (report.get("readers") or [])}
+    missing = sorted(set(roads) - graded)
+    if missing:
+        return UNMEASURED, (f"у {len(missing)} читател(я/ей) живого дерева исхода в "
+                            f"переписи НЕТ: " + ", ".join(missing[:4])
+                            + " — зачесть их чистыми значило бы судить по слепоте")
+
+    findings = list(report.get("findings") or [])
+    tally = report.get("tally") or {}
+    shape = ("читателей {} · {} · плотность стенда {}"
+             .format(len(graded),
+                     " ".join(f"{k}={v}" for k, v in sorted(tally.items())),
+                     report.get("factor")))
+    if findings:
+        return NOT_SATISFIED, (
+            "записи считаются под словом «день» у {} читател(я/ей): ".format(len(findings))
+            + "; ".join("{} :: {}".format(f.get("module"),
+                                          ", ".join(f.get("coords") or []))
+                        for f in findings[:4])
+            + f" · {shape}")
+    reading = report.get("needs_reading") or []
+    tail = ("" if not reading else
+            f"; чувствительны к плотности, но единицу не назвали {len(reading)} "
+            f"(перечень к чтению, не находка)")
+    return SATISFIED, ("ни одна координата с именем дня не движется от плотности "
+                       f"записей; {shape}{tail}")
+
+
 #: Предел возраста записи прогона для пробы `no_regression_tests_pass`.
 #: Восемь суток — тот же такт, что у соседних недельных приборов. Предел нужен
 #: потому, что население может НЕ измениться, а код под ним — измениться: тогда
@@ -9575,6 +9696,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_visibility_numbers_delivered,
     "shadow_brief_names_the_unweighed_hold":
         _probe_shadow_brief_names_the_unweighed_hold,
+    "ledger_day_unit_census_names_the_unit":
+        _probe_ledger_day_unit_census_names_the_unit,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

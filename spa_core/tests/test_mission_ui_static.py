@@ -5,6 +5,13 @@ the v1 areas/nav were replaced wholesale by the new IA, so the tests that pinned
 ("overview"/"system") and the old header labels were rewritten rather than left to assert a page
 that no longer exists; every assertion that proved a still-true security property was kept as is).
 
+# FROZEN-DATE-OK: исторический инцидент — «2026-10-15, owner's first real iPhone try» стои́т
+# ТОЛЬКО в прозе докстринга класса TestVoiceRecorderNeverPostsAnEmptyRecording и называет день
+# аварии, ради которой тест написан. Ни одно утверждение файла этой датой не пользуется: все
+# проверки статические (чтение app.js / index.html / i18n.js), понятия свежести в файле нет
+# вовсе, поэтому ни сдвиг календаря, ни длительность прогона вердикт изменить не могут. Приём
+# №3 `.claude/rules/deployment.md`: дата является предметом, и решение записано, а не умолчано.
+
 Stdlib-only. Verifies the no-build web app under spa_core/studio_os/mission_ui/ against the
 CSP and security rules fixed by the architecture gate:
   - index.html is a shell only (no inline <script>/<style> content, no on*= handlers).

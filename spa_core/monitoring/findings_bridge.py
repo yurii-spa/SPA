@@ -204,6 +204,14 @@ PRODUCES = (
     # ленты и строится одна выдача, цена зова — доли секунды, поэтому SLO 12ч
     # как у соседа без такта.
     "data/vacuous_advice_census.json",
+    # Заказ G765 п. 3 (ADR-766). Перепись ЕДИНИЦЫ у читателей ленты вердиктов:
+    # кто считает ЗАПИСИ под словом «день». Лента рукава несёт 16.16 записи на
+    # день, поэтому такой прибор завышает в ~16 раз и завышает МОЛЧА. Ступень
+    # ДОРОГАЯ (каждый читатель населения зовётся трижды, `data/` копируется
+    # дважды), поэтому у неё ТАКТ: срок решает ФАЙЛ
+    # (`ledger_day_unit_census.run` -> `measurement_due`), SLO 192ч — как у
+    # соседних недельных приборов.
+    "data/ledger_day_unit_census.json",
     # Заказ G92 п. 2 (ADR-543) — перепись тестов, зелёных ПО ПОСТРОЕНИЮ.
     # Ступень ДОРОГАЯ (сотни прогонов pytest), поэтому у неё ТАКТ: срок решает
     # ФАЙЛ (`green_by_construction_census.run` -> `measurement_due`), SLO 192ч,
@@ -500,6 +508,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "rule_second_copy_census",
     "vacuous_guard_census",
     "vacuous_advice_census",
+    "ledger_day_unit_census",
     "green_by_construction_census",
     "acceptance_tree_capability",
     "s49_tally_tact",
@@ -772,6 +781,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "vacuous_advice_census": {
         "module": "spa_core/monitoring/vacuous_advice_census.py",
         "artifact": "data/vacuous_advice_census.json"},
+    "ledger_day_unit_census": {
+        "module": "spa_core/monitoring/ledger_day_unit_census.py",
+        "artifact": "data/ledger_day_unit_census.json"},
     "green_by_construction_census": {
         "module": "spa_core/monitoring/green_by_construction_census.py",
         "artifact": "data/green_by_construction_census.json"},
@@ -2797,6 +2809,31 @@ def main(argv=None) -> int:
                   f"{_vad['doc'].get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "vacuous_advice_census", e)
+    # Перепись ЕДИНИЦЫ у читателей ленты вердиктов (G765 п. 3, ADR-766): кто
+    # считает ЗАПИСИ под словом «день». Лента рукава пишется ≈16 раз за цикл, и
+    # такой читатель завышает в ~16 раз МОЛЧА — число выглядит обычным. Ступень
+    # ДОРОГАЯ (каждый читатель населения зовётся трижды на двух стендах,
+    # `data/` копируется дважды), поэтому у неё ТАКТ, и срок решает ФАЙЛ, а не
+    # расписание бегуна. «Внутри такта» и «измерено» — РАЗНЫЕ исходы: в первой
+    # ветке не печатается ни вердикта, ни нуля.
+    try:
+        from spa_core.monitoring import ledger_day_unit_census as _ldu
+        _ldu_res = _ldu.run(root=args.root, if_due=True)
+        if _ldu_res.get("measured"):
+            _ldoc = _ldu_res["doc"]
+            _lf = len(_ldoc.get("findings") or [])
+            _lpop = observed_number(_ldoc, "population")
+            print(f"ledger_day_unit_census: {_ldoc.get('status')} — читателей "
+                  f"{'НЕ ИЗМЕРЕНО' if _lpop is None else int(_lpop)}, считают "
+                  f"записи под словом «день» {_lf}; плотность стенда "
+                  f"{_ldoc.get('factor')}")
+            for _lrow in (_ldoc.get("findings") or [])[:4]:
+                print(f"   🔴 {_lrow.get('module')} :: "
+                      f"{', '.join(_lrow.get('coords') or [])}")
+        else:
+            print(f"ledger_day_unit_census: внутри такта — {_ldu_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ledger_day_unit_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

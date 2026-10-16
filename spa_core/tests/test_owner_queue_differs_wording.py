@@ -10,7 +10,11 @@ ARB 16.10 (карточка `inbox-arb-razobrat-trevogu-telegram-posle-pere`, п
 Положительный контроль: на origin 8f913113 тест `differs` красный (старая строка). Обратный:
 вопрос, которого в дереве нет вовсе, по-прежнему «НЕ доходят … не знают ВООБЩЕ».
 
-# FROZEN-DATE-OK: injected-clock — NOW_1330 передаётся в check_pending_owner_decisions(now=).
+Часы — ВХОД (приём №1 `.claude/rules/deployment.md`): `NOW_1330` передаётся в
+`check_pending_owner_decisions(now=)`. Пометки `FROZEN-DATE-OK` здесь НЕТ намеренно: сам якорь
+объявлен в `test_owner_decision_pending` и ВВОЗИТСЯ, то есть литеральной даты в этом файле нет
+ни одной — освобождать нечего, а пометка утверждала бы обратное и была бы НЕПРАВДОЙ
+(сторож `test_injected_clock_claim` сверяет претензию с кодом ФАЙЛА, а не с намерением автора).
 """
 from __future__ import annotations
 

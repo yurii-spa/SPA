@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-15T19:56:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-16T15:21:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (efc68b179).
+> Сверено с `origin/main` (2e5efe91c) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1337** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1352** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -47,7 +47,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (358)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (360)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
@@ -242,6 +242,7 @@
 - Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента  ·  `owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr.md` · 2026-09-01
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
 - Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку  ·  `owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti.md` · 2026-09-09
+- Опубликовать волну 2 сайта: доходность за период 22.06–15.10.2026 (+1,51 %), 17 исправленных утверждений  ·  `owner-decision-opublikovat-volnu-2-saita-dohodnost-za-p.md` · 2026-10-15
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ  ·  `owner-decision-otkat-vetki-1249-kommitov-2026-08-29.md` · 2026-08-29
@@ -338,6 +339,8 @@
 - Уточнение по заметке: Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `owner-decision-utochnenie-po-zametke-hrapovik-zamorozhe.md` · 2026-10-03
 - Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve-2.md` · 2026-10-03
 - Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve.md` · 2026-09-17
+- Уточнение по заметке: Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `owner-decision-utochnenie-po-zametke-pribory-brosayut-o.md` · 2026-10-15
+- Уточнение по заметке: проверь дашборд  ·  `owner-decision-utochnenie-po-zametke-prover-dashbord.md` · 2026-10-15
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - Утренние сообщения в Telegram: главное + подробности  ·  `owner-decision-utrennie-soobscheniya-v-telegram-glavnoe.md` · 2026-09-08
 - В шаблоне договора осталось снятое ограничение по Sky/sUSDS  ·  `owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra.md` · 2026-08-25
@@ -409,12 +412,10 @@
 - Уточнение по заметке: Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `owner-decision-utochnenie-po-zametke-tier-c-pyat-nastoy.md` · 2026-08-11
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
-### · owner-done
-- Опубликовать волну 2 сайта: доходность за период 22.06–15.10.2026 (+1,51 %), 17 исправленных утверждений  ·  `owner-decision-opublikovat-volnu-2-saita-dohodnost-za-p.md` · 2026-10-15
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (737)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (750)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -427,6 +428,7 @@
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
 - Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список  ·  `inbox-otchet-vladeltsu-protocols-pokazyvaet-2.md` · 2026-10-12
+- Перепись читателей лент вердиктов: кто считает ЗАПИСИ под словом «день» (заказ G765 п. 3)  ·  `inbox-perepis-chitatelei-lent-verdiktov-kto-sc.md` · 2026-10-16
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -772,6 +774,7 @@
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
 - Текст инварианта 10 (Sky/sUSDS = 0 %) живёт как действующий ещё в docs/  ·  `inbox-tekst-invarianta-10-sky-susds-0-zhivet-k.md` · 2026-08-23
+- Тень советника по перекладке в книгах Balanced и Aggressive не рассуждает ни о чём: 710 записей из 711 без ног  ·  `inbox-ten-sovetnika-po-perekladke-v-knigah-bal.md` · 2026-10-15
 - test_agent_template_code_sync краснеет ТОЛЬКО в CI — причина не измерена  ·  `inbox-test-agent-template-code-sync-krasneet-t.md` · 2026-08-10
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Тест манифеста флота красный на Маке: конституция объявляет такт 300с, plist даёт 86400с — и conformance при этом ЗЕЛЁНЫЙ  ·  `inbox-test-manifesta-flota-krasnyi-na-make-kon.md` · 2026-08-21
@@ -938,6 +941,7 @@
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
 - Храповик инварианта #17 красен на чистом origin: новый член в reachability_of_the_rest.py:664  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom-2.md` · 2026-10-05
 - Храповик инварианта №17 КРАСЕН на main: три новых члена класса or_falsy  ·  `inbox-hrapovik-invarianta-17-krasen-na-main-tr.md` · 2026-10-07
+- Храповик краткости STATE.md зелен, а файл стал в 2,7 раза больше архива, который заменили ради краткости  ·  `inbox-hrapovik-kratkosti-state-md-zelen-a-fail.md` · 2026-10-15
 - Храповик литеральных дат КРАСЕН на origin/main: два файла вошли в класс, база расти не может  ·  `inbox-hrapovik-literalnyh-dat-krasen-na-origin.md` · 2026-09-07
 - Храповик литеральных дат КРАСНЫЙ на main: test_act_day_recovery.py вошёл в закрытый класс (замер #602)  ·  `inbox-hrapovik-literalnyh-dat-krasnyi-na-main.md` · 2026-09-14
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
@@ -966,10 +970,16 @@
 - Модуль #39: третьей рукой обязана быть ПРИЧИННАЯ статика, иначе через 30 дней форвард снова не отличит тайминг от недовеса  ·  `inbox-modul-39-tretei-rukoi-obyazana-byt-prich.md` · 2026-08-09
 - Модуль bot_commands заменён, но жив: свой getUpdates-поллер и свои двери в чат  ·  `inbox-modul-bot-commands-zamenen-no-zhiv-svoi.md` · 2026-08-13
 - morpho_blue и morpho_steakhouse разрешаются в ОДИН пул — концентрация, которой cap не видит  ·  `inbox-morpho-blue-i-morpho-steakhouse-razresha.md` · 2026-08-09
+- Мост 41 сутки печатает «нужен человек» на карточке, у которой на origin копия богаче и уже терминальна  ·  `inbox-most-41-sutki-pechataet-nuzhen-chelovek.md` · 2026-10-15
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: data/act_day_recovery.json: возраст 8.3ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-act-day-recovery-json.md` · 2026-10-14
+- Находка петли: data/adapter_repair_price.json: возраст 9.0ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-adapter-repair-price-2.md` · 2026-10-16
+- Находка петли: data/apy_composition.json: возраст 8.9ч > SLO 7ч (класс agent_registry  ·  `inbox-nahodka-petli-data-apy-composition-json-2.md` · 2026-10-16
+- Находка петли: data/arming_wall_order.json: возраст 9.0ч > SLO 7ч (класс agent_regist  ·  `inbox-nahodka-petli-data-arming-wall-order-jso-2.md` · 2026-10-16
+- Находка петли: data/asset_registry_gap_price.json: возраст 9.0ч > SLO 7ч (класс agent  ·  `inbox-nahodka-petli-data-asset-registry-gap-pr-2.md` · 2026-10-16
+- Находка петли: data/audit_trail_rate_input_coverage.json: возраст 9.0ч > SLO 7ч (клас  ·  `inbox-nahodka-petli-data-audit-trail-rate-inpu-2.md` · 2026-10-16
 - Находка петли: data/capital_observability_history.json: возраст 8.3ч > SLO 7ч (класс  ·  `inbox-nahodka-petli-data-capital-observability.md` · 2026-10-14
 - Находка петли: data/capital_shadow/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-capital-shadow-latest.md` · 2026-10-04
 - Находка петли: data/criterion_population_floor.json: возраст 8.3ч > SLO 7ч (класс age  ·  `inbox-nahodka-petli-data-criterion-population.md` · 2026-10-14
@@ -985,6 +995,7 @@
 - Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявитель пишет безымянный захват и не отказывает — профилактика стоит на одной двери из двух  ·  `inbox-obyavitel-pishet-bezymyannyi-zahvat-i-ne.md` · 2026-10-08
+- Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
 - Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
 - Объявленный артефакт читается ВХОЛОСТУЮ: artifact_stamp_clock_doors.json числится прочитанным и не разбирается  ·  `inbox-obyavlennyi-artefakt-chitaetsya-vholostu.md` · 2026-10-07
@@ -1031,8 +1042,10 @@
 - Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `inbox-podgotovit-adr-peresmotr-limita-odnoi-ts.md` · 2026-08-08
 - Подключить оси риска ADR-008: проверка написана, но её никто не вызывает (решение владельца — ADR-173)  ·  `inbox-podklyuchit-osi-riska-adr-008-proverka-n.md` · 2026-08-30
 - Подмена реестра может исчезнуть молча внутри теста — квитанция нужна поимённая, а не общая  ·  `inbox-podmena-reestra-mozhet-ischeznut-molcha.md` · 2026-10-03
+- Полносуитный гейт main восемь суток не выносит вердикта вообще: 100 прогонов SPA CI подряд — все cancelled  ·  `inbox-polnosuitnyi-geit-main-vosem-sutok-ne-vy.md` · 2026-10-16
 - Положительный контроль зелен при любом отказе прибора — он не отличает свою аварию от чужой  ·  `inbox-polozhitelnyi-kontrol-zelen-pri-lyubom-o.md` · 2026-10-02
 - Пометить аварийную подстановку в книге и убрать числа отвергнутой аллокации (решение владельца, вариант 1)  ·  `inbox-pometit-avariinuyu-podstanovku-v-knige-i.md` · 2026-09-08
+- Пометка injected-clock без якоря времени: храповик красен на чистом origin/main  ·  `inbox-pometka-injected-clock-bez-yakorya-vreme.md` · 2026-10-16
 - Порог свежести дневного цикла у монитора доступности спорит с его тактом — сторож красен 22 часа из 24 по построению  ·  `inbox-porog-svezhesti-dnevnogo-tsikla-u-monito.md` · 2026-10-08
 - Порог выборки hit_rate считает ПРОГОНЫ, а сосед — ДНИ: после ADR-395 оси разошлись  ·  `inbox-porog-vyborki-hit-rate-schitaet-progony.md` · 2026-09-15
 - Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов  ·  `inbox-poshagovaya-instruktsiya-v-kartochke-uez.md` · 2026-08-26
@@ -1077,6 +1090,7 @@
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31
 - Шаг 0-офис идёт 5 минут при пределе 180 с — два его теста красны на main постоянно  ·  `inbox-shag-0-ofis-idet-5-minut-pri-predele-180.md` · 2026-10-09
 - Шаг 0-офис: три артефакта несут не те поля, что объявлены — «СХЕМА РАЗОШЛАСЬ» без карточки  ·  `inbox-shag-0-ofis-tri-artefakta-nesut-ne-te-po.md` · 2026-10-11
+- Шаг 0a мерит дерево ЗАПУСКАТЕЛЯ, а не работника: недоставленную работу он назвал вердиктом «поднимать нечего»  ·  `inbox-shag-0a-merit-derevo-zapuskatelya-a-ne-r.md` · 2026-10-16
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шесть карточек заперты пустым claimed_at — «измерено и пусто» неотличимо от «не измерено»  ·  `inbox-shest-kartochek-zaperty-pustym-claimed-a.md` · 2026-10-08
