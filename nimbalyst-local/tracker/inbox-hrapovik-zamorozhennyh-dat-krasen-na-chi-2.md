@@ -43,3 +43,33 @@ test_no_new_file_joins_the_frozen_date_class
 
 `SPA_ENV=ci python3 -m pytest spa_core/tests/test_frozen_date_ratchet.py spa_core/tests/test_injected_clock_claim.py -q`
 зелёный БЕЗ дописывания в базу.
+
+---
+
+## ЗАМЕР цикла #878 (2026-10-16): в класс вошёл ВТОРОЙ файл, и карточек на класс уже ТРИ
+
+Замерено на чистой вершине (зеркало `origin/main` `f3931465f`, ни одной своей правки):
+
+```
+SPA_ENV=ci PYTHONHASHSEED=0 python3 -m pytest spa_core/tests/test_frozen_date_ratchet.py -q
+→ 1 failed, 22 passed
+E  New test file(s) pin a literal date next to a freshness concept:
+E      test_mission_ui_static.py
+```
+
+Файл принесён **не этим классом работ**: `spa_core/tests/test_mission_ui_static.py` появился
+коммитом `2df987cec` (15.10 22:11, «Director OS release, ADR-762»). То есть красный держится
+на origin с вечера 15.10 и к `test_record_survival_census.py` из шапки этой карточки не
+относится — это ВТОРОЙ житель класса одновременно.
+
+**Главное здесь не файл, а счёт карточек.** На один храповик открыто **три** карточки в
+статусе `new`, каждая про свой файл: `inbox-hrapovik-literalnyh-dat-krasen-na-origin`
+(`test_cio_failure_modes`, `test_decision_reproducibility`), эта
+(`test_record_survival_census`) и `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv` (пометка
+`FROZEN-DATE-OK` вне комментария). Четвёртую по новому файлу я НЕ завёл намеренно: это была
+бы ровно та очередь из однотипных карточек, которой храповик глохнет. Вред уже не в
+литеральной дате — вред в том, что **красный стал постоянным, и поэтому его перестают читать**
+(тот же механизм, что у ⛔-строки моста, висевшей 41 сутки).
+
+Цикл #878 этот красный НЕ гасил и не трогал (инв. #16); в своём предписанном прогоне назвал
+его чужим и предсуществующим, измерив дифференциально на вершине без своих правок.

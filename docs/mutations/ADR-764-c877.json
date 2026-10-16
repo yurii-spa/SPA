@@ -1,0 +1,50 @@
+{
+  "title": "ADR-764 — дельта цикла #877 (достижимость взвода меряется ПОКРЫТИЕМ дней, а не 100%-полосой одного гейта)",
+  "tests": [
+    "spa_core/tests/test_shadow_arming_blockade.py"
+  ],
+  "mutations": [
+    {
+      "name": "вернуть снятую меру: вердикт снова решает 100%-полоса одного гейта (регрессия 15.10 — молчание на 115 днях)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    elif act_able:",
+      "new": "    elif not necessary:\n        verdict = BLOCKADE_NO_SINGLE\n        reason = \"мутация\"\n    elif act_able:"
+    },
+    {
+      "name": "покрытие НЕ ПРОВЕРЯЕТСЯ по дням: act_able всегда пусто ⇒ UNREACHABLE на любой истории (fail-OPEN разделителя)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    act_able = [row[\"date\"] for row in material\n                if not any(not ok for g, ok in row[\"state\"].items()\n                           if g != \"has_legs\" and g in census)]",
+      "new": "    act_able = []"
+    },
+    {
+      "name": "названный набор НЕ покрывает: покрытие всегда пусто (мера есть, не мерит)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    cover, cover_exact = blockade_cover(material, sorted(census))",
+      "new": "    cover, cover_exact = [], True"
+    },
+    {
+      "name": "минимальность объявлена без доказательства: жадный набор выдаётся за минимальный",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    for k in range(1, min(_COVER_EXACT_MAX_K, len(gates)) + 1):",
+      "new": "    for k in range(1, 0):"
+    },
+    {
+      "name": "покрытие берёт ПЕРВЫЙ подходящий набор, а не наименьший (минимальность теряется молча)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "            if covers(combo):\n                return sorted(combo), True",
+      "new": "            if True:\n                return sorted(combo), True"
+    },
+    {
+      "name": "проводка в шаг 0-офис снята: покрытие не доходит до читателя",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    cover = blockade.get(\"blockade_cover\")\n    if cover:",
+      "new": "    cover = blockade.get(\"blockade_cover\")\n    if False:"
+    },
+    {
+      "name": "день без отказов читается как объяснённый: третий исход подменён тихой уверенностью",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        verdict = BLOCKADE_UNMEASURED\n        reason = (f\"{len(act_able)} из {n} существенных дн. не несут НИ ОДНОГО \"",
+      "new": "        verdict = BLOCKADE_UNREACHABLE\n        reason = (f\"{len(act_able)} из {n} существенных дн. не несут НИ ОДНОГО \""
+    }
+  ]
+}

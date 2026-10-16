@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Уточнение по заметке: проверь дашборд"
-status: owner-done
+status: ingested
 source: intake
 created: 2026-10-15
 owner_choice: nack
@@ -12,6 +12,7 @@ owner_answered_by: 258651137
 owner_answer_kind: ack
 status_trail:
   - "2026-10-15T22:05:05.194898+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-16T03:22:22.877169+00:00 owner-done -> ingested · queue.set_status · cycle-13307"
 ---
 
 ## Что случилось и почему это важно

@@ -29,6 +29,7 @@ Fail-open at the cycle boundary: the cycle hook wraps this in try/except.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 from datetime import datetime, timezone
@@ -373,10 +374,21 @@ _NON_GATE_REASON_PREFIXES = ("reversal_of_recent_move",)
 _ALL_GATES = frozenset(GATE_BY_REASON_PREFIX.values())
 
 BLOCKADE_UNREACHABLE = "UNREACHABLE_UNTIL_CHANGED"
+# СНЯТ С УПОТРЕБЛЕНИЯ (цикл #877). Этот вердикт выдавался, когда ни один гейт
+# не держал 100 % дней, и звучал как «ничего конкретного, набор переменный» —
+# тогда как измеренная правда не менялась: ACT не был возможен ни на одном дне.
+# Имя оставлено следом (на него ссылается ADR-228) и закреплено храповиком
+# `test_retired_verdict_is_never_produced`: вернуть его = вернуть тихий ответ
+# на громкий вопрос. Полный разбор — ADR настоящего цикла.
 BLOCKADE_NO_SINGLE = "NO_SINGLE_BLOCKER"
 BLOCKADE_ACCUMULATING = "ACCUMULATING"
 BLOCKADE_NOT_BLOCKED = "NOT_BLOCKED"
 BLOCKADE_UNMEASURED = "UNMEASURED"
+
+# Глубина точного перебора минимального покрытия. Гейтов девять, поэтому до
+# трёх проверяется исчерпывающе (≈130 сочетаний); живой замер 15.10 закрылся
+# ДВУМЯ гейтами, то есть запас есть.
+_COVER_EXACT_MAX_K = 3
 
 
 def gate_state(rec: dict) -> Tuple[Optional[Dict[str, bool]], str]:
@@ -402,6 +414,58 @@ def gate_state(rec: dict) -> Tuple[Optional[Dict[str, bool]], str]:
                     state[gate] = False
         return state, "reasons"
     return None, "unmeasured"
+
+
+def blockade_cover(material: List[dict], census_gates: List[str]) -> Tuple[List[str], bool]:
+    """Наименьший НАБОР гейтов, чьи отказы покрывают КАЖДЫЙ существенный день.
+
+    Это и есть мера, которую ADR-228 назвал покрытием. Его код считал другое —
+    полосу «отказал на 100 % дней» у ОДНОГО гейта, — и разница между этими двумя
+    величинами проявилась ровно тогда, когда доказательств стало больше: на
+    замере 2026-09-05 (17 существенных дней) `week_turnover_ok` держал 17/17 и
+    был назван; на замере 2026-10-15 (115 дней) лучший гейт стои́т на 93 %, ни
+    один не держит 100 %, и прибор не назвал НИ ОДНОГО блокиратора при той же —
+    даже более полной — тишине: ACT не случился ни разу из 115.
+
+    Полоса 100 % убывает монотонно: каждый новый день может только разорвать её
+    и никогда не создать. То есть мера, написанная ради громкого вердикта,
+    глохла по мере накопления того самого доказательства, ради которого копилось
+    окно. Покрытие так не ведёт себя: оно о дне, а не о гейте, и его полнота —
+    это ровно «ни на одном дне ACT не был возможен».
+
+    Точный минимум ищется перебором до ``_COVER_EXACT_MAX_K`` гейтов (на девяти
+    гейтах это дёшево), дальше — жадно, и это объявляется флагом: приблизительное
+    покрытие, выданное за минимальное, было бы той же подменой в миниатюре.
+    """
+    days = [row["state"] for row in material]
+    if not days:
+        return [], True
+
+    def covers(combo: Tuple[str, ...]) -> bool:
+        return all(any(not st.get(g, True) for g in combo) for st in days)
+
+    gates = [g for g in census_gates
+             if any(not st.get(g, True) for st in days)]
+    for k in range(1, min(_COVER_EXACT_MAX_K, len(gates)) + 1):
+        for combo in itertools.combinations(gates, k):
+            if covers(combo):
+                return sorted(combo), True
+
+    remaining = list(range(len(days)))
+    greedy: List[str] = []
+    while remaining:
+        best, best_hit = None, 0
+        for g in gates:
+            if g in greedy:
+                continue
+            hit = sum(1 for i in remaining if not days[i].get(g, True))
+            if hit > best_hit:
+                best, best_hit = g, hit
+        if best is None:
+            break                      # остаток дней не покрыт ничем
+        greedy.append(best)
+        remaining = [i for i in remaining if days[i].get(best, True)]
+    return sorted(greedy), False
 
 
 def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
@@ -468,6 +532,14 @@ def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
 
     n = len(material)
     necessary = [g for g, c in census.items() if n and c["refused_days"] == n]
+    # День БЕЗ ни одного отказа — это день, на котором `evaluate` сказал бы ACT
+    # (ACT требует ровно «все гейты true»). Поэтому «покрытие полно» и «ни на
+    # одном дне ACT не был возможен» — одна и та же величина, и именно она
+    # отвечает на вопрос «изменит ли что-нибудь ожидание».
+    act_able = [row["date"] for row in material
+                if not any(not ok for g, ok in row["state"].items()
+                           if g != "has_legs" and g in census)]
+    cover, cover_exact = blockade_cover(material, sorted(census))
 
     if acts_scored > 0:
         verdict = BLOCKADE_NOT_BLOCKED
@@ -486,22 +558,39 @@ def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
         verdict = BLOCKADE_UNMEASURED
         reason = ("окно полно, но существенных предложений в нём НЕ БЫЛО ни одного: "
                   "гейты не отказывали — им нечего было отказывать")
-    elif necessary:
-        verdict = BLOCKADE_UNREACHABLE
-        reason = (f"окно полно ({observed_days}/{min_days} дн.), ACT не было ни разу, "
-                  f"и гейт(ы) {', '.join(necessary)} отказал(и) на {n} из {n} "
-                  "существенных дней (100 %) — ожидание не изменит этого никогда, "
-                  "нужен ответ владельца")
+    elif act_able:
+        # Третий исход, а не «блокада переменная»: на этих днях перепись отказов
+        # НЕ объясняет тишину. Либо ACT был возможен и не оценён, либо состояние
+        # гейтов у строки неполно (вывод из причин лосси по построению — строка
+        # вроде `reversal_of_recent_move` гейта не называет). Сказать по ним
+        # «блокирует переменный набор» значило бы выдать неизмеренное за ответ.
+        verdict = BLOCKADE_UNMEASURED
+        reason = (f"{len(act_able)} из {n} существенных дн. не несут НИ ОДНОГО "
+                  f"отказа гейта (на таком дне ACT был бы возможен), а оценённого "
+                  f"ACT нет: тишина этих дней НЕ объяснена переписью — "
+                  f"{', '.join(act_able[:5])}")
     else:
-        verdict = BLOCKADE_NO_SINGLE
-        reason = (f"окно полно, ACT не было, но ни один гейт не отказал на всех "
-                  f"{n} существенных днях — блокирует переменный набор")
+        # Покрытие ПОЛНО: каждый существенный день отказан хотя бы одним гейтом,
+        # то есть ACT не был возможен ни на одном. Ожидание этого не изменит —
+        # и это верно независимо от того, держит ли КАКОЙ-ТО один гейт 100 %.
+        verdict = BLOCKADE_UNREACHABLE
+        named = (f"гейт(ы) {', '.join(necessary)} отказал(и) на всех {n} днях (100 %)"
+                 if necessary else
+                 f"ни один гейт не отказал на всех {n} днях, но набор "
+                 f"{{{', '.join(cover)}}} покрывает их "
+                 f"{'все' if cover_exact else 'все (покрытие жадное, не минимальное)'}")
+        reason = (f"окно полно ({observed_days}/{min_days} дн.), ACT не было ни разу, "
+                  f"и ни на одном из {n} существенных дней он не был ВОЗМОЖЕН: "
+                  f"{named} — ожидание не изменит этого никогда, нужен ответ владельца")
 
     return {
         "verdict": verdict,
         "reason": reason,
         "material_days": n,
         "necessary_blockers": necessary,
+        "blockade_cover": cover,
+        "cover_is_minimal": cover_exact,
+        "act_able_days": act_able,
         "gate_census": [
             {"gate": g,
              "refused_days": c["refused_days"],
@@ -747,11 +836,26 @@ def format_blockade(blockade: Optional[dict]) -> List[str]:
     for row in (blockade.get("gate_census") or []):
         if not row.get("refused_days"):
             continue
-        flag = " ← НЕОБХОДИМЫЙ" if row.get("necessary_blocker") else ""
+        in_cover = row["gate"] in (blockade.get("blockade_cover") or [])
+        flag = (" ← НЕОБХОДИМЫЙ" if row.get("necessary_blocker")
+                else " ← В ПОКРЫТИИ" if in_cover else "")
         out.append(
             f"  отказ {row['gate']}: {row['refused_days']} дн. "
             f"({row['refused_pct']} % существенных), единственной причиной "
             f"{row['sole_blocker_days']} дн.{flag}")
+    cover = blockade.get("blockade_cover")
+    if cover:
+        exact = blockade.get("cover_is_minimal")
+        out.append(
+            f"  покрытие тишины: {{{', '.join(cover)}}} — "
+            f"{'минимальный набор' if exact else 'жадный набор (минимальность НЕ доказана)'}, "
+            f"его отказы объясняют КАЖДЫЙ из {blockade.get('material_days')} "
+            "существенных дней")
+    act_able = blockade.get("act_able_days")
+    if act_able:
+        out.append(
+            f"  ⚠️ НЕ ОБЪЯСНЕНО дней: {len(act_able)} — отказа гейта на них нет "
+            f"вовсе, а ACT не оценён ({', '.join(act_able[:5])})")
     src_counts = blockade.get("gate_state_source") or {}
     if src_counts.get("reasons"):
         agree = blockade.get("reason_deriver_agreement") or {}
