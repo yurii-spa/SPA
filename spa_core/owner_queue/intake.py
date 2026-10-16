@@ -89,6 +89,43 @@ def _declared_kind(card) -> str | None:
     return _DECLARED_ROUTE.get(str(fields.get("intake_kind") or ""))
 
 
+#: Собственная отметка приёма в теле задачи (её вписывает ветка «task» ниже) и поле frontmatter,
+#: которым приём отмечает уже принятую задачу. Замер 16.10 (ARB): задача остаётся `new` (ADR-375),
+#: поэтому КАЖДЫЙ запуск приёма брал её заново — два прогона после перезагрузки 15.10 (23:37 и
+#: 01:40 CEST) переработали одни и те же 28 карточек, отправили по 44–45 уведомлений и повторно
+#: дописали владельцу вопрос «то же самое или новое?». Принятая задача приёмом больше не трогается.
+_INTAKE_CRITERION_STAMP = "## Как понять, что готово\nЗадача выполнена и проверена (детали — обычный цикл).\n"
+_INTAKE_SEEN_FIELD = "intake_seen"
+
+
+def _already_accepted(card) -> bool:
+    fields = getattr(card, "fields", None) or {}
+    if str(fields.get(_INTAKE_SEEN_FIELD) or "").strip():
+        return True
+    try:
+        text = card.path.read_text(encoding="utf-8")
+    except (OSError, AttributeError):
+        return False
+    return _INTAKE_CRITERION_STAMP in text
+
+
+def _stamp_seen(path, at: datetime) -> None:
+    """Вписать ``intake_seen: <UTC>`` во frontmatter (тело и прочие поля не меняются)."""
+    from spa_core.utils.atomic import atomic_save_text
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    marks = [i for i, ln in enumerate(lines) if ln.strip() == "---"][:2]
+    if len(marks) < 2 or marks[0] != 0:
+        return
+    stamp = f"{_INTAKE_SEEN_FIELD}: {at.strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+    for i in range(1, marks[1]):
+        if lines[i].startswith(_INTAKE_SEEN_FIELD + ":"):
+            lines[i] = stamp
+            break
+    else:
+        lines.insert(marks[1], stamp)
+    atomic_save_text("".join(lines), str(path))
+
+
 def run_note_intake(now: datetime | None = None) -> dict:
     """Разобрать новые inbox-заметки/карточки.
 
@@ -133,6 +170,8 @@ def run_note_intake(now: datetime | None = None) -> dict:
         log.warning("intake ingest_notes failed: %s", exc)
 
     for card in list_cards(tracker_type="inbox", status="new"):
+        if _already_accepted(card):
+            continue                     # приём её уже принял: не переспрашивать и не слать повторно
         body = (card.body or card.title).strip()
         if "срочно" in body.lower():
             urgent = True
@@ -163,10 +202,15 @@ def run_note_intake(now: datetime | None = None) -> dict:
 
         # PARTIAL (§1a): карточку СОЗДАТЬ, но пометить «похоже на …, проверь» — и в
         # ТЕЛЕ карточки (её увидит полный цикл), и в Telegram-ответе владельцу.
+        # ARB 16.10, решение №4: вопрос «это то же самое или новое?» владельцу НЕ задаётся —
+        # сверку по истории, живому трекеру и origin делает агент, который возьмёт карточку.
+        # Подсказка остаётся сведением (в теле карточки и в ответе), а не вопросом.
         partial_body = (f"\n\n> ⚠️ Проверка истории: похоже на уже существующее — {partial_note}\n"
-                        f"> Проверь: это то же самое или новое?\n" if partial_note else "")
-        partial_tg = (f"\n⚠️ Похоже на уже существующее — проверь: {html.escape(partial_note)}"
-                      if partial_note else "")
+                        f"> Сверку «то же самое или новое» делает агент, который возьмёт карточку "
+                        f"(история, трекер, origin); владельцу этот вопрос не задаётся.\n"
+                        if partial_note else "")
+        partial_tg = (f"\nℹ️ Похоже на уже существующее — агент сверит сам, отвечать не нужно: "
+                      f"{html.escape(partial_note)}" if partial_note else "")
 
         # ADR-760: запись из пульта уже несёт пометку владельца (идея/задача) — её не
         # переспрашиваем у классификатора: владелец сам сказал, что это. «Замечание» и всё
@@ -225,11 +269,13 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 # вписать критерий (полную декомпозицию делает обычный цикл), статус in-progress
                 append = ""
                 if "Как понять, что готово" not in body:
-                    append += "\n\n## Как понять, что готово\nЗадача выполнена и проверена (детали — обычный цикл).\n"
-                append += partial_body  # PARTIAL-пометку увидит полный цикл в теле карточки
+                    append += "\n\n" + _INTAKE_CRITERION_STAMP
+                current = card.path.read_text(encoding="utf-8")
+                if "Проверка истории:" not in current:
+                    append += partial_body  # PARTIAL-пометку увидит полный цикл в теле карточки
                 if append:
-                    txt = card.path.read_text(encoding="utf-8").rstrip() + append
-                    atomic_save_text(txt, str(card.path))
+                    atomic_save_text(current.rstrip() + append, str(card.path))
+                _stamp_seen(card.path, dt)
                 # ИЗМЕНЕНО 14.09 (ADR-375): приём БОЛЬШЕ НЕ БЕРЁТ задачу в работу.
                 #
                 # Здесь стояло `set_status(card.path, "in-progress")`. С правилом машинной

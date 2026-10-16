@@ -365,3 +365,46 @@ def test_unclear_card_records_the_source_text_readably(tmp_path, monkeypatch):
     hit = exact_prior_ask(text, tracker_dir=tmp_path / "tracker")
     assert hit is not None and hit["status"] == "done", (
         "повтор дословного текста обязан находиться по записи, сделанной интейком")
+
+
+# ── ARB 16.10: an accepted task is not re-processed every run; no «same or new?» question to the owner ──
+# Measured: two intake runs after the 2026-10-15 reboot re-processed the same 28 `new` cards and sent
+# 44–45 notices each, re-appending «Проверь: это то же самое или новое?» to the ARB card.
+
+def test_second_run_does_not_reprocess_an_accepted_task(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Починить сторожа", body="Починить сторожа", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task",
+                  verdict="PARTIAL", resp_h=_PARTIAL_RESP)
+    first = I.run_note_intake()
+    body1 = path.read_text(encoding="utf-8")
+    assert Q.load_card(path).status == "new" and "intake_seen:" in body1
+    n1 = len(notes)
+    # the next run sees the card again (still `new`) — exactly the live situation
+    monkeypatch.setattr(Q, "list_cards", lambda **k: [Q.load_card(path)])
+    second = I.run_note_intake()
+    assert Q.load_card(path).id in first["processed"] and second["processed"] == []
+    assert len(notes) == n1, "no repeated «Создал задачу» notice"
+    assert path.read_text(encoding="utf-8") == body1, "nothing appended twice"
+
+
+def test_task_accepted_before_the_fix_is_recognised_by_the_intake_stamp(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Старая задача",
+                         body="Старая задача\n\n## Как понять, что готово\nЗадача выполнена и проверена (детали — обычный цикл).\n",
+                         status="new", tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    res = I.run_note_intake()
+    assert res["processed"] == [] and notes == []
+
+
+def test_partial_hint_is_information_not_a_question_to_the_owner(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Похожая задача", body="Похожая задача", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task",
+                  verdict="PARTIAL", resp_h="Пересекается с пакетом ADR-763.")
+    I.run_note_intake()
+    body = path.read_text(encoding="utf-8")
+    assert "Проверь: это то же самое или новое?" not in body
+    assert "владельцу этот вопрос не задаётся" in body
+    assert all("проверь:" not in n.lower() for n in notes)
+    assert any("отвечать не нужно" in n for n in notes)

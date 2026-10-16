@@ -329,6 +329,12 @@ class AgentHealth:
     # не должно попадать в список проблем — иначе мы вернёмся ровно к тому, от
     # чего уходим. Пусто ⇒ говорить нечего.
     note: str = ""
+    # ЧЕМ доказан вердикт свежести (ARB 15.10, перезагрузка 21:17:57Z). Пусто —
+    # прежний путь (лог / PID / код выхода). Иначе одно из ``EVIDENCE_*``:
+    # квитанция успешного выполнения, «ждёт первого планового запуска после
+    # перезагрузки» или «не проверено» — три разных факта, и читатель обязан
+    # видеть, какой из них стоит за OK/WARNING, а не угадывать по тексту.
+    evidence: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -342,6 +348,7 @@ class AgentHealth:
             "loaded": self.loaded,
             "issue": self.issue,
             "note": self.note,
+            "evidence": self.evidence or None,
         }
 
 
@@ -767,6 +774,134 @@ def _hours_since(ts: Optional[str], now: datetime) -> Optional[float]:
 
 
 # ===========================================================================
+# Доказательство работы после перезагрузки (ARB, тревога 15.10 21:21:20Z)
+# ===========================================================================
+# Замер, ради которого блок написан. Mac перезагрузился 15.10 в 21:17:57Z; через
+# 3 мин 22 с пульс насчитал 30 «проблем» и отправил владельцу «Агенты: критическая
+# проблема». Разбор: ни одна из 27 агентских строк не была сбоем. macOS чистит
+# /tmp при загрузке, и вместе с /tmp/spa_<x>.log исчезло ЕДИНСТВЕННОЕ, чем пульс
+# доказывал работу. Дальше два разных ложных вывода:
+#   * «log missing (never ran?)» — у 20 агентов, чей первый плановый срок после
+#     загрузки ещё не наступил (hourly — через час, утренние — утром);
+#   * «log stale 110.9d» — у hy_cycle/lp_cycle/mass_tournament/tier1_governance/
+#     tournament_engine: `candidate_log_paths` честно взял ДОМИГРАЦИОННЫЙ
+#     logs/<x>.log (mtime 26.06), хотя hy_paper_trading.last_cycle_at стоял
+#     21:10:55Z, а mass_tournament_results.generated_at — 04:30Z того же дня.
+# Лог — косвенный признак, и перезагрузка стирает его по построению. Поэтому:
+#   1. Если у агента объявлена КВИТАНЦИЯ успешного выполнения (поле времени,
+#      которое агент пишет только по завершении работы, в data/ — переживает
+#      перезагрузку), вердикт выносит она, а не лог. Свежий лог или живой PID
+#      успехом не считаются: процесс, который давно работает без результата,
+#      помечается именно так.
+#   2. Если с момента загрузки не прошло первое ожидаемое окно агента, а
+#      свидетельств после загрузки нет — это «ждёт первого планового запуска»,
+#      не сбой. Окно прошло — пропуск настоящий и краснит, как раньше.
+#   3. Квитанция объявлена, но не читается / из будущего — «НЕ ПРОВЕРЕНО»
+#      (инв. #17): не OK и не CRITICAL по умолчанию.
+#   4. Время загрузки не измерено (сцена без него, sysctl недоступен) — путь
+#      прежний, байт в байт: fail-CLOSED, без поблажки за перезагрузку.
+EVIDENCE_RECEIPT = "receipt"
+EVIDENCE_AWAITING_FIRST_RUN = "awaiting_first_run"
+EVIDENCE_NOT_VERIFIED = "not_verified"
+
+#: Запас на первый запуск после загрузки сверх интервала агента (launchd грузит
+#: агентов не мгновенно, а обёртка ещё синхронизирует код перед стартом).
+BOOT_GRACE_MIN = 15.0
+
+#: Квитанции успешного выполнения: метка → (файл в data/, ключ ISO-времени).
+#: ОБЪЯВЛЕНИЕ, а не вывод из кода — каждая строка сверена с писателем:
+#:   hy/lp_cycle — `state["last_cycle_at"]` пишется только в конце завершённого
+#:     цикла (spa_core/paper_trading/hy_cycle.py, lp_cycle.py);
+#:   mass_tournament — `generated_at` результатов турнира (run_backtest_tier1.sh);
+#:   tier1_governance — `generated_at` политики (spa_core.governance.policy);
+#:   tournament_engine — `updated_at` состояния движка турниров.
+#: Агента без строки здесь судят по-прежнему: лог + окно после загрузки.
+SUCCESS_RECEIPTS: Dict[str, Tuple[str, str]] = {
+    "com.spa.hy_cycle": ("hy_paper_trading.json", "last_cycle_at"),
+    "com.spa.lp_cycle": ("lp_paper_trading.json", "last_cycle_at"),
+    "com.spa.mass_tournament": ("mass_tournament_results.json", "generated_at"),
+    "com.spa.tier1_governance": ("governance_policy.json", "generated_at"),
+    "com.spa.tournament_engine": ("tournament_engine_state.json", "updated_at"),
+}
+
+RECEIPT_NONE = "none"              # квитанция не объявлена (или дерево не названо)
+RECEIPT_MEASURED = "measured"
+RECEIPT_UNREADABLE = "unreadable"  # объявлена, но прочитать нельзя — НЕ ПРОВЕРЕНО
+
+
+class ReceiptReading(NamedTuple):
+    state: str
+    age_min: Optional[float]   # ЗНАКОВЫЙ возраст в минутах (будущее < 0)
+    source: str                # «файл:ключ» — чтобы вердикт называл, чем доказан
+    reason: str = ""
+
+
+def read_success_receipt(label: str, data_dir: Optional[Path],
+                         now: datetime,
+                         receipts: Optional[Dict[str, Tuple[str, str]]] = None,
+                         ) -> ReceiptReading:
+    """Возраст последнего УСПЕШНОГО выполнения по объявленной квитанции.
+
+    ``data_dir=None`` ⇒ ``RECEIPT_NONE``: подставлять хостовый data/ нельзя —
+    спрошенная про сцену проверка отвечала бы про рабочий Mac (цикл #173).
+    """
+    spec = (SUCCESS_RECEIPTS if receipts is None else receipts).get(label)
+    if spec is None or data_dir is None:
+        return ReceiptReading(RECEIPT_NONE, None, "")
+    fname, key = spec
+    source = f"{fname}:{key}"
+    try:
+        with open(Path(data_dir) / fname, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return ReceiptReading(RECEIPT_UNREADABLE, None, source,
+                              f"{fname} не прочитан: {type(exc).__name__}")
+    ts = observed(doc, key, kind=str) if isinstance(doc, dict) else None
+    dt = _parse_iso(ts)
+    if dt is None:
+        return ReceiptReading(RECEIPT_UNREADABLE, None, source,
+                              f"в {fname} нет читаемого {key}")
+    return ReceiptReading(RECEIPT_MEASURED, (now - dt).total_seconds() / 60.0, source)
+
+
+def parse_boottime(text: Optional[str]) -> Optional[datetime]:
+    """``sysctl -n kern.boottime`` → момент загрузки (UTC). Не разобрали ⇒ None."""
+    if not text:
+        return None
+    m = re.search(r"sec\s*=\s*(\d+)", text)
+    if not m:
+        return None
+    try:
+        return datetime.fromtimestamp(int(m.group(1)), tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _measure_boot_time() -> Optional[datetime]:
+    """Время загрузки хоста. Недоступно ⇒ None = НЕ ИЗМЕРЕНО (поблажки нет)."""
+    try:
+        out = subprocess.run(["sysctl", "-n", "kern.boottime"], capture_output=True,
+                             text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return parse_boottime(out.stdout) if out.returncode == 0 else None
+
+
+def first_run_window_min(plist: Optional[dict], threshold_min: float) -> float:
+    """Сколько минут после загрузки агент вправе не иметь свидетельства работы.
+
+    Окно = бюджет свежести категории (он уже покрывает плановый интервал), но не
+    меньше собственного ``StartInterval`` + запас: агент с интервалом в двое суток
+    первый раз запустится через двое суток, и бюджет в 26 ч обвинил бы его зря.
+    """
+    window = float(threshold_min)
+    si = plist.get("StartInterval") if isinstance(plist, dict) else None
+    if isinstance(si, int) and si > 0:
+        window = max(window, si / 60.0 + BOOT_GRACE_MIN)
+    return window
+
+
+# ===========================================================================
 # Отказ замка дневного цикла: защита сработала — или трек не пишется?
 # ===========================================================================
 # Состояния вердикта. Три, а не два: «не измерено» — самостоятельный исход, и
@@ -884,8 +1019,15 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 launchctl: Dict[str, dict], now: datetime,
                 project_root: Path = _PROJECT_ROOT,
                 data_dir: Optional[Path] = None,
-                disabled: bool = False) -> AgentHealth:
+                disabled: bool = False,
+                boot_time: Optional[datetime] = None,
+                receipts: Optional[Dict[str, Tuple[str, str]]] = None) -> AgentHealth:
     """Classify the health of a single agent. Fail-safe.
+
+    ``boot_time`` — момент загрузки хоста (вход, а не окружение). ``None`` = НЕ
+    ИЗМЕРЕНО ⇒ поблажки «ждёт первого запуска после перезагрузки» нет, и путь
+    свежести прежний (fail-CLOSED). См. блок «Доказательство работы после
+    перезагрузки».
 
     ``data_dir`` нужен ровно для ОДНОГО вопроса — отказа замка дневного цикла
     (см. ``judge_lock_refusal``). Не передан ⇒ вопрос считается НЕ ИЗМЕРЕННЫМ, и
@@ -1027,9 +1169,49 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             if cat == CAT_WEEKLY
             else _FRESHNESS_THRESHOLD_MIN[cat]
         )
-        if not logps:
+        window = first_run_window_min(plist, threshold)
+        since_boot = (
+            (now - boot_time).total_seconds() / 60.0 if boot_time is not None else None
+        )
+        if since_boot is not None and since_boot < 0:
+            since_boot = None  # загрузка «в будущем» — часы врут, поблажки нет
+        receipt = read_success_receipt(label, data_dir, now, receipts)
+        # Свидетельств работы ПОСЛЕ загрузки нет: лога нет вовсе, или свежайший
+        # из логов старше самой загрузки (domigration logs/<x>.log, 26.06) и при
+        # этом не укладывается в бюджет.
+        _no_evidence_since_boot = (
+            since_boot is not None
+            and (age is None or (age > since_boot and age > threshold))
+        )
+        if receipt.state == RECEIPT_MEASURED:
+            _judge_by_receipt(health, issues, receipt, age, threshold, window,
+                              since_boot)
+        elif receipt.state == RECEIPT_UNREADABLE:
+            # Квитанция объявлена, а прочитать нельзя: о работе агента мы НЕ
+            # ЗНАЕМ. Не OK (это было бы угадывание) и не CRITICAL по умолчанию
+            # (это была бы тревога из-за собственного незнания) — инв. #17.
+            health.evidence = EVIDENCE_NOT_VERIFIED
+            issues.append(f"success receipt unreadable ({receipt.reason}) — NOT VERIFIED")
+            health.status = _worst(health.status, WARNING)
+        elif not logps:
             # no log configured — can't assess freshness, leave as-is
             pass
+        elif _no_evidence_since_boot:
+            if since_boot <= window:
+                # Первый плановый срок после загрузки ещё не наступил: ничего не
+                # просрочено. Говорим вслух, проблемой не считаем.
+                health.evidence = EVIDENCE_AWAITING_FIRST_RUN
+                health.note = (
+                    f"ждёт первого планового запуска после перезагрузки: загрузка "
+                    f"{_fmt_age(since_boot)} назад, окно {_fmt_age(window)}"
+                )
+            else:
+                # Окно после загрузки прошло, а свидетельства работы нет —
+                # настоящий пропуск планового запуска.
+                issues.append(
+                    f"no run since reboot {_fmt_age(since_boot)} (>{_fmt_age(window)})")
+                health.status = _worst(
+                    health.status, CRITICAL if since_boot > 2 * window else WARNING)
         elif age is None:
             # No log file. For a RESIDENT guardian (high/mid-freq agent launchd
             # keeps loaded) this means it has never produced output → CRITICAL.
@@ -1054,6 +1236,52 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
 
     health.issue = "; ".join(issues)
     return health
+
+
+def _judge_by_receipt(health: AgentHealth, issues: List[str], receipt: ReceiptReading,
+                      log_age: Optional[float], threshold: float, window: float,
+                      since_boot: Optional[float]) -> None:
+    """Вердикт свежести по КВИТАНЦИИ успешного выполнения (а не по логу).
+
+    Квитанция главнее лога в обе стороны: свежая квитанция снимает «110 дней без
+    работы», выведенные из старого logs/<x>.log; несвежая квитанция краснит даже
+    при свежем логе и живом PID — процесс, который пишет в лог и не доходит до
+    результата, работой не считается.
+    """
+    r_age = receipt.age_min
+    if r_age is None or r_age < -CLOCK_SKEW_H * 60.0:
+        health.evidence = EVIDENCE_NOT_VERIFIED
+        issues.append(
+            f"success receipt unreadable ({receipt.source} stamp in the FUTURE) "
+            "— NOT VERIFIED")
+        health.status = _worst(health.status, WARNING)
+        return
+    health.evidence = EVIDENCE_RECEIPT
+    if r_age <= threshold:
+        if log_age is None or log_age > threshold:
+            where = "не найден" if log_age is None else f"старый ({_fmt_age(log_age)})"
+            health.note = (
+                f"журнал {where}, но квитанция успешного выполнения {receipt.source} "
+                f"свежая ({_fmt_age(max(r_age, 0.0))} назад)")
+        return
+    # Квитанция несвежая. Была ли она свежей в момент загрузки, а окно после
+    # загрузки ещё не прошло? Тогда агент просто не дошёл до первого срока.
+    if since_boot is not None and since_boot <= window and r_age - since_boot <= threshold:
+        health.evidence = EVIDENCE_AWAITING_FIRST_RUN
+        health.note = (
+            f"ждёт первого планового запуска после перезагрузки: загрузка "
+            f"{_fmt_age(since_boot)} назад, окно {_fmt_age(window)}; последний "
+            f"успех {_fmt_age(r_age)} назад ({receipt.source})")
+        return
+    if health.pid:
+        issues.append(
+            f"running (pid {health.pid}) but no successful result for "
+            f"{_fmt_age(r_age)} (>{_fmt_age(threshold)})")
+    else:
+        issues.append(
+            f"no successful result for {_fmt_age(r_age)} (>{_fmt_age(threshold)}; "
+            f"receipt {receipt.source})")
+    health.status = _worst(health.status, CRITICAL if r_age > 2 * threshold else WARNING)
 
 
 def _fmt_age(minutes: float) -> str:
@@ -1795,45 +2023,152 @@ def _problem_ref_for_agent(a: dict, problem_records: dict) -> Optional[str]:
     return p.get("problem_id")
 
 
+#: Виды строк алерта. Владелец получает СЧЁТ по видам, а не 30 строк (ARB 15.10):
+#: из тридцати пунктов тревоги после перезагрузки сбоем не был ни один, а читать
+#: пришлось все. Вид выводится из полей отчёта (``evidence``, форма ``issue``), не
+#: из догадки по тексту.
+ALERT_CLASS_FAILURE = "failure"
+ALERT_CLASS_UNVERIFIED = "not_verified"
+ALERT_CLASS_CONFIG = "config_mismatch"
+ALERT_CLASS_WAITING = "awaiting_first_run"
+
+_ALERT_CLASS_RU = {
+    ALERT_CLASS_FAILURE: "настоящие сбои",
+    ALERT_CLASS_UNVERIFIED: "не проверено (не хватает доказательств)",
+    ALERT_CLASS_CONFIG: "расхождение настройки (агент снят с учёта, но загружен)",
+}
+
+#: Сколько строк «критично» показать поимённо; остальное — числом.
+ALERT_MAX_NAMED = 8
+#: Системная строка длиннее — обрезается: 15.10 одна строка очереди владельца
+#: занимала ~600 знаков, и три таких делали из тревоги простыню.
+ALERT_SYS_MAX_CHARS = 160
+
+
+def alert_class(a: dict) -> Optional[str]:
+    """Вид строки отчёта для владельца. ``None`` — строка не про проблему."""
+    if a.get("evidence") == EVIDENCE_AWAITING_FIRST_RUN and a.get("status") == OK:
+        return ALERT_CLASS_WAITING
+    if a.get("status") == OK:
+        return None
+    if str(a.get("issue") or "").startswith("retired_but_loaded"):
+        return ALERT_CLASS_CONFIG
+    if a.get("evidence") == EVIDENCE_NOT_VERIFIED:
+        return ALERT_CLASS_UNVERIFIED
+    return ALERT_CLASS_FAILURE
+
+
+def _owner_time(ts: str) -> str:
+    try:
+        from spa_core.utils.presentation import fmt_owner_time
+        return fmt_owner_time(ts, unknown=None) or ts
+    except Exception:  # noqa: BLE001 — время — подпись, а не повод уронить алерт
+        return ts
+
+
 def format_alert(report: dict, *, problem_records: Optional[dict] = None) -> str:
-    """HTML Telegram message summarizing problems.
+    """Сообщение владельцу: что случилось, когда проверено, влияние, что система
+    делает сама, нужно ли его решение — и счёт по видам вместо простыни.
 
     ``problem_records`` — ``data/problems.json``'s ``"problems"`` dict (ADR-580 §C6),
     read-only, optional. Когда строке алерта соответствует уже открытая Problem, в
     строку добавляется её id — владелец видит, что это НЕ новый повод, а известная
     повторяющаяся причина с карточкой."""
-    overall = report.get("overall_status", OK)
     agents = report.get("agents", [])
-    problems = [a for a in agents if a.get("status") != OK]
     sys_issues = report.get("system_issues", [])
-
+    by_class: Dict[str, List[dict]] = {}
+    for a in agents:
+        cls = alert_class(a)
+        if cls is not None:
+            by_class.setdefault(cls, []).append(a)
+    problems = [a for a in agents if a.get("status") != OK]
+    n_crit = sum(1 for a in problems if a.get("status") == CRITICAL)
     n_issues = len(problems) + len(sys_issues)
-    lines = [
-        "🚨 <b>SPA Agent Health Alert</b>",
-        f"Status: {overall} | {n_issues} issue(s) found",
-        "",
-    ]
-    # agents (critical first)
-    for a in sorted(problems, key=lambda x: -_SEVERITY.get(x.get("status"), 0)):
-        icon = "❌" if a.get("status") == CRITICAL else "⚠️"
-        issue = a.get("issue") or a.get("status")
-        line = f"{icon} {a['label']} — {issue}"
-        pid = _problem_ref_for_agent(a, problem_records or {})
-        if pid:
-            line += f" [Problem {pid}]"
-        lines.append(line)
-    # system issues
-    for s in sys_issues:
-        # WARN vs CRIT not tracked per-line; use ⚠️ unless mentions stale/critical
-        icon = "⚠️"
-        lines.append(f"{icon} {s}")
 
+    lines = ["🚨 <b>SPA Agent Health Alert</b>", ""]
+    lines.append(
+        f"<b>Что случилось:</b> проверка агентов нашла пунктов: {n_issues} "
+        f"(агентов с замечаниями: {len(problems)}, из них критично: {n_crit}; "
+        f"системных пунктов: {len(sys_issues)}).")
+    lines.append(f"<b>Когда проверено:</b> {_owner_time(report.get('timestamp', ''))}")
     lines.append("")
-    ts = report.get("timestamp", "")
-    dt = _parse_iso(ts)
-    stamp = dt.strftime("%Y-%m-%d %H:%M UTC") if dt else ts
-    lines.append(f"<i>{stamp}</i>")
+    lines.append("<b>По видам:</b>")
+    for cls in (ALERT_CLASS_FAILURE, ALERT_CLASS_UNVERIFIED, ALERT_CLASS_CONFIG):
+        rows = by_class.get(cls) or []
+        if rows:
+            crit = sum(1 for a in rows if a.get("status") == CRITICAL)
+            tail = f" (критично: {crit})" if crit else ""
+            lines.append(f"• {_ALERT_CLASS_RU[cls]}: {len(rows)}{tail}")
+    if sys_issues:
+        lines.append(f"• системные пункты: {len(sys_issues)}")
+    waiting = by_class.get(ALERT_CLASS_WAITING) or []
+    if waiting:
+        lines.append(f"• ждут первого планового запуска после перезагрузки: "
+                     f"{len(waiting)} — это не сбой")
+
+    # Поимённо — только критичное (сначала настоящие сбои). Предупреждения живут в
+    # сводке и /agents; в тревоге они были бы той самой простынёй.
+    crit_rows = sorted(
+        (a for a in problems if a.get("status") == CRITICAL),
+        key=lambda a: (alert_class(a) != ALERT_CLASS_FAILURE, a.get("label", "")))
+    if crit_rows:
+        lines.append("")
+        lines.append("<b>Критично:</b>")
+        for a in crit_rows[:ALERT_MAX_NAMED]:
+            line = f"❌ {a['label']} — {a.get('issue') or a.get('status')}"
+            pid = _problem_ref_for_agent(a, problem_records or {})
+            if pid:
+                line += f" [Problem {pid}]"
+            lines.append(line)
+        if len(crit_rows) > ALERT_MAX_NAMED:
+            lines.append(f"…и ещё {len(crit_rows) - ALERT_MAX_NAMED}")
+    # Системные пункты — поимённо, но коротко: среди них бывает и критичное
+    # (просадка, трек, стоп-кран), и спрятать его за числом было бы fail-OPEN.
+    if sys_issues:
+        lines.append("")
+        lines.append("<b>Системные пункты:</b>")
+        for s in sys_issues[:ALERT_MAX_NAMED]:
+            s = str(s)
+            short = s if len(s) <= ALERT_SYS_MAX_CHARS else s[:ALERT_SYS_MAX_CHARS - 1] + "…"
+            lines.append(f"⚠️ {short}")
+        if len(sys_issues) > ALERT_MAX_NAMED:
+            lines.append(f"…и ещё {len(sys_issues) - ALERT_MAX_NAMED}")
+    lines.append("")
+    lines.append(
+        "<b>Влияние:</b> касается названных агентов; реальных денег система не "
+        "двигает (капитал бумажный).")
+    lines.append(
+        "<b>Что система делает сама:</b> повторит проверку через час; упавших "
+        "резидентных агентов перезапускает самовосстановление; это сообщение не "
+        "повторится, пока не изменится набор критичных пунктов.")
+    lines.append(
+        "<b>Нужно ли твоё решение:</b> нет — это техническая работа агентов. "
+        "Подробности: /agents.")
     return "\n".join(lines)
+
+
+def alert_fingerprint(report: dict) -> Optional[str]:
+    """Отпечаток СОДЕРЖАНИЯ тревоги для дедупа push_policy.
+
+    Владельцу шлётся только CRITICAL, поэтому и отпечаток собран из того, о чём
+    тревога: критичных агентских причин и системных пунктов. Предупреждения в
+    отпечаток НЕ входят: 15.10 в 22:21 два новых WARNING (site_freshness,
+    swarm_health) сменили отпечаток, и владельцу ушла ВТОРАЯ та же простыня из
+    30 строк при неизменных критичных пунктах. Причины — стабильные коды
+    (``problem_store.cause_from_agent_issue``), чтобы дрейф числа внутри той же
+    причины не выглядел новым инцидентом (F1).
+    """
+    from spa_core.monitoring import problem_store as _ps
+
+    keys = set()
+    for a in report.get("agents", []):
+        if a.get("status") == CRITICAL and a.get("issue"):
+            cause = _ps.cause_from_agent_issue(a["issue"]) or "unknown"
+            keys.add(f"{a['label']}::{cause}")
+    for s in report.get("system_issues", []):
+        cause = _ps.cause_from_agent_issue(s) or "unknown"
+        keys.add(f"system::{cause}")
+    return "|".join(sorted(keys)) or None
 
 
 def _load_problem_records(data_dir: Path) -> dict:
@@ -1865,7 +2200,9 @@ def _push_via_policy(report: dict, data_dir: Optional[Path] = None) -> bool:
     ``/agents`` view); the monitor keeps WRITING agent_health.json regardless.
 
     ADR-580 §C6 linkage (REVIEW_1 amendment, F1 fix): the push carries a
-    ``dedup_key`` built from ``_stable_issue_keys`` — root-CAUSE codes
+    ``dedup_key`` built from ``alert_fingerprint`` (ARB 15.10: CRITICAL agent
+    causes + system issues only — a changed WARNING set no longer re-sends the
+    same alert; selection was ``_stable_issue_keys``) — root-CAUSE codes
     (``problem_store.cause_from_agent_issue``), not raw issue text. That set is
     unchanged while the SAME causes persist, EVEN AS the volatile numbers
     inside their issue text drift (age, score, duration) — so a recurrence of
@@ -1900,7 +2237,7 @@ def _push_via_policy(report: dict, data_dir: Optional[Path] = None) -> bool:
     dd = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
     if overall == CRITICAL:
         problem_records = _load_problem_records(dd)
-        dedup_key = "|".join(sorted(_stable_issue_keys(report))) or None
+        dedup_key = alert_fingerprint(report)
         return bool(
             push_policy.push_critical(
                 "agent_health_critical",
@@ -1926,6 +2263,9 @@ def _push_via_policy(report: dict, data_dir: Optional[Path] = None) -> bool:
 # ===========================================================================
 # Orchestration
 # ===========================================================================
+_UNSET = object()
+
+
 class AgentHealthMonitor:
     """Heartbeat monitor over all com.spa.* launchd agents + system state."""
 
@@ -1935,13 +2275,21 @@ class AgentHealthMonitor:
                  launchctl_output: Optional[str] = None,
                  autopush_log: str = _AUTOPUSH_LOG,
                  now: Optional[datetime] = None,
-                 launchctl_disabled_output: Optional[str] = None):
+                 launchctl_disabled_output: Optional[str] = None,
+                 boot_time: object = _UNSET):
+        """``boot_time`` — вход, как и ``now``. Не передан: на живом хосте он
+        МЕРИТСЯ (``sysctl kern.boottime``), а у герметичной сцены (подставлен
+        ``launchctl_output``) остаётся НЕ ИЗМЕРЕННЫМ — сцена не смешивается с
+        хостом, ровно как ``_disabled``."""
         self.data_dir = Path(data_dir)
         self.launch_agents_dir = Path(launch_agents_dir)
         self._launchctl_output = launchctl_output
         self._launchctl_disabled_output = launchctl_disabled_output
         self.autopush_log = autopush_log
         self.now = now or _utcnow()
+        if boot_time is _UNSET:
+            boot_time = None if launchctl_output is not None else _measure_boot_time()
+        self.boot_time: Optional[datetime] = boot_time  # type: ignore[assignment]
 
     # -- inputs --------------------------------------------------------------
     def _launchctl(self) -> Dict[str, dict]:
@@ -1984,7 +2332,8 @@ class AgentHealthMonitor:
             # остаётся НЕ ИЗМЕРЕННЫМ и краснит (fail-CLOSED, цикл #290).
             agents.append(check_agent(label, plist, parse_ok, launchctl, self.now,
                                       data_dir=self.data_dir,
-                                      disabled=label in disabled))
+                                      disabled=label in disabled,
+                                      boot_time=self.boot_time))
 
         sys_checks, sys_status, sys_issues = check_system(
             self.data_dir, self.now, self.autopush_log)
@@ -2002,7 +2351,10 @@ class AgentHealthMonitor:
             )
             sys_status = _worst(sys_status, CRITICAL)
 
-        return build_report(agents, sys_checks, sys_status, sys_issues, self.now)
+        report = build_report(agents, sys_checks, sys_status, sys_issues, self.now)
+        # Чем мерилась поблажка «ждёт первого запуска»: None = НЕ ИЗМЕРЕНО.
+        report["boot_time"] = self.boot_time.isoformat() if self.boot_time else None
+        return report
 
     def _previous(self) -> Optional[dict]:
         p = self.data_dir / _OUTPUT_FILENAME

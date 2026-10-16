@@ -465,9 +465,16 @@ def test_agent_to_dict_shape(tmp_path):
     # spa_core/tests/test_cycle_exit_taxonomy.py (`test_note_reaches_the_report_file`).
     # Класть штатный отказ в `issue` было нельзя — он снова стал бы проблемой,
     # ровно тем, от чего цикл #219 уходит.
+    # НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-10-16 (ARB, тревога после перезагрузки 15.10; инв. #16,
+    # журнал W42): добавлено поле `evidence` — ЧЕМ доказан вердикт свежести (квитанция /
+    # «ждёт первого запуска после перезагрузки» / «не проверено»). Снова РАСШИРЕНИЕ:
+    # равенство множеств сохранено, ни один ключ не убран; обе стороны закреплены в
+    # spa_core/tests/test_agent_health_reboot_evidence.py.
     assert set(d.keys()) == {"label", "status", "pid", "last_exit",
-                             "log_age_min", "category", "loaded", "issue", "note"}
+                             "log_age_min", "category", "loaded", "issue", "note",
+                             "evidence"}
     assert d["note"] == ""  # обычному агенту сказать нечего
+    assert d["evidence"] is None  # обычный путь — лог/PID, особого доказательства нет
 
 
 # ===========================================================================
@@ -771,13 +778,20 @@ def test_format_alert_html():
         ],
         "system_issues": ["portfolio_health 63.3/100"],
     }
+    # НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-10-16 (ARB, тревога после перезагрузки 15.10; инв. #16,
+    # журнал W42). Форма сообщения сменена по заданию владельца: счёт по видам вместо
+    # простыни, время Мадрида, «нужно ли твоё решение». Что сохранено: шапка, критичная
+    # строка поимённо, системный пункт поимённо, общий счёт пунктов. Что изменилось
+    # НАМЕРЕННО: предупреждение больше не печатается строкой — оно в счёте по видам
+    # («настоящие сбои: 2 (критично: 1)»); метка UTC заменена временем Мадрида.
     msg = ahm.format_alert(rep)
     assert "<b>SPA Agent Health Alert</b>" in msg
     assert "❌ com.spa.sky_monitor" in msg
-    assert "⚠️ com.spa.fund-api" in msg
-    assert "portfolio_health 63.3/100" in msg
-    assert "2026-06-21 10:00 UTC" in msg
-    assert "3 issue(s)" in msg
+    assert "• настоящие сбои: 2 (критично: 1)" in msg
+    assert "⚠️ com.spa.fund-api" not in msg
+    assert "⚠️ portfolio_health 63.3/100" in msg
+    assert "2026-06-21 12:00 Мадрид (CEST)" in msg
+    assert "нашла пунктов: 3" in msg
 
 
 def test_format_alert_criticals_first():
@@ -790,8 +804,13 @@ def test_format_alert_criticals_first():
         ],
         "system_issues": [],
     }
+    # НАМЕРЕННОЕ ИЗМЕНЕНИЕ 2026-10-16 (инв. #16, журнал W42): предупреждения больше не
+    # печатаются строками (счёт по видам), поэтому «критичное раньше предупреждения»
+    # проверяется так: критичное названо, предупреждение — только в счёте.
     msg = ahm.format_alert(rep)
-    assert msg.index("❌ c") < msg.index("⚠️ w")
+    assert "❌ c — crit" in msg
+    assert "⚠️ w" not in msg
+    assert "• настоящие сбои: 2 (критично: 1)" in msg
 
 
 # ===========================================================================

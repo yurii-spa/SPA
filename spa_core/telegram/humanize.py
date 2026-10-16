@@ -221,6 +221,22 @@ _RULES: tuple[_Rule, ...] = (
     (re.compile(r"^log stale ([\d.]+\s*(?:min|h|d)) \(>([\d.]+\s*(?:min|h|d))\)$"),
      lambda m: f"лог не обновлялся {_age(m.group(1))} — норма не реже "
                f"{_age(m.group(2))}"),
+    # --- доказательство работы (ARB 15.10: квитанция и окно после загрузки) ---
+    (re.compile(r"^no successful result for ([\d.]+\s*(?:min|h|d)) "
+                r"\(>([\d.]+\s*(?:min|h|d)); receipt (\S+)\)$"),
+     lambda m: f"нет успешного результата {_age(m.group(1))} — норма не реже "
+               f"{_age(m.group(2))} (квитанция {m.group(3)})"),
+    (re.compile(r"^running \(pid (\d+)\) but no successful result for "
+                r"([\d.]+\s*(?:min|h|d)) \(>([\d.]+\s*(?:min|h|d))\)$"),
+     lambda m: f"процесс работает (pid {m.group(1)}), но успешного результата нет "
+               f"{_age(m.group(2))} — норма не реже {_age(m.group(3))}"),
+    (re.compile(r"^no run since reboot ([\d.]+\s*(?:min|h|d)) "
+                r"\(>([\d.]+\s*(?:min|h|d))\)$"),
+     lambda m: f"после перезагрузки ни одного запуска за {_age(m.group(1))} — "
+               f"первый был положен в пределах {_age(m.group(2))}"),
+    (re.compile(r"^success receipt unreadable \((.+)\) — NOT VERIFIED$"),
+     lambda m: f"не проверено: квитанция успешного выполнения не читается "
+               f"({m.group(1)})"),
     (re.compile(r"^Missing \(not loaded\)$", re.I),
      lambda m: "агент не загружен в launchd"),
 

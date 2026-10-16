@@ -8994,6 +8994,166 @@ def _owner_view_all_healthy(sc: dict) -> dict:
     sc["generated_at"] = "2026-10-09T07:10:00Z"
     return sc
 
+#: Синтетические метки сцены пробы перезагрузки. Имена заведомо не из флота: обёртка
+#: судит и по `/tmp/spa_<имя>.log`, и метка флота читала бы живой лог хоста.
+REBOOT_PROBE_RECEIPT_AGENT = "com.spa.zz_arb_probe_receipt"
+REBOOT_PROBE_CALENDAR_AGENT = "com.spa.zz_arb_probe_calendar"
+REBOOT_PROBE_HOURLY_AGENT = "com.spa.zz_arb_probe_hourly"
+
+
+def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
+                                           now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий: перезагрузка Mac больше не превращается в «критическую проблему»,
+    а настоящий пропуск планового запуска — по-прежнему превращается. По ИСХОДУ.
+
+    Карточка `inbox-arb-razobrat-trevogu-telegram-posle-pere` (тревога 15.10 21:21:20Z:
+    30 «проблем» через 3 мин 22 с после загрузки, ни одна не сбой). На одноразовом
+    дереве — настоящий `check_agent`, настоящий `format_alert`/`alert_fingerprint` и
+    настоящий edge-trigger `push_policy.push_critical` (``send=False``: сеть не трогается):
+
+    1. ПЕРЕЗАГРУЗКА: /tmp-логов нет, старый logs/<x>.log 110 сут., квитанция свежая;
+       календарный и часовой агенты без лога. Через 3 мин после загрузки у каждого
+       статус ``OK`` и названное доказательство (``receipt`` / ``awaiting_first_run``),
+       сводный статус не CRITICAL, владельцу не уходит НИЧЕГО.
+    2. ЗАГРУЗКА НЕ ИЗМЕРЕНА: тот же агент со свежей квитанцией и логом 110 сут. —
+       ``OK`` по квитанции (старый лог не доказывает отсутствия работы).
+    3. ПРОПУСК: окно после загрузки прошло, квитанция несвежая, у календарного агента
+       ни одного запуска — оба ``CRITICAL``; тревога уходит ОДИН раз и не повторяется,
+       когда к ней добавляется лишь новое предупреждение.
+    4. ПРОЦЕСС БЕЗ РЕЗУЛЬТАТА: живой PID и свежий лог при несвежей квитанции — не ``OK``.
+
+    Сравниваются ПОЛЯ отчёта (``status``, ``evidence``), а не текст (ADR-333). Живое
+    `data/`, трекер и чат владельца не трогаются. Время — вход (`now`).
+    """
+    import shutil
+    import tempfile
+    from datetime import timedelta
+    from spa_core.monitoring import agent_health_monitor as ahm
+    from spa_core.telegram import push_policy
+
+    t0 = now or datetime.now(timezone.utc)
+    for lbl in (REBOOT_PROBE_RECEIPT_AGENT, REBOOT_PROBE_CALENDAR_AGENT,
+                REBOOT_PROBE_HOURLY_AGENT):
+        short = lbl[len("com.spa."):]
+        if os.path.exists(f"/tmp/spa_{short}.log"):
+            return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: на хосте есть /tmp/spa_{short}.log "
+                                "— сцена читала бы чужой лог")
+    root = tempfile.mkdtemp(prefix="spa_reboot_probe_")
+    try:
+        data = os.path.join(root, "data")
+        logs_dir = os.path.join(root, "logs")
+        os.makedirs(data)
+        os.makedirs(logs_dir)
+        receipts = {REBOOT_PROBE_RECEIPT_AGENT: ("probe_book.json", "last_cycle_at")}
+
+        def plist(label, **sched):
+            short = label[len("com.spa."):]
+            return dict(sched, StandardOutPath=os.path.join(root, f"{short}.launchd.out"),
+                        StandardErrorPath=os.path.join(root, f"{short}.launchd.err"))
+
+        p_receipt = plist(REBOOT_PROBE_RECEIPT_AGENT, StartInterval=3600, RunAtLoad=False)
+        p_cal = plist(REBOOT_PROBE_CALENDAR_AGENT, StartCalendarInterval={"Hour": 9, "Minute": 0},
+                      RunAtLoad=False)
+        p_hourly = plist(REBOOT_PROBE_HOURLY_AGENT, StartInterval=3600, RunAtLoad=False)
+
+        def set_receipt(at):
+            with open(os.path.join(data, "probe_book.json"), "w", encoding="utf-8") as fh:
+                json.dump({"last_cycle_at": at.isoformat()}, fh)
+
+        def touch(path, at):
+            with open(path, "a", encoding="utf-8"):
+                pass
+            os.utime(path, (at.timestamp(), at.timestamp()))
+
+        def clear_scene_logs():
+            for name in os.listdir(root):
+                if name.endswith((".launchd.out", ".launchd.err")):
+                    os.remove(os.path.join(root, name))
+
+        # Домиграционный журнал: 110 суток — та самая цифра тревоги.
+        touch(os.path.join(logs_dir, "zz_arb_probe_receipt.log"), t0 - timedelta(days=110))
+
+        def judge(label, pl, at, boot, pid=0):
+            lc = {label: {"pid": pid, "exit": 0}}
+            return ahm.check_agent(label, pl, True, lc, at, project_root=_pathlib.Path(root),
+                                   data_dir=_pathlib.Path(data), boot_time=boot,
+                                   receipts=receipts)
+
+        # ── 1. перезагрузка ──────────────────────────────────────────────────
+        boot = t0 - timedelta(minutes=3, seconds=22)
+        set_receipt(boot - timedelta(minutes=7))
+        clear_scene_logs()
+        got = {lbl: judge(lbl, pl, t0, boot) for lbl, pl in (
+            (REBOOT_PROBE_RECEIPT_AGENT, p_receipt), (REBOOT_PROBE_CALENDAR_AGENT, p_cal),
+            (REBOOT_PROBE_HOURLY_AGENT, p_hourly))}
+        want = {REBOOT_PROBE_RECEIPT_AGENT: ahm.EVIDENCE_RECEIPT,
+                REBOOT_PROBE_CALENDAR_AGENT: ahm.EVIDENCE_AWAITING_FIRST_RUN,
+                REBOOT_PROBE_HOURLY_AGENT: ahm.EVIDENCE_AWAITING_FIRST_RUN}
+        for lbl, h in got.items():
+            if h.status != ahm.OK or h.evidence != want[lbl]:
+                return (NOT_SATISFIED,
+                        f"перезагрузка: {lbl} → status={h.status}, evidence={h.evidence!r}, "
+                        f"issue={h.issue!r}; ожидалось OK/{want[lbl]} — "
+                        + ("квитанция не читается вердиктом" if lbl == REBOOT_PROBE_RECEIPT_AGENT
+                           else "окно после загрузки не применено"))
+        rep = ahm.build_report(list(got.values()), {}, ahm.OK, [], t0)
+        if rep["overall_status"] == ahm.CRITICAL:
+            return (NOT_SATISFIED, "перезагрузка: сводный статус CRITICAL")
+
+        # ── 2. загрузка не измерена: решает квитанция ───────────────────────
+        h = judge(REBOOT_PROBE_RECEIPT_AGENT, p_receipt, t0, None)
+        if h.status != ahm.OK or h.evidence != ahm.EVIDENCE_RECEIPT:
+            return (NOT_SATISFIED,
+                    f"загрузка не измерена: {REBOOT_PROBE_RECEIPT_AGENT} → status={h.status}, "
+                    f"evidence={h.evidence!r}, issue={h.issue!r} — квитанция успешного "
+                    "выполнения не главнее старого журнала (110 сут.)")
+
+        # ── 3. настоящий пропуск ────────────────────────────────────────────
+        late = boot + timedelta(days=3)
+        missed = {lbl: judge(lbl, pl, late, boot) for lbl, pl in (
+            (REBOOT_PROBE_RECEIPT_AGENT, p_receipt), (REBOOT_PROBE_CALENDAR_AGENT, p_cal))}
+        for lbl, h in missed.items():
+            if h.status != ahm.CRITICAL:
+                return (NOT_SATISFIED,
+                        f"пропуск: {lbl} через 3 сут. после загрузки без работы → "
+                        f"status={h.status}, issue={h.issue!r}; ожидалось CRITICAL — "
+                        "настоящий пропуск планового запуска заглушён")
+        tg = os.path.join(root, "push")
+        os.makedirs(tg)
+
+        def push(report):
+            return bool(push_policy.push_critical(
+                "agent_health_critical", "CRITICAL", "SPA Agent Health — CRITICAL",
+                ahm.format_alert(report), dedup_key=ahm.alert_fingerprint(report),
+                data_dir=_pathlib.Path(tg), now=late, send=False))
+
+        rep3 = ahm.build_report(list(missed.values()), {}, ahm.OK, [], late)
+        if rep3["overall_status"] != ahm.CRITICAL or not push(rep3):
+            return (NOT_SATISFIED, "пропуск: тревога владельцу не ушла")
+        extra = ahm.AgentHealth(label="com.spa.zz_arb_probe_warn", status=ahm.WARNING,
+                                issue="last_exit=1")
+        rep3b = ahm.build_report(list(missed.values()) + [extra], {}, ahm.OK, [], late)
+        if push(rep3b):
+            return (NOT_SATISFIED, "повтор: новое ПРЕДУПРЕЖДЕНИЕ при тех же критичных "
+                                   "пунктах снова отправило ту же тревогу")
+
+        # ── 4. процесс без результата ───────────────────────────────────────
+        far = boot + timedelta(days=2)
+        set_receipt(far - timedelta(hours=20))
+        touch(p_receipt["StandardOutPath"], far - timedelta(minutes=1))
+        h = judge(REBOOT_PROBE_RECEIPT_AGENT, p_receipt, far, boot, pid=4242)
+        if h.status == ahm.OK:
+            return (NOT_SATISFIED,
+                    "процесс без результата: живой PID и свежий журнал при квитанции "
+                    "20 ч приняты за успех — квитанция не главнее журнала")
+        return (SATISFIED,
+                f"перезагрузка: {', '.join(f'{k}={v}' for k, v in sorted(want.items()))}, "
+                f"тревоги нет; загрузка не измерена → receipt; пропуск → CRITICAL×2, одна "
+                f"тревога без повтора; процесс без результата → {h.status}")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -9092,6 +9252,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "delta_mutation_instrument_is_re_measurable":
         _probe_delta_mutation_instrument_is_re_measurable,
     "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
+    "agent_health_reboot_false_alarm_closed": _probe_agent_health_reboot_false_alarm,
 }
 
 
