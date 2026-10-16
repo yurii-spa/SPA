@@ -408,3 +408,190 @@ def test_partial_hint_is_information_not_a_question_to_the_owner(tmp_path, monke
     assert "владельцу этот вопрос не задаётся" in body
     assert all("проверь:" not in n.lower() for n in notes)
     assert any("отвечать не нужно" in n for n in notes)
+
+
+# ── 16.10 crash-recovery: the intake stamp means «intake finished», never «task done». A crash between
+# the linked work, the stamp and the Telegram notice must lose neither the card nor the notice, and a
+# re-run must not duplicate linked work. Notices go through a durable outbox (data/intake_outbox.json)
+# BEFORE the stamp; delivery is AT-LEAST-ONCE (a crash between a successful send and the outbox drop
+# repeats the message), re-processing the same card does not add a second notice (key = card name).
+# Each test below is red on origin 8f913113 (notice lost / second idea note / second owner card). ──
+import json as _json
+from datetime import datetime as _dt, timezone as _tz
+
+import pytest as _pytest
+
+_D1 = _dt(2026, 10, 16, 6, 0, tzinfo=_tz.utc)  # FROZEN-DATE-OK: injected-clock — passed as now= to run_note_intake
+_D2 = _dt(2026, 10, 17, 6, 0, tzinfo=_tz.utc)  # FROZEN-DATE-OK: injected-clock — passed as now= to run_note_intake
+
+
+class _Crash(BaseException):
+    """A process death: not an ``Exception``, so the intake's per-card ``except`` cannot absorb it."""
+
+
+def _live_list(path):
+    """list_cards that honours ``status=`` like the real one (the next run must not see a done card)."""
+    def _lc(**k):
+        c = Q.load_card(path)
+        return [c] if k.get("status") in (None, c.status) else []
+    return _lc
+
+
+def _outbox(tmp_path):
+    p = tmp_path / "data" / "intake_outbox.json"
+    return _json.loads(p.read_text(encoding="utf-8"))["pending"] if p.exists() else []
+
+
+def _crash_once(monkeypatch, obj, name, *, before=True):
+    real = getattr(obj, name)
+    state = {"armed": True}
+
+    def wrapped(*a, **k):
+        if state["armed"]:
+            state["armed"] = False
+            if before:
+                raise _Crash(name)
+            out = real(*a, **k)
+            raise _Crash(name)
+        return real(*a, **k)
+    monkeypatch.setattr(obj, name, wrapped)
+
+
+def test_crash_after_stamp_before_notify_does_not_lose_the_notice(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Починить отчёт", body="Починить отчёт", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    _crash_once(monkeypatch, I, "_stamp_seen", before=False)      # stamp written, then the process dies
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    body1 = path.read_text(encoding="utf-8")
+    assert "intake_seen:" in body1 and notes == []
+    assert [e["key"] for e in _outbox(tmp_path)] == [path.name], "notice was not durably handed off before the stamp"
+    second = I.run_note_intake(now=_D2)
+    assert second["processed"] == []                               # the stamped card is not re-processed …
+    assert len(notes) == 1 and "Создал задачу" in notes[0]         # … but its notice is delivered, once
+    assert _outbox(tmp_path) == []
+    assert path.read_text(encoding="utf-8") == body1               # nothing appended twice
+    I.run_note_intake(now=_D2)
+    assert len(notes) == 1                                         # delivered exactly once on the happy path
+
+
+def test_crash_after_linked_work_before_stamp_keeps_card_and_notice(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Проверить сторожа", body="Проверить сторожа", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    _crash_once(monkeypatch, I, "_stamp_seen", before=True)       # criterion appended, no stamp yet
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    body1 = path.read_text(encoding="utf-8")
+    assert "intake_seen:" not in body1                             # no stamp before hand-off completed
+    assert Q.load_card(path).status == "new"                       # the card is not lost
+    I.run_note_intake(now=_D2)
+    assert len(notes) == 1 and "Создал задачу" in notes[0]
+    assert path.read_text(encoding="utf-8").count("## Как понять, что готово") == 1
+
+
+def test_failed_hand_off_writes_no_stamp_and_no_linked_work(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Задача без передачи", body="Задача без передачи", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    before = path.read_text(encoding="utf-8")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    def _disk_full(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(I, "_outbox_save", _disk_full)
+    res = I.run_note_intake(now=_D1)
+    assert res["processed"] == [] and notes == []
+    assert path.read_text(encoding="utf-8") == before              # stays `new`, untouched → next run retries
+
+
+def test_idea_crash_before_close_rerun_next_day_writes_no_second_note(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Идея про сводку", body="Идея про сводку", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="idea")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    _crash_once(monkeypatch, Q, "set_status", before=True)        # note written + notice handed off, carrier open
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    assert Q.load_card(path).status == "new" and notes == []
+    I.run_note_intake(now=_D2)
+    ideas = sorted((tmp_path / "docs" / "ideas").glob("*.md"))
+    assert len(ideas) == 1, f"second idea note on re-run: {[p.name for p in ideas]}"
+    assert Q.load_card(path).status == "done"
+    assert len(notes) == 1 and "Записал как идею" in notes[0]
+
+
+def test_idea_crash_during_notify_delivers_on_next_run(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Идея про ленту", body="Идея про ленту", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="idea")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    def _dies(text, *a, **k):
+        raise _Crash("notify")
+    monkeypatch.setattr(I, "_notify", _dies)
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    assert Q.load_card(path).status == "done"                      # intake finished for the card …
+    assert len(_outbox(tmp_path)) == 1                             # … and its notice survived the crash
+    monkeypatch.setattr(I, "_notify", lambda text, *a, **k: notes.append(text))
+    I.run_note_intake(now=_D2)
+    assert len(notes) == 1 and "Записал как идею" in notes[0]
+    assert len(list((tmp_path / "docs" / "ideas").glob("*.md"))) == 1
+
+
+def test_unclear_crash_before_close_rerun_makes_no_second_owner_card(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Непонятная строка", body="ы-ы", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="unclear")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    monkeypatch.setattr(ask_router, "classify_and_answer", lambda body: ("unclear", "Это задача?"))
+    _crash_once(monkeypatch, Q, "set_status", before=True)
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    # the classifier words its question differently on the re-run — still the same owner question
+    monkeypatch.setattr(ask_router, "classify_and_answer", lambda body: ("unclear", "Это вопрос или задача?"))
+    I.run_note_intake(now=_D2)
+    owner_cards = list((tmp_path / "tracker").glob("owner-decision-*.md"))
+    assert len(owner_cards) == 1, [p.name for p in owner_cards]
+    assert Q.load_card(path).status == "done"
+    assert len(notes) == 1 and notes[0].startswith("❓")
+
+
+def test_undelivered_notice_stays_in_outbox_until_telegram_accepts(tmp_path, monkeypatch):
+    path = Q.create_card("inbox", "Задача при лежащем Telegram", body="Задача при лежащем Telegram",
+                         status="new", tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    monkeypatch.setattr(I, "_notify", lambda text, *a, **k: False)  # bot down / flood guard dropped it
+    I.run_note_intake(now=_D1)
+    assert "intake_seen:" in path.read_text(encoding="utf-8") and len(_outbox(tmp_path)) == 1
+    monkeypatch.setattr(I, "_notify", lambda text, *a, **k: notes.append(text))
+    I.run_note_intake(now=_D2)
+    I.run_note_intake(now=_D2)
+    assert len(notes) == 1 and _outbox(tmp_path) == []
+
+
+def test_crash_between_send_and_drop_repeats_the_notice_at_least_once(tmp_path, monkeypatch):
+    """The stated semantics: at-least-once. Sent, then the process died before the outbox drop ⇒
+    the next run sends it again (never zero times)."""
+    path = Q.create_card("inbox", "Задача с повтором", body="Задача с повтором", status="new",
+                         tracker_dir=tmp_path / "tracker")
+    notes = _wire(monkeypatch, tmp_path, card=Q.load_card(path), kind="task")
+    monkeypatch.setattr(Q, "list_cards", _live_list(path))
+    _crash_once(monkeypatch, I, "_outbox_drop", before=True)
+    with _pytest.raises(_Crash):
+        I.run_note_intake(now=_D1)
+    I.run_note_intake(now=_D2)
+    assert len(notes) == 2 and notes[0] == notes[1]
+    assert _outbox(tmp_path) == []
+
+
+def test_unreadable_outbox_is_moved_aside_not_treated_as_empty_and_overwritten(tmp_path, monkeypatch):
+    monkeypatch.setattr(I, "_REPO", tmp_path)
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "intake_outbox.json").write_text("{broken", encoding="utf-8")
+    assert I._outbox_load() == []
+    aside = list((tmp_path / "data").glob("intake_outbox.json.unreadable-*"))
+    assert len(aside) == 1 and aside[0].read_text(encoding="utf-8") == "{broken"

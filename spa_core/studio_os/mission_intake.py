@@ -18,6 +18,9 @@ Two operations, each guarded by :class:`IntakeGate` (the server calls ``gate.che
   write IDEMPOTENT: a card already carrying that id (any status) is returned with
   ``duplicate: true`` instead of a second card. The check-and-write runs under one lock
   (an in-process lock + ``flock`` on the tracker directory itself — no marker file is written).
+  With an id, idempotency is by that id ONLY: a NEW composer session (new id) with identical text is
+  a deliberate second note and becomes a second card (the open-twin merge of ``create_card`` is
+  bypassed); without an id (an old page) the open-twin guard stays.
   Every cockpit card records the Access ``actor`` and the fixed authority-boundary line
   :data:`AUTHORITY_NOTE` (ADR-285): a note is never a permission.
 
@@ -337,7 +340,12 @@ def submit(body: bytes, *, actor: str, tracker_dir=None, now=None) -> dict:
                     "audit": f"intake actor={actor} kind={ekind} card={existing.name} sha={digest} duplicate=1"}
         path, title = save_inbox_task(text, source="cockpit-voice" if transcript else "cockpit",
                                       transcript=transcript, kind=kind, origin_label="пульта",
-                                      tracker_dir=tdir, extra_fields=extra, preamble=[AUTHORITY_NOTE, ""])
+                                      tracker_dir=tdir, extra_fields=extra, preamble=[AUTHORITY_NOTE, ""],
+                                      # С id идемпотентность — ТОЛЬКО по нему: повтор того же запроса
+                                      # найден выше, а новая отправка той же фразы (новое окно записи ⇒
+                                      # новый id) — намеренная, и близнец её не глотает. Без id (старая
+                                      # страница) — прежняя защита открытым близнецом.
+                                      merge_open_twin=not sid)
     return {"ok": True, "duplicate": False, "card": Path(path).name, "title": title, "kind": kind,
             "kind_ru": KINDS[kind],
             "audit": f"intake actor={actor} kind={kind} card={Path(path).name} sha={digest}"}

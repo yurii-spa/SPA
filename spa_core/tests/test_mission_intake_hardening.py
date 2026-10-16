@@ -478,3 +478,38 @@ def test_http_retry_with_same_submission_id_answers_duplicate(tmp_path):
         assert "actor: local" in (tracker / d1["card"]).read_text(encoding="utf-8")
     finally:
         s.close()
+
+
+# ── submit semantics (16.10): retry ≠ new note. A retry (same id) is one card; a NEW composer session
+# (new id) with IDENTICAL text is a deliberate second note — the open-twin merge of create_card used to
+# swallow it silently (red on origin 8f913113). Without an id (old page) the twin guard stays. ──────────
+def test_same_id_twice_identical_text_is_one_card(tmp_path):
+    a = mi.submit(_body("Проверить отчёт по пакетам", sid="cccccccc-3333"), actor="local", tracker_dir=tmp_path, now=NOW)
+    b = mi.submit(_body("Проверить отчёт по пакетам", sid="cccccccc-3333"), actor="local", tracker_dir=tmp_path, now=NOW)
+    assert a["duplicate"] is False and b["duplicate"] is True and a["card"] == b["card"]
+    assert len(_cards(tmp_path)) == 1
+
+
+def test_two_ids_identical_text_are_two_cards(tmp_path):
+    a = mi.submit(_body("Проверить отчёт по пакетам", sid="dddddddd-4444"), actor="local", tracker_dir=tmp_path, now=NOW)
+    b = mi.submit(_body("Проверить отчёт по пакетам", sid="eeeeeeee-5555"), actor="local", tracker_dir=tmp_path, now=NOW)
+    assert a["duplicate"] is False and b["duplicate"] is False
+    assert a["card"] != b["card"], "a deliberate second identical note was folded into the first card"
+    cards = _cards(tmp_path)
+    assert len(cards) == 2
+    ids = sorted(ln for c in cards for ln in c.read_text(encoding="utf-8").splitlines()
+                 if ln.startswith("submission_id:"))
+    assert ids == ["submission_id: dddddddd-4444", "submission_id: eeeeeeee-5555"]
+
+
+def test_no_id_identical_text_keeps_the_open_twin_guard(tmp_path):
+    a = mi.submit(_body("Проверить отчёт по пакетам", sid=None), actor="local", tracker_dir=tmp_path, now=NOW)
+    b = mi.submit(_body("Проверить отчёт по пакетам", sid=None), actor="local", tracker_dir=tmp_path, now=NOW)
+    assert a["card"] == b["card"]
+    assert len(_cards(tmp_path)) == 1
+
+
+def test_telegram_path_keeps_the_open_twin_guard(tmp_path):
+    p1, _ = ii.save_inbox_task("Купить зонт", source="telegram", tracker_dir=tmp_path)
+    p2, _ = ii.save_inbox_task("Купить зонт", source="telegram", tracker_dir=tmp_path)
+    assert p1 == p2 and len(_cards(tmp_path)) == 1

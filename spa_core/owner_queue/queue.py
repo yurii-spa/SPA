@@ -888,6 +888,7 @@ def create_card(
     extra_fields: dict | None = None,
     tracker_dir: str | Path | None = None,
     now: datetime | None = None,
+    merge_open_twin: bool = True,
 ) -> Path:
     """Create a new tracker card as a `trackerStatus`-frontmatter markdown file.
 
@@ -901,6 +902,10 @@ def create_card(
     This stays true after ADR-146 let agents CLOSE cards: closing demands a checked
     acceptance criterion, and a newborn card has nothing checked yet. A card born closed
     is a question that was never actually asked.
+
+    ``merge_open_twin=False`` — the caller already owns idempotency by its OWN request id
+    (the cockpit's ``submission_id``, ADR-760): a deliberate second note with identical
+    text is a new request and must become a new card, not be folded into the open twin.
     """
     if status in UNCREATABLE_STATUSES:
         raise OwnerDoneForbidden(
@@ -926,7 +931,7 @@ def create_card(
     # Условие узкое и проверяемое: тот же заголовок (⇒ то же имя файла), то же тело И
     # карточка всё ещё ОТКРЫТА. Изменилось тело — вопрос другой, заводим новую с суффиксом.
     # Карточка закрыта — вопрос вернулся, тоже новая.
-    existing = _open_twin(d, base, tracker_type, body)
+    existing = _open_twin(d, base, tracker_type, body) if merge_open_twin else None
     if existing is not None:
         log.info("create_card: открытая карточка с тем же вопросом уже есть (%s) — "
                  "не плодим дубль", existing.name)

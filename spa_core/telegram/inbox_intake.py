@@ -70,12 +70,15 @@ def inbox_tracker_dir() -> Path:
 def save_inbox_task(text: str, source: str = "telegram", transcript: str | None = None, *,
                     kind: str | None = None, origin_label: str = "Telegram",
                     tracker_dir=None, extra_fields: dict | None = None,
-                    preamble: list[str] | None = None) -> tuple[Path, str]:
+                    preamble: list[str] | None = None,
+                    merge_open_twin: bool = True) -> tuple[Path, str]:
     """Create an Inbox card from free text. Returns (path, title).
 
     ``extra_fields`` / ``preamble`` — дополнительные поля frontmatter и строки в начале тела
     (пульт ADR-760: ``submission_id``, ``actor``, строка о границе полномочий). Telegram их
     не передаёт — его карточки не меняются.
+    ``merge_open_twin=False`` — у вызывающего своя идемпотентность по id запроса (пульт,
+    ``submission_id``): та же фраза, отправленная заново намеренно, — новая карточка.
     """
     title = _title_from_text(text)
     extra, note = _money_fields(text, transcript)
@@ -96,9 +99,10 @@ def save_inbox_task(text: str, source: str = "telegram", transcript: str | None 
         "_Оркестратор: классифицируй (задача/идея/непонятно), при исполнении закрой карточку "
         "со ссылкой на порождённую работу (§6.4)._",
     ]
+    kw = {} if merge_open_twin else {"merge_open_twin": False}
     path = create_card(
         "inbox", title, "\n".join(body_parts),
-        status="new", source=source, extra_fields=extra, tracker_dir=tracker_dir,
+        status="new", source=source, extra_fields=extra, tracker_dir=tracker_dir, **kw,
     )
     return path, title
 
