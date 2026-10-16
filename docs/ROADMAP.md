@@ -164,6 +164,10 @@
     executor → probe-verified done → one notice → «Мои записи» done_verified; `d5d72f07`, intake wake fix, 3rd
     owner-permitted `mission_server` restart); findings_bridge log growth ~110× lower live; site_freshness live OK;
     full-CI verdict still NOT obtained (suite exceeds the GitHub job limit; push runs cancelled). Owner item: iPhone check.
+    Boundary (ARB round 5): the live demo record was submitted by the agent and the agent itself took the card as
+    executor — the integration works, AUTONOMY is NOT proven yet; provenance labelled the agent's record an owner note
+    (wrong). In progress: sharded CI control run with per-test results; automatic executor selection; provenance
+    (channel / established author / authority); recovery from a lost intake wake-up.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
