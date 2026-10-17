@@ -11,13 +11,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.init_db import init_database
-from message_bus.bus import MessageBus
+# Полные пути пакета (контрольный прогон CI 17.10, ADR-768): верхнеуровневое имя `database` занимал другой
+# модуль, если раньше в том же процессе шли другие файлы — сбор падал в зависимости от порядка файлов.
+from spa_core.database.init_db import init_database
+from spa_core.message_bus.bus import MessageBus
 try:
     from spa_core.utils.errors import RegistryError as _RegistryError
 except ImportError:
     _RegistryError = None
-from message_bus.topics import Priority, Topic
+from spa_core.message_bus.topics import Priority, Topic
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
 

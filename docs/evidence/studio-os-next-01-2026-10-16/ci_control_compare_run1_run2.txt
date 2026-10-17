@@ -1,0 +1,6 @@
+CI-CONTROL COMPARE f0f1ce803ffbaf17c0e286b4c0dd8776a9259760 (INCOMPLETE) → d15bb8aeb48f9d9a067a50e7ca7334a5d0ed0d23 (INCOMPLETE): new 0 · pre-existing 117 · not obtained 5 · fixed 10
+  NOT_OBTAINED spa_core/tests/test_list_identity_census.py::MeasureRefusesInsteadOfGuessing::test_all_readers_unmeasured_is_unmeasured_not_clean
+  NOT_OBTAINED spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_allowlist_keys_match_the_live_producer_exactly
+  NOT_OBTAINED spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_exemption_covers_no_MORE_sites_than_it_names
+  NOT_OBTAINED spa_core/tests/test_rule_second_copy_peer_axis.py::LiveControlOnTheRealTree::test_the_axis_is_not_empty_on_this_repository
+  NOT_OBTAINED spa_core/tests/test_state_journal_coverage_audit.py::test_live_state_no_longer_carries_uncovered_chronicle

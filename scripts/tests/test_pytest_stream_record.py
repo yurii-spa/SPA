@@ -202,9 +202,15 @@ def test_without_the_env_var_no_writer_is_created_at_all(monkeypatch) -> None:
     # возврат — восстановление делает сам monkeypatch на разборе.
     monkeypatch.setattr(plugin, "_RECORDER", plugin._RECORDER,            # noqa: SLF001
                         raising=False)
-    plugin.pytest_configure(_FakeConfig())
-    assert plugin._RECORDER is None, (                                   # noqa: SLF001
-        "без переменной окружения писатель всё равно создан — плагин не инертен")
+    # Возврат писателя — В ТЕЛЕ теста, а не только на разборе monkeypatch: отчёт call этого же случая
+    # пишется ДО разбора, и без живого писателя его исход терялся (контрольный прогон CI 17.10 — «не получено»).
+    saved = plugin._RECORDER                                             # noqa: SLF001
+    try:
+        plugin.pytest_configure(_FakeConfig())
+        assert plugin._RECORDER is None, (                               # noqa: SLF001
+            "без переменной окружения писатель всё равно создан — плагин не инертен")
+    finally:
+        plugin._RECORDER = saved                                         # noqa: SLF001
 
 
 # ── положительный контроль на аварию цикла #747 (ADR-534) ───────────────────
