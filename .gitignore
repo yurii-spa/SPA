@@ -44,6 +44,12 @@ data/**/*.json
 *.sqlite
 data/*.db-journal
 data/backups/
+# Записи прогона для критерия §49 `No regression` (ADR-770): junit-XML, который
+# производит scripts/refresh_no_regression_census.py. Правило data/**/*.json их НЕ
+# ловит — расширение другое, и без этой строки они видны `git status` как untracked,
+# то есть кормят уборщик деревьев и отчёты «НЕ ДОСТАВЛЕНО». Запись живёт на ХОСТЕ
+# по построению: она про это дерево и этот прогон.
+data/records/
 data/*.jsonl
 data/**/*.jsonl
 logs/*.log
