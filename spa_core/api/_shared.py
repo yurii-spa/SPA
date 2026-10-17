@@ -188,15 +188,51 @@ def sleeve_yield_basis(sid: str) -> str:
 
 # ─── PaperTrader (optional — graceful fallback) ───────────────────────────────
 
+def _portfolio_db_source() -> Path:
+    """SQLite-файл, который ЧИТАЕТ `get_live_portfolio`.
+
+    Явный ``SPA_LIVE_ROOT`` (стенд переписи читателей, ADR-580 §C8 — его копия
+    ``spa_core/database/spa.db`` лежит в стенде) побеждает; иначе — прежний
+    путь ``init_db.get_db_path()``. Умолчание ``live_paths.live_root()`` здесь
+    НАМЕРЕННО не берётся: без переменной оно указало бы из worktree на прод-БД.
+    """
+    from spa_core.utils import live_paths
+    env_root = os.environ.get(live_paths.LIVE_ROOT_ENV)
+    if env_root:
+        return Path(env_root) / "spa_core" / "database" / "spa.db"
+    from database.init_db import get_db_path
+    return Path(get_db_path())
+
+
 def get_live_portfolio() -> dict | None:
-    """Try to read live portfolio directly from PaperTrader; None if unavailable."""
+    """Try to read live portfolio directly from PaperTrader; None if unavailable.
+
+    ЧТЕНИЕ не пишет в исходную БД (N1, класс «тест трогает живое состояние»):
+    `init_database` (CREATE/INSERT OR IGNORE) и сам `PaperTrader`
+    (`_ensure_strategy_state` → INSERT/UPDATE, DecisionLogger) пишут в файл,
+    который им дан. Поэтому им даётся побайтовая копия во временном каталоге,
+    а исходник (вместе с WAL-хвостом, если он есть) только копируется —
+    sqlite его не открывает вовсе, даже ``mode=ro`` (тот создал бы -shm/-wal
+    рядом с исходником). Исходника нет ⇒ ``None``: на чтение БД не создаётся.
+    """
+    import shutil
+    import tempfile
     try:
+        src = _portfolio_db_source()
+        if not src.is_file():
+            log.debug(f"PaperTrader unavailable: no database at {src}")
+            return None
         from paper_trading.engine import PaperTrader
-        from database.init_db import get_db_path, init_database
-        db_path = get_db_path()
-        init_database(db_path)
-        trader = PaperTrader(db_path=db_path)
-        return trader.get_status()
+        from database.init_db import init_database
+        with tempfile.TemporaryDirectory(prefix="spa_live_portfolio_") as tmp:
+            db_path = Path(tmp) / "spa.db"
+            shutil.copyfile(src, db_path)
+            wal = src.with_name(src.name + "-wal")
+            if wal.is_file():
+                shutil.copyfile(wal, db_path.with_name(db_path.name + "-wal"))
+            init_database(db_path)
+            trader = PaperTrader(db_path=db_path)
+            return trader.get_status()
     except Exception as e:  # noqa: BLE001
         log.debug(f"PaperTrader unavailable: {e}")
         return None
