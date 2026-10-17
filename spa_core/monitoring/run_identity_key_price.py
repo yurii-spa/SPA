@@ -497,15 +497,33 @@ def _first_party_modules(tree_root: Path,
     return files
 
 
-def _import_edges(files: Dict[str, Path]) -> Dict[str, Set[str]]:
-    """Рёбра графа импортов первой стороны (модульный уровень, AST)."""
-    edges: Dict[str, Set[str]] = {}
-    for name, path in files.items():
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
-        except (SyntaxError, OSError):
-            edges[name] = set()
-            continue
+#: Память «текст модуля → его импорты» на процесс (замер 2026-10-17, CI #6,
+#: группа G01). :func:`reader_population` разбирала заново все ~2480 модулей
+#: первой стороны на КАЖДЫЙ зов — 4,8 с на этом Маке, — а зовут её за один
+#: прогон офиса пять соседей (`ledger_day_unit_census`, две пробы
+#: `card_acceptance`, `python_reader_clock_doors`, сам этот прибор), тесты —
+#: на каждый `setUp`. Импорты модуля — чистая функция его ТЕКСТА, поэтому ключ
+#: — хэш того самого текста, который иначе ушёл бы в ``ast.parse``: изменённый
+#: файл даёт промах сам, без отметок времени, и ответ из памяти тождествен
+#: разбору по построению. Фильтр «только первая сторона» (``d in files``)
+#: зависит от карты ``files`` и потому применяется ПОСЛЕ памяти, на каждый зов.
+#: Отказ разбора (`SyntaxError`) запоминается тем же значением, что и прежде
+#: (пустое множество); `OSError` и всё прочее не запоминается вовсе.
+_IMPORT_DEPS_MEMO: Dict[bytes, frozenset] = {}
+_IMPORT_DEPS_MEMO_CAP = 50_000
+
+
+def _module_imports(text: str) -> frozenset:
+    """Имена, которые модуль импортирует (модульный уровень и глубже, AST)."""
+    key = hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).digest()
+    got = _IMPORT_DEPS_MEMO.get(key)
+    if got is not None:
+        return got
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        got = frozenset()
+    else:
         deps: Set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -516,7 +534,23 @@ def _import_edges(files: Dict[str, Path]) -> Dict[str, Set[str]]:
                     deps.add(node.module)
                     for alias in node.names:
                         deps.add(f"{node.module}.{alias.name}")
-        edges[name] = {d for d in deps if d in files}
+        got = frozenset(deps)
+    if len(_IMPORT_DEPS_MEMO) >= _IMPORT_DEPS_MEMO_CAP:
+        _IMPORT_DEPS_MEMO.clear()
+    _IMPORT_DEPS_MEMO[key] = got
+    return got
+
+
+def _import_edges(files: Dict[str, Path]) -> Dict[str, Set[str]]:
+    """Рёбра графа импортов первой стороны (модульный уровень, AST)."""
+    edges: Dict[str, Set[str]] = {}
+    for name, path in files.items():
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            edges[name] = set()
+            continue
+        edges[name] = {d for d in _module_imports(text) if d in files}
     return edges
 
 

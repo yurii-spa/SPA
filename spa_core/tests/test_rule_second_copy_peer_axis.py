@@ -19,6 +19,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import spa_core.monitoring.rule_second_copy_census as rsc
+from spa_core.tests._live_census_memo import measure_once  # ОДИН замер живого дерева на сессию (G01)
 
 # FROZEN-DATE-OK: injected-clock — дата подаётся в `measure(..., now=)`
 # аргументом; ни одна сцена не спрашивает часы машины, и свежести у переписи
@@ -376,7 +377,7 @@ class LiveControlOnTheRealTree(unittest.TestCase):
     """Сцены проверяют правило; живое дерево проверяет, что оно не холостое."""
 
     def test_the_axis_is_not_empty_on_this_repository(self):
-        doc = rsc.measure(Path(rsc._ROOT), now=_NOW)
+        doc = measure_once(rsc.measure, Path(rsc._ROOT), now=_NOW)
         pairs = _pairs(doc)
         self.assertGreater(len(pairs), 0,
                            "перепись без единой пары на живом дереве была бы холостой")

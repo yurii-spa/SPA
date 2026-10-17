@@ -147,6 +147,151 @@ SCHEMA = "modular_constant_operand.v1"
 
 PRODUCER = "spa_core/monitoring/modular_constant_operand.py"
 
+
+# --- память ОДНОГО прогона переписи по ОДНОМУ файлу ---------------------------
+#
+# Замер 2026-10-17 (CI #6, группа G01): `census()` по живому дереву шёл 90 с на
+# этом Маке, и треть времени уходила на ПОВТОР уже сделанной работы над тем же
+# файлом. Для каждого модуля с постоянными четыре ступени (`module_sites`,
+# `module_shadow_cost`, `module_chain`, `axis_limit_cost`) заново разбирали
+# ОДИН И ТОТ ЖЕ исходник, заново искали постоянные и затенение, заново
+# копировали дерево подстановкой и заново прогоняли ось по ТОЙ ЖЕ копии с теми
+# же пределами: `_axis_answers_converged` звалась 4621 раз на 2480 файлов.
+#
+# Все пять запоминаемых функций — чистые функции своих входов (ни одна не
+# пишет в узлы дерева: проверено поиском присваиваний атрибутов в обоих
+# модулях), поэтому ответ из памяти тождествен пересчёту ПО ПОСТРОЕНИЮ. Память
+# живёт РОВНО один прогон `census()` (тот же порядок, что у
+# `rule_second_copy_census._neighbour_query_memo`) и только для текущего
+# файла: подмена двери оси МЕЖДУ прогонами (так устроены контроли соседних
+# тестов) видна сразу, а вне `census()` функции работают как прежде, без
+# памяти вовсе. Ключ — ТОЖДЕСТВО объекта дерева, и запись держит сам объект,
+# поэтому `id()` не может быть переиспользован, пока запись жива.
+#
+# Выдача из памяти — КОПИЯ изменяемого контейнера (`module_sites` вычитает из
+# словаря постоянных затенённые имена), а деревья отдаются как есть: их не
+# пишет никто. Доказательство тождества — сверка полного ответа `census()` с
+# памятью и без неё (`test_modular_constant_operand_run_memo.py`).
+_RUN_MEMO: List[dict] = []
+
+
+def _file_memo(source: Optional[str] = None) -> Optional[dict]:
+    """Память текущего файла внутри прогона, либо ``None`` вне прогона.
+
+    ``source`` переключает память на новый файл (прежний забывается — это
+    граница потребления памяти, а не условие верности: ключи держат свои
+    объекты и без неё).
+    """
+    if not _RUN_MEMO:
+        return None
+    run = _RUN_MEMO[-1]
+    if source is not None and run.get("source") != source:
+        run.clear()
+        run["source"] = source
+        run["entries"] = {}
+        field_kind.node_memo.reset()     # узлы прежнего файла забываются там же
+    return run.setdefault("entries", {})
+
+
+def _remembered(fn):
+    """Запоминает чистую функцию дерева на время текущего файла прогона."""
+    import functools
+    import inspect
+
+    signature = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(tree, *args, **kwargs):
+        memo = _file_memo()
+        if memo is None:
+            return fn(tree, *args, **kwargs)
+        # Умолчания подставляются в ключ: `f(t)` и `f(t, rounds=None)` — один
+        # и тот же вопрос, и спрашивать его дважды значило бы платить дважды.
+        bound = signature.bind(tree, *args, **kwargs)
+        bound.apply_defaults()
+        frozen = tuple(
+            (name, tuple(sorted(value.items())) if isinstance(value, dict)
+             else value)
+            for name, value in bound.arguments.items() if name != "tree")
+        key = (fn.__name__, id(tree), frozen)
+        got = memo.get(key)
+        if got is None:
+            got = (tree, args, fn(tree, *args, **kwargs))
+            memo[key] = got
+        return _copy_out(got[2])
+
+    return wrapper
+
+
+def _copy_out(value):
+    """Изменяемый контейнер отдаётся копией; деревья и кортежи — как есть."""
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, set):
+        return set(value)
+    if isinstance(value, list):
+        return list(value)
+    if isinstance(value, tuple):
+        return tuple(_copy_out(v) if isinstance(v, (dict, set, list)) else v
+                     for v in value)
+    return value
+
+
+def _fresh_copy(tree: ast.Module) -> ast.Module:
+    """Независимая копия дерева: ``copy.deepcopy`` либо НОВЫЙ разбор исходника.
+
+    Внутри прогона, когда дерево — ровно то, что разобрала память текущего
+    файла, копия получается повторным ``ast.parse`` того же исходника: разбор
+    детерминирован и даёт те же узлы с теми же отметками положения, что и
+    глубокая копия нетронутого дерева, а стоит на порядок дешевле (замер:
+    24 мс копии против 0,5 мс разбора на файл). Вне прогона — прежний путь.
+    """
+    if _RUN_MEMO:
+        run = _RUN_MEMO[-1]
+        got = run.get("entries", {}).get("__parse__")
+        if got is not None and got[0] == "tree" and got[1] is tree:
+            return ast.parse(run["source"])
+    return copy.deepcopy(tree)
+
+
+def _with_run_memo(fn):
+    """Ставит память одного прогона вокруг :func:`census`, не трогая тело.
+
+    Возврат безусловен: память снимается и после исключения, иначе следующий
+    прогон (или прямой зов ступени из теста) получил бы ответ о ЧУЖОМ файле.
+    """
+    import functools
+
+    @functools.wraps(fn)
+    def run_with_memo(*args, **kwargs):
+        _RUN_MEMO.append({})
+        try:
+            # Память обходов оси (тела областей, перечень областей) живёт под
+            # той же границей: один прогон, один файл.
+            with field_kind.node_memo():
+                return fn(*args, **kwargs)
+        finally:
+            _RUN_MEMO.pop()
+
+    return run_with_memo
+
+
+def _parse(source: str) -> ast.Module:
+    """``ast.parse`` с памятью текущего файла прогона; отказ разбора — тоже."""
+    memo = _file_memo(source)
+    if memo is None:
+        return ast.parse(source)
+    got = memo.get("__parse__")
+    if got is None:
+        try:
+            got = ("tree", ast.parse(source))
+        except (SyntaxError, ValueError) as exc:
+            got = ("error", exc)
+        memo["__parse__"] = got
+    if got[0] == "error":
+        raise got[1]
+    return got[1]
+
 #: Населения у класса нет вовсе — ось расширять не на чем.
 EMPTY = "EMPTY"
 
@@ -270,6 +415,7 @@ def globals_declared(tree: ast.Module) -> Set[str]:
     return out
 
 
+@_remembered
 def module_constants(tree: ast.Module) -> Dict[str, str]:
     """Имя → литерал: модульные имена, связанные ТОЛЬКО числовыми литералами.
 
@@ -293,6 +439,7 @@ def module_constants(tree: ast.Module) -> Dict[str, str]:
     return out
 
 
+@_remembered
 def shadowed_anywhere(tree: ast.Module) -> Set[str]:
     """Имена, затенённые НЕ присваиванием хоть в одной области модуля.
 
@@ -327,6 +474,7 @@ class _Substitute(ast.NodeTransformer):
         return ast.copy_location(ast.Constant(value=value), node)
 
 
+@_remembered
 def substituted(tree: ast.Module, consts: Dict[str, str]
                 ) -> Tuple[ast.Module, int]:
     """Копия дерева, где чтения постоянных стали литералами. Вторым — сколько.
@@ -335,7 +483,7 @@ def substituted(tree: ast.Module, consts: Dict[str, str]
     строк в отчёте обязаны указывать на НАСТОЯЩИЙ файл, а не на разобранную
     копию (урок: «регион по номерам строк пуст на разобранной базе»).
     """
-    clone = copy.deepcopy(tree)
+    clone = _fresh_copy(tree)
     sub = _Substitute(consts)
     clone = sub.visit(clone)
     ast.fix_missing_locations(clone)
@@ -363,6 +511,7 @@ def _axis_answers(tree: ast.Module, *, rounds: Optional[int] = None,
     return _axis_answers_converged(tree, rounds=rounds, depth=depth)[0]
 
 
+@_remembered
 def _axis_answers_converged(tree: ast.Module, *, rounds: Optional[int] = None,
                             depth: int = 0
                             ) -> Tuple[List[Tuple[str, int, str]], bool]:
@@ -417,7 +566,7 @@ def module_sites(source: str, *, drop_shadowed: bool = True
     уже раскрытого соседом, РАСХОДИТСЯ).
     """
     try:
-        tree = ast.parse(source)
+        tree = _parse(source)
     except (SyntaxError, ValueError) as exc:
         return None, {}, f"не разобрано: {type(exc).__name__}"
     consts = module_constants(tree)
@@ -479,7 +628,7 @@ def module_shadow_cost(source: str) -> ShadowCost:
     рассуждении, а не на тесте.
     """
     try:
-        tree = ast.parse(source)
+        tree = _parse(source)
     except (SyntaxError, ValueError) as exc:
         return ShadowCost("", (), (), f"не разобрано: {type(exc).__name__}")
     dropped = tuple(sorted(set(module_constants(tree)) & shadowed_anywhere(tree)))
@@ -544,7 +693,7 @@ def module_chain(source: str, sites: Sequence[Site]) -> Tuple[List[ChainRow], st
     «ответа нет и при полном пределе» есть третий исход, а не длина.
     """
     try:
-        tree = ast.parse(source)
+        tree = _parse(source)
     except (SyntaxError, ValueError) as exc:
         return [], f"не разобрано: {type(exc).__name__}"
     wanted = [s for s in sites if s.transitive]
@@ -679,7 +828,7 @@ def axis_limit_cost(source: str) -> LimitCost:
     Оба тождества закреплены контролем, а не рассуждением.
     """
     try:
-        tree = ast.parse(source)
+        tree = _parse(source)
     except (SyntaxError, ValueError) as exc:
         return LimitCost("", 0, 0, False, (), False, (),
                          f"не разобрано: {type(exc).__name__}")
@@ -720,6 +869,7 @@ def axis_limit_cost(source: str) -> LimitCost:
                      rounds_door, tuple(rounds_hidden), "")
 
 
+@_with_run_memo
 def census(tree_root: Path,
            roots: Sequence[str] = DEFAULT_ROOTS) -> dict:
     """Население класса по всему дереву. Тесты исключены — как у оси."""

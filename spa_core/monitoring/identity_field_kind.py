@@ -316,6 +316,11 @@ def _wrappers(tree: ast.Module, derive) -> FrozenSet[str]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             funcs.setdefault(node.name, node)
+    # Отдаваемые выражения функции не зависят от раунда — они свойство её
+    # тела. Раньше `_returns` обходил тело заново на КАЖДОМ раунде (замер
+    # 2026-10-17: 73 554 обхода на 2478 модулей). Список считается один раз
+    # на функцию и лениво — только у той, до которой петля дошла.
+    returns: Dict[str, List[ast.AST]] = {}
     wrappers: Set[str] = set()
     for _ in range(len(funcs) + 1):
         grew = False
@@ -323,7 +328,9 @@ def _wrappers(tree: ast.Module, derive) -> FrozenSet[str]:
             if name in wrappers:
                 continue
             scope = _Scope(frozenset(), frozenset(wrappers))
-            if any(derive(expr, scope) for expr in _returns(node)):
+            if name not in returns:
+                returns[name] = _returns(node)
+            if any(derive(expr, scope) for expr in returns[name]):
                 wrappers.add(name)
                 grew = True
         if not grew:
@@ -563,6 +570,16 @@ def _shadowed(scope_node: ast.AST) -> Set[str]:
     Находка была ложной целиком, и ложной в опасную сторону: обвинялось имя из
     ``_HAND_PICKED_IDENTITY_FIELDS``.
     """
+    return _shadowed_in(scope_node, _own_body_tuple(scope_node))
+
+
+def _shadowed_in(scope_node: ast.AST, body: Iterable[ast.AST]) -> Set[str]:
+    """:func:`_shadowed` по УЖЕ собранному телу области — без второго обхода.
+
+    Одно правило, один дом: :func:`_shadowed` зовёт ровно эту функцию со
+    свежим обходом, а :func:`scope_derived_steps` — с тем списком, который она
+    и так собирает. Множество от порядка узлов не зависит.
+    """
     out: Set[str] = set()
     args = getattr(scope_node, "args", None)
     if isinstance(args, ast.arguments):
@@ -571,7 +588,7 @@ def _shadowed(scope_node: ast.AST) -> Set[str]:
         for extra in (args.vararg, args.kwarg):
             if extra is not None:
                 out.add(extra.arg)
-    for node in _own_body(scope_node):
+    for node in body:
         if isinstance(node, (ast.For, ast.AsyncFor)):
             out |= _targets(node.target)
         elif isinstance(node, (ast.With, ast.AsyncWith)):
@@ -591,6 +608,48 @@ def _shadowed(scope_node: ast.AST) -> Set[str]:
 
 def comprehension_types() -> Tuple[type, ...]:
     return (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+
+
+#: Память обходов ОДНОГО модуля (замер 2026-10-17, CI #6, группа G01). Тело
+#: области (:func:`_own_body`) и перечень областей (:func:`_scopes`) — чистые
+#: функции узла, а за один разбор модуля их спрашивали по три раза: две
+#: таблицы областей (часы и счёт) и перечень площадок обходили одни и те же
+#: узлы заново. Память ставится на время ОДНОГО модуля (:func:`node_memo` —
+#: её ставят :func:`module_kinds` и сосед ``modular_constant_operand`` на свой
+#: файл), ключ — тождество узла, запись держит сам узел, поэтому ``id()`` не
+#: переиспользуется, пока запись жива. Вне памяти функции работают как
+#: прежде. Узлы НЕ пишутся никем, поэтому ответ из памяти равен обходу.
+_NODE_MEMO: List[dict] = []
+
+
+class node_memo:  # noqa: N801 — контекст, а не класс-сущность
+    """Память обходов на время одного модуля; вложенный вход — та же память."""
+
+    def __enter__(self) -> "node_memo":
+        _NODE_MEMO.append({} if not _NODE_MEMO else _NODE_MEMO[-1])
+        return self
+
+    def __exit__(self, *exc) -> None:
+        _NODE_MEMO.pop()
+
+    @staticmethod
+    def reset() -> None:
+        """Забыть узлы прежнего модуля (граница памяти, не условие верности)."""
+        if _NODE_MEMO:
+            _NODE_MEMO[-1].clear()
+
+
+def _own_body_tuple(scope_node: ast.AST) -> Tuple[ast.AST, ...]:
+    """Тело области кортежем — из памяти модуля, если она стоит."""
+    if not _NODE_MEMO:
+        return tuple(_own_body(scope_node))
+    memo = _NODE_MEMO[-1]
+    key = ("body", id(scope_node))
+    got = memo.get(key)
+    if got is None:
+        got = (scope_node, tuple(_own_body(scope_node)))
+        memo[key] = got
+    return got[1]
 
 
 def _own_body(scope_node: ast.AST) -> Iterable[ast.AST]:
@@ -637,9 +696,9 @@ def scope_derived_steps(scope_node: ast.AST, outer: _Scope, derive=None, *,
     """
     derive = derivation if derive is None else derive
     limit = DERIVE_ROUNDS if rounds is None else rounds
-    shadow = _shadowed(scope_node)
+    body = _own_body_tuple(scope_node)
+    shadow = _shadowed_in(scope_node, body)
     derived: Set[str] = set(outer.derived) - shadow
-    body = list(_own_body(scope_node))
     used = 0
     converged = False
     for _ in range(limit):
@@ -729,7 +788,7 @@ def field_assignments(tree: ast.Module) -> List[Tuple[str, ast.AST, int, ast.AST
     """
     out: List[Tuple[str, ast.AST, int, ast.AST]] = []
     for scope_node in _scopes(tree):
-        for node in _own_body(scope_node):
+        for node in _own_body_tuple(scope_node):
             if isinstance(node, ast.Dict):
                 for key, value in zip(node.keys, node.values):
                     if isinstance(key, ast.Constant) and isinstance(key.value, str):
@@ -753,6 +812,18 @@ def field_assignments(tree: ast.Module) -> List[Tuple[str, ast.AST, int, ast.AST
 
 def _scopes(tree: ast.Module) -> List[ast.AST]:
     """Все области видимости модуля — модуль первым, функции за ним."""
+    if _NODE_MEMO:
+        memo = _NODE_MEMO[-1]
+        got = memo.get(("scopes", id(tree)))
+        if got is None:
+            got = (tree, tuple(_scopes_walk(tree)))
+            memo[("scopes", id(tree))] = got
+        return list(got[1])
+    return _scopes_walk(tree)
+
+
+def _scopes_walk(tree: ast.Module) -> List[ast.AST]:
+    """Обход для :func:`_scopes` — без памяти."""
     out: List[ast.AST] = [tree]
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
@@ -777,6 +848,13 @@ def module_kinds(source: str,
         tree = ast.parse(source)
     except (SyntaxError, ValueError) as exc:
         return {}, f"не разобрано: {type(exc).__name__}"
+    with node_memo():
+        return _module_kinds_of(tree, wanted)
+
+
+def _module_kinds_of(tree: ast.Module, wanted: Optional[Set[str]]
+                     ) -> Tuple[Dict[str, List[Evidence]], str]:
+    """Тело :func:`module_kinds` по уже разобранному дереву (под памятью обходов)."""
     scopes = _scope_table(tree, derivation, clock_wrappers(tree))
     arith_scopes = _scope_table(tree, arith_derivation, arith_wrappers(tree))
     out: Dict[str, List[Evidence]] = {}

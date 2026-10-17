@@ -21,6 +21,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import spa_core.monitoring.rule_second_copy_census as rsc
+from spa_core.tests._live_census_memo import measure_once  # ОДИН замер живого дерева на сессию (G01)
 
 # FROZEN-DATE-OK: injected-clock — дата подаётся в `measure(..., now=)`
 # аргументом; свежести у переписи нет вовсе, `generated_at` в вердикте не
@@ -387,7 +388,7 @@ class LiveControlOnTheRealTree(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.doc = rsc.measure(Path(rsc._ROOT), now=_NOW)
+        cls.doc = measure_once(rsc.measure, Path(rsc._ROOT), now=_NOW)
 
     def test_the_shelf_is_readable_here_so_nothing_is_unmeasured(self):
         self.assertIsNone(self.doc["constitution_unread"])

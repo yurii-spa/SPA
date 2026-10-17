@@ -32,6 +32,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from spa_core.monitoring import rule_second_copy_census as rsc
+from spa_core.tests._live_census_memo import measure_once  # ОДИН замер живого дерева на сессию (G01)
 
 _REPO = Path(__file__).resolve().parents[2]
 #: Неподвижные часы: прибор берёт их параметром, поэтому вердикт не зависит от
@@ -681,7 +682,7 @@ class LiveControlOnTheRealTree(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.doc = rsc.measure(_REPO, now=_NOW)
+        cls.doc = measure_once(rsc.measure, _REPO, now=_NOW)
 
     def test_the_real_tree_is_measured_at_all(self):
         self.assertIn(self.doc["status"], ("CLEAN", "FINDING"))

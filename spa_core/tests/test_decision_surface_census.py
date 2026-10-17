@@ -21,6 +21,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import spa_core.monitoring.rule_second_copy_census as rsc
+from spa_core.tests._live_census_memo import measure_once  # ОДИН замер живого дерева на сессию (G01)
 # Помощник сцены берётся у соседней оси, а не пишется заново: вторая копия
 # правила «как выглядит дерево сцены» в приборе, который мерит вторые копии,
 # была бы ровно тем дефектом, против которого он написан.
@@ -496,7 +497,8 @@ class LiveControlOnTheRealTree(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.doc = rsc.measure(Path(rsc._ROOT), now=_NOW)["decision_surfaces"]
+        cls.doc = measure_once(rsc.measure, Path(rsc._ROOT),
+                               now=_NOW)["decision_surfaces"]
 
     def test_the_population_is_declared_and_non_empty(self):
         self.assertNotEqual(self.doc["verdict"], rsc.SURFACES_UNMEASURED)

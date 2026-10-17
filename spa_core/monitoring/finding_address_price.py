@@ -511,17 +511,21 @@ def door_sites(source: str) -> Tuple[List[dict], Optional[str]]:
         tree = ast.parse(source)
     except SyntaxError as exc:
         return [], f"не разобран: {type(exc).__name__}"
+    # Сначала — есть ли в файле зов двери вообще. Карта родителей нужна только
+    # тем файлам, где он есть (замер 2026-10-17: карта строилась для КАЖДОГО из
+    # ~4800 файлов дерева, а зовы есть у считанных). Порядок обхода и состав
+    # мест не меняются: те же узлы того же `ast.walk`, в том же порядке.
+    calls = [(node, door) for node in ast.walk(tree)
+             if isinstance(node, ast.Call)
+             for door in (_door_name(node),) if door is not None]
+    if not calls:
+        return [], None
     parents: Dict[int, ast.AST] = {}
     for node in ast.walk(tree):
         for child in ast.iter_child_nodes(node):
             parents[id(child)] = node
     sites: List[dict] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        door = _door_name(node)
-        if door is None:
-            continue
+    for node, door in calls:
         chain: List[ast.AST] = []
         cursor: Optional[ast.AST] = parents.get(id(node))
         while cursor is not None:
