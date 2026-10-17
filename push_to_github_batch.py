@@ -160,9 +160,12 @@ MUTATION_WINDOW_EXIT = _root_push.MUTATION_WINDOW_EXIT
 # сверяет, а другая молчит, — дословно урок номеров ADR (26.08, второй ADR-145).
 pin_delivery_bytes = _root_push.pin_delivery_bytes
 read_delivery_bytes = _root_push.read_delivery_bytes
+read_delivery_mode = _root_push.read_delivery_mode
 delivery_pin_summary = _root_push.delivery_pin_summary
+delivery_mode_summary = _root_push.delivery_mode_summary
 reset_delivery_pin = _root_push.reset_delivery_pin
 DeliveryBytesDrifted = _root_push.DeliveryBytesDrifted
+DeliveryModeDrifted = _root_push.DeliveryModeDrifted
 BYTES_DRIFT_EXIT = _root_push.BYTES_DRIFT_EXIT
 
 
@@ -339,7 +342,9 @@ def main():
         # Тот же код выхода, что в каноническом CLI: вызывающие
         # (`safe_site_push.py`, кастодиан) различают случаи одинаково в обоих
         # путях — иначе одна дверь отказывала бы понятно, а вторая общим FAIL.
-        print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+        axis = ("РЕЖИМА файла" if isinstance(e, DeliveryModeDrifted)
+                else "отправляемых байтов")
+        print(f"\nОТКАЗ (слепок {axis}): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
     except Exception as e:
         print(f"\nFAIL: {e}")
@@ -355,6 +360,7 @@ def main():
         print(f"\nOK: 1 коммит {result['commit'][:8]} со {result['count']} файл(ами)"
               f" (skipped={result['skipped']})")
     print(f"  {delivery_pin_summary()}")
+    print(f"  {delivery_mode_summary()}")
     sys.exit(0)
 
 

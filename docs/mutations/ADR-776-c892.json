@@ -1,0 +1,88 @@
+{
+  "title": "ADR-776 — дельта цикла #892: вторая ось слепка доставки (РЕЖИМ файла, x-бит)",
+  "tests": [
+    "spa_core/tests/test_delivery_bytes_pin.py",
+    "spa_core/tests/test_entry_guard_rename_and_full_list.py",
+    "spa_core/tests/test_push_batch_atomic.py"
+  ],
+  "mutations": [
+    {
+      "name": "возврат к прежнему поведению: режим читается у диска отдельным поздним чтением",
+      "file": "push_to_github.py",
+      "old": "    return read_delivery_mode(abs_path)",
+      "new": "    return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE"
+    },
+    {
+      "name": "режим в слепок не кладётся вовсе — дверь всегда отвечает «пути нет в слепке»",
+      "file": "push_to_github.py",
+      "old": "            modes[key] = EXEC_MODE if os.access(key, os.X_OK) else BLOB_MODE",
+      "new": "            pass  # режим не пинуется"
+    },
+    {
+      "name": "расхождение режима зачитывается за норму (fail-OPEN второй оси)",
+      "file": "push_to_github.py",
+      "old": "    if actual != pinned:\n        note = (f\"слепок {pinned} ≠ диск {actual} (снят {_DELIVERY_PIN['at']})\")",
+      "new": "    if actual != pinned and False:\n        note = (f\"слепок {pinned} ≠ диск {actual} (снят {_DELIVERY_PIN['at']})\")"
+    },
+    {
+      "name": "отсутствующий путь получает 100644 молча: «не измерено», выданное за измеренное",
+      "file": "push_to_github.py",
+      "old": "            if not Path(key).exists():\n                raise FileNotFoundError(f\"пути нет: {key}\")",
+      "new": "            pass  # существование не спрашивается"
+    },
+    {
+      "name": "третий исход гаснет: непинованное чтение режима молчит вместо «НЕ ИЗМЕРЕНО»",
+      "file": "push_to_github.py",
+      "old": "        _MODE_VERDICTS.append({\"path\": key, \"state\": \"unmeasured\",\n                               \"reason\": \"слепок не снимался: \"\n                                         \"`pin_delivery_bytes` не зван\"})",
+      "new": "        pass  # третий исход не записывается"
+    },
+    {
+      "name": "вердикты режима падают в список БАЙТОВ — молчание одной оси становится невидимым",
+      "file": "push_to_github.py",
+      "old": "    _MODE_VERDICTS.append({\"path\": key, \"state\": \"match\", \"mode\": actual})\n    return actual",
+      "new": "    _PIN_VERDICTS.append({\"path\": key, \"state\": \"match\", \"sha\": actual})\n    return actual"
+    },
+    {
+      "name": "отказ по режиму перестаёт быть подклассом — оба CLI пропустят вторую ось",
+      "file": "push_to_github.py",
+      "old": "class DeliveryModeDrifted(DeliveryBytesDrifted):",
+      "new": "class DeliveryModeDrifted(RuntimeError):"
+    },
+    {
+      "name": "объявленный обход перестаёт печатать расхождение (молчание вместо имени)",
+      "file": "push_to_github.py",
+      "old": "        print(f\"  ⚠️  РЕЖИМ разошёлся со слепком, но обход объявлен \"\n              f\"(--allow-bytes-drift): {_display_path(key)} — {note}\")\n        return",
+      "new": "        return"
+    },
+    {
+      "name": "усечённое дерево больше не отказывает: вопрос подменяется вопросом о режиме",
+      "file": "push_to_github.py",
+      "old": "    if truncated:\n        raise TreeModeError(\n            f\"дерево ветки пришло усечённым (GitHub `truncated: true`), и для \"",
+      "new": "    if truncated and False:\n        raise TreeModeError(\n            f\"дерево ветки пришло усечённым (GitHub `truncated: true`), и для \""
+    },
+    {
+      "name": "режим remote перестаёт побеждать — локальный x-бит затирает чужие права",
+      "file": "push_to_github.py",
+      "old": "    existing = modes.get(repo_path)\n    if existing:\n        return str(existing)",
+      "new": "    existing = modes.get(repo_path)\n    if existing and False:\n        return str(existing)"
+    },
+    {
+      "name": "итог второй оси не печатается ВТОРОЙ дверью (ось молчит в выводе batch-CLI)",
+      "file": "push_to_github_batch.py",
+      "old": "    print(f\"  {delivery_pin_summary()}\")\n    print(f\"  {delivery_mode_summary()}\")\n    sys.exit(0)",
+      "new": "    print(f\"  {delivery_pin_summary()}\")\n    sys.exit(0)"
+    },
+    {
+      "name": "сброс слепка не чистит вердикты режима — счёт течёт между прогонами",
+      "file": "push_to_github.py",
+      "old": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n\n\ndef _delivery_abs",
+      "new": "    _PIN_VERDICTS.clear()\n\n\ndef _delivery_abs"
+    },
+    {
+      "name": "итог второй оси не печатается ПЕРВОЙ дверью (батч-ветка канонического CLI)",
+      "file": "push_to_github.py",
+      "old": "            print(f\"\\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) \"\n                  f\"(skipped={result['skipped']})\")\n        print(f\"  {delivery_pin_summary()}\")\n        print(f\"  {delivery_mode_summary()}\")",
+      "new": "            print(f\"\\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) \"\n                  f\"(skipped={result['skipped']})\")\n        print(f\"  {delivery_pin_summary()}\")"
+    }
+  ]
+}

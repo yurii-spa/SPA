@@ -425,6 +425,28 @@ class DeliveryBytesDrifted(RuntimeError):
     """
 
 
+class DeliveryModeDrifted(DeliveryBytesDrifted):
+    """РЕЖИМ файла на диске разошёлся со слепком момента «отправляю это».
+
+    Подкласс, а не собственный код возврата, — выбор осознанный: авария ОДНА
+    (гейты судили одно состояние файла, уехать собралось другое), и окно у неё
+    одно. Разных кодов было бы два у одной причины, и вызывающий, поймавший
+    `DeliveryBytesDrifted`, пропустил бы вторую ось МОЛЧА. Ось названа в
+    сообщении, а не в числе.
+
+    **Зачем вторая ось вообще.** До ADR-776 слепок нёс только СОДЕРЖИМОЕ, а
+    режим записи дерева `tree_entry_mode` спрашивал у диска ОТДЕЛЬНЫМ, более
+    поздним чтением (`os.access(..., os.X_OK)`), и для НОВОГО пути x-бит в
+    слепок не входил вовсе. Замер (цикл #892, заказ G774 п. 3): пин снят с
+    исполняемого файла, x-бит снят ПОСЛЕ пина — пушер отдал `100644`, а дверь
+    байтов отчиталась «сверено», потому что байты и правда не менялись. Класс
+    дословно тот, которым флот платил 2026-08-04: режим `100644` у обёртки
+    launchd обесточил 67 из 69 агентов на пять часов, и ни один сторож об этом
+    не сказал (`.claude/rules/deployment.md`, п. 3 «права файлов — часть
+    доставки»).
+    """
+
+
 #: Слепок набора. Живёт на модуле намеренно: двери доставки две
 #: (`push_to_github.py` и `push_to_github_batch.py`, второй ИМПОРТИРУЕТ первый),
 #: читателей байтов четыре, и протаскивать пин параметром через четыре подписи
@@ -435,6 +457,8 @@ _DELIVERY_PIN: dict = {
     "at": None,           # когда (ISO, для сообщения об отказе)
     "digests": {},        # abs_path (str) → git-blob-sha1 на момент пина
     "unreadable": {},     # abs_path (str) → причина, по которой слепок не снят
+    "modes": {},          # abs_path (str) → режим записи дерева на момент пина
+    "mode_unreadable": {},# abs_path (str) → причина, по которой режим не снят
     "allow_drift": False, # осознанное согласие автора, снятое в момент пина
 }
 
@@ -443,12 +467,20 @@ _DELIVERY_PIN: dict = {
 #: позвали), и её видно тесту проводки.
 _PIN_VERDICTS: list = []
 
+#: Вердикты второй оси — РЕЖИМА файла (x-бит). Список ОТДЕЛЬНЫЙ намеренно:
+#: смешай их, и «сверено у 16 чтений» перестало бы отвечать на вопрос «а режим
+#: кто сверял» — число выросло бы от второй оси, а молчание первой стало бы
+#: невидимым (инв. #17: у каждого производителя числа свои три исхода).
+_MODE_VERDICTS: list = []
+
 
 def reset_delivery_pin() -> None:
     """Снять слепок (для тестов и повторных прогонов в одном процессе)."""
     _DELIVERY_PIN.update({"taken": False, "at": None, "digests": {},
-                          "unreadable": {}, "allow_drift": False})
+                          "unreadable": {}, "modes": {},
+                          "mode_unreadable": {}, "allow_drift": False})
     _PIN_VERDICTS.clear()
+    _MODE_VERDICTS.clear()
 
 
 def _delivery_abs(file_arg) -> str:
@@ -486,21 +518,37 @@ def pin_delivery_bytes(file_args: list, allow_drift: bool = False,
         return dict(_DELIVERY_PIN)
 
     digests, unreadable = {}, {}
+    modes, mode_unreadable = {}, {}
     for fa in file_args:
         key = _delivery_abs(fa)
         try:
             digests[key] = git_blob_sha(Path(key).read_bytes())
         except OSError as e:
             unreadable[key] = f"{type(e).__name__}: {e}"
+        # РЕЖИМ снимается в ТОТ ЖЕ такт, что и байты, и тем же предикатом, что
+        # стоял в `tree_entry_mode` (`os.access(..., os.X_OK)`) — направление
+        # не меняется, меняется МОМЕНТ замера. `os.access` на отсутствующем
+        # пути отвечает `False`, то есть молча дал бы `100644`: поэтому режим
+        # записывается только у пути, который СУЩЕСТВУЕТ, а у остального —
+        # названная причина (инв. #17).
+        try:
+            if not Path(key).exists():
+                raise FileNotFoundError(f"пути нет: {key}")
+            modes[key] = EXEC_MODE if os.access(key, os.X_OK) else BLOB_MODE
+        except OSError as e:
+            mode_unreadable[key] = f"{type(e).__name__}: {e}"
 
     _DELIVERY_PIN.update({
         "taken": True,
         "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "digests": digests,
         "unreadable": unreadable,
+        "modes": modes,
+        "mode_unreadable": mode_unreadable,
         "allow_drift": bool(allow_drift),
     })
     _PIN_VERDICTS.clear()
+    _MODE_VERDICTS.clear()
 
     set_digest = hashlib.sha1(
         "".join(f"{k}:{v}" for k, v in sorted(digests.items())).encode()
@@ -510,9 +558,14 @@ def pin_delivery_bytes(file_args: list, allow_drift: bool = False,
           f"{f', НЕ ПРОЧИТАНО {len(unreadable)}' if unreadable else ''}"
           f"{f', слепок набора {set_digest[:12]}' if set_digest else ''}")
     for key in sorted(digests):
-        print(f"    {digests[key][:12]}  {_display_path(key)}")
+        print(f"    {digests[key][:12]}  {_display_path(key)}"
+              f"{'  (exec)' if modes.get(key) == EXEC_MODE else ''}")
     for key in sorted(unreadable):
         print(f"    НЕ ИЗМЕРЕНО   {_display_path(key)} — {unreadable[key]}")
+    for key in sorted(mode_unreadable):
+        if key not in unreadable:
+            print(f"    РЕЖИМ НЕ ИЗМЕРЕН  {_display_path(key)} — "
+                  f"{mode_unreadable[key]}")
     if allow_drift:
         print("    ⚠️  --allow-bytes-drift: расхождение байтов со слепком "
               "будет НАЗВАНО, но доставку не остановит")
@@ -588,6 +641,92 @@ def _refuse_drift(key: str, note: str) -> None:
         f"Осознанно продолжить: --allow-bytes-drift (или "
         f"SPA_PUSH_ALLOW_BYTES_DRIFT=1) — тогда расхождение будет НАЗВАНО, "
         f"но доставку не остановит.")
+
+
+def read_delivery_mode(abs_path) -> str:
+    """ЕДИНСТВЕННАЯ дверь к РЕЖИМУ файла, который уезжает. Сверяет со слепком.
+
+    Возвращает режим записи дерева git (`100755`/`100644`) и оставляет след в
+    :data:`_MODE_VERDICTS`. Три исхода различимы (инв. #17):
+
+    * слепок снят и режим совпал → доставка измерена по второй оси;
+    * слепок снят и режим РАЗОШЁЛСЯ → :class:`DeliveryModeDrifted` (fail-CLOSED),
+      либо НАЗВАННЫЙ обход при `--allow-bytes-drift`;
+    * слепок НЕ СНЯТ (библиотечный вызов `batch_push` минуя CLI) → `unmeasured`
+      с причиной: отказывать здесь было бы неверно, а молчать — значило бы
+      сделать «не измерено» неотличимым от «сверено».
+
+    Возвращается режим С ДИСКА, а не из слепка, — ровно как дверь байтов
+    отдаёт байты с диска: задача двери НАЗВАТЬ расхождение, а не подменить
+    наблюдение. При совпадении это одно и то же число; при объявленном обходе
+    уезжает то, что автор объявил, что готов отдать.
+    """
+    key = str(abs_path if isinstance(abs_path, Path) else Path(abs_path))
+    actual = EXEC_MODE if os.access(key, os.X_OK) else BLOB_MODE
+
+    if not _DELIVERY_PIN["taken"]:
+        _MODE_VERDICTS.append({"path": key, "state": "unmeasured",
+                               "reason": "слепок не снимался: "
+                                         "`pin_delivery_bytes` не зван"})
+        return actual
+
+    pinned = _DELIVERY_PIN["modes"].get(key)
+    if pinned is None:
+        reason = _DELIVERY_PIN["mode_unreadable"].get(key)
+        note = (f"в момент пина режим НЕ ИЗМЕРЕН ({reason})" if reason else
+                "пути НЕТ в слепке режимов — набор изменился ПОСЛЕ момента "
+                "решения «отправляю это»")
+        _MODE_VERDICTS.append({"path": key, "state": "mismatch", "reason": note})
+        _refuse_mode_drift(key, note)
+        return actual
+
+    if actual != pinned:
+        note = (f"слепок {pinned} ≠ диск {actual} (снят {_DELIVERY_PIN['at']})")
+        _MODE_VERDICTS.append({"path": key, "state": "mismatch", "reason": note})
+        _refuse_mode_drift(key, note)
+        return actual
+
+    _MODE_VERDICTS.append({"path": key, "state": "match", "mode": actual})
+    return actual
+
+
+def _refuse_mode_drift(key: str, note: str) -> None:
+    """Отказ fail-CLOSED по второй оси, либо НАЗВАННЫЙ обход. Молчания нет."""
+    if _DELIVERY_PIN["allow_drift"]:
+        print(f"  ⚠️  РЕЖИМ разошёлся со слепком, но обход объявлен "
+              f"(--allow-bytes-drift): {_display_path(key)} — {note}")
+        return
+    raise DeliveryModeDrifted(
+        f"РЕЖИМ {_display_path(key)} разошёлся со слепком, снятым в момент "
+        f"решения «отправляю это»: {note}.\n"
+        f"Байты при этом могли не меняться — поэтому дверь байтов молчит, и до "
+        f"ADR-776 молчало ВСЁ: x-бит измерялся отдельным, более поздним "
+        f"чтением диска.\n"
+        f"Чем это кончается: режим `100644` у обёртки, которую запускает "
+        f"launchd, означает мёртвого агента (exit 126) и не виден ни по одному "
+        f"пульсу — 2026-08-04 так обесточило 67 из 69 агентов на пять часов "
+        f"(`.claude/rules/deployment.md`, п. 3).\n"
+        f"Что делать: вернуть права (`chmod +x`) либо понять, кто их снял "
+        f"(синхронизация дерева? чужая сессия?), и повторить пуш.\n"
+        f"Осознанно продолжить: --allow-bytes-drift (или "
+        f"SPA_PUSH_ALLOW_BYTES_DRIFT=1) — тогда расхождение будет НАЗВАНО, "
+        f"но доставку не остановит.")
+
+
+def delivery_mode_summary() -> str:
+    """Одна строка итога по второй оси. Своя строка, а не слагаемое первой."""
+    if not _MODE_VERDICTS:
+        return "слепок режимов: читателя не позвали НИ РАЗУ"
+    states = {}
+    for v in _MODE_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("mismatch"):
+        return (f"слепок режимов: РАСХОЖДЕНИЙ {states['mismatch']} "
+                f"(обход объявлен)")
+    if states.get("unmeasured"):
+        return (f"слепок режимов: НЕ ИЗМЕРЕНО у {states['unmeasured']} "
+                f"чтени(я/й) — слепок не снимался")
+    return f"слепок режимов сверен у {states.get('match', 0)} чтени(я/й)"
 
 
 def delivery_pin_summary() -> str:
@@ -2521,6 +2660,14 @@ def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool
       исполняемый локально → ``100755``, иначе ``100644``;
     - карта усечена и пути в ней нет → существование НЕ ИЗМЕРЕНО →
       :class:`TreeModeError` (fail-CLOSED, не догадка).
+
+    Локальный режим берётся ТОЛЬКО через :func:`read_delivery_mode` — ту же
+    единственную дверь, что у байтов, и по той же причине (ADR-776, заказ
+    G774 п. 3): до неё здесь стоял прямой `os.access`, то есть ОТДЕЛЬНОЕ и
+    более ПОЗДНЕЕ чтение диска, чем слепок. Для НОВОГО пути x-бит в слепок не
+    входил вовсе, и снятый после пина x-бит уезжал как `100644` молча — под
+    зелёной печатью двери байтов, которой нечего было сказать: содержимое-то
+    не менялось.
     """
     existing = modes.get(repo_path)
     if existing:
@@ -2531,7 +2678,7 @@ def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool
             f"{repo_path} режим файла не измерен: если файл на remote исполняемый, "
             f"пуш снял бы x-бит молча. Пуш отменён (fail-CLOSED)."
         )
-    return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE
+    return read_delivery_mode(abs_path)
 
 
 class RemoteMovedDuringRead(DivergenceRefused):
@@ -3506,7 +3653,9 @@ def main():
             # Тоже «не доставили», но причина своя и путь наверх свой: смотреть
             # надо не remote, а ПИШУЩЕГО в наш файл. Свой код возврата именно
             # поэтому — общий 1 отправил бы читателя не туда.
-            print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+            axis = ("РЕЖИМА файла" if isinstance(e, DeliveryModeDrifted)
+                    else "отправляемых байтов")
+            print(f"\nОТКАЗ (слепок {axis}): {e}", file=sys.stderr)
             sys.exit(BYTES_DRIFT_EXIT)
         except Exception as e:
             print(f"\nFAIL: {e}")
@@ -3519,6 +3668,7 @@ def main():
             print(f"\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) "
                   f"(skipped={result['skipped']})")
         print(f"  {delivery_pin_summary()}")
+        print(f"  {delivery_mode_summary()}")
         sys.exit(0)
 
     results = []
@@ -3533,7 +3683,9 @@ def main():
                           allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
                           allow_stale_base=allow_stale_base, expected_base=args.expected_base)
         except DeliveryBytesDrifted as e:
-            print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+            axis = ("РЕЖИМА файла" if isinstance(e, DeliveryModeDrifted)
+                    else "отправляемых байтов")
+            print(f"\nОТКАЗ (слепок {axis}): {e}", file=sys.stderr)
             sys.exit(BYTES_DRIFT_EXIT)
         results.append(r)
         if r.get("ok"):
@@ -3564,6 +3716,7 @@ def main():
         print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, "
               f"skipped={len(skipped)}{tail})")
         print(f"  {delivery_pin_summary()}")
+        print(f"  {delivery_mode_summary()}")
         sys.exit(0)
 
 

@@ -419,6 +419,255 @@ def test_a_second_pin_does_not_overwrite_the_first(ptg, repo):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# I. ВТОРАЯ ОСЬ СЛЕПКА — РЕЖИМ ФАЙЛА (x-бит). ADR-776, заказ G774 п. 3
+#
+# **Авария, которую воспроизводит каждый тест этой секции.** ADR-774 закрыл
+# окно доставки по СОДЕРЖИМОМУ, но режим записи дерева `tree_entry_mode`
+# спрашивал у диска ОТДЕЛЬНЫМ и более ПОЗДНИМ чтением (`os.access(…, X_OK)`),
+# и для НОВОГО пути x-бит в слепок не входил вовсе.
+#
+# Замер ДО работы (цикл #892, дословно воспроизводится тестом ниже): пин снят
+# с исполняемого файла; x-бит снят ПОСЛЕ пина; `tree_entry_mode` вернул
+# `100644`, а `delivery_pin_summary()` сказал «слепок байтов сверен у 1
+# чтений» — и сказал ПРАВДУ: содержимое-то не менялось. Отказа не было ни
+# одного.
+#
+# Чем это кончается: режим `100644` у обёртки, которую запускает launchd, —
+# мёртвый агент (exit 126), не видный ни по одному пульсу. 2026-08-04 так
+# обесточило 67 из 69 агентов на пять часов (`.claude/rules/deployment.md`,
+# п. 3 «права файлов — часть доставки»).
+# ═════════════════════════════════════════════════════════════════════════════
+def _write_exec(repo: Path, rel: str, text: str) -> Path:
+    p = _write(repo, rel, text)
+    p.chmod(0o755)
+    return p
+
+
+def test_the_x_bit_dropped_after_the_pin_refuses_and_names_the_mode(ptg, repo):
+    """Дословный замер ДО работы: x-бит снят после пина ⇒ ОТКАЗ, а не 100644."""
+    target = _write_exec(repo, "scripts/agent_wrapper.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    target.chmod(0o644)                      # окно: синхронизация, чужая сессия
+
+    with pytest.raises(ptg.DeliveryModeDrifted) as exc:
+        ptg.tree_entry_mode("scripts/agent_wrapper.sh", target, {}, False)
+
+    note = str(exc.value)
+    assert "scripts/agent_wrapper.sh" in note, "отказ обязан НАЗВАТЬ файл"
+    assert "100755" in note and "100644" in note, (
+        "отказ обязан назвать ОБА режима: без них читатель не знает, что "
+        "именно разошлось")
+
+
+def test_an_untouched_x_bit_is_delivered_without_a_false_refusal(ptg, repo):
+    """Обратная сторона: без правки прав вторая ось ничему не мешает.
+
+    Без этого теста предыдущий был бы зелен и на пушере, который отказывает
+    ВСЕГДА, то есть мерил бы не тот предмет.
+    """
+    target = _write_exec(repo, "scripts/agent_wrapper.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    mode = ptg.tree_entry_mode("scripts/agent_wrapper.sh", target, {}, False)
+
+    assert mode == ptg.EXEC_MODE, "x-бит обязан уехать, а не быть потерянным"
+    assert "сверен" in ptg.delivery_mode_summary()
+
+
+def test_an_x_bit_added_after_the_pin_also_refuses(ptg, repo):
+    """Ось двусторонняя: ПОЯВИВШИЙСЯ x-бит — тоже не то, что судили гейты.
+
+    Направление здесь не «потеря прав», а «права, которых автор не объявлял»:
+    исполняемый бит у файла данных означает, что уехало состояние, которого в
+    момент решения «отправляю это» не было. Отказ один и тот же.
+    """
+    target = _write(repo, "data/payload.json", "{}\n")   # НЕ исполняемый
+    ptg.pin_delivery_bytes([str(target)])
+
+    target.chmod(0o755)
+
+    with pytest.raises(ptg.DeliveryModeDrifted) as exc:
+        ptg.tree_entry_mode("data/payload.json", target, {}, False)
+    assert "100644" in str(exc.value) and "100755" in str(exc.value)
+
+
+def test_the_mode_axis_is_counted_separately_from_the_bytes_axis(ptg, repo):
+    """Две оси — два итога. Смешай их, и молчание одной станет невидимым.
+
+    `delivery_pin_summary()` считает чтения БАЙТОВ. Если бы вердикты режима
+    падали в тот же список, «сверено у N чтений» росло бы от второй оси, и
+    «режима не сверял никто» выглядело бы как рост числа.
+    """
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    ptg.read_delivery_bytes(target)          # только ось байтов
+    assert "сверен" in ptg.delivery_pin_summary()
+    assert "не позвали НИ РАЗУ" in ptg.delivery_mode_summary(), (
+        "ось режима обязана честно сказать, что её читателя не звали")
+
+    ptg.read_delivery_mode(target)           # теперь и ось режима
+    assert "сверен" in ptg.delivery_mode_summary()
+
+
+def test_an_unpinned_mode_read_is_unmeasured_and_says_so(ptg, repo):
+    """Третий исход (инв. #17): слепка нет ⇒ «НЕ ИЗМЕРЕНО», не «сверено»."""
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+
+    mode = ptg.read_delivery_mode(target)    # `pin_delivery_bytes` не зван
+
+    assert mode == ptg.EXEC_MODE, "дверь без слепка ведёт себя как прежде"
+    summary = ptg.delivery_mode_summary()
+    assert "НЕ ИЗМЕРЕНО" in summary and "не снимался" in summary
+
+
+def test_a_path_absent_from_the_mode_pin_refuses_with_its_own_reason(ptg, repo):
+    """Набор изменился ПОСЛЕ пина — это отказ со СВОЕЙ причиной."""
+    pinned = _write_exec(repo, "scripts/a.sh", "#!/bin/bash\n")
+    sneaked = _write_exec(repo, "scripts/b.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(pinned)])
+
+    with pytest.raises(ptg.DeliveryModeDrifted) as exc:
+        ptg.read_delivery_mode(sneaked)
+    assert "набор изменился" in str(exc.value)
+
+
+def test_a_missing_file_gets_a_named_reason_not_a_silent_100644(ptg, repo):
+    """`os.access` на отсутствующем пути отвечает `False` — и это НЕ `100644`.
+
+    Снимай режим тем же `os.access` без вопроса о существовании, и пин молча
+    записал бы `100644` отсутствующему файлу: «не измерено», выданное за
+    измеренное — ровно инв. #17 наизнанку.
+    """
+    ghost = repo / "scripts" / "ghost.sh"
+    pin = ptg.pin_delivery_bytes([str(ghost)])
+
+    assert str(ghost) not in pin["modes"], (
+        "отсутствующий путь получил режим — значит пин измерил то, чего нет")
+    assert str(ghost) in pin["mode_unreadable"], "причина обязана быть названа"
+
+
+def test_a_readable_file_is_not_recorded_as_mode_unreadable(ptg, repo):
+    """Обратная сторона: существующий путь в «не измерено» НЕ попадает."""
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+    pin = ptg.pin_delivery_bytes([str(target)])
+
+    assert pin["modes"][str(target)] == ptg.EXEC_MODE
+    assert str(target) not in pin["mode_unreadable"]
+
+
+def test_the_declared_bypass_delivers_the_mode_but_names_it(ptg, repo, capsys):
+    """Обход объявлен ⇒ расхождение НАЗВАНО, доставка идёт. Молчания нет."""
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)], allow_drift=True)
+    target.chmod(0o644)
+
+    mode = ptg.tree_entry_mode("scripts/w.sh", target, {}, False)
+
+    assert mode == ptg.BLOB_MODE
+    out = capsys.readouterr().out
+    assert "РЕЖИМ разошёлся со слепком" in out and "обход объявлен" in out
+    assert "РАСХОЖДЕНИЙ" in ptg.delivery_mode_summary()
+
+
+def test_the_remote_mode_still_wins_for_an_existing_path(ptg, repo):
+    """Путь, который УЖЕ на remote, берёт режим с remote — это не тронуто.
+
+    Окна здесь нет по построению: локальный x-бит в решение не входит вовсе,
+    поэтому и сверять его не с чем. Тест держит границу правки: расширь дверь
+    на эту ветку, и пушер начал бы отказывать там, где прежде верно сохранял
+    чужой режим (карточка `agent-task-prava-na-origin-nechem-pochinit-pusher-p`
+    — это ДРУГОЙ вопрос и он остаётся открытым).
+    """
+    target = _write(repo, "scripts/w.sh", "#!/bin/bash\n")   # локально НЕ exec
+    ptg.pin_delivery_bytes([str(target)])
+
+    mode = ptg.tree_entry_mode("scripts/w.sh", target,
+                               {"scripts/w.sh": ptg.EXEC_MODE}, False)
+
+    assert mode == ptg.EXEC_MODE, "режим remote обязан сохраняться"
+    assert "не позвали НИ РАЗУ" in ptg.delivery_mode_summary()
+
+
+def test_a_truncated_tree_still_refuses_before_the_mode_door(ptg, repo):
+    """Усечённое дерево по-прежнему `TreeModeError`, а не вердикт режима.
+
+    Порядок существен: «существование на remote НЕ ИЗМЕРЕНО» — вопрос более
+    ранний, чем «совпал ли локальный режим со слепком», и подмена одного
+    отказа другим увела бы читателя не туда.
+    """
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    with pytest.raises(ptg.TreeModeError):
+        ptg.tree_entry_mode("scripts/w.sh", target, {}, True)
+
+
+def test_the_mode_refusal_is_caught_as_a_pin_refusal(ptg):
+    """`DeliveryModeDrifted` — подкласс: вызывающий не пропустит вторую ось.
+
+    Код возврата один на обе оси намеренно (авария одна), и ось названа в
+    сообщении. Перестань он быть подклассом — оба CLI ловили бы только байты,
+    а режим уезжал бы общим `FAIL: …` с кодом 1.
+    """
+    assert issubclass(ptg.DeliveryModeDrifted, ptg.DeliveryBytesDrifted)
+
+
+def test_resetting_the_pin_clears_the_mode_verdicts_too(ptg, repo):
+    """Сброс слепка чистит ОБА списка вердиктов, а не только список байтов.
+
+    Дыру нашёл мутационный прибор (`docs/mutations/ADR-776-c892.json`): убери
+    `_MODE_VERDICTS.clear()` из `reset_delivery_pin`, и счёт второй оси течёт
+    между прогонами в одном процессе — «сверено у 7 чтений» после пина, где
+    читателя не звали ни разу. Для батч-CLI это один процесс по построению, а
+    для тестов — любой прогон подряд: итог стал бы говорить о чужом наборе.
+    """
+    target = _write_exec(repo, "scripts/w.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+    ptg.read_delivery_mode(target)
+    assert "сверен" in ptg.delivery_mode_summary()
+
+    ptg.reset_delivery_pin()
+
+    assert ptg.delivery_mode_summary() == "слепок режимов: читателя не позвали НИ РАЗУ", (
+        f"после сброса итог второй оси помнит прошлый набор: "
+        f"{ptg.delivery_mode_summary()!r}")
+    assert "не позвали НИ РАЗУ" in ptg.delivery_pin_summary(), (
+        "обратная сторона: сброс обязан чистить и первую ось — иначе тест "
+        "выше зелен и на сбросе, который не чистит ничего")
+
+
+def test_a_full_batch_push_refuses_on_a_mode_drift(wired, repo):
+    """Сквозная сцена: ни одного коммита, когда разошёлся только РЕЖИМ."""
+    ptg, gh = wired
+    target = _write_exec(repo, "scripts/agent_wrapper.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    target.chmod(0o644)                      # байты целы, режим — нет
+
+    with pytest.raises(ptg.DeliveryModeDrifted):
+        ptg.batch_push("pat", [str(target)], "msg", "o/r", "main")
+
+    assert gh.commits == [] and gh.ref_updates == [], (
+        "отказ fail-CLOSED: рваного состояния на remote не остаётся")
+
+
+def test_a_full_batch_push_carries_the_x_bit_when_nothing_moved(wired, repo):
+    """Обратная сторона сквозной сцены: x-бит доезжает до записи дерева."""
+    ptg, gh = wired
+    target = _write_exec(repo, "scripts/agent_wrapper.sh", "#!/bin/bash\n")
+    ptg.pin_delivery_bytes([str(target)])
+
+    res = ptg.batch_push("pat", [str(target)], "msg", "o/r", "main")
+
+    assert res["ok"]
+    entries = gh.trees[-1]["tree"]
+    assert [e["mode"] for e in entries] == [ptg.EXEC_MODE], (
+        f"в дерево уехал не тот режим: {entries}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # H. ПРОВОДКА — ЗАМКНУТЫЙ ПЕРЕЧЕНЬ ЧТЕНИЙ (AST, не подстрока)
 #
 # Проверка «в файле есть имя `read_delivery_bytes`» была бы украшением: новое
@@ -431,6 +680,14 @@ BYTE_READERS = ("push_file", "create_blob", "split_unchanged", "build_entries")
 
 #: Единственная дверь к этим байтам.
 BYTES_DOOR = "read_delivery_bytes"
+
+#: Функции пушера, которые читают РЕЖИМ файла, предназначенного к отправке.
+#: Перечень ЗАМКНУТ так же, как у байтов: сырое `os.access`, добавленное мимо
+#: двери, оставило бы её зелёной (ADR-776).
+MODE_READERS = ("tree_entry_mode",)
+
+#: Единственная дверь к этому режиму.
+MODE_DOOR = "read_delivery_mode"
 
 
 def _functions(source: str) -> dict:
@@ -463,6 +720,27 @@ def raw_byte_reads(source: str, names=BYTE_READERS) -> dict:
     return out
 
 
+def raw_mode_reads(source: str, names=MODE_READERS) -> dict:
+    """`имя функции → число СЫРЫХ чтений режима` (мимо двери), по AST.
+
+    Сырое чтение — любой вызов `os.access(...)`. Дверь режим читает сама и
+    внутрь перечня не входит: иначе мера оправдала бы себя.
+    """
+    funcs = _functions(source)
+    missing = [n for n in names if n not in funcs]
+    if missing:
+        raise Unmeasured(
+            f"НЕ ИЗМЕРЕНО: функций {missing} в пушере нет — перечень читателей "
+            f"РЕЖИМА устарел, и мерить замкнутость нечем")
+    out = {}
+    for name in names:
+        out[name] = sum(
+            1 for c in ast.walk(funcs[name])
+            if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+            and c.func.attr == "access")
+    return out
+
+
 def calls_in(source: str, func_name: str) -> list:
     """Имена функций, ВЫЗЫВАЕМЫХ внутри `func_name`, в порядке появления."""
     funcs = _functions(source)
@@ -484,6 +762,68 @@ def test_no_reader_of_delivery_bytes_bypasses_the_door():
         assert BYTES_DOOR in calls_in(PUSHER.read_text(encoding="utf-8"), name), (
             f"`{name}` не зовёт `{BYTES_DOOR}` — байты он берёт как-то иначе, "
             f"и слепок до них не доходит")
+
+
+def test_no_reader_of_the_delivery_mode_bypasses_the_door():
+    """Чтение РЕЖИМА не идёт мимо `read_delivery_mode` (ADR-776)."""
+    source = PUSHER.read_text(encoding="utf-8")
+    offenders = {k: v for k, v in raw_mode_reads(source).items() if v}
+    assert not offenders, (
+        f"сырое чтение режима мимо двери `{MODE_DOOR}`: {offenders}. Именно "
+        f"так до ADR-776 x-бит измерялся ОТДЕЛЬНЫМ, более поздним чтением "
+        f"диска, чем слепок, и снятый после пина x-бит уезжал как 100644 "
+        f"молча")
+    for name in MODE_READERS:
+        assert MODE_DOOR in calls_in(source, name), (
+            f"`{name}` не зовёт `{MODE_DOOR}` — режим он берёт как-то иначе, "
+            f"и слепок до него не доходит")
+
+
+def test_the_mode_wiring_measure_goes_red_on_a_bypass():
+    """Отрицательный контроль: мера режима обязана УМЕТЬ покраснеть.
+
+    Поломка внесена дословно — чтение возвращается к прежней форме, той
+    самой, что стояла на `origin/main` до ADR-776.
+    """
+    source = PUSHER.read_text(encoding="utf-8").replace(
+        "    return read_delivery_mode(abs_path)",
+        "    return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE", 1)
+    assert raw_mode_reads(source)["tree_entry_mode"] == 1, (
+        "мера не увидела возвращённое сырое чтение режима — значит она "
+        "ничего не мерит")
+
+
+def test_a_vanished_mode_reader_is_the_third_outcome_not_a_pass():
+    """Исчезнувший читатель режима ⇒ `Unmeasured`: перечень устарел."""
+    with pytest.raises(Unmeasured) as exc:
+        raw_mode_reads("def other():\n    pass\n")
+    assert "РЕЖИМА устарел" in str(exc.value)
+
+
+def test_both_delivery_doors_report_the_mode_axis():
+    """Каждое место, печатающее первую ось, печатает и ВТОРУЮ.
+
+    Молчащая ось в выводе — то же, что молчащий сторож: автор прочитал бы
+    «слепок байтов сверен» и решил, что сверено всё.
+
+    Меряется РАВЕНСТВО ЧИСЕЛ, а не наличие имени. «Имя есть хоть раз» — ровно
+    та мера, которую мутационный прибор пережил: у канонического CLI в `main()`
+    ДВЕ ветки итога (батч и по одному файлу), и убери печать из одной — имя
+    осталось бы на месте во второй, а батч-ветка замолчала бы (находка
+    `docs/mutations/ADR-776-c892.json`, цикл #892).
+    """
+    for label, path in (("push_to_github.py", PUSHER),
+                        ("push_to_github_batch.py", BATCH_CLI)):
+        calls = calls_in(path.read_text(encoding="utf-8"), "main")
+        bytes_axis = calls.count("delivery_pin_summary")
+        mode_axis = calls.count("delivery_mode_summary")
+        assert bytes_axis, (
+            f"{label}: `main()` не печатает итог оси БАЙТОВ — мерить равенство "
+            f"не от чего (перечень веток итога устарел)")
+        assert mode_axis == bytes_axis, (
+            f"{label}: ветки итога разошлись — ось байтов печатается "
+            f"{bytes_axis} раз(а), ось режима {mode_axis}. Значит есть ветка "
+            f"вывода, где вторая ось МОЛЧИТ")
 
 
 def test_the_wiring_measure_goes_red_on_a_bypass():
@@ -541,8 +881,9 @@ def test_the_batch_door_has_no_second_implementation():
     cli = _load("_pin_cli_identity", "push_to_github_batch.py")
     try:
         for name in ("pin_delivery_bytes", "read_delivery_bytes",
-                     "delivery_pin_summary", "reset_delivery_pin",
-                     "DeliveryBytesDrifted"):
+                     "read_delivery_mode", "delivery_pin_summary",
+                     "delivery_mode_summary", "reset_delivery_pin",
+                     "DeliveryBytesDrifted", "DeliveryModeDrifted"):
             assert getattr(cli, name) is getattr(cli._root_push, name), (
                 f"`{name}` у batch-CLI — НЕ объект канонической копии: "
                 f"вторая реализация означала бы, что одна дверь сверяет, а "
@@ -551,7 +892,8 @@ def test_the_batch_door_has_no_second_implementation():
         assert cli.BYTES_DRIFT_EXIT == cli._root_push.BYTES_DRIFT_EXIT
 
         own = _functions(BATCH_CLI.read_text(encoding="utf-8"))
-        for name in ("pin_delivery_bytes", "read_delivery_bytes"):
+        for name in ("pin_delivery_bytes", "read_delivery_bytes",
+                     "read_delivery_mode"):
             assert name not in own, (
                 f"batch-CLI определяет СВОЙ `{name}` — два store, и слепок "
                 f"одной двери не виден читателю байтов другой")
