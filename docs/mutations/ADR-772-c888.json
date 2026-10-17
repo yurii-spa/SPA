@@ -1,0 +1,106 @@
+{
+  "title": "ADR-772 — дельта цикла #888: окно мутационного прибора",
+  "tests": [
+    "spa_core/tests/test_delta_mutation_window.py",
+    "spa_core/tests/test_delta_mutation_run.py",
+    "spa_core/tests/test_pusher_copy_guard.py"
+  ],
+  "mutations": [
+    {
+      "name": "окно не объявляется: слепок снова живёт только в памяти процесса",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    open_window(root, spec, targets, originals, spec_path=spec_path, now=now,\n                pid=pid, label=label)",
+      "new": "    pass  # окно не объявляется"
+    },
+    {
+      "name": "байты слепка не кладутся на диск — вернуть мутанта нечем",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        _write_atomically(copy, originals[rel])",
+      "new": "        pass"
+    },
+    {
+      "name": "читатель не сверяет байты — мутант перестаёт быть находкой",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if have != want:\n            named = [m.get(\"name\")",
+      "new": "        if False:\n            named = [m.get(\"name\")"
+    },
+    {
+      "name": "нечитаемая запись окна зачитывается как «чисто» (fail-OPEN)",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        return None, (f\"запись окна {WINDOW_RECORD_REL} есть, но не читается: \"\n                      f\"{type(exc).__name__}: {exc} — какие файлы тронуты, НЕ ИЗМЕРЕНО\")",
+      "new": "        return None, None"
+    },
+    {
+      "name": "набор доставки игнорируется: мутант в чужом файле запрещает доставку соседнего",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    touching = sorted(set(window_files) & asked) if asked is not None else window_files",
+      "new": "    touching = window_files"
+    },
+    {
+      "name": "доставка из дерева под ОТКРЫТЫМ окном перестаёт быть находкой (гонка #885)",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "                rc=(RC_WINDOW_FINDING if (asked is not None and touching)\n                    else RC_WINDOW_CLEAN))",
+      "new": "                rc=RC_WINDOW_CLEAN)"
+    },
+    {
+      "name": "второй прогон в том же дереве разрешён: слепок первого затирается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if existing is not None:\n        raise OpenWindow(",
+      "new": "    if False:\n        raise OpenWindow("
+    },
+    {
+      "name": "испорченный слепок записывается молча — в дерево уезжают ТРЕТЬИ байты",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if isinstance(expect_copy, str) and expect_copy and _digest(copy) != expect_copy:",
+      "new": "        if False:"
+    },
+    {
+      "name": "запись окна снимается при НЕУДАЧНОМ возврате — дерево «чисто» по мерке сторожа",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not failed:\n        close_window(root)",
+      "new": "    if True:\n        close_window(root)"
+    },
+    {
+      "name": "слепки снимаются ПЕРЕД записью — смерть между ними даёт громкое «НЕ ИЗМЕРЕНО» на чистом дереве",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    try:\n        if had:\n            os.unlink(path)\n    except OSError:\n        return had\n    shutil.rmtree(os.path.join(root, WINDOW_DIR), ignore_errors=True)",
+      "new": "    shutil.rmtree(os.path.join(root, WINDOW_DIR), ignore_errors=True)"
+    },
+    {
+      "name": "окно снимается в ветке ДРЕЙФА — оставшегося мутанта нечем назвать и нечем вернуть",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if drifted:\n            # Запись окна НЕ снимается:",
+      "new": "        if drifted:\n            close_window(root)\n            # Запись окна НЕ снимается:"
+    },
+    {
+      "name": "сторож сигналов не ставится — SIGTERM убивает прибор до `finally`",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            signal.signal(sig, handler)",
+      "new": "            pass"
+    },
+    {
+      "name": "обработчик сигнала ничего не поднимает — стек не разворачивается, возврата нет",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    raise SystemExit(f\"прибор остановлен сигналом {signum}: дерево возвращается \"\n                     f\"через finally, запись окна снимается только после сверки\")",
+      "new": "    return None"
+    },
+    {
+      "name": "пушер не спрашивает про окно — мутант уезжает на origin молча",
+      "file": "push_to_github.py",
+      "old": "    try:\n        enforce_no_delivered_mutant(all_files, allow=allow_open_window)\n    except DeliveredMutant:\n        sys.exit(MUTATION_WINDOW_EXIT)",
+      "new": "    pass"
+    },
+    {
+      "name": "пушер зачитывает «НЕ ИЗМЕРЕНО» за «чисто» — доставка из дерева, о котором нечего сказать",
+      "file": "push_to_github.py",
+      "old": "    if not verdict[\"findings\"] and not verdict[\"unmeasured\"]:",
+      "new": "    if not verdict[\"findings\"]:"
+    },
+    {
+      "name": "вторая дверь (batch-CLI) гейт не зовёт — через неё уезжает то, что первая отклонила",
+      "file": "push_to_github_batch.py",
+      "old": "    try:\n        enforce_no_delivered_mutant(all_files, allow=allow_open_window,\n                                    runner_file=__file__)\n    except DeliveredMutant:\n        sys.exit(MUTATION_WINDOW_EXIT)",
+      "new": "    pass"
+    }
+  ]
+}

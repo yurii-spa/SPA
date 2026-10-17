@@ -145,6 +145,14 @@ enforce_change_evidence = _root_push.enforce_change_evidence
 ChangeEvidenceMissing = _root_push.ChangeEvidenceMissing
 CHANGE_EVIDENCE_EXIT = _root_push.CHANGE_EVIDENCE_EXIT
 
+# Окно мутационного прибора (ADR-772) — та же ОДНА реализация, и по той же причине:
+# под этим CLI стоит `safe_site_push.py`, а мутант, уехавший через вторую дверь,
+# неотличим от кода. Урок номеров ADR дословно.
+enforce_no_delivered_mutant = _root_push.enforce_no_delivered_mutant
+mutation_window_verdict = _root_push.mutation_window_verdict
+DeliveredMutant = _root_push.DeliveredMutant
+MUTATION_WINDOW_EXIT = _root_push.MUTATION_WINDOW_EXIT
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -170,6 +178,9 @@ def main():
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-open-mutation-window", action="store_true",
+                        help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
+                             "мутационного прибора (по умолчанию такой пуш отклоняется)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -202,6 +213,17 @@ def main():
         enforce_delivery_toolchain(all_files, allow=allow_toolchain, runner_file=__file__)
     except ToolchainMismatch:
         sys.exit(5)
+
+    # ── ОКНО МУТАЦИОННОГО ПРИБОРА (ADR-772) — тот же вызов, что и в push_to_github.py ──
+    # Реализация одна, дверей две. `runner_file` — дерево ЗАПУЩЕННОГО CLI: читатель окна
+    # берётся рядом с ним, а не рядом с модулем, который он загрузил.
+    allow_open_window = bool(getattr(args, "allow_open_mutation_window", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW") == "1"
+    try:
+        enforce_no_delivered_mutant(all_files, allow=allow_open_window,
+                                    runner_file=__file__)
+    except DeliveredMutant:
+        sys.exit(MUTATION_WINDOW_EXIT)
 
     # ── ИНТЕРЛОК НОМЕРОВ ADR — до сети, для ЛЮБОГО контекста ─────────────────────
     # Тот же вызов, что и в push_to_github.py: реализация одна, дверей две. Про

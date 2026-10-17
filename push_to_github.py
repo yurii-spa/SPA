@@ -50,6 +50,14 @@ REPO = "yurii-spa/SPA"
 API_BASE = "https://api.github.com"
 PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
 
+#: Путь ЭТОГО файла, снятый на импорте. Нужен читателям, которых стенды соседних
+#: сюит зовут с подменённым `__file__` (`monkeypatch.setattr(mod, "__file__", ...)`):
+#: подменённое значение верно отвечает на вопрос «из какого дерева запущен инструмент
+#: доставки» и НЕ отвечает на вопрос «где лежит read-only сторож, которого можно
+#: позвать». Это два разных вопроса, и путать их — ровно класс «сторож отвечает не на
+#: тот вопрос».
+MODULE_FILE = os.path.abspath(__file__)
+
 # Режимы записей дерева. Git различает обычный файл и исполняемый; в этом репо
 # 27 файлов — 100755, и среди них bash-обёртки launchd (`scripts/auto_push.sh`,
 # `scripts/install_agents.sh`, …). Потерянный x-бит = агент падает exit-78
@@ -2748,6 +2756,130 @@ def enforce_adr_numbers(all_files, allow: bool = False,
 
 OWNER_CHOICE_INTERLOCK_EXIT = 8
 CHANGE_EVIDENCE_EXIT = 9
+MUTATION_WINDOW_EXIT = 10
+
+
+class DeliveredMutant(RuntimeError):
+    """Уезжающий файл лежит под ОТКРЫТЫМ окном мутационного прибора.
+
+    Мутант — это НЕ опечатка и не черновик: это осознанная порча кода на время
+    замера, синтаксически верная и по виду неотличимая от кода. Цикл #887 едва не
+    доставил такого: сессия #886 умерла внутри окна `scripts/delta_mutation_run.py`,
+    её дерево осталось держать `PARTITION_REFUSED` вместо `PARTITION_UNCLASSIFIED`
+    (мутация №3 её же спецификации — дословно тот fail-OPEN, против которого было
+    написано решение), а следующий цикл наследует работу из ОБЪЯВЛЕННОГО дерева по
+    умолчанию. Опознать мутанта удалось только потому, что в ADR был записан md5
+    эталона; без этой записи он уехал бы молча.
+
+    Отказ fail-CLOSED (инв. #2): путь наверх — `delta_mutation_run.py --window-restore`,
+    а осознанный обход печатается, а не молчит.
+    """
+
+
+def mutation_window_verdict(all_files, runner_file: Optional[str] = None) -> dict:
+    """Спросить у ЧИТАТЕЛЯ ОКНА про каждое дерево, из которого едут файлы.
+
+    Возвращает ``{"findings": [...], "unmeasured": [...], "trees": {top: rc}}``.
+    Ничего не печатает и не решает — решает :func:`enforce_no_delivered_mutant`.
+
+    **Своей копии правила здесь НЕТ намеренно.** Вопрос «держит ли дерево мутанта»
+    умеет отвечать один объект — `window_state` в самом приборе, — и пушер зовёт его
+    тем же способом, которым зовёт сторожа номеров ADR: подпроцессом рядом с
+    ЗАПУЩЕННЫМ CLI. Вторая копия сверки разошлась бы с прибором при первой же правке
+    формата записи, и тогда одна дверь отказывала бы, а другая пропускала — ровно то,
+    что 26.08 пропустило второй `ADR-145`.
+
+    Третий исход первокласный: сторожа нет на месте / запись окна не читается ⇒
+    ``unmeasured``, и это НЕ «чисто».
+    """
+    out: dict = {"findings": [], "unmeasured": [], "trees": {}, "reader": None}
+    by_tree: dict = {}
+    for f in all_files:
+        top = _tree_top(f)
+        if top is None:
+            out["unmeasured"].append(f"дерево файла не определяется: {f}")
+            continue
+        by_tree.setdefault(str(top), []).append(str(Path(f).resolve()))
+
+    # Читатель ищется в ТРЁХ местах по порядку, и порядок назван: рядом с ЗАПУЩЕННЫМ
+    # CLI (как сторож номеров ADR) · рядом с файлом ЭТОГО модуля, снятым на импорте
+    # (`__file__` подменяют стенды соседних сюит, поэтому константа, а не атрибут) ·
+    # в дереве самих доставляемых файлов. Любая копия отвечает об одном и том же:
+    # читатель только ЧИТАЕТ запись окна и ничего не чинит, а расхождение копий
+    # инструмента ДОСТАВКИ судит сверка выше (`enforce_delivery_toolchain`).
+    # Не нашлось НИ ОДНОЙ ⇒ третий исход, а не тихий пропуск.
+    candidates = [os.path.dirname(os.path.abspath(runner_file or __file__)),
+                  os.path.dirname(MODULE_FILE)] + sorted(by_tree)
+    guard = None
+    for base in candidates:
+        probe = os.path.join(base, "scripts", "delta_mutation_run.py")
+        if os.path.isfile(probe):
+            guard = probe
+            break
+    if guard is None:
+        out["unmeasured"].append(
+            "читателя окна нет ни в одном из деревьев ("
+            + ", ".join(candidates) + ") — держит ли дерево мутанта, НЕ ИЗМЕРЕНО")
+        return out
+    out["reader"] = guard
+
+    for top, files in sorted(by_tree.items()):
+        proc = subprocess.run(
+            [sys.executable, guard, "--window-check", "--repo-root", top,
+             "--json", "--files", *files],
+            capture_output=True, text=True)
+        out["trees"][top] = proc.returncode
+        try:
+            doc = json.loads(proc.stdout or "{}")
+        except json.JSONDecodeError:
+            doc = {}
+        detail = doc.get("detail") or (proc.stderr or proc.stdout or "").strip()
+        if proc.returncode == 0:
+            continue
+        if proc.returncode == 1:
+            out["findings"].append({"tree": top, "state": doc.get("state"),
+                                    "detail": detail,
+                                    "touching": doc.get("touching") or []})
+        else:
+            out["unmeasured"].append(
+                f"{top}: читатель окна вернул {proc.returncode} — {detail}")
+    return out
+
+
+def enforce_no_delivered_mutant(all_files, allow: bool = False,
+                                runner_file: Optional[str] = None) -> dict:
+    """Отказать, если набор доставки лежит под открытым окном прибора. ОДНА реализация.
+
+    Бросает :class:`DeliveredMutant` при ИЗМЕРЕННОЙ находке и при «НЕ ИЗМЕРЕНО»
+    (fail-CLOSED: доставить мутанта хуже, чем не доставить и получить причину).
+    ``allow=True`` — осознанное продолжение, и оно ПЕЧАТАЕТСЯ.
+    """
+    verdict = mutation_window_verdict(all_files, runner_file=runner_file)
+    if not verdict["findings"] and not verdict["unmeasured"]:
+        return verdict
+
+    lines = [""]
+    for f in verdict["findings"]:
+        lines.append(f"ОТКАЗ (окно мутационного прибора): дерево {f['tree']} — "
+                     f"{f['state']}: {f['detail']}")
+    for u in verdict["unmeasured"]:
+        lines.append(f"ОТКАЗ (окно мутационного прибора) НЕ ИЗМЕРЕНО: {u}")
+    lines += [
+        "Так цикл #886 оставил в своём дереве мутанта (`PARTITION_REFUSED` вместо "
+        "`PARTITION_UNCLASSIFIED`), а цикл #887 едва его не доставил: мутант "
+        "синтаксически верен и от кода на вид неотличим.",
+        "Путь наверх: python3 scripts/delta_mutation_run.py --window-restore "
+        "--repo-root <дерево>",
+        "Осознанно продолжить: --allow-open-mutation-window (или "
+        "SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW=1).",
+    ]
+    msg = "\n".join(lines)
+    if allow:
+        print(msg + "\n(продолжаю: доставка из дерева под окном разрешена явно)",
+              file=sys.stderr)
+        return verdict
+    print(msg, file=sys.stderr)
+    raise DeliveredMutant(msg)
 
 
 class ChangeEvidenceMissing(Exception):
@@ -2943,6 +3075,10 @@ def main():
     parser.add_argument("--allow-change-evidence-unmeasured", action="store_true",
                         help="ОСОЗНАННО доставить набор, удаления в котором НЕ ИЗМЕРЕНЫ (git/база "
                              "недоступны). Отказ из-за удаления БЕЗ записи этим не снимается")
+    parser.add_argument("--allow-open-mutation-window", action="store_true",
+                        help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
+                             "мутационного прибора (по умолчанию такой пуш отклоняется: "
+                             "в дереве может лежать мутант, неотличимый от кода)")
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
@@ -2958,6 +3094,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
     allow_adr = bool(args.allow_adr_collision) or \
         os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
+    allow_open_window = bool(args.allow_open_mutation_window) or \
+        os.environ.get("SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -2987,6 +3125,16 @@ def main():
         enforce_delivery_toolchain(all_files, allow=allow_toolchain)
     except ToolchainMismatch:
         sys.exit(5)
+
+    # ── ОКНО МУТАЦИОННОГО ПРИБОРА (ADR-772) — до сети, для ЛЮБОГО контекста ──────
+    # Стоит сразу за сверкой инструмента: оба вопроса об ОДНОМ — «те ли это байты,
+    # которые автор собрал и протестировал». Сверка отвечает про инструмент доставки,
+    # этот гейт — про сам уезжающий код. Идёт и в --dry-run: превью обязано показывать
+    # тот же отказ, что настоящий пуш. Реализация ОДНА, её же зовёт batch-CLI.
+    try:
+        enforce_no_delivered_mutant(all_files, allow=allow_open_window)
+    except DeliveredMutant:
+        sys.exit(MUTATION_WINDOW_EXIT)
 
     # ── ИНТЕРЛОК НОМЕРОВ ADR — до сети, для ЛЮБОГО контекста ─────────────────────
     # Номер решения выбирается взглядом на каталог в НАЧАЛЕ работы, а приземляется через
