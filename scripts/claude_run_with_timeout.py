@@ -96,7 +96,20 @@ class PsUnavailable(RuntimeError):
 # «половина инъекции» — та же бомба, поэтому у пути к ОС не должно остаться обходных дверей.
 
 def _ps(args: list) -> str:
-    """`ps` с проверкой кода возврата. Ненулевой код — НЕ пустая таблица."""
+    """Таблица процессов в форме `ps`. Ненулевой код / нечитаемый источник — НЕ пустая таблица.
+
+    ОДНА дверь на две платформы (G03, CI run #6, 17.10). Флаг `-E` (окружение) есть только
+    у BSD-`ps` macOS; procps на Linux отвечает «unsupported SysV option», и прибор на
+    раннере ВСЕГДА отдавал третий исход (125 / OWNERSHIP_UNKNOWN) — честно, но слепо.
+    Поэтому на Linux те же три вопроса задаются `/proc` и ответ РЕНДЕРИТСЯ в ту же форму
+    строк, что у `ps`: разбор (`Snapshot.take`, `argv_rows`, `_alive`) остаётся одним на
+    обе платформы, а тесты, подменяющие `_ps` текстом, по-прежнему подменяют ВСЮ дверь к
+    ОС, а не её половину (#453). На macOS поведение не меняется ни на байт.
+    """
+    if _use_proc():
+        form = _proc_form(args)
+        if form is not None:
+            return _proc_ps(form, args)
     try:
         proc = subprocess.run(["ps"] + args, capture_output=True, text=True)
     except OSError as exc:
@@ -106,6 +119,142 @@ def _ps(args: list) -> str:
             f"ps вернул {proc.returncode}: {(proc.stderr or '').strip()[:200]}"
         )
     return proc.stdout
+
+
+# ── Linux: те же вопросы к `/proc` ───────────────────────────────────────────
+#: Корень procfs и такт часов ядра — ВХОДЫ (тест кладёт поддельное дерево в tmp и говорит
+#: «это Linux»), а не окружение: иначе поведение Linux нечем доказать на Маке.
+PROC_ROOT = "/proc"
+CLK_TCK = None           #: None ⇒ `os.sysconf("SC_CLK_TCK")` в момент замера
+
+#: Формы вопроса, которые этот модуль и `safe_terminate` задают `ps`. Иная форма на Linux
+#: уходит в настоящий `ps` (procps) — с той же проверкой кода возврата.
+FORM_SNAPSHOT = ("-A", "-Ewww", "-o", "pid=,ppid=,state=,etime=,command=")
+FORM_ARGV = ("-A", "-wwwo", "pid=,command=")
+
+
+def _use_proc() -> bool:
+    """Переключатель платформы. Linux ⇒ `/proc`; всё прочее (darwin) ⇒ `ps`."""
+    return sys.platform.startswith("linux")
+
+
+def _proc_form(args: list):
+    a = tuple(args)
+    if a == FORM_SNAPSHOT:
+        return "snapshot"
+    if a == FORM_ARGV:
+        return "argv"
+    if len(a) == 4 and a[0] == "-o" and a[1] == "stat=" and a[2] == "-p" and a[3].isdigit():
+        return "stat"
+    return None
+
+
+def _printable(text: str) -> str:
+    """Управляющие символы → `?`, как делает `ps`: перевод строки в аргументе иначе
+    разорвал бы таблицу, и разбор принял бы хвост аргумента за новую строку процесса."""
+    return "".join("?" if ord(ch) < 32 or ord(ch) == 127 else ch for ch in text)
+
+
+def _proc_read(root: str, pid: int, name: str):
+    """Байты `/proc/<pid>/<name>`. Процесса нет ⇒ None (измерено: ушёл).
+    Нет права ⇒ `PsUnavailable` (не измерено) — слепое пятно в таблице НЕ выдаётся за
+    отсутствие процесса: перепись владения тогда объявила бы «своих не осталось»."""
+    path = os.path.join(root, str(pid), name)
+    try:
+        with open(path, "rb") as fh:
+            return fh.read()
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+    except PermissionError as exc:
+        raise PsUnavailable(f"{path} не читается: {exc}") from exc
+    except OSError as exc:
+        if exc.errno == errno.ESRCH:
+            return None
+        raise PsUnavailable(f"{path} не читается: {exc}") from exc
+
+
+def _proc_stat(raw: bytes):
+    """`/proc/<pid>/stat` → (comm, state, ppid, starttime_ticks). Форма не та ⇒ `PsUnavailable`."""
+    text = raw.decode("utf-8", errors="replace")
+    lp, rp = text.find("("), text.rfind(")")
+    if lp < 0 or rp < lp:
+        raise PsUnavailable(f"stat не разобрать: {text[:120]!r}")
+    comm = text[lp + 1:rp]
+    rest = text[rp + 1:].split()
+    try:
+        return comm, rest[0], int(rest[1]), int(rest[19])
+    except (IndexError, ValueError):
+        raise PsUnavailable(f"stat не разобрать: {text[:120]!r}")
+
+
+def _fmt_etime(seconds: float) -> str:
+    """Секунды → `[[DD-]HH:]MM:SS` — та форма, которую разбирает `_parse_etime`."""
+    s = max(0, int(seconds))
+    d, s = divmod(s, 86400)
+    h, s = divmod(s, 3600)
+    m, s = divmod(s, 60)
+    if d:
+        return f"{d}-{h:02d}:{m:02d}:{s:02d}"
+    if h:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{m:02d}:{s:02d}"
+
+
+def _proc_cmd(raw_cmdline: bytes, comm: str) -> str:
+    """Командная строка как у `ps`: аргументы через пробел; пустая (поток ядра, зомби) ⇒ `[comm]`."""
+    parts = [p.decode("utf-8", errors="replace") for p in raw_cmdline.split(b"\0") if p]
+    return _printable(" ".join(parts)) if parts else f"[{_printable(comm)}]"
+
+
+def _proc_ps(form: str, args: list, root=None) -> str:
+    root = PROC_ROOT if root is None else root
+    if form == "stat":
+        raw = _proc_read(root, int(args[3]), "stat")
+        if raw is None:
+            return ""                    # процесса нет — измерено
+        return _proc_stat(raw)[1] + "\n"
+    try:
+        names = os.listdir(root)
+    except OSError as exc:
+        raise PsUnavailable(f"{root} не читается: {exc}") from exc
+    uptime = None
+    if form == "snapshot":
+        try:
+            with open(os.path.join(root, "uptime"), "rb") as fh:
+                uptime = float(fh.read().split()[0])
+        except (OSError, ValueError, IndexError) as exc:
+            raise PsUnavailable(f"{root}/uptime не прочитан — возраст не измерить: {exc}")
+        tck = CLK_TCK if CLK_TCK is not None else os.sysconf("SC_CLK_TCK")
+    lines = []
+    for name in names:
+        if not name.isdigit():
+            continue
+        pid = int(name)
+        st = _proc_read(root, pid, "stat")
+        if st is None:
+            continue                     # ушёл между листингом и чтением
+        comm, state, ppid, start = _proc_stat(st)
+        cl = _proc_read(root, pid, "cmdline")
+        if cl is None:
+            continue
+        cmd = _proc_cmd(cl, comm)
+        if form == "argv":
+            lines.append(f"{pid} {cmd}")
+            continue
+        # Окружение ЧУЖОГО процесса закрыто правами — это слепота строки (как у `ps -E`
+        # на платформенных бинарях macOS), а не отказ всей таблицы: приборы tree/group/
+        # session строку по-прежнему видят, а мерка `PATH=` считает её «слепой».
+        try:
+            env_raw = _proc_read(root, pid, "environ")
+        except PsUnavailable:
+            env_raw = b""
+        if env_raw is None:
+            continue
+        env = [p.decode("utf-8", errors="replace") for p in env_raw.split(b"\0") if p]
+        tail = cmd + (" " + _printable(" ".join(env)) if env else "")
+        age = uptime - start / float(tck)
+        lines.append(f"{pid} {ppid} {state} {_fmt_etime(age)} {tail}")
+    return "\n".join(lines) + ("\n" if lines else "")
 
 
 def _signal_pid(pid: int, sig: int) -> None:

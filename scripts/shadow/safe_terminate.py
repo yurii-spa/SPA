@@ -178,7 +178,16 @@ def classify(pid: int, *, child_pid: int, run_id: str, run_age_s: float,
 
 
 def process_cwd(pid: int):
-    """Рабочий каталог процесса. Не прочитан ⇒ ``None`` (третий исход), не пустая строка."""
+    """Рабочий каталог процесса. Не прочитан ⇒ ``None`` (третий исход), не пустая строка.
+
+    Linux — ссылка `/proc/<pid>/cwd` (тот же переключатель и тот же корень, что у двери
+    `CRT._ps`, G03); macOS — `lsof`, как и прежде. Нет права / процесса нет ⇒ ``None``.
+    """
+    if CRT._use_proc():
+        try:
+            return os.readlink(os.path.join(CRT.PROC_ROOT, str(pid), 'cwd'))
+        except OSError:
+            return None
     try:
         import subprocess
         p = subprocess.run(['lsof', '-a', '-p', str(pid), '-d', 'cwd', '-Fn'],
