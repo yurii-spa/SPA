@@ -272,13 +272,21 @@ class ПрогонНаселения(unittest.TestCase):
 
 
 class ТактРешаетФайл(unittest.TestCase):
-    """`--if-due`: срок меряется возрастом артефакта, а не расписанием запуска."""
+    """`--if-due`: срок меряется возрастом артефакта, а не расписанием запуска.
+
+    Каждый вызов `refresh` здесь НАЗЫВАЕТ каталог хранения: умолчание —
+    `DEFAULT_RECORDS_ROOT`, то есть БОЕВОЕ дерево, и забытый вход означает тест,
+    пишущий в прод (замер 17.10: этот набор оставил там запись на 145 байт).
+    Сторож забывчивости — `НичегоНеУтеклоВПрод` ниже.
+    """
 
     def setUp(self):
         self.tmp = TemporaryDirectory()
         self.root = Path(self.tmp.name)
         (self.root / "data").mkdir(parents=True, exist_ok=True)
+        self.store = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(self.store.cleanup)
 
     def _artifact(self, hours_old: float) -> None:
         made = ANCHOR - timedelta(hours=hours_old)
@@ -288,7 +296,8 @@ class ТактРешаетФайл(unittest.TestCase):
 
     def test_свежий_артефакт_ничего_не_перезапускает(self):
         self._artifact(10.0)
-        out = RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR)
+        out = RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
+                              records_root=Path(self.store.name))
         self.assertFalse(out["ran"], "внутри такта прогон не нужен")
         self.assertFalse(out["due"])
         self.assertEqual(out["report"]["verdict"], census.NO_REGRESSION)
@@ -309,7 +318,7 @@ class ТактРешаетФайл(unittest.TestCase):
                                         return_value={"measured": True,
                                                       "verdict": census.NO_REGRESSION}):
             out = RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False,
-                              now=ANCHOR)
+                              now=ANCHOR, records_root=Path(self.store.name))
         self.assertTrue(called.get("yes"))
         self.assertTrue(out["ran"])
 
@@ -318,7 +327,8 @@ class ТактРешаетФайл(unittest.TestCase):
                                         side_effect=RNC.NotMeasured("дошло до прогона")), \
              unittest.mock.patch.object(RNC, "population_files", return_value=["m/test_a.py"]):
             with self.assertRaises(RNC.NotMeasured):
-                RNC.refresh(self.root, if_due=True, write=False, now=ANCHOR)
+                RNC.refresh(self.root, if_due=True, write=False, now=ANCHOR,
+                            records_root=Path(self.store.name))
 
     def test_запись_входом_прогона_не_требует(self):
         rec = self.root / "рука.xml"
@@ -326,7 +336,8 @@ class ТактРешаетФайл(unittest.TestCase):
         with unittest.mock.patch.object(census, "measure",
                                         return_value={"measured": True,
                                                       "verdict": census.NO_REGRESSION}) as m:
-            out = RNC.refresh(self.root, junit=[str(rec)], write=False, now=ANCHOR)
+            out = RNC.refresh(self.root, junit=[str(rec)], write=False, now=ANCHOR,
+                                records_root=Path(self.store.name))
         self.assertFalse(out["ran"])
         self.assertEqual(m.call_args.kwargs["junit_paths"], [str(rec)])
         self.assertIn("входом", out["source"])
@@ -336,7 +347,8 @@ class ТактРешаетФайл(unittest.TestCase):
         with unittest.mock.patch.object(RNC, "artifact_age_hours",
                                         return_value=(1.0, "возраст 1.0ч")):
             with self.assertRaises(RNC.NotMeasured) as ctx:
-                RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR)
+                RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
+                              records_root=Path(self.store.name))
         self.assertIn("не прочитан", str(ctx.exception))
 
     def test_осознанный_обход_ВИДЕН_в_отчёте(self):
@@ -349,9 +361,10 @@ class ТактРешаетФайл(unittest.TestCase):
                 "generated_at": "x", "repo_head": None, "cases_without_file": 0,
                 "records_meta": []}
         with unittest.mock.patch.object(census, "measure", return_value=full):
-            tacit = RNC.refresh(self.root, junit=[str(rec)], write=False, now=ANCHOR)
+            tacit = RNC.refresh(self.root, junit=[str(rec)], write=False, now=ANCHOR,
+                                records_root=Path(self.store.name))
             loud = RNC.refresh(self.root, junit=[str(rec)], write=False, now=ANCHOR,
-                               allow_prod_tree=True)
+                               records_root=Path(self.store.name), allow_prod_tree=True)
         self.assertFalse(tacit["allow_prod_tree"])
         self.assertTrue(loud["allow_prod_tree"])
         self.assertFalse([l for l in RNC._lines(tacit) if "[ОБХОД]" in l],
@@ -395,6 +408,65 @@ class СнятиеЗаписей(unittest.TestCase):
     def test_каталога_нет_это_не_ошибка_и_не_удаление(self):
         with TemporaryDirectory() as empty:
             self.assertEqual(RNC.prune_records(Path(empty), 5), [])
+
+
+class ЗаписьПереживаетДеревоПрогона(unittest.TestCase):
+    """Где ГНАТЬ и где ХРАНИТЬ — два разных входа, и это не стилистика.
+
+    Прогон обязан идти в ОДНОРАЗОВОМ дереве, а одноразовое дерево исчезает вместе с
+    записью. Если хранилище привязано к дереву прогона, заказ «записи прогона на хосте
+    не держит никто» остаётся НЕвыполненным ровно в том месте, где объявлен закрытым.
+    """
+
+    def setUp(self):
+        self.run_tree = TemporaryDirectory()
+        self.store = TemporaryDirectory()
+        (Path(self.run_tree.name) / "data").mkdir(parents=True, exist_ok=True)
+        self.addCleanup(self.run_tree.cleanup)
+        self.addCleanup(self.store.cleanup)
+
+    def test_запись_ложится_в_каталог_хранения_а_не_в_дерево_прогона(self):
+        seen = {}
+
+        def fake_run(root, files, record, **kw):
+            seen["record"] = Path(record)
+            _junit(Path(record), [("m.test_a", "t1", False)])
+            return {"returncode": 0, "cases_in_record": 1, "record": str(record),
+                    "tail": "", "files_requested": len(files)}
+        with unittest.mock.patch.object(RNC, "run_population", fake_run),              unittest.mock.patch.object(RNC, "population_files", return_value=["m/test_a.py"]),              unittest.mock.patch.object(census, "measure",
+                                        return_value={"measured": True,
+                                                      "verdict": census.NO_REGRESSION}):
+            out = RNC.refresh(Path(self.run_tree.name), write=False, now=ANCHOR,
+                              records_root=Path(self.store.name))
+        self.assertEqual(out["records_root"], self.store.name)
+        self.assertIn(Path(self.store.name), seen["record"].parents,
+                      "запись обязана лежать в каталоге ХРАНЕНИЯ")
+        self.assertNotIn(Path(self.run_tree.name), seen["record"].parents,
+                         "в дереве прогона запись умрёт вместе с деревом")
+
+    def test_умолчание_хранилища_не_есть_дерево_прогона(self):
+        """Положительный контроль на САМО умолчание, а не только на явный вход."""
+        self.assertEqual(RNC.DEFAULT_RECORDS_ROOT,
+                         Path.home() / "Documents" / "SPA_Claude")
+        self.assertNotEqual(RNC.DEFAULT_RECORDS_ROOT, Path(self.run_tree.name))
+
+
+class НичегоНеУтеклоВПрод(unittest.TestCase):
+    """Набор не оставляет записей в БОЕВОМ дереве — и это проверяется, а не обещается.
+
+    Замер 17.10 (эта же доставка): `DEFAULT_RECORDS_ROOT` — боевое дерево, и тест,
+    забывший передать `records_root`, написал туда junit-фикстуру на 145 байт. Отказ
+    `_refuse_if_prod_tree` этого не ловит ПО ПОСТРОЕНИЮ: он про дерево ПРОГОНА, а не
+    про каталог хранения. Поэтому у забывчивости свой сторож.
+    """
+
+    def test_ни_один_тест_набора_не_написал_в_боевое_хранилище(self):
+        live = RNC.DEFAULT_RECORDS_ROOT / RNC.RECORDS_REL
+        if not live.is_dir():
+            return  # хранилища нет — писать было некуда, утечки нет
+        fixtures = [p.name for p in live.glob("*.xml")
+                    if p.stat().st_size < 1024 and b"m.test_a" in p.read_bytes()]
+        self.assertEqual(fixtures, [], f"фикстуры набора утекли в {live}: {fixtures}")
 
 
 class КодВозвратаГоворитОКритерии(unittest.TestCase):

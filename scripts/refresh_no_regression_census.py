@@ -15,7 +15,7 @@ junit-записью прогона, а записи прогона на хос�
 |---|---|
 | считает население трёх объявленных поверхностей (перепись, разбором дерева) | не расширяет и не сужает население — это предмет №2 границы ADR-285 |
 | гоняет pytest РОВНО по этим файлам с `--junitxml` | не гоняет предписанный прогон четырёх каталогов и не выдаёт себя за него |
-| ХРАНИТ запись на хосте (`data/records/no_regression/<отметка>.xml`) | ничего не удаляет без явного `--keep N` |
+| ХРАНИТ запись в дереве, которое ПЕРЕЖИВЁТ прогон (`--records-root`, умолчание — боевое дерево) | ничего не удаляет без явного `--keep N` |
 | отдаёт запись переписи и пишет её отчёт | не считает вердикт сам — мерка одна, и она у переписи |
 
 **Вердикт этого прогона отвечает на вопрос владельца и только на него:**
@@ -72,9 +72,19 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-#: Куда складываются записи прогона. `data/**` в .gitignore — запись живёт на
-#: хосте и на origin не уезжает (она про ЭТО дерево и этот прогон).
+#: Куда складываются записи прогона (относительно каталога хранения).
+#: `data/records/` в .gitignore — запись живёт на ХОСТЕ и на origin не уезжает.
 RECORDS_REL = Path("data") / "records" / "no_regression"
+
+#: Где хранить записи ПО УМОЛЧАНИЮ — и это НЕ дерево прогона, хотя произведена
+#: запись именно там. Прогон обязан идти в ОДНОРАЗОВОМ дереве (см.
+#: `_refuse_if_prod_tree`), а одноразовое дерево на то и одноразовое: вместе с ним
+#: исчезла бы и запись, то есть ровно то, чего требует заказ G673 п. 1 («записи
+#: прогона на хосте не держит никто»), осталось бы невыполненным. Поэтому «где
+#: гнать» и «где хранить» — два разных входа: по умолчанию хранилище — боевое
+#: дерево (оно переживает любой worktree), и ПИШЕТСЯ туда только XML-запись, а не
+#: результат тестов.
+DEFAULT_RECORDS_ROOT = Path.home() / "Documents" / "SPA_Claude"
 
 #: Предел возраста действующего артефакта для `--if-due`. Ниже предела пробы
 #: (`card_acceptance._NO_REGRESSION_MAX_AGE_H` = 192 ч) НАМЕРЕННО: равные пороги
@@ -221,6 +231,7 @@ def run_population(repo_root: Path, files: list[str], record: Path,
 def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT_MAX_AGE_H,
             junit: list[str] | None = None, allow_prod_tree: bool = False,
             write: bool = True, timeout_s: float | None = None,
+            records_root: Path | None = None,
             now: datetime | None = None) -> dict:
     """Обновить отчёт переписи, произведя запись прогона, и вернуть наблюдения."""
     from spa_core.monitoring import no_regression_census as census
@@ -250,7 +261,9 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
     else:
         _refuse_if_prod_tree(repo_root, allow=allow_prod_tree)
         files = population_files(repo_root)
-        record = repo_root / RECORDS_REL / f"{_stamp()}.xml"
+        keep_in = Path(records_root) if records_root is not None else DEFAULT_RECORDS_ROOT
+        record = keep_in / RECORDS_REL / f"{_stamp()}.xml"
+        out["records_root"] = str(keep_in)
         out["run"] = run_population(repo_root, files, record, timeout_s=timeout_s)
         out["ran"] = True
         out["source"] = f"прогон населения ({len(files)} файл(ов)) на этом хосте"
@@ -265,7 +278,7 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
     return out
 
 
-def prune_records(repo_root: Path, keep: int) -> list[str]:
+def prune_records(records_root: Path, keep: int) -> list[str]:
     """Снять все записи, кроме ``keep`` самых свежих. ``keep<=0`` — не снимать ничего.
 
     Удаление необратимо, поэтому оно НЕ по умолчанию и трогает только файлы
@@ -273,7 +286,7 @@ def prune_records(repo_root: Path, keep: int) -> list[str]:
     """
     if keep <= 0:
         return []
-    base = repo_root / RECORDS_REL
+    base = Path(records_root) / RECORDS_REL
     if not base.is_dir():
         return []
     found = sorted((p for p in base.glob("*.xml") if p.is_file()),
@@ -320,6 +333,9 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--allow-prod-tree", action="store_true",
                     help="осознанный обход отказа «дерево боевое»")
     ap.add_argument("--no-write", action="store_true")
+    ap.add_argument("--records-root", default=None,
+                    help=f"каталог ХРАНЕНИЯ записей (умолчание {DEFAULT_RECORDS_ROOT}) — "
+                         f"он переживает одноразовое дерево прогона")
     ap.add_argument("--keep", type=int, default=0,
                     help="оставить N самых свежих записей, остальные снять (0 — не снимать)")
     ap.add_argument("--timeout-s", type=float, default=None,
@@ -330,14 +346,16 @@ def _main(argv: list[str] | None = None) -> int:
     try:
         out = refresh(repo_root, if_due=args.if_due, max_age_h=args.max_age_h,
                       junit=args.junit, allow_prod_tree=args.allow_prod_tree,
-                      write=not args.no_write, timeout_s=args.timeout_s)
+                      write=not args.no_write, timeout_s=args.timeout_s,
+                      records_root=Path(args.records_root) if args.records_root else None)
     except NotMeasured as exc:
         print(f"критерий §49 `No regression`: НЕ ИЗМЕРЕНО — {exc}")
         return 2
 
     for line in _lines(out):
         print(line)
-    for path in prune_records(repo_root, args.keep):
+    for path in prune_records(Path(args.records_root) if args.records_root
+                              else DEFAULT_RECORDS_ROOT, args.keep):
         print(f"[СНЯТА ЗАПИСЬ] {path}")
 
     from spa_core.monitoring import no_regression_census as census
