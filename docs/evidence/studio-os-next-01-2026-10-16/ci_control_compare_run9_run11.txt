@@ -1,0 +1,12 @@
+CI-CONTROL COMPARE a6329acbf176c0a7e03971bac5d145c9eb2166de (RED) → c06124aed1337c5b6e2b459cda20300fa96f1b7b (RED): new 11 · pre-existing 87 · not obtained 0 · fixed 1
+  NEW tests/test_dead_code_resolved.py::TestScannerImprovement::test_16_unused_imports_decreased
+  NEW spa_core/tests/test_memory_in_git.py::test_live_registry_of_decisions_is_intact
+  NEW spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_a_baseline_without_the_schema_is_unmeasured_not_clean
+  NEW spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_empty_baseline_names_every_subject_call
+  NEW spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_json_is_exactly_one_document
+  NEW spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_missing_baseline_is_unmeasured_not_clean
+  NEW spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_prescreen_does_not_change_the_answer
+  NEW spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_a_non_string_reason_is_unmeasured_not_pass
+  NEW spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_an_empty_admitted_reason_is_unmeasured_not_pass
+  NEW spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_an_empty_unresolved_reason_is_unmeasured_not_pass
+  NEW spa_core/tests/test_python_git_ref_provenance.py::RegistryReactsToTheCensus::test_a_new_unresolved_identity_turns_the_ratchet_red_and_is_named
