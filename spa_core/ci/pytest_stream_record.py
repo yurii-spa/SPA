@@ -133,8 +133,17 @@ def _first_line(text: object) -> str:
 _RECORDER: "StreamRecorder | None" = None
 
 
+#: путь списка доигрывания, снятый с окружения при старте сессии (см. pytest_configure)
+_RESUME_PATH = None
+
+
 def pytest_configure(config) -> None:                        # noqa: ANN001
-    global _RECORDER
+    global _RECORDER, _RESUME_PATH
+    # Список доигрывания — свойство ЭТОЙ сессии, а не её детей: переменная снимается с окружения сразу.
+    # Контрольный прогон №5 (17.10): тесты, запускающие вложенный pytest, унаследовали SPA_PYTEST_RESUME_ONLY
+    # от доигрывания шарда 5, и вложенные сцены отбросили все свои тесты («1 deselected») — 5 ложных падений.
+    if os.environ.get(RESUME_ENV):
+        _RESUME_PATH = os.environ.pop(RESUME_ENV)
     path = os.environ.get(STREAM_ENV)
     if not path:
         _RECORDER = None
@@ -261,7 +270,7 @@ def pytest_runtest_makereport(item, call):                   # noqa: ANN001, ARG
 
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(session, config, items):   # noqa: ANN001, ARG001
-    path = os.environ.get(RESUME_ENV)
+    path = _RESUME_PATH
     if not path:
         return
     with open(path, encoding="utf-8") as fh:

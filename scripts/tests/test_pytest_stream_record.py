@@ -542,3 +542,40 @@ def test_the_env_name_in_the_workflow_is_the_one_the_plugin_reads() -> None:
         sys.path.remove(str(_REPO_ROOT))
     assert f"{plugin.STREAM_ENV}:" in _workflow_text(), (
         f"воркфлоу объявляет не ту переменную, которую читает плагин ({plugin.STREAM_ENV})")
+
+
+def test_resume_list_is_taken_by_this_session_and_not_inherited_by_children(monkeypatch, tmp_path) -> None:
+    """Контрольный прогон CI №5 (17.10): тесты, запускающие вложенный pytest, унаследовали
+    SPA_PYTEST_RESUME_ONLY от доигрывания шарда и отбросили все свои сцены («1 deselected»).
+    Список доигрывания обязан действовать в ЭТОЙ сессии и исчезать из окружения детей."""
+    plugin = _import_plugin()
+    keep = tmp_path / "resume.txt"
+    keep.write_text("a::b\n", encoding="utf-8")
+    monkeypatch.setattr(plugin, "_RECORDER", plugin._RECORDER, raising=False)        # noqa: SLF001
+    monkeypatch.setattr(plugin, "_RESUME_PATH", None, raising=False)                  # noqa: SLF001
+    monkeypatch.delenv(plugin.STREAM_ENV, raising=False)
+    monkeypatch.setenv(plugin.RESUME_ENV, str(keep))
+    saved = plugin._RECORDER                                                          # noqa: SLF001
+    try:
+        plugin.pytest_configure(_FakeConfig())
+    finally:
+        plugin._RECORDER = saved                                                      # noqa: SLF001
+    assert plugin.RESUME_ENV not in os.environ, "дочерний процесс унаследовал бы список доигрывания"
+    assert plugin._RESUME_PATH == str(keep)                                           # noqa: SLF001
+
+    class _It:
+        def __init__(self, n):
+            self.nodeid = n
+
+    class _Hook:
+        def __init__(self):
+            self.dropped = []
+
+        def pytest_deselected(self, items):
+            self.dropped.extend(i.nodeid for i in items)
+
+    class _Cfg:
+        hook = _Hook()
+    items = [_It("a::b"), _It("a::c")]
+    plugin.pytest_collection_modifyitems(None, _Cfg(), items)
+    assert [i.nodeid for i in items] == ["a::b"] and _Cfg.hook.dropped == ["a::c"]

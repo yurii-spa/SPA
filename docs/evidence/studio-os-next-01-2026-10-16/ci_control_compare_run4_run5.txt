@@ -1,0 +1,6 @@
+CI-CONTROL COMPARE 10314804a04e07e217cfe22f46ad364e068c4de8 (RED) → 994ae86f6680fdcb1aa7b3440dca12795017d7f5 (RED): new 5 · pre-existing 125 · not obtained 0 · fixed 15
+  NEW scripts/tests/test_pytest_stream_record.py::test_a_killed_session_still_names_the_failure_and_the_test_it_died_on
+  NEW scripts/tests/test_pytest_stream_record.py::test_a_session_that_reaches_the_end_says_so
+  NEW scripts/tests/test_pytest_stream_record.py::test_without_the_env_var_the_plugin_writes_nothing_at_all
+  NEW scripts/tests/test_pytest_stream_record.py::test_a_case_that_nulls_the_global_recorder_silences_the_rest_of_the_session
+  NEW scripts/tests/test_pytest_stream_record.py::test_a_teardown_failure_keeps_the_plugin_counters_balanced
