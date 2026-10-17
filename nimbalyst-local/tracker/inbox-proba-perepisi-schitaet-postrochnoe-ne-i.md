@@ -9,11 +9,6 @@ acceptance_probe: census_probe_refuses_unobserved_subject
 status_trail:
   - "2026-10-17T03:21:25.467985+00:00 new -> in-progress · queue.set_status · cycle-65151"
   - "2026-10-17T03:21:56.148460+00:00 in-progress -> done · queue.set_status/closed_by:cycle-65151/evidence:проба census_probe_refuses_unobserved_subject = satisfied на живом населении 174 читателей; три стенда, различающиеся РОВНО причиной одной строки: неответ (entry_exceeded_budget) ⇒ unmeasured с именам · cycle-65151"
-claimed_by: cycle-19908
-claimed_at: 2026-10-17T05:04:25Z
-claimed_run_id: orchestrator-19908-E7DC5ECBFA9A40E3AB0BAB1A127F6678
-claimed_pid: 19908
-claimed_pid_start: Sat Oct 17 06:35:48 2026
 ---
 
 ## Что случилось и почему это важно

@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-19908
-claimed_at: 2026-10-17T05:05:04Z
-claimed_run_id: orchestrator-19908-E7DC5ECBFA9A40E3AB0BAB1A127F6678
-claimed_pid: 19908
-claimed_pid_start: Sat Oct 17 06:35:48 2026
-claim_takeover_reason: Стоячий приказ владельца (инв. #14). Шаг 0a-ГОЛОД: in-progress 1348.6ч, мимо 745 циклов; все 130 захватов осиротели, последний (cycle-65151) мёртв — перемерено независимо. Беру как носитель заказа G767 п. 3
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
