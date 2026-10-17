@@ -1,0 +1,122 @@
+{
+  "title": "ADR-774 — дельта цикла #890: слепок отправляемых байтов (у доставки не было своего окна)",
+  "tests": [
+    "spa_core/tests/test_delivery_bytes_pin.py"
+  ],
+  "mutations": [
+    {
+      "name": "слепок не снимается вовсе: пин остаётся неснятым, сверять нечем",
+      "file": "push_to_github.py",
+      "old": "    _DELIVERY_PIN.update({\n        \"taken\": True,",
+      "new": "    _DELIVERY_PIN.update({\n        \"taken\": False,"
+    },
+    {
+      "name": "читатель не сверяет: байты возвращаются без вопроса к слепку",
+      "file": "push_to_github.py",
+      "old": "    actual = git_blob_sha(data)\n    if actual != pinned:",
+      "new": "    actual = pinned\n    if actual != pinned:"
+    },
+    {
+      "name": "расхождение становится предупреждением, а не отказом (fail-OPEN)",
+      "file": "push_to_github.py",
+      "old": "    if _DELIVERY_PIN[\"allow_drift\"]:\n        print(f\"  ⚠️  байты разошлись со слепком, но обход объявлен \"",
+      "new": "    if True:\n        print(f\"  ⚠️  байты разошлись со слепком, но обход объявлен \""
+    },
+    {
+      "name": "путь, которого нет в слепке, зачитывается за сверенный",
+      "file": "push_to_github.py",
+      "old": "        _PIN_VERDICTS.append({\"path\": key, \"state\": \"mismatch\", \"reason\": note})\n        _refuse_drift(key, note)\n        return data\n\n    actual = git_blob_sha(data)",
+      "new": "        _PIN_VERDICTS.append({\"path\": key, \"state\": \"match\", \"reason\": note})\n        return data\n\n    actual = git_blob_sha(data)"
+    },
+    {
+      "name": "причина «в момент пина не прочитан» подменяется общей: два разных следующих шага сливаются в один",
+      "file": "push_to_github.py",
+      "old": "        note = (f\"в момент пина файл НЕ ПРОЧИТАН ({reason})\" if reason else",
+      "new": "        note = (\"пути НЕТ в слепке\" if reason else"
+    },
+    {
+      "name": "нечитаемый файл слепка не оставляет следа — третий исход исчезает",
+      "file": "push_to_github.py",
+      "old": "        except OSError as e:\n            unreadable[key] = f\"{type(e).__name__}: {e}\"",
+      "new": "        except OSError:\n            pass"
+    },
+    {
+      "name": "«слепок не снимался» выдаётся за сверенное (инв. #17 наизнанку)",
+      "file": "push_to_github.py",
+      "old": "    if states.get(\"unmeasured\"):\n        return (f\"слепок байтов: НЕ ИЗМЕРЕНО у {states['unmeasured']} чтени(я/й) \"\n                f\"— слепок не снимался\")",
+      "new": "    pass"
+    },
+    {
+      "name": "«читателя не позвали» становится «сверено у нуля» — пустой счёт выдаётся за ответ",
+      "file": "push_to_github.py",
+      "old": "    if not _PIN_VERDICTS:\n        return \"слепок байтов: читателя не позвали НИ РАЗУ\"",
+      "new": "    if not _PIN_VERDICTS:\n        return \"слепок байтов сверен у 0 чтени(я/й)\""
+    },
+    {
+      "name": "расхождения не называются в итоге: вердикт зеленее замеров",
+      "file": "push_to_github.py",
+      "old": "    if states.get(\"mismatch\"):\n        return (f\"слепок байтов: РАСХОЖДЕНИЙ {states['mismatch']} \"\n                f\"(обход объявлен)\")",
+      "new": "    pass"
+    },
+    {
+      "name": "повторный пин ПЕРЕСНИМАЕТ слепок — подмена между двумя пинами становится невидимой",
+      "file": "push_to_github.py",
+      "old": "    if _DELIVERY_PIN[\"taken\"]:\n        print(f\"  слепок байтов уже снят ({_DELIVERY_PIN['at']}, \"\n              f\"файлов {len(_DELIVERY_PIN['digests'])}) — не переснимаю\")\n        return dict(_DELIVERY_PIN)",
+      "new": "    if False:\n        return dict(_DELIVERY_PIN)"
+    },
+    {
+      "name": "согласие на обход становится умолчанием, а не входом",
+      "file": "push_to_github.py",
+      "old": "        \"allow_drift\": bool(allow_drift),",
+      "new": "        \"allow_drift\": True,"
+    },
+    {
+      "name": "чтение в split_unchanged снова идёт мимо двери (решение об идемпотентности — другое наблюдение)",
+      "file": "push_to_github.py",
+      "old": "        local_sha = git_blob_sha(read_delivery_bytes(abs_path))",
+      "new": "        local_sha = git_blob_sha(Path(abs_path).read_bytes())"
+    },
+    {
+      "name": "чтение в build_entries снова идёт мимо двери — уезжают несверенные байты",
+      "file": "push_to_github.py",
+      "old": "                                            read_delivery_bytes(abs_path), guard_sha,",
+      "new": "                                            Path(abs_path).read_bytes(), guard_sha,"
+    },
+    {
+      "name": "чтение в push_file снова идёт мимо двери (одиночный путь без слепка)",
+      "file": "push_to_github.py",
+      "old": "    local_bytes = read_delivery_bytes(local)",
+      "new": "    local_bytes = local.read_bytes()"
+    },
+    {
+      "name": "чтение в create_blob снова идёт мимо двери",
+      "file": "push_to_github.py",
+      "old": "    return create_blob_from_bytes(pat, repo, read_delivery_bytes(abs_path))",
+      "new": "    return create_blob_from_bytes(pat, repo, Path(abs_path).read_bytes())"
+    },
+    {
+      "name": "слепок снимается ПОСЛЕ первого гейта — у этого гейта остаётся своё окно",
+      "file": "push_to_github.py",
+      "old": "    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)\n\n    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────",
+      "new": "    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────"
+    },
+    {
+      "name": "вторая дверь (batch-CLI) слепка не снимает — уезжает то, что первая отклоняет",
+      "file": "push_to_github_batch.py",
+      "old": "    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)",
+      "new": "    pass"
+    },
+    {
+      "name": "отказ слепка теряет свой код возврата — читателя отправляют смотреть remote",
+      "file": "push_to_github.py",
+      "old": "BYTES_DRIFT_EXIT = 11",
+      "new": "BYTES_DRIFT_EXIT = 1"
+    },
+    {
+      "name": "нормализация пина расходится с resolve_files — ключи не совпадают, сторож тихо исчезает",
+      "file": "push_to_github.py",
+      "old": "    local = Path(file_arg)\n    if not local.is_absolute():\n        local = PROJECT_ROOT / local\n    return str(local)",
+      "new": "    return str(Path(file_arg).absolute())"
+    }
+  ]
+}

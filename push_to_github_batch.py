@@ -153,6 +153,18 @@ mutation_window_verdict = _root_push.mutation_window_verdict
 DeliveredMutant = _root_push.DeliveredMutant
 MUTATION_WINDOW_EXIT = _root_push.MUTATION_WINDOW_EXIT
 
+# Слепок отправляемых байтов (ADR-774) — та же ОДНА реализация и тот же один
+# store: пин живёт на `_root_push`, а этот CLI его ИМПОРТИРУЕТ, поэтому читатель
+# байтов внутри `batch_push` видит ровно тот слепок, который снял этот CLI.
+# Своего store здесь нет намеренно: два store означали бы, что одна дверь
+# сверяет, а другая молчит, — дословно урок номеров ADR (26.08, второй ADR-145).
+pin_delivery_bytes = _root_push.pin_delivery_bytes
+read_delivery_bytes = _root_push.read_delivery_bytes
+delivery_pin_summary = _root_push.delivery_pin_summary
+reset_delivery_pin = _root_push.reset_delivery_pin
+DeliveryBytesDrifted = _root_push.DeliveryBytesDrifted
+BYTES_DRIFT_EXIT = _root_push.BYTES_DRIFT_EXIT
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -181,6 +193,10 @@ def main():
     parser.add_argument("--allow-open-mutation-window", action="store_true",
                         help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
                              "мутационного прибора (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-bytes-drift", action="store_true",
+                        help="ОСОЗНАННО доставить байты, разошедшиеся со слепком, "
+                             "снятым в момент решения «отправляю это» (по умолчанию "
+                             "такой пуш отклоняется)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -204,6 +220,13 @@ def main():
         parser.error("Укажи файлы (positional) или --file / --files")
 
     message = args.message or f"chore: batch push {len(all_files)} file(s) in one commit"
+
+    # ── СЛЕПОК ОТПРАВЛЯЕМЫХ БАЙТОВ (ADR-774) — ПЕРВЫМ, до ВСЕХ гейтов ───────
+    # Тот же вызов и тот же порядок, что в `push_to_github.py::main()`:
+    # слепок, снятый ПОСЛЕ гейта, оставил бы этому гейту своё окно.
+    allow_bytes_drift = bool(getattr(args, "allow_bytes_drift", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_BYTES_DRIFT") == "1"
+    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ (карточка `agent-host-pusher-copy-is-stale`) ──
     # Реализация — одна, в каноническом модуле; здесь только вызов. Про `__file__`:
@@ -312,6 +335,12 @@ def main():
         # различать эти случаи одинаково в обоих путях.
         print(f"\nОТКАЗ (сверка доставленного): {e}", file=sys.stderr)
         sys.exit(6)
+    except DeliveryBytesDrifted as e:
+        # Тот же код выхода, что в каноническом CLI: вызывающие
+        # (`safe_site_push.py`, кастодиан) различают случаи одинаково в обоих
+        # путях — иначе одна дверь отказывала бы понятно, а вторая общим FAIL.
+        print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
     except Exception as e:
         print(f"\nFAIL: {e}")
         sys.exit(1)
@@ -325,6 +354,7 @@ def main():
     else:
         print(f"\nOK: 1 коммит {result['commit'][:8]} со {result['count']} файл(ами)"
               f" (skipped={result['skipped']})")
+    print(f"  {delivery_pin_summary()}")
     sys.exit(0)
 
 

@@ -377,6 +377,237 @@ def git_blob_sha(content: bytes) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# СЛЕПОК ОТПРАВЛЯЕМЫХ БАЙТОВ (ADR-774, заказ G772 п. 4)
+#
+# У доставки не было своего окна. Пушер сверяет инструмент доставки (ADR-053 →
+# `enforce_delivery_toolchain`) и окно мутационного прибора (ADR-772 →
+# `enforce_no_delivered_mutant`), но ни один из этих вопросов не про САМИ
+# уезжающие байты: оба отвечают в момент T1, а байты читаются с диска в момент
+# T2 > T1, и между T1 и T2 файл волен измениться.
+#
+# ЗАМЕР ДО РАБОТЫ (цикл #890, набор из 10 файлов, живой origin):
+#   * каждый путь читается с диска НЕЗАВИСИМО ДВА раза — `split_unchanged`
+#     (решение «изменился ли») и `build_entries` (байты, которые уедут);
+#   * окно «первый гейт → чтение отправляемых байтов» = 1.48 с у первого файла
+#     и 5.96 с у последнего, и оно растёт ЛИНЕЙНО по числу файлов: на каждый
+#     файл идёт свой GET (`get_file_sha`), а потом ещё свой GET у стража;
+#   * положительный контроль с заглушённой сетью: гейт окна ответил «окна нет»
+#     (верно в T1), прибор открыл окно сразу после него — пушер вышел **0**,
+#     напечатал «OK: 1 коммит» и отдал байты, которых НЕ СУДИЛ НИ ОДИН ГЕЙТ.
+#     Цели того прибора — `risk/policy.py` и `governance/kill_switch.py`
+#     (замер #889), то есть money-path.
+#
+# Лечение — не «ещё один гейт», а ПИН: слепок снимается ОДИН раз, в момент
+# решения «отправляю это» (первым делом в `main()`, до всех гейтов), и КАЖДОЕ
+# последующее чтение отправляемых байтов идёт через ОДНУ дверь
+# :func:`read_delivery_bytes`, которая сверяет прочитанное со слепком.
+# Расхождение — отказ fail-CLOSED (инв. #2), а не предупреждение: «доставили НЕ
+# ТО» хуже, чем «не доставили и назвали причину».
+#
+# Три исхода, как велит инв. #17, и они РАЗЛИЧИМЫ:
+#   * слепок снят и совпал          → доставка измерена;
+#   * слепок снят и РАЗОШЁЛСЯ       → `DeliveryBytesDrifted`, код 11;
+#   * слепок НЕ СНЯТ (библиотечный  → `unmeasured` с названной причиной,
+#     вызов `batch_push` минуя CLI)   записывается и печатается, а не молчит.
+# Четвёртый случай — путь, которого в слепке НЕТ вовсе: набор изменился ПОСЛЕ
+# пина, и это тоже отказ, а не «не измерено»: пин брался по тому же списку.
+# ══════════════════════════════════════════════════════════════════════════════
+
+BYTES_DRIFT_EXIT = 11
+
+
+class DeliveryBytesDrifted(RuntimeError):
+    """Байты на диске разошлись со слепком, снятым в момент решения «отправляю это».
+
+    Это НЕ «не доставили»: это «гейты судили одни байты, а уехать собрались
+    другие». Направление ошибки выбрано осознанно — отказ, а не доставка под
+    зелёной печатью чужого вопроса.
+    """
+
+
+#: Слепок набора. Живёт на модуле намеренно: двери доставки две
+#: (`push_to_github.py` и `push_to_github_batch.py`, второй ИМПОРТИРУЕТ первый),
+#: читателей байтов четыре, и протаскивать пин параметром через четыре подписи
+#: значило бы развести «половину инъекции» — ровно ту бомбу, про которую
+#: `.claude/rules/deployment.md` (урок #453). Store один, и он один на обе двери.
+_DELIVERY_PIN: dict = {
+    "taken": False,       # снимали ли слепок вообще
+    "at": None,           # когда (ISO, для сообщения об отказе)
+    "digests": {},        # abs_path (str) → git-blob-sha1 на момент пина
+    "unreadable": {},     # abs_path (str) → причина, по которой слепок не снят
+    "allow_drift": False, # осознанное согласие автора, снятое в момент пина
+}
+
+#: Вердикты читателя: каждое чтение отправляемых байтов оставляет след.
+#: Пустой список при непустой доставке сам по себе есть находка (читателя не
+#: позвали), и её видно тесту проводки.
+_PIN_VERDICTS: list = []
+
+
+def reset_delivery_pin() -> None:
+    """Снять слепок (для тестов и повторных прогонов в одном процессе)."""
+    _DELIVERY_PIN.update({"taken": False, "at": None, "digests": {},
+                          "unreadable": {}, "allow_drift": False})
+    _PIN_VERDICTS.clear()
+
+
+def _delivery_abs(file_arg) -> str:
+    """Абсолютный путь ровно по тем же правилам, что :func:`resolve_files`.
+
+    Общая нормализация обязательна: разойдись она — пин лёг бы на один ключ, а
+    читатель спросил бы другой, и сторож тихо перестал бы существовать
+    (`unmeasured` на каждом файле выглядел бы свойством окружения).
+    """
+    local = Path(file_arg)
+    if not local.is_absolute():
+        local = PROJECT_ROOT / local
+    return str(local)
+
+
+def pin_delivery_bytes(file_args: list, allow_drift: bool = False,
+                       runner_file: Optional[str] = None) -> dict:
+    """Снять слепок отправляемых байтов. Зовётся ПЕРВЫМ, до всех гейтов.
+
+    Печатает манифест — по строке на файл. Это не украшение: именно эти числа
+    доставляющая сессия выписывает в ADR, и до ADR-774 она считала их руками
+    (`md5` после пуша), то есть ПОСЛЕ момента, о котором утверждала.
+
+    Повторный вызов слепок НЕ ПЕРЕСНИМАЕТ: пересъёмка стёрла бы наблюдение,
+    ради которого пин и берётся, — и сделала бы «подменили байты между двумя
+    пинами» невидимым. Второй вызов честно говорит, что слепок уже снят.
+
+    Нечитаемый файл слепка не получает, но и отказа тут НЕ вызывает: про
+    отсутствующий файл внятнее отказывает :func:`resolve_files` ниже по стеку.
+    Причина записывается, и читатель назовёт её третьим исходом.
+    """
+    if _DELIVERY_PIN["taken"]:
+        print(f"  слепок байтов уже снят ({_DELIVERY_PIN['at']}, "
+              f"файлов {len(_DELIVERY_PIN['digests'])}) — не переснимаю")
+        return dict(_DELIVERY_PIN)
+
+    digests, unreadable = {}, {}
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        try:
+            digests[key] = git_blob_sha(Path(key).read_bytes())
+        except OSError as e:
+            unreadable[key] = f"{type(e).__name__}: {e}"
+
+    _DELIVERY_PIN.update({
+        "taken": True,
+        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "digests": digests,
+        "unreadable": unreadable,
+        "allow_drift": bool(allow_drift),
+    })
+    _PIN_VERDICTS.clear()
+
+    set_digest = hashlib.sha1(
+        "".join(f"{k}:{v}" for k, v in sorted(digests.items())).encode()
+    ).hexdigest() if digests else None
+
+    print(f"  слепок байтов снят: файлов {len(digests)}"
+          f"{f', НЕ ПРОЧИТАНО {len(unreadable)}' if unreadable else ''}"
+          f"{f', слепок набора {set_digest[:12]}' if set_digest else ''}")
+    for key in sorted(digests):
+        print(f"    {digests[key][:12]}  {_display_path(key)}")
+    for key in sorted(unreadable):
+        print(f"    НЕ ИЗМЕРЕНО   {_display_path(key)} — {unreadable[key]}")
+    if allow_drift:
+        print("    ⚠️  --allow-bytes-drift: расхождение байтов со слепком "
+              "будет НАЗВАНО, но доставку не остановит")
+    return dict(_DELIVERY_PIN)
+
+
+def _display_path(abs_path: str) -> str:
+    """Короткое имя для печати: путь внутри репо, если он определим."""
+    try:
+        return repo_relative_path(Path(abs_path))
+    except Exception:
+        return abs_path
+
+
+def read_delivery_bytes(abs_path) -> bytes:
+    """ЕДИНСТВЕННАЯ дверь к байтам, которые уезжают. Сверяет их со слепком.
+
+    Все четыре прежних чтения (`push_file`, `create_blob`, `split_unchanged`,
+    `build_entries`) шли мимо друг друга: один и тот же путь читался с диска
+    дважды за пуш, с разбросом 0.90…3.87 с (замер #890), и решение об
+    идемпотентности принималось по ОДНОМУ чтению, а уезжало содержимое ДРУГОГО.
+    Теперь читатель один, и у него есть, с чем сравнить.
+    """
+    key = str(abs_path if isinstance(abs_path, Path) else Path(abs_path))
+    data = Path(key).read_bytes()
+
+    if not _DELIVERY_PIN["taken"]:
+        # Третий исход: слепка нет, значит сверять НЕ С ЧЕМ. Это не «чисто».
+        _PIN_VERDICTS.append({"path": key, "state": "unmeasured",
+                              "reason": "слепок байтов не снимался: "
+                                        "`pin_delivery_bytes` не зван"})
+        return data
+
+    pinned = _DELIVERY_PIN["digests"].get(key)
+    if pinned is None:
+        reason = _DELIVERY_PIN["unreadable"].get(key)
+        note = (f"в момент пина файл НЕ ПРОЧИТАН ({reason})" if reason else
+                "пути НЕТ в слепке — набор изменился ПОСЛЕ момента решения "
+                "«отправляю это»")
+        _PIN_VERDICTS.append({"path": key, "state": "mismatch", "reason": note})
+        _refuse_drift(key, note)
+        return data
+
+    actual = git_blob_sha(data)
+    if actual != pinned:
+        note = (f"слепок {pinned[:12]} ≠ диск {actual[:12]} "
+                f"(снят {_DELIVERY_PIN['at']})")
+        _PIN_VERDICTS.append({"path": key, "state": "mismatch", "reason": note})
+        _refuse_drift(key, note)
+        return data
+
+    _PIN_VERDICTS.append({"path": key, "state": "match", "sha": actual})
+    return data
+
+
+def _refuse_drift(key: str, note: str) -> None:
+    """Отказ fail-CLOSED, либо НАЗВАННЫЙ обход. Молчания нет ни в одной ветке."""
+    if _DELIVERY_PIN["allow_drift"]:
+        print(f"  ⚠️  байты разошлись со слепком, но обход объявлен "
+              f"(--allow-bytes-drift): {_display_path(key)} — {note}")
+        return
+    raise DeliveryBytesDrifted(
+        f"байты {_display_path(key)} разошлись со слепком, снятым в момент "
+        f"решения «отправляю это»: {note}.\n"
+        f"Это значит, что ВСЕ гейты этого пуша (инструмент доставки, окно "
+        f"мутационного прибора, номера ADR, запись ответа владельца, запись "
+        f"изменения, owner-gate сайта) судили ДРУГИЕ байты — те, что уехали "
+        f"бы, не судил никто.\n"
+        f"Что делать: понять, кто пишет в этот файл (соседняя сессия? "
+        f"регенератор `_BOARD.md`? мутационный прибор — "
+        f"`python3 scripts/delta_mutation_run.py --window-check`?), и "
+        f"повторить пуш на устоявшемся дереве.\n"
+        f"Осознанно продолжить: --allow-bytes-drift (или "
+        f"SPA_PUSH_ALLOW_BYTES_DRIFT=1) — тогда расхождение будет НАЗВАНО, "
+        f"но доставку не остановит.")
+
+
+def delivery_pin_summary() -> str:
+    """Одна строка итога для вывода пуша. «Не измерено» видно, а не молчит."""
+    if not _PIN_VERDICTS:
+        return "слепок байтов: читателя не позвали НИ РАЗУ"
+    states = {}
+    for v in _PIN_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("mismatch"):
+        return (f"слепок байтов: РАСХОЖДЕНИЙ {states['mismatch']} "
+                f"(обход объявлен)")
+    if states.get("unmeasured"):
+        return (f"слепок байтов: НЕ ИЗМЕРЕНО у {states['unmeasured']} чтени(я/й) "
+                f"— слепок не снимался")
+    return f"слепок байтов сверен у {states.get('match', 0)} чтени(я/й)"
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # СВЕРКА ДОСТАВЛЕННОГО
 #
 # ЗАЧЕМ (карточка `agent-pusher-does-not-verify-what-it-delivered`, найдено
@@ -1866,7 +2097,7 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
                                     allow_overwrite, allow_name_loss, allow_stale_base,
                                     expected_base, repo_path)
 
-    local_bytes = local.read_bytes()
+    local_bytes = read_delivery_bytes(local)
     local_blob_sha = git_blob_sha(local_bytes)
 
     if dry_run:
@@ -2414,7 +2645,7 @@ def create_blob_from_bytes(pat: str, repo: str, data: bytes,
 
 def create_blob(pat: str, repo: str, abs_path: Path) -> str:
     """Шаг 3: создать blob из файла (base64, безопасно для бинарных и текстовых)."""
-    return create_blob_from_bytes(pat, repo, Path(abs_path).read_bytes())
+    return create_blob_from_bytes(pat, repo, read_delivery_bytes(abs_path))
 
 
 def create_tree(pat: str, repo: str, base_tree_sha: str, entries: list) -> str:
@@ -2470,7 +2701,7 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
     """
     changed, unchanged = [], []
     for repo_path, abs_path in files:
-        local_sha = git_blob_sha(Path(abs_path).read_bytes())
+        local_sha = git_blob_sha(read_delivery_bytes(abs_path))
         remote_sha = get_file_sha(pat, repo, repo_path, branch)
         if remote_sha is not None and remote_sha == local_sha:
             unchanged.append((repo_path, abs_path, remote_sha))
@@ -2512,7 +2743,7 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
         guard_sha = (tree_shas or {}).get(repo_path) if strict_base else remote_sha
         try:
             content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
-                                            Path(abs_path).read_bytes(), guard_sha,
+                                            read_delivery_bytes(abs_path), guard_sha,
                                             allow_overwrite=allow_overwrite,
                                             allow_name_loss=allow_name_loss,
                                             allow_stale_base=allow_stale_base,
@@ -3082,6 +3313,10 @@ def main():
     parser.add_argument("--allow-change-evidence-unmeasured", action="store_true",
                         help="ОСОЗНАННО доставить набор, удаления в котором НЕ ИЗМЕРЕНЫ (git/база "
                              "недоступны). Отказ из-за удаления БЕЗ записи этим не снимается")
+    parser.add_argument("--allow-bytes-drift", action="store_true",
+                        help="ОСОЗНАННО доставить байты, разошедшиеся со слепком, "
+                             "снятым в момент решения «отправляю это» (по умолчанию "
+                             "такой пуш отклоняется: все гейты судили бы ДРУГИЕ байты)")
     parser.add_argument("--allow-open-mutation-window", action="store_true",
                         help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
                              "мутационного прибора (по умолчанию такой пуш отклоняется: "
@@ -3103,6 +3338,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
     allow_open_window = bool(args.allow_open_mutation_window) or \
         os.environ.get("SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW") == "1"
+    allow_bytes_drift = bool(args.allow_bytes_drift) or \
+        os.environ.get("SPA_PUSH_ALLOW_BYTES_DRIFT") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -3122,6 +3359,14 @@ def main():
 
     # Авто-сообщение если не указано
     message = args.message or f"chore: push {len(all_files)} file(s) via push_to_github.py"
+
+    # ── СЛЕПОК ОТПРАВЛЯЕМЫХ БАЙТОВ (ADR-774) — ПЕРВЫМ, до ВСЕХ гейтов ───────
+    # Порядок здесь не вкусовой: смысл пина в том, чтобы каждый гейт ниже судил
+    # ровно те байты, которые потом уедут. Снятый ПОСЛЕ любого гейта слепок
+    # оставил бы этому гейту своё окно, то есть воспроизвёл бы предмет ADR-774
+    # на один шаг короче. Идёт и в `--dry-run`: превью обязано показывать тот
+    # же манифест и тот же отказ, что настоящий пуш.
+    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────
     # Стоит первой намеренно: owner-gate ниже зовёт `check_owner_gate.py`,
@@ -3257,6 +3502,12 @@ def main():
             # Следующий шаг — смотреть remote, а не повторять пуш вслепую.
             print(f"\nОТКАЗ (сверка доставленного): {e}", file=sys.stderr)
             sys.exit(6)
+        except DeliveryBytesDrifted as e:
+            # Тоже «не доставили», но причина своя и путь наверх свой: смотреть
+            # надо не remote, а ПИШУЩЕГО в наш файл. Свой код возврата именно
+            # поэтому — общий 1 отправил бы читателя не туда.
+            print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+            sys.exit(BYTES_DRIFT_EXIT)
         except Exception as e:
             print(f"\nFAIL: {e}")
             print("Файлы НЕ досылались по одному: рваный набор на main — то, "
@@ -3267,13 +3518,23 @@ def main():
         else:
             print(f"\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) "
                   f"(skipped={result['skipped']})")
+        print(f"  {delivery_pin_summary()}")
         sys.exit(0)
 
     results = []
     for f in all_files:
-        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
-                      allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
-                      allow_stale_base=allow_stale_base, expected_base=args.expected_base)
+        # Отказ слепка роняет ВЕСЬ проход, а не один файл: «половина набора
+        # уехала, половина нет» — ровно то рваное состояние, которое батч-путь
+        # и устраняет. Перехват здесь, а не внутри `push_file`: форма ответа
+        # `push_file` — контракт, и прятать отказ в поле `error` значило бы
+        # сделать его неотличимым от сетевого сбоя.
+        try:
+            r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
+                          allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
+                          allow_stale_base=allow_stale_base, expected_base=args.expected_base)
+        except DeliveryBytesDrifted as e:
+            print(f"\nОТКАЗ (слепок отправляемых байтов): {e}", file=sys.stderr)
+            sys.exit(BYTES_DRIFT_EXIT)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
@@ -3302,6 +3563,7 @@ def main():
         tail = f", сверка НЕ ИЗМЕРЕНА у {len(unverified)}" if unverified else ""
         print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, "
               f"skipped={len(skipped)}{tail})")
+        print(f"  {delivery_pin_summary()}")
         sys.exit(0)
 
 
