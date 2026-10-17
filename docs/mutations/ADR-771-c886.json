@@ -1,0 +1,92 @@
+{
+ "title": "ADR-771 — дельта цикла #886 (строка «не измерено» судится ПО ПРЕДМЕТУ: неответ критерий зелёным не оставляет, осознанный отказ звать — не краснит)",
+ "tests": [
+  "spa_core/tests/test_ledger_day_unit_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "ДЕФЕКТ ADR-771 дословно: проверка неответа снята ⇒ при пустых findings критерий снова зелен при любом числе ненаблюдённых читателей",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    blind = parts[census.PARTITION_UNOBSERVED]\n    if blind:",
+   "new": "    blind = parts[census.PARTITION_UNOBSERVED]\n    if False:"
+  },
+  {
+   "name": "неответ объявляется НАХОДКОЙ, а не третьим исходом: «не измерено» выдаётся за ответ в другую сторону",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    blind = parts[census.PARTITION_UNOBSERVED]\n    if blind:\n        return UNMEASURED, (",
+   "new": "    blind = parts[census.PARTITION_UNOBSERVED]\n    if blind:\n        return NOT_SATISFIED, ("
+  },
+  {
+   "name": "незнакомая причина уходит в кучу по умолчанию ⇒ новая причина молча зачитывается отказом",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    unknown = parts[census.PARTITION_UNCLASSIFIED]\n    if unknown:",
+   "new": "    unknown = parts[census.PARTITION_UNCLASSIFIED]\n    if False:"
+  },
+  {
+   "name": "осознанный отказ звать приравнен к слепоте ⇒ ложный красный на РЕШЕНИИ, который учит гасить пробу",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "CAUSES_REFUSED_TO_CALL: frozenset = frozenset({\n    CAUSE_SELF,\n    CAUSE_SWEEPS_POPULATION,\n    CAUSE_WOULD_ACT,\n})",
+   "new": "CAUSES_REFUSED_TO_CALL: frozenset = frozenset()"
+  },
+  {
+   "name": "бюджет перестаёт быть неответом: `entry_exceeded_budget` объявлен осознанным отказом",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "CAUSES_SUBJECT_UNOBSERVED: frozenset = frozenset({\n    CAUSE_IMPORT_FAILED,",
+   "new": "CAUSES_SUBJECT_UNOBSERVED: frozenset = frozenset({\n    CAUSE_IMPORT_FAILED,\n    CAUSE_SELF,"
+  },
+  {
+   "name": "урезанное окно зачитывается за полное наблюдение: `day_invariant_only_on_short_window` выпадает из неответов",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "    CAUSE_INVARIANT_SHORT_ONLY,\n    CAUSE_SHORT_STAND_ABSENT,",
+   "new": "    CAUSE_SHORT_STAND_ABSENT,"
+  },
+  {
+   "name": "третья куча схлопнута в отказ ⇒ умолчание решает за замер (fail-OPEN)",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "        else:\n            out[PARTITION_UNCLASSIFIED].append(row)",
+   "new": "        else:\n            out[PARTITION_REFUSED].append(row)"
+  },
+  {
+   "name": "разложению подвергаются ВСЕ строки, а не только `unmeasured` ⇒ оценённый читатель попадает в кучу слепоты",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "        if not isinstance(row, dict) or str(row.get(\"outcome\")) != OUT_UNMEASURED:\n            continue",
+   "new": "        if not isinstance(row, dict):\n            continue"
+  },
+  {
+   "name": "счёт куч исчезает из артефакта ⇒ число читателей каждого класса читателю не достаётся",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "    doc[\"unmeasured_by_subject\"] = {k: len(v) for k, v in sorted(parts.items())}",
+   "new": "    doc[\"unmeasured_by_subject\"] = {}"
+  },
+  {
+   "name": "нулевой контроль мета-пробы снят ⇒ её красный нельзя отнести к причине строки",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if base != SATISFIED:\n        return UNMEASURED, (\"контрольный отчёт БЕЗ строк «не измерено» не зелен \"",
+   "new": "    if False:\n        return UNMEASURED, (\"контрольный отчёт БЕЗ строк «не измерено» не зелен \""
+  },
+  {
+   "name": "мета-проба судит по подстроке, а не по вердикту ⇒ проза проходит (ADR-333)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if verdict != want:",
+   "new": "        if want == UNMEASURED and \"НЕ\" not in detail:"
+  },
+  {
+   "name": "мета-проба не замечает, что пробы-под-ней в реестре нет ⇒ предмет отсутствует, а вердикт выносится",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    under = PROBES.get(\"ledger_day_unit_census_names_the_unit\")\n    if under is None:",
+   "new": "    under = PROBES.get(\"ledger_day_unit_census_names_the_unit\")\n    if False:"
+  },
+  {
+   "name": "мета-проба сверяет «зелёный / не зелёный» вместо ПОИМЁННОГО исхода ⇒ неответ, объявленный находкой (инв. #17 наизнанку), зачитывается",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if verdict != want:",
+   "new": "        if (verdict == SATISFIED) != (want == SATISFIED):"
+  },
+  {
+   "name": "отсутствие итога перемера снова подменяется пустотой ⇒ «в отчёте нет» неотличимо от «не осталось ни одного» (красный храповик origin/main 344d10d7a)",
+   "file": "spa_core/monitoring/ledger_day_unit_census.py",
+   "old": "            still = observed(rescue, \"still_unmeasured\", kind=dict)",
+   "new": "            still = rescue.get(\"still_unmeasured\") or {}"
+  }
+ ]
+}

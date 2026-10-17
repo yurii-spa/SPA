@@ -954,5 +954,364 @@ class TheCheaperWindowReachesTheWiring(unittest.TestCase):
         self.assertIn("mod.a", text)
 
 
+class RescueReportTellsAbsenceFromEmptiness(unittest.TestCase):
+    """Инв. #17 у ИТОГА перемера: «в отчёте нет» ≠ «не осталось ни одного».
+
+    Положительный контроль — красный храповик
+    `test_absent_observation_ratchet.py` на чистом `origin/main` 344d10d7a:
+    `rescue.get("still_unmeasured") or {}` делал оба состояния неотличимыми, и
+    отчёт МОЛЧАЛ о том, что итог перемера до него не дошёл.
+    """
+
+    def _rescue(self, **over) -> dict:
+        resc = {"attempted": 2, "answered": 1, "short_window_days": 7,
+                "stand": {"factor": 4}, "findings_on_short_window": []}
+        resc.update(over)
+        return {"measured": True, "books": {}, "factor": 4,
+                "call_budget_s": 90.0, "tally": {cen.OUT_UNMEASURED: 1},
+                "short_window_rescue": resc}
+
+    def test_a_missing_tally_is_named_not_measured(self):
+        text = "\n".join(cen.format_report(self._rescue()))
+        self.assertIn("осталось «не измерено»: НЕ ИЗМЕРЕНО", text)
+
+    def test_an_empty_tally_says_nothing_is_left(self):
+        """Обратная сторона: пустой итог НЕ выдаётся за «не измерено»."""
+        text = "\n".join(cen.format_report(self._rescue(still_unmeasured={})))
+        self.assertNotIn("осталось «не измерено»", text)
+
+    def test_a_measured_tally_is_printed_as_is(self):
+        text = "\n".join(cen.format_report(
+            self._rescue(still_unmeasured={cen.CAUSE_OVER_BUDGET_SHORT: 3})))
+        self.assertIn(f"осталось «не измерено»: {cen.CAUSE_OVER_BUDGET_SHORT} 3",
+                      text)
+
+    def test_garbage_in_the_field_is_absence_not_a_tally(self):
+        """Мусор в поле не есть замер — иначе третий исход снова схлопнется."""
+        text = "\n".join(cen.format_report(
+            self._rescue(still_unmeasured="много")))
+        self.assertIn("осталось «не измерено»: НЕ ИЗМЕРЕНО", text)
+
+
+class UnmeasuredRowIsSplitBySubject(unittest.TestCase):
+    """ADR-771: «не измерено» — ДВА разных утверждения, и складывать их нельзя.
+
+    Положительный контроль — дефект, найденный циклом #883: при пустых
+    `findings` критерий возвращал `satisfied` при любом числе читателей, у
+    которых предмет не наблюдён ВОВСЕ. Строка в отчёте есть, а ответа в ней
+    нет — ровно «не измерено, выданное за ответ» (инв. #17).
+    """
+
+    def test_the_two_piles_do_not_overlap(self):
+        """Причина в обеих кучах означала бы, что решение принято дважды."""
+        self.assertEqual(
+            cen.CAUSES_REFUSED_TO_CALL & cen.CAUSES_SUBJECT_UNOBSERVED,
+            frozenset())
+
+    def test_refusal_to_call_lands_in_the_refusal_pile(self):
+        for cause in sorted(cen.CAUSES_REFUSED_TO_CALL):
+            with self.subTest(cause=cause):
+                parts = cen.partition_unmeasured(
+                    [{"module": "m", "outcome": cen.OUT_UNMEASURED,
+                      "cause": cause}])
+                self.assertEqual(len(parts[cen.PARTITION_REFUSED]), 1)
+                self.assertEqual(parts[cen.PARTITION_UNOBSERVED], [])
+                self.assertEqual(parts[cen.PARTITION_UNCLASSIFIED], [])
+
+    def test_a_non_answer_lands_in_the_unobserved_pile(self):
+        for cause in sorted(cen.CAUSES_SUBJECT_UNOBSERVED):
+            with self.subTest(cause=cause):
+                parts = cen.partition_unmeasured(
+                    [{"module": "m", "outcome": cen.OUT_UNMEASURED,
+                      "cause": cause}])
+                self.assertEqual(len(parts[cen.PARTITION_UNOBSERVED]), 1)
+                self.assertEqual(parts[cen.PARTITION_REFUSED], [])
+                self.assertEqual(parts[cen.PARTITION_UNCLASSIFIED], [])
+
+    def test_the_budget_causes_are_both_non_answers(self):
+        """Поимённо, а не циклом: бюджет — тот самый класс, ради которого ADR."""
+        parts = cen.partition_unmeasured([
+            {"module": "a", "outcome": cen.OUT_UNMEASURED,
+             "cause": cen.CAUSE_OVER_BUDGET},
+            {"module": "b", "outcome": cen.OUT_UNMEASURED,
+             "cause": cen.CAUSE_OVER_BUDGET_SHORT},
+            {"module": "c", "outcome": cen.OUT_UNMEASURED,
+             "cause": cen.CAUSE_INVARIANT_SHORT_ONLY},
+        ])
+        self.assertEqual(
+            sorted(r["module"] for r in parts[cen.PARTITION_UNOBSERVED]),
+            ["a", "b", "c"])
+
+    def test_an_unknown_cause_is_not_quietly_filed(self):
+        """Умолчание в любую сторону решало бы за замер — поэтому третья куча."""
+        parts = cen.partition_unmeasured(
+            [{"module": "m", "outcome": cen.OUT_UNMEASURED,
+              "cause": "cause_invented_tomorrow"}])
+        self.assertEqual(len(parts[cen.PARTITION_UNCLASSIFIED]), 1)
+        self.assertEqual(parts[cen.PARTITION_REFUSED], [])
+        self.assertEqual(parts[cen.PARTITION_UNOBSERVED], [])
+
+    def test_a_missing_cause_field_is_unclassified_not_a_refusal(self):
+        parts = cen.partition_unmeasured(
+            [{"module": "m", "outcome": cen.OUT_UNMEASURED}])
+        self.assertEqual(len(parts[cen.PARTITION_UNCLASSIFIED]), 1)
+
+    def test_graded_rows_are_ignored_and_nothing_is_lost(self):
+        rows = [
+            {"module": "a", "outcome": cen.OUT_DAY_INVARIANT},
+            {"module": "b", "outcome": cen.OUT_RECORD_SENSITIVE},
+            {"module": "c", "outcome": cen.OUT_UNMEASURED,
+             "cause": cen.CAUSE_WOULD_ACT},
+            {"module": "d", "outcome": cen.OUT_UNMEASURED,
+             "cause": cen.CAUSE_OVER_BUDGET},
+            "не словарь",
+        ]
+        parts = cen.partition_unmeasured(rows)
+        self.assertEqual(sum(len(v) for v in parts.values()), 2)
+        self.assertEqual(parts[cen.PARTITION_REFUSED][0]["module"], "c")
+        self.assertEqual(parts[cen.PARTITION_UNOBSERVED][0]["module"], "d")
+
+    def test_the_real_census_calling_itself_is_a_refusal_not_a_blind_spot(self):
+        """Исход настоящего прибора, а не придуманная строка."""
+        row = cen.classify_reader(cen.__name__, {}, sweepers={}, now=_now())
+        self.assertEqual(row["cause"], CAUSE_SELF)
+        parts = cen.partition_unmeasured([row])
+        self.assertEqual(len(parts[cen.PARTITION_REFUSED]), 1)
+
+    def test_the_report_counts_each_pile_so_a_human_can_read_it(self):
+        """Число читателей каждого класса — ЗАМЕР у артефакта, а не оценка."""
+        now = _now()
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            rows = [_rec(now, back, hour)
+                    for back in (3, 2, 1) for hour in (1, 2)]
+            _write_tape(data, "conservative", rows)
+            doc = cen.measure(data_dir=data, tree_root=Path(tmp),
+                              population=[cen.__name__], now=now,
+                              stand_dest=Path(tmp) / "stands")
+        self.assertTrue(doc.get("measured"), doc.get("reason"))
+        by = doc["unmeasured_by_subject"]
+        self.assertEqual(by[cen.PARTITION_REFUSED], 1)
+        self.assertEqual(by[cen.PARTITION_UNOBSERVED], 0)
+        self.assertEqual(by[cen.PARTITION_UNCLASSIFIED], 0)
+        self.assertEqual(doc["subject_unobserved_readers"], [])
+
+
+class ProbeRefusesAnUnobservedSubject(unittest.TestCase):
+    """Проба критерия: строка «не измерено» судится ПО ПРЕДМЕТУ, а не по факту."""
+
+    def setUp(self) -> None:
+        from spa_core.monitoring import card_acceptance as ca
+        self.ca = ca
+        self.probe = ca.PROBES["ledger_day_unit_census_names_the_unit"]
+        self.now = _now()
+        self.root = str(Path(__file__).resolve().parents[2])
+        roads, _ = cen.reader_population(Path(self.root))
+        self.population = sorted(roads)
+
+    def _report(self, *, cause=None, **over) -> dict:
+        rows = [{"module": m, "outcome": cen.OUT_DAY_INVARIANT}
+                for m in self.population]
+        if cause is not None:
+            rows[0] = {"module": self.population[0],
+                       "outcome": cen.OUT_UNMEASURED, "cause": cause,
+                       "reason": "стенд теста"}
+        doc = {
+            "measured": True,
+            "generated_at": self.now.isoformat(),
+            "factor": 24,
+            "tally": {cen.OUT_DAY_INVARIANT: len(rows)},
+            "readers": rows,
+            "findings": [],
+            "needs_reading": [],
+        }
+        doc.update(over)
+        return doc
+
+    def _verdict(self, **kw):
+        return self.probe(None, now=self.now, repo_root=self.root,
+                          report=self._report(**kw))
+
+    def test_an_unobserved_subject_is_not_a_pass(self):
+        """ДЕФЕКТ ADR-771 дословно: пустые findings + ненаблюдённый предмет."""
+        for cause in sorted(cen.CAUSES_SUBJECT_UNOBSERVED):
+            with self.subTest(cause=cause):
+                verdict, detail = self._verdict(cause=cause)
+                self.assertEqual(verdict, self.ca.UNMEASURED)
+                self.assertNotEqual(verdict, self.ca.SATISFIED)
+                self.assertIn("НЕ НАБЛЮДЁН", detail)
+                self.assertIn(cause, detail)
+                self.assertIn(self.population[0], detail)
+
+    def test_a_deliberate_refusal_keeps_the_criterion_green(self):
+        """Обратная сторона: красный на РЕШЕНИИ учил бы гасить пробу."""
+        for cause in sorted(cen.CAUSES_REFUSED_TO_CALL):
+            with self.subTest(cause=cause):
+                verdict, detail = self._verdict(cause=cause)
+                self.assertEqual(verdict, self.ca.SATISFIED)
+                self.assertIn("по РЕШЕНИЮ", detail)
+                self.assertIn(cause, detail)
+
+    def test_a_cause_the_probe_does_not_know_is_unmeasured_and_loud(self):
+        verdict, detail = self._verdict(cause="cause_invented_tomorrow")
+        self.assertEqual(verdict, self.ca.UNMEASURED)
+        self.assertIn("НЕ НАЗВАНА", detail)
+        self.assertIn("cause_invented_tomorrow", detail)
+
+    def test_a_finding_is_still_judged_first(self):
+        """`not_satisfied` карточку не закрывает — зачитывать здесь нечего."""
+        verdict, detail = self.probe(
+            None, now=self.now, repo_root=self.root,
+            report=self._report(cause=cen.CAUSE_OVER_BUDGET, findings=[{
+                "finding": cen.F_RECORDS_AS_DAYS,
+                "module": "spa_core.paper_trading.cio_brief",
+                "coords": [".balanced.unchanged_days"]}]))
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+        self.assertIn("cio_brief", detail)
+
+    def test_a_clean_report_is_still_green(self):
+        """Ужесточение не имеет права красить исправный контур."""
+        verdict, _ = self._verdict()
+        self.assertEqual(verdict, self.ca.SATISFIED)
+
+    def test_the_green_detail_counts_the_refusals(self):
+        verdict, detail = self._verdict(cause=cen.CAUSE_WOULD_ACT)
+        self.assertEqual(verdict, self.ca.SATISFIED)
+        self.assertIn("не позваны по РЕШЕНИЮ 1", detail)
+
+
+class MetaProbeMeasuresTheOutcomeNotThePartition(unittest.TestCase):
+    """Проба карточки ADR-771: она зовёт НАСТОЯЩУЮ пробу, а не читает исходник.
+
+    Каждый тест рвёт РОВНО одно звено и называет его. Поддельная проба-под-ней
+    воспроизводит ДОСОБЫТИЙНОЕ поведение (зелено при пустых `findings`), то
+    есть ровно дефект, найденный циклом #883.
+    """
+
+    def setUp(self) -> None:
+        from spa_core.monitoring import card_acceptance as ca
+        self.ca = ca
+        self.name = "census_probe_refuses_unobserved_subject"
+        self.under = "ledger_day_unit_census_names_the_unit"
+        self.probe = ca.PROBES[self.name]
+        self.now = _now()
+        self.root = str(Path(__file__).resolve().parents[2])
+
+    def _swap(self, fake):
+        """Подменить пробу-под-ней на время одного утверждения."""
+        saved = self.ca.PROBES[self.under]
+        self.ca.PROBES[self.under] = fake
+        self.addCleanup(lambda: self.ca.PROBES.__setitem__(self.under, saved))
+
+    def _run(self):
+        return self.probe(None, now=self.now, repo_root=self.root)
+
+    def test_registered_in_the_registry_so_the_queue_accepts_it(self):
+        self.assertIn(self.name, self.ca.PROBES)
+
+    def test_whole_circuit_is_satisfied(self):
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.SATISFIED)
+        self.assertIn("неответ на предмете ⇒ unmeasured", detail)
+        self.assertIn("осознанный отказ звать ⇒ satisfied", detail)
+
+    def test_the_probe_takes_no_argument(self):
+        verdict, detail = self.probe("spa_core", now=self.now,
+                                     repo_root=self.root)
+        self.assertEqual(verdict, self.ca.UNMEASURED)
+        self.assertIn("не принимает аргумента", detail)
+
+    def test_red_when_an_unobserved_subject_passes_again(self):
+        """Порванное звено №1 — дословный дефект ADR-771."""
+        def pre_adr_770(arg, *, now=None, repo_root=None, data_dir=None,
+                        report=None):
+            if (report or {}).get("findings"):
+                return self.ca.NOT_SATISFIED, "находка"
+            return self.ca.SATISFIED, "строка есть — значит оценено"
+        self._swap(pre_adr_770)
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+        self.assertIn("неответ на предмете", detail)
+        self.assertIn(cen.CAUSE_OVER_BUDGET, detail)
+
+    def test_red_when_blindness_is_dressed_up_as_a_finding(self):
+        """Порванное звено №1б: инв. #17 НАИЗНАНКУ — «не зелёный» зачёл бы его.
+
+        О читателе утверждался бы дефект, которого никто не наблюдал. Поэтому
+        мета-проба сверяет исход ПОИМЁННО, а не как «зелёный / не зелёный».
+        """
+        def blindness_is_a_finding(arg, *, now=None, repo_root=None,
+                                   data_dir=None, report=None):
+            rows = (report or {}).get("readers") or []
+            parts = cen.partition_unmeasured(rows)
+            if parts[cen.PARTITION_UNCLASSIFIED]:
+                return self.ca.UNMEASURED, "причина НЕ НАЗВАНА"
+            if parts[cen.PARTITION_UNOBSERVED]:
+                return self.ca.NOT_SATISFIED, "предмет НЕ НАБЛЮДЁН"
+            return self.ca.SATISFIED, "чисто"
+        self._swap(blindness_is_a_finding)
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+        self.assertIn("неответ на предмете", detail)
+        self.assertIn(self.ca.UNMEASURED, detail)
+
+    def test_red_when_a_deliberate_refusal_turns_the_criterion_red(self):
+        """Порванное звено №2 — ложный красный, который учит гасить пробу."""
+        def every_row_is_blindness(arg, *, now=None, repo_root=None,
+                                   data_dir=None, report=None):
+            rows = (report or {}).get("readers") or []
+            if any(r.get("outcome") == cen.OUT_UNMEASURED for r in rows):
+                return self.ca.UNMEASURED, "любая строка — слепота"
+            return self.ca.SATISFIED, "чисто"
+        self._swap(every_row_is_blindness)
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+        self.assertIn("осознанный отказ звать", detail)
+
+    def test_red_when_an_unknown_cause_is_filed_by_default(self):
+        """Порванное звено №3 — новая причина уходит в кучу молча."""
+        def unknown_counts_as_refusal(arg, *, now=None, repo_root=None,
+                                      data_dir=None, report=None):
+            rows = (report or {}).get("readers") or []
+            blind = [r for r in rows
+                     if r.get("outcome") == cen.OUT_UNMEASURED
+                     and r.get("cause") in cen.CAUSES_SUBJECT_UNOBSERVED]
+            if blind:
+                return self.ca.UNMEASURED, "предмет НЕ НАБЛЮДЁН"
+            return self.ca.SATISFIED, "чисто"
+        self._swap(unknown_counts_as_refusal)
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+        self.assertIn("причина, неизвестная пробе", detail)
+
+    def test_unmeasured_when_the_control_report_is_not_green(self):
+        """Третий исход: на таком стенде вердикты не относятся к причине строки."""
+        def never_green(arg, *, now=None, repo_root=None, data_dir=None,
+                        report=None):
+            return self.ca.UNMEASURED, "всегда не измерено"
+        self._swap(never_green)
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.UNMEASURED)
+        self.assertIn("контрольный отчёт", detail)
+
+    def test_unmeasured_when_the_probe_under_test_is_absent(self):
+        saved = self.ca.PROBES.pop(self.under)
+        self.addCleanup(lambda: self.ca.PROBES.__setitem__(self.under, saved))
+        verdict, detail = self._run()
+        self.assertEqual(verdict, self.ca.UNMEASURED)
+        self.assertIn("в реестре нет", detail)
+
+    def test_prose_alone_never_passes_the_probe(self):
+        """ADR-333: вердикт берётся ЗНАЧЕНИЕМ, а не подстрокой в тексте."""
+        def prose_only(arg, *, now=None, repo_root=None, data_dir=None,
+                       report=None):
+            return self.ca.SATISFIED, (
+                "предмет НЕ НАБЛЮДЁН, причина НЕ НАЗВАНА, по РЕШЕНИЮ — "
+                "все нужные слова здесь есть")
+        self._swap(prose_only)
+        verdict, _ = self._run()
+        self.assertEqual(verdict, self.ca.NOT_SATISFIED)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

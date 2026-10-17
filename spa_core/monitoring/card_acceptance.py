@@ -4461,15 +4461,42 @@ def _probe_ledger_day_unit_census_names_the_unit(
     сделать пробу fail-OPEN ровно там, где она нужна. Член живого населения без
     строки в отчёте — `unmeasured` с ИМЕНЕМ.
 
+    **Строка в отчёте — ещё не исход (ADR-771, заказ G767 п. 3).** До этой
+    правки проба спрашивала только «есть ли у члена населения строка», и строка
+    с `outcome="unmeasured"` проходила у неё как оценённая: при пустых
+    `findings` критерий возвращал `satisfied` при любом числе читателей, у
+    которых предмет не наблюдён ВОВСЕ. Теперь строки `unmeasured` разложены по
+    ПРЕДМЕТУ (:func:`~spa_core.monitoring.ledger_day_unit_census.partition_unmeasured`),
+    и две кучи решают по-разному:
+
+    * **отказ ЗВАТЬ** (`sweeps_a_reader_population`, `entry_would_act`,
+      `the_instrument_itself`) критерий зелёным оставляет: точка входа есть, не
+      приводится она по РЕШЕНИЮ, решение названо. Равнять осознанный отказ с
+      неответом было бы ложным красным, который учит гасить пробу;
+    * **неответ НА ПРЕДМЕТЕ** (бюджет — в том числе на урезанном окне, упавший
+      импорт, плывущие координаты, непривёденная точка входа, непостроенный
+      стенд) делает критерий `unmeasured`: что читатель ответил бы, не
+      наблюдено, и «записи не считаются как дни» о нём НЕ СКАЗАНО.
+
+    Причина, не названная ни одной из куч, — тоже `unmeasured`, и громко:
+    словарь пробы отстал от прибора, а отнести строку к куче по умолчанию
+    значило бы решить за замер (в одну сторону — fail-OPEN, в другую — ложный
+    красный).
+
     Три исхода разведены:
 
-    * `satisfied` — у каждого члена населения есть исход, и ни одна координата
-      с именем дня не движется от плотности;
+    * `satisfied` — у каждого члена населения есть исход, предмет наблюдён у
+      каждого, кого прибор звал, и ни одна координата с именем дня не движется
+      от плотности;
     * `not_satisfied` — есть НАЗВАННЫЙ читатель, считающий записи под словом
-      «день» (это находка; гасить её сужением имени координаты запрещено);
+      «день» (это находка; гасить её сужением имени координаты запрещено).
+      Находка судится ПЕРВОЙ и слепотой не затирается: `not_satisfied` карточку
+      не закрывает, поэтому зачесть здесь нечего, а названный дефект лучше
+      перемеренного молчания;
     * `unmeasured` — артефакта нет / он старше предела / население расширилось
-      после замера / перепись не измерила. «Не измерено» не выдаётся ни за
-      находку, ни за разрешение закрыть карточку (инв. #17).
+      после замера / перепись не измерила / предмет не наблюдён у члена
+      населения / причина неответа неизвестна пробе. «Не измерено» не выдаётся
+      ни за находку, ни за разрешение закрыть карточку (инв. #17).
 
     Часы, корень дерева, каталог данных и сам отчёт — ВХОДЫ, не окружение:
     иначе красную сторону проверки закрепить нечем.
@@ -4536,12 +4563,154 @@ def _probe_ledger_day_unit_census_names_the_unit(
                                           ", ".join(f.get("coords") or []))
                         for f in findings[:4])
             + f" · {shape}")
+
+    # Строка `unmeasured` ПОСТРОЧНО — не зачёт (ADR-771, заказ G767 п. 3).
+    # Деление по ПРЕДМЕТУ объявлено у самих причин (`census.CAUSES_*`), а не
+    # пересказано здесь: одна копия правила, и новая причина добавляется там же,
+    # где живёт её смысл.
+    parts = census.partition_unmeasured(report.get("readers") or [])
+    unknown = parts[census.PARTITION_UNCLASSIFIED]
+    if unknown:
+        return UNMEASURED, (
+            "у {} строк(и) переписи причина `unmeasured` НЕ НАЗВАНА ни отказом "
+            "звать, ни неответом на предмете: ".format(len(unknown))
+            + ", ".join("{}::{}".format(r.get("module"), r.get("cause"))
+                        for r in unknown[:4])
+            + " — словарь пробы отстал от прибора, и отнести строку к любой из "
+              f"куч по умолчанию значило бы решить за замер · {shape}")
+    blind = parts[census.PARTITION_UNOBSERVED]
+    if blind:
+        return UNMEASURED, (
+            "предмет НЕ НАБЛЮДЁН у {} читател(я/ей) — «записи не считаются как "
+            "дни» о них не сказано, сказано «судить было нечем»: ".format(len(blind))
+            + "; ".join("{} :: {}".format(r.get("module"), r.get("cause"))
+                        for r in blind[:4])
+            + " · отказов звать (решение, а не слепота): "
+            + str(len(parts[census.PARTITION_REFUSED]))
+            + f" · {shape}")
+
     reading = report.get("needs_reading") or []
     tail = ("" if not reading else
             f"; чувствительны к плотности, но единицу не назвали {len(reading)} "
             f"(перечень к чтению, не находка)")
+    refused = parts[census.PARTITION_REFUSED]
+    tail += ("" if not refused else
+             f"; не позваны по РЕШЕНИЮ {len(refused)} "
+             f"({', '.join(sorted({str(r.get('cause')) for r in refused}))}) — "
+             f"осознанный отказ, а не неответ")
     return SATISFIED, ("ни одна координата с именем дня не движется от плотности "
                        f"записей; {shape}{tail}")
+
+
+def _probe_census_probe_refuses_unobserved_subject(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: зелёный критерий переписи НЕВОЗМОЖЕН при ненаблюдённом предмете.
+
+    Предмет — карточка `inbox-proba-perepisi-schitaet-postrochnoe-ne-i`
+    (заказ G767 п. 3 приказа «Portfolio CIO», ADR-771). Дефект был fail-OPEN:
+    проба `ledger_day_unit_census_names_the_unit` считала строку с
+    `outcome="unmeasured"` оценённой, и при пустых `findings` возвращала
+    `satisfied` при любом числе читателей, у которых предмет не наблюдён вовсе.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни имени
+    кучи, ни `partition_unmeasured`: она ЗОВЁТ настоящую пробу переписи на
+    настоящем живом населении тремя отчётами, различающимися РОВНО причиной
+    одной строки, и сверяет три вердикта. Подстрокой в прозе она не проходит
+    (ADR-333) — вердикт берётся значением, а не текстом.
+
+    Контроль в обе стороны лежит внутри самой проверки, а не рядом с ней:
+
+    * неответ на предмете (`entry_exceeded_budget`) ⇒ критерий `unmeasured` —
+      порви это звено, и вернётся ровно дефект ADR-771;
+    * осознанный отказ звать (`entry_would_act`) ⇒ критерий `satisfied` —
+      порви это звено, и критерий покраснеет на РЕШЕНИИ, что учит гасить пробу
+      (`.claude/rules/acceptance.md` §3);
+    * причина, не названная ни одной кучей ⇒ критерий `unmeasured` — порви, и
+      новая причина молча попадёт в кучу по умолчанию.
+
+    Исход сверяется ПОИМЁННО, а не как «зелёный / не зелёный»: неответ,
+    объявленный НАХОДКОЙ, — тот же инвариант #17 наизнанку (о читателе
+    утверждается дефект, которого никто не наблюдал), и «не зелёный» зачёл бы
+    эту подмену.
+
+    Часы и корень дерева — ВХОДЫ, не окружение.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — поведение пробы переписи, пофайловой "
+                            "формы у него нет")
+    try:
+        from spa_core.monitoring import ledger_day_unit_census as census
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+    under = PROBES.get("ledger_day_unit_census_names_the_unit")
+    if under is None:
+        return UNMEASURED, ("пробы `ledger_day_unit_census_names_the_unit` в "
+                            "реестре нет — предмет этой проверки отсутствует")
+
+    root = repo_root or REPO_ROOT
+    moment = now or datetime.now(timezone.utc)
+    try:
+        roads, _stats = census.reader_population(_pathlib.Path(root))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"население живого дерева не разобрано: "
+                            f"{type(exc).__name__}: {exc}")
+    names = sorted(roads)
+    if len(names) < 2:
+        return UNMEASURED, (f"населения мало ({len(names)}): отчёт, где ОДНА "
+                            "строка отличается причиной, на нём не построить")
+
+    def _with(cause: str | None) -> dict:
+        """Отчёт, чистый во всём, кроме причины у ОДНОГО читателя."""
+        rows = [{"module": m, "outcome": census.OUT_DAY_INVARIANT}
+                for m in names]
+        if cause is not None:
+            rows[0] = {"module": names[0], "outcome": census.OUT_UNMEASURED,
+                       "cause": cause, "reason": "стенд проверки"}
+        return {"measured": True, "generated_at": moment.isoformat(),
+                "factor": 24,
+                "tally": {census.OUT_DAY_INVARIANT: len(rows)},
+                "readers": rows, "findings": [], "needs_reading": []}
+
+    # Нулевая проба: без единой строки `unmeasured` контур обязан быть зелёным.
+    # Без неё красный на любом из трёх стендов нельзя было бы отнести к причине
+    # строки — он мог бы приходить от самого отчёта.
+    base, base_detail = under(None, now=moment, repo_root=root,
+                              report=_with(None))
+    if base != SATISFIED:
+        return UNMEASURED, ("контрольный отчёт БЕЗ строк «не измерено» не зелен "
+                            f"({base}): {base_detail} — на таком стенде вердикты "
+                            "трёх проб не относятся к причине строки")
+
+    # Вердикт сверяется ТОЧНО, а не «зелёный / не зелёный». Неответ, названный
+    # НАХОДКОЙ (`not_satisfied`), — тот же инв. #17, только наизнанку: о
+    # читателе утверждается дефект, которого никто не наблюдал. «Не зелёный» на
+    # этом месте зачёл бы такую подмену, поэтому ожидаемый исход назван
+    # поимённо.
+    checks = (
+        ("неответ на предмете", census.CAUSE_OVER_BUDGET, UNMEASURED),
+        ("осознанный отказ звать", census.CAUSE_WOULD_ACT, SATISFIED),
+        ("причина, неизвестная пробе",
+         "cause_that_no_pile_names_yet", UNMEASURED),
+    )
+    broken: list[str] = []
+    seen: list[str] = []
+    for label, cause, want in checks:
+        verdict, detail = under(None, now=moment, repo_root=root,
+                                report=_with(cause))
+        seen.append(f"{label} ⇒ {verdict}")
+        if verdict != want:
+            broken.append(
+                "{} ({}): критерий {}, а обязан был быть {} — {}".format(
+                    label, cause, verdict, want, detail[:160]))
+    shape = "население {} · ".format(len(names)) + " · ".join(seen)
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken) + f" · {shape}"
+    return SATISFIED, ("строка «не измерено» судится ПО ПРЕДМЕТУ: неответ "
+                       "критерий зелёным не оставляет, осознанный отказ "
+                       "краснеть не заставляет, незнакомая причина названа "
+                       f"вслух; {shape}")
 
 
 #: Предел возраста записи прогона для пробы `no_regression_tests_pass`.
@@ -9820,6 +9989,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_shadow_brief_names_the_unweighed_hold,
     "ledger_day_unit_census_names_the_unit":
         _probe_ledger_day_unit_census_names_the_unit,
+    "census_probe_refuses_unobserved_subject":
+        _probe_census_probe_refuses_unobserved_subject,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

@@ -92,9 +92,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from spa_core.monitoring.run_identity_key_price import (
+    CAUSE_CLI_ONLY,
     CAUSE_ENTRY_RAISED,
+    CAUSE_HTTP_ROUTE,
     CAUSE_IMPORT_FAILED,
+    CAUSE_NO_ENTRY,
     CAUSE_RESTS_ON_UNSTABLE,
+    CAUSE_RUN_NO_WRITE_SWITCH,
     CAUSE_SELF,
     CAUSE_WOULD_ACT,
     CLOCK_FIELDS,
@@ -111,6 +115,7 @@ from spa_core.monitoring.run_identity_key_price import (
 from spa_core.monitoring.timeout_door_census import is_foreign_failure
 from spa_core.paper_trading.allocation_rationale import history_filename, run_identity
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.observation import observed
 
 VERSION = "ledger-day-unit-census-v1"
 
@@ -239,6 +244,97 @@ CAUSE_SHORT_STAND_ABSENT = "short_window_stand_not_built"
 #: что безбюджетный зов и зов под бюджетом — разные наблюдения, и выдать первый
 #: за второй значило бы соврать о том, что прогон ограничен.
 BUDGET_NOT_INSTALLED = "budget_not_installable_off_main_thread"
+
+
+# ── ПРИЧИНЫ `unmeasured` ДЕЛЯТСЯ ПО ПРЕДМЕТУ (ADR-771, заказ G767 п. 3) ──────
+#
+# Строка `unmeasured` отвечает на вопрос «почему исхода нет», и ответы на него
+# суть ДВА РАЗНЫХ утверждения. Сложить их в одно — значит либо зачесть слепоту,
+# либо покрасить решение; поэтому они разведены здесь, рядом с самими
+# причинами, а не у читателя: новая причина добавляется в этом файле, и автор
+# видит обе кучи сразу.
+#
+# * **ОТКАЗ ЗВАТЬ.** Точка входа ЕСТЬ, и прибор намеренно её не приводит: зов
+#   поднял бы перепись внутри переписи, подвинул бы живое состояние или позвал
+#   бы сам прибор изнутри своего прогона. Про единицу у читателя это не
+#   говорит ничего — но и не скрывает ничего: решение принято, названо и
+#   воспроизводимо. Критерий от такой строки краснеть НЕ ВПРАВЕ: ложный
+#   красный учит гасить пробу (`.claude/rules/acceptance.md` §3).
+# * **НЕОТВЕТ НА ПРЕДМЕТЕ.** Прибор звал или мог бы позвать — и ответа не
+#   получил: импорт упал, зов вышел за бюджет (в том числе и на урезанном
+#   окне), вердикт лёг на плывущие координаты, стенд не построился, точку входа
+#   не удалось привести. Что читатель ответил бы, НЕ НАБЛЮДЕНО. Зачесть такую
+#   строку значило бы выдать «не измерено» за ответ — инв. #17 наизнанку, и
+#   fail-OPEN тише красного теста, поэтому опаснее.
+
+#: Отказы ЗВАТЬ. Критерий остаётся зелёным — предмет не наблюдён по РЕШЕНИЮ,
+#: и решение названо.
+CAUSES_REFUSED_TO_CALL: frozenset = frozenset({
+    CAUSE_SELF,
+    CAUSE_SWEEPS_POPULATION,
+    CAUSE_WOULD_ACT,
+})
+
+#: Неответы НА ПРЕДМЕТЕ. Критерий зелёным быть не вправе: ответа нет.
+#: `CAUSE_INVARIANT_SHORT_ONLY` здесь не по ошибке — «не сдвинулось на 7 днях»
+#: не есть «не сдвинется на 45» (см. её собственную сноску выше), и зачесть её
+#: значило бы выдать урезанное наблюдение за полное.
+CAUSES_SUBJECT_UNOBSERVED: frozenset = frozenset({
+    CAUSE_IMPORT_FAILED,
+    CAUSE_ENTRY_RAISED,
+    CAUSE_RESTS_ON_UNSTABLE,
+    CAUSE_OVER_BUDGET,
+    CAUSE_OVER_BUDGET_SHORT,
+    CAUSE_INVARIANT_SHORT_ONLY,
+    CAUSE_SHORT_STAND_ABSENT,
+    CAUSE_NO_STANDS,
+    CAUSE_NO_ENTRY,
+    CAUSE_HTTP_ROUTE,
+    CAUSE_RUN_NO_WRITE_SWITCH,
+    CAUSE_CLI_ONLY,
+})
+
+#: Третья куча — строка, чья причина НЕ НАЗВАНА ни одной из двух сторон.
+#: Существует затем, чтобы НОВАЯ причина не попадала молча в кучу по умолчанию:
+#: умолчание в сторону отказа было бы fail-OPEN (ровно дефект, против которого
+#: написан ADR-771), умолчание в сторону неответа — ложным красным. Поэтому
+#: незнакомая причина есть «не измерено» У САМОГО ЧИТАТЕЛЯ строки, и он обязан
+#: сказать это вслух.
+PARTITION_UNCLASSIFIED = "unclassified"
+PARTITION_REFUSED = "refused_to_call"
+PARTITION_UNOBSERVED = "subject_unobserved"
+
+
+def partition_unmeasured(rows: Sequence[dict]) -> Dict[str, List[dict]]:
+    """Разложить строки `unmeasured` по ПРЕДМЕТУ — на три кучи, не на две.
+
+    Вход — `readers` отчёта переписи (строки с любым исходом; не-`unmeasured`
+    пропускаются), и он ОБЯЗАТЕЛЕН: умолчания в виде пустой последовательности
+    у него нет намеренно, иначе «список читателей не прочитан» стало бы
+    неотличимо от «ни один читатель не остался без исхода» (инв. #17).
+    Выход — три списка под ключами `PARTITION_*`; пустые остаются пустыми, и ни
+    одна строка не теряется и не удваивается.
+
+    Функция НЕ судит, хорошо это или плохо: она только называет, о чём строка.
+    Решение «что краснит критерий» принимает читатель (проба приёмки
+    `ledger_day_unit_census_names_the_unit`), и принимает он его по этим
+    именам, а не по подстроке в поле `reason`.
+    """
+    out: Dict[str, List[dict]] = {
+        PARTITION_REFUSED: [], PARTITION_UNOBSERVED: [],
+        PARTITION_UNCLASSIFIED: [],
+    }
+    for row in rows:
+        if not isinstance(row, dict) or str(row.get("outcome")) != OUT_UNMEASURED:
+            continue
+        cause = str(row.get("cause"))
+        if cause in CAUSES_REFUSED_TO_CALL:
+            out[PARTITION_REFUSED].append(row)
+        elif cause in CAUSES_SUBJECT_UNOBSERVED:
+            out[PARTITION_UNOBSERVED].append(row)
+        else:
+            out[PARTITION_UNCLASSIFIED].append(row)
+    return out
 
 
 class _OverBudget(BaseException):
@@ -909,6 +1005,16 @@ def measure(data_dir: Path, tree_root: Path, *,
     causes: "collections.Counter[str]" = collections.Counter(
         str(r.get("cause")) for r in rows_out if r["outcome"] == OUT_UNMEASURED)
     doc["unmeasured_causes"] = dict(sorted(causes.items()))
+    # Сколько читателей в каждой куче — ЗАМЕР у артефакта, а не оценка
+    # (ADR-771, заказ G767 п. 3): отказ звать и неответ на предмете печатались
+    # одним числом `unmeasured`, и прочитать их по отдельности было нечем.
+    parts = partition_unmeasured(rows_out)
+    doc["unmeasured_by_subject"] = {k: len(v) for k, v in sorted(parts.items())}
+    doc["subject_unobserved_readers"] = sorted(
+        str(r.get("module")) for r in parts[PARTITION_UNOBSERVED])
+    doc["unclassified_cause_readers"] = sorted(
+        "{}::{}".format(r.get("module"), r.get("cause"))
+        for r in parts[PARTITION_UNCLASSIFIED])
 
     findings = [
         {"finding": F_RECORDS_AS_DAYS, "module": r["module"],
@@ -1010,8 +1116,18 @@ def format_report(doc: dict) -> List[str]:
             out.append(f"  урезанное окно {rescue.get('short_window_days')} дн: "
                        f"перемерено {attempted} · получили ОТВЕТ "
                        f"{rescue.get('answered', 0)}")
-            still = rescue.get("still_unmeasured") or {}
-            if still:
+            # Инв. #17: «итога перемера в отчёте НЕТ» и «после перемера не
+            # осталось ни одного неответа» — разные наблюдения, и подстановка
+            # пустого словаря делала их неотличимыми. Красный храповик
+            # `test_absent_observation_ratchet.py` указывал ровно на эту строку:
+            # замер на `origin/main` 344d10d7a (цикл-44664) и ПЕРЕМЕР на
+            # f0f1ce803 (цикл #886) — оба `3 failed, 17 passed`, координата
+            # `ledger_day_unit_census.py:1013:b0bfd9393e7a#0` (ADR-771).
+            still = observed(rescue, "still_unmeasured", kind=dict)
+            if still is None:
+                out.append("     осталось «не измерено»: НЕ ИЗМЕРЕНО — "
+                           "перемер шёл, а его итог в отчёт не попал")
+            elif still:
                 out.append("     осталось «не измерено»: "
                            + " · ".join(f"{k} {v}" for k, v in still.items()))
             found = rescue.get("findings_on_short_window") or []
