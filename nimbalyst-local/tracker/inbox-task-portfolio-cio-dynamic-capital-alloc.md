@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-24290
-claimed_at: 2026-10-17T11:58:52Z
-claimed_run_id: orchestrator-24290-BBB4FF14533C44F3A01CEED62D91D242
-claimed_pid: 24290
-claimed_pid_start: Sat Oct 17 13:42:02 2026
-claim_takeover_reason: шаг 0a-ГОЛОД требует взять приказ первым (in-progress 1355.7ч, мимо 749 циклов). Вердикт stale перемерен независимо от отчёта: живых agent_orchestrator.sh на хосте ОДИН — мой (pid 24290, старт Sat Oct 17 13:42:02), pytest-прогонов ноль, прежний держатель cycle-52126 снял захват 2026-10-17T10:39:14Z. Наследство #889 сверено ЗАМЕРОМ: md5 push_to_github.py в дереве = cc29a67b… = эталон, объявленный в ADR-773; все пять осиротевших копий карточки (c876/c879/c885/c886/clean885) МЕНЬШЕ origin и их уникальные строки перекрыты записями #886/#887 — поднимать нечего. Приказ стоячий (инв. #14), статус in-progress не меняю
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
