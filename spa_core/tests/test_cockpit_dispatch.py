@@ -16,6 +16,8 @@
 
 # LLM_FORBIDDEN
 """
+# FROZEN-DATE-OK: injected-clock — NOW передаётся в cd.dispatch/settle/rewake/claim_card/mi.submit/run_note_intake через now=/at=
+
 from __future__ import annotations
 
 import importlib.util
@@ -38,7 +40,8 @@ from spa_core.owner_queue import intake as oi
 from spa_core.owner_queue import queue as q
 from spa_core.studio_os import mission_intake as mi
 
-NOW = datetime.now(timezone.utc).replace(microsecond=0)
+# Время — ВХОД сцены, а не стенные часы на импорте (test_no_import_time_clock_in_tests): все вызовы получают now=NOW.
+NOW = datetime(2026, 10, 16, 12, 0, 0, tzinfo=timezone.utc)
 START = (NOW - timedelta(hours=2)).strftime("%a %b %d %H:%M:%S %Y")
 SPEC = "contract_manifest_parity_agrees"      # имя из реестра; исход задаёт runner сцены
 _REPO = Path(__file__).resolve().parents[2]
